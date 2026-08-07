@@ -245,14 +245,19 @@ schema/recorder outcome, historical transition, failure/not-started, fault point
 mixed/empty state mutation을 각각 검증합니다. Static fixture는 ordered 10 mismatch이며
 product `godjcheck`는 exit 2/no actual output입니다.
 
-현재 `make godj-conformance`는 기존 다섯 adapter 57개만 0-diff로 실행합니다. Sixth set은
-10 `oracle_locked`이고 총 reference 67개를 제품 pass로 세지 않습니다. 상세 증거는
+GDJ-0011 완료 당시 `make godj-conformance`는 기존 다섯 adapter 57개만 0-diff로
+실행했고 sixth set 10개는 `oracle_locked`였습니다. 당시 증거는
 [EVID-20260808-010](status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts)에
-기록합니다. GDJ-0012의 proposed product harness도 reference oracle/core comparator를
-완화하지 않고 6 same + 4 atomic-reverse deviation 후보를 별도
-`godj-migration-execution-deviation-expected.json`으로 검증해야 합니다. Reference
-manifest의 Django phase는 유지하고 effective product phase는 fail-closed harness 안에서만
-적용합니다.
+기록합니다. GDJ-0012는 reference oracle/core comparator를 완화하지 않고 6 exact
+`passing`과 4 atomic-reverse `deviation`을 별도
+`godj-migration-execution-deviation-expected.json`으로 검증합니다. Reference manifest의
+Django phase는 유지하고 effective product phase는 code-owned selector policy와
+fail-closed harness 안에서만 적용합니다. Missing/extra/unregistered change, 잘못된
+status/provenance 또는 fixture 누락은 actual을 쓰기 전에 exit 2로 실패해야 합니다.
+현재 `make godj-conformance`는 여섯 제품 set의 67개를 실행하지만 결과는
+`63 passing + 4 deviation`으로 구분해 보고합니다. 상세 제품 증거는
+[EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
+기록합니다.
 
 ## 기능별 기본 테스트 요구
 

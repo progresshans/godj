@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-010
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-011
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1008,3 +1008,94 @@ fault point와 schema/record split, MIG-025 preserved state, MIG-026 empty/recor
 각각 변형했을 때 mismatch를 탐지했습니다. Raw trace에서 compact facts가 유도되는지와
 setup/cleanup isolation도 live Python test로 검증했습니다. 최종 독립 contract 감사에서
 P0–P3 finding은 없었습니다.
+
+## EVID-20260808-011 — GDJ-0012 Migration Plan Execution Orchestrator and Atomic Reverse
+
+- Date/time: 2026-08-08T08:09:04+09:00
+- Work/contract IDs: GDJ-0012, MIG-017..MIG-026, Q-012, DEV-0001
+- Checkout/commit: 제품·machine implementation은 clean `main` commit
+  `3bcd25ce557cfddc2d73652f9154b6db0fd0b065`; 이 evidence와 status/ADR/GDJ-0013
+  handoff는 바로 다음 문서 commit에 포함
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  modernc.org/sqlite v1.56.0 / SQLite 3.53.3; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: `make check`, uncached full Go/race/CGO=0/vet, generation check,
+  focused repetition/race, six-set conformance, exact oracle checks, two-process actual과
+  독립 core/conformance 감사가 0
+- Result summary: `Executor.ExecutePlan`의 full preflight, migration별 commit,
+  first-failure stop/last durable state, cancellation과 empty no-op를 구현했습니다. SQLite는
+  empty table의 no-default non-null non-PK AddField와 reverse RemoveField를 좁게 지원합니다.
+  MIG-017/019/021/023/025/026은 Django와 exact `passing`,
+  MIG-018/020/022/024는 ADR-0014/DEV-0001의 same-transaction reverse `deviation`으로
+  검증됐습니다. 현재 제품 분류는 `63 passing + 4 deviation`입니다.
+- Failures/skips: 예상하지 않은 최종 실패 없음. Portable Python은 79 pass와 exact-only
+  7 skip, exact Python은 79 pass였습니다. Core 독립 감사가 발견한 state preflight 중
+  cancellation→Begin race는 backend I/O 직전 context 재검사와 Apply/Unapply 회귀 test로
+  수정한 뒤 재감사 PASS했습니다. GitHub-hosted workflow는 push하지 않아 실행하지
+  않았습니다.
+- Artifacts: approved manifest 9,120 bytes SHA-256
+  `1857dcf375ed09f8566798ce662c72a86ef41706e478eef6f208077b156886e9`; locked Django
+  oracle 47,119 bytes SHA-256
+  `641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e`; static fixture
+  1,685 bytes SHA-256
+  `6416e6e9a854d78b94d4242e6ffd1ed3a72caf3c058e0d9c4a78b0690e1a7a04`; sparse deviation
+  expectation 4,685 bytes SHA-256
+  `568495ed3dc5e6f3760c28f1c61c40dc54a63483c5b9c11283bf7ae5a8ac7547`
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+go run ./internal/cmd/m1generate -check
+go test -count=20 -shuffle=on ./migrations
+go test -race -count=10 -shuffle=on ./migrations
+git diff --check
+```
+
+`make check`는 generation, full Go/vet/race, focused CGO=0, portable/exact Python 79개,
+여섯 oracle/static validation과 여섯 product conformance를 실행했습니다. 기존 다섯 set의
+57 exact 결과는 유지됐고 execution set은 다음과 같이 별도 reviewed expectation으로
+실행됐습니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-execution-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json \
+  -deviation-expected conformance/fixtures/godj-migration-execution-deviation-expected.json \
+  -actual-output /tmp/godj-execution-actual.9aDsQX/first.json
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-execution-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json \
+  -deviation-expected conformance/fixtures/godj-migration-execution-deviation-expected.json \
+  -actual-output /tmp/godj-execution-actual.9aDsQX/second.json
+cmp /tmp/godj-execution-actual.9aDsQX/first.json \
+  /tmp/godj-execution-actual.9aDsQX/second.json
+```
+
+두 actual은 각각 47,446 bytes, SHA-256
+`f191d116cc38194e2019df358c31f752101fdacb005d9cc442b701d8d4afde4b`로
+byte-identical했습니다. Django oracle과 byte identity를 주장하지 않으며, 원 manifest로
+reference oracle을 strict self-compare한 뒤 code-owned DEV-0001 selector가 허용한 차이만
+적용한 product expectation과 protocol 의미상 10개 0-diff입니다.
+
+Manifest는 6 `passing` + 4 `deviation`이고 deviation 네 개에만 정확히 하나의
+`decision=DEV-0001`, `derived=false` provenance가 있습니다. Missing/wrong expectation,
+등록되지 않은 selector, 잘못된 status/provenance는 실제 binary에서 exit 2, stdout 0,
+actual file 미생성으로 검증했습니다. Core comparator는 변경된 dimension을 skip하지
+않습니다. Static fixture는 계속 MIG-017..026 ordered `not_implemented` mismatch 10개와
+exit 1을 내며, 30 ordered cross-binding도 모두 거부됩니다.
+
+GoDj adapter는 live `ExecutePlan`, SQLite schema/recorder snapshot과 transaction trace에서
+observation을 만듭니다. Trace는 계획 prefix/order, operation/recorder boundary,
+commit XOR rollback, failure 뒤 추가 transaction 부재를 내부 검증합니다. 독립 mutation
+감사는 caller input snapshot, nonempty AddField gate, reverse RemoveField capability,
+fixture dependency/result/error propagation과 deviation selector를 변형했을 때 회귀가
+실패하는지 확인했습니다. 최종 core와 conformance 감사 모두 P0–P3 finding 없음으로
+종료했습니다.

@@ -11,7 +11,7 @@
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0012/public CLI 전 | ADR-0010 executor와 ADR-0013 planner, MIG-005..016 제품 검증, MIG-017..026 reference 잠금 완료; ExecutePlan/atomic reverse는 Proposed이고 file ABI/data callback/lock은 계속 open |
+| Q-012 | Partial | GDJ-0013/public CLI 전 | ADR-0010 executor, ADR-0013 planner와 ADR-0014 ExecutePlan/atomic reverse까지 검증; recorder read/restart planning, file ABI/data callback/lock은 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -101,12 +101,17 @@ exact set으로 잠갔습니다. Django backward의 `schema_then_record` 때문�
 세 계약의 transaction model과 recorder failure 한 계약의 DB state/phase가 GoDj 기존
 same-transaction reverse와 다릅니다.
 
-현재 [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md)는 full zero-I/O
+완료된 [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md)는 full zero-I/O
 preflight, migration별 existing Apply/Unapply commit과 last durable state를 가진 최소
-`ExecutePlan` 후보를 구현합니다. Same-transaction reverse 유지 여부는
+`ExecutePlan`을 구현했습니다. Same-transaction reverse는
 [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)와
 [DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
-Proposed 결정이며 구현·승인·검증 전에는 해결된 질문이나 deviation으로 세지 않습니다.
+Accepted/Verified 결정이며 제품 상태는 `63 passing + 4 deviation`입니다.
+
+다음 [GDJ-0013](../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)은
+새 process/executor가 durable recorder에서 applied identity를 읽고 남은 plan을 계산하는
+의미를 contract-first로 고정합니다. 이 작업은 recorder read 제품 API나 public file/CLI를
+동시에 확정하지 않습니다.
 
 Migration file encoding, recorder read/list, data callback ABI, graph merge/squash/optimizer,
 multi-process lock와 crash recovery는 여전히 결정하지 않았으며 public CLI 전에 별도

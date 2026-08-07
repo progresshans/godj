@@ -35,15 +35,17 @@ proposed → ready → active → completed
 | [GDJ-0009](0009-migration-planning-compatibility-contracts.md) | completed | Migration planning 호환 계약 확장 |
 | [GDJ-0010](0010-immutable-migration-planner-product-slice.md) | completed | Immutable migration graph/applied-state planner 제품 단면 |
 | [GDJ-0011](0011-migration-plan-execution-compatibility-contracts.md) | completed | Multi-migration plan execution 호환 계약 |
-| [GDJ-0012](0012-migration-plan-execution-orchestrator.md) | active | Migration plan 실행 orchestrator와 atomic-reverse 결정 |
+| [GDJ-0012](0012-migration-plan-execution-orchestrator.md) | completed | Migration plan 실행 orchestrator와 atomic-reverse 결정 |
+| [GDJ-0013](0013-recorder-backed-restart-planning-compatibility-contracts.md) | active | Recorder-backed restart planning 호환 계약 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-GDJ-0012이며 ready 항목은 없습니다. GDJ-0011은 MIG-017..026을 sixth exact set으로 잠가
-총 reference contract를 67개로 늘렸지만, 새 set은 10 `oracle_locked`이고 제품 adapter는
-fail-closed합니다. 따라서 제품 `passing`은 기존 다섯 set의 57개입니다. GDJ-0012는 최소
-`ExecutePlan`과 full preflight를 구현하고, Django의 backward `schema_then_record`와 다른
-GoDj same-transaction reverse 후보를 ADR-0014/DEV-0001에 따라 정직하게 검증합니다.
+GDJ-0013이며 ready 항목은 없습니다. GDJ-0012는 `ExecutePlan`과 full preflight,
+migration별 commit과 same-transaction reverse를 구현해 6 exact `passing`과 4 DEV-0001
+`deviation`을 검증했습니다. 현재 제품 분류는 `63 passing + 4 deviation`입니다.
+GDJ-0013은 durable recorder를 fresh instance가 읽어 남은 tail을 계획하는 restart 의미를
+MIG-027..036 exact reference로 먼저 고정하며 제품 recorder-read API는 후속 work로
+분리합니다.
 
 ## 운영 규칙
 

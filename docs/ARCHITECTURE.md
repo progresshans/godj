@@ -106,8 +106,12 @@ immutable identity graph가 caller-supplied AppliedState와 target으로 zero-I/
 계산하도록 결정했습니다. GDJ-0010은 이 immutable Planner와 structured graph/history/
 target error를 구현하고 MIG-005..016 actual adapter로 검증했습니다. Planning의 logical
 state와 zero-I/O metrics는 실제 database probe가 아니라 backend를 import하지 않는 pure
-structural 경계에서 산출합니다. Public migration file 형식, loader/CLI, data callback,
-multi-plan execution, locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
+structural 경계에서 산출합니다. [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)는
+`ExecutePlan`이 전체 plan/state를 backend I/O 전에 검증하고 기존 `Apply`/`Unapply`를
+migration별 transaction으로 실행하도록 결정했습니다. 첫 실패는 뒤 step을 시작하지 않고
+마지막 durable `ProjectState`를 반환하며, reverse schema와 recorder는 DEV-0001에 따라 같은
+transaction에 둡니다. Public migration file 형식, loader/CLI, recorder read/restart,
+data callback, locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
 
 ## CLI와 프로젝트 실행
 

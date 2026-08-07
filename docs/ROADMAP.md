@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Multi-migration execution reference 잠금 완료, 실행 orchestrator/atomic-reverse 후보 구현 준비
+- 현재 단계: Multi-migration execution 제품 검증 완료, recorder-backed restart planning 계약 준비
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -71,8 +71,8 @@ loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,
 [GDJ-0006](../work/0006-save-lifecycle-product-slice.md)은 typed Save option/field mask,
-explicit key와 SQLite error 경계를 구현해 12개 모두 통과했습니다. Public migration
-file, autodetector, graph, lock과 crash recovery는 이후 별도 work/ADR 범위입니다.
+explicit key와 SQLite error 경계를 구현해 12개 모두 통과했습니다. 그 시점에는 public
+migration file, autodetector, graph, lock과 crash recovery가 이후 별도 work/ADR 범위였습니다.
 
 M1부터 열린 Q-007을 먼저 닫기 위해
 [GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)은 QuerySet
@@ -80,7 +80,7 @@ evaluation/cache의 QRY-011..021 exact reference 계약을 네 번째 set으로 
 당시 기존 제품 34개는 계속 `passing`이었고 새 11개는 `oracle_locked`였습니다.
 [GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)은 Go-native value-copy/
 concurrency ownership과 terminal API를 ADR-0012로 결정하고 실제 adapter를 연결해
-QRY-011..021을 모두 `passing`으로 올렸습니다. 현재 검증된 manifest contract는 총
+QRY-011..021을 모두 `passing`으로 올렸습니다. GDJ-0008 완료 당시 검증된 manifest contract는 총
 45개이며, 이는 M2 migration이나 M4 QuerySet breadth 전체 완료를 뜻하지 않습니다.
 
 [GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)은 기존
@@ -92,8 +92,8 @@ applied state, multi-target forward/backward plan과 잘못된 graph/history의 
 [GDJ-0010](../work/0010-immutable-migration-planner-product-slice.md)은
 [ADR-0013](adr/0013-immutable-migration-planner.md)의 immutable identity graph와 별도
 AppliedState를 backend-neutral zero-I/O Planner로 구현하고 fifth-set actual adapter를
-연결했습니다. MIG-005..016도 `passing`이 되어 현재 다섯 제품 set의 검증 범위는 총
-57개입니다. 이 planning adapter의 zero-I/O는 실제 DB probe가 아니라 pure structural
+연결했습니다. MIG-005..016도 `passing`이 되어 GDJ-0010 완료 당시 다섯 제품 set의 검증 범위는 총
+57개였습니다. 이 planning adapter의 zero-I/O는 실제 DB probe가 아니라 pure structural
 경계로 검증합니다.
 
 [GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md)은
@@ -102,14 +102,19 @@ MIG-017..026으로 여러 migration의 migration별 transaction, 중간 실패�
 exact set에 고정했습니다. 총 reference contract는 67개지만 새 10개는
 `oracle_locked`이고 제품 `passing`은 기존 57개뿐입니다.
 
-현재 [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md)는 최소
+완료된 [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md)는 최소
 `ExecutePlan`과 full zero-I/O preflight, migration별 기존 Apply/Unapply 실행, first-failure
-last durable state를 구현합니다. Django backward의 `schema_then_record`와 달리 schema와
-recorder를 같은 transaction으로 유지하는 안은
+last durable state를 구현했습니다. Django backward의 `schema_then_record`와 달리 schema와
+recorder를 같은 transaction으로 유지하는 결정은
 [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)와
 [DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
-Proposed 후보입니다. 구현·승인·검증 전에는 새 계약을 pass/deviation으로 세지 않습니다.
-Public migration file/CLI, recorder read, data callback과 lock/crash recovery는 계속 후속
+Accepted/Verified 상태입니다. 현재 제품 분류는 `63 passing + 4 deviation`입니다.
+
+다음 [GDJ-0013](../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)은
+recorder table 없음/empty/record/unrecord, fresh executor의 applied-prefix tail plan,
+unknown legacy row와 inconsistent history, 중간 실패 뒤 재계획을 MIG-027..036 exact
+reference로 먼저 고정합니다. 제품 recorder-read API는 후속 work로 분리합니다.
+Public migration file/CLI, 제품 recorder read, data callback과 lock/crash recovery는 계속 후속
 범위입니다.
 
 ## M3 — Relations + PostgreSQL

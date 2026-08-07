@@ -152,7 +152,7 @@ output으로 거부했습니다.
 GDJ-0010은 [ADR-0013](adr/0013-immutable-migration-planner.md)의 immutable identity graph,
 별도 AppliedState, named/zero target과 structured planning error를 실제 public API로
 구현했습니다. Fifth adapter가 public Planner를 실행해 MIG-005..016도 semantic 0-diff가
-되었고 현재 다섯 제품 set의 57개가 모두 `passing`입니다. Static fixture의 ordered 12
+되었고 GDJ-0010 완료 당시 다섯 제품 set의 57개가 모두 `passing`이었습니다. Static fixture의 ordered 12
 `not_implemented` mismatch와 unknown scenario fail-closed는 구현 전 상태를 녹색으로 만들지
 않는 회귀로 계속 보존합니다.
 
@@ -181,9 +181,11 @@ contract 67개를 제품 통과로 표현하지 않습니다.
 
 [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)와
 [DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)은
-Django `schema_then_record` 대신 GoDj same-transaction reverse를 유지하는 Proposed
-후보입니다. 구현·승인·검증 뒤 MIG-017/019/021/023/025/026은 `passing`,
-MIG-018/020/022/024는 `deviation`이 될 수 있지만 현재 상태는 아닙니다.
+Django `schema_then_record` 대신 GoDj same-transaction reverse를 유지하는 결정입니다.
+GDJ-0012는 `ExecutePlan`과 live SQLite adapter를 구현해 MIG-017/019/021/023/025/026을
+`passing`, MIG-018/020/022/024를 승인된 `deviation`으로 검증했습니다. 현재 제품 분류는
+`63 passing + 4 deviation`이며, reference 67개 전부가 Django와 exact 일치한다고
+표현하지 않습니다.
 
 ## 계약 상태
 
@@ -289,7 +291,7 @@ GDJ-0010은 ADR-0013을 구현해 MIG-005..016을 실제 public Planner 경로�
 `eb5bf3b6f41855684582f67b3be675da42975b8fc1ed9c7085f6d35a078eac32`로 서로
 byte-identical하며, 39,139 bytes의 Django oracle과는 protocol 의미상 12개 0-diff입니다.
 Planning state/zero metrics는 실제 DB probe가 아니라 backend import가 없는 pure structural
-adapter에서 산출합니다. 현재 제품 검증 합계는 57개이고, 상세 증거는
+adapter에서 산출합니다. GDJ-0010 완료 당시 제품 검증 합계는 57개였고, 상세 증거는
 [EVID-20260808-009](status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
 기록합니다.
 
@@ -303,7 +305,19 @@ random-hashseed process와 checked-in oracle은 byte-identical합니다. Static 
 mismatch, product unsupported exit 2/no actual output, 30 cross-binding과 compact step
 mutation gate는
 [EVID-20260808-010](status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts)에
-기록합니다. 제품 execution adapter가 없으므로 10개는 아직 `passing`이 아닙니다.
+기록합니다. 이는 GDJ-0011 완료 당시의 artifact/status 증거입니다.
+
+GDJ-0012는 manifest status와 deviation provenance만 변경해 9,120 bytes, SHA-256
+`1857dcf375ed09f8566798ce662c72a86ef41706e478eef6f208077b156886e9`로 만들었고,
+locked Django oracle과 static fixture bytes는 유지했습니다. Sparse product expectation은
+4,685 bytes, SHA-256
+`568495ed3dc5e6f3760c28f1c61c40dc54a63483c5b9c11283bf7ae5a8ac7547`입니다. 두 독립 Go
+actual은 각각 47,446 bytes, SHA-256
+`f191d116cc38194e2019df358c31f752101fdacb005d9cc442b701d8d4afde4b`로 byte-identical하며,
+reference를 원 manifest로 먼저 검증한 뒤 DEV-0001의 등록된 차이만 적용한 product
+expectation과 10개 0-diff입니다. 상세 증거는
+[EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
+기록합니다.
 
 ## 데이터 호환성
 

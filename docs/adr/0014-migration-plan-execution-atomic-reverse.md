@@ -1,6 +1,6 @@
 # ADR-0014: Migration plan 실행은 migration별 commit과 원자적 reverse를 사용한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0011, GDJ-0012, MIG-017..MIG-026, Q-012, DEV-0001
 - 대체하는 ADR: 없음
@@ -56,10 +56,10 @@ transaction 차이도 한 번에 끌어옵니다.
 migration만 rollback됩니다. Django backward transaction model과 달라지는 네 contract는
 별도 GoDj expected observation과 DEV-0001로 정직하게 검증합니다.
 
-## 제안 결정
+## 결정
 
-GDJ-0012에서 다음 최소 API 후보를 구현·검증한 뒤 이 ADR의 Accepted 전환 여부를
-결정합니다. Proposed 상태에서는 public API가 확정된 것이 아닙니다.
+GDJ-0012는 다음 최소 API를 구현하고 외부 compile/API test와 actual adapter로
+검증했습니다.
 
 ```go
 func (e Executor) ExecutePlan(
@@ -75,9 +75,8 @@ func (e Executor) ExecutePlan(
 - Non-empty plan은 transaction을 열기 전에 plan, definition과 `ProjectState` 전체를
   preflight합니다. 잘못된 key/direction, duplicate definition/step, 누락 definition,
   state transition 불가와 mixed direction을 거부합니다.
-- 오류 taxonomy 후보는 `CategoryExecution` 아래 `invalid_execution_plan`과
-  `mixed_directions`입니다. Exact 이름은 GDJ-0012의 external compile/error test를 거쳐
-  확정합니다.
+- 오류 taxonomy는 `CategoryExecution` 아래 `invalid_execution_plan`과
+  `mixed_directions`입니다.
 - 유효한 plan은 순서대로 기존 `Apply` 또는 `Unapply`를 호출하며 각 step이 별도
   transaction으로 commit됩니다.
 - 첫 오류에서 뒤 step을 시작하지 않고 마지막 durable commit에 대응하는
@@ -89,27 +88,27 @@ func (e Executor) ExecutePlan(
   완료하고 primary/rollback cause를 보존해야 합니다.
 - 마지막 step commit 뒤에야 cancellation이 관찰되면 실행 완료를 성공으로 취급합니다.
 
-## 호환성 결과 후보
+## 호환성 결과
 
 참조 manifest의 Django phase/comparison dimension과 Django oracle은 변경하지 않습니다.
 Core comparator도 contract dimension을 완화하지 않습니다. 대신 GDJ-0012는
 `godj-migration-execution-deviation-expected.json`과 fail-closed product harness를 별도로
-두어 동일 동작과 승인된 차이를 구분합니다. ADR/DEV 승인 뒤에만 execution manifest의
-status/decision provenance를 갱신할 수 있습니다.
+두어 동일 동작과 승인된 차이를 구분합니다. Execution manifest는 exact 일치 여섯 개를
+`passing`, 승인된 차이 네 개를 `deviation`으로 기록하고 deviation에만
+`decision=DEV-0001` provenance를 둡니다.
 
-구현과 ADR/DEV 승인 뒤 기대하는 분류는 다음과 같습니다. 이는 현재 상태가 아닙니다.
+검증된 분류는 다음과 같습니다.
 
 | 계약 | 기대 분류 | 이유 |
 |---|---|---|
-| MIG-017/019/021/023/025/026 | `passing` 후보 | forward, failure-stop, mixed preflight와 empty no-op 의미가 동일 |
-| MIG-018/020/022 | `deviation` 후보 | 최종 결과는 같아도 backward step의 `transaction_model`이 `schema_and_record` |
-| MIG-024 | `deviation` 후보 | recorder fault 때 A2 schema까지 rollback되어 DB state와 phase가 다름 |
+| MIG-017/019/021/023/025/026 | `passing` | forward, failure-stop, mixed preflight와 empty no-op 의미가 동일 |
+| MIG-018/020/022 | `deviation` | 최종 결과는 같아도 backward step의 `transaction_model`이 `schema_and_record` |
+| MIG-024 | `deviation` | recorder fault 때 A2 schema까지 rollback되어 DB state와 phase가 다름 |
 
-승인·구현·검증이 모두 끝나면 제품 합계는 기존 57에 6 `passing`과 4 `deviation`을 더한
-`63 passing + 4 deviation`이 될 수 있습니다. 그 전에는 migration-execution 10개가 계속
-`oracle_locked`이며 제품 지원으로 세지 않습니다.
+제품 합계는 기존 57에 6 `passing`과 4 `deviation`을 더한
+`63 passing + 4 deviation`입니다. 이를 67 exact passing으로 표현하지 않습니다.
 
-MIG-024의 GoDj product expectation 후보는 phase `rollback`, A3 unapply commit, A2 schema와
+MIG-024의 GoDj product expectation은 phase `rollback`, A3 unapply commit, A2 schema와
 recorder retained입니다. A2 compact step은 `status=rolled_back`,
 `schema_outcome=rolled_back`, `recorder_outcome=retained`,
 `transaction_model=schema_and_record`, `fault_point=before_record_write`입니다. Django
@@ -134,16 +133,19 @@ reference의 phase `commit`, schema A1/records A1·A2를 이 값으로 덮어쓰
 - multi-process lock, crash recovery와 repair command
 - PostgreSQL/MySQL/Oracle의 DDL transaction 정책
 
-## 승인과 검증 조건
+## 승인과 검증 증거
 
-이 ADR은 다음이 완료되기 전에는 Accepted가 아닙니다.
+다음 조건을 GDJ-0012에서 모두 검증했습니다.
 
 - `ExecutePlan` API와 full zero-I/O preflight의 unit/external compile test
 - migration별 commit, first-failure stop과 last durable `ProjectState` 검증
 - pre/between/in-flight context cancellation과 rollback cause 검증
 - MIG-017..026 실제 product adapter observation
 - MIG-018/020/022/024용 GoDj expected fixture가 reference oracle을 바꾸지 않는지 검증
-- [DEV-0001](../DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리) 승인
+- [DEV-0001](../DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리) 승인·전용 expected 검증
 - full/race/CGO=0/vet, existing 57 differential과 false-green gate 통과
 
-Accepted 전환 시 구현 결과와 evidence ID를 이 문서에 추가합니다.
+제품 구현 commit은 `3bcd25ce557cfddc2d73652f9154b6db0fd0b065`이고 전체 명령,
+actual hash와 독립 감사 결과는
+[EVID-20260808-011](../status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
+기록합니다.
