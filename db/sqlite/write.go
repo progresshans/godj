@@ -70,7 +70,7 @@ func CompileUpdate(plan query.UpdatePlan) (string, []any, error) {
 		return "", nil, invalidPlan("update assignments are empty")
 	}
 	for _, assignment := range assignments {
-		if assignment.Field().Equal(plan.KeyField()) || assignment.Field().Column() == plan.KeyField().Column() {
+		if assignment.Field().Equal(plan.KeyField()) || sqliteIdentifierKey(assignment.Field().Column()) == sqliteIdentifierKey(plan.KeyField().Column()) {
 			return "", nil, invalidPlan("update cannot assign its key field")
 		}
 	}
@@ -172,10 +172,11 @@ func compileAssignments(assignments []query.Assignment) ([]string, []any, error)
 		if err != nil {
 			return nil, nil, err
 		}
-		if _, duplicate := seen[field.Column()]; duplicate {
+		identifierKey := sqliteIdentifierKey(field.Column())
+		if _, duplicate := seen[identifierKey]; duplicate {
 			return nil, nil, invalidPlan(fmt.Sprintf("field column %q is assigned more than once", field.Column()))
 		}
-		seen[field.Column()] = struct{}{}
+		seen[identifierKey] = struct{}{}
 		if err := validateWriteValue(field, assignment.Value()); err != nil {
 			return nil, nil, err
 		}
@@ -187,6 +188,19 @@ func compileAssignments(assignments []query.Assignment) ([]string, []any, error)
 		arguments[index] = argument
 	}
 	return columns, arguments, nil
+}
+
+// SQLite folds only ASCII case in identifiers, including quoted identifiers.
+// Preserve all other bytes so validation mirrors SQLite instead of applying
+// Unicode case folding that the database itself does not perform.
+func sqliteIdentifierKey(identifier string) string {
+	key := []byte(identifier)
+	for index, value := range key {
+		if value >= 'A' && value <= 'Z' {
+			key[index] = value + ('a' - 'A')
+		}
+	}
+	return string(key)
 }
 
 func compileKey(field query.FieldRef, value query.Value) (string, any, error) {

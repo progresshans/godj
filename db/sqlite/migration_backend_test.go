@@ -407,6 +407,47 @@ func TestSQLiteMigrationDropColumnRejectsDependenciesWithoutRebuild(t *testing.T
 	}
 }
 
+func TestSQLiteMigrationDropColumnClassifiesTableDefinitionDependencies(t *testing.T) {
+	tests := []struct {
+		name       string
+		definition string
+	}{
+		{
+			name: "check constraint",
+			definition: `CREATE TABLE "drop_dependency" (` +
+				`"id" INTEGER PRIMARY KEY, "summary" TEXT, CHECK ("summary" <> 'bad'))`,
+		},
+		{
+			name: "generated column",
+			definition: `CREATE TABLE "drop_dependency" (` +
+				`"id" INTEGER PRIMARY KEY, "summary" TEXT, ` +
+				`"summary_length" INTEGER GENERATED ALWAYS AS (length("summary")) STORED)`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			backend := openMigrationTestBackend(t)
+			if _, err := backend.ExecContext(ctx, test.definition); err != nil {
+				t.Fatalf("create dependency table: %v", err)
+			}
+			transaction, err := backend.BeginMigration(ctx)
+			if err != nil {
+				t.Fatalf("begin migration: %v", err)
+			}
+			field := ir.Field{Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 200}
+			err = transaction.RemoveField(ctx, ir.Model{Name: "article", GoName: "Article", DBTable: "drop_dependency"}, field)
+			if !migrationbackend.IsCapabilityError(err) {
+				t.Fatalf("RemoveField() error = %v, want capability error", err)
+			}
+			if err := transaction.Rollback(ctx); err != nil {
+				t.Fatalf("rollback rejected RemoveField: %v", err)
+			}
+			assertSQLiteColumns(t, backend, "drop_dependency", "id", "summary")
+		})
+	}
+}
+
 func TestSQLiteMigrationRejectsNonNullableAddField(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
@@ -432,6 +473,40 @@ func TestSQLiteMigrationRejectsNonNullableAddField(t *testing.T) {
 		t.Fatalf("rollback rejected AddField: %v", err)
 	}
 	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published")
+}
+
+func TestSQLiteMigrationRejectsNullableAddFieldDefaultWithoutBackfill(t *testing.T) {
+	ctx := context.Background()
+	backend := openMigrationTestBackend(t)
+	executor := migrations.Executor{Backend: backend}
+	initial, _ := migrationTestMigrations()
+	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
+	if err != nil {
+		t.Fatalf("apply initial migration: %v", err)
+	}
+	defaultValue := &ir.ScalarDefault{Kind: ir.ScalarString, String: "backfilled"}
+	migration := migrations.Migration{
+		App:  "news",
+		Name: "0002_summary_default",
+		Operations: []migrations.Operation{migrations.AddField{
+			AppLabel:  "news",
+			ModelName: "article",
+			Field: ir.Field{
+				Name: "summary", GoName: "Summary", Column: "summary",
+				Kind: ir.FieldChar, Nullable: true, MaxLength: 200, Default: defaultValue,
+			},
+		}},
+	}
+	after, err := executor.Apply(ctx, state1, migration)
+	assertSQLiteMigrationError(t, err, migrations.CategoryCapability, migrations.CodeUnsupported, 0, "AddField")
+	if !migrationbackend.IsCapabilityError(err) {
+		t.Fatalf("Apply() error = %v, want capability error", err)
+	}
+	if !after.Equal(state1) {
+		t.Fatal("unsupported default AddField changed returned state")
+	}
+	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published")
+	assertMigrationRecords(t, backend, "news.0001_initial")
 }
 
 func TestSQLiteMigrationHonorsCanceledContextAndReleasesConnection(t *testing.T) {

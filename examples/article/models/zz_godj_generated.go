@@ -59,6 +59,15 @@ func (ArticleDescriptor) ClearPrimaryKey(value *Article) {
 	value.godjPrimaryKeyPresent = false
 }
 
+func (ArticleDescriptor) CloneWriteModel(value Article) Article {
+	clone := value
+	if value.Summary != nil {
+		clonedSummary := *value.Summary
+		clone.Summary = &clonedSummary
+	}
+	return clone
+}
+
 func (ArticleDescriptor) WriteFieldValue(value Article, field ir.Field) (query.Value, bool) {
 	switch field.Name {
 	case "id":

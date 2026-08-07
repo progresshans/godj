@@ -25,6 +25,7 @@ type WriteDescriptor[M any] interface {
 	PrimaryKey(M) (query.Value, bool)
 	SetPrimaryKey(*M, int64)
 	ClearPrimaryKey(*M)
+	CloneWriteModel(M) M
 	WriteFieldValue(M, ir.Field) (query.Value, bool)
 }
 

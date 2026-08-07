@@ -57,8 +57,13 @@ func (m Manager[M]) Update(ctx context.Context, backend db.Mutator, current M, i
 	if interfaceIsNil(input) {
 		return zero, invalidWritePlan("patch input is nil")
 	}
-	mutation := input.BuildPatch(current)
-	if err := validateMutation(mutation, MutationPatch, metadata, descriptor, &current); err != nil {
+	// PatchInput is an exported extension point. Give it a deep-cloned model so
+	// nullable pointer fields cannot alias and mutate the caller, and retain an
+	// independent baseline for omitted-field validation.
+	baseline := descriptor.CloneWriteModel(current)
+	buildCurrent := descriptor.CloneWriteModel(current)
+	mutation := input.BuildPatch(buildCurrent)
+	if err := validateMutation(mutation, MutationPatch, metadata, descriptor, &baseline); err != nil {
 		return zero, err
 	}
 	mutationKey, mutationKeyPresent := descriptor.PrimaryKey(mutation.value)

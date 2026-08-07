@@ -111,6 +111,13 @@ func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.
 			nil,
 		)
 	}
+	if field.Default != nil {
+		return migrationbackend.NewCapabilityError(
+			"sqlite_add_field",
+			fmt.Sprintf("field %s.%s has a default; one-time backfill without a persistent database default requires table rebuild", model.DBTable, field.Column),
+			nil,
+		)
+	}
 	statement, err := compileMigrationAddField(model, field)
 	if err != nil {
 		return err
@@ -565,6 +572,7 @@ func sqliteDropColumnCapabilityFailure(err error) bool {
 		strings.Contains(message, "error in index") ||
 		strings.Contains(message, "error in trigger") ||
 		strings.Contains(message, "error in view") ||
+		(strings.Contains(message, "error in table") && strings.Contains(message, "after drop column")) ||
 		strings.Contains(message, "foreign key")
 }
 

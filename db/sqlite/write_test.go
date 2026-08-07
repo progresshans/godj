@@ -73,6 +73,32 @@ func TestCompileWriteRejectsInvalidFieldValues(t *testing.T) {
 	}
 }
 
+func TestCompileWriteRejectsSQLiteCaseFoldedColumnCollisions(t *testing.T) {
+	t.Parallel()
+
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	titleUpper := query.NewFieldRef("title_upper", "TITLE", query.FieldString, false)
+	_, _, err := sqlite.CompileInsert(query.NewInsertPlan("news_article", []query.Assignment{
+		query.NewAssignment(title, query.String("first")),
+		query.NewAssignment(titleUpper, query.String("second")),
+	}))
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("case-folded duplicate insert error = %v, want invalid_plan", err)
+	}
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	aliasID := query.NewFieldRef("alias_id", "ID", query.FieldInteger, false)
+	_, _, err = sqlite.CompileUpdate(query.NewUpdatePlan(
+		"news_article",
+		[]query.Assignment{query.NewAssignment(aliasID, query.Integer(10))},
+		id,
+		query.Integer(9),
+	))
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("case-folded key update error = %v, want invalid_plan", err)
+	}
+}
+
 func TestSQLiteInsertDefaultValuesSupportsAutoOnlyModel(t *testing.T) {
 	t.Parallel()
 

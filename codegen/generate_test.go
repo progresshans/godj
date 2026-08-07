@@ -38,6 +38,7 @@ func TestGenerateIsDeterministicAndContainsProvenance(t *testing.T) {
 		[]byte("type Article struct"),
 		[]byte("var _ orm.ModelDescriptor[Article]"),
 		[]byte("var _ orm.WriteDescriptor[Article]"),
+		[]byte("CloneWriteModel(value Article) Article"),
 		[]byte("type ArticleCreate struct"),
 		[]byte("type ArticlePatch struct"),
 		[]byte("WithSummaryNull"),

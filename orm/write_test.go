@@ -213,6 +213,27 @@ func TestManagerRejectsInjectedPatchOmittedFieldMutationBeforeBackend(t *testing
 	}
 }
 
+func TestManagerIsolatesPatchInputFromNullableCallerAliases(t *testing.T) {
+	t.Parallel()
+
+	descriptor := models.ArticleDescriptor{}
+	persistedSummary := "Persisted"
+	current := models.Article{Title: "Before", Summary: &persistedSummary}
+	descriptor.SetPrimaryKey(&current, 7)
+	backend := &writeSpy{updateRows: 1}
+
+	_, err := models.ArticleObjects.Update(context.Background(), backend, current, aliasingArticlePatch{})
+	if !errors.Is(err, &query.Error{Category: query.CategoryField, Code: query.CodeInvalidValue}) {
+		t.Fatalf("Update() error = %v, want invalid_value", err)
+	}
+	if persistedSummary != "Persisted" || current.Summary == nil || *current.Summary != "Persisted" {
+		t.Fatalf("PatchInput mutated caller through nullable alias: %#v", current)
+	}
+	if backend.calls != 0 {
+		t.Fatalf("aliasing patch invoked backend %d time(s)", backend.calls)
+	}
+}
+
 func TestUpdateAndDeleteRequireExactlyOneAffectedRow(t *testing.T) {
 	t.Parallel()
 
@@ -267,6 +288,19 @@ type injectedArticleCreate struct {
 
 type injectedArticlePatch struct {
 	mutation orm.Mutation[models.Article]
+}
+
+type aliasingArticlePatch struct{}
+
+func (aliasingArticlePatch) BuildPatch(current models.Article) orm.Mutation[models.Article] {
+	*current.Summary = "Forged through alias"
+	current.Title = "After"
+	metadata := (models.ArticleDescriptor{}).Metadata()
+	return orm.NewPatchMutation(
+		current,
+		metadata.DBTable,
+		[]query.Assignment{orm.NewAssignment(metadata.Fields[1], query.String("After"))},
+	)
 }
 
 func (input injectedArticlePatch) BuildPatch(models.Article) orm.Mutation[models.Article] {

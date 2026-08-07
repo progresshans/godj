@@ -133,6 +133,20 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		fmt.Fprintln(output)
 	}
 
+	fmt.Fprintf(output, "func (%s) CloneWriteModel(value %s) %s {\n", descriptorName, model.GoName, model.GoName)
+	fmt.Fprintln(output, "\tclone := value")
+	for _, field := range model.Fields {
+		if field.Kind == ir.FieldChar && field.Nullable {
+			fmt.Fprintf(output, "\tif value.%s != nil {\n", field.GoName)
+			fmt.Fprintf(output, "\t\tcloned%s := *value.%s\n", field.GoName, field.GoName)
+			fmt.Fprintf(output, "\t\tclone.%s = &cloned%s\n", field.GoName, field.GoName)
+			fmt.Fprintln(output, "\t}")
+		}
+	}
+	fmt.Fprintln(output, "\treturn clone")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
 	fmt.Fprintf(output, "func (%s) WriteFieldValue(value %s, field ir.Field) (query.Value, bool) {\n", descriptorName, model.GoName)
 	fmt.Fprintln(output, "\tswitch field.Name {")
 	for _, field := range model.Fields {
