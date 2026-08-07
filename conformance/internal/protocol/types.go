@@ -1,7 +1,8 @@
 package protocol
 
 // FormatVersion is the only wire-format version understood by this package.
-const FormatVersion = 1
+// Version 2 binds every contract to its expected execution phase.
+const FormatVersion = 2
 
 type Profile struct {
 	FormatVersion int                `json:"format_version"`
@@ -61,6 +62,7 @@ type Contract struct {
 	ID         string                `json:"id"`
 	Title      string                `json:"title"`
 	Scenario   string                `json:"scenario"`
+	Phase      Phase                 `json:"phase"`
 	Status     ContractStatus        `json:"status"`
 	Provenance []Provenance          `json:"provenance"`
 	Comparison []ComparisonDimension `json:"comparison"`
@@ -123,6 +125,7 @@ const (
 	PhaseConstruction Phase = "construction"
 	PhaseEvaluation   Phase = "evaluation"
 	PhaseCommit       Phase = "commit"
+	PhaseRollback     Phase = "rollback"
 )
 
 type ObservedError struct {

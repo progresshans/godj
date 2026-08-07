@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-07
+- 마지막 검토: 2026-08-08
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -75,12 +75,14 @@ contract manifest
 ```text
 conformance/
   contracts/manifest.json
+  contracts/write-migration-manifest.json
   profiles/
   runners/django/
   internal/protocol/
   cmd/contractcheck/
   cmd/observationcmp/
   fixtures/godj-not-implemented.json
+  fixtures/godj-write-migration-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -127,6 +129,16 @@ M0에서 11개 contract가 `oracle_locked` 상태가 됐고 normalizer/comparato
 mutation test가 false green을 차단합니다. M1은
 `Schema DSL → IR → Codegen → Manager/QuerySet → AST → SQLite`의 한 모델 수직
 단면으로 실제 differential contract를 통과해야 완료됩니다.
+
+GDJ-0003은 같은 profile에 MOD 7개와 MIG 4개의 별도 set을 추가했습니다. 각 manifest는
+8~12개 bound를 독립적으로 지키며, registry 전체를 선택 manifest 하나에 강제로 넣지
+않습니다. Checked-in 두 manifest의 scenario 합집합은 registry와 정확히 일치해야 하고,
+cross-set oracle, draft status, contract별 phase, result/error/DB state/metrics 변이는 모두
+실패해야 합니다.
+현재 두 번째 set의 static GoDj fixture는 11개 명시적 `not_implemented` mismatch를
+내지만, 실행 가능한 adapter가 없으므로 contract 상태는 `oracle_locked`입니다.
+Contract별 phase binding을 추가한 GDJ-0003부터 protocol v2를 사용하며 v1 artifact는
+v2 validator가 명시적으로 거부합니다.
 
 ## 기능별 기본 테스트 요구
 

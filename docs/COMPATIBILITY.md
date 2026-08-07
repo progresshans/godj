@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-07
+- 마지막 검증: 2026-08-08
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
 
@@ -98,8 +98,18 @@ DB-xxx   Backend 공통 계약
 초기 계약 목록과 상태는
 [`conformance/contracts/manifest.json`](../conformance/contracts/manifest.json)이 실행
 정본이고 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)가 사람이
-보는 구현 상태를 요약합니다. Strict validator가 profile, 순서, provenance, 비교
-차원과 observation payload를 함께 검증합니다.
+보는 구현 상태를 요약합니다. Strict validator가 profile, 순서, contract별 실행 phase,
+provenance, 비교 차원과 observation payload를 함께 검증합니다.
+
+GDJ-0003에서 manifest가 expected phase를 직접 선언하도록 wire protocol을 v2로
+승격했습니다. v1 artifact를 조용히 새 의미로 해석하지 않으며 profile, 두 manifest,
+oracle과 explicit not-implemented fixture는 모두 같은 v2 envelope를 사용합니다.
+
+GDJ-0003의 write/migration 확장은 기존 11개의 행동 의미, ID와 passing 상태를 유지하고
+[`write-migration-manifest.json`](../conformance/contracts/write-migration-manifest.json)에
+MOD-001..007과 MIG-001..004를 별도 ordered set으로 둡니다. 두 set은 같은 exact
+profile을 공유하지만 contract ID/order, phase와 payload 선언이 다르므로 oracle을 서로
+바꿔 사용할 수 없습니다.
 
 ## 계약 상태
 
@@ -139,6 +149,21 @@ mismatch를 내는지 확인했습니다. M1에서는 `Article` 한 모델의 ty
 동일 AST, SQLite 실행과 runtime metadata adapter가 11개 계약 모두 oracle과
 일치하므로 manifest 상태를 `passing`으로 올렸습니다. 이 상태는 M1의 정확한
 profile/backend와 기록된 evidence에 한정되며 Django 전체 ORM 호환을 뜻하지 않습니다.
+
+GDJ-0003은 다음 11개를 추가했습니다.
+
+- auto PK create와 nullable create 값
+- partial update의 omitted와 explicit NULL
+- instance delete
+- transaction commit과 rollback error
+- CreateModel, nullable AddField와 reverse
+- migration recorder와 atomic operation failure recovery
+
+Django oracle은 고정됐지만 실행 가능한 GoDj 제품 write/migration adapter는 아직
+없으므로 두 번째 manifest는 `oracle_locked`입니다. Static `not_implemented` fixture의
+11개 mismatch는 false-green 방지 증거이며 `red` 상태를 뜻하지 않습니다. M1의
+`passing` 11개와 합쳐
+22개가 passing이라고 표현하지 않습니다.
 
 ## 데이터 호환성
 

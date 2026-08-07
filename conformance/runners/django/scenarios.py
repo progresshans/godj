@@ -9,9 +9,19 @@ from typing import Any
 from django.conf import settings
 
 
+_configured_by_godj = False
+
+
 def configure_django() -> None:
+    global _configured_by_godj
+
     if settings.configured:
-        return
+        if _configured_by_godj:
+            return
+        raise RuntimeError(
+            "refusing to use externally configured Django settings; "
+            "the conformance runner requires its isolated in-memory default database"
+        )
 
     settings.configure(
         DATABASES={
@@ -21,17 +31,25 @@ def configure_django() -> None:
             }
         },
         DEFAULT_AUTO_FIELD="django.db.models.AutoField",
-        INSTALLED_APPS=[],
+        INSTALLED_APPS=[
+            "conformance.runners.django.migration_fixture.apps.GoDjMigrationFixtureConfig",
+            "conformance.runners.django.migration_failure_fixture.apps.GoDjMigrationFailureFixtureConfig",
+        ],
         LANGUAGE_CODE="en-us",
         SECRET_KEY="godj-conformance-not-a-secret",
         TIME_ZONE="UTC",
         USE_I18N=False,
         USE_TZ=True,
     )
+    _configured_by_godj = True
 
     import django
 
-    django.setup()
+    try:
+        django.setup()
+    except Exception:
+        _configured_by_godj = False
+        raise
 
 
 configure_django()

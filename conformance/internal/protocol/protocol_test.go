@@ -148,6 +148,24 @@ func TestCanonicalObservationSuiteIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestRollbackPhaseValidatesAndRoundTrips(t *testing.T) {
+	t.Parallel()
+
+	suite := validSuite()
+	suite.Contracts[0].Phase = PhaseRollback
+	encoded, err := MarshalCanonical(suite)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := DecodeObservationSuite(bytes.NewReader(encoded))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := decoded.Contracts[0].Phase; got != PhaseRollback {
+		t.Fatalf("phase = %q, want %q", got, PhaseRollback)
+	}
+}
+
 func TestIntegerRoundTripProperty(t *testing.T) {
 	t.Parallel()
 
@@ -208,6 +226,26 @@ func TestExplicitNullOptionalObservationFieldsAreAccepted(t *testing.T) {
 	}
 }
 
+func TestProtocolV1ArtifactsAreRejected(t *testing.T) {
+	t.Parallel()
+
+	profile := validProfile()
+	profile.FormatVersion = 1
+	if err := profile.Validate(); err == nil || !strings.Contains(err.Error(), "format_version") {
+		t.Fatalf("expected v1 profile rejection, got %v", err)
+	}
+	manifest := validManifest()
+	manifest.FormatVersion = 1
+	if err := manifest.Validate(); err == nil || !strings.Contains(err.Error(), "format_version") {
+		t.Fatalf("expected v1 manifest rejection, got %v", err)
+	}
+	suite := validSuite()
+	suite.FormatVersion = 1
+	if err := suite.Validate(); err == nil || !strings.Contains(err.Error(), "format_version") {
+		t.Fatalf("expected v1 suite rejection, got %v", err)
+	}
+}
+
 func TestProfileValidation(t *testing.T) {
 	t.Parallel()
 
@@ -217,7 +255,7 @@ func TestProfileValidation(t *testing.T) {
 	}
 
 	tests := map[string]func(*Profile){
-		"format version": func(value *Profile) { value.FormatVersion = 2 },
+		"format version": func(value *Profile) { value.FormatVersion = 1 },
 		"django commit":  func(value *Profile) { value.Fingerprint.DjangoCommit = "abc" },
 		"distribution":   func(value *Profile) { value.Fingerprint.DjangoDistributionSHA256 = "abc" },
 		"sqlite source":  func(value *Profile) { value.Fingerprint.SQLiteSourceID = "" },
@@ -247,11 +285,13 @@ func TestManifestValidation(t *testing.T) {
 	}
 
 	tests := map[string]func(*Manifest){
+		"format version":    func(value *Manifest) { value.FormatVersion = 1 },
 		"too few contracts": func(value *Manifest) { value.Contracts = value.Contracts[:7] },
 		"duplicate id": func(value *Manifest) {
 			value.Contracts[1].ID = value.Contracts[0].ID
 		},
 		"bad scenario": func(value *Manifest) { value.Contracts[0].Scenario = "Query Exact" },
+		"bad phase":    func(value *Manifest) { value.Contracts[0].Phase = "write" },
 		"bad status":   func(value *Manifest) { value.Contracts[0].Status = "green" },
 		"no provenance": func(value *Manifest) {
 			value.Contracts[0].Provenance = nil
@@ -326,6 +366,13 @@ func TestSuiteMustMatchLockedProfileAndManifestOrder(t *testing.T) {
 			t.Fatalf("expected ordering mismatch, got %v", err)
 		}
 	})
+	t.Run("contract phase", func(t *testing.T) {
+		changed := cloneSuite(t, suite)
+		changed.Contracts[0].Phase = PhaseConstruction
+		if err := ValidateSuiteAgainst(profile, manifest, changed); err == nil || !strings.Contains(err.Error(), "manifest phase") {
+			t.Fatalf("expected phase mismatch, got %v", err)
+		}
+	})
 	t.Run("undeclared payload", func(t *testing.T) {
 		changed := cloneSuite(t, suite)
 		changed.Contracts[2].Metrics = valuePointer(Object(map[string]Value{"query_count": Integer("1")}))
@@ -338,6 +385,93 @@ func TestSuiteMustMatchLockedProfileAndManifestOrder(t *testing.T) {
 		changed.Contracts[0].Metrics = nil
 		if err := ValidateSuiteAgainst(profile, manifest, changed); err == nil || !strings.Contains(err.Error(), "requires") {
 			t.Fatalf("expected missing dimension error, got %v", err)
+		}
+	})
+}
+
+func TestIndependentContractSetsCanShareOneLockedProfile(t *testing.T) {
+	t.Parallel()
+
+	profile := validProfile()
+	readManifest := validManifest()
+	readOracle := validSuite()
+	writeManifest := cloneManifest(t, readManifest)
+	writeOracle := cloneSuite(t, readOracle)
+
+	for index := range writeManifest.Contracts {
+		prefix := "MOD"
+		number := index + 1
+		if index >= len(writeManifest.Contracts)/2 {
+			prefix = "MIG"
+			number -= len(writeManifest.Contracts) / 2
+		}
+		contractID := fmt.Sprintf("%s-%03d", prefix, number)
+		writeManifest.Contracts[index].ID = contractID
+		writeManifest.Contracts[index].Scenario = fmt.Sprintf("django.m2.contract_%03d", index+1)
+		writeManifest.Contracts[index].Status = ContractRed
+		writeOracle.Contracts[index].ID = contractID
+	}
+
+	if err := ValidateSuiteAgainst(profile, readManifest, readOracle); err != nil {
+		t.Fatalf("read set does not validate: %v", err)
+	}
+	if err := ValidateSuiteAgainst(profile, writeManifest, writeOracle); err != nil {
+		t.Fatalf("write/migration set does not validate: %v", err)
+	}
+	if differences, err := Compare(profile, writeManifest, writeOracle, cloneSuite(t, writeOracle)); err != nil {
+		t.Fatalf("compare write/migration set: %v", err)
+	} else if len(differences) != 0 {
+		t.Fatalf("identical write/migration artifacts differ: %#v", differences)
+	}
+
+	t.Run("cross-set oracle", func(t *testing.T) {
+		if err := ValidateSuiteAgainst(profile, writeManifest, readOracle); err == nil || !strings.Contains(err.Error(), "position") {
+			t.Fatalf("expected contract-set mismatch, got %v", err)
+		}
+	})
+	t.Run("profile", func(t *testing.T) {
+		changed := cloneSuite(t, writeOracle)
+		changed.Profile.Fingerprint.SQLiteSourceID += " changed"
+		if err := ValidateSuiteAgainst(profile, writeManifest, changed); err == nil || !strings.Contains(err.Error(), "fingerprint") {
+			t.Fatalf("expected profile mismatch, got %v", err)
+		}
+	})
+	t.Run("order", func(t *testing.T) {
+		changed := cloneSuite(t, writeOracle)
+		changed.Contracts[0], changed.Contracts[1] = changed.Contracts[1], changed.Contracts[0]
+		if err := ValidateSuiteAgainst(profile, writeManifest, changed); err == nil || !strings.Contains(err.Error(), "position") {
+			t.Fatalf("expected ordering mismatch, got %v", err)
+		}
+	})
+	t.Run("draft status", func(t *testing.T) {
+		changed := cloneManifest(t, writeManifest)
+		changed.Contracts[0].Status = ContractDraft
+		if err := changed.Validate(); err != nil {
+			t.Fatalf("draft manifest itself must remain valid: %v", err)
+		}
+		if err := ValidateSuiteAgainst(profile, changed, writeOracle); err == nil || !strings.Contains(err.Error(), "locked-or-later") {
+			t.Fatalf("expected draft suite rejection, got %v", err)
+		}
+		if _, err := Compare(profile, changed, writeOracle, writeOracle); err == nil || !strings.Contains(err.Error(), "locked-or-later") {
+			t.Fatalf("expected comparator draft rejection, got %v", err)
+		}
+	})
+	t.Run("declared payloads", func(t *testing.T) {
+		changed := cloneSuite(t, writeOracle)
+		changed.Contracts[0].DBState = nil
+		if err := ValidateSuiteAgainst(profile, writeManifest, changed); err == nil || !strings.Contains(err.Error(), "requires") {
+			t.Fatalf("expected payload binding mismatch, got %v", err)
+		}
+	})
+	t.Run("artifact mutation", func(t *testing.T) {
+		actual := cloneSuite(t, writeOracle)
+		actual.Contracts[0].Result.Items[0] = String("changed")
+		differences, err := Compare(profile, writeManifest, writeOracle, actual)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(differences) == 0 || !hasDifferencePath(differences, "result.items[0].value") {
+			t.Fatalf("artifact mutation produced a false green: %#v", differences)
 		}
 	})
 }
@@ -446,6 +580,12 @@ func TestComparatorMutationCasesCannotFalseGreen(t *testing.T) {
 			actual := cloneSuite(t, expected)
 			test.mutate(&actual)
 			differences, err := Compare(profile, manifest, expected, actual)
+			if test.name == "phase" {
+				if err == nil || !strings.Contains(err.Error(), "manifest phase") {
+					t.Fatalf("expected manifest phase rejection, got differences=%#v err=%v", differences, err)
+				}
+				return
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -542,6 +682,7 @@ func validManifest() Manifest {
 			ID:       id,
 			Title:    "Contract " + id,
 			Scenario: fmt.Sprintf("query_%03d", index+1),
+			Phase:    PhaseEvaluation,
 			Status:   ContractOracleLocked,
 			Provenance: []Provenance{{
 				Kind:      "independent",
@@ -553,6 +694,7 @@ func validManifest() Manifest {
 	}
 	contracts[0].Comparison = []ComparisonDimension{CompareResult, CompareDBState, CompareMetrics}
 	contracts[1].Comparison = []ComparisonDimension{CompareError}
+	contracts[1].Phase = PhaseConstruction
 	return Manifest{
 		FormatVersion: FormatVersion,
 		ProfileID:     "django-6.1",

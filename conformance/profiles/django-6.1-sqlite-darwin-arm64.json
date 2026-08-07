@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "id": "django-6.1-sqlite-darwin-arm64",
   "fingerprint": {
     "django_version": "6.1",

@@ -134,6 +134,9 @@ func (c Contract) Validate() error {
 	if !identifierPattern.MatchString(c.Scenario) {
 		return fmt.Errorf("%s: scenario %q must match %s", c.ID, c.Scenario, identifierPattern)
 	}
+	if !c.Phase.valid() {
+		return fmt.Errorf("%s: unknown phase %q", c.ID, c.Phase)
+	}
 	switch c.Status {
 	case ContractDraft, ContractOracleLocked, ContractRed, ContractPassing, ContractDeviation:
 	default:
@@ -214,9 +217,7 @@ func (o Observation) Validate() error {
 	default:
 		return fmt.Errorf("%s: unknown status %q", o.ID, o.Status)
 	}
-	switch o.Phase {
-	case PhaseEnvironment, PhaseMetadata, PhaseConstruction, PhaseEvaluation, PhaseCommit:
-	default:
+	if !o.Phase.valid() {
 		return fmt.Errorf("%s: unknown phase %q", o.ID, o.Phase)
 	}
 	if o.Status == StatusNotImplemented {
@@ -295,8 +296,14 @@ func ValidateSuiteAgainst(profile Profile, manifest Manifest, suite ObservationS
 	for index := range manifest.Contracts {
 		contract := manifest.Contracts[index]
 		observation := suite.Contracts[index]
+		if contract.Status == ContractDraft {
+			return fmt.Errorf("%s: observation suite requires a locked-or-later manifest status", contract.ID)
+		}
 		if observation.ID != contract.ID {
 			return fmt.Errorf("suite contract %d is %q; manifest requires %q in that position", index, observation.ID, contract.ID)
+		}
+		if observation.Phase != contract.Phase {
+			return fmt.Errorf("%s: observation phase %q does not match manifest phase %q", contract.ID, observation.Phase, contract.Phase)
 		}
 		if observation.Status == StatusNotImplemented {
 			continue
@@ -306,6 +313,15 @@ func ValidateSuiteAgainst(profile Profile, manifest Manifest, suite ObservationS
 		}
 	}
 	return nil
+}
+
+func (p Phase) valid() bool {
+	switch p {
+	case PhaseEnvironment, PhaseMetadata, PhaseConstruction, PhaseEvaluation, PhaseCommit, PhaseRollback:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateDimensions(contract Contract, observation Observation) error {

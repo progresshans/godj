@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -26,15 +27,27 @@ import django  # noqa: E402
 from django.conf import settings  # noqa: E402
 
 from .normalizer import canonical_json  # noqa: E402
-from .scenarios import SCENARIOS, configure_django  # noqa: E402
+from .scenarios import SCENARIOS as QUERY_SCENARIOS  # noqa: E402
+from .scenarios import configure_django  # noqa: E402
+from .write_migration_scenarios import (  # noqa: E402
+    SCENARIOS as WRITE_MIGRATION_SCENARIOS,
+)
+
+
+if set(QUERY_SCENARIOS) & set(WRITE_MIGRATION_SCENARIOS):
+    raise RuntimeError("Django scenario registries contain duplicate names")
+SCENARIOS = {**QUERY_SCENARIOS, **WRITE_MIGRATION_SCENARIOS}
 
 
 DJANGO_61_COMMIT = "fe0a859f537d4238cf49fca39073513206f83122"
 DJANGO_61_WHEEL_SHA256 = (
     "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe"
 )
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 ORACLE_READY_STATUSES = frozenset({"oracle_locked", "red", "passing", "deviation"})
+ALLOWED_PHASES = frozenset(
+    {"environment", "metadata", "construction", "evaluation", "commit", "rollback"}
+)
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_PROFILE = (
     REPOSITORY_ROOT
@@ -45,6 +58,17 @@ DEFAULT_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json"
 )
+DEFAULT_WRITE_MIGRATION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/write-migration-manifest.json"
+)
+DEFAULT_WRITE_MIGRATION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json"
+)
+KNOWN_MANIFEST_ORACLES = {
+    DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
+    DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
+}
 
 
 class ProfileMismatch(RuntimeError):
@@ -86,7 +110,7 @@ def _uv_version() -> str:
 
 def _actual_fingerprint() -> dict[str, Any]:
     configure_django()
-    with sqlite3.connect(":memory:") as database:
+    with closing(sqlite3.connect(":memory:")) as database:
         sqlite_source_id = database.execute("select sqlite_source_id()").fetchone()[0]
     return {
         "django_version": django.get_version(),
@@ -108,7 +132,7 @@ def _actual_fingerprint() -> dict[str, Any]:
 
 def verify_profile(profile: dict[str, Any], root: Path = REPOSITORY_ROOT) -> None:
     if profile.get("format_version") != FORMAT_VERSION:
-        raise ProfileMismatch("profile format_version must be 1")
+        raise ProfileMismatch(f"profile format_version must be {FORMAT_VERSION}")
     expected = profile.get("fingerprint")
     if not isinstance(expected, dict):
         raise ProfileMismatch("profile fingerprint must be an object")
@@ -153,7 +177,7 @@ def _validate_manifest_basics(
     manifest: dict[str, Any], profile: dict[str, Any]
 ) -> list[dict[str, Any]]:
     if manifest.get("format_version") != FORMAT_VERSION:
-        raise RuntimeError("manifest format_version must be 1")
+        raise RuntimeError(f"manifest format_version must be {FORMAT_VERSION}")
     if manifest.get("profile_id") != profile.get("id"):
         raise RuntimeError("manifest profile_id does not match the selected profile")
     contracts = manifest.get("contracts")
@@ -166,6 +190,7 @@ def _validate_manifest_basics(
             raise RuntimeError("every manifest contract must be an object")
         contract_id = contract.get("id")
         scenario = contract.get("scenario")
+        phase = contract.get("phase")
         if not isinstance(contract_id, str) or not contract_id:
             raise RuntimeError("every manifest contract needs a non-empty id")
         if contract_id in seen:
@@ -175,13 +200,26 @@ def _validate_manifest_basics(
             raise RuntimeError(
                 f"{contract_id}: Django oracle requires a locked-or-later status"
             )
+        if phase not in ALLOWED_PHASES:
+            raise RuntimeError(f"{contract_id}: unknown manifest phase {phase!r}")
         if scenario not in SCENARIOS:
             raise RuntimeError(f"{contract_id}: unknown Django scenario {scenario!r}")
 
-    unused = sorted(set(SCENARIOS) - {contract["scenario"] for contract in contracts})
-    if unused:
-        raise RuntimeError(f"Django scenarios missing from manifest: {', '.join(unused)}")
     return contracts
+
+
+def _run_contract(contract: dict[str, Any]) -> dict[str, Any]:
+    observation = SCENARIOS[contract["scenario"]](contract["id"])
+    if not isinstance(observation, dict):
+        raise RuntimeError(f"{contract['id']}: scenario must return an observation object")
+    actual_phase = observation.get("phase")
+    expected_phase = contract["phase"]
+    if actual_phase != expected_phase:
+        raise RuntimeError(
+            f"{contract['id']}: scenario phase {actual_phase!r} "
+            f"does not match manifest phase {expected_phase!r}"
+        )
+    return observation
 
 
 def generate_suite(
@@ -193,9 +231,7 @@ def generate_suite(
     verify_profile(profile)
     contracts = _validate_manifest_basics(manifest, profile)
 
-    observations = []
-    for contract in contracts:
-        observations.append(SCENARIOS[contract["scenario"]](contract["id"]))
+    observations = [_run_contract(contract) for contract in contracts]
 
     return {
         "format_version": FORMAT_VERSION,
@@ -224,11 +260,22 @@ def _write_atomic(path: Path, contents: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
+def _output_for_manifest(manifest_path: Path, output_path: Path | None) -> Path:
+    if output_path is not None:
+        return output_path
+    known_output = KNOWN_MANIFEST_ORACLES.get(manifest_path.resolve())
+    if known_output is None:
+        raise RuntimeError(
+            f"--output is required for unknown manifest {manifest_path}"
+        )
+    return known_output
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
-    parser.add_argument("--output", type=Path, default=DEFAULT_ORACLE)
+    parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--check",
         action="store_true",
@@ -237,9 +284,10 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     try:
+        output = _output_for_manifest(arguments.manifest, arguments.output)
         generated = canonical_json(generate_suite(arguments.profile, arguments.manifest))
         if arguments.check:
-            existing = arguments.output.read_bytes()
+            existing = output.read_bytes()
             if existing != generated:
                 print(
                     "oracle differs: "
@@ -249,7 +297,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return 1
         else:
-            _write_atomic(arguments.output, generated)
+            _write_atomic(output, generated)
     except (OSError, RuntimeError) as exc:
         print(f"django reference runner failed: {exc}", file=sys.stderr)
         return 2

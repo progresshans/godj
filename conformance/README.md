@@ -2,6 +2,7 @@
 
 이 디렉터리는 Django reference profile, contract manifest, normalized observation,
 comparator, M0 codegen bootstrap spike와 M1 GoDj observation adapter를 보관합니다.
+GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract set을 추가했습니다.
 제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
 package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -10,18 +11,25 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | 경로 | 역할 |
 |---|---|
 | `profiles/*.json` | exact reference runtime과 dependency lock fingerprint |
-| `contracts/manifest.json` | 순서가 있는 초기 contract와 provenance, 비교 차원 |
+| `contracts/manifest.json` | M1 read/metadata contract 11개 |
+| `contracts/write-migration-manifest.json` | M2 write/transaction/migration contract 11개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
 | `runners/godj` | M1 제품 package를 실행하는 GoDj observation adapter |
-| `oracles/**/oracle.json` | Django runner가 만든 byte-deterministic expected observation |
+| `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
+| `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
-| `fixtures/godj-not-implemented.json` | 미구현 상태가 pass되지 않는 protocol fixture |
+| `fixtures/godj*.json` | 미구현 상태가 pass되지 않는 set별 protocol fixture |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
 | `cmd/godjcheck` | GoDj observation을 생성해 locked Django oracle과 비교 |
 
-Machine-readable manifest는 실행 입력의 정본입니다. 사람이 보는 진행 상태는
+각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
+ordered contract ID/position, phase와 payload dimension이 suite를 선택 manifest에 묶으며
+다른 set의 oracle을 섞으면 validation이 실패합니다. 사람이 보는 진행 상태는
 `docs/status/IMPLEMENTATION_MATRIX.md`가 요약하며 두 파일의 상태를 같은 변경에서
 갱신합니다.
+
+현재 wire format은 protocol v2입니다. v2는 contract manifest의 expected phase를
+필수화하며 v1 profile, manifest와 observation suite를 조용히 받아들이지 않습니다.
 
 ## Exact profile
 
@@ -77,6 +85,16 @@ make oracle-regenerate
 git diff -- conformance/oracles
 ```
 
+두 번째 write/migration oracle만 직접 확인할 수도 있습니다.
+
+```bash
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/write-migration-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json \
+  --check
+```
+
 두 observation을 직접 비교할 수 있습니다.
 
 ```bash
@@ -100,8 +118,16 @@ go run ./conformance/cmd/godjcheck \
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
 false green이 생기지 않는지 검증합니다.
 
+Write/migration set은 현재 제품 구현 전 `oracle_locked`입니다. Django oracle과
+`godj-write-migration-not-implemented.json`을 비교하면 MOD-001..007, MIG-001..004가
+manifest 순서대로 정확히 11개의 status mismatch를 내야 합니다. 이는 실패해야 정상인
+false-green baseline이며 실행 가능한 GoDj adapter가 생기기 전에는 `red`로 올리지
+않습니다.
+
 ## Provenance
 
-초기 scenario는 Django 코드를 번역하지 않고 독립적으로 작성했습니다. Manifest의
+현재 scenario는 Django 코드를 번역하지 않고 GoDj 고유 fixture로 독립적으로
+작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
+정의입니다. Manifest의
 upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. 파생물
 분류와 고지 규칙은 `docs/LICENSING.md`와 `NOTICE.md`를 따릅니다.

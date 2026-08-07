@@ -26,16 +26,16 @@
     }
   },
   "contracts": [
-    {"id": "QRY-001", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-002", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-003", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-004", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-005", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-006", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-007", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-008", "status": "not_implemented", "phase": "construction"},
-    {"id": "QRY-009", "status": "not_implemented", "phase": "construction"},
-    {"id": "QRY-010", "status": "not_implemented", "phase": "construction"},
-    {"id": "SCH-001", "status": "not_implemented", "phase": "metadata"}
+    {"id": "MOD-001", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-002", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-003", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-004", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-005", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-006", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-007", "status": "not_implemented", "phase": "rollback"},
+    {"id": "MIG-001", "status": "not_implemented", "phase": "commit"},
+    {"id": "MIG-002", "status": "not_implemented", "phase": "commit"},
+    {"id": "MIG-003", "status": "not_implemented", "phase": "commit"},
+    {"id": "MIG-004", "status": "not_implemented", "phase": "rollback"}
   ]
 }
