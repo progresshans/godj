@@ -1,6 +1,6 @@
 # ADR-0010: M2 migration은 state, operation, executor, recorder 경계를 먼저 검증한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0003, MIG-001..MIG-004, Q-012
 - 대체하는 ADR: 없음
@@ -41,7 +41,7 @@ lock 정책을 증거 없이 freeze합니다.
 추가합니다. 사용자 명령은 늦어지지만 핵심 transaction과 recovery 경계를 먼저 검증할 수
 있습니다.
 
-## 제안 결정
+## 결정
 
 M2 첫 product 단면은 다음 경계를 갖습니다.
 
@@ -61,11 +61,27 @@ versioned ProjectState derived from Schema IR
 - historical state는 현재 generated model package를 import하지 않습니다.
 - unsupported reverse/capability는 명시적 오류이며 silent no-op이 아닙니다.
 - public migration file 없이 test/in-memory plan으로 먼저 구현합니다.
+- 모든 state transition은 DB I/O 전에 계산하고 검증합니다. State 오류는 transaction을
+  시작하지 않으며 commit 성공 뒤에만 새 `ProjectState`를 반환합니다.
+- forward operation은 선언 순서, backward operation은 역순으로 실행합니다.
+- `migrations/backend`은 `SchemaEditor`, `Recorder`, migration `Transaction`과
+  `AtomicBackend` 경계를 소유합니다. `migrations` core는 이 interface와 Schema IR만
+  import하고 `db/sqlite`가 같은 `sql.Tx`에 묶인 editor/recorder를 구현합니다.
+- operation 실패와 recorder 실패는 원인과 rollback 오류를 보존하는 서로 다른
+  구조화된 error code를 사용합니다.
+- SQLite native `DROP COLUMN`은 nullable·비인덱스·비참조 field에 한해 첫 단면에서
+  지원합니다. Index/trigger/view/FK 의존성이 있으면 silent fallback이나 과장된 capability
+  대신 구조화된 capability error를 반환합니다. Table rebuild는 후속 범위입니다.
 
 ## 결과
 
 MIG-001..MIG-004를 최소 end-to-end 단면으로 구현하면서 file/CLI ABI를 성급하게 고정하지
 않습니다. 이후 serialization은 이미 검증된 state/operation 의미를 보존해야 합니다.
+
+Go 1.26.5와 `modernc.org/sqlite v1.56.0` 별도 module spike에서 CreateModel/AddField,
+reverse, operation/recorder failure rollback, connection recovery, race와 `CGO_ENABLED=0`을
+실행했습니다. Nullable unindexed field의 native DROP COLUMN은 성공했지만 indexed field는
+`no such column` schema error로 실패해 위 capability 제한을 결정했습니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -80,6 +96,9 @@ MIG-001..MIG-004를 최소 end-to-end 단면으로 구현하면서 file/CLI ABI�
 
 ## 검증
 
+- state preflight가 실패할 때 transaction I/O가 0인지 확인
+- DDL과 recorder가 동일 transaction object만 사용하는지 확인
+- operation/recorder/reverse-recorder failure에서 schema와 record가 함께 복원되는지 확인
 - state/operation forward-backward unit/property test
 - recorder와 DDL failure fault-injection Go-native test
 - SQLite integration에서 MIG-001..MIG-004 differential comparison

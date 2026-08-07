@@ -7,11 +7,11 @@
 
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
-| Q-006 | P1 | M2 write spike | create/update의 `NULL`, zero value, omitted/unchanged를 어떤 generated Go API로 노출하는가 — [ADR-0009](adr/0009-m2-explicit-write-change-state.md) Proposed |
+| Q-006 | Resolved for M2 | GDJ-0004 | generated immutable builder + `Change[T]`/`NullableChange[T]` — [ADR-0009](adr/0009-m2-explicit-write-change-state.md) Accepted |
 | Q-007 | P1 | M1 | QuerySet result cache와 동시 평가의 정확한 의미는 무엇인가 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | P1 | M1 | request, QuerySet, transaction, hook의 goroutine safety 계약은 무엇인가 |
-| Q-012 | P1 | M2/public CLI 전 | migration core 경계는 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) Proposed, file ABI/lock은 계속 open |
+| Q-012 | Partial | public CLI 전 | migration core 경계는 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) Accepted, file ABI/lock은 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -36,6 +36,13 @@
 | Q-008 | ordered input을 `ParseDynamic`에서 즉시 typed predicate 또는 error로 변환 — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
 | Q-009 | consumer-owned interface와 external module compile + `go list` dependency gate — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
 
+## M2에서 해결한 질문
+
+| ID | 결과 |
+|---|---|
+| Q-006 | generated immutable create/patch builder, 별도 nullable change state와 Manager write API — [ADR-0009](adr/0009-m2-explicit-write-change-state.md) |
+| Q-012 core | preflighted ProjectState/Operation/Executor와 한 transaction의 SQLite editor/recorder — [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) |
+
 ## Q-001 — Codegen bootstrap — Resolved
 
 초안의 임시 runner import 방식은 schema package가 오래된 generated type 때문에
@@ -46,12 +53,10 @@ compile되지 않으면 동작하지 않습니다. 실행 spike에서 rename/del
 ## Q-006 — Nullable와 변경 추적
 
 M1 read model은 nullable CharField에 `*string`을 사용해 `nil`, `ptr("")`, 일반 값을
-구분합니다. 이 결정은 partial update의 omitted/unchanged를 해결하지 않으므로 write
-lifecycle 전에 별도 patch 표현을 결정합니다. [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)을
-따릅니다. MOD-002~004 oracle은 create의 omitted/NULL과 update의 unchanged/explicit
-NULL이 같은 문제가 아님을 확인했습니다. [ADR-0009](adr/0009-m2-explicit-write-change-state.md)은
-generated create/patch 입력과 tri-state change core를 제안하며, 정확한 exported API는
-GDJ-0004 compile spike에서 검증한 뒤 상태를 결정합니다.
+구분합니다. MOD-002~004 oracle과 GDJ-0004 compile spike를 거쳐 generated immutable
+create/patch builder, `Change[T]`/`NullableChange[T]`와 Manager write API를
+[ADR-0009](adr/0009-m2-explicit-write-change-state.md)에서 채택했습니다. Instance dirty
+tracking과 `Save()`는 이 첫 단면의 결정이 아닙니다.
 
 ## Q-007 — QuerySet cache
 
@@ -59,9 +64,9 @@ GDJ-0004 compile spike에서 검증한 뒤 상태를 결정합니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
-MIG-001~004는 state/operation/executor/schema editor/recorder와 atomic failure 의미를
-먼저 검증할 근거를 제공합니다. [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)은
-public file 없이 이 core 수직 단면을 먼저 구현하도록 제안합니다. Migration file encoding,
+MIG-001~004와 GDJ-0004 runtime spike를 거쳐 state/operation/executor/schema editor/
+recorder core를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에서
+채택했습니다. Migration file encoding,
 data callback ABI, dependency graph merge, multi-process lock와 crash recovery는 아직
 결정하지 않았으며 public CLI 전에 별도 ADR과 contract가 필요합니다.
 

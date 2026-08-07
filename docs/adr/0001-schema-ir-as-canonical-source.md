@@ -29,3 +29,11 @@ DSL의 정확한 문법, codegen bootstrap 입력 방식, IR 파일 encoding, cu
 ## 검증
 
 M1 전까지 normalization round-trip, deterministic hash, 선언 순서 보존, unknown-version rejection, codegen/runtime metadata equivalence를 테스트합니다.
+
+## 이후 확정된 진화
+
+GDJ-0004에서 create omission이 application default를 잃지 않도록 Schema IR v2에 typed
+scalar default의 존재를 추가하기로 했습니다. Default는 DSL이나 codegen이 별도로
+재해석하지 않고 IR validation, hash, generated write builder와 migration state가 함께
+소비합니다. 상세 write 의미는 [ADR-0009](0009-m2-explicit-write-change-state.md)를
+따릅니다.

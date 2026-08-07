@@ -63,31 +63,33 @@
 - Migration state는 managed table inventory, schema, rows와 app/name recorder를 관찰
 - 외부 DB 격리, output path 결속, rollback 기존 값 복원과 migration failure recovery를
   false-green 회귀로 고정
-- 다음 제품 API와 core 경계는 [ADR-0009](../adr/0009-m2-explicit-write-change-state.md),
-  [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md)의 Proposed 상태로 시작
+- Generated immutable write builder와 explicit change state는
+  [ADR-0009](../adr/0009-m2-explicit-write-change-state.md)에서 Accepted
+- Preflighted migration state/executor와 같은 transaction의 SQLite editor/recorder 경계는
+  [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md)에서 Accepted
 
 ## 현재 차단 요인과 미결정 사항
 
 외부 blocker는 없습니다. 다음 결정은 아직 열려 있습니다.
 
-1. Q-006의 정확한 exported create/patch/change API와 Manager/instance write 형태
-2. Q-007 QuerySet result/error cache와 terminal operation 공유
-3. Q-010 public CLI와 project library/generator version protocol
-4. Q-011 QuerySet/transaction/hook의 전체 goroutine safety
-5. Q-012 public migration file, data callback ABI, dependency graph, lock와 crash recovery
+1. Q-007 QuerySet result/error cache와 terminal operation 공유
+2. Q-010 public CLI와 project library/generator version protocol
+3. Q-011 QuerySet/transaction/hook의 전체 goroutine safety
+4. Q-012 public migration file, data callback ABI, lock와 crash recovery
 
 ## 다음 정확한 작업
 
-1. ADR-0009의 두 write API 후보를 external positive/negative compile fixture로 비교합니다.
-2. ADR-0010의 ProjectState/Operation/Executor dependency graph와 SQLite transaction 경계를
-   compile/runtime failure spike로 검증합니다.
-3. 결과에 따라 ADR-0009/0010을 Accepted로 올리거나 대안과 실패 근거를 기록한 뒤
-   mutation plan과 product code를 구현합니다.
-4. MOD-001..007과 MIG-001..004 GoDj adapter를 연결해 locked oracle과 비교합니다.
+1. Accepted ADR-0009에 따라 explicit change state, immutable mutation plan과 generated
+   create/patch builder를 구현합니다.
+2. SQLite write execution과 transaction-bound session을 구현해 MOD-001..007을 연결합니다.
+3. Accepted ADR-0010에 따라 ProjectState/Operation/Executor와 SQLite editor/recorder를
+   구현해 MIG-001..004를 연결합니다.
+4. 두 contract set을 locked oracle과 비교하고 manifest 상태를 실제 결과로 갱신합니다.
 
 ## 작업 재개 체크포인트
 
-- 공개 framework API: M1 read subset만 검증됐고 write/migration API는 아직 Proposed
+- 공개 framework API: M1 read subset만 검증됐고 write/migration 설계는 Accepted지만
+  product code와 differential은 아직 미구현
 - 활성 baseline: `main@6e7c15a806ebf65e756372cd1d10e68ac629e207`, 시작 시 clean
 - 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`

@@ -1,6 +1,6 @@
 # ADR-0009: M2 write 입력은 변경 의도를 명시적으로 보존한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0003, MOD-001..MOD-007, Q-006
 - 대체하는 ADR: 없음
@@ -43,19 +43,52 @@ compile gate를 약화합니다.
 required 제약을 필드별 API로 제한합니다. 타입 수는 늘지만 변경 의도가 AST와 backend까지
 손실 없이 흐릅니다.
 
-## 제안 결정
+## 결정
 
-M2 product spike는 generated read model과 별개의 create/patch 입력을 만듭니다.
+M2 product는 generated read model과 별개의 immutable create/patch builder를 만듭니다.
 
 - create의 omitted는 field default 또는 Django 호환 create 규칙을 적용하라는 뜻입니다.
 - update의 omitted는 기존 DB 값을 변경하지 않는다는 뜻입니다.
 - nullable field는 explicit NULL과 `Set(value)`를 구분합니다.
 - empty string과 `false`는 정상적인 명시 값이며 omitted로 해석하지 않습니다.
-- generic core는 세 상태를 불변 값으로 보존하고, codegen은 non-null field에 NULL
-  constructor가 노출되지 않는지 external negative compile test로 검증합니다.
+- generic core는 `Change[T]`와 `NullableChange[T]`를 별도 불변 값으로 보존합니다.
+- codegen은 모델·필드별 value receiver `With...` method를 생성합니다. Nullable field만
+  `With...Null`을 가지며 non-null field에는 NULL method가 생성되지 않습니다.
+- generated input의 `BuildCreate`/`BuildPatch` 반환 타입은 `Mutation[M]`으로 model type을
+  generic Manager에 결속합니다. Manager method는 receiver에 없는 새 type parameter를
+  선언하지 않습니다.
+- 첫 public 단면은 `Manager.Create`, `Manager.Update`, `Manager.Delete`와 generated
+  input을 사용합니다. Mutable instance dirty map과 `Save()`는 채택하지 않습니다.
 - validation/coercion 오류는 DB I/O 전에 구조화된 error로 반환합니다.
+- Schema IR v2는 typed scalar default의 존재를 보존합니다. 현재 `Article.published`의
+  application default `false`를 IR에 기록하며, nullable/no-default create omission은
+  SQL NULL로 수렴합니다.
+- generated model은 auto primary key의 값과 존재 여부를 분리해 보존합니다. Delete는
+  성공한 instance의 key 존재 상태를 명시적으로 지우며 adapter가 단순히 `ID == 0`을
+  NULL로 추측하지 않습니다.
 
-정확한 exported type과 constructor 이름은 compile spike 전까지 확정하지 않습니다.
+대표 사용 형태는 다음과 같습니다.
+
+```go
+created, err := models.ArticleObjects.Create(
+    ctx,
+    backend,
+    models.NewArticleCreate("Created").
+        WithPublished(true).
+        WithSummary("Written"),
+)
+
+updated, err := models.ArticleObjects.Update(
+    ctx,
+    backend,
+    created,
+    models.ArticlePatch{}.WithSummaryNull(),
+)
+```
+
+Builder는 value receiver로 새 값을 반환합니다. `ArticleCreate{}` zero value 자체는 Go에서
+막을 수 없으므로 모두 omitted인 입력으로 해석하고 required/default validation을 I/O 전에
+수행합니다.
 
 ## 결과
 
@@ -63,15 +96,23 @@ Query/mutation plan과 SQLite binding까지 사용자 의도를 잃지 않고 �
 대신 generated API가 read model만으로 write를 수행하는 형태보다 커지며, create와 update
 입력의 역할을 문서와 codegen golden test에서 분명히 해야 합니다.
 
+단순 `Change[T]` 하나에 NULL state를 포함하는 후보는 `Change[string]`인 non-null
+`Title`에도 NULL constructor가 대입되어 실제로 compile됐으므로 거부했습니다.
+`Change[*T]` 후보는 pointer alias와 generic null type inference 문제가 있어 거부했습니다.
+
 ## 의도적으로 결정하지 않은 것
 
-- instance `Save()`와 Manager/Repository write API 중 최종 사용자 형태
+- instance `Save()`와 dirty tracking을 추가할지 여부
 - loaded/new/dirty state를 model 내부에 둘지 별도 wrapper에 둘지
 - bulk create/update, hook/signal, database-generated default
 - concurrent instance mutation과 write object의 goroutine safety
 
 ## 검증
 
+- Go 1.26.5 별도 module compile spike에서 positive 후보와 negative compiler fixture 실행
+- non-null NULL, wrong scalar, nullable/non-null wrapper 혼합과 존재하지 않는
+  `WithTitleNull`이 compile 실패하는지 확인
+- `BuildCreate() Mutation[M]`의 cross-model input이 compile 실패하는지 확인
 - nullable/non-null/omitted constructor의 external positive·negative compile test
 - state round-trip과 immutable mutation plan unit/property test
 - MOD-001..MOD-007 differential comparison

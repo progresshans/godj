@@ -74,7 +74,7 @@ Schema IR snapshot
 
 ## 구현 순서
 
-1. compile spike와 ADR 상태를 먼저 닫습니다.
+1. compile/runtime spike와 Accepted ADR-0009/0010으로 API·backend 경계를 닫았습니다.
 2. explicit write state와 immutable mutation plan을 unit/property test로 만듭니다.
 3. codegen이 Article create/patch API와 typed field binding을 생성하도록 확장합니다.
 4. SQLite insert/update/delete와 transaction callback을 context/resource cleanup 계약으로
@@ -87,7 +87,7 @@ Schema IR snapshot
 
 ## 완료 gate
 
-- [ ] ADR-0009/0010의 채택 또는 대안이 compile/runtime 증거와 함께 기록됨
+- [x] ADR-0009/0010의 채택이 compile/runtime 증거와 함께 기록됨
 - [ ] nullable/non-null/omitted write API positive·negative external compile test 통과
 - [ ] mutation plan 불변성, binding과 zero-I/O validation test 통과
 - [ ] create/update/delete/transaction context·cleanup·rollback integration test 통과
@@ -100,6 +100,27 @@ Schema IR snapshot
 ## 재개 시 첫 작업
 
 `main@6e7c15a806ebf65e756372cd1d10e68ac629e207`의 clean worktree를 baseline으로
-기록했습니다. 제품 package를 만들기 전에 ADR-0009의 두 write API 후보와 ADR-0010
-dependency graph를 외부 consumer fixture로 compile해 첫 단면의 public 모양을
-좁힙니다.
+기록했고 두 spike와 ADR 채택을 마쳤습니다. 다음은 `Change[T]`/`NullableChange[T]`,
+DB 독립 mutation plan과 Schema IR v2 default를 unit test와 함께 구현하는 것입니다.
+
+## 결정 spike 결과
+
+### Write API
+
+- Go 1.26.5 별도 module에서 단일 tri-state `Change[T]`, pointer nullable과
+  `Change[T]`/`NullableChange[T]` + generated builder 후보를 실제 compile했습니다.
+- 단일 tri-state 후보는 non-null `Title`에 NULL이 compile되어 거부했습니다.
+- Pointer 후보는 alias와 generic type inference 문제가 있어 거부했습니다.
+- Generated immutable `With...` builder, model-typed `Mutation[M]`과 Manager write API를
+  [ADR-0009](../docs/adr/0009-m2-explicit-write-change-state.md)에서 채택했습니다.
+
+### Migration core
+
+- 별도 module의 `modernc.org/sqlite v1.56.0`/SQLite 3.53.3에서 CreateModel/AddField,
+  reverse, operation/recorder/reverse-recorder failure rollback, connection recovery,
+  race와 `CGO_ENABLED=0`을 실행했습니다.
+- `migrations/backend` interface와 `migrations` core, `db/sqlite` 구현 의존 방향 및
+  transaction 전 state preflight를 [ADR-0010](../docs/adr/0010-m2-migration-state-and-executor-boundary.md)에서
+  채택했습니다.
+- Native DROP COLUMN은 indexed field에서 실제 실패했으므로 첫 단면은 nullable
+  unindexed field로 제한하고 dependency에는 구조화된 capability error를 반환합니다.
