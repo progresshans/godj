@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-011
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-012
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1098,4 +1098,76 @@ commit XOR rollback, failure 뒤 추가 transaction 부재를 내부 검증합�
 감사는 caller input snapshot, nonempty AddField gate, reverse RemoveField capability,
 fixture dependency/result/error propagation과 deviation selector를 변형했을 때 회귀가
 실패하는지 확인했습니다. 최종 core와 conformance 감사 모두 P0–P3 finding 없음으로
+종료했습니다.
+
+## EVID-20260808-012 — GDJ-0013 Recorder-backed Restart Planning Compatibility Contracts
+
+- Date/time: 2026-08-08T08:37:14+09:00
+- Work/contract IDs: GDJ-0013, MIG-027..MIG-036, Q-012
+- Checkout/commit: machine artifact는 clean `main` commit
+  `b6af5056bb67fc1d2d32b2163cb7091d700b1e7e`; 이 evidence와 status/GDJ-0014 handoff는
+  바로 다음 문서 commit에 포함
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: stable tree의 `make check`, full Go test/vet/race, focused·full CGO=0,
+  portable/exact Python, seven-set contract/oracle validation, two-process regeneration과
+  독립 contract 감사가 0
+- Result summary: recorder table absent/empty, record/unrecord fresh read, database alias
+  isolation, applied-prefix tail, fully-applied empty plan, unknown legacy row, explicit
+  inconsistent-history preflight와 middle-failure restart를 MIG-027..036으로 잠갔습니다. 새
+  manifest는 10 `oracle_locked`, Django oracle은 10 `observed`, static fixture는 10
+  `not_implemented`입니다. 기존 제품 분류는 `63 passing + 4 deviation`이며 reference 총
+  77개 전체를 제품 통과로 세지 않습니다.
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python은 94 pass와 exact-only 9 skip,
+  exact Python은 94/94 pass였습니다. Static comparison은 의도한 exit 1과 MIG-027..036
+  ordered mismatch 10개, 제품 binary는 unsupported scenario에서 exit 2와 actual file 미생성을
+  반환했습니다. GitHub-hosted workflow는 push하지 않아 실행하지 않았습니다.
+- Artifacts: manifest 10,225 bytes SHA-256
+  `93e25d02208a765001760f76715ff6e9642451c5823efc62cc40b1d249dbd42b`; locked Django oracle
+  33,888 bytes SHA-256
+  `90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`; static fixture
+  1,715 bytes SHA-256
+  `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+git diff --check
+```
+
+두 독립 hash-seed exact process는 `/tmp/godj-restart-oracle.AisvMo`에 oracle을 생성했습니다.
+두 output과 checked-in oracle은 모두 33,888 bytes이고 SHA-256이
+`90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`로 byte-identical했습니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-restart-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json \
+  -actual conformance/fixtures/godj-migration-restart-not-implemented.json
+```
+
+이 명령은 의도한 exit 1과 MIG-027..036 ordered status mismatch 정확히 10개를 반환했습니다.
+같은 manifest의 실제 `godjcheck` binary는 exit 2였고
+`/tmp/godj-restart-godjcheck.Oex66v/actual.json`을 만들지 않았습니다.
+
+Seven-set protocol gate는 contract ID/scenario 전역 유일성과 42개 ordered cross-binding 거부를
+검증합니다. Semantic mutation gate는 recorder 존재·identity·setup transition, alias partition,
+plan order/direction/empty, unknown/known history partition, history error와 pre-plan timing, durable
+prefix와 failed-step tail, DDL/write/기타 non-SELECT 0과 before/after 동일성을 각각 변형해
+false green을 거부합니다. Fresh loader 생성 자체도 capture 안에 있으며 setup recorder/executor
+object를 재사용하지 않습니다.
+
+로컬 Django checkout HEAD는 newer checkout이지만 참조한 source/test 파일은 pinned
+`fe0a859f537d4238cf49fca39073513206f83122`와 byte-identical했고, 실행은 uv-locked Django 6.1
+wheel SHA-256 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`를 사용했습니다.
+외부 checkout은 수정하지 않았고 최종 독립 contract 감사는 P0–P3 finding 없음으로
 종료했습니다.

@@ -113,6 +113,14 @@ migration별 transaction으로 실행하도록 결정했습니다. 첫 실패는
 transaction에 둡니다. Public migration file 형식, loader/CLI, recorder read/restart,
 data callback, locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
 
+GDJ-0013은 recorder table absent/empty, durable record/unrecord, fresh applied-prefix plan과
+history preflight를 MIG-027..036 reference로 잠갔습니다. Proposed
+[ADR-0015](adr/0015-recorder-backed-applied-state.md)는 `AtomicBackend`/`Transaction`과
+별도인 raw applied-migration read port, core applied-state validation과 explicit
+`Planner.CheckHistory`를 둡니다. Read/check/plan을 `ExecutePlan`과 한 API로 묶지 않으며,
+recorder key에서 historical `ProjectState`를 재구성하거나 lock 없는 snapshot의 최신성을
+보장하지 않습니다.
+
 ## CLI와 프로젝트 실행
 
 전역 `godj` CLI는 `version`, `startproject`, `startapp`, 프로젝트 탐색과 orchestration을 담당합니다. 프로젝트 설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행합니다.

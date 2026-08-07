@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Multi-migration execution 제품 검증 완료, recorder-backed restart planning 계약 준비
+- 현재 단계: Recorder-backed restart planning reference 잠금 완료, 최소 제품 read/check/plan 단면
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -110,12 +110,18 @@ recorder를 같은 transaction으로 유지하는 결정은
 [DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
 Accepted/Verified 상태입니다. 현재 제품 분류는 `63 passing + 4 deviation`입니다.
 
-다음 [GDJ-0013](../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)은
+완료된 [GDJ-0013](../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)은
 recorder table 없음/empty/record/unrecord, fresh executor의 applied-prefix tail plan,
-unknown legacy row와 inconsistent history, 중간 실패 뒤 재계획을 MIG-027..036 exact
-reference로 먼저 고정합니다. 제품 recorder-read API는 후속 work로 분리합니다.
-Public migration file/CLI, 제품 recorder read, data callback과 lock/crash recovery는 계속 후속
-범위입니다.
+unknown legacy row와 explicit inconsistent-history preflight, 중간 실패 뒤 재계획을
+MIG-027..036의 일곱 번째 exact set으로 고정했습니다. Reference 총계는 77개지만 새 10개는
+`oracle_locked`이고 제품 상태는 계속 `63 passing + 4 deviation`입니다.
+
+활성 [GDJ-0014](../work/0014-recorder-backed-restart-planning-product-slice.md)는
+[ADR-0015](adr/0015-recorder-backed-applied-state.md)의 별도 raw read port,
+`LoadAppliedState`와 explicit `Planner.CheckHistory`만 구현합니다. Read/check/plan을
+`ExecutePlan`과 한 API로 묶지 않으며 recorder history에서 historical `ProjectState`를
+재구성하지 않습니다. Public migration file/CLI, data callback, lock/crash recovery는 계속
+후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

@@ -10,7 +10,8 @@ GoDj's conformance scenarios, including the query, write, migration, Save
 lifecycle, QuerySet evaluation/cache, and migration planning fixtures, are
 independently written behavioral scenarios. This also includes the
 multi-migration plan execution and before-write operation/recorder failure
-fixtures. Their manifest entries point to pinned Django documentation, source
+fixtures, and the recorder-backed fresh restart planning fixtures. Their
+manifest entries point to pinned Django documentation, source
 symbols, and tests for provenance but do not copy or translate Django source,
 fixtures, comments, or assertion structure. This notice does not classify those
 scenarios as derivative works.

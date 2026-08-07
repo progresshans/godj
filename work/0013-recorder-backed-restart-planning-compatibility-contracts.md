@@ -1,6 +1,6 @@
 ---
 id: GDJ-0013
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "3bcd25ce557cfddc2d73652f9154b6db0fd0b065"
@@ -58,13 +58,13 @@ applied state로 취급하며, known dependency가 빠진 history는 실행 전�
 - Exact profile은 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
   CPython 3.14.3, SQLite 3.50.4, UTC/C locale입니다.
 
-## 계약 후보
+## 잠근 계약
 
 모든 계약은 protocol v2의 `evaluation` phase를 사용합니다. SQL 문자열, SELECT 횟수,
 row physical order, applied timestamp와 Django private cache/object identity는 계약하지
 않습니다.
 
-| ID | 외부 동작 후보 |
+| ID | 잠근 외부 동작 |
 |---|---|
 | MIG-027 | Recorder table이 없으면 applied set은 empty이고 읽기가 table을 생성하지 않음 |
 | MIG-028 | Recorder table은 있지만 row가 없으면 empty applied set |
@@ -80,7 +80,7 @@ row physical order, applied timestamp와 Django private cache/object identity는
 MIG-036은 process kill/crash 계약이 아닙니다. 이전 executor instance를 버리고 같은 durable
 database의 recorder에서 새 instance를 구성하는 restart까지만 관찰합니다.
 
-## 관찰 payload 후보
+## 관찰 payload
 
 - 정렬된 applied `(app, name)` identity
 - recorder table 존재 여부
@@ -107,54 +107,86 @@ comparison payload에 넣지 않습니다.
 
 ## 완료 조건
 
-- [ ] MIG-027..036 exact disposable probe와 payload review
-- [ ] Contract ID/scenario/provenance/phase/comparison dimension 10개 잠금
-- [ ] Two-process random-hashseed oracle byte identity와 SHA-256 checksum
-- [ ] Recorder absent read가 table을 만들지 않고 모든 read/planning capture가 zero-mutation
-- [ ] Fresh recorder/executor instance가 durable state만 읽는다는 회귀
-- [ ] Static fixture가 MIG-027..036 ordered `not_implemented` mismatch 정확히 10개
-- [ ] Product adapter 없음이 exit 2/no actual output으로 드러남
-- [ ] Seven set global ID/scenario uniqueness와 42 ordered cross-binding 거부
-- [ ] Applied/plan/error/state semantic mutation이 comparator mismatch를 냄
-- [ ] Existing 63 passing + 4 deviation 제품 conformance 유지
-- [ ] 완료 상태를 `63 passing + 4 deviation + 10 oracle_locked`, reference 총 77개로
+- [x] MIG-027..036 exact disposable probe와 payload review
+- [x] Contract ID/scenario/provenance/phase/comparison dimension 10개 잠금
+- [x] Two-process random-hashseed oracle byte identity와 SHA-256 checksum
+- [x] Recorder absent read가 table을 만들지 않고 모든 read/planning capture가 zero-mutation
+- [x] Fresh recorder/executor instance가 durable state만 읽는다는 회귀
+- [x] Static fixture가 MIG-027..036 ordered `not_implemented` mismatch 정확히 10개
+- [x] Product adapter 없음이 exit 2/no actual output으로 드러남
+- [x] Seven set global ID/scenario uniqueness와 42 ordered cross-binding 거부
+- [x] Applied/plan/error/state semantic mutation이 comparator mismatch를 냄
+- [x] Existing 63 passing + 4 deviation 제품 conformance 유지
+- [x] 완료 상태를 `63 passing + 4 deviation + 10 oracle_locked`, reference 총 77개로
   구분하고 77개 전체를 제품 통과로 표현하지 않음
-- [ ] Portable/exact Python, full Go/vet/race/CGO=0, checksum과 Markdown gate 통과
-- [ ] CURRENT/matrix/evidence/work가 같은 checkout을 가리킴
+- [x] Portable/exact Python, full Go/vet/race/CGO=0, checksum과 Markdown gate 통과
+- [x] CURRENT/matrix/evidence/work가 같은 checkout을 가리킴
 
 ## 진행 기록
 
 - [x] GDJ-0012 제품 execution/atomic-reverse 검증 완료
 - [x] Recorder write-only와 caller-supplied AppliedState 사이 restart gap 식별
-- [ ] Pinned source/provenance와 exact one-off probe
-- [ ] Seventh machine artifact와 false-green gate
-- [ ] Full verification과 handoff
+- [x] Pinned source/provenance와 exact one-off probe
+- [x] Seventh machine artifact와 false-green gate
+- [x] Full verification과 handoff
+
+## 수정 파일
+
+- `conformance/contracts/migration-restart-manifest.json`: MIG-027..036 10개 ordered
+  `oracle_locked` contract와 pinned provenance
+- `conformance/runners/django/migration_restart_scenarios.py`와 test: fresh recorder/loader,
+  explicit consistency preflight, restart tail과 zero-mutation observation
+- `conformance/runners/django/runner.py`와 safety/registry test: seventh registry/default oracle,
+  exact set completeness와 output pairing
+- `conformance/oracles/**/migration-restart-oracle.json`, `SHA256SUMS`: 10 observed locked
+  Django result와 일곱 oracle checksum
+- `conformance/fixtures/godj-migration-restart-not-implemented.json`: ordered explicit
+  not-implemented baseline
+- `conformance/internal/protocol/**`, `conformance/cmd/godjcheck/main_test.go`: 77 identity,
+  42 cross-binding, semantic mutation과 product fail-closed gates
+- `Makefile`: seventh reference contract/oracle check와 regeneration command; product
+  `godj-conformance`는 기존 여섯 set 유지
 
 ## 결정과 미결정
 
 - Contract와 제품 API를 분리합니다. GDJ-0013에서는 reference가 제품 shape를 따라가는
   false green을 막기 위해 Go recorder-read API를 만들지 않습니다.
-- Unknown legacy record는 known graph target plan과 구분해 관찰하되 exact probe 전 최종
-  payload/error 의미를 확정하지 않습니다.
-- Product ownership interface가 `migrations/backend`에 속할지 consumer-owned read port가 될지는
-  후속 ADR/work에서 compile dependency test로 결정합니다.
+- Unknown legacy record는 sorted applied identity에 보존하고, known graph history consistency만
+  검사한 뒤 known target을 정상 계획합니다.
+- MIG-035는 executor가 암묵적으로 거부한다고 주장하지 않고 migrate-style explicit
+  `check_consistent_history`가 plan 호출 전에 실패하는 경계로 고정합니다.
+- Product ownership은 후속 [ADR-0015](../docs/adr/0015-recorder-backed-applied-state.md)와
+  [GDJ-0014](0014-recorder-backed-restart-planning-product-slice.md)에서 별도 read port로 검증합니다.
 - 외부 blocker는 없습니다.
 
 ## 테스트 증거
 
 - Baseline:
   [EVID-20260808-011](../docs/status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)
-- Not run: MIG-027..036 exact probe/oracle — active contract work 시작 전
+- Result:
+  [EVID-20260808-012](../docs/status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)
+- Machine artifact commit: `b6af5056bb67fc1d2d32b2163cb7091d700b1e7e`
+- Manifest: 10,225 bytes, SHA-256
+  `93e25d02208a765001760f76715ff6e9642451c5823efc62cc40b1d249dbd42b`
+- Oracle: 33,888 bytes, SHA-256
+  `90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`
+- Static fixture: 1,715 bytes, SHA-256
+  `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`
+- `make check`, full Go/race/CGO=0/vet, portable Python 94 pass/9 exact-only skip,
+  exact Python 94/94, two-process byte identity와 독립 P0–P3 audit가 통과했습니다.
+- Not run: GitHub-hosted workflow — push하지 않았습니다.
 
 ## 다음 정확한 작업
 
-Pinned Django 6.1의 `MigrationRecorder.has_table()/applied_migrations()`, loader history
-preflight와 executor plan source/test를 먼저 확인합니다. 그 다음 disposable SQLite에서
-MIG-027부터 recorder table absent before/after inventory와 non-SELECT count 0을 두 번
-실행해 canonical payload 후보를 검증합니다.
+[GDJ-0014](0014-recorder-backed-restart-planning-product-slice.md)에서
+`migrations/backend`의 별도 raw read port와 `LoadAppliedState`/`Planner.CheckHistory`를
+test-first로 구현합니다. `AtomicBackend`/`Transaction`에 read 메서드를 embed하거나 public
+migrate/lock/ProjectState reconstruction으로 범위를 넓히지 않습니다.
 
 ## 결과와 인수인계
 
-GDJ-0012 제품 commit을 기준으로 restart gap만 contract-first로 분리했습니다. 다음 담당자는
-recorder read 제품 API나 public migration file/CLI를 먼저 만들지 말고, exact Django
-observation과 zero-mutation/fresh-instance gate를 먼저 잠가야 합니다.
+GDJ-0012 제품 commit을 기준으로 restart gap을 contract-first로 분리해 machine artifact commit
+`b6af5056bb67fc1d2d32b2163cb7091d700b1e7e`로 잠갔습니다. 새 set은 제품 통과가 아니라
+10 `oracle_locked`이고 기존 제품 결과는 `63 passing + 4 deviation`입니다. 다음 담당자는
+GDJ-0014의 read/check/plan 경계만 구현하고 locked oracle/static bytes와 외부 Django checkout을
+보존해야 합니다.

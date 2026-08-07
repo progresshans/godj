@@ -187,6 +187,26 @@ GDJ-0012는 `ExecutePlan`과 live SQLite adapter를 구현해 MIG-017/019/021/02
 `63 passing + 4 deviation`이며, reference 67개 전부가 Django와 exact 일치한다고
 표현하지 않습니다.
 
+GDJ-0013은
+[`migration-restart-manifest.json`](../conformance/contracts/migration-restart-manifest.json)을
+일곱 번째 ordered reference set으로 추가했습니다. MIG-027..036은 recorder table
+absent/empty, record/unrecord 뒤 fresh read, database isolation, applied-prefix tail,
+fully-applied empty plan, unknown legacy row, explicit known-history preflight와 middle-failure
+restart를 다룹니다. 모든 계약은 `evaluation` phase이며 read/planning 전후 recorder/schema
+state가 같고 DDL/write/기타 non-SELECT statement가 0인지 비교합니다.
+
+새 manifest는 10 `oracle_locked`, Django oracle은 10 `observed`, static fixture는 10
+`not_implemented`입니다. 제품 adapter는 exit 2/no actual output으로 fail-closed하며 기존
+제품 분류는 `63 passing + 4 deviation`입니다. 일곱 manifest의 ID/scenario는 전역으로
+유일하고 모든 42개 ordered cross-pair가 거부됩니다. Reference 총계 77개를 제품 통과로
+표현하지 않습니다.
+
+MIG-035는 `MigrationExecutor`가 자동으로 history를 검사한다고 주장하지 않습니다.
+Migrate-style explicit `check_consistent_history`가 plan 호출 전에
+`migration_history_error/inconsistent_applied_history`로 실패하는 경계를 고정합니다.
+MIG-036은 process kill/crash가 아니라 앞선 durable commit 뒤 기존 instance를 버리고 같은
+database에서 fresh recorder/executor를 구성해 남은 tail을 다시 계획하는 의미입니다.
+
 ## 계약 상태
 
 설계·구현 상태와 실행 상태를 구분합니다.
@@ -317,6 +337,18 @@ actual은 각각 47,446 bytes, SHA-256
 reference를 원 manifest로 먼저 검증한 뒤 DEV-0001의 등록된 차이만 적용한 product
 expectation과 10개 0-diff입니다. 상세 증거는
 [EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
+기록합니다.
+
+GDJ-0013의 seventh manifest는 10,225 bytes, SHA-256
+`93e25d02208a765001760f76715ff6e9642451c5823efc62cc40b1d249dbd42b`, Django oracle은
+33,888 bytes, SHA-256
+`90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`, static fixture는
+1,715 bytes, SHA-256
+`31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`입니다. 두 독립
+random-hashseed process와 checked-in oracle은 byte-identical합니다. Static ordered 10
+mismatch, product exit 2/no output, 42 cross-binding과 recorder/identity/alias/plan/history/
+restart/zero-mutation gate는
+[EVID-20260808-012](status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)에
 기록합니다.
 
 ## 데이터 호환성

@@ -259,6 +259,23 @@ status/provenance 또는 fixture 누락은 actual을 쓰기 전에 exit 2로 실
 [EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
 기록합니다.
 
+GDJ-0013은 MIG-027..036을 일곱 번째 reference set으로 추가했습니다. Recorder table
+absent/empty, record/unrecord fresh read, database isolation, applied-prefix/fully-applied plan,
+unknown/known history와 middle-failure restart를 비교합니다. Fresh는 setup object의 cache
+재사용이 아니라 durable database에서 새 recorder/loader/executor를 구성하는 뜻입니다.
+
+일곱 set의 ID/scenario는 전역으로 유일하며 42개 ordered cross-pair를 모두 거부합니다.
+Two-process random-hashseed exact bytes, recorder presence/identity/setup transition, alias
+partition, plan order/direction/empty, unknown partition, history error와 pre-plan timing,
+durable prefix/tail, DDL/write/기타 non-SELECT 0과 before/after state를 각각 변형합니다.
+Static fixture는 ordered 10 mismatch이고 product `godjcheck`는 exit 2/no actual output입니다.
+
+새 set은 10 `oracle_locked`이며 `make godj-conformance`는 계속 제품 adapter가 있는 여섯
+set만 실행해 `63 passing + 4 deviation`을 보고합니다. Reference 총 77개를 제품 통과로
+세지 않습니다. 상세 증거는
+[EVID-20260808-012](status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)에
+기록합니다.
+
 ## 기능별 기본 테스트 요구
 
 모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
