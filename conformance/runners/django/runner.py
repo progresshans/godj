@@ -35,12 +35,16 @@ from .write_migration_scenarios import (  # noqa: E402
 from .save_lifecycle_scenarios import (  # noqa: E402
     SCENARIOS as SAVE_LIFECYCLE_SCENARIOS,
 )
+from .query_cache_scenarios import (  # noqa: E402
+    SCENARIOS as QUERY_CACHE_SCENARIOS,
+)
 
 
 SCENARIO_REGISTRIES = (
     QUERY_SCENARIOS,
     WRITE_MIGRATION_SCENARIOS,
     SAVE_LIFECYCLE_SCENARIOS,
+    QUERY_CACHE_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -85,10 +89,18 @@ DEFAULT_SAVE_LIFECYCLE_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json"
 )
+DEFAULT_QUERY_CACHE_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/query-cache-manifest.json"
+)
+DEFAULT_QUERY_CACHE_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
     DEFAULT_SAVE_LIFECYCLE_MANIFEST.resolve(): DEFAULT_SAVE_LIFECYCLE_ORACLE,
+    DEFAULT_QUERY_CACHE_MANIFEST.resolve(): DEFAULT_QUERY_CACHE_ORACLE,
 }
 
 

@@ -213,6 +213,7 @@ func TestCheckedInContractSetsAreGloballyDistinctAndRejectCrossBinding(t *testin
 		loadCheckedInContractSet(t, root, "read", "manifest.json", "oracle.json"),
 		loadCheckedInContractSet(t, root, "write-migration", "write-migration-manifest.json", "write-migration-oracle.json"),
 		loadCheckedInContractSet(t, root, "save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"),
+		loadCheckedInContractSet(t, root, "query-cache", "query-cache-manifest.json", "query-cache-oracle.json"),
 	}
 
 	contractIDs := make(map[string]string)
@@ -233,17 +234,22 @@ func TestCheckedInContractSetsAreGloballyDistinctAndRejectCrossBinding(t *testin
 		}
 	}
 
+	crossBindings := 0
 	for manifestIndex, manifestSet := range sets {
 		for suiteIndex, suiteSet := range sets {
 			if manifestIndex == suiteIndex {
 				continue
 			}
+			crossBindings++
 			t.Run(manifestSet.name+" manifest rejects "+suiteSet.name+" oracle", func(t *testing.T) {
 				if err := ValidateSuiteAgainst(profile, manifestSet.manifest, suiteSet.oracle); err == nil {
 					t.Fatal("checked-in cross-set binding produced a false green")
 				}
 			})
 		}
+	}
+	if crossBindings != 12 {
+		t.Fatalf("checked %d ordered cross-set bindings, want 12", crossBindings)
 	}
 }
 
