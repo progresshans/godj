@@ -1,0 +1,24 @@
+# Architecture Decision Records
+
+ADR은 되돌리기 어렵거나 여러 하위 시스템에 영향을 주는 결정을 기록합니다. 현재 상태나 작업 체크리스트를 담지 않습니다.
+
+## 상태
+
+- `Proposed`: 검토 또는 prototype 필요
+- `Accepted`: 현재 방향으로 채택
+- `Rejected`: 채택하지 않음
+- `Superseded`: 새 ADR로 대체
+
+Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지 않습니다. 새 ADR을 만들고 이전 ADR의 상태와 대체 링크를 갱신합니다. 오탈자, 링크, 사실 오류는 decision 의미를 바꾸지 않는 범위에서 수정할 수 있습니다.
+
+## 목록
+
+| ADR | 상태 | 결정 |
+|---|---|---|
+| [0001](0001-schema-ir-as-canonical-source.md) | Accepted | Schema IR을 모델 의미의 정규화된 단일 원본으로 사용 |
+| [0002](0002-codegen-generics-runtime-metadata.md) | Accepted | Codegen, Generics, Runtime Metadata의 역할 분리 |
+| [0003](0003-typed-and-dynamic-query-apis.md) | Accepted | typed/dynamic query API가 동일 AST로 수렴 |
+| [0004](0004-cli-and-project-binary.md) | Accepted | 전역 CLI와 프로젝트 바이너리 역할 분리 |
+| [0005](0005-contract-first-vertical-slices.md) | Accepted | contract-first 수직 단면으로 구현 순서 구성 |
+
+새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.
