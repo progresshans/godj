@@ -123,6 +123,28 @@ func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Obse
 		return modelSaveExplicitPrimaryKeyMissing(ctx, contract.ID)
 	case "django.model.save.atomic_rollback_instance_state":
 		return modelSaveAtomicRollbackInstanceState(ctx, contract.ID)
+	case "django.query.cache.repeated_full_evaluation":
+		return queryCacheRepeatedFullEvaluation(ctx, contract.ID)
+	case "django.query.cache.empty_full_evaluation":
+		return queryCacheEmptyFullEvaluation(ctx, contract.ID)
+	case "django.query.cache.stale_snapshot_and_fresh_queryset":
+		return queryCacheStaleSnapshotAndFreshQuerySet(ctx, contract.ID)
+	case "django.query.cache.chained_queryset_independence":
+		return queryCacheChainedQuerySetIndependence(ctx, contract.ID)
+	case "django.query.cache.count_cold_and_warm":
+		return queryCacheCountColdAndWarm(ctx, contract.ID)
+	case "django.query.cache.exists_cold_and_warm":
+		return queryCacheExistsColdAndWarm(ctx, contract.ID)
+	case "django.query.cache.iterator_bypass":
+		return queryCacheIteratorBypass(ctx, contract.ID)
+	case "django.query.cache.index_partial_evaluation":
+		return queryCacheIndexPartialEvaluation(ctx, contract.ID)
+	case "django.query.cache.failed_evaluation_retry":
+		return queryCacheFailedEvaluationRetry(ctx, contract.ID)
+	case "django.query.cache.all_fresh_clone":
+		return queryCacheFreshClone(ctx, contract.ID)
+	case "django.query.cache.first_cold_and_warm":
+		return queryCacheFirstColdAndWarm(ctx, contract.ID)
 	default:
 		return protocol.Observation{}, fmt.Errorf("unsupported scenario %q", contract.Scenario)
 	}

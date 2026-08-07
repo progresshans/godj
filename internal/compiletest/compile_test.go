@@ -44,7 +44,15 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			fixture: "descriptor_model_mismatch.go.txt",
 			wantFragments: []string{
 				"orm.ModelDescriptor[Other]",
-				"wrong type for method Scan",
+				"wrong type for method",
+			},
+		},
+		{
+			name:    "descriptor clone is required",
+			fixture: "descriptor_clone_missing.go.txt",
+			wantFragments: []string{
+				"orm.ModelDescriptor[CustomModel]",
+				"missing method CloneModel",
 			},
 		},
 		{
@@ -116,6 +124,22 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"orm.ForceInsert[Other]()",
 				"orm.SaveOption[models.Article]",
+			},
+		},
+		{
+			name:    "QuerySet Iterate callback model mismatch",
+			fixture: "query_iterate_model_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use func(Other) error",
+				"func(models.Article) error",
+			},
+		},
+		{
+			name:    "QuerySet terminal result model mismatch",
+			fixture: "query_terminal_result_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use article",
+				"as Other value",
 			},
 		},
 	}

@@ -4,17 +4,29 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/query"
 )
 
 type metricsProbeMutator struct {
 	calls []string
+}
+
+type metricsProbeQueryer struct {
+	calls []query.Plan
+	err   error
+}
+
+func (backend *metricsProbeQueryer) Query(_ context.Context, plan query.Plan) (db.Rows, error) {
+	backend.calls = append(backend.calls, plan)
+	return nil, backend.err
 }
 
 func (mutator *metricsProbeMutator) Insert(context.Context, query.InsertPlan) (int64, error) {
@@ -110,6 +122,32 @@ func TestGenerateMatchesLockedSaveLifecycleOracle(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedQueryCacheOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadQueryCacheInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj query-cache suite differs from locked Django oracle in %d place(s)", len(differences))
+	}
+}
+
 func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -132,6 +170,105 @@ func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
 	}
 	if !bytes.Equal(firstJSON, secondJSON) {
 		t.Fatal("independent save lifecycle runs produced different canonical observations")
+	}
+}
+
+func TestGenerateQueryCacheIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, _ := loadQueryCacheInputs(t)
+	first, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	second, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(second) error = %v", err)
+	}
+	firstJSON, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(first) error = %v", err)
+	}
+	secondJSON, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(second) error = %v", err)
+	}
+	if !bytes.Equal(firstJSON, secondJSON) {
+		t.Fatal("independent query-cache runs produced different canonical observations")
+	}
+}
+
+func TestQueryCacheMetricsAreDerivedFromCaptureWindowQueryerCalls(t *testing.T) {
+	t.Parallel()
+
+	probeErr := errors.New("probe query failed")
+	delegate := &metricsProbeQueryer{err: probeErr}
+	recorder := &queryCallRecorder{}
+	backend := observedQueryer(delegate, recorder)
+	before := query.NewPlan("before_checkpoint", nil)
+	first := query.NewPlan("first_in_window", nil)
+	second := query.NewPlan("second_in_window", nil)
+	if _, err := backend.Query(context.Background(), before); !errors.Is(err, probeErr) {
+		t.Fatalf("pre-window Query() error = %v, want probe error", err)
+	}
+	checkpoint := recorder.checkpoint()
+	if _, err := backend.Query(context.Background(), first); !errors.Is(err, probeErr) {
+		t.Fatalf("first Query() error = %v, want probe error", err)
+	}
+	if _, err := backend.Query(context.Background(), second); !errors.Is(err, probeErr) {
+		t.Fatalf("second Query() error = %v, want probe error", err)
+	}
+
+	got, err := queryCacheMetricStep(recorder, checkpoint, "sentinel_window")
+	if err != nil {
+		t.Fatalf("queryCacheMetricStep() error = %v", err)
+	}
+	want := protocol.Object(map[string]protocol.Value{
+		"name":        protocol.String("sentinel_window"),
+		"query_count": protocol.Integer("2"),
+		"statement_kinds": protocol.List(
+			protocol.String("SELECT"),
+			protocol.String("SELECT"),
+		),
+	})
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("capture metrics = %#v, want call-derived %#v", got, want)
+	}
+	if gotTables := []string{delegate.calls[0].Table(), delegate.calls[1].Table(), delegate.calls[2].Table()}; !reflect.DeepEqual(gotTables, []string{"before_checkpoint", "first_in_window", "second_in_window"}) {
+		t.Fatalf("delegate plans = %#v", gotTables)
+	}
+}
+
+func TestQueryCacheCaptureUsesOperationValueAndStructuredErrorFields(t *testing.T) {
+	t.Parallel()
+
+	recorder := &queryCallRecorder{}
+	resultSteps, metricSteps := newQueryCacheSteps()
+	if err := captureQueryCacheStep(recorder, &resultSteps, &metricSteps, "value_probe", func() (protocol.Value, error) {
+		return protocol.String("live-operation-sentinel"), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(resultSteps) != 1 || resultSteps[0].Fields[1].Name != "value" ||
+		resultSteps[0].Fields[1].Value.Text == nil || *resultSteps[0].Fields[1].Value.Text != "live-operation-sentinel" {
+		t.Fatalf("captured operation value = %#v", resultSteps)
+	}
+
+	structured := &query.Error{Category: "sentinel_category", Code: "sentinel_code", Detail: "not a contract"}
+	if err := captureQueryCacheErrorStep(recorder, &resultSteps, &metricSteps, "error_probe", func() error {
+		return fmt.Errorf("wrapped: %w", structured)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	errorObject := resultSteps[1].Fields[0].Value
+	if errorObject.Type != protocol.ValueObject || len(errorObject.Fields) != 2 {
+		t.Fatalf("captured error object = %#v", errorObject)
+	}
+	if errorObject.Fields[0].Name != "category" || errorObject.Fields[0].Value.Text == nil || *errorObject.Fields[0].Value.Text != "sentinel_category" {
+		t.Fatalf("captured error category = %#v", errorObject.Fields)
+	}
+	if errorObject.Fields[1].Name != "code" || errorObject.Fields[1].Value.Text == nil || *errorObject.Fields[1].Value.Text != "sentinel_code" {
+		t.Fatalf("captured error code = %#v", errorObject.Fields)
 	}
 }
 
@@ -318,6 +455,24 @@ func loadSaveLifecycleInputs(t *testing.T) (protocol.Profile, protocol.Manifest,
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
 	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "save-lifecycle-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func loadQueryCacheInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-cache-oracle.json"))
 	if err != nil {
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}

@@ -1,0 +1,14 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+func IterateWithWrongModel(ctx context.Context, querySet orm.QuerySet[models.Article]) error {
+	return querySet.Iterate(ctx, func(Other) error { return nil })
+}

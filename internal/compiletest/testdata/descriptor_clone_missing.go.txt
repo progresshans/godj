@@ -1,0 +1,21 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+type CustomModel struct{}
+
+type CustomDescriptor struct{}
+
+func (CustomDescriptor) Metadata() ir.Model {
+	return ir.Model{}
+}
+
+func (CustomDescriptor) Scan(db.Row) (CustomModel, error) {
+	return CustomModel{}, nil
+}
+
+var _ orm.ModelDescriptor[CustomModel] = CustomDescriptor{}

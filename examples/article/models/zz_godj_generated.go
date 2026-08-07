@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-m2-v2"
+const GoDjGeneratorVersion = "godj-codegen-m2-v3"
 const GoDjSchemaSHA256 = "b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621"
 
 type Article struct {
@@ -59,13 +59,17 @@ func (ArticleDescriptor) ClearPrimaryKey(value *Article) {
 	value.godjPrimaryKeyPresent = false
 }
 
-func (ArticleDescriptor) CloneWriteModel(value Article) Article {
+func (ArticleDescriptor) CloneModel(value Article) Article {
 	clone := value
 	if value.Summary != nil {
 		clonedSummary := *value.Summary
 		clone.Summary = &clonedSummary
 	}
 	return clone
+}
+
+func (descriptor ArticleDescriptor) CloneWriteModel(value Article) Article {
+	return descriptor.CloneModel(value)
 }
 
 func (ArticleDescriptor) WriteFieldValue(value Article, field ir.Field) (query.Value, bool) {

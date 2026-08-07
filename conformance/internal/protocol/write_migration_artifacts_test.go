@@ -224,13 +224,17 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 	}
 }
 
-func TestExistingContractSetArtifactsAndStatusesRemainImmutable(t *testing.T) {
+func TestHistorical34ArtifactsAndCurrent45PassingStatusesRemainPinned(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
+	// The first three sets are the historical 34 passing contracts and remain
+	// byte-for-byte immutable. The query-cache oracle and static baseline also
+	// remain immutable; only its manifest hash changed when QRY-011..021 moved
+	// from oracle_locked to passing after the product adapter reached 0-diff.
 	expectedHashes := map[string]string{
 		"conformance/contracts/manifest.json":                                            "e395fc862d357b7d45f94fa7d2d15f5a5dfdf8c353db958adc280fd64870b874",
-		"conformance/contracts/query-cache-manifest.json":                                "3d7b20e2e5f75905847eb0042633dbe6ec1dd11dcbd225b3ed57d677cf4af730",
+		"conformance/contracts/query-cache-manifest.json":                                "35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2",
 		"conformance/contracts/save-lifecycle-manifest.json":                             "6f215f6aee153954dee84d0571cc28529c2d50ee31ee2b9755733db3f9762905",
 		"conformance/contracts/write-migration-manifest.json":                            "b0ba235cb8b83e9b595b2ad3230ea7440d8b6ea74789de27c8a1f6625ecd05bb",
 		"conformance/fixtures/godj-not-implemented.json":                                 "f02ea4e01e0ffcc9195d56d69129c5def0591cbcdcb5b07a62d2ec7395fa7874",
@@ -258,17 +262,21 @@ func TestExistingContractSetArtifactsAndStatusesRemainImmutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	sets := []struct {
-		name         string
-		manifestName string
-		oracleName   string
-		fixtureName  string
+		name          string
+		manifestName  string
+		oracleName    string
+		fixtureName   string
+		contractCount int
 	}{
-		{name: "read", manifestName: "manifest.json", oracleName: "oracle.json", fixtureName: "godj-not-implemented.json"},
-		{name: "write-migration", manifestName: "write-migration-manifest.json", oracleName: "write-migration-oracle.json", fixtureName: "godj-write-migration-not-implemented.json"},
-		{name: "save-lifecycle", manifestName: "save-lifecycle-manifest.json", oracleName: "save-lifecycle-oracle.json", fixtureName: "godj-save-lifecycle-not-implemented.json"},
+		{name: "read", manifestName: "manifest.json", oracleName: "oracle.json", fixtureName: "godj-not-implemented.json", contractCount: 11},
+		{name: "write-migration", manifestName: "write-migration-manifest.json", oracleName: "write-migration-oracle.json", fixtureName: "godj-write-migration-not-implemented.json", contractCount: 11},
+		{name: "save-lifecycle", manifestName: "save-lifecycle-manifest.json", oracleName: "save-lifecycle-oracle.json", fixtureName: "godj-save-lifecycle-not-implemented.json", contractCount: 12},
+		{name: "query-cache", manifestName: "query-cache-manifest.json", oracleName: "query-cache-oracle.json", fixtureName: "godj-query-cache-not-implemented.json", contractCount: 11},
 	}
+	totalContracts := 0
 	for _, set := range sets {
 		set := set
+		totalContracts += set.contractCount
 		t.Run(set.name, func(t *testing.T) {
 			manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", set.manifestName))
 			if err != nil {
@@ -288,6 +296,9 @@ func TestExistingContractSetArtifactsAndStatusesRemainImmutable(t *testing.T) {
 			if err := ValidateSuiteAgainst(profile, manifest, fixture); err != nil {
 				t.Fatalf("not-implemented fixture does not validate: %v", err)
 			}
+			if len(manifest.Contracts) != set.contractCount {
+				t.Fatalf("manifest contract count = %d, want %d", len(manifest.Contracts), set.contractCount)
+			}
 			for index, contract := range manifest.Contracts {
 				if contract.Status != ContractPassing {
 					t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
@@ -300,6 +311,9 @@ func TestExistingContractSetArtifactsAndStatusesRemainImmutable(t *testing.T) {
 				}
 			}
 		})
+	}
+	if totalContracts != 45 {
+		t.Fatalf("pinned passing contract count = %d, want 45", totalContracts)
 	}
 }
 

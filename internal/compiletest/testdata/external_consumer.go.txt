@@ -1,6 +1,8 @@
 package consumer
 
 import (
+	"context"
+
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/orm"
@@ -17,4 +19,64 @@ func BuildArticleQuery(backend db.Queryer) (orm.QuerySet[models.Article], error)
 		).
 		OrderBy(models.ArticleFields.ID.Desc())
 	return querySet.Limit(2)
+}
+
+func ExerciseArticleTerminalTypes(ctx context.Context, backend db.Queryer) error {
+	querySet, err := BuildArticleQuery(backend)
+	if err != nil {
+		return err
+	}
+
+	var fresh func() orm.QuerySet[models.Article] = querySet.Fresh
+	var all func(context.Context) ([]models.Article, error) = querySet.All
+	var count func(context.Context) (int64, error) = querySet.Count
+	var exists func(context.Context) (bool, error) = querySet.Exists
+	var at func(context.Context, int) (models.Article, bool, error) = querySet.At
+	var first func(context.Context) (models.Article, bool, error) = querySet.First
+	var iterate func(context.Context, func(models.Article) error) error = querySet.Iterate
+
+	freshQuerySet := fresh()
+	var exactQuerySet orm.QuerySet[models.Article] = freshQuerySet
+	_ = exactQuerySet
+
+	articles, err := all(ctx)
+	if err != nil {
+		return err
+	}
+	var exactArticles []models.Article = articles
+	_ = exactArticles
+
+	articleCount, err := count(ctx)
+	if err != nil {
+		return err
+	}
+	var exactCount int64 = articleCount
+	_ = exactCount
+
+	articleExists, err := exists(ctx)
+	if err != nil {
+		return err
+	}
+	var exactExists bool = articleExists
+	_ = exactExists
+
+	article, found, err := at(ctx, 0)
+	if err != nil {
+		return err
+	}
+	var exactArticle models.Article = article
+	var exactFound bool = found
+	_, _ = exactArticle, exactFound
+
+	article, found, err = first(ctx)
+	if err != nil {
+		return err
+	}
+	exactArticle, exactFound = article, found
+
+	return iterate(ctx, func(value models.Article) error {
+		var exactValue models.Article = value
+		_ = exactValue
+		return nil
+	})
 }

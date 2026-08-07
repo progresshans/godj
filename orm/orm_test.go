@@ -250,6 +250,9 @@ func (*nilDescriptor) Metadata() ir.Model { panic("typed nil descriptor must not
 func (*nilDescriptor) Scan(db.Row) (testModel, error) {
 	panic("typed nil descriptor must not be called")
 }
+func (*nilDescriptor) CloneModel(testModel) testModel {
+	panic("typed nil descriptor must not be called")
+}
 
 func (testDescriptor) Metadata() ir.Model {
 	return ir.Model{
@@ -273,6 +276,8 @@ func (testDescriptor) Scan(row db.Row) (testModel, error) {
 	}
 	return result, nil
 }
+
+func (testDescriptor) CloneModel(value testModel) testModel { return value }
 
 type fakeRows struct {
 	values       []int64

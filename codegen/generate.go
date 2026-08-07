@@ -15,7 +15,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GeneratorVersion = "godj-codegen-m2-v2"
+const GeneratorVersion = "godj-codegen-m2-v3"
 
 func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if !token.IsIdentifier(packageName) || token.Lookup(packageName).IsKeyword() {
@@ -133,7 +133,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		fmt.Fprintln(output)
 	}
 
-	fmt.Fprintf(output, "func (%s) CloneWriteModel(value %s) %s {\n", descriptorName, model.GoName, model.GoName)
+	fmt.Fprintf(output, "func (%s) CloneModel(value %s) %s {\n", descriptorName, model.GoName, model.GoName)
 	fmt.Fprintln(output, "\tclone := value")
 	for _, field := range model.Fields {
 		if field.Kind == ir.FieldChar && field.Nullable {
@@ -144,6 +144,11 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		}
 	}
 	fmt.Fprintln(output, "\treturn clone")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
+	fmt.Fprintf(output, "func (descriptor %s) CloneWriteModel(value %s) %s {\n", descriptorName, model.GoName, model.GoName)
+	fmt.Fprintln(output, "\treturn descriptor.CloneModel(value)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 

@@ -15,6 +15,10 @@ import (
 type ModelDescriptor[M any] interface {
 	Metadata() ir.Model
 	Scan(db.Row) (M, error)
+	// CloneModel returns a model value that does not retain caller-visible
+	// aliases from the input. Generated descriptors deep-clone nullable pointer
+	// fields so QuerySet's canonical evaluation cache is never exposed.
+	CloneModel(M) M
 }
 
 // WriteDescriptor is an optional generated capability layered on the M1 read

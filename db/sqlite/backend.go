@@ -6,13 +6,16 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync/atomic"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
-	_ "modernc.org/sqlite"
+	modernsqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const DriverModule = "modernc.org/sqlite"
@@ -68,9 +71,34 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	b.queryCount.Add(1)
 	rows, err := b.database.QueryContext(ctx, statement, arguments...)
 	if err != nil {
-		return nil, fmt.Errorf("execute SQLite query: %w", err)
+		return nil, classifyQueryError(err, plan.Table())
 	}
 	return rows, nil
+}
+
+func classifyQueryError(err error, table string) error {
+	var sqliteError *modernsqlite.Error
+	if errors.As(err, &sqliteError) &&
+		sqliteError.Code() == sqlite3.SQLITE_ERROR &&
+		isMissingTableMessage(sqliteError.Error(), table) {
+		return &query.Error{
+			Category: query.CategoryBackend,
+			Code:     query.CodeMissingTable,
+			Detail:   fmt.Sprintf("SQLite table %q does not exist", table),
+			Cause:    err,
+		}
+	}
+	return fmt.Errorf("execute SQLite query: %w", err)
+}
+
+func isMissingTableMessage(message, table string) bool {
+	const marker = "no such table: "
+	position := strings.LastIndex(message, marker)
+	if position < 0 {
+		return false
+	}
+	remainder := message[position+len(marker):]
+	return remainder == table || strings.HasPrefix(remainder, table+" (")
 }
 
 // ExecContext is intentionally a backend-level primitive. M1 uses it only in

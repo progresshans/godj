@@ -1,0 +1,17 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+func AssignTerminalResultToWrongModel(ctx context.Context, querySet orm.QuerySet[models.Article]) error {
+	article, _, err := querySet.First(ctx)
+	var other Other = article
+	_ = other
+	return err
+}

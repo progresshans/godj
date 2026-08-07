@@ -7,7 +7,7 @@
       "title": "Repeated full evaluation reuses the same QuerySet result cache",
       "scenario": "django.query.cache.repeated_full_evaluation",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -29,7 +29,7 @@
       "title": "A successful empty full evaluation is cached",
       "scenario": "django.query.cache.empty_full_evaluation",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -51,7 +51,7 @@
       "title": "An evaluated QuerySet keeps its snapshot while a fresh QuerySet sees new rows",
       "scenario": "django.query.cache.stale_snapshot_and_fresh_queryset",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -67,7 +67,7 @@
       "title": "A chained QuerySet has an independent result cache",
       "scenario": "django.query.cache.chained_queryset_independence",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -89,7 +89,7 @@
       "title": "count queries before full evaluation and reuses a populated cache afterward",
       "scenario": "django.query.cache.count_cold_and_warm",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -111,7 +111,7 @@
       "title": "exists queries before full evaluation and reuses a populated cache afterward",
       "scenario": "django.query.cache.exists_cold_and_warm",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -139,7 +139,7 @@
       "title": "iterator bypasses a populated cache without replacing it",
       "scenario": "django.query.cache.iterator_bypass",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -161,7 +161,7 @@
       "title": "Repeated cold index access does not populate the full result cache",
       "scenario": "django.query.cache.index_partial_evaluation",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -189,7 +189,7 @@
       "title": "A failed full evaluation can retry the same QuerySet after database repair",
       "scenario": "django.query.cache.failed_evaluation_retry",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -205,7 +205,7 @@
       "title": "all on an evaluated QuerySet creates an independently evaluated fresh copy",
       "scenario": "django.query.cache.all_fresh_clone",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -221,7 +221,7 @@
       "title": "first on an explicitly ordered QuerySet leaves a cold source uncached and reuses a populated source cache",
       "scenario": "django.query.cache.first_cold_and_warm",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
