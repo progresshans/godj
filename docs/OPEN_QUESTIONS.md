@@ -7,10 +7,6 @@
 
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
-| Q-001 | P0 | M0 | 오래된 generated code가 compile되지 않을 때 codegen이 어떻게 새 출력을 만드는가 |
-| Q-002 | P0 | M0 | Python/SQLite/timezone/locale과 dependency를 정확히 어떻게 pin하는가 |
-| Q-003 | P0 | M0 | 초기 contract manifest와 runner protocol의 최소 형식은 무엇인가 |
-| Q-004 | P0 | M0 | GoDj 저장소 license와 upstream Django 파생물의 attribution/licensing 검증을 어떻게 정하는가 |
 | Q-005 | P1 | M1 | `ModelDescriptor[M]`는 interface인가 generated concrete type인가, 언제 freeze되는가 |
 | Q-006 | P1 | M1 | `NULL`, zero value, omitted/unchanged를 어떤 Go 표현으로 구분하는가 |
 | Q-007 | P1 | M1 | QuerySet result cache와 동시 평가의 정확한 의미는 무엇인가 |
@@ -26,9 +22,21 @@
 | Q-017 | P2 | API freeze 전 | pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 
-## Q-001 — Codegen bootstrap
+## M0에서 해결한 질문
 
-초안의 임시 runner import 방식은 schema package가 오래된 generated type 때문에 compile되지 않으면 동작하지 않습니다. 후보는 선언/생성 package 분리, Go AST 또는 `go/packages` 기반 제한적 추출, bootstrap package, 별도 선언 포맷입니다. rename/delete와 사용자 메서드 의존 실패를 포함한 compile prototype으로 비교합니다.
+| ID | 결과 |
+|---|---|
+| Q-001 | 선언 package와 generated target을 import graph에서 분리 — [ADR-0006](adr/0006-codegen-input-package-boundary.md) |
+| Q-002 | exact runtime fingerprint와 `uv.lock` hash를 profile에서 검증 — [Compatibility Lab](../conformance/README.md) |
+| Q-003 | strict JSON manifest/typed observation protocol v1과 explicit scenario adapter 채택 — [protocol](../conformance/internal/protocol) |
+| Q-004 | 독립 시나리오와 upstream 파생물을 구분하고 Django BSD 고지를 보수적으로 포함 — [Licensing](LICENSING.md) |
+
+## Q-001 — Codegen bootstrap — Resolved
+
+초안의 임시 runner import 방식은 schema package가 오래된 generated type 때문에
+compile되지 않으면 동작하지 않습니다. 실행 spike에서 rename/delete, stale 사용자
+메서드, last-good output 보존을 검증하고 선언/generated package 분리를
+채택했습니다. Project runner 형태는 Q-010에서 계속 다룹니다.
 
 ## Q-006 — Nullable와 변경 추적
 

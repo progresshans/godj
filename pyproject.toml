@@ -1,0 +1,11 @@
+[project]
+name = "godj-conformance"
+version = "0.0.0"
+description = "Pinned Django reference environment for GoDj conformance tests"
+requires-python = "==3.14.3"
+dependencies = [
+    "Django==6.1",
+]
+
+[tool.uv]
+package = false

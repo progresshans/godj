@@ -12,6 +12,7 @@
 | 계층과 데이터 흐름은 어떻게 되는가 | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | 동시성·취소·resource lifecycle 원칙은 무엇인가 | [CONCURRENCY.md](CONCURRENCY.md) |
 | Django와 무엇을 같게 또는 다르게 할 것인가 | [COMPATIBILITY.md](COMPATIBILITY.md) |
+| upstream 코드와 테스트의 라이선스·출처를 어떻게 관리하는가 | [LICENSING.md](LICENSING.md) |
 | 승인된 의도적 차이는 무엇인가 | [DEVIATIONS.md](DEVIATIONS.md) |
 | 어떤 테스트로 주장하는가 | [TESTING.md](TESTING.md) |
 | DB별 목표와 현재 상태는 무엇인가 | [BACKEND_MATRIX.md](BACKEND_MATRIX.md) |

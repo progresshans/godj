@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance-validation:
+    name: Validate checked-in conformance artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      LC_ALL: C
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.10.12"
+          python-version: "3.14.3"
+          enable-cache: false
+
+      - name: Install locked Python dependencies
+        run: uv sync --frozen
+
+      - name: Print non-authoritative CI fingerprint
+        run: |
+          uv run --frozen python -c 'import django, platform, sqlite3, sys; print(sys.version); print(django.get_version()); print(sqlite3.sqlite_version); print(platform.platform())'
+          go version
+
+      - name: Run portable conformance validation
+        run: make ci
+
+      - name: Verify stored oracle checksum
+        working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
+        run: sha256sum --check SHA256SUMS
+
+      - name: Ensure reference artifacts were not rewritten
+        run: git diff --exit-code -- conformance/contracts conformance/profiles conformance/oracles

@@ -20,5 +20,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0003](0003-typed-and-dynamic-query-apis.md) | Accepted | typed/dynamic query API가 동일 AST로 수렴 |
 | [0004](0004-cli-and-project-binary.md) | Accepted | 전역 CLI와 프로젝트 바이너리 역할 분리 |
 | [0005](0005-contract-first-vertical-slices.md) | Accepted | contract-first 수직 단면으로 구현 순서 구성 |
+| [0006](0006-codegen-input-package-boundary.md) | Accepted | Codegen 입력과 generated target package의 import graph 분리 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

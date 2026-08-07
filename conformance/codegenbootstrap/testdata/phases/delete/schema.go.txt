@@ -1,0 +1,7 @@
+package modeldef
+
+import "example.com/codegenbootstrapfixture/schema"
+
+var Models = []schema.Model{
+	schema.Define("Article"),
+}

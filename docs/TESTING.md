@@ -56,7 +56,7 @@ Django의 Python class 이름이나 내부 객체 graph를 그대로 복제하�
 
 ## Compatibility Lab 구조
 
-M0에서는 다음 책임만 가진 작은 harness를 만듭니다.
+M0에서는 다음 책임만 가진 작은 harness를 구현했습니다.
 
 ```text
 contract manifest
@@ -70,16 +70,19 @@ contract manifest
 
 초기 scenario는 각 runner에 명시적으로 작성합니다. YAML/JSON으로 Django의 모든 operation을 표현하는 범용 언어는 만들지 않습니다. 반복 패턴이 실제로 확인된 뒤 fixture와 parameter만 공통 protocol로 추출합니다.
 
-초기 directory 후보는 다음과 같지만 M0 작업에서 필요한 것만 생성합니다.
+현재 directory는 다음 책임으로 구성됩니다.
 
 ```text
 conformance/
-  manifest
-  scenarios/
+  contracts/manifest.json
+  profiles/
   runners/django/
-  runners/godj/
-  normalizer/
-  oracles/django-6.1/
+  internal/protocol/
+  cmd/contractcheck/
+  cmd/observationcmp/
+  fixtures/godj-not-implemented.json
+  oracles/django-6.1-sqlite-darwin-arm64/
+  codegenbootstrap/
 ```
 
 ## Reference 환경 잠금
@@ -94,7 +97,10 @@ oracle에는 다음을 기록합니다.
 - scenario version
 - 생성 명령과 source checkout
 
-현재 확정된 것은 Django 6.1 tag뿐입니다. Python/SQLite exact pin과 실행 방법은 GDJ-0001의 완료 조건입니다.
+GDJ-0001은 CPython 3.14.3, Django 6.1 wheel/hash, SQLite 3.50.4와
+`sqlite_source_id`, darwin/arm64, UTC/C locale, uv/lock hash를 exact profile로
+고정했습니다. 일반 Linux CI는 portable scenario와 artifact validation을 실행하지만
+darwin oracle을 재생성했다고 주장하지 않습니다.
 
 ## 정규화 규칙
 
@@ -117,7 +123,10 @@ oracle에는 다음을 기록합니다.
 - 미구현 GoDj runner가 false pass를 만들지 않음
 - upstream source와 license provenance가 추적됨
 
-M1은 `Schema DSL → IR → Codegen → Manager/QuerySet → AST → SQLite`의 한 모델 수직 단면으로 실제 differential contract를 통과해야 완료됩니다.
+M0에서 11개 contract가 `oracle_locked` 상태가 됐고 normalizer/comparator의
+mutation test가 false green을 차단합니다. M1은
+`Schema DSL → IR → Codegen → Manager/QuerySet → AST → SQLite`의 한 모델 수직
+단면으로 실제 differential contract를 통과해야 완료됩니다.
 
 ## 기능별 기본 테스트 요구
 

@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: 문서 기반 완료, M0 준비
+- 현재 단계: M0 완료, M1 준비
 - 마지막 검토: 2026-08-07
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -10,7 +10,8 @@
 
 각 milestone은 다음을 충족해야 완료됩니다.
 
-- 범위 내 P0 contract가 모두 `passing` 또는 승인된 `deviation`
+- M0는 범위 내 reference contract가 모두 `oracle_locked`, M1 이후는 대상 contract가
+  모두 `passing` 또는 승인된 `deviation`
 - 미지원 기능을 조용히 무시하는 경로가 없음
 - external consumer 관점의 compile test가 통과함
 - 오류와 실패/rollback 경로가 검증됨
@@ -29,6 +30,10 @@
 - GoDj 미구현 상태를 명시적으로 표현하는 runner/protocol
 - codegen bootstrap 실패 사례를 재현하는 작은 architecture spike
 - CI에서 manifest validation과 Django reference suite 실행
+
+상태: GDJ-0001에서 exact darwin/arm64 oracle과 portable CI validation을 구현하고
+로컬 gate를 통과했습니다. 일반 hosted CI는 다른 platform에서 exact oracle을
+재생성했다고 주장하지 않습니다.
 
 상세 범위: [GDJ-0001](../work/0001-compatibility-lab.md)
 

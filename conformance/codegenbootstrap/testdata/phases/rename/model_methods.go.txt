@@ -1,0 +1,5 @@
+package models
+
+func (a Article) Label() string {
+	return a.Headline
+}

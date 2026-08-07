@@ -1,0 +1,177 @@
+{
+  "format_version": 1,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "QRY-001",
+      "title": "Exact lookup returns the matching row",
+      "scenario": "django.query.exact",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#exact",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-002",
+      "title": "ASCII icontains performs case-insensitive containment",
+      "scenario": "django.query.ascii_icontains",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#icontains",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-003",
+      "title": "Chained filters combine with AND",
+      "scenario": "django.query.chained_and",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#chaining-filters",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-004",
+      "title": "Chaining does not mutate the source QuerySet result",
+      "scenario": "django.query.chain_preserves_source",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filtered-querysets-are-unique",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-005",
+      "title": "Explicit ordering and limit preserve sequence",
+      "scenario": "django.query.order_and_limit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/ordering/tests.py::OrderingTests.test_stop_slicing",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/ordering/tests.py::TotallyOrderedTests.test_basic_ordering",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-006",
+      "title": "A lookup with no match returns an empty sequence",
+      "scenario": "django.query.empty_result",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#retrieving-specific-objects-with-filters",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-007",
+      "title": "isnull distinguishes SQL NULL from non-NULL values",
+      "scenario": "django.query.isnull",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_isnull_textfield",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state"]
+    },
+    {
+      "id": "QRY-008",
+      "title": "Unknown fields fail during query construction",
+      "scenario": "django.query.unknown_field",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_error_messages",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state"]
+    },
+    {
+      "id": "QRY-009",
+      "title": "QuerySet construction performs no database I/O",
+      "scenario": "django.query.construction_has_no_io",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#when-querysets-are-evaluated",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-010",
+      "title": "Unsupported lookups fail during query construction",
+      "scenario": "django.query.unsupported_lookup",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_unsupported_lookups",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state"]
+    },
+    {
+      "id": "SCH-001",
+      "title": "Model field metadata has a deterministic normalized form",
+      "scenario": "django.schema.model_metadata",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/meta.txt#retrieving-all-field-instances-of-a-model",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result"]
+    }
+  ]
+}
