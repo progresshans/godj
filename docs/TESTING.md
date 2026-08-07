@@ -76,6 +76,7 @@ contract manifest
 conformance/
   contracts/manifest.json
   contracts/write-migration-manifest.json
+  contracts/save-lifecycle-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -85,6 +86,7 @@ conformance/
   cmd/observationcmp/
   fixtures/godj-not-implemented.json
   fixtures/godj-write-migration-not-implemented.json
+  fixtures/godj-save-lifecycle-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -142,6 +144,14 @@ GDJ-0004는 두 번째 set도 실제 GoDj adapter로 실행해 11개 모두 `pas
 내며, 미구현 상태를 녹색으로 만들 수 없는 false-green regression으로 보존합니다.
 Contract별 phase binding을 추가한 GDJ-0003부터 protocol v2를 사용하며 v1 artifact는
 v2 validator가 명시적으로 거부합니다.
+
+GDJ-0005는 Save lifecycle 12개를 세 번째 set에 추가했습니다. `commit`은 persistent
+write 성공, `evaluation`은 terminal no-op/validation 또는 explicit transaction 밖에서
+끝난 실패, `rollback`은 명시적 transaction/savepoint 복원을 뜻합니다. 따라서 empty
+`update_fields`, force-insert conflict와 0-row force-update는 statement count와 kind를
+metrics로 보존하되 phase는 `evaluation`이고, 실제 `atomic()` 복원인 MOD-019만
+`rollback`입니다. 세 set의 ID/scenario 전역 uniqueness, 모든 cross-pair, Save payload
+mutation과 two-process oracle bytes를 gate로 둡니다.
 
 ## 기능별 기본 테스트 요구
 

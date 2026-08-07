@@ -111,6 +111,15 @@ MOD-001..007과 MIG-001..004를 별도 ordered set으로 둡니다. 두 set은 �
 profile을 공유하지만 contract ID/order, phase와 payload 선언이 다르므로 oracle을 서로
 바꿔 사용할 수 없습니다.
 
+GDJ-0005는 같은 profile에
+[`save-lifecycle-manifest.json`](../conformance/contracts/save-lifecycle-manifest.json)을
+세 번째 ordered set으로 추가했습니다. MOD-008..019는 fully loaded instance save,
+`update_fields`, force mode, explicit PK와 rollback 뒤 object/DB state를 다룹니다. 세
+manifest의 contract ID와 scenario는 전역으로 겹치지 않으며 모든 ordered cross-pair가
+validation에서 거부됩니다. Protocol v2에 별도 manifest digest는 없으므로 이 전역
+uniqueness gate를 유지하고, 동일 ID/order/phase를 재사용해야 할 필요가 생길 때만
+wire v3 set identity를 검토합니다.
+
 ## 계약 상태
 
 설계·구현 상태와 실행 상태를 구분합니다.
@@ -166,6 +175,14 @@ migration executor/editor/recorder를 실제 adapter에 연결했습니다. 두 
 이는 Django ORM/Migration 전체 호환을 뜻하지 않으며 instance `Save()`, migration
 file/graph/lock 등은 별도 계약 전까지 지원하지 않습니다. Static `not_implemented`
 fixture의 11개 mismatch는 구현 전 상태를 녹색으로 만들지 않는 회귀 증거로 유지합니다.
+
+GDJ-0005는 Save lifecycle 12개를 Django exact oracle에 `oracle_locked`로 추가했습니다.
+기본 fully loaded save는 dirty-only가 아니라 writable concrete field 전체를 쓰고,
+explicit `update_fields`는 named field만 쓰며 empty iterable은 zero-I/O no-op입니다.
+Force validation과 missing-row `NotUpdated`, explicit PK의 UPDATE/UPDATE→INSERT, 명시적
+transaction rollback 뒤 model field/assigned PK가 메모리에 남는 의미도 분리했습니다.
+이 set에는 아직 GoDj product adapter가 없으므로 `passing`을 주장하지 않으며 static
+fixture의 정확한 12개 mismatch를 유지합니다.
 
 ## 데이터 호환성
 

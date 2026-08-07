@@ -4,6 +4,7 @@
 comparator, M0 codegen bootstrap spike와 GoDj observation adapter를 보관합니다.
 GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract set을 추가했고,
 GDJ-0004는 그 set을 실제 제품 package에 연결했습니다.
+GDJ-0005는 mutable Save lifecycle 전용 세 번째 reference set을 추가했습니다.
 제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
 package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -14,6 +15,7 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | `profiles/*.json` | exact reference runtime과 dependency lock fingerprint |
 | `contracts/manifest.json` | M1 read/metadata contract 11개 |
 | `contracts/write-migration-manifest.json` | M2 write/transaction/migration contract 11개 |
+| `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read와 M2 write/migration 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
@@ -96,6 +98,16 @@ LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
   --check
 ```
 
+Save lifecycle oracle도 같은 runner에 세 번째 manifest를 넘겨 확인합니다.
+
+```bash
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/save-lifecycle-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json \
+  --check
+```
+
 두 observation을 직접 비교할 수 있습니다.
 
 ```bash
@@ -134,9 +146,17 @@ recorder를 실행해 MOD-001..007, MIG-001..004가 oracle과 일치합니다. C
 `godj-write-migration-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 것을
 지속적으로 확인하는 false-green fixture이며, 현재 GoDj 실행 결과를 뜻하지 않습니다.
 
+Save lifecycle set은 GDJ-0005에서 Django exact reference만 `oracle_locked`입니다.
+GoDj product adapter는 아직 없으므로 `godjcheck`에 fallback을 추가하지 않습니다.
+Unknown scenario는 계속 fail-closed하고, checked-in
+`godj-save-lifecycle-not-implemented.json`이 ordered status mismatch 12개를 내는 것으로
+미구현 red baseline을 검증합니다. 제품 adapter가 실제로 준비된 후 별도 work에서
+`godj-conformance`와 manifest `passing` 상태를 함께 올립니다.
+
 ## Provenance
 
-현재 scenario는 Django 코드를 번역하지 않고 GoDj 고유 fixture로 독립적으로
+현재 query/write/migration/Save scenario는 Django 코드를 번역하지 않고 GoDj 고유
+fixture로 독립적으로
 작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
 정의입니다. Manifest의
 upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. 파생물

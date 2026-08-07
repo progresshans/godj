@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-003
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-004
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -393,3 +393,87 @@ go run ./conformance/cmd/observationcmp \
 ```
 
 이 명령은 의도한 exit 1과 `observationcmp: 11 difference(s)`를 반환했습니다.
+
+## EVID-20260808-004 — GDJ-0005 Save Lifecycle Compatibility Contracts
+
+- Date/time: 2026-08-08T03:25:49+09:00
+- Work/contract IDs: GDJ-0005, META-001, META-002, MOD-008..MOD-019, Q-006
+- Checkout/commit: conformance source와 machine artifact가 clean `main` commit
+  `138581da38bfbb6ba89ea5ca82752dfd3d76df02`; evidence 작성 시 미커밋 변경은 완료
+  상태와 다음 work handoff 문서뿐
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  `modernc.org/sqlite v1.56.0`, Go SQLite 3.53.3; uv 0.10.12,
+  CPython 3.14.3, Django 6.1 reference SQLite 3.50.4/source ID
+  `2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3`,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: final `make check`, full `CGO_ENABLED=0` Go test, focused protocol race,
+  two-process oracle comparison과 checksum 모두 0; static actual 비교는 예상대로 1과
+  12 mismatch
+- Result summary: fully loaded default save, named/empty `update_fields`, force error,
+  explicit PK UPDATE/INSERT fallback과 rollback object/DB state를 12개 독립 계약으로
+  고정했습니다. Python portable 36-test에서 exact 4개를 skip하고 exact run은 36개
+  모두 pass했습니다. 세 set의 전역 ID/scenario uniqueness, 6개 cross-binding과
+  Save payload mutation 9개가 false green 없이 실패했습니다. 기존 GoDj M1/M2
+  differential은 각각 11개 0-diff를 유지했습니다.
+- Failures/skips: 예상하지 않은 실패 없음. Save 제품 adapter는 이 작업 범위 밖이므로
+  static fixture가 MOD-008..019의 12개 `not_implemented` status mismatch를 내는 것이
+  기대 결과입니다. GitHub-hosted workflow는 push하지 않아 실행하지 않았습니다.
+- Artifacts: `save-lifecycle-manifest.json` 12개 `oracle_locked`, exact oracle SHA-256
+  `05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb`, Django runner,
+  static fixture, 3-set artifact/checksum/mutation gate
+- Notes: initial `/tmp` probe와 최종 runner 모두 independent process determinism을
+  확인했지만 정본 hash는 checked-in runner oracle의 위 값입니다. `_state.adding` 등
+  Django private state와 raw SQL 문자열은 payload에서 제외했습니다. Pinned Django
+  commit의 모든 manifest 문서 heading과 test class/method reference가 존재함을
+  재확인했습니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+CGO_ENABLED=0 go test ./... -count=1
+go test -race ./conformance/internal/protocol -count=1
+(
+  cd conformance/oracles/django-6.1-sqlite-darwin-arm64
+  shasum -a 256 -c SHA256SUMS
+)
+```
+
+`make check`는 generation drift, 전체 Go test/vet/race, focused `CGO_ENABLED=0`, Python
+portable/exact suite, 세 manifest/oracle/fixture validation, 기존 M1/M2 GoDj
+differential과 세 oracle byte check를 포함했습니다.
+
+Save oracle의 별도 process determinism:
+
+```bash
+probe_dir=$(mktemp -d /tmp/godj-save-oracle.XXXXXX)
+LC_ALL=C TZ=UTC PYTHONHASHSEED=random uv run --frozen python \
+  -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/save-lifecycle-manifest.json \
+  --output "$probe_dir/one.json"
+LC_ALL=C TZ=UTC PYTHONHASHSEED=random uv run --frozen python \
+  -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/save-lifecycle-manifest.json \
+  --output "$probe_dir/two.json"
+cmp "$probe_dir/one.json" "$probe_dir/two.json"
+cmp "$probe_dir/one.json" \
+  conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json
+```
+
+두 임시 파일과 checked-in oracle 모두 같은 SHA-256
+`05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb`를 냈습니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/save-lifecycle-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json \
+  -actual conformance/fixtures/godj-save-lifecycle-not-implemented.json
+```
+
+이 명령은 의도한 exit 1, ordered MOD-008..019 status mismatch 12개와
+`observationcmp: 12 difference(s)`를 반환했습니다.

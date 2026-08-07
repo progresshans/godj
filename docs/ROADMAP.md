@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: M2 첫 write/migration 수직 단면 완료, Save lifecycle 계약 확장 중
+- 현재 단계: M2 첫 write/migration 수직 단면 완료, Save lifecycle 제품 단면 진행 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -67,10 +67,12 @@ SQLite transaction과 최소 ProjectState/Executor/editor/recorder 제품 단면
 MOD-001..007과 MIG-001..004를 통과했습니다.
 
 상태: 첫 제한 수직 단면은 완료됐지만 M2 전체는 완료되지 않았습니다. Mutable instance
-`Save()`, loaded/new/dirty 의미는
-[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 다음 10개
-reference 계약으로 먼저 고정합니다. Public migration file, autodetector, graph, lock과
-crash recovery는 이후 별도 work/ADR 범위입니다.
+`Save()`, loaded/new/force/explicit PK와 rollback의 외부 의미는
+[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
+12개 reference 계약으로 고정했습니다. [GDJ-0006](../work/0006-save-lifecycle-product-slice.md)은
+typed Save option/field mask와 explicit key 경계를 spike한 뒤 이 set을 실제 제품에
+연결합니다. Public migration file, autodetector, graph, lock과 crash recovery는 이후
+별도 work/ADR 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

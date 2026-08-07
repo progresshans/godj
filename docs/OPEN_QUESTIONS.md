@@ -7,7 +7,7 @@
 
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
-| Q-006 | Partial | GDJ-0005 | generated immutable builder 결정은 [ADR-0009](adr/0009-m2-explicit-write-change-state.md) Accepted, 구현은 [EVID-003](status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)에서 Verified; instance `Save()` 의미는 계약 필요 |
+| Q-006 | Partial | GDJ-0006 | generated immutable builder는 ADR-0009/EVID-003에서 Verified, instance `Save()` 의미는 MOD-008..019로 locked; typed option/field mask와 explicit key 제품 API는 결정 필요 |
 | Q-007 | P1 | M1 | QuerySet result cache와 동시 평가의 정확한 의미는 무엇인가 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | P1 | M1 | request, QuerySet, transaction, hook의 goroutine safety 계약은 무엇인가 |
@@ -57,8 +57,12 @@ M1 read model은 nullable CharField에 `*string`을 사용해 `nil`, `ptr("")`, 
 create/patch builder, `Change[T]`/`NullableChange[T]`와 Manager write API를
 [ADR-0009](adr/0009-m2-explicit-write-change-state.md)에서 채택·검증했습니다. Django가
 기본 `save()`에서 실제 dirty tracking을 하는지 추측하지 않고, instance save/new/loaded,
-`update_fields`, force flag 의미는
-[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 계약으로 고정합니다.
+`update_fields`, force flag, explicit PK와 rollback 의미를
+[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)의 MOD-008..019로
+고정했습니다. Fully loaded default save는 field 전체를 쓰며 dirty-only가 아닙니다.
+Go에서 문자열 없는 typed field mask, explicit auto-key presence와 pointer-mutating Save를
+어떤 public API로 연결할지는 [GDJ-0006](../work/0006-save-lifecycle-product-slice.md)의
+spike와 ADR-0011에서 결정합니다.
 
 ## Q-007 — QuerySet cache
 

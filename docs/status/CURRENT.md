@@ -6,12 +6,14 @@
 - 기준 구현 commit: `de099f31738c1df0dcc4c6ffd609d0fb4f0d4683`
   (`fix: harden M2 write and migration boundaries`)
 - 기준 conformance commit: `84d50f3` (`test: pass M2 write and migration contracts`)
-- 활성 작업 baseline: `de099f31738c1df0dcc4c6ffd609d0fb4f0d4683`
+- Save contract commit: `138581da38bfbb6ba89ea5ca82752dfd3d76df02`
+  (`test: lock save lifecycle compatibility contracts`)
+- 활성 작업 baseline: `138581da38bfbb6ba89ea5ca82752dfd3d76df02`
 - remote: `https://github.com/progresshans/godj.git`, remote tracking ref 없음
-- 현재 단계: M2 첫 write/migration 수직 단면 완료, Save lifecycle 계약 확장
-- 완료 작업: [GDJ-0004 Write/Migration Walking Skeleton](../../work/0004-write-migration-walking-skeleton.md)
-- 활성 작업: [GDJ-0005 Save Lifecycle Compatibility Contracts](../../work/0005-save-lifecycle-compatibility-contracts.md)
-- 다음 ready 작업: 없음 — GDJ-0005 계약 결과로 후속 제품 범위를 결정
+- 현재 단계: M2 Save lifecycle 제품 수직 단면
+- 완료 작업: [GDJ-0005 Save Lifecycle Compatibility Contracts](../../work/0005-save-lifecycle-compatibility-contracts.md)
+- 활성 작업: [GDJ-0006 Save Lifecycle Product Slice](../../work/0006-save-lifecycle-product-slice.md)
+- 다음 ready 작업: 없음 — GDJ-0006 결과로 후속 M2 범위를 결정
 
 ## 현재 checkout에서 확인된 사실
 
@@ -32,14 +34,24 @@
 - Protocol v2에서 M1 read/metadata 11개와 M2 write/migration 11개가 각각 Django oracle과
   0-diff이고 두 manifest 상태는 모두 `passing`입니다. Django oracle observation은
   `observed`, static not-implemented fixture는 set별 11개 mismatch를 계속 냅니다.
+- 세 번째 Save lifecycle set의 MOD-008..019는 exact Django에서 `oracle_locked`입니다.
+  Fully loaded default save, typed 설계 입력이 될 `update_fields`/force/explicit PK와
+  rollback 후 object/DB 차이를 12개로 분리했고 static GoDj fixture는 정확히 12개
+  `not_implemented` mismatch를 냅니다. GoDj 제품 adapter는 아직 없습니다.
 - M1 v2 oracle SHA-256은
   `e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869`, M2 oracle은
   `35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac`입니다.
+- Save lifecycle oracle SHA-256은
+  `05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb`입니다.
 - Go backend는 `modernc.org/sqlite v1.56.0`, SQLite 3.53.3이며 Django reference SQLite
   3.50.4와 별도 fingerprint로 관리합니다.
 - Generation drift, 전체 Go/vet/race, `CGO_ENABLED=0`, Python portable/exact 27-test,
   checksum과 두 set의 22개 passing은
   [EVID-20260808-003](TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)에
+  기록됐습니다.
+- Save contract의 Python portable/exact 36-test, 세 set binding, two-process determinism,
+  checksum과 12개 expected mismatch는
+  [EVID-20260808-004](TEST_EVIDENCE.md#evid-20260808-004--gdj-0005-save-lifecycle-compatibility-contracts)에
   기록됐습니다.
 - GitHub Actions workflow는 push하지 않아 hosted 실행 증거가 없습니다. 로컬 Django
   checkout은 수정하지 않았습니다.
@@ -65,11 +77,21 @@
 - Migration core는 generated/current model package에 의존하지 않음
 - M2 11개를 실제 adapter로 통과한 뒤에만 manifest를 `passing`으로 전환
 
+### Save lifecycle reference
+
+- Fully loaded default save는 dirty-only가 아니라 writable concrete field 전체를 저장
+- Explicit `update_fields`는 named field만 저장하고 empty iterable은 zero-I/O no-op
+- Force validation과 missing row `NotUpdated`를 서로 다른 error/timing으로 고정
+- Explicit PK는 existing UPDATE와 missing UPDATE→INSERT를 분리
+- Transaction rollback은 DB를 복원하지만 model object field/assigned PK를 복원하지 않음
+- Django private `_state`와 raw SQL 문자열은 계약 대상에서 제외
+- 세 번째 set은 제품 adapter가 실제 일치하기 전까지 `oracle_locked` 유지
+
 ## 현재 차단 요인과 미결정 사항
 
 외부 blocker는 없습니다. 다음 결정은 아직 열려 있습니다.
 
-1. Q-006 후속: mutable instance `Save()`와 loaded/new/dirty 의미
+1. Q-006 후속: typed Save API, field mask와 explicit auto-key constructor
 2. Q-007: QuerySet result/error cache와 terminal operation 공유
 3. Q-010: public CLI와 project library/generator version protocol
 4. Q-011: QuerySet/transaction/hook의 전체 goroutine safety
@@ -78,22 +100,23 @@
 
 ## 다음 정확한 작업
 
-1. GDJ-0005의 MOD-008..017 후보를 Django 6.1 public 문서와 upstream test에 연결합니다.
-2. Disposable exact SQLite에서 new/loaded save, `update_fields`, force flag, explicit PK와
-   rollback instance/DB state를 두 번 canonical probe합니다.
-3. 안정적으로 독립 관찰되는 8~12개만 세 번째 manifest에 고정합니다.
-4. Django oracle, explicit not-implemented fixture와 세 set cross-binding false-green gate를
-   만든 뒤 다음 제품 work를 활성화합니다.
+1. GDJ-0006의 `Manager.Save`/generated wrapper, typed field mask와 explicit key API를
+   compile/runtime spike합니다.
+2. 선택한 public shape와 error/fallback semantics를 ADR-0011로 고정합니다.
+3. Fake backend에서 zero-I/O validation, UPDATE-all/partial, force와 UPDATE→INSERT plan을
+   먼저 구현합니다.
+4. SQLite와 GoDj adapter를 연결해 MOD-008..019를 실제 통과시킵니다.
 
 ## 작업 재개 체크포인트
 
 - 공개 framework API: M1 read와 M2 제한 write/migration subset만 검증됨
-- 활성 baseline: `main@de099f31738c1df0dcc4c6ffd609d0fb4f0d4683`, 시작 시 clean
+- 활성 baseline: `main@138581da38bfbb6ba89ea5ca82752dfd3d76df02`, 시작 시 clean
 - 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
-- 가장 위험한 추측: Django가 기본 instance save에서 dirty tracking을 한다고 가정하거나,
-  이번 제한 migration core를 public file/graph/lock 지원으로 확대 표현하는 것
+- 가장 위험한 추측: default Save를 dirty-only update로 구현하거나 public `ID` zero value만
+  보고 primary-key presence를 추론하고, 이번 제한 migration core를 public file/graph/lock
+  지원으로 확대 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

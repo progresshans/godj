@@ -121,4 +121,7 @@ Query/mutation plan과 SQLite binding까지 사용자 의도를 잃지 않고 �
 GDJ-0004에서 이 경계를 제품 codegen/generic Manager/SQLite write로 구현했고
 [EVID-20260808-003](../status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)의
 MOD-001..007 differential과 external compile/race gate로 검증했습니다. Instance
-`Save()`에 이 API를 어떻게 연결할지는 GDJ-0005 계약 뒤에 결정합니다.
+`Save()`의 외부 의미는 GDJ-0005의 MOD-008..019로 고정됐습니다. Fully loaded default
+save가 dirty-only가 아니라 field 전체를 쓴다는 결과 때문에 hidden dirty map은 다음
+단면의 전제에서 제외합니다. Typed field mask, force mode와 explicit-key constructor를
+이 API에 연결하는 public shape는 GDJ-0006/ADR-0011에서 결정합니다.
