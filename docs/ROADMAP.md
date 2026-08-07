@@ -1,8 +1,8 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: M0 완료, M1 준비
-- 마지막 검토: 2026-08-07
+- 현재 단계: M1 완료, M2 contract 확장 준비
+- 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -50,6 +50,9 @@ Schema DSL → normalized IR → deterministic codegen
 
 범위는 `AutoField`, `CharField`, `BooleanField`, 필요한 최소 nullable field, exact/ASCII icontains/AND/order/limit/isnull로 제한합니다. migration engine 대신 test-only schema provisioner를 허용할 수 있습니다. public API는 이 단면의 compile usability와 contract 통과 후 확정합니다.
 
+상태: GDJ-0002에서 이 범위의 Schema-to-SQLite 수직 단면과 11개 Django differential
+계약을 통과했습니다. 범위 밖 ORM 기능이나 Django 전체 호환을 뜻하지 않습니다.
+
 ## M2 — Write Lifecycle + Migration
 
 - create/insert, loaded/new/dirty state, save/update/delete
@@ -57,6 +60,10 @@ Schema DSL → normalized IR → deterministic codegen
 - project/model/historical state
 - CreateModel, Add/Alter/RemoveField
 - migration recorder, graph, lock, forward/backward, failure rollback
+
+첫 단계는 [GDJ-0003](../work/0003-write-migration-compatibility-contracts.md)에서
+write/schema/transaction reference 계약을 별도 contract set으로 잠그는 것입니다.
+제품 구현은 이 결과로 범위를 좁힌 다음 work item에서 시작합니다.
 
 ## M3 — Relations + PostgreSQL
 

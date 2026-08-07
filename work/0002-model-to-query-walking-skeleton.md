@@ -1,11 +1,11 @@
 ---
 id: GDJ-0002
-status: ready
-updated: 2026-08-07
-baseline_branch: ""
-baseline_commit: ""
+status: completed
+updated: 2026-08-08
+baseline_branch: "main"
+baseline_commit: "8eac1dc21261ad467553217815133a01d04ad180"
 depends_on: ["GDJ-0001", "ADR-0006"]
-contracts: ["QRY-001..QRY-010", "SCH-001 reference", "M1 SCH/GEN/DB IDs TBD"]
+contracts: ["QRY-001..QRY-010", "SCH-001", "SCH-M1-001", "GEN-M1-001", "QRY-M1-001", "DB-SQLITE-001"]
 allowed_paths: ["go.mod", "go.sum", "cmd/godj/**", "schema/**", "codegen/**", "orm/**", "query/**", "db/**", "internal/**", "conformance/**", "examples/**", "docs/**", "work/**"]
 integration_owner: "one primary agent"
 ---
@@ -87,13 +87,85 @@ minimal Schema DSL
 
 ## 완료 gate
 
-- [ ] M0 contract 중 M1 범위가 SQLite에서 `passing`
-- [ ] codegen golden/idempotency/stale/compile tests 통과
-- [ ] typed negative compile fixtures 통과
-- [ ] dynamic unknown/disallowed lookup이 실행 전 오류
-- [ ] context cancellation/error cleanup tests 통과
-- [ ] `go test`와 relevant race test evidence 기록
-- [ ] public API 결정을 ADR과 문서에 반영
+- [x] M0 contract 중 M1 범위가 SQLite에서 `passing`
+- [x] codegen golden/idempotency/stale/compile tests 통과
+- [x] typed negative compile fixtures 통과
+- [x] dynamic unknown/disallowed lookup이 실행 전 오류
+- [x] context cancellation/error cleanup tests 통과
+- [x] `go test`와 relevant race test evidence 기록
+- [x] public API 결정을 ADR과 문서에 반영
 
 GDJ-0001과 ADR-0006이 선행 조건을 닫았습니다. 이 문서의 타입/패키지 이름은 여전히
 public API가 아니며, 시작 시 baseline commit과 첫 spike의 수정 경로를 기록합니다.
+
+## 시작 기록
+
+- 시작 시각 기준 checkout: `main@8eac1dc21261ad467553217815133a01d04ad180`
+- 시작 시 worktree: clean
+- 외부 blocker: 없음
+- 첫 통합 범위: descriptor/nullable/dynamic lookup/package dependency/SQLite driver
+  결정을 증거로 좁힌 뒤 Schema-to-Query 수직 단면을 구현
+
+## 완료 결과
+
+`SCH-M1-001`, `GEN-M1-001`, `QRY-M1-001`, `DB-SQLITE-001`은 두 번째 Django
+manifest 계약이 아니라 M1 내부 capability/compile/runtime gate ID입니다. Differential
+실행 정본은 기존 QRY-001..010과 SCH-001의 11개입니다.
+
+- `schema` 선언에서 implicit AutoField를 포함한 versioned `schema/ir`을 만들고,
+  canonical JSON/hash와 validation을 구현했습니다.
+- `codegen`이 package당 한 파일로 `Article`, typed FieldSet, zero-state descriptor,
+  generic Manager binding과 schema/generator hash를 byte-deterministic하게 생성합니다.
+- M1 project runner가 Go overlay로 실제 target package를 compile-only 검증한 뒤에만
+  generated 파일을 교체합니다. Init/TestMain은 실행하지 않으며 실패 시 last-good
+  bytes를 보존하고 삭제된 target도 복구합니다.
+- `Predicate[M]`, `Ordering[M]`, `Manager[M]`, `QuerySet[M]`과 copy-on-write Query Plan을
+  구현했습니다. Typed/dynamic lookup은 동일 condition node로 수렴합니다.
+- SQLite compiler/executor가 parameter binding, identifier quote, LIKE escape,
+  exact/ASCII icontains/isnull/AND/order/limit를 실행합니다.
+- GoDj adapter가 QRY-001..QRY-010과 SCH-001 총 11개를 독립 DB에서 관찰하며 locked
+  Django oracle과 모두 일치합니다.
+
+## 채택한 결정
+
+- Descriptor, nullable read, dynamic parsing과 dependency 경계:
+  [ADR-0007](../docs/adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)
+- M1 SQLite driver/execution 경계:
+  [ADR-0008](../docs/adr/0008-m1-sqlite-driver-and-execution-boundary.md)
+- M1 nullable CharField는 `*string`이지만 write patch의 omitted 의미는 Q-006으로
+  남겼습니다.
+- Dynamic input은 `ParseDynamic`에서 즉시 typed predicate 또는 error가 되고,
+  QuerySet 안에 construction error를 숨기지 않습니다.
+- M1 QuerySet은 result cache가 없습니다. Q-007의 최종 의미는 결정하지 않았습니다.
+- 공개 `godj generate` CLI는 Q-010 전까지 만들지 않고 `internal/cmd/m1generate`만
+  사용합니다.
+
+## 변경 파일 묶음
+
+- 선언/IR/codegen: `schema/**`, `codegen/**`, `internal/cmd/m1generate/**`,
+  `examples/article/**`
+- Generic query/runtime: `query/**`, `orm/**`, `db/**`
+- 호환 adapter/gate: `conformance/runners/godj/**`,
+  `conformance/cmd/godjcheck/**`, `internal/compiletest/**`
+- dependency/license: `go.mod`, `go.sum`, `LICENSE.modernc-*`, `NOTICE.md`
+- 운영/설계: `Makefile`, ADR-0007/0008, architecture/compatibility/status/work 문서
+
+## 검증 증거
+
+[EVID-20260808-001](../docs/status/TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton)에
+전체 명령, checkout, backend fingerprint와 결과를 기록했습니다.
+
+## 알려진 제한
+
+- 한 app/한 model과 세 field kind만 지원합니다.
+- Test-only schema provisioner이며 migration/write lifecycle은 없습니다.
+- Relation, projection, aggregate, transaction API, 다른 backend는 없습니다.
+- Django reference SQLite 3.50.4와 Go backend SQLite 3.53.3은 서로 다른 runtime입니다.
+- CLI/library version, cache와 전체 goroutine safety는 계속 open입니다.
+
+## 다음 정확한 작업
+
+[GDJ-0003](0003-write-migration-compatibility-contracts.md)을 활성화하고 M1 완료 commit을
+baseline으로 기록합니다. 기존 11개 manifest를 늘리지 말고, write/schema/transaction
+동작 8~12개를 두 번째 contract set으로 먼저 Django runtime에서 조사·잠근 뒤 제품
+write/migration 단면을 작성합니다.

@@ -1,25 +1,25 @@
 # 구현·호환 상태표
 
-- 마지막 갱신: 2026-08-07
+- 마지막 갱신: 2026-08-08
 - `Design`은 문서 결정, `Code`는 현재 checkout 구현, `Verified`는 기록된 실행 증거를 뜻합니다.
 - `—`는 해당 검증이 아직 적용되지 않음을 뜻하며 pass가 아닙니다.
 
 | Capability | Contract | Design | Code | Unit/Compile | Differential | Backend |
 |---|---|---|---|---|---|---|
 | Compatibility profile | META-001 | Accepted exact profile | Implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | `oracle_locked` | Django 6.1 / SQLite 3.50.4 reference |
-| Contract/oracle harness | META-002 | Accepted protocol v1 | Implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | 11 contracts `oracle_locked` | exact darwin/arm64 reference |
-| Django model metadata oracle | SCH-001 | Accepted M0 observation | Implemented reference adapter | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | `oracle_locked` | SQLite reference |
-| Schema DSL | M1 SCH IDs TBD | Proposed details | Not started | Not run | Not run | — |
-| Normalized Schema IR | M1 SCH IDs TBD | Accepted direction | Not started | Not run | Not run | — |
-| Deterministic codegen | M1 GEN IDs TBD | Accepted direction | Not started | Not run | Not run | — |
-| Codegen bootstrap | GEN-010 | [ADR-0006](../adr/0006-codegen-input-package-boundary.md) Accepted | M0 spike implemented; production not started | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | — | darwin/arm64 fixture |
-| Generated model/FieldSet | M1 GEN IDs TBD | Proposed details | Not started | Not run | Not run | — |
-| Generic Manager/QuerySet | QRY-001..QRY-010 | Accepted direction | Not started | Protocol tests pass; ORM tests not run | Django `oracle_locked`; GoDj explicitly `not_implemented` | SQLite reference only |
-| Typed predicate API | M1 mapping TBD | Accepted direction | Not started | Not run | Not run | — |
-| Dynamic lookup API | QRY-008/QRY-010 + M1 invariants | Accepted direction | Not started | Not run | Django error oracle locked | — |
-| Shared Query AST | M1 internal IDs TBD | Accepted direction | Not started | Not run | Not run | — |
-| QuerySet cache semantics | Q-007 / contract TBD | Open Q-007 | Not started | Not run | Not run | — |
-| SQLite query execution | DB-SQLITE-001+ | Planned M1 | Not started | Not run | Not run | Not started |
+| Contract/oracle harness | META-002 | Accepted protocol v1 | Implemented with Django and GoDj adapters | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | 11 contracts `passing` | Django exact reference + Go SQLite M1 |
+| Django model metadata oracle | SCH-001 | Accepted M0 observation | Django reference + generated descriptor projection implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | `passing` | Django SQLite 3.50.4 / Go SQLite 3.53.3 |
+| Schema DSL | SCH-M1-001 subset | M1 scope Accepted | Auto/Char/Boolean/nullable Article implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | SCH-001 `passing` through IR/codegen | — |
+| Normalized Schema IR | SCH-M1-001 | [ADR-0001](../adr/0001-schema-ir-as-canonical-source.md) Accepted | Version 1 normalize/validate/canonical hash implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | SCH-001 `passing` | — |
+| Deterministic codegen | GEN-M1-001 | ADR-0002/0006 Accepted | One-file generation, hash, golden/check/last-good implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | SCH-001 generated metadata `passing` | external consumer compile |
+| Codegen bootstrap | GEN-010 / GEN-M1-001 | [ADR-0006](../adr/0006-codegen-input-package-boundary.md) Accepted | M0 spike + production overlay compile-only replacement implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | — | missing/stale target fixtures |
+| Generated model/FieldSet | GEN-M1-001 | [ADR-0007](../adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) Accepted for M1 | Article/FieldSet/descriptor/Manager binding implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | QRY/SCH 11 `passing` | SQLite M1 |
+| Generic Manager/QuerySet | QRY-001..QRY-010 | ADR-0003/0007 Accepted for M1 | Filter/OrderBy/Limit/All implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | 10 QRY contracts `passing` | SQLite 3.53.3 |
+| Typed predicate API | QRY-M1-001 | ADR-0003/0007 Accepted for M1 | exact/icontains/isnull + typed order implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | relevant QRY contracts `passing` | external negative compile |
+| Dynamic lookup API | QRY-008/QRY-010 + QRY-M1-001 | [ADR-0007](../adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) Accepted for M1 | Ordered ParseDynamic + policy/error taxonomy implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | QRY-008/010 `passing` | pre-execution validation |
+| Shared Query AST | QRY-M1-001 | ADR-0003 Accepted | Immutable Plan/Condition/Ordering/Value subset implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | typed/dynamic equality + QRY `passing` | SQLite compiler |
+| QuerySet cache semantics | Q-007 / contract TBD | Open Q-007 | M1 intentionally uncached; final semantics not implemented | Plan/evaluation tests pass; cache contract not run | Not claimed | — |
+| SQLite query execution | DB-SQLITE-001 | [ADR-0008](../adr/0008-m1-sqlite-driver-and-execution-boundary.md) Accepted for M1 | Compiler/executor/context/cleanup subset implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | QRY-001..010 `passing` | modernc v1.56.0 / SQLite 3.53.3 |
 | Model write lifecycle | MOD-001+ | Planned M2 | Not started | Not run | Not run | — |
 | Migration engine | MIG-001+ | Planned M2 | Not started | Not run | Not run | — |
 | Relations | REL-001+ | Open Q-013 / M3 | Not started | Not run | Not run | — |

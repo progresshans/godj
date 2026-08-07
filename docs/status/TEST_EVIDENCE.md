@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-07
-- 현재 GoDj 코드 테스트 증거: EVID-20260807-002
+- 마지막 갱신: 2026-08-08
+- 현재 GoDj 코드 테스트 증거: EVID-20260808-001
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -170,3 +170,71 @@ go run ./conformance/cmd/observationcmp \
 예상 결과는 exit 1과 `not_implemented` mismatch 11개였고 실제 결과가
 일치했습니다. Comparator unit test는 result value/order, phase, error category/code,
 contractual message, DB state, metrics mutation도 각각 실패로 판정했습니다.
+
+## EVID-20260808-001 — GDJ-0002 Model-to-Query Walking Skeleton
+
+- Date/time: 2026-08-08T01:12:35+09:00
+- Work/contract IDs: GDJ-0002, SCH-M1-001, GEN-M1-001, QRY-001..QRY-010,
+  SCH-001, QRY-M1-001, DB-SQLITE-001
+- Checkout/commit: `main` at
+  `bb9225df91f12f2faaa3d50da5b9555819fe0256`; 실행 시 미커밋 변경은 완료 상태와
+  다음 work handoff 문서 `docs/ROADMAP.md`, `docs/status/CURRENT.md`,
+  `work/0002-model-to-query-walking-skeleton.md`, `work/README.md`, `work/0003-*`뿐이며
+  product/conformance source는 commit과 동일
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  `modernc.org/sqlite v1.56.0`, `modernc.org/libc v1.74.4`, Go backend SQLite 3.53.3;
+  uv 0.10.12, CPython 3.14.3, Django 6.1 reference SQLite 3.50.4,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: final `make check`와 focused SQLite fingerprint test 0
+- Result summary: generated drift/target compile, 전체 Go test/vet/race,
+  `CGO_ENABLED=0`, external positive/negative compile fixtures, Python portable/exact
+  11-test suite, protocol/artifact validation, GoDj-vs-Django 11-contract differential,
+  oracle byte check 모두 통과
+- Failures/skips: portable Python run에서 exact profile test 2개가 의도적으로 skip되고
+  exact run에서는 모두 pass. Final 이전 첫 `make check`는 manifest가 `passing`인데
+  Django runner가 `oracle_locked`만 허용해 실패했으며, locked 이후 lifecycle
+  (`red`/`passing`/`deviation`)을 허용하고 regression test를 추가한 commit에서 재실행해
+  통과. GitHub-hosted CI는 push하지 않아 실행하지 않음.
+- Artifacts: generated `examples/article/models/zz_godj_generated.go`, GoDj observation
+  adapter/command, manifest 11개 `passing`, schema hash
+  `745a63388b268f0ff1331e516473a73655563b3a7ca77f5c1005b0aeb16677b2`, oracle
+  `0fc307d8be596c993bd1424c365de8c17ae9ace626d603e2e62272011845b7b0`
+- Notes: Django reference profile SQLite 3.50.4와 Go backend SQLite 3.53.3을 별도
+  fingerprint로 기록함. SQL 문자열 동일성이 아니라 manifest의 결과/오류/DB state/
+  metrics를 비교함.
+
+실행한 최종 gate:
+
+```bash
+make check
+```
+
+`make check`는 다음 M1 gate를 포함했습니다.
+
+```bash
+go run ./internal/cmd/m1generate -check
+go test ./...
+go vet ./...
+CGO_ENABLED=0 go test ./db/sqlite ./conformance/runners/godj -count=1
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
+go test -race ./...
+GODJ_EXACT_PROFILE=1 LC_ALL=C TZ=UTC uv run --frozen python \
+  -m unittest discover -s conformance/runners/django/tests -v
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json --check
+```
+
+Go backend runtime fingerprint 확인:
+
+```bash
+go list -m -f '{{.Path}} {{.Version}}' modernc.org/sqlite modernc.org/libc
+go test ./db/sqlite -run TestSQLiteBackendInterruptsRunningStatement -count=1 -v
+```
+
+출력은 `modernc.org/sqlite v1.56.0`, `modernc.org/libc v1.74.4`,
+`backend=modernc.org/sqlite sqlite=3.53.3`이었습니다.
