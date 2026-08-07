@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -92,6 +92,30 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"orm.CreateInput[Other]",
 				"wrong type for method BuildCreate",
+			},
+		},
+		{
+			name:    "Save update field model mismatch",
+			fixture: "save_field_model_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use orm.NewStringField[Other]",
+				"orm.WritableField[models.Article]",
+			},
+		},
+		{
+			name:    "Save primary key is not writable",
+			fixture: "save_primary_key_mask.go.txt",
+			wantFragments: []string{
+				"models.ArticleFields.ID",
+				"orm.WritableField[models.Article]",
+			},
+		},
+		{
+			name:    "Save option model mismatch",
+			fixture: "save_option_model_mismatch.go.txt",
+			wantFragments: []string{
+				"orm.ForceInsert[Other]()",
+				"orm.SaveOption[models.Article]",
 			},
 		},
 	}

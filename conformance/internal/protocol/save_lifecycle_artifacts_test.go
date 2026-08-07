@@ -12,7 +12,7 @@ type checkedInContractSet struct {
 	oracle   ObservationSuite
 }
 
-func TestSaveLifecycleArtifactsHaveExplicitNotImplementedBaseline(t *testing.T) {
+func TestPassingSaveLifecycleArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -40,8 +40,8 @@ func TestSaveLifecycleArtifactsHaveExplicitNotImplementedBaseline(t *testing.T) 
 		t.Fatalf("GoDj save lifecycle not-implemented baseline does not validate: %v", err)
 	}
 	for index, contract := range manifest.Contracts {
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		if contract.Status != ContractPassing {
+			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		if oracle.Contracts[index].Status != StatusObserved {
 			t.Fatalf("oracle contract %s status = %q, want %q", contract.ID, oracle.Contracts[index].Status, StatusObserved)

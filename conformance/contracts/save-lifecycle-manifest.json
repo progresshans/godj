@@ -7,7 +7,7 @@
       "title": "Saving a new instance inserts one row and assigns its auto primary key",
       "scenario": "django.model.save.new_auto_pk",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -29,7 +29,7 @@
       "title": "Default save of a fully loaded instance writes every writable concrete field",
       "scenario": "django.model.save.loaded_all_fields",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -45,7 +45,7 @@
       "title": "update_fields writes only named fields while other in-memory changes remain unsaved",
       "scenario": "django.model.save.update_fields_named",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -67,7 +67,7 @@
       "title": "An empty update_fields iterable skips the save and issues no SQL",
       "scenario": "django.model.save.update_fields_empty",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -89,7 +89,7 @@
       "title": "A primary key in update_fields is rejected before database I/O",
       "scenario": "django.model.save.update_fields_primary_key",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -111,7 +111,7 @@
       "title": "force_insert on an existing primary key fails and preserves the stored row",
       "scenario": "django.model.save.force_insert_conflict",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -133,7 +133,7 @@
       "title": "force_update without a primary key is rejected without database I/O",
       "scenario": "django.model.save.force_update_without_pk",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -155,7 +155,7 @@
       "title": "force_update for a missing row raises NotUpdated and does not insert",
       "scenario": "django.model.save.force_update_missing_row",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -177,7 +177,7 @@
       "title": "force_insert and force_update together are rejected without database I/O",
       "scenario": "django.model.save.mutually_exclusive_force_flags",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -199,7 +199,7 @@
       "title": "Default save with an existing explicit primary key updates that row",
       "scenario": "django.model.save.explicit_pk_existing",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -221,7 +221,7 @@
       "title": "Default save with an unused explicit primary key attempts UPDATE then INSERT",
       "scenario": "django.model.save.explicit_pk_missing",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -243,7 +243,7 @@
       "title": "Transaction rollback restores database rows but not in-memory model field values",
       "scenario": "django.model.save.atomic_rollback_instance_state",
       "phase": "rollback",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

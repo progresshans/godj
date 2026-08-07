@@ -16,6 +16,16 @@ type StringField[M any] struct{ field[M] }
 type NullableStringField[M any] struct{ field[M] }
 type BooleanField[M any] struct{ field[M] }
 
+// WritableField is the sealed, model-specific field capability accepted by
+// Save update masks. The private method prevents arbitrary external field
+// implementations, and its M argument prevents fields for different models
+// from satisfying the same instantiated interface. IntegerField deliberately
+// does not implement this interface because the current AutoField primary key
+// is never writable through update_fields.
+type WritableField[M any] interface {
+	writableField(M) (query.FieldRef, error)
+}
+
 type Predicate[M any] struct {
 	condition query.Condition
 	err       error
@@ -100,6 +110,18 @@ func (f BooleanField[M]) IsNull(value bool) Predicate[M] {
 
 func (f BooleanField[M]) Asc() Ordering[M]  { return f.field.ordering(query.Ascending) }
 func (f BooleanField[M]) Desc() Ordering[M] { return f.field.ordering(query.Descending) }
+
+func (f StringField[M]) writableField(M) (query.FieldRef, error) {
+	return f.reference, f.err
+}
+
+func (f NullableStringField[M]) writableField(M) (query.FieldRef, error) {
+	return f.reference, f.err
+}
+
+func (f BooleanField[M]) writableField(M) (query.FieldRef, error) {
+	return f.reference, f.err
+}
 
 func newField[M any](metadata ir.Field, kind query.FieldKind, expectedKind ir.FieldKind, expectedNullable bool) field[M] {
 	result := field[M]{reference: query.NewFieldRef(metadata.Name, metadata.Column, kind, metadata.Nullable)}

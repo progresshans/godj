@@ -99,6 +99,30 @@ func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Obse
 		return migrationReverseNullableField(ctx, contract.ID)
 	case "django.migration.atomic_failure":
 		return migrationAtomicFailure(ctx, contract.ID)
+	case "django.model.save.new_auto_pk":
+		return modelSaveNewAutoPrimaryKey(ctx, contract.ID)
+	case "django.model.save.loaded_all_fields":
+		return modelSaveLoadedAllFields(ctx, contract.ID)
+	case "django.model.save.update_fields_named":
+		return modelSaveUpdateFieldsNamed(ctx, contract.ID)
+	case "django.model.save.update_fields_empty":
+		return modelSaveUpdateFieldsEmpty(ctx, contract.ID)
+	case "django.model.save.update_fields_primary_key":
+		return modelSaveUpdateFieldsPrimaryKey(ctx, contract.ID)
+	case "django.model.save.force_insert_conflict":
+		return modelSaveForceInsertConflict(ctx, contract.ID)
+	case "django.model.save.force_update_without_pk":
+		return modelSaveForceUpdateWithoutPrimaryKey(ctx, contract.ID)
+	case "django.model.save.force_update_missing_row":
+		return modelSaveForceUpdateMissingRow(ctx, contract.ID)
+	case "django.model.save.mutually_exclusive_force_flags":
+		return modelSaveMutuallyExclusiveForceFlags(ctx, contract.ID)
+	case "django.model.save.explicit_pk_existing":
+		return modelSaveExplicitPrimaryKeyExisting(ctx, contract.ID)
+	case "django.model.save.explicit_pk_missing":
+		return modelSaveExplicitPrimaryKeyMissing(ctx, contract.ID)
+	case "django.model.save.atomic_rollback_instance_state":
+		return modelSaveAtomicRollbackInstanceState(ctx, contract.ID)
 	default:
 		return protocol.Observation{}, fmt.Errorf("unsupported scenario %q", contract.Scenario)
 	}

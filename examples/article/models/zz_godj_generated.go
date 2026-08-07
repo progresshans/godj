@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-m2-v1"
+const GoDjGeneratorVersion = "godj-codegen-m2-v2"
 const GoDjSchemaSHA256 = "b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621"
 
 type Article struct {
@@ -104,6 +104,26 @@ var ArticleFields = func() ArticleFieldSet {
 }()
 
 var ArticleObjects = orm.NewManager[Article](ArticleDescriptor{})
+
+func NewArticleWithID(key int64) Article {
+	return Article{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func ArticleUpdateFields(fields ...orm.WritableField[Article]) orm.SaveOption[Article] {
+	return orm.UpdateFields(fields...)
+}
+
+func ArticleUpdateFieldNames(names ...string) orm.SaveOption[Article] {
+	return orm.UpdateFieldNames[Article](names...)
+}
+
+func ArticleForceInsert() orm.SaveOption[Article] {
+	return orm.ForceInsert[Article]()
+}
+
+func ArticleForceUpdate() orm.SaveOption[Article] {
+	return orm.ForceUpdate[Article]()
+}
 
 type ArticleCreate struct {
 	title     orm.Change[string]

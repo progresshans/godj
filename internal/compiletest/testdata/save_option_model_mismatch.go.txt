@@ -1,0 +1,15 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+func SaveWithWrongOption(ctx context.Context, backend db.Mutator, article *models.Article) error {
+	return models.ArticleObjects.Save(ctx, backend, article, orm.ForceInsert[Other]())
+}

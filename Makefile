@@ -62,6 +62,9 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(WRITE_MIGRATION_MANIFEST) \
 		-expected $(WRITE_MIGRATION_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(SAVE_LIFECYCLE_MANIFEST) \
+		-expected $(SAVE_LIFECYCLE_ORACLE)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

@@ -1,0 +1,48 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+func SaveArticles(ctx context.Context, backend db.Mutator) error {
+	created := models.Article{Title: "Generated key"}
+	if err := models.ArticleObjects.Save(ctx, backend, &created); err != nil {
+		return err
+	}
+
+	explicitZero := models.NewArticleWithID(0)
+	explicitZero.Title = "Explicit zero key"
+	if err := models.ArticleObjects.Save(
+		ctx,
+		backend,
+		&explicitZero,
+		models.ArticleUpdateFields(models.ArticleFields.Title, models.ArticleFields.Published),
+	); err != nil {
+		return err
+	}
+
+	if err := models.ArticleObjects.Save(ctx, backend, &explicitZero, models.ArticleUpdateFields()); err != nil {
+		return err
+	}
+	if err := models.ArticleObjects.Save(ctx, backend, &explicitZero, models.ArticleUpdateFieldNames("title")); err != nil {
+		return err
+	}
+	if err := models.ArticleObjects.Save(ctx, backend, &explicitZero, models.ArticleForceUpdate()); err != nil {
+		return err
+	}
+	return models.ArticleObjects.Save(ctx, backend, &created, models.ArticleForceInsert())
+}
+
+var generatedEmptyMask orm.SaveOption[models.Article] = models.ArticleUpdateFields()
+var generatedEmptyNames orm.SaveOption[models.Article] = models.ArticleUpdateFieldNames()
+var generatedForceInsert orm.SaveOption[models.Article] = models.ArticleForceInsert()
+var generatedForceUpdate orm.SaveOption[models.Article] = models.ArticleForceUpdate()
+var genericTypedMask orm.SaveOption[models.Article] = orm.UpdateFields(models.ArticleFields.Title)
+var genericEmptyMask orm.SaveOption[models.Article] = orm.UpdateFields[models.Article]()
+var genericNames orm.SaveOption[models.Article] = orm.UpdateFieldNames[models.Article]("title")
+var genericForceInsert orm.SaveOption[models.Article] = orm.ForceInsert[models.Article]()
+var genericForceUpdate orm.SaveOption[models.Article] = orm.ForceUpdate[models.Article]()

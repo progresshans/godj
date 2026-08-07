@@ -30,6 +30,9 @@ type Queryer interface {
 // compile immutable query plans and return backend result metadata.
 type Mutator interface {
 	Insert(context.Context, query.InsertPlan) (lastInsertID int64, err error)
+	// Update returns the exact affected-row count. Generic Save orchestration
+	// distinguishes zero rows from one row and must not receive a synthesized
+	// success count from a backend.
 	Update(context.Context, query.UpdatePlan) (rowsAffected int64, err error)
 	Delete(context.Context, query.DeletePlan) (rowsAffected int64, err error)
 }

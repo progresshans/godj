@@ -3,11 +3,14 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
+	modernsqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 var _ db.Mutator = (*Backend)(nil)
@@ -110,7 +113,7 @@ func executeInsert(ctx context.Context, executor writeExecutor, plan query.Inser
 	}
 	result, err := executor.ExecContext(ctx, statement, arguments...)
 	if err != nil {
-		return 0, fmt.Errorf("execute SQLite insert: %w", err)
+		return 0, classifyInsertError(err)
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
@@ -128,6 +131,19 @@ func executeInsert(ctx context.Context, executor writeExecutor, plan query.Inser
 		return 0, fmt.Errorf("read SQLite last insert id: %w", err)
 	}
 	return lastInsertID, nil
+}
+
+func classifyInsertError(err error) error {
+	var sqliteError *modernsqlite.Error
+	if errors.As(err, &sqliteError) && sqliteError.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY {
+		return &query.Error{
+			Category: query.CategoryIntegrity,
+			Code:     query.CodeUniquePrimaryKey,
+			Detail:   "SQLite primary-key constraint rejected the insert",
+			Cause:    err,
+		}
+	}
+	return fmt.Errorf("execute SQLite insert: %w", err)
 }
 
 func executeUpdate(ctx context.Context, executor writeExecutor, plan query.UpdatePlan) (int64, error) {

@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/query"
+	modernsqlite "modernc.org/sqlite"
 )
 
 func TestCompileWritePlansBindZeroEmptyAndNullValues(t *testing.T) {
@@ -220,5 +221,68 @@ func TestSQLiteInsertRejectsTriggerIgnoredRow(t *testing.T) {
 		All(ctx)
 	if queryErr != nil || len(rows) != 0 {
 		t.Fatalf("ignored insert rows = %#v, error = %v", rows, queryErr)
+	}
+}
+
+func TestSQLiteInsertClassifiesPrimaryKeyConstraintAndPreservesCause(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	backend := openArticleDatabase(t, ctx)
+	metadata := (models.ArticleDescriptor{}).Metadata()
+	plan := query.NewInsertPlan(metadata.DBTable, []query.Assignment{
+		query.NewAssignment(
+			query.NewFieldRef("id", "id", query.FieldInteger, false),
+			query.Integer(1),
+		),
+		query.NewAssignment(
+			query.NewFieldRef("title", "title", query.FieldString, false),
+			query.String("Duplicate primary key"),
+		),
+		query.NewAssignment(
+			query.NewFieldRef("published", "published", query.FieldBoolean, false),
+			query.Boolean(false),
+		),
+		query.NewAssignment(
+			query.NewFieldRef("summary", "summary", query.FieldString, true),
+			query.Null(),
+		),
+	})
+
+	_, err := backend.Insert(ctx, plan)
+	if !errors.Is(err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniquePrimaryKey}) {
+		t.Fatalf("Insert(duplicate primary key) error = %v, want integrity_error/unique_primary_key", err)
+	}
+	var driverError *modernsqlite.Error
+	if !errors.As(err, &driverError) {
+		t.Fatalf("Insert(duplicate primary key) error = %v, want preserved *sqlite.Error cause", err)
+	}
+}
+
+func TestSQLiteInsertDoesNotMisclassifyAnotherUniqueConstraintAsPrimaryKey(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	backend := openArticleDatabase(t, ctx)
+	if _, err := backend.ExecContext(ctx, `CREATE UNIQUE INDEX "unique_article_title" ON "godj_conformance_article" ("title")`); err != nil {
+		t.Fatalf("create title unique index: %v", err)
+	}
+	plan := query.NewInsertPlan("godj_conformance_article", []query.Assignment{
+		query.NewAssignment(query.NewFieldRef("id", "id", query.FieldInteger, false), query.Integer(99)),
+		query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, false), query.String("Alpine Guide")),
+		query.NewAssignment(query.NewFieldRef("published", "published", query.FieldBoolean, false), query.Boolean(false)),
+		query.NewAssignment(query.NewFieldRef("summary", "summary", query.FieldString, true), query.Null()),
+	})
+
+	_, err := backend.Insert(ctx, plan)
+	if err == nil {
+		t.Fatal("Insert(duplicate title) unexpectedly succeeded")
+	}
+	if errors.Is(err, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniquePrimaryKey}) {
+		t.Fatalf("Insert(duplicate title) error = %v, must not be classified as a primary-key conflict", err)
+	}
+	var driverError *modernsqlite.Error
+	if !errors.As(err, &driverError) {
+		t.Fatalf("Insert(duplicate title) error = %v, want preserved *sqlite.Error cause", err)
 	}
 }

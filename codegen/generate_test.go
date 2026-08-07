@@ -39,6 +39,12 @@ func TestGenerateIsDeterministicAndContainsProvenance(t *testing.T) {
 		[]byte("var _ orm.ModelDescriptor[Article]"),
 		[]byte("var _ orm.WriteDescriptor[Article]"),
 		[]byte("CloneWriteModel(value Article) Article"),
+		[]byte("func NewArticleWithID(key int64) Article"),
+		[]byte("return Article{ID: key, godjPrimaryKeyPresent: true}"),
+		[]byte("func ArticleUpdateFields(fields ...orm.WritableField[Article]) orm.SaveOption[Article]"),
+		[]byte("func ArticleUpdateFieldNames(names ...string) orm.SaveOption[Article]"),
+		[]byte("func ArticleForceInsert() orm.SaveOption[Article]"),
+		[]byte("func ArticleForceUpdate() orm.SaveOption[Article]"),
 		[]byte("type ArticleCreate struct"),
 		[]byte("type ArticlePatch struct"),
 		[]byte("WithSummaryNull"),
@@ -49,6 +55,9 @@ func TestGenerateIsDeterministicAndContainsProvenance(t *testing.T) {
 		if !bytes.Contains(first, fragment) {
 			t.Fatalf("generated source does not contain %q", fragment)
 		}
+	}
+	if bytes.Contains(first, []byte(") Save(")) {
+		t.Fatal("generated source unexpectedly contains an instance Save method")
 	}
 }
 
@@ -75,6 +84,37 @@ func TestGeneratedArticleMatchesCommittedGolden(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatal("committed generated Article differs from codegen output; run go run ./internal/cmd/m1generate")
+	}
+}
+
+func TestGenerateDerivesExplicitKeyConstructorFromPrimaryKeyGoName(t *testing.T) {
+	t.Parallel()
+
+	irSchema, err := schema.Build(schema.Definition{
+		AppLabel: "custom_key",
+		Models: []schema.Model{{
+			Name:   "record",
+			GoName: "Record",
+			Fields: []schema.Field{
+				schema.AutoField("record_key", "RecordKey"),
+				schema.CharField("title", "Title", 20),
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	source, err := codegen.Generate("models", irSchema)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	for _, fragment := range [][]byte{
+		[]byte("func NewRecordWithRecordKey(key int64) Record"),
+		[]byte("return Record{RecordKey: key, godjPrimaryKeyPresent: true}"),
+	} {
+		if !bytes.Contains(source, fragment) {
+			t.Fatalf("generated source does not contain %q", fragment)
+		}
 	}
 }
 
@@ -238,6 +278,34 @@ func TestGenerateRejectsFixedPackageSymbolCollisions(t *testing.T) {
 			}
 			if _, err := codegen.Generate("models", irSchema); err == nil {
 				t.Fatalf("Generate() accepted model name %s that collides with a fixed package symbol", modelName)
+			}
+		})
+	}
+}
+
+func TestGenerateRejectsSaveBindingSymbolCollisions(t *testing.T) {
+	t.Parallel()
+
+	for _, modelName := range []string{
+		"ArticleUpdateFields",
+		"ArticleUpdateFieldNames",
+		"ArticleForceInsert",
+		"ArticleForceUpdate",
+		"NewArticleWithID",
+	} {
+		t.Run(modelName, func(t *testing.T) {
+			irSchema, err := schema.Build(schema.Definition{
+				AppLabel: "collision",
+				Models: []schema.Model{
+					{Name: "article", GoName: "Article", Fields: []schema.Field{schema.CharField("title", "Title", 20)}},
+					{Name: "other", GoName: modelName, Fields: []schema.Field{schema.CharField("title", "Title", 20)}},
+				},
+			})
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
+			if _, err := codegen.Generate("models", irSchema); err == nil {
+				t.Fatalf("Generate() accepted model name %s that collides with a Save binding", modelName)
 			}
 		})
 	}

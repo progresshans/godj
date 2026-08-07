@@ -15,7 +15,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GeneratorVersion = "godj-codegen-m2-v1"
+const GeneratorVersion = "godj-codegen-m2-v2"
 
 func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if !token.IsIdentifier(packageName) || token.Lookup(packageName).IsKeyword() {
@@ -182,6 +182,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintln(output, "}()")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "var %s = orm.NewManager[%s](%s{})\n\n", objectsName, model.GoName, descriptorName)
+	renderSaveBindings(output, model)
 	renderWriteInputs(output, model, metadataFunction)
 
 	fmt.Fprintf(output, "func %s() ir.Model {\n", metadataFunction)
@@ -212,6 +213,38 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	}
 	fmt.Fprintln(output, "\t\t},")
 	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+}
+
+func renderSaveBindings(output *bytes.Buffer, model ir.Model) {
+	key, ok := primaryKey(model)
+	if !ok {
+		return
+	}
+
+	fmt.Fprintf(output, "func New%sWith%s(key %s) %s {\n", model.GoName, key.GoName, scalarGoType(key), model.GoName)
+	fmt.Fprintf(output, "\treturn %s{%s: key, godjPrimaryKeyPresent: true}\n", model.GoName, key.GoName)
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
+	fmt.Fprintf(output, "func %sUpdateFields(fields ...orm.WritableField[%s]) orm.SaveOption[%s] {\n", model.GoName, model.GoName, model.GoName)
+	fmt.Fprintln(output, "\treturn orm.UpdateFields(fields...)")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
+	fmt.Fprintf(output, "func %sUpdateFieldNames(names ...string) orm.SaveOption[%s] {\n", model.GoName, model.GoName)
+	fmt.Fprintf(output, "\treturn orm.UpdateFieldNames[%s](names...)\n", model.GoName)
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
+	fmt.Fprintf(output, "func %sForceInsert() orm.SaveOption[%s] {\n", model.GoName, model.GoName)
+	fmt.Fprintf(output, "\treturn orm.ForceInsert[%s]()\n", model.GoName)
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
+	fmt.Fprintf(output, "func %sForceUpdate() orm.SaveOption[%s] {\n", model.GoName, model.GoName)
+	fmt.Fprintf(output, "\treturn orm.ForceUpdate[%s]()\n", model.GoName)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 }
@@ -579,7 +612,8 @@ func validateGeneratedNames(schema ir.Schema) error {
 
 	for _, model := range schema.Models {
 		owner := "model " + model.GoName
-		for _, symbol := range []string{
+		key, hasKey := primaryKey(model)
+		symbols := []string{
 			model.GoName,
 			model.GoName + "Descriptor",
 			model.GoName + "FieldSet",
@@ -588,8 +622,16 @@ func validateGeneratedNames(schema ir.Schema) error {
 			model.GoName + "Create",
 			model.GoName + "Patch",
 			"New" + model.GoName + "Create",
+			model.GoName + "UpdateFields",
+			model.GoName + "UpdateFieldNames",
+			model.GoName + "ForceInsert",
+			model.GoName + "ForceUpdate",
 			lowerFirst(model.GoName) + "Metadata",
-		} {
+		}
+		if hasKey {
+			symbols = append(symbols, "New"+model.GoName+"With"+key.GoName)
+		}
+		for _, symbol := range symbols {
 			if err := addPackageSymbol(symbol, owner); err != nil {
 				return err
 			}
