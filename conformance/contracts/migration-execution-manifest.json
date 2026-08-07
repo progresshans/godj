@@ -1,0 +1,226 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-017",
+      "title": "A three-step forward plan commits each migration and advances historical state",
+      "scenario": "django.migration.execute.linear_forward",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_forwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-018",
+      "title": "A dependent-first backward plan commits each unapply and reaches empty state",
+      "scenario": "django.migration.execute.linear_backward",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_backwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-019",
+      "title": "An applied prefix is retained while only the forward tail executes",
+      "scenario": "django.migration.execute.applied_prefix_tail",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._create_project_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-020",
+      "title": "Rolling back one branch preserves unrelated applied schema, records, and state",
+      "scenario": "django.migration.execute.rollback_branch_preserves_unrelated",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_backwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_unrelated_applied_migrations_mutate_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-021",
+      "title": "A forward operation failure rolls back its migration after prior commits and stops the tail",
+      "scenario": "django.migration.execute.forward_operation_failure",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.apply_migration",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_operations.py::OperationTests.test_run_python_atomic",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-022",
+      "title": "A backward operation failure rolls back that migration after the prior unapply and stops the tail",
+      "scenario": "django.migration.execute.backward_operation_failure",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.unapply",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.unapply_migration",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-023",
+      "title": "A before-write forward recorder failure rolls back that migration schema after prior commits",
+      "scenario": "django.migration.execute.forward_recorder_failure",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.apply_migration",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_migrations_applied_and_recorded_atomically",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-024",
+      "title": "A before-write backward recorder failure leaves the reversed schema committed while its record remains",
+      "scenario": "django.migration.execute.backward_recorder_failure",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.unapply_migration",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.record_migration",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-025",
+      "title": "A mixed-direction plan is rejected before any domain step starts",
+      "scenario": "django.migration.execute.mixed_direction_rejected",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_mixed_plan_not_supported",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-026",
+      "title": "An empty explicit plan is a no-op and does not create the recorder table",
+      "scenario": "django.migration.execute.empty_plan",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_migrate_skips_schema_creation",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}
