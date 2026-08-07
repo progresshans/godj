@@ -1,0 +1,10 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+var _ orm.ModelDescriptor[Other] = models.ArticleDescriptor{}

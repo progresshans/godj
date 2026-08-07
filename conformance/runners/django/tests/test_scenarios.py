@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import os
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 from conformance.runners.django.normalizer import canonical_json
-from conformance.runners.django.runner import generate_suite
+from conformance.runners.django.runner import (
+    DEFAULT_MANIFEST,
+    DEFAULT_PROFILE,
+    _load_json,
+    _validate_manifest_basics,
+    generate_suite,
+)
 from conformance.runners.django.scenarios import SCENARIOS
 
 
@@ -21,6 +28,24 @@ class ScenarioTests(unittest.TestCase):
     def test_initial_scenario_count_is_within_m0_bound(self) -> None:
         self.assertGreaterEqual(len(SCENARIOS), 8)
         self.assertLessEqual(len(SCENARIOS), 12)
+
+    def test_locked_or_later_manifest_statuses_can_generate_oracle(self) -> None:
+        profile = _load_json(DEFAULT_PROFILE)
+        manifest = _load_json(DEFAULT_MANIFEST)
+        for status in ("oracle_locked", "red", "passing", "deviation"):
+            with self.subTest(status=status):
+                candidate = deepcopy(manifest)
+                for contract in candidate["contracts"]:
+                    contract["status"] = status
+                self.assertEqual(
+                    len(_validate_manifest_basics(candidate, profile)),
+                    len(candidate["contracts"]),
+                )
+
+        draft = deepcopy(manifest)
+        draft["contracts"][0]["status"] = "draft"
+        with self.assertRaisesRegex(RuntimeError, "locked-or-later"):
+            _validate_manifest_basics(draft, profile)
 
     @unittest.skipUnless(
         os.environ.get("GODJ_EXACT_PROFILE") == "1",

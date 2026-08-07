@@ -1,0 +1,20 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+var _ orm.ModelDescriptor[models.Article] = models.ArticleDescriptor{}
+
+func BuildArticleQuery(backend db.Queryer) (orm.QuerySet[models.Article], error) {
+	querySet := models.ArticleObjects.Using(backend).
+		Filter(
+			models.ArticleFields.Published.Exact(true),
+			models.ArticleFields.Title.IContains("django"),
+			models.ArticleFields.Summary.IsNull(false),
+		).
+		OrderBy(models.ArticleFields.ID.Desc())
+	return querySet.Limit(2)
+}

@@ -1,17 +1,14 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-07
+- 마지막 검토: 2026-08-08
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
-| Q-005 | P1 | M1 | `ModelDescriptor[M]`는 interface인가 generated concrete type인가, 언제 freeze되는가 |
-| Q-006 | P1 | M1 | `NULL`, zero value, omitted/unchanged를 어떤 Go 표현으로 구분하는가 |
+| Q-006 | P1 | M2 write 전 | create/update에서 `NULL`, zero value, omitted/unchanged를 어떤 Go 표현으로 구분하는가 — M1 read는 ADR-0007 |
 | Q-007 | P1 | M1 | QuerySet result cache와 동시 평가의 정확한 의미는 무엇인가 |
-| Q-008 | P1 | M1 | dynamic lookup validation/error를 chaining과 어떻게 조화시키는가 |
-| Q-009 | P1 | M1 | package별 interface 소유권과 dependency direction을 어떻게 자동 검증하는가 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | P1 | M1 | request, QuerySet, transaction, hook의 goroutine safety 계약은 무엇인가 |
 | Q-012 | P1 | M2 | migration 파일 형식, ABI, recorder, lock, DDL transaction 정책은 무엇인가 |
@@ -31,6 +28,14 @@
 | Q-003 | strict JSON manifest/typed observation protocol v1과 explicit scenario adapter 채택 — [protocol](../conformance/internal/protocol) |
 | Q-004 | 독립 시나리오와 upstream 파생물을 구분하고 Django BSD 고지를 보수적으로 포함 — [Licensing](LICENSING.md) |
 
+## M1에서 해결한 질문
+
+| ID | 결과 |
+|---|---|
+| Q-005 | `orm` 소유 generic interface + generated zero-state concrete descriptor, generation/compile 시점 freeze — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
+| Q-008 | ordered input을 `ParseDynamic`에서 즉시 typed predicate 또는 error로 변환 — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
+| Q-009 | consumer-owned interface와 external module compile + `go list` dependency gate — [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md) |
+
 ## Q-001 — Codegen bootstrap — Resolved
 
 초안의 임시 runner import 방식은 schema package가 오래된 generated type 때문에
@@ -40,15 +45,14 @@ compile되지 않으면 동작하지 않습니다. 실행 spike에서 rename/del
 
 ## Q-006 — Nullable와 변경 추적
 
-후보는 `*T`, `sql.Null*`, `godj.Nullable[T]`입니다. 단순 조회뿐 아니라 zero value, 명시적 NULL set, partial update에서 생략, JSON/Form 의미를 함께 평가합니다.
+M1 read model은 nullable CharField에 `*string`을 사용해 `nil`, `ptr("")`, 일반 값을
+구분합니다. 이 결정은 partial update의 omitted/unchanged를 해결하지 않으므로 write
+lifecycle 전에 별도 patch 표현을 결정합니다. [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)을
+따릅니다.
 
 ## Q-007 — QuerySet cache
 
 불변 plan과 instance result cache를 분리해야 합니다. chain 후 cache, 동시 `All`, error cache, iterator/Count/Exists 간 공유, goroutine sharing을 Django contract와 race/benchmark로 결정합니다.
-
-## Q-008 — Dynamic lookup API
-
-`FilterKw`가 `(QuerySet, error)`를 반환하면 `.FilterKw(...).Update(...)` chaining 예시는 Go에서 컴파일되지 않습니다. error-bearing builder, 즉시 검증, terminal validation 등 후보를 compile usability와 안전성으로 비교합니다.
 
 ## Q-013 — 관계 API
 

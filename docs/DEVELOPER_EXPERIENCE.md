@@ -1,9 +1,57 @@
 # 목표 개발 경험
 
-- 상태: 사용자 흐름 Accepted, 문법과 API signature는 Proposed
-- 마지막 검토: 2026-08-07
+- 상태: 장기 사용자 흐름 Accepted, M1 Article 단면 Implemented/Verified, 나머지 문법 Proposed
+- 마지막 검토: 2026-08-08
 
-이 문서의 코드는 **illustrative sketch**입니다. compile된 public API가 아니며 work item과 ADR의 검증 없이 그대로 구현하면 안 됩니다.
+별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
+pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
+
+## M1 verified 단면
+
+현재 checkout에서 다음 흐름이 compile/runtime/differential test를 통과합니다.
+
+```go
+var Definition = schema.Definition{
+    AppLabel: "godj_conformance",
+    Models: []schema.Model{{
+        Name:   "article",
+        GoName: "Article",
+        Fields: []schema.Field{
+            schema.CharField("title", "Title", 200),
+            schema.BooleanField("published", "Published"),
+            schema.CharField("summary", "Summary", 200, schema.Nullable()),
+        },
+    }},
+}
+```
+
+```go
+articles, err := models.ArticleObjects.Using(sqliteBackend).
+    Filter(models.ArticleFields.Title.IContains("django")).
+    OrderBy(models.ArticleFields.ID.Asc()).
+    All(ctx)
+// articles has type []models.Article
+```
+
+```go
+predicates, err := orm.ParseDynamic(
+    models.ArticleDescriptor{},
+    policy,
+    []orm.LookupInput{{Key: "title__icontains", Value: "django"}},
+)
+if err != nil {
+    return err
+}
+articles, err := models.ArticleObjects.Using(sqliteBackend).
+    Filter(predicates...).
+    All(ctx)
+```
+
+생성 확인은 공개 CLI가 아닌 M1 runner로 수행합니다.
+
+```bash
+go run ./internal/cmd/m1generate -check
+```
 
 ## 1. 프로젝트 시작
 
@@ -33,7 +81,8 @@ var PostSchema = schema.Define(
 
 이 값은 게시글 객체가 아니라 모델 의미의 선언입니다. validation/normalization 후 Schema IR이 되고, 실제 `Post` type은 생성됩니다.
 
-정확한 DSL 문법과 codegen bootstrap은 Q-001 prototype 전에는 확정하지 않습니다.
+위 예시는 장기 DSL 후보입니다. 현재 compile된 최소 DSL은 이 문서의 M1 verified 단면과
+`examples/article/modeldef`이며 codegen package 경계는 ADR-0006에서 확정했습니다.
 
 ## 3. 코드 생성
 
@@ -82,8 +131,8 @@ func (p Post) IsPublished() bool {
 일반 application code는 model과 value type이 보존되는 API를 사용합니다.
 
 ```go
-// illustrative only
-posts, err := PostObjects.
+// M1 verified shape; backend binding is explicit until project settings exist.
+posts, err := PostObjects.Using(backend).
     Filter(PostFields.Title.IContains("go")).
     OrderBy(PostFields.ID.Desc()).
     All(ctx)
@@ -103,14 +152,16 @@ posts, err := PostObjects.
 Admin과 HTTP query처럼 compile 후 들어오는 field path는 metadata로 검증합니다.
 
 ```go
-// illustrative only; exact error/chaining API unresolved
-qs, err := PostObjects.FilterDynamic(orm.Lookups{
-    "title__icontains": "go",
-})
+// M1 verified shape
+predicates, err := orm.ParseDynamic(
+    PostDescriptor{},
+    policy,
+    []orm.LookupInput{{Key: "title__icontains", Value: "go"}},
+)
 if err != nil {
     return err
 }
-posts, err := qs.All(ctx)
+posts, err := PostObjects.Using(backend).Filter(predicates...).All(ctx)
 ```
 
 - path, lookup, value coercion을 실행 전에 검증합니다.
@@ -209,7 +260,8 @@ mysite/
 └─ locale/
 ```
 
-Codegen bootstrap 결과에 따라 schema declaration과 generated model package가 분리될 수 있습니다.
+Schema declaration과 generated model package는 ADR-0006에 따라 분리합니다. 전체
+project template과 app 간 배치는 relation/CLI 단면 전까지 Proposed입니다.
 
 ## 오류와 미지원 기능
 

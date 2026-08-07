@@ -21,5 +21,7 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0004](0004-cli-and-project-binary.md) | Accepted | 전역 CLI와 프로젝트 바이너리 역할 분리 |
 | [0005](0005-contract-first-vertical-slices.md) | Accepted | contract-first 수직 단면으로 구현 순서 구성 |
 | [0006](0006-codegen-input-package-boundary.md) | Accepted | Codegen 입력과 generated target package의 import graph 분리 |
+| [0007](0007-m1-model-runtime-and-dynamic-query-boundaries.md) | Accepted | M1 descriptor, nullable read, dynamic lookup과 dependency 경계 |
+| [0008](0008-m1-sqlite-driver-and-execution-boundary.md) | Accepted | M1 pure-Go SQLite driver와 중립 실행 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

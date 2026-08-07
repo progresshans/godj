@@ -1,0 +1,12 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+func CrossModelPredicate(querySet orm.QuerySet[Other]) {
+	_ = querySet.Filter(models.ArticleFields.Title.Exact("django"))
+}

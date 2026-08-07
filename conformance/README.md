@@ -1,8 +1,9 @@
 # GoDj Compatibility Lab
 
-이 디렉터리는 GDJ-0001의 Django reference profile, contract manifest,
-normalized observation, comparator, codegen bootstrap spike를 보관합니다. 제품용 ORM이나
-Schema DSL 구현이 아닙니다.
+이 디렉터리는 Django reference profile, contract manifest, normalized observation,
+comparator, M0 codegen bootstrap spike와 M1 GoDj observation adapter를 보관합니다.
+제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
+package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
 ## 정본과 생성물
 
@@ -11,10 +12,12 @@ Schema DSL 구현이 아닙니다.
 | `profiles/*.json` | exact reference runtime과 dependency lock fingerprint |
 | `contracts/manifest.json` | 순서가 있는 초기 contract와 provenance, 비교 차원 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
+| `runners/godj` | M1 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/oracle.json` | Django runner가 만든 byte-deterministic expected observation |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
 | `fixtures/godj-not-implemented.json` | 미구현 상태가 pass되지 않는 protocol fixture |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
+| `cmd/godjcheck` | GoDj observation을 생성해 locked Django oracle과 비교 |
 
 Machine-readable manifest는 실행 입력의 정본입니다. 사람이 보는 진행 상태는
 `docs/status/IMPLEMENTATION_MATRIX.md`가 요약하며 두 파일의 상태를 같은 변경에서
@@ -41,6 +44,11 @@ CPython 3.14.3은 Django 6.1이 지원하는 Python minor에 속하지만 2026-0
 일반 Linux CI는 이 darwin oracle을 재생성했다고 주장하지 않습니다. Portable
 normalizer/scenario test와 checked-in artifact validation만 실행합니다. 권위 있는
 regeneration은 exact profile을 가진 환경에서 `make check`로 수행합니다.
+
+GoDj M1 SQLite backend는 별도 실행 환경입니다. 현재 module pin은
+`modernc.org/sqlite v1.56.0`이고 내장 SQLite는 3.53.3입니다. Django reference의
+SQLite 3.50.4 fingerprint를 Go backend 정보로 덮어쓰지 않으며, 차등 비교는 계약된
+외부 동작을 비교합니다.
 
 ## 실행
 
@@ -77,6 +85,15 @@ go run ./conformance/cmd/observationcmp \
   -manifest conformance/contracts/manifest.json \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json \
   -actual path/to/godj-observation.json
+```
+
+현재 GoDj 구현을 oracle과 직접 비교하려면 다음을 실행합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
 ```
 
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list

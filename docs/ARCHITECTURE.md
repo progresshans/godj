@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-07
+- 마지막 검토: 2026-08-08
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -61,7 +61,11 @@ Metadata: author__email__icontains처럼 실행 중 결정되는 경로
 
 Go에서는 메서드가 receiver에 없는 새 type parameter를 선언할 수 없습니다. 예를 들어 `QuerySet[M].SelectInto[R]` 형태는 사용할 수 없으므로, 추가 결과 타입이 필요한 연산은 `SelectInto[M, R](...)` 같은 최상위 함수 또는 별도 generic builder로 설계합니다.
 
-`ModelDescriptor[M]`를 interface로 둘지 생성 concrete type으로 둘지, 초기화/freeze 시점을 어떻게 할지는 아직 확정하지 않았습니다.
+M1에서는 `orm`이 `ModelDescriptor[M]` interface를 소유하고 codegen이 상태 없는
+concrete descriptor를 생성합니다. `Metadata()`는 독립 복사를 반환하고 `Scan` 반환
+타입이 `M`을 보존합니다. Runtime freeze/registry 없이 생성·compile 시점부터 frozen인
+경계는 [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)에
+고정했습니다. Relation binding이 필요해질 때 확장 여부를 다시 검토합니다.
 
 ## Query 경로
 
@@ -73,7 +77,10 @@ typed field predicate ─┐
 dynamic lookup ────────┘
 ```
 
-QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. 지연 평가와 결과 cache의 정확한 의미는 compatibility contract로 고정합니다. `(QuerySet, error)`를 반환하는 API는 바로 chaining할 수 없으므로 초안의 `FilterKw(...).Update(...)` 예시는 확정 API가 아닙니다.
+QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. M1 dynamic API는
+`ParseDynamic`에서 construction 오류를 즉시 반환하고, 성공한 `Predicate[M]`를 typed
+`Filter`에 넘깁니다. 지연 평가와 결과 cache의 최종 의미는 Q-007에서 계속
+결정하며 현재 M1 `All`은 cache 없이 매번 평가합니다.
 
 ## Model과 Migration
 
@@ -107,7 +114,7 @@ godj CLI
 schema DSL ─→ schema/ir
 codegen ────→ schema/ir
 migrations ─→ schema/ir, backend contracts
-orm ────────→ query, schema metadata, backend contracts
+orm ────────→ query, schema/ir metadata, backend contracts
 backends ───→ query, schema/ir, backend contracts
 forms/auth/templates ─→ metadata와 제한된 ORM interface
 admin/api/realtime ───→ 공개 하위 module interface
@@ -116,16 +123,14 @@ gis extension ────────→ schema/query/backend의 명시적 exte
 
 금지 예시는 `schema/ir → orm`, `query → admin`, `orm → admin`, `orm → api`, `forms → admin`, `backend → 상위 제품 모듈`입니다. 거대한 범용 `core` 패키지는 만들지 않습니다. 실제 패키지가 생기면 dependency test로 검증하고 interface 소유 패키지를 명시합니다.
 
-## Codegen bootstrap은 미결정
+## Codegen bootstrap 경계
 
-초안의 “임시 runner가 schema package를 import” 방식은 오래된 generated code 때문에 schema package 자체가 compile되지 않는 순환 bootstrap 문제를 만들 수 있습니다. 다음 후보를 작은 prototype으로 비교하기 전에는 package layout을 고정하지 않습니다.
-
-- 선언 package와 생성 모델 package 분리
-- `go/packages` 또는 Go AST 기반 제한적 정적 추출
-- compile 가능한 bootstrap package
-- 별도 선언 포맷
-
-선택은 schema rename/delete와 사용자 모델 메서드가 기존 generated type에 의존하는 실패 사례까지 재현해 결정합니다.
+선언 package와 generated target을 분리하고 generator는 Schema IR만 의미 입력으로
+사용합니다. Target 교체 전 candidate를 `gofmt`/parse하고 Go overlay로 실제 target
+package를 compile하며, 실패하면 last-good bytes를 보존합니다. 이 결정과 M0
+rename/delete/stale fixture는 [ADR-0006](adr/0006-codegen-input-package-boundary.md)에
+기록합니다. 전역 CLI와 project library version protocol은 Q-010으로 남아 있어 현재
+runner는 `internal/cmd/m1generate`입니다.
 
 ## 목표 저장소 구조
 

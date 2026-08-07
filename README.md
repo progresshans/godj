@@ -2,9 +2,11 @@
 
 GoDj는 Django의 모델 중심 풀스택 개발 경험을 Go의 정적 타입, 제네릭, 코드 생성, 고루틴, 멀티코어 활용, 단일 바이너리 배포 방식에 맞게 재설계하는 웹 프레임워크입니다.
 
-현재 저장소는 **M0 Compatibility Lab 완료 단계**입니다. Django reference runner와
-비교 protocol은 구현됐지만 GoDj framework, 공개 API, 지원 기능, 성능 수치는 아직
-제공하지 않습니다.
+현재 저장소는 **M1 Model-to-Query Walking Skeleton 검증 단계**입니다. 한 개의
+`Article` 모델에서 최소 Schema DSL, versioned IR, deterministic codegen, generic
+QuerySet, shared AST와 pure-Go SQLite 실행이 연결됐고 초기 11개 Django 계약과
+일치합니다. Migration, write lifecycle, relation, Web/Admin/API 등은 아직 지원하지
+않으며 pre-1.0 API와 성능 수치도 제품 약속이 아닙니다.
 
 ## 현재 기준
 
@@ -14,6 +16,7 @@ GoDj는 Django의 모델 중심 풀스택 개발 경험을 Go의 정적 타입, 
 | Go module | `github.com/progresshans/godj` |
 | Go 언어 / toolchain | Go 1.26 / 1.26.5 |
 | Django 참조 프로필 | Django 6.1, CPython 3.14.3, SQLite 3.50.4, darwin/arm64 |
+| M1 Go backend | `modernc.org/sqlite v1.56.0`, SQLite 3.53.3 |
 | Python 소스 호환 | 목표가 아님 |
 | 핵심 방향 | Schema DSL → Schema IR → Codegen → Generic Core → Runtime Metadata → Query AST → Backend Compiler |
 
@@ -26,8 +29,9 @@ GoDj는 Django의 모델 중심 풀스택 개발 경험을 Go의 정적 타입, 
 5. [호환성 정책](docs/COMPATIBILITY.md)
 6. [테스트 전략](docs/TESTING.md)
 
-완료한 첫 구현 작업은 [GDJ-0001: Compatibility Lab](work/0001-compatibility-lab.md),
-다음 작업은 [GDJ-0002: Model-to-Query Walking Skeleton](work/0002-model-to-query-walking-skeleton.md)입니다.
+완료한 기반 작업은 [GDJ-0001: Compatibility Lab](work/0001-compatibility-lab.md),
+현재 구현·검증 작업은
+[GDJ-0002: Model-to-Query Walking Skeleton](work/0002-model-to-query-walking-skeleton.md)입니다.
 새 대화나 새 에이전트에서 작업을 이어갈 때는
 [계속 작업 프롬프트](prompts/CONTINUE_WORK.md)를 사용할 수 있습니다.
 

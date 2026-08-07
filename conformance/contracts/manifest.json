@@ -6,7 +6,7 @@
       "id": "QRY-001",
       "title": "Exact lookup returns the matching row",
       "scenario": "django.query.exact",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -21,7 +21,7 @@
       "id": "QRY-002",
       "title": "ASCII icontains performs case-insensitive containment",
       "scenario": "django.query.ascii_icontains",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -36,7 +36,7 @@
       "id": "QRY-003",
       "title": "Chained filters combine with AND",
       "scenario": "django.query.chained_and",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -51,7 +51,7 @@
       "id": "QRY-004",
       "title": "Chaining does not mutate the source QuerySet result",
       "scenario": "django.query.chain_preserves_source",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -66,7 +66,7 @@
       "id": "QRY-005",
       "title": "Explicit ordering and limit preserve sequence",
       "scenario": "django.query.order_and_limit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "test",
@@ -87,7 +87,7 @@
       "id": "QRY-006",
       "title": "A lookup with no match returns an empty sequence",
       "scenario": "django.query.empty_result",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -102,7 +102,7 @@
       "id": "QRY-007",
       "title": "isnull distinguishes SQL NULL from non-NULL values",
       "scenario": "django.query.isnull",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "test",
@@ -117,7 +117,7 @@
       "id": "QRY-008",
       "title": "Unknown fields fail during query construction",
       "scenario": "django.query.unknown_field",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "test",
@@ -132,7 +132,7 @@
       "id": "QRY-009",
       "title": "QuerySet construction performs no database I/O",
       "scenario": "django.query.construction_has_no_io",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -147,7 +147,7 @@
       "id": "QRY-010",
       "title": "Unsupported lookups fail during query construction",
       "scenario": "django.query.unsupported_lookup",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "test",
@@ -162,7 +162,7 @@
       "id": "SCH-001",
       "title": "Model field metadata has a deterministic normalized form",
       "scenario": "django.schema.model_metadata",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

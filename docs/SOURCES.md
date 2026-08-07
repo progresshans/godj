@@ -1,6 +1,6 @@
 # 기준 출처와 검증 기록
 
-- 마지막 확인: 2026-08-07 (Asia/Seoul)
+- 마지막 확인: 2026-08-08 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -45,6 +45,29 @@ CI는 Go 1.26.5를 사용하며 [actions/checkout v7.0.1](https://github.com/act
 [astral-sh/setup-uv v9.0.0](https://github.com/astral-sh/setup-uv/releases/tag/v9.0.0)을
 전체 commit SHA로 고정합니다. 실제 pin은 `.github/workflows/ci.yml`이 정본입니다.
 
+## Go SQLite backend
+
+- [`modernc.org/sqlite` package documentation](https://pkg.go.dev/modernc.org/sqlite) —
+  CGo-free `database/sql` driver, 지원 platform과 license.
+- [`modernc.org/sqlite v1.56.0` changelog](https://gitlab.com/cznic/sqlite/-/blob/v1.56.0/CHANGELOG.md) —
+  내장 SQLite 3.53.3과 release 변경 기록.
+- [`mattn/go-sqlite3 v1.14.49`](https://github.com/mattn/go-sqlite3/tree/v1.14.49) —
+  CGO 후보 비교 근거.
+- [`ncruces/go-sqlite3 v0.35.3`](https://github.com/ncruces/go-sqlite3/tree/v0.35.3) —
+  CGo-free Wasm 후보 비교 근거.
+- [`zombiezen/go/sqlite`](https://github.com/zombiezen/go-sqlite) —
+  `database/sql`을 의도적으로 제공하지 않는 저수준 후보.
+- [Go database cancellation](https://go.dev/doc/database/cancel-operations) —
+  `QueryContext`/`ExecContext` cancellation 전달 기준.
+
+2026-08-08 Go 1.26.5 darwin/arm64 비교에서 M1 기본 driver로
+`modernc.org/sqlite v1.56.0`과 `modernc.org/libc v1.74.4`를 고정했습니다.
+`CGO_ENABLED=0` 실행, 20ms 실행 중 cancellation의
+`context.DeadlineExceeded` 분류, cancellation 뒤 연결 재사용을 확인했습니다. Go
+backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입니다.
+선택과 제한은 [ADR-0008](adr/0008-m1-sqlite-driver-and-execution-boundary.md)에
+기록합니다.
+
 ## Codex 작업 지침
 
 - [OpenAI 공식 AGENTS.md 문서](https://learn.chatgpt.com/docs/agent-configuration/agents-md) — Codex가 작업 전 지침 chain을 구성하고 project root에서 현재 directory까지 계층적으로 파일을 읽는 방식.
@@ -60,8 +83,9 @@ CI는 Go 1.26.5를 사용하며 [actions/checkout v7.0.1](https://github.com/act
 | Reference SQLite | 3.50.4 + exact source ID | exact M0 profile |
 | 기본 shell Python | pyenv CPython 3.13.1 / SQLite 3.51.0 | reference가 아닌 개발 환경 관찰 |
 | SQLite CLI | 3.51.0 | 개발 환경 관찰만 |
-| GoDj Git branch | `main`, M0 baseline `f2afd7f` | 현재 상태 |
-| GoDj remote | `https://github.com/progresshans/godj.git` | module path 근거, `go.mod` 미생성 |
+| GoDj Git branch | `main`, M1 baseline `8eac1dc` | 현재 상태 |
+| GoDj module/remote | `github.com/progresshans/godj` / `https://github.com/progresshans/godj.git` | `go.mod`와 remote 관찰 |
+| GoDj SQLite | modernc driver v1.56.0 / SQLite 3.53.3 | M1 backend exact pin |
 
 ## 갱신 규칙
 

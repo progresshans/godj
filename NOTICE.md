@@ -19,3 +19,16 @@ metadata close to the file.
 
 Django is a trademark of the Django Software Foundation. GoDj is an independent
 project and is not endorsed by the Django Software Foundation.
+
+## modernc.org/sqlite and modernc.org/libc
+
+GoDj's M1 SQLite backend directly uses `modernc.org/sqlite v1.56.0`, whose
+locked dependency graph includes `modernc.org/libc v1.74.4`. Both packages are
+licensed under BSD 3-Clause terms. Their upstream license texts are preserved
+as [`LICENSE.modernc-sqlite`](LICENSE.modernc-sqlite) and
+[`LICENSE.modernc-libc`](LICENSE.modernc-libc).
+
+These notices cover the two selected packages, not a completed audit of every
+transitive dependency in a future distributed binary. GoDj has not selected
+its own distribution license yet, and no release artifact should be published
+until the full dependency notice set and root project license are approved.

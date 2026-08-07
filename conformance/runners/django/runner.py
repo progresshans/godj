@@ -1,4 +1,4 @@
-"""Generate byte-deterministic Django observations for the locked M0 profile."""
+"""Generate byte-deterministic Django observations for a locked profile."""
 
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ DJANGO_61_WHEEL_SHA256 = (
     "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe"
 )
 FORMAT_VERSION = 1
+ORACLE_READY_STATUSES = frozenset({"oracle_locked", "red", "passing", "deviation"})
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_PROFILE = (
     REPOSITORY_ROOT
@@ -170,8 +171,10 @@ def _validate_manifest_basics(
         if contract_id in seen:
             raise RuntimeError(f"duplicate contract id: {contract_id}")
         seen.add(contract_id)
-        if contract.get("status") != "oracle_locked":
-            raise RuntimeError(f"{contract_id}: Django oracle requires oracle_locked status")
+        if contract.get("status") not in ORACLE_READY_STATUSES:
+            raise RuntimeError(
+                f"{contract_id}: Django oracle requires a locked-or-later status"
+            )
         if scenario not in SCENARIOS:
             raise RuntimeError(f"{contract_id}: unknown Django scenario {scenario!r}")
 

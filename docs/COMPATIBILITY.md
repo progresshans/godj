@@ -134,11 +134,11 @@ M0에서는 범용 Django 테스트 전체를 옮기지 않고 11개의 작은 �
 - 실제 I/O 전 지연 평가
 - 결과 cache 의미는 Q-007 결정 후 추가
 
-현재 상태는 Django oracle이 고정된 `oracle_locked`입니다. GoDj ORM이 없는 M0에서
-`passing`으로 올리지 않았으며, 미구현 fixture는 comparator에서 11개 mismatch로
-판정됩니다.
-
-M1에서 `Article` 한 모델의 typed/dynamic lookup이 같은 AST와 SQLite 결과로 이 계약을 통과하도록 만듭니다.
+M0에서는 Django oracle만 고정되어 `oracle_locked`였고 미구현 fixture가 11개
+mismatch를 내는지 확인했습니다. M1에서는 `Article` 한 모델의 typed/dynamic lookup,
+동일 AST, SQLite 실행과 runtime metadata adapter가 11개 계약 모두 oracle과
+일치하므로 manifest 상태를 `passing`으로 올렸습니다. 이 상태는 M1의 정확한
+profile/backend와 기록된 evidence에 한정되며 Django 전체 ORM 호환을 뜻하지 않습니다.
 
 ## 데이터 호환성
 

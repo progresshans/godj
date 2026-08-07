@@ -1,7 +1,7 @@
 # 라이선스와 upstream provenance 정책
 
 - 상태: Accepted for conformance artifacts
-- 마지막 검토: 2026-08-07
+- 마지막 검토: 2026-08-08
 
 ## 현재 저장소 라이선스
 
@@ -11,6 +11,11 @@ GoDj 자체의 배포 라이선스는 아직 선택되지 않았습니다. 루�
 
 `LICENSE.django`는 Django의 라이선스 사본이며 GoDj 자체에 BSD 3-Clause를
 적용한다는 뜻이 아닙니다.
+
+M1 SQLite backend가 사용하는 `modernc.org/sqlite v1.56.0`과 locked dependency
+`modernc.org/libc v1.74.4`의 BSD 3-Clause 전문은 각각
+`LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`에 보존합니다. 이 두 고지는 향후
+binary에 들어가는 모든 transitive dependency의 배포 검토를 대신하지 않습니다.
 
 ## Conformance artifact 분류
 
@@ -42,6 +47,8 @@ M0의 `conformance/runners/django` 시나리오는 모두 첫 번째 분류입�
   재배포하는 것을 구분합니다.
 - Django wheel, source, container layer를 배포 artifact에 포함하면 별도 third-party
   license 검사를 수행합니다.
+- Go binary를 배포하기 전 `go.mod` 전체 dependency graph의 license와 notice 의무를
+  다시 수집하고, root project license 결정과 함께 release gate로 검토합니다.
 - 공식 재단의 보증으로 오해될 표현이나 Django/contributor 이름을 홍보에 사용하지
   않습니다.
 
