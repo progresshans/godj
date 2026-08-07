@@ -7,6 +7,9 @@ from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
+from django.db import connection
+from django.db.migrations.recorder import MigrationRecorder
+
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
     DEFAULT_MANIFEST,
@@ -22,19 +25,83 @@ from conformance.runners.django.runner import (
     verify_profile,
 )
 from conformance.runners.django.scenarios import SCENARIOS as QUERY_SCENARIOS
+from conformance.runners.django import write_migration_scenarios
 from conformance.runners.django.write_migration_scenarios import (
     SCENARIOS as WRITE_MIGRATION_SCENARIOS,
 )
 
 
 class ScenarioTests(unittest.TestCase):
+    def assert_runner_baseline(self, scenario: str) -> None:
+        self.assertTrue(
+            connection.get_autocommit(),
+            f"{scenario}: autocommit was not restored",
+        )
+        self.assertFalse(
+            connection.in_atomic_block,
+            f"{scenario}: atomic block leaked",
+        )
+        self.assertFalse(
+            connection.needs_rollback,
+            f"{scenario}: rollback state leaked",
+        )
+
+        tables = connection.introspection.table_names()
+        managed_tables = [
+            table
+            for table in tables
+            if table == "godj_conformance_article"
+            or table.startswith(write_migration_scenarios.MANAGED_TABLE_PREFIXES)
+        ]
+        self.assertEqual(
+            managed_tables,
+            [],
+            f"{scenario}: managed scenario tables leaked",
+        )
+        self.assertFalse(
+            MigrationRecorder(connection).has_table(),
+            f"{scenario}: migration recorder table leaked",
+        )
+        self.assertEqual(tables, [], f"{scenario}: database tables leaked")
+
     def test_all_scenarios_are_byte_deterministic(self) -> None:
         for name, scenario in ALL_SCENARIOS.items():
             with self.subTest(scenario=name):
                 contract_id = f"TEST-{name}"
                 first = canonical_json(scenario(contract_id))
+                self.assert_runner_baseline(f"{name} first run")
                 second = canonical_json(scenario(contract_id))
+                self.assert_runner_baseline(f"{name} second run")
                 self.assertEqual(first, second)
+
+    def test_baseline_rejects_omitted_migration_recorder_cleanup(self) -> None:
+        def cleanup_without_recorder_drop() -> None:
+            write_migration_scenarios._migrate(
+                write_migration_scenarios.FAILURE_APP,
+                "zero",
+            )
+            write_migration_scenarios._migrate(
+                write_migration_scenarios.MIGRATION_APP,
+                "zero",
+            )
+
+        try:
+            with patch.object(
+                write_migration_scenarios,
+                "_cleanup_migrations",
+                cleanup_without_recorder_drop,
+            ):
+                write_migration_scenarios.migration_create_model("MIG-001")
+
+            with self.assertRaisesRegex(
+                AssertionError,
+                "migration recorder table leaked",
+            ):
+                self.assert_runner_baseline("recorder cleanup mutation")
+        finally:
+            write_migration_scenarios._cleanup_migrations()
+
+        self.assert_runner_baseline("recorder cleanup mutation recovery")
 
     def test_each_contract_set_count_is_within_protocol_bound(self) -> None:
         for scenarios in (QUERY_SCENARIOS, WRITE_MIGRATION_SCENARIOS):
