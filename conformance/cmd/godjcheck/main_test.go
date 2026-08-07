@@ -211,19 +211,90 @@ func TestRunRejectsUnknownScenarioWithoutWritingActualOutput(t *testing.T) {
 	}
 }
 
-func TestRunRejectsOracleLockedMigrationPlanningWithoutWritingActualOutput(t *testing.T) {
+func TestRunMatchesLockedMigrationPlanningOracle(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
 	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json")
-	manifest, err := protocol.LoadManifest(manifestPath)
+	directory := t.TempDir()
+	actualPath := filepath.Join(directory, "migration-planning-actual.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "match the locked Django oracle for 12 contracts") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	actual, err := protocol.LoadObservationSuite(actualPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(manifest.Contracts) == 0 {
-		t.Fatal("migration-planning manifest has no contracts")
+	if len(actual.Contracts) != 12 || actual.Contracts[0].ID != "MIG-005" || actual.Contracts[11].ID != "MIG-016" {
+		t.Fatalf("actual migration-planning contracts = %#v", actual.Contracts)
+	}
+}
+
+func TestRunMigrationPlanningActualOutputIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	directory := t.TempDir()
+	firstPath := filepath.Join(directory, "migration-planning-first.json")
+	secondPath := filepath.Join(directory, "migration-planning-second.json")
+	baseArguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json"),
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"),
+	}
+	for _, outputPath := range []string{firstPath, secondPath} {
+		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
+		}
+	}
+	first, err := os.ReadFile(firstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := os.ReadFile(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("independent godjcheck migration-planning actual outputs differ")
+	}
+}
+
+func TestRunRejectsUnknownMigrationPlanningScenarioWithoutWritingActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Contracts[0].Scenario = "django.migration.plan.unknown_sentinel"
+	contents, err := protocol.MarshalCanonical(manifest)
+	if err != nil {
+		t.Fatal(err)
 	}
 	directory := t.TempDir()
+	manifestPath := filepath.Join(directory, "unknown-migration-planning-scenario-manifest.json")
+	if err := os.WriteFile(manifestPath, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
 	actualPath := filepath.Join(directory, "must-not-exist.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
@@ -236,10 +307,7 @@ func TestRunRejectsOracleLockedMigrationPlanningWithoutWritingActualOutput(t *te
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
-	}
-	if !strings.Contains(stderr.String(), `unsupported scenario "`+manifest.Contracts[0].Scenario+`"`) {
+	if !strings.Contains(stderr.String(), `unsupported scenario "django.migration.plan.unknown_sentinel"`) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {

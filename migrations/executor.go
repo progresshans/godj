@@ -24,17 +24,31 @@ const (
 	CategoryExecution   ErrorCategory = "migration_execution_error"
 	CategoryRecorder    ErrorCategory = "migration_recorder_error"
 	CategoryTransaction ErrorCategory = "migration_transaction_error"
+	CategoryPlan        ErrorCategory = "migration_plan_error"
+	CategoryHistory     ErrorCategory = "migration_history_error"
+	CategoryGraph       ErrorCategory = "migration_graph_error"
 )
 
 type ErrorCode string
 
 const (
-	CodeInvalidState    ErrorCode = "invalid_state"
-	CodeUnsupported     ErrorCode = "unsupported_operation"
-	CodeOperationFailed ErrorCode = "operation_failed"
-	CodeRecordFailed    ErrorCode = "record_failed"
-	CodeBeginFailed     ErrorCode = "begin_failed"
-	CodeCommitFailed    ErrorCode = "commit_failed"
+	CodeInvalidState               ErrorCode = "invalid_state"
+	CodeUnsupported                ErrorCode = "unsupported_operation"
+	CodeOperationFailed            ErrorCode = "operation_failed"
+	CodeRecordFailed               ErrorCode = "record_failed"
+	CodeBeginFailed                ErrorCode = "begin_failed"
+	CodeCommitFailed               ErrorCode = "commit_failed"
+	CodeInvalidNode                ErrorCode = "invalid_node"
+	CodeDuplicateNode              ErrorCode = "duplicate_node"
+	CodeInvalidDependency          ErrorCode = "invalid_dependency"
+	CodeDuplicateDependency        ErrorCode = "duplicate_dependency"
+	CodeDependencyNotFound         ErrorCode = "dependency_not_found"
+	CodeDependencyCycle            ErrorCode = "dependency_cycle"
+	CodeInvalidAppliedState        ErrorCode = "invalid_applied_state"
+	CodeDuplicateApplied           ErrorCode = "duplicate_applied"
+	CodeInconsistentAppliedHistory ErrorCode = "inconsistent_applied_history"
+	CodeInvalidTarget              ErrorCode = "invalid_target"
+	CodeTargetNotFound             ErrorCode = "target_not_found"
 )
 
 const NoOperation = -1
@@ -78,9 +92,16 @@ func (e *Error) Unwrap() error {
 }
 
 type Migration struct {
-	App        string
-	Name       string
-	Operations []Operation
+	App          string
+	Name         string
+	Dependencies []MigrationKey
+	Operations   []Operation
+}
+
+// Key returns the stable identity used by the migration planner. It does not
+// validate the migration; NewPlanner owns graph validation and diagnostics.
+func (m Migration) Key() MigrationKey {
+	return MigrationKey{App: m.App, Name: m.Name}
 }
 
 type Executor struct {

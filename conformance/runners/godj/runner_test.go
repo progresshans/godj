@@ -5,13 +5,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/query"
 )
 
@@ -148,6 +151,32 @@ func TestGenerateMatchesLockedQueryCacheOracle(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedMigrationPlanningOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationPlanningInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj migration-planning suite differs from locked Django oracle in %d place(s)", len(differences))
+	}
+}
+
 func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -195,6 +224,240 @@ func TestGenerateQueryCacheIsDeterministic(t *testing.T) {
 	}
 	if !bytes.Equal(firstJSON, secondJSON) {
 		t.Fatal("independent query-cache runs produced different canonical observations")
+	}
+}
+
+func TestGenerateMigrationPlanningIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, _ := loadMigrationPlanningInputs(t)
+	first, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	second, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(second) error = %v", err)
+	}
+	firstJSON, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(first) error = %v", err)
+	}
+	secondJSON, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(second) error = %v", err)
+	}
+	if !bytes.Equal(firstJSON, secondJSON) {
+		t.Fatal("independent migration-planning runs produced different canonical observations")
+	}
+}
+
+func TestMigrationPlanningFixtureMutationsPropagateWithoutContractIDPayloads(t *testing.T) {
+	t.Parallel()
+
+	const arbitraryContractID = "PROBE-001"
+	base := migrationPlanningFixtures["django.migration.plan.linear_forward"]()
+	baseObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseObservation.ID != arbitraryContractID || baseObservation.Status != protocol.StatusObserved {
+		t.Fatalf("arbitrary fixture observation identity/status = (%q, %q)", baseObservation.ID, baseObservation.Status)
+	}
+	basePlan := migrationPlanningResultPlan(t, baseObservation)
+
+	changed := migrationPlanningFixtures["django.migration.plan.linear_forward"]()
+	changed.cases[0].name = "fixture_mutation_sentinel"
+	changedObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, changed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, values := range map[string][2]*protocol.Value{
+		"result":   {baseObservation.Result, changedObservation.Result},
+		"db_state": {baseObservation.DBState, changedObservation.DBState},
+		"metrics":  {baseObservation.Metrics, changedObservation.Metrics},
+	} {
+		if reflect.DeepEqual(values[0], values[1]) {
+			t.Fatalf("case-name fixture mutation did not propagate to %s", name)
+		}
+	}
+
+	changedTarget := migrationPlanningFixtures["django.migration.plan.linear_forward"]()
+	changedTarget.cases[0].targets[0] = planningNamedTarget(planningA2)
+	targetObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, changedTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(basePlan, migrationPlanningResultPlan(t, targetObservation)) {
+		t.Fatal("target fixture mutation did not change the public planner plan")
+	}
+
+	changedApplied := migrationPlanningFixtures["django.migration.plan.linear_forward"]()
+	changedApplied.cases[0].applied = []migrations.MigrationKey{planningA1}
+	appliedObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, changedApplied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(basePlan, migrationPlanningResultPlan(t, appliedObservation)) ||
+		reflect.DeepEqual(baseObservation.DBState, appliedObservation.DBState) {
+		t.Fatal("applied-state fixture mutation did not change the public planner plan and logical database state")
+	}
+
+	changedDependency := migrationPlanningFixtures["django.migration.plan.linear_forward"]()
+	changedDependency.dependencies[1].parent = planningA1
+	dependencyObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, changedDependency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dependencyPlan := migrationPlanningResultPlan(t, dependencyObservation)
+	if reflect.DeepEqual(basePlan, dependencyPlan) {
+		t.Fatal("dependency fixture mutation did not change the public planner plan")
+	}
+	wantDependencyPlan := protocol.List(
+		protocol.Object(map[string]protocol.Value{
+			"app":       protocol.String(planningA1.App),
+			"direction": protocol.String(string(migrations.DirectionForward)),
+			"name":      protocol.String(planningA1.Name),
+		}),
+		protocol.Object(map[string]protocol.Value{
+			"app":       protocol.String(planningA3.App),
+			"direction": protocol.String(string(migrations.DirectionForward)),
+			"name":      protocol.String(planningA3.Name),
+		}),
+	)
+	if !reflect.DeepEqual(dependencyPlan, wantDependencyPlan) {
+		t.Fatalf("rewired A3 dependency plan = %#v, want A1 then A3 with A2 omitted %#v", dependencyPlan, wantDependencyPlan)
+	}
+
+	baseErrorFixture := migrationPlanningFixtures["django.migration.plan.missing_dependency"]()
+	baseErrorObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, baseErrorFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedErrorFixture := migrationPlanningFixtures["django.migration.plan.missing_dependency"]()
+	changedErrorFixture.dependencies[0].parent = planningA2
+	changedErrorObservation, err := runMigrationPlanningFixture(context.Background(), arbitraryContractID, changedErrorFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(baseErrorObservation.Metrics, changedErrorObservation.Metrics) {
+		t.Fatal("graph fixture mutation did not propagate to error facts")
+	}
+	if baseErrorObservation.Error == nil || changedErrorObservation.Error == nil ||
+		baseErrorObservation.Error.Code != string(migrations.CodeDependencyNotFound) ||
+		changedErrorObservation.Error.Code != string(migrations.CodeDependencyCycle) {
+		t.Fatalf("missing-parent to self-cycle mutation did not change actual observed error: before=%#v after=%#v", baseErrorObservation.Error, changedErrorObservation.Error)
+	}
+}
+
+func migrationPlanningResultPlan(t *testing.T, observation protocol.Observation) protocol.Value {
+	t.Helper()
+	if observation.Result == nil || observation.Result.Type != protocol.ValueObject {
+		t.Fatalf("migration-planning result = %#v, want object", observation.Result)
+	}
+	cases := migrationPlanningTestObjectField(t, *observation.Result, "cases")
+	if cases.Type != protocol.ValueList || len(cases.Items) == 0 {
+		t.Fatalf("migration-planning cases = %#v, want non-empty list", cases)
+	}
+	plan := migrationPlanningTestObjectField(t, cases.Items[0], "plan")
+	if plan.Type != protocol.ValueList {
+		t.Fatalf("migration-planning plan = %#v, want list", plan)
+	}
+	return plan
+}
+
+func migrationPlanningTestObjectField(t *testing.T, object protocol.Value, name string) protocol.Value {
+	t.Helper()
+	if object.Type != protocol.ValueObject {
+		t.Fatalf("cannot select field %q from %#v", name, object)
+	}
+	for _, field := range object.Fields {
+		if field.Name == name {
+			return field.Value
+		}
+	}
+	t.Fatalf("field %q is missing from %#v", name, object)
+	return protocol.Value{}
+}
+
+func TestMigrationPlanningAdapterHasNoContractOrOraclePayloadHardcoding(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_planning_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{
+		"MIG-",
+		"migration-planning-oracle",
+		"godj-migration-planning-not-implemented",
+		"switch contractID",
+		"database/sql",
+		"db/sqlite",
+	} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("migration-planning adapter contains forbidden hardcoded/runtime dependency %q", forbidden)
+		}
+	}
+}
+
+func TestMigrationPlanningMetricsAreDerivedFromCaptureStateAndCounters(t *testing.T) {
+	t.Parallel()
+
+	before := planningDatabaseState(nil)
+	after := planningDatabaseState([]migrations.MigrationKey{planningA1})
+	capture := migrationPlanningCapture{
+		before:              before,
+		after:               after,
+		ddlStatements:       2,
+		writeStatements:     3,
+		nonSelectStatements: 5,
+	}
+	got := planningMutationMetrics(capture, map[string]protocol.Value{
+		"fixture_fact": protocol.String("sentinel"),
+	})
+	want := protocol.Object(map[string]protocol.Value{
+		"ddl_statement_count":        protocol.Integer("2"),
+		"fixture_fact":               protocol.String("sentinel"),
+		"non_select_statement_count": protocol.Integer("5"),
+		"state_unchanged":            protocol.Boolean(false),
+		"write_statement_count":      protocol.Integer("3"),
+	})
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("planning metrics = %#v, want capture-derived %#v", got, want)
+	}
+}
+
+func TestMigrationPlanningLogicalStateAndGraphFactsAreCanonical(t *testing.T) {
+	t.Parallel()
+
+	gotState := planningDatabaseState([]migrations.MigrationKey{planningB1, planningA1})
+	wantState := protocol.Object(map[string]protocol.Value{
+		"applied_migrations": protocol.List(
+			planningKeyValue(planningA1),
+			planningKeyValue(planningB1),
+		),
+		"managed_schema_inventory": protocol.List(),
+		"recorder_present":         protocol.Boolean(true),
+	})
+	if !reflect.DeepEqual(gotState, wantState) {
+		t.Fatalf("unsorted applied input state = %#v, want canonical %#v", gotState, wantState)
+	}
+
+	orderedFixture := migrationPlanningFixtures["django.migration.plan.dependency_cycle"]()
+	reversedFixture := migrationPlanningFixtures["django.migration.plan.dependency_cycle"]()
+	reversedFixture.nodes[0], reversedFixture.nodes[1] = reversedFixture.nodes[1], reversedFixture.nodes[0]
+	reversedFixture.dependencies[0], reversedFixture.dependencies[1] = reversedFixture.dependencies[1], reversedFixture.dependencies[0]
+	ordered, err := runMigrationPlanningFixture(context.Background(), "PROBE-002", orderedFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reversed, err := runMigrationPlanningFixture(context.Background(), "PROBE-002", reversedFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(ordered, reversed) {
+		t.Fatalf("reversed graph fixture changed canonical observation:\nordered=%#v\nreversed=%#v", ordered, reversed)
 	}
 }
 
@@ -473,6 +736,24 @@ func loadQueryCacheInputs(t *testing.T) (protocol.Profile, protocol.Manifest, pr
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
 	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-cache-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func loadMigrationPlanningInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-planning-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"))
 	if err != nil {
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}

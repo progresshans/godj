@@ -14,7 +14,7 @@ func TestMigrationPlanningArtifactHashesAreLocked(t *testing.T) {
 
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]string{
-		"conformance/contracts/migration-planning-manifest.json":                            "7e8f0d19c8f227721e7cfe4254a4f39d1313e801f1ea0a759e14c46a3dbbe876",
+		"conformance/contracts/migration-planning-manifest.json":                            "f51d737bd68eafae32f7942669b467e3457372873ec536a13491ded60ef27ca6",
 		"conformance/fixtures/godj-migration-planning-not-implemented.json":                 "a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json": "7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474",
 	}
@@ -30,7 +30,7 @@ func TestMigrationPlanningArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestMigrationPlanningOracleLockedArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
+func TestMigrationPlanningPassingArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, oracle, baseline := loadMigrationPlanningArtifacts(t)
@@ -58,8 +58,8 @@ func TestMigrationPlanningOracleLockedArtifactsKeepExplicitNotImplementedBaselin
 		if contract.Phase != wantPhase {
 			t.Fatalf("manifest contract %s phase = %q, want %q", contract.ID, contract.Phase, wantPhase)
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		if contract.Status != ContractPassing {
+			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		wantDimensions := successDimensions
 		if _, isErrorContract := errorContracts[contract.ID]; isErrorContract {

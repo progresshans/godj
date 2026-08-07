@@ -54,6 +54,9 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 }
 
 func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	if _, ok := migrationPlanningFixtures[contract.Scenario]; ok {
+		return migrationPlanningScenario(ctx, contract)
+	}
 	switch contract.Scenario {
 	case "django.query.exact":
 		return queryExact(ctx, contract.ID)

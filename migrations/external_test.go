@@ -2,12 +2,87 @@ package migrations_test
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
+
+func TestExternalConsumerCanConstructAndRunMigrationPlanner(t *testing.T) {
+	t.Parallel()
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	second := migrations.MigrationKey{App: "news", Name: "0002_second"}
+	planner, err := migrations.NewPlanner(
+		migrations.Migration{App: initial.App, Name: initial.Name},
+		migrations.Migration{App: second.App, Name: second.Name, Dependencies: []migrations.MigrationKey{initial}},
+	)
+	if err != nil {
+		t.Fatalf("NewPlanner() error = %v", err)
+	}
+	applied, err := migrations.NewAppliedState()
+	if err != nil {
+		t.Fatalf("NewAppliedState() error = %v", err)
+	}
+	got, err := planner.Plan(applied, migrations.NamedTarget(second))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+	want := []migrations.PlanStep{
+		{Key: initial, Direction: migrations.DirectionForward},
+		{Key: second, Direction: migrations.DirectionForward},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan() = %v, want %v", got, want)
+	}
+	if key := (migrations.Migration{App: second.App, Name: second.Name}).Key(); key != second {
+		t.Fatalf("Migration.Key() = %v, want %v", key, second)
+	}
+}
+
+func TestExternalConsumerCanInspectPlanningErrorWithoutMutableAliases(t *testing.T) {
+	t.Parallel()
+
+	left := migrations.MigrationKey{App: "left", Name: "0001"}
+	right := migrations.MigrationKey{App: "right", Name: "0001"}
+	_, err := migrations.NewPlanner(
+		migrations.Migration{App: left.App, Name: left.Name, Dependencies: []migrations.MigrationKey{right}},
+		migrations.Migration{App: right.App, Name: right.Name, Dependencies: []migrations.MigrationKey{left}},
+	)
+	var planningError *migrations.PlanningError
+	if !errors.As(err, &planningError) {
+		t.Fatalf("NewPlanner() error = %#v, want *migrations.PlanningError", err)
+	}
+	if planningError.Category != migrations.CategoryGraph || planningError.Code != migrations.CodeDependencyCycle {
+		t.Fatalf("planning error = %#v", planningError)
+	}
+	want := []migrations.MigrationKey{left, right}
+	members := planningError.Members()
+	if !reflect.DeepEqual(members, want) {
+		t.Fatalf("Members() = %v, want %v", members, want)
+	}
+	members[0] = migrations.MigrationKey{App: "mutated", Name: "mutated"}
+	if got := planningError.Members(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("Members() after mutation = %v, want %v", got, want)
+	}
+}
+
+func TestExternalConsumerZeroPlannerAndAppliedStateAreValid(t *testing.T) {
+	t.Parallel()
+
+	var planner migrations.Planner
+	var applied migrations.AppliedState
+	plan, err := planner.Plan(applied, migrations.ZeroTarget("unknown"))
+	if err != nil {
+		t.Fatalf("zero Planner.Plan() error = %v", err)
+	}
+	if len(plan) != 0 {
+		t.Fatalf("zero Planner.Plan() = %v, want empty", plan)
+	}
+}
 
 func TestExternalConsumerCanConstructBuiltInMigration(t *testing.T) {
 	t.Parallel()

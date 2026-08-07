@@ -225,14 +225,14 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 	}
 }
 
-func TestHistorical34ArtifactsAndCurrent45PassingStatusesRemainPinned(t *testing.T) {
+func TestHistorical34ArtifactsAndCurrent57PassingStatusesRemainPinned(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
 	// The first three sets are the historical 34 passing contracts and remain
-	// byte-for-byte immutable. The query-cache oracle and static baseline also
-	// remain immutable; only its manifest hash changed when QRY-011..021 moved
-	// from oracle_locked to passing after the product adapter reached 0-diff.
+	// byte-for-byte immutable. Query-cache and migration-planning locked oracles
+	// and static baselines also remain immutable; only each manifest hash changes
+	// when its product adapter reaches 0-diff and status moves to passing.
 	expectedHashes := map[string]string{
 		"conformance/contracts/manifest.json":                                            "e395fc862d357b7d45f94fa7d2d15f5a5dfdf8c353db958adc280fd64870b874",
 		"conformance/contracts/query-cache-manifest.json":                                "35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2",
@@ -273,6 +273,7 @@ func TestHistorical34ArtifactsAndCurrent45PassingStatusesRemainPinned(t *testing
 		{name: "write-migration", manifestName: "write-migration-manifest.json", oracleName: "write-migration-oracle.json", fixtureName: "godj-write-migration-not-implemented.json", contractCount: 11},
 		{name: "save-lifecycle", manifestName: "save-lifecycle-manifest.json", oracleName: "save-lifecycle-oracle.json", fixtureName: "godj-save-lifecycle-not-implemented.json", contractCount: 12},
 		{name: "query-cache", manifestName: "query-cache-manifest.json", oracleName: "query-cache-oracle.json", fixtureName: "godj-query-cache-not-implemented.json", contractCount: 11},
+		{name: "migration-planning", manifestName: "migration-planning-manifest.json", oracleName: "migration-planning-oracle.json", fixtureName: "godj-migration-planning-not-implemented.json", contractCount: 12},
 	}
 	totalContracts := 0
 	for _, set := range sets {
@@ -313,8 +314,8 @@ func TestHistorical34ArtifactsAndCurrent45PassingStatusesRemainPinned(t *testing
 			}
 		})
 	}
-	if totalContracts != 45 {
-		t.Fatalf("pinned passing contract count = %d, want 45", totalContracts)
+	if totalContracts != 57 {
+		t.Fatalf("pinned passing contract count = %d, want 57", totalContracts)
 	}
 }
 
