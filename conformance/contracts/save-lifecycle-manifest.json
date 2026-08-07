@@ -1,0 +1,264 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MOD-008",
+      "title": "Saving a new instance inserts one row and assigns its auto primary key",
+      "scenario": "django.model.save.new_auto_pk",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#auto-incrementing-primary-keys",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/basic/tests.py::ModelInstanceCreationTests.test_object_is_not_written_to_database_until_save_was_called",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-009",
+      "title": "Default save of a fully loaded instance writes every writable concrete field",
+      "scenario": "django.model.save.loaded_all_fields",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#specifying-which-fields-to-save",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-010",
+      "title": "update_fields writes only named fields while other in-memory changes remain unsaved",
+      "scenario": "django.model.save.update_fields_named",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#specifying-which-fields-to-save",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/update_only_fields/tests.py::UpdateOnlyFieldsTests.test_update_fields_basic",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-011",
+      "title": "An empty update_fields iterable skips the save and issues no SQL",
+      "scenario": "django.model.save.update_fields_empty",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#specifying-which-fields-to-save",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/update_only_fields/tests.py::UpdateOnlyFieldsTests.test_empty_update_fields",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-012",
+      "title": "A primary key in update_fields is rejected before database I/O",
+      "scenario": "django.model.save.update_fields_primary_key",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#specifying-which-fields-to-save",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/update_only_fields/tests.py::UpdateOnlyFieldsTests.test_update_pk_field",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-013",
+      "title": "force_insert on an existing primary key fails and preserves the stored row",
+      "scenario": "django.model.save.force_insert_conflict",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#forcing-an-insert-or-update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/force_insert_update/tests.py::ForceTests.test_force_update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-014",
+      "title": "force_update without a primary key is rejected without database I/O",
+      "scenario": "django.model.save.force_update_without_pk",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#forcing-an-insert-or-update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/force_insert_update/tests.py::ForceTests.test_force_update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-015",
+      "title": "force_update for a missing row raises NotUpdated and does not insert",
+      "scenario": "django.model.save.force_update_missing_row",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#forcing-an-insert-or-update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/force_insert_update/tests.py::ForceTests.test_force_update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-016",
+      "title": "force_insert and force_update together are rejected without database I/O",
+      "scenario": "django.model.save.mutually_exclusive_force_flags",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#forcing-an-insert-or-update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/force_insert_update/tests.py::ForceTests.test_force_update",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-017",
+      "title": "Default save with an existing explicit primary key updates that row",
+      "scenario": "django.model.save.explicit_pk_existing",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#explicitly-specifying-auto-primary-key-values",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#how-django-knows-to-update-vs-insert",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-018",
+      "title": "Default save with an unused explicit primary key attempts UPDATE then INSERT",
+      "scenario": "django.model.save.explicit_pk_missing",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/instances.txt#how-django-knows-to-update-vs-insert",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/basic/tests.py::ModelTest.test_manually_specify_primary_key",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MOD-019",
+      "title": "Transaction rollback restores database rows but not in-memory model field values",
+      "scenario": "django.model.save.atomic_rollback_instance_state",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/transactions.txt#controlling-transactions-explicitly",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/transactions/tests.py::AtomicTests.test_rollback",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

@@ -14,6 +14,8 @@ from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
     DEFAULT_MANIFEST,
     DEFAULT_PROFILE,
+    DEFAULT_SAVE_LIFECYCLE_MANIFEST,
+    DEFAULT_SAVE_LIFECYCLE_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     ProfileMismatch,
@@ -23,6 +25,9 @@ from conformance.runners.django.runner import (
     _validate_manifest_basics,
     generate_suite,
     verify_profile,
+)
+from conformance.runners.django.save_lifecycle_scenarios import (
+    SCENARIOS as SAVE_LIFECYCLE_SCENARIOS,
 )
 from conformance.runners.django.scenarios import SCENARIOS as QUERY_SCENARIOS
 from conformance.runners.django import write_migration_scenarios
@@ -104,7 +109,11 @@ class ScenarioTests(unittest.TestCase):
         self.assert_runner_baseline("recorder cleanup mutation recovery")
 
     def test_each_contract_set_count_is_within_protocol_bound(self) -> None:
-        for scenarios in (QUERY_SCENARIOS, WRITE_MIGRATION_SCENARIOS):
+        for scenarios in (
+            QUERY_SCENARIOS,
+            WRITE_MIGRATION_SCENARIOS,
+            SAVE_LIFECYCLE_SCENARIOS,
+        ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
                 self.assertLessEqual(len(scenarios), 12)
@@ -113,8 +122,10 @@ class ScenarioTests(unittest.TestCase):
         contract_sets = (
             (DEFAULT_MANIFEST, QUERY_SCENARIOS),
             (DEFAULT_WRITE_MIGRATION_MANIFEST, WRITE_MIGRATION_SCENARIOS),
+            (DEFAULT_SAVE_LIFECYCLE_MANIFEST, SAVE_LIFECYCLE_SCENARIOS),
         )
         selected_across_sets = []
+        contract_ids_across_sets = []
         for manifest_path, registry in contract_sets:
             with self.subTest(manifest=manifest_path.name):
                 manifest = _load_json(manifest_path)
@@ -124,12 +135,24 @@ class ScenarioTests(unittest.TestCase):
                 self.assertEqual(len(selected), len(set(selected)))
                 self.assertEqual(set(selected), set(registry))
                 selected_across_sets.extend(selected)
+                contract_ids = [
+                    contract["id"] for contract in manifest["contracts"]
+                ]
+                self.assertEqual(len(contract_ids), len(set(contract_ids)))
+                contract_ids_across_sets.extend(contract_ids)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
+        self.assertEqual(
+            len(contract_ids_across_sets), len(set(contract_ids_across_sets))
+        )
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
         profile = _load_json(DEFAULT_PROFILE)
-        for manifest_path in (DEFAULT_MANIFEST, DEFAULT_WRITE_MIGRATION_MANIFEST):
+        for manifest_path in (
+            DEFAULT_MANIFEST,
+            DEFAULT_WRITE_MIGRATION_MANIFEST,
+            DEFAULT_SAVE_LIFECYCLE_MANIFEST,
+        ):
             manifest = _load_json(manifest_path)
             self.assertEqual(
                 len(_validate_manifest_basics(manifest, profile)),
@@ -230,6 +253,26 @@ class ScenarioTests(unittest.TestCase):
             [contract["id"] for contract in manifest["contracts"]],
         )
         self.assertEqual(first, DEFAULT_WRITE_MIGRATION_ORACLE.read_bytes())
+
+    @unittest.skipUnless(
+        os.environ.get("GODJ_EXACT_PROFILE") == "1",
+        "requires the locked darwin/arm64 reference profile",
+    )
+    def test_save_lifecycle_suite_is_byte_deterministic_and_ordered(self) -> None:
+        first = canonical_json(
+            generate_suite(DEFAULT_PROFILE, DEFAULT_SAVE_LIFECYCLE_MANIFEST)
+        )
+        second = canonical_json(
+            generate_suite(DEFAULT_PROFILE, DEFAULT_SAVE_LIFECYCLE_MANIFEST)
+        )
+        self.assertEqual(first, second)
+        manifest = _load_json(DEFAULT_SAVE_LIFECYCLE_MANIFEST)
+        suite = json.loads(first)
+        self.assertEqual(
+            [contract["id"] for contract in suite["contracts"]],
+            [contract["id"] for contract in manifest["contracts"]],
+        )
+        self.assertEqual(first, DEFAULT_SAVE_LIFECYCLE_ORACLE.read_bytes())
 
 
 if __name__ == "__main__":

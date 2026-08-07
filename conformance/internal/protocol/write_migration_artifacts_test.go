@@ -198,7 +198,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 		entries[fields[1]] = fields[0]
 	}
-	wantedPaths := []string{"oracle.json", "write-migration-oracle.json"}
+	wantedPaths := []string{"oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json"}
 	if len(entries) != len(wantedPaths) {
 		t.Fatalf("SHA256SUMS has %d entries, want %d: %#v", len(entries), len(wantedPaths), entries)
 	}
@@ -210,6 +210,15 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		actual := fmt.Sprintf("%x", sha256.Sum256(contents))
 		if entries[name] != actual {
 			t.Fatalf("%s checksum = %q, want %q", name, entries[name], actual)
+		}
+	}
+	for name, want := range map[string]string{
+		"oracle.json":                 "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
+		"save-lifecycle-oracle.json":  "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
+		"write-migration-oracle.json": "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
+	} {
+		if entries[name] != want {
+			t.Fatalf("existing %s checksum changed to %q, want immutable baseline %q", name, entries[name], want)
 		}
 	}
 }

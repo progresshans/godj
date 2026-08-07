@@ -32,11 +32,24 @@ from .scenarios import configure_django  # noqa: E402
 from .write_migration_scenarios import (  # noqa: E402
     SCENARIOS as WRITE_MIGRATION_SCENARIOS,
 )
+from .save_lifecycle_scenarios import (  # noqa: E402
+    SCENARIOS as SAVE_LIFECYCLE_SCENARIOS,
+)
 
 
-if set(QUERY_SCENARIOS) & set(WRITE_MIGRATION_SCENARIOS):
+SCENARIO_REGISTRIES = (
+    QUERY_SCENARIOS,
+    WRITE_MIGRATION_SCENARIOS,
+    SAVE_LIFECYCLE_SCENARIOS,
+)
+scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
+if len(scenario_names) != len(set(scenario_names)):
     raise RuntimeError("Django scenario registries contain duplicate names")
-SCENARIOS = {**QUERY_SCENARIOS, **WRITE_MIGRATION_SCENARIOS}
+SCENARIOS = {
+    name: scenario
+    for registry in SCENARIO_REGISTRIES
+    for name, scenario in registry.items()
+}
 
 
 DJANGO_61_COMMIT = "fe0a859f537d4238cf49fca39073513206f83122"
@@ -65,9 +78,17 @@ DEFAULT_WRITE_MIGRATION_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json"
 )
+DEFAULT_SAVE_LIFECYCLE_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/save-lifecycle-manifest.json"
+)
+DEFAULT_SAVE_LIFECYCLE_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
+    DEFAULT_SAVE_LIFECYCLE_MANIFEST.resolve(): DEFAULT_SAVE_LIFECYCLE_ORACLE,
 }
 
 

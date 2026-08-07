@@ -1,0 +1,42 @@
+{
+  "format_version": 2,
+  "profile": {
+    "id": "django-6.1-sqlite-darwin-arm64",
+    "fingerprint": {
+      "django_version": "6.1",
+      "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+      "django_distribution_sha256": "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe",
+      "python_implementation": "CPython",
+      "python_version": "3.14.3",
+      "sqlite_version": "3.50.4",
+      "sqlite_source_id": "2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3",
+      "database_engine": "django.db.backends.sqlite3",
+      "use_tz": true,
+      "timezone": "UTC",
+      "language_code": "en-us",
+      "locale": "C",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "lock": {
+      "file": "uv.lock",
+      "sha256": "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7",
+      "manager": "uv",
+      "manager_version": "0.10.12"
+    }
+  },
+  "contracts": [
+    {"id": "MOD-008", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-009", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-010", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-011", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MOD-012", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MOD-013", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MOD-014", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MOD-015", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MOD-016", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "MOD-017", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-018", "status": "not_implemented", "phase": "commit"},
+    {"id": "MOD-019", "status": "not_implemented", "phase": "rollback"}
+  ]
+}

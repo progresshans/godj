@@ -12,6 +12,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from conformance.runners.django.runner import (
+    DEFAULT_SAVE_LIFECYCLE_MANIFEST,
+    DEFAULT_SAVE_LIFECYCLE_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     REPOSITORY_ROOT,
@@ -108,6 +110,28 @@ class RunnerSafetyTests(unittest.TestCase):
                 [
                     "--manifest",
                     str(DEFAULT_WRITE_MIGRATION_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_save_lifecycle_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_SAVE_LIFECYCLE_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_SAVE_LIFECYCLE_MANIFEST),
                     "--check",
                 ]
             )
