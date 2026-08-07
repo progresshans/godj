@@ -1,7 +1,7 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-07
+- 마지막 갱신: 2026-08-08
 - 현재 승인된 deviation: 없음
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
@@ -45,4 +45,76 @@
 
 ## 원장
 
-아직 기록된 deviation이 없습니다.
+## DEV-0001 — 역방향 migration의 schema와 recorder를 같은 transaction으로 처리
+
+- Status: Proposed
+- Date: 2026-08-08
+- Contracts: MIG-018, MIG-020, MIG-022, MIG-024
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3
+- Related ADR/work/evidence:
+  [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md),
+  [GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md),
+  [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md),
+  [EVID-20260808-010](status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts)
+
+### Django의 관찰 가능 동작
+
+Django 6.1의 backward migration은 schema transaction을 먼저 commit한 뒤 recorder row를
+삭제합니다. MIG-018/020/022의 정상 또는 앞선 성공 backward step은 compact metrics에서
+`transaction_model=schema_then_record`입니다. MIG-024는 A3 unapply를 완료한 뒤 A2 schema
+reverse까지 commit하고, A2 recorder의 실제 write 전에 주입한 fault로 삭제가 실패합니다.
+최종 schema는 A1만 남고 recorder rows는 A1/A2이며 phase는 `commit`입니다.
+
+### GoDj에서 제안한 동작
+
+기존 `Executor.Unapply`처럼 reverse schema operation과 recorder 삭제를 같은 transaction에서
+처리합니다. Recorder 실패면 실패 migration의 schema와 recorder를 함께 rollback하고 앞선
+migration commit만 보존합니다. 정상 backward 결과는 같지만 transaction model은
+`schema_and_record`입니다. MIG-024형 실패에서는 A2 schema도 남고 A2 recorder도 남으므로
+Django의 DB state와 phase가 달라집니다.
+
+MIG-024의 구체적 product expectation 후보는 phase `rollback`, A3 unapply만 durable commit,
+최종 schema/records 모두 A1/A2입니다. A2 step은 `status=rolled_back`,
+`schema_outcome=rolled_back`, `recorder_outcome=retained`,
+`transaction_model=schema_and_record`, `fault_point=before_record_write`입니다.
+
+### 이유와 고려한 대안
+
+제안 이유는 schema와 applied history가 durable하게 불일치하는 실패 모드를 기본 제품
+동작으로 만들지 않고, MIG-001..004에서 이미 검증한 한 migration 원자성을 유지하기
+위함입니다. Django 경계를 그대로 구현하는 안, plan 전체를 한 transaction으로 묶는 안과
+backend별 선택을 검토합니다. 상세 trade-off는 ADR-0014에 기록합니다.
+
+### 사용자·데이터·migration 영향
+
+정상 reverse 뒤 최종 schema/record는 동일합니다. 다만 recorder 장애가 발생하면 Django
+운영자는 schema/history reconciliation이 필요할 수 있지만 GoDj는 실패 migration을 함께
+rollback합니다. Django DB와 GoDj recorder를 직접 교환하거나 장애 복구 절차를 공유하는
+경우 이 차이를 진단 출력과 문서에서 명시해야 합니다.
+
+### backend/concurrency/security 영향
+
+SQLite의 기존 pinned transaction과 backend interface를 유지할 수 있습니다. 다른 backend의
+DDL transaction capability는 아직 검증하지 않았으므로 이 제안이 모든 backend에 자동으로
+적용된다고 주장하지 않습니다. Process lock/crash recovery는 별도 Q-012 범위입니다.
+
+### 구현과 검증 조건
+
+- GDJ-0012의 `ExecutePlan`이 기존 same-transaction `Unapply`를 step primitive로 재사용
+- MIG-018/020/022의 `transaction_model` 차이와 MIG-024의 DB state/phase 차이를 live
+  product observation에서 재현
+- Reference oracle/Django phase나 core comparator를 변경하지 않는 별도
+  `godj-migration-execution-deviation-expected.json`
+- Existing 57 differential, full/race/CGO=0/vet와 cancellation/failure gate 통과
+- Review 뒤 ADR-0014와 이 항목을 함께 Accepted로 바꾼 경우에만 manifest를 `deviation`으로
+  분류
+
+현재는 Proposed이므로 네 계약은 compatibility 합격이나 승인된 deviation으로 계산하지
+않습니다. 구현 뒤 예상 합계 `63 passing + 4 deviation`도 완료 조건이지 현재 상태가
+아닙니다.
+
+### 복귀 또는 supersede 조건
+
+Django와의 exact backward transaction 호환이 schema/history 원자성보다 우선이라는 근거가
+생기거나, backend별 recovery protocol이 partial commit을 안전하게 복구하면 새 ADR로 이
+제안을 Rejected/Superseded할 수 있습니다.

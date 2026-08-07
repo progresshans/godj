@@ -8,10 +8,12 @@ part of a GoDj binary or generated source.
 
 GoDj's conformance scenarios, including the query, write, migration, Save
 lifecycle, QuerySet evaluation/cache, and migration planning fixtures, are
-independently written behavioral scenarios. Their manifest entries point to pinned Django
-documentation, source symbols, and tests for provenance but do not copy or
-translate Django source, fixtures, comments, or assertion structure. This
-notice does not classify those scenarios as derivative works.
+independently written behavioral scenarios. This also includes the
+multi-migration plan execution and before-write operation/recorder failure
+fixtures. Their manifest entries point to pinned Django documentation, source
+symbols, and tests for provenance but do not copy or translate Django source,
+fixtures, comments, or assertion structure. This notice does not classify those
+scenarios as derivative works.
 
 Django is licensed under the BSD 3-Clause license. A copy is included in
 [`LICENSE.django`](LICENSE.django). If a future file copies, translates, or
@@ -24,7 +26,7 @@ project and is not endorsed by the Django Software Foundation.
 
 ## modernc.org/sqlite and modernc.org/libc
 
-GoDj's M1 SQLite backend directly uses `modernc.org/sqlite v1.56.0`, whose
+GoDj's M1/M2 SQLite backend directly uses `modernc.org/sqlite v1.56.0`, whose
 locked dependency graph includes `modernc.org/libc v1.74.4`. Both packages are
 licensed under BSD 3-Clause terms. Their upstream license texts are preserved
 as [`LICENSE.modernc-sqlite`](LICENSE.modernc-sqlite) and

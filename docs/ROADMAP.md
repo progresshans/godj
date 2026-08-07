@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Immutable migration planner 완료, multi-migration execution 계약 설계·probe 진행 중
+- 현재 단계: Multi-migration execution reference 잠금 완료, 실행 orchestrator/atomic-reverse 후보 구현 준비
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -96,11 +96,21 @@ AppliedState를 backend-neutral zero-I/O Planner로 구현하고 fifth-set actua
 57개입니다. 이 planning adapter의 zero-I/O는 실제 DB probe가 아니라 pure structural
 경계로 검증합니다.
 
-현재 [GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md)은
-여러 migration을 순차 실행할 때 migration별 transaction, 중간 실패의 partial commit,
-이후 단계 중단과 ProjectState progression의 외부 의미를 contract-only로 먼저 고정합니다.
-Public migration file/CLI, data callback, execution orchestrator 제품, lock/crash recovery는
-계속 후속 범위입니다.
+[GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md)은
+MIG-017..026으로 여러 migration의 migration별 transaction, 중간 실패의 durable/rollback
+경계, 이후 단계 중단, ProjectState progression, mixed preflight와 empty no-op를 여섯 번째
+exact set에 고정했습니다. 총 reference contract는 67개지만 새 10개는
+`oracle_locked`이고 제품 `passing`은 기존 57개뿐입니다.
+
+현재 [GDJ-0012](../work/0012-migration-plan-execution-orchestrator.md)는 최소
+`ExecutePlan`과 full zero-I/O preflight, migration별 기존 Apply/Unapply 실행, first-failure
+last durable state를 구현합니다. Django backward의 `schema_then_record`와 달리 schema와
+recorder를 같은 transaction으로 유지하는 안은
+[ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)와
+[DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
+Proposed 후보입니다. 구현·승인·검증 전에는 새 계약을 pass/deviation으로 세지 않습니다.
+Public migration file/CLI, recorder read, data callback과 lock/crash recovery는 계속 후속
+범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

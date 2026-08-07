@@ -12,7 +12,7 @@ GoDj 자체의 배포 라이선스는 아직 선택되지 않았습니다. 루�
 `LICENSE.django`는 Django의 라이선스 사본이며 GoDj 자체에 BSD 3-Clause를
 적용한다는 뜻이 아닙니다.
 
-M1 SQLite backend가 사용하는 `modernc.org/sqlite v1.56.0`과 locked dependency
+M1/M2 SQLite backend가 사용하는 `modernc.org/sqlite v1.56.0`과 locked dependency
 `modernc.org/libc v1.74.4`의 BSD 3-Clause 전문은 각각
 `LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`에 보존합니다. 이 두 고지는 향후
 binary에 들어가는 모든 transitive dependency의 배포 검토를 대신하지 않습니다.
@@ -38,13 +38,14 @@ binary에 들어가는 모든 transitive dependency의 배포 검토를 대신�
 - 파생물 전용 검토 없이 독립 시나리오 디렉터리에 섞지 않습니다.
 
 M0/M1 query 시나리오, GDJ-0003 write/migration 시나리오·static migration fixture,
-GDJ-0005 Save lifecycle, GDJ-0007 QuerySet evaluation/cache와 GDJ-0009 migration
-planning 시나리오는 모두 첫 번째
+GDJ-0005 Save lifecycle, GDJ-0007 QuerySet evaluation/cache, GDJ-0009 migration
+planning과 GDJ-0011 migration plan execution 시나리오는 모두 첫 번째
 분류입니다. Upstream test code나 fixture를 복사하지 않고 GoDj 고유 app/table/value로
 작성했으며 manifest reference는 동작 근거 추적용입니다. QuerySet cache와 migration
-planning provenance entry도 모두 `derived=false`이고 pinned source/doc/test symbol은
-의미와 버전 추적만 합니다. Migration planning graph/module/fixture와 assertion 구조도
-upstream에서 복사·번역하지 않고 최소 GoDj 고유 정의로 작성했습니다.
+planning/execution provenance entry도 모두 `derived=false`이고 pinned source/doc/test
+symbol은 의미와 버전 추적만 합니다. Migration planning graph/module/fixture와 execution
+failure sentinel/assertion 구조도 upstream에서 복사·번역하지 않고 최소 GoDj 고유 정의로
+작성했습니다.
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.
 

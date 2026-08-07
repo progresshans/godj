@@ -79,6 +79,7 @@ conformance/
   contracts/save-lifecycle-manifest.json
   contracts/query-cache-manifest.json
   contracts/migration-planning-manifest.json
+  contracts/migration-execution-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -91,6 +92,7 @@ conformance/
   fixtures/godj-save-lifecycle-not-implemented.json
   fixtures/godj-query-cache-not-implemented.json
   fixtures/godj-migration-planning-not-implemented.json
+  fixtures/godj-migration-execution-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -225,6 +227,33 @@ Go actual 결정성, static ordered 12 mismatch, unknown scenario fail-closed를
 [EVID-20260808-009](status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
 기록합니다.
 
+GDJ-0011은 MIG-017..026을 여섯 번째 reference set으로 추가했습니다. Success plan은
+migration별 commit과 ordered schema/recorder outcome을, failure plan은 앞선 durable step,
+실패 step rollback 또는 partial commit과 이후 `not_started`를 구분합니다. Mixed plan은 첫
+domain step 전에 거부하고 empty plan은 recorder/backend mutation 없는 no-op입니다.
+
+External metrics는 connection summary와 compact ordered steps만 비교합니다. Raw render/
+operation/recorder/transaction event는 live scenario가 compact observation을 사실에서
+유도하는지 확인하는 내부 assertion이며 protocol payload가 아닙니다. Historical
+before/after는 MIG-019에만, recorder fault point는 MIG-023/024에
+`before_record_write`로만 노출합니다. MIG-024는 schema A1, records A1/A2와 `commit` phase를
+고정해 Django backward의 schema-then-record partial commit을 숨기지 않습니다.
+
+여섯 set의 ID/scenario는 전역으로 유일하며 30개 ordered cross-pair가 모두 거부됩니다.
+Two-process/random hash-seed exact bytes, step order/direction/status, transaction model,
+schema/recorder outcome, historical transition, failure/not-started, fault point와
+mixed/empty state mutation을 각각 검증합니다. Static fixture는 ordered 10 mismatch이며
+product `godjcheck`는 exit 2/no actual output입니다.
+
+현재 `make godj-conformance`는 기존 다섯 adapter 57개만 0-diff로 실행합니다. Sixth set은
+10 `oracle_locked`이고 총 reference 67개를 제품 pass로 세지 않습니다. 상세 증거는
+[EVID-20260808-010](status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts)에
+기록합니다. GDJ-0012의 proposed product harness도 reference oracle/core comparator를
+완화하지 않고 6 same + 4 atomic-reverse deviation 후보를 별도
+`godj-migration-execution-deviation-expected.json`으로 검증해야 합니다. Reference
+manifest의 Django phase는 유지하고 effective product phase는 fail-closed harness 안에서만
+적용합니다.
+
 ## 기능별 기본 테스트 요구
 
 모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
@@ -237,7 +266,7 @@ Go actual 결정성, static ordered 12 mismatch, unknown scenario fail-closed를
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
 | QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
-| Migration | state diff, graph construction, applied pruning, forward/backward, zero-mutation planning, structured graph/history error, failure/rollback, concurrent lock |
+| Migration | state diff, graph construction, applied pruning, forward/backward, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock |
 | Concurrency | `go test -race`, cancellation, goroutine/connection leak |
 | Backend | capability matrix, conformance, explicit unsupported errors |
 | Security boundary | regression test, adversarial input, no silent fallback |

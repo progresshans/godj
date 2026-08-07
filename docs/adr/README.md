@@ -28,5 +28,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0011](0011-m2-save-lifecycle-orchestration.md) | Accepted | M2 typed Save option, explicit key와 Manager orchestration 경계 |
 | [0012](0012-queryset-evaluation-cache-ownership.md) | Accepted | QuerySet evaluation state ownership, concurrency와 terminal API 경계 |
 | [0013](0013-immutable-migration-planner.md) | Accepted | 불변 migration identity graph, applied state와 zero-I/O planner 경계 |
+| [0014](0014-migration-plan-execution-atomic-reverse.md) | Proposed | migration별 plan 실행과 same-transaction atomic reverse 후보 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

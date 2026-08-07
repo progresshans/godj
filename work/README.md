@@ -34,15 +34,16 @@ proposed → ready → active → completed
 | [GDJ-0008](0008-queryset-evaluation-cache-product-slice.md) | completed | QuerySet evaluation/cache 제품 수직 단면 |
 | [GDJ-0009](0009-migration-planning-compatibility-contracts.md) | completed | Migration planning 호환 계약 확장 |
 | [GDJ-0010](0010-immutable-migration-planner-product-slice.md) | completed | Immutable migration graph/applied-state planner 제품 단면 |
-| [GDJ-0011](0011-migration-plan-execution-compatibility-contracts.md) | active | Multi-migration plan execution 호환 계약 |
+| [GDJ-0011](0011-migration-plan-execution-compatibility-contracts.md) | completed | Multi-migration plan execution 호환 계약 |
+| [GDJ-0012](0012-migration-plan-execution-orchestrator.md) | active | Migration plan 실행 orchestrator와 atomic-reverse 결정 |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active
-항목은 GDJ-0011이며 ready 항목은 없습니다. GDJ-0010은 MIG-005..016을 실제 immutable
-graph/applied-state Planner와 GoDj adapter로 구현해 다섯 제품 set의 57개 contract를
-`passing`으로 올렸습니다. Static fixture의 ordered 12 `not_implemented` mismatch는
-false-green 회귀 입력으로 보존합니다. GDJ-0011은 여러 migration 실행의 transaction,
-partial commit과 failure-stop 의미를 제품 orchestrator보다 먼저 contract-only로 고정합니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
+GDJ-0012이며 ready 항목은 없습니다. GDJ-0011은 MIG-017..026을 sixth exact set으로 잠가
+총 reference contract를 67개로 늘렸지만, 새 set은 10 `oracle_locked`이고 제품 adapter는
+fail-closed합니다. 따라서 제품 `passing`은 기존 다섯 set의 57개입니다. GDJ-0012는 최소
+`ExecutePlan`과 full preflight를 구현하고, Django의 backward `schema_then_record`와 다른
+GoDj same-transaction reverse 후보를 ADR-0014/DEV-0001에 따라 정직하게 검증합니다.
 
 ## 운영 규칙
 

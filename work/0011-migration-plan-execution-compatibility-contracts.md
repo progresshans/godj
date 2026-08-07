@@ -1,6 +1,6 @@
 ---
 id: GDJ-0011
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "31d264ad7c85a23b511a7549d698c1c3b0577e92"
@@ -55,7 +55,7 @@ state 전달 의미를 false-green 없이 분리합니다.
 - 기존 다섯 manifest/oracle/static fixture와 `/Users/hanhyeonjin/Documents/django` checkout은
   수정하지 않음
 
-## Django Reference / Contract 후보
+## 확정된 Django Reference / Contract
 
 Exact profile은 Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
 CPython 3.14.3, SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`입니다. Public migration file이나 CLI 없이
@@ -63,24 +63,25 @@ disposable `Migration`/fixture loader와 `MigrationExecutor` 실행 경로로 �
 
 | ID | 동작 | Phase | Compare |
 |---|---|---|---|
-| MIG-017 | 빈 이력에서 3-step linear forward; operation/record 순서와 최종 state/schema/records | `commit` | result, DB state, metrics |
+| MIG-017 | 빈 이력에서 3-step linear forward; step 순서와 최종 state/schema/records | `commit` | result, DB state, metrics |
 | MIG-018 | 모두 적용된 linear chain을 dependent-first backward; 최종 empty state/schema/records | `commit` | result, DB state, metrics |
 | MIG-019 | applied prefix 뒤 tail만 실행하고 historical state를 step별 누적 | `commit` | result, DB state, metrics |
 | MIG-020 | 한 branch를 backward한 뒤 unrelated applied branch의 state/schema/records 보존 | `commit` | result, DB state, metrics |
 | MIG-021 | A1 commit 뒤 A2 forward operation 실패; A2 rollback, A3 미시작, A1 durable | `rollback` | error, DB state, metrics |
 | MIG-022 | A3 unapply commit 뒤 A2 backward operation 실패; A2 rollback, A1 미시작 | `rollback` | error, DB state, metrics |
-| MIG-023 | A1 commit 뒤 A2 forward recorder 실패; A2 schema/record rollback, A3 미시작 | `rollback` | error, DB state, metrics |
-| MIG-024 | A3 unapply 성공 뒤 A2 reverse recorder 실패의 실제 schema/record commit 경계 | `commit` | error, DB state, metrics |
+| MIG-023 | A1 commit 뒤 A2 before-write forward recorder 실패; A2 schema/record rollback, A3 미시작 | `rollback` | error, DB state, metrics |
+| MIG-024 | A3 unapply 성공 뒤 A2 before-write reverse recorder 실패의 schema/record commit 경계 | `commit` | error, DB state, metrics |
 | MIG-025 | mixed backward/forward plan을 첫 step 전 거부하고 domain state 보존 | `evaluation` | error, DB state, metrics |
 | MIG-026 | empty plan은 step/schema/record mutation 없는 no-op | `commit` | result, DB state, metrics |
 
-MIG-024는 Django characterization입니다. Pinned source inspection과 아직 재현 스크립트로
-고정하지 않은 exploratory observation은 Django가 A3 reverse schema/unrecord를 완료한 뒤
-A2 reverse schema transaction을 commit하고, A2 unrecord 실패 뒤 schema에는 A1만 남지만
-recorder에는 A1/A2를 남기는 경계를 가리킵니다. GoDj의 현재 same-transaction
-editor/recorder 원칙은 실패한 A2 schema까지 rollback하므로 의미가 다를 수 있습니다.
-이는 completion evidence가 아니며 machine runner가 독립적으로 재현해야 합니다. 후보 차이를
-oracle에서 지우지 않고, 후속 제품 work가 ADR/deviation 없이 `passing`으로 가장하지 않습니다.
+MIG-024는 Django characterization입니다. Checked-in exact runner는 Django가 A3 reverse
+schema/unrecord를 완료한 뒤 A2 reverse schema transaction을 commit하고, A2 recorder의
+실제 write 전에 주입한 fault 뒤 schema에는 A1만, recorder에는 A1/A2를 남기는 경계를 두
+독립 process에서 재현했습니다. GoDj의 현재 same-transaction editor/recorder 원칙은 실패한
+A2 schema까지 rollback하므로 의미가 다릅니다. 후보 차이를 oracle에서 지우지 않고,
+[ADR-0014](../docs/adr/0014-migration-plan-execution-atomic-reverse.md)와
+[DEV-0001](../docs/DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
+Proposed 결정으로 넘깁니다.
 
 MIG-025의 normalize 후보는 `migration_execution_error/mixed_directions`입니다. Planner가
 mixed plan을 유효하게 계산할 수 있고 실행기가 domain step 전에 거부하는 경계이므로 planning
@@ -92,22 +93,23 @@ exact artifact와 후속 제품 ADR에서 함께 확정합니다.
 Source와 test symbol은 모두 Django commit
 `fe0a859f537d4238cf49fca39073513206f83122`에서 확인합니다.
 
-- MIG-017/018/021/022: `django/db/migrations/executor.py`의
-  `MigrationExecutor.migrate`, `_migrate_all_forwards`, `_migrate_all_backwards`,
-  `apply_migration`, `unapply_migration`; `tests/migrations/test_executor.py`의
-  `ExecutorTests.test_run`, `test_process_callback`; `docs/topics/migrations.txt`의
-  `transactions`, `reversing-migrations`
-- MIG-019/020: `MigrationExecutor._create_project_state`와
-  `ExecutorTests.test_empty_plan`, `test_unrelated_applied_migrations_mutate_state`;
-  `docs/topics/migrations.txt`의 `historical-models`
-- MIG-023: `MigrationExecutor.apply_migration`, `record_migration`과
+- MIG-017: `MigrationExecutor._migrate_all_forwards`와 `ExecutorTests.test_run`
+- MIG-018: `MigrationExecutor._migrate_all_backwards`와 `ExecutorTests.test_run`
+- MIG-019: `MigrationExecutor._create_project_state`와 `ExecutorTests.test_run`
+- MIG-020: `MigrationExecutor._migrate_all_backwards`와
+  `ExecutorTests.test_unrelated_applied_migrations_mutate_state`
+- MIG-021: `MigrationExecutor.apply_migration`과
+  `tests/migrations/test_operations.py`의 `OperationTests.test_run_python_atomic`
+- MIG-022: `django/db/migrations/migration.py`의 `Migration.unapply`와
+  `MigrationExecutor.unapply_migration`; 이 contract는 별도 upstream test를 provenance로
+  주장하지 않음
+- MIG-023: `MigrationExecutor.apply_migration`과
   `ExecutorTests.test_migrations_applied_and_recorded_atomically`
 - MIG-024: `MigrationExecutor.unapply_migration`, `record_migration`; 직접 대응하는
   upstream test는 찾지 못했으므로 pinned source와 독립 exact runtime observation을 함께
   provenance로 기록
 - MIG-025: `MigrationExecutor.migrate`와 `ExecutorTests.test_mixed_plan_not_supported`
-- MIG-026: `MigrationExecutor.migrate`와 `ExecutorTests.test_migrate_skips_schema_creation`,
-  `test_empty_plan`
+- MIG-026: `MigrationExecutor.migrate`와 `ExecutorTests.test_migrate_skips_schema_creation`
 
 로컬 `/Users/hanhyeonjin/Documents/django` HEAD는 Django 6.2 alpha이므로 실행 reference로
 사용하지 않습니다. Source 확인은 locked commit의 `git show`, runtime은 `uv run --frozen`의
@@ -115,14 +117,19 @@ pinned Django 6.1 wheel만 사용합니다.
 
 ## 관찰 경계
 
-- Result는 test-only ordered step trace와 최종 public `ProjectState` summary를 포함합니다.
-  Public callback/result ABI 자체는 이번 work에서 정하지 않습니다.
+- Result는 ordered plan summary와 최종 `ProjectState` summary를 포함합니다. Public callback/
+  result ABI 자체는 이번 work에서 정하지 않습니다.
 - DB state는 managed schema inventory와 recorder rows의 before/after를 포함합니다.
-- Metrics는 operation/editor/recorder/progress event 순서와 시작하지 않은 step을 구분합니다.
+- External metrics는 connection summary와 compact ordered step만 포함합니다. 각 step은
+  direction/status/schema/recorder outcome과 transaction model을 노출하고, raw render/
+  operation/recorder/transaction event는 runner 내부 live assertion으로만 사용합니다.
+- Historical state before/after는 그 의미를 직접 계약하는 MIG-019에만 포함합니다.
+- MIG-023/024의 recorder sentinel은 `fault_point=before_record_write`입니다. 실제 recorder
+  write 뒤 실패까지 일반화하지 않습니다.
 - Setup/cleanup DDL과 seed recorder write는 capture window 밖에서 수행합니다.
-- SQL 문자열은 비교하지 않고 statement kind/count 또는 public event 의미만 비교합니다.
+- SQL 문자열과 Django private event choreography는 비교하지 않습니다.
 - Failure는 첫 오류에서 중단되어야 하며 앞선 committed migration, 실패 migration,
-  후속 unstarted migration을 서로 다른 sentinel로 관찰합니다.
+  후속 unstarted migration을 서로 다른 compact step outcome으로 관찰합니다.
 
 ## Go-native cancellation 입력
 
@@ -151,59 +158,78 @@ Django에는 Go `context.Context`가 없으므로 cancellation을 MIG-017..026 o
 
 ## 완료 조건
 
-- [ ] MIG-017..026이 8~12개 bound와 unique ordered ID를 만족
-- [ ] exact profile/provenance와 phase/comparison dimension이 manifest에 고정
-- [ ] two-process/random hash-seed oracle이 byte-identical
-- [ ] forward/backward success와 partial-applied state가 실제 schema/records에 결속
-- [ ] operation/recorder 실패 index와 이후 step 미실행이 sentinel로 구분
-- [ ] MIG-024의 Django reverse recorder failure 의미가 축소 없이 관찰
-- [ ] mixed plan은 첫 domain step 전에 실패하고 empty plan은 no-op
-- [ ] plan direction/order, step event, state/record/schema/error/phase 변이가 mismatch
-- [ ] static GoDj fixture가 ordered 10 `not_implemented` mismatch
-- [ ] 제품 adapter 미구현은 `godjcheck` exit 2/no actual-output으로 fail-closed
-- [ ] six-set 30 ordered cross-binding과 기존 artifact checksum 유지
-- [ ] 기존 다섯 제품 set 57개가 계속 semantic 0-diff
-- [ ] portable/exact Python, full Go/vet/race/CGO=0과 documentation gate 통과
-- [ ] 상태/evidence/work가 같은 checkout을 가리킴
+- [x] MIG-017..026이 8~12개 bound와 unique ordered ID를 만족
+- [x] exact profile/provenance와 phase/comparison dimension이 manifest에 고정
+- [x] two-process/random hash-seed oracle이 byte-identical
+- [x] forward/backward success와 partial-applied state가 실제 schema/records에 결속
+- [x] operation/recorder 실패 index와 이후 step 미실행이 sentinel로 구분
+- [x] MIG-024의 Django reverse recorder failure 의미가 축소 없이 관찰
+- [x] mixed plan은 첫 domain step 전에 실패하고 empty plan은 no-op
+- [x] plan direction/order, compact step, state/record/schema/error/phase 변이가 mismatch
+- [x] static GoDj fixture가 ordered 10 `not_implemented` mismatch
+- [x] 제품 adapter 미구현은 `godjcheck` exit 2/no actual-output으로 fail-closed
+- [x] six-set 30 ordered cross-binding과 기존 artifact checksum 유지
+- [x] 기존 다섯 제품 set 57개가 계속 semantic 0-diff
+- [x] portable/exact Python, full Go/vet/race/CGO=0과 documentation gate 통과
+- [x] 상태/evidence/work가 같은 checkout을 가리킴
 
 ## 진행 기록
 
 - [x] GDJ-0010 immutable Planner 제품과 57 passing baseline
-- [ ] Django multi-step executor provenance와 machine exact probe
-- [ ] MIG-021 forward operation failure와 MIG-024 reverse recorder failure를 checked-in runner로 재현
-- [ ] sixth contract/oracle/static set
-- [ ] false-green/회귀 gate와 인수인계
+- [x] Django multi-step executor provenance와 machine exact probe
+- [x] MIG-021 forward operation failure와 MIG-024 reverse recorder failure를 checked-in runner로 재현
+- [x] sixth contract/oracle/static set
+- [x] false-green/회귀 gate와 인수인계
 
 ## 수정 파일
 
-아직 제품 수정 없음. Contract-only runner/artifact를 구현한 뒤 실제 파일과 역할을 기록합니다.
+- `conformance/contracts/migration-execution-manifest.json`: MIG-017..026 ordered reference
+  contract와 pinned provenance
+- `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json`,
+  `SHA256SUMS`: exact Django observation과 checksum
+- `conformance/fixtures/godj-migration-execution-not-implemented.json`: ordered 10 false-green
+  baseline
+- `conformance/runners/django/migration_execution_scenarios.py`, `runner.py`: disposable
+  multi-migration execution과 compact normalization
+- `conformance/runners/django/tests/test_migration_execution_scenarios.py`,
+  `test_runner_safety.py`, `test_scenarios.py`: live state/trace, registry와 fail-closed gate
+- `conformance/internal/protocol/migration_execution_artifacts_test.go`와 기존 artifact test:
+  strict validation, 30 cross-binding, checksum과 semantic mutation gate
+- `conformance/cmd/godjcheck/main_test.go`: sixth set unsupported/unknown exit 2와 no output
+- `Makefile`: sixth artifact validation/oracle regeneration 경로. Product
+  `godj-conformance`는 기존 57개만 실행
+- `NOTICE.md`, `conformance/README.md`, `docs/**`, `work/**`: provenance, 현재 상태,
+  evidence와 다음 product work 인수인계
+
+제품 `migrations/**`, `db/sqlite/**`와 기존 다섯 locked artifact는 변경하지 않았습니다.
 
 ## 결정된 사항
 
 - Plan 전체를 한 transaction으로 가정하지 않고 migration별 commit을 관찰합니다.
 - 첫 실패 뒤 후속 step은 실행하지 않아야 합니다.
 - Context cancellation은 Django differential과 Go-native gate를 분리합니다.
-- MIG-024의 preliminary Django/GoDj 의미 차이는 machine oracle을 잠근 뒤 호환 구현 또는
-  명시적 deviation으로 결정합니다.
+- External payload는 connection + compact ordered step으로 제한하고 raw execution trace는
+  live assertion 내부에 둡니다.
+- MIG-024의 Django/GoDj 의미 차이는 machine oracle에 보존했으며 atomic reverse 유지안을
+  ADR-0014/DEV-0001 Proposed로 넘깁니다.
 - File/CLI/data callback ABI는 이 work에서 정하지 않습니다.
 
 ## 미결정/Blocker
 
-외부 blocker는 없습니다. MIG-024 exploratory observation은 durable evidence가 아니며
-checked-in machine runner/oracle이 최종 정본입니다. Product orchestrator API, public state
-반환과 mixed-plan error taxonomy는 oracle 잠금 뒤 별도 ADR/work에서 결정합니다.
+외부 blocker는 없습니다. Product orchestrator API, public state 반환, mixed-plan error
+taxonomy와 atomic reverse 선택은 GDJ-0012/ADR-0014에서 구현·검토합니다. Proposed 상태를
+지원 또는 승인된 deviation으로 계산하지 않습니다.
 
 ## 테스트 증거
 
-- Evidence ID: GDJ-0011 완료 시 새 항목 추가
-- Profile 확인:
-  `LC_ALL=C TZ=UTC uv run --frozen python -c 'import django, sqlite3; print(django.get_version(), django.__file__); print(sqlite3.sqlite_version)'`
-- Result: contract 후보 단계. 환경 fingerprint와 pinned source routing만 확인했고 기존 57
-  product contract만 `passing`
-- Exploratory note, not completion evidence: 일회성 inline probe는 forward failure 뒤 A1만,
-  reverse recorder failure 뒤 schema A1/records A1·A2를 관찰했지만 재현 스크립트와 raw
-  output을 보존하지 않았으므로 machine runner가 다시 증명해야 합니다.
-- Not run: checked-in full exact runner/oracle, sixth-set/static baseline, execution product adapter
+- Evidence ID:
+  [EVID-20260808-010](../docs/status/TEST_EVIDENCE.md#evid-20260808-010--gdj-0011-migration-plan-execution-compatibility-contracts)
+- Machine artifact commit:
+  `b721bb6b81ba9a950558c288dcb1a78efd7ff9ab`
+- Result: portable Python 79 pass/7 exact skips, exact 79 pass, `make check`, full uncached
+  Go/race/CGO=0/vet, 30 cross-binding, two-process oracle identity와 mutation audit 통과.
+  기존 57 product contract는 0-diff이고 새 10개는 reference `oracle_locked`입니다.
+- Not run: hosted GitHub Actions, migration execution product adapter/ExecutePlan
 
 ## 위험과 rollback
 
@@ -216,13 +242,23 @@ checked-in machine runner/oracle이 최종 정본입니다. Product orchestrator
 
 ## 다음 정확한 작업
 
-Pinned Django 6.1 runner에서 MIG-017..026 전체를 disposable SQLite로 구현하고,
-MIG-021/024의 preliminary observation을 두 독립 process에서 재현해
-event/schema/recorder state와 phase를 machine artifact로 잠급니다.
+[GDJ-0012](0012-migration-plan-execution-orchestrator.md)에서 기존 Executor API를 inventory하고
+empty/mixed/full-preflight 실패 test부터 작성합니다. ADR-0014/DEV-0001을 승인하기 전에는
+MIG-018/020/022/024를 `deviation`으로 올리지 않습니다.
 
 ## 결과와 인수인계
 
-GDJ-0010 product commit `31d264ad7c85a23b511a7549d698c1c3b0577e92` 뒤
-contract-only 작업으로 활성화했습니다. 제품 실행 orchestrator를 구현하기 전에 Django의
-multi-migration commit/rollback 경계를 잠그며, 기존 57 passing과 static false-green
-baseline을 보존합니다.
+GDJ-0010 product commit `31d264ad7c85a23b511a7549d698c1c3b0577e92` 위에서 contract-only
+machine commit `b721bb6b81ba9a950558c288dcb1a78efd7ff9ab`을 만들었습니다. MIG-017..026은
+10 `oracle_locked`/Django 10 `observed`/static 10 `not_implemented`이며 제품 실행은 아직
+지원하지 않습니다. 총 reference contract는 67개지만 product `passing`은 기존 57개입니다.
+
+Manifest는 8,720 bytes, SHA-256
+`f414cd7a495f6e6765df06ca1427485ecc16a8d19c344f190f5f1421dc2a517d`, oracle은
+47,119 bytes, SHA-256
+`641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e`, static fixture는
+1,685 bytes, SHA-256
+`6416e6e9a854d78b94d4242e6ffd1ed3a72caf3c058e0d9c4a78b0690e1a7a04`입니다. 두
+random-hashseed process와 checked-in oracle이 byte-identical하고 최종 독립 감사에서
+P0–P3 finding이 없었습니다. 다음 work는 6 same + 4 atomic-reverse deviation 후보를
+실제 제품 결과로 검증해야 하며 10개 전부를 passing으로 가장하면 안 됩니다.

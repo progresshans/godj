@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-009
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-010
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -932,3 +932,79 @@ Fixture target/applied/dependency 변이는 echo된 전체 Result가 아니라 `
 거부합니다. 별도 mutation/property 감사는 ready-set 역순, target별 working-state reset,
 history bypass, SCC 선택, canonicalization과 state hardcode 변이를 모두 탐지했으며 최종
 독립 제품 감사에서 P0–P3 finding은 없었습니다.
+
+## EVID-20260808-010 — GDJ-0011 Migration Plan Execution Compatibility Contracts
+
+- Date/time: 2026-08-08T07:15:18+09:00
+- Work/contract IDs: GDJ-0011, META-001, META-002, MIG-017..MIG-026, Q-012
+- Checkout/commit: machine artifact와 gate가 clean `main` commit
+  `b721bb6b81ba9a950558c288dcb1a78efd7ff9ab`; 제품 code baseline은
+  `31d264ad7c85a23b511a7549d698c1c3b0577e92`. 검증 뒤 status/ADR/GDJ-0012 handoff
+  문서는 후속 미커밋 변경이었습니다.
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`; Go regression backend는 modernc SQLite 3.53.3
+- Exit status: `make check`, full uncached Go/race/CGO=0/vet, exact two-process generation,
+  existing product differential과 artifact/mutation audit가 0. Static execution fixture
+  비교는 의도한 exit 1, unsupported product execution은 의도한 exit 2/no output.
+- Result summary: MIG-017..026의 linear forward/backward, applied prefix/unrelated branch,
+  operation/recorder failure, mixed plan과 empty no-op를 여섯 번째 exact reference set으로
+  잠갔습니다. Manifest 10개는 `oracle_locked`, Django oracle 10개는 `observed`, static
+  fixture 10개는 `not_implemented`입니다. 기존 다섯 제품 adapter 57개는 계속 semantic
+  0-diff이며 총 reference 67개를 제품 pass로 세지 않습니다.
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python은 79 pass와 exact-only 7 skip,
+  exact Python은 79 pass였습니다. GitHub-hosted workflow는 push하지 않아 실행하지
+  않았고 migration execution GoDj product adapter/`ExecutePlan`은 아직 없습니다.
+- Artifacts: manifest 8,720 bytes SHA-256
+  `f414cd7a495f6e6765df06ca1427485ecc16a8d19c344f190f5f1421dc2a517d`; locked Django
+  oracle 47,119 bytes SHA-256
+  `641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e`; static fixture
+  1,685 bytes SHA-256
+  `6416e6e9a854d78b94d4242e6ffd1ed3a72caf3c058e0d9c4a78b0690e1a7a04`
+- Notes: External metrics는 connection summary와 compact ordered steps만 포함합니다. Raw
+  render/operation/recorder/transaction trace는 live runner assertion 내부입니다. Historical
+  before/after는 MIG-019에만 있고 MIG-023/024는
+  `fault_point=before_record_write`입니다. MIG-024는 schema A1, records A1/A2와 `commit`
+  phase를 재현했습니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+make godj-conformance
+git diff --check
+```
+
+`make check`는 format/generation, Go test/vet/race, focused CGO=0, portable/exact Python,
+여섯 manifest/oracle/static validation, exact oracle check와 기존 57 product differential을
+실행했습니다. Full uncached Go/race/CGO=0는 별도 명령으로 보강했습니다.
+
+두 독립 random-hashseed exact process는 migration-execution manifest를 각각 새 output으로
+생성했습니다. 두 output과 checked-in oracle은 모두 47,119 bytes이고 SHA-256이
+`641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e`로 byte-identical했습니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-execution-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json \
+  -actual conformance/fixtures/godj-migration-execution-not-implemented.json
+```
+
+이 명령은 의도한 exit 1과 MIG-017..026 ordered status mismatch 정확히 10개를 반환했습니다.
+같은 manifest를 product `godjcheck`에 넘기면 exit 2, stdout/actual output 0으로 fail-closed
+했습니다. 여섯 set의 ID/scenario는 전역으로 유일하고 30개 ordered cross-binding이 모두
+거부됐습니다.
+
+False-green gate는 step order/direction/status, `transaction_model`, schema/recorder
+outcome, MIG-019 historical transition, MIG-021/022 failed/not-started split, MIG-023/024
+fault point와 schema/record split, MIG-025 preserved state, MIG-026 empty/recorder absence를
+각각 변형했을 때 mismatch를 탐지했습니다. Raw trace에서 compact facts가 유도되는지와
+setup/cleanup isolation도 live Python test로 검증했습니다. 최종 독립 contract 감사에서
+P0–P3 finding은 없었습니다.
