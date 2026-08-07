@@ -27,11 +27,11 @@ proposed → ready → active → completed
 | [GDJ-0001](0001-compatibility-lab.md) | completed | Django 6.1 Compatibility Lab |
 | [GDJ-0002](0002-model-to-query-walking-skeleton.md) | completed | 첫 Model-to-Query 수직 단면 |
 | [GDJ-0003](0003-write-migration-compatibility-contracts.md) | completed | Write/Migration 호환 계약 확장 |
-| [GDJ-0004](0004-write-migration-walking-skeleton.md) | ready | Write/Migration 첫 제품 수직 단면 |
+| [GDJ-0004](0004-write-migration-walking-skeleton.md) | active | Write/Migration 첫 제품 수직 단면 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active
-항목은 없으며 다음 ready 항목은 GDJ-0004입니다.
+항목은 GDJ-0004이며 다음 ready 항목은 아직 정하지 않았습니다.
 
 ## 운영 규칙
 

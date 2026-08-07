@@ -1,9 +1,9 @@
 ---
 id: GDJ-0004
-status: ready
+status: active
 updated: 2026-08-08
-baseline_branch: ""
-baseline_commit: ""
+baseline_branch: "main"
+baseline_commit: "6e7c15a806ebf65e756372cd1d10e68ac629e207"
 depends_on: ["GDJ-0003"]
 contracts: ["MOD-001..MOD-007", "MIG-001..MIG-004"]
 allowed_paths: ["go.mod", "go.sum", "Makefile", "schema/**", "codegen/**", "orm/**", "query/**", "db/**", "migrations/**", "internal/**", "conformance/**", "examples/**", "docs/**", "work/**"]
@@ -99,6 +99,7 @@ Schema IR snapshot
 
 ## 재개 시 첫 작업
 
-GDJ-0003 완료 commit과 clean worktree를 baseline으로 기록합니다. 제품 package를 만들기
-전에 ADR-0009의 두 write API 후보와 ADR-0010 dependency graph를 외부 consumer fixture로
-compile해 첫 단면의 public 모양을 좁힙니다.
+`main@6e7c15a806ebf65e756372cd1d10e68ac629e207`의 clean worktree를 baseline으로
+기록했습니다. 제품 package를 만들기 전에 ADR-0009의 두 write API 후보와 ADR-0010
+dependency graph를 외부 consumer fixture로 compile해 첫 단면의 public 모양을
+좁힙니다.

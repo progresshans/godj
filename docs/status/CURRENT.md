@@ -5,10 +5,12 @@
 - 브랜치: `main`
 - 기준 구현 commit: `3e7c87839265e1b07b6d69f59f52e596623b1eb5`
   (`test: enforce Django scenario cleanup baseline`)
+- 활성 작업 baseline: `6e7c15a806ebf65e756372cd1d10e68ac629e207`
+  (`docs: record M2 contract handoff`)
 - remote: `https://github.com/progresshans/godj.git`, remote refs 없음
-- 현재 단계: M2 write/migration reference contract 완료, 제품 수직 단면 준비
-- 활성 작업: 없음
-- 다음 ready 작업: [GDJ-0004 Write/Migration Walking Skeleton](../../work/0004-write-migration-walking-skeleton.md)
+- 현재 단계: M2 write/migration 첫 제품 수직 단면
+- 활성 작업: [GDJ-0004 Write/Migration Walking Skeleton](../../work/0004-write-migration-walking-skeleton.md)
+- 다음 ready 작업: GDJ-0004 결과로 범위를 결정
 
 ## 현재 checkout에서 확인된 사실
 
@@ -76,16 +78,17 @@
 
 ## 다음 정확한 작업
 
-1. Clean checkout에서 GDJ-0004를 `active`로 바꾸고 이 handoff commit을 baseline으로 기록합니다.
-2. ADR-0009의 두 write API 후보를 external positive/negative compile fixture로 비교합니다.
-3. ADR-0010의 ProjectState/Operation/Executor dependency graph와 SQLite transaction 경계를
+1. ADR-0009의 두 write API 후보를 external positive/negative compile fixture로 비교합니다.
+2. ADR-0010의 ProjectState/Operation/Executor dependency graph와 SQLite transaction 경계를
    compile/runtime failure spike로 검증합니다.
-4. 결과에 따라 ADR-0009/0010을 Accepted로 올리거나 대안과 실패 근거를 기록한 뒤
+3. 결과에 따라 ADR-0009/0010을 Accepted로 올리거나 대안과 실패 근거를 기록한 뒤
    mutation plan과 product code를 구현합니다.
+4. MOD-001..007과 MIG-001..004 GoDj adapter를 연결해 locked oracle과 비교합니다.
 
 ## 작업 재개 체크포인트
 
 - 공개 framework API: M1 read subset만 검증됐고 write/migration API는 아직 Proposed
+- 활성 baseline: `main@6e7c15a806ebf65e756372cd1d10e68ac629e207`, 시작 시 clean
 - 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
