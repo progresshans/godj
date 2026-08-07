@@ -1,5 +1,5 @@
-// Command godjcheck executes the M1 GoDj observation adapter and compares its
-// results with a locked Django oracle.
+// Command godjcheck executes a GoDj observation adapter and compares its
+// results with the selected locked Django oracle.
 package main
 
 import (

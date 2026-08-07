@@ -1,7 +1,7 @@
-// Package godj executes the M1 GoDj walking skeleton against the locked
-// Django compatibility contracts. The suite embeds the locked Django profile
-// as its comparison target; it does not claim that the Go process itself is a
-// Django or CPython runtime.
+// Package godj executes GoDj product slices against the locked Django
+// compatibility contracts. The suite embeds the locked Django profile as its
+// comparison target; it does not claim that the Go process itself is a Django
+// or CPython runtime.
 package godj
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/protocol"
 )
 
-// Generate executes every manifest scenario in manifest order. Query
+// Generate executes every manifest scenario in manifest order. Stateful
 // scenarios provision an independent SQLite database so one observation
 // cannot inherit state from another.
 func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.Manifest) (protocol.ObservationSuite, error) {
@@ -77,6 +77,28 @@ func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Obse
 		return queryUnsupportedLookup(ctx, contract.ID)
 	case "django.schema.model_metadata":
 		return schemaModelMetadata(contract.ID)
+	case "django.model.create_auto_pk":
+		return modelCreateAutoPrimaryKey(ctx, contract.ID)
+	case "django.model.create_nullable_variants":
+		return modelCreateNullableVariants(ctx, contract.ID)
+	case "django.model.partial_update_omits_changed_field":
+		return modelPartialUpdateOmitted(ctx, contract.ID)
+	case "django.model.partial_update_explicit_null":
+		return modelPartialUpdateExplicitNull(ctx, contract.ID)
+	case "django.model.instance_delete":
+		return modelInstanceDelete(ctx, contract.ID)
+	case "django.transaction.atomic_commit":
+		return transactionAtomicCommit(ctx, contract.ID)
+	case "django.transaction.atomic_rollback":
+		return transactionAtomicRollback(ctx, contract.ID)
+	case "django.migration.create_model":
+		return migrationCreateModel(ctx, contract.ID)
+	case "django.migration.add_nullable_field":
+		return migrationAddNullableField(ctx, contract.ID)
+	case "django.migration.reverse_nullable_field":
+		return migrationReverseNullableField(ctx, contract.ID)
+	case "django.migration.atomic_failure":
+		return migrationAtomicFailure(ctx, contract.ID)
 	default:
 		return protocol.Observation{}, fmt.Errorf("unsupported scenario %q", contract.Scenario)
 	}

@@ -7,7 +7,7 @@
       "title": "Create assigns an auto primary key and persists explicit values",
       "scenario": "django.model.create_auto_pk",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -23,7 +23,7 @@
       "title": "Omitted and explicit NULL converge to NULL while empty string stays distinct",
       "scenario": "django.model.create_nullable_variants",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -45,7 +45,7 @@
       "title": "Partial update persists only named fields",
       "scenario": "django.model.partial_update_omits_changed_field",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -67,7 +67,7 @@
       "title": "Partial update can explicitly persist NULL",
       "scenario": "django.model.partial_update_explicit_null",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -95,7 +95,7 @@
       "title": "Instance delete returns a count, clears its key, and removes only that row",
       "scenario": "django.model.instance_delete",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -117,7 +117,7 @@
       "title": "A successful atomic block commits all writes",
       "scenario": "django.transaction.atomic_commit",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -139,7 +139,7 @@
       "title": "An error leaving an atomic block rolls back all writes",
       "scenario": "django.transaction.atomic_rollback",
       "phase": "rollback",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -161,7 +161,7 @@
       "title": "CreateModel commits schema state and an applied migration record",
       "scenario": "django.migration.create_model",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -189,7 +189,7 @@
       "title": "Nullable AddField preserves existing rows with NULL and records the migration",
       "scenario": "django.migration.add_nullable_field",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -217,7 +217,7 @@
       "title": "Reversing AddField removes the column and its migration record while preserving rows",
       "scenario": "django.migration.reverse_nullable_field",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -245,7 +245,7 @@
       "title": "An atomic migration operation failure rolls back schema and leaves the connection usable",
       "scenario": "django.migration.atomic_failure",
       "phase": "rollback",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

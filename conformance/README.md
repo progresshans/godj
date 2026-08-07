@@ -1,8 +1,9 @@
 # GoDj Compatibility Lab
 
 이 디렉터리는 Django reference profile, contract manifest, normalized observation,
-comparator, M0 codegen bootstrap spike와 M1 GoDj observation adapter를 보관합니다.
-GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract set을 추가했습니다.
+comparator, M0 codegen bootstrap spike와 GoDj observation adapter를 보관합니다.
+GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract set을 추가했고,
+GDJ-0004는 그 set을 실제 제품 package에 연결했습니다.
 제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
 package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -14,7 +15,7 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | `contracts/manifest.json` | M1 read/metadata contract 11개 |
 | `contracts/write-migration-manifest.json` | M2 write/transaction/migration contract 11개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 제품 package를 실행하는 GoDj observation adapter |
+| `runners/godj` | M1 read와 M2 write/migration 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -105,7 +106,7 @@ go run ./conformance/cmd/observationcmp \
   -actual path/to/godj-observation.json
 ```
 
-현재 GoDj 구현을 oracle과 직접 비교하려면 다음을 실행합니다.
+현재 GoDj read 구현을 oracle과 직접 비교하려면 다음을 실행합니다.
 
 ```bash
 go run ./conformance/cmd/godjcheck \
@@ -114,15 +115,24 @@ go run ./conformance/cmd/godjcheck \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
 ```
 
+Write/migration set도 같은 command에 두 번째 manifest와 oracle을 넘겨 직접 비교합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/write-migration-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json
+```
+
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
 false green이 생기지 않는지 검증합니다.
 
-Write/migration set은 현재 제품 구현 전 `oracle_locked`입니다. Django oracle과
-`godj-write-migration-not-implemented.json`을 비교하면 MOD-001..007, MIG-001..004가
-manifest 순서대로 정확히 11개의 status mismatch를 내야 합니다. 이는 실패해야 정상인
-false-green baseline이며 실행 가능한 GoDj adapter가 생기기 전에는 `red`로 올리지
-않습니다.
+Write/migration set은 GDJ-0004의 제한된 제품 수직 단면에서 `passing`입니다. Generated
+create/patch API, generic Manager write, SQLite transaction과 migration executor/editor/
+recorder를 실행해 MOD-001..007, MIG-001..004가 oracle과 일치합니다. Checked-in
+`godj-write-migration-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 것을
+지속적으로 확인하는 false-green fixture이며, 현재 GoDj 실행 결과를 뜻하지 않습니다.
 
 ## Provenance
 

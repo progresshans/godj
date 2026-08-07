@@ -36,6 +36,32 @@ func TestGenerateMatchesLockedDjangoOracle(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedWriteMigrationOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadWriteMigrationInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj write/migration suite differs from locked Django oracle in %d place(s)", len(differences))
+	}
+}
+
 func TestConstructionContractsAreObservedBeforeQueryIO(t *testing.T) {
 	t.Parallel()
 
@@ -94,6 +120,24 @@ func loadLockedInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protoc
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
 	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func loadWriteMigrationInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "write-migration-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "write-migration-oracle.json"))
 	if err != nil {
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}
