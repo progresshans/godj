@@ -13,6 +13,8 @@ from django.db.migrations.recorder import MigrationRecorder
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
     DEFAULT_MANIFEST,
+    DEFAULT_MIGRATION_PLANNING_MANIFEST,
+    DEFAULT_MIGRATION_PLANNING_ORACLE,
     DEFAULT_PROFILE,
     DEFAULT_QUERY_CACHE_MANIFEST,
     DEFAULT_QUERY_CACHE_ORACLE,
@@ -30,6 +32,9 @@ from conformance.runners.django.runner import (
 )
 from conformance.runners.django.save_lifecycle_scenarios import (
     SCENARIOS as SAVE_LIFECYCLE_SCENARIOS,
+)
+from conformance.runners.django.migration_planning_scenarios import (
+    SCENARIOS as MIGRATION_PLANNING_SCENARIOS,
 )
 from conformance.runners.django.query_cache_scenarios import (
     SCENARIOS as QUERY_CACHE_SCENARIOS,
@@ -119,6 +124,7 @@ class ScenarioTests(unittest.TestCase):
             WRITE_MIGRATION_SCENARIOS,
             SAVE_LIFECYCLE_SCENARIOS,
             QUERY_CACHE_SCENARIOS,
+            MIGRATION_PLANNING_SCENARIOS,
         ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
@@ -130,6 +136,7 @@ class ScenarioTests(unittest.TestCase):
             (DEFAULT_WRITE_MIGRATION_MANIFEST, WRITE_MIGRATION_SCENARIOS),
             (DEFAULT_SAVE_LIFECYCLE_MANIFEST, SAVE_LIFECYCLE_SCENARIOS),
             (DEFAULT_QUERY_CACHE_MANIFEST, QUERY_CACHE_SCENARIOS),
+            (DEFAULT_MIGRATION_PLANNING_MANIFEST, MIGRATION_PLANNING_SCENARIOS),
         )
         selected_across_sets = []
         contract_ids_across_sets = []
@@ -160,6 +167,7 @@ class ScenarioTests(unittest.TestCase):
             DEFAULT_WRITE_MIGRATION_MANIFEST,
             DEFAULT_SAVE_LIFECYCLE_MANIFEST,
             DEFAULT_QUERY_CACHE_MANIFEST,
+            DEFAULT_MIGRATION_PLANNING_MANIFEST,
         ):
             manifest = _load_json(manifest_path)
             self.assertEqual(
@@ -301,6 +309,26 @@ class ScenarioTests(unittest.TestCase):
             [contract["id"] for contract in manifest["contracts"]],
         )
         self.assertEqual(first, DEFAULT_QUERY_CACHE_ORACLE.read_bytes())
+
+    @unittest.skipUnless(
+        os.environ.get("GODJ_EXACT_PROFILE") == "1",
+        "requires the locked darwin/arm64 reference profile",
+    )
+    def test_migration_planning_suite_is_byte_deterministic_and_ordered(self) -> None:
+        first = canonical_json(
+            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_PLANNING_MANIFEST)
+        )
+        second = canonical_json(
+            generate_suite(DEFAULT_PROFILE, DEFAULT_MIGRATION_PLANNING_MANIFEST)
+        )
+        self.assertEqual(first, second)
+        manifest = _load_json(DEFAULT_MIGRATION_PLANNING_MANIFEST)
+        suite = json.loads(first)
+        self.assertEqual(
+            [contract["id"] for contract in suite["contracts"]],
+            [contract["id"] for contract in manifest["contracts"]],
+        )
+        self.assertEqual(first, DEFAULT_MIGRATION_PLANNING_ORACLE.read_bytes())
 
 
 if __name__ == "__main__":

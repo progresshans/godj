@@ -214,6 +214,7 @@ func TestCheckedInContractSetsAreGloballyDistinctAndRejectCrossBinding(t *testin
 		loadCheckedInContractSet(t, root, "write-migration", "write-migration-manifest.json", "write-migration-oracle.json"),
 		loadCheckedInContractSet(t, root, "save-lifecycle", "save-lifecycle-manifest.json", "save-lifecycle-oracle.json"),
 		loadCheckedInContractSet(t, root, "query-cache", "query-cache-manifest.json", "query-cache-oracle.json"),
+		loadCheckedInContractSet(t, root, "migration-planning", "migration-planning-manifest.json", "migration-planning-oracle.json"),
 	}
 
 	contractIDs := make(map[string]string)
@@ -248,8 +249,8 @@ func TestCheckedInContractSetsAreGloballyDistinctAndRejectCrossBinding(t *testin
 			})
 		}
 	}
-	if crossBindings != 12 {
-		t.Fatalf("checked %d ordered cross-set bindings, want 12", crossBindings)
+	if crossBindings != 20 {
+		t.Fatalf("checked %d ordered cross-set bindings, want 20", crossBindings)
 	}
 }
 

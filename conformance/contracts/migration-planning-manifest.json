@@ -1,0 +1,282 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-005",
+      "title": "A linear target plans every dependency before the target",
+      "scenario": "django.migration.plan.linear_forward",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-006",
+      "title": "Applied dependencies are pruned and a fully applied target has an empty plan",
+      "scenario": "django.migration.plan.applied_pruning",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_empty_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-007",
+      "title": "Planning to an unknown target fails without changing migration state",
+      "scenario": "django.migration.plan.missing_target",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.forwards_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_graph.py::GraphTests.test_plan_invalid_node",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-008",
+      "title": "A prior same-app target rolls back descendants but retains the target",
+      "scenario": "django.migration.plan.prior_target",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/migrations.txt#reversing-migrations",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-009",
+      "title": "An app zero target rolls back cross-app dependents before dependencies",
+      "scenario": "django.migration.plan.zero_with_dependents",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/django-admin.txt#migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-010",
+      "title": "Cross-app dependencies precede the forward target",
+      "scenario": "django.migration.plan.cross_app_forward",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.forwards_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_graph.py::GraphTests.test_simple_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-011",
+      "title": "Cross-app dependents precede their dependency in a backward plan",
+      "scenario": "django.migration.plan.cross_app_backward",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.backwards_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_graph.py::GraphTests.test_simple_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-012",
+      "title": "Ordered targets include a shared dependency once and preserve target order",
+      "scenario": "django.migration.plan.ordered_targets_shared_dependency",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.iterative_dfs",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-013",
+      "title": "Backward targeting starts from same-app children, removes their descendants, and retains valid other branches",
+      "scenario": "django.migration.plan.retained_other_branches",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorUnitTests.test_minimize_rollbacks",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorUnitTests.test_backwards_nothing_to_do",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-014",
+      "title": "Planning preflight rejects an applied migration whose dependency is unapplied",
+      "scenario": "django.migration.plan.inconsistent_history",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/migrations.txt#history-consistency",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.check_consistent_history",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_loader.py::LoaderTests.test_check_consistent_history",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-015",
+      "title": "Graph construction rejects a missing dependency node",
+      "scenario": "django.migration.plan.missing_dependency",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.build_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_graph.py::GraphTests.test_validate_consistency_missing_parent",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-016",
+      "title": "Graph construction rejects a dependency cycle without exposing traversal order",
+      "scenario": "django.migration.plan.dependency_cycle",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.ensure_not_cyclic",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_graph.py::GraphTests.test_circular_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    }
+  ]
+}
