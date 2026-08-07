@@ -15,6 +15,10 @@ const (
 	CodeInvalidValue      = "invalid_value"
 	CodeInvalidLimit      = "invalid_limit"
 	CodeInvalidPlan       = "invalid_plan"
+	CodeRequiredField     = "required_field"
+	CodeEmptyPatch        = "empty_patch"
+	CodeMissingPrimaryKey = "missing_primary_key"
+	CodeUnexpectedRows    = "unexpected_rows_affected"
 	CodeUnsupported       = "unsupported_feature"
 )
 

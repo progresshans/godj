@@ -88,9 +88,13 @@ func TestGeneratedDescriptorMetadataIsAnIndependentCopy(t *testing.T) {
 	descriptor := models.ArticleDescriptor{}
 	first := descriptor.Metadata()
 	first.Fields[0].Name = "changed"
+	first.Fields[2].Default.Boolean = true
 	second := descriptor.Metadata()
 	if second.Fields[0].Name != "id" {
 		t.Fatalf("descriptor metadata was mutable: %#v", second.Fields[0])
+	}
+	if second.Fields[2].Default == nil || second.Fields[2].Default.Boolean {
+		t.Fatalf("descriptor default metadata was mutable: %#v", second.Fields[2].Default)
 	}
 }
 

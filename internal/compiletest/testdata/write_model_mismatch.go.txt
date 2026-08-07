@@ -1,0 +1,14 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+func acceptOther(input orm.CreateInput[Other]) {}
+
+func misuse() {
+	acceptOther(models.NewArticleCreate("Created"))
+}

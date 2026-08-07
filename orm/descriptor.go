@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -14,6 +15,17 @@ import (
 type ModelDescriptor[M any] interface {
 	Metadata() ir.Model
 	Scan(db.Row) (M, error)
+}
+
+// WriteDescriptor is an optional generated capability layered on the M1 read
+// descriptor. Keeping it separate preserves read-only user descriptors while
+// making auto-key presence explicit for create, update, and delete.
+type WriteDescriptor[M any] interface {
+	ModelDescriptor[M]
+	PrimaryKey(M) (query.Value, bool)
+	SetPrimaryKey(*M, int64)
+	ClearPrimaryKey(*M)
+	WriteFieldValue(M, ir.Field) (query.Value, bool)
 }
 
 // descriptorIsNil handles both a nil interface and an interface containing a

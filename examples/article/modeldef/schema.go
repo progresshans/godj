@@ -14,7 +14,7 @@ var Definition = schema.Definition{
 		GoName: "Article",
 		Fields: []schema.Field{
 			schema.CharField("title", "Title", 200),
-			schema.BooleanField("published", "Published"),
+			schema.BooleanField("published", "Published", schema.Default(false)),
 			schema.CharField("summary", "Summary", 200, schema.Nullable()),
 		},
 	}},

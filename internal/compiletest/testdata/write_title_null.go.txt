@@ -1,0 +1,5 @@
+package consumer
+
+import "github.com/progresshans/godj/examples/article/models"
+
+var _ = models.NewArticleCreate("Created").WithTitleNull()

@@ -37,6 +37,12 @@ func TestGenerateIsDeterministicAndContainsProvenance(t *testing.T) {
 		[]byte(codegen.GeneratorVersion),
 		[]byte("type Article struct"),
 		[]byte("var _ orm.ModelDescriptor[Article]"),
+		[]byte("var _ orm.WriteDescriptor[Article]"),
+		[]byte("type ArticleCreate struct"),
+		[]byte("type ArticlePatch struct"),
+		[]byte("WithSummaryNull"),
+		[]byte("BuildCreate() orm.Mutation[Article]"),
+		[]byte("Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}"),
 		[]byte("*string"),
 	} {
 		if !bytes.Contains(first, fragment) {
@@ -172,5 +178,66 @@ func TestGenerateRejectsInvalidSchemaBeforeWrite(t *testing.T) {
 	_, err := schema.Build(schema.Definition{AppLabel: "bad-label"})
 	if err == nil {
 		t.Fatal("Build() accepted invalid schema")
+	}
+}
+
+func TestGenerateRejectsDerivedWriteNameCollisions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		fields []schema.Field
+	}{
+		{
+			name: "nullable null method",
+			fields: []schema.Field{
+				schema.CharField("foo", "Foo", 20, schema.Nullable()),
+				schema.CharField("foo_null", "FooNull", 20),
+			},
+		},
+		{
+			name: "private keyword storage",
+			fields: []schema.Field{
+				schema.CharField("type", "Type", 20),
+				schema.CharField("type_value", "TypeValue", 20),
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			irSchema, err := schema.Build(schema.Definition{
+				AppLabel: "collision",
+				Models:   []schema.Model{{Name: "record", GoName: "Record", Fields: test.fields}},
+			})
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
+			if _, err := codegen.Generate("models", irSchema); err == nil {
+				t.Fatal("Generate() accepted derived write name collision")
+			}
+		})
+	}
+}
+
+func TestGenerateRejectsFixedPackageSymbolCollisions(t *testing.T) {
+	t.Parallel()
+
+	for _, modelName := range []string{"GoDjGeneratorVersion", "GoDjSchemaSHA256"} {
+		t.Run(modelName, func(t *testing.T) {
+			irSchema, err := schema.Build(schema.Definition{
+				AppLabel: "collision",
+				Models: []schema.Model{{
+					Name:   "record",
+					GoName: modelName,
+					Fields: []schema.Field{schema.CharField("title", "Title", 20)},
+				}},
+			})
+			if err != nil {
+				t.Fatalf("Build() error = %v", err)
+			}
+			if _, err := codegen.Generate("models", irSchema); err == nil {
+				t.Fatalf("Generate() accepted model name %s that collides with a fixed package symbol", modelName)
+			}
+		})
 	}
 }

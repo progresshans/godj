@@ -1,0 +1,40 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/examples/article/models"
+)
+
+func WriteArticle(ctx context.Context, backend db.Mutator) error {
+	created, err := models.ArticleObjects.Create(
+		ctx,
+		backend,
+		models.NewArticleCreate("Created").WithPublished(false).WithSummary(""),
+	)
+	if err != nil {
+		return err
+	}
+	updated, err := models.ArticleObjects.Update(
+		ctx,
+		backend,
+		created,
+		models.ArticlePatch{}.WithSummaryNull(),
+	)
+	if err != nil {
+		return err
+	}
+	_, err = models.ArticleObjects.Delete(ctx, backend, &updated)
+	return err
+}
+
+func WriteArticleAtomically(ctx context.Context, backend interface {
+	db.Mutator
+	db.Atomic
+}) error {
+	return backend.Atomic(ctx, func(session db.Session) error {
+		_, err := models.ArticleObjects.Create(ctx, session, models.NewArticleCreate("Atomic"))
+		return err
+	})
+}

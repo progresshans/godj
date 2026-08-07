@@ -137,6 +137,11 @@ func normalizeModel(model *Model, path string) error {
 }
 
 func validateField(field Field, path string) error {
+	if field.Default != nil {
+		if err := validateScalarDefault(*field.Default, path+".default"); err != nil {
+			return err
+		}
+	}
 	switch field.Kind {
 	case FieldAuto:
 		if !field.PrimaryKey {
@@ -148,12 +153,23 @@ func validateField(field Field, path string) error {
 		if field.MaxLength != 0 {
 			return validation(path+".max_length", "unsupported", "AutoField has no max length")
 		}
+		if field.Default != nil {
+			return validation(path+".default", "unsupported", "AutoField default is database generated")
+		}
 	case FieldChar:
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "M1 supports only AutoField primary keys")
 		}
 		if field.MaxLength <= 0 {
 			return validation(path+".max_length", "invalid", "CharField max length must be positive")
+		}
+		if field.Default != nil {
+			if field.Default.Kind != ScalarString {
+				return validation(path+".default", "type_mismatch", "CharField default must be a string")
+			}
+			if utf8.RuneCountInString(field.Default.String) > field.MaxLength {
+				return validation(path+".default", "max_length", "CharField default exceeds max length")
+			}
 		}
 	case FieldBoolean:
 		if field.PrimaryKey {
@@ -165,8 +181,34 @@ func validateField(field Field, path string) error {
 		if field.MaxLength != 0 {
 			return validation(path+".max_length", "unsupported", "BooleanField has no max length")
 		}
+		if field.Default != nil && field.Default.Kind != ScalarBoolean {
+			return validation(path+".default", "type_mismatch", "BooleanField default must be a boolean")
+		}
 	default:
 		return validation(path+".kind", "unsupported_field_kind", string(field.Kind))
+	}
+	return nil
+}
+
+func validateScalarDefault(value ScalarDefault, path string) error {
+	switch value.Kind {
+	case ScalarString:
+		if !utf8.ValidString(value.String) {
+			return validation(path, "invalid_utf8", "string default must contain valid UTF-8")
+		}
+		if value.Boolean || value.Integer != 0 {
+			return validation(path, "invalid_scalar", "string default carries another scalar payload")
+		}
+	case ScalarBoolean:
+		if value.String != "" || value.Integer != 0 {
+			return validation(path, "invalid_scalar", "boolean default carries another scalar payload")
+		}
+	case ScalarInteger:
+		if value.String != "" || value.Boolean {
+			return validation(path, "invalid_scalar", "integer default carries another scalar payload")
+		}
+	default:
+		return validation(path+".kind", "unsupported_scalar_kind", string(value.Kind))
 	}
 	return nil
 }

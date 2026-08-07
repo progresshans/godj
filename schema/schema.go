@@ -24,6 +24,7 @@ type Field struct {
 	Kind      ir.FieldKind
 	Nullable  bool
 	MaxLength int
+	Default   *ir.ScalarDefault
 }
 
 type FieldOption func(*Field)
@@ -37,6 +38,26 @@ func Nullable() FieldOption {
 func Column(name string) FieldOption {
 	return func(field *Field) {
 		field.Column = name
+	}
+}
+
+// Default records an explicitly typed application default. Exact scalar
+// types keep the declaration surface small for the M2 field subset while
+// preserving false and empty string as present values in Schema IR v2.
+type DefaultScalar interface {
+	string | bool | int64
+}
+
+func Default[T DefaultScalar](value T) FieldOption {
+	return func(field *Field) {
+		switch typed := any(value).(type) {
+		case string:
+			field.Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: typed}
+		case bool:
+			field.Default = &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: typed}
+		case int64:
+			field.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: typed}
+		}
 	}
 }
 
@@ -66,6 +87,11 @@ func Build(definition Definition) (ir.Schema, error) {
 			Fields:  make([]ir.Field, len(model.Fields)),
 		}
 		for fieldIndex, field := range model.Fields {
+			var defaultValue *ir.ScalarDefault
+			if field.Default != nil {
+				copy := *field.Default
+				defaultValue = &copy
+			}
 			result.Models[modelIndex].Fields[fieldIndex] = ir.Field{
 				Name:       field.Name,
 				GoName:     field.GoName,
@@ -74,6 +100,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				PrimaryKey: field.Kind == ir.FieldAuto,
 				Nullable:   field.Nullable,
 				MaxLength:  field.MaxLength,
+				Default:    defaultValue,
 			}
 		}
 	}

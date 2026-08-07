@@ -6,22 +6,26 @@ import (
 	"database/sql"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-m1-v1"
-const GoDjSchemaSHA256 = "745a63388b268f0ff1331e516473a73655563b3a7ca77f5c1005b0aeb16677b2"
+const GoDjGeneratorVersion = "godj-codegen-m2-v1"
+const GoDjSchemaSHA256 = "b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621"
 
 type Article struct {
-	ID        int64
-	Title     string
-	Published bool
-	Summary   *string
+	ID                    int64
+	Title                 string
+	Published             bool
+	Summary               *string
+	godjPrimaryKeyPresent bool
 }
 
 type ArticleDescriptor struct{}
 
 var _ orm.ModelDescriptor[Article] = ArticleDescriptor{}
+
+var _ orm.WriteDescriptor[Article] = ArticleDescriptor{}
 
 func (ArticleDescriptor) Metadata() ir.Model {
 	return articleMetadata()
@@ -37,7 +41,40 @@ func (ArticleDescriptor) Scan(row db.Row) (Article, error) {
 		scanned := scanSummary.String
 		value.Summary = &scanned
 	}
+	value.godjPrimaryKeyPresent = true
 	return value, nil
+}
+
+func (ArticleDescriptor) PrimaryKey(value Article) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (ArticleDescriptor) SetPrimaryKey(value *Article, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (ArticleDescriptor) ClearPrimaryKey(value *Article) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (ArticleDescriptor) WriteFieldValue(value Article, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "title":
+		return query.String(value.Title), true
+	case "published":
+		return query.Boolean(value.Published), true
+	case "summary":
+		if value.Summary == nil {
+			return query.Null(), true
+		}
+		return query.String(*value.Summary), true
+	default:
+		return query.Value{}, false
+	}
 }
 
 type ArticleFieldSet struct {
@@ -58,6 +95,141 @@ var ArticleFields = func() ArticleFieldSet {
 }()
 
 var ArticleObjects = orm.NewManager[Article](ArticleDescriptor{})
+
+type ArticleCreate struct {
+	title     orm.Change[string]
+	published orm.Change[bool]
+	summary   orm.NullableChange[string]
+}
+
+func NewArticleCreate(title string) ArticleCreate {
+	return ArticleCreate{
+		title: orm.Set(title),
+	}
+}
+
+func (input ArticleCreate) WithTitle(value string) ArticleCreate {
+	input.title = orm.Set(value)
+	return input
+}
+
+func (input ArticleCreate) WithPublished(value bool) ArticleCreate {
+	input.published = orm.Set(value)
+	return input
+}
+
+func (input ArticleCreate) WithSummary(value string) ArticleCreate {
+	input.summary = orm.SetNullable(value)
+	return input
+}
+
+func (input ArticleCreate) WithSummaryNull() ArticleCreate {
+	input.summary = orm.SetNull[string]()
+	return input
+}
+
+func (input ArticleCreate) BuildCreate() orm.Mutation[Article] {
+	metadata := articleMetadata()
+	var value Article
+	assignments := make([]query.Assignment, 0, 3)
+	changedTitle, changedTitleSet := input.title.Get()
+	if !changedTitleSet {
+		return orm.InvalidMutation[Article](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "title",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.Title = changedTitle
+	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedTitle)))
+	changedPublished, changedPublishedSet := input.published.Get()
+	if !changedPublishedSet {
+		changedPublished = false
+	}
+	value.Published = changedPublished
+	assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Boolean(changedPublished)))
+	changedSummary, changedSummaryState := input.summary.Get()
+	switch changedSummaryState {
+	case orm.NullableChangeUnset:
+		value.Summary = nil
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+	case orm.NullableChangeValue:
+		storedSummary := changedSummary
+		value.Summary = &storedSummary
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.String(changedSummary)))
+	case orm.NullableChangeNull:
+		value.Summary = nil
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+	default:
+		return orm.InvalidMutation[Article](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "summary",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+}
+
+type ArticlePatch struct {
+	title     orm.Change[string]
+	published orm.Change[bool]
+	summary   orm.NullableChange[string]
+}
+
+func (input ArticlePatch) WithTitle(value string) ArticlePatch {
+	input.title = orm.Set(value)
+	return input
+}
+
+func (input ArticlePatch) WithPublished(value bool) ArticlePatch {
+	input.published = orm.Set(value)
+	return input
+}
+
+func (input ArticlePatch) WithSummary(value string) ArticlePatch {
+	input.summary = orm.SetNullable(value)
+	return input
+}
+
+func (input ArticlePatch) WithSummaryNull() ArticlePatch {
+	input.summary = orm.SetNull[string]()
+	return input
+}
+
+func (input ArticlePatch) BuildPatch(current Article) orm.Mutation[Article] {
+	metadata := articleMetadata()
+	value := current
+	assignments := make([]query.Assignment, 0, 3)
+	if changedTitle, ok := input.title.Get(); ok {
+		value.Title = changedTitle
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.String(changedTitle)))
+	}
+	if changedPublished, ok := input.published.Get(); ok {
+		value.Published = changedPublished
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Boolean(changedPublished)))
+	}
+	changedSummary, changedSummaryState := input.summary.Get()
+	switch changedSummaryState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedSummary := changedSummary
+		value.Summary = &storedSummary
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.String(changedSummary)))
+	case orm.NullableChangeNull:
+		value.Summary = nil
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[3], query.Null()))
+	default:
+		return orm.InvalidMutation[Article](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "summary",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+}
 
 func articleMetadata() ir.Model {
 	return ir.Model{
@@ -80,10 +252,11 @@ func articleMetadata() ir.Model {
 				MaxLength: 200,
 			},
 			{
-				Name:   "published",
-				GoName: "Published",
-				Column: "published",
-				Kind:   ir.FieldBoolean,
+				Name:    "published",
+				GoName:  "Published",
+				Column:  "published",
+				Kind:    ir.FieldBoolean,
+				Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
 			},
 			{
 				Name:      "summary",

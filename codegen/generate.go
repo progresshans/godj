@@ -15,7 +15,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GeneratorVersion = "godj-codegen-m1-v1"
+const GeneratorVersion = "godj-codegen-m2-v1"
 
 func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	if !token.IsIdentifier(packageName) || token.Lookup(packageName).IsKeyword() {
@@ -24,6 +24,9 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	schema, err := ir.Normalize(input)
 	if err != nil {
 		return nil, fmt.Errorf("normalize codegen schema: %w", err)
+	}
+	if err := validateGeneratedNames(schema); err != nil {
+		return nil, fmt.Errorf("validate generated names: %w", err)
 	}
 	hash, err := ir.Hash(schema)
 	if err != nil {
@@ -40,6 +43,7 @@ func Generate(packageName string, input ir.Schema) ([]byte, error) {
 	}
 	fmt.Fprintln(&output, "\t\"github.com/progresshans/godj/db\"")
 	fmt.Fprintln(&output, "\t\"github.com/progresshans/godj/orm\"")
+	fmt.Fprintln(&output, "\t\"github.com/progresshans/godj/query\"")
 	fmt.Fprintln(&output, "\t\"github.com/progresshans/godj/schema/ir\"")
 	fmt.Fprintln(&output, ")")
 	fmt.Fprintln(&output)
@@ -62,6 +66,9 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	for _, field := range model.Fields {
 		fmt.Fprintf(output, "\t%s %s\n", field.GoName, goType(field))
 	}
+	if _, ok := primaryKey(model); ok {
+		fmt.Fprintln(output, "\tgodjPrimaryKeyPresent bool")
+	}
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 
@@ -73,6 +80,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 
 	fmt.Fprintf(output, "type %s struct{}\n\n", descriptorName)
 	fmt.Fprintf(output, "var _ orm.ModelDescriptor[%s] = %s{}\n\n", model.GoName, descriptorName)
+	fmt.Fprintf(output, "var _ orm.WriteDescriptor[%s] = %s{}\n\n", model.GoName, descriptorName)
 	fmt.Fprintf(output, "func (%s) Metadata() ir.Model {\n\treturn %s()\n}\n\n", descriptorName, metadataFunction)
 	fmt.Fprintf(output, "func (%s) Scan(row db.Row) (%s, error) {\n", descriptorName, model.GoName)
 	fmt.Fprintf(output, "\tvar value %s\n", model.GoName)
@@ -101,7 +109,46 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 			fmt.Fprintln(output, "\t}")
 		}
 	}
+	if _, ok := primaryKey(model); ok {
+		fmt.Fprintln(output, "\tvalue.godjPrimaryKeyPresent = true")
+	}
 	fmt.Fprintln(output, "\treturn value, nil")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+
+	if key, ok := primaryKey(model); ok {
+		fmt.Fprintf(output, "func (%s) PrimaryKey(value %s) (query.Value, bool) {\n", descriptorName, model.GoName)
+		fmt.Fprintf(output, "\treturn query.Integer(value.%s), value.godjPrimaryKeyPresent\n", key.GoName)
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+		fmt.Fprintf(output, "func (%s) SetPrimaryKey(value *%s, key int64) {\n", descriptorName, model.GoName)
+		fmt.Fprintf(output, "\tvalue.%s = key\n", key.GoName)
+		fmt.Fprintln(output, "\tvalue.godjPrimaryKeyPresent = true")
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+		fmt.Fprintf(output, "func (%s) ClearPrimaryKey(value *%s) {\n", descriptorName, model.GoName)
+		fmt.Fprintf(output, "\tvalue.%s = 0\n", key.GoName)
+		fmt.Fprintln(output, "\tvalue.godjPrimaryKeyPresent = false")
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+	}
+
+	fmt.Fprintf(output, "func (%s) WriteFieldValue(value %s, field ir.Field) (query.Value, bool) {\n", descriptorName, model.GoName)
+	fmt.Fprintln(output, "\tswitch field.Name {")
+	for _, field := range model.Fields {
+		fmt.Fprintf(output, "\tcase %s:\n", strconv.Quote(field.Name))
+		if field.Kind == ir.FieldChar && field.Nullable {
+			fmt.Fprintf(output, "\t\tif value.%s == nil {\n", field.GoName)
+			fmt.Fprintln(output, "\t\t\treturn query.Null(), true")
+			fmt.Fprintln(output, "\t\t}")
+			fmt.Fprintf(output, "\t\treturn query.String(*value.%s), true\n", field.GoName)
+			continue
+		}
+		fmt.Fprintf(output, "\t\treturn %s, true\n", queryValueExpression(field, "value."+field.GoName))
+	}
+	fmt.Fprintln(output, "\tdefault:")
+	fmt.Fprintln(output, "\t\treturn query.Value{}, false")
+	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 
@@ -121,6 +168,7 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 	fmt.Fprintln(output, "}()")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "var %s = orm.NewManager[%s](%s{})\n\n", objectsName, model.GoName, descriptorName)
+	renderWriteInputs(output, model, metadataFunction)
 
 	fmt.Fprintf(output, "func %s() ir.Model {\n", metadataFunction)
 	fmt.Fprintln(output, "\treturn ir.Model{")
@@ -143,12 +191,281 @@ func renderModel(output *bytes.Buffer, model ir.Model) {
 		if field.MaxLength != 0 {
 			fmt.Fprintf(output, "\t\t\t\tMaxLength: %d,\n", field.MaxLength)
 		}
+		if field.Default != nil {
+			fmt.Fprintf(output, "\t\t\t\tDefault: %s,\n", defaultLiteral(*field.Default))
+		}
 		fmt.Fprintln(output, "\t\t\t},")
 	}
 	fmt.Fprintln(output, "\t\t},")
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+}
+
+func renderWriteInputs(output *bytes.Buffer, model ir.Model, metadataFunction string) {
+	fields := writableFields(model)
+	createName := model.GoName + "Create"
+	patchName := model.GoName + "Patch"
+
+	renderWriteInputType(output, createName, fields)
+	required := requiredCreateFields(fields)
+	fmt.Fprintf(output, "func New%sCreate(", model.GoName)
+	for index, field := range required {
+		if index > 0 {
+			fmt.Fprint(output, ", ")
+		}
+		fmt.Fprintf(output, "%s %s", privateName(field.GoName), scalarGoType(field))
+	}
+	fmt.Fprintf(output, ") %s {\n", createName)
+	if len(required) == 0 {
+		fmt.Fprintf(output, "\treturn %s{}\n", createName)
+	} else {
+		fmt.Fprintf(output, "\treturn %s{\n", createName)
+		for _, field := range required {
+			fmt.Fprintf(output, "\t\t%s: orm.Set(%s),\n", privateName(field.GoName), privateName(field.GoName))
+		}
+		fmt.Fprintln(output, "\t}")
+	}
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	renderWriteWithMethods(output, createName, fields)
+	renderBuildCreate(output, model, createName, metadataFunction, fields)
+
+	renderWriteInputType(output, patchName, fields)
+	renderWriteWithMethods(output, patchName, fields)
+	renderBuildPatch(output, model, patchName, metadataFunction, fields)
+}
+
+func renderWriteInputType(output *bytes.Buffer, typeName string, fields []ir.Field) {
+	fmt.Fprintf(output, "type %s struct {\n", typeName)
+	for _, field := range fields {
+		wrapper := "orm.Change"
+		if field.Nullable {
+			wrapper = "orm.NullableChange"
+		}
+		fmt.Fprintf(output, "\t%s %s[%s]\n", privateName(field.GoName), wrapper, scalarGoType(field))
+	}
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+}
+
+func renderWriteWithMethods(output *bytes.Buffer, typeName string, fields []ir.Field) {
+	for _, field := range fields {
+		fieldName := privateName(field.GoName)
+		fmt.Fprintf(output, "func (input %s) With%s(value %s) %s {\n", typeName, field.GoName, scalarGoType(field), typeName)
+		if field.Nullable {
+			fmt.Fprintf(output, "\tinput.%s = orm.SetNullable(value)\n", fieldName)
+		} else {
+			fmt.Fprintf(output, "\tinput.%s = orm.Set(value)\n", fieldName)
+		}
+		fmt.Fprintln(output, "\treturn input")
+		fmt.Fprintln(output, "}")
+		fmt.Fprintln(output)
+		if field.Nullable {
+			fmt.Fprintf(output, "func (input %s) With%sNull() %s {\n", typeName, field.GoName, typeName)
+			fmt.Fprintf(output, "\tinput.%s = orm.SetNull[%s]()\n", fieldName, scalarGoType(field))
+			fmt.Fprintln(output, "\treturn input")
+			fmt.Fprintln(output, "}")
+			fmt.Fprintln(output)
+		}
+	}
+}
+
+func renderBuildCreate(output *bytes.Buffer, model ir.Model, typeName, metadataFunction string, fields []ir.Field) {
+	fmt.Fprintf(output, "func (input %s) BuildCreate() orm.Mutation[%s] {\n", typeName, model.GoName)
+	fmt.Fprintf(output, "\tmetadata := %s()\n", metadataFunction)
+	fmt.Fprintf(output, "\tvar value %s\n", model.GoName)
+	fmt.Fprintf(output, "\tassignments := make([]query.Assignment, 0, %d)\n", len(fields))
+	for _, field := range fields {
+		metadataIndex := fieldPosition(model, field)
+		inputName := privateName(field.GoName)
+		changedName := "changed" + field.GoName
+		if !field.Nullable {
+			fmt.Fprintf(output, "\t%s, %sSet := input.%s.Get()\n", changedName, changedName, inputName)
+			if field.Default == nil {
+				fmt.Fprintf(output, "\tif !%sSet {\n", changedName)
+				renderRequiredFieldError(output, model.GoName, field, "\t\t")
+				fmt.Fprintln(output, "\t}")
+			} else {
+				fmt.Fprintf(output, "\tif !%sSet {\n", changedName)
+				fmt.Fprintf(output, "\t\t%s = %s\n", changedName, defaultValueExpression(*field.Default))
+				fmt.Fprintln(output, "\t}")
+			}
+			fmt.Fprintf(output, "\tvalue.%s = %s\n", field.GoName, changedName)
+			fmt.Fprintf(output, "\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], %s))\n", metadataIndex, queryValueExpression(field, changedName))
+			continue
+		}
+
+		fmt.Fprintf(output, "\t%s, %sState := input.%s.Get()\n", changedName, changedName, inputName)
+		fmt.Fprintf(output, "\tswitch %sState {\n", changedName)
+		fmt.Fprintln(output, "\tcase orm.NullableChangeUnset:")
+		if field.Default == nil {
+			fmt.Fprintf(output, "\t\tvalue.%s = nil\n", field.GoName)
+			fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], query.Null()))\n", metadataIndex)
+		} else {
+			fmt.Fprintf(output, "\t\tdefault%s := %s\n", field.GoName, defaultValueExpression(*field.Default))
+			fmt.Fprintf(output, "\t\tvalue.%s = &default%s\n", field.GoName, field.GoName)
+			fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], %s))\n", metadataIndex, queryValueExpression(field, "default"+field.GoName))
+		}
+		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
+		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
+		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
+		fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], %s))\n", metadataIndex, queryValueExpression(field, changedName))
+		fmt.Fprintln(output, "\tcase orm.NullableChangeNull:")
+		fmt.Fprintf(output, "\t\tvalue.%s = nil\n", field.GoName)
+		fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], query.Null()))\n", metadataIndex)
+		fmt.Fprintln(output, "\tdefault:")
+		renderInvalidChangeState(output, model.GoName, field, "\t\t")
+		fmt.Fprintln(output, "\t}")
+	}
+	fmt.Fprintln(output, "\treturn orm.NewCreateMutation(value, metadata.DBTable, assignments)")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+}
+
+func renderBuildPatch(output *bytes.Buffer, model ir.Model, typeName, metadataFunction string, fields []ir.Field) {
+	fmt.Fprintf(output, "func (input %s) BuildPatch(current %s) orm.Mutation[%s] {\n", typeName, model.GoName, model.GoName)
+	fmt.Fprintf(output, "\tmetadata := %s()\n", metadataFunction)
+	fmt.Fprintln(output, "\tvalue := current")
+	fmt.Fprintf(output, "\tassignments := make([]query.Assignment, 0, %d)\n", len(fields))
+	for _, field := range fields {
+		metadataIndex := fieldPosition(model, field)
+		inputName := privateName(field.GoName)
+		changedName := "changed" + field.GoName
+		if !field.Nullable {
+			fmt.Fprintf(output, "\tif %s, ok := input.%s.Get(); ok {\n", changedName, inputName)
+			fmt.Fprintf(output, "\t\tvalue.%s = %s\n", field.GoName, changedName)
+			fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], %s))\n", metadataIndex, queryValueExpression(field, changedName))
+			fmt.Fprintln(output, "\t}")
+			continue
+		}
+
+		fmt.Fprintf(output, "\t%s, %sState := input.%s.Get()\n", changedName, changedName, inputName)
+		fmt.Fprintf(output, "\tswitch %sState {\n", changedName)
+		fmt.Fprintln(output, "\tcase orm.NullableChangeUnset:")
+		fmt.Fprintln(output, "\tcase orm.NullableChangeValue:")
+		fmt.Fprintf(output, "\t\tstored%s := %s\n", field.GoName, changedName)
+		fmt.Fprintf(output, "\t\tvalue.%s = &stored%s\n", field.GoName, field.GoName)
+		fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], %s))\n", metadataIndex, queryValueExpression(field, changedName))
+		fmt.Fprintln(output, "\tcase orm.NullableChangeNull:")
+		fmt.Fprintf(output, "\t\tvalue.%s = nil\n", field.GoName)
+		fmt.Fprintf(output, "\t\tassignments = append(assignments, orm.NewAssignment(metadata.Fields[%d], query.Null()))\n", metadataIndex)
+		fmt.Fprintln(output, "\tdefault:")
+		renderInvalidChangeState(output, model.GoName, field, "\t\t")
+		fmt.Fprintln(output, "\t}")
+	}
+	fmt.Fprintln(output, "\treturn orm.NewPatchMutation(value, metadata.DBTable, assignments)")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+}
+
+func renderRequiredFieldError(output *bytes.Buffer, modelName string, field ir.Field, indent string) {
+	fmt.Fprintf(output, "%sreturn orm.InvalidMutation[%s](&query.Error{\n", indent, modelName)
+	fmt.Fprintf(output, "%s\tCategory: query.CategoryField,\n", indent)
+	fmt.Fprintf(output, "%s\tCode: query.CodeRequiredField,\n", indent)
+	fmt.Fprintf(output, "%s\tField: %s,\n", indent, strconv.Quote(field.Name))
+	fmt.Fprintf(output, "%s\tDetail: \"required create field is omitted\",\n", indent)
+	fmt.Fprintf(output, "%s})\n", indent)
+}
+
+func renderInvalidChangeState(output *bytes.Buffer, modelName string, field ir.Field, indent string) {
+	fmt.Fprintf(output, "%sreturn orm.InvalidMutation[%s](&query.Error{\n", indent, modelName)
+	fmt.Fprintf(output, "%s\tCategory: query.CategoryQuery,\n", indent)
+	fmt.Fprintf(output, "%s\tCode: query.CodeInvalidPlan,\n", indent)
+	fmt.Fprintf(output, "%s\tField: %s,\n", indent, strconv.Quote(field.Name))
+	fmt.Fprintf(output, "%s\tDetail: \"unknown nullable change state\",\n", indent)
+	fmt.Fprintf(output, "%s})\n", indent)
+}
+
+func writableFields(model ir.Model) []ir.Field {
+	fields := make([]ir.Field, 0, len(model.Fields))
+	for _, field := range model.Fields {
+		if !field.PrimaryKey {
+			fields = append(fields, field)
+		}
+	}
+	return fields
+}
+
+func fieldPosition(model ir.Model, candidate ir.Field) int {
+	for index, field := range model.Fields {
+		if field.Name == candidate.Name {
+			return index
+		}
+	}
+	return -1
+}
+
+func requiredCreateFields(fields []ir.Field) []ir.Field {
+	required := make([]ir.Field, 0, len(fields))
+	for _, field := range fields {
+		if !field.Nullable && field.Default == nil {
+			required = append(required, field)
+		}
+	}
+	return required
+}
+
+func primaryKey(model ir.Model) (ir.Field, bool) {
+	for _, field := range model.Fields {
+		if field.PrimaryKey {
+			return field, true
+		}
+	}
+	return ir.Field{}, false
+}
+
+func scalarGoType(field ir.Field) string {
+	scalar := field
+	scalar.Nullable = false
+	return goType(scalar)
+}
+
+func privateName(goName string) string {
+	name := lowerFirst(goName)
+	if token.Lookup(name).IsKeyword() {
+		return name + "Value"
+	}
+	return name
+}
+
+func queryValueExpression(field ir.Field, value string) string {
+	switch field.Kind {
+	case ir.FieldAuto:
+		return "query.Integer(" + value + ")"
+	case ir.FieldChar:
+		return "query.String(" + value + ")"
+	case ir.FieldBoolean:
+		return "query.Boolean(" + value + ")"
+	default:
+		return "query.Value{}"
+	}
+}
+
+func defaultValueExpression(value ir.ScalarDefault) string {
+	switch value.Kind {
+	case ir.ScalarString:
+		return strconv.Quote(value.String)
+	case ir.ScalarBoolean:
+		return strconv.FormatBool(value.Boolean)
+	case ir.ScalarInteger:
+		return strconv.FormatInt(value.Integer, 10)
+	default:
+		return "nil"
+	}
+}
+
+func defaultLiteral(value ir.ScalarDefault) string {
+	switch value.Kind {
+	case ir.ScalarString:
+		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarString, String: %s}", strconv.Quote(value.String))
+	case ir.ScalarBoolean:
+		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: %t}", value.Boolean)
+	case ir.ScalarInteger:
+		return fmt.Sprintf("&ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: %d}", value.Integer)
+	default:
+		return "nil"
+	}
 }
 
 func hasNullableChar(schema ir.Schema) bool {
@@ -231,4 +548,59 @@ func lowerFirst(value string) string {
 	}
 	first, size := utf8.DecodeRuneInString(value)
 	return string(unicode.ToLower(first)) + value[size:]
+}
+
+func validateGeneratedNames(schema ir.Schema) error {
+	packageSymbols := map[string]string{
+		"GoDjGeneratorVersion": "generator provenance constant",
+		"GoDjSchemaSHA256":     "schema provenance constant",
+	}
+	addPackageSymbol := func(symbol, owner string) error {
+		if previous, exists := packageSymbols[symbol]; exists {
+			return fmt.Errorf("package symbol %s for %s conflicts with %s", symbol, owner, previous)
+		}
+		packageSymbols[symbol] = owner
+		return nil
+	}
+
+	for _, model := range schema.Models {
+		owner := "model " + model.GoName
+		for _, symbol := range []string{
+			model.GoName,
+			model.GoName + "Descriptor",
+			model.GoName + "FieldSet",
+			model.GoName + "Fields",
+			model.GoName + "Objects",
+			model.GoName + "Create",
+			model.GoName + "Patch",
+			"New" + model.GoName + "Create",
+			lowerFirst(model.GoName) + "Metadata",
+		} {
+			if err := addPackageSymbol(symbol, owner); err != nil {
+				return err
+			}
+		}
+
+		storageNames := make(map[string]string)
+		methodNames := make(map[string]string)
+		for _, field := range writableFields(model) {
+			storage := privateName(field.GoName)
+			if previous, exists := storageNames[storage]; exists {
+				return fmt.Errorf("write storage %s for field %s.%s conflicts with field %s", storage, model.GoName, field.GoName, previous)
+			}
+			storageNames[storage] = field.GoName
+
+			methods := []string{"With" + field.GoName}
+			if field.Nullable {
+				methods = append(methods, "With"+field.GoName+"Null")
+			}
+			for _, method := range methods {
+				if previous, exists := methodNames[method]; exists {
+					return fmt.Errorf("write method %s for field %s.%s conflicts with field %s", method, model.GoName, field.GoName, previous)
+				}
+				methodNames[method] = field.GoName
+			}
+		}
+	}
+	return nil
 }

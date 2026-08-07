@@ -17,9 +17,11 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	result := compileFixture(t, "external_consumer.go.txt")
-	if result.err != nil {
-		t.Fatalf("external consumer did not compile: %v\n%s", result.err, result.output)
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt"} {
+		result := compileFixture(t, fixture)
+		if result.err != nil {
+			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
+		}
 	}
 }
 
@@ -67,6 +69,29 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"cannot use 123",
 				"as string value",
+			},
+		},
+		{
+			name:    "non-null field has no null builder",
+			fixture: "write_title_null.go.txt",
+			wantFragments: []string{
+				"WithTitleNull undefined",
+			},
+		},
+		{
+			name:    "write scalar type is static",
+			fixture: "write_wrong_scalar.go.txt",
+			wantFragments: []string{
+				"cannot use \"false\"",
+				"as bool value",
+			},
+		},
+		{
+			name:    "write input model mismatch",
+			fixture: "write_model_mismatch.go.txt",
+			wantFragments: []string{
+				"orm.CreateInput[Other]",
+				"wrong type for method BuildCreate",
 			},
 		},
 	}
