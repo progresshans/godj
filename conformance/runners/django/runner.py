@@ -44,6 +44,9 @@ from .migration_planning_scenarios import (  # noqa: E402
 from .migration_execution_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_EXECUTION_SCENARIOS,
 )
+from .migration_restart_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_RESTART_SCENARIOS,
+)
 
 
 SCENARIO_REGISTRIES = (
@@ -53,6 +56,7 @@ SCENARIO_REGISTRIES = (
     QUERY_CACHE_SCENARIOS,
     MIGRATION_PLANNING_SCENARIOS,
     MIGRATION_EXECUTION_SCENARIOS,
+    MIGRATION_RESTART_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -118,6 +122,13 @@ DEFAULT_MIGRATION_EXECUTION_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json"
 )
+DEFAULT_MIGRATION_RESTART_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-restart-manifest.json"
+)
+DEFAULT_MIGRATION_RESTART_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
@@ -125,6 +136,7 @@ KNOWN_MANIFEST_ORACLES = {
     DEFAULT_QUERY_CACHE_MANIFEST.resolve(): DEFAULT_QUERY_CACHE_ORACLE,
     DEFAULT_MIGRATION_PLANNING_MANIFEST.resolve(): DEFAULT_MIGRATION_PLANNING_ORACLE,
     DEFAULT_MIGRATION_EXECUTION_MANIFEST.resolve(): DEFAULT_MIGRATION_EXECUTION_ORACLE,
+    DEFAULT_MIGRATION_RESTART_MANIFEST.resolve(): DEFAULT_MIGRATION_RESTART_ORACLE,
 }
 
 

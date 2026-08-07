@@ -18,6 +18,9 @@ MIGRATION_EXECUTION_MANIFEST := conformance/contracts/migration-execution-manife
 MIGRATION_EXECUTION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json
 MIGRATION_EXECUTION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-execution-not-implemented.json
 MIGRATION_EXECUTION_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-execution-deviation-expected.json
+MIGRATION_RESTART_MANIFEST := conformance/contracts/migration-restart-manifest.json
+MIGRATION_RESTART_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json
+MIGRATION_RESTART_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-restart-not-implemented.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -77,6 +80,10 @@ conformance-check:
 		-profile $(PROFILE) -manifest $(MIGRATION_EXECUTION_MANIFEST) -suite $(MIGRATION_EXECUTION_ORACLE)
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_EXECUTION_MANIFEST) -suite $(MIGRATION_EXECUTION_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_RESTART_MANIFEST) -suite $(MIGRATION_RESTART_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_RESTART_MANIFEST) -suite $(MIGRATION_RESTART_NOT_IMPLEMENTED)
 
 godj-conformance:
 	go run ./conformance/cmd/godjcheck \
@@ -116,6 +123,9 @@ oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_EXECUTION_MANIFEST) \
 		--output $(MIGRATION_EXECUTION_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(MIGRATION_RESTART_MANIFEST) \
+		--output $(MIGRATION_RESTART_ORACLE) --check
 
 oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -135,6 +145,9 @@ oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_EXECUTION_MANIFEST) \
 		--output $(MIGRATION_EXECUTION_ORACLE)
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(MIGRATION_RESTART_MANIFEST) \
+		--output $(MIGRATION_RESTART_ORACLE)
 
 ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance
 
