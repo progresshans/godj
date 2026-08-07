@@ -4,17 +4,17 @@
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `main`
 - 기준 machine artifact commit:
-  `6f1aab78a6e365e62f5a3b59b040b90b981b4978`
-  (`feat: implement queryset evaluation cache`)
+  `9fc3df42f17b61b0a0202f21d3d99190c0db2d28`
+  (`test: lock migration planning contracts`)
 - 기준 제품 commit:
   `6f1aab78a6e365e62f5a3b59b040b90b981b4978`
   (`feat: implement queryset evaluation cache`)
-- 활성 작업 baseline: `6f1aab78a6e365e62f5a3b59b040b90b981b4978`
+- 활성 작업 baseline: `9fc3df42f17b61b0a0202f21d3d99190c0db2d28`
 - remote: `https://github.com/progresshans/godj.git`, remote tracking ref 없음
-- 현재 단계: Migration dependency/applied-state planner reference 계약 설계·관찰
-- 완료 작업: [GDJ-0008 QuerySet Evaluation and Cache Product Slice](../../work/0008-queryset-evaluation-cache-product-slice.md)
-- 활성 작업: [GDJ-0009 Migration Planning Compatibility Contracts](../../work/0009-migration-planning-compatibility-contracts.md)
-- 다음 ready 작업: 없음 — GDJ-0009 결과로 product slice와 ADR 경계를 확정
+- 현재 단계: Immutable migration graph/applied-state planner 제품 단면
+- 완료 작업: [GDJ-0009 Migration Planning Compatibility Contracts](../../work/0009-migration-planning-compatibility-contracts.md)
+- 활성 작업: [GDJ-0010 Immutable Migration Graph and Applied-State Planner Product Slice](../../work/0010-immutable-migration-planner-product-slice.md)
+- 다음 ready 작업: 없음 — GDJ-0010 제품/adapter 검증 뒤 후속 migration 범위를 선택
 
 ## 현재 checkout에서 확인된 사실
 
@@ -38,12 +38,15 @@
   `AddField`, preflighted Executor와 같은 SQLite transaction의 editor/recorder입니다.
 - SQLite table rebuild가 필요한 default AddField, indexed/CHECK/generated/view/trigger/FK
   dependency drop은 silent fallback 없이 구조화된 capability error입니다.
-- Protocol v2의 네 ordered set, M1 read/metadata 11개, M2 write/migration 11개,
-  Save lifecycle 12개와 QuerySet evaluation/cache 11개가 모두 Django oracle과 의미상
-  0-diff이며 총 45개 manifest 상태가 `passing`입니다.
+- Protocol v2에는 다섯 ordered set이 있습니다. M1 read/metadata 11개, M2
+  write/migration 11개, Save lifecycle 12개와 QuerySet evaluation/cache 11개는 Django
+  oracle과 의미상 0-diff이며 총 45개 manifest 상태가 `passing`입니다.
+- 다섯 번째 migration-planning set의 MIG-005..016은 12개 `oracle_locked`, Django
+  oracle은 12개 `observed`, static GoDj fixture는 ordered 12개 `not_implemented`입니다.
+  제품 graph/planner/adapter가 아직 없으므로 이 12개를 `passing`으로 세지 않습니다.
 - QuerySet static fixture가 내는 ordered 11개 `not_implemented` mismatch는 구현 전 상태가
   통과하지 않음을 보존하는 false-green baseline이며 현재 제품 actual이 아닙니다.
-- 네 set의 contract ID/scenario는 전역으로 유일하고, 모든 12개 ordered cross-binding이
+- 다섯 set의 contract ID/scenario는 전역으로 유일하고, 모든 20개 ordered cross-binding이
   validation에서 거부됩니다.
 - M1 oracle SHA-256은
   `e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869`, M2 oracle은
@@ -53,6 +56,12 @@
   `d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`입니다.
 - QuerySet manifest는 8,987 bytes, SHA-256
   `35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2`입니다.
+- Migration-planning manifest는 10,623 bytes, SHA-256
+  `7e8f0d19c8f227721e7cfe4254a4f39d1313e801f1ea0a759e14c46a3dbbe876`, Django oracle은
+  39,139 bytes, SHA-256
+  `7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474`, static fixture는
+  1,869 bytes, SHA-256
+  `a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13`입니다.
 - 두 독립 GoDj QuerySet actual은 각각 56,283 bytes로 서로 byte-identical하며 SHA-256은
   `c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`입니다. Django
   oracle과는 canonical byte가 아니라 protocol의 normalized 의미로 0-diff입니다.
@@ -64,6 +73,10 @@
   네 set 45 differential과 mutation/hardcode audit는
   [EVID-20260808-007](TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
   기록했습니다.
+- GDJ-0009의 exact two-process oracle, portable/exact Python 59-test, full/race/CGO=0/vet,
+  다섯 set/20 cross-binding, 12 static mismatch와 mutation audit는
+  [EVID-20260808-008](TEST_EVIDENCE.md#evid-20260808-008--gdj-0009-migration-planning-compatibility-contracts)에
+  기록했습니다. 제품 `migrations/**`는 이 contract-only 작업에서 변경하지 않았습니다.
 - GitHub Actions workflow는 push하지 않아 hosted 실행 증거가 없습니다. 로컬 Django
   checkout은 수정하지 않았습니다.
 
@@ -116,38 +129,56 @@
 - Cold `Count`는 O(N) row drain, `At`은 offset 없이 O(index) 순회하는 첫 단면의 명시적
   성능 제한입니다. SQL aggregate/offset 최적화는 후속 query breadth에 남습니다.
 
+### Migration planning reference와 제품 경계
+
+- MIG-005..016은 linear/cross-app forward/backward, applied pruning, prior/zero target,
+  ordered target/shared dependency, retained branch와 target/history/graph/cycle 오류를
+  exact reference로 고정합니다.
+- MIG-014는 `migration_plan()` 자체의 예외가 아니라 public planning 흐름이 traversal 전에
+  수행하는 history consistency preflight 의미입니다.
+- Planning은 recorder/schema state가 같고 DDL/write/기타 non-SELECT statement가 0이어야
+  합니다. 모든 SELECT까지 0이라고 주장하지 않습니다.
+- MIG-012는 dependency-required precedence, caller target order와 shared dependency
+  deduplication을 계약합니다. Dependency가 정하지 않는 incomparable sibling의 Django
+  private DFS tie-break와 cycle traversal/message는 계약하지 않습니다.
+- [ADR-0013](../adr/0013-immutable-migration-planner.md)은 ProjectState와 AppliedState를
+  분리하고 immutable identity graph의 zero-I/O Planner를 사용하도록 결정했습니다.
+  Existing one-migration Executor/backend는 GDJ-0010에서 바꾸지 않습니다.
+
 ## 현재 차단 요인과 미결정 사항
 
 외부 blocker는 없습니다. 다음 결정은 아직 열려 있습니다.
 
 1. Q-011: request/transaction/hook 범위의 goroutine·lifetime 정책
 2. Q-010: public CLI와 project library/generator version protocol
-3. Q-012: migration planning/graph, public file, data callback ABI, lock와 crash recovery
+3. Q-012: migration planning 제품 구현, public file, data callback ABI, lock와 crash recovery
 4. Q-013: cross-app relation type/import/reverse loader 경계
 
 ## 다음 정확한 작업
 
-1. Pinned Django 6.1 commit의 migration executor/graph/loader provenance와 public
-   behavior를 확인하고 MIG-005..MIG-016 후보를 disposable exact probe로 실행합니다.
-2. Graph 삽입 순서, forward/backward target, applied pruning과 missing/cycle/
-   inconsistent history의 관찰 경계를 정해 12개 이하 계약으로 잠급니다.
-3. 다섯 번째 manifest/oracle/static fixture를 별도 set으로 연결하고 기존 네 set과의
-   20개 ordered cross-binding, payload mutation과 two-process determinism을 검증합니다.
-4. Product `migrations/**`는 변경하지 않고 GDJ-0010의 planner/graph ADR 입력만
-   기록합니다.
+1. `migrations/planner_test.go`에서 MIG-005 linear plan, MIG-015 missing dependency와
+   dependency-slice alias 회귀를 먼저 작성합니다.
+2. ADR-0013의 MigrationKey/AppliedState/Target/PlanStep/Planner와 structured
+   `PlanningError`를 zero-I/O core로 구현합니다.
+3. Target order/permutation/random DAG/concurrent Plan과 external consumer compile gate를
+   추가합니다.
+4. GoDj fifth-set adapter를 실제 public API에 연결하고 two-process actual determinism,
+   12-contract semantic 0-diff와 기존 45개 회귀를 검증합니다.
 
 ## 작업 재개 체크포인트
 
 - 공개 framework API: M1 read, M2 제한 write/migration/Save와 QuerySet cache/terminal
   subset만 검증됨
-- 활성 baseline: `main@6f1aab78a6e365e62f5a3b59b040b90b981b4978`; 인수인계 문서만
-  후속 docs commit으로 추가됨
-- GDJ-0009은 contract-only이며 `migrations/**` 제품 source를 바꾸지 않음
+- 활성 baseline: `main@9fc3df42f17b61b0a0202f21d3d99190c0db2d28`; GDJ-0009
+  인수인계/ADR/다음 work 문서만 후속 docs commit으로 추가됨
+- GDJ-0010은 `migrations` pure planner와 GoDj adapter만 구현하며 locked Django
+  runner/oracle/static fixture, backend/SQLite는 바꾸지 않음
 - 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
-- 가장 위험한 추측: Django graph의 map/삽입 순서를 안정 계약으로 오인하거나 migration
-  file ABI와 public CLI를 semantic identity/dependency보다 먼저 고정하는 것
+- 가장 위험한 추측: caller target order와 incomparable sibling의 Django private DFS
+  tie-break를 혼동하거나 migration file ABI/public CLI를 identity/dependency planner보다
+  먼저 고정하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

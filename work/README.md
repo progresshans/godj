@@ -32,14 +32,16 @@ proposed → ready → active → completed
 | [GDJ-0006](0006-save-lifecycle-product-slice.md) | completed | Save lifecycle 제품 수직 단면 |
 | [GDJ-0007](0007-queryset-evaluation-cache-compatibility-contracts.md) | completed | QuerySet evaluation/cache 호환 계약 |
 | [GDJ-0008](0008-queryset-evaluation-cache-product-slice.md) | completed | QuerySet evaluation/cache 제품 수직 단면 |
-| [GDJ-0009](0009-migration-planning-compatibility-contracts.md) | active | Migration planning 호환 계약 확장 |
+| [GDJ-0009](0009-migration-planning-compatibility-contracts.md) | completed | Migration planning 호환 계약 확장 |
+| [GDJ-0010](0010-immutable-migration-planner-product-slice.md) | active | Immutable migration graph/applied-state planner 제품 단면 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active
-항목은 GDJ-0009이며 ready 항목은 없습니다. GDJ-0008은 QRY-011..021 제품 adapter를
-연결해 기존 34개와 함께 총 45개 contract를 `passing`으로 만들었습니다. GDJ-0009는
-MIG-005..016의 migration dependency/applied-state planning 의미를 contract-only로 먼저
-고정합니다.
+항목은 GDJ-0010이며 ready 항목은 없습니다. 기존 네 제품 set의 45개 contract는 계속
+`passing`입니다. GDJ-0009는 MIG-005..016을 다섯 번째 reference set에
+`oracle_locked`로 고정했고 static fixture의 ordered 12 `not_implemented` mismatch를
+보존했습니다. GDJ-0010은 이 12개를 실제 immutable graph/applied-state planner와 GoDj
+adapter로 구현합니다.
 
 ## 운영 규칙
 

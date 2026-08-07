@@ -7,8 +7,8 @@ dependency. Django is installed from PyPI by the conformance workflow and is not
 part of a GoDj binary or generated source.
 
 GoDj's conformance scenarios, including the query, write, migration, Save
-lifecycle, and QuerySet evaluation/cache fixtures, are independently written
-behavioral scenarios. Their manifest entries point to pinned Django
+lifecycle, QuerySet evaluation/cache, and migration planning fixtures, are
+independently written behavioral scenarios. Their manifest entries point to pinned Django
 documentation, source symbols, and tests for provenance but do not copy or
 translate Django source, fixtures, comments, or assertion structure. This
 notice does not classify those scenarios as derivative works.

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-007
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-008
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -756,3 +756,83 @@ Unknown scenario를 known handler로 fail-open시키는 mutation은
 실패했습니다. 별도 `/tmp` mutation 감사는 context 재검사, caller clone, Count close,
 SQLite missing-table 분류, generated nullable clone을 각각 제거했을 때 focused gate가
 모두 변이를 탐지했으며 최종 제품/false-green 감사에서 P0–P3 finding은 없었습니다.
+
+## EVID-20260808-008 — GDJ-0009 Migration Planning Compatibility Contracts
+
+- Date/time: 2026-08-08T05:49:20+09:00
+- Work/contract IDs: GDJ-0009, META-001, META-002, MIG-005..MIG-016, Q-012
+- Checkout/commit: machine artifact가 clean `main` commit
+  `9fc3df42f17b61b0a0202f21d3d99190c0db2d28`; evidence/ADR/GDJ-0010 handoff 문서는
+  후속 미커밋 변경
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5; uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit
+  `fe0a859f537d4238cf49fca39073513206f83122`, reference SQLite 3.50.4,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: `make check`, uncached full Go test/race/CGO=0, vet, focused Python/Go,
+  five checksums와 two-process exact regeneration 모두 0. Static fixture 비교는 의도한
+  exit 1, GoDj unsupported product 실행은 의도한 exit 2.
+- Result summary: MIG-005..016의 linear/applied-pruned/prior/zero/cross-app/multi-target
+  plan과 target/history/graph/cycle error를 다섯 번째 exact reference set에 고정했습니다.
+  Django oracle 12개는 `observed`, manifest는 12개 `oracle_locked`, static GoDj fixture는
+  ordered 12개 `not_implemented`입니다. 기존 네 GoDj adapter의 45개 contract는 모두
+  0-diff를 유지했습니다.
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python은 59 tests 중 exact-only 6개를
+  의도적으로 skip했고 exact run은 59개 모두 pass했습니다. 제품 planner/adapter는 이번
+  contract-only 범위 밖이므로 static 12 mismatch와 unsupported scenario가 정상입니다.
+  GitHub-hosted workflow는 push하지 않아 실행하지 않았습니다.
+- Artifacts: manifest 10,623 bytes SHA-256
+  `7e8f0d19c8f227721e7cfe4254a4f39d1313e801f1ea0a759e14c46a3dbbe876`;
+  Django oracle 39,139 bytes SHA-256
+  `7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474`;
+  static fixture 1,869 bytes SHA-256
+  `a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13`
+- Notes: 다섯 set의 ID/scenario는 전역으로 유일하고 20개 ordered cross-binding이 모두
+  거부됩니다. MIG-014는 public history consistency preflight 의미입니다. MIG-012는
+  dependency precedence, caller target order와 shared dependency deduplication만 잠그며
+  incomparable sibling의 Django private DFS tie-break와 cycle message/path는 계약하지
+  않습니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+LC_ALL=C TZ=UTC uv run --frozen python -m unittest \
+  conformance.runners.django.tests.test_migration_planning_scenarios -v
+(
+  cd conformance/oracles/django-6.1-sqlite-darwin-arm64
+  shasum -a 256 -c SHA256SUMS
+)
+git diff --check
+```
+
+`make check`는 portable Python 59 tests/6 skips, exact 59 tests, 다섯
+manifest/oracle/static validation, 다섯 oracle byte check, full Go/vet/race, SQLite/GoDj
+adapter focused CGO=0와 기존 M1/M2/Save/QuerySet 제품 45-contract differential을
+실행했습니다. Full CGO=0은 위 별도 명령으로 확인했습니다.
+
+두 독립 exact process와 checked-in oracle:
+
+```text
+/tmp/godj-migration-planning-audit-final.hqaVJ9/one.json
+/tmp/godj-migration-planning-audit-final.hqaVJ9/two.json
+conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json
+```
+
+세 파일은 모두 39,139 bytes와 같은 SHA-256으로 byte-identical했습니다. Exact runner는
+random hash seed와 graph insertion normal/reverse/rotate에서도 fixed ordered-target 결과를
+재현했습니다.
+
+명시적 미구현 baseline은 `observationcmp`에서 예상 exit 1과 MIG-005..016 순서의 status
+mismatch 12개를 냈습니다. 실제 build한 `godjcheck`에 fifth manifest를 넘긴 실행은 exit 2,
+stdout 0 bytes, actual 파일 미생성과 unsupported scenario를 확인했습니다.
+
+False-green gate는 plan order/direction, requested target, applied prefix, shared dependency
+duplicate, retained branch DB state, missing-target request facts, missing-dependency graph facts와
+`state_unchanged`를 각각 바꿨을 때 비교를 실패시켰습니다. Python runner는 live planner
+결과 전파, unexpected DDL/write/non-SELECT, recorder/schema cleanup과 inconsistent-history
+preflight 사용을 별도로 검증했습니다. 최종 독립 계약/게이트 감사에서 P0–P3 finding은
+없었습니다.

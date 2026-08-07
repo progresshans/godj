@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: QuerySet evaluation/cache 제품 단면 완료, migration planning 호환 계약 진행 중
+- 현재 단계: Migration planning reference 계약 완료, immutable planner 제품 단면 진행 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -83,12 +83,17 @@ concurrency ownership과 terminal API를 ADR-0012로 결정하고 실제 adapter
 QRY-011..021을 모두 `passing`으로 올렸습니다. 현재 검증된 manifest contract는 총
 45개이며, 이는 M2 migration이나 M4 QuerySet breadth 전체 완료를 뜻하지 않습니다.
 
-다음 M2 확장은
-[GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)입니다. 기존
-MIG-001..004 executor/editor 제품 경계를 바꾸기 전에 MIG-005..016으로 dependency graph,
+[GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)은 기존
+MIG-001..004 executor/editor 제품 경계를 바꾸지 않고 MIG-005..016으로 dependency graph,
 applied state, multi-target forward/backward plan과 잘못된 graph/history의 외부 의미를
-contract-only로 고정합니다. Public migration file/CLI, data callback, lock/crash recovery는
-계속 후속 범위입니다.
+다섯 번째 exact set에 고정했습니다. 기존 45개 제품 contract는 계속 `passing`이고 새
+12개는 `oracle_locked`이므로 총 57개를 제품 통과로 표현하지 않습니다.
+
+현재 [GDJ-0010](../work/0010-immutable-migration-planner-product-slice.md)은
+[ADR-0013](adr/0013-immutable-migration-planner.md)의 immutable identity graph와 별도
+AppliedState를 backend-neutral zero-I/O Planner로 구현하고 fifth set actual adapter를
+연결합니다. Public migration file/CLI, data callback, multi-plan execution, lock/crash
+recovery는 계속 후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

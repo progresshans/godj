@@ -78,6 +78,7 @@ conformance/
   contracts/write-migration-manifest.json
   contracts/save-lifecycle-manifest.json
   contracts/query-cache-manifest.json
+  contracts/migration-planning-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -89,6 +90,7 @@ conformance/
   fixtures/godj-write-migration-not-implemented.json
   fixtures/godj-save-lifecycle-not-implemented.json
   fixtures/godj-query-cache-not-implemented.json
+  fixtures/godj-migration-planning-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -189,6 +191,26 @@ Query-cache static fixture의 ordered 11 mismatch는 구현 전 false-green 회�
 [EVID-20260808-007](status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
 기록합니다.
 
+GDJ-0009은 MIG-005..016을 다섯 번째 reference set으로 추가했습니다. Linear/cross-app
+forward/backward, applied pruning, prior/zero target, ordered multi-target/shared dependency와
+target/history/graph/cycle error를 result/error, DB state와 I/O metrics로 함께 잠급니다.
+Planning capture는 DDL/write/기타 non-SELECT statement가 0이고 recorder/schema state가
+같은지 확인합니다. 모든 SELECT까지 0이라고 주장하지 않습니다.
+
+다섯 set의 ID/scenario는 전역으로 유일하며 20개 ordered cross-pair가 모두 거부됩니다.
+Two-process/random hash-seed와 graph insertion permutation이 reference bytes를 흔들지 않는지
+검사하고, plan order/direction/target/applied state/dedup/retained branch/error facts/
+zero-mutation payload를 각각 바꾸는 mutation gate를 둡니다. MIG-012는 caller target order와
+dependency precedence만 잠그고 incomparable sibling의 Django private DFS tie-break는
+계약하지 않습니다.
+
+현재 migration-planning manifest는 12개 `oracle_locked`이고 static fixture는 ordered 12
+`not_implemented` mismatch를 냅니다. GoDj product runner는 unknown scenario exit 2와
+actual 미생성으로 fail-closed합니다. 따라서 `make godj-conformance`는 계속 실제 제품
+adapter가 있는 기존 45개만 실행합니다. 상세 증거는
+[EVID-20260808-008](status/TEST_EVIDENCE.md#evid-20260808-008--gdj-0009-migration-planning-compatibility-contracts)에
+기록합니다.
+
 ## 기능별 기본 테스트 요구
 
 모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
@@ -201,7 +223,7 @@ Query-cache static fixture의 ordered 11 mismatch는 구현 전 false-green 회�
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
 | QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
-| Migration | state diff, forward/backward, failure/rollback, concurrent lock |
+| Migration | state diff, graph construction, applied pruning, forward/backward, zero-mutation planning, structured graph/history error, failure/rollback, concurrent lock |
 | Concurrency | `go test -race`, cancellation, goroutine/connection leak |
 | Backend | capability matrix, conformance, explicit unsupported errors |
 | Security boundary | regression test, adversarial input, no silent fallback |

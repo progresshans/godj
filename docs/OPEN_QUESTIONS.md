@@ -11,7 +11,7 @@
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0009/public CLI 전 | migration core는 ADR-0010, planning 의미는 MIG-005..016에서 진행 중; file ABI/data callback/lock은 계속 open |
+| Q-012 | Partial | GDJ-0010/public CLI 전 | migration core는 ADR-0010, planning reference는 MIG-005..016으로 잠금; ADR-0013 planner 제품 진행 중이고 file ABI/data callback/lock은 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -83,10 +83,17 @@ transaction-bound session과 hook의 goroutine ownership은 후속 단계에 남
 
 MIG-001~004와 GDJ-0004 제품 구현을 거쳐 state/operation/executor/schema editor/
 recorder core를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에서
-채택·검증했습니다. 현재
+채택·검증했습니다.
 [GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)는 제품 graph를 먼저
 만들지 않고 MIG-005..016으로 dependency/applied-state 기반 forward/backward plan,
-multi-target 중복 제거와 잘못된 graph/history 오류를 contract-only로 고정합니다.
+multi-target 중복 제거와 잘못된 graph/history 오류를 contract-only로 고정했습니다.
+
+[ADR-0013](adr/0013-immutable-migration-planner.md)은 `ProjectState`와 applied history를
+분리하고 immutable identity graph의 zero-I/O Planner를 사용하기로 결정했습니다.
+[GDJ-0010](../work/0010-immutable-migration-planner-product-slice.md)이 이 경계와 actual
+adapter를 구현합니다. MIG-012는 caller target order와 dependency precedence만 잠그며,
+incomparable sibling의 Django private DFS tie-break는 호환 계약이 아닌 Go deterministic
+정책입니다.
 
 Migration file encoding, data callback ABI, graph merge/squash/optimizer,
 multi-process lock와 crash recovery는 여전히 결정하지 않았으며 public CLI 전에 별도
