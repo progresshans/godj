@@ -6,8 +6,9 @@
 
 | Capability | Contract | Design | Code | Unit/Compile | Differential | Backend |
 |---|---|---|---|---|---|---|
-| Compatibility profile | META-001 | Accepted exact profile | Implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | `oracle_locked` | Django 6.1 / SQLite 3.50.4 reference |
-| Contract/oracle harness | META-002 | Accepted protocol v1 | Implemented with Django and GoDj adapters | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | 11 contracts `passing` | Django exact reference + Go SQLite M1 |
+| Compatibility profile | META-001 | Accepted exact profile | Implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260808-002--gdj-0003-write-migration-compatibility-contracts) | M1/M2 oracle profile bound | Django 6.1 / SQLite 3.50.4 reference |
+| Contract/oracle harness | META-002 | Accepted protocol v2 | Django M1/M2 and GoDj M1 adapters implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260808-002--gdj-0003-write-migration-compatibility-contracts) | M1 11 `passing`; M2 11 `oracle_locked` | Django exact reference + Go SQLite M1 |
+| Write/migration reference oracle | MOD-001..MOD-007, MIG-001..MIG-004 | Accepted compatibility contracts | Django reference runner + explicit GoDj `not_implemented` fixture | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260808-002--gdj-0003-write-migration-compatibility-contracts) | 11 `oracle_locked`; expected 11 mismatches | Django 6.1 / SQLite 3.50.4 reference |
 | Django model metadata oracle | SCH-001 | Accepted M0 observation | Django reference + generated descriptor projection implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | `passing` | Django SQLite 3.50.4 / Go SQLite 3.53.3 |
 | Schema DSL | SCH-M1-001 subset | M1 scope Accepted | Auto/Char/Boolean/nullable Article implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | SCH-001 `passing` through IR/codegen | — |
 | Normalized Schema IR | SCH-M1-001 | [ADR-0001](../adr/0001-schema-ir-as-canonical-source.md) Accepted | Version 1 normalize/validate/canonical hash implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | SCH-001 `passing` | — |
@@ -20,8 +21,8 @@
 | Shared Query AST | QRY-M1-001 | ADR-0003 Accepted | Immutable Plan/Condition/Ordering/Value subset implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | typed/dynamic equality + QRY `passing` | SQLite compiler |
 | QuerySet cache semantics | Q-007 / contract TBD | Open Q-007 | M1 intentionally uncached; final semantics not implemented | Plan/evaluation tests pass; cache contract not run | Not claimed | — |
 | SQLite query execution | DB-SQLITE-001 | [ADR-0008](../adr/0008-m1-sqlite-driver-and-execution-boundary.md) Accepted for M1 | Compiler/executor/context/cleanup subset implemented | [Pass EVID-001](TEST_EVIDENCE.md#evid-20260808-001--gdj-0002-model-to-query-walking-skeleton) | QRY-001..010 `passing` | modernc v1.56.0 / SQLite 3.53.3 |
-| Model write lifecycle | MOD-001+ | Planned M2 | Not started | Not run | Not run | — |
-| Migration engine | MIG-001+ | Planned M2 | Not started | Not run | Not run | — |
+| Model write lifecycle | MOD-001..MOD-007 | [ADR-0009](../adr/0009-m2-explicit-write-change-state.md) Proposed | Product code not started | Compile spike not run | Django oracle locked; GoDj adapter `not_implemented` | SQLite product backend not started |
+| Migration engine | MIG-001..MIG-004 | [ADR-0010](../adr/0010-m2-migration-state-and-executor-boundary.md) Proposed | Product code not started | Runtime spike not run | Django oracle locked; GoDj adapter `not_implemented` | SQLite product backend not started |
 | Relations | REL-001+ | Open Q-013 / M3 | Not started | Not run | Not run | — |
 | PostgreSQL backend | DB-PG-001+ | Planned M3 | Not started | Not run | Not run | Not started |
 | Web core | WEB-001+ | Long-term accepted | Not started | Not run | Not run | — |

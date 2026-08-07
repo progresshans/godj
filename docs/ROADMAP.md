@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: M1 완료, M2 contract 확장 준비
+- 현재 단계: M2 write/migration contract 확장 완료, product 단면 준비
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -64,6 +64,11 @@ Schema DSL → normalized IR → deterministic codegen
 첫 단계는 [GDJ-0003](../work/0003-write-migration-compatibility-contracts.md)에서
 write/schema/transaction reference 계약을 별도 contract set으로 잠그는 것입니다.
 제품 구현은 이 결과로 범위를 좁힌 다음 work item에서 시작합니다.
+
+상태: MOD-001..007과 MIG-001..004 Django oracle, explicit GoDj not-implemented
+baseline과 mutation false-green gate를 GDJ-0003에서 고정했습니다. 다음은
+[GDJ-0004](../work/0004-write-migration-walking-skeleton.md)의 제한된 제품 수직
+단면이며 public migration file/CLI는 아직 범위가 아닙니다.
 
 ## M3 — Relations + PostgreSQL
 

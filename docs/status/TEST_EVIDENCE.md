@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드 테스트 증거: EVID-20260808-001
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-002
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -238,3 +238,78 @@ go test ./db/sqlite -run TestSQLiteBackendInterruptsRunningStatement -count=1 -v
 
 출력은 `modernc.org/sqlite v1.56.0`, `modernc.org/libc v1.74.4`,
 `backend=modernc.org/sqlite sqlite=3.53.3`이었습니다.
+
+## EVID-20260808-002 — GDJ-0003 Write-Migration Compatibility Contracts
+
+- Date/time: 2026-08-08T02:09:38+09:00
+- Work/contract IDs: GDJ-0003, META-001, META-002, MOD-001..MOD-007,
+  MIG-001..MIG-004, Q-006, Q-012
+- Checkout/commit: `main` at
+  `3e7c87839265e1b07b6d69f59f52e596623b1eb5`; 실행 시 미커밋 변경은 완료 상태와
+  다음 work handoff 문서뿐이며 product/conformance source와 machine artifact는 commit과
+  동일
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5, uv 0.10.12,
+  CPython 3.14.3, Django 6.1 reference SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`;
+  M1 Go backend는 `modernc.org/sqlite v1.56.0`, SQLite 3.53.3
+- Exit status: `make check`, 전체 `CGO_ENABLED=0` Go test와 checksum은 0;
+  M2 static actual 비교와 두 cross-set 비교는 예상한 mismatch로 각각 1
+- Result summary: protocol v2 expected phase/profile/ordered set/payload binding, M1
+  GoDj differential 11개 `passing`, M2 manifest 계약 11개 `oracle_locked`와 Django
+  oracle suite 11개 `observed`, 전체
+  Go test/vet/race, Python portable 27개와 exact 27개, deterministic oracle byte check,
+  checksum, 외부 DB 보존, manifest-output 결속과 mutation false-green gate 통과
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python run은 exact-profile 전용
+  3개를 명시적으로 skip하고 exact run에서 모두 통과. 각 scenario 실행 뒤 table,
+  transaction, rollback과 recorder baseline도 검증합니다. M2 GoDj 제품 adapter가 없어
+  static actual의 11개 `not_implemented` mismatch가 예상됨. GitHub-hosted workflow는
+  push하지 않아 실행하지 않음.
+- Artifacts: M1 v2 oracle
+  `e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869`, M2 v2 oracle
+  `35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac`, protocol v2
+  manifests/profile/fixtures, ADR-0009/0010
+- Notes: EVID-20260807-002와 EVID-20260808-001의 v1 hash는 당시 checkout의 역사적
+  증거로 유지합니다. v2는 expected phase를 wire contract에 결속하도록 envelope를
+  명시적으로 올렸고 M1 외부 동작 11개는 새 artifact에서도 계속 일치합니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+CGO_ENABLED=0 go test ./... -count=1
+(
+  cd conformance/oracles/django-6.1-sqlite-darwin-arm64
+  shasum -a 256 -c SHA256SUMS
+)
+```
+
+`make check`는 generation drift, 전체 Go test/vet/race와 format, portable/exact Python
+suite, 두 contract set validation, M1 GoDj differential과 두 oracle regeneration byte
+check를 포함했습니다.
+
+M2의 명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/write-migration-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json \
+  -actual conformance/fixtures/godj-write-migration-not-implemented.json
+```
+
+예상대로 exit 1과 ordered MOD 7개, MIG 4개의 `not_implemented` status mismatch가
+발생했습니다. 실제 checked-in artifact의 양방향 cross-set 결속도 확인했습니다.
+
+```bash
+go run ./conformance/cmd/contractcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/manifest.json \
+  -suite conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json
+
+go run ./conformance/cmd/contractcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/write-migration-manifest.json \
+  -suite conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
+```
+
+두 명령 모두 ordered contract ID/position 차이로 exit 1이었습니다. Expected phase
+결속은 별도의 protocol mutation test에서 검증했습니다.
