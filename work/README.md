@@ -24,10 +24,12 @@ proposed → ready → active → completed
 | ID | 상태 | 작업 |
 |---|---|---|
 | [GDJ-0000](0000-documentation-foundation.md) | completed | 문서·결정·인수인계 기반 수립 |
-| [GDJ-0001](0001-compatibility-lab.md) | ready | Django 6.1 Compatibility Lab |
-| [GDJ-0002](0002-model-to-query-walking-skeleton.md) | proposed | 첫 Model-to-Query 수직 단면 |
+| [GDJ-0001](0001-compatibility-lab.md) | completed | Django 6.1 Compatibility Lab |
+| [GDJ-0002](0002-model-to-query-walking-skeleton.md) | ready | 첫 Model-to-Query 수직 단면 |
 
-현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 구현 시작 승인이 없는 현재는 active 항목이 없습니다.
+현재 활성 항목과 다음 ready 항목은
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active
+항목은 없고 GDJ-0002가 다음 ready 항목입니다.
 
 ## 운영 규칙
 

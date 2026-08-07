@@ -3,55 +3,77 @@
 - 마지막 갱신: 2026-08-07
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `main`
-- 기준 commit: `fe7bf44` (`Initial commit`)
+- 기준 구현 commit: `927788d28f964a9597ff0962138bc56e78de7b14`
+  (`test: establish Django compatibility lab`)
 - remote: `https://github.com/progresshans/godj.git`, remote refs 없음
-- 현재 단계: 문서 기반 완료, M0 시작 전
+- 현재 단계: M0 Compatibility Lab 완료, M1 시작 전
 - 활성 작업: 없음
-- 다음 준비 작업: [GDJ-0001 Compatibility Lab](../../work/0001-compatibility-lab.md)
+- 다음 준비 작업: [GDJ-0002 Model-to-Query Walking Skeleton](../../work/0002-model-to-query-walking-skeleton.md)
 
 ## 현재 checkout에서 확인된 사실
 
-- 이 작업 전에는 초기 commit의 `README.md`만 존재했습니다.
-- `go.mod`, Go 코드, 테스트, CI, release artifact는 아직 없습니다.
-- GoDj의 구현 또는 Django 호환 기능은 아직 하나도 `Implemented`나 `Verified`로 주장할 수 없습니다.
-- 로컬 Go는 1.26.5입니다.
-- 로컬 Django 저장소의 현재 `main`은 6.2 alpha이며, 별도 tag `6.1`이 존재합니다. M0 oracle은 정확한 6.1 환경을 사용해야 합니다.
+- Go module은 `github.com/progresshans/godj`, language/toolchain은 Go 1.26/1.26.5로
+  시작했습니다.
+- Framework/ORM/Schema DSL은 아직 구현하지 않았습니다. 현재 Go/Python 코드는 M0
+  conformance protocol, Django reference runner, codegen architecture spike뿐입니다.
+- Exact profile `django-6.1-sqlite-darwin-arm64`에서 QRY-001~010과 SCH-001의 Django
+  oracle 11개가 `oracle_locked`입니다.
+- GoDj 구현 결과는 모두 명시적 `not_implemented`이며 `passing` contract는 아직
+  없습니다.
+- Oracle SHA-256은
+  `0fc307d8be596c993bd1424c365de8c17ae9ace626d603e2e62272011845b7b0`입니다.
+- Local Go/race/vet, Python exact/portable suite, artifact validation, oracle byte check가
+  [EVID-20260807-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab)에서
+  통과했습니다.
+- GitHub Actions workflow는 전체 action SHA와 tool version을 고정했지만 아직 push하지
+  않아 원격 실행 증거는 없습니다.
+- 로컬 Django checkout은 수정하지 않았습니다. Oracle은 잠긴 PyPI Django 6.1
+  environment에서 생성했습니다.
 
-## 이번 작업에서 만든 기반
+## M0에서 닫은 결정
 
-- 제품 목표/비목표와 장기 범위 분리
-- 아키텍처 계층과 역할, Go generics 제약 기록
-- Django compatibility profile과 contract lifecycle 정의
-- contract-first vertical slice 로드맵 정의
-- ADR lifecycle과 resumable work item 형식 정의
-- 새 에이전트용 재개 프롬프트 정의
-- 원 초안에서 확정하지 말아야 할 API/architecture 문제를 open question으로 분리
+- Exact Python/Django/SQLite/platform/locale profile과 uv lock/hash
+- 11개 contract manifest와 typed observation protocol v1
+- Strict normalizer/comparator와 false-green mutation gate
+- 독립 시나리오와 Django-derived material의 provenance/license 정책
+- Codegen 입력과 generated target을 import graph에서 분리하는
+  [ADR-0006](../adr/0006-codegen-input-package-boundary.md)
 
-## 현재 차단 요인
+## 현재 차단 요인과 미결정 사항
 
-구현 시작을 막는 외부 blocker는 없습니다. 다만 GDJ-0001 완료 전에 다음 P0 항목을 해결해야 합니다.
+M1 시작을 막는 외부 blocker는 없습니다. 다만 production API를 작성하기 전에
+GDJ-0002의 첫 compile/runtime spike에서 다음을 좁혀야 합니다.
 
-1. Django/Python/SQLite/timezone/locale exact reference lock
-2. 최소 contract/runner/oracle protocol
-3. codegen bootstrap 실패 사례와 후보 검증
-4. Django-derived test provenance와 license 정책의 실행 가능한 형태
+1. Q-005 descriptor 형태와 freeze 시점
+2. Q-006 M1 nullable 표현
+3. Q-008 dynamic lookup 오류/chaining API
+4. Q-009 package dependency 자동 검증
+5. SQLite driver와 CGO/pure-Go, cancellation, license 선택
+
+QuerySet cache(Q-007), CLI/library version(Q-010), goroutine safety(Q-011)는 M1 범위와
+맞닿는 지점에서 계약을 확정합니다.
 
 ## 다음 정확한 작업
 
-사용자가 구현 시작을 요청하면:
-
-1. `work/0001-compatibility-lab.md` 상태를 `active`로 변경합니다.
-2. 해당 work 문서의 `필수 읽기` 목록을 읽습니다. 여기에는 Architecture와 관련 ADR도 포함됩니다.
-3. `go.mod`를 module `github.com/progresshans/godj`로 만들기 전에 remote를 다시 확인합니다.
-4. M0 환경 lock과 첫 contract manifest 형식을 작은 계획 diff로 구체화합니다.
-5. Django oracle 하나를 재현하고 comparator가 의도적 mismatch를 탐지하는 데까지 구현합니다.
+1. GDJ-0002를 `active`로 바꾸고 시작 시점의 `main` commit과 dirty 상태를
+   baseline으로 기록합니다.
+2. descriptor/nullable/dynamic lookup/package boundary/SQLite driver 후보를 작은
+   compile/runtime fixture로 비교합니다.
+3. 결과를 ADR 또는 명시적 M1 한정 결정으로 기록합니다.
+4. ADR-0006 경계를 지키는 최소 Schema DSL → versioned IR → one-file codegen 단면을
+   만듭니다.
+5. Generic QuerySet/AST/SQLite 실행을 연결한 뒤 M0 oracle과 실제 differential
+   comparison을 시작합니다.
 
 ## 작업 재개 체크포인트
 
-- 미커밋 변경: EVID-20260807-001에 기록된 32개 신규 Markdown 파일, 모두 untracked
-- 실행된 코드 테스트: 없음 — 코드가 없음
-- 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` checkout은 reference이며 사용자 승인 없이 branch 변경/수정 금지
-- 공개 API: 아직 freeze된 항목 없음
-- 가장 위험한 추측: 첨부 초안의 임시 codegen runner와 relation/dynamic lookup/cache API를 확정안으로 구현하는 것
+- 미커밋 변경: 없음 — 상태 기록 commit 후 `git status`로 다시 확인
+- 공개 framework API: 아직 freeze된 항목 없음
+- 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
+- M0 exact regeneration: `make check`
+- Portable CI equivalent: `make ci`
+- 가장 위험한 추측: spike의 fixture DSL/generator를 production API로 승격하거나,
+  nullable/dynamic lookup/SQLite driver를 검증 없이 선택하는 것
 
-문서 검증은 [EVID-20260807-001](TEST_EVIDENCE.md#evid-20260807-001--documentation-foundation-validation), 기능 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md)에 기록되어 있습니다.
+작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
+[TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

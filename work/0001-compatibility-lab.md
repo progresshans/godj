@@ -1,12 +1,13 @@
 ---
 id: GDJ-0001
-status: ready
+status: completed
 updated: 2026-08-07
-baseline_branch: "to be recorded at start"
-baseline_commit: "to be recorded at start"
+baseline_branch: "main"
+baseline_commit: "f2afd7f"
+result_commit: "927788d28f964a9597ff0962138bc56e78de7b14"
 depends_on: ["GDJ-0000", "ADR-0005"]
-contracts: ["META-001", "META-002", "initial QRY contracts"]
-allowed_paths: ["go.mod", "go.sum", "pyproject.toml", "uv.lock", "requirements*.txt", ".python-version", ".gitignore", "LICENSE*", "NOTICE*", "Makefile", "conformance/**", "internal/testutil/**", ".github/workflows/**", "README.md", "AGENTS.md", "docs/**", "work/**"]
+contracts: ["META-001", "META-002", "QRY-001..QRY-010", "SCH-001", "GEN-010"]
+allowed_paths: ["go.mod", "go.sum", "pyproject.toml", "uv.lock", "requirements*.txt", ".python-version", ".gitignore", "LICENSE*", "NOTICE*", "Makefile", "conformance/**", "internal/testutil/**", ".github/workflows/**", "README.md", "AGENTS.md", "docs/**", "work/**", "prompts/**"]
 integration_owner: "one primary agent"
 ---
 
@@ -118,18 +119,18 @@ production package를 만들기보다 최소 fixture로 다음 실패를 재현�
 
 ## 완료 조건
 
-- [ ] exact profile과 lockfile/hash가 기록됨
-- [ ] 8~12개 contract가 manifest validation을 통과함
-- [ ] 각 contract에 upstream path/version/provenance가 있음
-- [ ] Django oracle이 동일 환경 두 번 실행에서 byte-identical함
-- [ ] normalizer unit/property tests가 통과함
-- [ ] comparator mutation tests가 result/order/error/DB-state mismatch를 탐지함
-- [ ] GoDj `not_implemented`가 false green을 만들지 않음
-- [ ] codegen bootstrap 실패가 실행 가능한 fixture로 재현됨
-- [ ] Q-001 선택지 비교와 다음 ADR 결정 조건이 기록됨
-- [ ] CI가 최소 manifest/reference suite를 실행함
-- [ ] 실제 명령이 TEST_EVIDENCE에 기록됨
-- [ ] CURRENT와 IMPLEMENTATION_MATRIX가 갱신됨
+- [x] exact profile과 lockfile/hash가 기록됨
+- [x] 11개 contract가 manifest validation을 통과함
+- [x] 각 contract에 upstream path/version/provenance가 있음
+- [x] Django oracle이 동일 환경 두 번 실행에서 byte-identical함
+- [x] normalizer unit/property tests가 통과함
+- [x] comparator mutation tests가 result/order/error/DB-state mismatch를 탐지함
+- [x] GoDj `not_implemented`가 false green을 만들지 않음
+- [x] codegen bootstrap 실패가 실행 가능한 fixture로 재현됨
+- [x] Q-001 선택지 비교와 ADR 결정이 기록됨
+- [x] CI가 최소 manifest/reference suite를 실행하도록 구성되고 동일 명령이 로컬에서 통과함
+- [x] 실제 명령이 TEST_EVIDENCE에 기록됨
+- [x] CURRENT와 IMPLEMENTATION_MATRIX가 갱신됨
 
 ## 위험
 
@@ -143,6 +144,40 @@ production package를 만들기보다 최소 fixture로 다음 실패를 재현�
 
 중단 시 exact environment command, 마지막 성공 contract, 실패한 comparator case, generated oracle diff, Q-001 spike 결과, 미커밋 파일, 다음 명령을 기록합니다.
 
+## 구현 결과
+
+- Profile `django-6.1-sqlite-darwin-arm64`에 Django/Python/SQLite/source ID,
+  timezone, locale, platform, uv version과 lock hash를 고정했습니다.
+- QRY-001~010과 SCH-001의 독립 scenario, provenance manifest, deterministic
+  Django oracle을 만들었습니다.
+- Strict Go protocol은 unknown JSON field, 잘못된 tagged value, contract 순서와
+  comparison dimension drift를 거부합니다.
+- Comparator는 result value/order, phase, error category/code, contractual message,
+  DB state, metrics mutation을 탐지합니다.
+- `godj-not-implemented.json`은 유효한 미구현 observation이지만 oracle과 비교하면
+  11개 mismatch로 실패합니다.
+- Codegen spike 결과 선언 package와 generated target package를 분리하는
+  [ADR-0006](../docs/adr/0006-codegen-input-package-boundary.md)을 채택했습니다.
+- 독립 시나리오와 Django 파생물의 구분, BSD 고지, 아직 선택되지 않은 GoDj 자체
+  라이선스 상태를 [LICENSING.md](../docs/LICENSING.md)에 기록했습니다.
+
+## 검증과 제한
+
+[EVID-20260807-002](../docs/status/TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab)에
+exact 환경, 명령, 결과가 있습니다. 구현 commit은
+`927788d28f964a9597ff0962138bc56e78de7b14`입니다.
+
+- GitHub-hosted CI는 아직 push되지 않아 원격 실행 증거가 없습니다. Workflow YAML과
+  동일한 `make ci`는 로컬에서 통과했습니다.
+- 일반 Linux CI는 portable suite만 검증하고 darwin/arm64 oracle 재현을 주장하지
+  않습니다.
+- CPython 3.14.3은 현재 3.14 최신 micro가 아니며 exact GoDj reference일 뿐입니다.
+- Codegen fixture는 production DSL/generator가 아니고 최초 생성, 다중 파일,
+  Windows, build tag, cross-app relation을 검증하지 않았습니다.
+- GoDj ORM이 없으므로 contract 상태는 `oracle_locked`이며 `passing`이 아닙니다.
+
 ## 다음 단계
 
-M0 gate가 닫히면 [GDJ-0002](0002-model-to-query-walking-skeleton.md)를 `ready`로 승격합니다.
+M0 gate를 닫고 [GDJ-0002](0002-model-to-query-walking-skeleton.md)를 `ready`로
+승격했습니다. 다음 작업은 M1의 API/SQLite dependency 결정을 작은 compile spike로
+검증하는 것입니다.

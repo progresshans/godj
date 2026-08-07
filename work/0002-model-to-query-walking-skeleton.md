@@ -1,12 +1,12 @@
 ---
 id: GDJ-0002
-status: proposed
+status: ready
 updated: 2026-08-07
 baseline_branch: ""
 baseline_commit: ""
-depends_on: ["GDJ-0001", "Q-001 decision"]
-contracts: ["SCH-001+", "GEN-001+", "QRY-001..QRY-009", "DB-SQLITE-001+"]
-allowed_paths: ["cmd/godj/**", "schema/**", "codegen/**", "orm/**", "query/**", "db/**", "conformance/**", "examples/**", "docs/**", "work/**"]
+depends_on: ["GDJ-0001", "ADR-0006"]
+contracts: ["QRY-001..QRY-010", "SCH-001 reference", "M1 SCH/GEN/DB IDs TBD"]
+allowed_paths: ["go.mod", "go.sum", "cmd/godj/**", "schema/**", "codegen/**", "orm/**", "query/**", "db/**", "internal/**", "conformance/**", "examples/**", "docs/**", "work/**"]
 integration_owner: "one primary agent"
 ---
 
@@ -57,6 +57,34 @@ minimal Schema DSL
 - context cancellation과 row/resource close가 전달되는지
 - generated code가 repository 내부뿐 아니라 external consumer package 관점에서 compile되는지
 
+## 시작 전 결정 spike
+
+다음 항목은 문서 예시를 바로 공개 API로 만들지 않고 compile/runtime fixture로 먼저
+비교합니다.
+
+1. `ModelDescriptor[M]` interface와 generated concrete descriptor의 초기화/freeze
+2. M1에 필요한 `NULL` 표현과 조회/`isnull` 의미 — partial update는 비목표
+3. Dynamic lookup 오류를 반환하면서 chaining 가능한 최소 API
+4. Package dependency direction과 external consumer compile fixture
+5. SQLite driver 후보의 pure-Go/CGO, cancellation, supported Go version, license 영향
+
+결과가 공개 사용법이나 장기 package 경계를 정하면 같은 변경에서 ADR을 추가합니다.
+
+## 구현 순서
+
+1. Q-005/Q-006/Q-008/Q-009와 SQLite driver 선택을 작은 spike로 좁힙니다.
+2. ADR-0006에 따라 generated target을 import하지 않는 최소 Go Schema DSL package를
+   만듭니다.
+3. Versioned Schema IR normalization, canonical serialization/hash와 validation을
+   구현합니다.
+4. Package당 한 generated file로 `Article`, FieldSet, descriptor/codec binding을 만들고
+   golden/idempotency/stale/compile test를 연결합니다.
+5. Generic Manager/QuerySet과 불변 Query AST를 만들고 typed/dynamic predicate를 같은
+   node로 수렴시킵니다.
+6. SQLite compiler/executor와 test-only schema provisioner를 연결합니다.
+7. GoDj observation adapter를 만들어 M0 oracle과 실제 comparator로 QRY contract를
+   `passing`까지 올립니다.
+
 ## 완료 gate
 
 - [ ] M0 contract 중 M1 범위가 SQLite에서 `passing`
@@ -67,4 +95,5 @@ minimal Schema DSL
 - [ ] `go test`와 relevant race test evidence 기록
 - [ ] public API 결정을 ADR과 문서에 반영
 
-세부 구현 계획은 GDJ-0001 결과와 Q-001 결정 후 확정합니다. 이 문서의 타입/패키지 이름은 아직 public API가 아닙니다.
+GDJ-0001과 ADR-0006이 선행 조건을 닫았습니다. 이 문서의 타입/패키지 이름은 여전히
+public API가 아니며, 시작 시 baseline commit과 첫 spike의 수정 경로를 기록합니다.

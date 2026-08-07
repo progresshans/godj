@@ -6,18 +6,19 @@
 
 | Capability | Contract | Design | Code | Unit/Compile | Differential | Backend |
 |---|---|---|---|---|---|---|
-| Compatibility profile | META-001 | Accepted target; exact lock open Q-002 | Not started | — | draft | — |
-| Contract/oracle harness | META-002 | Accepted direction; protocol open Q-003 | Not started | Not run | draft | SQLite reference planned |
-| Schema DSL | SCH-001+ | Proposed details | Not started | Not run | Not run | — |
-| Normalized Schema IR | SCH-010+ | Accepted direction | Not started | Not run | Not run | — |
-| Deterministic codegen | GEN-001+ | Accepted direction | Not started | Not run | Not run | — |
-| Codegen bootstrap | GEN-010 | Open Q-001 | Not started | Not run | — | — |
-| Generated model/FieldSet | GEN-020+ | Proposed details | Not started | Not run | Not run | — |
-| Generic Manager/QuerySet | QRY-001+ | Accepted direction | Not started | Not run | Not run | — |
-| Typed predicate API | QRY-010+ | Accepted direction | Not started | Not run | Not run | — |
-| Dynamic lookup API | QRY-020+ | Accepted direction | Not started | Not run | Not run | — |
-| Shared Query AST | QRY-030+ | Accepted direction | Not started | Not run | Not run | — |
-| QuerySet cache semantics | QRY-040+ | Open Q-007 | Not started | Not run | Not run | — |
+| Compatibility profile | META-001 | Accepted exact profile | Implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | `oracle_locked` | Django 6.1 / SQLite 3.50.4 reference |
+| Contract/oracle harness | META-002 | Accepted protocol v1 | Implemented | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | 11 contracts `oracle_locked` | exact darwin/arm64 reference |
+| Django model metadata oracle | SCH-001 | Accepted M0 observation | Implemented reference adapter | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | `oracle_locked` | SQLite reference |
+| Schema DSL | M1 SCH IDs TBD | Proposed details | Not started | Not run | Not run | — |
+| Normalized Schema IR | M1 SCH IDs TBD | Accepted direction | Not started | Not run | Not run | — |
+| Deterministic codegen | M1 GEN IDs TBD | Accepted direction | Not started | Not run | Not run | — |
+| Codegen bootstrap | GEN-010 | [ADR-0006](../adr/0006-codegen-input-package-boundary.md) Accepted | M0 spike implemented; production not started | [Pass EVID-002](TEST_EVIDENCE.md#evid-20260807-002--gdj-0001-compatibility-lab) | — | darwin/arm64 fixture |
+| Generated model/FieldSet | M1 GEN IDs TBD | Proposed details | Not started | Not run | Not run | — |
+| Generic Manager/QuerySet | QRY-001..QRY-010 | Accepted direction | Not started | Protocol tests pass; ORM tests not run | Django `oracle_locked`; GoDj explicitly `not_implemented` | SQLite reference only |
+| Typed predicate API | M1 mapping TBD | Accepted direction | Not started | Not run | Not run | — |
+| Dynamic lookup API | QRY-008/QRY-010 + M1 invariants | Accepted direction | Not started | Not run | Django error oracle locked | — |
+| Shared Query AST | M1 internal IDs TBD | Accepted direction | Not started | Not run | Not run | — |
+| QuerySet cache semantics | Q-007 / contract TBD | Open Q-007 | Not started | Not run | Not run | — |
 | SQLite query execution | DB-SQLITE-001+ | Planned M1 | Not started | Not run | Not run | Not started |
 | Model write lifecycle | MOD-001+ | Planned M2 | Not started | Not run | Not run | — |
 | Migration engine | MIG-001+ | Planned M2 | Not started | Not run | Not run | — |
