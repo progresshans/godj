@@ -120,6 +120,14 @@ validation에서 거부됩니다. Protocol v2에 별도 manifest digest는 없�
 uniqueness gate를 유지하고, 동일 ID/order/phase를 재사용해야 할 필요가 생길 때만
 wire v3 set identity를 검토합니다.
 
+GDJ-0007은
+[`query-cache-manifest.json`](../conformance/contracts/query-cache-manifest.json)을 네 번째
+ordered set으로 추가했습니다. QRY-011..021은 repeated/empty/stale evaluation, chain,
+Count/Exists, iterator, cold index/First, failure retry와 evaluated source의 fresh copy를
+다룹니다. 네 manifest의 contract ID/scenario는 전역으로 유일하고, 모든 12개 ordered
+cross-pair가 거부됩니다. 이 set은 exact Django oracle이 `oracle_locked`인 reference
+계약이며 GDJ-0008 제품 adapter가 통과하기 전에는 GoDj 지원으로 세지 않습니다.
+
 ## 계약 상태
 
 설계·구현 상태와 실행 상태를 구분합니다.
@@ -151,7 +159,7 @@ M0에서는 범용 Django 테스트 전체를 옮기지 않고 11개의 작은 �
 - nullable 값과 `isnull`
 - 잘못된 field와 lookup의 오류 의미
 - 실제 I/O 전 지연 평가
-- 결과 cache 의미는 Q-007 결정 후 추가
+- 결과 cache 의미는 GDJ-0007의 별도 QuerySet evaluation/cache set에서 추가
 
 M0에서는 Django oracle만 고정되어 `oracle_locked`였고 미구현 fixture가 11개
 mismatch를 내는지 확인했습니다. M1에서는 `Article` 한 모델의 typed/dynamic lookup,
@@ -182,13 +190,17 @@ generated model/Manager/SQLite 실제 제품 경로로 실행해 `passing`으로
 explicit `update_fields`는 named field만 쓰며 empty iterable은 zero-I/O no-op입니다.
 Force validation과 missing-row `NotUpdated`, explicit PK의 UPDATE/UPDATE→INSERT, 명시적
 transaction rollback 뒤 model field/assigned PK가 메모리에 남는 의미도 분리했습니다.
-현재 검증된 세 set은 11 + 11 + 12, 총 34개 `passing`입니다. Static fixture의 정확한
+현재 제품에서 검증된 세 set은 11 + 11 + 12, 총 34개 `passing`입니다. Static fixture의 정확한
 12개 mismatch는 현재 제품 결과가 아니라 구현 전 상태를 녹색으로 만들지 않는
 false-green 회귀 증거로 유지합니다.
 
-GDJ-0007은 Q-007의 QuerySet evaluation/cache/terminal 의미를 네 번째 set으로 추가하기
-위한 contract-only 작업입니다. QRY-011..020은 아직 후보이며 exact oracle과 provenance가
-lock되기 전에는 현재 지원이나 `oracle_locked` 상태로 세지 않습니다.
+GDJ-0007은 Q-007의 QuerySet evaluation/cache/terminal 의미를 QRY-011..021의 네 번째
+set으로 고정했습니다. 성공한 empty/non-empty full evaluation cache, stale snapshot,
+chain/fresh 독립성, cold/warm terminal과 실패 재시도를 step별 query count와 DB state로
+비교합니다. Oracle은 `oracle_locked`이고 explicit static fixture는 정확히 11개
+`not_implemented` mismatch를 냅니다. 현재 제품은 intentionally uncached이므로 지원이나
+`passing`을 주장하지 않습니다. 현재 전체 상태는 기존 세 set 34개 `passing`과 새 set
+11개 `oracle_locked`이며, GDJ-0008이 실제 adapter를 연결한 뒤에만 후자를 올립니다.
 
 ## 데이터 호환성
 

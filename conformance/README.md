@@ -5,6 +5,7 @@ comparator, M0 codegen bootstrap spike와 GoDj observation adapter를 보관합�
 GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract set을 추가했고,
 GDJ-0004는 그 set을 실제 제품 package에 연결했습니다.
 GDJ-0005는 mutable Save lifecycle 전용 세 번째 reference set을 추가했습니다.
+GDJ-0007은 QuerySet evaluation/cache 전용 네 번째 reference set을 추가했습니다.
 제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
 package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -16,6 +17,7 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | `contracts/manifest.json` | M1 read/metadata contract 11개 |
 | `contracts/write-migration-manifest.json` | M2 write/transaction/migration contract 11개 |
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
+| `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read와 M2 write/migration/Save 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
@@ -108,6 +110,16 @@ LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
   --check
 ```
 
+QuerySet evaluation/cache oracle은 네 번째 manifest와 전용 output을 함께 넘겨 확인합니다.
+
+```bash
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/query-cache-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json \
+  --check
+```
+
 두 observation을 직접 비교할 수 있습니다.
 
 ```bash
@@ -153,10 +165,19 @@ generated model, `Manager.Save`와 SQLite adapter를 연결해 12개 모두 `pas
 `godj-save-lifecycle-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 ordered
 12-mismatch false-green fixture로 유지하며 현재 GoDj actual을 뜻하지 않습니다.
 
+QuerySet evaluation/cache set은 GDJ-0007에서 QRY-011..021의 exact Django 결과와
+provenance를 `oracle_locked`로 고정했습니다. 현재 GoDj QuerySet은 intentionally
+uncached이고 이 manifest용 제품 adapter가 없으므로 `godjcheck`는 unknown scenario를
+명시해 exit 2로 fail-closed하며 actual output을 쓰지 않습니다. Checked-in
+`godj-query-cache-not-implemented.json`은 ordered 11-mismatch false-green fixture입니다.
+네 manifest의 contract ID/scenario는 전역으로 유일하고 모든 12개 ordered cross-pair가
+validation에서 거부됩니다. 현재 제품 differential은 기존 11 + 11 + 12, 총 34개만
+`passing`이며 QuerySet cache 11개는 GDJ-0008 전까지 제품 통과로 세지 않습니다.
+
 ## Provenance
 
-현재 query/write/migration/Save scenario는 Django 코드를 번역하지 않고 GoDj 고유
-fixture로 독립적으로
+현재 query/write/migration/Save/QuerySet evaluation-cache scenario는 Django 코드를
+번역하지 않고 GoDj 고유 fixture로 독립적으로
 작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
 정의입니다. Manifest의
 upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. 파생물

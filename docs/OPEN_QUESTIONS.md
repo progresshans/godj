@@ -8,9 +8,9 @@
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
-| Q-007 | P1 | GDJ-0007/0008 | QuerySet evaluation/cache reference 계약을 먼저 잠그고 value-copy/concurrency 제품 ownership을 후속 결정 |
+| Q-007 | P1 | GDJ-0008 | QRY-011..021 reference는 locked; value-copy/cache alias와 terminal 제품 API를 ADR-0012에서 결정 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
-| Q-011 | P1 | M1 | request, QuerySet, transaction, hook의 goroutine safety 계약은 무엇인가 |
+| Q-011 | P1 | GDJ-0008/M5+ | QuerySet subset의 goroutine safety는 ADR-0012, request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | public CLI 전 | migration core 경계는 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) Accepted, file ABI/lock은 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
@@ -70,9 +70,11 @@ Go에서는 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md)에 따라 co
 불변 plan과 instance result cache를 분리해야 합니다.
 [GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)에서 chain,
 반복/빈/실패 평가, iterator/Count/Exists/fresh clone의 Django 외부 동작을 먼저
-QRY-011..020 후보 계약으로 고정합니다. Value-copy QuerySet의 cache ownership, 동시
-`All`, waiter cancellation과 goroutine sharing은 그 결과를 입력으로 GDJ-0008의
-Go-native ADR/race/benchmark에서 결정합니다.
+QRY-011..021의 exact 계약으로 고정했습니다. Oracle은 `oracle_locked`이며 현재 제품은
+intentionally uncached입니다. Value-copy QuerySet의 cache ownership, cached result alias,
+동시 `All`, waiter cancellation과 Go terminal 표면은 그 결과를 입력으로
+[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)의 ADR-0012/race test에서
+결정합니다. Q-011 전체를 닫지는 않으며 이 작업은 QuerySet subset만 다룹니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 

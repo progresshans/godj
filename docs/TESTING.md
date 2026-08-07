@@ -77,6 +77,7 @@ conformance/
   contracts/manifest.json
   contracts/write-migration-manifest.json
   contracts/save-lifecycle-manifest.json
+  contracts/query-cache-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -87,6 +88,7 @@ conformance/
   fixtures/godj-not-implemented.json
   fixtures/godj-write-migration-not-implemented.json
   fixtures/godj-save-lifecycle-not-implemented.json
+  fixtures/godj-query-cache-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -156,6 +158,15 @@ GDJ-0006은 실제 GoDj Save adapter를 연결해 세 번째 set도 `passing`으
 Adapter metrics는 임의 contract/statement sequence가 recorder에서 직접 유도되는지
 검증하고, SQLite primary-key 오류는 opaque wrapper 안의 structured extended code만
 분류하는 회귀로 oracle-shaped 하드코딩과 문자열 비교 false green을 막습니다.
+
+GDJ-0007은 QuerySet evaluation/cache 11개를 네 번째 set으로 추가했습니다. 모든
+scenario는 setup DDL/DML과 terminal capture window를 분리하고, result/DB state와 함께
+ordered step별 SELECT count를 비교합니다. 네 set의 ID/scenario 전역 uniqueness와 모든
+12개 ordered cross-pair를 검증합니다. Query-count/result/error mutation뿐 아니라 fixture
+sentinel과 capture token이 11개 scenario의 live 실행 결과까지 전파되는지를 검사해
+checked-in oracle을 그대로 반환하는 하드코딩도 거부합니다. 이 set은 아직 제품 adapter가
+없어 `oracle_locked`이며 static fixture의 정확한 11 mismatch와 `godjcheck` fail-closed가
+기대 결과입니다. 기존 M1/M2/Save 34개 differential은 계속 0-diff여야 합니다.
 
 ## 기능별 기본 테스트 요구
 

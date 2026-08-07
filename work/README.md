@@ -30,12 +30,13 @@ proposed → ready → active → completed
 | [GDJ-0004](0004-write-migration-walking-skeleton.md) | completed | Write/Migration 첫 제품 수직 단면 |
 | [GDJ-0005](0005-save-lifecycle-compatibility-contracts.md) | completed | Save lifecycle 호환 계약 확장 |
 | [GDJ-0006](0006-save-lifecycle-product-slice.md) | completed | Save lifecycle 제품 수직 단면 |
-| [GDJ-0007](0007-queryset-evaluation-cache-compatibility-contracts.md) | active | QuerySet evaluation/cache 호환 계약 |
+| [GDJ-0007](0007-queryset-evaluation-cache-compatibility-contracts.md) | completed | QuerySet evaluation/cache 호환 계약 |
+| [GDJ-0008](0008-queryset-evaluation-cache-product-slice.md) | active | QuerySet evaluation/cache 제품 수직 단면 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active
-항목은 GDJ-0007이며 ready 항목은 없습니다. 후속 제품 구현은 이 계약 결과로
-GDJ-0008에서 분리합니다.
+항목은 GDJ-0008이며 ready 항목은 없습니다. GDJ-0007의 QRY-011..021 reference를
+입력으로 제품 API/ownership을 ADR-0012에서 결정한 뒤 실제 adapter를 연결합니다.
 
 ## 운영 규칙
 

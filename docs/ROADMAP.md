@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: M2 Save lifecycle 제품 단면 완료, QuerySet evaluation/cache 계약 진행 중
+- 현재 단계: QuerySet evaluation/cache reference 계약 완료, 제품 단면 진행 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -74,10 +74,12 @@ loaded/new/force/explicit PK와 rollback의 외부 의미는
 explicit key와 SQLite error 경계를 구현해 12개 모두 통과했습니다. Public migration
 file, autodetector, graph, lock과 crash recovery는 이후 별도 work/ADR 범위입니다.
 
-다음 단면은 M1부터 열린 Q-007을 먼저 닫기 위해
-[GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)에서 QuerySet
-evaluation/cache의 exact reference 계약을 고정합니다. Cache 제품 구현과 Go-native
-copy/concurrency ownership은 후속 GDJ-0008로 분리합니다.
+M1부터 열린 Q-007을 먼저 닫기 위해
+[GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)은 QuerySet
+evaluation/cache의 QRY-011..021 exact reference 계약을 네 번째 set으로 고정했습니다.
+기존 제품 34개는 계속 `passing`이고 새 11개는 `oracle_locked`입니다. 현재
+[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)에서 Go-native value-copy/
+concurrency ownership과 terminal API를 ADR로 결정한 뒤 실제 adapter를 연결합니다.
 
 ## M3 — Relations + PostgreSQL
 

@@ -6,11 +6,12 @@ GoDj uses Django 6.1 as a development-time behavioral reference and test
 dependency. Django is installed from PyPI by the conformance workflow and is not
 part of a GoDj binary or generated source.
 
-GoDj's conformance scenarios, including the query, write, migration, and Save
-lifecycle fixtures, are independently written behavioral scenarios. Their
-manifest entries point to Django documentation and tests for provenance but do
-not copy or translate Django source, fixtures, comments, or assertion structure.
-This notice does not classify those scenarios as derivative works.
+GoDj's conformance scenarios, including the query, write, migration, Save
+lifecycle, and QuerySet evaluation/cache fixtures, are independently written
+behavioral scenarios. Their manifest entries point to pinned Django
+documentation, source symbols, and tests for provenance but do not copy or
+translate Django source, fixtures, comments, or assertion structure. This
+notice does not classify those scenarios as derivative works.
 
 Django is licensed under the BSD 3-Clause license. A copy is included in
 [`LICENSE.django`](LICENSE.django). If a future file copies, translates, or

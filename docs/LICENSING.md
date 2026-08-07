@@ -37,11 +37,13 @@ binary에 들어가는 모든 transitive dependency의 배포 검토를 대신�
 - 원본 저작권 고지, 조건, disclaimer와 파일별 추가 라이선스를 보존합니다.
 - 파생물 전용 검토 없이 독립 시나리오 디렉터리에 섞지 않습니다.
 
-M0/M1 query 시나리오, GDJ-0003 write/migration 시나리오·static migration fixture와
-GDJ-0005 Save lifecycle 시나리오는 모두 첫 번째 분류입니다. Upstream test code나
-fixture를 복사하지 않고 GoDj 고유 app/table/value로 작성했으며 manifest reference는
-동작 근거 추적용입니다. Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한
-보수적 정책으로 저장소에 포함합니다.
+M0/M1 query 시나리오, GDJ-0003 write/migration 시나리오·static migration fixture,
+GDJ-0005 Save lifecycle과 GDJ-0007 QuerySet evaluation/cache 시나리오는 모두 첫 번째
+분류입니다. Upstream test code나 fixture를 복사하지 않고 GoDj 고유 app/table/value로
+작성했으며 manifest reference는 동작 근거 추적용입니다. 모든 QuerySet cache provenance
+entry도 `derived=false`이고 pinned source/doc/test symbol은 의미와 버전 추적만 합니다.
+Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
+포함합니다.
 
 ## 배포와 CI
 

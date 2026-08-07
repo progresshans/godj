@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-005
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-006
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -565,3 +565,93 @@ go run ./conformance/cmd/observationcmp \
 
 이 명령은 의도한 exit 1과 ordered 12개의 status mismatch를 냈습니다. Static fixture는
 현재 제품 actual이 아니라 false-green 회귀 입력입니다.
+
+## EVID-20260808-006 — GDJ-0007 QuerySet Evaluation and Cache Compatibility Contracts
+
+- Date/time: 2026-08-08T04:35:22+09:00
+- Work/contract IDs: GDJ-0007, META-001, META-002, QRY-011..QRY-021, Q-007,
+  Q-011
+- Checkout/commit: conformance source와 machine artifact가 clean `main` commit
+  `9050b4d7d2a1ed961da5e7bdefde8f4c8653eb33`; evidence 작성 시 미커밋 변경은
+  GDJ-0007 완료와 GDJ-0008 handoff 문서뿐
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  `modernc.org/sqlite v1.56.0`, Go SQLite 3.53.3; uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit
+  `fe0a859f537d4238cf49fca39073513206f83122`, reference SQLite 3.50.4,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: final `make check`, uncached full Go test/race/CGO=0, focused protocol/
+  command test, checksum과 two-process oracle comparison 모두 0; static actual 비교는
+  예상대로 1과 11 mismatch; unsupported GoDj query-cache adapter는 예상한 exit 2
+- Result summary: repeated/empty/stale full evaluation, chain, Count/Exists, iterator,
+  cold index/First, failure retry와 fresh copy를 QRY-011..021의 네 번째 ordered set으로
+  고정했습니다. Python portable 44-test에서 exact 5개를 skip했고 exact run은 44개
+  모두 pass했습니다. 네 set의 전역 ID/scenario uniqueness, 12개 ordered cross-binding,
+  query-count/result/error와 live-fixture/capture propagation mutation이 false green 없이
+  실패했습니다. 기존 GoDj M1/M2/Save 34개 differential은 0-diff를 유지했습니다.
+- Failures/skips: 예상하지 않은 실패 없음. QuerySet cache 제품 adapter는 이 작업 범위
+  밖이므로 static fixture의 ordered 11개 `not_implemented` mismatch와 `godjcheck`의
+  fail-closed unsupported가 기대 결과입니다. GitHub-hosted workflow는 push하지 않아
+  실행하지 않았습니다.
+- Artifacts: `query-cache-manifest.json` 11개 `oracle_locked`, exact oracle 56,426 bytes
+  SHA-256 `d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`,
+  manifest SHA-256 `3d7b20e2e5f75905847eb0042633dbe6ec1dd11dcbd225b3ed57d677cf4af730`,
+  static fixture SHA-256 `5cdec6cbd5440527529b08774673136c079895ab834fe2821a1626000d611d87`
+- Notes: SQL 문자열, Django private `_result_cache`, Python object identity는 계약하지
+  않았습니다. QRY-019의 missing-table 오류는 기존 제품 taxonomy와 맞춘
+  `backend_error/missing_table`만 비교합니다. 독립 contract/provenance와 mutation 감사는
+  최종 수정 뒤 P0–P3 finding이 없음을 확인했습니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+go test ./... -count=1
+go test -race ./... -count=1
+CGO_ENABLED=0 go test ./... -count=1
+go test ./conformance/internal/protocol ./conformance/cmd/godjcheck -count=1
+git diff --check
+(
+  cd conformance/oracles/django-6.1-sqlite-darwin-arm64
+  shasum -a 256 -c SHA256SUMS
+)
+```
+
+`make check`는 generation drift, 전체 Go test/vet/race, focused `CGO_ENABLED=0`, Python
+portable/exact 44-test, 네 manifest/oracle/fixture validation, 네 oracle byte check와 기존
+M1/M2/Save 34-contract differential을 실행했습니다.
+
+QuerySet cache oracle의 independent process determinism:
+
+```bash
+task_query_run=$(mktemp -d /tmp/godj-query-cache-final.XXXXXX)
+LC_ALL=C TZ=UTC PYTHONHASHSEED=random uv run --frozen python \
+  -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/query-cache-manifest.json \
+  --output "$task_query_run/one.json"
+LC_ALL=C TZ=UTC PYTHONHASHSEED=random uv run --frozen python \
+  -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/query-cache-manifest.json \
+  --output "$task_query_run/two.json"
+cmp "$task_query_run/one.json" "$task_query_run/two.json"
+cmp "$task_query_run/one.json" \
+  conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json
+```
+
+두 임시 파일과 checked-in oracle은 모두 56,426 bytes이며 같은 SHA-256을 냈습니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/query-cache-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json \
+  -actual conformance/fixtures/godj-query-cache-not-implemented.json
+```
+
+이 명령은 의도한 exit 1, ordered QRY-011..021 status mismatch 11개와
+`observationcmp: 11 difference(s)`를 반환했습니다. Query-cache manifest를 현재 제품
+`godjcheck`에 넘기면 unknown scenario를 명시해 exit 2로 fail-closed하며 output을 쓰지
+않습니다.
