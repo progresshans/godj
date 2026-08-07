@@ -14,7 +14,8 @@ func TestMigrationExecutionArtifactHashesAreLocked(t *testing.T) {
 
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]string{
-		"conformance/contracts/migration-execution-manifest.json":                            "f414cd7a495f6e6765df06ca1427485ecc16a8d19c344f190f5f1421dc2a517d",
+		"conformance/contracts/migration-execution-manifest.json":                            "1857dcf375ed09f8566798ce662c72a86ef41706e478eef6f208077b156886e9",
+		"conformance/fixtures/godj-migration-execution-deviation-expected.json":              "568495ed3dc5e6f3760c28f1c61c40dc54a63483c5b9c11283bf7ae5a8ac7547",
 		"conformance/fixtures/godj-migration-execution-not-implemented.json":                 "6416e6e9a854d78b94d4242e6ffd1ed3a72caf3c058e0d9c4a78b0690e1a7a04",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json": "641c8934fb80c74b59caa544f0ea3c30561e01515e0868c6f22678d69428430e",
 	}
@@ -30,7 +31,7 @@ func TestMigrationExecutionArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestMigrationExecutionOracleLockedArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
+func TestMigrationExecutionApprovedArtifactsKeepExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, oracle, baseline := loadMigrationExecutionArtifacts(t)
@@ -52,6 +53,12 @@ func TestMigrationExecutionOracleLockedArtifactsKeepExplicitNotImplementedBaseli
 	}
 	resultDimensions := []ComparisonDimension{CompareResult, CompareDBState, CompareMetrics}
 	errorDimensions := []ComparisonDimension{CompareError, CompareDBState, CompareMetrics}
+	deviations := map[string]bool{
+		"MIG-018": true,
+		"MIG-020": true,
+		"MIG-022": true,
+		"MIG-024": true,
+	}
 	for index, contract := range manifest.Contracts {
 		wantID := fmt.Sprintf("MIG-%03d", index+17)
 		if contract.ID != wantID {
@@ -60,8 +67,27 @@ func TestMigrationExecutionOracleLockedArtifactsKeepExplicitNotImplementedBaseli
 		if contract.Phase != wantPhases[index] {
 			t.Fatalf("manifest contract %s phase = %q, want %q", contract.ID, contract.Phase, wantPhases[index])
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		wantStatus := ContractPassing
+		if deviations[contract.ID] {
+			wantStatus = ContractDeviation
+		}
+		if contract.Status != wantStatus {
+			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
+		}
+		decisionCount := 0
+		for _, provenance := range contract.Provenance {
+			if provenance.Kind == "decision" {
+				decisionCount++
+				if provenance.Reference != "DEV-0001" || provenance.Derived == nil || *provenance.Derived {
+					t.Fatalf("manifest contract %s decision provenance = %#v", contract.ID, provenance)
+				}
+			}
+		}
+		if deviations[contract.ID] && decisionCount != 1 {
+			t.Fatalf("manifest contract %s decision count = %d, want 1", contract.ID, decisionCount)
+		}
+		if !deviations[contract.ID] && decisionCount != 0 {
+			t.Fatalf("passing manifest contract %s decision count = %d, want 0", contract.ID, decisionCount)
 		}
 		wantDimensions := errorDimensions
 		if index < 4 || index == 9 {

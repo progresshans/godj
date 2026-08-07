@@ -49,6 +49,8 @@ const (
 	CodeInconsistentAppliedHistory ErrorCode = "inconsistent_applied_history"
 	CodeInvalidTarget              ErrorCode = "invalid_target"
 	CodeTargetNotFound             ErrorCode = "target_not_found"
+	CodeInvalidExecutionPlan       ErrorCode = "invalid_execution_plan"
+	CodeMixedDirections            ErrorCode = "mixed_directions"
 )
 
 const NoOperation = -1
@@ -133,6 +135,11 @@ func (e Executor) execute(ctx context.Context, before ProjectState, migration Mi
 	prepared, after, err := preflight(before, migration, direction)
 	if err != nil {
 		return before.Clone(), err
+	}
+	// State preflight is intentionally pure, but it can be non-trivial. Honor
+	// cancellation that arrives while it runs before touching the backend.
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
 	}
 	if isNilInterface(e.Backend) {
 		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migration, NoOperation, "", errors.New("backend is nil"))

@@ -54,6 +54,75 @@ func TestExecutorRejectsCanceledContextBeforeIO(t *testing.T) {
 	}
 }
 
+func TestExecutorRejectsContextCanceledDuringStatePreflightBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	for _, direction := range []Direction{DirectionForward, DirectionBackward} {
+		direction := direction
+		t.Run(string(direction), func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			fake := &fakeBackend{transaction: newFakeTransaction()}
+			migration := Migration{
+				App:  "news",
+				Name: "0001_cancel_during_preflight",
+				Operations: []Operation{
+					cancelDuringPreflightOperation{cancel: cancel},
+				},
+			}
+			before := EmptyProjectState()
+			var (
+				after ProjectState
+				err   error
+			)
+			if direction == DirectionForward {
+				after, err = (Executor{Backend: fake}).Apply(ctx, before, migration)
+			} else {
+				after, err = (Executor{Backend: fake}).Unapply(ctx, before, migration)
+			}
+			assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("execute after preflight cancellation error = %v, want context.Canceled", err)
+			}
+			if fake.beginCount != 0 {
+				t.Fatalf("BeginMigration() calls = %d, want 0", fake.beginCount)
+			}
+			if !after.Equal(before) {
+				t.Fatal("preflight cancellation changed returned state")
+			}
+		})
+	}
+}
+
+type cancelDuringPreflightOperation struct {
+	cancel context.CancelFunc
+}
+
+func (op cancelDuringPreflightOperation) Kind() string { return "CancelDuringPreflight" }
+
+func (cancelDuringPreflightOperation) operation() {}
+
+func (cancelDuringPreflightOperation) App() string { return "news" }
+
+func (op cancelDuringPreflightOperation) stateForward(state ProjectState) (ProjectState, error) {
+	op.cancel()
+	return state.Clone(), nil
+}
+
+func (op cancelDuringPreflightOperation) stateBackward(state ProjectState) (ProjectState, error) {
+	op.cancel()
+	return state.Clone(), nil
+}
+
+func (cancelDuringPreflightOperation) databaseForward(context.Context, backend.SchemaEditor, ProjectState, ProjectState) error {
+	return nil
+}
+
+func (cancelDuringPreflightOperation) databaseBackward(context.Context, backend.SchemaEditor, ProjectState, ProjectState) error {
+	return nil
+}
+
 func TestExecutorApplyCommitsOperationsAndRecordInOrder(t *testing.T) {
 	t.Parallel()
 

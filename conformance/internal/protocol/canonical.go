@@ -42,6 +42,13 @@ func validateCanonicalInput(value any) error {
 			return fmt.Errorf("cannot marshal nil observation suite")
 		}
 		return typed.Validate()
+	case DeviationExpectation:
+		return typed.Validate()
+	case *DeviationExpectation:
+		if typed == nil {
+			return fmt.Errorf("cannot marshal nil deviation expectation")
+		}
+		return typed.Validate()
 	case Value:
 		return typed.Validate()
 	case *Value:

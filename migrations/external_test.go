@@ -132,6 +132,56 @@ func TestExternalConsumerCanConstructBuiltInMigration(t *testing.T) {
 	}
 }
 
+func TestExternalConsumerCanExecuteAndInspectMigrationPlan(t *testing.T) {
+	t.Parallel()
+
+	model := ir.Model{
+		Name:    "article",
+		GoName:  "Article",
+		DBTable: "news_article",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 200},
+		},
+	}
+	initial := migrations.Migration{
+		App:        "news",
+		Name:       "0001_initial",
+		Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "news", Model: model}},
+	}
+	external := &externalBackend{transaction: &externalTransaction{}}
+	state, err := (migrations.Executor{Backend: external}).ExecutePlan(
+		context.Background(),
+		migrations.EmptyProjectState(),
+		[]migrations.Migration{initial},
+		[]migrations.PlanStep{{Key: initial.Key(), Direction: migrations.DirectionForward}},
+	)
+	if err != nil {
+		t.Fatalf("external Executor.ExecutePlan() error = %v", err)
+	}
+	if _, exists := state.Model("news", "article"); !exists {
+		t.Fatal("external Executor.ExecutePlan() did not return the applied model state")
+	}
+
+	second := migrations.Migration{App: "news", Name: "0002_second"}
+	_, err = (migrations.Executor{Backend: external}).ExecutePlan(
+		context.Background(),
+		migrations.EmptyProjectState(),
+		[]migrations.Migration{initial, second},
+		[]migrations.PlanStep{
+			{Key: initial.Key(), Direction: migrations.DirectionForward},
+			{Key: second.Key(), Direction: migrations.DirectionBackward},
+		},
+	)
+	var executionError *migrations.Error
+	if !errors.As(err, &executionError) {
+		t.Fatalf("mixed ExecutePlan() error = %#v, want *migrations.Error", err)
+	}
+	if executionError.Category != migrations.CategoryExecution || executionError.Code != migrations.CodeMixedDirections {
+		t.Fatalf("mixed ExecutePlan() error = %#v", executionError)
+	}
+}
+
 type externalBackend struct {
 	transaction *externalTransaction
 }

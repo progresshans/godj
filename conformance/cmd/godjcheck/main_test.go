@@ -316,36 +316,37 @@ func TestRunRejectsUnknownMigrationPlanningScenarioWithoutWritingActualOutput(t 
 	}
 }
 
-func TestRunMigrationExecutionIsUnsupportedWithoutWritingActualOutput(t *testing.T) {
+func TestRunMigrationExecutionMatchesReviewedProductExpectation(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
 	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-execution-manifest.json")
-	manifest, err := protocol.LoadManifest(manifestPath)
-	if err != nil {
-		t.Fatal(err)
-	}
 	directory := t.TempDir()
-	actualPath := filepath.Join(directory, "must-not-exist.json")
+	actualPath := filepath.Join(directory, "migration-execution-actual.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", manifestPath,
 		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-execution-oracle.json"),
+		"-deviation-expected", filepath.Join(root, "conformance", "fixtures", "godj-migration-execution-deviation-expected.json"),
 		"-actual-output", actualPath,
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
-		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", manifest.Contracts[0].Scenario)) {
-		t.Fatalf("stderr = %q", stderr.String())
+	if !strings.Contains(stdout.String(), "match the reviewed product expectation for 10 contracts under DEV-0001") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
 	}
-	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
-		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(actual.Contracts) != 10 || actual.Contracts[0].ID != "MIG-017" || actual.Contracts[9].ID != "MIG-026" {
+		t.Fatalf("actual migration execution contracts = %#v", actual.Contracts)
 	}
 }
 
@@ -373,6 +374,7 @@ func TestRunRejectsUnknownMigrationExecutionScenarioWithoutWritingActualOutput(t
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", manifestPath,
 		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-execution-oracle.json"),
+		"-deviation-expected", filepath.Join(root, "conformance", "fixtures", "godj-migration-execution-deviation-expected.json"),
 		"-actual-output", actualPath,
 	}
 	var stdout bytes.Buffer
@@ -402,4 +404,154 @@ func TestRunRejectsMissingRequiredPaths(t *testing.T) {
 	if !strings.Contains(stderr.String(), "usage: godjcheck") {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
+}
+
+func TestRunRequiresDeviationExpectationBeforeActualGeneration(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest := loadApprovedMigrationExecutionManifestForMainTest(t, root)
+	directory := t.TempDir()
+	manifestPath := writeCanonicalMainTestArtifact(t, directory, "approved-manifest.json", manifest)
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-execution-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "manifest contains deviation contracts but -deviation-expected is missing") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func TestRunRejectsUnregisteredDeviationExpectationBeforeActualGeneration(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest := loadApprovedMigrationExecutionManifestForMainTest(t, root)
+	expectation, err := protocol.LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-migration-execution-deviation-expected.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectation.Contracts[0].Changes[0].Path = "steps[0].status"
+	directory := t.TempDir()
+	manifestPath := writeCanonicalMainTestArtifact(t, directory, "approved-manifest.json", manifest)
+	expectationPath := writeCanonicalMainTestArtifact(t, directory, "invalid-deviation.json", expectation)
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-execution-oracle.json"),
+		"-deviation-expected", expectationPath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "does not match policy") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func TestRunValidatesLockedReferenceBeforeActualGeneration(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-execution-oracle.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oracle.Contracts[0].Phase = protocol.PhaseRollback
+	directory := t.TempDir()
+	oraclePath := writeCanonicalMainTestArtifact(t, directory, "wrong-phase-oracle.json", oracle)
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-execution-manifest.json"),
+		"-expected", oraclePath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "locked Django oracle") || !strings.Contains(stderr.String(), "phase") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func loadApprovedMigrationExecutionManifestForMainTest(t *testing.T, root string) protocol.Manifest {
+	t.Helper()
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-execution-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deviations := map[string]bool{
+		"MIG-018": true,
+		"MIG-020": true,
+		"MIG-022": true,
+		"MIG-024": true,
+	}
+	for index := range manifest.Contracts {
+		contract := &manifest.Contracts[index]
+		provenance := make([]protocol.Provenance, 0, len(contract.Provenance))
+		for _, entry := range contract.Provenance {
+			if entry.Kind != "decision" {
+				provenance = append(provenance, entry)
+			}
+		}
+		contract.Provenance = provenance
+		if !deviations[contract.ID] {
+			contract.Status = protocol.ContractPassing
+			continue
+		}
+		contract.Status = protocol.ContractDeviation
+		derived := false
+		contract.Provenance = append(contract.Provenance, protocol.Provenance{
+			Kind:      "decision",
+			Reference: "DEV-0001",
+			Derived:   &derived,
+		})
+	}
+	return manifest
+}
+
+func writeCanonicalMainTestArtifact(t *testing.T, directory, name string, value any) string {
+	t.Helper()
+	contents, err := protocol.MarshalCanonical(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(directory, name)
+	if err := os.WriteFile(path, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }

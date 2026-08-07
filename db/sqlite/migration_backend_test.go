@@ -448,31 +448,86 @@ func TestSQLiteMigrationDropColumnClassifiesTableDefinitionDependencies(t *testi
 	}
 }
 
-func TestSQLiteMigrationRejectsNonNullableAddField(t *testing.T) {
+func TestSQLiteMigrationAllowsNonNullableAddFieldOnEmptyTableAndReverse(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)
+	executor := migrations.Executor{Backend: backend}
 	initial, _ := migrationTestMigrations()
-	state1, err := (migrations.Executor{Backend: backend}).Apply(ctx, migrations.EmptyProjectState(), initial)
+	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
 	if err != nil {
 		t.Fatalf("apply initial migration: %v", err)
 	}
-	model, exists := state1.Model("news", "article")
-	if !exists {
-		t.Fatal("initial model is missing")
+	required := migrations.Migration{
+		App:  "news",
+		Name: "0002_featured",
+		Operations: []migrations.Operation{migrations.AddField{
+			AppLabel:  "news",
+			ModelName: "article",
+			Field: ir.Field{
+				Name: "featured", GoName: "Featured", Column: "featured",
+				Kind: ir.FieldBoolean,
+			},
+		}},
 	}
-	transaction, err := backend.BeginMigration(ctx)
+	state2, err := executor.Apply(ctx, state1, required)
 	if err != nil {
-		t.Fatalf("begin migration: %v", err)
+		t.Fatalf("apply required field migration on empty table: %v", err)
 	}
-	field := ir.Field{Name: "required", GoName: "Required", Column: "required", Kind: ir.FieldChar, MaxLength: 20}
-	err = transaction.AddField(ctx, model, field)
-	if !migrationbackend.IsCapabilityError(err) {
-		t.Fatalf("AddField() error = %v, want capability error", err)
+	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published", "featured")
+	assertMigrationRecords(t, backend, "news.0001_initial", "news.0002_featured")
+	if _, err := backend.ExecContext(
+		ctx,
+		`INSERT INTO "godj_migration_article" ("title", "published", "featured") VALUES ('kept', 1, 0)`,
+	); err != nil {
+		t.Fatalf("insert row after required AddField: %v", err)
 	}
-	if err := transaction.Rollback(ctx); err != nil {
-		t.Fatalf("rollback rejected AddField: %v", err)
+
+	state1Again, err := executor.Unapply(ctx, state2, required)
+	if err != nil {
+		t.Fatalf("reverse required field migration: %v", err)
+	}
+	if !state1Again.Equal(state1) {
+		t.Fatal("required field reverse state does not equal initial state")
 	}
 	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published")
+	assertArticleRows(t, backend, articleMigrationRow{id: 1, title: "kept", published: true})
+	assertMigrationRecords(t, backend, "news.0001_initial")
+}
+
+func TestSQLiteMigrationRejectsNonNullableAddFieldOnNonemptyTable(t *testing.T) {
+	ctx := context.Background()
+	backend := openMigrationTestBackend(t)
+	executor := migrations.Executor{Backend: backend}
+	initial, _ := migrationTestMigrations()
+	state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initial)
+	if err != nil {
+		t.Fatalf("apply initial migration: %v", err)
+	}
+	if _, err := backend.ExecContext(
+		ctx,
+		`INSERT INTO "godj_migration_article" ("title", "published") VALUES ('existing', 0)`,
+	); err != nil {
+		t.Fatalf("seed row before required AddField: %v", err)
+	}
+	field := ir.Field{Name: "required", GoName: "Required", Column: "required", Kind: ir.FieldChar, MaxLength: 20}
+	required := migrations.Migration{
+		App:  "news",
+		Name: "0002_required",
+		Operations: []migrations.Operation{migrations.AddField{
+			AppLabel: "news", ModelName: "article", Field: field,
+		}},
+	}
+	stateAfter, err := executor.Apply(ctx, state1, required)
+	assertSQLiteMigrationError(t, err, migrations.CategoryCapability, migrations.CodeUnsupported, 0, "AddField")
+	if !migrationbackend.IsCapabilityError(err) {
+		t.Fatalf("Apply() error = %v, want capability error", err)
+	}
+	if !stateAfter.Equal(state1) {
+		t.Fatal("rejected required AddField changed returned state")
+	}
+	assertSQLiteColumns(t, backend, "godj_migration_article", "id", "title", "published")
+	assertArticleRows(t, backend, articleMigrationRow{id: 1, title: "existing", published: false})
+	assertMigrationRecords(t, backend, "news.0001_initial")
 }
 
 func TestSQLiteMigrationRejectsNullableAddFieldDefaultWithoutBackfill(t *testing.T) {

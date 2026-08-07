@@ -17,6 +17,7 @@ MIGRATION_PLANNING_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-planni
 MIGRATION_EXECUTION_MANIFEST := conformance/contracts/migration-execution-manifest.json
 MIGRATION_EXECUTION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-execution-oracle.json
 MIGRATION_EXECUTION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-execution-not-implemented.json
+MIGRATION_EXECUTION_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-execution-deviation-expected.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -92,6 +93,10 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) \
 		-expected $(MIGRATION_PLANNING_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_EXECUTION_MANIFEST) \
+		-expected $(MIGRATION_EXECUTION_ORACLE) \
+		-deviation-expected $(MIGRATION_EXECUTION_DEVIATION_EXPECTED)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

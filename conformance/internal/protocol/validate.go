@@ -9,11 +9,13 @@ import (
 )
 
 var (
-	contractIDPattern = regexp.MustCompile(`^[A-Z][A-Z0-9]*-[0-9]{3}$`)
-	identifierPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`)
-	tokenPattern      = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
-	hex40Pattern      = regexp.MustCompile(`^[0-9a-f]{40}$`)
-	hex64Pattern      = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	contractIDPattern    = regexp.MustCompile(`^[A-Z][A-Z0-9]*-[0-9]{3}$`)
+	identifierPattern    = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$`)
+	tokenPattern         = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+	hex40Pattern         = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	hex64Pattern         = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	decisionPattern      = regexp.MustCompile(`^DEV-[0-9]{4}$`)
+	deviationPathPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\[[0-9]+\])?(\.[a-z][a-z0-9_]*(\[[0-9]+\])?)*$`)
 )
 
 func (p Profile) Validate() error {
@@ -254,6 +256,98 @@ func (o Observation) Validate() error {
 		if err := o.Metrics.Validate(); err != nil {
 			return fmt.Errorf("%s: metrics: %w", o.ID, err)
 		}
+	}
+	return nil
+}
+
+func (e DeviationExpectation) Validate() error {
+	if e.FormatVersion != FormatVersion {
+		return fmt.Errorf("format_version must be %d", FormatVersion)
+	}
+	if strings.TrimSpace(e.ProfileID) == "" {
+		return fmt.Errorf("profile_id is required")
+	}
+	if !decisionPattern.MatchString(e.Decision) {
+		return fmt.Errorf("decision %q must match %s", e.Decision, decisionPattern)
+	}
+	if len(e.Contracts) == 0 || len(e.Contracts) > 12 {
+		return fmt.Errorf("contracts must contain 1 to 12 ordered deviation entries, got %d", len(e.Contracts))
+	}
+	seen := make(map[string]struct{}, len(e.Contracts))
+	for index := range e.Contracts {
+		contract := e.Contracts[index]
+		if err := contract.Validate(); err != nil {
+			return fmt.Errorf("contract %d: %w", index, err)
+		}
+		if _, exists := seen[contract.ID]; exists {
+			return fmt.Errorf("contract %d: duplicate id %q", index, contract.ID)
+		}
+		seen[contract.ID] = struct{}{}
+	}
+	return nil
+}
+
+func (e DeviationContractExpectation) Validate() error {
+	if !contractIDPattern.MatchString(e.ID) {
+		return fmt.Errorf("id %q must match %s", e.ID, contractIDPattern)
+	}
+	if len(e.Changes) == 0 {
+		return fmt.Errorf("%s: changes must not be empty", e.ID)
+	}
+	seen := make(map[string]struct{}, len(e.Changes))
+	for index := range e.Changes {
+		change := e.Changes[index]
+		if err := change.Validate(); err != nil {
+			return fmt.Errorf("%s: change %d: %w", e.ID, index, err)
+		}
+		key := string(change.Dimension) + "\x00" + change.Path
+		if _, exists := seen[key]; exists {
+			return fmt.Errorf("%s: change %d duplicates dimension %q path %q", e.ID, index, change.Dimension, change.Path)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
+}
+
+func (c DeviationChange) Validate() error {
+	if err := c.Reference.Validate(); err != nil {
+		return fmt.Errorf("reference: %w", err)
+	}
+	if err := c.Product.Validate(); err != nil {
+		return fmt.Errorf("product: %w", err)
+	}
+	switch c.Dimension {
+	case DeviationPhase:
+		if c.Path != "" {
+			return fmt.Errorf("phase change path must be empty")
+		}
+		if c.Operation != DeviationReplace {
+			return fmt.Errorf("phase change operation must be %q", DeviationReplace)
+		}
+		if c.Reference.Type != ValueString || c.Product.Type != ValueString {
+			return fmt.Errorf("phase reference and product must be string values")
+		}
+		if !Phase(*c.Reference.Text).valid() || !Phase(*c.Product.Text).valid() {
+			return fmt.Errorf("phase reference and product must be known phases")
+		}
+	case DeviationResult, DeviationDBState, DeviationMetrics:
+		if !deviationPathPattern.MatchString(c.Path) {
+			return fmt.Errorf("path %q must match %s", c.Path, deviationPathPattern)
+		}
+		switch c.Operation {
+		case DeviationReplace:
+		case DeviationInsertBefore:
+			if !strings.HasSuffix(c.Path, "]") {
+				return fmt.Errorf("insert_before path %q must end at a list index", c.Path)
+			}
+		default:
+			return fmt.Errorf("unknown operation %q", c.Operation)
+		}
+	default:
+		return fmt.Errorf("unknown dimension %q", c.Dimension)
+	}
+	if reflect.DeepEqual(c.Reference, c.Product) {
+		return fmt.Errorf("reference and product must differ")
 	}
 	return nil
 }

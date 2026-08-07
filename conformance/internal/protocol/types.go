@@ -117,6 +117,64 @@ const (
 	StatusNotImplemented ObservationStatus = "not_implemented"
 )
 
+// DeviationExpectation records only the reviewed differences from a locked
+// reference suite. Passing contracts are intentionally absent: their product
+// expectation is the locked reference observation byte-for-byte at the
+// protocol value level.
+type DeviationExpectation struct {
+	FormatVersion int                            `json:"format_version"`
+	ProfileID     string                         `json:"profile_id"`
+	Decision      string                         `json:"decision"`
+	Contracts     []DeviationContractExpectation `json:"contracts"`
+}
+
+type DeviationContractExpectation struct {
+	ID      string            `json:"id"`
+	Changes []DeviationChange `json:"changes"`
+}
+
+type DeviationChange struct {
+	Dimension DeviationDimension `json:"dimension"`
+	Path      string             `json:"path"`
+	Operation DeviationOperation `json:"operation"`
+	Reference Value              `json:"reference"`
+	Product   Value              `json:"product"`
+}
+
+type DeviationDimension string
+
+const (
+	DeviationPhase   DeviationDimension = "phase"
+	DeviationResult  DeviationDimension = "result"
+	DeviationDBState DeviationDimension = "db_state"
+	DeviationMetrics DeviationDimension = "metrics"
+)
+
+type DeviationOperation string
+
+const (
+	DeviationReplace      DeviationOperation = "replace"
+	DeviationInsertBefore DeviationOperation = "insert_before"
+)
+
+// DeviationPolicy is code-owned so a fixture cannot authorize its own scope.
+// Contract and change order are significant and must match the fixture.
+type DeviationPolicy struct {
+	Decision  string
+	Contracts []DeviationContractPolicy
+}
+
+type DeviationContractPolicy struct {
+	ID      string
+	Changes []DeviationChangePolicy
+}
+
+type DeviationChangePolicy struct {
+	Dimension DeviationDimension
+	Path      string
+	Operation DeviationOperation
+}
+
 type Phase string
 
 const (

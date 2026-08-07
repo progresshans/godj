@@ -1,0 +1,134 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0001",
+  "contracts": [
+    {
+      "id": "MIG-018",
+      "changes": [
+        {
+          "dimension": "metrics",
+          "path": "steps[0].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[2].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        }
+      ]
+    },
+    {
+      "id": "MIG-020",
+      "changes": [
+        {
+          "dimension": "metrics",
+          "path": "steps[0].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        }
+      ]
+    },
+    {
+      "id": "MIG-022",
+      "changes": [
+        {
+          "dimension": "metrics",
+          "path": "steps[0].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        }
+      ]
+    },
+    {
+      "id": "MIG-024",
+      "changes": [
+        {
+          "dimension": "phase",
+          "path": "",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "commit"},
+          "product": {"type": "string", "value": "rollback"}
+        },
+        {
+          "dimension": "db_state",
+          "path": "after.managed_schema[0].columns[1]",
+          "operation": "insert_before",
+          "reference": {
+            "type": "object",
+            "fields": [
+              {"name": "name", "value": {"type": "string", "value": "id"}},
+              {"name": "nullable", "value": {"type": "bool", "value": false}},
+              {"name": "primary_key", "value": {"type": "bool", "value": true}},
+              {"name": "type_family", "value": {"type": "string", "value": "integer"}}
+            ]
+          },
+          "product": {
+            "type": "object",
+            "fields": [
+              {"name": "name", "value": {"type": "string", "value": "a2_marker"}},
+              {"name": "nullable", "value": {"type": "bool", "value": false}},
+              {"name": "primary_key", "value": {"type": "bool", "value": false}},
+              {"name": "type_family", "value": {"type": "string", "value": "boolean"}}
+            ]
+          }
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[0].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1].schema_outcome",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "reversed"},
+          "product": {"type": "string", "value": "rolled_back"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1].status",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_committed_record_failed"},
+          "product": {"type": "string", "value": "rolled_back"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "steps[1].transaction_model",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "schema_then_record"},
+          "product": {"type": "string", "value": "schema_and_record"}
+        }
+      ]
+    }
+  ]
+}

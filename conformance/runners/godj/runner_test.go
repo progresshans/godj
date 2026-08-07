@@ -3,6 +3,7 @@ package godj
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -249,6 +250,144 @@ func TestGenerateMigrationPlanningIsDeterministic(t *testing.T) {
 	}
 	if !bytes.Equal(firstJSON, secondJSON) {
 		t.Fatal("independent migration-planning runs produced different canonical observations")
+	}
+}
+
+func TestMigrationExecutionScenariosAreDeterministic(t *testing.T) {
+	t.Parallel()
+
+	for scenario, factory := range migrationExecutionFixtures {
+		scenario, factory := scenario, factory
+		t.Run(scenario, func(t *testing.T) {
+			t.Parallel()
+
+			first, err := runMigrationExecutionFixture(context.Background(), "PROBE-001", factory())
+			if err != nil {
+				t.Fatalf("runMigrationExecutionFixture(first) error = %v", err)
+			}
+			second, err := runMigrationExecutionFixture(context.Background(), "PROBE-001", factory())
+			if err != nil {
+				t.Fatalf("runMigrationExecutionFixture(second) error = %v", err)
+			}
+			firstJSON, err := json.Marshal(first)
+			if err != nil {
+				t.Fatal(err)
+			}
+			secondJSON, err := json.Marshal(second)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(firstJSON, secondJSON) {
+				t.Fatal("independent migration-execution runs produced different JSON observations")
+			}
+		})
+	}
+}
+
+func TestMigrationExecutionFixtureMutationsPropagateWithoutContractPayloads(t *testing.T) {
+	t.Parallel()
+
+	base := migrationExecutionFixtures["django.migration.execute.linear_forward"]()
+	baseObservation, err := runMigrationExecutionFixture(context.Background(), "PROBE-002", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	changed := migrationExecutionFixtures["django.migration.execute.linear_forward"]()
+	changed.plan = changed.plan[:1]
+	changedObservation, err := runMigrationExecutionFixture(context.Background(), "PROBE-002", changed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, values := range map[string][2]*protocol.Value{
+		"result":   {baseObservation.Result, changedObservation.Result},
+		"db_state": {baseObservation.DBState, changedObservation.DBState},
+		"metrics":  {baseObservation.Metrics, changedObservation.Metrics},
+	} {
+		if reflect.DeepEqual(values[0], values[1]) {
+			t.Fatalf("plan fixture mutation did not propagate to %s", name)
+		}
+	}
+}
+
+func TestMigrationExecutionAdapterHasNoContractOrOraclePayloadHardcoding(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_execution_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{
+		"MIG-",
+		"migration-execution-oracle",
+		"godj-migration-execution-not-implemented",
+		"godj-migration-execution-deviation-expected",
+		"switch contractID",
+	} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("migration-execution adapter contains forbidden hardcoded payload %q", forbidden)
+		}
+	}
+}
+
+func TestMigrationExecutionUnknownScenarioFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	_, err := migrationExecutionScenario(context.Background(), protocol.Contract{
+		ID:       "PROBE-003",
+		Scenario: "django.migration.execute.unknown_sentinel",
+	})
+	if err == nil || !strings.Contains(err.Error(), `unsupported migration execution scenario "django.migration.execute.unknown_sentinel"`) {
+		t.Fatalf("migrationExecutionScenario() error = %v", err)
+	}
+}
+
+func TestMigrationExecutionTraceRejectsUnboundExtraAndNonterminalTransactions(t *testing.T) {
+	t.Parallel()
+
+	plan := migrationExecutionForwardPlan(executionA1)
+	tests := []struct {
+		name        string
+		transaction *migrationExecutionTransaction
+		want        string
+	}{
+		{
+			name:        "unbound begin",
+			transaction: &migrationExecutionTransaction{},
+			want:        "began without binding",
+		},
+		{
+			name: "unplanned step",
+			transaction: &migrationExecutionTransaction{
+				key:               executionA2,
+				direction:         migrations.DirectionForward,
+				operationStarted:  true,
+				committed:         true,
+				recorderSucceeded: true,
+			},
+			want: "unplanned migration step",
+		},
+		{
+			name: "nonterminal step",
+			transaction: &migrationExecutionTransaction{
+				key:               executionA1,
+				direction:         migrations.DirectionForward,
+				operationStarted:  true,
+				recorderSucceeded: true,
+			},
+			want: "terminal state",
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			trace := &migrationExecutionTrace{transactions: []*migrationExecutionTransaction{test.transaction}}
+			err := trace.validate(plan, nil)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validate() error = %v, want substring %q", err, test.want)
+			}
+		})
 	}
 }
 

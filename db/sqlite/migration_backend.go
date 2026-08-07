@@ -104,10 +104,10 @@ func (transaction *migrationTransaction) TableExists(ctx context.Context, table 
 }
 
 func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.Model, field ir.Field) error {
-	if !field.Nullable || field.PrimaryKey {
+	if field.PrimaryKey {
 		return migrationbackend.NewCapabilityError(
 			"sqlite_add_field",
-			fmt.Sprintf("field %s.%s must be nullable and non-primary-key", model.DBTable, field.Column),
+			fmt.Sprintf("field %s.%s must be non-primary-key", model.DBTable, field.Column),
 			nil,
 		)
 	}
@@ -123,6 +123,19 @@ func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.
 		return err
 	}
 	return transaction.execute(ctx, func(sqlTransaction *sql.Tx) error {
+		if !field.Nullable {
+			empty, err := sqliteTableEmpty(ctx, sqlTransaction, model.DBTable)
+			if err != nil {
+				return err
+			}
+			if !empty {
+				return migrationbackend.NewCapabilityError(
+					"sqlite_add_field",
+					fmt.Sprintf("table %s contains rows; adding non-null field %s requires table rebuild", model.DBTable, field.Column),
+					nil,
+				)
+			}
+		}
 		if _, err := sqlTransaction.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("add SQLite field %s.%s: %w", model.DBTable, field.Column, err)
 		}
@@ -131,10 +144,10 @@ func (transaction *migrationTransaction) AddField(ctx context.Context, model ir.
 }
 
 func (transaction *migrationTransaction) RemoveField(ctx context.Context, model ir.Model, field ir.Field) error {
-	if !field.Nullable || field.PrimaryKey {
+	if field.PrimaryKey {
 		return migrationbackend.NewCapabilityError(
 			"sqlite_drop_column",
-			fmt.Sprintf("field %s.%s must be nullable and non-primary-key", model.DBTable, field.Column),
+			fmt.Sprintf("field %s.%s must be non-primary-key", model.DBTable, field.Column),
 			nil,
 		)
 	}
@@ -278,22 +291,37 @@ func ensureMigrationRecorder(ctx context.Context, transaction *sql.Tx) error {
 	return nil
 }
 
+func sqliteTableEmpty(ctx context.Context, transaction *sql.Tx, table string) (bool, error) {
+	quotedTable, err := quoteIdentifier(table)
+	if err != nil {
+		return false, fmt.Errorf("inspect SQLite table %q: %w", table, err)
+	}
+	var hasRows int
+	if err := transaction.QueryRowContext(
+		ctx,
+		"SELECT EXISTS (SELECT 1 FROM "+quotedTable+" LIMIT 1)",
+	).Scan(&hasRows); err != nil {
+		return false, fmt.Errorf("inspect whether SQLite table %q is empty: %w", table, err)
+	}
+	return hasRows == 0, nil
+}
+
 func preflightSQLiteDropColumn(ctx context.Context, transaction *sql.Tx, model ir.Model, field ir.Field) error {
 	table, err := quoteIdentifier(model.DBTable)
 	if err != nil {
 		return fmt.Errorf("inspect SQLite table %q: %w", model.DBTable, err)
 	}
-	column, exists, nullable, primaryKey, err := sqliteColumnShape(ctx, transaction, table, field.Column)
+	column, exists, _, primaryKey, err := sqliteColumnShape(ctx, transaction, table, field.Column)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		return fmt.Errorf("inspect SQLite drop column: field %s.%s does not exist", model.DBTable, field.Column)
 	}
-	if !nullable || primaryKey {
+	if primaryKey {
 		return migrationbackend.NewCapabilityError(
 			"sqlite_drop_column",
-			fmt.Sprintf("database column %s.%s must be nullable and non-primary-key", model.DBTable, column),
+			fmt.Sprintf("database column %s.%s must be non-primary-key", model.DBTable, column),
 			nil,
 		)
 	}

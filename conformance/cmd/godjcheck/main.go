@@ -24,9 +24,10 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	profilePath := flags.String("profile", "", "path to the locked profile JSON")
 	manifestPath := flags.String("manifest", "", "path to the contract manifest JSON")
 	expectedPath := flags.String("expected", "", "path to the expected Django observation suite JSON")
+	deviationExpectedPath := flags.String("deviation-expected", "", "optional path to a reviewed product deviation expectation JSON")
 	actualOutputPath := flags.String("actual-output", "", "optional path for the generated GoDj observation suite JSON")
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-actual-output ACTUAL.json]")
+		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-deviation-expected PRODUCT.json] [-actual-output ACTUAL.json]")
 	}
 	if err := flags.Parse(arguments); err != nil {
 		return 2
@@ -52,7 +53,40 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	if err != nil {
 		return reportFailure(stderr, err)
 	}
-	actual, err := godjrunner.Generate(ctx, profile, manifest)
+	if _, err := protocol.Compare(profile, manifest, expected, expected); err != nil {
+		return reportFailure(stderr, fmt.Errorf("locked Django oracle: %w", err))
+	}
+	manifestHasDeviation := false
+	for _, contract := range manifest.Contracts {
+		if contract.Status == protocol.ContractDeviation {
+			manifestHasDeviation = true
+			break
+		}
+	}
+	if manifestHasDeviation && *deviationExpectedPath == "" {
+		return reportFailure(stderr, fmt.Errorf("manifest contains deviation contracts but -deviation-expected is missing"))
+	}
+	comparisonManifest := manifest
+	comparisonExpected := expected
+	decision := ""
+	if *deviationExpectedPath != "" {
+		deviationExpected, err := protocol.LoadDeviationExpectation(*deviationExpectedPath)
+		if err != nil {
+			return reportFailure(stderr, err)
+		}
+		comparisonManifest, comparisonExpected, err = protocol.PrepareDeviationExpectation(
+			profile,
+			manifest,
+			expected,
+			deviationExpected,
+			migrationExecutionDeviationPolicy(),
+		)
+		if err != nil {
+			return reportFailure(stderr, err)
+		}
+		decision = deviationExpected.Decision
+	}
+	actual, err := godjrunner.Generate(ctx, profile, comparisonManifest)
 	if err != nil {
 		return reportFailure(stderr, err)
 	}
@@ -66,12 +100,16 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		}
 	}
 
-	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	differences, err := protocol.Compare(profile, comparisonManifest, comparisonExpected, actual)
 	if err != nil {
 		return reportFailure(stderr, err)
 	}
 	if len(differences) == 0 {
-		fmt.Fprintf(stdout, "GoDj observations match the locked Django oracle for %d contracts\n", len(manifest.Contracts))
+		if decision == "" {
+			fmt.Fprintf(stdout, "GoDj observations match the locked Django oracle for %d contracts\n", len(manifest.Contracts))
+		} else {
+			fmt.Fprintf(stdout, "GoDj observations match the reviewed product expectation for %d contracts under %s\n", len(manifest.Contracts), decision)
+		}
 		return 0
 	}
 	for _, item := range differences {

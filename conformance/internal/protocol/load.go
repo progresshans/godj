@@ -40,6 +40,17 @@ func LoadObservationSuite(path string) (ObservationSuite, error) {
 	return suite, nil
 }
 
+func LoadDeviationExpectation(path string) (DeviationExpectation, error) {
+	var expectation DeviationExpectation
+	if err := loadJSON(path, &expectation); err != nil {
+		return DeviationExpectation{}, fmt.Errorf("load deviation expectation: %w", err)
+	}
+	if err := expectation.Validate(); err != nil {
+		return DeviationExpectation{}, fmt.Errorf("validate deviation expectation: %w", err)
+	}
+	return expectation, nil
+}
+
 func DecodeProfile(reader io.Reader) (Profile, error) {
 	var profile Profile
 	if err := decodeStrict(reader, &profile); err != nil {
@@ -71,6 +82,17 @@ func DecodeObservationSuite(reader io.Reader) (ObservationSuite, error) {
 		return ObservationSuite{}, err
 	}
 	return suite, nil
+}
+
+func DecodeDeviationExpectation(reader io.Reader) (DeviationExpectation, error) {
+	var expectation DeviationExpectation
+	if err := decodeStrict(reader, &expectation); err != nil {
+		return DeviationExpectation{}, err
+	}
+	if err := expectation.Validate(); err != nil {
+		return DeviationExpectation{}, err
+	}
+	return expectation, nil
 }
 
 func loadJSON(path string, target any) error {

@@ -581,10 +581,37 @@ class MigrationExecutionScenarioTests(unittest.TestCase):
             [contract["scenario"] for contract in manifest["contracts"]],
             list(scenarios.SCENARIOS),
         )
+        deviation_ids = {"MIG-018", "MIG-020", "MIG-022", "MIG-024"}
         for contract in manifest["contracts"]:
-            self.assertEqual(contract["status"], "oracle_locked")
-            self.assertGreaterEqual(len(contract["provenance"]), 2)
-            for provenance in contract["provenance"]:
+            is_deviation = contract["id"] in deviation_ids
+            self.assertEqual(
+                contract["status"],
+                "deviation" if is_deviation else "passing",
+            )
+            decisions = [
+                provenance
+                for provenance in contract["provenance"]
+                if provenance["kind"] == "decision"
+            ]
+            self.assertEqual(
+                decisions,
+                [
+                    {
+                        "kind": "decision",
+                        "reference": "DEV-0001",
+                        "derived": False,
+                    }
+                ]
+                if is_deviation
+                else [],
+            )
+            references = [
+                provenance
+                for provenance in contract["provenance"]
+                if provenance["kind"] != "decision"
+            ]
+            self.assertGreaterEqual(len(references), 2)
+            for provenance in references:
                 self.assertIn(
                     "django@fe0a859f537d4238cf49fca39073513206f83122:",
                     provenance["reference"],
