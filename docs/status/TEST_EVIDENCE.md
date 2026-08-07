@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-002
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-003
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -313,3 +313,83 @@ go run ./conformance/cmd/contractcheck \
 
 두 명령 모두 ordered contract ID/position 차이로 exit 1이었습니다. Expected phase
 결속은 별도의 protocol mutation test에서 검증했습니다.
+
+## EVID-20260808-003 — GDJ-0004 Write and Migration Walking Skeleton
+
+- Date/time: 2026-08-08T03:00:47+09:00
+- Work/contract IDs: GDJ-0004, MOD-001..MOD-007, MIG-001..MIG-004,
+  SCH-M1-001, GEN-M1-001, Q-006, Q-012
+- Checkout/commit: clean `main` at
+  `de099f31738c1df0dcc4c6ffd609d0fb4f0d4683`; 제품 구현 `e337a95`, M2 adapter와
+  manifest passing 전환 `84d50f3`, 최종 경계 hardening `de099f3`
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  `modernc.org/sqlite v1.56.0`, `modernc.org/libc v1.74.4`, Go SQLite 3.53.3;
+  uv 0.10.12, CPython 3.14.3, Django 6.1 reference SQLite 3.50.4,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: `make check`, 전체 `CGO_ENABLED=0` Go test와 oracle checksum 모두 0;
+  static not-implemented 비교는 예상대로 1과 11 mismatch
+- Result summary: Schema IR v2/default, generated immutable create/patch, generic one-row
+  write, SQLite Atomic, ProjectState/typed migration Executor와 SQLite editor/recorder를
+  구현했습니다. 전체 Go test/vet/race, generation drift, external compile, Python
+  portable/exact 27-test suite, oracle byte check가 통과했고 M1 11개와 M2 11개가 각각
+  Django oracle과 0-diff입니다.
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python은 exact-profile 전용 3개를
+  skip하고 exact run에서는 27개 모두 pass. GitHub-hosted workflow는 push하지 않아
+  실행하지 않음.
+- Artifacts: generated schema hash
+  `b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621`, M1 oracle
+  `e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869`, M2 oracle
+  `35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac`, 두 manifest
+  각각 11 `passing`
+- Notes: independent review에서 nullable pointer alias, SQLite identifier case-fold,
+  AddField default backfill과 CHECK/generated-column DROP dependency false-green을
+  재현했습니다. 최종 commit은 deep clone/ASCII canonicalization과 table-rebuild
+  capability error, 회귀 테스트로 네 경계를 닫았습니다. SQL 문자열 동일성이 아니라
+  결과/DB state/error/transaction recovery를 비교합니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+CGO_ENABLED=0 go test ./... -count=1
+(
+  cd conformance/oracles/django-6.1-sqlite-darwin-arm64
+  shasum -a 256 -c SHA256SUMS
+)
+```
+
+`make check`는 다음을 포함했습니다.
+
+```bash
+go run ./internal/cmd/m1generate -check
+go test ./...
+go vet ./...
+go test -race ./...
+CGO_ENABLED=0 go test ./db/sqlite ./conformance/runners/godj -count=1
+PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python \
+  -m unittest discover -s conformance/runners/django/tests -v
+GODJ_EXACT_PROFILE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC \
+  uv run --frozen python -m unittest discover -s conformance/runners/django/tests -v
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/write-migration-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json
+```
+
+두 `godjcheck` 명령은 각각 `11 contracts` 일치를 출력했습니다. Checked-in
+`godj-write-migration-not-implemented.json` 비교는 ordered MOD 7개와 MIG 4개가
+정확히 11개의 `not_implemented` status mismatch를 내는지 별도로 확인했습니다.
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/write-migration-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json \
+  -actual conformance/fixtures/godj-write-migration-not-implemented.json
+```
+
+이 명령은 의도한 exit 1과 `observationcmp: 11 difference(s)`를 반환했습니다.

@@ -86,7 +86,11 @@ QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니�
 
 생성 모델은 가능한 한 데이터 타입으로 유지하고, row scan, value encode, metadata, state 접근은 생성 descriptor/codec 경계에 둡니다.
 
-Migration은 현재 생성 타입을 과거 데이터 migration에 사용하지 않습니다. 직렬화 가능한 project/model state와 runtime historical model을 사용합니다. migration 파일 형식, ABI, locking, DDL transaction, rollback 의미는 첫 migration 수직 단면 전에 ADR로 결정합니다.
+Migration은 현재 생성 타입을 과거 migration state에 사용하지 않습니다. GDJ-0004는
+Schema IR 기반 `ProjectState`, typed operation, executor와 같은 SQLite transaction의
+schema editor/recorder를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에
+따라 검증했습니다. Public migration file 형식, data callback ABI, dependency graph,
+locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
 
 ## CLI와 프로젝트 실행
 

@@ -54,7 +54,7 @@ CPython 3.14.3은 Django 6.1이 지원하는 Python minor에 속하지만 2026-0
 normalizer/scenario test와 checked-in artifact validation만 실행합니다. 권위 있는
 regeneration은 exact profile을 가진 환경에서 `make check`로 수행합니다.
 
-GoDj M1 SQLite backend는 별도 실행 환경입니다. 현재 module pin은
+GoDj SQLite backend는 Django reference와 별도 실행 환경입니다. 현재 module pin은
 `modernc.org/sqlite v1.56.0`이고 내장 SQLite는 3.53.3입니다. Django reference의
 SQLite 3.50.4 fingerprint를 Go backend 정보로 덮어쓰지 않으며, 차등 비교는 계약된
 외부 동작을 비교합니다.

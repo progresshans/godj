@@ -7,7 +7,7 @@
 
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
-| Q-006 | Resolved for M2 | GDJ-0004 | generated immutable builder + `Change[T]`/`NullableChange[T]` — [ADR-0009](adr/0009-m2-explicit-write-change-state.md) Accepted |
+| Q-006 | Partial | GDJ-0005 | generated immutable builder 결정은 [ADR-0009](adr/0009-m2-explicit-write-change-state.md) Accepted, 구현은 [EVID-003](status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)에서 Verified; instance `Save()` 의미는 계약 필요 |
 | Q-007 | P1 | M1 | QuerySet result cache와 동시 평가의 정확한 의미는 무엇인가 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | P1 | M1 | request, QuerySet, transaction, hook의 goroutine safety 계약은 무엇인가 |
@@ -40,7 +40,7 @@
 
 | ID | 결과 |
 |---|---|
-| Q-006 | generated immutable create/patch builder, 별도 nullable change state와 Manager write API — [ADR-0009](adr/0009-m2-explicit-write-change-state.md) |
+| Q-006 builder core | generated immutable create/patch builder, 별도 nullable change state와 Manager write API — [ADR-0009](adr/0009-m2-explicit-write-change-state.md); instance Save는 계속 open |
 | Q-012 core | preflighted ProjectState/Operation/Executor와 한 transaction의 SQLite editor/recorder — [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) |
 
 ## Q-001 — Codegen bootstrap — Resolved
@@ -53,10 +53,12 @@ compile되지 않으면 동작하지 않습니다. 실행 spike에서 rename/del
 ## Q-006 — Nullable와 변경 추적
 
 M1 read model은 nullable CharField에 `*string`을 사용해 `nil`, `ptr("")`, 일반 값을
-구분합니다. MOD-002~004 oracle과 GDJ-0004 compile spike를 거쳐 generated immutable
+구분합니다. MOD-002~004 oracle과 GDJ-0004 구현을 거쳐 generated immutable
 create/patch builder, `Change[T]`/`NullableChange[T]`와 Manager write API를
-[ADR-0009](adr/0009-m2-explicit-write-change-state.md)에서 채택했습니다. Instance dirty
-tracking과 `Save()`는 이 첫 단면의 결정이 아닙니다.
+[ADR-0009](adr/0009-m2-explicit-write-change-state.md)에서 채택·검증했습니다. Django가
+기본 `save()`에서 실제 dirty tracking을 하는지 추측하지 않고, instance save/new/loaded,
+`update_fields`, force flag 의미는
+[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 계약으로 고정합니다.
 
 ## Q-007 — QuerySet cache
 
@@ -64,9 +66,9 @@ tracking과 `Save()`는 이 첫 단면의 결정이 아닙니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
-MIG-001~004와 GDJ-0004 runtime spike를 거쳐 state/operation/executor/schema editor/
+MIG-001~004와 GDJ-0004 제품 구현을 거쳐 state/operation/executor/schema editor/
 recorder core를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에서
-채택했습니다. Migration file encoding,
+채택·검증했습니다. Migration file encoding,
 data callback ABI, dependency graph merge, multi-process lock와 crash recovery는 아직
 결정하지 않았으며 public CLI 전에 별도 ADR과 contract가 필요합니다.
 

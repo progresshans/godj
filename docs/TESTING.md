@@ -78,8 +78,10 @@ conformance/
   contracts/write-migration-manifest.json
   profiles/
   runners/django/
+  runners/godj/
   internal/protocol/
   cmd/contractcheck/
+  cmd/godjcheck/
   cmd/observationcmp/
   fixtures/godj-not-implemented.json
   fixtures/godj-write-migration-not-implemented.json
@@ -135,8 +137,9 @@ GDJ-0003은 같은 profile에 MOD 7개와 MIG 4개의 별도 set을 추가했습
 않습니다. Checked-in 두 manifest의 scenario 합집합은 registry와 정확히 일치해야 하고,
 cross-set oracle, draft status, contract별 phase, result/error/DB state/metrics 변이는 모두
 실패해야 합니다.
-현재 두 번째 set의 static GoDj fixture는 11개 명시적 `not_implemented` mismatch를
-내지만, 실행 가능한 adapter가 없으므로 contract 상태는 `oracle_locked`입니다.
+GDJ-0004는 두 번째 set도 실제 GoDj adapter로 실행해 11개 모두 `passing`으로
+전환했습니다. Static GoDj fixture는 계속 11개 명시적 `not_implemented` mismatch를
+내며, 미구현 상태를 녹색으로 만들 수 없는 false-green regression으로 보존합니다.
 Contract별 phase binding을 추가한 GDJ-0003부터 protocol v2를 사용하며 v1 artifact는
 v2 validator가 명시적으로 거부합니다.
 

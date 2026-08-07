@@ -1,6 +1,6 @@
 ---
 id: GDJ-0004
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "6e7c15a806ebf65e756372cd1d10e68ac629e207"
@@ -88,20 +88,19 @@ Schema IR snapshot
 ## 완료 gate
 
 - [x] ADR-0009/0010의 채택이 compile/runtime 증거와 함께 기록됨
-- [ ] nullable/non-null/omitted write API positive·negative external compile test 통과
-- [ ] mutation plan 불변성, binding과 zero-I/O validation test 통과
-- [ ] create/update/delete/transaction context·cleanup·rollback integration test 통과
-- [ ] migration state/forward/backward/recorder/failure test 통과
-- [ ] migration package가 generated/current model package를 import하지 않는 gate 통과
-- [ ] MOD-001..007과 MIG-001..004가 모두 `passing` 또는 승인된 `deviation`
-- [ ] generation drift, `go test`, `go vet`, relevant race, `CGO_ENABLED=0` 통과
-- [ ] CURRENT/matrix/evidence/work와 manifest 상태가 같은 checkout을 가리킴
+- [x] nullable/non-null/omitted write API positive·negative external compile test 통과
+- [x] mutation plan 불변성, binding과 zero-I/O validation test 통과
+- [x] create/update/delete/transaction context·cleanup·rollback integration test 통과
+- [x] migration state/forward/backward/recorder/failure test 통과
+- [x] migration package가 generated/current model package를 import하지 않는 gate 통과
+- [x] MOD-001..007과 MIG-001..004가 모두 `passing` 또는 승인된 `deviation`
+- [x] generation drift, `go test`, `go vet`, relevant race, `CGO_ENABLED=0` 통과
+- [x] CURRENT/matrix/evidence/work와 manifest 상태가 같은 checkout을 가리킴
 
-## 재개 시 첫 작업
+## 시작 baseline
 
-`main@6e7c15a806ebf65e756372cd1d10e68ac629e207`의 clean worktree를 baseline으로
-기록했고 두 spike와 ADR 채택을 마쳤습니다. 다음은 `Change[T]`/`NullableChange[T]`,
-DB 독립 mutation plan과 Schema IR v2 default를 unit test와 함께 구현하는 것입니다.
+`main@6e7c15a806ebf65e756372cd1d10e68ac629e207`의 clean worktree에서 시작해 두 spike와
+ADR 채택 뒤 제품 구현으로 진행했습니다.
 
 ## 결정 spike 결과
 
@@ -124,3 +123,47 @@ DB 독립 mutation plan과 Schema IR v2 default를 unit test와 함께 구현하
   채택했습니다.
 - Native DROP COLUMN은 indexed field에서 실제 실패했으므로 첫 단면은 nullable
   unindexed field로 제한하고 dependency에는 구조화된 capability error를 반환합니다.
+
+## 구현 결과
+
+- Schema IR v2가 typed scalar default의 존재와 zero value를 보존합니다.
+- Codegen이 immutable `ArticleCreate`/`ArticlePatch`, model-typed mutation,
+  `WriteDescriptor`와 nullable deep clone을 결정적으로 생성합니다.
+- Generic Manager가 create/update/delete를 field/type/key/affected-row 불변식과 함께
+  실행하며 invalid input은 DB I/O 전에 거부합니다.
+- SQLite backend가 parameterized insert/update/delete와 callback-bound atomic session을
+  제공하고 cancellation/error/panic에서 rollback합니다.
+- `ProjectState`, typed `CreateModel`/`AddField`, preflighted Executor와 같은 SQLite
+  transaction의 schema editor/recorder를 구현했습니다.
+- MOD-001..007과 MIG-001..004의 GoDj adapter가 두 번째 Django oracle과 0-diff이고
+  manifest 11개가 `passing`입니다.
+
+## 수정 파일
+
+- 제품: `schema/**`, `codegen/**`, `query/**`, `orm/**`, `db/**`, `migrations/**`
+- 생성/compile fixture: `examples/article/**`, `internal/compiletest/**`
+- 호환 adapter/gate: `conformance/runners/godj/**`, `conformance/cmd/godjcheck/**`,
+  `conformance/contracts/write-migration-manifest.json`, `Makefile`
+- 상태/결정: `docs/**`, `work/**`, `README.md`
+
+## 검증과 결정
+
+- 최종 증거:
+  [EVID-20260808-003](../docs/status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)
+- 구현 commit: `e337a95`, conformance commit: `84d50f3`, 최종 hardening commit: `de099f3`
+- ADR-0009/0010은 설계 결정이므로 상태를 `Accepted`로 유지하고 제품 검증을 연결했습니다.
+- SQL 문자열 동일성이 아니라 결과, DB state, error/rollback과 recovery를 비교했습니다.
+- 독립 감사에서 pointer alias, SQLite identifier case-fold, AddField default backfill,
+  DROP COLUMN table dependency false-green을 발견해 회귀와 구조화된 거부 경계를 추가했습니다.
+
+## 알려진 제한과 인수인계
+
+- 한 `Article`, one-row write, 제한 field와 SQLite만 검증됐습니다.
+- Instance `Save()`/dirty tracking, bulk/hook/relation은 구현하지 않았습니다.
+- Migration file/autodetector/graph/optimizer/lock/data callback/public CLI는 구현하지
+  않았습니다.
+- SQLite table rebuild가 필요한 default AddField와 column dependency는 capability
+  error입니다.
+- 다음 작업은
+  [GDJ-0005](0005-save-lifecycle-compatibility-contracts.md)에서 instance Save 의미를
+  Django reference 계약으로 고정하는 것입니다.

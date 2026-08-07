@@ -159,11 +159,13 @@ GDJ-0003은 다음 11개를 추가했습니다.
 - CreateModel, nullable AddField와 reverse
 - migration recorder와 atomic operation failure recovery
 
-Django oracle은 고정됐지만 실행 가능한 GoDj 제품 write/migration adapter는 아직
-없으므로 두 번째 manifest는 `oracle_locked`입니다. Static `not_implemented` fixture의
-11개 mismatch는 false-green 방지 증거이며 `red` 상태를 뜻하지 않습니다. M1의
-`passing` 11개와 합쳐
-22개가 passing이라고 표현하지 않습니다.
+GDJ-0004는 generated create/patch, generic Manager write, SQLite transaction과 최소
+migration executor/editor/recorder를 실제 adapter에 연결했습니다. 두 번째 manifest의
+11개도 Go SQLite 3.53.3에서 Django oracle과 일치해 `passing`입니다. 따라서 현재
+검증된 contract set은 M1 read/metadata 11개와 M2 제한 write/migration 11개입니다.
+이는 Django ORM/Migration 전체 호환을 뜻하지 않으며 instance `Save()`, migration
+file/graph/lock 등은 별도 계약 전까지 지원하지 않습니다. Static `not_implemented`
+fixture의 11개 mismatch는 구현 전 상태를 녹색으로 만들지 않는 회귀 증거로 유지합니다.
 
 ## 데이터 호환성
 

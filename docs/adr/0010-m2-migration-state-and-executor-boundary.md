@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-08-08
-- 관련 work/contract: GDJ-0003, MIG-001..MIG-004, Q-012
+- 관련 work/contract: GDJ-0003, GDJ-0004, MIG-001..MIG-004, Q-012
 - 대체하는 ADR: 없음
 
 ## 맥락
@@ -104,3 +104,10 @@ reverse, operation/recorder failure rollback, connection recovery, race와 `CGO_
 - SQLite integration에서 MIG-001..MIG-004 differential comparison
 - failure 뒤 connection query/새 transaction과 relevant race test
 - migration package가 generated model package를 import하지 않는 dependency gate
+
+GDJ-0004에서 이 경계를 `migrations`, `migrations/backend`, `db/sqlite` 제품 package로
+구현했고
+[EVID-20260808-003](../status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)의
+MIG-001..004 differential, failure injection, race와 `CGO_ENABLED=0` gate로
+검증했습니다. Default backfill이나 CHECK/generated-column dependency처럼 table rebuild가
+필요한 SQLite 연산은 첫 단면에서 구조화된 capability error로 거부합니다.

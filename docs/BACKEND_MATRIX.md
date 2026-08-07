@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
-- 상태: 장기 목표 Accepted, 구현 상태는 모두 Not started
-- 마지막 검토: 2026-08-07
+- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified
+- 마지막 검토: 2026-08-08
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -9,7 +9,7 @@
 
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
-| SQLite | M0 reference / M1 GoDj | Not started | 빠른 conformance와 첫 ORM 수직 단면 |
+| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified | read/write, transaction, 최소 migration conformance |
 | PostgreSQL | M3 | Not started | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
@@ -45,4 +45,9 @@ spatial fields/lookups/aggregates
 
 각 milestone 시작 시 DB server/client/library 버전을 정확히 pin하고 [SOURCES.md](SOURCES.md)와 CI matrix에 기록합니다. 로컬 macOS의 SQLite 버전은 개발 환경 관찰일 뿐 compatibility 약속이 아닙니다.
 
-Backend별 verified 상태는 기능 contract와 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
+현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
+read/write와 `CreateModel`/nullable no-default `AddField` 단면뿐입니다. Table rebuild가
+필요한 default backfill이나 column dependency는 구조화된 capability error로 거부합니다.
+Backend별 verified 상태는 기능 contract와
+[status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
+문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.

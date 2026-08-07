@@ -2,7 +2,7 @@
 
 - 상태: Accepted
 - 날짜: 2026-08-08
-- 관련 work/contract: GDJ-0003, MOD-001..MOD-007, Q-006
+- 관련 work/contract: GDJ-0003, GDJ-0004, MOD-001..MOD-007, Q-006
 - 대체하는 ADR: 없음
 
 ## 맥락
@@ -117,3 +117,8 @@ Query/mutation plan과 SQLite binding까지 사용자 의도를 잃지 않고 �
 - state round-trip과 immutable mutation plan unit/property test
 - MOD-001..MOD-007 differential comparison
 - validation failure의 zero-I/O와 SQLite rollback/resource cleanup test
+
+GDJ-0004에서 이 경계를 제품 codegen/generic Manager/SQLite write로 구현했고
+[EVID-20260808-003](../status/TEST_EVIDENCE.md#evid-20260808-003--gdj-0004-write-and-migration-walking-skeleton)의
+MOD-001..007 differential과 external compile/race gate로 검증했습니다. Instance
+`Save()`에 이 API를 어떻게 연결할지는 GDJ-0005 계약 뒤에 결정합니다.

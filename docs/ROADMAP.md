@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: M2 write/migration product 수직 단면 진행 중
+- 현재 단계: M2 첫 write/migration 수직 단면 완료, Save lifecycle 계약 확장 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -61,14 +61,16 @@ Schema DSL → normalized IR → deterministic codegen
 - CreateModel, Add/Alter/RemoveField
 - migration recorder, graph, lock, forward/backward, failure rollback
 
-첫 단계는 [GDJ-0003](../work/0003-write-migration-compatibility-contracts.md)에서
-write/schema/transaction reference 계약을 별도 contract set으로 잠그는 것입니다.
-제품 구현은 이 결과로 범위를 좁힌 다음 work item에서 시작합니다.
+GDJ-0003은 write/schema/transaction reference 계약을 별도 set으로 잠갔고,
+[GDJ-0004](../work/0004-write-migration-walking-skeleton.md)는 generated write API,
+SQLite transaction과 최소 ProjectState/Executor/editor/recorder 제품 단면으로
+MOD-001..007과 MIG-001..004를 통과했습니다.
 
-상태: MOD-001..007과 MIG-001..004 Django oracle, explicit GoDj not-implemented
-baseline과 mutation false-green gate를 GDJ-0003에서 고정했습니다. 다음은
-[GDJ-0004](../work/0004-write-migration-walking-skeleton.md)의 제한된 제품 수직
-단면이며 public migration file/CLI는 아직 범위가 아닙니다.
+상태: 첫 제한 수직 단면은 완료됐지만 M2 전체는 완료되지 않았습니다. Mutable instance
+`Save()`, loaded/new/dirty 의미는
+[GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 다음 10개
+reference 계약으로 먼저 고정합니다. Public migration file, autodetector, graph, lock과
+crash recovery는 이후 별도 work/ADR 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 
