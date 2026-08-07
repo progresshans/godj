@@ -1,6 +1,6 @@
 # ADR-0012: QuerySet 평가 상태의 ownership과 terminal API를 명시한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0007, GDJ-0008, QRY-011..QRY-021, Q-007, Q-011
 - 대체하는 ADR: 없음
@@ -49,39 +49,86 @@ logical query state를 공유하고, plan을 바꾸는 모든 constructor와 exp
 unpopulated state를 받습니다. 동시 evaluation과 waiter cancellation을 state machine으로
 관리해야 하며 cached result 반환의 clone 깊이는 별도 결정이 필요합니다.
 
-## 제안하는 방향
+## 결정
 
-세 번째 선택지를 우선 prototype합니다. 최종 Accepted 전까지 다음 세부 사항은 확정된
-공개 API가 아닙니다.
+`QuerySet[M]`은 immutable plan과 별도 pointer evaluation state를 가집니다.
 
-- `QuerySet[M]` 내부에 plan과 분리된 pointer evaluation state를 둡니다.
-- direct value copy는 같은 logical evaluation state를 공유하는 후보로 검증합니다.
-- `Filter`, `OrderBy`, `Limit`와 explicit `Fresh` 후보는 새 evaluation state를 만듭니다.
-- full evaluation은 성공한 empty/non-empty 결과만 cache하고 오류나 owner cancellation은
-  waiters를 깨운 뒤 다음 호출이 재시도할 수 있게 합니다.
-- 같은 state의 동시 full evaluation은 한 owner가 실행하고 나머지는 자신의 context로
-  기다리는 후보를 검증합니다. Waiter cancellation은 owner를 취소하지 않습니다.
-- `Count`, `Exists`, iterator, index에 대응하는 `At`과 ordered `First`는 cold 상태에서 full cache를 채우지 않고,
-  warm 상태에서는 contract에 맞게 cache를 읽거나 우회합니다.
-- Canonical cached values를 외부에 직접 노출하지 않도록 descriptor-level `CloneModel`
-  후보를 nullable pointer mutation/race로 검증합니다.
-- Public fresh-copy 이름은 terminal `All(ctx)`와 충돌하지 않는 Go 이름을 선택합니다.
+```go
+type QuerySet[M any] struct {
+    backend    db.Queryer
+    descriptor ModelDescriptor[M]
+    plan       query.Plan
+    evaluation *evaluationState[M]
+}
+```
 
-현재 `db.Queryer`/`query.Plan`에는 scalar aggregate projection이 없습니다. 첫 제품 단면은
-cold `Count`가 result를 보관하지 않고 rows를 drain하는 정확성 우선 후보를 비교하되,
-O(N) 전송 비용을 최종 최적화로 과장하지 않습니다. Aggregate/scalar AST 확장은 별도
-수직 단면으로 남길 수 있습니다.
+- `Manager.Using`은 항상 새 evaluation state를 만듭니다.
+- 직접 Go value copy는 같은 logical QuerySet으로 정의하고 state pointer를 공유합니다.
+- `Filter`, `OrderBy`, 성공한 `Limit`와 `Fresh`는 plan이 실질적으로 같아도 새 state를
+  만듭니다. Source cache를 derived handle에 복사하지 않습니다.
+- QuerySet 값 자체에는 mutex를 넣지 않습니다.
 
-## Accepted 전 필수 증거
+Full evaluation state는 `unready → in-flight → ready`만 가집니다. 성공한 empty/non-empty
+결과를 rows iteration과 `Close`까지 완료한 뒤 publish합니다. Backend/query/scan/iteration/
+close/context 오류는 cache하지 않고 `unready`로 돌아가 다음 호출이 재시도할 수 있습니다.
 
-- 현재 QuerySet 값 receiver/constructor의 copy graph와 backend/rows ownership 표
-- direct copy/chain/fresh 후보의 external compile test
-- concurrent same-state evaluation, owner failure/cancellation과 waiter cancellation race test
-- success-empty와 failure-retry state machine fake backend test
-- cached slice와 nullable pointer mutation을 구분하는 alias test와 복제 비용 판단
-- Count/Exists/iterator/First cold/warm integration과 row close/cancellation test
-- QRY-018 index와 QRY-021 `First`를 서로 다른 제품 terminal로 관찰하는 gate
-- QRY-011..021 actual adapter 0-diff 가능성을 보여주는 vertical prototype
+같은 state의 동시 `All`은 한 owner만 backend I/O를 실행합니다. 첫 caller의 context가 그
+flight의 I/O 수명을 소유합니다. Waiter는 자신의 context와 flight completion을 기다리며,
+waiter cancellation은 owner를 취소하지 않습니다. Owner가 cancellation/deadline으로
+실패했는데 waiter context가 유효하면 waiter가 새 owner가 되어 재시도할 수 있습니다.
+일반 owner 오류는 현재 waiters에게 같은 오류를 전달하고 다음 독립 호출부터 재시도합니다.
+Owner 완료와 waiter cancellation이 동시에 ready인 경합의 우선순위는 보장하지 않되,
+다른 caller의 context를 취소하지 않는 불변 조건은 지킵니다.
+
+Canonical cache는 caller에게 직접 노출하지 않습니다. `ModelDescriptor[M]`에
+`CloneModel(M) M`을 추가하고 nullable pointer까지 model별 generated deep clone을
+제공합니다. Scan 결과를 canonical cache에 넣기 전과 `All`/warm `At`/warm `First`로
+반환할 때 clone합니다. 기존 `WriteDescriptor.CloneWriteModel`은 호환되는 write 경계를
+유지하되 generated 구현이 같은 deep-clone logic에 위임합니다. Django object identity를
+복제하는 대신 caller alias와 concurrent mutation으로부터 canonical cache를 격리합니다.
+
+공개 terminal API는 다음으로 고정합니다.
+
+```go
+func (qs QuerySet[M]) Fresh() QuerySet[M]
+func (qs QuerySet[M]) All(context.Context) ([]M, error)
+func (qs QuerySet[M]) Count(context.Context) (int64, error)
+func (qs QuerySet[M]) Exists(context.Context) (bool, error)
+func (qs QuerySet[M]) At(context.Context, int) (M, bool, error)
+func (qs QuerySet[M]) First(context.Context) (M, bool, error)
+func (qs QuerySet[M]) Iterate(context.Context, func(M) error) error
+```
+
+- `Fresh`는 plan/backend/descriptor를 보존하고 새 state만 만드는 zero-I/O API입니다.
+- Cold `Count`/`Exists`/`At`/`First`는 full result cache를 채우지 않습니다. Warm
+  `Count`/`Exists`/`At`/`First`는 cache를 사용합니다.
+- `At`은 QRY-018의 index terminal, `First`는 QRY-021의 public first terminal을 별도로
+  관찰합니다. 두 API를 하나로 가장하지 않습니다.
+- `At`과 `First`의 안정된 첫 행 의미는 명시적 ordering이 있는 plan에 한정하고, 음수
+  index와 unordered call은 I/O 전에 structured error로 거부합니다.
+- `Iterate`는 callback API로 rows 수명을 내부에서 소유하며 cache를 항상 우회하고 기존
+  cache를 읽거나 교체하지 않습니다.
+- 모든 terminal은 nil/already-canceled context를 cache 확인 전에 거부합니다.
+
+현재 `db.Queryer`/`query.Plan`에는 scalar aggregate/offset projection이 없습니다. 첫 제품
+단면의 cold `Count`는 rows를 보관하지 않고 drain하며, `Exists`/`First`는 effective limit
+1, `At`은 effective limit `index+1`로 실행합니다. 기존 plan limit가 더 작으면 이를
+늘리지 않습니다. 이 구현은 SQL 문자열을 계약하지 않고 정확한 외부 의미를 우선하지만,
+cold `Count`의 O(N) row 전송과 `At`의 offset 없는 순회는 알려진 성능 제한입니다.
+Aggregate/scalar/offset AST와 backend 최적화는 별도 수직 단면으로 남깁니다.
+
+Cold terminal과 동시에 실행 중인 `All`은 같은 flight로 합치지 않습니다. Singleflight는
+같은 state의 full `All`에만 적용합니다.
+
+## 결과
+
+- Immutable plan의 copy-on-write 경계를 유지하면서 cache mutex 복사를 피합니다.
+- Direct copy는 같은 logical snapshot을 공유하고 chain/fresh는 독립 snapshot을 얻습니다.
+- 성공한 빈 결과도 cache되며 오류와 cancellation은 영구 고정되지 않습니다.
+- Cached model deep clone은 warm evaluation마다 O(N) 복제 비용이 있지만 alias/race 격리를
+  명시적으로 보장합니다.
+- `Count`/`Exists`/`At`/`First`/`Iterate`는 기존 `db.Rows` 경계를 재사용하므로 이번 단면에
+  raw SQL이나 backend 전용 public interface를 추가하지 않습니다.
 
 ## 의도적으로 결정하지 않는 것
 
@@ -92,8 +139,24 @@ O(N) 전송 비용을 최종 최적화로 과장하지 않습니다. Aggregate/s
 - transaction callback 밖으로 나온 session-bound QuerySet의 수명
 - PostgreSQL과 다른 backend의 query optimization
 
-## 현재 상태
+## 검증
 
-이 ADR은 GDJ-0008 시작점의 Proposed 문서입니다. 위 증거와 독립 감사를 거쳐 선택지,
-public signature, cache clone 깊이와 concurrency state transition을 구체화한 뒤에만
-Accepted로 올립니다. 현재 제품이 QRY-011..021을 지원한다고 주장하지 않습니다.
+저장소 밖 `/tmp/godj-adr0012-spike`의 별도 Go 1.26 module에서 direct-copy 32-goroutine
+singleflight, derived/fresh 독립 state, empty success cache, 일반 failure 재시도, owner
+cancellation 뒤 live waiter 재시도, waiter-only cancellation 격리, nullable `*string`과
+동시 caller mutation deep clone, 위 terminal method-expression compile을 검증했습니다.
+
+```text
+go test -count=1 ./...                       PASS, 10 tests
+go vet ./...                                 PASS
+go test -race -count=1 ./...                 PASS
+go test -count=50 -shuffle=on ./...          PASS
+go test -race -count=10 -shuffle=on ./...    PASS
+```
+
+Spike의 `queryset.go` SHA-256은
+`9324a19af02faeea12193d40e153edbb5943d03d0d9e361fdb0354d8406e7675`, test는
+`6827b58e947eedb5a93ca97c2d3ee55efd02d8643f8ee95af2e407993f3ac2b9`입니다. 이 경로는
+결정 증거일 뿐 제품 source가 아니며, GDJ-0008은 같은 불변 조건을 checked-in unit/
+compile/race/SQLite/differential test로 다시 검증해야 합니다. 현재 ADR Accepted가
+QRY-011..021 제품 지원이나 `passing`을 뜻하지 않습니다.

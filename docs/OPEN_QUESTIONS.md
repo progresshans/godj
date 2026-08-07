@@ -8,7 +8,7 @@
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
-| Q-007 | P1 | GDJ-0008 | QRY-011..021 reference는 locked; value-copy/cache alias와 terminal 제품 API를 ADR-0012에서 결정 |
+| Q-007 | P1 | GDJ-0008 | QRY-011..021과 ADR-0012 ownership/API는 결정; 실제 제품 adapter 통과가 남음 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | P1 | GDJ-0008/M5+ | QuerySet subset의 goroutine safety는 ADR-0012, request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | public CLI 전 | migration core 경계는 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) Accepted, file ABI/lock은 계속 open |
@@ -73,8 +73,10 @@ Go에서는 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md)에 따라 co
 QRY-011..021의 exact 계약으로 고정했습니다. Oracle은 `oracle_locked`이며 현재 제품은
 intentionally uncached입니다. Value-copy QuerySet의 cache ownership, cached result alias,
 동시 `All`, waiter cancellation과 Go terminal 표면은 그 결과를 입력으로
-[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)의 ADR-0012/race test에서
-결정합니다. Q-011 전체를 닫지는 않으며 이 작업은 QuerySet subset만 다룹니다.
+[ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에서 Accepted했습니다. 현재
+[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)이 이를 제품/race/
+differential test로 구현 중입니다. Q-011 전체를 닫지는 않으며 이 작업은 QuerySet
+subset만 다룹니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 

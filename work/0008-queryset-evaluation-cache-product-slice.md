@@ -26,7 +26,7 @@ Django oracle과 0-diff여야 합니다. Python의 `_result_cache`, QuerySet cla
 ## 시작 전 결정 spike
 
 제품 source를 바꾸기 전에 [ADR-0012](../docs/adr/0012-queryset-evaluation-cache-ownership.md)를
-Proposed에서 Accepted로 올리고 다음 경계를 compile/runtime/race 증거로 결정합니다.
+compile/runtime/race spike 증거로 Accepted하고 다음 경계를 결정했습니다.
 
 1. 값 타입 `QuerySet[M]`의 직접 Go 복사와 같은 logical query가 평가 상태를 공유하는지,
    `Filter`/`OrderBy`/`Limit`와 fresh copy는 어떤 시점에 새 상태를 받는지
@@ -75,7 +75,7 @@ Proposed에서 Accepted로 올리고 다음 경계를 compile/runtime/race 증�
 
 ## 완료 gate
 
-- [ ] ADR-0012가 compile/runtime/race spike 증거와 함께 Accepted
+- [x] ADR-0012가 compile/runtime/race spike 증거와 함께 Accepted
 - [ ] direct copy/chain/fresh state ownership unit·race test 통과
 - [ ] empty/non-empty success cache, failure/cancellation retry test 통과
 - [ ] concurrent same-query evaluation과 waiter cancellation test 통과

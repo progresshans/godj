@@ -104,7 +104,7 @@
 - Query-cache oracle은 `oracle_locked`일 뿐 제품 `passing`이 아니며, static fixture와
   unsupported adapter가 false green 없이 실패해야 합니다.
 - Direct value copy, cached alias와 concurrent evaluation은 Django oracle만으로 결정하지
-  않고 GDJ-0008의 Proposed ADR-0012와 Go-native race/cancellation test에서 확정합니다.
+  않고 GDJ-0008의 Accepted ADR-0012와 Go-native race/cancellation test에서 확정했습니다.
 
 ## 현재 차단 요인과 미결정 사항
 
@@ -120,9 +120,9 @@
 
 1. `orm.QuerySet[M]`의 immutable plan과 evaluation state ownership 후보를 compile/runtime/
    race spike로 비교합니다.
-2. [ADR-0012](../adr/0012-queryset-evaluation-cache-ownership.md)에 direct value copy,
-   chain/fresh, success/error/cancellation, cached alias와 terminal API를 기록하고 Accepted로
-   올립니다.
+2. [ADR-0012](../adr/0012-queryset-evaluation-cache-ownership.md)의 direct value copy,
+   chain/fresh, success/error/cancellation, deep-clone cache와 terminal API를 checked-in
+   unit/compile/race test로 구현합니다.
 3. 성공/빈 결과 cache, 실패 재시도와 concurrent same-query/waiter cancellation을 fake
    backend test-first로 구현합니다.
 4. Count/Exists/iterator/First/Fresh와 SQLite integration을 연결한 뒤 QRY-011..021 실제
@@ -133,7 +133,7 @@
 - 공개 framework API: M1 read와 M2 제한 write/migration/Save subset만 검증됨
 - 활성 baseline: `main@9050b4d7d2a1ed961da5e7bdefde8f4c8653eb33`, 시작 시 work/status
   인수인계 문서만 미커밋
-- GDJ-0008은 제품 slice이며 첫 public/API 변경 전에 ADR-0012와 focused ownership test 필요
+- GDJ-0008은 제품 slice이며 ADR-0012 Accepted; 같은 ownership을 제품 test로 재검증해야 함
 - 건드리면 안 되는 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
