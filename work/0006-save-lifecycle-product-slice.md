@@ -1,6 +1,6 @@
 ---
 id: GDJ-0006
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "138581da38bfbb6ba89ea5ca82752dfd3d76df02"
@@ -74,15 +74,15 @@ context/backend가 compile 또는 zero-I/O validation에서 안전한지도 검�
 
 ## 완료 gate
 
-- [ ] ADR-0011이 compile/runtime spike 증거와 함께 Accepted
-- [ ] cross-model/PK/nil/empty-mask positive·negative compile 및 zero-I/O test 통과
-- [ ] default/partial/force/explicit-key save plan unit/property test 통과
-- [ ] SQLite integration의 affected-row/fallback/error/rollback/resource test 통과
-- [ ] generated output determinism, golden, last-good와 external consumer compile 통과
-- [ ] MOD-008..019가 모두 `passing` 또는 승인된 `deviation`
-- [ ] 기존 M1/M2 22개 differential이 계속 0-diff
-- [ ] full/vet/race/CGO=0/exact oracle/checksum gate 통과
-- [ ] CURRENT/matrix/evidence/work/ADR가 같은 checkout을 가리킴
+- [x] ADR-0011이 compile/runtime spike 증거와 함께 Accepted
+- [x] cross-model/PK/nil/empty-mask positive·negative compile 및 zero-I/O test 통과
+- [x] default/partial/force/explicit-key save plan unit/property test 통과
+- [x] SQLite integration의 affected-row/fallback/error/rollback/resource test 통과
+- [x] generated output determinism, golden, last-good와 external consumer compile 통과
+- [x] MOD-008..019가 모두 `passing` 또는 승인된 `deviation`
+- [x] 기존 M1/M2 22개 differential이 계속 0-diff
+- [x] full/vet/race/CGO=0/exact oracle/checksum gate 통과
+- [x] CURRENT/matrix/evidence/work/ADR가 같은 checkout을 가리킴
 
 ## 시작 시 첫 작업
 
@@ -104,3 +104,59 @@ context/backend가 compile 또는 zero-I/O validation에서 안전한지도 검�
   결정을 하므로 mode가 plan/executor까지 손실 없이 전달돼야 합니다.
 - Save가 pointer를 mutate하므로 같은 instance를 여러 goroutine에서 공유하는 안전성을
   이번 단면이 보장한다고 표현하지 않습니다.
+
+## 구현 결과
+
+- [ADR-0011](../docs/adr/0011-m2-save-lifecycle-orchestration.md)에 따라 authoritative
+  API를 `Manager[M].Save(ctx, db.Mutator, *M, ...SaveOption[M])`로 확정했습니다.
+- `SaveOption[M]`은 private immutable state를 가진 concrete generic value이며,
+  `WritableField[M]`의 sealed model marker가 cross-model mask를 compile-time에
+  차단합니다. Auto primary key field는 typed mask를 구현하지 않습니다.
+- 기본 Save는 fully loaded writable field 전체를 UPDATE하고, named/empty mask, force
+  validation, explicit-key UPDATE와 0-row INSERT fallback을 별도 policy로 보존합니다.
+- Generated code는 explicit zero를 포함한 key presence를 보존하는
+  `New<Model>With<Key>`, typed/dynamic mask와 force helper를 생성합니다. Model field와
+  충돌할 수 있는 instance `Save` method는 생성하지 않습니다.
+- SQLite는 exact affected-row를 유지하고 modernc의 structured extended result code로
+  primary-key 충돌을 `integrity_error/unique_primary_key`에 매핑하며 driver cause를
+  보존합니다.
+- GoDj Save adapter는 MOD-008..019를 실제 ORM/codegen/SQLite 경로로 실행합니다.
+  세 manifest의 11 + 11 + 12, 총 34개 계약이 모두 Django oracle과 0-diff입니다.
+
+## 수정 파일
+
+- Generic core/error: `orm/save.go`, `orm/field.go`, `query/error.go`, `db/db.go`
+- SQLite: `db/sqlite/write.go`와 integration/internal regression tests
+- Codegen/consumer gates: `codegen/**`, `examples/article/models/zz_godj_generated.go`,
+  `internal/compiletest/**`
+- Conformance: `conformance/runners/godj/**`, `conformance/cmd/godjcheck/**`,
+  `conformance/contracts/save-lifecycle-manifest.json`, `Makefile`
+- 결정: `docs/adr/0011-m2-save-lifecycle-orchestration.md`
+
+## 검증과 독립 감사
+
+- 제품·contract commit:
+  `af0bc7992cc156f118f75b04f658162ae5dbbb07`
+- 최종 증거:
+  [EVID-20260808-005](../docs/status/TEST_EVIDENCE.md#evid-20260808-005--gdj-0006-save-lifecycle-product-slice)
+- `make check`, uncached full Go/vet/race/CGO=0, generation drift, Python
+  portable/exact 36-test와 세 differential set이 통과했습니다.
+- 두 독립 GoDj Save actual은 각각 11,743 bytes이고 SHA-256
+  `bc129818165d1ea147afa39a083964bcad710f744b341d4f083fdac2581dd225`로
+  byte-identical했습니다.
+- 독립 제품 감사에서 P0–P3 결함이 없었습니다. Mutation audit가 contract별 metrics
+  하드코딩과 SQLite error-string 분류 false green을 재현했고, 임의 contract recorder
+  sequence와 opaque wrapped extended-code 회귀 테스트로 두 구멍을 닫았습니다.
+
+## 남은 제한과 인수인계
+
+- 한 generated `Article`, Auto/Char/Boolean/nullable Char와 SQLite one-row Save만
+  검증됐습니다. Deferred field, hook/signal, inheritance, relation/cascade, custom PK,
+  bulk/upsert와 다른 DB backend는 지원을 주장하지 않습니다.
+- Save는 caller-owned transaction session을 사용하며 같은 mutable instance의 goroutine
+  안전성이나 optimistic locking을 보장하지 않습니다.
+- Static `godj-save-lifecycle-not-implemented.json`은 현재 실행 결과가 아니라 구현 전
+  상태가 false pass하지 않는지 확인하는 12-mismatch fixture로 유지합니다.
+- 다음 작업은 [GDJ-0007](0007-queryset-evaluation-cache-compatibility-contracts.md)에서
+  오래 열린 Q-007의 evaluation/cache/terminal 의미를 제품 API 변경 전에 exact
+  Django 계약으로 고정합니다.

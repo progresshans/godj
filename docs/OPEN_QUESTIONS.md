@@ -7,8 +7,8 @@
 
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
-| Q-006 | Partial | GDJ-0006 | generated immutable builder는 ADR-0009/EVID-003에서 Verified, instance `Save()` 의미는 MOD-008..019로 locked; typed option/field mask와 explicit key 제품 API는 결정 필요 |
-| Q-007 | P1 | M1 | QuerySet result cache와 동시 평가의 정확한 의미는 무엇인가 |
+| Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
+| Q-007 | P1 | GDJ-0007/0008 | QuerySet evaluation/cache reference 계약을 먼저 잠그고 value-copy/concurrency 제품 ownership을 후속 결정 |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | P1 | M1 | request, QuerySet, transaction, hook의 goroutine safety 계약은 무엇인가 |
 | Q-012 | Partial | public CLI 전 | migration core 경계는 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) Accepted, file ABI/lock은 계속 open |
@@ -40,7 +40,7 @@
 
 | ID | 결과 |
 |---|---|
-| Q-006 builder core | generated immutable create/patch builder, 별도 nullable change state와 Manager write API — [ADR-0009](adr/0009-m2-explicit-write-change-state.md); instance Save는 계속 open |
+| Q-006 | generated create/patch와 nullable change state는 ADR-0009, mutable instance Save/typed mask/explicit key orchestration은 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md); MOD-001..019 verified |
 | Q-012 core | preflighted ProjectState/Operation/Executor와 한 transaction의 SQLite editor/recorder — [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) |
 
 ## Q-001 — Codegen bootstrap — Resolved
@@ -60,13 +60,19 @@ create/patch builder, `Change[T]`/`NullableChange[T]`와 Manager write API를
 `update_fields`, force flag, explicit PK와 rollback 의미를
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)의 MOD-008..019로
 고정했습니다. Fully loaded default save는 field 전체를 쓰며 dirty-only가 아닙니다.
-Go에서 문자열 없는 typed field mask, explicit auto-key presence와 pointer-mutating Save를
-어떤 public API로 연결할지는 [GDJ-0006](../work/0006-save-lifecycle-product-slice.md)의
-spike와 ADR-0011에서 결정합니다.
+Go에서는 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md)에 따라 concrete
+`SaveOption[M]`, sealed `WritableField[M]`, generated explicit-key constructor와
+`Manager[M].Save`를 사용합니다. Generated instance method는 model field `Save`와의
+충돌 때문에 만들지 않으며, MOD-008..019가 이 경계로 모두 통과했습니다.
 
 ## Q-007 — QuerySet cache
 
-불변 plan과 instance result cache를 분리해야 합니다. chain 후 cache, 동시 `All`, error cache, iterator/Count/Exists 간 공유, goroutine sharing을 Django contract와 race/benchmark로 결정합니다.
+불변 plan과 instance result cache를 분리해야 합니다.
+[GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)에서 chain,
+반복/빈/실패 평가, iterator/Count/Exists/fresh clone의 Django 외부 동작을 먼저
+QRY-011..020 후보 계약으로 고정합니다. Value-copy QuerySet의 cache ownership, 동시
+`All`, waiter cancellation과 goroutine sharing은 그 결과를 입력으로 GDJ-0008의
+Go-native ADR/race/benchmark에서 결정합니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 

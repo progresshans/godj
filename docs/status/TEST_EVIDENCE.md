@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-004
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-005
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -477,3 +477,91 @@ go run ./conformance/cmd/observationcmp \
 
 이 명령은 의도한 exit 1, ordered MOD-008..019 status mismatch 12개와
 `observationcmp: 12 difference(s)`를 반환했습니다.
+
+## EVID-20260808-005 — GDJ-0006 Save Lifecycle Product Slice
+
+- Date/time: 2026-08-08T04:02:11+09:00
+- Work/contract IDs: GDJ-0006, MOD-008..MOD-019, GEN-M1-001, Q-006
+- Checkout/commit: 제품·adapter·manifest 상태가 clean `main` commit
+  `af0bc7992cc156f118f75b04f658162ae5dbbb07`; evidence 작성 시 미커밋 변경은
+  GDJ-0006 완료와 GDJ-0007 handoff 문서뿐
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  `modernc.org/sqlite v1.56.0`, Go SQLite 3.53.3; uv 0.10.12,
+  CPython 3.14.3, Django 6.1 reference SQLite 3.50.4,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: `make check`, uncached full Go test/race/CGO=0, format/whitespace,
+  generation, three oracle checksum과 two-process actual comparison 모두 0; static
+  not-implemented comparison은 예상대로 1과 12 mismatch
+- Result summary: concrete generic `SaveOption[M]`, sealed model-specific
+  `WritableField[M]`, `Manager[M].Save`, generated explicit-key/option helper와
+  structured SQLite primary-key 오류를 구현했습니다. Default/partial/empty/force,
+  explicit-key UPDATE→INSERT와 outer transaction rollback semantics가 MOD-008..019에서
+  Django oracle과 0-diff입니다. 기존 M1/M2 22개를 포함한 총 34개 contract가
+  `passing`입니다.
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python 36-test는 exact-profile
+  전용 4개를 skip했고 exact run은 36개 모두 pass했습니다. GitHub-hosted workflow는
+  push하지 않아 실행하지 않았습니다.
+- Artifacts: product/conformance commit `af0bc79`, generated code version
+  `godj-codegen-m2-v2`, Save oracle SHA-256
+  `05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb`,
+  GoDj Save actual SHA-256
+  `bc129818165d1ea147afa39a083964bcad710f744b341d4f083fdac2581dd225`
+- Notes: actual 두 파일은 independent process에서 각각 11,743 bytes로
+  byte-identical했습니다. 독립 제품 감사에서 P0–P3 결함이 없었습니다. Read-only
+  mutation audit가 adapter metrics 하드코딩과 SQLite error-string 분류를 전체 test의
+  false green으로 재현했고, 임의 contract recorder sequence와 opaque wrapped
+  structured error 회귀를 추가한 뒤 두 mutation이 실패함을 다시 확인했습니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+go test ./... -count=1
+go test -race ./... -count=1
+CGO_ENABLED=0 go test ./... -count=1
+gofmt -d codegen conformance db examples internal orm query
+git diff --check
+(
+  cd conformance/oracles/django-6.1-sqlite-darwin-arm64
+  shasum -a 256 -c SHA256SUMS
+)
+```
+
+`make check`는 generation drift, 전체 Go test/vet/race, focused `CGO_ENABLED=0`, Python
+portable/exact 36-test, 세 manifest/oracle/fixture validation, 세 oracle byte check와
+M1/M2/Save differential을 실행했습니다. 별도 uncached full 명령은 같은 checkout에서
+각각 통과했습니다.
+
+GoDj Save actual의 independent process determinism:
+
+```bash
+task_save_run_one=$(mktemp -d /tmp/godj-save-final-one.XXXXXX)
+task_save_run_two=$(mktemp -d /tmp/godj-save-final-two.XXXXXX)
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/save-lifecycle-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json \
+  -actual-output "$task_save_run_one/actual.json"
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/save-lifecycle-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json \
+  -actual-output "$task_save_run_two/actual.json"
+cmp "$task_save_run_one/actual.json" "$task_save_run_two/actual.json"
+shasum -a 256 "$task_save_run_one/actual.json" "$task_save_run_two/actual.json"
+```
+
+두 실행은 모두 `12 contracts` 일치를 출력했고 같은 hash를 냈습니다.
+
+명시적 구현 전 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/save-lifecycle-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/save-lifecycle-oracle.json \
+  -actual conformance/fixtures/godj-save-lifecycle-not-implemented.json
+```
+
+이 명령은 의도한 exit 1과 ordered 12개의 status mismatch를 냈습니다. Static fixture는
+현재 제품 actual이 아니라 false-green 회귀 입력입니다.

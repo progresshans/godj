@@ -17,7 +17,7 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | `contracts/write-migration-manifest.json` | M2 write/transaction/migration contract 11개 |
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read와 M2 write/migration 제품 package를 실행하는 GoDj observation adapter |
+| `runners/godj` | M1 read와 M2 write/migration/Save 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -146,12 +146,12 @@ recorder를 실행해 MOD-001..007, MIG-001..004가 oracle과 일치합니다. C
 `godj-write-migration-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 것을
 지속적으로 확인하는 false-green fixture이며, 현재 GoDj 실행 결과를 뜻하지 않습니다.
 
-Save lifecycle set은 GDJ-0005에서 Django exact reference만 `oracle_locked`입니다.
-GoDj product adapter는 아직 없으므로 `godjcheck`에 fallback을 추가하지 않습니다.
-Unknown scenario는 계속 fail-closed하고, checked-in
-`godj-save-lifecycle-not-implemented.json`이 ordered status mismatch 12개를 내는 것으로
-미구현 red baseline을 검증합니다. 제품 adapter가 실제로 준비된 후 별도 work에서
-`godj-conformance`와 manifest `passing` 상태를 함께 올립니다.
+Save lifecycle set은 GDJ-0005에서 Django exact reference로 고정했고 GDJ-0006에서 실제
+generated model, `Manager.Save`와 SQLite adapter를 연결해 12개 모두 `passing`입니다.
+`make godj-conformance`는 이제 M1 11개, M2 write/migration 11개와 Save 12개를 모두
+실행합니다. Unknown scenario는 계속 fail-closed하고, checked-in
+`godj-save-lifecycle-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 ordered
+12-mismatch false-green fixture로 유지하며 현재 GoDj actual을 뜻하지 않습니다.
 
 ## Provenance
 

@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: M2 첫 write/migration 수직 단면 완료, Save lifecycle 제품 단면 진행 중
+- 현재 단계: M2 Save lifecycle 제품 단면 완료, QuerySet evaluation/cache 계약 진행 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -66,13 +66,18 @@ GDJ-0003은 write/schema/transaction reference 계약을 별도 set으로 잠갔
 SQLite transaction과 최소 ProjectState/Executor/editor/recorder 제품 단면으로
 MOD-001..007과 MIG-001..004를 통과했습니다.
 
-상태: 첫 제한 수직 단면은 완료됐지만 M2 전체는 완료되지 않았습니다. Mutable instance
-`Save()`, loaded/new/force/explicit PK와 rollback의 외부 의미는
+상태: M2 전체는 아직 완료되지 않았습니다. Mutable instance `Save()`,
+loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
-12개 reference 계약으로 고정했습니다. [GDJ-0006](../work/0006-save-lifecycle-product-slice.md)은
-typed Save option/field mask와 explicit key 경계를 spike한 뒤 이 set을 실제 제품에
-연결합니다. Public migration file, autodetector, graph, lock과 crash recovery는 이후
-별도 work/ADR 범위입니다.
+12개 reference 계약으로 고정했고,
+[GDJ-0006](../work/0006-save-lifecycle-product-slice.md)은 typed Save option/field mask,
+explicit key와 SQLite error 경계를 구현해 12개 모두 통과했습니다. Public migration
+file, autodetector, graph, lock과 crash recovery는 이후 별도 work/ADR 범위입니다.
+
+다음 단면은 M1부터 열린 Q-007을 먼저 닫기 위해
+[GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)에서 QuerySet
+evaluation/cache의 exact reference 계약을 고정합니다. Cache 제품 구현과 Go-native
+copy/concurrency ownership은 후속 GDJ-0008로 분리합니다.
 
 ## M3 — Relations + PostgreSQL
 
@@ -88,6 +93,10 @@ typed Save option/field mask와 explicit key 경계를 spike한 뒤 이 set을 �
 - projection, subquery, window function
 - bulk operation, locking, custom lookup/field extension
 - result cache와 iterator semantics 확정
+
+Q-007의 result cache/terminal semantics는 이후 projection/aggregate/relation loader가
+같은 평가 상태를 재사용하기 전에 GDJ-0007/0008에서 선행 단면으로 처리합니다. 이는
+M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 
 ## M5 — Web Core
 

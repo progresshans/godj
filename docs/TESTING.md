@@ -152,6 +152,10 @@ write 성공, `evaluation`은 terminal no-op/validation 또는 explicit transact
 metrics로 보존하되 phase는 `evaluation`이고, 실제 `atomic()` 복원인 MOD-019만
 `rollback`입니다. 세 set의 ID/scenario 전역 uniqueness, 모든 cross-pair, Save payload
 mutation과 two-process oracle bytes를 gate로 둡니다.
+GDJ-0006은 실제 GoDj Save adapter를 연결해 세 번째 set도 `passing`으로 전환했습니다.
+Adapter metrics는 임의 contract/statement sequence가 recorder에서 직접 유도되는지
+검증하고, SQLite primary-key 오류는 opaque wrapper 안의 structured extended code만
+분류하는 회귀로 oracle-shaped 하드코딩과 문자열 비교 false green을 막습니다.
 
 ## 기능별 기본 테스트 요구
 

@@ -170,19 +170,25 @@ GDJ-0003은 다음 11개를 추가했습니다.
 
 GDJ-0004는 generated create/patch, generic Manager write, SQLite transaction과 최소
 migration executor/editor/recorder를 실제 adapter에 연결했습니다. 두 번째 manifest의
-11개도 Go SQLite 3.53.3에서 Django oracle과 일치해 `passing`입니다. 따라서 현재
-검증된 contract set은 M1 read/metadata 11개와 M2 제한 write/migration 11개입니다.
-이는 Django ORM/Migration 전체 호환을 뜻하지 않으며 instance `Save()`, migration
-file/graph/lock 등은 별도 계약 전까지 지원하지 않습니다. Static `not_implemented`
+11개도 Go SQLite 3.53.3에서 Django oracle과 일치해 `passing`입니다. 이 작업 완료
+당시에 검증된 contract set은 M1 read/metadata 11개와 M2 제한 write/migration
+11개였습니다. 이는 Django ORM/Migration 전체 호환을 뜻하지 않았고, instance
+`Save()`와 migration file/graph/lock 등은 후속 계약 범위로 남겼습니다. Static `not_implemented`
 fixture의 11개 mismatch는 구현 전 상태를 녹색으로 만들지 않는 회귀 증거로 유지합니다.
 
-GDJ-0005는 Save lifecycle 12개를 Django exact oracle에 `oracle_locked`로 추가했습니다.
+GDJ-0005는 Save lifecycle 12개를 Django exact oracle에 고정했고, GDJ-0006은 이 set을
+generated model/Manager/SQLite 실제 제품 경로로 실행해 `passing`으로 올렸습니다.
 기본 fully loaded save는 dirty-only가 아니라 writable concrete field 전체를 쓰고,
 explicit `update_fields`는 named field만 쓰며 empty iterable은 zero-I/O no-op입니다.
 Force validation과 missing-row `NotUpdated`, explicit PK의 UPDATE/UPDATE→INSERT, 명시적
 transaction rollback 뒤 model field/assigned PK가 메모리에 남는 의미도 분리했습니다.
-이 set에는 아직 GoDj product adapter가 없으므로 `passing`을 주장하지 않으며 static
-fixture의 정확한 12개 mismatch를 유지합니다.
+현재 검증된 세 set은 11 + 11 + 12, 총 34개 `passing`입니다. Static fixture의 정확한
+12개 mismatch는 현재 제품 결과가 아니라 구현 전 상태를 녹색으로 만들지 않는
+false-green 회귀 증거로 유지합니다.
+
+GDJ-0007은 Q-007의 QuerySet evaluation/cache/terminal 의미를 네 번째 set으로 추가하기
+위한 contract-only 작업입니다. QRY-011..020은 아직 후보이며 exact oracle과 provenance가
+lock되기 전에는 현재 지원이나 `oracle_locked` 상태로 세지 않습니다.
 
 ## 데이터 호환성
 
