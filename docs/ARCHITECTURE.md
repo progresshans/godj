@@ -103,9 +103,11 @@ schema editor/recorder를 [ADR-0010](adr/0010-m2-migration-state-and-executor-bo
 따라 검증했습니다. [ADR-0013](adr/0013-immutable-migration-planner.md)은 historical
 `ProjectState`와 applied migration history를 분리하고, operation/backend를 보관하지 않는
 immutable identity graph가 caller-supplied AppliedState와 target으로 zero-I/O plan을
-계산하도록 결정했습니다. 이 planner는 GDJ-0010의 활성 구현 범위이며 아직 Verified가
-아닙니다. Public migration file 형식, loader/CLI, data callback, multi-plan execution,
-locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
+계산하도록 결정했습니다. GDJ-0010은 이 immutable Planner와 structured graph/history/
+target error를 구현하고 MIG-005..016 actual adapter로 검증했습니다. Planning의 logical
+state와 zero-I/O metrics는 실제 database probe가 아니라 backend를 import하지 않는 pure
+structural 경계에서 산출합니다. Public migration file 형식, loader/CLI, data callback,
+multi-plan execution, locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
 
 ## CLI와 프로젝트 실행
 

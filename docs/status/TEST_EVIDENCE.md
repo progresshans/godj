@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-008
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-009
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -836,3 +836,99 @@ duplicate, retained branch DB state, missing-target request facts, missing-depen
 결과 전파, unexpected DDL/write/non-SELECT, recorder/schema cleanup과 inconsistent-history
 preflight 사용을 별도로 검증했습니다. 최종 독립 계약/게이트 감사에서 P0–P3 finding은
 없었습니다.
+
+## EVID-20260808-009 — GDJ-0010 Immutable Migration Planner Product Slice
+
+- Date/time: 2026-08-08T06:33:43+09:00
+- Work/contract IDs: GDJ-0010, META-002, MIG-005..MIG-016, Q-012
+- Checkout/commit: 제품과 machine gate가 clean `main` commit
+  `31d264ad7c85a23b511a7549d698c1c3b0577e92`; 검증 시점에 상태/evidence/GDJ-0011
+  handoff 문서는 후속 미커밋 변경이었습니다.
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5; Go Planner는
+  backend-neutral pure computation. Differential reference는 uv 0.10.12, CPython 3.14.3,
+  Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, SQLite 3.50.4,
+  `LC_ALL=C`, `TZ=UTC`
+- Exit status: `make check`, uncached full Go test/vet, full CGO-disabled test,
+  planner 100회 shuffle, focused race와 two-process actual이 모두 0. Static fixture 비교는
+  의도한 exit 1.
+- Result summary: immutable migration identity graph, 별도 `AppliedState`, caller-ordered
+  named/zero target와 structured `PlanningError`를 public API로 구현했습니다. 다섯 번째
+  GoDj adapter가 실제 `NewPlanner`/`NewAppliedState`/`Planner.Plan`을 실행해 MIG-005..016
+  12개가 Django oracle과 semantic 0-diff이며 다섯 제품 set의 총 57개 contract가
+  `passing`입니다.
+- Failures/skips: 예상하지 않은 실패 없음. Portable Python은 59 tests 중 exact-only 6개를
+  의도적으로 skip했고 exact run은 59개 모두 pass했습니다. Static fixture는 의도한
+  MIG-005..016 ordered 12 status mismatch를 냈습니다. GitHub-hosted workflow는 push하지
+  않아 실행하지 않았습니다.
+- Artifacts: manifest 10,551 bytes SHA-256
+  `f51d737bd68eafae32f7942669b467e3457372873ec536a13491ded60ef27ca6`;
+  locked Django oracle 39,139 bytes SHA-256
+  `7ce2916586b827826079ed6750ccabf6069657be30ad0fe08215eece11fba474`;
+  static fixture 1,869 bytes SHA-256
+  `a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13`;
+  두 독립 Go actual은 각각 39,094 bytes SHA-256
+  `eb5bf3b6f41855684582f67b3be675da42975b8fc1ed9c7085f6d35a078eac32`
+- Notes: Planning의 logical before/after state와 DDL/write/non-SELECT 0 metrics는 실제 DB
+  probe가 아니라 backend import가 없는 pure structural adapter에서 산출합니다. Existing
+  one-migration Executor/backend, Django runner, locked oracle와 static fixture는 변경하지
+  않았습니다.
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go vet ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go test -count=100 -shuffle=on ./migrations
+go test -race -count=5 -shuffle=on \
+  ./migrations ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test -count=20 ./conformance/runners/godj -run MigrationPlanning
+go test -race -count=5 ./conformance/runners/godj -run MigrationPlanning
+git diff --check
+```
+
+`make check`는 deterministic generation, full Go test/vet/race, focused CGO=0, portable
+Python 59 tests/6 skips, exact 59 tests, 다섯 manifest/oracle/static validation과 oracle
+regeneration check, 57-contract GoDj differential을 실행했습니다. Full CGO=0와 반복
+planner/race는 별도 명령으로 보강했습니다.
+
+두 독립 Go actual과 semantic differential:
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-planning-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json \
+  -actual-output /tmp/godj-planner-actual.BRXLoq/first.json
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-planning-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json \
+  -actual-output /tmp/godj-planner-actual.BRXLoq/second.json
+cmp /tmp/godj-planner-actual.BRXLoq/first.json \
+  /tmp/godj-planner-actual.BRXLoq/second.json
+```
+
+두 actual은 byte-identical하고 각 실행은 `12 contracts` match를 출력했습니다. Django
+oracle과 actual의 byte identity를 주장하지 않으며, protocol comparator가 result/error/
+DB state/metrics의 계약 의미를 0-diff로 판정한 것입니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-planning-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json \
+  -actual conformance/fixtures/godj-migration-planning-not-implemented.json
+```
+
+이 명령은 의도한 exit 1과 MIG-005..016 ordered status mismatch 12개를 반환했습니다.
+Fixture target/applied/dependency 변이는 echo된 전체 Result가 아니라 `plan` 하위값을 직접
+바꾸어야 하고, missing dependency를 self-cycle로 바꾸면 실제 error code가 바뀌어야
+합니다. Source guard는 adapter의 `MIG-` literal, oracle/static path와 DB import를
+거부합니다. 별도 mutation/property 감사는 ready-set 역순, target별 working-state reset,
+history bypass, SCC 선택, canonicalization과 state hardcode 변이를 모두 탐지했으며 최종
+독립 제품 감사에서 P0–P3 finding은 없었습니다.

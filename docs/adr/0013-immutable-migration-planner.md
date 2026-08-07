@@ -246,14 +246,14 @@ transaction/partial-failure 의미와 applied history로부터 `ProjectState`를
 
 이 항목들은 Q-012의 후속 범위이며 GDJ-0010 완료 뒤에도 Q-012는 `Partial`입니다.
 
-## 검증 계획
+## 검증 계획과 구현 결과
 
-GDJ-0010은 MIG-005..016 table test와 actual adapter 외에 graph/dependency/applied input
+GDJ-0010의 검증 조건은 MIG-005..016 table test와 actual adapter 외에 graph/dependency/applied input
 permutation, reversed target order, construction 뒤 caller slice mutation, deterministic
 missing/duplicate/cycle/history error, random small DAG precedence, external consumer compile와
-concurrent shared Planner race를 검증해야 합니다. 두 독립 Go actual은 서로 byte-identical해야
-하고 Django oracle과 protocol 의미가 12-contract 0-diff여야 합니다. Static 12 mismatch와
-다섯 set의 20 ordered cross-binding은 그대로 유지합니다.
+concurrent shared Planner race였습니다. 두 독립 Go actual의 byte identity, Django oracle과
+12-contract semantic 0-diff, static 12 mismatch와 다섯 set의 20 ordered cross-binding을
+모두 유지했습니다.
 
 Planner는 backend/recorder accessor를 받지 않으므로 GoDj adapter는 plan/error만 public API
 실행 결과에서 normalize하고, contract의 logical before/after state는 constructor에 전달한
@@ -261,8 +261,11 @@ scenario applied-key snapshot으로 만듭니다. DDL/write/non-SELECT 0과 stat
 contract ID별 상수가 아니라 공통 scenario harness에서 이 snapshot과 zero-I/O planner
 경계로 산출합니다. Durable gate는 planner source가 `database/sql`, `db`, migration backend를
 import하지 않는지, repeated/concurrent `Plan`이 applied input을 바꾸지 않는지, fixture
-mutation이 result/DB state/metrics에 전파되는지를 확인해야 합니다. 이는 실제 DB probe를
+mutation이 result/DB state/metrics에 전파되는지를 확인합니다. 이는 실제 DB probe를
 실행한 척하지 않고 pure planner의 구조적 zero-I/O를 검증하는 선택입니다.
 
-Accepted 상태는 이 API가 이미 구현됐거나 MIG-005..016이 `passing`임을 뜻하지 않습니다.
-제품 구현과 evidence는 GDJ-0010에서 별도로 검증합니다.
+Accepted 상태 자체는 구현이나 `passing`을 뜻하지 않습니다. 이후 GDJ-0010이 이 API와
+adapter를 제품 commit `31d264ad7c85a23b511a7549d698c1c3b0577e92`에서 구현했고,
+MIG-005..016의 12-contract 0-diff와 위 gate는
+[EVID-20260808-009](../status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
+별도로 기록했습니다.

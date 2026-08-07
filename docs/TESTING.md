@@ -173,8 +173,8 @@ adapter가 없어 `oracle_locked`였고, static fixture의 정확한 11 mismatch
 unknown-scenario fail-closed가 기대 결과였습니다.
 
 GDJ-0008은 네 번째 set을 generated model, generic QuerySet과 SQLite 실제 제품 경로에
-연결해 11개 모두 `passing`으로 전환했습니다. `make godj-conformance`는 이제 M1 11개,
-M2 write/migration 11개, Save 12개와 QuerySet cache 11개, 총 45개를 실행합니다. 임의로
+연결해 11개 모두 `passing`으로 전환했습니다. 당시 `make godj-conformance`는 M1 11개,
+M2 write/migration 11개, Save 12개와 QuerySet cache 11개, 총 45개를 실행했습니다. 임의로
 등록되지 않은 scenario는 계속 actual을 쓰지 않고 fail-closed합니다. QuerySet의 direct
 copy/chain/fresh ownership, 같은 state `All` singleflight, owner cancellation 뒤 live
 waiter 재시도와 waiter-only cancellation 격리, nullable pointer deep clone, cold/warm
@@ -204,11 +204,25 @@ zero-mutation payload를 각각 바꾸는 mutation gate를 둡니다. MIG-012는
 dependency precedence만 잠그고 incomparable sibling의 Django private DFS tie-break는
 계약하지 않습니다.
 
-현재 migration-planning manifest는 12개 `oracle_locked`이고 static fixture는 ordered 12
-`not_implemented` mismatch를 냅니다. GoDj product runner는 unknown scenario exit 2와
-actual 미생성으로 fail-closed합니다. 따라서 `make godj-conformance`는 계속 실제 제품
-adapter가 있는 기존 45개만 실행합니다. 상세 증거는
+GDJ-0009 완료 당시 migration-planning manifest는 12개 `oracle_locked`이고 static fixture는
+ordered 12 `not_implemented` mismatch를 냈습니다. GoDj product runner는 unknown scenario
+exit 2와 actual 미생성으로 fail-closed했고, 당시 `make godj-conformance`는 제품 adapter가
+있는 기존 45개만 실행했습니다. 상세 증거는
 [EVID-20260808-008](status/TEST_EVIDENCE.md#evid-20260808-008--gdj-0009-migration-planning-compatibility-contracts)에
+기록합니다.
+
+GDJ-0010은 public immutable Planner와 다섯 번째 GoDj adapter를 연결해 MIG-005..016을
+`passing`으로 전환했습니다. 현재 `make godj-conformance`는 11 + 11 + 12 + 11 + 12,
+총 57개를 실행합니다. Adapter의 plan/error는 실제 public API에서 얻고, logical
+before/after applied state와 zero-I/O metrics는 backend를 호출하지 않는 공통 structural
+capture에서 산출합니다. 실제 DB probe를 실행했다고 주장하지 않습니다.
+
+Fixture target/applied/dependency 변이는 echo된 전체 observation이 아니라 `plan` 하위값을
+직접 바꾸어야 하고, missing dependency를 self-cycle로 바꾸면 실제 error code가 바뀌어야
+합니다. Adapter source의 `MIG-` literal/oracle/static path와 DB import를 금지하고, 두 독립
+Go actual 결정성, static ordered 12 mismatch, unknown scenario fail-closed를 함께 유지합니다.
+상세 증거는
+[EVID-20260808-009](status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
 기록합니다.
 
 ## 기능별 기본 테스트 요구

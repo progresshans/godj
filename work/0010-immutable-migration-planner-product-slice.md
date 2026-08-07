@@ -1,6 +1,6 @@
 ---
 id: GDJ-0010
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "9fc3df42f17b61b0a0202f21d3d99190c0db2d28"
@@ -144,34 +144,44 @@ empty constructor 결과와 같은 동작을 합니다.
 
 ## 완료 조건
 
-- [ ] MIG-005..016 table test와 public adapter가 동일 제품 경로를 실행
-- [ ] target order reversal, graph/dependency/applied permutation과 shared dedup 검증
-- [ ] 생성 뒤 caller dependency slice mutation이 Planner를 바꾸지 않음
-- [ ] missing/duplicate/cycle/history error가 deterministic structured error
-- [ ] no-target/unknown-zero/invalid/duplicate/mixed target 경계가 문서 정책과 일치
-- [ ] zero Planner/AppliedState와 invalid/duplicate input taxonomy가 external API에서 안전
-- [ ] random DAG에서 forward parent-before-child/backward child-before-parent invariant
-- [ ] external package compile과 ProjectState/backend 무변경 검증
-- [ ] planner source의 DB/backend import 부재와 repeated Plan input 불변을 durable gate로 검증
-- [ ] 같은 Planner/AppliedState concurrent Plan race test 통과
-- [ ] 두 독립 Go actual byte-identical, Django oracle과 12-contract semantic 0-diff
-- [ ] fixture mutation이 adapter result/DB state/metrics에 전파되어 하드코딩을 거부
-- [ ] static fixture의 ordered 12 mismatch와 unknown scenario fail-closed 유지
-- [ ] 다섯 set 총 57개 `passing`, 20 ordered cross-binding과 checksum 유지
-- [ ] full/vet/race/CGO=0, 100회 shuffle와 20회 focused race 통과
-- [ ] 상태·evidence·work와 Q-012의 남은 범위가 현재 checkout과 일치
+- [x] MIG-005..016 table test와 public adapter가 동일 제품 경로를 실행
+- [x] target order reversal, graph/dependency/applied permutation과 shared dedup 검증
+- [x] 생성 뒤 caller dependency slice mutation이 Planner를 바꾸지 않음
+- [x] missing/duplicate/cycle/history error가 deterministic structured error
+- [x] no-target/unknown-zero/invalid/duplicate/mixed target 경계가 문서 정책과 일치
+- [x] zero Planner/AppliedState와 invalid/duplicate input taxonomy가 external API에서 안전
+- [x] random DAG에서 forward parent-before-child/backward child-before-parent invariant
+- [x] external package compile과 ProjectState/backend 무변경 검증
+- [x] planner source의 DB/backend import 부재와 repeated Plan input 불변을 durable gate로 검증
+- [x] 같은 Planner/AppliedState concurrent Plan race test 통과
+- [x] 두 독립 Go actual byte-identical, Django oracle과 12-contract semantic 0-diff
+- [x] fixture mutation이 adapter result/DB state/metrics에 전파되어 하드코딩을 거부
+- [x] static fixture의 ordered 12 mismatch와 unknown scenario fail-closed 유지
+- [x] 다섯 set 총 57개 `passing`, 20 ordered cross-binding과 checksum 유지
+- [x] full/vet/race/CGO=0, 100회 shuffle와 20회 focused race 통과
+- [x] 상태·evidence·work와 Q-012의 남은 범위가 현재 checkout과 일치
 
 ## 진행 기록
 
 - [x] GDJ-0009 exact contract/provenance와 false-green baseline
 - [x] ADR-0013 public boundary 결정
-- [ ] planner unit-first 구현
-- [ ] conformance adapter와 status 전환
-- [ ] 최종 검증과 인수인계
+- [x] planner unit-first 구현
+- [x] conformance adapter와 status 전환
+- [x] 최종 검증과 인수인계
 
 ## 수정 파일
 
-아직 제품 수정 없음. 실제 변경을 완료할 때 파일과 역할을 기록합니다.
+- `migrations/executor.go`: `Migration.Dependencies`, `Migration.Key()`와 planning 오류 taxonomy
+- `migrations/planner.go`, `migrations/planner_graph.go`: public immutable planner와
+  deterministic graph/history/target validation
+- `migrations/planner_test.go`, `migrations/external_test.go`: contract, property, alias,
+  concurrency와 외부 소비자 gate
+- `conformance/runners/godj/migration_planning_scenarios.go`, `runner.go`, `runner_test.go`:
+  실제 public Planner adapter와 하드코딩 방지 gate
+- `conformance/cmd/godjcheck/main_test.go`, `Makefile`: fifth-set 제품 실행과 two-run determinism
+- `conformance/contracts/migration-planning-manifest.json`: MIG-005..016을 `passing`으로 전환
+- `conformance/internal/protocol/migration_planning_artifacts_test.go`,
+  `write_migration_artifacts_test.go`: 새 manifest hash와 총 57개 status 고정
 
 ## 결정된 사항
 
@@ -189,10 +199,15 @@ lock/crash recovery는 Q-012의 후속 work가 필요합니다.
 
 ## 테스트 증거
 
-- Evidence ID: GDJ-0010 완료 시 새 항목 추가
-- Command: 아직 실행 전
-- Result: 제품 `Not started`; reference 12개만 `oracle_locked`
-- Not run: planner unit/compile/race/differential 전체
+- Evidence: [EVID-20260808-009](../docs/status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)
+- Product/conformance commit:
+  `31d264ad7c85a23b511a7549d698c1c3b0577e92`
+- `make check`, uncached full Go test/vet, full CGO-disabled test, planner `-count=100`,
+  focused race와 독립 mutation audit가 통과했습니다.
+- 두 독립 Go actual은 각각 39,094 bytes, SHA-256
+  `eb5bf3b6f41855684582f67b3be675da42975b8fc1ed9c7085f6d35a078eac32`로
+  byte-identical하며 Django oracle과 12-contract semantic 0-diff입니다.
+- GitHub Actions는 push하지 않아 hosted 실행 증거가 없습니다.
 
 ## 위험과 rollback
 
@@ -207,11 +222,17 @@ lock/crash recovery는 Q-012의 후속 work가 필요합니다.
 
 ## 다음 정확한 작업
 
-`migrations/planner_test.go`에 MIG-005 linear forward, MIG-015 missing dependency와
-Migration dependency-slice alias case를 먼저 작성한 뒤 최소 public type/constructor를
-구현합니다.
+[GDJ-0011 Migration Plan Execution Compatibility Contracts](0011-migration-plan-execution-compatibility-contracts.md)에서
+여러 migration의 순차 실행, migration별 transaction, 중간 실패와 partial commit의 외부
+의미를 제품 orchestrator보다 먼저 exact contract로 고정합니다.
 
 ## 결과와 인수인계
 
-GDJ-0009 machine baseline 뒤 활성화됨. 현재 제품 code는 아직 없고 locked Django oracle,
-static 12 mismatch와 기존 45 product passing을 기준으로 시작합니다.
+GDJ-0010을 제품 commit `31d264ad7c85a23b511a7549d698c1c3b0577e92`에서
+완료했습니다. MIG-005..016은 실제 public Planner 경로로 12개 모두 `passing`이며 다섯
+제품 set의 합계는 57개입니다. Django oracle과 static `not_implemented` fixture bytes는
+보존했고 static ordered 12 mismatch는 구현 전 false-green 회귀 입력으로 유지합니다.
+
+Planner는 pure structural zero-I/O 경계입니다. Recorder read/list, `ExecutePlan`, migration
+file/CLI, data callback, process lock와 crash recovery는 구현하지 않았고 Q-012는 계속
+`Partial`입니다. 다음 활성 작업은 [GDJ-0011](0011-migration-plan-execution-compatibility-contracts.md)입니다.

@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Migration planning reference 계약 완료, immutable planner 제품 단면 진행 중
+- 현재 단계: Immutable migration planner 완료, multi-migration execution 계약 설계·probe 진행 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -89,11 +89,18 @@ applied state, multi-target forward/backward plan과 잘못된 graph/history의 
 다섯 번째 exact set에 고정했습니다. 기존 45개 제품 contract는 계속 `passing`이고 새
 12개는 `oracle_locked`이므로 총 57개를 제품 통과로 표현하지 않습니다.
 
-현재 [GDJ-0010](../work/0010-immutable-migration-planner-product-slice.md)은
+[GDJ-0010](../work/0010-immutable-migration-planner-product-slice.md)은
 [ADR-0013](adr/0013-immutable-migration-planner.md)의 immutable identity graph와 별도
-AppliedState를 backend-neutral zero-I/O Planner로 구현하고 fifth set actual adapter를
-연결합니다. Public migration file/CLI, data callback, multi-plan execution, lock/crash
-recovery는 계속 후속 범위입니다.
+AppliedState를 backend-neutral zero-I/O Planner로 구현하고 fifth-set actual adapter를
+연결했습니다. MIG-005..016도 `passing`이 되어 현재 다섯 제품 set의 검증 범위는 총
+57개입니다. 이 planning adapter의 zero-I/O는 실제 DB probe가 아니라 pure structural
+경계로 검증합니다.
+
+현재 [GDJ-0011](../work/0011-migration-plan-execution-compatibility-contracts.md)은
+여러 migration을 순차 실행할 때 migration별 transaction, 중간 실패의 partial commit,
+이후 단계 중단과 ProjectState progression의 외부 의미를 contract-only로 먼저 고정합니다.
+Public migration file/CLI, data callback, execution orchestrator 제품, lock/crash recovery는
+계속 후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

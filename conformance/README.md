@@ -8,7 +8,8 @@ GDJ-0005는 mutable Save lifecycle 전용 세 번째 reference set을 추가했�
 GDJ-0007은 QuerySet evaluation/cache 전용 네 번째 reference set을 추가했습니다.
 GDJ-0008은 네 번째 set을 실제 제품 adapter에 연결해 `passing`으로 전환했습니다.
 GDJ-0009은 migration dependency/applied-state planning 전용 다섯 번째 reference set을
-추가했습니다. 이 set은 아직 제품 adapter가 없어 `oracle_locked`입니다.
+추가했고, GDJ-0010은 immutable public Planner adapter를 연결해 `passing`으로
+전환했습니다.
 제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
 package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -23,7 +24,7 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read, M2 write/migration/Save와 QuerySet cache 제품 package를 실행하는 GoDj observation adapter |
+| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache와 migration planning 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -172,8 +173,18 @@ go run ./conformance/cmd/godjcheck \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json
 ```
 
-Migration planning은 아직 GoDj 제품 adapter가 없습니다. Static baseline은 다음 비교에서
-예상 exit 1과 ordered 12 status mismatch를 내야 합니다.
+Migration planning 제품 adapter도 같은 command에 다섯 번째 manifest와 oracle을 넘겨
+직접 비교합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-planning-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json
+```
+
+Static baseline은 별도 비교에서 예상 exit 1과 ordered 12 status mismatch를 계속 내야
+합니다.
 
 ```bash
 go run ./conformance/cmd/observationcmp \
@@ -183,8 +194,8 @@ go run ./conformance/cmd/observationcmp \
   -actual conformance/fixtures/godj-migration-planning-not-implemented.json
 ```
 
-같은 manifest를 현재 `godjcheck`에 넘기면 unsupported scenario exit 2를 반환하고 actual
-output을 쓰지 않습니다. 이를 제품 통과로 세지 않습니다.
+Manifest에 등록되지 않은 migration-planning scenario는 `godjcheck`가 exit 2로 거부하고
+actual output을 쓰지 않습니다.
 
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
@@ -205,8 +216,8 @@ QuerySet evaluation/cache set은 GDJ-0007에서 QRY-011..021의 exact Django 결
 provenance를 `oracle_locked`로 먼저 고정했습니다. GDJ-0008은 generated model, generic
 QuerySet과 SQLite 실제 adapter를 연결해 11개 모두 `passing`으로 전환했습니다. 네
 manifest의 contract ID/scenario는 전역으로 유일하고 모든 12개 ordered cross-pair가
-validation에서 거부됩니다. `make godj-conformance`는 M1 11개, M2 write/migration 11개,
-Save 12개와 QuerySet cache 11개, 총 45개를 실행합니다. Manifest에 등록되지 않은 임의
+validation에서 거부됩니다. GDJ-0008 완료 당시 `make godj-conformance`는 M1 11개,
+M2 write/migration 11개, Save 12개와 QuerySet cache 11개, 총 45개를 실행했습니다. Manifest에 등록되지 않은 임의
 unknown scenario는 계속 exit 2로 fail-closed하며 actual output을 쓰지 않습니다.
 
 두 독립 Go query-cache actual은 각각 56,283 bytes이며 SHA-256
@@ -228,9 +239,24 @@ Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 
 `7e8f0d19c8f227721e7cfe4254a4f39d1313e801f1ea0a759e14c46a3dbbe876`, static fixture는
 1,869 bytes, SHA-256
 `a9ef26842cd09e4ae01a21d38399ea27e527b0724a7d3e830ecf6c42a12aca13`입니다.
-기존 `make godj-conformance`는 제품 adapter가 있는 45개만 실행합니다. Fifth-set
-determinism, mutation, static mismatch와 fail-closed 증거는
+GDJ-0009 완료 당시 `make godj-conformance`는 제품 adapter가 있는 45개만 실행했습니다.
+Fifth-set determinism, mutation, static mismatch와 fail-closed 증거는
 [EVID-20260808-008](../docs/status/TEST_EVIDENCE.md#evid-20260808-008--gdj-0009-migration-planning-compatibility-contracts)에
+기록합니다.
+
+GDJ-0010은 `migrations.NewPlanner`, `NewAppliedState`, `Planner.Plan`과
+`PlanningError`를 사용하는 실제 fifth adapter를 추가했습니다. Manifest는 10,551 bytes,
+SHA-256 `f51d737bd68eafae32f7942669b467e3457372873ec536a13491ded60ef27ca6`이고
+MIG-005..016이 모두 `passing`입니다. 현재 `make godj-conformance`는 다섯 제품 set의
+11 + 11 + 12 + 11 + 12, 총 57개를 실행합니다.
+
+두 독립 Go migration-planning actual은 각각 39,094 bytes, SHA-256
+`eb5bf3b6f41855684582f67b3be675da42975b8fc1ed9c7085f6d35a078eac32`로 서로
+byte-identical하며 Django oracle과 protocol 의미상 12개 0-diff입니다. Logical DB state와
+zero metrics는 실제 DB probe가 아니라 pure structural planner capture에서 산출합니다.
+Static ordered 12 mismatch, plan 하위값/dependency/error-code mutation과 adapter source
+hardcode 금지 증거는
+[EVID-20260808-009](../docs/status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
 기록합니다.
 
 ## Provenance

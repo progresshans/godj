@@ -144,10 +144,17 @@ MIG-015/016은 `construction` phase입니다. Missing target은
 `migration_graph_error` category의 `dependency_not_found`/`dependency_cycle`을 사용합니다.
 Raw exception message와 cycle traversal order는 계약하지 않습니다.
 
-이 set은 현재 12개 `oracle_locked`, Django oracle 12개 `observed`, static GoDj fixture
-12개 `not_implemented`입니다. 따라서 현재 reference contract는 총 57개지만 제품
-`passing`은 기존 45개뿐입니다. Product `godjcheck`는 등록되지 않은 planning scenario를
-exit 2/no output으로 거부하며 제품 지원으로 가장하지 않습니다.
+GDJ-0009 완료 당시 이 set은 12개 `oracle_locked`, Django oracle 12개 `observed`, static
+GoDj fixture 12개 `not_implemented`였습니다. 따라서 당시 reference contract는 총 57개지만
+제품 `passing`은 기존 45개뿐이었고, Product `godjcheck`는 planning scenario를 exit 2/no
+output으로 거부했습니다.
+
+GDJ-0010은 [ADR-0013](adr/0013-immutable-migration-planner.md)의 immutable identity graph,
+별도 AppliedState, named/zero target과 structured planning error를 실제 public API로
+구현했습니다. Fifth adapter가 public Planner를 실행해 MIG-005..016도 semantic 0-diff가
+되었고 현재 다섯 제품 set의 57개가 모두 `passing`입니다. Static fixture의 ordered 12
+`not_implemented` mismatch와 unknown scenario fail-closed는 구현 전 상태를 녹색으로 만들지
+않는 회귀로 계속 보존합니다.
 
 ## 계약 상태
 
@@ -223,7 +230,7 @@ chain/fresh 독립성, cold/warm terminal과 실패 재시도를 step별 query c
 GDJ-0008은 [ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)의 direct value-copy
 state 공유, chain/fresh 독립 state, 같은 state `All` singleflight, owner/waiter cancellation
 격리, generated deep clone과 terminal API를 실제 제품 경로에 구현했습니다. 네 번째
-adapter의 11개도 Django oracle과 의미적으로 0-diff여서 현재 검증된 범위는
+adapter의 11개도 Django oracle과 의미적으로 0-diff여서 GDJ-0008 완료 당시 검증 범위는
 11 + 11 + 12 + 11, 총 45개 `passing`입니다. 두 독립 Go actual은 각각 56,283 bytes이고
 SHA-256
 `c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
@@ -247,6 +254,15 @@ graph object와 cycle message/path는 호환 계약이 아닙니다. Two-process
 기록합니다. [ADR-0013](adr/0013-immutable-migration-planner.md)은 후속 GoDj 제품이 불변
 identity graph와 별도 applied state를 쓰도록 결정했지만, Accepted ADR만으로 이 12개가
 `passing`인 것은 아닙니다.
+
+GDJ-0010은 ADR-0013을 구현해 MIG-005..016을 실제 public Planner 경로로 실행합니다.
+두 독립 Go actual은 각각 39,094 bytes, SHA-256
+`eb5bf3b6f41855684582f67b3be675da42975b8fc1ed9c7085f6d35a078eac32`로 서로
+byte-identical하며, 39,139 bytes의 Django oracle과는 protocol 의미상 12개 0-diff입니다.
+Planning state/zero metrics는 실제 DB probe가 아니라 backend import가 없는 pure structural
+adapter에서 산출합니다. 현재 제품 검증 합계는 57개이고, 상세 증거는
+[EVID-20260808-009](status/TEST_EVIDENCE.md#evid-20260808-009--gdj-0010-immutable-migration-planner-product-slice)에
+기록합니다.
 
 ## 데이터 호환성
 
