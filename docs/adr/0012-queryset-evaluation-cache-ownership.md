@@ -9,8 +9,9 @@
 
 GDJ-0007은 성공한 empty/non-empty full evaluation cache, stale snapshot, chain과 fresh
 copy의 독립성, cold/warm `Count`/`Exists`/index/`First`, cache-bypass iterator와 실패
-재시도를 11개 exact Django 계약으로 고정했습니다. 현재 GoDj `QuerySet[M]`은 immutable
-query plan을 가진 값 타입이고 `All(ctx)`를 호출할 때마다 backend를 실행합니다.
+재시도를 11개 exact Django 계약으로 고정했습니다. 이 ADR을 결정할 당시 GoDj
+`QuerySet[M]`은 immutable query plan을 가진 값 타입이고 `All(ctx)`를 호출할 때마다
+backend를 실행했습니다.
 
 Go의 값 복사와 goroutine/context 모델은 Django object reference와 다릅니다. 값 타입에
 mutex/cache를 직접 넣으면 copy-after-use 위험이 있고, pointer state를 추가하면 direct
@@ -87,7 +88,7 @@ Canonical cache는 caller에게 직접 노출하지 않습니다. `ModelDescript
 유지하되 generated 구현이 같은 deep-clone logic에 위임합니다. Django object identity를
 복제하는 대신 caller alias와 concurrent mutation으로부터 canonical cache를 격리합니다.
 
-공개 terminal API는 다음으로 고정합니다.
+공개 QuerySet API는 zero-I/O state-copy API `Fresh`와 여섯 terminal로 고정합니다.
 
 ```go
 func (qs QuerySet[M]) Fresh() QuerySet[M]
@@ -157,6 +158,29 @@ go test -race -count=10 -shuffle=on ./...    PASS
 Spike의 `queryset.go` SHA-256은
 `9324a19af02faeea12193d40e153edbb5943d03d0d9e361fdb0354d8406e7675`, test는
 `6827b58e947eedb5a93ca97c2d3ee55efd02d8643f8ee95af2e407993f3ac2b9`입니다. 이 경로는
-결정 증거일 뿐 제품 source가 아니며, GDJ-0008은 같은 불변 조건을 checked-in unit/
-compile/race/SQLite/differential test로 다시 검증해야 합니다. 현재 ADR Accepted가
-QRY-011..021 제품 지원이나 `passing`을 뜻하지 않습니다.
+결정 증거일 뿐 제품 source가 아니었습니다. 이 spike 시점에는 GDJ-0008이 같은 불변
+조건을 checked-in unit/compile/race/SQLite/differential test로 다시 검증해야 했으며,
+ADR Accepted만으로 QRY-011..021 제품 지원이나 `passing`을 뜻하지 않았습니다.
+
+### Checked-in 제품 검증
+
+GDJ-0008은 위 결정을 저장소 제품 source에 구현했습니다. `orm.QuerySet[M]`의 direct-copy/
+chain/fresh ownership, 성공/실패/cancellation 상태 전이, 같은 state `All` singleflight,
+owner 취소 뒤 live waiter 재시도와 waiter-only cancellation 격리, cold/warm terminal,
+callback iterator와 rows cleanup을 unit/race/SQLite test로 검증했습니다. External consumer
+compile-positive/negative gate는 terminal signature와 cross-model callback/result type
+오용을 확인합니다. `godj-codegen-m2-v3`가 nullable pointer를 deep clone하는
+`CloneModel`을 만들고 기존 `CloneWriteModel`이 이에 위임하는 것도 golden, deterministic
+generation과 drift gate로 고정했습니다.
+
+실제 GoDj adapter는 QRY-011..021 모두 Django oracle과 의미적으로 0-diff입니다. 두 독립
+Go actual은 각각 56,283 bytes, SHA-256
+`c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
+byte-identical합니다. Django oracle은 56,426 bytes, SHA-256
+`d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`이므로 서로 다른 두
+runtime artifact 자체가 byte-identical하다는 뜻은 아닙니다. Protocol comparator가 계약된
+result/error/DB state/metrics를 0-diff로 판정했습니다. Static query fixture의 ordered 11
+mismatch와 arbitrary unknown scenario fail-closed도 계속 유지합니다. 전체 명령과 checkout
+증거는
+[EVID-20260808-007](../status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
+기록합니다.

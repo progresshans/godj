@@ -1,12 +1,12 @@
 ---
 id: GDJ-0008
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "9050b4d7d2a1ed961da5e7bdefde8f4c8653eb33"
 depends_on: ["GDJ-0007"]
 contracts: ["QRY-011..QRY-021"]
-allowed_paths: ["Makefile", "docs/**", "work/**", "orm/**", "query/**", "db/**", "codegen/**", "examples/**", "internal/**", "conformance/runners/godj/**", "conformance/cmd/godjcheck/**", "conformance/contracts/query-cache-manifest.json"]
+allowed_paths: ["Makefile", "docs/**", "work/**", "orm/**", "query/**", "db/**", "codegen/**", "examples/**", "internal/**", "conformance/runners/godj/**", "conformance/cmd/godjcheck/**", "conformance/contracts/query-cache-manifest.json", "conformance/internal/protocol/**"]
 integration_owner: "one primary agent"
 ---
 
@@ -76,17 +76,17 @@ compile/runtime/race spike 증거로 Accepted하고 다음 경계를 결정했�
 ## 완료 gate
 
 - [x] ADR-0012가 compile/runtime/race spike 증거와 함께 Accepted
-- [ ] direct copy/chain/fresh state ownership unit·race test 통과
-- [ ] empty/non-empty success cache, failure/cancellation retry test 통과
-- [ ] concurrent same-query evaluation과 waiter cancellation test 통과
-- [ ] Count/Exists/iterator/At/First cold·warm 및 resource cleanup test 통과
-- [ ] external consumer positive/negative compile와 generated drift gate 통과
-- [ ] QRY-011..021이 모두 `passing` 또는 승인된 `deviation`
-- [ ] 기존 M1/M2/Save 34개 differential이 계속 0-diff
-- [ ] full/vet/race/CGO=0/exact oracle/checksum/mutation gate 통과
-- [ ] CURRENT/matrix/evidence/work/ADR가 같은 checkout을 가리킴
+- [x] direct copy/chain/fresh state ownership unit·race test 통과
+- [x] empty/non-empty success cache, failure/cancellation retry test 통과
+- [x] concurrent same-query evaluation과 waiter cancellation test 통과
+- [x] Count/Exists/iterator/At/First cold·warm 및 resource cleanup test 통과
+- [x] external consumer positive/negative compile와 generated drift gate 통과
+- [x] QRY-011..021이 모두 `passing` 또는 승인된 `deviation`
+- [x] 기존 M1/M2/Save 34개 differential이 계속 0-diff
+- [x] full/vet/race/CGO=0/exact oracle/checksum/mutation gate 통과
+- [x] CURRENT/matrix/evidence/work/ADR가 같은 checkout을 가리킴
 
-## 시작 시 첫 작업
+## 시작 시 첫 작업 (historical)
 
 1. `orm.QuerySet[M]`의 값 receiver와 chain constructor가 plan/backend/descriptor를 어떻게
    복사하는지, `All(ctx)`가 rows를 소유·닫는 경계를 실제 코드로 추적합니다.
@@ -111,13 +111,82 @@ compile/runtime/race spike 증거로 Accepted하고 다음 경계를 결정했�
 - Django `all()`은 fresh clone이지만 GoDj의 `All(ctx)`는 이미 terminal입니다. 표면 이름을
   억지로 복제하지 않습니다.
 
-## 인수인계
+## 구현 결과
 
-- Baseline은 GDJ-0007 machine artifact commit
-  `9050b4d7d2a1ed961da5e7bdefde8f4c8653eb33`입니다.
-- 네 번째 manifest는 QRY-011..021 `oracle_locked`, Django oracle은 `observed`, static
-  fixture는 11개 `not_implemented`입니다. 아직 GoDj 제품 pass가 아닙니다.
-- Oracle은 56,426 bytes, SHA-256
-  `d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`입니다.
-- 첫 변경은 ADR-0012와 focused test여야 하며 manifest status는 actual adapter가 0-diff가
-  되기 전까지 올리지 않습니다.
+- `QuerySet[M]`은 불변 query plan과 `*evaluationState[M]`를 분리합니다. 직접 Go 값 복사는
+  같은 상태를 공유하고, `Filter`, `OrderBy`, 성공한 `Limit`와 `Fresh`는 새 상태를
+  할당합니다.
+- 성공한 empty/non-empty `All`만 full result cache에 들어갑니다. 실패와 cancellation은
+  cache하지 않으며, 같은 상태의 동시 `All`은 한 owner I/O로 합쳐집니다. Waiter
+  cancellation은 owner를 취소하지 않고, 취소된 owner 뒤 유효한 waiter는 재시도할 수
+  있습니다.
+- `ModelDescriptor.CloneModel`과 generated deep clone을 통해 cache의 canonical slice와
+  nullable pointer가 caller mutation에 노출되지 않습니다.
+- `Fresh`와 여섯 public typed terminal `All`, `Count`, `Exists`, `At`, `First`,
+  `Iterate`를 구현했습니다. Warm terminal은 full cache를 사용하고 cold terminal/iterator는 full
+  cache를 채우지 않습니다. `At`/`First`는 안정된 의미를 위해 explicit ordering을
+  요구합니다.
+- SQLite의 실제 missing-table driver error만 `backend_error/missing_table`로 분류하고
+  원 cause를 보존합니다. 일반 문자열과 missing-column 오류는 같은 code로 오분류하지
+  않습니다.
+- 실제 GoDj query-cache adapter를 연결해 QRY-011..021 전부 Django oracle과 0-diff가
+  됐습니다. 기존 M1/M2/Save 34개를 포함해 총 45개 manifest contract가 `passing`입니다.
+
+## 수정 파일
+
+- `orm/manager.go`, `orm/descriptor.go`, `query/error.go`: 평가 상태, terminal, deep-clone
+  descriptor와 구조화된 query 오류
+- `orm/queryset_cache_test.go`, `orm/orm_test.go`: ownership, retry, cancellation,
+  singleflight, alias, terminal과 row lifecycle 회귀
+- `db/sqlite/backend.go`, `db/sqlite/backend_internal_test.go`: missing-table 오류 분류
+- `codegen/generate.go`, generated Article, compile fixtures/tests: `CloneModel`, terminal
+  signature와 model type-safety gate
+- `conformance/runners/godj`, `godjcheck`, query-cache manifest/protocol tests와 `Makefile`:
+  실제 11-contract adapter, `passing` 상태, fourth-set differential와 false-green gate
+
+## 결정된 사항
+
+- Cache ownership과 public API는
+  [ADR-0012](../docs/adr/0012-queryset-evaluation-cache-ownership.md)의 Accepted 결정을
+  제품 unit/compile/race/differential test로 재검증했습니다.
+- Canonical cached model은 외부에 직접 반환하지 않습니다. Model별 clone은 codegen이
+  만들고 generic core는 descriptor 계약만 사용합니다.
+- Cold `Count`는 현재 aggregate AST가 없으므로 rows를 materialize하지 않고 drain합니다.
+  Cold `Exists`/`First`는 최대 1행, `At(i)`는 최대 `i+1`행으로 제한하며 기존의 더 작은
+  limit를 보존합니다.
+- `Iterate`는 full cache를 읽거나 채우지 않고, callback에는 clone된 model을 전달합니다.
+
+## 테스트 증거
+
+- Evidence: [EVID-20260808-007](../docs/status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)
+- Product/conformance commit:
+  `6f1aab78a6e365e62f5a3b59b040b90b981b4978`
+- Django oracle: 56,426 bytes, SHA-256
+  `d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`
+- 두 독립 GoDj actual은 각각 56,283 bytes로 byte-identical하며 SHA-256
+  `c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`입니다.
+- `make check`, uncached full Go test/race/CGO=0, vet, deterministic generation,
+  exact oracle/checksum, 네 set differential과 mutation/hardcode audit가 통과했습니다.
+  Push하지 않았으므로 GitHub-hosted workflow는 실행하지 않았습니다.
+
+## 알려진 제한
+
+- Aggregate/offset AST가 아직 없어서 cold `Count`는 O(1) 추가 메모리지만 O(N) row
+  transfer이고, `At`은 앞선 row를 순회합니다.
+- Projection/aggregate/relation/prefetch, async iterator, cross-process cache, TTL/eviction과
+  PostgreSQL은 이 단면 밖입니다.
+- QuerySet 평가 상태는 race-safe하지만 반환된 model instance 자체의 동시 mutation
+  안전성을 보장하지 않습니다.
+- Request/transaction/hook 전체의 goroutine ownership은 Q-011의 후속 범위로 남습니다.
+
+## 결과와 인수인계
+
+GDJ-0008을 제품 commit `6f1aab78a6e365e62f5a3b59b040b90b981b4978`에서
+완료했습니다. GDJ-0007 당시의 `oracle_locked`/static `not_implemented` artifact는 구현 전
+false-green 회귀 입력으로 보존하지만, manifest의 현재 제품 상태는 QRY-011..021 모두
+`passing`입니다.
+
+다음 활성 작업은
+[GDJ-0009 Migration Planning Compatibility Contracts](0009-migration-planning-compatibility-contracts.md)입니다.
+기존 MIG-001..004 제품 실행 경계를 바꾸기 전에 MIG-005..016으로 dependency graph와
+적용 기록에 따른 forward/backward plan의 외부 의미를 contract-only로 고정합니다.

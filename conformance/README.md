@@ -6,6 +6,7 @@ GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract s
 GDJ-0004는 그 set을 실제 제품 package에 연결했습니다.
 GDJ-0005는 mutable Save lifecycle 전용 세 번째 reference set을 추가했습니다.
 GDJ-0007은 QuerySet evaluation/cache 전용 네 번째 reference set을 추가했습니다.
+GDJ-0008은 네 번째 set을 실제 제품 adapter에 연결해 `passing`으로 전환했습니다.
 제품용 Schema/ORM/SQLite 구현은 루트의 `schema`, `codegen`, `query`, `orm`, `db`
 package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -19,7 +20,7 @@ package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read와 M2 write/migration/Save 제품 package를 실행하는 GoDj observation adapter |
+| `runners/godj` | M1 read, M2 write/migration/Save와 QuerySet cache 제품 package를 실행하는 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -148,6 +149,16 @@ go run ./conformance/cmd/godjcheck \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/write-migration-oracle.json
 ```
 
+QuerySet evaluation/cache 제품 adapter도 같은 command에 네 번째 manifest와 oracle을
+넘겨 직접 비교합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/query-cache-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json
+```
+
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
 false green이 생기지 않는지 검증합니다.
@@ -160,19 +171,27 @@ recorder를 실행해 MOD-001..007, MIG-001..004가 oracle과 일치합니다. C
 
 Save lifecycle set은 GDJ-0005에서 Django exact reference로 고정했고 GDJ-0006에서 실제
 generated model, `Manager.Save`와 SQLite adapter를 연결해 12개 모두 `passing`입니다.
-`make godj-conformance`는 이제 M1 11개, M2 write/migration 11개와 Save 12개를 모두
-실행합니다. Unknown scenario는 계속 fail-closed하고, checked-in
-`godj-save-lifecycle-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 ordered
+Checked-in `godj-save-lifecycle-not-implemented.json`은 구현 전 상태가 pass되지 않는다는 ordered
 12-mismatch false-green fixture로 유지하며 현재 GoDj actual을 뜻하지 않습니다.
 
 QuerySet evaluation/cache set은 GDJ-0007에서 QRY-011..021의 exact Django 결과와
-provenance를 `oracle_locked`로 고정했습니다. 현재 GoDj QuerySet은 intentionally
-uncached이고 이 manifest용 제품 adapter가 없으므로 `godjcheck`는 unknown scenario를
-명시해 exit 2로 fail-closed하며 actual output을 쓰지 않습니다. Checked-in
-`godj-query-cache-not-implemented.json`은 ordered 11-mismatch false-green fixture입니다.
-네 manifest의 contract ID/scenario는 전역으로 유일하고 모든 12개 ordered cross-pair가
-validation에서 거부됩니다. 현재 제품 differential은 기존 11 + 11 + 12, 총 34개만
-`passing`이며 QuerySet cache 11개는 GDJ-0008 전까지 제품 통과로 세지 않습니다.
+provenance를 `oracle_locked`로 먼저 고정했습니다. GDJ-0008은 generated model, generic
+QuerySet과 SQLite 실제 adapter를 연결해 11개 모두 `passing`으로 전환했습니다. 네
+manifest의 contract ID/scenario는 전역으로 유일하고 모든 12개 ordered cross-pair가
+validation에서 거부됩니다. `make godj-conformance`는 M1 11개, M2 write/migration 11개,
+Save 12개와 QuerySet cache 11개, 총 45개를 실행합니다. Manifest에 등록되지 않은 임의
+unknown scenario는 계속 exit 2로 fail-closed하며 actual output을 쓰지 않습니다.
+
+두 독립 Go query-cache actual은 각각 56,283 bytes이며 SHA-256
+`c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
+byte-identical합니다. Django oracle은 56,426 bytes, SHA-256
+`d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`이므로 양쪽 artifact가
+byte-identical한 것은 아닙니다. Result/error/DB state/metrics의 계약 의미를 comparator가
+0-diff로 판정한 것입니다. Checked-in `godj-query-cache-not-implemented.json`의 ordered
+11 mismatch는 현재 제품 actual이 아니라 구현 전 false-green 회귀 증거로 그대로
+유지합니다. Go-native singleflight/cancellation/deep-clone/terminal gate와 전체 명령은
+[EVID-20260808-007](../docs/status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
+기록합니다.
 
 ## Provenance
 

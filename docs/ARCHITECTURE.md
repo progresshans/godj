@@ -67,6 +67,11 @@ concrete descriptor를 생성합니다. `Metadata()`는 독립 복사를 반환�
 경계는 [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)에
 고정했습니다. Relation binding이 필요해질 때 확장 여부를 다시 검토합니다.
 
+GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
+Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
+격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은
+generator version, golden/compile test와 generated drift gate로 함께 고정합니다.
+
 ## Query 경로
 
 일반 애플리케이션은 typed predicate를 기본으로 사용하고, HTTP query, Admin, Historical Model은 allowlist와 coercion이 있는 dynamic lookup을 사용합니다. 둘은 같은 AST node와 오류 taxonomy로 수렴해야 합니다.
@@ -79,8 +84,14 @@ dynamic lookup ────────┘
 
 QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. M1 dynamic API는
 `ParseDynamic`에서 construction 오류를 즉시 반환하고, 성공한 `Predicate[M]`를 typed
-`Filter`에 넘깁니다. 지연 평가와 결과 cache의 최종 의미는 Q-007에서 계속
-결정하며 현재 M1 `All`은 cache 없이 매번 평가합니다.
+`Filter`에 넘깁니다. GDJ-0008부터 immutable plan과 pointer evaluation state를 분리합니다.
+Direct Go value copy는 state를 공유하지만 `Filter`/`OrderBy`/성공한 `Limit`와 `Fresh`는
+새 state를 받습니다. 성공한 full `All`만 cache하고 같은 state의 동시 `All`은
+singleflight하며, 실패/cancellation은 cache하지 않습니다. Owner와 waiter context를
+격리하고 generated deep clone을 통해 canonical cache를 caller에게 직접 노출하지
+않습니다. Cold `Count`/`Exists`/`At`/`First`는 full cache를 채우지 않고 warm terminal은
+cache를 재사용하며, `Iterate`는 cache를 우회·보존합니다. 이 경계는
+[ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에 고정합니다.
 
 ## Model과 Migration
 

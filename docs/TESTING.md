@@ -112,7 +112,9 @@ darwin oracle을 재생성했다고 주장하지 않습니다.
 
 ## 정규화 규칙
 
-- key ordering과 JSON encoding을 canonical하게 고정합니다.
+- 각 producer의 JSON bytes는 독립 재생성에서 결정적이어야 합니다. Cross-runtime 비교는
+  object member ordering과 optional `null` 생략을 protocol decoder가 정규화한 typed
+  payload 의미를 기준으로 합니다.
 - datetime은 timezone과 precision을 명시합니다.
 - decimal은 float로 바꾸지 않고 정규 문자열 또는 tuple로 표현합니다.
 - UUID, bytes, auto PK, NULL을 타입이 드러나는 형태로 표현합니다.
@@ -159,14 +161,33 @@ Adapter metrics는 임의 contract/statement sequence가 recorder에서 직접 �
 검증하고, SQLite primary-key 오류는 opaque wrapper 안의 structured extended code만
 분류하는 회귀로 oracle-shaped 하드코딩과 문자열 비교 false green을 막습니다.
 
-GDJ-0007은 QuerySet evaluation/cache 11개를 네 번째 set으로 추가했습니다. 모든
+GDJ-0007은 QuerySet evaluation/cache 11개를 네 번째 set으로 먼저 추가했습니다. 모든
 scenario는 setup DDL/DML과 terminal capture window를 분리하고, result/DB state와 함께
 ordered step별 SELECT count를 비교합니다. 네 set의 ID/scenario 전역 uniqueness와 모든
 12개 ordered cross-pair를 검증합니다. Query-count/result/error mutation뿐 아니라 fixture
 sentinel과 capture token이 11개 scenario의 live 실행 결과까지 전파되는지를 검사해
-checked-in oracle을 그대로 반환하는 하드코딩도 거부합니다. 이 set은 아직 제품 adapter가
-없어 `oracle_locked`이며 static fixture의 정확한 11 mismatch와 `godjcheck` fail-closed가
-기대 결과입니다. 기존 M1/M2/Save 34개 differential은 계속 0-diff여야 합니다.
+checked-in oracle을 그대로 반환하는 하드코딩도 거부합니다. GDJ-0007 완료 당시에는 제품
+adapter가 없어 `oracle_locked`였고, static fixture의 정확한 11 mismatch와 `godjcheck`
+unknown-scenario fail-closed가 기대 결과였습니다.
+
+GDJ-0008은 네 번째 set을 generated model, generic QuerySet과 SQLite 실제 제품 경로에
+연결해 11개 모두 `passing`으로 전환했습니다. `make godj-conformance`는 이제 M1 11개,
+M2 write/migration 11개, Save 12개와 QuerySet cache 11개, 총 45개를 실행합니다. 임의로
+등록되지 않은 scenario는 계속 actual을 쓰지 않고 fail-closed합니다. QuerySet의 direct
+copy/chain/fresh ownership, 같은 state `All` singleflight, owner cancellation 뒤 live
+waiter 재시도와 waiter-only cancellation 격리, nullable pointer deep clone, cold/warm
+`Count`/`Exists`/`At`/`First`, cache-bypass `Iterate`, context와 rows cleanup은 별도
+unit/compile/race/SQLite gate로 검증합니다.
+
+두 독립 Go actual은 각각 56,283 bytes, SHA-256
+`c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
+byte-identical합니다. Django oracle은 56,426 bytes, SHA-256
+`d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`이며 Go actual과
+byte-identical하지 않습니다. 합격 근거는 protocol comparator의 계약 의미 0-diff입니다.
+Query-cache static fixture의 ordered 11 mismatch는 구현 전 false-green 회귀 증거로 계속
+유지합니다. 명령과 checkout별 결과는
+[EVID-20260808-007](status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
+기록합니다.
 
 ## 기능별 기본 테스트 요구
 
@@ -179,6 +200,7 @@ checked-in oracle을 그대로 반환하는 하드코딩도 거부합니다. 이
 | Typed query API | compile-positive/negative, AST invariant, differential result |
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
+| QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
 | Migration | state diff, forward/backward, failure/rollback, concurrent lock |
 | Concurrency | `go test -race`, cancellation, goroutine/connection leak |
 | Backend | capability matrix, conformance, explicit unsupported errors |

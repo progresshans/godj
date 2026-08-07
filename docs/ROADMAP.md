@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: QuerySet evaluation/cache reference 계약 완료, 제품 단면 진행 중
+- 현재 단계: QuerySet evaluation/cache 제품 단면 완료, migration planning 호환 계약 진행 중
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -77,9 +77,18 @@ file, autodetector, graph, lock과 crash recovery는 이후 별도 work/ADR 범�
 M1부터 열린 Q-007을 먼저 닫기 위해
 [GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)은 QuerySet
 evaluation/cache의 QRY-011..021 exact reference 계약을 네 번째 set으로 고정했습니다.
-기존 제품 34개는 계속 `passing`이고 새 11개는 `oracle_locked`입니다. 현재
-[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)에서 Go-native value-copy/
-concurrency ownership과 terminal API를 ADR로 결정한 뒤 실제 adapter를 연결합니다.
+당시 기존 제품 34개는 계속 `passing`이었고 새 11개는 `oracle_locked`였습니다.
+[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)은 Go-native value-copy/
+concurrency ownership과 terminal API를 ADR-0012로 결정하고 실제 adapter를 연결해
+QRY-011..021을 모두 `passing`으로 올렸습니다. 현재 검증된 manifest contract는 총
+45개이며, 이는 M2 migration이나 M4 QuerySet breadth 전체 완료를 뜻하지 않습니다.
+
+다음 M2 확장은
+[GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)입니다. 기존
+MIG-001..004 executor/editor 제품 경계를 바꾸기 전에 MIG-005..016으로 dependency graph,
+applied state, multi-target forward/backward plan과 잘못된 graph/history의 외부 의미를
+contract-only로 고정합니다. Public migration file/CLI, data callback, lock/crash recovery는
+계속 후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 
@@ -97,7 +106,7 @@ concurrency ownership과 terminal API를 ADR로 결정한 뒤 실제 adapter를 
 - result cache와 iterator semantics 확정
 
 Q-007의 result cache/terminal semantics는 이후 projection/aggregate/relation loader가
-같은 평가 상태를 재사용하기 전에 GDJ-0007/0008에서 선행 단면으로 처리합니다. 이는
+같은 평가 상태를 재사용하기 전에 GDJ-0007/0008의 선행 단면으로 완료했습니다. 이는
 M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 
 ## M5 — Web Core

@@ -31,12 +31,15 @@ proposed → ready → active → completed
 | [GDJ-0005](0005-save-lifecycle-compatibility-contracts.md) | completed | Save lifecycle 호환 계약 확장 |
 | [GDJ-0006](0006-save-lifecycle-product-slice.md) | completed | Save lifecycle 제품 수직 단면 |
 | [GDJ-0007](0007-queryset-evaluation-cache-compatibility-contracts.md) | completed | QuerySet evaluation/cache 호환 계약 |
-| [GDJ-0008](0008-queryset-evaluation-cache-product-slice.md) | active | QuerySet evaluation/cache 제품 수직 단면 |
+| [GDJ-0008](0008-queryset-evaluation-cache-product-slice.md) | completed | QuerySet evaluation/cache 제품 수직 단면 |
+| [GDJ-0009](0009-migration-planning-compatibility-contracts.md) | active | Migration planning 호환 계약 확장 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active
-항목은 GDJ-0008이며 ready 항목은 없습니다. GDJ-0007의 QRY-011..021 reference를
-입력으로 제품 API/ownership을 ADR-0012에서 결정한 뒤 실제 adapter를 연결합니다.
+항목은 GDJ-0009이며 ready 항목은 없습니다. GDJ-0008은 QRY-011..021 제품 adapter를
+연결해 기존 34개와 함께 총 45개 contract를 `passing`으로 만들었습니다. GDJ-0009는
+MIG-005..016의 migration dependency/applied-state planning 의미를 contract-only로 먼저
+고정합니다.
 
 ## 운영 규칙
 

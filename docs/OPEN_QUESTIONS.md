@@ -8,10 +8,10 @@
 | ID | 우선순위 | 결정 시점 | 질문 |
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
-| Q-007 | P1 | GDJ-0008 | QRY-011..021과 ADR-0012 ownership/API는 결정; 실제 제품 adapter 통과가 남음 |
+| Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
-| Q-011 | P1 | GDJ-0008/M5+ | QuerySet subset의 goroutine safety는 ADR-0012, request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | public CLI 전 | migration core 경계는 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) Accepted, file ABI/lock은 계속 open |
+| Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
+| Q-012 | Partial | GDJ-0009/public CLI 전 | migration core는 ADR-0010, planning 의미는 MIG-005..016에서 진행 중; file ABI/data callback/lock은 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -70,21 +70,27 @@ Go에서는 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md)에 따라 co
 불변 plan과 instance result cache를 분리해야 합니다.
 [GDJ-0007](../work/0007-queryset-evaluation-cache-compatibility-contracts.md)에서 chain,
 반복/빈/실패 평가, iterator/Count/Exists/fresh clone의 Django 외부 동작을 먼저
-QRY-011..021의 exact 계약으로 고정했습니다. Oracle은 `oracle_locked`이며 현재 제품은
-intentionally uncached입니다. Value-copy QuerySet의 cache ownership, cached result alias,
+QRY-011..021의 exact 계약으로 고정했습니다. 당시 oracle은 `oracle_locked`이고 제품은
+intentionally uncached였습니다. Value-copy QuerySet의 cache ownership, cached result alias,
 동시 `All`, waiter cancellation과 Go terminal 표면은 그 결과를 입력으로
-[ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에서 Accepted했습니다. 현재
-[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)이 이를 제품/race/
-differential test로 구현 중입니다. Q-011 전체를 닫지는 않으며 이 작업은 QuerySet
-subset만 다룹니다.
+[ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)에서 Accepted했습니다.
+[GDJ-0008](../work/0008-queryset-evaluation-cache-product-slice.md)은 이를 제품 unit/compile/
+race/differential test로 구현해 QRY-011..021 모두를 `passing`으로 검증했습니다. 따라서
+Q-007은 해결됐습니다. Q-011은 QuerySet evaluation subset만 해결됐고 request,
+transaction-bound session과 hook의 goroutine ownership은 후속 단계에 남습니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
 MIG-001~004와 GDJ-0004 제품 구현을 거쳐 state/operation/executor/schema editor/
 recorder core를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에서
-채택·검증했습니다. Migration file encoding,
-data callback ABI, dependency graph merge, multi-process lock와 crash recovery는 아직
-결정하지 않았으며 public CLI 전에 별도 ADR과 contract가 필요합니다.
+채택·검증했습니다. 현재
+[GDJ-0009](../work/0009-migration-planning-compatibility-contracts.md)는 제품 graph를 먼저
+만들지 않고 MIG-005..016으로 dependency/applied-state 기반 forward/backward plan,
+multi-target 중복 제거와 잘못된 graph/history 오류를 contract-only로 고정합니다.
+
+Migration file encoding, data callback ABI, graph merge/squash/optimizer,
+multi-process lock와 crash recovery는 여전히 결정하지 않았으며 public CLI 전에 별도
+ADR과 contract가 필요합니다. GDJ-0009 완료는 Q-012 전체 해결을 뜻하지 않습니다.
 
 ## Q-013 — 관계 API
 

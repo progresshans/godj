@@ -125,8 +125,10 @@ GDJ-0007은
 ordered set으로 추가했습니다. QRY-011..021은 repeated/empty/stale evaluation, chain,
 Count/Exists, iterator, cold index/First, failure retry와 evaluated source의 fresh copy를
 다룹니다. 네 manifest의 contract ID/scenario는 전역으로 유일하고, 모든 12개 ordered
-cross-pair가 거부됩니다. 이 set은 exact Django oracle이 `oracle_locked`인 reference
-계약이며 GDJ-0008 제품 adapter가 통과하기 전에는 GoDj 지원으로 세지 않습니다.
+cross-pair가 거부됩니다. GDJ-0007 완료 당시 이 set은 exact Django oracle만
+`oracle_locked`인 reference 계약이었고 GoDj 지원으로 세지 않았습니다. GDJ-0008은 같은
+manifest를 실제 generated model/QuerySet/SQLite adapter에 연결해 11개를 `passing`으로
+올렸습니다. 등록되지 않은 임의 scenario는 set 상태와 관계없이 계속 fail-closed합니다.
 
 ## 계약 상태
 
@@ -190,17 +192,32 @@ generated model/Manager/SQLite 실제 제품 경로로 실행해 `passing`으로
 explicit `update_fields`는 named field만 쓰며 empty iterable은 zero-I/O no-op입니다.
 Force validation과 missing-row `NotUpdated`, explicit PK의 UPDATE/UPDATE→INSERT, 명시적
 transaction rollback 뒤 model field/assigned PK가 메모리에 남는 의미도 분리했습니다.
-현재 제품에서 검증된 세 set은 11 + 11 + 12, 총 34개 `passing`입니다. Static fixture의 정확한
-12개 mismatch는 현재 제품 결과가 아니라 구현 전 상태를 녹색으로 만들지 않는
-false-green 회귀 증거로 유지합니다.
+GDJ-0006 완료 당시 제품에서 검증된 세 set은 11 + 11 + 12, 총 34개 `passing`이었습니다.
+Static fixture의 정확한 12개 mismatch는 현재 제품 결과가 아니라 구현 전 상태를 녹색으로
+만들지 않는 false-green 회귀 증거로 유지합니다.
 
 GDJ-0007은 Q-007의 QuerySet evaluation/cache/terminal 의미를 QRY-011..021의 네 번째
-set으로 고정했습니다. 성공한 empty/non-empty full evaluation cache, stale snapshot,
+set으로 먼저 고정했습니다. 성공한 empty/non-empty full evaluation cache, stale snapshot,
 chain/fresh 독립성, cold/warm terminal과 실패 재시도를 step별 query count와 DB state로
-비교합니다. Oracle은 `oracle_locked`이고 explicit static fixture는 정확히 11개
-`not_implemented` mismatch를 냅니다. 현재 제품은 intentionally uncached이므로 지원이나
-`passing`을 주장하지 않습니다. 현재 전체 상태는 기존 세 set 34개 `passing`과 새 set
-11개 `oracle_locked`이며, GDJ-0008이 실제 adapter를 연결한 뒤에만 후자를 올립니다.
+비교하며, 당시 oracle만 `oracle_locked`였습니다.
+
+GDJ-0008은 [ADR-0012](adr/0012-queryset-evaluation-cache-ownership.md)의 direct value-copy
+state 공유, chain/fresh 독립 state, 같은 state `All` singleflight, owner/waiter cancellation
+격리, generated deep clone과 terminal API를 실제 제품 경로에 구현했습니다. 네 번째
+adapter의 11개도 Django oracle과 의미적으로 0-diff여서 현재 검증된 범위는
+11 + 11 + 12 + 11, 총 45개 `passing`입니다. 두 독립 Go actual은 각각 56,283 bytes이고
+SHA-256
+`c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
+byte-identical합니다. 이는 56,426 bytes, SHA-256
+`d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`인 Django oracle과
+byte-identical하다는 뜻이 아닙니다. Protocol comparator가 계약된 result/error/DB
+state/metrics 의미의 0-diff를 확인한 것입니다.
+
+Explicit query-cache static fixture의 정확한 11개 `not_implemented` mismatch는 현재 제품
+actual이 아니라 구현 전 false-green 회귀 증거로 그대로 유지합니다. 임의 unknown
+scenario도 실제 adapter 결과로 가장하지 않고 fail-closed합니다. 실행 증거는
+[EVID-20260808-007](status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
+기록합니다.
 
 ## 데이터 호환성
 
