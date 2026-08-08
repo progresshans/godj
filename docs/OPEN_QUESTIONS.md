@@ -11,7 +11,7 @@
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0017 complete; product pending | MIG-047..056 lifecycle exact contract와 per-step epoch/revision fence feasibility 완료; product coordinator/backend capability, cutover, file/source loader, data callback, public CLI와 crash recovery는 계속 open |
+| Q-012 | Partial | GDJ-0018 active | MIG-047..056 fenced coordinator/session/commit durability와 MIG-052 DEV-0002를 구현 중; source loader, CLI와 crash recovery는 후속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -169,6 +169,30 @@ semantic auto retry를 하지 않습니다. Spike가 optional capability와 unsu
 GDJ-0017이 끝났어도 file/source encoding, operation codec/version, data callback, public
 coordinator/CLI, lease/fairness, process-kill crash reconciliation과 non-SQLite backend는 여전히
 Q-012 후속입니다.
+
+활성
+[GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)은 Q-012 중
+already-loaded definition lifecycle만 닫습니다. 실제 `Executor`가 backend를 소유하므로
+`Executor.Migrate(ctx, definitions, request)`와 explicit latest/targeted tagged request를
+Proposed 우선 shape로 검증합니다. 별도 optional backend-owned session이 identities와 private
+epoch/revision/fingerprint snapshot을 결속하고 각 step transaction의 first write 전에
+검증하도록 합니다. Session은 exact-one snapshot 뒤 call 사이 connection을 pin하지 않고
+mandatory Close/state machine을 가지며, dedicated fenced transaction은 rolled-back/committed/
+unknown durability를 반환합니다. Unsupported/adoption/stale/contention/integrity/commit_outcome_unknown을
+structured error로 분리합니다. Fresh recorder/metadata absent bootstrap만 자동 허용하고 existing
+recorder는 empty여도 exclusive adoption-required입니다.
+
+Accepted ADR-0013의 canonical ascending plan은 바꾸지 않습니다. MIG-052의 Django
+B1←A3←A2←A1과 GoDj A3←A2←B1←A1은 incomparable sibling order만 다르므로 final
+state/schema/history는 exact match를 유지하고 ordered plan/steps 여섯 path만 DEV-0002 sparse
+expectation 후보입니다. 완료 목표는 lifecycle 9 `passing` + 1 `deviation`, 전체
+`92 passing + 5 deviation`입니다.
+
+이 work에는 exact A2의 empty-table `BooleanField(default=false)`를 logical state에 보존하면서
+physical persistent default 없이 추가하는 좁은 SQLite AddField 경계가 포함됩니다. Nonempty
+table backfill/rebuild는 계속 unsupported입니다. Public adoption/repair command, source/file
+encoding과 versioned loader, operation/data callback codec, CLI/project handshake, copy/restore
+epoch와 crash reconciliation은 해결하지 않으며 후속 GDJ-0019+에서 별도 contract/ADR로 다룹니다.
 
 ## Q-013 — 관계 API
 

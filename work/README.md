@@ -41,15 +41,17 @@ proposed → ready → active → completed
 | [GDJ-0015](0015-historical-project-state-reconstruction-compatibility-contracts.md) | completed | Historical ProjectState reconstruction 호환 계약 |
 | [GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md) | completed | Historical ProjectState reconstruction 제품 단면 |
 | [GDJ-0017](0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md) | completed | Migration lifecycle 호환 계약과 revision-fence spike |
+| [GDJ-0018](0018-revision-fenced-migration-lifecycle-product-slice.md) | active | Revision-fenced migration lifecycle 제품 단면 |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은
-없습니다. GDJ-0017은 제품 source/adapter를 바꾸지 않고 MIG-047..056 lifecycle을 아홉 번째
-exact set으로 잠갔고, test-only `conformance/lifecyclefence/**`에서 per-migration revision
-fence의 가능성과 현재 제품의 stale-snapshot gap을 검증했습니다. 현재 분류는 8 product
-set의 `83 passing + 4 deviation`과 새 reference-only `10 oracle_locked`를 분리한 9 set/97
-contract이며 72 ordered cross-binding을 거부합니다. 별도 GDJ-0018을 activation하기 전까지
-ready 작업은 없습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
+GDJ-0018이고 ready 항목은 없습니다. GDJ-0018은 already-loaded migration definition과
+Executor-owned optional revision session/dedicated fenced transaction을 조립해 MIG-047..056을
+제품화합니다. Accepted ADR-0013 canonical order 때문에 MIG-052의 incomparable sibling 순서만
+DEV-0002 sparse expectation 후보이며 완료 목표는 `92 passing + 5 deviation`입니다. 구현 전 분류는
+8 product set의 `83 passing + 4 deviation`과 reference-only `10 oracle_locked`를 분리한
+9 set/97 contract입니다. Locked lifecycle oracle/static/SHA256SUMS와 completed
+`conformance/lifecyclefence/**` spike는 수정하지 않습니다.
 
 ## 운영 규칙
 

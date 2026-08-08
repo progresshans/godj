@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0017 lifecycle exact contract와 revision-fence feasibility 완료; 후속 제품 work 활성화 전 설계 인수인계
+- 현재 단계: GDJ-0018 revision-fenced migration lifecycle 제품 단면 active
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -162,6 +162,29 @@ rollback과 resource release를 입증했지만 제품 storage/encoding을 고�
 transaction과 automatic retry 없이 ADR-0014의 migration별 durable commit을 보존합니다. 아직
 제품 source/API는 없으며 loader/operation codec, project-binary/CLI, data
 callback, exclusive cutover와 crash repair/lease는 계속 후속 범위입니다.
+
+활성
+[GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)과
+[Proposed ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md)은
+already-loaded `[]Migration`과 실제 `Executor.Backend`를 사용하는 tagged latest/targeted
+`Executor.Migrate` 후보를 검증합니다. Existing port를 widen하지 않는 backend-owned opaque
+revision session은 exact-one snapshot, mandatory Close와 call 사이 connection-free lifetime을
+가지고, dedicated fenced transaction은 rolled-back/committed/unknown durability를 반환합니다.
+SQLite metadata v1, fresh bootstrap/existing-recorder adoption-required와
+stale/contention/capability/integrity/commit_outcome_unknown error 경계를 구현 대상으로 둡니다. Exact A2를 위해
+default-bearing AddField는 empty table에서 logical default를 보존하고 physical persistent
+default 없이 적용하는 좁은 SQLite 경계도 포함합니다.
+
+Accepted ADR-0013의 canonical ascending planner policy는 유지합니다. MIG-052의 Django
+B1←A3←A2←A1과 GoDj A3←A2←B1←A1은 incomparable sibling 순서만 다르고 final
+state/schema/history는 같습니다. 따라서 lifecycle 9개는 exact `passing`, MIG-052의
+`result.plan[0..2]`/`metrics.steps[0..2]`만 DEV-0002 sparse expectation으로 검증해 9 product set
+`92 passing + 5 deviation`으로 전환하는 것이 완료 목표입니다. 완료 전 현재 분류는 계속
+`83 passing + 4 deviation + 10 oracle_locked`입니다.
+
+GDJ-0018은 locked lifecycle oracle/static/SHA256SUMS와 completed
+`conformance/lifecyclefence/**`를 수정하지 않으며, file/source loader, operation codec, public
+CLI/project handshake, adoption/repair command와 crash recovery는 후속 GDJ-0019+ 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

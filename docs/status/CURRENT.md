@@ -9,15 +9,16 @@
 - 기준 제품 commit:
   `3b0e68d6717a9612debc9cb93d03ab0f98005860`
   (`feat: reconstruct historical migration state`)
-- GDJ-0017 baseline commit:
-  `9856fd0278162af0a5ee28dfebd4f07d93eca790`
-  (`docs: complete historical state reconstruction`)
+- GDJ-0018 activation baseline commit:
+  `d0df905996fc1d80065ac696a2bff4bc3ddb4b2e`
+  (`docs: complete migration lifecycle contracts`)
 - remote: `https://github.com/progresshans/godj.git`, remote tracking ref 없음
-- 현재 단계: GDJ-0017 Migration lifecycle exact contract와 revision-fence feasibility spike 완료
+- 현재 단계: GDJ-0018 Revision-fenced migration lifecycle 제품 단면 active
 - 최근 완료 작업:
   [GDJ-0017 Migration Lifecycle Compatibility Contracts and Revision-Fence Spike](../../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)
-- 활성 작업: 없음
-- 다음 ready 작업: 없음 — 별도 GDJ-0018 activation 전에는 제품 source를 변경하지 않음
+- 활성 작업:
+  [GDJ-0018 Revision-Fenced Migration Lifecycle Product Slice](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)
+- 다음 ready 작업: 없음 — GDJ-0018 완료 뒤 GDJ-0019 source/versioned-loader contract를 별도 activation
 
 ## 현재 checkout에서 확인된 사실
 
@@ -40,6 +41,12 @@
   alias되지 않으며 repeated/concurrent reconstruction은 deterministic하고 race-safe합니다.
 - 제품에는 아직 migration lifecycle coordinator, atomic history revision, revision-capable
   backend port, public migrate CLI 또는 MIG-047..056 GoDj adapter가 없습니다.
+- Active [GDJ-0018](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)은
+  already-loaded definition과 실제 `Executor.Backend`를 사용한
+  `Executor.Migrate(ctx, definitions, request)` 후보를 검증합니다. [Proposed ADR-0018](../adr/0018-revision-fenced-migration-lifecycle-product-shape.md)은
+  exact-one snapshot/mandatory Close를 가진 connection-free revision session, dedicated fenced
+  transaction/commit durability, SQLite metadata v1, adoption/error와 empty-table default-bearing
+  AddField 경계를 제안하며 아직 Accepted/Implemented 상태가 아닙니다.
 
 ### 호환 계약과 machine artifact
 
@@ -74,7 +81,10 @@
   MIG-049 fully applied latest는 no-op입니다.
 - MIG-050 named A2 forward는 dependency closure A1→A2까지만 commit합니다. MIG-051 named A1
   reverse는 A3←A2←만 실행하고 A1과 unrelated B1은 보존합니다.
-- MIG-052 app zero target은 cross-app dependent-first B1←A3←A2←A1← 순으로 reverse합니다.
+- MIG-052 Django app zero target은 B1←A3←A2←A1← 순입니다. Existing GoDj Planner의 Accepted
+  canonical order는 A3←A2←B1←A1이며 B1/A3은 incomparable sibling입니다. Final
+  state/schema/history는 같고 ordered `result.plan`/`metrics.steps`만 DEV-0002 sparse deviation
+  expectation 후보입니다.
   MIG-053은 graph에 없는 unknown legacy recorder identity를 보존하면서 known tail을 commit합니다.
 - MIG-054는 public command orchestration이 explicit
   `check_consistent_history → migration_plan → migrate` 순서를 소유합니다. Known inconsistent
@@ -116,6 +126,9 @@
 - Spike의 metadata table/column, token encoding, candidate coordinator와 helper 이름은 제품
   schema/API가 아닙니다. Live schema drift, completed non-cooperating ABA, fairness, lease,
   distributed lock와 crash repair도 보장하지 않습니다.
+- GDJ-0018 activation은 spike source를 제품으로 이동하지 않습니다. Locked lifecycle
+  oracle/static/SHA256SUMS와 `conformance/lifecyclefence/**`는 명시적 금지 경로이고, 제품
+  구현은 새 backend/session port와 SQLite product package에서 독립적으로 검증합니다.
 
 ### 검증 증거
 
@@ -127,6 +140,9 @@
   기록했습니다.
 - Machine artifact commit 기준 `make check`, uncached full Go/race/CGO=0/vet, exact lifecycle
   13 tests, lifecyclefence count=20/race와 two-process count=100 gate가 통과했습니다.
+- GDJ-0018 activation은 문서/frontmatter/local-link/diff gate만 실행합니다. 제품 source와
+  manifest status는 아직 baseline 그대로이므로 목표인 `92 passing + 5 deviation`으로 표현하지
+  않습니다.
 - GitHub Actions workflow는 push하지 않아 hosted 실행 증거가 없습니다. 외부 Django checkout은
   수정하지 않았습니다.
 
@@ -145,39 +161,67 @@
   제공하고 unsupported backend에서 fail-closed해야 합니다. Conflict 자동 retry는 없습니다.
 - ADR-0017의 Accepted 상태는 safety 방향 채택이며 제품 API/구현 완료가 아닙니다. MIG-047..056
   또한 `oracle_locked`이며 product `passing`으로 계산하지 않습니다.
+- GDJ-0018은 migration source/loader/CLI보다 already-loaded definition lifecycle을 먼저
+  구현합니다. 실제 Executor가 backend를 소유하므로 별도 backend 인자가 없는
+  `Executor.Migrate(ctx, definitions, request)`를 Proposed 우선 후보로 검증합니다.
+- Latest와 targeted request는 tagged value로 구분하고 zero request는 invalid입니다. Optional
+  fence capability가 없으면 legacy execution으로 fallback하지 않습니다.
+- Fresh database의 recorder/metadata가 모두 absent일 때만 첫 nonempty fenced step bootstrap을
+  허용합니다. Recorder가 존재하면 empty여도 별도 exclusive adoption이 필요하고 GDJ-0018에는
+  public adoption API를 만들지 않습니다.
+- Exact A2를 위해 default-bearing SQLite AddField는 empty table에서만 logical default를
+  보존하고 physical persistent default 없이 허용하는 후보를 검증합니다. Nonempty table은
+  계속 capability error입니다.
+- Accepted ADR-0013의 canonical ascending planner policy를 유지합니다. MIG-052는 manifest에서
+  exact-one DEV-0002 decision provenance를 가진 `deviation`, 나머지 lifecycle 9개는 `passing`
+  후보입니다. Oracle을 고치지 않고 여섯 ordered object path만 product expectation으로 교체합니다.
+- Fenced path는 legacy `Transaction` 대신 `RevisionFencedTransaction`과
+  rolled-back/committed/unknown commit durability를 사용합니다. Unknown/zero outcome은
+  `commit_outcome_unknown`과 마지막 confirmed pre-step state를 반환하며 자동 retry하지 않습니다.
+- Committed 뒤 cleanup 실패는 post-step state + `commit_cleanup_failed`, primary 없는 session
+  terminal cleanup 실패는 last confirmed state + `session_close_failed`로 구분합니다.
+- Session은 정확히 한 atomic history snapshot만 읽고 call 사이 connection을 pin하지 않지만
+  immutable records/token과 ready/active/poisoned/closed state를 소유합니다. Mandatory `Close`가
+  abandoned transaction cleanup/discard를 보장합니다.
 
 ## 현재 차단 요인과 미결정 사항
 
-외부 blocker는 없습니다. 다음 항목은 별도 GDJ-0018 activation 전까지 미결정입니다.
+외부 blocker는 없습니다. 다음 항목은 GDJ-0018 구현 spike와 fault/compile evidence로
+ADR-0018을 Accepted하기 전에 확정합니다.
 
-1. Public lifecycle coordinator/target request 이름, zero value와 exact result shape
-2. Revision-capable optional port, SQLite metadata storage/upgrade와 successor handoff interface
-3. Conflict/contention/capability/uncertain-commit의 final structured error taxonomy
-4. Existing database exclusive cutover, revision overflow, copy/restore epoch와 crash recovery
-5. Q-012 loader/source, data callback, public CLI/project protocol과 migration format
-6. Q-011/Q-010/Q-013 request lifetime, project handshake와 cross-app relation loader
+1. Backend raw fence failure와 public category/code mapping의 최소 source-compatible shape
+2. SQLite metadata table/column identifier, corrupt/partial object diagnostics와 overflow 거부
+3. `CommitOutcome`에 durability 외 cleanup detail을 더 노출할 필요가 있는지
+
+Existing database public adoption/repair, copy/restore epoch, crash reconciliation, Q-012
+loader/source/data callback/CLI와 Q-010/Q-011/Q-013은 후속 범위이며 GDJ-0018 blocker가 아닙니다.
 
 ## 다음 정확한 작업
 
-현재 ready 작업은 없습니다. 별도 GDJ-0018을 activation할 때 Accepted ADR-0017의 최소 제품
-단면과 수정 허용 경로를 먼저 정하고, storage/API/error/cutover 범위와 명시적 비목표를 work에
-기록해야 합니다. 그 전에는 test-only spike를 제품 package로 옮기거나 MIG-047..056을
-`passing`으로 전환하지 않습니다.
+`migrations/backend/lifecycle.go`와 `migrations/lifecycle.go`에 compile-only request,
+connection-free session, dedicated fenced transaction/commit outcome shape를 먼저 만들고 existing
+external fake source compatibility를 확인합니다. 이어 fake session에서 exact-one snapshot,
+mandatory Close, invalid zero/latest/target/history와 rolled-back/committed/unknown state gate를
+통과한 뒤 SQLite literal `BEGIN IMMEDIATE` fence와 AddField 경계를 구현합니다. Manifest는 actual
+evidence 전에 바꾸지 않고, 완료 시 MIG-052 status+DEV-0002 provenance와 나머지 9 status만
+전환합니다.
 
 ## 작업 재개 체크포인트
 
 - 최신 machine artifact: `main@6e018e00bd9178858db597400ac9d3f98a66acf6`
 - 제품 baseline: `main@3b0e68d6717a9612debc9cb93d03ab0f98005860`
 - 최근 완료 work: [GDJ-0017](../../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)
-- active work: 없음
+- activation baseline: `main@d0df905996fc1d80065ac696a2bff4bc3ddb4b2e`
+- active work: [GDJ-0018](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)
 - ready work: 없음
-- 새 작업 activation 전 보존할 분류: 8 product set `83 passing + 4 deviation` + lifecycle
+- GDJ-0018 제품 구현 완료 전 보존할 분류: 8 product set `83 passing + 4 deviation` + lifecycle
   `10 oracle_locked`; 9 reference set/97 contract/72 ordered cross-binding
+- GDJ-0018 검증 완료 목표: 9 product set `92 passing + 5 deviation`; MIG-052만 DEV-0002
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
-- 현재 가장 위험한 과장: exact lifecycle oracle이나 test-only revision-fence spike를 product
-  adapter, public migrate API, distributed lock 또는 crash recovery로 표현하는 것
+- 현재 가장 위험한 과장: Proposed API/metadata나 exact lifecycle oracle/test-only fence spike를
+  Accepted product adapter, public CLI, distributed lock 또는 crash recovery로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.
