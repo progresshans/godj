@@ -417,6 +417,25 @@ Static fixture는 ordered 10 mismatch를 유지합니다. 상세 증거는
 [EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
 기록합니다.
 
+완료된 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
+[`migration-lifecycle-manifest.json`](../conformance/contracts/migration-lifecycle-manifest.json)을
+아홉 번째 ordered reference set으로 추가했습니다. MIG-047..056은 fresh/prefix/latest no-op,
+named forward/reverse, app zero target과 cross-app dependent, unknown legacy preservation,
+explicit history preflight, middle failure와 file-backed fresh restart를 다룹니다. Phase는
+MIG-047..053/056 `commit`, MIG-054 `evaluation`, MIG-055 `rollback`입니다. Reverse의 physical
+transaction topology는 이 payload에 중복 고정하지 않고 DEV-0001/ADR-0014에 남깁니다.
+
+Manifest는 13,680 bytes/SHA-256
+`23a9e919edff932ae781f0768aeaf7f184fe392ec53598fa18524cf50d979a8e`, oracle은 98,436
+bytes/SHA-256 `7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`,
+static fixture는 1,681 bytes/SHA-256
+`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`입니다. 새 10개는
+`oracle_locked`, Django oracle은 `observed`, static fixture는 `not_implemented`입니다.
+아홉 set의 97 ID/scenario는 유일하고 72 ordered cross-binding이 거부됩니다. 제품 adapter가
+없으므로 현재 분류는 `83 passing + 4 deviation + 10 oracle_locked`이며 97개 전체가 제품
+지원이라는 뜻이 아닙니다. Revision-fence spike는 Accepted ADR-0017의 feasibility evidence일
+뿐 제품 compatibility claim이 아닙니다.
+
 ## 데이터 호환성
 
 다음은 장기 대상이며 구현 전에는 지원을 주장하지 않습니다.

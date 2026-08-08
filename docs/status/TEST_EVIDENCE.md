@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-015
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-016
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1404,3 +1404,94 @@ Normalizer는 Boolean kind `boolean`, bool default type `bool`, absent default t
 non-char `max_length=null`을 exact하게 보존합니다. Locked oracle/static/SHA256SUMS는 machine
 baseline과 byte-identical했고 최종 독립 core/product/conformance 감사의 P0–P3 finding은
 없었습니다.
+
+## EVID-20260808-016 — GDJ-0017 Migration Lifecycle Compatibility Contracts and Revision-Fence Spike
+
+- Date/time: 2026-08-08T11:34:41+09:00
+- Work/contract IDs: GDJ-0017, MIG-047..MIG-056, Q-012
+- Checkout/commit: clean `main` machine artifact commit
+  `6e018e00bd9178858db597400ac9d3f98a66acf6`; 제품 baseline은
+  `3b0e68d6717a9612debc9cb93d03ab0f98005860`; 이 evidence와 완료 handoff는 machine
+  commit 다음 문서 변경에 포함
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  modernc.org/sqlite v1.56.0 / SQLite 3.53.3; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: stable machine tree의 `make check`, uncached full Go/race/CGO=0/vet,
+  focused exact lifecycle 13 tests, lifecyclefence count=20/race와 two-process count=100이 0
+- Result summary: MIG-047..056의 fresh/prefix/no-op/latest, named forward/reverse/app zero,
+  unknown legacy preservation, inconsistent history preflight, middle failure durable prefix와
+  fresh file close/reopen resume를 ninth exact set으로 잠갔습니다. Manifest는 10
+  `oracle_locked`, Django oracle은 10 `observed`, static fixture는 10 `not_implemented`입니다.
+  기존 8 product set은 `83 passing + 4 deviation`이고 reference 총 9 set/97 contract를 제품
+  pass로 세지 않습니다. Test-only SQLite spike는 현재 제품의 stale-snapshot gap을 재현하고
+  cooperating writer의 per-step revision fence 가능성을 검증했습니다.
+- Failures/skips: 예상하지 않은 최종 실패 없음. Static comparison은 의도한 exit 1과
+  MIG-047..056 ordered mismatch 10개, product binary는 exit 2와 actual file 미생성을
+  반환했습니다. GitHub-hosted workflow와 push는 실행하지 않았고 외부 Django checkout은
+  수정하지 않았습니다.
+- Artifacts: manifest 13,680 bytes SHA-256
+  `23a9e919edff932ae781f0768aeaf7f184fe392ec53598fa18524cf50d979a8e`; locked Django oracle
+  98,436 bytes SHA-256
+  `7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`; static fixture
+  1,681 bytes SHA-256
+  `b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`; `SHA256SUMS` file
+  853 bytes SHA-256 `520db274a63ed9d192e6ae0a3db224154a84676462e7fd8e49f80f64673c1a90`
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+GODJ_EXACT_PROFILE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC \
+  uv run --frozen python -m unittest \
+  conformance.runners.django.tests.test_migration_lifecycle_scenarios -v
+go test -count=20 ./conformance/lifecyclefence/...
+go test -race -count=1 ./conformance/lifecyclefence/...
+go test -count=100 \
+  -run '^TestFenceSerializesSameTokenAcrossTwoProcesses$' \
+  ./conformance/lifecyclefence
+git diff --check
+```
+
+두 독립 `PYTHONHASHSEED` process와 checked-in lifecycle oracle은 모두 98,436 bytes이고
+SHA-256이 `7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`로
+byte-identical했습니다. Exact-focused 13 tests는 ID-independent producer, public
+`check_consistent_history → migration_plan → migrate` route, target/definition/fault와
+legacy/prefix/zero live propagation, payload exclusions와 semantic mutation을 검증합니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-lifecycle-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json \
+  -actual conformance/fixtures/godj-migration-lifecycle-not-implemented.json
+go test -count=1 \
+  -run '^TestRunRejectsMigrationLifecycleManifestWithoutWritingActualOutput$' \
+  ./conformance/cmd/godjcheck
+```
+
+첫 명령은 의도한 exit 1과 ordered status mismatch 정확히 10개를 반환했습니다. 두 번째
+binary-level gate는 lifecycle product adapter가 없음을 exit 2, stdout 0과 actual file 미생성으로
+고정합니다. `godj-conformance`는 계속 8 product adapter만 실행합니다. Nine-set protocol gate는
+97개 contract ID/scenario 전역 유일성과 72 ordered cross-binding 거부를 검증하며 기존 8개
+locked payload/checksum entry가 변하지 않았음을 확인했습니다.
+
+`conformance/lifecyclefence/current_gap_test.go`만 실제 제품 package를 조립해 first-step 전과
+step 사이 stale acceptance를 재현합니다. Fence 알고리즘은 test-only `database/sql` + SQLite
+harness에서 pinned `BEGIN IMMEDIATE`, persistent epoch/monotonic revision CAS, history
+fingerprint와 domain DDL/recorder/successor binding을 migration별 transaction에 결속합니다.
+Stale-before-write, between-step conflict, two-connection/process single winner,
+uninitialized/absent/empty/ABA, busy-stale 분리, fault/cancellation rollback 뒤 success,
+unsupported fail-closed와 external fake compile gate가 통과했습니다.
+
+Fingerprint-only fence는 apply/unapply ABA를 구분하지 못합니다. 보증은 모든 cooperating
+migration writer가 fence를 사용할 때 완전하며 pre-cutover non-cooperating completed ABA,
+live-schema drift, fairness/lease/distributed lock와 crash repair는 범위 밖입니다. Spike의
+metadata/token/coordinator는 제품 schema/API가 아닙니다. 이 근거로 ADR-0017의 안전성 방향만
+Accepted로 승격했으며 제품 lifecycle 구현 또는 MIG-047..056 `passing`을 주장하지 않습니다.

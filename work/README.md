@@ -40,19 +40,16 @@ proposed → ready → active → completed
 | [GDJ-0014](0014-recorder-backed-restart-planning-product-slice.md) | completed | Recorder-backed restart planning 제품 단면 |
 | [GDJ-0015](0015-historical-project-state-reconstruction-compatibility-contracts.md) | completed | Historical ProjectState reconstruction 호환 계약 |
 | [GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md) | completed | Historical ProjectState reconstruction 제품 단면 |
-| [GDJ-0017](0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md) | active | Migration lifecycle 호환 계약과 revision-fence spike |
+| [GDJ-0017](0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md) | completed | Migration lifecycle 호환 계약과 revision-fence spike |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은
-[GDJ-0017](0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)입니다.
-GDJ-0015가 loaded migration definition의 state replay 의미를 MIG-037..046의 여덟 번째 exact
-set으로 잠갔고, GDJ-0016이 explicit tagged request와 immutable pure reconstructor, 여덟 번째
-live adapter를 구현해 10 `passing`으로 전환했습니다. 현재 8 product set은 87 contract를
-`83 passing + 4 deviation`으로 분류하고 56 cross-binding을 거부합니다. GDJ-0017은 제품
-source/adapter를 바꾸지 않고 MIG-047..056 lifecycle을 아홉 번째 exact set으로 잠그며,
-`conformance/lifecyclefence/**`에서 per-migration revision fence 가능성만 검증합니다. 목표
-완료 분류는 `83 passing + 4 deviation + 10 oracle_locked`, 9 set/97 contract와 72 ordered
-cross-binding입니다.
+없습니다. GDJ-0017은 제품 source/adapter를 바꾸지 않고 MIG-047..056 lifecycle을 아홉 번째
+exact set으로 잠갔고, test-only `conformance/lifecyclefence/**`에서 per-migration revision
+fence의 가능성과 현재 제품의 stale-snapshot gap을 검증했습니다. 현재 분류는 8 product
+set의 `83 passing + 4 deviation`과 새 reference-only `10 oracle_locked`를 분리한 9 set/97
+contract이며 72 ordered cross-binding을 거부합니다. 별도 GDJ-0018을 activation하기 전까지
+ready 작업은 없습니다.
 
 ## 운영 규칙
 

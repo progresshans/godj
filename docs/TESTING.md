@@ -82,6 +82,7 @@ conformance/
   contracts/migration-execution-manifest.json
   contracts/migration-restart-manifest.json
   contracts/migration-state-reconstruction-manifest.json
+  contracts/migration-lifecycle-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -92,6 +93,7 @@ conformance/
   fixtures/godj-not-implemented.json
   fixtures/godj-write-migration-not-implemented.json
   fixtures/godj-save-lifecycle-not-implemented.json
+  fixtures/godj-migration-lifecycle-not-implemented.json
   fixtures/godj-query-cache-not-implemented.json
   fixtures/godj-migration-planning-not-implemented.json
   fixtures/godj-migration-execution-not-implemented.json
@@ -338,6 +340,23 @@ byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. `make g
 8 product set을 실행해 `83 passing + 4 deviation`을 보고하며 87 unique contract와 56
 cross-binding, static ordered 10 mismatch를 유지합니다. 상세 증거는
 [EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
+기록합니다.
+
+GDJ-0017은 MIG-047..056을 아홉 번째 reference set으로 추가했습니다. Public Django
+orchestration의 fresh/prefix/target/reverse/zero/unknown/preflight/failure/restart 의미를
+compact state/schema/recorder/step payload로 비교하고 SQL 문자열, SELECT count, timestamp,
+path와 reverse private transaction topology는 제외합니다. 아홉 set 97 ID/scenario와 72
+ordered cross-binding, contract-ID independence, definition/target/fault/seed/legacy mutation,
+two-process oracle byte identity, static ordered 10 mismatch와 product exit 2/no actual을
+검증합니다.
+
+`conformance/lifecyclefence/**`는 제품 package를 바꾸지 않는 test-only gate입니다. Current
+unfenced stale acceptance를 먼저 재현한 뒤 persistent epoch+revision CAS와 fingerprint 보조
+검증으로 stale-before-write, step 사이 conflict, two-connection/process single winner,
+uninitialized bootstrap, all-stage BUSY/LOCKED, DDL/recorder 이후 rollback, exact no-retry와
+legacy capability fail-closed를 검증합니다. 이 gate의 성공을 public lifecycle API나 crash-safe
+제품 구현으로 분류하지 않습니다. 상세 증거는
+[EVID-20260808-016](status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
 기록합니다.
 
 ## 기능별 기본 테스트 요구

@@ -17,6 +17,12 @@ symbols, and tests for provenance but do not copy or translate Django source,
 fixtures, comments, or assertion structure. This notice does not classify those
 scenarios as derivative works.
 
+GDJ-0017 independently authored the migration lifecycle scenarios for fresh,
+targeted, failed, and restarted execution. MIG-047..056 use GoDj-specific apps,
+tables, operations, sentinels, and assertions; every provenance entry is marked
+`derived=false`. The separate revision-fence feasibility harness is GoDj test
+code and does not embed Django source or fixtures.
+
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new
 upstream-derived scenario corpus. GDJ-0015 independently authored the

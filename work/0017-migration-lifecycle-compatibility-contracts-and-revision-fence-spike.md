@@ -1,6 +1,6 @@
 ---
 id: GDJ-0017
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "9856fd0278162af0a5ee28dfebd4f07d93eca790"
@@ -35,8 +35,8 @@ feasibility spike로 검증합니다.
 - 기존 `83 passing + 4 deviation` 제품 결과와 여덟 locked artifact set 보존
 - `conformance/lifecyclefence/**`에서 opaque revision snapshot과 migration별 transactional
   validation의 동시 실행 가능성 검증
-- [Proposed ADR-0017](../docs/adr/0017-revision-fenced-migration-lifecycle.md)을 spike
-  결과에 따라 Accepted, 수정 또는 Rejected할 근거 확보
+- [Accepted ADR-0017](../docs/adr/0017-revision-fenced-migration-lifecycle.md)의
+  per-migration revision fence 방향을 spike 근거로 결정하되 제품 API 구현과 구분
 
 ## 비목표
 
@@ -111,7 +111,7 @@ selected app migration을 직접 또는 간접 의존하는 cross-app descendant
 
 - Requested target mode: latest, named migration 또는 app zero target
 - Capture 전/후 sorted applied identities; unknown legacy identity 포함
-- Canonical logical `ProjectState`와 managed schema/row inventory
+- Canonical logical `ProjectState`, managed schema와 recorder identity inventory
 - Ordered compact lifecycle steps: app/name/direction/outcome
 - Forward lifecycle의 abstract commit/rollback outcome, recorder membership과 unstarted-tail fact
 - Structured error category/code와 failure step
@@ -216,7 +216,7 @@ Spike gate는 적어도 다음을 포함합니다.
 
 ## 설계와 가설
 
-[Proposed ADR-0017](../docs/adr/0017-revision-fenced-migration-lifecycle.md)의 후보는 loaded
+[Accepted ADR-0017](../docs/adr/0017-revision-fenced-migration-lifecycle.md)의 방향은 loaded
 definition, recorder snapshot, `StateReconstructor`, `Planner`, `Executor`를 한 orchestration
 flow에서 사용하되 pure components와 backend transaction 경계를 유지하는 immutable
 lifecycle coordinator입니다. Contract 단계에서는 public 이름과 constructor/request shape를
@@ -247,40 +247,62 @@ external fake의 source compatibility를 깨뜨리지 않는 별도 optional por
 
 ## 완료 조건
 
-- [ ] MIG-047..056 exact disposable probe와 provenance/payload review
-- [ ] Phase가 047..053/056 `commit`, 054 `evaluation`, 055 `rollback`으로 잠김
-- [ ] Fresh/prefix/fully-applied/latest와 named forward/reverse/zero target 검증
-- [ ] Unknown legacy preserved, inconsistent known history pre-write rejection 검증
-- [ ] Middle failure durable-prefix/rollback/tail-stop와 fresh restart 검증
-- [ ] Oracle two-process byte identity, checksum과 static ordered 10 status mismatch
-- [ ] Product adapter 없음이 exit 2/no actual이고 product conformance가 8 set임
-- [ ] Nine-set ID/scenario uniqueness와 72 ordered cross-binding 거부
-- [ ] Target/history/definition/result/error/schema/recorder/metrics mutation false-green gate
-- [ ] Revision fence stale-before-write, between-step conflict와 simultaneous contender gate
-- [ ] Fence cancellation/error resource release와 subsequent success, race/repetition gate
-- [ ] Unsupported fence capability가 structured fail-closed하고 auto retry가 없음
-- [ ] Existing `83 passing + 4 deviation` 회귀 없음
-- [ ] 완료 분류가 `83 passing + 4 deviation + 10 oracle_locked`, 9 set/97 contract임
-- [ ] 기존 여덟 locked manifest/oracle/static/deviation payload와 checksum entry 불변
-- [ ] Full Go/race/CGO=0/vet, portable/exact Python, checksum과 Markdown/link gate 통과
-- [ ] ADR/work/CURRENT/matrix/evidence가 같은 checkout과 상태를 가리킴
+- [x] MIG-047..056 exact disposable probe와 provenance/payload review
+- [x] Phase가 047..053/056 `commit`, 054 `evaluation`, 055 `rollback`으로 잠김
+- [x] Fresh/prefix/fully-applied/latest와 named forward/reverse/zero target 검증
+- [x] Unknown legacy preserved, inconsistent known history pre-write rejection 검증
+- [x] Middle failure durable-prefix/rollback/tail-stop와 fresh restart 검증
+- [x] Oracle two-process byte identity, checksum과 static ordered 10 status mismatch
+- [x] Product adapter 없음이 exit 2/no actual이고 product conformance가 8 set임
+- [x] Nine-set ID/scenario uniqueness와 72 ordered cross-binding 거부
+- [x] Target/history/definition/result/error/schema/recorder/metrics mutation false-green gate
+- [x] Revision fence stale-before-write, between-step conflict와 simultaneous contender gate
+- [x] Fence cancellation/error resource release와 subsequent success, race/repetition gate
+- [x] Unsupported fence capability가 structured fail-closed하고 auto retry가 없음
+- [x] Existing `83 passing + 4 deviation` 회귀 없음
+- [x] 완료 분류가 `83 passing + 4 deviation + 10 oracle_locked`, 9 set/97 contract임
+- [x] 기존 여덟 locked manifest/oracle/static/deviation payload와 checksum entry 불변
+- [x] Full Go/race/CGO=0/vet, portable/exact Python, checksum과 Markdown/link gate 통과
+- [x] ADR/work/CURRENT/matrix/evidence가 같은 checkout과 상태를 가리킴
 
 ## 진행 기록
 
 - [x] GDJ-0016 historical state product와 `83 passing + 4 deviation` 완료
 - [x] Stale recorder snapshot과 execution 사이 TOCTOU gap 분리
 - [x] Contract-only exact lifecycle 범위와 revision-fence spike 경계 작성
-- [x] Proposed ADR-0017 작성
-- [ ] Pinned source/provenance와 exact one-off probes
-- [ ] Ninth machine artifact와 false-green gates
-- [ ] Revision-fence feasibility implementation/audit
-- [ ] Full verification와 handoff
+- [x] Proposed ADR-0017 작성 후 spike 근거로 Accepted 승격
+- [x] Pinned source/provenance와 exact one-off probes
+- [x] Ninth machine artifact와 false-green gates
+- [x] Revision-fence feasibility implementation/audit
+- [x] Full verification와 handoff
 
 ## 수정 파일
 
-현재 activation 문서는 이 work와 ADR-0017, work/ADR index, CURRENT, ROADMAP,
-OPEN_QUESTIONS만 변경합니다. Contract/spike 구현 후에는 front matter의 `allowed_paths` 안에서
-실제 변경 파일과 역할을 여기에 기록합니다.
+Activation commit `8d1c9ab642c243243ceb08dd7054a6148b7e2ff2`는 이 work,
+ADR-0017, work/ADR index, CURRENT, ROADMAP과 OPEN_QUESTIONS의 작업 경계를 먼저
+고정했습니다. Machine artifact commit
+`6e018e00bd9178858db597400ac9d3f98a66acf6`는 다음을 변경했습니다.
+
+- `conformance/contracts/migration-lifecycle-manifest.json`: MIG-047..056 ordered
+  `oracle_locked` 계약, phase/comparison과 pinned provenance
+- `conformance/runners/django/migration_lifecycle_scenarios.py` 및 전용 test: independent
+  file-backed SQLite, public loader/executor orchestration, failure와 fresh close/reopen resume
+- Django runner registry/safety tests와 `Makefile`: ninth reference set 검증 wiring만 추가하고
+  `godj-conformance` 제품 target은 기존 8 adapter로 보존
+- `conformance/oracles/**/migration-lifecycle-oracle.json`, static fixture와 `SHA256SUMS`:
+  exact observation과 명시적 미구현 baseline; 기존 checksum entry는 불변
+- `conformance/internal/protocol/migration_lifecycle_artifacts_test.go`, 기존 artifact test와
+  `conformance/cmd/godjcheck/main_test.go`: 9-set/97-contract identity, 72 ordered
+  cross-binding, semantic mutation과 product exit 2/no actual gate
+- `conformance/lifecyclefence/**`: 현재 제품 stale-snapshot gap characterization, test-only
+  SQLite fence/coordinator, two-connection/process/fault/rollback/unsupported/external-fake gate와
+  설계·보증 경계
+
+완료 인수인계는 이 work, ADR-0017, work/ADR index와 CURRENT/matrix/evidence를 갱신합니다.
+또한 `NOTICE.md`, `conformance/README.md`, `docs/ARCHITECTURE.md`,
+`docs/COMPATIBILITY.md`, `docs/LICENSING.md`, `docs/OPEN_QUESTIONS.md`,
+`docs/ROADMAP.md`, `docs/TESTING.md`에 ninth-set provenance, test-only fence 경계와 현재
+분류를 동기화했습니다. 이 일반 문서 변경도 front matter의 `allowed_paths` 안에 있습니다.
 
 다음 경로는 명시적으로 금지합니다.
 
@@ -299,45 +321,82 @@ OPEN_QUESTIONS만 변경합니다. Contract/spike 구현 후에는 front matter�
   지원으로 합치지 않습니다. Ninth set은 `oracle_locked`, fence는 격리 spike입니다.
 - 2026-08-08: Per-migration commit과 last durable state를 보존하며 outer transaction과
   automatic retry는 채택하지 않습니다.
-- 2026-08-08: Fence unsupported backend는 fail-closed 후보이며 silent fallback은 금지합니다.
+- 2026-08-08: Fence unsupported backend는 structured fail-closed해야 하며 silent fallback은
+  금지합니다. Final public error category/code는 제품 work에서 결정합니다.
+- 2026-08-08: Current gap characterization만 실제 제품 package를 import해 first-step 전과
+  step 사이 stale acceptance를 재현합니다. Fence algorithm/fault/concurrency harness는
+  제품 lifecycle interface와 독립된 test-only `database/sql` + SQLite 후보입니다.
+- 2026-08-08: Recorder identity fingerprint만으로는 apply/unapply ABA를 구분할 수 없어
+  persistent epoch + monotonic revision을 cooperating-writer freshness fence로 채택합니다.
+  SHA-256 history fingerprint는 snapshot 결속과 direct non-ABA drift 검출의 보조 gate입니다.
+- 2026-08-08: SQLite 후보는 pinned connection의 `BEGIN IMMEDIATE`, transaction 안 expected
+  revision 검증, successor metadata claim, domain DDL/recorder와 final fingerprint 확인을 한
+  commit에 결속합니다. `BUSY`/`LOCKED`는 stale이 아닌 contention이며 semantic retry는 0입니다.
+- 2026-08-08: 이 safety 방향만 ADR-0017로 Accepted했습니다. Spike의 table/column/token,
+  candidate coordinator와 helper는 public schema/API나 제품 지원이 아닙니다.
 
-## 미결정/Blocker
+## 남은 제한과 후속 결정
 
-외부 blocker는 없습니다. 다음은 spike/contract 결과 전에는 확정하지 않습니다.
+외부 blocker는 없습니다. 다음은 이번 contract/spike에서 의도적으로 확정하지 않았습니다.
 
 - Public lifecycle coordinator와 target request type 이름/zero value
 - Opaque revision storage/encoding과 successor token handoff interface
 - Existing reader/backend에 대한 optional capability discovery shape
-- Conflict/capability error의 final category/code와 external fake compatibility
+- Conflict/capability error의 final category/code; 기존 external fake source compatibility 자체는
+  별도 compile gate로 보존됨
 - Same database의 schema drift를 recorder revision 밖에서 다룰 별도 recovery protocol
+- Existing database cutover/metadata upgrade, revision overflow, copy/restore epoch와
+  commit 결과가 불명확한 crash recovery
+- Fence를 거치지 않은 pre-cutover writer의 completed ABA; cooperating writer 전체가 fence를
+  사용할 때만 safety guarantee가 완전함
 
 ## 테스트 증거
 
-- Evidence ID: activation 단계에는 없음
-- Command: 문서 link/상태 검증만 실행
-- Result: 구현 완료 시 실제 명령, checkout과 결과를 기록
-- Not run: Django oracle, lifecyclefence spike, full product gate, hosted CI
+- Machine artifact:
+  `6e018e00bd9178858db597400ac9d3f98a66acf6`
+- Final evidence:
+  [EVID-20260808-016](../docs/status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)
+- Lifecycle artifact: manifest 13,680 bytes SHA-256
+  `23a9e919edff932ae781f0768aeaf7f184fe392ec53598fa18524cf50d979a8e`; oracle 98,436 bytes
+  SHA-256 `7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`;
+  static fixture 1,681 bytes SHA-256
+  `b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`;
+  `SHA256SUMS` file SHA-256
+  `520db274a63ed9d192e6ae0a3db224154a84676462e7fd8e49f80f64673c1a90`
+- `make check`, uncached full Go/race/CGO=0/vet, exact lifecycle 13 tests,
+  lifecyclefence count=20/race와 two-process count=100 gate를 통과했습니다.
+- Two-process exact oracle output은 checked-in 98,436-byte oracle과 byte-identical했습니다.
+  Static comparison은 의도한 exit 1과 ordered mismatch 10개, product binary는 exit 2/no
+  actual을 반환했습니다.
+- Not run: GitHub-hosted CI와 push — 로컬 commit만 생성함
 
 ## 위험과 rollback
 
 - Lifecycle convenience API가 lock/crash safety를 과장할 위험이 있으므로 contract/spike
   단계에서는 product source와 public 이름을 만들지 않습니다.
 - Revision validation이 transaction 밖에 있거나 successor token handoff가 분리되면 새 TOCTOU가
-  생깁니다. 이 invariant를 만족하지 못하면 ADR-0017을 Accepted하지 않습니다.
+  생깁니다. 제품 구현은 Accepted ADR의 이 invariant를 완전히 만족하기 전까지 지원으로
+  분류하지 않습니다.
 - Outer transaction은 partial durable semantics를 깨뜨리므로 선택지에서 제외합니다.
 - Contract artifact는 기존 bytes를 덮어쓰지 않고 새 set으로 추가합니다. 실패 시 새 lifecycle
   artifact/spike만 되돌릴 수 있어야 합니다.
 
 ## 다음 정확한 작업
 
-Pinned Django `MigrationExecutor`/`MigrationLoader`/`MigrationRecorder`와
-`tests/migrations/test_executor.py`, `test_loader.py`에서 MIG-047..056 provenance를 contract별로
-확인한 뒤 disposable exact probe를 먼저 작성합니다. 동시에 제품 package를 import하지 않는
-`conformance/lifecyclefence/**` test harness에서 atomic snapshot/revision과 first-write fence의
-최소 interface를 test-first로 검증합니다.
+현재 active/ready work는 없습니다. 별도 GDJ-0018을 activation하기 전에는 제품 source를
+변경하지 않습니다. 후속 activation은 Accepted ADR-0017의 atomic history snapshot,
+per-step first-write validation/successor binding과 unsupported fail-closed를 제품 단면으로
+좁히고, public API·storage/error taxonomy와 cutover/crash 비목표를 다시 명시해야 합니다.
 
 ## 결과와 인수인계
 
-아직 activation 상태입니다. GDJ-0017이 완료되기 전에는 MIG-047..056을 product `passing`으로,
-revision-fence spike를 public migration lifecycle 지원으로 표현하지 않습니다. 다음 제품 work는
-exact oracle과 spike 감사 뒤 별도로 생성합니다.
+MIG-047..056은 exact Django 6.1 oracle 10 `observed`, manifest 10 `oracle_locked`, static
+10 `not_implemented`로 잠겼습니다. 총 reference는 9 set/97 contract이고 72 ordered
+cross-binding을 거부하지만 제품 분류는 계속 8 set의 `83 passing + 4 deviation`입니다.
+Product runner는 lifecycle manifest를 exit 2/no actual로 거부합니다.
+
+Revision-fence spike는 현재 제품 gap과 SQLite에서 가능한 cooperating-writer safety를
+입증해 ADR-0017 방향을 Accepted로 승격했습니다. 그러나 `conformance/lifecyclefence/**`는
+모두 test-only이며 제품 adapter, public migrate lifecycle, distributed lock, live-schema drift
+감지 또는 crash repair를 구현하지 않았습니다. 다음 제품 work는 별도 GDJ-0018 activation
+뒤에만 시작합니다.

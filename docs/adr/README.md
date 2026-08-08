@@ -31,6 +31,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0014](0014-migration-plan-execution-atomic-reverse.md) | Accepted | migration별 plan 실행과 same-transaction atomic reverse |
 | [0015](0015-recorder-backed-applied-state.md) | Accepted | 별도 recorder read port, applied-state 검증과 explicit history check |
 | [0016](0016-historical-project-state-reconstruction.md) | Accepted | Loaded migration definition의 dependency-ordered historical state replay |
-| [0017](0017-revision-fenced-migration-lifecycle.md) | Proposed | 각 migration transaction의 recorder revision fence |
+| [0017](0017-revision-fenced-migration-lifecycle.md) | Accepted | 각 migration transaction의 recorder revision fence |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

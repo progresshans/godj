@@ -53,6 +53,11 @@ historical-state scenario도 GoDj 고유 app/model/table/value와 assertion으�
 모든 provenance entry는 `derived=false`입니다. Pinned Django source/test symbol과
 `BSD-3-Clause` 표시는 동작 근거와 upstream license를 추적하기 위한 것이며 Django source,
 fixture, comment 또는 assertion 구조를 복사·번역했다는 뜻이 아닙니다.
+GDJ-0017의 MIG-047..056 lifecycle scenario도 GoDj 고유 app/table/operation/failure sentinel과
+assertion으로 독립 작성했고 provenance entry는 모두 `derived=false`입니다. Test-only
+revision-fence harness는 GoDj concurrency design evidence이며 upstream Django 구현을 복사하거나
+번역하지 않았습니다.
+
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.
 

@@ -20,6 +20,10 @@ GDJ-0015는 loaded migration definition의 historical `ProjectState` reconstruct
 여덟 번째 reference set을 추가했습니다. GDJ-0016은 immutable public reconstructor와
 read-only recorder-backed GoDj live adapter를 연결해 이 set을 10 `passing`으로
 전환했습니다.
+GDJ-0017은 fresh/target/failure/restart migration lifecycle 전용 아홉 번째 reference set을
+추가했습니다. 이 10개는 `oracle_locked`이며 제품 adapter는 없습니다. 별도
+`lifecyclefence` package는 revision fence의 test-only feasibility를 검증할 뿐 제품 API나
+backend 구현이 아닙니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -36,6 +40,7 @@ read-only recorder-backed GoDj live adapter를 연결해 이 set을 10 `passing`
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
 | `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
+| `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution, recorder restart와 historical-state reconstruction 제품 package를 실행하는 여덟 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
@@ -43,6 +48,7 @@ read-only recorder-backed GoDj live adapter를 연결해 이 set을 10 `passing`
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
 | `fixtures/godj*.json` | 미구현 상태가 pass되지 않는 set별 protocol fixture와 reviewed sparse deviation expectation |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
+| `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `cmd/godjcheck` | GoDj observation을 생성해 locked Django oracle과 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -177,6 +183,16 @@ LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
   --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
   --manifest conformance/contracts/migration-state-reconstruction-manifest.json \
   --output conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json \
+  --check
+```
+
+Migration lifecycle oracle은 아홉 번째 manifest와 전용 output으로 확인합니다.
+
+```sh
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/migration-lifecycle-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json \
   --check
 ```
 
@@ -460,10 +476,38 @@ byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. 현재 
 [EVID-20260808-015](../docs/status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
 기록합니다.
 
+Migration lifecycle set은 GDJ-0017에서 MIG-047..056의 exact Django result와 provenance를
+아홉 번째 manifest에 고정했습니다. Fresh/latest, applied prefix, fully-applied no-op,
+named forward/reverse, app zero target, unknown legacy identity, explicit inconsistent-history
+preflight, middle failure와 file-backed fresh restart를 다룹니다. Manifest는 13,680 bytes,
+SHA-256
+`23a9e919edff932ae781f0768aeaf7f184fe392ec53598fa18524cf50d979a8e`, oracle은 98,436
+bytes, SHA-256
+`7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`, static fixture는
+1,681 bytes, SHA-256
+`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`입니다. 두 독립
+random-hashseed process와 checked-in oracle은 byte-identical합니다.
+
+아홉 set의 ID/scenario 97개는 전역으로 유일하고 72개 ordered cross-binding이 모두
+거부됩니다. Static comparison은 MIG-047..056 ordered status mismatch 10개와 exit 1이고,
+제품 `godjcheck`는 등록되지 않은 lifecycle scenario를 exit 2/no actual output으로
+fail-closed합니다. 따라서 현재 분류는 기존 `83 passing + 4 deviation`과 새
+`10 oracle_locked`이며 reference 97개 전체를 제품 지원으로 표현하지 않습니다.
+
+`lifecyclefence` spike는 현재 unfenced 조합의 first-write 전/step 사이 stale gap을 재현하고,
+persistent epoch와 monotonic revision을 주 fence로, recorder identity fingerprint를 보조
+integrity gate로 검증했습니다. 각 step은 pinned SQLite connection의 `BEGIN IMMEDIATE` 안에서
+expected token을 확인하고 successor token, schema와 recorder를 함께 commit합니다. Conflict는
+current/tail mutation 없이 last-durable `ProjectState`를 반환하고 자동 retry하지 않습니다.
+Two connections/processes, bootstrap 경쟁, DDL/recorder 뒤 fault, BUSY/LOCKED 분류와 unsupported
+capability fail-closed를 검증했지만 이는 제품 implementation이 아닙니다. 상세 증거는
+[EVID-20260808-016](../docs/status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
+기록합니다.
+
 ## Provenance
 
 현재 query/write/migration/Save/QuerySet evaluation-cache/migration-planning/execution/
-recorder-restart/historical-state scenario는 Django 코드를
+recorder-restart/historical-state/lifecycle scenario는 Django 코드를
 번역하지 않고 GoDj 고유 fixture로 독립적으로
 작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
 정의입니다. Manifest의

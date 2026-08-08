@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0017 migration lifecycle exact contract와 revision-fence feasibility spike
+- 현재 단계: GDJ-0017 lifecycle exact contract와 revision-fence feasibility 완료; 후속 제품 work 활성화 전 설계 인수인계
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -145,22 +145,23 @@ MIG-037..046은 10 `passing`, 현재 제품 분류는 `83 passing + 4 deviation`
 migration file/source loader, CLI, data callback과 lifecycle lock/crash recovery는 계속 후속
 범위입니다.
 
-활성
+완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
 source loader/CLI보다 lifecycle 경계를 먼저 계약화합니다. Fresh/applied-prefix/no-op에서
 latest, named forward/reverse, app zero target, unknown legacy, inconsistent known history와
-중간 실패/restart를 MIG-047..056의 아홉 번째 exact set으로 잠급니다. 제품 source와 GoDj
-adapter는 만들지 않으므로 완료 목표도 기존 `83 passing + 4 deviation`과 새
-`10 oracle_locked`를 구분한 9 set/97 contract입니다. Nine-set ordered cross-binding 목표는
-72개입니다.
+중간 실패/restart를 MIG-047..056의 아홉 번째 exact set으로 잠갔습니다. 제품 source와 GoDj
+adapter는 만들지 않았으므로 결과는 기존 `83 passing + 4 deviation`과 새
+`10 oracle_locked`를 구분한 9 set/97 contract입니다. 72개 ordered cross-binding은 모두
+validation에서 거부됩니다.
 
-별도 [Proposed ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 recorder identities와
-opaque revision을 같은 snapshot으로 읽고 expected revision을 각 migration transaction의 첫
-DDL/write 전에 검증하는 방향입니다. `conformance/lifecyclefence/**` spike가 stale-before-write,
-step 사이 경쟁, simultaneous contender와 resource release를 입증하기 전에는 Accepted나 제품
-지원으로 표현하지 않습니다. Outer transaction과 automatic retry는 사용하지 않고
-ADR-0014의 migration별 durable commit을 보존합니다. Loader/operation codec, project-binary/CLI,
-data callback과 crash repair/lease는 계속 후속 범위입니다.
+별도 [Accepted ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 recorder identities와
+opaque freshness revision을 같은 snapshot으로 읽고 expected token을 각 migration transaction의
+첫 DDL/write 전에 검증합니다. `conformance/lifecyclefence/**` spike는 persistent epoch와
+monotonic revision 후보로 stale-before-write, step 사이 경쟁, simultaneous contender, fault
+rollback과 resource release를 입증했지만 제품 storage/encoding을 고정하지 않았습니다. Outer
+transaction과 automatic retry 없이 ADR-0014의 migration별 durable commit을 보존합니다. 아직
+제품 source/API는 없으며 loader/operation codec, project-binary/CLI, data
+callback, exclusive cutover와 crash repair/lease는 계속 후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

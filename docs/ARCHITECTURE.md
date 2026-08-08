@@ -143,6 +143,19 @@ adapter는 real SQLite recorder를 read-only로 읽어 `LoadAppliedState`를 거
 identity만으로 definition을 발명하지 않으며 read/reconstruct/plan/execute가 하나의 atomic
 lifecycle이라는 뜻도 아닙니다.
 
+완료된 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
+MIG-047..056으로 read/check/reconstruct/plan/execute lifecycle의 fresh/target/failure/restart
+외부 의미를 아홉 번째 exact set에 고정했습니다. 10개는 `oracle_locked`이고 제품 adapter나
+public lifecycle API는 없습니다. Accepted
+[ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 제품 승격 시 recorder identities와
+opaque freshness revision을 같은 snapshot으로 읽고 각 migration transaction의 첫 DDL/write
+전에 expected token을 검증하도록 결정합니다. SQLite feasibility harness는 persistent epoch와
+monotonic revision을 후보로 사용했고 fingerprint는 direct non-ABA drift를 잡는 보조 gate로만
+검증했지만, 제품 storage와 token encoding은 아직 결정하지 않았습니다. Harness는 per-step commit,
+last-durable state, no retry와 unsupported fail-closed를 검증했지만 product package를 변경하지
+않았습니다. Cutover 전 non-cooperating ABA, recorder 밖 schema drift와 crash repair는 계속
+Q-012 후속입니다.
+
 ## CLI와 프로젝트 실행
 
 전역 `godj` CLI는 `version`, `startproject`, `startapp`, 프로젝트 탐색과 orchestration을 담당합니다. 프로젝트 설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행합니다.

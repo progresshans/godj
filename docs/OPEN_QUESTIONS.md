@@ -11,7 +11,7 @@
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0017 active | 기존 executor/planner/recorder read/historical replay 검증 뒤 MIG-047..056 lifecycle exact contract와 per-step revision-fence feasibility 진행 중; file/source loader, data callback, public lifecycle/CLI와 crash recovery는 계속 open |
+| Q-012 | Partial | GDJ-0017 complete; product pending | MIG-047..056 lifecycle exact contract와 per-step epoch/revision fence feasibility 완료; product coordinator/backend capability, cutover, file/source loader, data callback, public CLI와 crash recovery는 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -144,12 +144,12 @@ graph merge/squash/optimizer, multi-process lock와 crash recovery는 여전히 
 public CLI 전에 별도 ADR과 contract가 필요합니다. Recorder read/planning 제품 subset과
 historical-state product를 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
-활성
+완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
 loader/CLI보다 lifecycle의 observable meaning과 stale-snapshot safety feasibility를 먼저
 분리합니다. MIG-047..056은 fresh/prefix/no-op latest, named forward/reverse, app zero target,
 unknown legacy, explicit inconsistent-history preflight, middle failure와 fresh durable restart의
-아홉 번째 exact set 후보입니다. MIG-054의 preflight 소유자는
+아홉 번째 exact set으로 고정했습니다. MIG-054의 preflight 소유자는
 `MigrationExecutor.migrate()` 자체가 아니라 public command orchestration의
 `loader.check_consistent_history(connection) → target/plan → migrate` 순서이며
 `plan_invoked=false`와 transaction/DDL/write 0을 관찰합니다. MIG-056은 `:memory:` 재사용이
@@ -157,15 +157,16 @@ unknown legacy, explicit inconsistent-history preflight, middle failure와 fresh
 Backward MIG-051/052는 abstract step outcome과 final schema/recorder만 비교하고 physical
 transaction topology는 기존 DEV-0001/ADR-0014에 남깁니다.
 
-[Proposed ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 recorder identities와
-opaque revision을 한 snapshot으로 읽고, 각 migration transaction 안에서 첫 DDL/write 전에
-expected revision을 검증하는 후보입니다. Outer transaction 없이 migration별 durable commit을
-유지하고 stale conflict는 current step mutation 0으로 fail-closed하며 자동 retry하지 않습니다.
-Successful step과 successor revision의 atomic binding, optional backend port와 error taxonomy는
-`conformance/lifecyclefence/**` spike가 입증하기 전에는 확정하지 않습니다. Fence를 지원하지
-않는 backend가 unfenced lifecycle로 silent fallback하는 방향은 후보에서 제외합니다.
+[Accepted ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 recorder identities와
+opaque freshness revision을 한 snapshot으로 읽고 각 migration transaction 안에서 첫 DDL/write
+전에 expected token을 검증합니다. SQLite spike는 persistent epoch와 monotonic revision을
+후보로 검증했고 fingerprint는 direct non-ABA recorder drift를 잡는 보조 gate로만 사용했지만,
+제품 storage와 token encoding은 아직 open입니다. Outer transaction 없이 migration별 durable
+commit을 유지하고 stale conflict는 current step mutation 0/last-durable state로 fail-closed하며
+semantic auto retry를 하지 않습니다. Spike가 optional capability와 unsupported fallback 금지를
+검증했지만 public coordinator/backend API와 final error taxonomy는 후속 제품 work에서 정합니다.
 
-GDJ-0017이 끝나도 file/source encoding, operation codec/version, data callback, public
+GDJ-0017이 끝났어도 file/source encoding, operation codec/version, data callback, public
 coordinator/CLI, lease/fairness, process-kill crash reconciliation과 non-SQLite backend는 여전히
 Q-012 후속입니다.
 
