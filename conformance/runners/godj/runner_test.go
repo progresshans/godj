@@ -178,6 +178,46 @@ func TestGenerateMatchesLockedMigrationPlanningOracle(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedMigrationRestartOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationRestartInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj migration-restart suite differs from locked Django oracle in %d place(s)", len(differences))
+	}
+}
+
+func TestMigrationRestartRegistryMatchesManifestScenarios(t *testing.T) {
+	t.Parallel()
+
+	_, manifest, _ := loadMigrationRestartInputs(t)
+	if len(migrationRestartFixtures) != len(manifest.Contracts) {
+		t.Fatalf("migration restart registry has %d scenarios, manifest has %d", len(migrationRestartFixtures), len(manifest.Contracts))
+	}
+	for _, contract := range manifest.Contracts {
+		if _, ok := migrationRestartFixtures[contract.Scenario]; !ok {
+			t.Fatalf("migration restart scenario %q is not registered", contract.Scenario)
+		}
+	}
+}
+
 func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -250,6 +290,121 @@ func TestGenerateMigrationPlanningIsDeterministic(t *testing.T) {
 	}
 	if !bytes.Equal(firstJSON, secondJSON) {
 		t.Fatal("independent migration-planning runs produced different canonical observations")
+	}
+}
+
+func TestGenerateMigrationRestartIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, _ := loadMigrationRestartInputs(t)
+	first, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	second, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(second) error = %v", err)
+	}
+	firstJSON, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(first) error = %v", err)
+	}
+	secondJSON, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(second) error = %v", err)
+	}
+	if !bytes.Equal(firstJSON, secondJSON) {
+		t.Fatal("independent migration-restart runs produced different canonical observations")
+	}
+}
+
+func TestMigrationRestartFixtureMutationsPropagateThroughPublicRestartAPIs(t *testing.T) {
+	t.Parallel()
+
+	const arbitraryContractID = "RESTART-PROBE-NOT-A-MANIFEST-ID"
+	baseRecorded := migrationRestartFixtures["django.migration.restart.record_visible_to_fresh_reader"]()
+	baseRecordedObservation, err := runMigrationRestartFixture(context.Background(), arbitraryContractID, baseRecorded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseRecordedObservation.ID != arbitraryContractID || baseRecordedObservation.Status != protocol.StatusObserved {
+		t.Fatalf("arbitrary migration-restart identity/status = (%q, %q)", baseRecordedObservation.ID, baseRecordedObservation.Status)
+	}
+
+	changedRecorder := migrationRestartFixtures["django.migration.restart.record_visible_to_fresh_reader"]()
+	changedRecorder.recorderSetup = append(changedRecorder.recorderSetup, migrationRestartRecorderTransition{
+		key: migrationRestartA1, applied: false,
+	})
+	changedRecordedObservation, err := runMigrationRestartFixture(context.Background(), arbitraryContractID, changedRecorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, values := range map[string][2]*protocol.Value{
+		"loader result": {baseRecordedObservation.Result, changedRecordedObservation.Result},
+		"durable state": {baseRecordedObservation.DBState, changedRecordedObservation.DBState},
+		"setup metrics": {baseRecordedObservation.Metrics, changedRecordedObservation.Metrics},
+	} {
+		if reflect.DeepEqual(values[0], values[1]) {
+			t.Fatalf("record/unrecord setup mutation did not propagate through fresh LoadAppliedState to %s", name)
+		}
+	}
+
+	basePrefix := migrationRestartFixtures["django.migration.restart.applied_prefix_tail"]()
+	basePrefixObservation, err := runMigrationRestartFixture(context.Background(), arbitraryContractID, basePrefix)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedTarget := migrationRestartFixtures["django.migration.restart.applied_prefix_tail"]()
+	changedTarget.target = migrationRestartA2
+	changedTargetObservation, err := runMigrationRestartFixture(context.Background(), arbitraryContractID, changedTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	basePlan := migrationPlanningTestObjectField(t, *basePrefixObservation.Result, "plan")
+	targetPlan := migrationPlanningTestObjectField(t, *changedTargetObservation.Result, "plan")
+	if reflect.DeepEqual(basePlan, targetPlan) {
+		t.Fatal("target mutation did not change the public Planner.Plan result")
+	}
+
+	baseUnknown := migrationRestartFixtures["django.migration.restart.unknown_legacy_record"]()
+	baseUnknownObservation, err := runMigrationRestartFixture(context.Background(), arbitraryContractID, baseUnknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedGraph := migrationRestartFixtures["django.migration.restart.unknown_legacy_record"]()
+	changedGraph.definitions[2].Dependencies[0] = migrationRestartA1
+	changedGraphObservation, err := runMigrationRestartFixture(context.Background(), arbitraryContractID, changedGraph)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseUnknownPlan := migrationPlanningTestObjectField(t, *baseUnknownObservation.Result, "plan")
+	changedUnknownPlan := migrationPlanningTestObjectField(t, *changedGraphObservation.Result, "plan")
+	if reflect.DeepEqual(baseUnknownPlan, changedUnknownPlan) {
+		t.Fatal("dependency mutation did not change the public CheckHistory/Plan result")
+	}
+	baseGraph := migrationPlanningTestObjectField(t, *baseUnknownObservation.Metrics, "graph")
+	changedGraphValue := migrationPlanningTestObjectField(t, *changedGraphObservation.Metrics, "graph")
+	if reflect.DeepEqual(baseGraph, changedGraphValue) {
+		t.Fatal("dependency mutation did not change captured graph facts")
+	}
+}
+
+func TestMigrationRestartAdapterHasNoContractOrOraclePayloadHardcoding(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_restart_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{
+		"MIG-",
+		"migration-restart-oracle",
+		"godj-migration-restart-not-implemented",
+		"switch contractID",
+	} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("migration-restart adapter contains forbidden hardcoded payload %q", forbidden)
+		}
 	}
 }
 
@@ -893,6 +1048,24 @@ func loadMigrationPlanningInputs(t *testing.T) (protocol.Profile, protocol.Manif
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
 	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-planning-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func loadMigrationRestartInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-restart-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-restart-oracle.json"))
 	if err != nil {
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}

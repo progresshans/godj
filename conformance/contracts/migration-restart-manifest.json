@@ -7,7 +7,7 @@
       "title": "Reading applied migrations with no recorder table returns empty without creating the table",
       "scenario": "django.migration.restart.absent_recorder_read",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -29,7 +29,7 @@
       "title": "A fresh recorder reads an existing empty recorder table as an empty applied set",
       "scenario": "django.migration.restart.empty_recorder_read",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -51,7 +51,7 @@
       "title": "A recorded migration is visible by app and name to a fresh recorder",
       "scenario": "django.migration.restart.record_visible_to_fresh_reader",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -73,7 +73,7 @@
       "title": "An unrecorded migration stays absent when a fresh recorder reads durable history",
       "scenario": "django.migration.restart.unrecord_hidden_from_fresh_reader",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -95,7 +95,7 @@
       "title": "Fresh recorders keep applied migration identities isolated by database alias",
       "scenario": "django.migration.restart.database_alias_isolation",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -117,7 +117,7 @@
       "title": "A fresh executor reads an applied prefix and plans only the remaining forward tail",
       "scenario": "django.migration.restart.applied_prefix_tail",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -145,7 +145,7 @@
       "title": "A fresh executor produces an empty plan when the target is fully applied",
       "scenario": "django.migration.restart.fully_applied_empty_plan",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -173,7 +173,7 @@
       "title": "An unknown legacy record is preserved and skipped by history validation while a known target still plans",
       "scenario": "django.migration.restart.unknown_legacy_record",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -195,7 +195,7 @@
       "title": "Explicit startup history validation rejects a known applied child whose dependency is absent before planning",
       "scenario": "django.migration.restart.inconsistent_known_history",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -223,7 +223,7 @@
       "title": "After a middle forward failure a fresh executor replans from the durable prefix through the failed step and tail",
       "scenario": "django.migration.restart.failure_tail",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",

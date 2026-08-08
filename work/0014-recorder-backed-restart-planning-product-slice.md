@@ -6,7 +6,7 @@ baseline_branch: "main"
 baseline_commit: "b6af5056bb67fc1d2d32b2163cb7091d700b1e7e"
 depends_on: ["GDJ-0013"]
 contracts: ["MIG-027..MIG-036", "Q-012"]
-allowed_paths: ["migrations/backend/history.go", "migrations/history.go", "migrations/history_test.go", "migrations/planner.go", "migrations/planner_test.go", "migrations/external_test.go", "db/sqlite/migration_history.go", "db/sqlite/migration_history_test.go", "db/sqlite/backend.go", "conformance/contracts/migration-restart-manifest.json", "conformance/runners/godj/migration_restart_scenarios.go", "conformance/runners/godj/runner.go", "conformance/runners/godj/runner_test.go", "conformance/cmd/godjcheck/main_test.go", "conformance/internal/protocol/migration_restart_artifacts_test.go", "conformance/internal/protocol/write_migration_artifacts_test.go", "Makefile", ".github/workflows/ci.yml", "conformance/README.md", "docs/**", "work/**"]
+allowed_paths: ["migrations/backend/history.go", "migrations/history.go", "migrations/history_test.go", "migrations/planner.go", "migrations/planner_test.go", "migrations/external_test.go", "db/sqlite/migration_history.go", "db/sqlite/migration_history_test.go", "db/sqlite/backend.go", "conformance/contracts/migration-restart-manifest.json", "conformance/runners/django/tests/test_migration_restart_scenarios.py", "conformance/runners/godj/migration_restart_scenarios.go", "conformance/runners/godj/runner.go", "conformance/runners/godj/runner_test.go", "conformance/cmd/godjcheck/main_test.go", "conformance/internal/protocol/migration_restart_artifacts_test.go", "conformance/internal/protocol/write_migration_artifacts_test.go", "Makefile", ".github/workflows/ci.yml", "conformance/README.md", "docs/**", "work/**"]
 integration_owner: "one primary agent"
 ---
 

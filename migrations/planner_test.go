@@ -267,6 +267,76 @@ func TestPlannerTargetAndHistoryPrecedence(t *testing.T) {
 	assertPlanningError(t, err, CategoryPlan, CodeTargetNotFound, missing, MigrationKey{})
 }
 
+func TestPlannerCheckHistoryIsExplicitAndPreservesPlanValidation(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1))
+	inconsistent := mustApplied(t, alpha2)
+
+	err := planner.CheckHistory(inconsistent)
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+
+	// Plan retains its independent history defense even when the caller does
+	// not invoke the explicit startup check.
+	_, err = planner.Plan(inconsistent, NamedTarget(alpha2))
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+
+	// Explicit callers can check history before target validation/planning.
+	err = planner.CheckHistory(inconsistent)
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+	_, err = planner.Plan(mustApplied(t), Target{})
+	assertPlanningError(t, err, CategoryPlan, CodeInvalidTarget, MigrationKey{}, MigrationKey{})
+}
+
+func TestPlannerCheckHistoryAcceptsZeroAndUnknownAppliedRecords(t *testing.T) {
+	t.Parallel()
+
+	var zeroPlanner Planner
+	if err := zeroPlanner.CheckHistory(AppliedState{}); err != nil {
+		t.Fatalf("zero Planner.CheckHistory() error = %v", err)
+	}
+
+	unknown := MigrationKey{App: "legacy", Name: "0009_removed"}
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1))
+	if err := planner.CheckHistory(mustApplied(t, unknown)); err != nil {
+		t.Fatalf("CheckHistory(unknown) error = %v", err)
+	}
+	assertPlan(t, plan(t, planner, mustApplied(t, unknown), NamedTarget(alpha2)), forward(alpha1), forward(alpha2))
+}
+
+func TestPlannerCheckHistoryRepeatedAndConcurrentCallsAreImmutable(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1), migration(alpha3, alpha2))
+	applied := mustApplied(t, alpha1, alpha2)
+	for iteration := 0; iteration < 100; iteration++ {
+		if err := planner.CheckHistory(applied); err != nil {
+			t.Fatalf("CheckHistory() iteration %d error = %v", iteration, err)
+		}
+	}
+
+	const workers = 64
+	var wait sync.WaitGroup
+	errorsChannel := make(chan error, workers)
+	for worker := 0; worker < workers; worker++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for iteration := 0; iteration < 100; iteration++ {
+				if err := planner.CheckHistory(applied); err != nil {
+					errorsChannel <- err
+					return
+				}
+			}
+		}()
+	}
+	wait.Wait()
+	close(errorsChannel)
+	for err := range errorsChannel {
+		t.Fatal(err)
+	}
+}
+
 func TestPlannerHistoryDiagnosticsChooseLexicographicChildParentAcrossPermutations(t *testing.T) {
 	t.Parallel()
 

@@ -135,6 +135,17 @@ func NewPlanner(migrations ...Migration) (Planner, error) {
 	return Planner{graph: graph}, nil
 }
 
+// CheckHistory validates known dependency relationships in an applied
+// migration snapshot without planning targets or performing I/O. Applied keys
+// unknown to this Planner are preserved and ignored by this check.
+func (p Planner) CheckHistory(applied AppliedState) error {
+	graph := p.graph
+	if graph == nil {
+		graph = emptyPlannerGraph()
+	}
+	return graph.validateAppliedHistory(cloneAppliedKeys(applied.keys))
+}
+
 // Plan validates the complete target representation, checks known applied
 // history, then processes targets in caller order against a local applied set.
 // It performs no I/O and does not mutate Planner, AppliedState, or its inputs.

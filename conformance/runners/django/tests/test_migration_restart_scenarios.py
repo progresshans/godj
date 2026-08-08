@@ -128,7 +128,7 @@ class MigrationRestartScenarioTests(unittest.TestCase):
         for contract in manifest["contracts"]:
             with self.subTest(contract=contract["id"]):
                 self.assertEqual(contract["phase"], "evaluation")
-                self.assertEqual(contract["status"], "oracle_locked")
+                self.assertEqual(contract["status"], "passing")
                 self.assertEqual(
                     contract["comparison"],
                     (

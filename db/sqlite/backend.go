@@ -77,10 +77,7 @@ func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 }
 
 func classifyQueryError(err error, table string) error {
-	var sqliteError *modernsqlite.Error
-	if errors.As(err, &sqliteError) &&
-		sqliteError.Code() == sqlite3.SQLITE_ERROR &&
-		isMissingTableMessage(sqliteError.Error(), table) {
+	if isSQLiteMissingTableError(err, table) {
 		return &query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeMissingTable,
@@ -89,6 +86,13 @@ func classifyQueryError(err error, table string) error {
 		}
 	}
 	return fmt.Errorf("execute SQLite query: %w", err)
+}
+
+func isSQLiteMissingTableError(err error, table string) bool {
+	var sqliteError *modernsqlite.Error
+	return errors.As(err, &sqliteError) &&
+		sqliteError.Code() == sqlite3.SQLITE_ERROR &&
+		isMissingTableMessage(sqliteError.Error(), table)
 }
 
 func isMissingTableMessage(message, table string) bool {

@@ -319,6 +319,42 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	}
 }
 
+func TestSevenSetProductStatusesAre73PassingAnd4ReviewedDeviations(t *testing.T) {
+	t.Parallel()
+
+	root := conformanceRepositoryRoot(t)
+	manifestNames := []string{
+		"manifest.json",
+		"write-migration-manifest.json",
+		"save-lifecycle-manifest.json",
+		"query-cache-manifest.json",
+		"migration-planning-manifest.json",
+		"migration-execution-manifest.json",
+		"migration-restart-manifest.json",
+	}
+	passing := 0
+	deviations := 0
+	for _, name := range manifestNames {
+		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, contract := range manifest.Contracts {
+			switch contract.Status {
+			case ContractPassing:
+				passing++
+			case ContractDeviation:
+				deviations++
+			default:
+				t.Fatalf("manifest %s contract %s has non-product status %q", name, contract.ID, contract.Status)
+			}
+		}
+	}
+	if passing != 73 || deviations != 4 {
+		t.Fatalf("seven-set product statuses = %d passing + %d deviation, want 73 + 4", passing, deviations)
+	}
+}
+
 func objectField(t *testing.T, value *Value, name string) *Value {
 	t.Helper()
 	if value == nil || value.Type != ValueObject {

@@ -84,6 +84,53 @@ func TestExternalConsumerZeroPlannerAndAppliedStateAreValid(t *testing.T) {
 	}
 }
 
+func TestExternalConsumerCanLoadAndCheckAppliedMigrationHistory(t *testing.T) {
+	t.Parallel()
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	second := migrations.MigrationKey{App: "news", Name: "0002_second"}
+	reader := &externalHistoryReader{records: []backend.AppliedMigration{{App: initial.App, Name: initial.Name}}}
+	applied, err := migrations.LoadAppliedState(context.Background(), reader)
+	if err != nil {
+		t.Fatalf("LoadAppliedState() error = %v", err)
+	}
+	planner, err := migrations.NewPlanner(
+		migrations.Migration{App: initial.App, Name: initial.Name},
+		migrations.Migration{App: second.App, Name: second.Name, Dependencies: []migrations.MigrationKey{initial}},
+	)
+	if err != nil {
+		t.Fatalf("NewPlanner() error = %v", err)
+	}
+	if err := planner.CheckHistory(applied); err != nil {
+		t.Fatalf("CheckHistory() error = %v", err)
+	}
+	plan, err := planner.Plan(applied, migrations.NamedTarget(second))
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+	want := []migrations.PlanStep{{Key: second, Direction: migrations.DirectionForward}}
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("Plan() = %v, want %v", plan, want)
+	}
+}
+
+func TestExternalConsumerCanInspectRecorderReadError(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("external read sentinel")
+	_, err := migrations.LoadAppliedState(context.Background(), &externalHistoryReader{err: cause})
+	var recorderError *migrations.RecorderError
+	if !errors.As(err, &recorderError) {
+		t.Fatalf("LoadAppliedState() error = %#v, want *migrations.RecorderError", err)
+	}
+	if recorderError.Category != migrations.CategoryRecorder || recorderError.Code != migrations.CodeReadFailed {
+		t.Fatalf("recorder error = %#v", recorderError)
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("LoadAppliedState() error = %v, want cause %v", err, cause)
+	}
+}
+
 func TestExternalConsumerCanConstructBuiltInMigration(t *testing.T) {
 	t.Parallel()
 
@@ -184,6 +231,19 @@ func TestExternalConsumerCanExecuteAndInspectMigrationPlan(t *testing.T) {
 
 type externalBackend struct {
 	transaction *externalTransaction
+}
+
+var _ backend.AtomicBackend = (*externalBackend)(nil)
+var _ backend.Transaction = (*externalTransaction)(nil)
+var _ backend.AppliedMigrationReader = (*externalHistoryReader)(nil)
+
+type externalHistoryReader struct {
+	records []backend.AppliedMigration
+	err     error
+}
+
+func (r *externalHistoryReader) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
+	return r.records, r.err
 }
 
 func (b *externalBackend) BeginMigration(context.Context) (backend.Transaction, error) {

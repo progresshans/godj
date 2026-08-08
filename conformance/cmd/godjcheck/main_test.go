@@ -393,11 +393,11 @@ func TestRunRejectsUnknownMigrationExecutionScenarioWithoutWritingActualOutput(t
 	}
 }
 
-func TestRunRejectsLockedMigrationRestartSetWithoutWritingActualOutput(t *testing.T) {
+func TestRunMatchesLockedMigrationRestartOracle(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
-	actualPath := filepath.Join(t.TempDir(), "must-not-exist.json")
+	actualPath := filepath.Join(t.TempDir(), "migration-restart-actual.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-restart-manifest.json"),
@@ -406,10 +406,89 @@ func TestRunRejectsLockedMigrationRestartSetWithoutWritingActualOutput(t *testin
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "match the locked Django oracle for 10 contracts") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(actual.Contracts) != 10 || actual.Contracts[0].ID != "MIG-027" || actual.Contracts[9].ID != "MIG-036" {
+		t.Fatalf("actual migration restart contracts = %#v", actual.Contracts)
+	}
+}
+
+func TestRunMigrationRestartActualOutputIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	directory := t.TempDir()
+	firstPath := filepath.Join(directory, "migration-restart-first.json")
+	secondPath := filepath.Join(directory, "migration-restart-second.json")
+	baseArguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-restart-manifest.json"),
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-restart-oracle.json"),
+	}
+	for _, outputPath := range []string{firstPath, secondPath} {
+		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
+		}
+	}
+	first, err := os.ReadFile(firstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := os.ReadFile(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("independent godjcheck migration-restart actual outputs differ")
+	}
+}
+
+func TestRunRejectsUnknownMigrationRestartScenarioWithoutWritingActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-restart-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknownScenario := manifest.Contracts[0].Scenario + ".unknown_sentinel"
+	manifest.Contracts[0].Scenario = unknownScenario
+	contents, err := protocol.MarshalCanonical(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	manifestPath := filepath.Join(directory, "unknown-migration-restart-scenario-manifest.json")
+	if err := os.WriteFile(manifestPath, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-restart-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), `unsupported scenario "django.migration.restart.`) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unknownScenario)) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {
