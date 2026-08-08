@@ -9,13 +9,16 @@
 - 기준 제품 commit:
   `3b0e68d6717a9612debc9cb93d03ab0f98005860`
   (`feat: reconstruct historical migration state`)
+- 활성 작업 baseline commit:
+  `9856fd0278162af0a5ee28dfebd4f07d93eca790`
+  (`docs: complete historical state reconstruction`)
 - remote: `https://github.com/progresshans/godj.git`, remote tracking ref 없음
-- 현재 단계: GDJ-0016 Historical `ProjectState` reconstruction 제품 단면 완료, 다음 설계 선택 대기
+- 현재 단계: GDJ-0017 Migration lifecycle exact contract와 revision-fence feasibility spike
 - 최근 완료 작업:
   [GDJ-0016 Historical ProjectState Reconstruction Product Slice](../../work/0016-historical-project-state-reconstruction-product-slice.md)
-- 활성 작업: 없음
-- 다음 ready 작업: 없음 — 새 구현 전에 migration definition source/loader와 lifecycle/lock 중
-  어느 경계를 먼저 계약화할지 설계해야 함
+- 활성 작업:
+  [GDJ-0017 Migration Lifecycle Compatibility Contracts and Revision-Fence Spike](../../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)
+- 다음 ready 작업: 없음 — GDJ-0017 exact oracle과 fence spike 감사 뒤 제품 work를 별도로 결정
 
 ## 현재 checkout에서 확인된 사실
 
@@ -76,6 +79,28 @@
 - Go backend는 `modernc.org/sqlite v1.56.0`, SQLite 3.53.3이고 exact Django reference는
   Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, SQLite 3.50.4입니다.
 
+### 활성 GDJ-0017 범위
+
+- MIG-047..056은 fresh/prefix/no-op/latest, named forward/reverse, app zero target, unknown
+  legacy, inconsistent known history, middle failure와 fresh durable restart를 잠글 아홉 번째
+  exact contract 후보입니다.
+- Phase 후보는 MIG-047..053/056 `commit`, MIG-054 `evaluation`, MIG-055 `rollback`입니다.
+  MIG-054는 public command orchestration의 explicit
+  `loader.check_consistent_history(connection) → target/plan → migrate` preflight이며
+  `plan_invoked=false`, transaction/DDL/write 0을 요구합니다.
+- MIG-056은 `:memory:` 재사용을 restart로 부르지 않고 temporary file database를 닫고 새
+  connection/loader/executor로 여는 fresh durable restart를 관찰합니다.
+- MIG-051/052 reverse는 abstract ordered step outcome과 final schema/recorder만 비교하고
+  physical reverse transaction topology는 기존 DEV-0001/ADR-0014에 남깁니다.
+- Contract 단계는 `migrations/**`, `db/**`, `conformance/runners/godj/**`를 수정하지 않습니다.
+  Product runner는 새 scenario를 exit 2/no actual로 거부해야 합니다.
+- 별도 `conformance/lifecyclefence/**` spike는 identities와 opaque revision을 같은 snapshot으로
+  읽고 각 migration transaction이 첫 DDL/write 전에 expected revision을 검증하는 가설만
+  시험합니다. Outer transaction, automatic retry와 unsupported backend silent fallback은
+  허용하지 않습니다.
+- 완료 목표는 기존 `83 passing + 4 deviation`과 새 `10 oracle_locked`를 분리한 9 set/97
+  contract, 72 ordered cross-binding입니다. 아직 달성한 상태가 아닙니다.
+
 ### 검증 증거
 
 - GDJ-0015의 exact Django reference, portable/exact Python, 8-set/56 cross-binding와
@@ -111,33 +136,37 @@
 
 ## 현재 차단 요인과 미결정 사항
 
-외부 blocker는 없습니다. 구현을 재개하기 전 설계 선택이 필요합니다.
+외부 blocker는 없습니다. GDJ-0017에서 다음을 근거로 확정해야 합니다.
 
-1. Q-012 후속: migration definition file/source loader와 version protocol
-2. Q-012 후속: read → reconstruct → plan → execute lifecycle API, revision/session binding,
-   multi-process lock와 crash reconciliation
-3. Q-012 후속: data migration callback/plugin ABI, replacement/squash/merge/fake/optimizer
-4. Q-011/Q-010/Q-013: request lifetime, public CLI/project protocol, cross-app relation loader
+1. MIG-047..056 exact payload/provenance와 reverse topology를 제외한 비교 경계
+2. Atomic history snapshot과 successful step의 successor revision을 stale window 없이
+   handoff할 backend capability shape
+3. Revision conflict/unsupported capability의 structured error와 existing fake source compatibility
+4. 후속 Q-012: migration definition source/loader, data callback, crash repair/lock/lease
+5. Q-011/Q-010/Q-013: request lifetime, public CLI/project protocol, cross-app relation loader
 
 ## 다음 정확한 작업
 
-현재 active/ready work는 만들지 않았습니다. 다음 구현 전에 위 Q-012 후속 중 source/loader와
-lifecycle/lock의 우선순위를 정하고, reference contract가 필요한 외부 동작·비목표·allowed
-path·ADR 상태를 새 work item에 기록합니다. 그 설계가 끝나기 전에는 GDJ-0016을 public
-migrate lifecycle, source discovery 또는 crash-safety 지원으로 확장 해석하지 않습니다.
+GDJ-0017의 첫 작업은 pinned Django executor/loader/recorder와 upstream tests에서
+MIG-047..056 provenance를 contract별로 확인하고 disposable exact probe를 만드는 것입니다.
+동시에 제품 package를 건드리지 않는 `conformance/lifecyclefence/**` harness에서 atomic
+snapshot/revision과 each-step before-DDL validation을 test-first로 검증합니다. Exact contract와
+spike가 완료되기 전에는 GDJ-0016을 public migrate lifecycle, source discovery, concurrent
+writer fencing 또는 crash-safety 지원으로 확장 해석하지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 제품 checkout: `main@3b0e68d6717a9612debc9cb93d03ab0f98005860`
+- 활성 work baseline: `main@9856fd0278162af0a5ee28dfebd4f07d93eca790`
+- 제품 commit: `main@3b0e68d6717a9612debc9cb93d03ab0f98005860`
 - Machine baseline: `main@594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
-- 활성 work: 없음
+- 활성 work: [GDJ-0017](../../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)
 - ready work: 없음
 - locked Django oracle/static/SHA256SUMS와 DEV-0001을 변경하지 않음
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
-- 다음 설계에서 가장 위험한 과장: lock 없는 recorder snapshot과 pure reconstruction을
-  atomic read/reconstruct/plan/execute lifecycle 또는 crash recovery로 표현하는 것
+- 현재 가장 위험한 과장: exact lifecycle oracle이나 격리 revision-fence spike를 product
+  adapter, public migrate API, distributed lock 또는 crash recovery로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.
