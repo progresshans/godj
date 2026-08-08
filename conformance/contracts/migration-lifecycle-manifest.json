@@ -1,0 +1,346 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-047",
+      "title": "A fresh database reaches all latest leaves through the full forward lifecycle",
+      "scenario": "django.migration.lifecycle.fresh_latest",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/migrate.py::Command.handle",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_forwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-048",
+      "title": "A durable applied prefix executes only the remaining latest tail",
+      "scenario": "django.migration.lifecycle.applied_prefix_latest",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.build_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._create_project_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-049",
+      "title": "A fully applied latest request is a no-op that still returns latest state",
+      "scenario": "django.migration.lifecycle.fully_applied_latest_noop",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_empty_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_migrate_skips_schema_creation",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-050",
+      "title": "A named forward target applies its dependency closure and excludes descendants",
+      "scenario": "django.migration.lifecycle.named_forward_target",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/django-admin.txt#migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-051",
+      "title": "A named reverse target removes only same-app descendants and preserves an unrelated applied branch",
+      "scenario": "django.migration.lifecycle.named_reverse_target",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/django-admin.txt#migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_backwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorUnitTests.test_minimize_rollbacks",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_unrelated_applied_migrations_mutate_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-052",
+      "title": "An app zero target reverses the app and every cross-app dependent in dependent-first order",
+      "scenario": "django.migration.lifecycle.zero_target",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/django-admin.txt#migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_backwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-053",
+      "title": "An unknown legacy record survives while a known applied prefix advances to latest",
+      "scenario": "django.migration.lifecycle.unknown_legacy_tail",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.build_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.check_consistent_history",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-054",
+      "title": "Known inconsistent history is rejected before target selection, planning, or execution",
+      "scenario": "django.migration.lifecycle.inconsistent_history_preflight",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/migrate.py::Command.handle",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.check_consistent_history",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py::MigrateTests.test_migrate_inconsistent_history",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_loader.py::LoaderTests.test_check_consistent_history",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-055",
+      "title": "A middle forward failure preserves the prior migration, rolls back the current step, and stops the tail",
+      "scenario": "django.migration.lifecycle.middle_forward_failure",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._migrate_all_forwards",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.apply_migration",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.apply",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_operations.py::OperationTests.test_run_python_atomic",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_migrations_applied_and_recorded_atomically",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-056",
+      "title": "A fresh connection and executor resume the failed step and tail from the durable prefix",
+      "scenario": "django.migration.lifecycle.restart_after_failure",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.build_graph",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_run",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

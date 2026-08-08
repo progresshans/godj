@@ -12,6 +12,8 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from conformance.runners.django.runner import (
+    DEFAULT_MIGRATION_LIFECYCLE_MANIFEST,
+    DEFAULT_MIGRATION_LIFECYCLE_ORACLE,
     DEFAULT_MIGRATION_EXECUTION_MANIFEST,
     DEFAULT_MIGRATION_EXECUTION_ORACLE,
     DEFAULT_MIGRATION_PLANNING_MANIFEST,
@@ -261,6 +263,28 @@ class RunnerSafetyTests(unittest.TestCase):
         self.assertEqual(status, 0)
         generate_suite.assert_called_once()
 
+    def test_migration_lifecycle_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_MIGRATION_LIFECYCLE_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_LIFECYCLE_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
     def test_query_cache_manifest_regeneration_targets_only_its_oracle(self) -> None:
         generated = b'{"query_cache":true}\n'
         with (
@@ -368,6 +392,31 @@ class RunnerSafetyTests(unittest.TestCase):
         self.assertEqual(status, 0)
         write_atomic.assert_called_once_with(
             DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE,
+            generated,
+        )
+
+    def test_migration_lifecycle_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"migration_lifecycle":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_MIGRATION_LIFECYCLE_MANIFEST),
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(
+            DEFAULT_MIGRATION_LIFECYCLE_ORACLE,
             generated,
         )
 

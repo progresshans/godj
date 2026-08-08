@@ -198,7 +198,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 		entries[fields[1]] = fields[0]
 	}
-	wantedPaths := []string{"migration-execution-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json"}
+	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json"}
 	if len(entries) != len(wantedPaths) {
 		t.Fatalf("SHA256SUMS has %d entries, want %d: %#v", len(entries), len(wantedPaths), entries)
 	}
