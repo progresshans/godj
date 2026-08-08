@@ -11,7 +11,7 @@
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | P1 | M1 | 전역 CLI와 프로젝트 library/generator 버전 불일치를 어떻게 처리하는가 |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0015/0016·public CLI 전 | ADR-0010 executor, ADR-0013 planner, ADR-0014 ExecutePlan/atomic reverse와 ADR-0015 recorder read/check 검증; MIG-027..036 restart 제품 10 passing; historical state reconstruction, file ABI/data callback/lock은 계속 open |
+| Q-012 | Partial | GDJ-0016·public CLI 전 | ADR-0010 executor, ADR-0013 planner, ADR-0014 ExecutePlan/atomic reverse와 ADR-0015 recorder read/check 검증; MIG-027..036 restart 제품 10 passing과 MIG-037..046 historical-state reference 10 oracle_locked; product reconstructor/API, file ABI/data callback/lock은 계속 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -123,17 +123,23 @@ reader를 제품화했습니다. Fresh file-backed restart를 포함한 MIG-027.
 `ProjectState`를 재구성할 수 없고 read/execution 사이 lock도 없으므로 public
 restart/migrate convenience API는 아직 만들지 않습니다.
 
-활성
+완료된
 [GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
-MIG-037..046으로 historical `ProjectState` reconstruction의 외부 의미를 먼저 고정합니다.
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 Proposed이며, 이
-contract-only 작업과 후속 GDJ-0016 제품 slice가 끝나기 전에는 reconstructor/replay API나
-historical state 지원을 확정하지 않습니다.
+MIG-037..046으로 historical `ProjectState` reconstruction의 외부 의미를 여덟 번째 exact
+set에 고정했습니다. Explicit empty와 omitted latest는 다른 request mode이고, target
+before/after는 dependency closure의 포함 위치를 구분합니다. Applied projection은 unrelated
+known branch를 포함하되 unknown legacy identity를 schema로 만들지 않습니다. 새 10개는
+`oracle_locked`이고 제품 adapter는 계속 fail-closed합니다.
 
-Migration file encoding, listing accessor, historical state reconstruction, data callback ABI,
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 Proposed이며, 활성
+[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)에서 explicit
+request API, immutable definition ownership/clone, graph kernel 공유와 structured error를
+spike·검증하기 전에는 reconstructor/replay API나 historical state 지원을 확정하지 않습니다.
+
+Migration file encoding, listing accessor, historical-state product API, data callback ABI,
 graph merge/squash/optimizer, multi-process lock와 crash recovery는 여전히 결정하지 않았으며
 public CLI 전에 별도 ADR과 contract가 필요합니다. Recorder read/planning 제품 subset과
-historical-state contract를 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
+historical-state reference contract를 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
 ## Q-013 — 관계 API
 

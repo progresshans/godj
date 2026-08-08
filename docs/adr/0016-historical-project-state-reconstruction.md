@@ -2,7 +2,7 @@
 
 - 상태: Proposed
 - 날짜: 2026-08-08
-- 관련 work/contract: GDJ-0015, MIG-037..MIG-046, Q-012
+- 관련 work/contract: GDJ-0015, GDJ-0016, MIG-037..MIG-046, Q-012
 - 대체하는 ADR: 없음
 
 ## 맥락
@@ -67,25 +67,30 @@ replay kernel로 만들 수 있고 Planner와 backend 경계를 바꾸지 않습
 
 ## 제안 결정
 
-GDJ-0015의 MIG-037..046 contract 결과가 이 방향을 뒤집지 않는다면, `migrations`
-package에 full definition을 deep-copy하는 immutable historical-state reconstructor를 둡니다.
-아래 이름은 소유권을 설명하는 후보이며 아직 public API로 확정하지 않습니다.
+GDJ-0015의 MIG-037..046 exact contract는 loaded definition replay 방향을 지지했습니다.
+`migrations` package에 full definition을 deep-copy하는 immutable historical-state
+reconstructor를 두는 안을 GDJ-0016 API spike에서 검증합니다. 아래 이름은 현재 제품
+가설이며 ADR이 Accepted되기 전까지 public API로 확정하지 않습니다.
 
 ```go
-type StatePosition struct { /* migration key + before/after */ }
-func StateBefore(MigrationKey) StatePosition
-func StateAfter(MigrationKey) StatePosition
+type StateRequest struct { /* unexported tagged value */ }
+
+func EmptyStateRequest() StateRequest
+func LatestStateRequest() StateRequest
+func BeforeStateRequest(first MigrationKey, rest ...MigrationKey) StateRequest
+func AfterStateRequest(first MigrationKey, rest ...MigrationKey) StateRequest
+func AppliedStateRequest(AppliedState) StateRequest
 
 type StateReconstructor struct { /* immutable graph + copied definitions */ }
 func NewStateReconstructor(...Migration) (StateReconstructor, error)
-func (StateReconstructor) At(...StatePosition) (ProjectState, error)
-func (StateReconstructor) FromApplied(AppliedState) (ProjectState, error)
+func (StateReconstructor) Reconstruct(StateRequest) (ProjectState, error)
 ```
 
 MIG-037의 explicit empty node set과 MIG-044의 omitted-node latest state는 서로 다른
-의미입니다. 후속 public API는 variadic zero argument나 nil/empty slice 차이로 이를 추론하지
-않고 `Empty`/`Latest` 또는 tagged request mode처럼 명시적으로 구분해야 합니다. 위 `At`
-signature는 소유권 설명용 후보일 뿐 이 구분을 확정한 API가 아닙니다.
+의미입니다. Public API는 variadic zero argument나 nil/empty slice 차이로 이를 추론하지 않고
+tagged request로 명시적으로 구분합니다. Zero `StateRequest`는 invalid, before/after는 first
+target을 필수로 받는 방향을 spike에서 검증합니다. Zero `StateReconstructor`는 empty graph
+constructor와 같은 immutable value 후보입니다.
 
 제품 data flow 후보는 다음과 같습니다.
 
@@ -93,25 +98,28 @@ signature는 소유권 설명용 후보일 뿐 이 구분을 확정한 API가 �
 loaded []Migration
 → graph/definition/operation validation + deep copy
 → immutable StateReconstructor
-   ├─ StatePosition set → dependency closure
-   └─ AppliedState → known applied membership
+   └─ tagged StateRequest
+      ├─ explicit empty/latest/before/after → dependency closure
+      └─ applied snapshot → known applied membership
 → canonical dependency-ordered stateForward replay
 → cloned normalized ProjectState
 ```
 
 - Replay는 `Operation.stateForward`만 사용하고 `databaseForward`, recorder, SQL과
   backend를 호출하지 않습니다.
-- Target `after`는 해당 node를 포함한 dependency closure, `before`는 선택한 target
-  node를 제외한 dependency state를 의미합니다. Multiple position의 union/dedup와
-  omitted position의 latest-leaf 의미는 MIG-037..044에서 exact로 잠근 뒤 고정합니다.
+- Target `after`는 해당 node를 포함한 dependency closure를 의미합니다. `before`는 full
+  forward closure에서 명시 target set 전체를 제외하는 Django `_generate_plan` 의미입니다.
+  Multiple target은 union/dedup하고 shared dependency는 한 번만 replay합니다.
+- `latest` leaf는 global out-degree 0이 아니라 Django `leaf_nodes()`처럼 같은 app의 child가
+  없는 node입니다. Cross-app dependent만 있는 node도 자기 app의 latest leaf입니다.
 - Applied projection은 known applied node만 canonical full-forward order에서 replay합니다.
   Known inconsistent history는 replay 전에 거부하고, unknown applied key는
   `AppliedState`에 남지만 `ProjectState`를 생성하지 않습니다.
 - Applied projection은 target plan에 없는 unrelated known applied branch도 누락하지
   않습니다.
-- Planner와 reconstructor가 graph validation/order를 따로 구현해 divergence하지 않도록
-  internal immutable graph kernel 공유 또는 동치 검증을 제품 work의 선행 결정으로
-  둡니다.
+- Reconstructor는 identity-only `Planner`를 보유하고 empty applied state에 대한
+  `Planner.Plan(...NamedTarget)` 결과를 projection order로 재사용합니다. Graph에는 same-app
+  leaf accessor만 추가하고 별도 closure/DFS 알고리즘을 만들지 않습니다.
 - Reconstructor와 returned `ProjectState`는 caller-owned definition/operation/result mutation에
   영향을 받지 않아야 하며 shared concurrent reconstruction을 지원해야 합니다.
 - Historical state는 runtime Schema IR이며 generated concrete model type/generics를 입력으로
@@ -125,8 +133,9 @@ loaded []Migration
   `migration_history_error/inconsistent_applied_history`입니다.
 - Nil/typed-nil operation, app mismatch와 state transition 실패는 backend I/O 전
   structured state/reconstruction error로 거부합니다.
-- Invalid position, unknown named position과 서로 모순되는 before/after request의 정확한
-  public category/code는 contract 후 제품 work에서 고정합니다.
+- Invalid/zero request는 기존 plan taxonomy의 `invalid_target`, unknown named target은
+  `target_not_found`를 재사용하는 방향을 spike에서 검증합니다. Exact contract에 없는 새
+  reconstruction category는 근거 없이 추가하지 않습니다.
 - Error message, Python exception class, Django private DFS/replay object identity는 호환
   계약이 아닙니다.
 
@@ -171,6 +180,7 @@ loaded []Migration
 - Static fixture ordered 10 mismatch, unknown scenario exit 2/no output과 payload semantic mutation gate
 - Full/race/CGO=0/vet, portable/exact Python과 Markdown/link validation
 
-Accepted 여부는 GDJ-0015가 exact reference, false-green audit과 후속 제품 API
-spike를 완료한 뒤 결정합니다. Proposed 문서의 API 예시는 구현 또는
-지원 상태를 뜻하지 않습니다.
+GDJ-0015 exact reference와 false-green audit은 완료됐습니다. Accepted 여부는 GDJ-0016이
+tagged request, deep-copy ownership, Planner graph 재사용, zero-value/error 경계와 external
+package compile spike를 통과한 뒤 결정합니다. Proposed 문서의 API 예시는 구현 또는 지원
+상태를 뜻하지 않습니다.

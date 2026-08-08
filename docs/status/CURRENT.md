@@ -4,17 +4,17 @@
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `main`
 - 기준 machine artifact commit:
-  `a9ce9597551840f1be8e1f27006d427842f38081`
-  (`feat: add recorder-backed restart planning`)
+  `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
+  (`test: lock historical project state contracts`)
 - 기준 제품 commit:
   `a9ce9597551840f1be8e1f27006d427842f38081`
   (`feat: add recorder-backed restart planning`)
-- 활성 작업 baseline: `a9ce9597551840f1be8e1f27006d427842f38081`
+- 활성 작업 baseline: `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
 - remote: `https://github.com/progresshans/godj.git`, remote tracking ref 없음
-- 현재 단계: Historical `ProjectState` reconstruction compatibility contract
-- 완료 작업: [GDJ-0014 Recorder-backed Restart Planning Product Slice](../../work/0014-recorder-backed-restart-planning-product-slice.md)
-- 활성 작업: [GDJ-0015 Historical ProjectState Reconstruction Compatibility Contracts](../../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)
-- 다음 ready 작업: 없음 — GDJ-0015 oracle lock 뒤 GDJ-0016 work를 별도 작성·전환
+- 현재 단계: Historical `ProjectState` reconstruction product slice
+- 완료 작업: [GDJ-0015 Historical ProjectState Reconstruction Compatibility Contracts](../../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)
+- 활성 작업: [GDJ-0016 Historical ProjectState Reconstruction Product Slice](../../work/0016-historical-project-state-reconstruction-product-slice.md)
+- 다음 ready 작업: 없음 — GDJ-0016 완료 뒤 source loader/CLI와 lifecycle lock 범위를 재평가
 
 ## 현재 checkout에서 확인된 사실
 
@@ -51,16 +51,17 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2에는 일곱 ordered reference set이 있습니다. M1 read/metadata 11개, M2
+- Protocol v2에는 여덟 ordered reference set이 있습니다. M1 read/metadata 11개, M2
   write/migration 11개, Save lifecycle 12개, QuerySet evaluation/cache 11개, migration
-  planning 12개, migration plan execution 10개, recorder-backed restart planning 10개로
-  총 77개입니다.
-- 일곱 set 모두 제품 adapter가 있으며 분류는 73 `passing` + 4 approved `deviation`입니다.
-  DEV-0001 네 계약 때문에 총 77개를 Django와 exact 일치하는 제품 통과로 표현하지 않습니다.
+  planning 12개, migration plan execution 10개, recorder-backed restart planning 10개,
+  historical-state reconstruction 10개로 총 87개입니다.
+- 앞의 일곱 set에는 제품 adapter가 있으며 분류는 73 `passing` + 4 approved
+  `deviation`입니다. 새 historical-state set은 10 `oracle_locked`이고 제품 adapter가 없습니다.
+  DEV-0001과 미구현 set 때문에 총 87개를 Django exact 제품 통과로 표현하지 않습니다.
 - MIG-017/019/021/023/025/026은 `passing`, MIG-018/020/022/024는 DEV-0001
   `deviation`입니다. Django oracle 10 `observed`와 static fixture 10 `not_implemented`는
   유지하며 static comparison은 ordered mismatch 10개입니다.
-- 일곱 set의 contract ID/scenario는 전역으로 유일하고 모든 42개 ordered cross-binding이
+- 여덟 set의 contract ID/scenario는 전역으로 유일하고 모든 56개 ordered cross-binding이
   validation에서 거부됩니다.
 - Migration-execution manifest는 9,120 bytes, SHA-256
   `1857dcf375ed09f8566798ce662c72a86ef41706e478eef6f208077b156886e9`입니다.
@@ -89,6 +90,18 @@
   같은 canonical bytes였습니다. 두 독립 GoDj actual은 각각 33,795 bytes, SHA-256
   `f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`로 byte-identical하고
   Django oracle과 protocol 의미상 10개 0-diff입니다.
+- Historical-state reconstruction manifest는 9,257 bytes, SHA-256
+  `04b7e92a5bbf9ff50f0247be7708dfb18a5534e40bac86a518a6b744fc0ef728`입니다.
+- Historical-state reconstruction Django oracle은 89,997 bytes, SHA-256
+  `bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`입니다.
+- Historical-state reconstruction static fixture는 1,715 bytes, SHA-256
+  `9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`입니다.
+- MIG-037..046은 모두 `evaluation` phase입니다. Explicit empty/latest, first·middle
+  before/after, cross-app/shared dependency와 applied-prefix/unrelated-known/unknown-legacy
+  startup state를 10 `oracle_locked`/10 `observed`/10 static `not_implemented`로 구분합니다.
+- 두 독립 random-hashseed process와 checked-in historical-state oracle은 89,997 bytes의
+  같은 canonical bytes였습니다. 제품 adapter는 아직 없으며 actual을 합성하지 않고
+  unsupported scenario에서 exit 2/no output으로 fail-closed합니다.
 - External execution metrics는 connection summary와 compact ordered steps만 포함합니다.
   Raw render/operation/recorder/transaction event는 runner 내부 live assertion이며 external
   compatibility surface가 아닙니다.
@@ -125,6 +138,11 @@
 - GDJ-0014의 backend-neutral reader/core history preflight, SQLite fresh read, seven-set live
   product conformance, two-process Go actual, full/race/CGO=0/vet와 false-green mutation 감사는
   [EVID-20260808-013](TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
+  기록했습니다.
+- GDJ-0015의 two-process historical-state oracle, portable Python 114개 중 exact-only 11
+  skip, exact Python 114/114, eight-set/56 cross-binding, static ordered 10 mismatch,
+  product fail-closed와 public-path/ID-dispatch false-green 감사는
+  [EVID-20260808-014](TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
   기록했습니다.
 - GitHub Actions workflow는 push하지 않아 hosted 실행 증거가 없습니다. 로컬 Django
   checkout은 수정하지 않았습니다.
@@ -188,41 +206,59 @@
 - GDJ-0014는 `read → validate → check → plan`까지만 제품화했습니다. Historical
   `ProjectState` reconstruction, read/execution lock와 public migrate API는 보장하지 않습니다.
 
+### Historical ProjectState reconstruction reference와 제품 경계
+
+- MIG-037..046은 loaded migration definition의 state transition을 dependency order로
+  replay한 explicit empty/latest/before/after/applied historical state를 reference로
+  고정합니다. Live database schema나 current generated model은 state의 의미 소스가 아닙니다.
+- Canonical observation은 lowercase model key, explicit table/column, declaration-order field
+  kind/PK/null/max-length와 supported scalar default presence/type/value를 보존합니다.
+- Applied startup은 private helper가 아니라 public
+  `MigrationExecutor.migrate(targets=[], plan=[])`를 관찰합니다. Unknown recorder identity는
+  applied observation에 남지만 가상 schema로 materialize하지 않습니다.
+- Explicit empty와 omitted latest는 서로 다른 durable request 의미입니다. Product API는
+  nil/empty variadic 차이가 아니라 tagged request로 구분하는 방향을
+  [ADR-0016](../adr/0016-historical-project-state-reconstruction.md)과 GDJ-0016에서 검증합니다.
+- GDJ-0015는 contract-only로 끝났습니다. Historical-state product adapter는 없으며 현재
+  제품 분류는 계속 `73 passing + 4 deviation`, 신규 10개는 `oracle_locked`입니다.
+
 ## 현재 차단 요인과 미결정 사항
 
 외부 blocker는 없습니다. 다음 결정은 열려 있습니다.
 
-1. Q-012 후속: historical `ProjectState` reconstruction 계약/제품, 그 뒤 migration
-   definition source/loader, data callback, lock와 crash recovery
+1. Q-012 후속: historical `ProjectState` reconstructor 제품, 그 뒤 migration definition
+   source/loader, data callback, lock와 crash recovery
 2. Q-011: request/transaction/hook 범위의 goroutine·lifetime 정책
 3. Q-010: public CLI와 project library/generator version protocol
 4. Q-013: cross-app relation type/import/reverse loader 경계
 
 ## 다음 정확한 작업
 
-1. Pinned Django 6.1의 `_create_project_state(with_applied_migrations=True)`와
-   `Migration.mutate_state` 경계를 disposable probe로 관찰합니다.
-2. MIG-037..046을 explicit empty, first·linear middle before/after, cross-app dependency,
-   multiple target/shared dependency, latest leaves와 applied-prefix/unrelated·unknown startup
-   historical-state 계약으로 조정합니다.
-3. Eighth manifest/oracle/static fixture를 deterministic하게 잠그고 기존 일곱 artifact와
-   56 ordered cross-binding을 검증합니다.
-4. GoDj product adapter는 fail-closed로 유지하고 GDJ-0016에서 pure reconstruction API를
-   별도로 결정합니다.
+1. Tagged `StateRequest`와 immutable `StateReconstructor`의 zero value, ownership, external
+   package compile shape를 먼저 검증하고 ADR-0016의 Accepted 여부를 결정합니다.
+2. Existing Planner graph/order kernel을 재사용해 explicit empty/latest/before/after/applied
+   state를 backend I/O 없이 replay하고 definition/request/result alias와 concurrency를 검증합니다.
+3. MIG-037..046 GoDj adapter를 public reconstructor 결과와 deliberately divergent live DB에서
+   생성하고 manifest status 10개만 `passing`으로 전환합니다.
+4. Locked oracle/static bytes와 DEV-0001을 보존하면서 two-process actual 10/0-diff,
+   `83 passing + 4 deviation`, full/race/CGO=0/vet와 독립 감사를 완료합니다.
 
 ## 작업 재개 체크포인트
 
-- 활성 baseline: `main@a9ce9597551840f1be8e1f27006d427842f38081`
-- 제품·machine commit은 GDJ-0014 recorder read/check/plan과 seven-set 73+4 상태를 포함
-- 활성 work: [GDJ-0015](../../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)
-- 허용 contract/harness/docs 경로는 GDJ-0015 frontmatter에 한정하고 `migrations/**`, `db/**`는 수정하지 않음
-- Locked 기존 일곱 oracle/static fixture와 제품 73+4 의미/bytes는 변경하지 않음
+- 활성 baseline: `main@594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
+- Machine commit은 GDJ-0015의 eighth exact set을 포함하고 제품 baseline은
+  `a9ce9597551840f1be8e1f27006d427842f38081`의 seven-set `73 passing + 4 deviation` 상태
+- 활성 work: [GDJ-0016](../../work/0016-historical-project-state-reconstruction-product-slice.md)
+- 제품 수정은 GDJ-0016 frontmatter에 한정하고 `migrations/backend/**`, `db/**`, locked
+  Django oracle/static fixture와 SHA256SUMS는 수정하지 않음
+- Locked 여덟 reference artifact 의미/bytes와 DEV-0001을 변경하지 않음
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
-- 가장 위험한 false green: 모든 migration definition을 applied 여부와 무관하게 fold하는 것,
-  live schema introspection을 historical state로 오인하는 것, dependency가 아닌 lexical 순서로
-  state를 구성하는 것과 lock 없는 read/state/plan/execute를 atomic lifecycle처럼 표현하는 것
+- 가장 위험한 false green: latest를 global out-degree leaf로 계산하는 것, before에서 명시
+  target set을 정확히 제외하지 않는 것, 모든 definition을 applied 여부와 무관하게 replay하는 것,
+  live schema를 historical state로 오인하는 것과 lock 없는 read/state/plan/execute를 atomic
+  lifecycle처럼 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

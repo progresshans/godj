@@ -10,17 +10,19 @@ GoDj's conformance scenarios, including the query, write, migration, Save
 lifecycle, QuerySet evaluation/cache, and migration planning fixtures, are
 independently written behavioral scenarios. This also includes the
 multi-migration plan execution and before-write operation/recorder failure
-fixtures, and the recorder-backed fresh restart planning fixtures. Their
-manifest entries point to pinned Django documentation, source
+fixtures, the recorder-backed fresh restart planning fixtures, and the
+historical project-state reconstruction fixtures. Their manifest entries point
+to pinned Django documentation, source
 symbols, and tests for provenance but do not copy or translate Django source,
 fixtures, comments, or assertion structure. This notice does not classify those
 scenarios as derivative works.
 
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new
-upstream-derived scenario corpus. Planned historical-state contracts are not
-classified by this notice before their actual source and provenance metadata
-are reviewed.
+upstream-derived scenario corpus. GDJ-0015 independently authored the
+historical-state scenarios with GoDj-specific apps, models, tables, values, and
+assertions. Their pinned Django source and test symbols record behavioral
+provenance only; MIG-037..046 are all marked `derived=false`.
 
 Django is licensed under the BSD 3-Clause license. A copy is included in
 [`LICENSE.django`](LICENSE.django). If a future file copies, translates, or

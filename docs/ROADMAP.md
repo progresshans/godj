@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Recorder-backed restart planning 제품 완료, historical ProjectState contract-first
+- 현재 단계: Historical ProjectState reference 완료, reconstructor 제품/API spike
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -125,15 +125,23 @@ Fresh file-backed restart를 포함한 MIG-027..036이 10 `passing`으로 전환
 분류는 `73 passing + 4 deviation`입니다. Read/check/plan은 `ExecutePlan`과 한 API가 아니며
 snapshot과 실행 사이 lock을 보장하지 않습니다.
 
-활성
+완료된
 [GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
-loaded migration definition으로 empty, first/middle before·after, cross-app dependency,
-multiple target/shared dependency, omitted-target latest leaves와 applied-prefix/
+loaded migration definition으로 explicit empty, first/middle before·after, cross-app
+dependency, multiple target/shared dependency, omitted-target latest leaves와 applied-prefix/
 unrelated-known startup `ProjectState`, unknown legacy identity의 schema-state 제외 의미를
-MIG-037..046으로 먼저 잠그는 contract-only 작업입니다. Proposed
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 reconstructor/replay 경계는 이
-계약을 바탕으로 후속 GDJ-0016 제품 slice에서 검증합니다. 현재는 historical state
-reconstruction을 지원한다고 표현하지 않습니다. Public migration file/CLI, data callback,
+MIG-037..046의 여덟 번째 exact set으로 고정했습니다. 새 10개는 `oracle_locked`이고
+기존 일곱 product set은 `73 passing + 4 deviation`이므로, reference 87개 전체를 제품
+통과로 표현하지 않습니다. 여덟 set의 contract/scenario는 전역으로 유일하고 56개 ordered
+cross-binding이 거부됩니다.
+
+활성
+[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은 Proposed
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 loaded-definition replay를
+별도 immutable reconstructor로 구현할 수 있는지 API spike부터 검증합니다. Explicit empty와
+omitted latest를 nil/zero variadic 의미로 추론하지 않는 request shape, graph kernel 공유,
+definition/operation clone과 structured error가 제품 결정 대상입니다. 완료 전에는 historical
+state reconstruction 지원을 주장하지 않으며 public migration file/CLI, data callback,
 lock/crash recovery는 계속 후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL

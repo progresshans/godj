@@ -81,6 +81,7 @@ conformance/
   contracts/migration-planning-manifest.json
   contracts/migration-execution-manifest.json
   contracts/migration-restart-manifest.json
+  contracts/migration-state-reconstruction-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -95,6 +96,7 @@ conformance/
   fixtures/godj-migration-planning-not-implemented.json
   fixtures/godj-migration-execution-not-implemented.json
   fixtures/godj-migration-restart-not-implemented.json
+  fixtures/godj-migration-state-reconstruction-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -298,15 +300,36 @@ cross-binding도 계속 보존합니다. 상세 증거는
 [EVID-20260808-013](status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
 기록합니다.
 
-다음
-[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
-MIG-037..046에서 empty, first/middle before·after, cross-app dependency, multiple target/shared
-dependency, omitted-target latest leaves, applied-prefix startup과 unrelated-known branch
-inclusion을 다룹니다. Unknown legacy identity는 applied observation에 남기되 schema
-state로 만들지 않는 의미를 contract-only로 먼저 고정합니다. Scenario와 payload가
-oracle로 잠기기 전에는 Proposed
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)이나 후속 GDJ-0016 제품을
-통과한 것으로 세지 않습니다.
+GDJ-0015는 MIG-037..046을 여덟 번째 reference set으로 추가했습니다. Explicit empty,
+first/middle before·after, cross-app dependency, multiple target/shared dependency,
+omitted-target latest leaves, applied-prefix startup과 unrelated-known branch inclusion을
+loaded migration definition의 state replay 결과로 비교합니다. Unknown legacy identity는
+applied observation에 남기되 schema state로 만들지 않고, deliberately divergent live
+database는 capture 전후 불변이어야 합니다.
+
+여덟 set의 ID/scenario는 전역으로 유일하며 56개 ordered cross-pair를 모두 거부합니다.
+State의 app/model/field 포함, table/column, field kind/primary-key/null/max-length/default,
+request mode/target/position, applied membership, graph dependency와 DB/metrics를 각각
+변형하는 semantic gate를 둡니다. 두 random-hashseed exact process와 checked-in oracle은
+byte-identical합니다. Static fixture는 MIG-037..046 ordered 10 mismatch이고 제품
+`godjcheck`는 exit 2/no actual output으로 fail-closed합니다.
+
+Manifest는 9,257 bytes, SHA-256
+`04b7e92a5bbf9ff50f0247be7708dfb18a5534e40bac86a518a6b744fc0ef728`, Django oracle은
+89,997 bytes, SHA-256
+`bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`, static fixture는
+1,715 bytes, SHA-256
+`9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`입니다. 새 10개는
+`oracle_locked`이고 `make godj-conformance`는 계속 일곱 product set만 실행하므로 현재
+분류는 `73 passing + 4 deviation + 10 oracle_locked`, reference 총계는 87개입니다. 상세
+증거는
+[EVID-20260808-014](status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
+기록합니다.
+
+활성 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
+Proposed [ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 immutable
+reconstructor와 explicit empty/latest request API를 spike·검증합니다. 제품 adapter가
+연결되기 전에는 위 reference 결과를 historical-state 제품 지원으로 세지 않습니다.
 
 ## 기능별 기본 테스트 요구
 

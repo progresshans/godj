@@ -16,6 +16,9 @@ GDJ-0012는 여섯 번째 GoDj live adapter와 fail-closed DEV-0001 expectation�
 GDJ-0013은 durable recorder read와 fresh restart planning 전용 일곱 번째 reference set을
 추가했습니다. GDJ-0014는 이 set을 read-only recorder와 fresh file-backed backend를 쓰는
 GoDj live adapter에 연결해 10 `passing`으로 전환했습니다.
+GDJ-0015는 loaded migration definition의 historical `ProjectState` reconstruction 전용
+여덟 번째 reference set을 추가했습니다. 이 set은 10 `oracle_locked`이며 제품 adapter는
+아직 없습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -31,8 +34,9 @@ GoDj live adapter에 연결해 10 `passing`으로 전환했습니다.
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
+| `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution과 recorder restart 제품 package를 실행하는 일곱 GoDj observation adapter |
+| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution과 recorder restart 제품 package를 실행하는 일곱 GoDj observation adapter; historical-state set은 아직 미포함 |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -164,6 +168,17 @@ LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
   --check
 ```
 
+Historical ProjectState reconstruction oracle은 여덟 번째 manifest와 전용 output을 함께
+넘겨 확인합니다.
+
+```bash
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/migration-state-reconstruction-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json \
+  --check
+```
+
 두 observation을 직접 비교할 수 있습니다.
 
 ```bash
@@ -271,6 +286,18 @@ go run ./conformance/cmd/observationcmp \
   -manifest conformance/contracts/migration-restart-manifest.json \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json \
   -actual conformance/fixtures/godj-migration-restart-not-implemented.json
+```
+
+Historical-state static baseline도 MIG-037..046 ordered 10 status mismatch를 냅니다. 제품
+adapter가 없으므로 같은 manifest를 `godjcheck`에 넘기면 exit 2로 거부하고 actual output을
+쓰지 않습니다.
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-state-reconstruction-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json \
+  -actual conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json
 ```
 
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
@@ -399,14 +426,34 @@ cross-binding은 계속 false-green gate입니다. 상세 증거는
 [EVID-20260808-013](../docs/status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
 기록합니다.
 
-다음 GDJ-0015의 MIG-037..046 historical-state set은 contract-only 작업에서 별도 manifest,
-oracle과 provenance가 실제로 잠긴 뒤에만 이 정본 목록에 추가합니다. 계획 문구만으로
-fixture의 파생 여부나 제품 지원 상태를 미리 분류하지 않습니다.
+Historical ProjectState reconstruction set은 GDJ-0015에서 MIG-037..046의 exact Django
+result와 provenance를 `oracle_locked`로 고정했습니다. 여덟 manifest의 ID/scenario는
+전역으로 유일하고 모든 56개 ordered cross-pair가 validation에서 거부됩니다. Manifest는
+9,257 bytes, SHA-256
+`04b7e92a5bbf9ff50f0247be7708dfb18a5534e40bac86a518a6b744fc0ef728`, oracle은 89,997
+bytes, SHA-256
+`bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`, static fixture는
+1,715 bytes, SHA-256
+`9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`입니다.
+
+두 독립 random-hashseed process와 checked-in oracle은 byte-identical합니다. Logical
+state는 loaded definition에서 replay하고 deliberately divergent live database는 전후
+불변입니다. State의 app/model/field와 table/column/kind/primary-key/null/max-length/default,
+request target/position, applied/graph와 DB/metrics mutation을 각각 검증합니다. Static
+fixture는 ordered 10 mismatch이고 제품 `godjcheck`는 exit 2/no output입니다. 기존 일곱
+product set은 계속 `73 passing + 4 deviation`이므로 현재 분류는
+`73 passing + 4 deviation + 10 oracle_locked`, reference 총계는 87개입니다. 상세 증거는
+[EVID-20260808-014](../docs/status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
+기록합니다.
+
+활성 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
+immutable reconstructor와 explicit empty/latest request API를 spike·검증합니다. 제품
+adapter가 추가되기 전에는 이 reference set을 product passing으로 세지 않습니다.
 
 ## Provenance
 
 현재 query/write/migration/Save/QuerySet evaluation-cache/migration-planning/execution/
-recorder-restart scenario는 Django 코드를
+recorder-restart/historical-state scenario는 Django 코드를
 번역하지 않고 GoDj 고유 fixture로 독립적으로
 작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
 정의입니다. Manifest의

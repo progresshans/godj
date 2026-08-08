@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-013
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-014
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1243,3 +1243,79 @@ metrics가 extra non-SELECT를 놓치는 false green을 발견했고, live drive
 `SELECT`만 허용하며 `Exec`, transaction, 추가 query를 거부하도록 보강했습니다. 같은 gate에
 `PRAGMA query_only` mutation을 주입했을 때 회귀가 실패함을 재확인했으며, 최종 독립
 core/SQLite/conformance 감사 모두 P0–P3 finding 없음으로 종료했습니다.
+
+## EVID-20260808-014 — GDJ-0015 Historical ProjectState Reconstruction Compatibility Contracts
+
+- Date/time: 2026-08-08T09:59:38+09:00
+- Work/contract IDs: GDJ-0015, MIG-037..MIG-046, Q-012
+- Checkout/commit: clean `main` machine artifact commit
+  `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`; product baseline은
+  `a9ce9597551840f1be8e1f27006d427842f38081`
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: stable tree의 `make check`, uncached full Go/race/CGO=0/vet, portable/exact
+  Python, eight-set contract/oracle/checksum과 독립 contract/false-green 감사가 0
+- Result summary: explicit empty/latest, first·middle before/after, cross-app dependency,
+  multiple target/shared dependency, latest leaves와 applied-prefix/unrelated-known/unknown-legacy
+  startup state를 MIG-037..046으로 잠갔습니다. Manifest는 10 `oracle_locked`, Django oracle은
+  10 `observed`, static fixture는 10 `not_implemented`입니다. 기존 제품 분류는
+  `73 passing + 4 deviation`이고 reference 총 87개 전체를 제품 통과로 세지 않습니다.
+- Failures/skips: 예상하지 않은 최종 실패 없음. Portable Python은 114개 중 exact-only
+  11 skip, exact Python은 114/114 pass였습니다. Static comparison은 의도한 exit 1과
+  MIG-037..046 ordered mismatch 10개, product binary는 unsupported scenario에서 exit 2와
+  actual file 미생성을 반환했습니다. GitHub-hosted workflow는 push하지 않아 실행하지
+  않았습니다.
+- Artifacts: manifest 9,257 bytes SHA-256
+  `04b7e92a5bbf9ff50f0247be7708dfb18a5534e40bac86a518a6b744fc0ef728`; locked Django oracle
+  89,997 bytes SHA-256
+  `bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`; static fixture
+  1,715 bytes SHA-256
+  `9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+GODJ_EXACT_PROFILE=1 LC_ALL=C TZ=UTC uv run --frozen python -m unittest \
+  conformance.runners.django.tests.test_migration_state_reconstruction_scenarios -v
+git diff --check
+```
+
+두 독립 `PYTHONHASHSEED` process와 checked-in oracle은 모두 89,997 bytes이고 SHA-256이
+`bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`로
+byte-identical했습니다. Eight-set protocol gate는 87개 contract ID/scenario 전역 유일성과
+56개 ordered cross-binding 거부를 검증했습니다.
+
+명시적 미구현 baseline:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-state-reconstruction-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json \
+  -actual conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json
+```
+
+이 명령은 의도한 exit 1과 MIG-037..046 ordered status mismatch 정확히 10개를 반환했습니다.
+같은 manifest의 product `godjcheck`는 unsupported scenario에서 내부 exit 2, stdout 0,
+actual file 미생성으로 fail-closed했습니다. `go run` wrapper는 child exit 2를 shell exit 1로
+표현하므로 binary-level `run()` E2E test에서 exact code 2를 고정합니다.
+
+Payload는 lowercase model key, explicit table/column, declaration-order field kind/PK/null/
+max-length와 supported scalar default presence/type/value를 포함합니다. 각 scenario의 live DB에는
+historical state와 다른 sentinel schema를 두고 before/after 동일, DDL/write/기타 non-SELECT 0을
+같이 비교합니다. Applied startup은 public `MigrationExecutor.migrate(targets=[], plan=[])`를
+호출하고 unknown recorder identity는 observation에 보존하지만 schema state로 만들지 않습니다.
+
+Semantic mutation gate는 state/app/model/table/field/default, request/target/position,
+graph node/dependency, applied known/unknown partition, DB before/after와 모든 zero metric을
+각각 변형해 mismatch를 확인합니다. Producer gate는 동일 arbitrary contract ID에서
+operation/target/dependency/applied/live-DB 입력 전파를 검증하고 10개 public scenario의 실제 ID와
+arbitrary ID 결과가 ID 필드 외 동일함을 요구합니다. 독립 감사의 private-helper 경로,
+lexical-order replay, capture DDL과 contract-ID dispatch/wrong-wrapper 변이는 모두 실패했습니다.
+최종 독립 감사는 P0–P3 finding 없음으로 종료했고 외부 Django checkout은 수정하지 않았습니다.

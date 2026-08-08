@@ -124,12 +124,20 @@ tail을 검증했고 MIG-027..036은 10개 모두 `passing`입니다.
 
 이 read/check/plan 경계는 `ExecutePlan`과 한 API가 아니며 snapshot과 이후 실행 사이의
 lock·revision binding도 제공하지 않습니다. Recorder identity만으로 historical
-`ProjectState`를 재구성할 수도 없습니다. 다음
+`ProjectState`를 재구성할 수도 없습니다. 완료된
 [GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
-MIG-037..046에서 historical state reconstruction의 외부 의미를 먼저 고정하는 contract-only
-작업입니다. Proposed
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 reconstructor/replay 경계는 이
-계약 증거와 후속 GDJ-0016 제품 작업 전까지 구현된 API나 지원 기능으로 간주하지 않습니다.
+MIG-037..046에서 explicit empty와 omitted latest, target before/after, dependency closure와
+durable applied-history projection의 외부 의미를 여덟 번째 exact reference set으로
+고정했습니다. Logical state는 loaded migration definition에서 나오고 deliberately divergent
+live database는 capture 전후 그대로 남아야 합니다. 이 10개는 `oracle_locked`이며 제품
+adapter가 없어 현재 제품 분류는 계속 `73 passing + 4 deviation`입니다.
+
+활성
+[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은 Proposed
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 별도 immutable
+reconstructor와 explicit request mode를 API spike부터 검증합니다. 완료 전에는 recorder
+identity만으로 historical state를 지원하거나 read/reconstruct/plan/execute가 하나의 atomic
+lifecycle이라고 간주하지 않습니다.
 
 ## CLI와 프로젝트 실행
 

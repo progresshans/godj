@@ -48,9 +48,11 @@ symbol은 의미와 버전 추적만 합니다. Migration planning graph/module/
 failure sentinel/assertion과 recorder/restart fixture 구조도 upstream에서 복사·번역하지 않고 최소 GoDj 고유 정의로
 작성했습니다.
 GDJ-0014는 이 locked recorder/restart 시나리오에 GoDj 제품 adapter를 연결하고 manifest
-status만 전환했으므로 기존 독립 작성 분류를 바꾸지 않습니다. 다음 GDJ-0015의
-MIG-037..046 historical-state artifact는 아직 이 문단의 독립 시나리오 목록에 포함하지
-않습니다. 실제 scenario/source가 작성될 때 파일별 provenance와 `derived` 값을 검토합니다.
+status만 전환했으므로 기존 독립 작성 분류를 바꾸지 않습니다. GDJ-0015의 MIG-037..046
+historical-state scenario도 GoDj 고유 app/model/table/value와 assertion으로 독립 작성했고,
+모든 provenance entry는 `derived=false`입니다. Pinned Django source/test symbol과
+`BSD-3-Clause` 표시는 동작 근거와 upstream license를 추적하기 위한 것이며 Django source,
+fixture, comment 또는 assertion 구조를 복사·번역했다는 뜻이 아닙니다.
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.
 

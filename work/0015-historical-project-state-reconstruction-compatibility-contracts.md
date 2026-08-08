@@ -1,6 +1,6 @@
 ---
 id: GDJ-0015
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "a9ce9597551840f1be8e1f27006d427842f38081"
@@ -181,41 +181,54 @@ source of truth로 삼지 않습니다.
 
 ## 완료 조건
 
-- [ ] MIG-037..046 exact disposable probe와 payload review
-- [ ] Contract ID/scenario/title/provenance/phase/comparison dimension 10개 잠금
-- [ ] Empty, first before/after와 linear middle before/after state 검증
-- [ ] Cross-app dependency, multiple/shared target와 latest leaves state 검증
-- [ ] Applied prefix, unrelated known branch와 unknown legacy exclusion state 검증
-- [ ] Logical state가 deliberately divergent live DB/generated-latest에서 파생되지 않음
-- [ ] Capture의 DB before/after unchanged와 DDL/write/non-SELECT 0
-- [ ] Two-process random-hashseed oracle byte identity와 SHA-256 checksum
-- [ ] Static fixture MIG-037..046 ordered `not_implemented` mismatch 정확히 10개
-- [ ] Product adapter 없음이 exit 2/no actual output으로 드러남
-- [ ] Eight set global ID/scenario uniqueness와 56 ordered cross-binding 거부
-- [ ] ProjectState/target/applied/graph/metrics mutation이 comparator mismatch를 냄
-- [ ] Contract ID/result hardcode와 setup state/cache 재사용 감사 통과
-- [ ] Existing `73 passing + 4 deviation` 제품 conformance 회귀 없음
-- [ ] 완료 상태를 `73 passing + 4 deviation + 10 oracle_locked`, reference 87개로
+- [x] MIG-037..046 exact disposable probe와 payload review
+- [x] Contract ID/scenario/title/provenance/phase/comparison dimension 10개 잠금
+- [x] Empty, first before/after와 linear middle before/after state 검증
+- [x] Cross-app dependency, multiple/shared target와 latest leaves state 검증
+- [x] Applied prefix, unrelated known branch와 unknown legacy exclusion state 검증
+- [x] Logical state가 deliberately divergent live DB/generated-latest에서 파생되지 않음
+- [x] Capture의 DB before/after unchanged와 DDL/write/non-SELECT 0
+- [x] Two-process random-hashseed oracle byte identity와 SHA-256 checksum
+- [x] Static fixture MIG-037..046 ordered `not_implemented` mismatch 정확히 10개
+- [x] Product adapter 없음이 exit 2/no actual output으로 드러남
+- [x] Eight set global ID/scenario uniqueness와 56 ordered cross-binding 거부
+- [x] ProjectState/target/applied/graph/metrics mutation이 comparator mismatch를 냄
+- [x] Contract ID/result hardcode와 setup state/cache 재사용 감사 통과
+- [x] Existing `73 passing + 4 deviation` 제품 conformance 회귀 없음
+- [x] 완료 상태를 `73 passing + 4 deviation + 10 oracle_locked`, reference 87개로
   구분하고 87개 전체를 제품 통과로 표현하지 않음
-- [ ] 기존 일곱 artifact payload/checksum과 DEV-0001 의미 불변
-- [ ] Full Go/race/CGO=0/vet, portable/exact Python, checksum과 Markdown/link gate 통과
-- [ ] ADR/work/CURRENT/matrix/evidence가 같은 checkout을 가리킴
+- [x] 기존 일곱 artifact payload/checksum과 DEV-0001 의미 불변
+- [x] Full Go/race/CGO=0/vet, portable/exact Python, checksum과 Markdown/link gate 통과
+- [x] ADR/work/CURRENT/matrix/evidence가 같은 checkout을 가리킴
 
 ## 진행 기록
 
 - [x] GDJ-0014 recorder-backed read/check/plan 제품 경계와 10-contract 0-diff 완료
 - [x] Recorder identity만으로 historical ProjectState를 복원할 수 없는 gap 분리
 - [x] Contract-only 범위와 Proposed ADR-0016 작성
-- [ ] Pinned source/provenance와 one-off exact probe
-- [ ] Eighth machine artifact·false-green gate
-- [ ] Full verification·독립 audit·handoff
+- [x] Pinned source/provenance와 one-off exact probe
+- [x] Eighth machine artifact·false-green gate
+- [x] Full verification·독립 audit·handoff
 
 ## 수정 파일
 
-작업 활성화 시점에는 이 work와 Proposed
-[ADR-0016](../docs/adr/0016-historical-project-state-reconstruction.md), index만 추가했습니다.
-제품 source/adapter는 수정하지 않았습니다. 실제 contract artifact 변경은
-frontmatter `allowed_paths`에 한정하고 완료 시 파일별 역할을 다시 기록합니다.
+Machine artifact commit `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`는 다음을
+변경했습니다.
+
+- `conformance/contracts/migration-state-reconstruction-manifest.json`: MIG-037..046
+  ordered `oracle_locked` 계약과 provenance
+- `conformance/runners/django/migration_state_reconstruction_scenarios.py` 및 전용 test:
+  fresh loaded definition/public startup replay와 divergent live DB observation
+- `conformance/oracles/**/migration-state-reconstruction-oracle.json`, static fixture와
+  `SHA256SUMS`: exact oracle와 명시적 미구현 baseline
+- `conformance/internal/protocol/migration_state_reconstruction_artifacts_test.go` 및 기존
+  artifact test: 8-set identity/cross-binding/hash/semantic mutation gate
+- Django runner registry/safety tests, `godjcheck` fail-closed test와 `Makefile`: reference
+  검증 wiring만 추가하고 제품 adapter target은 기존 7개로 보존
+- 이 work와 [ADR-0016](../docs/adr/0016-historical-project-state-reconstruction.md):
+  explicit empty/latest 경계와 observed field dimensions 보강
+
+`migrations/**`, `db/**`, `conformance/runners/godj/**` 제품 source는 수정하지 않았습니다.
 
 ## 결정된 사항
 
@@ -227,26 +240,36 @@ frontmatter `allowed_paths`에 한정하고 완료 시 파일별 역할을 다�
   동일 set 안의 별도 scenario로 구분합니다.
 - 2026-08-08: New contract는 `oracle_locked`/static `not_implemented`로 남겨 제품
   구현을 거짓으로 표시하지 않습니다.
+- 2026-08-08: MIG-037 explicit empty와 MIG-044 omitted latest는 서로 다른 tagged request
+  의미이며 nil/empty variadic 차이로 public API를 추론하지 않습니다.
+- 2026-08-08: Applied startup은 private helper가 아니라 public
+  `MigrationExecutor.migrate(targets=[], plan=[])`를 관찰합니다.
+- 2026-08-08: Canonical state는 lowercase model key, explicit table/column, declaration-order
+  field kind/PK/null/max-length와 supported scalar default를 보존합니다.
 
-## 미결정/Blocker
+## 남은 제한과 후속 결정
 
-외부 blocker는 없습니다. Contract probe 후 다음을 결정해야 합니다.
+외부 blocker는 없습니다. 다음 항목은
+[GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md)에서 결정합니다.
 
 - Public reconstructor/position type의 이름, zero-value와 exact error taxonomy
 - Planner와 state reconstructor의 immutable graph kernel 공유 방식
 - Full definition/operation clone 계약과 후속 loader ownership
 - Result cache가 필요한지와 cache key/version/ownership
 
-이 항목은 GDJ-0015에서 구현으로 추측하지 않고 Proposed ADR-0016과
-후속 product work로 남깁니다.
+Relations/`real_apps`, replacement/squash, file loader/CLI, data callback과 lifecycle lock은
+GDJ-0016에도 포함하지 않습니다.
 
 ## 테스트 증거
 
 - Baseline:
   [EVID-20260808-013](../docs/status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)
 - Product baseline: `a9ce9597551840f1be8e1f27006d427842f38081`, `73 passing + 4 deviation`
-- Not run: MIG-037..046 Django probe/oracle/static/comparator — active contract work 시작 전
-- Not run: GitHub-hosted CI — baseline branch를 push하지 않음
+- Machine artifact: `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
+- Final evidence:
+  [EVID-20260808-014](../docs/status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)
+- Portable Python 114개 중 exact-only 11 skip, exact profile 114/114 pass
+- Not run: GitHub-hosted CI — branch를 push하지 않음
 
 ## 위험과 rollback
 
@@ -260,16 +283,16 @@ frontmatter `allowed_paths`에 한정하고 완료 시 파일별 역할을 다�
 
 ## 다음 정확한 작업
 
-Pinned Django profile의 `graph.py:make_state`, `loader.py:project_state`,
-`migration.py:mutate_state`, `executor.py:_create_project_state`와 관련 upstream test를
-MIG-037..046 표의 각 row에 매핑합니다. 그 다음 영구 artifact를 만들기 전
-temporary migration module/SQLite probe로 MIG-038/039/045/046을 먼저 실행해
-before/after·applied projection과 divergent DB gate를 검증합니다.
+[GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md)에서 loaded
+definition을 deep-copy하는 immutable reconstructor, explicit tagged empty/latest/before/after/
+applied request, existing planner graph kernel 재사용과 10개 live GoDj adapter를 구현합니다.
+Locked Django oracle/static fixture bytes는 변경하지 않습니다.
 
 ## 결과와 인수인계
 
-Recorder-backed restart planning이 제품화된 지점에서 다음 gap을 public loader/CLI와
-분리한 contract-only work로 활성화했습니다. 다음 담당자는 GoDj reconstructor
-소스를 만들지 말고 exact Django state payload, divergent-live-schema false-green gate와
-static `not_implemented` 상태를 먼저 잠궈야 합니다. 완료 후 reference는 87개지만
-제품 분류는 계속 `73 passing + 4 deviation`입니다.
+MIG-037..046은 exact Django 6.1 oracle 10 `observed`, manifest 10 `oracle_locked`, static
+10 `not_implemented`로 잠겼습니다. Reference는 87개지만 제품 분류는 계속
+`73 passing + 4 deviation`이며 GoDj product binary는 새 scenario를 exit 2/no output으로
+거부합니다. 독립 감사의 public/private path, lexical dependency, DDL insertion과
+ID-dispatch/wrong-wrapper 변이를 모두 회귀 gate가 차단했습니다. 다음 제품 작업은 이
+contract를 구현하되 public loader/CLI와 lock 범위를 넓히지 않습니다.
