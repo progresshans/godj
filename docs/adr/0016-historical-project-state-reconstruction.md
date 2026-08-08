@@ -82,6 +82,11 @@ func (StateReconstructor) At(...StatePosition) (ProjectState, error)
 func (StateReconstructor) FromApplied(AppliedState) (ProjectState, error)
 ```
 
+MIG-037의 explicit empty node set과 MIG-044의 omitted-node latest state는 서로 다른
+의미입니다. 후속 public API는 variadic zero argument나 nil/empty slice 차이로 이를 추론하지
+않고 `Empty`/`Latest` 또는 tagged request mode처럼 명시적으로 구분해야 합니다. 위 `At`
+signature는 소유권 설명용 후보일 뿐 이 구분을 확정한 API가 아닙니다.
+
 제품 data flow 후보는 다음과 같습니다.
 
 ```text

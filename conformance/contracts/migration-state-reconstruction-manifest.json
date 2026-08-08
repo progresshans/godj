@@ -1,0 +1,238 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-037",
+      "title": "An explicit empty node set reconstructs an empty historical ProjectState despite a divergent live schema",
+      "scenario": "django.migration.state_reconstruction.explicit_empty",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.make_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-038",
+      "title": "The state before the graph root excludes that migration's state operations",
+      "scenario": "django.migration.state_reconstruction.first_before",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.make_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph._generate_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-039",
+      "title": "The state after the graph root includes its ordered CreateModel metadata",
+      "scenario": "django.migration.state_reconstruction.first_after",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.make_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.mutate_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-040",
+      "title": "A middle after-state replays its dependency before a lexically earlier child and excludes descendants",
+      "scenario": "django.migration.state_reconstruction.linear_middle_after",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph._generate_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.project_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_loader.py::LoaderTests.test_load",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-041",
+      "title": "A middle before-state includes the dependency prefix but excludes the target field change",
+      "scenario": "django.migration.state_reconstruction.linear_middle_before",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.make_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph._generate_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-042",
+      "title": "A cross-app target state includes its prerequisite app's model state",
+      "scenario": "django.migration.state_reconstruction.cross_app_dependency",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.project_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.make_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-043",
+      "title": "Multiple targets reconstruct the union while replaying their shared dependency only once",
+      "scenario": "django.migration.state_reconstruction.multiple_targets_shared_dependency",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph._generate_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_loader.py::LoaderTests.test_plan_handles_repeated_migrations",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-044",
+      "title": "Omitting targets reconstructs the union of every latest leaf closure",
+      "scenario": "django.migration.state_reconstruction.latest_leaves",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.make_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/graph.py::MigrationGraph.leaf_nodes",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-045",
+      "title": "Startup state replays only a durable known applied prefix and excludes unapplied descendants",
+      "scenario": "django.migration.state_reconstruction.applied_prefix_startup",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._create_project_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migration_plan",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-046",
+      "title": "Startup state includes an unrelated known applied branch and ignores unknown legacy schema state",
+      "scenario": "django.migration.state_reconstruction.unrelated_known_unknown_startup",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor.migrate",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "source",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/executor.py::MigrationExecutor._create_project_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_executor.py::ExecutorTests.test_unrelated_applied_migrations_mutate_state",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	godjrunner "github.com/progresshans/godj/conformance/runners/godj"
 )
 
 func TestRunMatchesLockedOracleAndWritesActualSuite(t *testing.T) {
@@ -496,6 +497,69 @@ func TestRunRejectsUnknownMigrationRestartScenarioWithoutWritingActualOutput(t *
 	}
 	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
 		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func TestRunFailsClosedForMigrationStateReconstructionWithoutWritingActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json")
+	manifest, err := protocol.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Contracts) != 10 {
+		t.Fatalf("migration-state-reconstruction contract count = %d, want 10", len(manifest.Contracts))
+	}
+	unsupportedScenario := manifest.Contracts[0].Scenario
+	actualPath := filepath.Join(t.TempDir(), "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-state-reconstruction-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unsupportedScenario)) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func TestEveryMigrationStateReconstructionScenarioRemainsUnsupportedByProduct(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, contract := range manifest.Contracts {
+		contract := contract
+		t.Run(contract.ID, func(t *testing.T) {
+			candidate := manifest
+			candidate.Contracts = make([]protocol.Contract, 0, len(manifest.Contracts))
+			candidate.Contracts = append(candidate.Contracts, contract)
+			candidate.Contracts = append(candidate.Contracts, manifest.Contracts[:index]...)
+			candidate.Contracts = append(candidate.Contracts, manifest.Contracts[index+1:]...)
+			if _, err := godjrunner.Generate(context.Background(), profile, candidate); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("unsupported scenario %q", contract.Scenario)) {
+				t.Fatalf("scenario %q did not fail closed: %v", contract.Scenario, err)
+			}
+		})
 	}
 }
 

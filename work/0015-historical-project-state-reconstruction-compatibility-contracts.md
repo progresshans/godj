@@ -106,8 +106,9 @@ projection입니다. 두 mode를 하나의 scenario로 합쳐 before/after와 ap
 
 - Request mode: explicit nodes/latest/applied, target app/name과 before/after
 - Applied mode의 sorted `(app, name)` identities
-- Canonical `ProjectState`: format version, sorted apps/models, declaration-order fields의
-  name/column/kind/nullability/default presence/value·타입
+- Canonical `ProjectState`: format version, sorted apps/models, model `db_table`,
+  declaration-order fields의 name/column/kind/primary-key/nullability/max-length와 default
+  presence/value·타입
 - Definition graph fact: sorted nodes/dependencies와 requested position; private object ID/DFS path는
   제외
 - Deliberately empty 또는 divergent live managed schema의 before/after inventory
@@ -138,8 +139,8 @@ MIG-037..046 payload에서 제외합니다. Relation rendering도 Q-013/M3 전�
   하지만 dummy app/model을 만들거나 known replay를 막으면 실패해야 합니다.
 - **Contract-ID hardcode**: scenario input의 operation/target/applied fixture를 변경하면 result
   ProjectState와 DB observation에 파생 변화가 나야 합니다.
-- **Comparator omission**: model/field inclusion, field kind/null/default 중 하나를 mutate하면
-  exact mismatch가 나야 합니다.
+- **Comparator omission**: model/field inclusion, table/column, field kind/primary-key/null/
+  max-length/default 중 하나를 mutate하면 exact mismatch가 나야 합니다.
 - **Mutation disguise**: unchanged result만 보지 말고 DB before/after와 non-SELECT/DDL/write
   count를 같이 비교합니다.
 - **Hash/map order**: two random-hashseed process의 canonical bytes가 다르면 oracle를
