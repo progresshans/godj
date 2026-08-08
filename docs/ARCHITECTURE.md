@@ -130,14 +130,18 @@ MIG-037..046에서 explicit empty와 omitted latest, target before/after, depend
 durable applied-history projection의 외부 의미를 여덟 번째 exact reference set으로
 고정했습니다. Logical state는 loaded migration definition에서 나오고 deliberately divergent
 live database는 capture 전후 그대로 남아야 합니다. 이 10개는 `oracle_locked`이며 제품
-adapter가 없어 현재 제품 분류는 계속 `73 passing + 4 deviation`입니다.
+adapter가 없어 GDJ-0015 완료 시 제품 분류는 `73 passing + 4 deviation`이었습니다.
 
-활성
-[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은 Proposed
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 별도 immutable
-reconstructor와 explicit request mode를 API spike부터 검증합니다. 완료 전에는 recorder
-identity만으로 historical state를 지원하거나 read/reconstruct/plan/execute가 하나의 atomic
-lifecycle이라고 간주하지 않습니다.
+완료된
+[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)과 Accepted
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 full loaded definition을
+deep-copy하는 별도 immutable `StateReconstructor`와 explicit empty/latest/before/after/applied
+request를 구현했습니다. Existing Planner graph/order kernel과 operation state transition만
+사용하므로 core에는 DB handle, backend/SQLite/SQL import나 I/O가 없습니다. Applied live
+adapter는 real SQLite recorder를 read-only로 읽어 `LoadAppliedState`를 거치며 MIG-037..046은
+10 `passing`, 현재 제품 분류는 `83 passing + 4 deviation`입니다. 이 경계는 recorder
+identity만으로 definition을 발명하지 않으며 read/reconstruct/plan/execute가 하나의 atomic
+lifecycle이라는 뜻도 아닙니다.
 
 ## CLI와 프로젝트 실행
 

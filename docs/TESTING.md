@@ -294,7 +294,7 @@ Django oracle과 static fixture는 각각 33,888 bytes/
 `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`로 유지됩니다. 두
 독립 Go actual은 각각 33,795 bytes, SHA-256
 `f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`이고 protocol
-의미상 10개 0-diff입니다. `make godj-conformance`는 이제 일곱 제품 set을 실행해
+의미상 10개 0-diff입니다. GDJ-0014 완료 당시 `make godj-conformance`는 일곱 제품 set을 실행해
 `73 passing + 4 deviation`을 구분해 보고하며, static ordered 10 mismatch와 42
 cross-binding도 계속 보존합니다. 상세 증거는
 [EVID-20260808-013](status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
@@ -320,16 +320,25 @@ Manifest는 9,257 bytes, SHA-256
 `bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`, static fixture는
 1,715 bytes, SHA-256
 `9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`입니다. 새 10개는
-`oracle_locked`이고 `make godj-conformance`는 계속 일곱 product set만 실행하므로 현재
-분류는 `73 passing + 4 deviation + 10 oracle_locked`, reference 총계는 87개입니다. 상세
+`oracle_locked`이고 GDJ-0015 완료 당시 `make godj-conformance`는 일곱 product set만
+실행했으므로 분류는 `73 passing + 4 deviation + 10 oracle_locked`, reference 총계는
+87개였습니다. 상세
 증거는
 [EVID-20260808-014](status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
 기록합니다.
 
-활성 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
-Proposed [ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 immutable
-reconstructor와 explicit empty/latest request API를 spike·검증합니다. 제품 adapter가
-연결되기 전에는 위 reference 결과를 historical-state 제품 지원으로 세지 않습니다.
+완료된 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
+Accepted [ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 immutable
+reconstructor와 explicit empty/latest/before/after/applied request API, read-only
+recorder-backed live adapter를 구현했습니다. Passing manifest는 9,197 bytes, SHA-256
+`85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`입니다. Locked
+oracle/static/SHA256SUMS는 불변이고, 두 actual은 각각 89,867 bytes, SHA-256
+`a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
+byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. `make godj-conformance`는
+8 product set을 실행해 `83 passing + 4 deviation`을 보고하며 87 unique contract와 56
+cross-binding, static ordered 10 mismatch를 유지합니다. 상세 증거는
+[EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
+기록합니다.
 
 ## 기능별 기본 테스트 요구
 

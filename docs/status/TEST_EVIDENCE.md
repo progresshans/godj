@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-014
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-015
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1319,3 +1319,88 @@ operation/target/dependency/applied/live-DB 입력 전파를 검증하고 10개 
 arbitrary ID 결과가 ID 필드 외 동일함을 요구합니다. 독립 감사의 private-helper 경로,
 lexical-order replay, capture DDL과 contract-ID dispatch/wrong-wrapper 변이는 모두 실패했습니다.
 최종 독립 감사는 P0–P3 finding 없음으로 종료했고 외부 Django checkout은 수정하지 않았습니다.
+
+## EVID-20260808-015 — GDJ-0016 Historical ProjectState Reconstruction Product Slice
+
+- Date/time: 2026-08-08T10:39:00+09:00
+- Work/contract IDs: GDJ-0016, MIG-037..MIG-046, Q-012
+- Checkout/commit: clean `main` product commit
+  `3b0e68d6717a9612debc9cb93d03ab0f98005860`; machine artifact baseline은
+  `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`; 이 evidence와 완료 handoff는 product
+  commit 다음 문서 변경에 포함
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  modernc.org/sqlite v1.56.0 / SQLite 3.53.3; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: stable product tree의 `make check`, uncached full Go/race/CGO=0/vet,
+  focused migration/conformance/compile/source/mutation gate와 two-process product comparison이
+  0. Static fixture comparison은 의도한 exit 1과 ordered mismatch 10개
+- Result summary: immutable tagged-request `StateReconstructor`, loaded definition/operation/
+  nested IR deep-copy, existing Planner graph/order kernel 기반 empty/latest/before/after/applied
+  replay와 eighth live adapter를 구현했습니다. MIG-037..046은 10 `passing`이고 8 product
+  set의 현재 분류는 `83 passing + 4 deviation`, 전체 contract는 87개입니다.
+- Failures/skips: 예상하지 않은 최종 실패 없음. `make check`의 portable Python은 114개 중
+  exact-only 11 skip, exact Python은 114/114 pass였습니다. GitHub-hosted workflow는
+  push하지 않아 실행하지 않았고 외부 Django checkout은 수정하지 않았습니다.
+- Artifacts: passing manifest 9,197 bytes SHA-256
+  `85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`; locked Django oracle
+  89,997 bytes SHA-256
+  `bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9`; locked static fixture
+  1,715 bytes SHA-256
+  `9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1`; locked
+  `SHA256SUMS` file SHA-256
+  `2da1f862ada632a9db2406672f0ac9209c066ae6b822afe1b47f321fdaea40c8`; 두 Go actual은 각각
+  89,867 bytes SHA-256
+  `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+git diff --check
+```
+
+두 독립 product process와 의미 비교:
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-state-reconstruction-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json \
+  -actual-output /tmp/godj-state-evid015.kECZaM/first.json
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-state-reconstruction-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json \
+  -actual-output /tmp/godj-state-evid015.kECZaM/second.json
+cmp /tmp/godj-state-evid015.kECZaM/first.json \
+  /tmp/godj-state-evid015.kECZaM/second.json
+```
+
+두 actual은 byte-identical했고 locked Django oracle과 protocol 의미상 MIG-037..046 10개가
+0-diff였습니다. Oracle과 JSON byte identity를 주장하지 않습니다. 8-set protocol gate는 87개
+contract ID/scenario 전역 유일성과 56개 ordered cross-binding 거부를 유지합니다. Static
+fixture comparison은 ordered status mismatch 10개와 exit 1을 반환하고, 등록되지 않은
+historical-state scenario는 binary-level test에서 exit 2/no actual로 fail-closed합니다.
+
+Reconstructor는 DB handle을 받지 않고 backend/SQLite/SQL import나 I/O가 없습니다. Applied
+MIG-045/046 adapter는 real SQLite recorder를 mode=ro로 열고 injected reader의 raw identity를
+`LoadAppliedState`로 검증합니다. Driver gate는 exact one SELECT만 허용하며 `Exec`, transaction,
+추가 query와 `PRAGMA`를 거부합니다. Capture/request AST gate는 direct SQL뿐 아니라 exact call
+allowlist 밖 helper invocation도 거부하여 non-SELECT metric 0을 source 경계로 고정합니다.
+Before/after snapshot은 모든 `godj_state_*` table을 inventory해 unexpected managed table도
+놓치지 않습니다.
+
+Core mutation/race gate는 definition/operation/nested IR, request/applied input과 반환 state의
+alias를 거부하고 zero request/reconstructor, multiple target first-seen closure union, before의
+명시 target set 전체 제외, same-app latest leaves, applied full-forward known replay와 unknown
+identity 제외를 검증합니다. Adapter gate는 contract ID/oracle/static payload dispatch 없이
+arbitrary ID와 target/dependency/applied/live-DB mutation을 실제 observation에 전파합니다.
+Normalizer는 Boolean kind `boolean`, bool default type `bool`, absent default tagged null과
+non-char `max_length=null`을 exact하게 보존합니다. Locked oracle/static/SHA256SUMS는 machine
+baseline과 byte-identical했고 최종 독립 core/product/conformance 감사의 P0–P3 finding은
+없었습니다.

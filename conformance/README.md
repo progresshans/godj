@@ -17,8 +17,9 @@ GDJ-0013은 durable recorder read와 fresh restart planning 전용 일곱 번째
 추가했습니다. GDJ-0014는 이 set을 read-only recorder와 fresh file-backed backend를 쓰는
 GoDj live adapter에 연결해 10 `passing`으로 전환했습니다.
 GDJ-0015는 loaded migration definition의 historical `ProjectState` reconstruction 전용
-여덟 번째 reference set을 추가했습니다. 이 set은 10 `oracle_locked`이며 제품 adapter는
-아직 없습니다.
+여덟 번째 reference set을 추가했습니다. GDJ-0016은 immutable public reconstructor와
+read-only recorder-backed GoDj live adapter를 연결해 이 set을 10 `passing`으로
+전환했습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -36,7 +37,7 @@ GDJ-0015는 loaded migration definition의 historical `ProjectState` reconstruct
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
 | `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution과 recorder restart 제품 package를 실행하는 일곱 GoDj observation adapter; historical-state set은 아직 미포함 |
+| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution, recorder restart와 historical-state reconstruction 제품 package를 실행하는 여덟 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -288,9 +289,9 @@ go run ./conformance/cmd/observationcmp \
   -actual conformance/fixtures/godj-migration-restart-not-implemented.json
 ```
 
-Historical-state static baseline도 MIG-037..046 ordered 10 status mismatch를 냅니다. 제품
-adapter가 없으므로 같은 manifest를 `godjcheck`에 넘기면 exit 2로 거부하고 actual output을
-쓰지 않습니다.
+Historical-state static baseline도 MIG-037..046 ordered 10 status mismatch를 냅니다. 실제
+`godjcheck` adapter는 public reconstructor와 live database observation으로 10개를 실행하며,
+manifest에 등록되지 않은 scenario만 exit 2/no output으로 거부합니다.
 
 ```bash
 go run ./conformance/cmd/observationcmp \
@@ -420,8 +421,8 @@ Locked oracle과 static fixture는 각각 33,888 bytes/
 `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`로 유지됩니다. 두
 독립 live Go actual은 각각 33,795 bytes, SHA-256
 `f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`로
-byte-identical하며 locked oracle과 semantic 0-diff입니다. `make godj-conformance`의 일곱
-제품 set 분류는 `73 passing + 4 deviation`이고, static ordered 10 mismatch와 42
+byte-identical하며 locked oracle과 semantic 0-diff입니다. GDJ-0014 완료 당시
+`make godj-conformance`의 일곱 제품 set 분류는 `73 passing + 4 deviation`이고, static ordered 10 mismatch와 42
 cross-binding은 계속 false-green gate입니다. 상세 증거는
 [EVID-20260808-013](../docs/status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
 기록합니다.
@@ -440,15 +441,24 @@ bytes, SHA-256
 state는 loaded definition에서 replay하고 deliberately divergent live database는 전후
 불변입니다. State의 app/model/field와 table/column/kind/primary-key/null/max-length/default,
 request target/position, applied/graph와 DB/metrics mutation을 각각 검증합니다. Static
-fixture는 ordered 10 mismatch이고 제품 `godjcheck`는 exit 2/no output입니다. 기존 일곱
-product set은 계속 `73 passing + 4 deviation`이므로 현재 분류는
-`73 passing + 4 deviation + 10 oracle_locked`, reference 총계는 87개입니다. 상세 증거는
+fixture는 ordered 10 mismatch이고 제품 `godjcheck`는 당시 exit 2/no output이었습니다. 기존
+일곱 product set은 `73 passing + 4 deviation`이었으므로 GDJ-0015 완료 시 분류는
+`73 passing + 4 deviation + 10 oracle_locked`, reference 총계는 87개였습니다. 상세 증거는
 [EVID-20260808-014](../docs/status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
 기록합니다.
 
-활성 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
-immutable reconstructor와 explicit empty/latest request API를 spike·검증합니다. 제품
-adapter가 추가되기 전에는 이 reference set을 product passing으로 세지 않습니다.
+완료된 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
+Accepted [ADR-0016](../docs/adr/0016-historical-project-state-reconstruction.md)의 immutable
+reconstructor와 explicit empty/latest/before/after/applied request, real SQLite recorder를
+읽는 여덟 번째 adapter를 구현했습니다. Passing manifest는 9,197 bytes, SHA-256
+`85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`입니다. Locked
+oracle/static bytes는 유지됐고, 두 Go actual은 각각 89,867 bytes, SHA-256
+`a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
+byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. 현재 8 product set의 분류는
+`83 passing + 4 deviation`; 87 unique contract와 56 cross-binding gate를 유지합니다. 상세
+증거는
+[EVID-20260808-015](../docs/status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
+기록합니다.
 
 ## Provenance
 

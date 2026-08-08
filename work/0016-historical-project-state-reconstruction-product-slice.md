@@ -1,6 +1,6 @@
 ---
 id: GDJ-0016
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "594bd9c68b609ea8c6dfb0a3a5dcf9466a336972"
@@ -52,19 +52,20 @@ GoDj public API 결과로 검증합니다.
   `main@594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
 - Product baseline:
   `main@a9ce9597551840f1be8e1f27006d427842f38081`
+- Completed product commit:
+  `main@3b0e68d6717a9612debc9cb93d03ab0f98005860`
 - [GDJ-0015](0015-historical-project-state-reconstruction-compatibility-contracts.md)는
   MIG-037..046을 10 `oracle_locked`, Django 10 `observed`, static 10
   `not_implemented`로 고정했습니다.
-- Reference는 8 set/87개이고 제품 분류는 `73 passing + 4 deviation + 10
-  oracle_locked`입니다. 새 10개를 구현 전 passing으로 세지 않습니다.
+- Reference는 8 set/87개이고 구현 전 제품 분류는 `73 passing + 4 deviation + 10
+  oracle_locked`였습니다. 완료된 제품 분류는 `83 passing + 4 deviation`입니다.
 - [ADR-0016](../docs/adr/0016-historical-project-state-reconstruction.md)은 loaded
-  definition replay와 identity-only Planner 분리를 Proposed로 기록합니다. API spike와
-  mutation audit 뒤 Accepted 여부를 같은 작업에서 결정합니다.
+  definition replay와 identity-only Planner 분리를 Accepted로 기록합니다. Public API,
+  deep-copy ownership과 mutation audit를 이 작업에서 검증했습니다.
 
-## 공개 API 가설
+## 공개 API
 
-첫 implementation 전에 external-package compile spike로 다음 ownership을 검증합니다.
-이름은 ADR Accepted 전까지 확정 API가 아닙니다.
+External-package compile gate를 포함해 다음 public shape와 ownership을 검증했습니다.
 
 ```go
 type StateRequest struct { /* unexported tagged value */ }
@@ -82,7 +83,7 @@ func (StateReconstructor) Reconstruct(StateRequest) (ProjectState, error)
 
 - Zero `StateRequest`는 invalid입니다. Explicit empty와 omitted/latest를 zero argument나
   nil/empty slice로 추론하지 않습니다.
-- Zero `StateReconstructor`는 empty graph constructor와 같은 immutable value 후보입니다.
+- Zero `StateReconstructor`는 empty graph constructor와 같은 immutable value입니다.
 - Before/after request는 최소 한 target을 생성자에서 요구하고 caller order를 복사합니다.
 - Applied request는 opaque `AppliedState` snapshot을 복사하고 unknown key는 보존하되 replay에서
   제외합니다.
@@ -105,7 +106,7 @@ func (StateReconstructor) Reconstruct(StateRequest) (ProjectState, error)
 
 Graph/history diagnostics는 기존 `PlanningError` taxonomy를 재사용합니다. Invalid request와
 unknown target은 `CategoryPlan`의 structured code, state transition 실패는 기존
-`CategoryState`/`CodeInvalidState` 의미를 재사용하는 방향을 spike에서 검증합니다. Exact
+`CategoryState`/`CodeInvalidState` 의미를 재사용합니다. Exact
 계약에 없는 새 reconstruction error category는 근거 없이 추가하지 않습니다.
 
 ## False-green 위험과 필수 gate
@@ -150,36 +151,53 @@ unknown target은 `CategoryPlan`의 structured code, state transition 실패는 
 
 ## 완료 조건
 
-- [ ] Tagged request와 reconstructor public API spike/ADR 결정
-- [ ] Explicit empty/latest 및 zero request/reconstructor 의미 검증
-- [ ] Existing planner graph validation/order kernel 재사용
-- [ ] Full definition/operation/nested IR deep-copy와 alias mutation gate
-- [ ] MIG-037..044 empty/before/after/middle/cross/shared/latest exact 결과
-- [ ] MIG-045..046 applied prefix/unrelated known/unknown exact 결과
-- [ ] Invalid request/target, graph/history/state failure structured error와 zero-I/O
-- [ ] Repeated/concurrent race와 deterministic result clone
-- [ ] GoDj live adapter 10개, two-process actual byte identity와 oracle 10/0-diff
-- [ ] Migration-state manifest status 외 locked oracle/static payload 불변
-- [ ] Static ordered 10 mismatch와 product unknown scenario gate 전환
-- [ ] Existing `73 passing + 4 deviation` 회귀 없이 `83 passing + 4 deviation`
-- [ ] Eight product adapter, 87 global unique IDs/scenarios와 56 cross-binding 유지
-- [ ] Full Go/race/CGO=0/vet, portable/exact Python, compile/source/mutation gate
-- [ ] 독립 P0–P3 product/conformance audit
-- [ ] Work/CURRENT/matrix/evidence/ADR가 같은 checkout을 가리킴
+- [x] Tagged request와 reconstructor public API spike/ADR 결정
+- [x] Explicit empty/latest 및 zero request/reconstructor 의미 검증
+- [x] Existing planner graph validation/order kernel 재사용
+- [x] Full definition/operation/nested IR deep-copy와 alias mutation gate
+- [x] MIG-037..044 empty/before/after/middle/cross/shared/latest exact 결과
+- [x] MIG-045..046 applied prefix/unrelated known/unknown exact 결과
+- [x] Invalid request/target, graph/history/state failure structured error와 zero-I/O
+- [x] Repeated/concurrent race와 deterministic result clone
+- [x] GoDj live adapter 10개, two-process actual byte identity와 oracle 10/0-diff
+- [x] Migration-state manifest status 외 locked oracle/static payload 불변
+- [x] Static ordered 10 mismatch와 product unknown scenario gate 전환
+- [x] Existing `73 passing + 4 deviation` 회귀 없이 `83 passing + 4 deviation`
+- [x] Eight product adapter, 87 global unique IDs/scenarios와 56 cross-binding 유지
+- [x] Full Go/race/CGO=0/vet, portable/exact Python, compile/source/mutation gate
+- [x] 독립 P0–P3 product/conformance audit
+- [x] Work/CURRENT/matrix/evidence/ADR가 같은 checkout을 가리킴
 
 ## 진행 기록
 
 - [x] GDJ-0015 exact Django oracle/static/fail-closed boundary 완료
 - [x] Explicit empty와 omitted latest의 request 의미 분리
-- [ ] Public API/deep-copy/graph-kernel spike와 ADR 승인
-- [ ] Reconstructor core/unit/property/race 구현
-- [ ] GoDj adapter/manifest status 전환과 full audit
-- [ ] 최종 문서·evidence·handoff
+- [x] Public API/deep-copy/graph-kernel spike와 ADR 승인
+- [x] Reconstructor core/unit/property/race 구현
+- [x] GoDj adapter/manifest status 전환과 full audit
+- [x] 최종 문서·evidence·handoff
 
 ## 수정 파일
 
-활성화 시점에는 이 work와 status/ADR handoff만 추가합니다. Product 구현은 frontmatter
-`allowed_paths`에 한정하고 완료 시 파일별 역할을 기록합니다.
+- `migrations/reconstructor.go`, `migrations/planner_graph.go`: immutable reconstructor,
+  tagged request, deep-copy replay와 same-app latest leaf kernel
+- `migrations/reconstructor_test.go`, `migrations/planner_test.go`,
+  `migrations/external_test.go`: state semantics, errors, alias/race/determinism과 public API gate
+- `internal/compiletest/compile_test.go`,
+  `internal/compiletest/testdata/migration_external_consumer.go.txt`: external consumer compile gate
+- `conformance/runners/godj/migration_state_reconstruction_scenarios.go`,
+  `conformance/runners/godj/runner.go`, `conformance/runners/godj/runner_test.go`: public
+  reconstructor + read-only SQLite recorder 기반 live adapter와 source/call allowlist gate
+- `conformance/cmd/godjcheck/main_test.go`: eighth product set, unknown scenario와 two-output gate
+- `conformance/internal/protocol/migration_state_reconstruction_artifacts_test.go`,
+  `conformance/internal/protocol/write_migration_artifacts_test.go`: passing artifact와
+  eight-set uniqueness/cross-binding gate
+- `conformance/contracts/migration-state-reconstruction-manifest.json`: MIG-037..046 status만
+  `passing`으로 전환
+- `conformance/runners/django/tests/test_migration_state_reconstruction_scenarios.py`: locked
+  oracle은 그대로 두고 현재 manifest의 expected product status assertion만 갱신
+- `Makefile`: eighth live product conformance command
+- `work/0016-historical-project-state-reconstruction-product-slice.md`: allowed path와 완료 handoff
 
 ## 결정된 사항
 
@@ -189,29 +207,48 @@ unknown target은 `CategoryPlan`의 structured code, state transition 실패는 
 - 2026-08-08: Planner public shape는 identity-only로 유지하고 immutable graph kernel만 내부
   공유합니다.
 - 2026-08-08: Product slice에 loader/CLI/lifecycle lock을 포함하지 않습니다.
+- 2026-08-08: Zero `StateRequest`는 invalid이고 zero `StateReconstructor`는 empty graph와
+  같은 안전한 immutable value로 확정했습니다.
+- 2026-08-08: Before는 각 target closure의 caller-order first-seen union에서 명시 target set
+  전체를 제외하고, latest는 same-app leaf closure union, applied는 full-forward order의 known
+  applied node만 replay합니다.
+- 2026-08-08: Applied scenarios는 contract payload dispatch가 아니라 real SQLite recorder의
+  read-only snapshot을 `LoadAppliedState`에 전달합니다. Historical replay core에는 DB handle과
+  backend/SQLite/SQL import가 없습니다.
+- 2026-08-08: Boolean field kind와 bool default type, absent default, non-char `max_length`를
+  exact tagged form으로 정규화합니다.
 
 ## 미결정/Blocker
 
-외부 blocker는 없습니다. 첫 spike에서 다음을 결정합니다.
+외부 blocker는 없습니다. 이 제품 단면에서 다음은 구현하지 않았습니다.
 
-- Exact public constructor/method names와 zero reconstructor 정책
-- Multiple before target의 set semantics와 request validation precedence
-- Built-in operation pointer/value clone 지원과 typed-nil 진단
-- State replay error가 기존 `*Error`를 재사용할지 별도 error type이 필요한지
-- Graph kernel helper를 Planner와 reconstructor가 공유하는 최소 refactor
+- Migration definition file/source loader, public CLI/listing과 data callback/plugin ABI
+- Read → reconstruct → plan → execute를 묶는 lifecycle API와 snapshot revision/session binding
+- Multi-process lock, crash repair, live schema/recorder reconciliation
+- Replacement/squash/merge/fake/optimizer, advanced relation rendering과 추가 backend
 
 ## 테스트 증거
 
 - Contract baseline:
   [EVID-20260808-014](../docs/status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)
+- Product completion:
+  [EVID-20260808-015](../docs/status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)
 - Machine baseline: `594bd9c68b609ea8c6dfb0a3a5dcf9466a336972`
 - Product baseline: `a9ce9597551840f1be8e1f27006d427842f38081`
-- Not run: GDJ-0016 product/API/adapter tests — active product work 시작 전
+- Product commit: `3b0e68d6717a9612debc9cb93d03ab0f98005860`
+- Passing manifest: 9,197 bytes, SHA-256
+  `85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`
+- Two Go actuals: 각각 89,867 bytes, SHA-256
+  `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`, byte-identical,
+  Django oracle과 protocol 의미상 10개 0-diff
+- `make check`, uncached full/race/CGO=0/vet, focused/source/mutation/compile gate와 독립
+  P0–P3 audit 통과
 - Not run: GitHub-hosted CI — branch를 push하지 않음
 
 ## 다음 정확한 작업
 
-Public tagged request와 immutable reconstructor를 repository 밖 spike로 먼저 검증합니다. 특히
-zero request, first-required before/after, operation deep-copy, existing planner graph reuse와
-external package compile shape를 고정한 뒤 ADR-0016을 Accepted로 전환하고 product test를
-먼저 작성합니다.
+현재 active/ready work는 없습니다. 다음 구현을 시작하기 전에 migration definition
+source/loader와 read → reconstruct → plan → execute lifecycle/lock 중 어느 경계를 먼저
+contract로 고정할지 설계하고, 목표·비목표·allowed path·ADR 필요성을 가진 새 work item을
+만듭니다. GDJ-0016의 public reconstructor가 lifecycle atomicity나 source discovery를
+보장한다고 확장 해석하지 않습니다.

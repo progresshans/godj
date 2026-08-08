@@ -211,7 +211,7 @@ GDJ-0014는 별도 `AppliedMigrationReader`, core `LoadAppliedState`와
 `Planner.CheckHistory`, SQLite read-only recorder reader와 일곱 번째 live adapter를
 구현했습니다. Absent read는 table을 만들지 않고, raw identity validation과 unknown legacy
 preservation을 거쳐 fresh file-backed backend에서 tail을 계획합니다. MIG-027..036은 10개
-모두 `passing`이며 현재 일곱 제품 set의 분류는 `73 passing + 4 deviation`입니다. 네
+모두 `passing`이며 GDJ-0014 완료 당시 일곱 제품 set의 분류는 `73 passing + 4 deviation`입니다. 네
 DEV-0001 계약이 남아 있으므로 77개 모두가 Django exact 일치한다는 뜻은 아닙니다.
 
 완료된 [GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
@@ -226,15 +226,18 @@ deliberately divergent live database의 before/after 불변, DDL/write/기타 no
 
 GDJ-0015 완료 시 새 manifest는 10 `oracle_locked`, Django oracle은 10 `observed`, static
 fixture는 10 `not_implemented`입니다. Product `godjcheck`는 exit 2/no actual output으로
-fail-closed하고 기존 일곱 product set의 분류는 계속 `73 passing + 4 deviation`입니다.
+fail-closed했고 당시 기존 일곱 product set의 분류는 `73 passing + 4 deviation`이었습니다.
 여덟 manifest의 ID/scenario는 전역으로 유일하고 모든 56개 ordered cross-pair가
 거부됩니다. 따라서 reference 총계 87개를 제품 통과로 표현하지 않습니다.
 
-활성 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은
-Proposed [ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 immutable
-reconstructor, explicit empty/latest request shape와 operation ownership을 API spike부터
-검증합니다. 완료 전에는 recorder identity로 historical state를 재구성할 수 있다고
-주장하지 않습니다.
+완료된 [GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)과
+Accepted [ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 loaded definition을
+deep-copy하는 immutable `StateReconstructor`, explicit empty/latest/before/after/applied
+request와 여덟 번째 live adapter를 구현했습니다. Applied scenario는 real SQLite recorder를
+read-only로 읽어 `LoadAppliedState`를 거치며, core는 DB/backend I/O가 없습니다.
+MIG-037..046은 10 `passing`이고 현재 제품 분류는 `83 passing + 4 deviation`입니다.
+Recorder identity만으로 definition을 만들거나 read/reconstruct/plan/execute atomicity를
+보장하지 않습니다.
 
 ## 계약 상태
 
@@ -402,6 +405,17 @@ mutation gate는
 [EVID-20260808-014](status/TEST_EVIDENCE.md#evid-20260808-014--gdj-0015-historical-projectstate-reconstruction-compatibility-contracts)에
 기록합니다. 이 시점의 분류는 `73 passing + 4 deviation + 10 oracle_locked`이며 87개
 전체가 제품 지원이라는 뜻이 아닙니다.
+
+GDJ-0016은 eighth manifest status 10개만 `passing`으로 전환해 9,197 bytes, SHA-256
+`85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`로 만들었습니다.
+Locked Django oracle/static/SHA256SUMS는 변경하지 않았습니다. 두 독립 Go actual은 각각
+89,867 bytes, SHA-256
+`a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
+byte-identical하고 oracle과 protocol 의미상 10개 0-diff입니다. 현재 8 product set은
+`83 passing + 4 deviation`, 87 unique contract와 56 ordered cross-binding을 검증합니다.
+Static fixture는 ordered 10 mismatch를 유지합니다. 상세 증거는
+[EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
+기록합니다.
 
 ## 데이터 호환성
 

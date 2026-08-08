@@ -39,16 +39,16 @@ proposed → ready → active → completed
 | [GDJ-0013](0013-recorder-backed-restart-planning-compatibility-contracts.md) | completed | Recorder-backed restart planning 호환 계약 |
 | [GDJ-0014](0014-recorder-backed-restart-planning-product-slice.md) | completed | Recorder-backed restart planning 제품 단면 |
 | [GDJ-0015](0015-historical-project-state-reconstruction-compatibility-contracts.md) | completed | Historical ProjectState reconstruction 호환 계약 |
-| [GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md) | active | Historical ProjectState reconstruction 제품 단면 |
+| [GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md) | completed | Historical ProjectState reconstruction 제품 단면 |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-GDJ-0016이며 ready 항목은 없습니다. GDJ-0015는 loaded migration definition의 state replay
-의미를 MIG-037..046의 여덟 번째 exact set으로 잠갔습니다. 현재 상태는 제품
-`73 passing + 4 deviation`, 신규 reference 10 `oracle_locked`이고 총 reference는 87개입니다.
-GDJ-0016은 explicit tagged empty/latest/before/after/applied request와 immutable pure
-reconstructor를 구현합니다. Public migration file/CLI, data callback, lifecycle lock과 crash
-recovery는 이 작업에 포함하지 않습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은
+없습니다. GDJ-0015가 loaded migration definition의 state replay 의미를 MIG-037..046의
+여덟 번째 exact set으로 잠갔고, GDJ-0016이 explicit tagged request와 immutable pure
+reconstructor, 여덟 번째 live adapter를 구현해 10 `passing`으로 전환했습니다. 현재 8 product
+set은 87 contract를 `83 passing + 4 deviation`으로 분류하고 56 cross-binding을 거부합니다.
+다음 구현 전에 public migration source/loader와 lifecycle lock/recovery 중 어느 경계를 먼저
+계약화할지 설계해야 합니다. 아직 새 work item을 만들지 않았습니다.
 
 ## 운영 규칙
 

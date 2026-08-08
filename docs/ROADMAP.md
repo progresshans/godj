@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Historical ProjectState reference 완료, reconstructor 제품/API spike
+- 현재 단계: Historical ProjectState reconstructor 제품 완료, 다음 migration lifecycle 경계 설계 대기
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -121,8 +121,9 @@ MIG-027..036의 일곱 번째 exact set으로 고정했습니다. Reference 총�
 완료된 [GDJ-0014](../work/0014-recorder-backed-restart-planning-product-slice.md)는 Accepted
 [ADR-0015](adr/0015-recorder-backed-applied-state.md)의 별도 raw read port,
 `LoadAppliedState`, explicit `Planner.CheckHistory`와 SQLite read-only reader를 구현했습니다.
-Fresh file-backed restart를 포함한 MIG-027..036이 10 `passing`으로 전환되어 현재 제품
-분류는 `73 passing + 4 deviation`입니다. Read/check/plan은 `ExecutePlan`과 한 API가 아니며
+Fresh file-backed restart를 포함한 MIG-027..036이 10 `passing`으로 전환되어 GDJ-0014
+완료 당시 제품 분류는 `73 passing + 4 deviation`이었습니다. Read/check/plan은
+`ExecutePlan`과 한 API가 아니며
 snapshot과 실행 사이 lock을 보장하지 않습니다.
 
 완료된
@@ -135,14 +136,15 @@ MIG-037..046의 여덟 번째 exact set으로 고정했습니다. 새 10개는 `
 통과로 표현하지 않습니다. 여덟 set의 contract/scenario는 전역으로 유일하고 56개 ordered
 cross-binding이 거부됩니다.
 
-활성
-[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)은 Proposed
-[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 loaded-definition replay를
-별도 immutable reconstructor로 구현할 수 있는지 API spike부터 검증합니다. Explicit empty와
-omitted latest를 nil/zero variadic 의미로 추론하지 않는 request shape, graph kernel 공유,
-definition/operation clone과 structured error가 제품 결정 대상입니다. 완료 전에는 historical
-state reconstruction 지원을 주장하지 않으며 public migration file/CLI, data callback,
-lock/crash recovery는 계속 후속 범위입니다.
+완료된
+[GDJ-0016](../work/0016-historical-project-state-reconstruction-product-slice.md)과 Accepted
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 loaded-definition replay를
+별도 immutable reconstructor로 구현했습니다. Explicit empty/latest/before/after/applied tagged
+request, Planner graph kernel 공유, definition/operation deep-copy와 structured error를 검증했고
+MIG-037..046은 10 `passing`, 현재 제품 분류는 `83 passing + 4 deviation`입니다. Public
+migration file/source loader, CLI, data callback과 lifecycle lock/crash recovery는 계속 후속
+범위입니다. 다음 active/ready work는 아직 정하지 않았으며 새 구현 전에 이 후속 범위의
+우선순위를 설계합니다.
 
 ## M3 — Relations + PostgreSQL
 

@@ -115,11 +115,11 @@ DDL transaction capability는 아직 검증하지 않았으므로 이 결정이 
 제품 구현 commit `3bcd25ce557cfddc2d73652f9154b6db0fd0b065`에서 네 계약을
 전용 expected와 live SQLite actual로 검증했습니다. GDJ-0012 완료 당시 제품 분류는
 `63 passing + 4 deviation`이었으며 67 exact passing으로 표현하지 않았습니다. 이후
-recorder-restart 제품 10개가 추가된 현재 분류는 `73 passing + 4 deviation`이고, DEV-0001
-네 계약은 그대로 유지됩니다. 검증 명령과 artifact hash는
+recorder-restart 제품 10개와 historical-state reconstruction 제품 10개가 추가된 현재 분류는
+`83 passing + 4 deviation`이고, DEV-0001 네 계약은 그대로 유지됩니다. 검증 명령과 artifact hash는
 [EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
 기록하며 현재 aggregate는
-[EVID-20260808-013](status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
+[EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
 기록합니다.
 
 ### 복귀 또는 supersede 조건

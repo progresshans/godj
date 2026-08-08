@@ -1,6 +1,6 @@
 # ADR-0016: Historical ProjectState는 loaded migration definition을 dependency order로 replay해 재구성한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0015, GDJ-0016, MIG-037..MIG-046, Q-012
 - 대체하는 ADR: 없음
@@ -65,12 +65,11 @@ Graph validation/order 규칙은 Planner와 공유하되, deep-copied typed oper
 별도 component가 소유합니다. Target projection과 recorder-applied projection을 같은
 replay kernel로 만들 수 있고 Planner와 backend 경계를 바꾸지 않습니다.
 
-## 제안 결정
+## 결정
 
 GDJ-0015의 MIG-037..046 exact contract는 loaded definition replay 방향을 지지했습니다.
 `migrations` package에 full definition을 deep-copy하는 immutable historical-state
-reconstructor를 두는 안을 GDJ-0016 API spike에서 검증합니다. 아래 이름은 현재 제품
-가설이며 ADR이 Accepted되기 전까지 public API로 확정하지 않습니다.
+reconstructor를 두고 다음 public API를 사용합니다.
 
 ```go
 type StateRequest struct { /* unexported tagged value */ }
@@ -88,11 +87,11 @@ func (StateReconstructor) Reconstruct(StateRequest) (ProjectState, error)
 
 MIG-037의 explicit empty node set과 MIG-044의 omitted-node latest state는 서로 다른
 의미입니다. Public API는 variadic zero argument나 nil/empty slice 차이로 이를 추론하지 않고
-tagged request로 명시적으로 구분합니다. Zero `StateRequest`는 invalid, before/after는 first
-target을 필수로 받는 방향을 spike에서 검증합니다. Zero `StateReconstructor`는 empty graph
-constructor와 같은 immutable value 후보입니다.
+tagged request로 명시적으로 구분합니다. Zero `StateRequest`는 invalid이고 before/after는
+first target을 필수로 받습니다. Zero `StateReconstructor`는 empty graph constructor와 같은
+안전한 immutable value입니다.
 
-제품 data flow 후보는 다음과 같습니다.
+제품 data flow는 다음과 같습니다.
 
 ```text
 loaded []Migration
@@ -126,7 +125,7 @@ loaded []Migration
   사용하지 않습니다. Generics는 현재 모델의 typed API에 남고, codegen은
   historical replay의 의미 소스가 아닙니다.
 
-## 오류 경계 후보
+## 오류 경계
 
 - Invalid/duplicate node, dependency missing/cycle은 Planner와 같은 graph taxonomy여야 합니다.
 - Applied known dependency 누락은 기존
@@ -134,7 +133,7 @@ loaded []Migration
 - Nil/typed-nil operation, app mismatch와 state transition 실패는 backend I/O 전
   structured state/reconstruction error로 거부합니다.
 - Invalid/zero request는 기존 plan taxonomy의 `invalid_target`, unknown named target은
-  `target_not_found`를 재사용하는 방향을 spike에서 검증합니다. Exact contract에 없는 새
+  `target_not_found`를 재사용합니다. Exact contract에 없는 새
   reconstruction category는 근거 없이 추가하지 않습니다.
 - Error message, Python exception class, Django private DFS/replay object identity는 호환
   계약이 아닙니다.
@@ -149,8 +148,17 @@ loaded []Migration
   ADR/benchmark으로 입증해야 합니다.
 - Existing `Operation` interface가 package-sealed이므로 현재 built-in은 deep-copy할 수
   있지만 data migration callback/plugin ABI는 아직 표현하지 못합니다.
-- Graph kernel을 공유하는 refactor가 필요할 수 있으나 Planner의 public behavior/order는
-  바꾸지 않아야 합니다.
+- Same-app leaf accessor를 포함한 graph kernel을 Planner와 공유하고 Planner의 public
+  behavior/order는 바꾸지 않았습니다.
+- GDJ-0016은 `StateReconstructor`와 tagged request를 구현하고 MIG-037..046을 10
+  `passing`으로 전환했습니다. 여덟 product set의 현재 분류는 `83 passing + 4 deviation`입니다.
+- Applied adapter는 real SQLite recorder를 read-only로 열어 `LoadAppliedState`를 거치며,
+  capture/request 경로의 exact call allowlist와 exact-one-SELECT driver gate가 임의 helper I/O,
+  `Exec`/transaction/`PRAGMA`를 거부합니다. Pure reconstructor는 DB handle을 받지 않고
+  backend/SQLite/SQL package를 import하지 않습니다.
+- Full definition, built-in operation과 nested IR은 constructor에서 deep-copy되고 반환 state도
+  fresh clone입니다. Caller input/result mutation과 repeated/concurrent call이 이후 결과를
+  바꾸지 않습니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -180,7 +188,12 @@ loaded []Migration
 - Static fixture ordered 10 mismatch, unknown scenario exit 2/no output과 payload semantic mutation gate
 - Full/race/CGO=0/vet, portable/exact Python과 Markdown/link validation
 
-GDJ-0015 exact reference와 false-green audit은 완료됐습니다. Accepted 여부는 GDJ-0016이
-tagged request, deep-copy ownership, Planner graph 재사용, zero-value/error 경계와 external
-package compile spike를 통과한 뒤 결정합니다. Proposed 문서의 API 예시는 구현 또는 지원
-상태를 뜻하지 않습니다.
+GDJ-0016은 tagged request, deep-copy ownership, Planner graph 재사용, zero-value/error 경계와
+external package compile gate를 통과했습니다. 두 독립 Go actual은 각각 89,867 bytes,
+SHA-256 `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
+byte-identical하고 locked Django oracle과 protocol 의미상 10개 0-diff입니다. Locked
+oracle/static/SHA256SUMS는 변경하지 않았고 static fixture는 ordered 10 mismatch를
+유지했습니다. `make check`, full/race/CGO=0/vet와 독립 product/conformance 감사에서
+P0–P3 finding은 없었습니다. 상세 실행 증거는
+[EVID-20260808-015](../status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
+기록합니다.
