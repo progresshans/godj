@@ -1,7 +1,7 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: Recorder-backed restart planning reference 잠금 완료, 최소 제품 read/check/plan 단면
+- 현재 단계: Recorder-backed restart planning 제품 완료, historical ProjectState contract-first
 - 마지막 검토: 2026-08-08
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -108,20 +108,33 @@ last durable state를 구현했습니다. Django backward의 `schema_then_record
 recorder를 같은 transaction으로 유지하는 결정은
 [ADR-0014](adr/0014-migration-plan-execution-atomic-reverse.md)와
 [DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)의
-Accepted/Verified 상태입니다. 현재 제품 분류는 `63 passing + 4 deviation`입니다.
+Accepted/Verified 상태입니다. GDJ-0012 완료 당시 제품 분류는
+`63 passing + 4 deviation`이었습니다.
 
 완료된 [GDJ-0013](../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)은
 recorder table 없음/empty/record/unrecord, fresh executor의 applied-prefix tail plan,
 unknown legacy row와 explicit inconsistent-history preflight, 중간 실패 뒤 재계획을
 MIG-027..036의 일곱 번째 exact set으로 고정했습니다. Reference 총계는 77개지만 새 10개는
-`oracle_locked`이고 제품 상태는 계속 `63 passing + 4 deviation`입니다.
+`oracle_locked`이고 GDJ-0013 완료 당시 제품 상태는 계속
+`63 passing + 4 deviation`이었습니다.
 
-활성 [GDJ-0014](../work/0014-recorder-backed-restart-planning-product-slice.md)는
+완료된 [GDJ-0014](../work/0014-recorder-backed-restart-planning-product-slice.md)는 Accepted
 [ADR-0015](adr/0015-recorder-backed-applied-state.md)의 별도 raw read port,
-`LoadAppliedState`와 explicit `Planner.CheckHistory`만 구현합니다. Read/check/plan을
-`ExecutePlan`과 한 API로 묶지 않으며 recorder history에서 historical `ProjectState`를
-재구성하지 않습니다. Public migration file/CLI, data callback, lock/crash recovery는 계속
-후속 범위입니다.
+`LoadAppliedState`, explicit `Planner.CheckHistory`와 SQLite read-only reader를 구현했습니다.
+Fresh file-backed restart를 포함한 MIG-027..036이 10 `passing`으로 전환되어 현재 제품
+분류는 `73 passing + 4 deviation`입니다. Read/check/plan은 `ExecutePlan`과 한 API가 아니며
+snapshot과 실행 사이 lock을 보장하지 않습니다.
+
+활성
+[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
+loaded migration definition으로 empty, first/middle before·after, cross-app dependency,
+multiple target/shared dependency, omitted-target latest leaves와 applied-prefix/
+unrelated-known startup `ProjectState`, unknown legacy identity의 schema-state 제외 의미를
+MIG-037..046으로 먼저 잠그는 contract-only 작업입니다. Proposed
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 reconstructor/replay 경계는 이
+계약을 바탕으로 후속 GDJ-0016 제품 slice에서 검증합니다. 현재는 historical state
+reconstruction을 지원한다고 표현하지 않습니다. Public migration file/CLI, data callback,
+lock/crash recovery는 계속 후속 범위입니다.
 
 ## M3 — Relations + PostgreSQL
 

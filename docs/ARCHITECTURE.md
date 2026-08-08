@@ -110,16 +110,26 @@ structural 경계에서 산출합니다. [ADR-0014](adr/0014-migration-plan-exec
 `ExecutePlan`이 전체 plan/state를 backend I/O 전에 검증하고 기존 `Apply`/`Unapply`를
 migration별 transaction으로 실행하도록 결정했습니다. 첫 실패는 뒤 step을 시작하지 않고
 마지막 durable `ProjectState`를 반환하며, reverse schema와 recorder는 DEV-0001에 따라 같은
-transaction에 둡니다. Public migration file 형식, loader/CLI, recorder read/restart,
-data callback, locking과 crash recovery는 여전히 Q-012의 후속 결정입니다.
+transaction에 둡니다. Public migration file 형식, loader/CLI, data callback, locking과 crash
+recovery는 여전히 Q-012의 후속 결정입니다.
 
 GDJ-0013은 recorder table absent/empty, durable record/unrecord, fresh applied-prefix plan과
-history preflight를 MIG-027..036 reference로 잠갔습니다. Proposed
+history preflight를 MIG-027..036 reference로 잠갔습니다. GDJ-0014와 Accepted
 [ADR-0015](adr/0015-recorder-backed-applied-state.md)는 `AtomicBackend`/`Transaction`과
-별도인 raw applied-migration read port, core applied-state validation과 explicit
-`Planner.CheckHistory`를 둡니다. Read/check/plan을 `ExecutePlan`과 한 API로 묶지 않으며,
-recorder key에서 historical `ProjectState`를 재구성하거나 lock 없는 snapshot의 최신성을
-보장하지 않습니다.
+별도인 backend raw applied-migration read port, core `LoadAppliedState` validation과 explicit
+`Planner.CheckHistory`를 구현했습니다. SQLite reader는 recorder table을 직접 SELECT하고
+정확한 missing-table만 empty로 정규화하므로 read가 table을 만들지 않습니다. Fresh
+file-backed backend를 다시 열어 record/unrecord, database isolation, applied tail과 restart
+tail을 검증했고 MIG-027..036은 10개 모두 `passing`입니다.
+
+이 read/check/plan 경계는 `ExecutePlan`과 한 API가 아니며 snapshot과 이후 실행 사이의
+lock·revision binding도 제공하지 않습니다. Recorder identity만으로 historical
+`ProjectState`를 재구성할 수도 없습니다. 다음
+[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
+MIG-037..046에서 historical state reconstruction의 외부 의미를 먼저 고정하는 contract-only
+작업입니다. Proposed
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)의 reconstructor/replay 경계는 이
+계약 증거와 후속 GDJ-0016 제품 작업 전까지 구현된 API나 지원 기능으로 간주하지 않습니다.
 
 ## CLI와 프로젝트 실행
 

@@ -1,6 +1,6 @@
 ---
 id: GDJ-0014
-status: active
+status: completed
 updated: 2026-08-08
 baseline_branch: "main"
 baseline_commit: "b6af5056bb67fc1d2d32b2163cb7091d700b1e7e"
@@ -55,8 +55,9 @@ Recorder table이 없는 새 database는 read만으로 table을 만들지 않습
 - [ADR-0013](../docs/adr/0013-immutable-migration-planner.md)은 caller-supplied
   `AppliedState`와 zero-I/O Planner를, [ADR-0014](../docs/adr/0014-migration-plan-execution-atomic-reverse.md)는
   preplanned `ExecutePlan`을 소유합니다.
-- [ADR-0015](../docs/adr/0015-recorder-backed-applied-state.md)는 Proposed이며 구현/검증 전
-  제품 지원을 뜻하지 않습니다.
+- Baseline 당시 [ADR-0015](../docs/adr/0015-recorder-backed-applied-state.md)는 Proposed였으며,
+  구현/검증 전 제품 지원을 뜻하지 않았습니다. 완료 후 구현 결과를
+  반영해 Accepted했습니다.
 
 ## Django Reference / Contract
 
@@ -124,56 +125,103 @@ Accepted 또는 수정합니다.
 
 ## 완료 조건
 
-- [ ] Recorder table absent read가 table을 만들지 않고 empty state 반환
-- [ ] Existing empty, record/unrecord와 fresh file backend semantics 검증
-- [ ] 서로 다른 두 database/reader state 격리
-- [ ] Raw invalid/duplicate identity 거부와 unknown legacy identity 보존
-- [ ] Explicit `CheckHistory`가 planning 전에 known inconsistency를 거부
-- [ ] Applied prefix/fully-applied/failure-restart plan이 locked result와 일치
-- [ ] Context/cause/rows-close 오류와 typed-nil reader fail-closed
-- [ ] Concurrent read race-safe, concurrent writer/TOCTOU는 비보장으로 명시
-- [ ] Existing `AtomicBackend`/`Transaction` fake가 수정 없이 compile
-- [ ] `migrations/backend`이 top-level `migrations`를 import하지 않음
-- [ ] MIG-027..036 GoDj actual이 Django oracle과 10개 semantic 0-diff
-- [ ] Product actual 두 process가 byte-identical하고 unknown scenario가 exit 2/no output
-- [ ] Static fixture ordered 10 mismatch와 seven-set 42 cross-binding 유지
-- [ ] Existing `63 passing + 4 deviation` 회귀 없음; 완료 후 `73 passing + 4 deviation`
-- [ ] Locked oracle/static fixture bytes와 기존 artifact checksum 유지
-- [ ] Full Go/race/CGO=0/vet, portable/exact Python, `make check` 통과
-- [ ] ADR/work/CURRENT/matrix/evidence가 같은 checkout을 가리킴
+- [x] Recorder table absent read가 table을 만들지 않고 empty state 반환
+- [x] Existing empty, record/unrecord와 fresh file backend semantics 검증
+- [x] 서로 다른 두 database/reader state 격리
+- [x] Raw invalid/duplicate identity 거부와 unknown legacy identity 보존
+- [x] Explicit `CheckHistory`가 planning 전에 known inconsistency를 거부
+- [x] Applied prefix/fully-applied/failure-restart plan이 locked result와 일치
+- [x] Context/cause/rows-close 오류와 typed-nil reader fail-closed
+- [x] Concurrent read race-safe, concurrent writer/TOCTOU는 비보장으로 명시
+- [x] Existing `AtomicBackend`/`Transaction` fake가 수정 없이 compile
+- [x] `migrations/backend`이 top-level `migrations`를 import하지 않음
+- [x] MIG-027..036 GoDj actual이 Django oracle과 10개 semantic 0-diff
+- [x] Product actual 두 process가 byte-identical하고 unknown scenario가 exit 2/no output
+- [x] Static fixture ordered 10 mismatch와 seven-set 42 cross-binding 유지
+- [x] Existing `63 passing + 4 deviation` 회귀 없음; 완료 후 `73 passing + 4 deviation`
+- [x] Locked oracle/static fixture bytes와 기존 artifact checksum 유지
+- [x] Full Go/race/CGO=0/vet, portable/exact Python, `make check` 통과
+- [x] ADR/work/CURRENT/matrix/evidence가 같은 checkout을 가리킴
 
 ## 진행 기록
 
 - [x] GDJ-0013 exact reference와 false-green baseline 완료
 - [x] Package ownership/read-check-plan boundary read-only design
-- [ ] Backend/core public API test-first implementation
-- [ ] SQLite reader와 live product adapter
-- [ ] Full verification과 handoff
+- [x] Backend/core public API test-first implementation
+- [x] SQLite reader와 live product adapter
+- [x] Full verification과 handoff
 
 ## 수정 파일
 
-아직 제품 source는 수정하지 않았습니다. 예상 경로는 frontmatter `allowed_paths`에 한정하며,
-실제 변경 파일과 역할은 완료 시 기록합니다.
+- `migrations/backend/history.go`: backend-neutral `AppliedMigration` transport와 별도
+  `AppliedMigrationReader` port
+- `migrations/history.go`, `migrations/history_test.go`: cause-preserving `RecorderError`,
+  `LoadAppliedState` copy/validation/context/concurrency 경계
+- `migrations/planner.go`, `migrations/planner_test.go`: explicit `CheckHistory`와 기존
+  `Plan` history validation 회귀
+- `migrations/external_test.go`: 외부 consumer compile, 기존 transaction fake source
+  compatibility와 public error classification
+- `db/sqlite/migration_history.go`, `db/sqlite/migration_history_test.go`,
+  `db/sqlite/backend.go`: direct ordered SELECT, exact missing-table 분류, rows lifecycle,
+  fresh file/isolation/concurrent read/close-race 검증
+- `conformance/runners/godj/migration_restart_scenarios.go`, `runner.go` 및 test:
+  mode=ro fresh backend으로 MIG-027..036 live observation
+- `conformance/contracts/migration-restart-manifest.json`: 열 contract만 `passing`으로
+  전환; locked oracle/static payload는 불변
+- `conformance/internal/protocol/**`, `conformance/cmd/godjcheck/main_test.go`, `Makefile`:
+  seven-set completeness, 42 cross-binding, deterministic actual과
+  fail-closed gate 회귀
 
 ## 결정된 사항
 
 - 2026-08-08: Recorder read port는 transaction write interface와 분리합니다.
 - 2026-08-08: Backend-neutral raw DTO는 `migrations/backend`, semantic validation은
-  top-level `migrations`가 소유하는 방향을 Proposed ADR-0015에 기록했습니다.
+  top-level `migrations`가 소유하는 방향을 당시 Proposed였던 ADR-0015에
+  기록했고, 구현 검증 후 Accepted했습니다.
 - 2026-08-08: Read/check/plan을 ExecutePlan과 합치지 않고 TOCTOU/ProjectState reconstruction을
   후속 범위로 남깁니다.
+- 2026-08-08: 공개 read 오류는 `RecorderError{CategoryRecorder, CodeReadFailed}`로
+  확정하고 `Unwrap`으로 cancellation/driver cause를 보존합니다. Raw identity
+  의미 오류는 기존 `PlanningError`를 유지합니다.
+- 2026-08-08: SQLite reader는 qualified ordered SELECT 한 번만 사용하고 modernc
+  driver code와 exact table name이 모두 맞는 missing-table만 empty로 정규화합니다.
+- 2026-08-08: 성공한 reader 반환 후 늦은 cancellation은 snapshot 성공을
+  뒤집지 않으며, snapshot이 subsequent execution과 atomic하다고 보장하지
+  않습니다.
 
 ## 미결정/Blocker
 
-외부 blocker는 없습니다. Error type의 최종 public name과 SQLite missing-table 분류 seam은
-test-first 구현에서 확정합니다. Multi-process lock, lifecycle/CLI와 ProjectState reconstruction은
-이 작업을 확장하지 않고 별도 work/ADR로 남깁니다.
+외부 blocker는 없습니다. Read snapshot에는 revision/lock이 없으므로 concurrent
+writer와 subsequent plan/execution 사이 TOCTOU는 아직 비보장입니다. Recorder identity로
+historical `ProjectState`를 자동 재구성하지 않고, file loader/public CLI/lock/crash
+recovery도 미구현입니다.
 
 ## 테스트 증거
 
 - Baseline:
   [EVID-20260808-012](../docs/status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)
-- Not run: GDJ-0014 product/API/live adapter — active work 시작 전
+- Result:
+  [EVID-20260808-013](../docs/status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)
+- Product commit: `a9ce9597551840f1be8e1f27006d427842f38081`
+- `make check`, uncached full Go regular/race/`CGO_ENABLED=0`/vet, focused
+  core/SQLite/runner regular·race·CGO=0·vet이 통과했습니다.
+- Portable Python은 94 pass/9 exact-only skip, exact Python은 94/94 pass입니다.
+- 두 GoDj actual은 각각 33,795 bytes, SHA-256
+  `f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`로
+  byte-identical이고 locked Django oracle와 10-contract semantic 0-diff입니다.
+- Static fixture ordered 10 mismatch, unknown scenario exit 2/no output, seven-set 42
+  cross-binding이 유지됐습니다.
+- Manifest는 10,165 bytes, SHA-256
+  `79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290`입니다.
+  Locked oracle 33,888 bytes/
+  `90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`, static
+  fixture 1,715 bytes/
+  `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`는
+  변경되지 않았습니다.
+- P2 PRAGMA/non-SELECT accounting false-green을 수정한 뒤 core/SQLite/conformance/final 독립
+  감사에서 P0–P3 finding은 없었습니다.
+- Not run: GitHub-hosted CI — push하지 않았습니다. 외부 Django checkout은
+  수정하지 않았습니다.
 
 ## 위험과 rollback
 
@@ -186,12 +234,15 @@ test-first 구현에서 확정합니다. Multi-process lock, lifecycle/CLI와 Pr
 
 ## 다음 정확한 작업
 
-`migrations/backend/history.go`의 transport/read port와 compile test를 먼저 추가합니다. 그 다음
-fake reader로 `LoadAppliedState`의 nil/context/cause/raw-key copy를 고정하고 SQLite source를
-수정하기 전에 `Planner.CheckHistory` timing test를 통과시킵니다.
+[다음 활성 작업 GDJ-0015](0015-historical-project-state-reconstruction-compatibility-contracts.md)에서
+recorder key와 current generated model/live schema를 재구성 소스로 오인하지 않도록,
+loaded migration definition의 dependency-ordered state replay 의미를 MIG-037..046 exact
+contract로 먼저 잠깁니다.
 
 ## 결과와 인수인계
 
-GDJ-0013의 exact reference를 입력으로 package-cycle과 lifecycle 과장을 피한 최소 제품 경계를
-활성화했습니다. 다음 담당자는 public migrate/loader/lock을 먼저 만들지 말고 read-only port,
-core validation과 live ten-contract adapter만 구현해야 합니다.
+Backend-neutral durable history read, core validation/explicit history preflight와 fresh SQLite
+adapter를 제품 commit `a9ce9597551840f1be8e1f27006d427842f38081`에 구현했습니다.
+MIG-027..036은 모두 `passing`이고 최종 제품 분류는 `73 passing + 4
+deviation`입니다. 아직 보장하지 않는 historical state/file/lock 범위는
+GDJ-0015/ADR-0016에서 contract-first로 분리했습니다.

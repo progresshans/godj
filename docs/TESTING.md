@@ -80,6 +80,7 @@ conformance/
   contracts/query-cache-manifest.json
   contracts/migration-planning-manifest.json
   contracts/migration-execution-manifest.json
+  contracts/migration-restart-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -93,6 +94,7 @@ conformance/
   fixtures/godj-query-cache-not-implemented.json
   fixtures/godj-migration-planning-not-implemented.json
   fixtures/godj-migration-execution-not-implemented.json
+  fixtures/godj-migration-restart-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
 ```
@@ -254,8 +256,8 @@ GDJ-0011 완료 당시 `make godj-conformance`는 기존 다섯 adapter 57개만
 Django phase는 유지하고 effective product phase는 code-owned selector policy와
 fail-closed harness 안에서만 적용합니다. Missing/extra/unregistered change, 잘못된
 status/provenance 또는 fixture 누락은 actual을 쓰기 전에 exit 2로 실패해야 합니다.
-현재 `make godj-conformance`는 여섯 제품 set의 67개를 실행하지만 결과는
-`63 passing + 4 deviation`으로 구분해 보고합니다. 상세 제품 증거는
+GDJ-0012 완료 당시 `make godj-conformance`는 여섯 제품 set의 67개를 실행했고 결과를
+`63 passing + 4 deviation`으로 구분해 보고했습니다. 상세 제품 증거는
 [EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
 기록합니다.
 
@@ -270,11 +272,41 @@ partition, plan order/direction/empty, unknown partition, history error와 pre-p
 durable prefix/tail, DDL/write/기타 non-SELECT 0과 before/after state를 각각 변형합니다.
 Static fixture는 ordered 10 mismatch이고 product `godjcheck`는 exit 2/no actual output입니다.
 
-새 set은 10 `oracle_locked`이며 `make godj-conformance`는 계속 제품 adapter가 있는 여섯
-set만 실행해 `63 passing + 4 deviation`을 보고합니다. Reference 총 77개를 제품 통과로
-세지 않습니다. 상세 증거는
+GDJ-0013 완료 당시 새 set은 10 `oracle_locked`이며 `make godj-conformance`는 계속 제품
+adapter가 있는 여섯 set만 실행해 `63 passing + 4 deviation`을 보고했습니다. 당시
+reference 총 77개를 제품 통과로 세지 않습니다. 상세 증거는
 [EVID-20260808-012](status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)에
 기록합니다.
+
+GDJ-0014는 일곱 번째 live adapter를 별도 `AppliedMigrationReader`, core
+`LoadAppliedState`/`Planner.CheckHistory`와 SQLite read-only recorder reader에
+연결했습니다. File-backed database를 닫고 새 backend로 다시 열어 fresh boundary를
+검증하며, absent table read의 no-create, exact missing-table normalization, raw invalid/
+duplicate identity, unknown legacy preservation, pre-plan history timing, deterministic tail과
+zero mutation을 unit/integration/race/source gate와 함께 확인합니다.
+
+Manifest status는 10 `passing`으로 바뀌어 10,165 bytes, SHA-256
+`79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290`입니다. Locked
+Django oracle과 static fixture는 각각 33,888 bytes/
+`90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`, 1,715 bytes/
+`31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`로 유지됩니다. 두
+독립 Go actual은 각각 33,795 bytes, SHA-256
+`f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`이고 protocol
+의미상 10개 0-diff입니다. `make godj-conformance`는 이제 일곱 제품 set을 실행해
+`73 passing + 4 deviation`을 구분해 보고하며, static ordered 10 mismatch와 42
+cross-binding도 계속 보존합니다. 상세 증거는
+[EVID-20260808-013](status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
+기록합니다.
+
+다음
+[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
+MIG-037..046에서 empty, first/middle before·after, cross-app dependency, multiple target/shared
+dependency, omitted-target latest leaves, applied-prefix startup과 unrelated-known branch
+inclusion을 다룹니다. Unknown legacy identity는 applied observation에 남기되 schema
+state로 만들지 않는 의미를 contract-only로 먼저 고정합니다. Scenario와 payload가
+oracle로 잠기기 전에는 Proposed
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)이나 후속 GDJ-0016 제품을
+통과한 것으로 세지 않습니다.
 
 ## 기능별 기본 테스트 요구
 
@@ -288,7 +320,7 @@ set만 실행해 `63 passing + 4 deviation`을 보고합니다. Reference 총 77
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
 | QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
-| Migration | state diff, graph construction, applied pruning, forward/backward, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock |
+| Migration | state diff, graph construction, applied pruning, forward/backward, recorder absent/fresh read, raw history validation, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock; historical reconstruction은 별도 contract와 제품 replay/round-trip/determinism gate 뒤에만 지원으로 분류 |
 | Concurrency | `go test -race`, cancellation, goroutine/connection leak |
 | Backend | capability matrix, conformance, explicit unsupported errors |
 | Security boundary | regression test, adversarial input, no silent fallback |

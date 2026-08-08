@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-012
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-013
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1171,3 +1171,75 @@ object를 재사용하지 않습니다.
 wheel SHA-256 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`를 사용했습니다.
 외부 checkout은 수정하지 않았고 최종 독립 contract 감사는 P0–P3 finding 없음으로
 종료했습니다.
+
+## EVID-20260808-013 — GDJ-0014 Recorder-backed Restart Planning Product Slice
+
+- Date/time: 2026-08-08T09:18:58+09:00
+- Work/contract IDs: GDJ-0014, MIG-027..MIG-036, Q-012
+- Checkout/commit: clean `main` product/machine commit
+  `a9ce9597551840f1be8e1f27006d427842f38081`; 이 evidence와 GDJ-0015 handoff는
+  바로 다음 문서 commit에 포함
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  modernc.org/sqlite v1.56.0 / SQLite 3.53.3; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: stable tree의 `make check`, uncached full Go/race/CGO=0/vet,
+  two-process product actual과 semantic comparison이 0. Static fixture comparison은
+  의도한 exit 1과 ordered mismatch 10개
+- Result summary: backend-neutral applied-history reader, validated `LoadAppliedState`,
+  explicit `Planner.CheckHistory`, read-only SQLite recorder snapshot과 MIG-027..036 live
+  adapter를 구현했습니다. Restart manifest 10개는 `passing`이고 전체 제품 분류는
+  `73 passing + 4 deviation`입니다.
+- Failures/skips: 예상하지 않은 최종 실패 없음. Portable Python은 94 pass와 exact-only
+  9 skip, exact Python은 94/94 pass였습니다. GitHub-hosted workflow는 push하지 않아
+  실행하지 않았고 외부 Django checkout은 수정하지 않았습니다.
+- Artifacts: passing manifest 10,165 bytes SHA-256
+  `79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290`; locked Django oracle
+  33,888 bytes SHA-256
+  `90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`; static fixture
+  1,715 bytes SHA-256
+  `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`; 두 Go actual은
+  각각 33,795 bytes SHA-256
+  `f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`
+
+실행한 최종 gate:
+
+```bash
+make check
+go test -count=1 ./...
+go test -race -count=1 ./...
+CGO_ENABLED=0 go test -count=1 ./...
+go vet ./...
+git diff --check
+```
+
+두 독립 product process와 의미 비교:
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-restart-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json \
+  -actual-output /tmp/godj-restart-actual.l7UpPw/first.json
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-restart-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json \
+  -actual-output /tmp/godj-restart-actual.l7UpPw/second.json
+cmp /tmp/godj-restart-actual.l7UpPw/first.json \
+  /tmp/godj-restart-actual.l7UpPw/second.json
+```
+
+두 actual은 byte-identical이고 Django oracle과 protocol 의미상 MIG-027..036 10개가
+0-diff였습니다. JSON bytes가 oracle과 같다고 주장하지 않습니다. 현재 passing manifest에
+static fixture를 비교한 command는 의도한 exit 1과 ordered status mismatch 10개를
+반환했습니다. Seven-set protocol gate는 전역 contract/scenario uniqueness와 42개 ordered
+cross-binding 거부를 유지합니다.
+
+제품 경계 감사는 raw recorder identity copy/validation, nil·typed-nil/context/error cause,
+known-history preflight, missing-table classification, fresh file record/unrecord, alias isolation,
+concurrent read/close와 adapter input propagation을 확인했습니다. 초기 audit에서 literal zero
+metrics가 extra non-SELECT를 놓치는 false green을 발견했고, live driver gate가 정확히 한
+`SELECT`만 허용하며 `Exec`, transaction, 추가 query를 거부하도록 보강했습니다. 같은 gate에
+`PRAGMA query_only` mutation을 주입했을 때 회귀가 실패함을 재확인했으며, 최종 독립
+core/SQLite/conformance 감사 모두 P0–P3 finding 없음으로 종료했습니다.

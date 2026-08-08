@@ -183,9 +183,9 @@ contract 67개를 제품 통과로 표현하지 않습니다.
 [DEV-0001](DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리)은
 Django `schema_then_record` 대신 GoDj same-transaction reverse를 유지하는 결정입니다.
 GDJ-0012는 `ExecutePlan`과 live SQLite adapter를 구현해 MIG-017/019/021/023/025/026을
-`passing`, MIG-018/020/022/024를 승인된 `deviation`으로 검증했습니다. 현재 제품 분류는
-`63 passing + 4 deviation`이며, reference 67개 전부가 Django와 exact 일치한다고
-표현하지 않습니다.
+`passing`, MIG-018/020/022/024를 승인된 `deviation`으로 검증했습니다. 제품 분류는
+GDJ-0012 완료 당시 `63 passing + 4 deviation`이었으며, reference 67개 전부가 Django와
+exact 일치한다고 표현하지 않습니다.
 
 GDJ-0013은
 [`migration-restart-manifest.json`](../conformance/contracts/migration-restart-manifest.json)을
@@ -195,17 +195,33 @@ fully-applied empty plan, unknown legacy row, explicit known-history preflight�
 restart를 다룹니다. 모든 계약은 `evaluation` phase이며 read/planning 전후 recorder/schema
 state가 같고 DDL/write/기타 non-SELECT statement가 0인지 비교합니다.
 
-새 manifest는 10 `oracle_locked`, Django oracle은 10 `observed`, static fixture는 10
-`not_implemented`입니다. 제품 adapter는 exit 2/no actual output으로 fail-closed하며 기존
-제품 분류는 `63 passing + 4 deviation`입니다. 일곱 manifest의 ID/scenario는 전역으로
-유일하고 모든 42개 ordered cross-pair가 거부됩니다. Reference 총계 77개를 제품 통과로
-표현하지 않습니다.
+GDJ-0013 완료 당시 새 manifest는 10 `oracle_locked`, Django oracle은 10 `observed`, static
+fixture는 10 `not_implemented`였습니다. 제품 adapter는 exit 2/no actual output으로
+fail-closed했고 기존 제품 분류는 `63 passing + 4 deviation`이었습니다. 일곱 manifest의
+ID/scenario는 전역으로 유일하고 모든 42개 ordered cross-pair가 거부됩니다. 당시 reference
+총계 77개를 제품 통과로 표현하지 않습니다.
 
 MIG-035는 `MigrationExecutor`가 자동으로 history를 검사한다고 주장하지 않습니다.
 Migrate-style explicit `check_consistent_history`가 plan 호출 전에
 `migration_history_error/inconsistent_applied_history`로 실패하는 경계를 고정합니다.
 MIG-036은 process kill/crash가 아니라 앞선 durable commit 뒤 기존 instance를 버리고 같은
 database에서 fresh recorder/executor를 구성해 남은 tail을 다시 계획하는 의미입니다.
+
+GDJ-0014는 별도 `AppliedMigrationReader`, core `LoadAppliedState`와
+`Planner.CheckHistory`, SQLite read-only recorder reader와 일곱 번째 live adapter를
+구현했습니다. Absent read는 table을 만들지 않고, raw identity validation과 unknown legacy
+preservation을 거쳐 fresh file-backed backend에서 tail을 계획합니다. MIG-027..036은 10개
+모두 `passing`이며 현재 일곱 제품 set의 분류는 `73 passing + 4 deviation`입니다. 네
+DEV-0001 계약이 남아 있으므로 77개 모두가 Django exact 일치한다는 뜻은 아닙니다.
+
+다음
+[GDJ-0015](../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)는
+MIG-037..046에서 empty, first/middle before·after, cross-app dependency, multiple target/shared
+dependency, omitted-target latest leaves, applied-prefix startup과 unrelated-known branch
+inclusion을 다룹니다. Unknown legacy identity는 applied observation에는 남지만 schema state로
+materialize하지 않는 의미를 먼저 잠그는 contract-only 작업입니다. Proposed
+[ADR-0016](adr/0016-historical-project-state-reconstruction.md)과 후속 GDJ-0016 제품
+작업 전에는 recorder identity로 historical state를 재구성할 수 있다고 주장하지 않습니다.
 
 ## 계약 상태
 
@@ -349,6 +365,16 @@ random-hashseed process와 checked-in oracle은 byte-identical합니다. Static 
 mismatch, product exit 2/no output, 42 cross-binding과 recorder/identity/alias/plan/history/
 restart/zero-mutation gate는
 [EVID-20260808-012](status/TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)에
+기록합니다.
+
+GDJ-0014는 같은 manifest에서 status만 10 `passing`으로 전환해 10,165 bytes, SHA-256
+`79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290`로 만들었습니다.
+33,888-byte Django oracle과 1,715-byte static fixture의 bytes/hash는 유지했습니다. 두 독립
+Go actual은 각각 33,795 bytes, SHA-256
+`f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`로
+byte-identical하고 locked oracle과 protocol 의미상 10개 0-diff입니다. Static ordered 10
+mismatch와 42 cross-binding은 계속 false-green gate이며, 상세 증거는
+[EVID-20260808-013](status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
 기록합니다.
 
 ## 데이터 호환성

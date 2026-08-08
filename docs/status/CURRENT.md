@@ -4,17 +4,17 @@
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `main`
 - 기준 machine artifact commit:
-  `b6af5056bb67fc1d2d32b2163cb7091d700b1e7e`
-  (`test: lock recorder restart contracts`)
+  `a9ce9597551840f1be8e1f27006d427842f38081`
+  (`feat: add recorder-backed restart planning`)
 - 기준 제품 commit:
-  `3bcd25ce557cfddc2d73652f9154b6db0fd0b065`
-  (`feat: execute migration plans with atomic reverse`)
-- 활성 작업 baseline: `b6af5056bb67fc1d2d32b2163cb7091d700b1e7e`
+  `a9ce9597551840f1be8e1f27006d427842f38081`
+  (`feat: add recorder-backed restart planning`)
+- 활성 작업 baseline: `a9ce9597551840f1be8e1f27006d427842f38081`
 - remote: `https://github.com/progresshans/godj.git`, remote tracking ref 없음
-- 현재 단계: Recorder-backed applied-state read와 restart planning 제품 단면
-- 완료 작업: [GDJ-0013 Recorder-backed Restart Planning Compatibility Contracts](../../work/0013-recorder-backed-restart-planning-compatibility-contracts.md)
-- 활성 작업: [GDJ-0014 Recorder-backed Restart Planning Product Slice](../../work/0014-recorder-backed-restart-planning-product-slice.md)
-- 다음 ready 작업: 없음 — GDJ-0014 뒤 historical state reconstruction/file loader 범위 재평가
+- 현재 단계: Historical `ProjectState` reconstruction compatibility contract
+- 완료 작업: [GDJ-0014 Recorder-backed Restart Planning Product Slice](../../work/0014-recorder-backed-restart-planning-product-slice.md)
+- 활성 작업: [GDJ-0015 Historical ProjectState Reconstruction Compatibility Contracts](../../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)
+- 다음 ready 작업: 없음 — GDJ-0015 oracle lock 뒤 GDJ-0016 work를 별도 작성·전환
 
 ## 현재 checkout에서 확인된 사실
 
@@ -42,6 +42,12 @@
   RemoveField를 지원하고, row/default/rebuild 의존 경계는 구조화된 capability error입니다.
 - SQLite table rebuild가 필요한 default AddField, indexed/CHECK/generated/view/trigger/FK
   dependency drop은 silent fallback 없이 구조화된 capability error입니다.
+- Migration recorder read는 write transaction 경계와 분리된 backend-neutral
+  `AppliedMigrationReader`를 사용합니다. Core `LoadAppliedState`가 raw identity를 복사·검증하고
+  `Planner.CheckHistory`가 target planning 전 known dependency consistency를 명시적으로 검사합니다.
+- SQLite recorder reader는 exact missing-table만 empty로 정규화하고 recorder table을 만들지
+  않습니다. Fresh file backend, database isolation, record/unrecord durable visibility와
+  exact-one-SELECT/no-write driver gate가 검증됐습니다.
 
 ### 호환 계약과 machine artifact
 
@@ -49,9 +55,8 @@
   write/migration 11개, Save lifecycle 12개, QuerySet evaluation/cache 11개, migration
   planning 12개, migration plan execution 10개, recorder-backed restart planning 10개로
   총 77개입니다.
-- 제품 adapter가 있는 기존 여섯 set의 분류는 63 `passing` + 4 approved `deviation`입니다.
-  새 restart set은 10 `oracle_locked`이고 제품 adapter가 없습니다. 총 77개를 Django와
-  exact 일치하는 제품 통과로 표현하지 않습니다.
+- 일곱 set 모두 제품 adapter가 있으며 분류는 73 `passing` + 4 approved `deviation`입니다.
+  DEV-0001 네 계약 때문에 총 77개를 Django와 exact 일치하는 제품 통과로 표현하지 않습니다.
 - MIG-017/019/021/023/025/026은 `passing`, MIG-018/020/022/024는 DEV-0001
   `deviation`입니다. Django oracle 10 `observed`와 static fixture 10 `not_implemented`는
   유지하며 static comparison은 ordered mismatch 10개입니다.
@@ -70,19 +75,20 @@
   reviewed product expectation과 10개 0-diff입니다.
 - 두 독립 random-hashseed process와 checked-in migration-execution oracle은
   byte-identical합니다.
-- Recorder-restart manifest는 10,225 bytes, SHA-256
-  `93e25d02208a765001760f76715ff6e9642451c5823efc62cc40b1d249dbd42b`입니다.
+- Recorder-restart passing manifest는 10,165 bytes, SHA-256
+  `79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290`입니다.
 - Recorder-restart Django oracle은 33,888 bytes, SHA-256
   `90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727`입니다.
 - Recorder-restart static fixture는 1,715 bytes, SHA-256
   `31a7df8306e1a14def0d5724b3e60d8938f4e4910cf380de119d47de09892c55`입니다.
 - MIG-027..036은 모두 `evaluation` phase입니다. Absent/empty recorder, record/unrecord fresh
   read, database isolation, applied-prefix/fully-applied plan, unknown/known history와
-  middle-failure restart를 10 `oracle_locked`/10 `observed`/10 static `not_implemented`로
+  middle-failure restart를 10 `passing`/10 `observed`/10 static `not_implemented`로
   구분합니다.
 - 두 독립 random-hashseed process와 checked-in recorder-restart oracle은 33,888 bytes의
-  같은 canonical bytes였습니다. Product binary는 새 scenario를 exit 2/no output으로
-  fail-closed합니다.
+  같은 canonical bytes였습니다. 두 독립 GoDj actual은 각각 33,795 bytes, SHA-256
+  `f9e4d3dc7078426f06a08374a36a670a36e1fa2ae08562fd08f80e91db1b31cb`로 byte-identical하고
+  Django oracle과 protocol 의미상 10개 0-diff입니다.
 - External execution metrics는 connection summary와 compact ordered steps만 포함합니다.
   Raw render/operation/recorder/transaction event는 runner 내부 live assertion이며 external
   compatibility surface가 아닙니다.
@@ -115,6 +121,10 @@
   exact Python 94/94, seven-set/42 cross-binding, static ordered 10 mismatch, product
   fail-closed와 독립 contract 감사는
   [EVID-20260808-012](TEST_EVIDENCE.md#evid-20260808-012--gdj-0013-recorder-backed-restart-planning-compatibility-contracts)에
+  기록했습니다.
+- GDJ-0014의 backend-neutral reader/core history preflight, SQLite fresh read, seven-set live
+  product conformance, two-process Go actual, full/race/CGO=0/vet와 false-green mutation 감사는
+  [EVID-20260808-013](TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
   기록했습니다.
 - GitHub Actions workflow는 push하지 않아 hosted 실행 증거가 없습니다. 로컬 Django
   checkout은 수정하지 않았습니다.
@@ -161,59 +171,58 @@
   결정입니다.
 - 이 결정은 backend/SQLite transaction interface를 보존하고 MIG-024형 schema/history
   partial commit을 막지만 Django reference 네 계약과 다릅니다.
-- 최종 분류는 MIG-017/019/021/023/025/026 `passing`,
-  MIG-018/020/022/024 `deviation`, 합계 `63 passing + 4 deviation`입니다.
+- Execution set 분류는 MIG-017/019/021/023/025/026 `passing`,
+  MIG-018/020/022/024 `deviation`입니다. Recorder-restart 10개까지 포함한 현재 제품 총계는
+  `73 passing + 4 deviation`입니다.
 
 ### Recorder-backed restart reference와 제품 경계
 
 - MIG-027..036은 recorder table absent/empty, record/unrecord fresh read, database isolation,
   applied-prefix tail, fully-applied empty, unknown legacy, explicit inconsistent-history preflight와
-  middle-failure restart를 10 `oracle_locked`로 고정합니다.
+  middle-failure restart를 10 `passing`으로 검증합니다.
 - MIG-035는 executor가 자동 거부한다고 주장하지 않습니다. Migrate-style explicit history
   check가 planning 전에 실패하고 `plan_invoked=false`인 외부 동작입니다.
 - [ADR-0015](../adr/0015-recorder-backed-applied-state.md)는 transaction write interface와
-  별도인 backend raw read port, core `LoadAppliedState`와 `Planner.CheckHistory`를 Proposed로
-  둡니다.
-- GDJ-0014는 `read → validate → check → plan`까지만 제품화합니다. Historical
+  별도인 backend raw read port, core `LoadAppliedState`와 `Planner.CheckHistory`를 Accepted로
+  채택합니다.
+- GDJ-0014는 `read → validate → check → plan`까지만 제품화했습니다. Historical
   `ProjectState` reconstruction, read/execution lock와 public migrate API는 보장하지 않습니다.
 
 ## 현재 차단 요인과 미결정 사항
 
 외부 blocker는 없습니다. 다음 결정은 열려 있습니다.
 
-1. Q-012 후속: recorder read/restart planning 제품 단면(GDJ-0014), historical state
-   reconstruction, migration file/loader, data callback, lock와 crash recovery
+1. Q-012 후속: historical `ProjectState` reconstruction 계약/제품, 그 뒤 migration
+   definition source/loader, data callback, lock와 crash recovery
 2. Q-011: request/transaction/hook 범위의 goroutine·lifetime 정책
 3. Q-010: public CLI와 project library/generator version protocol
 4. Q-013: cross-app relation type/import/reverse loader 경계
 
 ## 다음 정확한 작업
 
-1. `migrations/backend`의 `AppliedMigration` transport와 별도 reader port를 test-first로
-   추가하고 기존 `AtomicBackend`/`Transaction` fake source compatibility를 고정합니다.
-2. Core `LoadAppliedState`의 context/cause/raw identity validation과
-   `Planner.CheckHistory` pre-plan timing을 구현합니다.
-3. SQLite direct SELECT가 recorder table absent만 empty로 정규화하고 table을 생성하지
-   않는지 fresh file/backend와 concurrent read로 검증합니다.
-4. MIG-027..036 live product adapter를 연결해 locked oracle과 10개 semantic 0-diff를
-   만들고 기존 `63 passing + 4 deviation`을 회귀 검증합니다.
-5. Read snapshot과 execution 사이 lock/ProjectState reconstruction은 GDJ-0014에 섞지 않고
-   후속 ADR/work로 남깁니다.
+1. Pinned Django 6.1의 `_create_project_state(with_applied_migrations=True)`와
+   `Migration.mutate_state` 경계를 disposable probe로 관찰합니다.
+2. MIG-037..046을 explicit empty, first·linear middle before/after, cross-app dependency,
+   multiple target/shared dependency, latest leaves와 applied-prefix/unrelated·unknown startup
+   historical-state 계약으로 조정합니다.
+3. Eighth manifest/oracle/static fixture를 deterministic하게 잠그고 기존 일곱 artifact와
+   56 ordered cross-binding을 검증합니다.
+4. GoDj product adapter는 fail-closed로 유지하고 GDJ-0016에서 pure reconstruction API를
+   별도로 결정합니다.
 
 ## 작업 재개 체크포인트
 
-- 활성 baseline: `main@b6af5056bb67fc1d2d32b2163cb7091d700b1e7e`
-- 제품 commit은 GDJ-0012 `ExecutePlan` + DEV-0001, machine commit은 GDJ-0013의 seventh
-  reference set을 포함
-- 활성 work: [GDJ-0014](../../work/0014-recorder-backed-restart-planning-product-slice.md)
-- 허용 제품 경로와 통합 경로는 GDJ-0014 frontmatter에 한정
-- Locked recorder-restart oracle/static fixture와 기존 여섯 artifact의 의미/bytes는 변경하지 않음
+- 활성 baseline: `main@a9ce9597551840f1be8e1f27006d427842f38081`
+- 제품·machine commit은 GDJ-0014 recorder read/check/plan과 seven-set 73+4 상태를 포함
+- 활성 work: [GDJ-0015](../../work/0015-historical-project-state-reconstruction-compatibility-contracts.md)
+- 허용 contract/harness/docs 경로는 GDJ-0015 frontmatter에 한정하고 `migrations/**`, `db/**`는 수정하지 않음
+- Locked 기존 일곱 oracle/static fixture와 제품 73+4 의미/bytes는 변경하지 않음
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 전체 local gate와 exact regeneration check: `make check`
 - Portable CI equivalent: `make ci`
-- 가장 위험한 false green: direct SELECT 대신 table을 생성하는 read, raw invalid record를
-  validation 없이 map에 넣는 것, setup backend/cache를 fresh restart로 오인하는 것과
-  lock 없는 read/plan/execute를 atomic lifecycle처럼 표현하는 것
+- 가장 위험한 false green: 모든 migration definition을 applied 여부와 무관하게 fold하는 것,
+  live schema introspection을 historical state로 오인하는 것, dependency가 아닌 lexical 순서로
+  state를 구성하는 것과 lock 없는 read/state/plan/execute를 atomic lifecycle처럼 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

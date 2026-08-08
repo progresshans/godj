@@ -37,15 +37,18 @@ proposed → ready → active → completed
 | [GDJ-0011](0011-migration-plan-execution-compatibility-contracts.md) | completed | Multi-migration plan execution 호환 계약 |
 | [GDJ-0012](0012-migration-plan-execution-orchestrator.md) | completed | Migration plan 실행 orchestrator와 atomic-reverse 결정 |
 | [GDJ-0013](0013-recorder-backed-restart-planning-compatibility-contracts.md) | completed | Recorder-backed restart planning 호환 계약 |
-| [GDJ-0014](0014-recorder-backed-restart-planning-product-slice.md) | active | Recorder-backed restart planning 제품 단면 |
+| [GDJ-0014](0014-recorder-backed-restart-planning-product-slice.md) | completed | Recorder-backed restart planning 제품 단면 |
+| [GDJ-0015](0015-historical-project-state-reconstruction-compatibility-contracts.md) | active | Historical ProjectState reconstruction 호환 계약 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-GDJ-0014이며 ready 항목은 없습니다. GDJ-0013은 fresh Django recorder/executor의 restart
-의미를 MIG-027..036의 10 `oracle_locked` 계약으로 고정했습니다. 현재 제품 분류는
-`63 passing + 4 deviation`이고 새 10개는 아직 제품 adapter가 없습니다. GDJ-0014는 별도
-read port, `LoadAppliedState`와 explicit history check로 이 gap만 구현하며 public
-migration file/CLI, lock과 crash recovery를 끌어오지 않습니다.
+GDJ-0015이며 ready 항목은 없습니다. GDJ-0014는 별도 read port,
+`LoadAppliedState`/explicit `CheckHistory`와 fresh SQLite adapter를 구현해 MIG-027..036을
+모두 `passing`으로 검증했고, 현재 제품 분류는 `73 passing + 4 deviation`입니다.
+GDJ-0015는 recorder key와 live DB/current generated model을 historical state 소스로
+오인하지 않도록 loaded migration definition의 state replay 의미를 MIG-037..046의
+eighth exact set으로 먼저 잠그는 contract-only 작업입니다. 새 제품 source/adapter,
+public migration file/CLI, lock과 crash recovery는 이 작업에 포함하지 않습니다.
 
 ## 운영 규칙
 

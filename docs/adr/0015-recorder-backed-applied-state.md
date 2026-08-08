@@ -1,6 +1,6 @@
 # ADR-0015: Recorder-backed applied state는 별도 read port와 explicit history check를 사용한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0013, GDJ-0014, MIG-027..MIG-036, Q-012
 - 대체하는 ADR: 없음
@@ -53,9 +53,9 @@ API는 단순하지만 SQLite backend가 top-level `migrations` package를 impor
 writer를 막는 lock도 없습니다. `Migrate`, `PlanAndExecute`, `RestartExecutor`를 지금 공개하면
 불완전한 lifecycle을 안정 API로 고정합니다.
 
-## 제안 결정
+## 결정
 
-GDJ-0014는 다음 read boundary를 구현·검증한 뒤 이 ADR의 Accepted 여부를 결정합니다.
+GDJ-0014는 다음 read boundary를 채택했습니다.
 
 ```go
 // package migrations/backend
@@ -108,12 +108,13 @@ plan, err := planner.Plan(applied, targets...)
 ## SQLite 의미
 
 SQLite implementation은 recorder table을 생성하거나 migration transaction을 열지 않고
-다음 read를 수행합니다.
+한 번의 ordered read를 수행합니다. 현재 구현은 table-qualified column을 사용하지만
+SQL text 자체는 compatibility contract가 아닙니다.
 
 ```sql
-SELECT "app", "name"
+SELECT "godj_migrations"."app", "godj_migrations"."name"
 FROM "godj_migrations"
-ORDER BY "app", "name"
+ORDER BY "godj_migrations"."app", "godj_migrations"."name"
 ```
 
 정확히 recorder table이 없다는 driver 오류만 empty result로 정규화합니다. Malformed table,
@@ -126,8 +127,9 @@ Database alias 문자열을 새 API에 넣지 않습니다. 각 `sqlite.Backend`
 
 ## 오류와 context
 
-Recorder I/O 실패는 semantic planning error와 구분합니다. GDJ-0014의 검증 후보는
-`migration_recorder_error/read_failed`와 cause-preserving `RecorderError`입니다.
+Recorder I/O 실패는 semantic planning error와 구분합니다. Public classification은
+`RecorderError{Category: migration_recorder_error, Code: read_failed}`이고 `Unwrap`으로
+cause를 보존합니다.
 
 - nil reader/context, pre/in-flight cancellation과 query/scan/rows 오류는
   `migration_recorder_error/read_failed`이며 `errors.Is`/`errors.As`로 원인을 보존합니다.
@@ -160,7 +162,7 @@ concurrent read는 race-safe해야 하지만 concurrent migration writer와의 �
 - Alias registry/router, PostgreSQL/MySQL/Oracle backend
 - Replacement/squash/merge/fake와 data migration callback ABI
 
-## 검증
+## 검증과 구현 결과
 
 - MIG-027..036 live SQLite adapter가 locked Django oracle과 10개 semantic 0-diff
 - Recorder table absent read가 table/row를 생성하지 않는 unit/integration gate
@@ -171,3 +173,19 @@ concurrent read는 race-safe해야 하지만 concurrent migration writer와의 �
 - `migrations/backend`이 top-level `migrations`를 import하지 않는 dependency gate
 - Concurrent read race, full/race/CGO=0/vet와 deterministic two-process actual
 - Locked Django oracle/static fixture bytes, seven-set 42 cross-binding과 기존 제품 결과 보존
+
+GDJ-0014가 이 경계를 제품 commit
+`a9ce9597551840f1be8e1f27006d427842f38081`에 구현했습니다. Backend DTO/read port는
+transaction interface와 분리됐고, core는 reader 반환을 복사한 뒤 기존
+`NewAppliedState`로 검증합니다. SQLite는 read-only fresh file backend, absent/empty,
+record/unrecord, database isolation, malformed schema, cancellation, rows lifecycle와 concurrent
+read/close race를 검증했습니다.
+
+MIG-027..036 GoDj actual은 locked Django oracle과 10-contract semantic 0-diff이고 두
+actual은 33,795 bytes의 byte-identical 결과입니다. 기존 여섯 product set의
+`63 passing + 4 deviation`은 회귀 없이 유지됐고 새 set이 10 `passing`이 되어
+제품 분류는 `73 passing + 4 deviation`입니다. `make check`, full uncached
+regular/race/`CGO_ENABLED=0`/vet, portable 94 pass/9 skip와 exact Python 94/94가
+통과했으며 세부 증거는
+[EVID-20260808-013](../status/TEST_EVIDENCE.md#evid-20260808-013--gdj-0014-recorder-backed-restart-planning-product-slice)에
+기록했습니다.
