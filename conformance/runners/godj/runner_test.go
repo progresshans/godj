@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -218,6 +221,46 @@ func TestMigrationRestartRegistryMatchesManifestScenarios(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedMigrationStateReconstructionOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationStateReconstructionInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj migration-state-reconstruction suite differs from locked Django oracle in %d place(s)", len(differences))
+	}
+}
+
+func TestMigrationStateReconstructionRegistryMatchesManifestScenarios(t *testing.T) {
+	t.Parallel()
+
+	_, manifest, _ := loadMigrationStateReconstructionInputs(t)
+	if len(migrationStateReconstructionFixtures) != len(manifest.Contracts) {
+		t.Fatalf("migration state reconstruction registry has %d scenarios, manifest has %d", len(migrationStateReconstructionFixtures), len(manifest.Contracts))
+	}
+	for _, contract := range manifest.Contracts {
+		if _, ok := migrationStateReconstructionFixtures[contract.Scenario]; !ok {
+			t.Fatalf("migration state reconstruction scenario %q is not registered", contract.Scenario)
+		}
+	}
+}
+
 func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -316,6 +359,268 @@ func TestGenerateMigrationRestartIsDeterministic(t *testing.T) {
 	if !bytes.Equal(firstJSON, secondJSON) {
 		t.Fatal("independent migration-restart runs produced different canonical observations")
 	}
+}
+
+func TestGenerateMigrationStateReconstructionIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, _ := loadMigrationStateReconstructionInputs(t)
+	first, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	second, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(second) error = %v", err)
+	}
+	firstJSON, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(first) error = %v", err)
+	}
+	secondJSON, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatalf("MarshalCanonical(second) error = %v", err)
+	}
+	if !bytes.Equal(firstJSON, secondJSON) {
+		t.Fatal("independent migration-state-reconstruction runs produced different canonical observations")
+	}
+}
+
+func TestMigrationStateReconstructionFixtureMutationsPropagateThroughPublicAPIs(t *testing.T) {
+	t.Parallel()
+
+	const firstProbeID = "STATE-PROBE-NOT-A-MANIFEST-ID"
+	const secondProbeID = "STATE-PROBE-SECOND-ARBITRARY-ID"
+	base := migrationStateReconstructionFixtures["django.migration.state_reconstruction.first_after"]()
+	baseObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseObservation.ID != firstProbeID || baseObservation.Status != protocol.StatusObserved {
+		t.Fatalf("arbitrary migration state identity/status = (%q, %q)", baseObservation.ID, baseObservation.Status)
+	}
+	secondIDObservation, err := runMigrationStateReconstructionFixture(context.Background(), secondProbeID, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseWithoutID := baseObservation
+	baseWithoutID.ID = ""
+	secondWithoutID := secondIDObservation
+	secondWithoutID.ID = ""
+	if !reflect.DeepEqual(baseWithoutID, secondWithoutID) {
+		t.Fatal("arbitrary contract ID changed migration state payload")
+	}
+
+	changedTarget := migrationStateReconstructionFixtures["django.migration.state_reconstruction.first_after"]()
+	changedTarget.targets[0] = migrationStateAlphaMiddle
+	changedTargetObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, changedTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(baseObservation.Result, changedTargetObservation.Result) {
+		t.Fatal("target mutation did not change public Reconstruct result")
+	}
+	if reflect.DeepEqual(baseObservation.Metrics, changedTargetObservation.Metrics) {
+		t.Fatal("target mutation did not change captured request")
+	}
+	if !reflect.DeepEqual(baseObservation.DBState, changedTargetObservation.DBState) {
+		t.Fatal("logical target mutation unexpectedly changed divergent live database")
+	}
+
+	baseCross := migrationStateReconstructionFixtures["django.migration.state_reconstruction.cross_app_dependency"]()
+	baseCrossObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, baseCross)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedDependency := migrationStateReconstructionFixtures["django.migration.state_reconstruction.cross_app_dependency"]()
+	for index := range changedDependency.definitions {
+		if changedDependency.definitions[index].Key() == migrationStateBetaRoot {
+			changedDependency.definitions[index].Dependencies[0] = migrationStateDeltaRoot
+		}
+	}
+	changedDependencyObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, changedDependency)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(baseCrossObservation.Result, changedDependencyObservation.Result) {
+		t.Fatal("dependency mutation did not change public Reconstruct result")
+	}
+	if reflect.DeepEqual(baseCrossObservation.Metrics, changedDependencyObservation.Metrics) {
+		t.Fatal("dependency mutation did not change captured graph facts")
+	}
+
+	baseApplied := migrationStateReconstructionFixtures["django.migration.state_reconstruction.unrelated_known_unknown_startup"]()
+	baseAppliedObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, baseApplied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedApplied := migrationStateReconstructionFixtures["django.migration.state_reconstruction.unrelated_known_unknown_startup"]()
+	changedApplied.applied[len(changedApplied.applied)-1] = migrations.MigrationKey{App: "retired", Name: "0100_unknown"}
+	changedAppliedObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, changedApplied)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reflect.DeepEqual(baseAppliedObservation.Result, changedAppliedObservation.Result) {
+		t.Fatal("durable applied identity mutation did not propagate through LoadAppliedState")
+	}
+	if reflect.DeepEqual(baseAppliedObservation.DBState, changedAppliedObservation.DBState) {
+		t.Fatal("durable applied identity mutation did not change recorder observation")
+	}
+	baseAppliedState := migrationPlanningTestObjectField(t, *baseAppliedObservation.Result, "state")
+	changedAppliedState := migrationPlanningTestObjectField(t, *changedAppliedObservation.Result, "state")
+	if !reflect.DeepEqual(baseAppliedState, changedAppliedState) {
+		t.Fatal("unknown applied identity mutation unexpectedly materialized schema state")
+	}
+
+	changedLive := migrationStateReconstructionFixtures["django.migration.state_reconstruction.first_after"]()
+	changedLive.divergentColumn = "different_wrong_column"
+	changedLive.additionalDivergence = []migrationStateDivergentSchema{{table: "godj_state_live_extra", column: "extra_wrong"}}
+	changedLiveObservation, err := runMigrationStateReconstructionFixture(context.Background(), firstProbeID, changedLive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(baseObservation.Result, changedLiveObservation.Result) {
+		t.Fatal("live database mutation changed definition-backed Reconstruct result")
+	}
+	if reflect.DeepEqual(baseObservation.DBState, changedLiveObservation.DBState) {
+		t.Fatal("unexpected managed table or column mutation was omitted from database inventory")
+	}
+	if !reflect.DeepEqual(baseObservation.Metrics, changedLiveObservation.Metrics) {
+		t.Fatal("live database mutation leaked into zero-I/O reconstruction metrics")
+	}
+}
+
+func TestMigrationStateReconstructionAdapterHasNoContractOrOraclePayloadHardcoding(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_state_reconstruction_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{
+		"MIG-",
+		"migration-state-reconstruction-oracle",
+		"godj-migration-state-reconstruction-not-implemented",
+		"switch contractID",
+		"if contractID",
+		"LoadObservationSuite",
+		"LoadManifest",
+	} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("migration-state-reconstruction adapter contains forbidden hardcoded payload %q", forbidden)
+		}
+	}
+}
+
+func TestMigrationStateReconstructionCaptureHasNoDirectSQLOrMutationPath(t *testing.T) {
+	t.Parallel()
+
+	fileSet := token.NewFileSet()
+	parsed, err := parser.ParseFile(fileSet, "migration_state_reconstruction_scenarios.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantedFunctions := map[string]bool{
+		"captureMigrationStateReconstruction": false,
+		"migrationStateRequest":               false,
+	}
+	allowedCalls := map[string]map[string]bool{
+		"captureMigrationStateReconstruction": {
+			"fmt.Errorf": true, "migrationStateRequest": true,
+			"migrations.NewStateReconstructor": true, "reconstructor.Reconstruct": true,
+		},
+		"migrationStateRequest": {
+			"append": true, "errors.New": true, "fmt.Errorf": true, "len": true, "make": true,
+			"migrations.AfterStateRequest": true, "migrations.AppliedStateRequest": true,
+			"migrations.BeforeStateRequest": true, "migrations.EmptyStateRequest": true,
+			"migrations.LatestStateRequest": true, "migrations.LoadAppliedState": true,
+		},
+	}
+	for _, declaration := range parsed.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		if _, wanted := wantedFunctions[function.Name.Name]; !wanted {
+			continue
+		}
+		wantedFunctions[function.Name.Name] = true
+		ast.Inspect(function.Body, func(node ast.Node) bool {
+			switch node := node.(type) {
+			case *ast.CallExpr:
+				name := migrationStateTestCallName(node.Fun)
+				if !allowedCalls[function.Name.Name][name] {
+					t.Errorf("%s calls non-allowlisted function %q", function.Name.Name, name)
+				}
+			case *ast.SelectorExpr:
+				switch node.Sel.Name {
+				case "Exec", "ExecContext", "Begin", "BeginTx", "BeginMigration", "Prepare", "PrepareContext", "Query", "QueryContext":
+					t.Errorf("%s directly calls forbidden database method %s", function.Name.Name, node.Sel.Name)
+				}
+			case *ast.BasicLit:
+				if strings.Contains(strings.ToUpper(node.Value), "PRAGMA") {
+					t.Errorf("%s contains direct PRAGMA text", function.Name.Name)
+				}
+			}
+			return true
+		})
+	}
+	for name, found := range wantedFunctions {
+		if !found {
+			t.Errorf("capture source function %s is missing", name)
+		}
+	}
+	source, err := os.ReadFile("migration_state_reconstruction_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(source), "migrationRestartReadOnlyDataSource(path)") ||
+		!strings.Contains(string(source), "appliedReader = &migrationStateObservedReader{delegate: readerBackend}") ||
+		!strings.Contains(string(source), "appliedReader.calls != 1") {
+		t.Fatal("migration state capture lost its read-only data source or exact-one-reader-call gate")
+	}
+}
+
+func migrationStateTestCallName(expression ast.Expr) string {
+	switch expression := expression.(type) {
+	case *ast.Ident:
+		return expression.Name
+	case *ast.SelectorExpr:
+		if receiver, ok := expression.X.(*ast.Ident); ok {
+			return receiver.Name + "." + expression.Sel.Name
+		}
+		return expression.Sel.Name
+	default:
+		return fmt.Sprintf("%T", expression)
+	}
+}
+
+func TestStateReconstructorSourceHasNoDatabaseDependencyOrIOSelector(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join("..", "..", "..", "migrations", "reconstructor.go")
+	fileSet := token.NewFileSet()
+	parsed, err := parser.ParseFile(fileSet, path, nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, imported := range parsed.Imports {
+		importPath := strings.Trim(imported.Path.Value, `"`)
+		if importPath == "database/sql" || strings.Contains(importPath, "/db") || strings.Contains(importPath, "sqlite") || strings.Contains(importPath, "/backend") {
+			t.Errorf("StateReconstructor imports forbidden database dependency %q", importPath)
+		}
+	}
+	ast.Inspect(parsed, func(node ast.Node) bool {
+		selector, ok := node.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		switch selector.Sel.Name {
+		case "Exec", "ExecContext", "Begin", "BeginTx", "BeginMigration", "Prepare", "PrepareContext", "Query", "QueryContext", "ReadAppliedMigrations":
+			t.Errorf("StateReconstructor directly uses forbidden I/O selector %s", selector.Sel.Name)
+		}
+		return true
+	})
 }
 
 func TestMigrationRestartFixtureMutationsPropagateThroughPublicRestartAPIs(t *testing.T) {
@@ -1066,6 +1371,24 @@ func loadMigrationRestartInputs(t *testing.T) (protocol.Profile, protocol.Manife
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
 	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-restart-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func loadMigrationStateReconstructionInputs(t *testing.T) (protocol.Profile, protocol.Manifest, protocol.ObservationSuite) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-state-reconstruction-oracle.json"))
 	if err != nil {
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}

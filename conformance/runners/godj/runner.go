@@ -54,6 +54,9 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 }
 
 func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	if _, ok := migrationStateReconstructionFixtures[contract.Scenario]; ok {
+		return migrationStateReconstructionScenario(ctx, contract)
+	}
 	if _, ok := migrationRestartFixtures[contract.Scenario]; ok {
 		return migrationRestartScenario(ctx, contract)
 	}

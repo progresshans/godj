@@ -43,6 +43,99 @@ func TestExternalConsumerCanConstructAndRunMigrationPlanner(t *testing.T) {
 	}
 }
 
+func TestExternalConsumerCanReconstructHistoricalProjectState(t *testing.T) {
+	t.Parallel()
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	second := migrations.MigrationKey{App: "news", Name: "0002_summary"}
+	model := ir.Model{
+		Name:    "article",
+		GoName:  "Article",
+		DBTable: "news_article",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+		},
+	}
+	reconstructor, err := migrations.NewStateReconstructor(
+		migrations.Migration{
+			App: initial.App, Name: initial.Name,
+			Operations: []migrations.Operation{migrations.CreateModel{AppLabel: initial.App, Model: model}},
+		},
+		migrations.Migration{
+			App: second.App, Name: second.Name,
+			Dependencies: []migrations.MigrationKey{initial},
+			Operations: []migrations.Operation{migrations.AddField{
+				AppLabel: second.App, ModelName: "article",
+				Field: ir.Field{Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, Nullable: true, MaxLength: 200},
+			}},
+		},
+	)
+	if err != nil {
+		t.Fatalf("NewStateReconstructor() error = %v", err)
+	}
+
+	before, err := reconstructor.Reconstruct(migrations.BeforeStateRequest(second))
+	if err != nil {
+		t.Fatalf("Reconstruct(before) error = %v", err)
+	}
+	beforeModel, exists := before.Model("news", "article")
+	if !exists || len(beforeModel.Fields) != 1 {
+		t.Fatalf("before model = %#v, exists=%v", beforeModel, exists)
+	}
+
+	after, err := reconstructor.Reconstruct(migrations.AfterStateRequest(second, initial))
+	if err != nil {
+		t.Fatalf("Reconstruct(after reversed targets) error = %v", err)
+	}
+	afterModel, exists := after.Model("news", "article")
+	if !exists || len(afterModel.Fields) != 2 || afterModel.Fields[1].Name != "summary" {
+		t.Fatalf("after model = %#v, exists=%v", afterModel, exists)
+	}
+
+	applied, err := migrations.NewAppliedState(initial)
+	if err != nil {
+		t.Fatalf("NewAppliedState() error = %v", err)
+	}
+	appliedState, err := reconstructor.Reconstruct(migrations.AppliedStateRequest(applied))
+	if err != nil {
+		t.Fatalf("Reconstruct(applied) error = %v", err)
+	}
+	appliedModel, exists := appliedState.Model("news", "article")
+	if !exists || len(appliedModel.Fields) != 1 {
+		t.Fatalf("applied model = %#v, exists=%v", appliedModel, exists)
+	}
+
+	latest, err := reconstructor.Reconstruct(migrations.LatestStateRequest())
+	if err != nil {
+		t.Fatalf("Reconstruct(latest) error = %v", err)
+	}
+	if !latest.Equal(after) {
+		t.Fatalf("latest = %#v, after = %#v", latest, after)
+	}
+
+	empty, err := reconstructor.Reconstruct(migrations.EmptyStateRequest())
+	if err != nil {
+		t.Fatalf("Reconstruct(empty) error = %v", err)
+	}
+	if len(empty.Apps()) != 0 {
+		t.Fatalf("empty apps = %v", empty.Apps())
+	}
+}
+
+func TestExternalConsumerCanInspectInvalidStateRequest(t *testing.T) {
+	t.Parallel()
+
+	var reconstructor migrations.StateReconstructor
+	_, err := reconstructor.Reconstruct(migrations.StateRequest{})
+	var planningError *migrations.PlanningError
+	if !errors.As(err, &planningError) {
+		t.Fatalf("Reconstruct(zero request) error = %#v, want *migrations.PlanningError", err)
+	}
+	if planningError.Category != migrations.CategoryPlan || planningError.Code != migrations.CodeInvalidTarget {
+		t.Fatalf("Reconstruct(zero request) error = %#v", planningError)
+	}
+}
+
 func TestExternalConsumerCanInspectPlanningErrorWithoutMutableAliases(t *testing.T) {
 	t.Parallel()
 

@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
-	godjrunner "github.com/progresshans/godj/conformance/runners/godj"
 )
 
 func TestRunMatchesLockedOracleAndWritesActualSuite(t *testing.T) {
@@ -500,20 +499,91 @@ func TestRunRejectsUnknownMigrationRestartScenarioWithoutWritingActualOutput(t *
 	}
 }
 
-func TestRunFailsClosedForMigrationStateReconstructionWithoutWritingActualOutput(t *testing.T) {
+func TestRunMatchesLockedMigrationStateReconstructionOracle(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
 	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json")
-	manifest, err := protocol.LoadManifest(manifestPath)
+	actualPath := filepath.Join(t.TempDir(), "migration-state-reconstruction-actual.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-state-reconstruction-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "match the locked Django oracle for 10 contracts") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+	actual, err := protocol.LoadObservationSuite(actualPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(manifest.Contracts) != 10 {
-		t.Fatalf("migration-state-reconstruction contract count = %d, want 10", len(manifest.Contracts))
+	if len(actual.Contracts) != 10 || actual.Contracts[0].ID != "MIG-037" || actual.Contracts[9].ID != "MIG-046" {
+		t.Fatalf("actual migration-state-reconstruction contracts = %#v", actual.Contracts)
 	}
-	unsupportedScenario := manifest.Contracts[0].Scenario
-	actualPath := filepath.Join(t.TempDir(), "must-not-exist.json")
+}
+
+func TestRunMigrationStateReconstructionActualOutputIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	directory := t.TempDir()
+	firstPath := filepath.Join(directory, "migration-state-reconstruction-first.json")
+	secondPath := filepath.Join(directory, "migration-state-reconstruction-second.json")
+	baseArguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"),
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-state-reconstruction-oracle.json"),
+	}
+	for _, outputPath := range []string{firstPath, secondPath} {
+		arguments := append(append([]string(nil), baseArguments...), "-actual-output", outputPath)
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+			t.Fatalf("run(%s) code = %d, stderr = %s", filepath.Base(outputPath), code, stderr.String())
+		}
+	}
+	first, err := os.ReadFile(firstPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := os.ReadFile(secondPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("independent godjcheck migration-state-reconstruction actual outputs differ")
+	}
+}
+
+func TestRunRejectsUnknownMigrationStateReconstructionScenarioWithoutWritingActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknownScenario := manifest.Contracts[0].Scenario + ".unknown_sentinel"
+	manifest.Contracts[0].Scenario = unknownScenario
+	contents, err := protocol.MarshalCanonical(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	manifestPath := filepath.Join(directory, "unknown-migration-state-reconstruction-scenario-manifest.json")
+	if err := os.WriteFile(manifestPath, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	actualPath := filepath.Join(directory, "must-not-exist.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", manifestPath,
@@ -525,7 +595,7 @@ func TestRunFailsClosedForMigrationStateReconstructionWithoutWritingActualOutput
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unsupportedScenario)) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unknownScenario)) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {
@@ -533,33 +603,6 @@ func TestRunFailsClosedForMigrationStateReconstructionWithoutWritingActualOutput
 	}
 	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
 		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
-	}
-}
-
-func TestEveryMigrationStateReconstructionScenarioRemainsUnsupportedByProduct(t *testing.T) {
-	t.Parallel()
-
-	root := filepath.Join("..", "..", "..")
-	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for index, contract := range manifest.Contracts {
-		contract := contract
-		t.Run(contract.ID, func(t *testing.T) {
-			candidate := manifest
-			candidate.Contracts = make([]protocol.Contract, 0, len(manifest.Contracts))
-			candidate.Contracts = append(candidate.Contracts, contract)
-			candidate.Contracts = append(candidate.Contracts, manifest.Contracts[:index]...)
-			candidate.Contracts = append(candidate.Contracts, manifest.Contracts[index+1:]...)
-			if _, err := godjrunner.Generate(context.Background(), profile, candidate); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("unsupported scenario %q", contract.Scenario)) {
-				t.Fatalf("scenario %q did not fail closed: %v", contract.Scenario, err)
-			}
-		})
 	}
 }
 

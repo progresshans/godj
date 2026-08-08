@@ -1,0 +1,75 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+func HistoricalStates(applied migrations.AppliedState) ([]migrations.ProjectState, error) {
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	second := migrations.MigrationKey{App: "news", Name: "0002_summary"}
+	reconstructor, err := migrations.NewStateReconstructor(
+		migrations.Migration{
+			App:  initial.App,
+			Name: initial.Name,
+			Operations: []migrations.Operation{
+				migrations.CreateModel{
+					AppLabel: "news",
+					Model: ir.Model{
+						Name:    "article",
+						GoName:  "Article",
+						DBTable: "news_article",
+						Fields: []ir.Field{
+							{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+						},
+					},
+				},
+			},
+		},
+		migrations.Migration{
+			App:          second.App,
+			Name:         second.Name,
+			Dependencies: []migrations.MigrationKey{initial},
+			Operations: []migrations.Operation{
+				migrations.AddField{
+					AppLabel:  "news",
+					ModelName: "article",
+					Field: ir.Field{
+						Name:      "summary",
+						GoName:    "Summary",
+						Column:    "summary",
+						Kind:      ir.FieldChar,
+						Nullable:  true,
+						MaxLength: 200,
+					},
+				},
+			},
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	requests := []migrations.StateRequest{
+		migrations.EmptyStateRequest(),
+		migrations.LatestStateRequest(),
+		migrations.BeforeStateRequest(second),
+		migrations.AfterStateRequest(initial, second),
+		migrations.AppliedStateRequest(applied),
+	}
+	states := make([]migrations.ProjectState, 0, len(requests)+1)
+	for _, request := range requests {
+		state, err := reconstructor.Reconstruct(request)
+		if err != nil {
+			return nil, err
+		}
+		states = append(states, state)
+	}
+
+	var zero migrations.StateReconstructor
+	empty, err := zero.Reconstruct(migrations.EmptyStateRequest())
+	if err != nil {
+		return nil, err
+	}
+	return append(states, empty), nil
+}

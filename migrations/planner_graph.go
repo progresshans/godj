@@ -256,6 +256,26 @@ func (g *plannerGraph) appRoots(app string) []MigrationKey {
 	return roots
 }
 
+// appLeaves returns every node that has no child in the same app. A node with
+// only cross-app dependents is still a leaf for its own app, matching the
+// migration graph semantics used when reconstructing the latest state.
+func (g *plannerGraph) appLeaves() []MigrationKey {
+	leaves := make([]MigrationKey, 0)
+	for _, key := range g.nodes {
+		hasSameAppChild := false
+		for _, child := range g.children[key] {
+			if child.App == key.App {
+				hasSameAppChild = true
+				break
+			}
+		}
+		if !hasSameAppChild {
+			leaves = append(leaves, key)
+		}
+	}
+	return leaves
+}
+
 func (g *plannerGraph) firstCycleComponent() []MigrationKey {
 	index := 0
 	indices := make(map[MigrationKey]int, len(g.nodes))

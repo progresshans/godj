@@ -709,10 +709,42 @@ func TestPlannerRepeatedAndConcurrentPlanIsImmutable(t *testing.T) {
 	}
 }
 
+func TestPlannerGraphAppLeavesIncludeNodeWithOnlyCrossAppChildren(t *testing.T) {
+	t.Parallel()
+
+	alphaRoot := MigrationKey{App: "alpha", Name: "0001_root"}
+	alphaLeaf := MigrationKey{App: "alpha", Name: "0002_leaf"}
+	betaChild := MigrationKey{App: "beta", Name: "0001_child"}
+	graph, err := newPlannerGraph([]Migration{
+		migration(alphaRoot),
+		migration(alphaLeaf, alphaRoot),
+		migration(betaChild, alphaRoot),
+	})
+	if err != nil {
+		t.Fatalf("newPlannerGraph() error = %v", err)
+	}
+	want := []MigrationKey{alphaLeaf, betaChild}
+	if got := graph.appLeaves(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("appLeaves() = %v, want %v", got, want)
+	}
+
+	graph, err = newPlannerGraph([]Migration{
+		migration(alphaRoot),
+		migration(betaChild, alphaRoot),
+	})
+	if err != nil {
+		t.Fatalf("newPlannerGraph() cross-app-only error = %v", err)
+	}
+	want = []MigrationKey{alphaRoot, betaChild}
+	if got := graph.appLeaves(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("cross-app-only appLeaves() = %v, want %v", got, want)
+	}
+}
+
 func TestPlannerSourceHasNoDatabaseOrBackendImports(t *testing.T) {
 	t.Parallel()
 
-	for _, filename := range []string{"planner.go", "planner_graph.go"} {
+	for _, filename := range []string{"planner.go", "planner_graph.go", "reconstructor.go"} {
 		file, err := parser.ParseFile(token.NewFileSet(), filename, nil, parser.ImportsOnly)
 		if err != nil {
 			t.Fatalf("parse %s: %v", filename, err)

@@ -319,7 +319,7 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	}
 }
 
-func TestSevenSetProductStatusesAre73PassingAnd4ReviewedDeviations(t *testing.T) {
+func TestEightSetProductStatusesAre83PassingAnd4ReviewedDeviations(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -331,6 +331,7 @@ func TestSevenSetProductStatusesAre73PassingAnd4ReviewedDeviations(t *testing.T)
 		"migration-planning-manifest.json",
 		"migration-execution-manifest.json",
 		"migration-restart-manifest.json",
+		"migration-state-reconstruction-manifest.json",
 	}
 	passing := 0
 	deviations := 0
@@ -350,8 +351,8 @@ func TestSevenSetProductStatusesAre73PassingAnd4ReviewedDeviations(t *testing.T)
 			}
 		}
 	}
-	if passing != 73 || deviations != 4 {
-		t.Fatalf("seven-set product statuses = %d passing + %d deviation, want 73 + 4", passing, deviations)
+	if passing != 83 || deviations != 4 {
+		t.Fatalf("eight-set product statuses = %d passing + %d deviation, want 83 + 4", passing, deviations)
 	}
 }
 

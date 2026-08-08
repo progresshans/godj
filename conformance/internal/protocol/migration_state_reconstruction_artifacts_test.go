@@ -15,7 +15,7 @@ func TestMigrationStateReconstructionArtifactHashesAreLocked(t *testing.T) {
 
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]string{
-		"conformance/contracts/migration-state-reconstruction-manifest.json":                            "04b7e92a5bbf9ff50f0247be7708dfb18a5534e40bac86a518a6b744fc0ef728",
+		"conformance/contracts/migration-state-reconstruction-manifest.json":                            "85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c",
 		"conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json":                 "9e7e1e40cb6f33bfc37facb7406d3d85ce86e4fbc3743a538b8d8052598d7ee1",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json": "bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9",
 	}
@@ -71,7 +71,7 @@ func TestPreviousSevenContractArtifactSetsRemainBytePinned(t *testing.T) {
 	}
 }
 
-func TestMigrationStateReconstructionDoesNotEnterSevenSetProductConformanceTarget(t *testing.T) {
+func TestMigrationStateReconstructionEntersEightSetProductConformanceTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -86,15 +86,15 @@ func TestMigrationStateReconstructionDoesNotEnterSevenSetProductConformanceTarge
 		t.Fatal("cannot isolate godj-conformance target")
 	}
 	target := text[start:end]
-	if strings.Contains(target, "MIGRATION_STATE_RECONSTRUCTION") {
-		t.Fatal("contract-only migration-state-reconstruction set entered the product conformance target")
+	if !strings.Contains(target, "MIGRATION_STATE_RECONSTRUCTION") {
+		t.Fatal("migration-state-reconstruction product set is missing from the product conformance target")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 7 {
-		t.Fatalf("godj-conformance product adapter count = %d, want existing 7", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 8 {
+		t.Fatalf("godj-conformance product adapter count = %d, want 8", got)
 	}
 }
 
-func TestReferenceClassificationIs73Passing4DeviationAnd10OracleLocked(t *testing.T) {
+func TestProductClassificationIs83PassingAnd4Deviation(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -106,6 +106,7 @@ func TestReferenceClassificationIs73Passing4DeviationAnd10OracleLocked(t *testin
 		"migration-planning-manifest.json",
 		"migration-execution-manifest.json",
 		"migration-restart-manifest.json",
+		"migration-state-reconstruction-manifest.json",
 	}
 	passing := 0
 	deviations := 0
@@ -125,23 +126,12 @@ func TestReferenceClassificationIs73Passing4DeviationAnd10OracleLocked(t *testin
 			}
 		}
 	}
-	reference, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-state-reconstruction-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracleLocked := 0
-	for _, contract := range reference.Contracts {
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("reference contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
-		}
-		oracleLocked++
-	}
-	if passing != 73 || deviations != 4 || oracleLocked != 10 {
-		t.Fatalf("classification = %d passing + %d deviation + %d oracle_locked, want 73 + 4 + 10", passing, deviations, oracleLocked)
+	if passing != 83 || deviations != 4 {
+		t.Fatalf("classification = %d passing + %d deviation, want 83 + 4", passing, deviations)
 	}
 }
 
-func TestMigrationStateReconstructionOracleLockedManifestKeepsExplicitNotImplementedBaseline(t *testing.T) {
+func TestMigrationStateReconstructionPassingManifestKeepsExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, oracle, baseline := loadMigrationStateReconstructionArtifacts(t)
@@ -161,8 +151,8 @@ func TestMigrationStateReconstructionOracleLockedManifestKeepsExplicitNotImpleme
 		if contract.Phase != PhaseEvaluation {
 			t.Fatalf("manifest contract %s phase = %q, want %q", contract.ID, contract.Phase, PhaseEvaluation)
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		if contract.Status != ContractPassing {
+			t.Fatalf("manifest contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		if !reflect.DeepEqual(contract.Comparison, wantComparison) {
 			t.Fatalf("manifest contract %s comparison = %#v, want %#v", contract.ID, contract.Comparison, wantComparison)

@@ -114,6 +114,9 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_RESTART_MANIFEST) \
 		-expected $(MIGRATION_RESTART_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) \
+		-expected $(MIGRATION_STATE_RECONSTRUCTION_ORACLE)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

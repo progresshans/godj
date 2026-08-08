@@ -7,7 +7,7 @@
       "title": "An explicit empty node set reconstructs an empty historical ProjectState despite a divergent live schema",
       "scenario": "django.migration.state_reconstruction.explicit_empty",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -23,7 +23,7 @@
       "title": "The state before the graph root excludes that migration's state operations",
       "scenario": "django.migration.state_reconstruction.first_before",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -45,7 +45,7 @@
       "title": "The state after the graph root includes its ordered CreateModel metadata",
       "scenario": "django.migration.state_reconstruction.first_after",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -67,7 +67,7 @@
       "title": "A middle after-state replays its dependency before a lexically earlier child and excludes descendants",
       "scenario": "django.migration.state_reconstruction.linear_middle_after",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -95,7 +95,7 @@
       "title": "A middle before-state includes the dependency prefix but excludes the target field change",
       "scenario": "django.migration.state_reconstruction.linear_middle_before",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -117,7 +117,7 @@
       "title": "A cross-app target state includes its prerequisite app's model state",
       "scenario": "django.migration.state_reconstruction.cross_app_dependency",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -139,7 +139,7 @@
       "title": "Multiple targets reconstruct the union while replaying their shared dependency only once",
       "scenario": "django.migration.state_reconstruction.multiple_targets_shared_dependency",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -161,7 +161,7 @@
       "title": "Omitting targets reconstructs the union of every latest leaf closure",
       "scenario": "django.migration.state_reconstruction.latest_leaves",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -183,7 +183,7 @@
       "title": "Startup state replays only a durable known applied prefix and excludes unapplied descendants",
       "scenario": "django.migration.state_reconstruction.applied_prefix_startup",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
@@ -211,7 +211,7 @@
       "title": "Startup state includes an unrelated known applied branch and ignores unknown legacy schema state",
       "scenario": "django.migration.state_reconstruction.unrelated_known_unknown_startup",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "source",
