@@ -219,6 +219,20 @@ MIG-057..064의 열 번째 actual adapter까지 연결되어 현재 제품 분�
 discovery, public CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation, adoption/repair,
 crash reconciliation과 non-SQLite migration backend는 이 loader가 지원하지 않습니다.
 
+활성 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Proposed
+[ADR-0021](adr/0021-project-linked-migration-check.md)은 이 제품 경계를 바꾸지 않고
+`godj.toml` 선택, project-linked build/runner protocol, flat no-follow source discovery와
+`definition.Load` exactly-once handoff를 `conformance/projectcheck/**`의 test-only 후보로
+검증합니다. Global orchestration 후보는 제품 loader를 import하지 않고, linked runner fixture만
+기존 `migrations/definition`을 사용합니다. Production package는 이 harness를 import하지 않으며
+전역 `godj` CLI, project package와 filesystem discovery를 구현한 것으로 세지 않습니다.
+
+MIG-065..074는 `decision/ADR-0021/derived=false`인 열한 번째 reference-only set의 exact 10
+`oracle_locked` contract입니다. Protocol gate는 11 set/115 unique contract/110 ordered
+cross-binding, static fixture exit 1/ordered mismatch 10과 제품 `godjcheck` exit 2/no actual output을
+고정합니다. `godj-conformance`에는 열한 번째 adapter를 추가하지 않아 제품 분류는 계속
+10 adapter/105 contract의 `100 passing + 5 deviation`입니다.
+
 ## CLI와 프로젝트 실행
 
 전역 `godj` CLI는 아직 구현되지 않았습니다. 아래는 향후 `version`, `startproject`, `startapp`,

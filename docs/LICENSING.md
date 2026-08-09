@@ -70,6 +70,17 @@ ordered operation과 public graph/executor 동작의 관찰 근거이며 Django�
 loader ABI를 제공한다는 뜻이 아닙니다. 모든 entry는 `derived=false`이고 Django source,
 fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다.
 
+GDJ-0021의 MIG-065..074 migration project-check scenario는 GoDj 고유 project marker,
+descriptor, flat source catalog, private runner protocol, category/code, counter와
+publication observation으로 독립 작성했습니다. 열 contract 모두 Proposed ADR-0021을
+`kind=decision`, `derived=false`로만 기록하며 Django source/test provenance를 갖지
+않습니다. Django-named exact profile, runner namespace와 oracle directory는 protocol-v2
+reference corpus와 checksum gate를 함께 유지하기 위해 재사용할 뿐입니다. Django가
+GoDj descriptor, JSON source discovery, runner wire 또는 exit 의미를 제공한다는 뜻이
+아니며, Django source, fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다.
+Contract 상태 `oracle_locked`는 제품 CLI나 project-linked runner 구현·지원을 뜻하지
+않습니다.
+
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.
 

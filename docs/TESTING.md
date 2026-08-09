@@ -458,6 +458,22 @@ commit은 `6172d843a4bb234592cafc176a8d1191933b141c`입니다. File discovery/CL
 custom/executable/data/raw-SQL operation과 non-SQLite backend는 이 green 결과의 지원 범위가
 아닙니다.
 
+GDJ-0021은 MIG-065..074의 열한 번째 independent decision-reference set을 추가합니다. Exact
+`godj.toml` selection/descriptor, project-linked build와 closed runner protocol, flat no-follow source
+discovery, `definition.Load` exactly once, zero DB/lifecycle call과 public exit `0/1/2/3/130`을
+`conformance/projectcheck/**` test-only proof로 검증합니다. Manifest의 새 10 contract는 모두
+`oracle_locked`이고 product adapter나 production CLI는 추가하지 않습니다.
+
+Artifact gate는 manifest 4,580 bytes/
+`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, oracle 19,971 bytes/
+`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static fixture 1,729 bytes/
+`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`을 pin합니다. 기존 checksum
+10-line prefix 뒤 11번째 line만 append한 `SHA256SUMS`는 1,061 bytes/
+`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. Protocol gate는
+11 set/115 unique contract/110 ordered cross-binding을 요구합니다. Static comparison은 exit 1/
+ordered mismatch 10, 제품 `godjcheck`는 exit 2/no actual output으로 fail-closed합니다. 따라서
+`make godj-conformance`는 계속 10 adapter/105 contract의 `100 passing + 5 deviation`입니다.
+
 ## 기능별 기본 테스트 요구
 
 모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
@@ -499,10 +515,18 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 5. backend matrix와 긴 conformance suite
 6. release 전 security/performance/migration matrix
 
-현재 GitHub Actions의 `conformance-validation` job은 `ubuntu-24.04`에서 full portable
-`make ci`와 checked-in oracle checksum/drift를 확인합니다. `exact-darwin-validation` job은
-`macos-15`에서 Go 1.26.5, uv 0.10.12, Python 3.14.3을 설치하고 focused pure-Go lifecycle,
-exact Python profile과 locked oracle을 검증합니다. 두 job은 PR #1의
+현재 GitHub Actions는 기존 `ubuntu-24.04` x64 full `conformance-validation`과 `macos-15` arm64
+exact `exact-darwin-validation`을 보존하고, 두 job에 focused project-check normal gate를
+추가합니다. 별도 `project-check-matrix`와 actual-backend `sqlite-matrix`는 각각 exact
+`ubuntu-22.04` linux/amd64, `ubuntu-24.04-arm` linux/arm64, `macos-15-intel` darwin/amd64,
+`macos-26` darwin/arm64의 네 leg를 가집니다. 각 leg는 Go 1.26.5 coordinate assertion,
+normal/race/CGO-disabled/vet, 20분 timeout, `fail-fast: false`, no `continue-on-error`와 final clean
+worktree를 요구합니다. Expanded required topology는 existing 2 + project-check 4 + SQLite 4의
+exact 10 hosted executions입니다. Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
+않습니다. 이 workflow 확장 head의 hosted CI는 아직 `not run`이며 local/static 검증을 hosted PASS로
+과장하지 않습니다.
+
+이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
 통과했으며 상세 환경과 결과는
 [EVID-20260809-018](status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에

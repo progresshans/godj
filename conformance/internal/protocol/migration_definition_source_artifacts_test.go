@@ -31,7 +31,7 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestMigrationDefinitionSourceChecksumIsAppendedAfterUnchangedNineLines(t *testing.T) {
+func TestMigrationProjectCheckChecksumIsAppendedAfterUnchangedTenLines(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -48,9 +48,10 @@ func TestMigrationDefinitionSourceChecksumIsAppendedAfterUnchangedNineLines(t *t
 		"d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682  query-cache-oracle.json\n" +
 		"05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb  save-lifecycle-oracle.json\n" +
 		"35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac  write-migration-oracle.json\n"
-	const appended = "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f  migration-definition-source-oracle.json\n"
-	if string(contents) != previous+appended {
-		t.Fatal("SHA256SUMS did not preserve the previous nine lines and append exactly one new oracle")
+	const definitionSource = "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f  migration-definition-source-oracle.json\n"
+	const projectCheck = "49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2  migration-project-check-oracle.json\n"
+	if string(contents) != previous+definitionSource+projectCheck {
+		t.Fatal("SHA256SUMS did not preserve the previous ten lines and append exactly one project-check oracle")
 	}
 }
 
@@ -345,7 +346,7 @@ func TestMigrationDefinitionSourceProvenanceMutationsCannotFalseGreen(t *testing
 	}
 }
 
-func TestTenReferenceSetsHave105UniqueContractsAndReject90OrderedCrossBindings(t *testing.T) {
+func TestElevenReferenceSetsHave115UniqueContractsAndReject110OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -364,6 +365,7 @@ func TestTenReferenceSetsHave105UniqueContractsAndReject90OrderedCrossBindings(t
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-state-reconstruction", "migration-state-reconstruction-manifest.json", "migration-state-reconstruction-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-lifecycle", "migration-lifecycle-manifest.json", "migration-lifecycle-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-definition-source", "migration-definition-source-manifest.json", "migration-definition-source-oracle.json"),
+		loadMigrationDefinitionSourceContractSet(t, root, "migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"),
 	}
 
 	contractIDs := make(map[string]string)
@@ -385,8 +387,8 @@ func TestTenReferenceSetsHave105UniqueContractsAndReject90OrderedCrossBindings(t
 			scenarios[contract.Scenario] = set.name
 		}
 	}
-	if totalContracts != 105 {
-		t.Fatalf("ten-set reference contract count = %d, want 105", totalContracts)
+	if totalContracts != 115 {
+		t.Fatalf("eleven-set reference contract count = %d, want 115", totalContracts)
 	}
 
 	crossBindings := 0
@@ -403,8 +405,8 @@ func TestTenReferenceSetsHave105UniqueContractsAndReject90OrderedCrossBindings(t
 			})
 		}
 	}
-	if crossBindings != 90 {
-		t.Fatalf("checked %d ordered cross-set bindings, want 90", crossBindings)
+	if crossBindings != 110 {
+		t.Fatalf("checked %d ordered cross-set bindings, want 110", crossBindings)
 	}
 }
 

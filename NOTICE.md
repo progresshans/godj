@@ -35,6 +35,16 @@ GoDj's data format, and do not make the other six decision-oracle contracts
 Django observations. MIG-064 is reference-only and does not claim a GoDj
 product loader, adapter, or CLI implementation.
 
+GDJ-0021 independently authored MIG-065..074 with GoDj-specific project
+selection, descriptor, flat source catalog, private runner protocol, failure,
+counter, and publication observations. Every contract records Proposed
+ADR-0021 as `kind=decision` and `derived=false`; none cites or derives from
+Django source, tests, fixtures, comments, or assertion structure. The
+Django-named profile, runner namespace, and oracle directory are reused only
+to keep one protocol-v2 reference corpus and checksum gate. These ten
+`oracle_locked` decision contracts do not claim that Django provides GoDj's
+descriptor or protocol, or that GoDj already has a product project-check CLI.
+
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new
 upstream-derived scenario corpus. GDJ-0015 independently authored the

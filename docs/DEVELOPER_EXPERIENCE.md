@@ -197,6 +197,21 @@ godj migrate
 
 Migration file format과 Go callback ABI는 Q-012 결정 전에는 확정하지 않습니다.
 
+현재 제품 API는 caller가 I/O를 끝낸 explicit definition source를 bounded
+`migrations/definition.Load`에 넘기는 단면까지입니다. 활성 GDJ-0021이 검증하는 향후 사용자 경험
+후보는 다음 두 argv뿐입니다.
+
+```bash
+godj migrations check
+godj migrations check --project ./godj.toml
+```
+
+두 번째 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
+성공 후보는 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
+보고합니다. 다만 이는 현재 `conformance/projectcheck/**` test-only proof와 `oracle_locked`
+MIG-065..074 계약일 뿐이며, 전역 CLI·project package·production project-linked binary와 실제
+filesystem discovery는 아직 사용할 수 없습니다.
+
 ## 9. Form, Admin, API
 
 모델 metadata에서 validation과 field 의미를 공유하되 public lifecycle은 구분합니다.
@@ -215,6 +230,10 @@ Generic base type을 사용할 수 있지만 `ModelForm[M]`, `ModelAdmin[M]`, `M
 ## 10. 프로젝트 실행과 배포
 
 개발자는 `godj runserver`처럼 친숙한 명령을 사용합니다. 내부적으로 global CLI가 project를 찾아 project-aware binary를 build/run할 수 있습니다.
+
+GDJ-0021/Proposed ADR-0021은 이 방향의 descriptor selection, no-shell build, strict runner framing과
+exit/cancel 의미를 test-only로 좁게 검증합니다. 이 proof를 설치 가능한 `godj` 명령이나 안정된 public
+project API로 해석하지 않습니다.
 
 Production에서는 한 project binary로 명령을 실행하는 방향입니다.
 

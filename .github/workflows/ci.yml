@@ -54,6 +54,9 @@ jobs:
       - name: Run portable conformance validation
         run: make ci
 
+      - name: Validate project-linked migration check contracts
+        run: go test -count=1 ./conformance/projectcheck
+
       - name: Validate migration definition loader on 32-bit Linux
         env:
           CGO_ENABLED: "0"
@@ -115,8 +118,133 @@ jobs:
           ./conformance/runners/godj
           ./internal/compiletest
 
+      - name: Validate project-linked migration check contracts
+        run: go test -count=1 ./conformance/projectcheck
+
       - name: Verify exact Python profile and locked oracles
         run: make python-test-exact oracle-check
 
       - name: Ensure reference artifacts were not rewritten
         run: git diff --exit-code -- conformance/contracts conformance/profiles conformance/oracles
+
+  project-check-matrix:
+    name: Project check (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal project-check tests
+        run: go test -count=1 ./conformance/projectcheck
+
+      - name: Run project-check race tests
+        run: go test -race -count=1 ./conformance/projectcheck
+
+      - name: Run project-check without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./conformance/projectcheck
+
+      - name: Vet project-check
+        run: go vet ./conformance/projectcheck
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  sqlite-matrix:
+    name: SQLite (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal SQLite tests
+        run: go test -count=1 ./migrations ./db/sqlite
+
+      - name: Run SQLite race tests
+        run: go test -race -count=1 ./migrations ./db/sqlite
+
+      - name: Run SQLite tests without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./migrations ./db/sqlite
+
+      - name: Vet SQLite packages
+        run: go vet ./migrations ./db/sqlite
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"

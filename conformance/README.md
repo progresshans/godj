@@ -37,6 +37,12 @@ GDJ-0020은 public `migrations/definition` bounded loader와 열 번째 actual a
 MIG-057..064를 8 `passing`으로 전환했습니다. 현재 제품 분류는 정확히 10 adapter/105 contract의
 `100 passing + 5 deviation`입니다. Source discovery/CLI, writer/upgrade, executable/custom
 operation과 non-SQLite migration backend 지원을 뜻하지 않습니다.
+GDJ-0021은 database-free migration project check의 decision/compatibility contract 열 개를
+열한 번째 reference set으로 추가합니다. MIG-065..074는 Proposed ADR-0021에 묶인
+`oracle_locked`이며 product adapter, global CLI 또는 production project-linked runner가
+아닙니다. 따라서 reference corpus 목표는 11 set/115 unique contract/110 ordered
+cross-binding으로 늘지만 제품 분류는 10 adapter/105 contract의 `100 passing + 5 deviation`을
+그대로 유지합니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -55,6 +61,7 @@ operation과 non-SQLite migration backend 지원을 뜻하지 않습니다.
 | `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
+| `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read부터 revision-fenced lifecycle과 bounded migration-definition loader까지 제품 package를 실행하는 열 GoDj observation adapter |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
@@ -64,6 +71,7 @@ operation과 non-SQLite migration backend 지원을 뜻하지 않습니다.
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | GDJ-0019 test-only feasibility proof와 GDJ-0020 public loader의 independent black-box equivalence gate |
+| `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -208,6 +216,16 @@ LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
   --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
   --manifest conformance/contracts/migration-lifecycle-manifest.json \
   --output conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json \
+  --check
+```
+
+Migration project-check decision oracle은 열한 번째 manifest와 전용 output으로 확인합니다.
+
+```sh
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/migration-project-check-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json \
   --check
 ```
 
@@ -360,6 +378,19 @@ Static not-implemented fixture 비교는 MIG-057..064의 ordered status mismatch
 계속 내야 합니다. 제품 adapter는 expected 값을 actual로 복사하지 않으며 source/header/
 operation/graph mutation이 non-empty diff 또는 success/error shape rejection을 만드는지 별도
 false-green test로 확인합니다.
+
+Migration project-check는 아직 product adapter가 없는 decision set입니다. Static fixture는
+MIG-065..074 ordered status mismatch 정확히 10개와 exit 1을 내야 하며, product
+`godjcheck`에 이 manifest를 넘기면 conformance-tool exit 2/no actual로 fail-closed해야
+합니다.
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-project-check-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json \
+  -actual conformance/fixtures/godj-migration-project-check-not-implemented.json
+```
 
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
@@ -625,6 +656,17 @@ portable job과 macOS 15 arm64 exact job이 모두 통과했습니다. Ubuntu jo
 custom/executable/data/raw-SQL operation과 PostgreSQL/MySQL 등 non-SQLite lifecycle backend는
 여전히 미지원입니다.
 
+GDJ-0021 reference artifact의 MIG-065..074는 exact 10 `oracle_locked`입니다. Manifest는
+4,580 bytes/SHA-256
+`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, oracle은 19,971
+bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static fixture는
+1,729 bytes/`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존
+`SHA256SUMS` 10줄을 byte-identical prefix로 보존하고 11번째 oracle line만 append한 파일은
+1,061 bytes/SHA-256
+`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. 이 artifact는
+Django 결과 parity가 아니라 Proposed ADR-0021의 독립 GoDj decision oracle이고, actual
+filesystem/process feasibility와 제품 지원은 별도 gate입니다.
+
 ## Provenance
 
 현재 query/write/migration/Save/QuerySet evaluation-cache/migration-planning/execution/
@@ -636,3 +678,6 @@ upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한
 모두 Accepted ADR-0019 decision provenance를 가지며, Django behavior를 실제 관찰한
 MIG-057/MIG-064만 pinned Django provenance를 별도로 가집니다. 파생물
 분류와 고지 규칙은 `docs/LICENSING.md`와 `NOTICE.md`를 따릅니다.
+MIG-065..074는 Proposed ADR-0021 decision provenance만 가지며 Django source/test를
+참조하지 않습니다. Django-named exact profile과 oracle directory 재사용은 corpus 관리
+경계일 뿐 Django-derived 분류가 아닙니다.

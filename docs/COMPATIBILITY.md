@@ -517,6 +517,31 @@ GDJ-0020 manifest는 status-only 5,147 bytes/SHA-256
 `locked Django oracle`과 구분합니다. 현재 제품 분류는 10 adapter/105 contract의
 `100 passing + 5 deviation`; 90 ordered cross-binding도 유지합니다.
 
+활성 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Proposed
+[ADR-0021](adr/0021-project-linked-migration-check.md)은
+[`migration-project-check-manifest.json`](../conformance/contracts/migration-project-check-manifest.json)을
+열한 번째 ordered reference set으로 추가합니다. MIG-065..074는 exact `godj.toml` selection,
+canonical descriptor v1, build/project-runner protocol, flat no-follow source discovery,
+`definition.Load` exactly-once와 DB/lifecycle call 0, public exit `0/1/2/3/130`을 고정합니다. 이는
+Django의 DB-aware `migrate --check`, model-drift `makemigrations --check` 또는 Python module
+discovery에서 파생한 parity가 아닙니다. 열 contract 모두 exact
+`kind=decision`, `reference=ADR-0021`, `derived=false`이고 status는 `oracle_locked`입니다.
+
+Project-check manifest는 4,580 bytes/SHA-256
+`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, locked reference oracle은
+19,971 bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static
+not-implemented fixture는 1,729 bytes/
+`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존 checksum 10줄은
+byte-for-byte prefix로 보존하고 11번째 oracle line만 append한 `SHA256SUMS`는 1,061 bytes/
+`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다.
+
+Protocol 분류는 11 reference set/115 unique contract/110 ordered cross-binding입니다. Static
+oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status mismatch 10개를 내고,
+제품 `godjcheck`는 지원하지 않는 새 scenario를 exit 2/no actual output으로 거부합니다. 새 manifest를
+`godj-conformance` product target에 연결하지 않으므로 제품은 10 adapter/105 contract의
+`100 passing + 5 deviation` 그대로입니다. `conformance/projectcheck/**` test-only proof와 artifact가
+존재해도 global CLI, project package, production runner 또는 filesystem discovery 구현을 뜻하지 않습니다.
+
 제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
 [run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04와
 macOS 15 arm64 job이 모두 통과했고, Ubuntu는 focused test를 실제 Linux/386 runtime에서

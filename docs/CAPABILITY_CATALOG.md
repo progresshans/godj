@@ -107,6 +107,11 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 - forward/backward와 fake/plan/show commands
 - data migration과 현재 model type 사용 금지
 
+현재 제품 단면은 caller가 이미 읽은 explicit source bytes를 `migrations/definition`에 전달하는
+SQLite loader까지입니다. 활성 GDJ-0021의 `godj.toml` 선택, project-linked build/runner와 flat
+filesystem catalog check는 `conformance/projectcheck/**` test-only feasibility이며 제품 migration
+discovery나 명령 지원을 뜻하지 않습니다. MIG-065..074도 `oracle_locked` reference-only 상태입니다.
+
 장기 operation 범위:
 
 - Create/Delete/RenameModel
@@ -286,6 +291,11 @@ custom management commands
 - version mismatch detection
 - shell/completion/documentation generation 후보
 
+향후 UX 후보 `godj migrations check`와
+`godj migrations check --project <descriptor-file>`는 GDJ-0021/Proposed ADR-0021이 argument,
+descriptor, protocol, failure와 exit `0/1/2/3/130` 의미만 검증합니다. 전역 CLI, project 등록 API와
+production project-linked binary는 아직 구현하지 않았습니다.
+
 ## Testing과 품질
 
 - Django differential contract
@@ -300,6 +310,11 @@ custom management commands
 - performance/allocation baseline
 - dependency boundary test
 - migration compatibility/upgrade test
+
+GDJ-0021 품질 gate는 기존 제품 10 adapter/105 contract를 유지하면서 열한 번째 reference set까지
+115 unique contract/110 ordered cross-binding을 검증합니다. Linux/macOS x64/arm64의 test-only
+project-check와 실제 SQLite package는 서로 분리된 required matrix로 검증하며, actual adapter가 없는
+PostgreSQL/MySQL service-only job은 false green이므로 두지 않습니다.
 
 ## Django 데이터 이행
 

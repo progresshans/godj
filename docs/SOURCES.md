@@ -38,6 +38,21 @@ bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
 directory의 `SHA256SUMS`는 959 bytes/
 `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다.
 
+Proposed [ADR-0021](adr/0021-project-linked-migration-check.md)은 Django가 정의하지 않는
+GoDj `godj.toml` project selection, descriptor-v1 subset, private project-runner JSON
+protocol, flat no-follow source discovery와 public exit/cancellation 의미의 정본 후보입니다.
+MIG-065..074 manifest의 열 contract는 모두 이 ADR만 `kind=decision`,
+`derived=false`로 참조하며 Django source/test provenance는 없습니다. 기존 Django-named
+exact profile/runner/oracle directory를 재사용하는 것은 protocol-v2 reference corpus와
+checksum을 한 gate에서 유지하기 위한 것이고 Django behavior parity 주장이 아닙니다.
+
+GDJ-0021 reference artifact는 manifest 4,580 bytes/
+`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, oracle 19,971
+bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static fixture
+1,729 bytes/`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존
+`SHA256SUMS` 10줄은 byte-for-byte prefix로 보존하고 새 oracle을 11번째 줄에 append해
+1,061 bytes/`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`로 만들었습니다.
+
 ## Python과 환경 도구
 
 - [Python 3.14.6 release](https://www.python.org/downloads/release/python-3146/) — 2026-08-07 기준 최신 3.14 micro 확인.
