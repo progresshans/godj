@@ -1,8 +1,8 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-08
-- 현재 승인된 deviation: DEV-0001 한 건 / contract 네 개
+- 마지막 갱신: 2026-08-09
+- 현재 승인된 deviation: DEV-0001, DEV-0002 두 건 / contract 다섯 개
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
 
@@ -115,11 +115,11 @@ DDL transaction capability는 아직 검증하지 않았으므로 이 결정이 
 제품 구현 commit `3bcd25ce557cfddc2d73652f9154b6db0fd0b065`에서 네 계약을
 전용 expected와 live SQLite actual로 검증했습니다. GDJ-0012 완료 당시 제품 분류는
 `63 passing + 4 deviation`이었으며 67 exact passing으로 표현하지 않았습니다. 이후
-recorder-restart 제품 10개와 historical-state reconstruction 제품 10개가 추가된 현재 분류는
-`83 passing + 4 deviation`이고, DEV-0001 네 계약은 그대로 유지됩니다. 검증 명령과 artifact hash는
+recorder-restart, historical-state reconstruction과 lifecycle 제품 set이 추가된 현재 분류는
+`92 passing + 5 deviation`이고, DEV-0001 네 계약은 그대로 유지됩니다. 검증 명령과 artifact hash는
 [EVID-20260808-011](status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
 기록하며 현재 aggregate는
-[EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
+[EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
 기록합니다.
 
 ### 복귀 또는 supersede 조건
@@ -127,3 +127,92 @@ recorder-restart 제품 10개와 historical-state reconstruction 제품 10개가
 Django와의 exact backward transaction 호환이 schema/history 원자성보다 우선이라는 근거가
 생기거나, backend별 recovery protocol이 partial commit을 안전하게 복구하면 새 ADR로 이
 결정을 Rejected/Superseded할 수 있습니다.
+
+## DEV-0002 — App zero의 incomparable sibling은 GoDj canonical order를 유지
+
+- Status: Verified
+- Date: 2026-08-09
+- Contracts: MIG-052
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3
+- Related ADR/work/evidence:
+  [ADR-0013](adr/0013-immutable-migration-planner.md),
+  [ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md),
+  [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md),
+  [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md),
+  [EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)
+
+### Django의 관찰 가능 동작
+
+MIG-052는 A1/A2/A3과 unrelated B1이 applied인 상태에서 alpha app을 zero target으로
+내립니다. Django public orchestration의 plan과 committed step 순서는
+`B1←A3←A2←A1`입니다. B1과 A3은 서로 dependency가 없는 incomparable reverse sibling이지만
+Django의 private traversal에서는 B1이 먼저 선택됩니다.
+
+### GoDj에서 채택한 동작
+
+Accepted ADR-0013의 canonical ascending planner policy를 그대로 사용해
+`A3←A2←B1←A1`로 실행합니다. Deviation scope는 locked Django lifecycle observation을 복사한
+product expectation에서 다음 여섯 selector의 value를 replace하는 것으로 제한합니다.
+
+- `result.plan[0]`, `result.plan[1]`, `result.plan[2]`
+- `metrics.steps[0]`, `metrics.steps[1]`, `metrics.steps[2]`
+
+그 밖의 `result`, resulting logical state, managed DB schema, recorder history, phase와 metrics는
+Django reference와 동일해야 합니다. MIG-052의 phase는 두 구현 모두 `commit`입니다.
+
+### 이유와 고려한 대안
+
+Django 순서를 복제하려면 public 결과보다 private traversal detail을 기준으로 deterministic
+planner order를 바꿔야 합니다. 이는 기존 MIG-005..016 planner contract와 다른 app/target의
+순서를 넓게 흔들 수 있습니다. B1/A3은 dependency로 순서가 강제되지 않고 final state/DB/phase가
+같으므로, 기존 canonical order의 안정성과 재현성을 유지하고 좁은 ordered payload만 deviation으로
+승인했습니다.
+
+검토한 대안은 Django traversal을 lifecycle adapter에서 특수 처리하는 안, app-zero에 별도
+planner mode를 추가하는 안, plan/metrics order를 comparator에서 무시하는 안입니다. 첫 두 안은
+public Planner와 lifecycle plan이 갈라지고, 마지막 안은 실제 ordered contract를 약화해 false
+green을 만들므로 채택하지 않았습니다.
+
+### 사용자·데이터·migration 영향
+
+사용자는 app zero의 로그/plan/step 표시에서 incomparable B1과 A3의 순서 차이를 볼 수 있습니다.
+두 migration이 dependency로 연결되지 않았다는 전제에서 최종 logical state, DB schema와 recorder
+history는 동일합니다. B1 또는 A3에 외부 side effect가 생기는 future data migration은 이
+deviation의 현재 범위에 자동 포함되지 않으며 새 contract/결정이 필요합니다.
+
+### backend/concurrency/security 영향
+
+두 순서 모두 migration별 fenced transaction과 revision successor를 사용합니다. Stale,
+contention, integrity, rollback/unknown durability와 last-durable state 의미는 달라지지 않습니다.
+이 결정은 SQLite lock 순서, retry, privilege 또는 security boundary를 완화하지 않으며
+non-SQLite backend 동작을 승인하지 않습니다.
+
+### 구현과 검증 조건
+
+- Lifecycle manifest에서 MIG-052만 `deviation`, 나머지 MIG-047..051/053..056은 `passing`
+- MIG-052 provenance는 정확히 하나의 `kind=decision`, `reference=DEV-0002`, `derived=false`
+- `godj-migration-lifecycle-deviation-expected.json`은 위 여섯 replace selector만 소유
+- Code-owned DEV-0002 policy는 selector/status/provenance의 누락·추가·중복과 unknown decision을
+  actual 생성 전에 fail-closed
+- Live adapter는 public `Executor.Migrate`와 SQLite DB를 사용하고 contract ID/oracle/static
+  dispatch를 하지 않음
+- Target/definition/history/fault propagation, source guard와 semantic mutation gate 통과
+- 두 독립 actual이 byte-identical하고 reviewed expectation과 10 contract/0-diff
+- Locked lifecycle oracle, not-implemented static fixture, `SHA256SUMS`와
+  `conformance/lifecyclefence/**` byte 불변
+
+Machine/conformance commit `fd49d5147beefead640f43ae6fd5c83860a17a06`에서 검증했습니다.
+Lifecycle manifest는 13,735 bytes, SHA-256
+`5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`, sparse expectation은
+6,769 bytes, SHA-256 `58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`입니다.
+두 actual은 각각 98,304 bytes, SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical했고,
+9 exact + DEV-0002 expectation에서 10/0-diff였습니다. Aggregate 제품 분류는
+`92 passing + 5 deviation`입니다.
+
+### 복귀 또는 supersede 조건
+
+Django와의 exact sibling execution order가 existing GoDj planner stability보다 우선해야 한다는
+사용자 근거가 생기거나, dependency/side-effect contract가 B1/A3의 order를 의미 있게 만들면 새
+ADR과 deviation으로 이 결정을 Superseded합니다. 단순히 comparator를 완화하거나 locked oracle을
+수정해서 복귀하지 않습니다.

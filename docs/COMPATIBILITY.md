@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-08
+- 마지막 검증: 2026-08-09
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
 
@@ -235,7 +235,8 @@ Accepted [ADR-0016](adr/0016-historical-project-state-reconstruction.md)은 load
 deep-copy하는 immutable `StateReconstructor`, explicit empty/latest/before/after/applied
 request와 여덟 번째 live adapter를 구현했습니다. Applied scenario는 real SQLite recorder를
 read-only로 읽어 `LoadAppliedState`를 거치며, core는 DB/backend I/O가 없습니다.
-MIG-037..046은 10 `passing`이고 현재 제품 분류는 `83 passing + 4 deviation`입니다.
+MIG-037..046은 10 `passing`이고 GDJ-0016 완료 당시 제품 분류는
+`83 passing + 4 deviation`입니다.
 Recorder identity만으로 definition을 만들거나 read/reconstruct/plan/execute atomicity를
 보장하지 않습니다.
 
@@ -411,8 +412,8 @@ GDJ-0016은 eighth manifest status 10개만 `passing`으로 전환해 9,197 byte
 Locked Django oracle/static/SHA256SUMS는 변경하지 않았습니다. 두 독립 Go actual은 각각
 89,867 bytes, SHA-256
 `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
-byte-identical하고 oracle과 protocol 의미상 10개 0-diff입니다. 현재 8 product set은
-`83 passing + 4 deviation`, 87 unique contract와 56 ordered cross-binding을 검증합니다.
+byte-identical하고 oracle과 protocol 의미상 10개 0-diff입니다. GDJ-0016 완료 당시 8 product
+set은 `83 passing + 4 deviation`, 87 unique contract와 56 ordered cross-binding을 검증했습니다.
 Static fixture는 ordered 10 mismatch를 유지합니다. 상세 증거는
 [EVID-20260808-015](status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
 기록합니다.
@@ -432,9 +433,36 @@ static fixture는 1,681 bytes/SHA-256
 `b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`입니다. 새 10개는
 `oracle_locked`, Django oracle은 `observed`, static fixture는 `not_implemented`입니다.
 아홉 set의 97 ID/scenario는 유일하고 72 ordered cross-binding이 거부됩니다. 제품 adapter가
-없으므로 현재 분류는 `83 passing + 4 deviation + 10 oracle_locked`이며 97개 전체가 제품
-지원이라는 뜻이 아닙니다. Revision-fence spike는 Accepted ADR-0017의 feasibility evidence일
-뿐 제품 compatibility claim이 아닙니다.
+없으므로 GDJ-0017 완료 당시 분류는 `83 passing + 4 deviation + 10 oracle_locked`이며 97개
+전체가 제품 지원이라는 뜻이 아닙니다. Revision-fence spike는 Accepted ADR-0017의
+feasibility evidence일 뿐 제품 compatibility claim이 아닙니다.
+
+완료된 [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)은 ninth
+manifest를 public `Executor.Migrate`와 revision-fenced SQLite live adapter에 연결했습니다.
+Fresh/prefix/no-op, named forward/reverse, unknown legacy, history preflight, middle rollback과
+file reopen resume의 9개는 `passing`입니다. MIG-052만 Accepted ADR-0013의 canonical sibling
+order를 보존하는 DEV-0002 `deviation`이며, sparse expectation은 ordered
+`result.plan[0..2]`와 `metrics.steps[0..2]` 여섯 path만 바꿉니다. 기존 DEV-0001 네 계약과
+locked Django observation은 변경하지 않았습니다.
+
+현재 manifest는 13,735 bytes/SHA-256
+`5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`, DEV-0002
+expectation은 6,769 bytes/SHA-256
+`58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`입니다. Locked oracle과
+static fixture는 각각 98,436 bytes/
+`7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`, 1,681 bytes/
+`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`로 유지됩니다. 두
+independent Go actual은 각각 98,304 bytes/SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`이고 10-contract
+product expectation과 일치합니다. 현재 제품 분류는 9 adapter의
+`92 passing + 5 deviation`; 97 unique contract와 72 ordered cross-binding입니다.
+
+Accepted [ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md)의 호환 경계는
+exact-one opaque session snapshot, SQLite `BEGIN IMMEDIATE` epoch/revision/fingerprint fence와
+no-fallback/no-automatic-adoption입니다. `CommitRolledBack`은 confirmed state와 token을 advance하지
+않고 SQLite session을 poison해 같은 call에서 재시도하지 않습니다. Empty-table default-bearing
+`AddField`는 logical default를 보존하되 physical persistent default를 만들지 않으며 nonempty
+table은 계속 unsupported입니다.
 
 ## 데이터 호환성
 

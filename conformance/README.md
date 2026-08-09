@@ -21,9 +21,13 @@ GDJ-0015는 loaded migration definition의 historical `ProjectState` reconstruct
 read-only recorder-backed GoDj live adapter를 연결해 이 set을 10 `passing`으로
 전환했습니다.
 GDJ-0017은 fresh/target/failure/restart migration lifecycle 전용 아홉 번째 reference set을
-추가했습니다. 이 10개는 `oracle_locked`이며 제품 adapter는 없습니다. 별도
-`lifecyclefence` package는 revision fence의 test-only feasibility를 검증할 뿐 제품 API나
+추가했습니다. GDJ-0017 완료 당시 이 10개는 `oracle_locked`였고 제품 adapter는 없었습니다.
+별도 `lifecyclefence` package는 revision fence의 test-only feasibility를 검증할 뿐 제품 API나
 backend 구현이 아닙니다.
+
+GDJ-0018은 public `Executor.Migrate`와 revision-fenced SQLite backend를 사용하는 아홉 번째
+GoDj live adapter를 연결했습니다. Lifecycle 9개는 `passing`, MIG-052만 reviewed DEV-0002
+`deviation`이며 현재 9 product set의 분류는 `92 passing + 5 deviation`입니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -42,7 +46,7 @@ backend 구현이 아닙니다.
 | `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution, recorder restart와 historical-state reconstruction 제품 package를 실행하는 여덟 GoDj observation adapter |
+| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution, recorder restart, historical-state reconstruction과 revision-fenced lifecycle 제품 package를 실행하는 아홉 GoDj observation adapter |
 | `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
@@ -317,6 +321,18 @@ go run ./conformance/cmd/observationcmp \
   -actual conformance/fixtures/godj-migration-state-reconstruction-not-implemented.json
 ```
 
+Revision-fenced migration lifecycle 제품 adapter는 public `Executor.Migrate`와 live SQLite
+database로 MIG-047..056을 실행합니다. MIG-052의 canonical sibling order는 locked oracle을
+바꾸지 않고 DEV-0002 sparse expectation으로만 대체합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-lifecycle-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json \
+  -deviation-expected conformance/fixtures/godj-migration-lifecycle-deviation-expected.json
+```
+
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
 false green이 생기지 않는지 검증합니다.
@@ -470,8 +486,9 @@ reconstructor와 explicit empty/latest/before/after/applied request, real SQLite
 `85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c`입니다. Locked
 oracle/static bytes는 유지됐고, 두 Go actual은 각각 89,867 bytes, SHA-256
 `a307d185e5a3c67a679f62bfa4575f6f43ef8ad41e55c78fdf34d5acb5866e44`로
-byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. 현재 8 product set의 분류는
-`83 passing + 4 deviation`; 87 unique contract와 56 cross-binding gate를 유지합니다. 상세
+byte-identical하며 oracle과 protocol 의미상 10개 0-diff입니다. GDJ-0016 완료 당시 8 product
+set의 분류는 `83 passing + 4 deviation`; 87 unique contract와 56 cross-binding gate를
+유지합니다. 상세
 증거는
 [EVID-20260808-015](../docs/status/TEST_EVIDENCE.md#evid-20260808-015--gdj-0016-historical-projectstate-reconstruction-product-slice)에
 기록합니다.
@@ -491,7 +508,7 @@ random-hashseed process와 checked-in oracle은 byte-identical합니다.
 아홉 set의 ID/scenario 97개는 전역으로 유일하고 72개 ordered cross-binding이 모두
 거부됩니다. Static comparison은 MIG-047..056 ordered status mismatch 10개와 exit 1이고,
 제품 `godjcheck`는 등록되지 않은 lifecycle scenario를 exit 2/no actual output으로
-fail-closed합니다. 따라서 현재 분류는 기존 `83 passing + 4 deviation`과 새
+fail-closed합니다. 따라서 GDJ-0017 완료 당시 분류는 기존 `83 passing + 4 deviation`과 새
 `10 oracle_locked`이며 reference 97개 전체를 제품 지원으로 표현하지 않습니다.
 
 `lifecyclefence` spike는 현재 unfenced 조합의 first-write 전/step 사이 stale gap을 재현하고,
@@ -503,6 +520,29 @@ Two connections/processes, bootstrap 경쟁, DDL/recorder 뒤 fault, BUSY/LOCKED
 capability fail-closed를 검증했지만 이는 제품 implementation이 아닙니다. 상세 증거는
 [EVID-20260808-016](../docs/status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
 기록합니다.
+
+완료된 [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)과 Accepted
+[ADR-0018](../docs/adr/0018-revision-fenced-migration-lifecycle-product-shape.md)은 public
+`Executor.Migrate`가 already-loaded definition을 exact-one opaque revision session으로 읽고,
+SQLite `BEGIN IMMEDIATE` transaction에서 epoch/revision/fingerprint fence, schema, recorder와
+successor token을 함께 commit하도록 제품화했습니다. Unsupported backend로 fallback하지 않고,
+existing recorder의 자동 adoption도 하지 않습니다.
+
+현재 lifecycle manifest는 13,735 bytes, SHA-256
+`5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`입니다. Locked Django
+oracle과 static fixture는 각각 98,436 bytes/
+`7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`, 1,681 bytes/
+`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`로 유지됩니다.
+DEV-0002 sparse expectation은 6,769 bytes, SHA-256
+`58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`이며 MIG-052의
+`result.plan[0]`, `result.plan[1]`, `result.plan[2]`, `metrics.steps[0]`, `metrics.steps[1]`,
+`metrics.steps[2]`만 바꿉니다. 기존 DEV-0001 네 계약은 그대로입니다.
+
+두 독립 Go actual은 각각 98,304 bytes, SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical하고
+reviewed product expectation과 10-contract match입니다. 현재 9 product adapter의 분류는
+`92 passing + 5 deviation`이며, 97 unique contract와 72 ordered cross-binding gate를
+유지합니다.
 
 ## Provenance
 

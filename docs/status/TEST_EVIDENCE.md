@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-08
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260808-016
+- 마지막 갱신: 2026-08-09
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-017
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1495,3 +1495,110 @@ migration writer가 fence를 사용할 때 완전하며 pre-cutover non-cooperat
 live-schema drift, fairness/lease/distributed lock와 crash repair는 범위 밖입니다. Spike의
 metadata/token/coordinator는 제품 schema/API가 아닙니다. 이 근거로 ADR-0017의 안전성 방향만
 Accepted로 승격했으며 제품 lifecycle 구현 또는 MIG-047..056 `passing`을 주장하지 않습니다.
+
+## EVID-20260809-017 — GDJ-0018 Revision-Fenced Migration Lifecycle Product Slice
+
+- Date/time: 2026-08-09, final code gate after
+  `9f51ad0da443d259940d44acbb8c3d095a9a257b`
+- Work/contract IDs: GDJ-0018, MIG-047..MIG-056, Q-012, DEV-0002
+- Checkout/commit: branch `codex/revision-fenced-migration-lifecycle`; product
+  `d076bd20f5964074b7b76b44147ca59f7b3e6eb8`, machine/conformance
+  `fd49d5147beefead640f43ae6fd5c83860a17a06`, CI
+  `7df6e2ad97d5890610e597277653df0674e8dd52`, repeated-test hygiene/final code
+  `9f51ad0da443d259940d44acbb8c3d095a9a257b`; 이 evidence와 completion 문서는 이후 handoff
+  commit에 포함
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5,
+  modernc.org/sqlite v1.56.0 / SQLite 3.53.3; exact reference는 uv 0.10.12,
+  CPython 3.14.3, Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
+  SQLite 3.50.4, `LC_ALL=C`, `TZ=UTC`
+- Exit status: final `make check`, full CGO-disabled Go, migrations count=50, full db/sqlite
+  count=20과 focused race count=10/5/5가 0. Static comparison의 exit 1은 expected result.
+- Result summary: `Executor.Migrate`가 loaded definitions와 explicit latest/targeted request를
+  exact-one atomic snapshot, history preflight, reconstruction/planning과 per-step fenced transaction에
+  결속합니다. SQLite metadata v1/fresh bootstrap/adoption gate, first-write revision claim, atomic
+  schema+recorder+successor, commit durability와 empty-table default-bearing AddField가 구현됐습니다.
+  MIG-047..051/053..056은 exact `passing`, MIG-052만 exact six-path DEV-0002이며 aggregate는 9
+  product adapter/97 contract의 `92 passing + 5 deviation`입니다.
+- Failures/skips: 예상하지 않은 최종 local failure 없음. Portable Python은 130 tests 중
+  exact-profile-only 13 skipped, exact run은 130/130 pass. GitHub-hosted Actions는 branch push/PR
+  전이라 실행하지 않았습니다. PostgreSQL/MySQL 등 non-SQLite backend는 GDJ-0018 범위에 구현이
+  없어 실행하지 않았습니다.
+- Artifacts: lifecycle manifest 13,735 bytes SHA-256
+  `5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`; DEV-0002 fixture
+  6,769 bytes SHA-256 `58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`;
+  locked lifecycle oracle 98,436 bytes SHA-256
+  `7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`; static fixture
+  1,681 bytes SHA-256 `b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`;
+  `SHA256SUMS` 853 bytes SHA-256
+  `520db274a63ed9d192e6ae0a3db224154a84676462e7fd8e49f80f64673c1a90`
+
+실행한 final local gate:
+
+```bash
+make check
+CGO_ENABLED=0 go test -count=1 ./...
+go test -count=50 -shuffle=on ./migrations
+go test -count=20 -shuffle=on ./db/sqlite
+```
+
+`make check`는 format/generation drift, full Go test/vet/race, focused CGO=0, portable/exact Python,
+protocol validation, 9-set GoDj conformance와 locked oracle regeneration check를 포함했습니다.
+Portable run은 130 tests/13 skipped, exact run은 130/130 passing이었습니다. 과거
+`db/sqlite -count=20` 실패는 production defect가 아니라 test helper가 같은 process에서 고정
+shared-memory DSN을 재사용한 invocation-isolation 문제였습니다.
+`db/sqlite/backend_internal_test.go`가 invocation-unique DB name을 사용하도록 수정한
+`9f51ad0da443d259940d44acbb8c3d095a9a257b` 뒤 full package `-count=20 -shuffle=on`을 다시
+실행해 통과했습니다.
+
+실행한 focused race repetition:
+
+```bash
+go test -race -count=10 -shuffle=on ./migrations \
+  -run 'TestExecutorMigrate|TestExecutorApply|TestExecutorUnapply|TestExecutorExecutePlan'
+go test -race -count=5 -shuffle=on ./db/sqlite \
+  -run 'TestSQLiteRevision|TestSQLiteMigrationAllowsDefaultAddField|TestSQLiteMigrationRejectsDefaultAddField'
+go test -race -count=5 ./conformance/runners/godj \
+  -run 'TestMigrationLifecycle'
+```
+
+Core gate는 invalid zero/latest/target, definition/dependency/operation/nested IR deep-copy,
+exact-one snapshot, history-before-target precedence, full preflight, unsupported no-fallback,
+pre-Begin cancellation, raw fence category/code matrix와 primary/secondary cleanup ordering을
+검증했습니다. Multi-step durability matrix에서 이전 committed prefix 뒤 RolledBack은 token/state를
+advance하지 않고, Unknown/zero는 confirmed pre-step state를 반환하며 tail을 중단합니다.
+SQLite는 failed step 뒤 session을 poison하므로 `CommitRolledBack`의 token 보존이 same-session retry
+허용을 뜻하지 않습니다.
+
+SQLite gate는 exact metadata/recorder physical shape, fresh-only bootstrap, empty-recorder adoption,
+legacy writer fail-closed, 2-connection/2-process single winner, ABA/stale/between-step conflict,
+live BUSY/LOCKED call-site classification, format/epoch/revision/fingerprint/recorder corruption,
+overflow, declared transition identity/direction/count, cancellation/commit cleanup와 Close/Begin/
+concurrent terminal race를 검증했습니다. Empty table의 `BooleanField(default=false)`는 logical
+default를 보존하고 physical `BOOLEAN NOT NULL` column에 persistent `DEFAULT`를 남기지 않았으며,
+nonempty table은 capability error였습니다.
+
+두 독립 Go actual은 각각 98,304 bytes, SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical했습니다.
+Locked Django oracle에 MIG-052의 reviewed sparse expectation을 적용한 비교는 10 contract/0-diff였고,
+DEV-0002가 바꾼 path는 정확히 다음 여섯 개뿐입니다.
+
+- `result.plan[0]`, `result.plan[1]`, `result.plan[2]`
+- `metrics.steps[0]`, `metrics.steps[1]`, `metrics.steps[2]`
+
+MIG-052의 resulting state, managed DB schema, recorder history와 phase는 reference와 동일했습니다.
+Static comparison은 의도한 exit 1과 MIG-047..056 ordered status mismatch 정확히 10개를
+반환했습니다. Manifest decision provenance, sparse selector allowlist, live target/definition/
+history/fault propagation, source guard와 semantic mutation gate가 contract/oracle/static dispatch
+false green을 거부했습니다. 9 product adapter set은 97 contract ID/scenario의 전역 유일성과
+72 ordered cross-binding 거부를 유지했습니다.
+
+Lifecycle manifest만 status/provenance 변화로 13,735 bytes가 됐고 locked Django oracle,
+not-implemented static fixture, `SHA256SUMS`와 `conformance/lifecyclefence/**`는 machine baseline과
+byte-identical했습니다. Product, SQLite와 conformance를 서로 다른 담당이 교차 감사했고 최종
+P0–P3 finding은 없었습니다.
+
+`.github/workflows/ci.yml`에는 기존 Ubuntu 24.04 portable `make ci` job에 더해 `macos-15`,
+Go 1.26.5, uv 0.10.12/Python 3.14.3의 exact darwin/arm64 lifecycle job을 추가했습니다. 이 job은
+focused pure-Go lifecycle/SQLite/adapter/compile test와 `make python-test-exact oracle-check`를
+실행합니다. Workflow definition은 local review됐지만 GitHub-hosted run은 아직 없으므로 hosted
+PASS로 기록하지 않습니다.

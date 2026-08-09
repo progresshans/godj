@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-09
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -94,6 +94,7 @@ conformance/
   fixtures/godj-write-migration-not-implemented.json
   fixtures/godj-save-lifecycle-not-implemented.json
   fixtures/godj-migration-lifecycle-not-implemented.json
+  fixtures/godj-migration-lifecycle-deviation-expected.json
   fixtures/godj-query-cache-not-implemented.json
   fixtures/godj-migration-planning-not-implemented.json
   fixtures/godj-migration-execution-not-implemented.json
@@ -359,6 +360,30 @@ legacy capability fail-closed를 검증합니다. 이 gate의 성공을 public l
 [EVID-20260808-016](status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)에
 기록합니다.
 
+GDJ-0018은 public `Executor.Migrate`와 revision-fenced SQLite backend를 직접 실행하는 ninth
+adapter를 추가했습니다. Lifecycle 9개는 `passing`, MIG-052만
+`result.plan[0..2]`/`metrics.steps[0..2]` 여섯 ordered path의 DEV-0002 `deviation`입니다.
+기존 DEV-0001 네 계약은 변경하지 않았고, `make godj-conformance`의 현재 분류는
+`92 passing + 5 deviation`입니다. 97 unique contract와 모든 72 ordered cross-binding,
+live target/definition/seed/legacy/fault propagation과 adapter source hardcode 금지를 함께
+검증합니다.
+
+현재 lifecycle manifest는 13,735 bytes/SHA-256
+`5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`, locked oracle은
+98,436 bytes/`7eca1ae6a8768cda7af75a3f8d749469e7fb48fd327aa1591b06c922f87174fc`, static fixture는
+1,681 bytes/`b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`, DEV-0002
+expectation은 6,769 bytes/`58e773ac6a2eb52faa6ecec78982e75219c5b978ae8295a8902e8bebe8158f1b`입니다. 두
+independent Go actual은 각각 98,304 bytes/SHA-256
+`a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical하며
+reviewed expectation과 10-contract match입니다.
+
+제품 safety gate는 session snapshot이 exact-one인지, snapshot 뒤 connection을 pin하지 않는지,
+각 SQLite step이 `BEGIN IMMEDIATE` 안에서 epoch/revision/fingerprint를 첫 mutation 전에
+검사하는지 확인합니다. Unsupported backend fallback과 existing recorder 자동 adoption은
+허용하지 않습니다. `CommitRolledBack`은 confirmed state/token을 advance하지 않고 SQLite
+session을 poison하며 semantic retry를 하지 않습니다. Default-bearing `AddField`는 empty table의
+logical default와 physical no-default를 함께 확인하고 nonempty table은 거부합니다.
+
 ## 기능별 기본 테스트 요구
 
 모든 테스트 종류를 모든 작은 변경에 억지로 추가하지는 않습니다. 위험에 맞게 선택하되, 다음 변경은 기본 gate를 가집니다.
@@ -400,4 +425,8 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 5. backend matrix와 긴 conformance suite
 6. release 전 security/performance/migration matrix
 
-실제 command는 toolchain과 파일이 생긴 작업에서 확정합니다. 존재하지 않는 명령을 현재 표준처럼 문서화하지 않습니다.
+현재 GitHub Actions의 `conformance-validation` job은 `ubuntu-24.04`에서 full portable
+`make ci`와 checked-in oracle checksum/drift를 확인합니다. `exact-darwin-validation` job은
+`macos-15`에서 Go 1.26.5, uv 0.10.12, Python 3.14.3을 설치하고 focused pure-Go lifecycle,
+exact Python profile과 locked oracle을 검증합니다. Hosted macOS 실행은 이 branch를 PR로
+push한 뒤에만 생기므로 아직 통과 증거가 아니라 pending CI gate입니다.

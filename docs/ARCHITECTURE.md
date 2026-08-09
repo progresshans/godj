@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-09
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -139,22 +139,45 @@ deep-copy하는 별도 immutable `StateReconstructor`와 explicit empty/latest/b
 request를 구현했습니다. Existing Planner graph/order kernel과 operation state transition만
 사용하므로 core에는 DB handle, backend/SQLite/SQL import나 I/O가 없습니다. Applied live
 adapter는 real SQLite recorder를 read-only로 읽어 `LoadAppliedState`를 거치며 MIG-037..046은
-10 `passing`, 현재 제품 분류는 `83 passing + 4 deviation`입니다. 이 경계는 recorder
+10 `passing`, GDJ-0016 완료 당시 제품 분류는 `83 passing + 4 deviation`입니다. 이 경계는 recorder
 identity만으로 definition을 발명하지 않으며 read/reconstruct/plan/execute가 하나의 atomic
 lifecycle이라는 뜻도 아닙니다.
 
 완료된 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
 MIG-047..056으로 read/check/reconstruct/plan/execute lifecycle의 fresh/target/failure/restart
-외부 의미를 아홉 번째 exact set에 고정했습니다. 10개는 `oracle_locked`이고 제품 adapter나
-public lifecycle API는 없습니다. Accepted
+외부 의미를 아홉 번째 exact set에 고정했습니다. GDJ-0017 완료 당시 10개는
+`oracle_locked`였고 제품 adapter나 public lifecycle API는 없었습니다. Accepted
 [ADR-0017](adr/0017-revision-fenced-migration-lifecycle.md)은 제품 승격 시 recorder identities와
 opaque freshness revision을 같은 snapshot으로 읽고 각 migration transaction의 첫 DDL/write
 전에 expected token을 검증하도록 결정합니다. SQLite feasibility harness는 persistent epoch와
 monotonic revision을 후보로 사용했고 fingerprint는 direct non-ABA drift를 잡는 보조 gate로만
-검증했지만, 제품 storage와 token encoding은 아직 결정하지 않았습니다. Harness는 per-step commit,
+검증했지만, 당시 제품 storage와 token encoding은 결정하지 않았습니다. Harness는 per-step commit,
 last-durable state, no retry와 unsupported fail-closed를 검증했지만 product package를 변경하지
 않았습니다. Cutover 전 non-cooperating ABA, recorder 밖 schema drift와 crash repair는 계속
 Q-012 후속입니다.
+
+완료된 [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md)과 Accepted
+[ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md)은 이 조각들을 public
+`Executor.Migrate(ctx, definitions, request)`로 조립합니다. Tagged latest/targeted request는
+already-loaded definition만 받고, backend-owned session은 recorder identities와 private
+freshness token을 정확히 한 atomic snapshot에서 읽은 뒤 call 사이 physical connection을
+pin하지 않습니다. Core는 session을 반드시 닫고 unsupported optional port에 legacy execution으로
+fallback하지 않습니다.
+
+SQLite session은 persistent 128-bit epoch, monotonic revision과 sorted full-history fingerprint를
+opaque token으로 결속합니다. 각 step은 새 pinned connection의 literal `BEGIN IMMEDIATE` 안에서
+expected token을 첫 mutation 전에 검사하고 schema, declared recorder transition과 successor
+token을 원자적으로 commit합니다. Metadata와 recorder가 모두 absent인 fresh database만
+bootstrap하며 existing recorder는 empty여도 adoption-required이고 자동 adoption 경로는 없습니다.
+`CommitRolledBack`은 core의 confirmed state와 session token을 advance하지 않으며, SQLite는 실패한
+transaction 뒤 session을 poison해 같은 lifecycle에서 retry하지 않습니다. Unknown durability도
+poison/no-retry이고 last confirmed pre-step state만 반환합니다.
+
+MIG-047의 A2를 위해 SQLite `AddField`는 table이 empty일 때만 logical default를
+`ProjectState`에 보존하면서 physical persistent default 없는 column을 추가합니다. Nonempty
+table backfill/rebuild는 계속 explicit unsupported입니다. MIG-047..056의 아홉 product adapter
+중 MIG-052만 DEV-0002이며 현재 전체 분류는 `92 passing + 5 deviation`입니다. File/source
+loader, version handshake, CLI, public adoption/repair와 crash reconciliation은 다음 계약 범위입니다.
 
 ## CLI와 프로젝트 실행
 
