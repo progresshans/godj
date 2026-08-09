@@ -15,7 +15,11 @@
 - 반복 테스트 격리 commit:
   `9f51ad0da443d259940d44acbb8c3d095a9a257b`
   (`test: isolate repeated SQLite query classification`)
+- GDJ-0018 완료 문서 commit:
+  `999e63b42e6ebd89e6f0f5f531a53a9cd2ffd2f3`
+  (`docs: complete revision-fenced migration lifecycle`)
 - remote: `https://github.com/progresshans/godj.git`
+- Draft PR: [#1 Add revision-fenced migration lifecycle](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0018 Revision-Fenced Migration Lifecycle Product Slice completed
 - 최근 완료 작업:
   [GDJ-0018 Revision-Fenced Migration Lifecycle Product Slice](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)
@@ -120,13 +124,15 @@
 - GDJ-0018의 제품, SQLite fence, live adapter, artifact와 반복/concurrency gate는
   [EVID-20260809-017](TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
   기록했습니다.
+- PR #1의 GitHub-hosted Ubuntu/macOS 검증은
+  [EVID-20260809-018](TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
+  기록했습니다.
 - Final tree에서 `make check`, full `CGO_ENABLED=0 go test -count=1 ./...`, migrations
   `-count=50 -shuffle=on`, db/sqlite `-count=20 -shuffle=on`, focused race 반복과 독립 P0–P3
   감사가 통과했습니다.
 - Portable Python은 130 tests 중 exact-only 13 skipped, exact profile은 130/130 passing입니다.
-- GitHub Actions에는 Ubuntu portable job과 `macos-15` exact darwin/arm64 lifecycle job이
-  정의됐습니다. 아직 branch push/PR이 없으므로 hosted run은 실행되지 않았고 local pass를 hosted
-  pass로 표현하지 않습니다.
+- GitHub Actions [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서
+  Ubuntu 24.04 full portable job과 macOS 15 arm64 exact lifecycle job이 모두 통과했습니다.
 
 ## 확정된 결정
 
@@ -146,9 +152,8 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. 다음은 구현하지 않았거나 아직 실행되지 않은 검증입니다.
+외부 blocker와 미실행된 현재 CI gate는 없습니다. 다음은 구현하지 않은 제품 범위입니다.
 
-- GitHub-hosted Ubuntu/macOS Actions: workflow는 추가됐지만 push/PR 전이라 pending
 - Migration definition source discovery/versioned loader/codec와 public CLI
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
@@ -172,7 +177,7 @@ deterministic load order, duplicate/partial source failure와 already-loaded `Ex
 - 현재 분류: 9 product adapter set, 97 contract, `92 passing + 5 deviation`
 - 전체 local gate: `make check`
 - Portable CI equivalent: `make ci`
-- Hosted CI: branch push와 single PR 뒤 확인 필요
+- Hosted CI: PR #1 run 31295886061의 Ubuntu 24.04와 macOS 15 arm64 job PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 가장 위험한 과장: loaded-definition lifecycle을 file loader/CLI/adoption/crash recovery 또는
   non-SQLite 지원으로 표현하는 것

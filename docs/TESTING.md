@@ -428,5 +428,8 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 현재 GitHub Actions의 `conformance-validation` job은 `ubuntu-24.04`에서 full portable
 `make ci`와 checked-in oracle checksum/drift를 확인합니다. `exact-darwin-validation` job은
 `macos-15`에서 Go 1.26.5, uv 0.10.12, Python 3.14.3을 설치하고 focused pure-Go lifecycle,
-exact Python profile과 locked oracle을 검증합니다. Hosted macOS 실행은 이 branch를 PR로
-push한 뒤에만 생기므로 아직 통과 증거가 아니라 pending CI gate입니다.
+exact Python profile과 locked oracle을 검증합니다. 두 job은 PR #1의
+[run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
+통과했으며 상세 환경과 결과는
+[EVID-20260809-018](status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
+기록합니다.

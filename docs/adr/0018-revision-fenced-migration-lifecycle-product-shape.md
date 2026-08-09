@@ -406,11 +406,13 @@ dispatch하고 unknown/mismatched decision은 actual 생성 전에 fail-closed�
 
 Acceptance evidence는
 [EVID-20260809-017](../status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)에
+기록하고, hosted 검증은
+[EVID-20260809-018](../status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
 기록합니다. Product commit은 `d076bd20f5964074b7b76b44147ca59f7b3e6eb8`, machine/conformance
 commit은 `fd49d5147beefead640f43ae6fd5c83860a17a06`, final local code checkout은
 `9f51ad0da443d259940d44acbb8c3d095a9a257b`입니다. `make check`, full CGO-disabled Go,
-focused repeated/race gate와 two-process 10/0-diff가 통과했습니다. `macos-15` exact job은 workflow에
-추가됐지만 branch push/PR 전이므로 GitHub-hosted evidence는 아직 없습니다.
+focused repeated/race gate와 two-process 10/0-diff가 통과했습니다. PR #1의 GitHub Actions
+run 31295886061에서 Ubuntu 24.04 full portable job과 `macos-15` exact job도 통과했습니다.
 
 상세 allowed path와 completion gate는
 [GDJ-0018](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)에 기록합니다.

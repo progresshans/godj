@@ -443,7 +443,6 @@ table rebuild, data backfill 또는 generated insert-default 동작을 일반화
 외부 blocker는 없습니다. Backend raw carrier, metadata identifier/shape와 commit outcome carrier는
 구현·compile/fault evidence로 확정했습니다. 다음은 명시적 비목표 또는 후속 제한입니다.
 
-- Hosted GitHub Actions는 workflow만 추가됐고 branch push/PR 전이라 아직 실행하지 않음
 - Public existing-database adoption/repair, copy/restore epoch 정책, overflow recovery와 crash repair
 - Migration source/versioned loader/codec와 CLI
 - Non-SQLite fenced backend, distributed lock/lease와 automatic retry
@@ -454,6 +453,8 @@ table rebuild, data backfill 또는 generated insert-default 동작을 일반화
   [EVID-20260808-016](../docs/status/TEST_EVIDENCE.md#evid-20260808-016--gdj-0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike)
 - Product evidence:
   [EVID-20260809-017](../docs/status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)
+- Hosted CI evidence:
+  [EVID-20260809-018](../docs/status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)
 - Final code checkout:
   `codex/revision-fenced-migration-lifecycle@9f51ad0da443d259940d44acbb8c3d095a9a257b`
 - `make check` PASS; portable Python 130 tests/13 exact-only skipped, exact 130/130 PASS
@@ -466,6 +467,8 @@ table rebuild, data backfill 또는 generated insert-default 동작을 일반화
   `a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical했고
   10 contract/0-diff; static fixture는 의도한 exit 1/ordered mismatch 10
 - Independent product/SQLite/conformance P0–P3 audit finding 없음
+- PR #1 [GitHub Actions run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)의
+  Ubuntu 24.04 full portable job과 macOS 15 arm64 exact-profile job PASS
 
 ## 위험과 rollback
 
@@ -493,6 +496,5 @@ SHA-256 `5ec1f6bdf35fddce144d4623134b89be05a9d2b12b06fe72df27a4bc935af0d0`, DEV-
 98,436 bytes와 static 1,681 bytes, `SHA256SUMS`, `conformance/lifecyclefence/**`는 불변입니다.
 
 다음 작업은 planned GDJ-0019 migration definition source/versioned-loader contract입니다.
-GDJ-0018 API는 file layout, operation codec나 CLI handshake를 고정하지 않았습니다. Hosted
-GitHub Actions는 single PR을 만든 뒤 Ubuntu portable/macOS exact job으로 확인해야 하며, 현재
-local evidence를 hosted pass로 표현하지 않습니다.
+GDJ-0018 API는 file layout, operation codec나 CLI handshake를 고정하지 않았습니다. Draft PR
+#1의 Ubuntu portable/macOS exact GitHub-hosted job도 통과했으며 상세 실행은 EVID-018에 남겼습니다.

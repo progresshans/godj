@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-09
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-017
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-018
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1602,3 +1602,38 @@ Go 1.26.5, uv 0.10.12/Python 3.14.3의 exact darwin/arm64 lifecycle job을 추�
 focused pure-Go lifecycle/SQLite/adapter/compile test와 `make python-test-exact oracle-check`를
 실행합니다. Workflow definition은 local review됐지만 GitHub-hosted run은 아직 없으므로 hosted
 PASS로 기록하지 않습니다.
+
+## EVID-20260809-018 — GDJ-0018 GitHub-hosted Ubuntu와 darwin/arm64 CI
+
+- Date/time: 2026-08-09 14:04:00–14:06:08 KST
+- Work/contract IDs: GDJ-0018, MIG-047..MIG-056, Q-012, DEV-0002
+- Pull request/run: Draft [PR #1](https://github.com/progresshans/godj/pull/1),
+  [CI run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061),
+  event `pull_request`
+- Head/checkout: branch `codex/revision-fenced-migration-lifecycle`, head
+  `999e63b42e6ebd89e6f0f5f531a53a9cd2ffd2f3`; Actions checkout merge
+  `f911d92a75d7cd79f4adb4e5f5c4e2f64e084401` into
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+- Exit status: workflow `success`; two jobs successful, cancelled/failing/skipped/pending 0
+- Failures/skips: unexpected job/step failure 없음. Ubuntu portable Python은 130 tests 중
+  exact-only 13 skipped; macOS exact Python은 130/130 pass.
+
+Hosted job evidence:
+
+1. `Validate checked-in conformance artifacts`
+   ([job 93200793945](https://github.com/progresshans/godj/actions/runs/31295886061/job/93200793945))
+   - GitHub image `ubuntu-24.04`, Go 1.26.5 `linux/amd64`
+   - `make ci`, stored oracle checksum과 reference artifact no-rewrite gate PASS
+   - Started 14:04:02 KST, completed 14:06:07 KST
+2. `Validate exact darwin/arm64 profile and SQLite lifecycle`
+   ([job 93200793933](https://github.com/progresshans/godj/actions/runs/31295886061/job/93200793933))
+   - macOS 15.7.7, image `macos-15-arm64`, Go 1.26.5 `darwin/arm64`
+   - Focused CGO-disabled migration/SQLite/GoDj adapter/external compile tests PASS
+   - uv 0.10.12/Python 3.14.3 exact 130/130, all nine locked oracle `--check`, reference
+     artifact no-rewrite gate PASS
+   - Started 14:04:02 KST, completed 14:05:11 KST
+
+이 run은 local-only 결과를 hosted pass로 승격한 추정이 아니라 GitHub-hosted 로그에서 직접 확인한
+증거입니다. Ubuntu는 broad portable `make ci`, macOS는 reference profile과 같은 darwin/arm64
+환경의 exact/focused gate를 맡습니다. 이 제품 단면은 SQLite-only이므로 존재하지 않는 PostgreSQL/
+MySQL backend matrix를 성공으로 표현하지 않습니다.
