@@ -18,14 +18,18 @@
 - GDJ-0018 완료 문서 commit:
   `999e63b42e6ebd89e6f0f5f531a53a9cd2ffd2f3`
   (`docs: complete revision-fenced migration lifecycle`)
+- GDJ-0018 hosted evidence commit / GDJ-0019 activation baseline:
+  `3269d662a8b403b5d73096c04abf9fa630b22974`
+  (`docs: record hosted lifecycle validation`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1 Add revision-fenced migration lifecycle](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0018 Revision-Fenced Migration Lifecycle Product Slice completed
+- 현재 단계: GDJ-0019 Migration Definition Source Compatibility Contracts active
 - 최근 완료 작업:
   [GDJ-0018 Revision-Fenced Migration Lifecycle Product Slice](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)
-- 활성 작업: 없음
-- 다음 planned 작업: GDJ-0019 migration definition source/versioned-loader compatibility
-  contracts; 아직 activation하지 않음
+- 활성 작업:
+  [GDJ-0019 Migration Definition Source Compatibility Contracts](../../work/0019-migration-definition-source-compatibility-contracts.md)
+- 다음 planned 제품 작업: GDJ-0020 migration definition loader product slice; GDJ-0019
+  contract와 ADR-0019 acceptance 전에는 activation하지 않음
 
 ## 현재 checkout에서 확인된 사실
 
@@ -118,6 +122,10 @@
   의도한 exit 1과 ordered mismatch 10개를 유지합니다.
 - 기존 locked lifecycle oracle/static/SHA256SUMS와 `conformance/lifecyclefence/**`는 변경하지
   않았습니다.
+- 활성 GDJ-0019의 **완료 목표**는 MIG-057..064를 tenth reference set으로 추가해 105
+  reference contract와 90 ordered cross-binding rejection을 검증하는 것입니다. 현재 제품 9 set,
+  97 contract와 `92 passing + 5 deviation`은 그대로 유지하고 새 8개는 구현 전
+  `oracle_locked`로만 분류합니다. 이 목표는 activation 시점에 이미 달성됐다는 뜻이 아닙니다.
 
 ### 검증 증거
 
@@ -139,8 +147,9 @@
 - [ADR-0017](../adr/0017-revision-fenced-migration-lifecycle.md)의 per-step first-write fence와
   atomic successor 안전성 방향을 [ADR-0018](../adr/0018-revision-fenced-migration-lifecycle-product-shape.md)의
   Executor-owned public product shape로 구현합니다.
-- Lifecycle은 already-loaded, version-compatible `[]Migration`을 입력으로 받습니다. Source file,
-  loader/version handshake, operation codec와 CLI는 GDJ-0019 이후 범위입니다.
+- Lifecycle은 already-loaded, version-compatible `[]Migration`을 입력으로 받습니다. Source
+  document/version handshake와 operation codec는 active GDJ-0019가 contract-only로 설계하며,
+  제품 loader/CLI는 GDJ-0020 이후 범위입니다.
 - Existing backend port를 widen하지 않고 optional fenced port를 추가합니다. Unsupported backend는
   fail-closed하고 legacy fallback이나 conflict 자동 retry를 제공하지 않습니다.
 - Migration별 commit과 last durable state는 ADR-0014를 유지합니다. Lifecycle 전체 outer
@@ -150,37 +159,56 @@
 - ADR-0013 canonical ascending planner order를 유지합니다. MIG-052의 six-path DEV-0002 외 final
   state/DB/history/phase 차이는 허용하지 않습니다.
 
+## 활성 설계 가설 — 아직 Accepted/Implemented가 아님
+
+- [Proposed ADR-0019](../adr/0019-versioned-migration-definition-source.md)은 caller-provided
+  strict data-only JSON v1과 tuple `(definition format 1, loader ABI 1, operation codec 1,
+  Schema IR 2)`를 검증 후보로 둡니다.
+- V1 codec 후보는 fully normalized IR v2 `CreateModel`과 non-PK `char`/`boolean` `AddField`만
+  허용합니다. Python/Go
+  executable source, custom operation/callback/raw SQL와 file/module discovery는 비목표입니다.
+- MIG-057..064는 atomic batch, canonical digest/error와 existing `Executor.Migrate` reference
+  handoff를 oracle로 잠글 예정입니다. GDJ-0019는 product source나 GoDj runner를 추가하지 않고
+  MIG-064도 Go handoff 지원으로 표현하지 않습니다.
+- 이 source tuple은 Q-010의 global CLI/library/generator semver handshake 전체를 해결하지
+  않습니다. CLI는 GDJ-0020 product loader 뒤 orchestration으로 다룹니다.
+
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker와 미실행된 현재 CI gate는 없습니다. 다음은 구현하지 않은 제품 범위입니다.
 
-- Migration definition source discovery/versioned loader/codec와 public CLI
+- Migration definition source contract는 active지만 product versioned loader/codec, source
+  discovery와 public CLI는 미구현
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
 - Live schema drift, non-cooperating direct SQL writer, pre-cutover completed ABA와 crash repair
 
 ## 다음 정확한 작업
 
-GDJ-0019를 별도 work/ADR activation으로 시작해 migration definition source와 versioned-loader
-compatibility contract를 먼저 고정합니다. File discovery, format version/codec negotiation,
-deterministic load order, duplicate/partial source failure와 already-loaded `Executor.Migrate` handoff를
-분리해 설계합니다. GDJ-0019는 planned 상태이며 현재 active work는 아닙니다.
+GDJ-0019의 `conformance/contracts/migration-definition-source-manifest.json`을 MIG-057..064의
+construction/environment/commit phase로 먼저 작성하고 pinned Django provenance와 Go redesign을
+구분합니다. 그 다음 reference oracle/not-implemented fixture, strict payload/digest/error mutation,
+10 set/105 contract와 90 ordered cross-binding gate를 연결합니다. Product `migrations/**`,
+`conformance/runners/godj/**`와 기존 locked artifact는 변경하지 않습니다.
 
 ## 작업 재개 체크포인트
 
 - 현재 제품 기준: branch
-  `codex/revision-fenced-migration-lifecycle@9f51ad0da443d259940d44acbb8c3d095a9a257b`
+  `codex/revision-fenced-migration-lifecycle@3269d662a8b403b5d73096c04abf9fa630b22974`
 - 최근 완료 work:
   [GDJ-0018](../../work/0018-revision-fenced-migration-lifecycle-product-slice.md)
-- active work: 없음
-- planned next: GDJ-0019 source/versioned-loader compatibility contracts
+- active work:
+  [GDJ-0019](../../work/0019-migration-definition-source-compatibility-contracts.md)
+- planned next: GDJ-0020 product loader slice; GDJ-0019/ADR-0019 acceptance 뒤 별도 activation
 - 현재 분류: 9 product adapter set, 97 contract, `92 passing + 5 deviation`
+- GDJ-0019 완료 목표: 10 reference set, 105 contract, 90 ordered cross-binding,
+  `92 passing + 5 deviation + 8 oracle_locked`
 - 전체 local gate: `make check`
 - Portable CI equivalent: `make ci`
 - Hosted CI: PR #1 run 31295886061의 Ubuntu 24.04와 macOS 15 arm64 job PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: loaded-definition lifecycle을 file loader/CLI/adoption/crash recovery 또는
-  non-SQLite 지원으로 표현하는 것
+- 가장 위험한 과장: Proposed JSON/source contract나 MIG-064 oracle shape를 product loader/Go
+  handoff/file discovery/CLI/adoption/crash recovery 또는 non-SQLite 지원으로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

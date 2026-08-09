@@ -42,18 +42,20 @@ proposed → ready → active → completed
 | [GDJ-0016](0016-historical-project-state-reconstruction-product-slice.md) | completed | Historical ProjectState reconstruction 제품 단면 |
 | [GDJ-0017](0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md) | completed | Migration lifecycle 호환 계약과 revision-fence spike |
 | [GDJ-0018](0018-revision-fenced-migration-lifecycle-product-slice.md) | completed | Revision-fenced migration lifecycle 제품 단면 |
+| [GDJ-0019](0019-migration-definition-source-compatibility-contracts.md) | active | Migration definition source/versioned-loader 호환 계약 |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은
-없습니다. 완료된 GDJ-0018은 already-loaded migration definition, public `Executor.Migrate`와
-Executor-owned optional revision session/dedicated fenced transaction을 조립해 MIG-047..056을
-제품화했습니다. MIG-052의 incomparable sibling 순서만 DEV-0002 sparse expectation이고 기존
-DEV-0001은 그대로이며, 현재 9 product set의 분류는 `92 passing + 5 deviation`입니다. Locked
-lifecycle oracle/static/SHA256SUMS와 completed `conformance/lifecyclefence/**` spike는 변경하지
-않았습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
+[GDJ-0019](0019-migration-definition-source-compatibility-contracts.md) 하나이고 ready 항목은
+없습니다. Baseline은 hosted evidence를 기록한 exact
+`3269d662a8b403b5d73096c04abf9fa630b22974`입니다.
 
-다음 계획은 migration source/versioned-loader compatibility contract를 정의하는 GDJ-0019이지만,
-아직 work item을 만들거나 active/ready 상태로 승격하지 않았습니다.
+GDJ-0019는 explicit caller-provided strict data document, compatibility tuple `(1,1,1,2)`,
+fully normalized IR v2, `CreateModel`/non-PK `char`·`boolean` `AddField` codec, atomic/deterministic load와 existing
+`Executor.Migrate` reference handoff를 MIG-057..064로 잠그는 contract-only 작업입니다. 완료
+목표는 기존 9 product set의 `92 passing + 5 deviation`을 보존하면서 8 `oracle_locked`를 더한
+10 reference set/105 contract와 90 ordered cross-binding rejection입니다. Product loader와 GoDj
+runner는 별도 GDJ-0020 전까지 만들지 않습니다.
 
 ## 운영 규칙
 
