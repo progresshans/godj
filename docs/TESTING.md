@@ -539,7 +539,21 @@ no-rewrite를 통과했고, macOS 15 arm64 exact job은 Python 174/174, 11 oracl
 worktree를 통과했으며 PR checkout synthetic merge tree도 exact implementation head tree와
 일치했습니다. 상세 job/step 증거는
 [EVID-20260810-025](status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
-기록합니다. 이 문단을 포함하는 completion-documentation head의 hosted CI는 아직 pending입니다.
+기록합니다.
+
+GDJ-0021 exact 16-file completion-documentation head
+`34ae58fc2490deb8f884a0b5591520b11bae8669`도 같은 Draft PR #1의
+[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)에서 별도로 exact
+10-job 재검증을 통과했습니다. Ubuntu 24.04.4 full job
+[93266624027](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624027)은
+portable Python 174/16 expected skips, focused project-check, 실제 Linux/386 loader, 11 checksum과
+no-rewrite를, macOS 15.7.7 arm64 exact job
+[93266624013](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624013)은 exact Python
+174/174, 11 oracle와 no-rewrite를 통과했습니다. Project-check/SQLite 각 네 좌표도 모두
+normal/race/CGO-disabled/vet/clean을 다시 통과했습니다. 상세 증거는
+[EVID-20260810-026](status/TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
+기록합니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI는
+`not run/pending`이며 run 31322122760을 재귀적으로 그 patch의 PASS로 사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

@@ -445,7 +445,10 @@ final clean worktree도 필수입니다. Adjacent versions는 이후 non-require
 implementation head의
 existing 2 + project-check 4 + SQLite 4, 총 10-job topology는 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 모두 통과했습니다.
-이 status 7 + general 9의 exact 16-file completion documentation patch 자체의 hosted CI는
+이후 status 7 + general 9의 exact 16-file completion-documentation commit
+`34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도
+[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
+모두 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI는
 `not run/pending`입니다.
 
 ### Compatibility classification
@@ -524,9 +527,12 @@ conformance-tool exit 2/no actual로 거부합니다.
 
 위 검증은
 [EVID-20260810-024](../status/TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts)와
-[EVID-20260810-025](../status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
+[EVID-20260810-025](../status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci),
+completion-documentation exact-head 재검증은
+[EVID-20260810-026](../status/TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
 기록했습니다. Local normal/race/CGO-disabled/vet/count-20, `make ci`, exact Python 174/174,
 checksum/no-rewrite, 두 independent P0–P3 clean audit와 implementation-head exact 10 hosted jobs가
 통과해 이 ADR을 Accepted합니다. Q-010/Q-012는 public CLI/semver/DB-aware lifecycle 전체를 해결하지
-않으므로 `Partial`을 유지합니다. 이 exact 16-file completion documentation patch 자체의
-hosted CI는 `not run/pending`입니다.
+않으므로 `Partial`을 유지합니다. Exact 16-file completion-documentation head도 10 hosted jobs를
+통과했고, 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI만
+`not run/pending`입니다.

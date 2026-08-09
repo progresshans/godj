@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-025
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-026
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2057,3 +2057,57 @@ use skips or service availability as support evidence. This run applies only to 
 documentation patch that records this evidence is a later working-tree change and has not yet been committed
 or pushed; its exact-head hosted CI is `not run/pending`. Run 31320798963 must not be reused as proof for that
 later documentation head.
+
+## EVID-20260810-026 — GDJ-0021 GitHub-hosted Completion-documentation-head 10-job CI
+
+- Date/time: 2026-08-10 00:48:59–00:52:35 KST
+  (2026-08-09 15:48:59–15:52:35 UTC)
+- Work/contract IDs: GDJ-0021, MIG-065..MIG-074, Q-010, Q-012
+- Tested PR/head: Draft/open [PR #1](https://github.com/progresshans/godj/pull/1), branch
+  `codex/revision-fenced-migration-lifecycle`, exact completion-documentation head
+  `34ae58fc2490deb8f884a0b5591520b11bae8669`
+  (`docs: complete project-linked migration check contracts`)
+- Workflow run: [31322122760](https://github.com/progresshans/godj/actions/runs/31322122760), attempt 1,
+  event `pull_request`, base `main@f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+- Runner checkout: synthetic PR merge
+  `6d1ce08495c2ccc4ee01620d565a54a42c6e2c44` with parents exact base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and exact head
+  `34ae58fc2490deb8f884a0b5591520b11bae8669`. The merge and head have the same tree
+  `942f6b7bcee0db4fc8d3822122a52c1de09b51cf`; run `headSha` and checkout commit are intentionally
+  distinguished.
+- Exit status: workflow `success`; exact 10 expanded job executions all successful,
+  cancelled/failing/skipped/pending 0. Every named validation and final matrix clean-worktree step succeeded.
+- Result summary: EVID-025의 implementation head 뒤 exact status 7 + general 9인 16-file
+  completion-documentation commit을 current base와 결합한 PR checkout에서 existing full/exact 2개,
+  project-check 4개와 actual SQLite 4개인 `2 + 4 + 4 = 10` hosted execution이 다시 통과했습니다.
+- Failures/skips: unexpected job/step failure or skip 없음. Ubuntu portable Python의 16 exact-only
+  test skips are expected; macOS exact Python passed 174/174. Windows와 service-only
+  PostgreSQL/MySQL job은 actual product adapter/contract가 없어 구성하지 않았습니다.
+
+Hosted job evidence:
+
+| Job | ID | Started–completed (KST) | Required validation |
+|---|---:|---|---|
+| Validate checked-in conformance artifacts | [93266624027](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624027) | 00:49:01–00:52:34 | Ubuntu 24.04.4 image `20260720.247.2`, linux/amd64; `make ci`, focused project-check, actual Linux/386 definition-loader runtime, 11-line checksum and reference no-rewrite |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93266624013](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624013) | 00:50:06–00:51:00 | macOS 15.7.7 arm64 image `20260727.0256.1`, darwin/arm64; CGO-disabled focused lifecycle, focused project-check, exact Python 174/174, all-oracle and no-rewrite |
+| Project check (`ubuntu-22.04`) | [93266624008](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624008) | 00:49:01–00:50:05 | linux/amd64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| Project check (`ubuntu-24.04-arm`) | [93266624024](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624024) | 00:49:01–00:49:47 | linux/arm64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| Project check (`macos-15-intel`) | [93266624018](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624018) | 00:49:02–00:50:41 | darwin/amd64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| Project check (`macos-26`) | [93266623997](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266623997) | 00:49:01–00:50:04 | darwin/arm64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| SQLite (`ubuntu-22.04`) | [93266624032](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624032) | 00:49:01–00:50:39 | linux/amd64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+| SQLite (`ubuntu-24.04-arm`) | [93266624029](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624029) | 00:49:01–00:50:21 | linux/arm64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+| SQLite (`macos-15-intel`) | [93266624017](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624017) | 00:49:01–00:51:08 | darwin/amd64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+| SQLite (`macos-26`) | [93266624023](https://github.com/progresshans/godj/actions/runs/31322122760/job/93266624023) | 00:49:01–00:50:12 | darwin/arm64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+
+Both four-leg matrices used Go 1.26.5 and asserted exact `GOOS`/`GOARCH`. Every project-check and SQLite
+leg ran normal, race, CGO-disabled and vet gates, then passed both `git diff --exit-code` and empty
+`git status --porcelain=v1`. The Ubuntu full log records Python 3.14.3, Django 6.1 and SQLite 3.50.4,
+portable 174 tests/16 expected skips, focused project-check, actual `CGO_ENABLED=0 GOARCH=386` loader,
+all 11 checksum entries and no-rewrite. The macOS exact log records the same Python/Django/SQLite profile,
+exact 174/174, all 11 oracle `--check` commands and no-rewrite.
+
+This run applies only to exact completion-documentation head
+`34ae58fc2490deb8f884a0b5591520b11bae8669`. EVID-024/EVID-025의 implementation-tree 결과와 당시
+pending 문구는 역사 증거로 그대로 보존합니다. EVID-026을 append하고 관련 현재 상태를 교정하는
+exact 8-file evidence/status patch는 아직 commit/push되지 않았으므로 그 후속 head의 hosted CI는
+`not run/pending`입니다. Run 31322122760을 이 evidence patch 자체의 PASS로 재귀 사용하지 않습니다.

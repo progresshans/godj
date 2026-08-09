@@ -791,7 +791,10 @@ final clean worktree도 필수입니다. Adjacent versions는 이후 non-require
 분리합니다. 이
 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 위 exact 10 job을
-모두 통과했습니다. 이 exact 16-file completion documentation patch 자체의 hosted CI는
+모두 통과했습니다. Exact 16-file completion-documentation commit
+`34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도
+[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
+모두 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI는
 `not run/pending`입니다.
 
 ## 구현 단계
@@ -837,6 +840,7 @@ implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 - [x] Test-only project-check feasibility implementation
 - [x] Protocol/artifact/false-green/CI integration
 - [x] Completion docs, implementation-head hosted evidence와 ADR status 결정
+- [x] Exact completion-documentation head의 별도 10-job hosted evidence 기록
 
 ## 수정 파일
 
@@ -848,7 +852,8 @@ artifact/runner, `conformance/projectcheck/**` test-only proof, protocol/static/
 workflow와 관련 stable 문서만 변경했습니다. Glob `conformance/projectcheck/**`는 test-only candidate
 파일에만 적용됩니다.
 
-현재 completion documentation diff는 exact 16 files입니다. Status/completion 7개는 이 work,
+Completion-documentation commit `34ae58fc2490deb8f884a0b5591520b11bae8669`는 exact 16 files입니다.
+Status/completion 7개는 이 work,
 `docs/adr/0021-project-linked-migration-check.md`, `docs/adr/README.md`, `docs/status/CURRENT.md`,
 `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`, `work/README.md`이고, general 9개는
 `docs/ARCHITECTURE.md`, `docs/CAPABILITY_CATALOG.md`, `docs/COMPATIBILITY.md`,
@@ -870,6 +875,7 @@ workflow와 관련 stable 문서만 변경했습니다. Glob `conformance/projec
   required 10-job target을 채택하고 Windows/service-only PostgreSQL·MySQL green skip은 금지
 - 2026-08-10: MIG-065..074 local/exact reference와 implementation-head hosted 10-job evidence를 근거로
   ADR-0021을 Accepted. Public CLI/project API와 product adapter는 계속 미구현
+- 2026-08-10: Exact 16-file completion-documentation head도 별도 hosted 10-job run에서 PASS
 
 ## 미결정/Blocker
 
@@ -890,8 +896,12 @@ ADR-0021은 contract artifact, test-only feasibility와 exact implementation-hea
   [EVID-20260810-024](../docs/status/TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts)
 - Hosted implementation-head evidence:
   [EVID-20260810-025](../docs/status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)
+- Hosted completion-documentation-head evidence:
+  [EVID-20260810-026](../docs/status/TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)
 - Final implementation commit:
   `codex/revision-fenced-migration-lifecycle@84ddf109c04acd72992b816aa72140c6e748e5f0`
+- Completion-documentation/hosted-tested commit:
+  `codex/revision-fenced-migration-lifecycle@34ae58fc2490deb8f884a0b5591520b11bae8669`
 - Project-check normal/race/CGO-disabled/vet/count-20, root `make ci`, exact Python 174/174,
   11-oracle/checksum/no-rewrite, static exit 1/10와 product exit 2/no actual이 모두 PASS했습니다.
 - Reference는 11 set/115 contract/110 ordered cross-binding과 새 10 `oracle_locked`, product는
@@ -902,8 +912,11 @@ ADR-0021은 contract artifact, test-only feasibility와 exact implementation-hea
   implementation head에서 existing 2 + project-check 4 + SQLite 4의 exact 10 job을 모두
   성공시켰습니다. 네 Linux/macOS x64/arm64 coordinate의 normal/race/CGO-disabled/vet와 clean-worktree
   gate가 통과했습니다.
-- Not run: Windows, PostgreSQL/MySQL/non-SQLite backend actual contract와 이 exact 16-file completion
-  documentation patch 자체의 exact-head hosted CI. 후자는 commit/push 전 `not run/pending`입니다.
+- Draft PR #1 [run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)은 exact
+  completion-documentation head에서도 같은 10 job과 full/exact/checksum/no-rewrite gate를 모두
+  성공시켰습니다.
+- Not run: Windows와 PostgreSQL/MySQL/non-SQLite backend actual contract. 현재 EVID-026 append/status
+  교정의 exact 8-file patch 자체의 hosted CI도 commit/push 전 `not run/pending`입니다.
 
 ## 위험과 rollback
 
@@ -921,12 +934,11 @@ ADR-0021은 contract artifact, test-only feasibility와 exact implementation-hea
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 status 7 + general 9, exact 16-file completion documentation patch의 Markdown/
-frontmatter/link/exact-scope를 검증한 뒤
-같은 Draft PR #1에 commit/push하고 그 **completion-documentation exact head**의 10-job CI를 별도로
-기록해야 합니다. 현재 active/ready work는 없습니다. 다음 product slice를 시작하려면 public CLI/
-project API와 production runner 경계를 별도 work/ADR로 activation하고, 이 test-only proof를 제품
-package로 조용히 승격하지 않습니다.
+통합 담당자는 EVID-026 append/status 교정의 exact 8-file patch를 Markdown/frontmatter/link/
+exact-scope 검사 뒤 같은 Draft PR #1에 commit/push하고 그 **evidence-patch exact head**의 10-job CI를
+별도로 기록해야 합니다. 현재 active/ready work는 없습니다. 다음 product slice를 시작하려면 public
+CLI/project API와 production runner 경계를 별도 work/ADR로 activation하고, 이 test-only proof를
+제품 package로 조용히 승격하지 않습니다.
 
 ## 결과와 인수인계
 
@@ -936,6 +948,6 @@ implementation head 10-job matrix까지 통과했습니다. ADR-0021은 Accepted
 
 제품은 불변 10 adapter/105 contract의 `100 passing + 5 deviation`이며 전역 `godj migrations check`,
 public project package, production project runner, DB-aware migration check와 non-SQLite backend는
-구현되지 않았습니다. Q-010/Q-012는 `Partial`입니다. 이 exact 16-file completion documentation
-patch의 hosted CI는
-아직 `not run/pending`이며 implementation-head run을 재귀 사용하지 않습니다.
+구현되지 않았습니다. Q-010/Q-012는 `Partial`입니다. Exact 16-file completion-documentation head의
+10-job hosted CI도 별도 run으로 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch
+자체는 아직 `not run/pending`이며 completion-documentation-head run을 재귀 사용하지 않습니다.

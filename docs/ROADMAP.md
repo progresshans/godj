@@ -261,8 +261,11 @@ Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 `ubuntu-24.04-arm`, `macos-15-intel`, `macos-26`의 project-check 4개와 같은 좌표의 SQLite 4개,
 **`2 + 4 + 4 = 10` required job executions**을 모두 통과했습니다. 두 matrix는 Go 1.26.5,
 `fail-fast: false`, leg별 20분 timeout, expected GOOS/GOARCH, normal/race/CGO-disabled/vet,
-no `continue-on-error`와 final clean worktree를 검증했습니다. 이 완료 문서가 반영될 새 head의
-hosted CI는 아직 pending입니다.
+no `continue-on-error`와 final clean worktree를 검증했습니다. Exact 16-file
+completion-documentation commit `34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도
+[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
+모두 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI만
+`not run/pending`입니다.
 
 Windows는 native process/path contract 전에는 지원 runner를 만들지 않습니다. Current actual backend는
 SQLite뿐이므로 PostgreSQL/MySQL service-only job도 false green으로 금지합니다. Future backend job은

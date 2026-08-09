@@ -113,8 +113,11 @@ Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`의 Draft PR #1
 `ubuntu-24.04-arm` arm64/`macos-15-intel` x64/`macos-26` arm64 project-check 4개와 동일 좌표의
 SQLite normal/race/CGO-disabled/vet 4개, exact `2 + 4 + 4 = 10` job을 모두 통과했습니다. 각 matrix
 leg는 expected GOOS/GOARCH, `fail-fast: false`, no `continue-on-error`와 final tracked-diff/
-porcelain-empty clean worktree gate를 만족했습니다. 이 문단을 포함하는 completion-documentation
-head의 hosted CI는 아직 pending입니다. Windows
+porcelain-empty clean worktree gate를 만족했습니다. Exact 16-file completion-documentation commit
+`34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도
+[run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
+모두 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI만
+`not run/pending`입니다. Windows
 native contract가 없고 actual backend는 SQLite뿐이므로 Windows green skip과 PostgreSQL/MySQL
 service-only CI는 support evidence로 만들지
 않습니다. Future backend는 digest-pinned service image, health check, UTC timezone과 C locale 또는

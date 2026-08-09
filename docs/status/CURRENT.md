@@ -54,6 +54,9 @@
 - GDJ-0021 contract/hosted-tested implementation commit:
   `84ddf109c04acd72992b816aa72140c6e748e5f0`
   (`test: lock project-linked migration check contracts`)
+- GDJ-0021 completion-documentation/hosted-tested commit:
+  `34ae58fc2490deb8f884a0b5591520b11bae8669`
+  (`docs: complete project-linked migration check contracts`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0021 project-linked migration check compatibility contracts completed; ADR-0021 Accepted
@@ -65,11 +68,12 @@
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
   exact implementation-head 10-job CI는
   [EVID-20260810-025](TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
-  기록했습니다. Draft PR #1은 open/draft/clean이고 implementation commit `84ddf10`의
-  [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)은 existing 2 +
-  project-check 4 + SQLite 4의 exact 10 job을 모두 통과했습니다. 현재 status 7 + general 9의
-  exact 16-file completion documentation patch 자체의 hosted CI는 commit/push 전
-  `not run/pending`입니다.
+  기록했습니다. Exact 16-file completion-documentation head의 별도 10-job CI는
+  [EVID-20260810-026](TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
+  기록했습니다. Draft PR #1은 open/draft/clean이고 completion commit `34ae58f`의
+  [run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)은 existing 2 +
+  project-check 4 + SQLite 4의 exact 10 job을 모두 통과했습니다. 현재 EVID-026 append/status 교정의
+  exact 8-file patch 자체의 hosted CI는 commit/push 전 `not run/pending`입니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -239,8 +243,16 @@
   expected GOOS/GOARCH, normal/race/CGO-disabled/vet와 final clean-worktree gate를 모두 통과했습니다.
   상세 job ID/명령은
   [EVID-20260810-025](TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
-  기록했습니다. 이 exact 16-file completion documentation patch 자체의 hosted CI는
-  `not run/pending`입니다.
+  기록했습니다.
+- GDJ-0021 completion-documentation commit
+  `34ae58fc2490deb8f884a0b5591520b11bae8669`도 같은 Draft PR #1의 별도
+  [run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)에서 exact 10 job을
+  다시 통과했습니다. Ubuntu full은 `make ci`, portable Python 174/16 expected skips, focused
+  project-check, 실제 Linux/386 loader, 11 checksum과 no-rewrite를, macOS exact는 focused Go/
+  project-check, exact Python 174/174, 11 oracle와 no-rewrite를 통과했습니다. 네 project-check와
+  네 SQLite matrix leg도 normal/race/CGO-disabled/vet/clean을 모두 통과했습니다. 상세 결과는
+  [EVID-20260810-026](TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
+  기록했습니다. 현재 exact 8-file evidence/status patch 자체의 hosted CI는 `not run/pending`입니다.
 
 ## 확정된 결정
 
@@ -378,16 +390,19 @@
   revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected
   contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도
   필수입니다. Adjacent versions는 이후 non-required scheduled matrix로만 분리합니다. Exact
-  implementation head의 expanded CI는 run 31320798963에서 10/10 PASS했습니다. Exact 16-file
-  completion documentation patch 자체의 hosted CI는 `not run/pending`입니다.
+  implementation head의 expanded CI는 run 31320798963에서 10/10 PASS했고, exact 16-file
+  completion-documentation head `34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도 run
+  31322122760에서 10/10 PASS했습니다. 현재 exact 8-file evidence/status patch 자체의 hosted CI는
+  `not run/pending`입니다.
 
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0021 contract/reference/test-only proof와 independent review,
-implementation-head exact 10-job hosted CI까지 완료했습니다. Q-010/Q-012는 public CLI/library/
-generator semver handshake, production project runner와 DB-aware migration lifecycle 전체가 아니므로
-`Partial`입니다. 현재 exact 16-file completion documentation patch 자체의 hosted CI만 commit/push 전
-`not run/pending`입니다. 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
+implementation-head 및 completion-documentation-head exact 10-job hosted CI까지 완료했습니다.
+Q-010/Q-012는 public CLI/library/generator semver handshake, production project runner와 DB-aware
+migration lifecycle 전체가 아니므로 `Partial`입니다. 현재 EVID-026 append/status 교정의 exact
+8-file patch 자체의 hosted CI만 commit/push 전 `not run/pending`입니다. 다음은 의도적으로 아직
+구현하지 않은 제품 범위입니다.
 
 - Source discovery/public CLI, writer/upgrade/cache는 GDJ-0020 비목표로 계속 미구현
 - Codec v2+, writer/upgrade/cache, executable/custom/data operation과 filesystem/module/remote adapter
@@ -397,20 +412,19 @@ generator semver handshake, production project runner와 DB-aware migration life
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 GDJ-0021 status 7 + general 9, exact 16-file completion documentation patch의
-Markdown/frontmatter/link/exact-scope를 검증해 같은 Draft PR #1에 commit/push하고, 그
-**completion-documentation exact head**의 10-job CI를
-별도 evidence로 확인합니다. 현재 active/ready work는 없습니다. 다음 product slice를 시작하려면
+통합 담당자는 EVID-026 append/status 교정의 exact 8-file patch를 Markdown/frontmatter/link/
+exact-scope 검사 뒤 같은 Draft PR #1에 commit/push하고, 그 **evidence-patch exact head**의 10-job
+CI를 별도 evidence로 확인합니다. 현재 active/ready work는 없습니다. 다음 product slice를 시작하려면
 public CLI/project API/production runner 경계를 별도 work/ADR로 activation하며 GDJ-0020의 pure
 `Source` loader에 path/I/O를 소급해 넣거나 test-only `conformance/projectcheck` shape를 제품 API로
 조용히 승격하지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 현재 implementation head: branch
-  `codex/revision-fenced-migration-lifecycle@84ddf109c04acd72992b816aa72140c6e748e5f0`
-- 현재 working tree: GDJ-0021 status 7 + general 9의 exact 16-file completion documentation diff;
-  아직 commit/push/hosted CI 전
+- 현재 completion-documentation/hosted-tested base: branch
+  `codex/revision-fenced-migration-lifecycle@34ae58fc2490deb8f884a0b5591520b11bae8669`
+- 현재 working tree: GDJ-0021 EVID-026 append/status 교정의 exact 8-file diff; 아직
+  commit/push/hosted CI 전
 - 최근 완료 work:
   [GDJ-0021](../../work/0021-migration-project-check-compatibility-contracts.md)
 - active work: 없음
@@ -423,12 +437,12 @@ public CLI/project API/production runner 경계를 별도 work/ADR로 activation
 - 전체 local gate: `make ci`; focused project-check normal/race/CGO-disabled/vet/count-20와 exact
   Python 174/174 PASS
 - Portable CI equivalent: `make ci`
-- Hosted CI: GDJ-0021 implementation head run 31320798963의 exact 10 jobs PASS;
-  exact 16-file completion documentation patch의 exact-head CI는 `not run/pending`
+- Hosted CI: GDJ-0021 implementation head run 31320798963과 exact completion-documentation head
+  run 31322122760의 exact 10 jobs PASS; 현재 evidence/status patch head는 `not run/pending`
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: Accepted GDJ-0021 contract/test-only candidate를 implemented public CLI/project
-  API로 표현하는 것, 또는 completed loader/Go adapter를 discovery/writer/upgrade/DB-aware check/
-  adoption/crash recovery/non-SQLite 지원까지 확장해 표현하는 것
+- 가장 위험한 과장: completion-documentation-head PASS를 아직 push하지 않은 EVID-026
+  evidence/status patch head PASS로 재귀 사용하거나, Accepted GDJ-0021 contract/test-only candidate를
+  implemented public CLI/project API로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

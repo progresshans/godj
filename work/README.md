@@ -69,7 +69,9 @@ cross-binding과 새 10 `oracle_locked`이며, 제품은 계속 10 adapter/105 c
 `100 passing + 5 deviation`입니다. [ADR-0021](../docs/adr/0021-project-linked-migration-check.md)은
 local/10-job hosted evidence를 근거로 Accepted이지만 전역 CLI나 project package가 구현됐다는 뜻이
 아닙니다. Q-010/Q-012는 `Partial`을 유지합니다. Status 7 + general 9의 exact 16-file
-completion documentation patch 자체의 hosted CI는 `not run/pending`입니다.
+completion-documentation commit `34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도 exact 10-job
+hosted CI를 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI는
+`not run/pending`입니다.
 
 ## 운영 규칙
 
