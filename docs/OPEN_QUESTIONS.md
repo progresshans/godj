@@ -231,8 +231,9 @@ wrap/reclassify/retry하지 않습니다. Literal Schema IR 2는 two-way compile
 열 번째 actual adapter가 MIG-057..064 decision-reference 8개를 `passing`으로 전환해 현재 제품
 분류는 10 adapter/105 contract의 `100 passing + 5 deviation`입니다. Product commit
 `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1 run 31309152526의 Ubuntu/macOS
-두 job과 실제 Linux/386 focused runtime을 통과했습니다. 다만 completion 문서 head의 hosted
-재검증은 아직 pending입니다.
+두 job과 실제 Linux/386 focused runtime을 통과했습니다. Completion-documentation commit
+`a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 별도 run 31310002784의 Ubuntu/macOS 두 job에서
+통과했고, 현재 EVID-023 append/status 교정 patch 자체의 hosted CI만 `not run/pending`입니다.
 
 File/directory/module/remote discovery, public CLI, writer/upgrade/cache, executable/custom/data/
 raw-SQL operation, global CLI/project handshake, adoption/repair command, copy/restore epoch,

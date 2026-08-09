@@ -23,7 +23,9 @@ definition과 source inventory의 복사본을 읽고, 같은 set에서 기존
 MIG-057..064의 열 번째 제품 adapter까지 검증한 현재 제품 분류는 정확히 10 adapter/105
 contract의 `100 passing + 5 deviation`입니다. Product commit
 `6172d843a4bb234592cafc176a8d1191933b141c`와 Draft PR #1 exact-head hosted run
-`31309152526`이 completion gate를 통과했습니다. Activation 당시 9 adapter의
+`31309152526`, completion-documentation commit
+`a5422f2c1ba5db34986564fc065e4b8e28ef0115`와 별도 exact-head run `31310002784`가 모두
+completion gate를 통과했습니다. Activation 당시 9 adapter의
 `92 passing + 5 deviation + 8 oracle_locked`였던 상태는 historical baseline으로 보존합니다.
 
 ## 목표
@@ -512,6 +514,8 @@ loader ABI/contract를 명시적으로 갱신하기 전까지 새 IR 값을 wire
   `CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition` 통과; `max_length`의
   platform `int` conversion을 실제 32-bit runtime에서 검증
 - [x] Draft PR #1의 Ubuntu 24.04/macOS 15 arm64 CI가 exact product completion head에서 PASS
+- [x] 13-file completion-documentation commit도 별도 exact head Ubuntu 24.04/macOS 15 arm64
+  CI에서 PASS
 - [x] ADR/architecture/compatibility/testing/matrix/evidence/CURRENT가 같은 상태를 가리킴
 
 ## 진행 기록
@@ -582,8 +586,12 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
   [EVID-20260809-021](../docs/status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)
 - Hosted evidence:
   [EVID-20260809-022](../docs/status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)
+- Completion-documentation hosted evidence:
+  [EVID-20260809-023](../docs/status/TEST_EVIDENCE.md#evid-20260809-023--gdj-0020-github-hosted-completion-documentation-head-ci)
 - Final product commit:
   `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`
+- Completion-documentation/hosted-tested commit:
+  `codex/revision-fenced-migration-lifecycle@a5422f2c1ba5db34986564fc065e4b8e28ef0115`
 - `make check`: PASS. Full Go test/vet/race, portable Python, oracle/checksum/no-rewrite와 product
   conformance gate를 함께 통과했습니다.
 - Focused normal/race/CGO-disabled/vet:
@@ -612,6 +620,14 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
   exact product commit에서 Ubuntu 24.04와 macOS 15 arm64 두 job 모두 PASS했습니다. Ubuntu는
   `make ci`, 실제 Linux/386 focused test, checksum/no-rewrite를, macOS는 focused Go,
   exact Python 164/164, all-oracle/no-rewrite를 통과했습니다.
+- Completion-documentation commit `a5422f2c1ba5db34986564fc065e4b8e28ef0115`의 별도 Draft PR #1
+  [run 31310002784](https://github.com/progresshans/godj/actions/runs/31310002784)도 두 job 모두
+  PASS했습니다. Ubuntu 24.04.4 job
+  [93236227654](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227654)는
+  `make ci`, portable Python 164 tests/15 skips, 실제 Linux/386 runtime과 checksum/no-rewrite를,
+  macOS 15.7.7 arm64 job
+  [93236227698](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227698)는
+  focused CGO-disabled Go, exact Python 164/164, all-oracle/no-rewrite를 통과했습니다.
 - Not run: Windows와 PostgreSQL/MySQL/non-SQLite DB matrix. 이 환경은 GDJ-0020 loader의
   backend-neutral pure CPU 경계와 기존 SQLite lifecycle handoff 범위 밖입니다.
 
@@ -627,15 +643,17 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
 
 ## 다음 정확한 작업
 
-현재 active/ready work는 없습니다. 다음 통합 담당자는 filesystem/module source discovery와
-public CLI/project-binary orchestration 중 다음 contract slice의 목표·비목표·오류 소유권을 먼저
-별도 work/ADR로 activation해야 합니다. GDJ-0020의 pure `Source` loader에 path 의미나 I/O를
-소급해 추가하지 않습니다.
+현재 active/ready work는 없습니다. 다음 통합 담당자는 먼저 EVID-023 append/status 교정의 지정
+5-file patch를 검증·commit/push하고 그 exact evidence-patch head CI를 확인합니다. 그 뒤
+filesystem/module source discovery와 public CLI/project-binary orchestration 중 다음 contract
+slice의 목표·비목표·오류 소유권을 별도 work/ADR로 activation해야 합니다. GDJ-0020의 pure
+`Source` loader에 path 의미나 I/O를 소급해 추가하지 않습니다.
 
-이 completion 문서 diff는 product acceptance 근거인 exact product head
-`6172d843a4bb234592cafc176a8d1191933b141c`와 hosted run `31309152526` 뒤에 작성됐습니다. 아직
-commit/push되지 않은 completion-doc head 자체의 CI를 통과했다고 주장하지 않습니다. 통합 담당자는
-같은 Draft PR #1에만 문서 commit을 push하고 새 head CI를 별도로 확인합니다.
+Completion 문서는 exact product head `6172d843a4bb234592cafc176a8d1191933b141c`와 hosted run
+`31309152526` 뒤에 13-file commit `a5422f2c1ba5db34986564fc065e4b8e28ef0115`로 작성됐고, 별도
+hosted run `31310002784`에서 exact head로 재검증됐습니다. 현재 EVID-023 append/status 교정
+5-file patch 자체는 아직 commit/push되지 않았으며 그 후속 head CI는 `not run/pending`입니다.
+통합 담당자는 같은 Draft PR #1에만 evidence commit을 push하고 새 head CI를 별도로 확인합니다.
 
 ## 결과와 인수인계
 
@@ -645,6 +663,6 @@ GoDj adapter가 local gate와 Draft PR #1 exact-head hosted gate에서 105 contr
 `100 passing + 5 deviation`을 만족합니다. ADR-0020은 이 근거로 Accepted입니다.
 
 FS discovery/CLI/writer/upgrade/cache, executable/custom operations와 non-SQLite backend는
-의도적으로 계속 비목표입니다. Completion-doc head CI는 아직 pending이며 product-head CI와
-구분합니다. 다음 work는 이 공개 loader를 변경하지 않고 discovery/CLI orchestration을 별도
-contract로 activation해야 합니다.
+의도적으로 계속 비목표입니다. Completion-documentation head CI는 별도 run으로 통과했으며,
+현재 EVID-023 evidence patch head의 `not run/pending` 상태와 구분합니다. 다음 work는 이 공개
+loader를 변경하지 않고 discovery/CLI orchestration을 별도 contract로 activation해야 합니다.

@@ -42,6 +42,9 @@
 - GDJ-0020 product/hosted-tested commit:
   `6172d843a4bb234592cafc176a8d1191933b141c`
   (`feat: add bounded migration definition loader`)
+- GDJ-0020 completion-documentation/hosted-tested commit:
+  `a5422f2c1ba5db34986564fc065e4b8e28ef0115`
+  (`docs: complete migration definition loader product slice`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0020 migration definition loader product slice completed; ADR-0020 Accepted
@@ -49,9 +52,10 @@
   [GDJ-0020 Migration Definition Loader Product Slice](../../work/0020-migration-definition-loader-product-slice.md)
 - 활성 작업: 없음
 - ready 작업: 없음
-- completion 상태: exact allowed paths 안의 product code가 local gate와 Draft PR #1 exact product
-  head Ubuntu/macOS CI를 통과했고 independent final review도 clean. Completion 문서 diff 자체의
-  후속 head CI는 아직 pending이며, 기존 Draft PR #1 하나에만 후속 commit을 쌓음
+- completion 상태: exact allowed paths 안의 product code와 completion 문서 commit이 각각
+  Draft PR #1 exact head Ubuntu/macOS CI를 통과했고 independent final review도 clean. 현재
+  EVID-023 append/status 교정 patch 자체의 후속 head CI만 아직 `not run/pending`이며, 기존
+  Draft PR #1 하나에만 후속 commit을 쌓음
 
 ## 현재 checkout에서 확인된 사실
 
@@ -183,7 +187,18 @@
   checksum/no-rewrite를, macOS는 focused Go, exact Python 164/164, all-oracle/no-rewrite를
   통과했습니다. 상세 hosted 결과는
   [EVID-20260809-022](TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)에
-  기록했습니다. 이 run은 아직 commit되지 않은 completion-doc head의 CI 증거로 재사용하지 않습니다.
+  기록했습니다. 이 product-head run은 completion-documentation head의 CI 증거로 재사용하지 않았고,
+  아래 별도 exact-head run으로 후속 상태를 검증했습니다.
+- GDJ-0020 completion-documentation commit
+  `a5422f2c1ba5db34986564fc065e4b8e28ef0115`는 같은 Draft PR #1
+  [run 31310002784](https://github.com/progresshans/godj/actions/runs/31310002784)에서 exact head로
+  다시 검증됐습니다. Ubuntu 24.04.4 job
+  [93236227654](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227654)는
+  `make ci`, 실제 Linux/386 definition runtime, checksum/no-rewrite를, macOS 15.7.7 arm64 job
+  [93236227698](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227698)는
+  focused CGO-disabled Go, exact Python 164/164, all-oracle/no-rewrite를 통과했습니다. 상세 결과는
+  [EVID-20260809-023](TEST_EVIDENCE.md#evid-20260809-023--gdj-0020-github-hosted-completion-documentation-head-ci)에
+  기록했습니다. 현재 evidence patch 자체의 hosted CI는 아직 `not run/pending`입니다.
 
 ## 확정된 결정
 
@@ -263,9 +278,10 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. GDJ-0020 product slice는 local 구현/검증, 독립 review와 exact product-head
-hosted CI까지 끝났습니다. Completion 문서 diff 자체의 GitHub-hosted CI는 다음 push 전이라 pending이며
-제품 acceptance run과 구분합니다. 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
+외부 blocker는 없습니다. GDJ-0020 product slice는 local 구현/검증, 독립 review, exact product-head와
+completion-documentation-head hosted CI까지 끝났습니다. 현재 EVID-023 append/status 교정 patch
+자체의 GitHub-hosted CI는 아직 `not run/pending`이며 앞선 acceptance/completion-documentation run과
+구분합니다. 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
 - Source discovery/public CLI, writer/upgrade/cache는 GDJ-0020 비목표로 계속 미구현
 - Codec v2+, writer/upgrade/cache, executable/custom/data operation과 filesystem/module/remote adapter
@@ -275,17 +291,18 @@ hosted CI까지 끝났습니다. Completion 문서 diff 자체의 GitHub-hosted 
 
 ## 다음 정확한 작업
 
-현재 active/ready work는 없습니다. 통합 담당자는 이 completion 문서 diff를 cached-diff/allowed-path
-검사 뒤 같은 Draft PR #1에만 commit/push하고 새 documentation head CI를 별도로 확인합니다.
-그 뒤 filesystem/module source discovery 또는 public CLI/project-binary orchestration의 다음 좁은
-contract slice를 새 work/ADR로 activation합니다. GDJ-0020의 pure `Source` loader에 path 의미나
-I/O를 소급해 넣지 않으며 새 PR을 만들지 않습니다.
+현재 active/ready work는 없습니다. 통합 담당자는 EVID-023 append/status 교정의 지정 5-file diff를
+cached-diff/allowed-path 검사 뒤 같은 Draft PR #1에만 commit/push하고 그 evidence-patch head CI를
+별도로 확인합니다. 그 뒤 filesystem/module source discovery 또는 public CLI/project-binary
+orchestration의 다음 좁은 contract slice를 새 work/ADR로 activation합니다. GDJ-0020의 pure
+`Source` loader에 path 의미나 I/O를 소급해 넣지 않으며 새 PR을 만들지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 현재 product/hosted-tested base: branch
-  `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`
-- 현재 working tree: GDJ-0020 completion 문서 diff; 아직 commit/push/hosted CI 전
+- 현재 completion-documentation/hosted-tested base: branch
+  `codex/revision-fenced-migration-lifecycle@a5422f2c1ba5db34986564fc065e4b8e28ef0115`
+- 현재 working tree: GDJ-0020 EVID-023 append/status 교정 5-file diff; 아직
+  commit/push/hosted CI 전
 - 최근 완료 work:
   [GDJ-0020](../../work/0020-migration-definition-loader-product-slice.md)
 - active work: 없음
@@ -295,12 +312,13 @@ I/O를 소급해 넣지 않으며 새 PR을 만들지 않습니다.
   product contract, `100 passing + 5 deviation`
 - 전체 local gate: `make check`
 - Portable CI equivalent: `make ci`
-- Hosted CI: exact product head run 31309152526, Ubuntu 24.04와 macOS 15 arm64 모두 PASS;
-  completion-doc head run은 아직 pending/not run
+- Hosted CI: exact product head run 31309152526와 exact completion-documentation head run
+  31310002784가 Ubuntu 24.04/macOS 15 arm64 모두 PASS; 현재 evidence patch head는
+  `pending/not run`
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: product-head hosted PASS를 아직 push하지 않은 completion-doc head PASS로
-  표현하는 것, 또는 implemented loader/Go adapter를 file discovery/CLI/writer/upgrade/adoption/
-  crash recovery/non-SQLite 지원까지 확장해 표현하는 것
+- 가장 위험한 과장: completion-documentation-head hosted PASS를 아직 push하지 않은 EVID-023
+  evidence patch head PASS로 표현하는 것, 또는 implemented loader/Go adapter를 file discovery/
+  CLI/writer/upgrade/adoption/crash recovery/non-SQLite 지원까지 확장해 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

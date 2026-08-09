@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-09
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-022
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-023
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1884,3 +1884,55 @@ Hosted job evidence:
 추정하지 않습니다. 이 evidence와 completion 문서를 담을 후속 documentation head는 아직
 commit/push되지 않아 hosted CI가 pending입니다. Product-head CI를 그 후속 head의 PASS로
 재귀 사용하지 않습니다.
+
+## EVID-20260809-023 — GDJ-0020 GitHub-hosted Completion-documentation-head CI
+
+- Date/time: 2026-08-09 20:07:10–20:10:30 KST
+- Work/contract IDs: GDJ-0020, MIG-057..MIG-064, Q-010, Q-012
+- Tested PR/head: Draft [PR #1](https://github.com/progresshans/godj/pull/1), branch
+  `codex/revision-fenced-migration-lifecycle`, exact completion-documentation head
+  `a5422f2c1ba5db34986564fc065e4b8e28ef0115`
+  (`docs: complete migration definition loader product slice`)
+- Workflow run: [31310002784](https://github.com/progresshans/godj/actions/runs/31310002784), event
+  `pull_request`, base `main@f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+- Runner checkout: GitHub PR merge ref
+  `2ae5f2c8e2887271ae81e8c5d463de1a38a9d89c`
+  (`Merge a5422f2c1ba5db34986564fc065e4b8e28ef0115 into f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`)
+- Exit status: workflow `success`; two jobs and all 27 job steps successful,
+  cancelled/failing/skipped/pending 0
+- Result summary: EVID-022가 검증한 exact product commit 뒤의 13-file completion-documentation
+  head를 current base와 합친 exact PR merge checkout에서 Ubuntu/macOS 두 job이 같은
+  portable/exact product gate를 다시 통과했습니다.
+- Failures/skips: unexpected job/step failure 없음. Ubuntu portable Python은 164 tests 중 exact-only
+  15 skipped; macOS exact Python은 164/164 pass. Windows와 PostgreSQL/MySQL/non-SQLite DB
+  matrix는 구성하거나 실행하지 않았습니다.
+
+Hosted job evidence:
+
+1. `Validate checked-in conformance artifacts`
+   ([job 93236227654](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227654))
+   - Started 20:07:19 KST, completed 20:10:30 KST, duration 3m11s
+   - GitHub-hosted Ubuntu 24.04.4 LTS, image `ubuntu-24.04`; Go 1.26.5 `linux/amd64`,
+     uv 0.10.12, Python 3.14.3, Django 6.1, SQLite 3.50.4
+   - `make ci` PASS: full Go normal/race/vet, CGO-disabled SQLite/GoDj adapter, portable Python
+     164 tests/15 skips, 10-set conformance와 definition-source locked reference oracle 8/0-diff
+   - 별도 `CGO_ENABLED=0`, `GOARCH=386`,
+     `go test -count=1 ./migrations/definition` actual 32-bit runtime PASS (`0.627s`)
+   - Stored oracle checksum 10개와 reference artifact no-rewrite gate PASS
+2. `Validate exact darwin/arm64 profile and SQLite lifecycle`
+   ([job 93236227698](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227698))
+   - Started 20:07:13 KST, completed 20:08:30 KST, duration 1m17s
+   - GitHub-hosted macOS 15.7.7, image `macos-15-arm64`; Go 1.26.5 `darwin/arm64`,
+     uv 0.10.12, Python 3.14.3, Django 6.1, SQLite 3.50.4
+   - CGO-disabled focused `migrations`, `db/sqlite`, GoDj adapter와 external compile gate PASS
+   - `make python-test-exact oracle-check` PASS: exact Python 164/164,
+     migration-definition-source를 포함한 10개 locked oracle `--check` PASS
+   - Reference artifact no-rewrite gate PASS
+
+이 run은 product-head EVID-022를 completion 문서 상태에 재사용한 것이 아닙니다. Run metadata의
+`headSha`가 exact completion-documentation commit
+`a5422f2c1ba5db34986564fc065e4b8e28ef0115`이고, checkout log의 synthetic merge가 그 head와 위
+base를 정확히 결합했음을 run/job/log에서 직접 확인했습니다. EVID-022의 product-head 결과와
+당시의 pending 문구는 역사 증거로 그대로 보존합니다. 현재 EVID-023을 append하고 관련 상태 문서를
+교정하는 이 evidence patch 자체는 아직 commit/push되지 않았고, 그 후속 head의 hosted CI는
+`not run/pending`입니다. Run 31310002784를 이 evidence patch 자체의 PASS로 재귀 사용하지 않습니다.

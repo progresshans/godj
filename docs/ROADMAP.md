@@ -228,7 +228,9 @@ MIG-057..064의 열 번째 actual adapter는 Django parity가 아닌 decision-re
 제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1
 [run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)의 Ubuntu 24.04와
 macOS 15 arm64 job에서 통과했고 Ubuntu는 실제 Linux/386 focused runtime을 검증했습니다.
-Completion 문서 head의 hosted 재검증은 아직 pending입니다.
+Completion-documentation commit `a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 별도
+[run 31310002784](https://github.com/progresshans/godj/actions/runs/31310002784)의 두 job에서
+통과했습니다. 현재 EVID-023 append/status 교정 patch 자체의 hosted CI만 `not run/pending`입니다.
 
 GDJ-0020 이후에도 CLI/project orchestration은 별도 결정입니다. Directory/file/module/remote
 discovery, global CLI/library/generator semver handshake, writer/upgrade/cache, executable/custom/

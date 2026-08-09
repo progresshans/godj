@@ -522,4 +522,19 @@ GDJ-0020 product head `6172d843a4bb234592cafc176a8d1191933b141c`은 같은 Draft
 locked profile/oracle/no-rewrite gate를 유지했습니다. 세부 local/product-head 증거는
 [EVID-20260809-021](status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)과
 [EVID-20260809-022](status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)에
-기록합니다. 이 completion 문서를 포함한 후속 head의 hosted 재검증은 아직 pending입니다.
+기록합니다.
+
+GDJ-0020 completion-documentation head
+`a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 같은 Draft PR #1의
+[run 31310002784](https://github.com/progresshans/godj/actions/runs/31310002784)에서 별도로
+재검증했습니다. Ubuntu 24.04.4 job
+[93236227654](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227654)는
+Go 1.26.5/uv 0.10.12/Python 3.14.3/Django 6.1/SQLite 3.50.4 profile에서 `make ci`, portable
+Python 164 tests/15 skips, actual `CGO_ENABLED=0 GOARCH=386` definition runtime,
+checksum/no-rewrite를 통과했습니다. macOS 15.7.7 arm64 job
+[93236227698](https://github.com/progresshans/godj/actions/runs/31310002784/job/93236227698)는 같은 pinned
+tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-rewrite를
+통과했습니다. 상세 증거는
+[EVID-20260809-023](status/TEST_EVIDENCE.md#evid-20260809-023--gdj-0020-github-hosted-completion-documentation-head-ci)에
+기록합니다. 현재 EVID-023 append/status 교정 patch 자체의 hosted CI는 아직
+`not run/pending`이며 run 31310002784를 재귀적으로 그 patch의 PASS로 사용하지 않습니다.

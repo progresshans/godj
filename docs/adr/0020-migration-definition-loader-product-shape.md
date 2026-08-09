@@ -23,8 +23,10 @@ alias와 unbounded parser behavior를 제품 ABI로 승격합니다.
 
 이 ADR은 activation 시 Proposed였습니다. 아래 exact shape를 test/compile/conformance로 검증했고,
 product commit `6172d843a4bb234592cafc176a8d1191933b141c`의 Draft PR #1 exact-head hosted
-run `31309152526`까지 통과한 근거로 Accepted합니다. 문서 존재만으로 FS discovery/CLI 등
-의도적으로 결정하지 않은 범위까지 public support를 주장하지 않습니다.
+run `31309152526`까지 통과한 근거로 Accepted합니다. 이후 13-file completion-documentation commit
+`a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 별도 exact-head run `31310002784`의 Ubuntu/macOS
+두 job에서 통과했습니다. 문서 존재만으로 FS discovery/CLI 등 의도적으로 결정하지 않은 범위까지
+public support를 주장하지 않습니다.
 
 ## 결정 기준
 
@@ -279,8 +281,11 @@ Compatibility header mutation은 valid success를 typed error로 바꾸며 resul
 
 Acceptance evidence는
 [EVID-20260809-021](../status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)과
-[EVID-20260809-022](../status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)에
+[EVID-20260809-022](../status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci),
+completion-documentation exact-head evidence는
+[EVID-20260809-023](../status/TEST_EVIDENCE.md#evid-20260809-023--gdj-0020-github-hosted-completion-documentation-head-ci)에
 기록했습니다. Local `make check`, focused normal/race/CGO-disabled/vet/count-20, 5초 fuzz와 exact
-Python 164/164가 통과했고, exact product head의 Ubuntu 24.04 job은 실제
-`CGO_ENABLED=0 GOARCH=386` runtime을, macOS 15 arm64 job은 focused Go와 exact oracle/no-rewrite를
-통과했습니다.
+Python 164/164가 통과했고, exact product 및 completion-documentation head의 Ubuntu 24.04 job은
+실제 `CGO_ENABLED=0 GOARCH=386` runtime을, macOS 15 arm64 job은 focused Go와 exact
+oracle/no-rewrite를 통과했습니다. 현재 EVID-023 append/status 교정 patch 자체의 hosted CI는 아직
+`not run/pending`이며 completion-documentation run을 재귀 사용하지 않습니다.
