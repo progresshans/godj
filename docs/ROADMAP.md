@@ -1,8 +1,9 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0023 completed; local EVID-031과 implementation-head hosted EVID-032 완료;
-  ADR-0023 Accepted, Q-013 Partial; 다음 active work 미선정
+- 현재 단계: GDJ-0023 completed; local EVID-031, implementation-head hosted EVID-032와
+  completion-documentation-head hosted EVID-033 완료; ADR-0023 Accepted, Q-013 Partial;
+  EVID-033/status patch는 미커밋·미푸시이고 다음 active work 미선정
 - 현재 제품 기준: 11 adapter/115 contract의 `110 passing + 5 deviation`
 - 마지막 검토: 2026-08-10
 
@@ -302,8 +303,10 @@ synchronization head `385382efffd1872ae7fb427192bab27b95dc57e2`의 run `31332208
 `1f161f311daa775e6a386ec0df568ff85d681f15`도 run `31333420261` exact 18/18을 통과해 EVID-030에
 기록했습니다. GDJ-0023 implementation head `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`도
 [run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743)의 exact 22/22를
-통과했습니다. 현재 completion-documentation patch 자체의 exact-head CI만 commit/push 전이라
-pending입니다.
+통과했습니다. Completion-documentation head `31784ae1e8261ad0698921b93803aa35e9b63f93`도 별도
+[run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
+[EVID-20260810-033](status/TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)으로
+검증했습니다. 현재 EVID-033/status patch 자체의 commit/push와 exact-head CI만 pending입니다.
 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-032
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-033
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2674,3 +2674,70 @@ all-app binding/last-good publication, mutual/self external compile with app-to-
 typed/dynamic shared AST, field-union vNext candidate evidence, Schema IR v2/migration tuple rejection and
 SET_NULL injected-fault rollback. Independent hosted evidence audit reported P0/P1/P2/P3 finding 0. No merge
 was performed.
+
+## EVID-20260810-033 — GDJ-0023 GitHub-hosted completion-documentation-head exact 22-job CI
+
+- Date/time: 2026-08-10T07:26:48+09:00–2026-08-10T07:32:01+09:00
+- Work/contract IDs: GDJ-0023, REL-001..REL-012, Q-013
+- Checkout/commit: `codex/revision-fenced-migration-lifecycle@31784ae1e8261ad0698921b93803aa35e9b63f93`
+  (`docs: accept relation binding architecture`)
+- Environment/backend: GitHub-hosted exact 22 required executions; Ubuntu/Linux and macOS,
+  amd64/arm64, Go 1.26.5, actual SQLite product gates, CPython
+  3.12.13/3.13.15/3.14.3/3.14.7 compatibility matrix, test-only relation binding four-coordinate
+  matrix; PostgreSQL/MySQL service jobs and Windows absent
+- Command: Draft PR #1 `pull_request` run
+  [31339409336](https://github.com/progresshans/godj/actions/runs/31339409336), attempt 1
+- Exit status: `success`; exact 22/22 jobs and all 273 recorded steps completed successfully;
+  failed/cancelled/skipped jobs 0 and non-success recorded steps 0
+- Result summary: EVID-032와 Accepted ADR-0023을 기록한 completion-documentation head 자체가 같은
+  22-job topology에서 다시 통과해 EVID-032의 당시 `not run/pending`을 해소했습니다. Reference는
+  12 sets/127 contracts/132 ordered cross-bindings와 12 `oracle_locked`, 제품은 11 adapters/115
+  contracts=`110 passing + 5 deviation`, relation actual adapter 0으로 유지됩니다.
+- Failures/skips/not run: unexpected hosted failure/skip 없음. Portable Python의 17 exact-profile-only
+  skips는 의도한 기존 분리이고 exact darwin은 193/193과 skip 0을 유지했습니다. Windows와
+  PostgreSQL/MySQL은 actual product contract/adapter가 없어 실행하지 않았습니다. 이 EVID-033/status
+  patch 자체는 tested head보다 뒤의 미커밋·미푸시 변경이므로 exact-head hosted CI가
+  `not run/pending`이며 run 31339409336을 그 증거로 재사용하지 않습니다.
+
+Hosted identity and checkout evidence:
+
+- Run metadata는 event `pull_request`, attempt 1, `headSha` exactly
+  `31784ae1e8261ad0698921b93803aa35e9b63f93`, conclusion `success`였습니다.
+- Evidence 수집 시 PR #1은 `OPEN`/`DRAFT`/`CLEAN`, exact head `31784ae1...`, base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`였습니다.
+- Evidence 수집 시 Actions synthetic merge는 `26453de9aca342c7d3b3c83e33c0014bf1c19a38`이고 parents는 exact
+  base `f8a5e20c...`와 exact head `31784ae1...`였습니다. Synthetic merge와 exact head의 tree는 모두
+  `0326d597340cfbcba19274045e7ff65b6e11f87d`로 같아 실행 contents는 exact-head-equivalent입니다.
+
+Exact job identities:
+
+| Required execution | Job ID | Result |
+|---|---:|---|
+| Validate checked-in conformance artifacts | [93310598553](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598553) | success |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93310598517](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598517) | success |
+| Project check (`ubuntu-22.04`) | [93310598565](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598565) | success |
+| Project check (`ubuntu-24.04-arm`) | [93310598586](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598586) | success |
+| Project check (`macos-15-intel`) | [93310598591](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598591) | success |
+| Project check (`macos-26`) | [93310598585](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598585) | success |
+| SQLite (`ubuntu-22.04`) | [93310598583](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598583) | success |
+| SQLite (`ubuntu-24.04-arm`) | [93310598611](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598611) | success |
+| SQLite (`macos-15-intel`) | [93310598602](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598602) | success |
+| SQLite (`macos-26`) | [93310598575](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598575) | success |
+| Product project check (`ubuntu-22.04`) | [93310598571](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598571) | success |
+| Product project check (`ubuntu-24.04-arm`) | [93310598563](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598563) | success |
+| Product project check (`macos-15-intel`) | [93310598569](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598569) | success |
+| Product project check (`macos-26`) | [93310598579](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598579) | success |
+| Python compatibility (`3.12.13`) | [93310598596](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598596) | success |
+| Python compatibility (`3.13.15`) | [93310598580](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598580) | success |
+| Python compatibility (`3.14.3`) | [93310598577](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598577) | success |
+| Python compatibility (`3.14.7`) | [93310598607](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598607) | success |
+| Relation binding (`ubuntu-22.04`) | [93310598566](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598566) | success |
+| Relation binding (`ubuntu-24.04-arm`) | [93310598610](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598610) | success |
+| Relation binding (`macos-15-intel`) | [93310598582](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598582) | success |
+| Relation binding (`macos-26`) | [93310598573](https://github.com/progresshans/godj/actions/runs/31339409336/job/93310598573) | success |
+
+The exact two full jobs, four project-check, four SQLite, four product, four Python compatibility and four
+relation-binding executions retained the same required step inventory as EVID-032. All checkout, runtime,
+suite/digest, normal/race/CGO-disabled/vet, artifact no-rewrite and clean-worktree steps succeeded. The tested
+commit changed documentation only from the implementation head; no product/reference artifact or workflow
+was changed, no product relation support was added and no merge was performed.

@@ -94,8 +94,11 @@ exact 18/18을 통과했고 EVID-030에 기록했습니다. GDJ-0023 activation 
 두 independent final audit P0/P1/P2/P3 finding 0과 implementation head `b56ccf5`의
 [run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743) exact 22/22까지
 통과했습니다. Work는 completed, ADR-0023은 Accepted, Q-013은 `Partial`이며 relation product adapter는
-0입니다. 이 completion-documentation patch 자체의 exact-head hosted CI는 pending이고, GDJ-0024는 아직
-active work가 아닌 다음 bounded packet입니다.
+0입니다. Completion-documentation head `31784ae1`도 별도
+[run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
+[EVID-20260810-033](../docs/status/TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)으로
+검증했습니다. 현재 EVID-033/status patch 자체는 미커밋·미푸시이고 exact-head hosted CI가 pending이며,
+GDJ-0024는 아직 active work가 아닌 다음 bounded packet입니다.
 
 ## 운영 규칙
 

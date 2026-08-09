@@ -84,6 +84,9 @@
 - GDJ-0023 implementation/hosted-tested commit:
   `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`
   (`test: lock foreign key relation contracts`)
+- GDJ-0023 completion-documentation/hosted-tested commit:
+  `31784ae1e8261ad0698921b93803aa35e9b63f93`
+  (`docs: accept relation binding architecture`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0023 completed; ForeignKey REL-001..012 exact Django contract와 cross-app
@@ -134,7 +137,12 @@
   [run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743)은 exact 22/22와 기록된
   273 steps 전부를 성공했고
   [EVID-20260810-032](TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)에
-  기록했습니다. 이 completion-documentation patch 자체의 exact-head hosted CI는 `not run/pending`입니다.
+  기록했습니다. Completion-documentation commit `31784ae1e8261ad0698921b93803aa35e9b63f93`도 별도
+  [run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
+  273/273 steps를 성공했고
+  [EVID-20260810-033](TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)에
+  기록했습니다. 현재 EVID-033/status patch 자체는 미커밋·미푸시이고 exact-head hosted CI가
+  `not run/pending`입니다.
 
 ## Completed GDJ-0023 관계 계약 경계
 
@@ -568,9 +576,10 @@
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0023 Phase A reference와 Phase B test-only feasibility는 local 검증,
-independent audit와 implementation head run 31338151743의 exact 22/22 hosted acceptance까지 완료됐습니다.
-ADR-0023은 Accepted이고 work는 completed입니다. 현재 completion-documentation patch 자체의 exact-head
-22-job CI만 `not run/pending`입니다. Q-010/Q-012는 full
+independent audit, implementation head run 31338151743과 completion-documentation head run 31339409336의
+각 exact 22/22 hosted acceptance까지 완료됐습니다. ADR-0023은 Accepted이고 work는 completed입니다.
+현재 EVID-033/status patch 자체의 commit/push와 exact-head 22-job CI만 `not run/pending`입니다.
+Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware
 migration lifecycle 전체가 아니므로 `Partial`입니다. Q-013도 architecture는 Accepted됐지만 exact
 public/wire/product shape가 후속이라 `Partial`입니다.
@@ -586,11 +595,11 @@ public/wire/product shape가 후속이라 `Partial`입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 completion-documentation patch를 GDJ-0023 exact allowed scope로 commit/push하고 그
-exact head의 22-job CI를 별도로 수집합니다. Run 31338151743은 implementation head 증거이므로 뒤의 문서
-head 증거로 재사용하지 않습니다. 별도 append-only evidence 뒤 Accepted ADR-0023을 입력으로 GDJ-0024의
-exact product subset/allowed paths를 새 work에 작성하고 나서만 활성화합니다. Draft PR은 사용자 요청
-전까지 merge하지 않습니다.
+통합 담당자는 이 EVID-033/status patch를 GDJ-0023 exact allowed scope로 commit/push하고 그 exact head의
+22-job CI를 별도로 수집합니다. Run 31339409336은 completion-documentation head 증거이므로 이 뒤의
+evidence/status head 증거로 재사용하지 않습니다. 그 exact-head 결과를 확인한 뒤 Accepted ADR-0023을
+입력으로 GDJ-0024의 exact product subset/allowed paths를 새 work에 작성하고 나서만 활성화합니다.
+Draft PR은 사용자 요청 전까지 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -612,8 +621,10 @@ exact product subset/allowed paths를 새 work에 작성하고 나서만 활성�
   `31335315454` 18/18 PASS
 - GDJ-0023 implementation commit: `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`; exact 22-job run
   `31338151743` 22/22 and 273/273 steps PASS
-- 현재 working tree: 위 `b56ccf5` implementation head + uncommitted GDJ-0023 completion-status/EVID-032
-  patch; 이 후속 patch의 commit/push/exact-head 22-job CI 전
+- GDJ-0023 completion-documentation commit: `31784ae1e8261ad0698921b93803aa35e9b63f93`; exact 22-job run
+  `31339409336` 22/22 and 273/273 steps PASS
+- 현재 working tree: 위 `31784ae1` completion-documentation head + uncommitted EVID-033/status patch;
+  이 후속 patch의 commit/push/exact-head 22-job CI 전
 - 최근 완료 work:
   [GDJ-0023](../../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)
 - active work: 없음
@@ -637,11 +648,12 @@ exact product subset/allowed paths를 새 work에 작성하고 나서만 활성�
   Python pre-test assertion 4 failures 뒤 cancelled; uv assertion fix run 31329294154 exact 18/18 PASS;
   EVID-028/status run 31330601427은 16 success/2 macOS product failure; final stabilization run
   31332208055 exact 18/18 PASS; EVID-029/status run 31333420261 exact 18/18 PASS; GDJ-0023 activation run
-  31335315454 exact 18/18 PASS; implementation run 31338151743 exact 22/22 PASS; current completion-doc
-  patch exact 22 CI는 not run/pending
+  31335315454 exact 18/18 PASS; implementation run 31338151743 exact 22/22 PASS;
+  completion-documentation run 31339409336 exact 22/22 PASS; current EVID-033/status patch exact 22 CI는
+  not run/pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: implementation run 31338151743을 뒤의 completion-doc exact-head success로
-  재사용하거나, REL oracle/binding spike를 product relation support로 세거나, service-only
+- 가장 위험한 과장: completion-documentation run 31339409336을 뒤의 EVID-033/status exact-head
+  success로 재사용하거나, REL oracle/binding spike를 product relation support로 세거나, service-only
   PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은

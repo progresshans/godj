@@ -606,7 +606,11 @@ reaped-before-Wait-publication reconciliation을 포함한 final fix
 273/273 successful steps를 통과했습니다. Four Python legs는 193/17과 127-scenario digest를, four
 relation-binding legs는 normal/race/CGO-disabled/vet/no-rewrite/clean을 검증했고 상세 결과는
 [EVID-20260810-032](status/TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)에
-기록했습니다. 현재 completion-documentation patch 자체의 exact-head CI만 pending입니다.
+기록했습니다. Completion-documentation head `31784ae1e8261ad0698921b93803aa35e9b63f93`도 별도
+[run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
+273/273 successful steps를 통과했고 상세 결과는
+[EVID-20260810-033](status/TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)에
+기록했습니다. 현재 EVID-033/status patch 자체는 미커밋·미푸시이고 exact-head CI가 pending입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
