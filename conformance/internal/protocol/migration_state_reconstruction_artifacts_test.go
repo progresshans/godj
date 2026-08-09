@@ -71,7 +71,7 @@ func TestPreviousSevenContractArtifactSetsRemainBytePinned(t *testing.T) {
 	}
 }
 
-func TestMigrationStateReconstructionEntersEightSetProductConformanceTarget(t *testing.T) {
+func TestMigrationStateReconstructionRemainsInNineSetProductConformanceTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -89,12 +89,12 @@ func TestMigrationStateReconstructionEntersEightSetProductConformanceTarget(t *t
 	if !strings.Contains(target, "MIGRATION_STATE_RECONSTRUCTION") {
 		t.Fatal("migration-state-reconstruction product set is missing from the product conformance target")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 8 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 8", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 9 {
+		t.Fatalf("godj-conformance product adapter count = %d, want 9", got)
 	}
 }
 
-func TestProductClassificationIs83PassingAnd4Deviation(t *testing.T) {
+func TestPreviousEightProductSetsRemain83PassingAnd4Deviation(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -127,7 +127,7 @@ func TestProductClassificationIs83PassingAnd4Deviation(t *testing.T) {
 		}
 	}
 	if passing != 83 || deviations != 4 {
-		t.Fatalf("classification = %d passing + %d deviation, want 83 + 4", passing, deviations)
+		t.Fatalf("previous eight-set classification = %d passing + %d deviation, want historical 83 + 4", passing, deviations)
 	}
 }
 

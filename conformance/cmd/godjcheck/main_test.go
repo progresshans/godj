@@ -606,12 +606,13 @@ func TestRunRejectsUnknownMigrationStateReconstructionScenarioWithoutWritingActu
 	}
 }
 
-func TestRunRejectsMigrationLifecycleManifestWithoutWritingActualOutput(t *testing.T) {
+func TestRunMatchesReviewedMigrationLifecycleExpectationAndWritesActualOutput(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
 	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-lifecycle-manifest.json")
 	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-lifecycle-oracle.json")
+	deviationPath := filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-deviation-expected.json")
 	manifest, err := protocol.LoadManifest(manifestPath)
 	if err != nil {
 		t.Fatal(err)
@@ -619,28 +620,52 @@ func TestRunRejectsMigrationLifecycleManifestWithoutWritingActualOutput(t *testi
 	if len(manifest.Contracts) != 10 {
 		t.Fatalf("migration lifecycle manifest has %d contracts, want 10", len(manifest.Contracts))
 	}
-	unsupportedScenario := manifest.Contracts[0].Scenario
 	directory := t.TempDir()
-	actualPath := filepath.Join(directory, "must-not-exist.json")
+	actualPath := filepath.Join(directory, "migration-lifecycle-actual.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", manifestPath,
 		"-expected", oraclePath,
+		"-deviation-expected", deviationPath,
 		"-actual-output", actualPath,
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
-		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unsupportedScenario)) {
+	if !strings.Contains(stdout.String(), "match the reviewed product expectation for 10 contracts under DEV-0002") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
-		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	oracle, err := protocol.LoadObservationSuite(oraclePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectation, err := protocol.LoadDeviationExpectation(deviationPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	effective, product, err := protocol.PrepareDeviationExpectation(profile, manifest, oracle, expectation, migrationLifecycleDeviationPolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	differences, err := protocol.Compare(profile, effective, product, actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) != 0 {
+		t.Fatalf("migration lifecycle actual differs from reviewed product expectation: %#v", differences)
 	}
 }
 
@@ -714,6 +739,76 @@ func TestRunRejectsUnregisteredDeviationExpectationBeforeActualGeneration(t *tes
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "does not match policy") {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func TestDeviationPolicyDispatchKeepsReviewedScopesSeparate(t *testing.T) {
+	t.Parallel()
+
+	execution, err := deviationPolicyForDecision("DEV-0001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if execution.Decision != "DEV-0001" || len(execution.Contracts) != 4 {
+		t.Fatalf("DEV-0001 policy = %#v", execution)
+	}
+	lifecycle, err := deviationPolicyForDecision("DEV-0002")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lifecycle.Decision != "DEV-0002" || len(lifecycle.Contracts) != 1 || lifecycle.Contracts[0].ID != "MIG-052" {
+		t.Fatalf("DEV-0002 policy = %#v", lifecycle)
+	}
+	wantPaths := []string{"plan[0]", "plan[1]", "plan[2]", "steps[0]", "steps[1]", "steps[2]"}
+	if len(lifecycle.Contracts[0].Changes) != len(wantPaths) {
+		t.Fatalf("DEV-0002 change count = %d, want %d", len(lifecycle.Contracts[0].Changes), len(wantPaths))
+	}
+	for index, change := range lifecycle.Contracts[0].Changes {
+		wantDimension := protocol.DeviationResult
+		if index >= 3 {
+			wantDimension = protocol.DeviationMetrics
+		}
+		if change.Dimension != wantDimension || change.Path != wantPaths[index] || change.Operation != protocol.DeviationReplace {
+			t.Fatalf("DEV-0002 change %d = %#v", index, change)
+		}
+	}
+	if _, err := deviationPolicyForDecision("DEV-9999"); err == nil || !strings.Contains(err.Error(), "unsupported deviation decision") {
+		t.Fatalf("unknown decision error = %v", err)
+	}
+}
+
+func TestRunRejectsUnknownDeviationDecisionBeforeActualGeneration(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	expectation, err := protocol.LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-deviation-expected.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectation.Decision = "DEV-9999"
+	directory := t.TempDir()
+	expectationPath := writeCanonicalMainTestArtifact(t, directory, "unknown-decision.json", expectation)
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", filepath.Join(root, "conformance", "contracts", "migration-lifecycle-manifest.json"),
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-lifecycle-oracle.json"),
+		"-deviation-expected", expectationPath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), `unsupported deviation decision "DEV-9999"`) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {

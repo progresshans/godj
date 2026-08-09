@@ -74,12 +74,16 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		if err != nil {
 			return reportFailure(stderr, err)
 		}
+		deviationPolicy, err := deviationPolicyForDecision(deviationExpected.Decision)
+		if err != nil {
+			return reportFailure(stderr, err)
+		}
 		comparisonManifest, comparisonExpected, err = protocol.PrepareDeviationExpectation(
 			profile,
 			manifest,
 			expected,
 			deviationExpected,
-			migrationExecutionDeviationPolicy(),
+			deviationPolicy,
 		)
 		if err != nil {
 			return reportFailure(stderr, err)

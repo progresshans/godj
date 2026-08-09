@@ -27,6 +27,7 @@ MIGRATION_STATE_RECONSTRUCTION_NOT_IMPLEMENTED := conformance/fixtures/godj-migr
 MIGRATION_LIFECYCLE_MANIFEST := conformance/contracts/migration-lifecycle-manifest.json
 MIGRATION_LIFECYCLE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json
 MIGRATION_LIFECYCLE_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-lifecycle-not-implemented.json
+MIGRATION_LIFECYCLE_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-lifecycle-deviation-expected.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -124,6 +125,10 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_STATE_RECONSTRUCTION_MANIFEST) \
 		-expected $(MIGRATION_STATE_RECONSTRUCTION_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_LIFECYCLE_MANIFEST) \
+		-expected $(MIGRATION_LIFECYCLE_ORACLE) \
+		-deviation-expected $(MIGRATION_LIFECYCLE_DEVIATION_EXPECTED)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

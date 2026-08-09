@@ -261,6 +261,411 @@ func TestMigrationStateReconstructionRegistryMatchesManifestScenarios(t *testing
 	}
 }
 
+func TestGenerateMatchesReviewedMigrationLifecycleExpectation(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, oracle, expectation := loadMigrationLifecycleInputs(t)
+	effective, product, err := protocol.PrepareDeviationExpectation(
+		profile,
+		manifest,
+		oracle,
+		expectation,
+		migrationLifecycleDeviationPolicyForRunnerTest(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := Generate(context.Background(), profile, effective)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, effective, product, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj migration-lifecycle suite differs from reviewed product expectation in %d place(s)", len(differences))
+	}
+}
+
+func TestMigrationLifecycleRegistryMatchesManifestScenarios(t *testing.T) {
+	t.Parallel()
+
+	_, manifest, _, _ := loadMigrationLifecycleInputs(t)
+	if len(migrationLifecycleFixtures) != len(manifest.Contracts) {
+		t.Fatalf("migration lifecycle registry has %d scenarios, manifest has %d", len(migrationLifecycleFixtures), len(manifest.Contracts))
+	}
+	for _, contract := range manifest.Contracts {
+		if _, ok := migrationLifecycleFixtures[contract.Scenario]; !ok {
+			t.Fatalf("migration lifecycle scenario %q is not registered", contract.Scenario)
+		}
+	}
+}
+
+func TestGenerateMigrationLifecycleIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, _, _ := loadMigrationLifecycleInputs(t)
+	first, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	second, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(second) error = %v", err)
+	}
+	firstJSON, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondJSON, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(firstJSON, secondJSON) {
+		t.Fatal("independent migration-lifecycle runs produced different canonical observations")
+	}
+}
+
+func TestMigrationLifecycleAdapterUsesPublicMigrateWithoutContractPayloadHardcoding(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_lifecycle_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	for _, forbidden := range []string{
+		"MIG-",
+		"migration-lifecycle-oracle",
+		"godj-migration-lifecycle-not-implemented",
+		"godj-migration-lifecycle-deviation-expected",
+		"switch contractID",
+		"ReadFile(",
+		"os.ReadFile(",
+		"os.Open(",
+		"os.OpenFile(",
+		"ioutil.ReadFile(",
+		"io.ReadAll(",
+		"json.NewDecoder(",
+		"json.Unmarshal(",
+		"protocol.Load",
+		"LoadManifest(",
+		"LoadObservationSuite(",
+		"LoadDeviationExpectation(",
+		".ExecutePlan(",
+		`INSERT INTO "godj_migrations"`,
+		`DELETE FROM "godj_migrations"`,
+		`CREATE TABLE "godj_lifecycle_`,
+	} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("migration-lifecycle adapter contains forbidden hardcoded or legacy execution payload %q", forbidden)
+		}
+	}
+	if got := strings.Count(text, ".Migrate("); got < 6 {
+		t.Fatalf("migration-lifecycle adapter public Migrate call sites = %d, want setup and capture coverage", got)
+	}
+}
+
+func TestMigrationLifecycleTargetMutationsPropagateThroughPublicMigrate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("named", func(t *testing.T) {
+		base := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.named_forward_target", nil)
+		changed := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.named_forward_target", func(fixture *migrationLifecycleFixture) {
+			fixture.request = migrationLifecycleNamedRequest(migrationLifecycleA3)
+		})
+
+		migrationLifecycleRequireDifferent(t, "named target result plan",
+			migrationLifecycleResultField(t, base, "plan"),
+			migrationLifecycleResultField(t, changed, "plan"),
+		)
+		migrationLifecycleRequireDifferent(t, "named target trace steps",
+			migrationLifecycleMetricField(t, base, "steps"),
+			migrationLifecycleMetricField(t, changed, "steps"),
+		)
+		migrationLifecycleRequireDifferent(t, "named target database state",
+			migrationLifecycleDatabaseSnapshotField(t, base, "after"),
+			migrationLifecycleDatabaseSnapshotField(t, changed, "after"),
+		)
+	})
+
+	t.Run("zero", func(t *testing.T) {
+		base := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.zero_target", nil)
+		changed := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.zero_target", func(fixture *migrationLifecycleFixture) {
+			fixture.request = migrationLifecycleZeroRequest("beta")
+		})
+
+		migrationLifecycleRequireDifferent(t, "zero target result plan",
+			migrationLifecycleResultField(t, base, "plan"),
+			migrationLifecycleResultField(t, changed, "plan"),
+		)
+		migrationLifecycleRequireDifferent(t, "zero target trace steps",
+			migrationLifecycleMetricField(t, base, "steps"),
+			migrationLifecycleMetricField(t, changed, "steps"),
+		)
+		migrationLifecycleRequireDifferent(t, "zero target database state",
+			migrationLifecycleDatabaseSnapshotField(t, base, "after"),
+			migrationLifecycleDatabaseSnapshotField(t, changed, "after"),
+		)
+	})
+}
+
+func TestMigrationLifecycleFaultMutationMovesFailedStepAndTail(t *testing.T) {
+	t.Parallel()
+
+	base := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.middle_forward_failure", nil)
+	changed := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.middle_forward_failure", func(fixture *migrationLifecycleFixture) {
+		fault := migrationLifecycleA3
+		fixture.fault = &fault
+	})
+	if base.Error == nil || changed.Error == nil {
+		t.Fatalf("fault mutation observations must both fail: before=%#v after=%#v", base.Error, changed.Error)
+	}
+	migrationLifecycleRequireDifferent(t, "failed step",
+		migrationLifecycleMetricField(t, base, "failure_step"),
+		migrationLifecycleMetricField(t, changed, "failure_step"),
+	)
+	migrationLifecycleRequireDifferent(t, "failed execution trace",
+		migrationLifecycleMetricField(t, base, "steps"),
+		migrationLifecycleMetricField(t, changed, "steps"),
+	)
+	migrationLifecycleRequireDifferent(t, "unstarted tail",
+		migrationLifecycleMetricField(t, base, "unstarted_tail_count"),
+		migrationLifecycleMetricField(t, changed, "unstarted_tail_count"),
+	)
+	migrationLifecycleRequireDifferent(t, "durable prefix after fault",
+		migrationLifecycleDatabaseSnapshotField(t, base, "after"),
+		migrationLifecycleDatabaseSnapshotField(t, changed, "after"),
+	)
+}
+
+func TestMigrationLifecycleDefinitionMutationsPropagateThroughPublicMigrate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("dependency_changes_plan", func(t *testing.T) {
+		base := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.fresh_latest", nil)
+		changed := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.fresh_latest", func(fixture *migrationLifecycleFixture) {
+			definitions := migrationLifecycleDefinitions()
+			definition := migrationLifecycleTestDefinition(t, definitions, migrationLifecycleA3)
+			definition.Dependencies = []migrations.MigrationKey{migrationLifecycleB1}
+			fixture.definitions = definitions
+		})
+
+		migrationLifecycleRequireDifferent(t, "dependency-derived plan",
+			migrationLifecycleResultField(t, base, "plan"),
+			migrationLifecycleResultField(t, changed, "plan"),
+		)
+		migrationLifecycleRequireDifferent(t, "dependency-derived trace",
+			migrationLifecycleMetricField(t, base, "steps"),
+			migrationLifecycleMetricField(t, changed, "steps"),
+		)
+	})
+
+	t.Run("operation_changes_schema", func(t *testing.T) {
+		base := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.fresh_latest", nil)
+		changed := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.fresh_latest", func(fixture *migrationLifecycleFixture) {
+			definitions := migrationLifecycleDefinitions()
+			definition := migrationLifecycleTestDefinition(t, definitions, migrationLifecycleA3)
+			operation, ok := definition.Operations[0].(migrations.AddField)
+			if !ok {
+				t.Fatalf("A3 operation = %T, want migrations.AddField", definition.Operations[0])
+			}
+			operation.Field.Name = "a3_mutated"
+			operation.Field.GoName = "A3Mutated"
+			operation.Field.Column = "a3_mutated"
+			definition.Operations[0] = operation
+			fixture.definitions = definitions
+		})
+
+		baseAfter := migrationLifecycleDatabaseSnapshotField(t, base, "after")
+		changedAfter := migrationLifecycleDatabaseSnapshotField(t, changed, "after")
+		migrationLifecycleRequireDifferent(t, "operation-derived database schema",
+			migrationPlanningTestObjectField(t, baseAfter, "managed_schema"),
+			migrationPlanningTestObjectField(t, changedAfter, "managed_schema"),
+		)
+		migrationLifecycleRequireDifferent(t, "operation-derived returned state",
+			migrationLifecycleResultField(t, base, "returned_state"),
+			migrationLifecycleResultField(t, changed, "returned_state"),
+		)
+	})
+
+	t.Run("default_changes_state", func(t *testing.T) {
+		base := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.fresh_latest", nil)
+		changed := migrationLifecycleMutationObservation(t, "django.migration.lifecycle.fresh_latest", func(fixture *migrationLifecycleFixture) {
+			definitions := migrationLifecycleDefinitions()
+			definition := migrationLifecycleTestDefinition(t, definitions, migrationLifecycleA1)
+			operation, ok := definition.Operations[0].(migrations.CreateModel)
+			if !ok {
+				t.Fatalf("A1 operation = %T, want migrations.CreateModel", definition.Operations[0])
+			}
+			for index := range operation.Model.Fields {
+				if operation.Model.Fields[index].Column != "a1_marker" {
+					continue
+				}
+				if operation.Model.Fields[index].Default == nil {
+					t.Fatal("A1 marker default is nil")
+				}
+				operation.Model.Fields[index].Default.String = "a1_mutated"
+				definition.Operations[0] = operation
+				fixture.definitions = definitions
+				return
+			}
+			t.Fatal("A1 marker field is missing")
+		})
+
+		migrationLifecycleRequireDifferent(t, "default-derived returned state",
+			migrationLifecycleResultField(t, base, "returned_state"),
+			migrationLifecycleResultField(t, changed, "returned_state"),
+		)
+	})
+}
+
+func TestMigrationLifecycleSetupMutationsChangeBeforeRecordsAndTail(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		scenario string
+		targets  []migrationLifecycleTarget
+	}{
+		{
+			name:     "prefix",
+			scenario: "django.migration.lifecycle.applied_prefix_latest",
+			targets:  []migrationLifecycleTarget{{key: migrationLifecycleA2}},
+		},
+		{
+			name:     "legacy",
+			scenario: "django.migration.lifecycle.unknown_legacy_tail",
+			targets: []migrationLifecycleTarget{
+				{key: migrationLifecycleA2},
+				{key: migrationLifecycleLegacy},
+			},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			base := migrationLifecycleMutationObservation(t, test.scenario, nil)
+			changed := migrationLifecycleMutationObservation(t, test.scenario, func(fixture *migrationLifecycleFixture) {
+				fixture.setupTargets = append([]migrationLifecycleTarget(nil), test.targets...)
+			})
+
+			baseBefore := migrationLifecycleDatabaseSnapshotField(t, base, "before")
+			changedBefore := migrationLifecycleDatabaseSnapshotField(t, changed, "before")
+			migrationLifecycleRequireDifferent(t, "setup before snapshot", baseBefore, changedBefore)
+			migrationLifecycleRequireDifferent(t, "setup migration records",
+				migrationPlanningTestObjectField(t, baseBefore, "migration_records"),
+				migrationPlanningTestObjectField(t, changedBefore, "migration_records"),
+			)
+			migrationLifecycleRequireDifferent(t, "setup-derived execution tail",
+				migrationLifecycleResultField(t, base, "plan"),
+				migrationLifecycleResultField(t, changed, "plan"),
+			)
+			migrationLifecycleRequireDifferent(t, "setup-derived trace tail",
+				migrationLifecycleMetricField(t, base, "steps"),
+				migrationLifecycleMetricField(t, changed, "steps"),
+			)
+		})
+	}
+}
+
+func migrationLifecycleMutationObservation(
+	t *testing.T,
+	scenario string,
+	mutate func(*migrationLifecycleFixture),
+) protocol.Observation {
+	t.Helper()
+	factory, ok := migrationLifecycleFixtures[scenario]
+	if !ok {
+		t.Fatalf("migration lifecycle mutation scenario %q is not registered", scenario)
+	}
+	fixture := factory()
+	if mutate != nil {
+		mutate(&fixture)
+	}
+	const arbitraryContractID = "LIFECYCLE-MUTATION-PROBE"
+	observation, err := runMigrationLifecycleFixture(context.Background(), arbitraryContractID, fixture)
+	if err != nil {
+		t.Fatalf("runMigrationLifecycleFixture(%s) error = %v", scenario, err)
+	}
+	if observation.ID != arbitraryContractID || observation.Status != protocol.StatusObserved {
+		t.Fatalf("arbitrary fixture observation identity/status = (%q, %q)", observation.ID, observation.Status)
+	}
+	return observation
+}
+
+func migrationLifecycleTestDefinition(
+	t *testing.T,
+	definitions []migrations.Migration,
+	key migrations.MigrationKey,
+) *migrations.Migration {
+	t.Helper()
+	for index := range definitions {
+		if definitions[index].App == key.App && definitions[index].Name == key.Name {
+			return &definitions[index]
+		}
+	}
+	t.Fatalf("migration lifecycle definition %s.%s is missing", key.App, key.Name)
+	return nil
+}
+
+func migrationLifecycleResultField(t *testing.T, observation protocol.Observation, name string) protocol.Value {
+	t.Helper()
+	if observation.Result == nil {
+		t.Fatalf("migration lifecycle result is nil while selecting %q", name)
+	}
+	return migrationPlanningTestObjectField(t, *observation.Result, name)
+}
+
+func migrationLifecycleMetricField(t *testing.T, observation protocol.Observation, name string) protocol.Value {
+	t.Helper()
+	if observation.Metrics == nil {
+		t.Fatalf("migration lifecycle metrics are nil while selecting %q", name)
+	}
+	return migrationPlanningTestObjectField(t, *observation.Metrics, name)
+}
+
+func migrationLifecycleDatabaseSnapshotField(t *testing.T, observation protocol.Observation, name string) protocol.Value {
+	t.Helper()
+	if observation.DBState == nil {
+		t.Fatalf("migration lifecycle database state is nil while selecting %q", name)
+	}
+	return migrationPlanningTestObjectField(t, *observation.DBState, name)
+}
+
+func migrationLifecycleRequireDifferent(t *testing.T, label string, before, after protocol.Value) {
+	t.Helper()
+	if reflect.DeepEqual(before, after) {
+		t.Fatalf("%s did not propagate through the lifecycle adapter: %#v", label, before)
+	}
+}
+
+func migrationLifecycleDeviationPolicyForRunnerTest() protocol.DeviationPolicy {
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0002",
+		Contracts: []protocol.DeviationContractPolicy{
+			{ID: "MIG-052", Changes: []protocol.DeviationChangePolicy{
+				{Dimension: protocol.DeviationResult, Path: "plan[0]", Operation: protocol.DeviationReplace},
+				{Dimension: protocol.DeviationResult, Path: "plan[1]", Operation: protocol.DeviationReplace},
+				{Dimension: protocol.DeviationResult, Path: "plan[2]", Operation: protocol.DeviationReplace},
+				{Dimension: protocol.DeviationMetrics, Path: "steps[0]", Operation: protocol.DeviationReplace},
+				{Dimension: protocol.DeviationMetrics, Path: "steps[1]", Operation: protocol.DeviationReplace},
+				{Dimension: protocol.DeviationMetrics, Path: "steps[2]", Operation: protocol.DeviationReplace},
+			}},
+		},
+	}
+}
+
 func TestGenerateSaveLifecycleIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -1393,6 +1798,33 @@ func loadMigrationStateReconstructionInputs(t *testing.T) (protocol.Profile, pro
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}
 	return profile, manifest, expected
+}
+
+func loadMigrationLifecycleInputs(t *testing.T) (
+	protocol.Profile,
+	protocol.Manifest,
+	protocol.ObservationSuite,
+	protocol.DeviationExpectation,
+) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-lifecycle-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-lifecycle-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	expectation, err := protocol.LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-migration-lifecycle-deviation-expected.json"))
+	if err != nil {
+		t.Fatalf("LoadDeviationExpectation() error = %v", err)
+	}
+	return profile, manifest, oracle, expectation
 }
 
 func findObservation(t *testing.T, suite protocol.ObservationSuite, contractID string) protocol.Observation {
