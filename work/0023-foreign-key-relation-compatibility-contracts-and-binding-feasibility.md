@@ -1,6 +1,6 @@
 ---
 id: GDJ-0023
-status: active
+status: completed
 updated: 2026-08-10
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "1f161f311daa775e6a386ec0df568ff85d681f15"
@@ -21,8 +21,8 @@ forward/reverse lookup, nullable relation, `PROTECT`/`SET_NULL`, `select_related
 이번 작업은 **contract/reference + test-only feasibility**입니다. `schema`, `schema/ir`, `codegen`,
 `orm`, `query`, `db/sqlite` 같은 제품 package와 GoDj relation actual adapter를 수정하지 않습니다.
 완료해도 사용자가 GoDj 제품에서 `ForeignKey`, relation lookup 또는 eager loading을 사용할 수 있다고
-표현하지 않습니다. ADR-0023이 proof로 Accepted되면 후속 [GDJ-0024](#다음-정확한-작업)가 첫
-exact 제품 subset을 소유하고, 나머지 relation breadth는 별도 bounded product packet이 소유합니다.
+표현하지 않습니다. Accepted ADR-0023을 입력으로 후속 [GDJ-0024](#다음-정확한-작업)가 첫 exact 제품
+subset을 별도 work에서 정하고, 나머지 relation breadth는 별도 bounded product packet이 소유합니다.
 
 ## 목표
 
@@ -38,8 +38,8 @@ exact 제품 subset을 소유하고, 나머지 relation breadth는 별도 bounde
 - 새 관계 set 12개는 `oracle_locked`, static fixture는 12개 `not_implemented`, 제품 actual은 없음으로 분리
 - `conformance/relationbinding/**`에서 symbolic relation identity, project-level binder,
   cross-app import-cycle 회피, typed/dynamic shared relation AST와 Schema IR vNext 후보를 검증
-- [Proposed ADR-0023](../docs/adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)의
-  가설을 compile/runtime/mutation proof로 평가하고 GDJ-0024 전에 Accepted 여부를 결정
+- [Accepted ADR-0023](../docs/adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)의
+  architecture decision을 compile/runtime/mutation proof로 확정하고 GDJ-0024에 인계
 
 ## 비목표와 금지 경계
 
@@ -74,8 +74,8 @@ exact 제품 subset을 소유하고, 나머지 relation breadth는 별도 bounde
   scalar model만 생성합니다. 관계 의미를 넣을 제품 slot이 아직 없습니다.
 - ADR-0001은 Schema IR을 canonical source로, ADR-0003은 typed/dynamic query를 같은 AST로,
   ADR-0006은 declaration/generated target 분리와 last-good codegen 보존을 요구합니다.
-- Q-013은 M3 전에 cross-app relation source/target type, import, reverse path와 loader를 결정해야 하는
-  P1 질문입니다.
+- Activation 당시 Q-013은 M3 전에 cross-app relation source/target type, import, reverse path와 loader를
+  결정해야 하는 P1 질문이었습니다.
 - Activation 당시 기준 commit은 clean이었습니다. Shared worktree에서 범위 밖 파일의 이후 변경은
   다른 agent/사용자 소유이므로 보존합니다.
 
@@ -375,10 +375,10 @@ contract가 없으므로 이번 exact 22에 넣지 않습니다. Service 기동�
 - [x] SET_NULL update 뒤 delete failure가 test-only transaction 전체 rollback을 검증함
 - [x] Product package와 `conformance/runners/godj/**` 변경이 0임
 - [x] Local CPython 3.14.3/uv 0.12.3 routine test와 full Go/race/CGO=0/vet가 통과함
-- [ ] GitHub exact 22/22, Python 3.12.13/3.13.15/3.14.3/3.14.7와 four-OS/arch proof가 통과함
+- [x] GitHub exact 22/22, Python 3.12.13/3.13.15/3.14.3/3.14.7와 four-OS/arch proof가 통과함
 - [x] 두 independent local final audit가 P0/P1/P2/P3 finding 0임
-- [ ] Implementation commit 뒤 ADR/work/CURRENT/matrix/evidence가 같은 exact head를 가리킴
-- [ ] ADR-0023의 Accepted/Proposed 결과와 Q-013 남은 범위가 증거에 맞게 갱신됨
+- [x] Implementation commit 뒤 ADR/work/CURRENT/matrix/evidence가 같은 exact head를 가리킴
+- [x] ADR-0023의 Accepted/Proposed 결과와 Q-013 남은 범위가 증거에 맞게 갱신됨
 
 Feasibility 후보가 기각된 경우 위 후보 체크는 failure를 숨겨 통과로 바꾸는 뜻이 아닙니다. Exact 재현
 증거, 제품 publication 0, ADR-0023 Proposed 유지와 alternative-design handoff를 기록하면 evaluation
@@ -395,8 +395,8 @@ work를 닫을 수 있습니다. Reference/artifact/CI/audit gate는 후보 기�
 - [x] Global identity/cross-binding/false-green gate 구현
 - [x] `conformance/relationbinding` feasibility 구현
 - [x] Local routine/exact reference verification와 independent audit
-- [ ] Implementation commit/push와 exact 22 hosted verification
-- [ ] Completion status/handoff와 Accepted일 때의 GDJ-0024 또는 기각 시 alternative-design activation
+- [x] Implementation commit/push와 exact 22 hosted verification
+- [x] Completion status/handoff와 Accepted 결과에 따른 GDJ-0024 다음 bounded packet 지정
 
 ## 수정 파일
 
@@ -423,8 +423,13 @@ work를 닫을 수 있습니다. Reference/artifact/CI/audit gate는 후보 기�
   external compile, shared immutable relation AST, SET_NULL fault rollback과 Schema IR v2 fail-closed를
   통과했습니다. 두 vNext 후보 중 field union relation arm이 test-only 후보로 선택됐지만 ADR-0023은
   exact 22 hosted acceptance 전까지 Proposed로 유지합니다.
+- 2026-08-10: Implementation commit `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`의 exact
+  [run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743)이 existing 18 +
+  relation-binding 4의 22/22를 통과했습니다. Field-union relation arm과 no-app-import project bridge
+  ownership을 architecture로 채택해 ADR-0023을 Accepted하고 Q-013을 `Partial`로 전환합니다. Exact
+  public/wire/ABI와 제품 relation 동작은 GDJ-0024 이후 범위입니다.
 
-## 미결정/Blocker
+## 미결정/알려진 제한
 
 - Generated project bridge의 exact package/API와 typed relation selector public shape
 - Reverse manager/cache ownership과 result collection의 concrete product type
@@ -432,19 +437,21 @@ work를 닫을 수 있습니다. Reference/artifact/CI/audit gate는 후보 기�
 - Relation migration writer/loader/codec version, existing database upgrade와 schema editor
 - PostgreSQL relation compiler/transaction behavior와 backend conformance
 
-외부 blocker는 없습니다. Test-only Phase B는 field union relation arm을 다음 제품 후보로 좁혔지만
-public/wire freeze는 아닙니다. 현재 acceptance gate는 implementation scope 재확인, commit/push와 exact 22
-hosted evidence 수집입니다. 나머지 항목은 후속 GDJ-0024/별도 migration/backend work 없이 추측으로
-해결하지 않습니다.
+외부 blocker는 없습니다. Test-only Phase B와 exact 22 hosted evidence는 field union relation arm과
+project bridge ownership을 Accepted architecture로 좁혔지만 public/wire freeze나 product support는
+아닙니다. 나머지 항목은 후속 GDJ-0024/별도 migration/backend work 없이 추측으로 해결하지 않습니다.
 
 ## 테스트 증거
 
 - Evidence ID:
   [EVID-20260810-031](../docs/status/TEST_EVIDENCE.md#evid-20260810-031--gdj-0023-foreignkey-reference-and-binding-pre-hosted-local-validation)
+- Hosted evidence ID:
+  [EVID-20260810-032](../docs/status/TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)
 - Activation commit: `d5d00d9e803c637a78961ed6f7dac0b415ce7901`; provided verified
   [run 31335315454](https://github.com/progresshans/godj/actions/runs/31335315454) exact 18/18 success
-- Current tested checkout: activation commit + uncommitted GDJ-0023 implementation/pre-hosted status diff;
-  exact implementation commit/head는 아직 없음
+- Exact tested implementation checkout:
+  `codex/revision-fenced-migration-lifecycle@b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`
+  (`test: lock foreign key relation contracts`)
 - Local PASS: CPython 3.14.3 + uv 0.12.3 `make ci`와 portable Python 193/17 intentional skips;
   profile-owned uv 0.10.12 exact Python 193/0와 12 oracle checks; relationbinding
   normal/race/CGO-disabled/vet/race count-20; two independent final audits P0/P1/P2/P3 0
@@ -455,8 +462,10 @@ hosted evidence 수집입니다. 나머지 항목은 후속 GDJ-0024/별도 migr
   1,148 bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`;
   127-scenario payload 498,051 bytes/
   `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`
-- Not run/pending: implementation-head exact 22 hosted executions와 그 head의 exact
-  Python 3.12.13/3.13.15/3.14.3/3.14.7. Product relation adapter, Windows, PostgreSQL/MySQL 지원은 없음
+- Hosted PASS: Draft PR #1 run `31338151743`, attempt 1, exact 22/22 and non-success required step 0;
+  Python 3.12.13/3.13.15/3.14.3/3.14.7 portable 193/17와 four relation proof coordinates
+- Not run/pending: 이 completion-documentation patch 자체의 exact-head hosted CI. Product relation adapter,
+  Windows, PostgreSQL/MySQL 지원은 없음
 
 ## 위험과 rollback
 
@@ -471,19 +480,17 @@ hosted evidence 수집입니다. 나머지 항목은 후속 GDJ-0024/별도 migr
 
 ## 다음 정확한 작업
 
-1. Activation commit 기준 전체 modified/untracked path가 이 work의 exact `allowed_paths` 안인지 다시
-   확인하고 product package/`conformance/runners/godj/**` diff 0을 확인합니다.
-2. GDJ-0023 implementation과 이 pre-hosted 상태/evidence를 한 exact commit으로 만들고 같은 Draft PR
-   #1에 push합니다.
-3. 그 exact head의 required execution inventory가 22인지 확인하고 hosted run을 수집합니다. 네 Python
-   exact 좌표와 relation proof 네 OS/architecture leg를 포함해 22/22가 아니면 완료로 올리지 않습니다.
-4. Hosted evidence 뒤 ADR-0023의 Accepted/Proposed 최종 상태, work/CURRENT/matrix/evidence와 Q-013을
-   같은 head에서 갱신합니다. Accepted일 때만 [GDJ-0024] ForeignKey product slice를 활성화합니다.
+1. 이 completion-documentation patch를 exact allowed scope로 commit/push하고 그 exact head의 22-job
+   hosted CI를 별도로 수집합니다. Run `31338151743`을 뒤의 문서 head 증거로 재사용하지 않습니다.
+2. Completion-documentation exact-head 결과를 append-only evidence로 기록합니다.
+3. Accepted ADR-0023을 입력으로 별도 GDJ-0024 work/allowed paths를 작성해 AutoField-target
+   required/nullable ForeignKey의 첫 SQLite product slice만 활성화합니다.
 
 ## 결과와 인수인계
 
 Phase A reference와 Phase B test-only binding proof는 local에서 완료됐고 두 independent final audit도
-P0/P1/P2/P3 finding 0입니다. 그러나 exact implementation commit과 hosted 22/22가 아직 없으므로 work는
-active, ADR-0023은 Proposed입니다. 제품 관계 adapter/지원은 0이며 Windows와 PostgreSQL/MySQL 지원도
-시작하지 않았습니다. 다음 담당자는 scope를 재확인해 commit/push하고 exact 22 evidence를 수집한 뒤에만
-ADR 최종 상태와 GDJ-0024 activation을 결정합니다.
+P0/P1/P2/P3 finding 0입니다. Exact implementation commit `b56ccf5`의 hosted 22/22까지 통과해 work는
+completed이고 ADR-0023은 Accepted입니다. Reference는 12/127/132, 제품은 11 adapters/115 contracts=
+`110 passing + 5 deviation`, relation actual adapter/지원은 0입니다. 이 completion-documentation patch
+자체의 exact-head CI는 아직 `not run/pending`이며, 그 증거를 별도 append한 뒤 GDJ-0024를 활성화합니다.
+Windows와 PostgreSQL/MySQL 지원은 시작하지 않았습니다.

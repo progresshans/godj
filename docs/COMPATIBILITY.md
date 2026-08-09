@@ -551,15 +551,17 @@ kernel, exact public project facade와 actual product adapter를 추가했습니
 `conformance/projectcheck/**` test-only proof는 byte-preserved 독립 gate이며 product가 import/read하지
 않습니다.
 
-Active [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
-twelfth ordered reference set `relation-manifest.json`의 REL-001..012를 준비합니다. 이 set은 pinned
+Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
+twelfth ordered reference set `relation-manifest.json`의 REL-001..012를 고정했습니다. 이 set은 pinned
 Django 6.1/SQLite의 cross-app ForeignKey metadata, unsaved-target failure, lazy cache,
 forward/reverse path, nullable/isnull, PROTECT/SET_NULL, `select_related`와 reverse `prefetch_related`
-외부 동작을 result/DB state/query·JOIN·mutation metrics로 고정합니다. 완료 전 상태는 planned이고,
-완료 뒤에도 새 12개는 `oracle_locked`이며 product support가 아닙니다. Target aggregate는 12 reference
+외부 동작을 result/DB state/query·JOIN·mutation metrics로 고정합니다. 새 12개는 `oracle_locked`이며
+product support가 아닙니다. Aggregate는 12 reference
 sets/127 contracts/132 ordered cross-bindings이고 product는 11 adapters/115 contracts의
-`110 passing + 5 deviation`을 유지합니다. Test-only relation-binding spike와 Proposed ADR-0023의
-Go-specific compile/AST evidence를 Django oracle payload에 섞거나 REL `passing`으로 세지 않습니다.
+`110 passing + 5 deviation`을 유지합니다. Test-only relation-binding proof와 Accepted ADR-0023의
+Go-specific compile/AST/field-union direction evidence를 Django oracle payload에 섞거나 REL `passing`으로
+세지 않습니다. Implementation head의 exact 22/22 hosted acceptance는 EVID-032에 기록했으며
+PostgreSQL/MySQL/Windows 또는 relation product 지원 증거가 아닙니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,

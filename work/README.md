@@ -46,16 +46,16 @@ proposed → ready → active → completed
 | [GDJ-0020](0020-migration-definition-loader-product-slice.md) | completed | Migration definition loader 제품 단면 |
 | [GDJ-0021](0021-migration-project-check-compatibility-contracts.md) | completed | Project-linked migration check 호환/결정 계약 |
 | [GDJ-0022](0022-migration-project-check-product-slice.md) | completed | Project-linked migration check 제품 단면 |
-| [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | active | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
+| [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | completed | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
-완료 항목은 [GDJ-0022](0022-migration-project-check-product-slice.md)이며, 현재 active 항목은
-[GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)입니다. GDJ-0022는
+완료 항목은 [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)이며,
+현재 active 항목은 없습니다. GDJ-0022는
 Accepted ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로
 구현해 10 contract를 `passing`으로 전환했고, final evidence head까지 exact 18-job hosted acceptance를
 완료했습니다. GDJ-0023은 Q-013을 추측으로 제품화하지 않고 pinned Django 6.1 ForeignKey 외부 동작
-REL-001..012와 test-only cross-app binding/import-cycle/shared-AST feasibility를 먼저 고정합니다.
+REL-001..012와 test-only cross-app binding/import-cycle/shared-AST feasibility를 고정했습니다.
 GDJ-0020은
 `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`의 제품 구현과
 Draft PR #1 exact-head CI를 근거로 완료됐고,
@@ -90,10 +90,12 @@ failure였고, helper/harness와 production wait reconciliation을 고친 final 
 EVID-029/status commit `1f161f311daa775e6a386ec0df568ff85d681f15`도 별도 run `31333420261`의
 exact 18/18을 통과했고 EVID-030에 기록했습니다. GDJ-0023 activation commit
 `d5d00d9e803c637a78961ed6f7dac0b415ce7901`도 제공된 verified run `31335315454`의 기존 exact 18/18을
-통과했습니다. Phase A REL-001..012 reference와 Phase B test-only relationbinding은 local 구현/검증과
-두 independent final audit P0/P1/P2/P3 finding 0까지 완료했지만, 현재 implementation/status tree의
-commit/push와 exact 22 hosted CI는 pending입니다. Work는 active, ADR-0023은 Proposed이며 relation
-product adapter는 0입니다.
+통과했습니다. Phase A REL-001..012 reference와 Phase B test-only relationbinding은 local 구현/검증,
+두 independent final audit P0/P1/P2/P3 finding 0과 implementation head `b56ccf5`의
+[run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743) exact 22/22까지
+통과했습니다. Work는 completed, ADR-0023은 Accepted, Q-013은 `Partial`이며 relation product adapter는
+0입니다. 이 completion-documentation patch 자체의 exact-head hosted CI는 pending이고, GDJ-0024는 아직
+active work가 아닌 다음 bounded packet입니다.
 
 ## 운영 규칙
 

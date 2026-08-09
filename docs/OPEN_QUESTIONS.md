@@ -12,7 +12,7 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
+| Q-013 | Partial | GDJ-0023 completed / GDJ-0024+ product shape 후속 | Symbolic target, atomic project binder, import-cycle-free bridge와 shared AST는 Accepted; exact public/wire/loader/cache shape는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -314,20 +314,21 @@ PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다
 
 초안의 `RelationField[Post]`에는 target type이 없지만 `PostFields.Author.Name`을 사용합니다. symbolic relation binding, target descriptor, generated loader, reverse relation과 import cycle을 한 설계로 검증해야 합니다.
 
-Active [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)과
-Proposed [ADR-0023](adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)이 이 질문을 먼저
-contract/test-only로 다룹니다. 현재 proposal의 고정 후보는 Go package/type pointer가 아닌 stable
-symbolic target `(app, model)` identity와 source model/field-owned relation declaration, all-app project
-binder가 소유하는 target/reverse resolution,
-generated source package의 target package direct import 금지, typed/dynamic relation path의 같은 immutable
-AST 수렴과 unresolved/collision의 pre-I/O fail-closed입니다.
+Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)과
+Accepted [ADR-0023](adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)은 이 질문의 architecture
+부분을 contract/test-only evidence로 결정했습니다. Go package/type pointer가 아닌 stable symbolic target
+`(app, model)` identity와 source model/field-owned relation declaration, atomic all-app project binder의
+target/reverse resolution, generated source package 사이 target-package direct import 금지와 project bridge
+ownership, typed/dynamic relation path의 같은 immutable AST 수렴과 unresolved/collision의 pre-I/O
+fail-closed를 채택합니다. Schema IR vNext의 architecture 방향은 existing canonical field union의 explicit
+relation arm이며 exact version/tag/encoding은 아직 동결하지 않습니다.
 
 아직 결정하지 않은 것은 exact public DSL/IR names, model value의 ID-only/related wrapper shape,
 project-generated bridge와 top-level generic composition 중 선택, reverse typed surface, join alias/scan plan,
-`select_related` result/cache representation과 IR/operation codec/generator version입니다. Existing Schema IR
-v2와 definition tuple `(1,1,1,2)`를 조용히 재해석하거나 단순히 current version을 3으로 올려 기존 v2
-문서를 거부하는 방식은 허용하지 않습니다. `conformance/relationbinding/**` evidence와 v2 read/
-canonical-byte preservation strategy가 확인되기 전에는 ADR-0023을 Accepted로 올리거나 GDJ-0024 public
-제품 API를 활성화하지 않습니다.
+`select_related` result/cache representation과 exact IR/operation codec/generator version입니다. Existing
+Schema IR v2와 definition tuple `(1,1,1,2)`를 조용히 재해석하거나 test-only constant를 곧바로 product
+version으로 복사하는 방식은 허용하지 않습니다. 따라서 Q-013은 `Resolved`가 아니라 `Partial`이고,
+별도 bounded GDJ-0024 product contract가 exact public/wire shape와 구현 subset을 정하기 전에는 relation
+제품 지원을 주장하지 않습니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

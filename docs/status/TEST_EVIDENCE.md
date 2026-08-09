@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-031
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-032
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2600,3 +2600,77 @@ Final machine pins:
 This evidence establishes local reference and test-only feasibility completion only. ADR-0023 remains
 Proposed and GDJ-0023 remains active. The implementation+documentation tree must be scope-checked,
 committed/pushed and pass an exact-head 22/22 hosted run before completion or ADR acceptance is considered.
+
+## EVID-20260810-032 — GDJ-0023 GitHub-hosted exact 22-job implementation-head CI
+
+- Date/time: 2026-08-10T06:57:14+09:00–2026-08-10T07:02:48+09:00
+- Work/contract IDs: GDJ-0023, REL-001..REL-012, Q-013
+- Checkout/commit: `codex/revision-fenced-migration-lifecycle@b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`
+  (`test: lock foreign key relation contracts`)
+- Environment/backend: GitHub-hosted exact 22 required executions; Ubuntu/Linux and macOS,
+  amd64/arm64, Go 1.26.5, actual SQLite product gates, CPython
+  3.12.13/3.13.15/3.14.3/3.14.7 compatibility matrix, test-only relation binding four-coordinate
+  matrix; PostgreSQL/MySQL service jobs and Windows absent
+- Command: Draft PR #1 `pull_request` run
+  [31338151743](https://github.com/progresshans/godj/actions/runs/31338151743), attempt 1
+- Exit status: `success`; exact 22/22 jobs and all 273 recorded steps completed successfully
+- Result summary: Existing exact 18 executions remained separate and the four relation-binding executions
+  passed on Linux/macOS x64/arm64. Phase A remained exact 12 reference sets/127 contracts/132 ordered
+  cross-bindings and 12 `oracle_locked`; Phase B passed its independent compile/AST/IR/rollback gates. No
+  product relation adapter was added, so product classification remains 11 adapters/115 contracts=
+  `110 passing + 5 deviation`.
+- Failures/skips/not run: unexpected hosted failure/skip 없음. Portable Python's 17 exact-profile-only skips
+  are intentional and asserted in each compatibility leg; exact darwin ran 193/193 with zero skips.
+  Windows and PostgreSQL/MySQL were not run because no actual product contract/adapter exists. This EVID-032
+  and completion-status patch is later than the tested implementation head, so its own exact-head hosted CI
+  is `not run/pending` and run 31338151743 must not be recursively reused as its proof.
+
+Hosted identity and checkout evidence:
+
+- Run metadata was event `pull_request`, attempt 1, `headSha` exactly
+  `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`, conclusion `success`.
+- Evidence collection found PR #1 `OPEN`/`DRAFT`/`CLEAN` with exact head `b56ccf52...` and base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`.
+- Actions used synthetic merge `167a0477698beff1a45adcf67925b47ada7983b5`; its parents were exact base
+  `f8a5e20c...` and exact head `b56ccf52...`. Synthetic merge and exact head shared tree
+  `5d0f6028847938f90d93d1a7d7c382e6f17ca990`, so executed contents were exact-head-equivalent.
+
+Exact job identities:
+
+| Required execution | Job ID | Result |
+|---|---:|---|
+| Validate checked-in conformance artifacts | [93307286608](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286608) | success |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93307286596](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286596) | success |
+| Project check (`ubuntu-22.04`) | [93307286614](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286614) | success |
+| Project check (`ubuntu-24.04-arm`) | [93307286618](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286618) | success |
+| Project check (`macos-15-intel`) | [93307286637](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286637) | success |
+| Project check (`macos-26`) | [93307286636](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286636) | success |
+| SQLite (`ubuntu-22.04`) | [93307286660](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286660) | success |
+| SQLite (`ubuntu-24.04-arm`) | [93307286650](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286650) | success |
+| SQLite (`macos-15-intel`) | [93307286629](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286629) | success |
+| SQLite (`macos-26`) | [93307286654](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286654) | success |
+| Product project check (`ubuntu-22.04`) | [93307286659](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286659) | success |
+| Product project check (`ubuntu-24.04-arm`) | [93307286613](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286613) | success |
+| Product project check (`macos-15-intel`) | [93307286632](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286632) | success |
+| Product project check (`macos-26`) | [93307286617](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286617) | success |
+| Python compatibility (`3.12.13`) | [93307286628](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286628) | success |
+| Python compatibility (`3.13.15`) | [93307286625](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286625) | success |
+| Python compatibility (`3.14.3`) | [93307286615](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286615) | success |
+| Python compatibility (`3.14.7`) | [93307286624](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286624) | success |
+| Relation binding (`ubuntu-22.04`) | [93307286655](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286655) | success |
+| Relation binding (`ubuntu-24.04-arm`) | [93307286644](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286644) | success |
+| Relation binding (`macos-15-intel`) | [93307286626](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286626) | success |
+| Relation binding (`macos-26`) | [93307286640](https://github.com/progresshans/godj/actions/runs/31338151743/job/93307286640) | success |
+
+The Ubuntu full job passed `make ci`, portable Python 193 tests/17 intentional skips, all 12 checksums,
+artifact no-rewrite and product fail-closed gates. Exact darwin preserved its historical uv 0.10.12 profile,
+passed Python 193/193 with zero skips, all 12 oracle checks and no-rewrite. Each uv 0.12.3 Python compatibility
+leg asserted its exact runtime, passed 193/17, and verified 127 scenarios, canonical payload 498,051 bytes and
+SHA-256 `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`.
+
+Each relation-binding job asserted its exact GOOS/GOARCH, executed exact 18 top-level Test/Example entries with
+skip 0, then passed race, CGO-disabled, vet, artifact no-rewrite and clean-worktree gates. This includes atomic
+all-app binding/last-good publication, mutual/self external compile with app-to-app import edge 0, immutable
+typed/dynamic shared AST, field-union vNext candidate evidence, Schema IR v2/migration tuple rejection and
+SET_NULL injected-fault rollback. Independent hosted evidence audit reported P0/P1/P2/P3 finding 0. No merge
+was performed.

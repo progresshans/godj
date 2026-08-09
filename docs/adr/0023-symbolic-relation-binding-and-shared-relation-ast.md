@@ -1,6 +1,6 @@
 # ADR-0023: Symbolic Relation Binding and Shared Relation AST
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-10
 - 관련 work/contract:
   [GDJ-0023](../../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md),
@@ -16,11 +16,15 @@
 
 ## 상태와 범위
 
-이 ADR은 아직 **Proposed**입니다. REL-001..012 reference contract와
-`conformance/relationbinding/**` test-only feasibility가 모두 통과하기 전에는 public API,
-generated source ABI 또는 제품 구현 결정으로 사용하지 않습니다.
+이 ADR은 **Accepted**입니다. REL-001..012 reference contract와
+`conformance/relationbinding/**` test-only feasibility는 local
+[EVID-20260810-031](../status/TEST_EVIDENCE.md#evid-20260810-031--gdj-0023-foreignkey-reference-and-binding-pre-hosted-local-validation)과
+implementation head의 exact 22/22 hosted
+[EVID-20260810-032](../status/TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)를
+통과했습니다. 이 결정은 relation-capable 제품이 이미 구현됐다는 뜻이 아니라 GDJ-0024와 후속 bounded
+packet이 따라야 할 architecture/import/AST/IR 경계를 승인합니다.
 
-제안하는 핵심 방향은 다음 네 가지입니다.
+채택한 핵심 방향은 다음 네 가지입니다.
 
 1. Cross-app relation target은 target Go type/import가 아니라 canonical symbolic model identity로
    Schema IR에 남깁니다.
@@ -30,8 +34,10 @@ generated source ABI 또는 제품 구현 결정으로 사용하지 않습니다
    수렴합니다.
 4. Current Schema IR v2를 재해석하지 않고 relation 의미는 explicit vNext에서만 표현합니다.
 
-Exact public type/function 이름, IR vNext relation arm layout과 generated project bridge 형태는 spike
-결과 뒤 이 ADR을 갱신하고 Accepted할 때 확정합니다.
+Accepted IR layout은 existing canonical field union을 explicit relation arm으로 확장하는 vNext이고,
+generated app package 사이 direct import 없이 project binding/bridge가 target type 연결을 소유합니다.
+Exact public type/function 이름, format version number와 wire tag/encoding, generated bridge package/API는
+이 ADR이 의도적으로 고정하지 않으며 GDJ-0024의 별도 product contract가 결정합니다.
 
 ## 맥락
 
@@ -111,9 +117,9 @@ Per-app generated package는 target Go package를 import하지 않고 scalar ide
 보존합니다. Project-level generated/bound bridge가 모든 descriptor를 모은 뒤 typed path/loader를
 조합하고, dynamic lookup도 같은 bound metadata에서 같은 AST를 만듭니다. 추가 project binding step과
 generated bridge가 필요하지만 import graph, early validation과 typed/dynamic convergence를 함께 검증할
-수 있습니다. Feasibility 대상으로 채택합니다.
+수 있습니다. 기본 architecture로 채택합니다.
 
-## 제안 결정
+## 결정
 
 ### Canonical symbolic relation identity
 
@@ -148,14 +154,20 @@ Schema IR v2에는 relation meaning이 없으므로 v2의 reserved/zero field, s
 relation을 추가하지 않습니다. Relation-capable schema는 explicit format version vNext를 사용하고 old v2
 decoder/consumer는 unknown version으로 fail-closed해야 합니다.
 
-Feasibility는 두 concrete layout을 비교합니다.
+Feasibility는 두 concrete layout을 비교했습니다.
 
 1. Existing field union의 explicit relation arm
 2. Scalar storage field와 별도 ordered relation declaration
 
-선택 기준은 canonical serialization/hash, declared ordering, duplicate field/column/reverse diagnostics,
-codegen consumption과 historical state 확장 가능성입니다. Exact version number와 wire shape는 proof 뒤
-결정합니다. 후보가 검증되지 않으면 이 ADR은 Proposed로 남습니다.
+Accepted layout은 **existing canonical field union의 explicit relation arm**입니다. Source field가 physical
+FK column, nullability, symbolic target, reverse name, cardinality와 delete policy를 하나의 ordered canonical
+node로 소유하므로 field identity/order/duplicate diagnostics와 serialization/hash가 한 경계에 남습니다.
+별도 relation list 후보도 lossless round-trip은 가능했지만 scalar storage와 relation declaration의
+parallel ordering/ownership을 추가하므로 첫 product shape로 채택하지 않습니다.
+
+이는 exact wire format을 지금 동결한다는 뜻이 아닙니다. GDJ-0024는 explicit 새 format version, relation
+arm tag/encoding과 decoder contract를 별도로 고정해야 하며, 그 전까지 product v2 decoder는 relation을
+계속 거부합니다.
 
 Existing migration definition tuple `(definition format 1, loader ABI 1, operation codec 1,
 Schema IR 2)`는 변경하지 않습니다. Operation codec v1의 `CreateModel`/`AddField`에 relation-bearing vNext
@@ -280,7 +292,7 @@ REL contract는 `oracle_locked`를 유지합니다.
 
 ## 결과
 
-제안이 채택되면 cross-app relation은 Go import cycle 없이 canonical Schema IR에서 runtime/query까지 한
+채택된 방향에서 cross-app relation은 Go import cycle 없이 canonical Schema IR에서 runtime/query까지 한
 identity를 유지할 수 있습니다. Typed/dynamic API가 별도 join compiler를 만들지 않고 same AST를 사용하며,
 reverse metadata와 eager plan도 forward declaration에서 파생됩니다.
 
@@ -291,7 +303,7 @@ diagnostic과 last-good preservation이 필수입니다.
 
 ## 의도적으로 결정하지 않은 것
 
-- Schema IR vNext exact version number, field-union versus separate relation-list wire shape
+- Schema IR vNext exact version number와 field-union relation arm의 wire tag/encoding
 - DSL `ForeignKey` constructor syntax와 symbolic target source spelling
 - Generated project bridge package/path, exported types와 accessor/selector signature
 - FK scalar Go type, nullable representation과 target primary-key type 제약
@@ -306,7 +318,8 @@ diagnostic과 last-good preservation이 필수입니다.
 
 ## Feasibility와 검증
 
-ADR을 Accepted로 바꾸기 전에 `conformance/relationbinding/**`에서 다음을 모두 통과해야 합니다.
+Accepted 전제였던 다음 `conformance/relationbinding/**` gate는 EVID-031/EVID-032에서 모두
+통과했습니다.
 
 - Two app mutual relation과 self relation external module `go list`/`go test`
 - Generated app-to-app import edge 0과 project bridge의 acyclic dependency graph
@@ -329,7 +342,7 @@ ADR을 Accepted로 바꾸기 전에 `conformance/relationbinding/**`에서 다�
 ## Hosted 검증
 
 Existing exact 18 required executions을 보존하고 relation proof를 다음 네 official runner coordinate에서
-추가해 exact 22로 운영하는 안을 제안합니다.
+추가한 exact 22 topology를 운영합니다.
 
 - `ubuntu-22.04` amd64
 - `ubuntu-24.04-arm` arm64
@@ -344,12 +357,20 @@ PostgreSQL/MySQL job은 실제 relation backend/compiler/schema/write/transactio
 corpus가 생긴 뒤 추가합니다. Service container health만 보는 job은 이 ADR의 acceptance evidence가
 아닙니다.
 
-## 채택/기각 규칙
+Implementation commit `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`의 Draft PR #1
+[run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743)은 exact 22/22를
+성공했습니다. Four Python legs는 uv 0.12.3과 exact 3.12.13/3.13.15/3.14.3/3.14.7에서 portable
+193/17 expected skips와 127-scenario digest를 검증했고, four relation-binding legs는 위 네 좌표에서
+normal/race/CGO-disabled/vet/artifact-no-rewrite/clean을 통과했습니다. Product relation adapter는 여전히
+0이고 PostgreSQL/MySQL/Windows 지원은 이 결과에서 주장하지 않습니다.
 
-- 모든 reference/binding/IR/import/rollback gate가 통과하고 exact-head 22/22 hosted evidence가 있으면
-  concrete IR layout과 project bridge 결론을 이 ADR에 반영한 뒤 Accepted로 승격합니다.
-- Symbolic identity는 가능하지만 proposed bridge/IR layout이 실패하면 성공한 사실만 기록하고 대안을
-  비교한 채 Proposed를 유지합니다.
-- App-to-app import, partial publication, typed/dynamic AST divergence, v2 silent reinterpretation 또는
-  last-good drift가 하나라도 남으면 현재 제안을 채택하지 않습니다.
-- Contract oracle만 잠겼다는 이유로 ADR을 Accepted하거나 GDJ-0024 제품 작업을 완료로 표현하지 않습니다.
+## 채택 근거와 후속 경계
+
+- Symbolic identity, atomic all-app binding/last-good preservation, app-to-app import edge 0, shared immutable
+  typed/dynamic AST, field-union vNext candidate, v2/migration-tuple rejection과 SET_NULL rollback이 모두
+  local 및 four-coordinate hosted gate를 통과했습니다.
+- Independent architecture/import/false-green audit 두 개는 P0/P1/P2/P3 finding 0이었습니다.
+- 따라서 architectural shape와 project bridge ownership은 Accepted이지만 exact product API/wire/ABI와
+  REL status 전환은 GDJ-0024 이후 actual implementation/adapter evidence가 별도로 소유합니다.
+- Contract oracle과 test-only proof만으로 relation product support를 주장하지 않습니다. REL-001..012는
+  계속 `oracle_locked`이고 product aggregate는 11 adapters/115 contracts=`110 passing + 5 deviation`입니다.

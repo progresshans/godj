@@ -535,13 +535,13 @@ exact `exact-darwin-validation`을 보존합니다. 별도 `project-check-matrix
 normal/race/CGO-disabled/vet, 20분 timeout, `fail-fast: false`, no `continue-on-error`와 final clean
 worktree를 요구합니다. Ubuntu `python-compatibility-matrix`는 exact
 3.12.13/3.13.15/3.14.3/3.14.7 네 leg에서 Django 6.1/asgiref 3.12.1/sqlparse 0.5.5, portable
-174/16 expected skips와 115-scenario payload를 검증합니다. Expanded required topology는 existing 2 +
-test-only proof 4 + SQLite 4 + product 4 + Python 4의 exact 18 hosted executions입니다. Routine
+193/17 expected skips와 127-scenario payload를 검증합니다. Existing topology 18은 full/exact 2 +
+project-check proof 4 + SQLite 4 + product 4 + Python 4입니다. Routine
 Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
-GDJ-0023 implementation plan은 이 exact 18을 유지하면서 test-only
+GDJ-0023은 이 exact 18을 유지하면서 test-only
 `conformance/relationbinding` package를 같은 Linux/macOS x64/arm64 네 좌표에서 normal/race/
 CGO-disabled/vet/clean으로 독립 실행하는 `relation-binding-matrix`를 추가해 exact 22 required
-executions로 확장합니다. 이 proof는 relation 제품 adapter가 아니며 PostgreSQL/Windows 지원 claim도
+executions로 확장했습니다. 이 proof는 relation 제품 adapter가 아니며 PostgreSQL/Windows 지원 claim도
 아닙니다. Local routine Python은 CPython 3.14.3 + uv 0.12.3 하나만 실행하고, 3.12.13/3.13.15/
 3.14.3/3.14.7 exact compatibility와 갱신된 127-scenario digest는 hosted matrix가 담당합니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
@@ -601,7 +601,12 @@ reaped-before-Wait-publication reconciliation을 포함한 final fix
 기록합니다. EVID-029/status commit `1f161f311daa775e6a386ec0df568ff85d681f15`의 별도
 [run 31333420261](https://github.com/progresshans/godj/actions/runs/31333420261) exact 18/18은
 [EVID-20260810-030](status/TEST_EVIDENCE.md#evid-20260810-030--gdj-0022-final-evidence-documentation-exact-head-ci-and-gdj-0023-activation-baseline)에
-기록했습니다. 현재 GDJ-0023 activation diff만 exact-head CI가 pending입니다.
+기록했습니다. GDJ-0023 implementation head `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`의
+[run 31338151743](https://github.com/progresshans/godj/actions/runs/31338151743)은 exact 22/22와
+273/273 successful steps를 통과했습니다. Four Python legs는 193/17과 127-scenario digest를, four
+relation-binding legs는 normal/race/CGO-disabled/vet/no-rewrite/clean을 검증했고 상세 결과는
+[EVID-20260810-032](status/TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)에
+기록했습니다. 현재 completion-documentation patch 자체의 exact-head CI만 pending입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
