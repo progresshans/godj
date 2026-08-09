@@ -1,6 +1,6 @@
 # ADR-0020: Migration Definition Loader Product Shape
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-09
 - 관련 work/contract: [GDJ-0020](../../work/0020-migration-definition-loader-product-slice.md),
   MIG-057..MIG-064, Q-010, Q-012
@@ -11,9 +11,9 @@
 
 Accepted ADR-0019와 completed GDJ-0019는 caller-provided strict JSON document, exact tuple
 `(definition format 1, loader ABI 1, operation codec 1, Schema IR 2)`, closed normalized IR codec,
-atomic definition set와 deterministic error/digest/handoff를 contract-only로 잠갔습니다. 현재
-`conformance/definitionload/**`는 feasibility를 보이는 test-only candidate일 뿐 importable product가
-아니며, MIG-057..064도 `oracle_locked`입니다.
+atomic definition set와 deterministic error/digest/handoff를 contract-only로 잠갔습니다.
+GDJ-0019 완료 시점의 `conformance/definitionload/**`는 feasibility를 보이는 test-only candidate일
+뿐 importable product가 아니었으며, MIG-057..064도 `oracle_locked`였습니다.
 
 제품화에는 public package/API, source/report/set ownership, graph와 lifecycle error의 소유권,
 untrusted document의 CPU/memory 상한과 existing `Executor.Migrate` handoff를 결정해야 합니다.
@@ -21,8 +21,10 @@ Root `migrations` API나 backend/DB port를 넓히면 already-loaded lifecycle�
 결합됩니다. 반대로 candidate를 그대로 옮기면 test helper의 mutable struct, `ir.FormatVersion`
 alias와 unbounded parser behavior를 제품 ABI로 승격합니다.
 
-이 ADR은 activation 시 Proposed입니다. 아래 exact shape를 test/compile/conformance로 검증한 뒤에만
-Accepted로 바꾸며, 문서 존재만으로 public support를 주장하지 않습니다.
+이 ADR은 activation 시 Proposed였습니다. 아래 exact shape를 test/compile/conformance로 검증했고,
+product commit `6172d843a4bb234592cafc176a8d1191933b141c`의 Draft PR #1 exact-head hosted
+run `31309152526`까지 통과한 근거로 Accepted합니다. 문서 존재만으로 FS discovery/CLI 등
+의도적으로 결정하지 않은 범위까지 public support를 주장하지 않습니다.
 
 ## 결정 기준
 
@@ -66,7 +68,7 @@ graph는 existing `NewPlanner`, execution은 existing `Executor.Migrate`에 넘�
 product codec이 분리되고 zero value/atomicity/resource limit을 외부 compile test로 고정할 수
 있습니다. 별도 package와 explicit accessors가 생기는 비용이 있습니다.
 
-## 제안 결정
+## 결정
 
 ### Package와 공개 표면
 
@@ -223,9 +225,10 @@ provenance는 byte-for-byte 보존합니다. Static fixture comparison의 ordere
 Product adapter observation은 actual product에서만 파생합니다. Definition/source/digest는 actual
 `Set` accessor, document/header/operation/publish/failure counters는 actual `LoadReport`,
 `handoff_calls`는 instrumented actual `Set.Migrate` path가 유일한 source입니다. Checked-in
-expected/oracle/static fixture value를 actual constant로 복사하지 않습니다. Source/header/operation/
-graph input mutation 각각이 observation을 바꾸고 `protocol.Compare` diff를 만드는 false-green test를
-필수로 둡니다.
+expected/oracle/static fixture value를 actual constant로 복사하지 않습니다. Source/operation/graph
+input mutation은 각각 observation을 바꾸고 `protocol.Compare` non-empty diff를 만듭니다.
+Compatibility header mutation은 valid success를 typed error로 바꾸며 result shape가 없으므로
+`protocol.Compare`가 success/error shape mismatch를 reject해야 합니다.
 
 ## 결과
 
@@ -273,3 +276,11 @@ graph input mutation 각각이 observation을 바꾸고 `protocol.Compare` diff�
   `CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition`로 `max_length` host-int
   conversion을 실제 32-bit에서 검증; 새 job/Windows/DB matrix는 추가하지 않음
 - Oracle/static/SHA와 이전 product artifact hashes가 불변인지 확인
+
+Acceptance evidence는
+[EVID-20260809-021](../status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)과
+[EVID-20260809-022](../status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)에
+기록했습니다. Local `make check`, focused normal/race/CGO-disabled/vet/count-20, 5초 fuzz와 exact
+Python 164/164가 통과했고, exact product head의 Ubuntu 24.04 job은 실제
+`CGO_ENABLED=0 GOARCH=386` runtime을, macOS 15 arm64 job은 focused Go와 exact oracle/no-rewrite를
+통과했습니다.

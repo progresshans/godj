@@ -27,11 +27,16 @@ backend 구현이 아닙니다.
 
 GDJ-0018은 public `Executor.Migrate`와 revision-fenced SQLite backend를 사용하는 아홉 번째
 GoDj live adapter를 연결했습니다. Lifecycle 9개는 `passing`, MIG-052만 reviewed DEV-0002
-`deviation`이며 현재 9 product set의 분류는 `92 passing + 5 deviation`입니다.
+`deviation`이며 GDJ-0018 완료 당시 9 product set의 분류는
+`92 passing + 5 deviation`이었습니다.
 GDJ-0019는 explicit migration definition source 전용 열 번째 reference set을 contract-only로
-추가했습니다. MIG-057..064 여덟 개는 `oracle_locked`이고 제품 loader, 열 번째 GoDj adapter와
-CLI는 없습니다. 따라서 reference는 10 set/105 unique contract/90 ordered cross-binding으로
-늘었지만 제품 분류는 `92 passing + 5 deviation` 그대로입니다.
+추가했습니다. GDJ-0019 완료 당시 MIG-057..064 여덟 개는 `oracle_locked`였고 제품 loader와
+열 번째 GoDj adapter가 없었습니다. 따라서 reference는 10 set/105 unique contract/90 ordered
+cross-binding으로 늘었지만 당시 제품 분류는 `92 passing + 5 deviation` 그대로였습니다.
+GDJ-0020은 public `migrations/definition` bounded loader와 열 번째 actual adapter를 연결해
+MIG-057..064를 8 `passing`으로 전환했습니다. 현재 제품 분류는 정확히 10 adapter/105 contract의
+`100 passing + 5 deviation`입니다. Source discovery/CLI, writer/upgrade, executable/custom
+operation과 non-SQLite migration backend 지원을 뜻하지 않습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -51,14 +56,14 @@ CLI는 없습니다. 따라서 reference는 10 set/105 unique contract/90 ordere
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution, recorder restart, historical-state reconstruction과 revision-fenced lifecycle 제품 package를 실행하는 아홉 GoDj observation adapter |
+| `runners/godj` | M1 read부터 revision-fenced lifecycle과 bounded migration-definition loader까지 제품 package를 실행하는 열 GoDj observation adapter |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
 | `fixtures/godj*.json` | 미구현 상태가 pass되지 않는 set별 protocol fixture와 reviewed sparse deviation expectation |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
-| `definitionload` | GDJ-0019 strict loader와 실제 `NewPlanner`/`Executor.Migrate` handoff의 test-only feasibility proof |
+| `definitionload` | GDJ-0019 test-only feasibility proof와 GDJ-0020 public loader의 independent black-box equivalence gate |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -339,6 +344,23 @@ go run ./conformance/cmd/godjcheck \
   -deviation-expected conformance/fixtures/godj-migration-lifecycle-deviation-expected.json
 ```
 
+Migration definition source 제품 adapter는 public `migrations/definition.Load`와
+`Set.Migrate`를 실행합니다. MIG-057..064는 Django result parity가 아닌 Accepted ADR decision
+set이므로 성공 문구는 `locked reference oracle`이며, Django-derived set의 기존
+`locked Django oracle` 문구와 구분합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-definition-source-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json
+```
+
+Static not-implemented fixture 비교는 MIG-057..064의 ordered status mismatch 8개와 exit 1을
+계속 내야 합니다. 제품 adapter는 expected 값을 actual로 복사하지 않으며 source/header/
+operation/graph mutation이 non-empty diff 또는 success/error shape rejection을 만드는지 별도
+false-green test로 확인합니다.
+
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
 false green이 생기지 않는지 검증합니다.
@@ -546,9 +568,9 @@ DEV-0002 sparse expectation은 6,769 bytes, SHA-256
 
 두 독립 Go actual은 각각 98,304 bytes, SHA-256
 `a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical하고
-reviewed product expectation과 10-contract match입니다. 현재 9 product adapter의 분류는
-`92 passing + 5 deviation`이며, 97 unique contract와 72 ordered cross-binding gate를
-유지합니다.
+reviewed product expectation과 10-contract match입니다. 이때 확정된 9 product adapter의
+역사적 분류는 `92 passing + 5 deviation`이며, 97 unique contract와 72 ordered
+cross-binding gate를 유지합니다.
 
 완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)과 Accepted
 [ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)는 caller-provided bytes,
@@ -557,7 +579,7 @@ strict data-only JSON v1, tuple `(1,1,1,2)`, closed `CreateModel`/non-PK `char`�
 MIG-057..064로 고정했습니다. MIG-064는 public Django graph/executor의 reference-only success
 observation이며 digest는 handoff observation metadata이지 executor argument가 아닙니다.
 
-Manifest는 5,195 bytes/SHA-256
+GDJ-0019 completion manifest는 5,195 bytes/SHA-256
 `8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, oracle은 29,851
 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture는
 1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. 갱신된
@@ -566,10 +588,42 @@ bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
 164개 모두 통과했고 portable run은 149 passed/15 skipped입니다. 열 set의 105 ID/scenario와
 90 ordered cross-binding도 검증했습니다.
 
-`conformance/definitionload/**`는 actual `migrations.NewPlanner`와 public
-`Executor.Migrate`를 쓰는 test-only proof입니다. Product loader/GoDj adapter/CLI는 계속
-미구현이므로 새 8개는 `oracle_locked`이고 기존 9 adapter의 `92 passing + 5 deviation`은
-변하지 않습니다. GDJ-0020은 별도 activation 전 planned 상태입니다.
+완료된 [GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)과 Accepted
+[ADR-0020](../docs/adr/0020-migration-definition-loader-product-shape.md)은 새 leaf package
+`migrations/definition`에 파일 I/O 없는 `Load(...Source) (Set, LoadReport, error)`를
+구현했습니다. Zero `Set`은 canonical empty set이고, source/document와 반환 accessor는
+loader-owned deep copy입니다. Raw document는 set에 보존하지 않습니다. `Set.Migrate`는 fresh
+definition copy와 immutable request value만 기존 `Executor.Migrate`에 정확히 한 번 넘깁니다.
+
+Loader의 exact numeric cap은 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch 16 MiB,
+JSON depth 64, document JSON values 65,536, batch JSON values 262,144, migration별 dependencies
+2,047, operations 2,048, `CreateModel` fields 2,048입니다. Strict scanner는 invalid UTF-8/BOM,
+trailing value, any-depth duplicate member, surrogate와 integer lexeme를 closed JSON 의미로
+검증하고, canonical RFC 6901 failure order를 bounded lazy path comparator로 선택합니다.
+Source-owned failure만 9개 `migration_definition_source_error` code로 분류하며 resource breach는
+별도 code 없이 `reason=resource_limit_exceeded`와 stable limit/maximum/actual로 보고합니다.
+Graph failure는 raw `*migrations.PlanningError`, lifecycle failure는 기존 raw error identity와
+`errors.As` 의미를 보존합니다.
+
+GDJ-0020 status-only manifest는 5,147 bytes/SHA-256
+`688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`입니다. Oracle 29,851
+bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture 1,574
+bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`와 `SHA256SUMS`
+959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는 변경하지 않았습니다.
+MIG-057..064는 decision-reference actual 8 `passing`이며 현재 10 adapter/105 contract의 제품
+분류는 `100 passing + 5 deviation`; 90 ordered cross-binding gate도 유지합니다. 두 독립 product
+actual은 각각 29,631 bytes/SHA-256
+`a3f40f9bbee06d4edc4af0a00f40a76da259207995ac20d030101aa2ec3aec87`로 서로 byte-identical하고
+locked reference oracle과 protocol difference 0입니다. Cross-runtime raw JSON byte 동일성은
+계약이 아닙니다.
+
+제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
+[run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04
+portable job과 macOS 15 arm64 exact job이 모두 통과했습니다. Ubuntu job은
+`CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition`을 실제 Linux/386 runtime에서
+실행했습니다. File/directory/module/remote discovery, public migration CLI, writer/upgrade/cache,
+custom/executable/data/raw-SQL operation과 PostgreSQL/MySQL 등 non-SQLite lifecycle backend는
+여전히 미지원입니다.
 
 ## Provenance
 

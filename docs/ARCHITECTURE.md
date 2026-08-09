@@ -111,7 +111,7 @@ structural 경계에서 산출합니다. [ADR-0014](adr/0014-migration-plan-exec
 migration별 transaction으로 실행하도록 결정했습니다. 첫 실패는 뒤 step을 시작하지 않고
 마지막 durable `ProjectState`를 반환하며, reverse schema와 recorder는 DEV-0001에 따라 같은
 transaction에 둡니다. Public migration file 형식, loader/CLI, data callback, locking과 crash
-recovery는 여전히 Q-012의 후속 결정입니다.
+recovery는 GDJ-0012 당시 Q-012의 후속 결정이었습니다.
 
 GDJ-0013은 recorder table absent/empty, durable record/unrecord, fresh applied-prefix plan과
 history preflight를 MIG-027..036 reference로 잠갔습니다. GDJ-0014와 Accepted
@@ -176,9 +176,9 @@ poison/no-retry이고 last confirmed pre-step state만 반환합니다.
 MIG-047의 A2를 위해 SQLite `AddField`는 table이 empty일 때만 logical default를
 `ProjectState`에 보존하면서 physical persistent default 없는 column을 추가합니다. Nonempty
 table backfill/rebuild는 계속 explicit unsupported입니다. MIG-047..056의 아홉 product adapter
-중 MIG-052만 DEV-0002이며 현재 전체 분류는 `92 passing + 5 deviation`입니다. File/source
-loader, version handshake, CLI, public adoption/repair와 crash reconciliation은 당시 다음 계약
-범위였습니다.
+중 MIG-052만 DEV-0002이며 GDJ-0018 완료 당시 전체 분류는
+`92 passing + 5 deviation`이었습니다. File/source loader, version handshake, CLI, public
+adoption/repair와 crash reconciliation은 당시 다음 계약 범위였습니다.
 
 완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)과 Accepted
 [ADR-0019](adr/0019-versioned-migration-definition-source.md)는 explicit caller-provided bytes를
@@ -192,14 +192,38 @@ Python file discovery나 실행 의미를 가져오지 않습니다.
 MIG-057/MIG-064만 pinned Django provenance를 별도로 가집니다. MIG-064는 public Django
 graph/executor와 existing Go `Executor.Migrate` 사이의 reference handoff observation일 뿐입니다.
 `conformance/definitionload/**`는 실제 `migrations.NewPlanner`와 `Executor.Migrate`를 호출하는
-`*_test.go` feasibility proof지만 importable package나 제품 구현이 아닙니다. 따라서 현재도
-product loader, 열 번째 GoDj adapter와 CLI는 미구현이고 제품 분류는 9 adapter의
-`92 passing + 5 deviation`으로 유지됩니다. GDJ-0020 loader product slice는 별도 activation 전
-planned 상태입니다.
+`*_test.go` feasibility proof로 시작했으며, 제품 package가 이를 import하지 않는 독립 비교
+경계로 유지됩니다.
+
+완료된 [GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)과 Accepted
+[ADR-0020](adr/0020-migration-definition-loader-product-shape.md)은 import 방향이
+`migrations/definition → migrations + schema/ir`인 새 leaf package를 구현했습니다. Caller가 I/O를
+끝낸 뒤 `Source{SourceID, Document}`를 넘기며, `Load`는 tuple `(1,1,1,2)`, closed codec,
+fully-normalized IR과 graph를 검증한 뒤에만 loader-owned immutable `Set`을 원자적으로
+publish합니다. Zero `Set`은 canonical empty set이고 raw document를 보존하지 않으며, accessor와
+failure/report graph mapping은 매번 fresh deep copy입니다. `Set.Migrate`는 fresh definition
+snapshot과 immutable request value를 existing `Executor.Migrate`에 정확히 한 번 전달합니다.
+
+Pre-construction resource boundary는 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch
+16 MiB, JSON depth 64, document JSON values 65,536, aggregate JSON values 262,144, migration별
+dependencies 2,047, operations 2,048, `CreateModel` fields 2,048의 exact cap입니다. Strict scanner는
+any-depth duplicate, invalid UTF-8/surrogate/numeric lexeme와 canonical RFC 6901 failure order를
+bounded lazy path로 처리합니다. Source/document/compatibility/codec/IR failure만 9개
+`migration_definition_source_error` code가 소유하고, resource breach는 새 code가 아니라 stable
+limit context를 사용합니다. Graph validation은 raw `*migrations.PlanningError`, lifecycle은 기존
+raw error를 wrap/reclassify/retry하지 않습니다.
+
+MIG-057..064의 열 번째 actual adapter까지 연결되어 현재 제품 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`입니다. 여덟 contract는 Django parity가 아닌 decision-reference
+`passing`이며 성공 검증도 `locked reference oracle`로 표현합니다. File/directory/module/remote
+discovery, public CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation, adoption/repair,
+crash reconciliation과 non-SQLite migration backend는 이 loader가 지원하지 않습니다.
 
 ## CLI와 프로젝트 실행
 
-전역 `godj` CLI는 `version`, `startproject`, `startapp`, 프로젝트 탐색과 orchestration을 담당합니다. 프로젝트 설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행합니다.
+전역 `godj` CLI는 아직 구현되지 않았습니다. 아래는 향후 `version`, `startproject`, `startapp`,
+프로젝트 탐색과 orchestration이 가져야 할 목표 책임입니다. 프로젝트 설정·앱·모델·사용자
+command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행하는 방향입니다.
 
 ```text
 godj CLI
@@ -223,6 +247,7 @@ godj CLI
 schema DSL ─→ schema/ir
 codegen ────→ schema/ir
 migrations ─→ schema/ir, backend contracts
+migrations/definition ─→ migrations, schema/ir
 orm ────────→ query, schema/ir metadata, backend contracts
 backends ───→ query, schema/ir, backend contracts
 forms/auth/templates ─→ metadata와 제한된 ORM interface
@@ -230,7 +255,10 @@ admin/api/realtime ───→ 공개 하위 module interface
 gis extension ────────→ schema/query/backend의 명시적 extension point
 ```
 
-금지 예시는 `schema/ir → orm`, `query → admin`, `orm → admin`, `orm → api`, `forms → admin`, `backend → 상위 제품 모듈`입니다. 거대한 범용 `core` 패키지는 만들지 않습니다. 실제 패키지가 생기면 dependency test로 검증하고 interface 소유 패키지를 명시합니다.
+금지 예시는 `schema/ir → orm`, `query → admin`, `orm → admin`, `orm → api`, `forms → admin`,
+`backend → 상위 제품 모듈`과 `migrations → migrations/definition`입니다. 거대한 범용 `core`
+패키지는 만들지 않습니다. 실제 패키지가 생기면 dependency test로 검증하고 interface 소유
+패키지를 명시합니다.
 
 ## Codegen bootstrap 경계
 

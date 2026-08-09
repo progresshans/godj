@@ -366,8 +366,9 @@ legacy capability fail-closed를 검증합니다. 이 gate의 성공을 public l
 GDJ-0018은 public `Executor.Migrate`와 revision-fenced SQLite backend를 직접 실행하는 ninth
 adapter를 추가했습니다. Lifecycle 9개는 `passing`, MIG-052만
 `result.plan[0..2]`/`metrics.steps[0..2]` 여섯 ordered path의 DEV-0002 `deviation`입니다.
-기존 DEV-0001 네 계약은 변경하지 않았고, `make godj-conformance`의 현재 분류는
-`92 passing + 5 deviation`입니다. 97 unique contract와 모든 72 ordered cross-binding,
+기존 DEV-0001 네 계약은 변경하지 않았고, GDJ-0018 완료 당시
+`make godj-conformance` 분류는 `92 passing + 5 deviation`이었습니다. 97 unique contract와
+모든 72 ordered cross-binding,
 live target/definition/seed/legacy/fault propagation과 adapter source hardcode 금지를 함께
 검증합니다.
 
@@ -395,7 +396,7 @@ compatibility, semantic payload/normalized IR, existing graph, digest/publish, l
 stage의 canonical candidate selection을 고정합니다. MIG-064는 public Django graph/executor의
 reference-only success outcome입니다.
 
-Manifest는 5,195 bytes/SHA-256
+GDJ-0019 completion manifest는 5,195 bytes/SHA-256
 `8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, locked oracle은
 29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
 not-implemented fixture는 1,574 bytes/
@@ -405,11 +406,57 @@ Python suite는 164 passed, portable suite는 149 passed/15 skipped이고 두 ex
 process와 checked-in oracle bytes가 일치합니다. 10 reference set의 105 unique contract와 90
 ordered cross-binding도 검증합니다.
 
-`conformance/definitionload/**`는 `*_test.go`만으로 actual `migrations.NewPlanner`와 public
-`Executor.Migrate` handoff를 실행합니다. 이는 strict loader/lifecycle feasibility proof이지
-importable package나 제품 지원이 아닙니다. Product loader, 열 번째 GoDj adapter와 CLI가 없으므로
-새 8개는 `oracle_locked`이고 제품 `make godj-conformance` 분류는 기존 9 adapter의
-`92 passing + 5 deviation`으로 유지됩니다. GDJ-0020은 별도 activation 전 planned 상태입니다.
+`conformance/definitionload/**`는 GDJ-0019에서 `*_test.go`만으로 actual
+`migrations.NewPlanner`와 public `Executor.Migrate` handoff feasibility를 검증했습니다. 당시에는
+importable product loader와 열 번째 GoDj adapter가 없었으므로 새 8개는 `oracle_locked`, 제품
+분류는 9 adapter의 `92 passing + 5 deviation`이었습니다.
+
+GDJ-0020은 public `migrations/definition` loader를 별도 leaf package로 구현하고
+`conformance/definitionload/product_equivalence_test.go`에서 test-only candidate와 독립적인
+black-box parity를 검증합니다. Loader의 exact 10 cap은 다음과 같습니다.
+
+| Resource | Maximum |
+|---|---:|
+| sources | 2,048 |
+| SourceID | 1,024 bytes |
+| document | 1 MiB |
+| batch | 16 MiB |
+| JSON depth | 64 |
+| document JSON values | 65,536 |
+| batch JSON values | 262,144 |
+| dependencies per migration | 2,047 |
+| operations per migration | 2,048 |
+| `CreateModel` fields | 2,048 |
+
+각 cap의 maximum-1/equal/+1, checked aggregate와 combined-fault precedence를 고정합니다. Strict
+scanner gate는 invalid UTF-8/BOM/trailing value, any-depth duplicate member, surrogate pair,
+decimal/exponent/leading-zero와 signed-int64 boundary, bounded depth/value counting, canonical
+escaping과 RFC 6901 failure order를 검증합니다. 긴 ancestor와 다수 candidate에서도 최종 winner
+외 pointer를 문자열화하지 않는 lazy comparator를 adversarial fan-out으로 확인합니다.
+
+Ownership gate는 caller source mutation, nested Default/operation/IR accessor mutation,
+repeated/concurrent read와 race detector가 immutable `Set`/report/digest를 바꾸지 않는지 확인합니다.
+Source-owned failure는 정확히 9개 code, resource breach는 stable limit/maximum/actual context만
+사용합니다. Graph failure의 raw `*migrations.PlanningError`와 `Set.Migrate` lifecycle error는
+identity와 `errors.As` 의미를 보존하고 wrap/reclassify/retry하지 않습니다. Private injected
+planner count, non-test AST의 direct `migrations.NewPlanner`/`executor.Migrate` callsite와 actual
+handoff counter로 exactly-once를 각각 독립 검증합니다.
+
+Actual adapter false-green gate는 valid source identity/header/operation/graph를 각각 mutate해
+non-empty protocol diff 또는 success/error shape rejection을 요구합니다. MIG-057..064는 Django
+parity가 아닌 decision-reference 8 `passing`이고 제품 성공 출력은 `locked reference oracle`로
+구분합니다. 현재 `make godj-conformance` 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`; 90 ordered cross-binding을 유지합니다.
+
+Status-only manifest는 5,147 bytes/SHA-256
+`688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`입니다. Locked oracle
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture
+1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`와
+`SHA256SUMS` 959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는
+불변입니다. Static comparison은 MIG-057..064 ordered mismatch 8개를 계속 냅니다. Product
+commit은 `6172d843a4bb234592cafc176a8d1191933b141c`입니다. File discovery/CLI, writer/upgrade,
+custom/executable/data/raw-SQL operation과 non-SQLite backend는 이 green 결과의 지원 범위가
+아닙니다.
 
 ## 기능별 기본 테스트 요구
 
@@ -423,7 +470,7 @@ importable package나 제품 지원이 아닙니다. Product loader, 열 번째 
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
 | QuerySet cache/terminal | state ownership, singleflight, cancellation isolation, clone alias, cold/warm I/O, differential |
-| Migration | state diff, graph construction, applied pruning, forward/backward, recorder absent/fresh read, raw history validation, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock; historical reconstruction은 별도 contract와 제품 replay/round-trip/determinism gate 뒤에만 지원으로 분류 |
+| Migration | state diff, graph construction, applied pruning, forward/backward, recorder absent/fresh read, raw history validation, zero-mutation planning, structured graph/history/execution error, full-plan preflight, migration별 commit, failure/rollback, cancellation, concurrent lock; definition loader는 strict scanner, exact resource caps, snapshot/deep-copy와 raw graph/lifecycle error ownership을 별도 gate로 검증; historical reconstruction은 별도 contract와 제품 replay/round-trip/determinism gate 뒤에만 지원으로 분류 |
 | Concurrency | `go test -race`, cancellation, goroutine/connection leak |
 | Backend | capability matrix, conformance, explicit unsupported errors |
 | Security boundary | regression test, adversarial input, no silent fallback |
@@ -467,3 +514,12 @@ Ubuntu portable 164 tests/15 skips, macOS exact 164/164, migration-definition-so
 10개 oracle checksum/`--check`와 no-rewrite가 통과했으며 상세 결과는
 [EVID-20260809-020](status/TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
 기록합니다.
+
+GDJ-0020 product head `6172d843a4bb234592cafc176a8d1191933b141c`은 같은 Draft PR #1의
+[run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 두 job이 모두
+통과했습니다. Ubuntu 24.04 portable job은 `CGO_ENABLED=0 GOARCH=386 go test -count=1
+./migrations/definition`을 실제 Linux/386 runtime으로 실행했고, macOS 15 arm64 exact job은
+locked profile/oracle/no-rewrite gate를 유지했습니다. 세부 local/product-head 증거는
+[EVID-20260809-021](status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)과
+[EVID-20260809-022](status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)에
+기록합니다. 이 completion 문서를 포함한 후속 head의 hosted 재검증은 아직 pending입니다.

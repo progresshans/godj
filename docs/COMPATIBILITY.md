@@ -456,8 +456,8 @@ static fixture는 각각 98,436 bytes/
 `b743a1e74b828184ce1d046999a2c4358c93b85840be2161c7a8f4896d984722`로 유지됩니다. 두
 independent Go actual은 각각 98,304 bytes/SHA-256
 `a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`이고 10-contract
-product expectation과 일치합니다. 현재 제품 분류는 9 adapter의
-`92 passing + 5 deviation`; 97 unique contract와 72 ordered cross-binding입니다.
+product expectation과 일치합니다. GDJ-0018 완료 당시 제품 분류는 9 adapter의
+`92 passing + 5 deviation`; 97 unique contract와 72 ordered cross-binding이었습니다.
 
 Accepted [ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md)의 호환 경계는
 exact-one opaque session snapshot, SQLite `BEGIN IMMEDIATE` epoch/revision/fingerprint fence와
@@ -480,16 +480,49 @@ source/test provenance를 추가해 identity/dependency/ordered operation과 pub
 공통 동작을 구분합니다. 따라서 strict JSON, tuple, codec, digest와 precedence를 Django 형식이나
 Django observation으로 과장하지 않습니다.
 
-Manifest는 5,195 bytes/SHA-256
+GDJ-0019 completion manifest는 5,195 bytes/SHA-256
 `8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, locked oracle은
 29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
 not-implemented fixture는 1,574 bytes/
 `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. 갱신된
 `SHA256SUMS`는 959 bytes/
-`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. 현재 reference는
-10 set/105 unique contract/90 ordered cross-binding이고 새 8개는 `oracle_locked`입니다. 제품
-loader, 열 번째 GoDj adapter와 CLI는 없으므로 제품 분류는 9 adapter의
-`92 passing + 5 deviation`으로 유지됩니다.
+`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. GDJ-0019 완료
+당시 reference는 10 set/105 unique contract/90 ordered cross-binding이고 새 8개는
+`oracle_locked`였습니다. 제품 loader와 열 번째 GoDj adapter가 없었으므로 당시 제품 분류는
+9 adapter의 `92 passing + 5 deviation`으로 유지됐습니다.
+
+완료된 [GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)과 Accepted
+[ADR-0020](adr/0020-migration-definition-loader-product-shape.md)은 public leaf package
+`migrations/definition`에 caller-provided `Source`를 소비하는 bounded loader를 구현했습니다.
+`Load(...Source)`는 raw document를 보존하지 않는 loader-owned immutable `Set`과 value-only
+`LoadReport`를 atomic publish하며 zero `Set`은 canonical empty set입니다. Accessor, nested
+operation/IR와 failure graph mapping은 fresh deep copy이고, `Set.Migrate`는 fresh definitions와
+immutable request value를 existing `Executor.Migrate`에 정확히 한 번 전달합니다.
+
+Public resource contract는 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch 16 MiB,
+JSON depth 64, document values 65,536, batch values 262,144, migration별 dependencies 2,047,
+operations 2,048, `CreateModel` fields 2,048의 exact 10 cap입니다. Strict scanner는 any-depth
+duplicate, invalid UTF-8/surrogate/numeric lexeme와 RFC 6901 failure ordering을 bounded하게
+검증합니다. Source-owned failure는 정확히 9개 source error code만 사용하고 resource breach는
+stable limit context로 표현합니다. Existing graph `*migrations.PlanningError`와 lifecycle error는
+wrap/reclassify/retry하지 않아 원래 identity와 `errors.As` 의미를 보존합니다.
+
+GDJ-0020 manifest는 status-only 5,147 bytes/SHA-256
+`688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`입니다. Locked oracle
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture
+1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`와
+`SHA256SUMS` 959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는
+변경하지 않았습니다. MIG-057..064는 Django 결과 parity가 아닌 Accepted ADR decision-reference
+8 `passing`이며, 성공 검증 문구도 `locked reference oracle`로 Django-derived set의
+`locked Django oracle`과 구분합니다. 현재 제품 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`; 90 ordered cross-binding도 유지합니다.
+
+제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
+[run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04와
+macOS 15 arm64 job이 모두 통과했고, Ubuntu는 focused test를 실제 Linux/386 runtime에서
+실행했습니다. 이 증거는 explicit-source SQLite product slice에 한정됩니다. File/directory/
+module/remote discovery, CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation,
+existing database adoption/repair, crash reconciliation과 non-SQLite backend는 계속 미지원입니다.
 
 ## 데이터 호환성
 

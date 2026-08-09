@@ -1,6 +1,6 @@
 ---
 id: GDJ-0020
-status: active
+status: completed
 updated: 2026-08-09
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "eecc75f7507414ad6043a090c97b84080ab0fb8b"
@@ -20,10 +20,11 @@ immutable loader-owned `Set`을 원자적으로 반환합니다. 사용자는 ca
 definition과 source inventory의 복사본을 읽고, 같은 set에서 기존
 `Executor.Migrate` lifecycle로 정확히 한 번 handoff할 수 있습니다.
 
-MIG-057..064의 열 번째 제품 adapter까지 검증되면 제품 분류 목표는 정확히 10 adapter/105
-contract의 `100 passing + 5 deviation`입니다. 이 수치는 completion gate를 통과한 뒤에만 현재
-제품 상태로 승격합니다. Activation 시점에는 여전히 9 adapter의
-`92 passing + 5 deviation + 8 oracle_locked`이며 public loader 제품 코드는 없습니다.
+MIG-057..064의 열 번째 제품 adapter까지 검증한 현재 제품 분류는 정확히 10 adapter/105
+contract의 `100 passing + 5 deviation`입니다. Product commit
+`6172d843a4bb234592cafc176a8d1191933b141c`와 Draft PR #1 exact-head hosted run
+`31309152526`이 completion gate를 통과했습니다. Activation 당시 9 adapter의
+`92 passing + 5 deviation + 8 oracle_locked`였던 상태는 historical baseline으로 보존합니다.
 
 ## 목표
 
@@ -76,9 +77,9 @@ decision provenance와 다른 assertion은 변경하지 않습니다.
   test-only proof로 완료했습니다.
 - [Accepted ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)은 source 의미를
   채택했지만 public package/API와 numeric resource limit은 고정하지 않았습니다.
-- [ADR-0020](../docs/adr/0020-migration-definition-loader-product-shape.md)은 이 work의 product
-  shape 제안이며 activation 시 상태는 `Proposed`입니다. 공개 API 구현을 merge하기 전에 검증
-  결과를 반영해 `Accepted` 여부를 결정합니다.
+- [Accepted ADR-0020](../docs/adr/0020-migration-definition-loader-product-shape.md)은 이 work의
+  product shape입니다. Activation 시 `Proposed`였고 external compile, bounded parser/codec,
+  conformance와 exact-head hosted 결과를 근거로 completion에서 `Accepted`로 승격했습니다.
 - Baseline product는 10 reference set/105 unique contract/90 ordered cross-binding을 검증하지만
   product adapter는 9개뿐입니다. MIG-057..064는 `oracle_locked`이고 product `godjcheck`는 exit 2로
   fail-closed합니다.
@@ -123,7 +124,7 @@ incompatible compatibility mutation은 checked-in manifest/oracle에 대한 `pro
 validation rejection을, 나머지는 non-empty diff를 만들어야 합니다. Adapter가 expected/oracle
 `Value`를 반환하거나 mutation 뒤에도 comparison이 green이면 completion 실패입니다.
 
-## Proposed public API
+## 검증된 공개 API
 
 Package import 경계는 `migrations/definition → migrations + schema/ir` 단방향입니다.
 `migrations` root, backend와 database package는 `definition`을 import하지 않습니다.
@@ -478,7 +479,7 @@ loader ABI/contract를 명시적으로 갱신하기 전까지 새 IR 값을 wire
 
 ## 완료 조건
 
-- [x] Proposed API가 external consumer에서 compile되고 zero `Set`이 canonical empty set으로 동작
+- [x] 공개 API가 external consumer에서 compile되고 zero `Set`이 canonical empty set으로 동작
 - [x] Caller/source/accessor mutation, repeated/concurrent read와 race test에서 alias/race 없음
 - [x] Source `Error`가 정확히 9 code만 사용하고 success/error report context가 immutable
 - [x] Error.Context/LoadReport.Failure equality, non-limit zero fields와 limit/graph scalar mapping이
@@ -507,11 +508,11 @@ loader ABI/contract를 명시적으로 갱신하기 전까지 새 IR 값을 wire
 - [x] Static not-implemented comparison이 ordered mismatch 8개 유지
 - [x] `gofmt`, external compile, `go test`, `go vet`, race, CGO-disabled와 `make check` 통과
 - [x] Portable/exact Python에서 status-only exception을 제외한 reference behavior 불변
-- [ ] Existing Ubuntu job에서
+- [x] Existing Ubuntu job에서
   `CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition` 통과; `max_length`의
   platform `int` conversion을 실제 32-bit runtime에서 검증
-- [ ] Draft PR #1의 Ubuntu 24.04/macOS 15 arm64 CI가 exact completion head에서 PASS
-- [ ] ADR/architecture/compatibility/testing/matrix/evidence/CURRENT가 같은 상태를 가리킴
+- [x] Draft PR #1의 Ubuntu 24.04/macOS 15 arm64 CI가 exact product completion head에서 PASS
+- [x] ADR/architecture/compatibility/testing/matrix/evidence/CURRENT가 같은 상태를 가리킴
 
 ## 진행 기록
 
@@ -521,13 +522,13 @@ loader ABI/contract를 명시적으로 갱신하기 전까지 새 IR 값을 wire
 - [x] GDJ-0020 work/Proposed ADR activation 문서 작성
 - [x] 제품 구현
 - [x] local/conformance/race 검증
-- [ ] hosted CI와 completion 문서
+- [x] hosted CI와 completion 문서
 
 ## 수정 파일
 
 Activation commit `5942a0bedd6cca7fe93e52d90219a01193c6f534`는 이 work, ADR-0020,
 두 index, CURRENT, ROADMAP, OPEN_QUESTIONS의 정확히 7개 문서만 변경했습니다. 현재 product
-completion diff는 다음 exact allowed path로 제한합니다.
+commit과 completion 문서는 다음 exact allowed path로 제한합니다.
 
 - 제품 loader: `migrations/definition/{definition,load,error,limits,json,codec,ir,digest}.go`
 - 제품 loader 검증: `migrations/definition/{definition_test,resource_limits_test,external_test}.go`
@@ -542,7 +543,11 @@ completion diff는 다음 exact allowed path로 제한합니다.
   `conformance/contracts/migration-definition-source-manifest.json`,
   `conformance/runners/django/tests/test_migration_definition_source_scenarios.py`
 - hosted 32-bit gate: `.github/workflows/ci.yml`
-- active handoff: 이 work와 `docs/status/CURRENT.md`
+- completion/status 정본: 이 work, `docs/adr/0020-migration-definition-loader-product-shape.md`,
+  `docs/status/{CURRENT,IMPLEMENTATION_MATRIX,TEST_EVIDENCE}.md`, `work/README.md`,
+  `docs/adr/README.md`
+- completion/general 문서: `conformance/README.md`, `docs/ARCHITECTURE.md`,
+  `docs/COMPATIBILITY.md`, `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`, `docs/TESTING.md`
 
 Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migration/backend/DB 제품
 코드는 변경하지 않았습니다. 범위 밖 변경은 사용자/다른 agent 소유로 보존합니다.
@@ -550,7 +555,7 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
 ## 결정된 사항
 
 - 2026-08-09: product loader는 existing `migrations` root를 widen하지 않는 leaf package
-  `migrations/definition`으로 제한합니다 — [Proposed ADR-0020](../docs/adr/0020-migration-definition-loader-product-shape.md).
+  `migrations/definition`으로 제한합니다 — [Accepted ADR-0020](../docs/adr/0020-migration-definition-loader-product-shape.md).
 - 2026-08-09: explicit `Source`만 입력받는 pure bounded load를 채택하고 FS/CLI는 금지합니다.
 - 2026-08-09: source-owned 9 code와 raw Planner/lifecycle error ownership을 분리합니다.
 - 2026-08-09: 10 numeric limit, literal Schema IR 2와 drift gate를 completion 전 필수로 둡니다.
@@ -567,14 +572,18 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
 
 ## 미결정/Blocker
 
-외부 blocker는 없습니다. ADR-0020은 activation 시 `Proposed`이며 구현/compile/conformance 결과를
-근거로 public API merge 전에 Accepted 여부를 결정합니다. CLI/discovery/writer/upgrade는 이 work가
-해결하지 않고 Q-010/Q-012에 남깁니다.
+외부 blocker는 없습니다. ADR-0020은 구현/compile/conformance와 exact product-head hosted 결과를
+근거로 `Accepted`입니다. CLI/discovery/writer/upgrade는 이 work가 해결하지 않고 Q-010/Q-012와
+후속 work에 남깁니다.
 
 ## 테스트 증거
 
-- Checkout: activation commit
-  `5942a0bedd6cca7fe93e52d90219a01193c6f534` 위 exact product diff
+- Local/product evidence:
+  [EVID-20260809-021](../docs/status/TEST_EVIDENCE.md#evid-20260809-021--gdj-0020-bounded-migration-definition-loader-product-slice)
+- Hosted evidence:
+  [EVID-20260809-022](../docs/status/TEST_EVIDENCE.md#evid-20260809-022--gdj-0020-github-hosted-product-head-ci)
+- Final product commit:
+  `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`
 - `make check`: PASS. Full Go test/vet/race, portable Python, oracle/checksum/no-rewrite와 product
   conformance gate를 함께 통과했습니다.
 - Focused normal/race/CGO-disabled/vet:
@@ -584,8 +593,9 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
 - Repetition: definition/product-equivalence count 20 PASS.
 - `go test ./migrations/definition -run '^$' -fuzz FuzzStrictScannerViaLoadNeverPanics -fuzztime=5s`:
   PASS, 150,235 executions. 독립 final review의 10초 run도 약 133,000 executions에서 PASS했습니다.
-- `CGO_ENABLED=0 GOOS=linux GOARCH=386 go test -c ./migrations/definition`: PASS, ELF 32-bit
-  test binary 생성. 실제 32-bit runtime 실행은 같은 Draft PR의 Ubuntu job에서 확인 대기 중입니다.
+- `CGO_ENABLED=0 GOOS=linux GOARCH=386 go test -c ./migrations/definition`: local PASS, ELF 32-bit
+  test binary 생성. Draft PR Ubuntu job은 `CGO_ENABLED=0 GOARCH=386 go test -count=1
+  ./migrations/definition`을 실제 Linux/386 runtime에서 PASS했습니다.
 - `make conformance-check`, `make godj-conformance`, `make python-test`,
   `make python-test-exact`, `make oracle-check`: PASS. Exact Python은 164/164입니다.
 - 독립 `godjcheck` 두 process actual은 각각 29,631 bytes,
@@ -598,8 +608,12 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
   static fixture 1,574 bytes `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`,
   `SHA256SUMS`는 불변입니다.
 - Independent final code review와 integration review는 P0/P1/P2/P3 finding 0으로 종료했습니다.
-- Not run yet: exact product commit head의 GitHub-hosted Ubuntu/macOS jobs. Activation commit의
-  hosted PASS를 product head 증거로 재사용하지 않습니다.
+- Draft PR #1 [run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)은
+  exact product commit에서 Ubuntu 24.04와 macOS 15 arm64 두 job 모두 PASS했습니다. Ubuntu는
+  `make ci`, 실제 Linux/386 focused test, checksum/no-rewrite를, macOS는 focused Go,
+  exact Python 164/164, all-oracle/no-rewrite를 통과했습니다.
+- Not run: Windows와 PostgreSQL/MySQL/non-SQLite DB matrix. 이 환경은 GDJ-0020 loader의
+  backend-neutral pure CPU 경계와 기존 SQLite lifecycle handoff 범위 밖입니다.
 
 ## 위험과 rollback
 
@@ -613,23 +627,24 @@ Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migr
 
 ## 다음 정확한 작업
 
-통합 담당자는 exact product/status diff만 stage해 cached diff와 allowed-path 범위를 확인한 뒤
-`feat: add bounded migration definition loader`로 commit하고 기존 Draft PR #1의 같은 branch에
-push합니다. 새 head의 Ubuntu 24.04 job에서 CGO-disabled Linux/386 runtime gate를, macOS 15 arm64
-job에서 exact profile/no-rewrite를 확인합니다. 실패하면 같은 PR에 수정 commit을 추가합니다.
+현재 active/ready work는 없습니다. 다음 통합 담당자는 filesystem/module source discovery와
+public CLI/project-binary orchestration 중 다음 contract slice의 목표·비목표·오류 소유권을 먼저
+별도 work/ADR로 activation해야 합니다. GDJ-0020의 pure `Source` loader에 path 의미나 I/O를
+소급해 추가하지 않습니다.
 
-두 hosted job이 exact product head에서 PASS한 뒤에만 ADR-0020 Accepted, GDJ-0020 completed,
-IMPLEMENTATION_MATRIX/TEST_EVIDENCE/general docs와 final classification을 completion commit으로
-정리합니다. 그 completion head도 같은 PR에서 다시 CI를 통과해야 합니다.
+이 completion 문서 diff는 product acceptance 근거인 exact product head
+`6172d843a4bb234592cafc176a8d1191933b141c`와 hosted run `31309152526` 뒤에 작성됐습니다. 아직
+commit/push되지 않은 completion-doc head 자체의 CI를 통과했다고 주장하지 않습니다. 통합 담당자는
+같은 Draft PR #1에만 문서 commit을 push하고 새 head CI를 별도로 확인합니다.
 
 ## 결과와 인수인계
 
-GDJ-0020 제품 코드는 activation commit `5942a0b...` 위 로컬 checkout에서 구현·검증됐습니다.
-새 bounded leaf loader, exact 10 limits, atomic Set/LoadReport, raw graph/lifecycle handoff와 열 번째
-actual-data GoDj adapter가 local gate에서 105 contract의 `100 passing + 5 deviation`을 만족합니다.
+GDJ-0020은 완료됐습니다. Product commit `6172d843a4bb234592cafc176a8d1191933b141c`의 새 bounded
+leaf loader, exact 10 limits, atomic Set/LoadReport, raw graph/lifecycle handoff와 열 번째 actual-data
+GoDj adapter가 local gate와 Draft PR #1 exact-head hosted gate에서 105 contract의
+`100 passing + 5 deviation`을 만족합니다. ADR-0020은 이 근거로 Accepted입니다.
 
-그러나 이 diff는 아직 commit/push되지 않았고 exact product head hosted CI도 실행 전입니다. 따라서
-work는 계속 active, ADR-0020은 Proposed이며 repository completion 상태로 승격하지 않습니다.
-다음 인수자는 같은 Draft PR #1에 product commit을 쌓아 hosted gate를 수집한 뒤 completion 문서를
-작성해야 합니다. FS discovery/CLI/writer/upgrade/cache, executable/custom operations와 non-SQLite
-backend는 의도적으로 계속 비목표입니다.
+FS discovery/CLI/writer/upgrade/cache, executable/custom operations와 non-SQLite backend는
+의도적으로 계속 비목표입니다. Completion-doc head CI는 아직 pending이며 product-head CI와
+구분합니다. 다음 work는 이 공개 loader를 변경하지 않고 discovery/CLI orchestration을 별도
+contract로 activation해야 합니다.

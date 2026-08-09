@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-09
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-020
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-022
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1754,3 +1754,133 @@ reference artifact no-rewrite gate가 모두 통과했습니다. Job은 17:13:03
 이 evidence를 기록하는 후속 문서 commit은 새 PR-head workflow를 유발하므로, 그 run은 이 항목의
 근거로 재귀 사용하지 않고 별도로 완료 여부만 확인합니다. MIG-057..064는 계속 synthetic GoDj
 decision `oracle_locked`이며 product loader/adapter/CLI 지원으로 승격되지 않았습니다.
+
+## EVID-20260809-021 — GDJ-0020 Bounded Migration Definition Loader Product Slice
+
+- Date/time: 2026-08-09 KST, final local product gate
+- Work/contract IDs: GDJ-0020, MIG-057..MIG-064, Q-010, Q-012
+- Checkout/commit: activation
+  `5942a0bedd6cca7fe93e52d90219a01193c6f534` 위 exact product diff; byte-identical final product
+  commit `6172d843a4bb234592cafc176a8d1191933b141c`
+- Environment/backend: macOS 26.6 darwin/arm64, Go 1.26.5; uv 0.10.12, CPython 3.14.3,
+  pinned Django 6.1/SQLite 3.50.4 exact reference; lifecycle handoff는 modernc.org/sqlite v1.56.0 /
+  SQLite 3.53.3
+- Exit status: final `make check`, focused normal/race/CGO-disabled/vet/count-20, 5초 fuzz,
+  portable/exact Python, conformance/oracle/checksum/no-rewrite와 Linux/386 cross-compile 모두 0
+- Result summary: caller-provided `Source`를 strict tuple `(1,1,1,2)`와 closed codec으로 bounded
+  decode하는 `migrations/definition` leaf package를 구현했습니다. Zero-safe immutable Set/report,
+  exact 9 source error code, 10 resource cap, raw Planner/lifecycle error ownership, literal Schema IR 2
+  drift fence와 actual `Set.Migrate` handoff가 통과했습니다. MIG-057..064는 8 `passing`이고 aggregate는
+  10 adapters/105 contracts의 `100 passing + 5 deviation`입니다.
+- Failures/skips: 예상하지 않은 local failure 없음. Portable Python의 exact-profile-only 15 skip은
+  expected이고 exact profile은 164/164 pass. Local Linux/386는 binary cross-compile까지만 실행했고
+  actual 32-bit runtime은 EVID-022의 Ubuntu hosted job에서 실행했습니다. Windows와 PostgreSQL/MySQL/
+  non-SQLite DB matrix는 GDJ-0020 범위 밖이라 실행하지 않았습니다.
+
+실행한 주요 gate:
+
+```bash
+make check
+go test -count=1 ./migrations/definition ./conformance/definitionload \
+  ./conformance/runners/godj ./conformance/internal/protocol ./conformance/cmd/godjcheck
+go test -race -count=1 ./migrations/definition ./conformance/definitionload \
+  ./conformance/runners/godj ./conformance/internal/protocol ./conformance/cmd/godjcheck
+CGO_ENABLED=0 go test -count=1 ./migrations/definition ./conformance/definitionload \
+  ./conformance/runners/godj ./conformance/internal/protocol ./conformance/cmd/godjcheck
+go vet ./migrations/definition ./conformance/definitionload \
+  ./conformance/runners/godj ./conformance/internal/protocol ./conformance/cmd/godjcheck
+go test -count=20 ./migrations/definition ./conformance/definitionload
+go test ./migrations/definition -run '^$' \
+  -fuzz FuzzStrictScannerViaLoadNeverPanics -fuzztime=5s
+CGO_ENABLED=0 GOOS=linux GOARCH=386 go test -c ./migrations/definition
+make conformance-check
+make godj-conformance
+make python-test
+make python-test-exact
+make oracle-check
+```
+
+`make check`는 full Go normal/vet/race, focused CGO-disabled, portable Python, protocol,
+10-set GoDj conformance와 stored-oracle checksum/no-rewrite를 포함해 최종 PASS했습니다. Focused
+definition/product-equivalence count-20도 통과했고 scanner fuzz는 5초 동안 150,235 executions에서
+panic 없이 통과했습니다. 독립 final review의 별도 10초 fuzz도 통과했습니다.
+
+Public API/ownership gate는 exact exported type/field/method allowlist, external consumer compile,
+zero Set, caller/source/accessor mutation, repeated/concurrent read, nested Default/IR deep copy를
+검증했습니다. `Load`당 private planner validator와 product direct `migrations.NewPlanner` callsite는
+각각 정확히 1이고, `Set.Migrate`의 direct `executor.Migrate` callsite와 instrumented actual handoff도
+정확히 1입니다. Raw `*migrations.PlanningError`와 injected lifecycle sentinel identity는
+wrap/reclassify되지 않았습니다.
+
+각 10개 resource limit은 maximum-1/equal/+1, overflow-safe aggregate와 combined-fault precedence를
+통과했습니다. Strict scanner/numeric/canonical matrix는 invalid UTF-8/BOM/trailing JSON,
+any-depth decoded duplicate key, surrogate, decimal/exponent/leading-zero, signed-int64 boundary,
+canonical escaping과 long-pointer fan-out를 검증했습니다. RFC 6901 lazy path comparator의 91-path,
+8,281 ordered comparison도 rendered pointer byte order와 일치했습니다.
+
+False-green gate에서 source identity/inventory, operation payload와 graph identity/dependency mutation은
+actual observation과 non-empty protocol diff를 만들었습니다. Compatibility header mutation은 valid
+success를 typed error로 바꾸고 `protocol.Compare`가 success/error shape mismatch로 거부했습니다.
+Expected/oracle value를 actual로 되돌리는 경로는 허용되지 않습니다.
+
+독립 `godjcheck` 두 process actual은 각각 29,631 bytes, SHA-256
+`a3f40f9bbee06d4edc4af0a00f40a76da259207995ac20d030101aa2ec3aec87`로 서로 byte-identical했고
+locked reference oracle과 protocol difference 0입니다. Go actual JSON과 Python oracle raw bytes의
+동일성은 계약이 아니며 주장하지 않습니다. Static not-implemented comparison은 의도한 exit 1과
+MIG-057..064 ordered mismatch 정확히 8개를 유지했습니다.
+
+Product 변경 뒤 artifact pins:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/migration-definition-source-manifest.json` | 5,147 | `688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json` | 29,851 | `efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f` |
+| `conformance/fixtures/godj-migration-definition-source-not-implemented.json` | 1,574 | `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS` | 959 | `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a` |
+
+Manifest는 MIG-057..064 status-only 변화입니다. Oracle/static/SHA bytes와 기존 9 product set의
+artifact pins/classification은 불변입니다. Independent final code/integration review의 final P0–P3
+finding은 없습니다. Hosted product-head 결과는 다음 EVID-022에 분리합니다.
+
+## EVID-20260809-022 — GDJ-0020 GitHub-hosted Product-head CI
+
+- Date/time: 2026-08-09 19:46:31–19:49:32 KST
+- Work/contract IDs: GDJ-0020, MIG-057..MIG-064, Q-010, Q-012
+- Tested PR/head: Draft [PR #1](https://github.com/progresshans/godj/pull/1), branch
+  `codex/revision-fenced-migration-lifecycle`, exact product head
+  `6172d843a4bb234592cafc176a8d1191933b141c`
+- Workflow run: [31309152526](https://github.com/progresshans/godj/actions/runs/31309152526), event
+  `pull_request`, base `main@f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+- Exit status: workflow `success`; two jobs successful, cancelled/failing/skipped/pending 0
+- Result summary: Ubuntu portable `make ci`, actual CGO-disabled Linux/386 definition loader runtime,
+  checksum/no-rewrite와 macOS darwin/arm64 focused Go, exact Python 164/164, all-oracle/no-rewrite가
+  exact product commit에서 통과했습니다.
+- Failures/skips: unexpected job/step failure 없음. Ubuntu portable Python은 164 tests 중 exact-only
+  15 skipped; macOS exact Python은 164/164 pass. Windows와 non-SQLite DB matrix는 구성하거나
+  실행하지 않았습니다.
+
+Hosted job evidence:
+
+1. `Validate checked-in conformance artifacts`
+   ([job 93234148999](https://github.com/progresshans/godj/actions/runs/31309152526/job/93234148999))
+   - GitHub image `ubuntu-24.04`, Go 1.26.5 `linux/amd64`
+   - Started 19:46:33 KST, completed 19:49:32 KST, duration 2m59s
+   - `make ci` PASS; 10 product adapter/105 contract aggregate에서 definition set은
+     `locked reference oracle` 8 contract/0-diff
+   - 별도 `CGO_ENABLED=0`, `GOARCH=386`,
+     `go test -count=1 ./migrations/definition` actual 32-bit runtime PASS
+   - Stored oracle checksum 10개와 reference artifact no-rewrite gate PASS
+2. `Validate exact darwin/arm64 profile and SQLite lifecycle`
+   ([job 93234149051](https://github.com/progresshans/godj/actions/runs/31309152526/job/93234149051))
+   - GitHub `macos-15-arm64`, Go 1.26.5 `darwin/arm64`
+   - Started 19:46:34 KST, completed 19:47:44 KST, duration 1m10s
+   - Focused CGO-disabled `migrations`, `db/sqlite`, GoDj adapter와 external compile gate PASS
+   - uv 0.10.12/Python 3.14.3 exact 164/164, migration-definition-source를 포함한 10개 locked
+     oracle `--check`, reference artifact no-rewrite gate PASS
+
+이 run은 activation head의 과거 PASS를 재사용한 것이 아니라 product commit
+`6172d843a4bb234592cafc176a8d1191933b141c`의 GitHub-hosted 로그에서 직접 확인한 증거입니다.
+실제 Linux/386 runtime이 `max_length` host-int conversion을 통과했으므로 local cross-compile만으로
+추정하지 않습니다. 이 evidence와 completion 문서를 담을 후속 documentation head는 아직
+commit/push되지 않아 hosted CI가 pending입니다. Product-head CI를 그 후속 head의 PASS로
+재귀 사용하지 않습니다.

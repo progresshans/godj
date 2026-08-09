@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0020 active / CLI 후속 | Accepted source tuple `(1,1,1,2)`과 Proposed bounded loader는 pre-construction document/consumer handshake만 다룸; 전역 CLI/project library/generator semver는 open |
+| Q-010 | Partial | GDJ-0020 completed / CLI 후속 | Accepted source tuple `(1,1,1,2)`과 bounded product loader는 pre-construction document/consumer handshake만 다룸; 전역 CLI/project library/generator semver는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0020 active | MIG-047..056 fenced lifecycle은 Verified; MIG-057..064 bounded product loader는 active/미구현, CLI/crash recovery는 open |
+| Q-012 | Partial | GDJ-0020 completed | MIG-047..056 fenced lifecycle과 MIG-057..064 bounded product loader는 Verified; discovery/CLI/writer/upgrade/custom operation/non-SQLite/crash recovery는 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -89,11 +89,12 @@ contract로 검증합니다. 이 handshake는 operation decode/construction 전�
 ABI이며 global `godj` CLI, project library와 generator의 semver resolution이 아닙니다.
 
 GDJ-0019는 file/module discovery, project build, generated Go runner, CLI exit code나 upgrade
-command를 결정하지 않았습니다. [Active GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)과
-[Proposed ADR-0020](adr/0020-migration-definition-loader-product-shape.md)은 explicit caller bytes의
-bounded product loader만 검증합니다. File/module/FS discovery나 CLI를 붙이지 않으며, 그 뒤
+command를 결정하지 않았습니다. 완료된
+[GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)과 Accepted
+[ADR-0020](adr/0020-migration-definition-loader-product-shape.md)은 explicit caller bytes의
+bounded product loader만 구현·검증했습니다. File/module/FS discovery나 CLI를 붙이지 않으며,
 CLI/project binary가 어떤 version 정보를 교환하고 mismatch/old generator/stale output을 어떻게
-복구할지 별도 work/ADR로 결정해야 합니다. 따라서 Q-010은 계속 Partial입니다.
+복구할지는 별도 work/ADR로 결정해야 합니다. 따라서 Q-010은 계속 Partial입니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
@@ -156,10 +157,11 @@ request API, immutable definition ownership/clone, Planner graph kernel 공유�
 Applied adapter는 real SQLite recorder snapshot을 쓰지만 reconstructor core는 backend I/O가
 없는 pure replay 경계입니다.
 
-Migration file encoding/source loader, listing accessor, data callback ABI,
-graph merge/squash/optimizer, multi-process lock와 crash recovery는 여전히 결정하지 않았으며
-public CLI 전에 별도 ADR과 contract가 필요합니다. Recorder read/planning 제품 subset과
-historical-state product를 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
+Explicit data-only source encoding과 bounded loader는 GDJ-0019/0020에서 결정·구현했습니다.
+Source discovery/listing, writer/upgrade, data/custom/raw-SQL operation ABI, graph merge/squash/
+optimizer, multi-process lock와 crash recovery는 여전히 결정하지 않았으며 public CLI 전에 별도
+ADR과 contract가 필요합니다. Recorder read/planning, historical-state와 explicit-source loader
+제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
@@ -202,8 +204,8 @@ Dedicated fenced transaction은 rolled-back/committed/unknown durability를 구�
 `CommitRolledBack`은 confirmed state/token을 advance하지 않고 SQLite session을 poison하며,
 unknown과 함께 semantic retry를 금지합니다. Accepted ADR-0013의 canonical ascending plan도
 그대로여서 MIG-052의 final state/schema/history는 exact match이고 ordered plan/steps 여섯 path만
-DEV-0002입니다. Lifecycle 9 `passing` + 1 `deviation`을 더한 현재 제품 분류는
-`92 passing + 5 deviation`입니다.
+DEV-0002입니다. Lifecycle 9 `passing` + 1 `deviation`을 더한 GDJ-0018 완료 당시 제품 분류는
+`92 passing + 5 deviation`이었습니다.
 
 Exact A2의 empty-table `BooleanField(default=false)`는 logical state에 default를 보존하면서
 physical persistent default 없이 추가합니다. Nonempty table backfill/rebuild는 계속
@@ -215,17 +217,27 @@ Strict data-only JSON v1, tuple `(1,1,1,2)`, fully normalized IR v2,
 `CreateModel`/non-PK `char`·`boolean` `AddField` closed codec, atomic load, canonical digest/error와 existing
 `Executor.Migrate` reference handoff를 Accepted ADR-0019 decision oracle로 고정했습니다. 이는
 Django Python file ABI exact compatibility가 아니라 Go redesign이며, 새 8개는
-`oracle_locked`입니다.
-MIG-064는 Go handoff 구현이나 제품 loader 지원을 뜻하지 않습니다.
+GDJ-0019 완료 당시 `oracle_locked`였습니다. MIG-064도 당시에는 Go handoff 구현이나 제품 loader
+지원을 뜻하지 않았습니다.
 
-Public product loader와 GoDj adapter는
-[GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)으로 activation됐지만 아직
-미구현입니다. Proposed shape는 `migrations/definition`의 explicit Source/Load/zero Set/immutable
-report, 10개 numeric resource limit, literal Schema IR 2 drift gate와 raw Planner/lifecycle error
-handoff입니다. MIG-057..064가 실제 adapter에서 passing이 되기 전에는 Q-012의 verified product로
-표현하지 않습니다. File/directory/module discovery, operation/data callback 확장, global
-CLI/project handshake, adoption/repair command, copy/restore epoch와 crash reconciliation은 계속
-Q-012/Q-010의 open 범위입니다.
+완료된 [GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)은 Accepted ADR-0020의
+`migrations/definition` explicit `Source`/`Load`/zero `Set`/immutable report를 구현했습니다.
+Exact cap은 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch 16 MiB, JSON depth 64,
+document values 65,536, batch values 262,144, dependencies 2,047, operations 2,048,
+`CreateModel` fields 2,048입니다. Strict scanner의 closed JSON/RFC 6901 ordering, loader-owned
+snapshot/deep copy와 source-owned 9-code/resource context를 검증하고, raw Planner/lifecycle error를
+wrap/reclassify/retry하지 않습니다. Literal Schema IR 2는 two-way compile drift gate로 잠급니다.
+
+열 번째 actual adapter가 MIG-057..064 decision-reference 8개를 `passing`으로 전환해 현재 제품
+분류는 10 adapter/105 contract의 `100 passing + 5 deviation`입니다. Product commit
+`6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1 run 31309152526의 Ubuntu/macOS
+두 job과 실제 Linux/386 focused runtime을 통과했습니다. 다만 completion 문서 head의 hosted
+재검증은 아직 pending입니다.
+
+File/directory/module/remote discovery, public CLI, writer/upgrade/cache, executable/custom/data/
+raw-SQL operation, global CLI/project handshake, adoption/repair command, copy/restore epoch,
+crash reconciliation과 PostgreSQL/MySQL 등 non-SQLite backend는 계속 Q-012/Q-010의 open
+범위입니다.
 
 ## Q-013 — 관계 API
 
