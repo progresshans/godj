@@ -213,11 +213,11 @@ bounded lazy path로 처리합니다. Source/document/compatibility/codec/IR fai
 limit context를 사용합니다. Graph validation은 raw `*migrations.PlanningError`, lifecycle은 기존
 raw error를 wrap/reclassify/retry하지 않습니다.
 
-MIG-057..064의 열 번째 actual adapter까지 연결되어 현재 제품 분류는 10 adapter/105 contract의
-`100 passing + 5 deviation`입니다. 여덟 contract는 Django parity가 아닌 decision-reference
+MIG-057..064의 열 번째 actual adapter까지 연결됐을 때 제품 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`이었습니다. 여덟 contract는 Django parity가 아닌 decision-reference
 `passing`이며 성공 검증도 `locked reference oracle`로 표현합니다. File/directory/module/remote
 discovery, public CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation, adoption/repair,
-crash reconciliation과 non-SQLite migration backend는 이 loader가 지원하지 않습니다.
+crash reconciliation과 non-SQLite migration backend는 이 loader package 자체가 지원하지 않습니다.
 
 완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Accepted
 [ADR-0021](adr/0021-project-linked-migration-check.md)은 이 제품 경계를 바꾸지 않고
@@ -227,16 +227,21 @@ crash reconciliation과 non-SQLite migration backend는 이 loader가 지원하�
 기존 `migrations/definition`을 사용합니다. Production package는 이 harness를 import하지 않으며
 전역 `godj` CLI, project package와 filesystem discovery를 구현한 것으로 세지 않습니다.
 
-MIG-065..074는 `decision/ADR-0021/derived=false`인 열한 번째 reference-only set의 exact 10
-`oracle_locked` contract입니다. Protocol gate는 11 set/115 unique contract/110 ordered
-cross-binding, static fixture exit 1/ordered mismatch 10과 제품 `godjcheck` exit 2/no actual output을
-고정합니다. `godj-conformance`에는 열한 번째 adapter를 추가하지 않아 제품 분류는 계속
-10 adapter/105 contract의 `100 passing + 5 deviation`입니다.
+Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
+[ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 test-only proof와 독립인
+`cmd/godj`, public `project`, `internal/projectcheck` global/linked/protocol kernel과 열한 번째 actual
+adapter를 구현했습니다. Product code는 conformance proof를 import/read하지 않고 linked kernel만 actual
+`definition.Load`를 exactly once 호출합니다. MIG-065..074 exact 10 status는 `passing`이며 제품 분류는
+11 adapter/115 contract의 `110 passing + 5 deviation`입니다. Protocol gate는 reference
+11 set/115 unique contract/110 ordered cross-binding과 static fixture exit 1/ordered mismatch 10을
+계속 고정합니다.
 
-Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 기존
 Ubuntu 24.04 x64 full/macOS 15 arm64 exact 두 job, Linux/macOS x64/arm64 project-check 네 leg와
 같은 좌표의 actual SQLite 네 leg, 총 `2 + 4 + 4 = 10` hosted execution을 모두 통과했습니다.
+GDJ-0022 workflow는 actual product 네 leg와 Python 3.12.13/3.13.15/3.14.3/3.14.7 네 leg를 더한
+exact 18 required execution으로 확장됐지만 implementation/completion head의 hosted run은 pending입니다.
 Actual adapter가 없는 PostgreSQL/MySQL은 service만 띄우는 green job을 지원 증거로 세지 않습니다.
 첫 backend job은 digest-pinned service image, health check, UTC timezone과 C locale 또는 명시적으로
 승인된 collation, actual query/write/transaction/schema/migration/recorder/revision-lifecycle 및
@@ -245,9 +250,10 @@ durable restart/persistence contract를 모두 실행해야 합니다. Expected 
 
 ## CLI와 프로젝트 실행
 
-전역 `godj` CLI는 아직 구현되지 않았습니다. 아래는 향후 `version`, `startproject`, `startapp`,
-프로젝트 탐색과 orchestration이 가져야 할 목표 책임입니다. 프로젝트 설정·앱·모델·사용자
-command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행하는 방향입니다.
+전역 `godj` CLI의 첫 좁은 단면인 exact `godj migrations check`와
+`godj migrations check --project <descriptor-file>`가 구현됐습니다. 그 밖의 향후 `version`,
+`startproject`, `startapp`, broader 프로젝트 탐색과 orchestration은 아직 목표 책임입니다. 프로젝트
+설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행하는 방향입니다.
 
 ```text
 godj CLI
@@ -272,6 +278,8 @@ schema DSL ─→ schema/ir
 codegen ────→ schema/ir
 migrations ─→ schema/ir, backend contracts
 migrations/definition ─→ migrations, schema/ir
+cmd/godj ───→ internal/projectcheck ─→ internal/projectcheck/protocol
+project ────→ internal/projectcheck/linked ─→ protocol, migrations/definition
 orm ────────→ query, schema/ir metadata, backend contracts
 backends ───→ query, schema/ir, backend contracts
 forms/auth/templates ─→ metadata와 제한된 ORM interface
@@ -290,8 +298,8 @@ gis extension ────────→ schema/query/backend의 명시적 exte
 사용합니다. Target 교체 전 candidate를 `gofmt`/parse하고 Go overlay로 실제 target
 package를 compile하며, 실패하면 last-good bytes를 보존합니다. 이 결정과 M0
 rename/delete/stale fixture는 [ADR-0006](adr/0006-codegen-input-package-boundary.md)에
-기록합니다. 전역 CLI와 project library version protocol은 Q-010으로 남아 있어 현재
-runner는 `internal/cmd/m1generate`입니다.
+기록합니다. Exact migration-check private protocol은 구현됐지만 full CLI/project library/generator
+version handshake는 Q-010으로 남아 있고, generator runner는 여전히 `internal/cmd/m1generate`입니다.
 
 ## 목표 저장소 구조
 

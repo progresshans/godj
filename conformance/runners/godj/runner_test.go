@@ -311,6 +311,238 @@ func TestMigrationLifecycleRegistryMatchesManifestScenarios(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedMigrationProjectCheckOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationProjectCheckInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj migration project-check suite differs from locked decision oracle in %d place(s)", len(differences))
+	}
+}
+
+func TestMigrationProjectCheckRegistryMatchesManifestScenarios(t *testing.T) {
+	t.Parallel()
+
+	_, manifest, _ := loadMigrationProjectCheckInputs(t)
+	if len(migrationProjectCheckFixtures) != len(manifest.Contracts) {
+		t.Fatalf("migration project-check registry has %d scenarios, manifest has %d", len(migrationProjectCheckFixtures), len(manifest.Contracts))
+	}
+	for _, contract := range manifest.Contracts {
+		if _, ok := migrationProjectCheckFixtures[contract.Scenario]; !ok {
+			t.Fatalf("migration project-check scenario %q is not registered", contract.Scenario)
+		}
+	}
+}
+
+func TestGenerateMigrationProjectCheckIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, _ := loadMigrationProjectCheckInputs(t)
+	first, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	second, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate(second) error = %v", err)
+	}
+	firstJSON, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondJSON, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(firstJSON, secondJSON) {
+		t.Fatal("independent migration project-check actual outputs differ")
+	}
+}
+
+func TestMigrationProjectCheckAdapterUsesActualProductEntryPointsWithoutExpectedReplay(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile("migration_project_check_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(contents)
+	for _, forbidden := range []string{
+		"conformance/oracles",
+		"conformance/fixtures",
+		"conformance/projectcheck",
+		"LoadObservationSuite",
+		"MIG-065",
+		"sha256:07e61f8d956002cff0d7fe2db10c16ea4a30829e9f0ced09c69c40ff2c2399bc",
+	} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("migration project-check adapter contains forbidden expected replay fragment %q", forbidden)
+		}
+	}
+
+	file, err := parser.ParseFile(token.NewFileSet(), "migration_project_check_scenarios.go", contents, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := map[string]int{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		identifier, ok := selector.X.(*ast.Ident)
+		if !ok {
+			return true
+		}
+		calls[identifier.Name+"."+selector.Sel.Name]++
+		return true
+	})
+	if calls["productcheck.Run"] != 1 || calls["linked.Run"] != 1 {
+		t.Fatalf("migration project-check adapter product calls = global %d/linked %d, want exactly 1 callsite each", calls["productcheck.Run"], calls["linked.Run"])
+	}
+	if calls["definition.Load"] != 0 {
+		t.Fatalf("migration project-check adapter direct definition.Load callsites = %d, want linked report ownership", calls["definition.Load"])
+	}
+}
+
+func TestMigrationProjectCheckProductInputMutationsCannotFalseGreen(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationProjectCheckInputs(t)
+	tests := []struct {
+		name       string
+		contractID string
+		mutate     func(*testing.T, *migrationProjectCheckFixture)
+	}{
+		{
+			name:       "descriptor compatibility",
+			contractID: "MIG-065",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				root := filepath.Dir(filepath.Dir(filepath.Dir(fixture.cwd)))
+				if err := os.WriteFile(filepath.Join(root, "godj.toml"), []byte("format_version = 2\n[project]\npackage = \"./cmd/mysite\"\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name:       "catalog membership",
+			contractID: "MIG-068",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				if err := os.Remove(filepath.Join(fixture.cwd, "migrations", "a", "0002_fields.godj.json")); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name:       "matching symlink becomes regular source",
+			contractID: "MIG-069",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				path := filepath.Join(fixture.cwd, "migrations", "link.godj.json")
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, migrationProjectCheckOneModelDocument(), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name:       "runner protocol version",
+			contractID: "MIG-071",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				wire, err := migrationProjectCheckEmptyRunnerWire()
+				if err != nil {
+					t.Fatal(err)
+				}
+				fixture.injectedRunnerWire = wire
+			},
+		},
+		{
+			name:       "syntax broken build becomes valid",
+			contractID: "MIG-072",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				if err := os.WriteFile(filepath.Join(fixture.cwd, "cmd", "broken", "main.go"), []byte("package main\nfunc main() {}\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name:       "definition document",
+			contractID: "MIG-073",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				if err := os.WriteFile(filepath.Join(fixture.cwd, "migrations", "broken.godj.json"), migrationProjectCheckOneModelDocument(), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name:       "duplicate runner response member",
+			contractID: "MIG-074",
+			mutate: func(t *testing.T, fixture *migrationProjectCheckFixture) {
+				wire, err := migrationProjectCheckEmptyRunnerWire()
+				if err != nil {
+					t.Fatal(err)
+				}
+				fixture.injectedRunnerWire = wire
+			},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			index := -1
+			for current, contract := range manifest.Contracts {
+				if contract.ID == test.contractID {
+					index = current
+					break
+				}
+			}
+			if index < 0 {
+				t.Fatalf("contract %s is missing", test.contractID)
+			}
+			factory := migrationProjectCheckFixtures[manifest.Contracts[index].Scenario]
+			fixture, err := factory()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(fixture.cleanupRoot)
+			test.mutate(t, &fixture)
+			execution, err := runMigrationProjectCheckFixture(context.Background(), test.contractID, fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			actual := expected
+			actual.Contracts = append([]protocol.Observation(nil), expected.Contracts...)
+			actual.Contracts[index] = execution.observation
+			differences, err := protocol.Compare(profile, manifest, expected, actual)
+			if err == nil && len(differences) == 0 {
+				t.Fatalf("%s mutation produced a false green", test.name)
+			}
+		})
+	}
+}
+
 func TestGenerateMigrationLifecycleIsDeterministic(t *testing.T) {
 	t.Parallel()
 
@@ -2213,6 +2445,28 @@ func loadMigrationDefinitionSourceInputs(t *testing.T) (
 		t.Fatalf("LoadManifest() error = %v", err)
 	}
 	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-definition-source-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func loadMigrationProjectCheckInputs(t *testing.T) (
+	protocol.Profile,
+	protocol.Manifest,
+	protocol.ObservationSuite,
+) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-project-check-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-project-check-oracle.json"))
 	if err != nil {
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}

@@ -107,10 +107,12 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 - forward/backward와 fake/plan/show commands
 - data migration과 현재 model type 사용 금지
 
-현재 제품 단면은 caller가 이미 읽은 explicit source bytes를 `migrations/definition`에 전달하는
-SQLite loader까지입니다. 완료된 GDJ-0021의 `godj.toml` 선택, project-linked build/runner와 flat
-filesystem catalog check는 `conformance/projectcheck/**`의 verified test-only feasibility이며 제품 migration
-discovery나 명령 지원을 뜻하지 않습니다. MIG-065..074도 `oracle_locked` reference-only 상태입니다.
+현재 제품 단면은 caller가 explicit source bytes를 `migrations/definition`에 전달하는 loader와,
+active GDJ-0022의 local implementation/Accepted ADR-0022의 exact `godj migrations check`까지입니다.
+Global CLI는 exact
+`godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
+읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
+Writer/upgrade/DB-aware execution은 포함하지 않습니다.
 
 장기 operation 범위:
 
@@ -293,8 +295,9 @@ custom management commands
 
 향후 UX 후보 `godj migrations check`와
 `godj migrations check --project <descriptor-file>`는 완료된 GDJ-0021/Accepted ADR-0021이 argument,
-descriptor, protocol, failure와 exit `0/1/2/3/130` 의미를 test-only로 검증했습니다. 전역 CLI, project 등록 API와
-production project-linked binary는 아직 구현하지 않았습니다.
+descriptor, protocol, failure와 exit `0/1/2/3/130` 의미를 test-only로 먼저 검증했고,
+GDJ-0022/Accepted ADR-0022가 전역 CLI, exact two-export public project API와 production
+project-linked runner를 독립 구현했습니다.
 
 ## Testing과 품질
 
@@ -312,11 +315,14 @@ production project-linked binary는 아직 구현하지 않았습니다.
 - migration compatibility/upgrade test
 
 GDJ-0021 품질 gate는 기존 제품 10 adapter/105 contract를 유지하면서 열한 번째 reference set까지
-115 unique contract/110 ordered cross-binding을 검증했습니다. Implementation head
+115 unique contract/110 ordered cross-binding을 검증했습니다. Historical implementation head
 `84ddf109c04acd72992b816aa72140c6e748e5f0`의
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)은 기존 full/exact 2개,
 Linux/macOS x64/arm64 test-only project-check 4개와 같은 좌표의 actual SQLite 4개, 총 10개 job을
-모두 통과했습니다. Actual adapter가 없는 PostgreSQL/MySQL service-only job은 false green이므로
+모두 통과했습니다. GDJ-0022 local gate는 열한 번째 product adapter를 추가해 115 product contract의
+`110 passing + 5 deviation`을 검증했습니다. Workflow는 product 4 + Python compatibility 4를 더한
+exact 18 required execution으로 확장됐지만 hosted run은 아직 pending입니다. Actual adapter가 없는
+PostgreSQL/MySQL service-only job은 false green이므로
 두지 않습니다. 첫 backend CI는 digest-pinned service image, health check, UTC timezone과 C locale
 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/recorder/
 revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected contract

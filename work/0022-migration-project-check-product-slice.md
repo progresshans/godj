@@ -90,7 +90,8 @@ normal project command, `serve`, `migrate`, generator 또는 custom command 표�
 - 제품 집계를 11 adapter/115 contract의 `110 passing + 5 deviation`으로 확장
 - Existing reference 11 set/115 contract/110 ordered cross-binding, oracle/static/SHA bytes 보존
 - Public external project fixture와 actual `cmd/godj` process E2E로 build/wire/cleanup을 검증
-- Existing 10 hosted executions에 product CLI 전용 4-leg matrix를 더해 exact 14 required executions 검증
+- Existing 10 hosted executions에 product CLI 4-leg와 Python compatibility 4-leg를 더해 exact 18
+  required executions 검증
 - 같은 Draft PR #1에 activation, implementation, evidence commit을 순서대로 쌓고 새 PR을 만들지 않음
 
 ## 비목표와 금지 경계
@@ -153,7 +154,7 @@ fixture는 계속 ordered mismatch 10개/exit 1이어야 합니다.
 
 ## 공개 API와 package 경계
 
-Proposed [ADR-0022](../docs/adr/0022-project-runtime-and-global-migration-check.md)의 activation API는 exact
+Accepted [ADR-0022](../docs/adr/0022-project-runtime-and-global-migration-check.md)의 public API는 exact
 다음 두 export뿐입니다.
 
 ```go
@@ -198,11 +199,15 @@ cmd/godj
 project
   -> internal/projectcheck/linked
        -> internal/projectcheck/protocol
+       -> migrations (PlanningError taxonomy only)
        -> migrations/definition
             -> migrations + schema/ir
 ```
 
 `internal/projectcheck` global과 `linked`는 서로 직접 import하지 않습니다. Protocol leaf만 공유합니다.
+Linked의 direct root `migrations` edge는 `definition.Load`가 그대로 돌려주는 existing
+`*migrations.PlanningError` category/code를 private response로 분류하는 read-only taxonomy 용도뿐입니다.
+`migrations.NewPlanner`, lifecycle, recorder, backend를 호출하거나 graph를 재구현하는 근거가 아닙니다.
 Root migrations/schema/db package가 project-check child를 역-import하지 않고 product code는 conformance를
 import하지 않습니다.
 
@@ -269,8 +274,8 @@ invocation과 공유하지 않습니다.
 
 Existing required topology는 full Ubuntu x64 1 + exact macOS arm64 1 + independent test-only project-check
 matrix 4 + actual SQLite matrix 4 = 10 executions입니다. GDJ-0022 implementation head에서는 proof matrix와
-SQLite matrix를 그대로 보존하고 actual product CLI matrix 4개를 별도로 추가해 exact
-`2 + 4 + 4 + 4 = 14` required executions을 만듭니다.
+SQLite matrix를 그대로 보존하고 actual product CLI matrix 4개와 Python compatibility matrix 4개를
+별도로 추가해 exact `2 + 4 + 4 + 4 + 4 = 18` required executions을 만듭니다.
 
 Product matrix는 existing exact labels/coordinates를 재사용합니다.
 
@@ -287,6 +292,22 @@ assertion, no `continue-on-error`, final tracked+porcelain clean gate를 사용�
 CGO-disabled, vet를 별도 step으로 모두 실행합니다. Actual CLI external-project E2E와 adapter focused test는
 normal/race package gate 안에 포함합니다. Full Ubuntu에는 Linux/386 compile-only gate를 추가하고,
 existing full/exact Python/oracle/checksum/no-rewrite는 보존합니다.
+
+Exact reference oracle의 CPython 3.14.3/Django 6.1/darwin-arm64 profile은 재현성을 위해 변경하지
+않습니다. 별도 Ubuntu 24.04 Python compatibility matrix는 Django 6.1이 지원하는 minor와
+reference-vs-latest micro 차이를 보기 위해 exact CPython `3.12.13`, `3.13.15`, `3.14.3`, `3.14.7`을
+사용합니다. `actions/setup-python` v6.2.0과 `setup-uv`/uv 0.12.3을 full SHA/exact version으로 pin하고,
+각 leg는 project lock과 분리된 `--no-project --isolated` 환경에 Django 6.1, asgiref 3.12.1,
+sqlparse 0.5.5를 exact install합니다. Runtime exact patch, portable test `174`/intentional skip `16`,
+scenario registry `115`, canonical payload size `464087` bytes와 SHA-256
+`aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8`, final clean worktree를 각각
+검증합니다. Minor selector를 floating하지 않고, 새 micro release는 이 exact matrix pin을 review하여
+갱신해 장애 재현 가능성을 보존합니다.
+
+일상 local/portable gate도 현재 개발 도구인 uv 0.12.3과 CPython 3.14.3을 사용합니다. 반면 historical
+exact reference profile은 manager fingerprint가 oracle/static fixture bytes에 포함되므로 uv 0.10.12를
+그대로 보존하고 exact darwin job만 그 버전을 설치합니다. Exact profile의 uv 승격은 11 oracle/static/
+checksum을 함께 검토하는 별도 계약 갱신이며 이번 status-only product 전환에 섞지 않습니다.
 
 Test-only proof 4 legs를 product test로 대체하지 않습니다. 두 독립 구현이 모두 green이어야 합니다.
 PostgreSQL/MySQL service-only job은 계속 금지합니다. Actual backend가 생기면 별도 work에서 digest-pinned
@@ -313,53 +334,69 @@ required로 만듭니다.
 5. **Product adapter/status/CI**
    - Actual MIG-065..074 adapter와 false-green mutations 연결
    - Manifest status-only 10 `passing`, Makefile/current-count gates 11/115=`110+5`로 갱신
-   - 4-leg product matrix를 추가하고 exact expanded topology static gate 구현
+   - 4-leg product matrix와 4-leg Python compatibility matrix를 추가하고 exact expanded topology static gate 구현
 6. **Evidence/completion**
-   - Focused/full/exact/local gates, two independent P0-P3 audits와 same-PR 14-job hosted run
+   - Focused/full/exact/local gates, two independent P0-P3 audits와 same-PR 18-job hosted run
    - ADR-0022 Accepted 여부, work/CURRENT/matrix/evidence/general docs를 actual 결과에 맞춰 완료
 
 ## 완료 조건
 
-- [ ] Public external fixture가 exact `project.Config`/`project.Run` API로 compile하고 extra export가 없음
-- [ ] Public facade와 adapter가 동일 linked entrypoint를 exactly once 호출하고 public/internal의 response
+- [x] Public external fixture가 exact `project.Config`/`project.Run` API로 compile하고 extra export가 없음
+- [x] Public facade와 adapter가 동일 linked entrypoint를 exactly once 호출하고 public/internal의 response
   bytes/error가 동일하며 roots/argv mutation snapshot이 보존됨
-- [ ] `godj migrations check` exact implicit/explicit success가 actual binary/process에서 동작
-- [ ] External project/public facade가 success, malformed private request, MIG-073 definition failure,
+- [x] `godj migrations check` exact implicit/explicit success가 actual binary/process에서 동작
+- [x] External project/public facade가 success, malformed private request, MIG-073 definition failure,
   stdout writer failure와 caller cancellation을 actual path로 검증
-- [ ] Actual `cmd/godj` process가 success, invalid descriptor/build/definition failure와 handled SIGINT를
+- [x] Actual `cmd/godj` process가 success, invalid descriptor/build/definition failure와 handled SIGINT를
   public exit/output/cleanup까지 검증
-- [ ] MIG-072 syntax-broken project package가 actual `go build -mod=readonly`에서 build1/runner0/read0/
+- [x] MIG-072 syntax-broken project package가 actual `go build -mod=readonly`에서 build1/runner0/read0/
   Load0, public build failure, project tree/go.sum 불변과 private cleanup을 증명
-- [ ] MIG-065..074 actual adapter가 locked oracle과 result/error/24 metrics 0-diff
-- [ ] Manifest 10 status만 `passing`; reference oracle/static/SHA/checksum/scenario bytes unchanged
-- [ ] Product exact 11 adapter/115 contract=`110 passing + 5 deviation`; static exit1/mismatch10 유지
-- [ ] Product code는 conformance/test candidate를 import·read하지 않고 core loader에 FS/I/O를 추가하지 않음
-- [ ] Definition Load exactly 1, direct orchestration Planner/DB/recorder/revision lifecycle 0
-- [ ] Descriptor/protocol/discovery 11 limits maximum-1/equal/+1와 combined precedence PASS
-- [ ] Marker/root/source symlink, replacement, identity, permission/I/O and post-read race gates PASS
-- [ ] Private build env/tree no-rewrite, process cancel/reap/drain/raw-discard/cleanup/publication gates PASS
-- [ ] Nil dependency, panic-free arbitrary bytes, short write, caller cancellation과 blocking-I/O limitation gate PASS
-- [ ] Normal/race/CGO0/vet/count20, Linux/386 compile, `make ci`, exact Python/oracle/no-rewrite PASS
-- [ ] `go mod tidy` 뒤 x/sys v0.47.0 directness 외 dependency/version/hash 변화가 없고 clean 재실행 PASS
-- [ ] Existing 10 executions + product 4 = exact 14 hosted executions all required/success
-- [ ] Independent contract/security final audits P0/P1/P2/P3=0
-- [ ] Work/ADR/CURRENT/matrix/evidence/general docs and Q-010/Q-012 actual state synchronized
+- [x] MIG-065..074 actual adapter가 locked oracle과 result/error/24 metrics 0-diff
+- [x] Manifest 10 status만 `passing`; reference oracle/static/SHA/checksum/scenario bytes unchanged
+- [x] Product exact 11 adapter/115 contract=`110 passing + 5 deviation`; static exit1/mismatch10 유지
+- [x] Product code는 conformance/test candidate를 import·read하지 않고 core loader에 FS/I/O를 추가하지 않음
+- [x] Definition Load exactly 1, direct orchestration Planner/DB/recorder/revision lifecycle 0
+- [x] Descriptor/protocol/discovery 11 limits maximum-1/equal/+1와 combined precedence PASS
+- [x] Marker/root/source symlink, replacement, identity, permission/I/O and post-read race gates PASS
+- [x] Private build env/tree no-rewrite, process cancel/reap/drain/raw-discard/cleanup/publication gates PASS
+- [x] Nil dependency, panic-free arbitrary bytes, short write, caller cancellation과 blocking-I/O limitation gate PASS
+- [x] Normal/race/CGO0/vet/count20, Linux/386 compile, `make ci`, exact Python/oracle/no-rewrite PASS
+- [x] `go mod tidy` 뒤 x/sys v0.47.0 directness 외 dependency/version/hash 변화가 없고 clean 재실행 PASS
+- [ ] Existing 10 executions + product 4 + Python compatibility 4 = exact 18 hosted executions all
+  required/success
+- [x] Independent contract/security final audits P0/P1/P2/P3=0
+- [x] Work/ADR/CURRENT/matrix/evidence/general docs and Q-010/Q-012 actual state synchronized
+
+Exact 18 hosted executions은 workflow/static topology까지만 구현됐고 아직 실행하지 않았습니다. 이 한 항목은
+implementation+completion 문서 commit을 same Draft PR #1에 push한 뒤 검증하고 evidence-only follow-up으로
+닫습니다. Local 제품 구현 완료와 hosted evidence 수집을 같은 증거로 재사용하지 않습니다.
 
 ## 진행 기록
 
 - [x] 현재 checkout과 CURRENT/ROADMAP/Q-010/Q-012 대조
 - [x] CLI vs PostgreSQL vs writer/upgrade 독립 우선순위 감사
 - [x] Product package/API/24-metric feasibility 중간 감사
-- [ ] Activation 문서 independent final audit와 exact-head CI
-- [ ] Protocol/public API implementation
-- [ ] Linked/global product implementation
-- [ ] Adapter/status/CI implementation
-- [ ] Completion evidence와 문서
+- [x] Activation 문서 independent final audit와 exact-head CI
+- [x] Protocol/public API implementation
+- [x] Linked/global product implementation
+- [x] Adapter/status/CI implementation
+- [x] Local completion evidence와 문서
+- [ ] Implementation+completion 문서 head의 exact 18-job hosted evidence follow-up
 
 ## 수정 파일
 
-Activation 단계에서는 이 파일, ADR-0022, CURRENT, ROADMAP, OPEN_QUESTIONS와 두 index만 변경합니다.
-Implementation/adapter/completion의 실제 path는 frontmatter allowlist 안에서 단계별로 기록합니다.
+실제 implementation은 frontmatter allowlist 안의 다음 경계만 변경했습니다.
+
+- Global 제품/공개 API: `cmd/godj/**`, `project/**`, `internal/projectcheck/**`
+- External compile: `internal/compiletest/compile_test.go`,
+  `internal/compiletest/testdata/project_external_consumer.go.txt`
+- Actual adapter/status: `conformance/runners/godj/**`, manifest, Python status assertion,
+  `conformance/cmd/godjcheck/main_test.go`
+- Artifact/workflow static gate: 허용된 `conformance/internal/protocol/*_artifacts_test.go`,
+  `conformance/README.md`, `Makefile`, `.github/workflows/ci.yml`
+- Dependency: `go.mod`의 existing `golang.org/x/sys v0.47.0` indirect-to-direct 승격만 발생했고
+  `go.sum` version/hash는 바뀌지 않았습니다.
+- 상태/설계: 이 work, ADR-0022, CURRENT, matrix/evidence/index와 실제로 바뀐 general docs
 
 ## 결정된 사항
 
@@ -368,8 +405,19 @@ Implementation/adapter/completion의 실제 path는 frontmatter allowlist 안에
 - 2026-08-10: Flat discovery는 linked product의 필수 내부 단계로 포함하고 writer/upgrade는 분리
 - 2026-08-10: Public API 후보를 explicit immutable-config `project.Run(ctx, config, argv, stdin, stdout) error`
   로 제한하고 mutable registration/init/global CLI library API를 배제
-- 2026-08-10: Existing proof 4-leg를 보존하고 product 4-leg를 별도로 더한 14-job 목표 채택
+- 2026-08-10: Existing proof 4-leg를 보존하고 product 4-leg를 별도로 더한 초기 14-job
+  목표 채택
+- 2026-08-10: 사용자 요청으로 exact Python 3.12.13/3.13.15/3.14.3/3.14.7 compatibility
+  4-leg를 필수로 더해 implementation topology를 exact 18-job으로 확장
 - 2026-08-10: PostgreSQL/MySQL은 actual adapter/contract 전 service-only CI 금지 유지
+- 2026-08-10: Exact two-export `project.Config`/`project.Run` surface와 global/linked/protocol 단방향
+  package graph를 구현 결과대로 Accepted
+- 2026-08-10: Project/TMP/HOME/XDG containment는 문자열 경로가 아니라 retained physical identity로
+  판정하고, build/runner 직전 terminal barrier와 pre-start cancellation/queued child reap를 제품 gate로 고정
+- 2026-08-10: 일상 local/Ubuntu portable/Python compatibility는 uv 0.12.3, historical exact darwin
+  oracle만 embedded profile을 보존하는 uv 0.10.12로 분리
+- 2026-08-10: Exact 18-job workflow topology는 구현했지만 hosted run은 아직 실행하지 않았으므로
+  제품 local completion과 hosted verification evidence를 분리
 
 ## 미결정/Blocker
 
@@ -381,15 +429,26 @@ Implementation/adapter/completion의 실제 path는 frontmatter allowlist 안에
 - Windows runtime와 fatal-signal/crash scavenging
 - DB-aware check, PostgreSQL/MySQL와 multi-DB
 
-ADR-0022는 Proposed입니다. API compile spike와 independent audit에서 P0/P1이 나오면 제품 코드를 만들기
-전에 이 activation 문서를 교정합니다.
+ADR-0022는 local implementation과 independent audit를 근거로 Accepted입니다. Exact 18-job hosted run은
+미실행 상태이며 Accepted를 hosted success로 과장하지 않습니다.
 
 ## 테스트 증거
 
 - Baseline local/hosted: GDJ-0021 EVID-024..026 및 exact baseline run `31322959993` 10/10 success
-- Activation runtime/product tests: 아직 실행하지 않음
-- Activation expanded 14-job CI: 아직 구현/실행하지 않음
-- Evidence ID: 구현 후 새 ID를 append
+- 사용자 정책 변경 전 one-time Python compatibility check: local `uv 0.12.3`, `pyenv 2.8.3`에서 exact CPython
+  3.12.13/3.13.15/3.14.3/3.14.7 각각 portable `174` tests PASS, intentional skip `16`,
+  Django 6.1/asgiref 3.12.1/sqlparse 0.5.5, scenario `115`, payload `464087` bytes, SHA-256
+  `aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8` 동일. 현재 정책에서는 routine
+  local을 CPython 3.14.3 하나로만 실행하고 이 four-version check를 반복하지 않으며, 필수 다중 버전
+  acceptance는 hosted matrix가 소유합니다.
+- Local product completion: [EVID-20260810-027](../docs/status/TEST_EVIDENCE.md#evid-20260810-027--gdj-0022-project-linked-migration-check-product-slice)에
+  `make ci`, focused normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only, exact oracle와
+  independent audits를 기록
+- Historical exact oracle one-time reproduction: `uvx --from uv==0.10.12 uv run --frozen make
+  python-test-exact oracle-check` PASS; exact 174/174와 11 oracle `--check` PASS
+- Expanded exact 18-job CI: workflow/static topology는 구현됐지만 implementation/completion 문서 head를
+  push하기 전이므로 hosted `not run/pending`. Python 3.12.13/3.13.15/3.14.3/3.14.7 hosted legs도
+  모두 미실행
 
 ## 위험과 rollback
 
@@ -403,12 +462,16 @@ ADR-0022는 Proposed입니다. API compile spike와 independent audit에서 P0/P
 
 ## 다음 정확한 작업
 
-Integration owner는 이 activation exact 7-file diff를 independent audit하고 Markdown/frontmatter/link/
-scope를 검증한 뒤 same Draft PR #1에 commit/push합니다. Activation head의 existing 10-job CI를 확인한
-다음 `internal/projectcheck/protocol`과 public `project` compile spike부터 시작합니다.
+Integration owner는 implementation+completion 문서 diff를 검증해 same Draft PR #1에 commit/push합니다.
+그 exact head의 existing full/exact 2 + proof 4 + SQLite 4 + product 4 + Python compatibility 4인 18
+required executions을 live로 확인한 뒤, job/step/checkout 증거만 EVID-028 이후 evidence-only follow-up에
+append하고 그 follow-up head도 다시 검증합니다.
 
 ## 결과와 인수인계
 
-GDJ-0022는 현재 activation 단계입니다. Product code/status는 아직 바뀌지 않았고 MIG-065..074는 계속
-`oracle_locked`, product는 10 adapter/105 contract=`100 passing + 5 deviation`입니다. 구현 전까지
-Accepted ADR-0021의 test-only proof를 사용 가능한 CLI/API로 표현하지 않습니다.
+GDJ-0022의 local 제품 구현은 완료됐지만 work는 hosted acceptance까지 active입니다. Exact 두 global argv,
+public `project.Config`/`project.Run`,
+독립 global/linked/protocol kernel과 actual adapter가 구현됐고 MIG-065..074는 10 `passing`, 제품은
+11 adapter/115 contract=`110 passing + 5 deviation`입니다. Reference oracle/static/SHA와 test-only proof는
+독립 경계로 보존했습니다. Exact 18-job hosted execution과 그 evidence-only follow-up만 다음 단계이며,
+그 전에는 Python multi-version/Linux·macOS 네 좌표의 hosted success를 주장하지 않습니다.

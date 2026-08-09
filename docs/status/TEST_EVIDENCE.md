@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-026
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-027
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2111,3 +2111,95 @@ This run applies only to exact completion-documentation head
 pending 문구는 역사 증거로 그대로 보존합니다. EVID-026을 append하고 관련 현재 상태를 교정하는
 exact 8-file evidence/status patch는 아직 commit/push되지 않았으므로 그 후속 head의 hosted CI는
 `not run/pending`입니다. Run 31322122760을 이 evidence patch 자체의 PASS로 재귀 사용하지 않습니다.
+
+## EVID-20260810-027 — GDJ-0022 Project-Linked Migration Check Product Slice
+
+- Date/time: 2026-08-10 KST
+- Work/contract IDs: GDJ-0022, MIG-065..MIG-074, Q-010, Q-012
+- Tested checkout: branch `codex/revision-fenced-migration-lifecycle`; activation head
+  `e4de64645bd93cf5e55c746bb6a109c53916cca8` plus the uncommitted GDJ-0022 implementation/pre-hosted
+  documentation working tree. The exact implementation+documentation commit does not exist yet and will be
+  pushed to the same Draft PR #1 before hosted verification.
+- Environment: local macOS darwin/arm64, Go 1.26.5. Routine portable gate used uv 0.12.3 and CPython
+  3.14.3; historical exact reproduction used ephemeral uv 0.10.12 with CPython 3.14.3. Django 6.1,
+  asgiref 3.12.1, sqlparse 0.5.5 and SQLite 3.50.4 are the reference dependencies.
+- Exit status: all commands below exited 0. Independent global, linked and adapter/CI final audits ended with
+  P0/P1/P2/P3 finding 0.
+- Result summary: exact global `godj migrations check`, public two-export `project.Config`/`project.Run`,
+  independent global/linked/protocol product kernels, flat no-follow discovery and the eleventh actual GoDj
+  adapter are implemented. MIG-065..074 are ten `passing` contracts; the product aggregate is exact
+  11 adapters/115 contracts, `110 passing + 5 deviation`, while the independent reference remains
+  11 sets/115 scenarios/110 ordered cross-bindings.
+- Failures/skips/not run: unexpected local failure 없음. Portable Python ran 174 tests with 16 intentional
+  exact-profile-only skips; historical exact Python passed 174/174. `make ci` emitted one stale uv interpreter
+  cache warning and removed that stale cache automatically; the gate still passed. Linux/386 was compile-only,
+  not runtime. The exact 18 hosted executions, including Python 3.12.13/3.13.15/3.14.3/3.14.7 and the four
+  Linux/macOS product coordinates, have not run and remain pending. Windows and PostgreSQL/MySQL service-only
+  jobs were not configured because corresponding product contracts/adapters do not exist.
+
+Local commands and results:
+
+1. Routine complete repository gate
+
+   ```bash
+   make ci
+   ```
+
+   PASS under `uv 0.12.3`; `uv run --frozen python --version` reported exact `Python 3.14.3`. This covered
+   full Go normal/vet/race, focused CGO-disabled product packages, portable Python `Ran 174` /
+   `OK (skipped=16)`, conformance and all eleven product adapters. The 11 locked reference artifacts remained
+   unchanged.
+
+2. Historical exact reference, one-time local reproduction
+
+   ```bash
+   uvx --from uv==0.10.12 uv run --frozen make python-test-exact oracle-check
+   ```
+
+   PASS: exact Python 174/174 and all eleven stored oracle `--check` commands. This intentionally retains the
+   uv 0.10.12 manager fingerprint embedded in the exact profile; routine local/portable/compatibility work uses
+   uv 0.12.3. Oracle/static/checksum artifacts were unchanged.
+
+3. Focused product regression and portability gates
+
+   ```bash
+   go test -count=1 ./internal/projectcheck ./cmd/godj
+   go test -race -count=1 ./internal/projectcheck ./cmd/godj
+   CGO_ENABLED=0 go test -count=1 ./internal/projectcheck ./cmd/godj
+   go vet ./internal/projectcheck ./cmd/godj
+   go test -count=20 ./internal/projectcheck
+   ```
+
+   PASS. The final global remediation re-audit also passed its macOS case-alias, terminal barrier,
+   pre-start cancellation, queued child reap, retained physical identity and diff-check regressions. Separate
+   linked and adapter/CI audits were clean at every severity.
+
+4. Linux/386 compile-only product boundary
+
+   ```bash
+   build_dir=$(mktemp -d)
+   packages=(./cmd/godj ./project ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectcheck/protocol ./conformance/runners/godj)
+   for package in $packages; do
+     name=$(printf '%s' "$package" | tr '/.' '__')
+     GOOS=linux GOARCH=386 CGO_ENABLED=0 go test -c -o "$build_dir/$name.test" "$package"
+     test -s "$build_dir/$name.test"
+   done
+   ```
+
+   PASS: six non-empty Linux/386 test binaries were produced. This is deliberately recorded as compile-only;
+   hosted Linux/386 runtime success is not claimed.
+
+5. Dependency and generated/artifact drift
+
+   ```bash
+   go mod tidy -diff
+   git diff --check
+   ```
+
+   PASS/no diff. Existing `golang.org/x/sys v0.47.0` moved from indirect to direct because production Unix
+   code imports it; no dependency version/hash changed and `go.sum` is unchanged.
+
+This evidence establishes local implementation and review completion only. The workflow now describes exact
+`2 + 4 + 4 + 4 + 4 = 18` required executions, but neither that implementation/completion head nor the later
+evidence-only follow-up head has been run on GitHub. A hosted run must be collected after commit/push and
+recorded under a new evidence ID; EVID-027 must not be reused as hosted proof.

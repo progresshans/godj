@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -168,6 +168,11 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 		{from: modulePath + "/examples/article/models", to: modulePath + "/codegen"},
 		{from: modulePath + "/internal/cmd/m1generate", to: modulePath + "/examples/article/models"},
 		{from: modulePath + "/migrations", to: modulePath + "/migrations/definition"},
+		{from: modulePath + "/internal/projectcheck", to: modulePath + "/internal/projectcheck/linked"},
+		{from: modulePath + "/internal/projectcheck/linked", to: modulePath + "/internal/projectcheck"},
+		{from: modulePath + "/migrations", to: modulePath + "/internal/projectcheck"},
+		{from: modulePath + "/migrations", to: modulePath + "/internal/projectcheck/linked"},
+		{from: modulePath + "/migrations/definition", to: modulePath + "/internal/projectcheck/linked"},
 	}
 
 	packages := make([]string, 0, len(forbidden))
@@ -212,6 +217,75 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 		}
 		if slices.Contains(imports, edge.to) {
 			t.Errorf("forbidden direct dependency exists: %s -> %s", edge.from, edge.to)
+		}
+	}
+}
+
+func TestProjectCheckDirectImportGraph(t *testing.T) {
+	want := map[string][]string{
+		modulePath + "/project": {
+			modulePath + "/internal/projectcheck/linked",
+		},
+		modulePath + "/internal/projectcheck": {
+			modulePath + "/internal/projectcheck/protocol",
+		},
+		modulePath + "/internal/projectcheck/linked": {
+			modulePath + "/internal/projectcheck/protocol",
+			modulePath + "/migrations",
+			modulePath + "/migrations/definition",
+		},
+		modulePath + "/internal/projectcheck/protocol": nil,
+	}
+
+	packages := make([]string, 0, len(want))
+	for packagePath := range want {
+		packages = append(packages, packagePath)
+	}
+	slices.Sort(packages)
+	command := exec.Command("go", append([]string{"list", "-json"}, packages...)...)
+	command.Dir = repositoryRoot(t)
+	command.Env = commandEnvironment()
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("load project-check imports: %v\n%s", err, output)
+	}
+
+	seen := make(map[string]bool, len(want))
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	for {
+		var listed struct {
+			ImportPath string
+			Imports    []string
+		}
+		err := decoder.Decode(&listed)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("decode project-check package: %v", err)
+		}
+		required, expected := want[listed.ImportPath]
+		if !expected {
+			continue
+		}
+		seen[listed.ImportPath] = true
+		for _, requiredImport := range required {
+			if !slices.Contains(listed.Imports, requiredImport) {
+				t.Errorf("%s does not import required package %s", listed.ImportPath, requiredImport)
+			}
+		}
+		for _, imported := range listed.Imports {
+			if !strings.HasPrefix(imported, modulePath+"/") {
+				continue
+			}
+			if !slices.Contains(required, imported) {
+				t.Errorf("%s has unexpected direct module import %s", listed.ImportPath, imported)
+			}
+		}
+	}
+	for packagePath := range want {
+		if !seen[packagePath] {
+			t.Errorf("go list did not return %s", packagePath)
 		}
 	}
 }

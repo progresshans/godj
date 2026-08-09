@@ -197,9 +197,9 @@ godj migrate
 
 Migration file format과 Go callback ABI는 Q-012 결정 전에는 확정하지 않습니다.
 
-현재 제품 API는 caller가 I/O를 끝낸 explicit definition source를 bounded
-`migrations/definition.Load`에 넘기는 단면까지입니다. 완료된 GDJ-0021이 test-only로 검증한 향후 사용자 경험
-후보는 다음 두 argv뿐입니다.
+현재 local 제품 API는 caller가 I/O를 끝낸 explicit definition source를 bounded
+`migrations/definition.Load`에 넘기는 loader와, active GDJ-0022의 exact project-linked check 단면입니다.
+지원하는 global argv는 다음 둘뿐입니다.
 
 ```bash
 godj migrations check
@@ -207,15 +207,17 @@ godj migrations check --project ./godj.toml
 ```
 
 두 번째 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
-성공 후보는 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
-보고합니다. 다만 이는 현재 `conformance/projectcheck/**` test-only proof와 `oracle_locked`
-MIG-065..074 계약일 뿐이며, 전역 CLI·project package·production project-linked binary와 실제
-filesystem discovery는 아직 사용할 수 없습니다.
+성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
+보고합니다. Public project entrypoint는 exact two-export `project.Config`/`project.Run`이며 global
+mutable registration이나 public protocol/report는 없습니다. `conformance/projectcheck/**` proof와 독립인
+제품 global/linked/protocol kernel, production project-linked runner와 actual flat filesystem discovery가
+구현됐고 MIG-065..074는 10 `passing`입니다.
 
-이 test-only implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+선행 test-only implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 Linux/macOS x64/arm64 project-check 4개와 actual SQLite 4개, 총 10개 hosted job을 모두
-통과했습니다. 이 증거는 설치 가능한 명령이나 PostgreSQL/MySQL 지원으로 확장되지 않습니다.
+통과했습니다. GDJ-0022 local implementation은 EVID-027에서 검증했지만 새 exact 18-job hosted run은
+pending입니다. 어느 증거도 PostgreSQL/MySQL 지원으로 확장되지 않습니다.
 
 ## 9. Form, Admin, API
 
@@ -237,8 +239,9 @@ Generic base type을 사용할 수 있지만 `ModelForm[M]`, `ModelAdmin[M]`, `M
 개발자는 `godj runserver`처럼 친숙한 명령을 사용합니다. 내부적으로 global CLI가 project를 찾아 project-aware binary를 build/run할 수 있습니다.
 
 GDJ-0021/Accepted ADR-0021은 이 방향의 descriptor selection, no-shell build, strict runner framing과
-exit/cancel 의미를 test-only로 좁게 검증했습니다. 이 proof를 설치 가능한 `godj` 명령이나 안정된 public
-project API로 해석하지 않습니다.
+exit/cancel 의미를 test-only로 좁게 먼저 검증했습니다. Active GDJ-0022의 local implementation과
+Accepted ADR-0022는 그 proof와 독립인 exact `godj migrations check` 및 public project API를
+구현했습니다. Broader `runserver`/project command dispatcher는 아직 구현하지 않았습니다.
 
 Production에서는 한 project binary로 명령을 실행하는 방향입니다.
 

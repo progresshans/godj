@@ -1,0 +1,18 @@
+package consumer
+
+import (
+	"bytes"
+	"context"
+
+	"github.com/progresshans/godj/project"
+)
+
+func checkProjectRuntime() error {
+	return project.Run(
+		context.Background(),
+		project.Config{MigrationDefinitionRoots: []string{"migrations"}},
+		[]string{"__godj_project_runner_v1"},
+		bytes.NewBufferString(`{"protocol_version":1,"command":"migrations.check"}`),
+		new(bytes.Buffer),
+	)
+}

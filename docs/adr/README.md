@@ -36,6 +36,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0019](0019-versioned-migration-definition-source.md) | Accepted | Explicit strict data document, version tuple와 atomic definition load 경계 |
 | [0020](0020-migration-definition-loader-product-shape.md) | Accepted | Bounded definition loader package, immutable set/report와 existing lifecycle handoff |
 | [0021](0021-project-linked-migration-check.md) | Accepted | `godj.toml`, private project runner와 DB-free migration check의 contract/test-only 경계 |
-| [0022](0022-project-runtime-and-global-migration-check.md) | Proposed | Public project runtime과 global `godj migrations check` 제품 경계 |
+| [0022](0022-project-runtime-and-global-migration-check.md) | Accepted | Public project runtime과 global `godj migrations check` 제품 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

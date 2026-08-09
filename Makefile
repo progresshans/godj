@@ -58,7 +58,13 @@ go-race:
 	go test -race ./...
 
 cgo-zero-build:
-	CGO_ENABLED=0 go test ./db/sqlite ./conformance/runners/godj -count=1
+	CGO_ENABLED=0 go test \
+		./db/sqlite \
+		./cmd/godj \
+		./project \
+		./internal/projectcheck/... \
+		./conformance/runners/godj \
+		-count=1
 
 python-test:
 	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover \
@@ -146,6 +152,9 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) \
 		-expected $(MIGRATION_DEFINITION_SOURCE_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) \
+		-expected $(MIGRATION_PROJECT_CHECK_ORACLE)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

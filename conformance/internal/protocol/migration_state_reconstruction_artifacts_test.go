@@ -71,7 +71,7 @@ func TestPreviousSevenContractArtifactSetsRemainBytePinned(t *testing.T) {
 	}
 }
 
-func TestMigrationStateReconstructionRemainsInTenSetProductConformanceTarget(t *testing.T) {
+func TestMigrationStateReconstructionRemainsInElevenSetProductConformanceTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -89,8 +89,8 @@ func TestMigrationStateReconstructionRemainsInTenSetProductConformanceTarget(t *
 	if !strings.Contains(target, "MIGRATION_STATE_RECONSTRUCTION") {
 		t.Fatal("migration-state-reconstruction product set is missing from the product conformance target")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 10 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 10", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 11 {
+		t.Fatalf("godj-conformance product adapter count = %d, want 11", got)
 	}
 }
 

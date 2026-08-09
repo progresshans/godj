@@ -22,8 +22,8 @@ func TestMigrationProjectCheckArtifactHashesAreLocked(t *testing.T) {
 		sha256 string
 	}{
 		"conformance/contracts/migration-project-check-manifest.json": {
-			size:   4580,
-			sha256: "0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218",
+			size:   4520,
+			sha256: "0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048",
 		},
 		"conformance/fixtures/godj-migration-project-check-not-implemented.json": {
 			size:   1729,
@@ -118,8 +118,8 @@ func TestMigrationProjectCheckArtifactBoundaryIsLocked(t *testing.T) {
 		if contract.Scenario != wantSlugs[index] {
 			t.Fatalf("contract %s scenario = %q, want %q", contract.ID, contract.Scenario, wantSlugs[index])
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		if contract.Status != ContractPassing {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		if contract.Phase != wantPhases[index] {
 			t.Fatalf("contract %s phase = %q, want %q", contract.ID, contract.Phase, wantPhases[index])
@@ -218,7 +218,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsReferenceOnlyInMakefile(t *testing.T) {
+func TestMigrationProjectCheckEntersElevenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -234,11 +234,11 @@ func TestMigrationProjectCheckRemainsReferenceOnlyInMakefile(t *testing.T) {
 	if got := strings.Count(referenceTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 2 {
 		t.Fatalf("reference target project-check manifest count = %d, want 2", got)
 	}
-	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 0 {
-		t.Fatalf("product target project-check manifest count = %d, want 0", got)
+	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
+		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 10 {
-		t.Fatalf("product adapter count = %d, want unchanged 10", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 11 {
+		t.Fatalf("product adapter count = %d, want 11", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -248,7 +248,7 @@ func TestMigrationProjectCheckRemainsReferenceOnlyInMakefile(t *testing.T) {
 	}
 }
 
-func TestMigrationProjectCheckWorkflowExpandsToExactTenRequiredExecutions(t *testing.T) {
+func TestMigrationProjectCheckWorkflowExpandsToExactEighteenRequiredExecutions(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -264,7 +264,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTenRequiredExecutions(t *tes
 	jobsText := text[jobsStart+len("jobs:\n"):]
 	jobPattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):$`)
 	matches := jobPattern.FindAllStringSubmatch(jobsText, -1)
-	wantJobs := []string{"conformance-validation", "exact-darwin-validation", "project-check-matrix", "sqlite-matrix"}
+	wantJobs := []string{"conformance-validation", "exact-darwin-validation", "project-check-matrix", "product-project-check-matrix", "python-compatibility-matrix", "sqlite-matrix"}
 	if len(matches) != len(wantJobs) {
 		t.Fatalf("workflow top-level job definitions = %d, want %d: %#v", len(matches), len(wantJobs), matches)
 	}
@@ -276,14 +276,30 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTenRequiredExecutions(t *tes
 
 	conformance := migrationProjectCheckWorkflowJob(t, jobsText, "conformance-validation", "exact-darwin-validation")
 	darwin := migrationProjectCheckWorkflowJob(t, jobsText, "exact-darwin-validation", "project-check-matrix")
-	project := migrationProjectCheckWorkflowJob(t, jobsText, "project-check-matrix", "sqlite-matrix")
+	project := migrationProjectCheckWorkflowJob(t, jobsText, "project-check-matrix", "product-project-check-matrix")
+	product := migrationProjectCheckWorkflowJob(t, jobsText, "product-project-check-matrix", "python-compatibility-matrix")
+	python := migrationProjectCheckWorkflowJob(t, jobsText, "python-compatibility-matrix", "sqlite-matrix")
 	sqlite := migrationProjectCheckWorkflowJob(t, jobsText, "sqlite-matrix", "")
 	for name, block := range map[string]string{"conformance-validation": conformance, "exact-darwin-validation": darwin} {
 		if got := strings.Count(block, "run: go test -count=1 ./conformance/projectcheck"); got != 1 {
 			t.Fatalf("%s focused project-check command count = %d, want 1", name, got)
 		}
+		if got := strings.Count(block, "python-version: \"3.14.3\""); got != 1 {
+			t.Fatalf("%s locked oracle Python pin count = %d, want 1", name, got)
+		}
+		if got := strings.Count(block, "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9"); got != 1 {
+			t.Fatalf("%s locked setup-uv action count = %d, want 1", name, got)
+		}
 	}
-	if !strings.Contains(conformance, "run: make ci") || !strings.Contains(conformance, "GOARCH: \"386\"") {
+	if !strings.Contains(conformance, "version: \"0.12.3\"") {
+		t.Fatal("portable Ubuntu job does not pin current uv 0.12.3")
+	}
+	if !strings.Contains(darwin, "version: \"0.10.12\"") {
+		t.Fatal("exact darwin oracle job does not preserve profile uv 0.10.12")
+	}
+	if !strings.Contains(conformance, "run: make ci") || !strings.Contains(conformance, "GOARCH: \"386\"") ||
+		!strings.Contains(conformance, "./cmd/godj") || !strings.Contains(conformance, "./project") ||
+		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") {
 		t.Fatal("existing Ubuntu full/Linux-386 gates were not preserved")
 	}
 	if !strings.Contains(darwin, "make python-test-exact oracle-check") || !strings.Contains(darwin, "./migrations") || !strings.Contains(darwin, "./db/sqlite") {
@@ -296,7 +312,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTenRequiredExecutions(t *tes
 		"- runs_on: macos-15-intel\n            expected_goos: darwin\n            expected_goarch: amd64",
 		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64",
 	}
-	for name, block := range map[string]string{"project-check": project, "sqlite": sqlite} {
+	for name, block := range map[string]string{"project-check": project, "product-project-check": product, "sqlite": sqlite} {
 		if strings.Count(block, "          - runs_on: ") != 4 {
 			t.Fatalf("%s matrix leg count is not 4", name)
 		}
@@ -330,6 +346,57 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTenRequiredExecutions(t *tes
 			t.Fatalf("project-check matrix command %q count = %d, want 1", command, strings.Count(project, command))
 		}
 	}
+	for _, required := range []string{
+		"runs-on: ubuntu-24.04",
+		"timeout-minutes: 20",
+		"fail-fast: false",
+		"UV_PYTHON_DOWNLOADS: never",
+		"- \"3.12.13\"",
+		"- \"3.13.15\"",
+		"- \"3.14.3\"",
+		"- \"3.14.7\"",
+		"id: python",
+		"python-version: ${{ matrix.python_version }}",
+		"check-latest: false",
+		"COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}",
+		`test "$(uv --version)" = "uv 0.12.3"`,
+		"--no-project --isolated --python \"$COMPAT_PYTHON\"",
+		"--with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5",
+		"platform.python_version() == expected",
+		"django.get_version() == \"6.1\"",
+		"asgiref.__version__ == \"3.12.1\"",
+		"sqlparse.__version__ == \"0.5.5\"",
+		"python -m unittest discover -s conformance/runners/django/tests -v",
+		"grep -c '^test_'",
+		"-eq 174",
+		"grep -c ' \\.\\.\\. skipped '",
+		"-eq 16",
+		"len(SCENARIOS) == 115",
+		"len(payload) == 464087",
+		"aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8",
+		"git diff --exit-code",
+		`test -z "$(git status --porcelain=v1)"`,
+	} {
+		if !strings.Contains(python, required) {
+			t.Fatalf("Python compatibility matrix is missing required fragment %q", required)
+		}
+	}
+	if got := strings.Count(python, "          - "); got != 4 {
+		t.Fatalf("Python compatibility matrix leg count = %d, want exact 4", got)
+	}
+	if strings.Count(python, "--no-project --isolated --python \"$COMPAT_PYTHON\"") != 3 {
+		t.Fatalf("Python compatibility isolated invocation count = %d, want 3", strings.Count(python, "--no-project --isolated --python \"$COMPAT_PYTHON\""))
+	}
+	for _, command := range []string{
+		"run: go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+		"run: go test -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+		"run: CGO_ENABLED=0 go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+		"run: go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+	} {
+		if strings.Count(product, command) != 1 {
+			t.Fatalf("product project-check matrix command %q count = %d, want 1", command, strings.Count(product, command))
+		}
+	}
 	for _, command := range []string{
 		"run: go test -count=1 ./migrations ./db/sqlite",
 		"run: go test -race -count=1 ./migrations ./db/sqlite",
@@ -340,23 +407,29 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTenRequiredExecutions(t *tes
 			t.Fatalf("SQLite matrix command %q count = %d, want 1", command, strings.Count(sqlite, command))
 		}
 	}
-	expandedExecutions := 2 + strings.Count(project, "          - runs_on: ") + strings.Count(sqlite, "          - runs_on: ")
-	if expandedExecutions != 10 {
-		t.Fatalf("expanded workflow executions = %d, want 10", expandedExecutions)
+	expandedExecutions := 2 + strings.Count(project, "          - runs_on: ") + strings.Count(product, "          - runs_on: ") + strings.Count(sqlite, "          - runs_on: ") + strings.Count(python, "          - ")
+	if expandedExecutions != 18 {
+		t.Fatalf("expanded workflow executions = %d, want 18", expandedExecutions)
 	}
 	if strings.Contains(text, "continue-on-error:") {
 		t.Fatal("required workflow must not contain continue-on-error")
 	}
-	for _, forbidden := range []string{"services:", "postgres:", "mysql:", "mariadb:"} {
+	for _, forbidden := range []string{"services:", "postgres:", "mysql:", "mariadb:", "windows-", "windows:"} {
 		if strings.Contains(strings.ToLower(text), forbidden) {
 			t.Fatalf("workflow contains forbidden service-only backend fragment %q", forbidden)
 		}
 	}
-	if got := strings.Count(text, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"); got != 4 {
-		t.Fatalf("pinned checkout action count = %d, want 4 job definitions", got)
+	if got := strings.Count(text, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"); got != 6 {
+		t.Fatalf("pinned checkout action count = %d, want 6 job definitions", got)
 	}
-	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 4 {
-		t.Fatalf("pinned setup-go action count = %d, want 4 job definitions", got)
+	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 5 {
+		t.Fatalf("pinned setup-go action count = %d, want 5 job definitions", got)
+	}
+	if got := strings.Count(text, "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"); got != 1 {
+		t.Fatalf("pinned setup-python action count = %d, want 1 job definition", got)
+	}
+	if got := strings.Count(text, "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9"); got != 3 {
+		t.Fatalf("pinned setup-uv action count = %d, want 3 job definitions", got)
 	}
 }
 

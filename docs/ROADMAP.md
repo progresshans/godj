@@ -1,8 +1,9 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0021 project-linked migration check compatibility contracts completed; ADR-0021 Accepted
-- 현재 제품 기준: 10 adapter/105 contract의 `100 passing + 5 deviation`
+- 현재 단계: GDJ-0022 local product implementation complete, exact 18-job hosted acceptance pending;
+  ADR-0022 Accepted, work active
+- 현재 제품 기준: 11 adapter/115 contract의 `110 passing + 5 deviation`
 - 마지막 검토: 2026-08-10
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -220,8 +221,8 @@ Source-owned 9-code/resource-limit context와 raw `*migrations.PlanningError`/li
 ownership을 분리하고, `Set.Migrate`는 existing lifecycle에 exactly-once로 위임합니다.
 
 MIG-057..064의 열 번째 actual adapter는 Django parity가 아닌 decision-reference 8개를
-`passing`으로 전환했습니다. 현재 분류는 exact 10 adapter/105 contract의
-`100 passing + 5 deviation`이며 90 ordered cross-binding을 유지합니다. Status-only manifest 외
+`passing`으로 전환했습니다. GDJ-0020 완료 당시 분류는 exact 10 adapter/105 contract의
+`100 passing + 5 deviation`이며 90 ordered cross-binding이었습니다. Status-only manifest 외
 기존 reference oracle, static fixture, `SHA256SUMS`와 test-only candidate는 변경/승격하지
 않았습니다.
 
@@ -279,19 +280,22 @@ scheduled matrix로 확장합니다.
 GDJ-0021에서 “DB-free”는 GoDj-owned DB/recorder/lifecycle call 0만 뜻합니다. Linked project binary의
 임의 user package `init()` side effect까지 차단한다고 주장하지 않습니다. Recursive/module/embed/
 remote discovery, Windows, persistent runner cache, full CLI/library/generator handshake, direct
-production project-binary command, writer/upgrade와 DB-aware migration execution은 GDJ-0022 이후로
+project command dispatcher, writer/upgrade와 DB-aware migration execution은 GDJ-0022 뒤에도
 남깁니다. GDJ-0021의 Accepted/Verified 상태는 reference-only/test-only contract에 한정하며 제품
 명령 구현으로 승격하지 않습니다.
 
-Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Proposed
-[ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 그 다음 product 단면입니다. Exact
-두 global argv, public `project.Config`/`project.Run`, independent internal global/linked/protocol kernel과
-flat discovery를 구현해 MIG-065..074를 actual product adapter에서 `passing`으로 전환하는 것이 목표입니다.
-Test-only proof는 byte-preserved independent gate로 남기고 product code가 import하지 않습니다. 완료
-목표는 11 adapters/115 contracts=`110 passing + 5 deviation`입니다.
+Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
+[ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 그 다음 product 단면을 구현했습니다.
+Exact 두 global argv, public `project.Config`/`project.Run`, independent internal global/linked/protocol
+kernel과 flat discovery가 MIG-065..074를 actual product adapter에서 10 `passing`으로 전환했습니다.
+Test-only proof는 byte-preserved independent gate로 남고 product code가 import하지 않습니다. 현재 local
+분류는 11 adapters/115 contracts=`110 passing + 5 deviation`입니다.
 
 Hosted gate는 existing full/exact 2 + test-only proof 4 + actual SQLite 4를 보존하고 Linux/macOS
-x64/arm64 actual product CLI 4를 별도 추가한 exact 14 required executions입니다. 이는 PostgreSQL/MySQL
+x64/arm64 actual product CLI 4와 exact Python 3.12.13/3.13.15/3.14.3/3.14.7 compatibility 4를
+별도 추가한 exact 18 required executions입니다. Portable/compatibility는 uv 0.12.3, embedded profile을
+재현하는 historical exact darwin oracle만 uv 0.10.12를 사용합니다. Workflow/static topology는
+구현됐지만 exact 18 hosted run은 아직 pending이므로 work가 active입니다. 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
 추가합니다. MySQL은 M9 actual adapter까지 같은 원칙을 따릅니다.

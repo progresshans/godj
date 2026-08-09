@@ -39,7 +39,7 @@ jobs:
       - name: Set up uv and Python
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          version: "0.10.12"
+          version: "0.12.3"
           python-version: "3.14.3"
           enable-cache: false
 
@@ -57,11 +57,17 @@ jobs:
       - name: Validate project-linked migration check contracts
         run: go test -count=1 ./conformance/projectcheck
 
-      - name: Validate migration definition loader on 32-bit Linux
+      - name: Compile migration definition and project-check products on 32-bit Linux
         env:
           CGO_ENABLED: "0"
           GOARCH: "386"
-        run: go test -count=1 ./migrations/definition
+        run: >
+          go test -run '^$' -count=1
+          ./migrations/definition
+          ./cmd/godj
+          ./project
+          ./internal/projectcheck/...
+          ./conformance/runners/godj
 
       - name: Verify stored oracle checksum
         working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
@@ -182,6 +188,171 @@ jobs:
 
       - name: Vet project-check
         run: go vet ./conformance/projectcheck
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  product-project-check-matrix:
+    name: Product project check (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal product project-check tests
+        run: go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+
+      - name: Run product project-check race tests
+        run: go test -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+
+      - name: Run product project-check tests without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+
+      - name: Vet product project-check packages
+        run: go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  python-compatibility-matrix:
+    name: Python compatibility (${{ matrix.python_version }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      PYTHONHASHSEED: "0"
+      TZ: UTC
+      UV_PYTHON_DOWNLOADS: never
+    strategy:
+      fail-fast: false
+      matrix:
+        python_version:
+          - "3.12.13"
+          - "3.13.15"
+          - "3.14.3"
+          - "3.14.7"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up exact Python
+        id: python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python_version }}
+          check-latest: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+          enable-cache: false
+
+      - name: Assert isolated compatibility runtime
+        env:
+          COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          test "$(uv --version)" = "uv 0.12.3"
+          uv run --no-project --isolated --python "$COMPAT_PYTHON" \
+            --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            python - <<'PY'
+          import platform
+          import asgiref
+          import django
+          import sqlparse
+
+          expected = __import__("os").environ["EXPECTED_PYTHON"]
+          assert platform.python_version() == expected, (platform.python_version(), expected)
+          assert django.get_version() == "6.1", django.get_version()
+          assert asgiref.__version__ == "3.12.1", asgiref.__version__
+          assert sqlparse.__version__ == "0.5.5", sqlparse.__version__
+          PY
+
+      - name: Run exact portable Python suite
+        env:
+          COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/python-compatibility-tests.txt"
+          uv run --no-project --isolated --python "$COMPAT_PYTHON" \
+            --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
+          test "$(grep -c '^test_' "$log")" -eq 174
+          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 16
+          grep -Fq 'Ran 174 tests' "$log"
+          grep -Fq 'OK (skipped=16)' "$log"
+
+      - name: Verify all-scenario semantic digest
+        env:
+          COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: |
+          uv run --no-project --isolated --python "$COMPAT_PYTHON" \
+            --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            python - <<'PY'
+          import hashlib
+
+          from conformance.runners.django.normalizer import canonical_json
+          from conformance.runners.django.runner import SCENARIOS
+
+          payload = b"".join(
+              name.encode("utf-8")
+              + b"\0"
+              + canonical_json(SCENARIOS[name](f"PYCOMPAT-{name}"))
+              + b"\0"
+              for name in sorted(SCENARIOS)
+          )
+          assert len(SCENARIOS) == 115, len(SCENARIOS)
+          assert len(payload) == 464087, len(payload)
+          digest = hashlib.sha256(payload).hexdigest()
+          assert digest == "aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8", digest
+          PY
 
       - name: Require a clean worktree
         run: |

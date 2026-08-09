@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0022 active / full handshake 후속 | Accepted descriptor/private protocol을 public project entrypoint와 전역 CLI로 제품화 중; generator/library semver·repair는 open |
+| Q-010 | Partial | GDJ-0022 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 local implemented, exact 18 hosted acceptance pending; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0022 active | MIG-047..064 제품 subset과 MIG-065..074 reference contract는 Verified; project-check product adapter 구현 중이며 writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
+| Q-012 | Partial | GDJ-0022 active | MIG-047..074 local product subset은 implemented/passing, exact 18 hosted acceptance pending; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -118,7 +118,10 @@ porcelain-empty clean worktree gate를 만족했습니다. Exact 16-file complet
 [run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
 모두 통과했습니다. EVID-026 append/status 교정 commit
 `f7fbbd50465a610ed9492227909eece524455f15`도 별도 run `31322959993`의 같은 exact 10 job을
-통과했습니다. Windows
+통과했습니다. GDJ-0022 workflow는 product 4와 exact Python
+3.12.13/3.13.15/3.14.3/3.14.7 compatibility 4를 더한 exact 18 required execution으로 확장됐지만
+그 implementation/completion head의 hosted run은 아직 pending입니다. Portable/compatibility는 uv
+0.12.3, historical exact darwin oracle만 embedded profile의 uv 0.10.12를 사용합니다. Windows
 native contract가 없고 actual backend는 SQLite뿐이므로 Windows green skip과 PostgreSQL/MySQL
 service-only CI는 support evidence로 만들지
 않습니다. Future backend는 digest-pinned service image, health check, UTC timezone과 C locale 또는
@@ -127,18 +130,19 @@ revision-lifecycle 및 durable restart/persistence contract를 먼저 required j
 Expected contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도
 필수이며 adjacent versions는 scheduled/non-required로 분리합니다.
 
-이는 public global CLI/project package API, production project binary entrypoint, persistent runner
-cache, generator/library semver resolution이나 stale output repair를 확정하지 않습니다. Accepted
-contract, locked artifact와 verified test-only feasibility가 생겼어도 Q-010은 Partial입니다. SIGTERM/other
-fatal signal, crash stale-temp scavenging과 broken stdout/stderr sink delivery도 아직 결정하지 않습니다.
+이 GDJ-0021 증거만으로는 public global CLI/project package API, production project binary entrypoint,
+persistent runner cache, generator/library semver resolution이나 stale output repair를 확정하지 않았습니다.
+SIGTERM/other fatal signal, crash stale-temp scavenging과 broken stdout/stderr sink delivery도 아직
+결정하지 않습니다.
 
-Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Proposed
+Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
 [ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 Q-010 중 exact 두 global argv와
-public project-linked entrypoint만 제품화합니다. API 후보는 explicit
+public project-linked entrypoint를 제품화했습니다. Exact API는 explicit
 `project.Config{MigrationDefinitionRoots: ...}`와
 `project.Run(ctx, config, argv, stdin, stdout) error` 두 export이며 global mutable registration과 public
-protocol/report는 만들지 않습니다. Full library/generator semver, stale repair와 installed runner
-lifecycle은 계속 open이므로 Q-010은 완료 뒤에도 별도 후속 없이는 Partial입니다.
+protocol/report는 만들지 않았습니다. Exact 18 hosted acceptance는 pending이고 full library/generator
+semver, stale repair와 installed runner lifecycle은 계속 open이므로 Q-010은 이 work 뒤에도
+Partial입니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
@@ -272,8 +276,8 @@ document values 65,536, batch values 262,144, dependencies 2,047, operations 2,0
 snapshot/deep copy와 source-owned 9-code/resource context를 검증하고, raw Planner/lifecycle error를
 wrap/reclassify/retry하지 않습니다. Literal Schema IR 2는 two-way compile drift gate로 잠급니다.
 
-열 번째 actual adapter가 MIG-057..064 decision-reference 8개를 `passing`으로 전환해 현재 제품
-분류는 10 adapter/105 contract의 `100 passing + 5 deviation`입니다. Product commit
+열 번째 actual adapter가 MIG-057..064 decision-reference 8개를 `passing`으로 전환해 GDJ-0020 당시 제품
+분류는 10 adapter/105 contract의 `100 passing + 5 deviation`이었습니다. Product commit
 `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1 run 31309152526의 Ubuntu/macOS
 두 job과 실제 Linux/386 focused runtime을 통과했습니다. Completion-documentation commit
 `a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 별도 run 31310002784의 Ubuntu/macOS 두 job에서
@@ -292,17 +296,18 @@ crash reconciliation과 PostgreSQL/MySQL 등 non-SQLite backend는 계속 Q-012/
 GDJ-0021은 위 open 범위 중 project-relative flat file discovery와 check-only process boundary만
 MIG-065..074로 분리해 완료했습니다. Accepted contract는 linked project code가 clean root list를 제공하고
 case-sensitive `*.godj.json` immediate regular files를 no-follow/byte order로 읽어 actual
-`definition.Load`를 정확히 한 번 호출하는 의미입니다. 새 10개는 `oracle_locked`이며 현재 제품
-10 adapter/105 contract의 `100 passing + 5 deviation`은 바뀌지 않습니다.
+`definition.Load`를 정확히 한 번 호출하는 의미입니다. 새 10개는 GDJ-0021 완료 당시
+`oracle_locked`였고 제품 10 adapter/105 contract의 `100 passing + 5 deviation`은 바뀌지 않았습니다.
 
 이 check의 DB-free 주장은 GoDj-owned DB/recorder/lifecycle call 0으로 제한됩니다. User `init()` side
 effect, recursive/module/embed/remote discovery, writer/upgrade, DB/applied-history check와 actual migrate
 execution은 해결하지 않습니다. 따라서 GDJ-0021이 완료됐어도 Q-012/Q-010 전체는 Partial입니다.
 
-Active GDJ-0022는 이 reference를 independent product global/linked/protocol kernel과 actual adapter로
-구현하는 좁은 단면입니다. Flat filesystem discovery는 included dependency지만 writer/upgrade와
-DB-aware lifecycle은 계속 제외합니다. 목표 제품 분류는 11 adapter/115 contract의
-`110 passing + 5 deviation`이고 PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다.
+Active GDJ-0022의 local implementation은 이 reference를 independent product global/linked/protocol
+kernel과 actual adapter로 구현했습니다. Flat filesystem discovery는 included dependency지만
+writer/upgrade와 DB-aware lifecycle은 계속 제외합니다. 현재 local 제품 분류는 11 adapter/115
+contract의 `110 passing + 5 deviation`입니다. Exact 18 hosted acceptance는 pending이고
+PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다.
 
 ## Q-013 — 관계 API
 

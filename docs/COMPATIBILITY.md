@@ -32,6 +32,11 @@ CPython 3.14.3은 Django 6.1이 지원하는 minor이지만 현재 최신 micro�
 따라서 이 조합을 “Django가 최신 micro에서 공식 지원하는 profile”이 아니라 GoDj가
 재현한 exact reference profile로 표현합니다.
 
+이 표의 uv 0.10.12는 historical exact darwin artifact payload의 일부입니다. 일상 local/Ubuntu
+portable 및 별도 Python compatibility matrix는 uv 0.12.3을 사용합니다. Compatibility matrix는 exact
+CPython 3.12.13/3.13.15/3.14.3/3.14.7과 같은 Django/asgiref/sqlparse dependency를 검증하도록
+구성됐지만 GDJ-0022 implementation/completion head의 hosted run은 아직 pending입니다.
+
 DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함되지만, 참조 프로젝트와 정확한 버전은 아직 정하지 않았습니다. Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 
 ## 호환성 차원
@@ -514,8 +519,8 @@ GDJ-0020 manifest는 status-only 5,147 bytes/SHA-256
 `SHA256SUMS` 959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는
 변경하지 않았습니다. MIG-057..064는 Django 결과 parity가 아닌 Accepted ADR decision-reference
 8 `passing`이며, 성공 검증 문구도 `locked reference oracle`로 Django-derived set의
-`locked Django oracle`과 구분합니다. 현재 제품 분류는 10 adapter/105 contract의
-`100 passing + 5 deviation`; 90 ordered cross-binding도 유지합니다.
+`locked Django oracle`과 구분합니다. GDJ-0020 완료 당시 제품 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`; 90 ordered cross-binding이었습니다.
 
 완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Accepted
 [ADR-0021](adr/0021-project-linked-migration-check.md)은
@@ -525,10 +530,11 @@ canonical descriptor v1, build/project-runner protocol, flat no-follow source di
 `definition.Load` exactly-once와 DB/lifecycle call 0, public exit `0/1/2/3/130`을 고정합니다. 이는
 Django의 DB-aware `migrate --check`, model-drift `makemigrations --check` 또는 Python module
 discovery에서 파생한 parity가 아닙니다. 열 contract 모두 exact
-`kind=decision`, `reference=ADR-0021`, `derived=false`이고 status는 `oracle_locked`입니다.
+`kind=decision`, `reference=ADR-0021`, `derived=false`이며 GDJ-0021 완료 당시 status는
+`oracle_locked`였습니다.
 
-Project-check manifest는 4,580 bytes/SHA-256
-`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, locked reference oracle은
+GDJ-0022의 status-only 전환 뒤 project-check manifest는 4,520 bytes/SHA-256
+`0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`, locked reference oracle은
 19,971 bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static
 not-implemented fixture는 1,729 bytes/
 `86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존 checksum 10줄은
@@ -536,11 +542,13 @@ byte-for-byte prefix로 보존하고 11번째 oracle line만 append한 `SHA256SU
 `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다.
 
 Protocol 분류는 11 reference set/115 unique contract/110 ordered cross-binding입니다. Static
-oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status mismatch 10개를 내고,
-제품 `godjcheck`는 지원하지 않는 새 scenario를 exit 2/no actual output으로 거부합니다. 새 manifest를
-`godj-conformance` product target에 연결하지 않으므로 제품은 10 adapter/105 contract의
-`100 passing + 5 deviation` 그대로입니다. `conformance/projectcheck/**` test-only proof와 artifact가
-존재해도 global CLI, project package, production runner 또는 filesystem discovery 구현을 뜻하지 않습니다.
+oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status mismatch 10개를 계속 냅니다.
+Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
+[ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 independent global/linked/protocol
+kernel, exact public project facade와 actual product adapter를 추가했습니다. MIG-065..074는 10
+`passing`이고 제품은 11 adapter/115 contract의 `110 passing + 5 deviation`입니다.
+`conformance/projectcheck/**` test-only proof는 byte-preserved 독립 gate이며 product가 import/read하지
+않습니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
@@ -551,6 +559,11 @@ service image, health check, UTC timezone과 C locale 또는 명시적으로 승
 query/write/transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/persistence
 contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`,
 `continue-on-error` 없음, final clean worktree를 required gate로 둡니다.
+
+GDJ-0022 workflow는 기존 10 hosted execution에 actual product Linux/macOS x64/arm64 4개와 Ubuntu
+Python compatibility 4개를 더해 exact 18 required execution으로 확장됐습니다. Local EVID-027은
+`make ci`와 historical exact oracle를 통과했지만 18-job hosted run은 아직 실행하지 않았으므로 해당
+platform/Python matrix success로 사용하지 않습니다.
 
 제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
 [run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04와

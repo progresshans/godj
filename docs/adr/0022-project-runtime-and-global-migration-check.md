@@ -1,6 +1,6 @@
 # ADR-0022: Public Project Runtime and Global Migration Check
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-10
 - 관련 work/contract: [GDJ-0022](../../work/0022-migration-project-check-product-slice.md),
   MIG-065..MIG-074, Q-010, Q-012
@@ -13,9 +13,9 @@
 
 ADR-0004는 global `godj`와 project-linked binary의 책임을 분리했고, ADR-0021은 가장 작은 DB-free
 `godj migrations check`의 external meaning을 exact contract와 test-only feasibility로 Accepted했습니다.
-하지만 현재 repository에는 `cmd/godj`, public project entrypoint, production filesystem/process kernel과
-actual MIG-065..074 adapter가 없습니다. `conformance/projectcheck`의 4,705줄은 모두 Unix `_test.go`이고
-product package/API가 아닙니다.
+결정 당시 repository에는 `cmd/godj`, public project entrypoint, production filesystem/process kernel과
+actual MIG-065..074 adapter가 없었습니다. `conformance/projectcheck`의 4,705줄은 모두 Unix `_test.go`이고
+product package/API가 아니므로 제품 구현은 그 proof와 독립이어야 했습니다.
 
 제품화를 위해서는 linked project가 migration roots와 private request를 처리할 최소 public API가
 필요합니다. 동시에 test-only shape를 그대로 승격하거나 global CLI가 project code/definition loader를
@@ -103,12 +103,16 @@ transport exit을 소유합니다. Exact magic argv는 private contract이고 di
 ```text
 cmd/godj -> internal/projectcheck -> internal/projectcheck/protocol
 project  -> internal/projectcheck/linked -> internal/projectcheck/protocol
+                                      \-> migrations (PlanningError taxonomy only)
                                       \-> migrations/definition
 ```
 
 Global과 linked kernel은 서로 직접 import하지 않습니다. `migrations/definition`은 path/FS/CLI를 받지
 않고 caller-provided bytes pure loader로 남습니다. Core migrations/schema/db package는 child를 역-import하지
-않습니다. Product code는 conformance를 import하거나 candidate files/artifacts를 읽지 않습니다.
+않습니다. Linked의 direct `migrations` import는 loader가 반환한 existing
+`*migrations.PlanningError`를 closed category/code로 분류하는 read-only taxonomy edge로 한정하고,
+Planner/lifecycle/recorder/backend 호출과 graph 재구현을 금지합니다. Product code는 conformance를
+import하거나 candidate files/artifacts를 읽지 않습니다.
 
 ### Internal report와 conformance
 
@@ -144,9 +148,20 @@ call만 지원하며 서로 다른 project는 separate built child processes로 
 ### Hosted verification
 
 Existing full/exact 2 + independent proof 4 + actual SQLite 4의 10 executions을 보존합니다. Product
-implementation head는 same four official Linux/macOS x64/arm64 labels의 actual product matrix 4를 더해
-exact 14 required executions을 사용합니다. Product legs는 normal/race/CGO-disabled/vet, actual external
-E2E, exact GOOS/GOARCH, clean worktree를 검증합니다.
+workflow는 same four official Linux/macOS x64/arm64 labels의 actual product matrix 4와 Ubuntu
+Python compatibility matrix 4를 더해 exact 18 required executions을 사용합니다. Product legs는
+normal/race/CGO-disabled/vet, actual external E2E, exact GOOS/GOARCH, clean worktree를 검증합니다.
+
+Exact oracle의 CPython 3.14.3/Django 6.1/darwin-arm64는 변경하지 않습니다. Portability legs는
+Django 6.1 supported minor의 reviewed exact micro `3.12.13`, `3.13.15`, `3.14.3`, `3.14.7`을
+`actions/setup-python` v6.2.0으로 구성하고 `setup-uv`/uv 0.12.3과 isolated exact
+Django/asgiref/sqlparse를 사용합니다. 각 leg는 exact runtime/dependency, portable 174 tests/16
+intentional skips, 115-scenario canonical payload size/hash와 clean tree를 검증합니다. Floating minor를
+사용하지 않고 새 Python micro는 review된 pin update로 반영합니다.
+
+Portable Ubuntu와 Python compatibility jobs는 current uv 0.12.3을 사용하지만 exact darwin oracle job은
+profile/oracle/static payload에 기록된 uv 0.10.12를 유지합니다. Exact manager fingerprint 승격은 모든
+reference artifact를 다시 검토하는 별도 계약 변경이며 이 product slice의 status-only 전환이 아닙니다.
 
 PostgreSQL/MySQL service-only CI는 actual adapter가 없으므로 금지합니다. 향후 backend job은 실제
 query/write/transaction/schema/migration/recorder/revision lifecycle와 durable persistence, pinned service/
@@ -154,13 +169,15 @@ driver/locale, expected==executed, skipped=0을 먼저 요구합니다.
 
 ## 결과
 
-- 사용 가능한 첫 global GoDj migration command와 explicit project-linked API가 생깁니다.
-- ADR-0004의 global/project ownership과 ADR-0020 pure loader 경계가 실제 package graph로 검증됩니다.
+- 사용 가능한 첫 global GoDj migration command와 explicit project-linked API가 구현됐습니다.
+- ADR-0004의 global/project ownership과 ADR-0020 pure loader 경계가 실제 package graph로 검증됐습니다.
 - Build마다 private runner를 만들기 때문에 비용이 있지만 persistent cache/installed lifecycle을 성급히
   고정하지 않습니다.
 - Public surface는 두 export뿐이지만 `Config` field와 `Run` signature는 장기 compatibility 책임이 됩니다.
-- Unix no-follow/process-group 구현과 4-leg product CI 비용이 추가됩니다.
-- MIG-065..074는 actual product evidence 뒤 `passing`으로 전환할 수 있습니다.
+- Unix no-follow/process-group 구현과 4-leg product + 4-leg Python compatibility CI 비용이
+  추가됐습니다.
+- MIG-065..074 actual adapter가 구현되어 10 contract가 `passing`으로 전환됐고 제품 집계는
+  11 adapter/115 contract의 `110 passing + 5 deviation`입니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -191,5 +208,15 @@ driver/locale, expected==executed, skipped=0을 먼저 요구합니다.
 - Four Linux/macOS x64/arm64 product jobs plus preserved proof/SQLite/full/exact jobs
 - Independent contract and filesystem/process security audit before Accepted
 
-이 ADR은 activation 시점에 Proposed입니다. API compile spike와 product implementation/local+hosted evidence,
-independent P0-P3 clean audit가 완료되기 전에는 Accepted로 바꾸지 않습니다.
+## 채택 근거와 남은 검증
+
+Exact public external compile, global/linked/protocol 제품 kernel, actual CLI/process E2E, MIG-065..074
+0-diff adapter, local normal/race/CGO-disabled/vet/count-20와 independent global/linked/adapter audits가
+P0/P1/P2/P3 finding 0으로 완료되어 이 ADR을 Accepted합니다. 일상 local/Ubuntu portable/Python
+compatibility는 uv 0.12.3을 사용하고, reference artifact payload에 manager fingerprint가 포함된 historical
+exact darwin oracle만 uv 0.10.12를 유지합니다.
+
+Workflow의 exact 18 required execution topology는 구현됐지만 implementation+completion 문서 head의 hosted
+run은 아직 실행하지 않았습니다. 따라서 Accepted는 local 제품/결정 채택을 뜻하며 Python
+3.12.13/3.13.15/3.14.3/3.14.7 또는 Linux/macOS 네 product 좌표의 hosted success를 뜻하지 않습니다.
+Same Draft PR #1 push 뒤 exact 18-job 결과와 evidence-only follow-up head를 별도 증거로 기록합니다.

@@ -7,7 +7,7 @@
       "title": "The nearest valid project is selected for a database-free migration catalog check",
       "scenario": "godj.migration.project_check.nested_project_success",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -22,7 +22,7 @@
       "title": "An explicit descriptor selects exactly one project without ancestor fallback",
       "scenario": "godj.migration.project_check.explicit_project_override",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -37,7 +37,7 @@
       "title": "An existing empty catalog publishes the canonical empty definition set",
       "scenario": "godj.migration.project_check.empty_catalog",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -52,7 +52,7 @@
       "title": "Root and directory permutations converge on canonical source byte order",
       "scenario": "godj.migration.project_check.canonical_filesystem_order",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -67,7 +67,7 @@
       "title": "A matching symlink fails closed before source handoff",
       "scenario": "godj.migration.project_check.unsafe_source_entry",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -82,7 +82,7 @@
       "title": "A bounded ancestor search reports that no project marker exists",
       "scenario": "godj.migration.project_check.project_not_found",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -97,7 +97,7 @@
       "title": "An otherwise valid response with an unsupported protocol coordinate is rejected",
       "scenario": "godj.migration.project_check.project_protocol_incompatible",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -112,7 +112,7 @@
       "title": "A project build failure publishes no runner or partial user output",
       "scenario": "godj.migration.project_check.project_build_failure_atomic",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -127,7 +127,7 @@
       "title": "A discovered malformed definition preserves the product loader error category and code",
       "scenario": "godj.migration.project_check.definition_load_failure",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -142,7 +142,7 @@
       "title": "A duplicate response member is rejected without partial success publication",
       "scenario": "godj.migration.project_check.invalid_runner_response",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",

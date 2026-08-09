@@ -445,8 +445,8 @@ handoff counter로 exactly-once를 각각 독립 검증합니다.
 Actual adapter false-green gate는 valid source identity/header/operation/graph를 각각 mutate해
 non-empty protocol diff 또는 success/error shape rejection을 요구합니다. MIG-057..064는 Django
 parity가 아닌 decision-reference 8 `passing`이고 제품 성공 출력은 `locked reference oracle`로
-구분합니다. 현재 `make godj-conformance` 분류는 10 adapter/105 contract의
-`100 passing + 5 deviation`; 90 ordered cross-binding을 유지합니다.
+구분합니다. GDJ-0020 완료 당시 `make godj-conformance` 분류는 10 adapter/105 contract의
+`100 passing + 5 deviation`; 90 ordered cross-binding이었습니다.
 
 Status-only manifest는 5,147 bytes/SHA-256
 `688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`입니다. Locked oracle
@@ -471,8 +471,19 @@ Artifact gate는 manifest 4,580 bytes/
 10-line prefix 뒤 11번째 line만 append한 `SHA256SUMS`는 1,061 bytes/
 `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. Protocol gate는
 11 set/115 unique contract/110 ordered cross-binding을 요구합니다. Static comparison은 exit 1/
-ordered mismatch 10, 제품 `godjcheck`는 exit 2/no actual output으로 fail-closed합니다. 따라서
-`make godj-conformance`는 계속 10 adapter/105 contract의 `100 passing + 5 deviation`입니다.
+ordered mismatch 10을 유지합니다. GDJ-0021 완료 당시 제품 `godjcheck`는 exit 2/no actual output으로
+fail-closed했고 `make godj-conformance`는 10 adapter/105 contract의
+`100 passing + 5 deviation`이었습니다.
+
+Active GDJ-0022의 local implementation은 test-only proof와 독립인 global/linked/protocol product kernel,
+public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapter를 추가했습니다. Product
+adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
+diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`, 현재 제품은 11 adapter/115 contract의
+`110 passing + 5 deviation`입니다. Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
+`make ci`, exact oracle와 independent audits는 EVID-027에 기록했고 exact 18 hosted acceptance는 pending입니다.
+Status-only manifest는 4,520 bytes/
+`0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`이고 oracle/static/SHA256SUMS는
+위 GDJ-0021 pins에서 byte-identical입니다.
 
 ## 기능별 기본 테스트 요구
 
@@ -516,13 +527,17 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 6. release 전 security/performance/migration matrix
 
 현재 GitHub Actions는 기존 `ubuntu-24.04` x64 full `conformance-validation`과 `macos-15` arm64
-exact `exact-darwin-validation`을 보존하고, 두 job에 focused project-check normal gate를
-추가했습니다. 별도 `project-check-matrix`와 actual-backend `sqlite-matrix`는 각각 exact
+exact `exact-darwin-validation`을 보존합니다. 별도 `project-check-matrix`, actual product
+`product-project-check-matrix`와 actual-backend `sqlite-matrix`는 각각 exact
 `ubuntu-22.04` linux/amd64, `ubuntu-24.04-arm` linux/arm64, `macos-15-intel` darwin/amd64,
 `macos-26` darwin/arm64의 네 leg를 가집니다. 각 leg는 Go 1.26.5 coordinate assertion,
 normal/race/CGO-disabled/vet, 20분 timeout, `fail-fast: false`, no `continue-on-error`와 final clean
-worktree를 요구합니다. Expanded required topology는 existing 2 + project-check 4 + SQLite 4의
-exact 10 hosted executions입니다. Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
+worktree를 요구합니다. Ubuntu `python-compatibility-matrix`는 exact
+3.12.13/3.13.15/3.14.3/3.14.7 네 leg에서 Django 6.1/asgiref 3.12.1/sqlparse 0.5.5, portable
+174/16 expected skips와 115-scenario payload를 검증합니다. Expanded required topology는 existing 2 +
+test-only proof 4 + SQLite 4 + product 4 + Python 4의 exact 18 hosted executions입니다. Routine
+Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
+Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
 recorder/revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected
@@ -552,8 +567,16 @@ no-rewrite를, macOS 15.7.7 arm64 exact job
 174/174, 11 oracle와 no-rewrite를 통과했습니다. Project-check/SQLite 각 네 좌표도 모두
 normal/race/CGO-disabled/vet/clean을 다시 통과했습니다. 상세 증거는
 [EVID-20260810-026](status/TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
-기록합니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI는
-`not run/pending`이며 run 31322122760을 재귀적으로 그 patch의 PASS로 사용하지 않습니다.
+기록합니다. EVID-026 append/status commit `f7fbbd50465a610ed9492227909eece524455f15`은 별도
+run `31322959993`의 같은 exact 10 job을 통과했고, GDJ-0022 activation commit
+`e4de64645bd93cf5e55c746bb6a109c53916cca8`도 run `31324469403`에서 exact 10 job을 통과했습니다.
+
+GDJ-0022 local implementation은
+[EVID-20260810-027](status/TEST_EVIDENCE.md#evid-20260810-027--gdj-0022-project-linked-migration-check-product-slice)의
+`make ci`, focused normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only, historical exact oracle와
+independent audits를 통과했습니다. 그러나 implementation+completion 문서 head는 아직 commit/push 전이고
+위 exact 18 hosted executions은 모두 `not run/pending`입니다. 기존 10-job run이나 local one-time Python
+probe를 product/Python expanded hosted success로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

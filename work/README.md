@@ -49,10 +49,10 @@ proposed → ready → active → completed
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-[GDJ-0022](0022-migration-project-check-product-slice.md)이고 ready 항목은 없습니다. 최근 완료 항목은
+[GDJ-0022](0022-migration-project-check-product-slice.md), ready 항목은 없고 최근 완료 항목은
 [GDJ-0021](0021-migration-project-check-compatibility-contracts.md)입니다. GDJ-0022는 Accepted
-ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로 구현하는
-단면이며 activation 단계에서는 제품 status를 바꾸지 않습니다.
+ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로 local
+구현해 10 contract를 `passing`으로 전환했지만 exact 18-job hosted acceptance가 남아 있습니다.
 GDJ-0020은
 `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`의 제품 구현과
 Draft PR #1 exact-head CI를 근거로 완료됐고,
@@ -75,7 +75,11 @@ local/10-job hosted evidence를 근거로 Accepted이지만 전역 CLI나 projec
 completion-documentation commit `34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도 exact 10-job
 hosted CI를 통과했습니다. EVID-026 append/status 교정 commit
 `f7fbbd50465a610ed9492227909eece524455f15`도 run `31322959993`에서 exact 10 jobs를 통과했습니다.
-GDJ-0022 activation diff와 목표 14-job topology는 아직 hosted 실행 전입니다.
+GDJ-0022 local 구현은 exact 11 adapter/115 contract의 `110 passing + 5 deviation`과 Accepted
+[ADR-0022](../docs/adr/0022-project-runtime-and-global-migration-check.md)까지 도달했습니다. Workflow는
+existing 10 + product 4 + Python compatibility 4인 exact 18 required execution으로 확장됐지만 아직
+hosted 실행 전입니다. Implementation+completion 문서 commit/push 뒤 same Draft PR #1에서 live 결과를
+수집하고 evidence-only follow-up으로 기록한 뒤 work를 completed로 전환합니다.
 
 ## 운영 규칙
 
