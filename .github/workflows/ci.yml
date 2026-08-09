@@ -297,7 +297,7 @@ jobs:
           COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
           EXPECTED_PYTHON: ${{ matrix.python_version }}
         run: |
-          test "$(uv --version)" = "uv 0.12.3"
+          uv --version | grep -Eq '^uv 0[.]12[.]3([[:space:]]|$)'
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python - <<'PY'

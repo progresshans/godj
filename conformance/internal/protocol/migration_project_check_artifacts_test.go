@@ -359,7 +359,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactEighteenRequiredExecutions(t
 		"python-version: ${{ matrix.python_version }}",
 		"check-latest: false",
 		"COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}",
-		`test "$(uv --version)" = "uv 0.12.3"`,
+		`uv --version | grep -Eq '^uv 0[.]12[.]3([[:space:]]|$)'`,
 		"--no-project --isolated --python \"$COMPAT_PYTHON\"",
 		"--with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5",
 		"platform.python_version() == expected",
