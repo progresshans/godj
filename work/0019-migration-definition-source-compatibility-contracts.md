@@ -637,8 +637,11 @@ documentation diff는 다음 16개 문서를 동기화합니다.
 - Filesystem/project discovery와 global CLI/project binary handshake
 - Codec v2 operation/data callback 확장 정책
 
-Hosted CI는 final code commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 아직 실행하지
-않았습니다. 이는 수집하지 않은 원격 증거이며 local completion blocker나 PASS claim이 아닙니다.
+Completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`는 Draft PR #1
+[run 31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)에서 Ubuntu 24.04
+portable gate와 macOS 15 arm64 exact gate가 모두 통과했습니다. Checkout-scoped hosted 증거는
+[EVID-20260809-020](../docs/status/TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
+기록했습니다.
 
 ## 테스트 증거
 
@@ -662,7 +665,8 @@ Hosted CI는 final code commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 
 - Source pins: scenario source 102,128 bytes
   `53c52e3dbcd8af13e0307e62738383a01d6f307464332942c5c8ad97b71aad77`; scenario test 68,504 bytes
   `b30b5ed338da16388fc354ecc3cdceef7d8ca8948bc41b46e4f840a0e845605a`
-- Not run: hosted CI on final code commit; status is pending/uncollected, not PASS
+- Hosted: completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`, PR #1 run 31302983804;
+  Ubuntu portable 164 tests/15 skips, macOS exact 164/164, 10 oracle checksum/`--check`와 no-rewrite PASS
 
 ## 위험과 rollback
 
@@ -694,5 +698,6 @@ test-only Go proof로 잠겼습니다. 새 8개는 `oracle_locked`이며 product
 
 알려진 제한은 codec v1의 `CreateModel`과 non-PK `char`/`boolean` `AddField`, caller-provided bytes,
 test-only loader/coordinator에 국한된다는 점입니다. Product loader/API, resource limits, writer,
-filesystem/module discovery, CLI handshake와 hosted CI final-head 증거는 후속 범위입니다. 다음 작업은
-GDJ-0020을 별도로 activation하는 것이며, 이 완료 문서 자체가 product support claim은 아닙니다.
+filesystem/module discovery와 CLI handshake는 후속 범위입니다. Completion head의 hosted CI 증거는
+EVID-20260809-020에 수집했습니다. 다음 작업은 GDJ-0020을 별도로 activation하는 것이며, 이 완료
+문서 자체가 product support claim은 아닙니다.

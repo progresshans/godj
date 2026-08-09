@@ -460,3 +460,10 @@ exact Python profile과 locked oracle을 검증합니다. 두 job은 PR #1의
 통과했으며 상세 환경과 결과는
 [EVID-20260809-018](status/TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
 기록합니다.
+
+GDJ-0019 completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`에서도 같은 두 job을
+[run 31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)로 다시 실행했습니다.
+Ubuntu portable 164 tests/15 skips, macOS exact 164/164, migration-definition-source를 포함한
+10개 oracle checksum/`--check`와 no-rewrite가 통과했으며 상세 결과는
+[EVID-20260809-020](status/TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
+기록합니다.

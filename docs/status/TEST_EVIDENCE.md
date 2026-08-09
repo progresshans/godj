@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-09
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-019
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-020
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1719,3 +1719,38 @@ loader 지원은 아닙니다. Product API/resource limits/error wrapping/discov
 Hosted CI는 final code commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 실행하지 않았습니다.
 상태는 **pending/not run**이며 URL이나 hosted PASS를 기록하지 않습니다. EVID-20260809-018의
 GitHub-hosted run은 GDJ-0018의 이전 head에만 적용됩니다.
+
+## EVID-20260809-020 — GDJ-0019 GitHub-hosted Ubuntu와 darwin/arm64 CI
+
+- Date/time: 2026-08-09 17:13:01–17:15:38 KST
+- Work/contract IDs: GDJ-0019, MIG-057..MIG-064
+- Tested PR/head: Draft PR [#1](https://github.com/progresshans/godj/pull/1),
+  `4d9a64a0c42406bda931820f7eb38a0f737d117c`
+- Final code commit contained by the tested head:
+  `58c66fdc751867a3c2f1541a8594c6615c9fbb59`
+- Workflow run: [31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)
+- Event/base: `pull_request`, `main@f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+- Actions merge SHA: `a9a38bf24aaaa394dc8ea88b59194a7297ade707`
+- Exit status: workflow `success`; two jobs successful, cancelled/failing/skipped/pending 0
+
+Ubuntu job
+[93218661521](https://github.com/progresshans/godj/actions/runs/31302983804/job/93218661521)은
+`ubuntu-24.04`, Go 1.26.5 `linux/amd64`, uv 0.10.12, Python 3.14.3, Django 6.1에서
+`make ci`를 실행했습니다. Portable Python은 164 tests 중 exact-only 15 skipped로 통과했고,
+10개 checked-in oracle checksum에는 `migration-definition-source-oracle.json: OK`가 포함됐습니다.
+Reference artifact no-rewrite gate도 통과했습니다. Job은 17:13:03 KST에 시작해 17:15:37 KST에
+성공했습니다.
+
+macOS job
+[93218661534](https://github.com/progresshans/godj/actions/runs/31302983804/job/93218661534)은
+macOS 15.7.7 `macos-15-arm64`, Go 1.26.5 `darwin/arm64`, uv 0.10.12, Python 3.14.3,
+Django 6.1, SQLite 3.50.4에서 focused pure-Go lifecycle gate와 exact Python profile을 실행했습니다.
+Exact Python은 164/164 통과했고, migration-definition-source를 포함한 10개 locked oracle `--check`와
+reference artifact no-rewrite gate가 모두 통과했습니다. Job은 17:13:03 KST에 시작해
+17:13:55 KST에 성공했습니다.
+
+이 hosted 결과는 `4d9a64a` checkout에만 적용합니다. EVID-20260809-019의 당시
+`pending/not run` 문구는 그 local evidence가 작성된 시점의 역사적 사실이라 수정하지 않았습니다.
+이 evidence를 기록하는 후속 문서 commit은 새 PR-head workflow를 유발하므로, 그 run은 이 항목의
+근거로 재귀 사용하지 않고 별도로 완료 여부만 확인합니다. MIG-057..064는 계속 synthetic GoDj
+decision `oracle_locked`이며 product loader/adapter/CLI 지원으로 승격되지 않았습니다.

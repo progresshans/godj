@@ -374,8 +374,11 @@ GDJ-0019는 다음 acceptance gate를 모두 검증했습니다.
 `58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 10 reference set/105 unique contract/90 ordered
 cross-binding, exact reference 164/164와 Go/Python canonical error 59/59를 확인했습니다. Product는
 9 adapters/97 contracts와 `92 passing + 5 deviation` 그대로이고 새 8개는 synthetic
-`oracle_locked`입니다. Final code commit의 hosted CI는 아직 실행하지 않아 pending/uncollected이며
-Accepted 판단은 기록된 local/reference gates에 근거합니다.
+`oracle_locked`입니다. Completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`는 Draft PR #1
+[run 31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)에서 Ubuntu 24.04와
+macOS 15 arm64 gate가 모두 통과했으며, checkout-scoped 결과는
+[EVID-20260809-020](../status/TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
+기록했습니다. 이 hosted 결과도 product loader 지원을 뜻하지 않습니다.
 
 상세 payload, allowed paths와 완료 조건은
 [GDJ-0019](../../work/0019-migration-definition-source-compatibility-contracts.md)에 기록합니다.

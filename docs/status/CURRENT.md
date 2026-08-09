@@ -30,8 +30,11 @@
 - GDJ-0019 feasibility/final code commit:
   `58c66fdc751867a3c2f1541a8594c6615c9fbb59`
   (`test: prove migration definition loading boundary`)
+- GDJ-0019 completion/hosted-tested head:
+  `4d9a64a0c42406bda931820f7eb38a0f737d117c`
+  (`docs: complete migration definition source contracts`)
 - remote: `https://github.com/progresshans/godj.git`
-- Draft PR: [#1 Add revision-fenced migration lifecycle](https://github.com/progresshans/godj/pull/1)
+- Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0019 완료; active/ready work 없음
 - 최근 완료 작업:
   [GDJ-0019 Migration Definition Source Compatibility Contracts](../../work/0019-migration-definition-source-compatibility-contracts.md)
@@ -133,10 +136,11 @@
   통과했습니다.
 - Portable Python은 164 tests 중 exact-only 15 skipped, exact profile은 164/164 passing입니다.
   Source/operation/IR canonical error matrix는 Go/Python 59/59 exact parity입니다.
-- 이전 GDJ-0018 checkout의 GitHub-hosted Ubuntu/macOS 증거는
-  [EVID-20260809-018](TEST_EVIDENCE.md#evid-20260809-018--gdj-0018-github-hosted-ubuntu와-darwinarm64-ci)에
-  남아 있습니다. GDJ-0019 final code commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`의 hosted CI는
-  아직 실행하지 않았으며 pending/uncollected입니다. 이전 run을 final-head PASS로 재사용하지 않습니다.
+- GDJ-0019 completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`는 Draft PR #1
+  [run 31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)에서 Ubuntu 24.04
+  portable gate와 macOS 15 arm64 exact gate가 모두 통과했습니다. 상세 로그와 checkout 범위는
+  [EVID-20260809-020](TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
+  기록했습니다.
 
 ## 확정된 결정
 
@@ -172,8 +176,8 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. Hosted CI는 GDJ-0019 final code head에서 아직 실행하지 않은 별도
-pending evidence입니다. 다음은 구현하지 않은 제품 범위입니다.
+외부 blocker는 없습니다. GDJ-0019 completion head의 local/reference/hosted evidence가 모두
+수집됐습니다. 다음은 구현하지 않은 제품 범위입니다.
 
 - Accepted migration definition source contract의 product versioned loader/API, numeric resource
   limits, structured public error와 source discovery/public CLI는 미구현
@@ -187,13 +191,13 @@ pending evidence입니다. 다음은 구현하지 않은 제품 범위입니다.
 현재 active/ready work는 없습니다. 다음 통합 담당자는 GDJ-0020 migration definition loader product
 slice의 work item, goal/non-goal, allowed paths와 completion gates를 별도로 작성하고 activation해야
 합니다. 그 전에는 `migrations/**`, product runner, source adapters, writer나 CLI를 변경하지 않습니다.
-Hosted CI가 필요하면 같은 PR #1에 final-head commit을 올린 뒤 새 run으로 수집하고 EVID-019 또는
-후속 evidence에 실제 URL/head/result를 기록합니다.
+후속 GDJ-0020도 새 PR을 만들지 않고 같은 Draft PR #1에 별도 activation commit부터 쌓습니다.
+새 head마다 실제 run URL/head/result를 확인하되 이전 run을 새 checkout의 PASS로 재사용하지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 현재 final code 기준: branch
-  `codex/revision-fenced-migration-lifecycle@58c66fdc751867a3c2f1541a8594c6615c9fbb59`
+- 현재 hosted-tested completion 기준: branch
+  `codex/revision-fenced-migration-lifecycle@4d9a64a0c42406bda931820f7eb38a0f737d117c`
 - 최근 완료 work:
   [GDJ-0019](../../work/0019-migration-definition-source-compatibility-contracts.md)
 - active work: 없음
@@ -203,7 +207,7 @@ Hosted CI가 필요하면 같은 PR #1에 final-head commit을 올린 뒤 새 ru
   contract, `92 passing + 5 deviation + 8 oracle_locked`
 - 전체 local gate: `make check`
 - Portable CI equivalent: `make ci`
-- Hosted CI: PR #1 run 31295886061은 GDJ-0018 head PASS; GDJ-0019 final head는 not run/pending
+- Hosted CI: PR #1 run 31302983804, Ubuntu 24.04와 macOS 15 arm64 모두 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 가장 위험한 과장: Accepted JSON/source contract나 MIG-064 oracle/test-only proof를 product loader/Go
   handoff/file discovery/CLI/adoption/crash recovery 또는 non-SQLite 지원으로 표현하는 것
