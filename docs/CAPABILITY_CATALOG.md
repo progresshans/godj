@@ -108,7 +108,7 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 - data migration과 현재 model type 사용 금지
 
 현재 제품 단면은 caller가 explicit source bytes를 `migrations/definition`에 전달하는 loader와,
-active GDJ-0022의 local implementation/Accepted ADR-0022의 exact `godj migrations check`까지입니다.
+completed GDJ-0022/Accepted ADR-0022의 exact `godj migrations check`까지입니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
@@ -321,7 +321,9 @@ GDJ-0021 품질 gate는 기존 제품 10 adapter/105 contract를 유지하면서
 Linux/macOS x64/arm64 test-only project-check 4개와 같은 좌표의 actual SQLite 4개, 총 10개 job을
 모두 통과했습니다. GDJ-0022 local gate는 열한 번째 product adapter를 추가해 115 product contract의
 `110 passing + 5 deviation`을 검증했습니다. Workflow는 product 4 + Python compatibility 4를 더한
-exact 18 required execution으로 확장됐지만 hosted run은 아직 pending입니다. Actual adapter가 없는
+exact 18 required execution으로 확장됐고 fix head run `31329294154`에서 18/18 성공했습니다. Initial
+run의 네 Python pre-test uv assertion failure와 취소 및 수정 범위는 EVID-028에 기록했습니다. Actual
+adapter가 없는
 PostgreSQL/MySQL service-only job은 false green이므로
 두지 않습니다. 첫 backend CI는 digest-pinned service image, health check, UTC timezone과 C locale
 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/recorder/

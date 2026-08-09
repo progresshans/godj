@@ -227,7 +227,7 @@ crash reconciliation과 non-SQLite migration backend는 이 loader package 자�
 기존 `migrations/definition`을 사용합니다. Production package는 이 harness를 import하지 않으며
 전역 `godj` CLI, project package와 filesystem discovery를 구현한 것으로 세지 않습니다.
 
-Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
+Completed [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Accepted
 [ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 test-only proof와 독립인
 `cmd/godj`, public `project`, `internal/projectcheck` global/linked/protocol kernel과 열한 번째 actual
 adapter를 구현했습니다. Product code는 conformance proof를 import/read하지 않고 linked kernel만 actual
@@ -241,7 +241,10 @@ GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft
 Ubuntu 24.04 x64 full/macOS 15 arm64 exact 두 job, Linux/macOS x64/arm64 project-check 네 leg와
 같은 좌표의 actual SQLite 네 leg, 총 `2 + 4 + 4 = 10` hosted execution을 모두 통과했습니다.
 GDJ-0022 workflow는 actual product 네 leg와 Python 3.12.13/3.13.15/3.14.3/3.14.7 네 leg를 더한
-exact 18 required execution으로 확장됐지만 implementation/completion head의 hosted run은 pending입니다.
+exact 18 required execution으로 확장됐고 fix head
+`3dfeff2a881a3313883729943519896798d92afc`의
+[run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)에서 18/18 성공했습니다.
+Initial head의 네 Python pre-test uv assertion failure/cancel과 fix는 EVID-028에 기록했습니다.
 Actual adapter가 없는 PostgreSQL/MySQL은 service만 띄우는 green job을 지원 증거로 세지 않습니다.
 첫 backend job은 digest-pinned service image, health check, UTC timezone과 C locale 또는 명시적으로
 승인된 collation, actual query/write/transaction/schema/migration/recorder/revision-lifecycle 및

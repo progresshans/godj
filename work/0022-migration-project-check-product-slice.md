@@ -1,6 +1,6 @@
 ---
 id: GDJ-0022
-status: active
+status: completed
 updated: 2026-08-10
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "f7fbbd50465a610ed9492227909eece524455f15"
@@ -362,14 +362,18 @@ required로 만듭니다.
 - [x] Nil dependency, panic-free arbitrary bytes, short write, caller cancellation과 blocking-I/O limitation gate PASS
 - [x] Normal/race/CGO0/vet/count20, Linux/386 compile, `make ci`, exact Python/oracle/no-rewrite PASS
 - [x] `go mod tidy` 뒤 x/sys v0.47.0 directness 외 dependency/version/hash 변화가 없고 clean 재실행 PASS
-- [ ] Existing 10 executions + product 4 + Python compatibility 4 = exact 18 hosted executions all
+- [x] Existing 10 executions + product 4 + Python compatibility 4 = exact 18 hosted executions all
   required/success
 - [x] Independent contract/security final audits P0/P1/P2/P3=0
 - [x] Work/ADR/CURRENT/matrix/evidence/general docs and Q-010/Q-012 actual state synchronized
 
-Exact 18 hosted executions은 workflow/static topology까지만 구현됐고 아직 실행하지 않았습니다. 이 한 항목은
-implementation+completion 문서 commit을 same Draft PR #1에 push한 뒤 검증하고 evidence-only follow-up으로
-닫습니다. Local 제품 구현 완료와 hosted evidence 수집을 같은 증거로 재사용하지 않습니다.
+Exact 18 hosted executions은 fix head `3dfeff2a881a3313883729943519896798d92afc`의
+[run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)에서 18/18 성공했습니다.
+첫 implementation head `06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 run `31329231255`는 네 Python
+leg가 테스트 전 brittle uv exact-string assertion에서 실패해 취소했고, uv 0.12.3의 허용된 metadata
+suffix만 받아들이도록 고친 뒤 다시 검증했습니다. Local 제품 구현과 hosted evidence는 각각 EVID-027과
+EVID-028로 분리합니다. EVID-028을 추가하는 이 후속 문서 patch 자체의 exact-head CI는 commit/push 뒤
+별도로 확인합니다.
 
 ## 진행 기록
 
@@ -381,7 +385,7 @@ implementation+completion 문서 commit을 same Draft PR #1에 push한 뒤 검�
 - [x] Linked/global product implementation
 - [x] Adapter/status/CI implementation
 - [x] Local completion evidence와 문서
-- [ ] Implementation+completion 문서 head의 exact 18-job hosted evidence follow-up
+- [x] Implementation/fix head의 exact 18-job hosted evidence follow-up
 
 ## 수정 파일
 
@@ -416,8 +420,11 @@ implementation+completion 문서 commit을 same Draft PR #1에 push한 뒤 검�
   판정하고, build/runner 직전 terminal barrier와 pre-start cancellation/queued child reap를 제품 gate로 고정
 - 2026-08-10: 일상 local/Ubuntu portable/Python compatibility는 uv 0.12.3, historical exact darwin
   oracle만 embedded profile을 보존하는 uv 0.10.12로 분리
-- 2026-08-10: Exact 18-job workflow topology는 구현했지만 hosted run은 아직 실행하지 않았으므로
-  제품 local completion과 hosted verification evidence를 분리
+- 2026-08-10: Initial implementation run `31329231255`에서 네 Python leg 모두 uv version 출력 metadata를
+  허용하지 않는 사전 assertion 때문에 테스트 전에 실패해 run을 취소. Exact uv 0.12.3 pin은 유지하고
+  `ci: accept uv version metadata` commit `3dfeff2a881a3313883729943519896798d92afc`에서 suffix만 허용
+- 2026-08-10: Fix head run `31329294154`의 exact 18/18 hosted executions 성공을 EVID-028로 분리 기록하고
+  GDJ-0022를 completed로 전환. EVID-028/status patch 자체의 final exact-head CI는 commit/push 뒤 재검증
 
 ## 미결정/Blocker
 
@@ -429,8 +436,9 @@ implementation+completion 문서 commit을 same Draft PR #1에 push한 뒤 검�
 - Windows runtime와 fatal-signal/crash scavenging
 - DB-aware check, PostgreSQL/MySQL와 multi-DB
 
-ADR-0022는 local implementation과 independent audit를 근거로 Accepted입니다. Exact 18-job hosted run은
-미실행 상태이며 Accepted를 hosted success로 과장하지 않습니다.
+ADR-0022는 local implementation, independent audit와 fix head exact 18/18 hosted success를 근거로
+Accepted입니다. EVID-028/status patch 자체는 아직 commit/push되지 않았으므로 그 후속 exact-head hosted
+success로 재귀 과장하지 않습니다.
 
 ## 테스트 증거
 
@@ -446,9 +454,14 @@ ADR-0022는 local implementation과 independent audit를 근거로 Accepted입�
   independent audits를 기록
 - Historical exact oracle one-time reproduction: `uvx --from uv==0.10.12 uv run --frozen make
   python-test-exact oracle-check` PASS; exact 174/174와 11 oracle `--check` PASS
-- Expanded exact 18-job CI: workflow/static topology는 구현됐지만 implementation/completion 문서 head를
-  push하기 전이므로 hosted `not run/pending`. Python 3.12.13/3.13.15/3.14.3/3.14.7 hosted legs도
-  모두 미실행
+- Expanded exact 18-job CI: initial implementation
+  [run 31329231255](https://github.com/progresshans/godj/actions/runs/31329231255)는 Python
+  3.12.13/3.13.15/3.14.3/3.14.7 네 leg가 모두 테스트 전 uv exact-string assertion에서 실패했고 residual
+  jobs를 취소했습니다. Fix commit `3dfeff2a881a3313883729943519896798d92afc`의
+  [run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)는 exact 18/18 success.
+  Job/step/checkout과 portable 174/16-skip·115-scenario digest 증거는
+  [EVID-20260810-028](../docs/status/TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)에
+  기록. 이 EVID-028/status patch 자체의 hosted CI는 `not run/pending`
 
 ## 위험과 rollback
 
@@ -462,16 +475,16 @@ ADR-0022는 local implementation과 independent audit를 근거로 Accepted입�
 
 ## 다음 정확한 작업
 
-Integration owner는 implementation+completion 문서 diff를 검증해 same Draft PR #1에 commit/push합니다.
-그 exact head의 existing full/exact 2 + proof 4 + SQLite 4 + product 4 + Python compatibility 4인 18
-required executions을 live로 확인한 뒤, job/step/checkout 증거만 EVID-028 이후 evidence-only follow-up에
-append하고 그 follow-up head도 다시 검증합니다.
+Integration owner는 frozen EVID-028/completion-status 문서 diff를 검증해 same Draft PR #1에
+evidence-only commit/push합니다. 그 final exact head에서 18 required executions을 다시 확인하고 새 실제
+결과만 다음 evidence ID에 append합니다. Draft PR은 사용자 요청 전까지 merge하지 않습니다.
 
 ## 결과와 인수인계
 
-GDJ-0022의 local 제품 구현은 완료됐지만 work는 hosted acceptance까지 active입니다. Exact 두 global argv,
+GDJ-0022는 fix head exact 18/18 hosted acceptance까지 완료됐습니다. Exact 두 global argv,
 public `project.Config`/`project.Run`,
 독립 global/linked/protocol kernel과 actual adapter가 구현됐고 MIG-065..074는 10 `passing`, 제품은
 11 adapter/115 contract=`110 passing + 5 deviation`입니다. Reference oracle/static/SHA와 test-only proof는
-독립 경계로 보존했습니다. Exact 18-job hosted execution과 그 evidence-only follow-up만 다음 단계이며,
-그 전에는 Python multi-version/Linux·macOS 네 좌표의 hosted success를 주장하지 않습니다.
+독립 경계로 보존했습니다. Run `31329294154`는 Python four-version과 Linux/macOS product four-coordinate
+hosted success를 직접 증명합니다. 남은 운영 단계는 이 EVID-028/status patch를 commit/push하고 그 새 exact
+head의 CI를 재검증하는 것뿐이며, 아직 실행하지 않은 그 후속 결과는 주장하지 않습니다.

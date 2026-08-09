@@ -216,7 +216,10 @@ P0/P1/P2/P3 finding 0으로 완료되어 이 ADR을 Accepted합니다. 일상 lo
 compatibility는 uv 0.12.3을 사용하고, reference artifact payload에 manager fingerprint가 포함된 historical
 exact darwin oracle만 uv 0.10.12를 유지합니다.
 
-Workflow의 exact 18 required execution topology는 구현됐지만 implementation+completion 문서 head의 hosted
-run은 아직 실행하지 않았습니다. 따라서 Accepted는 local 제품/결정 채택을 뜻하며 Python
-3.12.13/3.13.15/3.14.3/3.14.7 또는 Linux/macOS 네 product 좌표의 hosted success를 뜻하지 않습니다.
-Same Draft PR #1 push 뒤 exact 18-job 결과와 evidence-only follow-up head를 별도 증거로 기록합니다.
+Initial implementation head `06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 hosted run
+`31329231255`는 네 Python leg가 모두 테스트 전 brittle uv exact-string assertion에서 실패해 취소했습니다.
+Exact uv 0.12.3 pin은 유지하고 허용된 version metadata suffix만 받아들인 fix head
+`3dfeff2a881a3313883729943519896798d92afc`의 run `31329294154`에서 exact 18 required executions이
+18/18 성공했습니다. 따라서 Accepted는 local 구현뿐 아니라 Python 3.12.13/3.13.15/3.14.3/3.14.7과
+Linux/macOS 네 product 좌표의 hosted acceptance까지 포함합니다. 상세 증거는 EVID-028에 기록하며,
+그 evidence/status patch 자체의 후속 exact-head CI는 commit/push 뒤 별도로 검증합니다.

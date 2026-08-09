@@ -1,8 +1,8 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0022 local product implementation complete, exact 18-job hosted acceptance pending;
-  ADR-0022 Accepted, work active
+- 현재 단계: GDJ-0022 completed; local EVID-027과 fix-head exact 18/18 hosted EVID-028 완료,
+  ADR-0022 Accepted; 다음 active work 미선정
 - 현재 제품 기준: 11 adapter/115 contract의 `110 passing + 5 deviation`
 - 마지막 검토: 2026-08-10
 
@@ -284,18 +284,20 @@ project command dispatcher, writer/upgrade와 DB-aware migration execution은 GD
 남깁니다. GDJ-0021의 Accepted/Verified 상태는 reference-only/test-only contract에 한정하며 제품
 명령 구현으로 승격하지 않습니다.
 
-Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
+Completed [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Accepted
 [ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 그 다음 product 단면을 구현했습니다.
 Exact 두 global argv, public `project.Config`/`project.Run`, independent internal global/linked/protocol
 kernel과 flat discovery가 MIG-065..074를 actual product adapter에서 10 `passing`으로 전환했습니다.
-Test-only proof는 byte-preserved independent gate로 남고 product code가 import하지 않습니다. 현재 local
+Test-only proof는 byte-preserved independent gate로 남고 product code가 import하지 않습니다. 현재
 분류는 11 adapters/115 contracts=`110 passing + 5 deviation`입니다.
 
 Hosted gate는 existing full/exact 2 + test-only proof 4 + actual SQLite 4를 보존하고 Linux/macOS
 x64/arm64 actual product CLI 4와 exact Python 3.12.13/3.13.15/3.14.3/3.14.7 compatibility 4를
 별도 추가한 exact 18 required executions입니다. Portable/compatibility는 uv 0.12.3, embedded profile을
-재현하는 historical exact darwin oracle만 uv 0.10.12를 사용합니다. Workflow/static topology는
-구현됐지만 exact 18 hosted run은 아직 pending이므로 work가 active입니다. 이는 PostgreSQL/MySQL
+재현하는 historical exact darwin oracle만 uv 0.10.12를 사용합니다. Fix head run `31329294154`에서
+exact 18/18 hosted executions이 성공해 work를 completed로 전환했습니다. Initial run의 네 Python
+pre-test assertion failure/cancel과 uv metadata assertion fix는 EVID-028에 보존했습니다. 이는
+PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
 추가합니다. MySQL은 M9 actual adapter까지 같은 원칙을 따릅니다.

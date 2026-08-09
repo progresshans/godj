@@ -35,7 +35,8 @@ CPython 3.14.3은 Django 6.1이 지원하는 minor이지만 현재 최신 micro�
 이 표의 uv 0.10.12는 historical exact darwin artifact payload의 일부입니다. 일상 local/Ubuntu
 portable 및 별도 Python compatibility matrix는 uv 0.12.3을 사용합니다. Compatibility matrix는 exact
 CPython 3.12.13/3.13.15/3.14.3/3.14.7과 같은 Django/asgiref/sqlparse dependency를 검증하도록
-구성됐지만 GDJ-0022 implementation/completion head의 hosted run은 아직 pending입니다.
+구성됐고 GDJ-0022 fix head run `31329294154`에서 네 leg 모두 통과했습니다. Historical exact darwin은
+계속 uv 0.10.12를 사용합니다.
 
 DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함되지만, 참조 프로젝트와 정확한 버전은 아직 정하지 않았습니다. Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 
@@ -543,7 +544,7 @@ byte-for-byte prefix로 보존하고 11번째 oracle line만 append한 `SHA256SU
 
 Protocol 분류는 11 reference set/115 unique contract/110 ordered cross-binding입니다. Static
 oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status mismatch 10개를 계속 냅니다.
-Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)의 local implementation과 Accepted
+Completed [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Accepted
 [ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 independent global/linked/protocol
 kernel, exact public project facade와 actual product adapter를 추가했습니다. MIG-065..074는 10
 `passing`이고 제품은 11 adapter/115 contract의 `110 passing + 5 deviation`입니다.
@@ -561,9 +562,11 @@ contract를 모두 실행해야 합니다. Expected contract 수와 executed 수
 `continue-on-error` 없음, final clean worktree를 required gate로 둡니다.
 
 GDJ-0022 workflow는 기존 10 hosted execution에 actual product Linux/macOS x64/arm64 4개와 Ubuntu
-Python compatibility 4개를 더해 exact 18 required execution으로 확장됐습니다. Local EVID-027은
-`make ci`와 historical exact oracle를 통과했지만 18-job hosted run은 아직 실행하지 않았으므로 해당
-platform/Python matrix success로 사용하지 않습니다.
+Python compatibility 4개를 더해 exact 18 required execution으로 확장됐습니다. Local EVID-027의
+`make ci`/historical exact oracle와 별도로, fix head
+`3dfeff2a881a3313883729943519896798d92afc`의 EVID-028은 exact 18/18 hosted success를 기록합니다.
+Initial implementation run은 네 Python pre-test uv assertion 실패 뒤 취소됐으며 Python/Django 자체의
+실패로 분류하지 않습니다.
 
 제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
 [run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04와

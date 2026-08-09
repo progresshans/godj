@@ -475,12 +475,13 @@ ordered mismatch 10을 유지합니다. GDJ-0021 완료 당시 제품 `godjcheck
 fail-closed했고 `make godj-conformance`는 10 adapter/105 contract의
 `100 passing + 5 deviation`이었습니다.
 
-Active GDJ-0022의 local implementation은 test-only proof와 독립인 global/linked/protocol product kernel,
+Completed GDJ-0022는 test-only proof와 독립인 global/linked/protocol product kernel,
 public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapter를 추가했습니다. Product
 adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
 diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`, 현재 제품은 11 adapter/115 contract의
 `110 passing + 5 deviation`입니다. Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
-`make ci`, exact oracle와 independent audits는 EVID-027에 기록했고 exact 18 hosted acceptance는 pending입니다.
+`make ci`, exact oracle와 independent audits는 EVID-027에 기록했고 fix head exact 18/18 hosted
+acceptance는 EVID-028에 기록했습니다.
 Status-only manifest는 4,520 bytes/
 `0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`이고 oracle/static/SHA256SUMS는
 위 GDJ-0021 pins에서 byte-identical입니다.
@@ -574,9 +575,15 @@ run `31322959993`의 같은 exact 10 job을 통과했고, GDJ-0022 activation co
 GDJ-0022 local implementation은
 [EVID-20260810-027](status/TEST_EVIDENCE.md#evid-20260810-027--gdj-0022-project-linked-migration-check-product-slice)의
 `make ci`, focused normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only, historical exact oracle와
-independent audits를 통과했습니다. 그러나 implementation+completion 문서 head는 아직 commit/push 전이고
-위 exact 18 hosted executions은 모두 `not run/pending`입니다. 기존 10-job run이나 local one-time Python
-probe를 product/Python expanded hosted success로 재사용하지 않습니다.
+independent audits를 통과했습니다. Initial implementation head
+`06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 run `31329231255`는 네 Python leg가 테스트 전 brittle
+uv exact-string assertion에서 실패해 취소했습니다. Metadata suffix를 허용한 fix head
+`3dfeff2a881a3313883729943519896798d92afc`의
+[run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)는 exact 18/18 성공했고,
+job/step/checkout과 four-version 174/16-skip·115-scenario digest는
+[EVID-20260810-028](status/TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)에
+기록했습니다. EVID-028/status patch 자체의 final exact-head CI는 commit/push 전이라 `not run/pending`이며
+run 31329294154를 그 후속 patch의 success로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
