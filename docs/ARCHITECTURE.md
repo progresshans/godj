@@ -177,7 +177,25 @@ MIG-047의 A2를 위해 SQLite `AddField`는 table이 empty일 때만 logical de
 `ProjectState`에 보존하면서 physical persistent default 없는 column을 추가합니다. Nonempty
 table backfill/rebuild는 계속 explicit unsupported입니다. MIG-047..056의 아홉 product adapter
 중 MIG-052만 DEV-0002이며 현재 전체 분류는 `92 passing + 5 deviation`입니다. File/source
-loader, version handshake, CLI, public adoption/repair와 crash reconciliation은 다음 계약 범위입니다.
+loader, version handshake, CLI, public adoption/repair와 crash reconciliation은 당시 다음 계약
+범위였습니다.
+
+완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)과 Accepted
+[ADR-0019](adr/0019-versioned-migration-definition-source.md)는 explicit caller-provided bytes를
+strict data-only JSON v1과 tuple `(1,1,1,2)`로 검증하고, fully normalized Schema IR v2의
+closed `CreateModel`/non-PK `char`·`boolean` `AddField` operation만 loader-owned snapshot에
+게시하는 contract를 MIG-057..064로 고정했습니다. Canonical definition-set digest와 실패
+precedence, duplicate/existing graph validation, all-or-nothing publication을 포함하며 Django
+Python file discovery나 실행 의미를 가져오지 않습니다.
+
+이 여덟 contract는 Accepted ADR decision oracle이고, 실제 Django 공통 동작을 관찰하는
+MIG-057/MIG-064만 pinned Django provenance를 별도로 가집니다. MIG-064는 public Django
+graph/executor와 existing Go `Executor.Migrate` 사이의 reference handoff observation일 뿐입니다.
+`conformance/definitionload/**`는 실제 `migrations.NewPlanner`와 `Executor.Migrate`를 호출하는
+`*_test.go` feasibility proof지만 importable package나 제품 구현이 아닙니다. 따라서 현재도
+product loader, 열 번째 GoDj adapter와 CLI는 미구현이고 제품 분류는 9 adapter의
+`92 passing + 5 deviation`으로 유지됩니다. GDJ-0020 loader product slice는 별도 activation 전
+planned 상태입니다.
 
 ## CLI와 프로젝트 실행
 

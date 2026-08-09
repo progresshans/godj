@@ -1,6 +1,6 @@
 ---
 id: GDJ-0019
-status: active
+status: completed
 updated: 2026-08-09
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "3269d662a8b403b5d73096c04abf9fa630b22974"
@@ -41,8 +41,8 @@ project binary, `godj migrate` CLI를 제공하지 않습니다. 완료 분류�
 - Valid definition set을 exactly once existing public `Executor.Migrate`에 넘기는 handoff 고정
 - 10 reference set, 105 contract의 global uniqueness와 90 ordered cross-binding 거부
 - 기존 `92 passing + 5 deviation`, 9 product adapter와 이전 9개 locked artifact 보존
-- [Proposed ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)의 가설을
-  contract/probe로 검토하되 제품 공개 API와 구분
+- [Accepted ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)의 결정을
+  contract/reference/test-only proof로 검증하되 제품 공개 API와 구분
 
 ## 비목표와 금지 경계
 
@@ -136,10 +136,11 @@ unknown/missing field, implicit IR와 lifecycle sentinel failure는 base observa
 mutation/unit gate로 검증합니다. MIG-059만 하나의 successful result-valued case matrix 안에 base,
 syntax/permutation-equivalent와 operation-reordered digest를 함께 기록합니다.
 
-## Proposed document/source contract
+## Accepted document/source contract
 
-이 절은 ADR-0019가 Proposed인 동안 검증할 exact contract 가설입니다. Contract와 spike가
-완료되기 전에는 Accepted API 또는 구현 지원이 아닙니다.
+이 절은 MIG-057..064, locked artifact와 test-only feasibility proof로 검증해 ADR-0019에서
+Accepted한 exact contract입니다. Accepted인 것은 data boundary와 compatibility 의미이며 제품
+loader API 또는 source load 지원은 아닙니다.
 
 Caller는 각 항목에 non-empty unique valid-UTF-8 `source_id`와 caller-owned UTF-8 JSON bytes를
 제공합니다. Synchronous snapshot이 끝날 때까지 caller가 input을 concurrent하게 mutate하면 안
@@ -338,7 +339,7 @@ Exact message와 host path는 contract가 아닙니다. Existing protocol v2 `Ob
 모든 field는 항상 존재합니다. 적용되지 않는 string은 `""`, operation index는 `-1`입니다.
 Invalid-UTF-8 SourceID만 `source_id="hex:<lowercase raw bytes>"`로 표시합니다. Success contract의
 `metrics.failure`은 explicit `null`입니다. Protocol top-level/error field를 늘리지 않습니다.
-Proposed precedence는 다음과 같습니다.
+확정한 precedence는 다음과 같습니다.
 
 1. Request snapshot/framing: empty/duplicate `source_id`, invalid aggregate input; caller input order를
    버리고 canonical `source_id` order를 확정
@@ -534,23 +535,23 @@ existing lifecycle handoff를 고정한 뒤 Q-010의 CLI/project handshake가 �
 
 ## 완료 조건
 
-- [ ] MIG-057..064 title/scenario/phase/comparison과 pinned provenance review
-- [ ] Strict data-only JSON v1, tuple `(1,1,1,2)`과 normalized IR v2 oracle lock
-- [ ] `CreateModel`/non-PK `char`·`boolean` `AddField` lossless codec와 executable/custom/unknown rejection
-- [ ] Empty source, permutation/canonical digest와 operation-order significance 검증
-- [ ] Atomic malformed/duplicate failure, deterministic error precedence와 partial publish 0
-- [ ] MIG-064 source re-read 0, existing `Executor.Migrate` exactly-once handoff
-- [ ] Oracle two-process byte identity, static 8 ordered status mismatch와 checksum
-- [ ] GoDj product runner 없음/exit 2/no actual, product target 9 adapter 유지
-- [ ] 10 set/105 contract uniqueness와 90 ordered cross-binding 거부
-- [ ] MIG-057..064 manifest provenance 각각 `kind=decision`, `reference=ADR-0019`, `derived=false`
-- [ ] `COMPATIBILITY.md`가 이 set의 `oracle_locked`를 Django result가 아닌 synthetic GoDj decision
+- [x] MIG-057..064 title/scenario/phase/comparison과 pinned provenance review
+- [x] Strict data-only JSON v1, tuple `(1,1,1,2)`과 normalized IR v2 oracle lock
+- [x] `CreateModel`/non-PK `char`·`boolean` `AddField` lossless codec와 executable/custom/unknown rejection
+- [x] Empty source, permutation/canonical digest와 operation-order significance 검증
+- [x] Atomic malformed/duplicate failure, deterministic error precedence와 partial publish 0
+- [x] MIG-064 source re-read 0, existing `Executor.Migrate` exactly-once handoff
+- [x] Oracle two-process byte identity, static 8 ordered status mismatch와 checksum
+- [x] GoDj product runner 없음/exit 2/no actual, product target 9 adapter 유지
+- [x] 10 set/105 contract uniqueness와 90 ordered cross-binding 거부
+- [x] MIG-057..064 manifest provenance 각각 `kind=decision`, `reference=ADR-0019`, `derived=false`
+- [x] `COMPATIBILITY.md`가 이 set의 `oracle_locked`를 Django result가 아닌 synthetic GoDj decision
       oracle로 명시
-- [ ] Payload/digest/error/source/version/IR/operation/handoff mutation gate
-- [ ] 기존 9 locked artifact/checksum entry byte 불변
-- [ ] 기존 `92 passing + 5 deviation`과 full Go/Python/checksum/docs 회귀
-- [ ] 완료 분류가 `92 passing + 5 deviation + 8 oracle_locked`이고 제품 지원 claim 없음
-- [ ] ADR/work/CURRENT/matrix/evidence가 같은 checkout과 상태를 가리킴
+- [x] Payload/digest/error/source/version/IR/operation/handoff mutation gate
+- [x] 기존 9 locked artifact/checksum entry byte 불변
+- [x] 기존 `92 passing + 5 deviation`과 full Go/Python/checksum/docs 회귀
+- [x] 완료 분류가 `92 passing + 5 deviation + 8 oracle_locked`이고 제품 지원 claim 없음
+- [x] ADR/work/CURRENT/matrix/evidence가 같은 checkout과 상태를 가리킴
 
 ## 진행 기록
 
@@ -558,15 +559,53 @@ existing lifecycle handoff를 고정한 뒤 Q-010의 CLI/project handshake가 �
 - [x] Pinned Django 6.1 loader/migration/writer/serializer symbol과 upstream tests 재확인
 - [x] Contract-only activation, GDJ-0020/CLI/non-goal과 one-owner 경계 작성
 - [x] Activation front matter, Markdown, local links/headings, whitespace와 exact 7-path diff scope 검증
-- [ ] Tenth manifest/reference oracle/not-implemented artifact
-- [ ] Test-only feasibility와 false-green/cross-binding gate
-- [ ] Full verification, ADR 결정과 handoff
+- [x] Tenth manifest/reference oracle/not-implemented artifact
+- [x] Test-only feasibility와 false-green/cross-binding gate
+- [x] Full verification, ADR 결정과 handoff
 
 ## 수정 파일
 
-Activation에서는 이 work item, Proposed ADR-0019, work/ADR index, CURRENT, ROADMAP과
-OPEN_QUESTIONS만 변경합니다. Machine artifact, test/evidence와 일반 문서는 실제 작업 뒤 이
-절에 exact path와 역할을 기록합니다.
+GDJ-0019의 activation baseline `3269d662a8b403b5d73096c04abf9fa630b22974`부터 final code
+commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`까지 delivery commit 세 개가 변경한 exact
+24개 경로는 다음과 같습니다.
+
+1. `Makefile`
+2. `conformance/cmd/godjcheck/main_test.go`
+3. `conformance/contracts/migration-definition-source-manifest.json`
+4. `conformance/definitionload/candidate_test.go`
+5. `conformance/definitionload/contract_test.go`
+6. `conformance/definitionload/lifecycle_test.go`
+7. `conformance/definitionload/scope_test.go`
+8. `conformance/fixtures/godj-migration-definition-source-not-implemented.json`
+9. `conformance/internal/protocol/migration_definition_source_artifacts_test.go`
+10. `conformance/internal/protocol/write_migration_artifacts_test.go`
+11. `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS`
+12. `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json`
+13. `conformance/runners/django/migration_definition_source_scenarios.py`
+14. `conformance/runners/django/runner.py`
+15. `conformance/runners/django/tests/test_migration_definition_source_scenarios.py`
+16. `conformance/runners/django/tests/test_runner_safety.py`
+17. `conformance/runners/django/tests/test_scenarios.py`
+18. `docs/OPEN_QUESTIONS.md`
+19. `docs/ROADMAP.md`
+20. `docs/adr/0019-versioned-migration-definition-source.md`
+21. `docs/adr/README.md`
+22. `docs/status/CURRENT.md`
+23. `work/0019-migration-definition-source-compatibility-contracts.md`
+24. `work/README.md`
+
+Delivery commits는 activation `058bc0aba66c78e344f2d8bc87afa2995b2b585a`, machine artifact
+`4c7b8390c34ce4f9c4bd9524f22779208cff0df0`, feasibility/final code
+`58c66fdc751867a3c2f1541a8594c6615c9fbb59`입니다. 위 delivery-path diff 뒤의 completion
+documentation diff는 다음 16개 문서를 동기화합니다.
+
+- `NOTICE.md`, `conformance/README.md`
+- `docs/ARCHITECTURE.md`, `docs/COMPATIBILITY.md`, `docs/LICENSING.md`,
+  `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`, `docs/SOURCES.md`, `docs/TESTING.md`
+- `docs/adr/0019-versioned-migration-definition-source.md`, `docs/adr/README.md`
+- `docs/status/CURRENT.md`, `docs/status/IMPLEMENTATION_MATRIX.md`,
+  `docs/status/TEST_EVIDENCE.md`
+- `work/0019-migration-definition-source-compatibility-contracts.md`, `work/README.md`
 
 ## 결정된 사항
 
@@ -574,12 +613,23 @@ OPEN_QUESTIONS만 변경합니다. Machine artifact, test/evidence와 일반 문
   통합 소유자는 한 명으로 제한했습니다.
 - 2026-08-09: 기존 `Executor.Migrate`는 already-loaded lifecycle boundary로 보존하며 새 source
   contract가 lifecycle safety/transaction 의미를 다시 소유하지 않게 했습니다.
-- 2026-08-09: Python source compatibility가 아닌 strict data document 가설을 ADR-0019
-  Proposed로 기록했습니다. 아직 Accepted 결정이나 product support가 아닙니다.
+- 2026-08-09: Python source compatibility가 아닌 caller-provided strict data-only JSON v1과
+  exact tuple `(1,1,1,2)`을 [ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)의
+  GoDj-owned contract로 Accepted했습니다.
+- 2026-08-09: SourceID는 validation/diagnostic precedence handle일 뿐 identity나 digest input이
+  아니며, definition-set digest는 semantic observation이고 revision/trust fence가 아니라고
+  고정했습니다.
+- 2026-08-09: Full-document framing, all-source tuple, semantic IR, existing graph validation,
+  digest/publish, lifecycle 순서와 SourceID → RFC 6901 pointer → reason canonical selection을
+  MIG-057..064 및 59/59 Go/Python error parity로 고정했습니다.
+- 2026-08-09: `conformance/definitionload/**`는 실제 `migrations.NewPlanner` construction과 public
+  `Executor.Migrate` handoff를 증명하는 test-only feasibility gate입니다. Importable product loader,
+  GoDj runner와 제품 지원 상태는 만들거나 바꾸지 않았습니다.
 
 ## 미결정/Blocker
 
-외부 blocker는 없습니다. ADR-0019 acceptance 전 다음은 의도적으로 미결정입니다.
+외부 blocker는 없습니다. ADR-0019의 source contract는 Accepted됐고 GDJ-0019는 완료됐습니다.
+다음 제품 결정은 별도 GDJ-0020 activation 전까지 의도적으로 미결정입니다.
 
 - Product loader public type/function/package 이름과 exact resource limit
 - Public Go error taxonomy가 existing migration error에 합쳐질지 별도 source error인지
@@ -587,16 +637,32 @@ OPEN_QUESTIONS만 변경합니다. Machine artifact, test/evidence와 일반 문
 - Filesystem/project discovery와 global CLI/project binary handshake
 - Codec v2 operation/data callback 확장 정책
 
+Hosted CI는 final code commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 아직 실행하지
+않았습니다. 이는 수집하지 않은 원격 증거이며 local completion blocker나 PASS claim이 아닙니다.
+
 ## 테스트 증거
 
-- Evidence ID: activation-only validation; `TEST_EVIDENCE.md` runtime entry는 아직 없음
-- Command: pinned `git show fe0a859f...:<path>` symbol/test inspection, Ruby YAML front matter
-  assertion, `markdown-it-py 4.2.0` 7-file parse, Python local-link/heading check, trailing whitespace,
-  `git diff --check`, untracked-file `git diff --no-index --check`, exact activation-document path assertion
-- Result: 모두 exit 0; 31개 narrow `allowed_paths`, 7개 activation document path, local link/heading와
-  Markdown parse PASS; 151-byte empty digest `53f20df4...a43450`와 470-byte nonempty digest
-  `07e61f8d...2399bc` 재확인
-- Not run: tenth reference/oracle, Go/Python product/full CI는 implementation 단계 전이므로 미실행
+- Evidence ID: [EVID-20260809-019](../docs/status/TEST_EVIDENCE.md#evid-20260809-019--gdj-0019-migration-definition-source-compatibility-contracts)
+- Checkout: activation `058bc0aba66c78e344f2d8bc87afa2995b2b585a`, machine artifact
+  `4c7b8390c34ce4f9c4bd9524f22779208cff0df0`, final code
+  `58c66fdc751867a3c2f1541a8594c6615c9fbb59`
+- Result: root `make check`, full `CGO_ENABLED=0 go test -count=1 ./...`, definitionload normal/race/
+  CGO-disabled/vet/count-20 PASS; portable reference 164 cases with 15 skips, exact reference 164/164,
+  Go/Python canonical error parity 59/59 PASS
+- Contract shape: 10 reference sets, 105 unique contracts, 90 ordered cross-bindings; existing product
+  state remains 9 adapters, 97 contracts, `92 passing + 5 deviation`, plus 8 synthetic
+  `oracle_locked` reference contracts
+- False-green: static comparator exit 1 with 8 ordered mismatches; `godjcheck` exit 2, empty stdout and no
+  actual artifact for unsupported product scenarios
+- Artifact pins: manifest 5,195 bytes
+  `8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`; oracle 29,851 bytes
+  `efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`; static fixture 1,574 bytes
+  `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`; `SHA256SUMS` 959 bytes
+  `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`
+- Source pins: scenario source 102,128 bytes
+  `53c52e3dbcd8af13e0307e62738383a01d6f307464332942c5c8ad97b71aad77`; scenario test 68,504 bytes
+  `b30b5ed338da16388fc354ecc3cdceef7d8ca8948bc41b46e4f840a0e845605a`
+- Not run: hosted CI on final code commit; status is pending/uncollected, not PASS
 
 ## 위험과 rollback
 
@@ -608,20 +674,25 @@ OPEN_QUESTIONS만 변경합니다. Machine artifact, test/evidence와 일반 문
   Fully normalized IR equality를 fail-closed합니다.
 - Error order가 input order/map iteration을 따르면 cross-platform oracle이 흔들립니다. Canonical
   source/identity/path order와 two-process byte gate를 둡니다.
-- Rollback은 activation commit/diff만 되돌리면 됩니다. Existing 9 product/locked artifact와 제품
-  source를 건드리지 않으므로 runtime/data migration은 없습니다.
+- Rollback은 위 세 delivery commit의 contract/reference/test-only artifact를 순서대로 되돌리는
+  문서·fixture·test rollback입니다. Product loader/DB schema/data migration은 추가하지 않았고 existing
+  9 product adapter와 prior locked artifact pins는 보존됐습니다.
 
 ## 다음 정확한 작업
 
-`conformance/contracts/migration-definition-source-manifest.json`을 MIG-057..064의 위 phase와
-comparison으로 먼저 작성하고, `conformance/runners/django/migration_definition_source_scenarios.py`의
-registry가 같은 scenario order를 단일 원본으로 생성하도록 연결합니다. Product Go runner나
-`migrations/**`를 열기 전에 artifact test에서 10 set/105 contract와 90 ordered cross-binding
-expected count를 RED로 만듭니다.
+현재 active/ready work는 없습니다. 다음 통합 담당자는 product loader public API, resource limits,
+structured error/value ownership과 existing `Executor.Migrate` wiring을 다루는 **별도 GDJ-0020**을
+새 work item/allowed paths로 먼저 activation해야 합니다. 그 전에는 product source, GoDj runner,
+filesystem/module discovery, writer나 CLI handshake를 구현하지 않습니다.
 
 ## 결과와 인수인계
 
-현재는 activation 단계입니다. Baseline, source/version/codec/digest/error/handoff 가설과
-금지 경계를 고정했지만 MIG-057..064는 아직 `oracle_locked`가 아니며 ADR-0019도 Proposed입니다.
-다음 통합 담당자는 allowed paths 밖 제품 source, GoDj runner와 기존 locked payload를 건드리지
-말고 reference artifact부터 구현해야 합니다.
+GDJ-0019는 완료됐고 ADR-0019는 Accepted입니다. MIG-057..064의 explicit source/version/codec/IR,
+digest/error precedence와 lifecycle handoff가 10-set/105-contract synthetic GoDj reference 및
+test-only Go proof로 잠겼습니다. 새 8개는 `oracle_locked`이며 product runner가 없으므로 제품 상태는
+9 adapters/97 contracts와 `92 passing + 5 deviation` 그대로입니다.
+
+알려진 제한은 codec v1의 `CreateModel`과 non-PK `char`/`boolean` `AddField`, caller-provided bytes,
+test-only loader/coordinator에 국한된다는 점입니다. Product loader/API, resource limits, writer,
+filesystem/module discovery, CLI handshake와 hosted CI final-head 증거는 후속 범위입니다. 다음 작업은
+GDJ-0020을 별도로 activation하는 것이며, 이 완료 문서 자체가 product support claim은 아닙니다.

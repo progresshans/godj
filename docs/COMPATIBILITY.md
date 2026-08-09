@@ -86,7 +86,7 @@ DB-xxx   Backend 공통 계약
 
 - contract ID와 설명
 - 정확한 reference profile
-- Django 문서 또는 테스트 경로
+- Reference provenance: Django source/문서/test 경로 또는 Accepted ADR decision
 - 입력, fixture, 연산
 - 결과, 순서 보장, 부작용
 - 안정적인 오류 범주
@@ -251,7 +251,9 @@ draft → oracle_locked → red → passing
 ```
 
 - `draft`: 계약 내용이나 환경이 아직 바뀔 수 있음
-- `oracle_locked`: Django 결과와 provenance가 재현 가능하게 고정됨
+- `oracle_locked`: provenance가 명시된 reference 결과가 재현 가능하게 고정됨. Pinned Django
+  exact observation 또는 Accepted ADR의 GoDj decision oracle일 수 있으며 manifest가 source/
+  decision 종류, version과 `derived` 여부를 구분함
 - `red`: GoDj가 실행되지만 계약을 통과하지 못함
 - `passing`: 명시된 profile/backend에서 통과 증거가 있음
 - `deviation`: 차이를 의도적으로 수용했고 deviation/ADR이 연결됨
@@ -463,6 +465,31 @@ no-fallback/no-automatic-adoption입니다. `CommitRolledBack`은 confirmed stat
 않고 SQLite session을 poison해 같은 call에서 재시도하지 않습니다. Empty-table default-bearing
 `AddField`는 logical default를 보존하되 physical persistent default를 만들지 않으며 nonempty
 table은 계속 unsupported입니다.
+
+완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)은
+[`migration-definition-source-manifest.json`](../conformance/contracts/migration-definition-source-manifest.json)을
+열 번째 ordered reference set으로 추가했습니다. MIG-057..064는 explicit document bytes,
+strict JSON v1과 exact tuple `(1,1,1,2)`, fully normalized Schema IR v2, closed
+`CreateModel`/non-PK `char`·`boolean` `AddField`, loader-owned atomic snapshot, canonical digest와
+stage-major failure precedence를 고정합니다. MIG-064는 public Django graph/executor handoff의
+reference-only success observation이며 Go product 지원 계약이 아닙니다.
+
+여덟 contract 모두 Accepted [ADR-0019](adr/0019-versioned-migration-definition-source.md)을
+`kind=decision`, `derived=false`로 기록합니다. MIG-057과 MIG-064만 pinned Django 6.1
+source/test provenance를 추가해 identity/dependency/ordered operation과 public executor의 실제
+공통 동작을 구분합니다. 따라서 strict JSON, tuple, codec, digest와 precedence를 Django 형식이나
+Django observation으로 과장하지 않습니다.
+
+Manifest는 5,195 bytes/SHA-256
+`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, locked oracle은
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
+not-implemented fixture는 1,574 bytes/
+`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. 갱신된
+`SHA256SUMS`는 959 bytes/
+`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. 현재 reference는
+10 set/105 unique contract/90 ordered cross-binding이고 새 8개는 `oracle_locked`입니다. 제품
+loader, 열 번째 GoDj adapter와 CLI는 없으므로 제품 분류는 9 adapter의
+`92 passing + 5 deviation`으로 유지됩니다.
 
 ## 데이터 호환성
 

@@ -28,6 +28,10 @@ backend 구현이 아닙니다.
 GDJ-0018은 public `Executor.Migrate`와 revision-fenced SQLite backend를 사용하는 아홉 번째
 GoDj live adapter를 연결했습니다. Lifecycle 9개는 `passing`, MIG-052만 reviewed DEV-0002
 `deviation`이며 현재 9 product set의 분류는 `92 passing + 5 deviation`입니다.
+GDJ-0019는 explicit migration definition source 전용 열 번째 reference set을 contract-only로
+추가했습니다. MIG-057..064 여덟 개는 `oracle_locked`이고 제품 loader, 열 번째 GoDj adapter와
+CLI는 없습니다. 따라서 reference는 10 set/105 unique contract/90 ordered cross-binding으로
+늘었지만 제품 분류는 `92 passing + 5 deviation` 그대로입니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -45,15 +49,17 @@ GoDj live adapter를 연결했습니다. Lifecycle 9개는 `passing`, MIG-052만
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
 | `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
-| `runners/django` | 명시적인 Django scenario와 type-preserving normalizer |
+| `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
+| `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read, M2 write/migration/Save, QuerySet cache, migration planning, plan execution, recorder restart, historical-state reconstruction과 revision-fenced lifecycle 제품 package를 실행하는 아홉 GoDj observation adapter |
-| `oracles/**/*.json` | Django runner가 만든 byte-deterministic expected observation |
+| `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder, validator, canonical value, comparator |
 | `fixtures/godj*.json` | 미구현 상태가 pass되지 않는 set별 protocol fixture와 reviewed sparse deviation expectation |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
-| `cmd/godjcheck` | GoDj observation을 생성해 locked Django oracle과 비교 |
+| `definitionload` | GDJ-0019 strict loader와 실제 `NewPlanner`/`Executor.Migrate` handoff의 test-only feasibility proof |
+| `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
 ordered contract ID/position, phase와 payload dimension이 suite를 선택 manifest에 묶으며
@@ -544,12 +550,35 @@ reviewed product expectation과 10-contract match입니다. 현재 9 product ada
 `92 passing + 5 deviation`이며, 97 unique contract와 72 ordered cross-binding gate를
 유지합니다.
 
+완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)과 Accepted
+[ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)는 caller-provided bytes,
+strict data-only JSON v1, tuple `(1,1,1,2)`, closed `CreateModel`/non-PK `char`·`boolean`
+`AddField`, atomic loader-owned snapshot, canonical digest와 stage-major failure precedence를
+MIG-057..064로 고정했습니다. MIG-064는 public Django graph/executor의 reference-only success
+observation이며 digest는 handoff observation metadata이지 executor argument가 아닙니다.
+
+Manifest는 5,195 bytes/SHA-256
+`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, oracle은 29,851
+bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture는
+1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. 갱신된
+`SHA256SUMS`는 959 bytes/
+`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. Exact Python은
+164개 모두 통과했고 portable run은 149 passed/15 skipped입니다. 열 set의 105 ID/scenario와
+90 ordered cross-binding도 검증했습니다.
+
+`conformance/definitionload/**`는 actual `migrations.NewPlanner`와 public
+`Executor.Migrate`를 쓰는 test-only proof입니다. Product loader/GoDj adapter/CLI는 계속
+미구현이므로 새 8개는 `oracle_locked`이고 기존 9 adapter의 `92 passing + 5 deviation`은
+변하지 않습니다. GDJ-0020은 별도 activation 전 planned 상태입니다.
+
 ## Provenance
 
 현재 query/write/migration/Save/QuerySet evaluation-cache/migration-planning/execution/
-recorder-restart/historical-state/lifecycle scenario는 Django 코드를
+recorder-restart/historical-state/lifecycle/definition-source scenario는 Django 코드를
 번역하지 않고 GoDj 고유 fixture로 독립적으로
 작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
 정의입니다. Manifest의
-upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. 파생물
+upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. MIG-057..064는
+모두 Accepted ADR-0019 decision provenance를 가지며, Django behavior를 실제 관찰한
+MIG-057/MIG-064만 pinned Django provenance를 별도로 가집니다. 파생물
 분류와 고지 규칙은 `docs/LICENSING.md`와 `NOTICE.md`를 따릅니다.

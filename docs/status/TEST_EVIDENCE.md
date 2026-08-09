@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-09
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-018
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-019
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1637,3 +1637,85 @@ Hosted job evidence:
 증거입니다. Ubuntu는 broad portable `make ci`, macOS는 reference profile과 같은 darwin/arm64
 환경의 exact/focused gate를 맡습니다. 이 제품 단면은 SQLite-only이므로 존재하지 않는 PostgreSQL/
 MySQL backend matrix를 성공으로 표현하지 않습니다.
+
+## EVID-20260809-019 — GDJ-0019 Migration Definition Source Compatibility Contracts
+
+- Date/time: 2026-08-09 KST
+- Work/contract IDs: GDJ-0019, MIG-057..MIG-064, Q-010, Q-012
+- Activation commit: `058bc0aba66c78e344f2d8bc87afa2995b2b585a`
+- Machine/conformance commit: `4c7b8390c34ce4f9c4bd9524f22779208cff0df0`
+- Feasibility/final code commit: `58c66fdc751867a3c2f1541a8594c6615c9fbb59`
+- Environment/backend: macOS darwin/arm64, Go 1.26.5; uv/Python exact profile with pinned Django 6.1,
+  SQLite 3.50.4 reference; test-only Go lifecycle proof는 fresh in-memory modernc SQLite 3.53.3
+- Exit status: 아래 local/reference gates 모두 0. 의도한 false-green probes는 static comparator 1,
+  unsupported product runner 2
+- Failures/skips: unexpected failure 없음. Portable Python 164 tests 중 exact-profile-only 15 skipped;
+  exact profile 164/164 pass. Hosted CI는 final code commit에서 not run/pending
+
+실행·확인한 주요 명령:
+
+```bash
+make check
+CGO_ENABLED=0 go test -count=1 ./...
+go test -count=1 ./conformance/definitionload
+go test -race -count=1 ./conformance/definitionload
+CGO_ENABLED=0 go test -count=1 ./conformance/definitionload
+go vet ./conformance/definitionload
+go test -count=20 ./conformance/definitionload
+```
+
+`make check`는 format/generate, full Go normal/vet/race, CGO-disabled SQLite/GoDj adapter, portable와
+exact Python, protocol/contract, nine product adapter와 all-oracle no-rewrite gate를 root에서
+통과했습니다. 별도 full `CGO_ENABLED=0 ./...`와 definitionload focused normal/race/CGO-disabled/vet/
+count-20도 통과했습니다.
+
+Reference 결과는 portable 164 tests/15 exact-only skips와 exact 164/164입니다. Strict JSON framing,
+SourceID, tuple, closed operation/normalized IR, canonical RFC 8785-subset digest, atomic publish,
+`migrations.NewPlanner` construction exactly once와 public `Executor.Migrate` exactly-once handoff를
+검증했습니다. Combined source/document/compatibility/semantic/graph faults의 canonical
+category/code/stage/reason/RFC 6901 pointer/operation index는 독립 Go/Python matrix 59/59에서 exact
+parity였고 mismatch는 0이었습니다.
+
+Protocol aggregate는 10 reference set, 105 unique contract/scenario와 90 ordered cross-binding입니다.
+기존 제품 범위는 9 GoDj adapters/97 contracts와 `92 passing + 5 deviation`으로 불변이고,
+MIG-057..064의 8개는 synthetic GoDj decision oracle `oracle_locked`입니다. Test-only
+`conformance/definitionload/**`는 importable product loader/API가 아니며 product package의 import도
+source gate로 거부합니다.
+
+False-green probes:
+
+```bash
+go run ./conformance/cmd/observationcmp \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-definition-source-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json \
+  -actual conformance/fixtures/godj-migration-definition-source-not-implemented.json
+go test -count=1 \
+  -run '^TestRunRejectsMigrationDefinitionSourceSetWithoutWritingActualOutput$' \
+  ./conformance/cmd/godjcheck
+```
+
+첫 명령은 의도한 exit 1과 MIG-057..MIG-064 ordered status mismatch 정확히 8개를 반환했습니다.
+두 번째 gate는 actual product runner 호출이 exit 2, stdout 0 bytes이며 actual artifact를 쓰지
+않음을 검증했습니다. 따라서 reference/test-only proof를 product support로 오인하는 경로가
+fail-closed합니다.
+
+고정한 artifact와 source:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/migration-definition-source-manifest.json` | 5,195 | `8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json` | 29,851 | `efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f` |
+| `conformance/fixtures/godj-migration-definition-source-not-implemented.json` | 1,574 | `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS` | 959 | `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a` |
+| `conformance/runners/django/migration_definition_source_scenarios.py` | 102,128 | `53c52e3dbcd8af13e0307e62738383a01d6f307464332942c5c8ad97b71aad77` |
+| `conformance/runners/django/tests/test_migration_definition_source_scenarios.py` | 68,504 | `b30b5ed338da16388fc354ecc3cdceef7d8ca8948bc41b46e4f840a0e845605a` |
+
+Independent exact/scope/false-green review의 final P0–P3 finding은 없습니다. Accepted
+[ADR-0019](../adr/0019-versioned-migration-definition-source.md)은 source contract 결정이고 product
+loader 지원은 아닙니다. Product API/resource limits/error wrapping/discovery/writer/CLI와 contract의
+제품 승격은 별도 GDJ-0020 activation 이후 범위입니다.
+
+Hosted CI는 final code commit `58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 실행하지 않았습니다.
+상태는 **pending/not run**이며 URL이나 hosted PASS를 기록하지 않습니다. EVID-20260809-018의
+GitHub-hosted run은 GDJ-0018의 이전 head에만 적용됩니다.

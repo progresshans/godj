@@ -1,8 +1,8 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0019 migration definition source compatibility contracts active
-- 다음 제품 계획: GDJ-0020 migration definition loader product slice; GDJ-0019/ADR-0019 뒤 activation
+- 현재 단계: GDJ-0019 migration definition source compatibility contracts completed; active work 없음
+- 다음 제품 계획: GDJ-0020 migration definition loader product slice planned; 별도 activation 필요
 - 마지막 검토: 2026-08-09
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -182,21 +182,28 @@ locked lifecycle oracle/static/SHA256SUMS, completed `conformance/lifecyclefence
 않았습니다. Default-bearing SQLite `AddField`는 empty table에서 logical default를 보존하고
 physical persistent default 없이 적용하며 nonempty table은 계속 unsupported입니다.
 
-[Active GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)은 explicit
+[완료된 GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)은 explicit
 caller-provided definition document, strict data-only JSON v1, compatibility tuple `(1,1,1,2)`,
 fully normalized Schema IR v2, closed `CreateModel`/non-PK `char`·`boolean` `AddField` codec와 atomic
 deterministic load를
-MIG-057..064로 먼저 잠급니다. [Proposed ADR-0019](adr/0019-versioned-migration-definition-source.md)는
+MIG-057..064로 잠갔습니다. [Accepted ADR-0019](adr/0019-versioned-migration-definition-source.md)는
 Django의 Python migration file ABI를 복제하지 않고 named identity/dependency/ordered operation
-의미를 Go data format으로 재설계하는 가설입니다.
+의미를 Go data format으로 재설계합니다.
 
-GDJ-0019 완료 목표는 기존 9 product set/97 contract/`92 passing + 5 deviation`을 그대로
-보존하면서 8 `oracle_locked`를 더한 10 reference set/105 contract와 90 ordered cross-binding
-rejection입니다. Product `migrations/**`, GoDj runner와 이전 locked artifact는 변경하지 않습니다.
+GDJ-0019는 기존 9 product adapter의 `92 passing + 5 deviation`을 그대로 보존하면서
+8 `oracle_locked`를 더해 10 reference set/105 unique contract와 90 ordered cross-binding
+rejection을 검증했습니다. Exact tuple, strict JSON, canonical digest, atomic loader snapshot과
+failure precedence는 ADR-0019 decision provenance이고 Django에서 실제 관찰한 공통 동작은
+MIG-057/MIG-064의 별도 provenance로 구분합니다.
+
+`conformance/definitionload/**`의 test-only proof는 실제 `migrations.NewPlanner`와
+`Executor.Migrate` handoff를 실행하지만 제품 source나 importable package가 아닙니다. Product
+loader, 열 번째 GoDj adapter와 CLI는 구현하지 않았습니다.
 MIG-064도 existing `Executor.Migrate`에 대한 oracle reference handoff shape이지 Go product loader
 지원이 아닙니다.
 
-별도 GDJ-0020이 Accepted ADR-0019에 따라 loader product slice를 구현한 뒤에야 CLI/project
+별도 GDJ-0020은 아직 planned이며 별도 activation 뒤 Accepted ADR-0019의 loader product slice를
+구현합니다. 그 뒤에야 CLI/project
 orchestration을 다룹니다. Directory/file discovery, global CLI/library/generator semver handshake,
 operation/data callback 확장, adoption/repair command와 crash recovery는 GDJ-0019 지원 범위가
 아닙니다.

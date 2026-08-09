@@ -11,8 +11,8 @@ lifecycle, QuerySet evaluation/cache, and migration planning fixtures, are
 independently written behavioral scenarios. This also includes the
 multi-migration plan execution and before-write operation/recorder failure
 fixtures, the recorder-backed fresh restart planning fixtures, and the
-historical project-state reconstruction fixtures. Their manifest entries point
-to pinned Django documentation, source
+historical project-state reconstruction and migration definition source
+fixtures. Their manifest entries point to pinned Django documentation, source
 symbols, and tests for provenance but do not copy or translate Django source,
 fixtures, comments, or assertion structure. This notice does not classify those
 scenarios as derivative works.
@@ -22,6 +22,18 @@ targeted, failed, and restarted execution. MIG-047..056 use GoDj-specific apps,
 tables, operations, sentinels, and assertions; every provenance entry is marked
 `derived=false`. The separate revision-fence feasibility harness is GoDj test
 code and does not embed Django source or fixtures.
+
+GDJ-0019 independently authored MIG-057..064 with GoDj-specific documents,
+identities, operations, values, diagnostics, and assertions. Every contract
+records the Accepted ADR-0019 decision as `derived=false`; this is the
+provenance for GoDj's strict JSON format, compatibility tuple, closed codec,
+canonical digest, atomic publication, and failure precedence. MIG-057 and
+MIG-064 additionally cite pinned Django 6.1 source or tests for observed
+migration identity, graph, ordered-operation, and public executor behavior.
+Those Django entries are behavioral provenance, not a claim that Django uses
+GoDj's data format, and do not make the other six decision-oracle contracts
+Django observations. MIG-064 is reference-only and does not claim a GoDj
+product loader, adapter, or CLI implementation.
 
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new

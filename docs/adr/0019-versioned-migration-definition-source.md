@@ -1,6 +1,6 @@
 # ADR-0019: Migration definition source는 explicit versioned data document로 제한한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-09
 - 관련 work/contract: GDJ-0019, MIG-057..MIG-064, Q-010, Q-012
 - 대체하는 ADR: 없음
@@ -33,8 +33,9 @@ historical artifact로 보존해야 합니다. Go source registration은 compile
 load를 결속하고 arbitrary user code를 실행합니다. Unversioned JSON은 오래된 artifact를 현재 IR
 normalization/codec으로 조용히 재해석할 수 있습니다.
 
-GDJ-0019는 이 결정을 contract-only로 검증합니다. ADR 상태가 Proposed인 동안 아래 shape는
-제품 API나 지원 약속이 아닙니다. 제품 구현/수용 여부는 MIG-057..064 증거 뒤 결정합니다.
+GDJ-0019는 이 결정을 contract/reference/test-only proof로 검증했습니다. Accepted 상태는 아래
+GoDj-owned source contract를 채택했다는 뜻이며 product loader API나 런타임 지원 약속은 아닙니다.
+제품 구현은 별도 GDJ-0020 activation과 검증 뒤에만 상태를 바꿉니다.
 
 ## 결정 기준
 
@@ -87,11 +88,12 @@ version으로 잠글 수 있습니다. Filesystem/CLI를 후속 orchestration으
 escape를 fail-closed할 수 있습니다. Format writer/upgrade와 resource limits를 추후 결정해야 하는
 비용이 있습니다.
 
-## Proposed 결정
+## 결정
 
-MIG-057..064가 아래 가설을 검증하면 migration definition source는 **caller-provided explicit
-versioned data document**를 사용합니다. 현재 상태는 Proposed이며 contract/audit 전에는
-Accepted로 표현하지 않습니다.
+Migration definition source contract는 **caller-provided explicit versioned data document**를
+사용합니다. MIG-057..064가 아래 source/version/codec/digest/error/handoff 경계를 검증했으므로
+이를 Accepted합니다. 이 결정은 Django Python source ABI, file/module discovery 또는 product
+loader 구현을 뜻하지 않습니다.
 
 ### Source와 document ownership
 
@@ -307,11 +309,11 @@ fence, operation state와 handoff 뒤 error/last durable state는 Accepted ADR-0
 
 ## GDJ-0019와 GDJ-0020, CLI 순서
 
-GDJ-0019는 contract/reference/test-only feasibility만 수행하고 제품 source, GoDj runner와 current
-product classification을 바꾸지 않습니다. 완료 목표는 10 reference set, 105 contract,
+GDJ-0019는 contract/reference/test-only feasibility만 수행했고 제품 source, GoDj runner와 current
+product classification을 바꾸지 않았습니다. 완료 결과는 10 reference set, 105 contract,
 90 ordered cross-binding과 `92 passing + 5 deviation + 8 oracle_locked`입니다.
 
-별도 GDJ-0020은 이 ADR이 Accepted된 경우에만 product loader API, deep-copy/value ownership,
+별도 GDJ-0020은 이 Accepted ADR을 전제로 product loader API, deep-copy/value ownership,
 resource limits, structured Go error와 `Executor.Migrate` wiring을 구현합니다. Exact product 목표는
 `100 passing + 5 deviation`이지만 GDJ-0019에서는 그 상태를 주장하지 않습니다.
 
@@ -340,9 +342,9 @@ ADR-0019 tuple과 관련되지만 이 ADR 하나로 해결되지 않습니다.
 - Migration artifact signing, trust, encryption과 supply-chain distribution
 - Database adoption/repair, crash reconciliation, multi-DB/non-SQLite execution
 
-## 검증과 Acceptance gate
+## 검증 근거
 
-ADR을 Accepted로 바꾸기 전에 GDJ-0019에서 다음을 모두 검증합니다.
+GDJ-0019는 다음 acceptance gate를 모두 검증했습니다.
 
 - MIG-057..064 exact manifest/provenance/oracle/static fixture와 two-process byte identity
 - Tuple 네 좌표의 lower/higher mismatch가 operation decode/handoff 전에 거부됨
@@ -364,6 +366,16 @@ ADR을 Accepted로 바꾸기 전에 GDJ-0019에서 다음을 모두 검증합니
 - Existing 9 product adapter, `92 passing + 5 deviation`과 prior locked artifacts/checksum lines 불변
 - GoDj runner가 MIG-057..064 exit 2/no actual이고 product support claim이 없음
 - Independent exact-contract, scope/non-goal과 false-green audit
+
+상세 실행 증거는
+[EVID-20260809-019](../status/TEST_EVIDENCE.md#evid-20260809-019--gdj-0019-migration-definition-source-compatibility-contracts)에
+기록했습니다. Activation `058bc0aba66c78e344f2d8bc87afa2995b2b585a`, machine artifact
+`4c7b8390c34ce4f9c4bd9524f22779208cff0df0`, feasibility/final code
+`58c66fdc751867a3c2f1541a8594c6615c9fbb59`에서 10 reference set/105 unique contract/90 ordered
+cross-binding, exact reference 164/164와 Go/Python canonical error 59/59를 확인했습니다. Product는
+9 adapters/97 contracts와 `92 passing + 5 deviation` 그대로이고 새 8개는 synthetic
+`oracle_locked`입니다. Final code commit의 hosted CI는 아직 실행하지 않아 pending/uncollected이며
+Accepted 판단은 기록된 local/reference gates에 근거합니다.
 
 상세 payload, allowed paths와 완료 조건은
 [GDJ-0019](../../work/0019-migration-definition-source-compatibility-contracts.md)에 기록합니다.

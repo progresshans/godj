@@ -83,6 +83,7 @@ conformance/
   contracts/migration-restart-manifest.json
   contracts/migration-state-reconstruction-manifest.json
   contracts/migration-lifecycle-manifest.json
+  contracts/migration-definition-source-manifest.json
   profiles/
   runners/django/
   runners/godj/
@@ -100,8 +101,10 @@ conformance/
   fixtures/godj-migration-execution-not-implemented.json
   fixtures/godj-migration-restart-not-implemented.json
   fixtures/godj-migration-state-reconstruction-not-implemented.json
+  fixtures/godj-migration-definition-source-not-implemented.json
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
+  definitionload/
 ```
 
 ## Reference 환경 잠금
@@ -221,8 +224,8 @@ exit 2와 actual 미생성으로 fail-closed했고, 당시 `make godj-conformanc
 기록합니다.
 
 GDJ-0010은 public immutable Planner와 다섯 번째 GoDj adapter를 연결해 MIG-005..016을
-`passing`으로 전환했습니다. 현재 `make godj-conformance`는 11 + 11 + 12 + 11 + 12,
-총 57개를 실행합니다. Adapter의 plan/error는 실제 public API에서 얻고, logical
+`passing`으로 전환했습니다. GDJ-0010 완료 당시 `make godj-conformance`는
+11 + 11 + 12 + 11 + 12, 총 57개를 실행했습니다. Adapter의 plan/error는 실제 public API에서 얻고, logical
 before/after applied state와 zero-I/O metrics는 backend를 호출하지 않는 공통 structural
 capture에서 산출합니다. 실제 DB probe를 실행했다고 주장하지 않습니다.
 
@@ -383,6 +386,30 @@ reviewed expectation과 10-contract match입니다.
 허용하지 않습니다. `CommitRolledBack`은 confirmed state/token을 advance하지 않고 SQLite
 session을 poison하며 semantic retry를 하지 않습니다. Default-bearing `AddField`는 empty table의
 logical default와 physical no-default를 함께 확인하고 nonempty table은 거부합니다.
+
+GDJ-0019는 MIG-057..064를 열 번째 contract-only reference set으로 추가했습니다. Explicit
+caller bytes의 strict JSON v1 framing, exact tuple `(1,1,1,2)`, closed
+`CreateModel`/non-PK `char`·`boolean` `AddField` codec, canonical normalized definitions/digest,
+loader-owned deep-copy snapshot과 all-or-nothing publish를 검증합니다. Failure gate는 source/document,
+compatibility, semantic payload/normalized IR, existing graph, digest/publish, lifecycle 순서와 각
+stage의 canonical candidate selection을 고정합니다. MIG-064는 public Django graph/executor의
+reference-only success outcome입니다.
+
+Manifest는 5,195 bytes/SHA-256
+`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, locked oracle은
+29,851 bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
+not-implemented fixture는 1,574 bytes/
+`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`, `SHA256SUMS`는
+959 bytes/`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다. Exact
+Python suite는 164 passed, portable suite는 149 passed/15 skipped이고 두 explicit hashseed
+process와 checked-in oracle bytes가 일치합니다. 10 reference set의 105 unique contract와 90
+ordered cross-binding도 검증합니다.
+
+`conformance/definitionload/**`는 `*_test.go`만으로 actual `migrations.NewPlanner`와 public
+`Executor.Migrate` handoff를 실행합니다. 이는 strict loader/lifecycle feasibility proof이지
+importable package나 제품 지원이 아닙니다. Product loader, 열 번째 GoDj adapter와 CLI가 없으므로
+새 8개는 `oracle_locked`이고 제품 `make godj-conformance` 분류는 기존 9 adapter의
+`92 passing + 5 deviation`으로 유지됩니다. GDJ-0020은 별도 activation 전 planned 상태입니다.
 
 ## 기능별 기본 테스트 요구
 

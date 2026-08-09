@@ -1,7 +1,7 @@
 # 라이선스와 upstream provenance 정책
 
 - 상태: Accepted for conformance artifacts
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-09
 
 ## 현재 저장소 라이선스
 
@@ -26,7 +26,9 @@ binary에 들어가는 모든 transitive dependency의 배포 검토를 대신�
 - 공개 문서나 실행 결과로 동작을 파악합니다.
 - GoDj 고유 모델명, fixture, 설명, 코드 구조로 새로 작성합니다.
 - manifest의 `derived`를 `false`로 기록합니다.
-- Django version/commit과 참조 문서 또는 테스트 경로를 기록합니다.
+- Django 동작을 관찰한 경우 version/commit과 참조 source/doc/test를 기록합니다.
+- GoDj 고유 wire나 safety 결정을 oracle로 고정한 경우 Accepted ADR을 `decision`
+  provenance로 기록하고 Django 형식이라고 표현하지 않습니다.
 - 경로를 참조했다는 이유만으로 upstream 코드를 복사했다고 표현하지 않습니다.
 
 ### 복사·번역·변형한 upstream material
@@ -57,6 +59,16 @@ GDJ-0017의 MIG-047..056 lifecycle scenario도 GoDj 고유 app/table/operation/f
 assertion으로 독립 작성했고 provenance entry는 모두 `derived=false`입니다. Test-only
 revision-fence harness는 GoDj concurrency design evidence이며 upstream Django 구현을 복사하거나
 번역하지 않았습니다.
+
+GDJ-0019의 MIG-057..064 migration definition source scenario도 GoDj 고유 document,
+identity, operation, value, diagnostic과 assertion으로 독립 작성했습니다. 여덟 contract 모두
+Accepted ADR-0019를 `kind=decision`, `derived=false`로 기록해 strict JSON v1, tuple
+`(1,1,1,2)`, closed codec, canonical digest, atomic snapshot과 failure precedence가 GoDj
+결정임을 명시합니다. MIG-057과 MIG-064에만 별도의 pinned Django 6.1 source/test
+provenance와 `BSD-3-Clause`를 기록합니다. 이 두 entry는 migration identity/dependency/
+ordered operation과 public graph/executor 동작의 관찰 근거이며 Django가 GoDj JSON 또는
+loader ABI를 제공한다는 뜻이 아닙니다. 모든 entry는 `derived=false`이고 Django source,
+fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

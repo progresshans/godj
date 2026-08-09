@@ -1,6 +1,6 @@
 # 기준 출처와 검증 기록
 
-- 마지막 확인: 2026-08-08 (Asia/Seoul)
+- 마지막 확인: 2026-08-09 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -12,12 +12,31 @@
 - [Django test suite guide](https://docs.djangoproject.com/en/6.1/internals/contributing/writing-code/unit-tests/)
 - [Django 6.1 source tag](https://github.com/django/django/tree/6.1)
 - [Django BSD license](https://github.com/django/django/blob/6.1/LICENSE)
+- [`Migration` identity and ordered operations](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/migration.py) — MIG-057의 identity/dependency/operation-order 관찰 근거.
+- [`MigrationLoader.build_graph`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/loader.py) — MIG-057/MIG-064의 public graph 구성 관찰 근거.
+- [`MigrationExecutor`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/executor.py)와 [`ExecutorTests.test_run`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/migrations/test_executor.py) — MIG-064의 public plan/migrate handoff 관찰 근거.
 
-로컬 `/Users/hanhyeonjin/Documents/django`에서 tag `6.1`은 commit `fe0a859f537d4238cf49fca39073513206f83122`이며 `VERSION = (6, 1, 0, "final", 0)`임을 확인했습니다. 현재 checkout `main`은 2026-08-07 확인 시 commit `4243ab11dc957fd14a1875e6b715ff5e6114a415`, Django `6.2.0-alpha`이므로 6.1 oracle로 직접 사용하지 않습니다.
+로컬 `/Users/hanhyeonjin/Documents/django`에서 tag `6.1`은 commit `fe0a859f537d4238cf49fca39073513206f83122`이며 `VERSION = (6, 1, 0, "final", 0)`임을 확인했습니다. 2026-08-07 당시 checkout `main`은 commit `4243ab11dc957fd14a1875e6b715ff5e6114a415`, Django `6.2.0-alpha`였으므로 6.1 oracle로 직접 사용하지 않습니다.
 
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며
 `uv.lock`과 exact profile에 기록했습니다.
+
+## GoDj decision provenance
+
+Accepted [ADR-0019](adr/0019-versioned-migration-definition-source.md)는 Django source가
+정의하지 않는 GoDj migration definition JSON v1, compatibility tuple `(1,1,1,2)`, closed
+`CreateModel`/`AddField` codec, canonical digest, atomic publication과 failure precedence의
+정본입니다. MIG-057..064 manifest의 여덟 contract는 모두 이 ADR을 `kind=decision`,
+`derived=false`로 참조합니다. Pinned Django source/test provenance는 실제 공통 동작을 관찰한
+MIG-057과 MIG-064에만 별도로 기록하므로 GoDj wire 결정을 Django format claim과 섞지 않습니다.
+
+GDJ-0019 locked artifact는 manifest 5,195 bytes/
+`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, oracle 29,851
+bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture
+1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. Oracle
+directory의 `SHA256SUMS`는 959 bytes/
+`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다.
 
 ## Python과 환경 도구
 
@@ -74,7 +93,7 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
 
 루트 `AGENTS.md`는 반복 규칙과 읽기 순서만 유지하고, 전체 설계·상태·작업 기록은 별도 문서로 분리했습니다. 하위 `AGENTS.md`는 실제 하위 시스템이 생기고 별도 규칙이 필요할 때 추가합니다.
 
-## 현재 로컬 환경 관찰
+## 2026-08-07 로컬 환경 관찰 snapshot
 
 | 항목 | 2026-08-07 관찰값 | 호환 약속 여부 |
 |---|---|---|
@@ -83,7 +102,7 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
 | Reference SQLite | 3.50.4 + exact source ID | exact M0 profile |
 | 기본 shell Python | pyenv CPython 3.13.1 / SQLite 3.51.0 | reference가 아닌 개발 환경 관찰 |
 | SQLite CLI | 3.51.0 | 개발 환경 관찰만 |
-| GoDj Git branch | `main`, M1 baseline `8eac1dc` | 현재 상태 |
+| GoDj Git branch | `main`, M1 baseline `8eac1dc` | 2026-08-07 snapshot |
 | GoDj module/remote | `github.com/progresshans/godj` / `https://github.com/progresshans/godj.git` | `go.mod`와 remote 관찰 |
 | GoDj SQLite | modernc driver v1.56.0 / SQLite 3.53.3 | M1 backend exact pin |
 
