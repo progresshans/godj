@@ -46,12 +46,16 @@ proposed → ready → active → completed
 | [GDJ-0020](0020-migration-definition-loader-product-slice.md) | completed | Migration definition loader 제품 단면 |
 | [GDJ-0021](0021-migration-project-check-compatibility-contracts.md) | completed | Project-linked migration check 호환/결정 계약 |
 | [GDJ-0022](0022-migration-project-check-product-slice.md) | completed | Project-linked migration check 제품 단면 |
+| [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | active | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근
-완료 항목은 [GDJ-0022](0022-migration-project-check-product-slice.md)입니다. GDJ-0022는 Accepted
-ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로 구현해
-10 contract를 `passing`으로 전환했고, fix head의 exact 18-job hosted acceptance까지 완료했습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
+완료 항목은 [GDJ-0022](0022-migration-project-check-product-slice.md)이며, 현재 active 항목은
+[GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)입니다. GDJ-0022는
+Accepted ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로
+구현해 10 contract를 `passing`으로 전환했고, final evidence head까지 exact 18-job hosted acceptance를
+완료했습니다. GDJ-0023은 Q-013을 추측으로 제품화하지 않고 pinned Django 6.1 ForeignKey 외부 동작
+REL-001..012와 test-only cross-app binding/import-cycle/shared-AST feasibility를 먼저 고정합니다.
 GDJ-0020은
 `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`의 제품 구현과
 Draft PR #1 exact-head CI를 근거로 완료됐고,
@@ -83,7 +87,9 @@ compatibility 4인 exact 18/18을 성공했습니다. EVID-028/status commit
 `68b408add3b050d0938ccebc6c83200499f57b2a`의 run `31330601427`은 16 success/2 macOS product normal
 failure였고, helper/harness와 production wait reconciliation을 고친 final stabilization head
 `385382efffd1872ae7fb427192bab27b95dc57e2`의 run `31332208055`는 exact 18/18을 다시 성공했습니다.
-EVID-029/status patch 자체의 exact-head CI는 same Draft PR #1에 commit/push한 뒤 별도로 확인합니다.
+EVID-029/status commit `1f161f311daa775e6a386ec0df568ff85d681f15`도 별도 run `31333420261`의
+exact 18/18을 통과했고 EVID-030에 기록했습니다. 현재 GDJ-0023 activation diff의 exact-head CI만
+commit/push 전이라 pending입니다.
 
 ## 운영 규칙
 

@@ -314,4 +314,20 @@ PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다
 
 초안의 `RelationField[Post]`에는 target type이 없지만 `PostFields.Author.Name`을 사용합니다. symbolic relation binding, target descriptor, generated loader, reverse relation과 import cycle을 한 설계로 검증해야 합니다.
 
+Active [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)과
+Proposed [ADR-0023](adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)이 이 질문을 먼저
+contract/test-only로 다룹니다. 현재 proposal의 고정 후보는 Go package/type pointer가 아닌 stable
+symbolic target `(app, model)` identity와 source model/field-owned relation declaration, all-app project
+binder가 소유하는 target/reverse resolution,
+generated source package의 target package direct import 금지, typed/dynamic relation path의 같은 immutable
+AST 수렴과 unresolved/collision의 pre-I/O fail-closed입니다.
+
+아직 결정하지 않은 것은 exact public DSL/IR names, model value의 ID-only/related wrapper shape,
+project-generated bridge와 top-level generic composition 중 선택, reverse typed surface, join alias/scan plan,
+`select_related` result/cache representation과 IR/operation codec/generator version입니다. Existing Schema IR
+v2와 definition tuple `(1,1,1,2)`를 조용히 재해석하거나 단순히 current version을 3으로 올려 기존 v2
+문서를 거부하는 방식은 허용하지 않습니다. `conformance/relationbinding/**` evidence와 v2 read/
+canonical-byte preservation strategy가 확인되기 전에는 ADR-0023을 Accepted로 올리거나 GDJ-0024 public
+제품 API를 활성화하지 않습니다.
+
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-029
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-030
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2447,3 +2447,64 @@ This EVID-029/status documentation patch is later than tested head
 `385382efffd1872ae7fb427192bab27b95dc57e2` and is currently uncommitted/unpushed. Its own exact-head hosted CI
 is therefore `not run/pending`. Run 31332208055 must not be recursively reused as proof for this later evidence
 patch; after commit/push, its exact-head result must be recorded separately. No merge was performed.
+
+## EVID-20260810-030 — GDJ-0022 final evidence-documentation exact-head CI and GDJ-0023 activation baseline
+
+- Date/time: 2026-08-10T05:06:55+09:00–2026-08-10T05:12:07+09:00
+- Work/contract IDs: GDJ-0022, MIG-065..MIG-074; GDJ-0023 activation baseline only
+- Checkout/commit: `codex/revision-fenced-migration-lifecycle@1f161f311daa775e6a386ec0df568ff85d681f15`
+  (`docs: record project process stabilization`)
+- Environment/backend: GitHub-hosted exact 18 required executions; Ubuntu/Linux and macOS, amd64/arm64,
+  Go 1.26.5, actual SQLite product gates, CPython 3.12.13/3.13.15/3.14.3/3.14.7 compatibility matrix;
+  PostgreSQL/MySQL service jobs absent
+- Command: Draft PR #1 `pull_request` run
+  [31333420261](https://github.com/progresshans/godj/actions/runs/31333420261), attempt 1
+- Exit status: `success`; exact 18/18 jobs completed successfully, failed/cancelled/skipped jobs 0 and
+  non-success required steps 0
+- Result summary: EVID-029의 append/status 문서 head 자체가 같은 18-job topology에서 다시 통과했습니다.
+  따라서 EVID-029의 마지막 `not run/pending` 문구는 당시 checkout의 역사 기록이며 이 evidence가
+  해소합니다. 제품 분류는 11 adapters/115 contracts=`110 passing + 5 deviation`로 유지됩니다.
+- Failures/skips/not run: portable Python의 exact-profile-only 16 skips는 의도한 기존 분리입니다.
+  Windows와 PostgreSQL/MySQL은 actual support contract가 없어 실행하지 않았습니다. 이 EVID-030과
+  GDJ-0023 activation 문서 변경 자체는 tested head보다 뒤이므로 exact-head hosted CI가 아직
+  `not run/pending`입니다.
+
+Hosted identity and checkout evidence:
+
+- PR #1은 evidence 수집 시 `OPEN`/`DRAFT`/`CLEAN`, head는 exact
+  `1f161f311daa775e6a386ec0df568ff85d681f15`였습니다.
+- Run metadata는 event `pull_request`, `headSha=1f161f311daa775e6a386ec0df568ff85d681f15`,
+  conclusion `success`였습니다.
+- Actions checkout은 synthetic merge
+  `e21509599e30ef52802a4ee43a1867f9e74f4e79`였고 parents는 exact base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`와 exact head `1f161f3`입니다. Merge tree와 exact-head
+  tree는 모두 `3300acfa54144a7a9c2d8dde654841cbde3bb896`로 같아 실행 contents는 exact-head-equivalent입니다.
+
+Exact job identities:
+
+| Required execution | Job ID | Result |
+|---|---:|---|
+| Validate checked-in conformance artifacts | `93295160418` | success |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | `93295160394` | success |
+| Project check (`ubuntu-22.04`) | `93295160491` | success |
+| Project check (`ubuntu-24.04-arm`) | `93295160476` | success |
+| Project check (`macos-15-intel`) | `93295160485` | success |
+| Project check (`macos-26`) | `93295160517` | success |
+| SQLite (`ubuntu-22.04`) | `93295160482` | success |
+| SQLite (`ubuntu-24.04-arm`) | `93295160432` | success |
+| SQLite (`macos-15-intel`) | `93295160455` | success |
+| SQLite (`macos-26`) | `93295160488` | success |
+| Product project check (`ubuntu-22.04`) | `93295160437` | success |
+| Product project check (`ubuntu-24.04-arm`) | `93295160439` | success |
+| Product project check (`macos-15-intel`) | `93295160454` | success |
+| Product project check (`macos-26`) | `93295160451` | success |
+| Python compatibility (`3.12.13`) | `93295160495` | success |
+| Python compatibility (`3.13.15`) | `93295160513` | success |
+| Python compatibility (`3.14.3`) | `93295160500` | success |
+| Python compatibility (`3.14.7`) | `93295160504` | success |
+
+The full Ubuntu job reran `make ci`, product focus, Linux/386 compile-only, all 11 checksums and artifact
+no-rewrite. Exact darwin reran focused products, historical exact Python 174/174, all 11 oracle checks and
+no-rewrite. Four proof, four actual SQLite and four product project-check jobs retained normal/race/
+CGO-disabled/vet/clean gates; four Python jobs retained exact runtime, portable suite, 115-scenario canonical
+digest and clean-worktree gates. No merge was performed.

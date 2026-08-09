@@ -538,6 +538,12 @@ worktree를 요구합니다. Ubuntu `python-compatibility-matrix`는 exact
 174/16 expected skips와 115-scenario payload를 검증합니다. Expanded required topology는 existing 2 +
 test-only proof 4 + SQLite 4 + product 4 + Python 4의 exact 18 hosted executions입니다. Routine
 Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
+GDJ-0023 implementation plan은 이 exact 18을 유지하면서 test-only
+`conformance/relationbinding` package를 같은 Linux/macOS x64/arm64 네 좌표에서 normal/race/
+CGO-disabled/vet/clean으로 독립 실행하는 `relation-binding-matrix`를 추가해 exact 22 required
+executions로 확장합니다. 이 proof는 relation 제품 adapter가 아니며 PostgreSQL/Windows 지원 claim도
+아닙니다. Local routine Python은 CPython 3.14.3 + uv 0.12.3 하나만 실행하고, 3.12.13/3.13.15/
+3.14.3/3.14.7 exact compatibility와 갱신된 127-scenario digest는 hosted matrix가 담당합니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -592,8 +598,10 @@ reaped-before-Wait-publication reconciliation을 포함한 final fix
 [run 31332208055](https://github.com/progresshans/godj/actions/runs/31332208055)의 exact 18/18을
 통과했습니다. 상세 명령/job/log/checkout은
 [EVID-20260810-029](status/TEST_EVIDENCE.md#evid-20260810-029--gdj-0022-final-github-hosted-process-stabilization-ci)에
-기록합니다. EVID-029/status patch 자체의 exact-head CI는 commit/push 전이라 `not run/pending`이며 run
-31332208055를 그 후속 patch의 success로 재사용하지 않습니다.
+기록합니다. EVID-029/status commit `1f161f311daa775e6a386ec0df568ff85d681f15`의 별도
+[run 31333420261](https://github.com/progresshans/godj/actions/runs/31333420261) exact 18/18은
+[EVID-20260810-030](status/TEST_EVIDENCE.md#evid-20260810-030--gdj-0022-final-evidence-documentation-exact-head-ci-and-gdj-0023-activation-baseline)에
+기록했습니다. 현재 GDJ-0023 activation diff만 exact-head CI가 pending입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

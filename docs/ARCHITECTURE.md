@@ -65,7 +65,12 @@ M1에서는 `orm`이 `ModelDescriptor[M]` interface를 소유하고 codegen이 �
 concrete descriptor를 생성합니다. `Metadata()`는 독립 복사를 반환하고 `Scan` 반환
 타입이 `M`을 보존합니다. Runtime freeze/registry 없이 생성·compile 시점부터 frozen인
 경계는 [ADR-0007](adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)에
-고정했습니다. Relation binding이 필요해질 때 확장 여부를 다시 검토합니다.
+고정했습니다. Relation binding은 active GDJ-0023과 Proposed ADR-0023에서 제품 변경 전에 별도
+검증합니다. 후보 불변점은 Go package/type pointer가 아닌 stable symbolic model/field identity,
+all-app project binder가 소유하는 target/reverse resolution, generated app package 사이 direct import
+금지와 typed/dynamic relation path의 같은 immutable AST 수렴입니다. Exact public DSL/descriptor/loader,
+IR vNext와 generated bridge shape는 `conformance/relationbinding/**` compile feasibility evidence 전에는
+확정하지 않습니다.
 
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을

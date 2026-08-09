@@ -330,6 +330,13 @@ PostgreSQL/MySQL service-only job은 false green이므로
 revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected contract
 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도 필수입니다.
 
+GDJ-0023은 relation 제품 지원 전에 pinned Django 6.1 ForeignKey REL-001..012와
+`conformance/relationbinding/**` compile/AST feasibility를 분리합니다. Relation oracle이 잠겨도 product
+adapter가 없으므로 12개는 `oracle_locked`이고, public Schema DSL/IR/codegen/Query AST/SQLite compiler는
+아직 관계를 지원하지 않습니다. Implementation head의 planned hosted topology는 existing exact 18에
+Linux/macOS x64/arm64 test-only relation-binding proof 4개를 더한 exact 22입니다. 이는 PostgreSQL,
+OneToOne/ManyToMany 또는 제품 relation support의 증거가 아닙니다.
+
 ## Django 데이터 이행
 
 - default table/column naming

@@ -298,14 +298,23 @@ x64/arm64 actual product CLI 4와 exact Python 3.12.13/3.13.15/3.14.3/3.14.7 com
 exact 18/18과 앞선 four-Python pre-test assertion failure/cancel은 EVID-028에 보존했습니다.
 EVID-028/status head run `31330601427`은 16 success/2 macOS product normal failure였고, final process
 synchronization head `385382efffd1872ae7fb427192bab27b95dc57e2`의 run `31332208055`는 exact 18/18
-성공했습니다. Failure/fix/job/checkout 증거는 EVID-029에 기록하며, 이 EVID-029/status patch 자체의
-exact-head CI는 commit/push 전이라 `not run/pending`입니다. 이는 PostgreSQL/MySQL
+성공했습니다. Failure/fix/job/checkout 증거는 EVID-029에 기록했고, EVID-029/status commit
+`1f161f311daa775e6a386ec0df568ff85d681f15`도 run `31333420261` exact 18/18을 통과해 EVID-030에
+기록했습니다. 현재 GDJ-0023 activation diff의 exact-head CI만 commit/push 전이라 pending입니다.
+이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
 추가합니다. MySQL은 M9 actual adapter까지 같은 원칙을 따릅니다.
 
 ## M3 — Relations + PostgreSQL
 
+- Active [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
+  먼저 ForeignKey 외부 동작 REL-001..012와 Q-013 cross-app binding/import-cycle/shared-AST feasibility를
+  contract-only/test-only로 고정합니다. Schema IR v2나 제품 API를 이 단계에서 변경하지 않습니다.
+- 그 evidence로 [ADR-0023](adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)을 Accepted로
+  전환한 뒤 GDJ-0024가 AutoField-target required/nullable ForeignKey의 최소 SQLite 제품 수직 단면을
+  구현합니다. OneToOne/prefetch-delete breadth와 PostgreSQL actual backend는 뒤의 bounded pair로
+  계속 분리합니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`
