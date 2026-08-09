@@ -69,10 +69,16 @@
 - GDJ-0022 hosted CI assertion fix/hosted-tested commit:
   `3dfeff2a881a3313883729943519896798d92afc`
   (`ci: accept uv version metadata`)
+- GDJ-0022 completion-documentation commit:
+  `68b408add3b050d0938ccebc6c83200499f57b2a`
+  (`docs: complete project migration check product`)
+- GDJ-0022 final process stabilization/hosted-tested commit:
+  `385382efffd1872ae7fb427192bab27b95dc57e2`
+  (`fix: harden project process synchronization`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0022 completed; local EVID-027과 fix-head exact 18/18 hosted EVID-028 수집 완료,
-  EVID-028/completion-status patch 자체의 final exact-head CI pending; ADR-0022 Accepted
+- 현재 단계: GDJ-0022 completed; local EVID-027, initial hosted EVID-028와 final process stabilization
+  EVID-029 수집 완료. EVID-029/status patch 자체의 exact-head CI pending; ADR-0022 Accepted
 - 최근 완료 작업:
   [GDJ-0022 Project-Linked Migration Check Product Slice](../../work/0022-migration-project-check-product-slice.md)
 - 활성 작업: 없음
@@ -97,7 +103,15 @@
   [run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)는 product 4 + Python
   compatibility 4를 포함한 exact 18/18을 성공했습니다. Job/step/checkout 증거는
   [EVID-20260810-028](TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)에
-  기록했습니다. 이 EVID-028/status patch 자체는 아직 commit/push되지 않아 final exact-head CI가
+  기록했습니다. EVID-028/status commit `68b408add3b050d0938ccebc6c83200499f57b2a`의
+  [run 31330601427](https://github.com/progresshans/godj/actions/runs/31330601427)은 exact 18 중 16
+  success/2 macOS product normal failure였습니다. Helper readiness와 cold-build E2E harness를 보강하고
+  race audit가 찾은 production reaped-before-Wait-publication reconciliation까지 포함한 final fix
+  `385382efffd1872ae7fb427192bab27b95dc57e2`의
+  [run 31332208055](https://github.com/progresshans/godj/actions/runs/31332208055)는 exact 18/18
+  성공했습니다. Local repetition, job/log/checkout 증거는
+  [EVID-20260810-029](TEST_EVIDENCE.md#evid-20260810-029--gdj-0022-final-github-hosted-process-stabilization-ci)에
+  기록했습니다. 이 EVID-029/status patch 자체는 아직 commit/push되지 않아 exact-head CI가
   `not run/pending`입니다.
 
 ## 현재 checkout에서 확인된 사실
@@ -295,6 +309,12 @@
   [EVID-20260810-028](TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)의
   exact 18/18 hosted executions을 통과했습니다. Initial head의 네 Python pre-test assertion failure와
   취소, 수정 범위도 같은 evidence에 보존했습니다.
+- EVID-028/status commit의 run `31330601427`에서 two macOS product normal failures를 직접 수집했습니다.
+  Final stabilization은 exact 3 allowed files에서 atomic helper publication, cold-build-aware actual SIGINT
+  harness와 directly-reaped child/delayed Wait-result reconciliation을 구현했습니다. Focused race count-50,
+  active escalation race count-5, actual SIGINT E2E count-20, focused normal/race/CGO0/vet와 local `make ci`
+  under uv 0.12.3/Python 3.14.3이 통과했고 independent final audit는 P0/P1/P2/P3=0입니다. Exact head
+  `385382efffd1872ae7fb427192bab27b95dc57e2`는 EVID-029의 run `31332208055`에서 18/18 성공했습니다.
 
 ## 확정된 결정
 
@@ -454,7 +474,8 @@
   보존했습니다. Product는 11 adapter/115 contract=`110 passing + 5 deviation`입니다.
 - Workflow는 existing full/exact 2 + test-only proof 4 + SQLite 4를 보존하고 actual product CLI
   Linux/macOS x64/arm64 4와 Ubuntu Python compatibility 4를 더한 exact 18 required executions으로
-  확장됐습니다. Fix head run `31329294154`에서 Python exact 3.12.13/3.13.15/3.14.3/3.14.7,
+  확장됐습니다. Final stabilization head run `31332208055`에서 Python exact
+  3.12.13/3.13.15/3.14.3/3.14.7,
   Django 6.1 직접 의존성, portable 174/16-skip와 115-scenario canonical digest 및 product 네 좌표를
   포함한 exact 18/18이 성공했습니다. PostgreSQL/MySQL은 actual backend contract 전 service-only job을
   만들지 않습니다.
@@ -464,9 +485,9 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. GDJ-0022 local product implementation, independent audits와 fix-head exact
-18-job hosted acceptance는 완료됐습니다. EVID-028/completion-status patch 자체의 final exact-head CI는
-commit/push 뒤 확인할 운영 단계이며 새 제품 blocker가 아닙니다. Q-010/Q-012는 full
+외부 blocker는 없습니다. GDJ-0022 local product implementation, independent audits와 final
+stabilization-head exact 18-job hosted acceptance는 완료됐습니다. EVID-029/status patch 자체의 exact-head
+CI는 commit/push 뒤 확인할 운영 단계이며 새 제품 blocker가 아닙니다. Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가 아니므로 `Partial`입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
@@ -478,9 +499,9 @@ CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가
 
 ## 다음 정확한 작업
 
-통합 담당자는 frozen EVID-028/completion-status 문서 diff를 검증해 same Draft PR #1에 evidence-only
-commit/push합니다. 그 final exact head에서 18 required executions을 다시 확인하고 실제 결과를 새 evidence
-ID에 append합니다. Draft PR은 사용자 요청 전까지 merge하지 않습니다.
+통합 담당자는 frozen EVID-029/final-status 문서 diff를 검증해 same Draft PR #1에 evidence-only
+commit/push합니다. 그 exact head의 required CI를 확인하고 실제 결과를 새 evidence ID에 append합니다.
+Draft PR은 사용자 요청 전까지 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -492,8 +513,12 @@ ID에 append합니다. Draft PR은 사용자 요청 전까지 merge하지 않습
   `31329231255` cancelled after four Python pre-test assertion failures
 - hosted-tested fix commit: `3dfeff2a881a3313883729943519896798d92afc`; exact 18-job run
   `31329294154` 18/18 PASS
-- 현재 working tree: 위 fix head + uncommitted EVID-028/completion-status docs; 이 후속 patch의
-  commit/push/final exact-head CI 전
+- completion-documentation commit: `68b408add3b050d0938ccebc6c83200499f57b2a`; exact 18-job run
+  `31330601427` 16 success/2 macOS product normal failure
+- final stabilization commit: `385382efffd1872ae7fb427192bab27b95dc57e2`; exact 18-job run
+  `31332208055` 18/18 PASS
+- 현재 working tree: 위 final stabilization head + uncommitted EVID-029/final-status docs; 이 후속
+  patch의 commit/push/exact-head CI 전
 - 최근 완료 work:
   [GDJ-0022](../../work/0022-migration-project-check-product-slice.md)
 - active work: 없음
@@ -510,11 +535,13 @@ ID에 append합니다. Draft PR은 사용자 요청 전까지 merge하지 않습
 - Portable CI equivalent: `make ci`
 - Hosted CI: GDJ-0021 implementation 31320798963, completion 31322122760, evidence 31322959993 exact
   10 jobs PASS; GDJ-0022 activation 31324469403 exact 10 jobs PASS; initial expanded run 31329231255는
-  Python pre-test assertion 4 failures 뒤 cancelled; fix-head run 31329294154 exact 18/18 PASS; current
-  EVID-028/status patch exact-head CI는 not run
+  Python pre-test assertion 4 failures 뒤 cancelled; uv assertion fix run 31329294154 exact 18/18 PASS;
+  EVID-028/status run 31330601427은 16 success/2 macOS product failure; final stabilization run
+  31332208055 exact 18/18 PASS; current EVID-029/status patch exact-head CI는 not run
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: run 31329294154를 그보다 뒤의 EVID-028/status patch 자체의 success로 재사용하거나,
-  service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
+- 가장 위험한 과장: run 31332208055를 그보다 뒤의 EVID-029/status patch 자체의 success로 재사용하거나,
+  failed run 31330601427의 두 harness/product synchronization failures를 숨기거나, service-only
+  PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

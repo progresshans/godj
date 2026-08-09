@@ -221,5 +221,13 @@ Initial implementation head `06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 hosted
 Exact uv 0.12.3 pin은 유지하고 허용된 version metadata suffix만 받아들인 fix head
 `3dfeff2a881a3313883729943519896798d92afc`의 run `31329294154`에서 exact 18 required executions이
 18/18 성공했습니다. 따라서 Accepted는 local 구현뿐 아니라 Python 3.12.13/3.13.15/3.14.3/3.14.7과
-Linux/macOS 네 product 좌표의 hosted acceptance까지 포함합니다. 상세 증거는 EVID-028에 기록하며,
-그 evidence/status patch 자체의 후속 exact-head CI는 commit/push 뒤 별도로 검증합니다.
+Linux/macOS 네 product 좌표의 hosted acceptance까지 포함합니다. 상세 증거는 EVID-028에 기록합니다.
+
+EVID-028/status head `68b408add3b050d0938ccebc6c83200499f57b2a`의 run `31330601427`은 exact 18 중
+16 success/2 macOS product normal failure였습니다. Helper readiness는 atomic temp-write/rename으로,
+actual SIGINT E2E는 cold private build와 early exit/kill/reap을 포함하는 bounded harness로 보강했습니다.
+Race audit에서 드러난 directly-reaped child와 delayed Wait-result publication window는 product coordinator가
+queued result, `Signal(0)`/`os.ErrProcessDone`, synchronous publication consumption 순으로 조정한 뒤 group
+signal 여부를 결정하도록 닫았습니다. Final fix `385382efffd1872ae7fb427192bab27b95dc57e2`의 run
+`31332208055`는 exact 18/18 성공했습니다. EVID-029/status patch 자체의 후속 exact-head CI는
+commit/push 뒤 별도로 검증합니다.

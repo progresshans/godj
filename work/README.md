@@ -79,8 +79,11 @@ GDJ-0022는 exact 11 adapter/115 contract의 `110 passing + 5 deviation`과 Acce
 `06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 run `31329231255`는 네 Python leg 모두 테스트 전 uv
 exact-string assertion에서 실패해 취소했고, metadata suffix를 허용한 fix head
 `3dfeff2a881a3313883729943519896798d92afc`의 run `31329294154`는 existing 10 + product 4 + Python
-compatibility 4인 exact 18/18을 성공했습니다. EVID-028/status evidence-only patch 자체의 final exact-head
-CI는 same Draft PR #1에 commit/push한 뒤 별도로 확인합니다.
+compatibility 4인 exact 18/18을 성공했습니다. EVID-028/status commit
+`68b408add3b050d0938ccebc6c83200499f57b2a`의 run `31330601427`은 16 success/2 macOS product normal
+failure였고, helper/harness와 production wait reconciliation을 고친 final stabilization head
+`385382efffd1872ae7fb427192bab27b95dc57e2`의 run `31332208055`는 exact 18/18을 다시 성공했습니다.
+EVID-029/status patch 자체의 exact-head CI는 same Draft PR #1에 commit/push한 뒤 별도로 확인합니다.
 
 ## 운영 규칙
 

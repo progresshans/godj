@@ -371,9 +371,13 @@ Exact 18 hosted executions은 fix head `3dfeff2a881a3313883729943519896798d92afc
 [run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)에서 18/18 성공했습니다.
 첫 implementation head `06858dd6aafeb20449bc4fbfa9aeac78c7a794ce`의 run `31329231255`는 네 Python
 leg가 테스트 전 brittle uv exact-string assertion에서 실패해 취소했고, uv 0.12.3의 허용된 metadata
-suffix만 받아들이도록 고친 뒤 다시 검증했습니다. Local 제품 구현과 hosted evidence는 각각 EVID-027과
-EVID-028로 분리합니다. EVID-028을 추가하는 이 후속 문서 patch 자체의 exact-head CI는 commit/push 뒤
-별도로 확인합니다.
+suffix만 받아들이도록 고친 뒤 다시 검증했습니다. 그 EVID-028/completion-status commit
+`68b408add3b050d0938ccebc6c83200499f57b2a`의 run `31330601427`은 macOS product normal tests 두 개가
+각각 non-atomic helper readiness와 cold-build 20초 timeout을 드러내 16 success/2 failure였습니다.
+Atomic publication, cold-build-aware harness와 production reaped-before-Wait-publication reconciliation을
+추가한 final fix `385382efffd1872ae7fb427192bab27b95dc57e2`는 run `31332208055`에서 exact 18/18
+성공했습니다. Local/hosted stabilization은 EVID-029에 기록하고, 이 새 evidence patch 자체의 exact-head
+CI는 commit/push 뒤 별도로 확인합니다.
 
 ## 진행 기록
 
@@ -385,7 +389,7 @@ EVID-028로 분리합니다. EVID-028을 추가하는 이 후속 문서 patch �
 - [x] Linked/global product implementation
 - [x] Adapter/status/CI implementation
 - [x] Local completion evidence와 문서
-- [x] Implementation/fix head의 exact 18-job hosted evidence follow-up
+- [x] Completion-documentation failure remediation과 final fix-head exact 18-job hosted stabilization
 
 ## 수정 파일
 
@@ -400,6 +404,8 @@ EVID-028로 분리합니다. EVID-028을 추가하는 이 후속 문서 patch �
   `conformance/README.md`, `Makefile`, `.github/workflows/ci.yml`
 - Dependency: `go.mod`의 existing `golang.org/x/sys v0.47.0` indirect-to-direct 승격만 발생했고
   `go.sum` version/hash는 바뀌지 않았습니다.
+- Final hosted stabilization: `cmd/godj/main_test.go`, `internal/projectcheck/process_test.go`,
+  `internal/projectcheck/process_unix.go` exact 3 files
 - 상태/설계: 이 work, ADR-0022, CURRENT, matrix/evidence/index와 실제로 바뀐 general docs
 
 ## 결정된 사항
@@ -425,6 +431,11 @@ EVID-028로 분리합니다. EVID-028을 추가하는 이 후속 문서 patch �
   `ci: accept uv version metadata` commit `3dfeff2a881a3313883729943519896798d92afc`에서 suffix만 허용
 - 2026-08-10: Fix head run `31329294154`의 exact 18/18 hosted executions 성공을 EVID-028로 분리 기록하고
   GDJ-0022를 completed로 전환. EVID-028/status patch 자체의 final exact-head CI는 commit/push 뒤 재검증
+- 2026-08-10: EVID-028/completion-status head run `31330601427`의 macOS product normal failures 두 개를
+  helper readiness atomicity와 cold-build timeout 문제로 분리. Race audit가 찾은 product direct-reap/
+  delayed Wait publication reconciliation도 같은 exact 3-file stabilization에 포함
+- 2026-08-10: Final fix `385382efffd1872ae7fb427192bab27b95dc57e2` local repetition/`make ci`와
+  P0/P1/P2/P3=0 audit, run `31332208055` exact 18/18 success를 EVID-029로 기록
 
 ## 미결정/Blocker
 
@@ -436,9 +447,9 @@ EVID-028로 분리합니다. EVID-028을 추가하는 이 후속 문서 patch �
 - Windows runtime와 fatal-signal/crash scavenging
 - DB-aware check, PostgreSQL/MySQL와 multi-DB
 
-ADR-0022는 local implementation, independent audit와 fix head exact 18/18 hosted success를 근거로
-Accepted입니다. EVID-028/status patch 자체는 아직 commit/push되지 않았으므로 그 후속 exact-head hosted
-success로 재귀 과장하지 않습니다.
+ADR-0022는 local implementation, independent audit와 final stabilization head exact 18/18 hosted
+success를 근거로 Accepted입니다. EVID-029/status patch 자체는 아직 commit/push되지 않았으므로 그 후속
+exact-head hosted success로 재귀 과장하지 않습니다.
 
 ## 테스트 증거
 
@@ -461,7 +472,15 @@ success로 재귀 과장하지 않습니다.
   [run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)는 exact 18/18 success.
   Job/step/checkout과 portable 174/16-skip·115-scenario digest 증거는
   [EVID-20260810-028](../docs/status/TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)에
-  기록. 이 EVID-028/status patch 자체의 hosted CI는 `not run/pending`
+  기록
+- Final completion stabilization: EVID-028/status commit
+  `68b408add3b050d0938ccebc6c83200499f57b2a`의 run `31330601427`은 exact 18 중 16 success/2 macOS
+  product normal failure. Final fix `385382efffd1872ae7fb427192bab27b95dc57e2`에서 focused race
+  count-50, active escalation race count-5, actual SIGINT E2E count-20, `make ci`와 audit가 통과했고
+  [run 31332208055](https://github.com/progresshans/godj/actions/runs/31332208055)는 exact 18/18 success.
+  Exact job/log/tree는
+  [EVID-20260810-029](../docs/status/TEST_EVIDENCE.md#evid-20260810-029--gdj-0022-final-github-hosted-process-stabilization-ci)에
+  기록. 이 EVID-029/status patch 자체의 hosted CI는 `not run/pending`
 
 ## 위험과 rollback
 
@@ -475,9 +494,9 @@ success로 재귀 과장하지 않습니다.
 
 ## 다음 정확한 작업
 
-Integration owner는 frozen EVID-028/completion-status 문서 diff를 검증해 same Draft PR #1에
-evidence-only commit/push합니다. 그 final exact head에서 18 required executions을 다시 확인하고 새 실제
-결과만 다음 evidence ID에 append합니다. Draft PR은 사용자 요청 전까지 merge하지 않습니다.
+Integration owner는 frozen EVID-029/final-status 문서 diff를 검증해 same Draft PR #1에 evidence-only
+commit/push합니다. 그 exact head의 required CI를 확인하고 새 실제 결과만 다음 evidence ID에 append합니다.
+Draft PR은 사용자 요청 전까지 merge하지 않습니다.
 
 ## 결과와 인수인계
 
@@ -485,6 +504,7 @@ GDJ-0022는 fix head exact 18/18 hosted acceptance까지 완료됐습니다. Exa
 public `project.Config`/`project.Run`,
 독립 global/linked/protocol kernel과 actual adapter가 구현됐고 MIG-065..074는 10 `passing`, 제품은
 11 adapter/115 contract=`110 passing + 5 deviation`입니다. Reference oracle/static/SHA와 test-only proof는
-독립 경계로 보존했습니다. Run `31329294154`는 Python four-version과 Linux/macOS product four-coordinate
-hosted success를 직접 증명합니다. 남은 운영 단계는 이 EVID-028/status patch를 commit/push하고 그 새 exact
-head의 CI를 재검증하는 것뿐이며, 아직 실행하지 않은 그 후속 결과는 주장하지 않습니다.
+독립 경계로 보존했습니다. Final stabilization head `385382efffd1872ae7fb427192bab27b95dc57e2`와 run
+`31332208055`는 Python four-version과 Linux/macOS product four-coordinate exact 18/18 hosted success를
+직접 증명합니다. 남은 운영 단계는 이 EVID-029/status patch를 commit/push하고 그 새 exact head의 CI를
+확인하는 것뿐이며, 아직 실행하지 않은 그 후속 결과는 주장하지 않습니다.

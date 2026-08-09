@@ -480,8 +480,8 @@ public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapt
 adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
 diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`, 현재 제품은 11 adapter/115 contract의
 `110 passing + 5 deviation`입니다. Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
-`make ci`, exact oracle와 independent audits는 EVID-027에 기록했고 fix head exact 18/18 hosted
-acceptance는 EVID-028에 기록했습니다.
+`make ci`, exact oracle와 independent audits는 EVID-027, initial exact 18/18 hosted acceptance는 EVID-028,
+completion-documentation failure와 final process stabilization exact 18/18은 EVID-029에 기록했습니다.
 Status-only manifest는 4,520 bytes/
 `0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`이고 oracle/static/SHA256SUMS는
 위 GDJ-0021 pins에서 byte-identical입니다.
@@ -582,8 +582,18 @@ uv exact-string assertion에서 실패해 취소했습니다. Metadata suffix를
 [run 31329294154](https://github.com/progresshans/godj/actions/runs/31329294154)는 exact 18/18 성공했고,
 job/step/checkout과 four-version 174/16-skip·115-scenario digest는
 [EVID-20260810-028](status/TEST_EVIDENCE.md#evid-20260810-028--gdj-0022-github-hosted-exact-18-job-completion-ci)에
-기록했습니다. EVID-028/status patch 자체의 final exact-head CI는 commit/push 전이라 `not run/pending`이며
-run 31329294154를 그 후속 patch의 success로 재사용하지 않습니다.
+기록했습니다. EVID-028/status commit `68b408add3b050d0938ccebc6c83200499f57b2a`의
+[run 31330601427](https://github.com/progresshans/godj/actions/runs/31330601427)은 exact 18 중
+16 success/2 macOS product normal failure였습니다. `macos-26`은 non-atomic helper readiness에서 empty
+payload를 읽었고, `macos-15-intel` actual SIGINT E2E는 cold private build가 fixed 20-second readiness를
+넘었습니다. Atomic publication, cold-build-aware bounded harness와 race audit가 찾은 production
+reaped-before-Wait-publication reconciliation을 포함한 final fix
+`385382efffd1872ae7fb427192bab27b95dc57e2`는 focused repetition/`make ci`/P0-P3=0 audit와
+[run 31332208055](https://github.com/progresshans/godj/actions/runs/31332208055)의 exact 18/18을
+통과했습니다. 상세 명령/job/log/checkout은
+[EVID-20260810-029](status/TEST_EVIDENCE.md#evid-20260810-029--gdj-0022-final-github-hosted-process-stabilization-ci)에
+기록합니다. EVID-029/status patch 자체의 exact-head CI는 commit/push 전이라 `not run/pending`이며 run
+31332208055를 그 후속 patch의 success로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-028
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-029
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2295,3 +2295,155 @@ This EVID-028/completion-status documentation patch is later than tested head
 `3dfeff2a881a3313883729943519896798d92afc` and is currently uncommitted/unpushed. Its own exact-head hosted CI
 is therefore `not run/pending`. Run 31329294154 must not be recursively reused as proof of this later evidence
 patch; after the patch is committed and pushed, its final exact-head result must be recorded separately.
+
+## EVID-20260810-029 — GDJ-0022 Final GitHub-hosted Process Stabilization CI
+
+- Date/time: successful stabilization run 2026-08-10 04:39:14–04:44:55 KST
+  (2026-08-09 19:39:14–19:44:55 UTC); failed completion-documentation run
+  04:02:32–04:07:23 KST (2026-08-09 19:02:32–19:07:23 UTC)
+- Work/contract IDs: GDJ-0022, MIG-065..MIG-074, Q-010, Q-012
+- Tested PR/heads: Draft/open [PR #1](https://github.com/progresshans/godj/pull/1), branch
+  `codex/revision-fenced-migration-lifecycle`; completion-documentation head
+  `68b408add3b050d0938ccebc6c83200499f57b2a` (`docs: complete project migration check product`) and final
+  stabilization head `385382efffd1872ae7fb427192bab27b95dc57e2`
+  (`fix: harden project process synchronization`)
+- PR state at evidence collection: `OPEN`, `DRAFT`, merge state `CLEAN`; current PR head and local `HEAD`
+  exactly `385382efffd1872ae7fb427192bab27b95dc57e2`
+- Exit status: completion-documentation run
+  [31330601427](https://github.com/progresshans/godj/actions/runs/31330601427) completed `failure` with exact
+  18 jobs: 16 success, 2 failure, cancelled/skipped 0. Final stabilization run
+  [31332208055](https://github.com/progresshans/godj/actions/runs/31332208055) completed `success` with exact
+  18/18 success, failure/cancelled/skipped 0 and no non-success job step.
+- Result summary: the first run exposed two distinct macOS product-test synchronization assumptions. The
+  three-file follow-up made test-helper readiness atomic, made the actual SIGINT E2E harness cold-build-aware
+  with bounded early-exit/kill/reap behavior, and added product process reconciliation for a directly reaped
+  child whose Wait result publication is delayed. Local focused repetition, full `make ci`, independent
+  P0/P1/P2/P3 audit and the final exact 18-job hosted run all passed.
+- Failures/skips/not run: both failed jobs and their exact logs are retained below. All four Python jobs and
+  twelve of the other fourteen jobs passed in the failed run. The final run had no unexpected failure or
+  skipped job;
+  portable Python retained 16 intentional exact-profile-only skips and exact darwin passed 174/174.
+  Linux/386 remained compile-only. Windows and PostgreSQL/MySQL service-only jobs remained absent because
+  corresponding actual support contracts do not exist.
+
+Failed completion-documentation-head checkout and jobs:
+
+- Run `31330601427` `headSha` was exactly
+  `68b408add3b050d0938ccebc6c83200499f57b2a`. Hosted checkout used synthetic PR merge
+  `e8e999232783f74455e66bcf4d3e637457784539`, with parents exact base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and exact head
+  `68b408add3b050d0938ccebc6c83200499f57b2a`. GitHub commit API verification found both merge and head tree
+  equal to `8c68cc726df6c3b9ef1c13a3252c1f9a126330b4`.
+
+| Job | ID | Started–completed (KST) | Result |
+|---|---:|---|---|
+| Validate checked-in conformance artifacts | [93288120025](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120025) | 04:02:34–04:07:21 | success |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93288120040](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120040) | 04:02:35–04:03:41 | success |
+| Project check (`ubuntu-22.04`) | [93288120067](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120067) | 04:02:34–04:03:36 | success |
+| Project check (`ubuntu-24.04-arm`) | [93288120062](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120062) | 04:02:34–04:03:20 | success |
+| Project check (`macos-15-intel`) | [93288120102](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120102) | 04:02:35–04:04:05 | success |
+| Project check (`macos-26`) | [93288120090](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120090) | 04:02:35–04:03:45 | success |
+| SQLite (`ubuntu-22.04`) | [93288120112](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120112) | 04:02:36–04:04:16 | success |
+| SQLite (`ubuntu-24.04-arm`) | [93288120099](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120099) | 04:02:34–04:04:01 | success |
+| SQLite (`macos-15-intel`) | [93288120131](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120131) | 04:03:44–04:05:52 | success |
+| SQLite (`macos-26`) | [93288120130](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120130) | 04:03:47–04:05:09 | success |
+| Product project check (`ubuntu-22.04`) | [93288120049](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120049) | 04:02:34–04:05:45 | success |
+| Product project check (`ubuntu-24.04-arm`) | [93288120037](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120037) | 04:02:35–04:04:46 | success |
+| Product project check (`macos-15-intel`) | [93288120074](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120074) | 04:02:35–04:06:01 | **failure** |
+| Product project check (`macos-26`) | [93288120041](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120041) | 04:02:35–04:03:52 | **failure** |
+| Python compatibility (`3.12.13`) | [93288120104](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120104) | 04:02:34–04:02:54 | success |
+| Python compatibility (`3.13.15`) | [93288120101](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120101) | 04:02:34–04:03:01 | success |
+| Python compatibility (`3.14.3`) | [93288120115](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120115) | 04:02:34–04:03:03 | success |
+| Python compatibility (`3.14.7`) | [93288120159](https://github.com/progresshans/godj/actions/runs/31330601427/job/93288120159) | 04:02:34–04:03:06 | success |
+
+Both failures occurred in `Run normal product project-check tests`; setup/coordinate assertions had passed:
+
+1. `macos-26` job `93288120041` failed
+   `TestOwnedProcessCancelAfterDirectReapClosesDescendantHeldPipes` in 0.03 seconds with
+   `process_test.go:169: invalid helper process pair ""`. The helper created the readiness path before its
+   PID-pair payload was completely visible, so the reader could observe an empty file. This was a non-atomic
+   test-helper publication bug, not a product protocol result.
+2. `macos-15-intel` job `93288120074` failed
+   `TestActualGodjMigrationCheckProcess/handled_SIGINT_reaps_runner_and_cleans_private_workspace` after
+   20.01 seconds with `timed out waiting for .../runner-ready`. The parent test took 141.84 seconds and its
+   cold private GOCACHE/GOMODCACHE project build exceeded the harness's fixed 20-second readiness assumption.
+   The log did not report a wrong exit/category or leaked workspace; the test stopped before issuing SIGINT.
+
+Fix scope and local stabilization evidence:
+
+- Commit `385382efffd1872ae7fb427192bab27b95dc57e2` changed exactly three GDJ-0022-allowed files:
+  `cmd/godj/main_test.go`, `internal/projectcheck/process_test.go`, and
+  `internal/projectcheck/process_unix.go` (115 insertions, 18 deletions).
+- Helper readiness now writes a complete payload to a sibling temporary file, closes it, then atomically
+  renames it into place. The SIGINT E2E readiness wait now allows the intentionally cold private build up to
+  two minutes, observes early process exit, uses `WaitDelay`, and on harness failure performs bounded
+  interrupt followed by kill and mandatory reap.
+- The race audit also found a production timing window: the direct child may already be reaped while the
+  buffered Wait-result send has not yet become visible to the cancellation coordinator. Product code now
+  checks the queued result first, probes `Signal(0)` for `os.ErrProcessDone`, and synchronously consumes the
+  delayed Wait publication before deciding whether process-group SIGINT/SIGKILL is needed. Active-child
+  escalation behavior remains unchanged.
+
+Exact local commands and results on final head:
+
+```bash
+go test -race -count=50 ./internal/projectcheck -run '^(TestOwnedProcessCancelAfterDirectReapClosesDescendantHeldPipes|TestAlreadyReapedDirectChildWaitPublicationIsReconciled)$'
+go test -race -count=5 ./internal/projectcheck -run '^TestOwnedProcessCancellationSignalsGroupEscalatesAndReaps$'
+go test -count=20 ./cmd/godj -run '^TestActualGodjMigrationCheckProcess/handled_SIGINT_reaps_runner_and_cleans_private_workspace$'
+go test -count=1 ./internal/projectcheck ./cmd/godj
+go test -race -count=1 ./internal/projectcheck ./cmd/godj
+CGO_ENABLED=0 go test -count=1 ./internal/projectcheck ./cmd/godj
+go vet ./internal/projectcheck ./cmd/godj
+make ci
+git diff --check
+```
+
+All exited 0. The two-test race count-50 gate passed in 105.291 seconds; active-child escalation race
+count-5 passed; the actual SIGINT E2E count-20 gate passed in 102.585 seconds. `make ci` passed under local
+uv 0.12.3 / CPython 3.14.3, including full Go normal/race/vet, focused CGO-disabled products, portable Python
+174/16 intentional skips and all eleven product adapters. The independent hosted-flake final audit reported
+P0/P1/P2/P3 = 0/0/0/0, and no helper/runner/`godj` process remained.
+
+Final exact-head hosted checkout and jobs:
+
+- Run `31332208055` `headSha` was exactly
+  `385382efffd1872ae7fb427192bab27b95dc57e2`. Hosted checkout used synthetic PR merge
+  `0893e7c38916e88ba33008f0e68898d5711c6ef9`, with parents exact base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and exact head
+  `385382efffd1872ae7fb427192bab27b95dc57e2`. GitHub commit API verification found both merge and head tree
+  equal to `f149be8870b01ea9492a7b8b257550e2ac10d071`.
+
+| Job | ID | Started–completed (KST) | Required validation |
+|---|---:|---|---|
+| Validate checked-in conformance artifacts | [93292142084](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142084) | 04:39:16–04:42:35 | Ubuntu 24.04.4 image `20260720.247.2`, linux/amd64; Go 1.26.5, CPython 3.14.3, `make ci`, product focus, Linux/386 compile-only, 11 checksums and no-rewrite |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93292142012](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142012) | 04:39:17–04:40:36 | macOS 15.7.7 arm64 image `20260727.0256.1`; Go 1.26.5, CPython 3.14.3, historical exact uv 0.10.12, exact 174/174, 11 oracle checks and no-rewrite |
+| Project check (`ubuntu-22.04`) | [93292142120](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142120) | 04:39:16–04:40:15 | linux/amd64 independent proof normal/race/CGO-disabled/vet/clean |
+| Project check (`ubuntu-24.04-arm`) | [93292142090](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142090) | 04:39:16–04:39:59 | linux/arm64 independent proof normal/race/CGO-disabled/vet/clean |
+| Project check (`macos-15-intel`) | [93292142082](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142082) | 04:39:16–04:40:32 | darwin/amd64 independent proof normal/race/CGO-disabled/vet/clean |
+| Project check (`macos-26`) | [93292142103](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142103) | 04:39:17–04:40:07 | darwin/arm64 independent proof normal/race/CGO-disabled/vet/clean |
+| SQLite (`ubuntu-22.04`) | [93292142045](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142045) | 04:39:16–04:40:52 | linux/amd64 actual SQLite normal/race/CGO-disabled/vet/clean |
+| SQLite (`ubuntu-24.04-arm`) | [93292142071](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142071) | 04:39:16–04:40:34 | linux/arm64 actual SQLite normal/race/CGO-disabled/vet/clean |
+| SQLite (`macos-15-intel`) | [93292142047](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142047) | 04:39:18–04:41:34 | darwin/amd64 actual SQLite normal/race/CGO-disabled/vet/clean |
+| SQLite (`macos-26`) | [93292142110](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142110) | 04:39:17–04:40:39 | darwin/arm64 actual SQLite normal/race/CGO-disabled/vet/clean |
+| Product project check (`ubuntu-22.04`) | [93292142059](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142059) | 04:39:16–04:42:13 | linux/amd64 actual CLI/public project/adapter normal/race/CGO-disabled/vet/clean |
+| Product project check (`ubuntu-24.04-arm`) | [93292142048](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142048) | 04:39:16–04:41:33 | linux/arm64 actual CLI/public project/adapter normal/race/CGO-disabled/vet/clean |
+| Product project check (`macos-15-intel`) | [93292142077](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142077) | 04:40:09–04:44:54 | darwin/amd64 actual CLI/public project/adapter normal/race/CGO-disabled/vet/clean |
+| Product project check (`macos-26`) | [93292142115](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142115) | 04:40:34–04:43:28 | darwin/arm64 actual CLI/public project/adapter normal/race/CGO-disabled/vet/clean |
+| Python compatibility (`3.12.13`) | [93292142114](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142114) | 04:39:17–04:39:34 | exact runtime; portable 174/16 expected skips; 115 scenarios, canonical payload/digest, clean |
+| Python compatibility (`3.13.15`) | [93292142107](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142107) | 04:39:16–04:39:40 | exact runtime; portable 174/16 expected skips; 115 scenarios, canonical payload/digest, clean |
+| Python compatibility (`3.14.3`) | [93292142123](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142123) | 04:39:17–04:39:46 | exact runtime; portable 174/16 expected skips; 115 scenarios, canonical payload/digest, clean |
+| Python compatibility (`3.14.7`) | [93292142096](https://github.com/progresshans/godj/actions/runs/31332208055/job/93292142096) | 04:39:22–04:39:49 | exact runtime; portable 174/16 expected skips; 115 scenarios, canonical payload/digest, clean |
+
+All four Python logs asserted exact `EXPECTED_PYTHON`, reported `Ran 174 tests` and `OK (skipped=16)`, then
+verified 115 scenarios, canonical payload 464,087 bytes and SHA-256
+`aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8`. All four product jobs passed
+normal, race, CGO-disabled, vet, tracked-diff and porcelain-empty gates. In particular, both previously failing
+macOS product coordinates completed normal and race steps. The Ubuntu full job passed portable Python,
+eleven-product-adapter conformance, seven-package Linux/386 compile/no-test loading, all eleven checksums and
+artifact no-rewrite; exact darwin passed Python 174/174, all eleven locked oracles and no-rewrite. Independent
+proof and SQLite four-leg matrices remained separate required executions.
+
+This EVID-029/status documentation patch is later than tested head
+`385382efffd1872ae7fb427192bab27b95dc57e2` and is currently uncommitted/unpushed. Its own exact-head hosted CI
+is therefore `not run/pending`. Run 31332208055 must not be recursively reused as proof for this later evidence
+patch; after commit/push, its exact-head result must be recorded separately. No merge was performed.
