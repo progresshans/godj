@@ -44,11 +44,12 @@ proposed → ready → active → completed
 | [GDJ-0018](0018-revision-fenced-migration-lifecycle-product-slice.md) | completed | Revision-fenced migration lifecycle 제품 단면 |
 | [GDJ-0019](0019-migration-definition-source-compatibility-contracts.md) | completed | Migration definition source/versioned-loader 호환 계약 |
 | [GDJ-0020](0020-migration-definition-loader-product-slice.md) | completed | Migration definition loader 제품 단면 |
-| [GDJ-0021](0021-migration-project-check-compatibility-contracts.md) | active | Project-linked migration check 호환/결정 계약 |
+| [GDJ-0021](0021-migration-project-check-compatibility-contracts.md) | completed | Project-linked migration check 호환/결정 계약 |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-[GDJ-0021](0021-migration-project-check-compatibility-contracts.md)이고 ready 항목은 없습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은
+없습니다. 최근 완료 항목은
+[GDJ-0021](0021-migration-project-check-compatibility-contracts.md)입니다.
 GDJ-0020은
 `codex/revision-fenced-migration-lifecycle@6172d843a4bb234592cafc176a8d1191933b141c`의 제품 구현과
 Draft PR #1 exact-head CI를 근거로 완료됐고,
@@ -61,12 +62,14 @@ fully normalized IR v2, `CreateModel`/non-PK `char`·`boolean` `AddField` codec,
 10 reference set/105 contract와 90 ordered cross-binding rejection입니다. Completed GDJ-0020은
 열 번째 product adapter를 구현해 105 product contract의 `100 passing + 5 deviation`을
 local/exact-head hosted gate에서 검증했습니다. Filesystem/module discovery, CLI, writer/upgrade/cache는
-여전히 제품 미구현 범위입니다. Active GDJ-0021은 그중 가장 작은 DB-free
+여전히 제품 미구현 범위입니다. Completed GDJ-0021은 그중 가장 작은 DB-free
 `godj migrations check` 경험의 project selection/build/runner/flat discovery를 MIG-065..074의
-contract-only decision reference로 검증합니다. 목표는 11 reference set/115 contract/110 ordered
+contract-only decision reference로 검증했습니다. 결과는 11 reference set/115 contract/110 ordered
 cross-binding과 새 10 `oracle_locked`이며, 제품은 계속 10 adapter/105 contract의
 `100 passing + 5 deviation`입니다. [ADR-0021](../docs/adr/0021-project-linked-migration-check.md)은
-Proposed이고 전역 CLI나 project package가 구현됐다는 뜻이 아닙니다.
+local/10-job hosted evidence를 근거로 Accepted이지만 전역 CLI나 project package가 구현됐다는 뜻이
+아닙니다. Q-010/Q-012는 `Partial`을 유지합니다. Status 7 + general 9의 exact 16-file
+completion documentation patch 자체의 hosted CI는 `not run/pending`입니다.
 
 ## 운영 규칙
 

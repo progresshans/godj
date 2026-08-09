@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-09
+- 마지막 검토: 2026-08-10
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0021 active / full handshake 후속 | Proposed project-check descriptor/private runner protocol은 좁은 check orchestration만 다룸; public API와 전역 CLI/project library/generator semver는 open |
+| Q-010 | Partial | GDJ-0021 completed / full handshake 후속 | Accepted project-check descriptor/private runner protocol은 좁은 test-only check orchestration만 검증; public API와 전역 CLI/project library/generator semver는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0021 active | MIG-047..064 제품 subset은 Verified; MIG-065..074 project-check contract는 active/oracle target이며 writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
+| Q-012 | Partial | GDJ-0021 completed | MIG-047..064 제품 subset과 MIG-065..074 reference-only/test-only contract는 Verified; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
 | Q-013 | P1 | M3 전 | cross-app relation의 source/target type, import, reverse path, loader는 어떻게 구성하는가 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
@@ -96,9 +96,9 @@ bounded product loader만 구현·검증했습니다. File/module/FS discovery�
 CLI/project binary가 어떤 version 정보를 교환하고 mismatch/old generator/stale output을 어떻게
 복구할지는 별도 work/ADR로 결정해야 합니다. 따라서 Q-010은 계속 Partial입니다.
 
-Active [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Proposed
+완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Accepted
 [ADR-0021](adr/0021-project-linked-migration-check.md)은 full handshake보다 작은 DB-free
-`godj migrations check` contract를 먼저 검증합니다. Candidate는 exact `godj.toml` descriptor v1의
+`godj migrations check` contract를 test-only로 검증했습니다. Proof는 exact `godj.toml` descriptor v1의
 project package를 private binary로 build하고 strict runner protocol v1에서
 `migrations.check`를 요청합니다. Descriptor/runner wire version mismatch와 public exit,
 `-mod=readonly`/`GOWORK=off`/`GOTOOLCHAIN=local`/`GOENV=off`, private TMP/cache/HOME/XDG/telemetry와
@@ -107,21 +107,25 @@ category/code pair만 전달하고 loader file/pointer detail은 test-only이며
 확장은 후속입니다. 11 cap은 parsed/retained 경계일 뿐 build/runner CPU·시간·disk/network sandbox가
 아닙니다.
 
-Hosted proof target은 existing `ubuntu-24.04` x64 full/`macos-15` arm64 exact 두 job에 focused normal
-gate를 더하고, `ubuntu-22.04` x64/`ubuntu-24.04-arm` arm64/`macos-15-intel` x64/`macos-26` arm64의 4-leg project-check와
-동일 4-leg SQLite normal/race/CGO-disabled/vet matrix를 더한 exact 10 required job executions입니다.
-각 leg는 label별 expected GOOS/GOARCH를 exact assert하고 static gate는 top-level definitions가 아닌
-2+4+4 expanded count/fail-fast/no-continue-on-error를 pin합니다. New leg 마지막은 tracked diff와
-porcelain-empty clean worktree gate입니다. Activation head에서는 아직 실행하지 않았습니다. Windows
+Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`의 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)은 existing
+`ubuntu-24.04` x64 full/`macos-15` arm64 exact 2개, `ubuntu-22.04` x64/
+`ubuntu-24.04-arm` arm64/`macos-15-intel` x64/`macos-26` arm64 project-check 4개와 동일 좌표의
+SQLite normal/race/CGO-disabled/vet 4개, exact `2 + 4 + 4 = 10` job을 모두 통과했습니다. 각 matrix
+leg는 expected GOOS/GOARCH, `fail-fast: false`, no `continue-on-error`와 final tracked-diff/
+porcelain-empty clean worktree gate를 만족했습니다. 이 문단을 포함하는 completion-documentation
+head의 hosted CI는 아직 pending입니다. Windows
 native contract가 없고 actual backend는 SQLite뿐이므로 Windows green skip과 PostgreSQL/MySQL
 service-only CI는 support evidence로 만들지
-않습니다. Future backend는 immutable service version/health/UTC/C와 actual query/write/migration/
-schema/lifecycle contracts를 먼저 required job으로 검증하고 adjacent versions는 scheduled/non-required로
-분리합니다.
+않습니다. Future backend는 digest-pinned service image, health check, UTC timezone과 C locale 또는
+명시적으로 승인된 collation, actual query/write/transaction/schema/migration/recorder/
+revision-lifecycle 및 durable restart/persistence contract를 먼저 required job으로 검증합니다.
+Expected contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도
+필수이며 adjacent versions는 scheduled/non-required로 분리합니다.
 
 이는 public global CLI/project package API, production project binary entrypoint, persistent runner
 cache, generator/library semver resolution이나 stale output repair를 확정하지 않습니다. Accepted
-contract, locked artifact와 test-only feasibility evidence가 아직 없으므로 ADR-0021은 Proposed이고 Q-010도 Partial입니다. SIGTERM/other
+contract, locked artifact와 verified test-only feasibility가 생겼어도 Q-010은 Partial입니다. SIGTERM/other
 fatal signal, crash stale-temp scavenging과 broken stdout/stderr sink delivery도 아직 결정하지 않습니다.
 
 ## Q-012 — Migration format과 실행 수명주기
@@ -263,7 +267,10 @@ wrap/reclassify/retry하지 않습니다. Literal Schema IR 2는 two-way compile
 `a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 별도 run 31310002784의 Ubuntu/macOS 두 job에서
 통과했고, EVID-023 append/status 교정 baseline
 `53729103651bfc34acc5fe07fb4376d5dd78c204`도 별도 run 31310606332의 Ubuntu/macOS 두 job에서
-통과했습니다. 현재 GDJ-0021 activation diff head의 hosted CI는 `not run`입니다.
+통과했습니다. GDJ-0021 implementation head
+`84ddf109c04acd72992b816aa72140c6e748e5f0`도 별도
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 exact 10 job에서
+통과했습니다.
 
 File/directory/module/remote discovery, public CLI, writer/upgrade/cache, executable/custom/data/
 raw-SQL operation, global CLI/project handshake, adoption/repair command, copy/restore epoch,
@@ -271,14 +278,14 @@ crash reconciliation과 PostgreSQL/MySQL 등 non-SQLite backend는 계속 Q-012/
 범위입니다.
 
 GDJ-0021은 위 open 범위 중 project-relative flat file discovery와 check-only process boundary만
-MIG-065..074로 분리합니다. Proposed contract는 linked project code가 clean root list를 제공하고
+MIG-065..074로 분리해 완료했습니다. Accepted contract는 linked project code가 clean root list를 제공하고
 case-sensitive `*.godj.json` immediate regular files를 no-follow/byte order로 읽어 actual
-`definition.Load`를 정확히 한 번 호출하는 의미입니다. 목표는 10 새 `oracle_locked`이며 현재 제품
+`definition.Load`를 정확히 한 번 호출하는 의미입니다. 새 10개는 `oracle_locked`이며 현재 제품
 10 adapter/105 contract의 `100 passing + 5 deviation`은 바뀌지 않습니다.
 
 이 check의 DB-free 주장은 GoDj-owned DB/recorder/lifecycle call 0으로 제한됩니다. User `init()` side
 effect, recursive/module/embed/remote discovery, writer/upgrade, DB/applied-history check와 actual migrate
-execution은 해결하지 않습니다. 따라서 GDJ-0021이 완료되더라도 Q-012/Q-010 전체는 Partial입니다.
+execution은 해결하지 않습니다. 따라서 GDJ-0021이 완료됐어도 Q-012/Q-010 전체는 Partial입니다.
 
 ## Q-013 — 관계 API
 

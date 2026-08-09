@@ -1,9 +1,9 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0021 project-linked migration check compatibility contracts active; ADR-0021 Proposed
+- 현재 단계: GDJ-0021 project-linked migration check compatibility contracts completed; ADR-0021 Accepted
 - 현재 제품 기준: 10 adapter/105 contract의 `100 passing + 5 deviation`
-- 마지막 검토: 2026-08-09
+- 마지막 검토: 2026-08-10
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -233,48 +233,51 @@ Completion-documentation commit `a5422f2c1ba5db34986564fc065e4b8e28ef0115`도 �
 통과했습니다. EVID-023 append/status 교정 baseline commit
 `53729103651bfc34acc5fe07fb4376d5dd78c204`도 별도
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
-job에서 통과했습니다. 현재 GDJ-0021 activation diff head의 hosted CI는 `not run`입니다.
+job에서 통과했습니다.
 
 GDJ-0020 이후에도 CLI/project orchestration은 별도 결정입니다. Directory/file/module/remote
 discovery, global CLI/library/generator semver handshake, writer/upgrade/cache, executable/custom/
 data/raw-SQL operation, adoption/repair command, crash recovery와 non-SQLite backend는 이 product
 loader slice의 지원 범위가 아닙니다.
 
-Active [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)은 다음 제품
-구현보다 먼저 가장 작은 project-aware check 경험을 contract-only로 잠급니다. Proposed
+완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)은 다음 제품
+구현보다 먼저 가장 작은 project-aware check 경험을 contract-only/test-only로 잠갔습니다. Accepted
 [ADR-0021](adr/0021-project-linked-migration-check.md)의 `godj migrations check`는 nearest exact
 `godj.toml` 또는 explicit descriptor file을 선택하고, global side가 private project runner를
 shell 없이 `-mod=readonly`, `GOWORK=off`, `GOTOOLCHAIN=local`로 build/run하며, linked side가
 project-relative flat `*.godj.json` roots를 no-follow로 탐색해 actual `definition.Load`에 정확히 한
-번 넘기는 후보입니다. Public product CLI/API는 이번 work에서 만들지 않습니다.
+번 넘기는 의미를 고정합니다. Public product CLI/API는 이번 work에서 만들지 않았습니다.
 
 MIG-065..074는 Django `migrate --check` parity가 아닌
 `decision/ADR-0021/derived=false` independent reference입니다. Marker/descriptor, strict runner
 protocol v1, source ordering/symlink safety, build/protocol fault, public exit `0/1/2/3/130`, process
-cancel/reap와 11개 parsed/accepted input·catalog·wire/retained-output cap을 검증합니다. 완료 목표는 11 reference set/115 unique
-contract/110 ordered cross-binding과 새 10 `oracle_locked`입니다. Product는 계속 10 adapter/105
+cancel/reap와 11개 parsed/accepted input·catalog·wire/retained-output cap을 검증합니다. 결과는
+11 reference set/115 unique contract/110 ordered cross-binding과 새 10 `oracle_locked`입니다. Product는 계속 10 adapter/105
 contract의 `100 passing + 5 deviation`이고 새 product adapter나 actual output은 없습니다.
 
-Hosted implementation target은 기존 `ubuntu-24.04` x64 full과 `macos-15` arm64 exact job을 보존하고
-focused project-check normal gate를 더한 뒤, exact labels `ubuntu-22.04`, `ubuntu-24.04-arm`,
-`macos-15-intel`, `macos-26`의 4-leg project-check matrix와 같은 4-leg SQLite matrix를 추가하는
-**10 required job executions**입니다. 두 matrix는 Go 1.26.5, fail-fast false/leg 20분,
-label별 expected GOOS/GOARCH exact assertion과 normal/race/CGO-disabled/vet를 고정합니다. Static gate는
-YAML top-level definitions가 아니라 2+4+4 expanded count, exact coordinate와 no-continue-on-error를
-검증하고 각 new leg는 tracked diff + porcelain-empty clean worktree로 끝납니다. 현재 activation
-head에서는 아직 실행하지 않았습니다.
+Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 기존
+`ubuntu-24.04` x64 full과 `macos-15` arm64 exact 2개, exact labels `ubuntu-22.04`,
+`ubuntu-24.04-arm`, `macos-15-intel`, `macos-26`의 project-check 4개와 같은 좌표의 SQLite 4개,
+**`2 + 4 + 4 = 10` required job executions**을 모두 통과했습니다. 두 matrix는 Go 1.26.5,
+`fail-fast: false`, leg별 20분 timeout, expected GOOS/GOARCH, normal/race/CGO-disabled/vet,
+no `continue-on-error`와 final clean worktree를 검증했습니다. 이 완료 문서가 반영될 새 head의
+hosted CI는 아직 pending입니다.
 
 Windows는 native process/path contract 전에는 지원 runner를 만들지 않습니다. Current actual backend는
 SQLite뿐이므로 PostgreSQL/MySQL service-only job도 false green으로 금지합니다. Future backend job은
-immutable service image/version, health check, UTC/C와 actual query/write/migration/schema/lifecycle
-contracts가 먼저 있어야 하고 adjacent versions는 별도 non-required scheduled matrix로 확장합니다.
+digest-pinned service image, health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation,
+actual query/write/transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/
+persistence contract를 먼저 실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`,
+`continue-on-error` 없음, final clean worktree도 필수이며 adjacent versions는 별도 non-required
+scheduled matrix로 확장합니다.
 
 GDJ-0021에서 “DB-free”는 GoDj-owned DB/recorder/lifecycle call 0만 뜻합니다. Linked project binary의
 임의 user package `init()` side effect까지 차단한다고 주장하지 않습니다. Recursive/module/embed/
 remote discovery, Windows, persistent runner cache, full CLI/library/generator handshake, direct
 production project-binary command, writer/upgrade와 DB-aware migration execution은 GDJ-0022 이후로
-남깁니다. Contract/feasibility/hosted evidence 전에 ADR-0021을 Accepted 또는 구현 완료로 표현하지
-않습니다.
+남깁니다. GDJ-0021의 Accepted/Verified 상태는 reference-only/test-only contract에 한정하며 제품
+명령 구현으로 승격하지 않습니다.
 
 ## M3 — Relations + PostgreSQL
 

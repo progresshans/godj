@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
 - 상태: 장기 사용자 흐름 Accepted, M1 Article 단면 Implemented/Verified, 나머지 문법 Proposed
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-10
 
 별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -198,7 +198,7 @@ godj migrate
 Migration file format과 Go callback ABI는 Q-012 결정 전에는 확정하지 않습니다.
 
 현재 제품 API는 caller가 I/O를 끝낸 explicit definition source를 bounded
-`migrations/definition.Load`에 넘기는 단면까지입니다. 활성 GDJ-0021이 검증하는 향후 사용자 경험
+`migrations/definition.Load`에 넘기는 단면까지입니다. 완료된 GDJ-0021이 test-only로 검증한 향후 사용자 경험
 후보는 다음 두 argv뿐입니다.
 
 ```bash
@@ -211,6 +211,11 @@ godj migrations check --project ./godj.toml
 보고합니다. 다만 이는 현재 `conformance/projectcheck/**` test-only proof와 `oracle_locked`
 MIG-065..074 계약일 뿐이며, 전역 CLI·project package·production project-linked binary와 실제
 filesystem discovery는 아직 사용할 수 없습니다.
+
+이 test-only implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
+Linux/macOS x64/arm64 project-check 4개와 actual SQLite 4개, 총 10개 hosted job을 모두
+통과했습니다. 이 증거는 설치 가능한 명령이나 PostgreSQL/MySQL 지원으로 확장되지 않습니다.
 
 ## 9. Form, Admin, API
 
@@ -231,8 +236,8 @@ Generic base type을 사용할 수 있지만 `ModelForm[M]`, `ModelAdmin[M]`, `M
 
 개발자는 `godj runserver`처럼 친숙한 명령을 사용합니다. 내부적으로 global CLI가 project를 찾아 project-aware binary를 build/run할 수 있습니다.
 
-GDJ-0021/Proposed ADR-0021은 이 방향의 descriptor selection, no-shell build, strict runner framing과
-exit/cancel 의미를 test-only로 좁게 검증합니다. 이 proof를 설치 가능한 `godj` 명령이나 안정된 public
+GDJ-0021/Accepted ADR-0021은 이 방향의 descriptor selection, no-shell build, strict runner framing과
+exit/cancel 의미를 test-only로 좁게 검증했습니다. 이 proof를 설치 가능한 `godj` 명령이나 안정된 public
 project API로 해석하지 않습니다.
 
 Production에서는 한 project binary로 명령을 실행하는 방향입니다.

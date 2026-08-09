@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-09
+- 마지막 검토: 2026-08-10
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -458,10 +458,10 @@ commit은 `6172d843a4bb234592cafc176a8d1191933b141c`입니다. File discovery/CL
 custom/executable/data/raw-SQL operation과 non-SQLite backend는 이 green 결과의 지원 범위가
 아닙니다.
 
-GDJ-0021은 MIG-065..074의 열한 번째 independent decision-reference set을 추가합니다. Exact
+완료된 GDJ-0021은 MIG-065..074의 열한 번째 independent decision-reference set을 추가했습니다. Exact
 `godj.toml` selection/descriptor, project-linked build와 closed runner protocol, flat no-follow source
 discovery, `definition.Load` exactly once, zero DB/lifecycle call과 public exit `0/1/2/3/130`을
-`conformance/projectcheck/**` test-only proof로 검증합니다. Manifest의 새 10 contract는 모두
+`conformance/projectcheck/**` test-only proof로 검증했습니다. Manifest의 새 10 contract는 모두
 `oracle_locked`이고 product adapter나 production CLI는 추가하지 않습니다.
 
 Artifact gate는 manifest 4,580 bytes/
@@ -517,14 +517,29 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 
 현재 GitHub Actions는 기존 `ubuntu-24.04` x64 full `conformance-validation`과 `macos-15` arm64
 exact `exact-darwin-validation`을 보존하고, 두 job에 focused project-check normal gate를
-추가합니다. 별도 `project-check-matrix`와 actual-backend `sqlite-matrix`는 각각 exact
+추가했습니다. 별도 `project-check-matrix`와 actual-backend `sqlite-matrix`는 각각 exact
 `ubuntu-22.04` linux/amd64, `ubuntu-24.04-arm` linux/arm64, `macos-15-intel` darwin/amd64,
 `macos-26` darwin/arm64의 네 leg를 가집니다. 각 leg는 Go 1.26.5 coordinate assertion,
 normal/race/CGO-disabled/vet, 20분 timeout, `fail-fast: false`, no `continue-on-error`와 final clean
 worktree를 요구합니다. Expanded required topology는 existing 2 + project-check 4 + SQLite 4의
 exact 10 hosted executions입니다. Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
-않습니다. 이 workflow 확장 head의 hosted CI는 아직 `not run`이며 local/static 검증을 hosted PASS로
-과장하지 않습니다.
+않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
+C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
+recorder/revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected
+contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도
+필수입니다.
+
+GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 위 exact
+`2 + 4 + 4 = 10` hosted execution을 모두 통과했습니다. 이 결과는 reference-only/test-only
+project-check와 actual SQLite 범위의 증거이며 PostgreSQL/MySQL 지원 증거가 아닙니다. Ubuntu full
+job은 portable Python 174 tests/16 exact-only skips, 실제 Linux/386 loader runtime, 11개 checksum과
+no-rewrite를 통과했고, macOS 15 arm64 exact job은 Python 174/174, 11 oracle과 no-rewrite를
+통과했습니다. Project-check와 SQLite 각 네 좌표는 모두 normal/race/CGO-disabled/vet/clean
+worktree를 통과했으며 PR checkout synthetic merge tree도 exact implementation head tree와
+일치했습니다. 상세 job/step 증거는
+[EVID-20260810-025](status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
+기록합니다. 이 문단을 포함하는 completion-documentation head의 hosted CI는 아직 pending입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
@@ -560,5 +575,7 @@ checksum/no-rewrite를 통과했습니다. macOS 15.7.7 arm64 job
 tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-rewrite를
 통과했습니다. 상세 증거는
 [EVID-20260809-023](status/TEST_EVIDENCE.md#evid-20260809-023--gdj-0020-github-hosted-completion-documentation-head-ci)에
-기록합니다. 현재 EVID-023 append/status 교정 patch 자체의 hosted CI는 아직
-`not run/pending`이며 run 31310002784를 재귀적으로 그 patch의 PASS로 사용하지 않습니다.
+기록합니다. EVID-023 append/status 교정 commit
+`53729103651bfc34acc5fe07fb4376d5dd78c204` 자체도 별도 Draft PR #1
+[run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
+job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.

@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-09
+- 마지막 검토: 2026-08-10
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -219,11 +219,11 @@ MIG-057..064의 열 번째 actual adapter까지 연결되어 현재 제품 분�
 discovery, public CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation, adoption/repair,
 crash reconciliation과 non-SQLite migration backend는 이 loader가 지원하지 않습니다.
 
-활성 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Proposed
+완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Accepted
 [ADR-0021](adr/0021-project-linked-migration-check.md)은 이 제품 경계를 바꾸지 않고
 `godj.toml` 선택, project-linked build/runner protocol, flat no-follow source discovery와
-`definition.Load` exactly-once handoff를 `conformance/projectcheck/**`의 test-only 후보로
-검증합니다. Global orchestration 후보는 제품 loader를 import하지 않고, linked runner fixture만
+`definition.Load` exactly-once handoff를 `conformance/projectcheck/**`의 test-only proof로
+검증했습니다. Global orchestration proof는 제품 loader를 import하지 않고, linked runner fixture만
 기존 `migrations/definition`을 사용합니다. Production package는 이 harness를 import하지 않으며
 전역 `godj` CLI, project package와 filesystem discovery를 구현한 것으로 세지 않습니다.
 
@@ -232,6 +232,16 @@ MIG-065..074는 `decision/ADR-0021/derived=false`인 열한 번째 reference-onl
 cross-binding, static fixture exit 1/ordered mismatch 10과 제품 `godjcheck` exit 2/no actual output을
 고정합니다. `godj-conformance`에는 열한 번째 adapter를 추가하지 않아 제품 분류는 계속
 10 adapter/105 contract의 `100 passing + 5 deviation`입니다.
+
+Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 기존
+Ubuntu 24.04 x64 full/macOS 15 arm64 exact 두 job, Linux/macOS x64/arm64 project-check 네 leg와
+같은 좌표의 actual SQLite 네 leg, 총 `2 + 4 + 4 = 10` hosted execution을 모두 통과했습니다.
+Actual adapter가 없는 PostgreSQL/MySQL은 service만 띄우는 green job을 지원 증거로 세지 않습니다.
+첫 backend job은 digest-pinned service image, health check, UTC timezone과 C locale 또는 명시적으로
+승인된 collation, actual query/write/transaction/schema/migration/recorder/revision-lifecycle 및
+durable restart/persistence contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가
+같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도 필수입니다.
 
 ## CLI와 프로젝트 실행
 

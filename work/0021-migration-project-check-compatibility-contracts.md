@@ -1,7 +1,7 @@
 ---
 id: GDJ-0021
-status: active
-updated: 2026-08-09
+status: completed
+updated: 2026-08-10
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "53729103651bfc34acc5fe07fb4376d5dd78c204"
 depends_on: ["GDJ-0020"]
@@ -57,7 +57,7 @@ definition-set digest를 받고 catalog 문제와 project/config/build/transport
 
 이번 GDJ-0021은 이 경험의 **compatibility/decision contract와 test-only feasibility 경계만**
 만듭니다. 전역 `godj` 제품 CLI, project package/API, production project binary command와 실제
-filesystem discovery 지원을 구현하지 않습니다. 완료해도 제품 상태는 10 adapter/105 contract의
+filesystem discovery 지원을 구현하지 않습니다. 완료 후에도 제품 상태는 10 adapter/105 contract의
 `100 passing + 5 deviation`에 머물며, 새 MIG-065..074는 `oracle_locked`입니다.
 
 ## 목표
@@ -125,9 +125,9 @@ Contract test-only code가 후보 타입을 사용하더라도 public API나 pro
 - Baseline checkout은 clean입니다. 이후 다른 agent나 사용자가 만든 범위 밖 변경은 보존하고,
   stable 문서와 artifact는 한 integration owner만 통합합니다.
 - [ADR-0004](../docs/adr/0004-cli-and-project-binary.md)는 global CLI와 project-linked binary의 역할
-  분리만 Accepted했습니다. Descriptor, entrypoint, protocol과 exit 의미는 Proposed
-  [ADR-0021](../docs/adr/0021-project-linked-migration-check.md) 및 이번 contract로 검증하기 전에는
-  채택된 결정이 아닙니다.
+  분리만 Accepted했습니다. Descriptor, entrypoint, protocol과 exit 의미는 activation 당시 Proposed
+  [ADR-0021](../docs/adr/0021-project-linked-migration-check.md) 및 이번 contract로 검증했고, local/
+  hosted evidence를 근거로 ADR-0021을 Accepted했습니다. 이는 제품 CLI/API 구현을 뜻하지 않습니다.
 
 ## Reference / Provenance
 
@@ -252,7 +252,7 @@ Runner stdout response write는 별도 counter이며 public user stdout과 합�
 
 ## Project selection과 closed descriptor v1
 
-- Proposed exact public argv grammar 후보는 executable 뒤 exact `migrations check` 또는
+- Accepted contract의 exact public argv grammar는 executable 뒤 exact `migrations check` 또는
   `migrations check --project <descriptor-file>` 두 개뿐입니다. `--project=` form, repeated/missing/
   empty value, unknown/extra argument, flag/subcommand reorder와 flag-before-subcommand는
   `migration_project_command_error/invalid_arguments`이며 project selection 전에 exit 2입니다.
@@ -704,7 +704,7 @@ caller-closed sink에서는 category delivery, rollback, zero partial write와 p
 
 ## Static fail-closed와 artifact gate
 
-- 완료 목표는 11 reference set/115 unique contract와 110 ordered cross-binding rejection입니다.
+- 완료 결과는 11 reference set/115 unique contract와 110 ordered cross-binding rejection입니다.
 - MIG-065..074의 manifest status는 exact 10 `oracle_locked`입니다.
 - Product는 10 adapter/105 contract의 `100 passing + 5 deviation`을 그대로 유지하며 새 manifest를
   `godj-conformance` product adapter에 연결하지 않습니다.
@@ -721,8 +721,9 @@ caller-closed sink에서는 category delivery, rollback, zero partial write와 p
 
 2026-08-09 현재 public repository에 제공되는 exact label은
 [GitHub-hosted runners reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)와
-official `actions/runner-images`에서 확인했습니다. Implementation head의 required target은 **10 hosted
-job executions**이며 existing workflow 하나만 수정합니다. 새 workflow/PR을 만들지 않습니다.
+official `actions/runner-images`에서 확인했습니다. Implementation head에서 required **10 hosted
+job executions**을 달성했으며 existing workflow 하나만 수정했습니다. 새 workflow/PR을 만들지
+않았습니다.
 
 - Existing `ubuntu-24.04` x64 full job은 현재 `make ci`, Linux/386, checksum/no-rewrite를 보존하고
   `go test -count=1 ./conformance/projectcheck` focused normal gate를 추가합니다.
@@ -782,14 +783,20 @@ command set, final clean-worktree 두 command를 함께 pin합니다.
 
 Windows는 native signal/process-group/no-follow 계약이 없으므로 green skip job을 만들지 않고 지원을
 주장하지 않습니다. PostgreSQL/MySQL actual adapter/product contract도 없으므로 service container만
-띄우는 job은 금지합니다. Future backend activation은 immutable service image/version, health check,
-UTC/C와 actual query/write/migration/schema/lifecycle contract를 실행하는 dedicated required job부터
-추가합니다. Adjacent backend version은 그 뒤 non-required scheduled matrix로만 둘 수 있습니다. 이
-activation diff head에는 아직 위 10-job hosted run이 없습니다.
+띄우는 job은 금지합니다. Future backend의 첫 required job은 digest-pinned service image,
+health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation, actual query/write/
+transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/persistence contract를 모두
+실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음,
+final clean worktree도 필수입니다. Adjacent versions는 이후 non-required scheduled matrix로만
+분리합니다. 이
+implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 위 exact 10 job을
+모두 통과했습니다. 이 exact 16-file completion documentation patch 자체의 hosted CI는
+`not run/pending`입니다.
 
 ## 구현 단계
 
-1. Proposed ADR-0021과 이 active work의 exact descriptor/protocol/discovery/limit/exit 경계를
+1. Activation 당시 Proposed ADR-0021과 이 work의 exact descriptor/protocol/discovery/limit/exit 경계를
    independent review로 고정합니다.
 2. MIG-065..074 independent reference scenarios, manifest, static fixture, oracle와 provenance를
    작성합니다.
@@ -808,36 +815,45 @@ activation diff head에는 아직 위 10-job hosted run이 없습니다.
 
 ## 완료 조건
 
-- [ ] MIG-065..074 manifest/oracle/static fixture가 exact 10 `oracle_locked`
-- [ ] 11 set/115 unique contract/110 ordered cross-binding이 protocol gate를 통과
-- [ ] Product 10 adapter/105 contract와 `100 passing + 5 deviation` byte/semantic 보존
-- [ ] Descriptor selection, runner protocol과 public exit/cancel semantics 검증
-- [ ] Cwd/ancestor/explicit-path disappearance taxonomy와 invalid-nearest no-fallback 검증
-- [ ] Valid-UTF-8 root preflight, flat no-follow discovery, deterministic ordering, post-read safety-over-cap combined fault와 `definition.Load` exactly once 검증
-- [ ] 11 limits의 maximum-1/equal/+1, overflow와 combined precedence 검증
-- [ ] Static exit 1/10 mismatch와 product `godjcheck` exit 2/no actual false-green 검증
-- [ ] 기존 checksum 10-line prefix 보존과 새 11번째 checksum append 검증
-- [ ] Exact 10-job hosted CI에서 existing full/exact 두 job과 4-leg project-check/4-leg SQLite
+- [x] MIG-065..074 manifest/oracle/static fixture가 exact 10 `oracle_locked`
+- [x] 11 set/115 unique contract/110 ordered cross-binding이 protocol gate를 통과
+- [x] Product 10 adapter/105 contract와 `100 passing + 5 deviation` byte/semantic 보존
+- [x] Descriptor selection, runner protocol과 public exit/cancel semantics 검증
+- [x] Cwd/ancestor/explicit-path disappearance taxonomy와 invalid-nearest no-fallback 검증
+- [x] Valid-UTF-8 root preflight, flat no-follow discovery, deterministic ordering, post-read safety-over-cap combined fault와 `definition.Load` exactly once 검증
+- [x] 11 limits의 maximum-1/equal/+1, overflow와 combined precedence 검증
+- [x] Static exit 1/10 mismatch와 product `godjcheck` exit 2/no actual false-green 검증
+- [x] 기존 checksum 10-line prefix 보존과 새 11번째 checksum append 검증
+- [x] Exact 10-job hosted CI에서 existing full/exact 두 job과 4-leg project-check/4-leg SQLite
   coordinate assertion/normal/race/CGO-disabled/vet/clean-worktree 및 expanded-count static gate 검증
-- [ ] Allowed-path 34개, docs/status/evidence와 independent final audit 완료
-- [ ] ADR-0021을 증거에 따라 Accepted 또는 Rejected로 결정
+- [x] Allowed-path 34개, docs/status/evidence와 independent final audit 완료
+- [x] ADR-0021을 증거에 따라 Accepted로 결정
 
 ## 진행 기록
 
 - [x] GDJ-0021 activation work/Proposed ADR/status 범위 작성
 - [x] P0 design audit에서 descriptor/protocol/discovery와 missing checksum-test allowlist 교정
-- [ ] Reference scenario/manifest/oracle/static artifact
-- [ ] Test-only project-check feasibility implementation
-- [ ] Protocol/artifact/false-green/CI integration
-- [ ] Completion docs, exact-head hosted evidence와 ADR status 결정
+- [x] Reference scenario/manifest/oracle/static artifact
+- [x] Test-only project-check feasibility implementation
+- [x] Protocol/artifact/false-green/CI integration
+- [x] Completion docs, implementation-head hosted evidence와 ADR status 결정
 
 ## 수정 파일
 
-Activation은 이 파일, `docs/adr/0021-project-linked-migration-check.md`, `work/README.md`,
-`docs/adr/README.md`, `docs/status/CURRENT.md`, `docs/ROADMAP.md`, `docs/OPEN_QUESTIONS.md`의 7개
-문서에만 한정합니다. Contract/artifact/completion까지의 전체 work는 frontmatter의 exact 34개
-allowed path만 수정합니다. Glob `conformance/projectcheck/**`는 test-only candidate 파일에만
-적용됩니다.
+Activation commit `fbc3c7cfc2fd779117944b8e2479a6a2bf17fdb5`는 이 파일,
+`docs/adr/0021-project-linked-migration-check.md`, 두 index, CURRENT, ROADMAP, OPEN_QUESTIONS의 정확히
+7개 문서에 한정했습니다. Implementation commit
+`84ddf109c04acd72992b816aa72140c6e748e5f0`은 frontmatter의 exact 34개 allowed path 안에서 reference
+artifact/runner, `conformance/projectcheck/**` test-only proof, protocol/static/checksum gate, Makefile/
+workflow와 관련 stable 문서만 변경했습니다. Glob `conformance/projectcheck/**`는 test-only candidate
+파일에만 적용됩니다.
+
+현재 completion documentation diff는 exact 16 files입니다. Status/completion 7개는 이 work,
+`docs/adr/0021-project-linked-migration-check.md`, `docs/adr/README.md`, `docs/status/CURRENT.md`,
+`docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`, `work/README.md`이고, general 9개는
+`docs/ARCHITECTURE.md`, `docs/CAPABILITY_CATALOG.md`, `docs/COMPATIBILITY.md`,
+`docs/DEVELOPER_EXPERIENCE.md`, `docs/LICENSING.md`, `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`,
+`docs/SOURCES.md`, `docs/TESTING.md`입니다. 모두 frontmatter allowed path 안입니다.
 
 특히 `cmd/godj/**`, product `project/**`, `migrations/**`, `db/**`,
 `conformance/runners/godj/**`는 금지 경계입니다. 범위 변경이 필요하면 구현 전에 work/ADR을 다시
@@ -852,6 +868,8 @@ allowed path만 수정합니다. Glob `conformance/projectcheck/**`는 test-only
   decision contract만 MIG-065..074로 검증
 - 2026-08-09: Same public Draft PR의 한 workflow에서 official Linux/macOS x64/arm64 labels를 사용한
   required 10-job target을 채택하고 Windows/service-only PostgreSQL·MySQL green skip은 금지
+- 2026-08-10: MIG-065..074 local/exact reference와 implementation-head hosted 10-job evidence를 근거로
+  ADR-0021을 Accepted. Public CLI/project API와 product adapter는 계속 미구현
 
 ## 미결정/Blocker
 
@@ -862,46 +880,62 @@ allowed path만 수정합니다. Glob `conformance/projectcheck/**`는 test-only
 - Persistent runner build cache와 full CLI/library/generator semver/upgrade policy
 - Recursive/module/embed/remote discovery와 Windows behavior
 
-ADR-0021은 Proposed입니다. Contract artifact, feasibility와 hosted evidence 전에는 Accepted 또는
-implemented라고 표현하지 않습니다.
+ADR-0021은 contract artifact, test-only feasibility와 exact implementation-head hosted evidence를
+근거로 Accepted입니다. Q-010/Q-012는 global semver/제품 CLI/DB-aware lifecycle 전체가 아니므로
+`Partial`을 유지하고, Accepted decision contract를 implemented product command라고 표현하지 않습니다.
 
 ## 테스트 증거
 
-- Evidence ID: activation 문서 전용; `docs/status/TEST_EVIDENCE.md`에는 아직 새 runtime evidence 없음
-- Command: `PYENV_VERSION=3.13.1 markdown-it $(rg --files -g '*.md' | sort)`, Ruby/Psych
-  frontmatter semantic check, `PYENV_VERSION=3.13.1 python` local-link/heading/contract-pin check,
-  exact-scope check, `git diff --check`와 untracked-file `git diff --no-index --check`
-- Result: Markdown 75개 parse/link/heading PASS, GDJ-0021 frontmatter와 exact 34 unique allowed paths
-  PASS, working tree exact activation 7 files PASS, whitespace PASS
-- Environment note: 첫 bare `markdown-it`은 repo `.python-version=3.14.3`을 해석할 local pyenv
-  interpreter가 없어 문서를 parse하기 전에 종료했습니다. 설치된 `PYENV_VERSION=3.13.1`로 같은
-  parser를 재실행해 통과했습니다.
-- Result: runtime/conformance/hosted CI `not run`
-- Not run: MIG-065..074 artifact, projectcheck test-only proof와 target 10-job hosted matrix
+- Local/contract evidence:
+  [EVID-20260810-024](../docs/status/TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts)
+- Hosted implementation-head evidence:
+  [EVID-20260810-025](../docs/status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)
+- Final implementation commit:
+  `codex/revision-fenced-migration-lifecycle@84ddf109c04acd72992b816aa72140c6e748e5f0`
+- Project-check normal/race/CGO-disabled/vet/count-20, root `make ci`, exact Python 174/174,
+  11-oracle/checksum/no-rewrite, static exit 1/10와 product exit 2/no actual이 모두 PASS했습니다.
+- Reference는 11 set/115 contract/110 ordered cross-binding과 새 10 `oracle_locked`, product는
+  불변 10 adapter/105 contract=`100 passing + 5 deviation`입니다.
+- Independent contract/integration 및 filesystem/process/security final audit는 각각 P0/P1/P2/P3
+  finding 0입니다.
+- Draft PR #1 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)은
+  implementation head에서 existing 2 + project-check 4 + SQLite 4의 exact 10 job을 모두
+  성공시켰습니다. 네 Linux/macOS x64/arm64 coordinate의 normal/race/CGO-disabled/vet와 clean-worktree
+  gate가 통과했습니다.
+- Not run: Windows, PostgreSQL/MySQL/non-SQLite backend actual contract와 이 exact 16-file completion
+  documentation patch 자체의 exact-head hosted CI. 후자는 commit/push 전 `not run/pending`입니다.
 
 ## 위험과 rollback
 
 - Test-only runner shape를 public API로 오해하면 구현 순서가 뒤집힐 수 있으므로 product path를
-  금지하고 Proposed 표기를 유지합니다.
+  금지하고 Accepted decision contract와 미구현 product를 명시적으로 구분합니다.
 - Project binary는 user code를 link/run하므로 DB-free 의미를 GoDj-owned call 0으로 제한하고 arbitrary
   `init()` side effect를 숨기지 않습니다.
 - Filesystem TOCTOU와 symlink escape는 path clean만으로 막지 못하므로 no-follow observation과
   fail-closed test를 완료 조건으로 둡니다.
 - Child cancellation/reap가 틀리면 process/temp artifact가 남을 수 있으므로 process-group fault test
   전에는 제품화를 진행하지 않습니다.
-- Rollback은 이 activation의 exact 7-file diff 제거입니다. 제품 code와 Accepted ADR-0019/0020은
-  변경하지 않습니다.
+- Rollback은 GDJ-0021 reference/test/workflow와 completion 상태를 함께 되돌리고 ADR-0021을 새
+  evidence 없이 Accepted로 남기지 않는 것입니다. 제품 code와 Accepted ADR-0019/0020은 변경하지
+  않습니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 activation 7-file diff의 Markdown/frontmatter/link/exact-scope와 independent design
-감사를 확인한 뒤 같은 Draft PR #1에 commit/push하고 exact-head CI를 기다립니다. 그 다음
-`conformance/contracts/migration-project-check-manifest.json`의 MIG-065..074와 independent scenario를
-먼저 작성하며 product directory나 `conformance/runners/godj/**`를 만들지 않습니다.
+통합 담당자는 이 status 7 + general 9, exact 16-file completion documentation patch의 Markdown/
+frontmatter/link/exact-scope를 검증한 뒤
+같은 Draft PR #1에 commit/push하고 그 **completion-documentation exact head**의 10-job CI를 별도로
+기록해야 합니다. 현재 active/ready work는 없습니다. 다음 product slice를 시작하려면 public CLI/
+project API와 production runner 경계를 별도 work/ADR로 activation하고, 이 test-only proof를 제품
+package로 조용히 승격하지 않습니다.
 
 ## 결과와 인수인계
 
-현재는 activation 단계입니다. Baseline 제품 상태는 10 adapter/105 contract의
-`100 passing + 5 deviation`이고 새 contract/artifact/runtime evidence는 아직 없습니다. 목표는
-11 reference set/115 contract/110 cross-binding과 새 10 `oracle_locked`이며, 달성 전에는
-GDJ-0021 completion 또는 `godj migrations check` 제품 지원을 주장하지 않습니다.
+GDJ-0021은 완료됐습니다. Independent MIG-065..074 artifact와 test-only proof는 exact
+11 reference set/115 contract/110 cross-binding 및 새 10 `oracle_locked`를 만족했고, Draft PR #1의
+implementation head 10-job matrix까지 통과했습니다. ADR-0021은 Accepted입니다.
+
+제품은 불변 10 adapter/105 contract의 `100 passing + 5 deviation`이며 전역 `godj migrations check`,
+public project package, production project runner, DB-aware migration check와 non-SQLite backend는
+구현되지 않았습니다. Q-010/Q-012는 `Partial`입니다. 이 exact 16-file completion documentation
+patch의 hosted CI는
+아직 `not run/pending`이며 implementation-head run을 재귀 사용하지 않습니다.

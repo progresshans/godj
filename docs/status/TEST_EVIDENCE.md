@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-09
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260809-023
+- 마지막 갱신: 2026-08-10
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-025
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -1936,3 +1936,124 @@ base를 정확히 결합했음을 run/job/log에서 직접 확인했습니다. E
 당시의 pending 문구는 역사 증거로 그대로 보존합니다. 현재 EVID-023을 append하고 관련 상태 문서를
 교정하는 이 evidence patch 자체는 아직 commit/push되지 않았고, 그 후속 head의 hosted CI는
 `not run/pending`입니다. Run 31310002784를 이 evidence patch 자체의 PASS로 재귀 사용하지 않습니다.
+
+## EVID-20260810-024 — GDJ-0021 Project-Linked Migration Check Compatibility Contracts
+
+- Date/time: 2026-08-09–2026-08-10 KST
+- Work/contract IDs: GDJ-0021, MIG-065..MIG-074, Q-010, Q-012
+- Tested checkout: branch `codex/revision-fenced-migration-lifecycle`; final implementation head
+  `84ddf109c04acd72992b816aa72140c6e748e5f0`
+  (`test: lock project-linked migration check contracts`). Local gates were run against the completed
+  implementation tree before that exact tree was committed; the commit contains only GDJ-0021's allowed
+  contract/artifact/test/workflow/document paths and no product `cmd/godj`, `project`, `migrations`, `db`, or
+  `conformance/runners/godj` implementation change.
+- Environment: local macOS darwin/arm64, Go 1.26.5. Exact reference gate used CPython 3.14.3,
+  Django 6.1, SQLite 3.50.4, UTC/C and `PYTHONHASHSEED=0`.
+- Exit status: all positive local gates below 0. The static not-implemented comparison returned its required
+  exit 1 with ten ordered mismatches, and product `godjcheck` returned its required conformance-tool exit 2
+  with no actual payload for the reference-only set.
+- Result summary: MIG-065..074 are ten independent `oracle_locked` decision contracts. The reference registry
+  is 11 sets/115 unique contracts/110 ordered cross-bindings. The product registry remains 10 adapters/105
+  contracts, exactly `100 passing + 5 deviation`; no product project-check adapter or CLI was added.
+- Failures/skips: unexpected failure 없음. Portable Python ran 174 tests with 16 exact-profile-only skips;
+  exact profile ran 174/174. Windows and PostgreSQL/MySQL/non-SQLite backend execution were not run because
+  this work has no corresponding product adapter/contract.
+
+Local commands and results:
+
+1. Project-check feasibility and Unix process/filesystem gates
+   - `gofmt -d conformance/projectcheck/*.go` and `git diff --check`: PASS, no output
+   - `go test -count=1 ./conformance/projectcheck`: PASS (independent final root run `3.354s`)
+   - `go test -race -count=1 ./conformance/projectcheck`: PASS (`5.011s`)
+   - `CGO_ENABLED=0 go test -count=1 ./conformance/projectcheck`: PASS (`3.054s`)
+   - `go vet ./conformance/projectcheck`: PASS
+   - `go test -count=20 ./conformance/projectcheck`: PASS (`58.243s`)
+   - A Linux/amd64 CGO-disabled test compile and the focused MIG-065..074 actual-build end-to-end gate also
+     passed. The latter built the fixture with exact
+     `go build -mod=readonly -o <private-output> ./cmd/mysite`, observed one linked `definition.Load`,
+     the expected counts/digest and protocol wire,
+     left the project tree byte/mode-identical, created no `go.sum`, removed the private root and retained no
+     raw diagnostic.
+2. Repository-wide and reference gates
+   - `make ci`: PASS. It covered generation drift, full Go normal/race/vet, CGO-disabled SQLite and GoDj
+     runner packages, portable Python 174/16-skipped, all conformance/protocol/static/product checks and
+     artifact no-rewrite checks.
+   - `make python-test-exact oracle-check`: PASS; exact Python 174/174 and all 11 stored oracles passed.
+   - Two distinct hash-seed generation runs produced byte-identical project-check oracle output.
+   - Stored checksum verification passed. New exact pins are manifest 4,580 bytes
+     `0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, static fixture 1,729 bytes
+     `86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`, oracle 19,971 bytes
+     `49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, and 11-line `SHA256SUMS`
+     1,061 bytes `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`. Its previous 10-line prefix
+     remains 959 bytes `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`.
+3. Independent review
+   - Contract/protocol/reference/workflow integration audit: P0/P1/P2/P3 findings 0.
+   - Filesystem/process/cancellation/security audit: P0/P1/P2/P3 findings 0.
+
+This evidence establishes a contract/test-only feasibility boundary, not an implemented global `godj`
+command, public project package, production project runner, DB-aware migration check, or non-SQLite backend.
+Q-010 and Q-012 therefore remain `Partial`. Exact implementation-head hosted evidence is recorded separately
+in EVID-20260810-025. The status 7 + general 9, exact 16-file completion documentation patch containing
+EVID-024/EVID-025 has not yet been committed or pushed, so hosted CI for that later
+completion-documentation head is `not run/pending`.
+
+## EVID-20260810-025 — GDJ-0021 GitHub-hosted 10-job Implementation-head CI
+
+- Date/time: 2026-08-10 00:19:27–00:23:14 KST
+  (2026-08-09 15:19:27–15:23:14 UTC)
+- Work/contract IDs: GDJ-0021, MIG-065..MIG-074, Q-010, Q-012
+- Tested PR/head: Draft/open [PR #1](https://github.com/progresshans/godj/pull/1), branch
+  `codex/revision-fenced-migration-lifecycle`, exact implementation head
+  `84ddf109c04acd72992b816aa72140c6e748e5f0`
+  (`test: lock project-linked migration check contracts`)
+- PR state at evidence collection: `OPEN`, `DRAFT`, merge state `CLEAN`
+- Workflow run: [31320798963](https://github.com/progresshans/godj/actions/runs/31320798963), attempt 1,
+  event `pull_request`, base `main@f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+- Runner checkout: synthetic PR merge
+  `641b8f83994647f8e78f44de56997409c22afddd` with parents exact base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and exact head
+  `84ddf109c04acd72992b816aa72140c6e748e5f0`; the synthetic merge tree was independently verified
+  byte-identical to the head tree. Run `headSha` and runner checkout commit are intentionally distinguished.
+- Exit status: workflow `success`; exact 10 expanded job executions all successful,
+  cancelled/failing/skipped/pending 0. Every listed validation and final clean-worktree step succeeded.
+- Result summary: the existing Ubuntu full and macOS exact jobs were preserved and focused project-check
+  validation was added. Four project-check and four actual SQLite matrix legs then validated Linux/macOS and
+  amd64/arm64 coordinates, giving exact `2 + 4 + 4 = 10` hosted executions.
+- Failures/skips: unexpected job/step failure or skip 없음. Portable Python's 16 exact-only test skips are
+  expected; macOS exact Python passed 174/174. Windows and service-only PostgreSQL/MySQL jobs were deliberately
+  absent because there is no actual product adapter/contract to prevent a false green.
+
+Hosted job evidence:
+
+| Job | ID | Started–completed (KST) | Required validation |
+|---|---:|---|---|
+| Validate checked-in conformance artifacts | [93263350766](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350766) | 00:19:30–00:23:13 | Ubuntu 24.04.4 image `20260720.247.2`, linux/amd64; `make ci`, focused project-check, actual Linux/386 definition-loader runtime, 11-line checksum and reference no-rewrite |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93263350749](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350749) | 00:19:29–00:20:41 | macOS 15.7.7 arm64 image `20260727.0256.1`, darwin/arm64; CGO-disabled focused lifecycle, focused project-check, exact Python 174/174, all-oracle and no-rewrite |
+| Project check (`ubuntu-22.04`) | [93263350782](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350782) | 00:19:31–00:20:36 | linux/amd64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| Project check (`ubuntu-24.04-arm`) | [93263350790](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350790) | 00:19:29–00:20:18 | linux/arm64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| Project check (`macos-15-intel`) | [93263350811](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350811) | 00:19:30–00:21:50 | darwin/amd64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| Project check (`macos-26`) | [93263350787](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350787) | 00:19:29–00:20:16 | darwin/arm64 coordinate + project-check normal/race/CGO-disabled/vet/clean |
+| SQLite (`ubuntu-22.04`) | [93263351000](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263351000) | 00:19:29–00:21:02 | linux/amd64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+| SQLite (`ubuntu-24.04-arm`) | [93263350809](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350809) | 00:19:29–00:20:42 | linux/arm64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+| SQLite (`macos-15-intel`) | [93263350814](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350814) | 00:19:30–00:21:04 | darwin/amd64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+| SQLite (`macos-26`) | [93263350816](https://github.com/progresshans/godj/actions/runs/31320798963/job/93263350816) | 00:19:30–00:20:32 | darwin/arm64 coordinate + actual `./migrations ./db/sqlite` normal/race/CGO-disabled/vet/clean |
+
+Both four-leg matrices used pinned checkout/setup-go actions, Go 1.26.5, `strategy.fail-fast: false`, a
+20-minute leg timeout and no `continue-on-error`. Each asserted exact `go env GOOS`/`GOARCH`, then ran:
+
+```text
+go test -count=1 <package-set>
+go test -race -count=1 <package-set>
+CGO_ENABLED=0 go test -count=1 <package-set>
+go vet <package-set>
+git diff --exit-code
+test -z "$(git status --porcelain=v1)"
+```
+
+For project-check `<package-set>` was `./conformance/projectcheck`; for SQLite it was
+`./migrations ./db/sqlite`. Thus the matrix exercised actual tests in every advertised coordinate and did not
+use skips or service availability as support evidence. This run applies only to exact implementation head
+`84ddf109c04acd72992b816aa72140c6e748e5f0`. The status 7 + general 9, exact 16-file completion
+documentation patch that records this evidence is a later working-tree change and has not yet been committed
+or pushed; its exact-head hosted CI is `not run/pending`. Run 31320798963 must not be reused as proof for that
+later documentation head.

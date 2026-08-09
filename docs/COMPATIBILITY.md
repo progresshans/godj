@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-09
+- 마지막 검증: 2026-08-10
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
 
@@ -517,7 +517,7 @@ GDJ-0020 manifest는 status-only 5,147 bytes/SHA-256
 `locked Django oracle`과 구분합니다. 현재 제품 분류는 10 adapter/105 contract의
 `100 passing + 5 deviation`; 90 ordered cross-binding도 유지합니다.
 
-활성 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Proposed
+완료된 [GDJ-0021](../work/0021-migration-project-check-compatibility-contracts.md)과 Accepted
 [ADR-0021](adr/0021-project-linked-migration-check.md)은
 [`migration-project-check-manifest.json`](../conformance/contracts/migration-project-check-manifest.json)을
 열한 번째 ordered reference set으로 추가합니다. MIG-065..074는 exact `godj.toml` selection,
@@ -541,6 +541,16 @@ oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status misma
 `godj-conformance` product target에 연결하지 않으므로 제품은 10 adapter/105 contract의
 `100 passing + 5 deviation` 그대로입니다. `conformance/projectcheck/**` test-only proof와 artifact가
 존재해도 global CLI, project package, production runner 또는 filesystem discovery 구현을 뜻하지 않습니다.
+
+GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
+project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는
+MIG-065..074 reference-only/test-only proof와 현재 SQLite 제품 범위의 검증이며, PostgreSQL/MySQL
+지원 증거가 아닙니다. 해당 backend를 추가할 때는 service-only green을 금지하고 digest-pinned
+service image, health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation, actual
+query/write/transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/persistence
+contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`,
+`continue-on-error` 없음, final clean worktree를 required gate로 둡니다.
 
 제품 commit `6172d843a4bb234592cafc176a8d1191933b141c`은 Draft PR #1의
 [run 31309152526](https://github.com/progresshans/godj/actions/runs/31309152526)에서 Ubuntu 24.04와

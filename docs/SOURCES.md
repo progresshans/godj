@@ -1,6 +1,6 @@
 # 기준 출처와 검증 기록
 
-- 마지막 확인: 2026-08-09 (Asia/Seoul)
+- 마지막 확인: 2026-08-10 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -38,9 +38,9 @@ bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static
 directory의 `SHA256SUMS`는 959 bytes/
 `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다.
 
-Proposed [ADR-0021](adr/0021-project-linked-migration-check.md)은 Django가 정의하지 않는
+Accepted [ADR-0021](adr/0021-project-linked-migration-check.md)은 Django가 정의하지 않는
 GoDj `godj.toml` project selection, descriptor-v1 subset, private project-runner JSON
-protocol, flat no-follow source discovery와 public exit/cancellation 의미의 정본 후보입니다.
+protocol, flat no-follow source discovery와 public exit/cancellation 의미의 정본입니다.
 MIG-065..074 manifest의 열 contract는 모두 이 ADR만 `kind=decision`,
 `derived=false`로 참조하며 Django source/test provenance는 없습니다. 기존 Django-named
 exact profile/runner/oracle directory를 재사용하는 것은 protocol-v2 reference corpus와
@@ -52,6 +52,17 @@ bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static
 1,729 bytes/`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존
 `SHA256SUMS` 10줄은 byte-for-byte prefix로 보존하고 새 oracle을 11번째 줄에 append해
 1,061 bytes/`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`로 만들었습니다.
+
+GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`의 hosted 검증은 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)입니다. GitHub의
+[hosted runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)와
+[`actions/runner-images`](https://github.com/actions/runner-images)를 label/architecture 근거로 사용했고,
+기존 full/exact 2개와 Linux/macOS x64/arm64 project-check 4개, 같은 좌표의 actual SQLite 4개가
+모두 성공했습니다. PostgreSQL/MySQL service-only job은 지원 출처가 아니며, 해당 backend의 첫
+required job은 digest-pinned service image, health check, UTC timezone과 C locale 또는 명시적으로
+승인된 collation, actual query/write/transaction/schema/migration/recorder/revision-lifecycle 및
+durable restart/persistence contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가
+같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도 함께 요구합니다.
 
 ## Python과 환경 도구
 

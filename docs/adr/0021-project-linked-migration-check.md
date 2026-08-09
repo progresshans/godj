@@ -1,7 +1,7 @@
 # ADR-0021: Project-Linked Migration Check Contract
 
-- 상태: Proposed
-- 날짜: 2026-08-09
+- 상태: Accepted
+- 날짜: 2026-08-10
 - 관련 work/contract: [GDJ-0021](../../work/0021-migration-project-check-compatibility-contracts.md),
   MIG-065..MIG-074, Q-010, Q-012
 - 선행 결정: [ADR-0004](0004-cli-and-project-binary.md),
@@ -23,11 +23,15 @@ runner가 semantic root와 product loader를 소유해야 합니다. 동시에 p
 경계를 닫지 않으면 outer marker fallback, shell injection, protocol downgrade, symlink follow,
 unbounded output과 orphan child가 서로 다른 구현에서 달라질 수 있습니다.
 
-이 ADR은 MIG-065..074 decision contract와 test-only feasibility로 아래 제안을 검증합니다.
-현재 상태는 **Proposed**이며 제품 CLI/package/API가 구현됐거나 이 방향이 Accepted됐다는 뜻이
-아닙니다. Activation baseline `53729103651bfc34acc5fe07fb4376d5dd78c204`은 Draft PR #1
+이 ADR은 MIG-065..074 decision contract와 test-only feasibility로 아래 결정을 검증했습니다.
+Activation 당시에는 **Proposed**였고 제품 CLI/package/API가 구현됐다는 뜻이 아니었습니다.
+Activation baseline `53729103651bfc34acc5fe07fb4376d5dd78c204`은 Draft PR #1
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
-job을 통과했지만, 이 Proposed ADR을 포함한 activation head의 CI 증거는 아닙니다.
+job을 통과했지만 이 ADR의 채택 근거로 재사용하지 않았습니다. Exact implementation head
+`84ddf109c04acd72992b816aa72140c6e748e5f0`의 local evidence와 별도 10-job hosted
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)을 근거로 아래 경계를
+Accepted합니다. 이는 전역 `godj` command, public project API나 production runner 구현을 뜻하지
+않습니다.
 
 ## 결정 기준
 
@@ -66,7 +70,7 @@ Global side는 marker/descriptor/build/process만, linked side는 roots/discover
 Strict one-value JSON protocol과 private binary는 component/version failure를 구조화할 수 있고
 test-only proof로 먼저 검증할 수 있습니다. Build cost와 user `init()` execution은 명시적 비용입니다.
 
-## Proposed 결정
+## 채택한 결정
 
 ### 사용자 command, descriptor와 project selection
 
@@ -124,7 +128,7 @@ ASCII string이며 literal leading `./`을 먼저 분리하고 non-empty remaind
 
 ### Build와 private invocation
 
-Global side는 project root cwd에서 shell 없이 다음을 실행하는 방향을 제안합니다.
+Global side는 project root cwd에서 shell 없이 다음을 실행하는 경계로 채택합니다.
 
 ```text
 go build -mod=readonly -o <private-0700-temp-dir>/godj-project-runner <project.package>
@@ -432,10 +436,17 @@ untracked/staged/unstaged repository residue를 모두 실패시킵니다.
 
 Windows native process/path contract가 없으므로 Windows runner를 green skip하지 않고 지원 주장을
 유보합니다. PostgreSQL/MySQL adapter/product contract가 없는 상태에서 service만 띄우는 job도 false
-green이므로 금지합니다. Future backend는 immutable image/version, health check, UTC/C와 actual
-query/write/migration/schema/lifecycle contracts를 가진 dedicated required job을 먼저 activation하고,
-adjacent version은 이후 non-required scheduled matrix로 분리합니다. 이 ADR activation head의 10-job
-hosted evidence는 아직 `not run`입니다.
+green이므로 금지합니다. Future backend의 첫 required job은 digest-pinned service image,
+health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation, actual query/write/
+transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/persistence contract를 모두
+실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음,
+final clean worktree도 필수입니다. Adjacent versions는 이후 non-required scheduled matrix로만
+분리합니다. Exact
+implementation head의
+existing 2 + project-check 4 + SQLite 4, 총 10-job topology는 Draft PR #1
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)에서 모두 통과했습니다.
+이 status 7 + general 9의 exact 16-file completion documentation patch 자체의 hosted CI는
+`not run/pending`입니다.
 
 ### Compatibility classification
 
@@ -454,7 +465,7 @@ Exact scenario slugs are:
 | MIG-073 | `godj.migration.project_check.definition_load_failure` | MIG-061 duplicate-name document, read 1/Load 1, source error |
 | MIG-074 | `godj.migration.project_check.invalid_runner_response` | Duplicate top-level `status`, invalid response |
 
-Exact full digests, failure context and publication/call counters are the active GDJ-0021 work contract의
+Exact full digests, failure context and publication/call counters are the completed GDJ-0021 work에 기록한
 single-base table과 machine artifact가 함께 고정합니다. Success MIG-065..068만 user stdout 1/error stderr
 0이고 MIG-069..074는 stdout 0/stderr 1이며 partial stdout은 모두 0입니다.
 
@@ -464,14 +475,14 @@ Machine oracle `metrics`는 exact 24 fields만 허용합니다:
 `definitions_published`, `definition_sets_published`, `direct_planner_calls`, `godj_db_calls`,
 `revision_lifecycle_calls`, `user_stdout_writes`, `user_stderr_writes`, `partial_stdout_writes`, `exit_code`,
 `command_dispatches`, `ancestor_directories_inspected`, `descriptor_reads`, `roots_opened`,
-`directory_entries_seen`, `failure`; extra field는 거부합니다. `failure`는 항상 존재하고 MIG-073만 active
-work의 full object, success/Load 0 rows는 null입니다. Temp/diagnostic/process scalar는 oracle에 absent인
+`directory_entries_seen`, `failure`; extra field는 거부합니다. `failure`는 항상 존재하고 MIG-073만
+completed work에 기록한 full object, success/Load 0 rows는 null입니다. Temp/diagnostic/process scalar는 oracle에 absent인
 feasibility-only 값입니다. MIG-070 temp create/cleanup attempt/failure/residual은 `0/0/0/0`, 나머지 base는
 `1/1/0/0`; 모든 base group SIGINT/SIGKILL attempt는 0이고 direct-child reap은
 `build_calls+runner_calls`입니다. Joined raw diagnostic은 absent이고 host-dependent retained byte/truncation은
 harness-only입니다. Cancellation/cleanup/oversize mutation은 관련 scalar를 test에서 exact 고정합니다.
 
-MIG-065..074는 모두 `decision/ADR-0021/derived=false`인 독립 decision oracle입니다. 완료 목표는
+MIG-065..074는 모두 `decision/ADR-0021/derived=false`인 독립 decision oracle입니다. 완료 결과는
 11 reference set/115 unique contract/110 ordered cross-binding과 새 10 `oracle_locked`입니다. Product는
 10 adapter/105 contract의 `100 passing + 5 deviation`을 유지하며 새 product adapter를 만들지
 않습니다. Static comparison은 exit 1/ordered mismatch 10, product `godjcheck`는 새 scenario를
@@ -483,7 +494,7 @@ conformance-tool exit 2/no actual로 거부합니다.
 - Project selection, flat path와 failure/exit 의미가 product API보다 먼저 안정됩니다.
 - Build/user code 실행 비용과 `init()` side effect 가능성은 남습니다.
 - Unix process ownership과 filesystem no-follow 구현 난도가 추가됩니다.
-- 이 Proposed ADR과 test-only code만으로 사용 가능한 product command를 제공하지 않습니다.
+- 이 Accepted ADR과 test-only code만으로 사용 가능한 product command를 제공하지 않습니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -511,4 +522,11 @@ conformance-tool exit 2/no actual로 거부합니다.
 - 11 set/115 contracts/110 cross-binding, static/product fail-closed and checksum append-only gate
 - Exact 10-job hosted topology의 Linux/macOS x64/arm64 project-check/SQLite normal/race/CGO-disabled/vet와 independent review
 
-위 검증이 끝난 completion 변경 전까지 상태는 Proposed를 유지합니다.
+위 검증은
+[EVID-20260810-024](../status/TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts)와
+[EVID-20260810-025](../status/TEST_EVIDENCE.md#evid-20260810-025--gdj-0021-github-hosted-10-job-implementation-head-ci)에
+기록했습니다. Local normal/race/CGO-disabled/vet/count-20, `make ci`, exact Python 174/174,
+checksum/no-rewrite, 두 independent P0–P3 clean audit와 implementation-head exact 10 hosted jobs가
+통과해 이 ADR을 Accepted합니다. Q-010/Q-012는 public CLI/semver/DB-aware lifecycle 전체를 해결하지
+않으므로 `Partial`을 유지합니다. 이 exact 16-file completion documentation patch 자체의
+hosted CI는 `not run/pending`입니다.

@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-07
+- 마지막 검토: 2026-08-10
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -108,8 +108,8 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 - data migration과 현재 model type 사용 금지
 
 현재 제품 단면은 caller가 이미 읽은 explicit source bytes를 `migrations/definition`에 전달하는
-SQLite loader까지입니다. 활성 GDJ-0021의 `godj.toml` 선택, project-linked build/runner와 flat
-filesystem catalog check는 `conformance/projectcheck/**` test-only feasibility이며 제품 migration
+SQLite loader까지입니다. 완료된 GDJ-0021의 `godj.toml` 선택, project-linked build/runner와 flat
+filesystem catalog check는 `conformance/projectcheck/**`의 verified test-only feasibility이며 제품 migration
 discovery나 명령 지원을 뜻하지 않습니다. MIG-065..074도 `oracle_locked` reference-only 상태입니다.
 
 장기 operation 범위:
@@ -292,8 +292,8 @@ custom management commands
 - shell/completion/documentation generation 후보
 
 향후 UX 후보 `godj migrations check`와
-`godj migrations check --project <descriptor-file>`는 GDJ-0021/Proposed ADR-0021이 argument,
-descriptor, protocol, failure와 exit `0/1/2/3/130` 의미만 검증합니다. 전역 CLI, project 등록 API와
+`godj migrations check --project <descriptor-file>`는 완료된 GDJ-0021/Accepted ADR-0021이 argument,
+descriptor, protocol, failure와 exit `0/1/2/3/130` 의미를 test-only로 검증했습니다. 전역 CLI, project 등록 API와
 production project-linked binary는 아직 구현하지 않았습니다.
 
 ## Testing과 품질
@@ -312,9 +312,15 @@ production project-linked binary는 아직 구현하지 않았습니다.
 - migration compatibility/upgrade test
 
 GDJ-0021 품질 gate는 기존 제품 10 adapter/105 contract를 유지하면서 열한 번째 reference set까지
-115 unique contract/110 ordered cross-binding을 검증합니다. Linux/macOS x64/arm64의 test-only
-project-check와 실제 SQLite package는 서로 분리된 required matrix로 검증하며, actual adapter가 없는
-PostgreSQL/MySQL service-only job은 false green이므로 두지 않습니다.
+115 unique contract/110 ordered cross-binding을 검증했습니다. Implementation head
+`84ddf109c04acd72992b816aa72140c6e748e5f0`의
+[run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)은 기존 full/exact 2개,
+Linux/macOS x64/arm64 test-only project-check 4개와 같은 좌표의 actual SQLite 4개, 총 10개 job을
+모두 통과했습니다. Actual adapter가 없는 PostgreSQL/MySQL service-only job은 false green이므로
+두지 않습니다. 첫 backend CI는 digest-pinned service image, health check, UTC timezone과 C locale
+또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/recorder/
+revision-lifecycle 및 durable restart/persistence contract를 모두 실행해야 합니다. Expected contract
+수와 executed 수가 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도 필수입니다.
 
 ## Django 데이터 이행
 
