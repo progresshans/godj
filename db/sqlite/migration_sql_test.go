@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -27,6 +28,20 @@ func TestCompileMigrationSQL(t *testing.T) {
 	wantAdd := `ALTER TABLE "godj_migration_article" ADD COLUMN "summary" VARCHAR(200) NULL`
 	if add != wantAdd {
 		t.Fatalf("AddField SQL = %q, want %q", add, wantAdd)
+	}
+	defaultValue := &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false}
+	defaultAdd, err := compileMigrationAddField(model, ir.Field{
+		Name: "featured", GoName: "Featured", Column: "featured",
+		Kind: ir.FieldBoolean, Default: defaultValue,
+	})
+	if err != nil {
+		t.Fatalf("compile default-bearing AddField: %v", err)
+	}
+	if strings.Contains(strings.ToUpper(defaultAdd), "DEFAULT") {
+		t.Fatalf("default-bearing AddField SQL contains persistent DEFAULT: %q", defaultAdd)
+	}
+	if want := `ALTER TABLE "godj_migration_article" ADD COLUMN "featured" BOOLEAN NOT NULL`; defaultAdd != want {
+		t.Fatalf("default-bearing AddField SQL = %q, want %q", defaultAdd, want)
 	}
 
 	remove, err := compileMigrationRemoveField(model, summary)

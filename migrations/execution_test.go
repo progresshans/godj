@@ -424,6 +424,75 @@ func TestExecutorExecutePlanSnapshotsCallerPlanAndDefinitions(t *testing.T) {
 	}
 }
 
+func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t *testing.T) {
+	t.Parallel()
+
+	dependency := MigrationKey{App: "news", Name: "0001_root"}
+	create := &CreateModel{AppLabel: "news", Model: ir.Model{
+		Name: "article", GoName: "Article", DBTable: "news_article",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 64,
+				Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"}},
+		},
+	}}
+	add := &AddField{AppLabel: "news", ModelName: "article", Field: ir.Field{
+		Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean,
+		Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+	}}
+	definitions := []Migration{
+		{App: "news", Name: "0002_article", Dependencies: []MigrationKey{dependency}, Operations: []Operation{create, add}},
+	}
+
+	snapshot := cloneMigrationDefinitions(definitions)
+	definitions[0].Dependencies[0] = MigrationKey{App: "mutated", Name: "mutated"}
+	create.Model.Name = "mutated"
+	create.Model.Fields[1].Name = "mutated"
+	create.Model.Fields[1].Default.String = "mutated"
+	create.Model.Fields = nil
+	add.ModelName = "mutated"
+	add.Field.Name = "mutated"
+	add.Field.Default.Boolean = true
+	definitions[0].Operations = nil
+
+	if !reflect.DeepEqual(snapshot[0].Dependencies, []MigrationKey{dependency}) {
+		t.Fatalf("snapshotted dependencies = %v, want %v", snapshot[0].Dependencies, []MigrationKey{dependency})
+	}
+	var clonedCreate CreateModel
+	switch operation := snapshot[0].Operations[0].(type) {
+	case CreateModel:
+		clonedCreate = operation
+	case *CreateModel:
+		if operation == create {
+			t.Fatal("snapshotted CreateModel retained the caller's operation pointer")
+		}
+		clonedCreate = *operation
+	default:
+		t.Fatalf("snapshotted pointer CreateModel has type %T", operation)
+	}
+	if clonedCreate.Model.Name != "article" || len(clonedCreate.Model.Fields) != 2 ||
+		clonedCreate.Model.Fields[1].Name != "title" || clonedCreate.Model.Fields[1].Default == nil ||
+		clonedCreate.Model.Fields[1].Default.String != "original" {
+		t.Fatalf("snapshotted pointer CreateModel = %#v", snapshot[0].Operations[0])
+	}
+	var clonedAdd AddField
+	switch operation := snapshot[0].Operations[1].(type) {
+	case AddField:
+		clonedAdd = operation
+	case *AddField:
+		if operation == add {
+			t.Fatal("snapshotted AddField retained the caller's operation pointer")
+		}
+		clonedAdd = *operation
+	default:
+		t.Fatalf("snapshotted pointer AddField has type %T", operation)
+	}
+	if clonedAdd.ModelName != "article" || clonedAdd.Field.Name != "published" ||
+		clonedAdd.Field.Default == nil || clonedAdd.Field.Default.Boolean {
+		t.Fatalf("snapshotted pointer AddField = %#v", snapshot[0].Operations[1])
+	}
+}
+
 func canceledContext() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

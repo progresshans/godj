@@ -1,11 +1,26 @@
 package sqlite
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/progresshans/godj/schema/ir"
 )
+
+// migrationSQLExecutor is the common statement boundary shared by the legacy
+// database/sql transaction and the revision-fenced pinned connection. Keeping
+// this private prevents the manual BEGIN IMMEDIATE implementation from leaking
+// database/sql details into the backend-neutral migration ports.
+type migrationSQLExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+var _ migrationSQLExecutor = (*sql.Tx)(nil)
+var _ migrationSQLExecutor = (*sql.Conn)(nil)
 
 func compileMigrationCreateModel(model ir.Model) (string, error) {
 	if model.DBTable == "" {

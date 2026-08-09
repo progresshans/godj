@@ -221,6 +221,26 @@ func TestExecutorRecorderFailureRollsBackAndPreservesOriginalState(t *testing.T)
 	}
 }
 
+func TestExecutorRecorderCapabilityFailurePreservesRecorderTaxonomy(t *testing.T) {
+	t.Parallel()
+
+	recorderCause := backend.NewCapabilityError("migration_recorder", "forced recorder capability failure", nil)
+	transaction := newFakeTransaction()
+	transaction.failures["record_applied"] = recorderCause
+	before := EmptyProjectState()
+	after, err := (Executor{Backend: &fakeBackend{transaction: transaction}}).Apply(
+		context.Background(), before, articleMigration(),
+	)
+	assertMigrationError(t, err, CategoryRecorder, CodeRecordFailed, NoOperation, "")
+	if !errors.Is(err, recorderCause) {
+		t.Fatalf("Apply() error = %v, want recorder capability cause", err)
+	}
+	assertCalls(t, transaction.calls, "create_model", "add_field", "record_applied:news.0001_article", "rollback")
+	if !after.Equal(before) {
+		t.Fatal("recorder capability failure changed returned state")
+	}
+}
+
 func TestExecutorReverseRecorderFailureRollsBackAndPreservesOriginalState(t *testing.T) {
 	t.Parallel()
 
@@ -295,6 +315,49 @@ func TestExecutorBeginFailureDoesNotAttemptRollback(t *testing.T) {
 	}
 	if len(fake.transaction.calls) != 0 {
 		t.Fatalf("transaction calls = %v, want empty", fake.transaction.calls)
+	}
+}
+
+func TestExecutorBeginClassifiesBackendCapabilityAndRevisionFenceFailures(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		cause    error
+		category ErrorCategory
+		code     ErrorCode
+	}{
+		{
+			name:     "capability",
+			cause:    backend.NewCapabilityError("legacy_migration_writer", "revision metadata is active", nil),
+			category: CategoryCapability,
+			code:     CodeUnsupported,
+		},
+		{
+			name: "revision stale",
+			cause: &backend.RevisionFenceError{
+				Kind:  backend.RevisionFenceFailureStale,
+				Cause: errors.New("stale sentinel"),
+			},
+			category: CategoryConflict,
+			code:     CodeStaleHistoryRevision,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			fake := &fakeBackend{beginError: test.cause, transaction: newFakeTransaction()}
+			state, err := (Executor{Backend: fake}).Apply(context.Background(), EmptyProjectState(), articleMigration())
+			assertMigrationError(t, err, test.category, test.code, NoOperation, "")
+			if !errors.Is(err, test.cause) {
+				t.Fatalf("Apply() error = %v, want backend cause", err)
+			}
+			if fake.beginCount != 1 || len(fake.transaction.calls) != 0 || len(state.Apps()) != 0 {
+				t.Fatalf("Apply() = state:%v begin:%d calls:%v", state.Apps(), fake.beginCount, fake.transaction.calls)
+			}
+		})
 	}
 }
 

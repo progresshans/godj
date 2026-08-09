@@ -9,9 +9,10 @@ import (
 )
 
 type preparedPlanStep struct {
-	step      PlanStep
-	migration Migration
-	after     ProjectState
+	step       PlanStep
+	migration  Migration
+	operations []preparedOperation
+	after      ProjectState
 }
 
 // ExecutePlan runs an already-planned, single-direction sequence one
@@ -149,14 +150,15 @@ func preflightPlan(
 			return nil, executionContextError(step, err)
 		}
 		migration := byKey[step.Key]
-		_, after, err := preflight(working, migration, step.Direction)
+		operations, after, err := preflight(working, migration, step.Direction)
 		if err != nil {
 			return nil, err
 		}
 		prepared = append(prepared, preparedPlanStep{
-			step:      step,
-			migration: migration,
-			after:     after.Clone(),
+			step:       step,
+			migration:  migration,
+			operations: operations,
+			after:      after.Clone(),
 		})
 		working = after
 	}
