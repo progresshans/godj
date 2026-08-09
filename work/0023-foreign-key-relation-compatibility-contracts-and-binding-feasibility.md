@@ -113,8 +113,10 @@ Manifest의 각 reference는
 
 ## 고정 fixture
 
-각 contract는 fresh disposable SQLite database와 fresh Django model/query state를 사용합니다.
-REL-007/008처럼 delete가 있는 contract도 다른 contract와 DB를 공유하지 않습니다.
+각 contract는 pinned in-memory SQLite connection 위에 fresh disposable table/row/transaction state와
+fresh Django model/query state를 다시 만듭니다. 같은 process의 connection 객체 재사용 자체는
+비교 의미가 아니지만 table, row, rollback/autocommit, relation cache는 contract 사이에 공유하지
+않습니다. REL-007/008처럼 delete가 있는 contract도 다른 contract의 fixture state를 재사용하지 않습니다.
 
 - `authors.Author(id, name)`
 - `blog.Post(id, title, author, reviewer)`
@@ -137,7 +139,7 @@ REL-007/008처럼 delete가 있는 contract도 다른 contract와 DB를 공유�
 | REL-004 | `evaluation` / result, db_state, metrics | `author__name=Ada`와 `author__name=Ada AND author__id=1` 모두 Post IDs `[10,11]`. | 각 construction I/O `0`, evaluation `1 SELECT`, `INNER JOIN=1`, `LEFT JOIN=0`; 두 predicate도 join 재사용 |
 | REL-005 | `evaluation` / result, db_state, metrics | `ada.posts.all()` → `[10,11]`; `Author.filter(posts__title="Alpha")` → `[1]`. | reverse accessor: `1 SELECT`, join `0`; reverse lookup: `1 SELECT`, `INNER JOIN=1` |
 | REL-006 | `evaluation` / result, db_state, metrics | 새로 읽은 Post 11의 `reviewer` → `NULL`; `reviewer__isnull=true` → `[11]`. | null forward access `0` queries; isnull query `1 SELECT`, join `0` |
-| REL-007 | `evaluation` / error, db_state, metrics | Author 1 삭제 → `ProtectedError`. Normalize: `integrity_error/protected_foreign_key`, message 비계약. `protected_objects=2`; 모든 Author/Post와 FK 그대로. | 잠글 값은 `protected_source_rows=2`, mutation `UPDATE=0,DELETE=0`; Django collector의 선행 `SELECT=1`은 진단값으로만 보존 |
+| REL-007 | `evaluation` / error, db_state, metrics | Author 1 삭제 → `ProtectedError`. Normalize: `integrity_error/protected_foreign_key`, message 비계약. `protected_objects=2`; 모든 Author/Post와 FK 그대로. | 잠글 값은 `protected_source_rows=2`, mutation `UPDATE=0,DELETE=0`; Django collector의 선행 SELECT/query shape는 비교 payload에서 제외 |
 | REL-008 | `commit` / result, db_state, metrics | Author 2 삭제 → `{deleted_total:1,target_deleted:1}`. Authors `[1,3]`, Posts `[10,11,12]` 유지, 세 reviewer 모두 NULL. | 한 transaction, `UPDATE statements=1`, affected source rows `2`, `DELETE statements=1`, deleted target rows `1`, mutation order `[UPDATE,DELETE]` |
 | REL-009 | `evaluation` / result, db_state, metrics | 일반 Post 조회 후 author 접근과 `select_related("author")` 결과가 모두 `[(10,Ada),(11,Ada),(12,Cleo)]`. | plain `4 SELECT`; eager `1 SELECT`, `INNER JOIN=1`, access-extra `0` |
 | REL-010 | `evaluation` / result, db_state, metrics | `select_related("reviewer")` → `[(10,Bob),(11,NULL),(12,Bob)]`. | `1 SELECT`, `LEFT OUTER JOIN=1`, `INNER JOIN=0`, access-extra `0` |
@@ -146,9 +148,9 @@ REL-007/008처럼 delete가 있는 contract도 다른 contract와 DB를 공유�
 
 REL-012는 prefetched related manager에서 다시 `order_by()` 또는 `filter()`하지 않습니다. Django는
 그 경우 prefetch cache를 사용하지 않고 parent별 새 query를 실행할 수 있으므로 이 contract의
-소비 형태와 다른 의미입니다. REL-007의 collector 선행 SELECT 수는 implementation choreography에
-가까워 diagnostic으로만 보존하고 product equality에는 mutation 0, protected source row와 DB state를
-사용합니다.
+소비 형태와 다른 의미입니다. REL-007/008의 Django collector SELECT 수와 statement shape는
+implementation choreography이므로 comparison payload에 넣지 않고, product equality에는
+transaction/mutation, protected/affected row와 DB state만 사용합니다.
 
 ## Observation과 비교 경계
 
@@ -355,26 +357,27 @@ contract가 없으므로 이번 exact 22에 넣지 않습니다. Service 기동�
 
 ## 완료 조건
 
-- [ ] REL-001..012 exact ID/order/phase/comparison과 P1..P6 provenance가 manifest에 잠김
-- [ ] Cross-app fixture, actual SQLite FK/orphan safety와 total ordering이 live assertion으로 검증됨
-- [ ] Query access까지 포함한 query count/join kind와 delete mutation metrics가 exact observation에 잠김
-- [ ] Two-process oracle가 byte-identical이고 additive SHA256SUMS가 재현됨
-- [ ] Static fixture가 ordered 12 `not_implemented`, comparison exit 1/mismatch 12를 냄
-- [ ] Product relation actual adapter가 없고 unknown relation set은 exit 2/no actual로 fail-closed함
-- [ ] 12 set/127 contract global uniqueness와 132 ordered cross-binding이 전부 거부됨
-- [ ] Existing 11 adapter/115 product contract와 `110 passing + 5 deviation`이 변하지 않음
-- [ ] 완료 aggregate가 `110 passing + 5 deviation + 12 oracle_locked`로 정확히 기록됨
-- [ ] Prior 11 artifact/deviation/SHA256SUMS prefix가 byte-for-byte 보존됨
-- [ ] Symbolic target/project binder 후보가 success+atomic failure를 검증하거나 재현 가능한 실패 증거로 기각됨
-- [ ] Cross-app mutual/self external compile/import graph 후보가 성공하거나 재현 가능한 cycle/shape 실패로 기각됨
-- [ ] Typed/dynamic shared-AST 후보가 convergence/pre-I/O failure를 검증하거나 divergence 증거로 기각됨
-- [ ] Schema IR v2는 불변이며 vNext 한 후보가 deterministic round-trip/hash/old-version rejection으로
+- [x] REL-001..012 exact ID/order/phase/comparison과 P1..P6 provenance가 manifest에 잠김
+- [x] Cross-app fixture, actual SQLite FK/orphan safety와 total ordering이 live assertion으로 검증됨
+- [x] Query access까지 포함한 query count/join kind와 delete mutation metrics가 exact observation에 잠김
+- [x] Two-process oracle가 byte-identical이고 additive SHA256SUMS가 재현됨
+- [x] Static fixture가 ordered 12 `not_implemented`, comparison exit 1/mismatch 12를 냄
+- [x] Product relation actual adapter가 없고 unknown relation set은 exit 2/no actual로 fail-closed함
+- [x] 12 set/127 contract global uniqueness와 132 ordered cross-binding이 전부 거부됨
+- [x] Existing 11 adapter/115 product contract와 `110 passing + 5 deviation`이 변하지 않음
+- [x] 완료 aggregate가 `110 passing + 5 deviation + 12 oracle_locked`로 정확히 기록됨
+- [x] Prior 11 artifact/deviation/SHA256SUMS prefix가 byte-for-byte 보존됨
+- [x] Symbolic target/project binder 후보가 success+atomic failure를 검증하거나 재현 가능한 실패 증거로 기각됨
+- [x] Cross-app mutual/self external compile/import graph 후보가 성공하거나 재현 가능한 cycle/shape 실패로 기각됨
+- [x] Typed/dynamic shared-AST 후보가 convergence/pre-I/O failure를 검증하거나 divergence 증거로 기각됨
+- [x] Schema IR v2는 불변이며 vNext 한 후보가 deterministic round-trip/hash/old-version rejection으로
   선택되거나 두 후보 모두 부적합이라는 결정적 evidence가 기록됨
-- [ ] SET_NULL update 뒤 delete failure가 test-only transaction 전체 rollback을 검증함
-- [ ] Product package와 `conformance/runners/godj/**` 변경이 0임
-- [ ] Local CPython 3.14.3/uv 0.12.3 routine test와 full Go/race/CGO=0/vet가 통과함
+- [x] SET_NULL update 뒤 delete failure가 test-only transaction 전체 rollback을 검증함
+- [x] Product package와 `conformance/runners/godj/**` 변경이 0임
+- [x] Local CPython 3.14.3/uv 0.12.3 routine test와 full Go/race/CGO=0/vet가 통과함
 - [ ] GitHub exact 22/22, Python 3.12.13/3.13.15/3.14.3/3.14.7와 four-OS/arch proof가 통과함
-- [ ] Independent audit가 P0/P1/P2/P3 finding 0이고 ADR/work/CURRENT/matrix/evidence가 같은 head를 가리킴
+- [x] 두 independent local final audit가 P0/P1/P2/P3 finding 0임
+- [ ] Implementation commit 뒤 ADR/work/CURRENT/matrix/evidence가 같은 exact head를 가리킴
 - [ ] ADR-0023의 Accepted/Proposed 결과와 Q-013 남은 범위가 증거에 맞게 갱신됨
 
 Feasibility 후보가 기각된 경우 위 후보 체크는 failure를 숨겨 통과로 바꾸는 뜻이 아닙니다. Exact 재현
@@ -388,10 +391,11 @@ work를 닫을 수 있습니다. Reference/artifact/CI/audit gate는 후보 기�
 - [x] REL-001..012 fixture, phase/comparison/result/metrics와 pinned provenance 조사
 - [x] Product-free symbolic binding/shared AST/IR vNext spike 경계 작성
 - [x] Proposed ADR-0023 작성
-- [ ] Reference manifest/runner/oracle/static artifact 구현
-- [ ] Global identity/cross-binding/false-green gate 구현
-- [ ] `conformance/relationbinding` feasibility 구현
-- [ ] Local/exact 22 hosted verification와 independent audit
+- [x] Reference manifest/runner/oracle/static artifact 구현
+- [x] Global identity/cross-binding/false-green gate 구현
+- [x] `conformance/relationbinding` feasibility 구현
+- [x] Local routine/exact reference verification와 independent audit
+- [ ] Implementation commit/push와 exact 22 hosted verification
 - [ ] Completion status/handoff와 Accepted일 때의 GDJ-0024 또는 기각 시 alternative-design activation
 
 ## 수정 파일
@@ -412,26 +416,47 @@ work를 닫을 수 있습니다. Reference/artifact/CI/audit gate는 후보 기�
   spike에서 검증합니다.
 - 2026-08-10: Local Python은 3.14.3/uv 0.12.3 한 환경, multi-Python과 OS/architecture 차이는 CI가
   소유합니다.
+- 2026-08-10: Phase A는 REL-001..012를 12 `oracle_locked`로 고정했고 reference aggregate를
+  12 set/127 contract/132 ordered cross-binding으로 확장했습니다. Product adapter는 0개 추가되어
+  제품 aggregate는 11 adapter/115 contract=`110 passing + 5 deviation`로 그대로입니다.
+- 2026-08-10: Phase B test-only proof는 symbolic identity, atomic binder, mutual/self cross-app
+  external compile, shared immutable relation AST, SET_NULL fault rollback과 Schema IR v2 fail-closed를
+  통과했습니다. 두 vNext 후보 중 field union relation arm이 test-only 후보로 선택됐지만 ADR-0023은
+  exact 22 hosted acceptance 전까지 Proposed로 유지합니다.
 
 ## 미결정/Blocker
 
-- Schema IR vNext에서 relation을 field union arm으로 둘지 별도 ordered relation declaration으로 둘지
 - Generated project bridge의 exact package/API와 typed relation selector public shape
 - Reverse manager/cache ownership과 result collection의 concrete product type
 - Product error category/type와 nullable FK scalar representation
 - Relation migration writer/loader/codec version, existing database upgrade와 schema editor
 - PostgreSQL relation compiler/transaction behavior와 backend conformance
 
-이 항목은 Phase B proof 또는 후속 GDJ-0024/별도 migration/backend work 없이 추측으로 해결하지
-않습니다.
+외부 blocker는 없습니다. Test-only Phase B는 field union relation arm을 다음 제품 후보로 좁혔지만
+public/wire freeze는 아닙니다. 현재 acceptance gate는 implementation scope 재확인, commit/push와 exact 22
+hosted evidence 수집입니다. 나머지 항목은 후속 GDJ-0024/별도 migration/backend work 없이 추측으로
+해결하지 않습니다.
 
 ## 테스트 증거
 
-- Evidence ID: activation 시 미배정
-- Baseline: `1f161f311daa775e6a386ec0df568ff85d681f15`
-- Planned local: CPython 3.14.3 + uv 0.12.3, full/focused Go, artifact/Markdown/no-rewrite
-- Planned hosted: exact 22 required executions
-- Not run at activation: REL runner/oracle, relationbinding proof, product relation adapter, PostgreSQL/MySQL
+- Evidence ID:
+  [EVID-20260810-031](../docs/status/TEST_EVIDENCE.md#evid-20260810-031--gdj-0023-foreignkey-reference-and-binding-pre-hosted-local-validation)
+- Activation commit: `d5d00d9e803c637a78961ed6f7dac0b415ce7901`; provided verified
+  [run 31335315454](https://github.com/progresshans/godj/actions/runs/31335315454) exact 18/18 success
+- Current tested checkout: activation commit + uncommitted GDJ-0023 implementation/pre-hosted status diff;
+  exact implementation commit/head는 아직 없음
+- Local PASS: CPython 3.14.3 + uv 0.12.3 `make ci`와 portable Python 193/17 intentional skips;
+  profile-owned uv 0.10.12 exact Python 193/0와 12 oracle checks; relationbinding
+  normal/race/CGO-disabled/vet/race count-20; two independent final audits P0/P1/P2/P3 0
+- Final pins: manifest 10,842 bytes/
+  `08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522`; oracle 33,792 bytes/
+  `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`; static 1,859 bytes/
+  `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`; 12-line `SHA256SUMS`
+  1,148 bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`;
+  127-scenario payload 498,051 bytes/
+  `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`
+- Not run/pending: implementation-head exact 22 hosted executions와 그 head의 exact
+  Python 3.12.13/3.13.15/3.14.3/3.14.7. Product relation adapter, Windows, PostgreSQL/MySQL 지원은 없음
 
 ## 위험과 rollback
 
@@ -446,20 +471,19 @@ work를 닫을 수 있습니다. Reference/artifact/CI/audit gate는 후보 기�
 
 ## 다음 정확한 작업
 
-1. `conformance/contracts/relation-manifest.json`에 REL-001..012 exact table과 P1..P6 provenance를
-   작성합니다.
-2. Pinned Django 6.1 source만 참조해 `conformance/runners/django/relation_scenarios.py`와 isolated
-   two-app fixture를 구현합니다.
-3. Oracle/static artifact보다 먼저 scenario mutation/unit test, actual SQLite FK와 query/mutation
-   capture safety를 통과시킵니다.
-4. Phase A artifact를 lock한 뒤 별도 `conformance/relationbinding/**` Phase B를 구현합니다.
-5. Completion/audit 결과 ADR-0023을 Accepted할 수 있을 때만 [GDJ-0024] ForeignKey product slice에서
-   첫 exact REL subset과 allowed paths를 활성화합니다. 나머지 REL은 후속 bounded product packet에
-   남기며, proof가 후보를 기각하면 제품 work 대신 alternative-design work를 엽니다.
+1. Activation commit 기준 전체 modified/untracked path가 이 work의 exact `allowed_paths` 안인지 다시
+   확인하고 product package/`conformance/runners/godj/**` diff 0을 확인합니다.
+2. GDJ-0023 implementation과 이 pre-hosted 상태/evidence를 한 exact commit으로 만들고 같은 Draft PR
+   #1에 push합니다.
+3. 그 exact head의 required execution inventory가 22인지 확인하고 hosted run을 수집합니다. 네 Python
+   exact 좌표와 relation proof 네 OS/architecture leg를 포함해 22/22가 아니면 완료로 올리지 않습니다.
+4. Hosted evidence 뒤 ADR-0023의 Accepted/Proposed 최종 상태, work/CURRENT/matrix/evidence와 Q-013을
+   같은 head에서 갱신합니다. Accepted일 때만 [GDJ-0024] ForeignKey product slice를 활성화합니다.
 
 ## 결과와 인수인계
 
-Activation은 GoDj의 다음 제품 단계가 relation임을 좁은 contract-first 단면으로 명시합니다. 아직
-제품 관계 지원은 0이며 PostgreSQL 지원도 시작하지 않았습니다. 다음 담당자는 REL artifact와
-test-only binding proof를 먼저 완성하고, product source/API 변경은 Accepted된 결론에 따라 GDJ-0024가
-열릴 때까지 보류합니다. 후보가 기각되면 먼저 alternative-design work로 돌아갑니다.
+Phase A reference와 Phase B test-only binding proof는 local에서 완료됐고 두 independent final audit도
+P0/P1/P2/P3 finding 0입니다. 그러나 exact implementation commit과 hosted 22/22가 아직 없으므로 work는
+active, ADR-0023은 Proposed입니다. 제품 관계 adapter/지원은 0이며 Windows와 PostgreSQL/MySQL 지원도
+시작하지 않았습니다. 다음 담당자는 scope를 재확인해 commit/push하고 exact 22 evidence를 수집한 뒤에만
+ADR 최종 상태와 GDJ-0024 activation을 결정합니다.

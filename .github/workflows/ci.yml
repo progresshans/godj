@@ -194,6 +194,109 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
+  relation-binding-matrix:
+    name: Relation binding (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run normal relation-binding and external compile proofs
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/relation-binding-tests.json"
+          go test -json -count=1 ./conformance/relationbinding | tee "$log"
+          python3 - "$log" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          top_level_runs = {
+              event["Test"]
+              for event in events
+              if event.get("Action") == "run"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          top_level_passes = {
+              event["Test"]
+              for event in events
+              if event.get("Action") == "pass"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          skipped = [
+              event["Test"]
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          assert len(top_level_runs) == 18, sorted(top_level_runs)
+          assert top_level_passes == top_level_runs, (
+              sorted(top_level_runs),
+              sorted(top_level_passes),
+          )
+          assert skipped == [], skipped
+          PY
+
+      - name: Run relation-binding race tests
+        run: go test -race -count=1 ./conformance/relationbinding
+
+      - name: Run relation-binding tests without CGO
+        run: CGO_ENABLED=0 go test -count=1 ./conformance/relationbinding
+
+      - name: Vet relation-binding proof
+        run: go vet ./conformance/relationbinding
+
+      - name: Ensure relation artifacts were not rewritten
+        run: >
+          git diff --quiet --
+          conformance/contracts/relation-manifest.json
+          conformance/fixtures/godj-relation-not-implemented.json
+          conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
   product-project-check-matrix:
     name: Product project check (${{ matrix.runs_on }})
     runs-on: ${{ matrix.runs_on }}
@@ -323,10 +426,10 @@ jobs:
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 174
-          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 16
-          grep -Fq 'Ran 174 tests' "$log"
-          grep -Fq 'OK (skipped=16)' "$log"
+          test "$(grep -c '^test_' "$log")" -eq 193
+          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 17
+          grep -Fq 'Ran 193 tests' "$log"
+          grep -Fq 'OK (skipped=17)' "$log"
 
       - name: Verify all-scenario semantic digest
         env:
@@ -348,10 +451,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 115, len(SCENARIOS)
-          assert len(payload) == 464087, len(payload)
+          assert len(SCENARIOS) == 127, len(SCENARIOS)
+          assert len(payload) == 498051, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8", digest
+          assert digest == "2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995", digest
           PY
 
       - name: Require a clean worktree

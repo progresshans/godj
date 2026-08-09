@@ -15,6 +15,11 @@
 - [`Migration` identity and ordered operations](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/migration.py) — MIG-057의 identity/dependency/operation-order 관찰 근거.
 - [`MigrationLoader.build_graph`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/loader.py) — MIG-057/MIG-064의 public graph 구성 관찰 근거.
 - [`MigrationExecutor`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/executor.py)와 [`ExecutorTests.test_run`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/migrations/test_executor.py) — MIG-064의 public plan/migrate handoff 관찰 근거.
+- [`ForeignKey` reference](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/docs/ref/models/fields.txt),
+  [`many_to_one` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/many_to_one/tests.py) — REL-001..006의 lazy absolute target, forward cache와 forward/reverse lookup 관찰 근거.
+- [`on_delete` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/delete/tests.py) — REL-007/008의 `PROTECT`와 `SET_NULL` 결과·mutation 관찰 근거.
+- [`select_related` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/select_related/tests.py)와
+  [`prefetch_related` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/prefetch_related/tests.py) — REL-009..012의 eager join, invalid reverse path와 two-query reverse batch 관찰 근거.
 
 로컬 `/Users/hanhyeonjin/Documents/django`에서 tag `6.1`은 commit `fe0a859f537d4238cf49fca39073513206f83122`이며 `VERSION = (6, 1, 0, "final", 0)`임을 확인했습니다. 2026-08-07 당시 checkout `main`은 commit `4243ab11dc957fd14a1875e6b715ff5e6114a415`, Django `6.2.0-alpha`였으므로 6.1 oracle로 직접 사용하지 않습니다.
 
@@ -64,15 +69,30 @@ required job은 digest-pinned service image, health check, UTC timezone과 C loc
 durable restart/persistence contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가
 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도 함께 요구합니다.
 
+GDJ-0023 relation reference는 exact Django 6.1 commit
+`fe0a859f537d4238cf49fca39073513206f83122`와 기존
+`django-6.1-sqlite-darwin-arm64` profile을 사용합니다. Scenario와 fixture는 upstream
+표현을 복사하지 않은 독립 작성이고 manifest 12개 provenance는 모두
+`derived=false`, `license=BSD-3-Clause`입니다. Locked artifact는 manifest 10,842 bytes/
+`08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522`, oracle 33,792
+bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture
+1,859 bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`입니다. 기존
+11-line/1,061-byte `SHA256SUMS` prefix는 byte-for-byte 보존하고 `relation-oracle.json`을
+12번째 줄로 append해 1,148 bytes/
+`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`로 만들었습니다.
+Relation manifest는 `oracle_locked`, static fixture는 ordered 12 `not_implemented`이며
+GoDj product relation adapter나 PostgreSQL/MySQL 지원을 주장하지 않습니다.
+
 ## Python과 환경 도구
 
-- [Python 3.14.6 release](https://www.python.org/downloads/release/python-3146/) — 2026-08-07 기준 최신 3.14 micro 확인.
+- [Python 3.14.6 release](https://www.python.org/downloads/release/python-3146/) — 2026-08-07 당시 source/profile 검토에 사용한 역사 기준.
 - [Python source releases](https://www.python.org/downloads/source/)
 - [uv documentation](https://docs.astral.sh/uv/)
 
-공식 최신 micro는 3.14.6이지만 현재 uv-managed macOS/arm64 배포 목록에서 재생 가능한
-3.14.3을 GoDj reference로 선택했습니다. 최신 micro 공식 지원을 주장하지 않고 exact
-runtime fingerprint 불일치를 실패시킵니다.
+GoDj의 local/exact reference는 계속 CPython 3.14.3으로 고정합니다. Hosted compatibility
+matrix는 exact 3.12.13, 3.13.15, 3.14.3, 3.14.7 좌표를 각각 실행해 3.14.3과 더 새 micro의
+차이도 관찰하지만, 어느 좌표도 부동 `latest` 별칭이나 Python 전체 지원 범위로 주장하지
+않습니다. Exact reference profile은 runtime fingerprint 불일치를 실패시킵니다.
 
 ## Go
 

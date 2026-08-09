@@ -31,7 +31,7 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestMigrationProjectCheckChecksumIsAppendedAfterUnchangedTenLines(t *testing.T) {
+func TestRelationChecksumIsAppendedAfterUnchangedElevenLines(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -50,8 +50,9 @@ func TestMigrationProjectCheckChecksumIsAppendedAfterUnchangedTenLines(t *testin
 		"35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac  write-migration-oracle.json\n"
 	const definitionSource = "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f  migration-definition-source-oracle.json\n"
 	const projectCheck = "49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2  migration-project-check-oracle.json\n"
-	if string(contents) != previous+definitionSource+projectCheck {
-		t.Fatal("SHA256SUMS did not preserve the previous ten lines and append exactly one project-check oracle")
+	const relation = "6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290  relation-oracle.json\n"
+	if string(contents) != previous+definitionSource+projectCheck+relation {
+		t.Fatal("SHA256SUMS did not preserve the previous eleven lines and append exactly one relation oracle")
 	}
 }
 
@@ -346,7 +347,7 @@ func TestMigrationDefinitionSourceProvenanceMutationsCannotFalseGreen(t *testing
 	}
 }
 
-func TestElevenReferenceSetsHave115UniqueContractsAndReject110OrderedCrossBindings(t *testing.T) {
+func TestTwelveReferenceSetsHave127UniqueContractsAndReject132OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -366,6 +367,7 @@ func TestElevenReferenceSetsHave115UniqueContractsAndReject110OrderedCrossBindin
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-lifecycle", "migration-lifecycle-manifest.json", "migration-lifecycle-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-definition-source", "migration-definition-source-manifest.json", "migration-definition-source-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"),
+		loadMigrationDefinitionSourceContractSet(t, root, "relation", "relation-manifest.json", "relation-oracle.json"),
 	}
 
 	contractIDs := make(map[string]string)
@@ -387,8 +389,8 @@ func TestElevenReferenceSetsHave115UniqueContractsAndReject110OrderedCrossBindin
 			scenarios[contract.Scenario] = set.name
 		}
 	}
-	if totalContracts != 115 {
-		t.Fatalf("eleven-set reference contract count = %d, want 115", totalContracts)
+	if totalContracts != 127 {
+		t.Fatalf("twelve-set reference contract count = %d, want 127", totalContracts)
 	}
 
 	crossBindings := 0
@@ -405,12 +407,12 @@ func TestElevenReferenceSetsHave115UniqueContractsAndReject110OrderedCrossBindin
 			})
 		}
 	}
-	if crossBindings != 110 {
-		t.Fatalf("checked %d ordered cross-set bindings, want 110", crossBindings)
+	if crossBindings != 132 {
+		t.Fatalf("checked %d ordered cross-set bindings, want 132", crossBindings)
 	}
 }
 
-func TestMigrationDefinitionSourceRemainsInElevenAdapterProductTarget(t *testing.T) {
+func TestRelationReferenceDoesNotExpandElevenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -445,6 +447,18 @@ func TestMigrationDefinitionSourceRemainsInElevenAdapterProductTarget(t *testing
 	}
 	if got := strings.Count(oracleRegenerateTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-regenerate migration-definition-source manifest count = %d, want 1", got)
+	}
+	if got := strings.Count(referenceTarget, "$(RELATION_MANIFEST)"); got != 2 {
+		t.Fatalf("reference conformance relation manifest count = %d, want 2", got)
+	}
+	if got := strings.Count(productTarget, "$(RELATION_MANIFEST)"); got != 0 {
+		t.Fatalf("product conformance relation manifest count = %d, want 0", got)
+	}
+	if got := strings.Count(oracleCheckTarget, "$(RELATION_MANIFEST)"); got != 1 {
+		t.Fatalf("oracle-check relation manifest count = %d, want 1", got)
+	}
+	if got := strings.Count(oracleRegenerateTarget, "$(RELATION_MANIFEST)"); got != 1 {
+		t.Fatalf("oracle-regenerate relation manifest count = %d, want 1", got)
 	}
 }
 

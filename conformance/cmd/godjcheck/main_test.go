@@ -767,6 +767,72 @@ func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.
 	}
 }
 
+func TestRunRejectsRelationReferenceWithoutProductAdapter(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifestPath := filepath.Join(root, "conformance", "contracts", "relation-manifest.json")
+	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json")
+	manifest, err := protocol.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Contracts) != 12 || manifest.Contracts[0].ID != "REL-001" || manifest.Contracts[11].ID != "REL-012" {
+		t.Fatalf("relation contracts = %#v", manifest.Contracts)
+	}
+	oracle, err := protocol.LoadObservationSuite(oraclePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(oracle.Contracts) != len(manifest.Contracts) {
+		t.Fatalf("relation oracle contracts = %d, want %d", len(oracle.Contracts), len(manifest.Contracts))
+	}
+	for index, contract := range manifest.Contracts {
+		contract := contract
+		t.Run(contract.ID, func(t *testing.T) {
+			directory := t.TempDir()
+			selected := []int{index}
+			for candidate := range manifest.Contracts {
+				if candidate != index && len(selected) < 8 {
+					selected = append(selected, candidate)
+				}
+			}
+			testManifest := manifest
+			testManifest.Contracts = make([]protocol.Contract, 0, len(selected))
+			testOracle := oracle
+			testOracle.Contracts = make([]protocol.Observation, 0, len(selected))
+			for _, selectedIndex := range selected {
+				testManifest.Contracts = append(testManifest.Contracts, manifest.Contracts[selectedIndex])
+				testOracle.Contracts = append(testOracle.Contracts, oracle.Contracts[selectedIndex])
+			}
+			testManifestPath := writeCanonicalMainTestArtifact(t, directory, "manifest.json", testManifest)
+			testOraclePath := writeCanonicalMainTestArtifact(t, directory, "oracle.json", testOracle)
+			actualPath := filepath.Join(directory, "must-not-exist.json")
+			arguments := []string{
+				"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+				"-manifest", testManifestPath,
+				"-expected", testOraclePath,
+				"-actual-output", actualPath,
+			}
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+				t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("stdout = %q, want empty", stdout.String())
+			}
+			wantError := fmt.Sprintf("unsupported scenario %q", contract.Scenario)
+			if !strings.Contains(stderr.String(), wantError) {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), wantError)
+			}
+			if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+				t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+			}
+		})
+	}
+}
+
 func TestRunRejectsMissingRequiredPaths(t *testing.T) {
 	t.Parallel()
 

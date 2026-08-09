@@ -78,6 +78,9 @@
 - GDJ-0022 final evidence-documentation/hosted-tested commit and GDJ-0023 baseline:
   `1f161f311daa775e6a386ec0df568ff85d681f15`
   (`docs: record project process stabilization`)
+- GDJ-0023 activation/hosted-tested commit:
+  `d5d00d9e803c637a78961ed6f7dac0b415ce7901`
+  (`docs: activate foreign key relation contracts`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0023 active; ForeignKey REL-001..012 exact Django contract와 cross-app relation-binding
@@ -119,7 +122,12 @@
   `1f161f311daa775e6a386ec0df568ff85d681f15`도 별도
   [run 31333420261](https://github.com/progresshans/godj/actions/runs/31333420261)의 exact 18/18을
   성공했고 [EVID-20260810-030](TEST_EVIDENCE.md#evid-20260810-030--gdj-0022-final-evidence-documentation-exact-head-ci-and-gdj-0023-activation-baseline)에
-  기록했습니다. GDJ-0023 activation 변경 자체의 exact-head CI는 commit/push 전이므로
+  기록했습니다. GDJ-0023 activation commit `d5d00d9e803c637a78961ed6f7dac0b415ce7901`은 제공된
+  verified [run 31335315454](https://github.com/progresshans/godj/actions/runs/31335315454)의 기존 exact
+  18/18을 성공했습니다. 이후 Phase A reference와 Phase B test-only binding 구현의 local/pre-hosted
+  증거는
+  [EVID-20260810-031](TEST_EVIDENCE.md#evid-20260810-031--gdj-0023-foreignkey-reference-and-binding-pre-hosted-local-validation)에
+  기록했습니다. 이 implementation/status tree는 아직 commit/push 전이므로 exact 22 hosted CI는
   `not run/pending`입니다.
 
 ## Active GDJ-0023 관계 계약 경계
@@ -139,13 +147,19 @@
 - 이번 work는 `schema/**`, `codegen/**`, `orm/**`, `query/**`, `db/**`, `migrations/**`, `project/**`,
   `cmd/**`, `internal/**` 제품 source와 `conformance/runners/godj/**` actual adapter를 변경하지 않습니다.
   Schema IR v2, definition tuple `(1,1,1,2)`와 generator `godj-codegen-m2-v3`도 그대로 유지합니다.
-- 완료 목표는 12 reference sets/127 contracts/132 ordered cross-bindings와 새 REL 12
-  `oracle_locked`입니다. Product는 계속 11 adapters/115 contracts=`110 passing + 5 deviation`입니다.
+- Phase A는 local에서 12 reference sets/127 contracts/132 ordered cross-bindings와 새 REL 12
+  `oracle_locked`를 구현·검증했습니다. Product는 계속 11 adapters/115 contracts=
+  `110 passing + 5 deviation`이고 relation actual adapter는 0입니다.
+- Phase B test-only `conformance/relationbinding/**`는 symbolic/atomic binder, mutual/self external compile,
+  app-to-app import edge 0, immutable typed/dynamic shared AST, explicit vNext candidate 비교, v2 fail-closed와
+  SET_NULL fault rollback을 local에서 검증했습니다. Field union relation arm은 test-only 권고 후보이며
+  public/wire product 결정이 아닙니다.
 - Hosted plan은 기존 exact 18을 보존하고 test-only relation-binding proof를 Linux/macOS x64/arm64
   4개 required leg로 분리해 implementation head에서 exact 22 executions를 검증합니다. 일상 local
   Python은 CPython 3.14.3 + uv 0.12.3만 사용하고 exact Python 3.12.13/3.13.15/3.14.3/3.14.7은 CI가
   담당합니다. PostgreSQL/MySQL service-only job과 Windows product support claim은 추가하지 않습니다.
-- ADR-0023이 feasibility evidence를 바탕으로 Accepted되기 전에는 public relation API, IR vNext와
+- 두 independent final audit는 P0/P1/P2/P3 finding 0이지만 implementation exact 22 hosted evidence가
+  아직 없습니다. ADR-0023이 feasibility evidence를 바탕으로 Accepted되기 전에는 public relation API, IR vNext와
   GDJ-0024 product slice를 활성화하지 않습니다. OneToOne, ManyToMany, nested eager loading,
   custom Prefetch, non-PK `to_field`, CASCADE/RESTRICT/DB-level delete와 PostgreSQL은 이번 범위가 아닙니다.
 
@@ -225,8 +239,8 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2에는 11 ordered reference set, 115 unique contract/scenario와 110 ordered
-  cross-binding이 있습니다. 현재 local product checkout은 11개 set 모두 actual GoDj adapter를 가지며
+- Protocol v2 reference에는 12 ordered set, 127 unique contract/scenario와 132 ordered
+  cross-binding이 있습니다. 현재 local product checkout은 기존 11개 set만 actual GoDj adapter를 가지며
   115 contract의 제품 분류는 `110 passing + 5 deviation`입니다. MIG-018/020/022/024는
   [DEV-0001](../DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리),
   MIG-052는
@@ -257,6 +271,17 @@
   `49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, 11-line `SHA256SUMS`
   1,061 bytes `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. 기존 10-line/
   959-byte prefix `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는 불변입니다.
+- Twelfth relation manifest는 10,842 bytes
+  `08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522`, static fixture는 1,859 bytes
+  `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, exact oracle은 33,792 bytes
+  `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`입니다. 12-line
+  `SHA256SUMS`는 1,148 bytes `067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`이고
+  기존 11-line prefix는 byte-for-byte 보존됩니다. 127-scenario canonical payload는 498,051 bytes
+  `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`입니다.
+- REL-001..012 manifest/oracle/static은 각각 `oracle_locked`/`observed`/`not_implemented` exact 12입니다.
+  Static comparison은 ordered mismatch 12/exit 1이고 product `godjcheck`는 relation actual adapter가 없어
+  exit 2/no actual로 fail-closed합니다. 따라서 현재 aggregate는 reference 12/127/132와 product
+  11/115=`110 passing + 5 deviation`를 분리합니다.
 - Existing MIG-057..064와 새 MIG-065..074 actual product comparison은 각각 locked reference oracle과
   difference 0입니다. Project-check static comparison은 exit 1/ordered mismatch 10을 유지하고, product
   `godjcheck`는 registered actual adapter로 성공합니다. Unknown/unregistered set만 conformance-tool
@@ -350,6 +375,13 @@
   active escalation race count-5, actual SIGINT E2E count-20, focused normal/race/CGO0/vet와 local `make ci`
   under uv 0.12.3/Python 3.14.3이 통과했고 independent final audit는 P0/P1/P2/P3=0입니다. Exact head
   `385382efffd1872ae7fb427192bab27b95dc57e2`는 EVID-029의 run `31332208055`에서 18/18 성공했습니다.
+- GDJ-0023 activation commit `d5d00d9e803c637a78961ed6f7dac0b415ce7901`은 제공된 verified run
+  `31335315454`에서 기존 exact 18/18을 통과했습니다. 이후 uncommitted implementation tree는 local
+  CPython 3.14.3/uv 0.12.3 `make ci`의 portable 193/17 intentional skips, profile-owned uv 0.10.12 exact
+  Python 193/0와 12 oracle checks, relationbinding normal/race/CGO-disabled/vet/race count-20을 통과했습니다.
+  두 independent final audit도 P0/P1/P2/P3 finding 0입니다. 상세 범위와 pin은
+  [EVID-20260810-031](TEST_EVIDENCE.md#evid-20260810-031--gdj-0023-foreignkey-reference-and-binding-pre-hosted-local-validation)에
+  기록했습니다. 이 implementation/status tree의 exact 22 hosted run은 아직 `not run/pending`입니다.
 
 ## 확정된 결정
 
@@ -521,9 +553,11 @@
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0022 local product implementation, independent audits, final
-stabilization과 EVID-029/status head의 별도 exact 18-job hosted acceptance까지 완료됐습니다. GDJ-0023은
-contract/reference + test-only feasibility activation 상태이고 이 activation diff 자체의 exact-head CI는
-commit/push 전이라 pending입니다. Q-010/Q-012는 full CLI/library/generator semver handshake와 DB-aware
+stabilization과 EVID-029/status head의 별도 exact 18-job hosted acceptance까지 완료됐습니다. GDJ-0023
+activation commit은 run 31335315454의 기존 exact 18/18을 통과했고, Phase A reference와 Phase B test-only
+feasibility는 local 구현·검증과 두 independent final audit까지 완료했습니다. 현재 implementation/status
+tree의 exact commit/push와 exact 22 hosted acceptance만 pending입니다. Q-010/Q-012는 full
+CLI/library/generator semver handshake와 DB-aware
 migration lifecycle 전체가 아니므로 `Partial`입니다. Q-013은 Proposed ADR-0023과 proof로 평가 중입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
@@ -537,11 +571,12 @@ migration lifecycle 전체가 아니므로 `Partial`입니다. Q-013은 Proposed
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 GDJ-0023 activation 문서 diff를 독립 감사·범위·링크·append-only gate 뒤 same Draft
-PR #1에 commit/push하고 exact 18 baseline CI를 확인합니다. 이후 REL-001..012 Django reference artifact와
-독립 `conformance/relationbinding/**` feasibility를 서로 분리해 구현하고, implementation head에서 exact
-22 required executions를 검증합니다. ADR-0023이 proof로 Accepted될 때만 GDJ-0024 첫 product subset을
-활성화하며 Draft PR은 사용자 요청 전까지 merge하지 않습니다.
+통합 담당자는 activation commit 기준 전체 modified/untracked path가 GDJ-0023 exact allowed path인지
+재확인하고 product package와 `conformance/runners/godj/**` diff 0을 확인합니다. 이어 implementation과
+pre-hosted 상태/evidence를 같은 exact commit으로 만들어 Draft PR #1에 push하고, 그 head의 exact 22
+required executions을 수집합니다. Python 3.12.13/3.13.15/3.14.3/3.14.7과 relation proof 네
+OS/architecture leg를 포함한 22/22가 확인된 뒤에만 ADR-0023 최종 상태와 GDJ-0024 activation을
+결정합니다. Draft PR은 사용자 요청 전까지 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -559,8 +594,10 @@ PR #1에 commit/push하고 exact 18 baseline CI를 확인합니다. 이후 REL-0
   `31332208055` 18/18 PASS
 - final evidence/status commit and GDJ-0023 baseline:
   `1f161f311daa775e6a386ec0df568ff85d681f15`; exact 18-job run `31333420261` 18/18 PASS
-- 현재 working tree: 위 `1f161f3` baseline + uncommitted GDJ-0023 activation 13-doc diff; 이 후속
-  patch의 commit/push/exact-head CI 전
+- GDJ-0023 activation commit: `d5d00d9e803c637a78961ed6f7dac0b415ce7901`; exact 18-job run
+  `31335315454` 18/18 PASS
+- 현재 working tree: 위 `d5d00d9` activation + uncommitted GDJ-0023 implementation/pre-hosted status
+  diff; 이 후속 patch의 commit/push/exact-head 22-job CI 전
 - 최근 완료 work:
   [GDJ-0022](../../work/0022-migration-project-check-product-slice.md)
 - active work:
@@ -568,25 +605,26 @@ PR #1에 commit/push하고 exact 18 baseline CI를 확인합니다. 이후 REL-0
 - ready work: 없음
 - current decision: [ADR-0023](../adr/0023-symbolic-relation-binding-and-shared-relation-ast.md) Proposed;
   predecessor ADR-0022/ADR-0021 Accepted
-- 현재 reference 분류: 11 set/115 contract/110 ordered cross-binding
-- GDJ-0023 완료 목표: 12 reference set/127 contract/132 ordered cross-binding과 REL 12
-  `oracle_locked`; 아직 artifact/runner/proof는 not run
+- 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding과 REL 12 `oracle_locked`; Phase A
+  local PASS
+- GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20와 두
+  independent final audit P0/P1/P2/P3 0; ADR-0023은 hosted acceptance 전까지 Proposed
 - 현재 제품 분류: 11 product adapter/115 product contract, `110 passing + 5 deviation`; MIG-065..074
   exact 10 `passing`
 - Q-010/Q-012: `Partial`; exact global check/public project runner는 구현됐지만 full handshake,
   writer/upgrade와 DB-aware check는 미구현
-- activation local gate: Markdown parse/link/heading, frontmatter/allowed-scope, EVID-030 append-only와
-  `git diff --check`; REL runner/oracle/relationbinding은 not run
-- Planned implementation local: CPython 3.14.3 + uv 0.12.3 routine Python, full Go/race/CGO-disabled/vet
-- Portable CI equivalent after implementation: `make ci`
+- activation local/hosted gate: Markdown parse/link/heading, frontmatter/allowed-scope, EVID-030 append-only,
+  `git diff --check`와 exact 18 run 31335315454 PASS
+- implementation local: CPython 3.14.3 + uv 0.12.3 `make ci` portable 193/17; uv 0.10.12 exact
+  193/0 + 12 oracle checks; relationbinding normal/race/CGO-disabled/vet/race count-20 PASS
 - Hosted CI: GDJ-0021 implementation 31320798963, completion 31322122760, evidence 31322959993 exact
   10 jobs PASS; GDJ-0022 activation 31324469403 exact 10 jobs PASS; initial expanded run 31329231255는
   Python pre-test assertion 4 failures 뒤 cancelled; uv assertion fix run 31329294154 exact 18/18 PASS;
   EVID-028/status run 31330601427은 16 success/2 macOS product failure; final stabilization run
-  31332208055 exact 18/18 PASS; EVID-029/status run 31333420261 exact 18/18 PASS; current GDJ-0023
-  activation diff exact-head CI는 not run
+  31332208055 exact 18/18 PASS; EVID-029/status run 31333420261 exact 18/18 PASS; GDJ-0023 activation run
+  31335315454 exact 18/18 PASS; current GDJ-0023 implementation/status tree exact 22 CI는 not run/pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: baseline run 31333420261을 뒤의 GDJ-0023 activation/implementation success로
+- 가장 위험한 과장: activation run 31335315454를 뒤의 GDJ-0023 implementation exact 22 success로
   재사용하거나, REL oracle/binding spike를 product relation support로 세거나, service-only
   PostgreSQL/MySQL job을 backend support로 표현하는 것
 

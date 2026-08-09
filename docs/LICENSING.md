@@ -81,6 +81,16 @@ GoDj descriptor, JSON source discovery, runner wire 또는 exit 의미를 제공
 Contract 상태 `oracle_locked`는 제품 CLI나 project-linked runner 구현·지원을 뜻하지
 않습니다.
 
+GDJ-0023의 REL-001..012 relation scenario는 GoDj 고유 `authors.Author`/
+`blog.Post` 모델명, row 값, capture window, SQL shape normalizer와 mutation assertion으로
+독립 작성했습니다. Manifest의 Django 6.1 documentation/source/test reference는 cross-app
+lazy relation, forward/reverse lookup, nullable FK, `PROTECT`/`SET_NULL`,
+`select_related`와 reverse `prefetch_related` 동작의 추적 근거입니다. 모든 provenance
+entry는 `derived=false`, `license=BSD-3-Clause`이고 Django source, fixture, comment 또는
+assertion 구조를 복사·번역하지 않았습니다. Exact oracle은 Django/SQLite reference
+observation이며 static fixture의 12 `not_implemented`와 함께 유지됩니다. `oracle_locked`는
+GoDj relation 제품 adapter나 PostgreSQL/MySQL 지원을 뜻하지 않습니다.
+
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.
 

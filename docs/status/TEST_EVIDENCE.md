@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-030
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-031
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2508,3 +2508,95 @@ no-rewrite. Exact darwin reran focused products, historical exact Python 174/174
 no-rewrite. Four proof, four actual SQLite and four product project-check jobs retained normal/race/
 CGO-disabled/vet/clean gates; four Python jobs retained exact runtime, portable suite, 115-scenario canonical
 digest and clean-worktree gates. No merge was performed.
+
+## EVID-20260810-031 — GDJ-0023 ForeignKey Reference and Binding Pre-hosted Local Validation
+
+- Date/time: 2026-08-10 KST
+- Work/contract IDs: GDJ-0023, REL-001..REL-012, Q-013
+- Tested checkout: branch `codex/revision-fenced-migration-lifecycle`; activation commit
+  `d5d00d9e803c637a78961ed6f7dac0b415ce7901` plus the uncommitted GDJ-0023 implementation/pre-hosted
+  documentation working tree. The exact implementation+documentation commit does not exist yet.
+- Environment/backend: local macOS darwin/arm64, Go 1.26.5. Routine portable gate used uv 0.12.3 and
+  CPython 3.14.3; historical exact profile reproduction used ephemeral uv 0.10.12 with CPython 3.14.3.
+  Django 6.1 and SQLite 3.50.4 are the locked relation reference. The Go feasibility package is test-only and
+  backend-free except its explicit SQLite SET_NULL rollback safety proof.
+- Exit status: all local commands below exited 0. Two independent final audits ended with P0/P1/P2/P3
+  finding 0.
+- Result summary: Phase A locally locks REL-001..012 as 12 `oracle_locked` observations and expands the
+  reference aggregate to exact 12 sets/127 contracts/132 ordered cross-bindings. Phase B locally implements
+  the product-free symbolic identity/atomic binder, mutual and self cross-app external compile/import graph,
+  immutable typed/dynamic shared relation AST, explicit Schema IR vNext candidate comparison, v2 fail-closed
+  and injected SET_NULL rollback proof. No product relation adapter was added: the product aggregate remains
+  exact 11 adapters/115 contracts=`110 passing + 5 deviation`.
+- Failures/skips/not run: unexpected local failure 없음. Portable Python ran 193 tests with 17 intentional
+  exact-profile-only skips; historical exact Python passed 193/193 with zero skips and all 12 stored oracle
+  checks. The activation-only head's exact 18 hosted run is recorded below, but the current implementation
+  tree has not been committed or pushed. Its exact 22 hosted executions, including Python
+  3.12.13/3.13.15/3.14.3/3.14.7 and four relation-proof OS/architecture legs, are `not run/pending`.
+  Windows and PostgreSQL/MySQL support are not implemented or claimed.
+
+Activation-head hosted evidence:
+
+- Activation commit `d5d00d9e803c637a78961ed6f7dac0b415ce7901` passed the provided verified Draft PR #1
+  [run 31335315454](https://github.com/progresshans/godj/actions/runs/31335315454) with exact 18/18 required
+  executions and non-success 0. This proves the activation head only and is not reused as implementation-head
+  exact 22 evidence.
+
+Local commands and results:
+
+1. Routine repository gate
+
+   ```bash
+   PYTHONDONTWRITEBYTECODE=1 make ci
+   ```
+
+   PASS under exact CPython 3.14.3 and uv 0.12.3. Portable Python reported 193 tests with 17 intentional
+   exact-profile skips. Full Go normal/vet/race, focused CGO-disabled tests, twelve-set reference conformance,
+   eleven product adapters, checksum/artifact drift and product no-adapter fail-closed gates passed.
+
+2. Historical exact reference reproduction
+
+   ```bash
+   PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \
+     make python-test-exact oracle-check
+   ```
+
+   PASS: exact Python 193/193 with zero skips and all 12 oracle `--check` commands. The ephemeral uv 0.10.12
+   invocation reproduces the profile-owned historical tool identity; routine local and compatibility work
+   continues to use uv 0.12.3.
+
+3. Focused test-only relation binding gates
+
+   ```bash
+   go test -count=1 ./conformance/relationbinding
+   go test -race -count=1 ./conformance/relationbinding
+   CGO_ENABLED=0 go test -count=1 ./conformance/relationbinding
+   go vet ./conformance/relationbinding
+   go test -race -count=20 ./conformance/relationbinding
+   ```
+
+   PASS. The package exposes exact 18 top-level Test/Example definitions and verifies deterministic/atomic
+   binding, last-good preservation, immutable concurrent reads, app-to-app import edge 0, typed/dynamic AST
+   convergence, both explicit vNext candidates, v2 and migration tuple rejection, and full SET_NULL rollback
+   after an injected target-delete fault.
+
+4. Independent final review
+
+   Two separate final audits of the reference/semantic/integration boundary and relation-binding
+   security/import/immutability boundary both reported P0/P1/P2/P3 finding 0. The audits also confirmed product
+   package and `conformance/runners/godj/**` changes 0, relation product adapter 0, and no status-only promotion
+   from `oracle_locked` to `passing`.
+
+Final machine pins:
+
+| Artifact/payload | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/relation-manifest.json` | 10,842 | `08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json` | 33,792 | `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290` |
+| `conformance/fixtures/godj-relation-not-implemented.json` | 1,859 | `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209` |
+| 12-line `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS` | 1,148 | `067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056` |
+| Canonical all-scenario payload, 127 scenarios | 498,051 | `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995` |
+
+This evidence establishes local reference and test-only feasibility completion only. ADR-0023 remains
+Proposed and GDJ-0023 remains active. The implementation+documentation tree must be scope-checked,
+committed/pushed and pass an exact-head 22/22 hosted run before completion or ADR acceptance is considered.

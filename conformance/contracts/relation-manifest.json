@@ -1,0 +1,288 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "REL-001",
+      "title": "Cross-app lazy ForeignKey declarations publish matching forward and reverse metadata",
+      "scenario": "django.relation.cross_app_metadata",
+      "phase": "metadata",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/fields.txt#foreignkey",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/fields.txt#lazy-relationships",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/fields.txt#absolute-relationships",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "REL-002",
+      "title": "Saving an object with an unsaved related target fails before database I/O",
+      "scenario": "django.relation.unsaved_related_target",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/examples/many_to_one.txt",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/many_to_one/tests.py::ManyToOneTests.test_fk_assignment_and_related_object_cache",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-003",
+      "title": "Repeated forward access on one freshly loaded instance uses its related-object cache",
+      "scenario": "django.relation.forward_lazy_cache",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/examples/many_to_one.txt",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/many_to_one/tests.py::ManyToOneTests.test_fk_assignment_and_related_object_cache",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-004",
+      "title": "Forward relation predicates use one reusable inner join",
+      "scenario": "django.relation.forward_lookup_join_reuse",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#lookups-that-span-relationships",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/many_to_one/tests.py::ManyToOneTests.test_selects",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/many_to_one/tests.py::ManyToOneTests.test_joined_sql",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-005",
+      "title": "Reverse access and reverse lookup expose ordered source rows with their distinct query shapes",
+      "scenario": "django.relation.reverse_accessor_and_lookup",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#lookups-that-span-relationships",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/many_to_one/tests.py::ManyToOneTests.test_reverse_selects",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-006",
+      "title": "A null forward relation is query-free and isnull filters the local key without a join",
+      "scenario": "django.relation.nullable_access_and_isnull",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/fields.txt#foreignkey",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#lookups-that-span-relationships",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-007",
+      "title": "PROTECT reports both source rows and performs no mutation",
+      "scenario": "django.relation.protect_delete",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/fields.txt#ForeignKey.on_delete",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/delete/tests.py::OnDeleteTests.test_protect",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-008",
+      "title": "SET_NULL updates every source before deleting the target in one transaction",
+      "scenario": "django.relation.set_null_delete",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/fields.txt#ForeignKey.on_delete",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/delete/tests.py::OnDeleteTests.test_setnull",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-009",
+      "title": "select_related on a required forward relation replaces three lazy loads with one inner join",
+      "scenario": "django.relation.required_select_related",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#select-related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/select_related/tests.py::SelectRelatedTests.test_access_fks_without_select_related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/select_related/tests.py::SelectRelatedTests.test_access_fks_with_select_related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-010",
+      "title": "select_related on a nullable forward relation uses one left outer join",
+      "scenario": "django.relation.nullable_select_related",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#select-related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/select_related/tests.py::SelectRelatedTests.test_access_fks_with_select_related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-011",
+      "title": "select_related rejects a multi-valued reverse ForeignKey path before SQL execution",
+      "scenario": "django.relation.invalid_reverse_select_related",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#select-related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/select_related/tests.py::SelectRelatedValidationTests.test_reverse_relational_field",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "REL-012",
+      "title": "Reverse ForeignKey prefetch uses one ordered batch query and no related-access query",
+      "scenario": "django.relation.reverse_prefetch",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {
+          "kind": "documentation",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#prefetch-related",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        },
+        {
+          "kind": "test",
+          "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/prefetch_related/tests.py::PrefetchRelatedTests.test_foreignkey_reverse",
+          "derived": false,
+          "license": "BSD-3-Clause"
+        }
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

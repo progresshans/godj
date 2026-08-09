@@ -45,6 +45,17 @@ to keep one protocol-v2 reference corpus and checksum gate. These ten
 `oracle_locked` decision contracts do not claim that Django provides GoDj's
 descriptor or protocol, or that GoDj already has a product project-check CLI.
 
+GDJ-0023 independently authored REL-001..012 with GoDj-specific `authors` and
+`blog` apps, rows, capture windows, normalized SQL-shape observations, and
+mutation assertions. The scenarios cite exact Django 6.1 documentation, source
+symbols, and tests only as behavioral provenance; all entries are
+`derived=false` and do not copy or translate upstream source, fixture, comment,
+or assertion structure. The relation fixture and oracle cover cross-app
+ForeignKey metadata, forward/reverse access, nullable relations,
+`PROTECT`/`SET_NULL`, `select_related`, and reverse `prefetch_related`. Their
+`oracle_locked` status does not claim a GoDj ForeignKey product API, relation
+adapter, or non-SQLite backend implementation.
+
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new
 upstream-derived scenario corpus. GDJ-0015 independently authored the
