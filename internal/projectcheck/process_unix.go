@@ -168,7 +168,7 @@ func executeOwnedProcess(ctx context.Context, interrupt <-chan struct{}, command
 	forcedClose := false
 	if primary != nil {
 		if !waitComplete {
-			waitErr, waitComplete = reconcileQueuedWait(waited, waitErr)
+			waitErr, waitComplete = reconcileOwnedProcessWait(child.Process, waited, waitErr)
 		}
 		if !waitComplete {
 			result.SIGINTAttempts++
@@ -253,6 +253,16 @@ func reconcileQueuedWait(waited <-chan error, current error) (error, bool) {
 	default:
 		return current, false
 	}
+}
+
+func reconcileOwnedProcessWait(process *os.Process, waited <-chan error, current error) (error, bool) {
+	if waitErr, complete := reconcileQueuedWait(waited, current); complete {
+		return waitErr, true
+	}
+	if process != nil && errors.Is(process.Signal(syscall.Signal(0)), os.ErrProcessDone) {
+		return <-waited, true
+	}
+	return current, false
 }
 
 func pendingProcessCancellation(ctx context.Context, interrupt <-chan struct{}) *Failure {

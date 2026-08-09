@@ -39,7 +39,9 @@ func TestOwnedProcessHelper(t *testing.T) {
 		os.Exit(0)
 	case "ignore":
 		signal.Ignore(os.Interrupt)
-		writeHelperReady()
+		if err := publishHelperReady(strconv.Itoa(os.Getpid())); err != nil {
+			os.Exit(96)
+		}
 		for {
 			time.Sleep(time.Second)
 		}
@@ -55,7 +57,9 @@ func TestOwnedProcessHelper(t *testing.T) {
 		}
 		if ready := os.Getenv("GODJ_HELPER_READY"); ready != "" {
 			payload := strconv.Itoa(os.Getpid()) + "," + strconv.Itoa(child.Process.Pid)
-			_ = os.WriteFile(ready, []byte(payload), 0o600)
+			if err := publishHelperReady(payload); err != nil {
+				os.Exit(96)
+			}
 		}
 		os.Exit(0)
 	case "hold":
@@ -130,6 +134,45 @@ func TestQueuedDirectReapIsReconciledBeforeGroupSignals(t *testing.T) {
 	got, complete := reconcileQueuedWait(waited, nil)
 	if !complete || !errors.Is(got, want) {
 		t.Fatalf("queued wait reconciliation = %v, %v", got, complete)
+	}
+}
+
+func TestAlreadyReapedDirectChildWaitPublicationIsReconciled(t *testing.T) {
+	command := helperCommand("emit", nil)
+	child := exec.Command(command.Argv[0], command.Argv[1:]...)
+	child.Env = command.Env
+	if err := child.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := child.Wait(); err != nil {
+		t.Fatal(err)
+	}
+
+	type reconciliation struct {
+		err      error
+		complete bool
+	}
+	waited := make(chan error)
+	reconciled := make(chan reconciliation, 1)
+	want := errors.New("delayed wait publication")
+	go func() {
+		waitErr, complete := reconcileOwnedProcessWait(child.Process, waited, nil)
+		reconciled <- reconciliation{err: waitErr, complete: complete}
+	}()
+	select {
+	case waited <- want:
+	case got := <-reconciled:
+		t.Fatalf("already-reaped reconciliation returned before publication: %+v", got)
+	case <-time.After(5 * time.Second):
+		t.Fatal("already-reaped reconciliation did not await publication")
+	}
+	select {
+	case got := <-reconciled:
+		if !got.complete || !errors.Is(got.err, want) {
+			t.Fatalf("already-reaped reconciliation = %+v", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("already-reaped reconciliation remained blocked after publication")
 	}
 }
 
@@ -210,10 +253,25 @@ func helperCommand(mode string, extra map[string]string) Command {
 	return Command{Argv: []string{os.Args[0], "-test.run=^TestOwnedProcessHelper$"}, Env: sortedEnvironment(environment)}
 }
 
-func writeHelperReady() {
-	if ready := os.Getenv("GODJ_HELPER_READY"); ready != "" {
-		_ = os.WriteFile(ready, []byte(strconv.Itoa(os.Getpid())), 0o600)
+func publishHelperReady(payload string) error {
+	ready := os.Getenv("GODJ_HELPER_READY")
+	if ready == "" {
+		return nil
 	}
+	temporary, err := os.CreateTemp(filepath.Dir(ready), "."+filepath.Base(ready)+".tmp-")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if _, err := io.WriteString(temporary, payload); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temporaryPath, ready)
 }
 
 func waitForFile(t *testing.T, path string) {

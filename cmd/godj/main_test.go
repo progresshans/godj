@@ -133,14 +133,19 @@ func TestActualGodjMigrationCheckProcess(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		command.Stdout = &stdout
 		command.Stderr = &stderr
+		command.WaitDelay = 5 * time.Second
 		if err := command.Start(); err != nil {
 			t.Fatal(err)
 		}
-		waitForE2EFile(t, ready)
-		if err := command.Process.Signal(os.Interrupt); err != nil {
-			t.Fatal(err)
+		waited := make(chan error, 1)
+		go func() { waited <- command.Wait() }()
+		if err := waitForE2EFile(command, waited, ready); err != nil {
+			t.Fatalf("runner readiness: %v stdout=%q stderr=%q", err, stdout.String(), stderr.String())
 		}
-		err := command.Wait()
+		if signalErr := command.Process.Signal(os.Interrupt); signalErr != nil {
+			t.Fatalf("signal runner: %v wait=%v", signalErr, <-waited)
+		}
+		err := <-waited
 		var exitError *exec.ExitError
 		if !errors.As(err, &exitError) || exitError.ExitCode() != 130 || stdout.Len() != 0 || stderr.String() != protocol.CategoryProcess+"/"+protocol.CodeProjectInterrupted+"\n" {
 			t.Fatalf("SIGINT err=%v stdout=%q stderr=%q", err, stdout.String(), stderr.String())
@@ -360,18 +365,42 @@ func snapshotProject(t *testing.T, root string) map[string]string {
 	return result
 }
 
-func waitForE2EFile(t *testing.T, path string) {
-	t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
-	for time.Now().Before(deadline) {
+func waitForE2EFile(command *exec.Cmd, waited <-chan error, path string) error {
+	// Readiness includes an intentionally cold project build because each
+	// invocation receives a fresh private GOCACHE and GOMODCACHE. Keep a finite
+	// deadline so a stuck build or runner still fails the process test.
+	timer := time.NewTimer(2 * time.Minute)
+	defer timer.Stop()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for {
 		if _, err := os.Stat(path); err == nil {
-			return
+			return nil
 		} else if !errors.Is(err, fs.ErrNotExist) {
-			t.Fatal(err)
+			return stopE2EProcess(command, waited, fmt.Errorf("inspect readiness file: %w", err))
 		}
-		time.Sleep(20 * time.Millisecond)
+		select {
+		case waitErr := <-waited:
+			return fmt.Errorf("process exited before readiness file: %v", waitErr)
+		case <-timer.C:
+			return stopE2EProcess(command, waited, fmt.Errorf("timed out waiting for %s", path))
+		case <-ticker.C:
+		}
 	}
-	t.Fatalf("timed out waiting for %s", path)
+}
+
+func stopE2EProcess(command *exec.Cmd, waited <-chan error, cause error) error {
+	interruptErr := command.Process.Signal(os.Interrupt)
+	timer := time.NewTimer(10 * time.Second)
+	defer timer.Stop()
+	select {
+	case waitErr := <-waited:
+		return fmt.Errorf("%w; interrupt=%v wait=%v", cause, interruptErr, waitErr)
+	case <-timer.C:
+		killErr := command.Process.Kill()
+		waitErr := <-waited
+		return fmt.Errorf("%w; interrupt=%v kill=%v wait=%v", cause, interruptErr, killErr, waitErr)
+	}
 }
 
 const canonicalE2EDescriptor = "format_version = 1\n\n[project]\npackage = \"./cmd/site\"\n"
