@@ -13,6 +13,8 @@ from django.db.migrations.recorder import MigrationRecorder
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
     DEFAULT_MANIFEST,
+    DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
+    DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE,
     DEFAULT_MIGRATION_LIFECYCLE_MANIFEST,
     DEFAULT_MIGRATION_LIFECYCLE_ORACLE,
     DEFAULT_MIGRATION_EXECUTION_MANIFEST,
@@ -55,6 +57,9 @@ from conformance.runners.django.migration_state_reconstruction_scenarios import 
 )
 from conformance.runners.django.migration_lifecycle_scenarios import (
     SCENARIOS as MIGRATION_LIFECYCLE_SCENARIOS,
+)
+from conformance.runners.django.migration_definition_source_scenarios import (
+    SCENARIOS as MIGRATION_DEFINITION_SOURCE_SCENARIOS,
 )
 from conformance.runners.django.query_cache_scenarios import (
     SCENARIOS as QUERY_CACHE_SCENARIOS,
@@ -149,6 +154,7 @@ class ScenarioTests(unittest.TestCase):
             MIGRATION_RESTART_SCENARIOS,
             MIGRATION_STATE_RECONSTRUCTION_SCENARIOS,
             MIGRATION_LIFECYCLE_SCENARIOS,
+            MIGRATION_DEFINITION_SOURCE_SCENARIOS,
         ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
@@ -170,6 +176,10 @@ class ScenarioTests(unittest.TestCase):
             (
                 DEFAULT_MIGRATION_LIFECYCLE_MANIFEST,
                 MIGRATION_LIFECYCLE_SCENARIOS,
+            ),
+            (
+                DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
+                MIGRATION_DEFINITION_SOURCE_SCENARIOS,
             ),
         )
         selected_across_sets = []
@@ -206,6 +216,7 @@ class ScenarioTests(unittest.TestCase):
             DEFAULT_MIGRATION_RESTART_MANIFEST,
             DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST,
             DEFAULT_MIGRATION_LIFECYCLE_MANIFEST,
+            DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
         ):
             manifest = _load_json(manifest_path)
             self.assertEqual(
@@ -460,6 +471,37 @@ class ScenarioTests(unittest.TestCase):
             [contract["id"] for contract in manifest["contracts"]],
         )
         self.assertEqual(first, DEFAULT_MIGRATION_LIFECYCLE_ORACLE.read_bytes())
+
+    @unittest.skipUnless(
+        os.environ.get("GODJ_EXACT_PROFILE") == "1",
+        "requires the locked darwin/arm64 reference profile",
+    )
+    def test_migration_definition_source_suite_is_byte_deterministic_and_ordered(
+        self,
+    ) -> None:
+        first = canonical_json(
+            generate_suite(
+                DEFAULT_PROFILE,
+                DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
+            )
+        )
+        second = canonical_json(
+            generate_suite(
+                DEFAULT_PROFILE,
+                DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
+            )
+        )
+        self.assertEqual(first, second)
+        manifest = _load_json(DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST)
+        suite = json.loads(first)
+        self.assertEqual(
+            [contract["id"] for contract in suite["contracts"]],
+            [contract["id"] for contract in manifest["contracts"]],
+        )
+        self.assertEqual(
+            first,
+            DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE.read_bytes(),
+        )
 
 
 if __name__ == "__main__":

@@ -669,6 +669,43 @@ func TestRunMatchesReviewedMigrationLifecycleExpectationAndWritesActualOutput(t 
 	}
 }
 
+func TestRunRejectsMigrationDefinitionSourceSetWithoutWritingActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifestPath := filepath.Join(root, "conformance", "contracts", "migration-definition-source-manifest.json")
+	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-definition-source-oracle.json")
+	manifest, err := protocol.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Contracts) != 8 || manifest.Contracts[0].ID != "MIG-057" || manifest.Contracts[7].ID != "MIG-064" {
+		t.Fatalf("migration definition source contracts = %#v", manifest.Contracts)
+	}
+	directory := t.TempDir()
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", oraclePath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", manifest.Contracts[0].Scenario)) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
 func TestRunRejectsMissingRequiredPaths(t *testing.T) {
 	t.Parallel()
 
