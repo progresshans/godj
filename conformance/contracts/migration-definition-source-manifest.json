@@ -7,7 +7,7 @@
       "title": "Explicit documents publish one loader-owned canonical definition snapshot",
       "scenario": "godj.migration.definition_source.canonical_batch",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -34,7 +34,7 @@
       "title": "An empty explicit source publishes the canonical empty definition set",
       "scenario": "godj.migration.definition_source.empty_source",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -49,7 +49,7 @@
       "title": "Equivalent syntax and source permutations retain one digest while operation order remains semantic",
       "scenario": "godj.migration.definition_source.canonical_syntax_and_order",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -64,7 +64,7 @@
       "title": "The complete definition compatibility tuple is checked before semantic decode",
       "scenario": "godj.migration.definition_source.incompatible_tuple",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -79,7 +79,7 @@
       "title": "A malformed document fails the whole batch with canonical source precedence",
       "scenario": "godj.migration.definition_source.malformed_atomic_batch",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -94,7 +94,7 @@
       "title": "Duplicate migration identity is rejected without last-wins publication",
       "scenario": "godj.migration.definition_source.duplicate_identity",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -109,7 +109,7 @@
       "title": "The closed operation codec rejects executable and implicit payloads",
       "scenario": "godj.migration.definition_source.closed_codec",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",
@@ -124,7 +124,7 @@
       "title": "A loaded snapshot reaches the public migration executor exactly once",
       "scenario": "django.migration.definition_source.public_lifecycle_handoff",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "decision",

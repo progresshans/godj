@@ -36,6 +36,9 @@
 - GDJ-0019 hosted evidence / GDJ-0020 activation baseline:
   `eecc75f7507414ad6043a090c97b84080ab0fb8b`
   (`docs: record hosted definition source validation`)
+- GDJ-0020 activation commit:
+  `5942a0bedd6cca7fe93e52d90219a01193c6f534`
+  (`docs: activate migration definition loader product slice`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: GDJ-0020 migration definition loader product slice active; ADR-0020 Proposed
@@ -44,8 +47,9 @@
 - 활성 작업:
   [GDJ-0020 Migration Definition Loader Product Slice](../../work/0020-migration-definition-loader-product-slice.md)
 - ready 작업: 없음
-- activation 상태: exact allowed paths와 completion gates는 생겼지만 아직 product code/status
-  승격/test evidence는 없음. 기존 Draft PR #1 하나에만 후속 commit을 쌓음
+- activation 상태: exact allowed paths 안에서 product code/status와 local evidence를 구현했고
+  independent final review도 clean. 아직 product diff commit/push와 exact-head hosted CI는 전이며,
+  기존 Draft PR #1 하나에만 후속 commit을 쌓음
 
 ## 현재 checkout에서 확인된 사실
 
@@ -87,6 +91,17 @@
 - SQLite default-bearing `AddField`는 table이 empty일 때만 logical default를 보존하면서 physical
   persistent default 없이 허용합니다. Nonempty table은 backfill/rebuild가 없으므로 기존
   `unsupported_operation`으로 거부합니다.
+- 새 leaf package `migrations/definition`은 caller-provided `Source` JSON bytes를 파일 I/O 없이
+  snapshot하고 tuple `(1,1,1,2)`, strict closed codec과 normalized IR을 bounded하게 검증합니다.
+  `Load(...Source)`는 zero `Set`을 canonical empty set으로 정의하고 success/error 모두 value-only
+  `LoadReport`를 반환하며, failure에서 partial definition을 publish하지 않습니다.
+- Loader는 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch 16 MiB, JSON depth 64,
+  per-document values 65,536, aggregate values 262,144, dependencies 2,047, operations 2,048,
+  CreateModel fields 2,048의 exact cap을 적용합니다. Strict scanner는 any-depth duplicate,
+  surrogate/numeric lexeme와 RFC 6901 error order를 bounded lazy path representation으로 처리합니다.
+- `Set` accessor는 raw source bytes를 보존하지 않고 매번 dependency/operation/nested IR까지 fresh
+  deep copy합니다. `Set.Migrate`는 fresh definitions와 caller의 immutable request value를 existing
+  `Executor.Migrate`에 정확히 한 번 전달하며 graph/lifecycle error를 wrap/reclassify하지 않습니다.
 
 ### 오류와 durability 경계
 
@@ -108,25 +123,28 @@
 ### 호환 계약과 machine artifact
 
 - Protocol v2에는 10 ordered reference set, 105 unique contract/scenario와 90 ordered
-  cross-binding이 있습니다. 앞선 9개 set은 GoDj product adapter를 가지며 97 contract의 제품
-  분류는 `92 passing + 5 deviation`입니다. MIG-018/020/022/024는
+  cross-binding이 있습니다. 현재 local product checkout은 10개 set 모두 actual GoDj adapter를
+  가지며 105 contract의 제품 분류는 `100 passing + 5 deviation`입니다. MIG-018/020/022/024는
   [DEV-0001](../DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리),
   MIG-052는
   [DEV-0002](../DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)입니다.
 - Tenth set MIG-057..064는 Django result parity가 아닌 Accepted
   [ADR-0019](../adr/0019-versioned-migration-definition-source.md)의 synthetic GoDj decision oracle입니다.
-  8개 contract는 `oracle_locked`이며 product runner/adapter나 public loader 구현이 아닙니다.
-- Source contract artifact pins는 manifest 5,195 bytes,
-  `8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`; oracle 29,851 bytes,
+  Local manifest/adapter에서는 8개 contract가 `passing`이며 public loader actual로 관찰합니다.
+  이 product diff의 exact-head hosted CI를 통과하기 전에는 GDJ-0020 완료 상태로 승격하지 않습니다.
+- Source contract artifact pins는 status-only manifest 5,147 bytes,
+  `688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`; oracle 29,851 bytes,
   `efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`; static fixture 1,574 bytes,
   `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`; `SHA256SUMS` 959 bytes,
   `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다.
 - Reference registry/test pins는 scenario source 102,128 bytes,
-  `53c52e3dbcd8af13e0307e62738383a01d6f307464332942c5c8ad97b71aad77`; scenario test 68,504 bytes,
-  `b30b5ed338da16388fc354ecc3cdceef7d8ca8948bc41b46e4f840a0e845605a`입니다.
+  `53c52e3dbcd8af13e0307e62738383a01d6f307464332942c5c8ad97b71aad77`; status-only assertion이
+  바뀐 scenario test는 68,498 bytes,
+  `b8237e761caaf98ae050cc9fcb3031ead3f5fb9c40b7ce53ec2dc451012d2ecc`입니다.
 - Static comparison은 exit 1과 MIG-057..064 ordered mismatch 정확히 8개를 유지합니다. Product
-  `godjcheck`는 이 set을 지원하지 않아 exit 2, stdout 0 bytes, actual artifact 없음으로
-  fail-closed합니다.
+  `godjcheck`는 actual loader adapter를 실행해 locked reference oracle과 difference 0으로
+  성공합니다. Django-derived set의 기존 성공 문구는 `locked Django oracle`, synthetic decision
+  set은 `locked reference oracle`로 구분합니다.
 - 기존 9 product set, 97 product contract, prior artifact byte pins와
   `92 passing + 5 deviation`은 변경되지 않았습니다.
 
@@ -140,11 +158,23 @@
   통과했습니다.
 - Portable Python은 164 tests 중 exact-only 15 skipped, exact profile은 164/164 passing입니다.
   Source/operation/IR canonical error matrix는 Go/Python 59/59 exact parity입니다.
+- GDJ-0020 local product diff에서 `make check`, focused normal/race/CGO-disabled/vet/count-20,
+  5초 scanner fuzz 150,235 executions, exact Python 164/164와 모든 conformance/oracle gate가
+  통과했습니다. Linux/386 test binary cross-compile도 통과했으며 실제 32-bit runtime은 exact
+  product head의 Ubuntu hosted job에서 확인 대기 중입니다.
+- 독립 `godjcheck` 두 process actual은 각각 29,631 bytes,
+  `a3f40f9bbee06d4edc4af0a00f40a76da259207995ac20d030101aa2ec3aec87`로 서로 byte-identical이고
+  locked oracle과 protocol difference 0입니다. Go actual JSON과 Python oracle의 raw bytes 동일성은
+  계약이 아닙니다.
+- Independent final code/integration review는 P0/P1/P2/P3 finding 0으로 종료했습니다.
 - GDJ-0019 completion head `4d9a64a0c42406bda931820f7eb38a0f737d117c`는 Draft PR #1
   [run 31302983804](https://github.com/progresshans/godj/actions/runs/31302983804)에서 Ubuntu 24.04
   portable gate와 macOS 15 arm64 exact gate가 모두 통과했습니다. 상세 로그와 checkout 범위는
   [EVID-20260809-020](TEST_EVIDENCE.md#evid-20260809-020--gdj-0019-github-hosted-ubuntu와-darwinarm64-ci)에
   기록했습니다.
+- GDJ-0020 activation commit `5942a0bedd6cca7fe93e52d90219a01193c6f534`도 Draft PR #1
+  run 31305709547에서 Ubuntu/macOS가 통과했습니다. 이 run은 activation 문서만 검증했으므로
+  아직 uncommitted인 product diff의 hosted evidence로 재사용하지 않습니다.
 
 ## 확정된 결정
 
@@ -173,20 +203,23 @@
 - SourceID는 non-empty/unique diagnostic precedence handle이며 migration identity나 digest input이
   아닙니다. Semantic definition-set digest는 trust/revision/history fence가 아닙니다.
 - MIG-057..064는 atomic batch, canonical digest/error와 existing `Executor.Migrate` reference
-  handoff를 synthetic decision oracle로 잠급니다. `conformance/definitionload/**`의 proof는
-  test-only이며 product package가 import하거나 public API를 제공하지 않습니다.
+  handoff를 synthetic decision oracle로 잠급니다. `conformance/definitionload/**`의 independent
+  proof는 계속 test-only이며 product package가 import하지 않습니다. 실제 public API는 별도 leaf
+  package `migrations/definition`에 구현됐습니다.
 - 이 source tuple은 Q-010의 global CLI/library/generator semver handshake 전체를 해결하지
   않습니다. CLI는 product loader 뒤 별도 orchestration으로 다룹니다.
 
 ## Active GDJ-0020 제안 경계
 
-- Activation baseline은
-  `codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`이고
+- Contract baseline은
+  `codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`, activation
+  commit은 `5942a0bedd6cca7fe93e52d90219a01193c6f534`이고
   [active work](../../work/0020-migration-definition-loader-product-slice.md)의 exact allowed paths만
   수정합니다.
-- [Proposed ADR-0020](../adr/0020-migration-definition-loader-product-shape.md)은 새 leaf package
-  `migrations/definition`에 `Source{SourceID,Document}`와
-  `Load(...Source) (Set, LoadReport, error)`를 두고 zero `Set`을 canonical empty set으로 정의합니다.
+- [Proposed ADR-0020](../adr/0020-migration-definition-loader-product-shape.md)의 새 leaf package
+  `migrations/definition`, `Source{SourceID,Document}`와
+  `Load(...Source) (Set, LoadReport, error)`를 local product diff에 구현했습니다. Zero `Set`은
+  canonical empty set입니다.
   Set accessor와 success/error report/failure context는 caller와 alias하지 않는 value/deep-copy
   snapshot이며 raw source document를 보존하지 않습니다.
 - Source-owned error는 9개 code만 사용합니다. Resource breach는 새 code 대신
@@ -209,9 +242,9 @@
   잠급니다. `Set.Migrate`는 fresh deep-copied definitions와 caller-provided immutable request
   value만 existing `Executor.Migrate`에 정확히 한 번 전달합니다. Private request snapshot/validation은
   Executor 내부 소유이며 reflection/core API widening은 금지합니다.
-- Completion 목표는 열 번째 product adapter와 exact 105 contract의
-  `100 passing + 5 deviation`입니다. Activation 시점에는 code/status/test가 바뀌지 않았으므로
-  현재 제품 분류는 계속 `92 passing + 5 deviation + 8 oracle_locked`입니다.
+- Completion 목표인 열 번째 product adapter와 exact 105 contract의
+  `100 passing + 5 deviation`은 local gate에서 충족했습니다. 아직 product commit/push와 exact-head
+  hosted CI가 남아 있어 work/ADR 상태는 active/Proposed를 유지합니다.
 - Oracle/static/SHA, Python reference scenario와 test-only candidate는 immutable입니다. Python의
   유일한 예외는 manifest status assertion을 `oracle_locked`에서 `passing`으로 바꾸는 것입니다.
   Existing Ubuntu job에는 32-bit `max_length` conversion을 검증하는
@@ -220,12 +253,10 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. GDJ-0019 completion head의 local/reference/hosted evidence가 모두
-수집됐고 GDJ-0020은 exact work/Proposed ADR로 activation됐습니다. 다음은 아직 구현하지 않은
-제품 범위입니다.
+외부 blocker는 없습니다. GDJ-0020 product slice는 local 구현/검증과 독립 review가 끝났습니다.
+남은 completion gate는 exact diff commit/push, 같은 Draft PR #1의 Ubuntu/macOS hosted PASS와 최종
+ADR/status/evidence 문서 동기화입니다. 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
-- Accepted migration definition source contract의 product versioned loader/API, 10 numeric resource
-  limits와 structured public error는 active GDJ-0020의 목표이며 아직 미구현
 - Source discovery/public CLI, writer/upgrade/cache는 GDJ-0020 비목표로 계속 미구현
 - Codec v2+, writer/upgrade/cache, executable/custom/data operation과 filesystem/module/remote adapter
 - Existing database adoption/repair와 unknown commit reconciliation
@@ -234,19 +265,18 @@
 
 ## 다음 정확한 작업
 
-다음 통합 담당자는 active GDJ-0020의 Proposed API/limit precedence를 재검토한 뒤 exact allowed
-path의 `migrations/definition/definition_test.go`와 `resource_limits_test.go`를 test-first로
-작성합니다. Existing `migrations/*.go`, backend/DB, Python reference/oracle, test-only candidate,
-FS/CLI는 변경하지 않습니다. Existing Ubuntu CI job에만
-`CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition` focused step을 추가하고 새
-job/Windows/DB matrix는 만들지 않습니다. 새 PR을 만들지 않고 같은 Draft PR #1에 commit을
-쌓으며, 새 head마다 실제 run URL/head/result를 확인하고 이전 run을 새 checkout의 PASS로
-재사용하지 않습니다.
+다음 통합 담당자는 exact product/status diff만 stage해 cached diff/allowed paths를 확인한 뒤
+`feat: add bounded migration definition loader`로 commit하고 같은 Draft PR #1에 push합니다.
+새 head의 Ubuntu 24.04에서 Linux/386 focused runtime을, macOS 15 arm64에서 exact/no-rewrite를
+확인합니다. 두 job이 PASS한 뒤 ADR-0020 Accepted, GDJ-0020 completed,
+IMPLEMENTATION_MATRIX/TEST_EVIDENCE/general docs를 completion commit으로 동기화하고 그 final head도
+같은 PR에서 다시 검증합니다. 새 PR은 만들지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 현재 activation baseline: branch
-  `codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`
+- 현재 product base: branch
+  `codex/revision-fenced-migration-lifecycle@5942a0bedd6cca7fe93e52d90219a01193c6f534`
+  위 uncommitted exact product/status diff
 - 최근 hosted-tested completion 기준:
   `codex/revision-fenced-migration-lifecycle@4d9a64a0c42406bda931820f7eb38a0f737d117c`
 - 최근 완료 work:
@@ -254,16 +284,17 @@ job/Windows/DB matrix는 만들지 않습니다. 새 PR을 만들지 않고 같�
 - active work: [GDJ-0020](../../work/0020-migration-definition-loader-product-slice.md)
 - ready work: 없음
 - current proposal: [ADR-0020](../adr/0020-migration-definition-loader-product-shape.md) Proposed;
-  product implementation/evidence 없음
-- 현재 분류: 10 reference set/105 contract/90 ordered cross-binding; 9 product adapter/97 product
-  contract, `92 passing + 5 deviation + 8 oracle_locked`
+  local product implementation/evidence complete, hosted completion pending
+- 현재 local 분류: 10 reference set/105 contract/90 ordered cross-binding; 10 product adapter/105
+  product contract, `100 passing + 5 deviation`
 - 전체 local gate: `make check`
 - Portable CI equivalent: `make ci`
-- Hosted CI: PR #1 run 31302983804, Ubuntu 24.04와 macOS 15 arm64 모두 PASS
+- Hosted CI: activation head run 31305709547, Ubuntu 24.04와 macOS 15 arm64 모두 PASS;
+  uncommitted product diff의 exact-head run은 아직 없음
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: Active work/Proposed ADR, Accepted JSON/source contract나 MIG-064
-  oracle/test-only proof를 이미 구현된 product loader/Go adapter/file discovery/CLI/adoption/crash
-  recovery 또는 non-SQLite 지원으로 표현하는 것
+- 가장 위험한 과장: local product PASS를 exact-head hosted PASS나 GDJ-0020 completed/ADR Accepted로
+  표현하는 것, 또는 implemented loader/Go adapter를 file discovery/CLI/writer/upgrade/adoption/crash
+  recovery/non-SQLite 지원까지 확장해 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

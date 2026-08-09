@@ -1,5 +1,5 @@
 // Command godjcheck executes a GoDj observation adapter and compares its
-// results with the selected locked Django oracle.
+// results with the selected locked reference oracle.
 package main
 
 import (
@@ -23,7 +23,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	flags.SetOutput(stderr)
 	profilePath := flags.String("profile", "", "path to the locked profile JSON")
 	manifestPath := flags.String("manifest", "", "path to the contract manifest JSON")
-	expectedPath := flags.String("expected", "", "path to the expected Django observation suite JSON")
+	expectedPath := flags.String("expected", "", "path to the expected reference observation suite JSON")
 	deviationExpectedPath := flags.String("deviation-expected", "", "optional path to a reviewed product deviation expectation JSON")
 	actualOutputPath := flags.String("actual-output", "", "optional path for the generated GoDj observation suite JSON")
 	flags.Usage = func() {
@@ -54,7 +54,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		return reportFailure(stderr, err)
 	}
 	if _, err := protocol.Compare(profile, manifest, expected, expected); err != nil {
-		return reportFailure(stderr, fmt.Errorf("locked Django oracle: %w", err))
+		return reportFailure(stderr, fmt.Errorf("locked reference oracle: %w", err))
 	}
 	manifestHasDeviation := false
 	for _, contract := range manifest.Contracts {
@@ -110,7 +110,11 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	}
 	if len(differences) == 0 {
 		if decision == "" {
-			fmt.Fprintf(stdout, "GoDj observations match the locked Django oracle for %d contracts\n", len(manifest.Contracts))
+			if manifestHasDecisionReference(manifest) {
+				fmt.Fprintf(stdout, "GoDj observations match the locked reference oracle for %d contracts\n", len(manifest.Contracts))
+			} else {
+				fmt.Fprintf(stdout, "GoDj observations match the locked Django oracle for %d contracts\n", len(manifest.Contracts))
+			}
 		} else {
 			fmt.Fprintf(stdout, "GoDj observations match the reviewed product expectation for %d contracts under %s\n", len(manifest.Contracts), decision)
 		}
@@ -129,6 +133,25 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	}
 	fmt.Fprintf(stderr, "godjcheck: %d difference(s)\n", len(differences))
 	return 1
+}
+
+func manifestHasDecisionReference(manifest protocol.Manifest) bool {
+	if len(manifest.Contracts) == 0 {
+		return false
+	}
+	for _, contract := range manifest.Contracts {
+		hasDecision := false
+		for _, provenance := range contract.Provenance {
+			if provenance.Kind == "decision" {
+				hasDecision = true
+				break
+			}
+		}
+		if !hasDecision {
+			return false
+		}
+	}
+	return true
 }
 
 func reportFailure(stderr io.Writer, err error) int {

@@ -54,6 +54,12 @@ jobs:
       - name: Run portable conformance validation
         run: make ci
 
+      - name: Validate migration definition loader on 32-bit Linux
+        env:
+          CGO_ENABLED: "0"
+          GOARCH: "386"
+        run: go test -count=1 ./migrations/definition
+
       - name: Verify stored oracle checksum
         working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
         run: sha256sum --check SHA256SUMS

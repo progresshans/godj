@@ -669,7 +669,7 @@ func TestRunMatchesReviewedMigrationLifecycleExpectationAndWritesActualOutput(t 
 	}
 }
 
-func TestRunRejectsMigrationDefinitionSourceSetWithoutWritingActualOutput(t *testing.T) {
+func TestRunAcceptsMigrationDefinitionSourceSetAndWritesMatchingActualOutput(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
@@ -683,7 +683,7 @@ func TestRunRejectsMigrationDefinitionSourceSetWithoutWritingActualOutput(t *tes
 		t.Fatalf("migration definition source contracts = %#v", manifest.Contracts)
 	}
 	directory := t.TempDir()
-	actualPath := filepath.Join(directory, "must-not-exist.json")
+	actualPath := filepath.Join(directory, "actual.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", manifestPath,
@@ -692,17 +692,29 @@ func TestRunRejectsMigrationDefinitionSourceSetWithoutWritingActualOutput(t *tes
 	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
-		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", manifest.Contracts[0].Scenario)) {
-		t.Fatalf("stderr = %q", stderr.String())
+	if !strings.Contains(stdout.String(), "match the locked reference oracle for 8 contracts") {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
-	if stdout.Len() != 0 {
-		t.Fatalf("stdout = %q, want empty", stdout.String())
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
 	}
-	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
-		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatalf("load actual output: %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(oraclePath)
+	if err != nil {
+		t.Fatalf("load expected output: %v", err)
+	}
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if differences, compareErr := protocol.Compare(profile, manifest, expected, actual); compareErr != nil || len(differences) != 0 {
+		t.Fatalf("written migration definition actual differs: differences=%#v error=%v", differences, compareErr)
 	}
 }
 
@@ -879,7 +891,7 @@ func TestRunValidatesLockedReferenceBeforeActualGeneration(t *testing.T) {
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "locked Django oracle") || !strings.Contains(stderr.String(), "phase") {
+	if !strings.Contains(stderr.String(), "locked reference oracle") || !strings.Contains(stderr.String(), "phase") {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {

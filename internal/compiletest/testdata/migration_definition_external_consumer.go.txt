@@ -1,0 +1,77 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
+)
+
+const (
+	definitionFormat = definition.DefinitionFormatVersion
+	loaderABI        = definition.LoaderABIVersion
+	operationCodec   = definition.OperationCodecVersion
+	schemaIR         = definition.SchemaIRVersion
+
+	maxSources                  = definition.MaxSources
+	maxSourceIDBytes            = definition.MaxSourceIDBytes
+	maxDocumentBytes            = definition.MaxDocumentBytes
+	maxBatchBytes               = definition.MaxBatchBytes
+	maxJSONDepth                = definition.MaxJSONDepth
+	maxDocumentJSONValues       = definition.MaxDocumentJSONValues
+	maxJSONValues               = definition.MaxJSONValues
+	maxDependenciesPerMigration = definition.MaxDependenciesPerMigration
+	maxOperationsPerMigration   = definition.MaxOperationsPerMigration
+	maxFieldsPerCreateModel     = definition.MaxFieldsPerCreateModel
+)
+
+var (
+	_ = definition.EmptySetDigest
+	_ = definition.CategorySource
+
+	_ definition.ErrorCode = definition.CodeInvalidSource
+	_ definition.ErrorCode = definition.CodeInvalidDocument
+	_ definition.ErrorCode = definition.CodeDefinitionFormatIncompatible
+	_ definition.ErrorCode = definition.CodeLoaderABIIncompatible
+	_ definition.ErrorCode = definition.CodeOperationCodecIncompatible
+	_ definition.ErrorCode = definition.CodeSchemaIRIncompatible
+	_ definition.ErrorCode = definition.CodeUnsupportedOperation
+	_ definition.ErrorCode = definition.CodeInvalidOperation
+	_ definition.ErrorCode = definition.CodeInvalidIR
+
+	_ func(...definition.Source) (definition.Set, definition.LoadReport, error)                                                = definition.Load
+	_ func(definition.Set, context.Context, migrations.Executor, migrations.LifecycleRequest) (migrations.ProjectState, error) = definition.Set.Migrate
+)
+
+func InspectMigrationDefinitions(sources ...definition.Source) (string, []migrations.Migration, []definition.SourceInfo, definition.LoadReport, error) {
+	set, report, err := definition.Load(sources...)
+	if err != nil {
+		if sourceError, ok := err.(*definition.Error); ok {
+			context := sourceError.Context()
+			_ = context.GraphSources()
+		}
+		if failure, ok := report.Failure(); ok {
+			_ = failure.GraphSources()
+		}
+		return set.Digest(), set.Definitions(), set.Sources(), report, err
+	}
+	return set.Digest(), set.Definitions(), set.Sources(), report, nil
+}
+
+func PublicMigrationDefinitionValues() (definition.Source, definition.Producer, definition.SourceInfo, definition.GraphSource, definition.FailureContext, definition.LoadReport, definition.Error) {
+	key := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	producer := definition.Producer{Name: "example-generator", Version: "1.0.0"}
+	return definition.Source{SourceID: "caller-owned", Document: []byte(`{}`)},
+		producer,
+		definition.SourceInfo{SourceID: "caller-owned", Producer: producer, Migration: key},
+		definition.GraphSource{Migration: key, SourceID: "caller-owned"},
+		definition.FailureContext{
+			Stage: "semantic", SourceID: "caller-owned", JSONPointer: "/migration", App: "news", Name: "0001_initial",
+			OperationIndex: -1, Reason: "invalid_operation", Limit: "", Maximum: 0, Actual: 0,
+		},
+		definition.LoadReport{
+			DocumentsReceived: 1, HeadersValidated: 1, OperationsDecoded: 0, PlannerConstruction: 0,
+			DefinitionsPublished: 0, DefinitionSetsPublished: 0,
+		},
+		definition.Error{Category: definition.CategorySource, Code: definition.CodeInvalidOperation}
+}

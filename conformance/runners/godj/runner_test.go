@@ -1465,6 +1465,376 @@ func TestMigrationPlanningLogicalStateAndGraphFactsAreCanonical(t *testing.T) {
 	}
 }
 
+func TestGenerateMatchesLockedMigrationDefinitionSourceOracle(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationDefinitionSourceInputs(t)
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	differences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatalf("Compare() error = %v", err)
+	}
+	if len(differences) != 0 {
+		for _, difference := range differences {
+			t.Logf("%s %s: %s (expected %s, actual %s)",
+				difference.ContractID,
+				difference.Path,
+				difference.Message,
+				difference.Expected,
+				difference.Actual,
+			)
+		}
+		t.Fatalf("GoDj migration-definition-source suite differs from locked oracle in %d place(s)", len(differences))
+	}
+}
+
+func TestMigrationDefinitionSourceRegistryMatchesManifestScenarios(t *testing.T) {
+	t.Parallel()
+
+	_, manifest, _ := loadMigrationDefinitionSourceInputs(t)
+	if len(migrationDefinitionSourceFixtures) != len(manifest.Contracts) {
+		t.Fatalf(
+			"migration definition source registry has %d scenarios, manifest has %d",
+			len(migrationDefinitionSourceFixtures),
+			len(manifest.Contracts),
+		)
+	}
+	for _, contract := range manifest.Contracts {
+		if _, ok := migrationDefinitionSourceFixtures[contract.Scenario]; !ok {
+			t.Fatalf("migration definition source scenario %q is not registered", contract.Scenario)
+		}
+	}
+}
+
+func TestMigrationDefinitionSourceFixtureUsesArbitraryContractIdentity(t *testing.T) {
+	t.Parallel()
+
+	fixture := migrationDefinitionSourceFixtures["godj.migration.definition_source.canonical_batch"]()
+	const arbitraryContractID = "DEFINITION-SOURCE-PROBE-NOT-A-MANIFEST-ID"
+	observation, err := runMigrationDefinitionSourceFixture(context.Background(), arbitraryContractID, fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observation.ID != arbitraryContractID || observation.Status != protocol.StatusObserved {
+		t.Fatalf(
+			"arbitrary migration definition source identity/status = (%q, %q)",
+			observation.ID,
+			observation.Status,
+		)
+	}
+	if observation.Result == nil || observation.Error != nil {
+		t.Fatalf("arbitrary migration definition source observation = %#v, want successful actual result", observation)
+	}
+}
+
+func TestMigrationDefinitionSourceMutationsProduceProtocolDifferences(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadMigrationDefinitionSourceInputs(t)
+
+	tests := []struct {
+		name                    string
+		scenario                string
+		wantComparisonRejection bool
+		mutate                  func(*migrationDefinitionSourceFixture)
+	}{
+		{
+			name:     "source",
+			scenario: "godj.migration.definition_source.canonical_batch",
+			mutate: func(fixture *migrationDefinitionSourceFixture) {
+				index := migrationDefinitionFixtureSourceIndex(t, fixture, "opaque-z-root")
+				fixture.sources[index].SourceID = "opaque-y-root-mutated"
+			},
+		},
+		{
+			name:                    "compatibility header",
+			scenario:                "godj.migration.definition_source.canonical_batch",
+			wantComparisonRejection: true,
+			mutate: func(fixture *migrationDefinitionSourceFixture) {
+				migrationDefinitionMutateFixtureDocument(t, fixture, "opaque-z-root", func(document map[string]any) {
+					document["compatibility"].(map[string]any)["definition_format"] = float64(2)
+				})
+			},
+		},
+		{
+			name:     "operation",
+			scenario: "godj.migration.definition_source.canonical_batch",
+			mutate: func(fixture *migrationDefinitionSourceFixture) {
+				migrationDefinitionMutateFixtureDocument(t, fixture, "opaque-z-root", func(document map[string]any) {
+					model := document["migration"].(map[string]any)["operations"].([]any)[0].(map[string]any)["model"].(map[string]any)
+					model["fields"].([]any)[1].(map[string]any)["default"].(map[string]any)["string"] = "mutated-title"
+				})
+			},
+		},
+		{
+			name:     "graph",
+			scenario: "godj.migration.definition_source.canonical_batch",
+			mutate: func(fixture *migrationDefinitionSourceFixture) {
+				migrationDefinitionMutateFixtureDocument(t, fixture, "opaque-a-tail", func(document map[string]any) {
+					document["migration"].(map[string]any)["dependencies"] = []any{}
+				})
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			contractIndex := -1
+			for index, contract := range manifest.Contracts {
+				if contract.Scenario == test.scenario {
+					contractIndex = index
+					break
+				}
+			}
+			if contractIndex < 0 {
+				t.Fatalf("migration definition source scenario %q is missing from manifest", test.scenario)
+			}
+			contract := manifest.Contracts[contractIndex]
+			fixture := migrationDefinitionSourceFixtures[test.scenario]()
+			test.mutate(&fixture)
+			changed, err := runMigrationDefinitionSourceFixture(context.Background(), contract.ID, fixture)
+			if err != nil {
+				t.Fatalf("run mutated migration definition source fixture: %v", err)
+			}
+			actual := expected
+			actual.Contracts = append([]protocol.Observation(nil), expected.Contracts...)
+			actual.Contracts[contractIndex] = changed
+			differences, err := protocol.Compare(profile, manifest, expected, actual)
+			if test.wantComparisonRejection {
+				if err == nil {
+					t.Fatalf("%s mutation changed a success payload into an error but protocol.Compare accepted it with differences %#v", test.name, differences)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Compare() mutation error = %v", err)
+			}
+			if len(differences) == 0 {
+				t.Fatalf("%s mutation did not change the actual product observation", test.name)
+			}
+		})
+	}
+}
+
+func TestMigrationDefinitionSourceAdapterHasNoOracleOrTestCandidateShortcut(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_definition_source_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	for _, forbidden := range []string{
+		"MIG-",
+		"sha256:",
+		"migration-definition-source-oracle",
+		"godj-migration-definition-source-not-implemented",
+		"conformance/definitionload",
+		"candidate_test",
+		"switch contractID",
+		"if contractID",
+		"protocol.Compare",
+		"protocol.LoadManifest",
+		"protocol.LoadObservationSuite",
+		"json.Unmarshal",
+		"json.NewDecoder",
+		"migrations.NewPlanner",
+		"os.ReadFile",
+		"os.Open(",
+		"os.OpenFile",
+		"ioutil.ReadFile",
+		"io.ReadAll",
+		"handoffCalls++",
+		"handoffCalls := 1",
+	} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("migration definition source adapter contains forbidden shortcut %q", forbidden)
+		}
+	}
+	if got := strings.Count(text, "definition.Load("); got < 5 {
+		t.Fatalf("migration definition source adapter Load call sites = %d, want actual product loading paths", got)
+	}
+	if got := strings.Count(text, ".Migrate("); got != 1 {
+		t.Fatalf("migration definition source adapter Set.Migrate call sites = %d, want exactly one", got)
+	}
+
+	fileSet := token.NewFileSet()
+	parsed, err := parser.ParseFile(fileSet, "migration_definition_source_scenarios.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forbiddenCalls := map[string]bool{
+		"LoadManifest":         true,
+		"LoadObservationSuite": true,
+		"ReadFile":             true,
+		"ReadAll":              true,
+		"Unmarshal":            true,
+	}
+	ast.Inspect(parsed, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || !forbiddenCalls[selector.Sel.Name] {
+			return true
+		}
+		t.Errorf("migration definition source adapter contains forbidden file/artifact decode call %s", selector.Sel.Name)
+		return true
+	})
+}
+
+func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(t *testing.T) {
+	t.Parallel()
+
+	source, err := os.ReadFile("migration_definition_source_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fileSet := token.NewFileSet()
+	parsed, err := parser.ParseFile(fileSet, "migration_definition_source_scenarios.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foundFunction := false
+	setMigrateCalls := 0
+	returnedStateCaptures := 0
+	probeCounterReads := 0
+	for _, declaration := range parsed.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Name.Name != "migrationDefinitionLifecycleObservation" {
+			continue
+		}
+		foundFunction = true
+		ast.Inspect(function.Body, func(node ast.Node) bool {
+			assignment, ok := node.(*ast.AssignStmt)
+			if !ok || len(assignment.Rhs) != 1 {
+				return true
+			}
+			if selector, ok := assignment.Rhs[0].(*ast.SelectorExpr); ok {
+				receiver, receiverOK := selector.X.(*ast.Ident)
+				if receiverOK && receiver.Name == "probe" && selector.Sel.Name == "sessionOpenCalls" &&
+					len(assignment.Lhs) == 1 {
+					left, leftOK := assignment.Lhs[0].(*ast.Ident)
+					if leftOK && left.Name == "handoffCalls" {
+						probeCounterReads++
+					}
+				}
+				return true
+			}
+			call, ok := assignment.Rhs[0].(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			selector, ok := call.Fun.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "Migrate" {
+				return true
+			}
+			receiver, ok := selector.X.(*ast.Ident)
+			if !ok || receiver.Name != "set" {
+				return true
+			}
+			setMigrateCalls++
+			if len(assignment.Lhs) >= 1 {
+				left, ok := assignment.Lhs[0].(*ast.Ident)
+				if ok && left.Name == "returnedState" {
+					returnedStateCaptures++
+				}
+			}
+			if len(call.Args) != 3 {
+				t.Errorf("Set.Migrate arguments = %d, want context, instrumented executor, request", len(call.Args))
+				return true
+			}
+			executor, ok := call.Args[1].(*ast.CompositeLit)
+			if !ok || len(executor.Elts) != 1 {
+				t.Error("Set.Migrate does not receive one explicit instrumented Executor backend")
+				return true
+			}
+			binding, ok := executor.Elts[0].(*ast.KeyValueExpr)
+			if !ok {
+				t.Error("Set.Migrate Executor backend is not an explicit keyed binding")
+				return true
+			}
+			key, keyOK := binding.Key.(*ast.Ident)
+			value, valueOK := binding.Value.(*ast.Ident)
+			if !keyOK || !valueOK || key.Name != "Backend" || value.Name != "probe" {
+				t.Errorf("Set.Migrate Executor binding = %#v, want Backend: probe", binding)
+			}
+			return true
+		})
+	}
+	if !foundFunction {
+		t.Fatal("migrationDefinitionLifecycleObservation function is missing")
+	}
+	if setMigrateCalls != 1 || returnedStateCaptures != 1 {
+		t.Fatalf(
+			"actual Set.Migrate handoff/captured state = (%d, %d), want exactly (1, 1)",
+			setMigrateCalls,
+			returnedStateCaptures,
+		)
+	}
+	if probeCounterReads != 1 {
+		t.Fatalf("handoff_calls instrumented session-open reads = %d, want exactly one", probeCounterReads)
+	}
+	text := string(source)
+	if strings.Count(text, "migrationDefinitionTransitionValues(probe.transitions)") != 1 ||
+		strings.Count(text, "len(probe.transitions)") != 1 ||
+		strings.Count(text, "migrationDefinitionProjectStateValue(returnedState)") != 1 {
+		t.Fatal("lifecycle result/metrics do not flow from instrumented transitions and actual returned state")
+	}
+}
+
+func TestMigrationDefinitionSourceUnknownScenarioFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	_, err := migrationDefinitionSourceScenario(context.Background(), protocol.Contract{
+		ID:       "DEFINITION-SOURCE-UNKNOWN-PROBE",
+		Scenario: "godj.migration.definition_source.unknown_sentinel",
+	})
+	if err == nil || !strings.Contains(err.Error(), `unsupported migration definition source scenario "godj.migration.definition_source.unknown_sentinel"`) {
+		t.Fatalf("migrationDefinitionSourceScenario() error = %v", err)
+	}
+}
+
+func migrationDefinitionFixtureSourceIndex(
+	t *testing.T,
+	fixture *migrationDefinitionSourceFixture,
+	sourceID string,
+) int {
+	t.Helper()
+	for index := range fixture.sources {
+		if fixture.sources[index].SourceID == sourceID {
+			return index
+		}
+	}
+	t.Fatalf("migration definition fixture source %q is missing", sourceID)
+	return -1
+}
+
+func migrationDefinitionMutateFixtureDocument(
+	t *testing.T,
+	fixture *migrationDefinitionSourceFixture,
+	sourceID string,
+	mutate func(map[string]any),
+) {
+	t.Helper()
+	index := migrationDefinitionFixtureSourceIndex(t, fixture, sourceID)
+	var document map[string]any
+	if err := json.Unmarshal(fixture.sources[index].Document, &document); err != nil {
+		t.Fatalf("decode migration definition fixture %q: %v", sourceID, err)
+	}
+	mutate(document)
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		t.Fatalf("encode migration definition fixture %q: %v", sourceID, err)
+	}
+	fixture.sources[index].Document = encoded
+}
+
 func TestQueryCacheMetricsAreDerivedFromCaptureWindowQueryerCalls(t *testing.T) {
 	t.Parallel()
 
@@ -1825,6 +2195,28 @@ func loadMigrationLifecycleInputs(t *testing.T) (
 		t.Fatalf("LoadDeviationExpectation() error = %v", err)
 	}
 	return profile, manifest, oracle, expectation
+}
+
+func loadMigrationDefinitionSourceInputs(t *testing.T) (
+	protocol.Profile,
+	protocol.Manifest,
+	protocol.ObservationSuite,
+) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-definition-source-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "migration-definition-source-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
 }
 
 func findObservation(t *testing.T, suite protocol.ObservationSuite, contractID string) protocol.Observation {

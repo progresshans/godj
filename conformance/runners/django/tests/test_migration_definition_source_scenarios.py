@@ -175,7 +175,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         )
         for contract in manifest["contracts"]:
             with self.subTest(contract=contract["id"]):
-                self.assertEqual(contract["status"], "oracle_locked")
+                self.assertEqual(contract["status"], "passing")
                 self.assertIn(
                     {
                         "kind": "decision",

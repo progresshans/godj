@@ -15,7 +15,7 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]string{
-		"conformance/contracts/migration-definition-source-manifest.json":                            "8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6",
+		"conformance/contracts/migration-definition-source-manifest.json":                            "688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488",
 		"conformance/fixtures/godj-migration-definition-source-not-implemented.json":                 "41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json": "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f",
 	}
@@ -86,8 +86,8 @@ func TestMigrationDefinitionSourceArtifactBoundaryIsLocked(t *testing.T) {
 		if contract.ID != wantID {
 			t.Fatalf("contract %d ID = %q, want %q", index, contract.ID, wantID)
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		if contract.Status != ContractPassing {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		if contract.Phase != wantPhases[index] {
 			t.Fatalf("contract %s phase = %q, want %q", contract.ID, contract.Phase, wantPhases[index])
@@ -408,7 +408,7 @@ func TestTenReferenceSetsHave105UniqueContractsAndReject90OrderedCrossBindings(t
 	}
 }
 
-func TestMigrationDefinitionSourceStaysOutOfNineAdapterProductTarget(t *testing.T) {
+func TestMigrationDefinitionSourceEntersTenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -432,11 +432,11 @@ func TestMigrationDefinitionSourceStaysOutOfNineAdapterProductTarget(t *testing.
 	if got := strings.Count(referenceTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 2 {
 		t.Fatalf("reference conformance migration-definition-source manifest count = %d, want 2", got)
 	}
-	if strings.Contains(productTarget, "MIGRATION_DEFINITION_SOURCE") {
-		t.Fatal("migration-definition-source unexpectedly entered godj-conformance product target")
+	if got := strings.Count(productTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
+		t.Fatalf("product conformance migration-definition-source manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 9 {
-		t.Fatalf("godj-conformance adapter count = %d, want 9", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 10 {
+		t.Fatalf("godj-conformance adapter count = %d, want 10", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-definition-source manifest count = %d, want 1", got)

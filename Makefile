@@ -136,6 +136,9 @@ godj-conformance:
 		-profile $(PROFILE) -manifest $(MIGRATION_LIFECYCLE_MANIFEST) \
 		-expected $(MIGRATION_LIFECYCLE_ORACLE) \
 		-deviation-expected $(MIGRATION_LIFECYCLE_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_DEFINITION_SOURCE_MANIFEST) \
+		-expected $(MIGRATION_DEFINITION_SOURCE_ORACLE)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

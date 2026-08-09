@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -167,6 +167,7 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 		{from: modulePath + "/codegen", to: modulePath + "/examples/article/models"},
 		{from: modulePath + "/examples/article/models", to: modulePath + "/codegen"},
 		{from: modulePath + "/internal/cmd/m1generate", to: modulePath + "/examples/article/models"},
+		{from: modulePath + "/migrations", to: modulePath + "/migrations/definition"},
 	}
 
 	packages := make([]string, 0, len(forbidden))

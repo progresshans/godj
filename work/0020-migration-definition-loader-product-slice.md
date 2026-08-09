@@ -6,7 +6,7 @@ baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "eecc75f7507414ad6043a090c97b84080ab0fb8b"
 depends_on: ["GDJ-0019"]
 contracts: ["MIG-057..MIG-064", "Q-010", "Q-012"]
-allowed_paths: ["Makefile", ".github/workflows/ci.yml", "migrations/definition/definition.go", "migrations/definition/load.go", "migrations/definition/error.go", "migrations/definition/limits.go", "migrations/definition/json.go", "migrations/definition/codec.go", "migrations/definition/ir.go", "migrations/definition/digest.go", "migrations/definition/definition_test.go", "migrations/definition/resource_limits_test.go", "migrations/definition/external_test.go", "internal/compiletest/compile_test.go", "internal/compiletest/testdata/migration_definition_external_consumer.go.txt", "conformance/contracts/migration-definition-source-manifest.json", "conformance/definitionload/product_equivalence_test.go", "conformance/runners/godj/migration_definition_source_scenarios.go", "conformance/runners/godj/runner.go", "conformance/runners/godj/runner_test.go", "conformance/cmd/godjcheck/main_test.go", "conformance/internal/protocol/migration_definition_source_artifacts_test.go", "conformance/internal/protocol/migration_state_reconstruction_artifacts_test.go", "conformance/internal/protocol/migration_lifecycle_artifacts_test.go", "conformance/internal/protocol/write_migration_artifacts_test.go", "conformance/runners/django/tests/test_migration_definition_source_scenarios.py", "conformance/README.md", "docs/ARCHITECTURE.md", "docs/COMPATIBILITY.md", "docs/OPEN_QUESTIONS.md", "docs/ROADMAP.md", "docs/TESTING.md", "docs/adr/0020-migration-definition-loader-product-shape.md", "docs/adr/README.md", "docs/status/CURRENT.md", "docs/status/IMPLEMENTATION_MATRIX.md", "docs/status/TEST_EVIDENCE.md", "work/0020-migration-definition-loader-product-slice.md", "work/README.md"]
+allowed_paths: ["Makefile", ".github/workflows/ci.yml", "migrations/definition/definition.go", "migrations/definition/load.go", "migrations/definition/error.go", "migrations/definition/limits.go", "migrations/definition/json.go", "migrations/definition/codec.go", "migrations/definition/ir.go", "migrations/definition/digest.go", "migrations/definition/definition_test.go", "migrations/definition/resource_limits_test.go", "migrations/definition/external_test.go", "internal/compiletest/compile_test.go", "internal/compiletest/testdata/migration_definition_external_consumer.go.txt", "conformance/contracts/migration-definition-source-manifest.json", "conformance/definitionload/product_equivalence_test.go", "conformance/runners/godj/migration_definition_source_scenarios.go", "conformance/runners/godj/runner.go", "conformance/runners/godj/runner_test.go", "conformance/cmd/godjcheck/main.go", "conformance/cmd/godjcheck/main_test.go", "conformance/internal/protocol/migration_definition_source_artifacts_test.go", "conformance/internal/protocol/migration_state_reconstruction_artifacts_test.go", "conformance/internal/protocol/migration_lifecycle_artifacts_test.go", "conformance/internal/protocol/write_migration_artifacts_test.go", "conformance/runners/django/tests/test_migration_definition_source_scenarios.py", "conformance/README.md", "docs/ARCHITECTURE.md", "docs/COMPATIBILITY.md", "docs/OPEN_QUESTIONS.md", "docs/ROADMAP.md", "docs/TESTING.md", "docs/adr/0020-migration-definition-loader-product-shape.md", "docs/adr/README.md", "docs/status/CURRENT.md", "docs/status/IMPLEMENTATION_MATRIX.md", "docs/status/TEST_EVIDENCE.md", "work/0020-migration-definition-loader-product-slice.md", "work/README.md"]
 integration_owner: "one primary agent"
 ---
 
@@ -118,9 +118,10 @@ ordered mismatch 8개를 계속 내야 합니다.
 
 False-green test는 valid fixture에서 source identity/inventory, compatibility header, ordered
 operation payload와 graph identity/dependency를 각각 하나씩 mutate해야 합니다. 네 mutation 모두
-actual observation을 바꾸고 checked-in oracle에 대한 `protocol.Compare`의 non-empty diff를
-만들어야 합니다. Adapter가 expected/oracle `Value`를 반환하거나 mutation 뒤에도 comparison이
-green이면 completion 실패입니다.
+actual observation을 바꿔야 합니다. Result-valued contract를 error-valued observation으로 바꾸는
+incompatible compatibility mutation은 checked-in manifest/oracle에 대한 `protocol.Compare`의 shape
+validation rejection을, 나머지는 non-empty diff를 만들어야 합니다. Adapter가 expected/oracle
+`Value`를 반환하거나 mutation 뒤에도 comparison이 green이면 completion 실패입니다.
 
 ## Proposed public API
 
@@ -469,40 +470,43 @@ loader ABI/contract를 명시적으로 갱신하기 전까지 새 IR 값을 wire
    Existing `scope_test.go`의 candidate direct `Migrate`/`migrations.NewPlanner` callsite 1/1 lock을
    보존하기 위해 이 새 file은 `.Migrate`나 `migrations.NewPlanner`를 직접 호출하지 않습니다.
    Lifecycle parity는 definition product test와 actual GoDj runner가 소유합니다.
-7. MIG-057..064 GoDj runner/godjcheck를 연결하고 manifest status assertion만 승격합니다.
+7. MIG-057..064 GoDj runner/godjcheck를 연결하고 manifest status assertion만 승격합니다. Decision
+   provenance set의 성공 출력은 Django 결과 호환이라고 과장하지 않고 locked reference oracle로
+   구분합니다.
 8. Full local/race/CGO-disabled/static gate와 같은 Draft PR #1의 Ubuntu/macOS hosted CI를 수집합니다.
 9. ADR acceptance와 status/matrix/evidence를 실제 결과에 맞춰 완료합니다.
 
 ## 완료 조건
 
-- [ ] Proposed API가 external consumer에서 compile되고 zero `Set`이 canonical empty set으로 동작
-- [ ] Caller/source/accessor mutation, repeated/concurrent read와 race test에서 alias/race 없음
-- [ ] Source `Error`가 정확히 9 code만 사용하고 success/error report context가 immutable
-- [ ] Error.Context/LoadReport.Failure equality, non-limit zero fields와 limit/graph scalar mapping이
+- [x] Proposed API가 external consumer에서 compile되고 zero `Set`이 canonical empty set으로 동작
+- [x] Caller/source/accessor mutation, repeated/concurrent read와 race test에서 alias/race 없음
+- [x] Source `Error`가 정확히 9 code만 사용하고 success/error report context가 immutable
+- [x] Error.Context/LoadReport.Failure equality, non-limit zero fields와 limit/graph scalar mapping이
   exact contract와 일치
-- [ ] Raw `PlanningError`와 raw lifecycle error identity/`errors.As` 의미 보존
-- [ ] 10 limits 각각 maximum-1/equal/+1, overflow-safe sum, combined precedence 통과
-- [ ] Compatibility-before-semantic-cap, valid-container-before-child와 undecidable-type gate 통과
-- [ ] Schema IR literal 2, two-way compile drift assertion과 digest pins 통과
-- [ ] Load당 private injected planner-validator count 1, non-test product AST direct `migrations.NewPlanner`
+- [x] Raw `PlanningError`와 raw lifecycle error identity/`errors.As` 의미 보존
+- [x] 10 limits 각각 maximum-1/equal/+1, overflow-safe sum, combined precedence 통과
+- [x] Compatibility-before-semantic-cap, valid-container-before-child와 undecidable-type gate 통과
+- [x] Schema IR literal 2, two-way compile drift assertion과 digest pins 통과
+- [x] Load당 private injected planner-validator count 1, non-test product AST direct `migrations.NewPlanner`
   callsite exactly 1, report `PlannerConstruction=1`이 독립적으로 일치
-- [ ] Non-test product AST direct `executor.Migrate` callsite exactly 1과 actual handoff counter 1;
+- [x] Non-test product AST direct `executor.Migrate` callsite exactly 1과 actual handoff counter 1;
   request snapshot/validation은 existing Executor 내부 소유
-- [ ] MIG-057..064가 8 `passing`; exact 10 adapter/105 contract=`100 passing + 5 deviation`
-- [ ] Current adapter/aggregate gate만 10/`100+5`로 전환하고 historical 8-set `83+4`, 9-set
+- [x] MIG-057..064가 8 `passing`; exact 10 adapter/105 contract=`100 passing + 5 deviation`
+- [x] Current adapter/aggregate gate만 10/`100+5`로 전환하고 historical 8-set `83+4`, 9-set
   `92+5` assertions와 이전 9-set artifact pins는 보존; definition-source manifest hash pin은
   status-only 새 bytes에 맞춰 갱신
-- [ ] Adapter result/report/handoff field가 actual Set/LoadReport/Set.Migrate에서만 생성되고 expected
+- [x] Adapter result/report/handoff field가 actual Set/LoadReport/Set.Migrate에서만 생성되고 expected
   constant를 사용하지 않음
-- [ ] Source/header/operation/graph fixture mutation 각각 observation 변화 + `protocol.Compare` diff 유발
-- [ ] Strict scanner/numeric/canonical escaping matrix와 nested Default/accessor mutation이 product
+- [x] Source/header/operation/graph valid-fixture mutation 각각 observation 변화 + `protocol.Compare`
+  diff 또는 success/error shape rejection 유발
+- [x] Strict scanner/numeric/canonical escaping matrix와 nested Default/accessor mutation이 product
   unit + product-equivalence에서 통과
-- [ ] `conformance/definitionload/product_equivalence_test.go`는 direct `.Migrate`/`NewPlanner` call 0,
+- [x] `conformance/definitionload/product_equivalence_test.go`는 direct `.Migrate`/`NewPlanner` call 0,
   기존 `scope_test.go` candidate count 1/1 보존
-- [ ] Oracle/static/SHA pins와 이전 9 product artifacts/deviation bytes 불변
-- [ ] Static not-implemented comparison이 ordered mismatch 8개 유지
-- [ ] `gofmt`, external compile, `go test`, `go vet`, race, CGO-disabled와 `make check` 통과
-- [ ] Portable/exact Python에서 status-only exception을 제외한 reference behavior 불변
+- [x] Oracle/static/SHA pins와 이전 9 product artifacts/deviation bytes 불변
+- [x] Static not-implemented comparison이 ordered mismatch 8개 유지
+- [x] `gofmt`, external compile, `go test`, `go vet`, race, CGO-disabled와 `make check` 통과
+- [x] Portable/exact Python에서 status-only exception을 제외한 reference behavior 불변
 - [ ] Existing Ubuntu job에서
   `CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition` 통과; `max_length`의
   platform `int` conversion을 실제 32-bit runtime에서 검증
@@ -515,15 +519,33 @@ loader ABI/contract를 명시적으로 갱신하기 전까지 새 IR 값을 wire
 - [x] Baseline `eecc75f7507414ad6043a090c97b84080ab0fb8b`와 clean checkout 확인
 - [x] Public shape, error ownership, bounded scanner/10 limits와 acceptance gate 설계
 - [x] GDJ-0020 work/Proposed ADR activation 문서 작성
-- [ ] 제품 구현
-- [ ] local/conformance/race 검증
+- [x] 제품 구현
+- [x] local/conformance/race 검증
 - [ ] hosted CI와 completion 문서
 
 ## 수정 파일
 
-Activation 변경은 이 work, ADR-0020, 두 index, CURRENT, ROADMAP, OPEN_QUESTIONS의 정확히 7개
-문서뿐입니다. 제품 구현 단계에서는 frontmatter `allowed_paths`의 exact file만 수정하고 실제
-변경/역할을 이 절에 누적합니다. 범위 밖 변경은 사용자/다른 agent 소유로 보존합니다.
+Activation commit `5942a0bedd6cca7fe93e52d90219a01193c6f534`는 이 work, ADR-0020,
+두 index, CURRENT, ROADMAP, OPEN_QUESTIONS의 정확히 7개 문서만 변경했습니다. 현재 product
+completion diff는 다음 exact allowed path로 제한합니다.
+
+- 제품 loader: `migrations/definition/{definition,load,error,limits,json,codec,ir,digest}.go`
+- 제품 loader 검증: `migrations/definition/{definition_test,resource_limits_test,external_test}.go`
+- 외부 consumer compile gate: `internal/compiletest/compile_test.go`,
+  `internal/compiletest/testdata/migration_definition_external_consumer.go.txt`
+- 제품 adapter: `conformance/runners/godj/{migration_definition_source_scenarios,runner,runner_test}.go`
+- independent product equivalence:
+  `conformance/definitionload/product_equivalence_test.go`
+- product aggregation/CLI gate: `Makefile`, `conformance/cmd/godjcheck/{main,main_test}.go`,
+  `conformance/internal/protocol/{migration_definition_source_artifacts_test,migration_lifecycle_artifacts_test,migration_state_reconstruction_artifacts_test,write_migration_artifacts_test}.go`
+- status-only artifact change:
+  `conformance/contracts/migration-definition-source-manifest.json`,
+  `conformance/runners/django/tests/test_migration_definition_source_scenarios.py`
+- hosted 32-bit gate: `.github/workflows/ci.yml`
+- active handoff: 이 work와 `docs/status/CURRENT.md`
+
+Oracle/static/SHA, Python reference scenario, test-only candidate와 기존 migration/backend/DB 제품
+코드는 변경하지 않았습니다. 범위 밖 변경은 사용자/다른 agent 소유로 보존합니다.
 
 ## 결정된 사항
 
@@ -535,6 +557,13 @@ Activation 변경은 이 work, ADR-0020, 두 index, CURRENT, ROADMAP, OPEN_QUEST
 - 2026-08-09: Existing Ubuntu job에만 CGO-disabled GOARCH=386 definition package focused test를
   추가하고 새 job/Windows/DB matrix는 만들지 않습니다.
 - 2026-08-09: 기존 Draft PR #1 하나만 사용하며 새 PR은 만들지 않습니다.
+- 2026-08-09: Strict scanner의 RFC 6901 failure path는 lazy node/escaped-byte comparator로
+  선택하고 최종 winner만 문자열화합니다. 1 MiB 이하 입력에서도 긴 ancestor와 다수 candidate가
+  pointer 문자열을 곱셈 할당하지 않도록 adversarial fan-out과 8,281 ordered comparison을
+  고정합니다.
+- 2026-08-09: MIG-057..064는 Django result parity가 아닌 Accepted ADR-0019 decision set이므로
+  `godjcheck` 성공 문구를 `locked reference oracle`로 구분합니다. Django-derived set의 기존
+  `locked Django oracle` 문구는 보존합니다.
 
 ## 미결정/Blocker
 
@@ -544,10 +573,33 @@ Activation 변경은 이 work, ADR-0020, 두 index, CURRENT, ROADMAP, OPEN_QUEST
 
 ## 테스트 증거
 
-- Evidence ID: activation 전용; 아직 제품 evidence 없음
-- Command: `git rev-parse HEAD`, `git status --short`, 문서 frontmatter/link/diff 검증
-- Result: baseline/clean과 exact 7-file activation 범위를 확인
-- Not run: 제품 코드가 없으므로 Go/Python/conformance/race/hosted CI는 activation 결과로 주장하지 않음
+- Checkout: activation commit
+  `5942a0bedd6cca7fe93e52d90219a01193c6f534` 위 exact product diff
+- `make check`: PASS. Full Go test/vet/race, portable Python, oracle/checksum/no-rewrite와 product
+  conformance gate를 함께 통과했습니다.
+- Focused normal/race/CGO-disabled/vet:
+  `./migrations/definition`, `./conformance/definitionload`,
+  `./conformance/runners/godj`, `./conformance/internal/protocol`,
+  `./conformance/cmd/godjcheck` 모두 PASS.
+- Repetition: definition/product-equivalence count 20 PASS.
+- `go test ./migrations/definition -run '^$' -fuzz FuzzStrictScannerViaLoadNeverPanics -fuzztime=5s`:
+  PASS, 150,235 executions. 독립 final review의 10초 run도 약 133,000 executions에서 PASS했습니다.
+- `CGO_ENABLED=0 GOOS=linux GOARCH=386 go test -c ./migrations/definition`: PASS, ELF 32-bit
+  test binary 생성. 실제 32-bit runtime 실행은 같은 Draft PR의 Ubuntu job에서 확인 대기 중입니다.
+- `make conformance-check`, `make godj-conformance`, `make python-test`,
+  `make python-test-exact`, `make oracle-check`: PASS. Exact Python은 164/164입니다.
+- 독립 `godjcheck` 두 process actual은 각각 29,631 bytes,
+  `a3f40f9bbee06d4edc4af0a00f40a76da259207995ac20d030101aa2ec3aec87`이며 서로 byte-identical,
+  locked oracle과 protocol difference 0입니다. Go actual JSON 자체와 Python oracle bytes의
+  동일성은 계약이 아니며 주장하지 않습니다.
+- Manifest는 status-only 5,147 bytes,
+  `688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`로 바뀌었습니다.
+  Oracle 29,851 bytes `efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`,
+  static fixture 1,574 bytes `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`,
+  `SHA256SUMS`는 불변입니다.
+- Independent final code review와 integration review는 P0/P1/P2/P3 finding 0으로 종료했습니다.
+- Not run yet: exact product commit head의 GitHub-hosted Ubuntu/macOS jobs. Activation commit의
+  hosted PASS를 product head 증거로 재사용하지 않습니다.
 
 ## 위험과 rollback
 
@@ -561,16 +613,23 @@ Activation 변경은 이 work, ADR-0020, 두 index, CURRENT, ROADMAP, OPEN_QUEST
 
 ## 다음 정확한 작업
 
-통합 담당자는 먼저 이 work와 Proposed ADR-0020의 public surface/limit precedence를 재검토한 뒤
-`migrations/definition/definition_test.go`와 `resource_limits_test.go`를 test-first로 작성합니다.
-`max_length`의 signed-int64 wire domain에서 host `int`로 내려가는 경계는 local compile만으로
-대체하지 말고 existing Ubuntu job의 `CGO_ENABLED=0 GOARCH=386` focused test로 실행합니다. 그 후
-exact allowed path diff를 매 단계 확인하고, 다른 product/root/DB/Python reference/FS/CLI
-경로가 필요해지면 구현을 멈추고 work/ADR scope를 다시 검토합니다.
+통합 담당자는 exact product/status diff만 stage해 cached diff와 allowed-path 범위를 확인한 뒤
+`feat: add bounded migration definition loader`로 commit하고 기존 Draft PR #1의 같은 branch에
+push합니다. 새 head의 Ubuntu 24.04 job에서 CGO-disabled Linux/386 runtime gate를, macOS 15 arm64
+job에서 exact profile/no-rewrite를 확인합니다. 실패하면 같은 PR에 수정 commit을 추가합니다.
+
+두 hosted job이 exact product head에서 PASS한 뒤에만 ADR-0020 Accepted, GDJ-0020 completed,
+IMPLEMENTATION_MATRIX/TEST_EVIDENCE/general docs와 final classification을 completion commit으로
+정리합니다. 그 completion head도 같은 PR에서 다시 CI를 통과해야 합니다.
 
 ## 결과와 인수인계
 
-GDJ-0020은 activation됐지만 제품 기능은 아직 미구현입니다. Baseline은 `eecc75f...`, active work는
-이 문서 하나, ADR-0020은 Proposed입니다. 제품 완료 전에는 MIG-057..064를 passing이나 loader
-지원으로 표현하지 않습니다. 같은 Draft PR #1에서 bounded product commit과 exact-head CI evidence를
-추가하고, 완료 시 실제 변경 파일/명령/제한을 이 문서에 갱신합니다.
+GDJ-0020 제품 코드는 activation commit `5942a0b...` 위 로컬 checkout에서 구현·검증됐습니다.
+새 bounded leaf loader, exact 10 limits, atomic Set/LoadReport, raw graph/lifecycle handoff와 열 번째
+actual-data GoDj adapter가 local gate에서 105 contract의 `100 passing + 5 deviation`을 만족합니다.
+
+그러나 이 diff는 아직 commit/push되지 않았고 exact product head hosted CI도 실행 전입니다. 따라서
+work는 계속 active, ADR-0020은 Proposed이며 repository completion 상태로 승격하지 않습니다.
+다음 인수자는 같은 Draft PR #1에 product commit을 쌓아 hosted gate를 수집한 뒤 completion 문서를
+작성해야 합니다. FS discovery/CLI/writer/upgrade/cache, executable/custom operations와 non-SQLite
+backend는 의도적으로 계속 비목표입니다.
