@@ -1,8 +1,8 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0019 migration definition source compatibility contracts completed; active work 없음
-- 다음 제품 계획: GDJ-0020 migration definition loader product slice planned; 별도 activation 필요
+- 현재 단계: GDJ-0020 migration definition loader product slice active; ADR-0020 Proposed
+- 현재 제품 기준: 9 adapter의 `92 passing + 5 deviation`; MIG-057..064는 아직 8 `oracle_locked`
 - 마지막 검토: 2026-08-09
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -202,11 +202,22 @@ loader, 열 번째 GoDj adapter와 CLI는 구현하지 않았습니다.
 MIG-064도 existing `Executor.Migrate`에 대한 oracle reference handoff shape이지 Go product loader
 지원이 아닙니다.
 
-별도 GDJ-0020은 아직 planned이며 별도 activation 뒤 Accepted ADR-0019의 loader product slice를
-구현합니다. 그 뒤에야 CLI/project
-orchestration을 다룹니다. Directory/file discovery, global CLI/library/generator semver handshake,
-operation/data callback 확장, adoption/repair command와 crash recovery는 GDJ-0019 지원 범위가
-아닙니다.
+[Active GDJ-0020](../work/0020-migration-definition-loader-product-slice.md)은 baseline
+`eecc75f7507414ad6043a090c97b84080ab0fb8b`에서 별도 activation됐습니다.
+[Proposed ADR-0020](adr/0020-migration-definition-loader-product-shape.md)은 새 leaf package
+`migrations/definition`, explicit `Source{SourceID,Document}`와
+`Load(...Source) (Set, LoadReport, error)`, zero-value empty set, immutable failure/report와 existing
+`Executor.Migrate` handoff를 검증 대상으로 둡니다. Raw source/JSON과 semantic fan-out은 10개
+numeric limit로 bounded하고 Schema IR wire coordinate는 literal 2 + compile drift gate로 잠급니다.
+
+GDJ-0020 completion 목표는 MIG-057..064의 열 번째 GoDj adapter와 exact 10 adapter/105 contract의
+`100 passing + 5 deviation`입니다. Activation 시점에는 product code나 passing 승격이 없으므로
+현재 분류는 계속 `92 passing + 5 deviation + 8 oracle_locked`입니다. 기존 reference oracle,
+static fixture, SHA256SUMS와 test-only candidate는 변경/승격하지 않습니다.
+
+GDJ-0020 뒤에야 CLI/project orchestration을 별도 결정합니다. Directory/file discovery, global
+CLI/library/generator semver handshake, operation/data callback 확장, adoption/repair command와 crash
+recovery는 이 product loader slice의 지원 범위가 아닙니다.
 
 ## M3 — Relations + PostgreSQL
 

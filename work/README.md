@@ -43,19 +43,22 @@ proposed → ready → active → completed
 | [GDJ-0017](0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md) | completed | Migration lifecycle 호환 계약과 revision-fence spike |
 | [GDJ-0018](0018-revision-fenced-migration-lifecycle-product-slice.md) | completed | Revision-fenced migration lifecycle 제품 단면 |
 | [GDJ-0019](0019-migration-definition-source-compatibility-contracts.md) | completed | Migration definition source/versioned-loader 호환 계약 |
+| [GDJ-0020](0020-migration-definition-loader-product-slice.md) | active | Migration definition loader 제품 단면 |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은
-없습니다. GDJ-0019 final code 기준은
-`58c66fdc751867a3c2f1541a8594c6615c9fbb59`입니다. GDJ-0020 migration definition loader product
-slice는 별도 work item/allowed paths로 activation할 planned next이며 아직 active/ready가 아닙니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
+GDJ-0020 하나이고 ready 항목은 없습니다. Activation baseline은
+`codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`이며
+[Proposed ADR-0020](../docs/adr/0020-migration-definition-loader-product-shape.md)의 public loader
+shape와 exact allowed paths를 검증합니다. Activation만 끝난 현재 제품 loader는 미구현입니다.
 
 완료된 GDJ-0019는 explicit caller-provided strict data document, compatibility tuple `(1,1,1,2)`,
 fully normalized IR v2, `CreateModel`/non-PK `char`·`boolean` `AddField` codec, atomic/deterministic load와 existing
 `Executor.Migrate` reference handoff를 MIG-057..064로 잠그는 contract-only 작업입니다. 완료
 결과는 기존 9 product set의 `92 passing + 5 deviation`을 보존하면서 8 `oracle_locked`를 더한
-10 reference set/105 contract와 90 ordered cross-binding rejection입니다. Product loader와 GoDj
-runner는 별도 GDJ-0020 전까지 만들지 않습니다.
+10 reference set/105 contract와 90 ordered cross-binding rejection입니다. Active GDJ-0020의
+completion target은 열 번째 product adapter와 `100 passing + 5 deviation`이지만, 실제 gate를
+통과하기 전에는 이 목표를 현재 지원으로 표현하지 않습니다.
 
 ## 운영 규칙
 

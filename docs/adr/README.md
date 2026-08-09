@@ -34,5 +34,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0017](0017-revision-fenced-migration-lifecycle.md) | Accepted | 각 migration transaction의 recorder revision fence |
 | [0018](0018-revision-fenced-migration-lifecycle-product-shape.md) | Accepted | Connection-free revision session, commit durability와 MIG-052 canonical-order deviation |
 | [0019](0019-versioned-migration-definition-source.md) | Accepted | Explicit strict data document, version tuple와 atomic definition load 경계 |
+| [0020](0020-migration-definition-loader-product-shape.md) | Proposed | Bounded definition loader package, immutable set/report와 existing lifecycle handoff |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

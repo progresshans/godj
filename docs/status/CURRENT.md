@@ -33,15 +33,19 @@
 - GDJ-0019 completion/hosted-tested head:
   `4d9a64a0c42406bda931820f7eb38a0f737d117c`
   (`docs: complete migration definition source contracts`)
+- GDJ-0019 hosted evidence / GDJ-0020 activation baseline:
+  `eecc75f7507414ad6043a090c97b84080ab0fb8b`
+  (`docs: record hosted definition source validation`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0019 완료; active/ready work 없음
+- 현재 단계: GDJ-0020 migration definition loader product slice active; ADR-0020 Proposed
 - 최근 완료 작업:
   [GDJ-0019 Migration Definition Source Compatibility Contracts](../../work/0019-migration-definition-source-compatibility-contracts.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0020 Migration Definition Loader Product Slice](../../work/0020-migration-definition-loader-product-slice.md)
 - ready 작업: 없음
-- 다음 planned 제품 작업: GDJ-0020 migration definition loader product slice. 아직 work item이나
-  allowed paths가 없으므로 별도 activation 전에는 active/ready가 아니며 구현을 시작하지 않음
+- activation 상태: exact allowed paths와 completion gates는 생겼지만 아직 product code/status
+  승격/test evidence는 없음. 기존 Draft PR #1 하나에만 후속 commit을 쌓음
 
 ## 현재 checkout에서 확인된 사실
 
@@ -150,7 +154,7 @@
 - Lifecycle은 already-loaded, version-compatible `[]Migration`을 입력으로 받습니다. Source
   document/version handshake와 operation codec는 Accepted
   [ADR-0019](../adr/0019-versioned-migration-definition-source.md)이 contract-only로 정의하며,
-  제품 loader/CLI는 별도 GDJ-0020 이후 범위입니다.
+  제품 loader는 active GDJ-0020/Proposed ADR-0020, CLI는 그 이후 별도 범위입니다.
 - Existing backend port를 widen하지 않고 optional fenced port를 추가합니다. Unsupported backend는
   fail-closed하고 legacy fallback이나 conflict 자동 retry를 제공하지 않습니다.
 - Migration별 commit과 last durable state는 ADR-0014를 유지합니다. Lifecycle 전체 outer
@@ -174,13 +178,55 @@
 - 이 source tuple은 Q-010의 global CLI/library/generator semver handshake 전체를 해결하지
   않습니다. CLI는 product loader 뒤 별도 orchestration으로 다룹니다.
 
+## Active GDJ-0020 제안 경계
+
+- Activation baseline은
+  `codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`이고
+  [active work](../../work/0020-migration-definition-loader-product-slice.md)의 exact allowed paths만
+  수정합니다.
+- [Proposed ADR-0020](../adr/0020-migration-definition-loader-product-shape.md)은 새 leaf package
+  `migrations/definition`에 `Source{SourceID,Document}`와
+  `Load(...Source) (Set, LoadReport, error)`를 두고 zero `Set`을 canonical empty set으로 정의합니다.
+  Set accessor와 success/error report/failure context는 caller와 alias하지 않는 value/deep-copy
+  snapshot이며 raw source document를 보존하지 않습니다.
+- Source-owned error는 9개 code만 사용합니다. Resource breach는 새 code 대신
+  `reason=resource_limit_exceeded`, stable `Limit`/`Maximum`/`Actual`을 기록하고 semantic reason
+  rank에 넣지 않는 stage preflight guard입니다. Existing
+  `*migrations.PlanningError`와 `Executor.Migrate` lifecycle error는 wrap/reclassify/retry하지 않는
+  raw ownership을 유지합니다.
+- Proposed numeric limits는 source 2,048, source ID 1,024 bytes, document 1 MiB, batch 16 MiB,
+  JSON depth 64, document JSON values 65,536, batch JSON values 262,144, migration별 dependencies
+  2,047, operations 2,048, CreateModel fields 2,048입니다. 합산은 overflow-safe이고 각
+  maximum-1/equal/+1, combined-fault와 undecidable-type precedence가 completion gate입니다.
+- Compatibility mismatch는 semantic container cap보다 먼저 실패하고, tuple이 맞은 valid array의
+  cap은 child semantic traversal보다 먼저 실패합니다. Type/discriminator가 잘못돼 cap을 판정할 수
+  없으면 resource error를 추측하지 않습니다. Preflight order는 source count → ID bytes → bounded
+  ID validation → document/batch bytes before copy → snapshot → depth/value → regular document → tuple
+  → dependencies/operations/fields caps → regular semantic → Planner → digest입니다.
+- `AddField.model_name`은 local regex를 복사하지 않고 fixed-valid synthetic schema의 `Model.Name`에
+  넣어 `ir.Normalize`가 검증합니다.
+- Wire Schema IR은 current constant alias가 아닌 literal `2`와 two-way compile drift assertion으로
+  잠급니다. `Set.Migrate`는 fresh deep-copied definitions와 caller-provided immutable request
+  value만 existing `Executor.Migrate`에 정확히 한 번 전달합니다. Private request snapshot/validation은
+  Executor 내부 소유이며 reflection/core API widening은 금지합니다.
+- Completion 목표는 열 번째 product adapter와 exact 105 contract의
+  `100 passing + 5 deviation`입니다. Activation 시점에는 code/status/test가 바뀌지 않았으므로
+  현재 제품 분류는 계속 `92 passing + 5 deviation + 8 oracle_locked`입니다.
+- Oracle/static/SHA, Python reference scenario와 test-only candidate는 immutable입니다. Python의
+  유일한 예외는 manifest status assertion을 `oracle_locked`에서 `passing`으로 바꾸는 것입니다.
+  Existing Ubuntu job에는 32-bit `max_length` conversion을 검증하는
+  `CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition` focused step만 허용하며 새
+  job/Windows/DB matrix는 만들지 않습니다.
+
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0019 completion head의 local/reference/hosted evidence가 모두
-수집됐습니다. 다음은 구현하지 않은 제품 범위입니다.
+수집됐고 GDJ-0020은 exact work/Proposed ADR로 activation됐습니다. 다음은 아직 구현하지 않은
+제품 범위입니다.
 
-- Accepted migration definition source contract의 product versioned loader/API, numeric resource
-  limits, structured public error와 source discovery/public CLI는 미구현
+- Accepted migration definition source contract의 product versioned loader/API, 10 numeric resource
+  limits와 structured public error는 active GDJ-0020의 목표이며 아직 미구현
+- Source discovery/public CLI, writer/upgrade/cache는 GDJ-0020 비목표로 계속 미구현
 - Codec v2+, writer/upgrade/cache, executable/custom/data operation과 filesystem/module/remote adapter
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
@@ -188,29 +234,36 @@
 
 ## 다음 정확한 작업
 
-현재 active/ready work는 없습니다. 다음 통합 담당자는 GDJ-0020 migration definition loader product
-slice의 work item, goal/non-goal, allowed paths와 completion gates를 별도로 작성하고 activation해야
-합니다. 그 전에는 `migrations/**`, product runner, source adapters, writer나 CLI를 변경하지 않습니다.
-후속 GDJ-0020도 새 PR을 만들지 않고 같은 Draft PR #1에 별도 activation commit부터 쌓습니다.
-새 head마다 실제 run URL/head/result를 확인하되 이전 run을 새 checkout의 PASS로 재사용하지 않습니다.
+다음 통합 담당자는 active GDJ-0020의 Proposed API/limit precedence를 재검토한 뒤 exact allowed
+path의 `migrations/definition/definition_test.go`와 `resource_limits_test.go`를 test-first로
+작성합니다. Existing `migrations/*.go`, backend/DB, Python reference/oracle, test-only candidate,
+FS/CLI는 변경하지 않습니다. Existing Ubuntu CI job에만
+`CGO_ENABLED=0 GOARCH=386 go test -count=1 ./migrations/definition` focused step을 추가하고 새
+job/Windows/DB matrix는 만들지 않습니다. 새 PR을 만들지 않고 같은 Draft PR #1에 commit을
+쌓으며, 새 head마다 실제 run URL/head/result를 확인하고 이전 run을 새 checkout의 PASS로
+재사용하지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 현재 hosted-tested completion 기준: branch
+- 현재 activation baseline: branch
+  `codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`
+- 최근 hosted-tested completion 기준:
   `codex/revision-fenced-migration-lifecycle@4d9a64a0c42406bda931820f7eb38a0f737d117c`
 - 최근 완료 work:
   [GDJ-0019](../../work/0019-migration-definition-source-compatibility-contracts.md)
-- active work: 없음
+- active work: [GDJ-0020](../../work/0020-migration-definition-loader-product-slice.md)
 - ready work: 없음
-- planned next: GDJ-0020 product loader slice; 별도 activation 필요
+- current proposal: [ADR-0020](../adr/0020-migration-definition-loader-product-shape.md) Proposed;
+  product implementation/evidence 없음
 - 현재 분류: 10 reference set/105 contract/90 ordered cross-binding; 9 product adapter/97 product
   contract, `92 passing + 5 deviation + 8 oracle_locked`
 - 전체 local gate: `make check`
 - Portable CI equivalent: `make ci`
 - Hosted CI: PR #1 run 31302983804, Ubuntu 24.04와 macOS 15 arm64 모두 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: Accepted JSON/source contract나 MIG-064 oracle/test-only proof를 product loader/Go
-  handoff/file discovery/CLI/adoption/crash recovery 또는 non-SQLite 지원으로 표현하는 것
+- 가장 위험한 과장: Active work/Proposed ADR, Accepted JSON/source contract나 MIG-064
+  oracle/test-only proof를 이미 구현된 product loader/Go adapter/file discovery/CLI/adoption/crash
+  recovery 또는 non-SQLite 지원으로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.
