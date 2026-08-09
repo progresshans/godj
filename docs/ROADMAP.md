@@ -264,8 +264,9 @@ Implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 no `continue-on-error`와 final clean worktree를 검증했습니다. Exact 16-file
 completion-documentation commit `34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도
 [run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)의 같은 exact 10 job을
-모두 통과했습니다. 현재 EVID-026 append/status 교정의 exact 8-file patch 자체의 hosted CI만
-`not run/pending`입니다.
+모두 통과했습니다. EVID-026 append/status 교정 commit
+`f7fbbd50465a610ed9492227909eece524455f15`도 별도 run `31322959993`의 같은 exact 10 job을
+통과했습니다.
 
 Windows는 native process/path contract 전에는 지원 runner를 만들지 않습니다. Current actual backend는
 SQLite뿐이므로 PostgreSQL/MySQL service-only job도 false green으로 금지합니다. Future backend job은
@@ -281,6 +282,19 @@ remote discovery, Windows, persistent runner cache, full CLI/library/generator h
 production project-binary command, writer/upgrade와 DB-aware migration execution은 GDJ-0022 이후로
 남깁니다. GDJ-0021의 Accepted/Verified 상태는 reference-only/test-only contract에 한정하며 제품
 명령 구현으로 승격하지 않습니다.
+
+Active [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Proposed
+[ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 그 다음 product 단면입니다. Exact
+두 global argv, public `project.Config`/`project.Run`, independent internal global/linked/protocol kernel과
+flat discovery를 구현해 MIG-065..074를 actual product adapter에서 `passing`으로 전환하는 것이 목표입니다.
+Test-only proof는 byte-preserved independent gate로 남기고 product code가 import하지 않습니다. 완료
+목표는 11 adapters/115 contracts=`110 passing + 5 deviation`입니다.
+
+Hosted gate는 existing full/exact 2 + test-only proof 4 + actual SQLite 4를 보존하고 Linux/macOS
+x64/arm64 actual product CLI 4를 별도 추가한 exact 14 required executions입니다. 이는 PostgreSQL/MySQL
+service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
+query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
+추가합니다. MySQL은 M9 actual adapter까지 같은 원칙을 따릅니다.
 
 ## M3 — Relations + PostgreSQL
 

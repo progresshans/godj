@@ -57,12 +57,16 @@
 - GDJ-0021 completion-documentation/hosted-tested commit:
   `34ae58fc2490deb8f884a0b5591520b11bae8669`
   (`docs: complete project-linked migration check contracts`)
+- GDJ-0021 hosted evidence / GDJ-0022 activation baseline:
+  `f7fbbd50465a610ed9492227909eece524455f15`
+  (`docs: record hosted project check completion validation`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0021 project-linked migration check compatibility contracts completed; ADR-0021 Accepted
+- 현재 단계: GDJ-0022 project-linked migration check product slice activation; ADR-0022 Proposed
 - 최근 완료 작업:
   [GDJ-0021 Migration Project Check Compatibility Contracts](../../work/0021-migration-project-check-compatibility-contracts.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0022 Project-Linked Migration Check Product Slice](../../work/0022-migration-project-check-product-slice.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -72,8 +76,9 @@
   [EVID-20260810-026](TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
   기록했습니다. Draft PR #1은 open/draft/clean이고 completion commit `34ae58f`의
   [run 31322122760](https://github.com/progresshans/godj/actions/runs/31322122760)은 existing 2 +
-  project-check 4 + SQLite 4의 exact 10 job을 모두 통과했습니다. 현재 EVID-026 append/status 교정의
-  exact 8-file patch 자체의 hosted CI는 commit/push 전 `not run/pending`입니다.
+  project-check 4 + SQLite 4의 exact 10 job을 모두 통과했습니다. EVID-026 append/status commit
+  `f7fbbd5`도 별도 run `31322959993`의 같은 10 job을 통과했습니다. GDJ-0022 activation diff와 목표
+  product 4-leg를 더한 14-job topology는 아직 구현/hosted 실행 전입니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -252,7 +257,8 @@
   project-check, exact Python 174/174, 11 oracle와 no-rewrite를 통과했습니다. 네 project-check와
   네 SQLite matrix leg도 normal/race/CGO-disabled/vet/clean을 모두 통과했습니다. 상세 결과는
   [EVID-20260810-026](TEST_EVIDENCE.md#evid-20260810-026--gdj-0021-github-hosted-completion-documentation-head-10-job-ci)에
-  기록했습니다. 현재 exact 8-file evidence/status patch 자체의 hosted CI는 `not run/pending`입니다.
+  기록했습니다. 그 evidence/status commit `f7fbbd50465a610ed9492227909eece524455f15`도 별도
+  run `31322959993`에서 exact 10 job을 통과했습니다.
 
 ## 확정된 결정
 
@@ -392,19 +398,36 @@
   필수입니다. Adjacent versions는 이후 non-required scheduled matrix로만 분리합니다. Exact
   implementation head의 expanded CI는 run 31320798963에서 10/10 PASS했고, exact 16-file
   completion-documentation head `34ae58fc2490deb8f884a0b5591520b11bae8669`도 별도 run
-  31322122760에서 10/10 PASS했습니다. 현재 exact 8-file evidence/status patch 자체의 hosted CI는
-  `not run/pending`입니다.
+  31322122760에서 10/10 PASS했고, EVID-026 commit `f7fbbd50465a610ed9492227909eece524455f15`도
+  run 31322959993에서 10/10 PASS했습니다.
+
+## Active GDJ-0022 제품화 경계
+
+- Active work는 [GDJ-0022](../../work/0022-migration-project-check-product-slice.md), decision은
+  [ADR-0022](../adr/0022-project-runtime-and-global-migration-check.md) Proposed입니다.
+- Exact public API 후보는 `project.Config{MigrationDefinitionRoots []string}`와
+  `project.Run(ctx, config, argv, stdin, stdout) error` 두 export입니다. Global mutable registration,
+  public protocol/report와 direct project command는 만들지 않습니다.
+- Product graph는 `cmd/godj -> internal/projectcheck -> protocol`과
+  `project -> internal/projectcheck/linked -> protocol + migrations/definition`입니다. Global과 linked는
+  직접 import하지 않고 core loader에 path/I/O를 소급하지 않습니다.
+- Flat discovery는 linked runner의 필수 product dependency로 포함하지만 writer/upgrade/codec v2와
+  DB-aware execution은 제외합니다. Test-only `conformance/projectcheck`는 byte-preserved independent
+  proof이며 product code가 import·이동·복사하지 않습니다.
+- 완료 목표는 MIG-065..074 actual adapter 10 `passing`, reference 11 set/115 contract/110 cross-binding
+  보존, product 11 adapter/115 contract=`110 passing + 5 deviation`입니다.
+- Hosted 목표는 existing full/exact 2 + test-only proof 4 + SQLite 4를 보존하고 actual product CLI
+  Linux/macOS x64/arm64 4를 더한 exact 14 required executions입니다. PostgreSQL/MySQL은 actual backend
+  contract 전 service-only job을 만들지 않습니다.
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. GDJ-0021 contract/reference/test-only proof와 independent review,
-implementation-head 및 completion-documentation-head exact 10-job hosted CI까지 완료했습니다.
-Q-010/Q-012는 public CLI/library/generator semver handshake, production project runner와 DB-aware
-migration lifecycle 전체가 아니므로 `Partial`입니다. 현재 EVID-026 append/status 교정의 exact
-8-file patch 자체의 hosted CI만 commit/push 전 `not run/pending`입니다. 다음은 의도적으로 아직
-구현하지 않은 제품 범위입니다.
+외부 blocker는 없습니다. GDJ-0021 contract/reference/test-only proof, completion/evidence와 exact
+10-job hosted CI까지 완료했고 GDJ-0022 activation이 active입니다. Q-010/Q-012는 full
+CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가 아니므로 `Partial`입니다.
+다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
-- Source discovery/public CLI, writer/upgrade/cache는 GDJ-0020 비목표로 계속 미구현
+- Source discovery/public CLI는 GDJ-0022에서 구현 전이며 writer/upgrade/cache는 계속 미구현
 - Codec v2+, writer/upgrade/cache, executable/custom/data operation과 filesystem/module/remote adapter
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
@@ -412,24 +435,23 @@ migration lifecycle 전체가 아니므로 `Partial`입니다. 현재 EVID-026 a
 
 ## 다음 정확한 작업
 
-통합 담당자는 EVID-026 append/status 교정의 exact 8-file patch를 Markdown/frontmatter/link/
-exact-scope 검사 뒤 같은 Draft PR #1에 commit/push하고, 그 **evidence-patch exact head**의 10-job
-CI를 별도 evidence로 확인합니다. 현재 active/ready work는 없습니다. 다음 product slice를 시작하려면
-public CLI/project API/production runner 경계를 별도 work/ADR로 activation하며 GDJ-0020의 pure
-`Source` loader에 path/I/O를 소급해 넣거나 test-only `conformance/projectcheck` shape를 제품 API로
-조용히 승격하지 않습니다.
+통합 담당자는 GDJ-0022 activation exact 7-file diff를 independent audit하고 same Draft PR #1에
+commit/push한 뒤 activation head의 기존 10-job CI를 확인합니다. 그 다음
+`internal/projectcheck/protocol`과 public `project` external compile spike부터 구현합니다. Product code는
+GDJ-0020의 pure `Source` loader에 path/I/O를 소급하거나 test-only `conformance/projectcheck`를 import/
+이동하지 않습니다.
 
 ## 작업 재개 체크포인트
 
-- 현재 completion-documentation/hosted-tested base: branch
-  `codex/revision-fenced-migration-lifecycle@34ae58fc2490deb8f884a0b5591520b11bae8669`
-- 현재 working tree: GDJ-0021 EVID-026 append/status 교정의 exact 8-file diff; 아직
-  commit/push/hosted CI 전
+- 현재 activation baseline: branch
+  `codex/revision-fenced-migration-lifecycle@f7fbbd50465a610ed9492227909eece524455f15`
+- 현재 working tree: GDJ-0022 activation exact 7-file diff; 아직 commit/push/hosted CI 전
 - 최근 완료 work:
   [GDJ-0021](../../work/0021-migration-project-check-compatibility-contracts.md)
-- active work: 없음
+- active work: [GDJ-0022](../../work/0022-migration-project-check-product-slice.md)
 - ready work: 없음
-- current decision: [ADR-0021](../adr/0021-project-linked-migration-check.md) Accepted
+- current decision: [ADR-0022](../adr/0022-project-runtime-and-global-migration-check.md) Proposed;
+  predecessor ADR-0021 Accepted
 - 현재 reference 분류: 11 set/115 contract/110 ordered cross-binding; MIG-065..074 exact 10
   `oracle_locked`
 - 현재 제품 분류: 10 product adapter/105 product contract, `100 passing + 5 deviation`
@@ -437,12 +459,12 @@ public CLI/project API/production runner 경계를 별도 work/ADR로 activation
 - 전체 local gate: `make ci`; focused project-check normal/race/CGO-disabled/vet/count-20와 exact
   Python 174/174 PASS
 - Portable CI equivalent: `make ci`
-- Hosted CI: GDJ-0021 implementation head run 31320798963과 exact completion-documentation head
-  run 31322122760의 exact 10 jobs PASS; 현재 evidence/status patch head는 `not run/pending`
+- Hosted CI: GDJ-0021 implementation 31320798963, completion 31322122760, evidence 31322959993 exact
+  10 jobs PASS; GDJ-0022 activation/product 14-job head는 not run
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: completion-documentation-head PASS를 아직 push하지 않은 EVID-026
-  evidence/status patch head PASS로 재귀 사용하거나, Accepted GDJ-0021 contract/test-only candidate를
-  implemented public CLI/project API로 표현하는 것
+- 가장 위험한 과장: Accepted GDJ-0021 contract/test-only candidate나 active GDJ-0022 API proposal을
+  implemented public CLI/project API로 표현하거나, service-only PostgreSQL/MySQL job을 backend support로
+  표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.
