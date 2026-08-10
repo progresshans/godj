@@ -68,8 +68,12 @@ recorded steps를 통과했고
 [EVID-040](../docs/status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
 기록했습니다. Product는 REL-001/004 actual 2/12, exact
 `112 passing + 5 deviation + 10 oracle_locked`입니다. Work는 completed, ADR-0025는 required one-hop
-exact/SQLite INNER JOIN에 한해 Accepted이고 Q-013은 `Partial`입니다. Completion-documentation exact-head
-CI는 후속 pending입니다.
+exact/SQLite INNER JOIN에 한해 Accepted이고 Q-013은 `Partial`입니다. Completion-documentation commit
+`7b5cebda7410ae8c096a8c30bd60daad1295bbf2`도
+[run 31358640776](https://github.com/progresshans/godj/actions/runs/31358640776)의 exact 26/26 jobs·326/326
+recorded steps를 통과해
+[EVID-041](../docs/status/TEST_EVIDENCE.md#evid-20260810-041--gdj-0025-github-hosted-completion-documentation-head-exact-26-job-ci)에
+기록했습니다. 이 EVID-041/final-status patch 자체의 exact-head CI는 후속 pending입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

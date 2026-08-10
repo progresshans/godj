@@ -108,14 +108,17 @@
 - GDJ-0025 implementation/hosted-tested commit:
   `98db55a30ff71a2f2f70722cb569a046208a5403`
   (`feat: add forward relation predicates`)
+- GDJ-0025 completion-documentation/hosted-tested commit:
+  `7b5cebda7410ae8c096a8c30bd60daad1295bbf2`
+  (`docs: complete forward relation predicate slice`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0025 REL-004-only forward predicate/SQLite INNER JOIN implementation이 local/independent
-  audit와 implementation-head hosted exact 26/26 acceptance를 통과했습니다. 제품은 REL-001/004 actual,
-  exact `112 passing + 5 deviation + 10 oracle_locked`입니다. Work는 completed, ADR-0025는 required one-hop
-  exact/SQLite INNER JOIN에 한해 Accepted이고 Q-013은 broader relation breadth 때문에 `Partial`입니다.
-  현재 active/ready work는 없습니다. Completion-documentation patch 자체의 exact-head CI는
-  `not run/pending`입니다.
+- 현재 단계: GDJ-0025 REL-004-only forward predicate/SQLite INNER JOIN implementation과
+  completion-documentation head가 각각 hosted exact 26/26 acceptance를 통과했습니다. 제품은
+  REL-001/004 actual, exact `112 passing + 5 deviation + 10 oracle_locked`입니다. Work는 completed,
+  ADR-0025는 required one-hop exact/SQLite INNER JOIN에 한해 Accepted이고 Q-013은 broader
+  relation breadth 때문에 `Partial`입니다. 현재 active/ready work는 없습니다. EVID-041/final-status
+  patch 자체의 exact-head CI는 `not run/pending`입니다.
 - 최근 완료 작업:
   [GDJ-0025 Forward ForeignKey Predicate and SQLite INNER JOIN Product Slice](../../work/0025-forward-foreign-key-predicate-product-slice.md)
 - 활성 작업: 없음
@@ -191,7 +194,11 @@
   [run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)은 exact 26/26 jobs와
   326/326 recorded steps를 성공했고
   [EVID-20260810-040](TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
-  기록했습니다. 이 completion-documentation patch 자체의 exact-head CI는 별도 pending입니다.
+  기록했습니다. Completion-documentation commit `7b5cebda7410ae8c096a8c30bd60daad1295bbf2`의
+  [run 31358640776](https://github.com/progresshans/godj/actions/runs/31358640776)도 exact 26/26 jobs와
+  326/326 recorded steps를 성공해
+  [EVID-20260810-041](TEST_EVIDENCE.md#evid-20260810-041--gdj-0025-github-hosted-completion-documentation-head-exact-26-job-ci)에
+  기록했습니다. 이 EVID-041/final-status 6-file patch 자체의 exact-head CI는 별도 pending입니다.
 
 ## Completed GDJ-0023 관계 계약 경계
 
@@ -701,9 +708,10 @@
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0023, GDJ-0024와 GDJ-0025는 completed/Accepted bounded slices이며 respective
-hosted acceptance가 완료됐습니다. GDJ-0025 implementation head `98db55a...`의 run `31357283530`도 exact
-26/26과 four exact Python legs를 통과했습니다. Completion-documentation patch 자체의 exact-head CI와 final
-append-only evidence는 후속 증거 작업입니다. Q-010/Q-012는 full
+hosted acceptance가 완료됐습니다. GDJ-0025 implementation head `98db55a...`의 run `31357283530`과
+completion-documentation head `7b5cebda...`의 run `31358640776`은 모두 exact 26/26과 four exact Python
+legs를 통과했습니다. 남은 EVID-041/final-status 6-file patch 자체의 exact-head CI는 후속 문서
+증거이며 implementation acceptance의 blocker가 아닙니다. Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가 아니므로 `Partial`입니다.
 Q-013도 symbolic/bounded metadata architecture는 Accepted됐지만 query/loader/cache/write/delete/DDL/migration
 codec와 broader relation surface가 열려 있어 `Partial`입니다.
@@ -720,10 +728,11 @@ codec와 broader relation surface가 열려 있어 `Partial`입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 completion-documentation transition의 exact 13-file scope, EVID-039 append-only prefix,
-frontmatter와 links를 검증한 뒤 same Draft PR #1에 documentation-only commit을 push합니다. 그 completion
-exact head에서 같은 exact 26을 다시 확인하고 final append-only evidence/status patch를 남깁니다. 새 active
-work는 그 clean tested baseline과 별도 packet에서만 활성화하며 Draft PR은 사용자 요청 전 merge하지 않습니다.
+통합 담당자는 EVID-041을 포함한 이 exact 6-file final evidence/status patch의 scope,
+EVID-001..040 append-only prefix, frontmatter와 links를 검증한 뒤 same Draft PR #1에
+documentation-only commit/push합니다. 그 final patch exact head에서 같은 exact 26을 한 번 더 검증하되
+run `31358640776`을 이 뒤 patch의 증거로 재사용하지 않습니다. 새 active work는 그 clean tested
+baseline과 별도 packet에서만 활성화하며 Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -763,8 +772,10 @@ work는 그 clean tested baseline과 별도 packet에서만 활성화하며 Draf
   `31354040515` 26/26 and 326/326 recorded steps PASS; activation-only proof
 - GDJ-0025 implementation commit: `98db55a30ff71a2f2f70722cb569a046208a5403`; exact 26-job run
   `31357283530` 26/26 and 326/326 recorded steps PASS; EVID-040
-- 현재 working tree: tested implementation head `98db55a...` + uncommitted completion-documentation patch;
-  이 documentation-only exact-head CI는 `not run/pending`
+- GDJ-0025 completion-documentation commit: `7b5cebda7410ae8c096a8c30bd60daad1295bbf2`; exact 26-job run
+  `31358640776` 26/26 and 326/326 recorded steps PASS; EVID-041
+- 현재 working tree: completion-documentation-hosted-tested head `7b5cebda...` + uncommitted exact 6-file
+  EVID-041/final-status patch; 이 documentation-only patch의 exact-head CI는 `not run/pending`
 - 최근 완료 work:
   [GDJ-0025](../../work/0025-forward-foreign-key-predicate-product-slice.md)
 - active work: 없음
@@ -788,6 +799,10 @@ work는 그 clean tested baseline과 별도 packet에서만 활성화하며 Draf
 - GDJ-0025 implementation hosted: EVID-040/run 31357283530 exact 26/26·326/326 PASS; relation-product four
   coordinates each exact 492/492/0·49,902 bytes·SHA-256 `05064a7f...82eb`, actual Ubuntu Linux/386와 four
   exact Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE and exact-head-equivalent tree; hosted audit P0..P3=0
+- GDJ-0025 completion-documentation hosted: EVID-041/run 31358640776 exact 26/26·326/326 PASS;
+  relation-product four coordinates each exact 492/492/0·49,902 bytes·SHA-256 `05064a7f...82eb`, actual
+  Ubuntu Linux/386와 four exact Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE and exact-head-equivalent tree;
+  hosted audit P0..P3=0
 - GDJ-0024 activation: EVID-035/run 31344980929 exact 22/22·273/273 PASS; activation head만 증명
 - implementation local: EVID-035; CPython 3.14.3 + uv 0.12.3 `make ci` portable 193/17,
   relation-product exact 394 run/394 pass/0 skip·40,630 bytes·SHA-256 `2eb1fe8c...20ce`, 12 adapters PASS;
@@ -807,11 +822,12 @@ work는 그 clean tested baseline과 별도 packet에서만 활성화하며 Draf
   22/22 PASS; GDJ-0024 activation run 31344980929 exact 22/22 PASS; GDJ-0024 implementation run
   31348285559 exact 26/26 PASS; completion-documentation run 31349791188 exact 26/26 PASS; GDJ-0024 final
   evidence/status run 31351169780 exact 26/26 PASS; GDJ-0025 activation run 31354040515 exact 26/26 PASS;
-  GDJ-0025 implementation run 31357283530 exact 26/26 PASS; current completion-documentation patch exact-head
-  run은 not run/pending
+  GDJ-0025 implementation run 31357283530 exact 26/26 PASS; completion-documentation run 31358640776 exact
+  26/26 PASS; current exact 6-file EVID-041/final-status patch의 exact-head run은 not run/pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: implementation run 31357283530을 이 뒤 completion-documentation patch의 exact-head
-  success로 재사용하거나, REL-004 target predicate를 REL-003/006 loader/cache/nullable 또는 relation
+- 가장 위험한 과장: completion-documentation run 31358640776을 이 뒤 exact 6-file
+  EVID-041/final-status patch의 exact-head success로 재사용하거나, REL-004 target predicate를
+  REL-003/006 loader/cache/nullable 또는 relation
   write/delete/DDL/migration support로 세거나, service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은

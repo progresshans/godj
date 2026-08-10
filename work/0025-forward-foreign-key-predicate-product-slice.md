@@ -406,29 +406,38 @@ mutation must change the observation or fail structurally. Setup/teardown SQL is
   four exact Python compatibility legs도 통과했습니다. Independent hosted raw-log audit는
   P0/P1/P2/P3=0이었습니다. [EVID-040](../docs/status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
   기록하고 bounded ADR-0025를 Accepted, 이 work를 completed로 전환했습니다.
+- 2026-08-10: Completion-documentation commit `7b5cebda7410ae8c096a8c30bd60daad1295bbf2`의 Draft PR #1
+  [run 31358640776](https://github.com/progresshans/godj/actions/runs/31358640776)도 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact
+  492 run/492 pass/0 skip·49,902 bytes·SHA-256 `05064a7f...82eb`을 재현했고 actual Ubuntu Linux/386,
+  exact darwin 193/193과 four exact Python compatibility legs도 통과했습니다. Independent hosted
+  raw-log audit는 P0/P1/P2/P3=0이었으며
+  [EVID-041](../docs/status/TEST_EVIDENCE.md#evid-20260810-041--gdj-0025-github-hosted-completion-documentation-head-exact-26-job-ci)에
+  기록했습니다.
 
 ## 현재 blocker
 
-외부 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
-acceptance가 모두 통과했습니다. 이 completion-documentation patch 자체의 exact-head CI와 final append-only
-evidence는 후속 증거 작업이며 GDJ-0025 completion의 blocker가 아닙니다.
+외부 blocker는 없습니다. Activation, local implementation/audit, exact implementation-head와
+completion-documentation-head hosted acceptance가 모두 통과했습니다. 남은 EVID-041/final-status
+exact 6-file patch 자체의 exact-head CI는 후속 문서 증거이며 GDJ-0025 completion의 blocker가 아닙니다.
 
 ## 다음 정확한 작업
 
-1. 이 completion-documentation transition의 exact 13-file scope, append-only EVID-039 prefix, links와 diff를
-   재확인합니다.
+1. EVID-041을 포함한 exact 6-file final evidence/status scope, EVID-001..040 append-only prefix, links와
+   diff를 재확인합니다.
 2. Documentation-only patch만 same Draft PR #1에 commit/push합니다.
-3. Completion-documentation exact head에서 같은 exact 26을 다시 확인하고 final append-only evidence/status
-   patch를 남깁니다.
+3. 그 final patch exact head에서 같은 exact 26을 한 번 더 확인하되 completion-documentation run
+   `31358640776`을 이 뒤 patch의 증거로 재사용하지 않습니다.
 4. 새 active work는 그 final tested baseline과 별도 packet에서만 활성화합니다.
 5. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
 GDJ-0025는 completed required-one-hop predicate boundary입니다. Activation exact-head, local implementation/
-four independent audits와 implementation exact-head exact 26/26 hosted acceptance를 통과했고 ADR-0025의
-additive query companion/project bridge, immutable shared relation path와 SQLite reusable required INNER JOIN을
-Accepted했습니다. 제품은 exact `112 passing + 5 deviation + 10 oracle_locked`, relation actual REL-001/004
-2/12입니다. Loader/cache, nullable/reverse/eager/write/delete/DDL/migration, broader target와
-PostgreSQL/MySQL/Windows는 완료 범위가 아닙니다. Completion-documentation exact-head CI는 후속 pending이며
-Draft PR #1은 사용자 요청 전 merge하지 않습니다.
+four independent audits, implementation exact-head와 completion-documentation exact-head exact 26/26 hosted
+acceptance를 통과했고 ADR-0025의 additive query companion/project bridge, immutable shared relation path와
+SQLite reusable required INNER JOIN을 Accepted했습니다. 제품은 exact
+`112 passing + 5 deviation + 10 oracle_locked`, relation actual REL-001/004 2/12입니다. Loader/cache,
+nullable/reverse/eager/write/delete/DDL/migration, broader target와 PostgreSQL/MySQL/Windows는 완료 범위가
+아닙니다. EVID-041/final-status patch 자체의 exact-head CI는 후속 pending이며 Draft PR #1은
+사용자 요청 전 merge하지 않습니다.
