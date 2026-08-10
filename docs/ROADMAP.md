@@ -1,11 +1,10 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0027 REL-005 reverse accessor/lookup slice active, ADR-0027 Proposed, Q-013 Partial.
-  Clean baseline `9ba1d0ee...` exact 26 PASS; activation diff exact-head CI pending
-- 현재 제품 기준: 12 adapter/127 contract의 `114 passing + 5 deviation + 8 oracle_locked`,
-  relation actual REL-001/003/004/006 4/12
-- GDJ-0027 완료 목표(현재 claim 아님): `115 passing + 5 deviation + 7 oracle_locked`, relation 5/12
+- 현재 단계: GDJ-0027 REL-005 reverse accessor/lookup slice completed, ADR-0027 Accepted, Q-013 Partial;
+  active/ready work 없음. Implementation head `7db68415...` exact 26 PASS; completion documentation CI pending
+- 현재 제품 기준: 12 adapter/127 contract의 `115 passing + 5 deviation + 7 oracle_locked`,
+  relation actual REL-001/003/004/005/006 5/12
 - 마지막 검토: 2026-08-11
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -376,12 +375,13 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   relation REL-001/003/004/006 4/12입니다. Implementation run `31370313755`과 completion-documentation run
   `31372360481`은 각각 exact 26/26·326/326을 통과했습니다. Existing project-query v1과 old relation
   product bytes, reverse/eager/write/delete/DDL/migration/PostgreSQL은 forbidden/deferred입니다.
-- Active [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)과 Proposed
+- Completed [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)과 Accepted
   [ADR-0027](adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 REL-005-only reverse target predicate와
-  owner related-set accessor를 다음 bounded packet으로 고정합니다. Query-only binding과 PK-capability object
+  owner related-set accessor를 bounded packet으로 구현·검증했습니다. Query-only binding과 PK-capability object
   binding, declaration-centric reverse hop, project-only split query/object generator와 SQLite direction-aware
-  INNER JOIN이 exact 범위입니다. Baseline `9ba1d0ee...` run `31374150640`은 EVID-046의 current
-  `114 + 5 + 8`, relation 4/12만 증명하며 activation 또는 목표 `115 + 5 + 7`의 증거로 재사용하지 않습니다.
+  INNER JOIN이 exact 범위입니다. Implementation head `7db68415...`의 run `31419940399`가 exact 26/26을
+  통과해 aggregate는 `115 + 5 + 7`, relation 5/12입니다. Baseline/activation run은 이 구현 증거로
+  재사용하지 않습니다.
   REL-012 prefetch와 REL-009..011 eager, write/delete/DDL/migration/non-SQLite는 deferred입니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택

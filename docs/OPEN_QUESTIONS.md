@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-10
+- 마지막 검토: 2026-08-11
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -12,7 +12,7 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0027 active / relation breadth 후속 | Accepted metadata/forward predicate/object-nullability 위에 REL-005 reverse accessor/lookup은 Proposed; prefetch/eager/write/delete/DDL/migration remain open |
+| Q-013 | Partial | GDJ-0027 completed / relation breadth 후속 | Accepted metadata/forward predicate/object-nullability/reverse accessor-lookup; prefetch/eager/write/delete/DDL/migration remain open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -350,11 +350,12 @@ typed/dynamic reviewer isnull을 소유합니다. Exact implementation head `5be
 26/26 jobs·326/326 recorded steps를 통과했습니다. Reverse, eager/prefetch, write/delete/DDL/migration과
 broader target/backend가 열려 있어 Q-013은 계속 `Partial`입니다.
 
-Active [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)과 Proposed
+Completed [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)과 Accepted
 [ADR-0027](adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 Q-013 중 REL-005-only reverse exact lookup와
-owner-instance related-set surface를 먼저 고정합니다. Query-only `BindReverse`와 PK-capability
+owner-instance related-set surface를 고정·검증했습니다. Query-only `BindReverse`와 PK-capability
 `BindReverseObject`를 분리하고, declaration-centric reverse path 및 project-only query/object aggregates를
-사용합니다. 이 activation은 implementation/acceptance가 아니며 REL-005는 아직 `oracle_locked`입니다.
+사용합니다. Exact implementation head `7db68415...`의 run `31419940399`는 26/26 hosted gate를 통과했고
+REL-005를 `passing`으로 전환했습니다.
 REL-012 prefetch/IN batching/warm publication, REL-009..011 eager path, write/delete/DDL/migration과 broader
 backend가 계속 열려 있으므로 Q-013은 `Partial`입니다.
 

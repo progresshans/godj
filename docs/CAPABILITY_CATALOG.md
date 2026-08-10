@@ -343,16 +343,16 @@ required forward exact predicate, shared immutable path와 SQLite one reusable I
 Completed GDJ-0026/Accepted ADR-0026은 REL-003/006을 additive sealed descriptor/object companions,
 opaque pointer instance cache, nullable NULL zero-I/O access와 relation-provenance-preserving SQLite source-key
 `isnull` trim으로 구현했습니다. Exact implementation head `5be46141...`의 run `31370313755`이 26/26
-jobs·326/326 recorded steps를 통과해 현재 product는 `12 adapter sets/127 contracts = 114 passing + 5
+jobs·326/326 recorded steps를 통과해 GDJ-0026 완료 시점 product는 `12 adapter sets/127 contracts = 114 passing + 5
 deviation + 8 oracle_locked`, relation REL-001/003/004/006 4/12입니다. Reverse/eager/write/delete/DDL/
 migration, LEFT JOIN, broader target와 non-SQLite backend는 계속 미지원이며 PostgreSQL,
 OneToOne/ManyToMany 또는 ForeignKey breadth 제품 지원의 증거가 아닙니다.
 
-Active GDJ-0027/Proposed ADR-0027은 REL-005-only reverse ForeignKey exact lookup과 owner related-set accessor를
-다음 bounded slice로 정의합니다. Clean baseline `9ba1d0ee...` run `31374150640`은 현재
-`114 passing + 5 deviation + 8 oracle_locked`, relation 4/12만 증명합니다. 완료 목표
-`115 + 5 + 7`, relation 5/12는 implementation/actual/hosted gate 전에는 current capability로 세지 않습니다.
-Reverse prefetch/eager/write/delete/DDL/migration과 broader backend는 계속 미지원입니다.
+Completed GDJ-0027/Accepted ADR-0027은 REL-005-only reverse ForeignKey exact lookup과 owner related-set
+accessor를 bounded product slice로 구현했습니다. Exact implementation head `7db68415...`의 run
+`31419940399`가 26/26 hosted gate를 통과해 현재 product는 exact `12 adapter sets/127 contracts = 115
+passing + 5 deviation + 7 oracle_locked`, relation REL-001/003/004/005/006 5/12입니다. Reverse
+prefetch/eager/write/delete/DDL/migration과 broader backend는 계속 미지원입니다.
 
 ## Django 데이터 이행
 

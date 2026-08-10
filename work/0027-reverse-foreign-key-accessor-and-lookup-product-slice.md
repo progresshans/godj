@@ -1,6 +1,6 @@
 ---
 id: GDJ-0027
-status: active
+status: completed
 updated: 2026-08-11
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "9ba1d0ee4cb96c265269000700beb5889fef2206"
@@ -122,8 +122,8 @@ Reverse hop은 physical ForeignKey declaration을 뒤집어 저장하지 않습�
 - `Nullable`: original FK declaration 값
 - `ReverseName`: `posts`
 
-Exact additive query surface는 [Proposed ADR-0027](../docs/adr/0027-reverse-foreign-key-accessor-and-lookup.md)에
-동결합니다.
+Exact additive query surface는 [Accepted ADR-0027](../docs/adr/0027-reverse-foreign-key-accessor-and-lookup.md)에
+동결했습니다. 후속 signature/export 변경은 새 ADR/work를 먼저 만듭니다.
 
 ```go
 const RelationReverse RelationDirection = "reverse"
@@ -355,8 +355,9 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
 - [x] REL-005 actual observation과 oracle-blind mismatch gates가 통과한다.
 - [x] aggregate가 exact `115 + 5 + 7`, relation 5/12로 재고정된다.
 - [x] local focused lane gates와 one full integration gate가 통과한다.
-- [ ] exact implementation-head hosted 26-job matrix가 통과한다.
-- [ ] completion docs/ADR transition과 final evidence가 별도 exact head로 검증된다.
+- [x] exact implementation-head hosted 26-job matrix가 통과한다.
+- [x] completion docs/ADR transition과 EVID-048이 동기화된다.
+- [ ] completion-documentation/final-status heads가 각각 별도 exact head로 검증된다.
 
 ## 진행 기록
 
@@ -368,7 +369,8 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
   bounded RelatedSet ownership을 activation 전에 freeze했습니다.
 - [x] activation documentation audit/commit/push/hosted exact-head evidence
 - [x] runtime/codegen/SQLite/conformance implementation and integration audit
-- [ ] implementation/completion/final hosted evidence
+- [x] implementation hosted evidence
+- [ ] completion/final hosted evidence
 
 - [x] 2026-08-11: Exact 15-file activation commit
   `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`의 Draft PR #1
@@ -388,25 +390,35 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
 - [x] 2026-08-11: Pre-hosted [EVID-047](../docs/status/TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)을
   exact five-document status delta로 동기화했습니다. Activation HEAD 대비 physical dirty는 46에서 50,
   clean baseline `9ba1d0ee...` 대비 union은 59/all allowed로 유지됩니다. Implementation commit과 hosted
-  acceptance는 아직 `not run/pending`입니다.
+  acceptance는 이 historical evidence 시점에는 `not run/pending`이었습니다.
+- [x] 2026-08-11: Implementation commit `7db684159ecfebbcbe1dc0673928e899ab8b0835`의 Draft PR #1
+  [run 31419940399](https://github.com/progresshans/godj/actions/runs/31419940399)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact 569 run/569
+  pass/0 skip·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 재현했고 actual Ubuntu Linux/386, exact Darwin,
+  four exact Python compatibility legs와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+  EVID-048을 근거로 bounded ADR-0027을 Accepted, 이 work를 completed로 전환합니다. 이 completion-
+  documentation patch 자체 exact-head CI는 pending이며 implementation run을 recursive proof로 재사용하지
+  않습니다.
 
 ## 현재 blocker와 다음 작업
 
-현재 제품 blocker는 코드 결함이 아니라 frozen implementation과 pre-hosted status sync의 commit/push 및 exact
-implementation-head hosted acceptance입니다. Activation commit/run은 이미 닫혔지만 구현 증거로 재사용하지 않습니다.
+외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
+acceptance/audit가 모두 통과했습니다. Completion-documentation과 final-status patch의 별도 exact-head CI는
+후속 evidence 작업이며 bounded GDJ-0027 completion의 blocker가 아닙니다.
 
 다음 작업은 exact합니다.
 
-1. Frozen implementation과 exact five-document status sync만 의도적으로 commit/push합니다.
-2. Exact implementation-head hosted 26-job matrix에서 race/CGO0/vet, actual Linux/386, four platform
-   coordinates와 exact Python legs를 수집합니다.
-3. Hosted success와 independent raw-log audit 뒤에만 ADR-0027을 Accepted/work를 completed로 전환합니다.
-4. Completion documentation과 final evidence/status head도 각각 별도 exact-head CI로 닫습니다.
+1. Exact 15-file completion-documentation patch의 scope, EVID-001..047 prefix, links/frontmatter/fences와
+   `git diff --check`를 검증합니다.
+2. Documentation-only patch만 commit/push하고 같은 exact 26을 completion-documentation head에서 확인합니다.
+3. Separate final evidence/status patch로 recursive pending을 닫되 Q-013과 supported surface를 넓히지 않습니다.
+4. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- 현재 worktree는 locally verified pre-hosted implementation이며 [EVID-047](../docs/status/TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)이
-  exact local evidence입니다. Commit identity와 implementation-head hosted acceptance는 pending입니다.
+- GDJ-0027은 implementation head `7db684159ecfebbcbe1dc0673928e899ab8b0835`, exact-26 run
+  `31419940399`까지 completed입니다. EVID-047은 exact local/pre-hosted evidence, EVID-048은 exact hosted
+  implementation-head evidence입니다. Product는 exact `115 + 5 + 7`, relation actual 5/12입니다.
 - Existing relation product/generator bytes와 oracle/static/NI/SHA를 변경하지 않습니다.
-- 공개 API를 바꾸기 전 이 work와 ADR을 먼저 amend하고 independent API audit을 다시 받습니다.
+- 공개 API를 바꾸기 전 후속 work/ADR을 만들고 independent API audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하며 사용자의 명시적 요청 없이 merge하지 않습니다.

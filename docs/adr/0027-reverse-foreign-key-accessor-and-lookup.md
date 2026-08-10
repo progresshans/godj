@@ -1,6 +1,6 @@
 # ADR-0027: Reverse ForeignKey Accessor and Lookup
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
   [GDJ-0027](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md), REL-005, Q-013
@@ -16,10 +16,15 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. GDJ-0027 implementation 전에 REL-005의 reverse one-hop target predicate와
-reverse related-set accessor를 동결하기 위한 activation decision입니다. Baseline `9ba1d0e...`와 exact-head
-run `31374150640`의 hosted success는 이전 REL-001/003/004/006만 증명합니다. 이 activation diff와 REL-005
-구현 검증은 아직 `not run/pending`이며 baseline run을 재사용하지 않습니다.
+이 ADR은 **Accepted**입니다. GDJ-0027 implementation 전에 REL-005의 reverse one-hop target predicate와
+reverse related-set accessor를 동결했고 local implementation/audit는
+[EVID-20260811-047](../status/TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation),
+exact implementation-head hosted acceptance는
+[EVID-20260811-048](../status/TEST_EVIDENCE.md#evid-20260811-048--gdj-0027-github-hosted-exact-26-job-implementation-head-ci)에
+기록했습니다. Commit `7db684159ecfebbcbe1dc0673928e899ab8b0835`의 run `31419940399`는 exact
+26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이
+completion-documentation patch 자체 exact-head CI는 `not run/pending`이며 implementation run을 recursive
+proof로 재사용하지 않습니다.
 
 결정 범위는 named reverse ForeignKey namespace, one-hop target-field exact predicate, generated project-owned
 reverse object/accessor, source-FK exact related set와 SQLite INNER JOIN입니다. Reverse prefetch/eager/write/delete,
@@ -355,7 +360,7 @@ input permutation yields exact bytes.
 Backend/query/scan/rows/close/context errors preserve causes. Failed evaluation is not cached; successful related-set
 snapshots are cached and cloned according to ADR-0012.
 
-## 검증 의무
+## 검증 증거
 
 - Existing generated sources/goldens and relation products byte-identical
 - Reverse path accessor/equality/clone/mutation and self forward/reverse join-key tests
@@ -369,9 +374,14 @@ snapshots are cached and cloned according to ADR-0012.
 - Manifest exact REL-005-only status transition and aggregate `115 + 5 + 7`
 - One local full integration plus exact implementation-head hosted 26-job race/CGO0/vet/platform matrix
 
+EVID-047의 focused/local full integration과 independent audits, EVID-048의 exact implementation-head 26/26
+jobs·326/326 steps, four-coordinate 569/569/0 inventory, actual Ubuntu Linux/386, exact Darwin/Python과 hosted
+audit가 위 의무를 모두 충족했습니다. Acceptance는 named one-hop reverse exact predicate와 owner related-set
+SQLite slice에만 한정됩니다.
+
 ## 결과와 후속 영향
 
-Accepted implementation 후 REL-005는 passing이 되고 Q-013은 여전히 Partial입니다. Reverse namespace/path and
+Accepted implementation으로 REL-005는 passing이고 Q-013은 여전히 Partial입니다. Reverse namespace/path and
 related-set owner surface become public additive contracts. REL-012 may later add batched prefetch and private warm
 publication without changing REL-005 methods, but IN-list and coordinator APIs require a separate ADR/work packet.
 REL-009/010/011 eager traversal, relation write/delete and broader backend support remain unsupported.

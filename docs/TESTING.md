@@ -595,15 +595,16 @@ Completion-documentation head `7f92fcf0...`의 별도 run `31372360481`도 같�
 통과했습니다. Final-status head `9ba1d0ee...`도 별도 run `31374150640`의 exact 26/26·326/326과 같은
 533/533/0 inventory를 성공해 EVID-046에 기록했습니다.
 
-GDJ-0027 activation은 exact-26 topology를 유지하고 REL-005 reverse runtime/codegen/SQLite/actual packages를
-기존 relation-product four-coordinate inventory에 추가하는 계획입니다. Local sub-lane은 focused normal test를
-실행하고 root가 한 번 full normal/format/generate/conformance integration을 소유합니다. Heavy race/CGO0/vet와
-Linux/macOS x64/arm64, bounded Linux/386, exact Darwin/Python은 implementation-head Actions가 소유해 동일한
-full matrix의 로컬 중복 실행을 줄입니다. 이는 gate 삭제가 아니라 실행 위치 분리입니다. Required gates는
-typed/dynamic reverse Plan.Equal, query/object capability split, owner wrapper/RelatedSet cache/cancel/retry,
-project-only generator exact bytes/import-edge-0, reverse INNER JOIN과 accessor `[10,11]`/lookup `[1]` actual,
-manifest REL-005-only transition 및 current `114 + 5 + 8`에서 target `115 + 5 + 7`로의 정직한 전환입니다.
-Activation diff 자체 exact-head CI는 pending이며 baseline run을 재사용하지 않습니다.
+GDJ-0027은 exact-26 topology를 유지하고 REL-005 reverse runtime/codegen/SQLite/actual packages를 기존
+relation-product four-coordinate inventory에 추가했습니다. Local sub-lane은 focused normal test, root는 한 번의
+full normal/format/generate/conformance integration을 소유했고 heavy race/CGO0/vet와 Linux/macOS x64/arm64,
+bounded Linux/386, exact Darwin/Python은 implementation-head Actions가 소유했습니다. 이는 gate 삭제가 아니라
+실행 위치 분리입니다. Typed/dynamic reverse Plan.Equal, query/object capability split, owner wrapper/RelatedSet
+cache/cancel/retry, project-only generator exact bytes/import-edge-0, reverse INNER JOIN과 accessor
+`[10,11]`/lookup `[1]` actual, manifest REL-005-only transition 및 `115 + 5 + 7` 전환을 모두 검증했습니다.
+Implementation head `7db68415...`의 run `31419940399`는 exact 26/26 jobs·326/326 recorded steps를 성공했고
+four relation-product coordinates는 각각 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 재현했습니다.
+Completion-documentation patch 자체 exact-head CI는 pending이며 implementation run을 재사용하지 않습니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -708,7 +709,11 @@ exact 26/26·326/326을 통과했고, implementation commit
 성공해 EVID-045에 기록했습니다. Final-status commit `9ba1d0ee4cb96c265269000700beb5889fef2206`도 별도
 [run 31374150640](https://github.com/progresshans/godj/actions/runs/31374150640)의 exact 26/26·326/326을
 성공해 EVID-046에 기록했습니다. 이 run은 GDJ-0027 clean baseline일 뿐 later activation/implementation
-proof로 재사용하지 않습니다.
+proof로 재사용하지 않습니다. GDJ-0027 activation commit `9dbc2fd2...`은 별도 run `31414060387`의 exact
+26/26·326/326을 성공했고, implementation commit `7db684159ecfebbcbe1dc0673928e899ab8b0835`도 별도
+[run 31419940399](https://github.com/progresshans/godj/actions/runs/31419940399)의 exact 26/26·326/326을
+성공해 EVID-048에 기록했습니다. Four relation-product coordinates는 각각 569/569/0 inventory를 재현했고
+actual Ubuntu Linux/386, exact Darwin과 four Python compatibility legs도 통과했습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

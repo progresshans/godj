@@ -43,11 +43,13 @@ null/warm fast path보다 먼저 실행합니다. Exact implementation head `5be
 계약은 bounded forward object slice만 Accepted하며 eager priming, write invalidation과 multi-backend lifetime은
 여전히 결정하지 않습니다.
 
-Active GDJ-0027/Proposed ADR-0027은 reverse accessor의 ownership을 별도 pointer/self-sentinel owner wrapper와
-`RelatedSet`으로 제안합니다. `RelatedSet.All`은 existing QuerySet success-cache/singleflight/clone/cancellation/
+Completed GDJ-0027/Accepted ADR-0027은 reverse accessor의 ownership을 별도 pointer/self-sentinel owner wrapper와
+`RelatedSet`으로 채택했습니다. `RelatedSet.All`은 existing QuerySet success-cache/singleflight/clone/cancellation/
 retry를 재사용하고 `OrderBy`/`Fresh`는 새 pointer와 evaluation state를 만들며 I/O를 하지 않습니다. Public
 Filter/IN/prefetch/warm injection은 추가하지 않고 REL-012용 speculative state도 만들지 않습니다. 이 계약은
-아직 Proposed이며 activation/implementation race evidence 전에는 Accepted concurrency support가 아닙니다.
+exact implementation head `7db68415...`의 run `31419940399`에서 26/26 hosted gate를 통과했습니다. Acceptance는
+bounded one-hop related-set slice뿐이며 eager priming, prefetch warm publication, write invalidation과
+multi-backend lifetime은 여전히 결정하지 않습니다.
 
 ## Transaction과 cancellation
 

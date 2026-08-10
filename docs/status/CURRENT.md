@@ -129,21 +129,21 @@
 - GDJ-0027 activation/hosted-tested commit:
   `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`
   (`docs: activate reverse relation accessor slice`)
+- GDJ-0027 implementation/hosted-tested commit:
+  `7db684159ecfebbcbe1dc0673928e899ab8b0835`
+  (`feat: add reverse relation accessor and lookup`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0027 activation head `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`은
-  [EVID-047](TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)의
-  hosted [run 31414060387](https://github.com/progresshans/godj/actions/runs/31414060387)에서 exact 26/26
-  jobs·326/326 recorded steps를 통과했습니다. 이 run은 activation과 prior `114 + 5 + 8`, relation 4/12
-  baseline 보존만 증명합니다. Frozen uncommitted implementation은 local normal gate에서 exact
-  `115 passing + 5 deviation + 7 oracle_locked`, relation actual REL-001/003/004/005/006 5/12와 exact
-  569/569/0 inventory를 통과했습니다. Implementation commit identity와 exact-head hosted acceptance는
-  `not run/pending`이며 activation run을 재사용하지 않습니다. 따라서 GDJ-0027은 active, ADR-0027은
-  Proposed, Q-013은 `Partial`입니다.
+- 현재 단계: GDJ-0027 implementation head `7db684159ecfebbcbe1dc0673928e899ab8b0835`은
+  [EVID-048](TEST_EVIDENCE.md#evid-20260811-048--gdj-0027-github-hosted-exact-26-job-implementation-head-ci)의
+  hosted [run 31419940399](https://github.com/progresshans/godj/actions/runs/31419940399)에서 exact 26/26
+  jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Product는
+  exact `115 passing + 5 deviation + 7 oracle_locked`, relation actual REL-001/003/004/005/006 5/12입니다.
+  GDJ-0027은 completed, ADR-0027은 bounded slice에 한해 Accepted, Q-013은 `Partial`이고 active/ready work는
+  없습니다. 이 exact 15-file completion-documentation patch 자체 exact-head CI는 `not run/pending`입니다.
 - 최근 완료 작업:
-  [GDJ-0026 Forward ForeignKey Object Cache and Nullability Product Slice](../../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)
-- 활성 작업:
   [GDJ-0027 Reverse ForeignKey Accessor and Lookup Product Slice](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)
+- 활성 작업: 없음
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -236,8 +236,11 @@
   기록했습니다. Completion-documentation commit `7f92fcf0...`의 별도
   [run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)도 exact 26/26 jobs와
   326/326 recorded steps를 성공했고 hosted audit P0/P1/P2/P3=0과 함께 EVID-045에 기록했습니다. 이
-  EVID-045/final-status patch는 다시 이후의 별도 diff이므로 자체 exact-head CI가 pending이며 run
-  31372360481을 recursive proof로 재사용하지 않습니다.
+  EVID-045/final-status patch는 별도 head `9ba1d0ee...`의 run `31374150640`에서 exact 26/26·326/326으로
+  닫혔습니다. GDJ-0027 activation `9dbc2fd2...`도 별도 run `31414060387`의 exact 26/26·326/326을
+  성공했고, implementation `7db68415...`은 다시 별도 run `31419940399`의 exact 26/26·326/326과 hosted
+  audit P0/P1/P2/P3=0을 통과해 EVID-048에 기록했습니다. 이 completion-documentation patch는 이후의 별도
+  diff이므로 자체 exact-head CI가 pending이며 implementation run을 recursive proof로 재사용하지 않습니다.
 
 ## Completed GDJ-0023 관계 계약 경계
 
@@ -361,21 +364,23 @@
   뒤의 exact final-status head `9ba1d0ee...` run `31374150640`을 닫고 GDJ-0027 clean baseline으로만 사용합니다.
   GDJ-0027 activation head `9dbc2fd2...`은 별도 run `31414060387`로 닫혔고 구현 증거로 재사용하지 않습니다.
 
-## Active GDJ-0027 제품 경계
+## Completed GDJ-0027 제품 경계
 
-- [ADR-0027](../adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 Proposed,
-  [GDJ-0027](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)은 active입니다.
-- Frozen local implementation은 declaration-centric reverse AST, query-only typed/dynamic binding,
+- [ADR-0027](../adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 Accepted,
+  [GDJ-0027](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)은 completed입니다.
+- Implementation은 declaration-centric reverse AST, query-only typed/dynamic binding,
   PK-capability object/`RelatedSet`, project-only generator와 SQLite reverse INNER JOIN을 allowed paths 안에
   구현했습니다. REL-005 accessor는 `[10,11]`/SELECT 1/JOIN 0, typed/dynamic exact lookup은 Plan.Equal과
   `[1]`/SELECT 1/INNER JOIN 1을 관찰합니다.
-- Local product는 exact `115 passing + 5 deviation + 7 oracle_locked`, relation
+- Product는 exact `115 passing + 5 deviation + 7 oracle_locked`, relation
   REL-001/003/004/005/006 5/12입니다. Exact inventory는 569/569/0, 57,738 bytes, SHA-256
   `739bb6fc4bc3a5665cbaa455bed45d4ddf9683d78c4ff74b02c1d0208862c2d7`이고 runtime/codegen/final
   integration audits는 P0/P1/P2/P3=`0/0/0/0`입니다.
 - [EVID-047](TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)은
-  activation-only hosted proof와 local implementation을 분리합니다. Implementation commit/push와 hosted
-  race/CGO0/vet/platform acceptance는 pending이며, 성공 전 ADR/work 상태를 승격하지 않습니다.
+  activation-only hosted proof와 local implementation을 분리합니다.
+  [EVID-048](TEST_EVIDENCE.md#evid-20260811-048--gdj-0027-github-hosted-exact-26-job-implementation-head-ci)은
+  exact implementation commit/run, four-coordinate 569/569/0 inventories, actual Ubuntu Linux/386 exact package
+  set, exact Darwin/Python과 hosted audit를 기록합니다. Completion-documentation patch 자체 CI는 pending입니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -384,15 +389,15 @@
 - Go module은 `github.com/progresshans/godj`, language/toolchain은 Go 1.26/1.26.5입니다.
 - Schema DSL과 normalized IR v2, deterministic codegen, generic Manager/QuerySet,
   typed/dynamic Query AST, SQLite query/write와 Save lifecycle 제품 단면이 구현됐습니다.
-- Hosted-tested implementation head `5be46141d943800a3c621975e3e5070f6d01eaf9`은 GDJ-0024의
+- Hosted-tested implementation head `7db684159ecfebbcbe1dc0673928e899ab8b0835`은 GDJ-0024의
   v2-byte-preserving relation IR v3/ForeignKey DSL,
   mixed v2/v3 metadata companion/project bridge와 immutable `orm.BindProject` 위에 additive query companion,
   project query bridge, immutable typed/dynamic relation path와 SQLite required reusable `INNER JOIN`을
   보존합니다. Additive sealed descriptor/storage, required/nullable object loader/cache,
   relation-object companions/project bridge, nullable source-key AST와 SQLite JOIN-0 trim을 더해 REL-003/006도
-  actual입니다. Current frozen GDJ-0027 tree는 additive reverse query/object/project companion과 SQLite
-  reverse exact INNER JOIN을 locally 구현해 REL-005도 actual로 전환했습니다. Reverse prefetch/eager/write/
-  delete/DDL/migration codec는 여전히 제품에 없습니다. ADR-0027은 hosted acceptance 전 Proposed입니다.
+  actual입니다. Additive reverse query/object/project companion과 SQLite reverse exact INNER JOIN을 더해
+  REL-005도 actual로 전환했습니다. Reverse prefetch/eager/write/delete/DDL/migration codec는 여전히 제품에
+  없습니다. ADR-0027은 bounded REL-005 slice에 한해 Accepted입니다.
 - Migration core는 versioned `ProjectState`, immutable graph/`AppliedState`, zero-I/O `Planner`,
   preflighted `ExecutePlan`, recorder-backed restart planning과 immutable historical-state
   reconstruction을 제공합니다.
@@ -464,7 +469,7 @@
 
 - Protocol v2 reference에는 12 ordered set, 127 unique contract/scenario와 132 ordered
   cross-binding이 있습니다. 현재 product checkout은 12개 set에 actual GoDj adapter를 가지며
-  127 contract의 local 제품 분류는 `115 passing + 5 deviation + 7 oracle_locked`입니다. Relation set은
+  127 contract의 hosted-accepted 제품 분류는 `115 passing + 5 deviation + 7 oracle_locked`입니다. Relation set은
   REL-001/003/004/005/006 actual `passing`, REL-002/007..012는 ordered payload-free
   `not_implemented`/`oracle_locked`입니다.
   MIG-018/020/022/024는
@@ -497,7 +502,7 @@
   `49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, 11-line `SHA256SUMS`
   1,061 bytes `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. 기존 10-line/
   959-byte prefix `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는 불변입니다.
-- Twelfth relation manifest는 local status-only REL-005 delta 뒤 10,812 bytes
+- Twelfth relation manifest는 status-only REL-005 delta 뒤 10,812 bytes
   `640b24e9e543b66375ea1dafa45750a6d2716c1b3f1e2602afcd7e2a3b68f136`, static fixture는 1,859 bytes
   `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, exact oracle은 33,792 bytes
   `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`입니다. 12-line
@@ -508,9 +513,9 @@
   REL-001/003/004/005/006 `passing` + REL-002/007..012 `oracle_locked`입니다. Static comparison은 ordered
   mismatch 12/exit 1이고 product `godjcheck`는 trusted oracle-blind actual adapters로 다섯 contract를 관찰한 뒤
   exact `GoDj product observations match 5 required contracts; 7 remain not implemented`로 성공합니다. 따라서
-  현재 local aggregate는 reference 12/127/132와 product
+  현재 aggregate는 reference 12/127/132와 product
   12/127=`115 passing + 5 deviation + 7 oracle_locked`를 분리합니다. 이 GDJ-0027 분류의 hosted
-  implementation-head acceptance는 아직 `not run/pending`이며 activation run을 재사용하지 않습니다.
+  implementation-head acceptance는 EVID-048/run `31419940399`에서 통과했습니다.
 - Existing MIG-057..064와 새 MIG-065..074 actual product comparison은 각각 locked reference oracle과
   difference 0입니다. Project-check static comparison은 exit 1/ordered mismatch 10을 유지하고, product
   `godjcheck`는 registered actual adapter로 성공합니다. Unknown/unregistered set만 conformance-tool
@@ -650,6 +655,10 @@
   relation-level nullable source-key provenance와 additive object generator API는 exact implementation-head
   hosted acceptance까지 통과했습니다. Reverse/eager/write/delete/DDL/migration과 broader target/backend는
   acceptance 밖입니다.
+- [ADR-0027](../adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 `Accepted`입니다. Declaration-centric
+  reverse path, query/object capability split, owner `RelatedSet`, project-only generator와 SQLite reverse exact
+  INNER JOIN은 exact implementation-head hosted acceptance까지 통과했습니다. REL-012 prefetch,
+  eager/write/delete/DDL/migration과 broader target/backend는 acceptance 밖입니다.
 
 ## Accepted source contract 경계
 
@@ -798,26 +807,27 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-외부 blocker는 없습니다. GDJ-0023, GDJ-0024, GDJ-0025와 GDJ-0026은 completed/Accepted bounded slices이며 respective
-hosted acceptance가 완료됐습니다. Final GDJ-0025 evidence/status baseline `bffc5284...`의 run
+외부 blocker는 없습니다. GDJ-0023, GDJ-0024, GDJ-0025, GDJ-0026과 GDJ-0027은 completed/Accepted bounded
+slices이며 respective hosted acceptance가 완료됐습니다. Final GDJ-0025 evidence/status baseline `bffc5284...`의 run
 `31359958949`도 exact 26/26·326/326을 통과했습니다. GDJ-0026 activation `aad4f7ff...`도 별도 run
 `31364944816`의 exact 26/26·326/326을 통과했고 implementation `5be46141...`은 별도 run `31370313755`의
 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. Completion-documentation
 `7f92fcf0...`도 별도 run `31372360481`의 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을
 통과했습니다. Final-status head `9ba1d0ee...`도 run `31374150640`의 exact 26/26·326/326을 통과해
 EVID-046에 기록했습니다. GDJ-0027 activation `9dbc2fd2...`도 별도 run `31414060387`의 exact
-26/26·326/326을 통과했습니다. 현재 pending은 frozen implementation/pre-hosted sync의 commit/push와 exact
-implementation-head hosted acceptance입니다. Activation run을 그 later implementation의 증거로 재사용하지 않습니다.
+26/26·326/326을 통과했고 implementation `7db68415...`은 별도 run `31419940399`의 exact
+26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 completion-documentation patch의 별도
+exact-head CI는 후속 evidence 작업이며 bounded completion의 blocker가 아닙니다.
 Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가 아니므로 `Partial`입니다.
-Q-013도 symbolic/bounded metadata/predicate/object-cache/nullability architecture는 Accepted됐지만
+Q-013도 symbolic/bounded metadata/predicate/object-cache/nullability/reverse-accessor architecture는 Accepted됐지만
 write/delete/DDL/migration codec와 broader relation surface가 열려 있어 `Partial`입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
 - Direct project command, writer/upgrade/cache와 broader public CLI/library/generator handshake
 - Codec v2+, executable/custom/data operation과 module/remote/recursive discovery adapter
-- REL-002/007..012 actual과 broader relation behavior. REL-005는 current local tree에서 passing이지만 hosted
-  acceptance 전 Proposed/active이며, reverse eager/prefetch/write/delete/DDL/migration codec는 packet 밖입니다.
+- REL-002/007..012 actual과 broader relation behavior. REL-005는 completed/Accepted bounded slice이며 reverse
+  eager/prefetch/write/delete/DDL/migration codec는 packet 밖입니다.
 - OneToOne/ManyToMany, non-PK `to_field`, broader delete/eager-loading relation semantics
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
@@ -825,12 +835,11 @@ write/delete/DDL/migration codec와 broader relation surface가 열려 있어 `P
 
 ## 다음 정확한 작업
 
-통합 담당자는 frozen GDJ-0027 implementation과 exact five-document pre-hosted sync만 의도적으로 commit/push한
-뒤 exact implementation-head 26-job CI를 확인합니다. Hosted topology가 race/CGO0/vet, actual Linux/386,
-four relation-product coordinates와 exact Python legs를 통과하고 independent raw-log audit가 clean일 때만
-ADR-0027/work를 Accepted/completed로 전환합니다. Completion documentation과 final evidence/status head도 각각
-별도 exact-head CI로 닫습니다. Activation run `31414060387`을 implementation proof로 재사용하지 않고 Draft
-PR은 사용자 요청 전 merge하지 않습니다.
+통합 담당자는 exact 15-file GDJ-0027 completion-documentation patch의 scope, EVID-001..047 prefix,
+links/frontmatter/fences와 diff를 검증한 뒤 documentation-only commit/push합니다. 같은 exact 26을 그
+completion-documentation head에서 새로 확인하고, separate final evidence/status patch로 recursive pending을
+닫습니다. Implementation run `31419940399`을 later documentation proof로 재사용하지 않고 Draft PR은 사용자
+요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -886,27 +895,27 @@ PR은 사용자 요청 전 merge하지 않습니다.
   recorded steps PASS; EVID-046
 - GDJ-0027 activation commit: `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`; exact 26-job run
   `31414060387` 26/26 and 326/326 recorded steps PASS; activation-only proof in EVID-047
-- 현재 working tree: hosted-tested activation `9dbc2fd2...` + frozen uncommitted GDJ-0027 implementation +
-  exact five-document pre-hosted sync; implementation commit/hosted CI는 `not run/pending`
+- GDJ-0027 implementation commit: `7db684159ecfebbcbe1dc0673928e899ab8b0835`; exact 26-job run
+  `31419940399` 26/26 and 326/326 recorded steps PASS; EVID-048
+- 현재 working tree: hosted-tested implementation `7db68415...` + exact 15-file completion-documentation patch;
+  documentation-head CI는 `not run/pending`
 - 최근 완료 work:
-  [GDJ-0026](../../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)
-- active work:
   [GDJ-0027](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)
+- active work: 없음
 - ready work: 없음
-- current decision: [ADR-0027](../adr/0027-reverse-foreign-key-accessor-and-lookup.md) Proposed;
-  ADR-0026/0025/0024/0023/0022/0021 Accepted
-- 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding. Locked oracle bytes는 불변이고 local
+- current decision: [ADR-0027](../adr/0027-reverse-foreign-key-accessor-and-lookup.md) Accepted;
+  ADR-0026/0025/0024/0023/0022/0021도 Accepted
+- 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding. Locked oracle bytes는 불변이고
   product manifest는 REL-001/003/004/005/006 `passing` + REL-002/007..012 `oracle_locked`
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
   coordinates와 local/hosted independent audits P0/P1/P2/P3 0; ADR-0023 Accepted
-- 현재 local 제품 분류: 12 product adapter/127 product contract=
-  `115 passing + 5 deviation + 7 oracle_locked`, REL-001/003/004/005/006 actual 5/12; hosted pending
+- 현재 제품 분류: 12 product adapter/127 product contract=
+  `115 passing + 5 deviation + 7 oracle_locked`, REL-001/003/004/005/006 actual 5/12; hosted accepted
 - Q-010/Q-012: `Partial`; exact global check/public project runner는 구현됐지만 full handshake,
   writer/upgrade와 DB-aware check는 미구현
-- Q-013: `Partial`; symbolic architecture, IR v3/REL-001 metadata, REL-004 predicate/INNER JOIN과 REL-003/006
-  object/cache/nullability는 Accepted/hosted-verified입니다. REL-005 reverse slice는 locally implemented지만
-  Proposed/active이고
-  eager/prefetch/write/delete/DDL/migration과 broader backend는 open입니다.
+- Q-013: `Partial`; symbolic architecture, IR v3/REL-001 metadata, REL-004 predicate/INNER JOIN, REL-003/006
+  object/cache/nullability와 REL-005 reverse slice는 Accepted/hosted-verified입니다.
+  Eager/prefetch/write/delete/DDL/migration과 broader backend는 open입니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0026 implementation local: EVID-043; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   final-byte `make ci`, exact 533/533/0 inventory·54,076 bytes·SHA-256 `6d2958b6...7aee`, 12 adapters,
@@ -923,10 +932,14 @@ PR은 사용자 요청 전 merge하지 않습니다.
   head `9ba1d0ee...`, relation-product four coordinates each exact 533/533/0·54,076 bytes·SHA-256
   `6d2958b6...7aee`, actual Ubuntu Linux/386 exact relation package set and four exact Python legs PASS;
   PR OPEN/DRAFT/CLEAN/MERGEABLE, synthetic merge/head tree both `e80dbd0e...`; baseline only
-- GDJ-0027 activation hosted/local implementation: EVID-047; activation `9dbc2fd2...` run 31414060387 exact
+- GDJ-0027 activation/local implementation: EVID-047; activation `9dbc2fd2...` run 31414060387 exact
   26/26·326/326 PASS with synthetic merge/head tree both `7c6f9d25...`, but activation-only. Local implementation
   exact 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`, relation 5 required/7 NI and runtime/codegen/final
-  integration audits P0/P1/P2/P3=0; implementation-head hosted CI pending/no reuse
+  integration audits P0/P1/P2/P3=0
+- GDJ-0027 implementation hosted: EVID-048/run 31419940399 exact 26/26·326/326 PASS; relation-product four
+  coordinates each exact 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`, actual Ubuntu Linux/386 exact package
+  set and exact Darwin/four Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE, synthetic merge/head tree both
+  `3d4e41f6...`; hosted audit P0/P1/P2/P3=0
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -965,10 +978,11 @@ PR은 사용자 요청 전 merge하지 않습니다.
   26/26 PASS; final evidence/status baseline run 31359958949 exact 26/26 PASS; GDJ-0026 activation run
   31364944816 exact 26/26 PASS; GDJ-0026 implementation run 31370313755 exact 26/26 PASS; completion-
   documentation run 31372360481 exact 26/26 PASS; final-status/GDJ-0027 baseline run 31374150640 exact 26/26 PASS;
-  GDJ-0027 activation run 31414060387 exact 26/26 PASS; current implementation-head run은 not run/pending
+  GDJ-0027 activation run 31414060387 exact 26/26 PASS; implementation run 31419940399 exact 26/26 PASS;
+  current completion-documentation head run은 not run/pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: activation run 31414060387을 REL-005 implementation success로 재사용하거나,
-  local `115 + 5 + 7`을 hosted-accepted classification으로 표현하거나, Proposed reverse API를 Accepted support로 표현하거나,
+- 가장 위험한 과장: implementation run 31419940399을 later completion-documentation success로 재사용하거나,
+  bounded REL-005 acceptance를 reverse prefetch/eager/write/delete/DDL/migration support로 넓히거나,
   service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은

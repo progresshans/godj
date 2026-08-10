@@ -446,14 +446,15 @@ API, ADR, CURRENT and final status.
 
 외부 blocker는 없습니다. Local implementation/conformance, all four independent local audit lanes와 exact
 implementation-head, completion-documentation-head와 final-status-head hosted acceptance가 모두
-통과했습니다. 이 completed work에는 pending blocker가 없습니다. GDJ-0027 activation diff의 pending은
-후속 work가 소유합니다.
+통과했습니다. 이 completed work에는 pending blocker가 없습니다. 후속 GDJ-0027 implementation head도
+exact 26 hosted acceptance를 통과했고 그 completion-documentation evidence는 GDJ-0027이 소유합니다.
 
 ## 다음 정확한 작업
 
-1. Follow active [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) for REL-005 only.
-2. Preserve this work's generated/product bytes and exact `114 + 5 + 8` accepted baseline.
-3. Do not reuse run 31374150640 as GDJ-0027 activation or implementation proof.
+1. Follow completed [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) and Accepted ADR-0027
+   for the bounded REL-005 result.
+2. Preserve this work's generated/product bytes and the GDJ-0027 exact `115 + 5 + 7` successor baseline.
+3. GDJ-0027 implementation head `7db68415...`/run `31419940399` is separate from this work's final-status run.
 4. Do not merge Draft PR #1 without user request.
 
 ## 인수인계
@@ -464,4 +465,5 @@ run `31374150640`; completion and implementation heads were independently exact-
 It owns only REL-003/006 forward instance object cache, nullable absent access and
 relation-provenance-preserving SQLite source-key isnull trim. Product comparison is exact `114 + 5 + 8`, relation
 actual REL-001/003/004/006 4/12. ADR-0026 is Accepted for this bounded slice and Q-013 remains `Partial`.
-Active GDJ-0027 owns only the proposed REL-005 reverse slice; no Draft PR merge is authorized.
+Completed GDJ-0027/Accepted ADR-0027 owns only the REL-005 reverse slice and passed exact implementation-head
+run `31419940399`; Q-013 remains `Partial` and no Draft PR merge is authorized.
