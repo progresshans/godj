@@ -563,6 +563,17 @@ Go-specific compile/AST/field-union direction evidence를 Django oracle payload�
 세지 않습니다. Implementation head의 exact 22/22 hosted acceptance는 EVID-032에 기록했으며
 PostgreSQL/MySQL/Windows 또는 relation product 지원 증거가 아닙니다.
 
+Active [GDJ-0024](../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)와
+Proposed [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는 이 reference를
+변경하지 않고 REL-001 metadata 하나만 제품화할 exact boundary입니다. Scalar v2 bytes를 보존하고 explicit
+IR v3 ForeignKey source, v2 target/v3 source의 additive `GoDjRelationSchema` companion, atomic
+`orm.BindProject`와 full 12-output partial product comparison을 사용합니다. REL-001만 observed/passing,
+REL-002..012는 ordered payload-free not-implemented/oracle-locked가 목표이므로 completion 집계도
+product `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12로 제한합니다.
+Query/load/cache/write/delete/DDL/migration
+codec와 PostgreSQL/MySQL/Windows 호환은 이 metadata-only packet의 목표가 아닙니다. Final GDJ-0023
+baseline EVID-034는 exact 22/22를 통과했지만 GDJ-0024 activation/implementation 증거로 재사용하지 않습니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는

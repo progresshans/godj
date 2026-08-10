@@ -336,8 +336,12 @@ adapter가 없으므로 12개는 `oracle_locked`이고, public Schema DSL/IR/cod
 아직 관계를 지원하지 않습니다. Implementation head `b56ccf52d71a09e2f4db42ce30fb5eaf58ffba99`은
 existing exact 18에 Linux/macOS x64/arm64 test-only relation-binding proof 4개를 더한 exact 22/22를
 통과했습니다. Accepted ADR-0023은 symbolic/atomic binding, project bridge, shared immutable AST와
-field-union relation arm 방향만 고정하며 exact public/wire/product shape는 후속입니다. 이는 PostgreSQL,
-OneToOne/ManyToMany 또는 제품 relation support의 증거가 아닙니다.
+field-union relation arm 방향을 고정했습니다. Active GDJ-0024/Proposed ADR-0024는 exact IR v3/DSL,
+mixed v2 target/v3 source additive companion, atomic binder와 REL-001 metadata-only product subset을
+동결했지만 아직 구현/검증 전입니다. 목표도 product
+`12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12이며
+query/load/write/delete/DDL은 제외합니다. 이는 PostgreSQL, OneToOne/ManyToMany 또는 ForeignKey breadth
+제품 지원의 증거가 아닙니다.
 
 ## Django 데이터 이행
 

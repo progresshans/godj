@@ -87,14 +87,18 @@
 - GDJ-0023 completion-documentation/hosted-tested commit:
   `31784ae1e8261ad0698921b93803aa35e9b63f93`
   (`docs: accept relation binding architecture`)
+- GDJ-0023 final evidence-documentation/hosted-tested commit and GDJ-0024 baseline:
+  `50578ddc4756452b2a9a0d2afd75711a35b76d8a`
+  (`docs: record hosted relation completion`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0023 completed; ForeignKey REL-001..012 exact Django contract와 cross-app
-  relation-binding feasibility를 제품 코드와 분리해 고정했고 ADR-0023은 Accepted. GDJ-0024는 아직
-  active가 아닌 다음 bounded product packet
+- 현재 단계: GDJ-0023 completed; final evidence head까지 exact 22/22를 닫았습니다. GDJ-0024 active;
+  Proposed ADR-0024의 explicit IR v3, mixed v2 target/v3 relation-source additive companion, atomic
+  project binding과 REL-001-only metadata 제품 단면을 활성화했습니다.
 - 최근 완료 작업:
   [GDJ-0023 ForeignKey Relation Compatibility Contracts and Binding Feasibility](../../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0024 AutoField ForeignKey Schema IR vNext, Atomic Project Binding, and REL-001 Product Metadata](../../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -141,8 +145,12 @@
   [run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
   273/273 steps를 성공했고
   [EVID-20260810-033](TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)에
-  기록했습니다. 현재 EVID-033/status patch 자체는 미커밋·미푸시이고 exact-head hosted CI가
-  `not run/pending`입니다.
+  기록했습니다. 이어 final evidence/status commit `50578ddc4756452b2a9a0d2afd75711a35b76d8a`의
+  [run 31340170361](https://github.com/progresshans/godj/actions/runs/31340170361)도 exact 22/22 jobs와
+  273/273 steps를 성공해
+  [EVID-20260810-034](TEST_EVIDENCE.md#evid-20260810-034--gdj-0023-final-evidence-documentation-exact-head-ci-and-gdj-0024-activation-baseline)에
+  기록했습니다. 이 clean tested baseline 뒤의 GDJ-0024 activation 문서 diff 자체는 아직
+  미커밋·미푸시이고 exact-head hosted CI가 `not run/pending`입니다.
 
 ## Completed GDJ-0023 관계 계약 경계
 
@@ -172,10 +180,42 @@
   4개 required leg로 분리해 implementation head에서 exact 22 executions를 검증했습니다. 일상 local
   Python은 CPython 3.14.3 + uv 0.12.3만 사용하고 exact Python 3.12.13/3.13.15/3.14.3/3.14.7은 CI가
   담당합니다. PostgreSQL/MySQL service-only job과 Windows product support claim은 추가하지 않습니다.
-- 두 independent local final audit와 hosted evidence audit는 P0/P1/P2/P3 finding 0이고 implementation
-  exact 22/22가 성공해 ADR-0023을 Accepted했습니다. GDJ-0024는 exact allowed paths와 product subset을
-  가진 별도 work가 작성되기 전에는 활성화하지 않습니다. OneToOne, ManyToMany, nested eager loading,
-  custom Prefetch, non-PK `to_field`, CASCADE/RESTRICT/DB-level delete와 PostgreSQL은 이번 범위가 아닙니다.
+- 두 independent local final audit와 hosted evidence audit는 P0/P1/P2/P3 finding 0이고 final evidence head
+  `50578ddc...`까지 exact 22/22가 성공해 ADR-0023을 Accepted했습니다. 후속 GDJ-0024는 exact allowed
+  paths와 REL-001-only product subset으로 활성화됐지만 아직 activation 문서뿐입니다. OneToOne,
+  ManyToMany, query/join/eager loading, custom Prefetch, non-PK `to_field`, write/delete/DDL/migration codec와
+  PostgreSQL은 GDJ-0024 범위가 아닙니다.
+
+## Active GDJ-0024 제품 경계
+
+- Proposed [ADR-0024](../adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는
+  `ir.FormatVersion=2`와 existing scalar bytes를 보존하면서 exact `ir.RelationFormatVersion=3`,
+  `foreign_key` relation arm과 exact DSL을 동결합니다.
+- REL-001은 v2 target-only authors와 v3 relation-source blog를 함께 사용합니다. Existing v2 main generated
+  bytes는 바꾸지 않고 모든 participating app에 additive `GenerateRelationMetadata` companion과
+  `GoDjRelationSchema()` fresh copy를 생성하며, project bridge가 mixed schemas를 `orm.BindProject`에 한 번에
+  전달합니다.
+- `orm.BindProject`는 mixed v2/v3 schemas를 canonical order로 snapshot하고 normalized target model identity와
+  reverse namespace를 검증한 뒤 immutable forward/reverse metadata를 all-or-nothing publish합니다. Target
+  AutoField-only shape는 `ir.Normalize`가 선행 강제합니다. Global registry,
+  partial publication과 app-to-app import edge는 금지합니다.
+- V3 main output의 exact exported surface는 provenance/hash와 required/nullable FK scalar `int64`/`*int64`를
+  가진 plain model structs뿐입니다. Relation schema accessor는 companion에만 있고 main은 `db`, `query`,
+  `Manager`, `WriteDescriptor`, loader/selector/create/update API를 만들지 않습니다.
+- Existing definition tuple `(1,1,1,2)`와 StateFormatVersion 1은 유지하고 relation v3 migration은 state와
+  lifecycle constructor seam에서 pre-I/O 거부합니다. `ir.Field.Clone`, Model clone,
+  `ExecutePlan`/reconstructor/lifecycle/definition retained snapshots은 nested relation pointer를 deep-copy합니다.
+  Caller는 snapshot call 중 input을 concurrent mutation하지 않아야 하며 성공 뒤 mutation만 retained value와
+  격리됩니다. `ProjectBinding` concurrent reads/accessors는 race-safe합니다. Direct `Executor.Apply`/`Unapply`
+  alias/race semantics는 변경하지 않습니다.
+- 제품 목표는 REL-001 한 개만 `passing`; REL-002..012는 ordered payload-free `not_implemented`와
+  `oracle_locked`를 유지하는 mixed 12-output입니다. 완료 집계 목표는 product
+  `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation actual 1/12입니다.
+  현재 checkout 제품은 여전히 `11 adapter sets/115 contracts = 110 passing + 5 deviation`이고 relation actual 0입니다.
+- Hosted 계획은 existing exact 22를 보존하고 relation product Linux/macOS x64/arm64 4개를 추가한 exact
+  26입니다. 아직 workflow에 구현되지 않았고 실행하지 않았습니다. Routine local Python은 CPython
+  3.14.3+uv 0.12.3, exact 3.12.13/3.13.15/3.14.3/3.14.7은 CI-only입니다. PostgreSQL/MySQL/Windows는
+  actual implementation/contract가 없어 제외합니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -576,18 +616,19 @@
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0023 Phase A reference와 Phase B test-only feasibility는 local 검증,
-independent audit, implementation head run 31338151743과 completion-documentation head run 31339409336의
-각 exact 22/22 hosted acceptance까지 완료됐습니다. ADR-0023은 Accepted이고 work는 completed입니다.
-현재 EVID-033/status patch 자체의 commit/push와 exact-head 22-job CI만 `not run/pending`입니다.
-Q-010/Q-012는 full
+independent audit, implementation/completion/final-evidence head의 exact 22/22 hosted acceptance까지
+완료됐습니다. ADR-0023은 Accepted이고 work는 completed입니다. GDJ-0024 exact architecture/work가 active지만
+현재 activation 문서 diff 자체의 commit/push와 exact-head 22-job CI는 `not run/pending`입니다. Product code,
+REL-001 actual과 planned exact 26 CI도 아직 실행하지 않았습니다. Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware
 migration lifecycle 전체가 아니므로 `Partial`입니다. Q-013도 architecture는 Accepted됐지만 exact
-public/wire/product shape가 후속이라 `Partial`입니다.
+IR v3/metadata product shape가 Proposed/active일 뿐 구현·hosted accepted되지 않아 `Partial`입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
 - Direct project command, writer/upgrade/cache와 broader public CLI/library/generator handshake
 - Codec v2+, executable/custom/data operation과 module/remote/recursive discovery adapter
-- ForeignKey 제품 Schema IR/codegen/runtime metadata/query compiler/loader/write와 relation actual adapter
+- GDJ-0024의 ForeignKey IR v3/companion/binder/REL-001 actual 구현
+- Relation query compiler/loader/cache/write/delete/DDL/migration codec와 REL-002..012 actual
 - OneToOne/ManyToMany, non-PK `to_field`, broader delete/eager-loading relation semantics
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
@@ -595,11 +636,12 @@ public/wire/product shape가 후속이라 `Partial`입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 EVID-033/status patch를 GDJ-0023 exact allowed scope로 commit/push하고 그 exact head의
-22-job CI를 별도로 수집합니다. Run 31339409336은 completion-documentation head 증거이므로 이 뒤의
-evidence/status head 증거로 재사용하지 않습니다. 그 exact-head 결과를 확인한 뒤 Accepted ADR-0023을
-입력으로 GDJ-0024의 exact product subset/allowed paths를 새 work에 작성하고 나서만 활성화합니다.
-Draft PR은 사용자 요청 전까지 merge하지 않습니다.
+통합 담당자는 EVID-034를 보존한 GDJ-0024 activation 문서 diff의 placeholder/link/scope/contradiction을
+검증해 same Draft PR #1에 activation commit/push합니다. 그 exact head의 기존 22-job CI를 별도로 수집하고
+성공하기 전에는 implementation으로 넘어가지 않습니다. Hosted baseline 뒤 첫 구현은 v2 byte-lock과
+`ir.Field.Clone`, version-aware IR/DSL입니다. 이후 mixed v2/v3 companion, atomic binder/bridge,
+migration constructor preflight/lifecycle I/O 0, REL-001 mixed product comparison과 planned exact 26을 work 단계 순서대로
+진행합니다. Draft PR은 사용자 요청 전까지 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -623,14 +665,18 @@ Draft PR은 사용자 요청 전까지 merge하지 않습니다.
   `31338151743` 22/22 and 273/273 steps PASS
 - GDJ-0023 completion-documentation commit: `31784ae1e8261ad0698921b93803aa35e9b63f93`; exact 22-job run
   `31339409336` 22/22 and 273/273 steps PASS
-- 현재 working tree: 위 `31784ae1` completion-documentation head + uncommitted EVID-033/status patch;
-  이 후속 patch의 commit/push/exact-head 22-job CI 전
+- GDJ-0023 final evidence/status commit and GDJ-0024 activation baseline:
+  `50578ddc4756452b2a9a0d2afd75711a35b76d8a`; exact 22-job run `31340170361` 22/22 and
+  273/273 steps PASS
+- 현재 working tree: 위 `50578ddc` clean tested baseline + uncommitted EVID-034/GDJ-0024 activation docs;
+  이 activation patch의 commit/push/exact-head 22-job CI 전
 - 최근 완료 work:
   [GDJ-0023](../../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)
-- active work: 없음
+- active work:
+  [GDJ-0024](../../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)
 - ready work: 없음
-- current decision: [ADR-0023](../adr/0023-symbolic-relation-binding-and-shared-relation-ast.md) Accepted;
-  predecessor ADR-0022/ADR-0021 Accepted
+- current decision: [ADR-0024](../adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)
+  Proposed; ADR-0023/0022/0021 Accepted
 - 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding과 REL 12 `oracle_locked`; Phase A
   local PASS
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
@@ -639,8 +685,11 @@ Draft PR은 사용자 요청 전까지 merge하지 않습니다.
   exact 10 `passing`
 - Q-010/Q-012: `Partial`; exact global check/public project runner는 구현됐지만 full handshake,
   writer/upgrade와 DB-aware check는 미구현
-- activation local/hosted gate: Markdown parse/link/heading, frontmatter/allowed-scope, EVID-030 append-only,
-  `git diff --check`와 exact 18 run 31335315454 PASS
+- Q-013: `Partial`; symbolic architecture Accepted, exact IR v3/companion/binder/REL-001 product shape는
+  Proposed/active이며 구현 전
+- GDJ-0024 activation baseline: EVID-034/run 31340170361 exact 22/22 PASS; activation docs diff/frontmatter/
+  link/fence/scope local structural validation PASS; frozen API feasibility audit는 work `5be0b83c...`/ADR
+  `e1101a04...`에서 P0/P1/P2/P3=0 PASS; activation exact-head hosted CI만 pending
 - implementation local: CPython 3.14.3 + uv 0.12.3 `make ci` portable 193/17; uv 0.10.12 exact
   193/0 + 12 oracle checks; relationbinding normal/race/CGO-disabled/vet/race count-20 PASS
 - Hosted CI: GDJ-0021 implementation 31320798963, completion 31322122760, evidence 31322959993 exact
@@ -649,12 +698,12 @@ Draft PR은 사용자 요청 전까지 merge하지 않습니다.
   EVID-028/status run 31330601427은 16 success/2 macOS product failure; final stabilization run
   31332208055 exact 18/18 PASS; EVID-029/status run 31333420261 exact 18/18 PASS; GDJ-0023 activation run
   31335315454 exact 18/18 PASS; implementation run 31338151743 exact 22/22 PASS;
-  completion-documentation run 31339409336 exact 22/22 PASS; current EVID-033/status patch exact 22 CI는
-  not run/pending
+  completion-documentation run 31339409336 exact 22/22 PASS; final evidence/status run 31340170361 exact
+  22/22 PASS; current GDJ-0024 activation docs exact 22 CI는 not run/pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: completion-documentation run 31339409336을 뒤의 EVID-033/status exact-head
-  success로 재사용하거나, REL oracle/binding spike를 product relation support로 세거나, service-only
-  PostgreSQL/MySQL job을 backend support로 표현하는 것
+- 가장 위험한 과장: final baseline run 31340170361을 뒤의 GDJ-0024 activation/implementation exact-head
+  success로 재사용하거나, activation/REL oracle/binding spike를 product relation support로 세거나,
+  service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

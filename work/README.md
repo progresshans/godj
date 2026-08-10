@@ -47,11 +47,16 @@ proposed → ready → active → completed
 | [GDJ-0021](0021-migration-project-check-compatibility-contracts.md) | completed | Project-linked migration check 호환/결정 계약 |
 | [GDJ-0022](0022-migration-project-check-product-slice.md) | completed | Project-linked migration check 제품 단면 |
 | [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | completed | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
+| [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md) | active | AutoField ForeignKey IR v3, atomic binding과 REL-001 제품 metadata |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
 완료 항목은 [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)이며,
-현재 active 항목은 없습니다. GDJ-0022는
+현재 active 항목은 [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)입니다.
+GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
+mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
+boundary를 활성화했습니다. 현재는 Proposed ADR-0024/activation 문서뿐이며 제품 code/status/workflow는
+아직 바뀌지 않았고 activation exact-head hosted CI도 `not run/pending`입니다. GDJ-0022는
 Accepted ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로
 구현해 10 contract를 `passing`으로 전환했고, final evidence head까지 exact 18-job hosted acceptance를
 완료했습니다. GDJ-0023은 Q-013을 추측으로 제품화하지 않고 pinned Django 6.1 ForeignKey 외부 동작
@@ -97,8 +102,12 @@ exact 18/18을 통과했고 EVID-030에 기록했습니다. GDJ-0023 activation 
 0입니다. Completion-documentation head `31784ae1`도 별도
 [run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
 [EVID-20260810-033](../docs/status/TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)으로
-검증했습니다. 현재 EVID-033/status patch 자체는 미커밋·미푸시이고 exact-head hosted CI가 pending이며,
-GDJ-0024는 아직 active work가 아닌 다음 bounded packet입니다.
+검증했습니다. 이어 final evidence/status head `50578ddc4756452b2a9a0d2afd75711a35b76d8a`의
+[run 31340170361](https://github.com/progresshans/godj/actions/runs/31340170361)도 exact 22/22와 273/273
+steps를 성공해
+[EVID-20260810-034](../docs/status/TEST_EVIDENCE.md#evid-20260810-034--gdj-0023-final-evidence-documentation-exact-head-ci-and-gdj-0024-activation-baseline)에
+기록했습니다. 이 tested clean baseline 뒤 GDJ-0024 activation 문서 diff 자체의 exact-head hosted CI는
+commit/push 전 `not run/pending`입니다.
 
 ## 운영 규칙
 

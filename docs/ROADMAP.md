@@ -1,9 +1,9 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0023 completed; local EVID-031, implementation-head hosted EVID-032와
-  completion-documentation-head hosted EVID-033 완료; ADR-0023 Accepted, Q-013 Partial;
-  EVID-033/status patch는 미커밋·미푸시이고 다음 active work 미선정
+- 현재 단계: GDJ-0023 completed; local EVID-031, implementation/completion/final-evidence hosted
+  EVID-032..034 완료; ADR-0023 Accepted. GDJ-0024 active, ADR-0024 Proposed, Q-013 Partial;
+  activation docs exact-head hosted CI는 not run/pending
 - 현재 제품 기준: 11 adapter/115 contract의 `110 passing + 5 deviation`
 - 마지막 검토: 2026-08-10
 
@@ -306,7 +306,10 @@ synchronization head `385382efffd1872ae7fb427192bab27b95dc57e2`의 run `31332208
 통과했습니다. Completion-documentation head `31784ae1e8261ad0698921b93803aa35e9b63f93`도 별도
 [run 31339409336](https://github.com/progresshans/godj/actions/runs/31339409336)의 exact 22/22와
 [EVID-20260810-033](status/TEST_EVIDENCE.md#evid-20260810-033--gdj-0023-github-hosted-completion-documentation-head-exact-22-job-ci)으로
-검증했습니다. 현재 EVID-033/status patch 자체의 commit/push와 exact-head CI만 pending입니다.
+검증했습니다. Final evidence/status head `50578ddc4756452b2a9a0d2afd75711a35b76d8a`도
+[run 31340170361](https://github.com/progresshans/godj/actions/runs/31340170361)의 exact 22/22와 273/273
+steps를 성공해 EVID-034에 기록했습니다. 현재 GDJ-0024 activation docs 자체의 commit/push와 exact-head
+CI는 pending입니다.
 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
@@ -319,9 +322,16 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   contract-only/test-only로 고정했습니다. Schema IR v2나 제품 API는 변경하지 않았습니다.
 - [ADR-0023](adr/0023-symbolic-relation-binding-and-shared-relation-ast.md)은 symbolic/atomic binding,
   import-cycle-free project bridge, shared immutable relation AST와 explicit vNext field-union relation arm
-  방향을 Accepted했습니다. 아직 active work가 아닌 다음 bounded GDJ-0024가 exact allowed paths와 첫
-  SQLite product subset을 별도로 정합니다. OneToOne/prefetch-delete breadth와 PostgreSQL actual backend는
-  뒤의 bounded pair로 계속 분리합니다.
+  방향을 Accepted했습니다.
+- Active [GDJ-0024](../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)와
+  Proposed [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는 exact
+  `RelationFormatVersion=3` ForeignKey arm/DSL, mixed v2 target/v3 source additive companion, atomic
+  `orm.BindProject`와 REL-001 metadata-only product subset을 동결합니다. REL-002..012는 oracle-locked로
+  유지하며 target aggregate는 product
+  `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12입니다. Existing exact 22에
+  relation-product 4 legs를 더한 exact 26은 implementation 이후 required로 만들 계획이고 아직 실행하지
+  않았습니다. OneToOne/query/eager/write/delete/DDL/migration codec와 PostgreSQL actual backend는 뒤의
+  bounded pair로 계속 분리합니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`
