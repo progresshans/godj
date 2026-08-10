@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/rand"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
@@ -304,6 +305,72 @@ func TestStateReconstructorConstructorRejectsAliasedOrInvalidOperations(t *testi
 			_, err := NewStateReconstructor(migration)
 			assertStateReconstructionError(t, err, migration.Key(), 0, test.kind)
 		})
+	}
+}
+
+func TestStateReconstructorRejectsRelationOperationsAtConstructorBoundary(t *testing.T) {
+	t.Parallel()
+
+	relation := relationMigrationField()
+	scalarWithRelation := summaryField()
+	scalarWithRelation.Relation = relation.Relation
+	tests := []struct {
+		name      string
+		operation Operation
+		kind      string
+	}{
+		{
+			name: "CreateModel value ForeignKey kind",
+			operation: CreateModel{AppLabel: "blog", Model: ir.Model{
+				Name: "post", GoName: "Post", DBTable: "blog_post",
+				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}, relation},
+			}},
+			kind: "CreateModel",
+		},
+		{
+			name: "CreateModel pointer hidden relation arm",
+			operation: &CreateModel{AppLabel: "blog", Model: ir.Model{
+				Name: "post", GoName: "Post", DBTable: "blog_post",
+				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}, scalarWithRelation},
+			}},
+			kind: "CreateModel",
+		},
+		{name: "AddField value ForeignKey kind", operation: AddField{AppLabel: "blog", ModelName: "post", Field: relation}, kind: "AddField"},
+		{name: "AddField pointer hidden relation arm", operation: &AddField{AppLabel: "blog", ModelName: "post", Field: scalarWithRelation}, kind: "AddField"},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			migration := Migration{App: "blog", Name: "0001_relation", Operations: []Operation{test.operation}}
+			reconstructor, err := NewStateReconstructor(migration)
+			migrationError := assertStateReconstructionError(t, err, migration.Key(), 0, test.kind)
+			if !strings.Contains(migrationError.Cause.Error(), "Schema IR v2 migration state cannot represent relation-bearing field") {
+				t.Fatalf("relation constructor cause = %v", migrationError.Cause)
+			}
+			state, reconstructErr := reconstructor.Reconstruct(LatestStateRequest())
+			if reconstructErr != nil || len(state.Apps()) != 0 {
+				t.Fatalf("failed constructor published reconstructor = state:%v err:%v", state.Apps(), reconstructErr)
+			}
+		})
+	}
+}
+
+func TestCloneReconstructorOperationDeepCopiesNestedRelation(t *testing.T) {
+	t.Parallel()
+
+	field := relationMigrationField()
+	operation := &AddField{AppLabel: "blog", ModelName: "post", Field: field}
+	clonedOperation, kind, supported := cloneReconstructorOperation(operation)
+	if !supported || kind != "AddField" {
+		t.Fatalf("cloneReconstructorOperation() = %T, %q, %t", clonedOperation, kind, supported)
+	}
+	cloned := clonedOperation.(*AddField)
+	operation.Field.Relation.Target.AppLabel = "mutated"
+	operation.Field.Relation.Reverse.Name = "mutated"
+	if cloned == operation || cloned.Field.Relation == operation.Field.Relation ||
+		cloned.Field.Relation.Target.AppLabel != "authors" || cloned.Field.Relation.Reverse.Name != "posts" {
+		t.Fatalf("cloned AddField retained relation alias: %#v", cloned)
 	}
 }
 

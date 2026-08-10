@@ -2,6 +2,8 @@ package migrations
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -81,6 +83,56 @@ func TestProjectStateRejectsDuplicateApps(t *testing.T) {
 	}
 }
 
+func TestProjectStateAndOperationWrappersRejectRelationIRV3(t *testing.T) {
+	t.Parallel()
+
+	relationSchema := relationMigrationSchema()
+	state, err := NewProjectState(relationSchema)
+	if err == nil || !strings.Contains(err.Error(), "migration state requires version 2") {
+		t.Fatalf("NewProjectState(v3) = state:%#v err:%v", state, err)
+	}
+	if len(state.Apps()) != 0 {
+		t.Fatalf("failed NewProjectState published apps %v", state.Apps())
+	}
+
+	create := CreateModel{AppLabel: "blog", Model: relationSchema.Models[0]}
+	afterCreate, err := create.stateForward(EmptyProjectState())
+	var validation *ir.ValidationError
+	if !errors.As(err, &validation) || validation.Path != "models[0].fields[1].relation" {
+		t.Fatalf("CreateModel relation error = %#v", err)
+	}
+	if len(afterCreate.Apps()) != 0 {
+		t.Fatalf("failed CreateModel state = %v", afterCreate.Apps())
+	}
+
+	before, err := NewProjectState(articleSchema())
+	if err != nil {
+		t.Fatalf("NewProjectState(v2) error = %v", err)
+	}
+	add := AddField{AppLabel: "news", ModelName: "article", Field: relationMigrationField()}
+	afterAdd, err := add.stateForward(before)
+	validation = nil
+	if !errors.As(err, &validation) || validation.Path != "models[0].fields[3].relation" {
+		t.Fatalf("AddField relation error = %#v", err)
+	}
+	if !afterAdd.Equal(before) {
+		t.Fatal("failed AddField changed project state")
+	}
+}
+
+func TestProjectStateValidationRejectsRetainedRelationVersionBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	state := EmptyProjectState()
+	state.apps["blog"] = relationMigrationSchema()
+	fake := &fakeBackend{transaction: newFakeTransaction()}
+	_, err := (Executor{Backend: fake}).Apply(context.Background(), state, articleMigration())
+	assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
+	if fake.beginCount != 0 || !strings.Contains(err.Error(), "migration state requires version 2") {
+		t.Fatalf("Apply(v3 state) = err:%v begin:%d", err, fake.beginCount)
+	}
+}
+
 func TestExecutorRejectsUnsupportedProjectStateVersionBeforeIO(t *testing.T) {
 	t.Parallel()
 
@@ -119,5 +171,33 @@ func summaryField() ir.Field {
 		Kind:      ir.FieldChar,
 		Nullable:  true,
 		MaxLength: 200,
+	}
+}
+
+func relationMigrationSchema() ir.Schema {
+	return ir.Schema{
+		FormatVersion: ir.RelationFormatVersion,
+		AppLabel:      "blog",
+		Models: []ir.Model{{
+			Name:    "post",
+			GoName:  "Post",
+			DBTable: "blog_post",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+				relationMigrationField(),
+			},
+		}},
+	}
+}
+
+func relationMigrationField() ir.Field {
+	return ir.Field{
+		Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "posts"},
+			OnDelete:    ir.DeleteProtect,
+		},
 	}
 }

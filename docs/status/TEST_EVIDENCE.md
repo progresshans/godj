@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-034
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-035
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -2808,3 +2808,75 @@ All 22 required executions retained the EVID-032/033 inventory and passed their 
 normal/race/CGO-disabled/vet, artifact no-rewrite and clean-worktree gates. This is the final hosted evidence
 for the completed GDJ-0023 evidence-documentation head and only the clean baseline evidence for activating
 GDJ-0024. No relation product code, product adapter, workflow expansion or merge was part of this run.
+
+## EVID-20260810-035 — GDJ-0024 REL-001 Metadata Product Pre-hosted Local Validation
+
+- Date/time: 2026-08-10; activation hosted 09:37:57–09:43:46 KST, local implementation validation after recovery
+- Work/contract IDs: GDJ-0024, REL-001, Q-013; REL-002..REL-012 explicit not-implemented boundary
+- Tested checkout: branch `codex/revision-fenced-migration-lifecycle`; activation commit
+  `758cd0931fe489e3cde81ca8d12e35e68183c40a` plus the uncommitted frozen GDJ-0024 implementation and
+  pre-hosted status patch. The implementation commit identity is intentionally unknown/pending at this evidence point.
+- Local environment: Go 1.26.5 `darwin/arm64`; CPython 3.14.3; uv 0.12.3; routine local Python one-version
+  policy. Exact Python 3.12.13/3.13.15/3.14.3/3.14.7 remains CI-only; historical exact darwin oracle profile
+  remains uv 0.10.12.
+- Result summary: local product implementation adds explicit relation IR v3, v2-byte-preserving mixed v2/v3
+  codegen companions and project bridge, immutable `orm.BindProject`, relation-aware clone and migration
+  fail-closed boundaries, REL-001 actual metadata observation and a mixed product comparator. Product is now
+  locally `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`; relation actual
+  coverage is REL-001 1/12. REL-002..REL-012 remain ordered payload-free `not_implemented`.
+- Failures/skips/not run: local expected failures 0. The exact-26 implementation-head GitHub workflow has not
+  been committed/pushed or run and remains `not run/pending`; activation run 31344980929 must not be reused as
+  implementation-hosted proof. Windows, PostgreSQL/MySQL, relation query/write/delete/DDL/migration codec and
+  non-AutoField targets remain unsupported/out of scope.
+
+Activation exact-head hosted evidence:
+
+- Draft PR #1 `pull_request` run
+  [31344980929](https://github.com/progresshans/godj/actions/runs/31344980929), attempt 1, completed with
+  `success` at exact `headSha=758cd0931fe489e3cde81ca8d12e35e68183c40a`.
+- Exact 22/22 jobs and all 273/273 recorded steps succeeded; failed/cancelled/skipped jobs and non-success
+  step records were 0. Evidence re-query found PR #1 `OPEN`/`DRAFT`/`CLEAN`, base `f8a5e20c...`, head exact
+  `758cd093...`.
+- Actions synthetic merge `b91432ff8273eb9a44838a77bcab925739d9a030` had exact base+head parents;
+  its tree and the activation head tree were both `5fbaefd1f369ca6d98180d6aad3bacc0ad61ee69`, so executed
+  contents were exact-head-equivalent.
+- Exact successful job IDs were: full conformance `93325125045`; exact darwin `93325125024`; project check
+  `93325125040`, `93325125055`, `93325125082`, `93325125042`; relation binding `93325125070`,
+  `93325125030`, `93325125080`, `93325125065`; product project check `93325125053`, `93325125038`,
+  `93325125048`, `93325125068`; Python compatibility `93325125079`, `93325125073`, `93325125059`,
+  `93325125077`; SQLite `93325125043`, `93325125069`, `93325125060`, `93325125067`.
+- This exact-22 result establishes only the activation head and existing pre-GDJ-0024 product topology.
+
+Local commands and exact gates:
+
+1. `PYTHONDONTWRITEBYTECODE=1 make ci`
+   - PASS: format/generate checks, full Go normal/vet/race, focused CGO-disabled packages, portable Python,
+     conformance checks and all twelve product adapters.
+   - Portable Python reported `Ran 193 tests`, `OK (skipped=17)` under CPython 3.14.3 + uv 0.12.3.
+2. `go test -json -count=1 ./schema/... ./codegen ./orm ./migrations ./migrations/definition
+   ./conformance/relationproduct/... ./conformance/internal/protocol ./conformance/runners/godj
+   ./conformance/cmd/godjcheck ./internal/compiletest` plus the workflow's exact JSON inventory verifier
+   - PASS: 394 top-level run events, 394 matching pass events, 0 skip events.
+   - Encoded inventory was 40,630 bytes, SHA-256
+     `2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce`.
+3. The same relation-product package set under race, `CGO_ENABLED=0`, vet and repeated execution; external
+   mixed v2/v3, mutual and self generated projects; Linux/386 compile-only gate
+   - PASS. Generated app-to-app import edges remained 0 and the project bridge held the exact app+ORM imports.
+4. `make godj-conformance`
+   - PASS for all 12 adapters. Relation stdout was exactly
+     `GoDj product observations match 1 required contract; 11 remain not implemented`.
+5. `PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m unittest
+   conformance.runners.django.tests.test_relation_scenarios`
+   - PASS: `Ran 11 tests`, `OK`.
+6. Artifact/scope checks
+   - Relation manifest changed only REL-001 `oracle_locked -> passing`; relation oracle 33,792 bytes/
+     `6b7d138d...8290`, static 1,859 bytes/`2450dcb9...209`, SHA256SUMS 1,148 bytes/
+     `067b7d89...056`, `go.mod` and `go.sum` remained unchanged. All twelve stored checksums verified.
+   - Frozen implementation had 53 allowed paths; forbidden `query/**`, `db/**`,
+     `conformance/relationbinding/**`, Django relation runner/oracle/static/SHA and dependency files had zero diff.
+   - `git diff --check` and generated Python cache cleanup passed.
+
+Four independent read-only audits covered IR/migration, codegen/binder, conformance/CI false-green and final
+integration/security boundaries. Each final verdict was P0/P1/P2/P3 = 0/0/0/0. The CI definition expands the
+existing 22 required executions with four relation-product coordinates for exact 26, but hosted acceptance is
+deliberately pending until this frozen implementation and evidence are committed and pushed.

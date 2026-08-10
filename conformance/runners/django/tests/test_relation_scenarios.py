@@ -138,7 +138,7 @@ class RelationScenarioTests(unittest.TestCase):
         )
         self.assertEqual(
             [contract["status"] for contract in manifest["contracts"]],
-            ["oracle_locked"] * 12,
+            ["passing"] + ["oracle_locked"] * 11,
         )
         self.assertEqual(
             [contract["id"] for contract in static["contracts"]], identifiers

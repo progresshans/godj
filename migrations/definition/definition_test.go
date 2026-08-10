@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 const oneCreateModelDigest = "sha256:07e61f8d956002cff0d7fe2db10c16ea4a30829e9f0ced09c69c40ff2c2399bc"
@@ -347,6 +348,90 @@ func TestDefinitionsAccessorDeepCopiesNestedDefaultPointers(t *testing.T) {
 	}
 	if loaded.Digest() != wantDigest || report.DefinitionSetsPublished != 1 || report.DefinitionsPublished != 2 {
 		t.Fatalf("accessor mutation changed set/report: digest=%q/%q report=%+v", loaded.Digest(), wantDigest, report)
+	}
+}
+
+func TestDefinitionCloneDeepCopiesNestedRelationPointers(t *testing.T) {
+	t.Parallel()
+
+	relation := &ir.ForeignKeyRelation{
+		Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		Cardinality: ir.RelationManyToOne,
+		Reverse:     ir.ReverseRelation{Name: "posts"},
+		OnDelete:    ir.DeleteProtect,
+	}
+	definitions := []migrations.Migration{{
+		App:  "blog",
+		Name: "0001_relation",
+		Operations: []migrations.Operation{migrations.AddField{
+			AppLabel: "blog", ModelName: "post",
+			Field: ir.Field{Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey, Relation: relation},
+		}},
+	}}
+	cloned := cloneMigrations(definitions)
+	operation := definitions[0].Operations[0].(migrations.AddField)
+	operation.Field.Relation.Target.AppLabel = "mutated"
+	operation.Field.Relation.Reverse.Name = "mutated"
+	definitions[0].Operations[0] = operation
+
+	got := cloned[0].Operations[0].(migrations.AddField)
+	if got.Field.Relation == relation || got.Field.Relation.Target.AppLabel != "authors" ||
+		got.Field.Relation.Reverse.Name != "posts" {
+		t.Fatalf("definition clone retained relation alias: %#v", got.Field.Relation)
+	}
+}
+
+func TestDefinitionTupleAndHiddenRelationPayloadRemainFailClosed(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		doc     string
+		code    ErrorCode
+		stage   string
+		pointer string
+		reason  string
+	}{
+		{
+			name:    "schema ir tuple 3",
+			doc:     strings.Replace(string(oneCreateModelDocument("alpha", "0001_initial")), `"schema_ir":2`, `"schema_ir":3`, 1),
+			code:    CodeSchemaIRIncompatible,
+			stage:   "compatibility",
+			pointer: "/compatibility/schema_ir",
+			reason:  "schema_ir",
+		},
+		{
+			name: "tuple 2 hidden relation arm",
+			doc: strings.Replace(
+				string(oneCreateModelDocument("alpha", "0001_initial")),
+				`"default":null`,
+				`"relation":{"target":{"app_label":"authors","model_name":"author"},"cardinality":"many_to_one","reverse":{"name":"posts"},"on_delete":"protect"},"default":null`,
+				1,
+			),
+			code:    CodeInvalidIR,
+			stage:   "semantic",
+			pointer: "/migration/operations/0/model/fields/0/relation",
+			reason:  "invalid_ir",
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			set, report, err := Load(Source{SourceID: "relation", Document: []byte(test.doc)})
+			var definitionError *Error
+			if !errors.As(err, &definitionError) || definitionError.Code != test.code {
+				t.Fatalf("Load() error = %#v, want code %q", err, test.code)
+			}
+			context := definitionError.Context()
+			if context.Stage != test.stage || context.JSONPointer != test.pointer || context.Reason != test.reason {
+				t.Fatalf("Load() failure context = %+v", context)
+			}
+			if set.Digest() != EmptySetDigest || len(set.Definitions()) != 0 ||
+				report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 {
+				t.Fatalf("failed Load published partial definitions: set=%#v report=%+v", set.Definitions(), report)
+			}
+		})
 	}
 }
 

@@ -31,6 +31,14 @@ func NewProjectState(schemas ...ir.Schema) (ProjectState, error) {
 		if err != nil {
 			return ProjectState{}, fmt.Errorf("normalize project schema %d: %w", index, err)
 		}
+		if normalized.FormatVersion != ir.FormatVersion {
+			return ProjectState{}, fmt.Errorf(
+				"project schema %d uses Schema IR version %d; migration state requires version %d",
+				index,
+				normalized.FormatVersion,
+				ir.FormatVersion,
+			)
+		}
 		if _, exists := state.apps[normalized.AppLabel]; exists {
 			return ProjectState{}, fmt.Errorf("duplicate project app %q", normalized.AppLabel)
 		}
@@ -96,6 +104,14 @@ func (s ProjectState) validate() error {
 	for app, schema := range s.apps {
 		if schema.AppLabel != app {
 			return fmt.Errorf("project app key %q does not match schema app label %q", app, schema.AppLabel)
+		}
+		if schema.FormatVersion != ir.FormatVersion {
+			return fmt.Errorf(
+				"project app %s uses Schema IR version %d; migration state requires version %d",
+				app,
+				schema.FormatVersion,
+				ir.FormatVersion,
+			)
 		}
 		normalized, err := ir.Normalize(schema)
 		if err != nil {

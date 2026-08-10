@@ -7,7 +7,7 @@
       "title": "Cross-app lazy ForeignKey declarations publish matching forward and reverse metadata",
       "scenario": "django.relation.cross_app_metadata",
       "phase": "metadata",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

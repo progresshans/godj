@@ -222,10 +222,5 @@ func cloneMigrationOperation(operation Operation) Operation {
 }
 
 func cloneMigrationField(field ir.Field) ir.Field {
-	cloned := field
-	if field.Default != nil {
-		defaultValue := *field.Default
-		cloned.Default = &defaultValue
-	}
-	return cloned
+	return field.Clone()
 }

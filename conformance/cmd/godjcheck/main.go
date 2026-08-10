@@ -90,25 +90,57 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		}
 		decision = deviationExpected.Decision
 	}
+	requiredObserved, err := godjrunner.RequiredObservedContractIDs(comparisonManifest)
+	if err != nil {
+		return reportFailure(stderr, fmt.Errorf("actual handler registry: %w", err))
+	}
 	actual, err := godjrunner.Generate(ctx, profile, comparisonManifest)
 	if err != nil {
 		return reportFailure(stderr, err)
 	}
-	if *actualOutputPath != "" {
-		contents, err := protocol.MarshalCanonical(actual)
-		if err != nil {
-			return reportFailure(stderr, fmt.Errorf("encode actual observations: %w", err))
-		}
-		if err := writeAtomic(ctx, *actualOutputPath, contents); err != nil {
-			return reportFailure(stderr, fmt.Errorf("write actual observations: %w", err))
-		}
-	}
 
-	differences, err := protocol.Compare(profile, comparisonManifest, comparisonExpected, actual)
+	mixedProduct := len(requiredObserved) != len(comparisonManifest.Contracts)
+	var differences []protocol.Difference
+	if mixedProduct {
+		differences, err = protocol.CompareProduct(
+			profile,
+			comparisonManifest,
+			comparisonExpected,
+			actual,
+			requiredObserved,
+		)
+	} else {
+		differences, err = protocol.Compare(profile, comparisonManifest, comparisonExpected, actual)
+	}
 	if err != nil {
 		return reportFailure(stderr, err)
 	}
 	if len(differences) == 0 {
+		if *actualOutputPath != "" {
+			contents, err := protocol.MarshalCanonical(actual)
+			if err != nil {
+				return reportFailure(stderr, fmt.Errorf("encode actual observations: %w", err))
+			}
+			if err := writeAtomic(ctx, *actualOutputPath, contents); err != nil {
+				return reportFailure(stderr, fmt.Errorf("write actual observations: %w", err))
+			}
+		}
+		if mixedProduct {
+			notImplemented := 0
+			for _, observation := range actual.Contracts {
+				if observation.Status == protocol.StatusNotImplemented {
+					notImplemented++
+				}
+			}
+			fmt.Fprintf(
+				stdout,
+				"GoDj product observations match %d required contract%s; %d remain not implemented\n",
+				len(requiredObserved),
+				pluralSuffix(len(requiredObserved)),
+				notImplemented,
+			)
+			return 0
+		}
 		if decision == "" {
 			if manifestHasDecisionReference(manifest) {
 				fmt.Fprintf(stdout, "GoDj observations match the locked reference oracle for %d contracts\n", len(manifest.Contracts))
@@ -133,6 +165,13 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	}
 	fmt.Fprintf(stderr, "godjcheck: %d difference(s)\n", len(differences))
 	return 1
+}
+
+func pluralSuffix(count int) string {
+	if count == 1 {
+		return ""
+	}
+	return "s"
 }
 
 func manifestHasDecisionReference(manifest protocol.Manifest) bool {

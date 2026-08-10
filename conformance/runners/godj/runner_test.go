@@ -16,11 +16,216 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	relationauthors "github.com/progresshans/godj/conformance/relationproduct/authors"
+	relationblog "github.com/progresshans/godj/conformance/relationproduct/blog"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
+
+func TestRequiredObservedContractIDsUsesHandlerRegistryInManifestOrder(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	identifiers, err := RequiredObservedContractIDs(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(identifiers) != len(manifest.Contracts) {
+		t.Fatalf("required observed count = %d, want %d", len(identifiers), len(manifest.Contracts))
+	}
+	for index, contract := range manifest.Contracts {
+		if identifiers[index] != contract.ID {
+			t.Fatalf("required observed %d = %q, want %q", index, identifiers[index], contract.ID)
+		}
+	}
+}
+
+func TestRequiredObservedContractIDsRejectsRegistryStatusMismatch(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	registeredLocked := manifest
+	registeredLocked.Contracts = append([]protocol.Contract(nil), manifest.Contracts...)
+	registeredLocked.Contracts[0].Status = protocol.ContractOracleLocked
+	if _, err := RequiredObservedContractIDs(registeredLocked); err == nil || !strings.Contains(err.Error(), "registered scenario") {
+		t.Fatalf("registered oracle-locked error = %v", err)
+	}
+
+	unregisteredPassing := manifest
+	unregisteredPassing.Contracts = append([]protocol.Contract(nil), manifest.Contracts...)
+	unregisteredPassing.Contracts[0].Scenario = "django.query.cache.unregistered_registry_sentinel"
+	if _, err := RequiredObservedContractIDs(unregisteredPassing); err == nil || !strings.Contains(err.Error(), "unregistered scenario") {
+		t.Fatalf("unregistered passing error = %v", err)
+	}
+}
+
+func TestGenerateEmitsPayloadFreeNotImplementedForUnregisteredOracleLocked(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Contracts[0].Scenario = "django.query.cache.unregistered_registry_sentinel"
+	manifest.Contracts[0].Status = protocol.ContractOracleLocked
+	suite, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := suite.Contracts[0]
+	if got.ID != manifest.Contracts[0].ID || got.Status != protocol.StatusNotImplemented || got.Phase != manifest.Contracts[0].Phase ||
+		got.Result != nil || got.Error != nil || got.DBState != nil || got.Metrics != nil {
+		t.Fatalf("unregistered locked observation = %#v", got)
+	}
+}
+
+func TestRelationProductGeneratesOneObservedAndElevenLockedContracts(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadRelationProductInputs(t)
+	required, err := RequiredObservedContractIDs(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(required, []string{"REL-001"}) {
+		t.Fatalf("required observed IDs = %#v, want REL-001", required)
+	}
+	actual, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if differences, err := protocol.CompareProduct(profile, manifest, expected, actual, required); err != nil || len(differences) != 0 {
+		t.Fatalf("CompareProduct differences=%#v error=%v", differences, err)
+	}
+	strictDifferences, err := protocol.Compare(profile, manifest, expected, actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(strictDifferences) != 11 {
+		t.Fatalf("strict relation differences = %d, want 11 not-implemented mismatches", len(strictDifferences))
+	}
+	for index, difference := range strictDifferences {
+		if difference.ContractID != fmt.Sprintf("REL-%03d", index+2) || difference.Path != "status" {
+			t.Fatalf("strict difference %d = %#v", index, difference)
+		}
+	}
+}
+
+func TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, expected := loadRelationProductInputs(t)
+	base, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name         string
+		mutate       func(*ir.Schema)
+		bindingFails bool
+	}{
+		{
+			name: "source field",
+			mutate: func(schema *ir.Schema) {
+				schema.Models[0].Fields[1].Name = "writer"
+			},
+		},
+		{
+			name: "column",
+			mutate: func(schema *ir.Schema) {
+				schema.Models[0].Fields[1].Column = "writer_key"
+			},
+		},
+		{
+			name: "target",
+			mutate: func(schema *ir.Schema) {
+				schema.Models[0].Fields[1].Relation.Target.ModelName = "missing"
+			},
+			bindingFails: true,
+		},
+		{
+			name: "reverse",
+			mutate: func(schema *ir.Schema) {
+				schema.Models[0].Fields[1].Relation.Reverse.Name = "written_posts"
+			},
+		},
+		{
+			name: "nullability",
+			mutate: func(schema *ir.Schema) {
+				schema.Models[0].Fields[1].Nullable = true
+			},
+		},
+		{
+			name: "delete policy",
+			mutate: func(schema *ir.Schema) {
+				schema.Models[0].Fields[2].Relation.OnDelete = ir.DeleteProtect
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			authors := relationauthors.GoDjRelationSchema()
+			blog := relationblog.GoDjRelationSchema()
+			test.mutate(&blog)
+			binding, err := orm.BindProject(authors, blog)
+			if test.bindingFails {
+				if err == nil {
+					t.Fatal("mutated target unexpectedly bound")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			observation, err := relationMetadataObservation(manifest.Contracts[0], binding)
+			if err != nil {
+				t.Fatal(err)
+			}
+			actual := cloneObservationSuite(t, base)
+			actual.Contracts[0] = observation
+			differences, err := protocol.CompareProduct(profile, manifest, expected, actual, []string{"REL-001"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(differences) == 0 {
+				t.Fatal("owned relation edge mutation produced a false green")
+			}
+		})
+	}
+}
+
+func TestRelationAdapterDoesNotImportDBOrReferenceArtifacts(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile("relation_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(contents)
+	for _, forbidden := range []string{"database/sql", "/db", "sqlite", "oracles", "fixtures", "relation-oracle", "not-implemented.json"} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("relation adapter contains forbidden product dependency %q", forbidden)
+		}
+	}
+}
 
 type metricsProbeMutator struct {
 	calls []string
@@ -2471,6 +2676,41 @@ func loadMigrationProjectCheckInputs(t *testing.T) (
 		t.Fatalf("LoadObservationSuite() error = %v", err)
 	}
 	return profile, manifest, expected
+}
+
+func loadRelationProductInputs(t *testing.T) (
+	protocol.Profile,
+	protocol.Manifest,
+	protocol.ObservationSuite,
+) {
+	t.Helper()
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatalf("LoadProfile() error = %v", err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "relation-manifest.json"))
+	if err != nil {
+		t.Fatalf("LoadManifest() error = %v", err)
+	}
+	expected, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"))
+	if err != nil {
+		t.Fatalf("LoadObservationSuite() error = %v", err)
+	}
+	return profile, manifest, expected
+}
+
+func cloneObservationSuite(t *testing.T, source protocol.ObservationSuite) protocol.ObservationSuite {
+	t.Helper()
+	contents, err := protocol.MarshalCanonical(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clone, err := protocol.DecodeObservationSuite(bytes.NewReader(contents))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return clone
 }
 
 func findObservation(t *testing.T, suite protocol.ObservationSuite, contractID string) protocol.Observation {

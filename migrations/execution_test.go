@@ -433,12 +433,24 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 		Fields: []ir.Field{
 			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
 			{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 64,
-				Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"}},
+				Default: &ir.ScalarDefault{Kind: ir.ScalarString, String: "original"},
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "articles"},
+					OnDelete:    ir.DeleteProtect,
+				}},
 		},
 	}}
 	add := &AddField{AppLabel: "news", ModelName: "article", Field: ir.Field{
 		Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean,
 		Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: false},
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "published_articles"},
+			OnDelete:    ir.DeleteProtect,
+		},
 	}}
 	definitions := []Migration{
 		{App: "news", Name: "0002_article", Dependencies: []MigrationKey{dependency}, Operations: []Operation{create, add}},
@@ -449,10 +461,14 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 	create.Model.Name = "mutated"
 	create.Model.Fields[1].Name = "mutated"
 	create.Model.Fields[1].Default.String = "mutated"
+	create.Model.Fields[1].Relation.Target.AppLabel = "mutated"
+	create.Model.Fields[1].Relation.Reverse.Name = "mutated"
 	create.Model.Fields = nil
 	add.ModelName = "mutated"
 	add.Field.Name = "mutated"
 	add.Field.Default.Boolean = true
+	add.Field.Relation.Target.AppLabel = "mutated"
+	add.Field.Relation.Reverse.Name = "mutated"
 	definitions[0].Operations = nil
 
 	if !reflect.DeepEqual(snapshot[0].Dependencies, []MigrationKey{dependency}) {
@@ -472,7 +488,9 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 	}
 	if clonedCreate.Model.Name != "article" || len(clonedCreate.Model.Fields) != 2 ||
 		clonedCreate.Model.Fields[1].Name != "title" || clonedCreate.Model.Fields[1].Default == nil ||
-		clonedCreate.Model.Fields[1].Default.String != "original" {
+		clonedCreate.Model.Fields[1].Default.String != "original" || clonedCreate.Model.Fields[1].Relation == nil ||
+		clonedCreate.Model.Fields[1].Relation.Target.AppLabel != "authors" ||
+		clonedCreate.Model.Fields[1].Relation.Reverse.Name != "articles" {
 		t.Fatalf("snapshotted pointer CreateModel = %#v", snapshot[0].Operations[0])
 	}
 	var clonedAdd AddField
@@ -488,7 +506,9 @@ func TestCloneMigrationDefinitionsDeepCopiesDependenciesAndPointerOperationIR(t 
 		t.Fatalf("snapshotted pointer AddField has type %T", operation)
 	}
 	if clonedAdd.ModelName != "article" || clonedAdd.Field.Name != "published" ||
-		clonedAdd.Field.Default == nil || clonedAdd.Field.Default.Boolean {
+		clonedAdd.Field.Default == nil || clonedAdd.Field.Default.Boolean || clonedAdd.Field.Relation == nil ||
+		clonedAdd.Field.Relation.Target.AppLabel != "authors" ||
+		clonedAdd.Field.Relation.Reverse.Name != "published_articles" {
 		t.Fatalf("snapshotted pointer AddField = %#v", snapshot[0].Operations[1])
 	}
 }

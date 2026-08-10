@@ -122,6 +122,44 @@ func TestExternalConsumerCanReconstructHistoricalProjectState(t *testing.T) {
 	}
 }
 
+func TestExternalConsumerSeesRelationMigrationFailClosedBoundary(t *testing.T) {
+	t.Parallel()
+
+	field := ir.Field{
+		Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "posts"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+	model := ir.Model{
+		Name: "post", GoName: "Post", DBTable: "blog_post",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}, field},
+	}
+	_, err := migrations.NewProjectState(ir.Schema{
+		FormatVersion: ir.RelationFormatVersion,
+		AppLabel:      "blog",
+		Models:        []ir.Model{model},
+	})
+	if err == nil {
+		t.Fatal("NewProjectState(relation v3) error = nil")
+	}
+
+	_, err = migrations.NewStateReconstructor(migrations.Migration{
+		App: "blog", Name: "0001_post",
+		Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "blog", Model: model}},
+	})
+	var migrationError *migrations.Error
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryState ||
+		migrationError.Code != migrations.CodeInvalidState || migrationError.Direction != migrations.DirectionForward ||
+		migrationError.App != "blog" || migrationError.Migration != "0001_post" ||
+		migrationError.OperationIndex != 0 || migrationError.Operation != "CreateModel" {
+		t.Fatalf("NewStateReconstructor(relation) error = %#v", err)
+	}
+}
+
 func TestExternalConsumerCanInspectInvalidStateRequest(t *testing.T) {
 	t.Parallel()
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -116,6 +117,58 @@ func TestExecutorMigrateValidatesOuterInputsBeforeIO(t *testing.T) {
 			t.Fatalf("OpenRevisionFencedSession() calls = %d, want 0", fake.openCount)
 		}
 	})
+}
+
+func TestExecutorMigrateRejectsRelationDefinitionsBeforeBackendOrRecorderIO(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		definition Migration
+		kind       string
+	}{
+		{
+			name: "CreateModel",
+			definition: Migration{App: "blog", Name: "0001_post", Operations: []Operation{CreateModel{
+				AppLabel: "blog",
+				Model:    relationMigrationSchema().Models[0],
+			}}},
+			kind: "CreateModel",
+		},
+		{
+			name: "AddField",
+			definition: Migration{App: "blog", Name: "0002_author", Operations: []Operation{AddField{
+				AppLabel: "blog", ModelName: "post", Field: relationMigrationField(),
+			}}},
+			kind: "AddField",
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			session := newLifecycleTestSession(nil, nil)
+			fake := newLifecycleTestBackend(session)
+			state, err := (Executor{Backend: fake}).Migrate(
+				context.Background(), []Migration{test.definition}, LatestLifecycleRequest(),
+			)
+			assertMigrationError(t, err, CategoryState, CodeInvalidState, 0, test.kind)
+			var migrationError *Error
+			if !errors.As(err, &migrationError) {
+				t.Fatalf("Migrate relation error = %#v, want *Error", err)
+			}
+			if !strings.Contains(migrationError.Cause.Error(), "Schema IR v2 migration state cannot represent relation-bearing field") {
+				t.Fatalf("Migrate relation cause = %v", migrationError.Cause)
+			}
+			if len(state.Apps()) != 0 || fake.openCount != 0 || fake.legacyBeginCount != 0 ||
+				session.readCount != 0 || session.beginCount != 0 || session.closeCount != 0 {
+				t.Fatalf(
+					"relation lifecycle published or touched I/O: apps=%v open=%d legacy=%d read=%d begin=%d close=%d",
+					state.Apps(), fake.openCount, fake.legacyBeginCount, session.readCount, session.beginCount, session.closeCount,
+				)
+			}
+		})
+	}
 }
 
 func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {

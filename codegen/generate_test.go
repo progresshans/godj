@@ -4,15 +4,20 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/schema"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestGeneratorVersionTracksCloneModelABI(t *testing.T) {
@@ -21,6 +26,117 @@ func TestGeneratorVersionTracksCloneModelABI(t *testing.T) {
 	const want = "godj-codegen-m2-v3"
 	if codegen.GeneratorVersion != want {
 		t.Fatalf("GeneratorVersion = %q, want %q", codegen.GeneratorVersion, want)
+	}
+}
+
+func TestRelationGeneratorVersionAndMainExportedSurface(t *testing.T) {
+	t.Parallel()
+
+	if got, want := codegen.RelationGeneratorVersion, "godj-codegen-rel-v1"; got != want {
+		t.Fatalf("RelationGeneratorVersion = %q, want %q", got, want)
+	}
+	_, blog := relationGenerationSchemas()
+	first, err := codegen.Generate("models", blog)
+	if err != nil {
+		t.Fatalf("Generate() relation error = %v", err)
+	}
+	second, err := codegen.Generate("models", blog)
+	if err != nil {
+		t.Fatalf("Generate() relation second error = %v", err)
+	}
+	if !bytes.Equal(first, second) {
+		t.Fatal("relation main generation is not byte deterministic")
+	}
+
+	for _, fragment := range [][]byte{
+		[]byte(`const GoDjGeneratorVersion = "godj-codegen-rel-v1"`),
+		[]byte("const GoDjSchemaSHA256 ="),
+		[]byte("type Post struct"),
+		[]byte("ID         int64"),
+		[]byte("AuthorID   int64"),
+		[]byte("ReviewerID *int64"),
+	} {
+		if !bytes.Contains(first, fragment) {
+			t.Fatalf("relation main source does not contain %q:\n%s", fragment, first)
+		}
+	}
+	for _, forbidden := range [][]byte{
+		[]byte("import"),
+		[]byte("GoDjRelationSchema"),
+		[]byte("Descriptor"),
+		[]byte("Manager"),
+		[]byte("WriteDescriptor"),
+		[]byte("query."),
+		[]byte("db."),
+		[]byte("orm."),
+	} {
+		if bytes.Contains(first, forbidden) {
+			t.Fatalf("relation main source contains forbidden fragment %q:\n%s", forbidden, first)
+		}
+	}
+
+	parsed, err := parser.ParseFile(token.NewFileSet(), "generated.go", first, 0)
+	if err != nil {
+		t.Fatalf("parse relation main: %v", err)
+	}
+	exported := make([]string, 0)
+	for _, declaration := range parsed.Decls {
+		switch declaration := declaration.(type) {
+		case *ast.GenDecl:
+			for _, specification := range declaration.Specs {
+				switch specification := specification.(type) {
+				case *ast.ValueSpec:
+					for _, name := range specification.Names {
+						if name.IsExported() {
+							exported = append(exported, name.Name)
+						}
+					}
+				case *ast.TypeSpec:
+					if specification.Name.IsExported() {
+						exported = append(exported, specification.Name.Name)
+					}
+				}
+			}
+		case *ast.FuncDecl:
+			if declaration.Name.IsExported() {
+				exported = append(exported, declaration.Name.Name)
+			}
+		}
+	}
+	slices.Sort(exported)
+	wantExported := []string{"GoDjGeneratorVersion", "GoDjSchemaSHA256", "Post"}
+	if !slices.Equal(exported, wantExported) {
+		t.Fatalf("relation main exported declarations = %v, want %v", exported, wantExported)
+	}
+}
+
+func TestGenerateRelationMainSnapshotsInputAndRejectsFixedNameCollision(t *testing.T) {
+	t.Parallel()
+
+	_, blog := relationGenerationSchemas()
+	before, err := codegen.Generate("models", blog)
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	blog.Models[0].Fields[1].Relation.Target.AppLabel = "mutated"
+	after, err := codegen.Generate("models", func() ir.Schema {
+		_, fresh := relationGenerationSchemas()
+		return fresh
+	}())
+	if err != nil {
+		t.Fatalf("Generate() fresh error = %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("post-generation caller mutation changed prior candidate bytes")
+	}
+
+	collision := ir.Schema{
+		FormatVersion: ir.RelationFormatVersion,
+		AppLabel:      "collision",
+		Models:        []ir.Model{{Name: "record", GoName: "GoDjSchemaSHA256"}},
+	}
+	if _, err := codegen.Generate("models", collision); err == nil {
+		t.Fatal("Generate() accepted relation model colliding with provenance symbol")
 	}
 }
 
@@ -285,6 +401,25 @@ func TestGenerateRejectsInvalidSchemaBeforeWrite(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsBlankPackageIdentifier(t *testing.T) {
+	t.Parallel()
+
+	irSchema, err := schema.Build(schema.Definition{
+		AppLabel: "valid",
+		Models: []schema.Model{{
+			Name:   "record",
+			GoName: "Record",
+			Fields: []schema.Field{schema.CharField("title", "Title", 20)},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	if _, err := codegen.Generate("_", irSchema); err == nil {
+		t.Fatal("Generate() accepted blank package identifier")
+	}
+}
+
 func TestGenerateRejectsDerivedWriteNameCollisions(t *testing.T) {
 	t.Parallel()
 
@@ -372,4 +507,54 @@ func TestGenerateRejectsSaveBindingSymbolCollisions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func relationGenerationSchemas() (ir.Schema, ir.Schema) {
+	authors := ir.Schema{
+		FormatVersion: ir.FormatVersion,
+		AppLabel:      "authors",
+		Models: []ir.Model{{
+			Name:   "author",
+			GoName: "Author",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+				{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100},
+			},
+		}},
+	}
+	blog := ir.Schema{
+		FormatVersion: ir.RelationFormatVersion,
+		AppLabel:      "blog",
+		Models: []ir.Model{{
+			Name:   "post",
+			GoName: "Post",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+				{
+					Name:   "author",
+					GoName: "AuthorID",
+					Kind:   ir.FieldForeignKey,
+					Relation: &ir.ForeignKeyRelation{
+						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+						Cardinality: ir.RelationManyToOne,
+						Reverse:     ir.ReverseRelation{Name: "posts"},
+						OnDelete:    ir.DeleteProtect,
+					},
+				},
+				{
+					Name:     "reviewer",
+					GoName:   "ReviewerID",
+					Kind:     ir.FieldForeignKey,
+					Nullable: true,
+					Relation: &ir.ForeignKeyRelation{
+						Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+						Cardinality: ir.RelationManyToOne,
+						Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
+						OnDelete:    ir.DeleteSetNull,
+					},
+				},
+			},
+		}},
+	}
+	return authors, blog
 }

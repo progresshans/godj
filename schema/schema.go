@@ -25,7 +25,17 @@ type Field struct {
 	Nullable  bool
 	MaxLength int
 	Default   *ir.ScalarDefault
+	Relation  *ir.ForeignKeyRelation
 }
+
+type ModelTarget = ir.ModelIdentity
+type ReverseRelation = ir.ReverseRelation
+type DeletePolicy = ir.DeletePolicy
+
+const (
+	Protect = ir.DeleteProtect
+	SetNull = ir.DeleteSetNull
+)
 
 type FieldOption func(*Field)
 
@@ -73,9 +83,56 @@ func AutoField(name, goName string, options ...FieldOption) Field {
 	return newField(name, goName, ir.FieldAuto, 0, options)
 }
 
+func Target(appLabel, modelName string) ModelTarget {
+	return ModelTarget{AppLabel: appLabel, ModelName: modelName}
+}
+
+func RelatedName(name string) ReverseRelation {
+	return ReverseRelation{Name: name}
+}
+
+func NoReverse() ReverseRelation {
+	return ReverseRelation{Disabled: true}
+}
+
+func ForeignKey(
+	name, goName string,
+	target ModelTarget,
+	reverse ReverseRelation,
+	onDelete DeletePolicy,
+	options ...FieldOption,
+) Field {
+	field := Field{
+		Name:   name,
+		GoName: goName,
+		Column: name + "_id",
+		Kind:   ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      target,
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     reverse,
+			OnDelete:    onDelete,
+		},
+	}
+	for _, option := range options {
+		if option != nil {
+			option(&field)
+		}
+	}
+	return field
+}
+
 func Build(definition Definition) (ir.Schema, error) {
+	formatVersion := ir.FormatVersion
+	for _, model := range definition.Models {
+		for _, field := range model.Fields {
+			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
+				formatVersion = ir.RelationFormatVersion
+			}
+		}
+	}
 	result := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: formatVersion,
 		AppLabel:      definition.AppLabel,
 		Models:        make([]ir.Model, len(definition.Models)),
 	}
@@ -92,6 +149,11 @@ func Build(definition Definition) (ir.Schema, error) {
 				copy := *field.Default
 				defaultValue = &copy
 			}
+			var relation *ir.ForeignKeyRelation
+			if field.Relation != nil {
+				copy := *field.Relation
+				relation = &copy
+			}
 			result.Models[modelIndex].Fields[fieldIndex] = ir.Field{
 				Name:       field.Name,
 				GoName:     field.GoName,
@@ -101,6 +163,7 @@ func Build(definition Definition) (ir.Schema, error) {
 				Nullable:   field.Nullable,
 				MaxLength:  field.MaxLength,
 				Default:    defaultValue,
+				Relation:   relation,
 			}
 		}
 	}

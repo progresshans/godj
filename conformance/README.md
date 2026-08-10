@@ -43,9 +43,17 @@ MIG-065..074는 `oracle_locked`였고 product adapter, global CLI 또는 product
 runner는 없었습니다. Reference corpus는 11 set/115 unique contract/110 ordered cross-binding으로
 늘었지만 제품 분류는 10 adapter/105 contract의 `100 passing + 5 deviation`을 유지했습니다.
 GDJ-0022는 actual global kernel과 project-linked loader report를 결합하는 열한 번째 GoDj adapter를
-연결해 MIG-065..074를 10 `passing`으로 전환합니다. 현재 제품 분류는 정확히 11 adapter/115
-contract의 `110 passing + 5 deviation`이며 DB-aware drift check나 non-SQLite backend 지원을
+연결해 MIG-065..074를 10 `passing`으로 전환했습니다. GDJ-0022 완료 당시 제품 분류는 정확히
+11 adapter/115 contract의 `110 passing + 5 deviation`이며 DB-aware drift check나 non-SQLite backend 지원을
 뜻하지 않습니다.
+GDJ-0023은 ForeignKey relation 동작 12개를 exact Django reference로 고정한 열두 번째 set을
+추가했습니다. 이 단계의 REL-001..012는 모두 `oracle_locked`였고 제품 adapter는 없었습니다.
+GDJ-0024는 generated v3 relation metadata와 project binder를 관찰하는 열두 번째 product adapter를
+연결합니다. REL-001만 `passing`이며 REL-002..012는 ordered payload-free `not_implemented` actual과
+`oracle_locked` manifest 상태를 유지합니다. 현재 reference는 12 set/127 contract/132 ordered
+cross-binding이고, 제품 분류는 12 adapter/127 contract의
+`111 passing + 5 deviation + 11 oracle_locked`입니다. 이는 relation metadata 1/12의 제품 증거이며
+ForeignKey query/write/delete/backend 전체 지원을 뜻하지 않습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -65,11 +73,13 @@ contract의 `110 passing + 5 deviation`이며 DB-aware drift check나 non-SQLite
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
+| `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; REL-001만 현재 product-required |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read부터 revision-fenced lifecycle, bounded migration-definition loader와 project check까지 제품 package를 실행하는 열한 GoDj observation adapter |
+| `runners/godj` | M1 read부터 relation metadata까지 제품 package를 실행하는 열두 GoDj observation adapter와 immutable actual-handler registry |
+| `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
-| `internal/protocol` | strict decoder, validator, canonical value, comparator |
+| `internal/protocol` | strict decoder/validator/canonical value, all-observed comparator와 required-observed product comparator |
 | `fixtures/godj*.json` | 미구현 상태가 pass되지 않는 set별 protocol fixture와 reviewed sparse deviation expectation |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
@@ -382,10 +392,17 @@ Static not-implemented fixture 비교는 MIG-057..064의 ordered status mismatch
 operation/graph mutation이 non-empty diff 또는 success/error shape rejection을 만드는지 별도
 false-green test로 확인합니다.
 
-Migration project-check는 아직 product adapter가 없는 decision set입니다. Static fixture는
-MIG-065..074 ordered status mismatch 정확히 10개와 exit 1을 내야 하며, product
-`godjcheck`에 이 manifest를 넘기면 conformance-tool exit 2/no actual로 fail-closed해야
-합니다.
+Migration project-check 제품 adapter는 actual global kernel과 production project-linked entrypoint를
+실행해 MIG-065..074를 관찰합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-project-check-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json
+```
+
+Static fixture는 계속 MIG-065..074 ordered status mismatch 정확히 10개와 exit 1을 내야 합니다.
 
 ```bash
 go run ./conformance/cmd/observationcmp \
@@ -394,6 +411,23 @@ go run ./conformance/cmd/observationcmp \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json \
   -actual conformance/fixtures/godj-migration-project-check-not-implemented.json
 ```
+
+Relation product adapter는 checked-in generated bridge를 실제 bind해 REL-001 metadata만 관찰합니다.
+REL-002..012는 original 12-contract order 안에서 payload 없는 `not_implemented`로 남습니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/relation-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
+```
+
+성공 stdout은 정확히
+`GoDj product observations match 1 required contract; 11 remain not implemented`입니다.
+Product comparator는 registry가 요구하는 REL-001을 oracle과 byte-semantic하게 비교하고 locked
+REL-002..012가 관찰된 것처럼 나타나면 거부합니다. 기존 11 all-observed adapter의 strict comparator
+의미는 바뀌지 않습니다. 비교가 끝나기 전에는 `-actual-output`을 만들지 않으므로 status/payload/
+registry mismatch는 exit 1 또는 2, 빈 stdout, output file 없음으로 fail-closed합니다.
 
 `not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
@@ -677,12 +711,27 @@ entrypoint를 호출해 두 actual report를 결합합니다. MIG-065..074는 10
 11 adapter/115 contract의 `110 passing + 5 deviation`이며 static fixture는 계속 ordered 10 mismatch를
 만듭니다.
 
-Required workflow topology는 full/exact 2 + independent project-check proof 4 + SQLite 4 + actual
-project-check product 4 + Python compatibility 4의 exact 18 executions입니다. Python compatibility
+GDJ-0023 relation reference manifest는 10,842 bytes/SHA-256
+`08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522`였고 REL-001..012 모두
+`oracle_locked`였습니다. GDJ-0024 status-only manifest는 10,836 bytes/SHA-256
+`1a844ae1f0da7226b0dd936ee5b3eb884144e4caaf829ec2f6c822ab361b4254`입니다. Oracle 33,792
+bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
+bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, 12-line
+`SHA256SUMS` 1,148 bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`는
+바꾸지 않았습니다. Checked-in actual fixture는 v2 target/v3 source schema에서 main/companion/bridge를
+실제 생성하고 `orm.BindProject`를 호출하는 경로로 재검증하며 oracle 상수를 복사하지 않습니다.
+
+Required workflow topology는 full/exact 2 + independent project-check proof 4 + relation-binding proof 4 +
+SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
+relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
+normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
+검증합니다. Exact top-level package inventory는 394 run/394 pass/0 skip이고, encoded inventory는 40,630
+bytes/SHA-256 `2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce`입니다.
+Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
-3.12.1/sqlparse 0.5.5를 isolated하게 고정하고 portable 174 tests/16 skips 및 115 scenario payload
-464,087 bytes/SHA-256
-`aa2ed24d41434b9756e4a4669a04ea44f2a457a94a4bdd31dcab9ff3d6b7afe8`을 검증합니다. 이는 checked-in
+3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및
+127 scenario payload 498,051 bytes/SHA-256
+`2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`을 검증합니다. 이는 checked-in
 exact oracle identity를 넓히지 않으며 기존 CPython 3.14.3 profile/oracle/uv.lock job이 계속 유일한
 oracle regeneration 경계입니다.
 
@@ -699,4 +748,6 @@ MIG-057/MIG-064만 pinned Django provenance를 별도로 가집니다. 파생물
 분류와 고지 규칙은 `docs/LICENSING.md`와 `NOTICE.md`를 따릅니다.
 MIG-065..074는 Accepted ADR-0021 decision provenance만 가지며 Django source/test를
 참조하지 않습니다. Django-named exact profile과 oracle directory 재사용은 corpus 관리
-경계일 뿐 Django-derived 분류가 아닙니다.
+경계일 뿐 Django-derived 분류가 아닙니다. REL-001..012는 Django 6.1 commit에 고정된 documentation/test
+provenance를 가지지만 scenario와 GoDj product fixture는 독립 작성했으며 Django source를 번역하지
+않았습니다.

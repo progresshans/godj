@@ -319,7 +319,7 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	}
 }
 
-func TestElevenSetProductStatusesAre110PassingAnd5ReviewedDeviations(t *testing.T) {
+func TestTwelveSetProductStatusesAre111Passing5ReviewedDeviationsAnd11OracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -335,9 +335,11 @@ func TestElevenSetProductStatusesAre110PassingAnd5ReviewedDeviations(t *testing.
 		"migration-lifecycle-manifest.json",
 		"migration-definition-source-manifest.json",
 		"migration-project-check-manifest.json",
+		"relation-manifest.json",
 	}
 	passing := 0
 	deviations := 0
+	oracleLocked := 0
 	for _, name := range manifestNames {
 		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
 		if err != nil {
@@ -349,13 +351,15 @@ func TestElevenSetProductStatusesAre110PassingAnd5ReviewedDeviations(t *testing.
 				passing++
 			case ContractDeviation:
 				deviations++
+			case ContractOracleLocked:
+				oracleLocked++
 			default:
 				t.Fatalf("manifest %s contract %s has non-product status %q", name, contract.ID, contract.Status)
 			}
 		}
 	}
-	if passing != 110 || deviations != 5 {
-		t.Fatalf("eleven-set product statuses = %d passing + %d deviation, want 110 + 5", passing, deviations)
+	if passing != 111 || deviations != 5 || oracleLocked != 11 {
+		t.Fatalf("twelve-set product statuses = %d passing + %d deviation + %d oracle_locked, want 111 + 5 + 11", passing, deviations, oracleLocked)
 	}
 }
 

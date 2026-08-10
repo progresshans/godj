@@ -69,6 +69,12 @@ jobs:
           ./internal/projectcheck/...
           ./conformance/runners/godj
 
+      - name: Run relation metadata product on 32-bit Linux
+        env:
+          CGO_ENABLED: "0"
+          GOARCH: "386"
+        run: go test -count=1 ./conformance/relationproduct/...
+
       - name: Verify stored oracle checksum
         working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
         run: sha256sum --check SHA256SUMS
@@ -291,6 +297,160 @@ jobs:
           conformance/contracts/relation-manifest.json
           conformance/fixtures/godj-relation-not-implemented.json
           conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  relation-product-matrix:
+    name: Relation product (${{ matrix.runs_on }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 20
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run relation product and exact no-skip inventory
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/relation-product-tests.json"
+          go test -json -count=1 \
+            ./schema/... \
+            ./codegen \
+            ./orm \
+            ./migrations \
+            ./migrations/definition \
+            ./conformance/relationproduct/... \
+            ./conformance/internal/protocol \
+            ./conformance/runners/godj \
+            ./conformance/cmd/godjcheck \
+            ./internal/compiletest | tee "$log"
+          python3 - "$log" <<'PY'
+          import hashlib
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          runs = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "run"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          passes = {
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "pass"
+              and "Test" in event
+              and "/" not in event["Test"]
+          }
+          skipped = [
+              (event.get("Package"), event["Test"])
+              for event in events
+              if event.get("Action") == "skip" and "Test" in event
+          ]
+          payload = b"".join(
+              package.encode("utf-8")
+              + b"\0"
+              + test.encode("utf-8")
+              + b"\n"
+              for package, test in sorted(runs)
+          )
+          assert len(runs) == 394, sorted(runs)
+          assert len(payload) == 40630, len(payload)
+          assert hashlib.sha256(payload).hexdigest() == "2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce"
+          assert passes == runs, (sorted(runs), sorted(passes))
+          assert skipped == [], skipped
+          PY
+
+      - name: Run relation product race tests
+        run: >
+          go test -race -count=1
+          ./schema/...
+          ./codegen
+          ./orm
+          ./migrations
+          ./migrations/definition
+          ./conformance/relationproduct/...
+          ./conformance/internal/protocol
+          ./conformance/runners/godj
+          ./conformance/cmd/godjcheck
+          ./internal/compiletest
+
+      - name: Run relation product tests without CGO
+        run: >
+          CGO_ENABLED=0 go test -count=1
+          ./schema/...
+          ./codegen
+          ./orm
+          ./migrations
+          ./migrations/definition
+          ./conformance/relationproduct/...
+          ./conformance/internal/protocol
+          ./conformance/runners/godj
+          ./conformance/cmd/godjcheck
+          ./internal/compiletest
+
+      - name: Vet relation product packages
+        run: >
+          go vet
+          ./schema/...
+          ./codegen
+          ./orm
+          ./migrations
+          ./migrations/definition
+          ./conformance/relationproduct/...
+          ./conformance/internal/protocol
+          ./conformance/runners/godj
+          ./conformance/cmd/godjcheck
+          ./internal/compiletest
+
+      - name: Ensure relation artifacts and generated fixtures were not rewritten
+        run: >
+          git diff --quiet --
+          conformance/contracts/relation-manifest.json
+          conformance/fixtures/godj-relation-not-implemented.json
+          conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
+          conformance/relationproduct
 
       - name: Require a clean worktree
         run: |

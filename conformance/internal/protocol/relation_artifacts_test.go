@@ -22,8 +22,8 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/relation-manifest.json": {
-			size:   10842,
-			sha256: "08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522",
+			size:   10836,
+			sha256: "1a844ae1f0da7226b0dd936ee5b3eb884144e4caaf829ec2f6c822ab361b4254",
 		},
 		"conformance/fixtures/godj-relation-not-implemented.json": {
 			size:   1859,
@@ -46,6 +46,27 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 		if got != want.sha256 {
 			t.Fatalf("relation artifact %s checksum = %q, want %q", name, got, want.sha256)
 		}
+	}
+}
+
+func TestRelationManifestDiffIsExactlyReviewedREL001StatusTransition(t *testing.T) {
+	t.Parallel()
+
+	root := conformanceRepositoryRoot(t)
+	contents, err := os.ReadFile(filepath.Join(root, "conformance", "contracts", "relation-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	passing := []byte(`"status": "passing"`)
+	if count := bytes.Count(contents, passing); count != 1 {
+		t.Fatalf("relation manifest passing status count = %d, want exact 1", count)
+	}
+	restored := bytes.Replace(contents, passing, []byte(`"status": "oracle_locked"`), 1)
+	if len(restored) != 10842 {
+		t.Fatalf("restored relation manifest size = %d, want prior 10842", len(restored))
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(restored)); got != "08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522" {
+		t.Fatalf("restored relation manifest checksum = %q, want prior locked bytes", got)
 	}
 }
 
@@ -110,8 +131,12 @@ func TestRelationArtifactBoundaryIsLocked(t *testing.T) {
 		if contract.Scenario != wantSlugs[index] {
 			t.Fatalf("contract %s scenario = %q, want %q", contract.ID, contract.Scenario, wantSlugs[index])
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		wantStatus := ContractOracleLocked
+		if index == 0 {
+			wantStatus = ContractPassing
+		}
+		if contract.Status != wantStatus {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
 		}
 		if contract.Phase != wantPhases[index] {
 			t.Fatalf("contract %s phase = %q, want %q", contract.ID, contract.Phase, wantPhases[index])

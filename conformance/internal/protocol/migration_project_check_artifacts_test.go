@@ -218,7 +218,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckEntersElevenAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInTwelveAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -237,8 +237,8 @@ func TestMigrationProjectCheckEntersElevenAdapterProductTarget(t *testing.T) {
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 11 {
-		t.Fatalf("product adapter count = %d, want 11", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 12 {
+		t.Fatalf("product adapter count = %d, want 12", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -248,7 +248,7 @@ func TestMigrationProjectCheckEntersElevenAdapterProductTarget(t *testing.T) {
 	}
 }
 
-func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(t *testing.T) {
+func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -264,7 +264,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 	jobsText := text[jobsStart+len("jobs:\n"):]
 	jobPattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):$`)
 	matches := jobPattern.FindAllStringSubmatch(jobsText, -1)
-	wantJobs := []string{"conformance-validation", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "product-project-check-matrix", "python-compatibility-matrix", "sqlite-matrix"}
+	wantJobs := []string{"conformance-validation", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "python-compatibility-matrix", "sqlite-matrix"}
 	if len(matches) != len(wantJobs) {
 		t.Fatalf("workflow top-level job definitions = %d, want %d: %#v", len(matches), len(wantJobs), matches)
 	}
@@ -277,7 +277,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 	conformance := migrationProjectCheckWorkflowJob(t, jobsText, "conformance-validation", "exact-darwin-validation")
 	darwin := migrationProjectCheckWorkflowJob(t, jobsText, "exact-darwin-validation", "project-check-matrix")
 	project := migrationProjectCheckWorkflowJob(t, jobsText, "project-check-matrix", "relation-binding-matrix")
-	relation := migrationProjectCheckWorkflowJob(t, jobsText, "relation-binding-matrix", "product-project-check-matrix")
+	relationBinding := migrationProjectCheckWorkflowJob(t, jobsText, "relation-binding-matrix", "relation-product-matrix")
+	relationProduct := migrationProjectCheckWorkflowJob(t, jobsText, "relation-product-matrix", "product-project-check-matrix")
 	product := migrationProjectCheckWorkflowJob(t, jobsText, "product-project-check-matrix", "python-compatibility-matrix")
 	python := migrationProjectCheckWorkflowJob(t, jobsText, "python-compatibility-matrix", "sqlite-matrix")
 	sqlite := migrationProjectCheckWorkflowJob(t, jobsText, "sqlite-matrix", "")
@@ -300,7 +301,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 	}
 	if !strings.Contains(conformance, "run: make ci") || !strings.Contains(conformance, "GOARCH: \"386\"") ||
 		!strings.Contains(conformance, "./cmd/godj") || !strings.Contains(conformance, "./project") ||
-		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") {
+		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") ||
+		!strings.Contains(conformance, "Run relation metadata product on 32-bit Linux") || !strings.Contains(conformance, "go test -count=1 ./conformance/relationproduct/...") {
 		t.Fatal("existing Ubuntu full/Linux-386 gates were not preserved")
 	}
 	if !strings.Contains(darwin, "make python-test-exact oracle-check") || !strings.Contains(darwin, "./migrations") || !strings.Contains(darwin, "./db/sqlite") {
@@ -313,7 +315,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 		"- runs_on: macos-15-intel\n            expected_goos: darwin\n            expected_goarch: amd64",
 		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64",
 	}
-	for name, block := range map[string]string{"project-check": project, "relation-binding": relation, "product-project-check": product, "sqlite": sqlite} {
+	for name, block := range map[string]string{"project-check": project, "relation-binding": relationBinding, "relation-product": relationProduct, "product-project-check": product, "sqlite": sqlite} {
 		if strings.Count(block, "          - runs_on: ") != 4 {
 			t.Fatalf("%s matrix leg count is not 4", name)
 		}
@@ -353,8 +355,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 		"run: CGO_ENABLED=0 go test -count=1 ./conformance/relationbinding",
 		"run: go vet ./conformance/relationbinding",
 	} {
-		if strings.Count(relation, command) != 1 {
-			t.Fatalf("relation-binding matrix command %q count = %d, want 1", command, strings.Count(relation, command))
+		if strings.Count(relationBinding, command) != 1 {
+			t.Fatalf("relation-binding matrix command %q count = %d, want 1", command, strings.Count(relationBinding, command))
 		}
 	}
 	for _, required := range []string{
@@ -366,8 +368,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 		`assert top_level_passes == top_level_runs`,
 		`assert skipped == [], skipped`,
 	} {
-		if strings.Count(relation, required) != 1 {
-			t.Fatalf("relation-binding inventory fragment %q count = %d, want 1", required, strings.Count(relation, required))
+		if strings.Count(relationBinding, required) != 1 {
+			t.Fatalf("relation-binding inventory fragment %q count = %d, want 1", required, strings.Count(relationBinding, required))
 		}
 	}
 	for _, artifact := range []string{
@@ -375,8 +377,68 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 		"conformance/fixtures/godj-relation-not-implemented.json",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json",
 	} {
-		if strings.Count(relation, artifact) != 1 {
-			t.Fatalf("relation-binding no-rewrite artifact %q count = %d, want 1", artifact, strings.Count(relation, artifact))
+		if strings.Count(relationBinding, artifact) != 1 {
+			t.Fatalf("relation-binding no-rewrite artifact %q count = %d, want 1", artifact, strings.Count(relationBinding, artifact))
+		}
+	}
+	for _, required := range []string{
+		`log="$RUNNER_TEMP/relation-product-tests.json"`,
+		"go test -json -count=1 \\",
+		"./conformance/relationproduct/...",
+		"./conformance/internal/protocol",
+		"./conformance/runners/godj",
+		"./conformance/cmd/godjcheck",
+		"./internal/compiletest",
+		`if event.get("Action") == "run"`,
+		`if event.get("Action") == "pass"`,
+		`if event.get("Action") == "skip" and "Test" in event`,
+		`payload = b"".join(`,
+		`assert len(runs) == 394`,
+		`assert len(payload) == 40630`,
+		`2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce`,
+		`assert passes == runs`,
+		`assert skipped == [], skipped`,
+		"Run relation product race tests",
+		"go test -race -count=1",
+		"Run relation product tests without CGO",
+		"CGO_ENABLED=0 go test -count=1",
+		"Vet relation product packages",
+		"go vet",
+		"conformance/fixtures/godj-relation-not-implemented.json",
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json",
+		"conformance/relationproduct",
+	} {
+		if !strings.Contains(relationProduct, required) {
+			t.Fatalf("relation-product matrix is missing required fragment %q", required)
+		}
+	}
+	for _, exact := range []string{
+		"import hashlib",
+		`package.encode("utf-8")`,
+		`+ b"\0"`,
+		`test.encode("utf-8")`,
+		`for package, test in sorted(runs)`,
+		`hashlib.sha256(payload).hexdigest()`,
+	} {
+		if count := strings.Count(relationProduct, exact); count != 1 {
+			t.Fatalf("relation-product inventory fragment %q count = %d, want 1", exact, count)
+		}
+	}
+	for _, packagePattern := range []string{
+		"./schema/...",
+		"./codegen",
+		"./orm",
+		"./migrations",
+		"./migrations/definition",
+		"./conformance/relationproduct/...",
+		"./conformance/internal/protocol",
+		"./conformance/runners/godj",
+		"./conformance/cmd/godjcheck",
+		"./internal/compiletest",
+	} {
+		linePattern := regexp.MustCompile(`(?m)^[ \t]+` + regexp.QuoteMeta(packagePattern) + `(?: \\| \| tee "\$log")?$`)
+		if count := len(linePattern.FindAllString(relationProduct, -1)); count != 4 {
+			t.Fatalf("relation-product package %q gate count = %d, want normal/race/CGO0/vet", packagePattern, count)
 		}
 	}
 	for _, required := range []string{
@@ -442,9 +504,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 			t.Fatalf("SQLite matrix command %q count = %d, want 1", command, strings.Count(sqlite, command))
 		}
 	}
-	expandedExecutions := 2 + strings.Count(project, "          - runs_on: ") + strings.Count(relation, "          - runs_on: ") + strings.Count(product, "          - runs_on: ") + strings.Count(sqlite, "          - runs_on: ") + strings.Count(python, "          - ")
-	if expandedExecutions != 22 {
-		t.Fatalf("expanded workflow executions = %d, want 22", expandedExecutions)
+	expandedExecutions := 2 + strings.Count(project, "          - runs_on: ") + strings.Count(relationBinding, "          - runs_on: ") + strings.Count(relationProduct, "          - runs_on: ") + strings.Count(product, "          - runs_on: ") + strings.Count(sqlite, "          - runs_on: ") + strings.Count(python, "          - ")
+	if expandedExecutions != 26 {
+		t.Fatalf("expanded workflow executions = %d, want 26", expandedExecutions)
 	}
 	if strings.Contains(text, "continue-on-error:") {
 		t.Fatal("required workflow must not contain continue-on-error")
@@ -454,11 +516,11 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentyTwoRequiredExecutions(
 			t.Fatalf("workflow contains forbidden service-only backend fragment %q", forbidden)
 		}
 	}
-	if got := strings.Count(text, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"); got != 7 {
-		t.Fatalf("pinned checkout action count = %d, want 7 job definitions", got)
+	if got := strings.Count(text, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"); got != 8 {
+		t.Fatalf("pinned checkout action count = %d, want 8 job definitions", got)
 	}
-	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 6 {
-		t.Fatalf("pinned setup-go action count = %d, want 6 job definitions", got)
+	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 7 {
+		t.Fatalf("pinned setup-go action count = %d, want 7 job definitions", got)
 	}
 	if got := strings.Count(text, "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"); got != 1 {
 		t.Fatalf("pinned setup-python action count = %d, want 1 job definition", got)

@@ -67,6 +67,7 @@ cgo-zero-build:
 		./project \
 		./internal/projectcheck/... \
 		./conformance/runners/godj \
+		./conformance/relationproduct/... \
 		-count=1
 
 python-test:
@@ -162,6 +163,9 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) \
 		-expected $(MIGRATION_PROJECT_CHECK_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
+		-expected $(RELATION_ORACLE)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

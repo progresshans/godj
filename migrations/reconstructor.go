@@ -3,6 +3,8 @@ package migrations
 import (
 	"errors"
 	"fmt"
+
+	"github.com/progresshans/godj/schema/ir"
 )
 
 type stateRequestKind uint8
@@ -281,6 +283,14 @@ func cloneReconstructorDefinitions(graph *plannerGraph, migrations []Migration) 
 					fmt.Errorf("operation type %T is not supported by StateReconstructor", operation),
 				)
 			}
+			if fieldName, incompatible := relationIncompatibleField(copy); incompatible {
+				return nil, invalidReconstructorOperation(
+					definition,
+					index,
+					kind,
+					fmt.Errorf("Schema IR v2 migration state cannot represent relation-bearing field %q", fieldName),
+				)
+			}
 			if copy.App() != definition.App {
 				return nil, invalidReconstructorOperation(
 					definition,
@@ -294,6 +304,32 @@ func cloneReconstructorDefinitions(graph *plannerGraph, migrations []Migration) 
 		cloned[key] = snapshot
 	}
 	return cloned, nil
+}
+
+func relationIncompatibleField(operation Operation) (string, bool) {
+	switch operation := operation.(type) {
+	case CreateModel:
+		for _, field := range operation.Model.Fields {
+			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
+				return field.Name, true
+			}
+		}
+	case *CreateModel:
+		for _, field := range operation.Model.Fields {
+			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
+				return field.Name, true
+			}
+		}
+	case AddField:
+		if operation.Field.Kind == ir.FieldForeignKey || operation.Field.Relation != nil {
+			return operation.Field.Name, true
+		}
+	case *AddField:
+		if operation.Field.Kind == ir.FieldForeignKey || operation.Field.Relation != nil {
+			return operation.Field.Name, true
+		}
+	}
+	return "", false
 }
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {

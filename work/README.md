@@ -55,8 +55,10 @@ proposed → ready → active → completed
 현재 active 항목은 [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
-boundary를 활성화했습니다. 현재는 Proposed ADR-0024/activation 문서뿐이며 제품 code/status/workflow는
-아직 바뀌지 않았고 activation exact-head hosted CI도 `not run/pending`입니다. GDJ-0022는
+boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
+steps를 통과했고, 현재 dirty checkout은 IR v3/companion/bridge/binder/migration fail-closed와 REL-001
+metadata actual, 11 ordered not-implemented, exact-26 workflow를 로컬에서 구현·검증했습니다. 다만 Proposed
+ADR-0024/active work를 유지하며 implementation commit/push와 exact-26 hosted CI는 `not run/pending`입니다. GDJ-0022는
 Accepted ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로
 구현해 10 contract를 `passing`으로 전환했고, final evidence head까지 exact 18-job hosted acceptance를
 완료했습니다. GDJ-0023은 Q-013을 추측으로 제품화하지 않고 pinned Django 6.1 ForeignKey 외부 동작
@@ -107,7 +109,10 @@ exact 18/18을 통과했고 EVID-030에 기록했습니다. GDJ-0023 activation 
 steps를 성공해
 [EVID-20260810-034](../docs/status/TEST_EVIDENCE.md#evid-20260810-034--gdj-0023-final-evidence-documentation-exact-head-ci-and-gdj-0024-activation-baseline)에
 기록했습니다. 이 tested clean baseline 뒤 GDJ-0024 activation 문서 diff 자체의 exact-head hosted CI는
-commit/push 전 `not run/pending`입니다.
+activation commit `758cd093...` / run `31344980929`의 exact 22/22로 해소됐습니다. GDJ-0024 local
+implementation/audit와 그 증거는
+[EVID-20260810-035](../docs/status/TEST_EVIDENCE.md#evid-20260810-035--gdj-0024-rel-001-metadata-product-pre-hosted-local-validation)에
+기록했으며, implementation exact-head exact-26 hosted acceptance는 commit/push 전 `not run/pending`입니다.
 
 ## 운영 규칙
 

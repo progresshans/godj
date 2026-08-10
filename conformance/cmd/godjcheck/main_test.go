@@ -204,7 +204,7 @@ func TestRunRejectsUnknownScenarioWithoutWritingActualOutput(t *testing.T) {
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), `unsupported scenario "django.query.cache.unknown_sentinel"`) {
+	if !strings.Contains(stderr.String(), `unregistered scenario "django.query.cache.unknown_sentinel"`) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
@@ -308,7 +308,7 @@ func TestRunRejectsUnknownMigrationPlanningScenarioWithoutWritingActualOutput(t 
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), `unsupported scenario "django.migration.plan.unknown_sentinel"`) {
+	if !strings.Contains(stderr.String(), `unregistered scenario "django.migration.plan.unknown_sentinel"`) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
@@ -382,7 +382,7 @@ func TestRunRejectsUnknownMigrationExecutionScenarioWithoutWritingActualOutput(t
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unknownScenario)) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unregistered scenario %q", unknownScenario)) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {
@@ -488,7 +488,7 @@ func TestRunRejectsUnknownMigrationRestartScenarioWithoutWritingActualOutput(t *
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unknownScenario)) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unregistered scenario %q", unknownScenario)) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {
@@ -595,7 +595,7 @@ func TestRunRejectsUnknownMigrationStateReconstructionScenarioWithoutWritingActu
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if !strings.Contains(stderr.String(), fmt.Sprintf("unsupported scenario %q", unknownScenario)) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("unregistered scenario %q", unknownScenario)) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if stdout.Len() != 0 {
@@ -767,12 +767,36 @@ func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.
 	}
 }
 
-func TestRunRejectsRelationReferenceWithoutProductAdapter(t *testing.T) {
+func TestRunMatchesPartialRelationProductBeforePublishingActualOutput(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
 	manifestPath := filepath.Join(root, "conformance", "contracts", "relation-manifest.json")
 	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json")
+	directory := t.TempDir()
+	actualPath := filepath.Join(directory, "relation-actual.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", oraclePath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if stdout.String() != "GoDj product observations match 1 required contract; 11 remain not implemented\n" {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	manifest, err := protocol.LoadManifest(manifestPath)
 	if err != nil {
 		t.Fatal(err)
@@ -787,31 +811,98 @@ func TestRunRejectsRelationReferenceWithoutProductAdapter(t *testing.T) {
 	if len(oracle.Contracts) != len(manifest.Contracts) {
 		t.Fatalf("relation oracle contracts = %d, want %d", len(oracle.Contracts), len(manifest.Contracts))
 	}
-	for index, contract := range manifest.Contracts {
-		contract := contract
-		t.Run(contract.ID, func(t *testing.T) {
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual.Contracts[0].Status != protocol.StatusObserved {
+		t.Fatalf("REL-001 status = %q, want observed", actual.Contracts[0].Status)
+	}
+	for index := 1; index < len(actual.Contracts); index++ {
+		observation := actual.Contracts[index]
+		if observation.Status != protocol.StatusNotImplemented || observation.Result != nil || observation.Error != nil || observation.DBState != nil || observation.Metrics != nil {
+			t.Fatalf("relation contract %d = %#v, want payload-free not_implemented", index, observation)
+		}
+	}
+	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001"})
+	if err != nil || len(differences) != 0 {
+		t.Fatalf("partial product comparison differences=%#v error=%v", differences, err)
+	}
+}
+
+func TestRunDoesNotPublishMixedActualBeforePayloadComparison(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := protocol.String("expected-replay-sentinel")
+	oracle.Contracts[0].Result = &changed
+	directory := t.TempDir()
+	oraclePath := writeCanonicalMainTestArtifact(t, directory, "changed-oracle.json", oracle)
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", filepath.Join(root, "conformance", "contracts", "relation-manifest.json"),
+		"-expected", oraclePath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 1 {
+		t.Fatalf("run() code = %d, want 1; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "REL-001 result.type:") {
+		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
+func TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	tests := []struct {
+		name     string
+		index    int
+		status   protocol.ContractStatus
+		contains string
+	}{
+		{name: "registered handler hidden as locked", index: 0, status: protocol.ContractOracleLocked, contains: "registered scenario"},
+		{name: "unregistered handler marked red", index: 1, status: protocol.ContractRed, contains: "unregistered scenario"},
+		{name: "draft contract", index: 1, status: protocol.ContractDraft, contains: "locked-or-later"},
+	}
+	for index := 1; index < 12; index++ {
+		tests = append(tests, struct {
+			name     string
+			index    int
+			status   protocol.ContractStatus
+			contains string
+		}{
+			name:     fmt.Sprintf("unregistered REL-%03d claimed passing", index+1),
+			index:    index,
+			status:   protocol.ContractPassing,
+			contains: "unregistered scenario",
+		})
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "relation-manifest.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			manifest.Contracts[test.index].Status = test.status
 			directory := t.TempDir()
-			selected := []int{index}
-			for candidate := range manifest.Contracts {
-				if candidate != index && len(selected) < 8 {
-					selected = append(selected, candidate)
-				}
-			}
-			testManifest := manifest
-			testManifest.Contracts = make([]protocol.Contract, 0, len(selected))
-			testOracle := oracle
-			testOracle.Contracts = make([]protocol.Observation, 0, len(selected))
-			for _, selectedIndex := range selected {
-				testManifest.Contracts = append(testManifest.Contracts, manifest.Contracts[selectedIndex])
-				testOracle.Contracts = append(testOracle.Contracts, oracle.Contracts[selectedIndex])
-			}
-			testManifestPath := writeCanonicalMainTestArtifact(t, directory, "manifest.json", testManifest)
-			testOraclePath := writeCanonicalMainTestArtifact(t, directory, "oracle.json", testOracle)
+			manifestPath := writeCanonicalMainTestArtifact(t, directory, "changed-manifest.json", manifest)
 			actualPath := filepath.Join(directory, "must-not-exist.json")
 			arguments := []string{
 				"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-				"-manifest", testManifestPath,
-				"-expected", testOraclePath,
+				"-manifest", manifestPath,
+				"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"),
 				"-actual-output", actualPath,
 			}
 			var stdout bytes.Buffer
@@ -819,17 +910,47 @@ func TestRunRejectsRelationReferenceWithoutProductAdapter(t *testing.T) {
 			if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
 				t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 			}
-			if stdout.Len() != 0 {
-				t.Fatalf("stdout = %q, want empty", stdout.String())
-			}
-			wantError := fmt.Sprintf("unsupported scenario %q", contract.Scenario)
-			if !strings.Contains(stderr.String(), wantError) {
-				t.Fatalf("stderr = %q, want %q", stderr.String(), wantError)
+			if stdout.Len() != 0 || !strings.Contains(stderr.String(), test.contains) {
+				t.Fatalf("stdout=%q stderr=%q, want %q", stdout.String(), stderr.String(), test.contains)
 			}
 			if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
 				t.Fatalf("actual output Stat() error = %v, want not-exist", err)
 			}
 		})
+	}
+}
+
+func TestRunRejectsUnknownRelationStatusBeforeActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	contents, err := os.ReadFile(filepath.Join(root, "conformance", "contracts", "relation-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents = bytes.Replace(contents, []byte(`"status": "passing"`), []byte(`"status": "unknown"`), 1)
+	directory := t.TempDir()
+	manifestPath := filepath.Join(directory, "unknown-status-manifest.json")
+	if err := os.WriteFile(manifestPath, contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), `unknown status "unknown"`) {
+		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
 	}
 }
 

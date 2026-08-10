@@ -412,7 +412,7 @@ func TestTwelveReferenceSetsHave127UniqueContractsAndReject132OrderedCrossBindin
 	}
 }
 
-func TestRelationReferenceDoesNotExpandElevenAdapterProductTarget(t *testing.T) {
+func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -439,8 +439,8 @@ func TestRelationReferenceDoesNotExpandElevenAdapterProductTarget(t *testing.T) 
 	if got := strings.Count(productTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance migration-definition-source manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 11 {
-		t.Fatalf("godj-conformance adapter count = %d, want 11", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 12 {
+		t.Fatalf("godj-conformance adapter count = %d, want 12", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-definition-source manifest count = %d, want 1", got)
@@ -451,8 +451,8 @@ func TestRelationReferenceDoesNotExpandElevenAdapterProductTarget(t *testing.T) 
 	if got := strings.Count(referenceTarget, "$(RELATION_MANIFEST)"); got != 2 {
 		t.Fatalf("reference conformance relation manifest count = %d, want 2", got)
 	}
-	if got := strings.Count(productTarget, "$(RELATION_MANIFEST)"); got != 0 {
-		t.Fatalf("product conformance relation manifest count = %d, want 0", got)
+	if got := strings.Count(productTarget, "$(RELATION_MANIFEST)"); got != 1 {
+		t.Fatalf("product conformance relation manifest count = %d, want 1", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(RELATION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check relation manifest count = %d, want 1", got)

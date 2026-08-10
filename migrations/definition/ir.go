@@ -14,12 +14,7 @@ var _ [SchemaIRVersion - int64(ir.FormatVersion)]struct{}
 var _ [int64(ir.FormatVersion) - SchemaIRVersion]struct{}
 
 func cloneField(field ir.Field) ir.Field {
-	clone := field
-	if field.Default != nil {
-		value := *field.Default
-		clone.Default = &value
-	}
-	return clone
+	return field.Clone()
 }
 
 func cloneOperation(operation migrations.Operation) migrations.Operation {
