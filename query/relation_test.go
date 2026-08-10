@@ -43,6 +43,9 @@ func TestForwardRelationPathAccessorsAndPlanCopies(t *testing.T) {
 	if !hop.Equal(path.Hops()[0]) || !path.Terminal().Equal(name) || !path.Equal(path) {
 		t.Fatal("relation path value equality failed")
 	}
+	if got := path.TerminalScope(); got != query.RelationTerminalRelatedField {
+		t.Fatalf("TerminalScope() = %q, want %q", got, query.RelationTerminalRelatedField)
+	}
 
 	// Accessors return copies rather than the path's private slice.
 	hops[0] = query.RelationHop{}
@@ -93,6 +96,103 @@ func TestForwardRelationPathAccessorsAndPlanCopies(t *testing.T) {
 	clonedPath, ok := limited.Conditions()[0].RelationPath()
 	if !ok || !clonedPath.Equal(path) {
 		t.Fatal("plan derivation dropped or changed relation path")
+	}
+}
+
+func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T) {
+	t.Parallel()
+
+	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	sourceKey := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	path, err := query.NewNullableForwardRelationIsNullPath(
+		source,
+		"blog_post",
+		sourceKey,
+		target,
+		"authors_author",
+		"id",
+	)
+	if err != nil {
+		t.Fatalf("NewNullableForwardRelationIsNullPath() error = %v", err)
+	}
+	if got := path.TerminalScope(); got != query.RelationTerminalSourceKey {
+		t.Fatalf("TerminalScope() = %q, want %q", got, query.RelationTerminalSourceKey)
+	}
+	if !path.Terminal().Equal(sourceKey) {
+		t.Fatalf("Terminal() = %#v, want source key %#v", path.Terminal(), sourceKey)
+	}
+	hops := path.Hops()
+	if got, want := len(hops), 1; got != want {
+		t.Fatalf("len(Hops()) = %d, want %d", got, want)
+	}
+	hop := hops[0]
+	if hop.Source() != source || hop.SourceTable() != "blog_post" || hop.Field() != "reviewer" ||
+		hop.SourceColumn() != "reviewer_id" || hop.Target() != target || hop.TargetTable() != "authors_author" ||
+		hop.TargetPrimaryKeyColumn() != "id" || hop.Direction() != query.RelationForward ||
+		hop.Cardinality() != ir.RelationManyToOne || !hop.Nullable() {
+		t.Fatalf("nullable source-key hop = %#v", hop)
+	}
+
+	condition := query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true))
+	plan := query.NewPlan("blog_post", []query.FieldRef{
+		query.NewFieldRef("id", "id", query.FieldInteger, false),
+		sourceKey,
+	}).WithConditions(condition)
+	derived, err := plan.WithLimit(2)
+	if err != nil {
+		t.Fatalf("WithLimit() error = %v", err)
+	}
+	clonedPath, ok := derived.Conditions()[0].RelationPath()
+	if !ok || !clonedPath.Equal(path) || clonedPath.TerminalScope() != query.RelationTerminalSourceKey {
+		t.Fatalf("derived source-key path = (%#v, %v)", clonedPath, ok)
+	}
+	unlimited := query.NewPlan("blog_post", plan.Columns()).WithConditions(condition)
+	if derived.Equal(unlimited) {
+		t.Fatal("limited and unlimited plans compared equal")
+	}
+	identical, err := query.NewNullableForwardRelationIsNullPath(
+		source, "blog_post", sourceKey, target, "authors_author", "id",
+	)
+	if err != nil || !path.Equal(identical) {
+		t.Fatalf("identical nullable path = (%#v, %v)", identical, err)
+	}
+}
+
+func TestNullableForwardRelationSourceKeyValidationIsStructured(t *testing.T) {
+	t.Parallel()
+
+	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	valid := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	tests := []struct {
+		name        string
+		source      ir.ModelIdentity
+		table       string
+		sourceKey   query.FieldRef
+		target      ir.ModelIdentity
+		targetTable string
+		targetPK    string
+	}{
+		{name: "blank source", table: "blog_post", sourceKey: valid, target: target, targetTable: "authors_author", targetPK: "id"},
+		{name: "blank source table", source: source, sourceKey: valid, target: target, targetTable: "authors_author", targetPK: "id"},
+		{name: "blank source key", source: source, table: "blog_post", target: target, targetTable: "authors_author", targetPK: "id"},
+		{name: "nonnullable source key", source: source, table: "blog_post", sourceKey: query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, false), target: target, targetTable: "authors_author", targetPK: "id"},
+		{name: "noninteger source key", source: source, table: "blog_post", sourceKey: query.NewFieldRef("reviewer", "reviewer_id", query.FieldString, true), target: target, targetTable: "authors_author", targetPK: "id"},
+		{name: "blank target", source: source, table: "blog_post", sourceKey: valid, targetTable: "authors_author", targetPK: "id"},
+		{name: "blank target table", source: source, table: "blog_post", sourceKey: valid, target: target, targetPK: "id"},
+		{name: "blank target key", source: source, table: "blog_post", sourceKey: valid, target: target, targetTable: "authors_author"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := query.NewNullableForwardRelationIsNullPath(
+				test.source, test.table, test.sourceKey, test.target, test.targetTable, test.targetPK,
+			)
+			var queryError *query.Error
+			if !errors.As(err, &queryError) || queryError.Category != query.CategoryQuery || queryError.Code != query.CodeInvalidPlan {
+				t.Fatalf("error = %T %v, want query_error/invalid_plan", err, err)
+			}
+		})
 	}
 }
 

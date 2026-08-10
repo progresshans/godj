@@ -287,7 +287,7 @@ old member remains byte-identical.
 
 `GenerateProjectRelationObject` snapshots/normalizes/canonicalizes inputs. Alias is hardened ASCII lower-camel with
 generated aliases and import paths for `context`, `db`, `orm`, `ir`, `query`, keywords, `init` and exact used
-predeclared identifiers `bool`, `error`, `nil` rejected;
+predeclared identifiers `bool`, `error`, `false`, `nil` rejected;
 import paths, prefixes and all generated namespaces are unique. App packages never import one another; only the project
 object bridge imports both. Normalize/namespace/render/gofmt failure returns no bytes and never panics. External
 compile/bind/no-rewrite remains a caller publication gate rather than a failure the pure byte generator can observe.

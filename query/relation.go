@@ -12,6 +12,17 @@ type RelationDirection string
 
 const RelationForward RelationDirection = "forward"
 
+// RelationTerminalScope identifies whether a relation condition ends on a
+// scalar field of the related model or on the source model's local key. The
+// latter retains relation provenance while allowing a backend to trim a
+// nullable isnull traversal to the root table.
+type RelationTerminalScope string
+
+const (
+	RelationTerminalRelatedField RelationTerminalScope = "related_field"
+	RelationTerminalSourceKey    RelationTerminalScope = "source_key"
+)
+
 // RelationHop is the immutable, backend-independent description of one
 // relation edge. All state is private so later relation work can extend the
 // representation without exposing mutable compiler data.
@@ -40,13 +51,14 @@ func (h RelationHop) Cardinality() ir.RelationCardinality { return h.cardinality
 func (h RelationHop) Nullable() bool                      { return h.nullable }
 func (h RelationHop) Equal(other RelationHop) bool        { return h == other }
 
-// RelationPath is an immutable symbolic traversal ending at a scalar target
-// field. GDJ-0025 constructs exactly one hop, while retaining a slice keeps
+// RelationPath is an immutable symbolic traversal ending at either a scalar
+// target field or the source model's local key. Retaining a slice keeps
 // unsupported shapes visible to compilers as structured values rather than
 // encoding SQL aliases in the AST.
 type RelationPath struct {
 	hops     []RelationHop
 	terminal FieldRef
+	scope    RelationTerminalScope
 }
 
 // NewForwardRelationPath constructs the one required many-to-one path owned by
@@ -90,7 +102,59 @@ func NewForwardRelationPath(
 		cardinality:            ir.RelationManyToOne,
 		nullable:               false,
 	}
-	return RelationPath{hops: []RelationHop{hop}, terminal: terminal}, nil
+	return RelationPath{
+		hops:     []RelationHop{hop},
+		terminal: terminal,
+		scope:    RelationTerminalRelatedField,
+	}, nil
+}
+
+// NewNullableForwardRelationIsNullPath constructs the nullable one-hop
+// source-key path used by relation-level isnull predicates. The terminal is
+// deliberately the canonical local ForeignKey field so compilers can verify
+// it against the selected root-model columns before trimming the join.
+func NewNullableForwardRelationIsNullPath(
+	source ir.ModelIdentity,
+	sourceTable string,
+	sourceKey FieldRef,
+	target ir.ModelIdentity,
+	targetTable, targetPKColumn string,
+) (RelationPath, error) {
+	if !validModelIdentity(source) || !validModelIdentity(target) ||
+		blank(sourceTable) || !validFieldRef(sourceKey) ||
+		blank(targetTable) || blank(targetPKColumn) {
+		return RelationPath{}, &Error{
+			Category: CategoryQuery,
+			Code:     CodeInvalidPlan,
+			Field:    sourceKey.Name(),
+			Detail:   "nullable forward relation source-key path contains blank or invalid metadata",
+		}
+	}
+	if sourceKey.Kind() != FieldInteger || !sourceKey.Nullable() {
+		return RelationPath{}, &Error{
+			Category: CategoryQuery,
+			Code:     CodeInvalidPlan,
+			Field:    sourceKey.Name(),
+			Detail:   "nullable forward relation source key must be a nullable integer field",
+		}
+	}
+	hop := RelationHop{
+		source:                 source,
+		sourceTable:            sourceTable,
+		field:                  sourceKey.Name(),
+		sourceColumn:           sourceKey.Column(),
+		target:                 target,
+		targetTable:            targetTable,
+		targetPrimaryKeyColumn: targetPKColumn,
+		direction:              RelationForward,
+		cardinality:            ir.RelationManyToOne,
+		nullable:               true,
+	}
+	return RelationPath{
+		hops:     []RelationHop{hop},
+		terminal: sourceKey,
+		scope:    RelationTerminalSourceKey,
+	}, nil
 }
 
 func (p RelationPath) Hops() []RelationHop {
@@ -99,8 +163,10 @@ func (p RelationPath) Hops() []RelationHop {
 
 func (p RelationPath) Terminal() FieldRef { return p.terminal }
 
+func (p RelationPath) TerminalScope() RelationTerminalScope { return p.scope }
+
 func (p RelationPath) Equal(other RelationPath) bool {
-	if !p.terminal.Equal(other.terminal) || len(p.hops) != len(other.hops) {
+	if p.scope != other.scope || !p.terminal.Equal(other.terminal) || len(p.hops) != len(other.hops) {
 		return false
 	}
 	for index := range p.hops {
@@ -115,6 +181,7 @@ func (p RelationPath) clone() RelationPath {
 	return RelationPath{
 		hops:     append([]RelationHop(nil), p.hops...),
 		terminal: p.terminal,
+		scope:    p.scope,
 	}
 }
 

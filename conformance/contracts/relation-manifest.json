@@ -57,7 +57,7 @@
       "title": "Repeated forward access on one freshly loaded instance uses its related-object cache",
       "scenario": "django.relation.forward_lazy_cache",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -129,7 +129,7 @@
       "title": "A null forward relation is query-free and isnull filters the local key without a join",
       "scenario": "django.relation.nullable_access_and_isnull",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

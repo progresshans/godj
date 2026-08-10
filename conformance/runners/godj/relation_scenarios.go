@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/conformance/relationobjectproduct"
 	"github.com/progresshans/godj/conformance/relationproduct"
 	"github.com/progresshans/godj/conformance/relationqueryproduct"
 	"github.com/progresshans/godj/orm"
@@ -16,11 +17,84 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 	switch scenario {
 	case "django.relation.cross_app_metadata":
 		return relationCrossAppMetadata, true
+	case "django.relation.forward_lazy_cache":
+		return relationForwardLazyCache, true
 	case "django.relation.forward_lookup_join_reuse":
 		return relationForwardLookupJoinReuse, true
+	case "django.relation.nullable_access_and_isnull":
+		return relationNullableAccessAndIsNull, true
 	default:
 		return nil, false
 	}
+}
+
+func relationForwardLazyCache(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationobjectproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-003 product: %w", err)
+	}
+	cold := relationObjectAuthorValue(observed.Forward.Cold)
+	warm := relationObjectAuthorValue(observed.Forward.Warm)
+	steps := make([]protocol.Value, len(observed.Forward.Steps))
+	for index, step := range observed.Forward.Steps {
+		value := relationObjectQueryMetricsValue(step.Metrics)
+		fields := map[string]protocol.Value{
+			"name": protocol.String(step.Name),
+		}
+		for _, field := range value.Fields {
+			fields[field.Name] = field.Value
+		}
+		steps[index] = protocol.Object(fields)
+	}
+	result := protocol.Object(map[string]protocol.Value{
+		"cold": cold,
+		"warm": warm,
+	})
+	databaseState := relationObjectDatabaseStateValue(observed.DBState)
+	metrics := protocol.Object(map[string]protocol.Value{
+		"steps": protocol.List(steps...),
+	})
+	return protocol.Observation{
+		ID:      contract.ID,
+		Status:  protocol.StatusObserved,
+		Phase:   contract.Phase,
+		Result:  &result,
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
+}
+
+func relationNullableAccessAndIsNull(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationobjectproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-006 product: %w", err)
+	}
+	reviewer := protocol.Null()
+	if observed.Nullable.Reviewer != nil {
+		reviewer = relationObjectAuthorValue(*observed.Nullable.Reviewer)
+	}
+	identifiers := make([]protocol.Value, len(observed.Nullable.IsNullPostIDs))
+	for index, identifier := range observed.Nullable.IsNullPostIDs {
+		identifiers[index] = relationPrimaryKey(identifier)
+	}
+	result := protocol.Object(map[string]protocol.Value{
+		"reviewer":        reviewer,
+		"isnull_post_ids": protocol.List(identifiers...),
+	})
+	databaseState := relationObjectDatabaseStateValue(observed.DBState)
+	metrics := protocol.Object(map[string]protocol.Value{
+		"null_access":         relationObjectQueryMetricsValue(observed.Nullable.NullAccess),
+		"isnull_construction": relationObjectQueryMetricsValue(observed.Nullable.IsNullConstruction),
+		"isnull_evaluation":   relationObjectQueryMetricsValue(observed.Nullable.IsNullEvaluation),
+	})
+	return protocol.Observation{
+		ID:      contract.ID,
+		Status:  protocol.StatusObserved,
+		Phase:   contract.Phase,
+		Result:  &result,
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
 }
 
 func relationCrossAppMetadata(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
@@ -91,6 +165,24 @@ func relationQueryMetricsValue(metrics relationqueryproduct.QueryMetrics) protoc
 	})
 }
 
+func relationObjectQueryMetricsValue(metrics relationobjectproduct.QueryMetrics) protocol.Value {
+	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
+	for index, kind := range metrics.StatementKinds {
+		statementKinds[index] = protocol.String(kind)
+	}
+	joinKinds := make([]protocol.Value, len(metrics.JoinKinds))
+	for index, kind := range metrics.JoinKinds {
+		joinKinds[index] = protocol.String(kind)
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"query_count":           protocol.Integer(strconv.FormatInt(metrics.QueryCount, 10)),
+		"statement_kinds":       protocol.List(statementKinds...),
+		"join_kinds":            protocol.List(joinKinds...),
+		"inner_join_count":      protocol.Integer(strconv.FormatInt(metrics.InnerJoinCount, 10)),
+		"left_outer_join_count": protocol.Integer(strconv.FormatInt(metrics.LeftOuterJoinCount, 10)),
+	})
+}
+
 func relationDatabaseStateValue(state relationqueryproduct.DatabaseState) protocol.Value {
 	authors := make([]protocol.Value, len(state.Authors))
 	for index, author := range state.Authors {
@@ -98,6 +190,37 @@ func relationDatabaseStateValue(state relationqueryproduct.DatabaseState) protoc
 			"id":   relationPrimaryKey(author.ID),
 			"name": protocol.String(author.Name),
 		})
+	}
+	posts := make([]protocol.Value, len(state.Posts))
+	for index, post := range state.Posts {
+		reviewer := protocol.Null()
+		if post.ReviewerID != nil {
+			reviewer = relationPrimaryKey(*post.ReviewerID)
+		}
+		posts[index] = protocol.Object(map[string]protocol.Value{
+			"id":          relationPrimaryKey(post.ID),
+			"title":       protocol.String(post.Title),
+			"author_id":   relationPrimaryKey(post.AuthorID),
+			"reviewer_id": reviewer,
+		})
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"authors": protocol.List(authors...),
+		"posts":   protocol.List(posts...),
+	})
+}
+
+func relationObjectAuthorValue(author relationobjectproduct.AuthorRow) protocol.Value {
+	return protocol.Object(map[string]protocol.Value{
+		"id":   relationPrimaryKey(author.ID),
+		"name": protocol.String(author.Name),
+	})
+}
+
+func relationObjectDatabaseStateValue(state relationobjectproduct.DatabaseState) protocol.Value {
+	authors := make([]protocol.Value, len(state.Authors))
+	for index, author := range state.Authors {
+		authors[index] = relationObjectAuthorValue(author)
 	}
 	posts := make([]protocol.Value, len(state.Posts))
 	for index, post := range state.Posts {

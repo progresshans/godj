@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -226,7 +227,7 @@ func TestSQLiteBackendQueryAndCloseDoNotRace(t *testing.T) {
 	group.Wait()
 }
 
-func TestSQLiteBackendExecutesReusableRequiredForwardJoinAndRejectsInvalidPathPreIO(t *testing.T) {
+func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -292,13 +293,78 @@ func TestSQLiteBackendExecutesReusableRequiredForwardJoinAndRejectsInvalidPathPr
 		t.Fatalf("relation query count = %d, want 1", got)
 	}
 
+	nullablePath, err := query.NewNullableForwardRelationIsNullPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post",
+		reviewerID,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author",
+		"id",
+	)
+	if err != nil {
+		t.Fatalf("NewNullableForwardRelationIsNullPath() error = %v", err)
+	}
+	nullablePlan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+		query.NewRelatedCondition(nullablePath, query.LookupIsNull, query.Boolean(true)),
+	).WithOrderings(query.NewOrdering(id, query.Ascending))
+	statement, arguments, err := sqlite.Compile(nullablePlan)
+	if err != nil {
+		t.Fatalf("Compile(nullable isnull) error = %v", err)
+	}
+	if strings.Contains(statement, " JOIN ") || !strings.Contains(statement, `"t0"."reviewer_id" IS NULL`) {
+		t.Fatalf("nullable source-key SQL did not trim the join: %s", statement)
+	}
+	if len(arguments) != 0 {
+		t.Fatalf("nullable source-key arguments = %#v, want empty", arguments)
+	}
+
+	before = backend.QueryCount()
+	rows, err = backend.Query(ctx, nullablePlan)
+	if err != nil {
+		t.Fatalf("nullable source-key Query() error = %v", err)
+	}
+	identifiers = identifiers[:0]
+	for rows.Next() {
+		var gotID, gotAuthorID int64
+		var gotTitle string
+		var gotReviewerID any
+		if err := rows.Scan(&gotID, &gotTitle, &gotAuthorID, &gotReviewerID); err != nil {
+			t.Fatalf("nullable source-key Scan() error = %v", err)
+		}
+		identifiers = append(identifiers, gotID)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("nullable source-key Rows.Err() = %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("nullable source-key Rows.Close() = %v", err)
+	}
+	if fmt.Sprint(identifiers) != "[11]" {
+		t.Fatalf("nullable source-key identifiers = %v, want [11]", identifiers)
+	}
+	if got := backend.QueryCount() - before; got != 1 {
+		t.Fatalf("nullable source-key query count = %d, want 1", got)
+	}
+
+	invalidNullable := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(nullablePath, query.LookupIsNull, query.Boolean(true)),
+	)
+	before = backend.QueryCount()
+	_, err = backend.Query(ctx, invalidNullable)
+	var queryError *query.Error
+	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
+		t.Fatalf("invalid nullable source-key Query() error = %v, want invalid_plan", err)
+	}
+	if got := backend.QueryCount() - before; got != 0 {
+		t.Fatalf("invalid nullable source-key query count = %d, want 0", got)
+	}
+
 	wrongRoot := integrationRelationPath(t, "other_post", "author_id", authorName)
 	invalid := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
 		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Ada")),
 	)
 	before = backend.QueryCount()
 	_, err = backend.Query(ctx, invalid)
-	var queryError *query.Error
 	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
 		t.Fatalf("invalid relation Query() error = %v, want invalid_plan", err)
 	}

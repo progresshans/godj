@@ -302,9 +302,10 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 	if !strings.Contains(conformance, "run: make ci") || !strings.Contains(conformance, "GOARCH: \"386\"") ||
 		!strings.Contains(conformance, "./cmd/godj") || !strings.Contains(conformance, "./project") ||
 		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") ||
-		!strings.Contains(conformance, "Run relation query product on 32-bit Linux") ||
+		!strings.Contains(conformance, "Run relation products on 32-bit Linux") ||
 		!strings.Contains(conformance, "./conformance/relationproduct/...") ||
-		!strings.Contains(conformance, "./conformance/relationqueryproduct/...") {
+		!strings.Contains(conformance, "./conformance/relationqueryproduct/...") ||
+		!strings.Contains(conformance, "./conformance/relationobjectproduct/...") {
 		t.Fatal("existing Ubuntu full/Linux-386 gates were not preserved")
 	}
 	if !strings.Contains(darwin, "make python-test-exact oracle-check") || !strings.Contains(darwin, "./migrations") || !strings.Contains(darwin, "./db/sqlite") {
@@ -390,6 +391,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"./db/sqlite",
 		"./conformance/relationproduct/...",
 		"./conformance/relationqueryproduct/...",
+		"./conformance/relationobjectproduct/...",
 		"./conformance/internal/protocol",
 		"./conformance/runners/godj",
 		"./conformance/cmd/godjcheck",
@@ -398,9 +400,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 492`,
-		`assert len(payload) == 49902`,
-		`05064a7f0e7a8806d7172fe26a12d846765cdf0d7f991c83b40de07603ba82eb`,
+		`assert len(runs) == 533`,
+		`assert len(payload) == 54076`,
+		`6d2958b63e68dcbf0a63aa02adb47cdf005a4896af80f22e4acc49e78dd07aee`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		"Run relation product race tests",
@@ -413,6 +415,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json",
 		"conformance/relationproduct",
 		"conformance/relationqueryproduct",
+		"conformance/relationobjectproduct",
 	} {
 		if !strings.Contains(relationProduct, required) {
 			t.Fatalf("relation-product matrix is missing required fragment %q", required)
@@ -440,6 +443,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"./migrations/definition",
 		"./conformance/relationproduct/...",
 		"./conformance/relationqueryproduct/...",
+		"./conformance/relationobjectproduct/...",
 		"./conformance/internal/protocol",
 		"./conformance/runners/godj",
 		"./conformance/cmd/godjcheck",

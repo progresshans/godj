@@ -21,6 +21,24 @@ type ModelDescriptor[M any] interface {
 	CloneModel(M) M
 }
 
+// RelationObjectDescriptor is the additive immutable capability required by
+// project-bound relation object loaders. Implementations return a generated
+// named, non-pointer, zero-size snapshot so BoundModel never retains mutable
+// caller-owned descriptor state.
+type RelationObjectDescriptor[M any] interface {
+	ModelDescriptor[M]
+	SnapshotRelationObjectDescriptor() RelationObjectDescriptor[M]
+	BindRelationStorage(ir.Field) (RelationStorage[M], bool)
+}
+
+// RelationStorage extracts one structurally bound ForeignKey value. Generated
+// implementations use direct field access; reflection is restricted to cold
+// binder validation of the storage value's immutable shape.
+type RelationStorage[M any] interface {
+	Field() ir.Field
+	Value(M) (query.Value, bool)
+}
+
 // WriteDescriptor is an optional generated capability layered on the M1 read
 // descriptor. Keeping it separate preserves read-only user descriptors while
 // making auto-key presence explicit for create, update, and delete.
@@ -51,4 +69,12 @@ func interfaceIsNil(value any) bool {
 	default:
 		return false
 	}
+}
+
+func immutableZeroStateValue(value any) bool {
+	if interfaceIsNil(value) {
+		return false
+	}
+	valueType := reflect.TypeOf(value)
+	return valueType.Kind() == reflect.Struct && valueType.Name() != "" && valueType.Size() == 0
 }

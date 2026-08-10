@@ -68,6 +68,88 @@ func ParseDynamicRelations[M any](
 	return result, nil
 }
 
+// ParseDynamicRelationObjects is the ordered additive object-surface parser.
+// It preserves every GDJ-0025 required implicit-exact lookup and adds only a
+// nullable forward relation's two-segment isnull form. Any failure discards
+// the entire candidate slice.
+func ParseDynamicRelationObjects[M any](
+	model BoundModel[M],
+	policy LookupPolicy,
+	inputs []LookupInput,
+) ([]Predicate[M], error) {
+	if err := validateBoundModel(model); err != nil {
+		return nil, err
+	}
+
+	result := make([]Predicate[M], 0, len(inputs))
+	for _, input := range inputs {
+		segments := strings.Split(input.Key, "__")
+		if len(segments) == 2 && segments[0] != "" && segments[1] == string(query.LookupIsNull) {
+			metadata, exists := ProjectBinding{snapshot: model.snapshot}.Relation(model.identity, segments[0])
+			if exists && metadata.Nullable {
+				predicate, err := parseDynamicNullableRelationIsNull(model, policy, input, metadata)
+				if err != nil {
+					return nil, err
+				}
+				result = append(result, predicate)
+				continue
+			}
+		}
+
+		predicates, err := ParseDynamicRelations(model, policy, []LookupInput{input})
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, predicates[0])
+	}
+	return result, nil
+}
+
+func parseDynamicNullableRelationIsNull[M any](
+	model BoundModel[M],
+	policy LookupPolicy,
+	input LookupInput,
+	metadata RelationMetadata,
+) (Predicate[M], error) {
+	state, err := resolveForwardRelationState(model.snapshot, model.identity, model.model, metadata.Field)
+	if err != nil {
+		return Predicate[M]{}, err
+	}
+	if !state.metadata.Nullable {
+		return Predicate[M]{}, unsupportedRelationLookup(input.Key, "required forward relation isnull is not supported")
+	}
+	sourceField, ok := findField(state.sourceModel.Fields, state.metadata.Field)
+	if !ok || sourceField.Kind != ir.FieldForeignKey || !sourceField.Nullable || sourceField.Relation == nil ||
+		sourceField.Relation.Target != state.metadata.Target {
+		return Predicate[M]{}, relationInvalidPlan("nullable relation source field is not canonical")
+	}
+	if policy != nil && !policy(sourceField.Clone(), query.LookupIsNull) {
+		return Predicate[M]{}, &query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeDisallowedLookup,
+			Field:    sourceField.Name,
+			Lookup:   string(query.LookupIsNull),
+			Detail:   "lookup was rejected by policy",
+		}
+	}
+	value, err := dynamicValue(sourceField, query.LookupIsNull, input.Value)
+	if err != nil {
+		return Predicate[M]{}, err
+	}
+	path, err := query.NewNullableForwardRelationIsNullPath(
+		state.sourceIdentity,
+		state.sourceModel.DBTable,
+		fieldReference(sourceField),
+		state.metadata.Target,
+		state.targetModel.DBTable,
+		state.targetPrimaryKey.Column,
+	)
+	if err != nil {
+		return Predicate[M]{}, err
+	}
+	return Predicate[M]{condition: query.NewRelatedCondition(path, query.LookupIsNull, value)}, nil
+}
+
 func isRelationLookupSuffix(name string) bool {
 	switch query.Lookup(name) {
 	case query.LookupExact, query.LookupIsNull, query.LookupIContains:

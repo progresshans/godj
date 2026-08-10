@@ -114,3 +114,59 @@ func TestDynamicRelationErrorsFollowFrozenPrecedence(t *testing.T) {
 	}
 	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
 }
+
+func TestDynamicRelationObjectsAddsOnlyNullableIsNullAndIsAtomic(t *testing.T) {
+	t.Parallel()
+
+	fixture := newRelationQueryFixture(t)
+	seenPolicy := false
+	predicates, err := orm.ParseDynamicRelationObjects(fixture.postModel, func(field ir.Field, lookup query.Lookup) bool {
+		seenPolicy = field.Name == "reviewer" && field.Column == "reviewer_id" &&
+			field.Kind == ir.FieldForeignKey && field.Nullable && field.Relation != nil &&
+			field.Relation.Target == (ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}) &&
+			lookup == query.LookupIsNull
+		field.Column = "caller-mutated"
+		field.Relation.Target.AppLabel = "caller-mutated"
+		return true
+	}, []orm.LookupInput{{Key: "reviewer__isnull", Value: true}})
+	if err != nil || !seenPolicy || len(predicates) != 1 {
+		t.Fatalf("ParseDynamicRelationObjects() = (%#v, %v), policy=%v", predicates, err, seenPolicy)
+	}
+	plan := orm.NewManager[relationQueryPost](fixture.postDescriptor).Using(nil).Filter(predicates...).Plan()
+	conditions := plan.Conditions()
+	if len(conditions) != 1 || conditions[0].Lookup() != query.LookupIsNull {
+		t.Fatalf("dynamic object conditions = %#v", conditions)
+	}
+	path, ok := conditions[0].RelationPath()
+	if !ok || path.TerminalScope() != query.RelationTerminalSourceKey ||
+		path.Terminal().Name() != "reviewer" || path.Terminal().Column() != "reviewer_id" ||
+		path.Terminal().Kind() != query.FieldInteger || !path.Terminal().Nullable() {
+		t.Fatalf("dynamic nullable path = (%#v, %v)", path, ok)
+	}
+	if got := path.Hops(); len(got) != 1 || !got[0].Nullable() || got[0].Field() != "reviewer" {
+		t.Fatalf("dynamic nullable hops = %#v", got)
+	}
+
+	tests := []struct {
+		name     string
+		inputs   []orm.LookupInput
+		policy   orm.LookupPolicy
+		category string
+		code     string
+	}{
+		{name: "required isnull", inputs: []orm.LookupInput{{Key: "author__isnull", Value: true}}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "nullable target traversal", inputs: []orm.LookupInput{{Key: "reviewer__name", Value: "Bob"}}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "invalid bool", inputs: []orm.LookupInput{{Key: "reviewer__isnull", Value: "true"}}, category: query.CategoryField, code: query.CodeInvalidValue},
+		{name: "policy before value", inputs: []orm.LookupInput{{Key: "reviewer__isnull", Value: "true"}}, policy: func(ir.Field, query.Lookup) bool { return false }, category: query.CategoryField, code: query.CodeDisallowedLookup},
+		{name: "mixed no partial", inputs: []orm.LookupInput{{Key: "author__name", Value: "Ada"}, {Key: "reviewer__isnull", Value: "true"}}, category: query.CategoryField, code: query.CodeInvalidValue},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := orm.ParseDynamicRelationObjects(fixture.postModel, test.policy, test.inputs)
+			if got != nil {
+				t.Fatalf("predicates = %#v, want nil", got)
+			}
+			assertRelationQueryError(t, err, test.category, test.code)
+		})
+	}
+}

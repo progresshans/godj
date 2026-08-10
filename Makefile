@@ -70,6 +70,7 @@ cgo-zero-build:
 		./conformance/runners/godj \
 		./conformance/relationproduct/... \
 		./conformance/relationqueryproduct/... \
+		./conformance/relationobjectproduct/... \
 		-count=1
 
 python-test:

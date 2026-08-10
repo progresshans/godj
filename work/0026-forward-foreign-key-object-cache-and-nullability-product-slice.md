@@ -281,7 +281,7 @@ is rewritten.
 
 The project generator uses the same hardened ASCII lower-camel alias/import/prefix rules as the accepted query bridge,
 with generated aliases and import paths for `context`, `db`, `orm`, `ir` and `query` reserved together with keywords,
-`init` and exact used predeclared identifiers `bool`, `error`, `nil`. Normalize/namespace/render/gofmt failure returns
+`init` and exact used predeclared identifiers `bool`, `error`, `false`, `nil`. Normalize/namespace/render/gofmt failure returns
 no bytes. External compile/bind/no-rewrite is
 a caller-side publication gate; a pure generator does not claim to observe compile failure before returning bytes.
 Exact fixture exports are:
@@ -363,17 +363,17 @@ change. Product order is exact observed REL-001/003/004/006 and eight ordered pa
 
 ## 완료 조건
 
-- [ ] Proposed ADR-0026 exact API/AST/cache/lifetime/error surface receives independent review.
-- [ ] Existing descriptor/query/project-query/generated product bytes and semantics are byte-preserved.
-- [ ] Additive v2/v3 object companions and project object bridge compile with app-to-app imports 0.
-- [ ] Sealed descriptor/storage snapshots reject mutable/aliased/typed-nil/copy-invalid shapes pre-I/O.
-- [ ] Required and nullable object loaders satisfy cold/warm/clone/singleflight/retry/cardinality/session contracts.
-- [ ] Typed/dynamic reviewer isnull plans are equal and SQLite returns `[11]` with SELECT 1/JOIN 0.
-- [ ] REL-003/006 oracle-blind actuals and independent mutation gates pass; eight other REL contracts stay NI.
-- [ ] Product aggregate is exact `114 passing + 5 deviation + 8 oracle_locked = 127`.
-- [ ] Local normal/race/CGO-disabled/vet/repetition/386 compile/no-rewrite/diff-clean gates pass.
+- [x] Proposed ADR-0026 exact API/AST/cache/lifetime/error surface receives independent review.
+- [x] Existing descriptor/query/project-query/generated product bytes and semantics are byte-preserved.
+- [x] Additive v2/v3 object companions and project object bridge compile with app-to-app imports 0.
+- [x] Sealed descriptor/storage snapshots reject mutable/aliased/typed-nil/copy-invalid shapes pre-I/O.
+- [x] Required and nullable object loaders satisfy cold/warm/clone/singleflight/retry/cardinality/session contracts.
+- [x] Typed/dynamic reviewer isnull plans are equal and SQLite returns `[11]` with SELECT 1/JOIN 0.
+- [x] REL-003/006 oracle-blind actuals and independent mutation gates pass; eight other REL contracts stay NI.
+- [x] Product aggregate is exact `114 passing + 5 deviation + 8 oracle_locked = 127` locally.
+- [x] Local normal/race/CGO-disabled/vet/repetition/386 compile/no-rewrite/diff-clean gates pass.
 - [ ] Exact 26 hosted executions pass on the exact implementation head with skip 0.
-- [ ] Independent API/codegen/SQLite/conformance/integration audits report P0..P3=0.
+- [x] Independent API/codegen/SQLite/conformance/integration audits report P0..P3=0 locally.
 - [ ] Work/status/matrix/evidence and ADR are synchronized; ADR becomes Accepted only for the bounded slice.
 
 ## 비목표와 forbidden paths
@@ -404,24 +404,42 @@ integration owner alone updates public API, ADR, CURRENT and final status.
   cache ownership.
 - 2026-08-10: ADR-0026 Proposed, this work active. This activation documentation diff itself is
   `not run/pending`; baseline run 31359958949 is not its proof.
+- 2026-08-10: Exact 15-file activation commit `aad4f7ff0d77a1abe16ebddd01782e78c335395f` passed Draft PR #1
+  [run 31364944816](https://github.com/progresshans/godj/actions/runs/31364944816) with exact 26/26 jobs and
+  326/326 recorded steps. This closes the activation-only pending state; it is not implementation-head evidence.
+- 2026-08-10: The bounded implementation added only the sealed descriptor/storage and object runtime, additive
+  v2/v3 relation-object generators/project bridge, relation `source_key` AST, SQLite JOIN-0 trim and the separate
+  oracle-blind `relationobjectproduct` actual. Local product classification is exact
+  `114 passing + 5 deviation + 8 oracle_locked`, with REL-001/003/004/006 actual 4/12.
+- 2026-08-10: Generator feasibility exposed an alias false green: a valid package alias could shadow the emitted
+  predeclared literal `false`. Before publication, Proposed ADR-0026 and this work were amended to reserve exact used
+  predeclared identifiers `bool`, `error`, `false`, `nil`; generated receivers/locals were also moved to underscore
+  prefixes. Existing main, metadata, query and project-query v1 bytes remain unchanged.
+- 2026-08-10: Local `PYTHONDONTWRITEBYTECODE=1 make ci`, relation inventory 533/533/0 (54,076 bytes,
+  SHA-256 `6d2958b63e68dcbf0a63aa02adb47cdf005a4896af80f22e4acc49e78dd07aee`), normal/race/CGO-disabled/vet,
+  repetitions, generated no-rewrite, exact package Linux/386 cross-compile and twelve adapters passed. Independent
+  runtime, codegen, SQLite/conformance and final integration/security/scope audits all report
+  P0/P1/P2/P3=`0/0/0/0`; exact implementation-head hosted CI has not run.
 
 ## 현재 blocker
 
-외부 blocker는 없습니다. Implementation has not started. Proposed API/allowlist must first pass documentation and
-feasibility audit; any blocking change is amended before code.
+외부 blocker는 없습니다. Local implementation/conformance and all four independent audit lanes are frozen clean.
+ADR-0026 remains Proposed, the work remains active, and exact implementation-head hosted acceptance has not run.
 
 ## 다음 정확한 작업
 
-1. Verify exact 15 activation documentation paths, frontmatter uniqueness, EVID-001..041 append-only prefix, links,
-   fences and `git diff --check`.
-2. Commit/push documentation-only activation to Draft PR #1 and run the unchanged exact 26; do not reuse EVID-042.
-3. Implement only the frozen allowlist in layers: sealed descriptor/object runtime and AST first, generators/compile
-   second, SQLite/product/conformance third.
-4. Run independent API/codegen/SQLite/conformance audits before pre-hosted completion documentation.
-5. Do not merge Draft PR #1 without user request.
+1. Freeze the exact five-file pre-hosted status/evidence patch, preserving the EVID-001..042 byte prefix and verifying
+   frontmatter uniqueness, allowed paths, links, fences and `git diff --check`.
+2. Commit/push the bounded implementation plus pre-hosted evidence to Draft PR #1 and run exact 26 at that new head.
+   Do not reuse activation run 31364944816 as implementation proof.
+3. Only after exact implementation-head hosted success, update completion documentation and consider ADR-0026
+   Accepted for this bounded SQLite slice.
+4. Do not merge Draft PR #1 without user request.
 
 ## 인수인계
 
-Baseline `bffc5284...` is clean and exact-26 tested. GDJ-0026 owns only REL-003/006 forward instance object cache,
-nullable absent access and relation-provenance-preserving SQLite source-key isnull trim. Current product remains
-`112 + 5 + 10`; `114 + 5 + 8` is a completion target, not current support. Activation CI is pending.
+Activation head `aad4f7ff0d77a1abe16ebddd01782e78c335395f` is exact-26 tested by run `31364944816`.
+The uncommitted frozen implementation owns only REL-003/006 forward instance object cache, nullable absent access and
+relation-provenance-preserving SQLite source-key isnull trim. Local product comparison is exact `114 + 5 + 8`, but
+the implementation commit identity and its exact-26 hosted acceptance are pending. ADR-0026 remains Proposed and
+GDJ-0026 remains active; activation evidence must not be reused as implementation evidence.

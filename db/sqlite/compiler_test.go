@@ -191,6 +191,157 @@ func TestCompileRelationRejectsNonExactAndWrongValueKind(t *testing.T) {
 	assertQueryCode(t, err, query.CodeInvalidPlan)
 }
 
+func TestCompileNullableForwardSourceKeyIsNullTrimsJoin(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+
+	for _, test := range []struct {
+		name      string
+		value     bool
+		predicate string
+	}{
+		{name: "null", value: true, predicate: "IS NULL"},
+		{name: "not null", value: false, predicate: "IS NOT NULL"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := nullableReviewerPath(t, reviewerID)
+			plan := query.NewPlan("blog_post", []query.FieldRef{id, title, reviewerID}).WithConditions(
+				query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(test.value)),
+			).WithOrderings(query.NewOrdering(id, query.Ascending))
+
+			statement, arguments, err := sqlite.Compile(plan)
+			if err != nil {
+				t.Fatalf("Compile() error = %v", err)
+			}
+			want := `SELECT "t0"."id", "t0"."title", "t0"."reviewer_id" FROM "blog_post" AS "t0" WHERE "t0"."reviewer_id" ` + test.predicate + ` ORDER BY "t0"."id" ASC`
+			if statement != want {
+				t.Fatalf("SQL = %q\nwant  %q", statement, want)
+			}
+			if len(arguments) != 0 {
+				t.Fatalf("arguments = %#v, want empty", arguments)
+			}
+			if strings.Contains(statement, " JOIN ") {
+				t.Fatalf("source-key isnull SQL unexpectedly contains JOIN: %s", statement)
+			}
+		})
+	}
+}
+
+func TestCompileNullableForwardSourceKeyCanCoexistWithRequiredJoin(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	author := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	reviewer := nullableReviewerPath(t, reviewerID)
+	plan := query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}).WithConditions(
+		query.NewRelatedCondition(reviewer, query.LookupIsNull, query.Boolean(true)),
+		query.NewRelatedCondition(author, query.LookupExact, query.String("Ada")),
+	)
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	want := `SELECT "t0"."id", "t0"."author_id", "t0"."reviewer_id" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t0"."reviewer_id" IS NULL AND "t1"."name" = ?`
+	if statement != want {
+		t.Fatalf("SQL = %q\nwant  %q", statement, want)
+	}
+	if wantArguments := []any{"Ada"}; !reflect.DeepEqual(arguments, wantArguments) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, wantArguments)
+	}
+}
+
+func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	path := nullableReviewerPath(t, reviewerID)
+
+	tests := []struct {
+		name    string
+		columns []query.FieldRef
+		path    query.RelationPath
+		lookup  query.Lookup
+		value   query.Value
+		code    string
+	}{
+		{
+			name:    "source key missing from columns",
+			columns: []query.FieldRef{id},
+			path:    path,
+			lookup:  query.LookupIsNull,
+			value:   query.Boolean(true),
+			code:    query.CodeInvalidPlan,
+		},
+		{
+			name:    "source key metadata differs",
+			columns: []query.FieldRef{id, query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, false)},
+			path:    path,
+			lookup:  query.LookupIsNull,
+			value:   query.Boolean(true),
+			code:    query.CodeInvalidPlan,
+		},
+		{
+			name:    "wrong lookup",
+			columns: []query.FieldRef{id, reviewerID},
+			path:    path,
+			lookup:  query.LookupExact,
+			value:   query.Boolean(true),
+			code:    query.CodeUnsupported,
+		},
+		{
+			name:    "wrong value kind",
+			columns: []query.FieldRef{id, reviewerID},
+			path:    path,
+			lookup:  query.LookupIsNull,
+			value:   query.String("true"),
+			code:    query.CodeInvalidPlan,
+		},
+		{
+			name:    "non canonical identity",
+			columns: []query.FieldRef{id, reviewerID},
+			path: nullableReviewerPathWithIdentity(t, reviewerID,
+				ir.ModelIdentity{AppLabel: "Blog", ModelName: "post"}),
+			lookup: query.LookupIsNull,
+			value:  query.Boolean(true),
+			code:   query.CodeInvalidPlan,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, err := sqlite.Compile(query.NewPlan("blog_post", test.columns).WithConditions(
+				query.NewRelatedCondition(test.path, test.lookup, test.value),
+			))
+			assertQueryCode(t, err, test.code)
+		})
+	}
+
+	wrongRoot, err := query.NewNullableForwardRelationIsNullPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"other_post", reviewerID,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}).WithConditions(
+		query.NewRelatedCondition(wrongRoot, query.LookupIsNull, query.Boolean(true)),
+	))
+	assertQueryCode(t, err, query.CodeInvalidPlan)
+}
+
 func requiredAuthorPath(t *testing.T, terminal query.FieldRef) query.RelationPath {
 	t.Helper()
 	path, err := query.NewForwardRelationPath(
@@ -198,6 +349,31 @@ func requiredAuthorPath(t *testing.T, terminal query.FieldRef) query.RelationPat
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author", "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func nullableReviewerPath(t *testing.T, sourceKey query.FieldRef) query.RelationPath {
+	t.Helper()
+	return nullableReviewerPathWithIdentity(t, sourceKey, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"})
+}
+
+func nullableReviewerPathWithIdentity(
+	t *testing.T,
+	sourceKey query.FieldRef,
+	source ir.ModelIdentity,
+) query.RelationPath {
+	t.Helper()
+	path, err := query.NewNullableForwardRelationIsNullPath(
+		source,
+		"blog_post",
+		sourceKey,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author",
+		"id",
 	)
 	if err != nil {
 		t.Fatal(err)

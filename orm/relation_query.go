@@ -11,10 +11,11 @@ import (
 // project snapshot. Its zero value is unbound and fails all fallible bind
 // operations with a structured invalid-plan error.
 type BoundModel[M any] struct {
-	snapshot *projectBindingSnapshot
-	identity ir.ModelIdentity
-	model    ir.Model
-	marker   [0]func(M)
+	snapshot         *projectBindingSnapshot
+	identity         ir.ModelIdentity
+	model            ir.Model
+	objectDescriptor RelationObjectDescriptor[M]
+	marker           [0]func(M)
 }
 
 // BindModel verifies that a generated descriptor describes exactly the model
@@ -39,10 +40,25 @@ func BindModel[M any](
 	if !reflect.DeepEqual(model, descriptorModel) {
 		return BoundModel[M]{}, relationInvalidPlan("descriptor metadata does not match project model")
 	}
+	var objectDescriptor RelationObjectDescriptor[M]
+	if capable, ok := descriptor.(RelationObjectDescriptor[M]); ok {
+		snapshot := capable.SnapshotRelationObjectDescriptor()
+		if interfaceIsNil(snapshot) {
+			return BoundModel[M]{}, relationInvalidPlan("relation object descriptor snapshot is nil")
+		}
+		if !immutableZeroStateValue(snapshot) {
+			return BoundModel[M]{}, relationInvalidPlan("relation object descriptor snapshot must be a named non-pointer zero-size struct")
+		}
+		if snapshotModel := snapshot.Metadata().Clone(); !reflect.DeepEqual(model, snapshotModel) {
+			return BoundModel[M]{}, relationInvalidPlan("relation object descriptor snapshot metadata does not match project model")
+		}
+		objectDescriptor = snapshot
+	}
 	return BoundModel[M]{
-		snapshot: binding.snapshot,
-		identity: identity,
-		model:    model.Clone(),
+		snapshot:         binding.snapshot,
+		identity:         identity,
+		model:            model.Clone(),
+		objectDescriptor: objectDescriptor,
 	}, nil
 }
 
@@ -171,6 +187,27 @@ func resolveForwardRelation(
 	sourceModel ir.Model,
 	field string,
 ) (forwardRelationState, error) {
+	state, err := resolveForwardRelationState(snapshot, source, sourceModel, field)
+	if err != nil {
+		return forwardRelationState{}, err
+	}
+	if state.metadata.Nullable {
+		return forwardRelationState{}, &query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeUnsupportedLookup,
+			Field:    field,
+			Detail:   "nullable forward relation predicates are not supported",
+		}
+	}
+	return state, nil
+}
+
+func resolveForwardRelationState(
+	snapshot *projectBindingSnapshot,
+	source ir.ModelIdentity,
+	sourceModel ir.Model,
+	field string,
+) (forwardRelationState, error) {
 	if snapshot == nil {
 		return forwardRelationState{}, relationInvalidPlan("project binding is unbound")
 	}
@@ -181,14 +218,6 @@ func resolveForwardRelation(
 			Code:     query.CodeUnknownRelation,
 			Field:    field,
 			Detail:   "relation is not present on the source model",
-		}
-	}
-	if metadata.Nullable {
-		return forwardRelationState{}, &query.Error{
-			Category: query.CategoryField,
-			Code:     query.CodeUnsupportedLookup,
-			Field:    field,
-			Detail:   "nullable forward relation predicates are not supported",
 		}
 	}
 	if metadata.Cardinality != ir.RelationManyToOne {

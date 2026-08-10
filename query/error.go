@@ -35,6 +35,8 @@ const (
 	CodeUpdateFieldsMissingRow       = "update_fields_missing_row"
 	CodeMutuallyExclusiveForceFlags  = "mutually_exclusive_force_flags"
 	CodeUniquePrimaryKey             = "unique_primary_key"
+	CodeRelatedObjectMissing         = "related_object_missing"
+	CodeRelatedObjectCardinality     = "related_object_cardinality"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and

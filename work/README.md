@@ -79,7 +79,15 @@ recorded steps를 통과해
 [run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26 jobs·326/326
 steps를 통과해 [EVID-042](../docs/status/TEST_EVIDENCE.md#evid-20260810-042--gdj-0025-final-exact-head-ci-and-gdj-0026-activation-baseline)에
 기록했습니다. GDJ-0026은 이 tested baseline에서 REL-003/006 object/cache/nullability slice와 Proposed
-ADR-0026을 활성화했습니다. 이 activation documentation diff 자체의 exact-head CI는 pending입니다.
+ADR-0026을 활성화했습니다. Exact 15-file activation commit
+`aad4f7ff0d77a1abe16ebddd01782e78c335395f`은
+[run 31364944816](https://github.com/progresshans/godj/actions/runs/31364944816)의 exact 26/26 jobs·326/326
+steps를 통과했습니다. 현재 uncommitted implementation은 sealed object cache, additive object companion/
+project bridge, nullable relation `source_key` AST와 SQLite JOIN-0 trim을 구현했고 local exact
+`114 passing + 5 deviation + 8 oracle_locked`, relation actual REL-001/003/004/006 4/12와 inventory
+533/533/0·54,076 bytes·SHA-256 `6d2958b6...7aee`를 통과해
+[EVID-043](../docs/status/TEST_EVIDENCE.md#evid-20260810-043--gdj-0026-rel-003006-object-cache-and-nullability-pre-hosted-local-validation)에
+기록했습니다. Work/ADR은 active/Proposed이며 exact implementation-head hosted CI는 pending입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

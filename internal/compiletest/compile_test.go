@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt", "relation_object/external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -164,6 +164,30 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"cannot use \"1\"",
 				"as int64 value",
+			},
+		},
+		{
+			name:    "relation object predicate keeps source model",
+			fixture: "relation_object/predicate_source_mismatch.go.txt",
+			wantFragments: []string{
+				"objects.BlogPost.Reviewer.IsNull",
+				"orm.Predicate[authors.Author]",
+			},
+		},
+		{
+			name:    "relation object factory requires source model",
+			fixture: "relation_object/factory_source_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use author",
+				"as blog.Post value",
+			},
+		},
+		{
+			name:    "relation object isnull requires bool",
+			fixture: "relation_object/isnull_value_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use \"true\"",
+				"as bool value",
 			},
 		},
 	}

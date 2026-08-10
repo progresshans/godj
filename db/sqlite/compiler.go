@@ -141,23 +141,37 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			}
 			continue
 		}
-		relatedConditions[index] = true
 		hops := path.Hops()
 		if len(hops) != 1 {
 			return "", nil, invalidPlan("SQLite relation compiler requires exactly one relation hop")
 		}
 		hop := hops[0]
-		if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
-			return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports required forward many-to-one paths only")
-		}
 		if hop.SourceTable() != plan.Table() {
 			return "", nil, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), plan.Table()))
 		}
 		if !condition.Field().Equal(path.Terminal()) {
 			return "", nil, invalidPlan("related condition field does not match relation path terminal")
 		}
-		if condition.Lookup() != query.LookupExact {
-			return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports exact related lookups only")
+
+		switch path.TerminalScope() {
+		case query.RelationTerminalRelatedField:
+			if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
+				return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports required forward many-to-one related-field paths only")
+			}
+			if condition.Lookup() != query.LookupExact {
+				return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports exact related lookups only")
+			}
+			relatedConditions[index] = true
+		case query.RelationTerminalSourceKey:
+			if err := validateNullableSourceKeyCondition(columns, condition, hop); err != nil {
+				return "", nil, err
+			}
+			// A nullable source-key path retains relation provenance in the
+			// plan, but compiles against the root alias without allocating a
+			// JOIN. Its condition key intentionally remains the zero value.
+			continue
+		default:
+			return "", nil, invalidPlan("relation path has an unknown terminal scope")
 		}
 		key := relationJoinKey{
 			sourceApp:   hop.Source().AppLabel,
@@ -294,6 +308,54 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		arguments = append(arguments, int64(limit))
 	}
 	return sql.String(), arguments, nil
+}
+
+func validateNullableSourceKeyCondition(
+	columns []query.FieldRef,
+	condition query.Condition,
+	hop query.RelationHop,
+) error {
+	field := condition.Field()
+	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || !hop.Nullable() {
+		return unsupportedRelatedCondition(condition, "SQLite source-key isnull requires a nullable forward many-to-one path")
+	}
+	if !canonicalRelationIdentity(hop.Source()) || !canonicalRelationIdentity(hop.Target()) ||
+		!canonicalRelationIdentifier(hop.SourceTable()) || !canonicalRelationIdentifier(hop.Field()) ||
+		!canonicalRelationIdentifier(hop.SourceColumn()) || !canonicalRelationIdentifier(hop.TargetTable()) ||
+		!canonicalRelationIdentifier(hop.TargetPrimaryKeyColumn()) {
+		return invalidPlan("nullable source-key relation path contains non-canonical metadata")
+	}
+	if field.Kind() != query.FieldInteger || !field.Nullable() ||
+		field.Name() != hop.Field() || field.Column() != hop.SourceColumn() {
+		return invalidPlan("nullable source-key relation terminal does not match the hop source key")
+	}
+	if !containsField(columns, field) {
+		return invalidPlan(fmt.Sprintf("relation source key %q is not selected model metadata", field.Name()))
+	}
+	if condition.Lookup() != query.LookupIsNull {
+		return unsupportedRelatedCondition(condition, "SQLite source-key relation paths support isnull only")
+	}
+	if _, ok := condition.Value().Boolean(); !ok {
+		return invalidPlan("SQLite source-key isnull requires a Boolean value")
+	}
+	return nil
+}
+
+func canonicalRelationIdentity(identity ir.ModelIdentity) bool {
+	return canonicalRelationIdentifier(identity.AppLabel) && canonicalRelationIdentifier(identity.ModelName)
+}
+
+func canonicalRelationIdentifier(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index, character := range value {
+		if character == '_' || character >= 'a' && character <= 'z' || index > 0 && character >= '0' && character <= '9' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func compareRelationJoinKey(left, right relationJoinKey) int {
