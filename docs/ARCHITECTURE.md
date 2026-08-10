@@ -77,6 +77,12 @@ additive `GoDjRelationSchema` companion, one-schema-per-app atomic `orm.BindProj
 hosted gate를 통과했습니다. Query selector/loader/cache/write/delete/DDL/migration codec API는 후속이며
 metadata acceptance가 그 broader surface를 구현했다는 뜻이 아닙니다.
 
+Active GDJ-0025/Proposed ADR-0025는 이 후속 중 required one-hop `Exact` predicate만 엽니다. Existing v3
+main/metadata/`Bind()`는 그대로 두고 additive query companion과 project query bridge, immutable
+`RelationPath`, SQLite reusable `INNER JOIN`을 검증합니다. Project bridge만 concrete target app를 import하고
+typed/dynamic 입력은 같은 path constructor로 수렴합니다. Object loader/cache, nullable relation access/
+`isnull`, reverse/eager/write/delete/DDL/migration은 이 activation으로 결정하지 않습니다.
+
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
 격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은
@@ -291,6 +297,7 @@ schema DSL ─→ schema/ir
 codegen ────→ schema/ir
 migrations ─→ schema/ir, backend contracts
 migrations/definition ─→ migrations, schema/ir
+query ──────→ schema/ir
 cmd/godj ───→ internal/projectcheck ─→ internal/projectcheck/protocol
 project ────→ internal/projectcheck/linked ─→ protocol, migrations/definition
 orm ────────→ query, schema/ir metadata, backend contracts

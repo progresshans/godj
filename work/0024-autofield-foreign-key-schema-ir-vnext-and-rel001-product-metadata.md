@@ -634,12 +634,14 @@ backend/compiler/schema/write/transaction support 증거가 아닙니다.
 - 2026-08-10: Completion-documentation commit `e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`은 별도 run
   `31349791188`의 exact 26/26 jobs와 326/326 recorded steps를 성공했습니다. EVID-037은 이 tested head를
   기록하며 EVID-037/final-status patch 자체의 exact-head CI와 재귀적으로 혼동하지 않습니다.
+- 2026-08-10: Final evidence/status commit `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`도 run
+  `31351169780`의 exact 26/26 jobs와 326/326 recorded steps를 성공해 EVID-038에 기록했습니다. 이 clean
+  tested checkout은 GDJ-0025 activation baseline입니다.
 
 ## 미결정/Blocker
 
-- 외부 blocker는 없습니다. Completion-documentation head의 exact 26은 완료됐습니다. 남은
-  EVID-037/final-status exact 5-file patch 자체의 exact-head CI는 후속 문서 증거이며 GDJ-0024
-  implementation acceptance의 blocker가 아닙니다.
+- 외부 blocker는 없습니다. Completion-documentation과 final evidence/status head의 exact 26이 모두
+  완료됐습니다. GDJ-0024에는 남은 acceptance blocker가 없습니다.
 - Runtime metadata public value의 internal representation, private helper/file split은 exact exported semantics와
   allowed paths를 지키는 범위에서 implementation detail입니다.
 
@@ -666,6 +668,9 @@ backend/compiler/schema/write/transaction support 증거가 아닙니다.
   run `31349791188`, commit `e9498a67...`, exact 26/26 jobs and 326/326 recorded steps PASS; four
   relation-product coordinates each exact 394 run/394 pass/0 skip, 40,630 bytes/SHA-256 `2eb1fe8c...20ce`,
   Linux/386 PASS; PR OPEN/DRAFT/CLEAN and exact-head-equivalent tree
+- Final evidence/status exact-head hosted and GDJ-0025 baseline:
+  [EVID-038](../docs/status/TEST_EVIDENCE.md#evid-20260810-038--gdj-0024-final-exact-head-ci-and-gdj-0025-activation-baseline) /
+  run `31351169780`, commit `5bf14357...`, exact 26/26 jobs and 326/326 recorded steps PASS
 
 ## 위험과 rollback
 
@@ -682,11 +687,9 @@ backend/compiler/schema/write/transaction support 증거가 아닙니다.
 
 ## 다음 정확한 작업
 
-Integration owner는 이 EVID-037/final-status transition의 exact 5-file scope와 EVID-001..036 append-only
-prefix를 검증한 뒤 same Draft PR #1에 documentation-only commit/push합니다. 그 final patch exact head에서
-같은 exact 26을 한 번 더 수집하되 completion-documentation run `31349791188`을 재귀적으로 재사용하지
-않습니다. 그 전에는 새 product work를 active로 만들지 않으며 Draft PR은 사용자 요청 전 merge하지
-않습니다.
+후속 active work는 [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md)입니다. It owns REL-004
+required forward exact predicate/shared path/SQLite INNER JOIN only. Loader/cache, nullable isnull, reverse/eager,
+write/delete/DDL/migration은 후속 packet으로 유지하고 Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 결과와 인수인계
 

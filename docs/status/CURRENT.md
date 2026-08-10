@@ -99,17 +99,20 @@
 - GDJ-0024 completion-documentation/hosted-tested commit:
   `e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`
   (`docs: complete foreign key relation metadata slice`)
+- GDJ-0024 final evidence/status hosted-tested commit and GDJ-0025 baseline:
+  `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`
+  (`docs: record foreign key relation completion`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0024 completed; Accepted ADR-0024의 explicit IR v3, mixed v2 target/v3 relation-source
-  companion, immutable project binding, migration fail-closed, REL-001-only metadata actual과 exact-26 workflow를
-  구현했습니다. Implementation commit `05e6e218...`의 run `31348285559`가 exact 26/26 jobs와 326/326
-  recorded steps를 성공했고 completion-documentation commit `e9498a67...`도 별도 run `31349791188`의
-  exact 26/26 jobs와 326/326 recorded steps를 성공했습니다. Q-013은 relation breadth가 남아
-  `Partial`입니다.
+- 현재 단계: GDJ-0024 completed/final exact-head verified; GDJ-0025 REL-004-only forward predicate/SQLite
+  INNER JOIN activation. Final evidence/status commit `5bf14357...`의 run `31351169780`이 exact 26/26 jobs와
+  326/326 recorded steps를 성공해 EVID-037의 pending을 닫았습니다. Product는 아직 REL-001-only
+  `111 passing + 5 deviation + 11 oracle_locked`이며, GDJ-0025 activation diff 자체 hosted CI는
+  `not run/pending`입니다. Q-013은 `Partial`입니다.
 - 최근 완료 작업:
   [GDJ-0024 AutoField ForeignKey Schema IR vNext, Atomic Project Binding, and REL-001 Product Metadata](../../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0025 Forward ForeignKey Predicate and SQLite INNER JOIN Product Slice](../../work/0025-forward-foreign-key-predicate-product-slice.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -172,7 +175,11 @@
   [run 31349791188](https://github.com/progresshans/godj/actions/runs/31349791188)도 exact 26/26 jobs와
   326/326 recorded steps를 성공해
   [EVID-20260810-037](TEST_EVIDENCE.md#evid-20260810-037--gdj-0024-github-hosted-completion-documentation-head-exact-26-job-ci)에
-  기록했습니다. 이 EVID-037/final-status 5-file patch 자체의 exact-head CI는 아직 후속 검증입니다.
+  기록했습니다. Final evidence/status commit `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`의
+  [run 31351169780](https://github.com/progresshans/godj/actions/runs/31351169780)도 exact 26/26 jobs와
+  326/326 recorded steps를 성공해
+  [EVID-20260810-038](TEST_EVIDENCE.md#evid-20260810-038--gdj-0024-final-exact-head-ci-and-gdj-0025-activation-baseline)에
+  기록했습니다.
 
 ## Completed GDJ-0023 관계 계약 경계
 
@@ -657,9 +664,10 @@
 independent audit, implementation/completion/final-evidence head의 exact 22/22 hosted acceptance까지
 완료됐습니다. ADR-0023은 Accepted이고 work는 completed입니다. GDJ-0024 exact architecture/work도
 local implementation/audit와 implementation head의 exact 26/26 hosted acceptance를 통과해 ADR-0024
-Accepted/work completed입니다. Completion-documentation head `e9498a67...`도 run `31349791188`의 exact
-26/26 hosted acceptance를 통과했습니다. 남은 후속 검증은 이 EVID-037/final-status exact 5-file patch
-자체의 exact-head CI뿐이며 implementation acceptance의 blocker가 아닙니다. Q-010/Q-012는 full
+Accepted/work completed입니다. Completion-documentation head `e9498a67...`은 run `31349791188`, final
+evidence/status head `5bf14357...`은 run `31351169780`의 exact 26/26 hosted acceptance를 각각
+통과했습니다. 현재 외부 blocker는 없고 GDJ-0025 activation/API audit와 activation exact-head CI가 다음
+implementation gate입니다. Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가 아니므로 `Partial`입니다.
 Q-013도 symbolic/bounded metadata architecture는 Accepted됐지만 query/loader/cache/write/delete/DDL/migration
 codec와 broader relation surface가 열려 있어 `Partial`입니다.
@@ -667,7 +675,8 @@ codec와 broader relation surface가 열려 있어 `Partial`입니다.
 
 - Direct project command, writer/upgrade/cache와 broader public CLI/library/generator handshake
 - Codec v2+, executable/custom/data operation과 module/remote/recursive discovery adapter
-- Relation query compiler/loader/cache/write/delete/DDL/migration codec와 REL-002..012 actual
+- Relation loader/cache/write/delete/DDL/migration codec와 REL-002..012 actual. GDJ-0025는 그중 REL-004
+  required one-hop exact predicate/INNER JOIN만 active scope로 엽니다.
 - OneToOne/ManyToMany, non-PK `to_field`, broader delete/eager-loading relation semantics
 - Existing database adoption/repair와 unknown commit reconciliation
 - PostgreSQL/MySQL 등 non-SQLite fenced backend, multi-DB router와 distributed coordination
@@ -675,11 +684,11 @@ codec와 broader relation surface가 열려 있어 `Partial`입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 EVID-037을 포함한 이 exact 5-file final evidence/status patch의 scope, EVID-001..036
-append-only prefix, links와 generated/cache cleanliness을 검증한 뒤 same Draft PR #1에 documentation-only
-commit/push합니다. 그 final patch exact head에서 existing 22 + relation-product 4 = exact 26을 한 번 더
-검증하되 run `31349791188`을 이 뒤 patch의 증거로 재사용하지 않습니다. 그 전에는 새 product work를
-active로 만들지 않으며 Draft PR은 사용자 요청 전까지 merge하지 않습니다.
+통합 담당자는 GDJ-0025 activation 문서의 API 도달성, allowed paths, EVID-038 append-only와 금지 범위를
+독립 감사한 뒤 same Draft PR #1에 documentation-only commit/push합니다. 그 exact activation head에서
+existing exact 26을 검증한 뒤 ProjectBinding model snapshot → immutable relation AST/typed-dynamic API →
+additive codegen → SQLite reusable INNER JOIN → actual REL-004 순으로 구현합니다. Draft PR은 사용자 요청 전
+merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -712,14 +721,17 @@ active로 만들지 않으며 Draft PR은 사용자 요청 전까지 merge하지
   `31348285559` 26/26 and 326/326 recorded steps PASS
 - GDJ-0024 completion-documentation commit: `e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`; exact 26-job run
   `31349791188` 26/26 and 326/326 recorded steps PASS
-- 현재 working tree: 위 `e9498a67` completion-documentation-hosted-tested HEAD + uncommitted exact 5-file
-  EVID-037/final-status patch; 이 final patch 자체의 exact-head 26-job CI 전
+- GDJ-0024 final evidence/status commit and GDJ-0025 baseline:
+  `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`; exact 26-job run `31351169780` 26/26 and
+  326/326 recorded steps PASS
+- 현재 working tree: clean tested `5bf14357` baseline + uncommitted GDJ-0025 activation docs; activation
+  patch exact-head CI는 `not run/pending`
 - 최근 완료 work:
   [GDJ-0024](../../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)
-- active work: 없음
+- active work: [GDJ-0025](../../work/0025-forward-foreign-key-predicate-product-slice.md)
 - ready work: 없음
-- current decision: [ADR-0024](../adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)
-  Accepted; ADR-0023/0022/0021 Accepted
+- current decision: [ADR-0025](../adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md) Proposed;
+  ADR-0024/0023/0022/0021 Accepted
 - 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding. Locked oracle bytes는 불변이고
   product manifest는 REL-001 `passing` + REL-002..012 `oracle_locked`
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
@@ -747,12 +759,13 @@ active로 만들지 않으며 Draft PR은 사용자 요청 전까지 merge하지
   31335315454 exact 18/18 PASS; implementation run 31338151743 exact 22/22 PASS;
   completion-documentation run 31339409336 exact 22/22 PASS; final evidence/status run 31340170361 exact
   22/22 PASS; GDJ-0024 activation run 31344980929 exact 22/22 PASS; GDJ-0024 implementation run
-  31348285559 exact 26/26 PASS; completion-documentation run 31349791188 exact 26/26 PASS; current exact
-  5-file EVID-037/final-status patch의 exact-head run은 not run/pending
+  31348285559 exact 26/26 PASS; completion-documentation run 31349791188 exact 26/26 PASS; GDJ-0024 final
+  evidence/status run 31351169780 exact 26/26 PASS; current GDJ-0025 activation patch exact-head run은
+  not run/pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: completion-documentation run 31349791188을 이 뒤의 exact 5-file EVID-037/final-status
-  patch 자체의 exact-head success로 재사용하거나, REL-001 metadata를 relation query/write/delete/DDL/migration
-  support로 세거나, service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
+- 가장 위험한 과장: baseline run 31351169780을 GDJ-0025 activation/implementation success로 재사용하거나,
+  REL-004 target predicate를 REL-003/006 loader/cache/nullable 또는 relation write/delete/DDL/migration support로
+  세거나, service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

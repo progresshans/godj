@@ -48,11 +48,15 @@ proposed → ready → active → completed
 | [GDJ-0022](0022-migration-project-check-product-slice.md) | completed | Project-linked migration check 제품 단면 |
 | [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | completed | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
 | [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md) | completed | AutoField ForeignKey IR v3, atomic binding과 REL-001 제품 metadata |
+| [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md) | active | REL-004 forward ForeignKey predicate와 SQLite reusable INNER JOIN |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
 완료 항목은 [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)이며,
-현재 active 항목은 없습니다.
+현재 active 항목은 [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md)입니다.
+GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
+`31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
+이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화합니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

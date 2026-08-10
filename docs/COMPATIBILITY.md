@@ -577,6 +577,13 @@ GDJ-0024 implementation head `05e6e218db16e17ce13f7b504a01c603041e4a2a`의 exact
 acceptance는 [EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
 별도로 기록합니다.
 
+Active [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Proposed
+[ADR-0025](adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)는 reference bytes를 바꾸지 않고
+REL-004만 다음 actual candidate로 둡니다. Required `author__name`/`author__id` exact predicate의 결과,
+construction/evaluation query count, one reusable INNER JOIN과 DB 불변만 비교합니다. 구현/검증 전 product
+aggregate는 계속 `111 + 5 + 11`이고 REL-004는 `oracle_locked`입니다. Loader/cache, nullable/reverse/eager,
+write/delete/DDL/migration, PostgreSQL/MySQL/Windows는 호환 claim이 아닙니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는

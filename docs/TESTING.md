@@ -560,7 +560,9 @@ exact 26/26 jobs와 326/326 recorded steps가 성공했고 각 relation-product 
 no-rewrite와 clean tree를 통과했습니다. 상세 증거는 EVID-036에 기록합니다. Completion-documentation head
 `e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도 run `31349791188`의 exact 26/26 jobs와
 326/326 recorded steps, 각 relation-product leg의 같은 394/394/0·40,630-byte inventory SHA-256을
-통과했고 EVID-037에 기록합니다. 현재 EVID-037/final-status patch 자체의 exact-head CI는 pending입니다.
+통과했고 EVID-037에 기록합니다. Final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`도
+run `31351169780`의 exact 26/26·326/326을 통과해 EVID-038에 기록했습니다. Active GDJ-0025 activation
+diff와 구현 후 relation-query inventory/digest는 별도 검증합니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -641,8 +643,9 @@ implementation commit `05e6e218db16e17ce13f7b504a01c603041e4a2a`의
 [run 31349791188](https://github.com/progresshans/godj/actions/runs/31349791188)의 exact 26/26·326/326을
 성공해
 [EVID-20260810-037](status/TEST_EVIDENCE.md#evid-20260810-037--gdj-0024-github-hosted-completion-documentation-head-exact-26-job-ci)에
-기록했습니다. 이 EVID-037/final-status exact 5-file patch 자체의 exact-head CI는 후속 증거이고 run
-`31349791188`을 재귀적으로 재사용하지 않습니다.
+기록했습니다. 이어 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`의
+[run 31351169780](https://github.com/progresshans/godj/actions/runs/31351169780)도 exact 26/26·326/326을
+성공해 EVID-038에 기록했습니다. GDJ-0025 activation diff는 이 baseline run을 재귀적으로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

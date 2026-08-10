@@ -344,6 +344,11 @@ REL-002..012와 query/load/cache/write/delete/DDL/migration codec은 제외합�
 OneToOne/ManyToMany 또는 ForeignKey breadth
 제품 지원의 증거가 아닙니다.
 
+Active GDJ-0025는 REL-004 required forward exact predicate와 SQLite one reusable INNER JOIN만 다음 제품
+candidate로 둡니다. 현재 checkout에서 구현·passing으로 세지 않으며 Proposed ADR-0025의 additive query
+companion/project bridge/shared path 경계를 먼저 검증합니다. REL-003 loader/cache와 REL-006 nullable/isnull,
+나머지 relation breadth와 non-SQLite backend는 계속 미지원입니다.
+
 ## Django 데이터 이행
 
 - default table/column naming
