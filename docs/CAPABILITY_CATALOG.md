@@ -345,6 +345,13 @@ REL-001/004 2/12입니다. REL-003 loader/cache와 REL-006 nullable/isnull, 나�
 non-SQLite backend는 계속 미지원입니다. 이는 PostgreSQL, OneToOne/ManyToMany 또는 ForeignKey breadth
 제품 지원의 증거가 아닙니다.
 
+Active GDJ-0026/Proposed ADR-0026은 REL-003/006을 completion target
+`114 passing + 5 deviation + 8 oracle_locked`, relation 4/12로 묶습니다. Additive sealed descriptor/object
+companions, opaque pointer instance cache, nullable NULL zero-I/O access와 relation-provenance-preserving SQLite
+source-key `isnull` trim만 계획합니다. Current implemented product count는 위 112/5/10 그대로이며 activation
+diff의 exact-head CI도 pending입니다. Reverse/eager/write/delete/DDL/migration, LEFT JOIN과 non-SQLite breadth는
+여전히 미지원입니다.
+
 ## Django 데이터 이행
 
 - default table/column naming

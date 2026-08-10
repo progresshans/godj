@@ -575,8 +575,17 @@ Completion-documentation head `7b5cebda7410ae8c096a8c30bd60daad1295bbf2`도 별�
 [run 31358640776](https://github.com/progresshans/godj/actions/runs/31358640776)의 exact 26/26 jobs와
 326/326 recorded steps를 성공했고, four relation-product legs의 같은 492/492/0·49,902-byte inventory
 SHA-256, actual Ubuntu Linux/386, exact darwin 193/193과 four Python exact legs를 유지했습니다.
-상세 증거는 EVID-041에 기록하며 이 EVID-041/final-status 6-file patch 자체의 exact-head CI는
-run `31358640776`을 재사용하지 않고 후속 검증합니다.
+상세 증거는 EVID-041에 기록합니다. Final evidence/status head
+`bffc52844de87a2791959ea1e8f99c60dd13d1aa`도 별도
+[run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26 jobs와
+326/326 recorded steps, four relation-product 492/492/0 inventory, actual Ubuntu Linux/386와 four exact Python
+legs를 성공해 EVID-042에 기록했습니다. 이 clean tested head가 GDJ-0026 baseline이며 activation diff 자체는
+별도 exact-head CI pending입니다.
+GDJ-0026 gate는 exact-26 topology를 늘리지 않고 relation-product four-coordinate package inventory만
+확장합니다. Sealed descriptor/storage snapshot, pointer self-sentinel, target-PK Limit(2) cache의 0/1/2-row
+warm 분류, clone/singleflight/cancellation/failure retry/session lifetime, typed/dynamic source-key Plan.Equal,
+SQLite reviewer `IS NULL` result `[11]`/SELECT 1/JOIN 0과 old generated/query SQL byte locks를 필수로 합니다.
+Measured inventory count/bytes/SHA는 implementation 뒤에만 기록합니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -668,7 +677,9 @@ exact 26/26을 통과했고, implementation commit `98db55a30ff71a2f2f70722cb569
 성공해
 [EVID-20260810-041](status/TEST_EVIDENCE.md#evid-20260810-041--gdj-0025-github-hosted-completion-documentation-head-exact-26-job-ci)에
 기록했습니다. 이 EVID-041/final-status exact 6-file patch의 자체 exact-head CI는 run `31358640776`으로
-재귀 증명하지 않습니다.
+재귀 증명하지 않습니다. 그 final-status commit `bffc52844de87a2791959ea1e8f99c60dd13d1aa`은 별도
+[run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26·326/326을
+성공해 EVID-042로 recursive pending을 닫았고, 이후 GDJ-0026 activation diff에는 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

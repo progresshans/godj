@@ -414,30 +414,33 @@ mutation must change the observation or fail structurally. Setup/teardown SQL is
   raw-log audit는 P0/P1/P2/P3=0이었으며
   [EVID-041](../docs/status/TEST_EVIDENCE.md#evid-20260810-041--gdj-0025-github-hosted-completion-documentation-head-exact-26-job-ci)에
   기록했습니다.
+- 2026-08-10: Final evidence/status commit `bffc52844de87a2791959ea1e8f99c60dd13d1aa`의 별도
+  [run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)도 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. EVID-041의 recursive pending을
+  [EVID-042](../docs/status/TEST_EVIDENCE.md#evid-20260810-042--gdj-0025-final-exact-head-ci-and-gdj-0026-activation-baseline)로
+  닫았고 이 tested head는 GDJ-0026 activation baseline일 뿐 REL-003/006 증거로 재사용하지 않습니다.
 
 ## 현재 blocker
 
-외부 blocker는 없습니다. Activation, local implementation/audit, exact implementation-head와
-completion-documentation-head hosted acceptance가 모두 통과했습니다. 남은 EVID-041/final-status
-exact 6-file patch 자체의 exact-head CI는 후속 문서 증거이며 GDJ-0025 completion의 blocker가 아닙니다.
+외부 blocker는 없습니다. Activation, local implementation/audit, exact implementation-head,
+completion-documentation-head와 final evidence/status head의 hosted acceptance가 모두 통과했습니다.
+GDJ-0025의 recursive pending은 EVID-042로 닫혔습니다.
 
 ## 다음 정확한 작업
 
-1. EVID-041을 포함한 exact 6-file final evidence/status scope, EVID-001..040 append-only prefix, links와
-   diff를 재확인합니다.
-2. Documentation-only patch만 same Draft PR #1에 commit/push합니다.
-3. 그 final patch exact head에서 같은 exact 26을 한 번 더 확인하되 completion-documentation run
-   `31358640776`을 이 뒤 patch의 증거로 재사용하지 않습니다.
-4. 새 active work는 그 final tested baseline과 별도 packet에서만 활성화합니다.
-5. Draft PR은 사용자 요청 전 merge하지 않습니다.
+1. Tested final head `bffc5284...`와 EVID-042를 다음 packet의 baseline으로만 사용합니다.
+2. REL-003/006은 별도 [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과
+   Proposed ADR-0026의 exact allowlist/API 안에서만 구현합니다.
+3. GDJ-0026 activation/implementation diff는 각 exact head에서 same 26을 새로 검증합니다.
+4. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
 GDJ-0025는 completed required-one-hop predicate boundary입니다. Activation exact-head, local implementation/
 four independent audits, implementation exact-head와 completion-documentation exact-head exact 26/26 hosted
-acceptance를 통과했고 ADR-0025의 additive query companion/project bridge, immutable shared relation path와
-SQLite reusable required INNER JOIN을 Accepted했습니다. 제품은 exact
+acceptance와 final evidence/status exact-head acceptance까지 통과했고 ADR-0025의 additive query
+companion/project bridge, immutable shared relation path와 SQLite reusable required INNER JOIN을 Accepted했습니다. 제품은 exact
 `112 passing + 5 deviation + 10 oracle_locked`, relation actual REL-001/004 2/12입니다. Loader/cache,
 nullable/reverse/eager/write/delete/DDL/migration, broader target와 PostgreSQL/MySQL/Windows는 완료 범위가
-아닙니다. EVID-041/final-status patch 자체의 exact-head CI는 후속 pending이며 Draft PR #1은
-사용자 요청 전 merge하지 않습니다.
+아닙니다. Final baseline은 `bffc5284...`/EVID-042이고 후속 GDJ-0026 activation diff 자체는 pending입니다.
+Draft PR #1은 사용자 요청 전 merge하지 않습니다.

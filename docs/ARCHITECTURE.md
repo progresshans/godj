@@ -84,6 +84,15 @@ Project bridge만 concrete target app를 import하고 typed/dynamic 입력은 �
 Object loader/cache, nullable relation access/`isnull`, reverse/eager/write/delete/DDL/migration은 이 bounded
 acceptance가 결정하거나 구현한 범위가 아닙니다.
 
+Active GDJ-0026/Proposed ADR-0026은 그중 REL-003/006만 다음 bounded architecture로 동결했습니다. Existing
+descriptor interface를 retain하지 않고 additive v2/v3 object companion이 named non-pointer zero-size immutable
+descriptor/storage snapshot을 seal합니다. Project object bridge는 opaque pointer wrapper와 required/nullable
+forward handles를 만들고 target manager/key plan을 bound snapshot에서 내부 파생합니다. Instance wrapper는
+ADR-0012 QuerySet cache/singleflight/clone semantics를 재사용하며 self sentinel로 nil/zero/dereference-copy를
+structured invalid-plan으로 거부합니다. Nullable `isnull`은 raw scalar로 지우지 않고 relation path의 exact
+`source_key` terminal scope로 compiler까지 유지한 뒤 SQLite가 root FK `IS NULL|IS NOT NULL`/JOIN 0으로만
+trim합니다. 이는 Proposed activation design이며 implementation/hosted acceptance 전에는 지원 claim이 아닙니다.
+
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
 격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은

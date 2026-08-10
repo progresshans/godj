@@ -587,6 +587,15 @@ Implementation head `98db55a30ff71a2f2f70722cb569a046208a5403`의 exact 26/26 ho
 2/12입니다. Loader/cache, nullable/reverse/eager, write/delete/DDL/migration, PostgreSQL/MySQL/Windows는
 호환 claim이 아닙니다.
 
+Active [GDJ-0026](../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과 Proposed
+[ADR-0026](adr/0026-forward-foreign-key-object-cache-and-nullability.md)은 REL-003 required lazy cache와 REL-006
+nullable access/`isnull`만 하나의 다음 product comparison으로 동결합니다. REL-003은 actual SQLite에서
+freshly loaded Post 10의 Author cold/warm query count `[1,0]`, REL-006은 Post 11 Reviewer null access 0과
+typed/dynamic isnull result `[11]`/SELECT 1/JOIN 0을 비교합니다. Completion target은
+`114 passing + 5 deviation + 8 oracle_locked`, relation REL-001/003/004/006 4/12이지만 아직 구현/검증 상태가
+아닙니다. Tested activation baseline `bffc5284...`/EVID-042의 현재 product는 112/5/10이고, activation diff
+자체 CI는 pending입니다. Existing oracle/static/SHA와 prior generated product bytes는 immutable입니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는
