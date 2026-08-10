@@ -478,8 +478,10 @@ fail-closed했고 `make godj-conformance`는 10 adapter/105 contract의
 Completed GDJ-0022는 test-only proof와 독립인 global/linked/protocol product kernel,
 public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapter를 추가했습니다. Product
 adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
-diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`, 현재 제품은 11 adapter/115 contract의
-`110 passing + 5 deviation`입니다. Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
+diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`이고 GDJ-0022 완료 당시 제품은 11 adapter/115
+contract의 `110 passing + 5 deviation`이었습니다. Completed GDJ-0024의 relation metadata adapter까지
+포함한 현재 제품은 12 adapter/127 contract의 `111 passing + 5 deviation + 11 oracle_locked`입니다.
+Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
 `make ci`, exact oracle와 independent audits는 EVID-027, initial exact 18/18 hosted acceptance는 EVID-028,
 completion-documentation failure와 final process stabilization exact 18/18은 EVID-029에 기록했습니다.
 Status-only manifest는 4,520 bytes/
@@ -544,16 +546,18 @@ CGO-disabled/vet/clean으로 독립 실행하는 `relation-binding-matrix`를 �
 executions로 확장했습니다. 이 proof는 relation 제품 adapter가 아니며 PostgreSQL/Windows 지원 claim도
 아닙니다. Local routine Python은 CPython 3.14.3 + uv 0.12.3 하나만 실행하고, 3.12.13/3.13.15/
 3.14.3/3.14.7 exact compatibility와 갱신된 127-scenario digest는 hosted matrix가 담당합니다.
-Active GDJ-0024는 existing exact 22를 대체하지 않고 같은 four-coordinate의 actual
-`relation-product-matrix` 4 legs를 별도로 추가한 exact 26을 implementation acceptance로 계획합니다.
+Completed GDJ-0024는 existing exact 22를 대체하지 않고 같은 four-coordinate의 actual
+`relation-product-matrix` 4 legs를 별도로 추가한 exact 26을 implementation acceptance로 운영합니다.
 각 새 leg는 mixed v2 target/v3 source companion/bridge compile, app-to-app import edge 0, atomic binder,
 REL-001 observed + REL-002..012 ordered payload-free not-implemented, exact required-observed allowlist,
 normal/race/CGO-disabled/vet, candidate validation committed-output no-write, artifact no-rewrite와 clean tree를 검증해야 합니다.
 Checked-in relationproduct authors/blog main+companion/bridge fixture는 declaration regenerate bytes와 같고 actual observer가
 bridge `Bind()` metadata를 adapter에 전달해야 합니다. Django runner/oracle은 그대로 두고 Python의 manifest
 status assertion만 `passing` 1 + `oracle_locked` 11로 동기화하며 test count/digest는 불변입니다.
-Ubuntu는 metadata-only package의 Linux/386 범위도 검증합니다. 이 exact 26은 아직 workflow에 구현되거나
-실행되지 않았으므로 현재 통과로 기록하지 않습니다.
+Ubuntu는 metadata-only package의 Linux/386 범위도 검증합니다. Implementation head run `31348285559`에서
+exact 26/26 jobs와 326/326 recorded steps가 성공했고 각 relation-product leg는 exact
+394 run/394 pass/0 skip, 40,630-byte inventory SHA-256 `2eb1fe8c...20ce`, normal/race/CGO-disabled/vet,
+no-rewrite와 clean tree를 통과했습니다. 상세 증거는 EVID-036에 기록합니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -624,7 +628,12 @@ relation-binding legs는 normal/race/CGO-disabled/vet/no-rewrite/clean을 검증
 [run 31340170361](https://github.com/progresshans/godj/actions/runs/31340170361)의 exact 22/22와
 273/273 successful steps를 통과해
 [EVID-20260810-034](status/TEST_EVIDENCE.md#evid-20260810-034--gdj-0023-final-evidence-documentation-exact-head-ci-and-gdj-0024-activation-baseline)에
-기록했습니다. 현재 GDJ-0024 activation docs diff 자체의 exact-head CI는 pending입니다.
+기록했습니다. GDJ-0024 activation commit `758cd093...`의 run `31344980929`는 exact 22/22·273/273을,
+implementation commit `05e6e218db16e17ce13f7b504a01c603041e4a2a`의
+[run 31348285559](https://github.com/progresshans/godj/actions/runs/31348285559)은 exact 26/26·326/326을
+성공했고 후자는
+[EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
+기록했습니다. EVID-036을 포함한 completion-documentation patch 자체의 exact-head CI는 후속 증거입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

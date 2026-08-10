@@ -47,18 +47,19 @@ proposed → ready → active → completed
 | [GDJ-0021](0021-migration-project-check-compatibility-contracts.md) | completed | Project-linked migration check 호환/결정 계약 |
 | [GDJ-0022](0022-migration-project-check-product-slice.md) | completed | Project-linked migration check 제품 단면 |
 | [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | completed | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
-| [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md) | active | AutoField ForeignKey IR v3, atomic binding과 REL-001 제품 metadata |
+| [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md) | completed | AutoField ForeignKey IR v3, atomic binding과 REL-001 제품 metadata |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
-완료 항목은 [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)이며,
-현재 active 항목은 [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)입니다.
+완료 항목은 [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)이며,
+현재 active 항목은 없습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
-steps를 통과했고, 현재 dirty checkout은 IR v3/companion/bridge/binder/migration fail-closed와 REL-001
-metadata actual, 11 ordered not-implemented, exact-26 workflow를 로컬에서 구현·검증했습니다. 다만 Proposed
-ADR-0024/active work를 유지하며 implementation commit/push와 exact-26 hosted CI는 `not run/pending`입니다. GDJ-0022는
+steps를 통과했습니다. Implementation commit `05e6e218...`은 IR v3/companion/bridge/binder/migration
+fail-closed와 REL-001 metadata actual, 11 ordered not-implemented, exact-26 workflow를 구현했고 run
+`31348285559`의 exact 26/26 jobs·326/326 recorded steps를 통과했습니다. Work는 completed, ADR-0024는
+bounded metadata architecture에 한해 Accepted이고 Q-013은 `Partial`입니다. GDJ-0022는
 Accepted ADR-0021/MIG-065..074를 independent product global CLI/public project runner/flat discovery로
 구현해 10 contract를 `passing`으로 전환했고, final evidence head까지 exact 18-job hosted acceptance를
 완료했습니다. GDJ-0023은 Q-013을 추측으로 제품화하지 않고 pinned Django 6.1 ForeignKey 외부 동작
@@ -112,7 +113,10 @@ steps를 성공해
 activation commit `758cd093...` / run `31344980929`의 exact 22/22로 해소됐습니다. GDJ-0024 local
 implementation/audit와 그 증거는
 [EVID-20260810-035](../docs/status/TEST_EVIDENCE.md#evid-20260810-035--gdj-0024-rel-001-metadata-product-pre-hosted-local-validation)에
-기록했으며, implementation exact-head exact-26 hosted acceptance는 commit/push 전 `not run/pending`입니다.
+기록했습니다. Implementation exact-head exact-26 hosted acceptance는
+[EVID-20260810-036](../docs/status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
+기록했습니다. Product는 12 adapter/127 contract=`111 passing + 5 deviation + 11 oracle_locked`, REL-001
+actual 1/12이며 broader relation query/write/delete/DDL/migration과 non-SQLite backend support는 아닙니다.
 
 ## 운영 규칙
 

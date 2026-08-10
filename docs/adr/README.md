@@ -38,6 +38,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0021](0021-project-linked-migration-check.md) | Accepted | `godj.toml`, private project runner와 DB-free migration check의 contract/test-only 경계 |
 | [0022](0022-project-runtime-and-global-migration-check.md) | Accepted | Public project runtime과 global `godj migrations check` 제품 경계 |
 | [0023](0023-symbolic-relation-binding-and-shared-relation-ast.md) | Accepted | Symbolic cross-app relation binding, import-cycle-free project bridge와 shared relation AST |
-| [0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md) | Proposed | AutoField ForeignKey IR v3, additive mixed-app companion과 atomic project binding |
+| [0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md) | Accepted | AutoField ForeignKey IR v3, additive mixed-app companion과 atomic project binding |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

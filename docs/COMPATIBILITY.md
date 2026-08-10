@@ -547,7 +547,7 @@ oracle/not-implemented comparison은 exit 1과 MIG-065..074 ordered status misma
 Completed [GDJ-0022](../work/0022-migration-project-check-product-slice.md)와 Accepted
 [ADR-0022](adr/0022-project-runtime-and-global-migration-check.md)는 independent global/linked/protocol
 kernel, exact public project facade와 actual product adapter를 추가했습니다. MIG-065..074는 10
-`passing`이고 제품은 11 adapter/115 contract의 `110 passing + 5 deviation`입니다.
+`passing`이고 GDJ-0022 완료 당시 제품은 11 adapter/115 contract의 `110 passing + 5 deviation`이었습니다.
 `conformance/projectcheck/**` test-only proof는 byte-preserved 독립 gate이며 product가 import/read하지
 않습니다.
 
@@ -557,22 +557,25 @@ Django 6.1/SQLite의 cross-app ForeignKey metadata, unsaved-target failure, lazy
 forward/reverse path, nullable/isnull, PROTECT/SET_NULL, `select_related`와 reverse `prefetch_related`
 외부 동작을 result/DB state/query·JOIN·mutation metrics로 고정합니다. 새 12개는 `oracle_locked`이며
 product support가 아닙니다. Aggregate는 12 reference
-sets/127 contracts/132 ordered cross-bindings이고 product는 11 adapters/115 contracts의
-`110 passing + 5 deviation`을 유지합니다. Test-only relation-binding proof와 Accepted ADR-0023의
+sets/127 contracts/132 ordered cross-bindings이고 GDJ-0023 완료 당시 product는 11 adapters/115 contracts의
+`110 passing + 5 deviation`을 유지했습니다. Test-only relation-binding proof와 Accepted ADR-0023의
 Go-specific compile/AST/field-union direction evidence를 Django oracle payload에 섞거나 REL `passing`으로
 세지 않습니다. Implementation head의 exact 22/22 hosted acceptance는 EVID-032에 기록했으며
 PostgreSQL/MySQL/Windows 또는 relation product 지원 증거가 아닙니다.
 
-Active [GDJ-0024](../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)와
-Proposed [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는 이 reference를
-변경하지 않고 REL-001 metadata 하나만 제품화할 exact boundary입니다. Scalar v2 bytes를 보존하고 explicit
+Completed [GDJ-0024](../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)와
+Accepted [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는 이 reference를
+변경하지 않고 REL-001 metadata 하나만 제품화한 exact boundary입니다. Scalar v2 bytes를 보존하고 explicit
 IR v3 ForeignKey source, v2 target/v3 source의 additive `GoDjRelationSchema` companion, atomic
 `orm.BindProject`와 full 12-output partial product comparison을 사용합니다. REL-001만 observed/passing,
-REL-002..012는 ordered payload-free not-implemented/oracle-locked가 목표이므로 completion 집계도
+REL-002..012는 ordered payload-free not-implemented/oracle-locked이므로 completion 집계는
 product `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12로 제한합니다.
 Query/load/cache/write/delete/DDL/migration
 codec와 PostgreSQL/MySQL/Windows 호환은 이 metadata-only packet의 목표가 아닙니다. Final GDJ-0023
 baseline EVID-034는 exact 22/22를 통과했지만 GDJ-0024 activation/implementation 증거로 재사용하지 않습니다.
+GDJ-0024 implementation head `05e6e218db16e17ce13f7b504a01c603041e4a2a`의 exact 26/26 hosted
+acceptance는 [EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
+별도로 기록합니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
