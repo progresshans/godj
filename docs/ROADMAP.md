@@ -2,7 +2,8 @@
 
 - 상태: Accepted direction
 - 현재 단계: GDJ-0027 REL-005 reverse accessor/lookup slice completed, ADR-0027 Accepted, Q-013 Partial;
-  active/ready work 없음. Implementation head `7db68415...` exact 26 PASS; completion documentation CI pending
+  active/ready work 없음. Implementation head `7db68415...`과 completion-documentation head `7998a835...`가
+  각각 별도 exact 26 PASS; terminal evidence/status 기록은 자기 자신을 재귀 증명하지 않음
 - 현재 제품 기준: 12 adapter/127 contract의 `115 passing + 5 deviation + 7 oracle_locked`,
   relation actual REL-001/003/004/005/006 5/12
 - 마지막 검토: 2026-08-11
@@ -336,7 +337,9 @@ GDJ-0026 implementation head `5be46141d943800a3c621975e3e5070f6d01eaf9`은
 `7f92fcf036d03a5004953d9857a10291f4603efb`도 별도
 [run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)의 exact 26/26 jobs와 326/326
 recorded steps를 성공해 EVID-045에 기록했습니다. 이 EVID-045를 포함한 exact 8-file final evidence/status
-patch는 그 뒤의 별도 diff이므로 자체 exact-head CI가 pending이며 run 31372360481을 재사용하지 않습니다.
+patch는 당시 그 뒤의 별도 diff였고, 이후 exact final-status head `9ba1d0ee...`의 run `31374150640`이
+26/26·326/326을 성공해 EVID-046에서 닫았습니다. Run `31372360481`은 그 later patch의 증거로 재사용하지
+않았습니다.
 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
@@ -380,8 +383,10 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   owner related-set accessor를 bounded packet으로 구현·검증했습니다. Query-only binding과 PK-capability object
   binding, declaration-centric reverse hop, project-only split query/object generator와 SQLite direction-aware
   INNER JOIN이 exact 범위입니다. Implementation head `7db68415...`의 run `31419940399`가 exact 26/26을
-  통과해 aggregate는 `115 + 5 + 7`, relation 5/12입니다. Baseline/activation run은 이 구현 증거로
-  재사용하지 않습니다.
+  통과했고 exact 15-file completion-documentation head `7998a835...`도 별도 run `31422614250`의 exact
+  26/26·326/326을 통과했습니다. Aggregate는 `115 + 5 + 7`, relation 5/12입니다. Baseline/activation/
+  implementation run은 각각 later head의 증거로 재사용하지 않습니다. EVID-049 terminal status 기록은
+  documentation-only이며 그 기록 자체를 증명하기 위한 재귀 evidence를 만들지 않습니다.
   REL-012 prefetch와 REL-009..011 eager, write/delete/DDL/migration/non-SQLite는 deferred입니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택

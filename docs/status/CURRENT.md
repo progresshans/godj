@@ -132,15 +132,19 @@
 - GDJ-0027 implementation/hosted-tested commit:
   `7db684159ecfebbcbe1dc0673928e899ab8b0835`
   (`feat: add reverse relation accessor and lookup`)
+- GDJ-0027 completion-documentation/hosted-tested commit:
+  `7998a8351c7668d53b9263bc9a381a815c6c9eb6`
+  (`docs: complete reverse relation accessor slice`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0027 implementation head `7db684159ecfebbcbe1dc0673928e899ab8b0835`은
-  [EVID-048](TEST_EVIDENCE.md#evid-20260811-048--gdj-0027-github-hosted-exact-26-job-implementation-head-ci)의
-  hosted [run 31419940399](https://github.com/progresshans/godj/actions/runs/31419940399)에서 exact 26/26
+- 현재 단계: GDJ-0027 completion-documentation head `7998a8351c7668d53b9263bc9a381a815c6c9eb6`은
+  [EVID-049](TEST_EVIDENCE.md#evid-20260811-049--gdj-0027-github-hosted-completion-documentation-head-exact-26-job-ci)의
+  hosted [run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)에서 exact 26/26
   jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Product는
   exact `115 passing + 5 deviation + 7 oracle_locked`, relation actual REL-001/003/004/005/006 5/12입니다.
   GDJ-0027은 completed, ADR-0027은 bounded slice에 한해 Accepted, Q-013은 `Partial`이고 active/ready work는
-  없습니다. 이 exact 15-file completion-documentation patch 자체 exact-head CI는 `not run/pending`입니다.
+  없습니다. EVID-049를 포함한 terminal 7-file evidence/status 기록은 documentation-only이며 그 기록
+  자체를 증명하기 위한 재귀 evidence를 만들지 않습니다.
 - 최근 완료 작업:
   [GDJ-0027 Reverse ForeignKey Accessor and Lookup Product Slice](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)
 - 활성 작업: 없음
@@ -239,8 +243,9 @@
   EVID-045/final-status patch는 별도 head `9ba1d0ee...`의 run `31374150640`에서 exact 26/26·326/326으로
   닫혔습니다. GDJ-0027 activation `9dbc2fd2...`도 별도 run `31414060387`의 exact 26/26·326/326을
   성공했고, implementation `7db68415...`은 다시 별도 run `31419940399`의 exact 26/26·326/326과 hosted
-  audit P0/P1/P2/P3=0을 통과해 EVID-048에 기록했습니다. 이 completion-documentation patch는 이후의 별도
-  diff이므로 자체 exact-head CI가 pending이며 implementation run을 recursive proof로 재사용하지 않습니다.
+  audit P0/P1/P2/P3=0을 통과해 EVID-048에 기록했습니다. Completion-documentation `7998a835...`도 별도
+  run `31422614250`의 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다.
+  각 earlier run은 later head의 recursive proof로 재사용하지 않습니다.
 
 ## Completed GDJ-0023 관계 계약 경계
 
@@ -380,7 +385,11 @@
   activation-only hosted proof와 local implementation을 분리합니다.
   [EVID-048](TEST_EVIDENCE.md#evid-20260811-048--gdj-0027-github-hosted-exact-26-job-implementation-head-ci)은
   exact implementation commit/run, four-coordinate 569/569/0 inventories, actual Ubuntu Linux/386 exact package
-  set, exact Darwin/Python과 hosted audit를 기록합니다. Completion-documentation patch 자체 CI는 pending입니다.
+  set, exact Darwin/Python과 hosted audit를 기록합니다.
+  [EVID-049](TEST_EVIDENCE.md#evid-20260811-049--gdj-0027-github-hosted-completion-documentation-head-exact-26-job-ci)는
+  exact 15-file completion-documentation commit/run과 같은 unchanged gates를 기록합니다. EVID-049를 포함한
+  terminal 7-file evidence/status 기록은 자체 hosted success를 주장하지 않으며 recursive evidence를 만들지
+  않습니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -816,8 +825,9 @@ exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. Comple
 통과했습니다. Final-status head `9ba1d0ee...`도 run `31374150640`의 exact 26/26·326/326을 통과해
 EVID-046에 기록했습니다. GDJ-0027 activation `9dbc2fd2...`도 별도 run `31414060387`의 exact
 26/26·326/326을 통과했고 implementation `7db68415...`은 별도 run `31419940399`의 exact
-26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 completion-documentation patch의 별도
-exact-head CI는 후속 evidence 작업이며 bounded completion의 blocker가 아닙니다.
+26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. Completion-documentation `7998a835...`도
+별도 run `31422614250`의 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. Terminal
+evidence/status 기록은 documentation-only이며 자기 자신을 재귀 증명하지 않습니다.
 Q-010/Q-012는 full
 CLI/library/generator semver handshake와 DB-aware migration lifecycle 전체가 아니므로 `Partial`입니다.
 Q-013도 symbolic/bounded metadata/predicate/object-cache/nullability/reverse-accessor architecture는 Accepted됐지만
@@ -835,11 +845,11 @@ write/delete/DDL/migration codec와 broader relation surface가 열려 있어 `P
 
 ## 다음 정확한 작업
 
-통합 담당자는 exact 15-file GDJ-0027 completion-documentation patch의 scope, EVID-001..047 prefix,
-links/frontmatter/fences와 diff를 검증한 뒤 documentation-only commit/push합니다. 같은 exact 26을 그
-completion-documentation head에서 새로 확인하고, separate final evidence/status patch로 recursive pending을
-닫습니다. Implementation run `31419940399`을 later documentation proof로 재사용하지 않고 Draft PR은 사용자
-요청 전 merge하지 않습니다.
+통합 담당자는 exact 7-file terminal evidence/status patch의 EVID-001..048 prefix, allowed paths,
+links/frontmatter/fences와 diff를 검증한 뒤 documentation-only commit/push합니다. EVID-049는 exact
+completion-documentation head `7998a835...`만 증명하고 이 later 기록 자체를 run `31422614250`으로 재귀
+증명하지 않습니다. 이후 active/ready work는 없으며 새 공개 API나 지원 범위를 열기 전에 별도 work/ADR을
+활성화합니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -897,8 +907,10 @@ completion-documentation head에서 새로 확인하고, separate final evidence
   `31414060387` 26/26 and 326/326 recorded steps PASS; activation-only proof in EVID-047
 - GDJ-0027 implementation commit: `7db684159ecfebbcbe1dc0673928e899ab8b0835`; exact 26-job run
   `31419940399` 26/26 and 326/326 recorded steps PASS; EVID-048
-- 현재 working tree: hosted-tested implementation `7db68415...` + exact 15-file completion-documentation patch;
-  documentation-head CI는 `not run/pending`
+- GDJ-0027 completion-documentation commit: `7998a8351c7668d53b9263bc9a381a815c6c9eb6`; exact 26-job run
+  `31422614250` 26/26 and 326/326 recorded steps PASS; EVID-049
+- 현재 working tree: hosted-tested completion-documentation `7998a835...` + exact 7-file terminal
+  evidence/status 기록; terminal 기록은 documentation-only이고 자체 exact-head hosted success를 주장하지 않음
 - 최근 완료 work:
   [GDJ-0027](../../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)
 - active work: 없음
@@ -940,6 +952,10 @@ completion-documentation head에서 새로 확인하고, separate final evidence
   coordinates each exact 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`, actual Ubuntu Linux/386 exact package
   set and exact Darwin/four Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE, synthetic merge/head tree both
   `3d4e41f6...`; hosted audit P0/P1/P2/P3=0
+- GDJ-0027 completion-documentation hosted: EVID-049/run 31422614250 exact 26/26·326/326 PASS;
+  relation-product four coordinates each exact 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`, actual Ubuntu
+  Linux/386 exact package set and exact Darwin/four Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE, synthetic
+  merge/head tree both `b61423b8...`; hosted audit P0/P1/P2/P3=0
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -979,10 +995,11 @@ completion-documentation head에서 새로 확인하고, separate final evidence
   31364944816 exact 26/26 PASS; GDJ-0026 implementation run 31370313755 exact 26/26 PASS; completion-
   documentation run 31372360481 exact 26/26 PASS; final-status/GDJ-0027 baseline run 31374150640 exact 26/26 PASS;
   GDJ-0027 activation run 31414060387 exact 26/26 PASS; implementation run 31419940399 exact 26/26 PASS;
-  current completion-documentation head run은 not run/pending
+  completion-documentation run 31422614250 exact 26/26 PASS; terminal evidence/status 기록은 recursive hosted
+  success를 주장하지 않음
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: implementation run 31419940399을 later completion-documentation success로 재사용하거나,
-  bounded REL-005 acceptance를 reverse prefetch/eager/write/delete/DDL/migration support로 넓히거나,
+- 가장 위험한 과장: completion-documentation run 31422614250을 later terminal evidence/status patch 자체의
+  success로 재사용하거나, bounded REL-005 acceptance를 reverse prefetch/eager/write/delete/DDL/migration support로 넓히거나,
   service-only PostgreSQL/MySQL job을 backend support로 표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은

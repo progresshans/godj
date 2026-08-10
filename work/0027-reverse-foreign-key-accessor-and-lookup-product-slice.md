@@ -357,7 +357,8 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
 - [x] local focused lane gates와 one full integration gate가 통과한다.
 - [x] exact implementation-head hosted 26-job matrix가 통과한다.
 - [x] completion docs/ADR transition과 EVID-048이 동기화된다.
-- [ ] completion-documentation/final-status heads가 각각 별도 exact head로 검증된다.
+- [x] completion-documentation head가 별도 exact 26-job matrix로 검증된다.
+- [x] terminal evidence/status 기록이 exact scope/prefix/document gate로 닫히고 자기 자신을 재귀 증명하지 않는다.
 
 ## 진행 기록
 
@@ -370,7 +371,7 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
 - [x] activation documentation audit/commit/push/hosted exact-head evidence
 - [x] runtime/codegen/SQLite/conformance implementation and integration audit
 - [x] implementation hosted evidence
-- [ ] completion/final hosted evidence
+- [x] completion-documentation hosted evidence and terminal non-recursive status record
 
 - [x] 2026-08-11: Exact 15-file activation commit
   `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`의 Draft PR #1
@@ -399,26 +400,39 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
   EVID-048을 근거로 bounded ADR-0027을 Accepted, 이 work를 completed로 전환합니다. 이 completion-
   documentation patch 자체 exact-head CI는 pending이며 implementation run을 recursive proof로 재사용하지
   않습니다.
+- [x] 2026-08-11: Exact 15-file completion-documentation commit
+  `7998a8351c7668d53b9263bc9a381a815c6c9eb6`의 Draft PR #1
+  [run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact 569 run/569
+  pass/0 skip·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 재현했고 actual Ubuntu Linux/386, exact Darwin,
+  four exact Python compatibility legs와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+  EVID-049는 이 exact completion-documentation head만 증명합니다. EVID-049를 포함한 terminal 7-file
+  evidence/status 기록은 documentation-only이며 earlier run을 그 later patch의 recursive proof로 재사용하지
+  않고, 기록 자체를 증명하기 위한 EVID-050을 만들지 않습니다.
 
 ## 현재 blocker와 다음 작업
 
 외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
-acceptance/audit가 모두 통과했습니다. Completion-documentation과 final-status patch의 별도 exact-head CI는
-후속 evidence 작업이며 bounded GDJ-0027 completion의 blocker가 아닙니다.
+acceptance/audit, exact completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Terminal
+evidence/status 기록은 documentation-only이며 자기 자신을 재귀 증명하지 않습니다. 이 completed work에는
+pending blocker가 없습니다.
 
 다음 작업은 exact합니다.
 
-1. Exact 15-file completion-documentation patch의 scope, EVID-001..047 prefix, links/frontmatter/fences와
+1. Exact 7-file terminal evidence/status patch의 scope, EVID-001..048 prefix, links/frontmatter/fences와
    `git diff --check`를 검증합니다.
-2. Documentation-only patch만 commit/push하고 같은 exact 26을 completion-documentation head에서 확인합니다.
-3. Separate final evidence/status patch로 recursive pending을 닫되 Q-013과 supported surface를 넓히지 않습니다.
+2. Documentation-only patch만 commit/push하되 completion run `31422614250`을 이 later patch의 proof로
+   재사용하거나 evidence 자기 증명을 위한 EVID-050을 만들지 않습니다.
+3. 새 공개 API나 지원 범위를 열기 전 별도 work/ADR을 활성화하고 Q-013은 `Partial`로 유지합니다.
 4. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- GDJ-0027은 implementation head `7db684159ecfebbcbe1dc0673928e899ab8b0835`, exact-26 run
-  `31419940399`까지 completed입니다. EVID-047은 exact local/pre-hosted evidence, EVID-048은 exact hosted
-  implementation-head evidence입니다. Product는 exact `115 + 5 + 7`, relation actual 5/12입니다.
+- GDJ-0027은 completion-documentation head `7998a8351c7668d53b9263bc9a381a815c6c9eb6`, exact-26 run
+  `31422614250`까지 completed입니다. Implementation head `7db68415...`도 별도 run `31419940399`에서
+  exact-26 검증됐습니다. EVID-047은 exact local/pre-hosted, EVID-048은 implementation-head, EVID-049는
+  completion-documentation-head hosted evidence입니다. Product는 exact `115 + 5 + 7`, relation actual
+  5/12입니다.
 - Existing relation product/generator bytes와 oracle/static/NI/SHA를 변경하지 않습니다.
 - 공개 API를 바꾸기 전 후속 work/ADR을 만들고 independent API audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하며 사용자의 명시적 요청 없이 merge하지 않습니다.

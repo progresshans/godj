@@ -604,7 +604,12 @@ cache/cancel/retry, project-only generator exact bytes/import-edge-0, reverse IN
 `[10,11]`/lookup `[1]` actual, manifest REL-005-only transition 및 `115 + 5 + 7` 전환을 모두 검증했습니다.
 Implementation head `7db68415...`의 run `31419940399`는 exact 26/26 jobs·326/326 recorded steps를 성공했고
 four relation-product coordinates는 각각 569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 재현했습니다.
-Completion-documentation patch 자체 exact-head CI는 pending이며 implementation run을 재사용하지 않습니다.
+Exact 15-file completion-documentation head `7998a835...`의 별도
+[run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)도 exact 26/26·326/326,
+four-coordinate 569/569/0 inventory, actual Linux/386 exact package set, exact Darwin과 four Python gates를
+통과해 EVID-049에 기록했습니다. EVID-049를 포함한 terminal 7-file evidence/status 기록은
+documentation-only이며 implementation/completion run을 그 later patch의 proof로 재사용하지 않고, 기록
+자체를 증명하기 위한 재귀 evidence를 만들지 않습니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -714,6 +719,10 @@ proof로 재사용하지 않습니다. GDJ-0027 activation commit `9dbc2fd2...`�
 [run 31419940399](https://github.com/progresshans/godj/actions/runs/31419940399)의 exact 26/26·326/326을
 성공해 EVID-048에 기록했습니다. Four relation-product coordinates는 각각 569/569/0 inventory를 재현했고
 actual Ubuntu Linux/386, exact Darwin과 four Python compatibility legs도 통과했습니다.
+Completion-documentation commit `7998a8351c7668d53b9263bc9a381a815c6c9eb6`도 별도
+[run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)의 exact 26/26·326/326을
+성공해 EVID-049에 기록했습니다. 이 terminal evidence/status append는 completion run의 범위를 later
+documentation-only patch로 넓히지 않으며, 자기 자신을 증명하기 위한 EVID-050을 만들지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

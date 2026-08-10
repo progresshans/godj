@@ -22,9 +22,12 @@ reverse related-set accessor를 동결했고 local implementation/audit는
 exact implementation-head hosted acceptance는
 [EVID-20260811-048](../status/TEST_EVIDENCE.md#evid-20260811-048--gdj-0027-github-hosted-exact-26-job-implementation-head-ci)에
 기록했습니다. Commit `7db684159ecfebbcbe1dc0673928e899ab8b0835`의 run `31419940399`는 exact
-26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이
-completion-documentation patch 자체 exact-head CI는 `not run/pending`이며 implementation run을 recursive
-proof로 재사용하지 않습니다.
+26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Exact
+15-file completion-documentation head `7998a8351c7668d53b9263bc9a381a815c6c9eb6`도
+[EVID-20260811-049](../status/TEST_EVIDENCE.md#evid-20260811-049--gdj-0027-github-hosted-completion-documentation-head-exact-26-job-ci)의
+run `31422614250`에서 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-049를
+포함한 terminal evidence/status 기록은 documentation-only이며 implementation/completion run을 그 later
+patch의 recursive proof로 재사용하지 않고, 기록 자체를 증명하기 위한 EVID-050을 만들지 않습니다.
 
 결정 범위는 named reverse ForeignKey namespace, one-hop target-field exact predicate, generated project-owned
 reverse object/accessor, source-FK exact related set와 SQLite INNER JOIN입니다. Reverse prefetch/eager/write/delete,
@@ -376,7 +379,8 @@ snapshots are cached and cloned according to ADR-0012.
 
 EVID-047의 focused/local full integration과 independent audits, EVID-048의 exact implementation-head 26/26
 jobs·326/326 steps, four-coordinate 569/569/0 inventory, actual Ubuntu Linux/386, exact Darwin/Python과 hosted
-audit가 위 의무를 모두 충족했습니다. Acceptance는 named one-hop reverse exact predicate와 owner related-set
+audit가 위 의무를 모두 충족했습니다. EVID-049는 exact completion-documentation head에서 같은 unchanged
+26-job gate를 별도로 재검증했습니다. Acceptance는 named one-hop reverse exact predicate와 owner related-set
 SQLite slice에만 한정됩니다.
 
 ## 결과와 후속 영향
