@@ -360,7 +360,8 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
 - [x] root full normal integration and independent runtime/codegen/final audits pass.
 - [x] exact implementation-head hosted 26-job matrix and inventories pass.
 - [x] completion docs/ADR status transition and EVID-052 are synchronized.
-- [ ] completion-documentation and terminal-status heads are separately hosted-verified.
+- [x] completion-documentation head is separately hosted-verified.
+- [x] terminal evidence/status record closes exact scope/prefix/document gates without recursively proving itself.
 
 ## 진행 기록
 
@@ -376,7 +377,7 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
   594/594/0·60,237 bytes·SHA-256 `98a0a37b...8c47e` and runtime/query, codegen, SQLite/conformance and final
   integration audits P0/P1/P2/P3=`0/0/0/0`.
 - [x] implementation hosted evidence
-- [ ] completion documentation and terminal evidence
+- [x] completion-documentation hosted evidence and terminal non-recursive status record
 
 - [x] 2026-08-11: Implementation commit `4858ab88b82647793cd463e9f348e43d3f5e4bb7`의 Draft PR #1
   [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)은 exact 26/26 jobs와
@@ -386,24 +387,36 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
   EVID-052를 근거로 bounded ADR-0028을 Accepted, 이 work를 completed로 전환합니다. 이 completion-
   documentation patch 자체 exact-head CI는 pending이며 implementation run을 recursive proof로 재사용하지
   않습니다.
+- [x] 2026-08-11: Exact 15-file completion-documentation commit
+  `9dc4eb1312791ae74b384afbbfdbfef89aaf55bb`의 Draft PR #1
+  [run 31435136950](https://github.com/progresshans/godj/actions/runs/31435136950)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact 594 run/594 pass/
+  0 skip·60,237 bytes·SHA-256 `98a0a37b...8c47e`를 재현했고 actual Ubuntu Linux/386, exact Darwin,
+  four exact Python compatibility legs와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+  EVID-053은 이 exact completion-documentation head만 증명합니다. EVID-053을 포함한 terminal 7-file
+  evidence/status 기록은 documentation-only이며 earlier run을 그 later patch의 recursive proof로 재사용하지
+  않습니다.
 
 ## 현재 blocker와 다음 작업
 
 외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
-acceptance/audit가 모두 통과했습니다. Completion-documentation과 terminal-status patch의 별도 exact-head CI는
-후속 evidence 작업이며 bounded GDJ-0028 completion의 blocker가 아닙니다.
+acceptance/audit, exact completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Terminal
+evidence/status 기록은 documentation-only이며 자기 자신을 재귀 증명하지 않습니다. 이 completed work에는
+pending blocker가 없습니다.
 
-1. Exact 15-file completion-documentation patch의 scope, EVID-001..051 prefix, links/frontmatter/fences와
+1. Exact 7-file terminal evidence/status patch의 scope, EVID-001..052 prefix, links/frontmatter/fences와
    `git diff --check`를 검증합니다.
-2. Documentation-only patch만 commit/push하고 같은 exact 26을 completion-documentation head에서 확인합니다.
-3. Separate terminal evidence/status patch로 recursive pending을 닫되 Q-013과 supported surface를 넓히지 않습니다.
+2. Documentation-only patch만 commit/push하되 completion run `31435136950`을 이 later patch의 proof로
+   재사용하거나 자기 증명을 위한 EVID-054를 만들지 않습니다.
+3. 새 공개 API나 지원 범위를 열기 전 별도 work/ADR을 활성화하고 Q-013은 `Partial`로 유지합니다.
 4. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- GDJ-0028은 implementation head `4858ab88b82647793cd463e9f348e43d3f5e4bb7`, exact-26 run
-  `31432551159`까지 completed입니다. EVID-051은 activation/local pre-hosted evidence, EVID-052는 exact hosted
-  implementation-head evidence입니다. Product는 exact `116 + 5 + 6`, relation actual 6/12입니다.
+- GDJ-0028은 completion-documentation head `9dc4eb1312791ae74b384afbbfdbfef89aaf55bb`, exact-26 run
+  `31435136950`까지 completed입니다. Implementation head `4858ab88...`도 별도 run `31432551159`에서
+  exact-26 검증됐습니다. EVID-051은 activation/local pre-hosted, EVID-052는 implementation-head, EVID-053은
+  completion-documentation-head hosted evidence입니다. Product는 exact `116 + 5 + 6`, relation actual 6/12입니다.
 - Existing reverse/object API와 exact nine generated files, oracle/static/SHA and frozen paths를 보존합니다.
 - Public API 또는 taxonomy를 바꾸기 전 후속 work/ADR을 만들고 independent audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하고 사용자 명시적 요청 없이 merge하지 않습니다.

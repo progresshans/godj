@@ -2,7 +2,8 @@
 
 - 상태: Accepted direction
 - 현재 단계: GDJ-0028 REL-012 reverse prefetch completed, ADR-0028 Accepted, Q-013 Partial;
-  active/ready work 없음. Implementation head `4858ab88...` exact 26 PASS; completion documentation CI pending
+  active/ready work 없음. Implementation head `4858ab88...`과 completion-documentation head `9dc4eb13...`이
+  각각 별도 exact 26 PASS; terminal evidence/status 기록은 자기 자신을 재귀 증명하지 않음
 - 현재 제품 기준: 12 adapter/127 contract의 `116 passing + 5 deviation + 6 oracle_locked`,
   relation actual REL-001/003/004/005/006/012 6/12
 - 마지막 검토: 2026-08-11
@@ -392,7 +393,10 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   Existing owner QuerySet의 primary query와 new `ReversePrefetch.Load` batch query를 분리하고, immutable
   `LookupIn`, distinct key ordering/cap, sealed source-FK grouping과 all-success-only ready `RelatedSet`
   publication을 project-only generated companion으로 연결합니다. Implementation head `4858ab88...`의 run
-  `31432551159`가 exact 26/26·326/326을 통과해 current product는 `116 + 5 + 6`, relation 6/12입니다.
+  `31432551159`가 exact 26/26·326/326을 통과했고 exact 15-file completion-documentation head
+  `9dc4eb13...`도 별도 run `31435136950`의 exact 26/26·326/326을 통과했습니다. Current product는
+  `116 + 5 + 6`, relation 6/12입니다. Baseline/activation/implementation run은 각각 later head의 증거로
+  재사용하지 않았고 EVID-053 terminal status 기록은 documentation-only이며 자기 자신을 재귀 증명하지 않습니다.
   Existing reverse generator/nine-file output은 byte-locked하며 custom Prefetch/filter/order, REL-009..011 eager
   projection, write/delete/DDL/migration과 non-SQLite는 별도 bounded work로 남깁니다. Baseline/activation run은
   이 implementation proof로 재사용하지 않았습니다.

@@ -129,7 +129,11 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)은 exact 26/26·326/326,
   four-coordinate 594/594/0 inventory, actual Ubuntu Linux/386, exact Darwin/Python과 hosted audit
   P0/P1/P2/P3=0을 통과했습니다. EVID-052를 근거로 work는 completed, ADR-0028은 bounded REL-012 SQLite
-  slice에 한해 Accepted입니다. Completion-documentation patch 자체 exact-head CI는 pending입니다.
+  slice에 한해 Accepted입니다. Completion-documentation commit
+  `9dc4eb1312791ae74b384afbbfdbfef89aaf55bb`의 별도
+  [run 31435136950](https://github.com/progresshans/godj/actions/runs/31435136950)도 exact 26/26·326/326과 hosted
+  audit P0/P1/P2/P3=0을 통과해 EVID-053에 기록했습니다. EVID-053을 포함한 terminal 7-file evidence/status
+  기록은 documentation-only이며 completion run을 그 later patch의 recursive proof로 재사용하지 않습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
