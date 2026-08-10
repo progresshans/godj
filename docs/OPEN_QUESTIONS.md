@@ -12,7 +12,7 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0026 active / relation breadth 후속 | Symbolic architecture, IR v3/metadata와 required exact predicate are Accepted; REL-003/006 sealed object cache/nullable source-key isnull shape is Proposed; reverse/eager/write/delete/DDL/migration remain open |
+| Q-013 | Partial | GDJ-0026 completed / relation breadth 후속 | Symbolic architecture, IR v3/metadata, required exact predicate와 REL-003/006 sealed object cache/nullable source-key isnull are Accepted; reverse/eager/write/delete/DDL/migration remain open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -341,12 +341,13 @@ broader generator ABI는 아직 결정/구현하지 않았습니다. 이 open br
 `Partial`입니다. REL-003 object cache와 REL-006 nullable access/isnull은 의도적으로 별도 decision으로
 남깁니다.
 
-Active [GDJ-0026](../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과 Proposed
-[ADR-0026](adr/0026-forward-foreign-key-object-cache-and-nullability.md)은 그 두 open boundary를 함께 동결합니다.
+Completed [GDJ-0026](../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과 Accepted
+[ADR-0026](adr/0026-forward-foreign-key-object-cache-and-nullability.md)은 그 두 bounded boundary를 함께 동결합니다.
 Original descriptor interface를 retain하지 않는 sealed immutable snapshot/storage, project-owned opaque pointer
 wrapper와 QuerySet-backed target PK limit-2 cache, nullable local NULL fast path, `source_key` relation terminal
 scope와 SQLite JOIN-0 trim을 선택했습니다. Existing project-query v1은 바꾸지 않고 새 object aggregate가
-typed/dynamic reviewer isnull을 소유합니다. 이 proposal은 아직 implementation/hosted evidence가 없고 reverse,
-eager/prefetch, write/delete/DDL/migration과 broader target/backend가 열려 있어 Q-013은 계속 `Partial`입니다.
+typed/dynamic reviewer isnull을 소유합니다. Exact implementation head `5be46141...`의 run `31370313755`은
+26/26 jobs·326/326 recorded steps를 통과했습니다. Reverse, eager/prefetch, write/delete/DDL/migration과
+broader target/backend가 열려 있어 Q-013은 계속 `Partial`입니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

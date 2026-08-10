@@ -340,17 +340,13 @@ field-union relation arm 방향을 고정했습니다. Completed GDJ-0024/Accept
 mixed v2 target/v3 source additive companion, atomic binder와 REL-001 metadata-only product subset을
 구현하고 exact 26 hosted gate에서 검증했습니다. Completed GDJ-0025/Accepted ADR-0025는 그 위에 REL-004
 required forward exact predicate, shared immutable path와 SQLite one reusable INNER JOIN만 추가했습니다.
-현재 product는 `12 adapter sets/127 contracts = 112 passing + 5 deviation + 10 oracle_locked`, relation
-REL-001/004 2/12입니다. REL-003 loader/cache와 REL-006 nullable/isnull, 나머지 relation breadth와
-non-SQLite backend는 계속 미지원입니다. 이는 PostgreSQL, OneToOne/ManyToMany 또는 ForeignKey breadth
-제품 지원의 증거가 아닙니다.
-
-Active GDJ-0026/Proposed ADR-0026은 REL-003/006을 completion target
-`114 passing + 5 deviation + 8 oracle_locked`, relation 4/12로 묶습니다. Additive sealed descriptor/object
-companions, opaque pointer instance cache, nullable NULL zero-I/O access와 relation-provenance-preserving SQLite
-source-key `isnull` trim만 계획합니다. Current implemented product count는 위 112/5/10 그대로이며 activation
-diff의 exact-head CI도 pending입니다. Reverse/eager/write/delete/DDL/migration, LEFT JOIN과 non-SQLite breadth는
-여전히 미지원입니다.
+Completed GDJ-0026/Accepted ADR-0026은 REL-003/006을 additive sealed descriptor/object companions,
+opaque pointer instance cache, nullable NULL zero-I/O access와 relation-provenance-preserving SQLite source-key
+`isnull` trim으로 구현했습니다. Exact implementation head `5be46141...`의 run `31370313755`이 26/26
+jobs·326/326 recorded steps를 통과해 현재 product는 `12 adapter sets/127 contracts = 114 passing + 5
+deviation + 8 oracle_locked`, relation REL-001/003/004/006 4/12입니다. Reverse/eager/write/delete/DDL/
+migration, LEFT JOIN, broader target와 non-SQLite backend는 계속 미지원이며 PostgreSQL,
+OneToOne/ManyToMany 또는 ForeignKey breadth 제품 지원의 증거가 아닙니다.
 
 ## Django 데이터 이행
 

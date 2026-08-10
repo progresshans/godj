@@ -1,6 +1,6 @@
 # ADR-0026: Forward ForeignKey Object Cache and Nullability
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-10
 - 관련 work/contract:
   [GDJ-0026](../../work/0026-forward-foreign-key-object-cache-and-nullability-product-slice.md),
@@ -17,11 +17,15 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. Exact API와 ownership은 independent architecture/API/scope review를 반영해
-implementation 전에 동결했지만, product code/local/hosted verification은 아직 없습니다. Baseline
-`bffc52844de87a2791959ea1e8f99c60dd13d1aa`만
-[EVID-20260810-042](../status/TEST_EVIDENCE.md#evid-20260810-042--gdj-0025-final-exact-head-ci-and-gdj-0026-activation-baseline)의
-exact 26/26 hosted gate를 통과했습니다. Activation diff 자체는 `not run/pending`입니다.
+이 ADR은 **Accepted**입니다. Exact API와 ownership은 independent architecture/API/scope review를 반영해
+implementation 전에 동결했고, local implementation/audit는
+[EVID-20260810-043](../status/TEST_EVIDENCE.md#evid-20260810-043--gdj-0026-rel-003006-object-cache-and-nullability-pre-hosted-local-validation),
+exact implementation-head hosted acceptance는
+[EVID-20260810-044](../status/TEST_EVIDENCE.md#evid-20260810-044--gdj-0026-github-hosted-exact-26-job-implementation-head-ci)에
+기록했습니다. Commit `5be46141d943800a3c621975e3e5070f6d01eaf9`의 run `31370313755`은 exact
+26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. 이
+completion-documentation patch 자체 exact-head CI는 `not run/pending`이며 implementation run을 그
+recursive proof로 재사용하지 않습니다.
 
 결정 범위는 AutoField-target one-hop forward relation의 generated opaque object wrapper, required/nullable
 lazy load와 instance-owned cache, nullable local-NULL fast path, typed/dynamic relation-level `isnull` shared AST와
@@ -350,8 +354,10 @@ set and measured inventory only; no seventh matrix/service job is added. Linux/m
 CGO-disabled/vet/no-rewrite/clean, full Ubuntu executes Linux/386, four Python versions remain hosted-only, routine
 local remains CPython 3.14.3 + uv 0.12.3 and historical exact darwin keeps uv 0.10.12.
 
-Activation baseline run 31359958949 proves only `bffc5284...` and current REL-001/004. This Proposed ADR/activation
-diff, implementation head and completion documentation each require their own non-reused exact-head evidence.
+Activation baseline run 31359958949 proves only `bffc5284...` and REL-001/004. Activation commit `aad4f7ff...`
+passed separate run `31364944816`; implementation head `5be46141...` passed separate run `31370313755` with exact
+26/26 jobs·326/326 recorded steps. This Accepted completion-documentation patch remains a later untested diff and
+requires its own non-reused exact-head evidence.
 
 ## Error ownership and precedence
 
@@ -380,9 +386,9 @@ not a compatibility contract.
 - Assignment/save/delete/DDL/migration/historical model and PostgreSQL/MySQL/Windows
 - Non-AutoField/to_field/composite target, OneToOne/ManyToMany
 
-## Acceptance 조건
+## Acceptance evidence
 
-ADR status can become Accepted only after all GDJ-0026 gates pass:
+ADR status became Accepted after all GDJ-0026 gates passed:
 
 1. Exact public API compiles externally; nil/typed-nil/zero/value-copy misuse is panic-free structured failure.
 2. Original descriptor interfaces are never retained; sealed descriptor/storage mutation and race tests pass.
@@ -391,9 +397,11 @@ ADR status can become Accepted only after all GDJ-0026 gates pass:
 5. Typed/dynamic reviewer isnull Plan.Equal retains `source_key` scope and SQLite returns `[11]`, SELECT 1, JOIN 0.
 6. Oracle-blind REL-003/006 actuals and mutation gates pass; aggregate/status/NI sequence is exact.
 7. Local normal/race/CGO-disabled/vet/repetition/386/no-rewrite gates pass.
-8. Exact implementation-head 26/26 hosted executions and independent audits pass with skip 0/P0..P3=0.
+8. Exact implementation-head 26/26 hosted executions and independent audits pass with job/recorded-step skip 0,
+   portable Python 17 intentional skips and P0..P3=0.
 
-Until then this document is a reviewed proposal, not evidence that REL-003/006 or relation-object APIs exist.
+Local EVID-043 and exact implementation-head EVID-044 satisfy all eight gates. Acceptance is limited to the bounded
+AutoField-target one-hop SQLite slice; deferred surfaces below remain unsupported.
 
 ## Consequences
 

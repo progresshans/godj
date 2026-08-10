@@ -429,9 +429,10 @@ GDJ-0025의 recursive pending은 EVID-042로 닫혔습니다.
 ## 다음 정확한 작업
 
 1. Tested final head `bffc5284...`와 EVID-042를 다음 packet의 baseline으로만 사용합니다.
-2. REL-003/006은 별도 [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과
-   Proposed ADR-0026의 exact allowlist/API 안에서만 구현합니다.
-3. GDJ-0026 activation/implementation diff는 각 exact head에서 same 26을 새로 검증합니다.
+2. REL-003/006은 별도 completed [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)과
+   Accepted ADR-0026의 exact allowlist/API 안에서 구현·검증됐습니다.
+3. GDJ-0026 activation `aad4f7ff...`과 implementation `5be46141...`은 각각 separate exact-26 hosted run을
+   통과했으며 completion-documentation diff도 별도 exact head에서 검증합니다.
 4. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
@@ -442,5 +443,7 @@ acceptance와 final evidence/status exact-head acceptance까지 통과했고 ADR
 companion/project bridge, immutable shared relation path와 SQLite reusable required INNER JOIN을 Accepted했습니다. 제품은 exact
 `112 passing + 5 deviation + 10 oracle_locked`, relation actual REL-001/004 2/12입니다. Loader/cache,
 nullable/reverse/eager/write/delete/DDL/migration, broader target와 PostgreSQL/MySQL/Windows는 완료 범위가
-아닙니다. Final baseline은 `bffc5284...`/EVID-042이고 후속 GDJ-0026 activation diff 자체는 pending입니다.
+아닙니다. Final baseline은 `bffc5284...`/EVID-042이며 후속 GDJ-0026은 implementation head
+`5be46141...`/EVID-044까지 exact-26 hosted accepted됐습니다. 그 completion-documentation patch 자체 CI는
+pending입니다.
 Draft PR #1은 사용자 요청 전 merge하지 않습니다.

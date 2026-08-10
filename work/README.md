@@ -49,12 +49,11 @@ proposed → ready → active → completed
 | [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | completed | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
 | [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md) | completed | AutoField ForeignKey IR v3, atomic binding과 REL-001 제품 metadata |
 | [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md) | completed | REL-004 forward ForeignKey predicate와 SQLite reusable INNER JOIN |
-| [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md) | active | REL-003/006 forward object cache, nullable access와 SQLite isnull trim |
+| [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md) | completed | REL-003/006 forward object cache, nullable access와 SQLite isnull trim |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
-완료 항목은 [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md), active 항목은
-[GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)입니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근
+완료 항목은 [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md)입니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -78,16 +77,21 @@ recorded steps를 통과해
 기록했습니다. 그 EVID-041/final-status commit `bffc52844de87a2791959ea1e8f99c60dd13d1aa`도 별도
 [run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26 jobs·326/326
 steps를 통과해 [EVID-042](../docs/status/TEST_EVIDENCE.md#evid-20260810-042--gdj-0025-final-exact-head-ci-and-gdj-0026-activation-baseline)에
-기록했습니다. GDJ-0026은 이 tested baseline에서 REL-003/006 object/cache/nullability slice와 Proposed
-ADR-0026을 활성화했습니다. Exact 15-file activation commit
+기록했습니다. GDJ-0026은 이 tested baseline에서 REL-003/006 object/cache/nullability slice와 ADR-0026을
+활성화했습니다. Exact 15-file activation commit
 `aad4f7ff0d77a1abe16ebddd01782e78c335395f`은
 [run 31364944816](https://github.com/progresshans/godj/actions/runs/31364944816)의 exact 26/26 jobs·326/326
-steps를 통과했습니다. 현재 uncommitted implementation은 sealed object cache, additive object companion/
+steps를 통과했습니다. Implementation은 sealed object cache, additive object companion/
 project bridge, nullable relation `source_key` AST와 SQLite JOIN-0 trim을 구현했고 local exact
 `114 passing + 5 deviation + 8 oracle_locked`, relation actual REL-001/003/004/006 4/12와 inventory
 533/533/0·54,076 bytes·SHA-256 `6d2958b6...7aee`를 통과해
 [EVID-043](../docs/status/TEST_EVIDENCE.md#evid-20260810-043--gdj-0026-rel-003006-object-cache-and-nullability-pre-hosted-local-validation)에
-기록했습니다. Work/ADR은 active/Proposed이며 exact implementation-head hosted CI는 pending입니다.
+기록했습니다. Implementation commit `5be46141d943800a3c621975e3e5070f6d01eaf9`의
+[run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)은 exact 26/26 jobs·326/326
+recorded steps, relation-product four-coordinate 533/533/0 inventory와 actual Ubuntu Linux/386 exact package
+set을 통과했습니다. EVID-044와 hosted audit P0/P1/P2/P3=0을 근거로 work는 completed, ADR-0026은 bounded
+slice에 한해 Accepted입니다. Q-013은 `Partial`이며 completion-documentation patch 자체 exact-head CI는
+pending입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

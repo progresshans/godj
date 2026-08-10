@@ -580,12 +580,16 @@ SHA-256, actual Ubuntu Linux/386, exact darwin 193/193과 four Python exact legs
 [run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26 jobs와
 326/326 recorded steps, four relation-product 492/492/0 inventory, actual Ubuntu Linux/386와 four exact Python
 legs를 성공해 EVID-042에 기록했습니다. 이 clean tested head가 GDJ-0026 baseline이며 activation diff 자체는
-별도 exact-head CI pending입니다.
+별도 activation run `31364944816`의 exact 26/26·326/326을 통과했습니다.
 GDJ-0026 gate는 exact-26 topology를 늘리지 않고 relation-product four-coordinate package inventory만
-확장합니다. Sealed descriptor/storage snapshot, pointer self-sentinel, target-PK Limit(2) cache의 0/1/2-row
+확장했습니다. Sealed descriptor/storage snapshot, pointer self-sentinel, target-PK Limit(2) cache의 0/1/2-row
 warm 분류, clone/singleflight/cancellation/failure retry/session lifetime, typed/dynamic source-key Plan.Equal,
 SQLite reviewer `IS NULL` result `[11]`/SELECT 1/JOIN 0과 old generated/query SQL byte locks를 필수로 합니다.
-Measured inventory count/bytes/SHA는 implementation 뒤에만 기록합니다.
+Implementation head `5be46141...`의 run `31370313755`은 exact 26/26 jobs·326/326 recorded steps를
+성공했습니다. Four relation-product coordinates는 각각 exact 533 run/533 pass/0 skip, 54,076-byte
+inventory와 SHA-256 `6d2958b6...7aee`, normal/race/CGO-disabled/vet/no-rewrite/clean gates를 통과했습니다.
+Full Ubuntu는 actual `GOARCH=386 CGO_ENABLED=0` exact relation package set을 실행했고 four Python legs는
+uv 0.12.3에서 portable 193/17, exact Darwin은 historical uv 0.10.12에서 193/193 skip 0을 통과했습니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -680,6 +684,12 @@ exact 26/26을 통과했고, implementation commit `98db55a30ff71a2f2f70722cb569
 재귀 증명하지 않습니다. 그 final-status commit `bffc52844de87a2791959ea1e8f99c60dd13d1aa`은 별도
 [run 31359958949](https://github.com/progresshans/godj/actions/runs/31359958949)의 exact 26/26·326/326을
 성공해 EVID-042로 recursive pending을 닫았고, 이후 GDJ-0026 activation diff에는 재사용하지 않습니다.
+GDJ-0026 activation commit `aad4f7ff0d77a1abe16ebddd01782e78c335395f`은 별도 run `31364944816`의
+exact 26/26·326/326을 통과했고, implementation commit
+`5be46141d943800a3c621975e3e5070f6d01eaf9`도 별도
+[run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)의 exact 26/26·326/326을
+성공해 EVID-044에 기록했습니다. 이 completion-documentation patch 자체 exact-head CI는 pending이며
+implementation run을 recursive proof로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

@@ -1,6 +1,6 @@
 # 동시성·비동기·성능 방향
 
-- 상태: 기본 방향 Accepted; QuerySet 평가 상태 Accepted; relation-object cache 세부 계약 Proposed
+- 상태: 기본 방향 Accepted; QuerySet 평가 상태와 bounded relation-object cache 계약 Accepted
 - 마지막 검토: 2026-08-10
 
 GoDj의 출발점에는 Django보다 적은 프로세스와 메모리 중복으로 I/O 동시성과 멀티코어 실행을 자연스럽게 활용하려는 목적이 있습니다. 그러나 “Go로 작성했다”는 사실만으로 성능을 주장하지 않습니다. 측정 가능한 workload와 회귀 기준이 있어야 합니다.
@@ -30,16 +30,18 @@ Query plan은 불변이고 결과 cache는 plan과 분리합니다. 이 ownershi
   `Iterate`는 cache를 읽거나 바꾸지 않습니다.
 - 모든 terminal은 nil/already-canceled context를 warm cache보다 먼저 거부합니다.
 
-GDJ-0026/[Proposed ADR-0026](adr/0026-forward-foreign-key-object-cache-and-nullability.md)은 이 existing
+Completed GDJ-0026/[Accepted ADR-0026](adr/0026-forward-foreign-key-object-cache-and-nullability.md)은 이 existing
 QuerySet state machine을 required/nullable forward object handle 내부의 target-PK `Limit(2).All`에 재사용하는
-bounded relation-object ownership을 검토합니다. Proposed exact 방향은 generated opaque pointer wrapper 하나가
+bounded relation-object ownership을 채택했습니다. Generated opaque pointer wrapper 하나가
 relation별 QuerySet state를 소유하고, direct pointer alias만 같은 cache를 공유하며 `Fresh`와 별도 `From`은
 독립 state를 받는 것입니다. 성공적으로 materialize한 0/1/2-row snapshot은 QuerySet cache에 저장합니다.
 0-row와 2-row는 warm access에서도 각각 `related_object_missing`/`related_object_cardinality`로 다시 분류하며
 재실행하지 않고, backend/query/scan/rows/close/context failure만 cache하지 않아 다음 독립 호출이 재시도할
 수 있습니다. Nullable local NULL은 DB I/O 없는 absent success이며 nil/already-canceled context 검사는 이
-null/warm fast path보다 먼저 실행합니다. 이 paragraph는 activation design이며 GDJ-0026 implementation과 hosted
-acceptance 전에는 REL-003/006 지원을 뜻하지 않습니다.
+null/warm fast path보다 먼저 실행합니다. Exact implementation head `5be46141...`은 run `31370313755`의
+26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 동시성
+계약은 bounded forward object slice만 Accepted하며 eager priming, write invalidation, reverse cache와
+multi-backend lifetime은 여전히 결정하지 않습니다.
 
 ## Transaction과 cancellation
 

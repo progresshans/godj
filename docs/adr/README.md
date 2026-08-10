@@ -40,6 +40,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0023](0023-symbolic-relation-binding-and-shared-relation-ast.md) | Accepted | Symbolic cross-app relation binding, import-cycle-free project bridge와 shared relation AST |
 | [0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md) | Accepted | AutoField ForeignKey IR v3, additive mixed-app companion과 atomic project binding |
 | [0025](0025-forward-foreign-key-predicate-and-sqlite-inner-join.md) | Accepted | Required forward FK exact predicate, shared relation path와 SQLite reusable INNER JOIN |
-| [0026](0026-forward-foreign-key-object-cache-and-nullability.md) | Proposed | Forward FK object wrapper/cache, nullable access와 relation-aware SQLite isnull trim |
+| [0026](0026-forward-foreign-key-object-cache-and-nullability.md) | Accepted | Forward FK object wrapper/cache, nullable access와 relation-aware SQLite isnull trim |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

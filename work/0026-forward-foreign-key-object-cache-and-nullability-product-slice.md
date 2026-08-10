@@ -1,6 +1,6 @@
 ---
 id: GDJ-0026
-status: active
+status: completed
 updated: 2026-08-10
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "bffc52844de87a2791959ea1e8f99c60dd13d1aa"
@@ -120,8 +120,8 @@ dynamic `reviewer__isnull=true` construction은 I/O 0이고 Plan.Equal이어야 
 
 ## Exact runtime API와 descriptor seal
 
-Exact candidate는 [Proposed ADR-0026](../docs/adr/0026-forward-foreign-key-object-cache-and-nullability.md)에
-동결합니다. Signature/export 변경이 필요하면 implementation보다 먼저 ADR/work를 함께 amend합니다.
+Exact surface는 [Accepted ADR-0026](../docs/adr/0026-forward-foreign-key-object-cache-and-nullability.md)에
+동결했습니다. Signature/export 변경이 필요하면 후속 ADR/work를 먼저 만듭니다.
 
 ```go
 type RelationObjectDescriptor[M any] interface {
@@ -370,11 +370,11 @@ change. Product order is exact observed REL-001/003/004/006 and eight ordered pa
 - [x] Required and nullable object loaders satisfy cold/warm/clone/singleflight/retry/cardinality/session contracts.
 - [x] Typed/dynamic reviewer isnull plans are equal and SQLite returns `[11]` with SELECT 1/JOIN 0.
 - [x] REL-003/006 oracle-blind actuals and independent mutation gates pass; eight other REL contracts stay NI.
-- [x] Product aggregate is exact `114 passing + 5 deviation + 8 oracle_locked = 127` locally.
+- [x] Product aggregate is exact `114 passing + 5 deviation + 8 oracle_locked = 127` locally and at hosted head.
 - [x] Local normal/race/CGO-disabled/vet/repetition/386 compile/no-rewrite/diff-clean gates pass.
-- [ ] Exact 26 hosted executions pass on the exact implementation head with skip 0.
+- [x] Exact 26 hosted executions pass on the exact implementation head with job/recorded-step skip 0.
 - [x] Independent API/codegen/SQLite/conformance/integration audits report P0..P3=0 locally.
-- [ ] Work/status/matrix/evidence and ADR are synchronized; ADR becomes Accepted only for the bounded slice.
+- [x] Work/status/matrix/evidence and ADR are synchronized; ADR is Accepted only for the bounded slice.
 
 ## 비목표와 forbidden paths
 
@@ -392,8 +392,8 @@ change. Product order is exact observed REL-001/003/004/006 and eight ordered pa
   `conformance/relationproduct/**` and `conformance/relationqueryproduct/**`
 - Django relation runner/oracle/static fixture/SHA256SUMS
 
-Any path not in frontmatter is forbidden until this active work and Proposed ADR are explicitly amended. The single
-integration owner alone updates public API, ADR, CURRENT and final status.
+Any path not in frontmatter remains outside this completed packet. The single integration owner alone updates public
+API, ADR, CURRENT and final status.
 
 ## 진행 기록
 
@@ -419,27 +419,35 @@ integration owner alone updates public API, ADR, CURRENT and final status.
   SHA-256 `6d2958b63e68dcbf0a63aa02adb47cdf005a4896af80f22e4acc49e78dd07aee`), normal/race/CGO-disabled/vet,
   repetitions, generated no-rewrite, exact package Linux/386 cross-compile and twelve adapters passed. Independent
   runtime, codegen, SQLite/conformance and final integration/security/scope audits all report
-  P0/P1/P2/P3=`0/0/0/0`; exact implementation-head hosted CI has not run.
+  P0/P1/P2/P3=`0/0/0/0`; at this pre-hosted evidence point exact implementation-head CI had not run.
+- 2026-08-10: Implementation commit `5be46141d943800a3c621975e3e5070f6d01eaf9`의 Draft PR #1
+  [run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 533 run/533 pass/0
+  skip·54,076 bytes·SHA-256 `6d2958b6...7aee`를 재현했고 full Ubuntu actual Linux/386 exact package set,
+  four exact Python compatibility legs와 exact Darwin 193/193도 통과했습니다. Independent hosted audit는
+  P0/P1/P2/P3=`0/0/0/0`이며 EVID-044에 기록했습니다. Bounded ADR-0026을 Accepted, 이 work를 completed로
+  전환합니다. 이 completion-documentation patch 자체 exact-head CI는 `not run/pending`이며 run
+  `31370313755`를 그 증거로 재사용하지 않습니다.
 
 ## 현재 blocker
 
-외부 blocker는 없습니다. Local implementation/conformance and all four independent audit lanes are frozen clean.
-ADR-0026 remains Proposed, the work remains active, and exact implementation-head hosted acceptance has not run.
+외부 blocker는 없습니다. Local implementation/conformance, all four independent local audit lanes와 exact
+implementation-head hosted acceptance/hosted audit가 모두 통과했습니다. Completion-documentation patch의
+별도 exact-head CI만 pending이며 bounded work completion의 blocker는 아닙니다.
 
 ## 다음 정확한 작업
 
-1. Freeze the exact five-file pre-hosted status/evidence patch, preserving the EVID-001..042 byte prefix and verifying
+1. Freeze the exact 15-file completion-documentation patch, preserving the EVID-001..043 body prefix and verifying
    frontmatter uniqueness, allowed paths, links, fences and `git diff --check`.
-2. Commit/push the bounded implementation plus pre-hosted evidence to Draft PR #1 and run exact 26 at that new head.
-   Do not reuse activation run 31364944816 as implementation proof.
-3. Only after exact implementation-head hosted success, update completion documentation and consider ADR-0026
-   Accepted for this bounded SQLite slice.
+2. Commit/push only that documentation patch and run unchanged exact 26 at the completion-documentation head. Do not
+   reuse implementation run 31370313755 as recursive proof.
+3. Record the separate completion-documentation exact-head result without widening Q-013 or the supported surface.
 4. Do not merge Draft PR #1 without user request.
 
 ## 인수인계
 
-Activation head `aad4f7ff0d77a1abe16ebddd01782e78c335395f` is exact-26 tested by run `31364944816`.
-The uncommitted frozen implementation owns only REL-003/006 forward instance object cache, nullable absent access and
-relation-provenance-preserving SQLite source-key isnull trim. Local product comparison is exact `114 + 5 + 8`, but
-the implementation commit identity and its exact-26 hosted acceptance are pending. ADR-0026 remains Proposed and
-GDJ-0026 remains active; activation evidence must not be reused as implementation evidence.
+GDJ-0026 is completed at implementation head `5be46141d943800a3c621975e3e5070f6d01eaf9`, exact-26 tested by
+run `31370313755`. It owns only REL-003/006 forward instance object cache, nullable absent access and
+relation-provenance-preserving SQLite source-key isnull trim. Product comparison is exact `114 + 5 + 8`, relation
+actual REL-001/003/004/006 4/12. ADR-0026 is Accepted for this bounded slice and Q-013 remains `Partial`.
+Completion-documentation exact-head CI is pending and no Draft PR merge is authorized.
