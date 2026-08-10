@@ -348,6 +348,12 @@ deviation + 8 oracle_locked`, relation REL-001/003/004/006 4/12입니다. Revers
 migration, LEFT JOIN, broader target와 non-SQLite backend는 계속 미지원이며 PostgreSQL,
 OneToOne/ManyToMany 또는 ForeignKey breadth 제품 지원의 증거가 아닙니다.
 
+Active GDJ-0027/Proposed ADR-0027은 REL-005-only reverse ForeignKey exact lookup과 owner related-set accessor를
+다음 bounded slice로 정의합니다. Clean baseline `9ba1d0ee...` run `31374150640`은 현재
+`114 passing + 5 deviation + 8 oracle_locked`, relation 4/12만 증명합니다. 완료 목표
+`115 + 5 + 7`, relation 5/12는 implementation/actual/hosted gate 전에는 current capability로 세지 않습니다.
+Reverse prefetch/eager/write/delete/DDL/migration과 broader backend는 계속 미지원입니다.
+
 ## Django 데이터 이행
 
 - default table/column naming

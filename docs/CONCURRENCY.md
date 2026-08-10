@@ -40,8 +40,14 @@ relation별 QuerySet state를 소유하고, direct pointer alias만 같은 cache
 수 있습니다. Nullable local NULL은 DB I/O 없는 absent success이며 nil/already-canceled context 검사는 이
 null/warm fast path보다 먼저 실행합니다. Exact implementation head `5be46141...`은 run `31370313755`의
 26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 동시성
-계약은 bounded forward object slice만 Accepted하며 eager priming, write invalidation, reverse cache와
-multi-backend lifetime은 여전히 결정하지 않습니다.
+계약은 bounded forward object slice만 Accepted하며 eager priming, write invalidation과 multi-backend lifetime은
+여전히 결정하지 않습니다.
+
+Active GDJ-0027/Proposed ADR-0027은 reverse accessor의 ownership을 별도 pointer/self-sentinel owner wrapper와
+`RelatedSet`으로 제안합니다. `RelatedSet.All`은 existing QuerySet success-cache/singleflight/clone/cancellation/
+retry를 재사용하고 `OrderBy`/`Fresh`는 새 pointer와 evaluation state를 만들며 I/O를 하지 않습니다. Public
+Filter/IN/prefetch/warm injection은 추가하지 않고 REL-012용 speculative state도 만들지 않습니다. 이 계약은
+아직 Proposed이며 activation/implementation race evidence 전에는 Accepted concurrency support가 아닙니다.
 
 ## Transaction과 cancellation
 

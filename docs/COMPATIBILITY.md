@@ -598,6 +598,14 @@ implementation head `5be46141...`의 [run 31370313755](https://github.com/progre
 bytes는 immutable입니다. Reverse/eager/write/delete/DDL/migration, broader target와 non-SQLite 호환은
 claim하지 않습니다.
 
+Active [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)과 Proposed
+[ADR-0027](adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 reference bytes를 바꾸지 않고 REL-005만
+다음 actual target으로 고정합니다. Accessor는 freshly loaded Author 1에서 ordered Post IDs `[10,11]`,
+SELECT 1/JOIN 0이고, typed/dynamic `posts__title=Alpha`는 같은 reverse Plan으로 Author IDs `[1]`, SELECT 1/
+INNER JOIN 1이어야 합니다. Current classification은 계속 `114 passing + 5 deviation + 8 oracle_locked`,
+relation 4/12입니다. `115 + 5 + 7`, relation 5/12는 REL-005 implementation과 oracle-blind actual이 통과한 뒤의
+목표이며, REL-012 prefetch와 eager/write/delete/DDL/migration/non-SQLite 호환을 포함하지 않습니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는

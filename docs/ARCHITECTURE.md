@@ -96,6 +96,15 @@ steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 accep
 forward object/cache와 nullable source-key SQLite slice에만 한정하며 reverse/eager/write/delete/DDL/migration,
 broader target와 non-SQLite backend 지원을 뜻하지 않습니다.
 
+Active GDJ-0027/Proposed ADR-0027은 다음 한 단계로 REL-005 reverse accessor와 exact lookup만 동결합니다.
+Reverse `RelationHop`은 physical declaration을 기준으로 `Source=blog.post/author_id`,
+`Target=authors.author/id`를 유지하면서 direction/cardinality와 private reverse namespace를 더합니다.
+Query-only `BindReverse`는 owner PK capability와 분리하고, accessor-only `BindReverseObject`만 이미 sealed된
+`PrimaryKeyObjectDescriptor`를 요구합니다. Project-only additive generator도 query `ReverseRelations`와
+owner-instance `ReverseObjects`를 분리하며 기존 app/project generator bytes를 바꾸지 않습니다. 이 shape는
+아직 Proposed/미구현이고 REL-005는 `oracle_locked`입니다. REL-012 prefetch, eager, write/delete/DDL/migration과
+non-SQLite backend는 이 활성 packet 밖입니다.
+
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
 격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은

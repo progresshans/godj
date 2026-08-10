@@ -436,28 +436,32 @@ API, ADR, CURRENT and final status.
   P0/P1/P2/P3=`0/0/0/0`이며 EVID-045에 기록했습니다. 이 EVID-045를 포함한 exact 8-file final
   evidence/status patch 자체 exact-head CI는 `not run/pending`이며 run `31372360481`을 그 증거로 재사용하지
   않습니다.
+- 2026-08-11: Final evidence/status commit `9ba1d0ee4cb96c265269000700beb5889fef2206`의 별도
+  [run 31374150640](https://github.com/progresshans/godj/actions/runs/31374150640)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 533/533/0·54,076
+  bytes·SHA-256 `6d2958b6...7aee`를 재현했습니다. EVID-046은 GDJ-0026 final status를 닫고 GDJ-0027의 clean
+  baseline만 증명하며, later activation/REL-005 구현 증거로 재사용하지 않습니다.
 
 ## 현재 blocker
 
 외부 blocker는 없습니다. Local implementation/conformance, all four independent local audit lanes와 exact
-implementation-head 및 completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Exact
-8-file final evidence/status patch의 별도 exact-head CI만 pending이며 bounded work completion의 blocker는
-아닙니다.
+implementation-head, completion-documentation-head와 final-status-head hosted acceptance가 모두
+통과했습니다. 이 completed work에는 pending blocker가 없습니다. GDJ-0027 activation diff의 pending은
+후속 work가 소유합니다.
 
 ## 다음 정확한 작업
 
-1. Freeze the exact 8-file final evidence/status patch, preserving the EVID-001..044 body prefix and verifying
-   frontmatter uniqueness, allowed paths, links, fences and `git diff --check`.
-2. Commit/push only that documentation patch and run unchanged exact 26 at the final-status head. Do not reuse
-   completion-documentation run 31372360481 as recursive proof.
-3. Report the separate final-status exact-head result without widening Q-013 or the supported surface.
+1. Follow active [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) for REL-005 only.
+2. Preserve this work's generated/product bytes and exact `114 + 5 + 8` accepted baseline.
+3. Do not reuse run 31374150640 as GDJ-0027 activation or implementation proof.
 4. Do not merge Draft PR #1 without user request.
 
 ## 인수인계
 
-GDJ-0026 is completed at completion-documentation head `7f92fcf036d03a5004953d9857a10291f4603efb`, exact-26 tested
-by run `31372360481`; implementation head `5be46141...` was independently exact-26 tested by run `31370313755`.
+GDJ-0026 is completed through final-status head `9ba1d0ee4cb96c265269000700beb5889fef2206`, exact-26 tested by
+run `31374150640`; completion and implementation heads were independently exact-26 tested by runs
+`31372360481` and `31370313755`.
 It owns only REL-003/006 forward instance object cache, nullable absent access and
 relation-provenance-preserving SQLite source-key isnull trim. Product comparison is exact `114 + 5 + 8`, relation
 actual REL-001/003/004/006 4/12. ADR-0026 is Accepted for this bounded slice and Q-013 remains `Partial`.
-The exact eight-file final evidence/status patch's own exact-head CI is pending and no Draft PR merge is authorized.
+Active GDJ-0027 owns only the proposed REL-005 reverse slice; no Draft PR merge is authorized.
