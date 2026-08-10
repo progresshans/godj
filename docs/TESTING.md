@@ -557,7 +557,10 @@ status assertion만 `passing` 1 + `oracle_locked` 11로 동기화하며 test cou
 Ubuntu는 metadata-only package의 Linux/386 범위도 검증합니다. Implementation head run `31348285559`에서
 exact 26/26 jobs와 326/326 recorded steps가 성공했고 각 relation-product leg는 exact
 394 run/394 pass/0 skip, 40,630-byte inventory SHA-256 `2eb1fe8c...20ce`, normal/race/CGO-disabled/vet,
-no-rewrite와 clean tree를 통과했습니다. 상세 증거는 EVID-036에 기록합니다.
+no-rewrite와 clean tree를 통과했습니다. 상세 증거는 EVID-036에 기록합니다. Completion-documentation head
+`e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도 run `31349791188`의 exact 26/26 jobs와
+326/326 recorded steps, 각 relation-product leg의 같은 394/394/0·40,630-byte inventory SHA-256을
+통과했고 EVID-037에 기록합니다. 현재 EVID-037/final-status patch 자체의 exact-head CI는 pending입니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -633,7 +636,13 @@ implementation commit `05e6e218db16e17ce13f7b504a01c603041e4a2a`의
 [run 31348285559](https://github.com/progresshans/godj/actions/runs/31348285559)은 exact 26/26·326/326을
 성공했고 후자는
 [EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
-기록했습니다. EVID-036을 포함한 completion-documentation patch 자체의 exact-head CI는 후속 증거입니다.
+기록했습니다. EVID-036을 포함한 completion-documentation commit
+`e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도
+[run 31349791188](https://github.com/progresshans/godj/actions/runs/31349791188)의 exact 26/26·326/326을
+성공해
+[EVID-20260810-037](status/TEST_EVIDENCE.md#evid-20260810-037--gdj-0024-github-hosted-completion-documentation-head-exact-26-job-ci)에
+기록했습니다. 이 EVID-037/final-status exact 5-file patch 자체의 exact-head CI는 후속 증거이고 run
+`31349791188`을 재귀적으로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

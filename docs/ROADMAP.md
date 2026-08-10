@@ -1,8 +1,9 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0024 completed; local EVID-035와 implementation-head exact-26 hosted EVID-036 완료;
-  ADR-0024 bounded metadata architecture Accepted, Q-013 Partial. 현재 active/ready work 없음
+- 현재 단계: GDJ-0024 completed; local EVID-035, implementation-head exact-26 hosted EVID-036과
+  completion-documentation-head exact-26 hosted EVID-037 완료; ADR-0024 bounded metadata architecture
+  Accepted, Q-013 Partial. 현재 active/ready work 없음; EVID-037/final-status patch 자체의 exact-head CI pending
 - 현재 제품 기준: 12 adapter/127 contract의 `111 passing + 5 deviation + 11 oracle_locked`,
   relation actual REL-001 1/12
 - 마지막 검토: 2026-08-10
@@ -314,8 +315,11 @@ steps를 성공해 EVID-034에 기록했습니다. 그 뒤 GDJ-0024 activation d
 CI는 activation run `31344980929` exact 22/22로 해소됐습니다. GDJ-0024 implementation head
 `05e6e218db16e17ce13f7b504a01c603041e4a2a`도
 [run 31348285559](https://github.com/progresshans/godj/actions/runs/31348285559)의 exact 26/26 jobs와
-326/326 recorded steps를 성공해 EVID-036에 기록했습니다. 이 completion-documentation patch 자체의
-exact-head CI는 후속 append-only evidence가 소유합니다.
+326/326 recorded steps를 성공해 EVID-036에 기록했습니다. Completion-documentation head
+`e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도
+[run 31349791188](https://github.com/progresshans/godj/actions/runs/31349791188)의 exact 26/26 jobs와
+326/326 recorded steps를 성공해 EVID-037에 기록했습니다. 이 EVID-037/final-status exact 5-file patch
+자체의 exact-head CI는 후속 검증이며 run `31349791188`을 재사용하지 않습니다.
 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
@@ -335,7 +339,8 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   `orm.BindProject`와 REL-001 metadata-only product subset을 동결합니다. REL-002..012는 oracle-locked로
   유지하며 completed aggregate는 product
   `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12입니다. Existing exact 22에
-  relation-product 4 legs를 더한 exact 26은 implementation run `31348285559`에서 모두 통과했습니다.
+  relation-product 4 legs를 더한 exact 26은 implementation run `31348285559`와 별도
+  completion-documentation run `31349791188`에서 모두 통과했습니다.
   OneToOne/query/eager/write/delete/DDL/migration codec와 PostgreSQL actual backend는 뒤의
   bounded pair로 계속 분리합니다.
 - ForeignKey, OneToOne, reverse relation

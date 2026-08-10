@@ -631,11 +631,15 @@ backend/compiler/schema/write/transaction support 증거가 아닙니다.
   exact mixed product comparison, explicit IR v3, mixed v2/v3 codegen/bridge/binder, migration fail-closed,
   exact 26 workflow를 구현했습니다. Run `31348285559`가 exact 26/26 jobs와 326/326 recorded steps를
   성공해 bounded metadata architecture와 product subset을 hosted acceptance했습니다.
+- 2026-08-10: Completion-documentation commit `e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`은 별도 run
+  `31349791188`의 exact 26/26 jobs와 326/326 recorded steps를 성공했습니다. EVID-037은 이 tested head를
+  기록하며 EVID-037/final-status patch 자체의 exact-head CI와 재귀적으로 혼동하지 않습니다.
 
 ## 미결정/Blocker
 
-- 외부 blocker는 없습니다. Completion-documentation patch 자체의 exact-head CI와 final append-only evidence는
-  후속 증거 작업이며 GDJ-0024 implementation acceptance의 blocker가 아닙니다.
+- 외부 blocker는 없습니다. Completion-documentation head의 exact 26은 완료됐습니다. 남은
+  EVID-037/final-status exact 5-file patch 자체의 exact-head CI는 후속 문서 증거이며 GDJ-0024
+  implementation acceptance의 blocker가 아닙니다.
 - Runtime metadata public value의 internal representation, private helper/file split은 exact exported semantics와
   allowed paths를 지키는 범위에서 implementation detail입니다.
 
@@ -657,6 +661,11 @@ backend/compiler/schema/write/transaction support 증거가 아닙니다.
   [EVID-036](../docs/status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci) /
   run `31348285559`, commit `05e6e218...`, exact 26/26 jobs and 326/326 recorded steps PASS; four relation-product
   coordinates each exact 394 run/394 pass/0 skip, Linux/386 PASS
+- Completion-documentation exact-head hosted:
+  [EVID-037](../docs/status/TEST_EVIDENCE.md#evid-20260810-037--gdj-0024-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  run `31349791188`, commit `e9498a67...`, exact 26/26 jobs and 326/326 recorded steps PASS; four
+  relation-product coordinates each exact 394 run/394 pass/0 skip, 40,630 bytes/SHA-256 `2eb1fe8c...20ce`,
+  Linux/386 PASS; PR OPEN/DRAFT/CLEAN and exact-head-equivalent tree
 
 ## 위험과 rollback
 
@@ -673,16 +682,18 @@ backend/compiler/schema/write/transaction support 증거가 아닙니다.
 
 ## 다음 정확한 작업
 
-Integration owner는 이 completion-documentation transition의 exact 13-file scope와 append-only prefix를
-검증한 뒤 same Draft PR #1에 documentation-only commit/push합니다. 그 completion-documentation exact
-head에서 같은 exact 26을 다시 수집하고 EVID-037을 append-only로 기록합니다. 그 전에는 새 product work를
-active로 만들지 않으며 Draft PR은 사용자 요청 전 merge하지 않습니다.
+Integration owner는 이 EVID-037/final-status transition의 exact 5-file scope와 EVID-001..036 append-only
+prefix를 검증한 뒤 same Draft PR #1에 documentation-only commit/push합니다. 그 final patch exact head에서
+같은 exact 26을 한 번 더 수집하되 completion-documentation run `31349791188`을 재귀적으로 재사용하지
+않습니다. 그 전에는 새 product work를 active로 만들지 않으며 Draft PR은 사용자 요청 전 merge하지
+않습니다.
 
 ## 결과와 인수인계
 
 GDJ-0024는 completed metadata-only product boundary입니다. Activation exact-head 22/22, local implementation/
-independent audit와 implementation exact-head 26/26 hosted acceptance를 통과했고 ADR-0024의 bounded IR v3,
-companion/bridge/binder, migration rejection, mixed comparator와 REL-001 metadata architecture를 Accepted했습니다.
+independent audit, implementation exact-head 26/26와 completion-documentation exact-head 26/26 hosted
+acceptance를 통과했고 ADR-0024의 bounded IR v3, companion/bridge/binder, migration rejection, mixed
+comparator와 REL-001 metadata architecture를 Accepted했습니다.
 제품은 exact `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation actual
 REL-001 1/12입니다. REL-002..012, query/load/cache/write/delete/DDL/migration codec, non-AutoField keys,
 OneToOne/ManyToMany와 PostgreSQL/MySQL/Windows 지원은 완료 범위로 승격하지 않습니다.
