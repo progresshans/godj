@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-10
+- 마지막 검토: 2026-08-11
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -106,6 +106,18 @@ implementation head `7db68415...`은 run `31419940399`의 26/26 hosted gate를 �
 `[10,11]`/SELECT 1/JOIN 0, typed/dynamic lookup은 같은 Plan과 `[1]`/SELECT 1/INNER JOIN 1을 검증했습니다.
 이 acceptance는 one-hop reverse exact/related-set SQLite slice에만 한정하며 REL-012 prefetch, eager,
 write/delete/DDL/migration과 non-SQLite backend는 계속 미지원입니다.
+
+Active GDJ-0028/Proposed ADR-0028은 기존 reverse object ownership을 바꾸지 않고 REL-012 reverse prefetch만
+별도 two-stage product slice로 엽니다. Primary Author query는 existing generated Manager/QuerySet이 소유하고,
+additive `ReversePrefetch.Load`는 owner primary key를 clone/validate한 뒤 distinct key를 정렬해 source FK
+`IN` batch query exactly one으로 평가합니다. 모든 row를 sealed relation storage로 검증·grouping한 뒤에만
+각 owner와 같은 순서의 private ready `RelatedSet` cache를 원자적으로 publish합니다. Query AST에는 scalar
+condition과 분리된 immutable `LookupIn` value-list를 추가하고 SQLite는 join-free placeholder list만
+compile합니다. 새 project-only prefetch companion이 concrete owner/source를 연결하며 기존 reverse generator,
+object/accessor API와 exact nine generated files는 byte-locked입니다. Current product는 계속
+`115 passing + 5 deviation + 7 oracle_locked`, relation 5/12이고 `116 + 5 + 6`, relation 6/12는 구현·actual
+adapter·exact-head hosted acceptance 뒤의 목표일 뿐 현재 지원 claim이 아닙니다. REL-009..011 eager projection,
+write/delete/DDL/migration과 non-SQLite backend는 이 Proposed slice에도 포함되지 않습니다.
 
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을

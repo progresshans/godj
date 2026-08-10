@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-10
+- 마지막 검증: 2026-08-11
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
 
@@ -605,6 +605,19 @@ typed/dynamic `posts__title=Alpha`는 같은 reverse Plan으로 Author IDs `[1]`
 Exact implementation head `7db68415...`의 run `31419940399`가 26/26 hosted gate를 통과해 current
 classification은 `115 passing + 5 deviation + 7 oracle_locked`, relation 5/12입니다. REL-012 prefetch와
 eager/write/delete/DDL/migration/non-SQLite 호환은 포함하지 않습니다.
+
+Active [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Proposed
+[ADR-0028](adr/0028-reverse-foreign-key-prefetch.md)은 locked REL-012 하나만 다음 actual 후보로 활성화합니다.
+Stable cross-runtime comparison은 ordered `[(1,[10,11]),(2,[]),(3,[12])]`, statement kinds two SELECT,
+primary/batch SELECT 각 1, batch predicate column `author_id`, JOIN 0, related-access extra query 0, batch key count 3과
+unchanged DB state입니다. Exact sorted args `[1,2,3]` and mutation-free trace는 protocol field가 아니라 successful
+actual publication 전 Go compiler/product internal gate이며 oracle/static/protocol shape는 불변입니다. Primary query와
+batch query는 분리하고 generated project companion이 returned owner wrapper의 exact `.Posts().All()` cache만
+warm합니다. Existing oracle/static/SHA와 prior generated/relation-product bytes는 불변입니다. Activation
+baseline [EVID-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)은
+current `115 + 5 + 7`, relation 5/12만 증명하고 target `116 + 5 + 6`, relation 6/12 또는 Proposed API를
+증명하지 않습니다. Custom `Prefetch`, related filter/order 재소비, eager REL-009..011, write/delete/DDL/
+migration과 non-SQLite 호환은 이 packet 밖입니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,

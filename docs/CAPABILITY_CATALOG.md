@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-10
+- 마지막 검토: 2026-08-11
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -353,6 +353,14 @@ accessor를 bounded product slice로 구현했습니다. Exact implementation he
 `31419940399`가 26/26 hosted gate를 통과해 현재 product는 exact `12 adapter sets/127 contracts = 115
 passing + 5 deviation + 7 oracle_locked`, relation REL-001/003/004/005/006 5/12입니다. Reverse
 prefetch/eager/write/delete/DDL/migration과 broader backend는 계속 미지원입니다.
+
+Active GDJ-0028/Proposed ADR-0028은 이 current classification을 유지한 채 REL-012-only reverse prefetch를
+동결합니다. Existing owner query 1회 뒤 generated project prefetch surface가 distinct ordered owner keys로
+source FK `IN` batch 1회를 실행하고, 검증·grouping 전체 성공 뒤 owner-order warm `RelatedSet`을 publish하는
+경계입니다. Empty input은 batch I/O 0, distinct key 1..999는 exactly one batch, 1000은 pre-I/O structured
+failure이며 chunking/custom Prefetch/filter/order 소비는 제공하지 않습니다. Completion target
+`116 passing + 5 deviation + 6 oracle_locked`, relation 6/12는 아직 구현·검증되지 않았고 current capability로
+세지 않습니다. REL-009..011 eager, write/delete/DDL/migration, broader relation/backend는 계속 미지원입니다.
 
 ## Django 데이터 이행
 

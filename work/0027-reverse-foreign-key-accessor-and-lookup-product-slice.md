@@ -407,23 +407,24 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
   pass/0 skip·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 재현했고 actual Ubuntu Linux/386, exact Darwin,
   four exact Python compatibility legs와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
   EVID-049는 이 exact completion-documentation head만 증명합니다. EVID-049를 포함한 terminal 7-file
-  evidence/status 기록은 documentation-only이며 earlier run을 그 later patch의 recursive proof로 재사용하지
-  않고, 기록 자체를 증명하기 위한 EVID-050을 만들지 않습니다.
+  evidence/status head `e9dc361f983f1c02af1f63737a1f282998d5a533`은 이후 별도 run `31424055711`의 exact
+  26/26·326/326과 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과해 EVID-050에 기록됐습니다. EVID-050은 이
+  completed work의 terminal head와 later GDJ-0028 clean baseline만 증명하고 GDJ-0028 activation diff/API/
+  implementation evidence로 재사용하지 않습니다.
 
 ## 현재 blocker와 다음 작업
 
-외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
-acceptance/audit, exact completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Terminal
-evidence/status 기록은 documentation-only이며 자기 자신을 재귀 증명하지 않습니다. 이 completed work에는
-pending blocker가 없습니다.
+외부 제품 blocker는 없습니다. Activation, local implementation/audit, exact implementation-head hosted
+acceptance/audit, exact completion-documentation-head hosted acceptance/audit와 terminal exact-head EVID-050까지
+통과했습니다. 이 completed work에는 pending blocker가 없습니다.
 
 다음 작업은 exact합니다.
 
-1. Exact 7-file terminal evidence/status patch의 scope, EVID-001..048 prefix, links/frontmatter/fences와
-   `git diff --check`를 검증합니다.
-2. Documentation-only patch만 commit/push하되 completion run `31422614250`을 이 later patch의 proof로
-   재사용하거나 evidence 자기 증명을 위한 EVID-050을 만들지 않습니다.
-3. 새 공개 API나 지원 범위를 열기 전 별도 work/ADR을 활성화하고 Q-013은 `Partial`로 유지합니다.
+1. 후속 active [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)과 Proposed
+   [ADR-0028](../docs/adr/0028-reverse-foreign-key-prefetch.md)의 exact activation scope를 따릅니다.
+2. EVID-050/run `31424055711`은 clean baseline proof로만 사용하고 later activation/implementation head의
+   success로 재사용하지 않습니다.
+3. Q-013은 broader eager/write/delete/DDL/migration이 남아 `Partial`로 유지합니다.
 4. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
@@ -431,8 +432,9 @@ pending blocker가 없습니다.
 - GDJ-0027은 completion-documentation head `7998a8351c7668d53b9263bc9a381a815c6c9eb6`, exact-26 run
   `31422614250`까지 completed입니다. Implementation head `7db68415...`도 별도 run `31419940399`에서
   exact-26 검증됐습니다. EVID-047은 exact local/pre-hosted, EVID-048은 implementation-head, EVID-049는
-  completion-documentation-head hosted evidence입니다. Product는 exact `115 + 5 + 7`, relation actual
-  5/12입니다.
+  completion-documentation-head, EVID-050/run `31424055711`은 terminal exact-head hosted evidence와 GDJ-0028
+  clean baseline입니다. Product는 exact `115 + 5 + 7`, relation actual 5/12입니다.
 - Existing relation product/generator bytes와 oracle/static/NI/SHA를 변경하지 않습니다.
-- 공개 API를 바꾸기 전 후속 work/ADR을 만들고 independent API audit을 다시 받습니다.
+- 후속 공개 API는 active GDJ-0028/Proposed ADR-0028에서 별도 동결하며 이 completed packet을 소급 변경하지
+  않습니다.
 - Draft PR #1은 open/draft로 유지하며 사용자의 명시적 요청 없이 merge하지 않습니다.

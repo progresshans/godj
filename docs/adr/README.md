@@ -42,5 +42,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0025](0025-forward-foreign-key-predicate-and-sqlite-inner-join.md) | Accepted | Required forward FK exact predicate, shared relation path와 SQLite reusable INNER JOIN |
 | [0026](0026-forward-foreign-key-object-cache-and-nullability.md) | Accepted | Forward FK object wrapper/cache, nullable access와 relation-aware SQLite isnull trim |
 | [0027](0027-reverse-foreign-key-accessor-and-lookup.md) | Accepted | Reverse FK exact lookup, owner related-set accessor와 SQLite reverse INNER JOIN |
+| [0028](0028-reverse-foreign-key-prefetch.md) | Proposed | Reverse FK two-stage batch prefetch와 atomic warm related-set publication |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

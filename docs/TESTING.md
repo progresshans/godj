@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-10
+- 마지막 검토: 2026-08-11
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -722,7 +722,21 @@ actual Ubuntu Linux/386, exact Darwin과 four Python compatibility legs도 통�
 Completion-documentation commit `7998a8351c7668d53b9263bc9a381a815c6c9eb6`도 별도
 [run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)의 exact 26/26·326/326을
 성공해 EVID-049에 기록했습니다. 이 terminal evidence/status append는 completion run의 범위를 later
-documentation-only patch로 넓히지 않으며, 자기 자신을 증명하기 위한 EVID-050을 만들지 않습니다.
+documentation-only patch로 넓히지 않았고, completion run `31422614250`을 재사용해 EVID-050을 만들지
+않았습니다.
+
+그 terminal documentation head `e9dc361f983f1c02af1f63737a1f282998d5a533`은 이후 별도
+[run 31424055711](https://github.com/progresshans/godj/actions/runs/31424055711)의 exact 26/26 jobs·326/326
+recorded steps를 성공해
+[EVID-20260811-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)에
+기록했습니다. Four relation-product coordinates는 각각 existing 569/569/0 inventory·57,738 bytes·SHA-256
+`739bb6fc...c2d7`, actual Ubuntu Linux/386 exact package set, exact Darwin과 four Python legs를 재현했습니다.
+이 run은 GDJ-0028 clean baseline일 뿐 later activation/API 또는 REL-012 implementation evidence로 재사용하지
+않습니다. Active GDJ-0028은 local lane별 focused normal, root one full normal integration과 independent audit를
+필수로 하고 race/CGO0/vet/actual Linux/386/four hosted coordinates는 exact implementation-head 기존 26-job
+topology가 소유합니다. New prefetch product는 result/DB state/primary-vs-batch metrics, IN args/order, atomic
+warm-cache failure gates, deterministic 10-file generated union과 REL-012-only manifest transition을 모두
+oracle-blind actual로 검증해야 하며 activation diff 자체 CI는 현재 `not run/pending`입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
