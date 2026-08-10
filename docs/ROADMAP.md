@@ -1,10 +1,10 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0024 completed/final exact-head EVID-038 완료; GDJ-0025 REL-004-only forward predicate/
-  SQLite INNER JOIN active, ADR-0025 Proposed, Q-013 Partial. Activation patch exact-head CI pending
-- 현재 제품 기준: 12 adapter/127 contract의 `111 passing + 5 deviation + 11 oracle_locked`,
-  relation actual REL-001 1/12
+- 현재 단계: GDJ-0025 REL-004-only forward predicate/SQLite INNER JOIN completed; implementation-head
+  exact-26 EVID-040 완료, ADR-0025 Accepted, Q-013 Partial. 현재 active/ready work 없음
+- 현재 제품 기준: 12 adapter/127 contract의 `112 passing + 5 deviation + 10 oracle_locked`,
+  relation actual REL-001/004 2/12
 - 마지막 검토: 2026-08-10
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -291,8 +291,8 @@ Exact 두 global argv, public `project.Config`/`project.Run`, independent intern
 kernel과 flat discovery가 MIG-065..074를 actual product adapter에서 10 `passing`으로 전환했습니다.
 Test-only proof는 byte-preserved independent gate로 남고 product code가 import하지 않습니다. 현재
 문단의 GDJ-0022 완료 시점 분류는 11 adapters/115 contracts=`110 passing + 5 deviation`이었습니다.
-Completed GDJ-0024 relation metadata까지 포함한 현재 분류는 상단의 12/127=
-`111 passing + 5 deviation + 11 oracle_locked`입니다.
+Completed GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 현재 분류는
+상단의 12/127=`112 passing + 5 deviation + 10 oracle_locked`입니다.
 
 Hosted gate는 existing full/exact 2 + test-only proof 4 + actual SQLite 4를 보존하고 Linux/macOS
 x64/arm64 actual product CLI 4와 exact Python 3.12.13/3.13.15/3.14.3/3.14.7 compatibility 4를
@@ -319,8 +319,12 @@ CI는 activation run `31344980929` exact 22/22로 해소됐습니다. GDJ-0024 i
 [run 31349791188](https://github.com/progresshans/godj/actions/runs/31349791188)의 exact 26/26 jobs와
 326/326 recorded steps를 성공해 EVID-037에 기록했습니다. Final evidence/status head
 `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`도 run `31351169780`의 exact 26/26 jobs·326/326 steps를
-성공해 EVID-038에 기록했습니다. 이 clean tested head가 GDJ-0025 activation baseline이며 activation diff
-자체의 hosted CI는 별도 pending입니다.
+성공해 EVID-038에 기록했습니다. 이 clean tested head가 GDJ-0025 activation baseline이었고 activation
+commit `cf8cb589...`도 run `31354040515` exact 26/26을 통과했습니다. GDJ-0025 implementation head
+`98db55a30ff71a2f2f70722cb569a046208a5403`은
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)의 exact 26/26 jobs와
+326/326 recorded steps를 성공해 EVID-040에 기록했습니다. 이 completion-documentation patch 자체의
+exact-head CI는 후속 append-only evidence가 소유합니다.
 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
@@ -338,17 +342,18 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   Accepted [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md)는 exact
   `RelationFormatVersion=3` ForeignKey arm/DSL, mixed v2 target/v3 source additive companion, atomic
   `orm.BindProject`와 REL-001 metadata-only product subset을 동결합니다. REL-002..012는 oracle-locked로
-  유지하며 completed aggregate는 product
+  유지하며 GDJ-0024 completion aggregate는 product
   `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12입니다. Existing exact 22에
   relation-product 4 legs를 더한 exact 26은 implementation run `31348285559`와 별도
   completion-documentation run `31349791188`에서 모두 통과했습니다.
   OneToOne/query/eager/write/delete/DDL/migration codec와 PostgreSQL actual backend는 뒤의
   bounded pair로 계속 분리합니다.
-- Active [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Proposed
+- Completed [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Accepted
   [ADR-0025](adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)는 required AutoField-target
   `author__name`/`author__id` exact predicate를 additive query companion, project-bound shared relation path와
-  SQLite reusable INNER JOIN으로 연결합니다. REL-004만 대상으로 하며 loader/cache, nullable `isnull`,
-  reverse/eager/write/delete/DDL/migration과 PostgreSQL은 명시적 비목표입니다.
+  SQLite reusable INNER JOIN으로 연결했습니다. REL-004만 `passing`으로 전환해 completed aggregate는
+  `112 passing + 5 deviation + 10 oracle_locked`, relation REL-001/004 2/12입니다. Loader/cache, nullable
+  `isnull`, reverse/eager/write/delete/DDL/migration과 PostgreSQL은 명시적 비목표입니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

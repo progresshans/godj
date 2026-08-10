@@ -568,7 +568,7 @@ Accepted [ADR-0024](adr/0024-autofield-foreign-key-schema-ir-vnext-and-project-b
 변경하지 않고 REL-001 metadata 하나만 제품화한 exact boundary입니다. Scalar v2 bytes를 보존하고 explicit
 IR v3 ForeignKey source, v2 target/v3 source의 additive `GoDjRelationSchema` companion, atomic
 `orm.BindProject`와 full 12-output partial product comparison을 사용합니다. REL-001만 observed/passing,
-REL-002..012는 ordered payload-free not-implemented/oracle-locked이므로 completion 집계는
+REL-002..012는 ordered payload-free not-implemented/oracle-locked이므로 GDJ-0024 completion 집계는
 product `12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12로 제한합니다.
 Query/load/cache/write/delete/DDL/migration
 codec와 PostgreSQL/MySQL/Windows 호환은 이 metadata-only packet의 목표가 아닙니다. Final GDJ-0023
@@ -577,12 +577,15 @@ GDJ-0024 implementation head `05e6e218db16e17ce13f7b504a01c603041e4a2a`의 exact
 acceptance는 [EVID-20260810-036](status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
 별도로 기록합니다.
 
-Active [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Proposed
+Completed [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Accepted
 [ADR-0025](adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)는 reference bytes를 바꾸지 않고
-REL-004만 다음 actual candidate로 둡니다. Required `author__name`/`author__id` exact predicate의 결과,
-construction/evaluation query count, one reusable INNER JOIN과 DB 불변만 비교합니다. 구현/검증 전 product
-aggregate는 계속 `111 + 5 + 11`이고 REL-004는 `oracle_locked`입니다. Loader/cache, nullable/reverse/eager,
-write/delete/DDL/migration, PostgreSQL/MySQL/Windows는 호환 claim이 아닙니다.
+REL-004만 두 번째 actual relation contract로 구현했습니다. Required `author__name`/`author__id` exact
+predicate의 결과, construction/evaluation query count, one reusable INNER JOIN과 DB 불변만 비교합니다.
+Implementation head `98db55a30ff71a2f2f70722cb569a046208a5403`의 exact 26/26 hosted acceptance는
+[EVID-20260810-040](status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
+기록하며 product aggregate는 `112 passing + 5 deviation + 10 oracle_locked`, relation REL-001/004
+2/12입니다. Loader/cache, nullable/reverse/eager, write/delete/DDL/migration, PostgreSQL/MySQL/Windows는
+호환 claim이 아닙니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,

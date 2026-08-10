@@ -1,6 +1,6 @@
 # ADR-0025: Forward ForeignKey Predicate and SQLite INNER JOIN
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-10
 - 관련 work/contract:
   [GDJ-0025](../../work/0025-forward-foreign-key-predicate-product-slice.md), REL-004, Q-013
@@ -15,9 +15,9 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. GDJ-0025 implementation과 independent API/import/AST/compiler audits가 아래
-exact surface를 검증하고, actual REL-004 및 exact hosted CI가 통과한 뒤에만 이 bounded decision을
-Accepted로 바꿉니다.
+이 ADR은 **Accepted**입니다. GDJ-0025 implementation과 independent API/import/AST/compiler audits가 아래
+exact surface를 검증했고, actual REL-004 및 implementation-head exact 26/26 hosted CI가 통과했습니다.
+Acceptance는 required AutoField-target one-hop exact predicate와 SQLite reusable INNER JOIN에만 적용합니다.
 
 결정 범위는 required AutoField-target one-hop forward relation의 typed/dynamic `Exact` predicate,
 immutable shared Query AST와 SQLite reusable `INNER JOIN`입니다. Object loader/cache, nullable relation access/
@@ -76,9 +76,9 @@ REL-004 join reuse를 만족하지 못하므로 채택하지 않습니다.
 
 Existing generated artifacts를 보존하고 project bridge만 concrete apps를 import합니다. Runtime binding이
 source/target/field를 검증한 뒤 typed/dynamic 모두 one immutable path constructor를 사용하고 compiler는
-edge identity로 JOIN을 deduplicate합니다. 이 option을 채택 후보로 둡니다.
+edge identity로 JOIN을 deduplicate합니다. 이 option을 채택합니다.
 
-## Proposed 결정
+## 결정
 
 ### Exact generator surface
 
@@ -355,9 +355,9 @@ ordered payload-free not implemented. Aggregate becomes exact `112 passing + 5 d
 - modifying existing v3 main/metadata/project Bind output or generated batch publisher
 - PostgreSQL/MySQL/Windows/multi-DB compatibility claims
 
-## Acceptance conditions
+## Acceptance evidence
 
-This ADR becomes Accepted only if:
+이 ADR은 다음 조건을 모두 충족해 Accepted했습니다.
 
 1. Exact public API compiles in an external module and negative cross-model/target inputs fail.
 2. Existing generated artifacts and scalar SQLite goldens remain exact.
@@ -370,8 +370,13 @@ This ADR becomes Accepted only if:
 9. Local normal/race/CGO-disabled/vet/repetition/386 and exact 26 hosted executions pass without skip.
 10. Independent API/codegen/SQLite/conformance/security audits report P0..P3=0.
 
-If implementation evidence rejects this shape, ADR-0025 remains Proposed and GDJ-0025 records the bounded alternative
-rather than silently changing exported API or marking REL-004 passing.
+Implementation commit `98db55a30ff71a2f2f70722cb569a046208a5403`은 local normal/race/CGO-disabled/vet,
+repetition, generated-byte/no-rewrite, Linux/386 compile과 four independent audits를 통과했습니다. Draft PR #1
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)은 exact 26/26 jobs,
+326/326 recorded steps, four exact Python legs와 actual Ubuntu Linux/386을 성공했고 independent hosted audit도
+P0/P1/P2/P3=0이었습니다. 상세는
+[EVID-20260810-040](../status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
+기록합니다.
 
 ## Consequences
 

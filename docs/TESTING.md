@@ -479,8 +479,9 @@ Completed GDJ-0022는 test-only proof와 독립인 global/linked/protocol produc
 public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapter를 추가했습니다. Product
 adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
 diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`이고 GDJ-0022 완료 당시 제품은 11 adapter/115
-contract의 `110 passing + 5 deviation`이었습니다. Completed GDJ-0024의 relation metadata adapter까지
-포함한 현재 제품은 12 adapter/127 contract의 `111 passing + 5 deviation + 11 oracle_locked`입니다.
+contract의 `110 passing + 5 deviation`이었습니다. Completed GDJ-0025의 REL-001 metadata와 REL-004
+required predicate actual까지 포함한 현재 제품은 12 adapter/127 contract의
+`112 passing + 5 deviation + 10 oracle_locked`입니다.
 Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
 `make ci`, exact oracle와 independent audits는 EVID-027, initial exact 18/18 hosted acceptance는 EVID-028,
 completion-documentation failure와 final process stabilization exact 18/18은 EVID-029에 기록했습니다.
@@ -561,8 +562,15 @@ no-rewrite와 clean tree를 통과했습니다. 상세 증거는 EVID-036에 기
 `e9498a67f74bfe05f6ec7d7bcd14f817929bdbef`도 별도 run `31349791188`의 exact 26/26 jobs와
 326/326 recorded steps, 각 relation-product leg의 같은 394/394/0·40,630-byte inventory SHA-256을
 통과했고 EVID-037에 기록합니다. Final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`도
-run `31351169780`의 exact 26/26·326/326을 통과해 EVID-038에 기록했습니다. Active GDJ-0025 activation
-diff와 구현 후 relation-query inventory/digest는 별도 검증합니다.
+run `31351169780`의 exact 26/26·326/326을 통과해 EVID-038에 기록했습니다. GDJ-0025 activation head
+`cf8cb589...`도 run `31354040515`의 exact 26/26·326/326을 통과했습니다. Completed GDJ-0025
+implementation head `98db55a30ff71a2f2f70722cb569a046208a5403`의
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)은 same exact 26/26 jobs와
+326/326 recorded steps를 성공했습니다. Four relation-product legs는 query/ORM/codegen/SQLite와 actual
+relation-query fixture를 포함해 각각 exact 492 run/492 pass/0 skip, 49,902-byte inventory SHA-256
+`05064a7f...82eb`, normal/race/CGO-disabled/vet/no-rewrite/clean을 재현했습니다. Full Ubuntu는 actual
+Linux/386 relation-query path와 exact relation stdout `2 required contracts; 10 remain not implemented`를,
+four Python legs는 uv 0.12.3과 portable 193/17을 통과했습니다. 상세 증거는 EVID-040에 기록합니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -645,7 +653,11 @@ implementation commit `05e6e218db16e17ce13f7b504a01c603041e4a2a`의
 [EVID-20260810-037](status/TEST_EVIDENCE.md#evid-20260810-037--gdj-0024-github-hosted-completion-documentation-head-exact-26-job-ci)에
 기록했습니다. 이어 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`의
 [run 31351169780](https://github.com/progresshans/godj/actions/runs/31351169780)도 exact 26/26·326/326을
-성공해 EVID-038에 기록했습니다. GDJ-0025 activation diff는 이 baseline run을 재귀적으로 재사용하지 않습니다.
+성공해 EVID-038에 기록했습니다. GDJ-0025 activation commit `cf8cb589...`은 별도 run `31354040515`의
+exact 26/26을 통과했고, implementation commit `98db55a30ff71a2f2f70722cb569a046208a5403`은
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)의 exact 26/26·326/326을
+성공해 EVID-040에 기록했습니다. Completion-documentation patch의 자체 exact-head CI는 이 run으로
+재귀 증명하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

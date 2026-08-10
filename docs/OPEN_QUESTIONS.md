@@ -12,7 +12,7 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0025 active | Symbolic architecture와 ADR-0024 bounded IR v3/metadata는 Accepted; Proposed ADR-0025가 required one-hop predicate/shared path/SQLite INNER JOIN을 검증 중이며 loader/cache/nullable/reverse/eager/write/delete/DDL/migration은 open |
+| Q-013 | Partial | GDJ-0025 completed / relation breadth 후속 | Symbolic architecture, bounded IR v3/metadata와 required one-hop exact predicate/shared path/SQLite INNER JOIN은 Accepted/implemented/hosted-verified; loader/cache/nullable/reverse/eager/write/delete/DDL/migration은 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -308,8 +308,8 @@ Completed GDJ-0022는 이 reference를 independent product global/linked/protoco
 kernel과 actual adapter로 구현했습니다. Flat filesystem discovery는 included dependency지만
 writer/upgrade와 DB-aware lifecycle은 계속 제외합니다. GDJ-0022 완료 당시 제품 분류는 11 adapter/115
 contract의 `110 passing + 5 deviation`이었고 exact 18 hosted acceptance도 완료됐습니다. Completed
-GDJ-0024의 metadata-only relation adapter까지 포함한 현재 aggregate는 12 adapter/127 contract의
-`111 passing + 5 deviation + 11 oracle_locked`입니다.
+GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 현재 aggregate는
+12 adapter/127 contract의 `112 passing + 5 deviation + 10 oracle_locked`입니다.
 PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다.
 
 ## Q-013 — 관계 API
@@ -332,13 +332,13 @@ product shape를 더 좁혀 구현·검증했습니다. `ir.FormatVersion=2`/exi
 structured errors를 사용합니다. Existing migration tuple `(1,1,1,2)`는 relation을 계속 거부합니다.
 REL-001만 제품 metadata actual로 만들고 REL-002..012는 oracle-locked/not-implemented로 유지합니다.
 
-아직 결정/구현하지 않은 것은 model object wrapper/loader/cache, reverse typed/query surface, join alias/scan
-plan, `select_related`/`prefetch_related`, write/delete/DDL/migration codec와 broader generator ABI입니다.
-ADR-0024의 bounded metadata architecture와 REL-001 product subset은 local audit 및 implementation exact-head
-26/26 hosted acceptance를 통과했지만 이 open breadth 때문에 Q-013은 `Resolved`가 아니라 `Partial`입니다.
-GDJ-0024 completion을 broader relation 또는 backend support로 주장하지 않습니다. Active
-[GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)는 Q-013 중 required one-hop exact
-predicate와 reusable INNER JOIN만 좁게 엽니다. REL-003 object cache와 REL-006 nullable access/isnull은
-의도적으로 별도 decision으로 남깁니다.
+Completed [GDJ-0025](../work/0025-forward-foreign-key-predicate-product-slice.md)와 Accepted
+[ADR-0025](adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)는 Q-013 중 required one-hop exact
+predicate, shared immutable path와 SQLite reusable INNER JOIN만 구현·검증했습니다. REL-001/004 actual 2/12와
+exact implementation-head 26/26 hosted acceptance를 통과했지만 model object wrapper/loader/cache,
+nullable/reverse typed/query surface, `select_related`/`prefetch_related`, write/delete/DDL/migration codec와
+broader generator ABI는 아직 결정/구현하지 않았습니다. 이 open breadth 때문에 Q-013은 `Resolved`가 아니라
+`Partial`입니다. REL-003 object cache와 REL-006 nullable access/isnull은 의도적으로 별도 decision으로
+남깁니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

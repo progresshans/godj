@@ -48,12 +48,11 @@ proposed → ready → active → completed
 | [GDJ-0022](0022-migration-project-check-product-slice.md) | completed | Project-linked migration check 제품 단면 |
 | [GDJ-0023](0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md) | completed | ForeignKey 관계 호환 계약과 cross-app binding feasibility |
 | [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md) | completed | AutoField ForeignKey IR v3, atomic binding과 REL-001 제품 metadata |
-| [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md) | active | REL-004 forward ForeignKey predicate와 SQLite reusable INNER JOIN |
+| [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md) | completed | REL-004 forward ForeignKey predicate와 SQLite reusable INNER JOIN |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 ready 항목은 없고 최근
-완료 항목은 [GDJ-0024](0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md)이며,
-현재 active 항목은 [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md)입니다.
+완료 항목은 [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md)이며 현재 active 항목은 없습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -63,9 +62,14 @@ recorded steps를 통과했습니다. Frozen implementation은 local `make ci`, 
 492/492/0·49,902 bytes·SHA-256 `05064a7f...82eb`, twelve adapters, bounded Linux/386 compile과 four
 independent audits P0/P1/P2/P3=0을 통과해
 [EVID-20260810-039](../docs/status/TEST_EVIDENCE.md#evid-20260810-039--gdj-0025-rel-004-forward-predicate-pre-hosted-local-validation)에
-기록했습니다. Working tree product는 REL-001/004 actual 2/12, exact
-`112 passing + 5 deviation + 10 oracle_locked`입니다. Exact implementation-head hosted CI는 pending이므로
-work는 active, ADR-0025는 Proposed, Q-013은 `Partial`입니다.
+기록했습니다. Implementation commit `98db55a30ff71a2f2f70722cb569a046208a5403`은
+[run 31357283530](https://github.com/progresshans/godj/actions/runs/31357283530)의 exact 26/26 jobs·326/326
+recorded steps를 통과했고
+[EVID-040](../docs/status/TEST_EVIDENCE.md#evid-20260810-040--gdj-0025-github-hosted-exact-26-job-implementation-head-ci)에
+기록했습니다. Product는 REL-001/004 actual 2/12, exact
+`112 passing + 5 deviation + 10 oracle_locked`입니다. Work는 completed, ADR-0025는 required one-hop
+exact/SQLite INNER JOIN에 한해 Accepted이고 Q-013은 `Partial`입니다. Completion-documentation exact-head
+CI는 후속 pending입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
@@ -128,7 +132,8 @@ implementation/audit와 그 증거는
 [EVID-20260810-035](../docs/status/TEST_EVIDENCE.md#evid-20260810-035--gdj-0024-rel-001-metadata-product-pre-hosted-local-validation)에
 기록했습니다. Implementation exact-head exact-26 hosted acceptance는
 [EVID-20260810-036](../docs/status/TEST_EVIDENCE.md#evid-20260810-036--gdj-0024-github-hosted-exact-26-job-implementation-head-ci)에
-기록했습니다. Product는 12 adapter/127 contract=`111 passing + 5 deviation + 11 oracle_locked`, REL-001
+기록했습니다. GDJ-0024 완료 당시 product는 12 adapter/127 contract=
+`111 passing + 5 deviation + 11 oracle_locked`, REL-001
 actual 1/12이며 broader relation query/write/delete/DDL/migration과 non-SQLite backend support는 아닙니다.
 
 ## 운영 규칙

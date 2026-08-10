@@ -338,16 +338,12 @@ existing exact 18에 Linux/macOS x64/arm64 test-only relation-binding proof 4개
 통과했습니다. Accepted ADR-0023은 symbolic/atomic binding, project bridge, shared immutable AST와
 field-union relation arm 방향을 고정했습니다. Completed GDJ-0024/Accepted ADR-0024는 exact IR v3/DSL,
 mixed v2 target/v3 source additive companion, atomic binder와 REL-001 metadata-only product subset을
-구현하고 exact 26 hosted gate에서 검증했습니다. 현재 product는
-`12 adapter sets/127 contracts = 111 passing + 5 deviation + 11 oracle_locked`, relation 1/12이며
-REL-002..012와 query/load/cache/write/delete/DDL/migration codec은 제외합니다. 이는 PostgreSQL,
-OneToOne/ManyToMany 또는 ForeignKey breadth
+구현하고 exact 26 hosted gate에서 검증했습니다. Completed GDJ-0025/Accepted ADR-0025는 그 위에 REL-004
+required forward exact predicate, shared immutable path와 SQLite one reusable INNER JOIN만 추가했습니다.
+현재 product는 `12 adapter sets/127 contracts = 112 passing + 5 deviation + 10 oracle_locked`, relation
+REL-001/004 2/12입니다. REL-003 loader/cache와 REL-006 nullable/isnull, 나머지 relation breadth와
+non-SQLite backend는 계속 미지원입니다. 이는 PostgreSQL, OneToOne/ManyToMany 또는 ForeignKey breadth
 제품 지원의 증거가 아닙니다.
-
-Active GDJ-0025는 REL-004 required forward exact predicate와 SQLite one reusable INNER JOIN만 다음 제품
-candidate로 둡니다. 현재 checkout에서 구현·passing으로 세지 않으며 Proposed ADR-0025의 additive query
-companion/project bridge/shared path 경계를 먼저 검증합니다. REL-003 loader/cache와 REL-006 nullable/isnull,
-나머지 relation breadth와 non-SQLite backend는 계속 미지원입니다.
 
 ## Django 데이터 이행
 
