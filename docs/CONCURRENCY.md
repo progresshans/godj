@@ -51,16 +51,17 @@ exact implementation head `7db68415...`의 run `31419940399`에서 26/26 hosted 
 bounded one-hop related-set slice뿐이며 eager priming, prefetch warm publication, write invalidation과
 multi-backend lifetime은 여전히 결정하지 않습니다.
 
-Active GDJ-0028/Proposed ADR-0028은 REL-012에 한해 private warm publication을 명시적으로 엽니다.
+Completed GDJ-0028/Accepted ADR-0028은 REL-012에 한해 private warm publication을 명시적으로 채택했습니다.
 `ReversePrefetch` handle은 immutable/copyable하고 `Load` 호출별 batch evaluation state는 독립이며 내부
 goroutine이나 cross-call singleflight를 만들지 않습니다. Owner/row clone, distinct-key sort/dedupe, one batch
 evaluation과 모든 grouping validation이 성공한 뒤에만 각 owner 위치마다 독립 ready evaluation state를 가진
 `RelatedSet`을 publish합니다. 실패/cancellation에서는 output nil, partial cache 0이고 rows는 exactly once
 close되며 다음 독립 `Load`는 재시도할 수 있습니다. Warm set의 concurrent `All`은 existing evaluation mutex와
 clone contract를 사용해 I/O 0이고 nil/already-canceled context가 cache보다 먼저 이깁니다. `Fresh`/`OrderBy`는
-new cold state이며 retained backend/session이 끝났다면 해당 backend 오류를 반환합니다. Transaction/session의
-goroutine 공유, background batching, chunking, public cache injection, eager priming과 write invalidation은
-여전히 결정·지원하지 않습니다.
+new cold state이며 retained backend/session이 끝났다면 해당 backend 오류를 반환합니다. Exact implementation
+head `4858ab88...`의 run `31432551159`는 26/26 hosted gate와 independent audit P0..P3=0을 통과했습니다.
+Acceptance는 bounded per-call batch/ready-set ownership뿐이며 transaction/session의 goroutine 공유, background
+batching, chunking, public cache injection, eager priming과 write invalidation은 여전히 결정·지원하지 않습니다.
 
 ## Transaction과 cancellation
 

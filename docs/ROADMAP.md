@@ -1,11 +1,10 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0027 REL-005 reverse accessor/lookup slice completed, ADR-0027 Accepted;
-  GDJ-0028 REL-012 reverse prefetch active, ADR-0028 Proposed, Q-013 Partial. Clean baseline `e9dc361f...`의
-  EVID-050/run `31424055711`은 exact 26 PASS지만 activation diff/API/implementation proof로 재사용하지 않음
-- 현재 제품 기준: 12 adapter/127 contract의 `115 passing + 5 deviation + 7 oracle_locked`,
-  relation actual REL-001/003/004/005/006 5/12; target `116 + 5 + 6`, relation 6/12는 아직 current claim 아님
+- 현재 단계: GDJ-0028 REL-012 reverse prefetch completed, ADR-0028 Accepted, Q-013 Partial;
+  active/ready work 없음. Implementation head `4858ab88...` exact 26 PASS; completion documentation CI pending
+- 현재 제품 기준: 12 adapter/127 contract의 `116 passing + 5 deviation + 6 oracle_locked`,
+  relation actual REL-001/003/004/005/006/012 6/12
 - 마지막 검토: 2026-08-11
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -292,7 +291,7 @@ Exact 두 global argv, public `project.Config`/`project.Run`, independent intern
 kernel과 flat discovery가 MIG-065..074를 actual product adapter에서 10 `passing`으로 전환했습니다.
 Test-only proof는 byte-preserved independent gate로 남고 product code가 import하지 않습니다. 현재
 문단의 GDJ-0022 완료 시점 분류는 11 adapters/115 contracts=`110 passing + 5 deviation`이었습니다.
-Completed GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 현재 분류는
+Completed GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 GDJ-0025 완료 시점 분류는
 상단의 12/127=`112 passing + 5 deviation + 10 oracle_locked`입니다.
 
 Hosted gate는 existing full/exact 2 + test-only proof 4 + actual SQLite 4를 보존하고 Linux/macOS
@@ -388,15 +387,15 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   implementation run은 각각 later head의 증거로 재사용하지 않습니다. EVID-049 terminal status 기록은
   documentation-only이며 그 기록 자체를 증명하기 위한 재귀 evidence를 만들지 않습니다.
   REL-012 prefetch와 REL-009..011 eager, write/delete/DDL/migration/non-SQLite는 deferred입니다.
-- Active [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Proposed
+- Completed [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Accepted
   [ADR-0028](adr/0028-reverse-foreign-key-prefetch.md)은 REL-012-only reverse batch/warm-cache slice입니다.
   Existing owner QuerySet의 primary query와 new `ReversePrefetch.Load` batch query를 분리하고, immutable
   `LookupIn`, distinct key ordering/cap, sealed source-FK grouping과 all-success-only ready `RelatedSet`
-  publication을 project-only generated companion으로 연결합니다. Current product는 `115 + 5 + 7`, relation
-  5/12이고 completion target `116 + 5 + 6`, relation 6/12는 아직 claim하지 않습니다. Existing reverse
-  generator/nine-file output은 byte-locked하며 custom Prefetch/filter/order, REL-009..011 eager projection,
-  write/delete/DDL/migration과 non-SQLite는 별도 bounded work로 남깁니다. Baseline EVID-050/run
-  `31424055711`은 clean `e9dc361f...`만 증명하고 activation/implementation 증거로 재사용하지 않습니다.
+  publication을 project-only generated companion으로 연결합니다. Implementation head `4858ab88...`의 run
+  `31432551159`가 exact 26/26·326/326을 통과해 current product는 `116 + 5 + 6`, relation 6/12입니다.
+  Existing reverse generator/nine-file output은 byte-locked하며 custom Prefetch/filter/order, REL-009..011 eager
+  projection, write/delete/DDL/migration과 non-SQLite는 별도 bounded work로 남깁니다. Baseline/activation run은
+  이 implementation proof로 재사용하지 않았습니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

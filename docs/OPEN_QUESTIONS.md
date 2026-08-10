@@ -12,7 +12,7 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0028 active / relation breadth 후속 | Accepted metadata/forward predicate/object-nullability/reverse accessor-lookup; reverse prefetch Proposed; eager/write/delete/DDL/migration remain open |
+| Q-013 | Partial | GDJ-0028 completed / relation breadth 후속 | Accepted metadata/forward predicate/object-nullability/reverse accessor-lookup/prefetch; eager/write/delete/DDL/migration remain open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -308,7 +308,7 @@ Completed GDJ-0022는 이 reference를 independent product global/linked/protoco
 kernel과 actual adapter로 구현했습니다. Flat filesystem discovery는 included dependency지만
 writer/upgrade와 DB-aware lifecycle은 계속 제외합니다. GDJ-0022 완료 당시 제품 분류는 11 adapter/115
 contract의 `110 passing + 5 deviation`이었고 exact 18 hosted acceptance도 완료됐습니다. Completed
-GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 현재 aggregate는
+GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 GDJ-0025 완료 시점 aggregate는
 12 adapter/127 contract의 `112 passing + 5 deviation + 10 oracle_locked`입니다.
 PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다.
 
@@ -359,14 +359,14 @@ REL-005를 `passing`으로 전환했습니다.
 REL-012 prefetch/IN batching/warm publication, REL-009..011 eager path, write/delete/DDL/migration과 broader
 backend가 계속 열려 있으므로 Q-013은 `Partial`입니다.
 
-Active [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Proposed
+Completed [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Accepted
 [ADR-0028](adr/0028-reverse-foreign-key-prefetch.md)은 그중 REL-012-only two-stage reverse prefetch를 별도로
-동결합니다. Existing QuerySet이 primary owner query를 소유하고 additive immutable IN condition,
+동결·검증했습니다. Existing QuerySet이 primary owner query를 소유하고 additive immutable IN condition,
 `ReversePrefetch.Load`, sealed source-FK grouping과 private ready `RelatedSet` publication이 batch stage를
 소유합니다. Generated project-only companion은 concrete owner/source wrapper를 input order로 반환하되 모든
-row 검증 뒤에만 `.Posts().All()` cache를 공개합니다. Current는 계속 exact `115 + 5 + 7`, relation 5/12이고
-`116 + 5 + 6`, relation 6/12는 implementation/actual/hosted acceptance 뒤의 target입니다. Custom Prefetch,
-filter/order 소비, eager REL-009..011, write/delete/DDL/migration과 broader backend가 남아 Q-013은 계속
-`Partial`입니다.
+row 검증 뒤에만 `.Posts().All()` cache를 공개합니다. Exact implementation head `4858ab88...`의 run
+`31432551159`는 26/26 hosted gate를 통과해 product를 exact `116 + 5 + 6`, relation 6/12로 전환했습니다.
+Custom Prefetch, filter/order 소비, eager REL-009..011, write/delete/DDL/migration과 broader backend가 남아
+Q-013은 계속 `Partial`입니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

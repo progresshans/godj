@@ -1,6 +1,6 @@
 # ADR-0028: Reverse ForeignKey Prefetch
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
   [GDJ-0028](../../work/0028-reverse-foreign-key-prefetch-product-slice.md), REL-012, Q-013
@@ -16,19 +16,23 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. Clean baseline
-`e9dc361f983f1c02af1f63737a1f282998d5a533`은
-[EVID-20260811-050](../status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)의
-run `31424055711`에서 exact 26/26 jobs·326/326 recorded steps와 hosted audit
-P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-050은 current `115 passing + 5 deviation + 7 oracle_locked`,
-relation 5/12 baseline만 증명하며 이 activation diff, Proposed API나 REL-012 implementation evidence로 재사용하지
-않습니다.
+이 ADR은 bounded SQLite REL-012 slice에 한해 **Accepted**입니다. Clean baseline
+`e9dc361f983f1c02af1f63737a1f282998d5a533`의 run `31424055711`과 activation
+`3ae4a2cecacd31a8cc72fd46ea288568e0071421`의 run `31429245980`은 각각 baseline/activation만 증명하며
+implementation evidence로 재사용하지 않았습니다. Local implementation과 independent audits는
+[EVID-20260811-051](../status/TEST_EVIDENCE.md#evid-20260811-051--gdj-0028-activation-hosted-ci-and-rel-012-pre-hosted-local-validation)에,
+exact implementation-head hosted acceptance는
+[EVID-20260811-052](../status/TEST_EVIDENCE.md#evid-20260811-052--gdj-0028-github-hosted-exact-26-job-implementation-head-ci)에
+기록합니다. Commit `4858ab88b82647793cd463e9f348e43d3f5e4bb7`의 run `31432551159`는 exact
+26/26 jobs·326/326 recorded steps, four-coordinate 594/594/0 inventory와 independent hosted audit
+P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이 exact 15-file completion-documentation patch 자체의 hosted CI는
+`not run/pending`이며 implementation run을 recursive proof로 재사용하지 않습니다.
 
 결정 범위는 existing owner query 뒤의 reverse ForeignKey one-batch prefetch, immutable scalar-list `IN` AST,
 sealed source-FK grouping, all-success-only warm `RelatedSet` publication, project-only generated wrapper와 SQLite
-compiler입니다. Completion target `116 + 5 + 6`, relation 6/12는 implementation/actual/exact-head hosted acceptance
-뒤에만 claim합니다. Public `prefetch_related`, custom Prefetch/filter/order graph, REL-009..011 eager projection,
-write/delete/DDL/migration and non-SQLite backend는 결정하지 않습니다.
+compiler입니다. Product는 exact `116 + 5 + 6`, relation 6/12로 검증됐습니다. Public `prefetch_related`, custom
+Prefetch/filter/order graph, REL-009..011 eager projection, write/delete/DDL/migration and non-SQLite backend는
+결정하지 않습니다.
 
 ## 맥락
 
@@ -338,12 +342,15 @@ Heavy race/CGO0/vet/actual Linux-386, exact Darwin/Python and four relation-prod
 - Cache invalidation after writes and transaction/session cross-goroutine semantics remain open.
 - Q-013 remains `Partial` even after bounded acceptance.
 
-## 검증과 상태 전이
+## 검증 증거
 
-ADR remains Proposed until allowed-path implementation, oracle-blind REL-012 actual, old-byte/revert gates, root normal
-integration, independent audits and exact implementation-head hosted 26-job acceptance all pass. Only then may it become
-Accepted for this bounded SQLite slice, GDJ-0028 become completed and aggregate become exact `116 + 5 + 6`, relation 6/12.
+EVID-051의 allowed-path implementation, oracle-blind REL-012 actual, old-byte/revert gates, root `make ci`와 independent
+audits, EVID-052의 exact implementation-head 26/26 jobs·326/326 steps, four-coordinate 594/594/0 inventory,
+actual Ubuntu Linux/386, exact Darwin/Python, race/CGO0/vet/no-rewrite와 hosted audit가 검증 의무를 모두
+충족했습니다. Acceptance는 primary owner query와 exactly one source-FK IN batch, all-success-only owner-order warm
+`RelatedSet` publication과 exact warm `All` consumption의 bounded SQLite slice에만 한정됩니다.
 
 Activation exact-head success, implementation exact-head success, completion-documentation success and terminal status
-evidence are separate heads. Baseline EVID-050/run `31424055711` cannot close any later diff. Draft PR #1 remains open/draft
-and is not merged without explicit user direction.
+evidence는 서로 다른 head입니다. Baseline/activation run은 implementation에 재사용하지 않았고 implementation run
+`31432551159`도 이 later exact 15-file completion-documentation patch의 proof로 재사용하지 않습니다. Draft PR #1은
+open/draft이며 explicit user direction 없이 merge하지 않습니다.

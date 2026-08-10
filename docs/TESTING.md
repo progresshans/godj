@@ -480,7 +480,7 @@ public `project.Config`/`project.Run`, actual process E2E와 열한 번째 adapt
 adapter는 actual report만 사용하고 oracle/static/candidate를 읽지 않으며 mutation gate에서 observation/
 diff가 바뀌어야 합니다. MIG-065..074는 10 `passing`이고 GDJ-0022 완료 당시 제품은 11 adapter/115
 contract의 `110 passing + 5 deviation`이었습니다. Completed GDJ-0025의 REL-001 metadata와 REL-004
-required predicate actual까지 포함한 현재 제품은 12 adapter/127 contract의
+required predicate actual까지 포함한 GDJ-0025 완료 시점 제품은 12 adapter/127 contract의
 `112 passing + 5 deviation + 10 oracle_locked`입니다.
 Local normal/race/CGO-disabled/vet/count-20, Linux/386 compile-only,
 `make ci`, exact oracle와 independent audits는 EVID-027, initial exact 18/18 hosted acceptance는 EVID-028,
@@ -732,11 +732,16 @@ recorded steps를 성공해
 기록했습니다. Four relation-product coordinates는 각각 existing 569/569/0 inventory·57,738 bytes·SHA-256
 `739bb6fc...c2d7`, actual Ubuntu Linux/386 exact package set, exact Darwin과 four Python legs를 재현했습니다.
 이 run은 GDJ-0028 clean baseline일 뿐 later activation/API 또는 REL-012 implementation evidence로 재사용하지
-않습니다. Active GDJ-0028은 local lane별 focused normal, root one full normal integration과 independent audit를
-필수로 하고 race/CGO0/vet/actual Linux/386/four hosted coordinates는 exact implementation-head 기존 26-job
-topology가 소유합니다. New prefetch product는 result/DB state/primary-vs-batch metrics, IN args/order, atomic
-warm-cache failure gates, deterministic 10-file generated union과 REL-012-only manifest transition을 모두
-oracle-blind actual로 검증해야 하며 activation diff 자체 CI는 현재 `not run/pending`입니다.
+않습니다. GDJ-0028 activation `3ae4a2ce...`은 별도 run `31429245980`의 exact 26/26·326/326을 통과했지만
+implementation proof로 재사용하지 않았습니다. Local EVID-051의 focused lanes, root `make ci`, exact
+594/594/0·60,237-byte inventory와 independent audits 뒤 implementation head
+`4858ab88b82647793cd463e9f348e43d3f5e4bb7`의
+[run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)이 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Four hosted coordinates, race/CGO0/vet, actual Ubuntu Linux/386 bounded set,
+exact Darwin/Python, clean-worktree/no-rewrite와 hosted audit P0/P1/P2/P3=0은 EVID-052에 기록합니다.
+Result/DB state/primary-vs-batch metrics, IN args/order, atomic warm-cache failure gates, deterministic exact
+ten-file union과 REL-012-only manifest transition을 모두 검증했습니다. 이 exact 15-file completion-
+documentation patch 자체 CI는 `not run/pending`이며 implementation run을 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

@@ -420,8 +420,8 @@ acceptance/audit, exact completion-documentation-head hosted acceptance/audit와
 
 다음 작업은 exact합니다.
 
-1. 후속 active [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)과 Proposed
-   [ADR-0028](../docs/adr/0028-reverse-foreign-key-prefetch.md)의 exact activation scope를 따릅니다.
+1. 후속 completed [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)과 Accepted
+   [ADR-0028](../docs/adr/0028-reverse-foreign-key-prefetch.md)의 bounded REL-012 result를 따릅니다.
 2. EVID-050/run `31424055711`은 clean baseline proof로만 사용하고 later activation/implementation head의
    success로 재사용하지 않습니다.
 3. Q-013은 broader eager/write/delete/DDL/migration이 남아 `Partial`로 유지합니다.
@@ -435,6 +435,6 @@ acceptance/audit, exact completion-documentation-head hosted acceptance/audit와
   completion-documentation-head, EVID-050/run `31424055711`은 terminal exact-head hosted evidence와 GDJ-0028
   clean baseline입니다. Product는 exact `115 + 5 + 7`, relation actual 5/12입니다.
 - Existing relation product/generator bytes와 oracle/static/NI/SHA를 변경하지 않습니다.
-- 후속 공개 API는 active GDJ-0028/Proposed ADR-0028에서 별도 동결하며 이 completed packet을 소급 변경하지
-  않습니다.
+- 후속 GDJ-0028/ADR-0028은 exact implementation head `4858ab88...`/run `31432551159`에서 hosted accepted됐고
+  이 completed packet을 소급 변경하지 않습니다.
 - Draft PR #1은 open/draft로 유지하며 사용자의 명시적 요청 없이 merge하지 않습니다.

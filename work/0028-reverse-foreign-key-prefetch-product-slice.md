@@ -1,6 +1,6 @@
 ---
 id: GDJ-0028
-status: active
+status: completed
 updated: 2026-08-11
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "e9dc361f983f1c02af1f63737a1f282998d5a533"
@@ -68,10 +68,10 @@ source ForeignKey `IN` batch exactly one으로 평가한 뒤 owner별 `RelatedSe
    nil output, partial publication 0이며 독립 retry가 가능합니다.
 4. Database state는 불변입니다.
 
-완료 aggregate 목표는 exact 12 adapter sets/127 contracts =
+완료 aggregate는 exact 12 adapter sets/127 contracts =
 `116 passing + 5 deviation + 6 oracle_locked`, relation actual REL-001/003/004/005/006/012 6/12입니다. Activation
-hosted baseline은 exact `115 + 5 + 7`, relation 5/12를 보존했고, 현재 uncommitted local implementation은
-목표 `116 + 5 + 6`, relation 6/12를 통과했습니다. Exact implementation-head hosted acceptance는 pending입니다.
+hosted baseline은 exact `115 + 5 + 7`, relation 5/12를 보존했고, implementation head `4858ab88...`은
+목표 `116 + 5 + 6`, relation 6/12와 exact hosted acceptance를 통과했습니다.
 
 ## 기준 상태와 선행 증거
 
@@ -358,8 +358,9 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
 - [x] runtime/query/SQLite/codegen implementation stays inside allowed paths and focused lane tests pass.
 - [x] REL-012 oracle-blind actual and false-green/revert/locked-byte gates pass.
 - [x] root full normal integration and independent runtime/codegen/final audits pass.
-- [ ] exact implementation-head hosted 26-job matrix and inventories pass.
-- [ ] completion docs/ADR status transition and separate completion-documentation hosted evidence are synchronized.
+- [x] exact implementation-head hosted 26-job matrix and inventories pass.
+- [x] completion docs/ADR status transition and EVID-052 are synchronized.
+- [ ] completion-documentation and terminal-status heads are separately hosted-verified.
 
 ## 진행 기록
 
@@ -374,28 +375,35 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
 - [x] 2026-08-11: Exact 39-path implementation passed root `make ci`, REL-012 oracle-blind/false-green gates,
   594/594/0·60,237 bytes·SHA-256 `98a0a37b...8c47e` and runtime/query, codegen, SQLite/conformance and final
   integration audits P0/P1/P2/P3=`0/0/0/0`.
-- [ ] implementation hosted evidence
+- [x] implementation hosted evidence
 - [ ] completion documentation and terminal evidence
+
+- [x] 2026-08-11: Implementation commit `4858ab88b82647793cd463e9f348e43d3f5e4bb7`의 Draft PR #1
+  [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact 594 run/594 pass/
+  0 skip·60,237 bytes·SHA-256 `98a0a37b...8c47e`를 재현했고 actual Ubuntu Linux/386, exact Darwin,
+  four exact Python compatibility legs와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+  EVID-052를 근거로 bounded ADR-0028을 Accepted, 이 work를 completed로 전환합니다. 이 completion-
+  documentation patch 자체 exact-head CI는 pending이며 implementation run을 recursive proof로 재사용하지
+  않습니다.
 
 ## 현재 blocker와 다음 작업
 
-External/API blocker는 없습니다. Activation exact-head CI와 local implementation/integration은 green입니다.
-Implementation commit/push와 그 exact-head hosted 26-job acceptance가 pending입니다.
+외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
+acceptance/audit가 모두 통과했습니다. Completion-documentation과 terminal-status patch의 별도 exact-head CI는
+후속 evidence 작업이며 bounded GDJ-0028 completion의 blocker가 아닙니다.
 
-1. Integration owner가 exact 39-path implementation과 exact five-document sync를 재검증하고 의도한 파일만
-   stage/commit/push합니다.
-2. Exact implementation head에서 existing 26-job matrix를 실행해 four-coordinate 594/594/0 inventory, actual
-   Ubuntu Linux/386 bounded set, exact Darwin/Python, race/CGO-disabled/vet와 artifact no-rewrite를 검증합니다.
-3. Hosted audit P0/P1/P2/P3=0 뒤에만 ADR-0028/work completion documentation을 별도 동기화합니다. Draft PR #1은
-   사용자 요청 전 merge하지 않습니다.
+1. Exact 15-file completion-documentation patch의 scope, EVID-001..051 prefix, links/frontmatter/fences와
+   `git diff --check`를 검증합니다.
+2. Documentation-only patch만 commit/push하고 같은 exact 26을 completion-documentation head에서 확인합니다.
+3. Separate terminal evidence/status patch로 recursive pending을 닫되 Q-013과 supported surface를 넓히지 않습니다.
+4. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- Current uncommitted local product는 exact `116 + 5 + 6`, relation 6/12이고 root `make ci`와 independent audits가
-  green입니다. Exact-head hosted implementation support로는 아직 표현하지 않습니다.
-- EVID-051/run `31429245980`은 activation head만 증명합니다. Local implementation은 같은 EVID-051에서 별도
-  pre-hosted evidence로 기록되며 implementation hosted head가 필요합니다.
+- GDJ-0028은 implementation head `4858ab88b82647793cd463e9f348e43d3f5e4bb7`, exact-26 run
+  `31432551159`까지 completed입니다. EVID-051은 activation/local pre-hosted evidence, EVID-052는 exact hosted
+  implementation-head evidence입니다. Product는 exact `116 + 5 + 6`, relation actual 6/12입니다.
 - Existing reverse/object API와 exact nine generated files, oracle/static/SHA and frozen paths를 보존합니다.
-- Public API 또는 taxonomy 변경이 필요하면 implementation을 멈추고 Proposed ADR-0028/work를 먼저 갱신해
-  independent audit을 다시 받습니다.
+- Public API 또는 taxonomy를 바꾸기 전 후속 work/ADR을 만들고 independent audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하고 사용자 명시적 요청 없이 merge하지 않습니다.

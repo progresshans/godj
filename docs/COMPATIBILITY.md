@@ -602,22 +602,24 @@ Completed [GDJ-0027](../work/0027-reverse-foreign-key-accessor-and-lookup-produc
 [ADR-0027](adr/0027-reverse-foreign-key-accessor-and-lookup.md)은 reference bytes를 바꾸지 않고 REL-005만
 actual로 전환했습니다. Freshly loaded Author 1 accessor는 ordered Post IDs `[10,11]`, SELECT 1/JOIN 0이고,
 typed/dynamic `posts__title=Alpha`는 같은 reverse Plan으로 Author IDs `[1]`, SELECT 1/INNER JOIN 1입니다.
-Exact implementation head `7db68415...`의 run `31419940399`가 26/26 hosted gate를 통과해 current
+Exact implementation head `7db68415...`의 run `31419940399`가 26/26 hosted gate를 통과해 GDJ-0027 완료 시점
 classification은 `115 passing + 5 deviation + 7 oracle_locked`, relation 5/12입니다. REL-012 prefetch와
 eager/write/delete/DDL/migration/non-SQLite 호환은 포함하지 않습니다.
 
-Active [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Proposed
-[ADR-0028](adr/0028-reverse-foreign-key-prefetch.md)은 locked REL-012 하나만 다음 actual 후보로 활성화합니다.
+Completed [GDJ-0028](../work/0028-reverse-foreign-key-prefetch-product-slice.md)과 Accepted
+[ADR-0028](adr/0028-reverse-foreign-key-prefetch.md)은 locked REL-012 하나만 actual로 전환했습니다.
 Stable cross-runtime comparison은 ordered `[(1,[10,11]),(2,[]),(3,[12])]`, statement kinds two SELECT,
 primary/batch SELECT 각 1, batch predicate column `author_id`, JOIN 0, related-access extra query 0, batch key count 3과
 unchanged DB state입니다. Exact sorted args `[1,2,3]` and mutation-free trace는 protocol field가 아니라 successful
 actual publication 전 Go compiler/product internal gate이며 oracle/static/protocol shape는 불변입니다. Primary query와
 batch query는 분리하고 generated project companion이 returned owner wrapper의 exact `.Posts().All()` cache만
 warm합니다. Existing oracle/static/SHA와 prior generated/relation-product bytes는 불변입니다. Activation
-baseline [EVID-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)은
-current `115 + 5 + 7`, relation 5/12만 증명하고 target `116 + 5 + 6`, relation 6/12 또는 Proposed API를
-증명하지 않습니다. Custom `Prefetch`, related filter/order 재소비, eager REL-009..011, write/delete/DDL/
-migration과 non-SQLite 호환은 이 packet 밖입니다.
+baseline [EVID-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)과
+activation run `31429245980`은 이 implementation proof로 재사용하지 않았습니다. Exact implementation head
+`4858ab88...`의 [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)가 26/26 hosted
+gate를 통과해 current classification은 `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12입니다.
+Custom `Prefetch`, related filter/order 재소비, eager REL-009..011, write/delete/DDL/migration과 non-SQLite
+호환은 이 packet 밖입니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,

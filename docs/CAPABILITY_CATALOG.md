@@ -350,17 +350,18 @@ OneToOne/ManyToMany 또는 ForeignKey breadth 제품 지원의 증거가 아닙�
 
 Completed GDJ-0027/Accepted ADR-0027은 REL-005-only reverse ForeignKey exact lookup과 owner related-set
 accessor를 bounded product slice로 구현했습니다. Exact implementation head `7db68415...`의 run
-`31419940399`가 26/26 hosted gate를 통과해 현재 product는 exact `12 adapter sets/127 contracts = 115
+`31419940399`가 26/26 hosted gate를 통과해 GDJ-0027 완료 시점 product는 exact `12 adapter sets/127 contracts = 115
 passing + 5 deviation + 7 oracle_locked`, relation REL-001/003/004/005/006 5/12입니다. Reverse
 prefetch/eager/write/delete/DDL/migration과 broader backend는 계속 미지원입니다.
 
-Active GDJ-0028/Proposed ADR-0028은 이 current classification을 유지한 채 REL-012-only reverse prefetch를
-동결합니다. Existing owner query 1회 뒤 generated project prefetch surface가 distinct ordered owner keys로
+Completed GDJ-0028/Accepted ADR-0028은 REL-012-only reverse prefetch를 bounded product slice로 구현했습니다.
+Existing owner query 1회 뒤 generated project prefetch surface가 distinct ordered owner keys로
 source FK `IN` batch 1회를 실행하고, 검증·grouping 전체 성공 뒤 owner-order warm `RelatedSet`을 publish하는
 경계입니다. Empty input은 batch I/O 0, distinct key 1..999는 exactly one batch, 1000은 pre-I/O structured
-failure이며 chunking/custom Prefetch/filter/order 소비는 제공하지 않습니다. Completion target
-`116 passing + 5 deviation + 6 oracle_locked`, relation 6/12는 아직 구현·검증되지 않았고 current capability로
-세지 않습니다. REL-009..011 eager, write/delete/DDL/migration, broader relation/backend는 계속 미지원입니다.
+failure이며 chunking/custom Prefetch/filter/order 소비는 제공하지 않습니다. Exact implementation head
+`4858ab88...`의 run `31432551159`가 26/26 hosted gate를 통과해 current product는 exact
+`116 passing + 5 deviation + 6 oracle_locked`, relation REL-001/003/004/005/006/012 6/12입니다. REL-009..011
+eager, write/delete/DDL/migration, broader relation/backend는 계속 미지원입니다.
 
 ## Django 데이터 이행
 

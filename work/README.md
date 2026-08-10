@@ -51,12 +51,11 @@ proposed → ready → active → completed
 | [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md) | completed | REL-004 forward ForeignKey predicate와 SQLite reusable INNER JOIN |
 | [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md) | completed | REL-003/006 forward object cache, nullable access와 SQLite isnull trim |
 | [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) | completed | REL-005 reverse ForeignKey accessor와 exact lookup |
-| [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md) | active | REL-012 reverse ForeignKey one-batch prefetch와 atomic warm related set |
+| [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md) | completed | REL-012 reverse ForeignKey one-batch prefetch와 atomic warm related set |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active는
-[GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md), ready는 없고 최근 완료 항목은
-[GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md)입니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근 완료
+항목은 [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)입니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -126,7 +125,11 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   audit P0/P1/P2/P3=0을 통과했습니다. Uncommitted exact 39-path implementation은 root `make ci`, local exact
   `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12, 594/594/0·60,237 bytes·SHA-256
   `98a0a37b...8c47e`와 independent audits P0/P1/P2/P3=0을 통과해 EVID-051에 별도로 기록했습니다.
-  Implementation commit/push와 exact-head hosted CI는 pending이며 activation run을 재사용하지 않습니다.
+  Implementation commit `4858ab88b82647793cd463e9f348e43d3f5e4bb7`의
+  [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)은 exact 26/26·326/326,
+  four-coordinate 594/594/0 inventory, actual Ubuntu Linux/386, exact Darwin/Python과 hosted audit
+  P0/P1/P2/P3=0을 통과했습니다. EVID-052를 근거로 work는 completed, ADR-0028은 bounded REL-012 SQLite
+  slice에 한해 Accepted입니다. Completion-documentation patch 자체 exact-head CI는 pending입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
