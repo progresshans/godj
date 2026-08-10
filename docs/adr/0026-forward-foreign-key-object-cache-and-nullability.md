@@ -23,9 +23,12 @@ implementation 전에 동결했고, local implementation/audit는
 exact implementation-head hosted acceptance는
 [EVID-20260810-044](../status/TEST_EVIDENCE.md#evid-20260810-044--gdj-0026-github-hosted-exact-26-job-implementation-head-ci)에
 기록했습니다. Commit `5be46141d943800a3c621975e3e5070f6d01eaf9`의 run `31370313755`은 exact
-26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. 이
-completion-documentation patch 자체 exact-head CI는 `not run/pending`이며 implementation run을 그
-recursive proof로 재사용하지 않습니다.
+26/26 jobs·326/326 recorded steps와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. Exact 15-file
+completion-documentation head `7f92fcf036d03a5004953d9857a10291f4603efb`도
+[EVID-20260810-045](../status/TEST_EVIDENCE.md#evid-20260810-045--gdj-0026-github-hosted-completion-documentation-head-exact-26-job-ci)의
+run `31372360481`에서 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과했습니다. 이 EVID-045를
+포함한 exact 8-file final evidence/status patch 자체 exact-head CI는 `not run/pending`이며 completion run을
+그 recursive proof로 재사용하지 않습니다.
 
 결정 범위는 AutoField-target one-hop forward relation의 generated opaque object wrapper, required/nullable
 lazy load와 instance-owned cache, nullable local-NULL fast path, typed/dynamic relation-level `isnull` shared AST와
@@ -356,7 +359,8 @@ local remains CPython 3.14.3 + uv 0.12.3 and historical exact darwin keeps uv 0.
 
 Activation baseline run 31359958949 proves only `bffc5284...` and REL-001/004. Activation commit `aad4f7ff...`
 passed separate run `31364944816`; implementation head `5be46141...` passed separate run `31370313755` with exact
-26/26 jobs·326/326 recorded steps. This Accepted completion-documentation patch remains a later untested diff and
+26/26 jobs·326/326 recorded steps. Completion-documentation head `7f92fcf0...` passed separate run `31372360481`
+with the same exact 26/26·326/326. The later exact eight-file final evidence/status patch remains untested and
 requires its own non-reused exact-head evidence.
 
 ## Error ownership and precedence
@@ -400,8 +404,9 @@ ADR status became Accepted after all GDJ-0026 gates passed:
 8. Exact implementation-head 26/26 hosted executions and independent audits pass with job/recorded-step skip 0,
    portable Python 17 intentional skips and P0..P3=0.
 
-Local EVID-043 and exact implementation-head EVID-044 satisfy all eight gates. Acceptance is limited to the bounded
-AutoField-target one-hop SQLite slice; deferred surfaces below remain unsupported.
+Local EVID-043 and exact implementation-head EVID-044 satisfy all eight acceptance gates; completion-documentation
+head EVID-045 independently reruns the unchanged exact 26. Acceptance is limited to the bounded AutoField-target
+one-hop SQLite slice; deferred surfaces below remain unsupported.
 
 ## Consequences
 

@@ -426,28 +426,38 @@ API, ADR, CURRENT and final status.
   skip·54,076 bytes·SHA-256 `6d2958b6...7aee`를 재현했고 full Ubuntu actual Linux/386 exact package set,
   four exact Python compatibility legs와 exact Darwin 193/193도 통과했습니다. Independent hosted audit는
   P0/P1/P2/P3=`0/0/0/0`이며 EVID-044에 기록했습니다. Bounded ADR-0026을 Accepted, 이 work를 completed로
-  전환합니다. 이 completion-documentation patch 자체 exact-head CI는 `not run/pending`이며 run
-  `31370313755`를 그 증거로 재사용하지 않습니다.
+  전환합니다.
+- 2026-08-10: Exact 15-file completion-documentation commit
+  `7f92fcf036d03a5004953d9857a10291f4603efb`의 Draft PR #1
+  [run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 533/533/0·54,076
+  bytes·SHA-256 `6d2958b6...7aee`를 재현했고 actual Ubuntu Linux/386 exact package set, four exact Python
+  compatibility legs와 exact Darwin 193/193도 통과했습니다. Independent hosted audit는
+  P0/P1/P2/P3=`0/0/0/0`이며 EVID-045에 기록했습니다. 이 EVID-045를 포함한 exact 8-file final
+  evidence/status patch 자체 exact-head CI는 `not run/pending`이며 run `31372360481`을 그 증거로 재사용하지
+  않습니다.
 
 ## 현재 blocker
 
 외부 blocker는 없습니다. Local implementation/conformance, all four independent local audit lanes와 exact
-implementation-head hosted acceptance/hosted audit가 모두 통과했습니다. Completion-documentation patch의
-별도 exact-head CI만 pending이며 bounded work completion의 blocker는 아닙니다.
+implementation-head 및 completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Exact
+8-file final evidence/status patch의 별도 exact-head CI만 pending이며 bounded work completion의 blocker는
+아닙니다.
 
 ## 다음 정확한 작업
 
-1. Freeze the exact 15-file completion-documentation patch, preserving the EVID-001..043 body prefix and verifying
+1. Freeze the exact 8-file final evidence/status patch, preserving the EVID-001..044 body prefix and verifying
    frontmatter uniqueness, allowed paths, links, fences and `git diff --check`.
-2. Commit/push only that documentation patch and run unchanged exact 26 at the completion-documentation head. Do not
-   reuse implementation run 31370313755 as recursive proof.
-3. Record the separate completion-documentation exact-head result without widening Q-013 or the supported surface.
+2. Commit/push only that documentation patch and run unchanged exact 26 at the final-status head. Do not reuse
+   completion-documentation run 31372360481 as recursive proof.
+3. Report the separate final-status exact-head result without widening Q-013 or the supported surface.
 4. Do not merge Draft PR #1 without user request.
 
 ## 인수인계
 
-GDJ-0026 is completed at implementation head `5be46141d943800a3c621975e3e5070f6d01eaf9`, exact-26 tested by
-run `31370313755`. It owns only REL-003/006 forward instance object cache, nullable absent access and
+GDJ-0026 is completed at completion-documentation head `7f92fcf036d03a5004953d9857a10291f4603efb`, exact-26 tested
+by run `31372360481`; implementation head `5be46141...` was independently exact-26 tested by run `31370313755`.
+It owns only REL-003/006 forward instance object cache, nullable absent access and
 relation-provenance-preserving SQLite source-key isnull trim. Product comparison is exact `114 + 5 + 8`, relation
 actual REL-001/003/004/006 4/12. ADR-0026 is Accepted for this bounded slice and Q-013 remains `Partial`.
-Completion-documentation exact-head CI is pending and no Draft PR merge is authorized.
+The exact eight-file final evidence/status patch's own exact-head CI is pending and no Draft PR merge is authorized.

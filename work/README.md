@@ -90,8 +90,12 @@ project bridge, nullable relation `source_key` AST와 SQLite JOIN-0 trim을 구�
 [run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)은 exact 26/26 jobs·326/326
 recorded steps, relation-product four-coordinate 533/533/0 inventory와 actual Ubuntu Linux/386 exact package
 set을 통과했습니다. EVID-044와 hosted audit P0/P1/P2/P3=0을 근거로 work는 completed, ADR-0026은 bounded
-slice에 한해 Accepted입니다. Q-013은 `Partial`이며 completion-documentation patch 자체 exact-head CI는
-pending입니다.
+slice에 한해 Accepted입니다. Completion-documentation commit
+`7f92fcf036d03a5004953d9857a10291f4603efb`의 별도
+[run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)도 exact 26/26·326/326과 hosted
+audit P0/P1/P2/P3=0을 통과해 EVID-045에 기록했습니다. Q-013은 `Partial`이며 이 EVID-045를 포함한 exact
+8-file final evidence/status patch 자체 exact-head CI는 pending입니다. Run `31372360481`을 그 later patch의
+recursive proof로 재사용하지 않습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

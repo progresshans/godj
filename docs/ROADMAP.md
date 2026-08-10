@@ -2,7 +2,8 @@
 
 - 상태: Accepted direction
 - 현재 단계: GDJ-0026 REL-003/006 forward object cache/nullability slice completed, ADR-0026 Accepted,
-  Q-013 Partial. active/ready work 없음; completion-documentation patch exact-head CI pending
+  Q-013 Partial. active/ready work 없음; completion-documentation head exact 26 PASS, final evidence/status patch
+  exact-head CI pending
 - 현재 제품 기준: 12 adapter/127 contract의 `114 passing + 5 deviation + 8 oracle_locked`,
   relation actual REL-001/003/004/006 4/12
 - 마지막 검토: 2026-08-10
@@ -332,9 +333,11 @@ commit `cf8cb589...`도 run `31354040515` exact 26/26을 통과했습니다. GDJ
 documentation commit `aad4f7ff...`도 별도 run `31364944816`의 exact 26/26·326/326을 통과했습니다.
 GDJ-0026 implementation head `5be46141d943800a3c621975e3e5070f6d01eaf9`은
 [run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)의 exact 26/26 jobs와
-326/326 recorded steps를 성공해 EVID-044에 기록했습니다. Completion-documentation patch는 이 tested
-implementation head 뒤의 별도 diff이므로 자체 exact-head CI가 pending이며 run 31370313755를 재사용하지
-않습니다.
+326/326 recorded steps를 성공해 EVID-044에 기록했습니다. Completion-documentation head
+`7f92fcf036d03a5004953d9857a10291f4603efb`도 별도
+[run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)의 exact 26/26 jobs와 326/326
+recorded steps를 성공해 EVID-045에 기록했습니다. 이 EVID-045를 포함한 exact 8-file final evidence/status
+patch는 그 뒤의 별도 diff이므로 자체 exact-head CI가 pending이며 run 31372360481을 재사용하지 않습니다.
 이는 PostgreSQL/MySQL
 service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
 query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
@@ -370,9 +373,9 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   instance cache와 REL-006 nullable access/source-key isnull을 함께 구현한 exact bounded packet입니다.
   Additive sealed descriptor/object companion, opaque pointer wrapper, QuerySet target-PK limit-2 cache와 SQLite
   root-FK JOIN-0 trim만 소유합니다. Completed aggregate는 `114 passing + 5 deviation + 8 oracle_locked`,
-  relation REL-001/003/004/006 4/12입니다. Implementation run `31370313755`은 exact 26/26·326/326을
-  통과했습니다. Existing project-query v1과 old relation product bytes, reverse/eager/write/delete/DDL/
-  migration/PostgreSQL은 forbidden/deferred입니다.
+  relation REL-001/003/004/006 4/12입니다. Implementation run `31370313755`과 completion-documentation run
+  `31372360481`은 각각 exact 26/26·326/326을 통과했습니다. Existing project-query v1과 old relation
+  product bytes, reverse/eager/write/delete/DDL/migration/PostgreSQL은 forbidden/deferred입니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

@@ -590,6 +590,10 @@ Implementation head `5be46141...`의 run `31370313755`은 exact 26/26 jobs·326/
 inventory와 SHA-256 `6d2958b6...7aee`, normal/race/CGO-disabled/vet/no-rewrite/clean gates를 통과했습니다.
 Full Ubuntu는 actual `GOARCH=386 CGO_ENABLED=0` exact relation package set을 실행했고 four Python legs는
 uv 0.12.3에서 portable 193/17, exact Darwin은 historical uv 0.10.12에서 193/193 skip 0을 통과했습니다.
+Completion-documentation head `7f92fcf0...`의 별도 run `31372360481`도 같은 exact
+26/26·326/326, four-coordinate 533/533/0 inventory, actual Linux/386 exact package set과 Python gates를
+통과했습니다. 상세 checkout/job/step/audit 증거는 EVID-045에 기록하며 그 뒤의 exact 8-file final
+evidence/status patch 자체 CI는 pending입니다.
 Actual adapter가 없는 PostgreSQL/MySQL service-only job은 두지
 않습니다. PostgreSQL/MySQL 첫 backend job은 digest-pinned service image, health check, UTC timezone과
 C locale 또는 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/
@@ -688,8 +692,11 @@ GDJ-0026 activation commit `aad4f7ff0d77a1abe16ebddd01782e78c335395f`은 별도 
 exact 26/26·326/326을 통과했고, implementation commit
 `5be46141d943800a3c621975e3e5070f6d01eaf9`도 별도
 [run 31370313755](https://github.com/progresshans/godj/actions/runs/31370313755)의 exact 26/26·326/326을
-성공해 EVID-044에 기록했습니다. 이 completion-documentation patch 자체 exact-head CI는 pending이며
-implementation run을 recursive proof로 재사용하지 않습니다.
+성공해 EVID-044에 기록했습니다. Completion-documentation commit
+`7f92fcf036d03a5004953d9857a10291f4603efb`도 별도
+[run 31372360481](https://github.com/progresshans/godj/actions/runs/31372360481)의 exact 26/26·326/326을
+성공해 EVID-045에 기록했습니다. 이 EVID-045를 포함한 exact 8-file final evidence/status patch 자체
+exact-head CI는 pending이며 completion-documentation run을 recursive proof로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
