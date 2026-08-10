@@ -146,7 +146,8 @@ class RelationScenarioTests(unittest.TestCase):
                 "passing",
                 "passing",
             ]
-            + ["oracle_locked"] * 6,
+            + ["oracle_locked"] * 5
+            + ["passing"],
         )
         self.assertEqual(
             [contract["id"] for contract in static["contracts"]], identifiers

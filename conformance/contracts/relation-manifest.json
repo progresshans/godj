@@ -267,7 +267,7 @@
       "title": "Reverse ForeignKey prefetch uses one ordered batch query and no related-access query",
       "scenario": "django.relation.reverse_prefetch",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

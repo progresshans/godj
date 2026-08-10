@@ -767,7 +767,7 @@ func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.
 	}
 }
 
-func TestRunMatchesFiveContractRelationProductBeforePublishingActualOutput(t *testing.T) {
+func TestRunMatchesSixContractRelationProductBeforePublishingActualOutput(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
@@ -786,7 +786,7 @@ func TestRunMatchesFiveContractRelationProductBeforePublishingActualOutput(t *te
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if stdout.String() != "GoDj product observations match 5 required contracts; 7 remain not implemented\n" {
+	if stdout.String() != "GoDj product observations match 6 required contracts; 6 remain not implemented\n" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 	if stderr.Len() != 0 {
@@ -815,13 +815,13 @@ func TestRunMatchesFiveContractRelationProductBeforePublishingActualOutput(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, index := range []int{0, 2, 3, 4, 5} {
+	for _, index := range []int{0, 2, 3, 4, 5, 11} {
 		if actual.Contracts[index].Status != protocol.StatusObserved {
 			t.Fatalf("required relation contract %s status = %q, want observed", actual.Contracts[index].ID, actual.Contracts[index].Status)
 		}
 	}
 	for index := 1; index < len(actual.Contracts); index++ {
-		if index == 2 || index == 3 || index == 4 || index == 5 {
+		if index == 2 || index == 3 || index == 4 || index == 5 || index == 11 {
 			continue
 		}
 		observation := actual.Contracts[index]
@@ -829,7 +829,7 @@ func TestRunMatchesFiveContractRelationProductBeforePublishingActualOutput(t *te
 			t.Fatalf("relation contract %d = %#v, want payload-free not_implemented", index, observation)
 		}
 	}
-	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006"})
+	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"})
 	if err != nil || len(differences) != 0 {
 		t.Fatalf("partial product comparison differences=%#v error=%v", differences, err)
 	}
@@ -952,11 +952,12 @@ func TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput(t *testin
 		{name: "registered REL-004 handler hidden as locked", index: 3, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "registered REL-005 handler hidden as locked", index: 4, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "registered REL-006 handler hidden as locked", index: 5, status: protocol.ContractOracleLocked, contains: "registered scenario"},
+		{name: "registered REL-012 handler hidden as locked", index: 11, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "unregistered handler marked red", index: 1, status: protocol.ContractRed, contains: "unregistered scenario"},
 		{name: "draft contract", index: 1, status: protocol.ContractDraft, contains: "locked-or-later"},
 	}
 	for index := 1; index < 12; index++ {
-		if index == 2 || index == 3 || index == 4 || index == 5 {
+		if index == 2 || index == 3 || index == 4 || index == 5 || index == 11 {
 			continue
 		}
 		tests = append(tests, struct {

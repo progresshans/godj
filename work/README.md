@@ -118,11 +118,15 @@ Accepted입니다. Completion-documentation commit `7998a8351c7668d53b9263bc9a38
 [run 31422614250](https://github.com/progresshans/godj/actions/runs/31422614250)도 exact 26/26·326/326과 hosted
 audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Partial`입니다. EVID-049를 포함한 terminal
 7-file evidence/status head `e9dc361f983f1c02af1f63737a1f282998d5a533`은 이후 별도
-[run 31424055711](https://github.com/progresshans/godj/actions/runs/31424055711)의 exact 26/26·326/326과 hosted
-audit P0/P1/P2/P3=0을 통과해 EVID-050에 기록됐습니다. GDJ-0028은 이 clean tested baseline에서 REL-012-only
-reverse FK IN batch, atomic warm `RelatedSet` publication과 Proposed ADR-0028을 활성화했습니다. Current는 exact
-`115 passing + 5 deviation + 7 oracle_locked`, relation 5/12이고 completion target `116 + 5 + 6`, relation
-6/12는 아직 current support가 아닙니다. EVID-050은 baseline only이며 activation diff exact-head CI는 pending입니다.
+  [run 31424055711](https://github.com/progresshans/godj/actions/runs/31424055711)의 exact 26/26·326/326과 hosted
+  audit P0/P1/P2/P3=0을 통과해 EVID-050에 기록됐습니다. GDJ-0028은 이 clean tested baseline에서 REL-012-only
+  reverse FK IN batch, atomic warm `RelatedSet` publication과 Proposed ADR-0028을 활성화했습니다. Activation commit
+  `3ae4a2cecacd31a8cc72fd46ea288568e0071421`의
+  [run 31429245980](https://github.com/progresshans/godj/actions/runs/31429245980)은 exact 26/26·326/326과 hosted
+  audit P0/P1/P2/P3=0을 통과했습니다. Uncommitted exact 39-path implementation은 root `make ci`, local exact
+  `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12, 594/594/0·60,237 bytes·SHA-256
+  `98a0a37b...8c47e`와 independent audits P0/P1/P2/P3=0을 통과해 EVID-051에 별도로 기록했습니다.
+  Implementation commit/push와 exact-head hosted CI는 pending이며 activation run을 재사용하지 않습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

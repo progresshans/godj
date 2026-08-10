@@ -37,6 +37,7 @@ const (
 	CodeUniquePrimaryKey             = "unique_primary_key"
 	CodeRelatedObjectMissing         = "related_object_missing"
 	CodeRelatedObjectCardinality     = "related_object_cardinality"
+	CodeRelatedSetMembership         = "related_set_membership"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and

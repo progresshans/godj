@@ -293,6 +293,56 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 		t.Fatalf("relation query count = %d, want 1", got)
 	}
 
+	authorIn, err := query.NewInCondition(authorID, []query.Value{
+		query.Integer(3),
+		query.Integer(1),
+		query.Integer(2),
+	})
+	if err != nil {
+		t.Fatalf("NewInCondition(author) error = %v", err)
+	}
+	inPlan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).
+		WithConditions(authorIn).
+		WithOrderings(query.NewOrdering(id, query.Ascending))
+	inStatement, inArguments, err := sqlite.Compile(inPlan)
+	if err != nil {
+		t.Fatalf("Compile(root IN) error = %v", err)
+	}
+	if strings.Contains(inStatement, " JOIN ") || !strings.Contains(inStatement, `"author_id" IN (?, ?, ?)`) {
+		t.Fatalf("root IN SQL is not join-free: %s", inStatement)
+	}
+	if want := []any{int64(3), int64(1), int64(2)}; fmt.Sprint(inArguments) != fmt.Sprint(want) {
+		t.Fatalf("root IN arguments = %#v, want %#v", inArguments, want)
+	}
+
+	before = backend.QueryCount()
+	rows, err = backend.Query(ctx, inPlan)
+	if err != nil {
+		t.Fatalf("root IN Query() error = %v", err)
+	}
+	identifiers = identifiers[:0]
+	for rows.Next() {
+		var gotID, gotAuthorID int64
+		var gotTitle string
+		var gotReviewerID any
+		if err := rows.Scan(&gotID, &gotTitle, &gotAuthorID, &gotReviewerID); err != nil {
+			t.Fatalf("root IN Scan() error = %v", err)
+		}
+		identifiers = append(identifiers, gotID)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("root IN Rows.Err() = %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("root IN Rows.Close() = %v", err)
+	}
+	if fmt.Sprint(identifiers) != "[10 11 12]" {
+		t.Fatalf("root IN identifiers = %v, want [10 11 12]", identifiers)
+	}
+	if got := backend.QueryCount() - before; got != 1 {
+		t.Fatalf("root IN query count = %d, want 1", got)
+	}
+
 	nullablePath, err := query.NewNullableForwardRelationIsNullPath(
 		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
 		"blog_post",

@@ -61,6 +61,66 @@ func TestCompileIsNullHasNoBoundArgument(t *testing.T) {
 	}
 }
 
+func TestCompileRootInConditionsPreserveValueOrder(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	published := query.NewFieldRef("published", "published", query.FieldBoolean, false)
+	idIn, err := query.NewInCondition(id, []query.Value{
+		query.Integer(3),
+		query.Integer(1),
+		query.Integer(2),
+	})
+	if err != nil {
+		t.Fatalf("NewInCondition(id) error = %v", err)
+	}
+	titleIn, err := query.NewInCondition(title, []query.Value{query.String("Beta"), query.String("Alpha")})
+	if err != nil {
+		t.Fatalf("NewInCondition(title) error = %v", err)
+	}
+	publishedIn, err := query.NewInCondition(published, []query.Value{query.Boolean(true), query.Boolean(false)})
+	if err != nil {
+		t.Fatalf("NewInCondition(published) error = %v", err)
+	}
+	plan := query.NewPlan("news_article", []query.FieldRef{id, title, published}).
+		WithConditions(idIn, titleIn, publishedIn).
+		WithOrderings(query.NewOrdering(id, query.Ascending))
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	wantSQL := `SELECT "id", "title", "published" FROM "news_article" WHERE "id" IN (?, ?, ?) AND "title" IN (?, ?) AND "published" IN (?, ?) ORDER BY "id" ASC`
+	if statement != wantSQL {
+		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
+	}
+	wantArguments := []any{int64(3), int64(1), int64(2), "Beta", "Alpha", true, false}
+	if !reflect.DeepEqual(arguments, wantArguments) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, wantArguments)
+	}
+}
+
+func TestCompileRejectsScalarAndRelatedInConditions(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	_, _, err := sqlite.Compile(query.NewPlan("news_article", []query.FieldRef{id}).WithConditions(
+		query.NewCondition(id, query.LookupIn, query.Integer(1)),
+	))
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("scalar IN error = %v, want query invalid_plan", err)
+	}
+
+	authorNamePath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(authorNamePath, query.LookupIn, query.String("Ada")),
+	))
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("related IN error = %v, want query invalid_plan", err)
+	}
+}
+
 func TestCompileRejectsConditionFromOtherModel(t *testing.T) {
 	t.Parallel()
 

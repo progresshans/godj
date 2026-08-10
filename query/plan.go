@@ -2,7 +2,10 @@
 // copy-on-write operations so a derived QuerySet cannot mutate its source.
 package query
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 type FieldKind string
 
@@ -35,17 +38,41 @@ const (
 	LookupExact     Lookup = "exact"
 	LookupIContains Lookup = "icontains"
 	LookupIsNull    Lookup = "isnull"
+	LookupIn        Lookup = "in"
 )
 
 type Condition struct {
 	field        FieldRef
 	lookup       Lookup
 	value        Value
+	values       *conditionValues
 	relationPath *RelationPath
+}
+
+type conditionValues struct {
+	values []Value
 }
 
 func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
 	return Condition{field: field, lookup: lookup, value: value}
+}
+
+// NewInCondition constructs one immutable scalar-list membership condition.
+// The values are copied so later caller mutation cannot alter the condition or
+// a query plan that contains it.
+func NewInCondition(field FieldRef, values []Value) (Condition, error) {
+	if !validInValues(field, values) {
+		return Condition{}, &Error{
+			Category: CategoryQuery,
+			Code:     CodeInvalidPlan,
+			Detail:   "IN requires a supported field and a non-empty same-kind non-NULL value list",
+		}
+	}
+	return Condition{
+		field:  field,
+		lookup: LookupIn,
+		values: &conditionValues{values: append([]Value(nil), values...)},
+	}, nil
 }
 
 // NewRelatedCondition constructs a condition over the terminal field of a
@@ -63,7 +90,19 @@ func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Conditio
 
 func (c Condition) Field() FieldRef { return c.field }
 func (c Condition) Lookup() Lookup  { return c.lookup }
-func (c Condition) Value() Value    { return c.value }
+func (c Condition) Value() Value {
+	if c.lookup == LookupIn {
+		return Value{}
+	}
+	return c.value
+}
+func (c Condition) Values() ([]Value, bool) {
+	if c.lookup != LookupIn || c.values == nil || c.relationPath != nil ||
+		!validInValues(c.field, c.values.values) {
+		return nil, false
+	}
+	return append([]Value(nil), c.values.values...), true
+}
 func (c Condition) RelationPath() (RelationPath, bool) {
 	if c.relationPath == nil {
 		return RelationPath{}, false
@@ -74,6 +113,14 @@ func (c Condition) Equal(other Condition) bool {
 	if c.field != other.field || c.lookup != other.lookup || c.value != other.value {
 		return false
 	}
+	if (c.values == nil) != (other.values == nil) {
+		return false
+	}
+	if c.values != nil && !slices.EqualFunc(c.values.values, other.values.values, func(left, right Value) bool {
+		return left.Equal(right)
+	}) {
+		return false
+	}
 	leftPath, leftOK := c.RelationPath()
 	rightPath, rightOK := other.RelationPath()
 	return leftOK == rightOK && (!leftOK || leftPath.Equal(rightPath))
@@ -81,11 +128,40 @@ func (c Condition) Equal(other Condition) bool {
 
 func (c Condition) clone() Condition {
 	clone := c
+	if c.values != nil {
+		clone.values = &conditionValues{values: append([]Value(nil), c.values.values...)}
+	}
 	if c.relationPath != nil {
 		path := c.relationPath.clone()
 		clone.relationPath = &path
 	}
 	return clone
+}
+
+func validInValues(field FieldRef, values []Value) bool {
+	if field.name == "" || field.column == "" ||
+		strings.ContainsRune(field.name, '\x00') || strings.ContainsRune(field.column, '\x00') ||
+		len(values) == 0 {
+		return false
+	}
+
+	var expected ValueKind
+	switch field.kind {
+	case FieldInteger:
+		expected = ValueInteger
+	case FieldString:
+		expected = ValueString
+	case FieldBoolean:
+		expected = ValueBoolean
+	default:
+		return false
+	}
+	for _, value := range values {
+		if value.IsNull() || value.Kind() != expected {
+			return false
+		}
+	}
+	return true
 }
 
 type Direction string

@@ -66,13 +66,11 @@ func compileScalar(plan query.Plan) (string, []any, error) {
 			return "", nil, err
 		}
 		sql.WriteString(field)
-		argument, hasArgument, err := compileCondition(&sql, condition)
+		conditionArguments, err := compileCondition(&sql, condition)
 		if err != nil {
 			return "", nil, err
 		}
-		if hasArgument {
-			arguments = append(arguments, argument)
-		}
+		arguments = append(arguments, conditionArguments...)
 	}
 
 	orderings := plan.Orderings()
@@ -141,6 +139,9 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 				return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
 			}
 			continue
+		}
+		if condition.Lookup() == query.LookupIn {
+			return "", nil, invalidPlan("SQLite IN conditions cannot traverse a relation path")
 		}
 		hops := path.Hops()
 		if len(hops) != 1 {
@@ -291,13 +292,11 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			return "", nil, err
 		}
 		sql.WriteString(field)
-		argument, hasArgument, err := compileCondition(&sql, condition)
+		conditionArguments, err := compileCondition(&sql, condition)
 		if err != nil {
 			return "", nil, err
 		}
-		if hasArgument {
-			arguments = append(arguments, argument)
-		}
+		arguments = append(arguments, conditionArguments...)
 	}
 
 	orderings := plan.Orderings()
@@ -421,40 +420,60 @@ func quoteQualified(alias, column string) (string, error) {
 	return quotedAlias + "." + quotedColumn, nil
 }
 
-func compileCondition(sql *strings.Builder, condition query.Condition) (any, bool, error) {
+func compileCondition(sql *strings.Builder, condition query.Condition) ([]any, error) {
 	field := condition.Field()
 	value := condition.Value()
 	switch condition.Lookup() {
 	case query.LookupExact:
 		if !valueMatchesField(value.Kind(), field.Kind()) {
-			return nil, false, invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", value.Kind(), field.Name()))
+			return nil, invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", value.Kind(), field.Name()))
 		}
 		argument, err := value.DatabaseValue()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		sql.WriteString(" = ?")
-		return argument, true, nil
+		return []any{argument}, nil
 	case query.LookupIContains:
 		text, ok := value.String()
 		if field.Kind() != query.FieldString || !ok {
-			return nil, false, unsupportedLookup(field, condition.Lookup())
+			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 		sql.WriteString(" LIKE ? ESCAPE '\\'")
-		return "%" + escapeLike(text) + "%", true, nil
+		return []any{"%" + escapeLike(text) + "%"}, nil
 	case query.LookupIsNull:
 		isNull, ok := value.Boolean()
 		if !ok {
-			return nil, false, unsupportedLookup(field, condition.Lookup())
+			return nil, unsupportedLookup(field, condition.Lookup())
 		}
 		if isNull {
 			sql.WriteString(" IS NULL")
 		} else {
 			sql.WriteString(" IS NOT NULL")
 		}
-		return nil, false, nil
+		return nil, nil
+	case query.LookupIn:
+		values, ok := condition.Values()
+		if !ok {
+			return nil, invalidPlan("SQLite IN requires a valid root-table list-backed condition")
+		}
+		sql.WriteString(" IN (")
+		arguments := make([]any, len(values))
+		for index, item := range values {
+			if index > 0 {
+				sql.WriteString(", ")
+			}
+			sql.WriteByte('?')
+			argument, err := item.DatabaseValue()
+			if err != nil {
+				return nil, err
+			}
+			arguments[index] = argument
+		}
+		sql.WriteByte(')')
+		return arguments, nil
 	default:
-		return nil, false, unsupportedLookup(field, condition.Lookup())
+		return nil, unsupportedLookup(field, condition.Lookup())
 	}
 }
 

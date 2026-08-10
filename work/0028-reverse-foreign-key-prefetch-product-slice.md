@@ -69,9 +69,9 @@ source ForeignKey `IN` batch exactly one으로 평가한 뒤 owner별 `RelatedSe
 4. Database state는 불변입니다.
 
 완료 aggregate 목표는 exact 12 adapter sets/127 contracts =
-`116 passing + 5 deviation + 6 oracle_locked`, relation actual REL-001/003/004/005/006/012 6/12입니다. 이 수치는
-implementation, oracle-blind actual과 exact-head hosted acceptance 뒤의 target일 뿐 activation 현재 분류가
-아닙니다. 현재는 exact `115 + 5 + 7`, relation 5/12입니다.
+`116 passing + 5 deviation + 6 oracle_locked`, relation actual REL-001/003/004/005/006/012 6/12입니다. Activation
+hosted baseline은 exact `115 + 5 + 7`, relation 5/12를 보존했고, 현재 uncommitted local implementation은
+목표 `116 + 5 + 6`, relation 6/12를 통과했습니다. Exact implementation-head hosted acceptance는 pending입니다.
 
 ## 기준 상태와 선행 증거
 
@@ -81,8 +81,9 @@ implementation, oracle-blind actual과 exact-head hosted acceptance 뒤의 targe
   26/26 jobs와 326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각
   569/569/0, 57,738 bytes, SHA-256
   `739bb6fc4bc3a5665cbaa455bed45d4ddf9683d78c4ff74b02c1d0208862c2d7`입니다.
-- EVID-050은 clean baseline만 증명합니다. 이 activation diff, Proposed API, REL-012 implementation 또는 later
-  head의 evidence로 재사용하지 않습니다. Activation diff exact-head CI는 아직 `not run/pending`입니다.
+- EVID-050은 clean baseline만 증명합니다. Activation commit `3ae4a2cecacd31a8cc72fd46ea288568e0071421`은
+  [EVID-051](../docs/status/TEST_EVIDENCE.md#evid-20260811-051--gdj-0028-activation-hosted-ci-and-rel-012-pre-hosted-local-validation)의
+  run `31429245980`에서 exact 26/26·326/326을 통과했지만 later implementation evidence로 재사용하지 않습니다.
 - [ADR-0023](../docs/adr/0023-symbolic-relation-binding-and-shared-relation-ast.md),
   [ADR-0026](../docs/adr/0026-forward-foreign-key-object-cache-and-nullability.md)과
   [ADR-0027](../docs/adr/0027-reverse-foreign-key-accessor-and-lookup.md)의 immutable binding, sealed descriptor,
@@ -353,10 +354,10 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
 
 - [x] exact clean baseline/EVID-050 and current-vs-target classification are documented without evidence reuse.
 - [x] work/ADR activation freezes exact public API, allowed paths, taxonomy, atomicity, codegen and CI ownership.
-- [ ] activation documentation diff passes independent API/scope audits and its own exact-head hosted 26-job CI.
-- [ ] runtime/query/SQLite/codegen implementation stays inside allowed paths and focused lane tests pass.
-- [ ] REL-012 oracle-blind actual and false-green/revert/locked-byte gates pass.
-- [ ] root full normal integration and independent runtime/codegen/final audits pass.
+- [x] activation documentation diff passes independent API/scope audits and its own exact-head hosted 26-job CI.
+- [x] runtime/query/SQLite/codegen implementation stays inside allowed paths and focused lane tests pass.
+- [x] REL-012 oracle-blind actual and false-green/revert/locked-byte gates pass.
+- [x] root full normal integration and independent runtime/codegen/final audits pass.
 - [ ] exact implementation-head hosted 26-job matrix and inventories pass.
 - [ ] completion docs/ADR status transition and separate completion-documentation hosted evidence are synchronized.
 
@@ -368,31 +369,32 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
   max-999 one-batch policy, exact validation precedence and `related_set_membership` taxonomy with no blocker.
 - [x] 2026-08-11: Project-only prefetch companion, exact ten-file union, REL-012-only manifest transition and hosted/local
   gate ownership were frozen.
-- [ ] activation diff audit/commit/push/hosted exact-head evidence
-- [ ] runtime/query/SQLite/codegen/conformance implementation and integration audit
+- [x] 2026-08-11: Activation commit `3ae4a2ce...` / run `31429245980` passed exact 26/26·326/326 and hosted
+  P0/P1/P2/P3=`0/0/0/0`; four baseline inventories remained 569/569/0.
+- [x] 2026-08-11: Exact 39-path implementation passed root `make ci`, REL-012 oracle-blind/false-green gates,
+  594/594/0·60,237 bytes·SHA-256 `98a0a37b...8c47e` and runtime/query, codegen, SQLite/conformance and final
+  integration audits P0/P1/P2/P3=`0/0/0/0`.
 - [ ] implementation hosted evidence
 - [ ] completion documentation and terminal evidence
 
 ## 현재 blocker와 다음 작업
 
-External/API blocker는 없습니다. Activation diff exact-head CI는 pending이고 EVID-050을 그 proof로 재사용하지
-않습니다.
+External/API blocker는 없습니다. Activation exact-head CI와 local implementation/integration은 green입니다.
+Implementation commit/push와 그 exact-head hosted 26-job acceptance가 pending입니다.
 
-1. Integration owner가 exact 15 activation document diff, links/frontmatter/fences, current/target wording and
-   allowed-path/frozen-path consistency를 검증합니다.
-2. Independent API/scope audit P0/P1/P2/P3=0 뒤 activation-only commit을 push하고 existing exact 26-job matrix를
-   비동기로 시작합니다.
-3. Activation CI와 병렬로 disjoint query/runtime/codegen/product lanes를 구현하되 each lane은 focused normal tests만
-   local에서 실행합니다. Shared public API/status files는 integration owner만 수정합니다.
-4. Final integration은 all lanes를 재감사하고 one full normal gate 뒤 exact implementation-head hosted matrix를
-   시작합니다. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
+1. Integration owner가 exact 39-path implementation과 exact five-document sync를 재검증하고 의도한 파일만
+   stage/commit/push합니다.
+2. Exact implementation head에서 existing 26-job matrix를 실행해 four-coordinate 594/594/0 inventory, actual
+   Ubuntu Linux/386 bounded set, exact Darwin/Python, race/CGO-disabled/vet와 artifact no-rewrite를 검증합니다.
+3. Hosted audit P0/P1/P2/P3=0 뒤에만 ADR-0028/work completion documentation을 별도 동기화합니다. Draft PR #1은
+   사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- Current product는 exact `115 + 5 + 7`, relation 5/12입니다. Target `116 + 5 + 6`, relation 6/12를 현재
-  support로 표현하지 않습니다.
-- EVID-050/run `31424055711`은 exact clean baseline만 증명합니다. Activation/implementation evidence는 별도
-  exact head가 필요합니다.
+- Current uncommitted local product는 exact `116 + 5 + 6`, relation 6/12이고 root `make ci`와 independent audits가
+  green입니다. Exact-head hosted implementation support로는 아직 표현하지 않습니다.
+- EVID-051/run `31429245980`은 activation head만 증명합니다. Local implementation은 같은 EVID-051에서 별도
+  pre-hosted evidence로 기록되며 implementation hosted head가 필요합니다.
 - Existing reverse/object API와 exact nine generated files, oracle/static/SHA and frozen paths를 보존합니다.
 - Public API 또는 taxonomy 변경이 필요하면 implementation을 멈추고 Proposed ADR-0028/work를 먼저 갱신해
   independent audit을 다시 받습니다.
