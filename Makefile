@@ -65,9 +65,11 @@ cgo-zero-build:
 		./db/sqlite \
 		./cmd/godj \
 		./project \
+		./query \
 		./internal/projectcheck/... \
 		./conformance/runners/godj \
 		./conformance/relationproduct/... \
+		./conformance/relationqueryproduct/... \
 		-count=1
 
 python-test:

@@ -786,7 +786,7 @@ func TestRunMatchesPartialRelationProductBeforePublishingActualOutput(t *testing
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if stdout.String() != "GoDj product observations match 1 required contract; 11 remain not implemented\n" {
+	if stdout.String() != "GoDj product observations match 2 required contracts; 10 remain not implemented\n" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 	if stderr.Len() != 0 {
@@ -815,16 +815,19 @@ func TestRunMatchesPartialRelationProductBeforePublishingActualOutput(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if actual.Contracts[0].Status != protocol.StatusObserved {
-		t.Fatalf("REL-001 status = %q, want observed", actual.Contracts[0].Status)
+	if actual.Contracts[0].Status != protocol.StatusObserved || actual.Contracts[3].Status != protocol.StatusObserved {
+		t.Fatalf("required relation statuses = %q/%q, want REL-001/REL-004 observed", actual.Contracts[0].Status, actual.Contracts[3].Status)
 	}
 	for index := 1; index < len(actual.Contracts); index++ {
+		if index == 3 {
+			continue
+		}
 		observation := actual.Contracts[index]
 		if observation.Status != protocol.StatusNotImplemented || observation.Result != nil || observation.Error != nil || observation.DBState != nil || observation.Metrics != nil {
 			t.Fatalf("relation contract %d = %#v, want payload-free not_implemented", index, observation)
 		}
 	}
-	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001"})
+	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001", "REL-004"})
 	if err != nil || len(differences) != 0 {
 		t.Fatalf("partial product comparison differences=%#v error=%v", differences, err)
 	}
@@ -834,31 +837,59 @@ func TestRunDoesNotPublishMixedActualBeforePayloadComparison(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
-	oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name     string
+		index    int
+		mutate   func(*protocol.Observation)
+		contains string
+	}{
+		{name: "REL-001 result", mutate: func(observation *protocol.Observation) {
+			changed := protocol.String("expected-replay-sentinel")
+			observation.Result = &changed
+		}, contains: "REL-001 result.type:"},
+		{name: "REL-004 result", index: 3, mutate: func(observation *protocol.Observation) {
+			changed := protocol.String("expected-replay-sentinel")
+			observation.Result = &changed
+		}, contains: "REL-004 result.type:"},
+		{name: "REL-004 database state", index: 3, mutate: func(observation *protocol.Observation) {
+			changed := protocol.String("expected-replay-sentinel")
+			observation.DBState = &changed
+		}, contains: "REL-004 db_state.type:"},
+		{name: "REL-004 metrics", index: 3, mutate: func(observation *protocol.Observation) {
+			changed := protocol.Object(map[string]protocol.Value{
+				"expected_replay_sentinel": protocol.String("changed"),
+			})
+			observation.Metrics = &changed
+		}, contains: "REL-004 metrics.fields[0].name:"},
 	}
-	changed := protocol.String("expected-replay-sentinel")
-	oracle.Contracts[0].Result = &changed
-	directory := t.TempDir()
-	oraclePath := writeCanonicalMainTestArtifact(t, directory, "changed-oracle.json", oracle)
-	actualPath := filepath.Join(directory, "must-not-exist.json")
-	arguments := []string{
-		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
-		"-manifest", filepath.Join(root, "conformance", "contracts", "relation-manifest.json"),
-		"-expected", oraclePath,
-		"-actual-output", actualPath,
-	}
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	if code := run(context.Background(), arguments, &stdout, &stderr); code != 1 {
-		t.Fatalf("run() code = %d, want 1; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
-	}
-	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "REL-001 result.type:") {
-		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
-	}
-	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
-		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "relation-oracle.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			test.mutate(&oracle.Contracts[test.index])
+			directory := t.TempDir()
+			oraclePath := writeCanonicalMainTestArtifact(t, directory, "changed-oracle.json", oracle)
+			actualPath := filepath.Join(directory, "must-not-exist.json")
+			arguments := []string{
+				"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+				"-manifest", filepath.Join(root, "conformance", "contracts", "relation-manifest.json"),
+				"-expected", oraclePath,
+				"-actual-output", actualPath,
+			}
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			if code := run(context.Background(), arguments, &stdout, &stderr); code != 1 {
+				t.Fatalf("run() code = %d, want 1; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+			if stdout.Len() != 0 || !strings.Contains(stderr.String(), test.contains) {
+				t.Fatalf("stdout=%q stderr=%q, want %q", stdout.String(), stderr.String(), test.contains)
+			}
+			if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+				t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+			}
+		})
 	}
 }
 
@@ -873,10 +904,14 @@ func TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput(t *testin
 		contains string
 	}{
 		{name: "registered handler hidden as locked", index: 0, status: protocol.ContractOracleLocked, contains: "registered scenario"},
+		{name: "registered REL-004 handler hidden as locked", index: 3, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "unregistered handler marked red", index: 1, status: protocol.ContractRed, contains: "unregistered scenario"},
 		{name: "draft contract", index: 1, status: protocol.ContractDraft, contains: "locked-or-later"},
 	}
 	for index := 1; index < 12; index++ {
+		if index == 3 {
+			continue
+		}
 		tests = append(tests, struct {
 			name     string
 			index    int

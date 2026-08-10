@@ -319,7 +319,7 @@ func TestHistorical34ArtifactsAndFirstFiveSet57PassingStatusesRemainPinned(t *te
 	}
 }
 
-func TestTwelveSetProductStatusesAre111Passing5ReviewedDeviationsAnd11OracleLocked(t *testing.T) {
+func TestTwelveSetProductStatusesAre112Passing5ReviewedDeviationsAnd10OracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -358,8 +358,8 @@ func TestTwelveSetProductStatusesAre111Passing5ReviewedDeviationsAnd11OracleLock
 			}
 		}
 	}
-	if passing != 111 || deviations != 5 || oracleLocked != 11 {
-		t.Fatalf("twelve-set product statuses = %d passing + %d deviation + %d oracle_locked, want 111 + 5 + 11", passing, deviations, oracleLocked)
+	if passing != 112 || deviations != 5 || oracleLocked != 10 {
+		t.Fatalf("twelve-set product statuses = %d passing + %d deviation + %d oracle_locked, want 112 + 5 + 10", passing, deviations, oracleLocked)
 	}
 }
 

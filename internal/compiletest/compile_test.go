@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -140,6 +140,30 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"cannot use article",
 				"as Other value",
+			},
+		},
+		{
+			name:    "related predicate source model mismatch",
+			fixture: "relation_query/predicate_source_mismatch.go.txt",
+			wantFragments: []string{
+				"relations.BlogPost.Author.Name.Exact",
+				"orm.Predicate[authors.Author]",
+			},
+		},
+		{
+			name:    "forward relation target field mismatch",
+			fixture: "relation_query/target_field_mismatch.go.txt",
+			wantFragments: []string{
+				"blog.PostFields.Title",
+				"orm.StringField[authors.Author]",
+			},
+		},
+		{
+			name:    "related integer exact requires integer",
+			fixture: "relation_query/integer_value_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use \"1\"",
+				"as int64 value",
 			},
 		},
 	}

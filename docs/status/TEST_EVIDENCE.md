@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-10
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-038
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260810-039
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -3143,3 +3143,86 @@ Gate details:
 This evidence closes GDJ-0024's final documentation-head verification only. It does not establish REL-004, relation
 query/load/cache/write/delete/DDL/migration, broader target types or non-SQLite support. GDJ-0025 remains a later active
 work diff until its own exact-head evidence exists, and no merge was performed.
+
+## EVID-20260810-039 — GDJ-0025 REL-004 Forward Predicate Pre-hosted Local Validation
+
+- Date/time: 2026-08-10; activation hosted 12:57:17–13:05:22 KST, local implementation validation afterward
+- Work/contract IDs: GDJ-0025, REL-004, Q-013; REL-002/003/005..012 explicit not-implemented boundary
+- Tested checkout: branch `codex/revision-fenced-migration-lifecycle`; activation commit
+  `cf8cb589575836cb1393079ce04ff06fc549800a` plus the uncommitted frozen GDJ-0025 implementation and
+  pre-hosted status patch. The implementation commit identity is intentionally unknown/pending at this evidence point.
+- Local environment: Go 1.26.5 `darwin/arm64`; CPython 3.14.3; uv 0.12.3. Routine local Python uses only this
+  version. Exact CPython 3.12.13/3.13.15/3.14.3/3.14.7 remains CI-only; the historical exact darwin oracle job
+  remains pinned to uv 0.10.12.
+- Result summary: additive app query companion/project bridge, immutable project-bound typed/dynamic relation AST,
+  SQLite required one-hop reusable `INNER JOIN` and a separate oracle-blind actual fixture are locally implemented.
+  Both locked cases return Post IDs `[10,11]` with construction I/O 0, evaluation SELECT 1, INNER JOIN 1 and LEFT
+  JOIN 0. Product is locally exact 12 adapter sets/127 contracts=`112 passing + 5 deviation + 10 oracle_locked`;
+  relation actual coverage is REL-001/004 2/12. The other ten REL contracts remain ordered payload-free
+  `not_implemented`.
+- Failures/skips/not run: local unexpected failures 0. Portable Python's 17 exact-profile-only skips remain intentional.
+  Local Linux/386 is compile-only; actual Ubuntu/386 execution is pending. The exact-26 implementation-head workflow
+  and its four exact Python compatibility legs have not been committed/pushed or run and remain `not run/pending`.
+  Windows, PostgreSQL/MySQL, relation loader/cache/nullable/reverse/eager/write/delete/DDL/migration and non-AutoField
+  targets remain unsupported/out of scope.
+
+Activation exact-head hosted evidence:
+
+- Draft PR #1 `pull_request` [run 31354040515](https://github.com/progresshans/godj/actions/runs/31354040515),
+  attempt 1, completed with `success` at exact
+  `headSha=cf8cb589575836cb1393079ce04ff06fc549800a`.
+- Exact 26/26 jobs and all 326/326 recorded steps succeeded; failed/cancelled/skipped jobs and non-success recorded
+  steps were 0. Evidence re-query found PR #1 `OPEN`/`DRAFT`/`CLEAN`.
+- Actions synthetic merge `9710862dd07c1bb764c5ed2d3d391bc867d64fb8` had exact base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and activation-head parents. Its tree and the activation head tree
+  were both `56612ab9e862b82a26f0404437f2bfc77de8447f`, so executed contents were exact-head-equivalent.
+- Full Ubuntu passed portable Python 193 tests/17 intentional skips and all twelve product adapters; exact darwin
+  passed 193/193 with skip 0. Each of the four existing relation-product legs retained exact 394 run/394 pass/0 skip,
+  40,630 bytes and SHA-256 `2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce`.
+  This run establishes only the activation head and pre-REL-004 implementation topology.
+
+Local commands and exact gates:
+
+1. `PYTHONDONTWRITEBYTECODE=1 make ci`
+   - PASS: format/generate, full Go normal/vet/race, focused CGO-disabled packages, portable Python, conformance and
+     all twelve product adapters. Portable Python reported 193 tests with 17 intentional exact-profile skips.
+2. Workflow-equivalent `go test -json -count=1` over `./schema/...`, `./query`, `./codegen`, `./orm`,
+   `./db/sqlite`, `./migrations`, `./migrations/definition`, both relation product trees, protocol, GoDj runner,
+   `godjcheck` and external compile tests, followed by the workflow inventory verifier
+   - PASS: exact 492 top-level run events, 492 matching pass events, 0 skip events; encoded inventory 49,902 bytes,
+     SHA-256 `05064a7f0e7a8806d7172fe26a12d846765cdf0d7f991c83b40de07603ba82eb`.
+3. `go test -count=20 ./query ./orm ./db/sqlite ./conformance/relationqueryproduct -run 'Relation|REL004|ParseDynamic|Compile'`
+   - PASS for all 20 repetitions.
+4. `go test -shuffle=on -count=10 ./query ./orm ./db/sqlite ./conformance/relationqueryproduct ./conformance/cmd/godjcheck`
+   - PASS for all 10 shuffled repetitions.
+5. Exact relation package set under normal, race, `CGO_ENABLED=0` and vet
+   - PASS. Existing scalar SQLite SQL/error behavior, typed/dynamic `Plan.Equal`, immutable reads, pre-I/O structured
+     rejection, generated external positive/negative compilation and app-to-app Imports/Deps 0 gates passed.
+6. `GOOS=linux GOARCH=386 CGO_ENABLED=0 go test -exec=true -count=1 ./query ./orm ./conformance/relationproduct/... ./conformance/relationqueryproduct/... ./conformance/runners/godj`
+   - PASS as a bounded real Linux/386 ELF compile. `-exec=true` does not execute the binaries; actual Ubuntu/386
+     relation-query execution remains a required hosted gate.
+7. `make godj-conformance`
+   - PASS for all 12 adapters. Relation stdout was exactly
+     `GoDj product observations match 2 required contracts; 10 remain not implemented`.
+8. `PYTHONDONTWRITEBYTECODE=1 uv run --frozen python -m unittest conformance.runners.django.tests.test_relation_scenarios`
+   - PASS: 11/11.
+
+Artifact, scope and false-green evidence:
+
+- Relation manifest changed only REL-004 `oracle_locked -> passing`: 10,830 bytes/SHA-256
+  `944be1b941b9217ed27c2f6d5a33662cdfafc23f0c7698cad5ebb80849b633f0`. Relation oracle remained 33,792
+  bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
+  bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, and 12-line SHA256SUMS 1,148
+  bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`. All stored checksums passed.
+- Existing v2/v3 main, metadata and `Bind()` generator bytes, prior `conformance/relationproduct/**`, scalar compiler
+  body, schema/migrations, `go.mod` and `go.sum` remained unchanged. Generated relation-query fixture no-rewrite,
+  oracle blindness, exact result/DB-state/metrics mismatch gates and independent mutations all passed.
+- The frozen audit input contained exactly 50 unstaged/untracked paths versus activation HEAD and 62 total changed
+  paths versus the `5bf14357...` work baseline, with 0 paths outside the 53 unique frontmatter allowlist selectors.
+  This evidence/status integration adds only its allowed status files; nothing was staged, committed, pushed or merged.
+- `gofmt`, YAML parse, Markdown/frontmatter/link checks and `git diff --check` passed at the implementation freeze.
+
+Four independent read-only audits covered query/ORM API and immutable AST, codegen/import graph, SQLite/conformance
+false-green boundaries, and final integration/security/scope. Their final verdicts were all
+P0/P1/P2/P3=`0/0/0/0`. Hosted acceptance is deliberately pending until this frozen implementation and evidence are
+committed and pushed. ADR-0025 therefore remains Proposed, GDJ-0025 remains active, and Q-013 remains `Partial`.

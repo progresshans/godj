@@ -3,10 +3,12 @@ package sqlite_test
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestCompilePredicatesOrderingAndLimit(t *testing.T) {
@@ -71,5 +73,142 @@ func TestCompileRejectsConditionFromOtherModel(t *testing.T) {
 	var queryError *query.Error
 	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
 		t.Fatalf("error = %v, want invalid_plan", err)
+	}
+}
+
+func TestCompileRequiredForwardRelationQualifiesAndReusesJoin(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	authorNamePath := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	authorIDPath := requiredAuthorPath(t, query.NewFieldRef("id", "id", query.FieldInteger, false))
+	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID}).WithConditions(
+		query.NewRelatedCondition(authorNamePath, query.LookupExact, query.String("Ada")),
+		query.NewRelatedCondition(authorIDPath, query.LookupExact, query.Integer(1)),
+	).WithOrderings(query.NewOrdering(id, query.Ascending))
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	wantSQL := `SELECT "t0"."id", "t0"."title", "t0"."author_id" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t1"."name" = ? AND "t1"."id" = ? ORDER BY "t0"."id" ASC`
+	if statement != wantSQL {
+		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
+	}
+	if want := []any{"Ada", int64(1)}; !reflect.DeepEqual(arguments, want) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, want)
+	}
+}
+
+func TestCompileRelationJoinAliasesAreCanonicalRatherThanConditionOrdered(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	author := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	editor, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "editor", "editor_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", false,
+		query.NewFieldRef("name", "name", query.FieldString, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	left := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(editor, query.LookupExact, query.String("Bob")),
+		query.NewRelatedCondition(author, query.LookupExact, query.String("Ada")),
+	)
+	right := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(author, query.LookupExact, query.String("Ada")),
+		query.NewRelatedCondition(editor, query.LookupExact, query.String("Bob")),
+	)
+	leftSQL, _, err := sqlite.Compile(left)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rightSQL, _, err := sqlite.Compile(right)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantJoins := `INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" INNER JOIN "authors_author" AS "t2" ON "t0"."editor_id" = "t2"."id"`
+	if !strings.Contains(leftSQL, wantJoins) || !strings.Contains(rightSQL, wantJoins) {
+		t.Fatalf("canonical joins missing:\nleft  %s\nright %s", leftSQL, rightSQL)
+	}
+}
+
+func TestCompileRelationRejectsRootMismatchAndConflictingRepeatedEdge(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	terminal := query.NewFieldRef("name", "name", query.FieldString, false)
+	wrongRoot, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"other_post", "author", "author_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Ada")),
+	))
+	assertQueryCode(t, err, query.CodeInvalidPlan)
+
+	first := requiredAuthorPath(t, terminal)
+	conflict, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "author", "writer_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(first, query.LookupExact, query.String("Ada")),
+		query.NewRelatedCondition(conflict, query.LookupExact, query.String("Ada")),
+	))
+	assertQueryCode(t, err, query.CodeInvalidPlan)
+}
+
+func TestCompileRelationRejectsNonExactAndWrongValueKind(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	path := requiredAuthorPath(t, query.NewFieldRef("name", "name", query.FieldString, false))
+	_, _, err := sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(path, query.LookupIContains, query.String("Ada")),
+	))
+	assertQueryCode(t, err, query.CodeUnsupported)
+
+	_, _, err = sqlite.Compile(query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(path, query.LookupExact, query.Integer(1)),
+	))
+	assertQueryCode(t, err, query.CodeInvalidPlan)
+}
+
+func requiredAuthorPath(t *testing.T, terminal query.FieldRef) query.RelationPath {
+	t.Helper()
+	path, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "author", "author_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func assertQueryCode(t *testing.T, err error, code string) {
+	t.Helper()
+	var queryError *query.Error
+	if !errors.As(err, &queryError) || queryError.Code != code {
+		t.Fatalf("error = %v, want query error code %q", err, code)
 	}
 }

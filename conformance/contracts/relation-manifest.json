@@ -79,7 +79,7 @@
       "title": "Forward relation predicates use one reusable inner join",
       "scenario": "django.relation.forward_lookup_join_reuse",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

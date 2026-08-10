@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestCompareProductAcceptsOneObservedAndOrderedOracleLockedRemainder(t *testing.T) {
+func TestCompareProductAcceptsTwoObservedAndOrderedOracleLockedRemainder(t *testing.T) {
 	profile, manifest, expected, actual := productComparisonFixture(t)
 
-	differences, err := CompareProduct(profile, manifest, expected, actual, []string{"REL-001"})
+	differences, err := CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-004"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,17 +29,17 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 			name:     "missing required ID",
 			required: nil,
 			mutate:   func(*Manifest, *ObservationSuite) {},
-			contains: "manifest requires 1",
+			contains: "manifest requires 2",
 		},
 		{
 			name:     "unknown required ID",
-			required: []string{"REL-999"},
+			required: []string{"REL-999", "REL-004"},
 			mutate:   func(*Manifest, *ObservationSuite) {},
 			contains: "manifest requires \"REL-001\"",
 		},
 		{
 			name:     "required contract not implemented",
-			required: []string{"REL-001"},
+			required: []string{"REL-001", "REL-004"},
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[0] = Observation{ID: "REL-001", Status: StatusNotImplemented, Phase: PhaseMetadata}
 			},
@@ -47,7 +47,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "locked contract observed",
-			required: []string{"REL-001"},
+			required: []string{"REL-001", "REL-004"},
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[1] = expected.Contracts[1]
 			},
@@ -55,7 +55,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "red contract",
-			required: []string{"REL-001"},
+			required: []string{"REL-001", "REL-004"},
 			mutate: func(changed *Manifest, _ *ObservationSuite) {
 				changed.Contracts[1].Status = ContractRed
 			},
@@ -63,7 +63,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "reordered observations",
-			required: []string{"REL-001"},
+			required: []string{"REL-001", "REL-004"},
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[1], suite.Contracts[2] = suite.Contracts[2], suite.Contracts[1]
 			},
@@ -71,7 +71,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "duplicate observations",
-			required: []string{"REL-001"},
+			required: []string{"REL-001", "REL-004"},
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[2] = suite.Contracts[1]
 			},
@@ -96,7 +96,7 @@ func TestCompareProductReportsObservedPayloadDifference(t *testing.T) {
 	changed := "changed"
 	actual.Contracts[0].Result.Text = &changed
 
-	differences, err := CompareProduct(profile, manifest, expected, actual, []string{"REL-001"})
+	differences, err := CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-004"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,6 +119,7 @@ func productComparisonFixture(t *testing.T) (Profile, Manifest, ObservationSuite
 		manifest.Contracts[index].Status = ContractOracleLocked
 	}
 	manifest.Contracts[0].Status = ContractPassing
+	manifest.Contracts[3].Status = ContractPassing
 
 	expected := ObservationSuite{
 		FormatVersion: FormatVersion,
@@ -137,5 +138,7 @@ func productComparisonFixture(t *testing.T) (Profile, Manifest, ObservationSuite
 	}
 	actualResult := String(manifest.Contracts[0].ID)
 	actual.Contracts[0] = Observation{ID: manifest.Contracts[0].ID, Status: StatusObserved, Phase: manifest.Contracts[0].Phase, Result: &actualResult}
+	secondActualResult := String(manifest.Contracts[3].ID)
+	actual.Contracts[3] = Observation{ID: manifest.Contracts[3].ID, Status: StatusObserved, Phase: manifest.Contracts[3].Phase, Result: &secondActualResult}
 	return profile, manifest, expected, actual
 }

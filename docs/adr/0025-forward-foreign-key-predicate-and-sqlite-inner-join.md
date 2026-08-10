@@ -109,9 +109,10 @@ The companion exports:
 - `<Model>FieldSet` and `<Model>Fields` for non-relation scalar fields only
 - `<Model>Objects`
 
-It imports `db`, `orm`, `schema/ir` and `database/sql` only when nullable integer FK scan needs it. It never imports a
-target app. Descriptor metadata comes from a fresh `GoDjRelationSchema()` value, scan covers every stored field, and
-clone deep-copies nullable pointers. No WriteDescriptor/save/create/update/delete/cache symbol is generated.
+It imports `db`, `orm`, `schema/ir` and `database/sql` only when nullable scalar storage (`Char` or FK) needs `Null*`
+scanning. It never imports a target app. Descriptor metadata comes from a fresh `GoDjRelationSchema()` value, scan
+covers every stored field, and clone deep-copies nullable pointers. No WriteDescriptor/save/create/update/delete/cache
+symbol is generated.
 
 Before rendering, it constructs one exact package namespace containing existing `GoDjGeneratorVersion`,
 `GoDjSchemaSHA256`, every model `GoName`, `GoDjRelationMetadataGeneratorVersion`, `GoDjRelationSchemaSHA256`,
@@ -120,9 +121,9 @@ Before rendering, it constructs one exact package namespace containing existing 
 
 `GenerateProjectRelationQuery` immediately clones and normalizes every `RelationQueryPackage.Schema`. It canonicalizes
 and validates app label, alias and compiler-safe import path. Alias must be an ASCII lower-camel Go identifier matching
-`[a-z][A-Za-z0-9]*`; Go keywords, `init` and reserved import aliases `orm`/`ir` are rejected. The exported prefix
-uppercases exactly the first ASCII byte and preserves the remainder, so `blog` becomes `Blog`. Duplicate aliases or
-exported prefixes are rejected.
+`[a-z][A-Za-z0-9]*`; Go keywords, `init`, predeclared identifiers used by the generated file (`error`, `nil`) and
+reserved import aliases `orm`/`ir` are rejected. The exported prefix uppercases exactly the first ASCII byte and
+preserves the remainder, so `blog` becomes `Blog`. Duplicate aliases or exported prefixes are rejected.
 
 Before rendering, the project generator validates three exact namespaces: file imports contain unique `orm`, `ir` and
 app aliases; package declarations contain existing `GoDjProjectBindingGeneratorVersion`/`Bind`, new
@@ -133,6 +134,18 @@ reserved by the exact method. Any collision is rejected before bytes are returne
 same-package `Bind()`. It imports `github.com/progresshans/godj/schema/ir` as `ir` and emits only normalized symbolic
 `ir.ModelIdentity{AppLabel: ..., ModelName: ...}` values needed by `BindModel`; it never replays fields, tables or a raw
 schema literal.
+
+`RelationQueryPackage.Schema` may be scalar IR v2 or relation IR v3. A v2 target uses its unchanged main-file
+descriptor; a v3 model uses the additive query companion descriptor. The generated `Relations` aggregate contains only
+source models that have at least one supported required forward relation. Target-only models are still bound for type
+and snapshot validation but do not gain an empty aggregate entry.
+
+`GenerateProjectRelationQuery` derives each generated relation selector name from normalized FK scalar storage
+`Field.GoName`: it must end with the exact terminal `ID`, and removing that suffix must leave a non-empty exported Go
+identifier. Thus `AuthorID` becomes `Author`. Missing/empty suffix results, `ParseDynamic`, or duplicate selector names
+in one source model are project-generation errors. `Field.Name` remains the symbolic binder key and is not inferred from
+this Go spelling. `GenerateRelationQuery` does not create relation selector names and therefore does not apply this
+project-surface rule.
 
 The exact fixture-level exported shape is:
 
@@ -221,7 +234,11 @@ the only related typed lookups in this decision.
 calls the same private forward-path/related-condition constructor as typed fields. Before relation lookup it rejects a
 different segment count, any empty segment (`__name`, `author____name`) or an explicit lookup suffix with
 `CategoryField` / `CodeUnsupportedLookup`. Nullable `reviewer`, reverse and multi-hop paths are likewise unsupported.
-The existing scalar `ParseDynamic` is unchanged.
+The existing scalar `ParseDynamic` preserves all scalar-field behavior. When descriptor metadata identifies a
+`FieldForeignKey` or carries non-nil relation metadata, however, it returns `CategoryField` /
+`CodeUnsupportedLookup` before scalar lowering. A public v3 descriptor therefore cannot make `author__isnull` or
+`reviewer__isnull` appear supported through the legacy scalar API; REL-006 remains the sole owner of relation-level
+`isnull` semantics.
 
 Stable dynamic errors add:
 

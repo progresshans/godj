@@ -82,6 +82,96 @@ func TestParseDynamicReturnsConstructionErrorsWithoutIO(t *testing.T) {
 	}
 }
 
+func TestParseDynamicRejectsRelationFieldsBeforeScalarLowering(t *testing.T) {
+	t.Parallel()
+
+	fixture := newRelationQueryFixture(t)
+	foreignKeyOnlyMetadata := fixture.postDescriptor.Metadata()
+	foreignKeyOnlyMetadata.Fields[1].Relation = nil
+	foreignKeyOnlyDescriptor := &relationQueryDescriptor[relationQueryPost]{metadata: foreignKeyOnlyMetadata}
+	relationOnlyMetadata := fixture.postDescriptor.Metadata()
+	relationOnlyMetadata.Fields[1].Kind = ir.FieldAuto
+	relationOnlyDescriptor := &relationQueryDescriptor[relationQueryPost]{metadata: relationOnlyMetadata}
+
+	tests := []struct {
+		name       string
+		descriptor orm.ModelDescriptor[relationQueryPost]
+		input      orm.LookupInput
+		field      string
+		lookup     string
+	}{
+		{
+			name:       "required relation isnull",
+			descriptor: fixture.postDescriptor,
+			input:      orm.LookupInput{Key: "author__isnull", Value: true},
+			field:      "author",
+			lookup:     string(query.LookupIsNull),
+		},
+		{
+			name:       "nullable relation isnull",
+			descriptor: fixture.postDescriptor,
+			input:      orm.LookupInput{Key: "reviewer__isnull", Value: true},
+			field:      "reviewer",
+			lookup:     string(query.LookupIsNull),
+		},
+		{
+			name:       "foreign key kind without relation arm",
+			descriptor: foreignKeyOnlyDescriptor,
+			input:      orm.LookupInput{Key: "author", Value: int64(1)},
+			field:      "author",
+			lookup:     string(query.LookupExact),
+		},
+		{
+			name:       "relation arm without foreign key kind",
+			descriptor: relationOnlyDescriptor,
+			input:      orm.LookupInput{Key: "author", Value: int64(1)},
+			field:      "author",
+			lookup:     string(query.LookupExact),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			policyCalled := false
+			predicates, err := orm.ParseDynamic(test.descriptor, func(ir.Field, query.Lookup) bool {
+				policyCalled = true
+				return true
+			}, []orm.LookupInput{test.input})
+			if predicates != nil {
+				t.Fatalf("predicates = %#v, want nil", predicates)
+			}
+			var queryError *query.Error
+			if !errors.As(err, &queryError) {
+				t.Fatalf("error = %T %v, want *query.Error", err, err)
+			}
+			if queryError.Category != query.CategoryField || queryError.Code != query.CodeUnsupportedLookup ||
+				queryError.Field != test.field || queryError.Lookup != test.lookup {
+				t.Fatalf("error = %#v, want field_error/unsupported_lookup field=%q lookup=%q", queryError, test.field, test.lookup)
+			}
+			if policyCalled {
+				t.Fatal("relation field reached scalar lookup policy")
+			}
+		})
+	}
+
+	predicates, err := orm.ParseDynamic(fixture.postDescriptor, nil, []orm.LookupInput{
+		{Key: "id", Value: int64(10)},
+		{Key: "author", Value: int64(1)},
+	})
+	if predicates != nil {
+		t.Fatalf("partial predicates = %#v, want nil", predicates)
+	}
+	if !errors.Is(err, &query.Error{
+		Category: query.CategoryField,
+		Code:     query.CodeUnsupportedLookup,
+		Field:    "author",
+		Lookup:   string(query.LookupExact),
+	}) {
+		t.Fatalf("partial-input error = %v, want relation unsupported_lookup", err)
+	}
+}
+
 func TestGeneratedDescriptorMetadataIsAnIndependentCopy(t *testing.T) {
 	t.Parallel()
 

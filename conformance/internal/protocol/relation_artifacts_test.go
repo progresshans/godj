@@ -22,8 +22,8 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/relation-manifest.json": {
-			size:   10836,
-			sha256: "1a844ae1f0da7226b0dd936ee5b3eb884144e4caaf829ec2f6c822ab361b4254",
+			size:   10830,
+			sha256: "944be1b941b9217ed27c2f6d5a33662cdfafc23f0c7698cad5ebb80849b633f0",
 		},
 		"conformance/fixtures/godj-relation-not-implemented.json": {
 			size:   1859,
@@ -49,7 +49,7 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	}
 }
 
-func TestRelationManifestDiffIsExactlyReviewedREL001StatusTransition(t *testing.T) {
+func TestRelationManifestDiffIsExactlyReviewedREL004StatusTransition(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -58,15 +58,20 @@ func TestRelationManifestDiffIsExactlyReviewedREL001StatusTransition(t *testing.
 		t.Fatal(err)
 	}
 	passing := []byte(`"status": "passing"`)
-	if count := bytes.Count(contents, passing); count != 1 {
-		t.Fatalf("relation manifest passing status count = %d, want exact 1", count)
+	if count := bytes.Count(contents, passing); count != 2 {
+		t.Fatalf("relation manifest passing status count = %d, want exact 2", count)
 	}
-	restored := bytes.Replace(contents, passing, []byte(`"status": "oracle_locked"`), 1)
-	if len(restored) != 10842 {
-		t.Fatalf("restored relation manifest size = %d, want prior 10842", len(restored))
+	transition := bytes.LastIndex(contents, passing)
+	if transition < 0 {
+		t.Fatal("REL-004 passing transition is missing")
 	}
-	if got := fmt.Sprintf("%x", sha256.Sum256(restored)); got != "08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522" {
-		t.Fatalf("restored relation manifest checksum = %q, want prior locked bytes", got)
+	restored := append([]byte(nil), contents...)
+	restored = append(restored[:transition], append([]byte(`"status": "oracle_locked"`), restored[transition+len(passing):]...)...)
+	if len(restored) != 10836 {
+		t.Fatalf("restored relation manifest size = %d, want prior GDJ-0024 size 10836", len(restored))
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(restored)); got != "1a844ae1f0da7226b0dd936ee5b3eb884144e4caaf829ec2f6c822ab361b4254" {
+		t.Fatalf("restored relation manifest checksum = %q, want prior GDJ-0024 bytes", got)
 	}
 }
 
@@ -132,7 +137,7 @@ func TestRelationArtifactBoundaryIsLocked(t *testing.T) {
 			t.Fatalf("contract %s scenario = %q, want %q", contract.ID, contract.Scenario, wantSlugs[index])
 		}
 		wantStatus := ContractOracleLocked
-		if index == 0 {
+		if index == 0 || index == 3 {
 			wantStatus = ContractPassing
 		}
 		if contract.Status != wantStatus {

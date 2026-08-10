@@ -34,6 +34,15 @@ func ParseDynamic[M any](descriptor ModelDescriptor[M], policy LookupPolicy, inp
 				Detail:   "field is not present in model metadata",
 			}
 		}
+		if field.Kind == ir.FieldForeignKey || field.Relation != nil {
+			return nil, &query.Error{
+				Category: query.CategoryField,
+				Code:     query.CodeUnsupportedLookup,
+				Field:    field.Name,
+				Lookup:   lookupName,
+				Detail:   "relation fields require the project-bound dynamic relation API",
+			}
+		}
 		lookup, ok := supportedLookup(field, lookupName)
 		if !ok {
 			return nil, &query.Error{

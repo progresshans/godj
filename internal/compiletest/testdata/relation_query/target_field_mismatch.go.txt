@@ -1,0 +1,17 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/conformance/relationqueryproduct/authors"
+	"github.com/progresshans/godj/conformance/relationqueryproduct/blog"
+	"github.com/progresshans/godj/conformance/relationqueryproduct/project"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+func mismatch() {
+	binding, _ := project.Bind()
+	post, _ := orm.BindModel(binding, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, blog.PostDescriptor{})
+	author, _ := orm.BindModel(binding, ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, authors.AuthorDescriptor{})
+	forward, _ := orm.BindForward(post, "author", author)
+	_, _ = forward.String(blog.PostFields.Title)
+}

@@ -14,6 +14,8 @@ const (
 
 const (
 	CodeUnknownField                 = "unknown_field"
+	CodeUnknownRelation              = "unknown_relation"
+	CodeUnknownRelatedField          = "unknown_related_field"
 	CodeUnsupportedLookup            = "unsupported_lookup"
 	CodeDisallowedLookup             = "disallowed_lookup"
 	CodeInvalidValue                 = "invalid_value"

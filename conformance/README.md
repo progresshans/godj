@@ -49,11 +49,12 @@ GDJ-0022는 actual global kernel과 project-linked loader report를 결합하는
 GDJ-0023은 ForeignKey relation 동작 12개를 exact Django reference로 고정한 열두 번째 set을
 추가했습니다. 이 단계의 REL-001..012는 모두 `oracle_locked`였고 제품 adapter는 없었습니다.
 GDJ-0024는 generated v3 relation metadata와 project binder를 관찰하는 열두 번째 product adapter를
-연결합니다. REL-001만 `passing`이며 REL-002..012는 ordered payload-free `not_implemented` actual과
-`oracle_locked` manifest 상태를 유지합니다. 현재 reference는 12 set/127 contract/132 ordered
-cross-binding이고, 제품 분류는 12 adapter/127 contract의
-`111 passing + 5 deviation + 11 oracle_locked`입니다. 이는 relation metadata 1/12의 제품 증거이며
-ForeignKey query/write/delete/backend 전체 지원을 뜻하지 않습니다.
+연결해 REL-001 metadata를 `passing`으로 전환했습니다. GDJ-0025는 별도 generated relation-query product와
+SQLite required one-hop `INNER JOIN`을 연결해 REL-004도 actual `passing`으로 전환합니다. REL-002/003/005..012는
+ordered payload-free `not_implemented` actual과 `oracle_locked` manifest 상태를 유지합니다. 현재 reference는
+12 set/127 contract/132 ordered cross-binding이고, 제품 분류는 12 adapter/127 contract의
+`112 passing + 5 deviation + 10 oracle_locked`입니다. 이는 relation metadata와 required forward predicate
+2/12의 제품 증거이며 ForeignKey object cache/write/delete/DDL/migration 전체 지원을 뜻하지 않습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -412,8 +413,10 @@ go run ./conformance/cmd/observationcmp \
   -actual conformance/fixtures/godj-migration-project-check-not-implemented.json
 ```
 
-Relation product adapter는 checked-in generated bridge를 실제 bind해 REL-001 metadata만 관찰합니다.
-REL-002..012는 original 12-contract order 안에서 payload 없는 `not_implemented`로 남습니다.
+Relation product adapter는 기존 checked-in generated bridge로 REL-001 metadata를 관찰하고, 별도
+`relationqueryproduct`의 generated query companion/project bridge와 실제 SQLite rows로 REL-004의 두 forward
+predicate case를 관찰합니다. REL-002/003/005..012는 original 12-contract order 안에서 payload 없는
+`not_implemented`로 남습니다.
 
 ```bash
 go run ./conformance/cmd/godjcheck \
@@ -423,9 +426,9 @@ go run ./conformance/cmd/godjcheck \
 ```
 
 성공 stdout은 정확히
-`GoDj product observations match 1 required contract; 11 remain not implemented`입니다.
-Product comparator는 registry가 요구하는 REL-001을 oracle과 byte-semantic하게 비교하고 locked
-REL-002..012가 관찰된 것처럼 나타나면 거부합니다. 기존 11 all-observed adapter의 strict comparator
+`GoDj product observations match 2 required contracts; 10 remain not implemented`입니다.
+Product comparator는 registry가 요구하는 REL-001/004를 oracle과 byte-semantic하게 비교하고 locked
+REL-002/003/005..012가 관찰된 것처럼 나타나면 거부합니다. 기존 11 all-observed adapter의 strict comparator
 의미는 바뀌지 않습니다. 비교가 끝나기 전에는 `-actual-output`을 만들지 않으므로 status/payload/
 registry mismatch는 exit 1 또는 2, 빈 stdout, output file 없음으로 fail-closed합니다.
 
@@ -714,19 +717,22 @@ entrypoint를 호출해 두 actual report를 결합합니다. MIG-065..074는 10
 GDJ-0023 relation reference manifest는 10,842 bytes/SHA-256
 `08124b420e6313e4c2c1a5be32a3bdd29d831f02f1479bc3591af6f8f7da1522`였고 REL-001..012 모두
 `oracle_locked`였습니다. GDJ-0024 status-only manifest는 10,836 bytes/SHA-256
-`1a844ae1f0da7226b0dd936ee5b3eb884144e4caaf829ec2f6c822ab361b4254`입니다. Oracle 33,792
+`1a844ae1f0da7226b0dd936ee5b3eb884144e4caaf829ec2f6c822ab361b4254`입니다. GDJ-0025는 REL-004만
+`passing`으로 바꾼 10,830 bytes/SHA-256
+`944be1b941b9217ed27c2f6d5a33662cdfafc23f0c7698cad5ebb80849b633f0` status-only manifest입니다. Oracle 33,792
 bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
 bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, 12-line
 `SHA256SUMS` 1,148 bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`는
-바꾸지 않았습니다. Checked-in actual fixture는 v2 target/v3 source schema에서 main/companion/bridge를
-실제 생성하고 `orm.BindProject`를 호출하는 경로로 재검증하며 oracle 상수를 복사하지 않습니다.
+바꾸지 않았습니다. 기존 REL-001 fixture bytes도 보존합니다. 별도 checked-in REL-004 fixture는 v2 target/v3
+source schema에서 main/metadata/query companion과 두 project bridge를 실제 재생성하고 manual FK-enabled
+SQLite fixture의 real QuerySet 결과를 관찰하며 oracle/static expected artifact를 import하지 않습니다.
 
 Required workflow topology는 full/exact 2 + independent project-check proof 4 + relation-binding proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
 relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
 normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
-검증합니다. Exact top-level package inventory는 394 run/394 pass/0 skip이고, encoded inventory는 40,630
-bytes/SHA-256 `2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce`입니다.
+검증합니다. Exact top-level package inventory는 492 run/492 pass/0 skip이고, encoded inventory는 49,902
+bytes/SHA-256 `05064a7f0e7a8806d7172fe26a12d846765cdf0d7f991c83b40de07603ba82eb`입니다.
 Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
 3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및

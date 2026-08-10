@@ -21,6 +21,8 @@ allowed_paths:
   - "orm/relation_query.go"
   - "orm/relation_query_test.go"
   - "orm/relation_query_external_test.go"
+  - "orm/dynamic.go"
+  - "orm/orm_test.go"
   - "orm/dynamic_relation.go"
   - "orm/dynamic_relation_test.go"
   - "codegen/relation_query.go"
@@ -178,14 +180,24 @@ row including required and nullable FK scalar storage. Nullable `*int64` is scan
 
 `GenerateProjectRelationQuery` snapshots and normalizes every `RelationQueryPackage.Schema`, canonicalizes by app label,
 alias and import path, and rejects duplicate/colliding inputs. Alias is an ASCII lower-camel Go identifier matching
-`[a-z][A-Za-z0-9]*`, excluding keywords, `init`, `orm` and `ir`; its exported prefix uppercases exactly the first ASCII
-byte and preserves the remainder (`blog` → `Blog`). It rejects duplicate prefixes and any collision among import aliases,
+`[a-z][A-Za-z0-9]*`, excluding keywords, `init`, generated-file predeclared identifiers `error`/`nil`, and reserved
+imports `orm`/`ir`; its exported prefix uppercases exactly the first ASCII byte and preserves the remainder (`blog` →
+`Blog`). It rejects duplicate prefixes and any collision among import aliases,
 existing `Bind`/project-binding provenance, project-query provenance, `Relations`, `BindRelations`, derived
 `<Prefix><Model>Relations`/`<Prefix><Model><Relation>Relation` types, unique `<Prefix><Model>` aggregate fields and each
 model's unique relation fields. A generated model relation named `ParseDynamic` is rejected because it would collide
 with the exact method. Generated code imports reserved `orm` and `ir`; it emits only normalized symbolic
 `ir.ModelIdentity` literals required by `BindModel`, not field/table/schema replay. It calls the existing same-package
 `Bind()`, then the runtime binder, and imports concrete app types only in the project bridge.
+
+The project input intentionally mixes v2 and v3 schemas. Scalar v2 targets use their unchanged main descriptor; v3
+models use the additive query companion descriptor. Only source models with at least one supported required forward
+relation appear in `Relations`; target-only models are bound for validation but do not receive empty aggregate entries.
+
+The project generator derives relation selector spelling from normalized FK storage `Field.GoName` by removing one exact
+terminal `ID`: `AuthorID` becomes `Author`. It rejects a missing suffix, an empty/non-exported result, reserved
+`ParseDynamic`, or duplicate selector spelling inside one source model. The symbolic binder key remains `Field.Name`.
+The app query companion does not create relation selector names and does not apply this project-surface rule.
 
 For aliases `authors` and `blog`, generated exports include exact `GoDjProjectRelationQueryGeneratorVersion`,
 `Relations`, `BlogPostRelations`, `BlogPostAuthorRelation` and `BindRelations() (Relations, error)`. Prefixing model surfaces with the package alias avoids
@@ -240,8 +252,10 @@ receiver and target field argument. `errors.As` must expose stable `*query.Error
 `unsupported_lookup`. All are `CategoryField` and construction I/O remains zero.
 
 `ParseDynamicRelations` accepts only exact two-segment required forward paths such as `author__name` and `author__id`.
-It rejects nullable `reviewer`, reverse paths, multiple hops and non-exact lookups. Existing scalar `ParseDynamic` remains
-byte/semantic unchanged.
+It rejects nullable `reviewer`, reverse paths, multiple hops and non-exact lookups. Existing scalar `ParseDynamic`
+preserves every scalar-field behavior, but must fail closed with `CategoryField` / `CodeUnsupportedLookup` when a public
+v3 descriptor exposes `FieldForeignKey` or non-nil relation metadata. This prevents `author__isnull` or
+`reviewer__isnull` from bypassing the project-bound relation path as a raw integer lookup before REL-006 is implemented.
 
 ### Immutable Query AST
 
@@ -336,19 +350,22 @@ mutation must change the observation or fail structurally. Setup/teardown SQL is
 
 ## 완료 조건
 
-- [ ] ADR-0025 exact API/AST/compiler boundary is independently reviewed while Proposed.
-- [ ] Existing main/metadata/project binding generator bytes and scalar SQLite SQL are byte-preserved.
-- [ ] Additive relation query companion and project query bridge compile without app-to-app imports.
-- [ ] ProjectBinding model snapshot, BoundModel and required ForwardRelation are immutable and deterministic.
-- [ ] Typed and dynamic `author__name`/`author__id` build equal immutable plans with construction I/O 0.
-- [ ] SQLite emits one reusable required INNER JOIN and actual result `[10,11]` for both locked cases.
-- [ ] Invalid/reverse/multi-hop/nullable paths, root/source-table mismatch and repeated-edge metadata conflicts fail
+- [x] ADR-0025 exact API/AST/compiler boundary is independently reviewed while Proposed.
+- [x] Existing main/metadata/project binding generator bytes and scalar SQLite SQL are byte-preserved.
+- [x] Additive relation query companion and project query bridge compile without app-to-app imports.
+- [x] ProjectBinding model snapshot, BoundModel and required ForwardRelation are immutable and deterministic.
+- [x] Typed and dynamic `author__name`/`author__id` build equal immutable plans with construction I/O 0.
+- [x] SQLite emits one reusable required INNER JOIN and actual result `[10,11]` for both locked cases.
+- [x] Invalid/reverse/multi-hop/nullable paths, root/source-table mismatch and repeated-edge metadata conflicts fail
   pre-I/O with structured errors; wrong source/target bindings fail earlier in `BindModel`/`BindForward`.
-- [ ] REL-004 actual adapter is oracle-blind and mutation-sensitive; ten other REL contracts stay payload-free NI.
-- [ ] Product aggregate is exact `112 passing + 5 deviation + 10 oracle_locked = 127`.
-- [ ] Local normal/race/CGO-disabled/vet/repetition/386/no-rewrite/diff-clean gates pass.
+- [x] Existing scalar `ParseDynamic` preserves scalar behavior but rejects relation/FK fields, and
+  `ParseDynamicRelations` classifies relation-level `__isnull` as `unsupported_lookup` without a plan or I/O.
+- [x] REL-004 actual adapter is oracle-blind and mutation-sensitive; ten other REL contracts stay payload-free NI.
+- [x] Product aggregate is exact `112 passing + 5 deviation + 10 oracle_locked = 127`.
+- [x] Local normal/race/CGO-disabled/vet/repetition/386 compile/no-rewrite/diff-clean gates pass; actual Linux/386
+  execution remains hosted-only.
 - [ ] Existing exact 26 hosted executions pass on the exact implementation head with skip 0.
-- [ ] Independent query/API, codegen/import, SQLite/conformance and final integration audits report P0..P3 = 0.
+- [x] Independent query/API, codegen/import, SQLite/conformance and final integration audits report P0..P3 = 0.
 - [ ] Work/status/matrix/evidence and ADR are synchronized; ADR becomes Accepted only for this bounded slice.
 
 ## 비목표
@@ -373,26 +390,35 @@ mutation must change the observation or fail structurally. Setup/teardown SQL is
 - 2026-08-10: 세 독립 read-only gap/priority/API 검토가 REL-004-only를 최소 정직한 다음 수직 단면으로
   합의했습니다. REL-003/006 cache/nullable ABI는 후속으로 유지합니다.
 - 2026-08-10: ADR-0025를 Proposed, 이 work를 active로 활성화했습니다. Activation patch 자체 exact-head CI는
-  아직 `not run/pending`입니다.
+  activation commit `cf8cb589575836cb1393079ce04ff06fc549800a`의
+  [run 31354040515](https://github.com/progresshans/godj/actions/runs/31354040515)에서 exact 26/26 jobs와
+  326/326 recorded steps를 통과했습니다. 이 run은 activation 문서와 기존 제품만 증명합니다.
+- 2026-08-10: REL-004 implementation은 local normal/race/CGO-disabled/vet, count-20/shuffle-10, bounded
+  Linux/386 compile, Python relation 11/11, twelve-adapter conformance와 exact workflow inventory
+  492 run/492 pass/0 skip·49,902 bytes·SHA-256 `05064a7f...82eb`을 통과했습니다. Query/ORM,
+  codegen/import, SQLite/conformance, final integration/security audits는 모두 P0/P1/P2/P3=0입니다.
+  [EVID-039](../docs/status/TEST_EVIDENCE.md#evid-20260810-039--gdj-0025-rel-004-forward-predicate-pre-hosted-local-validation)에
+  pre-hosted 증거를 기록했고 implementation-head hosted CI는 아직 `not run/pending`입니다.
 
 ## 현재 blocker
 
-외부 blocker는 없습니다. 구현 전 blocker는 activation 문서의 독립 API/scope 감사와 exact-head hosted
-baseline입니다. 그 뒤 공개 API 한 소유자, codegen/SQLite/conformance의 분리 소유자로 구현하되 같은
-stable API 파일을 동시에 편집하지 않습니다.
+외부 blocker는 없습니다. Activation exact-head와 frozen local implementation/audit는 통과했습니다. 남은
+acceptance gate는 implementation/pre-hosted patch를 commit/push한 exact head의 hosted exact-26과 four exact
+Python legs입니다. 그 전까지 work는 active이고 ADR-0025는 Proposed입니다.
 
 ## 다음 정확한 작업
 
-1. Activation 문서의 exact 51-path allowlist, API 도달성, EVID-038 append-only와 링크를 독립 감사합니다.
-2. Activation 문서만 commit/push하고 same Draft PR #1의 existing exact-26 CI를 확인합니다.
-3. ProjectBinding model snapshot과 relation path/typed-dynamic API를 먼저 구현·동결합니다.
-4. Additive codegen companion/bridge와 external import graph를 구현합니다.
-5. SQLite join compiler와 separate relationqueryproduct actual adapter를 연결합니다.
-6. Measured inventory/digests를 갱신하고 local/independent/hosted acceptance 뒤 completion 문서를 작성합니다.
+1. Frozen implementation과 EVID-039/status patch의 exact allowlist, append-only, links와 diff를 재확인합니다.
+2. Implementation/pre-hosted patch만 commit/push하고 same Draft PR #1의 exact-26 CI를 확인합니다.
+3. Four exact Python compatibility legs와 actual Ubuntu Linux/386 REL-004 execution을 확인합니다.
+4. Hosted acceptance가 성공한 뒤 completion 문서와 ADR-0025 Accepted 상태를 별도 동기화합니다.
+5. Completion-documentation exact head도 hosted 검증하고 final evidence/status patch를 남깁니다.
 
 ## 인수인계
 
-현재 baseline product는 12 adapter sets/127 contracts=`111 passing + 5 deviation + 11 oracle_locked`, relation
-actual REL-001 1/12입니다. GDJ-0025는 REL-004-only이며 완료 전까지 이 분류를 바꾸지 않습니다. Existing
-relationproduct generated bytes, relation oracle/static/SHA, Schema IR/DSL, migration, write/delete, PostgreSQL/
-MySQL/Windows는 금지 경계입니다. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
+Committed activation HEAD product는 12 adapter sets/127 contracts=
+`111 passing + 5 deviation + 11 oracle_locked`, relation actual REL-001 1/12입니다. Frozen working tree는
+REL-004를 추가해 exact `112 passing + 5 deviation + 10 oracle_locked`, relation actual REL-001/004 2/12이고
+local/pre-hosted evidence와 four independent audits가 통과했습니다. Implementation-head hosted exact-26은
+pending입니다. Existing relationproduct generated bytes, relation oracle/static/SHA, Schema IR/DSL, migration,
+write/delete, PostgreSQL/MySQL/Windows는 금지 경계입니다. Draft PR #1은 사용자 요청 전 merge하지 않습니다.

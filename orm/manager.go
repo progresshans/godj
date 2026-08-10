@@ -470,6 +470,8 @@ func fieldReference(field ir.Field) query.FieldRef {
 	switch field.Kind {
 	case ir.FieldAuto:
 		kind = query.FieldInteger
+	case ir.FieldForeignKey:
+		kind = query.FieldInteger
 	case ir.FieldChar:
 		kind = query.FieldString
 	case ir.FieldBoolean:

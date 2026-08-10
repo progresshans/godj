@@ -1,0 +1,8 @@
+package consumer
+
+import "github.com/progresshans/godj/conformance/relationqueryproduct/project"
+
+func mismatch() {
+	relations, _ := project.BindRelations()
+	_ = relations.BlogPost.Author.ID.Exact("1")
+}

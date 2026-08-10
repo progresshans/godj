@@ -72,6 +72,11 @@ func (e *RelationBindingError) Error() string {
 // slices are constructed only after all schemas and derived reverse namespaces
 // validate successfully. Accessors never expose those slices.
 type ProjectBinding struct {
+	snapshot *projectBindingSnapshot
+}
+
+type projectBindingSnapshot struct {
+	models  map[ir.ModelIdentity]ir.Model
 	forward []RelationMetadata
 	reverse []ReverseRelationMetadata
 }
@@ -112,7 +117,7 @@ func BindProject(schemas ...ir.Schema) (ProjectBinding, error) {
 		normalized[index] = schema
 		for _, model := range schema.Models {
 			identity := ir.ModelIdentity{AppLabel: schema.AppLabel, ModelName: model.Name}
-			models[identity] = model
+			models[identity] = model.Clone()
 		}
 	}
 
@@ -174,36 +179,60 @@ func BindProject(schemas ...ir.Schema) (ProjectBinding, error) {
 		return compareReverse(reverse[left], reverse[right]) < 0
 	})
 
-	return ProjectBinding{
+	return ProjectBinding{snapshot: &projectBindingSnapshot{
+		models:  models,
 		forward: append([]RelationMetadata(nil), forward...),
 		reverse: append([]ReverseRelationMetadata(nil), reverse...),
-	}, nil
+	}}, nil
 }
 
 func (b ProjectBinding) ForwardRelations() []RelationMetadata {
-	return append([]RelationMetadata(nil), b.forward...)
+	if b.snapshot == nil {
+		return nil
+	}
+	return append([]RelationMetadata(nil), b.snapshot.forward...)
 }
 
 func (b ProjectBinding) ReverseRelations() []ReverseRelationMetadata {
-	return append([]ReverseRelationMetadata(nil), b.reverse...)
+	if b.snapshot == nil {
+		return nil
+	}
+	return append([]ReverseRelationMetadata(nil), b.snapshot.reverse...)
 }
 
 func (b ProjectBinding) Relation(source ir.ModelIdentity, field string) (RelationMetadata, bool) {
-	position := sort.Search(len(b.forward), func(index int) bool {
-		candidate := b.forward[index]
+	if b.snapshot == nil {
+		return RelationMetadata{}, false
+	}
+	position := sort.Search(len(b.snapshot.forward), func(index int) bool {
+		candidate := b.snapshot.forward[index]
 		if comparison := compareModelIdentity(candidate.Source, source); comparison != 0 {
 			return comparison >= 0
 		}
 		return candidate.Field >= field
 	})
-	if position == len(b.forward) {
+	if position == len(b.snapshot.forward) {
 		return RelationMetadata{}, false
 	}
-	candidate := b.forward[position]
+	candidate := b.snapshot.forward[position]
 	if candidate.Source != source || candidate.Field != field {
 		return RelationMetadata{}, false
 	}
 	return candidate, true
+}
+
+// Model returns a fresh copy of normalized model metadata from the same
+// immutable project snapshot as the relation projections. The zero value is
+// an empty, unbound snapshot.
+func (b ProjectBinding) Model(identity ir.ModelIdentity) (ir.Model, bool) {
+	if b.snapshot == nil {
+		return ir.Model{}, false
+	}
+	model, ok := b.snapshot.models[identity]
+	if !ok {
+		return ir.Model{}, false
+	}
+	return model.Clone(), true
 }
 
 type reverseNamespace struct {

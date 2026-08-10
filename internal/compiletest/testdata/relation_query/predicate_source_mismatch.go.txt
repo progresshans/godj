@@ -1,0 +1,12 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/conformance/relationqueryproduct/authors"
+	"github.com/progresshans/godj/conformance/relationqueryproduct/project"
+	"github.com/progresshans/godj/orm"
+)
+
+func mismatch() {
+	relations, _ := project.BindRelations()
+	var _ orm.Predicate[authors.Author] = relations.BlogPost.Author.Name.Exact("Ada")
+}

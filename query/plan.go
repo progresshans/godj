@@ -38,20 +38,54 @@ const (
 )
 
 type Condition struct {
-	field  FieldRef
-	lookup Lookup
-	value  Value
+	field        FieldRef
+	lookup       Lookup
+	value        Value
+	relationPath *RelationPath
 }
 
 func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
 	return Condition{field: field, lookup: lookup, value: value}
 }
 
+// NewRelatedCondition constructs a condition over the terminal field of a
+// relation path. The path is copied so callers cannot retain aliases into a
+// query plan.
+func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Condition {
+	cloned := path.clone()
+	return Condition{
+		field:        cloned.Terminal(),
+		lookup:       lookup,
+		value:        value,
+		relationPath: &cloned,
+	}
+}
+
 func (c Condition) Field() FieldRef { return c.field }
 func (c Condition) Lookup() Lookup  { return c.lookup }
 func (c Condition) Value() Value    { return c.value }
+func (c Condition) RelationPath() (RelationPath, bool) {
+	if c.relationPath == nil {
+		return RelationPath{}, false
+	}
+	return c.relationPath.clone(), true
+}
 func (c Condition) Equal(other Condition) bool {
-	return c.field == other.field && c.lookup == other.lookup && c.value == other.value
+	if c.field != other.field || c.lookup != other.lookup || c.value != other.value {
+		return false
+	}
+	leftPath, leftOK := c.RelationPath()
+	rightPath, rightOK := other.RelationPath()
+	return leftOK == rightOK && (!leftOK || leftPath.Equal(rightPath))
+}
+
+func (c Condition) clone() Condition {
+	clone := c
+	if c.relationPath != nil {
+		path := c.relationPath.clone()
+		clone.relationPath = &path
+	}
+	return clone
 }
 
 type Direction string
@@ -97,7 +131,7 @@ func (p Plan) Columns() []FieldRef {
 }
 
 func (p Plan) Conditions() []Condition {
-	return append([]Condition(nil), p.conditions...)
+	return cloneConditions(p.conditions)
 }
 
 func (p Plan) Orderings() []Ordering {
@@ -113,7 +147,7 @@ func (p Plan) Limit() (int, bool) {
 
 func (p Plan) WithConditions(conditions ...Condition) Plan {
 	clone := p.clone()
-	clone.conditions = append(clone.conditions, conditions...)
+	clone.conditions = append(clone.conditions, cloneConditions(conditions)...)
 	return clone
 }
 
@@ -150,11 +184,22 @@ func (p Plan) Equal(other Plan) bool {
 func (p Plan) clone() Plan {
 	clone := p
 	clone.columns = append([]FieldRef(nil), p.columns...)
-	clone.conditions = append([]Condition(nil), p.conditions...)
+	clone.conditions = cloneConditions(p.conditions)
 	clone.orderings = append([]Ordering(nil), p.orderings...)
 	if p.limit != nil {
 		limit := *p.limit
 		clone.limit = &limit
+	}
+	return clone
+}
+
+func cloneConditions(conditions []Condition) []Condition {
+	if conditions == nil {
+		return nil
+	}
+	clone := make([]Condition, len(conditions))
+	for index := range conditions {
+		clone[index] = conditions[index].clone()
 	}
 	return clone
 }

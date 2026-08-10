@@ -69,11 +69,17 @@ jobs:
           ./internal/projectcheck/...
           ./conformance/runners/godj
 
-      - name: Run relation metadata product on 32-bit Linux
+      - name: Run relation query product on 32-bit Linux
         env:
           CGO_ENABLED: "0"
           GOARCH: "386"
-        run: go test -count=1 ./conformance/relationproduct/...
+        run: >
+          go test -count=1
+          ./query
+          ./orm
+          ./conformance/relationproduct/...
+          ./conformance/relationqueryproduct/...
+          ./conformance/runners/godj
 
       - name: Verify stored oracle checksum
         working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
@@ -353,11 +359,14 @@ jobs:
           log="$RUNNER_TEMP/relation-product-tests.json"
           go test -json -count=1 \
             ./schema/... \
+            ./query \
             ./codegen \
             ./orm \
+            ./db/sqlite \
             ./migrations \
             ./migrations/definition \
             ./conformance/relationproduct/... \
+            ./conformance/relationqueryproduct/... \
             ./conformance/internal/protocol \
             ./conformance/runners/godj \
             ./conformance/cmd/godjcheck \
@@ -395,9 +404,9 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 394, sorted(runs)
-          assert len(payload) == 40630, len(payload)
-          assert hashlib.sha256(payload).hexdigest() == "2eb1fe8c963ee23c2ac779f04a3809bb3689e2ecac579ffb25da95113bb420ce"
+          assert len(runs) == 492, sorted(runs)
+          assert len(payload) == 49902, len(payload)
+          assert hashlib.sha256(payload).hexdigest() == "05064a7f0e7a8806d7172fe26a12d846765cdf0d7f991c83b40de07603ba82eb"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           PY
@@ -406,11 +415,14 @@ jobs:
         run: >
           go test -race -count=1
           ./schema/...
+          ./query
           ./codegen
           ./orm
+          ./db/sqlite
           ./migrations
           ./migrations/definition
           ./conformance/relationproduct/...
+          ./conformance/relationqueryproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -420,11 +432,14 @@ jobs:
         run: >
           CGO_ENABLED=0 go test -count=1
           ./schema/...
+          ./query
           ./codegen
           ./orm
+          ./db/sqlite
           ./migrations
           ./migrations/definition
           ./conformance/relationproduct/...
+          ./conformance/relationqueryproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -434,11 +449,14 @@ jobs:
         run: >
           go vet
           ./schema/...
+          ./query
           ./codegen
           ./orm
+          ./db/sqlite
           ./migrations
           ./migrations/definition
           ./conformance/relationproduct/...
+          ./conformance/relationqueryproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -451,6 +469,7 @@ jobs:
           conformance/fixtures/godj-relation-not-implemented.json
           conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
           conformance/relationproduct
+          conformance/relationqueryproduct
 
       - name: Require a clean worktree
         run: |

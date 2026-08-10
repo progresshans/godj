@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestArticleQueryVerticalSlice(t *testing.T) {
@@ -223,6 +224,101 @@ func TestSQLiteBackendQueryAndCloseDoNotRace(t *testing.T) {
 		t.Fatalf("Close() error = %v", err)
 	}
 	group.Wait()
+}
+
+func TestSQLiteBackendExecutesReusableRequiredForwardJoinAndRejectsInvalidPathPreIO(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	backend, err := sqlite.OpenMemory(ctx, "relation-join-"+t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
+	for _, statement := range []string{
+		`PRAGMA foreign_keys = ON`,
+		`CREATE TABLE "authors_author" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR(200) NOT NULL)`,
+		`CREATE TABLE "blog_post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" VARCHAR(200) NOT NULL, "author_id" INTEGER NOT NULL REFERENCES "authors_author" ("id"), "reviewer_id" INTEGER NULL REFERENCES "authors_author" ("id"))`,
+		`INSERT INTO "authors_author" ("id", "name") VALUES (1, 'Ada'), (2, 'Bob'), (3, 'Cleo')`,
+		`INSERT INTO "blog_post" ("id", "title", "author_id", "reviewer_id") VALUES (10, 'Alpha', 1, 2), (11, 'Beta', 1, NULL), (12, 'Gamma', 3, 2)`,
+	} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("provision relation fixture: %v", err)
+		}
+	}
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	authorName := query.NewFieldRef("name", "name", query.FieldString, false)
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	namePath := integrationRelationPath(t, "blog_post", "author_id", authorName)
+	idPath := integrationRelationPath(t, "blog_post", "author_id", targetID)
+	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+		query.NewRelatedCondition(namePath, query.LookupExact, query.String("Ada")),
+		query.NewRelatedCondition(idPath, query.LookupExact, query.Integer(1)),
+	).WithOrderings(query.NewOrdering(id, query.Ascending))
+
+	before := backend.QueryCount()
+	rows, err := backend.Query(ctx, plan)
+	if err != nil {
+		t.Fatalf("relation Query() error = %v", err)
+	}
+	var identifiers []int64
+	for rows.Next() {
+		var gotID, gotAuthorID int64
+		var gotTitle string
+		var gotReviewerID any
+		if err := rows.Scan(&gotID, &gotTitle, &gotAuthorID, &gotReviewerID); err != nil {
+			t.Fatalf("Scan() error = %v", err)
+		}
+		identifiers = append(identifiers, gotID)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("Rows.Err() = %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("Rows.Close() = %v", err)
+	}
+	if fmt.Sprint(identifiers) != "[10 11]" {
+		t.Fatalf("relation identifiers = %v, want [10 11]", identifiers)
+	}
+	if got := backend.QueryCount() - before; got != 1 {
+		t.Fatalf("relation query count = %d, want 1", got)
+	}
+
+	wrongRoot := integrationRelationPath(t, "other_post", "author_id", authorName)
+	invalid := query.NewPlan("blog_post", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Ada")),
+	)
+	before = backend.QueryCount()
+	_, err = backend.Query(ctx, invalid)
+	var queryError *query.Error
+	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
+		t.Fatalf("invalid relation Query() error = %v, want invalid_plan", err)
+	}
+	if got := backend.QueryCount() - before; got != 0 {
+		t.Fatalf("invalid relation query count = %d, want 0", got)
+	}
+}
+
+func integrationRelationPath(t *testing.T, sourceTable, sourceColumn string, terminal query.FieldRef) query.RelationPath {
+	t.Helper()
+	path, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		sourceTable, "author", sourceColumn,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
 func openArticleDatabase(t *testing.T, ctx context.Context) *sqlite.Backend {

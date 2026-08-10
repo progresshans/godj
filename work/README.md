@@ -56,7 +56,16 @@ proposed → ready → active → completed
 현재 active 항목은 [GDJ-0025](0025-forward-foreign-key-predicate-product-slice.md)입니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
-이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화합니다.
+이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
+Activation commit `cf8cb589575836cb1393079ce04ff06fc549800a`는
+[run 31354040515](https://github.com/progresshans/godj/actions/runs/31354040515)의 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Frozen implementation은 local `make ci`, relation inventory
+492/492/0·49,902 bytes·SHA-256 `05064a7f...82eb`, twelve adapters, bounded Linux/386 compile과 four
+independent audits P0/P1/P2/P3=0을 통과해
+[EVID-20260810-039](../docs/status/TEST_EVIDENCE.md#evid-20260810-039--gdj-0025-rel-004-forward-predicate-pre-hosted-local-validation)에
+기록했습니다. Working tree product는 REL-001/004 actual 2/12, exact
+`112 passing + 5 deviation + 10 oracle_locked`입니다. Exact implementation-head hosted CI는 pending이므로
+work는 active, ADR-0025는 Proposed, Q-013은 `Partial`입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

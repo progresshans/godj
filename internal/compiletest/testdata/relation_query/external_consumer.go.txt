@@ -1,0 +1,42 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/conformance/relationqueryproduct/authors"
+	"github.com/progresshans/godj/conformance/relationqueryproduct/blog"
+	"github.com/progresshans/godj/conformance/relationqueryproduct/project"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+func compileRelationQuerySurface() error {
+	relations, err := project.BindRelations()
+	if err != nil {
+		return err
+	}
+	var name orm.Predicate[blog.Post] = relations.BlogPost.Author.Name.Exact("Ada")
+	var identifier orm.Predicate[blog.Post] = relations.BlogPost.Author.ID.Exact(1)
+	_ = blog.PostObjects.Using(nil).Filter(name, identifier).OrderBy(blog.PostFields.ID.Asc()).Plan()
+	_, err = relations.BlogPost.ParseDynamic(nil, []orm.LookupInput{{Key: "author__name", Value: "Ada"}})
+	if err != nil {
+		return err
+	}
+
+	binding, err := project.Bind()
+	if err != nil {
+		return err
+	}
+	post, err := orm.BindModel(binding, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, blog.PostDescriptor{})
+	if err != nil {
+		return err
+	}
+	author, err := orm.BindModel(binding, ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, authors.AuthorDescriptor{})
+	if err != nil {
+		return err
+	}
+	forward, err := orm.BindForward(post, "author", author)
+	if err != nil {
+		return err
+	}
+	_, err = forward.String(authors.AuthorFields.Name)
+	return err
+}
