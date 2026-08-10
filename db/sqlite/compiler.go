@@ -113,6 +113,7 @@ type relationJoinKey struct {
 	field       string
 	targetApp   string
 	targetModel string
+	direction   query.RelationDirection
 }
 
 type relationJoin struct {
@@ -146,8 +147,11 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			return "", nil, invalidPlan("SQLite relation compiler requires exactly one relation hop")
 		}
 		hop := hops[0]
-		if hop.SourceTable() != plan.Table() {
+		if hop.Direction() == query.RelationForward && hop.SourceTable() != plan.Table() {
 			return "", nil, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), plan.Table()))
+		}
+		if hop.Direction() == query.RelationReverse && hop.TargetTable() != plan.Table() {
+			return "", nil, invalidPlan(fmt.Sprintf("relation target table %q does not match reverse plan root table %q", hop.TargetTable(), plan.Table()))
 		}
 		if !condition.Field().Equal(path.Terminal()) {
 			return "", nil, invalidPlan("related condition field does not match relation path terminal")
@@ -155,8 +159,17 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 
 		switch path.TerminalScope() {
 		case query.RelationTerminalRelatedField:
-			if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
-				return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports required forward many-to-one related-field paths only")
+			switch hop.Direction() {
+			case query.RelationForward:
+				if hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
+					return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports required forward many-to-one related-field paths only")
+				}
+			case query.RelationReverse:
+				if err := validateReverseRelatedCondition(condition, hop); err != nil {
+					return "", nil, err
+				}
+			default:
+				return "", nil, invalidPlan("relation path has an unknown direction")
 			}
 			if condition.Lookup() != query.LookupExact {
 				return "", nil, unsupportedRelatedCondition(condition, "SQLite relation compiler supports exact related lookups only")
@@ -179,6 +192,7 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			field:       hop.Field(),
 			targetApp:   hop.Target().AppLabel,
 			targetModel: hop.Target().ModelName,
+			direction:   hop.Direction(),
 		}
 		if previous, exists := joinsByKey[key]; exists && !previous.Equal(hop) {
 			return "", nil, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent metadata", key.sourceApp, key.sourceModel, key.field))
@@ -226,7 +240,15 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 	sql.WriteString(quotedRootAlias)
 	for _, key := range keys {
 		join := joins[key]
-		targetTable, err := quoteIdentifier(join.hop.TargetTable())
+		joinedTableName := join.hop.TargetTable()
+		rootColumnName := join.hop.SourceColumn()
+		joinedColumnName := join.hop.TargetPrimaryKeyColumn()
+		if join.hop.Direction() == query.RelationReverse {
+			joinedTableName = join.hop.SourceTable()
+			rootColumnName = join.hop.TargetPrimaryKeyColumn()
+			joinedColumnName = join.hop.SourceColumn()
+		}
+		joinedTable, err := quoteIdentifier(joinedTableName)
 		if err != nil {
 			return "", nil, err
 		}
@@ -234,22 +256,22 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		if err != nil {
 			return "", nil, err
 		}
-		sourceColumn, err := quoteQualified(rootAlias, join.hop.SourceColumn())
+		rootColumn, err := quoteQualified(rootAlias, rootColumnName)
 		if err != nil {
 			return "", nil, err
 		}
-		targetColumn, err := quoteQualified(join.alias, join.hop.TargetPrimaryKeyColumn())
+		joinedColumn, err := quoteQualified(join.alias, joinedColumnName)
 		if err != nil {
 			return "", nil, err
 		}
 		sql.WriteString(" INNER JOIN ")
-		sql.WriteString(targetTable)
+		sql.WriteString(joinedTable)
 		sql.WriteString(" AS ")
 		sql.WriteString(alias)
 		sql.WriteString(" ON ")
-		sql.WriteString(sourceColumn)
+		sql.WriteString(rootColumn)
 		sql.WriteString(" = ")
-		sql.WriteString(targetColumn)
+		sql.WriteString(joinedColumn)
 	}
 
 	arguments := make([]any, 0, len(conditions)+1)
@@ -341,6 +363,24 @@ func validateNullableSourceKeyCondition(
 	return nil
 }
 
+func validateReverseRelatedCondition(condition query.Condition, hop query.RelationHop) error {
+	if hop.Cardinality() != ir.RelationOneToMany {
+		return unsupportedRelatedCondition(condition, "SQLite reverse related-field paths require one-to-many traversal")
+	}
+	if !canonicalRelationIdentity(hop.Source()) || !canonicalRelationIdentity(hop.Target()) ||
+		!canonicalRelationIdentifier(hop.SourceTable()) || !canonicalRelationIdentifier(hop.Field()) ||
+		!canonicalRelationIdentifier(hop.SourceColumn()) || !canonicalRelationIdentifier(hop.TargetTable()) ||
+		!canonicalRelationIdentifier(hop.TargetPrimaryKeyColumn()) || !canonicalRelationIdentifier(hop.ReverseName()) {
+		return invalidPlan("reverse relation path contains non-canonical metadata")
+	}
+	field := condition.Field()
+	if !canonicalRelationIdentifier(field.Name()) || !canonicalRelationIdentifier(field.Column()) || field.Nullable() ||
+		(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
+		return invalidPlan("reverse relation terminal is non-canonical or unsupported")
+	}
+	return nil
+}
+
 func canonicalRelationIdentity(identity ir.ModelIdentity) bool {
 	return canonicalRelationIdentifier(identity.AppLabel) && canonicalRelationIdentifier(identity.ModelName)
 }
@@ -359,8 +399,8 @@ func canonicalRelationIdentifier(value string) bool {
 }
 
 func compareRelationJoinKey(left, right relationJoinKey) int {
-	leftParts := [...]string{left.sourceApp, left.sourceModel, left.field, left.targetApp, left.targetModel}
-	rightParts := [...]string{right.sourceApp, right.sourceModel, right.field, right.targetApp, right.targetModel}
+	leftParts := [...]string{left.sourceApp, left.sourceModel, left.field, left.targetApp, left.targetModel, string(left.direction)}
+	rightParts := [...]string{right.sourceApp, right.sourceModel, right.field, right.targetApp, right.targetModel, string(right.direction)}
 	for index := range leftParts {
 		if comparison := strings.Compare(leftParts[index], rightParts[index]); comparison != 0 {
 			return comparison

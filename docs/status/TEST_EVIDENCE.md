@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-11
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260811-046
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260811-047
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -3899,3 +3899,116 @@ Hosted gate details:
 This evidence closes the previous exact final-status head and establishes only GDJ-0027's clean tested baseline.
 ADR-0027 remains Proposed, GDJ-0027 remains active, Q-013 remains `Partial`, and the activation documentation diff
 requires its own non-reused exact-head CI. No Draft PR merge was performed or authorized.
+
+## EVID-20260811-047 — GDJ-0027 REL-005 Reverse Accessor and Lookup Pre-hosted Local Validation
+
+- Date/time: 2026-08-11; activation hosted 02:26:49–02:36:00 KST, frozen local implementation validation afterward
+- Work/contract IDs: GDJ-0027, REL-005, Q-013; REL-002/007..012 explicit ordered not-implemented boundary
+- Tested checkout: branch `codex/revision-fenced-migration-lifecycle`; activation commit
+  `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a` plus the uncommitted frozen GDJ-0027 implementation and this
+  pre-hosted five-document status sync. The implementation commit identity is intentionally unknown/pending.
+- Local environment/backend: Go 1.26.5 `darwin/arm64`; SQLite 3.53.3 through the existing modernc driver.
+  The local gate is normal-only. Hosted race, CGO-disabled, vet, actual Linux/386, macOS coordinates and exact
+  CPython compatibility legs belong to the still-pending implementation-head CI.
+- Result summary: declaration-centric reverse `RelationPath`, query-only typed/dynamic reverse binding, sealed
+  primary-key object capability, generated project-owned reverse object/`RelatedSet`, and SQLite reverse INNER JOIN
+  compilation are locally implemented. The oracle-blind REL-005 actual freshly loads Author 1, observes generated
+  `Posts()` IDs `[10,11]` with evaluation SELECT 1/JOIN 0, and observes typed/dynamic `posts__title=Alpha`
+  `Plan.Equal` with Author IDs `[1]`, SELECT 1/INNER JOIN 1 and unchanged database state. Local product
+  classification is exact 12 adapter sets/127 contracts=`115 passing + 5 deviation + 7 oracle_locked`; relation
+  actual is REL-001/003/004/005/006 5/12 and the remaining seven relation contracts stay ordered payload-free
+  `not_implemented`.
+- Failures/skips/not run: local unexpected failures 0. Local race, CGO-disabled, vet, repetition, full `make ci`,
+  actual Linux/386 execution and the four exact Python compatibility legs were deliberately not rerun; they are
+  delegated to the exact implementation-head hosted topology. The frozen implementation and this status sync have
+  not been staged, committed, pushed or run on GitHub and remain `not run/pending`. Activation run 31414060387 must
+  not be reused as implementation evidence. Windows, PostgreSQL/MySQL, reverse prefetch/eager/write/delete/DDL/
+  migration, custom targets and broader relation behavior remain unsupported/out of scope.
+
+Activation exact-head hosted evidence, used only for baseline preservation:
+
+- Draft PR #1 `pull_request`
+  [run 31414060387](https://github.com/progresshans/godj/actions/runs/31414060387), attempt 1, completed with
+  `success` at exact `headSha=9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`.
+- Exact 26/26 jobs and all 326/326 recorded steps succeeded; failed/cancelled/skipped jobs and non-success recorded
+  steps were 0. Live re-query found PR #1 `OPEN`/`DRAFT`/`CLEAN`/`MERGEABLE`, exact activation head and base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`.
+- Actions synthetic merge `f0bc42143245a45a425e6ca6d1cccfec8457fcd4` had those exact base/head parents.
+  Synthetic merge and exact activation-head trees were both `7c6f9d25d49dd38a6db6fc13dab35b06d0aa8918`,
+  so the executed activation contents were exact-head-equivalent.
+- Each of the four relation-product coordinates preserved the pre-implementation inventory: exact 533 run/533
+  pass/0 skip, 54,076 bytes and SHA-256
+  `6d2958b63e68dcbf0a63aa02adb47cdf005a4896af80f22e4acc49e78dd07aee`. This is raw-log baseline-preservation
+  proof for `114 + 5 + 8` and relation 4/12 only; it does not establish REL-005 or the local 569-test inventory.
+
+Exact activation job identities:
+
+| Required execution | Job ID | Result |
+|---|---:|---|
+| Validate checked-in conformance artifacts | [93538740791](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740791) | success |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [93538740762](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740762) | success |
+| Project check (`ubuntu-22.04`) | [93538740913](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740913) | success |
+| Project check (`ubuntu-24.04-arm`) | [93538740883](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740883) | success |
+| Project check (`macos-15-intel`) | [93538740900](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740900) | success |
+| Project check (`macos-26`) | [93538740907](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740907) | success |
+| SQLite (`ubuntu-22.04`) | [93538740981](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740981) | success |
+| SQLite (`ubuntu-24.04-arm`) | [93538740959](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740959) | success |
+| SQLite (`macos-15-intel`) | [93538740876](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740876) | success |
+| SQLite (`macos-26`) | [93538740901](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740901) | success |
+| Product project check (`ubuntu-22.04`) | [93538740829](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740829) | success |
+| Product project check (`ubuntu-24.04-arm`) | [93538740837](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740837) | success |
+| Product project check (`macos-15-intel`) | [93538740963](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740963) | success |
+| Product project check (`macos-26`) | [93538740826](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740826) | success |
+| Python compatibility (`3.12.13`) | [93538740872](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740872) | success |
+| Python compatibility (`3.13.15`) | [93538740893](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740893) | success |
+| Python compatibility (`3.14.3`) | [93538740813](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740813) | success |
+| Python compatibility (`3.14.7`) | [93538740941](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740941) | success |
+| Relation binding (`ubuntu-22.04`) | [93538740920](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740920) | success |
+| Relation binding (`ubuntu-24.04-arm`) | [93538740866](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740866) | success |
+| Relation binding (`macos-15-intel`) | [93538740878](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740878) | success |
+| Relation binding (`macos-26`) | [93538740857](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740857) | success |
+| Relation product (`ubuntu-22.04`) | [93538740898](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740898) | success |
+| Relation product (`ubuntu-24.04-arm`) | [93538740961](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740961) | success |
+| Relation product (`macos-15-intel`) | [93538740821](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740821) | success |
+| Relation product (`macos-26`) | [93538740892](https://github.com/progresshans/godj/actions/runs/31414060387/job/93538740892) | success |
+
+Local commands and exact gates:
+
+1. `make format-check generate-check go-test godj-conformance`
+   - PASS: all tracked/untracked Go formatting, existing generator check, full normal `go test ./...` and all twelve
+     product adapters. The relation adapter printed exact
+     `GoDj product observations match 5 required contracts; 7 remain not implemented`.
+2. Workflow-equivalent `go test -json -count=1` over the exact relation-product package set, including
+   `./conformance/relationreverseproduct/...`, followed by the exact inventory verifier
+   - PASS: exact 569 top-level run events, 569 matching pass events, 0 skip events; encoded inventory 57,738 bytes,
+     SHA-256 `739bb6fc4bc3a5665cbaa455bed45d4ddf9683d78c4ff74b02c1d0208862c2d7`.
+3. Runtime/object, codegen/publication and final integration/scope read-only audits
+   - CLEAN: each final verdict was P0/P1/P2/P3=`0/0/0/0` after remediation. The codegen remediation also amended
+     Proposed ADR-0027/work wording from a wrong-version generator guarantee to the exact ABI-incompatible caller
+     union-compile boundary; that pre-existing ADR/work delta is not part of this status sync.
+
+Artifact, scope and false-green evidence:
+
+- Relation manifest changed only REL-005 `oracle_locked -> passing`: 10,812 bytes/SHA-256
+  `640b24e9e543b66375ea1dafa45750a6d2716c1b3f1e2602afcd7e2a3b68f136`. Relation oracle remained 33,792
+  bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
+  bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, and 12-line SHA256SUMS 1,148
+  bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`. All stored checksums passed.
+- Existing generators and all three prior `relationproduct`, `relationqueryproduct` and `relationobjectproduct`
+  trees remained byte-identical; oracle/static/SHA and existing generated fixtures were preserved. The new
+  project-only reverse generator/fixture passed deterministic, gofmt, permutation, nil-byte failure,
+  external-union compile and app-to-app import-edge-0 gates.
+- Against activation HEAD `9dbc2fd2...`, the frozen implementation had exact 46 physical changed/untracked paths.
+  This pre-hosted sync changes exactly five documents: `docs/status/CURRENT.md`,
+  `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`, this work packet and `work/README.md`.
+  Because the work packet was already dirty, the resulting activation-head-relative tree has exact 50 physical
+  changed/untracked paths. Against clean GDJ-0027 baseline `9ba1d0ee...`, the union remains exact 59 paths: the 15
+  activation documents plus 46 implementation paths overlap in ADR-0027/work, and all 59 match the work allowlist.
+  Nothing was staged, committed, pushed or merged.
+- Before this append, historical EVID-001..046 body was exact 282,059 bytes/SHA-256
+  `2222b024491c07aaaad6def8656d79dc532f505128f412abe3ee6c55b845d641`; this patch preserves that body prefix,
+  changes only the top current-evidence pointer and appends EVID-047 within this file.
+
+Hosted acceptance remains pending until the frozen implementation and five-document sync are committed and pushed.
+ADR-0027 therefore remains Proposed, GDJ-0027 remains active, Q-013 remains `Partial`, and activation run 31414060387
+remains activation-only proof. No Draft PR merge was performed or authorized.

@@ -87,7 +87,7 @@ object surface까지 연결합니다.
   relation AST, [ADR-0025](../docs/adr/0025-forward-foreign-key-predicate-and-sqlite-inner-join.md)의 related
   field predicate, [ADR-0026](../docs/adr/0026-forward-foreign-key-object-cache-and-nullability.md)의 sealed
   descriptor/object cache를 보존합니다.
-- Current product는 exact `114 passing + 5 deviation + 8 oracle_locked`, relation 4/12입니다.
+- Activation baseline product는 exact `114 passing + 5 deviation + 8 oracle_locked`, relation 4/12입니다.
 
 ## Locked REL-005 외부 동작
 
@@ -274,8 +274,9 @@ The exact fixture publication union has nine files: authors main + relation meta
 relation metadata + relation query + relation object; project binding bridge + new project relation-reverse companion.
 Authors v2 main already supplies its descriptor/PK and needs no query companion. The pure generator does not inspect a
 filesystem or claim prerequisite presence: it owns input clone/normalize, namespace resolution, render and gofmt only.
-Missing/wrong-version prerequisite companions are caller publication/union-compile failures, tested in an isolated
-external module with last-known-good outputs preserved.
+Missing or ABI-incompatible prerequisite companions are caller publication/union-compile failures, tested in an
+isolated external module with last-known-good outputs preserved. A same-surface provenance-version value is checked by
+the publication workflow rather than encoded through non-idiomatic generated string-byte type assertions.
 
 Generated file owns two independent aggregates.
 
@@ -348,12 +349,12 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
 
 ## 완료 조건
 
-- [ ] work/ADR/status activation 문서가 exact baseline evidence와 API를 고정한다.
-- [ ] activation diff가 독립 API/scope audit P0/P1/P2/P3=0을 통과한다.
-- [ ] reverse AST/query/object/codegen/SQLite implementation이 allowed_paths 안에서 완료된다.
-- [ ] REL-005 actual observation과 oracle-blind mismatch gates가 통과한다.
-- [ ] aggregate가 exact `115 + 5 + 7`, relation 5/12로 재고정된다.
-- [ ] local focused lane gates와 one full integration gate가 통과한다.
+- [x] work/ADR/status activation 문서가 exact baseline evidence와 API를 고정한다.
+- [x] activation diff가 독립 API/scope audit P0/P1/P2/P3=0을 통과한다.
+- [x] reverse AST/query/object/codegen/SQLite implementation이 allowed_paths 안에서 완료된다.
+- [x] REL-005 actual observation과 oracle-blind mismatch gates가 통과한다.
+- [x] aggregate가 exact `115 + 5 + 7`, relation 5/12로 재고정된다.
+- [x] local focused lane gates와 one full integration gate가 통과한다.
 - [ ] exact implementation-head hosted 26-job matrix가 통과한다.
 - [ ] completion docs/ADR transition과 final evidence가 별도 exact head로 검증된다.
 
@@ -365,26 +366,47 @@ implementation-head GitHub Actions가 소유합니다. 이는 gate 삭제가 아
   REL-005-only를 최소 정직한 next vertical slice로 선택했습니다.
 - [x] 2026-08-11: query-only/object capability split, declaration-centric reverse AST, project-only generator와
   bounded RelatedSet ownership을 activation 전에 freeze했습니다.
-- [ ] activation documentation audit/commit/push/hosted exact-head evidence
-- [ ] runtime/codegen/SQLite/conformance implementation and integration audit
+- [x] activation documentation audit/commit/push/hosted exact-head evidence
+- [x] runtime/codegen/SQLite/conformance implementation and integration audit
 - [ ] implementation/completion/final hosted evidence
+
+- [x] 2026-08-11: Exact 15-file activation commit
+  `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`의 Draft PR #1
+  [run 31414060387](https://github.com/progresshans/godj/actions/runs/31414060387)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates의 prior 533/533/0·54,076
+  bytes·SHA-256 `6d2958b6...7aee`는 activation baseline 보존만 증명하며 implementation 증거로 재사용하지 않습니다.
+- [x] 2026-08-11: Frozen local implementation은 declaration-centric reverse AST, query-only typed/dynamic
+  binding, PK-capability object/`RelatedSet`, project-only generator, SQLite reverse INNER JOIN과 separate
+  oracle-blind actual을 구현했습니다. Accessor는 `[10,11]`/SELECT 1/JOIN 0, typed/dynamic lookup은
+  Plan.Equal·`[1]`/SELECT 1/INNER JOIN 1을 관찰했고 exact `115 passing + 5 deviation + 7 oracle_locked`,
+  relation 5/12입니다.
+- [x] 2026-08-11: Root `make format-check generate-check go-test godj-conformance`, workflow-equivalent exact
+  inventory 569 run/569 pass/0 skip·57,738 bytes·SHA-256
+  `739bb6fc4bc3a5665cbaa455bed45d4ddf9683d78c4ff74b02c1d0208862c2d7`와 runtime/codegen/final integration
+  audits P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Local race/CGO0/vet/repetition/full `make ci`와 hosted
+  platform matrix는 실행하지 않았고 implementation-head CI에 위임합니다.
+- [x] 2026-08-11: Pre-hosted [EVID-047](../docs/status/TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)을
+  exact five-document status delta로 동기화했습니다. Activation HEAD 대비 physical dirty는 46에서 50,
+  clean baseline `9ba1d0ee...` 대비 union은 59/all allowed로 유지됩니다. Implementation commit과 hosted
+  acceptance는 아직 `not run/pending`입니다.
 
 ## 현재 blocker와 다음 작업
 
-현재 제품 blocker는 코드 결함이 아니라 GDJ-0027 activation diff 자체의 independent audit와 commit/push입니다.
-Baseline hosted evidence를 새 EVID에 기록하되 activation 또는 implementation 증거로 재사용하지 않습니다.
+현재 제품 blocker는 코드 결함이 아니라 frozen implementation과 pre-hosted status sync의 commit/push 및 exact
+implementation-head hosted acceptance입니다. Activation commit/run은 이미 닫혔지만 구현 증거로 재사용하지 않습니다.
 
 다음 작업은 exact합니다.
 
-1. ADR-0027과 activation status/index/evidence 문서를 이 packet과 동기화합니다.
-2. Exact activation diff를 independent API/scope audit합니다.
-3. Activation commit을 push한 뒤 hosted CI를 기다리지 않고 runtime/codegen/SQLite-conformance lanes를 병렬 착수합니다.
-4. 각 lane focused normal gate 후 root에서 한 번 full integration하고 exact implementation head를 push합니다.
-5. Hosted exact 26-job matrix에서 heavy race/CGO0/vet/platform 증거를 수집합니다.
+1. Frozen implementation과 exact five-document status sync만 의도적으로 commit/push합니다.
+2. Exact implementation-head hosted 26-job matrix에서 race/CGO0/vet, actual Linux/386, four platform
+   coordinates와 exact Python legs를 수집합니다.
+3. Hosted success와 independent raw-log audit 뒤에만 ADR-0027을 Accepted/work를 completed로 전환합니다.
+4. Completion documentation과 final evidence/status head도 각각 별도 exact-head CI로 닫습니다.
 
 ## 인수인계
 
-- 현재 worktree의 GDJ-0027 문서는 activation candidate일 뿐 implementation/acceptance 증거가 아닙니다.
+- 현재 worktree는 locally verified pre-hosted implementation이며 [EVID-047](../docs/status/TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)이
+  exact local evidence입니다. Commit identity와 implementation-head hosted acceptance는 pending입니다.
 - Existing relation product/generator bytes와 oracle/static/NI/SHA를 변경하지 않습니다.
 - 공개 API를 바꾸기 전 이 work와 ADR을 먼저 amend하고 independent API audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하며 사용자의 명시적 요청 없이 merge하지 않습니다.

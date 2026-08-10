@@ -31,6 +31,14 @@ type RelationObjectDescriptor[M any] interface {
 	BindRelationStorage(ir.Field) (RelationStorage[M], bool)
 }
 
+// PrimaryKeyObjectDescriptor is the sealed, presence-aware capability used by
+// reverse object accessors. BindReverseObject asserts it only from the
+// immutable RelationObjectDescriptor snapshot retained by BoundModel.
+type PrimaryKeyObjectDescriptor[M any] interface {
+	RelationObjectDescriptor[M]
+	PrimaryKey(M) (query.Value, bool)
+}
+
 // RelationStorage extracts one structurally bound ForeignKey value. Generated
 // implementations use direct field access; reflection is restricted to cold
 // binder validation of the storage value's immutable shape.

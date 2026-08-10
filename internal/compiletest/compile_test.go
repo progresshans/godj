@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt", "relation_object/external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt", "relation_object/external_consumer.go.txt", "relation_reverse/external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -188,6 +188,14 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"cannot use \"true\"",
 				"as bool value",
+			},
+		},
+		{
+			name:    "reverse relation predicate keeps owner model",
+			fixture: "relation_reverse/predicate_owner_mismatch.go.txt",
+			wantFragments: []string{
+				"relations.AuthorsAuthor.Posts.Title.Exact",
+				"orm.Predicate[blog.Post]",
 			},
 		},
 	}

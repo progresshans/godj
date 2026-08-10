@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/conformance/relationobjectproduct"
 	"github.com/progresshans/godj/conformance/relationproduct"
 	"github.com/progresshans/godj/conformance/relationqueryproduct"
+	"github.com/progresshans/godj/conformance/relationreverseproduct"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -21,6 +22,8 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 		return relationForwardLazyCache, true
 	case "django.relation.forward_lookup_join_reuse":
 		return relationForwardLookupJoinReuse, true
+	case "django.relation.reverse_accessor_and_lookup":
+		return relationReverseAccessorAndLookup, true
 	case "django.relation.nullable_access_and_isnull":
 		return relationNullableAccessAndIsNull, true
 	default:
@@ -147,6 +150,38 @@ func relationForwardLookupJoinReuse(ctx context.Context, contract protocol.Contr
 	}, nil
 }
 
+func relationReverseAccessorAndLookup(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationreverseproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-005 product: %w", err)
+	}
+	accessorIDs := make([]protocol.Value, len(observed.AccessorPostIDs))
+	for index, identifier := range observed.AccessorPostIDs {
+		accessorIDs[index] = relationPrimaryKey(identifier)
+	}
+	lookupIDs := make([]protocol.Value, len(observed.LookupAuthorIDs))
+	for index, identifier := range observed.LookupAuthorIDs {
+		lookupIDs[index] = relationPrimaryKey(identifier)
+	}
+	result := protocol.Object(map[string]protocol.Value{
+		"accessor_post_ids": protocol.List(accessorIDs...),
+		"lookup_author_ids": protocol.List(lookupIDs...),
+	})
+	databaseState := relationReverseDatabaseStateValue(observed.DBState)
+	metrics := protocol.Object(map[string]protocol.Value{
+		"accessor": relationReverseQueryMetricsValue(observed.Accessor),
+		"lookup":   relationReverseQueryMetricsValue(observed.Lookup),
+	})
+	return protocol.Observation{
+		ID:      contract.ID,
+		Status:  protocol.StatusObserved,
+		Phase:   contract.Phase,
+		Result:  &result,
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
+}
+
 func relationQueryMetricsValue(metrics relationqueryproduct.QueryMetrics) protocol.Value {
 	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
 	for index, kind := range metrics.StatementKinds {
@@ -166,6 +201,24 @@ func relationQueryMetricsValue(metrics relationqueryproduct.QueryMetrics) protoc
 }
 
 func relationObjectQueryMetricsValue(metrics relationobjectproduct.QueryMetrics) protocol.Value {
+	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
+	for index, kind := range metrics.StatementKinds {
+		statementKinds[index] = protocol.String(kind)
+	}
+	joinKinds := make([]protocol.Value, len(metrics.JoinKinds))
+	for index, kind := range metrics.JoinKinds {
+		joinKinds[index] = protocol.String(kind)
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"query_count":           protocol.Integer(strconv.FormatInt(metrics.QueryCount, 10)),
+		"statement_kinds":       protocol.List(statementKinds...),
+		"join_kinds":            protocol.List(joinKinds...),
+		"inner_join_count":      protocol.Integer(strconv.FormatInt(metrics.InnerJoinCount, 10)),
+		"left_outer_join_count": protocol.Integer(strconv.FormatInt(metrics.LeftOuterJoinCount, 10)),
+	})
+}
+
+func relationReverseQueryMetricsValue(metrics relationreverseproduct.QueryMetrics) protocol.Value {
 	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
 	for index, kind := range metrics.StatementKinds {
 		statementKinds[index] = protocol.String(kind)
@@ -221,6 +274,33 @@ func relationObjectDatabaseStateValue(state relationobjectproduct.DatabaseState)
 	authors := make([]protocol.Value, len(state.Authors))
 	for index, author := range state.Authors {
 		authors[index] = relationObjectAuthorValue(author)
+	}
+	posts := make([]protocol.Value, len(state.Posts))
+	for index, post := range state.Posts {
+		reviewer := protocol.Null()
+		if post.ReviewerID != nil {
+			reviewer = relationPrimaryKey(*post.ReviewerID)
+		}
+		posts[index] = protocol.Object(map[string]protocol.Value{
+			"id":          relationPrimaryKey(post.ID),
+			"title":       protocol.String(post.Title),
+			"author_id":   relationPrimaryKey(post.AuthorID),
+			"reviewer_id": reviewer,
+		})
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"authors": protocol.List(authors...),
+		"posts":   protocol.List(posts...),
+	})
+}
+
+func relationReverseDatabaseStateValue(state relationreverseproduct.DatabaseState) protocol.Value {
+	authors := make([]protocol.Value, len(state.Authors))
+	for index, author := range state.Authors {
+		authors[index] = protocol.Object(map[string]protocol.Value{
+			"id":   relationPrimaryKey(author.ID),
+			"name": protocol.String(author.Name),
+		})
 	}
 	posts := make([]protocol.Value, len(state.Posts))
 	for index, post := range state.Posts {

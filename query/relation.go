@@ -1,6 +1,7 @@
 package query
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -10,7 +11,12 @@ import (
 // traverses a symbolic project relation.
 type RelationDirection string
 
-const RelationForward RelationDirection = "forward"
+const (
+	RelationForward RelationDirection = "forward"
+	RelationReverse RelationDirection = "reverse"
+)
+
+var canonicalRelationIdentifier = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
 
 // RelationTerminalScope identifies whether a relation condition ends on a
 // scalar field of the related model or on the source model's local key. The
@@ -34,6 +40,7 @@ type RelationHop struct {
 	target                 ir.ModelIdentity
 	targetTable            string
 	targetPrimaryKeyColumn string
+	reverseName            string
 	direction              RelationDirection
 	cardinality            ir.RelationCardinality
 	nullable               bool
@@ -46,6 +53,7 @@ func (h RelationHop) SourceColumn() string                { return h.sourceColum
 func (h RelationHop) Target() ir.ModelIdentity            { return h.target }
 func (h RelationHop) TargetTable() string                 { return h.targetTable }
 func (h RelationHop) TargetPrimaryKeyColumn() string      { return h.targetPrimaryKeyColumn }
+func (h RelationHop) ReverseName() string                 { return h.reverseName }
 func (h RelationHop) Direction() RelationDirection        { return h.direction }
 func (h RelationHop) Cardinality() ir.RelationCardinality { return h.cardinality }
 func (h RelationHop) Nullable() bool                      { return h.nullable }
@@ -59,6 +67,51 @@ type RelationPath struct {
 	hops     []RelationHop
 	terminal FieldRef
 	scope    RelationTerminalScope
+}
+
+// NewReverseRelationPath constructs one declaration-centric reverse
+// one-to-many path. Source remains the model that owns the physical
+// ForeignKey declaration; Target is the model whose namespace owns the
+// reverse name and whose table is the query root.
+func NewReverseRelationPath(
+	source ir.ModelIdentity,
+	sourceTable, sourceField, sourceColumn string,
+	target ir.ModelIdentity,
+	targetTable, targetPKColumn, reverseName string,
+	nullable bool,
+	terminal FieldRef,
+) (RelationPath, error) {
+	if !canonicalModelIdentity(source) || !canonicalModelIdentity(target) ||
+		!canonicalIdentifier(sourceTable) || !canonicalIdentifier(sourceField) ||
+		!canonicalIdentifier(sourceColumn) || !canonicalIdentifier(targetTable) ||
+		!canonicalIdentifier(targetPKColumn) || !canonicalIdentifier(reverseName) ||
+		!validReverseTerminal(terminal) {
+		return RelationPath{}, &Error{
+			Category: CategoryQuery,
+			Code:     CodeInvalidPlan,
+			Field:    sourceField,
+			Detail:   "reverse relation path contains non-canonical or unsupported metadata",
+		}
+	}
+
+	hop := RelationHop{
+		source:                 source,
+		sourceTable:            sourceTable,
+		field:                  sourceField,
+		sourceColumn:           sourceColumn,
+		target:                 target,
+		targetTable:            targetTable,
+		targetPrimaryKeyColumn: targetPKColumn,
+		reverseName:            reverseName,
+		direction:              RelationReverse,
+		cardinality:            ir.RelationOneToMany,
+		nullable:               nullable,
+	}
+	return RelationPath{
+		hops:     []RelationHop{hop},
+		terminal: terminal,
+		scope:    RelationTerminalRelatedField,
+	}, nil
 }
 
 // NewForwardRelationPath constructs the one required many-to-one path owned by
@@ -187,6 +240,21 @@ func (p RelationPath) clone() RelationPath {
 
 func validModelIdentity(identity ir.ModelIdentity) bool {
 	return !blank(identity.AppLabel) && !blank(identity.ModelName)
+}
+
+func canonicalModelIdentity(identity ir.ModelIdentity) bool {
+	return canonicalIdentifier(identity.AppLabel) && canonicalIdentifier(identity.ModelName)
+}
+
+func canonicalIdentifier(value string) bool {
+	return canonicalRelationIdentifier.MatchString(value)
+}
+
+func validReverseTerminal(field FieldRef) bool {
+	if !canonicalIdentifier(field.Name()) || !canonicalIdentifier(field.Column()) || field.Nullable() {
+		return false
+	}
+	return field.Kind() == FieldInteger || field.Kind() == FieldString
 }
 
 func validFieldRef(field FieldRef) bool {

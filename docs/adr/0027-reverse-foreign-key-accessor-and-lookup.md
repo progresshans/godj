@@ -253,8 +253,9 @@ The REL-005 fixture's exact publication union contains nine generated files: aut
 blog main, metadata, query and object; project binding bridge and the new reverse companion. The scalar-v2 authors main
 already provides the owner descriptor/PK and does not require an authors query companion. This pure generator does not
 read a filesystem or prove prerequisites: it owns clone/normalize, namespace validation, render and gofmt. A missing or
-wrong-version prerequisite is a caller publication/union-compile failure; external compile tests prove that failure does
-not replace last-known-good files.
+ABI-incompatible prerequisite is a caller publication/union-compile failure; external compile tests prove that failure
+does not replace last-known-good files. A same-surface provenance-version value remains a publication-workflow check;
+the generator does not emit non-idiomatic per-byte type assertions for a string constant.
 
 Generated query aggregate:
 

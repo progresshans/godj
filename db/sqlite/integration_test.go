@@ -373,6 +373,120 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 	}
 }
 
+func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	backend, err := sqlite.OpenMemory(ctx, "reverse-relation-join-"+t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
+	for _, statement := range []string{
+		`PRAGMA foreign_keys = ON`,
+		`CREATE TABLE "authors_author" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR(200) NOT NULL)`,
+		`CREATE TABLE "blog_post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" VARCHAR(200) NOT NULL, "author_id" INTEGER NOT NULL REFERENCES "authors_author" ("id"), "reviewer_id" INTEGER NULL REFERENCES "authors_author" ("id"))`,
+		`INSERT INTO "authors_author" ("id", "name") VALUES (1, 'Ada'), (2, 'Bob'), (3, 'Cleo')`,
+		`INSERT INTO "blog_post" ("id", "title", "author_id", "reviewer_id") VALUES (10, 'Alpha', 1, 2), (11, 'Beta', 1, NULL), (12, 'Gamma', 3, 2)`,
+	} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("provision reverse relation fixture: %v", err)
+		}
+	}
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	name := query.NewFieldRef("name", "name", query.FieldString, false)
+	titlePath, err := query.NewReverseRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "author", "author_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", "posts", false,
+		query.NewFieldRef("title", "title", query.FieldString, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	postIDPath, err := query.NewReverseRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "author", "author_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", "posts", false,
+		query.NewFieldRef("id", "id", query.FieldInteger, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(
+		query.NewRelatedCondition(titlePath, query.LookupExact, query.String("Alpha")),
+		query.NewRelatedCondition(postIDPath, query.LookupExact, query.Integer(10)),
+	).WithOrderings(query.NewOrdering(id, query.Ascending))
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile(reverse relation) error = %v", err)
+	}
+	if strings.Count(statement, " INNER JOIN ") != 1 ||
+		!strings.Contains(statement, `INNER JOIN "blog_post" AS "t1" ON "t0"."id" = "t1"."author_id"`) {
+		t.Fatalf("reverse relation SQL did not invert and reuse the join: %s", statement)
+	}
+	if want := []any{"Alpha", int64(10)}; fmt.Sprint(arguments) != fmt.Sprint(want) {
+		t.Fatalf("reverse relation arguments = %#v, want %#v", arguments, want)
+	}
+
+	before := backend.QueryCount()
+	rows, err := backend.Query(ctx, plan)
+	if err != nil {
+		t.Fatalf("reverse relation Query() error = %v", err)
+	}
+	var identifiers []int64
+	for rows.Next() {
+		var gotID int64
+		var gotName string
+		if err := rows.Scan(&gotID, &gotName); err != nil {
+			t.Fatalf("reverse relation Scan() error = %v", err)
+		}
+		identifiers = append(identifiers, gotID)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reverse relation Rows.Err() = %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("reverse relation Rows.Close() = %v", err)
+	}
+	if fmt.Sprint(identifiers) != "[1]" {
+		t.Fatalf("reverse relation identifiers = %v, want [1]", identifiers)
+	}
+	if got := backend.QueryCount() - before; got != 1 {
+		t.Fatalf("reverse relation query count = %d, want 1", got)
+	}
+
+	wrongRoot, err := query.NewReverseRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "author", "author_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"other_author", "id", "posts", false,
+		query.NewFieldRef("title", "title", query.FieldString, false),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalid := query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(
+		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Alpha")),
+	)
+	before = backend.QueryCount()
+	_, err = backend.Query(ctx, invalid)
+	var queryError *query.Error
+	if !errors.As(err, &queryError) || queryError.Code != query.CodeInvalidPlan {
+		t.Fatalf("invalid reverse relation Query() error = %v, want invalid_plan", err)
+	}
+	if got := backend.QueryCount() - before; got != 0 {
+		t.Fatalf("invalid reverse relation query count = %d, want 0", got)
+	}
+}
+
 func integrationRelationPath(t *testing.T, sourceTable, sourceColumn string, terminal query.FieldRef) query.RelationPath {
 	t.Helper()
 	path, err := query.NewForwardRelationPath(

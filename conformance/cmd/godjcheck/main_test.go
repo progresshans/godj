@@ -767,7 +767,7 @@ func TestRunWritesMigrationProjectCheckActualThatMatchesLockedOracle(t *testing.
 	}
 }
 
-func TestRunMatchesFourContractRelationProductBeforePublishingActualOutput(t *testing.T) {
+func TestRunMatchesFiveContractRelationProductBeforePublishingActualOutput(t *testing.T) {
 	t.Parallel()
 
 	root := filepath.Join("..", "..", "..")
@@ -786,7 +786,7 @@ func TestRunMatchesFourContractRelationProductBeforePublishingActualOutput(t *te
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	if stdout.String() != "GoDj product observations match 4 required contracts; 8 remain not implemented\n" {
+	if stdout.String() != "GoDj product observations match 5 required contracts; 7 remain not implemented\n" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 	if stderr.Len() != 0 {
@@ -815,13 +815,13 @@ func TestRunMatchesFourContractRelationProductBeforePublishingActualOutput(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, index := range []int{0, 2, 3, 5} {
+	for _, index := range []int{0, 2, 3, 4, 5} {
 		if actual.Contracts[index].Status != protocol.StatusObserved {
 			t.Fatalf("required relation contract %s status = %q, want observed", actual.Contracts[index].ID, actual.Contracts[index].Status)
 		}
 	}
 	for index := 1; index < len(actual.Contracts); index++ {
-		if index == 2 || index == 3 || index == 5 {
+		if index == 2 || index == 3 || index == 4 || index == 5 {
 			continue
 		}
 		observation := actual.Contracts[index]
@@ -829,7 +829,7 @@ func TestRunMatchesFourContractRelationProductBeforePublishingActualOutput(t *te
 			t.Fatalf("relation contract %d = %#v, want payload-free not_implemented", index, observation)
 		}
 	}
-	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001", "REL-003", "REL-004", "REL-006"})
+	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006"})
 	if err != nil || len(differences) != 0 {
 		t.Fatalf("partial product comparison differences=%#v error=%v", differences, err)
 	}
@@ -877,6 +877,20 @@ func TestRunDoesNotPublishMixedActualBeforePayloadComparison(t *testing.T) {
 			})
 			observation.Metrics = &changed
 		}, contains: "REL-004 metrics.fields[0].name:"},
+		{name: "REL-005 result", index: 4, mutate: func(observation *protocol.Observation) {
+			changed := protocol.String("expected-replay-sentinel")
+			observation.Result = &changed
+		}, contains: "REL-005 result.type:"},
+		{name: "REL-005 database state", index: 4, mutate: func(observation *protocol.Observation) {
+			changed := protocol.String("expected-replay-sentinel")
+			observation.DBState = &changed
+		}, contains: "REL-005 db_state.type:"},
+		{name: "REL-005 metrics", index: 4, mutate: func(observation *protocol.Observation) {
+			changed := protocol.Object(map[string]protocol.Value{
+				"expected_replay_sentinel": protocol.String("changed"),
+			})
+			observation.Metrics = &changed
+		}, contains: "REL-005 metrics.fields[0].name:"},
 		{name: "REL-006 result", index: 5, mutate: func(observation *protocol.Observation) {
 			changed := protocol.String("expected-replay-sentinel")
 			observation.Result = &changed
@@ -936,12 +950,13 @@ func TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput(t *testin
 		{name: "registered handler hidden as locked", index: 0, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "registered REL-003 handler hidden as locked", index: 2, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "registered REL-004 handler hidden as locked", index: 3, status: protocol.ContractOracleLocked, contains: "registered scenario"},
+		{name: "registered REL-005 handler hidden as locked", index: 4, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "registered REL-006 handler hidden as locked", index: 5, status: protocol.ContractOracleLocked, contains: "registered scenario"},
 		{name: "unregistered handler marked red", index: 1, status: protocol.ContractRed, contains: "unregistered scenario"},
 		{name: "draft contract", index: 1, status: protocol.ContractDraft, contains: "locked-or-later"},
 	}
 	for index := 1; index < 12; index++ {
-		if index == 2 || index == 3 || index == 5 {
+		if index == 2 || index == 3 || index == 4 || index == 5 {
 			continue
 		}
 		tests = append(tests, struct {

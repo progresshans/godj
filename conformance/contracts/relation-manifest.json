@@ -107,7 +107,7 @@
       "title": "Reverse access and reverse lookup expose ordered source rows with their distinct query shapes",
       "scenario": "django.relation.reverse_accessor_and_lookup",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

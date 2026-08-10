@@ -102,6 +102,112 @@ func TestCompileRequiredForwardRelationQualifiesAndReusesJoin(t *testing.T) {
 	}
 }
 
+func TestCompileReverseRelationInvertsRootAndReusesJoin(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	name := query.NewFieldRef("name", "name", query.FieldString, false)
+	titlePath := reversePostsPath(t, "authors_author", "author", "author_id", "posts", false,
+		query.NewFieldRef("title", "title", query.FieldString, false))
+	postIDPath := reversePostsPath(t, "authors_author", "author", "author_id", "posts", false,
+		query.NewFieldRef("id", "id", query.FieldInteger, false))
+	plan := query.NewPlan("authors_author", []query.FieldRef{id, name}).WithConditions(
+		query.NewRelatedCondition(titlePath, query.LookupExact, query.String("Alpha")),
+		query.NewRelatedCondition(postIDPath, query.LookupExact, query.Integer(10)),
+	).WithOrderings(query.NewOrdering(id, query.Ascending))
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "authors_author" AS "t0" INNER JOIN "blog_post" AS "t1" ON "t0"."id" = "t1"."author_id" WHERE "t1"."title" = ? AND "t1"."id" = ? ORDER BY "t0"."id" ASC`
+	if statement != wantSQL {
+		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
+	}
+	if want := []any{"Alpha", int64(10)}; !reflect.DeepEqual(arguments, want) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, want)
+	}
+}
+
+func TestCompileNullableReverseTargetPredicateStillUsesInnerJoin(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	path := reversePostsPath(t, "authors_author", "reviewer", "reviewer_id", "reviewed_posts", true,
+		query.NewFieldRef("title", "title", query.FieldString, false))
+	plan := query.NewPlan("authors_author", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(path, query.LookupExact, query.String("Gamma")),
+	)
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	wantSQL := `SELECT "t0"."id" FROM "authors_author" AS "t0" INNER JOIN "blog_post" AS "t1" ON "t0"."id" = "t1"."reviewer_id" WHERE "t1"."title" = ?`
+	if statement != wantSQL {
+		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
+	}
+	if want := []any{"Gamma"}; !reflect.DeepEqual(arguments, want) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, want)
+	}
+}
+
+func TestCompileForwardAndReverseSelfEdgesHaveDistinctJoinKeys(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	name := query.NewFieldRef("name", "name", query.FieldString, false)
+	identity := ir.ModelIdentity{AppLabel: "people", ModelName: "person"}
+	forward, err := query.NewForwardRelationPath(
+		identity, "people_person", "manager", "manager_id",
+		identity, "people_person", "id", false, name,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reverse, err := query.NewReverseRelationPath(
+		identity, "people_person", "manager", "manager_id",
+		identity, "people_person", "id", "reports", false, name,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := query.NewPlan("people_person", []query.FieldRef{id, name}).WithConditions(
+		query.NewRelatedCondition(forward, query.LookupExact, query.String("Ada")),
+		query.NewRelatedCondition(reverse, query.LookupExact, query.String("Bob")),
+	)
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "people_person" AS "t0" INNER JOIN "people_person" AS "t1" ON "t0"."manager_id" = "t1"."id" INNER JOIN "people_person" AS "t2" ON "t0"."id" = "t2"."manager_id" WHERE "t1"."name" = ? AND "t2"."name" = ?`
+	if statement != wantSQL {
+		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
+	}
+	if want := []any{"Ada", "Bob"}; !reflect.DeepEqual(arguments, want) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, want)
+	}
+}
+
+func TestCompileReverseRelationRejectsRootMismatchAndNonExact(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	terminal := query.NewFieldRef("title", "title", query.FieldString, false)
+	wrongRoot := reversePostsPath(t, "other_author", "author", "author_id", "posts", false, terminal)
+	_, _, err := sqlite.Compile(query.NewPlan("authors_author", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(wrongRoot, query.LookupExact, query.String("Alpha")),
+	))
+	assertQueryCode(t, err, query.CodeInvalidPlan)
+
+	path := reversePostsPath(t, "authors_author", "author", "author_id", "posts", false, terminal)
+	_, _, err = sqlite.Compile(query.NewPlan("authors_author", []query.FieldRef{id}).WithConditions(
+		query.NewRelatedCondition(path, query.LookupIContains, query.String("Alpha")),
+	))
+	assertQueryCode(t, err, query.CodeUnsupported)
+}
+
 func TestCompileRelationJoinAliasesAreCanonicalRatherThanConditionOrdered(t *testing.T) {
 	t.Parallel()
 
@@ -349,6 +455,25 @@ func requiredAuthorPath(t *testing.T, terminal query.FieldRef) query.RelationPat
 		"blog_post", "author", "author_id",
 		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
 		"authors_author", "id", false, terminal,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func reversePostsPath(
+	t *testing.T,
+	targetTable, sourceField, sourceColumn, reverseName string,
+	nullable bool,
+	terminal query.FieldRef,
+) query.RelationPath {
+	t.Helper()
+	path, err := query.NewReverseRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", sourceField, sourceColumn,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		targetTable, "id", reverseName, nullable, terminal,
 	)
 	if err != nil {
 		t.Fatal(err)

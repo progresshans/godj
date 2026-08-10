@@ -80,6 +80,7 @@ jobs:
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
+          ./conformance/relationreverseproduct/...
           ./conformance/runners/godj
 
       - name: Verify stored oracle checksum
@@ -369,6 +370,7 @@ jobs:
             ./conformance/relationproduct/... \
             ./conformance/relationqueryproduct/... \
             ./conformance/relationobjectproduct/... \
+            ./conformance/relationreverseproduct/... \
             ./conformance/internal/protocol \
             ./conformance/runners/godj \
             ./conformance/cmd/godjcheck \
@@ -406,9 +408,9 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 533, sorted(runs)
-          assert len(payload) == 54076, len(payload)
-          assert hashlib.sha256(payload).hexdigest() == "6d2958b63e68dcbf0a63aa02adb47cdf005a4896af80f22e4acc49e78dd07aee"
+          assert len(runs) == 569, sorted(runs)
+          assert len(payload) == 57738, len(payload)
+          assert hashlib.sha256(payload).hexdigest() == "739bb6fc4bc3a5665cbaa455bed45d4ddf9683d78c4ff74b02c1d0208862c2d7"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           PY
@@ -426,6 +428,7 @@ jobs:
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
+          ./conformance/relationreverseproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -444,6 +447,7 @@ jobs:
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
+          ./conformance/relationreverseproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -462,6 +466,7 @@ jobs:
           ./conformance/relationproduct/...
           ./conformance/relationqueryproduct/...
           ./conformance/relationobjectproduct/...
+          ./conformance/relationreverseproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -476,6 +481,7 @@ jobs:
           conformance/relationproduct
           conformance/relationqueryproduct
           conformance/relationobjectproduct
+          conformance/relationreverseproduct
 
       - name: Require a clean worktree
         run: |

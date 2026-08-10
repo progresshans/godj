@@ -1,0 +1,13 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/conformance/relationreverseproduct/blog"
+	"github.com/progresshans/godj/conformance/relationreverseproduct/project"
+	"github.com/progresshans/godj/orm"
+)
+
+func misuse() {
+	relations, _ := project.BindReverseRelations()
+	var wrong orm.Predicate[blog.Post] = relations.AuthorsAuthor.Posts.Title.Exact("Alpha")
+	_ = wrong
+}

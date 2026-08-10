@@ -143,7 +143,7 @@ class RelationScenarioTests(unittest.TestCase):
                 "oracle_locked",
                 "passing",
                 "passing",
-                "oracle_locked",
+                "passing",
                 "passing",
             ]
             + ["oracle_locked"] * 6,

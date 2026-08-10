@@ -247,3 +247,129 @@ func TestForwardRelationPathValidationIsStructured(t *testing.T) {
 		})
 	}
 }
+
+func TestReverseRelationPathIsDeclarationCentricAndImmutable(t *testing.T) {
+	t.Parallel()
+
+	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	path, err := query.NewReverseRelationPath(
+		source,
+		"blog_post",
+		"author",
+		"author_id",
+		target,
+		"authors_author",
+		"id",
+		"posts",
+		true,
+		title,
+	)
+	if err != nil {
+		t.Fatalf("NewReverseRelationPath() error = %v", err)
+	}
+	hops := path.Hops()
+	if got, want := len(hops), 1; got != want {
+		t.Fatalf("len(Hops()) = %d, want %d", got, want)
+	}
+	hop := hops[0]
+	if hop.Source() != source || hop.SourceTable() != "blog_post" ||
+		hop.Field() != "author" || hop.SourceColumn() != "author_id" ||
+		hop.Target() != target || hop.TargetTable() != "authors_author" ||
+		hop.TargetPrimaryKeyColumn() != "id" || hop.ReverseName() != "posts" ||
+		hop.Direction() != query.RelationReverse || hop.Cardinality() != ir.RelationOneToMany ||
+		!hop.Nullable() {
+		t.Fatalf("reverse hop accessors returned unexpected metadata: %#v", hop)
+	}
+	if path.TerminalScope() != query.RelationTerminalRelatedField || !path.Terminal().Equal(title) {
+		t.Fatalf("reverse terminal = (%#v, %q)", path.Terminal(), path.TerminalScope())
+	}
+
+	condition := query.NewRelatedCondition(path, query.LookupExact, query.String("Alpha"))
+	plan := query.NewPlan("authors_author", []query.FieldRef{
+		query.NewFieldRef("id", "id", query.FieldInteger, false),
+	}).WithConditions(condition)
+	returned, ok := plan.Conditions()[0].RelationPath()
+	if !ok || !returned.Equal(path) {
+		t.Fatalf("plan reverse path = (%#v, %v), want original", returned, ok)
+	}
+	hops[0] = query.RelationHop{}
+	returnedHops := returned.Hops()
+	returnedHops[0] = query.RelationHop{}
+	if got := path.Hops()[0]; got.ReverseName() != "posts" || got.Source() != source {
+		t.Fatalf("reverse path storage was exposed: %#v", got)
+	}
+
+	otherName, err := query.NewReverseRelationPath(
+		source, "blog_post", "author", "author_id", target, "authors_author", "id", "articles", true, title,
+	)
+	if err != nil {
+		t.Fatalf("second NewReverseRelationPath() error = %v", err)
+	}
+	if path.Equal(otherName) || hop.Equal(otherName.Hops()[0]) {
+		t.Fatal("reverse name was omitted from relation equality")
+	}
+
+	forward, err := query.NewForwardRelationPath(
+		source, "blog_post", "author", "author_id", target, "authors_author", "id", false, title,
+	)
+	if err != nil {
+		t.Fatalf("NewForwardRelationPath() error = %v", err)
+	}
+	if got := forward.Hops()[0].ReverseName(); got != "" {
+		t.Fatalf("forward ReverseName() = %q, want empty", got)
+	}
+}
+
+func TestReverseRelationPathRejectsNonCanonicalAndUnsupportedMetadata(t *testing.T) {
+	t.Parallel()
+
+	source := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	terminal := query.NewFieldRef("title", "title", query.FieldString, false)
+	tests := []struct {
+		name        string
+		source      ir.ModelIdentity
+		table       string
+		field       string
+		column      string
+		target      ir.ModelIdentity
+		targetTable string
+		targetPK    string
+		reverseName string
+		terminal    query.FieldRef
+	}{
+		{name: "source identity", source: ir.ModelIdentity{AppLabel: "Blog", ModelName: "post"}, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: terminal},
+		{name: "source table", source: source, table: "blog-post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: terminal},
+		{name: "source field", source: source, table: "blog_post", field: "Author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: terminal},
+		{name: "source column", source: source, table: "blog_post", field: "author", column: "author-id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: terminal},
+		{name: "target identity", source: source, table: "blog_post", field: "author", column: "author_id", target: ir.ModelIdentity{AppLabel: "authors", ModelName: "Author"}, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: terminal},
+		{name: "target table", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors author", targetPK: "id", reverseName: "posts", terminal: terminal},
+		{name: "target key", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "ID", reverseName: "posts", terminal: terminal},
+		{name: "reverse name", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "reviewed-posts", terminal: terminal},
+		{name: "nullable terminal", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: query.NewFieldRef("title", "title", query.FieldString, true)},
+		{name: "boolean terminal", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts", terminal: query.NewFieldRef("published", "published", query.FieldBoolean, false)},
+		{name: "zero terminal", source: source, table: "blog_post", field: "author", column: "author_id", target: target, targetTable: "authors_author", targetPK: "id", reverseName: "posts"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := query.NewReverseRelationPath(
+				test.source,
+				test.table,
+				test.field,
+				test.column,
+				test.target,
+				test.targetTable,
+				test.targetPK,
+				test.reverseName,
+				false,
+				test.terminal,
+			)
+			var queryError *query.Error
+			if !errors.As(err, &queryError) || queryError.Category != query.CategoryQuery || queryError.Code != query.CodeInvalidPlan {
+				t.Fatalf("error = %T %v, want query_error/invalid_plan", err, err)
+			}
+		})
+	}
+}

@@ -170,3 +170,138 @@ func TestDynamicRelationObjectsAddsOnlyNullableIsNullAndIsAtomic(t *testing.T) {
 		})
 	}
 }
+
+func TestDynamicReverseRelationsShareTypedASTAndPreserveNullableDeclaration(t *testing.T) {
+	t.Parallel()
+
+	fixture := newRelationQueryFixture(t)
+	postMetadata, ok := fixture.binding.Model(ir.ModelIdentity{AppLabel: "blog", ModelName: "post"})
+	if !ok {
+		t.Fatal("blog.post missing from binding")
+	}
+	posts, err := orm.BindReverse(fixture.authorModel, "posts", fixture.postModel)
+	if err != nil {
+		t.Fatalf("BindReverse(posts) error = %v", err)
+	}
+	postID, err := posts.Integer(orm.NewIntegerField[relationQueryPost](postMetadata.Fields[0]))
+	if err != nil {
+		t.Fatalf("ReverseRelation.Integer(id) error = %v", err)
+	}
+
+	dynamic, err := orm.ParseDynamicReverseRelations(
+		fixture.authorModel,
+		nil,
+		[]orm.LookupInput{{Key: "posts__id", Value: int64(10)}},
+	)
+	if err != nil {
+		t.Fatalf("ParseDynamicReverseRelations() error = %v", err)
+	}
+	typedPlan := orm.NewManager[relationQueryAuthor](fixture.authorDescriptor).
+		Using(nil).
+		Filter(postID.Exact(10)).
+		Plan()
+	dynamicPlan := orm.NewManager[relationQueryAuthor](fixture.authorDescriptor).
+		Using(nil).
+		Filter(dynamic...).
+		Plan()
+	if !typedPlan.Equal(dynamicPlan) {
+		t.Fatalf("typed and dynamic reverse plans differ:\ntyped=%#v\ndynamic=%#v", typedPlan, dynamicPlan)
+	}
+	path, ok := dynamicPlan.Conditions()[0].RelationPath()
+	if !ok || path.TerminalScope() != query.RelationTerminalRelatedField {
+		t.Fatalf("dynamic reverse path = (%#v, %v)", path, ok)
+	}
+	hops := path.Hops()
+	if len(hops) != 1 || hops[0].Direction() != query.RelationReverse ||
+		hops[0].Cardinality() != ir.RelationOneToMany || hops[0].ReverseName() != "posts" ||
+		hops[0].Nullable() {
+		t.Fatalf("posts reverse hop = %#v", hops)
+	}
+
+	reviewed, err := orm.ParseDynamicReverseRelations(
+		fixture.authorModel,
+		nil,
+		[]orm.LookupInput{{Key: "reviewed_posts__id", Value: 10}},
+	)
+	if err != nil {
+		t.Fatalf("nullable ParseDynamicReverseRelations() error = %v", err)
+	}
+	reviewedPlan := orm.NewManager[relationQueryAuthor](fixture.authorDescriptor).
+		Using(nil).
+		Filter(reviewed...).
+		Plan()
+	reviewedPath, ok := reviewedPlan.Conditions()[0].RelationPath()
+	if !ok || len(reviewedPath.Hops()) != 1 || !reviewedPath.Hops()[0].Nullable() ||
+		reviewedPath.Hops()[0].ReverseName() != "reviewed_posts" {
+		t.Fatalf("nullable reverse path = (%#v, %v)", reviewedPath, ok)
+	}
+
+	seenPolicy := false
+	_, err = orm.ParseDynamicReverseRelations(
+		fixture.authorModel,
+		func(field ir.Field, lookup query.Lookup) bool {
+			seenPolicy = field.Name == "id" && field.Kind == ir.FieldAuto && lookup == query.LookupExact
+			field.Name = "caller_mutated"
+			return true
+		},
+		[]orm.LookupInput{{Key: "posts__id", Value: int64(10)}},
+	)
+	if err != nil || !seenPolicy {
+		t.Fatalf("reverse policy observation = %v, error = %v", seenPolicy, err)
+	}
+}
+
+func TestDynamicReverseRelationErrorsFollowFrozenPrecedenceAndAreAtomic(t *testing.T) {
+	t.Parallel()
+
+	fixture := newRelationQueryFixture(t)
+	tests := []struct {
+		name     string
+		input    orm.LookupInput
+		policy   orm.LookupPolicy
+		category string
+		code     string
+	}{
+		{name: "one segment", input: orm.LookupInput{Key: "posts", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "explicit suffix", input: orm.LookupInput{Key: "posts__id__exact", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "relation suffix", input: orm.LookupInput{Key: "posts__exact", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "unknown suffix precedence", input: orm.LookupInput{Key: "missing__isnull", Value: true}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "leading empty", input: orm.LookupInput{Key: "__id", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "middle empty", input: orm.LookupInput{Key: "posts____id", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "trailing empty", input: orm.LookupInput{Key: "posts__", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "unknown namespace", input: orm.LookupInput{Key: "missing__id", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnknownRelation},
+		{name: "unknown terminal", input: orm.LookupInput{Key: "posts__missing", Value: int64(10)}, category: query.CategoryField, code: query.CodeUnknownRelatedField},
+		{name: "foreign key terminal", input: orm.LookupInput{Key: "posts__author", Value: int64(1)}, category: query.CategoryField, code: query.CodeUnsupportedLookup},
+		{name: "policy before value", input: orm.LookupInput{Key: "posts__id", Value: "10"}, policy: func(ir.Field, query.Lookup) bool { return false }, category: query.CategoryField, code: query.CodeDisallowedLookup},
+		{name: "invalid value", input: orm.LookupInput{Key: "posts__id", Value: "10"}, category: query.CategoryField, code: query.CodeInvalidValue},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			predicates, err := orm.ParseDynamicReverseRelations(
+				fixture.authorModel,
+				test.policy,
+				[]orm.LookupInput{test.input},
+			)
+			if predicates != nil {
+				t.Fatalf("predicates = %#v, want nil", predicates)
+			}
+			assertRelationQueryError(t, err, test.category, test.code)
+		})
+	}
+
+	var zero orm.BoundModel[relationQueryAuthor]
+	got, err := orm.ParseDynamicReverseRelations(zero, nil, []orm.LookupInput{{Key: "bad", Value: nil}})
+	if got != nil {
+		t.Fatalf("zero predicates = %#v, want nil", got)
+	}
+	assertRelationQueryError(t, err, query.CategoryQuery, query.CodeInvalidPlan)
+
+	got, err = orm.ParseDynamicReverseRelations(fixture.authorModel, nil, []orm.LookupInput{
+		{Key: "posts__id", Value: int64(10)},
+		{Key: "posts__missing", Value: int64(10)},
+	})
+	if got != nil {
+		t.Fatalf("partial predicates = %#v, want nil", got)
+	}
+	assertRelationQueryError(t, err, query.CategoryField, query.CodeUnknownRelatedField)
+}

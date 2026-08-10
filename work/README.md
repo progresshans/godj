@@ -101,8 +101,16 @@ audit P0/P1/P2/P3=0을 통과해 EVID-045에 기록했습니다. Q-013은 `Parti
 [run 31374150640](https://github.com/progresshans/godj/actions/runs/31374150640)의 exact 26/26·326/326을
 통과해 EVID-046에 기록했습니다. GDJ-0027은 이 clean tested baseline에서 REL-005-only reverse query/object
 split, project-only generator와 SQLite reverse INNER JOIN을 Proposed ADR-0027로 활성화합니다. Current는
-여전히 `114 + 5 + 8`, relation 4/12이고 `115 + 5 + 7`, relation 5/12는 구현·검증 뒤의 목표입니다. Activation
-diff 자체 exact-head CI는 pending이며 baseline run을 재사용하지 않습니다.
+activation commit `9dbc2fd2ab3201e8968f65b31db8eedf3f9a845a`의
+[run 31414060387](https://github.com/progresshans/godj/actions/runs/31414060387)에서 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. 이 run의 four relation-product 533/533/0 inventory는 activation baseline만
+증명하며 implementation에 재사용하지 않습니다. Frozen uncommitted implementation은 local normal gate에서
+exact `115 passing + 5 deviation + 7 oracle_locked`, relation actual REL-001/003/004/005/006 5/12와
+569/569/0·57,738 bytes·SHA-256 `739bb6fc...c2d7`을 통과했고 runtime/codegen/final integration audits는
+P0/P1/P2/P3=0입니다. 상세 분리는
+[EVID-047](../docs/status/TEST_EVIDENCE.md#evid-20260811-047--gdj-0027-rel-005-reverse-accessor-and-lookup-pre-hosted-local-validation)에
+기록했습니다. Implementation commit과 exact-head hosted CI는 `not run/pending`이므로 work는 active,
+ADR-0027은 Proposed, Q-013은 `Partial`입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
