@@ -1,6 +1,6 @@
 ---
 id: GDJ-0029
-status: active
+status: completed
 updated: 2026-08-11
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "5c0efef12560203d720e4c2dd7bda50c0324a228"
@@ -77,11 +77,10 @@ GDJ-0029는 locked Django 6.1 relation contracts REL-009/010/011을 하나의 bo
 4. 모든 source/target row와 resource/context를 검증한 뒤에만 ready related objects를 포함한 결과를
    원자적으로 공개합니다.
 
-현재 hosted-accepted 제품은 exact 12 checked-in manifests/127 contracts =
-`116 passing + 5 deviation + 6 oracle_locked`, relation actual REL-001/003/004/005/006/012 6/12입니다.
-Pre-hosted local implementation은 oracle-blind actual까지 exact
-`119 passing + 5 deviation + 3 oracle_locked`, relation actual 9/12이고 completion에는 implementation
-exact-head hosted acceptance가 아직 필요합니다.
+완료 제품은 exact 12 checked-in manifests/127 contracts =
+`119 passing + 5 deviation + 3 oracle_locked`, relation actual
+REL-001/003/004/005/006/009/010/011/012 9/12입니다. Implementation head `c02aab67...`은 oracle-blind
+actual과 exact hosted acceptance를 모두 통과했습니다.
 
 ## 기준 상태와 선행 증거
 
@@ -422,8 +421,9 @@ Frozen unless a new work/ADR explicitly reopens them:
 - [x] Pure generators, exact twelve-file union and old-byte/last-good tests pass.
 - [x] Oracle-blind REL-009/010/011 actual and three-status-only manifest transition pass.
 - [x] Root normal integration and independent audits report P0/P1/P2/P3=0.
-- [ ] Implementation exact-head hosted 26-job acceptance passes before completion claims.
-- [ ] Completion docs and later terminal evidence use separate heads and do not recursively reuse runs.
+- [x] Implementation exact-head hosted 26-job acceptance passes before completion claims.
+- [x] Completion docs/ADR status transition and EVID-056 are synchronized.
+- [ ] Completion-documentation and later terminal evidence use separate hosted heads and do not recursively reuse runs.
 
 ## 진행 기록
 
@@ -439,7 +439,7 @@ Frozen unless a new work/ADR explicitly reopens them:
   `project.Using(backend)` relation facade와 chaining/FK mutation policy는 Q-013/Q-017에 남겼습니다.
 - 2026-08-11: Activation commit `0a1da373a443527e48a154ca6ccc7284e5e80dc0`은 run `31465198903`의 exact
   26/26 jobs·326/326 recorded steps와 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
-- 2026-08-11: Uncommitted exact 49-entry implementation은 root `make ci`, local exact 630/630/0·63,928 bytes·
+- 2026-08-11: Pre-commit exact 49-entry implementation은 root `make ci`, local exact 630/630/0·63,928 bytes·
   SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`, target
   `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12와 runtime/codegen/integration/remediation audit
   P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
@@ -447,19 +447,31 @@ Frozen unless a new work/ADR explicitly reopens them:
   P1 forged-plan gap을 발견했습니다. Source identity/target identity/target table/target PK 단독 mutation으로
   재현하고 pre-I/O provenance equality를 강제하는 최소 수정 뒤 정상 same-hop과 unrelated root relation filter를
   보존했으며, integration/remediation re-audit는 clean P0/P1/P2/P3=`0/0/0/0`입니다.
+- 2026-08-11: Implementation commit `c02aab672db5175d7a0886688efb5cc684c67744`의 Draft PR #1
+  [run 31470292759](https://github.com/progresshans/godj/actions/runs/31470292759)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact 630 run/630 pass/
+  0 skip·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를
+  재현했고 actual Ubuntu Linux/386, exact Darwin, four exact Python compatibility legs와 independent hosted
+  audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-056을 근거로 bounded ADR-0029를 Accepted, 이 work를
+  completed로 전환합니다. 이 completion-documentation patch 자체 exact-head CI는 pending이며 implementation
+  run을 recursive proof로 재사용하지 않습니다.
 
 ## 현재 blocker와 다음 정확한 작업
 
-외부 blocker는 없습니다. Local implementation과 five-document pre-hosted sync를 의도적으로 commit/push한 뒤
-그 exact implementation head에서 별도 26-job hosted acceptance를 실행하는 것이 다음 작업입니다. Activation
-EVID-055/run `31465198903`은 implementation proof가 아니며 completion claim에는 implementation hosted evidence가
-필요합니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
+외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
+acceptance/audit가 모두 통과했습니다. Exact 15-file completion-documentation patch의 scope, EVID-001..055 prefix,
+links/frontmatter/fences와 `git diff --check`를 검증한 뒤 documentation-only head로 별도 CI를 실행합니다. 이후
+terminal evidence/status patch로 recursive pending을 닫습니다. Q-013은 `Partial`, Q-017은 P1/open으로 유지하며
+canonical relation facade는 별도 work/ADR을 활성화하기 전 구현 사실로 표현하지 않습니다. Draft PR은 사용자
+요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- hosted-accepted current: exact `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12
-- pre-hosted local implementation: exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
-  630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`
-- active decision: ADR-0029 Proposed; Q-013 remains `Partial`
+- GDJ-0029은 implementation head `c02aab672db5175d7a0886688efb5cc684c67744`, exact-26 run
+  `31470292759`까지 completed입니다. EVID-055는 activation/local pre-hosted evidence, EVID-056은 exact hosted
+  implementation-head evidence입니다.
+- Current product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
+  630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`입니다.
+- ADR-0029은 bounded engine slice에 한해 Accepted; Q-013은 `Partial`, Q-017은 P1/open입니다.
 - implementation scope: exact paths in frontmatter; all other code/product/oracle/schema bytes frozen
-- next evidence: implementation exact-head hosted CI; EVID-055 activation/local evidence와 별도 기록
+- next evidence: exact 15-file completion-documentation hosted CI; EVID-056 implementation evidence와 별도 기록

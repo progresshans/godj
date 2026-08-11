@@ -406,8 +406,8 @@ evidence/status commit `5c0efef12560203d720e4c2dd7bda50c0324a228`도 별도 run 
 head와 GDJ-0029 baseline만 증명하며 later activation/API/implementation 증거로 재사용하지 않습니다. 이
 completed work에는 pending blocker가 없습니다.
 
-1. Successor [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md)의 exact activation scope와
-   Proposed [ADR-0029](../docs/adr/0029-one-hop-forward-select-related.md)를 따릅니다.
+1. Completed successor [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md)와 bounded
+   Accepted [ADR-0029](../docs/adr/0029-one-hop-forward-select-related.md)의 exact engine scope를 따릅니다.
 2. Existing reverse/object/prefetch API, generated outputs, oracle/static/SHA와 REL-012 behavior를 보존합니다.
 3. Q-013은 `Partial`로 유지하고 Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
@@ -418,9 +418,11 @@ completed work에는 pending blocker가 없습니다.
   exact-26 검증됐습니다. EVID-051은 activation/local pre-hosted, EVID-052는 implementation-head, EVID-053은
   completion-documentation-head, EVID-054는 terminal-head/successor baseline hosted evidence입니다. Product는
   exact `116 + 5 + 6`, relation actual 6/12입니다.
-- Successor GDJ-0029는 REL-009/010/011 one-hop forward eager slice로 active이고 ADR-0029는 Proposed입니다.
-  Completion target `119 + 5 + 3`, relation 9/12는 target-only이며 EVID-054를 implementation proof로
-  재사용하지 않습니다.
+- Successor GDJ-0029는 REL-009/010/011 one-hop forward eager slice로 completed이고 ADR-0029는 bounded
+  SQLite engine에 한해 Accepted입니다. Implementation head `c02aab67...`의 EVID-056/run `31470292759`가
+  exact 26/26 hosted gate를 통과해 current product는 `119 + 5 + 3`, relation 9/12입니다. EVID-054는
+  baseline-only 기록으로 유지하며 implementation proof로 재사용하지 않았습니다. Q-013은 `Partial`, Q-017은
+  P1/open입니다.
 - Existing reverse/object API와 exact nine generated files, oracle/static/SHA and frozen paths를 보존합니다.
 - Public API 또는 taxonomy를 바꾸기 전 후속 work/ADR을 만들고 independent audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하고 사용자 명시적 요청 없이 merge하지 않습니다.

@@ -1,6 +1,6 @@
 # ADR-0029: One-hop Forward `select_related`
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
   [GDJ-0029](../../work/0029-one-hop-forward-select-related-product-slice.md), REL-009, REL-010, REL-011, Q-013, Q-017
@@ -14,17 +14,23 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. Clean baseline
-`5c0efef12560203d720e4c2dd7bda50c0324a228`의
-[EVID-20260811-054](../status/TEST_EVIDENCE.md#evid-20260811-054--gdj-0028-terminal-exact-head-ci-and-gdj-0029-activation-baseline) /
-[run 31436881856](https://github.com/progresshans/godj/actions/runs/31436881856)은 current exact
-`116 passing + 5 deviation + 6 oracle_locked`, relation 6/12 baseline만 증명합니다. 이 activation diff, Proposed
-API, implementation 또는 target `119 + 5 + 3`, relation 9/12의 증거로 재사용하지 않습니다.
+이 ADR은 bounded SQLite REL-009/010/011 engine slice에 한해 **Accepted**입니다. Clean baseline
+`5c0efef12560203d720e4c2dd7bda50c0324a228`의 run `31436881856`과 activation
+`0a1da373a443527e48a154ca6ccc7284e5e80dc0`의 run `31465198903`은 각각 baseline/activation만 증명하며
+implementation evidence로 재사용하지 않았습니다. Local implementation과 independent audits는
+[EVID-20260811-055](../status/TEST_EVIDENCE.md#evid-20260811-055--gdj-0029-activation-hosted-ci-and-rel-009010011-pre-hosted-local-validation)에,
+exact implementation-head hosted acceptance는
+[EVID-20260811-056](../status/TEST_EVIDENCE.md#evid-20260811-056--gdj-0029-github-hosted-exact-26-job-implementation-head-ci)에
+기록합니다. Commit `c02aab672db5175d7a0886688efb5cc684c67744`의 run `31470292759`는 exact
+26/26 jobs·326/326 recorded steps, four-coordinate 630/630/0 inventory와 independent hosted audit
+P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이 exact 15-file completion-documentation patch 자체의 hosted CI는
+`not run/pending`이며 implementation run을 recursive proof로 재사용하지 않습니다.
 
 결정 범위는 REL-009/010/011을 함께 소유하는 exactly one direct forward many-to-one projection, app-local
 projection scan companion, existing object factory에 붙는 All-only eager bridge, required INNER/nullable LEFT OUTER
 SQLite compilation, ready forward object publication과 reverse-path pre-I/O rejection입니다. Multiple/nested eager
 graph, canonical application facade, reverse execution, write/delete/DDL/migration and non-SQLite는 결정하지 않습니다.
+Product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12로 검증됐습니다.
 
 ## 맥락
 
@@ -274,18 +280,21 @@ reverse eager execution, public cross-model target union, OneToOne, non-AutoFiel
 annotation/aggregation/distinct, public cache mutation, write invalidation, transactions and non-SQLite backends are
 outside this ADR. REL-002/007/008 and REL-012 are unchanged. Q-013 stays Partial and Q-017 stays open.
 
-## 검증과 상태 전이
+## 검증 증거
 
-REL-009/010/011 must transition together and only after exact result/DB/query/JOIN/access metrics, typed/dynamic AST and
-execution convergence, reverse pre-I/O error, projection presence/membership corruption, resource/cancellation/cache
-atomicity, exact twelve-file compile/last-good/old-byte locks and manifest three-status-only revert gates pass. Oracle,
-static JSON, SHA and Django behavior stay byte-locked. Existing exact 26-job topology owns hosted race/CGO0/vet/Linux386/
-Darwin/Python/four-coordinate proof.
+EVID-055의 exact result/DB/query/JOIN/access metrics, typed/dynamic AST와 execution convergence, reverse pre-I/O
+error, projection presence/membership corruption, resource/cancellation/cache atomicity, exact twelve-file compile/
+last-good/old-byte locks와 manifest three-status-only revert gates가 통과했습니다. EVID-056의 exact
+implementation-head 26/26 jobs·326/326 steps, four-coordinate 630/630/0 inventory, actual Ubuntu Linux/386,
+exact Darwin/Python, race/CGO0/vet/no-rewrite와 hosted audit도 검증 의무를 충족했습니다. Oracle, static JSON,
+SHA와 Django behavior는 byte-locked 상태를 유지합니다.
 
-The three-status target manifest is exactly 10,788 bytes/SHA-256
+The accepted three-status manifest is exactly 10,788 bytes/SHA-256
 `64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141`; reverting only REL-009/010/011 restores the
-current 10,806 bytes/SHA-256 `70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a5915b29da477`.
+prior 10,806 bytes/SHA-256 `70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a5915b29da477`.
 
-ADR remains Proposed, GDJ-0029 active and current product `116 + 5 + 6`, relation 6/12 until an implementation exact-head
-hosted run passes. Baseline EVID-054/run `31436881856` cannot close activation or implementation. Completion target is
-only `119 + 5 + 3`, relation 9/12; completion and terminal documentation require separate non-recursive evidence heads.
+Acceptance is limited to one direct forward AutoField-ForeignKey projection, existing object-factory-attached All-only
+execution and SQLite required/nullable compilation plus reverse-path rejection. Canonical `project.Using(backend)`,
+relation-aware chaining, FK mutation/cache policy, multiple/nested/reverse eager and non-SQLite remain Q-013/Q-017 work.
+Baseline and activation runs were not reused for implementation. Implementation run `31470292759` is not reused for
+this later completion-documentation tree; completion-documentation and terminal evidence require separate heads.

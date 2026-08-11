@@ -617,19 +617,22 @@ warm합니다. Existing oracle/static/SHA와 prior generated/relation-product by
 baseline [EVID-050](status/TEST_EVIDENCE.md#evid-20260811-050--gdj-0027-terminal-exact-head-ci-and-gdj-0028-activation-baseline)과
 activation run `31429245980`은 이 implementation proof로 재사용하지 않았습니다. Exact implementation head
 `4858ab88...`의 [run 31432551159](https://github.com/progresshans/godj/actions/runs/31432551159)가 26/26 hosted
-gate를 통과해 current classification은 `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12입니다.
+gate를 통과해 GDJ-0028 completion classification은 `116 passing + 5 deviation + 6 oracle_locked`, relation
+6/12입니다.
 Custom `Prefetch`, related filter/order 재소비, eager REL-009..011, write/delete/DDL/migration과 non-SQLite
 호환은 이 packet 밖입니다.
 
-Active [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Proposed
-[ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011을 함께 여는 target-only 경계입니다.
+Completed [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Accepted
+[ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011을 함께 여는 bounded engine 경계입니다.
 REL-009는 plain/eager 동일 result와 SELECT 4→1, INNER JOIN 1, access-extra 3→0을, REL-010은 middle NULL을
 포함한 result와 SELECT 1/LEFT OUTER JOIN 1/access-extra 0을, REL-011은 reverse multi-valued path의
 `field_error/invalid_related_path`/I/O 0을 요구합니다. Typed와 dynamic positive path 및 reverse rejection은
 하나의 project resolver와 immutable `RelationProjection`으로 수렴해야 하며, joined source/target은 additive
 projection scanners로 한 번에 decode됩니다. Oracle/static/SHA/protocol bytes, Django scenario behavior와 existing
 generated files는 frozen입니다. EVID-054/run `31436881856`은 exact clean baseline only이며 target
-`119 passing + 5 deviation + 3 oracle_locked`, relation 9/12의 호환 증거가 아닙니다. Multiple/nested/reverse eager,
+`119 passing + 5 deviation + 3 oracle_locked`, relation 9/12의 호환 증거로 재사용하지 않았습니다. Exact
+implementation head `c02aab67...`의 EVID-056/run `31470292759`가 26/26·326/326 hosted gate와
+four-coordinate 630/630/0 inventory를 통과해 이 aggregate가 current product가 됐습니다. Multiple/nested/reverse eager,
 write/delete/DDL/migration/non-SQLite 호환은 claim하지 않습니다.
 
 장기 relation UX는 Django 6.1의 의미를 reference로 삼습니다: raw FK와 relation accessor 분리, 같은 model

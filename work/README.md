@@ -52,12 +52,12 @@ proposed → ready → active → completed
 | [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md) | completed | REL-003/006 forward object cache, nullable access와 SQLite isnull trim |
 | [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) | completed | REL-005 reverse ForeignKey accessor와 exact lookup |
 | [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md) | completed | REL-012 reverse ForeignKey one-batch prefetch와 atomic warm related set |
-| [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md) | active | REL-009/010/011 one-hop forward required/nullable `select_related`와 reverse-path rejection |
+| [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md) | completed | REL-009/010/011 one-hop forward required/nullable `select_related`와 reverse-path rejection |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-[GDJ-0029](0029-one-hop-forward-select-related-product-slice.md), ready 항목은 없고 최근 완료 항목은
-[GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)입니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근 완료
+항목은 [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md)입니다. 다음 우선순위는 Q-017의
+relation-aware project facade와 generated upgrade compile-usability 경계를 별도 work/ADR로 활성화하는 것입니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -142,13 +142,17 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   REL-009/010/011 indivisible one-hop forward eager projection과 Proposed ADR-0029를 활성화했습니다. Activation
   commit `0a1da373a443527e48a154ca6ccc7284e5e80dc0`의
   [run 31465198903](https://github.com/progresshans/godj/actions/runs/31465198903)은 exact 26/26·326/326과 hosted
-  audit P0/P1/P2/P3=0을 통과했습니다. Uncommitted exact 49-entry implementation은 root `make ci`, exact
+  audit P0/P1/P2/P3=0을 통과했습니다. Pre-commit exact 49-entry implementation은 root `make ci`, exact
   630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`와
   local `119 + 5 + 3`, relation 9/12를 통과했습니다. Independent pre-commit audit에서 forged
   source-key/projection provenance P1을 발견·재현·수정했고 post-fix runtime/codegen/integration/remediation
-  audits는 모두 P0/P1/P2/P3=0입니다. EVID-055는 activation과 pre-hosted local 증거를 분리해 기록하며,
-  implementation exact-head hosted acceptance 전 hosted-accepted 분류는 `116 + 5 + 6`, relation 6/12입니다.
-  ADR-0029는 Proposed, work는 active, Q-013은 `Partial`, Q-017은 open입니다.
+  audits는 모두 P0/P1/P2/P3=0입니다. Implementation commit
+  `c02aab672db5175d7a0886688efb5cc684c67744`의
+  [run 31470292759](https://github.com/progresshans/godj/actions/runs/31470292759)은 exact 26/26·326/326,
+  four-coordinate 630/630/0 inventory, actual Ubuntu Linux/386, exact Darwin/Python과 hosted audit
+  P0/P1/P2/P3=0을 통과했습니다. EVID-056을 근거로 product는 current `119 + 5 + 3`, relation 9/12,
+  work는 completed, ADR-0029는 bounded engine slice에 한해 Accepted입니다. Q-013은 `Partial`, Q-017은
+  P1/open이고 exact 15-file completion-documentation patch 자체 hosted CI는 pending입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

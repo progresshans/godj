@@ -116,13 +116,14 @@ condition과 분리된 immutable `LookupIn` value-list를 추가하고 SQLite는
 compile합니다. 새 project-only prefetch companion이 concrete owner/source를 연결하며 기존 reverse generator,
 object/accessor API와 exact nine generated files는 byte-locked입니다. Exact implementation head
 `4858ab88...`의 run `31432551159`는 26/26 jobs·326/326 recorded steps와 independent hosted audit
-P0/P1/P2/P3=0을 통과했습니다. Current product는 exact `116 passing + 5 deviation + 6 oracle_locked`, relation
-REL-001/003/004/005/006/012 6/12입니다. 이 acceptance는 bounded primary+one source-FK IN batch와 exact warm
+P0/P1/P2/P3=0을 통과했습니다. GDJ-0028 completion product는 exact
+`116 passing + 5 deviation + 6 oracle_locked`, relation REL-001/003/004/005/006/012 6/12입니다. 이 acceptance는
+bounded primary+one source-FK IN batch와 exact warm
 `All` consumption에만 한정하며 REL-009..011 eager projection, custom Prefetch/filter/order, write/delete/DDL/
 migration과 non-SQLite backend는 포함하지 않습니다.
 
-Active GDJ-0029/Proposed ADR-0029는 REL-009/010/011을 indivisible one-hop forward `select_related` slice로
-한정합니다. Existing `ModelDescriptor.Scan`과 Manager/QuerySet ABI를 바꾸지 않고 app-local additive
+Completed GDJ-0029/Accepted ADR-0029는 REL-009/010/011을 indivisible one-hop forward `select_related` slice로
+구현·검증했습니다. Existing `ModelDescriptor.Scan`과 Manager/QuerySet ABI를 바꾸지 않고 app-local additive
 `ProjectionDescriptor`/`ProjectionScan`이 source와 target field destinations를 제공하며, runtime은 joined row를
 exactly one `Row.Scan`으로 decode합니다. `ProjectionScan.Decode`는 model, projected AutoField key와
 Invalid/Absent/Present 상태를 함께 반환해 reflection이나 v3 target primary-key capability 없이 source FK와
@@ -130,8 +131,9 @@ target PK membership를 검증합니다. Singular immutable `RelationProjection`
 one-hop projection을 표현하고, 별도 All-only `ForwardSelectQuery`가 full rowset/resource/context validation 뒤에만
 ready related objects를 원자적으로 공개합니다. Generated typed author/reviewer와 executable dynamic dispatch는
 같은 `ResolveForwardSelectPath`를 사용하며 reverse `posts`는 pre-I/O
-`field_error/invalid_related_path`입니다. Current product는 계속 exact `116 + 5 + 6`, relation 6/12이고 target
-`119 + 5 + 3`, relation 9/12는 implementation과 exact-head hosted acceptance 전에는 claim하지 않습니다.
+`field_error/invalid_related_path`입니다. Exact implementation head `c02aab67...`의 run `31470292759`가
+26/26·326/326 hosted gate와 four-coordinate 630/630/0 inventory를 통과해 current product는 exact
+`119 + 5 + 3`, relation 9/12입니다.
 Multiple/nested/reverse eager, write/delete/DDL/migration과 non-SQLite backend는 범위 밖입니다.
 
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.

@@ -1,11 +1,10 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0029 REL-009/010/011 one-hop forward `select_related` active, ADR-0029 Proposed,
-  Q-013 Partial; ready work 없음. Baseline head `5c0efef1...`의 EVID-054/run `31436881856`은 exact 26 PASS지만
-  activation/API/implementation 증거로 재사용하지 않음
-- 현재 제품 기준: 12 adapter/127 contract의 `116 passing + 5 deviation + 6 oracle_locked`,
-  relation actual REL-001/003/004/005/006/012 6/12
+- 현재 단계: GDJ-0029 REL-009/010/011 one-hop forward `select_related` completed, ADR-0029 Accepted,
+  Q-013 Partial/Q-017 P1 open; active/ready work 없음. 다음 우선순위는 Q-017 facade/API compile-usability 경계
+- 현재 제품 기준: 12 adapter/127 contract의 `119 passing + 5 deviation + 3 oracle_locked`,
+  relation actual REL-001/003/004/005/006/009/010/011/012 9/12
 - 마지막 검토: 2026-08-11
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -400,14 +399,15 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   Existing reverse generator/nine-file output은 byte-locked하며 custom Prefetch/filter/order, REL-009..011 eager
   projection, write/delete/DDL/migration과 non-SQLite는 별도 bounded work로 남깁니다. Baseline/activation run은
   이 implementation proof로 재사용하지 않았습니다.
-- Active [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Proposed
-  [ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011을 indivisible one-hop forward eager
-  milestone으로 활성화합니다. Existing descriptor/QuerySet bytes를 바꾸지 않는 app projection companions,
+- Completed [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Accepted
+  [ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011 indivisible one-hop forward eager
+  milestone을 구현·검증했습니다. Existing descriptor/QuerySet bytes를 바꾸지 않는 app projection companions,
   singular `RelationProjection`, All-only eager runtime, required INNER/nullable LEFT OUTER SQLite compiler와
-  same-resolver reverse rejection이 exact 경계입니다. Current aggregate는 `116 + 5 + 6`, relation 6/12이고
-  completion target `119 + 5 + 3`, relation 9/12는 implementation과 별도 exact-head hosted acceptance 전까지
-  target-only입니다. EVID-054/run `31436881856`은 terminal baseline only이며 이 activation diff 또는 target을
-  증명하지 않습니다. Multiple/nested/reverse eager, write/delete/DDL/migration/non-SQLite는 deferred입니다.
+  same-resolver reverse rejection이 exact 경계입니다. Implementation head `c02aab67...`의
+  EVID-056/run `31470292759`가 exact 26/26·326/326과 four-coordinate 630/630/0 inventory를 통과해 current
+  aggregate는 `119 + 5 + 3`, relation 9/12입니다. EVID-054/run `31436881856`은 terminal baseline only로
+  유지하며 implementation proof로 재사용하지 않았습니다. Multiple/nested/reverse eager, canonical facade,
+  write/delete/DDL/migration/non-SQLite는 deferred입니다.
 - Canonical relation API freeze 전 Q-013/Q-017 compile-usability gate를 별도로 통과합니다. One-time project
   binding, relation-aware query result, lazy/eager 동일 accessor, forward/reverse chaining, FK mutation cache
   invalidation과 exact transaction session을 검증합니다. GDJ-0029의 projection/runtime/compiler와 generated

@@ -756,6 +756,24 @@ head와 GDJ-0029 clean baseline만 증명합니다. GDJ-0029 activation docs, Pr
 REL-009/010/011 implementation 또는 target `119 + 5 + 3`의 증거로 재사용하지 않습니다. Activation exact-head,
 local implementation과 implementation exact-head hosted gates는 각각 별도 evidence가 필요합니다.
 
+GDJ-0029 activation `0a1da373a443527e48a154ca6ccc7284e5e80dc0`은 별도
+[run 31465198903](https://github.com/progresshans/godj/actions/runs/31465198903)의 exact
+26/26·326/326을 통과했지만 activation-only evidence입니다. EVID-055의 pre-commit implementation은 root
+`make ci`, exact 630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`,
+REL-009/010/011 oracle-blind actual과 runtime/codegen/integration audits를 통과했습니다. Independent review가
+발견한 same-edge source-key/projection provenance P1은 source/target identity, target table과 target PK mutation으로
+재현한 뒤 pre-I/O full-hop equality를 강제하는 최소 수정으로 닫았고 remediation audits는 P0/P1/P2/P3=0입니다.
+
+Exact implementation head `c02aab672db5175d7a0886688efb5cc684c67744`의
+[run 31470292759](https://github.com/progresshans/godj/actions/runs/31470292759)은 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Four relation-product coordinates는 각각 630/630/0·63,928 bytes·SHA-256
+`4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를 재현했고 full Ubuntu의
+`make ci`/9 required·3 NI/actual bounded Linux-386, exact Darwin 193/193, four Python 193/17과 127-scenario
+digest, no-rewrite/clean-worktree 및 hosted audit P0/P1/P2/P3=0을 통과해 EVID-056에 기록했습니다. 이 run으로
+bounded REL-009/010/011 product는 `119 + 5 + 3`, relation 9/12가 됐습니다. Canonical facade, multiple/nested/
+reverse eager와 broader backend는 검증 범위가 아니며 exact 15-file completion-documentation head 자체 CI는
+별도 pending입니다.
+
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
 통과했으며 상세 환경과 결과는
