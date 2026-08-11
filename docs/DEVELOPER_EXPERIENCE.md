@@ -147,18 +147,18 @@ posts, err := PostObjects.Using(backend).
 
 `All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
 
-### 관계를 포함한 project facade — production first-publication active, public names open
+### 관계를 포함한 project facade — bounded production first-publication implemented
 
 관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
 relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
 [ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 이 목표 중 forward read-only
 compile shape만 physical-byte-preserving test-only overlay로 검증해 그 feasibility 방법에 한해 Accepted했습니다.
-Activation EVID-064와 implementation EVID-065는 별도 exact-head hosted gate를 통과했습니다. 아래 이름과 chaining
-문법은 여전히 illustrative/noncanonical candidate이며 production에 구현됐거나 public API로 채택됐다는 뜻이
-아닙니다. [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)와
-[ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 existing generated exact
-13을 보존하면서 project-only companion 한 파일을 실제 first-publish하는 product 경계를 active/Proposed로
-검토합니다. Activation 자체는 facade 구현이나 이름 acceptance가 아닙니다.
+[GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)는 existing generated
+exact 13을 보존하면서 project-only companion 한 파일을 실제 first-publish했고,
+[ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 아래 Gate 0 surface와 bounded
+forward facade architecture에 한해 Accepted입니다. Activation EVID-068과 implementation EVID-069는 서로 다른
+exact head를 증명합니다. 아래 이름은 이 bounded facade에서 canonical이지만 general generated upgrade나 전체 ORM
+surface의 영구 naming policy까지 결정하지 않습니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
@@ -170,7 +170,7 @@ if err != nil {
     return err
 }
 
-post, found, err := models.BlogPosts.
+post, found, err := models.BlogPost.
     OrderBy(blog.PostFields.ID.Asc()).
     First(ctx)
 if err != nil {
@@ -180,7 +180,7 @@ if !found {
     // handle not found
 }
 
-raw, err := post.Model()
+raw, err := post.Unwrap()
 if err != nil {
     return err
 }
@@ -194,8 +194,8 @@ author, err := post.Author(ctx)
 미리 채우는 방향입니다.
 
 ```go
-posts, err := models.BlogPosts.
-    SelectRelated(models.BlogPosts.Related.Author).
+posts, err := models.BlogPost.
+    SelectRelated(models.BlogPost.Related.Author).
     OrderBy(blog.PostFields.ID.Asc()).
     All(ctx)
 if err != nil {
@@ -228,14 +228,14 @@ author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
 - JSON marshal이나 단순 field read는 DB I/O를 일으키지 않습니다. Lazy I/O는 `context.Context`와 `error`가
   드러나는 method에서만 실행합니다.
 
-현재 `BindObjects`/factory `From`, reverse/prefetch binders와 GDJ-0029의 bounded eager query는 이 목표를
-검증하기 위한 low-level kernel입니다. 일반 사용자가 관계마다 이들을 직접 조립하는 표면을 최종 API로
-동결하지 않습니다. Exact GDJ-0031 source wrapper field는 private이므로 candidate scalar access는 explicit
-`Model()` unwrap뿐이며 wrapper JSON/custom method를 주장하지 않습니다. GDJ-0032는 common Author/Reviewer selector와
-선택된 eager evaluation state 보존을 요구합니다. Author/Reviewer 선택은 Filter/OrderBy/Limit 전후에도 유지되고,
+현재 `BindObjects`/factory `From`, reverse/prefetch binders와 GDJ-0029의 bounded eager query는 facade가 위임하는
+low-level kernel입니다. 일반 사용자가 관계마다 이들을 직접 조립하는 표면을 최종 API로 동결하지 않습니다.
+Gate 0는 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` roots와 wrappers,
+`BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`을 이 bounded facade의 exact 이름으로 고정했습니다.
+Common Author/Reviewer selector와 선택된 eager evaluation state는 Filter/OrderBy/Limit 전후에도 유지되고,
 복사·반복한 같은 eager query는 한 evaluation을 공유하지만 derived chain은 독립입니다. Source relation cache는
-source wrapper-scoped입니다. Exact facade/manager/wrapper/selector/unwrap 이름과 selector representation은 decision
-gate 전까지 open입니다. FK mutation/cache invalidation과 reverse manager는 계속 후속입니다.
+source wrapper-scoped입니다. Wrapper JSON/custom method, FK mutation/cache invalidation, reverse manager, stable target
+pointer identity/downstream cache와 general generated upgrade는 계속 후속입니다.
 
 ## 6. Dynamic lookup
 

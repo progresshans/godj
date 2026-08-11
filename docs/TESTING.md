@@ -956,19 +956,23 @@ recorded steps를 통과했습니다. EVID-066과 상태를 추가한 exact seve
 recorded steps와 independent audit P0/P1/P2/P3=0을 통과했습니다. Completion run을 terminal proof로 재사용하지
 않았고, EVID-067은 later GDJ-0032 activation tree의 proof로 재사용하지 않습니다.
 
-### GDJ-0032 production forward facade activation gate
+### GDJ-0032 production forward facade implementation gate
 
-GDJ-0032는 기존 test-only overlay를 제품 증거로 승격하지 않습니다. Authoritative baseline은 terminal head
-`3d6612512e8887de8868a319650d54ad0721471b`의 EVID-067/run `31533890720`이며 product는 unchanged exact
-`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12, REL-002 locked입니다. 이 activation documentation
-tree 자체 exact-head CI는 `not run/pending`입니다.
+GDJ-0032는 기존 test-only overlay를 제품 증거로 승격하지 않고 production companion을 별도로 생성·게시했습니다.
+Terminal baseline EVID-067, activation documentation EVID-068/run `31537726792`, implementation head
+`ba2fa0fa30f32abf3d70598c7a3a4e4334a43020`의 EVID-069는 서로 다른 exact head를 증명합니다. Product
+classification은 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12, REL-002 locked입니다.
+이 EVID-068/069를 추가한 exact eleven-file completion-documentation tree 자체 exact-head CI는
+`not run/pending`입니다.
 
-Implementation test는 다음 경계를 동시에 잠가야 합니다.
+Implementation test는 다음 경계를 동시에 잠갔습니다.
 
 - Existing generated exact 13, 26,140 bytes/SHA-256
   `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`의 before/after byte identity
 - 새 project companion 한 파일의 deterministic generation, golden, missing-target first publish와 replacement
-  last-good preservation; exact 새 inventory/digest는 구현 뒤 측정
+  last-good preservation; generated exact 14는 39,243 bytes/SHA-256
+  `2a141f1962887a9c610dd2d0005f401ecd8759e4d0bf0ce5cde1c3f210d1ba5f`, physical exact 17은 94,439
+  bytes/SHA-256 `3fc7aba625cf231bc3521f3ad19270a05405e9bfea3d4799b36ca3dd907752fd`
 - Every declared model의 project-owned pointer wrapper/query root와 low-level `Object` namespace disjointness
 - Target query root와 required Author/nullable Reviewer accessor의 같은 target wrapper static type; raw app model이나
   low-level Object 반환은 negative
@@ -977,8 +981,8 @@ Implementation test는 다음 경계를 동시에 잠가야 합니다.
   statically typed `db.Queryer`는 negative
 - Binder failure가 nil/typed-nil backend보다 original cause 그대로 우선; valid binding의 nil-like backend는
   `backend_error/invalid_plan`; 모두 I/O 0
-- Author/Reviewer common selector와 selected concrete eager query/evaluation state 보존; selector representation/name은
-  decision gate 전까지 noncanonical
+- Author/Reviewer common selector와 selected concrete eager query/evaluation state 보존; Gate 0 selector
+  representation/name은 이 bounded facade에서 canonical
 - Author/Reviewer `SelectRelated`를 Filter/OrderBy/Limit 전후에 적용한 required present, nullable present/NULL
 - Lazy 첫/둘째 접근 query count와 eager 추가-query 0; copied/repeated eager는 한 evaluation state를 공유하고 derived
   chain은 독립 evaluation
@@ -997,10 +1001,12 @@ Implementation test는 다음 경계를 동시에 잠가야 합니다.
 temp/sync, whole candidate package Verify, single rename 순서를 검증합니다. 여러 generated file의 coordinated upgrade,
 directory fsync, rename/deprecation/repair나 CLI를 이 gate에서 주장하지 않습니다.
 
-Binder/backend precedence와 invalid category/code는 위와 같이 고정하고, public 이름과 selector representation은
-ADR-0032 decision gate에서 먼저 고정합니다. Implicit English pluralization을 사용하지 않고 existing/new project
-declaration namespace 전체의 deterministic collision과 exact candidate-union compile을 검증합니다. Activation
-예시의 `Using`, aggregate/query/wrapper/selector/unwrap 이름은 아직 noncanonical입니다.
+Binder/backend precedence와 invalid category/code는 위와 같이 고정했습니다. Gate 0의 `Backend`, `Using`, `Models`,
+singular roots/wrappers, `BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`은 이 bounded facade의 canonical
+surface입니다. Implicit English pluralization을 사용하지 않고 existing/new project declaration namespace 전체의
+deterministic collision과 exact candidate-union compile을 검증했습니다. 이는 reverse/write/general generated
+upgrade 이름이나 동작을 확정하지 않습니다. EVID-069는 implementation head만 증명하며 later completion-documentation
+tree proof로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

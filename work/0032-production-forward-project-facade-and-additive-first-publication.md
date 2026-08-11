@@ -1,6 +1,6 @@
 ---
 id: GDJ-0032
-status: active
+status: completed
 updated: 2026-08-12
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "3d6612512e8887de8868a319650d54ad0721471b"
@@ -45,8 +45,9 @@ companion 한 파일로 처음 게시하는 bounded product packet입니다. 목
 연결한 뒤 query root가 반환한 project-owned pointer wrapper에서 required/nullable forward relation을 같은 API로
 읽는 것입니다.
 
-Activation 뒤 Gate 0에서 아래 exact public surface를 구현 기준으로 고정했습니다. ADR-0032 전체는 hosted
-implementation proof 전까지 Proposed이지만, source lane은 이 이름과 signature를 임의로 바꾸지 않습니다.
+Activation 뒤 Gate 0에서 아래 exact public surface를 구현 기준으로 고정했고 implementation head의 별도 hosted
+proof를 통과했습니다. ADR-0032는 이 bounded facade와 additive single-companion first-publication에 한해
+Accepted입니다.
 
 ```go
 models, err := project.Using(backend)
@@ -236,7 +237,7 @@ publication 전에 거부합니다. Handwritten source까지 schema만으로 완
 
 ## 완료 조건
 
-- [x] Exact exported names와 selector representation을 Proposed ADR의 implementation decision으로 고정하고 frozen
+- [x] Exact exported names와 selector representation을 bounded Accepted ADR의 implementation decision으로 고정하고 frozen
   typed-nil/binding-error precedence를 구현
 - [x] Existing generated exact 13 bytes/digest가 구현 전후 byte-identical
 - [x] Exactly one project facade companion의 deterministic generator/golden/first-publication 구현
@@ -261,7 +262,8 @@ publication 전에 거부합니다. Handwritten source까지 schema만으로 완
 - [x] Unrelated-model object prerequisite unused-bind regression과 current exact 13 byte identity 검증
 - [x] Physical/generated/test inventory와 workflow self-check를 실제 값으로 갱신
 - [x] Focused normal/race/CGO-disabled/vet, root CI와 independent P0-P3 audit 통과
-- [ ] Activation, implementation, completion documentation과 terminal evidence를 서로 다른 exact head로 증명
+- [x] Activation과 implementation을 서로 다른 exact head로 증명하고 later completion/terminal tree는
+  pending/no-reuse로 분리
 
 ## 진행 기록
 
@@ -271,14 +273,15 @@ publication 전에 거부합니다. Handwritten source까지 schema만으로 완
 - [x] Generator/product/compile/runtime implementation
 - [x] Inventory/workflow/protocol transition
 - [x] Local verification and independent P0-P3 audit
-- [ ] Implementation exact-head hosted verification
-- [ ] Completion documentation and terminal evidence
+- [x] Implementation exact-head hosted verification
+- [x] Completion documentation 작성과 bounded ADR/work 상태 전이
+- [ ] Completion-documentation exact-head hosted verification and terminal evidence
 
 ## 미결정과 blocker
 
 외부 blocker는 없습니다. Gate 0 이름, no-pluralization collision diagnostic, generator version과 canonical input
-hash encoding은 이 implementation tree에서 결정·검증됐습니다. 남은 blocker가 아닌 절차는 implementation exact-head
-hosted CI와 그 뒤 completion/terminal documentation evidence입니다.
+hash encoding은 implementation tree에서 결정·검증됐습니다. 남은 blocker가 아닌 절차는 이 exact eleven-file
+completion-documentation tree의 별도 hosted CI와 그 뒤 terminal evidence입니다.
 
 ## 테스트 증거
 
@@ -286,6 +289,10 @@ hosted CI와 그 뒤 completion/terminal documentation evidence입니다.
 - Activation proof: exact activation head `2399cc44f6da975f154806f91eeee06dcca3b5a8`의 hosted
   [run 31537726792](https://github.com/progresshans/godj/actions/runs/31537726792) attempt 1은 26/26 jobs와
   326/326 recorded steps를 통과했습니다. 이 run은 implementation tree proof로 재사용하지 않습니다.
+- Implementation proof: exact implementation head `ba2fa0fa30f32abf3d70598c7a3a4e4334a43020`의 hosted
+  [run 31541883680](https://github.com/progresshans/godj/actions/runs/31541883680) attempt 1은 exact 26/26 jobs와
+  326/326 recorded steps를 통과했습니다. Activation run은 재사용하지 않았고 이 implementation run도 later
+  completion-documentation proof로 재사용하지 않습니다.
 - Product baseline: exact 12 adapters/127 contracts=`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12;
   REL-002 `oracle_locked`
 - Frozen old generated subset: exact 13, 26,140 bytes/SHA-256
@@ -297,8 +304,8 @@ hosted CI와 그 뒤 completion/terminal documentation evidence입니다.
   `d017e9e848d4cf3e73b67075c0e271b7b31c1ed5a93416b1c78968d3d5904dde`
 - Local validation on 2026-08-12: focused and integrated normal/race/CGO-disabled/vet, Linux/386 compile-only,
   `make ci`, `git diff --check`, gofmt and three independent audits all PASS; final P0/P1/P2/P3=`0/0/0/0`.
-- This implementation tree: exact-head hosted CI `not run/pending`; activation run `31537726792`를 그 proof로
-  재사용하지 않음
+- This exact eleven-file completion-documentation tree: exact-head hosted CI `not run/pending`; activation run
+  `31537726792`와 implementation run `31541883680`을 그 proof로 재사용하지 않음
 
 ## 위험과 rollback
 
@@ -309,6 +316,8 @@ companion은 independent target으로 게시합니다. 구현이 실패하면 �
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 동결된 implementation tree만 정확히 commit/push하고 고유 exact-head hosted CI를 terminal까지
-감사합니다. 그 run을 activation proof와 분리해 기록한 뒤에만 ADR/work completion documentation과 terminal evidence를
-별도 head로 닫습니다. REL-002 또는 reverse/write/general upgrade work는 이 packet에 섞지 않습니다.
+통합 담당자는 이 exact eleven-file completion-documentation tree만 commit/push하고 고유 exact-head hosted CI를
+terminal까지 감사합니다. 그 결과를 별도 evidence로 기록한 뒤 exact seven-file terminal evidence/status head를 다시
+독립 검증해야 합니다. 그 terminal clean head 전에는 다음 Q-017 work를 active/ready로 만들지 않습니다. 이후
+REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 먼저 활성화할지는 별도 work/ADR에서
+결정하고 한 packet에 섞지 않습니다.

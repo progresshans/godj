@@ -55,18 +55,17 @@ proposed → ready → active → completed
 | [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md) | completed | REL-009/010/011 one-hop forward required/nullable `select_related`와 reverse-path rejection |
 | [GDJ-0030](0030-project-bound-protect-and-set-null-delete.md) | completed | REL-007/008 project-bound PROTECT/SET_NULL SQLite low-level delete |
 | [GDJ-0031](0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md) | completed | Relation-aware project facade와 generated upgrade의 test-only compile usability |
-| [GDJ-0032](0032-production-forward-project-facade-and-additive-first-publication.md) | active | Production forward project facade와 additive single-companion first publication |
+| [GDJ-0032](0032-production-forward-project-facade-and-additive-first-publication.md) | completed | Production forward project facade와 additive single-companion first publication |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-[GDJ-0032](0032-production-forward-project-facade-and-additive-first-publication.md), ready 항목은 없고 최근 완료
-항목은 [GDJ-0031](0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)입니다. GDJ-0031
-terminal head `3d661251...`의 EVID-067/run `31533890720`은 별도 exact 26/26·326/326을 통과해 clean activation
-baseline이 됐습니다. GDJ-0032는 existing generated exact 13을 byte-preserve하면서 project-only forward facade
-companion 한 파일을 additive first-publish하는 bounded product packet입니다. 모든 candidate 이름은 아직
-noncanonical이고 ADR-0032는 Proposed입니다. Product는 unchanged `121 + 5 + 1`, relation 11/12, REL-002
-locked이며 Q-013은 Partial, Q-017은 P1/open입니다. EVID-067을 포함한 later exact twelve-file activation tree 자체
-CI는 `not run/pending`이고 terminal run을 재사용하지 않습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근 완료
+항목은 [GDJ-0032](0032-production-forward-project-facade-and-additive-first-publication.md)입니다. GDJ-0032는
+existing generated exact 13을 byte-preserve하면서 project-only forward facade companion 한 파일을 additive
+first-publish했습니다. Activation EVID-068/run `31537726792`와 implementation EVID-069/run `31541883680`은 서로
+다른 exact head를 통과했고 ADR-0032는 bounded Gate 0에 한해 Accepted입니다. Gate 0 이름은 이 facade 안에서
+canonical입니다. Product는 unchanged `121 + 5 + 1`, relation 11/12, REL-002 locked이며 Q-013은 Partial,
+Q-017은 P1/open입니다. EVID-068/069와 상태를 추가한 exact eleven-file completion-documentation tree 자체 CI는
+`not run/pending`이고 activation/implementation run을 재사용하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -184,8 +183,8 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   26/26·326/326 hosted gate를 통과해 work는 completed, ADR-0031은 test-only feasibility 방법에 한해
   Accepted됐습니다. Completion-documentation head `e9b2c0e...`도 EVID-066/run `31531470440`의 별도 exact
   26/26·326/326을 통과했습니다. Exact seven-file terminal head `3d661251...`도 EVID-067/run
-  `31533890720`의 별도 exact 26/26·326/326을 통과했고 completion run을 재사용하지 않았습니다. Q-013은
-  Partial, Q-017은 P1/open이며 GDJ-0032가 active입니다.
+  `31533890720`의 별도 exact 26/26·326/326을 통과했고 completion run을 재사용하지 않았습니다. 그 terminal
+  head 시점에 Q-013은 Partial, Q-017은 P1/open이고 GDJ-0032가 active였습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
