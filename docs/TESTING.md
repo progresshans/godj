@@ -805,8 +805,21 @@ summary로 게시했습니다.
 `WaitDelay`/`Test I/O incomplete`는 0건이었습니다. EVID-060은 이 activation gate만 증명하며 이후 local
 REL-007/008 implementation bytes의 증거로 재사용하지 않습니다.
 
-Active GDJ-0030 testing은 current 9 required/3 NI를 보존한 baseline에서 REL-007/008 두 contract만 actual로
-전환합니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
+GDJ-0030 implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의 EVID-061/
+[run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26 jobs와
+326/326 recorded steps를 통과했습니다. Full Ubuntu `make ci`, `godjcheck` exact 11 required/1 not implemented,
+actual Linux/386 bounded package gate, exact Darwin, four Python compatibility legs와 four relation-product
+coordinates 각각 687/687/0·69,597 bytes·SHA-256
+`363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`가 성공했습니다. Current manifest는
+10,776 bytes/SHA-256 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, exact thirteen-file generated
+union은 SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`이며 product는 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. Local normal/race/CGO0/vet/386 compile,
+Django relation 11/11, inventory twice와 independent audits P0/P1/P2/P3=0도 통과했습니다. 이 exact 15-file
+completion-documentation tree 자체 CI는 `not run/pending`이고 implementation run을 그 later tree의 proof로
+재사용하지 않습니다.
+
+Completed GDJ-0030 testing은 이전 9 required/3 NI baseline에서 REL-007/008 두 contract만 actual로
+전환했습니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
 `ProtectedSourceRows`, mutation 0과 unchanged DB/caller를 검증합니다. 같은 row/two-edge는 global count 1,
 different source model/same numeric PK는 count 2이고 Linux/386 compile도 required입니다. SET_NULL은 fixture
 `NO ACTION`/`RESTRICT`, framework UPDATE→DELETE, affected 2→1, transaction 1을 검증하되 Delete 성공 `(1,nil)`은

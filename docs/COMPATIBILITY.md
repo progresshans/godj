@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-11
+- 마지막 검증: 2026-08-12
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
 
@@ -642,9 +642,9 @@ backend/session binding으로 번역합니다. Unified `project.Using(backend)` 
 mutation/cache invalidation과 exact public names는 Q-013/Q-017의 Proposed target이며 현재 passing contract나
 GDJ-0029 구현 사실이 아닙니다.
 
-Active [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Proposed
+Completed [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Accepted
 [ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 locked REL-007/008을 하나의 SQLite low-level
-delete packet으로 엽니다. REL-007은 모든 protected source row를 distinct identity+PK로 보고
+delete packet으로 구현·검증했습니다. REL-007은 모든 protected source row를 distinct identity+PK로 보고
 `integrity_error/protected_foreign_key`, `ProtectedSourceRows()==2`, UPDATE/DELETE 0과 unchanged DB를 요구합니다.
 같은 source row가 두 PROTECT edge에서 보이면 global count 1, 서로 다른 source model의 같은 numeric PK는 count
 2입니다. REL-008은 source
@@ -664,10 +664,12 @@ pool reuse를 막습니다. Confirmed rollback/discard는 unknown code를 쓰지
 직전에 표시한 mutation-possible 뒤 두 confirmation이 모두 실패한 경우만 stable
 `backend_error/transaction_outcome_unknown`으로 external reconciliation 필요성을
 표시합니다. Raw BEGIN error는 callback/retry 없이 force-discard하며 이 code를 쓰지 않습니다. SET_NULL
-affected count는 0 이상만 허용하고 fixture는 exact 2입니다. Current manifest 10,788 bytes/SHA-256
-`64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141`은 그대로이고, REL-007/008 status-only
-target 10,776 bytes/SHA-256 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`는 별도
-implementation evidence 전에는 current compatibility로 표시하지 않습니다. REL-002와 broader delete/facade/backend
+affected count는 0 이상만 허용하고 fixture는 exact 2입니다. Implementation head `c3803acb...`의
+EVID-061/run `31510689383`이 exact 26/26·326/326 hosted gate와 four-coordinate 687/687/0 inventory를 통과했습니다.
+Current manifest는 REL-007/008 status-only transition 뒤 10,776 bytes/SHA-256
+`3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, exact thirteen-file generated union은
+SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`입니다. Product는 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002와 broader delete/facade/backend
 호환은 locked/open입니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1

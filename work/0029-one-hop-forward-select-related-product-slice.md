@@ -1,7 +1,7 @@
 ---
 id: GDJ-0029
 status: completed
-updated: 2026-08-11
+updated: 2026-08-12
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "5c0efef12560203d720e4c2dd7bda50c0324a228"
 depends_on: ["GDJ-0028"]
@@ -474,19 +474,21 @@ Frozen unless a new work/ADR explicitly reopens them:
 
 ## 현재 blocker와 다음 정확한 작업
 
-GDJ-0029 blocker는 없습니다. Terminal exact-head hosted acceptance까지 완료했습니다. 후속 active packet은
-[GDJ-0030](0030-project-bound-protect-and-set-null-delete.md)의 REL-007/008 low-level SQLite relation delete입니다.
-Q-013은 `Partial`, Q-017은 P1/open이고 canonical relation facade는 여전히 구현 사실이 아닙니다. EVID-058은
-clean successor baseline일 뿐 GDJ-0030 activation/implementation proof로 재사용하지 않습니다. Draft PR은 사용자
-요청 전 merge하지 않습니다.
+GDJ-0029 blocker는 없습니다. Terminal exact-head hosted acceptance까지 완료했습니다. 후속
+[GDJ-0030](0030-project-bound-protect-and-set-null-delete.md)의 REL-007/008 low-level SQLite relation delete도
+implementation head `c3803acb...`의 EVID-061/run `31510689383`까지 completed/Accepted입니다. Q-013은 `Partial`,
+Q-017은 P1/open이고 canonical relation facade는 여전히 구현 사실이 아닙니다. EVID-058은 clean successor
+baseline일 뿐 GDJ-0030 activation/implementation proof로 재사용하지 않았습니다. Draft PR은 사용자 요청 전
+merge하지 않습니다.
 
 ## 인수인계
 
 - GDJ-0029은 terminal head `d0396c76d016c0f0335b484fbad56c70b80cf6d4`, exact-26 run
   `31484369693`까지 completed입니다. EVID-055는 activation/local pre-hosted, EVID-056은 implementation-head,
   EVID-057은 completion-documentation-head, EVID-058은 terminal exact-head hosted evidence입니다.
-- Current product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
-  630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`입니다.
+- GDJ-0029 completion product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
+  630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`였습니다.
+  Completed successor GDJ-0030 뒤 current product는 exact `121 + 5 + 1`, relation 11/12입니다.
 - ADR-0029은 bounded engine slice에 한해 Accepted; Q-013은 `Partial`, Q-017은 P1/open입니다.
 - implementation scope: exact paths in frontmatter; all other code/product/oracle/schema bytes frozen
-- successor: GDJ-0030 active/ADR-0030 Proposed; activation exact-head evidence는 EVID-058과 별도 기록
+- successor: GDJ-0030 completed/ADR-0030 Accepted; implementation evidence는 EVID-061/run `31510689383`

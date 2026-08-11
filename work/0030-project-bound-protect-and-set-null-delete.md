@@ -1,6 +1,6 @@
 ---
 id: GDJ-0030
-status: active
+status: completed
 updated: 2026-08-12
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "d0396c76d016c0f0335b484fbad56c70b80cf6d4"
@@ -61,14 +61,14 @@ integration_owner: "one primary agent"
 ## 결과 목표
 
 GDJ-0030은 locked Django 6.1 relation contracts REL-007/008을 하나의 bounded SQLite low-level product slice로
-구현합니다. Canonical `Bind()`와 같은 authoritative declared project universe의 incoming ForeignKey policy를
+구현·검증했습니다. Canonical `Bind()`와 같은 authoritative declared project universe의 incoming ForeignKey policy를
 exact fingerprint로 seal하고, `PROTECT` row가 하나라도
 있으면 mutation 없이 typed error를 반환하며, 그렇지 않으면 모든 `SET_NULL` bulk UPDATE 뒤 target exact-one
 DELETE를 pinned `BEGIN IMMEDIATE` transaction 하나에서 commit합니다.
 
-현재 exact product는 `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12입니다. 성공 target은 오직
-REL-007/008을 `passing`으로 바꾼 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. REL-002는
-locked로 유지합니다. ADR-0030은 Proposed이며 이 activation 문서는 구현 증거가 아닙니다.
+완료 product는 REL-007/008만 `passing`으로 바꾼 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. REL-002는 locked로 유지합니다.
+ADR-0030은 bounded engine slice에 한해 Accepted이고 Q-013은 `Partial`, Q-017은 P1/open입니다.
 
 ## 기준 상태와 선행 증거
 
@@ -445,19 +445,27 @@ DB-close-before-retained-drain lifecycle; its public method set and signatures r
 - [x] First activation hosted false-negative의 `go test -json | tee` output backpressure를 재현하고 direct-file
   capture/compact post-process evidence fix와 protocol gate를 EVID-059에 기록했습니다.
 - [x] Corrected activation exact-head local/hosted validation recorded across EVID-059/060, separately from EVID-058.
-- [ ] Query/db/ORM/SQLite implementation and focused normal/race/fault/concurrency tests complete.
-- [ ] Deterministic generator, exact thirteen-file separate union and compile/last-good locks complete.
-- [ ] REL-007/008 oracle-blind actual and exact manifest two-status transition/revert complete.
-- [ ] Full local CI, four-coordinate hosted CI, independent audit and exact implementation inventory recorded.
-- [ ] Completion docs update ADR to Accepted/work to completed only for the bounded slice.
+- [x] Query/db/ORM/SQLite implementation and focused normal/race/fault/concurrency tests complete.
+- [x] Deterministic generator, exact thirteen-file separate union and compile/last-good locks complete.
+- [x] REL-007/008 oracle-blind actual and exact manifest two-status transition/revert complete.
+- [x] Full local CI, four-coordinate hosted CI, independent audit and exact implementation inventory recorded.
+- [x] Completion docs update ADR to Accepted/work to completed only for the bounded slice.
+- [ ] Exact 15-file completion-documentation head receives its own hosted CI, separate from implementation EVID-061.
+- [ ] Later terminal evidence/status records that completion head without recursive proof reuse.
 
 ## 현재 blocker와 다음 정확한 작업
 
-Activation commit `83e6ea05...`의 run `31498696555`는 product test failure가 아니라 macOS Intel Actions-log
-backpressure로 package output `WaitDelay`가 만료된 25/26 false-negative였습니다. Stabilization head
-`48472a1c...`의 run `31503631942`가 26/26 hosted gate와 four-coordinate compact inventory를 EVID-060에서
-통과했습니다. First implementation packet은 immutable plan/typed error and additive DB ports, SQLite pinned relation
-transaction/SET_NULL compiler, ORM binder/deleter, generator/compile union, then conformance actual 순서입니다.
+외부 제품 blocker는 없습니다. Activation commit `83e6ea05...`의 run `31498696555`는 product test failure가
+아니라 macOS Intel Actions-log backpressure로 package output `WaitDelay`가 만료된 25/26 false-negative였고,
+stabilization head `48472a1c...`의 run `31503631942`가 corrected activation 26/26을 EVID-060에서 통과했습니다.
+Implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의 Draft PR #1
+[run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26 jobs·326/326
+recorded steps, four-coordinate 687/687/0·69,597 bytes·SHA-256
+`363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`, full Ubuntu `make ci`, exact
+Darwin/four Python, actual Linux/386와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-061을
+근거로 work를 completed, ADR-0030을 bounded slice에 한해 Accepted로 전환합니다. 다음은 exact 15-file
+completion-documentation head의 별도 CI와 terminal evidence/status이고, 그 뒤 Q-017 facade/API
+compile-usability work/ADR을 별도로 활성화합니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
@@ -466,7 +474,12 @@ transaction/SET_NULL compiler, ORM binder/deleter, generator/compile union, then
   only on hosted JSON-output backpressure; it is not activation acceptance evidence.
 - Corrected activation: `48472a1cba1ec706939f362ebdb1c4bea7f825eb`, EVID-060/run `31503631942`, exact
   26/26 jobs·326/326 steps success; it is not later implementation evidence.
-- Current/target: `119+5+3`, relation 9/12 → only after proof `121+5+1`, relation 11/12; REL-002 unchanged.
-- ADR-0030 Proposed, work active, Q-013 Partial, Q-017 P1/open; no canonical facade.
+- Implementation: `c3803acba1929921f23e4751679dc21d4bba9c0f`, EVID-061/run `31510689383`, exact
+  26/26 jobs·326/326 steps success; four relation inventories each 687/687/0·69,597 bytes·SHA-256
+  `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`.
+- Current: `121+5+1`, relation 11/12; REL-002 unchanged/locked. Manifest 10,776 bytes/SHA-256
+  `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`; exact thirteen-file digest
+  `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`.
+- ADR-0030 Accepted, work completed, Q-013 Partial, Q-017 P1/open; no canonical facade.
 - Required evidence separation: baseline terminal, activation exact head, implementation exact head, completion-documentation
   exact head and later terminal record are never reused across trees.

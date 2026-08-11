@@ -1,7 +1,7 @@
 # 동시성·비동기·성능 방향
 
 - 상태: 기본 방향 Accepted; QuerySet 평가 상태와 bounded relation-object cache 계약 Accepted
-- 마지막 검토: 2026-08-11
+- 마지막 검토: 2026-08-12
 
 GoDj의 출발점에는 Django보다 적은 프로세스와 메모리 중복으로 I/O 동시성과 멀티코어 실행을 자연스럽게 활용하려는 목적이 있습니다. 그러나 “Go로 작성했다”는 사실만으로 성능을 주장하지 않습니다. 측정 가능한 workload와 회귀 기준이 있어야 합니다.
 
@@ -73,7 +73,7 @@ return/copy마다 clone과 pointer state를 분리합니다. Exact implementatio
 bounded semantics를 검증했습니다. Cross-call singleflight, public cache injection, transaction/session goroutine
 sharing, write invalidation, multiple/reverse eager graph는 계속 비목표입니다.
 
-Active GDJ-0030/Proposed ADR-0030은 relation delete에 existing deferred `db.Atomic`을 재사용하지 않습니다.
+Completed GDJ-0030/Accepted ADR-0030은 relation delete에 existing deferred `db.Atomic`을 재사용하지 않습니다.
 SQLite backend의 additive `db.RelationAtomic.AtomicRelation`은 pinned relation connection에서
 `PRAGMA foreign_keys=1`을 확인한 뒤 raw `BEGIN IMMEDIATE`를 실행하고 complete PROTECT scan, SET_NULL UPDATE와 target
 DELETE/COMMIT을 같은 connection에 묶습니다. `database/sql`이 raw transaction을 추적하지 않으므로 session은
@@ -130,8 +130,7 @@ Literal COMMIT call이 error를 반환한 경우만 stable `backend_error/commit
 cleanup 결과와 무관하게 external reconciliation 전 명시적으로 재호출해서는 안 됩니다. 이 packet에는 재호출을 탐지·거부하는 poison token/fence/registry가
 없으므로 그 caller 의무를 runtime-enforced gate라고 주장하지 않습니다. Successful COMMIT은 authoritative하여 later context/connection-close error가 success `(1,nil)`을
 downgrade하지 않습니다. Session은 callback 밖에서 invalid이고 goroutine 공유를 약속하지 않습니다. 이
-canceled-context rollback/forced-discard/reborrow/fault/race/CGO0 gates 전에는 Proposed semantics를 구현됐다고
-표현하지 않습니다.
+canceled-context rollback/forced-discard/reborrow/fault/race/CGO0 gates를 모두 통과한 bounded semantics입니다.
 
 `AtomicRelation` callback cardinality는 precondition/begin failure 0회, 그 밖에는 synchronous exact 1회입니다.
 Concurrent/retry/after-return invocation은 port violation입니다. ORM은 `AtomicRelation` 반환 직후 guard를 원자적으로
@@ -143,6 +142,13 @@ callback이 `AtomicRelation` return과 seal 사이를 경합해 seal 전에 완�
 없는 port violation이고 탐지/outer-result를 보장하지 않습니다. Caller key clear는 sealed snapshot이 exactly one
 completed successful callback임을 확인한 뒤에만 가능합니다. Backend가 callback error를 삼키거나 commit하면 DB
 outcome은 보장하지 않습니다.
+
+이 bounded transaction/concurrency semantics는 implementation head `c3803acb...`의 EVID-061/run
+`31510689383`에서 exact 26/26·326/326 hosted gate, normal/race/CGO-disabled/vet/actual Linux-386,
+file-backed competing-writer와 retained-handle lifecycle fault gates를 통과했습니다. Successful COMMIT 뒤
+context transition은 `(1,nil)`과 caller key clear를 보존하고, outcome-unknown marker는 external reconciliation
+의무만 나타내며 runtime poison/fence를 추가하지 않습니다. Canonical facade/cache invalidation과 non-SQLite
+transaction semantics는 계속 open입니다.
 
 ## Transaction과 cancellation
 

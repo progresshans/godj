@@ -1,12 +1,12 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0029 REL-009/010/011 one-hop forward `select_related` completed/terminal exact-head PASS,
-  GDJ-0030 REL-007/008 project-bound PROTECT/SET_NULL delete active, ADR-0030 Proposed. Q-013 Partial/Q-017 P1
-  open; ready work 없음. Clean activation baseline `d0396c76...`은 EVID-058/run `31484369693` exact 26 PASS
-- 현재 제품 기준: 12 adapter/127 contract의 `119 passing + 5 deviation + 3 oracle_locked`,
-  relation actual REL-001/003/004/005/006/009/010/011/012 9/12
-- 마지막 검토: 2026-08-11
+- 현재 단계: GDJ-0030 REL-007/008 project-bound PROTECT/SET_NULL delete completed, ADR-0030 Accepted.
+  Q-013 Partial/Q-017 P1 open; active/ready work 없음. Implementation `c3803acb...`은 EVID-061/run
+  `31510689383` exact 26/26 PASS
+- 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
+  relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
+- 마지막 검토: 2026-08-12
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -412,15 +412,16 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   않습니다. 그 terminal head `d0396c76...`은 별도 EVID-058/run `31484369693`의 exact
   26/26·326/326과 source diff 0을 통과해 GDJ-0030 clean baseline이 됐습니다.
   Multiple/nested/reverse eager, canonical facade, write/delete/DDL/migration/non-SQLite는 deferred입니다.
-- Active [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Proposed
-  [ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 REL-007/008을 indivisible SQLite low-level
-  delete packet으로 엽니다. Declared-universe incoming-policy fingerprint, constructible typed protected error,
+- Completed [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Accepted
+  [ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 REL-007/008 indivisible SQLite low-level
+  delete packet을 구현·검증했습니다. Declared-universe incoming-policy fingerprint, constructible typed protected error,
   all-PROTECT global distinct pre-scan, canonical SET_NULL→target exact-one DELETE와 per-owned-connection FK-on + pinned
   `AtomicRelation`/no-retry transaction을 검증합니다. Exact generated surface는 `RelationDeleters` aggregate 하나이고
   omitted undeclared app 완전성, missing/mismatched physical FK repair 또는 FK-off writer 차단은 주장하지 않습니다.
   Existing one-row Delete/old interfaces와
-  select-related twelve-file product는 frozen입니다. Current `119 + 5 + 3`, relation 9/12는 implementation proof
-  전까지 유지하며 target `121 + 5 + 1`, relation 11/12는 REL-007/008 exact actual 뒤에만 적용합니다. REL-002,
+  select-related twelve-file product는 frozen입니다. Implementation head `c3803acb...`의 EVID-061/run
+  `31510689383`이 exact 26/26·326/326과 four-coordinate 687/687/0 inventory를 통과해 current는
+  `121 + 5 + 1`, relation 11/12입니다. REL-002,
   canonical facade/cache invalidation, recursive/CASCADE delete, DDL/migration과 non-SQLite는 deferred입니다.
 - Canonical relation API freeze 전 Q-013/Q-017 compile-usability gate를 별도로 통과합니다. One-time project
   binding, relation-aware query result, lazy/eager 동일 accessor, forward/reverse chaining, FK mutation cache

@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-11
+- 마지막 검토: 2026-08-12
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -375,8 +375,8 @@ EVID-054/run `31436881856`은 current exact
 gate를 통과해 current product는 `119 + 5 + 3`, relation 9/12입니다. Canonical facade와 broader surface는
 Q-013/Q-017에서 계속 open입니다.
 
-Active GDJ-0030/Proposed ADR-0030은 REL-007 PROTECT와 REL-008 SET_NULL을 함께 여는 SQLite-only low-level
-delete 후보입니다. Additive immutable `RelationSetNullPlan`, constructible typed protected error,
+Completed GDJ-0030/Accepted ADR-0030은 REL-007 PROTECT와 REL-008 SET_NULL을 함께 여는 SQLite-only low-level
+delete slice입니다. Additive immutable `RelationSetNullPlan`, constructible typed protected error,
 `db.RelationAtomic.AtomicRelation`, project-bound deleter와 declared-universe incoming-policy fingerprint, per-connection
 FK-on + pinned `BEGIN IMMEDIATE`, no-retry and exact thirteen-file generated union을 한 packet으로 검증합니다.
 Generated surface는 `zz_godj_relation_delete.go`의 `RelationDeleters`/`BindRelationDeleters`이고 canonical facade는
@@ -385,9 +385,9 @@ stable `commit_outcome_unknown`, relation session mutator entry 뒤 rollback+dis
 `transaction_outcome_unknown`으로 분류하고 raw begin/transaction cleanup-discard를 검증합니다. Session은 모든
 Mutator/RelationMutator 호출 직전에 mutation-possible을 표시하며 이 deleter의 첫 entry는 SET_NULL/target DELETE입니다. 모든 incoming
 edge의 metadata-matching physical SQLite FK는 supported schema precondition이며 runtime DDL 보장이 아닙니다.
-Target classification
-`121 passing + 5 deviation + 1 oracle_locked`,
-relation 11/12는 구현/hosted evidence 뒤에만 적용하며 지금은 `119 + 5 + 3`, relation 9/12입니다. REL-002,
+Implementation head `c3803acb...`의 EVID-061/run `31510689383`이 exact 26/26·326/326 hosted gate와
+four-coordinate 687/687/0 inventory를 통과해 current classification은
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. REL-002,
 canonical facade, cache invalidation, recursive/bulk/CASCADE delete, DDL/migration과 non-SQLite는 포함하지 않습니다.
 
 ## Django 데이터 이행

@@ -53,13 +53,13 @@ proposed → ready → active → completed
 | [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) | completed | REL-005 reverse ForeignKey accessor와 exact lookup |
 | [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md) | completed | REL-012 reverse ForeignKey one-batch prefetch와 atomic warm related set |
 | [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md) | completed | REL-009/010/011 one-hop forward required/nullable `select_related`와 reverse-path rejection |
-| [GDJ-0030](0030-project-bound-protect-and-set-null-delete.md) | active | REL-007/008 project-bound PROTECT/SET_NULL SQLite low-level delete |
+| [GDJ-0030](0030-project-bound-protect-and-set-null-delete.md) | completed | REL-007/008 project-bound PROTECT/SET_NULL SQLite low-level delete |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
-[GDJ-0030](0030-project-bound-protect-and-set-null-delete.md), ready 항목은 없고 최근 완료 항목은
-[GDJ-0029](0029-one-hop-forward-select-related-product-slice.md)입니다. GDJ-0030은 canonical facade보다 먼저
-locked REL-007/008의 SQLite low-level delete engine을 bounded하게 구현하며 Q-017은 그 뒤 P1/open입니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근 완료
+항목은 [GDJ-0030](0030-project-bound-protect-and-set-null-delete.md)입니다. GDJ-0030은 canonical facade보다 먼저
+locked REL-007/008의 SQLite low-level delete engine을 bounded하게 구현·검증했으며 Q-017은 다음 P1/open
+우선순위입니다. 아직 별도 work/ADR로 활성화하지 않았습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -160,9 +160,15 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   EVID-057을 포함한 terminal exact seven-file commit `d0396c76d016c0f0335b484fbad56c70b80cf6d4`도 별도
   [run 31484369693](https://github.com/progresshans/godj/actions/runs/31484369693)의 exact 26/26·326/326,
   four-coordinate 630/630/0 inventory와 source diff 0을 통과해 EVID-058에 기록했습니다. GDJ-0030은 이 clean
-  tested baseline에서 REL-007/008 indivisible low-level delete와 Proposed ADR-0030을 활성화합니다. EVID-058은
-  activation/implementation proof로 재사용하지 않습니다. Current는 `119 + 5 + 3`, relation 9/12이고 target
-  `121 + 5 + 1`, relation 11/12는 별도 evidence 뒤에만 적용합니다. Q-013 Partial/Q-017 P1 open입니다.
+  tested baseline에서 REL-007/008 indivisible low-level delete와 Proposed ADR-0030을 활성화했고 EVID-058은
+  activation/implementation proof로 재사용하지 않았습니다. Corrected activation `48472a1c...`의 EVID-060/run
+  `31503631942` 뒤 implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의 EVID-061/run
+  `31510689383`이 exact 26/26·326/326, four-coordinate 687/687/0·69,597 bytes·SHA-256
+  `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`, Ubuntu `make ci`, actual Linux/386,
+  exact Darwin/four Python과 independent P0/P1/P2/P3=0을 통과했습니다. Product는 current
+  `121 + 5 + 1`, relation 11/12, REL-002 locked이고 work는 completed, ADR-0030은 bounded slice에 한해
+  Accepted입니다. Exact 15-file completion-documentation head 자체 CI와 later terminal evidence는 pending이며
+  Draft PR은 merge하지 않았습니다. Q-013은 Partial, Q-017은 다음 P1/open 우선순위입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

@@ -1,6 +1,6 @@
 # ADR-0030: Project-bound `PROTECT` and `SET_NULL` Delete
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-11
 - 관련 work/contract:
   [GDJ-0030](../../work/0030-project-bound-protect-and-set-null-delete.md), REL-007, REL-008, Q-013, Q-017
@@ -13,17 +13,21 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. Exact clean activation baseline은
+이 ADR은 bounded SQLite REL-007/008 low-level delete engine에 한해 **Accepted**입니다. Exact clean activation baseline은
 `d0396c76d016c0f0335b484fbad56c70b80cf6d4`와
 [EVID-20260811-058](../status/TEST_EVIDENCE.md#evid-20260811-058--gdj-0029-terminal-exact-head-ci-and-gdj-0030-activation-baseline)입니다.
-현재 제품은 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12이며 REL-007/008은 아직
-`oracle_locked`입니다. 이 문서와 work packet은 구현이나 호환 통과 증거가 아닙니다.
+Implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의
+[EVID-20260812-061](../status/TEST_EVIDENCE.md#evid-20260812-061--gdj-0030-github-hosted-exact-26-job-implementation-head-ci) /
+[run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26 jobs·326/326
+recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 현재 제품은 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002만 locked입니다. 이 exact 15-file
+completion-documentation tree 자체 CI는 `not run/pending`이고 implementation run은 그 later tree의 proof가 아닙니다.
 
-결정 후보는 SQLite에서 하나의 project binding이 아는 **모든 incoming ForeignKey**를 기준으로 target 한 행을
+채택한 결정은 SQLite에서 하나의 project binding이 아는 **모든 incoming ForeignKey**를 기준으로 target 한 행을
 삭제하는 저수준 engine입니다. `PROTECT`와 `SET_NULL`은 같은 incoming-edge snapshot, fingerprint, pinned
-connection과 transaction을 사용해야 하므로 REL-007/008을 나누지 않습니다. 성공하면 두 contract만
-`passing`으로 바꿔 target classification을 exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12로
-만듭니다. REL-002는 그대로 locked입니다.
+connection과 transaction을 사용해야 하므로 REL-007/008을 나누지 않습니다. 두 contract만 `passing`으로 바꾼
+classification이 exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. REL-002는 그대로
+locked입니다.
 
 Canonical `project.Using(backend)` facade, relation-aware model method, queryset delete, cascade graph, cache
 invalidation, migration/DDL과 non-SQLite backend는 이 ADR이 결정하지 않습니다. Q-013은 `Partial`, Q-017은
@@ -398,9 +402,10 @@ P1/open. Writers that bypass SQLite locks or use `PRAGMA foreign_keys=0`, and au
 `Open`, are also outside the supported safety boundary. Missing/mismatched physical SQLite relation constraints are an
 unsupported schema, not something this packet's runtime or DDL layer repairs.
 
-## Acceptance 조건
+## Acceptance 증거
 
-ADR status becomes Accepted only after the exact GDJ-0030 work gates pass on a separate implementation head: REL-007/008
+Separate implementation head `c3803acb...`의 EVID-061/run `31510689383`이 다음 exact GDJ-0030 work gates를
+통과해 이 bounded decision을 Accepted로 전환했습니다: REL-007/008
 oracle-blind product actuals; PROTECT nil/typed-nil/partial/error rows no-call/close-once gates; canceled-context rollback,
 raw-BEGIN-error/rollback forced-discard and reborrow; outermost typed transaction-unknown positive plus raw-BEGIN/
 pre-mutation/confirmed-cleanup/panic/COMMIT exclusion matrix; outermost typed COMMIT-unknown failure injection; competing FK-on connection
@@ -411,5 +416,6 @@ forced-discard-failure Close-0/poisoned-retention/no-pool-reuse proof;
 DB-close-before-retained-drain ordering, drain-on-DB-close-error, retain-vs-close race, post-seal immediate terminal close
 attempt/no re-pool and idempotent Backend close proof, without claiming a hidden driver-close error;
 thirteen-file generation including alias≠app-label namespace/compile and last-good locks; manifest exact two-status
-transition/revert; independent audit and exact
-hosted CI. Activation baseline EVID-058 is not implementation proof.
+transition/revert; independent audit and exact hosted CI. Activation baseline EVID-058/EVID-060은 implementation
+proof로 재사용하지 않았습니다. 이 status transition을 포함한 exact 15-file completion-documentation head의
+hosted CI는 별도 `not run/pending`이며 Draft PR은 merge하지 않았습니다.

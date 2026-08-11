@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-11
+- 마지막 검토: 2026-08-12
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -12,7 +12,7 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0030 active / relation facade 후속 | Accepted relation semantics와 bounded one-hop eager engine; REL-007/008 low-level delete Proposed; canonical project facade·relation-aware chaining·FK mutation/cache policy는 open |
+| Q-013 | Partial | GDJ-0030 completed / relation facade 후속 | Accepted relation semantics와 bounded REL-007/008 low-level delete; canonical project facade·relation-aware chaining·FK mutation/cache policy는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -378,9 +378,9 @@ typed/dynamic resolver가 exact implementation head `c02aab67...`의 run `314702
 Multiple/nested/no-argument/reverse eager, OneToOne/ManyToMany, write/delete/DDL/migration과 broader backend는
 결정하지 않았으므로 Q-013은 계속 `Partial`입니다.
 
-Active [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Proposed
+Completed [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Accepted
 [ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 Q-013 중 REL-007/008 low-level target delete만
-분리합니다. Canonical `Bind()`와 같은 authoritative declared project universe의 incoming policy fingerprint,
+분리해 구현·검증했습니다. Canonical `Bind()`와 같은 authoritative declared project universe의 incoming policy fingerprint,
 generated v2 scalar/AutoField target deleter, all-PROTECT pre-scan과 canonical SET_NULL→DELETE, SQLite pinned
 `AtomicRelation` transaction을 검증합니다. Standalone generator는 raw slice에서 완전히 빠진 undeclared app을
 감지한다고 주장하지 않습니다. Generated aggregate binder는 full runtime `Bind()`의 canonical unique incoming-target
@@ -393,6 +393,10 @@ public DB interfaces는 바꾸지 않고 별도 relation ports/generator를 추�
 invalidation, canonical project facade, queryset/recursive/CASCADE delete, global cache invalidation, migration/DDL과
 non-SQLite는 결정하지 않으므로 Q-013은 계속 `Partial`입니다. 이 packet의 저수준 `BindRelationDeleter`는 Q-017의
 최종 application API 답이 아닙니다.
+
+Implementation head `c3803acb...`의 EVID-061/run `31510689383`이 exact 26/26·326/326 hosted gate와
+four-coordinate 687/687/0 inventory를 통과해 current product는 exact `121 + 5 + 1`, relation 11/12입니다.
+REL-002만 relation `oracle_locked`로 남고 canonical facade와 broader mutation/cache/delete/backend 표면은 open입니다.
 
 Django 6.1의 관계 의미는 기본 reference입니다. Raw FK와 관계 accessor 분리, 미조회/NULL/loaded 구분, 첫 접근
 cache, eager/prefetch의 동일 cache warming, reverse manager와 조회 origin DB 유지가 기준입니다. GoDj는 Python
