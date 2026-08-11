@@ -168,18 +168,21 @@
 - GDJ-0030 implementation/hosted-tested commit:
   `c3803acba1929921f23e4751679dc21d4bba9c0f`
   (`feat: verify project-bound relation deletes`)
+- GDJ-0030 completion-documentation/hosted-tested commit:
+  `635e9c38a4464b98987d56c1b7d796aa42734661`
+  (`docs: complete project-bound relation delete slice`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0030](../../work/0030-project-bound-protect-and-set-null-delete.md)은 completed,
   [ADR-0030](../adr/0030-project-bound-protect-and-set-null-delete.md)은 bounded SQLite REL-007/008 engine에 한해
-  Accepted입니다. Implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의
-  [EVID-061](TEST_EVIDENCE.md#evid-20260812-061--gdj-0030-github-hosted-exact-26-job-implementation-head-ci) /
-  hosted [run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26
+  Accepted입니다. Completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`의
+  [EVID-062](TEST_EVIDENCE.md#evid-20260812-062--gdj-0030-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  hosted [run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)은 exact 26/26
   jobs·326/326 recorded steps와 four-coordinate 687/687/0·69,597-byte inventory, independent audit
   P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Current product는 exact
   `121 passing + 5 deviation + 1 oracle_locked`, relation actual 11/12이며 REL-002만 locked입니다. Q-013은
-  `Partial`, Q-017은 P1/open입니다. 이 exact 15-file completion-documentation tree 자체 CI는
-  `not run/pending`이고 implementation run을 그 later tree의 proof로 재사용하지 않습니다.
+  `Partial`, Q-017은 P1/open입니다. EVID-062를 포함한 이 later exact seven-file terminal documentation tree
+  자체 CI는 `not run/pending`이고 completion run을 그 later tree의 proof로 재사용하지 않습니다.
 - 최근 완료 작업:
   [GDJ-0030 Project-bound PROTECT and SET_NULL Delete](../../work/0030-project-bound-protect-and-set-null-delete.md)
 - 활성 작업: 없음
@@ -556,7 +559,12 @@
   four-coordinate 687/687/0·69,597 bytes·SHA-256
   `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`, full Ubuntu `make ci`, actual
   Linux/386, exact Darwin/four Python와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과해 이 bounded
-  implementation을 current로 만들었습니다. Completion-documentation exact 15-file tree 자체 CI는 pending입니다.
+  implementation을 current로 만들었습니다. Completion-documentation head
+  `635e9c38a4464b98987d56c1b7d796aa42734661`의
+  [EVID-062](TEST_EVIDENCE.md#evid-20260812-062--gdj-0030-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  [run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)도 별도 exact 26/26·326/326,
+  unchanged four-coordinate 687/687/0 inventory와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+  이 later exact seven-file terminal documentation patch 자체 CI는 pending입니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -993,8 +1001,9 @@
 implementation proof가 아닙니다.
 GDJ-0030 corrected activation `48472a1c...`의 EVID-060/run `31503631942`는 activation-only 26/26·326/326이고,
 implementation `c3803acb...`의 EVID-061/run `31510689383`은 별도 exact 26/26·326/326, four-coordinate
-687/687/0 inventory와 hosted audit P0..P3=0을 통과했습니다. Exact 15-file completion-documentation head와
-later terminal evidence/status head의 별도 CI만 pending입니다.
+687/687/0 inventory와 hosted audit P0..P3=0을 통과했습니다. Completion-documentation `635e9c38...`의
+EVID-062/run `31514159835`도 별도 exact 26/26·326/326과 unchanged 687/687/0 inventory를 통과했습니다. EVID-062를
+포함한 later exact seven-file terminal evidence/status head의 별도 CI만 pending입니다.
 Final GDJ-0025 evidence/status baseline `bffc5284...`의 run
 `31359958949`도 exact 26/26·326/326을 통과했습니다. GDJ-0026 activation `aad4f7ff...`도 별도 run
 `31364944816`의 exact 26/26·326/326을 통과했고 implementation `5be46141...`은 별도 run `31370313755`의
@@ -1031,10 +1040,11 @@ generated upgrade policy를 위한 P1/open compile-usability gate입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 exact 15-file completion-documentation patch의 final diff/scope, EVID-001..060 historical body
-prefix, links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only bytes를 별도 commit/push한 뒤
-exact-head 26-job CI와 hosted audit를 실행하되 implementation EVID-061/run `31510689383`을 그 later tree의
-proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 recursive pending을 닫습니다. 다음 제품
+통합 담당자는 EVID-062와 상태를 추가하는 exact seven-file terminal documentation patch의 final diff/scope,
+EVID-001..061 historical body prefix, links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only
+bytes를 별도 commit/push한 뒤 exact-head 26-job CI와 hosted audit를 실행하되 completion EVID-062/run
+`31514159835`를 그 later tree의 proof로 재사용하지 않습니다. 그 별도 terminal exact-head success로 pending을
+닫습니다. 다음 제품
 우선순위는 Q-017 relation-aware project facade/generated upgrade compile-usability 경계를 별도 work/ADR로 먼저
 활성화하는 것이며 아직 active/ready work는 없습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
@@ -1124,7 +1134,10 @@ proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 
 - GDJ-0030 implementation commit: `c3803acba1929921f23e4751679dc21d4bba9c0f`; exact 26-job run
   `31510689383` 26/26 and 326/326 recorded steps PASS; EVID-061, four-coordinate
   687/687/0·69,597 bytes·SHA-256 `363c4e16...07b9`, hosted audit P0/P1/P2/P3=0
-- 현재 working tree: exact 15-file GDJ-0030 completion-documentation transition; its own exact-head hosted CI pending
+- GDJ-0030 completion-documentation commit: `635e9c38a4464b98987d56c1b7d796aa42734661`; exact 26-job run
+  `31514159835` 26/26 and 326/326 recorded steps PASS; EVID-062, unchanged four-coordinate
+  687/687/0·69,597 bytes·SHA-256 `363c4e16...07b9`, hosted audit P0/P1/P2/P3=0
+- 현재 working tree: exact seven-file GDJ-0030 terminal evidence/status transition; its own exact-head hosted CI pending
 - 최근 완료 work:
   [GDJ-0030](../../work/0030-project-bound-protect-and-set-null-delete.md)
 - active work: 없음
@@ -1250,10 +1263,12 @@ proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 
   evidence/status/GDJ-0029 baseline run 31436881856 exact 26/26 PASS; GDJ-0029 activation run 31465198903 exact
   26/26 PASS; implementation run 31470292759 exact 26/26 PASS; completion-documentation run 31482242288 exact
   26/26 PASS; terminal exact seven-file/GDJ-0030 baseline run 31484369693 exact 26/26 PASS; corrected GDJ-0030
-  activation run 31503631942 exact 26/26 PASS; GDJ-0030 implementation run 31510689383 exact 26/26 PASS
+  activation run 31503631942 exact 26/26 PASS; GDJ-0030 implementation run 31510689383 exact 26/26 PASS;
+  completion-documentation run 31514159835 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 가장 위험한 과장: activation run 31503631942를 GDJ-0030 implementation success로 재사용하거나,
-  implementation run 31510689383을 later completion-documentation tree proof로 재사용하거나, bounded relation slices를 canonical
+  implementation run 31510689383을 completion-documentation tree proof로 재사용하거나, completion run
+  31514159835를 later exact seven-file terminal tree proof로 재사용하거나, bounded relation slices를 canonical
   facade/general eager/delete/DDL/migration/non-SQLite support로 넓히는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은

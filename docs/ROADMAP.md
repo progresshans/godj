@@ -2,8 +2,8 @@
 
 - 상태: Accepted direction
 - 현재 단계: GDJ-0030 REL-007/008 project-bound PROTECT/SET_NULL delete completed, ADR-0030 Accepted.
-  Q-013 Partial/Q-017 P1 open; active/ready work 없음. Implementation `c3803acb...`은 EVID-061/run
-  `31510689383` exact 26/26 PASS
+  Q-013 Partial/Q-017 P1 open; active/ready work 없음. Completion-documentation `635e9c38...`은 EVID-062/run
+  `31514159835` exact 26/26 PASS이고 later exact seven-file terminal record는 pending
 - 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
   relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
 - 마지막 검토: 2026-08-12
@@ -423,6 +423,10 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   `31510689383`이 exact 26/26·326/326과 four-coordinate 687/687/0 inventory를 통과해 current는
   `121 + 5 + 1`, relation 11/12입니다. REL-002,
   canonical facade/cache invalidation, recursive/CASCADE delete, DDL/migration과 non-SQLite는 deferred입니다.
+  Exact 15-file completion-documentation head `635e9c38...`도 별도 EVID-062/run `31514159835`의 exact
+  26/26·326/326과 unchanged four-coordinate 687/687/0 inventory를 통과했습니다. EVID-062를 포함한 later exact
+  seven-file terminal 기록 자체는 `not run/pending`이고 completion run을 그 later tree의 proof로 재사용하지
+  않습니다.
 - Canonical relation API freeze 전 Q-013/Q-017 compile-usability gate를 별도로 통과합니다. One-time project
   binding, relation-aware query result, lazy/eager 동일 accessor, forward/reverse chaining, FK mutation cache
   invalidation과 exact transaction session을 검증합니다. GDJ-0029의 projection/runtime/compiler와 generated

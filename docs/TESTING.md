@@ -815,8 +815,12 @@ coordinates 각각 687/687/0·69,597 bytes·SHA-256
 union은 SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`이며 product는 exact
 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12입니다. Local normal/race/CGO0/vet/386 compile,
 Django relation 11/11, inventory twice와 independent audits P0/P1/P2/P3=0도 통과했습니다. 이 exact 15-file
-completion-documentation tree 자체 CI는 `not run/pending`이고 implementation run을 그 later tree의 proof로
-재사용하지 않습니다.
+completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`은 별도 EVID-062/
+[run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)의 exact 26/26 jobs·326/326
+recorded steps, unchanged four-coordinate 687/687/0 inventory, full Ubuntu `make ci`, exact Darwin/four Python,
+actual Linux/386와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. EVID-062와 상태를 추가하는 later
+exact seven-file terminal documentation patch 자체 CI는 `not run/pending`이고 completion run을 그 later tree의
+proof로 재사용하지 않습니다.
 
 Completed GDJ-0030 testing은 이전 9 required/3 NI baseline에서 REL-007/008 두 contract만 actual로
 전환했습니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,

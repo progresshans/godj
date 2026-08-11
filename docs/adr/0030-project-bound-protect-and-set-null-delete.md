@@ -21,7 +21,11 @@ Implementation head `c3803acba1929921f23e4751679dc21d4bba9c0f`의
 [run 31510689383](https://github.com/progresshans/godj/actions/runs/31510689383)은 exact 26/26 jobs·326/326
 recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 현재 제품은 exact
 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002만 locked입니다. 이 exact 15-file
-completion-documentation tree 자체 CI는 `not run/pending`이고 implementation run은 그 later tree의 proof가 아닙니다.
+completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`도
+[EVID-20260812-062](../status/TEST_EVIDENCE.md#evid-20260812-062--gdj-0030-github-hosted-completion-documentation-head-exact-26-job-ci) /
+[run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)의 별도 exact 26/26·326/326과
+independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-062를 추가하는 later exact seven-file terminal
+documentation patch 자체 CI는 `not run/pending`이고 completion run은 그 later tree의 proof가 아닙니다.
 
 채택한 결정은 SQLite에서 하나의 project binding이 아는 **모든 incoming ForeignKey**를 기준으로 target 한 행을
 삭제하는 저수준 engine입니다. `PROTECT`와 `SET_NULL`은 같은 incoming-edge snapshot, fingerprint, pinned
@@ -418,4 +422,6 @@ attempt/no re-pool and idempotent Backend close proof, without claiming a hidden
 thirteen-file generation including alias≠app-label namespace/compile and last-good locks; manifest exact two-status
 transition/revert; independent audit and exact hosted CI. Activation baseline EVID-058/EVID-060은 implementation
 proof로 재사용하지 않았습니다. 이 status transition을 포함한 exact 15-file completion-documentation head의
-hosted CI는 별도 `not run/pending`이며 Draft PR은 merge하지 않았습니다.
+hosted CI는 head `635e9c38...`의 EVID-062/run `31514159835`에서 별도로 통과했습니다. 이 EVID-062와 상태를
+추가하는 later exact seven-file terminal patch 자체 CI는 `not run/pending`이고 completion run을 재사용하지
+않으며 Draft PR은 merge하지 않았습니다.

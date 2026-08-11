@@ -167,8 +167,11 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`, Ubuntu `make ci`, actual Linux/386,
   exact Darwin/four Python과 independent P0/P1/P2/P3=0을 통과했습니다. Product는 current
   `121 + 5 + 1`, relation 11/12, REL-002 locked이고 work는 completed, ADR-0030은 bounded slice에 한해
-  Accepted입니다. Exact 15-file completion-documentation head 자체 CI와 later terminal evidence는 pending이며
-  Draft PR은 merge하지 않았습니다. Q-013은 Partial, Q-017은 다음 P1/open 우선순위입니다.
+  Accepted입니다. Exact 15-file completion-documentation head `635e9c38...`의 EVID-062/run `31514159835`도
+  별도 exact 26/26·326/326, unchanged four-coordinate 687/687/0 inventory와 independent P0/P1/P2/P3=0을
+  통과했습니다. EVID-062를 포함한 later exact seven-file terminal evidence/status patch 자체 CI는
+  `not run/pending`이고 completion run을 재사용하지 않으며 Draft PR은 merge하지 않았습니다. Q-013은 Partial,
+  Q-017은 다음 P1/open 우선순위입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273
