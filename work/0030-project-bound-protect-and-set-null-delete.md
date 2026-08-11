@@ -451,7 +451,7 @@ DB-close-before-retained-drain lifecycle; its public method set and signatures r
 - [x] Full local CI, four-coordinate hosted CI, independent audit and exact implementation inventory recorded.
 - [x] Completion docs update ADR to Accepted/work to completed only for the bounded slice.
 - [x] Exact 15-file completion-documentation head receives its own hosted CI, separate from implementation EVID-061.
-- [ ] Later terminal evidence/status records that completion head without recursive proof reuse.
+- [x] Later terminal evidence/status head receives its own exact-head CI without completion proof reuse.
 
 ## 현재 blocker와 다음 정확한 작업
 
@@ -467,8 +467,12 @@ Darwin/four Python, actual Linux/386와 independent audit P0/P1/P2/P3=`0/0/0/0`�
 completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`의
 [run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)도 EVID-062에서 별도 exact
 26/26·326/326, unchanged four-coordinate 687/687/0 inventory와 independent hosted audit P0/P1/P2/P3=`0/0/0/0`을
-통과했습니다. 다음은 EVID-062와 상태를 기록하는 later exact seven-file terminal patch의 별도 CI이고, 그 뒤
-Q-017 facade/API compile-usability work/ADR을 별도로 활성화합니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
+통과했습니다. EVID-062와 상태를 기록한 terminal head `ceff9e534e541edb0bd19cd6a1a61682b5435454`도 별도
+[EVID-063](../docs/status/TEST_EVIDENCE.md#evid-20260812-063--gdj-0030-terminal-exact-head-ci-and-gdj-0031-activation-baseline) /
+run `31516174741`의 exact 26/26·326/326과 audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이 clean baseline에서
+[GDJ-0031](0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과 ADR-0031을
+active/Proposed로 활성화하며 EVID-063은 later activation tree proof로 재사용하지 않습니다. Draft PR은 사용자 요청 전
+merge하지 않습니다.
 
 ## 인수인계
 
@@ -483,10 +487,13 @@ Q-017 facade/API compile-usability work/ADR을 별도로 활성화합니다. Dra
 - Completion documentation: `635e9c38a4464b98987d56c1b7d796aa42734661`, EVID-062/run `31514159835`, exact
   26/26 jobs·326/326 steps success; unchanged four relation inventories each 687/687/0·69,597 bytes·SHA-256
   `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`.
+- Terminal evidence/status and GDJ-0031 baseline: `ceff9e534e541edb0bd19cd6a1a61682b5435454`,
+  EVID-063/run `31516174741`, exact 26/26·326/326, unchanged four-coordinate 687/687/0 inventory and audit
+  P0/P1/P2/P3=`0/0/0/0`; baseline only.
 - Current: `121+5+1`, relation 11/12; REL-002 unchanged/locked. Manifest 10,776 bytes/SHA-256
   `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`; exact thirteen-file digest
   `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`.
 - ADR-0030 Accepted, work completed, Q-013 Partial, Q-017 P1/open; no canonical facade.
 - Required evidence separation: baseline terminal, activation exact head, implementation exact head, completion-documentation
-  exact head and later terminal record are never reused across trees. The later exact seven-file terminal record is
-  `not run/pending` until its own exact-head hosted CI.
+  exact head and later terminal record are never reused across trees. The exact seven-file terminal record passed only at
+  `ceff9e5...`; GDJ-0031 activation documentation and implementation require separate exact-head evidence.

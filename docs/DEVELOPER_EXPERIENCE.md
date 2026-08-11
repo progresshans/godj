@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
 - 상태: 장기 사용자 흐름 Accepted, M1 Article 단면 Implemented/Verified, 나머지 문법 Proposed
-- 마지막 검토: 2026-08-11
+- 마지막 검토: 2026-08-12
 
 별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -150,8 +150,10 @@ posts, err := PostObjects.Using(backend).
 ### 관계를 포함한 project facade — Proposed
 
 관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
-relation-aware pointer를 사용하는 경험을 목표로 합니다. 아래 이름과 chaining 문법은 Q-017 compile usability
-검증 전의 illustrative sketch이며 현재 구현됐다는 뜻이 아닙니다.
+relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
+[ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 이 목표 중 forward read-only
+compile shape만 test-only overlay로 검토하는 active/Proposed 단계입니다. 아래 이름과 chaining 문법은
+illustrative candidate이며 현재 구현됐거나 public API로 채택됐다는 뜻이 아닙니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
@@ -172,6 +174,13 @@ if err != nil {
 if !found {
     // handle not found
 }
+
+raw, err := post.Model()
+if err != nil {
+    return err
+}
+_ = raw.ID
+_ = raw.AuthorID
 
 author, err := post.Author(ctx)
 ```
@@ -196,9 +205,11 @@ author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
 - Go field initialism은 `AuthorID`/`ReviewerID`처럼 `ID`를 유지하고 DB/schema 이름은 `author_id`/
   `reviewer_id`를 유지합니다.
 - plain/lazy/eager query는 같은 project-level pointer type과 `Author(ctx)`/`Reviewer(ctx)` accessor를 사용합니다.
-- forward target과 reverse query 결과도 relation-aware project wrapper를 반환해 관계를 다시 따라갈 수 있어야 합니다.
+- Forward target과 reverse query 결과를 다시 따라가는 장기 목표는 유지하지만, GDJ-0031의 exact physical fixture에는
+  reverse aggregate가 없으므로 target wrapper와 reverse chaining은 이번 compile spike의 비목표입니다.
 - root query와 관계 접근은 exact origin backend/session을 유지합니다. Transaction 안에서는 그 session으로 새
-  project facade를 만들어야 하며 global default backend로 빠지지 않습니다.
+  project facade를 만드는 방향입니다. GDJ-0031은 `db.RelationSession`이 `db.Queryer`를 만족해 callback 안에서
+  candidate `Using(session)`에 전달 가능한지만 컴파일하며 pinning이나 callback 이후 lifetime을 검증하지 않습니다.
 - Reverse one-to-many는 `[]Post` field가 아니라 filter/order 가능한 manager/query를 목표로 합니다. Prefetch는
   같은 accessor의 정확히 지원된 cache만 미리 채웁니다.
 - JSON marshal이나 단순 field read는 DB I/O를 일으키지 않습니다. Lazy I/O는 `context.Context`와 `error`가
@@ -206,8 +217,9 @@ author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
 
 현재 `BindObjects`/factory `From`, reverse/prefetch binders와 GDJ-0029의 bounded eager query는 이 목표를
 검증하기 위한 low-level kernel입니다. 일반 사용자가 관계마다 이들을 직접 조립하는 표면을 최종 API로
-동결하지 않습니다. FK mutation/cache invalidation, scalar 접근, copy/clone, exact facade/manager/selector 이름은
-별도 compile spike와 ADR 전에는 구현됐다고 주장하지 않습니다.
+동결하지 않습니다. Exact GDJ-0031 source wrapper field는 private이므로 candidate scalar access는 explicit
+`Model()` unwrap뿐이며 wrapper JSON/custom method를 주장하지 않습니다. FK mutation/cache invalidation,
+copy/clone, target/reverse wrapper와 exact facade/manager/selector 이름은 계속 open입니다.
 
 ## 6. Dynamic lookup
 

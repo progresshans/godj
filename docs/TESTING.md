@@ -818,9 +818,10 @@ Django relation 11/11, inventory twice와 independent audits P0/P1/P2/P3=0도 �
 completion-documentation head `635e9c38a4464b98987d56c1b7d796aa42734661`은 별도 EVID-062/
 [run 31514159835](https://github.com/progresshans/godj/actions/runs/31514159835)의 exact 26/26 jobs·326/326
 recorded steps, unchanged four-coordinate 687/687/0 inventory, full Ubuntu `make ci`, exact Darwin/four Python,
-actual Linux/386와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. EVID-062와 상태를 추가하는 later
-exact seven-file terminal documentation patch 자체 CI는 `not run/pending`이고 completion run을 그 later tree의
-proof로 재사용하지 않습니다.
+actual Linux/386와 independent hosted audit P0/P1/P2/P3=0을 통과했습니다. EVID-062와 상태를 추가한 exact
+seven-file terminal head `ceff9e5...`도 별도 EVID-063/run `31516174741`의 exact 26/26·326/326과
+independent audit P0/P1/P2/P3=0을 통과했습니다. EVID-063은 later GDJ-0031 activation/implementation
+tree의 proof로 재사용하지 않습니다.
 
 Completed GDJ-0030 testing은 이전 9 required/3 NI baseline에서 REL-007/008 두 contract만 actual로
 전환했습니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
@@ -905,6 +906,36 @@ Manifest target 10,776 bytes/SHA-256
 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`는 REL-007/008 status-only exact
 transition/revert가 입증된 뒤에만 current가 됩니다. Activation, implementation, completion and terminal heads는
 각각 별도 local/hosted evidence를 사용합니다.
+
+### GDJ-0031 relation facade compile-usability 계획
+
+GDJ-0031 activation baseline `ceff9e534e541edb0bd19cd6a1a61682b5435454`은 EVID-063/
+[run 31516174741](https://github.com/progresshans/godj/actions/runs/31516174741)의 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. Product는 unchanged exact `121 + 5 + 1`, relation 11/12이며 REL-002만 locked입니다.
+EVID-063은 later activation documentation이나 compile implementation proof가 아닙니다.
+
+Compile fixture의 authoritative physical baseline은 `conformance/relationdeleteproduct/**` exact 16 files입니다.
+Generated 13 + `fixture/schema.go` + `observer.go` + `product_test.go`의 fixture-relative sorted
+`path + NUL + decimal size + NUL + content`는 62,538 bytes/SHA-256
+`992589f0500a7f31808dac2bb2a669daecadab7b978f93f5227bee3ee1ca6cbb`입니다. Generated subset 13은
+26,140 bytes/SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`입니다.
+
+`internal/compiletest`는 이 physical bytes를 수정하지 않고 nonexistent project `.go` target 하나만 Go overlay로
+주입해 logical exact 17 compile view를 만듭니다. Overlay가 있을 때 외부 consumer는 exact
+`post, found, err := models.BlogPosts.OrderBy(blog.PostFields.ID.Asc()).First(ctx)`, explicit `Model()` unwrap,
+lazy/eager 동일 source pointer와 `Author(ctx)` 후보를 컴파일해야 합니다. 같은 consumer는 overlay 없이는
+`project.Using` 부재로 실패해야 합니다. `db.RelationSession`은 callback 안에서 query-only `db.Queryer` candidate에
+전달되는 structural assignability만 확인하고 runtime pinning/lifetime을 주장하지 않습니다.
+
+새 top-level `Test*`와 `t.Run`을 추가하지 않고 existing external-consumer/typed-misuse tests에 결합합니다. AST/source
+whitelist는 allowed public project/authors/blog/core imports와 forward read-only symbols만 허용하고 other relation
+fixtures, oracle/static/not-implemented/runner/protocol source read, reflection/unsafe/process/file/network I/O와
+reverse/REL-002/write/delete/cache/JSON/custom-method symbols를 거부합니다. Exact 16에 reverse aggregate가 없으므로
+`author.Posts`나 다른 fixture를 합친 chaining은 false green입니다.
+
+Activation 시점에는 위 compile implementation이 `not implemented/not run`입니다. 구현 뒤 normal/race/CGO0/vet,
+root CI, physical-byte/no-overlay-residue와 clean-worktree를 별도 exact head에서 검증합니다. Compile success는
+candidate feasibility일 뿐 production generator, public API acceptance, runtime/cache/query-count parity가 아닙니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

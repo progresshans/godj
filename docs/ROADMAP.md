@@ -2,8 +2,9 @@
 
 - 상태: Accepted direction
 - 현재 단계: GDJ-0030 REL-007/008 project-bound PROTECT/SET_NULL delete completed, ADR-0030 Accepted.
-  Q-013 Partial/Q-017 P1 open; active/ready work 없음. Completion-documentation `635e9c38...`은 EVID-062/run
-  `31514159835` exact 26/26 PASS이고 later exact seven-file terminal record는 pending
+  Terminal head `ceff9e5...`은 EVID-063/run `31516174741` exact 26/26·326/326 PASS로 닫혔습니다.
+  GDJ-0031 relation-aware project facade/generated upgrade compile usability는 active, ADR-0031은 Proposed,
+  ready work는 없으며 Q-013 Partial/Q-017 P1 open입니다. 이 activation documentation tree 자체 CI는 pending입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
   relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
 - 마지막 검토: 2026-08-12
@@ -424,13 +425,15 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   `121 + 5 + 1`, relation 11/12입니다. REL-002,
   canonical facade/cache invalidation, recursive/CASCADE delete, DDL/migration과 non-SQLite는 deferred입니다.
   Exact 15-file completion-documentation head `635e9c38...`도 별도 EVID-062/run `31514159835`의 exact
-  26/26·326/326과 unchanged four-coordinate 687/687/0 inventory를 통과했습니다. EVID-062를 포함한 later exact
-  seven-file terminal 기록 자체는 `not run/pending`이고 completion run을 그 later tree의 proof로 재사용하지
+  26/26·326/326과 unchanged four-coordinate 687/687/0 inventory를 통과했습니다. 그다음 exact seven-file terminal
+  head `ceff9e5...`는 EVID-063/run `31516174741`에서 별도 exact 26/26·326/326을 통과해 GDJ-0031의
+  clean baseline이 됐습니다. EVID-063은 later activation documentation/implementation proof로 재사용하지
   않습니다.
-- Canonical relation API freeze 전 Q-013/Q-017 compile-usability gate를 별도로 통과합니다. One-time project
-  binding, relation-aware query result, lazy/eager 동일 accessor, forward/reverse chaining, FK mutation cache
-  invalidation과 exact transaction session을 검증합니다. GDJ-0029의 projection/runtime/compiler와 generated
-  object-factory bridge는 이 facade의 low-level 기반이며 그 자체가 최종 application UX는 아닙니다.
+- Canonical relation API freeze 전 active GDJ-0031/Q-017 compile-usability gate를 별도로 통과합니다. Physical
+  exact 16을 보존한 internal compile overlay로 one-time query binding, exact `OrderBy(...).First(ctx)`, private
+  wrapper의 `Model()` unwrap과 lazy/eager 동일 source pointer/accessor만 검증합니다. Reverse/REL-002/write/cache/
+  session lifetime은 별도 후속입니다. GDJ-0029의 projection/runtime/compiler와 generated object-factory bridge는
+  이 facade의 low-level 기반이며 그 자체가 최종 application UX는 아닙니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`
