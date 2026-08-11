@@ -40,6 +40,9 @@ const (
 	CodeRelatedSetMembership         = "related_set_membership"
 	CodeInvalidRelatedPath           = "invalid_related_path"
 	CodeRelatedObjectProjection      = "related_object_projection"
+	CodeProtectedForeignKey          = "protected_foreign_key"
+	CodeCommitOutcomeUnknown         = "commit_outcome_unknown"
+	CodeTransactionOutcomeUnknown    = "transaction_outcome_unknown"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and
