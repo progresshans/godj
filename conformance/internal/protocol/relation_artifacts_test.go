@@ -115,6 +115,27 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 			},
 			digest: "a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628",
 		},
+		{
+			name: "new exact fourteen-file production-facade product",
+			path: "relationdeleteproduct",
+			files: []string{
+				"authors/zz_godj_generated.go",
+				"authors/zz_godj_relation.go",
+				"authors/zz_godj_relation_object.go",
+				"authors/zz_godj_relation_projection.go",
+				"blog/zz_godj_generated.go",
+				"blog/zz_godj_relation.go",
+				"blog/zz_godj_relation_object.go",
+				"blog/zz_godj_relation_projection.go",
+				"blog/zz_godj_relation_query.go",
+				"project/zz_godj_bindings.go",
+				"project/zz_godj_relation_delete.go",
+				"project/zz_godj_relation_facade.go",
+				"project/zz_godj_relation_object.go",
+				"project/zz_godj_relation_select_related.go",
+			},
+			digest: "2a141f1962887a9c610dd2d0005f401ecd8759e4d0bf0ce5cde1c3f210d1ba5f",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -19,14 +19,49 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/fixture"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
 )
 
 const relationDeletePolicyDigest = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
 
-func TestCheckedInGeneratedRelationDeleteProjectMatchesExactThirteenCandidates(t *testing.T) {
+var (
+	facadeBackendInvalidPlan = &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}
+	facadeQueryInvalidPlan   = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}
+	facadeUnexpectedIO       = errors.New("unexpected project facade backend I/O")
+)
+
+type facadeMinimalBackend struct {
+	calls int
+}
+
+var _ project.Backend = (*facadeMinimalBackend)(nil)
+
+func (backend *facadeMinimalBackend) Query(context.Context, query.Plan) (db.Rows, error) {
+	backend.calls++
+	return nil, facadeUnexpectedIO
+}
+
+func (backend *facadeMinimalBackend) Insert(context.Context, query.InsertPlan) (int64, error) {
+	backend.calls++
+	return 0, facadeUnexpectedIO
+}
+
+func (backend *facadeMinimalBackend) Update(context.Context, query.UpdatePlan) (int64, error) {
+	backend.calls++
+	return 0, facadeUnexpectedIO
+}
+
+func (backend *facadeMinimalBackend) Delete(context.Context, query.DeletePlan) (int64, error) {
+	backend.calls++
+	return 0, facadeUnexpectedIO
+}
+
+func TestCheckedInGeneratedRelationDeleteProjectPreservesExactThirteenAndAddsFacade(t *testing.T) {
 	t.Parallel()
 
 	authorsSchema, err := fixture.AuthorsSchema()
@@ -42,10 +77,11 @@ func TestCheckedInGeneratedRelationDeleteProjectMatchesExactThirteenCandidates(t
 		{Alias: "authors", ImportPath: rootImport + "authors", Schema: authorsSchema},
 		{Alias: "blog", ImportPath: rootImport + "blog", Schema: blogSchema},
 	}
-	candidates := []struct {
+	type generatedCandidate struct {
 		path string
 		data []byte
-	}{
+	}
+	legacyCandidates := []generatedCandidate{
 		{path: "authors/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
 		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
 		{path: "authors/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
@@ -71,6 +107,13 @@ func TestCheckedInGeneratedRelationDeleteProjectMatchesExactThirteenCandidates(t
 			return codegen.GenerateProjectRelationDelete("project", objectPackages)
 		})},
 	}
+	facadeCandidate := generated(t, func() ([]byte, error) {
+		return codegen.GenerateProjectRelationFacade("project", objectPackages)
+	})
+	candidates := append(slices.Clone(legacyCandidates), generatedCandidate{
+		path: "project/zz_godj_relation_facade.go",
+		data: facadeCandidate,
+	})
 
 	root := relationDeleteProductDirectory(t)
 	for _, candidate := range candidates {
@@ -105,10 +148,13 @@ func TestCheckedInGeneratedRelationDeleteProjectMatchesExactThirteenCandidates(t
 	}
 	slices.Sort(wantFiles)
 	if !reflect.DeepEqual(generatedFiles, wantFiles) {
-		t.Fatalf("generated file inventory = %#v, want exact thirteen %#v", generatedFiles, wantFiles)
+		t.Fatalf("generated file inventory = %#v, want exact fourteen %#v", generatedFiles, wantFiles)
 	}
 
-	deleteCandidate := candidates[len(candidates)-1].data
+	if len(legacyCandidates) != 13 {
+		t.Fatalf("legacy generated candidate count = %d, want exact 13", len(legacyCandidates))
+	}
+	deleteCandidate := legacyCandidates[len(legacyCandidates)-1].data
 	if !bytes.Contains(deleteCandidate, []byte(relationDeletePolicyDigest)) {
 		t.Fatalf("generated relation-delete aggregate omits exact policy digest %s", relationDeletePolicyDigest)
 	}
@@ -118,6 +164,16 @@ func TestCheckedInGeneratedRelationDeleteProjectMatchesExactThirteenCandidates(t
 	}
 	if !bytes.Equal(reordered, deleteCandidate) {
 		t.Fatal("relation-delete regeneration changed under project package reordering")
+	}
+	reorderedFacade, err := codegen.GenerateProjectRelationFacade(
+		"project",
+		[]codegen.RelationObjectPackage{objectPackages[1], objectPackages[0]},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(reorderedFacade, facadeCandidate) {
+		t.Fatal("relation-facade regeneration changed under project package reordering")
 	}
 	if project.GoDjProjectRelationDeleteGeneratorVersion != codegen.ProjectRelationDeleteGeneratorVersion {
 		t.Fatalf(
@@ -129,6 +185,401 @@ func TestCheckedInGeneratedRelationDeleteProjectMatchesExactThirteenCandidates(t
 	if _, err := project.BindRelationDeleters(); err != nil {
 		t.Fatalf("BindRelationDeleters() error = %v", err)
 	}
+	if project.GoDjProjectRelationFacadeGeneratorVersion != codegen.ProjectRelationFacadeGeneratorVersion {
+		t.Fatalf(
+			"checked-in relation-facade generator version = %q, want %q",
+			project.GoDjProjectRelationFacadeGeneratorVersion,
+			codegen.ProjectRelationFacadeGeneratorVersion,
+		)
+	}
+}
+
+func TestProjectFacadeLazyWrappersCacheAndUnwrap(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	models, err := project.Using(product.backend)
+	if err != nil {
+		t.Fatalf("project.Using() error = %v", err)
+	}
+
+	before := product.backend.QueryCount()
+	author, found, err := models.AuthorsAuthor.
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("AuthorsAuthor.First() = (%#v, %t, %v), want found", author, found, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "AuthorsAuthor.First")
+	var queriedAuthor *project.AuthorsAuthor = author
+	rawAuthor, err := queriedAuthor.Unwrap()
+	if err != nil || rawAuthor.ID != 1 || rawAuthor.Name != "Ada" {
+		t.Fatalf("AuthorsAuthor.Unwrap() = (%#v, %v), want Ada", rawAuthor, err)
+	}
+	rawAuthor.Name = "changed clone"
+	rawAuthorAgain, err := queriedAuthor.Unwrap()
+	if err != nil || rawAuthorAgain.Name != "Ada" {
+		t.Fatalf("AuthorsAuthor second Unwrap() = (%#v, %v), want independent Ada clone", rawAuthorAgain, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "AuthorsAuthor.Unwrap clone")
+
+	before = product.backend.QueryCount()
+	post, found, err := models.BlogPost.
+		Filter(blog.PostFields.ID.Exact(10)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("BlogPost.First(id=10) = (%#v, %t, %v), want found", post, found, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "BlogPost.First")
+	var queriedPost *project.BlogPost = post
+	rawPost, err := queriedPost.Unwrap()
+	if err != nil || rawPost.ID != 10 || rawPost.Title != "Alpha" || rawPost.ReviewerID == nil || *rawPost.ReviewerID != 2 {
+		t.Fatalf("BlogPost.Unwrap() = (%#v, %v), want post 10", rawPost, err)
+	}
+	rawPost.Title = "changed clone"
+	*rawPost.ReviewerID = 99
+	rawPostAgain, err := queriedPost.Unwrap()
+	if err != nil || rawPostAgain.Title != "Alpha" || rawPostAgain.ReviewerID == nil || *rawPostAgain.ReviewerID != 2 {
+		t.Fatalf("BlogPost second Unwrap() = (%#v, %v), want independent post clone", rawPostAgain, err)
+	}
+
+	before = product.backend.QueryCount()
+	relatedAuthor, err := post.Author(ctx)
+	if err != nil {
+		t.Fatalf("BlogPost.Author() error = %v", err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "cold BlogPost.Author")
+	var sameTargetType *project.AuthorsAuthor = relatedAuthor
+	relatedRaw, err := sameTargetType.Unwrap()
+	if err != nil || relatedRaw.ID != 1 || relatedRaw.Name != "Ada" {
+		t.Fatalf("BlogPost.Author().Unwrap() = (%#v, %v), want Ada", relatedRaw, err)
+	}
+	before = product.backend.QueryCount()
+	relatedAuthorAgain, err := post.Author(ctx)
+	if err != nil {
+		t.Fatalf("warm BlogPost.Author() error = %v", err)
+	}
+	relatedRawAgain, err := relatedAuthorAgain.Unwrap()
+	if err != nil || relatedRawAgain.ID != 1 {
+		t.Fatalf("warm BlogPost.Author().Unwrap() = (%#v, %v), want author 1", relatedRawAgain, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 0, "warm BlogPost.Author")
+
+	before = product.backend.QueryCount()
+	reviewer, present, err := post.Reviewer(ctx)
+	if err != nil || !present || reviewer == nil {
+		t.Fatalf("BlogPost.Reviewer() = (%#v, %t, %v), want present", reviewer, present, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "cold present BlogPost.Reviewer")
+	var reviewerTarget *project.AuthorsAuthor = reviewer
+	reviewerRaw, err := reviewerTarget.Unwrap()
+	if err != nil || reviewerRaw.ID != 2 || reviewerRaw.Name != "Bob" {
+		t.Fatalf("BlogPost.Reviewer().Unwrap() = (%#v, %v), want Bob", reviewerRaw, err)
+	}
+	before = product.backend.QueryCount()
+	if _, present, err := post.Reviewer(ctx); err != nil || !present {
+		t.Fatalf("warm BlogPost.Reviewer() = (present %t, %v), want present", present, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 0, "warm present BlogPost.Reviewer")
+
+	before = product.backend.QueryCount()
+	nullablePost, found, err := models.BlogPost.
+		Filter(blog.PostFields.ID.Exact(11)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("BlogPost.First(id=11) = (%#v, %t, %v), want found", nullablePost, found, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "nullable BlogPost.First")
+	before = product.backend.QueryCount()
+	if reviewer, present, err := nullablePost.Reviewer(ctx); err != nil || present || reviewer != nil {
+		t.Fatalf("nullable BlogPost.Reviewer() = (%#v, %t, %v), want (nil, false, nil)", reviewer, present, err)
+	}
+	if reviewer, present, err := nullablePost.Reviewer(ctx); err != nil || present || reviewer != nil {
+		t.Fatalf("warm nullable BlogPost.Reviewer() = (%#v, %t, %v), want (nil, false, nil)", reviewer, present, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 0, "nullable NULL BlogPost.Reviewer")
+
+	before = product.backend.QueryCount()
+	separatePost, found, err := models.BlogPost.
+		Filter(blog.PostFields.ID.Exact(10)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("separate BlogPost.First(id=10) = (%#v, %t, %v), want found", separatePost, found, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "separate BlogPost.First")
+	before = product.backend.QueryCount()
+	if _, err := separatePost.Author(ctx); err != nil {
+		t.Fatalf("separate BlogPost.Author() error = %v", err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "separate source wrapper cold Author")
+}
+
+func TestProjectFacadeSelectRelatedCachesAndPreservesEvaluationOwnership(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	models, err := project.Using(product.backend)
+	if err != nil {
+		t.Fatalf("project.Using() error = %v", err)
+	}
+	var authorSelector project.BlogPostRelationSelector = models.BlogPost.Related.Author
+	var reviewerSelector project.BlogPostRelationSelector = models.BlogPost.Related.Reviewer
+
+	filtered := models.BlogPost.
+		Filter(blog.PostFields.Title.IContains("a")).
+		OrderBy(blog.PostFields.ID.Asc())
+	limited, err := filtered.Limit(3)
+	if err != nil {
+		t.Fatalf("BlogPostQuery.Limit() error = %v", err)
+	}
+	authorEager := limited.SelectRelated(authorSelector)
+	authorEagerCopy := authorEager
+	before := product.backend.QueryCount()
+	posts, err := authorEager.All(ctx)
+	if err != nil || len(posts) != 3 {
+		t.Fatalf("author eager All() = (%#v, %v), want 3 posts", posts, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "cold author eager All")
+	for _, expected := range []struct {
+		postID   int64
+		authorID int64
+	}{{postID: 10, authorID: 1}, {postID: 11, authorID: 1}, {postID: 12, authorID: 3}} {
+		post := facadePostByID(t, posts, expected.postID)
+		before = product.backend.QueryCount()
+		author, err := post.Author(ctx)
+		if err != nil {
+			t.Fatalf("eager post %d Author() error = %v", expected.postID, err)
+		}
+		raw, err := author.Unwrap()
+		if err != nil || raw.ID != expected.authorID {
+			t.Fatalf("eager post %d Author().Unwrap() = (%#v, %v), want author %d", expected.postID, raw, err, expected.authorID)
+		}
+		assertFacadeQueryDelta(t, product, before, 0, "author eager warm accessor")
+	}
+	before = product.backend.QueryCount()
+	if repeated, err := authorEager.All(ctx); err != nil || len(repeated) != 3 {
+		t.Fatalf("repeated author eager All() = (%#v, %v), want 3 posts", repeated, err)
+	}
+	if copied, err := authorEagerCopy.All(ctx); err != nil || len(copied) != 3 {
+		t.Fatalf("copied author eager All() = (%#v, %v), want 3 posts", copied, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 0, "repeated and copied author eager All")
+
+	derived := authorEager.Filter(blog.PostFields.ID.Exact(12))
+	before = product.backend.QueryCount()
+	derivedPosts, err := derived.All(ctx)
+	if err != nil || len(derivedPosts) != 1 {
+		t.Fatalf("derived author eager All() = (%#v, %v), want one post", derivedPosts, err)
+	}
+	derivedRaw, err := derivedPosts[0].Unwrap()
+	if err != nil || derivedRaw.ID != 12 {
+		t.Fatalf("derived eager post Unwrap() = (%#v, %v), want post 12", derivedRaw, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "derived author eager All")
+	before = product.backend.QueryCount()
+	if originalAgain, err := authorEager.All(ctx); err != nil || len(originalAgain) != 3 {
+		t.Fatalf("original eager after derived All() = (%#v, %v), want 3 posts", originalAgain, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 0, "original eager remains warm")
+
+	reviewerEager := models.BlogPost.
+		SelectRelated(reviewerSelector).
+		Filter(blog.PostFields.Title.IContains("a")).
+		OrderBy(blog.PostFields.ID.Asc())
+	reviewerEager, err = reviewerEager.Limit(3)
+	if err != nil {
+		t.Fatalf("BlogPostEagerQuery.Limit() error = %v", err)
+	}
+	before = product.backend.QueryCount()
+	reviewerPosts, err := reviewerEager.All(ctx)
+	if err != nil || len(reviewerPosts) != 3 {
+		t.Fatalf("reviewer eager All() = (%#v, %v), want 3 posts", reviewerPosts, err)
+	}
+	assertFacadeQueryDelta(t, product, before, 1, "cold reviewer eager All")
+	for _, expected := range []struct {
+		postID     int64
+		present    bool
+		reviewerID int64
+	}{{postID: 10, present: true, reviewerID: 2}, {postID: 11}, {postID: 12, present: true, reviewerID: 2}} {
+		post := facadePostByID(t, reviewerPosts, expected.postID)
+		before = product.backend.QueryCount()
+		reviewer, present, err := post.Reviewer(ctx)
+		if err != nil || present != expected.present || (present && reviewer == nil) || (!present && reviewer != nil) {
+			t.Fatalf("eager post %d Reviewer() = (%#v, %t, %v), want present %t", expected.postID, reviewer, present, err, expected.present)
+		}
+		if present {
+			raw, err := reviewer.Unwrap()
+			if err != nil || raw.ID != expected.reviewerID {
+				t.Fatalf("eager post %d Reviewer().Unwrap() = (%#v, %v), want reviewer %d", expected.postID, raw, err, expected.reviewerID)
+			}
+		}
+		assertFacadeQueryDelta(t, product, before, 0, "reviewer eager warm accessor")
+	}
+}
+
+func TestProjectFacadeInvalidValuesFailBeforeBackendIO(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	minimal := &facadeMinimalBackend{}
+	if _, ok := any(minimal).(db.Atomic); ok {
+		t.Fatal("minimal project Backend unexpectedly implements db.Atomic")
+	}
+	if _, ok := any(minimal).(db.RelationAtomic); ok {
+		t.Fatal("minimal project Backend unexpectedly implements db.RelationAtomic")
+	}
+	if _, ok := any(minimal).(db.RelationMutator); ok {
+		t.Fatal("minimal project Backend unexpectedly implements db.RelationMutator")
+	}
+	models, err := project.Using(minimal)
+	if err != nil {
+		t.Fatalf("project.Using(minimal Queryer+Mutator) error = %v", err)
+	}
+	if minimal.calls != 0 {
+		t.Fatalf("project.Using(minimal) backend calls = %d, want 0", minimal.calls)
+	}
+
+	if _, err := project.Using(nil); !errors.Is(err, facadeBackendInvalidPlan) {
+		t.Fatalf("project.Using(nil) error = %v, want backend_error/invalid_plan", err)
+	}
+	var typedNil *facadeMinimalBackend
+	if _, err := project.Using(typedNil); !errors.Is(err, facadeBackendInvalidPlan) {
+		t.Fatalf("project.Using(typed nil) error = %v, want backend_error/invalid_plan", err)
+	}
+
+	assertInvalid := func(label string, operation func() error) {
+		t.Helper()
+		before := minimal.calls
+		err := operation()
+		if !errors.Is(err, facadeQueryInvalidPlan) {
+			t.Fatalf("%s error = %v, want query_error/invalid_plan", label, err)
+		}
+		if minimal.calls != before {
+			t.Fatalf("%s backend calls = %d, want unchanged %d", label, minimal.calls, before)
+		}
+	}
+	assertInvalid("zero Models BlogPost.All", func() error {
+		_, err := (project.Models{}).BlogPost.All(ctx)
+		return err
+	})
+	assertInvalid("zero Models AuthorsAuthor.First", func() error {
+		_, _, err := (project.Models{}).AuthorsAuthor.First(ctx)
+		return err
+	})
+	assertInvalid("zero BlogPostQuery.All", func() error {
+		var value project.BlogPostQuery
+		_, err := value.All(ctx)
+		return err
+	})
+	assertInvalid("zero AuthorsAuthorQuery.All", func() error {
+		var value project.AuthorsAuthorQuery
+		_, err := value.All(ctx)
+		return err
+	})
+	assertInvalid("zero BlogPostEagerQuery.All", func() error {
+		var value project.BlogPostEagerQuery
+		_, err := value.All(ctx)
+		return err
+	})
+	assertInvalid("nil BlogPostRelationSelector", func() error {
+		var selector project.BlogPostRelationSelector
+		_, err := models.BlogPost.SelectRelated(selector).All(ctx)
+		return err
+	})
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	validModels, err := project.Using(product.backend)
+	if err != nil {
+		t.Fatalf("project.Using(SQLite) error = %v", err)
+	}
+	post, found, err := validModels.BlogPost.
+		Filter(blog.PostFields.ID.Exact(10)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("load valid BlogPost = (%#v, %t, %v)", post, found, err)
+	}
+	author, found, err := validModels.AuthorsAuthor.
+		Filter(authors.AuthorFields.ID.Exact(1)).
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("load valid AuthorsAuthor = (%#v, %t, %v)", author, found, err)
+	}
+
+	assertSQLiteInvalid := func(label string, operation func() error) {
+		t.Helper()
+		before := product.backend.QueryCount()
+		err := operation()
+		if !errors.Is(err, facadeQueryInvalidPlan) {
+			t.Fatalf("%s error = %v, want query_error/invalid_plan", label, err)
+		}
+		assertFacadeQueryDelta(t, product, before, 0, label)
+	}
+	var nilPost *project.BlogPost
+	assertSQLiteInvalid("nil BlogPost.Unwrap", func() error { _, err := nilPost.Unwrap(); return err })
+	assertSQLiteInvalid("nil BlogPost.Author", func() error { _, err := nilPost.Author(ctx); return err })
+	assertSQLiteInvalid("nil BlogPost.Reviewer", func() error { _, _, err := nilPost.Reviewer(ctx); return err })
+	var zeroPost project.BlogPost
+	assertSQLiteInvalid("zero BlogPost.Unwrap", func() error { _, err := zeroPost.Unwrap(); return err })
+	copiedPost := *post
+	assertSQLiteInvalid("copied BlogPost.Unwrap", func() error { _, err := copiedPost.Unwrap(); return err })
+	assertSQLiteInvalid("copied BlogPost.Author", func() error { _, err := copiedPost.Author(ctx); return err })
+
+	var nilAuthor *project.AuthorsAuthor
+	assertSQLiteInvalid("nil AuthorsAuthor.Unwrap", func() error { _, err := nilAuthor.Unwrap(); return err })
+	var zeroAuthor project.AuthorsAuthor
+	assertSQLiteInvalid("zero AuthorsAuthor.Unwrap", func() error { _, err := zeroAuthor.Unwrap(); return err })
+	copiedAuthor := *author
+	assertSQLiteInvalid("copied AuthorsAuthor.Unwrap", func() error { _, err := copiedAuthor.Unwrap(); return err })
+}
+
+func TestProjectFacadeUsesCallbackLocalSession(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	before := product.backend.QueryCount()
+	callbacks := 0
+	err := product.backend.Atomic(ctx, func(session db.Session) error {
+		callbacks++
+		var backend project.Backend = session
+		models, err := project.Using(backend)
+		if err != nil {
+			return err
+		}
+		post, found, err := models.BlogPost.
+			Filter(blog.PostFields.ID.Exact(10)).
+			OrderBy(blog.PostFields.ID.Asc()).
+			First(ctx)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return errors.New("callback-local BlogPost query did not find post 10")
+		}
+		author, err := post.Author(ctx)
+		if err != nil {
+			return err
+		}
+		raw, err := author.Unwrap()
+		if err != nil {
+			return err
+		}
+		if raw.ID != 1 || raw.Name != "Ada" {
+			return errors.New("callback-local relation returned the wrong author")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("callback-local facade transaction error = %v", err)
+	}
+	if callbacks != 1 {
+		t.Fatalf("callback-local facade callback count = %d, want 1", callbacks)
+	}
+	assertFacadeQueryDelta(t, product, before, 2, "callback-local source and relation queries")
 }
 
 func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
@@ -378,6 +829,50 @@ func setNullDatabaseState() DatabaseState {
 			{ID: 12, Title: "Gamma", AuthorID: 3},
 		},
 	}
+}
+
+func openProvisionedFacadeFixture(t *testing.T) (context.Context, *relationFixture) {
+	t.Helper()
+
+	ctx := context.Background()
+	product, err := openFixture(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := product.close(); err != nil {
+			t.Errorf("close project facade fixture: %v", err)
+		}
+	})
+	if err := provision(ctx, product.backend, defaultFixtureConfig()); err != nil {
+		t.Fatal(err)
+	}
+	return ctx, product
+}
+
+func assertFacadeQueryDelta(t *testing.T, product *relationFixture, before, want uint64, operation string) {
+	t.Helper()
+
+	got := product.backend.QueryCount() - before
+	if got != want {
+		t.Fatalf("%s query delta = %d, want %d", operation, got, want)
+	}
+}
+
+func facadePostByID(t *testing.T, posts []*project.BlogPost, identifier int64) *project.BlogPost {
+	t.Helper()
+
+	for _, post := range posts {
+		raw, err := post.Unwrap()
+		if err != nil {
+			t.Fatalf("unwrap eager BlogPost: %v", err)
+		}
+		if raw.ID == identifier {
+			return post
+		}
+	}
+	t.Fatalf("eager BlogPost %d is absent", identifier)
+	return nil
 }
 
 func parsedImports(t *testing.T, path string) []string {

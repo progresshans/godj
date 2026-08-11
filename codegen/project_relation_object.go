@@ -581,6 +581,13 @@ func renderBindObjects(
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn Objects{}, _err")
 	fmt.Fprintln(output, "\t}")
+	usedModels := make(map[int]struct{}, len(models))
+	for _, source := range sources {
+		usedModels[source.model.bind] = struct{}{}
+		for _, relation := range source.relations {
+			usedModels[relation.target.bind] = struct{}{}
+		}
+	}
 	for _, model := range models {
 		fmt.Fprintf(output, "\t_model%d, _err := orm.BindModel(\n", model.bind)
 		fmt.Fprintln(output, "\t\t_binding,")
@@ -595,6 +602,9 @@ func renderBindObjects(
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn Objects{}, _err")
 		fmt.Fprintln(output, "\t}")
+		if _, used := usedModels[model.bind]; !used {
+			fmt.Fprintf(output, "\t_ = _model%d\n", model.bind)
+		}
 	}
 	for _, source := range sources {
 		for _, relation := range source.relations {

@@ -7,23 +7,84 @@ import (
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
 )
 
-func compileRelationFacade(ctx context.Context, backend db.Queryer) error {
+type minimalBackend struct{}
+
+func (*minimalBackend) Query(context.Context, query.Plan) (db.Rows, error) {
+	return nil, nil
+}
+
+func (*minimalBackend) Insert(context.Context, query.InsertPlan) (int64, error) {
+	return 0, nil
+}
+
+func (*minimalBackend) Update(context.Context, query.UpdatePlan) (int64, error) {
+	return 0, nil
+}
+
+func (*minimalBackend) Delete(context.Context, query.DeletePlan) (int64, error) {
+	return 0, nil
+}
+
+var (
+	_ project.Backend = (*minimalBackend)(nil)
+	_ project.Backend = (db.Session)(nil)
+	_ project.Backend = (db.RelationSession)(nil)
+)
+
+func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	models, err := project.Using(backend)
 	if err != nil {
 		return err
 	}
+	authorQuery := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.Name.IContains("all authors")).
+		OrderBy(authors.AuthorFields.ID.Asc())
+	limitedAuthors, err := authorQuery.Limit(1)
+	if err != nil {
+		return err
+	}
+	authorsResult, err := limitedAuthors.All(ctx)
+	if err != nil {
+		return err
+	}
+	var authorWrappers []*project.AuthorsAuthor = authorsResult
+	_ = authorWrappers
 
-	filtered := models.BlogPosts.Filter(blog.PostFields.Title.IContains("lazy"))
+	author, found, err := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.Name.IContains("author")).
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil {
+		return err
+	}
+	if found {
+		var authorWrapper *project.AuthorsAuthor = author
+		authorModel, err := authorWrapper.Unwrap()
+		if err != nil {
+			return err
+		}
+		var rawAuthor authors.Author = authorModel
+		_ = rawAuthor.ID
+		_ = rawAuthor.Name
+	}
+
+	filtered := models.BlogPost.Filter(blog.PostFields.Title.IContains("lazy"))
 	ordered := filtered.OrderBy(blog.PostFields.ID.Asc())
 	limited, err := ordered.Limit(1)
 	if err != nil {
 		return err
 	}
-	_ = limited
+	lazyPosts, err := limited.All(ctx)
+	if err != nil {
+		return err
+	}
+	var lazyWrappers []*project.BlogPost = lazyPosts
+	_ = lazyWrappers
 
-	post, found, err := models.BlogPosts.
+	post, found, err := models.BlogPost.
 		OrderBy(blog.PostFields.ID.Asc()).
 		First(ctx)
 	if err != nil {
@@ -32,53 +93,102 @@ func compileRelationFacade(ctx context.Context, backend db.Queryer) error {
 	if !found {
 		return nil
 	}
-	var source *project.BlogPostObject = post
+	var source *project.BlogPost = post
 	_ = source
 
-	author, err := post.Author(ctx)
+	required, err := post.Author(ctx)
 	if err != nil {
 		return err
 	}
-	var related authors.Author = author
-	_ = related.Name
-	raw, err := post.Model()
+	var requiredTarget *project.AuthorsAuthor = required
+	_, err = requiredTarget.Unwrap()
 	if err != nil {
 		return err
 	}
-	var model blog.Post = raw
+	nullable, present, err := post.Reviewer(ctx)
+	if err != nil {
+		return err
+	}
+	if present {
+		var nullableTarget *project.AuthorsAuthor = nullable
+		_, err = nullableTarget.Unwrap()
+		if err != nil {
+			return err
+		}
+	}
+	rawPost, err := post.Unwrap()
+	if err != nil {
+		return err
+	}
+	var model blog.Post = rawPost
 	_ = model.ID
 	_ = model.Title
 	_ = model.AuthorID
 
-	eager := models.BlogPosts.
-		SelectRelated(models.BlogPosts.Related.Author).
-		Filter(blog.PostFields.Title.IContains("eager")).
-		OrderBy(blog.PostFields.ID.Asc())
-	limitedEager, err := eager.Limit(1)
-	if err != nil {
-		return err
-	}
-	posts, err := limitedEager.All(ctx)
-	if err != nil {
-		return err
-	}
-	if len(posts) == 0 {
-		return nil
-	}
-	post = posts[0]
-	author, err = post.Author(ctx)
-	return err
-}
+	var selector project.BlogPostRelationSelector = models.BlogPost.Related.Author
+	_ = selector
+	selector = models.BlogPost.Related.Reviewer
+	_ = selector
 
-func compileRelationSession(ctx context.Context, atomic db.RelationAtomic) error {
-	return atomic.AtomicRelation(ctx, func(session db.RelationSession) error {
-		models, err := project.Using(session)
+	authorEager := models.BlogPost.
+		SelectRelated(models.BlogPost.Related.Author).
+		Filter(blog.PostFields.Title.IContains("author eager")).
+		OrderBy(blog.PostFields.ID.Asc())
+	limitedAuthorEager, err := authorEager.Limit(1)
+	if err != nil {
+		return err
+	}
+	posts, err := limitedAuthorEager.All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(posts) != 0 {
+		var eagerSource *project.BlogPost = posts[0]
+		_, err = eagerSource.Author(ctx)
 		if err != nil {
 			return err
 		}
-		_, _, err = models.BlogPosts.
-			OrderBy(blog.PostFields.ID.Asc()).
-			First(ctx)
+	}
+
+	reviewerEager := models.BlogPost.
+		Filter(blog.PostFields.Title.IContains("reviewer eager")).
+		SelectRelated(models.BlogPost.Related.Reviewer).
+		OrderBy(blog.PostFields.ID.Asc())
+	limitedReviewerEager, err := reviewerEager.Limit(1)
+	if err != nil {
 		return err
-	})
+	}
+	posts, err = limitedReviewerEager.All(ctx)
+	if err != nil || len(posts) == 0 {
+		return err
+	}
+	_, _, err = posts[0].Reviewer(ctx)
+	return err
+}
+
+func compileMinimalBackend(ctx context.Context, backend *minimalBackend) error {
+	models, err := project.Using(backend)
+	if err != nil {
+		return err
+	}
+	_, _, err = models.BlogPost.OrderBy(blog.PostFields.ID.Asc()).First(ctx)
+	return err
+}
+
+func compileSession(ctx context.Context, session db.Session) error {
+	models, err := project.Using(session)
+	if err != nil {
+		return err
+	}
+	_, _, err = models.AuthorsAuthor.OrderBy(authors.AuthorFields.ID.Asc()).First(ctx)
+	return err
+}
+
+func compileRelationSession(ctx context.Context, session db.RelationSession) error {
+	models, err := project.Using(session)
+	if err != nil {
+		return err
+	}
+	_, _, err = models.BlogPost.OrderBy(blog.PostFields.ID.Asc()).First(ctx)
+	return err
 }

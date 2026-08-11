@@ -188,6 +188,38 @@ func TestGeneratedRelationObjectProjectCompilesBindsAndHasNoAppEdges(t *testing.
 	}
 }
 
+func TestGeneratedProjectRelationObjectConsumesUnrelatedBoundModels(t *testing.T) {
+	authors, blog := relationQueryGenerationSchemas()
+	authors.Models = append(authors.Models, ir.Model{
+		Name: "profile", GoName: "Profile", DBTable: "authors_profile",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{Name: "label", GoName: "Label", Column: "label", Kind: ir.FieldChar, MaxLength: 80},
+		},
+	})
+
+	const modulePath = "example.com/godj-relation-object-unrelated"
+	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, true, false)
+	generated, err := os.ReadFile(filepath.Join(directory, "project", "zz_godj_relation_object.go"))
+	if err != nil {
+		t.Fatalf("read generated project relation object: %v", err)
+	}
+	if !bytes.Contains(generated, []byte("\t_ = _model1\n")) {
+		t.Fatalf("unrelated bound model result is not consumed after validation:\n%s", generated)
+	}
+	if err := os.Remove(filepath.Join(directory, "project", "zz_godj_relation_query.go")); err != nil {
+		t.Fatalf("remove unrelated project-query fixture from object-only compile proof: %v", err)
+	}
+
+	command := exec.Command("go", "test", "-mod=mod", "./...")
+	command.Dir = directory
+	command.Env = generatedTestEnvironment()
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("generated project with an unrelated bound model did not compile: %v\n%s", err, output)
+	}
+}
+
 func TestGeneratedRelationObjectCompanionMissingQueryPrerequisiteFailsAtPublication(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	const modulePath = "example.com/godj-relation-object-missing-prerequisite"

@@ -782,8 +782,8 @@ Required workflow topology는 full/exact 2 + independent project-check proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
 relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
 normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
-검증합니다. Exact top-level package inventory는 687 run/687 pass/0 skip이고, encoded inventory는 69,597
-bytes/SHA-256 `363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`입니다.
+검증합니다. Exact top-level package inventory는 697 run/697 pass/0 skip이고, encoded inventory는 70,659
+bytes/SHA-256 `d017e9e848d4cf3e73b67075c0e271b7b31c1ed5a93416b1c78968d3d5904dde`입니다.
 Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
 3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및

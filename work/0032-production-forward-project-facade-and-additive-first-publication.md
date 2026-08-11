@@ -11,8 +11,11 @@ allowed_paths:
   - "codegen/project_relation_facade.go"
   - "codegen/project_relation_facade_test.go"
   - "codegen/testdata/relation_facade/project.golden"
+  - "codegen/project_relation_object.go"
+  - "codegen/project_relation_object_test.go"
   - "conformance/internal/protocol/relation_artifacts_test.go"
   - "conformance/internal/protocol/migration_project_check_artifacts_test.go"
+  - "conformance/README.md"
   - "conformance/relationdeleteproduct/product_test.go"
   - "conformance/relationdeleteproduct/project/zz_godj_relation_facade.go"
   - "internal/compiletest/compile_test.go"
@@ -42,11 +45,12 @@ companion 한 파일로 처음 게시하는 bounded product packet입니다. 목
 연결한 뒤 query root가 반환한 project-owned pointer wrapper에서 required/nullable forward relation을 같은 API로
 읽는 것입니다.
 
-아래 이름은 **구현 전에 결정할 후보**이며 activation 시점의 정본 API가 아닙니다.
+Activation 뒤 Gate 0에서 아래 exact public surface를 구현 기준으로 고정했습니다. ADR-0032 전체는 hosted
+implementation proof 전까지 Proposed이지만, source lane은 이 이름과 signature를 임의로 바꾸지 않습니다.
 
 ```go
 models, err := project.Using(backend)
-post, found, err := models.BlogPosts.First(ctx)
+post, found, err := models.BlogPost.First(ctx)
 author, err := post.Author(ctx)
 reviewer, present, err := post.Reviewer(ctx)
 ```
@@ -54,15 +58,17 @@ reviewer, present, err := post.Reviewer(ctx)
 Eager query도 별도 결과 타입을 노출하지 않고 같은 source wrapper와 accessor를 사용합니다.
 
 ```go
-posts, err := models.BlogPosts.
-    SelectRelated(models.BlogPosts.Related.Author).
+posts, err := models.BlogPost.
+    SelectRelated(models.BlogPost.Related.Author).
     All(ctx)
 
 author, err = posts[0].Author(ctx) // warm cache, 추가 query 0회
 ```
 
-`Using`, aggregate/query/wrapper/selector/unwrap 이름과 `First`의 exact tuple은 아래 decision gate를 통과하기 전까지
-noncanonical입니다.
+정본 implementation surface는 `Backend`, `Using(Backend) (Models, error)`, singular aggregate fields
+`AuthorsAuthor`/`BlogPost`, wrappers `AuthorsAuthor`/`BlogPost`, queries `AuthorsAuthorQuery`/`BlogPostQuery`,
+`BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`, ordered `First(ctx) (*Wrapper, bool, error)`와
+`Limit(int) (Query, error)`입니다.
 
 ## 목표
 
@@ -125,7 +131,7 @@ Facade origin은 query와 향후 mutation-capable project surface를 같은 back
   현재 Author와 Reviewer는 둘 다 Author query root가 반환하는 project wrapper type을 사용합니다.
 - Required edge의 모양은 `(*TargetWrapper, error)`입니다.
 - Nullable edge의 모양은 `(*TargetWrapper, bool, error)`이고 SQL `NULL`은 `nil, false, nil`입니다.
-- Raw model 접근은 explicit unwrap을 통해서만 제공하며 exact method name은 아직 고정하지 않습니다.
+- Raw model 접근은 exact `Unwrap` clone method를 통해서만 제공합니다.
 - Existing `BlogPostObject` 같은 low-level `Object` namespace와 새 application wrapper namespace는 겹치거나 alias가
   되어서는 안 됩니다.
 - Nil/zero/dereference-copy wrapper와 zero Models/query root는 `query_error/invalid_plan`으로 backend I/O 전에
@@ -149,8 +155,9 @@ eager query wrapper를 사용해야 합니다.
   derived chain은 독립 evaluation state를 가집니다.
 - Eager 결과는 low-level source object pointer의 warm relation cache를 잃지 않고 같은 source project wrapper로
   감쌉니다.
-- Selector의 exact type/representation/exported name은 decision gate 전까지 noncanonical입니다. Public typing이
-  일부 misuse를 compile-time에 막더라도 internal adversarial seam은 nil/typed-nil/zero/cross-model sealed selector와
+- Gate 0는 exported sealed `BlogPostRelationSelector`, `BlogPostRelationSelectors` aggregate와 unexported
+  discriminator representation을 고정했습니다. Public typing이 일부 misuse를 compile-time에 막더라도 internal
+  adversarial seam은 nil/typed-nil/zero/cross-model sealed selector와
   zero eager query를 모두 구성해 panic 없이 `query_error/invalid_plan`, backend I/O 0을 확인해야 합니다. Detail
   message는 contract가 아닙니다.
 
@@ -171,6 +178,10 @@ Current two-model product fixture만 통과하는 generator를 허용하지 않�
 이 fixture들은 deterministic declarations, namespace/collision, all-model wrapper와 one-hop accessor construction만
 검증합니다. Target-also-source/self-edge가 컴파일된다는 사실은 multi-hop eager/runtime chaining support가 아닙니다.
 
+Existing project relation-object prerequisite가 relation에 참여하지 않는 model의 `BindModel` 결과를 사용하지 않아
+generated Go compile이 실패하는 경우에는 그 bind 결과만 명시적으로 consume하도록 최소 수정합니다. 이 수정은
+binding validation이나 공개 surface를 줄이지 않고 current product exact 13 bytes를 변경하지 않아야 합니다.
+
 ### Origin과 session lifetime
 
 Facade/query/wrapper는 생성 origin의 유효기간 안에서만 사용합니다. `db.Session` 또는 `db.RelationSession`에서
@@ -180,8 +191,17 @@ Facade/query/wrapper는 생성 origin의 유효기간 안에서만 사용합니�
 
 ### Deterministic name decision
 
-Implicit English pluralization을 도입하지 않습니다. 구현 전에 exact exported 이름과 normalized input을 결정하고,
-다음 namespace를 canonical ordering으로 충돌 검사합니다.
+Implicit English pluralization을 도입하지 않습니다. Gate 0는 explicit alias prefix + model Go name의 singular
+surface를 사용하고 exact exported 이름을 다음처럼 고정했습니다.
+
+- Project capability/entry/aggregate: `Backend`, `Using`, `Models`
+- Model wrapper/root: `AuthorsAuthor`/`AuthorsAuthorQuery`, `BlogPost`/`BlogPostQuery`
+- Forward eager surface: `BlogPostRelationSelector`, `BlogPostRelationSelectors`, `BlogPostEagerQuery`
+- Raw clone unwrap: `Unwrap`
+
+`BlogPostRelationSelector`는 package 밖에서 구현할 수 없는 sealed interface이고 `BlogPostRelationSelectors`가
+`Author`와 `Reviewer` 값을 제공합니다. 내부 unexported discriminator와 eager query는 두 edge를 같은 표현으로
+처리하되 query 하나당 정확히 하나만 선택합니다. 다음 namespace를 canonical ordering으로 충돌 검사합니다.
 
 - Existing binding/query/object/reverse/prefetch/select-related/delete declarations
 - New backend capability, entrypoint, aggregate, all-model wrapper/query/eager/selector declarations
@@ -203,74 +223,81 @@ publication 전에 거부합니다. Handwritten source까지 schema만으로 완
 
 ## 구현 단계
 
-1. Exact public-name/selector representation을 ADR-0032 안에서 먼저 잠그고 위 capability/error precedence를
-   그대로 구현합니다.
+1. Gate 0에서 잠근 exact public-name/selector representation과 capability/error precedence를 그대로 구현합니다.
 2. `codegen/project_relation_facade.go`와 focused test/golden으로 deterministic companion bytes를 만듭니다.
-3. Existing exact 13을 재생성 전후 byte 비교하고 product project에 새 companion 하나를 first-publish합니다.
-4. Product test에서 all-model wrapper/query root, required/nullable accessor, lazy/eager cache와 error boundary를 검증합니다.
-5. Compiletest의 virtual overlay를 제거하고 production no-overlay consumer, `db.Queryer` negative와 session composite
+3. Unrelated-model prerequisite의 unused bind regression을 고치고 current exact 13 byte identity를 재확인합니다.
+4. Existing exact 13을 재생성 전후 byte 비교하고 product project에 새 companion 하나를 first-publish합니다.
+5. Product test에서 all-model wrapper/query root, required/nullable accessor, lazy/eager cache와 error boundary를 검증합니다.
+6. Compiletest의 virtual overlay를 제거하고 production no-overlay consumer, `db.Queryer` negative와 session composite
    assignability를 검증합니다. AST/source gate는 `Save`/`Delete`, reverse symbol과 low-level `Object` type의
    application-facing 재노출을 거부합니다.
-6. Protocol/CI inventory를 실제 새 file/test inventory로 다시 측정하고 literal self-check와 함께 갱신합니다.
-7. Normal/race/CGO-disabled/vet/root CI와 independent audit 뒤에만 status를 Implemented/Verified로 전환합니다.
+7. Protocol/CI inventory를 실제 새 file/test inventory로 다시 측정하고 literal self-check와 함께 갱신합니다.
+8. Normal/race/CGO-disabled/vet/root CI와 independent audit 뒤에만 status를 Implemented/Verified로 전환합니다.
 
 ## 완료 조건
 
-- [ ] Exact exported names와 selector representation을 Proposed ADR의 accepted decision으로 고정하고 frozen
+- [x] Exact exported names와 selector representation을 Proposed ADR의 implementation decision으로 고정하고 frozen
   typed-nil/binding-error precedence를 구현
-- [ ] Existing generated exact 13 bytes/digest가 구현 전후 byte-identical
-- [ ] Exactly one project facade companion의 deterministic generator/golden/first-publication 구현
-- [ ] All declared model query root와 project-owned pointer wrapper 구현
-- [ ] Query root와 required/nullable forward accessor target wrapper type 동일성 검증
-- [ ] Raw app model/low-level Object 반환 금지와 wrapper namespace disjoint compile gate
-- [ ] Project-local Queryer+Mutator positive, static `db.Queryer` negative, RelationAtomic 비요구 검증
-- [ ] Minimal Queryer+Mutator fake/`db.Session` positive가 RelationAtomic/RelationMutator 없이 성립
-- [ ] Nil/typed-nil backend, binder precedence, stable category/code와 I/O 0 검증
-- [ ] Author/Reviewer common selector와 selected eager state 보존 검증
-- [ ] Author/Reviewer SelectRelated before/after Filter/OrderBy/Limit, required/present/NULL 검증
-- [ ] Lazy cache, eager 추가-query 0, copied/repeated eager shared evaluation과 derived-chain independence 검증
-- [ ] Nil/typed-nil/zero/cross-model selector와 zero Models/root/eager의 structured pre-I/O failure 검증
-- [ ] Nil/zero/copied wrapper pre-I/O failure와 explicit raw-model unwrap 검증
-- [ ] Source cache wrapper-scope와 target pointer/downstream cache 비계약 검증
-- [ ] Callback-local session origin positive와 post-callback lifetime 비계약 경계 고정
-- [ ] Reverse manager, target pointer identity, downstream target cache를 제품 지원으로 오인할 surface가 없음
-- [ ] Missing/drift/check/write/Verify failure에서 target absence 또는 last-good 보존 검증
-- [ ] Overlay fixture 제거, production no-overlay external compile과 typed negative gate 통과
-- [ ] External AST/source gate가 Save/Delete/reverse와 low-level Object re-exposure를 거부
-- [ ] Unrelated/multi-app/multi-model/target-source/self-edge generator fixture가 deterministic compile을 통과
-- [ ] Physical/generated/test inventory와 workflow self-check를 실제 값으로 갱신
-- [ ] Focused normal/race/CGO-disabled/vet, root CI와 independent P0-P3 audit 통과
+- [x] Existing generated exact 13 bytes/digest가 구현 전후 byte-identical
+- [x] Exactly one project facade companion의 deterministic generator/golden/first-publication 구현
+- [x] All declared model query root와 project-owned pointer wrapper 구현
+- [x] Query root와 required/nullable forward accessor target wrapper type 동일성 검증
+- [x] Raw app model/low-level Object 반환 금지와 wrapper namespace disjoint compile gate
+- [x] Project-local Queryer+Mutator positive, static `db.Queryer` negative, RelationAtomic 비요구 검증
+- [x] Minimal Queryer+Mutator fake/`db.Session` positive가 RelationAtomic/RelationMutator 없이 성립
+- [x] Nil/typed-nil backend, binder precedence, stable category/code와 I/O 0 검증
+- [x] Author/Reviewer common selector와 selected eager state 보존 검증
+- [x] Author/Reviewer SelectRelated before/after Filter/OrderBy/Limit, required/present/NULL 검증
+- [x] Lazy cache, eager 추가-query 0, copied/repeated eager shared evaluation과 derived-chain independence 검증
+- [x] Nil/typed-nil/zero/cross-model selector와 zero Models/root/eager의 structured pre-I/O failure 검증
+- [x] Nil/zero/copied wrapper pre-I/O failure와 explicit raw-model unwrap 검증
+- [x] Source cache wrapper-scope와 target pointer/downstream cache 비계약 검증
+- [x] Callback-local session origin positive와 post-callback lifetime 비계약 경계 고정
+- [x] Reverse manager, target pointer identity, downstream target cache를 제품 지원으로 오인할 surface가 없음
+- [x] Missing/drift/check/write/Verify failure에서 target absence 또는 last-good 보존 검증
+- [x] Overlay fixture 제거, production no-overlay external compile과 typed negative gate 통과
+- [x] External AST/source gate가 Save/Delete/reverse와 low-level Object re-exposure를 거부
+- [x] Unrelated/multi-app/multi-model/target-source/self-edge generator fixture가 deterministic compile을 통과
+- [x] Unrelated-model object prerequisite unused-bind regression과 current exact 13 byte identity 검증
+- [x] Physical/generated/test inventory와 workflow self-check를 실제 값으로 갱신
+- [x] Focused normal/race/CGO-disabled/vet, root CI와 independent P0-P3 audit 통과
 - [ ] Activation, implementation, completion documentation과 terminal evidence를 서로 다른 exact head로 증명
 
 ## 진행 기록
 
 - [x] GDJ-0031 terminal exact-head `3d661251...`을 EVID-067/run `31533890720`에서 clean baseline으로 확인
 - [x] GDJ-0032 active work와 Proposed ADR-0032 경계 작성
-- [ ] Exact public-name and selector-representation decision gate
-- [ ] Generator/product/compile/runtime implementation
-- [ ] Inventory/workflow/protocol transition
-- [ ] Local and hosted verification
+- [x] Exact public-name and selector-representation decision gate
+- [x] Generator/product/compile/runtime implementation
+- [x] Inventory/workflow/protocol transition
+- [x] Local verification and independent P0-P3 audit
+- [ ] Implementation exact-head hosted verification
 - [ ] Completion documentation and terminal evidence
 
 ## 미결정과 blocker
 
-외부 blocker는 없습니다. 다음은 구현 전에 이 work 안에서 결정해야 하며 activation 문법을 정본으로 취급하지
-않습니다.
-
-- Project entrypoint, aggregate, wrapper, query, selector와 raw-model unwrap의 exact exported names
-- `First` not-found tuple과 `Limit` error ergonomics를 production facade에서 그대로 노출할지
-- Exact selector representation; backend/binder precedence와 invalid category/code는 위 계약으로 이미 고정
-- Model/app naming input과 no-pluralization collision diagnostic
-- Generated companion version과 canonical input hash의 exact encoding
+외부 blocker는 없습니다. Gate 0 이름, no-pluralization collision diagnostic, generator version과 canonical input
+hash encoding은 이 implementation tree에서 결정·검증됐습니다. 남은 blocker가 아닌 절차는 implementation exact-head
+hosted CI와 그 뒤 completion/terminal documentation evidence입니다.
 
 ## 테스트 증거
 
 - Clean baseline: EVID-067 / hosted run `31533890720`, exact terminal head `3d661251...` only
+- Activation proof: exact activation head `2399cc44f6da975f154806f91eeee06dcca3b5a8`의 hosted
+  [run 31537726792](https://github.com/progresshans/godj/actions/runs/31537726792) attempt 1은 26/26 jobs와
+  326/326 recorded steps를 통과했습니다. 이 run은 implementation tree proof로 재사용하지 않습니다.
 - Product baseline: exact 12 adapters/127 contracts=`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12;
   REL-002 `oracle_locked`
 - Frozen old generated subset: exact 13, 26,140 bytes/SHA-256
   `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`
-- This activation documentation tree: exact-head hosted CI `not run/pending`; EVID-067/run `31533890720`을 그 proof로
+- New generated union: exact 14, 39,243 bytes/SHA-256
+  `2a141f1962887a9c610dd2d0005f401ecd8759e4d0bf0ce5cde1c3f210d1ba5f`; physical fixture exact 17,
+  94,439 bytes/SHA-256 `3fc7aba625cf231bc3521f3ad19270a05405e9bfea3d4799b36ca3dd907752fd`
+- Workflow-equivalent top-level inventory: 697 run/697 pass/0 skip, 70,659 bytes/SHA-256
+  `d017e9e848d4cf3e73b67075c0e271b7b31c1ed5a93416b1c78968d3d5904dde`
+- Local validation on 2026-08-12: focused and integrated normal/race/CGO-disabled/vet, Linux/386 compile-only,
+  `make ci`, `git diff --check`, gofmt and three independent audits all PASS; final P0/P1/P2/P3=`0/0/0/0`.
+- This implementation tree: exact-head hosted CI `not run/pending`; activation run `31537726792`를 그 proof로
   재사용하지 않음
 
 ## 위험과 rollback
@@ -282,7 +309,6 @@ companion은 independent target으로 게시합니다. 구현이 실패하면 �
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 activation exact twelve-path tree를 별도 commit/push하고 exact-head hosted CI를 얻습니다. 그 run이
-clean일 때만 public-name/selector-representation decision gate와 generator implementation을 시작합니다. Source 변경 전에
-existing exact 13 subset과 current product inventory를 다시 고정하고, 허용 경로 밖 변경이 필요하면 이 packet을
-확장하지 말고 중단해 재계획합니다.
+통합 담당자는 이 동결된 implementation tree만 정확히 commit/push하고 고유 exact-head hosted CI를 terminal까지
+감사합니다. 그 run을 activation proof와 분리해 기록한 뒤에만 ADR/work completion documentation과 terminal evidence를
+별도 head로 닫습니다. REL-002 또는 reverse/write/general upgrade work는 이 packet에 섞지 않습니다.
