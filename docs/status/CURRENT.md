@@ -539,6 +539,12 @@
   Current classification remains `119 + 5 + 3`, relation 9/12 until exact implementation evidence. REL-002 stays locked.
 - REL-002 assignment/cache invalidation, recursive/CASCADE/bulk delete, global cache invalidation, migration/DDL and
   non-SQLite backends are explicit non-goals.
+- Activation documentation commit `83e6ea05e5c224a39f1d1d43aa17a3e58cf81c98`의 hosted
+  [run 31498696555](https://github.com/progresshans/godj/actions/runs/31498696555)는 25/26 jobs success였고,
+  macOS Intel relation-product 한 job만 모든 630 top-level test가 pass한 뒤 verbose JSON `tee`의 Actions-log
+  backpressure로 Go output `WaitDelay`가 만료되어 실패했습니다. Local slow-sink reproduction과 direct-file control이
+  원인을 분리했으며, current stabilization diff는 JSON을 regular file에 직접 수집한 뒤 compact canonical inventory만
+  게시합니다. Product/contract 상태는 변하지 않았고 corrected exact-head hosted gate는 아직 pending입니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -1011,10 +1017,10 @@ generated upgrade policy를 위한 P1/open compile-usability gate입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 exact 15-file GDJ-0030 activation documentation diff/scope, historical EVID-001..057 body prefix,
-links/frontmatter/fences, target manifest constants와 `git diff --check`를 확인합니다. Documentation-only bytes를
-별도 commit/push한 뒤 exact-head 26-job CI와 hosted audit를 실행하되 baseline EVID-058/run `31484369693`을 그
-later tree의 proof로 재사용하지 않습니다. 그 뒤 work packet dependency order대로 additive query/db surface,
+통합 담당자는 EVID-059의 activation failure 원인을 닫는 exact workflow/protocol stabilization diff를 commit/push하고,
+새 exact-head 26-job CI에서 compact 630/630/0 inventory와 26/26 success를 확인합니다. Baseline EVID-058/run
+`31484369693`이나 failed activation run `31498696555`를 corrected head의 proof로 재사용하지 않습니다. 그 뒤 work
+packet dependency order대로 additive query/db surface,
 SQLite pinned relation transaction, ORM deleter, deterministic project generator/exact thirteen-file union과
 REL-007/008 oracle-blind actual을 구현합니다. Q-017 facade spike는 GDJ-0030 뒤에도 P1/open입니다. Draft PR은
 사용자 요청 전 merge하지 않습니다.

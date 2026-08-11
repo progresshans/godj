@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-11
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260811-058
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260811-059
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -5197,3 +5197,63 @@ accept ADR-0030, implement REL-007/008, change the manifest, prove the later exa
 authorize merging Draft PR #1. The activation tree requires separate exact-head CI and audit; run `31484369693` is not
 reused as that proof. Q-013 remains `Partial`, Q-017 remains P1/open, REL-002 remains locked and no canonical facade is
 claimed.
+
+## EVID-20260811-059 — GDJ-0030 Activation Hosted Output-backpressure Failure and Local CI Stabilization
+
+- Date/time: 2026-08-11T13:54:56Z–2026-08-11T14:01:36Z hosted; local diagnosis and stabilization through
+  2026-08-11T23:47:08+09:00
+- Work/contract IDs: GDJ-0030 activation verification; REL-007/008 remain ordered payload-free `oracle_locked`; no
+  product or compatibility promotion
+- Checkout/commit: hosted `codex/revision-fenced-migration-lifecycle@83e6ea05e5c224a39f1d1d43aa17a3e58cf81c98`
+  (`docs: activate project-bound relation delete slice`); local workflow/protocol/status stabilization is a later
+  uncommitted diff at the time of this evidence
+- Environment/backend: GitHub-hosted exact 26-execution matrix, Go 1.26.5; focused local macOS darwin/arm64 Go 1.26.5
+  output-backpressure reproduction and direct-file controls
+- Command: Draft PR #1 `pull_request`
+  [run 31498696555](https://github.com/progresshans/godj/actions/runs/31498696555), attempt 1, workflow run number 48;
+  local `make ci`; focused protocol test; exact relation-product workflow block; slow-consumer and regular-file ORM
+  JSON controls; extracted failure branch with 2 MiB valid and malformed JSON controls
+- Exit status: hosted `failure`; exact 25/26 jobs succeeded and one failed, with 319/326 recorded steps success,
+  one failure and six skipped. Local activation `make ci`, corrected workflow block and protocol tests succeeded.
+- Result summary: the only hosted failure was relation-product macOS Intel job
+  [93802788593](https://github.com/progresshans/godj/actions/runs/31498696555/job/93802788593). Every individual ORM
+  test passed, then package shutdown reported `Test I/O incomplete 1m0s after exiting` and
+  `exec: WaitDelay expired before I/O complete`; test-level failures were zero. ORM has no child-process launch path.
+  All four relation-product raw logs still contained exact 630 top-level runs/630 passes/0 skips and the canonical
+  63,928-byte/SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`
+  inventory, but the failed job did not execute its post-test inventory assertion, race, CGO-disabled, vet,
+  no-rewrite or clean-worktree steps. The other 25 jobs succeeded, including exact Darwin, four Python coordinates,
+  full Ubuntu validation and three other relation-product coordinates.
+- Failures/skips/not run: this run is not GDJ-0030 activation acceptance evidence and is not reused for a corrected
+  head. REL-007/008 implementation and target `121 + 5 + 1` remain not run. Draft PR merge was not performed.
+
+Root-cause and control evidence:
+
+- The failing job streamed approximately 12,487 JSON events through `go test -json ... | tee "$log"`. Hosted
+  macOS Intel event delivery lag reached 45.391 seconds; the preceding successful Intel run had already reached
+  45.932 seconds/35.659-second ORM elapsed. Go 1.26.5 derives a one-minute process-output `WaitDelay` from the default
+  ten-minute test timeout.
+- A local slow consumer attached to `go test -json -count=1 -timeout=10s ./orm` reproduced the same package-level
+  `Test I/O incomplete 5s`/`WaitDelay expired` after all observed tests passed. The captured 230,838-byte log SHA-256
+  was `dc4e99a661f169a44370e763bfff9bd4e171c9530d819487124bc841b30d7df4`.
+- The same ORM command redirected directly to a regular file passed in 0.92 seconds with 1,144 events; its
+  259,948-byte log SHA-256 was `4c7667e3c0c9c2f72bff6b27042531bf17a89bf53ae7e9206beb9a1a2b65c070`.
+- The corrected relation-product block writes verbose JSON directly to `$RUNNER_TEMP`, preserves a nonzero Go status,
+  prints at most 64 KiB of failed test/package diagnostics on failure while preserving the original status even if the
+  formatter fails, and after success publishes 630 canonical top-level run records
+  plus one observed inventory summary. The exact extracted block passed locally and emitted 631 lines/83,641 bytes;
+  the final summary was 630 runs/630 passes/0 skips, 63,928 payload bytes and SHA-256 `4415fd69...bca`. Output SHA-256
+  was `60efd4595b796d9aa3b03f3f96cfa977d229c234d9eb87ae5375da0b8f439d6b`.
+- The exact extracted failure branch preserved synthetic Go status 23 for a 2 MiB valid failed-test output while
+  publishing 60,063 bytes, preserved status 124 and the final timeout/stack tail for a package-only failure while
+  publishing 60,062 bytes, and preserved status 130 when the 2 MiB JSON stream was malformed while publishing a
+  60,075-byte fallback. All remained below the 65,536-byte outer bound.
+- `go test ./conformance/internal/protocol -count=1`, its focused exact-26 workflow test, shell syntax extraction,
+  `gofmt -d` and `git diff --check` passed. Static protocol coverage requires direct-file capture, original status
+  propagation, compact canonical evidence and no relation-product live `tee`.
+
+Before this append, `docs/status/TEST_EVIDENCE.md` was exact 404,905 bytes/SHA-256
+`1fb564cc108589e783ff4b4452f659f3a084eed082e823be4812b740843fac72`. This entry records a real verification
+failure and its local correction without changing ADR-0030 Proposed, GDJ-0030 active, Q-013 Partial, Q-017 P1/open or
+the current `119 passing + 5 deviation + 3 oracle_locked` classification. A new commit and exact-head hosted 26/26
+run remain required before implementation begins.

@@ -787,6 +787,15 @@ recorded steps를 통과해 EVID-058에 기록했습니다. Four relation-produc
 확인했습니다. 이는 GDJ-0029 terminal과 GDJ-0030 clean activation baseline만 증명하며 이 activation diff나
 REL-007/008 implementation proof로 재사용하지 않습니다.
 
+GDJ-0030 activation head `83e6ea05e5c224a39f1d1d43aa17a3e58cf81c98`의 첫 hosted run은
+relation-product `go test -json | tee`가 macOS Intel Actions log backpressure를 받아 모든 ORM test가 PASS한 뒤
+Go 1.26.5의 one-minute output `WaitDelay`를 소진하는 false-negative를 드러냈습니다. Relation-product normal gate는
+verbose JSON을 `$RUNNER_TEMP` regular file에 직접 기록하고, test process가 끝난 뒤 canonical 630 top-level run
+inventory와 count/bytes/SHA summary만 stdout에 게시합니다. Nonzero exit에서는 failed test/package output과 fail
+events를 합쳐 최대 64 KiB만 사후 게시하고 formatter 실패와 무관하게 원래 status를 반환합니다. Protocol test는 live `tee` 부재, direct-file capture, failure
+propagation과 compact evidence publication을 고정합니다. 이 instrumentation 변경은 contract count/status나 product
+API를 바꾸지 않습니다.
+
 Active GDJ-0030 testing은 current 9 required/3 NI를 보존한 baseline에서 REL-007/008 두 contract만 actual로
 전환합니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
 `ProtectedSourceRows`, mutation 0과 unchanged DB/caller를 검증합니다. 같은 row/two-edge는 global count 1,

@@ -361,6 +361,7 @@ jobs:
         run: |
           set -o pipefail
           log="$RUNNER_TEMP/relation-product-tests.json"
+          status=0
           go test -json -count=1 \
             ./schema/... \
             ./query \
@@ -378,7 +379,61 @@ jobs:
             ./conformance/internal/protocol \
             ./conformance/runners/godj \
             ./conformance/cmd/godjcheck \
-            ./internal/compiletest | tee "$log"
+            ./internal/compiletest > "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            formatter_status=0
+            diagnostic_log="$RUNNER_TEMP/relation-product-failure.txt"
+            python3 - "$log" > "$diagnostic_log" 2>&1 <<'PY' || formatter_status=$?
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as stream:
+              events = [json.loads(line) for line in stream if line.strip()]
+          max_failure_diagnostic_bytes = 60000
+          failed_events = [event for event in events if event.get("Action") == "fail"]
+          failed_tests = {(event.get("Package"), event["Test"]) for event in failed_events if "Test" in event}
+          failed_packages = {event.get("Package") for event in failed_events if "Test" not in event}
+          failed_test_packages = {package for package, _ in failed_tests}
+          package_only_failures = failed_packages - failed_test_packages
+          failed_event_diagnostic = "".join(json.dumps(event, sort_keys=True) + "\n" for event in failed_events)
+          selected_output = "".join(
+              event.get("Output", "")
+              for event in events
+              if event.get("Action") == "output"
+              and (
+                  (event.get("Package"), event.get("Test")) in failed_tests
+                  or (event.get("Package") in failed_packages and event.get("Test") is None)
+                  or event.get("Package") in package_only_failures
+              )
+          )
+          diagnostic = bytearray(failed_event_diagnostic.encode("utf-8", "replace"))
+          truncated = len(diagnostic) > max_failure_diagnostic_bytes
+          if truncated:
+              diagnostic = diagnostic[:max_failure_diagnostic_bytes]
+          else:
+              encoded_output = selected_output.encode("utf-8", "replace")
+              remaining = max_failure_diagnostic_bytes - len(diagnostic)
+              if len(encoded_output) > remaining:
+                  truncated = True
+                  if remaining > 0:
+                      diagnostic.extend(encoded_output[-remaining:])
+              else:
+                  diagnostic.extend(encoded_output)
+          sys.stdout.write(diagnostic.decode("utf-8", "replace"))
+          if diagnostic and not diagnostic.endswith(b"\n"):
+              print()
+          if truncated:
+              print(f"relation-product failure diagnostics truncated at {max_failure_diagnostic_bytes} bytes")
+          PY
+            if [ "$formatter_status" -ne 0 ]; then
+              fallback_log="$RUNNER_TEMP/relation-product-failure-fallback.txt"
+              tail -c 60000 "$log" > "$fallback_log"
+              echo "relation-product failure formatter exited $formatter_status; preserving go test status $status" >> "$fallback_log"
+              diagnostic_log="$fallback_log"
+            fi
+            tail -c 65536 "$diagnostic_log"
+            exit "$status"
+          fi
           python3 - "$log" <<'PY'
           import hashlib
           import json
@@ -414,9 +469,21 @@ jobs:
           )
           assert len(runs) == 630, sorted(runs)
           assert len(payload) == 63928, len(payload)
-          assert hashlib.sha256(payload).hexdigest() == "4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca"
+          payload_sha256 = hashlib.sha256(payload).hexdigest()
+          assert payload_sha256 == "4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
+          for package, test in sorted(list(runs)):
+              print(json.dumps({"relation_product_run": [package, test]}, separators=(",", ":")))
+          print(json.dumps({
+              "relation_product_inventory": {
+                  "runs": len(runs),
+                  "passes": len(passes),
+                  "skips": len(skipped),
+                  "payload_bytes": len(payload),
+                  "payload_sha256": payload_sha256,
+              }
+          }, sort_keys=True))
           PY
 
       - name: Run relation product race tests

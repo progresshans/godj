@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -389,6 +390,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 	}
 	for _, required := range []string{
 		`log="$RUNNER_TEMP/relation-product-tests.json"`,
+		`status=0`,
 		"go test -json -count=1 \\",
 		"./query",
 		"./db/sqlite",
@@ -402,6 +404,22 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"./conformance/runners/godj",
 		"./conformance/cmd/godjcheck",
 		"./internal/compiletest",
+		`./internal/compiletest > "$log" || status=$?`,
+		`if [ "$status" -ne 0 ]; then`,
+		`formatter_status=0`,
+		`diagnostic_log="$RUNNER_TEMP/relation-product-failure.txt"`,
+		`|| formatter_status=$?`,
+		`max_failure_diagnostic_bytes = 60000`,
+		`failed_tests = {`,
+		`failed_packages = {`,
+		`package_only_failures = failed_packages - failed_test_packages`,
+		`if remaining > 0:`,
+		`diagnostic.extend(encoded_output[-remaining:])`,
+		`relation-product failure diagnostics truncated at`,
+		`preserving go test status $status`,
+		`tail -c 60000 "$log"`,
+		`tail -c 65536 "$diagnostic_log"`,
+		`exit "$status"`,
 		`if event.get("Action") == "run"`,
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
@@ -411,6 +429,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		`4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
+		`"relation_product_run": [package, test]`,
+		`"relation_product_inventory": {`,
+		`"payload_sha256": payload_sha256`,
 		"Run relation product race tests",
 		"go test -race -count=1",
 		"Run relation product tests without CGO",
@@ -429,6 +450,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		if !strings.Contains(relationProduct, required) {
 			t.Fatalf("relation-product matrix is missing required fragment %q", required)
 		}
+	}
+	if strings.Contains(relationProduct, `| tee "$log"`) {
+		t.Fatal("relation-product inventory must not stream verbose JSON through tee")
 	}
 	for _, exact := range []string{
 		"import hashlib",
@@ -461,7 +485,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"./conformance/cmd/godjcheck",
 		"./internal/compiletest",
 	} {
-		linePattern := regexp.MustCompile(`(?m)^[ \t]+` + regexp.QuoteMeta(packagePattern) + `(?: \\| \| tee "\$log")?$`)
+		linePattern := regexp.MustCompile(`(?m)^[ \t]+` + regexp.QuoteMeta(packagePattern) + `(?: \\| > "\$log" \|\| status=\$\?)?$`)
 		if count := len(linePattern.FindAllString(relationProduct, -1)); count != 4 {
 			t.Fatalf("relation-product package %q gate count = %d, want normal/race/CGO0/vet", packagePattern, count)
 		}
@@ -553,6 +577,90 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 	if got := strings.Count(text, "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9"); got != 3 {
 		t.Fatalf("pinned setup-uv action count = %d, want 3 job definitions", got)
 	}
+	migrationProjectCheckAssertRelationProductFailureFormatter(t, text)
+}
+
+func migrationProjectCheckAssertRelationProductFailureFormatter(t *testing.T, workflow string) {
+	t.Helper()
+
+	startMarker := "            python3 - \"$log\" > \"$diagnostic_log\" 2>&1 <<'PY' || formatter_status=$?\n"
+	start := strings.Index(workflow, startMarker)
+	if start < 0 {
+		t.Fatal("relation-product failure formatter start is missing")
+	}
+	start += len(startMarker)
+	end := strings.Index(workflow[start:], "\n          PY\n")
+	if end < 0 {
+		t.Fatal("relation-product failure formatter end is missing")
+	}
+	lines := strings.Split(workflow[start:start+end], "\n")
+	for index, line := range lines {
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(line, "          ") {
+			t.Fatalf("formatter line %d does not retain YAML indentation: %q", index+1, line)
+		}
+		lines[index] = strings.TrimPrefix(line, "          ")
+	}
+	formatter := strings.Join(lines, "\n") + "\n"
+
+	events := []map[string]any{
+		{"Action": "run", "Package": "example/pkg", "Test": "TestHung"},
+		{"Action": "output", "Package": "example/pkg", "Test": "TestHung", "Output": strings.Repeat("old-output-", 7000)},
+		{"Action": "output", "Package": "example/pkg", "Test": "TestHung", "Output": "panic: test timed out\nimportant-stack-tail\n"},
+		{"Action": "output", "Package": "example/pkg", "Output": "FAIL\n"},
+		{"Action": "fail", "Package": "example/pkg", "Elapsed": 0.1},
+	}
+	output := migrationProjectCheckRunRelationProductFailureFormatter(t, formatter, events)
+	if len(output) > 65536 {
+		t.Fatalf("failure formatter output bytes = %d, want <= 65536", len(output))
+	}
+	for _, wanted := range []string{"panic: test timed out", "important-stack-tail", "relation-product failure diagnostics truncated at 60000 bytes"} {
+		if !bytes.Contains(output, []byte(wanted)) {
+			t.Fatalf("failure formatter output is missing %q: %s", wanted, output)
+		}
+	}
+
+	remainingZeroEvents := []map[string]any{
+		{"Action": "output", "Package": "example/pkg", "Output": strings.Repeat("overflow", 1000)},
+		{"Action": "fail", "Package": "example/pkg", "Padding": strings.Repeat("Z", 59940)},
+	}
+	remainingZeroOutput := migrationProjectCheckRunRelationProductFailureFormatter(t, formatter, remainingZeroEvents)
+	if len(remainingZeroOutput) > 65536 {
+		t.Fatalf("remaining-zero formatter output bytes = %d, want <= 65536", len(remainingZeroOutput))
+	}
+	if bytes.Contains(remainingZeroOutput, []byte("overflow")) {
+		t.Fatal("remaining-zero formatter appended selected output beyond the diagnostic cap")
+	}
+	if !bytes.Contains(remainingZeroOutput, []byte("relation-product failure diagnostics truncated at 60000 bytes")) {
+		t.Fatal("remaining-zero formatter omitted the truncation marker")
+	}
+}
+
+func migrationProjectCheckRunRelationProductFailureFormatter(t *testing.T, formatter string, events []map[string]any) []byte {
+	t.Helper()
+
+	var input bytes.Buffer
+	for _, event := range events {
+		encoded, err := json.Marshal(event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		input.Write(encoded)
+		input.WriteByte('\n')
+	}
+	logPath := filepath.Join(t.TempDir(), "package-only-timeout.json")
+	if err := os.WriteFile(logPath, input.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("python3", "-", logPath)
+	command.Stdin = strings.NewReader(formatter)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("failure formatter returned %v: %s", err, output)
+	}
+	return output
 }
 
 func loadMigrationProjectCheckArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
