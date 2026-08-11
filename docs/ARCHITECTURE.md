@@ -121,6 +121,19 @@ REL-001/003/004/005/006/012 6/12입니다. 이 acceptance는 bounded primary+one
 `All` consumption에만 한정하며 REL-009..011 eager projection, custom Prefetch/filter/order, write/delete/DDL/
 migration과 non-SQLite backend는 포함하지 않습니다.
 
+Active GDJ-0029/Proposed ADR-0029는 REL-009/010/011을 indivisible one-hop forward `select_related` slice로
+한정합니다. Existing `ModelDescriptor.Scan`과 Manager/QuerySet ABI를 바꾸지 않고 app-local additive
+`ProjectionDescriptor`/`ProjectionScan`이 source와 target field destinations를 제공하며, runtime은 joined row를
+exactly one `Row.Scan`으로 decode합니다. `ProjectionScan.Decode`는 model, projected AutoField key와
+Invalid/Absent/Present 상태를 함께 반환해 reflection이나 v3 target primary-key capability 없이 source FK와
+target PK membership를 검증합니다. Singular immutable `RelationProjection`은 required INNER/nullable LEFT OUTER
+one-hop projection을 표현하고, 별도 All-only `ForwardSelectQuery`가 full rowset/resource/context validation 뒤에만
+ready related objects를 원자적으로 공개합니다. Generated typed author/reviewer와 executable dynamic dispatch는
+같은 `ResolveForwardSelectPath`를 사용하며 reverse `posts`는 pre-I/O
+`field_error/invalid_related_path`입니다. Current product는 계속 exact `116 + 5 + 6`, relation 6/12이고 target
+`119 + 5 + 3`, relation 9/12는 implementation과 exact-head hosted acceptance 전에는 claim하지 않습니다.
+Multiple/nested/reverse eager, write/delete/DDL/migration과 non-SQLite backend는 범위 밖입니다.
+
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
 격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은

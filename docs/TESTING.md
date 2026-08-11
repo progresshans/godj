@@ -747,6 +747,15 @@ four-coordinate 594/594/0 inventory, actual Linux/386 exact package set, exact D
 통과해 EVID-053에 기록했습니다. EVID-053을 포함한 terminal 7-file evidence/status 기록은 documentation-only이며
 implementation/completion run을 그 later patch의 proof로 재사용하지 않고 자기 자신을 재귀 증명하지 않습니다.
 
+그 terminal evidence/status head `5c0efef12560203d720e4c2dd7bda50c0324a228`은 별도 Draft PR
+[run 31436881856](https://github.com/progresshans/godj/actions/runs/31436881856)의 exact 26/26 jobs·326/326
+recorded steps를 통과해 EVID-054에 기록했습니다. Four relation-product coordinates는 각각 current
+594/594/0 inventory·60,237 bytes·SHA-256 `98a0a37b...8c47e`를 재현했고 exact Darwin, four pinned Python,
+bounded Ubuntu Linux/386와 independent hosted audit P0/P1/P2/P3=0도 통과했습니다. 이는 GDJ-0028 terminal
+head와 GDJ-0029 clean baseline만 증명합니다. GDJ-0029 activation docs, Proposed projection API,
+REL-009/010/011 implementation 또는 target `119 + 5 + 3`의 증거로 재사용하지 않습니다. Activation exact-head,
+local implementation과 implementation exact-head hosted gates는 각각 별도 evidence가 필요합니다.
+
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
 통과했으며 상세 환경과 결과는

@@ -12,11 +12,11 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0028 completed / relation breadth 후속 | Accepted metadata/forward predicate/object-nullability/reverse accessor-lookup/prefetch; eager/write/delete/DDL/migration remain open |
+| Q-013 | Partial | GDJ-0029 active / relation facade 후속 | Accepted relation semantics와 bounded primitives; Proposed one-hop eager 및 canonical project facade·relation-aware chaining·FK mutation policy는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P2 | API freeze 전 | pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
+| Q-017 | P1 | GDJ-0029 public surface acceptance/API freeze 전 | relation-aware project facade, pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 
 ## M0에서 해결한 질문
@@ -368,5 +368,38 @@ row 검증 뒤에만 `.Posts().All()` cache를 공개합니다. Exact implementa
 `31432551159`는 26/26 hosted gate를 통과해 product를 exact `116 + 5 + 6`, relation 6/12로 전환했습니다.
 Custom Prefetch, filter/order 소비, eager REL-009..011, write/delete/DDL/migration과 broader backend가 남아
 Q-013은 계속 `Partial`입니다.
+
+Active [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Proposed
+[ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011을 required INNER, nullable LEFT OUTER,
+reverse multi-valued pre-I/O rejection의 indivisible packet으로 좁혔습니다. App-local projection scanner,
+singular immutable relation projection, existing object factory에 붙는 All-only eager bridge와 shared
+typed/dynamic resolver를 제안하지만 현재는 activation state이며 구현·호환 acceptance가 아닙니다.
+Multiple/nested/no-argument/reverse eager, OneToOne/ManyToMany, write/delete/DDL/migration과 broader backend는
+결정하지 않았으므로 Q-013은 계속 `Partial`입니다.
+
+Django 6.1의 관계 의미는 기본 reference입니다. Raw FK와 관계 accessor 분리, 미조회/NULL/loaded 구분, 첫 접근
+cache, eager/prefetch의 동일 cache warming, reverse manager와 조회 origin DB 유지가 기준입니다. GoDj는 Python
+descriptor/runtime registry/예외 구현을 복제하지 않고 explicit `context.Context`/`error`, backend/session binding,
+Go 값 복사 규칙과 codegen/project bridge로 번역합니다.
+
+최종 사용자 후보는 `project.Using(backend)`로 한 번 결합한 facade가 relation-aware project model을 직접
+반환하고 lazy/eager 모두 `Author(ctx)` 같은 accessor를 공유하는 형태입니다. 현재 `orm.BindProject`, generated
+`BindObjects`/`From`과 GDJ-0029 eager bridge는 검증 가능한 low-level building block이며 canonical application
+API가 확정됐다는 뜻이 아닙니다. FK mutation/cache invalidation, scalar access, forward/reverse chaining과 exact
+facade/manager/selector 이름은 Q-017에서 계속 open입니다.
+
+## Q-017 — 공개 API와 generated upgrade
+
+API freeze 전 external compile-usability spike로 다음을 검증합니다.
+
+- Project facade의 exact name과 one-time backend/session binding
+- Raw app model과 relation-aware project model의 역할, scalar field 접근과 명시적 unwrap
+- Lazy/eager의 동일 반환 타입·accessor와 forward/reverse chaining
+- Filter/OrderBy/Limit 뒤에도 facade type과 relation state가 유지되는지
+- `AuthorID` 변경, relation 설정과 cache 무효화 규칙
+- Exact transaction session, 값 복사/clone, JSON과 사용자 정의 model method
+- Generated identifier 변경의 deprecation/upgrade 정책
+
+저수준 `Bind*`, `From`, `ForwardSelect*` API의 존재만으로 최종 사용자 API가 확정됐다고 보지 않습니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

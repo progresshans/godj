@@ -52,10 +52,12 @@ proposed → ready → active → completed
 | [GDJ-0026](0026-forward-foreign-key-object-cache-and-nullability-product-slice.md) | completed | REL-003/006 forward object cache, nullable access와 SQLite isnull trim |
 | [GDJ-0027](0027-reverse-foreign-key-accessor-and-lookup-product-slice.md) | completed | REL-005 reverse ForeignKey accessor와 exact lookup |
 | [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md) | completed | REL-012 reverse ForeignKey one-batch prefetch와 atomic warm related set |
+| [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md) | active | REL-009/010/011 one-hop forward required/nullable `select_related`와 reverse-path rejection |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근 완료
-항목은 [GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)입니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active 항목은
+[GDJ-0029](0029-one-hop-forward-select-related-product-slice.md), ready 항목은 없고 최근 완료 항목은
+[GDJ-0028](0028-reverse-foreign-key-prefetch-product-slice.md)입니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
@@ -134,6 +136,12 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   [run 31435136950](https://github.com/progresshans/godj/actions/runs/31435136950)도 exact 26/26·326/326과 hosted
   audit P0/P1/P2/P3=0을 통과해 EVID-053에 기록했습니다. EVID-053을 포함한 terminal 7-file evidence/status
   기록은 documentation-only이며 completion run을 그 later patch의 recursive proof로 재사용하지 않습니다.
+  그 terminal evidence/status commit `5c0efef12560203d720e4c2dd7bda50c0324a228`의 별도
+  [run 31436881856](https://github.com/progresshans/godj/actions/runs/31436881856)은 exact 26/26·326/326과 hosted
+  audit P0/P1/P2/P3=0을 통과해 EVID-054에 기록했습니다. GDJ-0029는 이 clean tested baseline에서
+  REL-009/010/011 indivisible one-hop forward eager projection과 Proposed ADR-0029를 활성화합니다. Current는
+  exact `116 + 5 + 6`, relation 6/12이고 target-only `119 + 5 + 3`, relation 9/12입니다. Baseline run은
+  activation/API/implementation evidence로 재사용하지 않습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

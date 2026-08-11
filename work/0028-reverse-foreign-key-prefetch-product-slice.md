@@ -401,22 +401,26 @@ REL-012 locked to passing; scenario/reference behavior and every other assertion
 
 외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
 acceptance/audit, exact completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Terminal
-evidence/status 기록은 documentation-only이며 자기 자신을 재귀 증명하지 않습니다. 이 completed work에는
-pending blocker가 없습니다.
+evidence/status commit `5c0efef12560203d720e4c2dd7bda50c0324a228`도 별도 run `31436881856`의 exact
+26/26·326/326과 hosted audit P0/P1/P2/P3=0을 통과해 EVID-054에 기록됐습니다. 이 run은 GDJ-0028 terminal
+head와 GDJ-0029 baseline만 증명하며 later activation/API/implementation 증거로 재사용하지 않습니다. 이
+completed work에는 pending blocker가 없습니다.
 
-1. Exact 7-file terminal evidence/status patch의 scope, EVID-001..052 prefix, links/frontmatter/fences와
-   `git diff --check`를 검증합니다.
-2. Documentation-only patch만 commit/push하되 completion run `31435136950`을 이 later patch의 proof로
-   재사용하거나 자기 증명을 위한 EVID-054를 만들지 않습니다.
-3. 새 공개 API나 지원 범위를 열기 전 별도 work/ADR을 활성화하고 Q-013은 `Partial`로 유지합니다.
-4. Draft PR #1은 사용자 요청 전 merge하지 않습니다.
+1. Successor [GDJ-0029](0029-one-hop-forward-select-related-product-slice.md)의 exact activation scope와
+   Proposed [ADR-0029](../docs/adr/0029-one-hop-forward-select-related.md)를 따릅니다.
+2. Existing reverse/object/prefetch API, generated outputs, oracle/static/SHA와 REL-012 behavior를 보존합니다.
+3. Q-013은 `Partial`로 유지하고 Draft PR #1은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
 - GDJ-0028은 completion-documentation head `9dc4eb1312791ae74b384afbbfdbfef89aaf55bb`, exact-26 run
   `31435136950`까지 completed입니다. Implementation head `4858ab88...`도 별도 run `31432551159`에서
   exact-26 검증됐습니다. EVID-051은 activation/local pre-hosted, EVID-052는 implementation-head, EVID-053은
-  completion-documentation-head hosted evidence입니다. Product는 exact `116 + 5 + 6`, relation actual 6/12입니다.
+  completion-documentation-head, EVID-054는 terminal-head/successor baseline hosted evidence입니다. Product는
+  exact `116 + 5 + 6`, relation actual 6/12입니다.
+- Successor GDJ-0029는 REL-009/010/011 one-hop forward eager slice로 active이고 ADR-0029는 Proposed입니다.
+  Completion target `119 + 5 + 3`, relation 9/12는 target-only이며 EVID-054를 implementation proof로
+  재사용하지 않습니다.
 - Existing reverse/object API와 exact nine generated files, oracle/static/SHA and frozen paths를 보존합니다.
 - Public API 또는 taxonomy를 바꾸기 전 후속 work/ADR을 만들고 independent audit을 다시 받습니다.
 - Draft PR #1은 open/draft로 유지하고 사용자 명시적 요청 없이 merge하지 않습니다.

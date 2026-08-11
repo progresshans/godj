@@ -63,6 +63,15 @@ head `4858ab88...`의 run `31432551159`는 26/26 hosted gate와 independent audi
 Acceptance는 bounded per-call batch/ready-set ownership뿐이며 transaction/session의 goroutine 공유, background
 batching, chunking, public cache injection, eager priming과 write invalidation은 여전히 결정·지원하지 않습니다.
 
+Active GDJ-0029/Proposed ADR-0029는 eager evaluation을 existing QuerySet cache에 섞지 않고 별도
+`ForwardSelectQuery` state가 소유하도록 제안합니다. 호출별로 fresh source/target projection scans를 만들고
+joined row 전체, `Rows.Err`, close 결과와 context를 검증한 뒤에만 source clone과 ready `RelatedObject` pair를
+한 번에 publish합니다. 실패/cancellation은 nil output, partial ready state 0, acquired rows exactly-once close이며
+independent retry가 가능합니다. Successful cached `All`도 nil/already-canceled context보다 먼저 이기지 않고,
+return/copy마다 clone과 pointer state를 분리합니다. 이 semantics는 activation target일 뿐 아직 구현·검증되지
+않았습니다. Cross-call singleflight, public cache injection, transaction/session goroutine sharing, write
+invalidation, multiple/reverse eager graph는 계속 비목표입니다.
+
 ## Transaction과 cancellation
 
 - transaction object를 여러 goroutine이 동시에 사용해도 되는지 기본적으로 가정하지 않습니다.

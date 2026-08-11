@@ -621,6 +621,24 @@ gate를 통과해 current classification은 `116 passing + 5 deviation + 6 oracl
 Custom `Prefetch`, related filter/order 재소비, eager REL-009..011, write/delete/DDL/migration과 non-SQLite
 호환은 이 packet 밖입니다.
 
+Active [GDJ-0029](../work/0029-one-hop-forward-select-related-product-slice.md)과 Proposed
+[ADR-0029](adr/0029-one-hop-forward-select-related.md)는 REL-009/010/011을 함께 여는 target-only 경계입니다.
+REL-009는 plain/eager 동일 result와 SELECT 4→1, INNER JOIN 1, access-extra 3→0을, REL-010은 middle NULL을
+포함한 result와 SELECT 1/LEFT OUTER JOIN 1/access-extra 0을, REL-011은 reverse multi-valued path의
+`field_error/invalid_related_path`/I/O 0을 요구합니다. Typed와 dynamic positive path 및 reverse rejection은
+하나의 project resolver와 immutable `RelationProjection`으로 수렴해야 하며, joined source/target은 additive
+projection scanners로 한 번에 decode됩니다. Oracle/static/SHA/protocol bytes, Django scenario behavior와 existing
+generated files는 frozen입니다. EVID-054/run `31436881856`은 exact clean baseline only이며 target
+`119 passing + 5 deviation + 3 oracle_locked`, relation 9/12의 호환 증거가 아닙니다. Multiple/nested/reverse eager,
+write/delete/DDL/migration/non-SQLite 호환은 claim하지 않습니다.
+
+장기 relation UX는 Django 6.1의 의미를 reference로 삼습니다: raw FK와 relation accessor 분리, 같은 model
+instance/accessor의 lazy cache와 eager/prefetch warming, reverse manager, origin DB affinity입니다. GoDj는 이를
+Python descriptor나 runtime registry가 아니라 explicit `context.Context`/`error`, project codegen과 exact
+backend/session binding으로 번역합니다. Unified `project.Using(backend)` facade, relation-aware chaining, FK
+mutation/cache invalidation과 exact public names는 Q-013/Q-017의 Proposed target이며 현재 passing contract나
+GDJ-0029 구현 사실이 아닙니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는
