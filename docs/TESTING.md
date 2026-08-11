@@ -771,8 +771,12 @@ recorded steps를 통과했습니다. Four relation-product coordinates는 각�
 `make ci`/9 required·3 NI/actual bounded Linux-386, exact Darwin 193/193, four Python 193/17과 127-scenario
 digest, no-rewrite/clean-worktree 및 hosted audit P0/P1/P2/P3=0을 통과해 EVID-056에 기록했습니다. 이 run으로
 bounded REL-009/010/011 product는 `119 + 5 + 3`, relation 9/12가 됐습니다. Canonical facade, multiple/nested/
-reverse eager와 broader backend는 검증 범위가 아니며 exact 15-file completion-documentation head 자체 CI는
-별도 pending입니다.
+reverse eager와 broader backend는 검증 범위가 아닙니다. Exact 15-file completion-documentation head
+`fb9985e20c92f71eaca7bac81bc61466369e0ebd`의 별도
+[run 31482242288](https://github.com/progresshans/godj/actions/runs/31482242288)도 exact 26/26·326/326,
+four-coordinate 630/630/0 inventory, actual Linux/386 exact package set, exact Darwin과 four Python gates를
+통과해 EVID-057에 기록했습니다. EVID-057을 포함한 terminal exact seven-file 기록 자체의 hosted CI는
+`not run/pending`이며 implementation/completion run을 그 later patch의 proof로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

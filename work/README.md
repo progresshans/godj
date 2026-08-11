@@ -152,7 +152,11 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   four-coordinate 630/630/0 inventory, actual Ubuntu Linux/386, exact Darwin/Python과 hosted audit
   P0/P1/P2/P3=0을 통과했습니다. EVID-056을 근거로 product는 current `119 + 5 + 3`, relation 9/12,
   work는 completed, ADR-0029는 bounded engine slice에 한해 Accepted입니다. Q-013은 `Partial`, Q-017은
-  P1/open이고 exact 15-file completion-documentation patch 자체 hosted CI는 pending입니다.
+  P1/open입니다. Completion-documentation commit `fb9985e20c92f71eaca7bac81bc61466369e0ebd`의 별도
+  [run 31482242288](https://github.com/progresshans/godj/actions/runs/31482242288)도 exact 26/26·326/326,
+  four-coordinate 630/630/0 inventory와 hosted audit P0/P1/P2/P3=0을 통과해 EVID-057에 기록했습니다.
+  EVID-057을 포함한 terminal exact seven-file 기록 자체 hosted CI는 pending이며 completion run을 그 later
+  patch의 recursive proof로 재사용하지 않습니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

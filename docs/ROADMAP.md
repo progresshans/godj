@@ -2,7 +2,8 @@
 
 - 상태: Accepted direction
 - 현재 단계: GDJ-0029 REL-009/010/011 one-hop forward `select_related` completed, ADR-0029 Accepted,
-  Q-013 Partial/Q-017 P1 open; active/ready work 없음. 다음 우선순위는 Q-017 facade/API compile-usability 경계
+  Q-013 Partial/Q-017 P1 open; active/ready work 없음. Implementation head `c02aab67...`과
+  completion-documentation head `fb9985e2...`가 각각 별도 exact 26 PASS; terminal exact-head CI는 pending
 - 현재 제품 기준: 12 adapter/127 contract의 `119 passing + 5 deviation + 3 oracle_locked`,
   relation actual REL-001/003/004/005/006/009/010/011/012 9/12
 - 마지막 검토: 2026-08-11
@@ -404,10 +405,12 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   milestone을 구현·검증했습니다. Existing descriptor/QuerySet bytes를 바꾸지 않는 app projection companions,
   singular `RelationProjection`, All-only eager runtime, required INNER/nullable LEFT OUTER SQLite compiler와
   same-resolver reverse rejection이 exact 경계입니다. Implementation head `c02aab67...`의
-  EVID-056/run `31470292759`가 exact 26/26·326/326과 four-coordinate 630/630/0 inventory를 통과해 current
-  aggregate는 `119 + 5 + 3`, relation 9/12입니다. EVID-054/run `31436881856`은 terminal baseline only로
-  유지하며 implementation proof로 재사용하지 않았습니다. Multiple/nested/reverse eager, canonical facade,
-  write/delete/DDL/migration/non-SQLite는 deferred입니다.
+  EVID-056/run `31470292759`와 exact 15-file completion-documentation head `fb9985e2...`의
+  EVID-057/run `31482242288`이 각각 별도 exact 26/26·326/326과 four-coordinate 630/630/0 inventory를
+  통과했습니다. Current aggregate는 `119 + 5 + 3`, relation 9/12입니다. EVID-057을 포함한 exact seven-file
+  terminal 기록은 later documentation-only patch이며 completion run을 그 exact-head proof로 재사용하지
+  않습니다.
+  Multiple/nested/reverse eager, canonical facade, write/delete/DDL/migration/non-SQLite는 deferred입니다.
 - Canonical relation API freeze 전 Q-013/Q-017 compile-usability gate를 별도로 통과합니다. One-time project
   binding, relation-aware query result, lazy/eager 동일 accessor, forward/reverse chaining, FK mutation cache
   invalidation과 exact transaction session을 검증합니다. GDJ-0029의 projection/runtime/compiler와 generated

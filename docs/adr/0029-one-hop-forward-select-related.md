@@ -23,8 +23,12 @@ exact implementation-head hosted acceptance는
 [EVID-20260811-056](../status/TEST_EVIDENCE.md#evid-20260811-056--gdj-0029-github-hosted-exact-26-job-implementation-head-ci)에
 기록합니다. Commit `c02aab672db5175d7a0886688efb5cc684c67744`의 run `31470292759`는 exact
 26/26 jobs·326/326 recorded steps, four-coordinate 630/630/0 inventory와 independent hosted audit
-P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이 exact 15-file completion-documentation patch 자체의 hosted CI는
-`not run/pending`이며 implementation run을 recursive proof로 재사용하지 않습니다.
+P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Exact 15-file completion-documentation head
+`fb9985e20c92f71eaca7bac81bc61466369e0ebd`도
+[EVID-20260811-057](../status/TEST_EVIDENCE.md#evid-20260811-057--gdj-0029-github-hosted-completion-documentation-head-exact-26-job-ci)의
+run `31482242288`에서 exact 26/26·326/326과 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-057을
+포함한 exact seven-file terminal 기록 자체의 hosted CI는 `not run/pending`이며 implementation/completion
+run을 그 later patch의 recursive proof로 재사용하지 않습니다.
 
 결정 범위는 REL-009/010/011을 함께 소유하는 exactly one direct forward many-to-one projection, app-local
 projection scan companion, existing object factory에 붙는 All-only eager bridge, required INNER/nullable LEFT OUTER
@@ -287,7 +291,8 @@ error, projection presence/membership corruption, resource/cancellation/cache at
 last-good/old-byte locks와 manifest three-status-only revert gates가 통과했습니다. EVID-056의 exact
 implementation-head 26/26 jobs·326/326 steps, four-coordinate 630/630/0 inventory, actual Ubuntu Linux/386,
 exact Darwin/Python, race/CGO0/vet/no-rewrite와 hosted audit도 검증 의무를 충족했습니다. Oracle, static JSON,
-SHA와 Django behavior는 byte-locked 상태를 유지합니다.
+SHA와 Django behavior는 byte-locked 상태를 유지합니다. EVID-057은 exact completion-documentation head에서
+같은 unchanged 26-job gate를 별도로 재검증했습니다.
 
 The accepted three-status manifest is exactly 10,788 bytes/SHA-256
 `64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141`; reverting only REL-009/010/011 restores the
@@ -296,5 +301,6 @@ prior 10,806 bytes/SHA-256 `70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a
 Acceptance is limited to one direct forward AutoField-ForeignKey projection, existing object-factory-attached All-only
 execution and SQLite required/nullable compilation plus reverse-path rejection. Canonical `project.Using(backend)`,
 relation-aware chaining, FK mutation/cache policy, multiple/nested/reverse eager and non-SQLite remain Q-013/Q-017 work.
-Baseline and activation runs were not reused for implementation. Implementation run `31470292759` is not reused for
-this later completion-documentation tree; completion-documentation and terminal evidence require separate heads.
+Baseline and activation runs were not reused for implementation. Implementation run `31470292759` was not reused for
+the completion-documentation tree. Completion run `31482242288` is not reused for this later exact seven-file terminal
+record; its exact-head CI remains pending.

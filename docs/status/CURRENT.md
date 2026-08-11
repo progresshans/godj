@@ -156,23 +156,21 @@
 - GDJ-0029 implementation/hosted-tested commit:
   `c02aab672db5175d7a0886688efb5cc684c67744`
   (`feat: add one-hop select related`)
+- GDJ-0029 completion-documentation/hosted-tested commit:
+  `fb9985e20c92f71eaca7bac81bc61466369e0ebd`
+  (`docs: record one-hop select related completion`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: GDJ-0029 REL-009/010/011 one-hop forward `select_related` completed,
-  [ADR-0029](../adr/0029-one-hop-forward-select-related.md) Accepted, Q-013 `Partial`, Q-017 P1/open입니다. Activation
-  commit `0a1da373a443527e48a154ca6ccc7284e5e80dc0`의
-  [EVID-055](TEST_EVIDENCE.md#evid-20260811-055--gdj-0029-activation-hosted-ci-and-rel-009010011-pre-hosted-local-validation) /
-  [run 31465198903](https://github.com/progresshans/godj/actions/runs/31465198903)은 exact 26/26 jobs·326/326
-  recorded steps와 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Pre-commit local implementation은
-  root `make ci`, exact 630/630/0·63,928 bytes·SHA-256
-  `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`와 independent runtime/codegen/
-  post-P1 integration/remediation audit P0/P1/P2/P3=`0/0/0/0`을 통과해 local exact
-  `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12였습니다. Implementation commit
-  `c02aab672db5175d7a0886688efb5cc684c67744`의
-  [EVID-056](TEST_EVIDENCE.md#evid-20260811-056--gdj-0029-github-hosted-exact-26-job-implementation-head-ci) /
-  [run 31470292759](https://github.com/progresshans/godj/actions/runs/31470292759)은 exact 26/26·326/326,
-  four-coordinate 630/630/0 inventory와 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 따라서 current
-  hosted product도 `119 + 5 + 3`, relation 9/12입니다. 이 completion-documentation patch 자체 CI는 pending입니다.
+- 현재 단계: GDJ-0029 completion-documentation head `fb9985e20c92f71eaca7bac81bc61466369e0ebd`은
+  [EVID-057](TEST_EVIDENCE.md#evid-20260811-057--gdj-0029-github-hosted-completion-documentation-head-exact-26-job-ci)의
+  hosted [run 31482242288](https://github.com/progresshans/godj/actions/runs/31482242288)에서 exact 26/26
+  jobs·326/326 recorded steps, four-coordinate 630/630/0·63,928-byte inventory와 independent hosted audit
+  P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation
+  actual REL-001/003/004/005/006/009/010/011/012 9/12입니다. Baseline/activation/implementation run은 later
+  head의 proof로 재사용하지 않았습니다.
+  GDJ-0029/[ADR-0029](../adr/0029-one-hop-forward-select-related.md)는 bounded SQLite engine slice에 한해
+  completed/Accepted이고 Q-013은 `Partial`, Q-017은 P1/open입니다. EVID-057을 포함한 exact seven-file terminal
+  기록 자체의 hosted CI는 pending이며 completion run을 재사용해 자기 자신을 증명하지 않습니다.
 - 최근 완료 작업:
   [GDJ-0029 One-hop Forward select_related Product Slice](../../work/0029-one-hop-forward-select-related-product-slice.md)
 - 활성 작업: 없음
@@ -475,6 +473,11 @@
   EVID-056/run `31470292759`는 exact head `c02aab67...`에서 four-coordinate 630/630/0·63,928 bytes·SHA-256
   `4415fd69...bca`와 exact 26/26 hosted acceptance를 통과했습니다. Activation EVID-055/run `31465198903`은
   activation head만 증명하며 implementation proof로 재사용하지 않았습니다.
+- Completion-documentation `fb9985e20c92f71eaca7bac81bc61466369e0ebd`의
+  [EVID-057](TEST_EVIDENCE.md#evid-20260811-057--gdj-0029-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  run `31482242288`은 같은 exact 26/26·326/326, four-coordinate 630/630/0 inventory와 frozen artifact gates를
+  별도 head에서 재검증했습니다. EVID-057을 포함한 terminal exact seven-file record는 자체 hosted success를 아직
+  주장하지 않습니다.
 - Independent pre-commit audit가 same physical FK edge의 terminal source-key/projection provenance 불일치를
   허용하는 P1 forged-plan gap을 발견·재현했습니다. 최소 compiler fix로 same-edge full hop equality를 pre-I/O
   강제하면서 exact same hop과 unrelated root relation filter를 보존했고, post-fix integration/remediation audits는
@@ -913,10 +916,9 @@
 ## 현재 차단 요인과 알려진 제한
 
 외부 blocker는 없습니다. GDJ-0023..GDJ-0029은 completed/Accepted bounded slices입니다. Activation
-`0a1da373...`의 run `31465198903`은 EVID-055에서 26/26·326/326과 hosted audit P0..P3=0을 통과했지만
-implementation proof로 재사용하지 않았습니다. Implementation `c02aab67...`의 EVID-056/run `31470292759`는
-exact 26/26·326/326, four-coordinate 630/630/0 inventory와 hosted audit P0..P3=0을 통과했습니다. Exact
-15-file completion-documentation head와 later terminal evidence/status head의 별도 CI만 pending입니다.
+`0a1da373...`, implementation `c02aab67...`과 completion-documentation `fb9985e2...`는 각각 별도
+run `31465198903`, `31470292759`, `31482242288`에서 exact 26/26·326/326과 hosted audit P0..P3=0을
+통과했습니다. Exact seven-file terminal evidence/status head의 별도 CI만 pending입니다.
 Final GDJ-0025 evidence/status baseline `bffc5284...`의 run
 `31359958949`도 exact 26/26·326/326을 통과했습니다. GDJ-0026 activation `aad4f7ff...`도 별도 run
 `31364944816`의 exact 26/26·326/326을 통과했고 implementation `5be46141...`은 별도 run `31370313755`의
@@ -953,12 +955,12 @@ generated upgrade policy를 위한 P1/open compile-usability gate입니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 exact 15-file completion-documentation patch의 final diff/scope, EVID-001..055 prefix,
+통합 담당자는 exact seven-file terminal evidence/status patch의 final diff/scope, EVID-001..056 prefix,
 links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only bytes를 별도 commit/push한 뒤
-exact-head 26-job CI와 hosted audit를 실행하되 implementation EVID-056/run `31470292759`을 그 later tree의
-proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 recursive pending을 닫습니다. 다음 제품
-우선순위는 Q-017 relation-aware project facade/generated upgrade compile-usability 경계를 별도 work/ADR로 먼저
-활성화하는 것이며 아직 active/ready work는 없습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
+exact-head 26-job CI와 hosted audit를 실행하되 completion EVID-057/run `31482242288`을 그 later tree의
+proof로 재사용하지 않습니다. 다음 제품 우선순위는 Q-017 relation-aware project facade/generated upgrade
+compile-usability 경계를 별도 work/ADR로 먼저 활성화하는 것이며 아직 active/ready work는 없습니다.
+Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1035,7 +1037,10 @@ proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 
 - GDJ-0029 implementation commit: `c02aab672db5175d7a0886688efb5cc684c67744`; exact 26-job run
   `31470292759` 26/26 and 326/326 recorded steps PASS; EVID-056, four-coordinate
   630/630/0·63,928 bytes·SHA-256 `4415fd69...bca`, hosted audit P0/P1/P2/P3=0
-- 현재 working tree: exact 15-file completion-documentation transition; its own exact-head hosted CI pending
+- GDJ-0029 completion-documentation commit: `fb9985e20c92f71eaca7bac81bc61466369e0ebd`; exact 26-job run
+  `31482242288` 26/26 and 326/326 recorded steps PASS; EVID-057, four-coordinate
+  630/630/0·63,928 bytes·SHA-256 `4415fd69...bca`, hosted audit P0/P1/P2/P3=0
+- 현재 working tree: exact seven-file terminal evidence/status record; its own exact-head hosted CI pending
 - 최근 완료 work:
   [GDJ-0029](../../work/0029-one-hop-forward-select-related-product-slice.md)
 - active work: 없음
@@ -1108,6 +1113,10 @@ proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 
   coordinates each exact 630/630/0·63,928 bytes·SHA-256 `4415fd69...bca`, actual Ubuntu Linux/386 exact package
   set and exact Darwin/four Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE, synthetic merge/head tree both
   `d8afce9e...`; hosted audit P0/P1/P2/P3=0
+- GDJ-0029 completion-documentation hosted: EVID-057/run 31482242288 exact 26/26·326/326 PASS;
+  relation-product four coordinates each exact 630/630/0·63,928 bytes·SHA-256 `4415fd69...bca`, actual Ubuntu
+  Linux/386 exact package set and exact Darwin/four Python legs PASS; PR OPEN/DRAFT/CLEAN/MERGEABLE, synthetic
+  merge/head tree both `48e4cdb7...`; hosted audit P0/P1/P2/P3=0
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1150,12 +1159,14 @@ proof로 재사용하지 않습니다. 이후 terminal evidence/status patch로 
   completion-documentation run 31422614250 exact 26/26 PASS; terminal evidence/status/GDJ-0028 baseline run
   31424055711 exact 26/26 PASS; GDJ-0028 activation run 31429245980 exact 26/26 PASS; implementation run
   31432551159 exact 26/26 PASS; completion-documentation run 31435136950 exact 26/26 PASS; terminal
-  evidence/status record는 recursive hosted success를 주장하지 않음
+  evidence/status/GDJ-0029 baseline run 31436881856 exact 26/26 PASS; GDJ-0029 activation run 31465198903 exact
+  26/26 PASS; implementation run 31470292759 exact 26/26 PASS; completion-documentation run 31482242288 exact
+  26/26 PASS; terminal exact seven-file record의 hosted CI는 pending
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: completion-documentation run 31435136950을 later terminal evidence/status record 자체의
-  success로 재사용하거나, bounded REL-012 acceptance를 general
-  prefetch/eager/filter/order/write/delete/DDL/migration support로 넓히거나 service-only PostgreSQL/MySQL job을
-  backend support로 표현하는 것
+- 가장 위험한 과장: completion-documentation run 31482242288을 later terminal exact seven-file record 자체의
+  success로 재사용하거나, bounded REL-009/010/011 acceptance를 canonical facade/general
+  eager/write/delete/DDL/migration support로 넓히거나 service-only PostgreSQL/MySQL job을 backend support로
+  표현하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

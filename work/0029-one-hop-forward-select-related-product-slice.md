@@ -423,7 +423,8 @@ Frozen unless a new work/ADR explicitly reopens them:
 - [x] Root normal integration and independent audits report P0/P1/P2/P3=0.
 - [x] Implementation exact-head hosted 26-job acceptance passes before completion claims.
 - [x] Completion docs/ADR status transition and EVID-056 are synchronized.
-- [ ] Completion-documentation and later terminal evidence use separate hosted heads and do not recursively reuse runs.
+- [x] Completion-documentation head is separately hosted-verified.
+- [ ] Terminal exact seven-file evidence/status head is separately hosted-verified without recursively reusing runs.
 
 ## 진행 기록
 
@@ -455,23 +456,32 @@ Frozen unless a new work/ADR explicitly reopens them:
   audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-056을 근거로 bounded ADR-0029를 Accepted, 이 work를
   completed로 전환합니다. 이 completion-documentation patch 자체 exact-head CI는 pending이며 implementation
   run을 recursive proof로 재사용하지 않습니다.
+- 2026-08-11: Exact 15-file completion-documentation commit
+  `fb9985e20c92f71eaca7bac81bc61466369e0ebd`의 Draft PR #1
+  [run 31482242288](https://github.com/progresshans/godj/actions/runs/31482242288)은 exact 26/26 jobs와
+  326/326 recorded steps를 성공했습니다. Four relation-product coordinates는 각각 exact 630 run/630 pass/
+  0 skip·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를
+  재현했고 actual Ubuntu Linux/386, exact Darwin, four exact Python compatibility legs와 independent hosted
+  audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-057은 이 exact completion-documentation head만
+  증명합니다. EVID-057을 포함한 terminal exact seven-file 기록은 later documentation-only patch이며
+  completion run을 그 exact-head proof로 재사용하지 않습니다.
 
 ## 현재 blocker와 다음 정확한 작업
 
-외부 제품 blocker는 없습니다. Activation, local implementation/audit와 exact implementation-head hosted
-acceptance/audit가 모두 통과했습니다. Exact 15-file completion-documentation patch의 scope, EVID-001..055 prefix,
-links/frontmatter/fences와 `git diff --check`를 검증한 뒤 documentation-only head로 별도 CI를 실행합니다. 이후
-terminal evidence/status patch로 recursive pending을 닫습니다. Q-013은 `Partial`, Q-017은 P1/open으로 유지하며
-canonical relation facade는 별도 work/ADR을 활성화하기 전 구현 사실로 표현하지 않습니다. Draft PR은 사용자
-요청 전 merge하지 않습니다.
+외부 제품 blocker는 없습니다. Activation, local implementation/audit, exact implementation-head와 exact
+completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Exact seven-file terminal patch의
+scope, EVID-001..056 prefix, links/frontmatter/fences와 `git diff --check`를 검증한 뒤 documentation-only head로
+별도 CI를 실행합니다. EVID-057/run `31482242288`을 그 later tree의 proof로 재사용하지 않습니다.
+Q-013은 `Partial`, Q-017은 P1/open으로 유지하며 canonical relation facade는 별도 work/ADR을 활성화하기 전
+구현 사실로 표현하지 않습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- GDJ-0029은 implementation head `c02aab672db5175d7a0886688efb5cc684c67744`, exact-26 run
-  `31470292759`까지 completed입니다. EVID-055는 activation/local pre-hosted evidence, EVID-056은 exact hosted
-  implementation-head evidence입니다.
+- GDJ-0029은 completion-documentation head `fb9985e20c92f71eaca7bac81bc61466369e0ebd`, exact-26 run
+  `31482242288`까지 completed입니다. EVID-055는 activation/local pre-hosted, EVID-056은 implementation-head,
+  EVID-057은 completion-documentation-head hosted evidence입니다.
 - Current product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
   630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`입니다.
 - ADR-0029은 bounded engine slice에 한해 Accepted; Q-013은 `Partial`, Q-017은 P1/open입니다.
 - implementation scope: exact paths in frontmatter; all other code/product/oracle/schema bytes frozen
-- next evidence: exact 15-file completion-documentation hosted CI; EVID-056 implementation evidence와 별도 기록
+- next evidence: exact seven-file terminal hosted CI; EVID-057 completion-documentation evidence와 별도 기록
