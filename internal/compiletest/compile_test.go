@@ -17,7 +17,7 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 func TestExternalConsumerCompiles(t *testing.T) {
-	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt", "relation_object/external_consumer.go.txt", "relation_reverse/external_consumer.go.txt", "relation_prefetch/external_consumer.go.txt"} {
+	for _, fixture := range []string{"external_consumer.go.txt", "write_external_consumer.go.txt", "save_external_consumer.go.txt", "migration_external_consumer.go.txt", "migration_definition_external_consumer.go.txt", "project_external_consumer.go.txt", "relation_project/external_consumer.go.txt", "relation_query/external_consumer.go.txt", "relation_object/external_consumer.go.txt", "relation_reverse/external_consumer.go.txt", "relation_prefetch/external_consumer.go.txt", "relation_select_related/external_consumer.go.txt"} {
 		result := compileFixture(t, fixture)
 		if result.err != nil {
 			t.Fatalf("external consumer %s did not compile: %v\n%s", fixture, result.err, result.output)
@@ -196,6 +196,21 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			wantFragments: []string{
 				"relations.AuthorsAuthor.Posts.Title.Exact",
 				"orm.Predicate[blog.Post]",
+			},
+		},
+		{
+			name:    "select-related source QuerySet keeps source model",
+			fixture: "relation_select_related/source_queryset_mismatch.go.txt",
+			wantFragments: []string{
+				"cannot use authors.AuthorObjects.Using(backend)",
+				"orm.QuerySet[blog.Post]",
+			},
+		},
+		{
+			name:    "select-related remains singular",
+			fixture: "relation_select_related/multiple_selection.go.txt",
+			wantFragments: []string{
+				"Author().Reviewer undefined",
 			},
 		},
 	}

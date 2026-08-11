@@ -38,6 +38,8 @@ const (
 	CodeRelatedObjectMissing         = "related_object_missing"
 	CodeRelatedObjectCardinality     = "related_object_cardinality"
 	CodeRelatedSetMembership         = "related_set_membership"
+	CodeInvalidRelatedPath           = "invalid_related_path"
+	CodeRelatedObjectProjection      = "related_object_projection"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and

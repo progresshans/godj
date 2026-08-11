@@ -97,7 +97,7 @@ func TestGenerateEmitsPayloadFreeNotImplementedForUnregisteredOracleLocked(t *te
 	}
 }
 
-func TestRelationProductGeneratesSixObservedAndSixLockedContracts(t *testing.T) {
+func TestRelationProductGeneratesNineObservedAndThreeLockedContracts(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, expected := loadRelationProductInputs(t)
@@ -105,8 +105,8 @@ func TestRelationProductGeneratesSixObservedAndSixLockedContracts(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(required, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"}) {
-		t.Fatalf("required observed IDs = %#v, want REL-001/003/004/005/006/012", required)
+	if !reflect.DeepEqual(required, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-009", "REL-010", "REL-011", "REL-012"}) {
+		t.Fatalf("required observed IDs = %#v, want REL-001/003/004/005/006/009/010/011/012", required)
 	}
 	actual, err := Generate(context.Background(), profile, manifest)
 	if err != nil {
@@ -119,10 +119,10 @@ func TestRelationProductGeneratesSixObservedAndSixLockedContracts(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(strictDifferences) != 6 {
-		t.Fatalf("strict relation differences = %d, want 6 not-implemented mismatches", len(strictDifferences))
+	if len(strictDifferences) != 3 {
+		t.Fatalf("strict relation differences = %d, want 3 not-implemented mismatches", len(strictDifferences))
 	}
-	wantLocked := []string{"REL-002", "REL-007", "REL-008", "REL-009", "REL-010", "REL-011"}
+	wantLocked := []string{"REL-002", "REL-007", "REL-008"}
 	for index, difference := range strictDifferences {
 		if difference.ContractID != wantLocked[index] || difference.Path != "status" {
 			t.Fatalf("strict difference %d = %#v", index, difference)
@@ -202,7 +202,7 @@ func TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation(t *testing.
 			}
 			actual := cloneObservationSuite(t, base)
 			actual.Contracts[0] = observation
-			differences, err := protocol.CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"})
+			differences, err := protocol.CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-009", "REL-010", "REL-011", "REL-012"})
 			if err != nil {
 				t.Fatal(err)
 			}

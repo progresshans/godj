@@ -195,7 +195,7 @@
       "title": "select_related on a required forward relation replaces three lazy loads with one inner join",
       "scenario": "django.relation.required_select_related",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -223,7 +223,7 @@
       "title": "select_related on a nullable forward relation uses one left outer join",
       "scenario": "django.relation.nullable_select_related",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -245,7 +245,7 @@
       "title": "select_related rejects a multi-valued reverse ForeignKey path before SQL execution",
       "scenario": "django.relation.invalid_reverse_select_related",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

@@ -424,6 +424,216 @@ func TestCompileNullableForwardSourceKeyCanCoexistWithRequiredJoin(t *testing.T)
 	}
 }
 
+func TestCompileRequiredForwardProjectionSelectsRootThenTargetAndReusesPredicateJoin(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
+	projection := forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName})
+	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+		query.NewRelatedCondition(requiredAuthorPath(t, targetName), query.LookupExact, query.String("Ada")),
+	).WithOrderings(query.NewOrdering(id, query.Ascending))
+	plan, err := plan.WithRelationProjection(projection)
+	if err != nil {
+		t.Fatalf("WithRelationProjection() error = %v", err)
+	}
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	want := `SELECT "t0"."id", "t0"."title", "t0"."author_id", "t0"."reviewer_id", "t1"."id", "t1"."name" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t1"."name" = ? ORDER BY "t0"."id" ASC`
+	if statement != want {
+		t.Fatalf("SQL = %q\nwant  %q", statement, want)
+	}
+	if strings.Count(statement, " INNER JOIN ") != 1 {
+		t.Fatalf("required projection did not reuse predicate JOIN: %s", statement)
+	}
+	if wantArguments := []any{"Ada"}; !reflect.DeepEqual(arguments, wantArguments) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, wantArguments)
+	}
+}
+
+func TestCompileNullableForwardProjectionUsesLeftOuterJoinAndPreservesRootPlan(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
+	projection := forwardProjection(t, reviewerID, targetID, []query.FieldRef{targetID, targetName})
+	plan := query.NewPlan("blog_post", []query.FieldRef{id, title, authorID, reviewerID}).WithConditions(
+		query.NewCondition(title, query.LookupIContains, query.String("a")),
+	).WithOrderings(query.NewOrdering(id, query.Descending))
+	plan, err := plan.WithLimit(2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err = plan.WithRelationProjection(projection)
+	if err != nil {
+		t.Fatalf("WithRelationProjection() error = %v", err)
+	}
+
+	statement, arguments, err := sqlite.Compile(plan)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	want := `SELECT "t0"."id", "t0"."title", "t0"."author_id", "t0"."reviewer_id", "t1"."id", "t1"."name" FROM "blog_post" AS "t0" LEFT OUTER JOIN "authors_author" AS "t1" ON "t0"."reviewer_id" = "t1"."id" WHERE "t0"."title" LIKE ? ESCAPE '\' ORDER BY "t0"."id" DESC LIMIT ?`
+	if statement != want {
+		t.Fatalf("SQL = %q\nwant  %q", statement, want)
+	}
+	if strings.Contains(statement, " INNER JOIN ") || strings.Count(statement, " LEFT OUTER JOIN ") != 1 {
+		t.Fatalf("nullable projection JOIN shape = %s", statement)
+	}
+	if wantArguments := []any{"%a%", int64(2)}; !reflect.DeepEqual(arguments, wantArguments) {
+		t.Fatalf("arguments = %#v, want %#v", arguments, wantArguments)
+	}
+}
+
+func TestCompileForwardProjectionRejectsUnrelatedRelationPredicate(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
+	projection := forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName})
+	editorPath, err := query.NewForwardRelationPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post", "editor", "editor_id",
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author", "id", false, targetName,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := query.NewPlan("blog_post", []query.FieldRef{id, authorID}).WithConditions(
+		query.NewRelatedCondition(editorPath, query.LookupExact, query.String("Ada")),
+	)
+	plan, err = plan.WithRelationProjection(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = sqlite.Compile(plan)
+	assertQueryCode(t, err, query.CodeInvalidPlan)
+}
+
+func TestCompileForwardProjectionChecksMatchingSourceKeyProvenance(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
+	reviewerProjection := forwardProjection(t, reviewerID, targetID, []query.FieldRef{targetID, targetName})
+
+	t.Run("same hop remains valid", func(t *testing.T) {
+		path := nullableReviewerPath(t, reviewerID)
+		plan := query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}).WithConditions(
+			query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
+		)
+		plan, err := plan.WithRelationProjection(reviewerProjection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statement, arguments, err := sqlite.Compile(plan)
+		if err != nil {
+			t.Fatalf("Compile() error = %v", err)
+		}
+		want := `SELECT "t0"."id", "t0"."reviewer_id", "t1"."id", "t1"."name" FROM "blog_post" AS "t0" LEFT OUTER JOIN "authors_author" AS "t1" ON "t0"."reviewer_id" = "t1"."id" WHERE "t0"."reviewer_id" IS NULL`
+		if statement != want || len(arguments) != 0 {
+			t.Fatalf("Compile() = (%q, %#v), want (%q, no arguments)", statement, arguments, want)
+		}
+	})
+
+	validSource := ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}
+	validTarget := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	for _, test := range []struct {
+		name        string
+		source      ir.ModelIdentity
+		target      ir.ModelIdentity
+		targetTable string
+		targetPK    string
+	}{
+		{name: "source identity mismatch", source: ir.ModelIdentity{AppLabel: "news", ModelName: "post"}, target: validTarget, targetTable: "authors_author", targetPK: "id"},
+		{name: "target identity mismatch", source: validSource, target: ir.ModelIdentity{AppLabel: "people", ModelName: "person"}, targetTable: "authors_author", targetPK: "id"},
+		{name: "target table mismatch", source: validSource, target: validTarget, targetTable: "people_person", targetPK: "id"},
+		{name: "target primary key mismatch", source: validSource, target: validTarget, targetTable: "authors_author", targetPK: "uuid"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			path, err := query.NewNullableForwardRelationIsNullPath(
+				test.source,
+				"blog_post",
+				reviewerID,
+				test.target,
+				test.targetTable,
+				test.targetPK,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plan := query.NewPlan("blog_post", []query.FieldRef{id, reviewerID}).WithConditions(
+				query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
+			)
+			plan, err = plan.WithRelationProjection(reviewerProjection)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, _, err = sqlite.Compile(plan)
+			assertQueryCode(t, err, query.CodeInvalidPlan)
+		})
+	}
+
+	t.Run("unrelated nullable source key remains a root filter", func(t *testing.T) {
+		path := nullableReviewerPath(t, reviewerID)
+		authorProjection := forwardProjection(t, authorID, targetID, []query.FieldRef{targetID, targetName})
+		plan := query.NewPlan("blog_post", []query.FieldRef{id, authorID, reviewerID}).WithConditions(
+			query.NewRelatedCondition(path, query.LookupIsNull, query.Boolean(true)),
+		)
+		plan, err := plan.WithRelationProjection(authorProjection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statement, arguments, err := sqlite.Compile(plan)
+		if err != nil {
+			t.Fatalf("Compile() error = %v", err)
+		}
+		want := `SELECT "t0"."id", "t0"."author_id", "t0"."reviewer_id", "t1"."id", "t1"."name" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t0"."reviewer_id" IS NULL`
+		if statement != want || len(arguments) != 0 {
+			t.Fatalf("Compile() = (%q, %#v), want (%q, no arguments)", statement, arguments, want)
+		}
+	})
+}
+
+func forwardProjection(
+	t *testing.T,
+	sourceKey query.FieldRef,
+	targetKey query.FieldRef,
+	targetColumns []query.FieldRef,
+) query.RelationProjection {
+	t.Helper()
+	projection, err := query.NewForwardRelationProjection(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post",
+		sourceKey,
+		ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+		"authors_author",
+		targetKey,
+		targetColumns,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return projection
+}
+
 func TestCompileNullableForwardSourceKeyRejectsMutationBeforeIO(t *testing.T) {
 	t.Parallel()
 

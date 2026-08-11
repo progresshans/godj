@@ -2,6 +2,7 @@ package godj
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -11,7 +12,9 @@ import (
 	"github.com/progresshans/godj/conformance/relationproduct"
 	"github.com/progresshans/godj/conformance/relationqueryproduct"
 	"github.com/progresshans/godj/conformance/relationreverseproduct"
+	"github.com/progresshans/godj/conformance/relationselectproduct"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -27,11 +30,88 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 		return relationReverseAccessorAndLookup, true
 	case "django.relation.nullable_access_and_isnull":
 		return relationNullableAccessAndIsNull, true
+	case "django.relation.required_select_related":
+		return relationRequiredSelectRelated, true
+	case "django.relation.nullable_select_related":
+		return relationNullableSelectRelated, true
+	case "django.relation.invalid_reverse_select_related":
+		return relationInvalidReverseSelectRelated, true
 	case "django.relation.reverse_prefetch":
 		return relationReversePrefetch, true
 	default:
 		return nil, false
 	}
+}
+
+func relationRequiredSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationselectproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-009/010/011 product: %w", err)
+	}
+	result := protocol.Object(map[string]protocol.Value{
+		"plain": relationSelectedRowsValue(observed.Required.Plain),
+		"eager": relationSelectedRowsValue(observed.Required.Eager),
+	})
+	metrics := protocol.Object(map[string]protocol.Value{
+		"plain": relationSelectQueryMetricsValue(observed.Required.PlainMetrics),
+		"eager": relationSelectQueryMetricsValue(observed.Required.EagerMetrics),
+	})
+	databaseState := relationSelectDatabaseStateValue(observed.DBState)
+	return protocol.Observation{
+		ID:      contract.ID,
+		Status:  protocol.StatusObserved,
+		Phase:   contract.Phase,
+		Result:  &result,
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
+}
+
+func relationNullableSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationselectproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-009/010/011 product: %w", err)
+	}
+	result := protocol.Object(map[string]protocol.Value{
+		"rows": relationSelectedRowsValue(observed.Nullable.Rows),
+	})
+	metrics := relationSelectQueryMetricsValue(observed.Nullable.Metrics)
+	databaseState := relationSelectDatabaseStateValue(observed.DBState)
+	return protocol.Observation{
+		ID:      contract.ID,
+		Status:  protocol.StatusObserved,
+		Phase:   contract.Phase,
+		Result:  &result,
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
+}
+
+func relationInvalidReverseSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationselectproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-009/010/011 product: %w", err)
+	}
+	var queryError *query.Error
+	if !errors.As(observed.Invalid.Err, &queryError) {
+		return protocol.Observation{}, fmt.Errorf("REL-011 error = %v, want *query.Error", observed.Invalid.Err)
+	}
+	messageIsContract := false
+	metrics := relationSelectInvalidMetricsValue(observed.Invalid.Metrics)
+	databaseState := relationSelectDatabaseStateValue(observed.DBState)
+	return protocol.Observation{
+		ID:     contract.ID,
+		Status: protocol.StatusObserved,
+		Phase:  contract.Phase,
+		Error: &protocol.ObservedError{
+			Category:          queryError.Category,
+			Code:              queryError.Code,
+			Message:           queryError.Error(),
+			MessageIsContract: &messageIsContract,
+		},
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
 }
 
 func relationForwardLazyCache(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
@@ -293,6 +373,56 @@ func relationPrefetchQueryMetricsValue(metrics relationprefetchproduct.QueryMetr
 	})
 }
 
+func relationSelectQueryMetricsValue(metrics relationselectproduct.QueryMetrics) protocol.Value {
+	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
+	for index, kind := range metrics.StatementKinds {
+		statementKinds[index] = protocol.String(kind)
+	}
+	joinKinds := make([]protocol.Value, len(metrics.JoinKinds))
+	for index, kind := range metrics.JoinKinds {
+		joinKinds[index] = protocol.String(kind)
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"query_count":           protocol.Integer(strconv.FormatInt(metrics.QueryCount, 10)),
+		"statement_kinds":       protocol.List(statementKinds...),
+		"join_kinds":            protocol.List(joinKinds...),
+		"inner_join_count":      protocol.Integer(strconv.FormatInt(metrics.InnerJoinCount, 10)),
+		"left_outer_join_count": protocol.Integer(strconv.FormatInt(metrics.LeftOuterJoinCount, 10)),
+		"access_extra_queries":  protocol.Integer(strconv.FormatInt(metrics.AccessExtraQueries, 10)),
+	})
+}
+
+func relationSelectInvalidMetricsValue(metrics relationselectproduct.QueryMetrics) protocol.Value {
+	statementKinds := make([]protocol.Value, len(metrics.StatementKinds))
+	for index, kind := range metrics.StatementKinds {
+		statementKinds[index] = protocol.String(kind)
+	}
+	joinKinds := make([]protocol.Value, len(metrics.JoinKinds))
+	for index, kind := range metrics.JoinKinds {
+		joinKinds[index] = protocol.String(kind)
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"query_count":           protocol.Integer(strconv.FormatInt(metrics.QueryCount, 10)),
+		"statement_kinds":       protocol.List(statementKinds...),
+		"join_kinds":            protocol.List(joinKinds...),
+		"inner_join_count":      protocol.Integer(strconv.FormatInt(metrics.InnerJoinCount, 10)),
+		"left_outer_join_count": protocol.Integer(strconv.FormatInt(metrics.LeftOuterJoinCount, 10)),
+		"mutation_count":        protocol.Integer(strconv.FormatInt(metrics.MutationCount, 10)),
+	})
+}
+
+func relationSelectedRowsValue(rows []relationselectproduct.PostRelatedRow) protocol.Value {
+	values := make([]protocol.Value, len(rows))
+	for index, row := range rows {
+		name := protocol.Null()
+		if row.Name != nil {
+			name = protocol.String(*row.Name)
+		}
+		values[index] = protocol.List(relationPrimaryKey(row.PostID), name)
+	}
+	return protocol.List(values...)
+}
+
 func relationDatabaseStateValue(state relationqueryproduct.DatabaseState) protocol.Value {
 	authors := make([]protocol.Value, len(state.Authors))
 	for index, author := range state.Authors {
@@ -379,6 +509,33 @@ func relationReverseDatabaseStateValue(state relationreverseproduct.DatabaseStat
 }
 
 func relationPrefetchDatabaseStateValue(state relationprefetchproduct.DatabaseState) protocol.Value {
+	authors := make([]protocol.Value, len(state.Authors))
+	for index, author := range state.Authors {
+		authors[index] = protocol.Object(map[string]protocol.Value{
+			"id":   relationPrimaryKey(author.ID),
+			"name": protocol.String(author.Name),
+		})
+	}
+	posts := make([]protocol.Value, len(state.Posts))
+	for index, post := range state.Posts {
+		reviewer := protocol.Null()
+		if post.ReviewerID != nil {
+			reviewer = relationPrimaryKey(*post.ReviewerID)
+		}
+		posts[index] = protocol.Object(map[string]protocol.Value{
+			"id":          relationPrimaryKey(post.ID),
+			"title":       protocol.String(post.Title),
+			"author_id":   relationPrimaryKey(post.AuthorID),
+			"reviewer_id": reviewer,
+		})
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"authors": protocol.List(authors...),
+		"posts":   protocol.List(posts...),
+	})
+}
+
+func relationSelectDatabaseStateValue(state relationselectproduct.DatabaseState) protocol.Value {
 	authors := make([]protocol.Value, len(state.Authors))
 	for index, author := range state.Authors {
 		authors[index] = protocol.Object(map[string]protocol.Value{

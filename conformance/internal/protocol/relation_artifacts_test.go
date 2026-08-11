@@ -22,8 +22,8 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/relation-manifest.json": {
-			size:   10806,
-			sha256: "70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a5915b29da477",
+			size:   10788,
+			sha256: "64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141",
 		},
 		"conformance/fixtures/godj-relation-not-implemented.json": {
 			size:   1859,
@@ -84,6 +84,17 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 			),
 			digest: "35e8c2f5c44fc12721e5ed3fc72c71a5ef85c69e538f2aa4cbd7660b859fa7b9",
 		},
+		{
+			name: "new exact twelve-file select-related product",
+			path: "relationselectproduct",
+			files: append(append([]string(nil), common...),
+				"project/zz_godj_relation_object.go",
+				"authors/zz_godj_relation_projection.go",
+				"blog/zz_godj_relation_projection.go",
+				"project/zz_godj_relation_select_related.go",
+			),
+			digest: "3f40133f93d2ac2014276c2e07396a1db74acdb2ebc4b8ff44e29ac1208df535",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -103,7 +114,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 	}
 }
 
-func TestRelationManifestDiffIsExactlyReviewedREL012StatusTransition(t *testing.T) {
+func TestRelationManifestDiffIsExactlyReviewedREL009REL010REL011StatusTransition(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -112,27 +123,28 @@ func TestRelationManifestDiffIsExactlyReviewedREL012StatusTransition(t *testing.
 		t.Fatal(err)
 	}
 	passing := []byte(`"status": "passing"`)
-	if count := bytes.Count(contents, passing); count != 6 {
-		t.Fatalf("relation manifest passing status count = %d, want exact 6", count)
+	if count := bytes.Count(contents, passing); count != 9 {
+		t.Fatalf("relation manifest passing status count = %d, want exact 9", count)
 	}
 	restored := append([]byte(nil), contents...)
-	const identifier = "REL-012"
-	marker := []byte(`"id": "` + identifier + `"`)
-	start := bytes.Index(restored, marker)
-	if start < 0 {
-		t.Fatalf("%s contract is missing", identifier)
+	for _, identifier := range []string{"REL-009", "REL-010", "REL-011"} {
+		marker := []byte(`"id": "` + identifier + `"`)
+		start := bytes.Index(restored, marker)
+		if start < 0 {
+			t.Fatalf("%s contract is missing", identifier)
+		}
+		relative := bytes.Index(restored[start:], passing)
+		if relative < 0 {
+			t.Fatalf("%s passing transition is missing", identifier)
+		}
+		transition := start + relative
+		restored = append(restored[:transition], append([]byte(`"status": "oracle_locked"`), restored[transition+len(passing):]...)...)
 	}
-	relative := bytes.Index(restored[start:], passing)
-	if relative < 0 {
-		t.Fatalf("%s passing transition is missing", identifier)
+	if len(restored) != 10806 {
+		t.Fatalf("restored relation manifest size = %d, want prior GDJ-0028 size 10806", len(restored))
 	}
-	transition := start + relative
-	restored = append(restored[:transition], append([]byte(`"status": "oracle_locked"`), restored[transition+len(passing):]...)...)
-	if len(restored) != 10812 {
-		t.Fatalf("restored relation manifest size = %d, want prior GDJ-0027 size 10812", len(restored))
-	}
-	if got := fmt.Sprintf("%x", sha256.Sum256(restored)); got != "640b24e9e543b66375ea1dafa45750a6d2716c1b3f1e2602afcd7e2a3b68f136" {
-		t.Fatalf("restored relation manifest checksum = %q, want prior GDJ-0027 bytes", got)
+	if got := fmt.Sprintf("%x", sha256.Sum256(restored)); got != "70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a5915b29da477" {
+		t.Fatalf("restored relation manifest checksum = %q, want prior GDJ-0028 bytes", got)
 	}
 }
 
@@ -198,7 +210,7 @@ func TestRelationArtifactBoundaryIsLocked(t *testing.T) {
 			t.Fatalf("contract %s scenario = %q, want %q", contract.ID, contract.Scenario, wantSlugs[index])
 		}
 		wantStatus := ContractOracleLocked
-		if index == 0 || index == 2 || index == 3 || index == 4 || index == 5 || index == 11 {
+		if index == 0 || index == 2 || index == 3 || index == 4 || index == 5 || index == 8 || index == 9 || index == 10 || index == 11 {
 			wantStatus = ContractPassing
 		}
 		if contract.Status != wantStatus {

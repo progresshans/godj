@@ -43,6 +43,20 @@ func TestPlanLimitValidation(t *testing.T) {
 	}
 }
 
+func TestProjectionErrorCodesAreStableAndDistinct(t *testing.T) {
+	t.Parallel()
+
+	if query.CodeInvalidRelatedPath != "invalid_related_path" {
+		t.Fatalf("CodeInvalidRelatedPath = %q", query.CodeInvalidRelatedPath)
+	}
+	if query.CodeRelatedObjectProjection != "related_object_projection" {
+		t.Fatalf("CodeRelatedObjectProjection = %q", query.CodeRelatedObjectProjection)
+	}
+	if query.CodeInvalidRelatedPath == query.CodeRelatedObjectProjection {
+		t.Fatal("projection taxonomy codes collide")
+	}
+}
+
 func TestInConditionClonesValuesAndPlanEqualityUsesListContents(t *testing.T) {
 	t.Parallel()
 

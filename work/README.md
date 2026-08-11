@@ -139,9 +139,16 @@ audit P0/P1/P2/P3=0을 통과해 EVID-049에 기록했습니다. Q-013은 `Parti
   그 terminal evidence/status commit `5c0efef12560203d720e4c2dd7bda50c0324a228`의 별도
   [run 31436881856](https://github.com/progresshans/godj/actions/runs/31436881856)은 exact 26/26·326/326과 hosted
   audit P0/P1/P2/P3=0을 통과해 EVID-054에 기록했습니다. GDJ-0029는 이 clean tested baseline에서
-  REL-009/010/011 indivisible one-hop forward eager projection과 Proposed ADR-0029를 활성화합니다. Current는
-  exact `116 + 5 + 6`, relation 6/12이고 target-only `119 + 5 + 3`, relation 9/12입니다. Baseline run은
-  activation/API/implementation evidence로 재사용하지 않습니다.
+  REL-009/010/011 indivisible one-hop forward eager projection과 Proposed ADR-0029를 활성화했습니다. Activation
+  commit `0a1da373a443527e48a154ca6ccc7284e5e80dc0`의
+  [run 31465198903](https://github.com/progresshans/godj/actions/runs/31465198903)은 exact 26/26·326/326과 hosted
+  audit P0/P1/P2/P3=0을 통과했습니다. Uncommitted exact 49-entry implementation은 root `make ci`, exact
+  630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`와
+  local `119 + 5 + 3`, relation 9/12를 통과했습니다. Independent pre-commit audit에서 forged
+  source-key/projection provenance P1을 발견·재현·수정했고 post-fix runtime/codegen/integration/remediation
+  audits는 모두 P0/P1/P2/P3=0입니다. EVID-055는 activation과 pre-hosted local 증거를 분리해 기록하며,
+  implementation exact-head hosted acceptance 전 hosted-accepted 분류는 `116 + 5 + 6`, relation 6/12입니다.
+  ADR-0029는 Proposed, work는 active, Q-013은 `Partial`, Q-017은 open입니다.
 GDJ-0024는 baseline `50578ddc...`의 EVID-034 exact 22/22를 GDJ-0023 final evidence로 닫고,
 mixed v2 target/v3 relation source companion, atomic `orm.BindProject`와 REL-001 metadata만 구현할 exact
 boundary를 활성화했습니다. Activation commit `758cd093...`은 run `31344980929`의 exact 22/22·273/273

@@ -10,6 +10,9 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
+	if _, selected := plan.RelationProjection(); selected {
+		return compileRelation(plan)
+	}
 	for _, condition := range plan.Conditions() {
 		if _, related := condition.RelationPath(); related {
 			return compileRelation(plan)
@@ -115,8 +118,9 @@ type relationJoinKey struct {
 }
 
 type relationJoin struct {
-	hop   query.RelationHop
-	alias string
+	hop       query.RelationHop
+	alias     string
+	leftOuter bool
 }
 
 func compileRelation(plan query.Plan) (string, []any, error) {
@@ -132,6 +136,7 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 	joinsByKey := make(map[relationJoinKey]query.RelationHop)
 	conditionKeys := make([]relationJoinKey, len(conditions))
 	relatedConditions := make([]bool, len(conditions))
+	sourceKeyHops := make([]query.RelationHop, 0, len(conditions))
 	for index, condition := range conditions {
 		path, related := condition.RelationPath()
 		if !related {
@@ -180,6 +185,7 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			if err := validateNullableSourceKeyCondition(columns, condition, hop); err != nil {
 				return "", nil, err
 			}
+			sourceKeyHops = append(sourceKeyHops, hop)
 			// A nullable source-key path retains relation provenance in the
 			// plan, but compiles against the root alias without allocating a
 			// JOIN. Its condition key intentionally remains the zero value.
@@ -202,6 +208,36 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		conditionKeys[index] = key
 	}
 
+	projection, selected := plan.RelationProjection()
+	var projectionKey relationJoinKey
+	if selected {
+		var err error
+		projectionKey, err = validateRelationProjection(plan, projection)
+		if err != nil {
+			return "", nil, err
+		}
+		hop := projection.Hop()
+		for _, sourceKeyHop := range sourceKeyHops {
+			if sameRelationSourceEdge(sourceKeyHop, hop) && !sourceKeyHop.Equal(hop) {
+				return "", nil, invalidPlan("relation projection source-key provenance does not match the selected edge")
+			}
+		}
+		if previous, exists := joinsByKey[projectionKey]; exists && !previous.Equal(hop) {
+			return "", nil, invalidPlan(fmt.Sprintf(
+				"relation edge %s.%s.%s has inconsistent predicate and projection metadata",
+				projectionKey.sourceApp,
+				projectionKey.sourceModel,
+				projectionKey.field,
+			))
+		}
+		joinsByKey[projectionKey] = hop
+		for key := range joinsByKey {
+			if key != projectionKey {
+				return "", nil, invalidPlan("SQLite relation projection cannot combine unrelated relation joins")
+			}
+		}
+	}
+
 	keys := make([]relationJoinKey, 0, len(joinsByKey))
 	for key := range joinsByKey {
 		keys = append(keys, key)
@@ -211,7 +247,12 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 	})
 	joins := make(map[relationJoinKey]relationJoin, len(keys))
 	for index, key := range keys {
-		joins[key] = relationJoin{hop: joinsByKey[key], alias: fmt.Sprintf("t%d", index+1)}
+		hop := joinsByKey[key]
+		joins[key] = relationJoin{
+			hop:       hop,
+			alias:     fmt.Sprintf("t%d", index+1),
+			leftOuter: selected && key == projectionKey && hop.Nullable(),
+		}
 	}
 
 	const rootAlias = "t0"
@@ -226,6 +267,17 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			return "", nil, err
 		}
 		sql.WriteString(qualified)
+	}
+	if selected {
+		alias := joins[projectionKey].alias
+		for _, column := range projection.TargetColumns() {
+			sql.WriteString(", ")
+			qualified, err := quoteQualified(alias, column.Column())
+			if err != nil {
+				return "", nil, err
+			}
+			sql.WriteString(qualified)
+		}
 	}
 	table, err := quoteIdentifier(plan.Table())
 	if err != nil {
@@ -265,7 +317,11 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		if err != nil {
 			return "", nil, err
 		}
-		sql.WriteString(" INNER JOIN ")
+		if join.leftOuter {
+			sql.WriteString(" LEFT OUTER JOIN ")
+		} else {
+			sql.WriteString(" INNER JOIN ")
+		}
 		sql.WriteString(joinedTable)
 		sql.WriteString(" AS ")
 		sql.WriteString(alias)
@@ -329,6 +385,76 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		arguments = append(arguments, int64(limit))
 	}
 	return sql.String(), arguments, nil
+}
+
+func validateRelationProjection(plan query.Plan, projection query.RelationProjection) (relationJoinKey, error) {
+	hop := projection.Hop()
+	if hop.Direction() != query.RelationForward || hop.Cardinality() != ir.RelationManyToOne || hop.ReverseName() != "" {
+		return relationJoinKey{}, invalidPlan("SQLite relation projection requires one direct forward many-to-one hop")
+	}
+	if hop.SourceTable() != plan.Table() {
+		return relationJoinKey{}, invalidPlan(fmt.Sprintf(
+			"relation projection source table %q does not match plan root table %q",
+			hop.SourceTable(),
+			plan.Table(),
+		))
+	}
+	if !canonicalRelationIdentity(hop.Source()) || !canonicalRelationIdentity(hop.Target()) ||
+		!canonicalRelationIdentifier(hop.SourceTable()) || !canonicalRelationIdentifier(hop.Field()) ||
+		!canonicalRelationIdentifier(hop.SourceColumn()) || !canonicalRelationIdentifier(hop.TargetTable()) ||
+		!canonicalRelationIdentifier(hop.TargetPrimaryKeyColumn()) {
+		return relationJoinKey{}, invalidPlan("relation projection contains non-canonical metadata")
+	}
+	sourceKey := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
+	if !containsField(plan.Columns(), sourceKey) {
+		return relationJoinKey{}, invalidPlan(fmt.Sprintf(
+			"relation projection source key %q is not selected model metadata",
+			hop.Field(),
+		))
+	}
+	targetColumns := projection.TargetColumns()
+	if len(targetColumns) == 0 {
+		return relationJoinKey{}, invalidPlan("relation projection target columns are empty")
+	}
+	primaryKeyCount := 0
+	names := make(map[string]struct{}, len(targetColumns))
+	columns := make(map[string]struct{}, len(targetColumns))
+	for _, field := range targetColumns {
+		if !canonicalRelationIdentifier(field.Name()) || !canonicalRelationIdentifier(field.Column()) ||
+			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString && field.Kind() != query.FieldBoolean) {
+			return relationJoinKey{}, invalidPlan("relation projection contains an unsupported target field")
+		}
+		if _, exists := names[field.Name()]; exists {
+			return relationJoinKey{}, invalidPlan("relation projection contains a duplicate target field")
+		}
+		if _, exists := columns[field.Column()]; exists {
+			return relationJoinKey{}, invalidPlan("relation projection contains a duplicate target column")
+		}
+		names[field.Name()] = struct{}{}
+		columns[field.Column()] = struct{}{}
+		if field.Column() == hop.TargetPrimaryKeyColumn() {
+			if field.Kind() != query.FieldInteger || field.Nullable() {
+				return relationJoinKey{}, invalidPlan("relation projection target primary key must be a non-null integer")
+			}
+			primaryKeyCount++
+		}
+	}
+	if primaryKeyCount != 1 {
+		return relationJoinKey{}, invalidPlan("relation projection must contain its target primary key exactly once")
+	}
+	return relationJoinKey{
+		sourceApp:   hop.Source().AppLabel,
+		sourceModel: hop.Source().ModelName,
+		field:       hop.Field(),
+		targetApp:   hop.Target().AppLabel,
+		targetModel: hop.Target().ModelName,
+		direction:   hop.Direction(),
+	}, nil
+}
+
+func sameRelationSourceEdge(left, right query.RelationHop) bool {
+	return left.Field() == right.Field() &&
+		left.SourceColumn() == right.SourceColumn()
 }
 
 func validateNullableSourceKeyCondition(

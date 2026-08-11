@@ -77,10 +77,11 @@ GDJ-0029는 locked Django 6.1 relation contracts REL-009/010/011을 하나의 bo
 4. 모든 source/target row와 resource/context를 검증한 뒤에만 ready related objects를 포함한 결과를
    원자적으로 공개합니다.
 
-현재 제품은 exact 12 checked-in manifests/127 contracts =
+현재 hosted-accepted 제품은 exact 12 checked-in manifests/127 contracts =
 `116 passing + 5 deviation + 6 oracle_locked`, relation actual REL-001/003/004/005/006/012 6/12입니다.
-완료 target은 오직 implementation, oracle-blind actual과 exact-head hosted acceptance 뒤의
-`119 passing + 5 deviation + 3 oracle_locked`, relation actual 9/12입니다.
+Pre-hosted local implementation은 oracle-blind actual까지 exact
+`119 passing + 5 deviation + 3 oracle_locked`, relation actual 9/12이고 completion에는 implementation
+exact-head hosted acceptance가 아직 필요합니다.
 
 ## 기준 상태와 선행 증거
 
@@ -94,7 +95,10 @@ GDJ-0029는 locked Django 6.1 relation contracts REL-009/010/011을 하나의 bo
   [ADR-0026](../docs/adr/0026-forward-foreign-key-object-cache-and-nullability.md),
   [ADR-0028](../docs/adr/0028-reverse-foreign-key-prefetch.md)의 immutable project binding, sealed descriptor,
   QuerySet cache/resource precedence와 generated project-only composition을 보존합니다.
-- Activation documentation exact-head CI는 아직 `not run/pending`입니다.
+- Activation commit `0a1da373a443527e48a154ca6ccc7284e5e80dc0`의
+  [run 31465198903](https://github.com/progresshans/godj/actions/runs/31465198903)은 exact 26/26 jobs·326/326
+  recorded steps와 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이 run은 activation/baseline만
+  증명하며 아래 local implementation proof로 재사용하지 않습니다.
 
 ## Locked REL-009/010/011 외부 동작
 
@@ -413,11 +417,11 @@ Frozen unless a new work/ADR explicitly reopens them:
 - [x] GDJ-0029 active work and ADR-0029 Proposed scope created from exact tested baseline.
 - [x] REL-009/010/011 indivisible boundary, bounded projection/runtime/generated building-block API, taxonomy and
       false-green gates frozen; canonical application facade remains Q-013/Q-017.
-- [ ] Activation documentation exact-head 26-job CI succeeds.
-- [ ] Query/ORM/compiler implementation and focused tests complete within allowed paths.
-- [ ] Pure generators, exact twelve-file union and old-byte/last-good tests pass.
-- [ ] Oracle-blind REL-009/010/011 actual and three-status-only manifest transition pass.
-- [ ] Root normal integration and independent audits report P0/P1/P2/P3=0.
+- [x] Activation documentation exact-head 26-job CI succeeds.
+- [x] Query/ORM/compiler implementation and focused tests complete within allowed paths.
+- [x] Pure generators, exact twelve-file union and old-byte/last-good tests pass.
+- [x] Oracle-blind REL-009/010/011 actual and three-status-only manifest transition pass.
+- [x] Root normal integration and independent audits report P0/P1/P2/P3=0.
 - [ ] Implementation exact-head hosted 26-job acceptance passes before completion claims.
 - [ ] Completion docs and later terminal evidence use separate heads and do not recursively reuse runs.
 
@@ -433,18 +437,29 @@ Frozen unless a new work/ADR explicitly reopens them:
   current GoDj object binding을 대조했습니다. Separate `BindSelectRelated` aggregate는 제거하고 existing
   `BindObjects` snapshot을 재사용하는 bounded factory companion으로 좁혔으며, canonical
   `project.Using(backend)` relation facade와 chaining/FK mutation policy는 Q-013/Q-017에 남겼습니다.
+- 2026-08-11: Activation commit `0a1da373a443527e48a154ca6ccc7284e5e80dc0`은 run `31465198903`의 exact
+  26/26 jobs·326/326 recorded steps와 hosted audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- 2026-08-11: Uncommitted exact 49-entry implementation은 root `make ci`, local exact 630/630/0·63,928 bytes·
+  SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`, target
+  `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12와 runtime/codegen/integration/remediation audit
+  P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- 2026-08-11: Independent pre-commit audit가 same-edge terminal source-key/projection metadata 불일치를 허용하는
+  P1 forged-plan gap을 발견했습니다. Source identity/target identity/target table/target PK 단독 mutation으로
+  재현하고 pre-I/O provenance equality를 강제하는 최소 수정 뒤 정상 same-hop과 unrelated root relation filter를
+  보존했으며, integration/remediation re-audit는 clean P0/P1/P2/P3=`0/0/0/0`입니다.
 
 ## 현재 blocker와 다음 정확한 작업
 
-외부 blocker는 없습니다. 다음 작업은 exact 16-file activation documentation을 검증한 뒤 allowed-path
-implementation을 독립 query/runtime, SQLite, codegen, conformance lane으로 진행하고 한 integration owner가
-API bytes와 final diff를 통합하는 것입니다. Baseline EVID-054/run `31436881856`은 later head proof가 아닙니다.
+외부 blocker는 없습니다. Local implementation과 five-document pre-hosted sync를 의도적으로 commit/push한 뒤
+그 exact implementation head에서 별도 26-job hosted acceptance를 실행하는 것이 다음 작업입니다. Activation
+EVID-055/run `31465198903`은 implementation proof가 아니며 completion claim에는 implementation hosted evidence가
+필요합니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- current: exact `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12
-- target only: exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12
+- hosted-accepted current: exact `116 passing + 5 deviation + 6 oracle_locked`, relation 6/12
+- pre-hosted local implementation: exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
+  630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`
 - active decision: ADR-0029 Proposed; Q-013 remains `Partial`
 - implementation scope: exact paths in frontmatter; all other code/product/oracle/schema bytes frozen
-- next evidence: activation exact-head CI, local implementation evidence, implementation exact-head hosted CI를 각각
-  별도 기록
+- next evidence: implementation exact-head hosted CI; EVID-055 activation/local evidence와 별도 기록

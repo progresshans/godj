@@ -423,6 +423,140 @@ func TestSQLiteBackendExecutesRequiredJoinAndNullableSourceKeyTrimPreIO(t *testi
 	}
 }
 
+func TestSQLiteBackendExecutesRequiredAndNullableForwardProjections(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	backend, err := sqlite.OpenMemory(ctx, "relation-projection-"+t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := backend.Close(); err != nil {
+			t.Errorf("Close() error = %v", err)
+		}
+	})
+	for _, statement := range []string{
+		`PRAGMA foreign_keys = ON`,
+		`CREATE TABLE "authors_author" ("id" INTEGER NOT NULL PRIMARY KEY, "name" VARCHAR(200) NOT NULL)`,
+		`CREATE TABLE "blog_post" ("id" INTEGER NOT NULL PRIMARY KEY, "title" VARCHAR(200) NOT NULL, "author_id" INTEGER NOT NULL REFERENCES "authors_author" ("id"), "reviewer_id" INTEGER NULL REFERENCES "authors_author" ("id"))`,
+		`INSERT INTO "authors_author" ("id", "name") VALUES (1, 'Ada'), (2, 'Bob'), (3, 'Cleo')`,
+		`INSERT INTO "blog_post" ("id", "title", "author_id", "reviewer_id") VALUES (10, 'Alpha', 1, 2), (11, 'Beta', 1, NULL), (12, 'Gamma', 3, 2)`,
+	} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("provision relation projection fixture: %v", err)
+		}
+	}
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	authorID := query.NewFieldRef("author", "author_id", query.FieldInteger, false)
+	reviewerID := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
+	targetID := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	targetName := query.NewFieldRef("name", "name", query.FieldString, false)
+	rootColumns := []query.FieldRef{id, title, authorID, reviewerID}
+	targetColumns := []query.FieldRef{targetID, targetName}
+
+	requiredPlan := query.NewPlan("blog_post", rootColumns).WithOrderings(query.NewOrdering(id, query.Ascending))
+	requiredPlan, err = requiredPlan.WithRelationProjection(forwardProjection(t, authorID, targetID, targetColumns))
+	if err != nil {
+		t.Fatal(err)
+	}
+	requiredBefore := backend.QueryCount()
+	requiredRows, err := backend.Query(ctx, requiredPlan)
+	if err != nil {
+		t.Fatalf("required projection Query() error = %v", err)
+	}
+	var required []string
+	for requiredRows.Next() {
+		var postID, gotAuthorID, authorPrimaryKey int64
+		var gotTitle, authorName string
+		var gotReviewerID any
+		if err := requiredRows.Scan(&postID, &gotTitle, &gotAuthorID, &gotReviewerID, &authorPrimaryKey, &authorName); err != nil {
+			t.Fatalf("required projection Scan() error = %v", err)
+		}
+		required = append(required, fmt.Sprintf("%d:%d:%s", postID, authorPrimaryKey, authorName))
+	}
+	if err := requiredRows.Err(); err != nil {
+		t.Fatalf("required projection Rows.Err() = %v", err)
+	}
+	if err := requiredRows.Close(); err != nil {
+		t.Fatalf("required projection Rows.Close() = %v", err)
+	}
+	if fmt.Sprint(required) != "[10:1:Ada 11:1:Ada 12:3:Cleo]" {
+		t.Fatalf("required projection rows = %v", required)
+	}
+	if got := backend.QueryCount() - requiredBefore; got != 1 {
+		t.Fatalf("required projection query count = %d, want 1", got)
+	}
+
+	nullablePlan := query.NewPlan("blog_post", rootColumns).WithOrderings(query.NewOrdering(id, query.Ascending))
+	nullableProjection := forwardProjection(t, reviewerID, targetID, targetColumns)
+	nullablePlan, err = nullablePlan.WithRelationProjection(nullableProjection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nullableBefore := backend.QueryCount()
+	nullableRows, err := backend.Query(ctx, nullablePlan)
+	if err != nil {
+		t.Fatalf("nullable projection Query() error = %v", err)
+	}
+	var nullable []string
+	for nullableRows.Next() {
+		var postID, gotAuthorID int64
+		var gotTitle string
+		var gotReviewerID, reviewerPrimaryKey, reviewerName any
+		if err := nullableRows.Scan(&postID, &gotTitle, &gotAuthorID, &gotReviewerID, &reviewerPrimaryKey, &reviewerName); err != nil {
+			t.Fatalf("nullable projection Scan() error = %v", err)
+		}
+		nullable = append(nullable, fmt.Sprintf("%d:%v:%v", postID, reviewerPrimaryKey, reviewerName))
+	}
+	if err := nullableRows.Err(); err != nil {
+		t.Fatalf("nullable projection Rows.Err() = %v", err)
+	}
+	if err := nullableRows.Close(); err != nil {
+		t.Fatalf("nullable projection Rows.Close() = %v", err)
+	}
+	if fmt.Sprint(nullable) != "[10:2:Bob 11:<nil>:<nil> 12:2:Bob]" {
+		t.Fatalf("nullable projection rows = %v", nullable)
+	}
+	if got := backend.QueryCount() - nullableBefore; got != 1 {
+		t.Fatalf("nullable projection query count = %d, want 1", got)
+	}
+
+	forgedPath, err := query.NewNullableForwardRelationIsNullPath(
+		ir.ModelIdentity{AppLabel: "blog", ModelName: "post"},
+		"blog_post",
+		reviewerID,
+		ir.ModelIdentity{AppLabel: "people", ModelName: "person"},
+		"authors_author",
+		"id",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forgedPlan := query.NewPlan("blog_post", rootColumns).WithConditions(
+		query.NewRelatedCondition(forgedPath, query.LookupIsNull, query.Boolean(true)),
+	)
+	forgedPlan, err = forgedPlan.WithRelationProjection(nullableProjection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeForged := backend.QueryCount()
+	rows, err := backend.Query(ctx, forgedPlan)
+	if rows != nil {
+		_ = rows.Close()
+		t.Fatal("forged source-key projection returned rows")
+	}
+	var queryError *query.Error
+	if !errors.As(err, &queryError) || queryError.Category != query.CategoryQuery || queryError.Code != query.CodeInvalidPlan {
+		t.Fatalf("forged source-key projection Query() error = %v, want query_error/invalid_plan", err)
+	}
+	if got := backend.QueryCount() - beforeForged; got != 0 {
+		t.Fatalf("forged source-key projection query count = %d, want 0", got)
+	}
+}
+
 func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.T) {
 	t.Parallel()
 

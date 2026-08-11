@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-func TestCompareProductAcceptsSixObservedAndOrderedOracleLockedRemainder(t *testing.T) {
+func TestCompareProductAcceptsNineObservedAndOrderedOracleLockedRemainder(t *testing.T) {
 	profile, manifest, expected, actual := productComparisonFixture(t)
 
-	differences, err := CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"})
+	differences, err := CompareProduct(profile, manifest, expected, actual, relationProductRequiredIDs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,17 +30,17 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 			name:     "missing required ID",
 			required: nil,
 			mutate:   func(*Manifest, *ObservationSuite) {},
-			contains: "manifest requires 6",
+			contains: "manifest requires 9",
 		},
 		{
 			name:     "unknown required ID",
-			required: []string{"REL-999", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"},
+			required: []string{"REL-999", "REL-003", "REL-004", "REL-005", "REL-006", "REL-009", "REL-010", "REL-011", "REL-012"},
 			mutate:   func(*Manifest, *ObservationSuite) {},
 			contains: "manifest requires \"REL-001\"",
 		},
 		{
 			name:     "required contract not implemented",
-			required: []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"},
+			required: relationProductRequiredIDs(),
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[0] = Observation{ID: "REL-001", Status: StatusNotImplemented, Phase: PhaseMetadata}
 			},
@@ -48,7 +48,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "locked contract observed",
-			required: []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"},
+			required: relationProductRequiredIDs(),
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[1] = expected.Contracts[1]
 			},
@@ -56,7 +56,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "red contract",
-			required: []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"},
+			required: relationProductRequiredIDs(),
 			mutate: func(changed *Manifest, _ *ObservationSuite) {
 				changed.Contracts[1].Status = ContractRed
 			},
@@ -64,7 +64,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "reordered observations",
-			required: []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"},
+			required: relationProductRequiredIDs(),
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[1], suite.Contracts[2] = suite.Contracts[2], suite.Contracts[1]
 			},
@@ -72,7 +72,7 @@ func TestCompareProductRejectsFalseGreenShapes(t *testing.T) {
 		},
 		{
 			name:     "duplicate observations",
-			required: []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"},
+			required: relationProductRequiredIDs(),
 			mutate: func(_ *Manifest, suite *ObservationSuite) {
 				suite.Contracts[2] = suite.Contracts[1]
 			},
@@ -97,7 +97,7 @@ func TestCompareProductReportsObservedPayloadDifference(t *testing.T) {
 	changed := "changed"
 	actual.Contracts[0].Result.Text = &changed
 
-	differences, err := CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-012"})
+	differences, err := CompareProduct(profile, manifest, expected, actual, relationProductRequiredIDs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,6 +124,9 @@ func productComparisonFixture(t *testing.T) (Profile, Manifest, ObservationSuite
 	manifest.Contracts[3].Status = ContractPassing
 	manifest.Contracts[4].Status = ContractPassing
 	manifest.Contracts[5].Status = ContractPassing
+	manifest.Contracts[8].Status = ContractPassing
+	manifest.Contracts[9].Status = ContractPassing
+	manifest.Contracts[10].Status = ContractPassing
 	manifest.Contracts[11].Status = ContractPassing
 
 	expected := ObservationSuite{
@@ -143,11 +146,15 @@ func productComparisonFixture(t *testing.T) (Profile, Manifest, ObservationSuite
 	}
 	actualResult := String(manifest.Contracts[0].ID)
 	actual.Contracts[0] = Observation{ID: manifest.Contracts[0].ID, Status: StatusObserved, Phase: manifest.Contracts[0].Phase, Result: &actualResult}
-	for _, index := range []int{2, 3, 4, 5} {
+	for _, index := range []int{2, 3, 4, 5, 8, 9, 10} {
 		result := String(manifest.Contracts[index].ID)
 		actual.Contracts[index] = Observation{ID: manifest.Contracts[index].ID, Status: StatusObserved, Phase: manifest.Contracts[index].Phase, Result: &result}
 	}
 	result := String(manifest.Contracts[11].ID)
 	actual.Contracts[11] = Observation{ID: manifest.Contracts[11].ID, Status: StatusObserved, Phase: manifest.Contracts[11].Phase, Result: &result}
 	return profile, manifest, expected, actual
+}
+
+func relationProductRequiredIDs() []string {
+	return []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-009", "REL-010", "REL-011", "REL-012"}
 }

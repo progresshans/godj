@@ -187,11 +187,12 @@ func (o Ordering) Equal(other Ordering) bool {
 }
 
 type Plan struct {
-	table      string
-	columns    []FieldRef
-	conditions []Condition
-	orderings  []Ordering
-	limit      *int
+	table              string
+	columns            []FieldRef
+	conditions         []Condition
+	orderings          []Ordering
+	limit              *int
+	relationProjection *RelationProjection
 }
 
 func NewPlan(table string, columns []FieldRef) Plan {
@@ -219,6 +220,32 @@ func (p Plan) Limit() (int, bool) {
 		return 0, false
 	}
 	return *p.limit, true
+}
+
+// RelationProjection returns a detached copy of the singular eager relation
+// projection carried by this plan. Plans without eager selection retain the
+// exact pre-projection behavior and report false.
+func (p Plan) RelationProjection() (RelationProjection, bool) {
+	if p.relationProjection == nil {
+		return RelationProjection{}, false
+	}
+	return p.relationProjection.clone(), true
+}
+
+// WithRelationProjection derives a plan with exactly one immutable forward
+// relation projection. A projection is singular by contract: callers cannot
+// overwrite or extend one that is already present.
+func (p Plan) WithRelationProjection(projection RelationProjection) (Plan, error) {
+	if p.relationProjection != nil {
+		return Plan{}, invalidPlanError("query plan already contains a relation projection")
+	}
+	if err := projection.validate(); err != nil {
+		return Plan{}, err
+	}
+	clone := p.clone()
+	value := projection.clone()
+	clone.relationProjection = &value
+	return clone, nil
 }
 
 func (p Plan) WithConditions(conditions ...Condition) Plan {
@@ -254,7 +281,12 @@ func (p Plan) Equal(other Plan) bool {
 	}
 	leftLimit, leftOK := p.Limit()
 	rightLimit, rightOK := other.Limit()
-	return leftOK == rightOK && (!leftOK || leftLimit == rightLimit)
+	if leftOK != rightOK || (leftOK && leftLimit != rightLimit) {
+		return false
+	}
+	leftProjection, leftOK := p.RelationProjection()
+	rightProjection, rightOK := other.RelationProjection()
+	return leftOK == rightOK && (!leftOK || leftProjection.Equal(rightProjection))
 }
 
 func (p Plan) clone() Plan {
@@ -265,6 +297,10 @@ func (p Plan) clone() Plan {
 	if p.limit != nil {
 		limit := *p.limit
 		clone.limit = &limit
+	}
+	if p.relationProjection != nil {
+		projection := p.relationProjection.clone()
+		clone.relationProjection = &projection
 	}
 	return clone
 }

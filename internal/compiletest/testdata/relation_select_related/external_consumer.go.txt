@@ -1,0 +1,22 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationselectproduct/blog"
+	"github.com/progresshans/godj/conformance/relationselectproduct/project"
+	"github.com/progresshans/godj/db"
+)
+
+func consume(ctx context.Context, backend db.Queryer) ([]*project.BlogPostObject, error) {
+	objects, err := project.BindObjects()
+	if err != nil {
+		return nil, err
+	}
+	source := blog.PostObjects.Using(backend).OrderBy(blog.PostFields.ID.Asc())
+	selected := objects.BlogPost.SelectRelated(source)
+	if _, err := selected.ParseDynamic("author"); err != nil {
+		return nil, err
+	}
+	return selected.Author().All(ctx)
+}

@@ -55,11 +55,14 @@ additive generated relation-object companion/project bridge와 actual SQLite를 
 REL-006 nullable access/source-key `isnull`을 `passing`으로 전환했습니다. GDJ-0027은 별도 generated
 reverse-relation product와 actual SQLite를 연결해 REL-005 reverse accessor/lookup도 `passing`으로 전환했습니다.
 GDJ-0028은 exact ten-file generated reverse-prefetch product와 actual SQLite의 한 번짜리 root `IN` batch를 연결해
-REL-012 reverse prefetch도 `passing`으로 전환했습니다. REL-002/007..011은 ordered payload-free
-`not_implemented` actual과 `oracle_locked` manifest 상태를 유지합니다. 현재 reference는
+REL-012 reverse prefetch도 `passing`으로 전환했습니다. GDJ-0029는 app-local projection scanner 두 개와
+project select-related companion을 더한 exact twelve-file product를 actual SQLite에 연결해 REL-009 required
+INNER, REL-010 nullable LEFT OUTER와 REL-011 reverse-path pre-I/O rejection을 함께 `passing`으로 전환했습니다.
+REL-002/007/008은 ordered payload-free `not_implemented` actual과 `oracle_locked` manifest 상태를 유지합니다. 현재 reference는
 12 set/127 contract/132 ordered cross-binding이고, 제품 분류는 12 adapter/127 contract의
-`116 passing + 5 deviation + 6 oracle_locked`입니다. 이는 relation metadata, required predicate/object cache,
-nullable local-key access/`isnull`, bounded reverse accessor/lookup과 exact reverse prefetch 6/12의 제품 증거이며 ForeignKey write/delete/general eager graph/DDL/migration 전체
+`119 passing + 5 deviation + 3 oracle_locked`입니다. 이는 relation metadata, required predicate/object cache,
+nullable local-key access/`isnull`, bounded reverse accessor/lookup, exact reverse prefetch와 one-hop forward eager
+selection 9/12의 제품 증거이며 ForeignKey write/delete/general eager graph/DDL/migration 전체
 지원을 뜻하지 않습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
@@ -80,7 +83,7 @@ nullable local-key access/`isnull`, bounded reverse accessor/lookup과 exact rev
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
-| `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; REL-001/003/004/005/006/012 현재 product-required |
+| `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; REL-001/003/004/005/006/009/010/011/012 현재 product-required |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read부터 relation metadata까지 제품 package를 실행하는 열두 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
@@ -88,6 +91,7 @@ nullable local-key access/`isnull`, bounded reverse accessor/lookup과 exact rev
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
 | `relationreverseproduct` | exact nine-file generated reverse-relation fixture와 REL-005 actual SQLite observation root |
 | `relationprefetchproduct` | exact ten-file generated reverse-prefetch fixture와 REL-012 actual two-query SQLite observation root |
+| `relationselectproduct` | exact twelve-file generated one-hop forward select-related fixture와 REL-009/010/011 actual SQLite observation root |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder/validator/canonical value, all-observed comparator와 required-observed product comparator |
@@ -431,7 +435,9 @@ actual SQLite source rows로 REL-003 cold/warm object cache와 REL-006 null acce
 typed/dynamic reverse lookup을 actual SQLite에서 관찰합니다. `relationprefetchproduct`는 기존 exact nine-file
 union에 project-only prefetch companion 하나만 더한 exact ten-file union을 사용해 owner SELECT 1회와 root
 `author_id IN` batch SELECT 1회, JOIN 0, warm access 추가 query 0을 actual SQLite에서 관찰합니다.
-REL-002/007..011은 original 12-contract order 안에서
+`relationselectproduct`는 exact twelve-file union과 actual SQLite joined row scan으로 REL-009/010의
+required INNER/nullable LEFT OUTER eager access를 관찰하고, 같은 resolver로 REL-011 reverse path를 pre-I/O
+거부합니다. REL-002/007/008은 original 12-contract order 안에서
 payload 없는 `not_implemented`로 남습니다.
 
 ```bash
@@ -442,9 +448,9 @@ go run ./conformance/cmd/godjcheck \
 ```
 
 성공 stdout은 정확히
-`GoDj product observations match 6 required contracts; 6 remain not implemented`입니다.
-Product comparator는 registry가 요구하는 REL-001/003/004/005/006/012를 oracle과 byte-semantic하게 비교하고 locked
-REL-002/007..011이 관찰된 것처럼 나타나면 거부합니다. 기존 11 all-observed adapter의 strict comparator
+`GoDj product observations match 9 required contracts; 3 remain not implemented`입니다.
+Product comparator는 registry가 요구하는 REL-001/003/004/005/006/009/010/011/012를 oracle과
+byte-semantic하게 비교하고 locked REL-002/007/008이 관찰된 것처럼 나타나면 거부합니다. 기존 11 all-observed adapter의 strict comparator
 의미는 바뀌지 않습니다. 비교가 끝나기 전에는 `-actual-output`을 만들지 않으므로 status/payload/
 registry mismatch는 exit 1 또는 2, 빈 stdout, output file 없음으로 fail-closed합니다.
 
@@ -742,6 +748,8 @@ GDJ-0027은 REL-005만 추가로 `passing`으로 바꾼 10,812 bytes/SHA-256
 `640b24e9e543b66375ea1dafa45750a6d2716c1b3f1e2602afcd7e2a3b68f136` status-only manifest입니다.
 GDJ-0028은 REL-012만 추가로 `passing`으로 바꾼 10,806 bytes/SHA-256
 `70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a5915b29da477` status-only manifest입니다.
+GDJ-0029는 REL-009/010/011만 추가로 `passing`으로 바꾼 10,788 bytes/SHA-256
+`64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141` status-only manifest입니다.
 Oracle 33,792
 bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
 bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, 12-line
@@ -753,15 +761,18 @@ object bridge를 재생성하고 actual SQLite loader/cache/source-key Plan을 �
 main/metadata/object, blog main/metadata/query/object와 project binding/reverse companion의 exact nine files를
 재생성하고 accessor `[10,11]`과 lookup `[1]`을 관찰합니다. REL-012 fixture는 이 exact nine-file union을
 바꾸지 않고 project prefetch companion 하나를 더해 exact ten files를 재생성하며 `[1:[10,11],2:[],3:[12]]`,
-두 SELECT, root `author_id IN`, key count 3, JOIN 0과 warm access extra query 0을 관찰합니다. 네 actual 모두 oracle/static
-expected artifact를 import하지 않습니다.
+두 SELECT, root `author_id IN`, key count 3, JOIN 0과 warm access extra query 0을 관찰합니다.
+REL-009/010/011 fixture는 기존 object product 아홉 파일에 app-local projection companion 두 개와 project
+select-related companion 하나를 더한 exact twelve files를 재생성합니다. Required plain/eager 4-vs-1 SELECT와
+INNER 1, nullable LEFT OUTER 1, warm access extra query 0, reverse `posts` path의 query/mutation 0을 관찰합니다.
+다섯 actual 모두 oracle/static expected artifact를 import하지 않습니다.
 
 Required workflow topology는 full/exact 2 + independent project-check proof 4 + relation-binding proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
 relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
 normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
-검증합니다. Exact top-level package inventory는 594 run/594 pass/0 skip이고, encoded inventory는 60,237
-bytes/SHA-256 `98a0a37b2c59dc3972208eb85d7b6d517aff39077f301d67d6d4c8fe7cb8c47e`입니다.
+검증합니다. Exact top-level package inventory는 630 run/630 pass/0 skip이고, encoded inventory는 63,928
+bytes/SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`입니다.
 Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
 3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및
