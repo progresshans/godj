@@ -147,7 +147,7 @@ posts, err := PostObjects.Using(backend).
 
 `All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
 
-### 관계를 포함한 project facade — compile feasibility verified, public API open
+### 관계를 포함한 project facade — production first-publication active, public names open
 
 관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
 relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
@@ -155,7 +155,10 @@ relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031]
 compile shape만 physical-byte-preserving test-only overlay로 검증해 그 feasibility 방법에 한해 Accepted했습니다.
 Activation EVID-064와 implementation EVID-065는 별도 exact-head hosted gate를 통과했습니다. 아래 이름과 chaining
 문법은 여전히 illustrative/noncanonical candidate이며 production에 구현됐거나 public API로 채택됐다는 뜻이
-아닙니다.
+아닙니다. [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)와
+[ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 existing generated exact
+13을 보존하면서 project-only companion 한 파일을 실제 first-publish하는 product 경계를 active/Proposed로
+검토합니다. Activation 자체는 facade 구현이나 이름 acceptance가 아닙니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
@@ -206,12 +209,20 @@ author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
 
 - Go field initialism은 `AuthorID`/`ReviewerID`처럼 `ID`를 유지하고 DB/schema 이름은 `author_id`/
   `reviewer_id`를 유지합니다.
-- plain/lazy/eager query는 같은 project-level pointer type과 `Author(ctx)`/`Reviewer(ctx)` accessor를 사용합니다.
-- Forward target과 reverse query 결과를 다시 따라가는 장기 목표는 유지하지만, GDJ-0031의 exact physical fixture에는
-  reverse aggregate가 없으므로 target wrapper와 reverse chaining은 이번 compile spike의 비목표입니다.
+- 모든 declared model은 raw app model과 low-level `Object`에 겹치지 않는 project-owned pointer wrapper/query root를
+  가집니다. Plain/lazy/eager source는 같은 project wrapper와 `Author(ctx)`/`Reviewer(ctx)` accessor를 사용합니다.
+- Required Author와 nullable Reviewer accessor는 target의 all-model query root와 같은 target project wrapper type을
+  반환합니다. Nullable SQL `NULL`은 target `nil`, present `false`, error `nil` 의미입니다.
+- Reverse manager/chaining, 별도 materialization 사이 target wrapper pointer identity와 downstream target-wrapper
+  cache/identity 의미는 GDJ-0032의 비목표입니다. Target wrapper 자체는 필수 경계입니다.
 - root query와 관계 접근은 exact origin backend/session을 유지합니다. Transaction 안에서는 그 session으로 새
-  project facade를 만드는 방향입니다. GDJ-0031은 `db.RelationSession`이 `db.Queryer`를 만족해 callback 안에서
-  candidate `Using(session)`에 전달 가능한지만 컴파일하며 pinning이나 callback 이후 lifetime을 검증하지 않습니다.
+  project facade를 만드는 방향입니다. GDJ-0032의 project-local capability는 `db.Queryer + db.Mutator`이고
+  `db.RelationAtomic`/`db.RelationMutator`를 요구하지 않습니다. Queryer+Mutator-only backend/session은 사용할 수
+  있지만 정적 `db.Queryer` 값은 사용할 수 없습니다. Session-origin facade는 callback 안에서만 지원하며 warm
+  cache 때문에 callback 이후 항상 실패한다고 보장하지 않습니다.
+- Project binding 오류는 nil/typed-nil backend보다 먼저 반환하고, valid binding의 nil-like backend와 zero/corrupt
+  wrapper/query/selector는 stable structured category/code로 I/O 전에 실패합니다. Detail message는 public contract가
+  아닙니다.
 - Reverse one-to-many는 `[]Post` field가 아니라 filter/order 가능한 manager/query를 목표로 합니다. Prefetch는
   같은 accessor의 정확히 지원된 cache만 미리 채웁니다.
 - JSON marshal이나 단순 field read는 DB I/O를 일으키지 않습니다. Lazy I/O는 `context.Context`와 `error`가
@@ -220,8 +231,11 @@ author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
 현재 `BindObjects`/factory `From`, reverse/prefetch binders와 GDJ-0029의 bounded eager query는 이 목표를
 검증하기 위한 low-level kernel입니다. 일반 사용자가 관계마다 이들을 직접 조립하는 표면을 최종 API로
 동결하지 않습니다. Exact GDJ-0031 source wrapper field는 private이므로 candidate scalar access는 explicit
-`Model()` unwrap뿐이며 wrapper JSON/custom method를 주장하지 않습니다. FK mutation/cache invalidation,
-copy/clone, target/reverse wrapper와 exact facade/manager/selector 이름은 계속 open입니다.
+`Model()` unwrap뿐이며 wrapper JSON/custom method를 주장하지 않습니다. GDJ-0032는 common Author/Reviewer selector와
+선택된 eager evaluation state 보존을 요구합니다. Author/Reviewer 선택은 Filter/OrderBy/Limit 전후에도 유지되고,
+복사·반복한 같은 eager query는 한 evaluation을 공유하지만 derived chain은 독립입니다. Source relation cache는
+source wrapper-scoped입니다. Exact facade/manager/wrapper/selector/unwrap 이름과 selector representation은 decision
+gate 전까지 open입니다. FK mutation/cache invalidation과 reverse manager는 계속 후속입니다.
 
 ## 6. Dynamic lookup
 

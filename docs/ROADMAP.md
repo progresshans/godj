@@ -1,12 +1,13 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: GDJ-0031 relation-aware project facade/generated upgrade compile usability completed, ADR-0031은
-  test-only feasibility 방법에 한해 Accepted입니다. Activation `624347e...`의 EVID-064/run `31520396606`과
-  implementation `0653902...`의 EVID-065/run `31528039746`, completion-documentation `e9b2c0e...`의
-  EVID-066/run `31531470440`은 각각 별도 exact 26/26·326/326 PASS입니다. Active/ready work는 없고 다음
-  planning priority는 Q-017 production facade/generated upgrade 결정입니다. EVID-066을 포함한 later exact
-  seven-file terminal documentation tree 자체 CI는 `not run/pending`이며 completion run을 재사용하지 않습니다.
+- 현재 단계: [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)가 active이고
+  [ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 Proposed입니다. GDJ-0031
+  terminal head `3d661251...`의 EVID-067/run `31533890720`은 별도 exact 26/26·326/326 PASS로 clean activation
+  baseline을 닫았습니다. GDJ-0032는 existing generated exact 13을 보존한 project-only forward facade companion
+  한 파일의 additive first-publication만 다룹니다. 모든 candidate 이름은 noncanonical이고 ready work는 없습니다.
+  EVID-067을 포함한 later exact twelve-file activation documentation tree 자체 CI는 `not run/pending`이며 terminal
+  run을 재사용하지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
   relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
 - 마지막 검토: 2026-08-12
@@ -438,8 +439,17 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   reverse/REL-002/write/cache/session lifetime과 production generated upgrade는 별도 후속입니다. GDJ-0029의
   projection/runtime/compiler와 generated object-factory bridge는 low-level 기반이며 그 자체가 최종 application
   UX는 아닙니다. Exact 11-path completion-documentation head `e9b2c0e...`도 EVID-066/run `31531470440`의
-  별도 exact 26/26·326/326을 통과했습니다. EVID-066을 추가하는 later exact seven-file terminal record는
-  `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
+  별도 exact 26/26·326/326을 통과했습니다. EVID-066을 추가한 exact seven-file terminal head `3d661251...`도
+  EVID-067/run `31533890720`의 별도 exact 26/26·326/326을 통과했고 completion run을 그 proof로 재사용하지
+  않았습니다.
+- Active GDJ-0032는 그 terminal head `3d661251...`의 EVID-067/run `31533890720`을 clean baseline으로 production
+  forward facade를 처음 게시합니다. Existing generated exact 13은 byte-identical subset으로 유지하고 새 project
+  companion 한 파일만 additive publish합니다. Project-local capability는 Queryer+Mutator이고 RelationAtomic은
+  제외하며, 정적 Queryer-only 입력은 거부합니다. 모든 declared model의 query root와 project-owned pointer wrapper,
+  required Author/nullable Reviewer가 같은 target wrapper type을 쓰는 경계, common selector와 stored eager state를
+  검증합니다. Reverse manager, stable target pointer identity, downstream target cache, REL-002, general generated
+  upgrade/CLI는 deferred입니다. ADR-0032는 Proposed이고 exact public 이름은 decision gate 전까지 noncanonical입니다.
+  EVID-067을 포함한 activation exact twelve-path tree는 별도 exact-head CI가 아직 `not run/pending`입니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

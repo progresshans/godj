@@ -213,7 +213,7 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 - [x] Reverse/REL-002/write/cache/JSON/custom method symbol과 forbidden import/source read가 AST gate에서 거부됨
 - [x] Existing top-level Test/t.Run inventory, product manifest/counts와 physical fixture bytes가 unchanged
 - [x] Activation, compile implementation과 completion documentation은 별도 exact head로 증명하고 재사용하지 않음
-- [ ] Later exact seven-file terminal evidence/status head가 자체 hosted CI를 통과함
+- [x] Later exact seven-file terminal evidence/status head가 EVID-067의 자체 hosted CI를 통과함
 
 ## 진행 기록
 
@@ -239,10 +239,11 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 
 - `project.Using`, returned facade와 manager/selector의 exact exported names
 - `First`/`Get` not-found contract와 `Limit` error ergonomics
-- target도 relation-aware wrapper여야 하는 시점과 reverse manager/chaining shape
+- target project wrapper 요구는 GDJ-0032로 이관해 필수 경계로 좁혔고 reverse manager/chaining shape는 계속 open
 - wrapper scalar promotion, JSON, user method와 copy/clone policy
 - FK assignment/cache invalidation과 loaded relation ownership
-- query-only `db.Queryer` 이후 write/delete/session capability composition
+- query-only `db.Queryer` 이후 facade capability는 GDJ-0032에서 Queryer+Mutator/no-RelationAtomic로 좁혔고
+  write/delete/session lifetime enforcement는 계속 open
 - generated companion version, collision, deprecation과 upgrade command policy
 
 ## 테스트 증거
@@ -252,14 +253,16 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 - Compile implementation: EVID-065 / hosted run `31528039746`, exact `0653902...`; activation run을 재사용하지 않음
 - Completion documentation: EVID-066 / hosted run `31531470440`, exact `e9b2c0e...`; implementation run을
   재사용하지 않음
+- Terminal evidence/status: EVID-067 / hosted run `31533890720`, exact `3d661251...`; completion run을
+  재사용하지 않음
 - Frozen physical exact 16은 62,538 bytes/SHA-256 `992589f0500a7f31808dac2bb2a669daecadab7b978f93f5227bee3ee1ca6cbb`,
   generated exact 13은 26,140 bytes/SHA-256
   `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`, logical exact 17은 65,970
   bytes/SHA-256 `29d37c4cc1446ce320bcd5476afafb77989cd980a1dd3f96cb0732803835737f`입니다.
 - Local focused normal/race/CGO-disabled/vet, full `internal/compiletest`, unchanged 687/687/0 product inventory와
   independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
-- EVID-066과 상태를 추가하는 later exact seven-file terminal tree 자체 CI는 `not run/pending`이며 completion
-  run을 그 proof로 재사용하지 않습니다.
+- EVID-066과 상태를 추가한 exact seven-file terminal head는 EVID-067/run `31533890720`의 별도 exact
+  26/26·326/326을 통과했고 completion run을 재사용하지 않았습니다.
 
 ## 위험과 rollback
 
@@ -269,11 +272,11 @@ cache/session-lifetime 동작을 test-only code로 위조하는 것입니다. �
 
 ## 다음 정확한 작업
 
-통합 담당자는 EVID-066과 상태를 추가하는 exact seven-file terminal patch의 scope/prefix/link를 감사하고 별도
-commit/push 뒤 exact-head hosted CI를 얻습니다. 그 terminal head가 clean baseline이 된 뒤에만 Q-017의 production
-facade/API freeze와 generated companion upgrade/collision/deprecation 정책을 새 work/ADR에서 활성화합니다. 그
-전에는 이 test-only overlay의 `project.Using`, `Models`, `BlogPosts`, `Related`, `First` tuple, `Model` unwrap 또는
-selector 이름을 production generator에 추가하지 않습니다. 현재 active/ready work는 없습니다.
+[GDJ-0032](0032-production-forward-project-facade-and-additive-first-publication.md)가 exact terminal head
+`3d661251...`을 clean baseline으로 active입니다. Existing generated exact 13을 보존한 project-only companion의
+additive first-publication, all-model project wrapper와 required/nullable forward target wrapper를 검증하되 exact
+public 이름은 decision gate 전까지 noncanonical입니다. Reverse manager, stable target wrapper pointer identity,
+downstream target cache, REL-002와 general generated upgrade는 후속입니다.
 
 ## 결과와 인수인계
 
@@ -281,6 +284,6 @@ selector 이름을 production generator에 추가하지 않습니다. 현재 act
 `internal/compiletest` path만 구현됐고 제품 facade/generator/generated output은 없습니다. Product/manifest/counts는
 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002는 locked입니다. Q-013은
 `Partial`, Q-017은 P1/open이고 모든 candidate 이름은 noncanonical입니다. Completion-documentation head
-`e9b2c0e...`는 EVID-066/run `31531470440`의 별도 exact 26/26·326/326을 통과했습니다. 이 later exact seven-file
-terminal record 자체 CI는 `not run/pending`이고 completion run을 재사용하지 않으며 Draft PR merge는 수행하지
-않았습니다.
+`e9b2c0e...`는 EVID-066/run `31531470440`, terminal head `3d661251...`은 EVID-067/run `31533890720`의 서로
+다른 exact 26/26·326/326을 통과했습니다. Completion run을 terminal proof로 재사용하지 않았고 Draft PR merge는
+수행하지 않았습니다. 후속 active work는 GDJ-0032입니다.

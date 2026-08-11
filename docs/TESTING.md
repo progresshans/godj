@@ -950,8 +950,57 @@ production generator, public API acceptance, runtime/cache/query-count parity가
 noncanonical이고 Q-017은 P1/open입니다. Exact 11-path completion-documentation head
 `e9b2c0e4812e7619d0b5ffd3862731714b00273d`은 별도 EVID-066/
 [run 31531470440](https://github.com/progresshans/godj/actions/runs/31531470440)의 exact 26/26 jobs·326/326
-recorded steps를 통과했습니다. EVID-066과 상태를 추가하는 later exact seven-file terminal documentation patch
-자체 CI는 `not run/pending`이고 completion run을 그 later tree의 proof로 재사용하지 않습니다.
+recorded steps를 통과했습니다. EVID-066과 상태를 추가한 exact seven-file terminal documentation head
+`3d661251...`도 별도 EVID-067/
+[run 31533890720](https://github.com/progresshans/godj/actions/runs/31533890720)의 exact 26/26 jobs·326/326
+recorded steps와 independent audit P0/P1/P2/P3=0을 통과했습니다. Completion run을 terminal proof로 재사용하지
+않았고, EVID-067은 later GDJ-0032 activation tree의 proof로 재사용하지 않습니다.
+
+### GDJ-0032 production forward facade activation gate
+
+GDJ-0032는 기존 test-only overlay를 제품 증거로 승격하지 않습니다. Authoritative baseline은 terminal head
+`3d6612512e8887de8868a319650d54ad0721471b`의 EVID-067/run `31533890720`이며 product는 unchanged exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12, REL-002 locked입니다. 이 activation documentation
+tree 자체 exact-head CI는 `not run/pending`입니다.
+
+Implementation test는 다음 경계를 동시에 잠가야 합니다.
+
+- Existing generated exact 13, 26,140 bytes/SHA-256
+  `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`의 before/after byte identity
+- 새 project companion 한 파일의 deterministic generation, golden, missing-target first publish와 replacement
+  last-good preservation; exact 새 inventory/digest는 구현 뒤 측정
+- Every declared model의 project-owned pointer wrapper/query root와 low-level `Object` namespace disjointness
+- Target query root와 required Author/nullable Reviewer accessor의 같은 target wrapper static type; raw app model이나
+  low-level Object 반환은 negative
+- Required `(*TargetWrapper, error)`와 nullable `(*TargetWrapper, bool, error)` shape, NULL=`nil,false,nil`
+- Queryer+Mutator-only minimal fake/`db.Session` positive가 RelationAtomic/RelationMutator 없이 성립하고,
+  statically typed `db.Queryer`는 negative
+- Binder failure가 nil/typed-nil backend보다 original cause 그대로 우선; valid binding의 nil-like backend는
+  `backend_error/invalid_plan`; 모두 I/O 0
+- Author/Reviewer common selector와 selected concrete eager query/evaluation state 보존; selector representation/name은
+  decision gate 전까지 noncanonical
+- Author/Reviewer `SelectRelated`를 Filter/OrderBy/Limit 전후에 적용한 required present, nullable present/NULL
+- Lazy 첫/둘째 접근 query count와 eager 추가-query 0; copied/repeated eager는 한 evaluation state를 공유하고 derived
+  chain은 독립 evaluation
+- Source relation cache는 source wrapper-scoped이고 separately materialized source/target wrapper와 target pointer/
+  downstream cache identity는 비계약
+- Nil/typed-nil/zero/cross-model selector, zero Models/root/eager와 nil/zero/dereference-copy wrapper는
+  `query_error/invalid_plan`, I/O 0; category/code는 stable, detail message는 noncontractual
+- Explicit raw-model unwrap/clone; AST/source gate가 Save/Delete/reverse와 low-level Object re-exposure를 거부
+- Session-origin callback 내부 사용만 positive; callback 이후 항상 성공/실패한다는 assertion은 금지
+- Reverse manager, stable target wrapper pointer identity와 downstream target cache symbol/claim 부재
+- Test-only overlay 제거 뒤 production no-overlay external consumer, typed misuse와 exact product package compile
+- Generator fixture는 current two-model 외 unrelated model, multi-app/multi-model permutation,
+  target-also-source와 self-edge construction을 포함하되 multi-hop runtime support를 주장하지 않음
+
+`WriteFile(Check:true)`는 byte comparison만 증명하며 Verify 실행을 대신하지 않습니다. Actual write는 same-directory
+temp/sync, whole candidate package Verify, single rename 순서를 검증합니다. 여러 generated file의 coordinated upgrade,
+directory fsync, rename/deprecation/repair나 CLI를 이 gate에서 주장하지 않습니다.
+
+Binder/backend precedence와 invalid category/code는 위와 같이 고정하고, public 이름과 selector representation은
+ADR-0032 decision gate에서 먼저 고정합니다. Implicit English pluralization을 사용하지 않고 existing/new project
+declaration namespace 전체의 deterministic collision과 exact candidate-union compile을 검증합니다. Activation
+예시의 `Using`, aggregate/query/wrapper/selector/unwrap 이름은 아직 noncanonical입니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
