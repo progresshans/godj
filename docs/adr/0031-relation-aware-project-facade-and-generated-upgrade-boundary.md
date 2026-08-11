@@ -1,6 +1,6 @@
 # ADR-0031: Relation-aware Project Facade and Generated Upgrade Boundary
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-12
 - 관련 work/contract:
   [GDJ-0031](../../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md), Q-013, Q-017
@@ -12,16 +12,18 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. Production facade나 generator를 채택하지 않고, 현재 exact relation-delete fixture를
-한 byte도 바꾸지 않는 external compile-usability spike의 경계만 제안합니다.
+이 ADR은 **test-only compile feasibility 방법과 그 false-green 경계에 한해서 Accepted**입니다. Production
+facade나 generator를 채택하지 않고, 현재 exact relation-delete fixture를 한 byte도 바꾸지 않는 overlay 기반
+external compile-usability 검증 방법만 승인합니다.
 
-[EVID-063](../status/TEST_EVIDENCE.md#evid-20260812-063--gdj-0030-terminal-exact-head-ci-and-gdj-0031-activation-baseline) /
-hosted run `31516174741`이 검증한 `ceff9e534e541edb0bd19cd6a1a61682b5435454`는 clean pre-activation
-baseline입니다. 이 ADR과 work를 추가하는 later activation tree 자체 CI는 `not run/pending`이며 EVID-063을 그
-proof로 재사용하지 않습니다.
+Activation head `624347e15e6d6e6b6981fe14b75974226f72f9df`와 implementation head
+`065390275ee7b69e224eeaeda57e4731321d7a44`는 각각 EVID-064와 EVID-065의 별도 exact-head hosted gate를
+통과했습니다. Physical exact 16, generated exact 13과 logical exact 17 inventory, no-overlay failure, positive와
+adversarial compile/source gates가 검증됐습니다.
 
-Current product는 exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002만 locked입니다.
-이 Proposed ADR은 그 분류를 바꾸지 않습니다.
+Current product는 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002만
+locked입니다. 이 Accepted 결정은 `project.Using`, `Models`, `BlogPosts`, `Related`, `First` tuple, `Model` unwrap
+또는 selector 이름을 canonical public API로 채택하지 않으며 production generated upgrade 정책도 결정하지 않습니다.
 
 ## 맥락
 
@@ -125,8 +127,14 @@ inventory가 늘지 않게 합니다.
 
 ## 결과
 
-Activation 시점에는 코드와 제품 동작이 바뀌지 않습니다. Compile spike가 성공해도 test-only feasibility일 뿐
-production support가 아닙니다. 실패하면 public API 비용 없이 candidate를 폐기하거나 좁힐 수 있습니다.
+Physical exact 16을 보존한 one-file overlay와 external consumer로 forward read-only 후보가 Go type/package
+경계에서 컴파일 가능하다는 feasibility를 확인했습니다. 같은 consumer가 overlay 없이는 exact
+`undefined: project.Using` 진단으로 실패하고, wrong-model 및 forbidden source mutation도 거부되므로 production
+surface 부재를 숨기지 않습니다.
+
+이 결과로 승인한 것은 test-only 검증 방법과 “제품 API가 아님”이라는 경계뿐입니다. Compile success는 production
+support, runtime/cache/query-count 의미 또는 exact public name의 채택이 아닙니다. Candidate 이름과 generated
+upgrade/collision/deprecation 정책은 Q-017 P1/open에 남습니다.
 
 REL-002는 wrapper identity와 scalar mutation 경계가 좁혀진 뒤 별도 work/ADR에서 다룹니다. Reverse/full chaining도
 필요한 generated aggregate를 명시한 별도 packet이어야 합니다.
@@ -142,4 +150,6 @@ REL-002는 wrapper identity와 scalar mutation 경계가 좁혀진 뒤 별도 wo
 - No new top-level Test/t.Run, no physical overlay residue와 clean worktree
 - normal/race/CGO0/vet/root CI와 separate exact-head evidence
 
-ADR acceptance나 production implementation에는 별도 결과 검토와 명시적 API-freeze 결정이 필요합니다.
+위 feasibility 검증은 EVID-064/EVID-065로 완료됐습니다. Production facade/generator acceptance에는 별도 work와
+명시적 API-freeze 결정이 필요합니다. EVID-065 뒤 작성되는 completion-documentation tree 자체 exact-head CI는
+`not run/pending`이며 activation/implementation run을 그 later tree의 proof로 재사용하지 않습니다.

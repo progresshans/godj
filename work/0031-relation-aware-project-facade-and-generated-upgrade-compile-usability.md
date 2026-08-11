@@ -1,6 +1,6 @@
 ---
 id: GDJ-0031
-status: active
+status: completed
 updated: 2026-08-12
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "ceff9e534e541edb0bd19cd6a1a61682b5435454"
@@ -202,26 +202,26 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 
 ## 완료 조건
 
-- [ ] Physical exact 16 count/size/digest와 exact 13 generated subset digest가 고정됨
-- [ ] Exactly one virtual project source만 더한 logical exact 17 compile view가 고정됨
-- [ ] Overlay가 있을 때 exact forward read-only external candidate가 컴파일됨
-- [ ] 같은 candidate가 overlay 없이는 `project.Using` 부재로 컴파일되지 않아 production false claim을 막음
-- [ ] Lazy/eager source result의 pointer type과 exact `OrderBy(...).First(ctx)` assignment가 컴파일됨
-- [ ] `Model()` unwrap 뒤 raw `ID`/`AuthorID` 접근이 컴파일됨
-- [ ] Wrong model/predicate/ordering/selector가 컴파일되지 않음
-- [ ] `project.Using(session)`은 callback 내부 assignability만 컴파일되고 lifetime claim은 없음
-- [ ] Reverse/REL-002/write/cache/JSON/custom method symbol과 forbidden import/source read가 AST gate에서 거부됨
-- [ ] Existing top-level Test/t.Run inventory, product manifest/counts와 physical fixture bytes가 unchanged
-- [ ] Activation, compile implementation과 completion evidence가 서로 다른 exact head에 기록됨
+- [x] Physical exact 16 count/size/digest와 exact 13 generated subset digest가 고정됨
+- [x] Exactly one virtual project source만 더한 logical exact 17 compile view가 고정됨
+- [x] Overlay가 있을 때 exact forward read-only external candidate가 컴파일됨
+- [x] 같은 candidate가 overlay 없이는 `project.Using` 부재로 컴파일되지 않아 production false claim을 막음
+- [x] Lazy/eager source result의 pointer type과 exact `OrderBy(...).First(ctx)` assignment가 컴파일됨
+- [x] `Model()` unwrap 뒤 raw `ID`/`AuthorID` 접근이 컴파일됨
+- [x] Wrong model/predicate/ordering/selector가 컴파일되지 않음
+- [x] `project.Using(session)`은 callback 내부 assignability만 컴파일되고 lifetime claim은 없음
+- [x] Reverse/REL-002/write/cache/JSON/custom method symbol과 forbidden import/source read가 AST gate에서 거부됨
+- [x] Existing top-level Test/t.Run inventory, product manifest/counts와 physical fixture bytes가 unchanged
+- [x] Activation과 compile implementation은 별도 exact head로 증명하고, later completion tree는 pending/no-reuse로 분리함
 
 ## 진행 기록
 
 - [x] GDJ-0030 terminal exact-head CI를 EVID-063에서 clean baseline으로 확인
 - [x] GDJ-0031 active work와 ADR-0031 Proposed boundary 작성
-- [ ] Internal compiletest overlay와 positive/negative/AST gates 구현
-- [ ] Focused normal/race/CGO0/vet와 root CI 실행
-- [ ] Independent scope/false-green audit
-- [ ] 결과에 따라 후보를 좁히되 public API acceptance는 별도 승인으로 분리
+- [x] Internal compiletest overlay와 positive/negative/AST gates 구현
+- [x] Focused normal/race/CGO0/vet와 root CI 실행
+- [x] Independent scope/false-green audit
+- [x] 결과에 따라 후보를 좁히되 public API acceptance는 별도 승인으로 분리
 
 ## 결정된 사항
 
@@ -246,8 +246,16 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 ## 테스트 증거
 
 - Baseline: EVID-063 / hosted run `31516174741`, exact `ceff9e5...` only
-- Activation documentation: `not run/pending`; EVID-063을 proof로 재사용하지 않음
-- Compile spike: `not implemented/not run`
+- Activation documentation: EVID-064 / hosted run `31520396606`, exact `624347e...`; EVID-063을 재사용하지 않음
+- Compile implementation: EVID-065 / hosted run `31528039746`, exact `0653902...`; activation run을 재사용하지 않음
+- Frozen physical exact 16은 62,538 bytes/SHA-256 `992589f0500a7f31808dac2bb2a669daecadab7b978f93f5227bee3ee1ca6cbb`,
+  generated exact 13은 26,140 bytes/SHA-256
+  `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`, logical exact 17은 65,970
+  bytes/SHA-256 `29d37c4cc1446ce320bcd5476afafb77989cd980a1dd3f96cb0732803835737f`입니다.
+- Local focused normal/race/CGO-disabled/vet, full `internal/compiletest`, unchanged 687/687/0 product inventory와
+  independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- 이 completion-documentation exact 11-path tree 자체 CI는 `not run/pending`이며 EVID-064/065를 proof로
+  재사용하지 않습니다.
 
 ## 위험과 rollback
 
@@ -257,11 +265,14 @@ cache/session-lifetime 동작을 test-only code로 위조하는 것입니다. �
 
 ## 다음 정확한 작업
 
-통합 담당자는 activation exact 12-doc diff와 EVID-001..062 prefix를 감사하고 별도 commit/head CI를 얻습니다.
-그 뒤 `internal/compiletest/compile_test.go`의 existing external-consumer test 안에서 physical exact 16 inventory와
-one-file overlay helper를 구현합니다. 새 top-level `Test`나 `t.Run`은 추가하지 않습니다.
+Q-017의 production facade/API freeze와 generated companion upgrade/collision/deprecation 정책은 새 work/ADR에서
+별도로 활성화합니다. 그 전에는 이 test-only overlay의 `project.Using`, `Models`, `BlogPosts`, `Related`, `First`
+tuple, `Model` unwrap 또는 selector 이름을 production generator에 추가하지 않습니다. 현재 active/ready work는
+없습니다.
 
 ## 결과와 인수인계
 
-현재 work는 active이고 제품 구현은 없습니다. ADR-0031은 Proposed입니다. Product/manifest/counts는 GDJ-0030과
-동일하고, Draft PR merge는 사용자 요청 전 수행하지 않습니다.
+현재 work는 completed이고 ADR-0031은 test-only compile feasibility 방법에 한해서 Accepted입니다. Exact 세
+`internal/compiletest` path만 구현됐고 제품 facade/generator/generated output은 없습니다. Product/manifest/counts는
+unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002는 locked입니다. Q-013은
+`Partial`, Q-017은 P1/open이고 모든 candidate 이름은 noncanonical입니다. Draft PR merge는 수행하지 않았습니다.

@@ -12,11 +12,11 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0031 active / relation facade 후속 | Accepted relation semantics와 bounded REL-007/008 low-level delete; test-only forward facade compile spike는 active이고 reverse·FK mutation/cache policy는 open |
+| Q-013 | Partial | GDJ-0031 completed / relation facade 후속 | Accepted relation semantics와 bounded REL-007/008 low-level delete; test-only forward facade compile feasibility는 verified이고 reverse·FK mutation/cache policy는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0031 active / API freeze 전 | relation-aware project facade, pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
+| Q-017 | P1 | GDJ-0031 completed / API freeze 전 | relation-aware project facade, pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 
 ## M0에서 해결한 질문
@@ -412,13 +412,13 @@ facade/manager/selector 이름은 Q-017에서 계속 open입니다.
 ## Q-017 — 공개 API와 generated upgrade
 
 GDJ-0030의 bounded REL-007/008 low-level engine 뒤
-[GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
-[ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)을 active/Proposed로
-활성화했습니다. GDJ-0031은 current relation-delete physical exact 16 fixture 위에 internal compiletest의 virtual
-project source 한 개만 overlay한 logical exact 17 view를 사용합니다. Production codegen/generated output과
-product manifest를 바꾸지 않으므로 Q-017은 여전히 P1/open입니다.
+[GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)은 completed이고
+[ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 test-only feasibility 방법에
+한해서 Accepted입니다. Current relation-delete physical exact 16 fixture 위에 internal compiletest의 virtual project
+source 한 개만 overlay한 logical exact 17 view가 실제 external/root compile gate를 통과했습니다. Production
+codegen/generated output과 product manifest를 바꾸지 않았으므로 Q-017은 여전히 P1/open입니다.
 
-이번 spike에서 검증할 범위는 다음 forward read-only compile 후보입니다.
+이번 spike에서 검증한 범위는 다음 forward read-only compile 후보입니다.
 
 - Project facade의 exact name과 one-time backend/session binding
 - Exact `post, found, err := ...OrderBy(...).First(ctx)`와 error-returning `Limit`의 Go ergonomics
@@ -432,6 +432,8 @@ Reverse aggregate/chaining, target wrapper, `AuthorID` 변경, relation 설정/c
 callback 이후 session lifetime, 값 복사/clone, wrapper JSON과 사용자 정의 model method는 이 spike의 비목표입니다.
 REL-002는 source wrapper ownership 경계를 좁힌 뒤 별도 work/ADR에서 다룹니다.
 
-저수준 `Bind*`, `From`, `ForwardSelect*` API의 존재만으로 최종 사용자 API가 확정됐다고 보지 않습니다.
+저수준 `Bind*`, `From`, `ForwardSelect*` API나 EVID-065의 compile success만으로 최종 사용자 API가 확정됐다고
+보지 않습니다. `project.Using`, returned `Models`, `BlogPosts`, `Related`, `First` tuple, `Model` unwrap와 selector
+이름은 모두 noncanonical이며 후속 Q-017 work가 별도로 결정합니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

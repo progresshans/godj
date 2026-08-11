@@ -147,13 +147,15 @@ posts, err := PostObjects.Using(backend).
 
 `All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
 
-### 관계를 포함한 project facade — Proposed
+### 관계를 포함한 project facade — compile feasibility verified, public API open
 
 관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
 relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
 [ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 이 목표 중 forward read-only
-compile shape만 test-only overlay로 검토하는 active/Proposed 단계입니다. 아래 이름과 chaining 문법은
-illustrative candidate이며 현재 구현됐거나 public API로 채택됐다는 뜻이 아닙니다.
+compile shape만 physical-byte-preserving test-only overlay로 검증해 그 feasibility 방법에 한해 Accepted했습니다.
+Activation EVID-064와 implementation EVID-065는 별도 exact-head hosted gate를 통과했습니다. 아래 이름과 chaining
+문법은 여전히 illustrative/noncanonical candidate이며 production에 구현됐거나 public API로 채택됐다는 뜻이
+아닙니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
