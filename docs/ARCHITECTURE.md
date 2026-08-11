@@ -136,6 +136,31 @@ ready related objects를 원자적으로 공개합니다. Generated typed author
 `119 + 5 + 3`, relation 9/12입니다.
 Multiple/nested/reverse eager, write/delete/DDL/migration과 non-SQLite backend는 범위 밖입니다.
 
+Active GDJ-0030/Proposed ADR-0030은 다음 low-level relation write 경계를 REL-007/008 indivisible packet으로
+설계합니다. Canonical `Bind()`와 같은 authoritative declared project universe의 incoming edge를 exact SHA-256으로
+seal하고, generated v2 scalar/AutoField target용
+`RelationDeleter`가 각 PROTECT source PK+FK를 함께 select/scan해 target equality를 검증한 뒤 모든 source
+identity+PK를 수집합니다. Protected row가 하나라도 있으면 typed
+error의 `ProtectedSourceRows()`를 반환하고 mutation은 0입니다. 그렇지 않으면 canonical SET_NULL bulk plan들과
+target exact-one delete를 additive `db.RelationAtomic.AtomicRelation`의 같은 SQLite pinned connection에서
+수행합니다. Relation connection과 owned competing writer 각각 FK-on을 확인한 `BEGIN IMMEDIATE` 경계만 지원하며,
+metadata-matching physical `NO ACTION`/`RESTRICT` FK가 모든 incoming edge에 존재하는 schema precondition이
+필요합니다. Missing/mismatched constraint와 FK-off/out-of-band writer 차단을 주장하지 않습니다. Successful COMMIT
+뒤에만 `(1,nil)`과 caller key clear가
+가능하고 `Delete`가 반환하는 모든 error는 `(0,error)`/unchanged pointer입니다. Raw transaction cleanup은 canceled callback context와
+독립된 bounded context를 쓰며 raw BEGIN error와 rollback 실패/불확실한 autocommit은 physical connection
+discard로 pool leakage를 막습니다. Relation session이 매 mutator 호출 직전에 mutation-possible을 표시하며 이
+deleter의 첫 entry는 SET_NULL/target DELETE입니다. 그 뒤
+rollback과 discard를 모두 확인하지 못한 경우는 DB/transaction outcome unknown인
+`backend_error/transaction_outcome_unknown`, literal COMMIT error만 durability unknown인
+`backend_error/commit_outcome_unknown`입니다. 두 marker 모두 GoDj 내부 자동 재시도는 0입니다. Caller는 external reconciliation 전 명시적으로 재호출해서는 안 되지만,
+이 packet은 이를 탐지하거나 거부하는 poison token/fence/registry를 제공한다고 주장하지 않습니다. Existing Manager/Delete,
+Mutator/Session/Atomic와 generated files는 그대로이고, 별도 project generator와 exact thirteen-file product
+union만 추가합니다. Unconfirmed physical discard는 private per-Backend state가 handle을 보존하고, explicit
+Backend close가 `sql.DB.Close`로 pool을 먼저 봉인한 뒤 retained handles를 drain합니다. 이는 process-global
+registry가 아니며 close 전 다른 connection의 BUSY 가능성을 숨기지 않습니다. 이 Proposed architecture는 canonical facade, cache invalidation, REL-002, recursive delete,
+migration/DDL 또는 non-SQLite 지원을 뜻하지 않습니다.
+
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
 격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은

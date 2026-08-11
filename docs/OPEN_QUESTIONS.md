@@ -12,11 +12,11 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0029 completed / relation facade 후속 | Accepted relation semantics와 bounded one-hop eager engine; canonical project facade·relation-aware chaining·FK mutation policy는 open |
+| Q-013 | Partial | GDJ-0030 active / relation facade 후속 | Accepted relation semantics와 bounded one-hop eager engine; REL-007/008 low-level delete Proposed; canonical project facade·relation-aware chaining·FK mutation/cache policy는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0029 후속 / API freeze 전 | relation-aware project facade, pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
+| Q-017 | P1 | GDJ-0030 이후 / API freeze 전 | relation-aware project facade, pre-1.0 공개 API와 generated code upgrade 정책은 무엇인가 |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 
 ## M0에서 해결한 질문
@@ -378,6 +378,22 @@ typed/dynamic resolver가 exact implementation head `c02aab67...`의 run `314702
 Multiple/nested/no-argument/reverse eager, OneToOne/ManyToMany, write/delete/DDL/migration과 broader backend는
 결정하지 않았으므로 Q-013은 계속 `Partial`입니다.
 
+Active [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Proposed
+[ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 Q-013 중 REL-007/008 low-level target delete만
+분리합니다. Canonical `Bind()`와 같은 authoritative declared project universe의 incoming policy fingerprint,
+generated v2 scalar/AutoField target deleter, all-PROTECT pre-scan과 canonical SET_NULL→DELETE, SQLite pinned
+`AtomicRelation` transaction을 검증합니다. Standalone generator는 raw slice에서 완전히 빠진 undeclared app을
+감지한다고 주장하지 않습니다. Generated aggregate binder는 full runtime `Bind()`의 canonical unique incoming-target
+identity set과 emitted target set을 exact 비교하고 각 target fingerprint를 검증해 stale/partial companion mismatch를
+pre-I/O 거부합니다. Binding/delete companion이 모두 undeclared source보다 stale한 경우는 runtime에서 발견한다고
+주장하지 않으며 authoritative generation/check가 precondition입니다. Existing
+incoming edge와 일치하는 physical SQLite FK는 supported schema precondition이며 relation DDL/runtime repair는
+범위 밖입니다. Existing one-row Delete와
+public DB interfaces는 바꾸지 않고 별도 relation ports/generator를 추가합니다. REL-002 assignment/cache
+invalidation, canonical project facade, queryset/recursive/CASCADE delete, global cache invalidation, migration/DDL과
+non-SQLite는 결정하지 않으므로 Q-013은 계속 `Partial`입니다. 이 packet의 저수준 `BindRelationDeleter`는 Q-017의
+최종 application API 답이 아닙니다.
+
 Django 6.1의 관계 의미는 기본 reference입니다. Raw FK와 관계 accessor 분리, 미조회/NULL/loaded 구분, 첫 접근
 cache, eager/prefetch의 동일 cache warming, reverse manager와 조회 origin DB 유지가 기준입니다. GoDj는 Python
 descriptor/runtime registry/예외 구현을 복제하지 않고 explicit `context.Context`/`error`, backend/session binding,
@@ -391,7 +407,8 @@ facade/manager/selector 이름은 Q-017에서 계속 open입니다.
 
 ## Q-017 — 공개 API와 generated upgrade
 
-GDJ-0029 완료 뒤 다음 제품 우선순위는 별도 work/ADR로 활성화할 이 external compile-usability spike입니다.
+GDJ-0030의 bounded REL-007/008 low-level engine 뒤 다음 제품 우선순위는 별도 work/ADR로 활성화할 이 external
+compile-usability spike입니다. GDJ-0030은 canonical facade를 선점하지 않으므로 Q-017은 여전히 P1/open입니다.
 API freeze 전 다음을 검증합니다.
 
 - Project facade의 exact name과 one-time backend/session binding

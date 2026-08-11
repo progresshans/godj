@@ -642,6 +642,34 @@ backend/session binding으로 번역합니다. Unified `project.Using(backend)` 
 mutation/cache invalidation과 exact public names는 Q-013/Q-017의 Proposed target이며 현재 passing contract나
 GDJ-0029 구현 사실이 아닙니다.
 
+Active [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Proposed
+[ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 locked REL-007/008을 하나의 SQLite low-level
+delete packet으로 엽니다. REL-007은 모든 protected source row를 distinct identity+PK로 보고
+`integrity_error/protected_foreign_key`, `ProtectedSourceRows()==2`, UPDATE/DELETE 0과 unchanged DB를 요구합니다.
+같은 source row가 두 PROTECT edge에서 보이면 global count 1, 서로 다른 source model의 같은 numeric PK는 count
+2입니다. REL-008은 source
+두 행 SET_NULL UPDATE 뒤 target exact-one DELETE, transaction 1과 committed DB state를 요구합니다. Fixture
+constraint는 `NO ACTION`/`RESTRICT`이고 DB-level SET NULL은 false green입니다. GoDj의 pinned
+`PRAGMA foreign_keys=1` + `BEGIN IMMEDIATE`는 모든 owned writer connection이 FK-on이라는 precondition 아래의
+intentional Go/SQLite safety mechanism이며 Django SQL 문자열 호환 주장이 아닙니다. 모든 declared incoming
+edge에는 metadata-matching physical `NO ACTION`/`RESTRICT` SQLite FK가 필요하고 fixture `PRAGMA foreign_key_list`가
+이를 증명합니다. Missing/mismatched constraint와 FK-off/out-of-band writer는 unsupported이고 `Open` 또는 relation
+DDL이 이를 자동 보장한다고 주장하지 않습니다. Successful deleter return
+1만 adapter가 oracle `deleted_total`/`target_deleted` 양쪽에 매핑합니다. `Delete`가 반환하는 모든 error는 0이고 COMMIT error는
+stable `backend_error/commit_outcome_unknown`, durability unknown/unchanged pointer/internal automatic retry 0입니다.
+`transaction_outcome_unknown` 또는 `commit_outcome_unknown`인 경우 caller는 external reconciliation 전 명시적으로
+재호출해서는 안 되지만, 이 packet은 그 의무를 runtime에서 탐지하거나 거부하는 poison token/fence/registry를 제공하지 않습니다.
+Pre-COMMIT error는 canceled callback context와 독립된 rollback 또는 forced connection discard로 raw transaction
+pool reuse를 막습니다. Confirmed rollback/discard는 unknown code를 쓰지 않고, relation session이 모든 mutator 호출
+직전에 표시한 mutation-possible 뒤 두 confirmation이 모두 실패한 경우만 stable
+`backend_error/transaction_outcome_unknown`으로 external reconciliation 필요성을
+표시합니다. Raw BEGIN error는 callback/retry 없이 force-discard하며 이 code를 쓰지 않습니다. SET_NULL
+affected count는 0 이상만 허용하고 fixture는 exact 2입니다. Current manifest 10,788 bytes/SHA-256
+`64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141`은 그대로이고, REL-007/008 status-only
+target 10,776 bytes/SHA-256 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`는 별도
+implementation evidence 전에는 current compatibility로 표시하지 않습니다. REL-002와 broader delete/facade/backend
+호환은 locked/open입니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는

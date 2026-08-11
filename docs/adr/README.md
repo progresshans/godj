@@ -44,5 +44,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0027](0027-reverse-foreign-key-accessor-and-lookup.md) | Accepted | Reverse FK exact lookup, owner related-set accessor와 SQLite reverse INNER JOIN |
 | [0028](0028-reverse-foreign-key-prefetch.md) | Accepted | Reverse FK two-stage batch prefetch와 atomic warm related-set publication |
 | [0029](0029-one-hop-forward-select-related.md) | Accepted | One-hop forward required/nullable eager projection과 reverse-path pre-I/O rejection |
+| [0030](0030-project-bound-protect-and-set-null-delete.md) | Proposed | Declared project incoming policy 기반 SQLite PROTECT/SET_NULL relation delete |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

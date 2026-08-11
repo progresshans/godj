@@ -375,6 +375,21 @@ EVID-054/run `31436881856`은 current exact
 gate를 통과해 current product는 `119 + 5 + 3`, relation 9/12입니다. Canonical facade와 broader surface는
 Q-013/Q-017에서 계속 open입니다.
 
+Active GDJ-0030/Proposed ADR-0030은 REL-007 PROTECT와 REL-008 SET_NULL을 함께 여는 SQLite-only low-level
+delete 후보입니다. Additive immutable `RelationSetNullPlan`, constructible typed protected error,
+`db.RelationAtomic.AtomicRelation`, project-bound deleter와 declared-universe incoming-policy fingerprint, per-connection
+FK-on + pinned `BEGIN IMMEDIATE`, no-retry and exact thirteen-file generated union을 한 packet으로 검증합니다.
+Generated surface는 `zz_godj_relation_delete.go`의 `RelationDeleters`/`BindRelationDeleters`이고 canonical facade는
+아닙니다. Direct/generated deleter target은 supported incoming edge가 하나 이상이어야 하며, literal COMMIT error만
+stable `commit_outcome_unknown`, relation session mutator entry 뒤 rollback+discard confirmation이 모두 실패한 경우만 stable
+`transaction_outcome_unknown`으로 분류하고 raw begin/transaction cleanup-discard를 검증합니다. Session은 모든
+Mutator/RelationMutator 호출 직전에 mutation-possible을 표시하며 이 deleter의 첫 entry는 SET_NULL/target DELETE입니다. 모든 incoming
+edge의 metadata-matching physical SQLite FK는 supported schema precondition이며 runtime DDL 보장이 아닙니다.
+Target classification
+`121 passing + 5 deviation + 1 oracle_locked`,
+relation 11/12는 구현/hosted evidence 뒤에만 적용하며 지금은 `119 + 5 + 3`, relation 9/12입니다. REL-002,
+canonical facade, cache invalidation, recursive/bulk/CASCADE delete, DDL/migration과 non-SQLite는 포함하지 않습니다.
+
 ## Django 데이터 이행
 
 - default table/column naming

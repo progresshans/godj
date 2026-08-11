@@ -465,23 +465,28 @@ Frozen unless a new work/ADR explicitly reopens them:
   audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. EVID-057은 이 exact completion-documentation head만
   증명합니다. EVID-057을 포함한 terminal exact seven-file 기록은 later documentation-only patch이며
   completion run을 그 exact-head proof로 재사용하지 않습니다.
+- 2026-08-11: Terminal evidence/status commit `d0396c76d016c0f0335b484fbad56c70b80cf6d4`의 Draft PR #1
+  [run 31484369693](https://github.com/progresshans/godj/actions/runs/31484369693)은 exact 26/26 jobs와
+  326/326 recorded steps, four-coordinate 630/630/0·63,928 bytes·SHA-256
+  `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`, exact Darwin/four Python,
+  bounded Ubuntu Linux/386, source diff 0을 통과했습니다. EVID-058로 terminal record를 닫고 이 clean exact
+  head를 GDJ-0030 activation baseline으로 사용합니다.
 
 ## 현재 blocker와 다음 정확한 작업
 
-외부 제품 blocker는 없습니다. Activation, local implementation/audit, exact implementation-head와 exact
-completion-documentation-head hosted acceptance/audit가 모두 통과했습니다. Exact seven-file terminal patch의
-scope, EVID-001..056 prefix, links/frontmatter/fences와 `git diff --check`를 검증한 뒤 documentation-only head로
-별도 CI를 실행합니다. EVID-057/run `31482242288`을 그 later tree의 proof로 재사용하지 않습니다.
-Q-013은 `Partial`, Q-017은 P1/open으로 유지하며 canonical relation facade는 별도 work/ADR을 활성화하기 전
-구현 사실로 표현하지 않습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
+GDJ-0029 blocker는 없습니다. Terminal exact-head hosted acceptance까지 완료했습니다. 후속 active packet은
+[GDJ-0030](0030-project-bound-protect-and-set-null-delete.md)의 REL-007/008 low-level SQLite relation delete입니다.
+Q-013은 `Partial`, Q-017은 P1/open이고 canonical relation facade는 여전히 구현 사실이 아닙니다. EVID-058은
+clean successor baseline일 뿐 GDJ-0030 activation/implementation proof로 재사용하지 않습니다. Draft PR은 사용자
+요청 전 merge하지 않습니다.
 
 ## 인수인계
 
-- GDJ-0029은 completion-documentation head `fb9985e20c92f71eaca7bac81bc61466369e0ebd`, exact-26 run
-  `31482242288`까지 completed입니다. EVID-055는 activation/local pre-hosted, EVID-056은 implementation-head,
-  EVID-057은 completion-documentation-head hosted evidence입니다.
+- GDJ-0029은 terminal head `d0396c76d016c0f0335b484fbad56c70b80cf6d4`, exact-26 run
+  `31484369693`까지 completed입니다. EVID-055는 activation/local pre-hosted, EVID-056은 implementation-head,
+  EVID-057은 completion-documentation-head, EVID-058은 terminal exact-head hosted evidence입니다.
 - Current product는 exact `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12;
   630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`입니다.
 - ADR-0029은 bounded engine slice에 한해 Accepted; Q-013은 `Partial`, Q-017은 P1/open입니다.
 - implementation scope: exact paths in frontmatter; all other code/product/oracle/schema bytes frozen
-- next evidence: exact seven-file terminal hosted CI; EVID-057 completion-documentation evidence와 별도 기록
+- successor: GDJ-0030 active/ADR-0030 Proposed; activation exact-head evidence는 EVID-058과 별도 기록

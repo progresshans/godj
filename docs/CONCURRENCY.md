@@ -73,6 +73,77 @@ return/copy마다 clone과 pointer state를 분리합니다. Exact implementatio
 bounded semantics를 검증했습니다. Cross-call singleflight, public cache injection, transaction/session goroutine
 sharing, write invalidation, multiple/reverse eager graph는 계속 비목표입니다.
 
+Active GDJ-0030/Proposed ADR-0030은 relation delete에 existing deferred `db.Atomic`을 재사용하지 않습니다.
+SQLite backend의 additive `db.RelationAtomic.AtomicRelation`은 pinned relation connection에서
+`PRAGMA foreign_keys=1`을 확인한 뒤 raw `BEGIN IMMEDIATE`를 실행하고 complete PROTECT scan, SET_NULL UPDATE와 target
+DELETE/COMMIT을 같은 connection에 묶습니다. `database/sql`이 raw transaction을 추적하지 않으므로 session은
+terminal SQL 전에 inactive가 되고, active transaction 가능성이 있는 physical connection은 pool로 반환하지
+않습니다. Test가 소유한 모든 competing writer connection도 FK-on을 각각
+확인해야 합니다. File-backed two-connection gate는 no-wait writer의 BUSY/no retry와 wait-through-COMMIT writer의
+FK rejection/no orphan을 따로 증명합니다. SQLite FK enforcement는 per-connection이므로 `Open`이 자동 강제하거나
+FK-off/out-of-band writer를 framework가 막는다고 주장하지 않습니다. Wait-through-COMMIT safety는 모든 declared
+incoming edge의 metadata-matching physical `NO ACTION`/`RESTRICT` FK가 존재해야 하며 fixture
+`PRAGMA foreign_key_list`가 증명하는 supported schema precondition입니다. Missing/mismatched constraint는
+unsupported이고 relation DDL/runtime repair를 주장하지 않습니다.
+
+Callback error/context/statement/unexpected-count pre-COMMIT failure와 COMMIT-call error는 canceled callback context가
+아닌 bounded cleanup context로 raw ROLLBACK을 시도합니다. Rollback 실패나 불확실한 autocommit은 `Conn.Raw`에서
+`driver.ErrBadConn`을 반환하는 방식 등으로 physical discard합니다. Confirmed rollback만 normal Close하고 confirmed
+discard/done은 release합니다. Discard 확인도 실패하면 Close하지 않고 poisoned connection을 retain해 pool reuse를
+막으며 resource loss와 cleanup error를 감수합니다. Relation cleanup helper는 explicit termination-confirmed bool을
+반환하고 `driver.ErrBadConn`/`sql.ErrConnDone`만 confirmed discard/done으로 인정합니다. `Conn.Raw` nil은 confirmation이
+아니며 기존 migration helper semantics를 그대로 재사용하지 않습니다. Private per-Backend retention state가 해당
+physical handle을 강하게 보유하므로 later borrower가 그 raw transaction을 상속할 수 없습니다. 다만 retained lock은
+명시적 Backend close 전까지 다른 connection을 BUSY/block 상태로 둘 수 있으며, 이를 lock-free reborrow로 과장하지
+않습니다.
+Returned-error path는 primary error와 cleanup error를 모두 보존합니다. Callback panic은 session을
+inactive로 만든 뒤 detached rollback/discard하고 exact original panic value를 바꾸지 않고 re-panic합니다. 이때
+cleanup error는 best-effort/non-returnable이지만 confirmed discard 또는 poisoned-handle retention으로 transaction
+inheritance를 막아야 합니다. Panic을 recover한 caller는
+marker로 cleanup 결과를 구분할 수 없으므로 재호출 전 external reconciliation이 필요합니다. Pre-COMMIT confirmed rollback/discard만 unchanged DB를
+보장합니다. SQLite relation session은 모든 `Insert`/`Update`/`Delete`/`RelationSetNull` 호출 직전에
+mutation-possible을 표시하며 이 deleter의 첫 entry는 SET_NULL/target DELETE입니다. 그 뒤 rollback과
+forced-discard confirmation이 모두 실패한 path는 unchanged pointer,
+stable `backend_error/transaction_outcome_unknown`, DB outcome unknown/reconciliation-required입니다. Primary와 cleanup
+cause는 outermost marker의 joined Cause에 모두 남고 이 code는 COMMIT 호출을 뜻하지 않습니다. Raw BEGIN/callback-0,
+pre-mutation read/PROTECT/resource failure, confirmed cleanup,
+panic rethrow와 literal COMMIT error에는 이 code를 쓰지 않으며 literal COMMIT은 별도 `commit_outcome_unknown`입니다.
+
+Raw `BEGIN IMMEDIATE` error(BUSY 포함)는 no-transaction proof가 아니므로 callback/retry 없이 pinned connection을
+`Conn.Raw`→`driver.ErrBadConn`으로 force-discard하고 primary+discard error를 검증합니다. Confirmed discard는 clean
+reborrow를, unconfirmed discard는 poisoned physical handle의 비재사용/비상속을 검증합니다.
+Confirmed discard/done일 때만 release/Close할 수 있습니다. Discard 확인도 실패하면 Close 호출 0으로
+poisoned/unreleased connection을 retain합니다. Callback/mutation 0이므로 이 path는
+`transaction_outcome_unknown`/`commit_outcome_unknown` 둘 다 아닙니다.
+
+Retention state는 process-global registry가 아니라 `Open`이 초기화하는 private Backend-owned pointer입니다.
+`Backend.Close`는 existing CAS 뒤 `sql.DB.Close`를 먼저 호출해 pool을 봉인하고, 그 결과가 error여도 retained set을
+seal/take/drain한 뒤 DB-close와 `database/sql`이 실제 반환한 retained-handle close error를 join합니다. Drain의
+`Conn.Close`는 terminal driver-close path를 시도하며 no-repool을 보장하지만, `database/sql`이
+underlying driver-close error를 `Conn.Close`로 노출하지 않으므로 그 성공/오류를 과장하지 않습니다. Close와 retain의 경합은 state mutex/closed latch로 선형화합니다. Seal 전 retain은 drain되고,
+seal 뒤 retain은 즉시 같은 terminal close path로 들어가며, 두 번째 Backend close는 아무것도 다시 닫지 않습니다.
+이는 순차 idempotence 계약이며 existing CAS에서 진 concurrent losing Close가 winner의 drain 완료를 기다린다고
+주장하지 않습니다.
+
+Literal COMMIT call이 error를 반환한 경우만 stable `backend_error/commit_outcome_unknown`, durability unknown,
+`(0,error)`/unchanged pointer입니다. 두 outcome-unknown marker 모두 GoDj 내부 자동 재시도는 0이고 caller는
+cleanup 결과와 무관하게 external reconciliation 전 명시적으로 재호출해서는 안 됩니다. 이 packet에는 재호출을 탐지·거부하는 poison token/fence/registry가
+없으므로 그 caller 의무를 runtime-enforced gate라고 주장하지 않습니다. Successful COMMIT은 authoritative하여 later context/connection-close error가 success `(1,nil)`을
+downgrade하지 않습니다. Session은 callback 밖에서 invalid이고 goroutine 공유를 약속하지 않습니다. 이
+canceled-context rollback/forced-discard/reborrow/fault/race/CGO0 gates 전에는 Proposed semantics를 구현됐다고
+표현하지 않습니다.
+
+`AtomicRelation` callback cardinality는 precondition/begin failure 0회, 그 밖에는 synchronous exact 1회입니다.
+Concurrent/retry/after-return invocation은 port violation입니다. ORM은 `AtomicRelation` 반환 직후 guard를 원자적으로
+seal하고 completed callback count/result를 snapshot합니다. Nil-without-callback과 seal 전에 등록된
+second/concurrent entry는 `backend_error/invalid_plan`, outer `(0,error)`/unchanged key와 rejected-entry mutation 0을
+만듭니다. Seal 이후 entry는 그 호출 자체만 `backend_error/invalid_plan`/mutation 0으로 거부하며 이미 결정된 outer
+결과나 caller key를 소급 변경하지 않습니다. Interface에는 backend-return hook이 없으므로 악성 backend의 first
+callback이 `AtomicRelation` return과 seal 사이를 경합해 seal 전에 완료되는 경우는 synchronous callback과 구분할 수
+없는 port violation이고 탐지/outer-result를 보장하지 않습니다. Caller key clear는 sealed snapshot이 exactly one
+completed successful callback임을 확인한 뒤에만 가능합니다. Backend가 callback error를 삼키거나 commit하면 DB
+outcome은 보장하지 않습니다.
+
 ## Transaction과 cancellation
 
 - transaction object를 여러 goroutine이 동시에 사용해도 되는지 기본적으로 가정하지 않습니다.

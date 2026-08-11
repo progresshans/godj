@@ -776,7 +776,100 @@ reverse eager와 broader backend는 검증 범위가 아닙니다. Exact 15-file
 [run 31482242288](https://github.com/progresshans/godj/actions/runs/31482242288)도 exact 26/26·326/326,
 four-coordinate 630/630/0 inventory, actual Linux/386 exact package set, exact Darwin과 four Python gates를
 통과해 EVID-057에 기록했습니다. EVID-057을 포함한 terminal exact seven-file 기록 자체의 hosted CI는
-`not run/pending`이며 implementation/completion run을 그 later patch의 proof로 재사용하지 않습니다.
+그 시점에는 `not run/pending`이었고 implementation/completion run을 그 later patch의 proof로 재사용하지
+않았습니다.
+
+GDJ-0029 terminal evidence/status head `d0396c76d016c0f0335b484fbad56c70b80cf6d4`은 별도 Draft PR
+[run 31484369693](https://github.com/progresshans/godj/actions/runs/31484369693)의 exact 26/26 jobs·326/326
+recorded steps를 통과해 EVID-058에 기록했습니다. Four relation-product coordinates는 각각
+630/630/0·63,928 bytes·SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를
+재현했고 exact Darwin, four Python, bounded Ubuntu Linux/386, no-rewrite/clean-worktree와 source diff 0을
+확인했습니다. 이는 GDJ-0029 terminal과 GDJ-0030 clean activation baseline만 증명하며 이 activation diff나
+REL-007/008 implementation proof로 재사용하지 않습니다.
+
+Active GDJ-0030 testing은 current 9 required/3 NI를 보존한 baseline에서 REL-007/008 두 contract만 actual로
+전환합니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
+`ProtectedSourceRows`, mutation 0과 unchanged DB/caller를 검증합니다. 같은 row/two-edge는 global count 1,
+different source model/same numeric PK는 count 2이고 Linux/386 compile도 required입니다. SET_NULL은 fixture
+`NO ACTION`/`RESTRICT`, framework UPDATE→DELETE, affected 2→1, transaction 1을 검증하되 Delete 성공 `(1,nil)`은
+target rows만 뜻하고 adapter만 두 oracle delete count에 매핑합니다. 각 PROTECT edge의 nil/typed-nil rows+nil은
+method-call 0과 `backend_error/invalid_plan`, nil/typed-nil rows+error는 primary 보존/method-call 0, genuinely non-nil
+rows+error는 close-once와 primary+close error 보존을 검증합니다. `Next`/`Scan`/`Rows.Err`/`Close`/context failure는
+mutation 전 abort와 acquired genuine rows exactly-once close를 증명해야 하며 exact selected/scanned source PK+FK,
+non-NULL FK target equality와 all-row drain을 고정합니다.
+Terminal rows error를 protected-zero로 오판하는 false green을 금지합니다. SET_NULL count 0은 valid, negative는
+backend contract violation/rollback이고 fixture는 exact 2입니다.
+
+SQLite relation session은 relation connection과 모든 owned/competing writer의 FK-on을 각각 확인합니다. Real
+file/two-connection gate는 no-wait BUSY/no retry와 wait-through-COMMIT FK rejection/no orphan을 분리하고, 모든
+declared incoming edge의 metadata-matching physical `NO ACTION`/`RESTRICT` FK를 fixture `PRAGMA foreign_key_list`로
+증명합니다. Missing/mismatched constraints와 FK-off writer는 unsupported입니다. Raw BEGIN error/BUSY는 callback/
+retry 0, forced discard와 primary+discard error를 검증합니다. Confirmed discard는 clean reborrow를, unconfirmed
+discard는 poisoned physical handle의 비재사용/비상속과 다른 connection이 Backend close 전 BUSY일 수 있음을
+검증합니다. Pre-COMMIT
+fault/cancellation/count failure는 callback context와 독립된 bounded cleanup context의 raw ROLLBACK 또는 forced
+physical connection discard로 pool reuse를 막고, primary+cleanup error 보존, confirmed cleanup일 때 unchanged DB,
+confirmed cleanup의 clean reborrow를 검증합니다. Relation cleanup은 explicit termination-confirmed bool을 쓰고
+`driver.ErrBadConn`/`sql.ErrConnDone`만 discard/done confirmation으로 인정합니다. Raw nil fake는 unconfirmed,
+Close 0/retained/no-reuse이고 mutation-possible이면 transaction marker, raw-BEGIN/callback-0이면 unknown marker 0임을
+증명합니다. Relation session은 매 `Insert`/`Update`/`Delete`/`RelationSetNull` 호출
+직전에 mutation-possible을 표시하며, 이 bounded deleter의 첫 mutation entry는 SET_NULL 또는 target DELETE입니다.
+그 뒤 rollback/discard confirmation이 모두 실패한 경우만 outermost
+`backend_error/transaction_outcome_unknown`, unchanged pointer/DB outcome unknown과 reconciliation-required이고
+joined Cause에서 primary+rollback+discard cause가 모두 reachable이어야 합니다. Primary 자체가 `*query.Error`인
+fixture에서도 `errors.As`가 outer marker를 먼저 반환해야 합니다. Raw BEGIN/callback-0, pre-mutation read/PROTECT/
+resource failure, confirmed rollback/discard와 literal COMMIT error는 이 code를 쓰지 않습니다. Literal COMMIT-call error만 outermost
+`backend_error/commit_outcome_unknown`이 errors.Is/errors.As로 도달하고, joined COMMIT/cleanup causes를 보존하며 cleanup 결과와 무관하게 durability unknown
+`(0,error)`, unchanged pointer, 한 `Delete` invocation의 backend attempt exact 1과 internal automatic retry 0을
+검증합니다. 두 marker 모두 caller는 reconciliation 전 명시적으로 재호출해서는 안 되지만 이 packet은 poison token/fence/registry를
+제공하지 않으므로 두 번째 caller invocation이 runtime에서 거부된다고 assert하지 않습니다. Canceled-context
+rollback, forced-discard, successful COMMIT 뒤 context/close error가 `(1,nil)`/key clear를 downgrade하지
+않는 gate가 필수입니다. Panic path는 detached cleanup 뒤 confirmed discard 또는 poisoned-handle retention으로
+transaction inheritance를 막고 exact original panic value identity를 보존하며
+cleanup error/marker 반환을 약속하지 않습니다. Recover한 caller는 cleanup 결과를 구분할 수 없으므로 retry 전
+external reconciliation이 필요하다는 계약만 검증합니다. Caller key preflight→clone→clone key exact equality도 I/O 전에 검증하며,
+second clone clear probe는 `query.Integer(0)`/present=false와 canonical non-PK `WriteFieldValue` before/after equality를
+검증합니다. Clone key drift, Clear no-op/key residue/non-PK mutation descriptor는 `query_error/invalid_plan`,
+`(0,error)`/I/O 0입니다. Descriptor method determinism/purity는 extension precondition입니다. FK-off/out-of-band
+writer는 unsupported입니다.
+
+SQLite Backend retention gate는 `Open`이 private per-Backend state를 초기화하고 unconfirmed poisoned handle을
+operation 중 강하게 보유하는지 검증합니다. `Backend.Close`는 `sql.DB.Close`를 먼저 호출한 뒤, 그 호출이 error를
+반환해도 retained set을 seal/take/drain하고 DB-close와 `database/sql`이 실제 반환한 handle-close error를
+보존해야 합니다. Ordering fake는 pool seal 전
+retained `Conn.Close` 호출 0, seal 뒤 terminal `Conn.Close` attempt exact 1/no pool return을 증명합니다. Custom
+driver는 close invocation/order를 기록하되 `database/sql`이 숨기는 underlying driver-close error까지 public
+결과로 관찰된다고 주장하지 않습니다. Pre-seal retain, post-seal
+retain, retain-vs-close race와 idempotent second close를 각각 실행하며 retained set residue 0을 확인합니다. 다른
+connection은 explicit Backend close 전 retained lock 때문에 BUSY/block될 수 있으므로 lock-free reborrow를
+acceptance로 사용하지 않습니다. External compile gate는 private state가 pointer field여서 기존 `Backend` value의
+comparability와 public method set이 유지됨을 고정합니다. Second-close idempotence는 순차 gate이며 concurrent losing
+Close가 winner 완료를 기다린다는 새 계약은 만들지 않습니다.
+
+`AtomicRelation` callback은 precondition/begin failure 0회, 그 밖에는 synchronous exact 1회입니다. ORM은
+`AtomicRelation` 반환 직후 active/single guard를 원자적으로 seal하고 completed callback snapshot으로 outer result와
+key clear를 결정합니다. Fake backend의 nil-without-callback과 seal 전에 등록된 double/concurrent callback은
+`backend_error/invalid_plan`, `(0,error)`, unchanged caller와 rejected-entry mutation 0을 증명합니다. 별도 late gate는
+seal 이후에 동기화한 invocation 자체가 `backend_error/invalid_plan`으로 거부되고 mutation 0임만 증명하며, 이미
+결정된 `Delete` 결과나 caller key가 소급 변경된다고 assert하지 않습니다. Backend-return과 seal 사이를 경합해
+first callback이 seal 전에 완료되는 악성 port violation은 synchronous callback과 구분할 수 없으므로 detection이나
+outer result를 assert하지 않고 race-safety만 검증합니다. Callback error를 swallow/commit하는 backend는 explicit
+port violation이며 DB outcome을 보장하지 않습니다.
+
+Direct binder와 generator는 target에 supported incoming many-to-one edge가 최소 하나 있어야 합니다. Generator는
+canonical `Bind()`와 같은 authoritative declared universe input, reordered identical bytes/digest,
+v3-target pre-byte rejection, static WriteDescriptor assertion, exact `zz_godj_relation_delete.go`의 zero/nonzero
+`RelationDeleters`/`BindRelationDeleters`, namespace/external compile, separate exact thirteen-file
+`relationdeleteproduct` union과 prior twelve-file byte lock/last-good를 검증합니다. Generated field는
+`<ExportedPackageAlias><ModelGoName>`이고 alias≠app-label adversarial determinism/namespace/compile이 필수입니다.
+Aggregate binder는 full `Bind()`의 canonical unique incoming-target identity set과 generated emitted-target set을
+I/O 전에 exact 비교하고, added/removed target field 또는 per-target fingerprint drift를 cold `invalid_plan`으로
+거부해야 합니다. Binding/delete companions가 함께 undeclared source보다 stale한 경우를 runtime에서 탐지한다고
+assert하지 않고 authoritative generation/check precondition으로 둡니다.
+Manifest target 10,776 bytes/SHA-256
+`3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`는 REL-007/008 status-only exact
+transition/revert가 입증된 뒤에만 current가 됩니다. Activation, implementation, completion and terminal heads는
+각각 별도 local/hosted evidence를 사용합니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
