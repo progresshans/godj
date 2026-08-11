@@ -1,0 +1,84 @@
+package facadeconsumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
+	"github.com/progresshans/godj/db"
+)
+
+func compileRelationFacade(ctx context.Context, backend db.Queryer) error {
+	models, err := project.Using(backend)
+	if err != nil {
+		return err
+	}
+
+	filtered := models.BlogPosts.Filter(blog.PostFields.Title.IContains("lazy"))
+	ordered := filtered.OrderBy(blog.PostFields.ID.Asc())
+	limited, err := ordered.Limit(1)
+	if err != nil {
+		return err
+	}
+	_ = limited
+
+	post, found, err := models.BlogPosts.
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return nil
+	}
+	var source *project.BlogPostObject = post
+	_ = source
+
+	author, err := post.Author(ctx)
+	if err != nil {
+		return err
+	}
+	var related authors.Author = author
+	_ = related.Name
+	raw, err := post.Model()
+	if err != nil {
+		return err
+	}
+	var model blog.Post = raw
+	_ = model.ID
+	_ = model.Title
+	_ = model.AuthorID
+
+	eager := models.BlogPosts.
+		SelectRelated(models.BlogPosts.Related.Author).
+		Filter(blog.PostFields.Title.IContains("eager")).
+		OrderBy(blog.PostFields.ID.Asc())
+	limitedEager, err := eager.Limit(1)
+	if err != nil {
+		return err
+	}
+	posts, err := limitedEager.All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(posts) == 0 {
+		return nil
+	}
+	post = posts[0]
+	author, err = post.Author(ctx)
+	return err
+}
+
+func compileRelationSession(ctx context.Context, atomic db.RelationAtomic) error {
+	return atomic.AtomicRelation(ctx, func(session db.RelationSession) error {
+		models, err := project.Using(session)
+		if err != nil {
+			return err
+		}
+		_, _, err = models.BlogPosts.
+			OrderBy(blog.PostFields.ID.Asc()).
+			First(ctx)
+		return err
+	})
+}
