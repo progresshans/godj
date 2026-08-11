@@ -2,17 +2,22 @@ package sqlite_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	modernsqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 func TestArticleQueryVerticalSlice(t *testing.T) {
@@ -668,6 +673,268 @@ func TestSQLiteBackendExecutesReverseJoinAndRejectsRootMismatchPreIO(t *testing.
 	}
 	if got := backend.QueryCount() - before; got != 0 {
 		t.Fatalf("invalid reverse relation query count = %d, want 0", got)
+	}
+}
+
+func TestSQLiteAtomicRelationBeginImmediateRejectsNoWaitCompetingWriter(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "relation-busy.sqlite")
+	backend, writer := openFileRelationDatabases(t, ctx, path, 1)
+	provisionFileRelationFixture(t, ctx, backend)
+	assertFileRelationForeignKeys(t, ctx, writer)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	atomicResult := make(chan error, 1)
+	go func() {
+		atomicResult <- backend.AtomicRelation(ctx, func(db.RelationSession) error {
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+	<-entered
+	_, busyErr := writer.ExecContext(ctx, `INSERT INTO "authors_author" ("id", "name") VALUES (3, 'Cleo')`)
+	assertSQLiteCode(t, busyErr, sqlite3.SQLITE_BUSY)
+	close(release)
+	if err := <-atomicResult; err != nil {
+		t.Fatalf("AtomicRelation() error = %v", err)
+	}
+	var rows int
+	if err := writer.QueryRowContext(ctx, `SELECT COUNT(*) FROM "authors_author" WHERE "id" = 3`).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 0 {
+		t.Fatalf("competing writer rows = %d, want 0", rows)
+	}
+}
+
+func TestSQLiteAtomicRelationBusyBeginDiscardsWithoutCallbackOrRetry(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "relation-busy-begin.sqlite")
+	backend, locker := openFileRelationDatabases(t, ctx, path, 1)
+	provisionFileRelationFixture(t, ctx, backend)
+
+	connection, err := locker.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		_ = connection.Close()
+		t.Fatal(err)
+	}
+	called := 0
+	err = backend.AtomicRelation(ctx, func(db.RelationSession) error {
+		called++
+		return nil
+	})
+	assertSQLiteCode(t, err, sqlite3.SQLITE_BUSY)
+	if called != 0 {
+		t.Fatalf("callback calls after BUSY BEGIN = %d, want 0", called)
+	}
+	if errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) ||
+		errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
+		t.Fatalf("BUSY BEGIN error used outcome-unknown marker: %v", err)
+	}
+	if _, err := connection.ExecContext(ctx, "ROLLBACK"); err != nil {
+		t.Fatal(err)
+	}
+	if err := connection.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := backend.AtomicRelation(ctx, func(db.RelationSession) error {
+		called++
+		return nil
+	}); err != nil {
+		t.Fatalf("AtomicRelation() after BUSY discard error = %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("successful callback calls = %d, want 1", called)
+	}
+}
+
+func TestSQLiteAtomicRelationWaitingFKWriterCannotCreatePostCommitOrphan(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "relation-fk-race.sqlite")
+	backend, writer := openFileRelationDatabases(t, ctx, path, 5000)
+	provisionFileRelationFixture(t, ctx, backend)
+	assertFileRelationForeignKeys(t, ctx, writer)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	atomicResult := make(chan error, 1)
+	go func() {
+		atomicResult <- backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+			close(entered)
+			<-release
+			setNull := query.NewRelationSetNullPlan(
+				"blog_post",
+				query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true),
+				query.Integer(2),
+			)
+			if rows, err := session.RelationSetNull(ctx, setNull); err != nil || rows != 2 {
+				return fmt.Errorf("SET_NULL = (%d, %v), want (2, nil)", rows, err)
+			}
+			deleteTarget := query.NewDeletePlan(
+				"authors_author",
+				query.NewFieldRef("id", "id", query.FieldInteger, false),
+				query.Integer(2),
+			)
+			if rows, err := session.Delete(ctx, deleteTarget); err != nil || rows != 1 {
+				return fmt.Errorf("Delete = (%d, %v), want (1, nil)", rows, err)
+			}
+			return nil
+		})
+	}()
+	<-entered
+
+	writerStarted := make(chan struct{})
+	writerResult := make(chan error, 1)
+	go func() {
+		close(writerStarted)
+		_, err := writer.ExecContext(ctx,
+			`INSERT INTO "blog_post" ("id", "author_id", "reviewer_id") VALUES (99, 2, NULL)`,
+		)
+		writerResult <- err
+	}()
+	<-writerStarted
+	select {
+	case err := <-writerResult:
+		t.Fatalf("waiting writer returned before relation COMMIT: %v", err)
+	case <-time.After(75 * time.Millisecond):
+	}
+	close(release)
+	if err := <-atomicResult; err != nil {
+		t.Fatalf("AtomicRelation() error = %v", err)
+	}
+	var writerErr error
+	select {
+	case writerErr = <-writerResult:
+	case <-time.After(5 * time.Second):
+		t.Fatal("waiting writer did not finish after relation COMMIT")
+	}
+	assertSQLiteCode(t, writerErr, sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY)
+
+	var orphanRows int
+	if err := writer.QueryRowContext(ctx, `SELECT COUNT(*) FROM "blog_post" WHERE "id" = 99`).Scan(&orphanRows); err != nil {
+		t.Fatal(err)
+	}
+	var targetRows int
+	if err := writer.QueryRowContext(ctx, `SELECT COUNT(*) FROM "authors_author" WHERE "id" = 2`).Scan(&targetRows); err != nil {
+		t.Fatal(err)
+	}
+	var reviewerRows int
+	if err := writer.QueryRowContext(ctx, `SELECT COUNT(*) FROM "blog_post" WHERE "reviewer_id" = 2`).Scan(&reviewerRows); err != nil {
+		t.Fatal(err)
+	}
+	if orphanRows != 0 || targetRows != 0 || reviewerRows != 0 {
+		t.Fatalf("post-race orphan/target/reviewer rows = %d/%d/%d, want 0/0/0", orphanRows, targetRows, reviewerRows)
+	}
+}
+
+func openFileRelationDatabases(t *testing.T, ctx context.Context, path string, busyTimeout int) (*sqlite.Backend, *sql.DB) {
+	t.Helper()
+	dsn := fmt.Sprintf("file:%s?mode=rwc&_pragma=foreign_keys(1)&_busy_timeout=%d", filepath.ToSlash(path), busyTimeout)
+	backend, err := sqlite.Open(ctx, dsn)
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	writer, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		_ = backend.Close()
+		t.Fatalf("sql.Open() error = %v", err)
+	}
+	writer.SetMaxOpenConns(1)
+	writer.SetMaxIdleConns(1)
+	if err := writer.PingContext(ctx); err != nil {
+		_ = writer.Close()
+		_ = backend.Close()
+		t.Fatalf("writer PingContext() error = %v", err)
+	}
+	var foreignKeys int
+	if err := writer.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 1 {
+		_ = writer.Close()
+		_ = backend.Close()
+		t.Fatalf("writer foreign_keys = (%d, %v), want (1, nil)", foreignKeys, err)
+	}
+	t.Cleanup(func() {
+		if err := writer.Close(); err != nil {
+			t.Errorf("writer Close() error = %v", err)
+		}
+		if err := backend.Close(); err != nil {
+			t.Errorf("backend Close() error = %v", err)
+		}
+	})
+	return backend, writer
+}
+
+func provisionFileRelationFixture(t *testing.T, ctx context.Context, backend *sqlite.Backend) {
+	t.Helper()
+	for _, statement := range []string{
+		`CREATE TABLE "authors_author" ("id" INTEGER NOT NULL PRIMARY KEY, "name" TEXT NOT NULL)`,
+		`CREATE TABLE "blog_post" (` +
+			`"id" INTEGER NOT NULL PRIMARY KEY, ` +
+			`"author_id" INTEGER NOT NULL REFERENCES "authors_author" ("id") ON DELETE NO ACTION, ` +
+			`"reviewer_id" INTEGER NULL REFERENCES "authors_author" ("id") ON DELETE NO ACTION)`,
+		`INSERT INTO "authors_author" ("id", "name") VALUES (1, 'Ada'), (2, 'Bob')`,
+		`INSERT INTO "blog_post" ("id", "author_id", "reviewer_id") VALUES (10, 1, 2), (11, 1, 2)`,
+	} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("provision relation fixture: %v", err)
+		}
+	}
+}
+
+func assertFileRelationForeignKeys(t *testing.T, ctx context.Context, database *sql.DB) {
+	t.Helper()
+	var tableSQL string
+	if err := database.QueryRowContext(ctx, `SELECT "sql" FROM "sqlite_schema" WHERE "type" = 'table' AND "name" = 'blog_post'`).Scan(&tableSQL); err != nil {
+		t.Fatalf("read blog_post table definition: %v", err)
+	}
+	rows, err := database.QueryContext(ctx, `PRAGMA foreign_key_list("blog_post")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	seen := map[string]string{}
+	for rows.Next() {
+		var (
+			id, sequence                  int
+			table, from, to               string
+			onUpdate, onDelete, matchType string
+		)
+		if err := rows.Scan(&id, &sequence, &table, &from, &to, &onUpdate, &onDelete, &matchType); err != nil {
+			t.Fatal(err)
+		}
+		if table != "authors_author" || to != "id" || sequence != 0 || onUpdate != "NO ACTION" || matchType != "NONE" {
+			t.Fatalf("foreign key %q shape = table=%q to=%q seq=%d update=%q match=%q", from, table, to, sequence, onUpdate, matchType)
+		}
+		seen[from] = onDelete
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen["author_id"] != "NO ACTION" || seen["reviewer_id"] != "NO ACTION" {
+		t.Fatalf("foreign-key delete policies = %v for definition %q", seen, tableSQL)
+	}
+}
+
+func assertSQLiteCode(t *testing.T, err error, code int) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("SQLite error = nil, want code %d", code)
+	}
+	var sqliteErr *modernsqlite.Error
+	if !errors.As(err, &sqliteErr) || sqliteErr.Code() != code {
+		t.Fatalf("SQLite error = %v (code %d), want code %d", err, func() int {
+			if sqliteErr == nil {
+				return 0
+			}
+			return sqliteErr.Code()
+		}(), code)
 	}
 }
 
