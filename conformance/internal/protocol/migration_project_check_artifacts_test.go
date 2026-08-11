@@ -309,7 +309,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		!strings.Contains(conformance, "./conformance/relationobjectproduct/...") ||
 		!strings.Contains(conformance, "./conformance/relationreverseproduct/...") ||
 		!strings.Contains(conformance, "./conformance/relationprefetchproduct/...") ||
-		!strings.Contains(conformance, "./conformance/relationselectproduct/...") {
+		!strings.Contains(conformance, "./conformance/relationselectproduct/...") ||
+		!strings.Contains(conformance, "./conformance/relationdeleteproduct/...") {
 		t.Fatal("existing Ubuntu full/Linux-386 gates were not preserved")
 	}
 	if !strings.Contains(darwin, "make python-test-exact oracle-check") || !strings.Contains(darwin, "./migrations") || !strings.Contains(darwin, "./db/sqlite") {
@@ -400,6 +401,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"./conformance/relationreverseproduct/...",
 		"./conformance/relationprefetchproduct/...",
 		"./conformance/relationselectproduct/...",
+		"./conformance/relationdeleteproduct/...",
 		"./conformance/internal/protocol",
 		"./conformance/runners/godj",
 		"./conformance/cmd/godjcheck",
@@ -424,9 +426,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 630`,
-		`assert len(payload) == 63928`,
-		`4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`,
+		`assert len(runs) == 687`,
+		`assert len(payload) == 69597`,
+		`363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
@@ -446,6 +448,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"conformance/relationreverseproduct",
 		"conformance/relationprefetchproduct",
 		"conformance/relationselectproduct",
+		"conformance/relationdeleteproduct",
 	} {
 		if !strings.Contains(relationProduct, required) {
 			t.Fatalf("relation-product matrix is missing required fragment %q", required)
@@ -480,6 +483,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		"./conformance/relationreverseproduct/...",
 		"./conformance/relationprefetchproduct/...",
 		"./conformance/relationselectproduct/...",
+		"./conformance/relationdeleteproduct/...",
 		"./conformance/internal/protocol",
 		"./conformance/runners/godj",
 		"./conformance/cmd/godjcheck",

@@ -74,6 +74,7 @@ cgo-zero-build:
 		./conformance/relationreverseproduct/... \
 		./conformance/relationprefetchproduct/... \
 		./conformance/relationselectproduct/... \
+		./conformance/relationdeleteproduct/... \
 		-count=1
 
 python-test:

@@ -83,6 +83,7 @@ jobs:
           ./conformance/relationreverseproduct/...
           ./conformance/relationprefetchproduct/...
           ./conformance/relationselectproduct/...
+          ./conformance/relationdeleteproduct/...
           ./conformance/runners/godj
 
       - name: Verify stored oracle checksum
@@ -376,6 +377,7 @@ jobs:
             ./conformance/relationreverseproduct/... \
             ./conformance/relationprefetchproduct/... \
             ./conformance/relationselectproduct/... \
+            ./conformance/relationdeleteproduct/... \
             ./conformance/internal/protocol \
             ./conformance/runners/godj \
             ./conformance/cmd/godjcheck \
@@ -467,10 +469,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 630, sorted(runs)
-          assert len(payload) == 63928, len(payload)
+          assert len(runs) == 687, sorted(runs)
+          assert len(payload) == 69597, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca"
+          assert payload_sha256 == "363c4e165d7a051d68e45353e1ead697d9493f2322b61187a9ad83af8e7607b9"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -502,6 +504,7 @@ jobs:
           ./conformance/relationreverseproduct/...
           ./conformance/relationprefetchproduct/...
           ./conformance/relationselectproduct/...
+          ./conformance/relationdeleteproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -523,6 +526,7 @@ jobs:
           ./conformance/relationreverseproduct/...
           ./conformance/relationprefetchproduct/...
           ./conformance/relationselectproduct/...
+          ./conformance/relationdeleteproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -544,6 +548,7 @@ jobs:
           ./conformance/relationreverseproduct/...
           ./conformance/relationprefetchproduct/...
           ./conformance/relationselectproduct/...
+          ./conformance/relationdeleteproduct/...
           ./conformance/internal/protocol
           ./conformance/runners/godj
           ./conformance/cmd/godjcheck
@@ -561,6 +566,7 @@ jobs:
           conformance/relationreverseproduct
           conformance/relationprefetchproduct
           conformance/relationselectproduct
+          conformance/relationdeleteproduct
 
       - name: Require a clean worktree
         run: |

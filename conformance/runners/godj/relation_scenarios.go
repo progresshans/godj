@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct"
 	"github.com/progresshans/godj/conformance/relationobjectproduct"
 	"github.com/progresshans/godj/conformance/relationprefetchproduct"
 	"github.com/progresshans/godj/conformance/relationproduct"
@@ -30,6 +31,10 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 		return relationReverseAccessorAndLookup, true
 	case "django.relation.nullable_access_and_isnull":
 		return relationNullableAccessAndIsNull, true
+	case "django.relation.protect_delete":
+		return relationProtectDelete, true
+	case "django.relation.set_null_delete":
+		return relationSetNullDelete, true
 	case "django.relation.required_select_related":
 		return relationRequiredSelectRelated, true
 	case "django.relation.nullable_select_related":
@@ -41,6 +46,94 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func relationProtectDelete(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationdeleteproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-007/008 delete product: %w", err)
+	}
+	var protected *query.ProtectedForeignKeyError
+	if !errors.As(observed.Protect.Err, &protected) {
+		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want *query.ProtectedForeignKeyError", observed.Protect.Err)
+	}
+	var queryError *query.Error
+	if !errors.As(observed.Protect.Err, &queryError) {
+		return protocol.Observation{}, fmt.Errorf("REL-007 error = %v, want wrapped *query.Error", observed.Protect.Err)
+	}
+	messageIsContract := false
+	databaseState := relationDeleteDatabaseStateValue(observed.Protect.After)
+	metrics := protocol.Object(map[string]protocol.Value{
+		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.Protect.Metrics.RelationSetNullCount, 10)),
+		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.Protect.Metrics.DeleteCount, 10)),
+		"protected_source_rows":  protocol.Integer(strconv.FormatInt(protected.ProtectedSourceRows(), 10)),
+	})
+	return protocol.Observation{
+		ID:     contract.ID,
+		Status: protocol.StatusObserved,
+		Phase:  contract.Phase,
+		Error: &protocol.ObservedError{
+			Category:          queryError.Category,
+			Code:              queryError.Code,
+			Message:           observed.Protect.Err.Error(),
+			MessageIsContract: &messageIsContract,
+		},
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
+}
+
+func relationSetNullDelete(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationdeleteproduct.Observe(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-007/008 delete product: %w", err)
+	}
+	if observed.SetNull.Err != nil {
+		return protocol.Observation{}, fmt.Errorf("REL-008 delete failed: %w", observed.SetNull.Err)
+	}
+	mutationOrder := make([]protocol.Value, len(observed.SetNull.Metrics.MutationOrder))
+	for index, kind := range observed.SetNull.Metrics.MutationOrder {
+		mutationOrder[index] = protocol.String(kind)
+	}
+	mutationRows := make([]protocol.Value, len(observed.SetNull.Metrics.MutationRows))
+	for index, row := range observed.SetNull.Metrics.MutationRows {
+		mutationRows[index] = protocol.Object(map[string]protocol.Value{
+			"kind":          protocol.String(row.Kind),
+			"affected_rows": protocol.Integer(strconv.FormatInt(row.AffectedRows, 10)),
+		})
+	}
+	affectedSourceRows := sumRelationDeleteRows(observed.SetNull.Metrics.RelationSetNullRows)
+	deletedTargetRows := sumRelationDeleteRows(observed.SetNull.Metrics.DeleteRows)
+	result := protocol.Object(map[string]protocol.Value{
+		"deleted_total":  protocol.Integer(strconv.FormatInt(observed.SetNull.Returned, 10)),
+		"target_deleted": protocol.Integer(strconv.FormatInt(observed.SetNull.Returned, 10)),
+	})
+	metrics := protocol.Object(map[string]protocol.Value{
+		"transaction_count":      protocol.Integer(strconv.FormatInt(observed.SetNull.Metrics.TransactionCount, 10)),
+		"mutation_order":         protocol.List(mutationOrder...),
+		"mutation_rows":          protocol.List(mutationRows...),
+		"update_statement_count": protocol.Integer(strconv.FormatInt(observed.SetNull.Metrics.RelationSetNullCount, 10)),
+		"delete_statement_count": protocol.Integer(strconv.FormatInt(observed.SetNull.Metrics.DeleteCount, 10)),
+		"affected_source_rows":   protocol.Integer(strconv.FormatInt(affectedSourceRows, 10)),
+		"deleted_target_rows":    protocol.Integer(strconv.FormatInt(deletedTargetRows, 10)),
+	})
+	databaseState := relationDeleteDatabaseStateValue(observed.SetNull.After)
+	return protocol.Observation{
+		ID:      contract.ID,
+		Status:  protocol.StatusObserved,
+		Phase:   contract.Phase,
+		Result:  &result,
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
+}
+
+func sumRelationDeleteRows(rows []int64) int64 {
+	var total int64
+	for _, row := range rows {
+		total += row
+	}
+	return total
 }
 
 func relationRequiredSelectRelated(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
@@ -536,6 +629,33 @@ func relationPrefetchDatabaseStateValue(state relationprefetchproduct.DatabaseSt
 }
 
 func relationSelectDatabaseStateValue(state relationselectproduct.DatabaseState) protocol.Value {
+	authors := make([]protocol.Value, len(state.Authors))
+	for index, author := range state.Authors {
+		authors[index] = protocol.Object(map[string]protocol.Value{
+			"id":   relationPrimaryKey(author.ID),
+			"name": protocol.String(author.Name),
+		})
+	}
+	posts := make([]protocol.Value, len(state.Posts))
+	for index, post := range state.Posts {
+		reviewer := protocol.Null()
+		if post.ReviewerID != nil {
+			reviewer = relationPrimaryKey(*post.ReviewerID)
+		}
+		posts[index] = protocol.Object(map[string]protocol.Value{
+			"id":          relationPrimaryKey(post.ID),
+			"title":       protocol.String(post.Title),
+			"author_id":   relationPrimaryKey(post.AuthorID),
+			"reviewer_id": reviewer,
+		})
+	}
+	return protocol.Object(map[string]protocol.Value{
+		"authors": protocol.List(authors...),
+		"posts":   protocol.List(posts...),
+	})
+}
+
+func relationDeleteDatabaseStateValue(state relationdeleteproduct.DatabaseState) protocol.Value {
 	authors := make([]protocol.Value, len(state.Authors))
 	for index, author := range state.Authors {
 		authors[index] = protocol.Object(map[string]protocol.Value{

@@ -145,8 +145,9 @@ class RelationScenarioTests(unittest.TestCase):
                 "passing",
                 "passing",
                 "passing",
+                "passing",
+                "passing",
             ]
-            + ["oracle_locked"] * 2
             + ["passing"] * 4,
         )
         self.assertEqual(

@@ -151,7 +151,7 @@
       "title": "PROTECT reports both source rows and performs no mutation",
       "scenario": "django.relation.protect_delete",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
@@ -173,7 +173,7 @@
       "title": "SET_NULL updates every source before deleting the target in one transaction",
       "scenario": "django.relation.set_null_delete",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",
