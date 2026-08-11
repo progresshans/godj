@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-11
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260811-059
+- 마지막 갱신: 2026-08-12
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260812-060
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -5257,3 +5257,41 @@ Before this append, `docs/status/TEST_EVIDENCE.md` was exact 404,905 bytes/SHA-2
 failure and its local correction without changing ADR-0030 Proposed, GDJ-0030 active, Q-013 Partial, Q-017 P1/open or
 the current `119 passing + 5 deviation + 3 oracle_locked` classification. A new commit and exact-head hosted 26/26
 run remain required before implementation begins.
+
+## EVID-20260812-060 — GDJ-0030 Corrected Activation Exact-head Hosted Success
+
+- Date/time: 2026-08-11T14:49:10Z–2026-08-11T14:56:56Z hosted; recorded
+  2026-08-12T00:00:11+09:00
+- Work/contract IDs: GDJ-0030 activation verification; REL-007/008 remain ordered payload-free `oracle_locked`; no
+  product or compatibility promotion
+- Checkout/commit: `codex/revision-fenced-migration-lifecycle@48472a1cba1ec706939f362ebdb1c4bea7f825eb`
+  (`ci: stabilize relation product inventory capture`)
+- Environment/backend: GitHub-hosted exact 26-execution matrix, Go 1.26.5; exact Django profile coordinates remain
+  CPython 3.14.3/Django 6.1/SQLite 3.50.4 on darwin/arm64
+- Command: Draft PR #1 `pull_request`
+  [run 31503631942](https://github.com/progresshans/godj/actions/runs/31503631942), attempt 1, workflow run number 49
+- Exit status: exact 26/26 jobs and 326/326 recorded steps completed with `success`
+- Result summary: four relation-product jobs — Ubuntu 22.04 `93819610981`, macOS Intel `93819611039`, Ubuntu ARM
+  `93819611132`, macOS 26 `93819611245` — each published exactly 631 compact lines/83,641 bytes with SHA-256
+  `60efd4595b796d9aa3b03f3f96cfa977d229c234d9eb87ae5375da0b8f439d6b`. Each output contained 630 unique sorted
+  run records plus one summary. Independent compact-output reconstruction produced the same 630 unique sorted runs,
+  63,928 payload bytes and SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`
+  on all four coordinates; passes=630/skips=0 came from the raw JSON parser assertions and published summary.
+  `Test I/O incomplete` and `WaitDelay` occurred zero times. Full Ubuntu, exact Darwin, four Python coordinates,
+  project/relation-binding/product-project/SQLite matrices, race, CGO-disabled, vet, no-rewrite and clean-worktree gates
+  all completed successfully.
+- Hosted identity: PR #1 was open/draft/CLEAN/MERGEABLE with base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and exact head `48472a1cba1ec706939f362ebdb1c4bea7f825eb`.
+  Actions synthetic merge `dbc1d2f4de7e26496918734e94926b99b2b3dcb8` had parents `[base, head]`; synthetic and
+  head tree were both `e1d5a378962c1778052131a5a8672fdea33bd662`.
+  All 26 checkout logs selected that synthetic merge and recorded the exact base/head identities.
+- Failures/skips/not run: job/step failures or skips were zero. The portable full suite and four compatibility Python
+  coordinates each retained the expected 17 test-level skips; the exact Darwin profile retained zero. REL-007/008
+  implementation, target manifest transition and target `121 + 5 + 1` classification were not part of this checkout
+  and remain pending. Draft PR merge was not performed. Local query/db implementation bytes created after this commit
+  are not covered by this run.
+
+Before this append, `docs/status/TEST_EVIDENCE.md` was exact 410,205 bytes/SHA-256
+`9d09aa9fc218476c5dcbdf6b865a0a7617e81975ade5862af7a38572d4c02dbd`. This entry closes only the corrected
+activation gate. ADR-0030 remains Proposed, GDJ-0030 remains active, Q-013 remains Partial, Q-017 remains P1/open,
+REL-002 remains locked and product classification remains `119 passing + 5 deviation + 3 oracle_locked`.

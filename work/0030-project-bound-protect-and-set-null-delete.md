@@ -1,7 +1,7 @@
 ---
 id: GDJ-0030
 status: active
-updated: 2026-08-11
+updated: 2026-08-12
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "d0396c76d016c0f0335b484fbad56c70b80cf6d4"
 depends_on: ["GDJ-0029"]
@@ -444,7 +444,7 @@ DB-close-before-retained-drain lifecycle; its public method set and signatures r
 - [x] REL-007/008 indivisible semantics, additive APIs, transaction/fingerprint/codegen and false-green gates frozen.
 - [x] First activation hosted false-negative의 `go test -json | tee` output backpressure를 재현하고 direct-file
   capture/compact post-process evidence fix와 protocol gate를 EVID-059에 기록했습니다.
-- [ ] Activation documentation exact-head local/hosted validation recorded separately from EVID-058.
+- [x] Corrected activation exact-head local/hosted validation recorded across EVID-059/060, separately from EVID-058.
 - [ ] Query/db/ORM/SQLite implementation and focused normal/race/fault/concurrency tests complete.
 - [ ] Deterministic generator, exact thirteen-file separate union and compile/last-good locks complete.
 - [ ] REL-007/008 oracle-blind actual and exact manifest two-status transition/revert complete.
@@ -454,9 +454,9 @@ DB-close-before-retained-drain lifecycle; its public method set and signatures r
 ## 현재 blocker와 다음 정확한 작업
 
 Activation commit `83e6ea05...`의 run `31498696555`는 product test failure가 아니라 macOS Intel Actions-log
-backpressure로 package output `WaitDelay`가 만료된 25/26 false-negative였습니다. Current exact workflow/protocol
-stabilization을 commit/push한 새 head에서 26/26 hosted gate를 다시 받아야 하며 failed run이나 EVID-058을 재사용하지
-않습니다. 그 뒤 first implementation packet은 immutable plan/typed error and additive DB ports, SQLite pinned relation
+backpressure로 package output `WaitDelay`가 만료된 25/26 false-negative였습니다. Stabilization head
+`48472a1c...`의 run `31503631942`가 26/26 hosted gate와 four-coordinate compact inventory를 EVID-060에서
+통과했습니다. First implementation packet은 immutable plan/typed error and additive DB ports, SQLite pinned relation
 transaction/SET_NULL compiler, ORM binder/deleter, generator/compile union, then conformance actual 순서입니다.
 
 ## 인수인계
@@ -464,6 +464,8 @@ transaction/SET_NULL compiler, ORM binder/deleter, generator/compile union, then
 - Baseline: `d0396c76d016c0f0335b484fbad56c70b80cf6d4`, EVID-058/run `31484369693`.
 - Activation attempt: `83e6ea05e5c224a39f1d1d43aa17a3e58cf81c98`, EVID-059/run `31498696555` failed
   only on hosted JSON-output backpressure; it is not activation acceptance evidence.
+- Corrected activation: `48472a1cba1ec706939f362ebdb1c4bea7f825eb`, EVID-060/run `31503631942`, exact
+  26/26 jobs·326/326 steps success; it is not later implementation evidence.
 - Current/target: `119+5+3`, relation 9/12 → only after proof `121+5+1`, relation 11/12; REL-002 unchanged.
 - ADR-0030 Proposed, work active, Q-013 Partial, Q-017 P1/open; no canonical facade.
 - Required evidence separation: baseline terminal, activation exact head, implementation exact head, completion-documentation

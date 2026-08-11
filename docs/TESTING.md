@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-11
+- 마지막 검토: 2026-08-12
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -795,6 +795,15 @@ inventory와 count/bytes/SHA summary만 stdout에 게시합니다. Nonzero exit�
 events를 합쳐 최대 64 KiB만 사후 게시하고 formatter 실패와 무관하게 원래 status를 반환합니다. Protocol test는 live `tee` 부재, direct-file capture, failure
 propagation과 compact evidence publication을 고정합니다. 이 instrumentation 변경은 contract count/status나 product
 API를 바꾸지 않습니다.
+
+Corrected stabilization head `48472a1cba1ec706939f362ebdb1c4bea7f825eb`은 별도 Draft PR
+[run 31503631942](https://github.com/progresshans/godj/actions/runs/31503631942)에서 26/26 jobs·326/326 steps를
+통과했습니다. Four relation-product coordinates는 각 631-line compact output에서 630/630/0·63,928 bytes·
+SHA-256 `4415fd69844d3754c5ba42adf50ba8fc86e6a499065240b470c2436b21222bca`를 게시했습니다. Compact run records로
+630 unique sorted runs와 payload bytes/SHA를 독립 재구성했고, passes=630/skips=0은 raw JSON parser가 검증해
+summary로 게시했습니다.
+`WaitDelay`/`Test I/O incomplete`는 0건이었습니다. EVID-060은 이 activation gate만 증명하며 이후 local
+REL-007/008 implementation bytes의 증거로 재사용하지 않습니다.
 
 Active GDJ-0030 testing은 current 9 required/3 NI를 보존한 baseline에서 REL-007/008 두 contract만 actual로
 전환합니다. PROTECT는 public constructor rows<=0 rejection, external ORM construction, errors.Is/errors.As,
