@@ -180,19 +180,21 @@
 - GDJ-0031 compile-spike implementation/hosted-tested commit:
   `065390275ee7b69e224eeaeda57e4731321d7a44`
   (`test: prove relation facade compile usability`)
+- GDJ-0031 completion-documentation/hosted-tested commit:
+  `e9b2c0e4812e7619d0b5ffd3862731714b00273d`
+  (`docs: complete relation facade compile spike`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0031](../../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)은
   completed이고 [ADR-0031](../adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 test-only
-  compile feasibility 방법에 한해 Accepted입니다. Activation head `624347e...`의
-  [EVID-064](TEST_EVIDENCE.md#evid-20260812-064--gdj-0031-activation-documentation-head-exact-26-job-ci) /
-  [run 31520396606](https://github.com/progresshans/godj/actions/runs/31520396606)과 implementation head
-  `0653902...`의 [EVID-065](TEST_EVIDENCE.md#evid-20260812-065--gdj-0031-github-hosted-exact-26-job-compile-spike-implementation-head-ci) /
-  [run 31528039746](https://github.com/progresshans/godj/actions/runs/31528039746)은 각각 exact 26/26 jobs·326/326
+  compile feasibility 방법에 한해 Accepted입니다. Completion-documentation head `e9b2c0e...`의
+  [EVID-066](TEST_EVIDENCE.md#evid-20260812-066--gdj-0031-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  [run 31531470440](https://github.com/progresshans/godj/actions/runs/31531470440)은 exact 26/26 jobs·326/326
   recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Current product는 unchanged exact
   `121 passing + 5 deviation + 1 oracle_locked`, relation actual 11/12이며 REL-002만 locked입니다. Q-013은
-  `Partial`, Q-017은 P1/open이고 모든 candidate facade 이름은 noncanonical입니다. 이 later exact 11-path
-  completion-documentation tree 자체 CI는 `not run/pending`입니다.
+  `Partial`, Q-017은 P1/open이고 모든 candidate facade 이름은 noncanonical입니다. EVID-066을 포함한 later exact
+  seven-file terminal documentation tree 자체 CI는 `not run/pending`이고 completion run을 그 proof로 재사용하지
+  않습니다.
 - 최근 완료 작업:
   [GDJ-0031 Relation-aware Project Facade and Generated Upgrade Compile Usability](../../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)
 - 활성 작업: 없음
@@ -604,7 +606,10 @@
   source read와 reflection/unsafe/process/file/network I/O를 거부합니다. 새 top-level `Test*`/`t.Run` 없이 exact
   4/1을 유지했습니다.
 - EVID-064/run `31520396606`과 EVID-065/run `31528039746`은 activation과 implementation을 별도 exact head에서
-  증명했습니다. Current classification은 unchanged exact `121 + 5 + 1`, relation 11/12이며 REL-002만 locked입니다.
+  증명했습니다. Completion-documentation head `e9b2c0e...`의 EVID-066/run `31531470440`도 별도 exact
+  26/26·326/326과 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Current classification은 unchanged
+  exact `121 + 5 + 1`, relation 11/12이며 REL-002만 locked입니다. EVID-066을 포함한 later exact seven-file
+  terminal record 자체 CI는 `not run/pending`입니다.
 - `project.Using`, `Models`, `BlogPosts`, `Related`, `First` tuple, `Model` unwrap와 selector 이름은 모두
   noncanonical입니다. Production facade/generator, reverse/REL-002/write/cache/session lifetime은 Q-017 후속입니다.
 
@@ -1048,7 +1053,9 @@ EVID-062/run `31514159835`도 별도 exact 26/26·326/326과 unchanged 687/687/0
 Terminal `ceff9e5...`의 EVID-063/run `31516174741`도 exact 26/26·326/326, unchanged inventory와 audit
 P0..P3=0을 통과했습니다. GDJ-0031 activation `624347e...`의 EVID-064/run `31520396606`과 compile
 implementation `0653902...`의 EVID-065/run `31528039746`도 각각 별도 exact 26/26·326/326과 audit P0..P3=0을
-통과했습니다. EVID-063/064를 later head의 proof로 재사용하지 않았습니다.
+통과했습니다. Completion-documentation `e9b2c0e...`의 EVID-066/run `31531470440`도 별도 exact
+26/26·326/326과 unchanged product inventory, audit P0..P3=0을 통과했습니다. EVID-063/064/065를 later head의
+proof로 재사용하지 않았습니다.
 Final GDJ-0025 evidence/status baseline `bffc5284...`의 run
 `31359958949`도 exact 26/26·326/326을 통과했습니다. GDJ-0026 activation `aad4f7ff...`도 별도 run
 `31364944816`의 exact 26/26·326/326을 통과했고 implementation `5be46141...`은 별도 run `31370313755`의
@@ -1086,12 +1093,13 @@ REL-002 cache mutation과 generated upgrade policy는 확정되지 않았습니�
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 exact 11-path completion-documentation diff, EVID-001..063 historical body prefix,
-links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only bytes를 별도 commit/push한 뒤
-exact-head 26-job CI와 hosted audit를 실행하되 EVID-064/run `31520396606`이나 EVID-065/run `31528039746`을 그
-later tree의 proof로 재사용하지 않습니다. 그다음 새 Q-017 work/ADR에서 production facade exact name,
-generated companion upgrade/collision/deprecation, target/reverse wrapper와 REL-002 mutation/cache ownership을
-명시적으로 활성화합니다. 현재 active/ready work는 없고 Draft PR은 사용자 요청 전 merge하지 않습니다.
+통합 담당자는 EVID-066과 상태를 추가하는 exact seven-file terminal documentation diff, EVID-001..065 historical
+body prefix, links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only bytes를 별도
+commit/push한 뒤 exact-head 26-job CI와 hosted audit를 실행하되 EVID-066/run `31531470440`을 그 later tree의
+proof로 재사용하지 않습니다. 그 terminal head가 clean baseline이 된 뒤에만 새 Q-017 work/ADR에서 production
+facade exact name, generated companion upgrade/collision/deprecation, target/reverse wrapper와 REL-002 mutation/cache
+ownership을 명시적으로 활성화합니다. 현재 active/ready work는 없고 Draft PR은 사용자 요청 전 merge하지
+않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1191,7 +1199,10 @@ generated companion upgrade/collision/deprecation, target/reverse wrapper와 REL
 - GDJ-0031 compile-spike implementation commit: `065390275ee7b69e224eeaeda57e4731321d7a44`; exact 26-job run
   `31528039746` 26/26 and 326/326 recorded steps PASS; EVID-065, physical16/generated13/logical17 frozen,
   unchanged four-coordinate 687/687/0 inventory, audit P0..P3=0
-- 현재 working tree: exact 11-path GDJ-0031 completion-documentation transition; its own exact-head hosted CI
+- GDJ-0031 completion-documentation commit: `e9b2c0e4812e7619d0b5ffd3862731714b00273d`; exact 26-job run
+  `31531470440` 26/26 and 326/326 recorded steps PASS; EVID-066, unchanged physical16/generated13/logical17 and
+  four-coordinate 687/687/0 inventory, audit P0..P3=0
+- 현재 working tree: exact seven-file GDJ-0031 terminal evidence/status transition; its own exact-head hosted CI
   `not run/pending`
 - 최근 완료 work:
   [GDJ-0031](../../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)
@@ -1283,6 +1294,9 @@ generated companion upgrade/collision/deprecation, target/reverse wrapper와 REL
 - GDJ-0031 compile implementation hosted: EVID-065/run 31528039746 exact 26/26·326/326 PASS; head
   `0653902...`, synthetic merge/head tree both `6750ae50...`, physical16/generated13/logical17 locks, unchanged
   687/687/0 inventory, audit P0/P1/P2/P3=0
+- GDJ-0031 completion documentation hosted: EVID-066/run 31531470440 exact 26/26·326/326 PASS; head
+  `e9b2c0e...`, synthetic merge/head tree both `f2c4a324...`, unchanged physical16/generated13/logical17 and
+  687/687/0 inventory, audit P0/P1/P2/P3=0
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1331,10 +1345,10 @@ generated companion upgrade/collision/deprecation, target/reverse wrapper와 REL
   activation run 31503631942 exact 26/26 PASS; GDJ-0030 implementation run 31510689383 exact 26/26 PASS;
   completion-documentation run 31514159835 exact 26/26 PASS; terminal exact seven-file/GDJ-0031 baseline run
   31516174741 exact 26/26 PASS; GDJ-0031 activation run 31520396606 exact 26/26 PASS; compile implementation run
-  31528039746 exact 26/26 PASS
+  31528039746 exact 26/26 PASS; completion-documentation run 31531470440 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-064/run 31520396606 또는 EVID-065/run 31528039746을 later completion-documentation
-  tree proof로 재사용하거나, test-only overlay compile을 production facade/generated output/runtime support로
+- 가장 위험한 과장: EVID-066/run 31531470440을 later exact seven-file terminal tree proof로 재사용하거나,
+  test-only overlay compile을 production facade/generated output/runtime support로
   표현하거나, exact 16에 없는
   reverse/REL-002/cache/session-lifetime을 위조하거나, bounded relation slices를 canonical facade/general eager/
   delete/DDL/migration/non-SQLite support로 넓히는 것

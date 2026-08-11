@@ -19,7 +19,9 @@ external compile-usability 검증 방법만 승인합니다.
 Activation head `624347e15e6d6e6b6981fe14b75974226f72f9df`와 implementation head
 `065390275ee7b69e224eeaeda57e4731321d7a44`는 각각 EVID-064와 EVID-065의 별도 exact-head hosted gate를
 통과했습니다. Physical exact 16, generated exact 13과 logical exact 17 inventory, no-overlay failure, positive와
-adversarial compile/source gates가 검증됐습니다.
+adversarial compile/source gates가 검증됐습니다. Completion-documentation head
+`e9b2c0e4812e7619d0b5ffd3862731714b00273d`도 EVID-066/run `31531470440`의 별도 exact
+26/26 jobs·326/326 recorded steps를 통과했습니다.
 
 Current product는 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002만
 locked입니다. 이 Accepted 결정은 `project.Using`, `Models`, `BlogPosts`, `Related`, `First` tuple, `Model` unwrap
@@ -150,6 +152,7 @@ REL-002는 wrapper identity와 scalar mutation 경계가 좁혀진 뒤 별도 wo
 - No new top-level Test/t.Run, no physical overlay residue와 clean worktree
 - normal/race/CGO0/vet/root CI와 separate exact-head evidence
 
-위 feasibility 검증은 EVID-064/EVID-065로 완료됐습니다. Production facade/generator acceptance에는 별도 work와
-명시적 API-freeze 결정이 필요합니다. EVID-065 뒤 작성되는 completion-documentation tree 자체 exact-head CI는
-`not run/pending`이며 activation/implementation run을 그 later tree의 proof로 재사용하지 않습니다.
+위 feasibility 검증은 EVID-064/EVID-065로 완료됐고 completion-documentation head는 EVID-066으로 별도
+검증됐습니다. Production facade/generator acceptance에는 별도 work와 명시적 API-freeze 결정이 필요합니다.
+EVID-066과 상태를 추가하는 later exact seven-file terminal patch 자체 exact-head CI는 `not run/pending`이며
+completion run을 그 later tree의 proof로 재사용하지 않고 Draft PR은 merge하지 않았습니다.

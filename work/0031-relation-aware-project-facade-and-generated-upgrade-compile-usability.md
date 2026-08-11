@@ -212,7 +212,8 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 - [x] `project.Using(session)`은 callback 내부 assignability만 컴파일되고 lifetime claim은 없음
 - [x] Reverse/REL-002/write/cache/JSON/custom method symbol과 forbidden import/source read가 AST gate에서 거부됨
 - [x] Existing top-level Test/t.Run inventory, product manifest/counts와 physical fixture bytes가 unchanged
-- [x] Activation과 compile implementation은 별도 exact head로 증명하고, later completion tree는 pending/no-reuse로 분리함
+- [x] Activation, compile implementation과 completion documentation은 별도 exact head로 증명하고 재사용하지 않음
+- [ ] Later exact seven-file terminal evidence/status head가 자체 hosted CI를 통과함
 
 ## 진행 기록
 
@@ -222,6 +223,7 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 - [x] Focused normal/race/CGO0/vet와 root CI 실행
 - [x] Independent scope/false-green audit
 - [x] 결과에 따라 후보를 좁히되 public API acceptance는 별도 승인으로 분리
+- [x] Exact 11-path completion-documentation head를 implementation과 별도 hosted CI로 검증
 
 ## 결정된 사항
 
@@ -248,14 +250,16 @@ read-only candidate declaration/call만 사용할 수 있습니다. 다음은 �
 - Baseline: EVID-063 / hosted run `31516174741`, exact `ceff9e5...` only
 - Activation documentation: EVID-064 / hosted run `31520396606`, exact `624347e...`; EVID-063을 재사용하지 않음
 - Compile implementation: EVID-065 / hosted run `31528039746`, exact `0653902...`; activation run을 재사용하지 않음
+- Completion documentation: EVID-066 / hosted run `31531470440`, exact `e9b2c0e...`; implementation run을
+  재사용하지 않음
 - Frozen physical exact 16은 62,538 bytes/SHA-256 `992589f0500a7f31808dac2bb2a669daecadab7b978f93f5227bee3ee1ca6cbb`,
   generated exact 13은 26,140 bytes/SHA-256
   `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`, logical exact 17은 65,970
   bytes/SHA-256 `29d37c4cc1446ce320bcd5476afafb77989cd980a1dd3f96cb0732803835737f`입니다.
 - Local focused normal/race/CGO-disabled/vet, full `internal/compiletest`, unchanged 687/687/0 product inventory와
   independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
-- 이 completion-documentation exact 11-path tree 자체 CI는 `not run/pending`이며 EVID-064/065를 proof로
-  재사용하지 않습니다.
+- EVID-066과 상태를 추가하는 later exact seven-file terminal tree 자체 CI는 `not run/pending`이며 completion
+  run을 그 proof로 재사용하지 않습니다.
 
 ## 위험과 rollback
 
@@ -265,14 +269,18 @@ cache/session-lifetime 동작을 test-only code로 위조하는 것입니다. �
 
 ## 다음 정확한 작업
 
-Q-017의 production facade/API freeze와 generated companion upgrade/collision/deprecation 정책은 새 work/ADR에서
-별도로 활성화합니다. 그 전에는 이 test-only overlay의 `project.Using`, `Models`, `BlogPosts`, `Related`, `First`
-tuple, `Model` unwrap 또는 selector 이름을 production generator에 추가하지 않습니다. 현재 active/ready work는
-없습니다.
+통합 담당자는 EVID-066과 상태를 추가하는 exact seven-file terminal patch의 scope/prefix/link를 감사하고 별도
+commit/push 뒤 exact-head hosted CI를 얻습니다. 그 terminal head가 clean baseline이 된 뒤에만 Q-017의 production
+facade/API freeze와 generated companion upgrade/collision/deprecation 정책을 새 work/ADR에서 활성화합니다. 그
+전에는 이 test-only overlay의 `project.Using`, `Models`, `BlogPosts`, `Related`, `First` tuple, `Model` unwrap 또는
+selector 이름을 production generator에 추가하지 않습니다. 현재 active/ready work는 없습니다.
 
 ## 결과와 인수인계
 
 현재 work는 completed이고 ADR-0031은 test-only compile feasibility 방법에 한해서 Accepted입니다. Exact 세
 `internal/compiletest` path만 구현됐고 제품 facade/generator/generated output은 없습니다. Product/manifest/counts는
 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002는 locked입니다. Q-013은
-`Partial`, Q-017은 P1/open이고 모든 candidate 이름은 noncanonical입니다. Draft PR merge는 수행하지 않았습니다.
+`Partial`, Q-017은 P1/open이고 모든 candidate 이름은 noncanonical입니다. Completion-documentation head
+`e9b2c0e...`는 EVID-066/run `31531470440`의 별도 exact 26/26·326/326을 통과했습니다. 이 later exact seven-file
+terminal record 자체 CI는 `not run/pending`이고 completion run을 재사용하지 않으며 Draft PR merge는 수행하지
+않았습니다.

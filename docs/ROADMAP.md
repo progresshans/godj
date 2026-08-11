@@ -3,9 +3,10 @@
 - 상태: Accepted direction
 - 현재 단계: GDJ-0031 relation-aware project facade/generated upgrade compile usability completed, ADR-0031은
   test-only feasibility 방법에 한해 Accepted입니다. Activation `624347e...`의 EVID-064/run `31520396606`과
-  implementation `0653902...`의 EVID-065/run `31528039746`은 각각 exact 26/26·326/326 PASS입니다. Active/ready
-  work는 없고 다음 planning priority는 Q-017 production facade/generated upgrade 결정입니다. 이 completion
-  documentation tree 자체 CI는 `not run/pending`입니다.
+  implementation `0653902...`의 EVID-065/run `31528039746`, completion-documentation `e9b2c0e...`의
+  EVID-066/run `31531470440`은 각각 별도 exact 26/26·326/326 PASS입니다. Active/ready work는 없고 다음
+  planning priority는 Q-017 production facade/generated upgrade 결정입니다. EVID-066을 포함한 later exact
+  seven-file terminal documentation tree 자체 CI는 `not run/pending`이며 completion run을 재사용하지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
   relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
 - 마지막 검토: 2026-08-12
@@ -436,7 +437,9 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   검증했습니다. 이 test-only feasibility는 Accepted지만 `project.Using`을 포함한 모든 이름은 noncanonical이고
   reverse/REL-002/write/cache/session lifetime과 production generated upgrade는 별도 후속입니다. GDJ-0029의
   projection/runtime/compiler와 generated object-factory bridge는 low-level 기반이며 그 자체가 최종 application
-  UX는 아닙니다.
+  UX는 아닙니다. Exact 11-path completion-documentation head `e9b2c0e...`도 EVID-066/run `31531470440`의
+  별도 exact 26/26·326/326을 통과했습니다. EVID-066을 추가하는 later exact seven-file terminal record는
+  `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

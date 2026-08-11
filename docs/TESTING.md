@@ -947,8 +947,11 @@ Local에서는 focused/full normal, race, CGO-disabled와 `go vet ./internal/com
 diff/scope와 independent P0/P1/P2/P3=`0/0/0/0`을 확인했습니다. Hosted full Ubuntu `make ci`, exact Darwin,
 four Python과 four relation-product coordinates도 통과했습니다. Compile success는 candidate feasibility일 뿐
 production generator, public API acceptance, runtime/cache/query-count parity가 아닙니다. 모든 candidate 이름은
-noncanonical이고 Q-017은 P1/open입니다. 이 EVID-064/065를 포함한 later exact 11-path completion-documentation
-tree 자체 CI는 `not run/pending`이며 두 run을 그 proof로 재사용하지 않습니다.
+noncanonical이고 Q-017은 P1/open입니다. Exact 11-path completion-documentation head
+`e9b2c0e4812e7619d0b5ffd3862731714b00273d`은 별도 EVID-066/
+[run 31531470440](https://github.com/progresshans/godj/actions/runs/31531470440)의 exact 26/26 jobs·326/326
+recorded steps를 통과했습니다. EVID-066과 상태를 추가하는 later exact seven-file terminal documentation patch
+자체 CI는 `not run/pending`이고 completion run을 그 later tree의 proof로 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
