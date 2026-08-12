@@ -210,6 +210,9 @@
 - GDJ-0033 completion-documentation/hosted-tested commit:
   `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`
   (`docs: complete Django-first relation assignment`)
+- GDJ-0033 terminal evidence/status hosted-tested commit and GDJ-0034 activation baseline:
+  `db5c11f6fb5b2d165e0d85538bf255f4258e47dc`
+  (`docs: record relation assignment completion evidence`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed이고
@@ -226,11 +229,16 @@
   relation 12/12, REL-002 passing입니다. EVID-076을 포함하는 exact 15-document completion head `81f4aacb...`도
   [EVID-077](TEST_EVIDENCE.md#evid-20260812-077--gdj-0033-github-hosted-completion-documentation-head-exact-26-job-ci) /
   [run 31590911735](https://github.com/progresshans/godj/actions/runs/31590911735)의 별도 exact 26/26·326/326과 audit
-  P0..P3=0을 통과했습니다. EVID-077 append를 포함하는 exact seven-document terminal tree는 completion run이 재귀적으로
-  증명하지 않으므로 다시 unique exact-head CI가 필요합니다.
+  P0..P3=0을 통과했습니다. EVID-077을 포함하는 exact seven-document terminal head `db5c11f6...`도
+  [EVID-078](TEST_EVIDENCE.md#evid-20260812-078--gdj-0033-terminal-exact-head-ci-and-clean-baseline) /
+  [run 31593500615](https://github.com/progresshans/godj/actions/runs/31593500615)의 별도 exact 26/26·326/326과 audit
+  P0..P3=0을 통과했습니다. Completion run은 terminal proof로 재사용하지 않았습니다. GDJ-0034는 새 Q/ADR 없이
+  typed generated `select_related` cause 보존만을 위해 active이고 이 activation tree의 hosted CI는
+  `not run/pending`입니다.
 - 최근 완료 작업:
   [GDJ-0033 Forward ForeignKey Assignment, Save, and Cache Ownership](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1170,20 +1178,23 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-Phase A/B/C, exact decision-documentation hosted CI, exact 23-path bounded implementation과
-[EVID-076](TEST_EVIDENCE.md#evid-20260812-076--gdj-0033-github-hosted-rel-002-implementation-head-exact-26-job-ci)의
-별도 implementation-head hosted CI, exact completion head `81f4aacb...`의
-[EVID-077](TEST_EVIDENCE.md#evid-20260812-077--gdj-0033-github-hosted-completion-documentation-head-exact-26-job-ci) /
-[run 31590911735](https://github.com/progresshans/godj/actions/runs/31590911735)까지 완료됐습니다. 현재 변경은 EVID-077
-전문과 정확히 seven-document terminal evidence/status tree입니다. Completion run을 재사용하지 않고 이 terminal tree를
-고유 exact-head hosted CI로 닫아야 합니다. Terminal baseline 전에는 다음 work를 활성화하지 않습니다.
+GDJ-0033 terminal head `db5c11f6...`은
+[EVID-078](TEST_EVIDENCE.md#evid-20260812-078--gdj-0033-terminal-exact-head-ci-and-clean-baseline) /
+[run 31593500615](https://github.com/progresshans/godj/actions/runs/31593500615)의 고유 exact 26/26 jobs·326/326
+steps와 audit P0..P3=0을 통과했습니다. 현재 exact work는
+[GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md) 하나뿐입니다.
 
-Implementation은 exact public `New`/`Save`/`WithAuthor`/`WithReviewer`/scalar helpers/`ClearReviewer`, project-private
-write descriptor, pending-only reconciliation, corrected canonical three-phase preflight와 per-edge COW cache를 구현했습니다.
-REL-002 reference oracle/checksum/static NI는 byte-frozen이고 actual/manifest/inventory만 final measured bytes에 맞췄습니다.
-Allowlist 밖 core/backend/app-generated path는 바꾸지 않았습니다. EVID-072/074/076/077은 각각
-activation/decision/implementation/completion head만 증명하며 later terminal proof로 재사용하지 않습니다. Draft PR은
-사용자 요청 전 merge하지 않습니다.
+먼저 typed generated required/nullable `select_related` builder의 resolve/bind failure가 zero query 뒤 generic
+invalid-plan으로 축약되는 현재 경로를 focused test로 고정합니다. 그다음 generated typed query의 private stored
+configuration error와 기존 context precedence 뒤 terminal pre-I/O exact-cause 반환만 구현하고 generator version v2, golden과 두 checked-in
+product companion을 결정적으로 갱신합니다. Dynamic path, 실제 zero/corrupt query, 정상 SQL/result/cache와 public
+facade API는 바꾸지 않습니다.
+
+이 activation documentation tree 자체는 `not run/pending`이며 EVID-078/run `31593500615`을 activation proof로
+재사용하지 않습니다. Source implementation, completion documentation과 terminal evidence도 각각 고유 exact-head
+hosted CI를 사용합니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고 Q-012/Q-013은
+`Partial`, Q-017/Q-019는 P1/open입니다. Ready work는 없습니다. Relation-capable migration GDJ-0035는 GDJ-0034
+terminal 뒤 별도 contract-first packet으로만 활성화하며 Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1312,11 +1323,15 @@ activation/decision/implementation/completion head만 증명하며 later termina
 - GDJ-0033 completion documentation: `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`; EVID-077/run
   `31590911735` exact 26/26 jobs·326/326 steps PASS; unchanged product `122 passing + 5 deviation + 0 oracle_locked`,
   relation 12/12, audit P0..P3=0; completion head only
-- 현재 working tree: EVID-077 append와 exact seven-document terminal evidence/status 전환; completion run 재사용 금지,
-  own unique terminal exact-head hosted CI pending
+- GDJ-0033 terminal/GDJ-0034 clean baseline: `db5c11f6fb5b2d165e0d85538bf255f4258e47dc`; EVID-078/run
+  `31593500615` exact 26/26 jobs·326/326 steps PASS; unchanged product `122 passing + 5 deviation + 0 oracle_locked`,
+  relation 12/12, audit P0..P3=0; completion run 재사용 없음
+- 현재 working tree: EVID-078 append와 exact eight-document GDJ-0034 activation; activation hosted CI
+  `not run/pending`, EVID-078 재사용 금지
 - 최근 완료 work:
   [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
-- active work: 없음
+- active work:
+  [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - ready work: 없음
 - current decision: [ADR-0030](../adr/0030-project-bound-protect-and-set-null-delete.md) Accepted for bounded
   REL-007/008 low-level delete; [ADR-0029](../adr/0029-one-hop-forward-select-related.md) Accepted for bounded eager;
@@ -1345,6 +1360,8 @@ activation/decision/implementation/completion head만 증명하며 later termina
   names는 bounded surface에서만 canonical입니다. Reverse manager,
   cross-materialization target identity/downstream cache, lifetime enforcement와 general generated upgrade policy는
   계속 open입니다.
+- GDJ-0034: active; typed generated `select_related` resolve/bind original cause 보존만 소유합니다. 새 Q/ADR, public
+  API, relation manifest/oracle/status 변경은 없으며 activation tree는 아직 hosted-verified되지 않았습니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1442,6 +1459,12 @@ activation/decision/implementation/completion head만 증명하며 later termina
 - GDJ-0033 implementation hosted: EVID-076/run 31586910749 exact 26/26·326/326 PASS; head `be6f3d4e...`,
   synthetic merge/head tree both `f23dd8e1...`, four-coordinate 715/715/0 inventory, product `122 + 5 + 0`, relation
   12/12, audit P0/P1/P2/P3=0; implementation head only
+- GDJ-0033 completion documentation hosted: EVID-077/run 31590911735 exact 26/26·326/326 PASS; head
+  `81f4aacb...`, unchanged four-coordinate 715/715/0 inventory, product `122 + 5 + 0`, relation 12/12,
+  audit P0/P1/P2/P3=0; completion head only
+- GDJ-0033 terminal/GDJ-0034 baseline hosted: EVID-078/run 31593500615 exact 26/26·326/326 PASS; head
+  `db5c11f6...`, synthetic merge/head tree both `69cc5ced...`, unchanged four-coordinate 715/715/0 inventory,
+  product `122 + 5 + 0`, relation 12/12, audit P0/P1/P2/P3=0; baseline only
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1495,9 +1518,11 @@ activation/decision/implementation/completion head만 증명하며 later termina
   26/26 PASS; production facade implementation run 31541883680 exact 26/26 PASS; completion-documentation run
   31544273477 exact 26/26 PASS; terminal evidence/status/GDJ-0033 baseline run 31563615648 exact 26/26 PASS;
   GDJ-0033 activation run 31566524953 exact 26/26 PASS; decision-documentation run 31574653183 exact 26/26 PASS;
-  implementation run 31586910749 exact 26/26 PASS; completion-documentation run 31590911735 exact 26/26 PASS
+  implementation run 31586910749 exact 26/26 PASS; completion-documentation run 31590911735 exact 26/26 PASS;
+  terminal evidence/status/GDJ-0034 baseline run 31593500615 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-072/074/076/077을 각각의 activation/decision/implementation/completion head 밖 later proof로
+- 가장 위험한 과장: EVID-072/074/076/077/078을 각각의 activation/decision/implementation/completion/terminal head 밖
+  later proof로
   재사용하거나, exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로
   확대하거나, REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse
   assignment, relation migration 또는 non-SQLite support로 과장하는 것

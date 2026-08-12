@@ -1072,11 +1072,32 @@ unchanged app-generated exact 13, bounded Linux/386, full `go test ./...`, measu
 P0-P3 audit까지 EVID-075에서 통과했습니다. EVID-076은 exact Darwin 193/193, four Python exact-profile suites와
 four relation-product coordinate each 715/715/0을 포함한 exact implementation head를 검증했습니다. EVID-076을 포함하는
 exact 15-document completion head `81f4aacb...`는 EVID-077/run `31590911735`의 별도 exact 26/26 jobs·326/326
-steps와 audit P0..P3=0을 통과했습니다. EVID-077 append와 exact seven-document terminal evidence/status tree는 그
-completion run이 재귀적으로 증명하지 않으므로 다시 distinct exact-head CI가 필요합니다. Terminal baseline 전에는
-다음 work를 active/ready로 만들지 않습니다. Q-013은 `Partial`, Q-017은 P1/open이고 typed generated
-`select_related` cause-loss P2, relation-capable migration, reverse/general facade와 non-SQLite backend는 이 gate의
-claim이 아닙니다.
+steps와 audit P0..P3=0을 통과했습니다. EVID-077을 포함하는 exact seven-document terminal head `db5c11f6...`도
+EVID-078/run `31593500615`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. Completion run을 terminal
+proof로 재사용하지 않았습니다. Q-013은 `Partial`, Q-017은 P1/open이고 relation-capable migration,
+reverse/general facade와 non-SQLite backend는 이 gate의 claim이 아닙니다.
+
+#### GDJ-0034 — typed generated `select_related` cause preservation
+
+GDJ-0034는 새 Django contract나 SQL/result 의미를 추가하지 않습니다. Stale/mismatched generated 조합에서 typed
+builder가 `ResolveForwardSelectPath` 또는 required/nullable bind의 structured error를 잃는 진단 P2만 다음
+Go-native safety gate로 고칩니다.
+
+- Required resolve failure, required bind failure와 nullable bind failure를 각각 구성하고 terminal `All(ctx)`의
+  category/code/detail 및 unwrap/cause chain 보존과 backend query/mutation 0을 검증합니다.
+- Stored configuration failure와 nil context, typed-nil context, cancelled context를 각각 조합해 ADR-0029의
+  context precedence가 먼저이고 original configuration cause는 backend validation/I/O보다 먼저임을 검증합니다.
+- `ParseDynamic`의 기존 exact-cause control과 실제 zero/corrupt query의 generic invalid-plan control을 함께 둡니다.
+- 정상 required/nullable eager result, query count와 warm cache publication이 바뀌지 않음을 재검증합니다.
+- Generator v2 golden/determinism/last-good, 두 checked-in companion no-rewrite, physical no-overlay external compile와
+  final measured digest/inventory lock을 검증합니다.
+- Focused normal/race/CGO-disabled/vet, bounded Linux/386, full `go test ./...`, exact hosted matrix와 independent
+  P0..P3 audit 순서를 유지합니다.
+
+EVID-078은 GDJ-0033 terminal baseline만 증명하며 이 activation documentation이나 이후 구현 증거로 재사용하지
+않습니다. 현재 activation tree는 `not run/pending`입니다. Implementation, completion documentation과 terminal tree는
+각각 고유 exact-head CI를 사용합니다. REL-009/010/011 및 aggregate product classification은 활성화 시점에 그대로이고,
+locked Django relation oracle/manifest/checksum을 바꾸지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
