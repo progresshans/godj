@@ -56,17 +56,17 @@ proposed → ready → active → completed
 | [GDJ-0030](0030-project-bound-protect-and-set-null-delete.md) | completed | REL-007/008 project-bound PROTECT/SET_NULL SQLite low-level delete |
 | [GDJ-0031](0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md) | completed | Relation-aware project facade와 generated upgrade의 test-only compile usability |
 | [GDJ-0032](0032-production-forward-project-facade-and-additive-first-publication.md) | completed | Production forward project facade와 additive single-companion first publication |
-| [GDJ-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | active | REL-002 forward ForeignKey assignment/save/cache ownership |
+| [GDJ-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | completed | REL-002 forward ForeignKey assignment/save/cache ownership |
 
 현재 활성 항목과 다음 ready 항목은
-[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. Active는
-[GDJ-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md), ready는 없습니다. Activation head
-`a4a627a...`은 EVID-072/run `31566524953`의 exact 26/26 jobs·326/326 steps를 통과했습니다. Phase A/B/C는
-완료됐고 ADR-0033은 bounded assignment/save/cache ownership에 한해 Accepted입니다. Exact decision head
-`9d728610...`도 EVID-074/run `31574653183`의 별도 exact 26/26·326/326을 통과했습니다. 현재 exact 23-path product는
-EVID-075의 local gates에서 `122 + 5 + 0`, relation 12/12, REL-002 passing으로 전환됐고 ADR-0033은 local
-Implemented입니다. Q-013은 Partial, Q-017은 P1/open입니다. Source와 EVID-074/075를 포함하는 combined 31-path tree
-자체 exact-head hosted CI는 `not run/pending`이며 앞선 run을 재사용하지 않습니다.
+[docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 현재 active/ready 항목은 없고 최근 완료는
+[GDJ-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md)입니다. Activation EVID-072, decision
+EVID-074와 local implementation EVID-075를 분리했고 exact implementation head `be6f3d4e...`는 EVID-076/run
+`31586910749`의 별도 exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. ADR-0033 decision은
+Accepted, code는 Implemented, 명시된 hosted 환경에서는 Verified이며 product는 `122 + 5 + 0`, relation 12/12,
+REL-002 passing입니다. Q-013은 Partial, Q-017은 P1/open입니다. EVID-076을 포함하는 exact 15-document completion
+tree와 그 뒤 exact seven-document terminal tree는 각각 later unique exact-head CI가 필요하고 terminal baseline 전에는
+다음 work를 활성화하지 않습니다. Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.

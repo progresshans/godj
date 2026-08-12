@@ -42,9 +42,10 @@ main `4243ab11...`은 authoritative evidence가 아닙니다. Checkout을 바꾸
 | `docs/topics/db/transactions.txt` | `4733a95bf823e22fc9b9027bfdaffec8498c782b` | 28,481 | 190–194 rollback does not restore memory |
 
 Assignment/FK/cache와 rollback memory non-rewind는 Django observation입니다. Fresh Go source wrapper, exact local target
-pointer, canonical two-pass validation, per-edge COW cache와 project-private descriptor는 Accepted ADR-0033의 Go-specific
-decision입니다. GoDj는 Django source를 포팅하지 않고 result, side effect, error timing과 transaction meaning만
-independent Go tests로 번역합니다.
+pointer, corrected canonical three-phase validation, per-edge COW cache와 project-private descriptor는 Accepted ADR-0033의
+Go-specific decision입니다. 이 translation은 exact implementation head `be6f3d4e...`의 EVID-076/run `31586910749`에서
+Implemented/Verified됐습니다. GoDj는 Django source를 포팅하지 않고 result, side effect, error timing과 transaction
+meaning만 independent Go tests로 번역합니다.
 
 Phase A에서 다시 고정한 GoDj relation artifacts는 manifest 10,776 bytes/SHA-256
 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, pinned Django oracle 33,792

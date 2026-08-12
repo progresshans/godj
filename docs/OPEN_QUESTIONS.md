@@ -12,11 +12,11 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0033 active | REL-002 bounded assignment/save/cache decision은 Accepted; product implementation/passing과 broader relation/backend 범위는 pending |
+| Q-013 | Partial | GDJ-0033 completed / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0033 active / facade breadth 후속 | bounded forward read/write names는 결정됨; prerequisite provenance, raw-model UX/capability/namespace, reverse/general upgrade는 open |
+| Q-017 | P1 | GDJ-0033 completed / facade breadth 후속 | bounded forward read/write names는 Implemented/Verified; prerequisite provenance, raw-model UX/capability/namespace, reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | 별도 SQLite lifecycle work 전 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -396,8 +396,9 @@ non-SQLite는 결정하지 않으므로 Q-013은 계속 `Partial`입니다. 이 
 최종 application API 답이 아닙니다.
 
 Implementation head `c3803acb...`의 EVID-061/run `31510689383`이 exact 26/26·326/326 hosted gate와
-four-coordinate 687/687/0 inventory를 통과해 current product는 exact `121 + 5 + 1`, relation 11/12입니다.
-REL-002만 relation `oracle_locked`로 남고 canonical facade와 broader mutation/cache/delete/backend 표면은 open입니다.
+four-coordinate 687/687/0 inventory를 통과했을 때 GDJ-0030 completion product는 exact `121 + 5 + 1`, relation
+11/12였습니다. 당시 REL-002만 relation `oracle_locked`로 남았고 canonical facade와 broader
+mutation/cache/delete/backend 표면은 open이었습니다.
 
 Django 6.1의 관계 의미는 기본 reference입니다. Raw FK와 관계 accessor 분리, 미조회/NULL/loaded 구분, 첫 접근
 cache, eager/prefetch의 동일 cache warming, reverse manager와 조회 origin DB 유지가 기준입니다. GoDj는 Python
@@ -406,9 +407,12 @@ Go 값 복사 규칙과 codegen/project bridge로 번역합니다.
 
 Completed GDJ-0032는 `project.Using(backend)`가 relation-aware project model을 반환하고 lazy/eager 모두
 `Author(ctx)` 같은 accessor를 공유하는 bounded Gate 0 facade를 first-publish했습니다. Gate 0 이름은 그 bounded
-surface에서 canonical입니다. Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과
-Accepted [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 REL-002 assignment/save/cache
-ownership의 exact bounded API를 고정했습니다. Reverse chaining, general write facade와 upgrade policy는 Q-017에 남습니다.
+surface에서 canonical입니다. Completed
+[GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Accepted
+[ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 REL-002 assignment/save/cache
+ownership의 exact bounded API를 구현·검증했습니다. Exact implementation head `be6f3d4e...`의 EVID-076/run
+`31586910749`은 26/26 jobs·326/326 steps를 통과했고 product는 `122 passing + 5 deviation + 0 oracle_locked`,
+relation 12/12입니다. Reverse chaining, general write facade와 upgrade policy는 Q-017에 남습니다.
 
 GDJ-0033의 Django observable semantics는 이미 정해져 있습니다. Relation assignment는 raw FK와 accessor cache를
 함께 갱신하고, raw FK change는 stale cache를 지우며, no-PK assigned target은 pre-I/O
@@ -416,10 +420,12 @@ GDJ-0033의 Django observable semantics는 이미 정해져 있습니다. Relati
 target이 key를 얻으면 source save preparation이 이를 reconcile하며, nullable clear는 raw NULL/cache absent입니다.
 
 Go translation은 original source를 보존하는 fresh derived wrapper, exact assigned target pointer, scalar/cache/pending
-분리, same target wrapper의 in-place Save, pending-only key snapshot/reconciliation, canonical two-pass preflight와
+분리, same target wrapper의 in-place Save, pending-only key snapshot/reconciliation, corrected canonical three-phase preflight와
 per-edge COW cache로 Accepted했습니다. Exact public names는 `New`, `Save`, `WithAuthor`/`WithReviewer`, ID helpers와
 `ClearReviewer`입니다. 별도 materialization 사이 target identity/global identity map이나 rollback memory rewind는
-목표가 아닙니다. 이 Accepted 결정이 product implementation 또는 REL-002 passing을 뜻하지는 않습니다.
+목표가 아닙니다. 이 bounded decision/code/verification은 REL-002 `passing`만 뜻하며 Q-013의 broader relation/backend나
+Q-017의 raw-model UX/capability/namespace/reverse/general upgrade를 닫지 않습니다. Typed generated
+`select_related` cause-loss P2와 relation-capable migration도 별도 packet입니다.
 
 ## Q-017 — 공개 API와 generated upgrade
 
@@ -463,7 +469,8 @@ GDJ-0032가 구현·고정한 product 경계는 다음과 같습니다.
 
 Reverse manager/chaining, 별도 materialization 간 stable target wrapper pointer identity, downstream target cache,
 delete facade, wrapper JSON과 사용자 model method는 GDJ-0032의 비목표입니다. REL-002의 bounded write API는
-ADR-0033에서 결정했고 product publication만 남았습니다.
+ADR-0033에서 결정했고 GDJ-0033/EVID-076에서 product로 구현·검증했습니다. 그 결과를 reverse/general facade,
+coordinated generated upgrade, relation-capable migration 또는 non-SQLite support로 확대하지 않습니다.
 
 저수준 `Bind*`, `From`, `ForwardSelect*` API나 EVID-065의 compile success만으로 최종 사용자 API가 확정됐다고
 보지 않습니다. GDJ-0032는 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` roots와 wrappers,

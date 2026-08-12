@@ -150,6 +150,19 @@ context transition은 `(1,nil)`과 caller key clear를 보존하고, outcome-unk
 의무만 나타내며 runtime poison/fence를 추가하지 않습니다. Canonical facade/cache invalidation과 non-SQLite
 transaction semantics는 계속 open입니다.
 
+Completed GDJ-0033/Accepted ADR-0033은 forward assignment/save의 wrapper ownership을 별도로 고정했습니다.
+`With*`/clear는 original source를 바꾸지 않는 fresh wrapper를 반환하고 changed relation edge에만 새 mutable cache
+cell을 배정합니다. Unrelated ready/absent snapshot은 독립 cell로 복제하고 cold/flight state는 공유하지 않습니다.
+Target wrapper `Save`와 같은 wrapper 접근을 동시에 수행할 때는 caller synchronization이 필요하며 global identity
+map이나 cross-materialization pointer identity는 없습니다. Save의 corrected canonical three-phase preflight는 모든
+cache tuple, 모든 assigned-target origin과 edge별 단 한 번의 PK snapshot, 첫 no-PK target을 순서대로 검증합니다.
+모든 candidate raw/write/object/cache가 성공하기 전에는 source state를 publish하지 않고 backend I/O도 시작하지
+않습니다. Transaction rollback은 target/source wrapper memory를 자동 rewind하지 않으며 session-origin wrapper는
+callback 내부만 supported이고 callback 이후 warm/cold 동작은 noncontractual입니다. Exact implementation head
+`be6f3d4e...`의 EVID-076/run `31586910749`은 normal/race/CGO-disabled/vet와 exact 26/26 hosted jobs·326/326 steps를
+통과했습니다. 이 검증은 reverse/general facade, callback-after-return lifetime enforcement, typed generated
+`select_related` cause-loss P2, relation-capable migration 또는 non-SQLite concurrency semantics를 주장하지 않습니다.
+
 ## Transaction과 cancellation
 
 - transaction object를 여러 goroutine이 동시에 사용해도 되는지 기본적으로 가정하지 않습니다.

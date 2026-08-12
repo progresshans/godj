@@ -132,7 +132,7 @@ one-hop projection을 표현하고, 별도 All-only `ForwardSelectQuery`가 full
 ready related objects를 원자적으로 공개합니다. Generated typed author/reviewer와 executable dynamic dispatch는
 같은 `ResolveForwardSelectPath`를 사용하며 reverse `posts`는 pre-I/O
 `field_error/invalid_related_path`입니다. Exact implementation head `c02aab67...`의 run `31470292759`가
-26/26·326/326 hosted gate와 four-coordinate 630/630/0 inventory를 통과해 current product는 exact
+26/26·326/326 hosted gate와 four-coordinate 630/630/0 inventory를 통과했고 그 implementation head의 product는 exact
 `119 + 5 + 3`, relation 9/12입니다.
 Multiple/nested/reverse eager, write/delete/DDL/migration과 non-SQLite backend는 범위 밖입니다.
 
@@ -160,10 +160,21 @@ union만 추가합니다. Unconfirmed physical discard는 private per-Backend st
 Backend close가 `sql.DB.Close`로 pool을 먼저 봉인한 뒤 retained handles를 drain합니다. 이는 process-global
 registry가 아니며 close 전 다른 connection의 BUSY 가능성을 숨기지 않습니다. Exact implementation head
 `c3803acb...`의 EVID-061/run `31510689383`은 26/26 jobs·326/326 recorded steps, four-coordinate
-687/687/0 inventory와 independent audit P0/P1/P2/P3=0을 통과했습니다. Current product는 exact
-`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002만 locked입니다. 이 Accepted
+687/687/0 inventory와 independent audit P0/P1/P2/P3=0을 통과했습니다. 그 GDJ-0030 completion product는 exact
+`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12였고 REL-002만 locked였습니다. 이 Accepted delete
 architecture는 canonical facade, cache invalidation, REL-002, recursive delete, migration/DDL 또는 non-SQLite
 지원을 뜻하지 않습니다.
+
+Completed GDJ-0033/Accepted ADR-0033은 그 후 bounded Gate 0 project facade에 SQLite/AutoField forward relation write를
+추가했습니다. Project-private write descriptor가 app descriptor clone/scan과 generic Manager Save를 재사용하고,
+public wrapper는 scalar presence, relation cache와 assignment-pending을 독립 state로 보유합니다. `With*`/clear는
+original source를 바꾸지 않는 fresh wrapper를 만들며 changed edge만 새 cache cell을 받습니다. Corrected canonical
+three-phase preflight는 모든 cache tuple, 모든 assigned-target origin/PK snapshot, 첫 no-PK target을 순서대로 검증한
+뒤 required-unset/candidate build/all-success publication/Manager I/O로 진행합니다. Exact implementation head
+`be6f3d4e0838929fe96ec156ec0647845d905ea6`의 EVID-076/run `31586910749`은 exact 26/26 jobs·326/326 steps와
+four-coordinate 715/715/0 inventory를 통과해 current bounded product를 `122 passing + 5 deviation + 0 oracle_locked`,
+relation 12/12로 검증했습니다. Q-013은 `Partial`, Q-017은 P1/open이며 reverse/general facade, cross-materialization
+identity, typed generated `select_related` cause-loss P2, relation-capable migration과 non-SQLite backend는 포함하지 않습니다.
 
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을

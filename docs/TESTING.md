@@ -1012,13 +1012,15 @@ deterministic collision과 exact candidate-union compile을 검증했습니다. 
 upgrade 이름이나 동작을 확정하지 않습니다. EVID-069는 implementation head만 증명하며 later completion-documentation
 tree proof로 재사용하지 않습니다.
 
-### GDJ-0033 REL-002 assignment/save/cache activation gate
+### GDJ-0033 REL-002 assignment/save/cache implementation gate
 
 GDJ-0033 activation head `a4a627a...`는 EVID-072/run `31566524953`, decision-documentation head `9d728610...`은
-EVID-074/run `31574653183`의 서로 다른 exact 26/26 jobs·326/326 steps를 통과했습니다. 현재 exact 23-path bounded
+EVID-074/run `31574653183`의 서로 다른 exact 26/26 jobs·326/326 steps를 통과했습니다. Exact 23-path bounded
 product는 EVID-075의 local final gates에서 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12,
-REL-002 passing으로 전환됐습니다. ADR-0033은 local Implemented이며 combined implementation/pre-hosted documentation
-tree 자체 exact-head hosted CI는 pending입니다. 앞선 activation/decision run을 그 proof로 재사용하지 않습니다.
+REL-002 passing으로 전환됐습니다. Exact implementation head `be6f3d4e...`는 별도 EVID-076/run `31586910749`의
+26/26 jobs·326/326 steps, four-coordinate 715/715/0 inventory와 audit P0..P3=0을 통과했습니다. ADR-0033은
+Accepted, code는 Implemented, 이 명시된 hosted 환경에서는 Verified입니다. 앞선 activation/decision run을
+implementation proof로 재사용하지 않았습니다.
 
 #### Phase A — Django observable semantics
 
@@ -1067,8 +1069,12 @@ inventory를 함께 갱신해야 합니다. Django scenario execution/oracle/che
 
 Local gate는 focused normal/race/CGO-disabled/vet, product/external compile, generator golden/determinism/last-good,
 unchanged app-generated exact 13, bounded Linux/386, full `go test ./...`, measured 715-test workflow roster와 independent
-P0-P3 audit까지 EVID-075에서 통과했습니다. Exact Darwin/four Python/four relation-product hosted matrix는 아직 pending이며
-completion docs와 terminal evidence는 activation/decision/implementation run을 재사용하지 않습니다.
+P0-P3 audit까지 EVID-075에서 통과했습니다. EVID-076은 exact Darwin 193/193, four Python exact-profile suites와
+four relation-product coordinate each 715/715/0을 포함한 exact implementation head를 검증했습니다. EVID-076 append와
+completion docs, 이후 terminal evidence는 그 implementation run이 재귀적으로 증명하지 않으므로 각각 later distinct
+exact-head CI가 필요합니다. Terminal baseline 전에는 다음 work를 active/ready로 만들지 않습니다. Q-013은 `Partial`,
+Q-017은 P1/open이고 typed generated `select_related` cause-loss P2, relation-capable migration, reverse/general facade와
+non-SQLite backend는 이 gate의 claim이 아닙니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

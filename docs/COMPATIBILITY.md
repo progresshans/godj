@@ -632,7 +632,7 @@ projection scanners로 한 번에 decode됩니다. Oracle/static/SHA/protocol by
 generated files는 frozen입니다. EVID-054/run `31436881856`은 exact clean baseline only이며 target
 `119 passing + 5 deviation + 3 oracle_locked`, relation 9/12의 호환 증거로 재사용하지 않았습니다. Exact
 implementation head `c02aab67...`의 EVID-056/run `31470292759`가 26/26·326/326 hosted gate와
-four-coordinate 630/630/0 inventory를 통과해 이 aggregate가 current product가 됐습니다. Multiple/nested/reverse eager,
+four-coordinate 630/630/0 inventory를 통과해 그 implementation head의 aggregate가 product가 됐습니다. Multiple/nested/reverse eager,
 write/delete/DDL/migration/non-SQLite 호환은 claim하지 않습니다.
 
 장기 relation UX는 Django 6.1의 의미를 reference로 삼습니다: raw FK와 relation accessor 분리, 같은 model
@@ -666,16 +666,16 @@ pool reuse를 막습니다. Confirmed rollback/discard는 unknown code를 쓰지
 표시합니다. Raw BEGIN error는 callback/retry 없이 force-discard하며 이 code를 쓰지 않습니다. SET_NULL
 affected count는 0 이상만 허용하고 fixture는 exact 2입니다. Implementation head `c3803acb...`의
 EVID-061/run `31510689383`이 exact 26/26·326/326 hosted gate와 four-coordinate 687/687/0 inventory를 통과했습니다.
-Current manifest는 REL-007/008 status-only transition 뒤 10,776 bytes/SHA-256
+GDJ-0030 completion manifest는 REL-007/008 status-only transition 뒤 10,776 bytes/SHA-256
 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, exact thirteen-file generated union은
-SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`입니다. Product는 exact
+SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`였습니다. 그 bounded delete product는 exact
 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002와 broader delete/facade/backend
 호환은 locked/open입니다.
 
-Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Accepted
+Completed [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Accepted
 [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 remaining REL-002 하나의
-assignment/save/cache ownership을 Django-first로 고정합니다. 다음은 Python 구현을 복제하는 선택지가 아니라
-observable compatibility gate입니다.
+assignment/save/cache ownership을 Django-first로 고정하고 bounded SQLite/AutoField product로 구현·검증했습니다.
+다음은 Python 구현을 복제하는 선택지가 아니라 observable compatibility gate입니다.
 
 - Relation object assignment는 source raw FK를 target key와 맞추고 같은 accessor cache를 exact assigned object로
   warm합니다.
@@ -693,7 +693,7 @@ observable compatibility gate입니다.
 - Transaction rollback은 target/source Go wrapper memory를 자동 rewind하지 않습니다.
 
 Go translation은 original source를 유지하는 fresh derived wrapper, exact assigned target pointer의 local ownership,
-target wrapper in-place Save, pending-only one-time key reconciliation, canonical two-pass preflight와 relation별 COW cache로
+target wrapper in-place Save, pending-only one-time key reconciliation, corrected canonical three-phase preflight와 relation별 COW cache로
 Accepted했습니다. Public surface는 query-root `New`, wrapper `Save`, `WithAuthor`/`WithReviewer`, scalar helpers와
 `ClearReviewer`입니다. Scalar presence/cache/pending을 분리합니다. Required raw zero는 `New`에서 unset,
 `WithAuthorID(0)`와 loaded zero는 present이고 numeric ID로 savedness를 추론하지 않습니다. Pending target 오류는
@@ -702,8 +702,13 @@ state가 모두 준비되기 전에는 publish하지
 않습니다. 이는
 별도 materialization 사이 target pointer identity/global identity map을 주장하지 않습니다.
 
-Activation EVID-072/run `31566524953`과 no-product EVID-073는 이 결정과 feasibility만 증명합니다. Primary product는
-계속 exact `121 + 5 + 1`, relation 11/12, REL-002 locked이고 decision-documentation head CI는 `not run/pending`입니다.
+Activation EVID-072/run `31566524953`, no-product EVID-073와 decision EVID-074/run `31574653183`은 각각
+activation/feasibility/decision만 증명합니다. Exact implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`은
+EVID-076/run `31586910749`의 별도 exact 26/26 jobs·326/326 steps를 통과했습니다. Current bounded product는 exact
+`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고 REL-002는 `passing`입니다. Q-013은 broader
+relation/backend 범위 때문에 `Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade 때문에
+P1/open입니다. Typed generated `select_related` cause-loss P2, relation-capable migration, reverse/general facade와
+non-SQLite backend는 이 verified 범위에 포함하지 않습니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,

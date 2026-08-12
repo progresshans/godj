@@ -243,12 +243,13 @@ surface의 유일한 영구 답으로 확대하지 않습니다. Reverse/general
 embedding/promotion, explicit unwrap, project sidecar를 비교해 field/method promotion, collision, copy/JSON과 relation
 state 보존을 결정합니다. 현재 bounded Gate 0와 GDJ-0033의 project wrapper는 그대로 유지합니다.
 
-### Forward relation assignment와 Save — GDJ-0033 active
+### Forward relation assignment와 Save — GDJ-0033 completed
 
 [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과
 [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed Gate 0 facade 위에서
-REL-002 assignment/save/cache ownership 하나를 다룹니다. Phase A/B/C 뒤 다음 exact surface를 bounded API로
-Accepted했습니다.
+REL-002 assignment/save/cache ownership 하나를 bounded SQLite/AutoField product로 구현·검증했습니다. Phase A/B/C 뒤
+Accepted한 다음 exact surface는 implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`의
+EVID-076/run `31586910749`에서 exact 26/26 jobs·326/326 steps를 통과했습니다.
 
 ```go
 models, err := project.Using(backend)
@@ -266,7 +267,7 @@ Nullable relation은 `WithReviewer`, `WithReviewerID`와 `ClearReviewer`를 사�
 `WithAuthor`/`WithAuthorID`만 제공하고 nil/clear를 허용하지 않습니다. `New`는 query root에 있지만 query plan과
 무관한 wrapper construction입니다.
 
-이 후보의 소유권 규칙은 다음과 같습니다.
+이 product의 소유권 규칙은 다음과 같습니다.
 
 - Relation assignment는 fresh source wrapper를 반환하고 original source wrapper의 raw FK/cache/state를 바꾸지 않습니다.
 - Derived source만 assigned target pointer, scalar presence, cache state와 pending-at-assignment bit를 소유합니다.
@@ -291,7 +292,10 @@ Nullable relation은 `WithReviewer`, `WithReviewerID`와 `ClearReviewer`를 사�
 Manually key-present but unpersisted target은 key `0`을 포함해 preflight를 통과하고 database FK constraint가 존재
 여부를 판단합니다. App-level generated model을 바꾸지 않고 project-private write model/descriptor와 generic Manager
 Save를 재사용합니다. Numeric ID로 savedness를 추론하지 않으며 required scalar presence, cache와 pending을 각각
-추적합니다. Accepted surface의 product publication은 decision-documentation exact-head CI 뒤에 진행합니다.
+추적합니다. Current bounded product는 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다.
+Q-013은 broader relation/backend 때문에 `Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade
+때문에 P1/open이며 typed generated `select_related` cause-loss P2, relation-capable migration과 non-SQLite backend는
+별도 packet입니다.
 
 ## 6. Dynamic lookup
 
