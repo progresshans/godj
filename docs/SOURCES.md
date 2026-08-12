@@ -29,10 +29,28 @@
 
 2026-08-12 GDJ-0033 activation audit에서는 pinned Django 6.1 commit/tag
 `fe0a859f537d4238cf49fca39073513206f83122`의 위 exact source/test/docs를 다시 기준으로 삼았습니다. Moving local
-main `4243ab11...`은 symbol 위치를 찾는 read-only 보조일 뿐 authoritative evidence가 아닙니다. Assignment/FK/cache와
-rollback memory non-rewind는 Django observation이고, fresh Go source wrapper, exact assigned target pointer,
-in-place target Save와 pre-plan snapshot은 Proposed ADR-0033의 Go-specific decision candidate입니다. GoDj는 Django
-source를 포팅하지 않고 result, side effect, error timing과 transaction meaning만 independent Go tests로 번역합니다.
+main `4243ab11...`은 authoritative evidence가 아닙니다. Checkout을 바꾸지 않고 항상
+`git show fe0a859f...:<path>`로 exact object를 읽었습니다. Exact tree는
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`입니다.
+
+| Exact object | Blob | Bytes | Audited range/meaning |
+|---|---|---:|---|
+| `django/db/models/fields/related_descriptors.py` | `eafcb63ceb7c41e6bbf40d4f1f0165c3119b6374` | 69,743 | 87–93 same/different scalar cache; 293–367 assignment/FK/cache/clear |
+| `django/db/models/base.py` | `7b7a8833cc6f5a4b3dd4329f0a3cad4374ee8808` | 99,654 | 710–723 PK zero presence; 1270–1307 no-PK/manual-PK/pending reconcile |
+| `tests/basic/tests.py` | `a6609f0f30d8d5a2f43271952fe5c5084998e77b` | 42,583 | 563–577 PK zero is set |
+| `tests/many_to_one/tests.py` | `e0def73db01621103f5ae7161e962bb373a04e40` | 39,954 | 600–703 assignment identity/cache/no-PK/later-key |
+| `docs/topics/db/transactions.txt` | `4733a95bf823e22fc9b9027bfdaffec8498c782b` | 28,481 | 190–194 rollback does not restore memory |
+
+Assignment/FK/cache와 rollback memory non-rewind는 Django observation입니다. Fresh Go source wrapper, exact local target
+pointer, canonical two-pass validation, per-edge COW cache와 project-private descriptor는 Accepted ADR-0033의 Go-specific
+decision입니다. GoDj는 Django source를 포팅하지 않고 result, side effect, error timing과 transaction meaning만
+independent Go tests로 번역합니다.
+
+Phase A에서 다시 고정한 GoDj relation artifacts는 manifest 10,776 bytes/SHA-256
+`3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, pinned Django oracle 33,792
+bytes/SHA-256 `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static not-implemented fixture
+1,859 bytes/SHA-256 `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`입니다. Phase A/B/C
+decision은 이 bytes를 수정하지 않았습니다.
 
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며

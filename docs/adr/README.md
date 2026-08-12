@@ -47,6 +47,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0030](0030-project-bound-protect-and-set-null-delete.md) | Accepted | Declared project incoming policy 기반 SQLite PROTECT/SET_NULL relation delete |
 | [0031](0031-relation-aware-project-facade-and-generated-upgrade-boundary.md) | Accepted | Physical fixture를 보존하는 test-only project facade compile feasibility 경계; production 이름/API/upgrade 정책은 open |
 | [0032](0032-production-forward-project-facade-and-additive-first-publication.md) | Accepted | Frozen generated exact 13 위 bounded Gate 0 project-only forward facade companion의 additive first-publication |
-| [0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | Proposed | REL-002 forward ForeignKey assignment/save/cache ownership과 unsaved-target 경계 |
+| [0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | Accepted | Django-first REL-002 forward assignment/save, PK-presence, canonical preflight와 per-edge COW cache 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

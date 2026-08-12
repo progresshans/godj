@@ -1014,61 +1014,50 @@ tree proof로 재사용하지 않습니다.
 
 ### GDJ-0033 REL-002 assignment/save/cache activation gate
 
-GDJ-0033은 EVID-071/run `31563615648`의 exact GDJ-0032 terminal head를 clean baseline으로 사용하되 그 run을 later
-activation proof로 재사용하지 않습니다. Activation product는 unchanged exact `121 passing + 5 deviation + 1
-oracle_locked`, relation 11/12, REL-002 locked입니다. ADR-0033은 Proposed이고 public constructor/assignment/save/clear
-이름은 Phase C 전까지 noncanonical입니다.
+GDJ-0033 activation head `a4a627a...`는 EVID-072/run `31566524953`의 exact 26/26 jobs·326/326 steps를
+통과했습니다. Activation product는 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12,
+REL-002 locked입니다. Phase A/B/C 뒤 ADR-0033은 bounded decision에 한해 Accepted했지만 primary product는 아직
+미구현입니다. 이 decision-documentation head는 activation run을 재사용하지 않고 별도 exact-head CI가 필요합니다.
 
 #### Phase A — Django observable semantics
 
-- Pinned Django 6.1 `ForeignKeyDeferredAttribute.__set__`, `ForwardManyToOneDescriptor.__set__`,
-  `_prepare_related_fields_for_save`와 `many_to_one` tests를 source provenance로 대조합니다.
-- Locked REL-002 payload/phase/category/code/metrics/DB state는 수정 없이 재실행·재해시합니다.
-- Assignment raw FK/cache warm, raw scalar cache invalidation, nullable clear, no-PK preflight, manual-PK DB constraint,
-  target-save-after-assignment reconciliation과 rollback memory non-rewind를 separate rows로 기록합니다.
-- Current select-related facade의 resolve/bind cause loss는 exact original cause reproduction을 만들고 narrow remediation
-  여부를 판정합니다. 새 Q/ADR나 REL-002 payload 변경으로 확대하지 않습니다.
+- Exact Django object `fe0a859f...`를 `git show <commit>:<path>`로 읽고 moving checkout을 evidence로 쓰지 않습니다.
+- Assignment/cache, same/different scalar, PK-zero presence, no-PK/manual-PK, pending-only reconcile, key-present-later-
+  change invalidation, nullable clear와 rollback memory non-rewind를 separate rows로 고정했습니다.
+- Locked REL-002 payload/phase/category/code/metrics/DB state와 reference artifacts는 byte-frozen입니다.
+- Typed generated select-related cause loss는 독립 P2로 기록했고 GDJ-0033 fixed claim을 금지합니다.
 
 #### Phase B — no-product feasibility
 
-- New no-PK `AuthorsAuthor`와 new `BlogPost` wrapper constructor candidate가 descriptor hidden PK-presence를 보존하고
-  numeric ID 값으로 savedness를 추론하지 않는지 검증합니다. Loaded query source만 presence true입니다.
-- Manual key-present target constructor는 descriptor presence true를 보존하고 source preflight를 통과한 뒤 physical
-  SQLite FK error에 도달해야 합니다.
-- Relation assignment는 fresh source wrapper를 반환하고 original source를 byte/state/cache 관점에서 바꾸지 않습니다.
-- Derived source는 exact assigned target pointer와 tri-state를 소유하며 accessor query 0입니다.
-- Same target wrapper의 in-place Save가 key presence/model을 갱신하고 source Save가 plan 직전 그 key를 한 번 snapshot해
-  reconciliation하는지 검증합니다.
-- Raw FK derivation은 assigned override를 버리고 cold cache로 전환하며 nullable clear는 raw NULL/absent cache를
-  함께 만듭니다.
-- No-PK target은 exact `model_state_error/unsaved_related_object`, source mutation I/O 0입니다.
-- Required `blog.Post.AuthorID int64`의 raw zero가 pending no-PK assignment에서 valid FK/savedness로 해석되지 않고,
-  authoritative assigned/pending tri-state가 private descriptor derivation/plan construction보다 먼저 REL-002를
-  반환하는지 별도 gate로 검증합니다.
-- New source raw zero와 loaded source의 old-nonzero FK를 no-PK target으로 바꾸는 경우를 분리합니다. 둘 다 accessor는
-  exact assigned target/query 0이고 Manager/private plan 전 REL-002/I/O0이며, Accepted Gate 0 `Unwrap()`의 pending
-  scalar representation은 Phase C에서 명시적으로 고정하고 stale old FK를 authoritative하게 노출하지 않아야 합니다.
-- Manual key-present target은 ID 0과 nonzero를 각각 넣어 numeric value가 아니라 descriptor presence가 preflight를
-  결정하고 physical FK가 row 존재를 판단하는지 검증합니다. Same target Save 뒤에만 derived source raw FK가 reconcile
-  됩니다.
-- Nil/typed-nil/zero/dereference-copy/cross-model/cross-origin/state-mismatch는 pre-I/O fail-closed입니다.
-- Callback-local session positive를 검증하고 post-callback wrapper에는 deterministic success/failure assertion을 두지
-  않습니다. Warm cache가 backend I/O 없이 성공할 수 있으므로 post-return behavior는 계속 noncontractual입니다.
-- Same wrapper concurrent mutation을 지원으로 주장하지 않고 race gate는 caller synchronization 아래 clean해야 합니다.
-- Outer transaction rollback 뒤 database state만 rewind되고 target PK/source derived memory가 유지되는 gate를 둡니다.
+- Frozen patch `8329bb0a...`의 public API, private descriptor와 project package compile을 증명했습니다.
+- Scalar presence/cache/pending을 분리해 raw-zero unset, explicit-zero present, loaded-zero present와 target-object PK zero를
+  모두 구분했습니다.
+- All pending targets가 required-unset보다 우선하고 each pass의 first error는 canonical normalized source-model
+  identity + relation field name order입니다.
+- Save가 전체 relation state를 read-only validate하고 candidate raw/write/object/cache를 만든 뒤에만 publish합니다.
+- Reversed declaration + both invalid, candidate rebuild failure와 corrupt cache tuple은 I/O 0/no partial publication입니다.
+- Pending+source-empty-only reconciliation, caller-changed-scalar precedence, key-present-later-change invalidation,
+  full `(presence,value)` tuple의 same/different scalar와 nullable clear를 검증했습니다.
+- Per-edge COW는 changed edge만 교체하고 unrelated ready/absent를 independent cell로 보존하며 cold/flight를 공유하지
+  않습니다. Actual eager Reviewer hydration 뒤 Author derivation도 Reviewer query 0입니다.
+- Manual PK missing row는 exact backend mutation +1, non-REL002, cause-preserved/DB unchanged입니다.
+- Nil/zero/copy/cross-origin/context/session boundaries와 caller-synchronized race path를 검증했습니다.
+- Normal/race/CGO0/vet/full codegen+orm+query/Linux386가 PASS했습니다. Full `./...` sole failure는 unpublished product
+  companion deterministic drift이고 그 외 package는 PASS했습니다.
 
-External compile consumer는 두 exact candidate flows를 모두 가져야 합니다.
+Product external compile consumer는 두 exact flows를 모두 가져야 합니다.
 
 1. new source + new no-PK target → assignment → source Save의 REL-002 failure shape
 2. new source + new target → assignment → target Save → same derived source Save의 later-key reconciliation shape
 
-No-product feasibility가 실패하거나 exact work allowlist 밖 file이 필요하면 product implementation을 시작하지 않습니다.
+추가로 required unset, ID zero, nullable clear, same/different scalar와 invalid wrapper signature를 compile합니다.
 
 #### Phase C — freeze와 bounded implementation
 
-Phase B clean 뒤에만 ADR-0033을 Accepted로 바꾸고 public names, return shapes, constructor/key-presence ownership,
-assignment tri-state, exact category/code precedence와 generated bytes를 고정합니다. Product implementation은 work
-frontmatter의 exact source/product list만 사용할 수 있습니다. REL-002 manifest transition은 Go protocol/godjcheck
+ADR-0033은 exact query-root `New`, wrapper `Save`, `WithAuthor`/`WithReviewer`, ID helpers와 `ClearReviewer`, fresh source
+derivation, project-private descriptor, pending-only reconciliation, canonical two-pass preflight와 per-edge COW를
+Accepted했습니다. Product implementation은 work frontmatter의 exact source/product list만 사용할 수 있습니다.
+REL-002 manifest transition은 Go protocol/godjcheck
 hard locks와 `conformance/runners/django/tests/test_relation_scenarios.py`의 product-manifest status assertion만 measured
 update하고, `conformance/README.md`, relation/migration-project/write-migration artifact locks와 workflow measured
 inventory를 함께 갱신해야 합니다. Django scenario execution/oracle/checksum/static fixture는 byte-frozen으로 유지합니다.

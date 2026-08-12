@@ -12,11 +12,11 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0033 active | Accepted relation semantics와 bounded delete/forward facade; REL-002 assignment/save/cache ownership을 Django-first packet에서 검증 중 |
+| Q-013 | Partial | GDJ-0033 active | REL-002 bounded assignment/save/cache decision은 Accepted; product implementation/passing과 broader relation/backend 범위는 pending |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0033 active / facade breadth 후속 | bounded forward facade는 결정됨; REL-002 write 후보와 prerequisite provenance, reverse/general upgrade는 무엇인가 |
+| Q-017 | P1 | GDJ-0033 active / facade breadth 후속 | bounded forward read/write names는 결정됨; prerequisite provenance, raw-model UX/capability/namespace, reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | 별도 SQLite lifecycle work 전 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -407,18 +407,19 @@ Go 값 복사 규칙과 codegen/project bridge로 번역합니다.
 Completed GDJ-0032는 `project.Using(backend)`가 relation-aware project model을 반환하고 lazy/eager 모두
 `Author(ctx)` 같은 accessor를 공유하는 bounded Gate 0 facade를 first-publish했습니다. Gate 0 이름은 그 bounded
 surface에서 canonical입니다. Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과
-Proposed [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 REL-002 assignment/save/cache
-ownership만 이어서 검증합니다. Reverse chaining, general write facade와 upgrade policy는 Q-017에 남습니다.
+Accepted [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 REL-002 assignment/save/cache
+ownership의 exact bounded API를 고정했습니다. Reverse chaining, general write facade와 upgrade policy는 Q-017에 남습니다.
 
 GDJ-0033의 Django observable semantics는 이미 정해져 있습니다. Relation assignment는 raw FK와 accessor cache를
 함께 갱신하고, raw FK change는 stale cache를 지우며, no-PK assigned target은 pre-I/O
 `model_state_error/unsaved_related_object`입니다. Manual key-present target은 DB FK가 판단하고, assignment 뒤 같은
 target이 key를 얻으면 source save preparation이 이를 reconcile하며, nullable clear는 raw NULL/cache absent입니다.
 
-Go-only decision gate는 original source를 보존하는 fresh derived wrapper, exact assigned target pointer/tri-state,
-same target wrapper의 in-place Save, source plan 직전 key snapshot, origin/copy/session validation과 exact public names입니다.
-이 leading candidate는 Phase B no-product feasibility를 통과하기 전까지 Proposed입니다. 별도 materialization 사이
-target pointer identity/global identity map이나 rollback memory rewind는 목표가 아닙니다.
+Go translation은 original source를 보존하는 fresh derived wrapper, exact assigned target pointer, scalar/cache/pending
+분리, same target wrapper의 in-place Save, pending-only key snapshot/reconciliation, canonical two-pass preflight와
+per-edge COW cache로 Accepted했습니다. Exact public names는 `New`, `Save`, `WithAuthor`/`WithReviewer`, ID helpers와
+`ClearReviewer`입니다. 별도 materialization 사이 target identity/global identity map이나 rollback memory rewind는
+목표가 아닙니다. 이 Accepted 결정이 product implementation 또는 REL-002 passing을 뜻하지는 않습니다.
 
 ## Q-017 — 공개 API와 generated upgrade
 
@@ -461,8 +462,8 @@ GDJ-0032가 구현·고정한 product 경계는 다음과 같습니다.
   않습니다.
 
 Reverse manager/chaining, 별도 materialization 간 stable target wrapper pointer identity, downstream target cache,
-`AuthorID` 변경, relation 설정/cache 무효화, write/delete facade, wrapper JSON과 사용자 model method는 이 packet의
-비목표입니다. REL-002는 별도 work/ADR에서 다룹니다.
+delete facade, wrapper JSON과 사용자 model method는 GDJ-0032의 비목표입니다. REL-002의 bounded write API는
+ADR-0033에서 결정했고 product publication만 남았습니다.
 
 저수준 `Bind*`, `From`, `ForwardSelect*` API나 EVID-065의 compile success만으로 최종 사용자 API가 확정됐다고
 보지 않습니다. GDJ-0032는 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` roots와 wrappers,
@@ -473,17 +474,16 @@ Django에서 scalar field, user-defined model method와 relation access는 한 l
 explicit `context.Context`/`error`를 유지하지만, bounded Gate 0의 explicit `Unwrap`만을 전체 장기 model UX로 자동
 동결하지 않습니다. Broader reverse/general facade를 열기 전에 embedding/promotion, explicit unwrap, project sidecar를
 external compile prototype으로 비교해 raw fields/user methods, namespace collision, copy/JSON과 relation state가 함께
-유지되는 방식을 Q-017에서 결정합니다. 이는 Accepted Gate 0 경계를 재개방하지 않으며, GDJ-0033 bounded ownership은
-Phase C feasibility/decision gate를 통과한 범위만 그때 고정합니다.
+유지되는 방식을 Q-017에서 결정합니다. 이는 Accepted Gate 0/ADR-0033 bounded write 경계를 재개방하지 않습니다.
 
 Binder-first, original binder-error precedence, valid binding 뒤 nil/typed-nil backend의
 `backend_error/invalid_plan`과 I/O 0은 stable contract이고 detail message만 noncontractual입니다. 새 companion 한
 파일의 first publication은 general multi-file upgrade, CLI, rename/deprecation/repair 정책의 답이 아닙니다. 따라서
 production forward facade가 완료돼도 broader generated upgrade 질문은 Q-017에 남습니다.
 
-GDJ-0033은 Q-017 중 forward relation assignment/save surface만 좁게 검증합니다. Existing generated exact 13은
-보존하고 project facade companion 한 파일의 deterministic replacement 후보만 허용합니다. Exact helper/method 이름은
-Phase C 전까지 noncanonical입니다.
+GDJ-0033은 Q-017 중 forward relation assignment/save surface만 좁게 Accepted했습니다. Existing generated exact
+13은 보존하고 project facade companion 한 파일의 deterministic replacement만 허용합니다. Broader capability split,
+namespace, raw-model UX와 multi-file upgrade는 여전히 open입니다.
 
 Facade input hash가 current Schema/edge input은 잠그지만 prerequisite generator ABI/version과 prerequisite output
 digest 전체를 project snapshot으로 증명하지는 않습니다. 이 provenance gap은 Q-017에 남기며 coordinated multi-file

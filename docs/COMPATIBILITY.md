@@ -672,29 +672,38 @@ SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`입니
 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002와 broader delete/facade/backend
 호환은 locked/open입니다.
 
-Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Proposed
+Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Accepted
 [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 remaining REL-002 하나의
 assignment/save/cache ownership을 Django-first로 고정합니다. 다음은 Python 구현을 복제하는 선택지가 아니라
 observable compatibility gate입니다.
 
 - Relation object assignment는 source raw FK를 target key와 맞추고 같은 accessor cache를 exact assigned object로
   warm합니다.
-- Raw FK scalar가 달라지면 이전 relation cache를 지웁니다.
+- Raw FK의 전체 `(presence,value)` tuple이 달라지면 이전 relation cache를 지우고, 같은 tuple을 다시 설정하면
+  cache를 보존합니다.
 - Assigned target에 primary key가 없으면 nullable 여부와 무관하게 source save가 database mutation 전에
   `model_state_error/unsaved_related_object`로 실패해야 합니다.
 - Primary key가 수동으로 있지만 target row가 없는 경우 preflight를 통과하고 physical SQLite FK constraint가
   결과를 결정해야 합니다.
-- Assignment 뒤 same target object가 저장돼 key를 얻으면 source save 직전에 key를 다시 읽어 FK를 reconcile합니다.
+- Assignment 당시 no-PK였던 same target object가 저장돼 key를 얻고 source scalar가 계속 empty이면 source save
+  직전에 key를 다시 읽어 FK를 reconcile합니다. Caller가 scalar를 바꾸면 그 선택이 이깁니다. Assignment 당시
+  key-present였던 target key가 뒤에 달라지면 old source scalar를 유지하고 stale target cache를 지웁니다.
 - Nullable clear는 raw FK NULL과 cached absent를 함께 설정합니다. Required relation의 nil-like value는 memory에서
   표현되더라도 database constraint 성공을 뜻하지 않습니다.
 - Transaction rollback은 target/source Go wrapper memory를 자동 rewind하지 않습니다.
 
-Go-only decision gate는 original source를 유지하는 fresh derived source wrapper, exact assigned target pointer의 local
-ownership, target wrapper in-place Save, source plan 직전 one-time target-key snapshot, copy/origin/session validation과
-public method 이름입니다. 이 leading candidate는 Phase B no-product feasibility와 Phase C freeze 전까지 Proposed이며
-별도 materialization 사이 target pointer identity/global identity map을 주장하지 않습니다. Baseline product는 계속
-exact `121 + 5 + 1`, relation 11/12, REL-002 locked입니다. EVID-071/run `31563615648`은 GDJ-0032 terminal
-baseline만 증명하고 later exact 14-path activation tree proof로 재사용하지 않습니다.
+Go translation은 original source를 유지하는 fresh derived wrapper, exact assigned target pointer의 local ownership,
+target wrapper in-place Save, pending-only one-time key reconciliation, canonical two-pass preflight와 relation별 COW cache로
+Accepted했습니다. Public surface는 query-root `New`, wrapper `Save`, `WithAuthor`/`WithReviewer`, scalar helpers와
+`ClearReviewer`입니다. Scalar presence/cache/pending을 분리합니다. Required raw zero는 `New`에서 unset,
+`WithAuthorID(0)`와 loaded zero는 present이고 numeric ID로 savedness를 추론하지 않습니다. Pending target 오류는
+required-unset보다 먼저 canonical normalized source-model identity + relation field name order로 반환하며 candidate
+state가 모두 준비되기 전에는 publish하지
+않습니다. 이는
+별도 materialization 사이 target pointer identity/global identity map을 주장하지 않습니다.
+
+Activation EVID-072/run `31566524953`과 no-product EVID-073는 이 결정과 feasibility만 증명합니다. Primary product는
+계속 exact `121 + 5 + 1`, relation 11/12, REL-002 locked이고 decision-documentation head CI는 `not run/pending`입니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
