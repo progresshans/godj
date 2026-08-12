@@ -176,6 +176,14 @@ four-coordinate 715/715/0 inventory를 통과해 current bounded product를 `122
 relation 12/12로 검증했습니다. Q-013은 `Partial`, Q-017은 P1/open이며 reverse/general facade, cross-materialization
 identity, typed generated `select_related` cause-loss P2, relation-capable migration과 non-SQLite backend는 포함하지 않습니다.
 
+Completed GDJ-0034는 그중 typed generated `select_related` cause-loss P2만 별도 진단 경계에서 수정했습니다.
+Generated typed edge query가 private configuration error를 보존하고, terminal은 ADR-0029의 nil/typed-nil 및
+이미 취소된 context 우선순위를 적용한 뒤 live context에서 원래 resolve/bind error를 backend validation/I/O 전에
+그대로 반환합니다. Exact implementation head `3099bd62d6936eb35edf31ebfa62329ed0eca718`의 EVID-081/run
+`31605477297`은 26/26 jobs·326/326 steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 이는
+Query AST, 정상 SQL/result/cache, dynamic path, public facade API, backend capability 또는 product contract 분류를
+바꾸지 않으며 relation-capable migration과 non-SQLite backend는 계속 별도 범위입니다.
+
 GDJ-0008의 `godj-codegen-m2-v3`는 `ModelDescriptor[M].CloneModel(M) M` 구현을 생성합니다.
 Nullable pointer를 포함한 model별 deep clone으로 QuerySet canonical cache와 caller 값을
 격리하고, 기존 `CloneWriteModel`은 같은 clone 구현에 위임합니다. 이 descriptor ABI 변경은

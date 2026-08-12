@@ -294,8 +294,13 @@ Manually key-present but unpersisted target은 key `0`을 포함해 preflight를
 Save를 재사용합니다. Numeric ID로 savedness를 추론하지 않으며 required scalar presence, cache와 pending을 각각
 추적합니다. Current bounded product는 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다.
 Q-013은 broader relation/backend 때문에 `Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade
-때문에 P1/open이며 typed generated `select_related` cause-loss P2, relation-capable migration과 non-SQLite backend는
-별도 packet입니다.
+때문에 P1/open이며 relation-capable migration과 non-SQLite backend는 별도 packet입니다.
+
+Completed GDJ-0034 뒤 typed generated `SelectRelated(...).All(ctx)`는 stale/mismatched generated 조합의 path
+resolve 또는 required/nullable bind failure를 generic invalid-plan으로 축약하지 않습니다. Nil/typed-nil 또는 이미
+취소된 context의 기존 우선순위를 지킨 뒤 원래 structured error와 cause chain을 backend I/O 전에 반환하며 production
+facade도 같은 low-level error를 통과시킵니다. 정상 eager 결과·query 수·cache와 public method 이름은 바뀌지 않았고,
+EVID-081/run `31605477297`이 exact implementation head `3099bd62...`를 hosted-verified했습니다.
 
 ## 6. Dynamic lookup
 

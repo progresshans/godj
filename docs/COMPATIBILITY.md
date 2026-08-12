@@ -710,6 +710,14 @@ relation/backend 범위 때문에 `Partial`, Q-017은 raw-model UX/capability/na
 P1/open입니다. Typed generated `select_related` cause-loss P2, relation-capable migration, reverse/general facade와
 non-SQLite backend는 이 verified 범위에 포함하지 않습니다.
 
+Completed GDJ-0034는 위 GDJ-0033 verified 범위를 소급 확대하지 않고 typed generated `select_related`의 좁은
+진단 P2를 별도 exact head에서 수정·검증했습니다. Resolve 및 required/nullable bind failure는 기존 context
+precedence 뒤 동일한 structured error identity와 category/code/detail/unwrap chain으로 pre-I/O 반환됩니다. Dynamic
+path와 실제 zero/corrupt query의 기존 오류 의미, 정상 eager SQL/result/cache/query-count는 그대로입니다. Exact
+implementation head `3099bd62...`의 EVID-081/run `31605477297`은 unique 26/26 jobs·326/326 steps를 통과했지만,
+Django oracle, relation manifest/status, static fixture와 checksum은 바꾸지 않았으므로 REL-009/010/011과 aggregate
+product 분류도 그대로입니다.
+
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
 project-check 4개, actual SQLite 4개인 exact 10 hosted execution을 모두 통과했습니다. 이는

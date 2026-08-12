@@ -1,6 +1,6 @@
 ---
 id: GDJ-0034
-status: active
+status: completed
 updated: 2026-08-12
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "db5c11f6fb5b2d165e0d85538bf255f4258e47dc"
@@ -21,6 +21,11 @@ allowed_paths:
   - "conformance/internal/protocol/write_migration_artifacts_test.go"
   - "conformance/cmd/godjcheck/main_test.go"
   - "internal/compiletest/compile_test.go"
+  - "docs/ARCHITECTURE.md"
+  - "docs/CAPABILITY_CATALOG.md"
+  - "docs/COMPATIBILITY.md"
+  - "docs/DEVELOPER_EXPERIENCE.md"
+  - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
   - "docs/TESTING.md"
   - "docs/status/CURRENT.md"
@@ -64,8 +69,12 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
   26/26 jobs·326/326 steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
 - Exact 12-path source/product/workflow implementation은
   [EVID-080](../docs/status/TEST_EVIDENCE.md#evid-20260812-080--gdj-0034-typed-generated-select_related-cause-preservation-pre-hosted-local-validation)의
-  local normal/race/CGO-disabled/vet/Linux386, final inventory와 independent audit를 통과했습니다. 아직 implementation
-  commit 또는 exact-head hosted CI는 없으며 이 문서 전환을 합친 tree도 재귀적으로 검증되지 않았습니다.
+  local normal/race/CGO-disabled/vet/Linux386, final inventory와 independent audit를 통과했습니다. Exact implementation
+  head `3099bd62d6936eb35edf31ebfa62329ed0eca718`은
+  [EVID-081](../docs/status/TEST_EVIDENCE.md#evid-20260812-081--gdj-0034-github-hosted-typed-generated-select_related-cause-preservation-implementation-head-exact-26-job-ci) /
+  [run 31605477297](https://github.com/progresshans/godj/actions/runs/31605477297)의 고유 26/26 jobs·326/326 steps와
+  independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Code는 Implemented이고 그 명시된 hosted 환경에서
+  Verified입니다.
 - 제품 분류는 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로
   그대로입니다. REL-009/010/011 상태나 locked Django oracle/checksum을 바꾸지 않습니다.
 - 이 work는 [ADR-0029](../docs/adr/0029-one-hop-forward-select-related.md)의 이미 Accepted된 bounded eager 경계에서
@@ -115,8 +124,10 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 - [x] Generated deterministic/no-rewrite/last-good 및 physical no-overlay compile PASS
 - [x] Normal, race, CGO-disabled, vet와 bounded Linux/386 gate PASS
 - [x] Full `go test ./...`와 final measured workflow/artifact inventory PASS
-- [ ] Exact implementation head의 고유 hosted 26-job/326-step CI와 independent P0..P3 audit PASS
-- [ ] Completion documentation과 terminal baseline을 각각 별도 exact-head CI로 검증
+- [x] Exact implementation head의 고유 hosted 26-job/326-step CI와 independent P0..P3 audit PASS
+- [x] Exact 13-document completion transition과 integrated current-document 상태 전이
+- [ ] Completion-documentation exact-head hosted verification
+- [ ] Exact six-document terminal evidence/status exact-head hosted verification
 
 ## 명시적 비목표
 
@@ -134,10 +145,30 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 ## 증거 비재사용과 다음 packet
 
 - EVID-078/run `31593500615`은 baseline 전용이고 EVID-079/run `31599273044`는 activation 전용입니다. 둘 다
-  implementation, completion 또는 terminal proof로 재사용하지 않습니다.
-- EVID-080은 exact 12-path local source freeze만 증명합니다. 이 documentation transition을 합친 implementation head는
-  `not run/pending`이며, 이후 completion documentation과 terminal evidence tree도 각각 고유 exact-head run을 사용합니다.
-- 이 work가 completed이고 terminal clean baseline까지 닫히기 전에는 다음 work를 active/ready로 만들지 않습니다.
+  implementation, completion 또는 terminal proof로 재사용하지 않습니다. EVID-080은 exact 12-path local source
+  freeze 전용이고 EVID-081/run `31605477297`은 exact 19-path implementation head `3099bd62...` 전용입니다.
+- EVID-081을 포함하는 completion transition의 exact allowlist는 다음 13개 Markdown 문서/work 파일뿐입니다. Source,
+  workflow, generated output, manifest, oracle, fixture와 checksum은 바꾸지 않습니다.
+
+```text
+docs/ARCHITECTURE.md
+docs/CAPABILITY_CATALOG.md
+docs/COMPATIBILITY.md
+docs/DEVELOPER_EXPERIENCE.md
+docs/OPEN_QUESTIONS.md
+docs/ROADMAP.md
+docs/TESTING.md
+docs/status/CURRENT.md
+docs/status/IMPLEMENTATION_MATRIX.md
+docs/status/TEST_EVIDENCE.md
+work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md
+work/0034-typed-generated-select-related-cause-preservation.md
+work/README.md
+```
+
+- 이 completion-documentation tree는 EVID-081이 재귀적으로 증명하지 않으며 own exact-head hosted CI가
+  `not run/pending`입니다. 그 뒤 EVID-082를 포함하는 exact six-document terminal evidence/status tree도 별도
+  exact-head run을 사용합니다. Terminal clean baseline까지 닫히기 전에는 다음 work를 active/ready로 만들지 않습니다.
 - 그다음 후보는 별도 contract-first `GDJ-0035` relation-capable migration packet뿐입니다. 이 문서가 그 migration의
   tuple, state, DDL 또는 ADR을 미리 Accepted하지 않습니다.
 - Q-013은 `Partial`, Q-017과 Q-019는 P1/open을 유지합니다. Draft PR #1은 open/draft/unmerged 상태를 유지합니다.

@@ -300,9 +300,11 @@ work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md
 work/README.md
 ```
 
-- GDJ-0033은 exact terminal head/run까지 닫혔습니다. 다음 active work는
-  [GDJ-0034](0034-typed-generated-select-related-cause-preservation.md)의 typed generated `select_related` cause-loss P2
-  remediation입니다. EVID-078은 그 activation tree의 proof로 재사용하지 않으며 activation 자체는 고유 exact-head
-  hosted CI 전까지 `not run/pending`입니다. Relation-capable migration은 GDJ-0034 terminal 뒤 별도 GDJ-0035
-  contract-first packet으로만 열고, reverse/general facade와 non-SQLite backend도 섞지 않습니다. Q-013은 `Partial`,
-  Q-017은 P1/open이며 Draft PR도 merge하지 않습니다.
+- GDJ-0033은 exact terminal head/run까지 닫혔습니다. 그 뒤 별도
+  [GDJ-0034](0034-typed-generated-select-related-cause-preservation.md)가 typed generated `select_related` cause-loss P2만
+  수정했고 exact implementation head `3099bd62...`는 EVID-081/run `31605477297`의 고유 exact 26/26 jobs·326/326
+  steps와 audit P0..P3=0을 통과했습니다. GDJ-0034는 completed이고 현재 active/ready work는 없지만 EVID-081을
+  포함하는 completion-documentation head와 그 뒤 terminal head는 각각 own exact-head CI가 필요합니다.
+  Relation-capable migration은 GDJ-0034 terminal 뒤 별도 GDJ-0035 contract-first packet으로만 열고,
+  reverse/general facade와 non-SQLite backend도 섞지 않습니다. Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR도
+  merge하지 않습니다.

@@ -425,7 +425,9 @@ per-edge COW cache로 Accepted했습니다. Exact public names는 `New`, `Save`,
 `ClearReviewer`입니다. 별도 materialization 사이 target identity/global identity map이나 rollback memory rewind는
 목표가 아닙니다. 이 bounded decision/code/verification은 REL-002 `passing`만 뜻하며 Q-013의 broader relation/backend나
 Q-017의 raw-model UX/capability/namespace/reverse/general upgrade를 닫지 않습니다. Typed generated
-`select_related` cause-loss P2와 relation-capable migration도 별도 packet입니다.
+`select_related` cause-loss P2는 별도 GDJ-0034에서 private stored error와 deterministic generator v2로 수정되어
+EVID-081/run `31605477297`에서 hosted-verified됐지만, 이 좁은 remediation도 Q-013/Q-017 상태나 general coordinated
+generated upgrade를 닫지 않습니다. Relation-capable migration은 계속 별도 packet입니다.
 
 ## Q-017 — 공개 API와 generated upgrade
 

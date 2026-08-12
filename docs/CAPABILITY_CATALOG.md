@@ -396,8 +396,14 @@ project-private write descriptor, explicit PK-presence, pending-only reconciliat
 preflight와 per-edge COW cache를 추가했습니다. Implementation head `be6f3d4e...`의 EVID-076/run `31586910749`은
 exact 26/26 jobs·326/326 steps와 four-coordinate 715/715/0 inventory를 통과했고 current bounded product는
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. 이는 SQLite/AutoField forward assignment/save
-capability만 뜻합니다. Q-013 `Partial`과 Q-017 P1/open, reverse/general facade, typed generated `select_related`
-cause-loss P2, relation-capable migration, coordinated generated upgrade와 non-SQLite backend는 그대로 남습니다.
+capability만 뜻합니다. Q-013 `Partial`과 Q-017 P1/open, reverse/general facade, relation-capable migration,
+coordinated generated upgrade와 non-SQLite backend는 그대로 남습니다.
+
+Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_related` resolve/bind cause-loss P2를
+별도로 수정했습니다. Private stored configuration error와 context-first terminal pre-I/O 반환을 generator v2와
+두 checked-in companion에 결정적으로 반영했고, exact implementation head `3099bd62...`의 EVID-081/run
+`31605477297`이 26/26 jobs·326/326 steps를 통과했습니다. 새 capability, contract, public API 또는 backend 지원을
+추가하지 않았으므로 product 분류는 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12 그대로입니다.
 
 ## Django 데이터 이행
 
