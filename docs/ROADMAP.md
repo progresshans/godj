@@ -1,15 +1,13 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)는
-  completed이고 [ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 bounded
-  Gate 0 production forward facade와 additive single-companion first-publication에 한해 Accepted입니다. Activation
-  EVID-068/run `31537726792`, implementation EVID-069/run `31541883680`과 completion-documentation
-  EVID-070/run `31544273477`은 서로 다른 exact head를 증명합니다. Existing generated exact 13은 byte-identical이고
-  project-only companion 한 파일을 더한 exact 14/physical 17이 구현됐습니다. Gate 0 이름은 이 bounded facade
-  안에서 canonical이지만 reverse/write/general upgrade까지 확장하지 않습니다. Active/ready work는 없고
-  EVID-070을 추가하는 later exact seven-file terminal documentation tree 자체 CI는 `not run/pending`이며
-  completion run을 그 proof로 재사용하지 않습니다.
+- 현재 단계: [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)이 active이고
+  [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Proposed입니다. Completed
+  GDJ-0032의 exact seven-file terminal head `8748bb49...`은 EVID-071/run `31563615648`의 별도 exact 26/26
+  jobs·326/326 steps를 통과해 clean baseline이 됐습니다. GDJ-0033은 remaining REL-002 forward assignment/save/cache
+  ownership 한 결과만 Django-first Phase A, no-product Phase B, decision Phase C로 검증합니다. Existing generated
+  exact 13과 additive exact 14/physical 17, product classification은 activation에서 unchanged입니다. EVID-071 append와
+  exact 14-path activation tree 자체 CI는 `not run/pending`이며 terminal run을 그 proof로 재사용하지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
   relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
 - 마지막 검토: 2026-08-12
@@ -453,8 +451,30 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   manager, stable target pointer identity, downstream target cache, REL-002, general generated upgrade/CLI는 deferred입니다.
   ADR-0032는 이 bounded Gate 0에 한해 Accepted입니다. Exact eleven-file completion-documentation head
   `6089e214...`도 EVID-070/run `31544273477`의 별도 exact 26/26 jobs·326/326 recorded steps와 unchanged
-  product gates를 통과했습니다. EVID-070을 추가하는 later exact seven-file terminal record 자체 CI는
-  `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
+  product gates를 통과했습니다. EVID-070을 추가한 exact seven-file terminal head `8748bb49...`은 다시
+  EVID-071/run `31563615648`의 별도 exact 26/26·326/326을 통과해 GDJ-0033 baseline이 됐습니다.
+- Active GDJ-0033은 REL-002만 엽니다. Django observable gate는 assignment가 raw FK와 accessor cache를 함께
+  갱신하고 raw scalar change가 cache를 지우며, no-PK target은 pre-I/O
+  `model_state_error/unsaved_related_object`, manual-PK target은 DB FK 판단, target-later-key reconciliation,
+  nullable clear와 rollback memory non-rewind입니다. Go-only leading candidate는 fresh source derivation, exact assigned
+  target pointer/tri-state, same target wrapper in-place Save와 source plan 직전 one-time key snapshot입니다. Public names는
+  Phase C 전까지 noncanonical이고 global identity/cross-materialization pointer identity는 비목표입니다.
+- Current `select_related` facade가 resolver/binder cause를 generic invalid-plan으로 축약하는 gap은 narrow remediation
+  gate로 재현·수정 여부를 판단하되 새 Q/ADR로 확장하지 않습니다.
+- Current PROTECT는 exact protected identities와 count payload를 위해 모든 protected row를 materialize합니다.
+  Production-scale 전 bounded-memory/stream/cap stress gate가 필요합니다. Public `ProtectedError` payload meaning을
+  바꾸지 않는 최적화는 별도 work로 다루고, payload가 바뀔 때만 새 ADR을 요구합니다.
+- Q-017의 facade input provenance는 coordinated multi-file upgrade/general `--check` 전에 prerequisite generator
+  versions와 output digests까지 project snapshot으로 잠가야 합니다. REL-002 single-companion replacement의 필수
+  선행 조건으로 과장하지 않습니다.
+- Q-019는 GoDj SQLite unknown-outcome connection이 `Backend.Close`까지 retained set에 누적될 수 있는 resource
+  policy를 별도 P1 work로 추적합니다. Django 의미가 아니라 `database/sql`/GoDj lifecycle 결정이며 behavior가
+  바뀌면 새 ADR이 ADR-0030을 명시적으로 amend/supersede해야 합니다.
+- GDJ-0033 뒤 relation-capable migration은 별도 contract-first vertical packet으로만 엽니다. Existing scalar migration
+  tuple `(1,1,1,2)`의 의미를 byte/semantic preserve하고 relation 의미로 silent reinterpretation하지 않으며, vNext
+  `ProjectState`, operation codec, historical reconstructor, SQLite FK DDL, app dependency, apply/unapply와 restart를 한
+  slice에서 함께 증명합니다. 이는 REL-002의 선행 의존이 아니며 별도 activation/ADR 없이 현재 migration format을
+  넓히지 않습니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

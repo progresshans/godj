@@ -1,6 +1,6 @@
 # 기준 출처와 검증 기록
 
-- 마지막 확인: 2026-08-10 (Asia/Seoul)
+- 마지막 확인: 2026-08-12 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -20,8 +20,19 @@
 - [`on_delete` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/delete/tests.py) — REL-007/008의 `PROTECT`와 `SET_NULL` 결과·mutation 관찰 근거.
 - [`select_related` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/select_related/tests.py)와
   [`prefetch_related` tests](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/prefetch_related/tests.py) — REL-009..012의 eager join, invalid reverse path와 two-query reverse batch 관찰 근거.
+- [`ForeignKeyDeferredAttribute`와 `ForwardManyToOneDescriptor`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py) — REL-002 raw FK cache invalidation, relation assignment의 FK 복사/cache warm와 nullable clear 관찰 근거.
+- [`Model._prepare_related_fields_for_save`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/base.py) — REL-002 no-PK assigned target preflight, manual-PK pass-through, target-save-after-assignment key reconciliation과 stale cache invalidation 근거.
+- [`ManyToOneTests.test_fk_assignment_and_related_object_cache`](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/tests/many_to_one/tests.py) — FK assignment와 exact related object cache regression 근거.
+- [Transaction rollback application-state guidance](https://github.com/django/django/blob/fe0a859f537d4238cf49fca39073513206f83122/docs/topics/db/transactions.txt) — rollback이 model field/application memory를 자동 복원하지 않아 caller가 original values를 수동 복원해야 하는 observable guidance.
 
 로컬 `/Users/hanhyeonjin/Documents/django`에서 tag `6.1`은 commit `fe0a859f537d4238cf49fca39073513206f83122`이며 `VERSION = (6, 1, 0, "final", 0)`임을 확인했습니다. 2026-08-07 당시 checkout `main`은 commit `4243ab11dc957fd14a1875e6b715ff5e6114a415`, Django `6.2.0-alpha`였으므로 6.1 oracle로 직접 사용하지 않습니다.
+
+2026-08-12 GDJ-0033 activation audit에서는 pinned Django 6.1 commit/tag
+`fe0a859f537d4238cf49fca39073513206f83122`의 위 exact source/test/docs를 다시 기준으로 삼았습니다. Moving local
+main `4243ab11...`은 symbol 위치를 찾는 read-only 보조일 뿐 authoritative evidence가 아닙니다. Assignment/FK/cache와
+rollback memory non-rewind는 Django observation이고, fresh Go source wrapper, exact assigned target pointer,
+in-place target Save와 pre-plan snapshot은 Proposed ADR-0033의 Go-specific decision candidate입니다. GoDj는 Django
+source를 포팅하지 않고 result, side effect, error timing과 transaction meaning만 independent Go tests로 번역합니다.
 
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며

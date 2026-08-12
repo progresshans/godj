@@ -195,23 +195,25 @@
 - GDJ-0032 completion-documentation/hosted-tested commit:
   `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`
   (`docs: complete production project facade`)
+- GDJ-0032 terminal evidence/status hosted-tested commit and GDJ-0033 activation baseline:
+  `8748bb495e682d53e0d07c5e8f8fd0236ed5c9ed`
+  (`docs: record production facade terminal evidence`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: [GDJ-0032](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)는
-  completed이고 [ADR-0032](../adr/0032-production-forward-project-facade-and-additive-first-publication.md)는
-  bounded Gate 0 production forward facade와 additive single-companion first-publication에 한해 Accepted입니다.
-  Completion-documentation head `6089e214...`의
-  [EVID-070](TEST_EVIDENCE.md#evid-20260812-070--gdj-0032-github-hosted-completion-documentation-head-exact-26-job-ci) /
-  [run 31544273477](https://github.com/progresshans/godj/actions/runs/31544273477)은 exact 26/26 jobs·326/326
-  recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Existing generated exact 13은
-  byte-identical이고 additive exact 14/physical 17이 구현됐습니다. Current product classification은 unchanged exact
-  `121 passing + 5 deviation + 1 oracle_locked`, relation actual 11/12이며 REL-002만 locked입니다. Q-013은
-  `Partial`, Q-017은 P1/open입니다. Gate 0 이름은 이 bounded facade에서 canonical이지만 reverse/write/general
-  upgrade까지 확장하지 않습니다. EVID-070을 추가하는 later exact seven-file terminal documentation tree 자체
-  CI는 `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
+- 현재 단계: [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)이 active이고
+  [ADR-0033](../adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Proposed입니다. Completed
+  GDJ-0032 terminal head `8748bb49...`의
+  [EVID-071](TEST_EVIDENCE.md#evid-20260812-071--gdj-0032-terminal-exact-head-ci-and-gdj-0033-activation-baseline) /
+  [run 31563615648](https://github.com/progresshans/godj/actions/runs/31563615648)은 exact 26/26 jobs·326/326
+  recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과해 clean baseline이 됐습니다. GDJ-0033은
+  remaining REL-002 forward assignment/save/cache ownership 하나만 Phase A Django semantics, Phase B no-product
+  feasibility, Phase C decision freeze로 다룹니다. Existing generated exact 13과 additive exact14/physical17, product
+  `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12는 activation에서 unchanged입니다. EVID-071 append와
+  exact 14-path activation tree 자체 CI는 `not run/pending`이고 terminal run을 그 proof로 재사용하지 않습니다.
 - 최근 완료 작업:
   [GDJ-0032 Production Forward Project Facade and Additive First Publication](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0033 Forward ForeignKey Assignment, Save, and Cache Ownership](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -662,8 +664,9 @@
   bounded facade에서 canonical입니다. Implicit English pluralization은 사용하지 않고 existing/new project namespace
   전체를 deterministic collision 검사합니다. 이는 reverse/write/general upgrade naming을 확정하지 않습니다.
 - EVID-068/run `31537726792`, EVID-069/run `31541883680`과 EVID-070/run `31544273477`은 activation,
-  implementation과 completion documentation을 서로 다른 exact head에서 증명했습니다. EVID-070을 추가하는 later
-  exact seven-file terminal record 자체 hosted CI는 `not run/pending`이며 completion run을 재사용하지 않습니다.
+  implementation과 completion documentation을 서로 다른 exact head에서 증명했습니다. EVID-070을 추가한
+  exact seven-file terminal head `8748bb49...`도 EVID-071/run `31563615648`의 별도 hosted CI를 통과했고
+  completion run을 재사용하지 않았습니다. EVID-071은 later GDJ-0033 activation proof로 재사용하지 않습니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -1131,8 +1134,8 @@ Accepted됐고 REL-009/010/011 one-hop eager engine과 REL-007/008 low-level del
 Broader eager/write/delete/DDL/migration codec와 relation surface가 열려 있어 `Partial`입니다. Q-017은 completed
 GDJ-0031의 forward read-only test-only compile feasibility와 completed GDJ-0032의 bounded production forward
 first-publication 뒤에도 P1/open입니다. 모든 declared model의 target project wrapper와 exact Gate 0 facade 이름은
-이번 packet에서 확정됐지만 reverse manager, stable target wrapper identity/downstream cache, REL-002 cache mutation과
-general generated upgrade 정책은 확정되지 않았습니다.
+그 bounded packet에서 확정됐습니다. Active GDJ-0033은 REL-002 assignment/save/cache ownership만 검증하며 reverse
+manager, cross-materialization target identity/downstream cache와 general generated upgrade는 계속 open입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
 - Direct project command, writer/upgrade/cache와 broader public CLI/library/generator handshake
@@ -1147,13 +1150,18 @@ general generated upgrade 정책은 확정되지 않았습니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 EVID-070과 상태를 추가하는 exact seven-file terminal documentation diff, EVID-001..069 historical
-body prefix, EVID-070 copy fidelity, links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only
-bytes를 별도 commit/push한 뒤 고유 exact-head 26-job CI와 hosted audit를 실행하되 completion run
-`31544273477`을 그 later tree의 proof로 재사용하지 않습니다. 그 terminal head가 clean baseline으로 검증된 뒤에만
-다음 Q-017 packet을 활성화합니다.
-REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 먼저 활성화할지는 별도 work/ADR에서
-결정하고 한 packet에 섞지 않습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
+GDJ-0033 Phase A에서 pinned Django 6.1 assignment/cache/save preparation과 locked REL-002 payload/phase/category/code/
+metrics/DB state를 재고정합니다. Phase B에서는 product bytes를 바꾸기 전에 new source/no-PK target construction의
+descriptor PK-presence, fresh source derivation, exact assigned target pointer, target wrapper in-place Save와 later-key
+reconciliation, raw FK invalidation, nullable clear, original-source immutability와 rollback memory non-rewind를
+compile/runtime로 검증합니다. Required raw FK의 new-source zero/loaded-source old-nonzero보다 assigned/pending tri-state를
+우선하고, Gate 0 `Unwrap` pending representation은 Phase C에서 고정하며 numeric ID로 savedness를 추론하지 않습니다.
+
+Phase B가 clean일 때만 Phase C에서 public constructor/assignment/save/clear names와 return shapes, stable
+`model_state_error/unsaved_related_object`, one-time key snapshot과 generated bytes를 freeze합니다. Work frontmatter의
+exact allowlist 밖 core/backend/app-generated path가 필요하면 즉시 멈추고 별도 activation을 만듭니다. EVID-071/run
+`31563615648`은 terminal baseline proof이고 later exact 14-path activation tree proof로 재사용하지 않습니다. Draft PR은
+사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1268,18 +1276,24 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
 - GDJ-0032 completion documentation: `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`; EVID-070/run
   `31544273477` exact 26/26 jobs·326/326 steps PASS; unchanged four-coordinate 697/697/0 inventory, exact 13/14/17,
   audit P0..P3=0
-- 현재 working tree: exact seven-file GDJ-0032 terminal evidence/status transition; its own exact-head hosted CI
-  `not run/pending`; EVID-070 재사용 금지
+- GDJ-0032 terminal evidence/status and GDJ-0033 clean baseline:
+  `8748bb495e682d53e0d07c5e8f8fd0236ed5c9ed`; EVID-071/run `31563615648` exact 26/26 jobs·326/326
+  steps PASS; four-coordinate 697/697/0 inventory, exact 13/14/17, audit P0..P3=0
+- 현재 working tree: exact 14-path GDJ-0033 activation documentation transition; its own exact-head hosted CI
+  `not run/pending`; EVID-071 재사용 금지
 - 최근 완료 work:
   [GDJ-0032](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)
-- active work: 없음
+- active work:
+  [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
 - ready work: 없음
 - current decision: [ADR-0030](../adr/0030-project-bound-protect-and-set-null-delete.md) Accepted for bounded
   REL-007/008 low-level delete; [ADR-0029](../adr/0029-one-hop-forward-select-related.md) Accepted for bounded eager;
   [ADR-0031](../adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 test-only compile
   feasibility에 한해 Accepted이고
   [ADR-0032](../adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 bounded Gate 0
-  facade/first-publication에 한해 Accepted; broader reverse/write/generated upgrade는 Q-017 P1/open
+  facade/first-publication에 한해 Accepted;
+  [ADR-0033](../adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Proposed; broader
+  reverse/write/generated upgrade는 Q-017 P1/open
 - 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding. Locked oracle bytes는 불변이고
   product manifest는 REL-001/003/004/005/006/007/008/009/010/011/012 `passing` + REL-002 `oracle_locked`
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
@@ -1294,8 +1308,12 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
   eager/custom Prefetch/filter/order/write/delete/DDL/migration과 broader backend는 open입니다.
 - Q-017: P1/open; completed GDJ-0031은 forward read-only compile feasibility를 검증했고 completed GDJ-0032는 모든
   declared model의 project wrapper/query root와 required/nullable same-target-wrapper forward facade를 first-publish했습니다.
-  Gate 0 names는 bounded surface에서 canonical이고 reverse manager, stable target pointer identity/downstream cache,
-  REL-002 FK mutation/cache, lifetime enforcement와 general generated upgrade policy는 계속 open입니다.
+  Active GDJ-0033은 REL-002 assignment/save/cache ownership만 Phase A/B/C로 검증합니다. Gate 0 names는 bounded
+  surface에서 canonical이고 relation mutation public names는 noncanonical입니다. Reverse manager,
+  cross-materialization target identity/downstream cache, lifetime enforcement와 general generated upgrade policy는
+  계속 open입니다.
+- Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
+  policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0026 implementation local: EVID-043; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   final-byte `make ci`, exact 533/533/0 inventory·54,076 bytes·SHA-256 `6d2958b6...7aee`, 12 adapters,
@@ -1378,6 +1396,9 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
 - GDJ-0032 completion documentation hosted: EVID-070/run 31544273477 exact 26/26·326/326 PASS; head
   `6089e214...`, synthetic merge/head tree both `44bc595f...`, unchanged four-coordinate 697/697/0 inventory and
   generated exact 13/14/physical 17, audit P0/P1/P2/P3=0
+- GDJ-0032 terminal/GDJ-0033 baseline hosted: EVID-071/run 31563615648 exact 26/26·326/326 PASS; head
+  `8748bb49...`, synthetic merge/head tree both `b14494f3...`, unchanged four-coordinate 697/697/0 inventory and
+  generated exact 13/14/physical 17, audit P0/P1/P2/P3=0; baseline only
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1429,12 +1450,12 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
   31528039746 exact 26/26 PASS; completion-documentation run 31531470440 exact 26/26 PASS; terminal
   evidence/status/GDJ-0032 baseline run 31533890720 exact 26/26 PASS; GDJ-0032 activation run 31537726792 exact
   26/26 PASS; production facade implementation run 31541883680 exact 26/26 PASS; completion-documentation run
-  31544273477 exact 26/26 PASS
+  31544273477 exact 26/26 PASS; terminal evidence/status/GDJ-0033 baseline run 31563615648 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-070/run 31544273477을 later exact seven-file terminal tree proof로 재사용하거나,
-  bounded Gate 0 canonical names를 전체 ORM/general upgrade naming으로 넓히거나, target project
-  wrapper 필수 경계를 stable target pointer identity/downstream cache 보장으로 확대하거나, single companion
-  first-publication을 general generated upgrade/CLI/REL-002/reverse/non-SQLite support로 과장하는 것
+- 가장 위험한 과장: EVID-071/run 31563615648을 GDJ-0033 activation/implementation proof로 재사용하거나,
+  Proposed relation constructor/assignment/save names를 canonical로 표현하거나, exact assigned target pointer의 local
+  ownership을 cross-materialization identity map으로 확대하거나, REL-002 packet을 general generated upgrade/reverse/
+  migration/non-SQLite support로 과장하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

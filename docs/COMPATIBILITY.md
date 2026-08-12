@@ -638,9 +638,9 @@ write/delete/DDL/migration/non-SQLite 호환은 claim하지 않습니다.
 장기 relation UX는 Django 6.1의 의미를 reference로 삼습니다: raw FK와 relation accessor 분리, 같은 model
 instance/accessor의 lazy cache와 eager/prefetch warming, reverse manager, origin DB affinity입니다. GoDj는 이를
 Python descriptor나 runtime registry가 아니라 explicit `context.Context`/`error`, project codegen과 exact
-backend/session binding으로 번역합니다. Unified `project.Using(backend)` facade, relation-aware chaining, FK
-mutation/cache invalidation과 exact public names는 Q-013/Q-017의 Proposed target이며 현재 passing contract나
-GDJ-0029 구현 사실이 아닙니다.
+backend/session binding으로 번역합니다. Unified `project.Using(backend)` bounded forward facade는 GDJ-0032에서
+implemented됐지만 FK assignment/save/cache invalidation, reverse chaining과 broader write names는 Q-013/Q-017의
+후속이며 아직 passing contract가 아닙니다.
 
 Completed [GDJ-0030](../work/0030-project-bound-protect-and-set-null-delete.md)과 Accepted
 [ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 locked REL-007/008을 하나의 SQLite low-level
@@ -671,6 +671,30 @@ Current manifest는 REL-007/008 status-only transition 뒤 10,776 bytes/SHA-256
 SHA-256 `a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`입니다. Product는 exact
 `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이고 REL-002와 broader delete/facade/backend
 호환은 locked/open입니다.
+
+Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과 Proposed
+[ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 remaining REL-002 하나의
+assignment/save/cache ownership을 Django-first로 고정합니다. 다음은 Python 구현을 복제하는 선택지가 아니라
+observable compatibility gate입니다.
+
+- Relation object assignment는 source raw FK를 target key와 맞추고 같은 accessor cache를 exact assigned object로
+  warm합니다.
+- Raw FK scalar가 달라지면 이전 relation cache를 지웁니다.
+- Assigned target에 primary key가 없으면 nullable 여부와 무관하게 source save가 database mutation 전에
+  `model_state_error/unsaved_related_object`로 실패해야 합니다.
+- Primary key가 수동으로 있지만 target row가 없는 경우 preflight를 통과하고 physical SQLite FK constraint가
+  결과를 결정해야 합니다.
+- Assignment 뒤 same target object가 저장돼 key를 얻으면 source save 직전에 key를 다시 읽어 FK를 reconcile합니다.
+- Nullable clear는 raw FK NULL과 cached absent를 함께 설정합니다. Required relation의 nil-like value는 memory에서
+  표현되더라도 database constraint 성공을 뜻하지 않습니다.
+- Transaction rollback은 target/source Go wrapper memory를 자동 rewind하지 않습니다.
+
+Go-only decision gate는 original source를 유지하는 fresh derived source wrapper, exact assigned target pointer의 local
+ownership, target wrapper in-place Save, source plan 직전 one-time target-key snapshot, copy/origin/session validation과
+public method 이름입니다. 이 leading candidate는 Phase B no-product feasibility와 Phase C freeze 전까지 Proposed이며
+별도 materialization 사이 target pointer identity/global identity map을 주장하지 않습니다. Baseline product는 계속
+exact `121 + 5 + 1`, relation 11/12, REL-002 locked입니다. EVID-071/run `31563615648`은 GDJ-0032 terminal
+baseline만 증명하고 later exact 14-path activation tree proof로 재사용하지 않습니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,

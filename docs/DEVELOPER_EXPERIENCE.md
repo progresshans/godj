@@ -237,6 +237,59 @@ Common Author/Reviewer selector와 선택된 eager evaluation state는 Filter/Or
 source wrapper-scoped입니다. Wrapper JSON/custom method, FK mutation/cache invalidation, reverse manager, stable target
 pointer identity/downstream cache와 general generated upgrade는 계속 후속입니다.
 
+Django가 주는 장기 목표는 scalar field, user-defined model method와 relation accessor가 한 logical model처럼 보이는
+경험입니다. Go에서는 lazy I/O의 `context.Context`/`error`를 숨기지 않되, Gate 0의 canonical `Unwrap`을 전체 model
+surface의 유일한 영구 답으로 확대하지 않습니다. Reverse/general facade 전 Q-017 compile gate에서
+embedding/promotion, explicit unwrap, project sidecar를 비교해 field/method promotion, collision, copy/JSON과 relation
+state 보존을 결정합니다. 현재 bounded Gate 0와 GDJ-0033의 project wrapper는 그대로 유지합니다.
+
+### Forward relation assignment와 Save — GDJ-0033 active
+
+[GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과
+[ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed Gate 0 facade 위에서
+REL-002 assignment/save/cache ownership 하나를 다룹니다. 아래 method 이름과 return shape는 Phase C compile/runtime
+gate 전까지 **비정본 예시**입니다.
+
+```go
+models, err := project.Using(backend)
+post, err := models.BlogPost.New(blog.Post{Title: "draft"})              // candidate
+author, err := models.AuthorsAuthor.New(authors.Author{Name: "unsaved"}) // candidate
+
+derived, err := post.WithAuthor(author) // candidate: original post는 불변
+saved, err := models.BlogPost.Save(ctx, derived)
+```
+
+목표 경험은 assignment 뒤 `derived.Author(ctx)`가 exact assigned `author` wrapper를 query 0으로 반환하고,
+source Save가 target key presence를 mutation plan 직전에 확인하는 것입니다. Assignment 당시 target에 key가 없으면
+`model_state_error/unsaved_related_object`와 source I/O 0이고, 같은 target wrapper를 먼저 Save해 key를 얻으면
+derived source가 보존한 exact target pointer에서 그 key를 다시 읽어 reconcile하는 후보를 검증합니다.
+
+이 후보의 소유권 규칙은 다음과 같습니다.
+
+- Relation assignment는 fresh source wrapper를 반환하고 original source wrapper의 raw FK/cache/state를 바꾸지 않습니다.
+- Derived source만 assigned target pointer와 present/absent tri-state를 소유합니다.
+- Required FK의 pending no-PK 상태에서는 tri-state와 exact-target accessor가 authoritative입니다. Gate 0
+  `Unwrap() blog.Post`는 Django raw `None`을 표현할 수 없으므로 pending scalar representation은 Phase C 전까지
+  비정본이고, loaded source의 stale old FK를 새 target key처럼 사용해서는 안 됩니다.
+- Target wrapper Save는 same wrapper를 in-place 갱신할 수 있지만 같은 wrapper의 concurrent Save/access는 caller가
+  synchronize해야 합니다.
+- 별도 query/materialization 사이 target pointer identity, global identity map과 downstream target cache는 계약하지
+  않습니다.
+- Raw `AuthorID`/`ReviewerID`에서 source를 다시 파생하면 object override를 버리고 scalar-derived cold cache가 됩니다.
+- Nullable clear는 raw FK NULL과 cached absent를 함께 만듭니다.
+- Transaction rollback은 target key와 derived source memory를 자동 rewind하지 않습니다.
+- Session-origin wrapper는 callback 내부만 지원하고 callback 이후 behavior는 warm cache를 포함해 noncontractual입니다.
+
+Manually key-present but unpersisted target은 Django처럼 preflight를 통과하고 database FK constraint가 존재 여부를
+판단해야 합니다. App-level generated model에 relation write state를 억지로 넣지 않고 project-private write model과
+generic Manager Save를 재사용하는 것이 leading implementation candidate입니다. Phase A/B가 clean하지 않거나 exact
+allowlist 밖 core/backend/app-generated change가 필요하면 product API를 게시하지 않고 별도 activation으로 멈춥니다.
+
+New source/target construction은 numeric ID의 0/비0으로 savedness를 추측하지 않습니다. Generated descriptor의 hidden
+PK-presence를 wrapper state로 옮기고, loaded query wrapper만 source presence true로 만듭니다. Manual key-present
+target도 ID 0/nonzero와 무관하게 descriptor presence를 보존해 preflight를 통과해야 합니다. `New`를 포함한
+constructor 이름/입력 shape와 pending `Unwrap` scalar 표현은 Phase C 전까지 비정본입니다.
+
 ## 6. Dynamic lookup
 
 Admin과 HTTP query처럼 compile 후 들어오는 field path는 metadata로 검증합니다.

@@ -12,12 +12,13 @@
 | Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0032 completed / relation facade 후속 | Accepted relation semantics와 bounded REL-007/008 low-level delete 및 production forward facade first-publication; reverse·FK mutation/cache policy는 open |
+| Q-013 | Partial | GDJ-0033 active | Accepted relation semantics와 bounded delete/forward facade; REL-002 assignment/save/cache ownership을 Django-first packet에서 검증 중 |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0032 completed / facade breadth 후속 | bounded production forward facade는 결정됨; reverse/write surface와 이후 generated code upgrade 정책은 무엇인가 |
+| Q-017 | P1 | GDJ-0033 active / facade breadth 후속 | bounded forward facade는 결정됨; REL-002 write 후보와 prerequisite provenance, reverse/general upgrade는 무엇인가 |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
+| Q-019 | P1 | 별도 SQLite lifecycle work 전 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
 ## M0에서 해결한 질문
 
@@ -403,11 +404,21 @@ cache, eager/prefetch의 동일 cache warming, reverse manager와 조회 origin 
 descriptor/runtime registry/예외 구현을 복제하지 않고 explicit `context.Context`/`error`, backend/session binding,
 Go 값 복사 규칙과 codegen/project bridge로 번역합니다.
 
-최종 사용자 후보는 `project.Using(backend)`로 한 번 결합한 facade가 relation-aware project model을 직접
-반환하고 lazy/eager 모두 `Author(ctx)` 같은 accessor를 공유하는 형태입니다. 현재 `orm.BindProject`, generated
-`BindObjects`/`From`과 GDJ-0029 eager bridge는 검증 가능한 low-level building block이며 canonical application
-API가 확정됐다는 뜻이 아닙니다. FK mutation/cache invalidation, scalar access, forward/reverse chaining과 exact
-facade/manager/selector 이름은 Q-017에서 계속 open입니다.
+Completed GDJ-0032는 `project.Using(backend)`가 relation-aware project model을 반환하고 lazy/eager 모두
+`Author(ctx)` 같은 accessor를 공유하는 bounded Gate 0 facade를 first-publish했습니다. Gate 0 이름은 그 bounded
+surface에서 canonical입니다. Active [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)과
+Proposed [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 REL-002 assignment/save/cache
+ownership만 이어서 검증합니다. Reverse chaining, general write facade와 upgrade policy는 Q-017에 남습니다.
+
+GDJ-0033의 Django observable semantics는 이미 정해져 있습니다. Relation assignment는 raw FK와 accessor cache를
+함께 갱신하고, raw FK change는 stale cache를 지우며, no-PK assigned target은 pre-I/O
+`model_state_error/unsaved_related_object`입니다. Manual key-present target은 DB FK가 판단하고, assignment 뒤 같은
+target이 key를 얻으면 source save preparation이 이를 reconcile하며, nullable clear는 raw NULL/cache absent입니다.
+
+Go-only decision gate는 original source를 보존하는 fresh derived wrapper, exact assigned target pointer/tri-state,
+same target wrapper의 in-place Save, source plan 직전 key snapshot, origin/copy/session validation과 exact public names입니다.
+이 leading candidate는 Phase B no-product feasibility를 통과하기 전까지 Proposed입니다. 별도 materialization 사이
+target pointer identity/global identity map이나 rollback memory rewind는 목표가 아닙니다.
 
 ## Q-017 — 공개 API와 generated upgrade
 
@@ -458,9 +469,44 @@ Reverse manager/chaining, 별도 materialization 간 stable target wrapper point
 `BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`을 이 bounded facade의 canonical Gate 0 surface로
 결정했습니다. 이 결정은 reverse/write manager나 전체 ORM naming policy를 확정하지 않습니다.
 
+Django에서 scalar field, user-defined model method와 relation access는 한 logical model 경험입니다. GoDj는 lazy I/O의
+explicit `context.Context`/`error`를 유지하지만, bounded Gate 0의 explicit `Unwrap`만을 전체 장기 model UX로 자동
+동결하지 않습니다. Broader reverse/general facade를 열기 전에 embedding/promotion, explicit unwrap, project sidecar를
+external compile prototype으로 비교해 raw fields/user methods, namespace collision, copy/JSON과 relation state가 함께
+유지되는 방식을 Q-017에서 결정합니다. 이는 Accepted Gate 0 경계를 재개방하지 않으며, GDJ-0033 bounded ownership은
+Phase C feasibility/decision gate를 통과한 범위만 그때 고정합니다.
+
 Binder-first, original binder-error precedence, valid binding 뒤 nil/typed-nil backend의
 `backend_error/invalid_plan`과 I/O 0은 stable contract이고 detail message만 noncontractual입니다. 새 companion 한
 파일의 first publication은 general multi-file upgrade, CLI, rename/deprecation/repair 정책의 답이 아닙니다. 따라서
 production forward facade가 완료돼도 broader generated upgrade 질문은 Q-017에 남습니다.
+
+GDJ-0033은 Q-017 중 forward relation assignment/save surface만 좁게 검증합니다. Existing generated exact 13은
+보존하고 project facade companion 한 파일의 deterministic replacement 후보만 허용합니다. Exact helper/method 이름은
+Phase C 전까지 noncanonical입니다.
+
+Facade input hash가 current Schema/edge input은 잠그지만 prerequisite generator ABI/version과 prerequisite output
+digest 전체를 project snapshot으로 증명하지는 않습니다. 이 provenance gap은 Q-017에 남기며 coordinated multi-file
+upgrade와 general `godj generate --check` 전에 반드시 해결합니다. REL-002 single-companion replacement의 무조건적
+선행 blocker로 과장하지 않습니다.
+
+## Q-019 — SQLite unknown-outcome retained connection resource policy
+
+Accepted [ADR-0030](adr/0030-project-bound-protect-and-set-null-delete.md)은 rollback/discard 확인이 모두 실패한
+unknown-outcome physical connection을 pool에 돌려주지 않고 backend-private retained set에 보관한 뒤
+`Backend.Close`에서 seal/drain합니다. 이는 raw transaction reuse를 막는 안전한 current behavior지만, backend가 오래
+살고 unknown-outcome fault가 반복되면 retained connection/lock/resource가 Close 전까지 계속 증가할 수 있습니다.
+
+Q-019는 다음 선택을 별도 P1 work에서 결정합니다.
+
+- Current unbounded retention을 명시적 operational contract로 유지할지
+- Backend-level cap/quarantine/health degradation을 추가할지
+- External reconciliation token 또는 forced backend shutdown을 요구할지
+- Retained resource/lock을 어떤 metric과 error surface로 노출할지
+
+GDJ-0033은 `db/**`를 수정하지 않고 이 질문에 답하지 않습니다. Behavior를 바꾸려면 ADR-0030을 조용히 다시 쓰지
+않고 새 ADR/work에서 명시적으로 amend 또는 supersede해야 합니다. 단순 문서/telemetry clarification이 아니라
+connection reuse, transaction outcome 또는 public error 의미가 달라지면 exact failure-injection과 long-lived resource
+growth gate가 필요합니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.

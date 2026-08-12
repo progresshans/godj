@@ -964,8 +964,10 @@ Terminal baseline EVID-067, activation documentation EVID-068/run `31537726792`,
 classification은 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12, REL-002 locked입니다.
 Exact eleven-file completion-documentation head `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`은 별도
 EVID-070/[run 31544273477](https://github.com/progresshans/godj/actions/runs/31544273477)의 exact
-26/26 jobs·326/326 recorded steps를 통과했습니다. EVID-070을 추가하는 later exact seven-file terminal
-documentation tree 자체 CI는 `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
+26/26 jobs·326/326 recorded steps를 통과했습니다. EVID-070을 추가한 exact seven-file terminal head
+`8748bb495e682d53e0d07c5e8f8fd0236ed5c9ed`도 별도 EVID-071/
+[run 31563615648](https://github.com/progresshans/godj/actions/runs/31563615648)의 exact 26/26·326/326을
+통과했고 completion run을 재사용하지 않았습니다. EVID-071은 later GDJ-0033 activation proof로 재사용하지 않습니다.
 
 Implementation test는 다음 경계를 동시에 잠갔습니다.
 
@@ -1009,6 +1011,71 @@ surface입니다. Implicit English pluralization을 사용하지 않고 existing
 deterministic collision과 exact candidate-union compile을 검증했습니다. 이는 reverse/write/general generated
 upgrade 이름이나 동작을 확정하지 않습니다. EVID-069는 implementation head만 증명하며 later completion-documentation
 tree proof로 재사용하지 않습니다.
+
+### GDJ-0033 REL-002 assignment/save/cache activation gate
+
+GDJ-0033은 EVID-071/run `31563615648`의 exact GDJ-0032 terminal head를 clean baseline으로 사용하되 그 run을 later
+activation proof로 재사용하지 않습니다. Activation product는 unchanged exact `121 passing + 5 deviation + 1
+oracle_locked`, relation 11/12, REL-002 locked입니다. ADR-0033은 Proposed이고 public constructor/assignment/save/clear
+이름은 Phase C 전까지 noncanonical입니다.
+
+#### Phase A — Django observable semantics
+
+- Pinned Django 6.1 `ForeignKeyDeferredAttribute.__set__`, `ForwardManyToOneDescriptor.__set__`,
+  `_prepare_related_fields_for_save`와 `many_to_one` tests를 source provenance로 대조합니다.
+- Locked REL-002 payload/phase/category/code/metrics/DB state는 수정 없이 재실행·재해시합니다.
+- Assignment raw FK/cache warm, raw scalar cache invalidation, nullable clear, no-PK preflight, manual-PK DB constraint,
+  target-save-after-assignment reconciliation과 rollback memory non-rewind를 separate rows로 기록합니다.
+- Current select-related facade의 resolve/bind cause loss는 exact original cause reproduction을 만들고 narrow remediation
+  여부를 판정합니다. 새 Q/ADR나 REL-002 payload 변경으로 확대하지 않습니다.
+
+#### Phase B — no-product feasibility
+
+- New no-PK `AuthorsAuthor`와 new `BlogPost` wrapper constructor candidate가 descriptor hidden PK-presence를 보존하고
+  numeric ID 값으로 savedness를 추론하지 않는지 검증합니다. Loaded query source만 presence true입니다.
+- Manual key-present target constructor는 descriptor presence true를 보존하고 source preflight를 통과한 뒤 physical
+  SQLite FK error에 도달해야 합니다.
+- Relation assignment는 fresh source wrapper를 반환하고 original source를 byte/state/cache 관점에서 바꾸지 않습니다.
+- Derived source는 exact assigned target pointer와 tri-state를 소유하며 accessor query 0입니다.
+- Same target wrapper의 in-place Save가 key presence/model을 갱신하고 source Save가 plan 직전 그 key를 한 번 snapshot해
+  reconciliation하는지 검증합니다.
+- Raw FK derivation은 assigned override를 버리고 cold cache로 전환하며 nullable clear는 raw NULL/absent cache를
+  함께 만듭니다.
+- No-PK target은 exact `model_state_error/unsaved_related_object`, source mutation I/O 0입니다.
+- Required `blog.Post.AuthorID int64`의 raw zero가 pending no-PK assignment에서 valid FK/savedness로 해석되지 않고,
+  authoritative assigned/pending tri-state가 private descriptor derivation/plan construction보다 먼저 REL-002를
+  반환하는지 별도 gate로 검증합니다.
+- New source raw zero와 loaded source의 old-nonzero FK를 no-PK target으로 바꾸는 경우를 분리합니다. 둘 다 accessor는
+  exact assigned target/query 0이고 Manager/private plan 전 REL-002/I/O0이며, Accepted Gate 0 `Unwrap()`의 pending
+  scalar representation은 Phase C에서 명시적으로 고정하고 stale old FK를 authoritative하게 노출하지 않아야 합니다.
+- Manual key-present target은 ID 0과 nonzero를 각각 넣어 numeric value가 아니라 descriptor presence가 preflight를
+  결정하고 physical FK가 row 존재를 판단하는지 검증합니다. Same target Save 뒤에만 derived source raw FK가 reconcile
+  됩니다.
+- Nil/typed-nil/zero/dereference-copy/cross-model/cross-origin/state-mismatch는 pre-I/O fail-closed입니다.
+- Callback-local session positive를 검증하고 post-callback wrapper에는 deterministic success/failure assertion을 두지
+  않습니다. Warm cache가 backend I/O 없이 성공할 수 있으므로 post-return behavior는 계속 noncontractual입니다.
+- Same wrapper concurrent mutation을 지원으로 주장하지 않고 race gate는 caller synchronization 아래 clean해야 합니다.
+- Outer transaction rollback 뒤 database state만 rewind되고 target PK/source derived memory가 유지되는 gate를 둡니다.
+
+External compile consumer는 두 exact candidate flows를 모두 가져야 합니다.
+
+1. new source + new no-PK target → assignment → source Save의 REL-002 failure shape
+2. new source + new target → assignment → target Save → same derived source Save의 later-key reconciliation shape
+
+No-product feasibility가 실패하거나 exact work allowlist 밖 file이 필요하면 product implementation을 시작하지 않습니다.
+
+#### Phase C — freeze와 bounded implementation
+
+Phase B clean 뒤에만 ADR-0033을 Accepted로 바꾸고 public names, return shapes, constructor/key-presence ownership,
+assignment tri-state, exact category/code precedence와 generated bytes를 고정합니다. Product implementation은 work
+frontmatter의 exact source/product list만 사용할 수 있습니다. REL-002 manifest transition은 Go protocol/godjcheck
+hard locks와 `conformance/runners/django/tests/test_relation_scenarios.py`의 product-manifest status assertion만 measured
+update하고, `conformance/README.md`, relation/migration-project/write-migration artifact locks와 workflow measured
+inventory를 함께 갱신해야 합니다. Django scenario execution/oracle/checksum/static fixture는 byte-frozen으로 유지합니다.
+
+Required local/hosted gate는 focused normal/race/CGO-disabled/vet, product/external compile, generator golden/determinism/
+last-good, unchanged app-generated exact 13, bounded Linux/386, exact Darwin/four Python/four relation-product와 independent
+P0-P3 audit입니다. Completion docs와 terminal evidence는 activation/implementation run을 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께
