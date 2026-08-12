@@ -4,11 +4,12 @@
 - 현재 단계: [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)는
   completed이고 [ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 bounded
   Gate 0 production forward facade와 additive single-companion first-publication에 한해 Accepted입니다. Activation
-  EVID-068/run `31537726792`와 implementation EVID-069는 서로 다른 exact head를 증명합니다. Existing generated
-  exact 13은 byte-identical이고 project-only companion 한 파일을 더한 exact 14/physical 17이 구현됐습니다.
-  Gate 0 이름은 이 bounded facade 안에서 canonical이지만 reverse/write/general upgrade까지 확장하지 않습니다.
-  Active/ready work는 없고 이 exact eleven-file completion-documentation tree 자체 CI는 `not run/pending`이며
-  activation/implementation run을 재사용하지 않습니다.
+  EVID-068/run `31537726792`, implementation EVID-069/run `31541883680`과 completion-documentation
+  EVID-070/run `31544273477`은 서로 다른 exact head를 증명합니다. Existing generated exact 13은 byte-identical이고
+  project-only companion 한 파일을 더한 exact 14/physical 17이 구현됐습니다. Gate 0 이름은 이 bounded facade
+  안에서 canonical이지만 reverse/write/general upgrade까지 확장하지 않습니다. Active/ready work는 없고
+  EVID-070을 추가하는 later exact seven-file terminal documentation tree 자체 CI는 `not run/pending`이며
+  completion run을 그 proof로 재사용하지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
   relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
 - 마지막 검토: 2026-08-12
@@ -450,8 +451,10 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   입력은 거부합니다. 모든 declared model의 query root와 project-owned pointer wrapper, required Author/nullable
   Reviewer가 같은 target wrapper type을 쓰는 경계, common selector와 stored eager state를 검증했습니다. Reverse
   manager, stable target pointer identity, downstream target cache, REL-002, general generated upgrade/CLI는 deferred입니다.
-  ADR-0032는 이 bounded Gate 0에 한해 Accepted이고 exact completion-documentation tree의 자체 CI는 아직
-  `not run/pending`입니다.
+  ADR-0032는 이 bounded Gate 0에 한해 Accepted입니다. Exact eleven-file completion-documentation head
+  `6089e214...`도 EVID-070/run `31544273477`의 별도 exact 26/26 jobs·326/326 recorded steps와 unchanged
+  product gates를 통과했습니다. EVID-070을 추가하는 later exact seven-file terminal record 자체 CI는
+  `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
 - ForeignKey, OneToOne, reverse relation
 - cascade와 database-level delete 선택
 - `select_related`, `prefetch_related`

@@ -21,8 +21,10 @@ Accepted 범위에 포함하지 않습니다.
 
 Terminal baseline `3d6612512e8887de8868a319650d54ad0721471b`, activation head `2399cc44...`의
 EVID-068/run `31537726792`, implementation head `ba2fa0fa...`의 EVID-069/run `31541883680`은 서로 다른
-exact-head hosted gate를 통과했습니다. 어느 run도 이 later completion-documentation tree의 proof로 재사용하지
-않으며 이 exact eleven-file tree 자체 CI는 `not run/pending`입니다.
+exact-head hosted gate를 통과했습니다. Completion-documentation head `6089e214...`도 EVID-070/run
+`31544273477`의 별도 exact 26/26 jobs·326/326 recorded steps를 통과했습니다. EVID-070을 추가하는 later exact
+seven-file terminal documentation tree 자체 CI는 `not run/pending`이며 completion run을 그 proof로 재사용하지
+않고 Draft PR은 merge하지 않았습니다.
 
 Current product는 unchanged exact 12 adapters/127 contracts=`121 passing + 5 deviation + 1 oracle_locked`, relation
 11/12이고 REL-002만 `oracle_locked`입니다. Q-013은 `Partial`, Q-017은 P1/open입니다.
@@ -208,4 +210,6 @@ Forward read-only query/accessor에 필요하지 않고 session/backend 구현�
 이 ADR이 승인하는 것은 existing low-level kernel 위에 Gate 0 exact surface의 project-only forward facade
 companion 하나를 additive first-publish하는 bounded architecture입니다. Existing generated exact 13은 byte-identical로
 보존됐고 additive generated exact 14와 physical exact 17이 EVID-069에서 검증됐습니다. Gate 0 이름은 이 bounded
-facade에서 canonical입니다. Reverse/REL-002/general upgrade/session-expiry 보장은 후속으로 남깁니다.
+facade에서 canonical입니다. Completion-documentation head는 EVID-070의 별도 exact-head gate를 통과했습니다.
+Reverse/REL-002/general upgrade/session-expiry 보장은 후속으로 남깁니다. EVID-070을 포함하는 later terminal
+record는 별도 exact-head CI 전까지 `not run/pending`입니다.

@@ -192,23 +192,23 @@
 - GDJ-0032 implementation/hosted-tested commit:
   `ba2fa0fa30f32abf3d70598c7a3a4e4334a43020`
   (`feat: publish production project facade`)
+- GDJ-0032 completion-documentation/hosted-tested commit:
+  `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`
+  (`docs: complete production project facade`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0032](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)는
   completed이고 [ADR-0032](../adr/0032-production-forward-project-facade-and-additive-first-publication.md)는
   bounded Gate 0 production forward facade와 additive single-companion first-publication에 한해 Accepted입니다.
-  Activation head `2399cc44...`의
-  [EVID-068](TEST_EVIDENCE.md#evid-20260812-068--gdj-0032-activation-documentation-head-exact-26-job-ci) /
-  [run 31537726792](https://github.com/progresshans/godj/actions/runs/31537726792)와 implementation head
-  `ba2fa0fa...`의
-  [EVID-069](TEST_EVIDENCE.md#evid-20260812-069--gdj-0032-github-hosted-exact-26-job-production-facade-implementation-head-ci) /
-  [run 31541883680](https://github.com/progresshans/godj/actions/runs/31541883680)은 각각 exact 26/26 jobs·326/326
+  Completion-documentation head `6089e214...`의
+  [EVID-070](TEST_EVIDENCE.md#evid-20260812-070--gdj-0032-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  [run 31544273477](https://github.com/progresshans/godj/actions/runs/31544273477)은 exact 26/26 jobs·326/326
   recorded steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Existing generated exact 13은
   byte-identical이고 additive exact 14/physical 17이 구현됐습니다. Current product classification은 unchanged exact
   `121 passing + 5 deviation + 1 oracle_locked`, relation actual 11/12이며 REL-002만 locked입니다. Q-013은
   `Partial`, Q-017은 P1/open입니다. Gate 0 이름은 이 bounded facade에서 canonical이지만 reverse/write/general
-  upgrade까지 확장하지 않습니다. 이 exact eleven-file completion-documentation tree 자체 CI는 `not run/pending`이고
-  activation/implementation run을 그 proof로 재사용하지 않습니다.
+  upgrade까지 확장하지 않습니다. EVID-070을 추가하는 later exact seven-file terminal documentation tree 자체
+  CI는 `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
 - 최근 완료 작업:
   [GDJ-0032 Production Forward Project Facade and Additive First Publication](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)
 - 활성 작업: 없음
@@ -661,9 +661,9 @@
 - `Backend`, `Using`, `Models`, singular aggregate/query/wrapper, selector/eager, `Unwrap`와 `First` tuple은 이
   bounded facade에서 canonical입니다. Implicit English pluralization은 사용하지 않고 existing/new project namespace
   전체를 deterministic collision 검사합니다. 이는 reverse/write/general upgrade naming을 확정하지 않습니다.
-- EVID-068/run `31537726792`와 EVID-069/run `31541883680`은 activation과 implementation을 서로 다른 exact head에서
-  증명했습니다. 이 exact eleven-path completion-documentation tree 자체 hosted CI는 `not run/pending`이며 두 run을
-  재사용하지 않습니다.
+- EVID-068/run `31537726792`, EVID-069/run `31541883680`과 EVID-070/run `31544273477`은 activation,
+  implementation과 completion documentation을 서로 다른 exact head에서 증명했습니다. EVID-070을 추가하는 later
+  exact seven-file terminal record 자체 hosted CI는 `not run/pending`이며 completion run을 재사용하지 않습니다.
 
 ## 현재 checkout에서 확인된 사실
 
@@ -1147,11 +1147,11 @@ general generated upgrade 정책은 확정되지 않았습니다.
 
 ## 다음 정확한 작업
 
-통합 담당자는 GDJ-0032 exact eleven-path completion-documentation diff, EVID-001..067 historical body prefix,
-EVID-068/069 copy fidelity, links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only bytes를 별도
-commit/push한 뒤 고유 exact-head 26-job CI와 hosted audit를 실행하되 activation run `31537726792`와 implementation
-run `31541883680`을 그 later tree의 proof로 재사용하지 않습니다. 그 결과를 별도 evidence로 기록한 exact seven-file
-terminal evidence/status head까지 다시 독립 검증한 뒤에만 다음 Q-017 packet을 clean baseline에서 활성화합니다.
+통합 담당자는 EVID-070과 상태를 추가하는 exact seven-file terminal documentation diff, EVID-001..069 historical
+body prefix, EVID-070 copy fidelity, links/frontmatter/fences와 `git diff --check`를 확인합니다. Documentation-only
+bytes를 별도 commit/push한 뒤 고유 exact-head 26-job CI와 hosted audit를 실행하되 completion run
+`31544273477`을 그 later tree의 proof로 재사용하지 않습니다. 그 terminal head가 clean baseline으로 검증된 뒤에만
+다음 Q-017 packet을 활성화합니다.
 REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 먼저 활성화할지는 별도 work/ADR에서
 결정하고 한 packet에 섞지 않습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
@@ -1265,8 +1265,11 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
 - GDJ-0032 implementation: `ba2fa0fa30f32abf3d70598c7a3a4e4334a43020`; EVID-069/run
   `31541883680` exact 26/26 jobs·326/326 steps PASS; four-coordinate 697/697/0 inventory, exact 13 preserved,
   generated exact 14/physical exact 17, audit P0..P3=0
-- 현재 working tree: exact eleven-file GDJ-0032 completion-documentation transition; its own exact-head hosted CI
-  `not run/pending`; EVID-068/069 재사용 금지
+- GDJ-0032 completion documentation: `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`; EVID-070/run
+  `31544273477` exact 26/26 jobs·326/326 steps PASS; unchanged four-coordinate 697/697/0 inventory, exact 13/14/17,
+  audit P0..P3=0
+- 현재 working tree: exact seven-file GDJ-0032 terminal evidence/status transition; its own exact-head hosted CI
+  `not run/pending`; EVID-070 재사용 금지
 - 최근 완료 work:
   [GDJ-0032](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)
 - active work: 없음
@@ -1372,6 +1375,9 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
 - GDJ-0032 production facade implementation hosted: EVID-069/run 31541883680 exact 26/26·326/326 PASS; head
   `ba2fa0fa...`, synthetic merge/head tree both `7387693e...`, four-coordinate 697/697/0 inventory, generated exact
   13 preserved plus exact 14/physical 17, audit P0/P1/P2/P3=0
+- GDJ-0032 completion documentation hosted: EVID-070/run 31544273477 exact 26/26·326/326 PASS; head
+  `6089e214...`, synthetic merge/head tree both `44bc595f...`, unchanged four-coordinate 697/697/0 inventory and
+  generated exact 13/14/physical 17, audit P0/P1/P2/P3=0
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1422,10 +1428,11 @@ REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 �
   31516174741 exact 26/26 PASS; GDJ-0031 activation run 31520396606 exact 26/26 PASS; compile implementation run
   31528039746 exact 26/26 PASS; completion-documentation run 31531470440 exact 26/26 PASS; terminal
   evidence/status/GDJ-0032 baseline run 31533890720 exact 26/26 PASS; GDJ-0032 activation run 31537726792 exact
-  26/26 PASS; production facade implementation run 31541883680 exact 26/26 PASS
+  26/26 PASS; production facade implementation run 31541883680 exact 26/26 PASS; completion-documentation run
+  31544273477 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-068/run 31537726792 또는 EVID-069/run 31541883680을 later completion tree proof로
-  재사용하거나, bounded Gate 0 canonical names를 전체 ORM/general upgrade naming으로 넓히거나, target project
+- 가장 위험한 과장: EVID-070/run 31544273477을 later exact seven-file terminal tree proof로 재사용하거나,
+  bounded Gate 0 canonical names를 전체 ORM/general upgrade naming으로 넓히거나, target project
   wrapper 필수 경계를 stable target pointer identity/downstream cache 보장으로 확대하거나, single companion
   first-publication을 general generated upgrade/CLI/REL-002/reverse/non-SQLite support로 과장하는 것
 

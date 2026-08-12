@@ -262,8 +262,8 @@ publication 전에 거부합니다. Handwritten source까지 schema만으로 완
 - [x] Unrelated-model object prerequisite unused-bind regression과 current exact 13 byte identity 검증
 - [x] Physical/generated/test inventory와 workflow self-check를 실제 값으로 갱신
 - [x] Focused normal/race/CGO-disabled/vet, root CI와 independent P0-P3 audit 통과
-- [x] Activation과 implementation을 서로 다른 exact head로 증명하고 later completion/terminal tree는
-  pending/no-reuse로 분리
+- [x] Activation, implementation과 completion documentation을 서로 다른 exact head로 증명하고 재사용하지 않음
+- [ ] Later exact seven-file terminal evidence/status head가 자체 hosted CI를 통과함
 
 ## 진행 기록
 
@@ -275,13 +275,14 @@ publication 전에 거부합니다. Handwritten source까지 schema만으로 완
 - [x] Local verification and independent P0-P3 audit
 - [x] Implementation exact-head hosted verification
 - [x] Completion documentation 작성과 bounded ADR/work 상태 전이
-- [ ] Completion-documentation exact-head hosted verification and terminal evidence
+- [x] Completion-documentation exact-head hosted verification
+- [ ] Terminal evidence/status exact-head hosted verification
 
 ## 미결정과 blocker
 
 외부 blocker는 없습니다. Gate 0 이름, no-pluralization collision diagnostic, generator version과 canonical input
-hash encoding은 implementation tree에서 결정·검증됐습니다. 남은 blocker가 아닌 절차는 이 exact eleven-file
-completion-documentation tree의 별도 hosted CI와 그 뒤 terminal evidence입니다.
+hash encoding은 implementation tree에서 결정·검증됐습니다. 남은 blocker가 아닌 절차는 EVID-070과 상태를
+추가하는 exact seven-file terminal evidence/status tree의 별도 hosted CI입니다.
 
 ## 테스트 증거
 
@@ -293,6 +294,10 @@ completion-documentation tree의 별도 hosted CI와 그 뒤 terminal evidence�
   [run 31541883680](https://github.com/progresshans/godj/actions/runs/31541883680) attempt 1은 exact 26/26 jobs와
   326/326 recorded steps를 통과했습니다. Activation run은 재사용하지 않았고 이 implementation run도 later
   completion-documentation proof로 재사용하지 않습니다.
+- Completion-documentation proof: exact completion head `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`의 hosted
+  [run 31544273477](https://github.com/progresshans/godj/actions/runs/31544273477) attempt 1은 exact 26/26 jobs와
+  326/326 recorded steps를 통과했습니다. Implementation run은 재사용하지 않았고 이 completion run도 later
+  terminal documentation proof로 재사용하지 않습니다.
 - Product baseline: exact 12 adapters/127 contracts=`121 passing + 5 deviation + 1 oracle_locked`, relation 11/12;
   REL-002 `oracle_locked`
 - Frozen old generated subset: exact 13, 26,140 bytes/SHA-256
@@ -304,8 +309,8 @@ completion-documentation tree의 별도 hosted CI와 그 뒤 terminal evidence�
   `d017e9e848d4cf3e73b67075c0e271b7b31c1ed5a93416b1c78968d3d5904dde`
 - Local validation on 2026-08-12: focused and integrated normal/race/CGO-disabled/vet, Linux/386 compile-only,
   `make ci`, `git diff --check`, gofmt and three independent audits all PASS; final P0/P1/P2/P3=`0/0/0/0`.
-- This exact eleven-file completion-documentation tree: exact-head hosted CI `not run/pending`; activation run
-  `31537726792`와 implementation run `31541883680`을 그 proof로 재사용하지 않음
+- This later exact seven-file terminal evidence/status tree: exact-head hosted CI `not run/pending`; completion run
+  `31544273477`을 그 proof로 재사용하지 않음
 
 ## 위험과 rollback
 
@@ -316,8 +321,8 @@ companion은 independent target으로 게시합니다. 구현이 실패하면 �
 
 ## 다음 정확한 작업
 
-통합 담당자는 이 exact eleven-file completion-documentation tree만 commit/push하고 고유 exact-head hosted CI를
-terminal까지 감사합니다. 그 결과를 별도 evidence로 기록한 뒤 exact seven-file terminal evidence/status head를 다시
-독립 검증해야 합니다. 그 terminal clean head 전에는 다음 Q-017 work를 active/ready로 만들지 않습니다. 이후
+통합 담당자는 EVID-070과 상태를 추가하는 exact seven-file terminal evidence/status patch의 scope/prefix/link를
+감사하고 별도 commit/push 뒤 고유 exact-head hosted CI를 얻습니다. 그 terminal clean head 전에는 다음 Q-017
+work를 active/ready로 만들지 않습니다. 이후
 REL-002, reverse facade, write facade와 general upgrade 중 어느 후속을 먼저 활성화할지는 별도 work/ADR에서
 결정하고 한 packet에 섞지 않습니다.

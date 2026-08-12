@@ -962,8 +962,10 @@ GDJ-0032는 기존 test-only overlay를 제품 증거로 승격하지 않고 pro
 Terminal baseline EVID-067, activation documentation EVID-068/run `31537726792`, implementation head
 `ba2fa0fa30f32abf3d70598c7a3a4e4334a43020`의 EVID-069는 서로 다른 exact head를 증명합니다. Product
 classification은 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12, REL-002 locked입니다.
-이 EVID-068/069를 추가한 exact eleven-file completion-documentation tree 자체 exact-head CI는
-`not run/pending`입니다.
+Exact eleven-file completion-documentation head `6089e214ee7a0b564f6636e65e6d6f96c167e2c6`은 별도
+EVID-070/[run 31544273477](https://github.com/progresshans/godj/actions/runs/31544273477)의 exact
+26/26 jobs·326/326 recorded steps를 통과했습니다. EVID-070을 추가하는 later exact seven-file terminal
+documentation tree 자체 CI는 `not run/pending`이고 completion run을 그 proof로 재사용하지 않습니다.
 
 Implementation test는 다음 경계를 동시에 잠갔습니다.
 
