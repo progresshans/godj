@@ -1014,10 +1014,11 @@ tree proof로 재사용하지 않습니다.
 
 ### GDJ-0033 REL-002 assignment/save/cache activation gate
 
-GDJ-0033 activation head `a4a627a...`는 EVID-072/run `31566524953`의 exact 26/26 jobs·326/326 steps를
-통과했습니다. Activation product는 unchanged exact `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12,
-REL-002 locked입니다. Phase A/B/C 뒤 ADR-0033은 bounded decision에 한해 Accepted했지만 primary product는 아직
-미구현입니다. 이 decision-documentation head는 activation run을 재사용하지 않고 별도 exact-head CI가 필요합니다.
+GDJ-0033 activation head `a4a627a...`는 EVID-072/run `31566524953`, decision-documentation head `9d728610...`은
+EVID-074/run `31574653183`의 서로 다른 exact 26/26 jobs·326/326 steps를 통과했습니다. 현재 exact 23-path bounded
+product는 EVID-075의 local final gates에서 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12,
+REL-002 passing으로 전환됐습니다. ADR-0033은 local Implemented이며 combined implementation/pre-hosted documentation
+tree 자체 exact-head hosted CI는 pending입니다. 앞선 activation/decision run을 그 proof로 재사용하지 않습니다.
 
 #### Phase A — Django observable semantics
 
@@ -1032,10 +1033,12 @@ REL-002 locked입니다. Phase A/B/C 뒤 ADR-0033은 bounded decision에 한해 
 - Frozen patch `8329bb0a...`의 public API, private descriptor와 project package compile을 증명했습니다.
 - Scalar presence/cache/pending을 분리해 raw-zero unset, explicit-zero present, loaded-zero present와 target-object PK zero를
   모두 구분했습니다.
-- All pending targets가 required-unset보다 우선하고 each pass의 first error는 canonical normalized source-model
-  identity + relation field name order입니다.
+- Corrected preflight Phase 1은 모든 relation-cache tuple을 canonical normalized source-model identity + relation field
+  `Name` 순서로 검증·snapshot하고, Phase 2는 모든 assigned target origin을 검증하면서 target PK를 edge별 정확히 한 번
+  snapshot하며, Phase 3은 같은 순서의 첫 no-PK target을 반환합니다. 그 뒤에만 required-unset을 검사합니다.
 - Save가 전체 relation state를 read-only validate하고 candidate raw/write/object/cache를 만든 뒤에만 publish합니다.
-- Reversed declaration + both invalid, candidate rebuild failure와 corrupt cache tuple은 I/O 0/no partial publication입니다.
+- Reversed declaration + both invalid, 앞선 Author no-PK와 뒤 Reviewer corrupt cache/self/origin의 양방향 masking,
+  candidate rebuild failure와 corrupt cache tuple은 I/O 0/no partial publication입니다.
 - Pending+source-empty-only reconciliation, caller-changed-scalar precedence, key-present-later-change invalidation,
   full `(presence,value)` tuple의 same/different scalar와 nullable clear를 검증했습니다.
 - Per-edge COW는 changed edge만 교체하고 unrelated ready/absent를 independent cell로 보존하며 cold/flight를 공유하지
@@ -1055,16 +1058,17 @@ Product external compile consumer는 두 exact flows를 모두 가져야 합니�
 #### Phase C — freeze와 bounded implementation
 
 ADR-0033은 exact query-root `New`, wrapper `Save`, `WithAuthor`/`WithReviewer`, ID helpers와 `ClearReviewer`, fresh source
-derivation, project-private descriptor, pending-only reconciliation, canonical two-pass preflight와 per-edge COW를
-Accepted했습니다. Product implementation은 work frontmatter의 exact source/product list만 사용할 수 있습니다.
+derivation, project-private descriptor, pending-only reconciliation, corrected canonical three-phase preflight와 per-edge
+COW를 Accepted했고 work frontmatter의 exact 23 source/product path에 local 구현했습니다.
 REL-002 manifest transition은 Go protocol/godjcheck
 hard locks와 `conformance/runners/django/tests/test_relation_scenarios.py`의 product-manifest status assertion만 measured
 update하고, `conformance/README.md`, relation/migration-project/write-migration artifact locks와 workflow measured
 inventory를 함께 갱신해야 합니다. Django scenario execution/oracle/checksum/static fixture는 byte-frozen으로 유지합니다.
 
-Required local/hosted gate는 focused normal/race/CGO-disabled/vet, product/external compile, generator golden/determinism/
-last-good, unchanged app-generated exact 13, bounded Linux/386, exact Darwin/four Python/four relation-product와 independent
-P0-P3 audit입니다. Completion docs와 terminal evidence는 activation/implementation run을 재사용하지 않습니다.
+Local gate는 focused normal/race/CGO-disabled/vet, product/external compile, generator golden/determinism/last-good,
+unchanged app-generated exact 13, bounded Linux/386, full `go test ./...`, measured 715-test workflow roster와 independent
+P0-P3 audit까지 EVID-075에서 통과했습니다. Exact Darwin/four Python/four relation-product hosted matrix는 아직 pending이며
+completion docs와 terminal evidence는 activation/decision/implementation run을 재사용하지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

@@ -35,7 +35,7 @@
       "title": "Saving an object with an unsaved related target fails before database I/O",
       "scenario": "django.relation.unsaved_related_target",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {
           "kind": "documentation",

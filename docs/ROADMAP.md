@@ -2,13 +2,13 @@
 
 - 상태: Accepted direction
 - 현재 단계: [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)이 active이고
-  [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Accepted입니다. Activation head
-  `a4a627a...`은 EVID-072/run `31566524953`의 exact 26/26 jobs·326/326 steps를 통과했고, Phase A/B/C는 remaining
-  REL-002 forward assignment/save/cache ownership을 Django-first로 결정·검증했습니다. Product는 아직 unchanged이며
-  EVID-072/073를 포함한 exact13 decision-documentation tree 자체 CI는 `not run/pending`입니다. Activation run을 그
-  proof로 재사용하지 않습니다.
-- 현재 제품 기준: 12 adapter/127 contract의 `121 passing + 5 deviation + 1 oracle_locked`,
-  relation actual REL-001/003/004/005/006/007/008/009/010/011/012 11/12; REL-002 locked
+  [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Accepted decision 뒤 bounded product에
+  local Implemented입니다. Decision head `9d728610...`은 EVID-074/run `31574653183`의 exact 26/26 jobs·326/326 steps를
+  통과했고, exact 23-path implementation은 EVID-075의 local final gates와 audit P0..P3=0을 통과했습니다. 이 source와
+  EVID-074/075를 포함하는 combined 31-path tree 자체 exact-head hosted CI는 `not run/pending`이며 앞선 run을 재사용하지
+  않습니다.
+- 현재 local 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
+  REL-001..012 12/12; REL-002 `passing`. Hosted implementation acceptance는 pending입니다.
 - 마지막 검토: 2026-08-12
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -452,12 +452,13 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   `6089e214...`도 EVID-070/run `31544273477`의 별도 exact 26/26 jobs·326/326 recorded steps와 unchanged
   product gates를 통과했습니다. EVID-070을 추가한 exact seven-file terminal head `8748bb49...`은 다시
   EVID-071/run `31563615648`의 별도 exact 26/26·326/326을 통과해 GDJ-0033 baseline이 됐습니다.
-- Active GDJ-0033은 REL-002만 엽니다. Activation `a4a627a...`/EVID-072는 exact 26/26·326/326을 통과했고 Phase A/B/C는
+- Active GDJ-0033은 REL-002만 엽니다. Activation `a4a627a...`/EVID-072와 decision head
+  `9d728610...`/EVID-074는 각각 별도 exact 26/26·326/326을 통과했고 Phase A/B/C는
   Django observable, exact public `New`/`Save`/`With*`/clear API, project-private write descriptor, pending-only
-  reconciliation, canonical two-pass preflight와 per-edge COW cache를 Accepted했습니다. No-product prototype
-  `8329bb0a...`는 normal/race/CGO0/vet/Linux386과 independent P0..P3=0을 통과했습니다. Product bytes/status는 아직
-  unchanged이므로 decision-documentation exact-head CI 뒤 bounded implementation을 시작합니다. Global identity와
-  cross-materialization pointer identity는 비목표입니다.
+  reconciliation, corrected canonical three-phase preflight와 per-edge COW cache를 Accepted했습니다. Exact 23-path
+  bounded implementation은 local normal/race/CGO0/vet/Linux386, full `./...`, measured inventory와 independent
+  P0..P3=0을 통과해 `122 + 5 + 0`, relation 12/12입니다. 다음 gate는 exact implementation/pre-hosted tree의 unique
+  hosted CI이며 Global identity와 cross-materialization pointer identity는 비목표입니다.
 - Current `select_related` facade가 resolver/binder cause를 generic invalid-plan으로 축약하는 gap은 narrow remediation
   gate로 재현·수정 여부를 판단하되 새 Q/ADR로 확장하지 않습니다.
 - Current PROTECT는 exact protected identities와 count payload를 위해 모든 protected row를 materialize합니다.

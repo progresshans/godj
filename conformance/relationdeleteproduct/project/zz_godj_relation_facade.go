@@ -9,11 +9,75 @@ import (
 	db "github.com/progresshans/godj/db"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
+	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
+	sync "sync"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-v1"
-const GoDjProjectRelationFacadeInputSHA256 = "476f27b868f6e2d917d25ffaa9ec2bd3a978ffee16354e3e6b3bcc387c2d05c7"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-v2"
+const GoDjProjectRelationFacadeInputSHA256 = "d5a67c078a346bed346837a0660a9d4872f0eb0b622c7270e580cda71015bdfc"
+
+const (
+	relationFacadeRelationUnassigned uint8 = iota
+	relationFacadeRelationAssignedPresent
+	relationFacadeRelationAssignedAbsent
+)
+
+type relationFacadeRelationCache[T any] struct {
+	mutex   sync.Mutex
+	state   uint8
+	target  *T
+	pending bool
+}
+
+func newRelationFacadeRelationCache[T any]() *relationFacadeRelationCache[T] {
+	return &relationFacadeRelationCache[T]{}
+}
+
+func relationFacadeRelationCacheValid[T any](_state uint8, _target *T, _pending bool) bool {
+	switch _state {
+	case relationFacadeRelationUnassigned, relationFacadeRelationAssignedAbsent:
+		return _target == nil && !_pending
+	case relationFacadeRelationAssignedPresent:
+		return _target != nil
+	default:
+		return false
+	}
+}
+
+func (_cache *relationFacadeRelationCache[T]) snapshot() (uint8, *T, bool, error) {
+	if _cache == nil {
+		return 0, nil, false, relationFacadeQueryInvalid("relation cache is nil")
+	}
+	_cache.mutex.Lock()
+	defer _cache.mutex.Unlock()
+	if !relationFacadeRelationCacheValid(_cache.state, _cache.target, _cache.pending) {
+		return 0, nil, false, relationFacadeQueryInvalid("relation cache state tuple is corrupt")
+	}
+	return _cache.state, _cache.target, _cache.pending, nil
+}
+
+func (_cache *relationFacadeRelationCache[T]) store(_state uint8, _target *T, _pending bool) error {
+	if _cache == nil || !relationFacadeRelationCacheValid(_state, _target, _pending) {
+		return relationFacadeQueryInvalid("relation cache is nil or corrupt")
+	}
+	_cache.mutex.Lock()
+	defer _cache.mutex.Unlock()
+	_cache.state = _state
+	_cache.target = _target
+	_cache.pending = _pending
+	return nil
+}
+
+func (_cache *relationFacadeRelationCache[T]) clone() (*relationFacadeRelationCache[T], error) {
+	_state, _target, _pending, _err := _cache.snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_result := newRelationFacadeRelationCache[T]()
+	_ = _result.store(_state, _target, _pending)
+	return _result, nil
+}
 
 type Backend interface {
 	db.Queryer
@@ -57,6 +121,21 @@ func relationFacadeBackendInvalid(_detail string) error {
 	return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: _detail}
 }
 
+func relationFacadeContext(_ctx context.Context) error {
+	if relationFacadeNil(_ctx) {
+		return relationFacadeQueryInvalid("context is nil")
+	}
+	return _ctx.Err()
+}
+
+func relationFacadeUnsavedRelated(_field string) error {
+	return &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject, Field: _field, Detail: "save prohibited because the assigned related object has no primary key"}
+}
+
+func relationFacadeRequiredRelated(_field string) error {
+	return &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: _field, Detail: "required relation has not been assigned"}
+}
+
 type AuthorsAuthorQuery struct {
 	state *relationFacadeState
 	query orm.QuerySet[authors.Author]
@@ -69,6 +148,13 @@ func newAuthorsAuthorQuery(_state *relationFacadeState, _query orm.QuerySet[auth
 
 func (_query AuthorsAuthorQuery) validate() error {
 	return _query.state.validate()
+}
+
+func (_query AuthorsAuthorQuery) New(_value authors.Author) (*AuthorsAuthor, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.newAuthorsAuthor(_value)
 }
 
 func (_query AuthorsAuthorQuery) Filter(_predicates ...orm.Predicate[authors.Author]) AuthorsAuthorQuery {
@@ -142,11 +228,32 @@ func (_state *relationFacadeState) wrapAuthorsAuthor(_value authors.Author) (*Au
 	return _result, nil
 }
 
+func (_state *relationFacadeState) newAuthorsAuthor(_value authors.Author) (*AuthorsAuthor, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_result := &AuthorsAuthor{state: _state, model: (authors.AuthorDescriptor{}).CloneModel(_value)}
+	_result._self = _result
+	return _result, nil
+}
+
 func (_model *AuthorsAuthor) validate() error {
 	if _model == nil || _model._self != _model {
 		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
 	}
 	return _model.state.validate()
+}
+
+func (_model *AuthorsAuthor) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_value, _present := (authors.AuthorDescriptor{}).PrimaryKey(_model.model)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
 }
 
 func (_model *AuthorsAuthor) Unwrap() (authors.Author, error) {
@@ -155,6 +262,80 @@ func (_model *AuthorsAuthor) Unwrap() (authors.Author, error) {
 	}
 	return (authors.AuthorDescriptor{}).CloneModel(_model.model), nil
 }
+
+func (_model *AuthorsAuthor) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	return authors.AuthorObjects.Save(_ctx, _model.state.backend, &_model.model)
+}
+
+type blogPostWriteModel struct {
+	model             blog.Post
+	primaryKeyPresent bool
+}
+
+type blogPostWriteDescriptor struct{}
+
+var _ orm.WriteDescriptor[blogPostWriteModel] = blogPostWriteDescriptor{}
+
+func (blogPostWriteDescriptor) Metadata() ir.Model {
+	return (blog.PostDescriptor{}).Metadata()
+}
+
+func (blogPostWriteDescriptor) Scan(_row db.Row) (blogPostWriteModel, error) {
+	_model, _err := (blog.PostDescriptor{}).Scan(_row)
+	if _err != nil {
+		return blogPostWriteModel{}, _err
+	}
+	return blogPostWriteModel{model: _model, primaryKeyPresent: true}, nil
+}
+
+func (blogPostWriteDescriptor) CloneModel(_value blogPostWriteModel) blogPostWriteModel {
+	_value.model = (blog.PostDescriptor{}).CloneModel(_value.model)
+	return _value
+}
+
+func (_descriptor blogPostWriteDescriptor) CloneWriteModel(_value blogPostWriteModel) blogPostWriteModel {
+	return _descriptor.CloneModel(_value)
+}
+
+func (blogPostWriteDescriptor) PrimaryKey(_value blogPostWriteModel) (query.Value, bool) {
+	return query.Integer(_value.model.ID), _value.primaryKeyPresent
+}
+
+func (blogPostWriteDescriptor) SetPrimaryKey(_value *blogPostWriteModel, _key int64) {
+	_value.model.ID = _key
+	_value.primaryKeyPresent = true
+}
+
+func (blogPostWriteDescriptor) ClearPrimaryKey(_value *blogPostWriteModel) {
+	_value.model.ID = 0
+	_value.primaryKeyPresent = false
+}
+
+func (blogPostWriteDescriptor) WriteFieldValue(_value blogPostWriteModel, _field ir.Field) (query.Value, bool) {
+	switch _field.Name {
+	case "author":
+		return query.Integer(_value.model.AuthorID), true
+	case "id":
+		return query.Integer(_value.model.ID), true
+	case "reviewer":
+		if _value.model.ReviewerID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*_value.model.ReviewerID), true
+	case "title":
+		return query.String(_value.model.Title), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+var blogPostWriteObjects = orm.NewManager[blogPostWriteModel](blogPostWriteDescriptor{})
 
 type BlogPostQuery struct {
 	Related BlogPostRelationSelectors
@@ -173,6 +354,13 @@ func newBlogPostQuery(_state *relationFacadeState, _query orm.QuerySet[blog.Post
 
 func (_query BlogPostQuery) validate() error {
 	return _query.state.validate()
+}
+
+func (_query BlogPostQuery) New(_value blog.Post) (*BlogPost, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.newBlogPost(_value)
 }
 
 func (_query BlogPostQuery) Filter(_predicates ...orm.Predicate[blog.Post]) BlogPostQuery {
@@ -232,20 +420,53 @@ func (_query BlogPostQuery) All(_ctx context.Context) ([]*BlogPost, error) {
 }
 
 type BlogPost struct {
-	state  *relationFacadeState
-	object *BlogPostObject
-	_self  *BlogPost
+	state               *relationFacadeState
+	write               blogPostWriteModel
+	object              *BlogPostObject
+	authorCache         *relationFacadeRelationCache[AuthorsAuthor]
+	authorScalarPresent bool
+	reviewerCache       *relationFacadeRelationCache[AuthorsAuthor]
+	_self               *BlogPost
 }
 
 func (_state *relationFacadeState) wrapBlogPost(_value blog.Post) (*BlogPost, error) {
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
-	_object, _err := _state.objects.BlogPost.From(_state.backend, _value)
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(blogPostWriteModel{model: _value, primaryKeyPresent: true})
+	_object, _err := _state.objects.BlogPost.From(_state.backend, _write.model)
 	if _err != nil {
 		return nil, _err
 	}
-	return _state.wrapBlogPostObject(_object)
+	_result := &BlogPost{state: _state, write: _write, object: _object}
+	_result.authorCache = newRelationFacadeRelationCache[AuthorsAuthor]()
+	_result.authorScalarPresent = true
+	_result.reviewerCache = newRelationFacadeRelationCache[AuthorsAuthor]()
+	if _value.ReviewerID == nil {
+		_ = _result.reviewerCache.store(relationFacadeRelationAssignedAbsent, nil, false)
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_state *relationFacadeState) newBlogPost(_value blog.Post) (*BlogPost, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(blogPostWriteModel{model: _value})
+	_object, _err := _state.objects.BlogPost.From(_state.backend, _write.model)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &BlogPost{state: _state, write: _write, object: _object}
+	_result.authorCache = newRelationFacadeRelationCache[AuthorsAuthor]()
+	_result.authorScalarPresent = _value.AuthorID != 0
+	_result.reviewerCache = newRelationFacadeRelationCache[AuthorsAuthor]()
+	if _value.ReviewerID == nil {
+		_ = _result.reviewerCache.store(relationFacadeRelationAssignedAbsent, nil, false)
+	}
+	_result._self = _result
+	return _result, nil
 }
 
 func (_state *relationFacadeState) wrapBlogPostObject(_object *BlogPostObject) (*BlogPost, error) {
@@ -255,7 +476,18 @@ func (_state *relationFacadeState) wrapBlogPostObject(_object *BlogPostObject) (
 	if _object == nil {
 		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
 	}
-	_result := &BlogPost{state: _state, object: _object}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(blogPostWriteModel{model: _model, primaryKeyPresent: true})
+	_result := &BlogPost{state: _state, write: _write, object: _object}
+	_result.authorCache = newRelationFacadeRelationCache[AuthorsAuthor]()
+	_result.authorScalarPresent = true
+	_result.reviewerCache = newRelationFacadeRelationCache[AuthorsAuthor]()
+	if _model.ReviewerID == nil {
+		_ = _result.reviewerCache.store(relationFacadeRelationAssignedAbsent, nil, false)
+	}
 	_result._self = _result
 	return _result, nil
 }
@@ -267,34 +499,386 @@ func (_model *BlogPost) validate() error {
 	return _model.state.validate()
 }
 
+func (_model *BlogPost) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_value, _present := (blogPostWriteDescriptor{}).PrimaryKey(_model.write)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
 func (_model *BlogPost) Unwrap() (blog.Post, error) {
 	if _err := _model.validate(); _err != nil {
 		return blog.Post{}, _err
 	}
-	return _model.object.Model()
+	_, _, _authorPending, _authorErr := _model.authorCache.snapshot()
+	if _authorErr != nil {
+		return blog.Post{}, _authorErr
+	}
+	if _authorPending {
+		return blog.Post{}, relationFacadeUnsavedRelated("author")
+	}
+	_, _, _reviewerPending, _reviewerErr := _model.reviewerCache.snapshot()
+	if _reviewerErr != nil {
+		return blog.Post{}, _reviewerErr
+	}
+	if _reviewerPending {
+		return blog.Post{}, relationFacadeUnsavedRelated("reviewer")
+	}
+	if !_model.authorScalarPresent {
+		return blog.Post{}, relationFacadeRequiredRelated("author")
+	}
+	return (blog.PostDescriptor{}).CloneModel(_model.write.model), nil
+}
+
+func (_model *BlogPost) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	return blogPostWriteObjects.Save(_ctx, _model.state.backend, &_model.write)
+}
+
+func (_model *BlogPost) relationFacadeDerived(_write blogPostWriteModel) (*BlogPost, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_write = (blogPostWriteDescriptor{}).CloneWriteModel(_write)
+	_object, _err := _model.state.objects.BlogPost.From(_model.state.backend, _write.model)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &BlogPost{state: _model.state, write: _write, object: _object}
+	_result.authorScalarPresent = _model.authorScalarPresent
+	_result.authorCache, _err = _model.authorCache.clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.reviewerCache, _err = _model.reviewerCache.clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *BlogPost) relationFacadePrepareSave() error {
+	_authorState, _authorTarget, _authorPending, _err := _model.authorCache.snapshot()
+	if _err != nil {
+		return _err
+	}
+	_reviewerState, _reviewerTarget, _reviewerPending, _err := _model.reviewerCache.snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _authorKey int64
+	var _authorPresent bool
+	if _authorState == relationFacadeRelationAssignedPresent {
+		if _authorTarget == nil || _authorTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_authorKey, _authorPresent, _err = _authorTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _reviewerKey int64
+	var _reviewerPresent bool
+	if _reviewerState == relationFacadeRelationAssignedPresent {
+		if _reviewerTarget == nil || _reviewerTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_reviewerKey, _reviewerPresent, _err = _reviewerTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _authorState == relationFacadeRelationAssignedPresent && !_authorPresent {
+		return relationFacadeUnsavedRelated("author")
+	}
+	if _reviewerState == relationFacadeRelationAssignedPresent && !_reviewerPresent {
+		return relationFacadeUnsavedRelated("reviewer")
+	}
+	if _authorState == relationFacadeRelationAssignedAbsent || (_authorState == relationFacadeRelationUnassigned && !_model.authorScalarPresent) {
+		return relationFacadeRequiredRelated("author")
+	}
+	if _authorState == relationFacadeRelationAssignedPresent && !_authorPending && !_model.authorScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_authorReconcile := _authorState == relationFacadeRelationAssignedPresent && _authorPending
+	_authorInvalidate := false
+	if _authorState == relationFacadeRelationAssignedPresent && !_authorPending {
+		_authorInvalidate = _model.write.model.AuthorID != _authorKey
+	}
+	_reviewerReconcile := _reviewerState == relationFacadeRelationAssignedPresent && _reviewerPending
+	_reviewerInvalidate := false
+	if _reviewerState == relationFacadeRelationAssignedPresent && !_reviewerPending {
+		_reviewerInvalidate = _model.write.model.ReviewerID == nil || *_model.write.model.ReviewerID != _reviewerKey
+	}
+	_nextWrite := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_rebuild := false
+	if _authorReconcile {
+		_nextWrite.model.AuthorID = _authorKey
+		_rebuild = true
+	} else if _authorInvalidate {
+		_rebuild = true
+	}
+	if _reviewerReconcile {
+		_value := _reviewerKey
+		_nextWrite.model.ReviewerID = &_value
+		_rebuild = true
+	} else if _reviewerInvalidate {
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.BlogPost.From(_model.state.backend, _nextWrite.model)
+		if _err != nil {
+			return _err
+		}
+		_nextAuthorCache, _err := _model.authorCache.clone()
+		if _err != nil {
+			return _err
+		}
+		if _authorReconcile {
+			if _err := _nextAuthorCache.store(relationFacadeRelationAssignedPresent, _authorTarget, false); _err != nil {
+				return _err
+			}
+		} else if _authorInvalidate {
+			if _err := _nextAuthorCache.store(relationFacadeRelationUnassigned, nil, false); _err != nil {
+				return _err
+			}
+		}
+		_nextReviewerCache, _err := _model.reviewerCache.clone()
+		if _err != nil {
+			return _err
+		}
+		if _reviewerReconcile {
+			if _err := _nextReviewerCache.store(relationFacadeRelationAssignedPresent, _reviewerTarget, false); _err != nil {
+				return _err
+			}
+		} else if _reviewerInvalidate {
+			if _err := _nextReviewerCache.store(relationFacadeRelationUnassigned, nil, false); _err != nil {
+				return _err
+			}
+		}
+		_model.write = _nextWrite
+		_model.object = _nextObject
+		_model.authorCache = _nextAuthorCache
+		if _authorReconcile {
+			_model.authorScalarPresent = true
+		}
+		_model.reviewerCache = _nextReviewerCache
+	}
+	return nil
+}
+
+func (_model *BlogPost) WithAuthor(_target *AuthorsAuthor) (*BlogPost, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	if _present {
+		_write.model.AuthorID = _key
+	} else {
+		_write.model.AuthorID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_write)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.authorScalarPresent = _present
+	if _err := _result.authorCache.store(relationFacadeRelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *BlogPost) WithAuthorID(_key int64) (*BlogPost, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_, _, _pending, _err := _model.authorCache.snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.authorScalarPresent && !_pending && _write.model.AuthorID == _key
+	_write.model.AuthorID = _key
+	_result, _err := _model.relationFacadeDerived(_write)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.authorScalarPresent = true
+	if !_same {
+		if _err := _result.authorCache.store(relationFacadeRelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *BlogPost) WithReviewer(_target *AuthorsAuthor) (*BlogPost, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	if _present {
+		_value := _key
+		_write.model.ReviewerID = &_value
+	} else {
+		_write.model.ReviewerID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_write)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _result.reviewerCache.store(relationFacadeRelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *BlogPost) WithReviewerID(_key int64) (*BlogPost, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_, _, _pending, _err := _model.reviewerCache.snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _write.model.ReviewerID != nil && *_write.model.ReviewerID == _key
+	_value := _key
+	_write.model.ReviewerID = &_value
+	_result, _err := _model.relationFacadeDerived(_write)
+	if _err != nil {
+		return nil, _err
+	}
+	if !_same {
+		if _err := _result.reviewerCache.store(relationFacadeRelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *BlogPost) ClearReviewer() (*BlogPost, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_write.model.ReviewerID = nil
+	_result, _err := _model.relationFacadeDerived(_write)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _result.reviewerCache.store(relationFacadeRelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
 }
 
 func (_model *BlogPost) Author(_ctx context.Context) (*AuthorsAuthor, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
 	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.authorCache.snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == relationFacadeRelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _err := _target.validate(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.authorScalarPresent {
+		return nil, relationFacadeRequiredRelated("author")
+	}
 	_value, _err := _model.object.Author(_ctx)
 	if _err != nil {
 		return nil, _err
 	}
-	return _model.state.wrapAuthorsAuthor(_value)
+	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.authorCache.store(relationFacadeRelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
 }
 
 func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, false, _err
 	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.reviewerCache.snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case relationFacadeRelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _err := _target.validate(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case relationFacadeRelationAssignedAbsent:
+		return nil, false, nil
+	}
 	_value, _present, _err := _model.object.Reviewer(_ctx)
 	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.reviewerCache.store(relationFacadeRelationAssignedAbsent, nil, false)
+		}
 		return nil, _present, _err
 	}
 	_wrapped, _err := _model.state.wrapAuthorsAuthor(_value)
 	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.reviewerCache.store(relationFacadeRelationAssignedPresent, _wrapped, false); _err != nil {
 		return nil, false, _err
 	}
 	return _wrapped, true, nil
@@ -420,6 +1004,15 @@ func (_query BlogPostEagerQuery) All(_ctx context.Context) ([]*BlogPost, error) 
 	_results := make([]*BlogPost, len(_objects))
 	for _index := range _objects {
 		_wrapped, _err := _query.state.wrapBlogPostObject(_objects[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		switch _query.kind {
+		case 1:
+			_, _err = _wrapped.Author(_ctx)
+		case 2:
+			_, _, _err = _wrapped.Reviewer(_ctx)
+		}
 		if _err != nil {
 			return nil, _err
 		}

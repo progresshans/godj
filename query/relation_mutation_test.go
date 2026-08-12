@@ -47,11 +47,13 @@ func TestRelationMutationErrorCodesAreStableAndDistinct(t *testing.T) {
 	t.Parallel()
 
 	codes := []string{
+		query.CodeUnsavedRelatedObject,
 		query.CodeProtectedForeignKey,
 		query.CodeCommitOutcomeUnknown,
 		query.CodeTransactionOutcomeUnknown,
 	}
 	want := []string{
+		"unsaved_related_object",
 		"protected_foreign_key",
 		"commit_outcome_unknown",
 		"transaction_outcome_unknown",

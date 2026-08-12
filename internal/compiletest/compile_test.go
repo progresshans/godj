@@ -26,12 +26,12 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 const (
-	relationFacadePhysicalBytes         = 94439
-	relationFacadePhysicalDigest        = "3fc7aba625cf231bc3521f3ad19270a05405e9bfea3d4799b36ca3dd907752fd"
+	relationFacadePhysicalBytes         = 140188
+	relationFacadePhysicalDigest        = "bb7456ff57e37f0b665da4519c8804292d010b0da2464290c7eebd28ceb70021"
 	relationFacadeLegacyGeneratedBytes  = 26140
 	relationFacadeLegacyGeneratedDigest = "a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628"
-	relationFacadeGeneratedBytes        = 39243
-	relationFacadeGeneratedDigest       = "2a141f1962887a9c610dd2d0005f401ecd8759e4d0bf0ce5cde1c3f210d1ba5f"
+	relationFacadeGeneratedBytes        = 58680
+	relationFacadeGeneratedDigest       = "90e0e6cc5abf471a078107d58acf2e091fcf10d8252444c5e1efc671a45fb8ec"
 )
 
 var relationFacadePhysicalFiles = []string{
@@ -151,10 +151,10 @@ func verifyRelationFacadeProduction(t *testing.T) {
 		wantErr string
 	}{
 		{
-			label:   "Save surface",
+			label:   "required clear surface",
 			old:     "rawPost, err := post.Unwrap()",
-			new:     "rawPost, err := post.Save(ctx)",
-			wantErr: `forbidden consumer selector "Save"`,
+			new:     "rawPost, err := post.ClearAuthor()",
+			wantErr: `forbidden consumer selector "ClearAuthor"`,
 		},
 		{
 			label:   "Delete surface",
@@ -209,6 +209,62 @@ func verifyRelationFacadeProduction(t *testing.T) {
 	productSource := physicalBefore.files["project/zz_godj_relation_facade.go"]
 	if err := validateRelationFacadeProductSource(productSource); err != nil {
 		t.Fatalf("validate production relation facade exports: %v", err)
+	}
+	for _, mutation := range []struct {
+		label string
+		old   string
+		new   string
+	}{
+		{
+			label: "AuthorsAuthorQuery.New",
+			old:   "func (_query AuthorsAuthorQuery) New(_value authors.Author) (*AuthorsAuthor, error)",
+			new:   "func (_query AuthorsAuthorQuery) New(_value blog.Post) (*AuthorsAuthor, error)",
+		},
+		{
+			label: "BlogPostQuery.New",
+			old:   "func (_query BlogPostQuery) New(_value blog.Post) (*BlogPost, error)",
+			new:   "func (_query BlogPostQuery) New(_value authors.Author) (*BlogPost, error)",
+		},
+		{
+			label: "AuthorsAuthor.Save",
+			old:   "func (_model *AuthorsAuthor) Save(_ctx context.Context) error",
+			new:   "func (_model *AuthorsAuthor) Save(_ctx interface{}) error",
+		},
+		{
+			label: "BlogPost.Save",
+			old:   "func (_model *BlogPost) Save(_ctx context.Context) error",
+			new:   "func (_model *BlogPost) Save(_ctx interface{}) error",
+		},
+		{
+			label: "BlogPost.WithAuthor",
+			old:   "func (_model *BlogPost) WithAuthor(_target *AuthorsAuthor) (*BlogPost, error)",
+			new:   "func (_model *BlogPost) WithAuthor(_target *BlogPost) (*BlogPost, error)",
+		},
+		{
+			label: "BlogPost.WithAuthorID",
+			old:   "func (_model *BlogPost) WithAuthorID(_key int64) (*BlogPost, error)",
+			new:   "func (_model *BlogPost) WithAuthorID(_key string) (*BlogPost, error)",
+		},
+		{
+			label: "BlogPost.WithReviewer",
+			old:   "func (_model *BlogPost) WithReviewer(_target *AuthorsAuthor) (*BlogPost, error)",
+			new:   "func (_model *BlogPost) WithReviewer(_target *BlogPost) (*BlogPost, error)",
+		},
+		{
+			label: "BlogPost.WithReviewerID",
+			old:   "func (_model *BlogPost) WithReviewerID(_key int64) (*BlogPost, error)",
+			new:   "func (_model *BlogPost) WithReviewerID(_key string) (*BlogPost, error)",
+		},
+		{
+			label: "BlogPost.ClearReviewer",
+			old:   "func (_model *BlogPost) ClearReviewer() (*BlogPost, error)",
+			new:   "func (_model *BlogPost) ClearReviewer(_clear bool) (*BlogPost, error)",
+		},
+	} {
+		mutated := replaceRelationFacadeToken(t, productSource, []byte(mutation.old), []byte(mutation.new))
+		if err := validateRelationFacadeProductSource(mutated); err == nil || !strings.Contains(err.Error(), "signature") {
+			t.Fatalf("%s ABI mutation error = %v, want exact signature rejection", mutation.label, err)
+		}
 	}
 	verifyRelationFacadeProductionGoList(t, root)
 
@@ -307,19 +363,19 @@ replace %s => %s
 		[]string{"project.BlogPostRelationSelector", "orm.IntegerField[blog.Post]"},
 	)
 
-	saveMutation := formatRelationFacadeMutation(t, replaceRelationFacadeToken(
+	clearAuthorMutation := formatRelationFacadeMutation(t, replaceRelationFacadeToken(
 		t,
 		consumerSource,
 		[]byte("rawPost, err := post.Unwrap()"),
-		[]byte("rawPost, err := post.Save(ctx)"),
+		[]byte("rawPost, err := post.ClearAuthor()"),
 	))
 	verifyRelationFacadeCompileNegative(
 		t,
 		directory,
 		consumerPath,
-		saveMutation,
-		"save-negative.test",
-		[]string{"post.Save undefined", "*project.BlogPost"},
+		clearAuthorMutation,
+		"clear-author-negative.test",
+		[]string{"post.ClearAuthor undefined", "*project.BlogPost"},
 	)
 
 	deleteMutation := formatRelationFacadeMutation(t, replaceRelationFacadeToken(
@@ -365,6 +421,51 @@ replace %s => %s
 		objectMutation,
 		"object-negative.test",
 		[]string{"*project.BlogPost", "*project.BlogPostObject"},
+	)
+
+	newValueMutation := replaceRelationFacadeToken(
+		t,
+		consumerSource,
+		[]byte(`models.BlogPost.New(blog.Post{Title: "new post"})`),
+		[]byte(`models.BlogPost.New(authors.Author{Name: "new post"})`),
+	)
+	verifyRelationFacadeCompileNegative(
+		t,
+		directory,
+		consumerPath,
+		newValueMutation,
+		"new-value-negative.test",
+		[]string{"authors.Author", "blog.Post"},
+	)
+
+	targetMutation := replaceRelationFacadeToken(
+		t,
+		consumerSource,
+		[]byte("newPost, err = newPost.WithAuthor(newAuthor)"),
+		[]byte("newPost, err = newPost.WithAuthor(newPost)"),
+	)
+	verifyRelationFacadeCompileNegative(
+		t,
+		directory,
+		consumerPath,
+		targetMutation,
+		"relation-target-negative.test",
+		[]string{"*project.BlogPost", "*project.AuthorsAuthor"},
+	)
+
+	identifierMutation := replaceRelationFacadeToken(
+		t,
+		consumerSource,
+		[]byte("newPost, err = newPost.WithReviewerID(2)"),
+		[]byte(`newPost, err = newPost.WithReviewerID("2")`),
+	)
+	verifyRelationFacadeCompileNegative(
+		t,
+		directory,
+		consumerPath,
+		identifierMutation,
+		"relation-id-negative.test",
+		[]string{"untyped string", "int64"},
 	)
 
 	if err := os.WriteFile(consumerPath, consumerSource, 0o644); err != nil {
@@ -924,14 +1025,23 @@ func validateRelationFacadeProductSource(source []byte) error {
 	wantFunctions := map[string]bool{
 		".Using":                      true,
 		"AuthorsAuthor.Unwrap":        true,
+		"AuthorsAuthor.Save":          true,
 		"BlogPost.Unwrap":             true,
+		"BlogPost.Save":               true,
+		"BlogPost.WithAuthor":         true,
+		"BlogPost.WithAuthorID":       true,
+		"BlogPost.WithReviewer":       true,
+		"BlogPost.WithReviewerID":     true,
+		"BlogPost.ClearReviewer":      true,
 		"BlogPost.Author":             true,
 		"BlogPost.Reviewer":           true,
+		"AuthorsAuthorQuery.New":      true,
 		"AuthorsAuthorQuery.Filter":   true,
 		"AuthorsAuthorQuery.OrderBy":  true,
 		"AuthorsAuthorQuery.Limit":    true,
 		"AuthorsAuthorQuery.First":    true,
 		"AuthorsAuthorQuery.All":      true,
+		"BlogPostQuery.New":           true,
 		"BlogPostQuery.Filter":        true,
 		"BlogPostQuery.OrderBy":       true,
 		"BlogPostQuery.Limit":         true,
@@ -943,9 +1053,21 @@ func validateRelationFacadeProductSource(source []byte) error {
 		"BlogPostEagerQuery.Limit":    true,
 		"BlogPostEagerQuery.All":      true,
 	}
+	wantABISignatures := map[string]string{
+		"AuthorsAuthorQuery.New":  "func(_value authors.Author) (*AuthorsAuthor, error)",
+		"BlogPostQuery.New":       "func(_value blog.Post) (*BlogPost, error)",
+		"AuthorsAuthor.Save":      "func(_ctx context.Context) error",
+		"BlogPost.Save":           "func(_ctx context.Context) error",
+		"BlogPost.WithAuthor":     "func(_target *AuthorsAuthor) (*BlogPost, error)",
+		"BlogPost.WithAuthorID":   "func(_key int64) (*BlogPost, error)",
+		"BlogPost.WithReviewer":   "func(_target *AuthorsAuthor) (*BlogPost, error)",
+		"BlogPost.WithReviewerID": "func(_key int64) (*BlogPost, error)",
+		"BlogPost.ClearReviewer":  "func() (*BlogPost, error)",
+	}
 	seenTypes := make(map[string]bool, len(wantTypes))
 	seenConstants := make(map[string]bool, len(wantConstants))
 	seenFunctions := make(map[string]bool, len(wantFunctions))
+	seenABISignatures := make(map[string]bool, len(wantABISignatures))
 	for _, declaration := range file.Decls {
 		switch declaration := declaration.(type) {
 		case *ast.GenDecl:
@@ -1008,6 +1130,9 @@ func validateRelationFacadeProductSource(source []byte) error {
 			if !ast.IsExported(declaration.Name.Name) {
 				continue
 			}
+			if declaration.Recv != nil && len(declaration.Recv.List) == 1 && !ast.IsExported(relationFacadeTypeName(declaration.Recv.List[0].Type)) {
+				continue
+			}
 			key, err := relationFacadeFunctionKey(declaration)
 			if err != nil {
 				return err
@@ -1018,20 +1143,28 @@ func validateRelationFacadeProductSource(source []byte) error {
 			if identifier := relationFacadeForbiddenObjectIdentifier(declaration.Type); identifier != "" {
 				return fmt.Errorf("production relation facade function %q exposes low-level %q", key, identifier)
 			}
+			if wantSignature, exact := wantABISignatures[key]; exact {
+				if err := validateRelationFacadeExpressionSchema(declaration.Type, wantSignature); err != nil {
+					return fmt.Errorf("production relation facade function %q signature: %w", key, err)
+				}
+				seenABISignatures[key] = true
+			}
 			seenFunctions[key] = true
 		default:
 			return fmt.Errorf("forbidden production relation facade declaration %T", declaration)
 		}
 	}
-	if len(seenTypes) != len(wantTypes) || len(seenConstants) != len(wantConstants) || len(seenFunctions) != len(wantFunctions) {
+	if len(seenTypes) != len(wantTypes) || len(seenConstants) != len(wantConstants) || len(seenFunctions) != len(wantFunctions) || len(seenABISignatures) != len(wantABISignatures) {
 		return fmt.Errorf(
-			"production relation facade exported declaration set is incomplete: types=%d/%d constants=%d/%d functions=%d/%d",
+			"production relation facade exported declaration set is incomplete: types=%d/%d constants=%d/%d functions=%d/%d ABI signatures=%d/%d",
 			len(seenTypes),
 			len(wantTypes),
 			len(seenConstants),
 			len(wantConstants),
 			len(seenFunctions),
 			len(wantFunctions),
+			len(seenABISignatures),
+			len(wantABISignatures),
 		)
 	}
 	return nil
@@ -1258,25 +1391,44 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 
 	importSelectors := relationFacadeImportSelectors(file, allowedImports)
 	allowedSelectors := map[string]bool{
-		"All":           true,
-		"Asc":           true,
-		"Author":        true,
-		"AuthorID":      true,
-		"AuthorsAuthor": true,
-		"BlogPost":      true,
-		"Filter":        true,
-		"First":         true,
-		"IContains":     true,
-		"ID":            true,
-		"Limit":         true,
-		"Name":          true,
-		"OrderBy":       true,
-		"Related":       true,
-		"Reviewer":      true,
-		"SelectRelated": true,
-		"Title":         true,
-		"Unwrap":        true,
+		"All":            true,
+		"Asc":            true,
+		"Author":         true,
+		"AuthorID":       true,
+		"AuthorsAuthor":  true,
+		"BlogPost":       true,
+		"ClearReviewer":  true,
+		"Filter":         true,
+		"First":          true,
+		"IContains":      true,
+		"ID":             true,
+		"Limit":          true,
+		"Name":           true,
+		"New":            true,
+		"OrderBy":        true,
+		"Related":        true,
+		"Reviewer":       true,
+		"Save":           true,
+		"SelectRelated":  true,
+		"Title":          true,
+		"Unwrap":         true,
+		"WithAuthor":     true,
+		"WithAuthorID":   true,
+		"WithReviewer":   true,
+		"WithReviewerID": true,
 	}
+	wantWriteCalls := map[string]int{
+		"models.AuthorsAuthor.New": 1,
+		"models.BlogPost.New":      1,
+		"newAuthor.Save":           1,
+		"newPost.Save":             1,
+		"newPost.WithAuthor":       1,
+		"newPost.WithAuthorID":     1,
+		"newPost.WithReviewer":     1,
+		"newPost.WithReviewerID":   1,
+		"newPost.ClearReviewer":    1,
+	}
+	seenWriteCalls := make(map[string]int, len(wantWriteCalls))
 	projectUsingCalls := 0
 	relatedAuthorTokens := 0
 	relatedReviewerTokens := 0
@@ -1302,6 +1454,9 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 			}
 			if function, ok := node.Fun.(*ast.SelectorExpr); ok && function.Sel.Name == "Using" && relationFacadeSelectorPath(function.X) == "project" {
 				projectUsingCalls++
+			}
+			if path := relationFacadeSelectorPath(node.Fun); wantWriteCalls[path] != 0 {
+				seenWriteCalls[path]++
 			}
 		case *ast.SelectorExpr:
 			if qualifier, ok := node.X.(*ast.Ident); ok {
@@ -1332,6 +1487,11 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 	}
 	if projectUsingCalls != 4 {
 		return fmt.Errorf("consumer project.Using call sites = %d, want exact 4", projectUsingCalls)
+	}
+	for path, want := range wantWriteCalls {
+		if got := seenWriteCalls[path]; got != want {
+			return fmt.Errorf("consumer write call %s count = %d, want exact %d", path, got, want)
+		}
 	}
 	if relatedAuthorTokens != 2 || relatedReviewerTokens != 2 {
 		return fmt.Errorf(

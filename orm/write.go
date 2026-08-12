@@ -239,7 +239,7 @@ func mutationValueMatches(field ir.Field, value query.Value) bool {
 		return field.Nullable
 	}
 	switch field.Kind {
-	case ir.FieldAuto:
+	case ir.FieldAuto, ir.FieldForeignKey:
 		return value.Kind() == query.ValueInteger
 	case ir.FieldChar:
 		return value.Kind() == query.ValueString

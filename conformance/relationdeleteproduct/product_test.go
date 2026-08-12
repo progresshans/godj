@@ -25,6 +25,8 @@ import (
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
+	modernsqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const relationDeletePolicyDigest = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
@@ -580,6 +582,587 @@ func TestProjectFacadeUsesCallbackLocalSession(t *testing.T) {
 		t.Fatalf("callback-local facade callback count = %d, want 1", callbacks)
 	}
 	assertFacadeQueryDelta(t, product, before, 2, "callback-local source and relation queries")
+}
+
+func TestObserveUnsavedRelatedTargetFailsBeforeExactOperationIO(t *testing.T) {
+	t.Parallel()
+
+	got, err := ObserveUnsavedRelatedTarget(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !errors.Is(got.Err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodeUnsavedRelatedObject,
+		Field:    "author",
+	}) {
+		t.Fatalf("REL-002 error = %v, want model_state_error/unsaved_related_object field author", got.Err)
+	}
+	if !reflect.DeepEqual(got.Before, initialDatabaseState()) || !reflect.DeepEqual(got.After, got.Before) {
+		t.Fatalf("REL-002 database before/after = %#v/%#v, want exact unchanged fixture", got.Before, got.After)
+	}
+	if !reflect.DeepEqual(got.Metrics, WriteMetrics{}) {
+		t.Fatalf("REL-002 operation-local metrics = %#v, want exact zero", got.Metrics)
+	}
+}
+
+func TestWriteRecorderBoundsAndOrdersEveryBackendOperation(t *testing.T) {
+	t.Parallel()
+
+	backend := &facadeMinimalBackend{}
+	recorder := &recordingBackend{backend: backend}
+	ctx := context.Background()
+	if _, err := recorder.Query(ctx, query.Plan{}); !errors.Is(err, facadeUnexpectedIO) {
+		t.Fatalf("recorded Query() error = %v, want delegated sentinel", err)
+	}
+	if _, err := recorder.Insert(ctx, query.InsertPlan{}); !errors.Is(err, facadeUnexpectedIO) {
+		t.Fatalf("recorded Insert() error = %v, want delegated sentinel", err)
+	}
+	if _, err := recorder.Update(ctx, query.UpdatePlan{}); !errors.Is(err, facadeUnexpectedIO) {
+		t.Fatalf("recorded Update() error = %v, want delegated sentinel", err)
+	}
+	if _, err := recorder.Delete(ctx, query.DeletePlan{}); !errors.Is(err, facadeUnexpectedIO) {
+		t.Fatalf("recorded Delete() error = %v, want delegated sentinel", err)
+	}
+	want := WriteMetrics{
+		QueryCount:     1,
+		InsertCount:    1,
+		UpdateCount:    1,
+		DeleteCount:    1,
+		StatementKinds: []string{OperationSelect, OperationInsert, OperationUpdate, OperationDelete},
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("recorded backend metrics = %#v, want %#v", got, want)
+	}
+	if backend.calls != 4 {
+		t.Fatalf("recorded backend delegated calls = %d, want 4", backend.calls)
+	}
+}
+
+func TestProjectFacadePendingTargetSaveReconcilesAndPublishesBothRows(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := models.AuthorsAuthor.New(authors.Author{Name: "Dora"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := models.BlogPost.New(blog.Post{Title: "Delta"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	derived, err := original.WithAuthor(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := derived.Author(ctx); err != nil || got != target {
+		t.Fatalf("pending Author() = (%p, %v), want exact assigned target %p", got, err, target)
+	}
+	if _, err := derived.Unwrap(); !errors.Is(err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodeUnsavedRelatedObject,
+		Field:    "author",
+	}) {
+		t.Fatalf("pending Unwrap() error = %v, want unsaved author", err)
+	}
+	if err := derived.Save(ctx); !errors.Is(err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodeUnsavedRelatedObject,
+		Field:    "author",
+	}) {
+		t.Fatalf("pending Save() error = %v, want unsaved author", err)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, WriteMetrics{}) {
+		t.Fatalf("pending accessor/unwrap/save metrics = %#v, want exact zero", got)
+	}
+	if err := target.Save(ctx); err != nil {
+		t.Fatalf("target Save() error = %v", err)
+	}
+	if got := recorder.snapshot(); got.InsertCount != 1 || !reflect.DeepEqual(got.StatementKinds, []string{OperationInsert}) {
+		t.Fatalf("target Save() metrics = %#v, want one INSERT", got)
+	}
+	targetRaw, err := target.Unwrap()
+	if err != nil || targetRaw.ID != 4 || targetRaw.Name != "Dora" {
+		t.Fatalf("saved target Unwrap() = (%#v, %v), want ID 4 Dora", targetRaw, err)
+	}
+	if err := derived.Save(ctx); err != nil {
+		t.Fatalf("reconciled source Save() error = %v", err)
+	}
+	if got := recorder.snapshot(); got.InsertCount != 2 || !reflect.DeepEqual(got.StatementKinds, []string{OperationInsert, OperationInsert}) {
+		t.Fatalf("target+source Save() metrics = %#v, want two INSERTs", got)
+	}
+	derivedRaw, err := derived.Unwrap()
+	if err != nil || derivedRaw.ID != 13 || derivedRaw.Title != "Delta" || derivedRaw.AuthorID != 4 || derivedRaw.ReviewerID != nil {
+		t.Fatalf("reconciled source Unwrap() = (%#v, %v), want post 13 -> author 4", derivedRaw, err)
+	}
+	if got, err := derived.Author(ctx); err != nil || got != target {
+		t.Fatalf("reconciled Author() = (%p, %v), want still-warm target %p", got, err, target)
+	}
+	if _, err := original.Unwrap(); !errors.Is(err, &query.Error{
+		Category: query.CategoryField,
+		Code:     query.CodeRequiredField,
+		Field:    "author",
+	}) {
+		t.Fatalf("original source Unwrap() error = %v, want unchanged required author", err)
+	}
+	state, err := readState(ctx, product.backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Authors) != 4 || state.Authors[3] != (AuthorRow{ID: 4, Name: "Dora"}) ||
+		len(state.Posts) != 4 || state.Posts[3] != (PostRow{ID: 13, Title: "Delta", AuthorID: 4}) {
+		t.Fatalf("reconciled database state = %#v", state)
+	}
+}
+
+func TestProjectFacadeExplicitScalarOverridesPendingAssignment(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsaved, err := models.AuthorsAuthor.New(authors.Author{Name: "Must Not Follow"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := models.BlogPost.New(blog.Post{Title: "Explicit Override"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := source.WithAuthor(unsaved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	overridden, err := pending.WithAuthorID(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := overridden.Save(ctx); err != nil {
+		t.Fatalf("explicit scalar override Save() error = %v", err)
+	}
+	if got := recorder.snapshot(); got.InsertCount != 1 || !reflect.DeepEqual(got.StatementKinds, []string{OperationInsert}) {
+		t.Fatalf("explicit scalar override Save() metrics = %#v, want one INSERT", got)
+	}
+	raw, err := overridden.Unwrap()
+	if err != nil || raw.ID != 13 || raw.AuthorID != 1 {
+		t.Fatalf("explicit scalar override Unwrap() = (%#v, %v), want post 13 -> author 1", raw, err)
+	}
+	loaded, err := overridden.Author(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loadedRaw, err := loaded.Unwrap()
+	if err != nil || loadedRaw.ID != 1 || loadedRaw.Name != "Ada" || loaded == unsaved {
+		t.Fatalf("explicit scalar override Author().Unwrap() = (%#v, %v), wrapper %p; want loaded Ada distinct from %p", loadedRaw, err, loaded, unsaved)
+	}
+	if got := recorder.snapshot(); got.QueryCount != 1 || got.InsertCount != 1 ||
+		!reflect.DeepEqual(got.StatementKinds, []string{OperationInsert, OperationSelect}) {
+		t.Fatalf("explicit scalar override load metrics = %#v, want INSERT then SELECT", got)
+	}
+	before := recorder.snapshot()
+	if got, err := pending.Author(ctx); err != nil || got != unsaved {
+		t.Fatalf("original pending Author() = (%p, %v), want exact unsaved %p", got, err, unsaved)
+	}
+	if err := pending.Save(ctx); !errors.Is(err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodeUnsavedRelatedObject,
+		Field:    "author",
+	}) {
+		t.Fatalf("original pending Save() error = %v, want unchanged unsaved author", err)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, before) {
+		t.Fatalf("original pending access/save changed metrics from %#v to %#v", before, got)
+	}
+}
+
+func TestProjectFacadeManualZeroKeyReachesDatabaseAndFailedInsertIsRetryable(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manualValue := authors.NewAuthorWithID(0)
+	manualValue.Name = "Zero"
+	manual, err := models.AuthorsAuthor.New(manualValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := models.BlogPost.New(blog.Post{Title: "Manual zero"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err = source.WithAuthor(manual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := source.Unwrap()
+	if err != nil || raw.AuthorID != 0 {
+		t.Fatalf("manual-zero source Unwrap() = (%#v, %v), want explicit FK 0", raw, err)
+	}
+	firstErr := source.Save(ctx)
+	if firstErr == nil {
+		t.Fatal("manual-zero source Save() unexpectedly succeeded without target row")
+	}
+	if errors.Is(firstErr, &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject}) ||
+		errors.Is(firstErr, &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField}) {
+		t.Fatalf("manual-zero source Save() error = %v, must be a database constraint cause", firstErr)
+	}
+	var driverError *modernsqlite.Error
+	if !errors.As(firstErr, &driverError) || driverError.Code() != sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY {
+		t.Fatalf(
+			"manual-zero source Save() error = %v, want preserved SQLite FOREIGN KEY cause code %d",
+			firstErr,
+			sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY,
+		)
+	}
+	if got := recorder.snapshot(); got.InsertCount != 1 || got.QueryCount != 0 || !reflect.DeepEqual(got.StatementKinds, []string{OperationInsert}) {
+		t.Fatalf("manual-zero failed Save() metrics = %#v, want one INSERT reach", got)
+	}
+	if state, err := readState(ctx, product.backend); err != nil || !reflect.DeepEqual(state, initialDatabaseState()) {
+		t.Fatalf("manual-zero failure database = (%#v, %v), want unchanged", state, err)
+	}
+	if _, err := product.backend.ExecContext(ctx, `INSERT INTO "authors_author" ("id", "name") VALUES (0, 'Zero')`); err != nil {
+		t.Fatalf("provision manual-zero target row: %v", err)
+	}
+	if err := source.Save(ctx); err != nil {
+		t.Fatalf("retry source Save() after target provision error = %v", err)
+	}
+	if got := recorder.snapshot(); got.InsertCount != 2 || !reflect.DeepEqual(got.StatementKinds, []string{OperationInsert, OperationInsert}) {
+		t.Fatalf("manual-zero retry metrics = %#v, want second INSERT", got)
+	}
+	raw, err = source.Unwrap()
+	if err != nil || raw.ID != 13 || raw.AuthorID != 0 {
+		t.Fatalf("manual-zero retry Unwrap() = (%#v, %v), want persisted post 13 -> 0", raw, err)
+	}
+}
+
+func TestProjectFacadeAssignedTargetErrorsPrecedeRequiredScalarWithoutIO(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requiredUnset, err := models.BlogPost.New(blog.Post{Title: "required"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := requiredUnset.Save(ctx); !errors.Is(err, &query.Error{
+		Category: query.CategoryField,
+		Code:     query.CodeRequiredField,
+		Field:    "author",
+	}) {
+		t.Fatalf("required-unset Save() error = %v", err)
+	}
+	unsavedReviewer, err := models.AuthorsAuthor.New(authors.Author{Name: "Reviewer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewerPending, err := requiredUnset.WithReviewer(unsavedReviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reviewerPending.Save(ctx); !errors.Is(err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodeUnsavedRelatedObject,
+		Field:    "reviewer",
+	}) {
+		t.Fatalf("pending-reviewer + required-unset Save() error = %v, want reviewer first", err)
+	}
+	unsavedAuthor, err := models.AuthorsAuthor.New(authors.Author{Name: "Author"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bothPending, err := reviewerPending.WithAuthor(unsavedAuthor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bothPending.Save(ctx); !errors.Is(err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodeUnsavedRelatedObject,
+		Field:    "author",
+	}) {
+		t.Fatalf("two pending relations Save() error = %v, want canonical author first", err)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, WriteMetrics{}) {
+		t.Fatalf("preflight precedence metrics = %#v, want exact zero", got)
+	}
+}
+
+func TestProjectFacadeScalarDerivationsPreserveOnlyValidWarmCaches(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, found, err := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.ID.Exact(1)).
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("load author 1 = (%p, %t, %v)", author, found, err)
+	}
+	reviewer, found, err := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.ID.Exact(2)).
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("load reviewer 2 = (%p, %t, %v)", reviewer, found, err)
+	}
+	source, err := models.BlogPost.New(blog.Post{Title: "cache"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err = source.WithAuthor(author)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err = source.WithReviewer(reviewer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := recorder.snapshot()
+	same, err := source.WithAuthorID(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := same.Author(ctx); err != nil || got != author {
+		t.Fatalf("same-scalar Author() = (%p, %v), want warm %p", got, err, author)
+	}
+	changed, err := same.WithAuthorID(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedAuthor, err := changed.Author(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedRaw, err := changedAuthor.Unwrap()
+	if err != nil || changedRaw.ID != 3 {
+		t.Fatalf("different-scalar Author().Unwrap() = (%#v, %v), want author 3", changedRaw, err)
+	}
+	if got, present, err := changed.Reviewer(ctx); err != nil || !present || got != reviewer {
+		t.Fatalf("different-scalar unrelated Reviewer() = (%p, %t, %v), want warm %p", got, present, err, reviewer)
+	}
+	if got, err := source.Author(ctx); err != nil || got != author {
+		t.Fatalf("original Author() = (%p, %v), want unchanged warm %p", got, err, author)
+	}
+	cleared, err := changed.ClearReviewer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, present, err := cleared.Reviewer(ctx); err != nil || present || got != nil {
+		t.Fatalf("cleared Reviewer() = (%p, %t, %v), want absent", got, present, err)
+	}
+	if got, present, err := source.Reviewer(ctx); err != nil || !present || got != reviewer {
+		t.Fatalf("original Reviewer() after clear = (%p, %t, %v), want warm %p", got, present, err, reviewer)
+	}
+	after := recorder.snapshot()
+	if after.QueryCount-before.QueryCount != 1 || after.InsertCount != before.InsertCount ||
+		after.UpdateCount != before.UpdateCount || after.DeleteCount != before.DeleteCount {
+		t.Fatalf("cache derivation operation delta before=%#v after=%#v, want one SELECT for changed author only", before, after)
+	}
+}
+
+func TestProjectFacadeEagerUnrelatedCacheSurvivesWriteDerivationWithoutSharingPublication(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loadedRows, err := models.BlogPost.
+		SelectRelated(models.BlogPost.Related.Reviewer).
+		Filter(blog.PostFields.ID.Exact(10)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		All(ctx)
+	if err != nil || len(loadedRows) != 1 {
+		t.Fatalf("eager reviewer load = (%#v, %v), want one post", loadedRows, err)
+	}
+	loaded := loadedRows[0]
+	if got := recorder.snapshot(); got.QueryCount != 1 || !reflect.DeepEqual(got.StatementKinds, []string{OperationSelect}) {
+		t.Fatalf("eager reviewer load metrics = %#v, want one SELECT", got)
+	}
+	reviewer, present, err := loaded.Reviewer(ctx)
+	if err != nil || !present || reviewer == nil {
+		t.Fatalf("eager loaded Reviewer() = (%p, %t, %v), want present", reviewer, present, err)
+	}
+	before := recorder.snapshot()
+	author, found, err := models.AuthorsAuthor.
+		Filter(authors.AuthorFields.ID.Exact(3)).
+		OrderBy(authors.AuthorFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("load replacement author 3 = (%p, %t, %v)", author, found, err)
+	}
+	derived, err := loaded.WithAuthor(author)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterAuthorLoad := recorder.snapshot()
+	if afterAuthorLoad.QueryCount-before.QueryCount != 1 {
+		t.Fatalf("replacement author load delta before=%#v after=%#v, want one SELECT", before, afterAuthorLoad)
+	}
+	if got, present, err := derived.Reviewer(ctx); err != nil || !present || got != reviewer {
+		t.Fatalf("derived eager Reviewer() = (%p, %t, %v), want warm %p", got, present, err, reviewer)
+	}
+	if got, err := derived.Author(ctx); err != nil || got != author {
+		t.Fatalf("derived assigned Author() = (%p, %v), want warm %p", got, err, author)
+	}
+	cleared, err := derived.ClearReviewer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, present, err := cleared.Reviewer(ctx); err != nil || present || got != nil {
+		t.Fatalf("cleared derived Reviewer() = (%p, %t, %v), want absent", got, present, err)
+	}
+	if got, present, err := loaded.Reviewer(ctx); err != nil || !present || got != reviewer {
+		t.Fatalf("original eager Reviewer() after derived clear = (%p, %t, %v), want warm %p", got, present, err, reviewer)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, afterAuthorLoad) {
+		t.Fatalf("derived eager access/clear published backend I/O: before=%#v after=%#v", afterAuthorLoad, got)
+	}
+}
+
+func TestProjectFacadeWriteAdversarialValuesFailBeforeBackendIO(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	minimal := &facadeMinimalBackend{}
+	models, err := project.Using(minimal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := models.BlogPost.New(blog.Post{Title: "adversarial"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := models.AuthorsAuthor.New(authors.Author{Name: "adversarial"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertInvalid := func(label string, operation func() error) {
+		t.Helper()
+		before := minimal.calls
+		if err := operation(); !errors.Is(err, facadeQueryInvalidPlan) {
+			t.Fatalf("%s error = %v, want query_error/invalid_plan", label, err)
+		}
+		if minimal.calls != before {
+			t.Fatalf("%s backend calls = %d, want unchanged %d", label, minimal.calls, before)
+		}
+	}
+	var nilSource *project.BlogPost
+	assertInvalid("nil source Save", func() error { return nilSource.Save(ctx) })
+	assertInvalid("nil source WithAuthor", func() error { _, err := nilSource.WithAuthor(target); return err })
+	assertInvalid("nil target WithAuthor", func() error { _, err := source.WithAuthor(nil); return err })
+	copySource := *source
+	assertInvalid("copied source Save", func() error { return (&copySource).Save(ctx) })
+	assertInvalid("copied source WithAuthorID", func() error { _, err := (&copySource).WithAuthorID(1); return err })
+	copyTarget := *target
+	assertInvalid("copied target Save", func() error { return (&copyTarget).Save(ctx) })
+	assertInvalid("copied target assignment", func() error { _, err := source.WithAuthor(&copyTarget); return err })
+	otherMinimal := &facadeMinimalBackend{}
+	otherModels, err := project.Using(otherMinimal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherTarget, err := otherModels.AuthorsAuthor.New(authors.Author{Name: "other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertInvalid("cross-origin target", func() error { _, err := source.WithAuthor(otherTarget); return err })
+	if otherMinimal.calls != 0 {
+		t.Fatalf("cross-origin secondary backend calls = %d, want 0", otherMinimal.calls)
+	}
+	if err := target.Save(nil); !errors.Is(err, facadeQueryInvalidPlan) {
+		t.Fatalf("nil-context target Save() error = %v, want query_error/invalid_plan", err)
+	}
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := target.Save(canceled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled target Save() error = %v, want context.Canceled", err)
+	}
+	if minimal.calls != 0 {
+		t.Fatalf("adversarial write backend calls = %d, want exact zero", minimal.calls)
+	}
+}
+
+func TestProjectFacadeCallbackLocalWritesRollbackDatabaseWithoutRewindingPublishedValues(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	rollback := errors.New("rollback generated relation writes")
+	var targetRaw authors.Author
+	var sourceRaw blog.Post
+	var metrics WriteMetrics
+	err := product.backend.Atomic(ctx, func(session db.Session) error {
+		recorder := &recordingBackend{backend: session}
+		models, err := project.Using(recorder)
+		if err != nil {
+			return err
+		}
+		target, err := models.AuthorsAuthor.New(authors.Author{Name: "Rolled Back"})
+		if err != nil {
+			return err
+		}
+		if err := target.Save(ctx); err != nil {
+			return err
+		}
+		source, err := models.BlogPost.New(blog.Post{Title: "Rolled Back"})
+		if err != nil {
+			return err
+		}
+		source, err = source.WithAuthor(target)
+		if err != nil {
+			return err
+		}
+		if err := source.Save(ctx); err != nil {
+			return err
+		}
+		targetRaw, err = target.Unwrap()
+		if err != nil {
+			return err
+		}
+		sourceRaw, err = source.Unwrap()
+		if err != nil {
+			return err
+		}
+		metrics = recorder.snapshot()
+		return rollback
+	})
+	if !errors.Is(err, rollback) {
+		t.Fatalf("callback-local write transaction error = %v, want rollback sentinel", err)
+	}
+	if targetRaw.ID != 4 || targetRaw.Name != "Rolled Back" || sourceRaw.ID != 13 ||
+		sourceRaw.Title != "Rolled Back" || sourceRaw.AuthorID != 4 {
+		t.Fatalf("values published before rollback = target %#v source %#v", targetRaw, sourceRaw)
+	}
+	wantMetrics := WriteMetrics{InsertCount: 2, StatementKinds: []string{OperationInsert, OperationInsert}}
+	if !reflect.DeepEqual(metrics, wantMetrics) {
+		t.Fatalf("callback-local write metrics = %#v, want %#v", metrics, wantMetrics)
+	}
+	state, stateErr := readState(ctx, product.backend)
+	if stateErr != nil || !reflect.DeepEqual(state, initialDatabaseState()) {
+		t.Fatalf("database after callback rollback = (%#v, %v), want exact initial state", state, stateErr)
+	}
 }
 
 func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {

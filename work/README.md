@@ -62,9 +62,11 @@ proposed → ready → active → completed
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. Active는
 [GDJ-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md), ready는 없습니다. Activation head
 `a4a627a...`은 EVID-072/run `31566524953`의 exact 26/26 jobs·326/326 steps를 통과했습니다. Phase A/B/C는
-완료됐고 ADR-0033은 bounded assignment/save/cache ownership에 한해 Accepted입니다. Product는 아직 unchanged
-`121 + 5 + 1`, relation 11/12, REL-002 locked이며 Q-013은 Partial, Q-017은 P1/open입니다. EVID-072/073를
-포함한 exact decision-documentation tree 자체 CI는 `not run/pending`이며 activation run을 재사용하지 않습니다.
+완료됐고 ADR-0033은 bounded assignment/save/cache ownership에 한해 Accepted입니다. Exact decision head
+`9d728610...`도 EVID-074/run `31574653183`의 별도 exact 26/26·326/326을 통과했습니다. 현재 exact 23-path product는
+EVID-075의 local gates에서 `122 + 5 + 0`, relation 12/12, REL-002 passing으로 전환됐고 ADR-0033은 local
+Implemented입니다. Q-013은 Partial, Q-017은 P1/open입니다. Source와 EVID-074/075를 포함하는 combined 31-path tree
+자체 exact-head hosted CI는 `not run/pending`이며 앞선 run을 재사용하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.

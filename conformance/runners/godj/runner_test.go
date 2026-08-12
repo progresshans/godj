@@ -97,36 +97,35 @@ func TestGenerateEmitsPayloadFreeNotImplementedForUnregisteredOracleLocked(t *te
 	}
 }
 
-func TestRelationProductGeneratesElevenObservedAndOneLockedContract(t *testing.T) {
+func TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, expected := loadRelationProductInputs(t)
+	if manifest.Contracts[1].ID != "REL-002" {
+		t.Fatalf("relation manifest contract 1 = %s, want REL-002", manifest.Contracts[1].ID)
+	}
+	if manifest.Contracts[1].Status != protocol.ContractPassing {
+		t.Fatalf("relation manifest REL-002 status = %q, want %q", manifest.Contracts[1].Status, protocol.ContractPassing)
+	}
 	required, err := RequiredObservedContractIDs(manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(required, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-007", "REL-008", "REL-009", "REL-010", "REL-011", "REL-012"}) {
-		t.Fatalf("required observed IDs = %#v, want every relation contract except REL-002", required)
+	wantRequired := []string{"REL-001", "REL-002", "REL-003", "REL-004", "REL-005", "REL-006", "REL-007", "REL-008", "REL-009", "REL-010", "REL-011", "REL-012"}
+	if !reflect.DeepEqual(required, wantRequired) {
+		t.Fatalf("required observed IDs = %#v, want exact 12-contract manifest order %#v", required, wantRequired)
 	}
 	actual, err := Generate(context.Background(), profile, manifest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if differences, err := protocol.CompareProduct(profile, manifest, expected, actual, required); err != nil || len(differences) != 0 {
-		t.Fatalf("CompareProduct differences=%#v error=%v", differences, err)
-	}
-	strictDifferences, err := protocol.Compare(profile, manifest, expected, actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(strictDifferences) != 1 {
-		t.Fatalf("strict relation differences = %d, want REL-002 not-implemented mismatch", len(strictDifferences))
-	}
-	wantLocked := []string{"REL-002"}
-	for index, difference := range strictDifferences {
-		if difference.ContractID != wantLocked[index] || difference.Path != "status" {
-			t.Fatalf("strict difference %d = %#v", index, difference)
+	for index, observation := range actual.Contracts {
+		if observation.Status != protocol.StatusObserved {
+			t.Fatalf("actual relation contract %d %s status = %q, want observed", index, observation.ID, observation.Status)
 		}
+	}
+	if differences, err := protocol.Compare(profile, manifest, expected, actual); err != nil || len(differences) != 0 {
+		t.Fatalf("strict 12/12 Compare differences=%#v error=%v", differences, err)
 	}
 }
 
@@ -202,7 +201,7 @@ func TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation(t *testing.
 			}
 			actual := cloneObservationSuite(t, base)
 			actual.Contracts[0] = observation
-			differences, err := protocol.CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-003", "REL-004", "REL-005", "REL-006", "REL-007", "REL-008", "REL-009", "REL-010", "REL-011", "REL-012"})
+			differences, err := protocol.CompareProduct(profile, manifest, expected, actual, []string{"REL-001", "REL-002", "REL-003", "REL-004", "REL-005", "REL-006", "REL-007", "REL-008", "REL-009", "REL-010", "REL-011", "REL-012"})
 			if err != nil {
 				t.Fatal(err)
 			}

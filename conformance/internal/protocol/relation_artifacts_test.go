@@ -22,8 +22,8 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/relation-manifest.json": {
-			size:   10776,
-			sha256: "3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46",
+			size:   10770,
+			sha256: "791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b",
 		},
 		"conformance/fixtures/godj-relation-not-implemented.json": {
 			size:   1859,
@@ -116,7 +116,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 			digest: "a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628",
 		},
 		{
-			name: "new exact fourteen-file production-facade product",
+			name: "updated exact fourteen-file relation-assignment facade product",
 			path: "relationdeleteproduct",
 			files: []string{
 				"authors/zz_godj_generated.go",
@@ -134,7 +134,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 				"project/zz_godj_relation_object.go",
 				"project/zz_godj_relation_select_related.go",
 			},
-			digest: "2a141f1962887a9c610dd2d0005f401ecd8759e4d0bf0ce5cde1c3f210d1ba5f",
+			digest: "90e0e6cc5abf471a078107d58acf2e091fcf10d8252444c5e1efc671a45fb8ec",
 		},
 	}
 	for _, test := range tests {
@@ -155,7 +155,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 	}
 }
 
-func TestRelationManifestDiffIsExactlyReviewedREL007REL008StatusTransition(t *testing.T) {
+func TestRelationManifestHistoryIsExactlyREL002ThenREL007REL008StatusTransitions(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -164,11 +164,12 @@ func TestRelationManifestDiffIsExactlyReviewedREL007REL008StatusTransition(t *te
 		t.Fatal(err)
 	}
 	passing := []byte(`"status": "passing"`)
-	if count := bytes.Count(contents, passing); count != 11 {
-		t.Fatalf("relation manifest passing status count = %d, want exact 11", count)
+	if count := bytes.Count(contents, passing); count != 12 {
+		t.Fatalf("relation manifest passing status count = %d, want exact 12", count)
 	}
 	restored := append([]byte(nil), contents...)
-	for _, identifier := range []string{"REL-007", "REL-008"} {
+	restore := func(identifier string) {
+		t.Helper()
 		marker := []byte(`"id": "` + identifier + `"`)
 		start := bytes.Index(restored, marker)
 		if start < 0 {
@@ -180,6 +181,16 @@ func TestRelationManifestDiffIsExactlyReviewedREL007REL008StatusTransition(t *te
 		}
 		transition := start + relative
 		restored = append(restored[:transition], append([]byte(`"status": "oracle_locked"`), restored[transition+len(passing):]...)...)
+	}
+	restore("REL-002")
+	if len(restored) != 10776 {
+		t.Fatalf("REL-002-restored relation manifest size = %d, want prior GDJ-0030 size 10776", len(restored))
+	}
+	if got := fmt.Sprintf("%x", sha256.Sum256(restored)); got != "3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46" {
+		t.Fatalf("REL-002-restored relation manifest checksum = %q, want prior GDJ-0030 bytes", got)
+	}
+	for _, identifier := range []string{"REL-007", "REL-008"} {
+		restore(identifier)
 	}
 	if len(restored) != 10788 {
 		t.Fatalf("restored relation manifest size = %d, want prior GDJ-0029 size 10788", len(restored))
@@ -250,10 +261,7 @@ func TestRelationArtifactBoundaryIsLocked(t *testing.T) {
 		if contract.Scenario != wantSlugs[index] {
 			t.Fatalf("contract %s scenario = %q, want %q", contract.ID, contract.Scenario, wantSlugs[index])
 		}
-		wantStatus := ContractOracleLocked
-		if index != 1 {
-			wantStatus = ContractPassing
-		}
+		wantStatus := ContractPassing
 		if contract.Status != wantStatus {
 			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
 		}

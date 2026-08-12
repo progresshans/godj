@@ -426,6 +426,49 @@ func TestSaveOptionsCopyCallerSlices(t *testing.T) {
 	assertAssignmentNames(t, dynamicBackend.updatePlans[0].Assignments(), "title")
 }
 
+func TestSaveAcceptsForeignKeyIntegerValues(t *testing.T) {
+	t.Parallel()
+
+	manager := orm.NewManager[relationWriteModel](relationWriteDescriptor{})
+	reviewerID := int64(0)
+	for _, test := range []struct {
+		name       string
+		reviewerID *int64
+	}{
+		{name: "nullable null"},
+		{name: "nullable explicit zero", reviewerID: &reviewerID},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			backend := &saveBackendSpy{insertIDs: []int64{41}}
+			value := relationWriteModel{AuthorID: 0, ReviewerID: test.reviewerID}
+			if err := manager.Save(context.Background(), backend, &value); err != nil {
+				t.Fatalf("Save() error = %v", err)
+			}
+			if !slices.Equal(backend.calls, []string{"insert"}) || value.ID != 41 || !value.primaryKeyPresent {
+				t.Fatalf("Save() = (%#v, calls=%v), want generated key and one insert", value, backend.calls)
+			}
+			assertAssignmentNames(t, backend.insertPlans[0].Assignments(), "author", "reviewer")
+			assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "author", query.Integer(0))
+			if test.reviewerID == nil {
+				assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "reviewer", query.Null())
+			} else {
+				assertSaveAssignment(t, backend.insertPlans[0].Assignments(), "reviewer", query.Integer(0))
+			}
+		})
+	}
+}
+
+func TestSaveRejectsInvalidForeignKeyDescriptorValueBeforeBackendIO(t *testing.T) {
+	t.Parallel()
+
+	manager := orm.NewManager[relationWriteModel](relationWriteInvalidForeignKeyDescriptor{})
+	backend := &saveBackendSpy{insertIDs: []int64{41}}
+	value := relationWriteModel{AuthorID: 1}
+	err := manager.Save(context.Background(), backend, &value)
+	assertSaveError(t, err, query.CategoryField, query.CodeInvalidValue, "author")
+	assertNoSaveCalls(t, backend)
+}
+
 func TestQueryErrorPreservesCause(t *testing.T) {
 	t.Parallel()
 

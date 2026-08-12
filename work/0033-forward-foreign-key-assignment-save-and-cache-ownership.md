@@ -81,13 +81,16 @@ method가 없고 nil target은 pre-I/O invalid-plan입니다.
   `8748bb495e682d53e0d07c5e8f8fd0236ed5c9ed`과 EVID-071/run `31563615648`입니다.
 - GDJ-0033 activation head `a4a627a5702ac9db4ee8c39706ff098783a9c5e6`은 EVID-072/run
   `31566524953`의 unique exact 26/26 jobs·326/326 steps를 성공했습니다.
-- Baseline product는 exact 12 adapters/127 contracts=`121 passing + 5 deviation + 1 oracle_locked`, relation
-  actual 11/12이며 REL-002만 `oracle_locked`입니다. 이 decision tree도 아직 product bytes를 바꾸지 않습니다.
+- Decision-documentation head `9d728610acbe037bab73fde8910cc80ae8411691`은 EVID-074/run `31574653183`의
+  unique exact 26/26 jobs·326/326 steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- 현재 primary working tree는 bounded product를 local 구현해 exact 12 adapters/127 contracts=
+  `122 passing + 5 deviation + 0 oracle_locked`, relation actual 12/12이며 REL-002가 `passing`입니다. 이
+  implementation/pre-hosted documentation tree의 exact-head hosted CI는 아직 `not run/pending`입니다.
 - Phase-B no-product prototype exact patch SHA-256은
   `8329bb0ae76dc3297ad692cd447d11f11cc6578b574202c72dc7c0d754b6c566`이고 independent audit
   P0/P1/P2/P3=`0/0/0/0`입니다.
-- [ADR-0033](../docs/adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 위 증거를 근거로
-  Accepted입니다. 이 later decision-documentation tree의 exact-head CI는 `not run/pending`입니다.
+- [ADR-0033](../docs/adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 위 결정을 근거로 Accepted이고
+  현재 bounded product에 local Implemented입니다. Hosted implementation acceptance는 아직 pending입니다.
 
 ## Django 6.1 관찰 의미
 
@@ -153,9 +156,13 @@ no-PK assignment -> pending
 nullable nil / ClearReviewer -> absent
 ```
 
-- Receiver/origin/context/cache tuple을 먼저 검사합니다.
-- 모든 assigned target을 canonical normalized source-model identity + relation field name order로 검사하면서 target
-  key를 edge별 정확히 한 번 snapshot하고, 그 snapshot의 첫 no-PK target을 반환한 뒤 required-unset을 검사합니다.
+- Receiver/self/context 같은 structural validation 뒤 relation preflight는 세 phase를 모두 canonical normalized
+  source-model identity + relation field `Name` 순서로 수행합니다. Phase 1은 모든 relation-cache tuple을 검증·snapshot하고,
+  Phase 2는 모든 assigned target origin을 검증하면서 target PK를 edge별 정확히 한 번 snapshot하며, Phase 3은 같은
+  canonical 순서의 첫 no-PK target을 `unsaved_related_object`로 반환합니다.
+- 세 phase가 모두 끝난 뒤에만 required-unset, candidate build, all-success publication과 Manager I/O로 진행합니다.
+  앞선 Author no-PK가 뒤 Reviewer corrupt cache/self/origin을 가리거나 그 반대가 되는 adversarial case도 I/O 0/source
+  unchanged로 거부합니다.
 - 검증된 key snapshot으로 raw/write/object/cache candidate rebuild가 모두 성공하기 전 어떤 source state도 게시하지
   않습니다.
 - Candidate rebuild 실패와 corrupt cache tuple은 source unchanged + I/O 0입니다.
@@ -194,13 +201,15 @@ func (*BlogPost) ClearReviewer() (*BlogPost, error)
 - [x] Assignment/scalar/clear는 fresh source를 반환합니다.
 - [x] Required clear와 nullable pointer overload는 제공하지 않습니다.
 - [x] Pending `Unwrap`은 raw zero/old scalar를 authoritative하게 노출하지 않고 REL-002로 실패합니다.
-- [x] Assigned-target validation은 required-unset보다 우선하고 각 pass 안의 relation order는 canonical name order입니다.
+- [x] Cache-tuple, assigned-target origin/PK snapshot, 첫 no-PK 판정의 corrected three-phase preflight는 required-unset보다
+  우선하고 모든 phase의 relation order는 canonical name order입니다.
 - [x] Session callback-local positive만 계약이며 callback 이후 success/failure assertion은 두지 않습니다.
 
 ## bounded implementation 경로
 
-Decision-documentation head의 hosted CI가 clean일 때만 temp prototype을 primary implementation의 출발점으로
-사용합니다. Copy 전에 exact patch/hash를 다시 검증하고 frontmatter allowlist 밖 경로가 필요하면 멈춰 재-activation합니다.
+Decision-documentation head의 hosted CI가 clean임을 EVID-074로 확인한 뒤 frozen prototype을 primary implementation의
+출발점으로 사용했습니다. Exact patch/hash를 재검증했고 구현은 아래 frontmatter allowlist의 exact 23 source/product
+path에 한정됩니다.
 
 Source/product paths:
 
@@ -232,16 +241,18 @@ reverse/delete facade, migration/codec, `go.mod`, `go.sum`, `Makefile`.
 
 ## Product implementation 완료 조건
 
-- [ ] New source/no-PK target external consumer와 REL-002 actual이 exact failure/DB unchanged/I/O0
-- [ ] Target Save 뒤 same pending source Save reconcile success
-- [ ] Manual PK including zero, missing-row DB reach, required unset과 error precedence
-- [ ] Same/different scalar, nullable clear, original/derived/unrelated/eager COW cache matrix
-- [ ] Nil/zero/copy/cross-origin/context/session/corrupt tuple/no-partial-publication adversarial gates
-- [ ] Project companion deterministic generation, last-good, external no-overlay compile
-- [ ] Existing app-generated exact13 byte identity
-- [ ] REL-002 manifest만 `passing`; reference oracle/checksum/static NI bytes unchanged
-- [ ] Aggregate hard locks and workflow inventory measured from final bytes
-- [ ] Normal/race/CGO0/vet/bounded Linux386 and exact hosted 26-job matrix PASS
+- [x] New source/no-PK target external consumer와 REL-002 actual이 exact failure/DB unchanged/I/O0
+- [x] Target Save 뒤 same pending source Save reconcile success
+- [x] Manual PK including zero, missing-row DB reach, required unset과 error precedence
+- [x] Same/different scalar, nullable clear, original/derived/unrelated/eager COW cache matrix
+- [x] Nil/zero/copy/cross-origin/context/session/corrupt tuple/no-partial-publication adversarial gates
+- [x] Corrected canonical three-phase preflight와 양방향 masking adversarial gate
+- [x] Project companion deterministic generation, last-good, external no-overlay compile
+- [x] Existing app-generated exact13 byte identity
+- [x] REL-002 manifest만 `passing`; reference oracle/checksum/static NI bytes unchanged
+- [x] Aggregate hard locks and workflow inventory measured from final bytes
+- [x] Local normal/race/CGO0/vet/bounded Linux386 PASS
+- [ ] Exact implementation-head hosted 26-job matrix PASS
 - [ ] Completion docs and terminal evidence/status each use later distinct exact-head CI
 
 ## 별도 추적 범위
@@ -259,6 +270,11 @@ reverse/delete facade, migration/codec, `go.mod`, `go.sum`, `Makefile`.
   697/697/0, 70,659 bytes, SHA-256
   `d017e9e848d4cf3e73b67075c0e271b7b31c1ed5a93416b1c78968d3d5904dde`.
 - EVID-073: no-product Phase A/B local feasibility, patch `8329bb0...`, audit P0..P3=0.
-- 이 EVID append와 Accepted decision exact13 tree 자체 CI는 `not run/pending`; EVID-072를 재사용하지 않습니다.
-- 다음 정확한 작업은 exact13 decision documentation을 commit/push하고 unique hosted run을 terminal strict-audit한 뒤,
-  verified Phase-B patch에서 bounded implementation을 시작하는 것입니다. Draft PR은 merge하지 않습니다.
+- EVID-074/run `31574653183`: exact decision-documentation head `9d728610...`의 unique hosted 26/26·326/326 success와
+  audit P0..P3=0. Decision-only proof이며 implementation proof로 재사용하지 않습니다.
+- EVID-075: exact 23-path local bounded implementation, diff SHA-256 `b760d6d7...`, local `122 + 5 + 0`, relation
+  12/12, corrected three-phase와 final normal/race/CGO0/vet/386 evidence.
+- 다음 정확한 작업은 이 exact 23 source + 8 documentation, combined 31-path implementation/pre-hosted tree를
+  commit/push하고 unique exact-head hosted run을 terminal strict-audit하는 것입니다. Combined tree의 local focused
+  normal/race와 CI-equivalent 715-test roster는 EVID-075의 independent pre-commit audit에서 통과했지만 immutable
+  exact-head hosted CI는 아직 `not run/pending`입니다. EVID-072/074를 재사용하지 않고 Draft PR도 merge하지 않습니다.

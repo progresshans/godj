@@ -23,6 +23,8 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 	switch scenario {
 	case "django.relation.cross_app_metadata":
 		return relationCrossAppMetadata, true
+	case "django.relation.unsaved_related_target":
+		return relationUnsavedRelatedTarget, true
 	case "django.relation.forward_lazy_cache":
 		return relationForwardLazyCache, true
 	case "django.relation.forward_lookup_join_reuse":
@@ -46,6 +48,47 @@ func relationScenarioHandler(scenario string) (scenarioHandler, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func relationUnsavedRelatedTarget(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
+	observed, err := relationdeleteproduct.ObserveUnsavedRelatedTarget(ctx)
+	if err != nil {
+		return protocol.Observation{}, fmt.Errorf("observe generated REL-002 product: %w", err)
+	}
+	var queryError *query.Error
+	if !errors.As(observed.Err, &queryError) {
+		return protocol.Observation{}, fmt.Errorf("REL-002 error = %v, want *query.Error", observed.Err)
+	}
+	statementKinds := make([]protocol.Value, len(observed.Metrics.StatementKinds))
+	for index, kind := range observed.Metrics.StatementKinds {
+		statementKinds[index] = protocol.String(kind)
+	}
+	messageIsContract := false
+	databaseState := relationDeleteDatabaseStateValue(observed.After)
+	metrics := protocol.Object(map[string]protocol.Value{
+		"query_count":           protocol.Integer(strconv.FormatInt(observed.Metrics.QueryCount, 10)),
+		"statement_kinds":       protocol.List(statementKinds...),
+		"join_kinds":            protocol.List(),
+		"inner_join_count":      protocol.Integer("0"),
+		"left_outer_join_count": protocol.Integer("0"),
+		"row_delta": protocol.Object(map[string]protocol.Value{
+			"authors": protocol.Integer(strconv.Itoa(len(observed.After.Authors) - len(observed.Before.Authors))),
+			"posts":   protocol.Integer(strconv.Itoa(len(observed.After.Posts) - len(observed.Before.Posts))),
+		}),
+	})
+	return protocol.Observation{
+		ID:     contract.ID,
+		Status: protocol.StatusObserved,
+		Phase:  contract.Phase,
+		Error: &protocol.ObservedError{
+			Category:          queryError.Category,
+			Code:              queryError.Code,
+			Message:           observed.Err.Error(),
+			MessageIsContract: &messageIsContract,
+		},
+		DBState: &databaseState,
+		Metrics: &metrics,
+	}, nil
 }
 
 func relationProtectDelete(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {

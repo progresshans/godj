@@ -1,4 +1,4 @@
-// Package relationdeleteproduct executes the checked-in generated REL-007/008
+// Package relationdeleteproduct executes the checked-in generated REL-002/007/008
 // project against fresh, manually provisioned SQLite fixtures. Every result is
 // derived from generated code and the live database.
 package relationdeleteproduct
@@ -24,6 +24,9 @@ import (
 
 const (
 	OperationQuery           = "QUERY"
+	OperationSelect          = "SELECT"
+	OperationInsert          = "INSERT"
+	OperationUpdate          = "UPDATE"
 	OperationRelationSetNull = "UPDATE"
 	OperationDelete          = "DELETE"
 )
@@ -99,6 +102,24 @@ type Observation struct {
 	SetNull DeleteObservation
 }
 
+// WriteMetrics records only ORM operations attempted inside one explicitly
+// bounded product operation. Fixture provisioning and before/after inspection
+// deliberately use the unwrapped backend and are therefore excluded.
+type WriteMetrics struct {
+	QueryCount     int64
+	InsertCount    int64
+	UpdateCount    int64
+	DeleteCount    int64
+	StatementKinds []string
+}
+
+type UnsavedRelatedTargetObservation struct {
+	Err     error
+	Before  DatabaseState
+	After   DatabaseState
+	Metrics WriteMetrics
+}
+
 type fixtureConfig struct {
 	authorDeleteAction     string
 	reviewerDeleteAction   string
@@ -130,10 +151,17 @@ type recordingRelationSession struct {
 	recorder *recordingRelationAtomic
 }
 
+type recordingBackend struct {
+	backend project.Backend
+	mu      sync.Mutex
+	kinds   []string
+}
+
 var databaseSequence atomic.Uint64
 
 var _ db.RelationAtomic = (*recordingRelationAtomic)(nil)
 var _ db.RelationSession = (*recordingRelationSession)(nil)
+var _ project.Backend = (*recordingBackend)(nil)
 
 // Observe runs REL-007 and REL-008 against separate fresh databases.
 func Observe(ctx context.Context) (Observation, error) {
@@ -149,6 +177,114 @@ func Observe(ctx context.Context) (Observation, error) {
 		return Observation{}, fmt.Errorf("observe REL-008: %w", err)
 	}
 	return Observation{Protect: protect, SetNull: setNull}, nil
+}
+
+// ObserveUnsavedRelatedTarget executes REL-002 through the checked-in project
+// facade. Only the New/assignment/Save operation window is recorded; setup and
+// database-state inspection cannot make a zero-I/O failure look non-zero.
+func ObserveUnsavedRelatedTarget(ctx context.Context) (UnsavedRelatedTargetObservation, error) {
+	if ctx == nil {
+		return UnsavedRelatedTargetObservation{}, fmt.Errorf("observe REL-002: context is nil")
+	}
+	fixture, err := openFixture(ctx)
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, err
+	}
+	observation, observeErr := observeUnsavedRelatedTargetWithFixture(ctx, fixture)
+	closeErr := fixture.close()
+	if observeErr != nil {
+		return UnsavedRelatedTargetObservation{}, errors.Join(observeErr, closeErr)
+	}
+	if closeErr != nil {
+		return UnsavedRelatedTargetObservation{}, closeErr
+	}
+	return observation, nil
+}
+
+func observeUnsavedRelatedTargetWithFixture(
+	ctx context.Context,
+	fixture *relationFixture,
+) (UnsavedRelatedTargetObservation, error) {
+	if err := provision(ctx, fixture.backend, defaultFixtureConfig()); err != nil {
+		return UnsavedRelatedTargetObservation{}, err
+	}
+	before, err := readState(ctx, fixture.backend)
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, err
+	}
+	recorder := &recordingBackend{backend: fixture.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, fmt.Errorf("bind generated REL-002 project facade: %w", err)
+	}
+	target, err := models.AuthorsAuthor.New(authors.Author{Name: "Unsaved"})
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, fmt.Errorf("construct REL-002 target: %w", err)
+	}
+	source, err := models.BlogPost.New(blog.Post{Title: "Unsaved"})
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, fmt.Errorf("construct REL-002 source: %w", err)
+	}
+	source, err = source.WithAuthor(target)
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, fmt.Errorf("assign REL-002 target: %w", err)
+	}
+	saveErr := source.Save(ctx)
+	after, err := readState(ctx, fixture.backend)
+	if err != nil {
+		return UnsavedRelatedTargetObservation{}, err
+	}
+	return UnsavedRelatedTargetObservation{
+		Err:     saveErr,
+		Before:  before,
+		After:   after,
+		Metrics: recorder.snapshot(),
+	}, nil
+}
+
+func (recorder *recordingBackend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	recorder.record(OperationSelect)
+	return recorder.backend.Query(ctx, plan)
+}
+
+func (recorder *recordingBackend) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+	recorder.record(OperationInsert)
+	return recorder.backend.Insert(ctx, plan)
+}
+
+func (recorder *recordingBackend) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+	recorder.record(OperationUpdate)
+	return recorder.backend.Update(ctx, plan)
+}
+
+func (recorder *recordingBackend) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
+	recorder.record(OperationDelete)
+	return recorder.backend.Delete(ctx, plan)
+}
+
+func (recorder *recordingBackend) record(kind string) {
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	recorder.kinds = append(recorder.kinds, kind)
+}
+
+func (recorder *recordingBackend) snapshot() WriteMetrics {
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	metrics := WriteMetrics{StatementKinds: append([]string(nil), recorder.kinds...)}
+	for _, kind := range recorder.kinds {
+		switch kind {
+		case OperationSelect:
+			metrics.QueryCount++
+		case OperationInsert:
+			metrics.InsertCount++
+		case OperationUpdate:
+			metrics.UpdateCount++
+		case OperationDelete:
+			metrics.DeleteCount++
+		}
+	}
+	return metrics
 }
 
 func observeDelete(ctx context.Context, targetID int64, config fixtureConfig) (DeleteObservation, error) {

@@ -39,6 +39,40 @@ func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	if err != nil {
 		return err
 	}
+	newAuthor, err := models.AuthorsAuthor.New(authors.Author{Name: "new author"})
+	if err != nil {
+		return err
+	}
+	if err := newAuthor.Save(ctx); err != nil {
+		return err
+	}
+	newPost, err := models.BlogPost.New(blog.Post{Title: "new post"})
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithAuthor(newAuthor)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithReviewer(newAuthor)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithAuthorID(1)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.WithReviewerID(2)
+	if err != nil {
+		return err
+	}
+	newPost, err = newPost.ClearReviewer()
+	if err != nil {
+		return err
+	}
+	if err := newPost.Save(ctx); err != nil {
+		return err
+	}
 	authorQuery := models.AuthorsAuthor.
 		Filter(authors.AuthorFields.Name.IContains("all authors")).
 		OrderBy(authors.AuthorFields.ID.Asc())

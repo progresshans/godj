@@ -1,6 +1,6 @@
 # ADR-0033: Forward ForeignKey Assignment, Save, and Cache Ownership
 
-- 상태: Accepted
+- 상태: Implemented locally (Accepted decision; exact-head hosted CI pending)
 - 날짜: 2026-08-12
 - 관련 work/contract:
   [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md), REL-002, Q-013, Q-017
@@ -13,21 +13,27 @@
 
 ## 상태와 범위
 
-이 ADR은 **Accepted**입니다. Pinned Django 6.1이 정한 forward ForeignKey assignment/save 관찰 의미를 먼저
-호환 의무로 고정하고, 그 의미를 Go value, explicit error, project wrapper와 generated code로 옮기는 정확한
-ownership/API 경계를 결정합니다.
+이 ADR은 **Accepted decision을 exact 23-path bounded product에 local 구현한 상태**입니다. Pinned Django 6.1이 정한
+forward ForeignKey assignment/save 관찰 의미를 먼저 호환 의무로 고정하고, 그 의미를 Go value, explicit error,
+project wrapper와 generated code로 옮기는 정확한 ownership/API 경계를 결정·구현합니다. Exact-head hosted
+implementation acceptance는 아직 pending입니다.
 
-Acceptance의 근거는 다음 두 개의 서로 다른 증거입니다.
+결정과 local implementation의 근거는 서로 재사용하지 않는 다음 증거입니다.
 
 - GDJ-0033 activation head `a4a627a5702ac9db4ee8c39706ff098783a9c5e6`은 EVID-072/run
   `31566524953`의 exact 26/26 jobs·326/326 steps를 통과했습니다.
 - 그 exact head에서 분리한 no-product Phase-B worktree는 patch SHA-256
   `8329bb0ae76dc3297ad692cd447d11f11cc6578b574202c72dc7c0d754b6c566`으로 아래 API와 상태 머신의
   compile/runtime feasibility를 증명했고 독립 감사 P0/P1/P2/P3=`0/0/0/0`을 받았습니다.
+- Decision-documentation head `9d728610acbe037bab73fde8910cc80ae8411691`은 EVID-074/run `31574653183`의 별도
+  exact 26/26 jobs·326/326 steps와 audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- Exact 23-path product diff `b760d6d7...`는 EVID-075의 final local normal/race/CGO0/vet/Linux386/full `./...`,
+  measured inventory와 audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
 
-Acceptance는 **결정과 구현 가능성**에 한정됩니다. Primary checkout의 source/generated/product/manifest는 아직
-바뀌지 않았고 REL-002는 계속 `oracle_locked`입니다. Product implementation과 publication은 이 ADR을 기록한
-decision-documentation head의 별도 exact-head CI가 성공한 뒤 시작합니다.
+Local implementation은 **SQLite/AutoField bounded product**에 한정됩니다. REL-002는 local manifest/actual에서
+`passing`이고 aggregate는 `122 passing + 5 reviewed deviation + 0 oracle_locked`, relation 12/12입니다. 이 source와
+EVID-074/075를 포함하는 combined 31-path tree의 exact-head hosted CI는 아직 실행되지 않았으므로 hosted-accepted나
+completed로 표현하지 않습니다.
 
 ADR-0032가 Accepted한 bounded Gate 0의 `Backend=db.Queryer+db.Mutator`, `Using`, all-model wrappers, read/eager
 surface와 one-companion publication은 재개방하지 않습니다. Callback 뒤 session-origin wrapper 동작도 계속
@@ -123,16 +129,21 @@ wrapper와 exact GDJ-0033 product fixture만 지원합니다.
 
 Source Save는 다음 순서로 fail-closed preflight를 수행합니다.
 
-1. receiver/self/origin/context/cache tuple을 검증합니다.
-2. 모든 assigned target을 canonical normalized source-model identity + relation field name 순서로 검사하면서 target
-   key를 edge별 정확히 한 번 snapshot합니다.
-3. 그 snapshot의 PK presence가 없는 첫 target을 `model_state_error/unsaved_related_object`로 반환합니다.
-4. 그 뒤 required scalar가 unset인 첫 field를 `field_error/required_field`로 반환합니다.
-5. 검증을 마친 snapshot으로 candidate raw/write/object/cache를 전부 구성합니다.
-6. 모든 validation/rebuild가 성공한 뒤에만 준비된 pointer/state를 error-free assignment로 게시하고 Manager plan/I/O로
+1. receiver/self/context 같은 structural validation을 수행합니다.
+2. Phase 1은 모든 relation-cache tuple을 canonical normalized source-model identity + relation field `Name` 순서로
+   검증하고 snapshot합니다.
+3. Phase 2는 모든 assigned target origin을 같은 canonical 순서로 검증하면서 target PK를 edge별 정확히 한 번
+   snapshot합니다.
+4. Phase 3은 그 snapshot의 PK presence가 없는 첫 target을 같은 canonical 순서의
+   `model_state_error/unsaved_related_object`로 반환합니다.
+5. 세 phase가 모두 끝난 뒤 required scalar가 unset인 첫 field를 `field_error/required_field`로 반환합니다.
+6. 검증을 마친 snapshot으로 candidate raw/write/object/cache를 전부 구성합니다.
+7. 모든 validation/rebuild가 성공한 뒤에만 준비된 pointer/state를 error-free assignment로 게시하고 Manager plan/I/O로
    진입합니다.
 
-이 two-pass 순서는 declaration order가 아니라 generated surface의 canonical name order입니다. Schema field
+이 corrected three-phase 순서는 declaration order가 아니라 generated surface의 canonical name order입니다. 앞선
+Author no-PK가 뒤 Reviewer corrupt cache/self/origin을 가리거나 그 반대가 되는 경우도 전체 preflight가 I/O 0/source
+unchanged로 먼저 거부합니다. Schema field
 declaration permutation은 provenance/input hash를 바꾸지만 public surface와 error precedence를 바꾸지 않습니다.
 
 Pending-at-assignment target이면서 source scalar가 계속 empty인 경우만 later-key reconciliation 대상입니다.
@@ -219,7 +230,9 @@ deterministically replace합니다.
 
 ## 증거와 재귀 경계
 
-EVID-072는 activation head `a4a627a...`만 증명합니다. EVID-073은 primary product를 바꾸지 않은 detached Phase-B
-prototype와 local commands만 증명합니다. 이 ADR을 Accepted로 바꾸는 later decision-documentation tree는 둘 중 어느
-run으로도 재사용해 증명할 수 없으며 자체 exact-head hosted CI가 `not run/pending`입니다. Draft PR #1은 merge하지
-않습니다.
+EVID-072는 activation head `a4a627a...`만 증명하고 EVID-073은 primary product를 바꾸지 않은 detached Phase-B
+prototype와 local commands만 증명합니다. EVID-074/run `31574653183`은 exact decision-documentation head
+`9d728610...`의 hosted 26/26·326/326과 audit P0..P3=0을 증명하지만 implementation proof로 재사용하지 않습니다.
+EVID-075는 exact 23-path bounded product가 local `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12와
+corrected three-phase/final gates를 통과한 pre-hosted evidence입니다. 이 ADR의 local implementation과 EVID-074/075를
+포함하는 combined 31-path tree 자체 exact-head hosted CI는 `not run/pending`입니다. Draft PR #1은 merge하지 않습니다.

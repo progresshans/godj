@@ -201,18 +201,23 @@
 - GDJ-0033 activation-documentation/hosted-tested commit:
   `a4a627a5702ac9db4ee8c39706ff098783a9c5e6`
   (`docs: activate Django-first relation assignment`)
+- GDJ-0033 decision-documentation/hosted-tested commit:
+  `9d728610acbe037bab73fde8910cc80ae8411691`
+  (`docs: accept Django-first relation write boundary`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)이 active이고
   [ADR-0033](../adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Phase A/B/C를 근거로
-  Accepted입니다. Activation head `a4a627a...`의
+  Accepted된 뒤 exact 23-path bounded product에 local Implemented입니다. Activation head `a4a627a...`의
   [EVID-072](TEST_EVIDENCE.md#evid-20260812-072--gdj-0033-activation-documentation-exact-head-ci) /
   [run 31566524953](https://github.com/progresshans/godj/actions/runs/31566524953)은 unique exact 26/26 jobs·326/326
-  steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Detached no-product Phase-B prototype
-  `8329bb0a...`도 public API, PK-presence, pending-only reconciliation, canonical two-pass preflight와 per-edge COW
-  cache를 normal/race/CGO0/vet/Linux386에서 증명했습니다. Primary product는 아직 unchanged
-  `121 passing + 5 deviation + 1 oracle_locked`, relation 11/12이며 REL-002는 locked입니다. 이 EVID-072/073 append와
-  exact decision-documentation tree 자체 CI는 `not run/pending`이고 activation run을 재사용하지 않습니다.
+  steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했고, exact decision head `9d728610...`의
+  [EVID-074](TEST_EVIDENCE.md#evid-20260812-074--gdj-0033-github-hosted-decision-documentation-head-exact-26-job-ci) /
+  [run 31574653183](https://github.com/progresshans/godj/actions/runs/31574653183)도 별도 exact 26/26·326/326과 audit
+  P0..P3=0을 통과했습니다. EVID-075의 local implementation은 corrected canonical three-phase preflight, per-edge COW와
+  exact final gates를 통과해 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12, REL-002 passing입니다.
+  Source와 EVID-074/075를 포함하는 combined 31-path tree 자체 exact-head hosted CI는 `not run/pending`이며 앞선 run을
+  재사용하지 않습니다.
 - 최근 완료 작업:
   [GDJ-0032 Production Forward Project Facade and Additive First Publication](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)
 - 활성 작업:
@@ -760,10 +765,10 @@
 ### 호환 계약과 machine artifact
 
 - Protocol v2 reference에는 12 ordered set, 127 unique contract/scenario와 132 ordered
-  cross-binding이 있습니다. 현재 product checkout은 12개 set에 actual GoDj adapter를 가지며
-  127 contract의 hosted-accepted 제품 분류는 `121 passing + 5 deviation + 1 oracle_locked`입니다. Relation set은
-  REL-001/003/004/005/006/007/008/009/010/011/012 actual `passing`, REL-002는 ordered payload-free
-  `not_implemented`/`oracle_locked`입니다.
+  cross-binding이 있습니다. 현재 local product checkout은 12개 set에 actual GoDj adapter를 가지며
+  127 contract 분류는 `122 passing + 5 deviation + 0 oracle_locked`입니다. Relation set REL-001..012 actual은 모두
+  `passing`입니다. 직전 hosted-accepted decision head는 source 변경 전 `121 + 5 + 1`, relation 11/12였고 현재
+  implementation-head hosted acceptance는 pending입니다.
   MIG-018/020/022/024는
   [DEV-0001](../DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리),
   MIG-052는
@@ -794,20 +799,18 @@
   `49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, 11-line `SHA256SUMS`
   1,061 bytes `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. 기존 10-line/
   959-byte prefix `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는 불변입니다.
-- Twelfth relation manifest는 status-only REL-007/008 delta까지 반영한 10,776 bytes
-  `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, static fixture는 1,859 bytes
+- Twelfth relation manifest는 REL-002까지 `passing`으로 전환한 10,770 bytes
+  `791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b`, static fixture는 1,859 bytes
   `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, exact oracle은 33,792 bytes
   `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`입니다. 12-line
   `SHA256SUMS`는 1,148 bytes `067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`이고
   기존 11-line prefix는 byte-for-byte 보존됩니다. 127-scenario canonical payload는 498,051 bytes
   `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`입니다.
-- REL-001..012 oracle/static은 각각 `observed`/`not_implemented` exact 12이고 product manifest는
-  REL-001/003/004/005/006/007/008/009/010/011/012 `passing` + REL-002 `oracle_locked`입니다. Static comparison은
-  ordered mismatch 12/exit 1이고 product `godjcheck`는 trusted oracle-blind actual adapters로 열한 contract를
-  관찰한 뒤 exact `GoDj product observations match 11 required contracts; 1 remain not implemented`로
-  성공합니다. 따라서 현재 aggregate는 reference 12/127/132와 product
-  12/127=`121 passing + 5 deviation + 1 oracle_locked`를 분리합니다. 이 GDJ-0030 분류의 hosted
-  implementation-head acceptance는 EVID-061/run `31510689383`에서 통과했습니다.
+- REL-001..012 oracle/static은 각각 `observed`/`not_implemented` exact 12로 byte-frozen이고 local product manifest는
+  REL-001..012 모두 `passing`입니다. Static comparison은 ordered mismatch 12/exit 1이고 product `godjcheck`는 trusted
+  oracle-blind actual adapters로 exact 12 contract를 관찰해 성공합니다. 따라서 현재 local aggregate는 reference
+  12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리합니다. 이 local transition은
+  EVID-075가 증명하며 exact-head hosted acceptance는 pending입니다.
 - Existing MIG-057..064와 새 MIG-065..074 actual product comparison은 각각 locked reference oracle과
   difference 0입니다. Project-check static comparison은 exit 1/ordered mismatch 10을 유지하고, product
   `godjcheck`는 registered actual adapter로 성공합니다. Unknown/unregistered set만 conformance-tool
@@ -1137,14 +1140,15 @@ Accepted됐고 REL-009/010/011 one-hop eager engine과 REL-007/008 low-level del
 Broader eager/write/delete/DDL/migration codec와 relation surface가 열려 있어 `Partial`입니다. Q-017은 completed
 GDJ-0031의 forward read-only test-only compile feasibility와 completed GDJ-0032의 bounded production forward
 first-publication 뒤에도 P1/open입니다. 모든 declared model의 target project wrapper와 exact Gate 0 facade 이름은
-그 bounded packet에서 확정됐습니다. Active GDJ-0033은 REL-002 assignment/save/cache ownership의 Django 의미와
-Go API를 ADR-0033으로 Accepted했지만 product implementation은 아직 시작하지 않았습니다. Reverse manager,
+  그 bounded packet에서 확정됐습니다. Active GDJ-0033은 REL-002 assignment/save/cache ownership의 Django 의미와
+  Go API를 ADR-0033으로 Accepted하고 exact 23-path bounded product에 local 구현했습니다. Reverse manager,
 cross-materialization target identity/downstream cache와 general generated upgrade는 계속 open입니다.
 다음은 의도적으로 아직 구현하지 않은 제품 범위입니다.
 
 - Direct project command, writer/upgrade/cache와 broader public CLI/library/generator handshake
 - Codec v2+, executable/custom/data operation과 module/remote/recursive discovery adapter
-- REL-002와 broader relation behavior. REL-007/008 bounded low-level delete와 REL-009/010/011 bounded one-hop forward select-related는
+- Broader relation behavior. REL-002 bounded assignment/save/cache ownership은 local implemented이고 REL-007/008 bounded
+  low-level delete와 REL-009/010/011 bounded one-hop forward select-related는
   Accepted/hosted-verified이고 REL-012 bounded reverse prefetch도 Accepted/hosted-verified지만 general
   eager/custom Prefetch/filter/order/write/delete/DDL/migration codec는 packet 밖입니다.
 - OneToOne/ManyToMany, non-PK `to_field`, broader delete/eager-loading relation semantics
@@ -1154,16 +1158,15 @@ cross-materialization target identity/downstream cache와 general generated upgr
 
 ## 다음 정확한 작업
 
-Phase A exact-object audit, Phase B no-product feasibility와 Phase C decision freeze는 완료됐습니다. 다음은 이 exact13
-decision-documentation tree를 commit/push해 별도 unique hosted CI를 통과시키는 것입니다. 그 뒤 frozen
-`8329bb0a...` temp patch를 바이트/allowlist 재검증하고 bounded source implementation을 시작합니다.
+Phase A/B/C와 exact decision-documentation hosted CI, exact 23-path bounded local implementation 및 final local gates까지
+완료됐습니다. 다음은 이 source + exact 8 documentation의 combined 31-path implementation/pre-hosted tree를 commit/push해
+별도 unique exact-head hosted CI를 terminal strict-audit하는 것입니다.
 
 Implementation은 exact public `New`/`Save`/`WithAuthor`/`WithReviewer`/scalar helpers/`ClearReviewer`, project-private
-write descriptor, pending-only reconciliation, canonical two-pass preflight와 per-edge COW cache를 그대로 구현합니다.
-REL-002 reference oracle/checksum/static NI는 바꾸지 않고 actual/manifest/inventory만 final measured bytes에 맞춥니다.
-Allowlist 밖 core/backend/app-generated path가 필요하면 즉시 멈추고 재-activation합니다. EVID-072/run
-`31566524953`은 activation proof이므로 decision/implementation proof로 재사용하지 않습니다. Draft PR은 사용자 요청 전
-merge하지 않습니다.
+write descriptor, pending-only reconciliation, corrected canonical three-phase preflight와 per-edge COW cache를 구현했습니다.
+REL-002 reference oracle/checksum/static NI는 byte-frozen이고 actual/manifest/inventory만 final measured bytes에 맞췄습니다.
+Allowlist 밖 core/backend/app-generated path는 바꾸지 않았습니다. EVID-072/074는 각각 activation/decision proof이므로
+implementation proof로 재사용하지 않습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1284,8 +1287,10 @@ merge하지 않습니다.
 - GDJ-0033 activation documentation: `a4a627a5702ac9db4ee8c39706ff098783a9c5e6`; EVID-072/run
   `31566524953` exact 26/26 jobs·326/326 steps PASS; four-coordinate 697/697/0 inventory, exact 13/14/17,
   audit P0..P3=0
-- 현재 working tree: exact13 Phase A/B/C decision-documentation transition; own exact-head hosted CI
-  `not run/pending`; EVID-072 재사용 금지
+- GDJ-0033 decision documentation: `9d728610acbe037bab73fde8910cc80ae8411691`; EVID-074/run
+  `31574653183` exact 26/26 jobs·326/326 steps PASS; audit P0..P3=0; decision-only proof
+- 현재 working tree: exact 23 source/product + exact 8 implementation/pre-hosted documentation, combined 31 paths; local
+  gates PASS, own exact-head hosted CI `not run/pending`; EVID-072/074 재사용 금지
 - 최근 완료 work:
   [GDJ-0032](../../work/0032-production-forward-project-facade-and-additive-first-publication.md)
 - active work:
@@ -1301,11 +1306,11 @@ merge하지 않습니다.
   forward assignment/save/cache ownership; broader
   reverse/write/generated upgrade는 Q-017 P1/open
 - 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding. Locked oracle bytes는 불변이고
-  product manifest는 REL-001/003/004/005/006/007/008/009/010/011/012 `passing` + REL-002 `oracle_locked`
+  local product manifest는 REL-001..012 전부 `passing`
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
   coordinates와 local/hosted independent audits P0/P1/P2/P3 0; ADR-0023 Accepted
-- 현재 hosted-accepted 제품 분류: 12 product adapter/127 product contract=
-  `121 passing + 5 deviation + 1 oracle_locked`, REL-001/003/004/005/006/007/008/009/010/011/012 actual 11/12
+- 현재 local 제품 분류: 12 product adapter/127 product contract=
+  `122 passing + 5 deviation + 0 oracle_locked`, REL-001..012 actual 12/12. Implementation-head hosted acceptance는 pending
 - Q-010/Q-012: `Partial`; exact global check/public project runner는 구현됐지만 full handshake,
   writer/upgrade와 DB-aware check는 미구현
 - Q-013: `Partial`; symbolic architecture, IR v3/REL-001 metadata, REL-004 predicate/INNER JOIN, REL-003/006
@@ -1314,8 +1319,8 @@ merge하지 않습니다.
   eager/custom Prefetch/filter/order/write/delete/DDL/migration과 broader backend는 open입니다.
 - Q-017: P1/open; completed GDJ-0031은 forward read-only compile feasibility를 검증했고 completed GDJ-0032는 모든
   declared model의 project wrapper/query root와 required/nullable same-target-wrapper forward facade를 first-publish했습니다.
-  Active GDJ-0033은 REL-002 assignment/save/cache ownership의 Phase A/B/C를 끝냈고 exact mutation names는 bounded
-  surface에서 canonical입니다. Product bytes/status는 아직 unchanged입니다. Reverse manager,
+  Active GDJ-0033은 REL-002 assignment/save/cache ownership의 Phase A/B/C와 bounded local product를 끝냈고 exact mutation
+  names는 bounded surface에서 canonical입니다. Reverse manager,
   cross-materialization target identity/downstream cache, lifetime enforcement와 general generated upgrade policy는
   계속 open입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
@@ -1408,6 +1413,10 @@ merge하지 않습니다.
 - GDJ-0033 activation hosted: EVID-072/run 31566524953 exact 26/26·326/326 PASS; head `a4a627a...`,
   synthetic merge/head tree both `76cee6a5...`, unchanged four-coordinate 697/697/0 inventory and generated
   exact 13/14/physical 17, audit P0/P1/P2/P3=0; activation only
+- GDJ-0033 decision documentation hosted: EVID-074/run 31574653183 exact 26/26·326/326 PASS; head `9d728610...`,
+  synthetic merge `6f258270...`, head tree `b7d67f6b...`, audit P0/P1/P2/P3=0; decision only
+- GDJ-0033 implementation local: EVID-075; exact 23 source/product paths, diff SHA-256 `b760d6d7...`, final
+  normal/race/CGO0/vet/386/full `./...` PASS, local `122 + 5 + 0`, relation 12/12; exact-head hosted pending
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1460,10 +1469,10 @@ merge하지 않습니다.
   evidence/status/GDJ-0032 baseline run 31533890720 exact 26/26 PASS; GDJ-0032 activation run 31537726792 exact
   26/26 PASS; production facade implementation run 31541883680 exact 26/26 PASS; completion-documentation run
   31544273477 exact 26/26 PASS; terminal evidence/status/GDJ-0033 baseline run 31563615648 exact 26/26 PASS;
-  GDJ-0033 activation run 31566524953 exact 26/26 PASS
+  GDJ-0033 activation run 31566524953 exact 26/26 PASS; decision-documentation run 31574653183 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-072/run 31566524953을 decision/implementation proof로 재사용하거나, Accepted decision을
-  이미 product-implemented/REL-002 passing으로 표현하거나, exact assigned target pointer의 local ownership을
+- 가장 위험한 과장: EVID-072/run 31566524953이나 EVID-074/run 31574653183을 implementation proof로 재사용하거나,
+  local product-implemented/REL-002 passing을 hosted-accepted/completed로 표현하거나, exact assigned target pointer의 local ownership을
   cross-materialization identity map으로 확대하거나, REL-002 packet을 general generated upgrade/reverse/migration/
   non-SQLite support로 과장하는 것
 

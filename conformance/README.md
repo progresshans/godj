@@ -58,14 +58,14 @@ GDJ-0028은 exact ten-file generated reverse-prefetch product와 actual SQLite�
 REL-012 reverse prefetch도 `passing`으로 전환했습니다. GDJ-0029는 app-local projection scanner 두 개와
 project select-related companion을 더한 exact twelve-file product를 actual SQLite에 연결해 REL-009 required
 INNER, REL-010 nullable LEFT OUTER와 REL-011 reverse-path pre-I/O rejection을 함께 `passing`으로 전환했습니다.
-GDJ-0030 active implementation은 별도 exact thirteen-file relation-delete product와 project-bound collector를
-actual SQLite에 연결해 REL-007 `PROTECT`와 REL-008 `SET_NULL`을 `passing`으로 전환했습니다. Exact-head hosted
-implementation 검증과 Accepted/completed 문서 전이는 아직 남아 있습니다. REL-002만 ordered payload-free
-`not_implemented` actual과 `oracle_locked` manifest 상태를 유지합니다. 현재 reference는
+GDJ-0030은 별도 exact thirteen-file relation-delete product와 project-bound collector를 actual SQLite에 연결해
+REL-007 `PROTECT`와 REL-008 `SET_NULL`을 `passing`으로 전환했습니다. GDJ-0033은 existing exact thirteen-file
+generated prerequisite를 byte-for-byte 보존하면서 project facade companion 하나를 교체한 exact fourteen-file
+union에서 forward assignment와 Save를 실행해 REL-002도 `passing`으로 전환했습니다. 현재 reference는
 12 set/127 contract/132 ordered cross-binding이고, 제품 분류는 12 adapter/127 contract의
-`121 passing + 5 deviation + 1 oracle_locked`입니다. 이는 relation metadata, required predicate/object cache,
+`122 passing + 5 deviation + 0 oracle_locked`입니다. 이는 relation metadata, required predicate/object cache,
 nullable local-key access/`isnull`, bounded reverse accessor/lookup, exact reverse prefetch와 one-hop forward eager
-selection 및 bounded project-bound `PROTECT`/`SET_NULL` delete 11/12의 제품 증거이며 ForeignKey assignment,
+selection, forward assignment/Save 및 bounded project-bound `PROTECT`/`SET_NULL` delete 12/12의 제품 증거이며
 general cascade/eager graph/DDL/migration 전체
 지원을 뜻하지 않습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
@@ -87,7 +87,7 @@ general cascade/eager graph/DDL/migration 전체
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
-| `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; REL-002를 제외한 11개가 현재 product-required |
+| `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read부터 relation metadata까지 제품 package를 실행하는 열두 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
@@ -96,7 +96,7 @@ general cascade/eager graph/DDL/migration 전체
 | `relationreverseproduct` | exact nine-file generated reverse-relation fixture와 REL-005 actual SQLite observation root |
 | `relationprefetchproduct` | exact ten-file generated reverse-prefetch fixture와 REL-012 actual two-query SQLite observation root |
 | `relationselectproduct` | exact twelve-file generated one-hop forward select-related fixture와 REL-009/010/011 actual SQLite observation root |
-| `relationdeleteproduct` | exact thirteen-file generated project-bound relation-delete fixture와 REL-007/008 actual SQLite observation root |
+| `relationdeleteproduct` | legacy exact thirteen-file generated prerequisite와 updated facade를 합친 exact fourteen-file fixture; REL-002/007/008 actual SQLite observation root |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder/validator/canonical value, all-observed comparator와 required-observed product comparator |
@@ -442,10 +442,11 @@ union에 project-only prefetch companion 하나만 더한 exact ten-file union�
 `author_id IN` batch SELECT 1회, JOIN 0, warm access 추가 query 0을 actual SQLite에서 관찰합니다.
 `relationselectproduct`는 exact twelve-file union과 actual SQLite joined row scan으로 REL-009/010의
 required INNER/nullable LEFT OUTER eager access를 관찰하고, 같은 resolver로 REL-011 reverse path를 pre-I/O
-거부합니다. `relationdeleteproduct`는 exact thirteen-file union, 실제 `NO ACTION`/`RESTRICT` FK와 pinned
-`BEGIN IMMEDIATE` transaction 안에서 REL-007의 전 incoming edge `PROTECT` count 2와 mutation 0, REL-008의
-`UPDATE(2) -> DELETE(1)`/caller key clear를 관찰합니다. REL-002만 original 12-contract order 안에서 payload 없는
-`not_implemented`로 남습니다.
+거부합니다. `relationdeleteproduct`는 legacy exact thirteen-file prerequisite bytes를 보존하고 updated project
+facade 한 파일을 더한 exact fourteen-file generated union을 사용합니다. REL-002는 new source에 no-PK target을
+할당한 뒤 Save가 query/mutation 0, database unchanged와 `model_state_error/unsaved_related_object`로 실패하는 것을
+관찰합니다. 같은 실제 `NO ACTION`/`RESTRICT` FK와 pinned `BEGIN IMMEDIATE` transaction에서 REL-007의 전 incoming
+edge `PROTECT` count 2와 mutation 0, REL-008의 `UPDATE(2) -> DELETE(1)`/caller key clear도 계속 관찰합니다.
 
 ```bash
 go run ./conformance/cmd/godjcheck \
@@ -455,13 +456,13 @@ go run ./conformance/cmd/godjcheck \
 ```
 
 성공 stdout은 정확히
-`GoDj product observations match 11 required contracts; 1 remain not implemented`입니다.
-Product comparator는 registry가 요구하는 REL-002 이외의 11개 contract를 oracle과 byte-semantic하게 비교하고
-locked REL-002가 관찰된 것처럼 나타나면 거부합니다. 기존 11 all-observed adapter의 strict comparator
-의미는 바뀌지 않습니다. 비교가 끝나기 전에는 `-actual-output`을 만들지 않으므로 status/payload/
+`GoDj observations match the locked Django oracle for 12 contracts`입니다.
+Product comparator는 registry가 요구하는 12개 contract를 oracle과 byte-semantic하게 비교합니다. 기존
+all-observed adapter의 strict comparator 의미는 바뀌지 않습니다. 비교가 끝나기 전에는 `-actual-output`을
+만들지 않으므로 status/payload/
 registry mismatch는 exit 1 또는 2, 빈 stdout, output file 없음으로 fail-closed합니다.
 
-`not_implemented` actual은 정상 mismatch입니다. Comparator test는 result value, list
+Checked-in static `not_implemented` fixture는 의도된 mismatch입니다. Comparator test는 result value, list
 order, phase, error category/code, contractual message, DB state, metrics를 각각 변형해
 false green이 생기지 않는지 검증합니다.
 
@@ -757,8 +758,10 @@ GDJ-0028은 REL-012만 추가로 `passing`으로 바꾼 10,806 bytes/SHA-256
 `70fefee1b2e4bb72b7a84ff07e4d9737ee59d3056ca52641668a5915b29da477` status-only manifest입니다.
 GDJ-0029는 REL-009/010/011만 추가로 `passing`으로 바꾼 10,788 bytes/SHA-256
 `64ce839aba22cac015bb512f646a913d9a850912fa8405e65d6d25af14fb8141` status-only manifest입니다.
-GDJ-0030 active implementation은 REL-007/008만 추가로 `passing`으로 바꾼 10,776 bytes/SHA-256
+GDJ-0030은 REL-007/008만 추가로 `passing`으로 바꾼 10,776 bytes/SHA-256
 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46` status-only manifest입니다.
+GDJ-0033은 여기서 REL-002만 추가로 `passing`으로 바꾼 10,770 bytes/SHA-256
+`791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b` status-only manifest입니다.
 Oracle 33,792
 bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
 bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, 12-line
@@ -774,16 +777,18 @@ main/metadata/object, blog main/metadata/query/object와 project binding/reverse
 REL-009/010/011 fixture는 기존 object product 아홉 파일에 app-local projection companion 두 개와 project
 select-related companion 하나를 더한 exact twelve files를 재생성합니다. Required plain/eager 4-vs-1 SELECT와
 INNER 1, nullable LEFT OUTER 1, warm access extra query 0, reverse `posts` path의 query/mutation 0을 관찰합니다.
-REL-007/008 fixture는 같은 prerequisite union에 project relation-delete companion 하나를 더한 exact thirteen files를
-재생성하고, 실제 FK schema에서 `PROTECT` distinct source count 2와 mutation 0, `SET_NULL` UPDATE 2행 뒤 target
-DELETE 1행 및 하나의 transaction을 관찰합니다. 모든 actual은 oracle/static expected artifact를 import하지 않습니다.
+REL-007/008 fixture의 legacy exact thirteen generated prerequisite는 그대로 보존됩니다. GDJ-0033은 project facade
+companion만 deterministic하게 교체한 exact fourteen-file union에서 REL-002 assignment/Save와 supplemental
+presence/reconciliation/per-edge COW cache/rollback 경계를 검증합니다. 같은 실제 FK schema에서 `PROTECT` distinct
+source count 2와 mutation 0, `SET_NULL` UPDATE 2행 뒤 target DELETE 1행 및 하나의 transaction도 계속 관찰합니다.
+모든 actual은 oracle/static expected artifact를 import하지 않습니다.
 
 Required workflow topology는 full/exact 2 + independent project-check proof 4 + relation-binding proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
 relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
 normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
-검증합니다. Exact top-level package inventory는 697 run/697 pass/0 skip이고, encoded inventory는 70,659
-bytes/SHA-256 `d017e9e848d4cf3e73b67075c0e271b7b31c1ed5a93416b1c78968d3d5904dde`입니다.
+검증합니다. Exact top-level package inventory는 715 run/715 pass/0 skip이고, encoded inventory는 72,621
+bytes/SHA-256 `85575c84e202fb88570ab44d6ef1ca0df8ef4443cfd63dabfa70f65130f9e237`입니다.
 Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
 3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및
