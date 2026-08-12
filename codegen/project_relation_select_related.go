@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v1"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"
 
 // GenerateProjectRelationSelectRelated renders the additive project-only
 // select-related companion. It attaches a singular builder to the existing
@@ -439,8 +439,9 @@ func renderProjectRelationSelectRelatedEdge(
 	}
 
 	fmt.Fprintf(output, "type %s struct {\n", queryType)
-	fmt.Fprintf(output, "\tfactory %s\n", source.factoryType)
-	fmt.Fprintf(output, "\tquery   orm.ForwardSelectQuery[%s, %s]\n", sourceType, targetType)
+	fmt.Fprintf(output, "\tfactory          %s\n", source.factoryType)
+	fmt.Fprintf(output, "\tquery            orm.ForwardSelectQuery[%s, %s]\n", sourceType, targetType)
+	fmt.Fprintln(output, "\tconfigurationErr error")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_selection %s) %s() %s {\n", builderType, relation.selector, queryType)
@@ -450,7 +451,7 @@ func renderProjectRelationSelectRelatedEdge(
 		strconv.Quote(relation.field.Name),
 	)
 	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{}\n", queryType)
+	fmt.Fprintf(output, "\t\treturn %s{configurationErr: _err}\n", queryType)
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(
 		output,
@@ -459,7 +460,7 @@ func renderProjectRelationSelectRelatedEdge(
 		lowerFirst(relation.selector),
 	)
 	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{}\n", queryType)
+	fmt.Fprintf(output, "\t\treturn %s{configurationErr: _err}\n", queryType)
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintf(output, "\treturn %s{\n", queryType)
 	fmt.Fprintln(output, "\t\tfactory: _selection.factory,")
@@ -468,6 +469,17 @@ func renderProjectRelationSelectRelatedEdge(
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) All(_ctx context.Context) ([]*%s, error) {\n", queryType, source.objectType)
+	fmt.Fprintln(output, "\tif _query.configurationErr != nil {")
+	fmt.Fprintf(output, "\t\t_, _contextErr := (orm.ForwardSelectQuery[%s, %s]{}).All(_ctx)\n", sourceType, targetType)
+	fmt.Fprintln(output, "\t\tif _contextErr == nil {")
+	fmt.Fprintln(output, "\t\t\treturn nil, _query.configurationErr")
+	fmt.Fprintln(output, "\t\t}")
+	fmt.Fprintln(output, "\t\t_terminalErr, _ok := _contextErr.(*query.Error)")
+	fmt.Fprintln(output, "\t\tif _ok && _terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan {")
+	fmt.Fprintln(output, "\t\t\treturn nil, _query.configurationErr")
+	fmt.Fprintln(output, "\t\t}")
+	fmt.Fprintln(output, "\t\treturn nil, _contextErr")
+	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\t_selected, _err := _query.query.All(_ctx)")
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")

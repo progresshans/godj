@@ -26,12 +26,12 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 const (
-	relationFacadePhysicalBytes         = 140188
-	relationFacadePhysicalDigest        = "bb7456ff57e37f0b665da4519c8804292d010b0da2464290c7eebd28ceb70021"
-	relationFacadeLegacyGeneratedBytes  = 26140
-	relationFacadeLegacyGeneratedDigest = "a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628"
-	relationFacadeGeneratedBytes        = 58680
-	relationFacadeGeneratedDigest       = "90e0e6cc5abf471a078107d58acf2e091fcf10d8252444c5e1efc671a45fb8ec"
+	relationFacadePhysicalBytes               = 142058
+	relationFacadePhysicalDigest              = "d87264ce06831e9c8da03f171053fbf25d82ad14665caf4a6d7b8943f2a1cac6"
+	relationFacadePrerequisiteGeneratedBytes  = 27150
+	relationFacadePrerequisiteGeneratedDigest = "4287eb23ede031f90f4f0c7f70b15e303d0ba737012b4687d66b477d0712baa2"
+	relationFacadeGeneratedBytes              = 59690
+	relationFacadeGeneratedDigest             = "5b8b7934ad29a96b91f7a705f0934badb90a5aeda1327300f1b0efb309fdd757"
 )
 
 var relationFacadePhysicalFiles = []string{
@@ -62,7 +62,7 @@ var relationFacadePhysicalDirectories = []string{
 	"project",
 }
 
-var relationFacadeLegacyGeneratedFiles = []string{
+var relationFacadePrerequisiteGeneratedFiles = []string{
 	"authors/zz_godj_generated.go",
 	"authors/zz_godj_relation.go",
 	"authors/zz_godj_relation_object.go",
@@ -774,23 +774,23 @@ func verifyRelationFacadePhysicalInventory(t *testing.T, inventory relationFacad
 	if inventory.bytes != relationFacadePhysicalBytes || inventory.digest != relationFacadePhysicalDigest {
 		t.Fatalf("relation facade physical inventory = %d/%s, want %d/%s", inventory.bytes, inventory.digest, relationFacadePhysicalBytes, relationFacadePhysicalDigest)
 	}
-	legacyGenerated := make(map[string][]byte, len(relationFacadeLegacyGeneratedFiles))
-	for _, name := range relationFacadeLegacyGeneratedFiles {
+	prerequisiteGenerated := make(map[string][]byte, len(relationFacadePrerequisiteGeneratedFiles))
+	for _, name := range relationFacadePrerequisiteGeneratedFiles {
 		content, ok := inventory.files[name]
 		if !ok {
-			t.Fatalf("relation facade legacy generated file %s is absent", name)
+			t.Fatalf("relation facade prerequisite generated file %s is absent", name)
 		}
-		legacyGenerated[name] = content
+		prerequisiteGenerated[name] = content
 	}
-	legacyBytes, legacyDigest := digestRelationFacadeFiles(legacyGenerated)
-	if len(legacyGenerated) != 13 || legacyBytes != relationFacadeLegacyGeneratedBytes || legacyDigest != relationFacadeLegacyGeneratedDigest {
+	prerequisiteBytes, prerequisiteDigest := digestRelationFacadeFiles(prerequisiteGenerated)
+	if len(prerequisiteGenerated) != 13 || prerequisiteBytes != relationFacadePrerequisiteGeneratedBytes || prerequisiteDigest != relationFacadePrerequisiteGeneratedDigest {
 		t.Fatalf(
-			"relation facade legacy generated inventory = %d/%d/%s, want 13/%d/%s",
-			len(legacyGenerated),
-			legacyBytes,
-			legacyDigest,
-			relationFacadeLegacyGeneratedBytes,
-			relationFacadeLegacyGeneratedDigest,
+			"relation facade prerequisite generated inventory = %d/%d/%s, want 13/%d/%s",
+			len(prerequisiteGenerated),
+			prerequisiteBytes,
+			prerequisiteDigest,
+			relationFacadePrerequisiteGeneratedBytes,
+			relationFacadePrerequisiteGeneratedDigest,
 		)
 	}
 	generated := make(map[string][]byte, len(relationFacadeGeneratedFiles))

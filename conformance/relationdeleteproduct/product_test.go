@@ -63,7 +63,7 @@ func (backend *facadeMinimalBackend) Delete(context.Context, query.DeletePlan) (
 	return 0, facadeUnexpectedIO
 }
 
-func TestCheckedInGeneratedRelationDeleteProjectPreservesExactThirteenAndAddsFacade(t *testing.T) {
+func TestCheckedInGeneratedRelationDeleteProjectRegeneratesExactThirteenAndAddsFacade(t *testing.T) {
 	t.Parallel()
 
 	authorsSchema, err := fixture.AuthorsSchema()
@@ -83,7 +83,7 @@ func TestCheckedInGeneratedRelationDeleteProjectPreservesExactThirteenAndAddsFac
 		path string
 		data []byte
 	}
-	legacyCandidates := []generatedCandidate{
+	prerequisiteCandidates := []generatedCandidate{
 		{path: "authors/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
 		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
 		{path: "authors/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
@@ -112,7 +112,7 @@ func TestCheckedInGeneratedRelationDeleteProjectPreservesExactThirteenAndAddsFac
 	facadeCandidate := generated(t, func() ([]byte, error) {
 		return codegen.GenerateProjectRelationFacade("project", objectPackages)
 	})
-	candidates := append(slices.Clone(legacyCandidates), generatedCandidate{
+	candidates := append(slices.Clone(prerequisiteCandidates), generatedCandidate{
 		path: "project/zz_godj_relation_facade.go",
 		data: facadeCandidate,
 	})
@@ -126,6 +126,19 @@ func TestCheckedInGeneratedRelationDeleteProjectPreservesExactThirteenAndAddsFac
 		if !bytes.Equal(contents, candidate.data) {
 			t.Fatalf("checked-in generated file %s differs from deterministic candidate", candidate.path)
 		}
+	}
+	selectRelatedSource, err := os.ReadFile(filepath.Join(root, "project", "zz_godj_relation_select_related.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(selectRelatedSource, []byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"`)) {
+		t.Fatal("checked-in relation-delete select-related prerequisite does not expose the v2 provenance lock")
+	}
+	if count := bytes.Count(selectRelatedSource, []byte("configurationErr error")); count != 2 {
+		t.Fatalf("relation-delete typed select-related private configuration error fields = %d, want exact 2", count)
+	}
+	if bytes.Contains(selectRelatedSource, []byte("godj-codegen-rel-select-related-project-v1")) {
+		t.Fatal("checked-in relation-delete select-related prerequisite retains stale v1 provenance")
 	}
 
 	var generatedFiles []string
@@ -153,10 +166,10 @@ func TestCheckedInGeneratedRelationDeleteProjectPreservesExactThirteenAndAddsFac
 		t.Fatalf("generated file inventory = %#v, want exact fourteen %#v", generatedFiles, wantFiles)
 	}
 
-	if len(legacyCandidates) != 13 {
-		t.Fatalf("legacy generated candidate count = %d, want exact 13", len(legacyCandidates))
+	if len(prerequisiteCandidates) != 13 {
+		t.Fatalf("prerequisite generated candidate count = %d, want exact 13", len(prerequisiteCandidates))
 	}
-	deleteCandidate := legacyCandidates[len(legacyCandidates)-1].data
+	deleteCandidate := prerequisiteCandidates[len(prerequisiteCandidates)-1].data
 	if !bytes.Contains(deleteCandidate, []byte(relationDeletePolicyDigest)) {
 		t.Fatalf("generated relation-delete aggregate omits exact policy digest %s", relationDeletePolicyDigest)
 	}

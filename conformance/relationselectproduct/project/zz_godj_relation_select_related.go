@@ -10,7 +10,7 @@ import (
 	query "github.com/progresshans/godj/query"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v1"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}
@@ -25,18 +25,19 @@ func (_factory BlogPostObjectFactory) SelectRelated(_source orm.QuerySet[blog.Po
 }
 
 type BlogPostAuthorSelectRelatedQuery struct {
-	factory BlogPostObjectFactory
-	query   orm.ForwardSelectQuery[blog.Post, authors.Author]
+	factory          BlogPostObjectFactory
+	query            orm.ForwardSelectQuery[blog.Post, authors.Author]
+	configurationErr error
 }
 
 func (_selection BlogPostSelectRelated) Author() BlogPostAuthorSelectRelatedQuery {
 	_path, _err := orm.ResolveForwardSelectPath(_selection.factory.model, "author")
 	if _err != nil {
-		return BlogPostAuthorSelectRelatedQuery{}
+		return BlogPostAuthorSelectRelatedQuery{configurationErr: _err}
 	}
 	_relation, _err := orm.BindRequiredForwardSelect(_path, _selection.factory.author)
 	if _err != nil {
-		return BlogPostAuthorSelectRelatedQuery{}
+		return BlogPostAuthorSelectRelatedQuery{configurationErr: _err}
 	}
 	return BlogPostAuthorSelectRelatedQuery{
 		factory: _selection.factory,
@@ -45,6 +46,17 @@ func (_selection BlogPostSelectRelated) Author() BlogPostAuthorSelectRelatedQuer
 }
 
 func (_query BlogPostAuthorSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostObject, error) {
+	if _query.configurationErr != nil {
+		_, _contextErr := (orm.ForwardSelectQuery[blog.Post, authors.Author]{}).All(_ctx)
+		if _contextErr == nil {
+			return nil, _query.configurationErr
+		}
+		_terminalErr, _ok := _contextErr.(*query.Error)
+		if _ok && _terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan {
+			return nil, _query.configurationErr
+		}
+		return nil, _contextErr
+	}
 	_selected, _err := _query.query.All(_ctx)
 	if _err != nil {
 		return nil, _err
@@ -70,18 +82,19 @@ func (_query BlogPostAuthorSelectRelatedQuery) All(_ctx context.Context) ([]*Blo
 }
 
 type BlogPostReviewerSelectRelatedQuery struct {
-	factory BlogPostObjectFactory
-	query   orm.ForwardSelectQuery[blog.Post, authors.Author]
+	factory          BlogPostObjectFactory
+	query            orm.ForwardSelectQuery[blog.Post, authors.Author]
+	configurationErr error
 }
 
 func (_selection BlogPostSelectRelated) Reviewer() BlogPostReviewerSelectRelatedQuery {
 	_path, _err := orm.ResolveForwardSelectPath(_selection.factory.model, "reviewer")
 	if _err != nil {
-		return BlogPostReviewerSelectRelatedQuery{}
+		return BlogPostReviewerSelectRelatedQuery{configurationErr: _err}
 	}
 	_relation, _err := orm.BindNullableForwardSelect(_path, _selection.factory.reviewer)
 	if _err != nil {
-		return BlogPostReviewerSelectRelatedQuery{}
+		return BlogPostReviewerSelectRelatedQuery{configurationErr: _err}
 	}
 	return BlogPostReviewerSelectRelatedQuery{
 		factory: _selection.factory,
@@ -90,6 +103,17 @@ func (_selection BlogPostSelectRelated) Reviewer() BlogPostReviewerSelectRelated
 }
 
 func (_query BlogPostReviewerSelectRelatedQuery) All(_ctx context.Context) ([]*BlogPostObject, error) {
+	if _query.configurationErr != nil {
+		_, _contextErr := (orm.ForwardSelectQuery[blog.Post, authors.Author]{}).All(_ctx)
+		if _contextErr == nil {
+			return nil, _query.configurationErr
+		}
+		_terminalErr, _ok := _contextErr.(*query.Error)
+		if _ok && _terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan {
+			return nil, _query.configurationErr
+		}
+		return nil, _contextErr
+	}
 	_selected, _err := _query.query.All(_ctx)
 	if _err != nil {
 		return nil, _err

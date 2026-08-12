@@ -38,7 +38,7 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 		t.Fatalf("project relation select-related bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v1"`),
+		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"`),
 		[]byte("var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}"),
 		[]byte("type BlogPostSelectRelated struct"),
@@ -49,6 +49,12 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 		[]byte("orm.BindRequiredForwardSelect(_path, _selection.factory.author)"),
 		[]byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "reviewer")`),
 		[]byte("orm.BindNullableForwardSelect(_path, _selection.factory.reviewer)"),
+		[]byte("configurationErr error"),
+		[]byte("return BlogPostAuthorSelectRelatedQuery{configurationErr: _err}"),
+		[]byte("return BlogPostReviewerSelectRelatedQuery{configurationErr: _err}"),
+		[]byte("_, _contextErr := (orm.ForwardSelectQuery[blog.Post, authors.Author]{}).All(_ctx)"),
+		[]byte("_terminalErr, _ok := _contextErr.(*query.Error)"),
+		[]byte("_terminalErr.Category == query.CategoryBackend && _terminalErr.Code == query.CodeInvalidPlan"),
 		[]byte("_selected, _err := _query.query.All(_ctx)"),
 		[]byte("_object.author = _related"),
 		[]byte("_object.reviewer = _related"),
@@ -279,6 +285,12 @@ func TestGeneratedProjectRelationSelectRelatedExactTwelveFileUnionCompiles(t *te
 	if len(files) != 12 {
 		t.Fatalf("generated union has %d files, want exact 12: %v", len(files), files)
 	}
+	writeGeneratedTestFile(
+		t,
+		directory,
+		"project/relation_select_related_cause_test.go",
+		generatedRelationSelectRelatedCauseTest(modulePath),
+	)
 	command := exec.Command("go", "test", "-mod=mod", "./...")
 	command.Dir = directory
 	command.Env = generatedTestEnvironment()
@@ -286,6 +298,17 @@ func TestGeneratedProjectRelationSelectRelatedExactTwelveFileUnionCompiles(t *te
 	if err != nil {
 		t.Fatalf("generated exact twelve-file select-related union did not compile or pass: %v\n%s", err, output)
 	}
+
+	const facadeModulePath = "example.com/godj-relation-select-related-facade-cause"
+	facadeDirectory, _ := writeGeneratedRelationFacadeUniverse(
+		t,
+		facadeModulePath,
+		relationFacadePackages(facadeModulePath, authors, blog),
+		nil,
+		generatedRelationSelectRelatedFacadeCauseTest(),
+	)
+	compileGeneratedRelationFacadeUniverse(t, facadeDirectory)
+	verifyGeneratedRelationSelectRelatedStalePublicCause(t, authors, blog)
 }
 
 func TestGeneratedProjectRelationSelectRelatedAdversarialAliasesCompile(t *testing.T) {
@@ -493,6 +516,14 @@ func TestGeneratedSelectRelatedSurfaceAndDynamicValidation(t *testing.T) {
 	backend := &countingBackend{}
 	sourceQuery := source.PostObjects.Using(backend).OrderBy(source.PostFields.ID.Asc())
 	selected := objects.BlogPost.SelectRelated(sourceQuery)
+	var zeroSelection project.BlogPostSelectRelated
+	beforeResolve := backend.queries
+	if _, err := zeroSelection.Author().All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("public zero-selection typed resolve error = %%v, want preserved query invalid-plan", err)
+	}
+	if backend.queries != beforeResolve {
+		t.Fatalf("public zero-selection typed resolve performed %%d queries", backend.queries-beforeResolve)
+	}
 
 	if _, err := selected.Author().All(context.Background()); err == nil {
 		t.Fatal("typed Author All unexpectedly succeeded")
@@ -536,4 +567,391 @@ func TestGeneratedSelectRelatedSurfaceAndDynamicValidation(t *testing.T) {
 }
 `, modulePath, modulePath))
 	return bytes.ReplaceAll(result, []byte("BlogPost"), []byte(surface))
+}
+
+func generatedRelationSelectRelatedCauseTest(modulePath string) []byte {
+	return []byte(fmt.Sprintf(`package project
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	source %q
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
+)
+
+type selectRelatedCauseBackend struct{ queries int }
+
+func (backend *selectRelatedCauseBackend) Query(context.Context, query.Plan) (db.Rows, error) {
+	backend.queries++
+	return nil, errors.New("unexpected select-related cause backend I/O")
+}
+
+type selectRelatedTypedNilContext struct{ context.Context }
+
+func TestGeneratedTypedSelectRelatedPreservesConfigurationCauseAndContextPrecedence(t *testing.T) {
+	objects, err := BindObjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &selectRelatedCauseBackend{}
+	sourceQuery := source.PostObjects.Using(backend)
+	valid := objects.BlogPost.SelectRelated(sourceQuery)
+
+	requiredSelection := valid
+	requiredSelection.factory.author = BlogPostObjectFactory{}.author
+	nullableSelection := valid
+	nullableSelection.factory.reviewer = BlogPostObjectFactory{}.reviewer
+
+	resolveQuery := (BlogPostSelectRelated{}).Author()
+	requiredQuery := requiredSelection.Author()
+	nullableQuery := nullableSelection.Reviewer()
+	tests := []struct {
+		name    string
+		cause   error
+		all     func(context.Context) error
+		dynamic func() error
+	}{
+		{
+			name:  "resolve",
+			cause: resolveQuery.configurationErr,
+			all: func(ctx context.Context) error {
+				_, err := resolveQuery.All(ctx)
+				return err
+			},
+			dynamic: func() error {
+				_, err := (BlogPostSelectRelated{}).ParseDynamic("author")
+				return err
+			},
+		},
+		{
+			name:  "required bind",
+			cause: requiredQuery.configurationErr,
+			all: func(ctx context.Context) error {
+				_, err := requiredQuery.All(ctx)
+				return err
+			},
+			dynamic: func() error {
+				_, err := requiredSelection.ParseDynamic("author")
+				return err
+			},
+		},
+		{
+			name:  "nullable bind",
+			cause: nullableQuery.configurationErr,
+			all: func(ctx context.Context) error {
+				_, err := nullableQuery.All(ctx)
+				return err
+			},
+			dynamic: func() error {
+				_, err := nullableSelection.ParseDynamic("reviewer")
+				return err
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.cause == nil {
+				t.Fatal("typed builder did not store its configuration cause")
+			}
+			before := backend.queries
+			if got := test.all(context.Background()); got != test.cause {
+				t.Fatalf("background terminal error = %%v (%%p), want exact stored cause %%v (%%p)", got, got, test.cause, test.cause)
+			}
+			if backend.queries != before {
+				t.Fatalf("background terminal performed %%d backend queries", backend.queries-before)
+			}
+
+			var nilContext context.Context
+			if got := test.all(nilContext); !errors.Is(got, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || got == test.cause {
+				t.Fatalf("nil-context terminal error = %%v, want context invalid-plan before stored cause", got)
+			}
+			var typedNil *selectRelatedTypedNilContext
+			if got := test.all(typedNil); !errors.Is(got, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || got == test.cause {
+				t.Fatalf("typed-nil-context terminal error = %%v, want context invalid-plan before stored cause", got)
+			}
+			cancelled, cancel := context.WithCancel(context.Background())
+			cancel()
+			if got := test.all(cancelled); !errors.Is(got, context.Canceled) || got == test.cause {
+				t.Fatalf("cancelled-context terminal error = %%v, want context.Canceled before stored cause", got)
+			}
+			expired, expire := context.WithTimeout(context.Background(), -1)
+			expire()
+			if got := test.all(expired); !errors.Is(got, context.DeadlineExceeded) || got == test.cause {
+				t.Fatalf("deadline-context terminal error = %%v, want context.DeadlineExceeded before stored cause", got)
+			}
+			if backend.queries != before {
+				t.Fatalf("context precedence terminals performed %%d backend queries", backend.queries-before)
+			}
+
+			dynamicErr := test.dynamic()
+			var dynamicQueryErr *query.Error
+			var causeQueryErr *query.Error
+			if !errors.As(dynamicErr, &dynamicQueryErr) || !errors.As(test.cause, &causeQueryErr) ||
+				dynamicQueryErr.Category != causeQueryErr.Category || dynamicQueryErr.Code != causeQueryErr.Code ||
+				dynamicQueryErr.Field != causeQueryErr.Field || dynamicQueryErr.Lookup != causeQueryErr.Lookup ||
+				dynamicQueryErr.Detail != causeQueryErr.Detail || errors.Unwrap(dynamicErr) != errors.Unwrap(test.cause) {
+				t.Fatalf("dynamic control error = %%v, want independently preserved cause equivalent to %%v", dynamicErr, test.cause)
+			}
+			if errors.Is(dynamicErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+				t.Fatalf("dynamic control degraded to backend invalid-plan: %%v", dynamicErr)
+			}
+			if backend.queries != before {
+				t.Fatalf("dynamic control performed %%d backend queries", backend.queries-before)
+			}
+		})
+	}
+	sentinel := errors.New("stored select-related sentinel cause")
+	injected := BlogPostAuthorSelectRelatedQuery{configurationErr: &query.Error{
+		Category: query.CategoryQuery,
+		Code:     query.CodeInvalidPlan,
+		Field:    "author",
+		Lookup:   "exact",
+		Detail:   "injected typed configuration detail",
+		Cause:    sentinel,
+	}}
+	_, injectedErr := injected.All(context.Background())
+	if injectedErr != injected.configurationErr || !errors.Is(injectedErr, sentinel) {
+		t.Fatalf("injected terminal error = %%v (%%p), want exact stored error %%v (%%p) with sentinel cause", injectedErr, injectedErr, injected.configurationErr, injected.configurationErr)
+	}
+	var injectedQueryErr *query.Error
+	if !errors.As(injectedErr, &injectedQueryErr) || injectedQueryErr.Category != query.CategoryQuery ||
+		injectedQueryErr.Code != query.CodeInvalidPlan || injectedQueryErr.Field != "author" ||
+		injectedQueryErr.Lookup != "exact" || injectedQueryErr.Detail != "injected typed configuration detail" ||
+		injectedQueryErr.Cause != sentinel {
+		t.Fatalf("injected structured configuration error changed: %%#v", injectedQueryErr)
+	}
+	if backend.queries != 0 {
+		t.Fatalf("injected configuration terminal performed %%d backend queries", backend.queries)
+	}
+}
+
+func TestGeneratedSelectRelatedZeroAndCorruptQueriesKeepGenericErrors(t *testing.T) {
+	var zeroTyped BlogPostAuthorSelectRelatedQuery
+	if _, err := zeroTyped.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("zero typed terminal error = %%v, want backend invalid-plan", err)
+	}
+	var zeroDynamic BlogPostDynamicSelectRelatedQuery
+	if _, err := zeroDynamic.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("zero dynamic terminal error = %%v, want query invalid-plan", err)
+	}
+	corruptDynamic := BlogPostDynamicSelectRelatedQuery{kind: 255}
+	if _, err := corruptDynamic.All(context.Background()); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("corrupt dynamic terminal error = %%v, want query invalid-plan", err)
+	}
+}
+`, modulePath+"/source"))
+}
+
+func generatedRelationSelectRelatedFacadeCauseTest() []byte {
+	return []byte(`package project
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
+)
+
+type selectRelatedFacadeCauseBackend struct{ calls int }
+
+func (backend *selectRelatedFacadeCauseBackend) Query(context.Context, query.Plan) (db.Rows, error) {
+	backend.calls++
+	return nil, errors.New("unexpected facade cause query")
+}
+
+func (backend *selectRelatedFacadeCauseBackend) Insert(context.Context, query.InsertPlan) (int64, error) {
+	backend.calls++
+	return 0, errors.New("unexpected facade cause insert")
+}
+
+func (backend *selectRelatedFacadeCauseBackend) Update(context.Context, query.UpdatePlan) (int64, error) {
+	backend.calls++
+	return 0, errors.New("unexpected facade cause update")
+}
+
+func (backend *selectRelatedFacadeCauseBackend) Delete(context.Context, query.DeletePlan) (int64, error) {
+	backend.calls++
+	return 0, errors.New("unexpected facade cause delete")
+}
+
+func TestProjectFacadePassesThroughTypedSelectRelatedConfigurationCauses(t *testing.T) {
+	backend := &selectRelatedFacadeCauseBackend{}
+	models, err := Using(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := models.BlogPost.state.objects.BlogPost.SelectRelated(models.BlogPost.query)
+
+	resolve := (BlogPostSelectRelated{}).Author()
+	requiredSelection := selection
+	requiredSelection.factory.author = BlogPostObjectFactory{}.author
+	required := requiredSelection.Author()
+	nullableSelection := selection
+	nullableSelection.factory.reviewer = BlogPostObjectFactory{}.reviewer
+	nullable := nullableSelection.Reviewer()
+
+	tests := []struct {
+		name  string
+		cause error
+		query BlogPostEagerQuery
+	}{
+		{
+			name:  "resolve",
+			cause: resolve.configurationErr,
+			query: BlogPostEagerQuery{
+				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, author: resolve,
+			},
+		},
+		{
+			name:  "required bind",
+			cause: required.configurationErr,
+			query: BlogPostEagerQuery{
+				state: models.BlogPost.state, source: models.BlogPost.query, kind: 1, author: required,
+			},
+		},
+		{
+			name:  "nullable bind",
+			cause: nullable.configurationErr,
+			query: BlogPostEagerQuery{
+				state: models.BlogPost.state, source: models.BlogPost.query, kind: 2, reviewer: nullable,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.cause == nil {
+				t.Fatal("typed prerequisite did not store its configuration cause")
+			}
+			before := backend.calls
+			if _, got := test.query.All(context.Background()); got != test.cause {
+				t.Fatalf("facade eager terminal error = %v (%p), want exact low-level cause %v (%p)", got, got, test.cause, test.cause)
+			}
+			if backend.calls != before {
+				t.Fatalf("facade cause pass-through performed %d backend calls", backend.calls-before)
+			}
+		})
+	}
+}
+`)
+}
+
+func verifyGeneratedRelationSelectRelatedStalePublicCause(t *testing.T, authors, blog ir.Schema) {
+	t.Helper()
+	const modulePath = "example.com/godj-relation-select-related-stale-public-cause"
+	directory, _ := writeGeneratedRelationFacadeUniverse(
+		t,
+		modulePath,
+		relationFacadePackages(modulePath, authors, blog),
+		nil,
+		generatedRelationSelectRelatedStalePublicCauseTest(modulePath),
+	)
+	path := filepath.Join(directory, "project", "zz_godj_relation_select_related.go")
+	canonical, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorResolver := []byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "author")`)
+	reviewerResolver := []byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "reviewer")`)
+	if bytes.Count(canonical, authorResolver) != 1 || bytes.Count(canonical, reviewerResolver) != 1 {
+		t.Fatalf("canonical typed resolver counts = author %d reviewer %d, want 1/1", bytes.Count(canonical, authorResolver), bytes.Count(canonical, reviewerResolver))
+	}
+	placeholder := []byte(`orm.ResolveForwardSelectPath(_selection.factory.model, "godj_stale_swap")`)
+	stale := bytes.Replace(canonical, authorResolver, placeholder, 1)
+	stale = bytes.Replace(stale, reviewerResolver, authorResolver, 1)
+	stale = bytes.Replace(stale, placeholder, reviewerResolver, 1)
+	if bytes.Count(stale, authorResolver) != 1 || bytes.Count(stale, reviewerResolver) != 1 || bytes.Equal(stale, canonical) {
+		t.Fatal("stale typed resolver swap did not produce the exact two-literal mutation")
+	}
+	if err := os.WriteFile(path, stale, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	compileGeneratedRelationFacadeUniverse(t, directory)
+}
+
+func generatedRelationSelectRelatedStalePublicCauseTest(modulePath string) []byte {
+	return []byte(fmt.Sprintf(`package project_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	project %q
+	source %q
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
+)
+
+type staleSelectRelatedBackend struct{ calls int }
+
+func (backend *staleSelectRelatedBackend) Query(context.Context, query.Plan) (db.Rows, error) {
+	backend.calls++
+	return nil, errors.New("unexpected stale select-related query")
+}
+
+func (backend *staleSelectRelatedBackend) Insert(context.Context, query.InsertPlan) (int64, error) {
+	backend.calls++
+	return 0, errors.New("unexpected stale select-related insert")
+}
+
+func (backend *staleSelectRelatedBackend) Update(context.Context, query.UpdatePlan) (int64, error) {
+	backend.calls++
+	return 0, errors.New("unexpected stale select-related update")
+}
+
+func (backend *staleSelectRelatedBackend) Delete(context.Context, query.DeletePlan) (int64, error) {
+	backend.calls++
+	return 0, errors.New("unexpected stale select-related delete")
+}
+
+func TestStaleTypedCompanionPreservesPublicLowLevelAndFacadeBindCauses(t *testing.T) {
+	backend := &staleSelectRelatedBackend{}
+	objects, err := project.BindObjects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := objects.BlogPost.SelectRelated(source.PostObjects.Using(backend))
+	models, err := project.Using(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		all  func() error
+	}{
+		{name: "low-level required", all: func() error { _, err := selected.Author().All(context.Background()); return err }},
+		{name: "low-level nullable", all: func() error { _, err := selected.Reviewer().All(context.Background()); return err }},
+		{name: "facade required", all: func() error {
+			_, err := models.BlogPost.SelectRelated(models.BlogPost.Related.Author).All(context.Background())
+			return err
+		}},
+		{name: "facade nullable", all: func() error {
+			_, err := models.BlogPost.SelectRelated(models.BlogPost.Related.Reviewer).All(context.Background())
+			return err
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			before := backend.calls
+			err := test.all()
+			var queryErr *query.Error
+			if !errors.As(err, &queryErr) || queryErr.Category != query.CategoryQuery || queryErr.Code != query.CodeInvalidPlan ||
+				queryErr.Detail != "forward select path and object handle do not share one canonical project relation" || queryErr.Cause != nil {
+				t.Fatalf("public stale-companion error = %%v, want exact structured bind cause", err)
+			}
+			if errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+				t.Fatalf("public stale-companion cause degraded to backend invalid-plan: %%v", err)
+			}
+			if backend.calls != before {
+				t.Fatalf("public stale-companion terminal performed %%d backend calls", backend.calls-before)
+			}
+		})
+	}
+}
+`, modulePath+"/project", modulePath+"/blog"))
 }

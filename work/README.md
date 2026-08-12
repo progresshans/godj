@@ -66,10 +66,11 @@ proposed → ready → active → completed
 `be6f3d4e...`, completion head `81f4aacb...`와 terminal head `db5c11f6...`은 각각 EVID-076/run `31586910749`,
 EVID-077/run `31590911735`, EVID-078/run `31593500615`의 서로 다른 exact 26/26 jobs·326/326 steps와 audit
 P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고
-Q-013은 Partial, Q-017은 P1/open입니다. GDJ-0034는 새 Q/ADR 없이 typed generated resolve/bind cause 보존만
-수정하며 이 exact activation documentation tree의 hosted CI는 `not run/pending`입니다. EVID-078은 activation proof로
-재사용하지 않고, ready 항목은 없습니다. Relation-capable migration GDJ-0035는 GDJ-0034 terminal 뒤 별도
-contract-first packet으로만 활성화합니다. Draft PR은 merge하지 않습니다.
+Q-013은 Partial, Q-017은 P1/open입니다. GDJ-0034 activation head `e2e0a4e...`는 EVID-079/run `31599273044`의
+별도 exact 26/26·326/326을 통과했고 typed generated resolve/bind cause 보존 exact 12-path implementation은
+EVID-080의 local gates를 통과했습니다. 새 Q/ADR은 없으며 implementation-head hosted CI는 `not run/pending`입니다.
+EVID-078/079를 later proof로 재사용하지 않고, ready 항목은 없습니다. Relation-capable migration GDJ-0035는
+GDJ-0034 terminal 뒤 별도 contract-first packet으로만 활성화합니다. Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.

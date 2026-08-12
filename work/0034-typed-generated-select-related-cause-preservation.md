@@ -57,8 +57,15 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 - [EVID-078](../docs/status/TEST_EVIDENCE.md#evid-20260812-078--gdj-0033-terminal-exact-head-ci-and-clean-baseline) /
   [run 31593500615](https://github.com/progresshans/godj/actions/runs/31593500615)은 그 exact head를 별도
   26/26 jobs·326/326 steps와 audit P0/P1/P2/P3=`0/0/0/0`으로 검증했습니다.
-- EVID-078은 GDJ-0033 terminal closure와 이 work의 clean baseline만 증명합니다. EVID-078 append 및 이 activation
-  문서 tree는 `not run/pending`이며 자체 고유 exact-head hosted CI가 필요합니다.
+- EVID-078은 GDJ-0033 terminal closure와 이 work의 clean baseline만 증명합니다. Exact activation head
+  `e2e0a4e3750e0f38f8bbe06ddbf9e1f8b607a9ef`은
+  [EVID-079](../docs/status/TEST_EVIDENCE.md#evid-20260812-079--gdj-0034-activation-documentation-head-exact-26-job-ci) /
+  [run 31599273044](https://github.com/progresshans/godj/actions/runs/31599273044)의 고유
+  26/26 jobs·326/326 steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- Exact 12-path source/product/workflow implementation은
+  [EVID-080](../docs/status/TEST_EVIDENCE.md#evid-20260812-080--gdj-0034-typed-generated-select_related-cause-preservation-pre-hosted-local-validation)의
+  local normal/race/CGO-disabled/vet/Linux386, final inventory와 independent audit를 통과했습니다. 아직 implementation
+  commit 또는 exact-head hosted CI는 없으며 이 문서 전환을 합친 tree도 재귀적으로 검증되지 않았습니다.
 - 제품 분류는 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로
   그대로입니다. REL-009/010/011 상태나 locked Django oracle/checksum을 바꾸지 않습니다.
 - 이 work는 [ADR-0029](../docs/adr/0029-one-hop-forward-select-related.md)의 이미 Accepted된 bounded eager 경계에서
@@ -86,28 +93,28 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 
 ### A. 실패 재현과 source boundary 고정
 
-- [ ] Typed required resolve failure가 generic invalid-plan으로 축약되는 현재 경로를 focused test로 재현합니다.
-- [ ] Typed required 및 nullable bind failure를 각각 재현하고 terminal 전 backend I/O가 0임을 잠급니다.
-- [ ] Stored resolve/bind error와 nil context, typed-nil context, cancelled context를 각각 조합해 기존 context
-  precedence 뒤 configuration cause가 반환되는 exact 순서를 잠급니다.
-- [ ] 같은 입력의 dynamic path가 이미 exact cause를 보존한다는 control을 유지합니다.
-- [ ] Zero/corrupt query와 configuration failure를 서로 다른 test case로 고정합니다.
+- [x] Typed required resolve failure가 generic invalid-plan으로 축약되는 현재 경로를 focused test로 재현했습니다.
+- [x] Typed required 및 nullable bind failure를 각각 재현하고 terminal 전 backend I/O가 0임을 잠갔습니다.
+- [x] Stored resolve/bind error와 nil context, typed-nil context, cancelled/deadline context를 각각 조합해 기존 context
+  precedence 뒤 configuration cause가 반환되는 exact 순서를 잠갔습니다.
+- [x] 같은 입력의 dynamic path가 이미 exact cause를 보존한다는 control을 유지했습니다.
+- [x] Zero/corrupt query와 configuration failure를 서로 다른 test case로 고정했습니다.
 
 ### B. 최소 generated remediation
 
-- [ ] Typed generated query에 private configuration error를 추가하고 resolve/bind 두 실패를 저장합니다.
-- [ ] `All(ctx)`이 기존 context precedence 뒤, backend validation/I/O 전에 stored error를 반환하도록 합니다.
-- [ ] Generator version을 v2로 올리고 golden, `relationselectproduct`, `relationdeleteproduct` companion을
-  결정적으로 다시 생성합니다.
-- [ ] Facade generator/source 변경 없이 exact cause가 public eager terminal까지 도달하는지 먼저 검증합니다.
-  불가능하다는 focused proof가 생기면 scope를 재문서화하기 전에는 facade 경계를 수정하지 않습니다.
+- [x] Typed generated query에 private configuration error를 추가하고 resolve/bind 두 실패를 저장했습니다.
+- [x] `All(ctx)`이 기존 context precedence 뒤, backend validation/I/O 전에 stored error를 반환하도록 했습니다.
+- [x] Generator version을 v2로 올리고 golden, `relationselectproduct`, `relationdeleteproduct` companion을
+  결정적으로 다시 생성했습니다.
+- [x] Facade generator/source 변경 없이 exact cause가 public eager terminal까지 도달함을 same-package facade와
+  external stale-companion public proof로 검증했습니다.
 
 ### C. 검증과 완료 전환
 
-- [ ] Focused generator/golden/product tests와 exact error/I/O assertions PASS
-- [ ] Generated deterministic/no-rewrite/last-good 및 physical no-overlay compile PASS
-- [ ] Normal, race, CGO-disabled, vet와 bounded Linux/386 gate PASS
-- [ ] Full `go test ./...`와 final measured workflow/artifact inventory PASS
+- [x] Focused generator/golden/product tests와 exact error/I/O assertions PASS
+- [x] Generated deterministic/no-rewrite/last-good 및 physical no-overlay compile PASS
+- [x] Normal, race, CGO-disabled, vet와 bounded Linux/386 gate PASS
+- [x] Full `go test ./...`와 final measured workflow/artifact inventory PASS
 - [ ] Exact implementation head의 고유 hosted 26-job/326-step CI와 independent P0..P3 audit PASS
 - [ ] Completion documentation과 terminal baseline을 각각 별도 exact-head CI로 검증
 
@@ -126,10 +133,10 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 
 ## 증거 비재사용과 다음 packet
 
-- EVID-078/run `31593500615`은 baseline 전용입니다. Activation, implementation, completion 또는 terminal proof로
-  재사용하지 않습니다.
-- 이 exact activation documentation tree는 자체 hosted CI 전까지 `not run/pending`입니다. 이후 source implementation,
-  completion documentation과 terminal evidence tree도 각각 고유 exact-head run을 사용합니다.
+- EVID-078/run `31593500615`은 baseline 전용이고 EVID-079/run `31599273044`는 activation 전용입니다. 둘 다
+  implementation, completion 또는 terminal proof로 재사용하지 않습니다.
+- EVID-080은 exact 12-path local source freeze만 증명합니다. 이 documentation transition을 합친 implementation head는
+  `not run/pending`이며, 이후 completion documentation과 terminal evidence tree도 각각 고유 exact-head run을 사용합니다.
 - 이 work가 completed이고 terminal clean baseline까지 닫히기 전에는 다음 work를 active/ready로 만들지 않습니다.
 - 그다음 후보는 별도 contract-first `GDJ-0035` relation-capable migration packet뿐입니다. 이 문서가 그 migration의
   tuple, state, DDL 또는 ADR을 미리 Accepted하지 않습니다.

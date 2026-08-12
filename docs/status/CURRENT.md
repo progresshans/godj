@@ -232,9 +232,11 @@
   P0..P3=0을 통과했습니다. EVID-077을 포함하는 exact seven-document terminal head `db5c11f6...`도
   [EVID-078](TEST_EVIDENCE.md#evid-20260812-078--gdj-0033-terminal-exact-head-ci-and-clean-baseline) /
   [run 31593500615](https://github.com/progresshans/godj/actions/runs/31593500615)의 별도 exact 26/26·326/326과 audit
-  P0..P3=0을 통과했습니다. Completion run은 terminal proof로 재사용하지 않았습니다. GDJ-0034는 새 Q/ADR 없이
-  typed generated `select_related` cause 보존만을 위해 active이고 이 activation tree의 hosted CI는
-  `not run/pending`입니다.
+  P0..P3=0을 통과했습니다. Completion run은 terminal proof로 재사용하지 않았습니다. GDJ-0034 activation head
+  `e2e0a4e...`는 [EVID-079](TEST_EVIDENCE.md#evid-20260812-079--gdj-0034-activation-documentation-head-exact-26-job-ci) /
+  [run 31599273044](https://github.com/progresshans/godj/actions/runs/31599273044)의 고유 exact 26/26·326/326과 audit
+  P0..P3=0을 통과했습니다. Typed generated cause 보존 exact 12-path implementation은 EVID-080의 local gates를
+  통과했지만 implementation-head hosted CI는 `not run/pending`입니다.
 - 최근 완료 작업:
   [GDJ-0033 Forward ForeignKey Assignment, Save, and Cache Ownership](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
 - 활성 작업:
@@ -1178,23 +1180,23 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0033 terminal head `db5c11f6...`은
-[EVID-078](TEST_EVIDENCE.md#evid-20260812-078--gdj-0033-terminal-exact-head-ci-and-clean-baseline) /
-[run 31593500615](https://github.com/progresshans/godj/actions/runs/31593500615)의 고유 exact 26/26 jobs·326/326
+GDJ-0034 activation head `e2e0a4e...`는
+[EVID-079](TEST_EVIDENCE.md#evid-20260812-079--gdj-0034-activation-documentation-head-exact-26-job-ci) /
+[run 31599273044](https://github.com/progresshans/godj/actions/runs/31599273044)의 고유 exact 26/26 jobs·326/326
 steps와 audit P0..P3=0을 통과했습니다. 현재 exact work는
 [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md) 하나뿐입니다.
 
-먼저 typed generated required/nullable `select_related` builder의 resolve/bind failure가 zero query 뒤 generic
-invalid-plan으로 축약되는 현재 경로를 focused test로 고정합니다. 그다음 generated typed query의 private stored
-configuration error와 기존 context precedence 뒤 terminal pre-I/O exact-cause 반환만 구현하고 generator version v2, golden과 두 checked-in
-product companion을 결정적으로 갱신합니다. Dynamic path, 실제 zero/corrupt query, 정상 SQL/result/cache와 public
-facade API는 바꾸지 않습니다.
+Typed generated required/nullable `select_related` builder의 resolve/bind failure는 private stored configuration
+error로 보존되고 기존 context precedence 뒤 terminal pre-I/O exact cause로 반환되도록 exact 12 source/product/workflow
+path에 구현했습니다. Generator v2, golden과 두 checked-in companion, public facade pass-through, dynamic와 실제
+zero/corrupt controls도 EVID-080의 local normal/race/CGO0/vet/Linux386 및 final inventory gate를 통과했습니다.
 
-이 activation documentation tree 자체는 `not run/pending`이며 EVID-078/run `31593500615`을 activation proof로
-재사용하지 않습니다. Source implementation, completion documentation과 terminal evidence도 각각 고유 exact-head
-hosted CI를 사용합니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고 Q-012/Q-013은
-`Partial`, Q-017/Q-019는 P1/open입니다. Ready work는 없습니다. Relation-capable migration GDJ-0035는 GDJ-0034
-terminal 뒤 별도 contract-first packet으로만 활성화하며 Draft PR은 사용자 요청 전 merge하지 않습니다.
+다음 정확한 작업은 이 documentation transition을 포함하는 implementation head를 commit/push하고 고유 exact-head
+hosted 26-job/326-step CI와 independent audit를 통과시키는 것입니다. EVID-078은 baseline, EVID-079는 activation,
+EVID-080은 local source freeze에만 사용하며 later proof로 재사용하지 않습니다. Product는 계속
+`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고 Q-012/Q-013은 `Partial`, Q-017/Q-019는
+P1/open입니다. Ready work는 없습니다. Relation-capable migration GDJ-0035는 GDJ-0034 terminal 뒤 별도
+contract-first packet으로만 활성화하며 Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1326,8 +1328,10 @@ terminal 뒤 별도 contract-first packet으로만 활성화하며 Draft PR은 �
 - GDJ-0033 terminal/GDJ-0034 clean baseline: `db5c11f6fb5b2d165e0d85538bf255f4258e47dc`; EVID-078/run
   `31593500615` exact 26/26 jobs·326/326 steps PASS; unchanged product `122 passing + 5 deviation + 0 oracle_locked`,
   relation 12/12, audit P0..P3=0; completion run 재사용 없음
-- 현재 working tree: EVID-078 append와 exact eight-document GDJ-0034 activation; activation hosted CI
-  `not run/pending`, EVID-078 재사용 금지
+- GDJ-0034 activation documentation: `e2e0a4e3750e0f38f8bbe06ddbf9e1f8b607a9ef`; EVID-079/run
+  `31599273044` exact 26/26 jobs·326/326 steps PASS; audit P0..P3=0; activation only
+- 현재 working tree: exact 12-path implementation plus EVID-079/080 pre-host documentation transition; source local
+  gates와 audit PASS, combined implementation-head hosted CI `not run/pending`
 - 최근 완료 work:
   [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
 - active work:
@@ -1360,8 +1364,9 @@ terminal 뒤 별도 contract-first packet으로만 활성화하며 Draft PR은 �
   names는 bounded surface에서만 canonical입니다. Reverse manager,
   cross-materialization target identity/downstream cache, lifetime enforcement와 general generated upgrade policy는
   계속 open입니다.
-- GDJ-0034: active; typed generated `select_related` resolve/bind original cause 보존만 소유합니다. 새 Q/ADR, public
-  API, relation manifest/oracle/status 변경은 없으며 activation tree는 아직 hosted-verified되지 않았습니다.
+- GDJ-0034: active; typed generated `select_related` resolve/bind original cause 보존만 소유합니다. Activation은
+  EVID-079로 hosted-verified됐고 exact 12-path code는 EVID-080의 local 환경에서 Implemented/verified입니다. 새 Q/ADR,
+  public API, relation manifest/oracle/status 변경은 없으며 implementation-head hosted CI는 아직 pending입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1465,6 +1470,11 @@ terminal 뒤 별도 contract-first packet으로만 활성화하며 Draft PR은 �
 - GDJ-0033 terminal/GDJ-0034 baseline hosted: EVID-078/run 31593500615 exact 26/26·326/326 PASS; head
   `db5c11f6...`, synthetic merge/head tree both `69cc5ced...`, unchanged four-coordinate 715/715/0 inventory,
   product `122 + 5 + 0`, relation 12/12, audit P0/P1/P2/P3=0; baseline only
+- GDJ-0034 activation hosted: EVID-079/run 31599273044 exact 26/26·326/326 PASS; head `e2e0a4e...`, synthetic
+  merge/head tree both `fb61399b...`, unchanged four-coordinate 715/715/0 inventory, audit P0/P1/P2/P3=0; activation only
+- GDJ-0034 implementation local: EVID-080; exact 12 source/product/workflow paths, source diff SHA-256
+  `12a6df9c...55`, normal/race/CGO0/vet/Linux386/full `./...` PASS, 715/715/0·72,623 bytes·`127fb3d8...3a17`,
+  audit P0/P1/P2/P3=0; exact implementation-head hosted CI pending
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1519,9 +1529,10 @@ terminal 뒤 별도 contract-first packet으로만 활성화하며 Draft PR은 �
   31544273477 exact 26/26 PASS; terminal evidence/status/GDJ-0033 baseline run 31563615648 exact 26/26 PASS;
   GDJ-0033 activation run 31566524953 exact 26/26 PASS; decision-documentation run 31574653183 exact 26/26 PASS;
   implementation run 31586910749 exact 26/26 PASS; completion-documentation run 31590911735 exact 26/26 PASS;
-  terminal evidence/status/GDJ-0034 baseline run 31593500615 exact 26/26 PASS
+  terminal evidence/status/GDJ-0034 baseline run 31593500615 exact 26/26 PASS; GDJ-0034 activation run
+  31599273044 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-072/074/076/077/078을 각각의 activation/decision/implementation/completion/terminal head 밖
+- 가장 위험한 과장: EVID-072/074/076/077/078/079/080을 각각의 activation/decision/implementation/completion/terminal/local-source 경계 밖
   later proof로
   재사용하거나, exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로
   확대하거나, REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse

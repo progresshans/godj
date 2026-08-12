@@ -96,7 +96,7 @@ general cascade/eager graph/DDL/migration 전체
 | `relationreverseproduct` | exact nine-file generated reverse-relation fixture와 REL-005 actual SQLite observation root |
 | `relationprefetchproduct` | exact ten-file generated reverse-prefetch fixture와 REL-012 actual two-query SQLite observation root |
 | `relationselectproduct` | exact twelve-file generated one-hop forward select-related fixture와 REL-009/010/011 actual SQLite observation root |
-| `relationdeleteproduct` | legacy exact thirteen-file generated prerequisite와 updated facade를 합친 exact fourteen-file fixture; REL-002/007/008 actual SQLite observation root |
+| `relationdeleteproduct` | current generator v2 exact thirteen-file generated prerequisite와 facade를 합친 exact fourteen-file fixture; REL-002/007/008 actual SQLite observation root |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder/validator/canonical value, all-observed comparator와 required-observed product comparator |
@@ -442,8 +442,8 @@ union에 project-only prefetch companion 하나만 더한 exact ten-file union�
 `author_id IN` batch SELECT 1회, JOIN 0, warm access 추가 query 0을 actual SQLite에서 관찰합니다.
 `relationselectproduct`는 exact twelve-file union과 actual SQLite joined row scan으로 REL-009/010의
 required INNER/nullable LEFT OUTER eager access를 관찰하고, 같은 resolver로 REL-011 reverse path를 pre-I/O
-거부합니다. `relationdeleteproduct`는 legacy exact thirteen-file prerequisite bytes를 보존하고 updated project
-facade 한 파일을 더한 exact fourteen-file generated union을 사용합니다. REL-002는 new source에 no-PK target을
+거부합니다. `relationdeleteproduct`는 현재 generator v2 prerequisite를 exact thirteen-file union으로 결정적으로
+재생성하고 project facade 한 파일을 더한 exact fourteen-file generated union을 사용합니다. REL-002는 new source에 no-PK target을
 할당한 뒤 Save가 query/mutation 0, database unchanged와 `model_state_error/unsaved_related_object`로 실패하는 것을
 관찰합니다. 같은 실제 `NO ACTION`/`RESTRICT` FK와 pinned `BEGIN IMMEDIATE` transaction에서 REL-007의 전 incoming
 edge `PROTECT` count 2와 mutation 0, REL-008의 `UPDATE(2) -> DELETE(1)`/caller key clear도 계속 관찰합니다.
@@ -777,8 +777,8 @@ main/metadata/object, blog main/metadata/query/object와 project binding/reverse
 REL-009/010/011 fixture는 기존 object product 아홉 파일에 app-local projection companion 두 개와 project
 select-related companion 하나를 더한 exact twelve files를 재생성합니다. Required plain/eager 4-vs-1 SELECT와
 INNER 1, nullable LEFT OUTER 1, warm access extra query 0, reverse `posts` path의 query/mutation 0을 관찰합니다.
-REL-007/008 fixture의 legacy exact thirteen generated prerequisite는 그대로 보존됩니다. GDJ-0033은 project facade
-companion만 deterministic하게 교체한 exact fourteen-file union에서 REL-002 assignment/Save와 supplemental
+REL-007/008 fixture의 prerequisite exact thirteen generated union은 현재 generator versions로 결정적으로
+재생성됩니다. GDJ-0033 project facade를 더한 exact fourteen-file union에서 REL-002 assignment/Save와 supplemental
 presence/reconciliation/per-edge COW cache/rollback 경계를 검증합니다. 같은 실제 FK schema에서 `PROTECT` distinct
 source count 2와 mutation 0, `SET_NULL` UPDATE 2행 뒤 target DELETE 1행 및 하나의 transaction도 계속 관찰합니다.
 모든 actual은 oracle/static expected artifact를 import하지 않습니다.
@@ -787,8 +787,8 @@ Required workflow topology는 full/exact 2 + independent project-check proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
 relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
 normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
-검증합니다. Exact top-level package inventory는 715 run/715 pass/0 skip이고, encoded inventory는 72,621
-bytes/SHA-256 `85575c84e202fb88570ab44d6ef1ca0df8ef4443cfd63dabfa70f65130f9e237`입니다.
+검증합니다. Exact top-level package inventory는 715 run/715 pass/0 skip이고, encoded inventory는 72,623
+bytes/SHA-256 `127fb3d8e24c79e34b0bd28c387afee730e7b8f0268fc2662a63af2406793a17`입니다.
 Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
 3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및

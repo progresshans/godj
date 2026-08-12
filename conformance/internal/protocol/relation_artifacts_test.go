@@ -93,7 +93,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 				"blog/zz_godj_relation_projection.go",
 				"project/zz_godj_relation_select_related.go",
 			),
-			digest: "3f40133f93d2ac2014276c2e07396a1db74acdb2ebc4b8ff44e29ac1208df535",
+			digest: "3ff1d95416f19e5cb235d3960ab0f0bcbf29ea9df378fefeb97c3f07550eba41",
 		},
 		{
 			name: "new exact thirteen-file relation-delete product",
@@ -113,7 +113,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 				"project/zz_godj_relation_object.go",
 				"project/zz_godj_relation_select_related.go",
 			},
-			digest: "a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628",
+			digest: "4287eb23ede031f90f4f0c7f70b15e303d0ba737012b4687d66b477d0712baa2",
 		},
 		{
 			name: "updated exact fourteen-file relation-assignment facade product",
@@ -134,7 +134,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 				"project/zz_godj_relation_object.go",
 				"project/zz_godj_relation_select_related.go",
 			},
-			digest: "90e0e6cc5abf471a078107d58acf2e091fcf10d8252444c5e1efc671a45fb8ec",
+			digest: "5b8b7934ad29a96b91f7a705f0934badb90a5aeda1327300f1b0efb309fdd757",
 		},
 	}
 	for _, test := range tests {

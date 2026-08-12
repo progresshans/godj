@@ -79,6 +79,19 @@ func TestCheckedInGeneratedSelectRelatedProjectMatchesTwelveDeterministicCandida
 			t.Fatalf("checked-in generated file %s differs from deterministic candidate", candidate.path)
 		}
 	}
+	selectRelatedSource, err := os.ReadFile(filepath.Join(root, "project", "zz_godj_relation_select_related.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(selectRelatedSource, []byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"`)) {
+		t.Fatal("checked-in select-related companion does not expose the v2 provenance lock")
+	}
+	if count := bytes.Count(selectRelatedSource, []byte("configurationErr error")); count != 2 {
+		t.Fatalf("typed select-related private configuration error fields = %d, want exact 2", count)
+	}
+	if bytes.Contains(selectRelatedSource, []byte("godj-codegen-rel-select-related-project-v1")) {
+		t.Fatal("checked-in select-related companion retains stale v1 provenance")
+	}
 
 	var generatedFiles []string
 	for _, directory := range []string{"authors", "blog", "project"} {
