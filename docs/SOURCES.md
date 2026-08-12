@@ -188,3 +188,35 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
 - 웹의 `latest` 문구보다 tag/commit과 lockfile을 우선합니다.
 - drift 가능성이 있는 version·tool behavior는 새 milestone 시작 시 재확인합니다.
 - upstream source에서 코드를 복사·번역하면 file-level provenance와 license notice를 실제 파생 파일 가까이에 둡니다.
+
+## GDJ-0035 source plan
+
+GDJ-0035 Phase A는 pinned Django 6.1 commit/profile의 migration operation/executor/schema-editor 외부 동작과
+SQLite 현재 exact profile을 다시 관찰합니다. 이 activation은 source를 새로 복사·번역하거나 artifact를
+추가하지 않았습니다. 따라서 아래는 조사 route이지 완료 provenance가 아닙니다.
+
+조사 객체는 Django exact commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`에서 `git show`로 읽습니다.
+
+| Exact object | Blob | Bytes | Planned audited range/meaning |
+|---|---|---:|---|
+| `django/db/migrations/state.py` | `9e9cc58fae13a00178cd8ea13749a391a6e73f59` | 42,119 | 105–139, 514–536 project relation index와 resolution |
+| `django/db/migrations/operations/models.py` | `1b241230df922b9bc2350858da3604c9d1b01eef` | 45,901 | 85–100 CreateModel state/database transition |
+| `django/db/migrations/operations/fields.py` | `72b54382ef4902d599d7b62900cd677aac208f0c` | 12,787 | 102–121 AddField state/database transition |
+| `django/db/migrations/executor.py` | `074d7b2d285fbd05a357c6789a4094ff684b8945` | 19,029 | 39–75 target plan/apply lifecycle |
+| `django/db/backends/base/schema.py` | `9857eea57107c37a8c45d4aa0276ca775e70d162` | 85,400 | 516–570, 760–879 create/add/remove와 FK DDL boundary |
+| `django/db/backends/sqlite3/schema.py` | `47edec8f1ccc5b8c9309a41aabac9414a4e9e079` | 20,358 | 28–44, 80–280, 302–358 constraint-check와 remake/add/remove |
+| `tests/migrations/test_state.py` | `c31f8b80dd361aea32c013cdeb758323c0a65c9d` | 81,574 | 1265–1465 relation population/add/remove state |
+| `tests/migrations/test_executor.py` | `10cf505d039d8c453ab6c6688555e444dafa2d19` | 39,663 | 39–75 apply/unapply lifecycle |
+| `tests/schema/tests.py` | `024e68f2b36da1d3ff814ae9bdb5011324cdbc10` | 247,095 | 365–465 physical FK create/add enforcement |
+
+- Django `AddField`/`RemoveField`/`CreateModel` operation state/DB transitions
+- Django SQLite schema editor remake, deferred SQL과 constraint check 경계
+- Django migration executor/recorder restart/failure 경계
+- SQLite `PRAGMA foreign_keys`, `foreign_key_check`, `sqlite_schema`, `sqlite_sequence`
+- Existing GoDj ADR-0010/0014/0017/0019/0020/0024의 transaction, tuple, state와 IR 불변 조건
+
+Pinned Django 관찰과 GoDj-owned decision을 구분합니다. Relation tuple `(1,2,2,3)`, mixed digest v2,
+Relation State v2, physical `NO ACTION`과 bounded remake는 Django file ABI parity가 아니라
+[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 후보입니다.
+Phase A artifact를 만들 때 exact upstream path/test name, commit, license/provenance를 artifact 가까이에 기록합니다.

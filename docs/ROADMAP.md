@@ -1,17 +1,16 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)는 completed입니다.
-  Activation head `e2e0a4e...`는 EVID-079/run `31599273044`, exact implementation head `3099bd62...`는
-  EVID-081/run `31605477297`, exact completion head `45cfccd...`는 EVID-082/run `31609500811`의 서로 다른 exact
-  26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Code는 Implemented이고 EVID-081/082의 명시된 hosted
-  환경에서 Verified입니다. 새 Q/ADR 또는 product classification 변경은 없습니다. Active/ready work는 없고
-  EVID-082를 포함하는 exact six-document terminal evidence/status tree의 own exact-head hosted CI가 다음 절차입니다.
-  Activation/implementation/completion run을 재사용하지 않습니다. Relation-capable migration GDJ-0035는 GDJ-0034
-  terminal 뒤에만 별도로 엽니다.
+- 현재 단계: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
+  유일한 active contract-first packet이고 ready는 0입니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
+  terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
+  P0..P3=0을 통과했습니다. Product/Q 상태는 불변입니다. GDJ-0035는 MIG-075..086 exact 12
+  planned contracts와 Proposed ADR-0034를 활성화했으며 source/workflow/artifact/product 변경은 0입니다.
+  Exact 16-document activation tree own hosted CI는 `not run/pending`이고 EVID-083을 activation proof로
+  재사용하지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-13
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -472,8 +471,10 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   `3099bd62...`의 EVID-081/run `31605477297` 26/26 jobs·326/326 steps 및 independent P0..P3=0을 통과했습니다.
   새 Q/ADR 또는 public API를 추가하지 않았고 dynamic path, 정상 query/result/cache 의미와 REL-009/010/011 product
   status는 그대로입니다. EVID-081을 포함하는 exact 13-document completion head `45cfccd...`도 EVID-082/run
-  `31609500811`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. EVID-082를 포함하는 exact six-document
-  terminal tree는 다시 고유 exact-head CI가 필요하며 terminal baseline 전에는 GDJ-0035를 active/ready로 만들지 않습니다.
+  `31609500811`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. EVID-082를 포함한 exact
+  six-document terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26·326/326과
+  audit P0..P3=0을 통과해 clean GDJ-0035 baseline이 됐습니다. Completion run을 terminal proof로
+  재사용하지 않았습니다.
 - Current PROTECT는 exact protected identities와 count payload를 위해 모든 protected row를 materialize합니다.
   Production-scale 전 bounded-memory/stream/cap stress gate가 필요합니다. Public `ProtectedError` payload meaning을
   바꾸지 않는 최적화는 별도 work로 다루고, payload가 바뀔 때만 새 ADR을 요구합니다.
@@ -555,3 +556,24 @@ M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 - 조사 spike와 production implementation을 구분합니다.
 - 관계 없는 package나 같은 공개 API를 병렬 에이전트에 나누지 않습니다.
 - 긴 milestone은 contract group별 work item으로 쪼개되 milestone gate는 하나의 통합 담당자가 닫습니다.
+
+## Active GDJ-0035 sequence
+
+GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 exact 26/26 jobs·326/326 steps와
+audit P0..P3=0을 통과했습니다. 이 clean baseline에서
+[GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)를 유일한 active
+packet으로 활성화했고 ready는 0입니다. EVID-083은 activation proof가 아니며 exact 16-document
+activation tree own CI는 `not run/pending`입니다.
+
+1. Phase A: MIG-075..086 exact 12 independent reference/decision artifacts와 provenance를 만듭니다.
+2. Phase B: product를 바꾸지 않는 tuple/mixed digest/state/preflight/SQLite remake/fault feasibility를 검증합니다.
+3. Phase C: measured evidence로 [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)
+   candidate를 freeze하고 별도 decision head에서만 Accepted 여부를 결정합니다.
+4. Phase D: legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
+   bounded implementation합니다.
+5. Phase E: implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
+
+Candidate relation tuple은 `(1,2,2,3)`, planned IDs는 MIG-075..086뿐입니다. Phase A 전에 새
+aggregate/artifact/hash/test total을 예상값으로 기록하지 않습니다. Product는 계속 exact 12/127=
+`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Writer/autodetector/CLI,
+self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019는 이 sequence 밖입니다.

@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-13
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,16 +9,16 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0022 completed / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; generator/library semver·repair는 open |
+| Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 relation profile은 candidate이며 generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0022 completed | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; writer/upgrade/custom operation/DB-aware execution/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0033 completed / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; broader relation/backend 범위는 open |
+| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 relation lifecycle은 candidate이며 writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
+| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 AutoField FK migration은 candidate이며 broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
 | Q-017 | P1 | GDJ-0033 completed / facade breadth 후속 | bounded forward read/write names는 Implemented/Verified; prerequisite provenance, raw-model UX/capability/namespace, reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
-| Q-019 | P1 | 별도 SQLite lifecycle work 전 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
+| Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
 ## M0에서 해결한 질문
 
@@ -519,3 +519,21 @@ connection reuse, transaction outcome 또는 public error 의미가 달라지면
 growth gate가 필요합니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.
+
+## GDJ-0035 activation impact
+
+[GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 Q-010/Q-012/Q-013에
+의존하지만 세 질문을 닫지 않습니다. Q-010/Q-012/Q-013은 계속 `Partial`, Q-017/Q-019는
+P1/open입니다.
+
+- Q-010: exact global check/public project runner는 있지만 writer/autodetector/upgrade·generator/library semver은 open입니다.
+- Q-012: relation tuple/state/codec/SQLite lifecycle candidate를 MIG-075..086으로 열었지만 custom/data operation,
+  DB-aware public migrate command, repair/crash policy와 non-SQLite는 open입니다.
+- Q-013: AutoField-target ForeignKey migration은 broader relation/backend 질문의 bounded candidate일 뿐이며
+  OneToOne/ManyToMany/`to_field`/self/cyclic/inbound/non-SQLite를 닫지 않습니다.
+- Q-017: relation facade/general generated upgrade를 바꾸지 않습니다.
+- Q-019: unknown commit outcome의 no-retry error meaning만 보존하고 retained connection cap/reconciliation은 결정하지 않습니다.
+
+[ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 Proposed입니다.
+Phase A/B/C evidence와 distinct decision-head CI 전에 tuple/state/digest/editor/remake candidate를 Accepted로 표현하지
+않습니다.

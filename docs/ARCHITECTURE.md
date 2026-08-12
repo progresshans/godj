@@ -427,3 +427,31 @@ version handshake는 Q-010으로 남아 있고, generator runner는 여전히 `i
 최종적으로 `cmd/godj`, schema/IR, codegen, query, ORM, backends, migrations, forms, templates, admin, auth, API, realtime, GIS, i18n, contrib, testing/conformance, examples가 필요할 수 있습니다. 구현하지 않은 미래 패키지는 미리 만들지 않습니다.
 
 현재 핵심 미결정 사항은 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), 채택된 이유는 [adr/](adr/README.md)에 기록합니다.
+
+## GDJ-0035 relation-capable migration candidate boundary
+
+[GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 completed
+GDJ-0034 terminal baseline 위에 단일 active contract-first packet으로 활성화됐습니다.
+[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 다음
+별도 pipeline을 Phase A/B에서 검증할 candidate로만 기록합니다.
+
+```text
+legacy (1,1,1,2) document ─┐
+                            ├→ per-document profile load → mixed canonical set/digest
+relation (1,2,2,3) document ─┘                                  │
+                                                                        ↓
+scalar State v1 / relation State v2 → full zero-I/O target+ancestry preflight
+                                                                        │
+                                                                        ↓
+optional relation editor → pinned SQLite FK-on transaction → DDL/remake+recorder+revision
+```
+
+Legacy-only digest v1, scalar State v1과 existing lifecycle는 필수 보존 조건입니다. Relation/mixed
+digest v2, `RelationStateFormatVersion=2`, additive editor, physical `NO ACTION`, populated-table nullable AddField,
+required populated rejection과 bounded FK-removal table remake는 아직 Proposed입니다. Target AutoField/table/reverse
+namespace와 creator dependency ancestry를 첫 `BEGIN` 전에 검증하고 precommit/commit-three-outcome/restart를
+별도 계약으로 잠그는 방향입니다. Writer/autodetector, general schema preservation,
+self/cyclic/inbound relation, non-AutoField target, non-SQLite backend, Q-017/Q-019는 범위 밖입니다.
+
+Activation은 Markdown-only이며 source/artifact/product 상태를 바꾸지 않습니다. MIG-075..086은 exact
+12 planned IDs이고, 새 aggregate/byte/hash/test total은 Phase A 전에 존재하는 것으로 표현하지 않습니다.

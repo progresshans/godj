@@ -1102,8 +1102,10 @@ P0..P3=0을 통과했습니다. Exact implementation head `3099bd62...`는 별�
 EVID-078/079/080을 implementation proof로 재사용하지 않았습니다. GDJ-0034는 completed이고 code는 Implemented,
 EVID-081의 명시된 hosted 환경에서 Verified입니다. EVID-081을 포함하는 exact 13-document completion head
 `45cfccd...`도 별도 EVID-082/run `31609500811`의 unique 26/26 jobs·326/326 steps, unchanged four-coordinate
-715/715/0·72,623-byte inventory와 independent P0..P3=0을 통과했습니다. EVID-082 append를 포함하는 exact six-document
-terminal evidence/status tree는 completion run이 재귀적으로 증명하지 않으므로 own exact-head CI가 `not run/pending`입니다.
+715/715/0·72,623-byte inventory와 independent P0..P3=0을 통과했습니다. EVID-082 append를 포함한 exact six-document
+terminal head `0bb8c969...`는 별도 EVID-083/run `31613170021`의 unique 26/26 jobs·326/326 steps,
+unchanged four-coordinate inventory와 independent P0..P3=0을 통과했습니다. Completion run을 terminal proof로
+재사용하지 않았습니다.
 REL-009/010/011 및 aggregate product classification은 그대로이고 locked Django relation oracle/manifest/checksum을
 바꾸지 않습니다.
 
@@ -1145,3 +1147,28 @@ tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-
 `53729103651bfc34acc5fe07fb4376d5dd78c204` 자체도 별도 Draft PR #1
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
 job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
+
+## GDJ-0035 activation and planned verification
+
+GDJ-0034 terminal baseline `0bb8c969...`는
+[EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
+[run 31613170021](https://github.com/progresshans/godj/actions/runs/31613170021)의 exact 26/26 jobs·326/326 steps과
+audit P0..P3=0을 통과했습니다. 이 run은 GDJ-0035 activation test가 아닙니다. Exact 16-document
+activation tree는 source/workflow/artifact diff 0이며 own hosted CI는 `not run/pending`입니다.
+
+Activation 후 검증은 다음 순서를 강제합니다.
+
+1. MIG-075 legacy tuple/digest/state/canonical byte lock을 먼저 검증합니다.
+2. MIG-076..079 profile/hybrid/mixed digest/state/promotion/target+ancestry preflight는 DB I/O 0을 어떤
+   implementation보다 먼저 잠그니다.
+3. MIG-080..084 SQLite CreateModel/AddField/remake/FK-on/NO ACTION/restart를 memory/file-backed DB에서
+   검증합니다. Populated required AddField는 explicit rejection이어야 합니다.
+4. MIG-085..086은 DDL/recorder/revision precommit fault와 commit success/definite failure/unknown outcome/no retry를
+   각각 fault-injection합니다.
+5. Local normal/race/CGO-disabled/vet, external compile, no-rewrite, artifact checksum, four hosted coordinates,
+   file restart와 exact inventory를 final bytes에서 측정합니다.
+
+Phase A 전에 contract aggregate, artifact byte/hash, test/run/pass/skip total을 예상값으로 고정하지 않습니다.
+Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
+사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
+12/12는 변경 없습니다.

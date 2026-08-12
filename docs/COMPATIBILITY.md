@@ -781,3 +781,34 @@ Django 문서와 테스트에서 파생한 시나리오는 upstream version, 파
 
 공식 기준 링크와 로컬 검증 정보는 [SOURCES.md](SOURCES.md), 구체적인 파생물 정책은
 [LICENSING.md](LICENSING.md)에 있습니다.
+
+## MIG-075..086 activation compatibility boundary
+
+[GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 MIG-075..086 exact
+12 contract ID를 계획했습니다. Activation은 아직 manifest/oracle/static fixture나 product adapter를 추가하지
+않았고, 따라서 새 reference/product aggregate·status·artifact hash를 주장하지 않습니다. Existing 12 set/127
+contract/132 ordered cross-binding reference와 product exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`,
+relation 12/12는 불변입니다.
+
+Compatibility candidate는 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
+다음과 같이 분리합니다.
+
+| ID | Proposed observation | 현재 분류 |
+|---|---|---|
+| MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | planned / not observed |
+| MIG-076 | Relation tuple `(1,2,2,3)`과 hybrid/mismatch rejection | planned / not observed |
+| MIG-077 | Per-document profile을 포함한 relation/mixed digest v2 | planned / not observed |
+| MIG-078 | Scalar v1↔relation v2 state promote/demote | planned / not observed |
+| MIG-079 | Target/AutoField/table/reverse/creator ancestry preflight, I/O 0 | planned / not observed |
+| MIG-080 | Relation CreateModel apply/unapply/reapply | planned / not observed |
+| MIG-081 | Populated nullable AddField와 required rejection | planned / not observed |
+| MIG-082 | FK remove/remake row/sequence preservation | planned / not observed |
+| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | planned / not observed |
+| MIG-084 | File-backed restart | planned / not observed |
+| MIG-085 | Precommit DDL/recorder/revision fault | planned / not observed |
+| MIG-086 | Commit three outcomes, no retry | planned / not observed |
+
+Phase A는 pinned Django 6.1/SQLite profile의 external observation과 GoDj-owned decision/reference를 구분해 provenance를
+기록해야 합니다. Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned
+decision을 Django exact parity로 표현하지 않습니다. Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open을
+유지합니다.

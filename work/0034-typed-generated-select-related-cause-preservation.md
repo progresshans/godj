@@ -127,7 +127,7 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 - [x] Exact implementation head의 고유 hosted 26-job/326-step CI와 independent P0..P3 audit PASS
 - [x] Exact 13-document completion transition과 integrated current-document 상태 전이
 - [x] Completion-documentation exact-head hosted verification
-- [ ] Exact six-document terminal evidence/status exact-head hosted verification
+- [x] Exact six-document terminal evidence/status exact-head hosted verification
 
 ## 명시적 비목표
 
@@ -162,10 +162,22 @@ work/0034-typed-generated-select-related-cause-preservation.md
 work/README.md
 ```
 
-- 다음 정확한 작업은 EVID-082를 포함하는 exact six-document terminal evidence/status tree만 commit/push하고 고유
-  exact-head hosted CI를 terminal strict-audit하는 것입니다. EVID-082는 그 later tree의 재귀 proof로 재사용하지
-  않습니다. Terminal exact-head CI는 `not run/pending`이고 clean baseline까지 닫히기 전에는 다음 work를
-  active/ready로 만들지 않습니다.
-- 그다음 후보는 별도 contract-first `GDJ-0035` relation-capable migration packet뿐입니다. 이 문서가 그 migration의
-  tuple, state, DDL 또는 ADR을 미리 Accepted하지 않습니다.
+- Exact six-document terminal evidence/status head는 EVID-083/run `31613170021`의 고유 exact-head hosted CI와
+  terminal strict audit를 통과했습니다. EVID-082를 terminal proof로 재사용하지 않았습니다.
+- 다음 단일 active packet은 별도 contract-first `GDJ-0035` relation-capable migration입니다. Proposed
+  ADR-0034의 tuple/state/DDL candidate는 Phase A/B/C 전에 Accepted로 표현하지 않습니다.
 - Q-013은 `Partial`, Q-017과 Q-019는 P1/open을 유지합니다. Draft PR #1은 open/draft/unmerged 상태를 유지합니다.
+
+## Terminal closure and handoff
+
+- Exact six-document terminal head `0bb8c969d0658f50f40d916996f027e7393bce14`, tree
+  `341deb1da8d864f21252a6e3846745af36c1551e`는
+  [EVID-083](../docs/status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
+  [run 31613170021](https://github.com/progresshans/godj/actions/runs/31613170021)의 고유 26/26 jobs·326/326 steps
+  success와 independent audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다.
+- EVID-082 completion run을 terminal proof로 재사용하지 않았고, EVID-083은 이 work의 terminal clean
+  baseline만 증명합니다. Later activation/decision/implementation tree를 재귀적으로 증명하지 않습니다.
+- 이 work는 terminally closed입니다. 다음 단일 active packet은 별도 contract-first
+  [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)이며, Proposed
+  [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의
+  candidate를 activation했습니다. GDJ-0035 activation tree own CI는 `not run/pending`입니다.

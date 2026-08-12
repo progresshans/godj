@@ -183,3 +183,25 @@ Hook/signal은 실행 순서, sync/async 여부, transaction commit 전후, 오�
 - Django 비교는 동일 기능·데이터·DB 의미에서만 수행합니다.
 - benchmark 결과는 checkout과 환경이 연결된 `docs/status/TEST_EVIDENCE.md`에 남깁니다.
 - 수치 목표와 허용 회귀폭은 M1 walking skeleton이 안정된 뒤 별도 performance ADR에서 정합니다.
+
+## GDJ-0035 proposed SQLite lifecycle concurrency boundary
+
+GDJ-0035는 existing revision-fenced migration transaction을 보존하면서 relation editor/remake를 추가할
+candidate를 검증합니다. [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는
+아직 Proposed이며 다음을 현재 구현된 보장으로 표현하지 않습니다.
+
+- Relation/state/creator-ancestry와 optional-capability의 pure preflight는 pinned connection/session이나 transaction
+  `BEGIN` 전에 끝나야 하며 failure I/O는 0이어야 합니다.
+- `PRAGMA foreign_keys=1`은 relation intent로 고정한 exact physical connection에서 transaction `BEGIN` 전에
+  확인합니다. Pool의 다른 connection 상태를 재사용하지 않습니다.
+- `BEGIN IMMEDIATE` 뒤 첫 mutation 전에 실행하는 physical preflight는 `sqlite_schema`, `foreign_key_list`,
+  index/trigger/view와 inbound FK를 읽는 DB I/O입니다. Pure zero-I/O preflight와 구분하며 실패 시 mutation 0과
+  rollback을 요구합니다.
+- Table remake, row copy, `foreign_key_check`, recorder write와 revision compare/write는 하나의 migration
+  transaction과 exact connection을 사용하는 candidate입니다.
+- Precommit fault는 failed migration을 rollback하고 앞선 migration commit은 보존합니다. Commit outcome은
+  success/definite failure/unknown outcome을 구분하고 unknown을 automatic retry하지 않습니다.
+- File restart와 concurrent caller alias/race gate는 MIG-078/084/085/086에서 별도로 검증합니다.
+
+Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
+semantics도 범위 밖입니다.

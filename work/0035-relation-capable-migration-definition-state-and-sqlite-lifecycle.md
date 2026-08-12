@@ -1,0 +1,286 @@
+---
+id: GDJ-0035
+status: active
+updated: 2026-08-13
+baseline_branch: "codex/revision-fenced-migration-lifecycle"
+baseline_commit: "0bb8c969d0658f50f40d916996f027e7393bce14"
+depends_on: ["GDJ-0034"]
+contracts: ["MIG-075..MIG-086", "Q-010", "Q-012", "Q-013"]
+allowed_paths:
+  - ".github/workflows/ci.yml"
+  - "Makefile"
+  - "NOTICE.md"
+  - "conformance/README.md"
+  - "conformance/migrationrelation/**"
+  - "conformance/contracts/migration-relation-manifest.json"
+  - "conformance/fixtures/godj-migration-relation-not-implemented.json"
+  - "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json"
+  - "conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS"
+  - "conformance/runners/django/migration_relation_scenarios.py"
+  - "conformance/runners/django/runner.py"
+  - "conformance/runners/django/scenarios.py"
+  - "conformance/runners/django/tests/test_migration_relation_scenarios.py"
+  - "conformance/runners/django/tests/test_runner_safety.py"
+  - "conformance/runners/django/tests/test_scenarios.py"
+  - "conformance/runners/django/migration_relation_fixture/__init__.py"
+  - "conformance/runners/django/migration_relation_fixture/apps.py"
+  - "conformance/runners/django/migration_relation_fixture/migrations/__init__.py"
+  - "conformance/runners/django/migration_relation_fixture/migrations/0001_initial.py"
+  - "conformance/runners/django/migration_relation_fixture/migrations/0002_nullable_relation.py"
+  - "conformance/runners/godj/migration_relation_scenarios.go"
+  - "conformance/runners/godj/runner.go"
+  - "conformance/runners/godj/runner_test.go"
+  - "conformance/internal/protocol/migration_definition_source_artifacts_test.go"
+  - "conformance/internal/protocol/migration_project_check_artifacts_test.go"
+  - "conformance/internal/protocol/migration_relation_artifacts_test.go"
+  - "conformance/internal/protocol/write_migration_artifacts_test.go"
+  - "conformance/cmd/godjcheck/main_test.go"
+  - "conformance/migrationrelationproduct/observer.go"
+  - "conformance/migrationrelationproduct/product_test.go"
+  - "migrations/definition/codec.go"
+  - "migrations/definition/definition.go"
+  - "migrations/definition/definition_test.go"
+  - "migrations/definition/digest.go"
+  - "migrations/definition/digest_test.go"
+  - "migrations/definition/error.go"
+  - "migrations/definition/external_test.go"
+  - "migrations/definition/ir.go"
+  - "migrations/definition/json.go"
+  - "migrations/definition/limits.go"
+  - "migrations/definition/load.go"
+  - "migrations/definition/profile.go"
+  - "migrations/definition/profile_test.go"
+  - "migrations/definition/relation.go"
+  - "migrations/definition/relation_test.go"
+  - "migrations/definition/resource_limits_test.go"
+  - "migrations/backend/backend.go"
+  - "migrations/backend/lifecycle.go"
+  - "migrations/backend/relation.go"
+  - "migrations/backend/relation_test.go"
+  - "migrations/execution.go"
+  - "migrations/execution_test.go"
+  - "migrations/executor.go"
+  - "migrations/executor_test.go"
+  - "migrations/external_test.go"
+  - "migrations/lifecycle.go"
+  - "migrations/lifecycle_test.go"
+  - "migrations/operation.go"
+  - "migrations/operation_test.go"
+  - "migrations/planner.go"
+  - "migrations/planner_graph.go"
+  - "migrations/planner_test.go"
+  - "migrations/reconstructor.go"
+  - "migrations/reconstructor_test.go"
+  - "migrations/state.go"
+  - "migrations/state_test.go"
+  - "db/sqlite/backend.go"
+  - "db/sqlite/backend_internal_test.go"
+  - "db/sqlite/integration_test.go"
+  - "db/sqlite/migration_backend.go"
+  - "db/sqlite/migration_backend_test.go"
+  - "db/sqlite/migration_history.go"
+  - "db/sqlite/migration_history_test.go"
+  - "db/sqlite/migration_lifecycle.go"
+  - "db/sqlite/migration_lifecycle_test.go"
+  - "db/sqlite/migration_relation.go"
+  - "db/sqlite/migration_relation_test.go"
+  - "db/sqlite/migration_remake.go"
+  - "db/sqlite/migration_remake_test.go"
+  - "db/sqlite/migration_sql.go"
+  - "db/sqlite/migration_sql_test.go"
+  - "internal/compiletest/compile_test.go"
+  - "internal/compiletest/testdata/migration_relation_external_consumer.go.txt"
+  - "docs/ARCHITECTURE.md"
+  - "docs/BACKEND_MATRIX.md"
+  - "docs/CAPABILITY_CATALOG.md"
+  - "docs/COMPATIBILITY.md"
+  - "docs/CONCURRENCY.md"
+  - "docs/LICENSING.md"
+  - "docs/OPEN_QUESTIONS.md"
+  - "docs/ROADMAP.md"
+  - "docs/SOURCES.md"
+  - "docs/TESTING.md"
+  - "docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md"
+  - "docs/adr/README.md"
+  - "docs/status/CURRENT.md"
+  - "docs/status/IMPLEMENTATION_MATRIX.md"
+  - "docs/status/TEST_EVIDENCE.md"
+  - "work/0034-typed-generated-select-related-cause-preservation.md"
+  - "work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md"
+  - "work/README.md"
+integration_owner: "one primary agent"
+---
+
+# Relation-capable Migration Definition, State, and SQLite Lifecycle
+
+## 사용자에게 보이는 단일 결과
+
+완료 후 사용자는 기존 scalar migration definition을 다시 쓰지 않은 채 relation-capable definition을 같은
+project batch에 함께 두고, AutoField 대상 `ForeignKey`가 포함된 historical state를 SQLite에서
+apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 GoDj가 application mutation에서
+집행하고 SQLite physical constraint는 두 정책 모두 `NO ACTION`으로 유지합니다.
+
+이 문서는 그 목표를 검증하기 위한 contract-first 활성 packet입니다. 아래 format/state/DDL shape와
+[ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 아직
+**Proposed candidate**이며 구현·검증·Accepted 결정이 아닙니다.
+
+## 기준 상태와 activation 경계
+
+- Clean baseline은 GDJ-0034 terminal head
+  `0bb8c969d0658f50f40d916996f027e7393bce14`, tree
+  `341deb1da8d864f21252a6e3846745af36c1551e`입니다.
+- [EVID-083](../docs/status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
+  [run 31613170021](https://github.com/progresshans/godj/actions/runs/31613170021)은 이 exact baseline을
+  26/26 jobs·326/326 steps success와 independent audit P0/P1/P2/P3=`0/0/0/0`으로 검증했습니다.
+- EVID-083은 GDJ-0034 terminal closure와 GDJ-0035의 clean baseline만 증명합니다. 이 exact 16-document
+  activation tree 자체 CI는 `not run/pending`이며 baseline run을 activation proof로 재사용하지 않습니다.
+- 현재 제품 분류는 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation
+  12/12로 불변입니다. Existing 12 set/127 contract/132 ordered cross-binding reference도 불변입니다.
+- 이 activation은 source, workflow, manifest, oracle, fixture, checksum 또는 product status를 바꾸지 않습니다.
+  MIG-075..086은 계획 ID일 뿐 Phase A 전에는 새 aggregate, artifact byte/hash 또는 test count를 주장하지 않습니다.
+- 이 문서만 `active`이고 `ready`는 0입니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
+
+## 보존해야 하는 legacy 불변 조건
+
+1. Existing definition profile `(definition_format=1, loader_abi=1, operation_codec=1, schema_ir=2)`는
+   byte-compatible하게 계속 허용합니다.
+2. Legacy-only definition set의 canonical domain/digest v1과 old canonical bytes는 그대로 유지합니다.
+3. `migrations.StateFormatVersion=1` scalar state와 기존 CreateModel/AddField lifecycle 의미를 보존합니다.
+4. Existing migration manifests/oracles/static fixtures, Q-010/Q-012 `Partial`, Q-013 `Partial`, Q-017/Q-019
+   P1/open과 all relation product status를 그대로 둡니다.
+5. Unsupported relation data를 legacy tuple/state로 조용히 낮추거나 current generated model에서 복구하지 않습니다.
+
+## Proposed candidate architecture
+
+### Definition profile와 mixed set
+
+- Relation profile 후보는 exact tuple `(1,2,2,3)`입니다. `definition_format=1` envelope는 유지하되
+  loader ABI v2가 per-document profile dispatch와 mixed set을, operation codec v2가 relation field arm을,
+  Schema IR v3가 normalized ForeignKey 의미를 소유합니다.
+- Loader는 legacy `(1,1,1,2)`와 relation `(1,2,2,3)` document를 한 batch에서 받되 각 document를 선언된
+  profile로만 decode합니다. 중간 hybrid tuple은 coordinate별 incompatibility로 pre-publication 실패합니다.
+- Legacy-only set은 digest domain v1을 보존합니다. Relation document가 하나라도 있는 relation-only/mixed set은
+  domain v2를 사용하고 각 canonical definition에 profile을 포함해 동일 migration 의미라도 profile 차이가
+  digest에 반영되도록 하는 후보입니다. Old definition을 rewrite하지 않습니다.
+
+### Historical state와 preflight
+
+- `StateFormatVersion=1`은 scalar-only로 유지하고 새 `RelationStateFormatVersion=2`가 IR v3 relation-bearing
+  historical state를 소유하는 후보입니다.
+- Explicit promotion은 scalar v1을 relation state v2로 losslessly 옮기고, demotion은 relation arm이 하나라도
+  있으면 거부하며 scalar-only v2만 v1로 losslessly 되돌립니다.
+- 전체 plan의 pure preflight는 DB I/O 전에 source/target app·model, target AutoField PK, declared
+  table/column/reverse namespace, `SET_NULL` nullability와 creator-ancestry/dependency를 검증합니다. Target table을
+  만드는 migration이 source보다 앞서 dependency ancestry에 있지 않으면 fail-closed합니다.
+- Cross-app dependency는 explicit migration identity로 표현합니다. Implicit discovery/order나 current runtime
+  binding으로 historical dependency를 보충하지 않습니다.
+
+### SQLite lifecycle와 physical policy
+
+- Existing scalar `migrations/backend.SchemaEditor`를 깨지 않고 optional relation editor capability를 additive하게
+  검출하는 후보입니다. Pure relation/state/plan validation과 capability selection은 pinned connection/session과
+  transaction `BEGIN` 전에 끝나야 합니다.
+- SQLite connection은 migration transaction이 사용하는 exact physical connection에서
+  transaction `BEGIN` 전에 `PRAGMA foreign_keys=1`을 확인합니다. 다른 pooled connection의 PRAGMA 결과를
+  재사용하지 않습니다.
+- `PROTECT`와 `SET_NULL` 모두 physical FK action은 `ON DELETE NO ACTION`; application-level delete policy와
+  database constraint action을 동일시하지 않습니다.
+- Relation-bearing CreateModel, empty/non-empty table의 nullable ForeignKey AddField, reverse remove, unapply,
+  reapply와 file reopen restart를 검증합니다. Populated table에 required ForeignKey AddField는 backfill/default
+  policy 없이 pre-DDL structured error로 거부합니다.
+- SQLite FK removal은 bounded table remake 후보를 사용합니다. Exact declared table/column/PK/FK shape,
+  user rows와 `sqlite_sequence`를 보존하고 inbound FK, index/trigger/view 또는 packet 밖 schema object를 만나면
+  임의 재생성 없이 capability error로 거부합니다.
+- Exact pinned connection의 physical preflight는 `sqlite_schema`, `foreign_key_list`, index/trigger/view와
+  inbound FK를 읽는 DB I/O이며, `BEGIN IMMEDIATE` 뒤 첫 DDL/recorder write 전에 끝나야 합니다. 이 검사는
+  pure zero-I/O preflight와 별도입니다.
+- Precommit DDL/recorder/revision fault는 same-transaction rollback과 original cause를 보존합니다. Commit은
+  success/definite-failure/unknown-outcome 세 결과를 그대로 전달하고 automatic retry를 하지 않습니다.
+
+## MIG-075..086 planned contracts
+
+| ID | 계획된 관찰 경계 | Activation 상태 |
+|---|---|---|
+| MIG-075 | Legacy tuple/codec/state/digest ABI byte preservation | planned, not run |
+| MIG-076 | Exact relation profile, coordinate mismatch와 hybrid tuple rejection | planned, not run |
+| MIG-077 | Relation-only/mixed set canonical order, per-document profile와 digest-v2 semantics | planned, not run |
+| MIG-078 | Scalar v1 ↔ relation v2 explicit promote/demote와 alias-free state | planned, not run |
+| MIG-079 | Target AutoField/table/reverse/creator-ancestry full preflight, DB I/O 0 | planned, not run |
+| MIG-080 | Relation-bearing CreateModel apply/unapply/reapply | planned, not run |
+| MIG-081 | Populated-table nullable AddField success와 required AddField rejection | planned, not run |
+| MIG-082 | FK removal table remake의 row/order/sequence preservation | planned, not run |
+| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | planned, not run |
+| MIG-084 | File-backed close/reopen restart와 applied-state reconstruction | planned, not run |
+| MIG-085 | Precommit DDL/recorder/revision faults의 atomic rollback과 cause | planned, not run |
+| MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | planned, not run |
+
+이 12개 ID만 현재 계획합니다. Contract count, manifest/oracle/static fixture bytes와 checksum은 Phase A에서
+실제 생성·검증한 뒤 기록합니다.
+
+## 실행 단계
+
+### A. Django-first reference와 immutable artifacts
+
+- [ ] Pinned Django 6.1/SQLite exact profile에서 MIG-075..086의 외부 state/constraint/rows/sequence/failure를 관찰
+- [ ] Independent manifest, reference oracle, ordered static not-implemented fixture와 provenance를 생성
+- [ ] Existing artifacts, `SHA256SUMS`, 12/127/132 reference와 product `122+5+0`의 불변을 검증
+- [ ] Exact artifact byte/count/hash와 test inventory는 final Phase-A bytes에서만 측정
+
+### B. No-product feasibility
+
+- [ ] Tuple/profile dispatch, mixed digest, state promote/demote와 deterministic preflight candidate를 product 밖에서 검증
+- [ ] `conformance/migrationrelation/**`에서 SQLite pinned-connection FK-on, `NO ACTION`, nullable AddField와
+  bounded remake를 product 밖 isolated spike로 검증
+- [ ] Precommit/commit-three-outcome/restart fault matrix와 no-retry invariant를 검증
+
+### C. Decision freeze
+
+- [ ] Phase A/B 결과로 ADR-0034 candidate를 수정하고 public/optional backend/error/digest/state shape를 동결
+- [ ] P0/P1/P2/P3 audit 뒤에만 ADR 상태를 Accepted로 바꾸는 별도 decision head를 만듦
+
+### D. Bounded implementation
+
+- [ ] Existing legacy profile/digest/state/lifecycle bytes와 behavior를 보존하며 relation profile/state/codec 구현
+- [ ] Pure structural/capability zero-I/O preflight 뒤 pinned physical preflight와 additive relation editor,
+  SQLite lifecycle/remake 구현
+- [ ] Actual GoDj adapter가 expected fixture replay 없이 MIG-075..086 observation을 생성
+
+### E. 검증과 evidence heads
+
+- [ ] Exact 16-document activation head의 고유 hosted CI와 independent audit
+- [ ] Local normal/race/CGO-disabled/vet, SQLite/file restart/fault, no-rewrite와 compile gates
+- [ ] Implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
+- [ ] CURRENT/MATRIX/TEST_EVIDENCE/work/ADR를 실제 상태에 맞춰 갱신
+
+## 명시적 비목표와 금지 경계
+
+- Migration writer/autodetector, `makemigrations`, CLI upgrade/downgrade/repair 또는 definition cache
+- Data/custom/RunSQL operation, executable callback, arbitrary backfill/default generation
+- Self/cyclic ForeignKey, inbound FK remake, `to_field`, non-AutoField/composite PK, OneToOne/ManyToMany
+- Arbitrary index/trigger/view/generated column preservation 또는 general-purpose SQLite schema rewriter
+- Existing relation query/ORM/codegen/public facade 변경; `schema/**`, `codegen/**`, `orm/**`, `query/**` 수정
+- `go.mod`, `go.sum`, existing relation manifest/oracle/static fixture/checksum 변경
+- PostgreSQL/MySQL/Windows와 broader non-SQLite migration backend
+- Q-010/Q-012/Q-013 close, Q-017 facade/general upgrade 또는 Q-019 retained-connection policy 결정
+- Draft PR merge
+
+## 위험과 rollback
+
+- Profile/digest drift는 old migration identity를 바꿀 수 있으므로 legacy-only byte lock 실패 시 구현을 진행하지 않습니다.
+- Table remake는 row/sequence 또는 undeclared schema object를 잃을 수 있으므로 bounded recognized shape 밖은 fail-closed합니다.
+- FK PRAGMA는 connection-local이므로 exact pinned connection 증거가 없으면 capability를 주장하지 않습니다.
+- Unknown commit outcome을 retry하면 duplicate schema/record mutation 위험이 있으므로 original outcome을 보존합니다.
+- Activation은 Markdown-only입니다. 되돌릴 때 exact 16 activation paths만 원복하며 baseline source/product는 건드리지 않습니다.
+
+## 다음 정확한 작업
+
+Exact 16-document activation diff를 scope/link/anchor/frontmatter/fence/history-prefix 관점에서 독립 감사한 뒤에만
+commit/push합니다. 그 exact activation head가 EVID-083과 다른 고유 26-job/326-step CI를 통과하기 전에는
+MIG-075 artifact나 product source를 추가하지 않습니다. Activation CI가 성공하면 Phase A의 MIG-075 legacy ABI
+lock과 MIG-076 profile/hybrid reference input부터 시작합니다.
+
+## 결과와 인수인계
+
+현재 결과는 GDJ-0035 activation과 Proposed ADR-0034뿐입니다. 구현, 새 artifact, 새 digest/state/DDL behavior와
+product classification 변화는 없습니다. Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를
+먼저 수정하고 통합 담당자가 scope를 다시 승인합니다.
