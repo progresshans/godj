@@ -66,9 +66,10 @@ proposed → ready → active → completed
 `31605477297`의 서로 다른 exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Code는 Implemented이고
 EVID-081의 명시된 hosted 환경에서 Verified입니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`,
 relation 12/12이며 Q-013은 Partial, Q-017은 P1/open입니다. 새 Q/ADR은 없습니다. EVID-081을 포함하는 exact
-13-document completion tree와 그 뒤 exact six-document terminal tree는 각각 later unique exact-head CI가 필요하고,
-terminal baseline 전에는 다음 work를 활성화하지 않습니다. Relation-capable migration GDJ-0035는 GDJ-0034 terminal
-뒤 별도 contract-first packet으로만 활성화합니다. Draft PR은 merge하지 않습니다.
+13-document completion head `45cfccd...`도 EVID-082/run `31609500811`의 별도 exact 26/26·326/326과 audit P0..P3=0을
+통과했습니다. EVID-082를 포함하는 exact six-document terminal tree는 later unique exact-head CI가 필요하고 terminal
+baseline 전에는 다음 work를 활성화하지 않습니다. Relation-capable migration GDJ-0035는 GDJ-0034 terminal 뒤 별도
+contract-first packet으로만 활성화합니다. Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.

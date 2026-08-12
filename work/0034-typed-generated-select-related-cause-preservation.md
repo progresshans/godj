@@ -126,7 +126,7 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 - [x] Full `go test ./...`와 final measured workflow/artifact inventory PASS
 - [x] Exact implementation head의 고유 hosted 26-job/326-step CI와 independent P0..P3 audit PASS
 - [x] Exact 13-document completion transition과 integrated current-document 상태 전이
-- [ ] Completion-documentation exact-head hosted verification
+- [x] Completion-documentation exact-head hosted verification
 - [ ] Exact six-document terminal evidence/status exact-head hosted verification
 
 ## 명시적 비목표
@@ -147,28 +147,25 @@ schema/binding 불일치 또는 잘못 조합된 project package에서의 fail-c
 - EVID-078/run `31593500615`은 baseline 전용이고 EVID-079/run `31599273044`는 activation 전용입니다. 둘 다
   implementation, completion 또는 terminal proof로 재사용하지 않습니다. EVID-080은 exact 12-path local source
   freeze 전용이고 EVID-081/run `31605477297`은 exact 19-path implementation head `3099bd62...` 전용입니다.
-- EVID-081을 포함하는 completion transition의 exact allowlist는 다음 13개 Markdown 문서/work 파일뿐입니다. Source,
-  workflow, generated output, manifest, oracle, fixture와 checksum은 바꾸지 않습니다.
+- EVID-082/run `31609500811`: EVID-081을 포함하는 exact 13-document completion head `45cfccd...`, exact
+  26/26 jobs·326/326 steps success, unchanged four relation coordinates each 715/715/0·72,623 bytes·SHA-256
+  `127fb3d8...3a17`, audit P0..P3=0. Implementation run을 completion proof로 재사용하지 않았습니다.
+- Terminal evidence/status transition의 exact allowlist는 다음 six documents뿐입니다. Source, workflow, generated
+  output, manifest, oracle, fixture와 checksum은 바꾸지 않습니다.
 
 ```text
-docs/ARCHITECTURE.md
-docs/CAPABILITY_CATALOG.md
-docs/COMPATIBILITY.md
-docs/DEVELOPER_EXPERIENCE.md
-docs/OPEN_QUESTIONS.md
 docs/ROADMAP.md
 docs/TESTING.md
 docs/status/CURRENT.md
-docs/status/IMPLEMENTATION_MATRIX.md
 docs/status/TEST_EVIDENCE.md
-work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md
 work/0034-typed-generated-select-related-cause-preservation.md
 work/README.md
 ```
 
-- 이 completion-documentation tree는 EVID-081이 재귀적으로 증명하지 않으며 own exact-head hosted CI가
-  `not run/pending`입니다. 그 뒤 EVID-082를 포함하는 exact six-document terminal evidence/status tree도 별도
-  exact-head run을 사용합니다. Terminal clean baseline까지 닫히기 전에는 다음 work를 active/ready로 만들지 않습니다.
+- 다음 정확한 작업은 EVID-082를 포함하는 exact six-document terminal evidence/status tree만 commit/push하고 고유
+  exact-head hosted CI를 terminal strict-audit하는 것입니다. EVID-082는 그 later tree의 재귀 proof로 재사용하지
+  않습니다. Terminal exact-head CI는 `not run/pending`이고 clean baseline까지 닫히기 전에는 다음 work를
+  active/ready로 만들지 않습니다.
 - 그다음 후보는 별도 contract-first `GDJ-0035` relation-capable migration packet뿐입니다. 이 문서가 그 migration의
   tuple, state, DDL 또는 ADR을 미리 Accepted하지 않습니다.
 - Q-013은 `Partial`, Q-017과 Q-019는 P1/open을 유지합니다. Draft PR #1은 open/draft/unmerged 상태를 유지합니다.

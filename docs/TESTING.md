@@ -1100,10 +1100,12 @@ EVID-080의 focused/full normal/race/CGO-disabled/vet, four Linux/386 compile, 7
 P0..P3=0을 통과했습니다. Exact implementation head `3099bd62...`는 별도 EVID-081/run `31605477297`의 unique
 26/26 jobs·326/326 steps, four-coordinate 715/715/0·72,623-byte inventory와 independent P0..P3=0을 통과했습니다.
 EVID-078/079/080을 implementation proof로 재사용하지 않았습니다. GDJ-0034는 completed이고 code는 Implemented,
-EVID-081의 명시된 hosted 환경에서 Verified입니다. 이 EVID-081 append와 completion documentation을 합친 tree는
-implementation run이 재귀적으로 증명하지 않으므로 own exact-head CI가 `not run/pending`이고, 그 뒤 terminal tree도
-다시 별도 exact-head CI를 사용합니다. REL-009/010/011 및 aggregate product classification은 그대로이고 locked
-Django relation oracle/manifest/checksum을 바꾸지 않습니다.
+EVID-081의 명시된 hosted 환경에서 Verified입니다. EVID-081을 포함하는 exact 13-document completion head
+`45cfccd...`도 별도 EVID-082/run `31609500811`의 unique 26/26 jobs·326/326 steps, unchanged four-coordinate
+715/715/0·72,623-byte inventory와 independent P0..P3=0을 통과했습니다. EVID-082 append를 포함하는 exact six-document
+terminal evidence/status tree는 completion run이 재귀적으로 증명하지 않으므로 own exact-head CI가 `not run/pending`입니다.
+REL-009/010/011 및 aggregate product classification은 그대로이고 locked Django relation oracle/manifest/checksum을
+바꾸지 않습니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

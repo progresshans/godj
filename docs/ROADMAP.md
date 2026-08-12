@@ -3,11 +3,12 @@
 - 상태: Accepted direction
 - 현재 단계: [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)는 completed입니다.
   Activation head `e2e0a4e...`는 EVID-079/run `31599273044`, exact implementation head `3099bd62...`는
-  EVID-081/run `31605477297`의 서로 다른 exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다.
-  Code는 Implemented이고 EVID-081의 명시된 hosted 환경에서 Verified입니다. 새 Q/ADR 또는 product classification
-  변경은 없습니다. Active/ready work는 없고 EVID-081을 포함하는 이 completion-documentation tree의 own exact-head
-  hosted CI가 다음 절차입니다. Activation/implementation run을 재사용하지 않습니다. Relation-capable migration
-  GDJ-0035는 GDJ-0034 terminal 뒤에만 별도로 엽니다.
+  EVID-081/run `31605477297`, exact completion head `45cfccd...`는 EVID-082/run `31609500811`의 서로 다른 exact
+  26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Code는 Implemented이고 EVID-081/082의 명시된 hosted
+  환경에서 Verified입니다. 새 Q/ADR 또는 product classification 변경은 없습니다. Active/ready work는 없고
+  EVID-082를 포함하는 exact six-document terminal evidence/status tree의 own exact-head hosted CI가 다음 절차입니다.
+  Activation/implementation/completion run을 재사용하지 않습니다. Relation-capable migration GDJ-0035는 GDJ-0034
+  terminal 뒤에만 별도로 엽니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-12
@@ -470,8 +471,9 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   12-path source boundary에 구현했습니다. EVID-080의 local normal/race/CGO0/vet/Linux386와 exact implementation head
   `3099bd62...`의 EVID-081/run `31605477297` 26/26 jobs·326/326 steps 및 independent P0..P3=0을 통과했습니다.
   새 Q/ADR 또는 public API를 추가하지 않았고 dynamic path, 정상 query/result/cache 의미와 REL-009/010/011 product
-  status는 그대로입니다. EVID-081을 포함하는 completion documentation과 그 뒤 terminal tree는 각각 고유 exact-head
-  CI가 필요하며 terminal baseline 전에는 GDJ-0035를 active/ready로 만들지 않습니다.
+  status는 그대로입니다. EVID-081을 포함하는 exact 13-document completion head `45cfccd...`도 EVID-082/run
+  `31609500811`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. EVID-082를 포함하는 exact six-document
+  terminal tree는 다시 고유 exact-head CI가 필요하며 terminal baseline 전에는 GDJ-0035를 active/ready로 만들지 않습니다.
 - Current PROTECT는 exact protected identities와 count payload를 위해 모든 protected row를 materialize합니다.
   Production-scale 전 bounded-memory/stream/cap stress gate가 필요합니다. Public `ProtectedError` payload meaning을
   바꾸지 않는 최적화는 별도 work로 다루고, payload가 바뀔 때만 새 ADR을 요구합니다.
