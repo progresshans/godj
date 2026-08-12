@@ -61,8 +61,9 @@ INNER, REL-010 nullable LEFT OUTER와 REL-011 reverse-path pre-I/O rejection을 
 GDJ-0030은 별도 exact thirteen-file relation-delete product와 project-bound collector를 actual SQLite에 연결해
 REL-007 `PROTECT`와 REL-008 `SET_NULL`을 `passing`으로 전환했습니다. GDJ-0033은 existing exact thirteen-file
 generated prerequisite를 byte-for-byte 보존하면서 project facade companion 하나를 교체한 exact fourteen-file
-union에서 forward assignment와 Save를 실행해 REL-002도 `passing`으로 전환했습니다. 현재 reference는
-12 set/127 contract/132 ordered cross-binding이고, 제품 분류는 12 adapter/127 contract의
+union에서 forward assignment와 Save를 실행해 REL-002도 `passing`으로 전환했습니다. GDJ-0035 Phase A는
+MIG-075..086을 13번째 reference-only set으로 고정했습니다. 현재 reference는 13 set/139 unique
+contract/139 unique scenario/156 ordered cross-binding이고, 제품 분류는 계속 12 adapter/127 contract의
 `122 passing + 5 deviation + 0 oracle_locked`입니다. 이는 relation metadata, required predicate/object cache,
 nullable local-key access/`isnull`, bounded reverse accessor/lookup, exact reverse prefetch와 one-hop forward eager
 selection, forward assignment/Save 및 bounded project-bound `PROTECT`/`SET_NULL` delete 12/12의 제품 증거이며
@@ -88,6 +89,7 @@ general cascade/eager graph/DDL/migration 전체
 | `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
+| `contracts/migration-relation-manifest.json` | Relation-capable migration reference-only MIG-075..086 12개; 현재 모두 `oracle_locked` |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read부터 relation metadata까지 제품 package를 실행하는 열두 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
@@ -787,13 +789,13 @@ Required workflow topology는 full/exact 2 + independent project-check proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
 relation-product Linux/macOS x64/arm64 4개를 더한 exact 26 executions입니다. 각 relation-product leg는
 normal/race/CGO-disabled/vet, generated fixture/compile proof, artifact no-rewrite와 clean worktree를
-검증합니다. Exact top-level package inventory는 715 run/715 pass/0 skip이고, encoded inventory는 72,623
-bytes/SHA-256 `127fb3d8e24c79e34b0bd28c387afee730e7b8f0268fc2662a63af2406793a17`입니다.
+검증합니다. Exact top-level package inventory는 725 run/725 pass/0 skip이고, encoded inventory는 73,806
+bytes/SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`입니다.
 Python compatibility
 matrix는 Ubuntu 24.04에서 CPython 3.12.13, 3.13.15, 3.14.3, 3.14.7과 Django 6.1/asgiref
-3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 193 tests/17 intentional skips 및
-127 scenario payload 498,051 bytes/SHA-256
-`2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`을 검증합니다. 이는 checked-in
+3.12.1/sqlparse 0.5.5와 uv 0.12.3을 isolated하게 고정하고 portable 216 tests/19 intentional skips 및
+139 scenario payload 623,543 bytes/SHA-256
+`f4f48c4c680debbe5ed7ab2b962e01e9110064b7bf3064b7c6fd9a06539018da`를 검증합니다. 이는 checked-in
 exact oracle identity를 넓히지 않으며 기존 CPython 3.14.3 profile/oracle/uv.lock job이 계속 유일한
 oracle regeneration 경계입니다.
 
@@ -813,3 +815,17 @@ MIG-065..074는 Accepted ADR-0021 decision provenance만 가지며 Django source
 경계일 뿐 Django-derived 분류가 아닙니다. REL-001..012는 Django 6.1 commit에 고정된 documentation/test
 provenance를 가지지만 scenario와 GoDj product fixture는 독립 작성했으며 Django source를 번역하지
 않았습니다.
+
+GDJ-0035 exact 16-document activation head는 EVID-084/run `31618469072`에서 hosted-verified됐습니다. Phase A는
+[EVID-085](../docs/status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+manifest 7,792 bytes/`dfe021c2…569b`, oracle 125,248/`c742f91a…de27`, ordered NI 1,846/
+`f9bd9c47…9e24`, 13-line checksum 1,245/`5022a230…9cf4`를 로컬에서 고정했습니다. Reference는
+exact 13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`이고 product는
+exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 불변입니다. Phase A exact-head
+hosted CI는 pending입니다.
+
+Accepted되지 않은 GoDj-owned GDJ-0035 candidate payload는 provenance `kind=proposal`, decision ID `GDJ-0035`,
+`derived=false`로 분류합니다. Pinned Django BSD source/test reference는 실제 관찰한 부분의 provenance일 뿐이며
+GoDj scenario, fixture, payload와 assertion은 독립적으로 작성하고 upstream source, fixture, comment 또는 assertion
+구조를 복사·번역하지 않습니다. ADR-0034가 Proposed인 동안 이 payload를 `kind=decision`이나 Django parity로
+표현하지 않습니다.

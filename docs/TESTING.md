@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-13
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -1148,27 +1148,46 @@ tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
 job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
 
-## GDJ-0035 activation and planned verification
+## GDJ-0035 activation and Phase A local verification
 
 GDJ-0034 terminal baseline `0bb8c969...`는
 [EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
 [run 31613170021](https://github.com/progresshans/godj/actions/runs/31613170021)의 exact 26/26 jobs·326/326 steps과
-audit P0..P3=0을 통과했습니다. 이 run은 GDJ-0035 activation test가 아닙니다. Exact 16-document
-activation tree는 source/workflow/artifact diff 0이며 own hosted CI는 `not run/pending`입니다.
+audit P0..P3=0을 통과했습니다. 이 run은 GDJ-0035 activation test가 아닙니다. Source/workflow/artifact diff 0인
+exact 16-document activation head `52f9bcb7...`는 별도
+[EVID-084](status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci) /
+[run 31618469072](https://github.com/progresshans/godj/actions/runs/31618469072)의 exact 26/26 jobs·326/326 steps와
+audit P0..P3=0을 통과했습니다. EVID-084는 activation proof입니다.
 
-Activation 후 검증은 다음 순서를 강제합니다.
+Phase A reference-only artifacts는
+[EVID-085](status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+로컬 고정했습니다. 새 set은 product adapter/handler에 들어가지 않고 다음 순서를 강제합니다.
 
 1. MIG-075 legacy tuple/digest/state/canonical byte lock을 먼저 검증합니다.
 2. MIG-076..079 profile/hybrid/mixed digest/state/promotion/target+ancestry preflight는 DB I/O 0을 어떤
    implementation보다 먼저 잠그니다.
-3. MIG-080..084 SQLite CreateModel/AddField/remake/FK-on/NO ACTION/restart를 memory/file-backed DB에서
+3. MIG-080..084 SQLite CreateModel/AddField/remake/FK-on/NO ACTION/restart를 disposable file-backed DB에서
    검증합니다. Populated required AddField는 explicit rejection이어야 합니다.
 4. MIG-085..086은 DDL/recorder/revision precommit fault와 commit success/definite failure/unknown outcome/no retry를
    각각 fault-injection합니다.
 5. Local normal/race/CGO-disabled/vet, external compile, no-rewrite, artifact checksum, four hosted coordinates,
    file restart와 exact inventory를 final bytes에서 측정합니다.
 
-Phase A 전에 contract aggregate, artifact byte/hash, test/run/pass/skip total을 예상값으로 고정하지 않습니다.
+실측 결과는 manifest 7,792 bytes/`dfe021c2…569b`, oracle 125,248/`c742f91a…de27`, ordered NI
+1,846/`f9bd9c47…9e24`, 13-line checksum 1,245/`5022a230…9cf4`입니다. Reference aggregate는 exact
+13 sets/139 unique contracts+scenarios=`122 passing + 5 deviation + 12 oracle_locked`, 156 ordered cross-bindings이고
+product는 exact 12/127=`122+5+0`으로 불변입니다.
+
+Local gates는 focused reference 20/20, integrated exact 69/69, normal 69/15 skips, full Python exact 216/216,
+normal 216/19 skips, exact 139-scenario semantic payload 623,543 bytes/`f4f48c4c…18da`, Go exact roster
+725/725/0·73,806 bytes/`2ad28eb2…a5d4`를 통과했습니다. `PYTHONHASHSEED=17`/`982451653`
+두 oracle generation은 byte-identical이었고 protocol/`godjcheck` false-green gate도 통과했습니다. Homebrew
+uv 0.12.3은 exact-profile 사용 전 fail-closed되었고 pinned uv 0.10.12로 재실행해 통과했습니다.
+
+Phase B는 product를 바꾸지 않는 tuple/digest/state/preflight/SQLite remake/fault feasibility를 다음으로
+검증합니다. Django recorder-fault 관찰에서 schema-editor DDL은 commit되고 record만 없는 경계가
+나타났으므로, GoDj same-transaction atomic proposal과 동일하다고 가정하지 않고 Phase B/C에서 별도
+검증·결정합니다.
 Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
 사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
 12/12는 변경 없습니다.

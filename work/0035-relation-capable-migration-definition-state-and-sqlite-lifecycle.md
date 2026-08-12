@@ -132,12 +132,19 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 - [EVID-083](../docs/status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
   [run 31613170021](https://github.com/progresshans/godj/actions/runs/31613170021)은 이 exact baseline을
   26/26 jobs·326/326 steps success와 independent audit P0/P1/P2/P3=`0/0/0/0`으로 검증했습니다.
-- EVID-083은 GDJ-0034 terminal closure와 GDJ-0035의 clean baseline만 증명합니다. 이 exact 16-document
-  activation tree 자체 CI는 `not run/pending`이며 baseline run을 activation proof로 재사용하지 않습니다.
+- EVID-083은 GDJ-0034 terminal closure와 GDJ-0035의 clean baseline만 증명합니다. Exact 16-document
+  activation head `52f9bcb7fedb2333a4c5e6f0e016aec15381c806`, tree
+  `58acca30d8e42f4fa8a76886a03c3e2e58dcc258`는
+  [EVID-084](../docs/status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci) /
+  [run 31618469072](https://github.com/progresshans/godj/actions/runs/31618469072)의 고유 exact
+  26/26 jobs·326/326 steps와 audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Baseline run을 activation
+  proof로 재사용하지 않았습니다.
 - 현재 제품 분류는 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation
-  12/12로 불변입니다. Existing 12 set/127 contract/132 ordered cross-binding reference도 불변입니다.
+  12/12로 불변입니다. Existing 12 set/127 contract/132 ordered cross-binding 제품 기준도 불변입니다.
 - 이 activation은 source, workflow, manifest, oracle, fixture, checksum 또는 product status를 바꾸지 않습니다.
-  MIG-075..086은 계획 ID일 뿐 Phase A 전에는 새 aggregate, artifact byte/hash 또는 test count를 주장하지 않습니다.
+  이후 Phase A는 [EVID-085](../docs/status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+  exact 13 reference sets/139 contracts/156 ordered cross-bindings와 새 12 `oracle_locked`를 로컬에서 고정했습니다.
+  Product는 12 sets/127 contracts=`122+5+0`으로 계속 불변이고 Phase A exact-head hosted CI는 pending입니다.
 - 이 문서만 `active`이고 `ready`는 0입니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
 
 ## 보존해야 하는 legacy 불변 조건
@@ -197,34 +204,42 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 - Precommit DDL/recorder/revision fault는 same-transaction rollback과 original cause를 보존합니다. Commit은
   success/definite-failure/unknown-outcome 세 결과를 그대로 전달하고 automatic retry를 하지 않습니다.
 
-## MIG-075..086 planned contracts
+Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습니다. SQLite `AddField` schema-editor가
+끝난 뒤 recorder fault를 주입하면 schema는 commit되고 migration record만 없었으며, pre-DDL fault만
+완전 rollback되었습니다. MIG-085는 이 Django-observed boundary와 GoDj same-transaction proposal을 분리해
+고정하며 두 동작이 같다고 주장하지 않습니다.
 
-| ID | 계획된 관찰 경계 | Activation 상태 |
+## MIG-075..086 locked Phase A reference contracts
+
+| ID | 관찰 경계 | Phase A reference 상태 |
 |---|---|---|
-| MIG-075 | Legacy tuple/codec/state/digest ABI byte preservation | planned, not run |
-| MIG-076 | Exact relation profile, coordinate mismatch와 hybrid tuple rejection | planned, not run |
-| MIG-077 | Relation-only/mixed set canonical order, per-document profile와 digest-v2 semantics | planned, not run |
-| MIG-078 | Scalar v1 ↔ relation v2 explicit promote/demote와 alias-free state | planned, not run |
-| MIG-079 | Target AutoField/table/reverse/creator-ancestry full preflight, DB I/O 0 | planned, not run |
-| MIG-080 | Relation-bearing CreateModel apply/unapply/reapply | planned, not run |
-| MIG-081 | Populated-table nullable AddField success와 required AddField rejection | planned, not run |
-| MIG-082 | FK removal table remake의 row/order/sequence preservation | planned, not run |
-| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | planned, not run |
-| MIG-084 | File-backed close/reopen restart와 applied-state reconstruction | planned, not run |
-| MIG-085 | Precommit DDL/recorder/revision faults의 atomic rollback과 cause | planned, not run |
-| MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | planned, not run |
+| MIG-075 | Legacy tuple/codec/state/digest ABI byte preservation | `oracle_locked` / reference-only |
+| MIG-076 | Exact relation profile, coordinate mismatch와 hybrid tuple rejection | `oracle_locked` / proposal reference |
+| MIG-077 | Relation-only/mixed set canonical order, per-document profile와 digest-v2 semantics | `oracle_locked` / proposal reference |
+| MIG-078 | Scalar v1 ↔ relation v2 explicit promote/demote와 alias-free state | `oracle_locked` / proposal reference |
+| MIG-079 | Target AutoField/table/reverse/creator-ancestry structural preflight, DB I/O 0 | `oracle_locked` / proposal reference |
+| MIG-080 | Relation-bearing CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
+| MIG-081 | Populated-table nullable AddField success와 required AddField rejection | `oracle_locked` / observed + proposal separation |
+| MIG-082 | FK removal table remake의 row/order/sequence preservation | `oracle_locked` / Django observed |
+| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | `oracle_locked` / observed + proposal separation |
+| MIG-084 | File-backed close/reopen restart와 applied-state reconstruction | `oracle_locked` / Django observed |
+| MIG-085 | Pre-DDL full rollback, recorder-fault committed-schema boundary, GoDj atomic proposal | `oracle_locked` / observed + proposal separation |
+| MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | `oracle_locked` / proposal reference |
 
-이 12개 ID만 현재 계획합니다. Contract count, manifest/oracle/static fixture bytes와 checksum은 Phase A에서
-실제 생성·검증한 뒤 기록합니다.
+이 12개 ID만 현재 고정합니다. Manifest/oracle/static fixture/checksum은 각각 7,792/125,248/
+1,846/1,245 bytes이며 exact SHA-256은 EVID-085에 기록했습니다.
 
 ## 실행 단계
 
 ### A. Django-first reference와 immutable artifacts
 
-- [ ] Pinned Django 6.1/SQLite exact profile에서 MIG-075..086의 외부 state/constraint/rows/sequence/failure를 관찰
-- [ ] Independent manifest, reference oracle, ordered static not-implemented fixture와 provenance를 생성
-- [ ] Existing artifacts, `SHA256SUMS`, 12/127/132 reference와 product `122+5+0`의 불변을 검증
-- [ ] Exact artifact byte/count/hash와 test inventory는 final Phase-A bytes에서만 측정
+- 상태: **locally completed and locked**. EVID-085의 local proof를 가지며 Phase A exact-head hosted CI는 pending입니다.
+- [x] Pinned Django 6.1/SQLite exact profile에서 MIG-075..086의 외부 state/constraint/rows/sequence/failure를 관찰
+- [x] Independent manifest, reference oracle, ordered static not-implemented fixture와 provenance를 생성
+- [x] Existing artifacts, `SHA256SUMS`, 12/127/132 product/reference baseline와 product `122+5+0`의 불변을 검증
+- [x] Exact artifact byte/count/hash와 test inventory를 final Phase-A bytes에서 측정
+- [x] GoDj-owned unaccepted candidate payload는 provenance `kind=proposal`, decision ID `GDJ-0035`,
+      `derived=false`로 분리하고 Django BSD source/test reference는 실제 관찰한 부분에만 기록
 
 ### B. No-product feasibility
 
@@ -247,7 +262,8 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 
 ### E. 검증과 evidence heads
 
-- [ ] Exact 16-document activation head의 고유 hosted CI와 independent audit
+- [x] Exact 16-document activation head의 고유 hosted CI와 independent audit — EVID-084/run `31618469072`
+- [x] Phase A reference-only artifact/local gates — EVID-085; 20/20 focused, 216/216 exact, 725/725 Go roster
 - [ ] Local normal/race/CGO-disabled/vet, SQLite/file restart/fault, no-rewrite와 compile gates
 - [ ] Implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
 - [ ] CURRENT/MATRIX/TEST_EVIDENCE/work/ADR를 실제 상태에 맞춰 갱신
@@ -274,13 +290,15 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 
 ## 다음 정확한 작업
 
-Exact 16-document activation diff를 scope/link/anchor/frontmatter/fence/history-prefix 관점에서 독립 감사한 뒤에만
-commit/push합니다. 그 exact activation head가 EVID-083과 다른 고유 26-job/326-step CI를 통과하기 전에는
-MIG-075 artifact나 product source를 추가하지 않습니다. Activation CI가 성공하면 Phase A의 MIG-075 legacy ABI
-lock과 MIG-076 profile/hybrid reference input부터 시작합니다.
+Phase A reference-only artifact와 local gate는 EVID-085에서 고정했습니다. 다음 정확한 작업은 Phase B의
+product 밖 tuple/profile dispatch, mixed digest, state promotion/preflight와 isolated SQLite pinned-connection/remake/fault
+feasibility입니다. Phase A 트리는 먼저 별도 exact-head hosted CI를 받아야 하며, product source와
+ADR Accepted 전환은 아직 금지합니다.
 
 ## 결과와 인수인계
 
-현재 결과는 GDJ-0035 activation과 Proposed ADR-0034뿐입니다. 구현, 새 artifact, 새 digest/state/DDL behavior와
-product classification 변화는 없습니다. Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를
-먼저 수정하고 통합 담당자가 scope를 다시 승인합니다.
+현재 검증된 결과는 activation hosted proof와 Phase A local reference proof입니다. Reference는 exact
+13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`로 늘었지만 product는
+12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변입니다. 새 digest/state/DDL product behavior는 없고
+ADR-0034는 Proposed입니다. Allowed path 이름을 바꿔야 하면 source를
+만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를 다시 승인합니다.

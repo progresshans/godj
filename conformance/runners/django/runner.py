@@ -60,6 +60,9 @@ from .migration_project_check_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_PROJECT_CHECK_SCENARIOS,
 )
 from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
+from .migration_relation_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_RELATION_SCENARIOS,
+)
 
 
 SCENARIO_REGISTRIES = (
@@ -75,6 +78,7 @@ SCENARIO_REGISTRIES = (
     MIGRATION_DEFINITION_SOURCE_SCENARIOS,
     MIGRATION_PROJECT_CHECK_SCENARIOS,
     RELATION_SCENARIOS,
+    MIGRATION_RELATION_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -185,6 +189,13 @@ DEFAULT_RELATION_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json"
 )
+DEFAULT_MIGRATION_RELATION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-relation-manifest.json"
+)
+DEFAULT_MIGRATION_RELATION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
@@ -204,6 +215,7 @@ KNOWN_MANIFEST_ORACLES = {
         DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE
     ),
     DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
+    DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
 }
 
 

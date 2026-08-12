@@ -469,10 +469,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 715, sorted(runs)
-          assert len(payload) == 72623, len(payload)
+          assert len(runs) == 725, sorted(runs)
+          assert len(payload) == 73806, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "127fb3d8e24c79e34b0bd28c387afee730e7b8f0268fc2662a63af2406793a17"
+          assert payload_sha256 == "2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -702,10 +702,10 @@ jobs:
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 193
-          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 17
-          grep -Fq 'Ran 193 tests' "$log"
-          grep -Fq 'OK (skipped=17)' "$log"
+          test "$(grep -c '^test_' "$log")" -eq 216
+          test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 19
+          grep -Fq 'Ran 216 tests' "$log"
+          grep -Fq 'OK (skipped=19)' "$log"
 
       - name: Verify all-scenario semantic digest
         env:
@@ -727,10 +727,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 127, len(SCENARIOS)
-          assert len(payload) == 498051, len(payload)
+          assert len(SCENARIOS) == 139, len(SCENARIOS)
+          assert len(payload) == 623543, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995", digest
+          assert digest == "f4f48c4c680debbe5ed7ab2b962e01e9110064b7bf3064b7c6fd9a06539018da", digest
           PY
 
       - name: Require a clean worktree

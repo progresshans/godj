@@ -785,30 +785,44 @@ Django 문서와 테스트에서 파생한 시나리오는 upstream version, 파
 ## MIG-075..086 activation compatibility boundary
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 MIG-075..086 exact
-12 contract ID를 계획했습니다. Activation은 아직 manifest/oracle/static fixture나 product adapter를 추가하지
-않았고, 따라서 새 reference/product aggregate·status·artifact hash를 주장하지 않습니다. Existing 12 set/127
-contract/132 ordered cross-binding reference와 product exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`,
-relation 12/12는 불변입니다.
+12 contract ID를 계획했습니다. Exact 16-document activation head `52f9bcb7...`는
+[EVID-084](status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci)에서
+hosted-verified됐습니다. Phase A는
+[EVID-085](status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+12-contract reference-only set을 로컬 고정했습니다. Reference는 exact 13 sets/139 unique contracts+scenarios/
+156 ordered cross-bindings=`122 passing + 5 deviation + 12 oracle_locked`입니다. Product는 exact
+12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 불변입니다. Phase A exact-head
+hosted proof는 pending입니다.
 
 Compatibility candidate는 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
 
 | ID | Proposed observation | 현재 분류 |
 |---|---|---|
-| MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | planned / not observed |
-| MIG-076 | Relation tuple `(1,2,2,3)`과 hybrid/mismatch rejection | planned / not observed |
-| MIG-077 | Per-document profile을 포함한 relation/mixed digest v2 | planned / not observed |
-| MIG-078 | Scalar v1↔relation v2 state promote/demote | planned / not observed |
-| MIG-079 | Target/AutoField/table/reverse/creator ancestry preflight, I/O 0 | planned / not observed |
-| MIG-080 | Relation CreateModel apply/unapply/reapply | planned / not observed |
-| MIG-081 | Populated nullable AddField와 required rejection | planned / not observed |
-| MIG-082 | FK remove/remake row/sequence preservation | planned / not observed |
-| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | planned / not observed |
-| MIG-084 | File-backed restart | planned / not observed |
-| MIG-085 | Precommit DDL/recorder/revision fault | planned / not observed |
-| MIG-086 | Commit three outcomes, no retry | planned / not observed |
+| MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | `oracle_locked` / Accepted-decision reference |
+| MIG-076 | Relation tuple `(1,2,2,3)`과 hybrid/mismatch rejection | `oracle_locked` / proposal reference |
+| MIG-077 | Per-document profile을 포함한 relation/mixed digest v2 | `oracle_locked` / proposal reference |
+| MIG-078 | Scalar v1↔relation v2 state promote/demote | `oracle_locked` / proposal reference |
+| MIG-079 | Target/AutoField/table/reverse/creator ancestry structural preflight, I/O 0 | `oracle_locked` / proposal reference |
+| MIG-080 | Relation CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
+| MIG-081 | Populated nullable AddField와 required rejection | `oracle_locked` / observed + proposal separation |
+| MIG-082 | FK remove/remake row/sequence preservation | `oracle_locked` / Django observed |
+| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | `oracle_locked` / observed + proposal separation |
+| MIG-084 | File-backed restart | `oracle_locked` / Django observed |
+| MIG-085 | Pre-DDL rollback, recorder-fault committed-schema boundary, GoDj atomic policy | `oracle_locked` / observed + proposal separation |
+| MIG-086 | Commit three outcomes, no retry | `oracle_locked` / proposal reference |
 
 Phase A는 pinned Django 6.1/SQLite profile의 external observation과 GoDj-owned decision/reference를 구분해 provenance를
 기록해야 합니다. Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned
-decision을 Django exact parity로 표현하지 않습니다. Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open을
-유지합니다.
+candidate payload는 ADR-0034가 Accepted되기 전 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로
+표시하고 Django exact parity로 표현하지 않습니다. Django BSD source/test provenance는 실제 관찰한 부분에만
+붙이며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Q-010/Q-012/Q-013은 `Partial`,
+Q-017/Q-019는 P1/open을 유지합니다.
+
+Artifact lock은 manifest 7,792 bytes/`dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`,
+oracle 125,248/`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`, ordered NI
+1,846/`f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`, 13-line checksum
+1,245/`5022a23094702463861f32270f373ba1287b609e5b3f8cb5723b74db8d69cf4f`입니다. MIG-085의
+Django 관찰은 recorder fault 전 schema-editor DDL이 이미 commit되어 schema는 남고 record는 없는 경계입니다.
+Pre-DDL fault만 완전 rollback됐습니다. 이 관찰을 GoDj same-transaction atomic proposal의 parity로 표현하지
+않고 Phase B/C에서 별도 검증·결정합니다.

@@ -6,8 +6,11 @@
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
   P0..P3=0을 통과했습니다. Product/Q 상태는 불변입니다. GDJ-0035는 MIG-075..086 exact 12
   planned contracts와 Proposed ADR-0034를 활성화했으며 source/workflow/artifact/product 변경은 0입니다.
-  Exact 16-document activation tree own hosted CI는 `not run/pending`이고 EVID-083을 activation proof로
-  재사용하지 않습니다.
+  Exact 16-document activation head `52f9bcb7...`는 EVID-084/run `31618469072`의 고유 exact
+  26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했고 EVID-083을 activation proof로 재사용하지 않았습니다.
+  Phase A reference-only artifacts는 EVID-085에서 로컬 고정했습니다. Reference는 exact 13 set/139
+  contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`이고, product는 불변입니다.
+  Phase A exact-head hosted CI는 pending이며 다음 단계는 no-product Phase B feasibility입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-13
@@ -563,17 +566,24 @@ GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 exact 26/2
 audit P0..P3=0을 통과했습니다. 이 clean baseline에서
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)를 유일한 active
 packet으로 활성화했고 ready는 0입니다. EVID-083은 activation proof가 아니며 exact 16-document
-activation tree own CI는 `not run/pending`입니다.
+activation head `52f9bcb7...`는
+[EVID-084](status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci) /
+[run 31618469072](https://github.com/progresshans/godj/actions/runs/31618469072)의 고유 exact
+26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. 이 증거는 activation만 검증합니다.
+[EVID-085](status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)는
+별도 dirty working tree에서 Phase A artifact/local gates를 고정했으며 해당 트리의 hosted exact-head proof는 pending입니다.
 
-1. Phase A: MIG-075..086 exact 12 independent reference/decision artifacts와 provenance를 만듭니다.
-2. Phase B: product를 바꾸지 않는 tuple/mixed digest/state/preflight/SQLite remake/fault feasibility를 검증합니다.
+1. Phase A (**locally completed**): MIG-075..086 exact 12 independent reference/proposal artifacts와 provenance,
+   exact 13/139/156 aggregate를 고정했습니다. Hosted exact-head gate는 pending입니다.
+2. Phase B (**next**): product를 바꾸지 않는 tuple/mixed digest/state/preflight/SQLite remake/fault feasibility를 검증합니다.
 3. Phase C: measured evidence로 [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)
    candidate를 freeze하고 별도 decision head에서만 Accepted 여부를 결정합니다.
 4. Phase D: legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
    bounded implementation합니다.
 5. Phase E: implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
 
-Candidate relation tuple은 `(1,2,2,3)`, planned IDs는 MIG-075..086뿐입니다. Phase A 전에 새
-aggregate/artifact/hash/test total을 예상값으로 기록하지 않습니다. Product는 계속 exact 12/127=
+Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다. Final Phase-A artifact는
+manifest/oracle/NI/checksum 7,792/125,248/1,846/1,245 bytes로 측정했습니다. Reference는 exact
+13/139/156=`122+5+12 locked`이며 product는 계속 exact 12/127=
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Writer/autodetector/CLI,
 self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019는 이 sequence 밖입니다.

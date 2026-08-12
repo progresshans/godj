@@ -189,21 +189,23 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
 - drift 가능성이 있는 version·tool behavior는 새 milestone 시작 시 재확인합니다.
 - upstream source에서 코드를 복사·번역하면 file-level provenance와 license notice를 실제 파생 파일 가까이에 둡니다.
 
-## GDJ-0035 source plan
+## GDJ-0035 Phase A source and provenance lock
 
-GDJ-0035 Phase A는 pinned Django 6.1 commit/profile의 migration operation/executor/schema-editor 외부 동작과
-SQLite 현재 exact profile을 다시 관찰합니다. 이 activation은 source를 새로 복사·번역하거나 artifact를
-추가하지 않았습니다. 따라서 아래는 조사 route이지 완료 provenance가 아닙니다.
+GDJ-0035 Phase A는 pinned Django 6.1 commit/profile의 migration operation/executor/recorder/schema-editor 외부
+동작과 SQLite exact profile을 관찰했습니다. Exact 16-document activation head는 EVID-084/run
+`31618469072`에서 hosted-verified됐고, 실제 Phase A artifact/local proof는 EVID-085에 별도 기록했습니다.
+아래 exact objects는 조사 모음이며 manifest provenance는 각 contract가 실제 사용한 symbol만 더 좁게 가리킵니다.
 
 조사 객체는 Django exact commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
 `7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`에서 `git show`로 읽습니다.
 
-| Exact object | Blob | Bytes | Planned audited range/meaning |
+| Exact object | Blob | Bytes | Audited range/meaning |
 |---|---|---:|---|
 | `django/db/migrations/state.py` | `9e9cc58fae13a00178cd8ea13749a391a6e73f59` | 42,119 | 105–139, 514–536 project relation index와 resolution |
 | `django/db/migrations/operations/models.py` | `1b241230df922b9bc2350858da3604c9d1b01eef` | 45,901 | 85–100 CreateModel state/database transition |
 | `django/db/migrations/operations/fields.py` | `72b54382ef4902d599d7b62900cd677aac208f0c` | 12,787 | 102–121 AddField state/database transition |
 | `django/db/migrations/executor.py` | `074d7b2d285fbd05a357c6789a4094ff684b8945` | 19,029 | 39–75 target plan/apply lifecycle |
+| `django/db/migrations/recorder.py` | `77ad80ba62751adee2fdadd27a1ef37cb886f6a9` | 3,826 | applied-state read와 `record_applied` boundary |
 | `django/db/backends/base/schema.py` | `9857eea57107c37a8c45d4aa0276ca775e70d162` | 85,400 | 516–570, 760–879 create/add/remove와 FK DDL boundary |
 | `django/db/backends/sqlite3/schema.py` | `47edec8f1ccc5b8c9309a41aabac9414a4e9e079` | 20,358 | 28–44, 80–280, 302–358 constraint-check와 remake/add/remove |
 | `tests/migrations/test_state.py` | `c31f8b80dd361aea32c013cdeb758323c0a65c9d` | 81,574 | 1265–1465 relation population/add/remove state |
@@ -219,4 +221,17 @@ SQLite 현재 exact profile을 다시 관찰합니다. 이 activation은 source�
 Pinned Django 관찰과 GoDj-owned decision을 구분합니다. Relation tuple `(1,2,2,3)`, mixed digest v2,
 Relation State v2, physical `NO ACTION`과 bounded remake는 Django file ABI parity가 아니라
 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 후보입니다.
-Phase A artifact를 만들 때 exact upstream path/test name, commit, license/provenance를 artifact 가까이에 기록합니다.
+Accepted 전 GoDj-owned candidate payload는 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로 기록합니다.
+Django BSD source/test reference는 위 exact object 중 실제 관찰한 부분에만 붙이고 GoDj scenario/payload는 독립적으로
+작성하며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Phase A artifact를 만들 때 exact
+upstream path/test name, commit, observed symbol과 license/provenance를 artifact 가까이에 기록했습니다. Final
+manifest/oracle/ordered NI/checksum은 7,792/125,248/1,846/1,245 bytes이고 SHA-256은 각각
+`dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`,
+`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`,
+`f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`,
+`5022a23094702463861f32270f373ba1287b609e5b3f8cb5723b74db8d69cf4f`입니다.
+
+MIG-085에서 Django SQLite schema-editor DDL은 recorder fault 전에 commit되어 schema는 남고 migration record는
+없는 경계가 관찰됐습니다. Pre-DDL fault만 완전 rollback됐습니다. 이 upstream-observed behavior와
+GoDj same-transaction proposal은 서로 다른 provenance payload로 유지하며 ADR-0034 Accepted 결정을 앞당겨
+주장하지 않습니다.

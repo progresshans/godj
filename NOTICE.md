@@ -56,6 +56,19 @@ ForeignKey metadata, forward/reverse access, nullable relations,
 `oracle_locked` status does not claim a GoDj ForeignKey product API, relation
 adapter, or non-SQLite backend implementation.
 
+GDJ-0035 Phase A locally locked an independently authored, reference-only set of
+12 MIG-075..086 contracts while evaluating candidates from Proposed ADR-0034.
+Until that decision is accepted, GoDj-owned relation-migration tuple, digest,
+state, preflight, and SQLite DDL payloads use `kind=proposal`, decision ID
+`GDJ-0035`, and `derived=false`; they are not described as Django parity or as
+accepted GoDj behavior. Pinned Django BSD 3-Clause source and test references
+are limited to the portions actually observed. GoDj scenarios, fixtures,
+payloads, and assertions are written independently and do not copy or translate
+Django source, fixtures, comments, or assertion structure. Any future copied,
+translated, or adapted expression requires separate derived-work provenance and
+file-level notices. Local EVID-085 records the measured artifact and test locks;
+hosted exact-head verification of the Phase A tree is still pending.
+
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new
 upstream-derived scenario corpus. GDJ-0015 independently authored the

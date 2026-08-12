@@ -1,7 +1,7 @@
 # 라이선스와 upstream provenance 정책
 
 - 상태: Accepted for conformance artifacts
-- 마지막 검토: 2026-08-10
+- 마지막 검토: 2026-08-13
 
 ## 현재 저장소 라이선스
 
@@ -90,6 +90,19 @@ entry는 `derived=false`, `license=BSD-3-Clause`이고 Django source, fixture, c
 assertion 구조를 복사·번역하지 않았습니다. Exact oracle은 Django/SQLite reference
 observation이며 static fixture의 12 `not_implemented`와 함께 유지됩니다. `oracle_locked`는
 GoDj relation 제품 adapter나 PostgreSQL/MySQL 지원을 뜻하지 않습니다.
+
+GDJ-0035 Phase A의 relation-capable migration reference는 Proposed ADR-0034 후보를 검증하는
+12-contract reference-only set으로 로컬에서 고정했습니다.
+Accepted되지 않은 GoDj-owned tuple/digest/state/preflight/SQLite DDL payload에는 provenance
+`kind=proposal`, decision ID `GDJ-0035`, `derived=false`를 사용합니다. 이는 `kind=decision`이나 Django parity로
+승격하지 않습니다. Django BSD-3-Clause source/test
+provenance는 pinned commit에서 실제 관찰한 path/symbol에만 붙입니다. GoDj scenario, fixture, payload와
+assertion은 독립적으로 작성하고 Django source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다.
+향후 실제 표현을 복사·번역·변형하면 이 독립 작성 분류를 재사용하지 않고 `derived=true` 및 file-level
+copyright/license/modification notice를 적용합니다. EVID-085는 manifest 7,792 bytes/
+SHA-256 `dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`, oracle 125,248 bytes/
+`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`의 로컬 고정을 기록하지만,
+ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Hosted exact-head 검증은 아직 pending입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

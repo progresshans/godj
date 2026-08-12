@@ -225,6 +225,9 @@
 - GDJ-0034 terminal evidence/status hosted-tested commit and GDJ-0035 activation baseline:
   `0bb8c969d0658f50f40d916996f027e7393bce14`
   (`docs: record typed select-related completion evidence`)
+- GDJ-0035 activation-documentation/hosted-tested commit:
+  `52f9bcb7fedb2333a4c5e6f0e016aec15381c806`
+  (`docs: activate relation-capable migration lifecycle`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -265,7 +268,15 @@
   audit P0..P3=0을 통과했습니다. Completion run을 terminal proof로 재사용하지 않았습니다. 이 clean
   baseline에서 GDJ-0035 MIG-075..086 exact 12 planned contracts와
   [Proposed ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)를 활성화했습니다.
-  Exact 16-document activation tree own hosted CI는 `not run/pending`이고 source/workflow/artifact/product 변경은 0입니다.
+  Exact 16-document activation head `52f9bcb7...`, tree `58acca30...`는
+  [EVID-084](TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci) /
+  [run 31618469072](https://github.com/progresshans/godj/actions/runs/31618469072)의 고유 exact
+  26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Source/workflow/artifact/product 변경은 0이었고
+  baseline run을 activation proof로 재사용하지 않았습니다. Phase A는
+  [EVID-085](TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
+  exact 13 reference sets/139 unique contracts+scenarios/156 ordered cross-bindings=`122 passing + 5 deviation +
+  12 oracle_locked`를 로컬 고정했습니다. Product는 exact 12/127=`122+5+0`으로 불변이고 Phase A
+  exact-head hosted CI는 pending입니다. ADR-0034는 계속 Proposed입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -1217,18 +1228,19 @@ steps와 audit P0..P3=0을 통과했습니다. GDJ-0034는 terminally closed이�
 
 현재 유일한 active work는
 [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)이고 ready는 0입니다.
-MIG-075..086 exact 12 planned contracts와
+MIG-075..086 exact 12 reference-only contracts와
 [Proposed ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)만 활성화했습니다.
 Legacy `(1,1,1,2)`/digest v1/scalar state v1을 보존하는 전제 아래 relation `(1,2,2,3)`, mixed digest,
 relation state, full preflight과 SQLite FK lifecycle/remake를 Phase A/B/C에서 검증할 candidate입니다.
 
-다음 정확한 작업은 exact 16-document activation diff의 scope/link/anchor/frontmatter/fence/history-prefix
-독립 감사를 닫고 commit/push한 뒤, EVID-083과 다른 고유 exact-head hosted 26-job/326-step CI를
-통과시키는 것입니다. Activation own CI는 `not run/pending`입니다. 그 전에 MIG-075 artifact/product
-source를 추가하지 않습니다. Phase A에서는 MIG-075 legacy ABI lock과 MIG-076 profile/hybrid reference부터
-시작합니다. Product는 exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이고
-Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open입니다. Draft PR은 사용자 요청 전 merge하지
-않습니다.
+Exact 16-document activation head는 EVID-084/run `31618469072`에서 EVID-083과 다른 고유 exact-head
+26/26 jobs·326/326 steps 및 audit P0..P3=0을 통과했습니다. Phase A reference-only artifact/local gates는
+EVID-085에서 20/20 focused, exact Python 216/216, Go 725/725/0과 artifact checksum으로 고정했습니다.
+다음 정확한 작업은 Phase A 트리의 별도 exact-head hosted CI 후 Phase B에서 product를 바꾸지 않고
+tuple/profile dispatch, mixed digest, state promote/demote, structural preflight, SQLite pinned-connection/remake/fault
+feasibility를 검증하는 것입니다. Reference는 exact 13/139/156=`122+5+12 locked`, product는 exact
+12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 유지하고 ADR-0034는 Proposed입니다.
+Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open이며 Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1371,8 +1383,11 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open입니다. Draft PR은 사
 - GDJ-0034 terminal/GDJ-0035 clean baseline: `0bb8c969d0658f50f40d916996f027e7393bce14`; EVID-083/run
   `31613170021` exact 26/26 jobs·326/326 steps PASS; tree `341deb1d...`, unchanged four-coordinate
   715/715/0·72,623 bytes·`127fb3d8...3a17`, audit P0..P3=0; completion run 재사용 없음
-- 현재 working tree: GDJ-0035 exact 16-document activation transition; source/workflow/artifact/product diff 0,
-  own exact-head hosted CI `not run/pending`
+- GDJ-0035 activation documentation: `52f9bcb7fedb2333a4c5e6f0e016aec15381c806`; EVID-084/run
+  `31618469072` exact 26/26 jobs·326/326 steps PASS; tree `58acca30...`, source/workflow/artifact/product diff 0,
+  audit P0..P3=0; activation only, Phase A proof 아님
+- 현재 working tree: GDJ-0035 Phase A reference-only artifacts/local gates completed; exact 13/139/156=
+  `122+5+12 locked`, Phase A exact-head hosted CI는 pending이고 ADR-0034는 Proposed
 - 최근 완료 work:
   [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - active work:
@@ -1389,8 +1404,9 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open입니다. Draft PR은 사
   reverse/write/generated upgrade는 Q-017 P1/open;
   [ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 relation migration
   candidate에 대한 Proposed이며 Accepted가 아님
-- 현재 reference 분류: 12 set/127 contract/132 ordered cross-binding. Locked oracle bytes는 불변이고
-  hosted product manifest는 REL-001..012 전부 `passing`
+- 현재 reference 분류: 13 sets/139 unique contract+scenario/156 ordered cross-binding=
+  `122 passing + 5 deviation + 12 oracle_locked`. Hosted product manifest는 별도 12/127=`122+5+0`이고
+  REL-001..012 전부 `passing`
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
   coordinates와 local/hosted independent audits P0/P1/P2/P3 0; ADR-0023 Accepted
 - 현재 hosted 제품 분류: 12 product adapter/127 product contract=
@@ -1412,8 +1428,9 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open입니다. Draft PR은 사
   implementation head `3099bd62...`는 EVID-081에서 hosted-verified됐고 code는 Implemented입니다. 새 Q/ADR, public
   API, relation manifest/oracle/status 변경은 없습니다. Exact completion head `45cfccd...`는 EVID-082에서
   hosted-verified됐고 exact terminal head `0bb8c969...`는 EVID-083에서 terminally closed됐습니다.
-- GDJ-0035: active; MIG-075..086 exact 12 planned contracts, Proposed ADR-0034와 exact16 Markdown activation만
-  존재합니다. Source/artifact/product 변경은 0이고 activation own CI는 `not run/pending`입니다.
+- GDJ-0035: active; MIG-075..086 exact 12 reference-only contracts와 Proposed ADR-0034를 소유합니다. Exact16
+  Markdown activation은 EVID-084에서 hosted-verified됐고 Phase A artifact/local gate는 EVID-085에서 completed입니다.
+  Phase A exact-head hosted proof는 pending이며 product 변경은 0입니다. 다음은 no-product Phase B feasibility입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1531,8 +1548,11 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open입니다. Draft PR은 사
 - GDJ-0034 terminal/GDJ-0035 baseline hosted: EVID-083/run 31613170021 exact 26/26·326/326 PASS; head
   `0bb8c969...`, synthetic merge/head tree both `341deb1d...`, unchanged four-coordinate 715/715/0·72,623
   bytes·`127fb3d8...3a17`, product `122 + 5 + 0`, relation 12/12, audit P0/P1/P2/P3=0; baseline only
-- GDJ-0035 activation: exact 16 Markdown paths, one active/zero ready, Proposed ADR-0034, MIG-075..086 planned;
-  source/workflow/artifact/product diff 0, own hosted CI `not run/pending`
+- GDJ-0035 activation hosted: EVID-084/run 31618469072 exact 26/26·326/326 PASS; head `52f9bcb7...`,
+  synthetic merge/head tree both `58acca30...`, exact 16 Markdown paths, one active/zero ready, source/workflow/
+  artifact/product diff 0, audit P0/P1/P2/P3=0; activation only and not Phase A proof
+- GDJ-0035 Phase A: reference-only artifacts/local gates completed; exact 13/139/156=`122+5+12 locked`, artifact
+  bytes/hashes/checksum/tests are locked in EVID-085; Proposed ADR-0034 retained, Phase A exact-head hosted CI pending
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1589,9 +1609,10 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open입니다. Draft PR은 사
   implementation run 31586910749 exact 26/26 PASS; completion-documentation run 31590911735 exact 26/26 PASS;
   terminal evidence/status/GDJ-0034 baseline run 31593500615 exact 26/26 PASS; GDJ-0034 activation run
   31599273044 exact 26/26 PASS; GDJ-0034 implementation run 31605477297 exact 26/26 PASS; completion-documentation
-  run 31609500811 exact 26/26 PASS; terminal/GDJ-0035 baseline run 31613170021 exact 26/26 PASS
+  run 31609500811 exact 26/26 PASS; terminal/GDJ-0035 baseline run 31613170021 exact 26/26 PASS; GDJ-0035
+  activation run 31618469072 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-072/074/076/077/078/079/080/081/082/083을 각각의 activation/decision/implementation/completion/terminal/local-source/hosted-implementation/hosted-completion/baseline 경계 밖
+- 가장 위험한 과장: EVID-072/074/076/077/078/079/080/081/082/083/084를 각각의 activation/decision/implementation/completion/terminal/local-source/hosted-implementation/hosted-completion/baseline/activation 경계 밖
   later proof로
   재사용하거나, exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로
   확대하거나, REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse

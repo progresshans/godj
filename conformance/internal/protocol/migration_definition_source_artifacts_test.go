@@ -31,7 +31,7 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestRelationChecksumIsAppendedAfterUnchangedElevenLines(t *testing.T) {
+func TestMigrationRelationChecksumIsAppendedAfterUnchangedTwelveLines(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -51,8 +51,9 @@ func TestRelationChecksumIsAppendedAfterUnchangedElevenLines(t *testing.T) {
 	const definitionSource = "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f  migration-definition-source-oracle.json\n"
 	const projectCheck = "49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2  migration-project-check-oracle.json\n"
 	const relation = "6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290  relation-oracle.json\n"
-	if string(contents) != previous+definitionSource+projectCheck+relation {
-		t.Fatal("SHA256SUMS did not preserve the previous eleven lines and append exactly one relation oracle")
+	const migrationRelation = "c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27  migration-relation-oracle.json\n"
+	if string(contents) != previous+definitionSource+projectCheck+relation+migrationRelation {
+		t.Fatal("SHA256SUMS did not preserve the previous twelve lines and append exactly one migration-relation oracle")
 	}
 }
 
