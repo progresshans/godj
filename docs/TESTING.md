@@ -1070,11 +1070,13 @@ inventory를 함께 갱신해야 합니다. Django scenario execution/oracle/che
 Local gate는 focused normal/race/CGO-disabled/vet, product/external compile, generator golden/determinism/last-good,
 unchanged app-generated exact 13, bounded Linux/386, full `go test ./...`, measured 715-test workflow roster와 independent
 P0-P3 audit까지 EVID-075에서 통과했습니다. EVID-076은 exact Darwin 193/193, four Python exact-profile suites와
-four relation-product coordinate each 715/715/0을 포함한 exact implementation head를 검증했습니다. EVID-076 append와
-completion docs, 이후 terminal evidence는 그 implementation run이 재귀적으로 증명하지 않으므로 각각 later distinct
-exact-head CI가 필요합니다. Terminal baseline 전에는 다음 work를 active/ready로 만들지 않습니다. Q-013은 `Partial`,
-Q-017은 P1/open이고 typed generated `select_related` cause-loss P2, relation-capable migration, reverse/general facade와
-non-SQLite backend는 이 gate의 claim이 아닙니다.
+four relation-product coordinate each 715/715/0을 포함한 exact implementation head를 검증했습니다. EVID-076을 포함하는
+exact 15-document completion head `81f4aacb...`는 EVID-077/run `31590911735`의 별도 exact 26/26 jobs·326/326
+steps와 audit P0..P3=0을 통과했습니다. EVID-077 append와 exact seven-document terminal evidence/status tree는 그
+completion run이 재귀적으로 증명하지 않으므로 다시 distinct exact-head CI가 필요합니다. Terminal baseline 전에는
+다음 work를 active/ready로 만들지 않습니다. Q-013은 `Partial`, Q-017은 P1/open이고 typed generated
+`select_related` cause-loss P2, relation-capable migration, reverse/general facade와 non-SQLite backend는 이 gate의
+claim이 아닙니다.
 
 이전 두 job은 PR #1의
 [run 31295886061](https://github.com/progresshans/godj/actions/runs/31295886061)에서 처음 함께

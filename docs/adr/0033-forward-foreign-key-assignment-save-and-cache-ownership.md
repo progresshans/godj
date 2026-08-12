@@ -36,8 +36,9 @@ project wrapper와 generated code로 옮기는 정확한 ownership/API 경계를
 
 Implementation과 verification은 **SQLite/AutoField bounded product**에 한정됩니다. REL-002는 manifest/actual에서
 `passing`이고 aggregate는 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. 이
-EVID-076 append와 completion/status transition은 implementation run 뒤의 문서 변경이므로 run `31586910749`가
-재귀적으로 증명하지 않으며 별도 completion-documentation exact-head CI가 필요합니다.
+EVID-076 append와 completion/status transition은 exact completion head `81f4aacb...`의 EVID-077/run
+`31590911735`에서 별도 검증됐습니다. EVID-077 append와 terminal evidence/status transition은 completion run이
+재귀적으로 증명하지 않으므로 다시 별도 exact-head CI가 필요합니다.
 
 ADR-0032가 Accepted한 bounded Gate 0의 `Backend=db.Queryer+db.Mutator`, `Using`, all-model wrappers, read/eager
 surface와 one-companion publication은 재개방하지 않습니다. Callback 뒤 session-origin wrapper 동작도 계속
@@ -239,8 +240,9 @@ prototype와 local commands만 증명합니다. EVID-074/run `31574653183`은 ex
 `9d728610...`의 hosted 26/26·326/326과 audit P0..P3=0을 증명하지만 implementation proof로 재사용하지 않습니다.
 EVID-075는 exact 23-path bounded product가 local `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12와
 corrected three-phase/final gates를 통과한 pre-hosted evidence입니다. EVID-076/run `31586910749`은 combined exact
-31-path implementation head `be6f3d4e...`를 unique hosted gate에서 증명합니다. EVID-072/074를 재사용하지 않았고,
-run `31586910749`도 이 later exact 15-document completion tree나 이후 exact seven-document terminal tree의 proof로
-재사용하지 않습니다. Q-013은 `Partial`, Q-017은 P1/open이고 typed generated `select_related` cause-loss P2,
-relation-capable migration, reverse/general facade와 non-SQLite backend는 별도 범위입니다. Terminal baseline 전에는
-다음 work를 active/ready로 만들지 않고 Draft PR #1도 merge하지 않습니다.
+31-path implementation head `be6f3d4e...`를 unique hosted gate에서 증명합니다. EVID-076을 포함하는 exact
+15-document completion head `81f4aacb...`는 EVID-077/run `31590911735`의 별도 exact 26/26·326/326과 audit
+P0..P3=0을 통과했습니다. EVID-072/074/076을 later head의 proof로 재사용하지 않았고 run `31590911735`도 EVID-077을
+포함하는 exact seven-document terminal tree의 proof로 재사용하지 않습니다. Q-013은 `Partial`, Q-017은 P1/open이고
+typed generated `select_related` cause-loss P2, relation-capable migration, reverse/general facade와 non-SQLite backend는
+별도 범위입니다. Terminal baseline 전에는 다음 work를 active/ready로 만들지 않고 Draft PR #1도 merge하지 않습니다.

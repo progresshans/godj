@@ -4,8 +4,10 @@
 - 현재 단계: [GDJ-0033](../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed이고
   [ADR-0033](adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Accepted, bounded code는 Implemented,
   EVID-076/run `31586910749`의 명시된 환경에서 Verified입니다. Exact implementation head `be6f3d4e...`은 unique
-  exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Active/ready work는 없고 EVID-076을 포함하는
-  completion-documentation tree의 own exact-head hosted CI가 다음 절차입니다. Implementation run을 재사용하지 않습니다.
+  exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. EVID-076을 포함하는 exact completion head
+  `81f4aacb...`도 EVID-077/run `31590911735`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다.
+  Active/ready work는 없고 EVID-077을 포함하는 exact seven-document terminal tree의 own exact-head CI가 다음
+  절차입니다. Implementation/completion run을 재사용하지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-12
@@ -458,9 +460,10 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
   bounded implementation은 local normal/race/CGO0/vet/Linux386, full `./...`, measured inventory와 independent
   P0..P3=0을 통과했습니다. Exact head `be6f3d4e...`의 EVID-076/run `31586910749`도 unique exact
   26/26 jobs·326/326 steps와 four-coordinate 715/715/0 inventory를 통과해 `122 + 5 + 0`, relation 12/12를
-  hosted-verified했습니다. Global identity와 cross-materialization pointer identity는 비목표입니다. EVID-076을
-  포함하는 later completion tree와 terminal tree는 각각 고유 exact-head CI가 필요하며 terminal baseline 전에는
-  다음 work를 active/ready로 만들지 않습니다.
+  hosted-verified했습니다. EVID-076을 포함하는 exact 15-document completion head `81f4aacb...`도 EVID-077/run
+  `31590911735`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. Global identity와
+  cross-materialization pointer identity는 비목표입니다. EVID-077을 포함하는 exact seven-document terminal tree는
+  다시 고유 exact-head CI가 필요하며 terminal baseline 전에는 다음 work를 active/ready로 만들지 않습니다.
 - Current `select_related` facade가 resolver/binder cause를 generic invalid-plan으로 축약하는 gap은 narrow remediation
   gate로 재현·수정 여부를 판단하되 새 Q/ADR로 확장하지 않습니다.
 - Current PROTECT는 exact protected identities와 count payload를 위해 모든 protected row를 materialize합니다.

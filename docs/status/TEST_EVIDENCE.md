@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-12
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260812-076
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260812-077
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -6526,4 +6526,97 @@ Evidence and product boundary:
 - EVID-072/run `31566524953` proves activation only. EVID-074/run `31574653183` proves the decision-documentation head only. This unique run `31586910749` proves the combined exact 31-path REL-002 implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`.
 - This hosted acceptance proves the bounded SQLite/AutoField forward-assignment/save product, including unsaved-target failure before backend I/O and exact 12/12 relation classification. It does not close Q-013/Q-017 or claim reverse assignment, relation migrations, general generated upgrade, non-SQLite backends, callback-after-return lifetime, or repair of the separately tracked generated `select_related` cause-loss P2.
 - The later EVID-076 append and completion/status transitions are documentation changes and are not recursively proved by run `31586910749`; they require their own unique completion-documentation exact-head CI before GDJ-0033 terminal closure.
+- Draft PR #1 remains open, draft and unmerged.
+
+## EVID-20260812-077 — GDJ-0033 GitHub-hosted Completion-documentation-head Exact 26-job CI
+
+- Date/time: 2026-08-12; run created/started 11:13:45Z, terminal updated 11:21:57Z
+- Work/contract IDs: GDJ-0033 exact 15-document completion/status transition; REL-002 remains `passing`; Q-013 remains `Partial`, Q-017 remains P1/open
+- Baseline/checkout: branch `codex/revision-fenced-migration-lifecycle`; parent implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`; exact completion-documentation head `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`; exact tree `d62a29933252bf85a632a212020a788e50e73519`; subject `docs: complete Django-first relation assignment`
+- Hosted command boundary: unique GitHub Actions [run 31590911735](https://github.com/progresshans/godj/actions/runs/31590911735), workflow `CI`, event `pull_request`, attempt 1
+- Result: exact 26/26 jobs and 326/326 steps completed with conclusion `success`; no skipped, cancelled or failed job/step
+- Product result: unchanged exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`; relation exact 12/12 passing, including REL-002
+- Publication boundary: PR #1 remained `OPEN`/`Draft`/`CLEAN`/`MERGEABLE`, head exact, `merged=false`, `mergedAt=null`
+
+Hosted identity and checkout evidence:
+
+- A fail-closed exact-head query returned exactly one `pull_request` run: database ID `31590911735`, run number 65, attempt 1, workflow ID `329824900`, `headSha=81f4aacb7338e0ea96fa1494c902b2a14e768fcb`, status `completed`, conclusion `success`.
+- Actions synthetic merge `708897936c9bb274ca601a376e7e6b053bcf6a51` had exact parents base `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and completion head `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`.
+- Synthetic merge and exact completion head trees were both `d62a29933252bf85a632a212020a788e50e73519`; therefore the executed contents were exact-head-equivalent.
+- All 26 raw checkout traces independently contained exactly one fetch of `+708897936c9bb274ca601a376e7e6b053bcf6a51:refs/remotes/pull/1/merge`, one checkout of that ref, one matching `HEAD is now at 7088979 Merge 81f4aacb7338e0ea96fa1494c902b2a14e768fcb into f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` message, one `git log -1 --format=%H` command and one exact synthetic-SHA result. No checkout trace showed another `HEAD`.
+- PR #1 was re-queried after terminal completion as branch `codex/revision-fenced-migration-lifecycle`, exact head `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`, base `main`, `OPEN`, Draft, `CLEAN`, `MERGEABLE`, and unmerged.
+
+Exact job identities:
+
+| Required execution | Job ID | UTC interval | Steps | Result |
+|---|---:|---|---:|---|
+| Validate checked-in conformance artifacts | [94095387601](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387601) | 11:13:48–11:20:10 | 16 | success |
+| Validate exact darwin/arm64 profile and SQLite lifecycle | [94095387671](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387671) | 11:16:04–11:17:47 | 14 | success |
+| Project check (`ubuntu-22.04`) | [94095387659](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387659) | 11:13:48–11:14:39 | 12 | success |
+| Project check (`ubuntu-24.04-arm`) | [94095387578](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387578) | 11:13:51–11:14:35 | 12 | success |
+| Project check (`macos-15-intel`) | [94095387608](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387608) | 11:13:50–11:16:27 | 12 | success |
+| Project check (`macos-26`) | [94095387688](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387688) | 11:18:28–11:19:36 | 12 | success |
+| Relation binding (`ubuntu-22.04`) | [94095387521](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387521) | 11:13:48–11:15:07 | 13 | success |
+| Relation binding (`ubuntu-24.04-arm`) | [94095387582](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387582) | 11:13:48–11:14:58 | 13 | success |
+| Relation binding (`macos-15-intel`) | [94095387556](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387556) | 11:13:49–11:15:43 | 13 | success |
+| Relation binding (`macos-26`) | [94095387655](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387655) | 11:16:30–11:17:59 | 13 | success |
+| Relation product (`ubuntu-22.04`) | [94095387694](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387694) | 11:13:55–11:17:57 | 13 | success |
+| Relation product (`ubuntu-24.04-arm`) | [94095387764](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387764) | 11:13:48–11:16:32 | 13 | success |
+| Relation product (`macos-15-intel`) | [94095387737](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387737) | 11:13:48–11:20:19 | 13 | success |
+| Relation product (`macos-26`) | [94095387779](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387779) | 11:18:02–11:21:56 | 13 | success |
+| Product project check (`ubuntu-22.04`) | [94095387841](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387841) | 11:13:49–11:17:11 | 12 | success |
+| Product project check (`ubuntu-24.04-arm`) | [94095387748](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387748) | 11:13:48–11:16:07 | 12 | success |
+| Product project check (`macos-15-intel`) | [94095387695](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387695) | 11:13:48–11:19:27 | 12 | success |
+| Product project check (`macos-26`) | [94095387858](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387858) | 11:15:45–11:18:26 | 12 | success |
+| Python compatibility (`3.12.13`) | [94095387899](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387899) | 11:13:49–11:14:11 | 12 | success |
+| Python compatibility (`3.13.15`) | [94095387830](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387830) | 11:13:48–11:14:11 | 12 | success |
+| Python compatibility (`3.14.3`) | [94095387628](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387628) | 11:13:48–11:14:18 | 12 | success |
+| Python compatibility (`3.14.7`) | [94095387678](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387678) | 11:13:48–11:14:17 | 12 | success |
+| SQLite (`ubuntu-22.04`) | [94095387751](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387751) | 11:13:49–11:15:31 | 12 | success |
+| SQLite (`ubuntu-24.04-arm`) | [94095387714](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387714) | 11:13:51–11:15:06 | 12 | success |
+| SQLite (`macos-15-intel`) | [94095387796](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387796) | 11:13:50–11:16:01 | 12 | success |
+| SQLite (`macos-26`) | [94095387712](https://github.com/progresshans/godj/actions/runs/31590911735/job/94095387712) | 11:17:49–11:18:50 | 12 | success |
+
+Hosted gate details:
+
+- All 20 project/product-project/relation-binding/relation-product/SQLite matrix jobs emitted and asserted the intended Go 1.26.5 coordinate: Linux amd64, Linux arm64, Darwin amd64 and Darwin arm64. Every coordinate’s configured normal, race, CGO-disabled, vet, no-rewrite and clean-worktree gates succeeded.
+- Full Ubuntu artifact job `94095387601` passed root `make ci` on Go 1.26.5 linux/amd64 with locked Python dependencies. Normal all-package tests, vet, race, bounded CGO-disabled packages, production facade codegen, relation-delete product and physical no-overlay compiletest all passed. Portable Python reported exact 193 tests with 17 intentional skips. The scoped Linux/386 migration/project-check compile and relation-package runtime gates, stored-oracle checksums and reference no-rewrite gate also passed; this does not claim general Linux/386 product support.
+- Exact Darwin job `94095387671` passed Go 1.26.5 darwin/arm64 and pinned CPython 3.14.3/Django 6.1/SQLite profile gates. It passed the bounded migration/SQLite/runner/physical compiletest gate and exact 193/193 Python tests with skip 0, followed by all oracle `--check` and no-rewrite gates.
+- Python jobs `94095387899`/`94095387830`/`94095387628`/`94095387678` each asserted their exact CPython version and pinned compatibility environment. Each passed 193 tests with 17 intentional skips and independently passed the exact all-scenario semantic digest: 127 scenarios, 498,051 payload bytes, SHA-256 `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`.
+- Relation-product jobs `94095387694`/`94095387764`/`94095387737`/`94095387779` each emitted 715 actual top-level records. Independent reconstruction from every raw coordinate produced exact 715 run/715 pass/0 skip, 72,621 payload bytes and SHA-256 `85575c84e202fb88570ab44d6ef1ca0df8ef4443cfd63dabfa70f65130f9e237`; all four inventories were byte-identical.
+- Those inventories include `TestObserveUnsavedRelatedTargetFailsBeforeExactOperationIO` and `TestProjectFacadePendingTargetSaveReconcilesAndPublishesBothRows`. `WaitDelay`, `Test I/O incomplete`, Actions error annotations, warning annotations, panic markers and data-race reports occurred zero times. Race, CGO-disabled, vet, generated-fixture no-rewrite and clean-worktree steps all passed on all four relation coordinates.
+
+Product and source invariants:
+
+- Parent-to-head changed no source, workflow, generated product fixture, manifest, oracle, checksum or non-Markdown file. The non-Markdown change count was 0 and the source/product literal binary diff was the empty 0-byte stream. The worktree was clean and local HEAD/upstream both exactly `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`.
+- The relation manifest remained exact 10,770 bytes/SHA-256 `791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b`; all 12 relation contracts remained `passing`. Across all 12 unique manifests, exact aggregate remained 127 contracts=`122 passing + 5 deviation + 0 oracle_locked`.
+- Generated golden remained exact 32,480 bytes/SHA-256 `21f2b61767a82a28ed917061306a8f37847537057d3422dc09ebd34617cdff74`; checked-in production companion remained exact 32,540 bytes/SHA-256 `956defa9ae1ba25c713c2a224fb81888caed17650a581c5011a3f0610f369135`. Both retained generator version `godj-codegen-rel-facade-project-v2`, with golden input SHA-256 `f49958eb74b49399372923ea8898f235a85ebb1c1b0f407bac9425e98d83964c` and production input SHA-256 `d5a67c078a346bed346837a0660a9d4872f0eb0b622c7270e580cda71015bdfc`.
+- The EVID-076 generated locks therefore remained byte-identical: legacy exact 13=`13 files/26,140 bytes/a284a36ce915c7d86ac28a8b7bc8866e634e7b9fa7aa2a18bbc98dc8576ef628`; generated exact 14=`14 files/58,680 bytes/90e0e6cc5abf471a078107d58acf2e091fcf10d8252444c5e1efc671a45fb8ec`; physical exact 17=`17 files/140,188 bytes/bb7456ff57e37f0b665da4519c8804292d010b0da2464290c7eebd28ceb70021`.
+- Django relation oracle remained 33,792 bytes/SHA-256 `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`; static historical NI fixture remained 1,859 bytes/SHA-256 `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`; 12-line `SHA256SUMS` remained 1,148 bytes/SHA-256 `067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`.
+
+Exact completion-documentation diff and content boundary:
+
+- Parent-to-head changed exactly 15 allowed Markdown documentation/work paths: `docs/ARCHITECTURE.md`, `docs/CAPABILITY_CATALOG.md`, `docs/COMPATIBILITY.md`, `docs/CONCURRENCY.md`, `docs/DEVELOPER_EXPERIENCE.md`, `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`, `docs/SOURCES.md`, `docs/TESTING.md`, `docs/adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md`, `docs/status/CURRENT.md`, `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`, `work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md`, and `work/README.md`.
+- Exact 15-path numstat was 344 insertions/142 deletions. Literal `git diff --binary be6f3d4e0838929fe96ec156ec0647845d905ea6 81f4aacb7338e0ea96fa1494c902b2a14e768fcb` was exact 111,397 bytes/SHA-256 `cbfd1c83763d852ae136c869533f6b00fe3b8962ee2892907801645a819682ae`; `git diff --check` was clean.
+- Under canonical sorted path/NUL/unsigned-64-bit-big-endian-length/NUL/Git-object-content encoding, exact 15-path head content was 1,178,649 content bytes, 1,179,220 encoded bytes and SHA-256 `70898d38f457ea1843634c65f4bc5baae1d63aaf655d16f358bbba33729185b7`.
+- Independent local exact-head documentation validation found zero missing relative targets or GitHub-style anchors across the exact 15 files, no unbalanced fenced-code block, exactly one EVID-076 heading and current-evidence pointer, GDJ-0033 frontmatter `completed`, and zero `active`/`ready` work packets.
+
+Evidence-history boundary:
+
+- Completion-head `docs/status/TEST_EVIDENCE.md` was exact 623,713 bytes/SHA-256 `f7e7f402daf81e92925b5b523334ad4a6d189e6464ecf55a1ac85ba922953a68`.
+- Historical EVID-001..075 body occupies zero-based byte offsets 524 through 608,709: exact 608,186 bytes/SHA-256 `8f6328cbcc0272c1f2d8644a378added1a8dfa856b60d17fd12acf84b16422e9`, byte-identical to the implementation head. Only the fixed-length top pointer changed from EVID-075 to EVID-076.
+- After one LF separator at offset 608,710, EVID-076 begins at offset 608,711 and runs through EOF as exact 15,002 bytes/SHA-256 `bd969aba587dccc1f60a10d0dc841faa1957daf4a65b5a19f3b02cedde2ec6b0`.
+- The complete EVID-001..076 body from offset 524 through EOF was exact 623,189 bytes/SHA-256 `db96af99f93a6dfa123d763d81dd311334b74a84fcca2bc65791b5be540148f2`.
+
+Independent hosted audit:
+
+- Raw terminal evidence was captured under `/tmp/godj-ci-31590911735.7SjRBd`. Terminal run API JSON was 12,506 bytes/SHA-256 `56a09695411cccc9342a2025a40a243fade1a8eb6fd1d6956becda6b0e6d9a07`; 26-job API JSON was 77,140 bytes/SHA-256 `d8284eec307f50f2df69e3bce49a1a42989dbe86ebe9ce1e9234b3b6f1b8e909`; raw log ZIP was 735,390 bytes/SHA-256 `ced0ad49101175526d5009fb8c2f58e5d650a751cc7b9d285f1074dc7a38780a`; combined 14,856-line raw log was 2,665,817 bytes/SHA-256 `f5fc27bca72515a3500ee9b41c88021b592bf39a9328ff30fa98e537a3642ec2`.
+- The audit re-queried run uniqueness and terminal coordinates, all 26 jobs/326 steps, PR state, synthetic ancestry/tree equivalence, all 26 checkout traces, every matrix coordinate, the full Ubuntu and exact Darwin logs, all four Python jobs, all four relation inventories, unchanged generated/product locks, exact 15-path diff/content aggregate and TEST_EVIDENCE boundaries.
+- Hosted evidence inconsistencies were P0/P1/P2/P3=`0/0/0/0`. The audit performed no repository edit, stage, commit, push, rerun or merge.
+
+Evidence and product boundary:
+
+- EVID-076/run `31586910749` proves the exact 31-path implementation head `be6f3d4e0838929fe96ec156ec0647845d905ea6`. This unique run `31590911735` separately proves the exact 15-document completion/status head `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`; the implementation run was not reused.
+- The product boundary is unchanged: bounded SQLite/AutoField forward assignment/save is Implemented/Verified and REL-002 is `passing`, while Q-013 remains `Partial`, Q-017 remains P1/open, and reverse assignment, relation migrations, general generated upgrade, non-SQLite backends, callback-after-return lifetime and the separately tracked generated `select_related` cause-loss P2 remain outside this packet.
+- The later EVID-077 append and exact terminal evidence/status tree are documentation changes not recursively proved by run `31590911735`; they require their own distinct exact-head boundary before GDJ-0033 terminal-baseline closure. No next work is active/ready.
 - Draft PR #1 remains open, draft and unmerged.

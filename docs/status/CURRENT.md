@@ -207,6 +207,9 @@
 - GDJ-0033 implementation/hosted-tested commit:
   `be6f3d4e0838929fe96ec156ec0647845d905ea6`
   (`feat: add Django-first relation assignment`)
+- GDJ-0033 completion-documentation/hosted-tested commit:
+  `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`
+  (`docs: complete Django-first relation assignment`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed이고
@@ -220,8 +223,11 @@
   P0..P3=0을 통과했습니다. EVID-075의 local implementation은 corrected canonical three-phase preflight와 per-edge COW
   final gates를 통과했고, exact implementation head `be6f3d4e...`의 EVID-076/run `31586910749`도 별도 exact
   26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Product는 `122 passing + 5 deviation + 0 oracle_locked`,
-  relation 12/12, REL-002 passing입니다. EVID-076 append와 이 completion transition은 implementation run이 재귀적으로
-  증명하지 않으므로 later unique exact-head CI가 필요합니다.
+  relation 12/12, REL-002 passing입니다. EVID-076을 포함하는 exact 15-document completion head `81f4aacb...`도
+  [EVID-077](TEST_EVIDENCE.md#evid-20260812-077--gdj-0033-github-hosted-completion-documentation-head-exact-26-job-ci) /
+  [run 31590911735](https://github.com/progresshans/godj/actions/runs/31590911735)의 별도 exact 26/26·326/326과 audit
+  P0..P3=0을 통과했습니다. EVID-077 append를 포함하는 exact seven-document terminal tree는 completion run이 재귀적으로
+  증명하지 않으므로 다시 unique exact-head CI가 필요합니다.
 - 최근 완료 작업:
   [GDJ-0033 Forward ForeignKey Assignment, Save, and Cache Ownership](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
 - 활성 작업: 없음
@@ -1166,15 +1172,18 @@ general generated upgrade는 계속 open입니다.
 
 Phase A/B/C, exact decision-documentation hosted CI, exact 23-path bounded implementation과
 [EVID-076](TEST_EVIDENCE.md#evid-20260812-076--gdj-0033-github-hosted-rel-002-implementation-head-exact-26-job-ci)의
-별도 implementation-head hosted CI까지 완료됐습니다. 현재 변경은 EVID-076 전문과 정확히 15개 completion 문서의 상태
-전환입니다. 이 completion tree를 고유한 exact-head hosted CI로 검증한 뒤, EVID-076을 재사용하지 않고 별도 exact 7-file
-terminal evidence/status tree와 고유 CI를 만들어야 합니다. Terminal baseline 전에는 다음 work를 활성화하지 않습니다.
+별도 implementation-head hosted CI, exact completion head `81f4aacb...`의
+[EVID-077](TEST_EVIDENCE.md#evid-20260812-077--gdj-0033-github-hosted-completion-documentation-head-exact-26-job-ci) /
+[run 31590911735](https://github.com/progresshans/godj/actions/runs/31590911735)까지 완료됐습니다. 현재 변경은 EVID-077
+전문과 정확히 seven-document terminal evidence/status tree입니다. Completion run을 재사용하지 않고 이 terminal tree를
+고유 exact-head hosted CI로 닫아야 합니다. Terminal baseline 전에는 다음 work를 활성화하지 않습니다.
 
 Implementation은 exact public `New`/`Save`/`WithAuthor`/`WithReviewer`/scalar helpers/`ClearReviewer`, project-private
 write descriptor, pending-only reconciliation, corrected canonical three-phase preflight와 per-edge COW cache를 구현했습니다.
 REL-002 reference oracle/checksum/static NI는 byte-frozen이고 actual/manifest/inventory만 final measured bytes에 맞췄습니다.
-Allowlist 밖 core/backend/app-generated path는 바꾸지 않았습니다. EVID-072/074/076은 각각 activation/decision/implementation
-head만 증명하며 completion 또는 terminal proof로 재사용하지 않습니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
+Allowlist 밖 core/backend/app-generated path는 바꾸지 않았습니다. EVID-072/074/076/077은 각각
+activation/decision/implementation/completion head만 증명하며 later terminal proof로 재사용하지 않습니다. Draft PR은
+사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1300,8 +1309,11 @@ head만 증명하며 completion 또는 terminal proof로 재사용하지 않습�
 - GDJ-0033 implementation: `be6f3d4e0838929fe96ec156ec0647845d905ea6`; EVID-076/run
   `31586910749` exact 26/26 jobs·326/326 steps PASS; product `122 passing + 5 deviation + 0 oracle_locked`, relation
   12/12, audit P0..P3=0; implementation head only
-- 현재 working tree: EVID-076 append와 exact 15 completion 문서 전환; implementation run 재사용 금지, own unique
-  completion exact-head hosted CI pending
+- GDJ-0033 completion documentation: `81f4aacb7338e0ea96fa1494c902b2a14e768fcb`; EVID-077/run
+  `31590911735` exact 26/26 jobs·326/326 steps PASS; unchanged product `122 passing + 5 deviation + 0 oracle_locked`,
+  relation 12/12, audit P0..P3=0; completion head only
+- 현재 working tree: EVID-077 append와 exact seven-document terminal evidence/status 전환; completion run 재사용 금지,
+  own unique terminal exact-head hosted CI pending
 - 최근 완료 work:
   [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)
 - active work: 없음
@@ -1483,12 +1495,12 @@ head만 증명하며 completion 또는 terminal proof로 재사용하지 않습�
   26/26 PASS; production facade implementation run 31541883680 exact 26/26 PASS; completion-documentation run
   31544273477 exact 26/26 PASS; terminal evidence/status/GDJ-0033 baseline run 31563615648 exact 26/26 PASS;
   GDJ-0033 activation run 31566524953 exact 26/26 PASS; decision-documentation run 31574653183 exact 26/26 PASS;
-  implementation run 31586910749 exact 26/26 PASS
+  implementation run 31586910749 exact 26/26 PASS; completion-documentation run 31590911735 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
-- 가장 위험한 과장: EVID-072/074/076을 각각의 activation/decision/implementation head 밖 completion 또는 terminal proof로
-  재사용하거나, exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로 확대하거나,
-  REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse assignment,
-  relation migration 또는 non-SQLite support로 과장하는 것
+- 가장 위험한 과장: EVID-072/074/076/077을 각각의 activation/decision/implementation/completion head 밖 later proof로
+  재사용하거나, exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로
+  확대하거나, REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse
+  assignment, relation migration 또는 non-SQLite support로 과장하는 것
 
 작업 상태는 [IMPLEMENTATION_MATRIX.md](IMPLEMENTATION_MATRIX.md), 실제 명령은
 [TEST_EVIDENCE.md](TEST_EVIDENCE.md)에 기록되어 있습니다.

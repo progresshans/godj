@@ -64,9 +64,10 @@ proposed → ready → active → completed
 EVID-074와 local implementation EVID-075를 분리했고 exact implementation head `be6f3d4e...`는 EVID-076/run
 `31586910749`의 별도 exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. ADR-0033 decision은
 Accepted, code는 Implemented, 명시된 hosted 환경에서는 Verified이며 product는 `122 + 5 + 0`, relation 12/12,
-REL-002 passing입니다. Q-013은 Partial, Q-017은 P1/open입니다. EVID-076을 포함하는 exact 15-document completion
-tree와 그 뒤 exact seven-document terminal tree는 각각 later unique exact-head CI가 필요하고 terminal baseline 전에는
-다음 work를 활성화하지 않습니다. Draft PR은 merge하지 않습니다.
+REL-002 passing입니다. EVID-076을 포함하는 exact 15-document completion head `81f4aacb...`도 EVID-077/run
+`31590911735`의 별도 exact 26/26·326/326과 audit P0..P3=0을 통과했습니다. Q-013은 Partial, Q-017은 P1/open입니다.
+EVID-077을 포함하는 exact seven-document terminal tree는 later unique exact-head CI가 필요하고 terminal baseline
+전에는 다음 work를 활성화하지 않습니다. Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.
