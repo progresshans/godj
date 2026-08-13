@@ -1148,7 +1148,7 @@ tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
 job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
 
-## GDJ-0035 activation, Phase A hosted verification, and Phase B local feasibility
+## GDJ-0035 activation and Phase A/B hosted verification
 
 GDJ-0034 terminal baseline `0bb8c969...`는
 [EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
@@ -1214,6 +1214,13 @@ actual `StateReconstructor` relation state는 Phase C blocker이고, candidate-l
 epoch/DAG/reconstructor 증거가 아닙니다.
 Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
 사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
-12/12는 변경 없고 ADR-0034는 Proposed입니다. Phase B committed exact-head hosted four-coordinate CI는 아직
-실행하지 않았습니다. 다음 정확한 단계는 Phase B commit/hosted CI 뒤 Phase C decision freeze이며 Draft PR은
-merge하지 않습니다.
+12/12는 변경 없고 ADR-0034는 Proposed입니다. Exact Phase B implementation head
+`c2ecb292dca2daa8d48e9a11fbf49a3f5c4b8a6a`, tree `c114812fb89bffdf8e97be1779fd603209700205`는
+[EVID-088](status/TEST_EVIDENCE.md#evid-20260813-088--gdj-0035-phase-b-github-hosted-no-product-feasibility-exact-head-ci) /
+[run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 `pull_request` attempt 1에서
+26/26 jobs·342/342 steps, annotations 0과 hosted audit P0..P3=0을 통과했습니다. Four SQLite coordinates는
+각각 exact 75/75/0·9,736 bytes·`48e7beb1...92ec`, four relation-product coordinates는 각각
+725/725/0·73,806 bytes·`2ad28eb2...a5d4`를 재현했고 exact Darwin 216/216 skip 0, checksum 13/13,
+Linux/386 compile/runtime, artifact and clean-worktree/no-rewrite gates를 통과했습니다. 따라서 Phase B는
+no-product feasibility 범위에서 completed and hosted-verified입니다. 다음 정확한 단계는 Phase C decision
+freeze이며 Draft PR은 merge하지 않습니다. EVID-088 append/status tree 자체는 이 run의 재귀적 proof가 아닙니다.

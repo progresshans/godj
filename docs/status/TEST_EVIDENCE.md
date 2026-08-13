@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-13
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260813-087
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260813-088
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -7585,3 +7585,43 @@ Evidence/product boundary and handoff:
 - Actual SQLite product optional relation port and actual `StateReconstructor` relation state remain explicit Phase C blockers. Candidate-local restart tests are not evidence for product epoch/revision fencing, migration DAG integration or the actual reconstructor.
 - No Phase B committed exact-head hosted four-coordinate CI has run yet. This EVID-087 append and accompanying status edits are later than the commands above and are not recursively exact-head verified. The next exact work is to commit this frozen Phase B tree, run its unique exact-head hosted CI, and only then perform the Phase C decision freeze/integration design.
 - Draft PR #1 remains open, draft and unmerged. This evidence does not authorize merge.
+
+## EVID-20260813-088 — GDJ-0035 Phase B GitHub-hosted No-product Feasibility Exact-head CI
+
+- Date/time: 2026-08-13 `00:05:30Z` through `00:12:43Z` (`09:05:30+0900` through `09:12:43+0900` KST)
+- Work/contract IDs: GDJ-0035 Phase B test-only feasibility; MIG-075..MIG-086 remain exact 12 reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Exact tested commit: `c2ecb292dca2daa8d48e9a11fbf49a3f5c4b8a6a` (`test: prove relation migration feasibility`), tree `c114812fb89bffdf8e97be1779fd603209700205`, parent `84e16bf193fc2079cd87788249e6e4a694f2402c`
+- Unique hosted run: [GitHub Actions run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691), workflow `CI`, event `pull_request`, attempt 1, terminal `completed/success`
+- Hosted result: exact 26/26 jobs and 342/342 recorded steps succeeded; non-success jobs/steps, check-run annotations and raw-log `##[error]`/`##[warning]` markers were all 0
+- Independent hosted audit: P0/P1/P2/P3=`0/0/0/0`; no actionable or informational defect was found
+
+Exact identity, ancestry and scope:
+
+- The unique run query returned exactly one run for the Phase B head. Its reported head SHA/tree matched the local commit and tree above.
+- The pull-request synthetic merge was `2700cbb2350b6456df240570de8902dbf9a734ee`, with ordered parents `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, c2ecb292dca2daa8d48e9a11fbf49a3f5c4b8a6a]`. Its tree was exact `c114812fb89bffdf8e97be1779fd603209700205`, equal to the tested head tree, so the merge checkout introduced no content delta.
+- Parent-to-head changed exact 24 intended paths: `.github/workflows/ci.yml`, `conformance/README.md`, `conformance/internal/protocol/migration_relation_artifacts_test.go`, exact 14 regular `_test.go` files under `conformance/migrationrelation/`, and the exact seven status/handoff Markdown files `docs/ROADMAP.md`, `docs/TESTING.md`, `docs/status/CURRENT.md`, `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`, `work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md`, `work/README.md`.
+- The exact 14 Phase B candidate/test files and their per-file/aggregate locks recorded in EVID-087 were present in this tested tree. No migration definition/state/backend/SQLite product source and no checked-in reference manifest/oracle/static NI/checksum changed from the Phase A parent.
+- At the hosted audit boundary local HEAD, `origin/codex/revision-fenced-migration-lifecycle` and the run head were exact `c2ecb292...`; the worktree was clean. All 24 hosted clean-worktree checks and all 10 no-rewrite checks succeeded.
+
+Hosted job topology and reproduced locks:
+
+- The exact 26-job roster was one exact Darwin profile job, four relation-product jobs, four Python compatibility jobs, four project-check jobs, one checked-in-artifact job, four relation-binding jobs, four product-project-check jobs and four SQLite jobs. Every named job concluded `success`.
+- SQLite ran on `ubuntu-22.04` amd64, `ubuntu-24.04` arm64, `macos-15-intel` and `macos-26` arm64. Each coordinate independently reproduced exact 75 run/75 pass/0 skip, 9,736 payload bytes and SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`; normal, race, CGO-disabled, vet and clean-worktree/no-rewrite gates succeeded.
+- The same four hosted coordinates independently reproduced the unchanged relation-product inventory: exact 725 run/725 pass/0 skip, 73,806 payload bytes and SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`, with all associated relation, project-check, race, CGO-disabled, vet and cleanliness gates successful.
+- The exact Darwin profile passed 216/216 with skip 0, all 13 oracle `--check` invocations and no rewrite. The checked-in artifact/conformance job passed root `make ci`, all 13 `SHA256SUMS` entries and the protocol/artifact locks. Hosted Ubuntu Linux/386 compile and actual runtime gates also passed.
+- Each of the four portable Python coordinates ran 216 tests with 19 intentional exact-profile-only skips and reproduced the unchanged 139-scenario semantic digest. No portable result was used as a substitute for the separate exact Darwin profile.
+
+Retained hosted evidence artifacts:
+
+- Read-only API snapshots under `/tmp/godj-m35-phase-b-hosted.wY8nnJ` were: `run.json` 12,501 bytes/SHA-256 `60420ab67842651a277a79eaa9c4e6171c6d184dc5320765e35944ff7dbbca6a`; `jobs.json` 80,232/`32a5ac55e9f5c6825213d6b19106f716ad4f8bf865608412373b2bbb38b717d9`; `check-runs.json` 91,612/`cc324fdc9e0e1ac867d87b362647003edda86de2d40ee50163dcb2db38fd3464`; `query.json` 12,537/`0b14763d2b8badabc126c3a9dfb9312236661c7199fb028f423ceb6ddace5c00`; and `pr.json` 346/`aea556009c01e6c41895357fee18b87c747d0c8a246a6635c624ecfa6cca692f`.
+- The 26 individual job logs retained under `/tmp/godj-m35-hosted-ci-audit.LjTUoM` total 1,809,105 bytes. Concatenating them in sorted filename order produced SHA-256 `fec9b625fb72f329b6f3f4fe5fbf474f752cf285a8775b8b262c5a53aab79510`.
+- Draft PR #1 was `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`; base was `f8a5e20c...`, head was `c2ecb292...`. The audit performed no rerun, cancellation, merge or repository mutation.
+
+Evidence-history and product boundary:
+
+- Before this pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact 779,350 bytes/SHA-256 `ac74b083f1591003e35753285692066535891ed41619eabba7a7760d379935a2`.
+- Historical EVID-001..087, beginning at zero-based byte offset 524 and ending at the EVID-087 EOF, occupied exact 778,826 bytes/SHA-256 `15edf095f8380a2ae4268b0f7faee664cf175ebf869cbc6c9c897cc0d0fb1349`. This append changes only the fixed-length top latest-evidence pointer and adds this unique EVID-088 at EOF; the historical body remains byte-identical.
+- Phase B is **completed and hosted-verified only as a no-product feasibility candidate**. It does not make MIG-075..086 product `passing`, publish a product handler/adapter, accept ADR-0034, or change Q/product classifications. Product remains exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12; reference remains exact 13/139/156=`122+5+12 locked`.
+- Actual SQLite product optional relation port and actual `StateReconstructor` relation state remain explicit Phase C blockers. Candidate-local restart is not evidence for product epoch/revision fencing, migration DAG integration or the actual reconstructor.
+- The next exact work is Phase C decision freeze using the measured Phase A/B evidence. ADR-0034 remains `Proposed` until a separate reviewed decision head; product implementation remains pending.
+- This EVID-088 append and its accompanying exact seven-document status/handoff tree are later than tested commit `c2ecb292...` and are not recursively proved by run `31653237691`. They require their own later exact-head gate if represented as hosted-verified. Draft PR #1 remains open, draft and unmerged; this evidence does not authorize merge.

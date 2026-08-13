@@ -12,8 +12,9 @@
   EVID-086/run `31625898551`의 고유 attempt-1 exact 26/26 jobs·326/326 steps와 hosted audit
   P0..P3=0을 통과했습니다. Reference는 exact 13 set/139 contract/156 ordered cross-binding=
   `122 passing + 5 deviation + 12 oracle_locked`이고 product는 불변입니다. Phase A는 hosted-verified됐습니다.
-  Phase B는 exact 14개 `_test.go`만으로 no-product feasibility를 locally implemented/verified했고, 다음 단계는
-  committed exact-head hosted CI 뒤 Phase C decision freeze입니다. ADR-0034는 계속 Proposed입니다.
+  Phase B exact 14개 `_test.go` no-product feasibility head `c2ecb292...`도 EVID-088/run `31653237691`의
+  고유 attempt-1 exact 26/26 jobs·342/342 steps와 hosted audit P0..P3=0을 통과했습니다. Phase B는
+  hosted-verified됐고 다음 단계는 Phase C decision freeze입니다. ADR-0034는 계속 Proposed입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-13
@@ -581,10 +582,13 @@ activation head `52f9bcb7...`는
 
 1. Phase A (**hosted-verified**): MIG-075..086 exact 12 independent reference/proposal artifacts와 provenance,
    exact 13/139/156 aggregate를 고정했고 unique exact-head CI를 통과했습니다.
-2. Phase B (**locally implemented and verified; hosted pending**): exact 14개 `_test.go` 안에서만
-   tuple/mixed digest/state/preflight/SQLite remake/fault feasibility를 검증했습니다. Exact inventory는
-   75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`입니다.
-3. Phase C (**next after committed exact-head hosted CI**): measured evidence로
+2. Phase B (**completed and hosted-verified**): exact 14개 `_test.go` 안에서만 tuple/mixed digest/state/
+   preflight/SQLite remake/fault feasibility를 검증했습니다. Exact implementation head `c2ecb292...`, tree
+   `c114812f...`는 [EVID-088](status/TEST_EVIDENCE.md#evid-20260813-088--gdj-0035-phase-b-github-hosted-no-product-feasibility-exact-head-ci) /
+   [run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 attempt-1 exact
+   26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Four SQLite coordinates는 각각
+   75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`를 재현했습니다.
+3. Phase C (**next pending**): measured Phase A/B evidence로
    [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) candidate를 freeze하고
    별도 decision head에서만 Accepted 여부를 결정합니다.
 4. Phase D: legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
