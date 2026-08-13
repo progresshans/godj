@@ -190,6 +190,49 @@ func TestMigrationRelationIsReferenceOnlyInMakeTargets(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
+	packageDirectory := filepath.Join(root, "conformance", "migrationrelation")
+	entries, err := os.ReadDir(packageDirectory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantFiles := []string{
+		"backend_candidate_test.go",
+		"backend_test.go",
+		"fault_candidate_test.go",
+		"fault_test.go",
+		"lifecycle_candidate_test.go",
+		"lifecycle_test.go",
+		"preflight_candidate_test.go",
+		"preflight_test.go",
+		"profile_candidate_test.go",
+		"profile_test.go",
+		"sqlite_candidate_test.go",
+		"sqlite_test.go",
+		"state_candidate_test.go",
+		"state_test.go",
+	}
+	if len(entries) != len(wantFiles) {
+		t.Fatalf("Phase B feasibility package entries = %d, want exact %d test-only files", len(entries), len(wantFiles))
+	}
+	for index, entry := range entries {
+		if entry.IsDir() || entry.Name() != wantFiles[index] || !strings.HasSuffix(entry.Name(), "_test.go") {
+			t.Fatalf("Phase B feasibility entry %d = %q (dir=%t), want test-only %q", index, entry.Name(), entry.IsDir(), wantFiles[index])
+		}
+		contents, err := os.ReadFile(filepath.Join(packageDirectory, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, forbidden := range []string{
+			"conformance/contracts/",
+			"conformance/oracles/",
+			"conformance/fixtures/",
+		} {
+			if bytes.Contains(contents, []byte(forbidden)) {
+				t.Fatalf("Phase B feasibility file %q reads or names checked artifact boundary %q", entry.Name(), forbidden)
+			}
+		}
+	}
+
 	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
 	if err != nil {
 		t.Fatal(err)
@@ -221,6 +264,39 @@ func TestMigrationRelationIsReferenceOnlyInMakeTargets(t *testing.T) {
 	}
 	if got := strings.Count(oracleRegenerateTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-regenerate migration-relation manifest count = %d, want 1", got)
+	}
+
+	workflowContents, err := os.ReadFile(filepath.Join(root, ".github/workflows/ci.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow := string(workflowContents)
+	relationProductStart := strings.Index(workflow, "  relation-product-matrix:\n")
+	productProjectStart := strings.Index(workflow, "  product-project-check-matrix:\n")
+	sqliteStart := strings.Index(workflow, "  sqlite-matrix:\n")
+	if relationProductStart < 0 || productProjectStart <= relationProductStart || sqliteStart <= productProjectStart {
+		t.Fatal("cannot isolate hosted relation-product and SQLite jobs")
+	}
+	if relationProduct := workflow[relationProductStart:productProjectStart]; strings.Contains(relationProduct, "./conformance/migrationrelation") {
+		t.Fatal("Phase B no-product feasibility package leaked into relation-product inventory")
+	}
+	sqliteJob := workflow[sqliteStart:]
+	requiredFeasibilityFragments := []string{
+		"Run GDJ-0035 Phase B no-product feasibility inventory",
+		"go test -json -count=1 ./conformance/migrationrelation",
+		"assert len(runs) == 75",
+		"assert passes == runs",
+		"assert skipped == []",
+		"assert len(payload) == 9736",
+		"48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec",
+		"go test -race -count=1 ./conformance/migrationrelation",
+		"CGO_ENABLED=0 go test -count=1 ./conformance/migrationrelation",
+		"go vet ./conformance/migrationrelation",
+	}
+	for _, fragment := range requiredFeasibilityFragments {
+		if count := strings.Count(sqliteJob, fragment); count != 1 {
+			t.Fatalf("SQLite Phase B feasibility fragment %q count = %d, want 1", fragment, count)
+		}
 	}
 }
 

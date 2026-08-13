@@ -107,6 +107,7 @@ general cascade/eager graph/DDL/migration 전체
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | GDJ-0019 test-only feasibility proof와 GDJ-0020 public loader의 independent black-box equivalence gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
+| `migrationrelation` | GDJ-0035 Phase B profile/state/preflight/backend/SQLite lifecycle와 additive existing revision-fenced lifecycle candidate를 검증하는 test-only no-product feasibility gate; actual relation DDL product integration은 blocked이고 MIG-075..086 product adapter가 아님 |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -821,8 +822,11 @@ GDJ-0035 exact 16-document activation head는 EVID-084/run `31618469072`에서 h
 manifest 7,792 bytes/`dfe021c2…569b`, oracle 125,248/`c742f91a…de27`, ordered NI 1,846/
 `f9bd9c47…9e24`, 13-line checksum 1,245/`5022a230…9cf4`를 로컬에서 고정했습니다. Reference는
 exact 13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`이고 product는
-exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 불변입니다. Phase A exact-head
-hosted CI는 pending입니다.
+exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 불변입니다. Phase A exact head
+`84e16bf193fc2079cd87788249e6e4a694f2402c`는
+[EVID-086](../docs/status/TEST_EVIDENCE.md#evid-20260813-086--gdj-0035-phase-a-github-hosted-reference-only-exact-head-ci)의
+unique run `31625898551`에서 26/26 jobs와 326/326 steps 모두 성공해 hosted-verified됐습니다. 이 증거는
+Phase B test-only 후보나 ADR-0034 수락을 재귀적으로 증명하지 않습니다.
 
 Accepted되지 않은 GoDj-owned GDJ-0035 candidate payload는 provenance `kind=proposal`, decision ID `GDJ-0035`,
 `derived=false`로 분류합니다. Pinned Django BSD source/test reference는 실제 관찰한 부분의 provenance일 뿐이며

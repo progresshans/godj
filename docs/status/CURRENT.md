@@ -228,6 +228,9 @@
 - GDJ-0035 activation-documentation/hosted-tested commit:
   `52f9bcb7fedb2333a4c5e6f0e016aec15381c806`
   (`docs: activate relation-capable migration lifecycle`)
+- GDJ-0035 Phase A reference-only/hosted-tested commit:
+  `84e16bf193fc2079cd87788249e6e4a694f2402c`
+  (`test: lock relation migration reference contracts`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -275,8 +278,16 @@
   baseline run을 activation proof로 재사용하지 않았습니다. Phase A는
   [EVID-085](TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
   exact 13 reference sets/139 unique contracts+scenarios/156 ordered cross-bindings=`122 passing + 5 deviation +
-  12 oracle_locked`를 로컬 고정했습니다. Product는 exact 12/127=`122+5+0`으로 불변이고 Phase A
-  exact-head hosted CI는 pending입니다. ADR-0034는 계속 Proposed입니다.
+  12 oracle_locked`를 로컬 고정했습니다. Exact committed head `84e16bf...`, tree `e6e3a749...`는 별도
+  [EVID-086](TEST_EVIDENCE.md#evid-20260813-086--gdj-0035-phase-a-github-hosted-reference-only-exact-head-ci) /
+  [run 31625898551](https://github.com/progresshans/godj/actions/runs/31625898551)의 고유 attempt-1 exact
+  26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Four relation inventories는 각각
+  725/725/0·73,806 bytes·`2ad28eb2...a5d4`, four portable Python legs는 216 tests/19 skips와
+  139 scenarios·623,543 bytes·`f4f48c4c...18da`, exact Python은 216/216, checksum은 13/13이며 hosted
+  Linux/386 compile/runtime도 통과했습니다. Product는 exact 12/127=`122+5+0`으로 불변입니다. Phase A는
+  hosted-verified됐습니다. Phase B는 exact 14개 `_test.go` no-product candidate로 locally implemented/verified됐고,
+  top-level inventory 75/75/0·9,736 bytes·`48e7beb1...92ec`, 두 independent audit P0..P3=0을 통과했습니다.
+  Phase B committed exact-head hosted CI는 pending이고 ADR-0034는 계속 Proposed입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -1236,11 +1247,18 @@ relation state, full preflight과 SQLite FK lifecycle/remake를 Phase A/B/C에�
 Exact 16-document activation head는 EVID-084/run `31618469072`에서 EVID-083과 다른 고유 exact-head
 26/26 jobs·326/326 steps 및 audit P0..P3=0을 통과했습니다. Phase A reference-only artifact/local gates는
 EVID-085에서 20/20 focused, exact Python 216/216, Go 725/725/0과 artifact checksum으로 고정했습니다.
-다음 정확한 작업은 Phase A 트리의 별도 exact-head hosted CI 후 Phase B에서 product를 바꾸지 않고
-tuple/profile dispatch, mixed digest, state promote/demote, structural preflight, SQLite pinned-connection/remake/fault
-feasibility를 검증하는 것입니다. Reference는 exact 13/139/156=`122+5+12 locked`, product는 exact
+Exact committed head `84e16bf...`는 EVID-086/run `31625898551`의 고유 attempt-1 exact 26/26·326/326과
+audit P0..P3=0을 통과해 Phase A를 hosted-verified했습니다. Phase B는 product를 바꾸지 않는 exact 14개
+`_test.go`에서 tuple/profile dispatch, mixed digest, state promote/demote, structural preflight, SQLite
+pinned-connection/remake/fault feasibility를 locally implemented/verified했습니다. Exact inventory는
+75/75/0·9,736 bytes·`48e7beb1...92ec`; exact 14-file aggregate는 693,557 bytes·`ca579837...09e5`이고
+두 independent final audit는 P0/P1/P2/P3=`0/0/0/0`입니다. Reference는 exact 13/139/156=`122+5+12 locked`, product는 exact
 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 유지하고 ADR-0034는 Proposed입니다.
 Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open이며 Draft PR은 사용자 요청 전 merge하지 않습니다.
+Phase B committed exact-head hosted four-coordinate CI는 아직 실행하지 않았습니다. 다음 정확한 작업은 이 frozen
+Phase B tree의 commit/hosted CI 뒤 actual SQLite product optional relation port와 actual `StateReconstructor`
+relation state를 결정하는 Phase C decision freeze입니다. Candidate-local restart는 product epoch/DAG/reconstructor
+증거가 아니며 EVID-086은 이 later tree를 재귀적으로 증명하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1386,8 +1404,12 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open이며 Draft PR은 사용�
 - GDJ-0035 activation documentation: `52f9bcb7fedb2333a4c5e6f0e016aec15381c806`; EVID-084/run
   `31618469072` exact 26/26 jobs·326/326 steps PASS; tree `58acca30...`, source/workflow/artifact/product diff 0,
   audit P0..P3=0; activation only, Phase A proof 아님
-- 현재 working tree: GDJ-0035 Phase A reference-only artifacts/local gates completed; exact 13/139/156=
-  `122+5+12 locked`, Phase A exact-head hosted CI는 pending이고 ADR-0034는 Proposed
+- GDJ-0035 Phase A reference-only: `84e16bf193fc2079cd87788249e6e4a694f2402c`; EVID-086/run
+  `31625898551` unique attempt-1 exact 26/26 jobs·326/326 steps PASS; tree `e6e3a749...`, four-coordinate
+  725/725/0·73,806 bytes·`2ad28eb2...a5d4`, exact Python 216/216, checksum 13/13, hosted Linux/386,
+  audit P0..P3=0; exact 13/139/156=`122+5+12 locked`, product unchanged 12/127=`122+5+0`
+- 현재 working tree: GDJ-0035 Phase A hosted-verified; Phase B exact 14-test-file no-product feasibility
+  locally implemented/verified, hosted pending; ADR-0034 Proposed, product status 변경 0
 - 최근 완료 work:
   [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - active work:
@@ -1430,7 +1452,10 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open이며 Draft PR은 사용�
   hosted-verified됐고 exact terminal head `0bb8c969...`는 EVID-083에서 terminally closed됐습니다.
 - GDJ-0035: active; MIG-075..086 exact 12 reference-only contracts와 Proposed ADR-0034를 소유합니다. Exact16
   Markdown activation은 EVID-084에서 hosted-verified됐고 Phase A artifact/local gate는 EVID-085에서 completed입니다.
-  Phase A exact-head hosted proof는 pending이며 product 변경은 0입니다. 다음은 no-product Phase B feasibility입니다.
+  Exact Phase A head `84e16bf...`는 EVID-086/run `31625898551`에서 hosted-verified됐고 product 변경은 0입니다.
+  No-product Phase B feasibility는 EVID-087의 local final-byte gates와 두 audit P0..P3=0을 통과했습니다. Exact 14개
+  `_test.go`만 추가했으며 product/ADR 상태는 불변입니다. Phase B exact-head hosted CI는 pending이고 어떤 candidate도
+  아직 Accepted가 아닙니다. 다음은 hosted gate 뒤 Phase C decision freeze입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1551,8 +1576,15 @@ Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open이며 Draft PR은 사용�
 - GDJ-0035 activation hosted: EVID-084/run 31618469072 exact 26/26·326/326 PASS; head `52f9bcb7...`,
   synthetic merge/head tree both `58acca30...`, exact 16 Markdown paths, one active/zero ready, source/workflow/
   artifact/product diff 0, audit P0/P1/P2/P3=0; activation only and not Phase A proof
-- GDJ-0035 Phase A: reference-only artifacts/local gates completed; exact 13/139/156=`122+5+12 locked`, artifact
-  bytes/hashes/checksum/tests are locked in EVID-085; Proposed ADR-0034 retained, Phase A exact-head hosted CI pending
+- GDJ-0035 Phase A hosted: EVID-086/run 31625898551 unique attempt-1 exact 26/26·326/326 PASS; head
+  `84e16bf...`, synthetic merge/head tree both `e6e3a749...`, four-coordinate 725/725/0·73,806 bytes·
+  `2ad28eb2...a5d4`, portable Python 216/19 and semantic 139/623,543/`f4f48c4c...18da`, exact Python
+  216/216, checksum 13/13, hosted Linux/386 compile/runtime, product 12/127 unchanged, audit P0/P1/P2/P3=0;
+  Phase A only, Proposed ADR-0034 retained, Phase B tree not proved
+- GDJ-0035 Phase B local: EVID-087 exact 14 `_test.go` no-product candidate, 693,557 bytes·`ca579837...09e5`;
+  inventory 75/75/0·9,736 bytes·`48e7beb1...92ec`; normal/race/CGO0/vet/shuffle20/protocol, exact
+  Python 216/216+13 oracle checks+13 checksums, root `make ci`, final no-rewrite and two independent audits
+  P0/P1/P2/P3=0 PASS; product/reference artifacts unchanged, hosted exact-head pending
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent

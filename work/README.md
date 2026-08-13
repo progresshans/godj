@@ -67,9 +67,16 @@ proposed → ready → active → completed
 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086
-exact 12 planned contracts만 활성화했고 [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는
-Proposed입니다. 이 activation은 source/artifact/product 상태를 바꾸지 않으며 exact 16-document tree own hosted
-CI는 `not run/pending`입니다. EVID-083을 activation proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.
+exact 12 reference-only contracts를 고정했고 [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는
+Proposed입니다. Activation head `52f9bcb7...`는 EVID-084/run `31618469072`, Phase A committed head
+`84e16bf...`는 EVID-086/run `31625898551`의 서로 다른 unique exact-head 26/26 jobs·326/326 steps와
+audit P0..P3=0을 통과했습니다. Reference는 exact 13/139/156=`122+5+12 locked`, product는 exact
+12/127=`122+5+0`으로 불변입니다. Phase A는 hosted-verified됐고 Phase B는 exact 14개 `_test.go`의
+no-product candidate로 locally implemented/verified됐습니다. EVID-087에서 exact 693,557 bytes/`ca579837...09e5`,
+inventory 75/75/0·9,736 bytes·`48e7beb1...92ec`, root/exact/focused gates와 두 independent audit P0..P3=0을
+고정했습니다. Product/ADR 상태는 불변이고 Phase B exact-head hosted CI는 pending입니다. 다음은 commit/hosted CI
+뒤 Phase C decision freeze이며 actual SQLite product optional relation port와 actual `StateReconstructor` relation
+state는 blocker입니다. Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
 이 clean tested baseline에서 REL-004-only query/join 수직 단면과 Proposed ADR-0025를 활성화했습니다.

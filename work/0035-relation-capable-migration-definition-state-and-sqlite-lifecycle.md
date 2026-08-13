@@ -144,7 +144,12 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 - 이 activation은 source, workflow, manifest, oracle, fixture, checksum 또는 product status를 바꾸지 않습니다.
   이후 Phase A는 [EVID-085](../docs/status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
   exact 13 reference sets/139 contracts/156 ordered cross-bindings와 새 12 `oracle_locked`를 로컬에서 고정했습니다.
-  Product는 12 sets/127 contracts=`122+5+0`으로 계속 불변이고 Phase A exact-head hosted CI는 pending입니다.
+  Exact committed head `84e16bf193fc2079cd87788249e6e4a694f2402c`, tree
+  `e6e3a749ee82c0162556aec99b53772b1fe08cc9`는 별도
+  [EVID-086](../docs/status/TEST_EVIDENCE.md#evid-20260813-086--gdj-0035-phase-a-github-hosted-reference-only-exact-head-ci) /
+  [run 31625898551](https://github.com/progresshans/godj/actions/runs/31625898551)의 고유 attempt-1 exact
+  26/26 jobs·326/326 steps와 audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. Product는 12 sets/127
+  contracts=`122+5+0`으로 계속 불변이고 Phase A는 hosted-verified됐습니다.
 - 이 문서만 `active`이고 `ready`는 0입니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
 
 ## 보존해야 하는 legacy 불변 조건
@@ -233,7 +238,7 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 
 ### A. Django-first reference와 immutable artifacts
 
-- 상태: **locally completed and locked**. EVID-085의 local proof를 가지며 Phase A exact-head hosted CI는 pending입니다.
+- 상태: **completed and hosted-verified**. EVID-085 local proof와 EVID-086 unique exact-head hosted proof를 가집니다.
 - [x] Pinned Django 6.1/SQLite exact profile에서 MIG-075..086의 외부 state/constraint/rows/sequence/failure를 관찰
 - [x] Independent manifest, reference oracle, ordered static not-implemented fixture와 provenance를 생성
 - [x] Existing artifacts, `SHA256SUMS`, 12/127/132 product/reference baseline와 product `122+5+0`의 불변을 검증
@@ -243,10 +248,12 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 
 ### B. No-product feasibility
 
-- [ ] Tuple/profile dispatch, mixed digest, state promote/demote와 deterministic preflight candidate를 product 밖에서 검증
-- [ ] `conformance/migrationrelation/**`에서 SQLite pinned-connection FK-on, `NO ACTION`, nullable AddField와
+- 상태: **locally implemented and verified; exact-head hosted pending**. Exact 14개 `_test.go`의 isolated
+  candidate만 추가했고 product source와 Accepted decision은 만들지 않았습니다.
+- [x] Tuple/profile dispatch, mixed digest, state promote/demote와 deterministic preflight candidate를 product 밖에서 검증
+- [x] `conformance/migrationrelation/**`에서 SQLite pinned-connection FK-on, `NO ACTION`, nullable AddField와
   bounded remake를 product 밖 isolated spike로 검증
-- [ ] Precommit/commit-three-outcome/restart fault matrix와 no-retry invariant를 검증
+- [x] Precommit/commit-three-outcome/restart fault matrix와 no-retry invariant를 검증
 
 ### C. Decision freeze
 
@@ -264,9 +271,11 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 
 - [x] Exact 16-document activation head의 고유 hosted CI와 independent audit — EVID-084/run `31618469072`
 - [x] Phase A reference-only artifact/local gates — EVID-085; 20/20 focused, 216/216 exact, 725/725 Go roster
-- [ ] Local normal/race/CGO-disabled/vet, SQLite/file restart/fault, no-rewrite와 compile gates
+- [x] Phase A exact committed head의 고유 hosted CI와 independent audit — EVID-086/run `31625898551`;
+      26/26 jobs·326/326 steps, annotations 0, four-coordinate 725/725/0, audit P0..P3=0
+- [x] Local normal/race/CGO-disabled/vet/shuffle-20, SQLite/file restart/fault, protocol, no-rewrite와 root CI gates — EVID-087
 - [ ] Implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
-- [ ] CURRENT/MATRIX/TEST_EVIDENCE/work/ADR를 실제 상태에 맞춰 갱신
+- [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034는 의도적으로 Proposed 유지
 
 ## 명시적 비목표와 금지 경계
 
@@ -290,15 +299,23 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 
 ## 다음 정확한 작업
 
-Phase A reference-only artifact와 local gate는 EVID-085에서 고정했습니다. 다음 정확한 작업은 Phase B의
-product 밖 tuple/profile dispatch, mixed digest, state promotion/preflight와 isolated SQLite pinned-connection/remake/fault
-feasibility입니다. Phase A 트리는 먼저 별도 exact-head hosted CI를 받아야 하며, product source와
-ADR Accepted 전환은 아직 금지합니다.
+Phase A reference-only artifact/local gate는 EVID-085에서 고정했고 exact committed head `84e16bf...`는
+EVID-086/run `31625898551`의 고유 exact 26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했습니다. Phase B의
+product 밖 tuple/profile dispatch, mixed digest, state promotion/preflight와 isolated SQLite pinned-connection/
+remake/fault feasibility는 exact 14개 `_test.go`에서 locally implemented/verified됐습니다. 다음 정확한 작업은
+이 frozen Phase B tree를 commit하고 고유 exact-head four-coordinate hosted CI를 통과시킨 뒤 Phase C에서
+ADR-0034와 actual product integration shape를 동결하는 것입니다. Product source와 ADR Accepted 전환은 아직 금지합니다.
 
 ## 결과와 인수인계
 
-현재 검증된 결과는 activation hosted proof와 Phase A local reference proof입니다. Reference는 exact
-13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`로 늘었지만 product는
-12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변입니다. 새 digest/state/DDL product behavior는 없고
-ADR-0034는 Proposed입니다. Allowed path 이름을 바꿔야 하면 source를
+현재 검증된 결과는 activation hosted proof, Phase A local/hosted reference proof와 EVID-087의 Phase B local
+no-product feasibility proof입니다. Exact 14 test files는 693,557 bytes/`ca579837...09e5`, top-level inventory는
+75/75/0·9,736 bytes·`48e7beb1...92ec`이며 final normal/race/CGO0/vet/shuffle20/protocol, pinned exact
+Python 216/216+13 oracle checks+13 checksums, root `make ci`와 두 independent audit P0..P3=0을 통과했습니다.
+Reference는 exact 13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`지만
+product는 12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변입니다. Product source/artifact/manifest/
+oracle/NI/Makefile은 바뀌지 않았고 새 digest/state/DDL product behavior는 없으며 ADR-0034는 Proposed입니다.
+Actual SQLite product optional relation port와 actual `StateReconstructor` relation state는 Phase C blocker입니다.
+Candidate-local restart는 product epoch/DAG/reconstructor evidence가 아니고 Phase B hosted exact-head CI도 아직
+실행하지 않았습니다. Allowed path 이름을 바꿔야 하면 source를
 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를 다시 승인합니다.

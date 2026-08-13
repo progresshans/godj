@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-13
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260813-085
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260813-087
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -7392,4 +7392,196 @@ Evidence/product boundary:
 - Phase A reference artifacts are locally locked and its checklist is complete. Phase B no-product feasibility is the next pending step. ADR-0034 remains `Proposed`; no migration definition/state/backend/SQLite product source was implemented and no product status changed.
 - This local evidence does not claim hosted verification of the dirty Phase A tree. A distinct committed Phase A head requires its own unique exact-head hosted CI and independent hosted audit before it can be marked hosted-verified.
 - This EVID-085 append and the accompanying status-document edits are not recursively proven by the commands above. A later evidence head may prove their exact committed contents; EVID-084 cannot be reused for that purpose.
+- Draft PR #1 remains open, draft and unmerged. This evidence does not authorize merge.
+
+## EVID-20260813-086 — GDJ-0035 Phase A GitHub-hosted Reference-only Exact-head CI
+
+- Date/time: 2026-08-13 KST (`2026-08-12T18:05:26Z` through `18:14:11Z`)
+- Work/contract IDs: GDJ-0035 Phase A; MIG-075..MIG-086 exact 12 reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Exact committed head: `84e16bf193fc2079cd87788249e6e4a694f2402c`, tree `e6e3a749ee82c0162556aec99b53772b1fe08cc9`, parent `52f9bcb7fedb2333a4c5e6f0e016aec15381c806`, subject `test: lock relation migration reference contracts`
+- Workflow/run: GitHub Actions `CI`, workflow ID `329824900`, run `31625898551`, run number 72, check suite `85793535689`, `pull_request`, attempt 1
+- Exit status: terminal `completed/success`; exact 26/26 jobs and 326/326 recorded steps were `success`; failed/cancelled/skipped/timed-out/action-required/neutral jobs or steps were 0
+- Annotations/log health: 26 exact-head check runs, annotation count 0; aggregate log contained zero `##[error]`, fatal checkout, `WaitDelay`, or `Test I/O incomplete` lines
+- Product result: unchanged exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`; relation exact 12/12 passing
+- Reference result: exact 13 sets/139 unique contract IDs/139 unique scenarios=`122 passing + 5 deviation + 12 oracle_locked`; 156 ordered cross-bindings
+- Independent hosted audit: P0/P1/P2/P3=`0/0/0/0`
+
+Exact-head and checkout boundary:
+
+- The exact-head query returned one and only one `pull_request` run for `84e16bf...`: run `31625898551`, attempt 1. No baseline, activation, local-validation or rerun result was reused.
+- GitHub's synthetic merge was `14ebeab1b4b9452bdb86055e882a65a90b68e97f`, with exact parents `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 84e16bf193fc2079cd87788249e6e4a694f2402c]`; its tree was exact `e6e3a749...`, byte-identical to the Phase A head tree. The base commit is an ancestor of the head.
+- All 26 checkout logs independently contained each of five required traces exactly once: fetch of `+14ebeab...:refs/remotes/pull/1/merge`, creation of that ref, forced checkout of `refs/remotes/pull/1/merge`, `HEAD is now at 14ebeab Merge 84e16bf... into f8a5e20...`, and `git log -1 --format=%H` returning `14ebeab...`. Counts were 26/26/26/26/26.
+- Terminal PR projection was exact `OPEN`, `isDraft=true`, `mergeStateStatus=CLEAN`, `mergeable=MERGEABLE`, `mergedAt=null`; head OID remained `84e16bf...`, base OID `f8a5e20...`. Draft PR #1 was not merged.
+
+Exact 26-job/326-step roster:
+
+- `Validate checked-in conformance artifacts`: 16/16 steps success.
+- `Validate exact darwin/arm64 profile and SQLite lifecycle`: 14/14.
+- `Python compatibility (3.12.13|3.13.15|3.14.3|3.14.7)`: four jobs, each 12/12, 48 steps total.
+- `Project check (ubuntu-22.04|ubuntu-24.04-arm|macos-15-intel|macos-26)`: four jobs, each 12/12, 48 total.
+- `Product project check` at those same four coordinates: four jobs, each 12/12, 48 total.
+- `SQLite` at those same four coordinates: four jobs, each 12/12, 48 total.
+- `Relation binding` at those same four coordinates: four jobs, each 13/13, 52 total.
+- `Relation product` at those same four coordinates: four jobs, each 13/13, 52 total.
+- The totals are exactly 26 jobs and `16+14+48+48+48+48+52+52=326` successful steps.
+
+Hosted reference/product gates:
+
+- Each of the four Linux/macOS x64/arm64 relation-product coordinates independently emitted the exact inventory `725 run / 725 pass / 0 skip`, 73,806 encoded bytes, SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`. All normal/race/CGO-disabled/vet/artifact-clean/worktree-clean steps succeeded.
+- The four isolated portable Python legs (CPython 3.12.13, 3.13.15, 3.14.3 and 3.14.7) each ran exact 216 tests with 19 intentional exact-profile-only skips. Each independently locked exact 139 scenarios, 623,543 canonical payload bytes and SHA-256 `f4f48c4c680debbe5ed7ab2b962e01e9110064b7bf3064b7c6fd9a06539018da`; all four clean-worktree steps passed.
+- Ubuntu portable root `make ci` also completed 216 tests with 19 intentional skips and passed format/generate, all-package normal/vet/race/configured CGO-disabled, all 13 reference sets, the unchanged 12 product adapters, protocol and zero-handler false-green gates.
+- The pinned exact darwin/arm64 leg used CPython 3.14.3, Django 6.1, SQLite 3.50.4 and uv 0.10.12; it passed exact 216/216 with skip 0, all 13 oracle `--check` runs, focused Go lifecycle/project-check gates and no-rewrite gates.
+- `SHA256SUMS` verified exact 13 entries, including `migration-relation-oracle.json: OK`, after the unchanged legacy 12-line prefix.
+- Hosted Linux/386 gates ran with `CGO_ENABLED=0`, `GOARCH=386`: the migration-definition/project-check compile-only gate passed all seven listed packages, and the actual relation-product runtime gate passed query, ORM, all seven generated relation product families and the GoDj runner. This closes the local EVID-085 Linux/386 runtime `HOSTED PENDING` boundary without reclassifying MIG-075..086.
+- The committed manifest contains exact ordered MIG-075..086, all 12 `oracle_locked`; the checked-in GoDj baseline contains the same ordered IDs as 12 payload-free `not_implemented` rows. The GoDj registry requires zero handlers for this set, the Make product target still invokes exactly the legacy 12 adapters and contains zero migration-relation product invocation, and false-green promotion fails before output. Phase A therefore remains reference-only.
+- Manifest/oracle/NI/checksum locks remained respectively 7,792 bytes/`dfe021c2...69b`, 125,248/`c742f91a...e27`, 1,846/`f9bd9c47...9e24`, and 1,245/`5022a230...9cf4f`. MIG-075 preserves the Accepted legacy tuple/digest/state reference; candidate relation tuple/digest/state/preflight/commit outcomes retain proposal provenance. ADR-0034 remains `Proposed`; no migration core/backend/SQLite product source or product status changed.
+
+Exact Phase A diff and canonical content boundary:
+
+- Parent-to-head changed exactly 33 intended paths: one workflow, one Makefile, one notice, one conformance README, 20 conformance reference/protocol/runner/test paths, five compatibility/testing/status documents, three status files and the active GDJ-0035 work packet. It changed no migration-definition/core/backend/SQLite/Schema IR/Query/ORM/codegen/CLI/project product source.
+- Exact numstat was 3,369 insertions/126 deletions across 33 paths. Literal no-ext-diff binary diff was 346,179 bytes/SHA-256 `f95902014852bbb462c0aa4e196694e3fb1d0bc26da24e720767d421d72376a2`; `git diff --check` was clean.
+- Canonical sorted path/NUL/unsigned-64-bit-big-endian-length/NUL/Git-object-content encoding covered exact 33 paths, 1,721,469 content bytes, 1,723,359 encoded bytes and SHA-256 `bec4d7a25710da712fb684549db13a0d90e6a2a666b38c1870da46b2cc0673b8`.
+- Exact head file locks were:
+  - `.github/workflows/ci.yml`: 27,609 bytes/`1b94c99164d014d229231bd2a76cb8565b2b456b8c484b4a1e10581c390b941b`
+  - `Makefile`: 15,937/`9bbc22782a68aa016d037a224eca063b9d8941b5af22289290ecf20467f7f925`
+  - `NOTICE.md`: 6,021/`35ab582926734d52c4478119e80947b0e822244f02767690cbf5b2206dd53ca4`
+  - `conformance/README.md`: 55,327/`90749372459a5693434032344bc730608c47976c00fe625f14e150f5d32d1eae`
+  - `conformance/cmd/godjcheck/main_test.go`: 61,563/`3662b5ffee1df242d0a0c562969c11f74b5fdf127be4a65da132c34c3d223657`
+  - `conformance/contracts/migration-relation-manifest.json`: 7,792/`dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`
+  - `conformance/fixtures/godj-migration-relation-not-implemented.json`: 1,846/`f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`
+  - `conformance/internal/protocol/migration_definition_source_artifacts_test.go`: 30,107/`9d6dcf1a470b479cc093d234192e795fd03e5d79726421ec6c68bcb979ca712d`
+  - `conformance/internal/protocol/migration_project_check_artifacts_test.go`: 30,494/`68d088eea39a1ef9ffc8917097a9292be61db680bfe460a0cf6f7ddd89b189d9`
+  - `conformance/internal/protocol/migration_relation_artifacts_test.go`: 24,573/`f0449e11134bdd1b8248bbad86a72eaed5792e7d10ae14440b2e100b3a533c38`
+  - `conformance/internal/protocol/write_migration_artifacts_test.go`: 15,884/`9822713254e1e2f9b8dc98815f768391effc94120761971b5eda620c4d3f2454`
+  - `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS`: 1,245/`5022a23094702463861f32270f373ba1287b609e5b3f8cb5723b74db8d69cf4f`
+  - `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json`: 125,248/`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`
+  - `conformance/runners/django/migration_relation_fixture/__init__.py`: 67/`baf7af31b1ca827850c3226ca7dd97e242cecc35af531eb4258297f7c4cc9ce6`
+  - `conformance/runners/django/migration_relation_fixture/apps.py`: 194/`820fccf07b3d805bd246ab234559b9ecb9cfa9d8cd59765b67f5b66619dfea2b`
+  - `conformance/runners/django/migration_relation_fixture/migrations/0001_initial.py`: 1,090/`899553d0865f8cb0c53fc44d688a3d60720117d3eaa140fc3ba2576fc3b3e4b2`
+  - `conformance/runners/django/migration_relation_fixture/migrations/0002_nullable_relation.py`: 548/`230a39c2c0b9ce101d8f18cee6f5b268063a29cf037230c5a9de0bafc886de95`
+  - `conformance/runners/django/migration_relation_fixture/migrations/__init__.py`: 71/`44cf2a4bbe2bd1360aa7dc09079e45f271240f6a9e36e06253ba4bcb9b04a601`
+  - `conformance/runners/django/migration_relation_scenarios.py`: 37,334/`2c881253d8304a7ad8cc93c7077909012f67101907c2fb991ee37467542f24c8`
+  - `conformance/runners/django/runner.py`: 16,986/`ffe09adf651372d63303577f9058dc3befd6b1068d7b49853922605b4f8fb391`
+  - `conformance/runners/django/scenarios.py`: 9,291/`90af95d884ec606aad54d87dfd32e2fabf4b035468eda7d433ec6040638f153b`
+  - `conformance/runners/django/tests/test_migration_relation_scenarios.py`: 28,243/`8b6ae0ccad2eda1944ca39b90c3afd47dd25ec69c05461e716e313a806797b94`
+  - `conformance/runners/django/tests/test_runner_safety.py`: 24,070/`b00546e9024be2ef91071ac91b77407e3e7a96693b8ecd83bc599b5ef547cf68`
+  - `conformance/runners/django/tests/test_scenarios.py`: 24,323/`e0bda0722cdb6725095e60bb21dff0df34f34929116a553dbde101a2a10bb1ac`
+  - `docs/COMPATIBILITY.md`: 60,856/`84cf8bafe1b585be0e06f388cbaf727197faf08f8d55ba8006abb9aa6572dc04`
+  - `docs/LICENSING.md`: 8,585/`49a084ce4d1f7ec0a8ed1da6ec39d4d12e319edb591e373cd1fb006612e478b1`
+  - `docs/ROADMAP.md`: 46,536/`7636e63692ca0dba0fde11c8a4f0e0dfc24722d34a5e74a36f7935f8069b8925`
+  - `docs/SOURCES.md`: 19,841/`48697f23930479d75206bf19a1854c0419a7590ed70b6ec5661002d631d4a478`
+  - `docs/TESTING.md`: 94,706/`0042e63d31a1126483ec0c5d848d0c013ba6e53d01be984b338b911f0d58a83d`
+  - `docs/status/CURRENT.md`: 138,442/`a8ec1e268c80005b13516e75ab4b4e2de1354847f3e0a843a214b2d1c2f7c970`
+  - `docs/status/IMPLEMENTATION_MATRIX.md`: 34,134/`9d0f67328eb8c7270b39130a8b25cb18bec160029b7096e09aa10cfa5f81be7a`
+  - `docs/status/TEST_EVIDENCE.md`: 753,130/`7f67d37f47bb7be5008c50263c81f10ac4a97519d5385f06b8da8c739488ea60`
+  - `work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md`: 19,376/`6efa95a406392456163580380848a0a1b35c661a4e5d389900303441951aec1f`
+
+- Workflow topology, package lists, action pins and version pins were unchanged. Its only literals moved from roster 715/72,623/`127fb3...` to 725/73,806/`2ad28e...`, portable Python 193/17 to 216/19, and semantic 127/498,051/`2e1c...` to 139/623,543/`f4f48...`; the exact mirror test locked those same replacements.
+
+Evidence-history boundary:
+
+- Parent activation head `52f9bcb7...` stored `docs/status/TEST_EVIDENCE.md` as exact 724,351 bytes/SHA-256 `ffbd240bce7f8fc6525c887be00e3f1fbc02374f8c5bf27db3554c171d19f724` and ended at EVID-083.
+- In exact Phase A head `84e16bf...`, historical EVID-001..083 remained byte-identical: exact 723,827 bytes/SHA-256 `f1bbbb5cdabd9b03af2664e369562bbc2d8ab20c6707111be029fc98e5a74338`.
+- EVID-084 occupied exact 19,006 bytes/SHA-256 `3c71bfeb6b46291095116f9e9f29ada4e24e777e571555c519775fd749e4a4ba`; EVID-085 occupied exact 9,771 bytes/SHA-256 `397f9eb7bb6b83a3f059599e6662b63c05c5e12db24d00122f0bc8235d43027b`.
+- Combined EVID-001..084 was exact 742,834 bytes/SHA-256 `cf166adb32e15b95cf9fed00eadfff5c2113450ab877995bf19345e322b2c9b9`; complete EVID-001..085 was exact 752,606 bytes/SHA-256 `307d26f19492b4c4ca5f89b404ea899772a4817b75351e4241f06d3b4f817649`.
+- EVID-084 and EVID-085 headings were each unique, and the exact-head top pointer named EVID-085. The full exact-head file was 753,130 bytes/SHA-256 `7f67d37f47bb7be5008c50263c81f10ac4a97519d5385f06b8da8c739488ea60`.
+
+Independent hosted audit artifacts:
+
+- Terminal run API JSON: 12,508 bytes/SHA-256 `937b0180d9c22160e223464184eee27e0f953c13d8003efe860ba07a0d9fd93b`.
+- Jobs API JSON: 77,140/`fbf0d5ad9f56551acc03f2277399337e7b7feab8c4e6061559910d6c91f1643c`.
+- Unique exact-head Actions query JSON: 12,544/`26bc4d0d3f04139383725b97da12545a4dc4992a76fa6b70b7d3e9db3c291902`.
+- Terminal PR projection JSON: 353/`4dde3f8d66913fcf494c241fc04e2a8ee67405059279d68d4ffd3f85a96332b4`.
+- Exact-head check-runs JSON: 91,612/`206c7321d1d5289f0215c4dceb26d7b2e9780fb7c3a8b3b07183497bc9329a93`.
+- Raw GitHub log ZIP: 739,740/`dc9af204c5f0be1cf70b8d37247ae1d7c7d53331692aa5d9c433551b563e46f9`.
+- Rendered 26-job aggregate log: 14,950 lines, 2,708,097 bytes/SHA-256 `efab0cde3c24ad455accba9d51c31082e89da65ca3a3bcad62babde882f4d1f6`.
+- The audit independently re-queried run uniqueness/attempt/event/head, 26/326 terminal success, all check-run annotations, PR state, synthetic ancestry/tree, all five checkout traces, four relation inventories, four Python compatibility totals/digests, exact Python/oracle/checksum gates, Linux/386 compile/runtime, exact 33-path content and evidence history. No actionable or informational defect was found: P0/P1/P2/P3=`0/0/0/0`.
+- The repository and GitHub state remained read-only throughout this audit: no repository edit, stage, commit, push, rerun, cancellation or merge was performed. At the terminal audit boundary local HEAD and upstream were exact `84e16bf...` with a clean worktree.
+
+Evidence/product boundary:
+
+- EVID-084/run `31618469072` proved only the preceding 16-document activation head `52f9bcb7...`; it was not reused. EVID-085 recorded local Phase A artifact/gate proof on the then-dirty tree. Unique run `31625898551` now separately proves the exact committed Phase A tree `84e16bf...`, including EVID-084, EVID-085 and all reference artifacts/workflow locks.
+- This hosted success closes Phase A's committed exact-head CI boundary only. It does not accept ADR-0034, implement or reclassify MIG-075..086, prove a Phase B feasibility tree, edit the legacy product 12/127 aggregate, or close Q-010/Q-012/Q-013/Q-017/Q-019.
+- Phase B no-product feasibility remains the next pending work. Any Phase B/Phase C/product/completion/terminal head requires its own exact-head validation as applicable.
+- This EVID-086 append is later than the tested tree and is not recursively proved by run `31625898551`; a later evidence head may prove it. Draft PR #1 remains open, draft and unmerged. This evidence does not authorize merge.
+
+## EVID-20260813-087 — GDJ-0035 Phase B No-product Feasibility Local Validation
+
+- Date/time: 2026-08-13 KST; core final-byte validation ran from `08:02:31+0900` through `08:07:29+0900`, with the fresh post-resume product invariant completing at `08:51:20+0900`
+- Work/contract IDs: GDJ-0035 Phase B test-only feasibility; MIG-075..MIG-086 remain exact 12 reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Checkout boundary: dirty, unstaged Phase B working tree on branch `codex/revision-fenced-migration-lifecycle` atop exact Phase A head `84e16bf193fc2079cd87788249e6e4a694f2402c`; no Phase B commit, push or hosted run existed at this evidence boundary
+- Environment: Go 1.26.5 darwin/arm64, macOS 26.6 (25G72), CGO enabled by default; product SQLite remains `modernc.org/sqlite v1.56.0`/SQLite 3.53.3, separate from the exact Django reference profile
+- Exact reference environment: CPython 3.14.3, Django 6.1, SQLite 3.50.4 and pinned uv 0.10.12; uv binary SHA-256 `905d1df4acf3034441a54ceb6b4fbb16a415638f899c454194e8e81e48f1b900`
+- Product result: unchanged exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`; relation exact 12/12 passing
+- Reference result: unchanged exact 13 sets/139 unique contract IDs/scenarios=`122 passing + 5 deviation + 12 oracle_locked`; 156 ordered cross-bindings
+- Independent final audits: two separate final audits each reported P0/P1/P2/P3=`0/0/0/0`
+
+Exact no-product source boundary:
+
+- Phase B added only exact 14 regular `_test.go` files under `conformance/migrationrelation/`; there were zero other files and zero symlinks in that directory. These files contain the candidate implementation and its tests together and are not imported by product code.
+- Exact 14-file aggregate was 693,557 bytes. Concatenating raw contents in sorted filename order produced SHA-256 `ca579837cc3d8ddee42b77db8bd67bcb7a3b3555f28b2fe582b5dc10f62509e5`.
+- Final per-file locks were:
+  - `backend_candidate_test.go`: 35,781 bytes/`88f43e022b57028eaa85532de1f4694589d2d0430581f882ab39b44929881ca1`
+  - `backend_test.go`: 51,890/`58e48b27332d1c0ab4cb67882dbe893a426fe218a0d0001a751607bcf109763b`
+  - `fault_candidate_test.go`: 30,486/`b1b8dcfb80445deee38abf07adcab022420e3d41df65ab1781baf72f4b3af5f8`
+  - `fault_test.go`: 58,839/`d01fbb5b9d9a148c31579219064d7e6b370325a433e68a920342a5314a8e8aea`
+  - `lifecycle_candidate_test.go`: 26,606/`c63fad54f5a6669e6bc63c2625c918284a187970d6aa8e0f656db8b9f02aafc3`
+  - `lifecycle_test.go`: 32,838/`79062f8dd8ac84a978bdca0a0433979ab578214043dfac39b735508dfe311077`
+  - `preflight_candidate_test.go`: 62,518/`90fe33a58ae166c2e789682e55a5facd87dc510ab26e71a18062e95fbaa6f3ae`
+  - `preflight_test.go`: 48,115/`2a4b06f0ea822032a0c5bb4f11425436f5ae264746f1339680569caa0f321d74`
+  - `profile_candidate_test.go`: 47,701/`68b7eadfc896ec540fa27ad774374387f087022e075218280d04ed13188828fa`
+  - `profile_test.go`: 38,487/`0aed5332f0e89d4f988fc836b2b0c772e53bbc82677ec198dfacdae6f6af71b2`
+  - `sqlite_candidate_test.go`: 96,336/`1483a3377eed912ee9e099c7a80f251f059a27981e4baa13c61d43fffb11a9ad`
+  - `sqlite_test.go`: 124,667/`c4776a253d56c8593d1c88a8b420a2fd68aa35f22bcefba3210c8e0f6f13f47e`
+  - `state_candidate_test.go`: 18,026/`e899f32fbd8b0d79cc2c621cfdf25819eabbe29eb508eb7aa57a125828403a74`
+  - `state_test.go`: 21,267/`556f3ca6aa07c01b5934a3e4178e7e1d4c9309186f84af9ad563cd9d244322eb`
+- The only non-document Phase B changes outside that package were the hosted inventory/gate wiring and its protocol/README locks:
+  - `.github/workflows/ci.yml`: 30,245 bytes/SHA-256 `c831c2c075b842b09cc55563722ac0408689d3ef26c7333facce619d2b5f9820`
+  - `conformance/internal/protocol/migration_relation_artifacts_test.go`: 27,566/`3ccd5141b96f5adf3baaeb9f0c65196ac68db894ccd199610f7c087c4fcb93bd`
+  - `conformance/README.md`: 55,977/`632b250cd854c31d83b827b10e02b26aa5a5533240a937b39b05fad046e44d19`
+- Product migration definition/state/backend/SQLite source, checked-in migration-relation manifest/oracle/static NI/checksum, all other reference artifacts and `Makefile` remained byte-unchanged. Existing product source and reference artifact classifications therefore did not move.
+
+Candidate behavior locally exercised:
+
+- The profile candidate preserves the exact legacy `(1,1,1,2)` path and digest while fail-closed raw decoding exact relation `(1,2,2,3)`, mixed-set canonicalization/digest and normalized IR v3 candidates. Unknown fields/types, hybrid tuples, resource limits, atomic publication and deep-copy boundaries are deterministic.
+- Relation State v2 promotion/demotion and reconstruction candidates deep-copy normalized state, reject lossy demotion and scan aggregate resources before allocation/publication. Whole-plan preflight replays the actual Planner path, validates exact chronology/transient graph/creator ancestry and rejects structural or aggregate-limit failures before session or transaction work.
+- Optional backend/session candidates preserve exact delta/graph/resource bounds and clean partial Open/Begin failures with detached bounded cleanup. Existing scalar ports remain source-compatible and unsupported relation capability performs no I/O.
+- SQLite candidate gates pin the exact connection, enforce `PRAGMA foreign_keys=1` before `BEGIN IMMEDIATE`, verify `NO ACTION`, bounded Create/Add/Remove/remake, row/order/sequence preservation, namespace and schema hazards, recorder/revision atomicity, definite/unknown commit outcomes and no automatic retry. File reopen and candidate-local restart behavior is exercised without claiming product epoch/DAG/reconstructor integration.
+- Whole-plan fault gates reject cross-step discontinuity, deleted targets, aggregate resource overflow, malformed recorder/revision storage and unsupported BLOB revision values; precommit failures preserve original causes and cleanup, while unknown commit outcome discards rather than retries.
+
+Final focused and inventory gates:
+
+- `/tmp/godj-m35-phase-b-focused.6arP55/results.txt` records exit 0 for exact normal, race, CGO-disabled, vet, shuffle-20, protocol, diff-check and gofmt gates:
+  - `go test -count=1 ./conformance/migrationrelation`
+  - `go test -race -count=1 ./conformance/migrationrelation`
+  - `CGO_ENABLED=0 go test -count=1 ./conformance/migrationrelation`
+  - `go vet ./conformance/migrationrelation`
+  - `go test -shuffle=on -count=20 ./conformance/migrationrelation`
+  - `go test -count=1 ./conformance/internal/protocol`
+  - `git diff --check`
+  - `gofmt -d conformance/migrationrelation`
+- The focused before/after 17-file manifests were each 1,948 bytes/17 lines/SHA-256 `9b55b8ae958459556a105cf11e0c60396e4338d54ad290e75f6690b70968099e`; their diff was empty. The 17 entries comprise exact 14 candidate/test files plus workflow, protocol and conformance README locks.
+- Raw `go test -json -count=1 ./conformance/migrationrelation` inventory is `/tmp/godj-m35-phase-b-inventory.9OfXX9/migration-relation-tests.json`: 561,192 bytes/1,804 lines/SHA-256 `698c04dcf71b575548b0ef6ba6dd48e71c20bf402384dd7694170103b000caf5`. Canonical top-level inventory is exact 75 run/75 pass/0 skip, 9,736 payload bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- The workflow and protocol independently lock that exact 75/75/0 inventory and keep `conformance/migrationrelation` out of the relation-product inventory.
+
+Full local and exact-profile gates:
+
+- Complete root `make ci` exited 0. Its retained log `/tmp/godj-m35-phase-b-final2.BYpoMy/make-ci.log` is 69,140 bytes/544 lines/SHA-256 `d6a793b243a2dc16be1e37eb59f5e5071bba1bb69231af595e94fb1469fea208`; the separate exit file contains `0`. It covered format/generate checks, all-package normal tests, vet, race, configured CGO-disabled gates, portable Python 216 tests/19 intentional exact-profile-only skips, all 13 reference sets, all unchanged product adapters and protocol/product checks.
+- An earlier wrapper-created `/tmp/godj-m35-phase-b-final.a0F74J/make-ci.log` was interrupted by the execution wrapper and is explicitly excluded from evidence. It is neither a PASS nor a FAIL claim; only the complete retained run above is counted.
+- Pinned `PATH` exact run `make python-test-exact oracle-check` exited 0 with exact Python 216/216, skip 0, and all 13 oracle `--check` invocations. `/tmp/godj-m35-phase-b-exact.P3DFuP/exact.log` is 44,796 bytes/262 lines/SHA-256 `728903d6e8a40c03f31e77a0f1dc643fcf1967642994398f857d5d790c90eefd`.
+- Separate exact `SHA256SUMS` validation passed all 13 entries. `/tmp/godj-m35-phase-b-exact.P3DFuP/checksums.log` is 439 bytes/13 lines/SHA-256 `289758c77d84952b386986bf5ee1f0976535a53e2b3de36e5a318fe638a7a83f`.
+- Oracle/checksum before and after manifests were byte-identical: each 2,512 bytes/14 lines/SHA-256 `09c16377c93ff636aeffa7b9e39c8e91d6c2ec30451b3bd5ff028cde6a883c7c`; the diff was empty. The extra line is the `SHA256SUMS` file itself, followed by the exact 13 oracle JSON files.
+- A fresh post-resume product invariant run emitted `/tmp/godj-m35-phase-b-product.A6wZNl/relation-product-tests.json`: 3,645,619 bytes/14,089 lines/SHA-256 `7123622413c39f626beca8d21a804339105ab6495653c2c41d90593375e9d782`. Its canonical payload remained exact 725 run/725 pass/0 skip, 73,806 bytes/SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`.
+
+Independent audits and evidence-history boundary:
+
+- Two independent final reviewers audited the frozen candidate after all fixes. Both independently reported no P0, P1, P2 or P3 finding and judged the Phase B test-only implementation commit-ready within its stated no-product scope. Neither audit changed files.
+- Before this pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact 768,192 bytes/SHA-256 `7a5465dabc24ac7c155b96a9287a7cb5dcfee70d654474dd42a5deb8e0bc26f3`.
+- Historical EVID-001..086, beginning at the first evidence heading and ending at the EVID-086 EOF, occupied exact 767,668 bytes/SHA-256 `9c42d8fa8dc9b5cb8389615da4ebb99f809716b85fcf17b91598e8db33f9ddce`. This append changes only the top latest-evidence pointer and adds this unique EVID-087 at EOF; that historical body remains byte-identical.
+
+Evidence/product boundary and handoff:
+
+- Phase B is **locally implemented and verified only as a no-product test candidate**. It does not make MIG-075..086 product `passing`, implement a product handler/adapter, accept ADR-0034, or change Q/product classifications.
+- Actual SQLite product optional relation port and actual `StateReconstructor` relation state remain explicit Phase C blockers. Candidate-local restart tests are not evidence for product epoch/revision fencing, migration DAG integration or the actual reconstructor.
+- No Phase B committed exact-head hosted four-coordinate CI has run yet. This EVID-087 append and accompanying status edits are later than the commands above and are not recursively exact-head verified. The next exact work is to commit this frozen Phase B tree, run its unique exact-head hosted CI, and only then perform the Phase C decision freeze/integration design.
 - Draft PR #1 remains open, draft and unmerged. This evidence does not authorize merge.

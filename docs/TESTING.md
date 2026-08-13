@@ -1148,7 +1148,7 @@ tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
 job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
 
-## GDJ-0035 activation and Phase A local verification
+## GDJ-0035 activation, Phase A hosted verification, and Phase B local feasibility
 
 GDJ-0034 terminal baseline `0bb8c969...`는
 [EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
@@ -1184,10 +1184,36 @@ normal 216/19 skips, exact 139-scenario semantic payload 623,543 bytes/`f4f48c4c
 두 oracle generation은 byte-identical이었고 protocol/`godjcheck` false-green gate도 통과했습니다. Homebrew
 uv 0.12.3은 exact-profile 사용 전 fail-closed되었고 pinned uv 0.10.12로 재실행해 통과했습니다.
 
-Phase B는 product를 바꾸지 않는 tuple/digest/state/preflight/SQLite remake/fault feasibility를 다음으로
-검증합니다. Django recorder-fault 관찰에서 schema-editor DDL은 commit되고 record만 없는 경계가
-나타났으므로, GoDj same-transaction atomic proposal과 동일하다고 가정하지 않고 Phase B/C에서 별도
-검증·결정합니다.
+[EVID-086](status/TEST_EVIDENCE.md#evid-20260813-086--gdj-0035-phase-a-github-hosted-reference-only-exact-head-ci) /
+[run 31625898551](https://github.com/progresshans/godj/actions/runs/31625898551)은 exact Phase A committed head
+`84e16bf...`의 고유 `pull_request` attempt 1에서 26/26 jobs·326/326 steps, annotations 0과 hosted audit
+P0..P3=0을 통과했습니다. Four relation-product coordinates는 각각 725/725/0·73,806 bytes·`2ad28eb2…a5d4`,
+four portable Python legs는 각각 216 tests/19 skips와 139 scenarios·623,543 bytes·`f4f48c4c…18da`, exact
+darwin profile은 216/216 skip 0, checksum은 13/13을 재현했습니다. Hosted Ubuntu Linux/386 compile과 actual
+relation runtime도 통과했습니다. Product는 계속 exact 12/127=`122+5+0`; MIG-075..086에는 handler가 없고
+12-row NI/reference-only 경계가 유지됩니다.
+
+Phase B는 product를 바꾸지 않는 exact 14개 `_test.go`의 isolated candidate로 locally implemented/verified됐습니다.
+Profile/raw decode와 mixed digest, relation state promote/demote, actual Planner 기반 whole-plan structural preflight,
+optional backend/session cleanup, pinned SQLite FK-on/`BEGIN IMMEDIATE`/bounded remake, recorder/revision/commit-three-outcome,
+file restart와 no-retry fault matrix를 검증했습니다. Exact 14-file aggregate는 693,557 bytes, sorted raw-content
+SHA-256 `ca579837cc3d8ddee42b77db8bd67bcb7a3b3555f28b2fe582b5dc10f62509e5`; top-level test inventory는
+75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`입니다.
+
+Final-byte focused normal/race/CGO-disabled/vet/shuffle-20/protocol/diff-check/gofmt gates와 root `make ci`가 모두
+통과했습니다. Pinned exact profile은 Python 3.14.3/Django 6.1/SQLite 3.50.4/uv 0.10.12에서 216/216, skip 0,
+13 oracle `--check`와 13 checksum entries를 통과했고 oracle before/after manifest는 byte-identical이었습니다.
+두 independent final audit는 모두 P0/P1/P2/P3=`0/0/0/0`을 보고했습니다. 상세 log/hash는
+[EVID-087](status/TEST_EVIDENCE.md#evid-20260813-087--gdj-0035-phase-b-no-product-feasibility-local-validation)에
+고정합니다.
+
+Django recorder-fault 관찰에서 schema-editor DDL은 commit되고 record만 없는 경계가 나타났으므로 GoDj
+same-transaction atomic proposal과 동일하다고 가정하지 않습니다. Phase B는 product source, checked-in reference
+artifacts, manifest/oracle/NI/Makefile 또는 ADR을 바꾸지 않았습니다. Actual SQLite product optional relation port와
+actual `StateReconstructor` relation state는 Phase C blocker이고, candidate-local restart는 product
+epoch/DAG/reconstructor 증거가 아닙니다.
 Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
 사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
-12/12는 변경 없습니다.
+12/12는 변경 없고 ADR-0034는 Proposed입니다. Phase B committed exact-head hosted four-coordinate CI는 아직
+실행하지 않았습니다. 다음 정확한 단계는 Phase B commit/hosted CI 뒤 Phase C decision freeze이며 Draft PR은
+merge하지 않습니다.
