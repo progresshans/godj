@@ -540,4 +540,5 @@ Proposed decision-freeze docs head `5bdf013...`는 EVID-091/run `32183309328`에
 relation constants, one-loader dispatch, digest v2, whole-step state transition, wire `target_field` 제거,
 three-stage preflight, additive existing-fence port/four capabilities와 SQLite order는 Accepted design으로
 동결됐습니다. 그러나 actual SQLite optional port와 actual `StateReconstructor`는 미구현이고 Q 상태도 불변입니다.
-현재 acceptance docs head의 unique hosted CI와 EVID-092가 pending이며 EVID-091을 재사용하지 않습니다.
+Acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`의 unique exact-head hosted gate를 통과했으며
+EVID-091을 재사용하지 않았습니다. 이 성공은 Q 상태나 product implementation 상태를 바꾸지 않습니다.

@@ -220,7 +220,8 @@ FK check → recorder/revision → `CommitFenced` once입니다. `CommitRolledBa
 token을 보존하고 retry는 0입니다. Candidate-local reopen은 actual epoch/fingerprint/DAG/`StateReconstructor`
 restart 증거가 아닙니다. Phase C proof head `7d36502...`/EVID-090은 hosted-verified됐지만 actual SQLite port와
 reconstructor 및 internal handoff는 미구현입니다. Proposed docs-freeze head `5bdf013...`/EVID-091도 별도로
-hosted-verified됐지만 현재 acceptance docs head의 고유 hosted gate와 EVID-092가 남아 있습니다.
+hosted-verified됐고 acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유 exact-head hosted gate를
+통과했습니다. 이 증거는 product concurrency/lifecycle implementation을 검증하지 않습니다.
 
 Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
 semantics도 범위 밖입니다.

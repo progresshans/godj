@@ -1279,5 +1279,7 @@ decision-freeze documentation head `5bdf013...`는
 [EVID-091](status/TEST_EVIDENCE.md#evid-20260819-091--gdj-0035-proposed-decision-freeze-documentation-head-local-validation-and-exact-head-hosted-ci) /
 [run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328)의 unique exact 26/26 jobs·342/342
 steps와 audit P0..P3=0을 통과했고, 이 별도 docs head에서 ADR-0034 bounded design을 Accepted로 전환했습니다.
-EVID-091은 current acceptance docs head proof가 아니며 그 unique hosted CI와 EVID-092가 pending입니다. EVID-090/091을
-later product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.
+[EVID-092](status/TEST_EVIDENCE.md#evid-20260819-092--gdj-0035-adr-0034-acceptance-documentation-head-exact-head-hosted-ci) /
+[run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845)는 별도 acceptance docs head
+`7cdc6d6...`의 unique exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 기록합니다. EVID-090/091/092를 later
+product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.

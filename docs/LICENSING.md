@@ -108,7 +108,7 @@ ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Phase 
 head `5bdf013...`도 EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 ADR-0034 bounded design은
 그 뒤 Accepted됐습니다. Later acceptance는 Phase A artifact의 historical `kind=proposal`, decision ID
 `GDJ-0035`, `derived=false`를 `kind=decision`으로 소급 변경하지 않습니다. Product는 미구현이고 현재
-acceptance docs head의 hosted proof EVID-092는 pending입니다.
+acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`에서 별도 hosted-verified됐습니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

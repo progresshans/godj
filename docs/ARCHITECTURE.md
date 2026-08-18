@@ -480,7 +480,7 @@ inbound FK/index/trigger/view/generated object는 fail-closed합니다.
 
 Test-only helper/type/error names, golden/hash와 private catalogs는 noncanonical입니다. Writer/autodetector,
 general schema preservation, self/cyclic/inbound relation, non-AutoField target, non-SQLite backend와 Q-017/Q-019는
-범위 밖입니다. Exact test-only head `7d36502...`/EVID-090과 Proposed docs-freeze head `5bdf013...`/EVID-091은
-각각 별도로 hosted-verified됐습니다. Test-only head는 later `definitionhandoff` product bridge를 구현하거나
-검증하지 않았고 actual port/reconstructor/restart도 미구현입니다. 현재 acceptance docs head 자체의 unique hosted
-CI는 EVID-092 pending이며 EVID-091을 재사용하지 않습니다.
+범위 밖입니다. Exact test-only head `7d36502...`/EVID-090, Proposed docs-freeze head `5bdf013...`/EVID-091과
+acceptance docs head `7cdc6d6...`/EVID-092는 각각 별도로 hosted-verified됐습니다. Test-only head는 later
+`definitionhandoff` product bridge를 구현하거나 검증하지 않았고 actual port/reconstructor/restart도 미구현입니다.
+EVID-092는 acceptance documentation head만 증명하며 product implementation proof로 재사용하지 않습니다.

@@ -247,4 +247,4 @@ Checked-in Phase A manifest/oracle/NI/checksum의 GoDj-owned payload는 계속 h
 `GDJ-0035`, `derived=false`이고 Django-observed payload와 합치거나 `kind=decision`으로 소급 재분류하지 않습니다.
 Test-only candidate helpers, golden/hash와 private catalogs는 source/public API 정본이 아닙니다. ADR-0034 bounded
 design만 Accepted이고 actual SQLite optional port/`StateReconstructor`는 미구현입니다. EVID-091은 Proposed
-docs head `5bdf013...`만 증명하며 acceptance head proof EVID-092는 pending입니다.
+docs head `5bdf013...`만 증명하고 EVID-092/run `32187094845`는 별도 acceptance head `7cdc6d6...`만 증명합니다.

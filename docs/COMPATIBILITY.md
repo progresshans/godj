@@ -843,5 +843,6 @@ Existing public signatures/entrypoint는 0개 변경이고 legacy/empty set과 r
 legacy execution은 pre-Begin `CategoryCapability`/`CodeUnsupported` feature `relation_migration`, public
 reconstructor raw relation은 existing `CategoryState`/`CodeInvalidState`입니다. Internal exported identifiers는
 consumer API가 아닙니다. Actual internal handoff, SQLite optional port와 relation-capable `StateReconstructor`는
-아직 미구현입니다. EVID-091은 Proposed docs-freeze head `5bdf013...`만 증명하며 현재 acceptance docs head의
-unique hosted CI는 EVID-092 pending입니다.
+아직 미구현입니다. EVID-091은 Proposed docs-freeze head `5bdf013...`만 증명하고 EVID-092/run `32187094845`는
+별도 acceptance docs head `7cdc6d6...`의 고유 exact-head hosted proof입니다. 어느 증거도 product implementation을
+증명하지 않습니다.

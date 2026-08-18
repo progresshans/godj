@@ -313,8 +313,10 @@
   [EVID-091](TEST_EVIDENCE.md#evid-20260819-091--gdj-0035-proposed-decision-freeze-documentation-head-local-validation-and-exact-head-hosted-ci) /
   [run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328)의 별도 local final-byte gates,
   unique 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. 그 성공을 근거로 이 별도 documentation
-  head에서 ADR-0034 bounded design을 Accepted로 전환했습니다. Product source/status는 불변이고 현재 acceptance
-  docs head의 own hosted proof는 EVID-092 pending입니다.
+  head에서 ADR-0034 bounded design을 Accepted로 전환했습니다. Acceptance docs head `7cdc6d6...`, tree
+  `240879d...`도 [EVID-092](TEST_EVIDENCE.md#evid-20260819-092--gdj-0035-adr-0034-acceptance-documentation-head-exact-head-hosted-ci) /
+  [run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845)의 별도 unique 26/26 jobs·342/342
+  steps와 audit P0..P3=0을 통과했습니다. Product source/status는 불변입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -1271,7 +1273,7 @@ MIG-075..086 exact 12 reference-only contracts와
 design만 활성화했습니다.
 Legacy `(1,1,1,2)`/digest v1/scalar state v1을 보존하는 전제 아래 relation `(1,2,2,3)`, mixed digest,
 relation state, full preflight과 SQLite FK lifecycle/remake를 Phase A/B/C에서 검증했고 bounded design으로
-Accepted했습니다. Product 구현과 acceptance-head hosted 검증은 아직 pending입니다.
+Accepted했습니다. Acceptance documentation head까지 hosted-verified됐지만 product 구현은 아직 pending입니다.
 
 Exact 16-document activation head는 EVID-084/run `31618469072`에서 EVID-083과 다른 고유 exact-head
 26/26 jobs·326/326 steps 및 audit P0..P3=0을 통과했습니다. Phase A reference-only artifact/local gates는
@@ -1296,10 +1298,10 @@ product epoch/fingerprint/DAG/reconstructor 증거가 아니며 actual SQLite op
 seal validation도 미구현입니다. Carrier 없는 raw relation entry의 frozen failure는 pre-Begin
 `CategoryCapability`/`CodeUnsupported` feature `relation_migration`이고 raw legacy/public scalar behavior는
 보존합니다. Proposed decision-freeze documentation head `5bdf013...`는 EVID-091/run `32183309328`의 고유
-local/hosted gates를 통과했고 이 별도 head에서 ADR-0034 bounded design을 Accepted로 전환했습니다. 다음 정확한
-작업은 현재 acceptance documentation head의 own unique exact-head hosted CI와 independent audit를 실행해
-EVID-092로 기록하는 것입니다. EVID-091은 Proposed docs head만 증명하고 이 acceptance tree를 재귀적으로
-검증하지 않습니다.
+local/hosted gates를 통과했고 이 별도 head에서 ADR-0034 bounded design을 Accepted로 전환했습니다. Acceptance
+documentation head `7cdc6d6...`도 EVID-092/run `32187094845`의 own unique exact-head hosted CI와 independent
+audit P0..P3=0을 통과했고 EVID-091을 재사용하지 않았습니다. 다음 정확한 작업은 Phase D bounded product
+implementation이며 legacy profile/digest/state/lifecycle bytes와 behavior 보존부터 시작합니다.
 
 ## 작업 재개 체크포인트
 
@@ -1460,8 +1462,9 @@ EVID-092로 기록하는 것입니다. EVID-091은 Proposed docs head만 증명�
 - GDJ-0035 Proposed decision-freeze documentation: `5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed`;
   EVID-091/run `32183309328` unique attempt-1 exact 26/26 jobs·342/342 steps PASS; tree `0572e81b...`, exact
   18 regular docs paths, product/test/workflow/artifact diff 0, audit P0..P3=0; bounded acceptance prerequisite only
-- 현재 working tree: ADR-0034 bounded design Accepted in a separate documentation head; product status 변경 0;
-  acceptance docs head hosted proof EVID-092 pending; EVID-091 proves only exact `5bdf013...`
+- GDJ-0035 acceptance documentation: `7cdc6d613f605583c017c92a92040a90c1b56ed6`; EVID-092/run
+  `32187094845` unique attempt-1 exact 26/26 jobs·342/342 steps PASS; tree `240879d...`, exact 18 regular docs
+  paths, product/test/workflow/artifact diff 0, annotations 0, audit P0..P3=0; product status 변경 0
 - 최근 완료 work:
   [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - active work:
@@ -1514,7 +1517,8 @@ EVID-092로 기록하는 것입니다. EVID-091은 Proposed docs head만 증명�
   미구현이고 actual product `StateReconstructor`는 relation-bearing `AddField`를
   `CategoryState`/`CodeInvalidState`로 계속 거부합니다. Accepted design의 module-private `definitionhandoff.Handoff`와
   Set→context→Executor seal validation도 아직 product에 없습니다. Existing public signatures/entrypoint는
-  변경하지 않는 결정입니다. 다음은 acceptance docs head hosted CI와 EVID-092이며 product implementation은 그 뒤입니다.
+  변경하지 않는 결정입니다. Acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`에서 별도
+  hosted-verified됐습니다. 다음은 Phase D bounded product implementation입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1659,8 +1663,12 @@ EVID-092로 기록하는 것입니다. EVID-091은 Proposed docs head만 증명�
 - GDJ-0035 Proposed decision-freeze docs hosted: EVID-091/run 32183309328 unique attempt-1 exact
   26/26 jobs·342/342 steps PASS; head `5bdf013...`, tree `0572e81b...`, four SQLite coordinates each
   75/75/0·9,736 bytes·`48e7beb1...92ec`, four relation-product coordinates each 725/725/0·73,806 bytes·
-  `2ad28eb2...a5d4`, annotations/log markers 0, audit P0/P1/P2/P3=0; Proposed docs head only, current
-  acceptance head/product not proved
+  `2ad28eb2...a5d4`, annotations/log markers 0, audit P0/P1/P2/P3=0; Proposed docs head only
+- GDJ-0035 acceptance docs hosted: EVID-092/run 32187094845 unique attempt-1 exact 26/26 jobs·342/342 steps PASS;
+  head `7cdc6d6...`, tree `240879d...`, four SQLite coordinates each 75/75/0·9,736 bytes·`48e7beb1...92ec`, four
+  relation-product coordinates each 725/725/0·73,806 bytes·`2ad28eb2...a5d4`, annotations/log markers 0, audit
+  P0/P1/P2/P3=0; acceptance docs head only, later EVID-092 append/status handoff is deliberately nonrecursive,
+  product not proved
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1720,13 +1728,14 @@ EVID-092로 기록하는 것입니다. EVID-091은 Proposed docs head만 증명�
   run 31609500811 exact 26/26 PASS; terminal/GDJ-0035 baseline run 31613170021 exact 26/26 PASS; GDJ-0035
   activation run 31618469072 exact 26/26 PASS; Phase A exact head run 31625898551 exact 26/26 PASS; Phase B
   no-product exact head run 31653237691 exact 26/26 PASS; Phase C exact 8-test-only proof head run 32174259324
-  exact 26/26 PASS; Proposed decision-freeze docs head run 32183309328 exact 26/26 PASS
+  exact 26/26 PASS; Proposed decision-freeze docs head run 32183309328 exact 26/26 PASS; acceptance docs head run
+  32187094845 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 가장 위험한 과장: EVID-072/074/076/077/078/079/080/081/082/083/084를 각각의
   activation/decision/implementation/completion/terminal/local-source/hosted-implementation/hosted-completion/
-  baseline/activation 경계 밖 later proof로 재사용하거나, EVID-085/086/087/088/089/090/091의 Phase A
-  reference/Phase B no-product/Phase C test-only/Proposed docs 경계를 current acceptance head, actual SQLite port,
-  product `StateReconstructor`, later `definitionhandoff` bridge 또는 relation migration support 증거로 확대하는 것.
+  baseline/activation 경계 밖 later proof로 재사용하거나, EVID-085/086/087/088/089/090/091/092의 Phase A
+  reference/Phase B no-product/Phase C test-only/Proposed docs/acceptance docs 경계를 actual SQLite port, product
+  `StateReconstructor`, later `definitionhandoff` bridge 또는 relation migration support 증거로 확대하는 것.
   Exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로 확대하거나
   REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse assignment
   또는 non-SQLite support로 과장하는 것도 금지합니다.

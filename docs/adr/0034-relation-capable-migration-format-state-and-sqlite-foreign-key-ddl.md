@@ -37,8 +37,10 @@ contract `passing`, backend support 또는 **Verified**를 뜻하지 않습니�
   [run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328)는 exact Proposed
   decision-freeze documentation head `5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed`의 local final-byte gates와
   고유 26/26 jobs·342/342 steps, independent audit P0/P1/P2/P3=`0/0/0/0`을 기록합니다.
-- EVID-091은 이전 Proposed docs head만 증명합니다. 이 Accepted transition head 자체의 unique exact-head
-  hosted CI와 independent audit는 아직 pending이며 EVID-092로 별도 기록해야 합니다.
+- [EVID-092](../status/TEST_EVIDENCE.md#evid-20260819-092--gdj-0035-adr-0034-acceptance-documentation-head-exact-head-hosted-ci) /
+  [run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845)는 별도 Accepted transition head
+  `7cdc6d613f605583c017c92a92040a90c1b56ed6`의 고유 26/26 jobs·342/342 steps와 independent audit
+  P0/P1/P2/P3=`0/0/0/0`을 기록합니다. EVID-091을 acceptance proof로 재사용하지 않았습니다.
 
 이번 결정은 existing scalar migration ABI를 보존하면서 AutoField-target `ForeignKey` definition과 historical
 state를 기존 revision-fenced SQLite lifecycle로 전달하는 단면만 다룹니다. Writer/autodetector, arbitrary schema
@@ -469,14 +471,14 @@ Q status와 backend support는 바뀌지 않았고 MIG-075..086은 모두 refere
 4. Proposed decision-freeze documentation head `5bdf013...`의 local final-byte gates와 고유 exact-head hosted
    CI/independent audit는 EVID-091에서 완료했습니다.
 5. 그 성공을 별도 documentation head에 기록하고 이 ADR의 bounded decision 상태를 `Accepted`로 전환했습니다.
-6. 현재 acceptance documentation head 자체의 고유 exact-head hosted CI와 independent audit는 EVID-092로
-   별도 기록해야 하며 EVID-091을 재사용하지 않습니다.
+6. Acceptance documentation head `7cdc6d6...` 자체의 고유 exact-head hosted CI와 independent audit는
+   EVID-092/run `32187094845`에서 완료했고 EVID-091을 재사용하지 않았습니다.
 7. Accepted 이후에도 actual `definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
    relation port와 actual `StateReconstructor` relation state를 구현하고, local normal/race/CGO-disabled/vet,
    exact SQLite/file restart/fault/no-rewrite/compile gates와 별도 implementation/completion/terminal hosted heads를
    통과해야 Implemented/Verified를 주장할 수 있습니다.
 
 EVID-090/run `32174259324`는 exact test-only proof head만, EVID-091/run `32183309328`은 exact Proposed
-decision-freeze docs head `5bdf013...`만 증명합니다. 둘 다 현재 acceptance head, product implementation,
-completion 또는 terminal proof로 재사용하지 않습니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전
-merge하지 않습니다.
+decision-freeze docs head `5bdf013...`만, EVID-092/run `32187094845`는 acceptance docs head `7cdc6d6...`만
+증명합니다. 어느 증거도 product implementation, completion 또는 terminal proof로 재사용하지 않습니다.
+Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.

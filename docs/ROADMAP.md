@@ -18,7 +18,8 @@
   unique run `32174259324`의 exact 26/26 jobs·342/342 steps, audit P0..P3=0을 통과했습니다. Relation
   Proposed docs-freeze head `5bdf013...`는 EVID-091/run `32183309328`의 별도 local/hosted gates와 audit
   P0..P3=0을 통과했고 그 성공을 근거로 이 별도 documentation head에서 ADR-0034 bounded design을 Accepted로
-  전환했습니다. Product status는 불변입니다. 현재 단계는 acceptance docs head의 own hosted CI와 EVID-092입니다.
+  전환했습니다. Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유 exact 26/26 jobs·342/342
+  steps와 audit P0..P3=0을 통과했습니다. Product status는 불변이며 현재 단계는 Phase D bounded implementation입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-19
@@ -592,7 +593,7 @@ activation head `52f9bcb7...`는
    [run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 attempt-1 exact
    26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Four SQLite coordinates는 각각
    75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`를 재현했습니다.
-3. Phase C decision (**Accepted; acceptance-head hosted proof pending**): exact 8개 test-only file에서
+3. Phase C decision (**Accepted; acceptance head hosted-verified by EVID-092**): exact 8개 test-only file에서
    numeric version tuple/state behavior, one-loader/per-document dispatch/one Planner, digest v2, whole-step state transition,
    wire `target_field` 제거, three-stage preflight, candidate existing-fence behavior/four capabilities와 SQLite order를
    동결했습니다. Accepted decision은 additive public constant/port/type names를 선택하며 test-only proof는
@@ -601,9 +602,10 @@ activation head `52f9bcb7...`는
    [run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)의 unique exact
    26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Proposed docs-freeze head `5bdf013...`도
    EVID-091/run `32183309328`의 고유 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고, 이 별도 head에서
-   ADR-0034를 Accepted로 전환했습니다. 현재 acceptance docs head의 unique hosted proof는 EVID-092 pending입니다.
-4. Phase D: acceptance head의 EVID-092 뒤 legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
-   bounded implementation합니다.
+   ADR-0034를 Accepted로 전환했습니다. Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유
+   26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다.
+4. Phase D: legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
+   bounded implementation합니다. 아직 구현을 시작하거나 완료한 것으로 표시하지 않습니다.
 5. Phase E: implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
 
 Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다. Final Phase-A artifact는

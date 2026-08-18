@@ -72,8 +72,9 @@ general cascade/eager graph/DDL/migration 전체
 GDJ-0035 Phase B와 Phase C는 `conformance/migrationrelation`의 test-only candidate/proof만 검증했습니다.
 Exact Phase C head `7d36502...`/EVID-090은 one-loader/profile/digest/state/wire/preflight/existing-fence/SQLite
 decision boundary를 동결했고 Proposed docs head `5bdf013...`/EVID-091의 별도 local/hosted 성공 뒤 ADR-0034의
-bounded design이 Accepted됐습니다. MIG-075..086 product handler, actual SQLite optional port와 actual
-`StateReconstructor`는 여전히 미구현이며 현재 acceptance docs head의 hosted proof EVID-092는 pending입니다.
+bounded design이 Accepted됐습니다. Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유
+exact-head hosted gate를 통과했습니다. MIG-075..086 product handler, actual SQLite optional port와 actual
+`StateReconstructor`는 여전히 미구현입니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 

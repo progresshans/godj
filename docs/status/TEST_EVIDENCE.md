@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-19
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-091
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-092
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -7802,6 +7802,101 @@ Evidence history and acceptance boundary:
   Q-010/Q-012/Q-013 remain `Partial` and Q-017/Q-019 remain P1/open.
 - Actual `migrations/internal/definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
   relation port, relation-capable `StateReconstructor` and epoch/fingerprint/DAG restart remain unimplemented.
+- Phase A proposal provenance remains historical `kind=proposal`, decision ID `GDJ-0035`, `derived=false`; later
+  acceptance does not retroactively reclassify checked-in artifacts. Draft PR #1 remains open, draft and unmerged.
+  This evidence does not authorize merge.
+
+## EVID-20260819-092 — GDJ-0035 ADR-0034 Acceptance Documentation Head Exact-head Hosted CI
+
+- Date/time: local final-byte validation on 2026-08-19 KST; hosted run 2026-08-18T21:19:16Z through
+  `21:28:13Z` (`2026-08-19T06:19:16+09:00` through `06:28:13+09:00` KST)
+- Work/contract IDs: GDJ-0035 ADR-0034 bounded-design acceptance documentation only; MIG-075..MIG-086 remain
+  exact 12 reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Exact tested commit: `7cdc6d613f605583c017c92a92040a90c1b56ed6` (`docs: accept relation migration design`),
+  tree `240879d974cee6ba214d7bd2893900722df71c1f`, parent
+  `5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed`
+- Unique hosted run: [GitHub Actions run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845),
+  workflow `CI`, run number 77, event `pull_request`, attempt 1, terminal `completed/success`
+- Local result: exact final committed documentation bytes passed `git diff --check`, 18/18 Markdown parse,
+  local-link/fragment/frontmatter/fence/table validation, semantic decision audit, evidence-history audit and pinned
+  offline root `make ci`; independent post-push audit was P0/P1/P2/P3=`0/0/0/0`
+- Hosted result: exact 26/26 jobs and 342/342 recorded steps succeeded; 26/26 check runs concluded success;
+  non-success jobs/steps were 0
+- Annotations/log health: all 26 annotation endpoints returned aggregate 0; combined raw logs were exact 15,300
+  lines/2,757,957 bytes/SHA-256 `8414f695dce69beb950ddbfc16f00f72b1eebd2a8d039ca9435807807a6237db`.
+  A second independent download reproduced the same bytes/hash; error, warning, nonzero-exit, fatal, panic, race,
+  `FAIL`, `WaitDelay` and incomplete test-I/O markers were all 0
+- Independent hosted audit: P0/P1/P2/P3=`0/0/0/0`; no actionable or informational defect was found
+
+Exact identity, ancestry and documentation-only scope:
+
+- Exact-head query returned one and only one `pull_request` run for `7cdc6d6...`, attempt 1. No activation,
+  Phase A/B, Phase C test-only, Proposed docs or local result was reused as hosted proof.
+- GitHub's synthetic merge was `eb69794d02a8ac76cfdcf3b91b948cf7acf1b623`, with ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 7cdc6d613f605583c017c92a92040a90c1b56ed6]`.
+  Its tree was exact `240879d974cee6ba214d7bd2893900722df71c1f`, equal to the tested head tree.
+- Parent-to-head changed exact 18 intended regular Markdown documentation paths, with 327 insertions and 177
+  deletions. Product source, Go/Python test, workflow, manifest, oracle, fixture, checksum, other artifact, file mode
+  and symlink changes were all 0.
+- Exact changed paths were `conformance/README.md`, `docs/ARCHITECTURE.md`, `docs/BACKEND_MATRIX.md`,
+  `docs/CAPABILITY_CATALOG.md`, `docs/COMPATIBILITY.md`, `docs/CONCURRENCY.md`, `docs/LICENSING.md`,
+  `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`, `docs/SOURCES.md`, `docs/TESTING.md`,
+  `docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md`, `docs/adr/README.md`,
+  `docs/status/CURRENT.md`, `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`,
+  `work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md` and `work/README.md`.
+- The ordered exact 18-file raw concatenation was 1,524,829 bytes/SHA-256
+  `3dbb36febb922cc0d82952ef1597375afe3f7c28fc7a568f4a8f8b6e07693426`. The config-neutral parent diff was
+  107,584 bytes/1,071 LF lines/SHA-256 `184808975a212f423fc5e39c2be9ae9725f6717be7311b747027342f5c1a34e5`.
+  Commit tree/manifest comparison confirmed that the local validated bytes were the final committed bytes.
+
+Local final-byte gates:
+
+```bash
+git diff --check 5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed 7cdc6d613f605583c017c92a92040a90c1b56ed6
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=-mod=readonly \
+  PYTHONDONTWRITEBYTECODE=1 make ci
+```
+
+- `make ci` exited 0 on the exact final acceptance documentation bytes. Normal Go, vet, race, selected
+  CGO-disabled, portable Python, contract and repository status gates passed without modifying the intended
+  18-file manifest.
+- Independent read-only Markdown/link/frontmatter/fence/table, semantic-design and evidence-history audits all
+  completed with P0/P1/P2/P3=`0/0/0/0`. ADR-0034 was Accepted only for the bounded design; GDJ-0035 remained
+  active and product/Q/MIG classifications were unchanged.
+
+Hosted gates and reproduced locks:
+
+- All four SQLite coordinates independently reproduced exact 75 run/75 pass/0 skip, 9,736 payload bytes and
+  SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`; normal/race/
+  CGO-disabled/vet and clean-worktree/no-rewrite gates succeeded.
+- All four relation-product coordinates independently reproduced unchanged exact 725 run/725 pass/0 skip,
+  73,806 payload bytes and SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`.
+- Exact Darwin passed 216/216 with skip 0. Portable Python, root CI, hosted Linux/386 and unchanged
+  artifact/product gates succeeded within the exact 26-job topology.
+- Draft PR #1 remained `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. The audit performed no rerun,
+  cancellation, merge or repository edit.
+
+Evidence history, implementation boundary and next work:
+
+- Immediately before this pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact 806,740 bytes/
+  SHA-256 `762e8291bab49265a03298b12f596f125a520066dcac092a4415f1d4dc7ea440`.
+- The retained old-file suffix in byte range `[326, 806740)` was exact 806,414 bytes/SHA-256
+  `eb0b22afb67e7a1cc376030f1b5c99bfe99db4263b3e8d828a9820a365ab3f7b`. The actual EVID-001 heading begins at
+  zero-based byte offset 524; the EVID-001..091 body in byte range `[524, 806740)` was exact 806,216 bytes/
+  SHA-256 `c92447d1c6f55aa3deaac9063feef101436e16b1553803863de594e95dc420f2`. This change updates only the fixed-length
+  top latest-evidence pointer and appends unique EVID-092 after those retained bytes; EVID-001..091 remain
+  byte-identical.
+- Run `32187094845` proves only the exact ADR acceptance documentation head `7cdc6d6...`. It does not prove this
+  later EVID-092 append/status handoff, product implementation, contract `passing`, backend support, completion or
+  terminal evidence. This append is deliberately nonrecursive.
+- Product remains exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12;
+  reference remains exact 13/139/156=`122+5+12 locked`. MIG-075..086 remain reference-only `oracle_locked`,
+  Q-010/Q-012/Q-013 remain `Partial` and Q-017/Q-019 remain P1/open.
+- Actual `migrations/internal/definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
+  relation port, relation-capable `StateReconstructor` and epoch/fingerprint/DAG restart remain unimplemented.
+- The next exact work is Phase D bounded product implementation, beginning with byte/behavior preservation of the
+  legacy `(1,1,1,2)` profile, digest v1, scalar state v1 and lifecycle before additive relation profile/state/core
+  and internal handoff work. No Phase D implementation checklist item is complete at this evidence boundary.
 - Phase A proposal provenance remains historical `kind=proposal`, decision ID `GDJ-0035`, `derived=false`; later
   acceptance does not retroactively reclassify checked-in artifacts. Draft PR #1 remains open, draft and unmerged.
   This evidence does not authorize merge.

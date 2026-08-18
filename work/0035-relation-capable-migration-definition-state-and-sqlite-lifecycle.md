@@ -303,7 +303,7 @@ EVID-085에 기록했습니다.
 ### C. Decision freeze
 
 - 상태: **decision Accepted in a separate documentation head; Proposed decision-freeze head hosted-verified by
-  EVID-091; acceptance head exact-hosted verification pending EVID-092; product unimplemented**.
+  EVID-091; acceptance head `7cdc6d6...` exact-hosted-verified by EVID-092/run `32187094845`; product unimplemented**.
 - [x] Phase A/B 결과로 version values, one-loader/digest/state/wire/preflight, exact optional
       backend/error/SQLite order의 behavior를 test-only head `7d36502...`에서 검증하고 EVID-089/090으로 고정;
       이 Accepted decision이 additive public constant/port/type names를 선택하며 test-only proof는 product
@@ -316,7 +316,8 @@ EVID-085에 기록했습니다.
 - [x] Proposed decision-freeze documentation head `5bdf013...`의 unique exact-head hosted CI와 independent audit —
       EVID-091/run `32183309328`
 - [x] 그 hosted success를 별도 acceptance documentation head에 기록하고 ADR status를 Accepted로 전환
-- [ ] 현재 acceptance documentation head의 unique exact-head hosted CI와 independent audit — EVID-092
+- [x] Acceptance documentation head `7cdc6d6...`의 unique exact-head hosted CI와 independent audit —
+      EVID-092/run `32187094845`; 26/26 jobs·342/342 steps, audit P0..P3=0, EVID-091 재사용 0
 
 ### D. Bounded implementation
 
@@ -341,7 +342,7 @@ EVID-085에 기록했습니다.
       26/26 jobs·342/342 steps, annotations 0, audit P0..P3=0
 - [x] Proposed decision-freeze documentation head를 EVID-091의 고유 exact-head CI/evidence로 검증하고 Phase C
       test-only run을 재사용하지 않음
-- [ ] Acceptance documentation head를 EVID-092의 별도 고유 exact-head CI/evidence로 검증하고 EVID-091을 재사용하지 않음
+- [x] Acceptance documentation head를 EVID-092의 별도 고유 exact-head CI/evidence로 검증하고 EVID-091을 재사용하지 않음
 - [ ] Phase D product implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
 - [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034 bounded design을 별도 head에서 Accepted로 전환
 
@@ -371,9 +372,10 @@ Phase A/B는 EVID-085..088에서 hosted-verified됐고 Phase C exact 8-test-only
 `7d36502...`도 EVID-089/090/run `32174259324`의 unique 26/26 jobs·342/342 steps와 audit P0..P3=0을
 통과했습니다. Proposed decision-freeze docs head `5bdf013...`도 EVID-091/run `32183309328`의 unique hosted
 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고, 그 성공을 근거로 ADR-0034 bounded design을 이 별도
-documentation head에서 Accepted로 전환했습니다. 다음 정확한 작업은 현재 acceptance documentation head 자체의
-unique exact-head hosted CI와 independent audit를 실행하고 EVID-092로 기록하는 것입니다. EVID-091을 acceptance
-proof로 재사용하지 않으며 그 검증 전 product source 구현을 시작하지 않습니다.
+documentation head에서 Accepted로 전환했습니다. Acceptance documentation head `7cdc6d6...` 자체도
+EVID-092/run `32187094845`의 별도 unique exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고 EVID-091을
+재사용하지 않았습니다. 다음 정확한 작업은 Phase D bounded product implementation이며, 기존
+legacy profile/digest/state/lifecycle bytes와 behavior 보존부터 시작합니다. Phase D 체크리스트는 아직 전부 미완료입니다.
 
 ## 결과와 인수인계
 
@@ -384,6 +386,9 @@ inventory는 75/75/0·9,736 bytes·`48e7beb1...92ec`이며 final local normal/ra
 pinned exact Python 216/216+13 oracle checks+13 checksums, root `make ci`와 두 independent local audit P0..P3=0을
 통과했습니다. Exact Phase C head는 unique hosted 26/26 jobs·342/342 steps, four SQLite coordinates 각각
 75/75/0, four relation-product coordinates 각각 725/725/0과 independent hosted audit P0..P3=0도 통과했습니다.
+Acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`의 별도 unique exact 26/26 jobs·342/342 steps,
+four SQLite coordinates 각각 75/75/0, four relation-product coordinates 각각 725/725/0과 independent hosted
+audit P0..P3=0을 통과했습니다. 이 acceptance proof는 product implementation proof가 아닙니다.
 Reference는 exact 13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`지만
 product는 12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변입니다. Product source/artifact/manifest/
 oracle/NI/Makefile은 바뀌지 않았고 새 digest/state/DDL product behavior는 없습니다. ADR-0034의 bounded design만
@@ -392,6 +397,7 @@ Actual module-private `definitionhandoff` carrier/context bridge/Executor seal v
 relation port와 actual `StateReconstructor` relation state는 implementation blocker입니다.
 현재 product `StateReconstructor`는 relation-bearing `AddField`를 `CategoryState`/`CodeInvalidState`로 거부합니다.
 Candidate-local restart는 product epoch/fingerprint/DAG/reconstructor evidence가 아닙니다. EVID-090은 test-only
-proof head만, EVID-091은 Proposed docs head `5bdf013...`만 검증하며 현재 acceptance docs tree는 아직
-recursively hosted-verified되지 않았습니다. Allowed path 이름을 바꿔야 하면 source를
-만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를 다시 승인합니다.
+proof head만, EVID-091은 Proposed docs head `5bdf013...`만, EVID-092는 acceptance docs head `7cdc6d6...`만
+검증합니다. 이 later EVID-092 append/status handoff 자체만 deliberately nonrecursive이며 product proof가 아닙니다.
+Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를
+다시 승인합니다.

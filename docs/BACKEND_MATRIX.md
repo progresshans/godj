@@ -54,8 +54,8 @@ Backend별 verified 상태는 기능 contract와
 
 GDJ-0035 Phase C는 relation migration에 필요한 optional backend 경계를
 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
-design으로 채택했습니다. Proposed docs-freeze head `5bdf013...`의 local/hosted proof는 EVID-091에 기록했고
-현재 acceptance head의 hosted proof는 EVID-092 pending입니다.
+design으로 채택했습니다. Proposed docs-freeze head `5bdf013...`의 local/hosted proof는 EVID-091에 기록했고,
+acceptance head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유 exact-head hosted gate를 통과했습니다.
 Exact four capability는 relation-bearing CreateModel, nullable ForeignKey AddField, empty-table required
 ForeignKey AddField와 bounded remake remove입니다. Optional port는 existing revision-fenced backend/session을
 embed하고 existing `RevisionFencedTransaction`을 그대로 반환합니다. SQLite transaction order는 exact connection
