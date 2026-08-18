@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-13
+- 마지막 검토: 2026-08-19
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,10 +9,10 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 relation profile은 candidate이며 generator/library semver·repair는 open |
+| Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 relation profile bounded design은 Accepted됐지만 product implementation은 pending이고 generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 relation lifecycle은 candidate이며 writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 AutoField FK migration은 candidate이며 broader relation/backend 범위는 open |
+| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 relation lifecycle bounded design은 Accepted됐지만 product implementation은 pending이고 writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
+| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 AutoField FK migration bounded design은 Accepted됐지만 product는 unsupported이고 broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -520,23 +520,24 @@ growth gate가 필요합니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.
 
-## GDJ-0035 Proposed decision impact
+## GDJ-0035 Accepted decision impact
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 Q-010/Q-012/Q-013에
 의존하지만 세 질문을 닫지 않습니다. Q-010/Q-012/Q-013은 계속 `Partial`, Q-017/Q-019는
 P1/open입니다.
 
 - Q-010: exact global check/public project runner는 있지만 writer/autodetector/upgrade·generator/library semver은 open입니다.
-- Q-012: relation tuple/state/codec/SQLite lifecycle boundary를 MIG-075..086과 Proposed ADR-0034에 동결했지만 custom/data operation,
+- Q-012: relation tuple/state/codec/SQLite lifecycle boundary를 MIG-075..086과 Accepted ADR-0034에 동결했지만 custom/data operation,
   DB-aware public migrate command, repair/crash policy와 non-SQLite는 open입니다.
-- Q-013: AutoField-target ForeignKey migration은 broader relation/backend 질문의 bounded Proposed decision일 뿐이며
+- Q-013: AutoField-target ForeignKey migration은 broader relation/backend 질문의 bounded Accepted decision일 뿐이며
   OneToOne/ManyToMany/`to_field`/self/cyclic/inbound/non-SQLite를 닫지 않습니다.
 - Q-017: relation facade/general generated upgrade를 바꾸지 않습니다.
 - Q-019: unknown commit outcome의 no-retry error meaning만 보존하고 retained connection cap/reconciliation은 결정하지 않습니다.
 
-[ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 Proposed입니다.
-Phase A/B와 Phase C exact 8-test-only decision proof는 EVID-085..090에서 local/hosted 검증됐습니다. Exact
+[ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 bounded design에 한해
+Accepted입니다. Phase A/B와 Phase C exact 8-test-only decision proof는 EVID-085..090에서 local/hosted 검증됐고,
+Proposed decision-freeze docs head `5bdf013...`는 EVID-091/run `32183309328`에서 별도로 검증됐습니다. Exact
 relation constants, one-loader dispatch, digest v2, whole-step state transition, wire `target_field` 제거,
-three-stage preflight, additive existing-fence port/four capabilities와 SQLite order는 Proposed boundary로
+three-stage preflight, additive existing-fence port/four capabilities와 SQLite order는 Accepted design으로
 동결됐습니다. 그러나 actual SQLite optional port와 actual `StateReconstructor`는 미구현이고 Q 상태도 불변입니다.
-이 Proposed docs-freeze head의 unique hosted CI와 그 뒤의 별도 acceptance head 전에 Accepted로 표현하지 않습니다.
+현재 acceptance docs head의 unique hosted CI와 EVID-092가 pending이며 EVID-091을 재사용하지 않습니다.

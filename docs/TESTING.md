@@ -1215,7 +1215,7 @@ candidate-local restart는 product epoch/DAG/reconstructor 증거가 아니었�
 동결했지만 두 product blocker를 구현하지 않았습니다.
 Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
 사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
-12/12는 변경 없고 ADR-0034는 Proposed입니다. Exact Phase B implementation head
+12/12는 변경 없고 그 Phase B head에서 ADR-0034는 Proposed였습니다. Exact Phase B implementation head
 `c2ecb292dca2daa8d48e9a11fbf49a3f5c4b8a6a`, tree `c114812fb89bffdf8e97be1779fd603209700205`는
 [EVID-088](status/TEST_EVIDENCE.md#evid-20260813-088--gdj-0035-phase-b-github-hosted-no-product-feasibility-exact-head-ci) /
 [run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 `pull_request` attempt 1에서
@@ -1233,12 +1233,12 @@ Phase C는 product를 계속 바꾸지 않은 채 Phase B의 profile/state/prefl
 
 - Existing legacy constants/constructors와 `(1,1,1,2)`/digest v1/state v1 bytes를 보존하면서 relation numeric
   tuple/state behavior `(loader ABI, operation codec, Schema IR, state)=(2,2,3,2)`를 분리합니다. Test-only proof는
-  candidate-private values를 사용했고 public names를 export하지 않았습니다. 이 Proposed docs freeze가 additive
+  candidate-private values를 사용했고 public names를 export하지 않았습니다. Later Accepted decision이 additive
   `RelationLoaderABIVersion=2`, `RelationOperationCodecVersion=2`, `RelationSchemaIRVersion=3`,
   `RelationStateFormatVersion=2` names를 선택합니다.
 - Existing public `definition.Load` 하나가 document별 exact profile을 dispatch하고 combined set을 actual
   `migrations.Planner` 하나로 검증합니다. Relation-only/mixed set은 digest v2 domain, legacy-only는 v1을 씁니다.
-- 이 Proposed docs freeze는 test-only proof 이후 발견된 loader→Executor metadata-loss 경계를
+- Later Accepted decision은 test-only proof 이후 발견된 loader→Executor metadata-loss 경계를
   `migrations/internal/definitionhandoff.Handoff`로 닫습니다. Successful Load가 per-definition profile/source/
   producer/canonical seal, set digest/full-graph seal을 raw bytes/alias 없이 만들고 relation/mixed `Set.Migrate`가
   fresh context clone으로 existing Executor에 전달합니다. Proof head는 이 later internal bridge를 구현·검증하지
@@ -1248,7 +1248,7 @@ Phase C는 product를 계속 바꾸지 않은 채 Phase B의 profile/state/prefl
 - Static zero-I/O, existing history/actual plan, SQLite physical의 three-stage preflight와 exact parent-first apply/
   child-first unapply plan을 검증합니다.
 - Test-only proof는 candidate-local existing-fence equivalents와 four capability behavior를 검증했습니다. 이
-  Proposed docs freeze가 `migrations/backend` additive `RelationRevisionFencedBackend`/
+  Accepted decision이 `migrations/backend` additive `RelationRevisionFencedBackend`/
   `RelationRevisionFencedSession`과 intent/operation/target/kind public names/shape를 선택하며, existing
   `RevisionFencedTransaction` 하나를 재사용합니다. Proof head는 product package에 그 names를 publish하지 않았습니다.
 - SQLite는 exact connection의 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim →
@@ -1270,11 +1270,14 @@ four relation-product 725/725/0 inventories와 hosted audit P0..P3=0을 통과�
 
 이 proof는 product source/manifest/oracle/NI/workflow/artifact를 바꾸지 않았고 MIG-075..086은 계속
 `oracle_locked`입니다. Actual SQLite optional relation port와 actual `StateReconstructor` relation state/restart는
-blocker입니다. Actual `definitionhandoff` carrier도 미구현입니다. Phase D는 frozen Proposed additive public surface의
+blocker입니다. Actual `definitionhandoff` carrier도 미구현입니다. Phase D는 Accepted additive public surface의
 exact expected inventory 일치, 그 named addition을 제외한 legacy public
 signature/entrypoint inventory의 byte-for-byte unchanged, legacy/empty zero-carrier와 raw legacy lifecycle/reconstructor
 preservation, relation/mixed fresh clone/no-alias/no-retain, nil/cancel/deadline/value precedence, seal mismatch와
-carrier-less raw relation의 pre-I/O/pre-Begin failure, concurrent Set reuse/race를 검증해야 합니다. 이 Proposed
-decision-freeze documentation head 자체는 hosted
-`not run/pending`이며, 그 unique success 뒤 별도 acceptance docs head 전까지 ADR-0034는 Proposed입니다.
-EVID-090을 later docs/acceptance/product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.
+carrier-less raw relation의 pre-I/O/pre-Begin failure, concurrent Set reuse/race를 검증해야 합니다. Proposed
+decision-freeze documentation head `5bdf013...`는
+[EVID-091](status/TEST_EVIDENCE.md#evid-20260819-091--gdj-0035-proposed-decision-freeze-documentation-head-local-validation-and-exact-head-hosted-ci) /
+[run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328)의 unique exact 26/26 jobs·342/342
+steps와 audit P0..P3=0을 통과했고, 이 별도 docs head에서 ADR-0034 bounded design을 Accepted로 전환했습니다.
+EVID-091은 current acceptance docs head proof가 아니며 그 unique hosted CI와 EVID-092가 pending입니다. EVID-090/091을
+later product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.

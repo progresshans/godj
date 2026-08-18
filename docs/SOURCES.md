@@ -223,8 +223,9 @@ hosted-verified됐습니다.
 
 Pinned Django 관찰과 GoDj-owned decision을 구분합니다. Relation tuple `(1,2,2,3)`, mixed digest v2,
 Relation State v2, physical `NO ACTION`과 bounded remake는 Django file ABI parity가 아니라
-[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 후보입니다.
-Accepted 전 GoDj-owned candidate payload는 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로 기록합니다.
+[Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 GoDj-owned
+decision입니다. Phase A에서 Accepted 전 생성된 candidate payload는 historical `kind=proposal`, decision ID
+`GDJ-0035`, `derived=false`로 기록합니다.
 Django BSD source/test reference는 위 exact object 중 실제 관찰한 부분에만 붙이고 GoDj scenario/payload는 독립적으로
 작성하며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Phase A artifact를 만들 때 exact
 upstream path/test name, commit, observed symbol과 license/provenance를 artifact 가까이에 기록했습니다. Final
@@ -239,9 +240,11 @@ MIG-085에서 Django SQLite schema-editor DDL은 recorder fault 전에 commit되
 GoDj same-transaction proposal은 서로 다른 provenance payload로 유지하며 ADR-0034 Accepted 결정을 앞당겨
 주장하지 않습니다.
 
-Phase C Proposed decision freeze는 relation public constants/profile, digest/state, wire ownership, three-stage
-preflight, additive existing-fence backend와 SQLite order를 동결했지만 source provenance를 바꾸는 사건이 아닙니다.
+Phase C Proposed decision freeze와 later EVID-091-backed acceptance는 relation public constants/profile,
+digest/state, wire ownership, three-stage preflight, additive existing-fence backend와 SQLite order를 동결했지만
+source provenance를 바꾸는 사건이 아닙니다.
 Checked-in Phase A manifest/oracle/NI/checksum의 GoDj-owned payload는 계속 historical `kind=proposal`, decision ID
 `GDJ-0035`, `derived=false`이고 Django-observed payload와 합치거나 `kind=decision`으로 소급 재분류하지 않습니다.
-Test-only candidate helpers, golden/hash와 private catalogs는 source/public API 정본이 아닙니다. ADR-0034는
-Proposed이고 actual SQLite optional port/`StateReconstructor`는 미구현입니다.
+Test-only candidate helpers, golden/hash와 private catalogs는 source/public API 정본이 아닙니다. ADR-0034 bounded
+design만 Accepted이고 actual SQLite optional port/`StateReconstructor`는 미구현입니다. EVID-091은 Proposed
+docs head `5bdf013...`만 증명하며 acceptance head proof EVID-092는 pending입니다.

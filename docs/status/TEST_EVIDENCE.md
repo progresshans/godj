@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-19
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-090
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-091
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -7712,3 +7712,96 @@ Evidence history and product boundary:
 - Product remains exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12; reference remains exact 13/139/156=`122+5+12 locked`. ADR-0034 remains `Proposed`.
 - Actual SQLite optional relation port and actual `StateReconstructor` relation integration/restart remain unimplemented. This Proposed decision-freeze documentation head requires its own unique exact-head hosted CI; only after that success may a separate acceptance documentation head change ADR status.
 - Draft PR #1 remains open, draft and unmerged. This evidence does not authorize merge.
+
+## EVID-20260819-091 — GDJ-0035 Proposed Decision-freeze Documentation Head Local Validation and Exact-head Hosted CI
+
+- Date/time: local final-byte validation on 2026-08-19 KST; hosted run 2026-08-18T20:37:45Z through
+  `20:48:11Z` (`2026-08-19T05:37:45+09:00` through `05:48:11+09:00` KST)
+- Work/contract IDs: GDJ-0035 Proposed decision-freeze documentation only; MIG-075..MIG-086 remain exact 12
+  reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Exact tested commit: `5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed`
+  (`docs: freeze relation migration product decision`), tree
+  `0572e81b23f7e5ee94f47cdb4d1d76867dafb8d4`, parent
+  `7d36502f104daa62b39744b5705478acc19a7ead`
+- Unique hosted run: [GitHub Actions run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328),
+  workflow `CI`, event `pull_request`, attempt 1, terminal `completed/success`
+- Local result: exact final committed document bytes passed `git diff --check`, 18/18 Markdown parse,
+  local-link/fragment/frontmatter/fence/table validation, semantic decision audit, evidence-history audit and pinned
+  offline root `make ci`; all independent local semantic/evidence findings were P0/P1/P2/P3=`0/0/0/0`
+- Hosted result: exact 26/26 jobs and 342/342 recorded steps succeeded; 26/26 check runs concluded success;
+  non-success jobs/steps were 0
+- Annotations/log health: all 26 annotation endpoints returned aggregate 0; combined logs were exact 15,293 lines/
+  2,756,959 bytes/SHA-256 `16067e4ee0edf677d806cf596947a254d665b8c998f5ad70dd06b792b98a4e49`;
+  runner error, warning, failure and nonzero-exit markers were 0
+- Independent post-push and hosted audits: P0/P1/P2/P3=`0/0/0/0`; no actionable or informational defect was found
+
+Exact identity, ancestry and documentation-only scope:
+
+- Exact-head query returned one and only one `pull_request` run for `5bdf013...`, attempt 1. No activation, Phase A/B,
+  Phase C test-only or local result was reused as hosted proof.
+- GitHub's synthetic merge was `82d53f5c114093fc3933140ce37c822de6525ca4`, with ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed]`.
+  Its tree was exact `0572e81b23f7e5ee94f47cdb4d1d76867dafb8d4`, equal to the tested head tree.
+- Parent-to-head changed exact 18 intended regular Markdown documentation paths, with 892 insertions and 324
+  deletions. Product source, Go/Python test, workflow, manifest, oracle, fixture, checksum, other artifact, file mode
+  and symlink changes were all 0.
+- Exact changed paths were `conformance/README.md`, `docs/ARCHITECTURE.md`, `docs/BACKEND_MATRIX.md`,
+  `docs/CAPABILITY_CATALOG.md`, `docs/COMPATIBILITY.md`, `docs/CONCURRENCY.md`, `docs/LICENSING.md`,
+  `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`, `docs/SOURCES.md`, `docs/TESTING.md`,
+  `docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md`, `docs/adr/README.md`,
+  `docs/status/CURRENT.md`, `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`,
+  `work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md` and `work/README.md`.
+- The ordered exact 18-file raw concatenation was 1,510,725 bytes/SHA-256
+  `bf862a89e84559734045885dcb0dcc7809e025d5bdba37fda39fa985e8656344`. The config-neutral parent diff was
+  158,147 bytes/1,735 LF lines/SHA-256 `cdc507d4e84169abdfaad7471f43f3865d50627874d8128543bddccae53b1a15`.
+  Commit tree/manifest comparison confirmed that the local validated bytes were the final committed bytes.
+
+Local final-byte gates:
+
+```bash
+git diff --check 7d36502f104daa62b39744b5705478acc19a7ead 5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOFLAGS=-mod=readonly \
+  PYTHONDONTWRITEBYTECODE=1 make ci
+```
+
+- `make ci` exited 0 on the exact final documentation bytes. Normal Go, vet, race, selected CGO-disabled,
+  portable Python, contract and repository status gates passed without modifying the intended 18-file manifest.
+- Independent read-only Markdown/link/frontmatter/fence/table, semantic-design and evidence-history audits all
+  completed with P0/P1/P2/P3=`0/0/0/0`. ADR-0034 remained Proposed in this exact tested head; GDJ-0035 remained
+  active and product/Q/MIG classifications were unchanged.
+
+Hosted gates and reproduced locks:
+
+- All four SQLite coordinates independently reproduced exact 75 run/75 pass/0 skip, 9,736 payload bytes and
+  SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`; normal/race/
+  CGO-disabled/vet and clean-worktree/no-rewrite gates succeeded.
+- All four relation-product coordinates independently reproduced unchanged exact 725 run/725 pass/0 skip,
+  73,806 payload bytes and SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`.
+- Exact Darwin passed 216/216 with skip 0, all 13 oracle/checksum no-rewrite gates and the focused Go
+  lifecycle/profile/state/preflight proofs. Portable Python, root CI, hosted Linux/386 and unchanged
+  artifact/product gates succeeded within the exact 26-job topology.
+- Draft PR #1 remained `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. The audit performed no rerun,
+  cancellation or merge.
+
+Evidence history and acceptance boundary:
+
+- Immediately before this pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact 799,469 bytes/
+  SHA-256 `5fae02318a8c2f32f62c8c3ae39607897e840bd0a611f9f78e418d9173d0d159`.
+- The retained old-file suffix in byte range `[326, 799469)` was exact 799,143 bytes/SHA-256
+  `7dd3ac7ab315c63feeb7effff1b3b19abb4ceca0500ac476e4df58ad6ce12b5d`. The actual EVID-001 heading begins at
+  zero-based byte offset 524; the EVID-001..090 body in byte range `[524, 799469)` was exact 798,945 bytes/
+  SHA-256 `e57f6b65e34da2d0826df420da4c25a24e6f19e334bc85f0c78f50bfde4e271a`. This change updates only the top
+  latest-evidence pointer and appends unique EVID-091 after those retained bytes; EVID-001..090 remain byte-identical.
+- Run `32183309328` proves only the exact Proposed decision-freeze documentation head `5bdf013...`. Its success
+  permits a separate documentation head to transition the bounded ADR-0034 design to Accepted; it does not prove
+  this current acceptance head, product implementation, contract `passing`, backend support, completion or terminal
+  evidence. The current acceptance head requires its own unique exact-head hosted CI and independent audit, to be
+  recorded as EVID-092; EVID-091 must not be reused for it.
+- Product remains exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12;
+  reference remains exact 13/139/156=`122+5+12 locked`. MIG-075..086 remain reference-only `oracle_locked`,
+  Q-010/Q-012/Q-013 remain `Partial` and Q-017/Q-019 remain P1/open.
+- Actual `migrations/internal/definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
+  relation port, relation-capable `StateReconstructor` and epoch/fingerprint/DAG restart remain unimplemented.
+- Phase A proposal provenance remains historical `kind=proposal`, decision ID `GDJ-0035`, `derived=false`; later
+  acceptance does not retroactively reclassify checked-in artifacts. Draft PR #1 remains open, draft and unmerged.
+  This evidence does not authorize merge.

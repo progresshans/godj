@@ -431,13 +431,13 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 
 이 카탈로그의 어떤 항목도 자체적으로 완료 표시하지 않습니다. 현재 구현과 검증 여부는 [IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md), 실제 명령은 [TEST_EVIDENCE.md](status/TEST_EVIDENCE.md)를 기준으로 합니다.
 
-## Active Proposed decision: relation-capable migration lifecycle
+## Active Accepted design: relation-capable migration lifecycle
 
-GDJ-0035의 relation-migration capability 상태는 `Proposed/Not implemented`입니다. Existing migration 제품의
+GDJ-0035의 relation-migration decision 상태는 `Accepted/Not implemented`입니다. Existing migration 제품의
 legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
-다음 항목은 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
+다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
-동결한 decision surface이지 현재 지원 표면이 아닙니다.
+채택한 bounded decision surface이지 현재 지원 표면이 아닙니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
 - MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
@@ -448,5 +448,6 @@ legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle�
 Product aggregate는 계속 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12입니다. Phase C exact 8-test-only head `7d36502...`는 EVID-089/090 local/hosted gates를 통과했습니다.
 그 proof는 actual SQLite optional port, actual `StateReconstructor`, product restart 또는 support를 구현하지 않습니다.
-Test-only helper/hash/private catalog는 noncanonical입니다. 이 Proposed docs-freeze head의 own hosted CI가
-pending이며, 성공 뒤에도 별도 acceptance head 전에는 Accepted로 바꾸지 않습니다.
+Test-only helper/hash/private catalog는 noncanonical입니다. Proposed docs-freeze head `5bdf013...`는
+EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 그 성공을 근거로 bounded design만 Accepted됐습니다.
+현재 acceptance docs head의 own hosted CI는 EVID-092 pending이며 product state는 바뀌지 않았습니다.

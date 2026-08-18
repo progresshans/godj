@@ -782,7 +782,7 @@ Django 문서와 테스트에서 파생한 시나리오는 upstream version, 파
 공식 기준 링크와 로컬 검증 정보는 [SOURCES.md](SOURCES.md), 구체적인 파생물 정책은
 [LICENSING.md](LICENSING.md)에 있습니다.
 
-## MIG-075..086 Proposed decision compatibility boundary
+## MIG-075..086 Accepted decision compatibility boundary
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 MIG-075..086 exact
 12 reference-only contract ID를 고정했습니다. Exact 16-document activation head `52f9bcb7...`는
@@ -797,29 +797,30 @@ Phase C exact 8-test-only decision proof head `7d36502...`는
 [EVID-089](status/TEST_EVIDENCE.md#evid-20260819-089--gdj-0035-phase-c-test-only-decision-proof-local-validation)와
 [EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
 [run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)에서 local/hosted 검증됐습니다.
-ADR과 product status는 바뀌지 않았습니다.
+Proposed decision-freeze docs head `5bdf013...`도 EVID-091/run `32183309328`의 별도 local/hosted proof를
+통과했고 그 성공을 근거로 ADR-0034 bounded design이 Accepted됐습니다. Product status는 바뀌지 않았습니다.
 
-Compatibility candidate는 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
+Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
 
-| ID | Proposed observation | 현재 분류 |
+| ID | Accepted decision/reference observation | 현재 분류 |
 |---|---|---|
 | MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | `oracle_locked` / Accepted-decision reference |
-| MIG-076 | Additive public relation constants `(loader ABI, codec, IR)=(2,2,3)`, one `Load`, per-document dispatch와 hybrid rejection | `oracle_locked` / proposal reference |
-| MIG-077 | Per-document profile을 포함한 relation-only/mixed digest domain v2; legacy-only v1 byte preservation | `oracle_locked` / proposal reference |
-| MIG-078 | `RelationStateFormatVersion=2`, whole-step scalar v1↔relation v2 promote/demote; helpers unexported | `oracle_locked` / proposal reference |
-| MIG-079 | Wire `target_field` 없이 historical exact AutoField derivation과 static/history-plan/physical three-stage preflight | `oracle_locked` / proposal reference |
+| MIG-076 | Additive public relation constants `(loader ABI, codec, IR)=(2,2,3)`, one `Load`, per-document dispatch와 hybrid rejection | `oracle_locked` / Accepted-decision reference |
+| MIG-077 | Per-document profile을 포함한 relation-only/mixed digest domain v2; legacy-only v1 byte preservation | `oracle_locked` / Accepted-decision reference |
+| MIG-078 | `RelationStateFormatVersion=2`, whole-step scalar v1↔relation v2 promote/demote; helpers unexported | `oracle_locked` / Accepted-decision reference |
+| MIG-079 | Wire `target_field` 없이 historical exact AutoField derivation과 static/history-plan/physical three-stage preflight | `oracle_locked` / Accepted-decision reference |
 | MIG-080 | Relation CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
-| MIG-081 | Populated nullable AddField, empty required support와 populated required rejection | `oracle_locked` / observed + proposal separation |
+| MIG-081 | Populated nullable AddField, empty required support와 populated required rejection | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-082 | FK remove/remake row/sequence preservation | `oracle_locked` / Django observed |
-| MIG-083 | Exact pinned connection FK-on, physical `NO ACTION`와 existing revision-fence reuse | `oracle_locked` / observed + proposal separation |
+| MIG-083 | Exact pinned connection FK-on, physical `NO ACTION`와 existing revision-fence reuse | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-084 | File-backed restart observation; actual epoch/fingerprint/DAG/`StateReconstructor` product proof blocked | `oracle_locked` / Django observed |
-| MIG-085 | Three-stage preflight, one existing fenced transaction, rollback/cause policy | `oracle_locked` / observed + proposal separation |
-| MIG-086 | Commit three outcomes, no retry | `oracle_locked` / proposal reference |
+| MIG-085 | Three-stage preflight, one existing fenced transaction, rollback/cause policy | `oracle_locked` / observed + Accepted-decision separation |
+| MIG-086 | Commit three outcomes, no retry | `oracle_locked` / Accepted-decision reference |
 
 Pinned Django 6.1/SQLite external observation과 GoDj-owned decision/reference provenance는 계속 구분합니다.
-Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned payload는 이 later Proposed
-decision freeze 뒤에도 historical artifact의 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를
+Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned payload는 later
+acceptance 뒤에도 historical artifact의 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를
 소급 변경하지 않고 Django exact parity로 표현하지 않습니다. Django BSD source/test provenance는 실제 관찰한
 부분에만 붙이며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Q-010/Q-012/Q-013은
 `Partial`, Q-017/Q-019는 P1/open을 유지합니다.
@@ -830,7 +831,7 @@ oracle 125,248/`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27
 1,245/`5022a23094702463861f32270f373ba1287b609e5b3f8cb5723b74db8d69cf4f`입니다. MIG-085의
 Django 관찰은 recorder fault 전 schema-editor DDL이 이미 commit되어 schema는 남고 record는 없는 경계입니다.
 Pre-DDL fault만 완전 rollback됐습니다. 이 관찰을 GoDj same-transaction atomic proposal의 parity로 표현하지
-않습니다. Proposed product API는 `migrations/backend`의 additive `RelationRevisionFencedBackend`/
+않습니다. Accepted product design은 `migrations/backend`의 additive `RelationRevisionFencedBackend`/
 `RelationRevisionFencedSession`, exact four capabilities와 existing `RevisionFencedTransaction` 하나입니다.
 Relation support는 구현 후에도 `definition.Load`/`Set.Migrate`/`Executor.Migrate` normal path만 소유하며 direct
 legacy Apply/Unapply/ExecutePlan은 relation-bearing input을 capability error로 거부합니다. Loader profile/
@@ -842,5 +843,5 @@ Existing public signatures/entrypoint는 0개 변경이고 legacy/empty set과 r
 legacy execution은 pre-Begin `CategoryCapability`/`CodeUnsupported` feature `relation_migration`, public
 reconstructor raw relation은 existing `CategoryState`/`CodeInvalidState`입니다. Internal exported identifiers는
 consumer API가 아닙니다. Actual internal handoff, SQLite optional port와 relation-capable `StateReconstructor`는
-아직 미구현입니다. 이 docs-freeze head 자체의 hosted CI가 성공하고 별도 acceptance head가 만들어지기 전까지
-ADR-0034는 Proposed입니다.
+아직 미구현입니다. EVID-091은 Proposed docs-freeze head `5bdf013...`만 증명하며 현재 acceptance docs head의
+unique hosted CI는 EVID-092 pending입니다.

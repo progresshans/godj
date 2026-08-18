@@ -5,7 +5,7 @@
   유일한 active contract-first packet이고 ready는 0입니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
   P0..P3=0을 통과했습니다. Product/Q 상태는 불변입니다. GDJ-0035는 MIG-075..086 exact 12
-  planned contracts와 Proposed ADR-0034를 활성화했으며 source/workflow/artifact/product 변경은 0입니다.
+  planned contracts와 당시 Proposed ADR-0034를 활성화했으며 source/workflow/artifact/product 변경은 0입니다.
   Exact 16-document activation head `52f9bcb7...`는 EVID-084/run `31618469072`의 고유 exact
   26/26 jobs·326/326 steps와 audit P0..P3=0을 통과했고 EVID-083을 activation proof로 재사용하지 않았습니다.
   Phase A reference-only artifacts는 EVID-085에서 로컬 고정했고 exact committed head `84e16bf...`는
@@ -16,8 +16,9 @@
   고유 attempt-1 exact 26/26 jobs·342/342 steps와 hosted audit P0..P3=0을 통과했습니다. Phase B는
   hosted-verified됐습니다. Phase C exact 8-test-only decision proof head `7d36502...`는 EVID-089/090과
   unique run `32174259324`의 exact 26/26 jobs·342/342 steps, audit P0..P3=0을 통과했습니다. Relation
-  product boundary는 Proposed ADR-0034에 동결됐지만 product/ADR status는 불변입니다. 현재 단계는 이
-  Proposed docs-freeze head의 own hosted CI이고, 그 성공 뒤 별도 acceptance head 전에는 Accepted로 바꾸지 않습니다.
+  Proposed docs-freeze head `5bdf013...`는 EVID-091/run `32183309328`의 별도 local/hosted gates와 audit
+  P0..P3=0을 통과했고 그 성공을 근거로 이 별도 documentation head에서 ADR-0034 bounded design을 Accepted로
+  전환했습니다. Product status는 불변입니다. 현재 단계는 acceptance docs head의 own hosted CI와 EVID-092입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-19
@@ -591,16 +592,17 @@ activation head `52f9bcb7...`는
    [run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 attempt-1 exact
    26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Four SQLite coordinates는 각각
    75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`를 재현했습니다.
-3. Phase C proof (**completed and hosted-verified, Proposed docs head pending**): exact 8개 test-only file에서
+3. Phase C decision (**Accepted; acceptance-head hosted proof pending**): exact 8개 test-only file에서
    numeric version tuple/state behavior, one-loader/per-document dispatch/one Planner, digest v2, whole-step state transition,
    wire `target_field` 제거, three-stage preflight, candidate existing-fence behavior/four capabilities와 SQLite order를
-   동결했습니다. 이 Proposed docs freeze가 additive public constant/port/type names를 선택하며 test-only proof는
+   동결했습니다. Accepted decision은 additive public constant/port/type names를 선택하며 test-only proof는
    product package에서 그 names를 export하지 않았습니다. Exact head `7d36502...`, tree `d9e8a6b7...`는
    [EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
    [run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)의 unique exact
-   26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. 이 Proposed docs-freeze head는 자체 unique hosted
-   CI가 pending이고, 성공 뒤에도 별도 acceptance head에서만 ADR status를 바꿉니다.
-4. Phase D: ADR acceptance 뒤 legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
+   26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Proposed docs-freeze head `5bdf013...`도
+   EVID-091/run `32183309328`의 고유 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고, 이 별도 head에서
+   ADR-0034를 Accepted로 전환했습니다. 현재 acceptance docs head의 unique hosted proof는 EVID-092 pending입니다.
+4. Phase D: acceptance head의 EVID-092 뒤 legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
    bounded implementation합니다.
 5. Phase E: implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
 

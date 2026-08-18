@@ -428,13 +428,15 @@ version handshake는 Q-010으로 남아 있고, generator runner는 여전히 `i
 
 현재 핵심 미결정 사항은 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), 채택된 이유는 [adr/](adr/README.md)에 기록합니다.
 
-## GDJ-0035 relation-capable migration Proposed decision boundary
+## GDJ-0035 relation-capable migration Accepted decision boundary
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 completed
 GDJ-0034 terminal baseline 위의 단일 active contract-first packet입니다. Phase A/B reference/feasibility와
-Phase C test-only decision proof는 EVID-085..090에서 local/hosted 검증됐습니다.
-[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 그 증거로
-다음 product pipeline을 동결했지만 아직 Accepted, Implemented 또는 Verified가 아닙니다.
+Phase C test-only decision proof는 EVID-085..090에서 local/hosted 검증됐습니다. Proposed decision-freeze
+docs head `5bdf013...`도 EVID-091/run `32183309328`의 별도 local/hosted proof를 통과했고,
+[Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 그 증거로
+다음 bounded product pipeline을 채택했습니다. Accepted는 설계 상태이며 Implemented, Verified 또는 backend
+support를 뜻하지 않습니다.
 
 ```text
 legacy (1,1,1,2) document ─┐
@@ -478,7 +480,7 @@ inbound FK/index/trigger/view/generated object는 fail-closed합니다.
 
 Test-only helper/type/error names, golden/hash와 private catalogs는 noncanonical입니다. Writer/autodetector,
 general schema preservation, self/cyclic/inbound relation, non-AutoField target, non-SQLite backend와 Q-017/Q-019는
-범위 밖입니다. Exact test-only head `7d36502...`/EVID-090은 hosted-verified됐지만 이 Proposed docs-freeze
-head는 자체 hosted CI가 pending입니다. Test-only head는 later `definitionhandoff` product bridge를 구현하거나
-검증하지 않았습니다. Docs head의 성공 뒤 별도 acceptance head 전에는 ADR status와 product state를 바꾸지
-않습니다.
+범위 밖입니다. Exact test-only head `7d36502...`/EVID-090과 Proposed docs-freeze head `5bdf013...`/EVID-091은
+각각 별도로 hosted-verified됐습니다. Test-only head는 later `definitionhandoff` product bridge를 구현하거나
+검증하지 않았고 actual port/reconstructor/restart도 미구현입니다. 현재 acceptance docs head 자체의 unique hosted
+CI는 EVID-092 pending이며 EVID-091을 재사용하지 않습니다.

@@ -1,8 +1,9 @@
 # ADR-0034: Relation-capable Migration Format, State, and SQLite ForeignKey DDL
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-13
 - Phase C decision freeze: 2026-08-19
+- Decision accepted: 2026-08-19
 - 관련 work/contract:
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md),
   MIG-075..MIG-086, Q-010, Q-012, Q-013
@@ -17,9 +18,11 @@
 
 ## 상태와 범위
 
-이 ADR은 여전히 **Proposed**입니다. Phase C의 test-only decision proof와 exact-head hosted CI를 근거로
-아래 product boundary를 동결했지만, 아직 장기 방향으로 Accepted하지 않았고 제품 구현 또는 제품 검증도
-아닙니다.
+이 ADR의 decision 상태는 bounded relation-capable migration definition/state와 SQLite ForeignKey lifecycle
+설계에 한해 **Accepted**입니다. Phase C test-only decision proof EVID-089/090과 그 경계를 기록한 Proposed
+decision-freeze documentation head `5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed`의 별도 local/hosted proof
+EVID-091을 근거로 아래 bounded product design을 채택합니다. Accepted는 설계 상태이며 제품 구현, product
+contract `passing`, backend support 또는 **Verified**를 뜻하지 않습니다.
 
 - Exact test-only decision-proof head
   `7d36502f104daa62b39744b5705478acc19a7ead`, tree
@@ -30,8 +33,12 @@
 - [EVID-090](../status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
   [run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)는 그 exact head의 고유
   26/26 jobs·342/342 steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 기록합니다.
-- 이 Proposed decision-freeze 문서 head 자체는 아직 고유 hosted CI가 없습니다. 이 문서 head가 별도
-  exact-head CI를 통과한 뒤에만 다시 별도 acceptance 문서 head에서 `상태: Accepted`를 검토합니다.
+- [EVID-091](../status/TEST_EVIDENCE.md#evid-20260819-091--gdj-0035-proposed-decision-freeze-documentation-head-local-validation-and-exact-head-hosted-ci) /
+  [run 32183309328](https://github.com/progresshans/godj/actions/runs/32183309328)는 exact Proposed
+  decision-freeze documentation head `5bdf013c8f0c1bba25c1c21c1c633cfe07be74ed`의 local final-byte gates와
+  고유 26/26 jobs·342/342 steps, independent audit P0/P1/P2/P3=`0/0/0/0`을 기록합니다.
+- EVID-091은 이전 Proposed docs head만 증명합니다. 이 Accepted transition head 자체의 unique exact-head
+  hosted CI와 independent audit는 아직 pending이며 EVID-092로 별도 기록해야 합니다.
 
 이번 결정은 existing scalar migration ABI를 보존하면서 AutoField-target `ForeignKey` definition과 historical
 state를 기존 revision-fenced SQLite lifecycle로 전달하는 단면만 다룹니다. Writer/autodetector, arbitrary schema
@@ -94,9 +101,9 @@ packet에서는 exact recognized shape만 보존하고 그 밖은 capability err
 ### Versioned profile, whole-step state transition과 additive existing-fence relation port
 
 Old ABI를 보존하면서 relation document만 새 profile로 분리하고, 한 loader/Planner와 기존 fenced lifecycle에
-합류시킵니다. Phase C에서 동결한 Proposed 방향입니다.
+합류시킵니다. Phase C proof와 Proposed decision-freeze head의 별도 hosted proof를 거쳐 채택한 방향입니다.
 
-## Proposed decision freeze
+## Accepted decision
 
 ### Definition profile, one loader and one planner
 
@@ -298,7 +305,7 @@ type RelationMigrationTarget struct {
   `CommitFenced`와 `Rollback`은 같은 transaction identity를 사용합니다.
 - Relation backend가 없거나 네 capability 중 필요한 항목이 false이면 legacy begin으로 fallback하지 않고
   pre-session/pre-DDL structured capability error로 실패합니다.
-- 위 exported interface/type/method/capability field 이름과 역할만 Proposed public decision surface입니다.
+- 위 exported interface/type/method/capability field 이름과 역할만 Accepted public decision surface입니다.
   Test-only adapters, opaque seals, private catalogs, helper constructors와 proof hashes는 noncanonical입니다.
 
 ### SQLite order and physical policy
@@ -414,34 +421,34 @@ Phase C의 candidate-local restart, fake recorder/revision, private catalog와 h
 
 ## Contract matrix
 
-| ID | Frozen Proposed decision/reference observation | 현재 분류 |
+| ID | Accepted decision/reference observation | 현재 분류 |
 |---|---|---|
 | MIG-075 | Existing legacy tuple/state v1/digest v1/lifecycle ABI preservation | `oracle_locked` / Accepted legacy reference |
-| MIG-076 | Exact relation tuple, per-document dispatch와 hybrid rejection | `oracle_locked` / proposal reference |
-| MIG-077 | Relation-only/mixed set profile-bearing canonical digest v2 | `oracle_locked` / proposal reference |
-| MIG-078 | Whole-step scalar v1↔relation v2 promotion/demotion and deep-copy | `oracle_locked` / proposal reference |
-| MIG-079 | Target AutoField derivation and three-stage plan preflight | `oracle_locked` / proposal reference |
+| MIG-076 | Exact relation tuple, per-document dispatch와 hybrid rejection | `oracle_locked` / Accepted-decision reference |
+| MIG-077 | Relation-only/mixed set profile-bearing canonical digest v2 | `oracle_locked` / Accepted-decision reference |
+| MIG-078 | Whole-step scalar v1↔relation v2 promotion/demotion and deep-copy | `oracle_locked` / Accepted-decision reference |
+| MIG-079 | Target AutoField derivation and three-stage plan preflight | `oracle_locked` / Accepted-decision reference |
 | MIG-080 | Relation CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
-| MIG-081 | Populated nullable success, empty required support, populated required rejection | `oracle_locked` / observed + proposal separation |
+| MIG-081 | Populated nullable success, empty required support, populated required rejection | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-082 | FK remove/remake row and `sqlite_sequence` preservation | `oracle_locked` / Django observed |
-| MIG-083 | Exact connection FK-on, physical `NO ACTION` and existing fence reuse | `oracle_locked` / observed + proposal separation |
+| MIG-083 | Exact connection FK-on, physical `NO ACTION` and existing fence reuse | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-084 | File-backed restart | `oracle_locked` / Django observed; product restart blocked |
-| MIG-085 | Precommit rollback/cause behavior and one fenced transaction | `oracle_locked` / observed + proposal separation |
-| MIG-086 | Commit success/definite failure/unknown outcome and no retry | `oracle_locked` / proposal reference |
+| MIG-085 | Precommit rollback/cause behavior and one fenced transaction | `oracle_locked` / observed + Accepted-decision separation |
+| MIG-086 | Commit success/definite failure/unknown outcome and no retry | `oracle_locked` / Accepted-decision reference |
 
 MIG-075..086은 reference-only이며 product handler가 없습니다. Product aggregate는 계속 exact 12 adapters/
 127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다.
 
 ## 결과와 비용
 
-이 Proposed boundary가 별도 acceptance head에서 Accepted되면 old migration artifact를 바꾸지 않고 relation-capable
-document를 점진적으로 추가할 수 있고, historical relation meaning과 SQLite physical constraint가 explicit
+이 Accepted boundary는 old migration artifact를 바꾸지 않고 relation-capable document를 점진적으로 추가할 수 있고,
+historical relation meaning과 SQLite physical constraint가 explicit
 version/capability/fence 경계에 놓입니다. Three-stage preflight와 bounded remake는 silent data loss를 줄이지만
 지원 가능한 existing SQLite schema shape를 좁힙니다. Optional editor, state promotion과 mixed digest는 public
 compatibility surface와 test matrix를 늘립니다.
 
-현재 결과는 decision space를 test-only proof와 일치하게 동결한 것뿐입니다. Code, artifact, product status,
-Q status와 backend support는 바뀌지 않았습니다.
+현재 결과는 decision space를 test-only proof와 일치하게 채택한 것뿐입니다. Code, artifact, product status,
+Q status와 backend support는 바뀌지 않았고 MIG-075..086은 모두 reference-only `oracle_locked`입니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -459,14 +466,17 @@ Q status와 backend support는 바뀌지 않았습니다.
 1. Phase A reference-only artifacts와 exact-head hosted CI는 EVID-085/086에서 완료했습니다.
 2. Phase B no-product feasibility와 exact-head hosted CI는 EVID-087/088에서 완료했습니다.
 3. Phase C test-only decision proof와 exact-head hosted CI는 EVID-089/090에서 완료했습니다.
-4. 이 Proposed decision-freeze documentation head가 자체 고유 exact-head hosted CI와 independent audit를
-   통과해야 합니다.
-5. 그 성공을 기록한 뒤에만 별도 acceptance documentation head에서 `상태: Accepted`를 변경할 수 있습니다.
-6. Accepted 이후에도 actual `definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
+4. Proposed decision-freeze documentation head `5bdf013...`의 local final-byte gates와 고유 exact-head hosted
+   CI/independent audit는 EVID-091에서 완료했습니다.
+5. 그 성공을 별도 documentation head에 기록하고 이 ADR의 bounded decision 상태를 `Accepted`로 전환했습니다.
+6. 현재 acceptance documentation head 자체의 고유 exact-head hosted CI와 independent audit는 EVID-092로
+   별도 기록해야 하며 EVID-091을 재사용하지 않습니다.
+7. Accepted 이후에도 actual `definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
    relation port와 actual `StateReconstructor` relation state를 구현하고, local normal/race/CGO-disabled/vet,
    exact SQLite/file restart/fault/no-rewrite/compile gates와 별도 implementation/completion/terminal hosted heads를
    통과해야 Implemented/Verified를 주장할 수 있습니다.
 
-EVID-090/run `32174259324`는 exact test-only proof head만 증명합니다. 이 later Proposed docs freeze,
-acceptance, product implementation, completion 또는 terminal proof로 재사용하지 않습니다. Draft PR #1은
-open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
+EVID-090/run `32174259324`는 exact test-only proof head만, EVID-091/run `32183309328`은 exact Proposed
+decision-freeze docs head `5bdf013...`만 증명합니다. 둘 다 현재 acceptance head, product implementation,
+completion 또는 terminal proof로 재사용하지 않습니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전
+merge하지 않습니다.

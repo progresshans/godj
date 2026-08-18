@@ -91,9 +91,9 @@ assertion 구조를 복사·번역하지 않았습니다. Exact oracle은 Django
 observation이며 static fixture의 12 `not_implemented`와 함께 유지됩니다. `oracle_locked`는
 GoDj relation 제품 adapter나 PostgreSQL/MySQL 지원을 뜻하지 않습니다.
 
-GDJ-0035 Phase A의 relation-capable migration reference는 Proposed ADR-0034 후보를 검증하는
+GDJ-0035 Phase A의 relation-capable migration reference는 당시 Proposed ADR-0034 후보를 검증하는
 12-contract reference-only set으로 로컬에서 고정했습니다.
-Accepted되지 않은 GoDj-owned tuple/digest/state/preflight/SQLite DDL payload에는 provenance
+당시 Accepted되지 않은 GoDj-owned tuple/digest/state/preflight/SQLite DDL payload에는 provenance
 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를 사용합니다. 이는 `kind=decision`이나 Django parity로
 승격하지 않습니다. Django BSD-3-Clause source/test
 provenance는 pinned commit에서 실제 관찰한 path/symbol에만 붙입니다. GoDj scenario, fixture, payload와
@@ -104,9 +104,11 @@ SHA-256 `dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`, orac
 `c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`의 로컬 고정을 기록하지만,
 ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Phase A exact head는 EVID-086/run
 `31625898551`, Phase B no-product head는 EVID-088/run `31653237691`, Phase C test-only decision proof head
-`7d36502...`는 EVID-090/run `32174259324`에서 각각 hosted-verified됐습니다. 이 later Proposed decision
-freeze는 Phase A artifact의 historical `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를
-`kind=decision`으로 소급 변경하지 않습니다. ADR은 Proposed이고 product는 미구현입니다.
+`7d36502...`는 EVID-090/run `32174259324`에서 각각 hosted-verified됐습니다. Proposed decision-freeze docs
+head `5bdf013...`도 EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 ADR-0034 bounded design은
+그 뒤 Accepted됐습니다. Later acceptance는 Phase A artifact의 historical `kind=proposal`, decision ID
+`GDJ-0035`, `derived=false`를 `kind=decision`으로 소급 변경하지 않습니다. Product는 미구현이고 현재
+acceptance docs head의 hosted proof EVID-092는 pending입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

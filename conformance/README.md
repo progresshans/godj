@@ -71,8 +71,9 @@ general cascade/eager graph/DDL/migration 전체
 지원을 뜻하지 않습니다.
 GDJ-0035 Phase B와 Phase C는 `conformance/migrationrelation`의 test-only candidate/proof만 검증했습니다.
 Exact Phase C head `7d36502...`/EVID-090은 one-loader/profile/digest/state/wire/preflight/existing-fence/SQLite
-decision boundary를 동결했지만 MIG-075..086 product handler, actual SQLite optional port와 actual
-`StateReconstructor`를 만들지 않았습니다.
+decision boundary를 동결했고 Proposed docs head `5bdf013...`/EVID-091의 별도 local/hosted 성공 뒤 ADR-0034의
+bounded design이 Accepted됐습니다. MIG-075..086 product handler, actual SQLite optional port와 actual
+`StateReconstructor`는 여전히 미구현이며 현재 acceptance docs head의 hosted proof EVID-092는 pending입니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -834,9 +835,9 @@ Phase B test-only 후보나 ADR-0034 수락을 재귀적으로 증명하지 않�
 EVID-087/088, Phase C exact 8-test-only proof head `7d36502...`는 EVID-089/090/run `32174259324`의
 별도 local/hosted gate를 통과했습니다. Product aggregate와 MIG-075..086 `oracle_locked` 분류는 불변입니다.
 
-Accepted되지 않은 GoDj-owned GDJ-0035 candidate payload는 provenance `kind=proposal`, decision ID `GDJ-0035`,
-`derived=false`로 분류합니다. Pinned Django BSD source/test reference는 실제 관찰한 부분의 provenance일 뿐이며
+Phase A에서 아직 Accepted되지 않았던 GoDj-owned GDJ-0035 candidate payload는 historical provenance
+`kind=proposal`, decision ID `GDJ-0035`, `derived=false`로 계속 분류합니다. Pinned Django BSD source/test
+reference는 실제 관찰한 부분의 provenance일 뿐이며
 GoDj scenario, fixture, payload와 assertion은 독립적으로 작성하고 upstream source, fixture, comment 또는 assertion
-구조를 복사·번역하지 않습니다. ADR-0034가 Proposed인 동안 이 payload를 `kind=decision`이나 Django parity로
-표현하지 않습니다. Phase C Proposed decision freeze는 checked-in Phase A artifact provenance를 소급
-재분류하지 않습니다. Test-only helper/type/error detail, golden/hash와 private catalog도 product API가 아닙니다.
+구조를 복사·번역하지 않습니다. Later ADR-0034 acceptance는 이 payload를 `kind=decision`이나 Django parity로
+소급 재분류하지 않습니다. Test-only helper/type/error detail, golden/hash와 private catalog도 product API가 아닙니다.

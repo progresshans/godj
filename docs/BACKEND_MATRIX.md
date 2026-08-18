@@ -53,11 +53,14 @@ Backend별 verified 상태는 기능 contract와
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
 
 GDJ-0035 Phase C는 relation migration에 필요한 optional backend 경계를
-[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)로 동결했습니다.
+[Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
+design으로 채택했습니다. Proposed docs-freeze head `5bdf013...`의 local/hosted proof는 EVID-091에 기록했고
+현재 acceptance head의 hosted proof는 EVID-092 pending입니다.
 Exact four capability는 relation-bearing CreateModel, nullable ForeignKey AddField, empty-table required
 ForeignKey AddField와 bounded remake remove입니다. Optional port는 existing revision-fenced backend/session을
 embed하고 existing `RevisionFencedTransaction`을 그대로 반환합니다. SQLite transaction order는 exact connection
 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → revision/history claim → DDL/remake →
 `foreign_key_check` → recorder/successor revision → one commit입니다. 이 경계는 test-only head
 `7d36502...`와 EVID-089/090에서
-검증됐지만 현재 SQLite product에 구현되거나 Verified된 capability가 아닙니다.
+검증됐지만 현재 SQLite product에 구현되거나 Verified된 capability가 아닙니다. MIG-075..086도 모두
+reference-only `oracle_locked`입니다.

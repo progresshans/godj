@@ -122,9 +122,10 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 집행하고 SQLite physical constraint는 두 정책 모두 `NO ACTION`으로 유지합니다.
 
 이 문서는 그 목표를 검증하기 위한 contract-first 활성 packet입니다. 아래 format/state/DDL shape는 Phase C
-test-only proof로 동결됐지만
-[ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 아직
-**Proposed**이며 제품 구현·제품 검증·Accepted 결정이 아닙니다.
+test-only proof와 Proposed decision-freeze docs head의 별도 local/hosted proof를 거쳐
+[ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
+decision으로 **Accepted**됐습니다. 이는 제품 구현, product contract `passing`, backend support 또는 제품
+**Verified**를 뜻하지 않습니다.
 
 ## 기준 상태와 activation 경계
 
@@ -176,11 +177,11 @@ test-only proof로 동결됐지만
    P1/open과 all relation product status를 그대로 둡니다.
 5. Unsupported relation data를 legacy tuple/state로 조용히 낮추거나 current generated model에서 복구하지 않습니다.
 
-## Proposed frozen architecture
+## Accepted frozen architecture
 
 ### Definition profile와 mixed set
 
-- Relation profile은 Proposed exact tuple `(1,2,2,3)`입니다. Existing `migrations/definition` public
+- Relation profile의 Accepted exact tuple은 `(1,2,2,3)`입니다. Existing `migrations/definition` public
   constants/constructors는 보존하고 같은 package에 additive `RelationLoaderABIVersion=2`,
   `RelationOperationCodecVersion=2`, `RelationSchemaIRVersion=3`을 둡니다.
   `definition_format=1` envelope는 유지하되
@@ -191,7 +192,7 @@ test-only proof로 동결됐지만
   중간 hybrid tuple은 새 hybrid code 없이 coordinate별 existing incompatibility로 pre-publication 실패합니다.
 - Legacy-only set은 digest domain v1을 보존합니다. Relation document가 하나라도 있는 relation-only/mixed set은
   domain v2를 사용하고 각 canonical definition에 profile을 포함해 동일 migration 의미라도 profile 차이가
-  digest에 반영되도록 하는 후보입니다. Old definition을 rewrite하지 않습니다.
+  digest에 반영하도록 결정했습니다. Old definition을 rewrite하지 않습니다.
 - Public signature나 entrypoint를 추가하지 않고 planned `migrations/internal/definitionhandoff.Handoff`를
   module-private immutable carrier로 사용합니다. `definition.Load`는 tuple/decode와 combined actual Planner가
   모두 성공한 뒤 exact per-migration profile, cloned `SourceID`/`Producer`, canonical definition seal, set v1/v2
@@ -254,25 +255,25 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 완전 rollback되었습니다. MIG-085는 이 Django-observed boundary와 GoDj same-transaction proposal을 분리해
 고정하며 두 동작이 같다고 주장하지 않습니다.
 
-## MIG-075..086 Frozen Proposed decision/reference matrix
+## MIG-075..086 Accepted decision/reference matrix
 
-| ID | Frozen Proposed decision/reference observation | 현재 분류 |
+| ID | Accepted decision/reference observation | 현재 분류 |
 |---|---|---|
 | MIG-075 | Legacy tuple/codec/state/digest ABI byte preservation | `oracle_locked` / reference-only |
-| MIG-076 | Exact relation profile, coordinate mismatch와 hybrid tuple rejection | `oracle_locked` / proposal reference |
-| MIG-077 | Relation-only/mixed set canonical order, per-document profile와 digest-v2 semantics | `oracle_locked` / proposal reference |
-| MIG-078 | Scalar v1 ↔ relation v2 explicit promote/demote와 alias-free state | `oracle_locked` / proposal reference |
-| MIG-079 | No wire `target_field`, historical AutoField derivation and static/history-plan/physical three-stage preflight | `oracle_locked` / proposal reference |
+| MIG-076 | Exact relation profile, coordinate mismatch와 hybrid tuple rejection | `oracle_locked` / Accepted-decision reference |
+| MIG-077 | Relation-only/mixed set canonical order, per-document profile와 digest-v2 semantics | `oracle_locked` / Accepted-decision reference |
+| MIG-078 | Scalar v1 ↔ relation v2 explicit promote/demote와 alias-free state | `oracle_locked` / Accepted-decision reference |
+| MIG-079 | No wire `target_field`, historical AutoField derivation and static/history-plan/physical three-stage preflight | `oracle_locked` / Accepted-decision reference |
 | MIG-080 | Relation-bearing CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
-| MIG-081 | Populated-table nullable success, empty-table required support와 populated-table required rejection | `oracle_locked` / observed + proposal separation |
+| MIG-081 | Populated-table nullable success, empty-table required support와 populated-table required rejection | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-082 | FK removal table remake의 row/order/sequence preservation | `oracle_locked` / Django observed |
-| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | `oracle_locked` / observed + proposal separation |
+| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-084 | File-backed close/reopen restart와 applied-state reconstruction | `oracle_locked` / Django observed; actual product restart blocked |
-| MIG-085 | Pre-DDL full rollback, recorder-fault committed-schema boundary, GoDj atomic proposal | `oracle_locked` / observed + proposal separation |
-| MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | `oracle_locked` / proposal reference |
+| MIG-085 | Pre-DDL full rollback, recorder-fault committed-schema boundary, GoDj atomic proposal | `oracle_locked` / observed + Accepted-decision separation |
+| MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | `oracle_locked` / Accepted-decision reference |
 
-이 12개 ID만 현재 고정합니다. 이 표는 Phase A의 historical observation/proposal과 Phase C의 later Proposed
-decision을 함께 보여 주며, later decision을 Phase A artifact가 관찰한 사실로 소급하지 않습니다. Checked-in
+이 12개 ID만 현재 고정합니다. 이 표는 Phase A의 historical observation/proposal과 later Accepted decision을
+함께 보여 주며, later decision을 Phase A artifact가 관찰한 사실로 소급하지 않습니다. Checked-in
 Phase A manifest/oracle/static fixture/checksum payload의 provenance는 historical `kind=proposal`, decision ID
 `GDJ-0035`, `derived=false`로 불변입니다. 각 artifact는 7,792/125,248/1,846/1,245 bytes이며 exact SHA-256은
 EVID-085에 기록했습니다.
@@ -301,24 +302,27 @@ EVID-085에 기록했습니다.
 
 ### C. Decision freeze
 
-- 상태: **test-only decision proof completed and hosted-verified; Proposed docs-freeze head pending hosted CI**.
+- 상태: **decision Accepted in a separate documentation head; Proposed decision-freeze head hosted-verified by
+  EVID-091; acceptance head exact-hosted verification pending EVID-092; product unimplemented**.
 - [x] Phase A/B 결과로 version values, one-loader/digest/state/wire/preflight, exact optional
       backend/error/SQLite order의 behavior를 test-only head `7d36502...`에서 검증하고 EVID-089/090으로 고정;
-      이 Proposed docs freeze가 additive public constant/port/type names를 선택하며 test-only proof는 product
+      이 Accepted decision이 additive public constant/port/type names를 선택하며 test-only proof는 product
       package에서 그 names를 export하지 않음
 - [x] Existing `Set.Migrate` metadata-loss 경계를 닫는 module-private `definitionhandoff.Handoff`/context carrier를
-      public signature/entrypoint 변경 없이 이 Proposed docs freeze에서 선택; Phase C test-only head는 이 later
+      public signature/entrypoint 변경 없이 Accepted decision으로 선택; Phase C test-only head는 이 later
       internal product bridge를 구현하거나 검증하지 않음
 - [x] Candidate helper/type/error detail, golden/hash/private catalog는 noncanonical로 분리하고 product
       `StateReconstructor`/SQLite optional port/restart를 blocker로 명시
-- [ ] 이 Proposed decision-freeze documentation head의 unique exact-head hosted CI와 independent audit
-- [ ] 그 hosted success를 기록한 뒤에만 별도 acceptance documentation head에서 ADR status 변경
+- [x] Proposed decision-freeze documentation head `5bdf013...`의 unique exact-head hosted CI와 independent audit —
+      EVID-091/run `32183309328`
+- [x] 그 hosted success를 별도 acceptance documentation head에 기록하고 ADR status를 Accepted로 전환
+- [ ] 현재 acceptance documentation head의 unique exact-head hosted CI와 independent audit — EVID-092
 
 ### D. Bounded implementation
 
 - [ ] ADR acceptance 뒤 existing legacy profile/digest/state/lifecycle bytes와 behavior를 보존하며 relation profile/state/codec 구현
 - [ ] `migrations/internal/definitionhandoff` immutable carrier, relation/mixed `Set` private field와 context handoff,
-  pre-I/O Executor seal validation을 구현하고 frozen Proposed additive public surface가 exact expected inventory와
+  pre-I/O Executor seal validation을 구현하고 Accepted additive public surface가 exact expected inventory와
   일치하며 그 named addition을 제외한 legacy public signature/entrypoint inventory가 byte-for-byte unchanged인지 검증
 - [ ] Static zero-I/O preflight → existing history/actual-plan preflight → pinned SQLite physical preflight 순서와
   additive relation editor/lifecycle/remake 구현
@@ -335,10 +339,11 @@ EVID-085에 기록했습니다.
       `31653237691`; 26/26 jobs·342/342 steps, annotations 0, four SQLite coordinates 75/75/0, audit P0..P3=0
 - [x] Phase C exact 8-test-only decision proof local/hosted gates — EVID-089/090/run `32174259324`; exact
       26/26 jobs·342/342 steps, annotations 0, audit P0..P3=0
-- [ ] Proposed decision-freeze documentation head와 later acceptance documentation head를 서로 다른 exact-head
-      hosted CI로 검증
+- [x] Proposed decision-freeze documentation head를 EVID-091의 고유 exact-head CI/evidence로 검증하고 Phase C
+      test-only run을 재사용하지 않음
+- [ ] Acceptance documentation head를 EVID-092의 별도 고유 exact-head CI/evidence로 검증하고 EVID-091을 재사용하지 않음
 - [ ] Phase D product implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
-- [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034는 의도적으로 Proposed 유지
+- [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034 bounded design을 별도 head에서 Accepted로 전환
 
 ## 명시적 비목표와 금지 경계
 
@@ -364,9 +369,11 @@ EVID-085에 기록했습니다.
 
 Phase A/B는 EVID-085..088에서 hosted-verified됐고 Phase C exact 8-test-only decision proof head
 `7d36502...`도 EVID-089/090/run `32174259324`의 unique 26/26 jobs·342/342 steps와 audit P0..P3=0을
-통과했습니다. Proposed product boundary는 ADR-0034에 동결했습니다. 다음 정확한 작업은 이 Proposed
-decision-freeze documentation head 자체의 unique hosted CI와 independent audit입니다. 그 성공을 기록한 뒤에만
-별도 acceptance documentation head에서 ADR status를 변경합니다. Product source 구현은 acceptance 전 금지합니다.
+통과했습니다. Proposed decision-freeze docs head `5bdf013...`도 EVID-091/run `32183309328`의 unique hosted
+26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고, 그 성공을 근거로 ADR-0034 bounded design을 이 별도
+documentation head에서 Accepted로 전환했습니다. 다음 정확한 작업은 현재 acceptance documentation head 자체의
+unique exact-head hosted CI와 independent audit를 실행하고 EVID-092로 기록하는 것입니다. EVID-091을 acceptance
+proof로 재사용하지 않으며 그 검증 전 product source 구현을 시작하지 않습니다.
 
 ## 결과와 인수인계
 
@@ -379,10 +386,12 @@ pinned exact Python 216/216+13 oracle checks+13 checksums, root `make ci`와 두
 75/75/0, four relation-product coordinates 각각 725/725/0과 independent hosted audit P0..P3=0도 통과했습니다.
 Reference는 exact 13 set/139 contract/156 ordered cross-binding=`122 passing + 5 deviation + 12 oracle_locked`지만
 product는 12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변입니다. Product source/artifact/manifest/
-oracle/NI/Makefile은 바뀌지 않았고 새 digest/state/DDL product behavior는 없으며 ADR-0034는 Proposed입니다.
+oracle/NI/Makefile은 바뀌지 않았고 새 digest/state/DDL product behavior는 없습니다. ADR-0034의 bounded design만
+Accepted이며 product는 미구현입니다.
 Actual module-private `definitionhandoff` carrier/context bridge/Executor seal validation, SQLite product optional
 relation port와 actual `StateReconstructor` relation state는 implementation blocker입니다.
 현재 product `StateReconstructor`는 relation-bearing `AddField`를 `CategoryState`/`CodeInvalidState`로 거부합니다.
 Candidate-local restart는 product epoch/fingerprint/DAG/reconstructor evidence가 아닙니다. EVID-090은 test-only
-proof head만 검증하며 이 Proposed docs tree는 아직 recursively hosted-verified되지 않았습니다. Allowed path 이름을 바꿔야 하면 source를
+proof head만, EVID-091은 Proposed docs head `5bdf013...`만 검증하며 현재 acceptance docs tree는 아직
+recursively hosted-verified되지 않았습니다. Allowed path 이름을 바꿔야 하면 source를
 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를 다시 승인합니다.

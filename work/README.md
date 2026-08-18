@@ -68,7 +68,7 @@ terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 
 audit P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086
 exact 12 reference-only contracts를 고정했고 [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는
-Proposed입니다. Activation head `52f9bcb7...`는 EVID-084/run `31618469072`, Phase A committed head
+bounded design에 한해 Accepted입니다. Activation head `52f9bcb7...`는 EVID-084/run `31618469072`, Phase A committed head
 `84e16bf...`는 EVID-086/run `31625898551`의 서로 다른 unique exact-head 26/26 jobs·326/326 steps와
 audit P0..P3=0을 통과했습니다. Reference는 exact 13/139/156=`122+5+12 locked`, product는 exact
 12/127=`122+5+0`으로 불변입니다. Phase A는 hosted-verified됐고 Phase B exact 14개 `_test.go` no-product
@@ -78,9 +78,11 @@ Exact Phase B head `c2ecb292...`는 EVID-088/run `31653237691`의 고유 attempt
 steps와 hosted audit P0..P3=0을 통과했습니다. Phase C exact 8-test-only decision proof head `7d36502...`도
 EVID-089/090/run `32174259324`의 고유 exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다.
 One-loader/profile/digest, whole-step state, wire target-key derivation, three-stage preflight, additive existing-fence
-port/four capabilities와 SQLite order를 Proposed ADR-0034에 동결했지만 Product/ADR 상태는 불변입니다. 다음은
-이 Proposed docs-freeze head의 own hosted CI이고 그 성공 뒤 별도 acceptance head 전에는 Accepted로 바꾸지
-않습니다. Actual SQLite product optional relation port와 actual `StateReconstructor` relation state는 blocker입니다.
+port/four capabilities와 SQLite order를 ADR-0034에 동결했습니다. Proposed docs-freeze head `5bdf013...`는
+EVID-091/run `32183309328`의 고유 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고 이 별도 head에서
+bounded design을 Accepted로 전환했습니다. Product 상태는 불변이며 현재 acceptance docs head의 own unique
+hosted CI와 EVID-092가 다음 작업입니다. Actual SQLite product optional relation port와 actual
+`StateReconstructor` relation state는 blocker입니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
