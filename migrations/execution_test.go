@@ -66,6 +66,31 @@ func TestExecutorExecutePlanEmptyPlanDoesNotInspectDefinitionsOrBackend(t *testi
 	}
 }
 
+func TestExecutorExecutePlanRejectsRawRelationBeforeEmptyNoOpOrIO(t *testing.T) {
+	t.Parallel()
+
+	definition := Migration{
+		App: "blog", Name: "0001_post",
+		Operations: []Operation{CreateModel{AppLabel: "blog", Model: relationMigrationSchema().Models[0]}},
+	}
+	for _, plan := range [][]PlanStep{
+		nil,
+		{{Key: definition.Key(), Direction: DirectionForward}},
+	} {
+		fake := &planTestBackend{}
+		before := EmptyProjectState()
+		after, err := (Executor{Backend: fake}).ExecutePlan(context.Background(), before, []Migration{definition}, plan)
+		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+		var capability *backend.CapabilityError
+		if !errors.As(err, &capability) || capability.Feature != "relation_migration" {
+			t.Fatalf("ExecutePlan(raw relation) error = %#v capability=%#v", err, capability)
+		}
+		if fake.beginCount != 0 || !after.Equal(before) {
+			t.Fatalf("ExecutePlan(raw relation) touched I/O/state: begin=%d apps=%v", fake.beginCount, after.Apps())
+		}
+	}
+}
+
 func TestExecutorExecutePlanRejectsStructuralErrorsBeforeIO(t *testing.T) {
 	t.Parallel()
 

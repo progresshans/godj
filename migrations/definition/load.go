@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 )
 
 type plannerValidator func([]migrations.Migration) error
@@ -126,9 +127,25 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (Set, LoadRepo
 		return Set{}, withFailure(report, failure.context), err
 	}
 
-	digest, err := definitionSetDigest(definitions)
-	if err != nil {
-		return Set{}, report, err
+	digest := ""
+	var handoff definitionhandoff.Handoff
+	hasRelationProfile := false
+	for index := range decoded {
+		hasRelationProfile = hasRelationProfile || decoded[index].profile == relationDefinitionProfile
+	}
+	if hasRelationProfile {
+		var err error
+		handoff, err = newDefinitionHandoff(decoded)
+		if err != nil {
+			return Set{}, report, err
+		}
+		digest = handoff.Digest()
+	} else {
+		var err error
+		digest, err = definitionSetDigest(definitions)
+		if err != nil {
+			return Set{}, report, err
+		}
 	}
 	inventory := make([]SourceInfo, len(decoded))
 	for index := range decoded {
@@ -143,7 +160,7 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (Set, LoadRepo
 	})
 	report.DefinitionsPublished = len(definitions)
 	report.DefinitionSetsPublished = 1
-	return newSet(definitions, digest, inventory), report, nil
+	return newSet(definitions, digest, inventory, handoff), report, nil
 }
 
 func preflightAndSnapshot(sources []Source) ([]sourceSnapshot, failureCandidate, bool) {

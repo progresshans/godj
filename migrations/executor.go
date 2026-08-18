@@ -141,32 +141,41 @@ func (e Executor) execute(ctx context.Context, before ProjectState, migration Mi
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
 	}
-	prepared, after, err := preflight(before, migration, direction)
+	migrationSnapshot := cloneMigrationDefinitions([]Migration{migration})[0]
+	var err error
+	ctx, err = consumeDefinitionHandoff(ctx, []Migration{migrationSnapshot}, direction)
+	if err != nil {
+		return before.Clone(), err
+	}
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migrationSnapshot, NoOperation, "", err)
+	}
+	prepared, after, err := preflight(before, migrationSnapshot, direction)
 	if err != nil {
 		return before.Clone(), err
 	}
 	// State preflight is intentionally pure, but it can be non-trivial. Honor
 	// cancellation that arrives while it runs before touching the backend.
 	if err := ctx.Err(); err != nil {
-		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
+		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migrationSnapshot, NoOperation, "", err)
 	}
 	if isNilInterface(e.Backend) {
-		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migration, NoOperation, "", errors.New("backend is nil"))
+		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migrationSnapshot, NoOperation, "", errors.New("backend is nil"))
 	}
 	transaction, err := e.Backend.BeginMigration(ctx)
 	if err != nil {
 		category, code := beginErrorClass(err)
-		return before.Clone(), migrationError(category, code, direction, migration, NoOperation, "", err)
+		return before.Clone(), migrationError(category, code, direction, migrationSnapshot, NoOperation, "", err)
 	}
 	if isNilInterface(transaction) {
-		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migration, NoOperation, "", errors.New("backend returned a nil transaction"))
+		return before.Clone(), migrationError(CategoryTransaction, CodeBeginFailed, direction, migrationSnapshot, NoOperation, "", errors.New("backend returned a nil transaction"))
 	}
 
-	if primary := executeMigrationBody(ctx, migration, direction, prepared, transaction); primary != nil {
+	if primary := executeMigrationBody(ctx, migrationSnapshot, direction, prepared, transaction); primary != nil {
 		return before.Clone(), rollback(ctx, transaction, primary)
 	}
 	if err := transaction.Commit(ctx); err != nil {
-		primary := migrationError(CategoryTransaction, CodeCommitFailed, direction, migration, NoOperation, "", err)
+		primary := migrationError(CategoryTransaction, CodeCommitFailed, direction, migrationSnapshot, NoOperation, "", err)
 		return before.Clone(), rollback(ctx, transaction, primary)
 	}
 	return after.Clone(), nil

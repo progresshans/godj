@@ -12,6 +12,8 @@ import (
 // silently reinterpret already-written migration definition documents.
 var _ [SchemaIRVersion - int64(ir.FormatVersion)]struct{}
 var _ [int64(ir.FormatVersion) - SchemaIRVersion]struct{}
+var _ [RelationSchemaIRVersion - int64(ir.RelationFormatVersion)]struct{}
+var _ [int64(ir.RelationFormatVersion) - RelationSchemaIRVersion]struct{}
 
 func cloneField(field ir.Field) ir.Field {
 	return field.Clone()
@@ -172,9 +174,9 @@ func validFieldColumn(value string) bool {
 	})
 }
 
-func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
+func fullyNormalizedCreateModel(appLabel string, model ir.Model, profile definitionProfile) bool {
 	wrapper := ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: profileSchemaVersion(profile),
 		AppLabel:      appLabel,
 		Models:        []ir.Model{model.Clone()},
 	}
@@ -195,8 +197,9 @@ func validAddFieldModelName(modelName string) bool {
 	return exactNormalized(wrapper)
 }
 
-func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
-	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldBoolean) {
+func fullyNormalizedAddField(appLabel string, field ir.Field, profile definitionProfile) bool {
+	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldBoolean &&
+		(profile != relationDefinitionProfile || field.Kind != ir.FieldForeignKey)) {
 		return false
 	}
 
@@ -222,7 +225,7 @@ func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
 		Fields:  []ir.Field{synthetic, cloneField(field)},
 	}
 	wrapper := ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: profileSchemaVersion(profile),
 		AppLabel:      appLabel,
 		Models:        []ir.Model{model},
 	}
@@ -232,4 +235,11 @@ func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
 		len(normalized.Models) == 1 &&
 		len(normalized.Models[0].Fields) == 2 &&
 		reflect.DeepEqual(normalized.Models[0].Fields[1], field)
+}
+
+func profileSchemaVersion(profile definitionProfile) int {
+	if profile == relationDefinitionProfile {
+		return int(RelationSchemaIRVersion)
+	}
+	return schemaVersion()
 }

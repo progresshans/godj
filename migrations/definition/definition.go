@@ -7,13 +7,17 @@ import (
 	"context"
 
 	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 )
 
 const (
-	DefinitionFormatVersion int64 = 1
-	LoaderABIVersion        int64 = 1
-	OperationCodecVersion   int64 = 1
-	SchemaIRVersion         int64 = 2
+	DefinitionFormatVersion       int64 = 1
+	LoaderABIVersion              int64 = 1
+	OperationCodecVersion         int64 = 1
+	SchemaIRVersion               int64 = 2
+	RelationLoaderABIVersion      int64 = 2
+	RelationOperationCodecVersion int64 = 2
+	RelationSchemaIRVersion       int64 = 3
 
 	EmptySetDigest = "sha256:53f20df43573a361318abbff8c9e6bebad203a7f13f86c1f55c2df2cf4a43450"
 )
@@ -46,6 +50,7 @@ type Set struct {
 	definitions []migrations.Migration
 	digest      string
 	sources     []SourceInfo
+	handoff     definitionhandoff.Handoff
 }
 
 // Digest returns the canonical semantic definition-set fingerprint.
@@ -74,13 +79,22 @@ func (s Set) Migrate(
 	executor migrations.Executor,
 	request migrations.LifecycleRequest,
 ) (migrations.ProjectState, error) {
+	if ctx != nil && !s.handoff.IsZero() {
+		ctx = definitionhandoff.WithContext(ctx, s.handoff.Clone())
+	}
 	return executor.Migrate(ctx, cloneMigrations(s.definitions), request)
 }
 
-func newSet(definitions []migrations.Migration, digest string, sources []SourceInfo) Set {
+func newSet(
+	definitions []migrations.Migration,
+	digest string,
+	sources []SourceInfo,
+	handoff definitionhandoff.Handoff,
+) Set {
 	return Set{
 		definitions: cloneMigrations(definitions),
 		digest:      digest,
 		sources:     append([]SourceInfo(nil), sources...),
+		handoff:     handoff.Clone(),
 	}
 }

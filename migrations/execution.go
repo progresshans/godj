@@ -31,15 +31,27 @@ func (e Executor) ExecutePlan(
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), executionContextError(PlanStep{}, err)
 	}
-	if len(plan) == 0 {
-		return before.Clone(), nil
-	}
 
 	// Snapshot caller-owned slices and the built-in operation values before
 	// preflight. Operations are sealed by their package-private marker method;
 	// the known built-ins are deep-copied below.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
 	planSnapshot := append([]PlanStep(nil), plan...)
+	direction := Direction("")
+	if len(planSnapshot) != 0 {
+		direction = planSnapshot[0].Direction
+	}
+	var err error
+	ctx, err = consumeDefinitionHandoff(ctx, definitionSnapshot, direction)
+	if err != nil {
+		return before.Clone(), err
+	}
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(PlanStep{}, err)
+	}
+	if len(planSnapshot) == 0 {
+		return before.Clone(), nil
+	}
 	prepared, err := preflightPlan(ctx, before, definitionSnapshot, planSnapshot)
 	if err != nil {
 		return before.Clone(), err

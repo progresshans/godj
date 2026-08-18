@@ -147,16 +147,27 @@ func TestExternalConsumerSeesRelationMigrationFailClosedBoundary(t *testing.T) {
 		t.Fatal("NewProjectState(relation v3) error = nil")
 	}
 
-	_, err = migrations.NewStateReconstructor(migrations.Migration{
+	relationMigration := migrations.Migration{
 		App: "blog", Name: "0001_post",
 		Operations: []migrations.Operation{migrations.CreateModel{AppLabel: "blog", Model: model}},
-	})
+	}
+	_, err = migrations.NewStateReconstructor(relationMigration)
 	var migrationError *migrations.Error
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryState ||
 		migrationError.Code != migrations.CodeInvalidState || migrationError.Direction != migrations.DirectionForward ||
 		migrationError.App != "blog" || migrationError.Migration != "0001_post" ||
 		migrationError.OperationIndex != 0 || migrationError.Operation != "CreateModel" {
 		t.Fatalf("NewStateReconstructor(relation) error = %#v", err)
+	}
+
+	_, err = (migrations.Executor{}).Apply(
+		context.Background(), migrations.EmptyProjectState(), relationMigration,
+	)
+	var capabilityError *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || migrationError.OperationIndex != migrations.NoOperation ||
+		!errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" {
+		t.Fatalf("Executor.Apply(raw relation) error = %#v capability=%#v", err, capabilityError)
 	}
 }
 

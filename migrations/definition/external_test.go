@@ -28,6 +28,16 @@ func TestPublicMigrationDefinitionConstants(t *testing.T) {
 	if definition.SchemaIRVersion != 2 || ir.FormatVersion != 2 {
 		t.Fatalf("Schema IR wire/current versions = %d/%d, want literal 2/current 2", definition.SchemaIRVersion, ir.FormatVersion)
 	}
+	if definition.RelationLoaderABIVersion != 2 || definition.RelationOperationCodecVersion != 2 ||
+		definition.RelationSchemaIRVersion != 3 || ir.RelationFormatVersion != 3 {
+		t.Fatalf(
+			"relation tuple/current IR = (%d,%d,%d)/%d, want (2,2,3)/3",
+			definition.RelationLoaderABIVersion,
+			definition.RelationOperationCodecVersion,
+			definition.RelationSchemaIRVersion,
+			ir.RelationFormatVersion,
+		)
+	}
 	if definition.EmptySetDigest != "sha256:53f20df43573a361318abbff8c9e6bebad203a7f13f86c1f55c2df2cf4a43450" {
 		t.Fatalf("empty digest = %q", definition.EmptySetDigest)
 	}
@@ -165,19 +175,30 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 	}
 
 	allowedLocalImports := map[string]struct{}{
-		"github.com/progresshans/godj/migrations": {},
-		"github.com/progresshans/godj/schema/ir":  {},
+		"github.com/progresshans/godj/migrations":                            {},
+		"github.com/progresshans/godj/migrations/internal/definitionhandoff": {},
+		"github.com/progresshans/godj/schema/ir":                             {},
 	}
 	fset := token.NewFileSet()
 	plannerCalls := 0
+	handoffNewCalls := 0
+	handoffBuilderCalls := 0
 	executorMigrateCalls := 0
 	setMigrateMethods := 0
 	schemaIRLiteral := 0
+	relationConstantLiterals := map[string]string{
+		"RelationLoaderABIVersion":      "2",
+		"RelationOperationCodecVersion": "2",
+		"RelationSchemaIRVersion":       "3",
+	}
+	relationConstantDeclarations := make(map[string]int, len(relationConstantLiterals))
 	exportedDeclarations := make(map[string]string)
 	exportedMethods := make(map[string]struct{})
 	driftAssertions := map[string]bool{
-		"SchemaIRVersion-int64(ir.FormatVersion)": false,
-		"int64(ir.FormatVersion)-SchemaIRVersion": false,
+		"SchemaIRVersion-int64(ir.FormatVersion)":                 false,
+		"int64(ir.FormatVersion)-SchemaIRVersion":                 false,
+		"RelationSchemaIRVersion-int64(ir.RelationFormatVersion)": false,
+		"int64(ir.RelationFormatVersion)-RelationSchemaIRVersion": false,
 	}
 
 	for _, filename := range files {
@@ -213,9 +234,13 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 		}
 
 		migrationsAlias := importAliases["github.com/progresshans/godj/migrations"]
+		handoffAlias := importAliases["github.com/progresshans/godj/migrations/internal/definitionhandoff"]
 		ast.Inspect(parsed, func(node ast.Node) bool {
 			switch current := node.(type) {
 			case *ast.CallExpr:
+				if identifier, ok := current.Fun.(*ast.Ident); ok && identifier.Name == "newDefinitionHandoff" {
+					handoffBuilderCalls++
+				}
 				selector, ok := current.Fun.(*ast.SelectorExpr)
 				if !ok {
 					return true
@@ -223,6 +248,9 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 				identifier, ok := selector.X.(*ast.Ident)
 				if ok && migrationsAlias != "" && identifier.Name == migrationsAlias && selector.Sel.Name == "NewPlanner" {
 					plannerCalls++
+				}
+				if ok && handoffAlias != "" && identifier.Name == handoffAlias && selector.Sel.Name == "New" {
+					handoffNewCalls++
 				}
 			case *ast.FuncDecl:
 				if current.Recv == nil {
@@ -243,8 +271,8 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 				if current.Body == nil {
 					return true
 				}
-				if !isDirectSetMigrateReturn(current.Body) {
-					t.Errorf("Set.Migrate must raw-return executor.Migrate(ctx, cloneMigrations(s.definitions), request), got %s", renderAST(t, fset, current.Body))
+				if !isSetMigrateHandoffReturn(current.Body, handoffAlias) {
+					t.Errorf("Set.Migrate must attach only a nonzero handoff to nonnil ctx and directly return the existing executor call, got %s", renderAST(t, fset, current.Body))
 				}
 				ast.Inspect(current.Body, func(bodyNode ast.Node) bool {
 					call, ok := bodyNode.(*ast.CallExpr)
@@ -302,6 +330,26 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 						}
 						schemaIRLiteral++
 					}
+					if expected, wanted := relationConstantLiterals[name.Name]; general.Tok == token.CONST && wanted {
+						relationConstantDeclarations[name.Name]++
+						declaredType, ok := valueSpec.Type.(*ast.Ident)
+						if !ok || declaredType.Name != "int64" {
+							actualType := "<none>"
+							if valueSpec.Type != nil {
+								actualType = renderAST(t, fset, valueSpec.Type)
+							}
+							t.Errorf("%s must have explicit declared type int64, got %s", name.Name, actualType)
+						}
+						if index >= len(valueSpec.Values) {
+							t.Errorf("%s has no explicit literal initializer in %s", name.Name, filepath.Base(filename))
+							continue
+						}
+						literal, ok := valueSpec.Values[index].(*ast.BasicLit)
+						if !ok || literal.Kind != token.INT || literal.Value != expected {
+							t.Errorf("%s must be literal integer %s, got %s", name.Name, expected, renderAST(t, fset, valueSpec.Values[index]))
+							continue
+						}
+					}
 					if general.Tok != token.VAR || name.Name != "_" || valueSpec.Type == nil {
 						continue
 					}
@@ -321,6 +369,11 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 	if schemaIRLiteral != 1 {
 		t.Errorf("literal SchemaIRVersion declarations = %d, want exactly 1", schemaIRLiteral)
 	}
+	for name := range relationConstantLiterals {
+		if relationConstantDeclarations[name] != 1 {
+			t.Errorf("typed literal %s declarations = %d, want exactly 1", name, relationConstantDeclarations[name])
+		}
+	}
 	for expression, found := range driftAssertions {
 		if !found {
 			t.Errorf("missing two-way Schema IR compile drift assertion %s", expression)
@@ -328,6 +381,9 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 	}
 	if plannerCalls != 1 {
 		t.Errorf("non-test definition product direct migrations.NewPlanner calls = %d, want exactly 1", plannerCalls)
+	}
+	if handoffNewCalls != 1 || handoffBuilderCalls != 1 {
+		t.Errorf("non-test definition handoff mint/builder calls = %d/%d, want 1/1", handoffNewCalls, handoffBuilderCalls)
 	}
 	if setMigrateMethods != 1 || executorMigrateCalls != 1 {
 		t.Errorf("Set.Migrate methods/direct executor.Migrate calls = %d/%d, want 1/1", setMigrateMethods, executorMigrateCalls)
@@ -359,6 +415,79 @@ func TestProductSourceASTBoundaries(t *testing.T) {
 				t.Errorf("forbidden reverse dependency in %s: migrations -> migrations/definition", filepath.Base(filename))
 			}
 		}
+	}
+
+	handoffFiles, globErr := filepath.Glob(filepath.Join(directory, "..", "internal", "definitionhandoff", "*.go"))
+	if globErr != nil {
+		t.Fatalf("list internal definition handoff package: %v", globErr)
+	}
+	for _, filename := range handoffFiles {
+		if strings.HasSuffix(filename, "_test.go") {
+			continue
+		}
+		parsed, parseErr := parser.ParseFile(fset, filename, nil, parser.ImportsOnly)
+		if parseErr != nil {
+			t.Fatalf("parse definition handoff file %s: %v", filename, parseErr)
+		}
+		for _, imported := range parsed.Imports {
+			pathValue, _ := strconv.Unquote(imported.Path.Value)
+			if pathValue == "github.com/progresshans/godj/migrations" ||
+				pathValue == "github.com/progresshans/godj/migrations/definition" {
+				t.Errorf("neutral definition handoff imports forbidden package %q in %s", pathValue, filepath.Base(filename))
+			}
+		}
+	}
+}
+
+func TestSetMigrateHandoffASTMatcherRejectsContractDrift(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{
+			name: "exact",
+			body: `if ctx != nil && !s.handoff.IsZero() { ctx = definitionhandoff.WithContext(ctx, s.handoff.Clone()) }
+				return executor.Migrate(ctx, cloneMigrations(s.definitions), request)`,
+			want: true,
+		},
+		{
+			name: "unconditional guard",
+			body: `if true { ctx = definitionhandoff.WithContext(ctx, s.handoff.Clone()) }
+				return executor.Migrate(ctx, cloneMigrations(s.definitions), request)`,
+		},
+		{
+			name: "missing nonzero check",
+			body: `if ctx != nil { ctx = definitionhandoff.WithContext(ctx, s.handoff.Clone()) }
+				return executor.Migrate(ctx, cloneMigrations(s.definitions), request)`,
+		},
+		{
+			name: "fresh clone omitted",
+			body: `if ctx != nil && !s.handoff.IsZero() { ctx = definitionhandoff.WithContext(ctx, s.handoff) }
+				return executor.Migrate(ctx, cloneMigrations(s.definitions), request)`,
+		},
+		{
+			name: "carrier attachment replaced",
+			body: `if ctx != nil && !s.handoff.IsZero() { ctx = context.Background() }
+				return executor.Migrate(ctx, cloneMigrations(s.definitions), request)`,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			source := "package candidate\nfunc (s Set) Migrate(ctx Context, executor Executor, request Request) (State, error) {\n" + test.body + "\n}"
+			parsed, err := parser.ParseFile(token.NewFileSet(), "candidate.go", source, 0)
+			if err != nil {
+				t.Fatalf("parse candidate: %v", err)
+			}
+			function := parsed.Decls[0].(*ast.FuncDecl)
+			if got := isSetMigrateHandoffReturn(function.Body, "definitionhandoff"); got != test.want {
+				t.Fatalf("matcher = %t, want %t", got, test.want)
+			}
+		})
 	}
 }
 
@@ -414,11 +543,27 @@ func receiverTypeName(receiver *ast.FieldList) string {
 	return identifier.Name
 }
 
-func isDirectSetMigrateReturn(body *ast.BlockStmt) bool {
-	if body == nil || len(body.List) != 1 {
+func isSetMigrateHandoffReturn(body *ast.BlockStmt, handoffAlias string) bool {
+	if body == nil || len(body.List) != 2 {
 		return false
 	}
-	returnStatement, ok := body.List[0].(*ast.ReturnStmt)
+	guard, ok := body.List[0].(*ast.IfStmt)
+	if !ok || guard.Init != nil || guard.Else != nil || guard.Body == nil || len(guard.Body.List) != 1 ||
+		!isExactSetMigrateHandoffGuard(guard.Cond) {
+		return false
+	}
+	assignment, ok := guard.Body.List[0].(*ast.AssignStmt)
+	if !ok || assignment.Tok != token.ASSIGN || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 {
+		return false
+	}
+	ctxAssignment, ok := assignment.Lhs[0].(*ast.Ident)
+	if !ok || ctxAssignment.Name != "ctx" {
+		return false
+	}
+	if !isExactSetMigrateWithContext(assignment.Rhs[0], handoffAlias) {
+		return false
+	}
+	returnStatement, ok := body.List[1].(*ast.ReturnStmt)
 	if !ok || len(returnStatement.Results) != 1 {
 		return false
 	}
@@ -458,12 +603,63 @@ func isDirectSetMigrateReturn(body *ast.BlockStmt) bool {
 	return ok && request.Name == "request"
 }
 
+func isExactSetMigrateHandoffGuard(expression ast.Expr) bool {
+	conjunction, ok := expression.(*ast.BinaryExpr)
+	if !ok || conjunction.Op != token.LAND {
+		return false
+	}
+	contextCheck, ok := conjunction.X.(*ast.BinaryExpr)
+	if !ok || contextCheck.Op != token.NEQ || !isIdentifier(contextCheck.X, "ctx") || !isIdentifier(contextCheck.Y, "nil") {
+		return false
+	}
+	nonzero, ok := conjunction.Y.(*ast.UnaryExpr)
+	if !ok || nonzero.Op != token.NOT {
+		return false
+	}
+	call, ok := nonzero.X.(*ast.CallExpr)
+	if !ok || len(call.Args) != 0 {
+		return false
+	}
+	method, ok := call.Fun.(*ast.SelectorExpr)
+	return ok && method.Sel.Name == "IsZero" && isSetHandoffSelector(method.X)
+}
+
+func isExactSetMigrateWithContext(expression ast.Expr, handoffAlias string) bool {
+	call, ok := expression.(*ast.CallExpr)
+	if !ok || len(call.Args) != 2 || handoffAlias == "" {
+		return false
+	}
+	function, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || function.Sel.Name != "WithContext" || !isIdentifier(function.X, handoffAlias) || !isIdentifier(call.Args[0], "ctx") {
+		return false
+	}
+	clone, ok := call.Args[1].(*ast.CallExpr)
+	if !ok || len(clone.Args) != 0 {
+		return false
+	}
+	method, ok := clone.Fun.(*ast.SelectorExpr)
+	return ok && method.Sel.Name == "Clone" && isSetHandoffSelector(method.X)
+}
+
+func isSetHandoffSelector(expression ast.Expr) bool {
+	selector, ok := expression.(*ast.SelectorExpr)
+	return ok && selector.Sel.Name == "handoff" && isIdentifier(selector.X, "s")
+}
+
+func isIdentifier(expression ast.Expr, name string) bool {
+	identifier, ok := expression.(*ast.Ident)
+	return ok && identifier.Name == name
+}
+
 func exactPublicDefinitionDeclarations() map[string]string {
 	return map[string]string{
 		"DefinitionFormatVersion":          "const",
 		"LoaderABIVersion":                 "const",
 		"OperationCodecVersion":            "const",
 		"SchemaIRVersion":                  "const",
+		"RelationLoaderABIVersion":         "const",
+		"RelationOperationCodecVersion":    "const",
+		"RelationSchemaIRVersion":          "const",
 		"EmptySetDigest":                   "const",
 		"CategorySource":                   "const",
 		"CodeInvalidSource":                "const",

@@ -8,10 +8,13 @@ import (
 )
 
 const (
-	definitionFormat = definition.DefinitionFormatVersion
-	loaderABI        = definition.LoaderABIVersion
-	operationCodec   = definition.OperationCodecVersion
-	schemaIR         = definition.SchemaIRVersion
+	definitionFormat             = definition.DefinitionFormatVersion
+	loaderABI                    = definition.LoaderABIVersion
+	operationCodec               = definition.OperationCodecVersion
+	schemaIR                     = definition.SchemaIRVersion
+	relationLoaderABI      int64 = definition.RelationLoaderABIVersion
+	relationOperationCodec int64 = definition.RelationOperationCodecVersion
+	relationSchemaIR       int64 = definition.RelationSchemaIRVersion
 
 	maxSources                  = definition.MaxSources
 	maxSourceIDBytes            = definition.MaxSourceIDBytes

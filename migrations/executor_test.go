@@ -54,6 +54,65 @@ func TestExecutorRejectsCanceledContextBeforeIO(t *testing.T) {
 	}
 }
 
+func TestExecutorRawRelationApplyAndUnapplyFailCapabilityBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	relation := relationMigrationField()
+	hidden := summaryField()
+	hidden.Relation = relation.Relation
+	tests := []struct {
+		name      string
+		migration Migration
+	}{
+		{
+			name: "ForeignKey kind",
+			migration: Migration{App: "blog", Name: "0002_author", Operations: []Operation{AddField{
+				AppLabel: "blog", ModelName: "post", Field: relation,
+			}}},
+		},
+		{
+			name: "hidden relation arm on scalar kind",
+			migration: Migration{App: "blog", Name: "0002_hidden", Operations: []Operation{AddField{
+				AppLabel: "blog", ModelName: "post", Field: hidden,
+			}}},
+		},
+		{
+			name: "typed nil operations before relation",
+			migration: Migration{App: "blog", Name: "0002_nil_then_relation", Operations: []Operation{
+				(*CreateModel)(nil), (*AddField)(nil), AddField{AppLabel: "blog", ModelName: "post", Field: relation},
+			}},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			for _, direction := range []Direction{DirectionForward, DirectionBackward} {
+				direction := direction
+				t.Run(string(direction), func(t *testing.T) {
+					fake := &fakeBackend{transaction: newFakeTransaction()}
+					before := EmptyProjectState()
+					var after ProjectState
+					var err error
+					if direction == DirectionForward {
+						after, err = (Executor{Backend: fake}).Apply(context.Background(), before, test.migration)
+					} else {
+						after, err = (Executor{Backend: fake}).Unapply(context.Background(), before, test.migration)
+					}
+					assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+					var capability *backend.CapabilityError
+					if !errors.As(err, &capability) || capability.Feature != "relation_migration" {
+						t.Fatalf("raw relation error = %#v capability=%#v", err, capability)
+					}
+					if fake.beginCount != 0 || !after.Equal(before) {
+						t.Fatalf("raw relation touched I/O/state: begin=%d apps=%v", fake.beginCount, after.Apps())
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestExecutorRejectsContextCanceledDuringStatePreflightBeforeIO(t *testing.T) {
 	t.Parallel()
 

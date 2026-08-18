@@ -152,13 +152,15 @@ func TestExecutorMigrateRejectsRelationDefinitionsBeforeBackendOrRecorderIO(t *t
 			state, err := (Executor{Backend: fake}).Migrate(
 				context.Background(), []Migration{test.definition}, LatestLifecycleRequest(),
 			)
-			assertMigrationError(t, err, CategoryState, CodeInvalidState, 0, test.kind)
+			assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
 			var migrationError *Error
 			if !errors.As(err, &migrationError) {
 				t.Fatalf("Migrate relation error = %#v, want *Error", err)
 			}
-			if !strings.Contains(migrationError.Cause.Error(), "Schema IR v2 migration state cannot represent relation-bearing field") {
-				t.Fatalf("Migrate relation cause = %v", migrationError.Cause)
+			var capabilityError *backend.CapabilityError
+			if !errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" ||
+				!strings.Contains(capabilityError.Error(), "loader definition handoff is missing") {
+				t.Fatalf("Migrate relation capability cause = %#v", capabilityError)
 			}
 			if len(state.Apps()) != 0 || fake.openCount != 0 || fake.legacyBeginCount != 0 ||
 				session.readCount != 0 || session.beginCount != 0 || session.closeCount != 0 {
@@ -169,6 +171,21 @@ func TestExecutorMigrateRejectsRelationDefinitionsBeforeBackendOrRecorderIO(t *t
 			}
 		})
 	}
+
+	t.Run("request and context precedence", func(t *testing.T) {
+		definition := tests[0].definition
+		fake := newLifecycleTestBackend(newLifecycleTestSession(nil, nil))
+		corrupt := LifecycleRequest{kind: lifecycleRequestLatest, targets: []Target{}}
+		_, err := (Executor{Backend: fake}).Migrate(context.Background(), []Migration{definition}, corrupt)
+		assertPlanningError(t, err, CategoryPlan, CodeInvalidTarget, MigrationKey{}, MigrationKey{})
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		_, err = (Executor{Backend: fake}).Migrate(ctx, []Migration{definition}, corrupt)
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		if !errors.Is(err, context.Canceled) || fake.openCount != 0 {
+			t.Fatalf("relation precedence = error:%v open:%d", err, fake.openCount)
+		}
+	})
 }
 
 func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {

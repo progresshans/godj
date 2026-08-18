@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 type lifecycleRequestKind uint8
@@ -67,6 +69,13 @@ func (e Executor) Migrate(
 	// reconstructor then validates the graph and deep-copies every supported
 	// operation so neither planning nor execution retains caller aliases.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
+	ctx, err = consumeDefinitionHandoff(ctx, definitionSnapshot, "")
+	if err != nil {
+		return resultState, err
+	}
+	if err := ctx.Err(); err != nil {
+		return resultState, executionContextError(PlanStep{}, err)
+	}
 	reconstructor, err := NewStateReconstructor(definitionSnapshot...)
 	if err != nil {
 		return resultState, err
@@ -194,6 +203,177 @@ func (e Executor) Migrate(
 	// Cancellation observed only after the final durable commit cannot undo the
 	// successful lifecycle. Mandatory Close uses its own bounded context.
 	return working.Clone(), nil
+}
+
+func consumeDefinitionHandoff(
+	ctx context.Context,
+	definitions []Migration,
+	direction Direction,
+) (context.Context, error) {
+	baseContext, handoff, found := definitionhandoff.Take(ctx)
+	hasRelation := definitionsContainRelation(definitions)
+	if !found {
+		if hasRelation {
+			return baseContext, relationMigrationUnsupported(definitions, direction, errors.New("loader definition handoff is missing"))
+		}
+		return baseContext, nil
+	}
+
+	visible := make([]definitionhandoff.Definition, len(definitions))
+	for index := range definitions {
+		converted, err := migrationHandoffDefinition(definitions[index])
+		if err != nil {
+			return baseContext, relationMigrationUnsupported(definitions, direction, fmt.Errorf("definition[%d]: %w", index, err))
+		}
+		visible[index] = converted
+	}
+	if err := handoff.ValidateVisible(visible); err != nil {
+		return baseContext, relationMigrationUnsupported(definitions, direction, err)
+	}
+	if _, err := NewPlanner(definitions...); err != nil {
+		return baseContext, relationMigrationUnsupported(definitions, direction, fmt.Errorf("sealed full graph is invalid: %w", err))
+	}
+	if hasRelation {
+		return baseContext, relationMigrationUnsupported(
+			definitions,
+			direction,
+			errors.New("relation historical state handoff is not implemented"),
+		)
+	}
+	return baseContext, nil
+}
+
+func relationMigrationUnsupported(definitions []Migration, direction Direction, cause error) *Error {
+	migration := Migration{}
+	found := false
+	for index := range definitions {
+		if migrationContainsRelation(definitions[index]) {
+			migration = definitions[index]
+			found = true
+			break
+		}
+	}
+	if !found && len(definitions) != 0 {
+		migration = definitions[0]
+	}
+	capability := backend.NewCapabilityError("relation_migration", "validated relation lifecycle is unavailable", cause)
+	return migrationError(CategoryCapability, CodeUnsupported, direction, migration, NoOperation, "", capability)
+}
+
+func definitionsContainRelation(definitions []Migration) bool {
+	for index := range definitions {
+		if migrationContainsRelation(definitions[index]) {
+			return true
+		}
+	}
+	return false
+}
+
+func migrationContainsRelation(migration Migration) bool {
+	for _, operation := range migration.Operations {
+		switch value := operation.(type) {
+		case CreateModel:
+			if modelContainsRelation(value.Model) {
+				return true
+			}
+		case *CreateModel:
+			if value != nil && modelContainsRelation(value.Model) {
+				return true
+			}
+		case AddField:
+			if fieldContainsRelation(value.Field) {
+				return true
+			}
+		case *AddField:
+			if value != nil && fieldContainsRelation(value.Field) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func modelContainsRelation(model ir.Model) bool {
+	for index := range model.Fields {
+		if fieldContainsRelation(model.Fields[index]) {
+			return true
+		}
+	}
+	return false
+}
+
+func fieldContainsRelation(field ir.Field) bool {
+	return field.Kind == ir.FieldForeignKey || field.Relation != nil
+}
+
+func migrationHandoffDefinition(value Migration) (definitionhandoff.Definition, error) {
+	definition := definitionhandoff.Definition{
+		App:          value.App,
+		Name:         value.Name,
+		Dependencies: make([]definitionhandoff.Identity, len(value.Dependencies)),
+		Operations:   make([]definitionhandoff.Operation, len(value.Operations)),
+	}
+	for index := range value.Dependencies {
+		definition.Dependencies[index] = definitionhandoff.Identity{App: value.Dependencies[index].App, Name: value.Dependencies[index].Name}
+	}
+	for index, operation := range value.Operations {
+		converted, err := migrationHandoffOperation(operation)
+		if err != nil {
+			return definitionhandoff.Definition{}, fmt.Errorf("operation %d: %w", index, err)
+		}
+		definition.Operations[index] = converted
+	}
+	return definition, nil
+}
+
+func migrationHandoffOperation(value Operation) (definitionhandoff.Operation, error) {
+	switch operation := value.(type) {
+	case CreateModel:
+		return definitionhandoff.Operation{Kind: "create_model", AppLabel: operation.AppLabel, HasModel: true, Model: migrationHandoffModel(operation.Model)}, nil
+	case *CreateModel:
+		if operation == nil {
+			return definitionhandoff.Operation{}, errors.New("nil *CreateModel")
+		}
+		return definitionhandoff.Operation{Kind: "create_model", AppLabel: operation.AppLabel, HasModel: true, Model: migrationHandoffModel(operation.Model)}, nil
+	case AddField:
+		return definitionhandoff.Operation{Kind: "add_field", AppLabel: operation.AppLabel, ModelName: operation.ModelName, HasField: true, Field: migrationHandoffField(operation.Field)}, nil
+	case *AddField:
+		if operation == nil {
+			return definitionhandoff.Operation{}, errors.New("nil *AddField")
+		}
+		return definitionhandoff.Operation{Kind: "add_field", AppLabel: operation.AppLabel, ModelName: operation.ModelName, HasField: true, Field: migrationHandoffField(operation.Field)}, nil
+	default:
+		return definitionhandoff.Operation{}, fmt.Errorf("unsupported operation %T", value)
+	}
+}
+
+func migrationHandoffModel(value ir.Model) definitionhandoff.Model {
+	model := definitionhandoff.Model{Name: value.Name, GoName: value.GoName, DBTable: value.DBTable, Fields: make([]definitionhandoff.Field, len(value.Fields))}
+	for index := range value.Fields {
+		model.Fields[index] = migrationHandoffField(value.Fields[index])
+	}
+	return model
+}
+
+func migrationHandoffField(value ir.Field) definitionhandoff.Field {
+	field := definitionhandoff.Field{
+		Name: value.Name, GoName: value.GoName, Column: value.Column, Kind: string(value.Kind),
+		PrimaryKey: value.PrimaryKey, Nullable: value.Nullable, MaxLength: int64(value.MaxLength),
+	}
+	if value.Default != nil {
+		field.Default = definitionhandoff.Default{
+			Present: true, Kind: string(value.Default.Kind), String: value.Default.String,
+			Boolean: value.Default.Boolean, Integer: value.Default.Integer,
+		}
+	}
+	if value.Relation != nil {
+		field.Relation = definitionhandoff.Relation{
+			Present: true, TargetApp: value.Relation.Target.AppLabel, TargetModel: value.Relation.Target.ModelName,
+			Cardinality: string(value.Relation.Cardinality), ReverseName: value.Relation.Reverse.Name,
+			ReverseDisabled: value.Relation.Reverse.Disabled, OnDelete: string(value.Relation.OnDelete),
+		}
+	}
+	return field
 }
 
 func snapshotLifecycleRequest(request LifecycleRequest) (lifecycleRequestKind, []Target, error) {
