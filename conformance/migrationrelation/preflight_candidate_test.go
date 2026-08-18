@@ -12,7 +12,9 @@ import (
 )
 
 // This is a pure, test-only whole-project preflight candidate. Capability is
-// an inert descriptor value; this code has no database/session/backend port.
+// an inert descriptor value. Its zero-I/O trace is limited to the candidate's
+// catalog, creator-index, and historical-state inputs; it makes no claim about
+// whether a later runtime path opens or pins a database session.
 
 type preflightMigrationKey struct {
 	App  string
@@ -28,16 +30,10 @@ const (
 	preflightRemoveRelation preflightOperationKind = "remove_relation"
 )
 
-type preflightTargetField struct {
-	Name   string
-	Column string
-}
-
 type preflightRelationDeclaration struct {
 	Source           stateModelIdentity
 	Field            string
 	Target           stateModelIdentity
-	TargetField      preflightTargetField
 	DeclaredTable    string
 	DeclaredColumn   string
 	DeclaredNullable bool
@@ -65,6 +61,31 @@ type preflightCapabilityDescriptor struct {
 	RelationEditor bool
 }
 
+type preflightPlanTargetKind uint8
+
+const (
+	preflightPlanTargetNamed preflightPlanTargetKind = iota + 1
+	preflightPlanTargetZero
+)
+
+// preflightPlanTarget keeps the target representation inspectable until the
+// complete caller-owned resource shape has been bounded. migrations.Target is
+// intentionally opaque, so accepting it directly here would let target app/name
+// bytes bypass the profile budget before Planner validation.
+type preflightPlanTarget struct {
+	Kind preflightPlanTargetKind
+	Key  preflightMigrationKey
+	App  string
+}
+
+func preflightNamedPlanTarget(key preflightMigrationKey) preflightPlanTarget {
+	return preflightPlanTarget{Kind: preflightPlanTargetNamed, Key: key}
+}
+
+func preflightZeroPlanTarget(app string) preflightPlanTarget {
+	return preflightPlanTarget{Kind: preflightPlanTargetZero, App: app}
+}
+
 type preflightInput struct {
 	State       stateProjectState
 	Definitions []preflightDefinition
@@ -72,7 +93,7 @@ type preflightInput struct {
 	PlanStart   stateProjectState
 	PlanTarget  stateProjectState
 	PlanApplied []migrations.MigrationKey
-	PlanTargets []migrations.Target
+	PlanTargets []preflightPlanTarget
 }
 
 type preflightCandidateError struct {
@@ -108,13 +129,9 @@ func (e *preflightCandidateError) Error() string {
 }
 
 type preflightIOMetrics struct {
-	BeginCalls     int
-	ConnectionPins int
-	DDLWrites      int
-	RecorderWrites int
-	RevisionWrites int
-	SchemaReads    int
-	SessionOpens   int
+	CatalogLoads         int
+	CreatorIndexLoads    int
+	HistoricalStateLoads int
 }
 
 type preflightCreatorRecord struct {
@@ -129,6 +146,19 @@ type preflightRelationRecord struct {
 	Owner          preflightMigrationKey
 	OwnerOperation int
 	SourceModel    ir.Model
+	BackendIntent  preflightBackendRelationIntent
+}
+
+// preflightBackendRelationIntent is the backend-shaped immutable output of
+// static preflight. TargetKey is derived from the visible historical target
+// model; migration declarations never carry a forgeable target-field wrapper.
+type preflightBackendRelationIntent struct {
+	SourceTable  string
+	SourceColumn string
+	TargetTable  string
+	TargetKey    ir.Field
+	Nullable     bool
+	OnDelete     ir.DeletePolicy
 }
 
 type preflightRelationIdentity struct {
@@ -137,8 +167,40 @@ type preflightRelationIdentity struct {
 }
 
 type preflightSnapshot struct {
-	creators  map[stateModelIdentity]preflightCreatorRecord
-	relations []preflightRelationRecord
+	creators        map[stateModelIdentity]preflightCreatorRecord
+	relations       []preflightRelationRecord
+	steps           []preflightPreparedStep
+	handoffSealed   bool
+	handoffKey      preflightMigrationKey
+	handoffRelation bool
+	handoff         lifecyclePreparedRelationStep
+}
+
+// preflightPreparedRelationTarget is the historical binding retained at the
+// exact operation boundary. The migration wire declaration still identifies
+// only a target model; TargetKey is derived from the visible model snapshot and
+// cannot be supplied through a target_field wrapper.
+type preflightPreparedRelationTarget struct {
+	SourceField      ir.Field
+	TargetModel      ir.Model
+	TargetKey        ir.Field
+	Creator          preflightMigrationKey
+	CreatorOperation int
+}
+
+type preflightPreparedOperation struct {
+	OperationIndex int
+	Kind           preflightOperationKind
+	Before         ir.Model
+	After          ir.Model
+	Targets        []preflightPreparedRelationTarget
+}
+
+type preflightPreparedStep struct {
+	Key          preflightMigrationKey
+	Dependencies []preflightMigrationKey
+	Operations   []preflightPreparedOperation
+	plan         *lifecyclePreparedPlan
 }
 
 func (s preflightSnapshot) preflightCreator(identity stateModelIdentity) (preflightCreatorRecord, bool) {
@@ -155,8 +217,28 @@ func (s preflightSnapshot) preflightRelations() []preflightRelationRecord {
 	for index := range s.relations {
 		cloned[index] = s.relations[index]
 		cloned[index].SourceModel = s.relations[index].SourceModel.Clone()
+		cloned[index].BackendIntent.TargetKey = s.relations[index].BackendIntent.TargetKey.Clone()
 	}
 	return cloned
+}
+
+func (s preflightSnapshot) preflightSteps() []preflightPreparedStep {
+	cloned := make([]preflightPreparedStep, len(s.steps))
+	for index := range s.steps {
+		cloned[index] = preflightClonePreparedStep(s.steps[index])
+	}
+	return cloned
+}
+
+// preflightHandoff returns only the opaque handoff sealed from the snapshot's
+// private prepared-step bytes before preflightValidate published the snapshot.
+// Caller-visible prepared-step clones are diagnostic values and can never be
+// supplied back as authoritative adapter input.
+func (s preflightSnapshot) preflightHandoff(key preflightMigrationKey) (lifecyclePreparedRelationStep, bool) {
+	if !s.handoffSealed || !s.handoffRelation || s.handoffKey != key {
+		return lifecyclePreparedRelationStep{}, false
+	}
+	return lifecycleClonePreparedRelationStep(s.handoff), true
 }
 
 type preflightFailureCandidate struct {
@@ -207,6 +289,16 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 						operation.Model,
 						operation.Relation.Field,
 						operation.Relation.Target,
+						definition.Key,
+					)
+				}
+				if operation.Model.App != definition.Key.App {
+					return preflightSnapshot{}, metrics, preflightFailure(
+						"operation_app_mismatch",
+						"create_model_app_must_match_migration_app",
+						operation.Model,
+						"",
+						stateModelIdentity{},
 						definition.Key,
 					)
 				}
@@ -262,6 +354,16 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 						"conflicting_operation_arms",
 						"relation_operation_carries_model_arm",
 						operation.Model,
+						operation.Relation.Field,
+						operation.Relation.Target,
+						definition.Key,
+					)
+				}
+				if operation.Relation.Source.App != definition.Key.App {
+					return preflightSnapshot{}, metrics, preflightFailure(
+						"operation_app_mismatch",
+						"relation_source_app_must_match_migration_app",
+						operation.Relation.Source,
 						operation.Relation.Field,
 						operation.Relation.Target,
 						definition.Key,
@@ -331,7 +433,7 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 						continue
 					}
 					relationOperationCount++
-					declaration := preflightDeclarationFromField(identity, model, field, creators)
+					declaration := preflightDeclarationFromField(identity, model, field)
 					key := preflightRelationIdentity{model: identity, field: field.Name}
 					if _, exists := activeRelations[key]; exists {
 						return preflightSnapshot{}, metrics, preflightFailure(
@@ -342,10 +444,11 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 					record := preflightRelationRecord{
 						Declaration: declaration, Owner: definition.Key, OwnerOperation: operationIndex, SourceModel: model.Clone(),
 					}
-					if failure := preflightRelationCreatorFailure(parents, creators, record); failure != nil {
+					bound, failure := preflightBindRelationIntent(parents, creators, replayed, record)
+					if failure != nil {
 						return preflightSnapshot{}, metrics, failure
 					}
-					activeRelations[key] = record
+					activeRelations[key] = bound
 				}
 				if failure := preflightActiveRelationShape(activeRelations, replayed); failure != nil {
 					return preflightSnapshot{}, metrics, failure
@@ -363,6 +466,9 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 					return preflightSnapshot{}, metrics, failure
 				}
 				replayed[identity] = operation.After.Clone()
+				if failure := preflightActiveRelationShape(activeRelations, replayed); failure != nil {
+					return preflightSnapshot{}, metrics, failure
+				}
 			case preflightAddRelation, preflightRemoveRelation:
 				relationOperationCount++
 				record := preflightRelationRecord{
@@ -407,9 +513,11 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 						return preflightSnapshot{}, metrics, failure
 					}
 				}
-				if failure := preflightRelationCreatorFailure(parents, creators, record); failure != nil {
+				bound, failure := preflightBindRelationIntent(parents, creators, replayed, record)
+				if failure != nil {
 					return preflightSnapshot{}, metrics, failure
 				}
+				record = bound
 				key := preflightRelationIdentity{model: operation.Relation.Source, field: operation.Relation.Field}
 				switch operation.Kind {
 				case preflightAddRelation:
@@ -469,7 +577,8 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 		}
 
 		targetPrimaryKey, targetPrimaryKeyOK := preflightAutoPrimaryKey(targetModel)
-		if !targetPrimaryKeyOK || targetPrimaryKey.Name != relation.TargetField.Name || targetPrimaryKey.Column != relation.TargetField.Column {
+		if !targetPrimaryKeyOK || !reflect.DeepEqual(targetPrimaryKey, record.BackendIntent.TargetKey) ||
+			record.BackendIntent.TargetTable != targetModel.DBTable {
 			failures = append(failures, preflightRankedFailure(3, "target_autofield_required", "target_primary_key_not_auto_or_mismatched", record))
 		}
 		if sourceModel.DBTable != relation.DeclaredTable {
@@ -551,31 +660,22 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 	planTarget := snapshot.PlanTarget
 	planApplied := snapshot.PlanApplied
 	planTargets := snapshot.PlanTargets
-	if len(planTargets) == 0 {
-		// The actual Planner/replay path is mandatory for every successful
-		// whole-project preflight. The default proof starts from an empty
-		// relation-state snapshot and asks the product Planner to reach every
-		// definition in canonical topological order. Explicit callers can supply
-		// a different applied snapshot/target to prove backward/unapply paths.
-		planStart = stateProjectState{formatVersion: stateFormatRelation, apps: map[string]ir.Schema{}}
-		planTarget = snapshot.State.stateClone()
-		planApplied = nil
-		planTargets = make([]migrations.Target, len(definitions))
-		for index, definitionValue := range definitions {
-			planTargets[index] = migrations.NamedTarget(migrations.MigrationKey{
-				App:  definitionValue.Key.App,
-				Name: definitionValue.Key.Name,
-			})
-		}
-	}
-	if failure := preflightReplayProductPlan(
+	var productPlan []migrations.PlanStep
+	if failure := preflightReplayWithProductPlanner(
 		planStart,
 		planTarget,
 		planApplied,
 		planTargets,
 		definitions,
+		&productPlan,
 	); failure != nil {
 		return preflightSnapshot{}, metrics, failure
+	}
+	if len(productPlan) == 0 {
+		return preflightSnapshot{}, metrics, preflightFailure(
+			"plan_step_invalid", "explicit_plan_has_no_current_step",
+			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+		)
 	}
 
 	publishedCreators := make(map[stateModelIdentity]preflightCreatorRecord, len(creators))
@@ -583,19 +683,41 @@ func preflightValidate(input preflightInput) (preflightSnapshot, preflightIOMetr
 		record.Model = record.Model.Clone()
 		publishedCreators[identity] = record
 	}
-	return preflightSnapshot{
+	preparedSteps, failure := preflightPrepareSteps(definitions, creators)
+	if failure != nil {
+		return preflightSnapshot{}, metrics, failure
+	}
+	provenance := lifecyclePreparedPlan{
+		definitions: preflightProductDefinitionGraph(definitions),
+		applied:     append([]migrations.MigrationKey(nil), planApplied...),
+		targets:     append([]preflightPlanTarget(nil), planTargets...),
+		expected:    productPlan[0],
+	}
+	for index := range preparedSteps {
+		cloned := lifecycleClonePreparedPlan(provenance)
+		preparedSteps[index].plan = &cloned
+	}
+	published := preflightSnapshot{
 		creators:  publishedCreators,
 		relations: preflightSnapshot{relations: relations}.preflightRelations(),
-	}, metrics, nil
+		steps:     preparedSteps,
+	}
+	if failure := published.preflightSealCurrentHandoff(); failure != nil {
+		return preflightSnapshot{}, metrics, failure
+	}
+	return published, metrics, nil
 }
 
 func preflightResourceLimits(input preflightInput) *preflightCandidateError {
-	if len(input.PlanTargets) == 0 &&
-		(!preflightStateIsZero(input.PlanStart) ||
-			!preflightStateIsZero(input.PlanTarget) ||
-			input.PlanApplied != nil) {
+	if len(input.PlanTargets) == 0 {
 		return preflightFailure(
-			"conflicting_plan_arms", "plan_state_or_applied_requires_targets",
+			"plan_request_required", "explicit_plan_targets_required",
+			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+		)
+	}
+	if preflightStateIsZero(input.PlanStart) || preflightStateIsZero(input.PlanTarget) || input.PlanApplied == nil {
+		return preflightFailure(
+			"plan_request_required", "explicit_plan_start_target_and_applied_required",
 			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
 		)
 	}
@@ -617,12 +739,22 @@ func preflightResourceLimits(input preflightInput) *preflightCandidateError {
 			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
 		)
 	}
+	// Reject every cheap structural count before walking strings, defaults, or
+	// relation payloads. In particular, an over-limit caller-owned operation or
+	// dependency slice must not buy an O(n) aggregate scan merely because it was
+	// already allocated by the caller.
+	if failure := preflightStructuralCountFailure(input); failure != nil {
+		return failure
+	}
+	if failure := preflightAggregateResourceFailure(input); failure != nil {
+		return failure
+	}
 
 	// A published historical state is derived from one bounded definition set.
 	// The shared state scanner bounds identities, defaults, per-schema and batch
 	// bytes, and structural nodes before preflight clones any Schema IR. The
 	// local node accounting below then composes that bounded state with the
-	// definition and product-plan arms.
+	// definition and product-Planner request arms.
 	if failure := preflightStateResourceFailure(input.State, "state"); failure != nil {
 		return failure
 	}
@@ -637,30 +769,28 @@ func preflightResourceLimits(input preflightInput) *preflightCandidateError {
 			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
 		)
 	}
-	if len(input.PlanTargets) != 0 {
-		if failure := preflightStateResourceFailure(input.PlanStart, "plan_start_state"); failure != nil {
-			return failure
-		}
-		if failure := preflightStateResourceFailure(input.PlanTarget, "plan_target_state"); failure != nil {
-			return failure
-		}
-		planStartNodes, failure := preflightStateResourceNodes(input.PlanStart, "plan_start_state")
-		if failure != nil {
-			return failure
-		}
-		planTargetNodes, failure := preflightStateResourceNodes(input.PlanTarget, "plan_target_state")
-		if failure != nil {
-			return failure
-		}
-		if aggregateNodes > definition.MaxJSONValues-planStartNodes ||
-			aggregateNodes+planStartNodes > definition.MaxJSONValues-planTargetNodes {
-			return preflightFailure(
-				"resource_limit_exceeded", "aggregate_state_and_plan_nodes_exceed_profile_limit",
-				stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
-			)
-		}
-		aggregateNodes += planStartNodes + planTargetNodes
+	if failure := preflightStateResourceFailure(input.PlanStart, "plan_start_state"); failure != nil {
+		return failure
 	}
+	if failure := preflightStateResourceFailure(input.PlanTarget, "plan_target_state"); failure != nil {
+		return failure
+	}
+	planStartNodes, failure := preflightStateResourceNodes(input.PlanStart, "plan_start_state")
+	if failure != nil {
+		return failure
+	}
+	planTargetNodes, failure := preflightStateResourceNodes(input.PlanTarget, "plan_target_state")
+	if failure != nil {
+		return failure
+	}
+	if aggregateNodes > definition.MaxJSONValues-planStartNodes ||
+		aggregateNodes+planStartNodes > definition.MaxJSONValues-planTargetNodes {
+		return preflightFailure(
+			"resource_limit_exceeded", "aggregate_state_and_plan_nodes_exceed_profile_limit",
+			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+		)
+	}
+	aggregateNodes += planStartNodes + planTargetNodes
 
 	type resourceCandidate struct {
 		rank           int
@@ -735,6 +865,269 @@ func preflightResourceLimits(input preflightInput) *preflightCandidateError {
 	return nil
 }
 
+func preflightStructuralCountFailure(input preflightInput) *preflightCandidateError {
+	type resourceCandidate struct {
+		rank           int
+		owner          preflightMigrationKey
+		operationIndex int
+		modelArm       int
+		source         stateModelIdentity
+		field          string
+		target         stateModelIdentity
+		reason         string
+	}
+	var winner *resourceCandidate
+	consider := func(candidate resourceCandidate) {
+		if winner == nil || candidate.rank < winner.rank ||
+			(candidate.rank == winner.rank && preflightMigrationKeyLess(candidate.owner, winner.owner)) ||
+			(candidate.rank == winner.rank && candidate.owner == winner.owner && candidate.operationIndex < winner.operationIndex) ||
+			(candidate.rank == winner.rank && candidate.owner == winner.owner && candidate.operationIndex == winner.operationIndex && candidate.modelArm < winner.modelArm) {
+			copy := candidate
+			winner = &copy
+		}
+	}
+	for definitionIndex := range input.Definitions {
+		item := &input.Definitions[definitionIndex]
+		if len(item.Dependencies) > definition.MaxDependenciesPerMigration {
+			consider(resourceCandidate{
+				rank: 0, owner: item.Key, operationIndex: -1, modelArm: -1,
+				reason: "dependency_count_exceeds_profile_limit",
+			})
+			continue
+		}
+		if len(item.Operations) > definition.MaxOperationsPerMigration {
+			consider(resourceCandidate{
+				rank: 1, owner: item.Key, operationIndex: -1, modelArm: -1,
+				reason: "operation_count_exceeds_profile_limit",
+			})
+			continue
+		}
+		for operationIndex := range item.Operations {
+			operation := &item.Operations[operationIndex]
+			for modelArm, model := range []ir.Model{operation.ModelState, operation.Before, operation.After} {
+				if len(model.Fields) <= definition.MaxFieldsPerCreateModel {
+					continue
+				}
+				consider(resourceCandidate{
+					rank: 2, owner: item.Key, operationIndex: operationIndex, modelArm: modelArm,
+					source: operation.Model, field: operation.Relation.Field, target: operation.Relation.Target,
+					reason: "field_count_exceeds_profile_limit",
+				})
+			}
+		}
+	}
+	if winner == nil {
+		// Continue into one count-only aggregate pass. It mirrors the node shape
+		// charged by preflightAggregateResourceFailure, but never reads strings,
+		// defaults, or relation metadata and stops as soon as the fixed budget is
+		// exceeded.
+		aggregateNodes := 0
+		nodeOverflow := false
+		projectFieldOverflow := false
+		consumeNodes := func(count int) {
+			if nodeOverflow || count < 0 || count > definition.MaxJSONValues-aggregateNodes {
+				nodeOverflow = true
+				return
+			}
+			aggregateNodes += count
+		}
+		consumeModel := func(model ir.Model) {
+			if nodeOverflow {
+				return
+			}
+			if len(model.Fields) > definition.MaxFieldsPerCreateModel {
+				projectFieldOverflow = true
+				return
+			}
+			consumeNodes(len(model.Fields))
+			if nodeOverflow {
+				return
+			}
+			for fieldIndex := range model.Fields {
+				field := &model.Fields[fieldIndex]
+				if field.Default != nil {
+					consumeNodes(1)
+				}
+				if field.Relation != nil {
+					consumeNodes(1)
+				}
+				if nodeOverflow {
+					return
+				}
+			}
+		}
+		consumeProject := func(project stateProjectState) {
+			if nodeOverflow {
+				return
+			}
+			consumeNodes(len(project.apps))
+			if nodeOverflow {
+				return
+			}
+			for _, schema := range project.apps {
+				consumeNodes(len(schema.Models))
+				if nodeOverflow {
+					return
+				}
+				for modelIndex := range schema.Models {
+					consumeModel(schema.Models[modelIndex])
+					if nodeOverflow {
+						return
+					}
+				}
+			}
+		}
+
+		consumeNodes(len(input.Definitions) + len(input.PlanApplied) + len(input.PlanTargets))
+		consumeProject(input.State)
+		if len(input.PlanTargets) != 0 {
+			consumeProject(input.PlanStart)
+			consumeProject(input.PlanTarget)
+		}
+		for definitionIndex := range input.Definitions {
+			if nodeOverflow {
+				break
+			}
+			item := &input.Definitions[definitionIndex]
+			consumeNodes(len(item.Dependencies) + len(item.Operations))
+			for operationIndex := range item.Operations {
+				if nodeOverflow {
+					break
+				}
+				operation := &item.Operations[operationIndex]
+				consumeNodes(1)
+				for _, arm := range []ir.Model{operation.ModelState, operation.Before, operation.After} {
+					if nodeOverflow {
+						break
+					}
+					if preflightModelIsZero(arm) {
+						continue
+					}
+					consumeNodes(1)
+					consumeModel(arm)
+				}
+			}
+		}
+		// Node exhaustion is canonical before a field-count failure. The walker
+		// stops at the fixed aggregate ceiling, so choosing a previously observed
+		// field failure first would make compound map inputs iteration-dependent.
+		if nodeOverflow {
+			return preflightFailure(
+				"resource_limit_exceeded", "aggregate_structural_nodes_exceed_profile_limit",
+				stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+			)
+		}
+		if projectFieldOverflow {
+			return preflightFailure(
+				"resource_limit_exceeded", "field_count_exceeds_profile_limit",
+				stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+			)
+		}
+		return nil
+	}
+	return preflightFailure(
+		"resource_limit_exceeded", winner.reason,
+		winner.source, winner.field, winner.target, winner.owner,
+	)
+}
+
+// preflightAggregateResourceFailure walks every caller-owned string, default,
+// relation arm, and structural node before preflightCloneInput. One shared
+// subtract-before-add budget spans the state, plan, migration keys,
+// dependencies, and all transient ModelState/Before/After snapshots. A later
+// remove cannot hide an oversized transient arm.
+func preflightAggregateResourceFailure(input preflightInput) *preflightCandidateError {
+	budget := stateResourceBudget{}
+	stateResourceScanProject(&budget, input.State)
+	if len(input.PlanTargets) != 0 {
+		stateResourceScanProject(&budget, input.PlanStart)
+		stateResourceScanProject(&budget, input.PlanTarget)
+	}
+	stateResourceConsumeNodes(&budget, len(input.Definitions)+len(input.PlanApplied)+len(input.PlanTargets))
+	consumeIdentity := func(label, app, name string) {
+		stateResourceConsumeString(
+			&budget, nil, app, definition.MaxSourceIDBytes,
+			"identifier_bytes_exceed_profile_limit", app, name, "", -1, -1, label+".app",
+		)
+		stateResourceConsumeString(
+			&budget, nil, name, definition.MaxSourceIDBytes,
+			"identifier_bytes_exceed_profile_limit", app, name, "", -1, -1, label+".name",
+		)
+	}
+	for index, key := range input.PlanApplied {
+		consumeIdentity(fmt.Sprintf("plan_applied[%d]", index), key.App, key.Name)
+	}
+	for index, target := range input.PlanTargets {
+		// Scan the complete candidate representation independently of its tag.
+		// An invalid kind may still carry oversized key/app strings and must not
+		// bypass the resource boundary on its way to semantic target validation.
+		consumeIdentity(fmt.Sprintf("plan_targets[%d].key", index), target.Key.App, target.Key.Name)
+		stateResourceConsumeString(
+			&budget, nil, target.App, definition.MaxSourceIDBytes,
+			"identifier_bytes_exceed_profile_limit", target.App, target.Key.Name, "",
+			-1, -1, fmt.Sprintf("plan_targets[%d].app", index),
+		)
+	}
+	for definitionIndex := range input.Definitions {
+		item := &input.Definitions[definitionIndex]
+		consumeIdentity("migration_key", item.Key.App, item.Key.Name)
+		stateResourceConsumeNodes(&budget, len(item.Dependencies)+len(item.Operations))
+		for dependencyIndex, dependency := range item.Dependencies {
+			consumeIdentity(fmt.Sprintf("dependencies[%d]", dependencyIndex), dependency.App, dependency.Name)
+		}
+		for operationIndex := range item.Operations {
+			operation := &item.Operations[operationIndex]
+			stateResourceConsumeNodes(&budget, 1)
+			stateResourceConsumeString(
+				&budget, nil, string(operation.Kind), definition.MaxSourceIDBytes,
+				"identifier_bytes_exceed_profile_limit", item.Key.App, item.Key.Name,
+				operation.Relation.Field, -1, -1, fmt.Sprintf("operations[%d].kind", operationIndex),
+			)
+			consumeIdentity("operation.model", operation.Model.App, operation.Model.Model)
+			consumeIdentity("operation.relation.source", operation.Relation.Source.App, operation.Relation.Source.Model)
+			consumeIdentity("operation.relation.target", operation.Relation.Target.App, operation.Relation.Target.Model)
+			for _, value := range []struct {
+				label string
+				text  string
+			}{
+				{"operation.relation.field", operation.Relation.Field},
+				{"operation.relation.table", operation.Relation.DeclaredTable},
+				{"operation.relation.column", operation.Relation.DeclaredColumn},
+				{"operation.relation.cardinality", string(operation.Relation.Cardinality)},
+				{"operation.relation.reverse", operation.Relation.Reverse.Name},
+				{"operation.relation.on_delete", string(operation.Relation.OnDelete)},
+			} {
+				stateResourceConsumeString(
+					&budget, nil, value.text, definition.MaxSourceIDBytes,
+					"identifier_bytes_exceed_profile_limit", item.Key.App, item.Key.Name,
+					operation.Relation.Field, -1, -1,
+					fmt.Sprintf("operations[%d].%s", operationIndex, value.label),
+				)
+			}
+			for _, arm := range []ir.Model{operation.ModelState, operation.Before, operation.After} {
+				if preflightModelIsZero(arm) {
+					continue
+				}
+				stateResourceScanSchema(&budget, item.Key.App, ir.Schema{
+					AppLabel: item.Key.App,
+					Models:   []ir.Model{arm},
+				})
+				if budget.countFailure != nil || budget.nodeOverflow {
+					break
+				}
+			}
+		}
+	}
+	if failure := stateResourceBudgetFailure(&budget); failure != nil {
+		return preflightFailure(
+			"resource_limit_exceeded", failure.Reason,
+			stateModelIdentity{App: failure.App, Model: failure.Model}, failure.Field,
+			stateModelIdentity{}, preflightMigrationKey{},
+		)
+	}
+	return nil
+}
+
 func preflightStateResourceFailure(
 	state stateProjectState,
 	reasonPrefix string,
@@ -797,7 +1190,7 @@ func preflightStateResourceNodes(
 }
 
 func preflightModelIsZero(model ir.Model) bool {
-	return reflect.DeepEqual(model, ir.Model{})
+	return model.Name == "" && model.GoName == "" && model.DBTable == "" && model.Fields == nil
 }
 
 func preflightExactOperationModel(
@@ -825,9 +1218,8 @@ func preflightDeclarationFromField(
 	identity stateModelIdentity,
 	model ir.Model,
 	field ir.Field,
-	creators map[stateModelIdentity]preflightCreatorRecord,
 ) preflightRelationDeclaration {
-	declaration := preflightRelationDeclaration{
+	return preflightRelationDeclaration{
 		Source:           identity,
 		Field:            field.Name,
 		Target:           stateIdentity(field.Relation.Target),
@@ -838,12 +1230,6 @@ func preflightDeclarationFromField(
 		Reverse:          field.Relation.Reverse,
 		OnDelete:         field.Relation.OnDelete,
 	}
-	if target, exists := creators[declaration.Target]; exists {
-		if primaryKey, ok := preflightAutoPrimaryKey(target.Model); ok {
-			declaration.TargetField = preflightTargetField{Name: primaryKey.Name, Column: primaryKey.Column}
-		}
-	}
-	return declaration
 }
 
 func preflightExactRelationDelta(
@@ -975,12 +1361,16 @@ func preflightActiveRelationShape(
 	return nil
 }
 
-func preflightReplayProductPlan(
+// preflightReplayWithProductPlanner uses the actual migrations.Planner only
+// for graph/history/target validation and step ordering. The IR state replay is
+// intentionally candidate-local and is not product Reconstructor evidence.
+func preflightReplayWithProductPlanner(
 	start stateProjectState,
 	target stateProjectState,
 	appliedKeys []migrations.MigrationKey,
-	targets []migrations.Target,
+	targets []preflightPlanTarget,
 	definitions []preflightDefinition,
+	productPlan *[]migrations.PlanStep,
 ) *preflightCandidateError {
 	if failure := stateValidate(start); failure != nil {
 		return preflightFailure(
@@ -1001,16 +1391,9 @@ func preflightReplayProductPlan(
 		)
 	}
 	byKey := make(map[preflightMigrationKey]preflightDefinition, len(definitions))
-	productDefinitions := make([]migrations.Migration, len(definitions))
+	productDefinitions := preflightProductDefinitionGraph(definitions)
 	for _, item := range definitions {
 		byKey[item.Key] = preflightCloneDefinition(item)
-	}
-	for index, item := range definitions {
-		productDefinitions[index] = migrations.Migration{App: item.Key.App, Name: item.Key.Name}
-		productDefinitions[index].Dependencies = make([]migrations.MigrationKey, len(item.Dependencies))
-		for dependencyIndex, dependency := range item.Dependencies {
-			productDefinitions[index].Dependencies[dependencyIndex] = migrations.MigrationKey{App: dependency.App, Name: dependency.Name}
-		}
 	}
 	planner, err := migrations.NewPlanner(productDefinitions...)
 	if err != nil {
@@ -1026,12 +1409,25 @@ func preflightReplayProductPlan(
 			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
 		)
 	}
-	plan, err := planner.Plan(applied, targets...)
+	if err := planner.CheckHistory(applied); err != nil {
+		return preflightFailure(
+			"plan_applied_state_invalid", "product_planner_rejected_applied_history",
+			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+		)
+	}
+	productTargets, targetFailure := preflightProductPlanTargets(targets)
+	if targetFailure != nil {
+		return targetFailure
+	}
+	plan, err := planner.Plan(applied, productTargets...)
 	if err != nil {
 		return preflightFailure(
 			"plan_target_invalid", "product_planner_rejected_target_or_history",
 			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
 		)
+	}
+	if productPlan != nil {
+		*productPlan = append((*productPlan)[:0], plan...)
 	}
 	if len(plan) == 0 {
 		if reflect.DeepEqual(preflightStateModels(start), preflightStateModels(target)) {
@@ -1107,10 +1503,52 @@ func preflightReplayProductPlan(
 	}
 	if failure := preflightReplayedStateFailure(models, preflightStateModels(target), preflightRelationsFromModels(models)); failure != nil {
 		failure.Code = "plan_target_state_mismatch"
-		failure.Reason = "product_plan_replay_does_not_equal_target_state"
+		failure.Reason = "planner_ordered_candidate_replay_does_not_equal_target_state"
 		return failure
 	}
 	return nil
+}
+
+func preflightProductDefinitionGraph(definitions []preflightDefinition) []migrations.Migration {
+	product := make([]migrations.Migration, len(definitions))
+	for index, item := range definitions {
+		product[index] = migrations.Migration{App: item.Key.App, Name: item.Key.Name}
+		product[index].Dependencies = make([]migrations.MigrationKey, len(item.Dependencies))
+		for dependencyIndex, dependency := range item.Dependencies {
+			product[index].Dependencies[dependencyIndex] = migrations.MigrationKey{App: dependency.App, Name: dependency.Name}
+		}
+	}
+	return product
+}
+
+func preflightProductPlanTargets(targets []preflightPlanTarget) ([]migrations.Target, *preflightCandidateError) {
+	product := make([]migrations.Target, len(targets))
+	for index, target := range targets {
+		switch target.Kind {
+		case preflightPlanTargetNamed:
+			if target.App != "" || target.Key.App == "" || target.Key.Name == "" {
+				return nil, preflightFailure(
+					"plan_target_invalid", "candidate_named_target_invalid",
+					stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+				)
+			}
+			product[index] = migrations.NamedTarget(migrations.MigrationKey{App: target.Key.App, Name: target.Key.Name})
+		case preflightPlanTargetZero:
+			if target.App == "" || target.Key != (preflightMigrationKey{}) {
+				return nil, preflightFailure(
+					"plan_target_invalid", "candidate_zero_target_invalid",
+					stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+				)
+			}
+			product[index] = migrations.ZeroTarget(target.App)
+		default:
+			return nil, preflightFailure(
+				"plan_target_invalid", "candidate_target_kind_invalid",
+				stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+			)
+		}
+	}
+	return product, nil
 }
 
 func preflightRelationsFromModels(models map[stateModelIdentity]ir.Model) []preflightRelationRecord {
@@ -1185,24 +1623,20 @@ func preflightRelationDeclarationFailure(
 	return nil
 }
 
-func preflightRelationCreatorFailure(
+func preflightBindRelationIntent(
 	parents map[preflightMigrationKey][]preflightMigrationKey,
 	creators map[stateModelIdentity]preflightCreatorRecord,
+	replayed map[stateModelIdentity]ir.Model,
 	record preflightRelationRecord,
-) *preflightCandidateError {
+) (preflightRelationRecord, *preflightCandidateError) {
 	declaration := record.Declaration
 	sourceCreator, sourceExists := creators[declaration.Source]
 	if !sourceExists {
-		return preflightRankedFailure(0, "source_model_not_found", "source_model_missing", record).failure
+		return preflightRelationRecord{}, preflightRankedFailure(0, "source_model_not_found", "source_model_missing", record).failure
 	}
 	targetCreator, targetExists := creators[declaration.Target]
 	if !targetExists {
-		return preflightRankedFailure(1, "target_model_not_found", "target_model_missing", record).failure
-	}
-	targetPrimaryKey, targetPrimaryKeyOK := preflightAutoPrimaryKey(targetCreator.Model)
-	if !targetPrimaryKeyOK || targetPrimaryKey.Name != declaration.TargetField.Name ||
-		targetPrimaryKey.Column != declaration.TargetField.Column {
-		return preflightRankedFailure(3, "target_autofield_required", "target_primary_key_not_auto_or_mismatched", record).failure
+		return preflightRelationRecord{}, preflightRankedFailure(1, "target_model_not_found", "target_model_missing", record).failure
 	}
 	sourceVisibleAtCreate := sourceCreator.Creator == record.Owner &&
 		sourceCreator.CreatorOperation == record.OwnerOperation &&
@@ -1214,18 +1648,42 @@ func preflightRelationCreatorFailure(
 		record.Owner,
 		record.OwnerOperation,
 	) {
-		return preflightRankedFailure(10, "source_creator_not_ancestor", "source_creator_not_in_dependency_ancestry", record).failure
+		return preflightRelationRecord{}, preflightRankedFailure(10, "source_creator_not_ancestor", "source_creator_not_in_dependency_ancestry", record).failure
 	}
-	if !preflightCreatorVisible(
+	targetIsSelfAtCreate := sourceVisibleAtCreate && targetCreator.Creator == record.Owner &&
+		targetCreator.CreatorOperation == record.OwnerOperation && declaration.Target == declaration.Source
+	if !targetIsSelfAtCreate && !preflightCreatorVisible(
 		parents,
 		targetCreator.Creator,
 		targetCreator.CreatorOperation,
 		record.Owner,
 		record.OwnerOperation,
 	) {
-		return preflightRankedFailure(11, "target_creator_not_ancestor", "creator_not_in_dependency_ancestry", record).failure
+		return preflightRelationRecord{}, preflightRankedFailure(11, "target_creator_not_ancestor", "creator_not_in_dependency_ancestry", record).failure
 	}
-	return nil
+	targetModel, targetVisible := replayed[declaration.Target]
+	if !targetVisible {
+		return preflightRelationRecord{}, preflightRankedFailure(
+			11, "target_creator_not_ancestor", "target_creator_not_replayed_before_relation", record,
+		).failure
+	}
+	targetPrimaryKey, targetPrimaryKeyOK := preflightAutoPrimaryKey(targetModel)
+	if !targetPrimaryKeyOK {
+		return preflightRelationRecord{}, preflightRankedFailure(
+			3, "target_autofield_required", "target_requires_exactly_one_nonnullable_auto_primary_key", record,
+		).failure
+	}
+	bound := record
+	bound.SourceModel = record.SourceModel.Clone()
+	bound.BackendIntent = preflightBackendRelationIntent{
+		SourceTable:  declaration.DeclaredTable,
+		SourceColumn: declaration.DeclaredColumn,
+		TargetTable:  targetModel.DBTable,
+		TargetKey:    targetPrimaryKey.Clone(),
+		Nullable:     declaration.DeclaredNullable,
+		OnDelete:     declaration.OnDelete,
+	}
+	return bound, nil
 }
 
 func preflightReplayedStateFailure(
@@ -1549,7 +2007,10 @@ func preflightAutoPrimaryKey(model ir.Model) (ir.Field, bool) {
 			found = field.Clone()
 		}
 	}
-	return found, count == 1 && found.Kind == ir.FieldAuto && !found.Nullable
+	if count != 1 || found.Kind != ir.FieldAuto || found.Nullable || found.Name == "" || found.Column == "" {
+		return ir.Field{}, false
+	}
+	return found.Clone(), true
 }
 
 func preflightField(model ir.Model, name string) (ir.Field, bool) {
@@ -1619,12 +2080,6 @@ func preflightRelationRecordLess(left, right preflightRelationRecord) bool {
 	}
 	if leftRelation.Target != rightRelation.Target {
 		return preflightModelIdentityLess(leftRelation.Target, rightRelation.Target)
-	}
-	if leftRelation.TargetField != rightRelation.TargetField {
-		if leftRelation.TargetField.Name != rightRelation.TargetField.Name {
-			return leftRelation.TargetField.Name < rightRelation.TargetField.Name
-		}
-		return leftRelation.TargetField.Column < rightRelation.TargetField.Column
 	}
 	if left.Owner != right.Owner {
 		return preflightMigrationKeyLess(left.Owner, right.Owner)
@@ -1698,6 +2153,303 @@ func preflightDependencyFailure(owner, dependency preflightMigrationKey) *prefli
 	return failure
 }
 
+func preflightPrepareSteps(
+	definitions []preflightDefinition,
+	creators map[stateModelIdentity]preflightCreatorRecord,
+) ([]preflightPreparedStep, *preflightCandidateError) {
+	models := make(map[stateModelIdentity]ir.Model, len(creators))
+	steps := make([]preflightPreparedStep, len(definitions))
+	for definitionIndex, definitionValue := range definitions {
+		step := preflightPreparedStep{
+			Key:          definitionValue.Key,
+			Dependencies: append([]preflightMigrationKey(nil), definitionValue.Dependencies...),
+			Operations:   make([]preflightPreparedOperation, len(definitionValue.Operations)),
+		}
+		for operationIndex, operation := range definitionValue.Operations {
+			prepared := preflightPreparedOperation{OperationIndex: operationIndex, Kind: operation.Kind}
+			var sourceIdentity stateModelIdentity
+			switch operation.Kind {
+			case preflightCreateModel:
+				prepared.After = operation.ModelState.Clone()
+				sourceIdentity = operation.Model
+				// A relation-bearing CreateModel may self-reference, so publish its
+				// exact historical model to the local replay map before binding keys.
+				models[sourceIdentity] = operation.ModelState.Clone()
+			case preflightAddScalar, preflightAddRelation, preflightRemoveRelation:
+				prepared.Before = operation.Before.Clone()
+				prepared.After = operation.After.Clone()
+				if operation.Kind == preflightAddScalar {
+					sourceIdentity = stateModelIdentity{App: definitionValue.Key.App, Model: operation.Before.Name}
+				} else {
+					sourceIdentity = operation.Relation.Source
+				}
+			default:
+				return nil, preflightFailure(
+					"unsupported_operation", "unsupported_operation", operation.Model,
+					operation.Relation.Field, operation.Relation.Target, definitionValue.Key,
+				)
+			}
+
+			present := prepared.After
+			if operation.Kind == preflightRemoveRelation {
+				present = prepared.Before
+			}
+			for _, sourceField := range present.Fields {
+				if sourceField.Kind != ir.FieldForeignKey || sourceField.Relation == nil {
+					continue
+				}
+				if operation.Kind == preflightAddScalar {
+					continue
+				}
+				// Add/RemoveField owns only its changed relation field. Other
+				// relation fields in the model remain historical context, not a
+				// second physical operation target.
+				if (operation.Kind == preflightAddRelation || operation.Kind == preflightRemoveRelation) &&
+					sourceField.Name != operation.Relation.Field {
+					continue
+				}
+				targetIdentity := stateIdentity(sourceField.Relation.Target)
+				targetModel, exists := models[targetIdentity]
+				if !exists {
+					return nil, preflightFailure(
+						"target_model_not_found", "prepared_target_model_not_visible",
+						sourceIdentity, sourceField.Name, targetIdentity, definitionValue.Key,
+					)
+				}
+				targetKey, ok := preflightAutoPrimaryKey(targetModel)
+				if !ok {
+					return nil, preflightFailure(
+						"target_autofield_required", "prepared_target_requires_exact_auto_primary_key",
+						sourceIdentity, sourceField.Name, targetIdentity, definitionValue.Key,
+					)
+				}
+				creator := creators[targetIdentity]
+				prepared.Targets = append(prepared.Targets, preflightPreparedRelationTarget{
+					SourceField:      sourceField.Clone(),
+					TargetModel:      targetModel.Clone(),
+					TargetKey:        targetKey.Clone(),
+					Creator:          creator.Creator,
+					CreatorOperation: creator.CreatorOperation,
+				})
+			}
+			if operation.Kind != preflightCreateModel {
+				models[sourceIdentity] = prepared.After.Clone()
+			}
+			step.Operations[operationIndex] = prepared
+		}
+		steps[definitionIndex] = step
+	}
+	return preflightSnapshot{steps: steps}.preflightSteps(), nil
+}
+
+func preflightClonePreparedStep(value preflightPreparedStep) preflightPreparedStep {
+	clone := preflightPreparedStep{
+		Key:          value.Key,
+		Dependencies: append([]preflightMigrationKey(nil), value.Dependencies...),
+		Operations:   make([]preflightPreparedOperation, len(value.Operations)),
+	}
+	if value.plan != nil {
+		plan := lifecycleClonePreparedPlan(*value.plan)
+		clone.plan = &plan
+	}
+	for operationIndex, operation := range value.Operations {
+		clone.Operations[operationIndex] = operation
+		clone.Operations[operationIndex].Before = operation.Before.Clone()
+		clone.Operations[operationIndex].After = operation.After.Clone()
+		if operation.Targets != nil {
+			clone.Operations[operationIndex].Targets = make([]preflightPreparedRelationTarget, len(operation.Targets))
+			for targetIndex, target := range operation.Targets {
+				clone.Operations[operationIndex].Targets[targetIndex] = target
+				clone.Operations[operationIndex].Targets[targetIndex].SourceField = target.SourceField.Clone()
+				clone.Operations[operationIndex].Targets[targetIndex].TargetModel = target.TargetModel.Clone()
+				clone.Operations[operationIndex].Targets[targetIndex].TargetKey = target.TargetKey.Clone()
+			}
+		}
+	}
+	return clone
+}
+
+// preflightSealCurrentHandoff is invoked exactly once while preflightValidate
+// still owns the original prepared steps. It never accepts a caller-visible
+// prepared-step clone. The full graph request and current operation membership
+// are checked and independently cloned into the opaque handoff in this one
+// trusted construction step.
+func (s *preflightSnapshot) preflightSealCurrentHandoff() *preflightCandidateError {
+	if s == nil || s.handoffSealed || len(s.steps) == 0 || s.steps[0].plan == nil {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_handoff_seal_state_invalid",
+			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+		)
+	}
+	provenance := lifecycleClonePreparedPlan(*s.steps[0].plan)
+	for index := range s.steps {
+		if s.steps[index].plan == nil || !reflect.DeepEqual(*s.steps[index].plan, provenance) {
+			return preflightFailure(
+				"plan_step_invalid", "snapshot_prepared_steps_do_not_share_exact_plan_provenance",
+				stateModelIdentity{}, "", stateModelIdentity{}, s.steps[index].Key,
+			)
+		}
+	}
+	direction := provenance.expected.Direction
+	if direction != migrations.DirectionForward && direction != migrations.DirectionBackward {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_handoff_direction_invalid",
+			stateModelIdentity{}, "", stateModelIdentity{}, preflightMigrationKey{},
+		)
+	}
+	currentKey := preflightMigrationKey{App: provenance.expected.Key.App, Name: provenance.expected.Key.Name}
+	currentIndex := -1
+	for index := range s.steps {
+		if s.steps[index].Key == currentKey {
+			currentIndex = index
+			break
+		}
+	}
+	if currentIndex < 0 {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_current_plan_step_has_no_prepared_definition",
+			stateModelIdentity{}, "", stateModelIdentity{}, currentKey,
+		)
+	}
+	step := &s.steps[currentIndex]
+	key := migrations.MigrationKey{App: step.Key.App, Name: step.Key.Name}
+
+	var graphDefinition *migrations.Migration
+	for index := range provenance.definitions {
+		if provenance.definitions[index].Key() != key {
+			continue
+		}
+		if graphDefinition != nil {
+			return preflightFailure(
+				"plan_step_invalid", "snapshot_current_plan_step_has_duplicate_graph_definition",
+				stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+			)
+		}
+		graphDefinition = &provenance.definitions[index]
+	}
+	if graphDefinition == nil {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_current_plan_step_has_no_graph_definition",
+			stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+		)
+	}
+	preparedDependencies := make([]migrations.MigrationKey, len(step.Dependencies))
+	for index, dependency := range step.Dependencies {
+		preparedDependencies[index] = migrations.MigrationKey{App: dependency.App, Name: dependency.Name}
+	}
+	dependenciesMatch := len(preparedDependencies) == len(graphDefinition.Dependencies)
+	for index := range preparedDependencies {
+		if preparedDependencies[index] != graphDefinition.Dependencies[index] {
+			dependenciesMatch = false
+			break
+		}
+	}
+	if !dependenciesMatch {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_current_step_dependencies_do_not_match_full_graph",
+			stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+		)
+	}
+	if err := lifecycleValidateSealedPlan(provenance); err != nil {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_full_graph_plan_validation_failed",
+			stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+		)
+	}
+
+	intent := RelationMigrationIntent{Operations: make([]RelationMigrationOperation, len(step.Operations))}
+	hasRelation := false
+	for offset := range step.Operations {
+		sourceIndex := offset
+		if direction == migrations.DirectionBackward {
+			sourceIndex = len(step.Operations) - 1 - offset
+		}
+		source := step.Operations[sourceIndex]
+		operation := RelationMigrationOperation{
+			OperationIndex: source.OperationIndex,
+			Before:         source.Before.Clone(),
+			After:          source.After.Clone(),
+		}
+		switch source.Kind {
+		case preflightCreateModel:
+			operation.Kind = RelationMigrationCreateModel
+		case preflightAddScalar, preflightAddRelation:
+			operation.Kind = RelationMigrationAddField
+		case preflightRemoveRelation:
+			operation.Kind = RelationMigrationRemoveField
+		default:
+			return preflightFailure(
+				"unsupported_operation", "snapshot_handoff_operation_invalid",
+				stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+			)
+		}
+		if direction == migrations.DirectionBackward {
+			operation.Before, operation.After = operation.After, operation.Before
+			switch operation.Kind {
+			case RelationMigrationCreateModel:
+				operation.Kind = RelationMigrationDeleteModel
+			case RelationMigrationAddField:
+				operation.Kind = RelationMigrationRemoveField
+			case RelationMigrationRemoveField:
+				operation.Kind = RelationMigrationAddField
+			}
+		}
+		if source.Targets != nil {
+			operation.Targets = make([]RelationMigrationTarget, len(source.Targets))
+			for targetIndex, target := range source.Targets {
+				operation.Targets[targetIndex] = RelationMigrationTarget{
+					SourceField: target.SourceField.Clone(),
+					TargetModel: target.TargetModel.Clone(),
+					TargetKey:   target.TargetKey.Clone(),
+				}
+			}
+			hasRelation = hasRelation || len(operation.Targets) != 0
+		}
+		intent.Operations[offset] = operation
+	}
+	s.handoffSealed = true
+	s.handoffKey = step.Key
+	if !hasRelation {
+		return nil
+	}
+	transition, err := lifecyclePreparedHistoryTransition(key, direction)
+	if err != nil {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_handoff_transition_invalid",
+			stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+		)
+	}
+	prepared, err := lifecyclePrepareMixedStep(transition, intent)
+	if err != nil {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_handoff_lifecycle_invalid",
+			stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+		)
+	}
+	sealed := lifecyclePreparedRelationStep{
+		transition: prepared.transition,
+		intent:     lifecycleCloneRelationIntent(prepared.intent),
+		plan:       lifecycleClonePreparedPlan(provenance),
+		binding: &lifecyclePreparedRelationBinding{
+			key:        key,
+			direction:  direction,
+			transition: transition,
+			intent:     lifecycleCloneRelationIntent(prepared.intent),
+			plan:       lifecycleClonePreparedPlan(provenance),
+		},
+	}
+	validated, err := lifecyclePrepareSealedStepPure(sealed)
+	if err != nil {
+		return preflightFailure(
+			"plan_step_invalid", "snapshot_handoff_sealed_validation_failed",
+			stateModelIdentity{}, "", stateModelIdentity{}, step.Key,
+		)
+	}
+	s.handoffRelation = true
+	s.handoff = lifecycleClonePreparedRelationStep(validated)
+	return nil
+}
+
 func preflightCloneDefinition(value preflightDefinition) preflightDefinition {
 	clone := preflightDefinition{
 		Key:          value.Key,
@@ -1719,7 +2471,7 @@ func preflightCloneInput(value preflightInput) preflightInput {
 		Definitions: make([]preflightDefinition, len(value.Definitions)),
 		Capability:  value.Capability,
 		PlanApplied: append([]migrations.MigrationKey(nil), value.PlanApplied...),
-		PlanTargets: append([]migrations.Target(nil), value.PlanTargets...),
+		PlanTargets: append([]preflightPlanTarget(nil), value.PlanTargets...),
 	}
 	if !preflightStateIsZero(value.PlanStart) {
 		clone.PlanStart = value.PlanStart.stateClone()

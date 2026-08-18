@@ -2,6 +2,8 @@ package migrationrelation
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,11 +88,13 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 
 	relationRaw := profileRawSources(t, profileRelationFixture())[0]
 	tests := []struct {
-		name       string
-		sources    func() []definition.Source
-		wantStage  string
-		wantReason string
-		wantLimit  string
+		name           string
+		sources        func() []definition.Source
+		wantStage      string
+		wantReason     string
+		wantLimit      string
+		wantPointer    string
+		compareProduct bool
 	}{
 		{
 			name: "duplicate JSON key precedes relation dispatch",
@@ -99,7 +103,7 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 				source.Document = bytes.Replace(source.Document, []byte(`"loader_abi":2`), []byte(`"loader_abi":2,"loader_abi":2`), 1)
 				return []definition.Source{source}
 			},
-			wantStage: "document", wantReason: "duplicate_key",
+			wantStage: "document", wantReason: "duplicate_key", wantPointer: "/compatibility/loader_abi", compareProduct: true,
 		},
 		{
 			name: "trailing framing precedes relation dispatch",
@@ -108,7 +112,7 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 				source.Document = append(source.Document, []byte(` {}`)...)
 				return []definition.Source{source}
 			},
-			wantStage: "document", wantReason: "trailing_value",
+			wantStage: "document", wantReason: "trailing_value", compareProduct: true,
 		},
 		{
 			name: "JSON depth precedes relation dispatch",
@@ -118,6 +122,7 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 				return []definition.Source{source}
 			},
 			wantStage: "document", wantReason: "resource_limit_exceeded", wantLimit: "json_depth",
+			wantPointer: "/noise" + strings.Repeat("/0", definition.MaxJSONDepth-1), compareProduct: true,
 		},
 		{
 			name: "document bytes precede parsing",
@@ -147,7 +152,7 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 				source.Document = profileAddRawRootMember(source.Document, "noise", profileNullArray(definition.MaxDocumentJSONValues+1))
 				return []definition.Source{source}
 			},
-			wantStage: "document", wantReason: "resource_limit_exceeded", wantLimit: "document_json_values",
+			wantStage: "document", wantReason: "resource_limit_exceeded", wantLimit: "document_json_values", compareProduct: true,
 		},
 		{
 			name: "batch JSON values precede unknown fields",
@@ -161,7 +166,7 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 				}
 				return sources
 			},
-			wantStage: "document", wantReason: "resource_limit_exceeded", wantLimit: "json_values",
+			wantStage: "document", wantReason: "resource_limit_exceeded", wantLimit: "json_values", compareProduct: true,
 		},
 		{
 			name: "source count is bounded before snapshots",
@@ -174,23 +179,180 @@ func TestProfileDispatchAcceptsOnlyExactTuplesAndUsesRawProductGuards(t *testing
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			set, report, err := profileLoadRaw(test.sources()...)
+			sources := test.sources()
+			set, report, err := profileLoadRaw(sources...)
+			wantParserInvocations := len(sources)
+			if test.wantLimit == "source_count" || test.wantLimit == "document_bytes" || test.wantLimit == "batch_bytes" {
+				wantParserInvocations = 0
+			}
+			if report.ParserInvocations != wantParserInvocations {
+				t.Fatalf("parser invocations = %d, want %d", report.ParserInvocations, wantParserInvocations)
+			}
 			failure := profileRequireCandidateFailure(t, err)
-			if failure.Stage != test.wantStage || failure.Reason != test.wantReason || failure.Limit != test.wantLimit {
-				t.Fatalf("raw failure = %+v, want stage=%s reason=%s limit=%s", failure, test.wantStage, test.wantReason, test.wantLimit)
+			if failure.Stage != test.wantStage || failure.Reason != test.wantReason || failure.Limit != test.wantLimit ||
+				failure.Pointer != test.wantPointer {
+				t.Fatalf("raw failure = %+v, want stage=%s reason=%s limit=%s pointer=%q", failure, test.wantStage, test.wantReason, test.wantLimit, test.wantPointer)
+			}
+			profileRequireFailureContextMatchesError(t, report, failure)
+			if test.compareProduct {
+				_, productReport, productErr := definition.Load(sources...)
+				mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+				if !reflect.DeepEqual(failure, mapped) {
+					t.Fatalf("raw scanner diverged from product context:\ncandidate=%+v\nproduct=%+v", failure, mapped)
+				}
 			}
 			profileRequireNoPublication(t, set, report)
 		})
 	}
+
+	t.Run("mixed source preflight remains the exact product boundary", func(t *testing.T) {
+		relation := profileRawSources(t, profileRelationFixture())[0]
+		legacy, _ := profileLegacyFixture()
+		legacyRaw := profileRawSources(t, legacy)[0]
+		invalidUTF8 := profileCloneRawSource(relation)
+		invalidUTF8.SourceID = string([]byte{0xff})
+		empty := profileCloneRawSource(relation)
+		empty.SourceID = ""
+		duplicateRelation := profileCloneRawSource(relation)
+		duplicateRelation.SourceID = "same-source"
+		duplicateLegacy := profileCloneRawSource(legacyRaw)
+		duplicateLegacy.SourceID = "same-source"
+		for _, test := range []struct {
+			name    string
+			sources []definition.Source
+		}{
+			{name: "empty source id", sources: []definition.Source{empty}},
+			{name: "invalid UTF-8 source id", sources: []definition.Source{invalidUTF8}},
+			{name: "duplicate source id", sources: []definition.Source{duplicateRelation, duplicateLegacy}},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				_, productReport, productErr := definition.Load(test.sources...)
+				set, candidateReport, candidateErr := profileLoadRaw(test.sources...)
+				candidateFailure := profileRequireCandidateFailure(t, candidateErr)
+				if candidateReport.ParserInvocations != 0 {
+					t.Fatalf("preflight parser invocations = %d, want 0", candidateReport.ParserInvocations)
+				}
+				mappedFailure := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+				if !reflect.DeepEqual(candidateFailure, mappedFailure) || !reflect.DeepEqual(candidateReport, profileReportFromProduct(productReport)) {
+					t.Fatalf("mixed preflight diverged: candidate=%+v/%+v product=%+v/%+v", candidateFailure, candidateReport, mappedFailure, productReport)
+				}
+				profileRequireNoPublication(t, set, candidateReport)
+			})
+		}
+	})
+
+	t.Run("mixed raw failure precedence is permutation invariant", func(t *testing.T) {
+		raw := profileRawSources(t, profileRelationFixture())[0]
+		duplicate := profileCloneRawSource(raw)
+		duplicate.SourceID = "a-duplicate"
+		duplicate.Document = bytes.Replace(duplicate.Document, []byte(`"loader_abi":2`), []byte(`"loader_abi":2,"loader_abi":2`), 1)
+		depth := profileCloneRawSource(raw)
+		depth.SourceID = "z-depth"
+		depth.Document = profileAddRawRootMember(depth.Document, "noise", strings.Repeat("[", definition.MaxJSONDepth+1)+"null"+strings.Repeat("]", definition.MaxJSONDepth+1))
+		var first *profileCandidateError
+		for _, sources := range [][]definition.Source{{duplicate, depth}, {depth, duplicate}} {
+			_, productReport, productErr := definition.Load(sources...)
+			set, report, err := profileLoadRaw(sources...)
+			failure := profileRequireCandidateFailure(t, err)
+			mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+			if failure.Limit != "json_depth" || failure.SourceID != "z-depth" || !reflect.DeepEqual(failure, mapped) {
+				t.Fatalf("mixed raw winner = %+v, product = %+v", failure, mapped)
+			}
+			profileRequireFailureContextMatchesError(t, report, failure)
+			if first != nil && !reflect.DeepEqual(failure, first) {
+				t.Fatalf("source permutation changed raw winner: first=%+v second=%+v", first, failure)
+			}
+			copy := *failure
+			copy.GraphSources = append([]definition.GraphSource(nil), failure.GraphSources...)
+			first = &copy
+			profileRequireNoPublication(t, set, report)
+		}
+	})
+
+	t.Run("mixed raw scanner rejects a lone JSON surrogate", func(t *testing.T) {
+		source := profileRawSources(t, profileRelationFixture())[0]
+		source.Document = bytes.Replace(source.Document, []byte(`"name":"test-only-relation-candidate"`), []byte(`"name":"\ud800"`), 1)
+		_, productReport, productErr := definition.Load(source)
+		set, report, err := profileLoadRaw(source)
+		failure := profileRequireCandidateFailure(t, err)
+		mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+		if failure.Stage != "document" || failure.Reason != "lone_surrogate" || failure.Pointer != "/producer/name" ||
+			!reflect.DeepEqual(failure, mapped) {
+			t.Fatalf("lone surrogate failure = %+v, product = %+v", failure, mapped)
+		}
+		profileRequireFailureContextMatchesError(t, report, failure)
+		profileRequireNoPublication(t, set, report)
+	})
+
+	t.Run("compound raw diagnostics retain exact pointers and permutation winner", func(t *testing.T) {
+		samePointer := profileRawSources(t, profileRelationFixture())[0]
+		samePointer.Document = bytes.Replace(
+			samePointer.Document,
+			[]byte(`"name":"test-only-relation-candidate"`),
+			[]byte(`"name":"test-only-relation-candidate","name":"\ud800"`),
+			1,
+		)
+		_, productReport, productErr := definition.Load(samePointer)
+		set, report, err := profileLoadRaw(samePointer)
+		failure := profileRequireCandidateFailure(t, err)
+		mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+		if failure.Reason != "duplicate_key" || failure.Pointer != "/producer/name" || !reflect.DeepEqual(failure, mapped) {
+			t.Fatalf("same-pointer compound failure = %+v, product = %+v", failure, mapped)
+		}
+		profileRequireFailureContextMatchesError(t, report, failure)
+		profileRequireNoPublication(t, set, report)
+
+		lone := profileRawSources(t, profileRelationFixture())[0]
+		lone.SourceID = "a-lone"
+		lone.Document = bytes.Replace(lone.Document, []byte(`"name":"test-only-relation-candidate"`), []byte(`"name":"\ud800"`), 1)
+		duplicate := profileRawSources(t, profileRelationFixture())[0]
+		duplicate.SourceID = "z-duplicate"
+		duplicate.Document = bytes.Replace(duplicate.Document, []byte(`"loader_abi":2`), []byte(`"loader_abi":2,"loader_abi":2`), 1)
+		var first *profileCandidateError
+		for _, sources := range [][]definition.Source{{duplicate, lone}, {lone, duplicate}} {
+			_, productReport, productErr := definition.Load(sources...)
+			set, report, err := profileLoadRaw(sources...)
+			failure := profileRequireCandidateFailure(t, err)
+			mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+			if failure.SourceID != "a-lone" || failure.Reason != "lone_surrogate" || failure.Pointer != "/producer/name" ||
+				!reflect.DeepEqual(failure, mapped) {
+				t.Fatalf("permuted compound failure = %+v, product = %+v", failure, mapped)
+			}
+			if first != nil && !reflect.DeepEqual(failure, first) {
+				t.Fatalf("compound source permutation changed winner: first=%+v second=%+v", first, failure)
+			}
+			copy := *failure
+			first = &copy
+			profileRequireFailureContextMatchesError(t, report, failure)
+			profileRequireNoPublication(t, set, report)
+		}
+	})
+
+	t.Run("raw and envelope failures share the exact product winner", func(t *testing.T) {
+		source := profileRawSources(t, profileRelationFixture())[0]
+		source.Document = bytes.Replace(source.Document, []byte(`"loader_abi":2`), []byte(`"loader_abi":2,"loader_abi":2`), 1)
+		source.Document = profileAddRawRootMember(source.Document, "a", "null")
+		_, productReport, productErr := definition.Load(source)
+		set, report, err := profileLoadRaw(source)
+		failure := profileRequireCandidateFailure(t, err)
+		mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+		if !reflect.DeepEqual(failure, mapped) || failure.Stage != "document" || failure.Reason != "unknown_field" || failure.Pointer != "/a" {
+			t.Fatalf("compound raw/envelope failure = %+v, product = %+v", failure, mapped)
+		}
+		profileRequireFailureContextMatchesError(t, report, failure)
+		profileRequireNoPublication(t, set, report)
+	})
 
 	t.Run("relation nested unknown field cannot bypass raw decoder", func(t *testing.T) {
 		source := profileCloneRawSource(relationRaw)
 		source.Document = bytes.Replace(source.Document, []byte(`"cardinality":"many_to_one"`), []byte(`"cardinality":"many_to_one","mystery":true`), 1)
 		set, report, err := profileLoadRaw(source)
 		failure := profileRequireCandidateFailure(t, err)
-		if failure.Stage != "semantic" || failure.Reason != "invalid_relation_shape" {
+		if failure.Stage != "semantic" || failure.Code != string(definition.CodeInvalidIR) || failure.Reason != "invalid_ir" ||
+			failure.Pointer != "/migration/operations/0/field/relation/mystery" || failure.OperationIndex != 0 {
 			t.Fatalf("strict relation failure = %+v", failure)
 		}
+		profileRequireFailureContextMatchesError(t, report, failure)
 		profileRequireNoPublication(t, set, report)
 	})
 }
@@ -217,12 +379,19 @@ func TestProfileLegacyOnlyDelegatesToExistingLoadDigestAndDefinitionsExactly(t *
 		t.Fatalf("legacy raw document bytes = %d, want %d", got, want)
 	}
 	if !reflect.DeepEqual(candidate.profileLegacyDefinitions(), product.Definitions()) {
-		t.Fatal("legacy candidate did not publish definition.Load definitions exactly")
+		t.Fatalf("legacy candidate definitions = %#v\nproduct definitions = %#v", candidate.profileLegacyDefinitions(), product.Definitions())
 	}
-	if len(candidate.profileCanonicalBytes()) != 0 {
-		t.Fatal("legacy candidate synthesized its own inaccessible canonical byte representation")
+	if report.ParserInvocations != len(raw) {
+		t.Fatalf("legacy parser invocations = %d, want exactly one/source (%d)", report.ParserInvocations, len(raw))
 	}
-	if report != profileReportFromProduct(productReport) || report != (profileLoadReport{DocumentsReceived: 2, ProfilesAccepted: 2, DefinitionsPublished: 2, SetsPublished: 1}) {
+	canonicalSum := sha256.Sum256(candidate.profileCanonicalBytes())
+	if got := "sha256:" + hex.EncodeToString(canonicalSum[:]); got != product.Digest() {
+		t.Fatalf("legacy canonical bytes hash = %q, product digest %q", got, product.Digest())
+	}
+	if report != profileReportFromProduct(productReport) || report != (profileLoadReport{
+		DocumentsReceived: 2, ProfilesAccepted: 2, OperationsDecoded: 3, PlannerConstruction: 1,
+		DefinitionsPublished: 2, SetsPublished: 1, ParserInvocations: 2,
+	}) {
 		t.Fatalf("legacy report = candidate %+v product %+v", report, productReport)
 	}
 	if !reflect.DeepEqual(raw, original) {
@@ -254,12 +423,199 @@ func TestProfileLegacyOnlyDelegatesToExistingLoadDigestAndDefinitionsExactly(t *
 		}
 	})
 
+	t.Run("legacy errors and limits stay on the exact product path", func(t *testing.T) {
+		unknown := profileRawSources(t, root)
+		unknown[0].Document = profileAddRawRootMember(unknown[0].Document, "unknown", "null")
+		tooMany := make([]definition.Source, definition.MaxSources+1)
+		for _, test := range []struct {
+			name    string
+			sources []definition.Source
+		}{
+			{name: "semantic error", sources: unknown},
+			{name: "source limit", sources: tooMany},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				_, productReport, productErr := definition.Load(test.sources...)
+				if productErr == nil {
+					t.Fatal("definition.Load unexpectedly succeeded")
+				}
+				set, candidateReport, candidateErr := profileLoadRaw(test.sources...)
+				candidateFailure := profileRequireCandidateFailure(t, candidateErr)
+				mappedFailure := profileRequireCandidateFailure(t, profileMapProductError(productErr))
+				if !reflect.DeepEqual(candidateFailure, mappedFailure) || !reflect.DeepEqual(candidateReport, profileReportFromProduct(productReport)) {
+					t.Fatalf("legacy failure diverged: candidate=%+v/%+v product=%+v/%+v", candidateFailure, candidateReport, mappedFailure, productReport)
+				}
+				profileRequireNoPublication(t, set, candidateReport)
+			})
+		}
+	})
+
+	t.Run("legacy semantic and graph diagnostics retain every product field", func(t *testing.T) {
+		invalidOperation := profileCloneSource(tail)
+		invalidOperation.Definition.Operations[0].AppLabel = "other"
+		for _, test := range []struct {
+			name      string
+			sources   []definition.Source
+			wantStage string
+			wantApp   string
+			wantName  string
+			wantIndex int
+			wantGraph bool
+		}{
+			{
+				name: "semantic context", sources: profileRawSources(t, invalidOperation),
+				wantStage: "semantic", wantApp: "alpha", wantName: "0002_fields", wantIndex: 0,
+			},
+			{
+				name: "graph context", sources: profileRawSources(t, tail),
+				wantStage: "graph", wantApp: "alpha", wantName: "0002_fields", wantIndex: -1, wantGraph: true,
+			},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				_, productReport, productErr := definition.Load(test.sources...)
+				set, candidateReport, candidateErr := profileLoadRaw(test.sources...)
+				failure := profileRequireCandidateFailure(t, candidateErr)
+				mapped := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+				if !reflect.DeepEqual(failure, mapped) || !reflect.DeepEqual(candidateReport, profileReportFromProduct(productReport)) {
+					t.Fatalf("legacy diagnostic diverged: candidate=%+v/%+v product=%+v/%+v", failure, candidateReport, mapped, productReport)
+				}
+				if failure.Stage != test.wantStage || failure.App != test.wantApp || failure.Name != test.wantName || failure.OperationIndex != test.wantIndex ||
+					(test.wantGraph && len(failure.GraphSources) == 0) {
+					t.Fatalf("legacy diagnostic fields = %+v", failure)
+				}
+				profileRequireNoPublication(t, set, candidateReport)
+			})
+		}
+	})
+
+	t.Run("mixed relation batches retain exact legacy product diagnostics and precedence", func(t *testing.T) {
+		relationRaw := profileRawSources(t, profileRelationFixture())[0]
+		root, tail := profileLegacyFixture()
+
+		rootUnknown := profileRawSources(t, root)
+		rootUnknown[0].Document = profileAddRawRootMember(rootUnknown[0].Document, "unknown", "null")
+		compatibilityNull := profileRawSources(t, root)
+		compatibilityNull[0].Document = bytes.Replace(compatibilityNull[0].Document, []byte(`"loader_abi":1`), []byte(`"loader_abi":null`), 1)
+		compatibilityOverflow := profileRawSources(t, root)
+		compatibilityOverflow[0].Document = bytes.Replace(compatibilityOverflow[0].Document, []byte(`"loader_abi":1`), []byte(`"loader_abi":9223372036854775808`), 1)
+		producerWrongType := profileRawSources(t, root)
+		producerWrongType[0].Document = bytes.Replace(producerWrongType[0].Document, []byte(`"name":"godj-reference"`), []byte(`"name":null`), 1)
+
+		wrongArm := profileRawSources(t, root)
+		wrongArm[0].Document = bytes.Replace(
+			wrongArm[0].Document,
+			[]byte(`"kind":"create_model"`),
+			[]byte(`"field":{},"kind":"create_model"`),
+			1,
+		)
+
+		tooManyDependencies := profileCloneSource(root)
+		tooManyDependencies.SourceID = "legacy-dependencies"
+		tooManyDependencies.Definition.Dependencies = make([]profileIdentity, profileMaxDependencies+1)
+
+		tooManyOperations := profileCloneSource(root)
+		tooManyOperations.SourceID = "legacy-operations"
+		tooManyOperations.Definition.Operations = make([]profileOperation, profileMaxOperations+1)
+
+		tooManyFields := profileCloneSource(root)
+		tooManyFields.SourceID = "legacy-fields"
+		tooManyFields.Definition.Operations[0].Model.Fields = make([]profileField, profileMaxFields+1)
+
+		secondOperation := profileCloneSource(tail)
+		secondOperation.SourceID = "legacy-operation-index"
+		secondOperation.Definition.Operations[1].AppLabel = "other"
+		maxLengthOutOfRange := profileCloneSource(root)
+		maxLengthOutOfRange.SourceID = "legacy-max-length"
+		maxLengthOutOfRange.Definition.Operations[0].Model.Fields[1].MaxLength = profileMaximumWireLength + 1
+
+		compound := profileCloneRawSources(rootUnknown)
+		compound[0].Document = bytes.Replace(
+			compound[0].Document,
+			[]byte(`"kind":"create_model"`),
+			[]byte(`"field":{},"kind":"create_model"`),
+			1,
+		)
+
+		tests := []struct {
+			name        string
+			legacy      []definition.Source
+			wantStage   string
+			wantCode    string
+			wantPointer string
+			wantLimit   string
+			wantOpIndex int
+		}{
+			{name: "root unknown", legacy: rootUnknown, wantStage: "document", wantCode: string(definition.CodeInvalidDocument), wantPointer: "/unknown", wantOpIndex: -1},
+			{name: "compatibility null", legacy: compatibilityNull, wantStage: "document", wantCode: string(definition.CodeInvalidDocument), wantPointer: "/compatibility/loader_abi", wantOpIndex: -1},
+			{name: "compatibility overflow", legacy: compatibilityOverflow, wantStage: "document", wantCode: string(definition.CodeInvalidDocument), wantPointer: "/compatibility/loader_abi", wantOpIndex: -1},
+			{name: "producer wrong type", legacy: producerWrongType, wantStage: "document", wantCode: string(definition.CodeInvalidDocument), wantPointer: "/producer/name", wantOpIndex: -1},
+			{name: "semantic wrong arm", legacy: wrongArm, wantStage: "semantic", wantCode: string(definition.CodeInvalidOperation), wantPointer: "/migration/operations/0/field", wantOpIndex: 0},
+			{name: "dependency limit", legacy: profileRawSources(t, tooManyDependencies), wantStage: "semantic", wantCode: string(definition.CodeInvalidOperation), wantPointer: "/migration/dependencies", wantLimit: "dependencies_per_migration", wantOpIndex: -1},
+			{name: "operation limit", legacy: profileRawSources(t, tooManyOperations), wantStage: "semantic", wantCode: string(definition.CodeInvalidOperation), wantPointer: "/migration/operations", wantLimit: "operations_per_migration", wantOpIndex: -1},
+			{name: "field limit", legacy: profileRawSources(t, tooManyFields), wantStage: "semantic", wantCode: string(definition.CodeInvalidIR), wantPointer: "/migration/operations/0/model/fields", wantLimit: "fields_per_create_model", wantOpIndex: 0},
+			{name: "operation index", legacy: profileRawSources(t, secondOperation), wantStage: "semantic", wantCode: string(definition.CodeInvalidOperation), wantPointer: "/migration/operations/1/app_label", wantOpIndex: 1},
+			{name: "semantic max length range", legacy: profileRawSources(t, maxLengthOutOfRange), wantStage: "semantic", wantCode: string(definition.CodeInvalidDocument), wantPointer: "/migration/operations/0/model/fields/1/max_length", wantOpIndex: 0},
+			{name: "compound document before semantic", legacy: compound, wantStage: "document", wantCode: string(definition.CodeInvalidDocument), wantPointer: "/unknown", wantOpIndex: -1},
+			{name: "graph source mapping", legacy: profileRawSources(t, tail), wantStage: "graph", wantCode: string(migrations.CodeDependencyNotFound), wantPointer: "/migration/dependencies", wantOpIndex: -1},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				_, productReport, productErr := definition.Load(test.legacy...)
+				productFailure := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+				for permutation, mixedRaw := range [][]definition.Source{
+					append(append([]definition.Source(nil), test.legacy...), profileCloneRawSource(relationRaw)),
+					append([]definition.Source{profileCloneRawSource(relationRaw)}, profileCloneRawSources(test.legacy)...),
+				} {
+					set, report, err := profileLoadRaw(mixedRaw...)
+					failure := profileRequireCandidateFailure(t, err)
+					if !reflect.DeepEqual(failure, productFailure) {
+						t.Fatalf("permutation %d mixed legacy failure diverged:\ncandidate=%+v\nproduct=%+v", permutation, failure, productFailure)
+					}
+					if failure.Stage != test.wantStage || failure.Code != test.wantCode || failure.Pointer != test.wantPointer ||
+						failure.Limit != test.wantLimit || failure.OperationIndex != test.wantOpIndex {
+						t.Fatalf("permutation %d exact context = %+v", permutation, failure)
+					}
+					profileRequireFailureContextMatchesError(t, report, failure)
+					profileRequireNoPublication(t, set, report)
+				}
+			})
+		}
+
+		left := profileCloneSource(root)
+		left.SourceID = "z-resource"
+		left.Definition.App = "alpha"
+		left.Definition.Operations[0].AppLabel = "alpha"
+		left.Definition.Dependencies = make([]profileIdentity, profileMaxDependencies+1)
+		right := profileCloneSource(root)
+		right.SourceID = "a-resource"
+		right.Definition.App = "zeta"
+		right.Definition.Operations[0].AppLabel = "zeta"
+		right.Definition.Name = "0002_resource"
+		right.Definition.Dependencies = make([]profileIdentity, profileMaxDependencies+1)
+		legacyResources := profileRawSources(t, left, right)
+		_, productReport, productErr := definition.Load(legacyResources...)
+		productFailure := profileRequireCandidateFailure(t, profileMapProductLoadError(productErr, productReport))
+		for permutation, mixedRaw := range [][]definition.Source{
+			append(profileCloneRawSources(legacyResources), profileCloneRawSource(relationRaw)),
+			{profileCloneRawSource(relationRaw), profileCloneRawSource(legacyResources[1]), profileCloneRawSource(legacyResources[0])},
+		} {
+			set, report, err := profileLoadRaw(mixedRaw...)
+			failure := profileRequireCandidateFailure(t, err)
+			if !reflect.DeepEqual(failure, productFailure) || failure.SourceID != "a-resource" {
+				t.Fatalf("same-class permutation %d = candidate %+v product %+v", permutation, failure, productFailure)
+			}
+			profileRequireFailureContextMatchesError(t, report, failure)
+			profileRequireNoPublication(t, set, report)
+		}
+	})
+
 	empty, emptyReport, err := profileLoadRaw()
 	if err != nil {
 		t.Fatalf("profileLoadRaw empty: %v", err)
 	}
 	if empty.profileDigest() != definition.EmptySetDigest || !empty.hasLegacy ||
-		emptyReport != (profileLoadReport{SetsPublished: 1}) {
+		emptyReport != (profileLoadReport{PlannerConstruction: 1, SetsPublished: 1}) {
 		t.Fatalf("empty legacy set = digest %q hasLegacy=%t report=%+v", empty.profileDigest(), empty.hasLegacy, emptyReport)
 	}
 }
@@ -269,25 +625,28 @@ func TestProfileMixedDigestIncludesExactProfileAndFullIRV3Meaning(t *testing.T) 
 
 	legacy, _ := profileLegacyFixture()
 	relation := profileRelationFixture()
-	mixed, _, err := profileLoad(relation, legacy)
+	mixed, mixedReport, err := profileLoad(relation, legacy)
 	if err != nil {
 		t.Fatalf("profileLoad mixed: %v", err)
 	}
-	relationOnly, _, err := profileLoad(relation)
+	relationOnly, relationReport, err := profileLoad(relation)
 	if err != nil {
 		t.Fatalf("profileLoad relation: %v", err)
 	}
 	const (
-		wantMixedDigest    = "sha256:78516839a9512d3f38d5e0df4885b97f75ab735222da1496218aeb4d079de4ca"
-		wantRelationDigest = "sha256:c12eab260f96fa61acef990c39b3ca22490941dda6dbe8c29e655c9e995d0474"
+		wantMixedDigest    = "sha256:08127d3e13bcedaedb52bf80b9ae2281b4ab596481d31f5b1f78d749fdae1644"
+		wantRelationDigest = "sha256:5abaa4dff57b7454d1526cb88917390d5593b5c297be12eebbb8bb175d1fa682"
 	)
 	if mixed.profileDigest() != wantMixedDigest || relationOnly.profileDigest() != wantRelationDigest {
 		t.Fatalf("candidate v2 digests = mixed %q, relation %q", mixed.profileDigest(), relationOnly.profileDigest())
 	}
-	if got, want := len(mixed.profileCanonicalBytes()), 1236; got != want {
+	if mixedReport.ParserInvocations != 2 || relationReport.ParserInvocations != 1 {
+		t.Fatalf("mixed/relation parser invocations = %d/%d, want exactly one/source", mixedReport.ParserInvocations, relationReport.ParserInvocations)
+	}
+	if got, want := len(mixed.profileCanonicalBytes()), 1216; got != want {
 		t.Fatalf("mixed candidate canonical bytes = %d, want %d", got, want)
 	}
-	if got, want := len(relationOnly.profileCanonicalBytes()), 638; got != want {
+	if got, want := len(relationOnly.profileCanonicalBytes()), 618; got != want {
 		t.Fatalf("relation candidate canonical bytes = %d, want %d", got, want)
 	}
 	canonical := string(mixed.profileCanonicalBytes())
@@ -298,10 +657,14 @@ func TestProfileMixedDigestIncludesExactProfileAndFullIRV3Meaning(t *testing.T) 
 		`"cardinality":"many_to_one"`,
 		`"reverse":{"disabled":false,"name":"articles"}`,
 		`"target":{"app_label":"authors","model_name":"author"}`,
-		`"target_field":"id"`,
 	} {
 		if !strings.Contains(canonical, fragment) {
 			t.Fatalf("mixed canonical bytes omit %s:\n%s", fragment, canonical)
+		}
+	}
+	for _, noncanonical := range []string{`"target_field"`, `"decoder"`, `legacy_scalar_v1`, `relation_v2`} {
+		if strings.Contains(canonical, noncanonical) {
+			t.Fatalf("mixed canonical bytes contain internal/non-IR payload %q:\n%s", noncanonical, canonical)
 		}
 	}
 	if mixed.profileDigest() == relationOnly.profileDigest() || mixed.profileDigest() == profileEmptyDigest {
@@ -340,6 +703,33 @@ func TestProfileMixedDigestIncludesExactProfileAndFullIRV3Meaning(t *testing.T) 
 	if err != nil || equivalent.profileDigest() != mixed.profileDigest() {
 		t.Fatalf("source/provenance changed semantic digest: %q/%q error=%v", equivalent.profileDigest(), mixed.profileDigest(), err)
 	}
+	originalSeals := make(map[migrations.MigrationKey]string)
+	for _, published := range mixed.profileDefinitions() {
+		originalSeals[migrations.MigrationKey{App: published.Definition.App, Name: published.Definition.Name}] = published.provenanceSeal
+	}
+	gotProvenance := make(map[string]profileProducer)
+	equivalentDefinitions := equivalent.profileDefinitions()
+	for _, published := range equivalentDefinitions {
+		gotProvenance[published.SourceID] = published.Producer
+		key := migrations.MigrationKey{App: published.Definition.App, Name: published.Definition.Name}
+		if published.provenanceSeal == "" || published.provenanceSeal == originalSeals[key] {
+			t.Fatalf("published provenance seal did not bind metadata for %v: original=%q equivalent=%q", key, originalSeals[key], published.provenanceSeal)
+		}
+	}
+	if !reflect.DeepEqual(gotProvenance, map[string]profileProducer{
+		"renamed-z": {Name: "different", Version: "9"},
+		"renamed-a": {Name: "another", Version: "8"},
+	}) {
+		t.Fatalf("published provenance = %+v", gotProvenance)
+	}
+	equivalentDefinitions[0].SourceID = "mutated-accessor"
+	equivalentDefinitions[0].Producer.Name = "mutated-accessor"
+	equivalentDefinitions[0].provenanceSeal = "mutated-accessor"
+	freshDefinitions := equivalent.profileDefinitions()
+	if freshDefinitions[0].SourceID == "mutated-accessor" || freshDefinitions[0].Producer.Name == "mutated-accessor" ||
+		freshDefinitions[0].provenanceSeal == "mutated-accessor" {
+		t.Fatalf("published provenance accessor retained alias: %#v", freshDefinitions[0])
+	}
 
 	changedReverse := profileCloneSource(relation)
 	changedReverse.Definition.Operations[0].Field.Relation.Reverse.Name = "edited_articles"
@@ -360,13 +750,6 @@ func TestProfileMixedDigestIncludesExactProfileAndFullIRV3Meaning(t *testing.T) 
 	if err != nil || changed.profileDigest() == mixed.profileDigest() {
 		t.Fatalf("target identity did not produce a distinct valid digest: digest=%q error=%v", changed.profileDigest(), err)
 	}
-	changedTargetField := profileCloneSource(relation)
-	changedTargetField.Definition.Operations[0].Field.TargetField = "pk"
-	changed, _, err = profileLoad(legacy, changedTargetField)
-	if err != nil || changed.profileDigest() == mixed.profileDigest() {
-		t.Fatalf("target field did not produce a distinct valid digest: digest=%q error=%v", changed.profileDigest(), err)
-	}
-
 	field := relation.Definition.Operations[0].Field
 	converted, _, failure := profileFieldIR(*field, profileDecoderRelation)
 	if failure != nil {
@@ -385,18 +768,22 @@ func TestProfileMixedDigestIncludesExactProfileAndFullIRV3Meaning(t *testing.T) 
 		t.Fatalf("candidate relation IR = %+v, want %+v", converted, want)
 	}
 
-	t.Run("legacy dependency on relation profile exposes composable decoder blocker", func(t *testing.T) {
+	t.Run("one combined planner accepts a legacy dependency on a relation profile", func(t *testing.T) {
 		dependent := profileCloneSource(legacy)
 		dependent.SourceID = "legacy-after-relation"
 		dependent.Definition.Name = "0002_after_relation"
 		dependent.Definition.Dependencies = []profileIdentity{{App: relation.Definition.App, Name: relation.Definition.Name}}
 		set, report, err := profileLoad(relation, dependent)
-		failure := profileRequireCandidateFailure(t, err)
-		if failure.Stage != "integration" || failure.Code != "legacy_decoder_integration_blocked" ||
-			failure.Reason != "legacy_product_decoder_not_composable" {
-			t.Fatalf("composable legacy decoder blocker = %+v", failure)
+		if err != nil {
+			t.Fatalf("combined mixed planner: %v", err)
 		}
-		profileRequireNoPublication(t, set, report)
+		if report != (profileLoadReport{
+			DocumentsReceived: 2, ProfilesAccepted: 2, OperationsDecoded: 2, PlannerConstruction: 1,
+			DefinitionsPublished: 2, SetsPublished: 1, ParserInvocations: 2,
+		}) ||
+			len(set.profileDefinitions()) != 2 || set.profileDigest() == profileEmptyDigest {
+			t.Fatalf("combined mixed publication = digest %q report %+v definitions %d", set.profileDigest(), report, len(set.profileDefinitions()))
+		}
 	})
 }
 
@@ -411,7 +798,10 @@ func TestProfilePublishedSetIsDeepCopiedAndRawFailuresAreAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("profileLoadRaw mixed: %v", err)
 	}
-	if report != (profileLoadReport{DocumentsReceived: 2, ProfilesAccepted: 2, DefinitionsPublished: 2, SetsPublished: 1}) {
+	if report != (profileLoadReport{
+		DocumentsReceived: 2, ProfilesAccepted: 2, OperationsDecoded: 2, PlannerConstruction: 1,
+		DefinitionsPublished: 2, SetsPublished: 1, ParserInvocations: 2,
+	}) {
 		t.Fatalf("mixed report = %+v", report)
 	}
 	wantDigest := set.profileDigest()
@@ -436,12 +826,14 @@ func TestProfilePublishedSetIsDeepCopiedAndRawFailuresAreAtomic(t *testing.T) {
 
 	t.Run("strict raw relation rejection publishes nothing", func(t *testing.T) {
 		invalid := profileRawSources(t, relation)[0]
-		invalid.Document = bytes.Replace(invalid.Document, []byte(`"target_field":"id"`), []byte(`"target_field":""`), 1)
+		invalid.Document = bytes.Replace(invalid.Document, []byte(`"relation":{`), []byte(`"target_field":"id","relation":{`), 1)
 		failed, failedReport, err := profileLoadRaw(invalid)
 		failure := profileRequireCandidateFailure(t, err)
-		if failure.Reason != "relation_target_field_required" {
+		if failure.Code != string(definition.CodeInvalidIR) || failure.Reason != "invalid_ir" ||
+			failure.Pointer != "/migration/operations/0/field/target_field" || failure.OperationIndex != 0 {
 			t.Fatalf("failure = %+v", failure)
 		}
+		profileRequireFailureContextMatchesError(t, failedReport, failure)
 		profileRequireNoPublication(t, failed, failedReport)
 		if set.profileDigest() != wantDigest {
 			t.Fatal("failed load mutated an already-published set")
@@ -460,10 +852,12 @@ func TestProfilePublishedSetIsDeepCopiedAndRawFailuresAreAtomic(t *testing.T) {
 		for _, sources := range [][]profileSource{{operation, dependency}, {dependency, operation}} {
 			failed, failedReport, err := profileLoad(sources...)
 			failure := profileRequireCandidateFailure(t, err)
-			if failure.Code != "resource_limit_exceeded" || failure.Limit != "dependencies" || failure.SourceID != "z-dependencies" ||
+			if failure.Code != string(definition.CodeInvalidOperation) || failure.Limit != "dependencies_per_migration" ||
+				failure.Pointer != "/migration/dependencies" || failure.SourceID != "z-dependencies" || failure.OperationIndex != -1 ||
 				failure.Maximum != profileMaxDependencies || failure.Actual != profileMaxDependencies+1 {
 				t.Fatalf("resource precedence failure = %+v", failure)
 			}
+			profileRequireFailureContextMatchesError(t, failedReport, failure)
 			profileRequireNoPublication(t, failed, failedReport)
 		}
 	})
@@ -475,9 +869,12 @@ func TestProfilePublishedSetIsDeepCopiedAndRawFailuresAreAtomic(t *testing.T) {
 		source.Definition.Operations = []profileOperation{{AppLabel: "blog", Kind: "create_model", Model: &model}}
 		failed, failedReport, err := profileLoad(source)
 		failure := profileRequireCandidateFailure(t, err)
-		if failure.Limit != "fields" || failure.Maximum != profileMaxFields || failure.Actual != profileMaxFields+1 {
+		if failure.Code != string(definition.CodeInvalidIR) || failure.Limit != "fields_per_create_model" ||
+			failure.Pointer != "/migration/operations/0/model/fields" || failure.OperationIndex != 0 ||
+			failure.Maximum != profileMaxFields || failure.Actual != profileMaxFields+1 {
 			t.Fatalf("field resource failure = %+v", failure)
 		}
+		profileRequireFailureContextMatchesError(t, failedReport, failure)
 		profileRequireNoPublication(t, failed, failedReport)
 	})
 }
@@ -495,19 +892,19 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 		wantReason string
 	}{
 		{
-			name: "create model rejects field sibling arm", source: relationCreate, wantReason: "invalid_create_model_shape",
+			name: "create model rejects field sibling arm", source: relationCreate, wantReason: "invalid_operation",
 			mutate: func(source *profileSource) { source.Definition.Operations[0].Field = &profileField{} },
 		},
 		{
-			name: "create model rejects model name sibling arm", source: relationCreate, wantReason: "invalid_create_model_shape",
+			name: "create model rejects model name sibling arm", source: relationCreate, wantReason: "invalid_operation",
 			mutate: func(source *profileSource) { source.Definition.Operations[0].ModelName = "article" },
 		},
 		{
-			name: "add field rejects model sibling arm", source: relation, wantReason: "invalid_add_field_shape",
+			name: "add field rejects model sibling arm", source: relation, wantReason: "invalid_operation",
 			mutate: func(source *profileSource) { source.Definition.Operations[0].Model = &profileModel{} },
 		},
 		{
-			name: "operation app matches migration", source: relation, wantReason: "operation_app_mismatch",
+			name: "operation app matches migration", source: relation, wantReason: "invalid_operation",
 			mutate: func(source *profileSource) { source.Definition.Operations[0].AppLabel = "other" },
 		},
 		{
@@ -518,7 +915,7 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 			},
 		},
 		{
-			name: "model identifier", source: relation, wantReason: "invalid_ir",
+			name: "model identifier", source: relation, wantReason: "invalid_operation",
 			mutate: func(source *profileSource) { source.Definition.Operations[0].ModelName = "Bad-Model" },
 		},
 		{
@@ -570,14 +967,6 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 			mutate: func(source *profileSource) { source.Definition.Operations[0].Field.Relation.Target.Model = "Bad-Model" },
 		},
 		{
-			name: "relation target field is required", source: relation, wantReason: "invalid_field_shape",
-			mutate: func(source *profileSource) { source.Definition.Operations[0].Field.TargetField = "" },
-		},
-		{
-			name: "relation target field identifier", source: relation, wantReason: "relation_target_field_required",
-			mutate: func(source *profileSource) { source.Definition.Operations[0].Field.TargetField = "Bad-Field" },
-		},
-		{
 			name: "cardinality is exactly many to one", source: relation, wantReason: "invalid_ir",
 			mutate: func(source *profileSource) {
 				source.Definition.Operations[0].Field.Relation.Cardinality = string(ir.RelationOneToMany)
@@ -613,7 +1002,7 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 			},
 		},
 		{
-			name: "relation scalar union is closed", source: relation, wantReason: "invalid_default_shape",
+			name: "relation scalar union is closed", source: relation, wantReason: "invalid_ir",
 			mutate: func(source *profileSource) {
 				value := "hidden"
 				boolean := false
@@ -621,9 +1010,38 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 			},
 		},
 		{
-			name: "relation metadata is required", source: relation, wantReason: "invalid_field_shape",
+			name: "relation metadata is required", source: relation, wantReason: "invalid_ir",
 			mutate: func(source *profileSource) { source.Definition.Operations[0].Field.Relation = nil },
 		},
+	}
+	wantPointers := map[string]string{
+		"create model rejects field sibling arm":      "/migration/operations/0/field",
+		"create model rejects model name sibling arm": "/migration/operations/0/model_name",
+		"add field rejects model sibling arm":         "/migration/operations/0/model",
+		"operation app matches migration":             "/migration/operations/0/app_label",
+		"app identifier":                              "/migration/operations/0/app_label",
+		"model identifier":                            "/migration/operations/0/model_name",
+		"table identifier":                            "/migration/operations/0/model/db_table",
+		"table must already be normalized":            "/migration/operations/0/model/db_table",
+		"model GoName":                                "/migration/operations/0/model/go_name",
+		"field name identifier":                       "/migration/operations/0/field/name",
+		"field column identifier":                     "/migration/operations/0/field/column",
+		"field column must already be normalized":     "/migration/operations/0/field/column",
+		"field GoName":                                "/migration/operations/0/field/go_name",
+		"duplicate field name":                        "/migration/operations/0/model/fields",
+		"duplicate field GoName":                      "/migration/operations/0/model/fields",
+		"duplicate field column":                      "/migration/operations/0/model/fields",
+		"relation target app":                         "/migration/operations/0/field/relation/target/app_label",
+		"relation target model":                       "/migration/operations/0/field/relation/target/model_name",
+		"cardinality is exactly many to one":          "/migration/operations/0/field/relation/cardinality",
+		"reverse requires name or disabled":           "/migration/operations/0/field/relation/reverse",
+		"reverse cannot have name and disabled":       "/migration/operations/0/field/relation/reverse",
+		"reverse name identifier":                     "/migration/operations/0/field/relation/reverse/name",
+		"unsupported delete policy":                   "/migration/operations/0/field/relation/on_delete",
+		"set null requires nullable":                  "/migration/operations/0/field/relation/on_delete",
+		"relation default arm is rejected":            "/migration/operations/0/field/default",
+		"relation scalar union is closed":             "/migration/operations/0/field/default",
+		"relation metadata is required":               "/migration/operations/0/field/relation",
 	}
 	for _, test := range tests {
 		test := test
@@ -638,9 +1056,16 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 			test.mutate(&source)
 			set, report, err := profileLoad(source)
 			failure := profileRequireCandidateFailure(t, err)
-			if failure.Code != "invalid_definition" || failure.Stage != "semantic" || failure.Reason != test.wantReason || failure.SourceID != source.SourceID {
-				t.Fatalf("semantic failure = %#v, want invalid_definition/%s at %q", err, test.wantReason, source.SourceID)
+			wantCode := string(definition.CodeInvalidIR)
+			if test.wantReason == "invalid_operation" {
+				wantCode = string(definition.CodeInvalidOperation)
 			}
+			if failure.Category != definition.CategorySource || failure.Code != wantCode || failure.Stage != "semantic" ||
+				failure.Reason != test.wantReason || failure.SourceID != source.SourceID || failure.Pointer != wantPointers[test.name] ||
+				failure.App != source.Definition.App || failure.Name != source.Definition.Name || failure.OperationIndex != 0 {
+				t.Fatalf("semantic failure = %#v, want %s/%s at %q pointer %q", err, wantCode, test.wantReason, source.SourceID, wantPointers[test.name])
+			}
+			profileRequireFailureContextMatchesError(t, report, failure)
 			profileRequireNoPublication(t, set, report)
 			if published.profileDigest() != wantDigest || !reflect.DeepEqual(published.profileCanonicalBytes(), wantCanonical) {
 				t.Fatalf("rejected mutation aliased an already published set: digest=%s/%s", published.profileDigest(), wantDigest)
@@ -666,6 +1091,26 @@ func TestProfileRelationAndScalarSemanticsUseExactNormalizedSchemaIR(t *testing.
 			t.Fatalf("legacy relation failure = %+v", failure)
 		}
 		profileRequireNoPublication(t, set, report)
+	})
+
+	t.Run("max length uses the fixed signed 32-bit wire boundary", func(t *testing.T) {
+		boundary := relationCreate()
+		boundary.Definition.Operations[0].Model.Fields[1].MaxLength = profileMaximumWireLength
+		set, report, err := profileLoad(boundary)
+		if err != nil || len(set.profileDefinitions()) != 1 || report.SetsPublished != 1 {
+			t.Fatalf("maximum max_length = digest %q report %+v error %v", set.profileDigest(), report, err)
+		}
+
+		overflow := relationCreate()
+		overflow.Definition.Operations[0].Model.Fields[1].MaxLength = profileMaximumWireLength + 1
+		failed, failedReport, err := profileLoad(overflow)
+		failure := profileRequireCandidateFailure(t, err)
+		if failure.Stage != "semantic" || failure.Code != string(definition.CodeInvalidDocument) || failure.Reason != "out_of_range" ||
+			failure.Pointer != "/migration/operations/0/model/fields/1/max_length" || failure.OperationIndex != 0 {
+			t.Fatalf("overflow max_length failure = %+v", failure)
+		}
+		profileRequireFailureContextMatchesError(t, failedReport, failure)
+		profileRequireNoPublication(t, failed, failedReport)
 	})
 }
 
@@ -714,8 +1159,8 @@ func TestProfileGraphIdentityDependenciesAndOperationOrderUseProductSemantics(t 
 	t.Run("invalid definition identity", func(t *testing.T) {
 		source := profileRelationFixture()
 		source.Definition.Name = ""
-		source.Definition.Dependencies = nil
-		source.Definition.Operations = nil
+		source.Definition.Dependencies = []profileIdentity{}
+		source.Definition.Operations = []profileOperation{}
 		requireGraphFailure(t, []profileSource{source}, migrations.CodeInvalidNode)
 	})
 
@@ -746,6 +1191,36 @@ func profileRequireCandidateFailure(t *testing.T, err error) *profileCandidateEr
 		t.Fatalf("error = %T %v, want *profileCandidateError", err, err)
 	}
 	return failure
+}
+
+func profileRequireFailureContextMatchesError(t *testing.T, report profileLoadReport, failure *profileCandidateError) {
+	t.Helper()
+	want := profileFailureContext{
+		Stage:          failure.Stage,
+		SourceID:       failure.SourceID,
+		Pointer:        failure.Pointer,
+		App:            failure.App,
+		Name:           failure.Name,
+		OperationIndex: failure.OperationIndex,
+		Reason:         failure.Reason,
+		Limit:          failure.Limit,
+		Maximum:        failure.Maximum,
+		Actual:         failure.Actual,
+		GraphSources:   append([]definition.GraphSource(nil), failure.GraphSources...),
+	}
+	if report.Failure == nil {
+		t.Fatalf("report failure context is nil, want %+v", want)
+	}
+	got := *report.Failure
+	if len(got.GraphSources) == 0 {
+		got.GraphSources = nil
+	}
+	if len(want.GraphSources) == 0 {
+		want.GraphSources = nil
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("report failure context = %+v, want %+v", report.Failure, want)
+	}
 }
 
 func profileRequireNoPublication(t *testing.T, set profileSet, report profileLoadReport) {
@@ -884,7 +1359,6 @@ func profileRelationFixture() profileSource {
 						Reverse:     profileReverse{Name: "articles"},
 						OnDelete:    string(ir.DeleteProtect),
 					},
-					TargetField: "id",
 				},
 			}},
 		},

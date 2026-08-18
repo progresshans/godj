@@ -8,9 +8,15 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/migrations"
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
+
+// The historical top-level Test names retain "ZeroIO" for inventory
+// continuity. Here it means only that this pure candidate does not invoke
+// catalog, creator-index, or historical-state I/O ports; runtime session-open
+// and connection-pinning behavior belongs to the lifecycle proof.
 
 func TestPreflightWholeProjectMatrixHasOneValidNineFailuresAndZeroIO(t *testing.T) {
 	t.Parallel()
@@ -37,9 +43,9 @@ func TestPreflightWholeProjectMatrixHasOneValidNineFailuresAndZeroIO(t *testing.
 			},
 		},
 		{
-			name: "target_primary_key_wrapper_mismatch", wantCode: "target_autofield_required",
+			name: "target_creator_later_in_same_migration", wantCode: "target_creator_not_ancestor",
 			mutate: func(input *preflightInput) {
-				input.Definitions[2].Operations[0].Relation.TargetField.Name = "legacy_id"
+				preflightMoveTargetCreatorAfterRelation(input)
 			},
 		},
 		{
@@ -93,7 +99,7 @@ func TestPreflightWholeProjectMatrixHasOneValidNineFailuresAndZeroIO(t *testing.
 			}
 			snapshot, metrics, err := preflightValidate(input)
 			if metrics != (preflightIOMetrics{}) {
-				t.Fatalf("preflight performed I/O: %+v", metrics)
+				t.Fatalf("preflight performed catalog/creator/state I/O: %+v", metrics)
 			}
 			if test.wantCode == "" {
 				validCount++
@@ -172,18 +178,6 @@ func TestPreflightHistoricalRelationMetadataMustExactlyMatchDeclarationWithoutIO
 				input.Definitions[2].Operations[0].Relation.DeclaredNullable = true
 			},
 		},
-		{
-			name: "target name is separate wrapper metadata", wantCode: "target_autofield_required",
-			mutate: func(input *preflightInput) {
-				input.Definitions[2].Operations[0].Relation.TargetField.Name = "pk"
-			},
-		},
-		{
-			name: "target column is separate wrapper metadata", wantCode: "target_autofield_required",
-			mutate: func(input *preflightInput) {
-				input.Definitions[2].Operations[0].Relation.TargetField.Column = "pk_id"
-			},
-		},
 	}
 	for _, test := range tests {
 		test := test
@@ -193,7 +187,7 @@ func TestPreflightHistoricalRelationMetadataMustExactlyMatchDeclarationWithoutIO
 			test.mutate(&input)
 			snapshot, metrics, err := preflightValidate(input)
 			if metrics != (preflightIOMetrics{}) {
-				t.Fatalf("metadata mismatch performed I/O: %+v", metrics)
+				t.Fatalf("metadata mismatch performed catalog/creator/state I/O: %+v", metrics)
 			}
 			if !preflightErrorCode(err, test.wantCode) {
 				t.Fatalf("metadata mismatch failure = %#v, want %s", err, test.wantCode)
@@ -203,6 +197,58 @@ func TestPreflightHistoricalRelationMetadataMustExactlyMatchDeclarationWithoutIO
 			}
 		})
 	}
+
+	t.Run("target key is derived from exact historical AutoField and snapshotted in backend intent", func(t *testing.T) {
+		input := preflightFixture()
+		snapshot, metrics, err := preflightValidate(input)
+		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.relations) != 1 {
+			t.Fatalf("derived target key preflight = snapshot:%#v metrics:%+v err:%v", snapshot, metrics, err)
+		}
+		intent := snapshot.relations[0].BackendIntent
+		if intent.SourceTable != "blog_article" || intent.SourceColumn != "author_id" ||
+			intent.TargetTable != "authors_author" || intent.TargetKey.Name != "id" ||
+			intent.TargetKey.Column != "id" || intent.TargetKey.Kind != ir.FieldAuto ||
+			!intent.TargetKey.PrimaryKey || intent.TargetKey.Nullable {
+			t.Fatalf("derived backend intent = %#v", intent)
+		}
+
+		// The declaration has no target-field carrier. Mutating the historical
+		// creator after publication cannot forge or alias the derived snapshot.
+		input.Definitions[0].Operations[0].ModelState.Fields[0].Name = "mutated_caller"
+		intent.TargetKey.Name = "mutated_accessor"
+		fresh := snapshot.preflightRelations()[0].BackendIntent.TargetKey
+		if fresh.Name != "id" || fresh.Column != "id" || fresh.Kind != ir.FieldAuto {
+			t.Fatalf("derived target key retained alias: %#v", fresh)
+		}
+	})
+
+	t.Run("target key derivation fails closed for missing multiple non-Auto and nullable shapes", func(t *testing.T) {
+		valid := preflightFixture().Definitions[0].Operations[0].ModelState.Clone()
+		for _, test := range []struct {
+			name   string
+			mutate func(*ir.Model)
+		}{
+			{name: "missing", mutate: func(model *ir.Model) { model.Fields[0].PrimaryKey = false }},
+			{name: "multiple", mutate: func(model *ir.Model) {
+				model.Fields = append(model.Fields, ir.Field{
+					Name: "second_id", GoName: "SecondID", Column: "second_id", Kind: ir.FieldAuto, PrimaryKey: true,
+				})
+			}},
+			{name: "non_auto", mutate: func(model *ir.Model) {
+				model.Fields[0].Kind = ir.FieldChar
+				model.Fields[0].MaxLength = 32
+			}},
+			{name: "nullable", mutate: func(model *ir.Model) { model.Fields[0].Nullable = true }},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				model := valid.Clone()
+				test.mutate(&model)
+				if field, ok := preflightAutoPrimaryKey(model); ok || !reflect.DeepEqual(field, ir.Field{}) {
+					t.Fatalf("invalid target key derived: %#v ok=%v", field, ok)
+				}
+			})
+		}
+	})
 
 	t.Run("nullable set-null with disabled reverse preserves full metadata", func(t *testing.T) {
 		input := preflightFixture()
@@ -217,6 +263,7 @@ func TestPreflightHistoricalRelationMetadataMustExactlyMatchDeclarationWithoutIO
 		relation.DeclaredNullable = true
 		relation.Reverse = ir.ReverseRelation{Disabled: true}
 		relation.OnDelete = ir.DeleteSetNull
+		input.PlanTarget = input.State.stateClone()
 		snapshot, metrics, err := preflightValidate(input)
 		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.relations) != 1 {
 			t.Fatalf("disabled/set-null preflight = snapshot:%#v metrics:%+v err:%v", snapshot, metrics, err)
@@ -236,7 +283,6 @@ func TestPreflightRelationDeclarationIdentityAndFullGraphAreCanonicalAndZeroIO(t
 		base := preflightFixture()
 		duplicate := base.Definitions[2].Operations[0]
 		duplicate.Relation.Target = duplicate.Relation.Source
-		duplicate.Relation.TargetField = preflightTargetField{Name: "missing", Column: "missing"}
 		duplicate.Relation.DeclaredColumn = "wrong_column"
 		base.Definitions[2].Operations = append(base.Definitions[2].Operations, duplicate)
 		base.Capability.RelationEditor = false
@@ -258,7 +304,7 @@ func TestPreflightRelationDeclarationIdentityAndFullGraphAreCanonicalAndZeroIO(t
 				t.Fatalf("permutation %d duplicate failure = %#v", permutation, err)
 			}
 			if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-				t.Fatalf("permutation %d duplicate published/performed I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
+				t.Fatalf("permutation %d duplicate published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
 			}
 		}
 	})
@@ -271,7 +317,6 @@ func TestPreflightRelationDeclarationIdentityAndFullGraphAreCanonicalAndZeroIO(t
 		input.Definitions[2].Operations[0].After = schema.Models[0].Clone()
 		relation := &input.Definitions[2].Operations[0].Relation
 		relation.Target = relation.Source
-		relation.TargetField = preflightTargetField{Name: "id", Column: "id"}
 		snapshot, metrics, err := preflightValidate(input)
 		var failure *preflightCandidateError
 		if !errors.As(err, &failure) || failure.Code != "self_relation_unsupported" ||
@@ -280,7 +325,7 @@ func TestPreflightRelationDeclarationIdentityAndFullGraphAreCanonicalAndZeroIO(t
 			t.Fatalf("self relation failure = %#v", err)
 		}
 		if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-			t.Fatalf("self relation published/performed I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
+			t.Fatalf("self relation published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
 		}
 	})
 
@@ -311,7 +356,6 @@ func TestPreflightRelationDeclarationIdentityAndFullGraphAreCanonicalAndZeroIO(t
 				After:  authorAfter,
 				Relation: preflightRelationDeclaration{
 					Source: authorIdentity, Field: "favorite_article", Target: articleIdentity,
-					TargetField:   preflightTargetField{Name: "id", Column: "id"},
 					DeclaredTable: "authors_author", DeclaredColumn: "favorite_article_id", DeclaredNullable: true,
 					Cardinality: ir.RelationManyToOne, Reverse: ir.ReverseRelation{Name: "favorite_authors"}, OnDelete: ir.DeleteProtect,
 				},
@@ -339,7 +383,7 @@ func TestPreflightRelationDeclarationIdentityAndFullGraphAreCanonicalAndZeroIO(t
 				t.Fatalf("permutation %d cycle failure = %+v, want canonical %+v", permutation, failure, canonical)
 			}
 			if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-				t.Fatalf("permutation %d cycle published/performed I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
+				t.Fatalf("permutation %d cycle published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
 			}
 		}
 		if canonical.Source != articleIdentity || canonical.Field != "author" || canonical.Target != authorIdentity {
@@ -387,12 +431,12 @@ func TestPreflightGraphAndModelFailureSelectionIsPermutationInvariant(t *testing
 				t.Fatalf("permutation %d dependency failure = %#v", permutation, err)
 			}
 			if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-				t.Fatalf("permutation %d published/performed I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
+				t.Fatalf("permutation %d published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
 			}
 		}
 	})
 
-	t.Run("duplicate dependency is canonical and zero IO", func(t *testing.T) {
+	t.Run("duplicate dependency is canonical and zero catalog IO", func(t *testing.T) {
 		base := preflightFixture()
 		duplicate := base.Definitions[2].Dependencies[0]
 		base.Definitions[2].Dependencies = append(base.Definitions[2].Dependencies, duplicate)
@@ -410,7 +454,7 @@ func TestPreflightGraphAndModelFailureSelectionIsPermutationInvariant(t *testing
 				t.Fatalf("permutation %d duplicate dependency failure = %#v", permutation, err)
 			}
 			if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-				t.Fatalf("permutation %d duplicate dependency published/performed I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
+				t.Fatalf("permutation %d duplicate dependency published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", permutation, snapshot, metrics)
 			}
 		}
 	})
@@ -418,7 +462,7 @@ func TestPreflightGraphAndModelFailureSelectionIsPermutationInvariant(t *testing
 	t.Run("duplicate creators are derived canonically from operation records", func(t *testing.T) {
 		base := preflightFixture()
 		base.Definitions = append(base.Definitions, preflightDefinition{
-			Key: preflightMigrationKey{App: "zeta", Name: "0001_duplicate"},
+			Key: preflightMigrationKey{App: "authors", Name: "0002_duplicate"},
 			Operations: []preflightOperation{{
 				Kind:       preflightCreateModel,
 				Model:      stateModelIdentity{App: "authors", Model: "author"},
@@ -436,7 +480,7 @@ func TestPreflightGraphAndModelFailureSelectionIsPermutationInvariant(t *testing
 			var failure *preflightCandidateError
 			if !errors.As(err, &failure) || failure.Code != "duplicate_model_creator" ||
 				failure.Source != (stateModelIdentity{App: "authors", Model: "author"}) ||
-				failure.Owner != (preflightMigrationKey{App: "zeta", Name: "0001_duplicate"}) {
+				failure.Owner != (preflightMigrationKey{App: "authors", Name: "0002_duplicate"}) {
 				t.Fatalf("permutation %d creator failure = %#v", permutation, err)
 			}
 			if metrics != (preflightIOMetrics{}) {
@@ -454,7 +498,7 @@ func TestPreflightRelationOwnerAndSourceCreatorVisibilityAreExplicitAndZeroIO(t 
 		relationOperation := input.Definitions[2].Operations[0]
 		input.Definitions[2].Operations = nil
 		input.Definitions = append(input.Definitions, preflightDefinition{
-			Key:        preflightMigrationKey{App: "unrelated", Name: "0001"},
+			Key:        preflightMigrationKey{App: "blog", Name: "0003_unrelated"},
 			Operations: []preflightOperation{relationOperation},
 		})
 		snapshot, metrics, err := preflightValidate(input)
@@ -462,43 +506,60 @@ func TestPreflightRelationOwnerAndSourceCreatorVisibilityAreExplicitAndZeroIO(t 
 			t.Fatalf("unrelated source creator failure = %#v", err)
 		}
 		if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-			t.Fatalf("unrelated owner published/performed I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
+			t.Fatalf("unrelated owner published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
 		}
 	})
 
 	t.Run("same migration chronology comes only from ordered operations", func(t *testing.T) {
 		input := preflightFixture()
-		author := input.Definitions[0].Operations[0]
+		authorDefinition := input.Definitions[0]
 		article := input.Definitions[1].Operations[0]
 		relation := input.Definitions[2].Operations[0]
-		input.Definitions = []preflightDefinition{{
-			Key:        preflightMigrationKey{App: "combined", Name: "0001"},
-			Operations: []preflightOperation{author, article, relation},
-		}}
+		combinedKey := preflightMigrationKey{App: "blog", Name: "0001_combined"}
+		input.Definitions = []preflightDefinition{
+			authorDefinition,
+			{
+				Key:          combinedKey,
+				Dependencies: []preflightMigrationKey{authorDefinition.Key},
+				Operations:   []preflightOperation{article, relation},
+			},
+		}
+		planStart, planErr := stateNewProject(stateFormatRelation, input.State.apps["authors"])
+		if planErr != nil {
+			t.Fatalf("combined migration plan start: %v", planErr)
+		}
+		input.PlanStart = planStart
+		input.PlanTarget = input.State.stateClone()
+		input.PlanApplied = []migrations.MigrationKey{{App: authorDefinition.Key.App, Name: authorDefinition.Key.Name}}
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(combinedKey)}
 		snapshot, metrics, err := preflightValidate(input)
 		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 2 || len(snapshot.relations) != 1 {
 			t.Fatalf("ordered creators = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
 		}
-		for identity, wantIndex := range map[stateModelIdentity]int{
-			{App: "authors", Model: "author"}: 0,
-			{App: "blog", Model: "article"}:   1,
+		for identity, want := range map[stateModelIdentity]struct {
+			owner preflightMigrationKey
+			index int
+		}{
+			{App: "authors", Model: "author"}: {owner: authorDefinition.Key, index: 0},
+			{App: "blog", Model: "article"}:   {owner: combinedKey, index: 0},
 		} {
 			creator, exists := snapshot.preflightCreator(identity)
-			if !exists || creator.CreatorOperation != wantIndex || creator.Creator != (preflightMigrationKey{App: "combined", Name: "0001"}) {
-				t.Fatalf("creator %v = %#v, want operation %d", identity, creator, wantIndex)
+			if !exists || creator.CreatorOperation != want.index || creator.Creator != want.owner {
+				t.Fatalf("creator %v = %#v, want owner %v operation %d", identity, creator, want.owner, want.index)
 			}
 		}
 
-		input.Definitions[0].Operations = []preflightOperation{author, relation, article}
+		input.Definitions[1].Operations = []preflightOperation{relation, article}
 		snapshot, metrics, err = preflightValidate(input)
 		if !preflightErrorCode(err, "source_creator_not_ancestor") {
 			t.Fatalf("later source creator accepted: %#v", err)
 		}
 		if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-			t.Fatalf("later creator published/performed I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
+			t.Fatalf("later creator published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
 		}
 
-		input.Definitions[0].Operations = []preflightOperation{article, relation, author}
+		input = preflightFixture()
+		preflightMoveTargetCreatorAfterRelation(&input)
 		if _, _, err := preflightValidate(input); !preflightErrorCode(err, "target_creator_not_ancestor") {
 			t.Fatalf("later target creator accepted: %#v", err)
 		}
@@ -520,7 +581,7 @@ func TestPreflightFailurePrecedenceAndCreatorVisibilityAreDeterministic(t *testi
 			t.Fatalf("unnormalized state precedence = %#v", err)
 		}
 		if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-			t.Fatalf("invalid state published/performed I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
+			t.Fatalf("invalid state published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
 		}
 	})
 
@@ -541,7 +602,8 @@ func TestPreflightFailurePrecedenceAndCreatorVisibilityAreDeterministic(t *testi
 		if err != nil {
 			t.Fatalf("scalar state fixture: %v", err)
 		}
-		input := preflightInput{State: scalar, Capability: preflightCapabilityDescriptor{RelationEditor: true}}
+		input := preflightFixture()
+		input.State = scalar
 		_, metrics, err := preflightValidate(input)
 		if !preflightErrorCode(err, "relation_state_required") || metrics != (preflightIOMetrics{}) {
 			t.Fatalf("scalar relation preflight = metrics:%+v err:%#v", metrics, err)
@@ -581,7 +643,7 @@ func TestPreflightFailurePrecedenceAndCreatorVisibilityAreDeterministic(t *testi
 			t.Fatalf("missing relation operation = %#v", err)
 		}
 		if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-			t.Fatalf("missing relation owner published/performed I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
+			t.Fatalf("missing relation owner published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
 		}
 	})
 
@@ -606,7 +668,7 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 			t.Fatalf("chronological replay failure = %#v, want %s", err, code)
 		}
 		if metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 0 || len(snapshot.relations) != 0 {
-			t.Fatalf("chronological replay failure published/performed I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
+			t.Fatalf("chronological replay failure published/performed catalog/creator/state I/O: snapshot=%#v metrics=%+v", snapshot, metrics)
 		}
 	}
 
@@ -617,6 +679,14 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 		input.Definitions[1].Dependencies = []preflightMigrationKey{authorsRoot}
 		input.Definitions[1].Operations[0].ModelState = articleFinal
 		input.Definitions[2].Operations = nil
+		planStart, planErr := stateNewProject(stateFormatRelation, input.State.apps["authors"])
+		if planErr != nil {
+			t.Fatalf("relation-bearing create plan start: %v", planErr)
+		}
+		input.PlanStart = planStart
+		input.PlanTarget = input.State.stateClone()
+		input.PlanApplied = []migrations.MigrationKey{{App: authorsRoot.App, Name: authorsRoot.Name}}
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(input.Definitions[1].Key)}
 
 		snapshot, metrics, err := preflightValidate(input)
 		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.creators) != 2 || len(snapshot.relations) != 1 {
@@ -626,6 +696,21 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 		if relation.Owner != input.Definitions[1].Key || relation.OwnerOperation != 0 || relation.Declaration.Field != "author" {
 			t.Fatalf("relation-bearing CreateModel owner = %#v", relation)
 		}
+	})
+
+	t.Run("operation source app matches its migration while relation target may cross apps", func(t *testing.T) {
+		valid := preflightFixture()
+		if _, metrics, err := preflightValidate(valid); err != nil || metrics != (preflightIOMetrics{}) {
+			t.Fatalf("valid cross-app target rejected: metrics=%+v error=%v", metrics, err)
+		}
+
+		createMismatch := preflightFixture()
+		createMismatch.Definitions[1].Operations[0].Model.App = "authors"
+		assertFailure(t, createMismatch, "operation_app_mismatch")
+
+		relationMismatch := preflightFixture()
+		relationMismatch.Definitions[2].Operations[0].Relation.Source.App = "authors"
+		assertFailure(t, relationMismatch, "operation_app_mismatch")
 	})
 
 	t.Run("relation already present at create rejects forged later add", func(t *testing.T) {
@@ -710,16 +795,16 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 		remove = preflightOperation{
 			Kind: preflightRemoveRelation, Before: add.After.Clone(), After: add.Before.Clone(), Relation: add.Relation,
 		}
-		remove.Relation.TargetField.Name = "forged_pk"
+		remove.Relation.DeclaredColumn = "forged_column"
 		input.Definitions = append(input.Definitions, preflightDefinition{
 			Key:          preflightMigrationKey{App: "blog", Name: "0003_remove_article_author"},
 			Dependencies: []preflightMigrationKey{input.Definitions[2].Key},
 			Operations:   []preflightOperation{remove},
 		})
-		assertFailure(t, input, "target_autofield_required")
+		assertFailure(t, input, "declared_column_mismatch")
 	})
 
-	t.Run("product planner replays one mixed scalar relation step forward and backward", func(t *testing.T) {
+	t.Run("product Planner orders one mixed scalar relation step for candidate-local replay", func(t *testing.T) {
 		mixed := preflightFixture()
 		relationKey := mixed.Definitions[2].Key
 		blogRoot := mixed.Definitions[1].Key
@@ -752,24 +837,315 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 			{App: mixed.Definitions[0].Key.App, Name: mixed.Definitions[0].Key.Name},
 			{App: blogRoot.App, Name: blogRoot.Name},
 		}
-		mixed.PlanTargets = []migrations.Target{migrations.NamedTarget(migrations.MigrationKey{App: relationKey.App, Name: relationKey.Name})}
+		mixed.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(relationKey)}
 		snapshot, metrics, err := preflightValidate(mixed)
 		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.relations) != 1 {
-			t.Fatalf("mixed forward product plan = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
+			t.Fatalf("mixed forward Planner-ordered candidate replay = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
 		}
 
 		backward := preflightCloneInput(mixed)
 		backward.PlanStart = mixed.State.stateClone()
 		backward.PlanTarget = start.stateClone()
 		backward.PlanApplied = append(backward.PlanApplied, migrations.MigrationKey{App: relationKey.App, Name: relationKey.Name})
-		backward.PlanTargets = []migrations.Target{migrations.NamedTarget(migrations.MigrationKey{App: blogRoot.App, Name: blogRoot.Name})}
+		backward.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(blogRoot)}
 		snapshot, metrics, err = preflightValidate(backward)
 		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.relations) != 1 {
-			t.Fatalf("mixed backward product plan = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
+			t.Fatalf("mixed backward Planner-ordered candidate replay = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
 		}
 	})
 
-	t.Run("already satisfied product target is a valid empty plan", func(t *testing.T) {
+	t.Run("prepared sequence adapts scalar and transient relation membership exactly in both directions", func(t *testing.T) {
+		input := preflightFixture()
+		stepKey := input.Definitions[2].Key
+		if stepKey != (preflightMigrationKey{App: "blog", Name: "0002_article_author"}) {
+			t.Fatalf("prepared fixture key = %#v, want exact blog/0002_article_author", stepKey)
+		}
+		originalRelation := input.Definitions[2].Operations[0]
+		scalarAfter := originalRelation.Before.Clone()
+		scalarAfter.Fields = append(scalarAfter.Fields, ir.Field{
+			Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean,
+		})
+		relationAfter := scalarAfter.Clone()
+		relationField := originalRelation.After.Fields[len(originalRelation.After.Fields)-1].Clone()
+		relationAfter.Fields = append(relationAfter.Fields, relationField.Clone())
+		declaration := originalRelation.Relation
+		input.Definitions[2].Operations = []preflightOperation{
+			{Kind: preflightAddScalar, Before: originalRelation.Before.Clone(), After: scalarAfter.Clone()},
+			{Kind: preflightAddRelation, Before: scalarAfter.Clone(), After: relationAfter.Clone(), Relation: declaration},
+			{Kind: preflightRemoveRelation, Before: relationAfter.Clone(), After: scalarAfter.Clone(), Relation: declaration},
+		}
+		blog := input.State.apps["blog"]
+		blog.Models[0] = scalarAfter.Clone()
+		input.State.apps["blog"] = blog
+		planStart := input.State.stateClone()
+		planStartBlog := planStart.apps["blog"]
+		planStartBlog.Models[0] = originalRelation.Before.Clone()
+		planStart.apps["blog"] = planStartBlog
+		input.PlanStart = planStart.stateClone()
+		input.PlanTarget = input.State.stateClone()
+		input.PlanApplied = []migrations.MigrationKey{
+			{App: input.Definitions[0].Key.App, Name: input.Definitions[0].Key.Name},
+			{App: input.Definitions[1].Key.App, Name: input.Definitions[1].Key.Name},
+		}
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(stepKey)}
+
+		snapshot, metrics, err := preflightValidate(input)
+		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.relations) != 0 {
+			t.Fatalf("transient prepared preflight = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
+		}
+		var prepared preflightPreparedStep
+		for _, candidate := range snapshot.preflightSteps() {
+			if candidate.Key == stepKey {
+				prepared = candidate
+				break
+			}
+		}
+		if prepared.Key != stepKey || len(prepared.Operations) != 3 ||
+			!reflect.DeepEqual(prepared.Dependencies, input.Definitions[2].Dependencies) {
+			t.Fatalf("prepared step membership/ancestry = %#v", prepared)
+		}
+		if _, wireHasTargetField := reflect.TypeOf(preflightRelationDeclaration{}).FieldByName("TargetField"); wireHasTargetField {
+			t.Fatal("migration relation declaration unexpectedly carries wire target_field")
+		}
+		wantTarget := preflightPreparedRelationTarget{
+			SourceField:      relationField.Clone(),
+			TargetModel:      input.Definitions[0].Operations[0].ModelState.Clone(),
+			TargetKey:        input.Definitions[0].Operations[0].ModelState.Fields[0].Clone(),
+			Creator:          input.Definitions[0].Key,
+			CreatorOperation: 0,
+		}
+		if len(prepared.Operations[0].Targets) != 0 ||
+			!reflect.DeepEqual(prepared.Operations[1].Targets, []preflightPreparedRelationTarget{wantTarget}) ||
+			!reflect.DeepEqual(prepared.Operations[2].Targets, []preflightPreparedRelationTarget{wantTarget}) {
+			t.Fatalf("prepared historical targets = %#v, want %#v", prepared.Operations, wantTarget)
+		}
+		if got := prepared.Operations[1].Targets[0]; got.SourceField.Column != "author_id" || got.SourceField.Nullable ||
+			got.SourceField.Relation == nil || got.SourceField.Relation.OnDelete != ir.DeleteProtect ||
+			got.TargetModel.DBTable != "authors_author" || got.TargetKey.Column != "id" ||
+			got.TargetKey.Kind != ir.FieldAuto || !got.TargetKey.PrimaryKey || got.TargetKey.Nullable {
+			t.Fatalf("prepared table/column/nullability/delete/key metadata = %#v", got)
+		}
+
+		// Prepared steps are diagnostics only. Mutating every provenance and
+		// membership arm before the first handoff request cannot be re-sealed as
+		// authority because adaptation already completed inside preflightValidate.
+		callerVisible := preflightClonePreparedStep(prepared)
+		callerVisible.Key = preflightMigrationKey{App: "forged", Name: "singleton"}
+		callerVisible.Dependencies = nil
+		callerVisible.Operations = callerVisible.Operations[:1]
+		callerVisible.Operations[0].After.Fields[0].Name = "forged_operation"
+		callerVisible.plan.definitions = []migrations.Migration{{App: "forged", Name: "singleton"}}
+		callerVisible.plan.applied = nil
+		callerVisible.plan.targets = []preflightPlanTarget{preflightNamedPlanTarget(callerVisible.Key)}
+		callerVisible.plan.expected = migrations.PlanStep{
+			Key: migrations.MigrationKey{App: "forged", Name: "singleton"}, Direction: migrations.DirectionForward,
+		}
+		apply, hasRelation := snapshot.preflightHandoff(stepKey)
+		if !hasRelation || len(apply.plan.definitions) != len(input.Definitions) {
+			t.Fatalf("apply snapshot authoritative graph = relation:%t handoff:%#v", hasRelation, apply)
+		}
+		if forged, exists := snapshot.preflightHandoff(callerVisible.Key); exists ||
+			!reflect.DeepEqual(forged, lifecyclePreparedRelationStep{}) {
+			t.Fatalf("caller-visible forged key acquired handoff: exists=%t handoff=%#v", exists, forged)
+		}
+		wantApply := RelationMigrationIntent{Operations: []RelationMigrationOperation{
+			{OperationIndex: 0, Kind: RelationMigrationAddField, Before: originalRelation.Before.Clone(), After: scalarAfter.Clone()},
+			{
+				OperationIndex: 1, Kind: RelationMigrationAddField, Before: scalarAfter.Clone(), After: relationAfter.Clone(),
+				Targets: []RelationMigrationTarget{{SourceField: relationField.Clone(), TargetModel: wantTarget.TargetModel.Clone(), TargetKey: wantTarget.TargetKey.Clone()}},
+			},
+			{
+				OperationIndex: 2, Kind: RelationMigrationRemoveField, Before: relationAfter.Clone(), After: scalarAfter.Clone(),
+				Targets: []RelationMigrationTarget{{SourceField: relationField.Clone(), TargetModel: wantTarget.TargetModel.Clone(), TargetKey: wantTarget.TargetKey.Clone()}},
+			},
+		}}
+		wantApplyTransition := migrationbackend.HistoryTransition{
+			Migration: migrationbackend.AppliedMigration{App: stepKey.App, Name: stepKey.Name},
+			Kind:      migrationbackend.HistoryTransitionApply,
+		}
+		wantApplyPlan := lifecycleClonePreparedPlan(lifecyclePreparedPlan{
+			definitions: preflightProductDefinitionGraph(input.Definitions),
+			applied:     input.PlanApplied,
+			targets:     input.PlanTargets,
+			expected: migrations.PlanStep{
+				Key: migrations.MigrationKey{App: stepKey.App, Name: stepKey.Name}, Direction: migrations.DirectionForward,
+			},
+		})
+		if apply.transition != wantApplyTransition || !reflect.DeepEqual(apply.intent, wantApply) {
+			t.Fatalf("apply adapter = %#v, want transition:%#v intent:%#v", apply, wantApplyTransition, wantApply)
+		}
+		if apply.binding == nil || apply.binding.key != (migrations.MigrationKey{App: stepKey.App, Name: stepKey.Name}) ||
+			apply.binding.direction != migrations.DirectionForward || apply.binding.transition != wantApplyTransition ||
+			!reflect.DeepEqual(apply.binding.intent, wantApply) ||
+			!reflect.DeepEqual(apply.plan, wantApplyPlan) ||
+			!reflect.DeepEqual(apply.plan, apply.binding.plan) {
+			t.Fatalf("apply adapter binding = %#v plan:%#v, want exact key/direction/transition/intent/full graph/applied/targets/step", apply.binding, apply.plan)
+		}
+		if err := lifecycleValidatePreparedRelationBinding(apply); err != nil {
+			t.Fatalf("exact apply adapter rejected by lifecycle: %v", err)
+		}
+		preparedApplyDecision, err := lifecyclePrepareSealedStepPure(apply)
+		if err != nil {
+			t.Fatalf("exact apply handoff rejected by lifecycle decision preparation: prepared:%#v error:%v", preparedApplyDecision, err)
+		}
+		if err := lifecycleValidatePreparedRelationBinding(preparedApplyDecision); err != nil {
+			t.Fatalf("prepared apply decision lost sealed handoff: %v", err)
+		}
+
+		applyDefinitionIndex := -1
+		for index := range apply.plan.definitions {
+			if apply.plan.definitions[index].Key() == (migrations.MigrationKey{App: stepKey.App, Name: stepKey.Name}) {
+				applyDefinitionIndex = index
+				break
+			}
+		}
+		if applyDefinitionIndex < 0 {
+			t.Fatalf("authoritative handoff lacks current graph definition: %#v", apply.plan.definitions)
+		}
+		apply.plan.definitions[applyDefinitionIndex].Dependencies = nil
+		apply.binding.plan.targets = nil
+		freshAuthoritative, exists := snapshot.preflightHandoff(stepKey)
+		if !exists || !reflect.DeepEqual(freshAuthoritative, preparedApplyDecision) {
+			t.Fatalf("authoritative handoff accessor retained mutation: exists=%t handoff=%#v", exists, freshAuthoritative)
+		}
+		apply = freshAuthoritative
+
+		backward := preflightCloneInput(input)
+		backward.PlanStart = input.State.stateClone()
+		backward.PlanTarget = planStart.stateClone()
+		backward.PlanApplied = append(
+			append([]migrations.MigrationKey(nil), input.PlanApplied...),
+			migrations.MigrationKey{App: stepKey.App, Name: stepKey.Name},
+		)
+		backward.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(input.Definitions[1].Key)}
+		backwardSnapshot, backwardMetrics, backwardErr := preflightValidate(backward)
+		if backwardErr != nil || backwardMetrics != (preflightIOMetrics{}) {
+			t.Fatalf("transient prepared unapply preflight = snapshot:%#v metrics:%+v error:%v", backwardSnapshot, backwardMetrics, backwardErr)
+		}
+		unapply, hasRelation := backwardSnapshot.preflightHandoff(stepKey)
+		if !hasRelation {
+			t.Fatal("unapply snapshot did not publish its authoritative relation handoff")
+		}
+		wantUnapply := RelationMigrationIntent{Operations: []RelationMigrationOperation{
+			{
+				OperationIndex: 2, Kind: RelationMigrationAddField, Before: scalarAfter.Clone(), After: relationAfter.Clone(),
+				Targets: []RelationMigrationTarget{{SourceField: relationField.Clone(), TargetModel: wantTarget.TargetModel.Clone(), TargetKey: wantTarget.TargetKey.Clone()}},
+			},
+			{
+				OperationIndex: 1, Kind: RelationMigrationRemoveField, Before: relationAfter.Clone(), After: scalarAfter.Clone(),
+				Targets: []RelationMigrationTarget{{SourceField: relationField.Clone(), TargetModel: wantTarget.TargetModel.Clone(), TargetKey: wantTarget.TargetKey.Clone()}},
+			},
+			{OperationIndex: 0, Kind: RelationMigrationRemoveField, Before: scalarAfter.Clone(), After: originalRelation.Before.Clone()},
+		}}
+		wantUnapplyTransition := migrationbackend.HistoryTransition{
+			Migration: migrationbackend.AppliedMigration{App: stepKey.App, Name: stepKey.Name},
+			Kind:      migrationbackend.HistoryTransitionUnapply,
+		}
+		wantUnapplyPlan := lifecycleClonePreparedPlan(lifecyclePreparedPlan{
+			definitions: preflightProductDefinitionGraph(backward.Definitions),
+			applied:     backward.PlanApplied,
+			targets:     backward.PlanTargets,
+			expected: migrations.PlanStep{
+				Key: migrations.MigrationKey{App: stepKey.App, Name: stepKey.Name}, Direction: migrations.DirectionBackward,
+			},
+		})
+		if unapply.transition != wantUnapplyTransition || !reflect.DeepEqual(unapply.intent, wantUnapply) {
+			t.Fatalf("unapply adapter = %#v, want transition:%#v intent:%#v", unapply, wantUnapplyTransition, wantUnapply)
+		}
+		if unapply.binding == nil || unapply.binding.key != (migrations.MigrationKey{App: stepKey.App, Name: stepKey.Name}) ||
+			unapply.binding.direction != migrations.DirectionBackward || unapply.binding.transition != wantUnapplyTransition ||
+			!reflect.DeepEqual(unapply.binding.intent, wantUnapply) ||
+			!reflect.DeepEqual(unapply.plan, wantUnapplyPlan) ||
+			!reflect.DeepEqual(unapply.plan, unapply.binding.plan) {
+			t.Fatalf("unapply adapter binding = %#v plan:%#v, want exact key/direction/transition/intent/full graph/applied/targets/step", unapply.binding, unapply.plan)
+		}
+		if err := lifecycleValidatePreparedRelationBinding(unapply); err != nil {
+			t.Fatalf("exact unapply adapter rejected by lifecycle: %v", err)
+		}
+		preparedUnapplyDecision, err := lifecyclePrepareSealedStepPure(unapply)
+		if err != nil {
+			t.Fatalf("exact unapply handoff rejected by lifecycle decision preparation: prepared:%#v error:%v", preparedUnapplyDecision, err)
+		}
+		if err := lifecycleValidatePreparedRelationBinding(preparedUnapplyDecision); err != nil {
+			t.Fatalf("prepared unapply decision lost sealed handoff: %v", err)
+		}
+
+		forgedTransition := lifecycleClonePreparedRelationStep(apply)
+		forgedTransition.transition.Migration.Name = "0002_relation"
+		if err := lifecycleValidatePreparedRelationBinding(forgedTransition); !errors.Is(err, lifecycleRelationErrIntent) {
+			t.Fatalf("re-paired prepared transition error = %v, want relation intent", err)
+		}
+		forgedIntent := lifecycleClonePreparedRelationStep(apply)
+		forgedIntent.intent.Operations[1].After.Fields[0].Name = "forged_successor"
+		if err := lifecycleValidatePreparedRelationBinding(forgedIntent); !errors.Is(err, lifecycleRelationErrIntent) {
+			t.Fatalf("re-paired prepared intent error = %v, want relation intent", err)
+		}
+
+		// Every accessor and adapter returns fresh nested IR. Mutating source,
+		// prepared, and adapted values cannot alter the published snapshot.
+		input.Definitions[0].Operations[0].ModelState.Fields[0].Name = "source_alias"
+		prepared.Operations[1].Targets[0].TargetKey.Name = "prepared_alias"
+		apply.intent.Operations[1].Targets[0].SourceField.Relation.Target.AppLabel = "adapter_alias"
+		if apply.binding.intent.Operations[1].Targets[0].TargetKey.Name != "id" ||
+			apply.binding.intent.Operations[1].Targets[0].SourceField.Relation.Target.AppLabel != "authors" {
+			t.Fatalf("prepared handoff binding retained intent alias: %#v", apply.binding)
+		}
+		var fresh preflightPreparedStep
+		for _, candidate := range snapshot.preflightSteps() {
+			if candidate.Key == stepKey {
+				fresh = candidate
+			}
+		}
+		if fresh.Operations[1].Targets[0].TargetKey.Name != "id" ||
+			fresh.Operations[1].Targets[0].SourceField.Relation.Target.AppLabel != "authors" {
+			t.Fatalf("prepared sequence retained alias: %#v", fresh)
+		}
+	})
+
+	t.Run("relation-bearing create targets retain normalized model field order", func(t *testing.T) {
+		input := preflightFixture()
+		article := input.Definitions[2].Operations[0].After.Clone()
+		editor := article.Fields[len(article.Fields)-1].Clone()
+		editor.Name = "editor"
+		editor.GoName = "EditorID"
+		editor.Column = "editor_id"
+		editor.Relation.Reverse.Name = "edited_articles"
+		article.Fields = append(article.Fields, editor)
+		input.Definitions[1].Dependencies = []preflightMigrationKey{input.Definitions[0].Key}
+		input.Definitions[1].Operations[0].ModelState = article.Clone()
+		input.Definitions[2].Operations = nil
+		blog := input.State.apps["blog"]
+		blog.Models[0] = article.Clone()
+		input.State.apps["blog"] = blog
+		planStart, planErr := stateNewProject(stateFormatRelation, input.State.apps["authors"])
+		if planErr != nil {
+			t.Fatalf("relation create field-order plan start: %v", planErr)
+		}
+		input.PlanStart = planStart
+		input.PlanTarget = input.State.stateClone()
+		input.PlanApplied = []migrations.MigrationKey{{
+			App: input.Definitions[0].Key.App, Name: input.Definitions[0].Key.Name,
+		}}
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(input.Definitions[1].Key)}
+		snapshot, metrics, err := preflightValidate(input)
+		if err != nil || metrics != (preflightIOMetrics{}) {
+			t.Fatalf("relation create field-order preflight = metrics:%+v error:%v", metrics, err)
+		}
+		steps := snapshot.preflightSteps()
+		var create preflightPreparedOperation
+		for _, step := range steps {
+			if step.Key == input.Definitions[1].Key {
+				create = step.Operations[0]
+			}
+		}
+		if len(create.Targets) != 2 || create.Targets[0].SourceField.Name != "author" ||
+			create.Targets[1].SourceField.Name != "editor" ||
+			!reflect.DeepEqual(create.After.Fields, article.Fields) {
+			t.Fatalf("relation create target/model field order = %#v", create)
+		}
+	})
+
+	t.Run("already satisfied product target is rejected without an exact current step", func(t *testing.T) {
 		input := preflightFixture()
 		input.PlanStart = input.State.stateClone()
 		input.PlanTarget = input.State.stateClone()
@@ -778,10 +1154,11 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 			input.PlanApplied[index] = migrations.MigrationKey{App: definitionValue.Key.App, Name: definitionValue.Key.Name}
 		}
 		last := input.Definitions[len(input.Definitions)-1].Key
-		input.PlanTargets = []migrations.Target{migrations.NamedTarget(migrations.MigrationKey{App: last.App, Name: last.Name})}
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(last)}
 		snapshot, metrics, err := preflightValidate(input)
-		if err != nil || metrics != (preflightIOMetrics{}) || len(snapshot.relations) != 1 {
-			t.Fatalf("already-satisfied product plan = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
+		if !preflightErrorCode(err, "plan_step_invalid") || metrics != (preflightIOMetrics{}) ||
+			!reflect.DeepEqual(snapshot, preflightSnapshot{}) {
+			t.Fatalf("already-satisfied Planner request = snapshot:%#v metrics:%+v error:%v", snapshot, metrics, err)
 		}
 	})
 
@@ -816,7 +1193,7 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 				after.Fields = append(after.Fields, field.Clone())
 				declaration := preflightRelationDeclaration{
 					Source: stateModelIdentity{App: "blog", Model: "article"}, Field: field.Name,
-					Target: test.target, TargetField: preflightTargetField{Name: "id", Column: "id"},
+					Target:        test.target,
 					DeclaredTable: before.DBTable, DeclaredColumn: field.Column,
 					Cardinality: ir.RelationManyToOne, Reverse: ir.ReverseRelation{Name: test.reverse}, OnDelete: ir.DeleteProtect,
 				}
@@ -831,12 +1208,68 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 				assertFailure(t, input, test.wantCode)
 			})
 		}
+
+		t.Run("scalar target field collision", func(t *testing.T) {
+			input := preflightFixture()
+			relationKey := input.Definitions[2].Key
+			addRelation := input.Definitions[2].Operations[0]
+			authorBefore := input.Definitions[0].Operations[0].ModelState.Clone()
+			authorAfter := authorBefore.Clone()
+			authorAfter.Fields = append(authorAfter.Fields, ir.Field{
+				Name: "articles", GoName: "Articles", Column: "articles", Kind: ir.FieldChar, MaxLength: 32,
+			})
+			authorScalarKey := preflightMigrationKey{App: "authors", Name: "0002_articles"}
+			input.Definitions = append(input.Definitions,
+				preflightDefinition{
+					Key:          authorScalarKey,
+					Dependencies: []preflightMigrationKey{relationKey},
+					Operations: []preflightOperation{{
+						Kind: preflightAddScalar, Before: authorBefore.Clone(), After: authorAfter.Clone(),
+					}},
+				},
+				preflightDefinition{
+					Key:          preflightMigrationKey{App: "blog", Name: "0003_remove_article_author"},
+					Dependencies: []preflightMigrationKey{authorScalarKey},
+					Operations: []preflightOperation{{
+						Kind: preflightRemoveRelation, Before: addRelation.After.Clone(), After: addRelation.Before.Clone(),
+						Relation: addRelation.Relation,
+					}},
+				},
+			)
+			authors := input.State.apps["authors"]
+			authors.Models[0] = authorAfter.Clone()
+			input.State.apps["authors"] = authors
+			blog := input.State.apps["blog"]
+			blog.Models[0] = addRelation.Before.Clone()
+			input.State.apps["blog"] = blog
+
+			// Make the product Planner ordering request deliberately empty. The
+			// candidate-local chronological replay must detect the transient collision
+			// at AddScalar before the later RemoveRelation can erase the offending edge.
+			input.PlanStart = input.State.stateClone()
+			input.PlanTarget = input.State.stateClone()
+			input.PlanApplied = make([]migrations.MigrationKey, len(input.Definitions))
+			for index, definitionValue := range input.Definitions {
+				input.PlanApplied[index] = migrations.MigrationKey{
+					App: definitionValue.Key.App, Name: definitionValue.Key.Name,
+				}
+			}
+			last := input.Definitions[len(input.Definitions)-1].Key
+			input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(last)}
+			assertFailure(t, input, "reverse_namespace_collision")
+		})
 	})
 
 	t.Run("profile-tied operation cap rejects before operation inspection", func(t *testing.T) {
 		input := preflightFixture()
 		input.Definitions[0].Operations = make([]preflightOperation, definition.MaxOperationsPerMigration+1)
-		assertFailure(t, input, "resource_limit_exceeded")
+		input.Definitions[0].Operations[0].Relation.DeclaredTable = strings.Repeat("late", definition.MaxSourceIDBytes)
+		_, _, err := preflightValidate(input)
+		var failure *preflightCandidateError
+		if !errors.As(err, &failure) || failure.Code != "resource_limit_exceeded" ||
+			failure.Reason != "operation_count_exceeds_profile_limit" {
+			t.Fatalf("structural operation cap precedence = %#v", err)
+		}
 	})
 
 	t.Run("profile-tied field and state caps reject before deep clone", func(t *testing.T) {
@@ -875,9 +1308,7 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 		}
 		input.PlanStart.apps["blog"] = planSchema
 		last := input.Definitions[len(input.Definitions)-1].Key
-		input.PlanTargets = []migrations.Target{
-			migrations.NamedTarget(migrations.MigrationKey{App: last.App, Name: last.Name}),
-		}
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(last)}
 		assertFailure(t, input, "resource_limit_exceeded")
 	})
 
@@ -893,7 +1324,96 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 		assertFailure(t, input, "resource_limit_exceeded")
 	})
 
-	t.Run("plan state and applied arms require a target before clone", func(t *testing.T) {
+	t.Run("aggregate node exhaustion canonically outranks an earlier field count failure", func(t *testing.T) {
+		input := preflightFixture()
+		stateSchema := input.State.apps["blog"]
+		stateSchema.Models[0].Fields = make([]ir.Field, definition.MaxFieldsPerCreateModel+1)
+		input.State.apps["blog"] = stateSchema
+		input.PlanStart = stateProjectState{
+			formatVersion: stateFormatRelation,
+			apps: map[string]ir.Schema{
+				"nodes": {
+					AppLabel: "nodes",
+					Models:   make([]ir.Model, definition.MaxJSONValues+1),
+				},
+			},
+		}
+		input.PlanTarget = input.State.stateClone()
+		last := input.Definitions[len(input.Definitions)-1].Key
+		input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(last)}
+
+		_, metrics, err := preflightValidate(input)
+		var failure *preflightCandidateError
+		if !errors.As(err, &failure) || failure.Code != "resource_limit_exceeded" ||
+			failure.Reason != "aggregate_structural_nodes_exceed_profile_limit" ||
+			metrics != (preflightIOMetrics{}) {
+			t.Fatalf("compound structural precedence = metrics:%+v failure:%#v", metrics, err)
+		}
+	})
+
+	t.Run("every key dependency relation string and transient model arm is scanned before clone", func(t *testing.T) {
+		oversizedID := strings.Repeat("i", definition.MaxSourceIDBytes+1)
+		oversizedDefault := strings.Repeat("d", definition.MaxDocumentBytes+1)
+		tests := []struct {
+			name   string
+			mutate func(*preflightInput)
+		}{
+			{name: "migration key", mutate: func(input *preflightInput) { input.Definitions[2].Key.Name = oversizedID }},
+			{name: "dependency key", mutate: func(input *preflightInput) { input.Definitions[2].Dependencies[0].Name = oversizedID }},
+			{name: "plan target key", mutate: func(input *preflightInput) {
+				input.PlanTargets = []preflightPlanTarget{preflightNamedPlanTarget(preflightMigrationKey{App: "blog", Name: oversizedID})}
+			}},
+			{name: "invalid plan target arm", mutate: func(input *preflightInput) {
+				input.PlanTargets = []preflightPlanTarget{{
+					Kind: preflightPlanTargetKind(255),
+					Key:  preflightMigrationKey{App: "blog", Name: oversizedID},
+					App:  oversizedID,
+				}}
+			}},
+			{name: "relation declaration", mutate: func(input *preflightInput) { input.Definitions[2].Operations[0].Relation.DeclaredTable = oversizedID }},
+			{name: "model state default", mutate: func(input *preflightInput) {
+				input.Definitions[0].Operations[0].ModelState.Fields[1].Default.String = oversizedDefault
+			}},
+			{name: "before relation string", mutate: func(input *preflightInput) {
+				input.Definitions[2].Operations[0].Before.Fields[1].GoName = oversizedID
+			}},
+			{name: "after default", mutate: func(input *preflightInput) {
+				input.Definitions[2].Operations[0].After.Fields[1].Default = &ir.ScalarDefault{
+					Kind: ir.ScalarString, String: oversizedDefault,
+				}
+			}},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				input := preflightFixture()
+				test.mutate(&input)
+				assertFailure(t, input, "resource_limit_exceeded")
+			})
+		}
+	})
+
+	t.Run("transient operation arms share the batch byte budget before clone", func(t *testing.T) {
+		input := preflightFixture()
+		payload := strings.Repeat("p", definition.MaxDocumentBytes/2)
+		large := input.Definitions[1].Operations[0].ModelState.Clone()
+		large.Fields[1].Default = &ir.ScalarDefault{Kind: ir.ScalarString, String: payload}
+		operations := make([]preflightOperation, 12)
+		for index := range operations {
+			operations[index] = preflightOperation{
+				Kind:       preflightCreateModel,
+				ModelState: large,
+				Before:     large,
+				After:      large,
+			}
+		}
+		input.Definitions[1].Operations = operations
+		assertFailure(t, input, "resource_limit_exceeded")
+		if large.Fields[1].Default == nil || large.Fields[1].Default.String != payload {
+			t.Fatal("transient resource scan mutated caller-owned default")
+		}
+	})
+
+	t.Run("every plan request arm is explicit before clone", func(t *testing.T) {
 		oversizedStart := stateProjectState{
 			formatVersion: stateFormatRelation,
 			apps: map[string]ir.Schema{
@@ -913,34 +1433,44 @@ func TestPreflightChronologicalReplayUsesExactOperationSnapshotsWithoutIO(t *tes
 			mutate func(*preflightInput)
 		}{
 			{
-				name: "plan_start",
+				name: "all request arms absent",
+				mutate: func(input *preflightInput) {
+					input.PlanStart = stateProjectState{}
+					input.PlanTarget = stateProjectState{}
+					input.PlanApplied = nil
+					input.PlanTargets = nil
+				},
+			},
+			{
+				name: "targets absent even with oversized start",
 				mutate: func(input *preflightInput) {
 					input.PlanStart = oversizedStart
+					input.PlanTargets = nil
 				},
 			},
 			{
-				name: "plan_target",
+				name: "start absent",
 				mutate: func(input *preflightInput) {
-					input.PlanTarget = input.State.stateClone()
+					input.PlanStart = stateProjectState{}
 				},
 			},
 			{
-				name: "plan_applied",
+				name: "target absent",
 				mutate: func(input *preflightInput) {
-					input.PlanApplied = []migrations.MigrationKey{{App: "blog", Name: "0001_initial"}}
+					input.PlanTarget = stateProjectState{}
 				},
 			},
 			{
-				name: "plan_applied_empty_non_nil",
+				name: "applied absent",
 				mutate: func(input *preflightInput) {
-					input.PlanApplied = []migrations.MigrationKey{}
+					input.PlanApplied = nil
 				},
 			},
 		} {
 			t.Run(test.name, func(t *testing.T) {
 				input := preflightFixture()
 				test.mutate(&input)
-				assertFailure(t, input, "conflicting_plan_arms")
+				assertFailure(t, input, "plan_request_required")
 			})
 		}
 	})
@@ -1103,8 +1633,18 @@ func preflightFixture() preflightInput {
 	if err != nil {
 		panic(err)
 	}
+	planBlog := blog.Clone()
+	planBlog.Models[0] = articleCreate.Clone()
+	planStart, err := stateNewProject(stateFormatRelation, authors, planBlog)
+	if err != nil {
+		panic(err)
+	}
 	return preflightInput{
-		State: state,
+		State:       state,
+		PlanStart:   planStart,
+		PlanTarget:  state.stateClone(),
+		PlanApplied: []migrations.MigrationKey{{App: authorsRoot.App, Name: authorsRoot.Name}, {App: blogRoot.App, Name: blogRoot.Name}},
+		PlanTargets: []preflightPlanTarget{preflightNamedPlanTarget(blogRelation)},
 		Definitions: []preflightDefinition{
 			{
 				Key: authorsRoot,
@@ -1133,7 +1673,6 @@ func preflightFixture() preflightInput {
 						Source:           articleIdentity,
 						Field:            "author",
 						Target:           authorIdentity,
-						TargetField:      preflightTargetField{Name: "id", Column: "id"},
 						DeclaredTable:    "blog_article",
 						DeclaredColumn:   "author_id",
 						DeclaredNullable: false,
@@ -1145,5 +1684,43 @@ func preflightFixture() preflightInput {
 			},
 		},
 		Capability: preflightCapabilityDescriptor{RelationEditor: true},
+	}
+}
+
+// preflightMoveTargetCreatorAfterRelation keeps every operation in its owning
+// app while constructing a same-app target whose CreateModel appears after the
+// relation operation. Cross-app targeting remains covered by preflightFixture;
+// this helper isolates only same-migration operation chronology.
+func preflightMoveTargetCreatorAfterRelation(input *preflightInput) {
+	articleCreate := input.Definitions[1].Operations[0]
+	relation := input.Definitions[2].Operations[0]
+	categoryIdentity := stateModelIdentity{App: "blog", Model: "category"}
+	categoryModel := input.Definitions[0].Operations[0].ModelState.Clone()
+	categoryModel.Name = "category"
+	categoryModel.GoName = "Category"
+	categoryModel.DBTable = "blog_category"
+	categoryCreate := preflightOperation{
+		Kind:       preflightCreateModel,
+		Model:      categoryIdentity,
+		ModelState: categoryModel.Clone(),
+	}
+	relation.Relation.Target = categoryIdentity
+	for index := range relation.After.Fields {
+		field := &relation.After.Fields[index]
+		if field.Name == relation.Relation.Field && field.Relation != nil {
+			field.Relation.Target = categoryIdentity.stateIRIdentity()
+		}
+	}
+
+	blog := input.State.apps["blog"]
+	blog.Models[0] = relation.After.Clone()
+	blog.Models = append(blog.Models, categoryModel.Clone())
+	input.State.apps["blog"] = blog
+	input.Definitions = []preflightDefinition{
+		input.Definitions[0],
+		{
+			Key:        preflightMigrationKey{App: "blog", Name: "0001_combined"},
+			Operations: []preflightOperation{articleCreate, relation, categoryCreate},
+		},
 	}
 }
