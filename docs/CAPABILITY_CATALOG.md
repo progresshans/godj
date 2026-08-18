@@ -431,18 +431,22 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 
 이 카탈로그의 어떤 항목도 자체적으로 완료 표시하지 않습니다. 현재 구현과 검증 여부는 [IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md), 실제 명령은 [TEST_EVIDENCE.md](status/TEST_EVIDENCE.md)를 기준으로 합니다.
 
-## Active candidate: relation-capable migration lifecycle
+## Active Proposed decision: relation-capable migration lifecycle
 
-GDJ-0035의 현재 capability 상태는 `Proposed/Not started`입니다. Existing migration 제품의 legacy
-tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
+GDJ-0035의 relation-migration capability 상태는 `Proposed/Not implemented`입니다. Existing migration 제품의
+legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
 다음 항목은 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
-[active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)의 후보이지 현재 지원 표면이 아닙니다.
+[active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
+동결한 decision surface이지 현재 지원 표면이 아닙니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
-- MIG-076..078: relation profile, mixed digest, relation state promotion/demotion
-- MIG-079: target/AutoField/table/reverse/creator-ancestry full zero-I/O preflight
-- MIG-080..084: SQLite relation CreateModel/AddField/remake/physical FK/restart
+- MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
+- MIG-079: wire `target_field` 없는 historical AutoField derivation과 static/history-plan/physical three-stage preflight
+- MIG-080..084: existing-fence optional port, four capabilities, SQLite relation CreateModel/AddField/remake/physical FK/restart
 - MIG-085..086: precommit faults, commit three outcomes and no retry
 
 Product aggregate는 계속 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation
-12/12입니다. Activation tree own hosted CI는 `not run/pending`입니다.
+12/12입니다. Phase C exact 8-test-only head `7d36502...`는 EVID-089/090 local/hosted gates를 통과했습니다.
+그 proof는 actual SQLite optional port, actual `StateReconstructor`, product restart 또는 support를 구현하지 않습니다.
+Test-only helper/hash/private catalog는 noncanonical입니다. 이 Proposed docs-freeze head의 own hosted CI가
+pending이며, 성공 뒤에도 별도 acceptance head 전에는 Accepted로 바꾸지 않습니다.

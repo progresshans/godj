@@ -69,6 +69,10 @@ nullable local-key access/`isnull`, bounded reverse accessor/lookup, exact rever
 selection, forward assignment/Save 및 bounded project-bound `PROTECT`/`SET_NULL` delete 12/12의 제품 증거이며
 general cascade/eager graph/DDL/migration 전체
 지원을 뜻하지 않습니다.
+GDJ-0035 Phase B와 Phase C는 `conformance/migrationrelation`의 test-only candidate/proof만 검증했습니다.
+Exact Phase C head `7d36502...`/EVID-090은 one-loader/profile/digest/state/wire/preflight/existing-fence/SQLite
+decision boundary를 동결했지만 MIG-075..086 product handler, actual SQLite optional port와 actual
+`StateReconstructor`를 만들지 않았습니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -107,7 +111,7 @@ general cascade/eager graph/DDL/migration 전체
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | GDJ-0019 test-only feasibility proof와 GDJ-0020 public loader의 independent black-box equivalence gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
-| `migrationrelation` | GDJ-0035 Phase B profile/state/preflight/backend/SQLite lifecycle와 additive existing revision-fenced lifecycle candidate를 검증하는 test-only no-product feasibility gate; actual relation DDL product integration은 blocked이고 MIG-075..086 product adapter가 아님 |
+| `migrationrelation` | GDJ-0035 Phase B feasibility와 Phase C exact decision boundary를 검증하는 test-only no-product gate; numeric version/profile behavior, digest/state/wire/three-stage preflight와 planned additive existing-fence backend behavior를 proof하지만 public constant names나 actual relation DDL product integration/adapter를 export하지 않음 |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -826,10 +830,13 @@ exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 �
 `84e16bf193fc2079cd87788249e6e4a694f2402c`는
 [EVID-086](../docs/status/TEST_EVIDENCE.md#evid-20260813-086--gdj-0035-phase-a-github-hosted-reference-only-exact-head-ci)의
 unique run `31625898551`에서 26/26 jobs와 326/326 steps 모두 성공해 hosted-verified됐습니다. 이 증거는
-Phase B test-only 후보나 ADR-0034 수락을 재귀적으로 증명하지 않습니다.
+Phase B test-only 후보나 ADR-0034 수락을 재귀적으로 증명하지 않습니다. Phase B head `c2ecb292...`는
+EVID-087/088, Phase C exact 8-test-only proof head `7d36502...`는 EVID-089/090/run `32174259324`의
+별도 local/hosted gate를 통과했습니다. Product aggregate와 MIG-075..086 `oracle_locked` 분류는 불변입니다.
 
 Accepted되지 않은 GoDj-owned GDJ-0035 candidate payload는 provenance `kind=proposal`, decision ID `GDJ-0035`,
 `derived=false`로 분류합니다. Pinned Django BSD source/test reference는 실제 관찰한 부분의 provenance일 뿐이며
 GoDj scenario, fixture, payload와 assertion은 독립적으로 작성하고 upstream source, fixture, comment 또는 assertion
 구조를 복사·번역하지 않습니다. ADR-0034가 Proposed인 동안 이 payload를 `kind=decision`이나 Django parity로
-표현하지 않습니다.
+표현하지 않습니다. Phase C Proposed decision freeze는 checked-in Phase A artifact provenance를 소급
+재분류하지 않습니다. Test-only helper/type/error detail, golden/hash와 private catalog도 product API가 아닙니다.

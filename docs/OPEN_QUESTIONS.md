@@ -520,20 +520,23 @@ growth gate가 필요합니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.
 
-## GDJ-0035 activation impact
+## GDJ-0035 Proposed decision impact
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 Q-010/Q-012/Q-013에
 의존하지만 세 질문을 닫지 않습니다. Q-010/Q-012/Q-013은 계속 `Partial`, Q-017/Q-019는
 P1/open입니다.
 
 - Q-010: exact global check/public project runner는 있지만 writer/autodetector/upgrade·generator/library semver은 open입니다.
-- Q-012: relation tuple/state/codec/SQLite lifecycle candidate를 MIG-075..086으로 열었지만 custom/data operation,
+- Q-012: relation tuple/state/codec/SQLite lifecycle boundary를 MIG-075..086과 Proposed ADR-0034에 동결했지만 custom/data operation,
   DB-aware public migrate command, repair/crash policy와 non-SQLite는 open입니다.
-- Q-013: AutoField-target ForeignKey migration은 broader relation/backend 질문의 bounded candidate일 뿐이며
+- Q-013: AutoField-target ForeignKey migration은 broader relation/backend 질문의 bounded Proposed decision일 뿐이며
   OneToOne/ManyToMany/`to_field`/self/cyclic/inbound/non-SQLite를 닫지 않습니다.
 - Q-017: relation facade/general generated upgrade를 바꾸지 않습니다.
 - Q-019: unknown commit outcome의 no-retry error meaning만 보존하고 retained connection cap/reconciliation은 결정하지 않습니다.
 
 [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 Proposed입니다.
-Phase A/B/C evidence와 distinct decision-head CI 전에 tuple/state/digest/editor/remake candidate를 Accepted로 표현하지
-않습니다.
+Phase A/B와 Phase C exact 8-test-only decision proof는 EVID-085..090에서 local/hosted 검증됐습니다. Exact
+relation constants, one-loader dispatch, digest v2, whole-step state transition, wire `target_field` 제거,
+three-stage preflight, additive existing-fence port/four capabilities와 SQLite order는 Proposed boundary로
+동결됐습니다. 그러나 actual SQLite optional port와 actual `StateReconstructor`는 미구현이고 Q 상태도 불변입니다.
+이 Proposed docs-freeze head의 unique hosted CI와 그 뒤의 별도 acceptance head 전에 Accepted로 표현하지 않습니다.

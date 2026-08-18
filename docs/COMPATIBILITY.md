@@ -782,17 +782,22 @@ Django 문서와 테스트에서 파생한 시나리오는 upstream version, 파
 공식 기준 링크와 로컬 검증 정보는 [SOURCES.md](SOURCES.md), 구체적인 파생물 정책은
 [LICENSING.md](LICENSING.md)에 있습니다.
 
-## MIG-075..086 activation compatibility boundary
+## MIG-075..086 Proposed decision compatibility boundary
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 MIG-075..086 exact
-12 contract ID를 계획했습니다. Exact 16-document activation head `52f9bcb7...`는
+12 reference-only contract ID를 고정했습니다. Exact 16-document activation head `52f9bcb7...`는
 [EVID-084](status/TEST_EVIDENCE.md#evid-20260812-084--gdj-0035-activation-documentation-head-exact-26-job-ci)에서
 hosted-verified됐습니다. Phase A는
 [EVID-085](status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
 12-contract reference-only set을 로컬 고정했습니다. Reference는 exact 13 sets/139 unique contracts+scenarios/
 156 ordered cross-bindings=`122 passing + 5 deviation + 12 oracle_locked`입니다. Product는 exact
 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 불변입니다. Phase A exact-head
-hosted proof는 pending입니다.
+hosted proof는 EVID-086/run `31625898551`에서 통과했습니다. Phase B test-only feasibility는 EVID-087/088,
+Phase C exact 8-test-only decision proof head `7d36502...`는
+[EVID-089](status/TEST_EVIDENCE.md#evid-20260819-089--gdj-0035-phase-c-test-only-decision-proof-local-validation)와
+[EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
+[run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)에서 local/hosted 검증됐습니다.
+ADR과 product status는 바뀌지 않았습니다.
 
 Compatibility candidate는 [Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
@@ -800,24 +805,24 @@ Compatibility candidate는 [Proposed ADR-0034](adr/0034-relation-capable-migrati
 | ID | Proposed observation | 현재 분류 |
 |---|---|---|
 | MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | `oracle_locked` / Accepted-decision reference |
-| MIG-076 | Relation tuple `(1,2,2,3)`과 hybrid/mismatch rejection | `oracle_locked` / proposal reference |
-| MIG-077 | Per-document profile을 포함한 relation/mixed digest v2 | `oracle_locked` / proposal reference |
-| MIG-078 | Scalar v1↔relation v2 state promote/demote | `oracle_locked` / proposal reference |
-| MIG-079 | Target/AutoField/table/reverse/creator ancestry structural preflight, I/O 0 | `oracle_locked` / proposal reference |
+| MIG-076 | Additive public relation constants `(loader ABI, codec, IR)=(2,2,3)`, one `Load`, per-document dispatch와 hybrid rejection | `oracle_locked` / proposal reference |
+| MIG-077 | Per-document profile을 포함한 relation-only/mixed digest domain v2; legacy-only v1 byte preservation | `oracle_locked` / proposal reference |
+| MIG-078 | `RelationStateFormatVersion=2`, whole-step scalar v1↔relation v2 promote/demote; helpers unexported | `oracle_locked` / proposal reference |
+| MIG-079 | Wire `target_field` 없이 historical exact AutoField derivation과 static/history-plan/physical three-stage preflight | `oracle_locked` / proposal reference |
 | MIG-080 | Relation CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
-| MIG-081 | Populated nullable AddField와 required rejection | `oracle_locked` / observed + proposal separation |
+| MIG-081 | Populated nullable AddField, empty required support와 populated required rejection | `oracle_locked` / observed + proposal separation |
 | MIG-082 | FK remove/remake row/sequence preservation | `oracle_locked` / Django observed |
-| MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | `oracle_locked` / observed + proposal separation |
-| MIG-084 | File-backed restart | `oracle_locked` / Django observed |
-| MIG-085 | Pre-DDL rollback, recorder-fault committed-schema boundary, GoDj atomic policy | `oracle_locked` / observed + proposal separation |
+| MIG-083 | Exact pinned connection FK-on, physical `NO ACTION`와 existing revision-fence reuse | `oracle_locked` / observed + proposal separation |
+| MIG-084 | File-backed restart observation; actual epoch/fingerprint/DAG/`StateReconstructor` product proof blocked | `oracle_locked` / Django observed |
+| MIG-085 | Three-stage preflight, one existing fenced transaction, rollback/cause policy | `oracle_locked` / observed + proposal separation |
 | MIG-086 | Commit three outcomes, no retry | `oracle_locked` / proposal reference |
 
-Phase A는 pinned Django 6.1/SQLite profile의 external observation과 GoDj-owned decision/reference를 구분해 provenance를
-기록해야 합니다. Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned
-candidate payload는 ADR-0034가 Accepted되기 전 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로
-표시하고 Django exact parity로 표현하지 않습니다. Django BSD source/test provenance는 실제 관찰한 부분에만
-붙이며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Q-010/Q-012/Q-013은 `Partial`,
-Q-017/Q-019는 P1/open을 유지합니다.
+Pinned Django 6.1/SQLite external observation과 GoDj-owned decision/reference provenance는 계속 구분합니다.
+Physical `NO ACTION`, mixed digest/state format처럼 Django가 정의하지 않는 GoDj-owned payload는 이 later Proposed
+decision freeze 뒤에도 historical artifact의 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를
+소급 변경하지 않고 Django exact parity로 표현하지 않습니다. Django BSD source/test provenance는 실제 관찰한
+부분에만 붙이며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Q-010/Q-012/Q-013은
+`Partial`, Q-017/Q-019는 P1/open을 유지합니다.
 
 Artifact lock은 manifest 7,792 bytes/`dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`,
 oracle 125,248/`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`, ordered NI
@@ -825,4 +830,17 @@ oracle 125,248/`c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27
 1,245/`5022a23094702463861f32270f373ba1287b609e5b3f8cb5723b74db8d69cf4f`입니다. MIG-085의
 Django 관찰은 recorder fault 전 schema-editor DDL이 이미 commit되어 schema는 남고 record는 없는 경계입니다.
 Pre-DDL fault만 완전 rollback됐습니다. 이 관찰을 GoDj same-transaction atomic proposal의 parity로 표현하지
-않고 Phase B/C에서 별도 검증·결정합니다.
+않습니다. Proposed product API는 `migrations/backend`의 additive `RelationRevisionFencedBackend`/
+`RelationRevisionFencedSession`, exact four capabilities와 existing `RevisionFencedTransaction` 하나입니다.
+Relation support는 구현 후에도 `definition.Load`/`Set.Migrate`/`Executor.Migrate` normal path만 소유하며 direct
+legacy Apply/Unapply/ExecutePlan은 relation-bearing input을 capability error로 거부합니다. Loader profile/
+provenance/digest authority는 planned `migrations/internal/definitionhandoff.Handoff`에 raw bytes/alias 없이 담고,
+relation/mixed `Set.Migrate`만 fresh context carrier로 existing Executor에 넘깁니다. Executor는 context precedence
+뒤, capability/session/I/O 전에 visible definition clone과 exact per-definition/full-graph seals를 검증합니다.
+Existing public signatures/entrypoint는 0개 변경이고 legacy/empty set과 raw legacy `Executor.Migrate`, public
+`NewStateReconstructor` scalar behavior는 보존합니다. Carrier 없는 raw relation Migrate/Definitions copy/direct
+legacy execution은 pre-Begin `CategoryCapability`/`CodeUnsupported` feature `relation_migration`, public
+reconstructor raw relation은 existing `CategoryState`/`CodeInvalidState`입니다. Internal exported identifiers는
+consumer API가 아닙니다. Actual internal handoff, SQLite optional port와 relation-capable `StateReconstructor`는
+아직 미구현입니다. 이 docs-freeze head 자체의 hosted CI가 성공하고 별도 acceptance head가 만들어지기 전까지
+ADR-0034는 Proposed입니다.

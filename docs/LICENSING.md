@@ -102,7 +102,11 @@ assertion은 독립적으로 작성하고 Django source, fixture, comment 또는
 copyright/license/modification notice를 적용합니다. EVID-085는 manifest 7,792 bytes/
 SHA-256 `dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`, oracle 125,248 bytes/
 `c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`의 로컬 고정을 기록하지만,
-ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Hosted exact-head 검증은 아직 pending입니다.
+ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Phase A exact head는 EVID-086/run
+`31625898551`, Phase B no-product head는 EVID-088/run `31653237691`, Phase C test-only decision proof head
+`7d36502...`는 EVID-090/run `32174259324`에서 각각 hosted-verified됐습니다. 이 later Proposed decision
+freeze는 Phase A artifact의 historical `kind=proposal`, decision ID `GDJ-0035`, `derived=false`를
+`kind=decision`으로 소급 변경하지 않습니다. ADR은 Proposed이고 product는 미구현입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

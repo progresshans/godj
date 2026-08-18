@@ -184,24 +184,43 @@ Hook/signal은 실행 순서, sync/async 여부, transaction commit 전후, 오�
 - benchmark 결과는 checkout과 환경이 연결된 `docs/status/TEST_EVIDENCE.md`에 남깁니다.
 - 수치 목표와 허용 회귀폭은 M1 walking skeleton이 안정된 뒤 별도 performance ADR에서 정합니다.
 
-## GDJ-0035 proposed SQLite lifecycle concurrency boundary
+## GDJ-0035 Proposed SQLite lifecycle concurrency boundary
 
-GDJ-0035는 existing revision-fenced migration transaction을 보존하면서 relation editor/remake를 추가할
-candidate를 검증합니다. [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는
-아직 Proposed이며 다음을 현재 구현된 보장으로 표현하지 않습니다.
+GDJ-0035 Phase C는 existing revision-fenced migration transaction을 보존하면서 relation editor/remake를
+추가하는 exact concurrency boundary를 test-only proof로 동결했습니다.
+[ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 아직 Proposed이며
+다음을 현재 구현된 보장으로 표현하지 않습니다.
 
-- Relation/state/creator-ancestry와 optional-capability의 pure preflight는 pinned connection/session이나 transaction
-  `BEGIN` 전에 끝나야 하며 failure I/O는 0이어야 합니다.
+- Static relation/state/creator-ancestry/resource preflight와 optional capability selection은 pinned
+  connection/session 전에 끝나며 failure I/O는 0입니다. Existing session의 exact-one history snapshot과 actual
+  planner preflight는 별도 두 번째 stage이고, SQLite schema/cardinality inspection은 transaction 안의 세 번째
+  physical stage입니다.
+- Relation-only/mixed `definition.Set`은 immutable module-private `definitionhandoff.Handoff`를 소유하고
+  `Set.Migrate` 호출마다 fresh clone을 nonnil context의 typed unexported key에 붙입니다. Executor는 기존
+  context nil/cancel/deadline/value precedence 뒤, capability/session/I/O 전에 carrier를 synchronous하게 읽고
+  visible definition clone과 seals를 검증하며 retain하지 않습니다. 같은 Set의 concurrent Migrate는 carrier나
+  nested profile/provenance/graph state를 공유 변경하지 않습니다.
+- Missing/mismatched carrier는 relation path에서 pre-I/O capability error이고 legacy/empty/raw legacy path는
+  zero-carrier behavior를 보존합니다. Context는 handoff transport일 뿐 cancellation/deadline/other values를
+  shadow하거나 session/transaction lifetime까지 carrier를 연장하는 storage가 아닙니다.
 - `PRAGMA foreign_keys=1`은 relation intent로 고정한 exact physical connection에서 transaction `BEGIN` 전에
   확인합니다. Pool의 다른 connection 상태를 재사용하지 않습니다.
 - `BEGIN IMMEDIATE` 뒤 첫 mutation 전에 실행하는 physical preflight는 `sqlite_schema`, `foreign_key_list`,
   index/trigger/view와 inbound FK를 읽는 DB I/O입니다. Pure zero-I/O preflight와 구분하며 실패 시 mutation 0과
   rollback을 요구합니다.
-- Table remake, row copy, `foreign_key_check`, recorder write와 revision compare/write는 하나의 migration
-  transaction과 exact connection을 사용하는 candidate입니다.
+- Physical preflight 뒤 first-write revision/history claim, table remake, row copy, `foreign_key_check`, recorder
+  write와 successor revision은 하나의 existing `RevisionFencedTransaction`과 exact connection을 사용합니다.
+  Relation용 두 번째 session/transaction은 없습니다.
 - Precommit fault는 failed migration을 rollback하고 앞선 migration commit은 보존합니다. Commit outcome은
   success/definite failure/unknown outcome을 구분하고 unknown을 automatic retry하지 않습니다.
 - File restart와 concurrent caller alias/race gate는 MIG-078/084/085/086에서 별도로 검증합니다.
+
+Exact order는 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake →
+FK check → recorder/revision → `CommitFenced` once입니다. `CommitRolledBack`/`CommitUnknown`은 pre-step state와
+token을 보존하고 retry는 0입니다. Candidate-local reopen은 actual epoch/fingerprint/DAG/`StateReconstructor`
+restart 증거가 아닙니다. Phase C proof head `7d36502...`/EVID-090은 hosted-verified됐지만 actual SQLite port와
+reconstructor 및 internal handoff는 미구현이며 이 Proposed docs-freeze head의 hosted gate와 별도 acceptance
+head가 남아 있습니다.
 
 Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
 semantics도 범위 밖입니다.

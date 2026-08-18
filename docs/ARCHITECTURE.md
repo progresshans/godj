@@ -428,30 +428,57 @@ version handshake는 Q-010으로 남아 있고, generator runner는 여전히 `i
 
 현재 핵심 미결정 사항은 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), 채택된 이유는 [adr/](adr/README.md)에 기록합니다.
 
-## GDJ-0035 relation-capable migration candidate boundary
+## GDJ-0035 relation-capable migration Proposed decision boundary
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 completed
-GDJ-0034 terminal baseline 위에 단일 active contract-first packet으로 활성화됐습니다.
-[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 다음
-별도 pipeline을 Phase A/B에서 검증할 candidate로만 기록합니다.
+GDJ-0034 terminal baseline 위의 단일 active contract-first packet입니다. Phase A/B reference/feasibility와
+Phase C test-only decision proof는 EVID-085..090에서 local/hosted 검증됐습니다.
+[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 그 증거로
+다음 product pipeline을 동결했지만 아직 Accepted, Implemented 또는 Verified가 아닙니다.
 
 ```text
 legacy (1,1,1,2) document ─┐
-                            ├→ per-document profile load → mixed canonical set/digest
-relation (1,2,2,3) document ─┘                                  │
-                                                                        ↓
-scalar State v1 / relation State v2 → full zero-I/O target+ancestry preflight
-                                                                        │
-                                                                        ↓
-optional relation editor → pinned SQLite FK-on transaction → DDL/remake+recorder+revision
+                            ├→ one public Load/per-document dispatch → one Planner
+relation (1,2,2,3) document ─┘                    │
+                                                  ↓
+legacy digest v1 / relation-or-mixed digest v2 + module-private Handoff
+                                                  │
+                                                  ↓
+Set.Migrate context carrier → Executor pre-I/O seal → whole-step state promotion
+                                                  │
+                                                  ↓
+static zero-I/O → optional existing-fence session → existing history/plan
+                                                  │
+                                                  ↓
+exact-connection PRAGMA → one RevisionFencedTransaction → SQLite physical preflight
 ```
 
-Legacy-only digest v1, scalar State v1과 existing lifecycle는 필수 보존 조건입니다. Relation/mixed
-digest v2, `RelationStateFormatVersion=2`, additive editor, physical `NO ACTION`, populated-table nullable AddField,
-required populated rejection과 bounded FK-removal table remake는 아직 Proposed입니다. Target AutoField/table/reverse
-namespace와 creator dependency ancestry를 첫 `BEGIN` 전에 검증하고 precommit/commit-three-outcome/restart를
-별도 계약으로 잠그는 방향입니다. Writer/autodetector, general schema preservation,
-self/cyclic/inbound relation, non-AutoField target, non-SQLite backend, Q-017/Q-019는 범위 밖입니다.
+Legacy-only digest v1, scalar State v1과 existing lifecycle는 필수 보존 조건입니다. Relation-only/mixed set은
+digest v2 domain을 사용하고 wire `target_field` 없이 operation 시점 historical model의 exact one AutoField PK를
+파생합니다. Promotion/demotion은 whole migration-step 경계에만 있고 actual `StateReconstructor` 통합은 아직
+blocker입니다.
 
-Activation은 Markdown-only이며 source/artifact/product 상태를 바꾸지 않습니다. MIG-075..086은 exact
-12 planned IDs이고, 새 aggregate/byte/hash/test total은 Phase A 전에 존재하는 것으로 표현하지 않습니다.
+Loader와 lifecycle 사이의 profile/provenance loss는 planned
+`migrations/internal/definitionhandoff.Handoff`로 닫습니다. Successful `definition.Load`가 per-migration exact
+profile, cloned source/producer, canonical definition seal, set digest와 sorted full-graph seal을 alias/raw bytes 없이
+만들고 relation-only/mixed `Set`의 unexported field에 보관합니다. `Set.Migrate`는 호출별 fresh clone을 nonnil
+context의 typed private key에 붙여 existing `Executor.Migrate`를 호출합니다. Executor는 context precedence 뒤,
+capability/session/I/O 전에 caller-visible definitions와 carrier seals를 synchronous/no-retain 검증하고 그 경계에서만
+private relation reconstructor/prepared lifecycle을 mint합니다. Legacy/empty set에는 carrier가 없고 모든 existing
+public signature와 entrypoint 수는 그대로입니다. Internal exported identifier는 Go module-private이지 consumer
+API가 아닙니다. Mixed operation sequence, `Before`/`After`, `OperationIndex`와 `Targets` 값 불변식은
+[ADR-0034의 additive backend API section](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md#additive-exact-existing-fence-backend-api)을 정본으로 합니다.
+
+Optional product boundary는 exact `RelationRevisionFencedBackend`/`RelationRevisionFencedSession`, four explicit
+capabilities와 existing `RevisionFencedTransaction` 하나입니다. SQLite는 exact connection에서
+`PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake → FK check →
+recorder/revision → one commit 순서를 사용하고 physical action은 `NO ACTION`입니다. Populated nullable AddField와
+empty-table required AddField만 허용하며 populated required는 pre-mutation 거부합니다. Bounded remake 밖의
+inbound FK/index/trigger/view/generated object는 fail-closed합니다.
+
+Test-only helper/type/error names, golden/hash와 private catalogs는 noncanonical입니다. Writer/autodetector,
+general schema preservation, self/cyclic/inbound relation, non-AutoField target, non-SQLite backend와 Q-017/Q-019는
+범위 밖입니다. Exact test-only head `7d36502...`/EVID-090은 hosted-verified됐지만 이 Proposed docs-freeze
+head는 자체 hosted CI가 pending입니다. Test-only head는 later `definitionhandoff` product bridge를 구현하거나
+검증하지 않았습니다. Docs head의 성공 뒤 별도 acceptance head 전에는 ADR status와 product state를 바꾸지
+않습니다.

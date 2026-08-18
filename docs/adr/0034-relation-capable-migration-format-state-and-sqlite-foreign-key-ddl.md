@@ -2,6 +2,7 @@
 
 - 상태: Proposed
 - 날짜: 2026-08-13
+- Phase C decision freeze: 2026-08-19
 - 관련 work/contract:
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md),
   MIG-075..MIG-086, Q-010, Q-012, Q-013
@@ -16,224 +17,431 @@
 
 ## 상태와 범위
 
-이 ADR은 **Proposed**입니다. 아래 tuple, digest, state, backend capability와 SQLite DDL/remake shape는
-GDJ-0035 Phase A/B에서 검증할 candidate이며 아직 Accepted, Implemented 또는 Verified가 아닙니다.
-Activation baseline인 [EVID-083](../status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline)은
-이 문서가 생기기 전 GDJ-0034 terminal head만 증명합니다.
+이 ADR은 여전히 **Proposed**입니다. Phase C의 test-only decision proof와 exact-head hosted CI를 근거로
+아래 product boundary를 동결했지만, 아직 장기 방향으로 Accepted하지 않았고 제품 구현 또는 제품 검증도
+아닙니다.
 
-이번 후보는 existing scalar migration ABI를 보존하면서 AutoField-target `ForeignKey` definition과 historical
-state를 SQLite lifecycle에 전달하는 단면만 다룹니다. Writer/autodetector, arbitrary schema rewrite,
-non-SQLite backend와 broader relation API는 결정하지 않습니다.
+- Exact test-only decision-proof head
+  `7d36502f104daa62b39744b5705478acc19a7ead`, tree
+  `d9e8a6b7bec59828ba0bd2b1864cbba3d9f9396d`는 exact 8개
+  `conformance/migrationrelation/*_test.go`만 바꿨습니다.
+- [EVID-089](../status/TEST_EVIDENCE.md#evid-20260819-089--gdj-0035-phase-c-test-only-decision-proof-local-validation)은
+  그 final bytes의 local decision proof를 기록합니다.
+- [EVID-090](../status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
+  [run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)는 그 exact head의 고유
+  26/26 jobs·342/342 steps와 independent audit P0/P1/P2/P3=`0/0/0/0`을 기록합니다.
+- 이 Proposed decision-freeze 문서 head 자체는 아직 고유 hosted CI가 없습니다. 이 문서 head가 별도
+  exact-head CI를 통과한 뒤에만 다시 별도 acceptance 문서 head에서 `상태: Accepted`를 검토합니다.
+
+이번 결정은 existing scalar migration ABI를 보존하면서 AutoField-target `ForeignKey` definition과 historical
+state를 기존 revision-fenced SQLite lifecycle로 전달하는 단면만 다룹니다. Writer/autodetector, arbitrary schema
+rewrite, non-SQLite backend와 broader relation API는 결정하지 않습니다.
 
 ## 맥락
 
 Accepted ADR-0019/0020과 현재 제품은 strict legacy definition tuple
 `(definition_format=1, loader_abi=1, operation_codec=1, schema_ir=2)`, legacy-only canonical digest v1,
 scalar `StateFormatVersion=1`을 구현합니다. Accepted ADR-0024는 relation-capable Schema IR v3와 project binding을
-도입했지만 migration tuple v1과 historical state v1은 relation arm을 명시적으로 거부합니다. 따라서 현재 relation
-metadata/query/write/delete 제품은 migration definition에서 ForeignKey schema를 생성·추가·제거하거나 restart할 수
-없습니다.
+도입했지만 migration tuple v1과 historical state v1은 relation arm을 명시적으로 거부합니다. 따라서 현재
+제품은 migration definition에서 ForeignKey schema를 생성·추가·제거하거나 실제 recorder/revision/DAG에서
+restart할 수 없습니다.
 
-SQLite에서는 ForeignKey constraint가 connection-local `PRAGMA foreign_keys`와 table definition에 결속됩니다.
-Column/FK removal은 일반적으로 table remake가 필요하고 user rows, `sqlite_sequence`, index/trigger/view와 inbound
-constraint를 잘못 다루면 데이터 손실이나 false success가 생깁니다. GoDj의 application-level `PROTECT`/`SET_NULL`
-정책을 physical `CASCADE`/`SET NULL`로 번역하면 이미 구현된 mutation semantics도 바뀝니다.
+SQLite ForeignKey constraint는 connection-local `PRAGMA foreign_keys`와 table definition에 결속됩니다.
+Column/FK removal은 table remake가 필요할 수 있고 user rows, `sqlite_sequence`, index/trigger/view와 inbound
+constraint를 잘못 다루면 데이터 손실이나 false success가 생깁니다. GoDj의 application-level
+`PROTECT`/`SET_NULL` 정책을 physical `CASCADE`/`SET NULL`로 번역하면 이미 구현된 mutation 의미도 바뀝니다.
 
-Relation codec, ProjectState, editor capability와 remake를 한 번에 암묵적으로 확장하면 old artifact를 새 의미로
-재해석하거나 transaction 시작 뒤에야 dependency/target 오류를 발견할 수 있습니다. Format profile, state
-promotion, full preflight, physical policy와 fault outcome을 독립 contract로 먼저 고정해야 합니다.
+Relation codec, historical state, editor capability와 remake를 암묵적으로 한 번에 넓히면 old artifact를 새
+의미로 재해석하거나 transaction 시작 뒤에야 dependency/target 오류를 발견할 수 있습니다. Format profile,
+whole-step state transition, three-stage preflight, exact existing-fence backend port와 fault outcome을 함께
+명시해야 합니다.
 
 ## 결정 기준
 
 - Legacy tuple, canonical bytes/digest, scalar state와 existing lifecycle의 byte/behavior compatibility
-- Relation definition의 lossless profile dispatch와 mixed batch의 deterministic digest
+- 한 public loader에서 relation definition을 lossless하게 dispatch하고 mixed batch를 한 graph로 계획
 - Historical state가 current generated model이나 runtime registry에 의존하지 않는 단일 원본
-- Target/AutoField/declared table·column/dependency 오류가 DB I/O 전에 전부 검출되는 pure atomic preflight
+- Wire relation declaration이 target key field를 위조하지 못하고 historical exact AutoField를 사용
+- Static, history/plan, SQLite physical preflight의 I/O와 mutation 경계를 구분
+- Existing revision-fenced session/transaction/history owner를 relation 경로에서도 재사용
 - SQLite exact connection의 FK enforcement와 application/physical delete-policy 분리
-- Populated table, reverse/remake, restart와 precommit/commit fault의 데이터·recorder 일관성
+- Populated nullable/empty required AddField, reverse/remake, restart와 fault outcome의 명시적 경계
 - Unsupported schema object를 조용히 잃지 않는 fail-closed capability
-- Existing migration transaction/revision fence와 structured cause 보존
-- Reference artifact replay가 아닌 actual product observation으로 검증 가능
+- Reference artifact replay가 아닌 actual product observation으로 후속 구현을 검증 가능
 
 ## 고려한 선택지
 
 ### Legacy tuple `(1,1,1,2)`를 relation까지 확장
 
-파일 수와 dispatch는 단순하지만 같은 compatibility tuple이 scalar-only와 relation-bearing meaning을 동시에
-가집니다. Old consumer가 relation을 drop하거나 old digest domain이 다른 semantics를 같은 profile로 표현할 수 있어
-채택 후보에서 제외합니다.
+같은 compatibility tuple이 scalar-only와 relation-bearing meaning을 동시에 갖게 됩니다. Old consumer가
+relation을 drop하거나 old digest domain이 다른 semantics를 같은 profile로 표현할 수 있어 제외합니다.
 
 ### Project-wide bundle을 v2로 일괄 변환
 
-한 profile과 digest를 만들기 쉽지만 이미 배포된 old definition을 rewrite하고 migration review/history를
-대량 변경합니다. Mixed legacy/new project의 점진적 진화를 막으므로 제외합니다.
+이미 배포된 old definition을 rewrite하고 migration review/history를 대량 변경하며 mixed legacy/new project의
+점진적 진화를 막으므로 제외합니다.
 
 ### SQLite physical action을 application policy와 동일하게 사용
 
-`SET_NULL`을 `ON DELETE SET NULL`로 둘 수 있지만 GoDj의 explicit application mutation, cache publication과
-protected payload 의미를 DB side effect로 우회합니다. `PROTECT`와 `SET_NULL` 모두 physical `NO ACTION`으로
-constraint integrity만 맡기는 후보가 기존 제품 의미를 더 잘 보존합니다.
+`SET_NULL`을 `ON DELETE SET NULL`로 두면 GoDj의 explicit application mutation과 cache publication을 DB side
+effect로 우회합니다. `PROTECT`와 `SET_NULL` 모두 physical `NO ACTION`으로 constraint integrity만 맡깁니다.
 
 ### 모든 schema object를 SQL text로 재작성하는 범용 table remake
 
-다양한 기존 DB를 다룰 수 있지만 trigger/view/index quoting과 hidden/generated column, inbound FK까지 parser/writer
-범위를 확대합니다. 이번 packet에서는 exact recognized table shape만 보존하고 그 밖은 capability error로 거부하는
-bounded remake를 후보로 둡니다.
+Trigger/view/index quoting, hidden/generated column과 inbound FK까지 parser/writer 범위를 확대합니다. 이번
+packet에서는 exact recognized shape만 보존하고 그 밖은 capability error로 거부합니다.
 
-### Versioned relation profile, explicit state promotion과 additive relation editor
+### Versioned profile, whole-step state transition과 additive existing-fence relation port
 
-Old ABI를 보존하면서 relation 문서만 새 profile로 분리하고, mixed set digest가 각 document profile을 포함합니다.
-State version과 optional backend capability를 명시하면 old consumer/editor가 relation을 silent-drop하지 않습니다.
-이번 Proposed 방향입니다.
+Old ABI를 보존하면서 relation document만 새 profile로 분리하고, 한 loader/Planner와 기존 fenced lifecycle에
+합류시킵니다. Phase C에서 동결한 Proposed 방향입니다.
 
-## Proposed candidate
+## Proposed decision freeze
 
-### Definition profile와 per-document dispatch
+### Definition profile, one loader and one planner
 
-두 exact profile만 허용하는 후보입니다.
+정의 파일이 선언할 수 있는 exact profile은 다음 두 개입니다.
 
 ```text
 legacy:   (definition_format, loader_abi, operation_codec, schema_ir) = (1, 1, 1, 2)
 relation: (definition_format, loader_abi, operation_codec, schema_ir) = (1, 2, 2, 3)
 ```
 
-- `definition_format=1`의 strict JSON envelope/source limits/duplicate-key/framing 의미는 보존합니다.
-- Loader ABI v2는 한 batch 안의 per-document exact profile dispatch와 mixed profile set을 소유합니다.
-- Codec v2는 existing `create_model`/`add_field`의 scalar arms를 보존하고 IR v3 `foreign_key` field arm을
-  losslessly encode/decode합니다.
-- Tuple coordinate를 임의로 섞은 `(1,2,1,3)`, `(1,1,2,3)` 같은 hybrid는 negotiation 없이
-  coordinate-specific incompatibility로 전체 batch publication 전에 거부합니다.
-- Same `(app,name)` identity duplicate와 dependency graph validation은 profile과 무관하게 existing Planner의
-  deterministic 의미로 한 번 수행합니다.
-- Old document를 relation profile로 rewrite하지 않으며 producer version은 compatibility coordinate가 아닙니다.
+- Existing `migrations/definition`의 `DefinitionFormatVersion=1`, `LoaderABIVersion=1`,
+  `OperationCodecVersion=1`, `SchemaIRVersion=2` constant/constructor는 그대로 보존합니다. 같은 package가
+  relation profile의 additive exact public constants `RelationLoaderABIVersion = 2`,
+  `RelationOperationCodecVersion = 2`, `RelationSchemaIRVersion = 3`을 소유합니다. 세 relation constant의
+  declared type은 existing sibling과 동일한 exact `int64`입니다.
+- Public entrypoint는 existing `migrations/definition.Load(...Source)` 하나입니다. 별도 relation loader나
+  caller-selected decoder를 추가하지 않습니다.
+- `definition_format=1` strict JSON envelope, source/resource limits, duplicate-key와 framing 의미를 보존합니다.
+- Loader ABI v2가 각 document의 exact tuple을 읽고 그 tuple에 맞는 decoder로 한 번 dispatch합니다. Hybrid
+  `(1,2,1,3)`, `(1,1,2,3)`와 unknown coordinate는 전체 publication 전에 coordinate-owned incompatibility로
+  실패합니다.
+- Codec v2는 existing `create_model`/`add_field` scalar arms를 보존하고 IR v3 `foreign_key` arm을 losslessly
+  encode/decode합니다. Legacy document를 relation profile로 rewrite하지 않습니다.
+- 모든 document가 decode된 뒤 duplicate identity와 dependency graph는 actual existing `migrations.Planner`
+  하나가 combined set 전체에 대해 검증합니다. Profile별 graph나 두 번째 planner를 만들지 않습니다.
 
-### Digest domains와 mixed set
+### Loader-owned module-private handoff
 
-- Legacy-only set은 existing `godj:migration-definition-set:v1`, exact tuple object와 canonical bytes/digest를
-  byte-for-byte 유지합니다.
-- Relation document가 하나라도 있는 relation-only/mixed set은 새 v2 domain 후보를 사용합니다.
-- V2 canonical definition item은 그 item을 decode한 exact compatibility profile을 포함합니다. 따라서 semantic
-  operation bytes가 우연히 같아도 legacy/relation profile은 digest에서 구별됩니다.
-- Definition order는 existing app/name UTF-8 byte order, dependency order는 canonical identity order,
-  operation/field order는 semantic order를 보존합니다. Input source/order/whitespace/producer는 계속 제외합니다.
-- Digest는 semantic fingerprint이지 signature, revision fence 또는 expected schema/history trust가 아닙니다.
+현재 `definition.Set.Migrate`가 fresh `[]migrations.Migration`만 existing `Executor.Migrate`에 전달하면 loader가
+검증한 per-document profile/provenance/digest와 definition pairing을 relation state/lifecycle까지 보존할 수
+없습니다. Public API를 넓히지 않고 다음 internal bridge로 이 경계를 닫습니다.
 
-Phase A 전에는 v2 domain literal, canonical example bytes 또는 digest hash를 확정값으로 기록하지 않습니다.
+- Planned `migrations/internal/definitionhandoff.Handoff`는 Go `internal` import boundary 안의 module-private
+  immutable carrier입니다. Internal package의 exported identifier는 repository module 내부 연결 이름일 뿐
+  consumer API가 아닙니다.
+- `definition.Load`는 모든 tuple/decode와 combined actual Planner 검증이 성공한 뒤 exact per-migration profile,
+  cloned `SourceID`/`Producer`, canonical definition seal, set v1/v2 digest와 sorted full-graph seal을 생성합니다.
+  Carrier는 raw document bytes와 caller-owned slice/map/pointer alias를 보존하지 않습니다.
+- `definition.Set`은 unexported handoff field를 소유합니다. Relation-only/mixed set만 nonzero carrier를 가지며
+  legacy-only/empty set은 zero를 유지합니다. Existing public `Load`, `Set`, `Definitions`, `Digest`, `Sources`,
+  `Set.Migrate`, `Executor.Migrate` signature와 public entrypoint 수는 바뀌지 않습니다.
+- Relation-only/mixed `Set.Migrate`는 호출마다 carrier를 fresh clone하고, context가 nonnil일 때만
+  `definitionhandoff.WithContext`의 typed unexported key로 붙인 뒤 existing `Executor.Migrate`를 정확히 한 번
+  호출합니다. Nil context는 attach 과정에서 panic하지 않고 기존 Executor context error precedence로 그대로
+  전달합니다.
+- `Executor.Migrate`는 기존 nil/cancellation/deadline/value와 request validation precedence 뒤,
+  capability selection/session open/history/DB I/O 전에 caller-visible definition clone과 carrier의 exact
+  profile/provenance/set digest/canonical definition/full-graph seal을 동기 검증합니다. Carrier/context value는
+  호출 밖으로 retain하지 않습니다.
+- 이 검증 경계만 private loaded-state reconstructor와 prepared lifecycle handoff를 mint할 수 있습니다.
+  `Set.Definitions()`가 반환한 copy나 raw caller definitions는 같은 authority를 만들 수 없습니다.
 
-### Historical state version과 promotion
+Phase C test-only head는 candidate-local seals로 behavior를 검증했지만 이 later internal package/context bridge나
+product signature preservation을 구현·검증하지 않았습니다. 이 항목은 Proposed documentation freeze가 선택한
+implementation boundary이며 actual blocker입니다.
 
-- Existing `StateFormatVersion=1`은 IR v2 scalar-only state로 계속 사용합니다.
-- Candidate `RelationStateFormatVersion=2`는 IR v3 relation-bearing model/field state를 소유합니다.
-- Promotion v1→v2는 모든 scalar semantics/order를 losslessly deep-copy합니다. Demotion v2→v1은 relation field가
-  하나라도 있으면 structured state error로 거부하고 scalar-only v2에서만 lossless하게 허용합니다.
-- New definition profile을 legacy state로 직접 replay하거나 generated current model에서 historical relation을
-  보충하지 않습니다.
-- Clone, operation before/after state, plan preflight와 reconstructor snapshot은 nested relation state를 alias하지
-  않습니다.
+### Digest domains
 
-### Pure zero-I/O relation preflight
+- Empty set과 legacy-only set은 existing `godj:migration-definition-set:v1`, exact tuple object와 canonical
+  bytes/digest를 byte-for-byte 유지합니다.
+- Relation document가 하나라도 있는 relation-only/mixed set은
+  `godj:migration-definition-set:v2` domain을 사용합니다.
+- V2 canonical definition item은 그 document의 exact compatibility profile과 normalized semantic definition을
+  포함합니다. Definition은 app/name byte order, dependency는 canonical identity order, operation/field는
+  semantic order를 보존합니다.
+- Source order, whitespace, `SourceID`와 producer는 semantic digest에서 제외합니다. 진단 provenance는
+  digest와 별도 snapshot/seal로 보존합니다.
+- Digest는 semantic fingerprint이며 signature, revision fence, expected schema/history trust가 아닙니다.
 
-Non-empty lifecycle plan의 첫 `BEGIN` 전에 전체 definition/state/plan에 대해 다음을 검증하는 후보입니다.
+Proof의 golden bytes, digest hash와 private canonical catalog 이름은 회귀 검출 자료이지 product API나
+장기 결정의 일부가 아닙니다.
 
-- source/target app·model과 declared physical table/column identity
-- target model의 exact one AutoField primary key와 ForeignKey scalar compatibility
-- relation cardinality, reverse namespace, `SET_NULL`의 nullable requirement
-- target creator migration과 source creator/add migration 사이의 explicit dependency ancestry
-- remove/unapply가 만드는 before/after state와 declared inbound relation absence
-- backend relation capability shape
+### Wire relation and whole-step historical state
 
-Target creator가 같은 migration 앞 operation이거나 dependency ancestry에 있어야 하며 filename/input order나 current
-runtime binding으로 보완하지 않습니다. 이 pure preflight 실패는 pinned connection/session,
-transaction/editor/recorder/revision I/O 0입니다. `sqlite_schema`, `foreign_key_list`, index/trigger/view와 inbound
-physical FK를 읽어야 하는 remake eligibility는 여기에 포함하지 않습니다.
+- Existing `migrations.StateFormatVersion=1` constant/constructors는 IR v2 scalar-only state로 유지합니다.
+  같은 `migrations` package의 relation-bearing step 내부 state는 additive exact public constant
+  `RelationStateFormatVersion = 2`와 IR v3 normalized model graph를 사용합니다.
+  `RelationStateFormatVersion`은 existing `StateFormatVersion`와 같은 untyped integer constant입니다.
+  Promotion/demotion helpers는 unexported입니다.
+- Relation wire arm은 symbolic target app/model, cardinality, reverse와 `on_delete`만 소유합니다.
+  `target_field`를 wire에 추가하지 않습니다.
+- Preflight는 해당 operation 시점에 보이는 historical target model에서 exact one non-nullable AutoField primary
+  key를 찾아 backend intent의 target key snapshot을 파생합니다. Missing/multiple/non-AutoField/nullable target
+  key는 I/O 전에 실패합니다. Current generated model이나 runtime binding으로 보충하지 않습니다.
+- Scalar v1→relation v2 promotion은 whole migration step 진입 경계에서 lossless deep-copy로 한 번 수행합니다.
+  Relation arm이 마지막으로 제거된 step의 완료 경계에서만 scalar-only v2→v1 demotion을 허용합니다. Operation
+  중간마다 공개 state format을 왕복하거나 caller가 promotion/demotion을 직접 선택하지 않습니다.
+- Demotion 시 relation arm이 하나라도 남아 있으면 structured state error로 실패합니다. Before/after state,
+  reconstructor snapshot과 backend intent는 nested relation state를 alias하지 않습니다.
+- Relation 여부와 public operation kind는 sealed `Before`→`After` exact model delta에서 파생합니다. Caller가
+  별도 `RelationArm`, profile boolean 또는 operation-kind selector로 같은 step을 재분류할 수 없습니다.
 
-### Additive backend boundary
+Actual product `StateReconstructor`는 아직 relation profile/state와 whole-step promotion/demotion을 구현하지
+않았고 relation-bearing `AddField`를 current `CategoryState`/`CodeInvalidState`로 거부합니다. Phase C test
+helper의 state types, constructors, seals, hashes, catalogs와 error-detail strings는 noncanonical입니다.
+후속 private loaded-state reconstructor는 validated `definitionhandoff.Handoff` 경계에서만 mint하며 public
+`NewStateReconstructor`에 raw relation definitions를 직접 허용하지 않습니다.
 
-Existing scalar backend API를 breaking-change로 넓히지 않고 optional relation editor capability를 additive하게
-검출하는 후보입니다. Core lifecycle은 relation operation이 있을 때만 capability를 요구합니다. Capability와 pure
-state/graph transition 검증은 pinned connection/session을 열거나 transaction `BEGIN` 전에 완료해야 합니다.
+### Three-stage preflight
 
-Candidate operation surface는 relation-bearing CreateModel, nullable ForeignKey AddField와 their reverse/remove only입니다.
-Populated table의 required FK AddField는 backfill/default가 없으므로 pre-DDL capability/state error입니다. Empty table
-required AddField를 지원할지는 Phase B observation으로 결정하며 이 Proposed 문서는 지원을 약속하지 않습니다.
+Relation step은 다음 세 단계를 순서대로 통과해야 합니다.
 
-### SQLite connection and physical ForeignKey policy
+1. **Static zero-I/O preflight**: caller-owned source/resource bounds, exact profile/state graph, operation chronology,
+   creator ancestry, source/target/table/column/reverse/nullability/cardinality와 backend capability shape를 전체
+   plan에 대해 검증하고 deep-copy합니다. 실패 시 capability call, session open, history read, transaction과 DB
+   I/O가 모두 0입니다. 여기서 “zero I/O”는 DB/session/catalog port call 0을 뜻합니다.
+2. **Existing history/plan preflight**: 기존 revision-fenced session에서 applied-history snapshot을 정확히 한 번
+   읽고 actual `NewAppliedState` → `NewPlanner` → `CheckHistory` → `Plan` 순서로 explicit targets와 expected
+   plan step을 검증합니다. Forward/reverse는 같은 cloned definition set을 재사용합니다. Empty history는 child를
+   실행할 수 없고 parent-applied history만 child apply를 허용하며 unapply는 child-first입니다. 성공한
+   definitions/applied/targets/expected `PlanStep`, provenance와 key/direction/`HistoryTransition`/intent를 하나의
+   immutable handoff로 묶은 뒤에만 begin합니다.
+3. **SQLite physical preflight**: relation transaction의 exact pinned connection에서 `BEGIN IMMEDIATE` 뒤 첫
+   claim/mutation 전에 `sqlite_schema`, `foreign_key_list`, row cardinality, index/trigger/view, generated/hidden
+   column, table option, inbound FK와 temporary-name collision을 검사합니다. 실패 시 DDL/row copy/recorder/
+   successor-revision mutation은 0이고 같은 transaction을 rollback합니다.
 
-- Relation intent로 고정한 exact physical connection에서 transaction `BEGIN` 전에 `PRAGMA foreign_keys=1`을
-  확인합니다. 다른 pool connection의 결과나 DSN option만으로 success를 주장하지 않습니다.
-- `PROTECT`와 `SET_NULL` relation 모두 physical DDL은 target PK를 참조하는
-  `FOREIGN KEY (...) REFERENCES ... (...) ON DELETE NO ACTION` 후보입니다.
-- Application delete product는 기존 explicit PROTECT/SET_NULL transaction을 계속 소유하고 physical FK는 orphan
-  방지만 담당합니다.
-- PRAGMA off, target/table mismatch 또는 unsupported editor는 DDL/recorder write 전에 structured error입니다.
+Static preflight와 physical preflight를 모두 “zero I/O”라고 합치지 않습니다. Scalar-only plan은 relation
+capability/session 경로로 들어가지 않습니다.
+
+### Additive exact existing-fence backend API
+
+Existing scalar `migrations/backend.RevisionFencedBackend`, `RevisionFencedSession`과
+`RevisionFencedTransaction`을 breaking change로 넓히지 않습니다. 다음 exported relation port/capability/intent/
+operation/target/kind type은 모두 additive하게 `migrations/backend` package의 planned
+`migrations/backend/relation.go`가 소유하고 그 package의 existing fenced interface를 embed/reuse합니다. Relation
+operation이 있을 때만 이 optional extension을 요구합니다.
+
+```go
+type RelationMigrationCapabilities struct {
+    CreateModelForeignKeys            bool
+    AddNullableForeignKey             bool
+    AddRequiredForeignKeyToEmptyTable bool
+    RemoveForeignKeyByTableRemake     bool
+}
+
+type RelationRevisionFencedBackend interface {
+    RevisionFencedBackend
+    RelationMigrationCapabilities() RelationMigrationCapabilities
+}
+
+type RelationRevisionFencedSession interface {
+    RevisionFencedSession
+    BeginRelationFencedMigration(
+        context.Context,
+        HistoryTransition,
+        RelationMigrationIntent,
+    ) (RevisionFencedTransaction, error)
+}
+
+type RelationMigrationOperationKind uint8
+
+const (
+    RelationMigrationCreateModel RelationMigrationOperationKind = iota + 1
+    RelationMigrationDeleteModel
+    RelationMigrationAddField
+    RelationMigrationRemoveField
+)
+
+type RelationMigrationIntent struct {
+    Operations []RelationMigrationOperation
+}
+
+type RelationMigrationOperation struct {
+    OperationIndex int
+    Kind           RelationMigrationOperationKind
+    Before         ir.Model
+    After          ir.Model
+    Targets        []RelationMigrationTarget
+}
+
+type RelationMigrationTarget struct {
+    SourceField ir.Field
+    TargetModel ir.Model
+    TargetKey   ir.Field
+}
+```
+
+- `RelationMigrationOperationKind`의 CreateModel/DeleteModel/AddField/RemoveField 값은 exact `1..4`입니다.
+- `RelationMigrationIntent`는 normalized operation sequence만 소유합니다. App/name/direction은 기존
+  `HistoryTransition`만 소유하고 relation intent/operation/target은 그 identity를 중복하지 않습니다.
+- Relation target이 하나라도 있는 step의 `Operations`는 scalar와 relation operation을 모두 포함한
+  complete execution-order sequence입니다. Forward는 source의 zero-based `OperationIndex` `0..n-1`
+  순서이고 unapply는 original index를 보존한 채 `n-1..0`으로 역순합니다. Scalar-only step은 existing
+  scalar lifecycle로 남고 relation intent/port로 들어가지 않으며, relation intent는 최소 하나의
+  relation target을 가져야 합니다. Operation 누락, duplicate index, reorder 또는 같은 model identity의
+  이전 `After`와 다음 `Before` 사이 discontinuity는 session open 전에 거부합니다.
+- CreateModel은 `Before`=exact zero `ir.Model`, `After`=full normalized historical model입니다. DeleteModel은
+  그 역이고, AddField/RemoveField는 같은 model identity의 full normalized `Before`/`After`로 Add가 exact
+  one field를 append하거나 Remove가 exact one field를 제거한 delta를 나타내며 나머지 field의 값과 order를
+  보존합니다.
+- `Targets`는 operation이 실제로 소유한 relation field의 exact count/order입니다. Create/DeleteModel은
+  해당 full model의 relation field order, relation Add/RemoveField는 exact changed field 하나, scalar delta는 zero
+  target입니다. 각 target은 exact `SourceField` snapshot, operation-time historical normalized `TargetModel`,
+  그 model field의 exact member이자 unique non-nullable AutoField primary key인 `TargetKey`를 소유합니다.
+  Operation/model/field/target snapshot과 nested relation은 모두 deep clone이며 caller alias를 보존하지 않습니다.
+- `BeginRelationFencedMigration`은 별도 relation transaction을 만들지 않고 existing
+  `RevisionFencedTransaction`을 반환합니다. Relation/scalar DDL, recorder, successor revision,
+  `CommitFenced`와 `Rollback`은 같은 transaction identity를 사용합니다.
+- Relation backend가 없거나 네 capability 중 필요한 항목이 false이면 legacy begin으로 fallback하지 않고
+  pre-session/pre-DDL structured capability error로 실패합니다.
+- 위 exported interface/type/method/capability field 이름과 역할만 Proposed public decision surface입니다.
+  Test-only adapters, opaque seals, private catalogs, helper constructors와 proof hashes는 noncanonical입니다.
+
+### SQLite order and physical policy
+
+Relation step의 exact order는 다음과 같습니다.
+
+```text
+static preflight + capability selection
+→ existing session history/plan preflight
+→ exact physical connection에서 PRAGMA foreign_keys=1 확인
+→ BEGIN IMMEDIATE
+→ physical schema/cardinality preflight
+→ expected epoch/revision/history fence claim
+→ relation/scalar DDL 또는 bounded remake
+→ foreign_key_check
+→ exact-one recorder transition + successor revision
+→ CommitFenced exactly once
+```
+
+- `PRAGMA foreign_keys=1`은 transaction 전에 transaction이 사용할 exact physical connection에서 확인합니다.
+  Pool의 다른 connection 결과나 DSN option만으로 success를 주장하지 않습니다.
+- `PROTECT`와 `SET_NULL` 모두 target AutoField PK를 참조하는 physical DDL은
+  `FOREIGN KEY (...) REFERENCES ... (...) ON DELETE NO ACTION`입니다. Application-level delete product가
+  mutation policy를 계속 소유하고 physical FK는 orphan 방지만 담당합니다.
+- First write인 revision/history claim 뒤 DDL, row copy, FK check, recorder와 successor revision은 하나의
+  existing fenced transaction에서 수행합니다. Recorder나 relation DDL을 위한 두 번째 transaction/session/
+  connection을 열지 않습니다.
+
+### Supported operation shape
+
+- Relation-bearing `CreateModel`은 `CreateModelForeignKeys` capability에서 지원합니다.
+- Nullable ForeignKey `AddField`는 empty/populated table 모두 `AddNullableForeignKey` capability에서 지원합니다.
+- Required ForeignKey `AddField`는 table이 empty이고
+  `AddRequiredForeignKeyToEmptyTable` capability가 있을 때만 지원합니다.
+- Populated table의 required ForeignKey AddField는 backfill/default 정책이 없으므로 physical mutation 전에
+  거부합니다.
+- ForeignKey remove/reverse/unapply는 `RemoveForeignKeyByTableRemake` capability와 bounded remake eligibility를
+  모두 통과해야 합니다. Parent-first apply, child-first unapply, 마지막 relation 제거 후 demotion을 유지합니다.
 
 ### Bounded SQLite table remake
 
-FK removal/unapply는 native column/FK alteration에 의존하지 않고 recognized table shape에만 bounded remake를
-사용하는 후보입니다.
-
-Exact pinned connection에서 `sqlite_schema`, `foreign_key_list`, index/trigger/view와 inbound FK를 읽는 physical
-preflight는 DB I/O입니다. `BEGIN IMMEDIATE`가 writer boundary를 고정한 뒤 첫 DDL/row-copy/recorder write 전에
-완료하며, pure zero-I/O preflight와 동일한 주장으로 합치지 않습니다. 실패 시 mutation은 0이고 transaction은
-rollback해야 합니다.
+FK removal/unapply는 native column/FK alteration을 가정하지 않고 exact recognized table shape만 remake합니다.
 
 ```text
-preflight sqlite schema + relation graph
-→ create deterministic temporary table from target after-state
-→ copy explicit retained columns in stable row order
-→ replace table in the same migration transaction
-→ restore and verify sqlite_sequence when applicable
-→ verify foreign_key_check and recorder revision/write
+after-state에서 deterministic temporary table 생성
+→ retained column을 명시적 stable order로 copy
+→ same transaction에서 table 교체
+→ sqlite_sequence 복원·검증
+→ foreign_key_check
+→ recorder/successor revision
 → commit once
 ```
 
-- User rows, PK values, column values and AutoIncrement sequence를 보존합니다.
-- Temporary names are deterministic/collision-checked and never escape a failed transaction.
-- Inbound FK, user index, trigger, view, generated/hidden column, unsupported table option 또는 undeclared schema object가
-  있으면 SQL text를 추측해 재생성하지 않고 pre-DDL capability error로 거부합니다.
-- Remake와 recorder/revision update는 same transaction을 사용합니다. Foreign-key check failure도 commit 전
-  rollback합니다.
+- User rows, PK values, column values와 AutoIncrement sequence를 보존합니다.
+- Temporary name은 deterministic/collision-checked이고 failed transaction 밖으로 남지 않습니다.
+- Inbound FK, user index, trigger, view, generated/hidden column, unsupported table option 또는 undeclared schema
+  object가 있으면 SQL text를 추측해 재생성하지 않고 pre-DDL capability error로 거부합니다.
 
-### Failure, restart and commit outcome
+### Failure, commit outcome and restart
 
-- DDL, row copy, FK verification, recorder write와 revision fence fault는 original cause/rollback cause를 보존하고
-  failed migration state를 publish하지 않습니다.
-- Precommit failure는 failed migration transaction 전체를 rollback하며 앞선 migration별 durable commit은
+- DDL, row copy, FK verification, recorder write와 revision fence fault는 original cause와 rollback/cleanup cause의
+  기존 우선순위를 보존하고 failed migration state를 publish하지 않습니다.
+- Precommit failure는 현재 migration transaction 전체를 rollback하며 앞서 성공한 migration별 durable commit은
   ADR-0014대로 남습니다.
-- File-backed close/reopen 뒤 recorder/applied state와 loaded mixed definition set으로 동일 latest/target plan을
-  재구성합니다.
-- Commit outcome은 success, definite failure, unknown outcome 세 가지를 구분합니다. Unknown outcome은 durable
-  result를 추측하거나 automatic retry하지 않고 existing unknown-outcome error boundary를 보존합니다.
+- `CommitCommitted`만 post-step state와 successor token을 publish합니다. `CommitRolledBack`은 pre-step
+  state/token을 보존하고, `CommitUnknown`은 마지막 confirmed pre-step state와 기존
+  `commit_outcome_unknown` 경계를 반환합니다.
+- Commit error가 durable success의 cleanup error인 경우에도 기존 committed/cleanup 의미를 유지합니다.
+- Definite failure와 unknown outcome 모두 relation lifecycle 내부 automatic retry는 0입니다.
+- Restart는 file close/reopen 뒤 actual recorder history, revision epoch/token, loaded mixed definition set,
+  actual DAG와 product `StateReconstructor`로 같은 latest/target plan을 재구성해야 합니다.
 
-## Planned contract matrix
+Phase C의 candidate-local restart, fake recorder/revision, private catalog와 helper hash는 이 actual product restart를
+증명하지 않습니다. Actual SQLite optional port와 actual `StateReconstructor` relation integration이 구현 blocker입니다.
 
-| ID | Candidate decision/reference observation |
-|---|---|
-| MIG-075 | Existing legacy tuple, state v1, digest-v1 and lifecycle ABI preservation |
-| MIG-076 | Exact relation profile plus coordinate mismatch/hybrid rejection |
-| MIG-077 | Relation/mixed set canonical per-document profile and digest-v2 behavior |
-| MIG-078 | State v1/v2 promote/demote, rejection and deep-copy behavior |
-| MIG-079 | Target AutoField/table/reverse/creator-ancestry full preflight before I/O |
-| MIG-080 | Relation CreateModel apply/unapply/reapply on SQLite |
-| MIG-081 | Nullable FK AddField on populated table; required populated rejection |
-| MIG-082 | Reverse/remake row and `sqlite_sequence` preservation |
-| MIG-083 | Pinned exact-connection FK-on and physical `NO ACTION` |
-| MIG-084 | File-backed restart/reconstruction after relation lifecycle |
-| MIG-085 | Precommit DDL/recorder/revision fault rollback/cause behavior |
-| MIG-086 | Commit success/definite failure/unknown outcome and no retry |
+### Product entry boundary
 
-MIG-075..086은 계획 ID이며 activation에서는 manifest/oracle/static fixture, aggregate/status, bytes/hash 또는
-test totals를 추가하지 않습니다.
+- Relation support가 구현되면 normal loaded-set 경로인 `definition.Load` → `definition.Set.Migrate` →
+  `Executor.Migrate`에서만 relation profile/state/lifecycle를 시작합니다. 별도 relation executor/public entrypoint를
+  만들지 않습니다.
+- Relation-only/mixed `Set.Migrate`의 fresh context carrier와 Executor의 pre-I/O seal 검증만 loaded authority를
+  전달합니다. Carrier가 없거나 definition/profile/provenance/digest/full-graph pairing이 다르면 private
+  reconstructor/prepared lifecycle을 mint하지 않습니다.
+- Carrier 없는 raw `Executor.Migrate`, `Set.Definitions()` copy, direct legacy `Executor.Apply`,
+  `Executor.Unapply` 또는 `ExecutePlan`에 relation-bearing input을 주면 legacy `BeginMigration`으로 fallback하지
+  않고 pre-Begin `CategoryCapability`/`CodeUnsupported`, feature `relation_migration`으로 실패합니다.
+- Raw legacy `Executor.Migrate`와 public `NewStateReconstructor`의 scalar behavior는 그대로 유지합니다. Public
+  reconstructor에 raw relation input을 주는 기존 경계는 `CategoryState`/`CodeInvalidState`를 유지합니다.
+- File reopen만 한 candidate-local/history-only proof는 actual recorder epoch/revision fingerprint, full applied
+  history, migration DAG와 actual `StateReconstructor` replay를 검증한 것이 아닙니다.
+
+### Error ownership
+
+- Raw profile/codec/IR failure는 existing definition `CategorySource`를 사용합니다. Tuple coordinate mismatch는
+  existing `CodeDefinitionFormatIncompatible`, `CodeLoaderABIIncompatible`,
+  `CodeOperationCodecIncompatible`, `CodeSchemaIRIncompatible` 중 해당 coordinate code를 사용하며 별도
+  “hybrid” code를 만들지 않습니다. Invalid relation arm/IR은 existing `CodeInvalidOperation`/
+  `CodeInvalidIR` ownership을 유지합니다.
+- Historical target/reverse/creator/state failure는 migrations `CategoryState`/`CodeInvalidState`와 exact
+  migration/operation context를 사용합니다.
+- Missing relation port/capability, FK PRAGMA off, populated-table required AddField와 closed-remake hazard는
+  `backend.CapabilityError`를 통해 migrations `CategoryCapability`/`CodeUnsupported`로 정규화합니다. Feature는
+  core relation boundary의 `relation_migration` 또는 SQLite-owned boundary의 `sqlite_relation_migration`입니다.
+- Missing/mismatched loader handoff나 carrier 없는 raw relation entry도 pre-Begin
+  `CategoryCapability`/`CodeUnsupported`, feature `relation_migration`을 사용합니다. Public reconstructor의 raw
+  relation rejection은 별도 existing `CategoryState`/`CodeInvalidState` 경계를 유지합니다.
+- SQL/row-copy/`foreign_key_check` operational failure는 migrations `CategoryExecution`/
+  `CodeOperationFailed`와 exact migration/operation context를 사용합니다.
+- Recorder, stale/contended/integrity, commit/cleanup/session-close outcome은 existing codes와
+  `CommitOutcome`을 재사용하고 public `Cause`/`RollbackCause` priority를 보존합니다.
+- Category/code/feature/context/cause ownership과 deterministic selection은 계약입니다. Human message,
+  `Detail`, test-only candidate reason strings, private error structs와 helper names는 noncontractual입니다.
+
+## Contract matrix
+
+| ID | Frozen Proposed decision/reference observation | 현재 분류 |
+|---|---|---|
+| MIG-075 | Existing legacy tuple/state v1/digest v1/lifecycle ABI preservation | `oracle_locked` / Accepted legacy reference |
+| MIG-076 | Exact relation tuple, per-document dispatch와 hybrid rejection | `oracle_locked` / proposal reference |
+| MIG-077 | Relation-only/mixed set profile-bearing canonical digest v2 | `oracle_locked` / proposal reference |
+| MIG-078 | Whole-step scalar v1↔relation v2 promotion/demotion and deep-copy | `oracle_locked` / proposal reference |
+| MIG-079 | Target AutoField derivation and three-stage plan preflight | `oracle_locked` / proposal reference |
+| MIG-080 | Relation CreateModel apply/unapply/reapply | `oracle_locked` / Django observed |
+| MIG-081 | Populated nullable success, empty required support, populated required rejection | `oracle_locked` / observed + proposal separation |
+| MIG-082 | FK remove/remake row and `sqlite_sequence` preservation | `oracle_locked` / Django observed |
+| MIG-083 | Exact connection FK-on, physical `NO ACTION` and existing fence reuse | `oracle_locked` / observed + proposal separation |
+| MIG-084 | File-backed restart | `oracle_locked` / Django observed; product restart blocked |
+| MIG-085 | Precommit rollback/cause behavior and one fenced transaction | `oracle_locked` / observed + proposal separation |
+| MIG-086 | Commit success/definite failure/unknown outcome and no retry | `oracle_locked` / proposal reference |
+
+MIG-075..086은 reference-only이며 product handler가 없습니다. Product aggregate는 계속 exact 12 adapters/
+127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다.
 
 ## 결과와 비용
 
-후보가 검증·Accepted되면 old migration artifact를 바꾸지 않고 relation-capable 문서를 점진적으로 추가할 수 있고,
-historical relation meaning과 SQLite physical constraint가 explicit version/capability 경계에 놓입니다. Full preflight와
-bounded remake는 silent data loss를 줄이지만 지원 가능한 existing SQLite schema shape를 좁힙니다. Optional editor,
-state promotion과 mixed digest는 public compatibility surface와 test matrix를 늘립니다.
+이 Proposed boundary가 별도 acceptance head에서 Accepted되면 old migration artifact를 바꾸지 않고 relation-capable
+document를 점진적으로 추가할 수 있고, historical relation meaning과 SQLite physical constraint가 explicit
+version/capability/fence 경계에 놓입니다. Three-stage preflight와 bounded remake는 silent data loss를 줄이지만
+지원 가능한 existing SQLite schema shape를 좁힙니다. Optional editor, state promotion과 mixed digest는 public
+compatibility surface와 test matrix를 늘립니다.
 
-현재 Proposed 상태의 결과는 decision space와 검증 순서가 명시된 것뿐입니다. Code, artifact, product status,
-Q status와 backend support는 바뀌지 않습니다.
+현재 결과는 decision space를 test-only proof와 일치하게 동결한 것뿐입니다. Code, artifact, product status,
+Q status와 backend support는 바뀌지 않았습니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -248,13 +456,17 @@ Q status와 backend support는 바뀌지 않습니다.
 
 ## 검증과 승인 조건
 
-1. Phase A에서 pinned Django/SQLite MIG-075..086 independent artifacts/provenance를 만들고 existing artifact bytes를
-   보존합니다.
-2. Phase B no-product feasibility에서 tuple/mixed digest/state/preflight/SQLite remake와 fault candidate를 검증합니다.
-3. Phase C에서 measured evidence에 맞춰 exact API/error/domain/state names를 freeze하고 독립 P0..P3 audit를 받습니다.
-4. 그 decision head의 고유 exact-head hosted CI가 성공한 뒤에만 `상태: Accepted`로 바꿀 수 있습니다.
-5. Implementation은 local normal/race/CGO-disabled/vet, exact SQLite/file restart/fault/no-rewrite/compile gates와 별도
-   implementation/completion/terminal hosted heads를 통과해야 합니다.
+1. Phase A reference-only artifacts와 exact-head hosted CI는 EVID-085/086에서 완료했습니다.
+2. Phase B no-product feasibility와 exact-head hosted CI는 EVID-087/088에서 완료했습니다.
+3. Phase C test-only decision proof와 exact-head hosted CI는 EVID-089/090에서 완료했습니다.
+4. 이 Proposed decision-freeze documentation head가 자체 고유 exact-head hosted CI와 independent audit를
+   통과해야 합니다.
+5. 그 성공을 기록한 뒤에만 별도 acceptance documentation head에서 `상태: Accepted`를 변경할 수 있습니다.
+6. Accepted 이후에도 actual `definitionhandoff` carrier/context bridge/Executor seal validation, SQLite optional
+   relation port와 actual `StateReconstructor` relation state를 구현하고, local normal/race/CGO-disabled/vet,
+   exact SQLite/file restart/fault/no-rewrite/compile gates와 별도 implementation/completion/terminal hosted heads를
+   통과해야 Implemented/Verified를 주장할 수 있습니다.
 
-Activation head는 자체 unique hosted CI가 `not run/pending`입니다. EVID-083/run `31613170021`을 activation,
-decision 또는 implementation proof로 재사용하지 않습니다.
+EVID-090/run `32174259324`는 exact test-only proof head만 증명합니다. 이 later Proposed docs freeze,
+acceptance, product implementation, completion 또는 terminal proof로 재사용하지 않습니다. Draft PR #1은
+open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.

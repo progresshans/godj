@@ -75,8 +75,12 @@ audit P0..P3=0을 통과했습니다. Reference는 exact 13/139/156=`122+5+12 lo
 candidate도 completed and hosted-verified됐습니다. EVID-087에서 exact 693,557 bytes/`ca579837...09e5`, inventory
 75/75/0·9,736 bytes·`48e7beb1...92ec`, root/exact/focused gates와 두 independent audit P0..P3=0을 고정했습니다.
 Exact Phase B head `c2ecb292...`는 EVID-088/run `31653237691`의 고유 attempt-1 exact 26/26 jobs·342/342
-steps와 hosted audit P0..P3=0을 통과했습니다. Product/ADR 상태는 불변입니다. 다음은 Phase C decision
-freeze이며 actual SQLite product optional relation port와 actual `StateReconstructor` relation state는 blocker입니다.
+steps와 hosted audit P0..P3=0을 통과했습니다. Phase C exact 8-test-only decision proof head `7d36502...`도
+EVID-089/090/run `32174259324`의 고유 exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다.
+One-loader/profile/digest, whole-step state, wire target-key derivation, three-stage preflight, additive existing-fence
+port/four capabilities와 SQLite order를 Proposed ADR-0034에 동결했지만 Product/ADR 상태는 불변입니다. 다음은
+이 Proposed docs-freeze head의 own hosted CI이고 그 성공 뒤 별도 acceptance head 전에는 Accepted로 바꾸지
+않습니다. Actual SQLite product optional relation port와 actual `StateReconstructor` relation state는 blocker입니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는

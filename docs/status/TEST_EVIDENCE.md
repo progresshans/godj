@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-13
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260813-088
+- 마지막 갱신: 2026-08-19
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-090
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -7625,3 +7625,90 @@ Evidence-history and product boundary:
 - Actual SQLite product optional relation port and actual `StateReconstructor` relation state remain explicit Phase C blockers. Candidate-local restart is not evidence for product epoch/revision fencing, migration DAG integration or the actual reconstructor.
 - The next exact work is Phase C decision freeze using the measured Phase A/B evidence. ADR-0034 remains `Proposed` until a separate reviewed decision head; product implementation remains pending.
 - This EVID-088 append and its accompanying exact seven-document status/handoff tree are later than tested commit `c2ecb292...` and are not recursively proved by run `31653237691`. They require their own later exact-head gate if represented as hosted-verified. Draft PR #1 remains open, draft and unmerged; this evidence does not authorize merge.
+
+## EVID-20260819-089 — GDJ-0035 Phase C Test-only Decision Proof Local Validation
+
+- Date/time: 2026-08-19 KST; retained final frozen-byte validator completed at `04:00:19+09:00`, before the exact commit
+- Work/contract IDs: GDJ-0035 Phase C test-only decision proof; MIG-075..MIG-086 remain exact 12 reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Exact frozen commit: `7d36502f104daa62b39744b5705478acc19a7ead` (`test: freeze relation migration decision proof`), tree `d9e8a6b7bec59828ba0bd2b1864cbba3d9f9396d`, parent `66ad95539e93231b1f6589a2625fc99e9b5959fa`
+- Environment: Go 1.26.5 darwin/arm64, macOS; product SQLite remains `modernc.org/sqlite v1.56.0`/SQLite 3.53.3; exact reference profile CPython 3.14.3, Django 6.1, SQLite 3.50.4 and pinned uv 0.10.12
+- Exit status: all final focused, package, full-repository, protocol, exact-profile, artifact and formatting gates below exited 0
+- Product result: unchanged exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`; relation exact 12/12 passing
+- Reference result: unchanged exact 13 sets/139 unique contract IDs/scenarios=`122 passing + 5 deviation + 12 oracle_locked`; 156 ordered cross-bindings
+- Independent audits: profile/state and preflight/lifecycle reviewers each reported P0/P1/P2/P3=`0/0/0/0`; post-commit scope/integrity audit also reported `0/0/0/0`
+
+Exact test-only scope and bytes:
+
+- Parent-to-head changed exact eight regular mode-`100644` `_test.go` files and no product, document, workflow, manifest, oracle, fixture, checksum or artifact file. There were no mode changes or symlinks.
+- The exact eight files were:
+  - `conformance/migrationrelation/lifecycle_candidate_test.go`: 72,775 bytes/SHA-256 `b952d7dece125678f13f8ebfcd398341ee91b792769e1b4fff2fe62d98d173ff`
+  - `conformance/migrationrelation/lifecycle_test.go`: 74,539/`76da24c749607e8bcd449e54ad5d497a8473acab5650a3ec693cf1bb5f32198e`
+  - `conformance/migrationrelation/preflight_candidate_test.go`: 91,056/`2a8c2351b439af006481d997bb528c987d10a27c6d469b9a3a96c51c7b622276`
+  - `conformance/migrationrelation/preflight_test.go`: 76,680/`e789b12d5f9003a956eba579ce220af1eb0fef3b5d81811da45e276c92e728a3`
+  - `conformance/migrationrelation/profile_candidate_test.go`: 126,534/`08126eb74db2367604ecd56d798bddba07e32aea84fbcb84e38de39f01c9c288`
+  - `conformance/migrationrelation/profile_test.go`: 65,621/`18b02bb32257c51e356fdadd188da56f355277d63c853b1c870643f13e02dc36`
+  - `conformance/migrationrelation/state_candidate_test.go`: 64,513/`95b947f522f86d16c3dd65abe34e69b219ec2a79ccac23fe320acbe6d80df024`
+  - `conformance/migrationrelation/state_test.go`: 57,432/`e360fa82fdb8700e58b5a303beca136a7f78b7bd82c78a9f1834fb49d57e2f0e`
+- Concatenating those exact eight raw files in sorted path order produced 629,150 bytes/SHA-256 `a5b857400047bc3a1329065a0c54a3288b594ead456aa60aa7f977c2f51c3316`.
+- The full exact 14-file `conformance/migrationrelation` test-only set after Phase C was 1,027,149 bytes/SHA-256 `c6a97fe2e3275660ae893d4b00800a1c60e37603114bed922f7046ccc2cf5bd1`; the parent exact14 lock remained 693,557 bytes/`ca579837cc3d8ddee42b77db8bd67bcb7a3b3555f28b2fe582b5dc10f62509e5`.
+- The literal parent-to-head binary patch was 531,174 bytes/12,623 lines/SHA-256 `4a18bef89317b15e2187fa9181cd8973de63f0c423aabe1d4c64c74cf78c7112`; the config-neutral canonical patch was 531,718 bytes/SHA-256 `cc4dda34163ca68414f5eb5f88284aee83fc3392c3fec63cf5781eaebea188f0`.
+
+Frozen Proposed decision behavior:
+
+- The proof preserves existing legacy constants/constructors, tuple `(1,1,1,2)`, legacy-only canonical bytes/digest v1 and scalar state v1. It locks the relation numeric tuple/state behavior at loader ABI 2, operation codec 2, Schema IR 3 and relation state format 2; this later Proposed documentation freeze selects the public names `RelationLoaderABIVersion`, `RelationOperationCodecVersion`, `RelationSchemaIRVersion` and `RelationStateFormatVersion`. The test-only proof used candidate-private values and did not exercise or export those public names.
+- The proof exercised candidate-local bounded per-document exact-profile dispatch and passed the combined published set through one actual `migrations.Planner`. This later Proposed freeze keeps existing public `definition.Load` as the sole future product entrypoint; current product `Load` does not accept the relation profile. Relation-only/mixed canonicalization is proposed v2, while legacy-only remains current v1.
+- The wire relation arm owns symbolic target app/model, cardinality, reverse and `on_delete`; it has no `target_field`. Preflight derives exact one non-nullable historical AutoField PK from the operation snapshot. Promotion/demotion is internal and occurs only at whole migration-step boundaries.
+- The proof separates static zero-I/O, existing applied-history/actual-plan and SQLite physical preflight. It seals explicit definitions/applied/targets/expected plan together with key/direction/`HistoryTransition`/intent before beginning relation work. Parent-first apply and child-first unapply are required.
+- This Proposed documentation freeze selects the planned additive `migrations/backend` public names and shape: `RelationRevisionFencedBackend`, `RelationRevisionFencedSession`, four explicit boolean capabilities, operation kinds 1..4 and the exact intent/operation/target structs. `BeginRelationFencedMigration` returns the existing `RevisionFencedTransaction`; no relation transaction or legacy begin fallback is allowed. The test-only proof exercised candidate-local equivalents and did not publish these names from the product package.
+- SQLite order is exact-connection `PRAGMA foreign_keys=1`, `BEGIN IMMEDIATE`, physical preflight, epoch/revision/history claim, DDL/remake, `foreign_key_check`, exact-one recorder/successor revision and one `CommitFenced`. Physical action is `NO ACTION`; nullable AddField supports populated tables, required AddField only empty tables, and bounded remake hazards fail closed.
+- Definition/state/capability/execution/recorder/fence/commit error ownership and cause priority are exercised without making test-only messages, Detail, private helpers, catalogs, seals, golden bytes or proof hashes public API.
+- Direct legacy Apply/Unapply/ExecutePlan with relation-bearing input must fail capability before legacy Begin. Relation support, once implemented, belongs to normal `definition.Load`/`Set.Migrate`/`Executor.Migrate` only.
+
+Final local gates:
+
+- Final focused commands passed: `go test -count=1 ./conformance/migrationrelation`, `go test -race -count=1 ./conformance/migrationrelation`, `CGO_ENABLED=0 go test -count=1 ./conformance/migrationrelation`, `go vet ./conformance/migrationrelation`, `go test -shuffle=on -count=20 ./conformance/migrationrelation`, protocol tests, `git diff --check` and `gofmt -d`.
+- Raw inventory remained exact 75 run/75 pass/0 skip, 9,736 canonical payload bytes and SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Root `make ci` passed in 145 seconds, including portable Python 216 tests with 19 intentional exact-profile skips and all unchanged reference/product gates.
+- Pinned uv 0.10.12 `make python-test-exact oracle-check` passed exact Python 216/216, skip 0 and all 13 oracle checks. All 13 `SHA256SUMS` entries passed.
+- Full repository `go test ./...`, `go test -race ./...`, `CGO_ENABLED=0 go test ./...` and `go vet ./...` all passed on the same frozen bytes.
+- Artifact/oracle manifests were checked after each writer/final command and remained byte-identical. Retained local logs are outside the repository at `/tmp/godj-m35-phase-c-latest.zc89kq`.
+
+Evidence/product boundary:
+
+- Phase C is locally verified only as a test-only decision proof. It changes no product source or product/reference artifact and does not make MIG-075..086 `passing`, publish a handler/adapter, accept ADR-0034 or change Q/product classifications.
+- Actual SQLite product `RelationRevisionFencedBackend`/session implementation and actual relation-capable `StateReconstructor` remain blockers. Candidate-local/history-only reopen is not actual epoch/fingerprint/full-history/DAG/reconstructor proof.
+- This local evidence did not substitute for hosted CI. The exact committed proof head required its own unique run, recorded separately in EVID-090.
+- The EVID-089/090 append and Proposed decision-freeze documentation are later than the tested proof bytes and are not recursively proved by these local commands. Draft PR #1 remains open, draft and unmerged.
+
+## EVID-20260819-090 — GDJ-0035 Phase C Test-only Decision Proof Exact-head Hosted CI
+
+- Date/time: 2026-08-18T19:01:13Z through `19:08:34Z` (`2026-08-19T04:01:13+09:00` through `04:08:34+09:00` KST)
+- Work/contract IDs: GDJ-0035 Phase C test-only decision proof; MIG-075..MIG-086 remain exact 12 reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Exact tested commit: `7d36502f104daa62b39744b5705478acc19a7ead` (`test: freeze relation migration decision proof`), tree `d9e8a6b7bec59828ba0bd2b1864cbba3d9f9396d`, parent `66ad95539e93231b1f6589a2625fc99e9b5959fa`
+- Unique hosted run: [GitHub Actions run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324), workflow `CI`, event `pull_request`, attempt 1, terminal `completed/success`
+- Hosted result: exact 26/26 jobs and 342/342 recorded steps succeeded; 26/26 check runs concluded success; non-success jobs/steps were 0
+- Annotations/log health: all 26 annotation endpoints returned aggregate 0; combined logs were 15,293 lines/2,756,940 bytes with runner error, warning and nonzero-exit markers 0
+- Independent hosted audit: P0/P1/P2/P3=`0/0/0/0`; no actionable or informational defect was found
+
+Exact identity, ancestry and scope:
+
+- Exact-head query returned one and only one `pull_request` run for `7d36502...`, attempt 1. No activation, Phase A/B or local result was reused.
+- GitHub's synthetic merge was `dca2c028...`, with ordered parents `[f8a5e20c..., 7d36502f...]`; its tree was exact `d9e8a6b7bec59828ba0bd2b1864cbba3d9f9396d`, equal to the tested head tree.
+- Parent-to-head contained exact eight intended regular `_test.go` files listed in EVID-089 and no product, document, workflow, artifact, manifest, oracle, fixture or checksum change. Exact diff statistics were 9,524 insertions and 1,255 deletions.
+- At the terminal proof audit boundary local HEAD, upstream and run head were exact `7d36502...` with a clean worktree. The later Proposed documentation edits were not present in the tested tree.
+
+Hosted gates and reproduced locks:
+
+- All four SQLite coordinates independently reproduced exact 75 run/75 pass/0 skip, 9,736 payload bytes and SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`; normal/race/CGO-disabled/vet and clean-worktree/no-rewrite gates succeeded.
+- All four relation-product coordinates independently reproduced unchanged exact 725 run/725 pass/0 skip, 73,806 payload bytes and SHA-256 `2ad28eb2e36c496e760b32d13725e6c889bd323965827d41472fa4d43ad8a5d4`.
+- Exact Darwin passed 216/216 with skip 0, all 13 oracle/checksum no-rewrite gates and the focused Go lifecycle/profile/state/preflight proofs. Portable Python, root CI, hosted Linux/386 and unchanged artifact/product gates succeeded within the exact 26-job topology.
+- Draft PR #1 remained `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. The audit performed no rerun, cancellation or merge.
+
+Evidence history and product boundary:
+
+- Immediately before this pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact 786,321 bytes/SHA-256 `cb1c16f6f97d458bc9d058caa61f626d6762ec60aaf01f73b6a7afc2f066dfbf`.
+- The retained old-file suffix beginning at zero-based byte offset 326 and extending through the old EOF was exact 785,995 bytes/SHA-256 `144c55cc955d004674170ab0baf496dc7e03082cda1168eeddba06688bd7236f`. The actual EVID-001 heading begins at zero-based byte offset 524; the EVID-001..088 body through the old EOF was exact 785,797 bytes/SHA-256 `34f13f159da60772554ec40098ac354fe65333f308a6db2bcce05e103c24f077`. This change updates only the top date/latest-evidence pointer and appends unique EVID-089/090 after those retained bytes; the old-file suffix and actual EVID-001..088 body remain byte-identical.
+- Run `32174259324` proves only the exact test-only decision-proof head `7d36502...`. It does not prove this later EVID append, Proposed ADR/docs-freeze tree, acceptance, product implementation, completion or terminal head.
+- Product remains exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12; reference remains exact 13/139/156=`122+5+12 locked`. ADR-0034 remains `Proposed`.
+- Actual SQLite optional relation port and actual `StateReconstructor` relation integration/restart remain unimplemented. This Proposed decision-freeze documentation head requires its own unique exact-head hosted CI; only after that success may a separate acceptance documentation head change ADR status.
+- Draft PR #1 remains open, draft and unmerged. This evidence does not authorize merge.

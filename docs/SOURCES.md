@@ -194,6 +194,9 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
 GDJ-0035 Phase A는 pinned Django 6.1 commit/profile의 migration operation/executor/recorder/schema-editor 외부
 동작과 SQLite exact profile을 관찰했습니다. Exact 16-document activation head는 EVID-084/run
 `31618469072`에서 hosted-verified됐고, 실제 Phase A artifact/local proof는 EVID-085에 별도 기록했습니다.
+Phase A exact head는 EVID-086/run `31625898551`, Phase B no-product head는 EVID-088/run `31653237691`,
+Phase C exact 8-test-only decision-proof head `7d36502...`는 EVID-090/run `32174259324`에서 각각 별도
+hosted-verified됐습니다.
 아래 exact objects는 조사 모음이며 manifest provenance는 각 contract가 실제 사용한 symbol만 더 좁게 가리킵니다.
 
 조사 객체는 Django exact commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
@@ -235,3 +238,10 @@ MIG-085에서 Django SQLite schema-editor DDL은 recorder fault 전에 commit되
 없는 경계가 관찰됐습니다. Pre-DDL fault만 완전 rollback됐습니다. 이 upstream-observed behavior와
 GoDj same-transaction proposal은 서로 다른 provenance payload로 유지하며 ADR-0034 Accepted 결정을 앞당겨
 주장하지 않습니다.
+
+Phase C Proposed decision freeze는 relation public constants/profile, digest/state, wire ownership, three-stage
+preflight, additive existing-fence backend와 SQLite order를 동결했지만 source provenance를 바꾸는 사건이 아닙니다.
+Checked-in Phase A manifest/oracle/NI/checksum의 GoDj-owned payload는 계속 historical `kind=proposal`, decision ID
+`GDJ-0035`, `derived=false`이고 Django-observed payload와 합치거나 `kind=decision`으로 소급 재분류하지 않습니다.
+Test-only candidate helpers, golden/hash와 private catalogs는 source/public API 정본이 아닙니다. ADR-0034는
+Proposed이고 actual SQLite optional port/`StateReconstructor`는 미구현입니다.

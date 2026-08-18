@@ -1148,7 +1148,7 @@ tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
 job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
 
-## GDJ-0035 activation and Phase A/B hosted verification
+## GDJ-0035 activation and Phase A/B/C test-only hosted verification
 
 GDJ-0034 terminal baseline `0bb8c969...`는
 [EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
@@ -1209,9 +1209,10 @@ Final-byte focused normal/race/CGO-disabled/vet/shuffle-20/protocol/diff-check/g
 
 Django recorder-fault 관찰에서 schema-editor DDL은 commit되고 record만 없는 경계가 나타났으므로 GoDj
 same-transaction atomic proposal과 동일하다고 가정하지 않습니다. Phase B는 product source, checked-in reference
-artifacts, manifest/oracle/NI/Makefile 또는 ADR을 바꾸지 않았습니다. Actual SQLite product optional relation port와
-actual `StateReconstructor` relation state는 Phase C blocker이고, candidate-local restart는 product
-epoch/DAG/reconstructor 증거가 아닙니다.
+artifacts, manifest/oracle/NI/Makefile 또는 ADR을 바꾸지 않았습니다. 이 Phase B boundary에서 actual SQLite
+product optional relation port와 actual `StateReconstructor` relation state는 Phase C design blocker였고,
+candidate-local restart는 product epoch/DAG/reconstructor 증거가 아니었습니다. Phase C proof는 그 design을
+동결했지만 두 product blocker를 구현하지 않았습니다.
 Activation, Phase-A/decision, implementation, completion-documentation, terminal은 서로 다른 exact-head CI를
 사용하고 앞 run을 later proof로 재사용하지 않습니다. Current product 12/127=`122+5+0`, relation
 12/12는 변경 없고 ADR-0034는 Proposed입니다. Exact Phase B implementation head
@@ -1223,4 +1224,57 @@ Activation, Phase-A/decision, implementation, completion-documentation, terminal
 725/725/0·73,806 bytes·`2ad28eb2...a5d4`를 재현했고 exact Darwin 216/216 skip 0, checksum 13/13,
 Linux/386 compile/runtime, artifact and clean-worktree/no-rewrite gates를 통과했습니다. 따라서 Phase B는
 no-product feasibility 범위에서 completed and hosted-verified입니다. 다음 정확한 단계는 Phase C decision
-freeze이며 Draft PR은 merge하지 않습니다. EVID-088 append/status tree 자체는 이 run의 재귀적 proof가 아닙니다.
+freeze proof였습니다. EVID-088 append/status tree 자체는 이 run의 재귀적 proof가 아닙니다.
+
+Phase C는 product를 계속 바꾸지 않은 채 Phase B의 profile/state/preflight/lifecycle test candidate 중 exact 8개
+`_test.go`만 수정해 acceptance-critical decision boundary를 동결했습니다. Exact head
+`7d36502f104daa62b39744b5705478acc19a7ead`, tree
+`d9e8a6b7bec59828ba0bd2b1864cbba3d9f9396d`는 다음을 검증합니다.
+
+- Existing legacy constants/constructors와 `(1,1,1,2)`/digest v1/state v1 bytes를 보존하면서 relation numeric
+  tuple/state behavior `(loader ABI, operation codec, Schema IR, state)=(2,2,3,2)`를 분리합니다. Test-only proof는
+  candidate-private values를 사용했고 public names를 export하지 않았습니다. 이 Proposed docs freeze가 additive
+  `RelationLoaderABIVersion=2`, `RelationOperationCodecVersion=2`, `RelationSchemaIRVersion=3`,
+  `RelationStateFormatVersion=2` names를 선택합니다.
+- Existing public `definition.Load` 하나가 document별 exact profile을 dispatch하고 combined set을 actual
+  `migrations.Planner` 하나로 검증합니다. Relation-only/mixed set은 digest v2 domain, legacy-only는 v1을 씁니다.
+- 이 Proposed docs freeze는 test-only proof 이후 발견된 loader→Executor metadata-loss 경계를
+  `migrations/internal/definitionhandoff.Handoff`로 닫습니다. Successful Load가 per-definition profile/source/
+  producer/canonical seal, set digest/full-graph seal을 raw bytes/alias 없이 만들고 relation/mixed `Set.Migrate`가
+  fresh context clone으로 existing Executor에 전달합니다. Proof head는 이 later internal bridge를 구현·검증하지
+  않았고 public signature/entrypoint도 추가하지 않습니다.
+- Relation wire는 symbolic target app/model, cardinality/reverse/on_delete만 소유하고 `target_field`는 없습니다.
+  Exact historical AutoField PK를 operation snapshot에서 파생하며 promotion/demotion은 whole-step 경계입니다.
+- Static zero-I/O, existing history/actual plan, SQLite physical의 three-stage preflight와 exact parent-first apply/
+  child-first unapply plan을 검증합니다.
+- Test-only proof는 candidate-local existing-fence equivalents와 four capability behavior를 검증했습니다. 이
+  Proposed docs freeze가 `migrations/backend` additive `RelationRevisionFencedBackend`/
+  `RelationRevisionFencedSession`과 intent/operation/target/kind public names/shape를 선택하며, existing
+  `RevisionFencedTransaction` 하나를 재사용합니다. Proof head는 product package에 그 names를 publish하지 않았습니다.
+- SQLite는 exact connection의 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim →
+  DDL/remake → FK check → recorder/revision → `CommitFenced` once 순서를 지킵니다. Populated nullable와 empty
+  required AddField는 지원 shape이고 populated required, closed-remake hazards는 pre-mutation 거부합니다.
+- Error category/code/feature/context/cause ownership과 commit three-outcome/no-retry를 고정하며 human messages,
+  Detail, private helper/catalog/seal/hash/golden은 noncanonical입니다.
+
+[EVID-089](status/TEST_EVIDENCE.md#evid-20260819-089--gdj-0035-phase-c-test-only-decision-proof-local-validation)은
+final-byte focused normal/race/CGO-disabled/vet/shuffle-20/protocol, root `make ci`, exact Python 216/216 + 13
+oracle/checksum, full repo normal/race/CGO0/vet와 independent audits P0..P3=0을 기록합니다. Exact 8-file aggregate는
+629,150 bytes/SHA-256 `a5b857400047bc3a1329065a0c54a3288b594ead456aa60aa7f977c2f51c3316`이고 inventory는 unchanged
+75/75/0·9,736 bytes·`48e7beb1...92ec`입니다.
+
+[EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
+[run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)는 exact proof head의 unique
+`pull_request` attempt 1에서 26/26 jobs·342/342 steps, annotations 0, four SQLite 75/75/0 inventories,
+four relation-product 725/725/0 inventories와 hosted audit P0..P3=0을 통과했습니다.
+
+이 proof는 product source/manifest/oracle/NI/workflow/artifact를 바꾸지 않았고 MIG-075..086은 계속
+`oracle_locked`입니다. Actual SQLite optional relation port와 actual `StateReconstructor` relation state/restart는
+blocker입니다. Actual `definitionhandoff` carrier도 미구현입니다. Phase D는 frozen Proposed additive public surface의
+exact expected inventory 일치, 그 named addition을 제외한 legacy public
+signature/entrypoint inventory의 byte-for-byte unchanged, legacy/empty zero-carrier와 raw legacy lifecycle/reconstructor
+preservation, relation/mixed fresh clone/no-alias/no-retain, nil/cancel/deadline/value precedence, seal mismatch와
+carrier-less raw relation의 pre-I/O/pre-Begin failure, concurrent Set reuse/race를 검증해야 합니다. 이 Proposed
+decision-freeze documentation head 자체는 hosted
+`not run/pending`이며, 그 unique success 뒤 별도 acceptance docs head 전까지 ADR-0034는 Proposed입니다.
+EVID-090을 later docs/acceptance/product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.

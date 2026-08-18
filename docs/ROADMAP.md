@@ -14,10 +14,13 @@
   `122 passing + 5 deviation + 12 oracle_locked`이고 product는 불변입니다. Phase A는 hosted-verified됐습니다.
   Phase B exact 14개 `_test.go` no-product feasibility head `c2ecb292...`도 EVID-088/run `31653237691`의
   고유 attempt-1 exact 26/26 jobs·342/342 steps와 hosted audit P0..P3=0을 통과했습니다. Phase B는
-  hosted-verified됐고 다음 단계는 Phase C decision freeze입니다. ADR-0034는 계속 Proposed입니다.
+  hosted-verified됐습니다. Phase C exact 8-test-only decision proof head `7d36502...`는 EVID-089/090과
+  unique run `32174259324`의 exact 26/26 jobs·342/342 steps, audit P0..P3=0을 통과했습니다. Relation
+  product boundary는 Proposed ADR-0034에 동결됐지만 product/ADR status는 불변입니다. 현재 단계는 이
+  Proposed docs-freeze head의 own hosted CI이고, 그 성공 뒤 별도 acceptance head 전에는 Accepted로 바꾸지 않습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
-- 마지막 검토: 2026-08-13
+- 마지막 검토: 2026-08-19
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -588,10 +591,16 @@ activation head `52f9bcb7...`는
    [run 31653237691](https://github.com/progresshans/godj/actions/runs/31653237691)의 고유 attempt-1 exact
    26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Four SQLite coordinates는 각각
    75/75/0, 9,736 bytes, SHA-256 `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`를 재현했습니다.
-3. Phase C (**next pending**): measured Phase A/B evidence로
-   [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) candidate를 freeze하고
-   별도 decision head에서만 Accepted 여부를 결정합니다.
-4. Phase D: legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
+3. Phase C proof (**completed and hosted-verified, Proposed docs head pending**): exact 8개 test-only file에서
+   numeric version tuple/state behavior, one-loader/per-document dispatch/one Planner, digest v2, whole-step state transition,
+   wire `target_field` 제거, three-stage preflight, candidate existing-fence behavior/four capabilities와 SQLite order를
+   동결했습니다. 이 Proposed docs freeze가 additive public constant/port/type names를 선택하며 test-only proof는
+   product package에서 그 names를 export하지 않았습니다. Exact head `7d36502...`, tree `d9e8a6b7...`는
+   [EVID-090](status/TEST_EVIDENCE.md#evid-20260819-090--gdj-0035-phase-c-test-only-decision-proof-exact-head-hosted-ci) /
+   [run 32174259324](https://github.com/progresshans/godj/actions/runs/32174259324)의 unique exact
+   26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. 이 Proposed docs-freeze head는 자체 unique hosted
+   CI가 pending이고, 성공 뒤에도 별도 acceptance head에서만 ADR status를 바꿉니다.
+4. Phase D: ADR acceptance 뒤 legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
    bounded implementation합니다.
 5. Phase E: implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
 
@@ -599,6 +608,8 @@ Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다.
 manifest/oracle/NI/checksum 7,792/125,248/1,846/1,245 bytes로 측정했습니다. Reference는 exact
 13/139/156=`122+5+12 locked`이며 product는 계속 exact 12/127=
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Writer/autodetector/CLI,
-self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019는 이 sequence 밖입니다. Phase B는
-actual SQLite product optional relation port나 actual `StateReconstructor` relation state를 구현·검증하지 않았고,
-candidate-local restart도 product epoch/DAG/reconstructor 증거가 아닙니다.
+self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019는 이 sequence 밖입니다. Phase B/C
+proof는 actual SQLite product optional relation port나 actual `StateReconstructor` relation state를 구현·검증하지
+않았고, candidate-local restart도 product epoch/fingerprint/DAG/reconstructor 증거가 아닙니다. Relation support는
+구현 후 normal `definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유하며 direct legacy execution은
+relation-bearing input을 capability error로 거부합니다.

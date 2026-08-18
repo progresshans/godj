@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
 - 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified
-- 마지막 검토: 2026-08-08
+- 마지막 검토: 2026-08-19
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -51,3 +51,13 @@ read/write와 `CreateModel`/nullable no-default `AddField` 단면뿐입니다. T
 Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
+
+GDJ-0035 Phase C는 relation migration에 필요한 optional backend 경계를
+[Proposed ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)로 동결했습니다.
+Exact four capability는 relation-bearing CreateModel, nullable ForeignKey AddField, empty-table required
+ForeignKey AddField와 bounded remake remove입니다. Optional port는 existing revision-fenced backend/session을
+embed하고 existing `RevisionFencedTransaction`을 그대로 반환합니다. SQLite transaction order는 exact connection
+`PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → revision/history claim → DDL/remake →
+`foreign_key_check` → recorder/successor revision → one commit입니다. 이 경계는 test-only head
+`7d36502...`와 EVID-089/090에서
+검증됐지만 현재 SQLite product에 구현되거나 Verified된 capability가 아닙니다.
