@@ -24,10 +24,57 @@ func TestSQLiteRelationMigrationCapabilities(t *testing.T) {
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKeyByTableRemake:     false,
+		RemoveForeignKeyByTableRemake:     true,
 	}
 	if got != want {
 		t.Fatalf("RelationMigrationCapabilities() = %+v, want %+v", got, want)
+	}
+}
+
+func TestSQLiteRelationTargetAuthorityIndexSelectsExactSameTableSnapshot(t *testing.T) {
+	target, created, author := sqliteRelationTestModels()
+	editor := author.Clone()
+	editor.Name, editor.GoName, editor.Column = "editor", "Editor", "editor_id"
+	editor.Nullable = true
+	editor.Relation.Reverse.Name = "edited_articles"
+	after := created.Clone()
+	after.Fields = append(after.Fields, editor)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+		{
+			OperationIndex: 0,
+			Kind:           migrationbackend.RelationMigrationCreateModel,
+			After:          created,
+			Targets: []migrationbackend.RelationMigrationTarget{{
+				SourceField: author,
+				TargetModel: target,
+				TargetKey:   target.Fields[0],
+			}},
+		},
+		{
+			OperationIndex: 1,
+			Kind:           migrationbackend.RelationMigrationAddField,
+			Before:         created,
+			After:          after,
+			Targets: []migrationbackend.RelationMigrationTarget{{
+				SourceField: editor,
+				TargetModel: target,
+				TargetKey:   target.Fields[0],
+			}},
+		},
+	}}
+	seal, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_combined"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if err != nil {
+		t.Fatalf("validate same-table Create/Add target authority: %v", err)
+	}
+	candidates := seal.targetOperationByTable[sqliteRelationIdentifierKey(created.DBTable)]
+	targets, known := sqliteRelationTargetsForModel(&seal, after)
+	if len(candidates) != 2 || !known || len(targets) != 2 ||
+		!reflect.DeepEqual(targets[0].SourceField, author) ||
+		!reflect.DeepEqual(targets[1].SourceField, editor) {
+		t.Fatalf("same-table target candidate selection = candidates:%v known:%t targets:%#v", candidates, known, targets)
 	}
 }
 
@@ -607,8 +654,8 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 		t.Fatal("orphan editor relation update succeeded")
 	}
 
-	// A fresh session revalidates the durable history. Reverse Remove remains a
-	// pre-connection capability rejection and cannot mutate the mixed table.
+	// A fresh session revalidates the durable history. Reverse Remove receives
+	// only the changed-field public target and uses its sealed private authority.
 	session = openSQLiteRelationSession(t, backend)
 	if records, err := session.ReadAppliedMigrations(ctx); err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial, transition.Migration}) {
 		t.Fatalf("reopened Add history = (%v, %v)", records, err)
@@ -619,10 +666,12 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 		connectionCalls++
 		return connection
 	}
+	removeBefore := before.Clone()
+	removeBefore.Fields = append(removeBefore.Fields, editor.Clone())
 	remove := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
 		OperationIndex: 0,
 		Kind:           migrationbackend.RelationMigrationRemoveField,
-		Before:         after,
+		Before:         removeBefore,
 		After:          before,
 		Targets: []migrationbackend.RelationMigrationTarget{{
 			SourceField: editor,
@@ -632,24 +681,33 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	}}}
 	removeTransition := transition
 	removeTransition.Kind = migrationbackend.HistoryTransitionUnapply
-	if transaction, err := session.BeginRelationFencedMigration(ctx, removeTransition, remove); transaction != nil || err == nil {
-		t.Fatalf("BeginRelationFencedMigration(reverse Remove) = (%v, %v), want unsupported", transaction, err)
-	} else {
-		assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+	transaction, err = session.BeginRelationFencedMigration(ctx, removeTransition, remove)
+	if err != nil {
+		t.Fatalf("BeginRelationFencedMigration(reverse Remove): %v", err)
 	}
-	if connectionCalls != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
-		t.Fatalf("unsupported reverse Remove crossed connection boundary: calls=%d active=%v state=%d", connectionCalls, concrete.active, concrete.state)
+	if err := transaction.RemoveField(ctx, removeBefore.Clone(), editor.Clone()); err != nil {
+		t.Fatalf("RemoveField(reverse relation remake): %v", err)
+	}
+	if err := transaction.RecordUnapplied(ctx, removeTransition.Migration.App, removeTransition.Migration.Name); err != nil {
+		t.Fatalf("RecordUnapplied(reverse relation remake): %v", err)
+	}
+	outcome, err = transaction.CommitFenced(ctx)
+	if err != nil || outcome.Durability != migrationbackend.CommitCommitted {
+		t.Fatalf("CommitFenced(reverse relation remake) = (%+v, %v)", outcome, err)
+	}
+	if connectionCalls != 1 || concrete.active != nil || concrete.state != revisionSessionReady {
+		t.Fatalf("reverse Remove session state: calls=%d active=%v state=%d", connectionCalls, concrete.active, concrete.state)
 	}
 	if err := session.Close(ctx); err != nil {
 		t.Fatalf("Close(reopened Remove session): %v", err)
 	}
-	var editorOne sql.NullInt64
-	var editorTwo sql.NullInt64
-	if err := backend.database.QueryRowContext(ctx, `SELECT "editor_id" FROM "news_article" WHERE "id"=1`).Scan(&editorOne); err != nil || !editorOne.Valid || editorOne.Int64 != 2 {
-		t.Fatalf("row 1 editor after rejected Remove = (%v, %v)", editorOne, err)
+	var retained int64
+	if err := backend.database.QueryRowContext(ctx, `SELECT "author_id" FROM "news_article" WHERE "id"=1`).Scan(&retained); err != nil || retained != 1 {
+		t.Fatalf("row 1 author after relation remake = (%d, %v)", retained, err)
 	}
-	if err := backend.database.QueryRowContext(ctx, `SELECT "editor_id" FROM "news_article" WHERE "id"=2`).Scan(&editorTwo); err != nil || editorTwo.Valid {
-		t.Fatalf("row 2 editor after rejected Remove = (%v, %v)", editorTwo, err)
+	var removedColumns int
+	if err := backend.database.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_xinfo('news_article') WHERE "name"='editor_id'`).Scan(&removedColumns); err != nil || removedColumns != 0 {
+		t.Fatalf("removed editor column count = (%d, %v)", removedColumns, err)
 	}
 }
 
@@ -1545,7 +1603,7 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 		{name: "reverse conflict", intent: addIntent(reverseConflict, target, target.Fields[0]), detail: "duplicated by"},
 		{name: "self relation", intent: selfIntent, detail: "self relation"},
 		{name: "forged source", intent: forged, detail: "changed-field target snapshot"},
-		{name: "multiple Adds", intent: multiple, detail: "at most one relation Add"},
+		{name: "multiple Adds", intent: multiple, detail: "at most one relation mutation"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

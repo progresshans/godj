@@ -1804,7 +1804,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		}
 	}
 	r.finishLoadedMigration(builder, migration)
-	if err := validateLoadedRelationAddAuthorities(step, migration, operationViews); err != nil {
+	if err := validateLoadedRelationMutationAuthorities(step, migration, operationViews); err != nil {
 		return loadedMaterializedStep{}, err
 	}
 
@@ -1885,29 +1885,27 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 	}, nil
 }
 
-// validateLoadedRelationAddAuthorities closes the intentionally narrow
+// validateLoadedRelationMutationAuthorities closes the intentionally narrow
 // target universe that can be represented by the public AddField intent. The
 // public operation carries only the changed field's target snapshot, so core
-// authorizes a bounded ForeignKey Add only when that one immutable snapshot
-// also identifies every relation already present on the source model and the
-// target snapshot contains no nested relations. At most one relation
-// Add may target a given source model in one migration step, keeping every
-// Before/After boundary unambiguous. Backends must independently enforce the
-// same closure before deriving any additional target bindings.
+// authorizes a bounded ForeignKey Add, or its backward Remove, only when that
+// one immutable snapshot also identifies every relation present at the
+// relation-bearing boundary and the target snapshot contains no nested
+// relations. At most one relation Add/Remove may target a given source model
+// in one migration step, keeping every Before/After boundary unambiguous.
+// Backends must independently enforce the same closure before deriving any
+// additional target bindings.
 //
 // This check is part of materialization rather than constructor readiness so
 // both the whole-plan dry pass and the execution rematerialization re-evaluate
 // it against their exact historical builders. Its capability error deliberately
 // has NoOperation attribution: no prefix in the migration step may begin when
 // the complete relation intent cannot be sealed.
-func validateLoadedRelationAddAuthorities(
+func validateLoadedRelationMutationAuthorities(
 	step PlanStep,
 	migration Migration,
 	views []loadedOperationView,
 ) error {
-	if step.Direction != DirectionForward {
-		return nil
-	}
 	fail := func(detail string) error {
 		return loadedRelationCapabilityError(step, migration, detail)
 	}
@@ -1940,28 +1938,41 @@ func validateLoadedRelationAddAuthorities(
 		if !field.Nullable && field.Relation.OnDelete != ir.DeleteProtect {
 			continue
 		}
-		source := loadedModelIdentity{app: view.appLabel, model: view.before.Name}
+		relationBoundary := view.after
+		if step.Direction == DirectionBackward {
+			relationBoundary = view.before
+			if !view.beforeExists || !view.afterExists ||
+				len(view.before.Fields) != len(view.after.Fields)+1 ||
+				!reflect.DeepEqual(view.after.Fields, view.before.Fields[:len(view.after.Fields)]) ||
+				!reflect.DeepEqual(view.before.Fields[len(view.before.Fields)-1], field) {
+				return fail("ForeignKey Remove requires the exact reverse of one appended relation field")
+			}
+		}
+		source := loadedModelIdentity{app: view.appLabel, model: relationBoundary.Name}
 		counts[source]++
 		if counts[source] > 1 {
-			return fail("ForeignKey Add permits at most one relation Add per source model in a migration step")
+			if step.Direction == DirectionForward {
+				return fail("ForeignKey Add permits at most one relation Add per source model in a migration step")
+			}
+			return fail("ForeignKey Remove permits at most one relation Remove per source model in a migration step")
 		}
-		if !view.beforeExists {
-			return fail("ForeignKey Add source model is not present in the sealed historical state")
+		if !view.beforeExists || !view.afterExists {
+			return fail("ForeignKey Add/Remove source model is not present in the sealed historical state")
 		}
 		if len(view.targets) != 1 || view.targets[0].sourceFieldName != field.Name {
-			return fail("ForeignKey Add requires exactly one changed-field target snapshot")
+			return fail("ForeignKey Add/Remove requires exactly one changed-field target snapshot")
 		}
 		if modelContainsRelation(view.targets[0].targetModel) {
-			return fail("ForeignKey Add target model contains nested relation fields outside the sealed target universe")
+			return fail("ForeignKey Add/Remove target model contains nested relation fields outside the sealed target universe")
 		}
 		want := field.Relation.Target
-		for index := range view.before.Fields {
-			existing := view.before.Fields[index]
+		for index := range relationBoundary.Fields {
+			existing := relationBoundary.Fields[index]
 			if !fieldContainsRelation(existing) {
 				continue
 			}
 			if existing.Kind != ir.FieldForeignKey || existing.Relation == nil || existing.Relation.Target != want {
-				return fail("ForeignKey Add source contains a pre-existing relation with a different symbolic target")
+				return fail("ForeignKey Add/Remove source contains a relation with a different symbolic target")
 			}
 		}
 	}

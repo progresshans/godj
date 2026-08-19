@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -1337,6 +1338,51 @@ func TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes(t
 	}
 	if counts != want {
 		t.Fatalf("shared-alias loaded scan counts = %+v, want %+v", counts, want)
+	}
+}
+
+func TestLoadedRelationBackwardRemoveAuthorityRejectsUnsealedUniversesBeforeCapability(t *testing.T) {
+	tests := []struct {
+		name   string
+		defs   []Migration
+		detail string
+	}{
+		{name: "different symbolic target", defs: lifecycleLoadedNullableDifferentTargetDefinitions(), detail: "different symbolic target"},
+		{name: "nested target", defs: lifecycleLoadedNullableNestedTargetDefinitions(), detail: "nested relation fields"},
+		{name: "multiple removes on source", defs: lifecycleLoadedMixedMultipleAddDefinitions(), detail: "at most one relation Remove"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			records := make([]backend.AppliedMigration, len(test.defs))
+			for index := range test.defs {
+				records[index] = backend.AppliedMigration{App: test.defs[index].App, Name: test.defs[index].Name}
+			}
+			session := newLifecycleTestSession(records, nil)
+			fake := newLifecycleTestBackend(session)
+			fake.relationCapabilities = lifecycleAllRelationCapabilities()
+			state, err := (Executor{Backend: fake}).Migrate(
+				lifecycleLoadedContext(t, test.defs),
+				test.defs,
+				TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})),
+			)
+			assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+			var capability *backend.CapabilityError
+			if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
+				!strings.Contains(capability.Detail, test.detail) || session.readCount != 1 ||
+				fake.relationCapabilityCount != 0 || session.beginCount != 0 || session.relationBeginCount != 0 ||
+				state.FormatVersion() != RelationStateFormatVersion {
+				t.Fatalf(
+					"backward authority rejection = err:%v capability:%#v read:%d cap:%d scalar:%d relation:%d format:%d",
+					err,
+					capability,
+					session.readCount,
+					fake.relationCapabilityCount,
+					session.beginCount,
+					session.relationBeginCount,
+					state.FormatVersion(),
+				)
+			}
+		})
 	}
 }
 

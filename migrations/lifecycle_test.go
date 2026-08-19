@@ -316,6 +316,63 @@ func TestExecutorMigrateLoadedRelationDryValidatesCapabilitiesBeforeEveryBegin(t
 	}
 }
 
+func TestExecutorMigrateLoadedRelationReverseRequiresRemakeCapabilityBeforeBegin(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	records := lifecycleRecords(
+		MigrationKey{App: "authors", Name: "0001_author"},
+		MigrationKey{App: "blog", Name: "0001_article"},
+		MigrationKey{App: "blog", Name: "0002_editor"},
+	)
+	wantRecords := append([]backend.AppliedMigration(nil), records...)
+	session := newLifecycleTestSession(records, nil)
+	fake := newLifecycleTestBackend(session)
+	fake.relationCapabilities = lifecycleAllRelationCapabilities()
+	fake.relationCapabilities.RemoveForeignKeyByTableRemake = false
+
+	state, err := (Executor{Backend: fake}).Migrate(
+		lifecycleLoadedContext(t, definitions),
+		definitions,
+		TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})),
+	)
+	assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+	var capability *backend.CapabilityError
+	if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
+		!strings.Contains(capability.Detail, "RemoveForeignKeyByTableRemake") {
+		t.Fatalf("loaded reverse relation capability error = %#v", err)
+	}
+	article, exists := state.Model("blog", "article")
+	if state.FormatVersion() != RelationStateFormatVersion || !exists || len(article.Fields) != 4 ||
+		article.Fields[3].Name != "editor" || article.Fields[3].Relation == nil ||
+		!reflect.DeepEqual(state.Apps(), []string{"authors", "blog"}) ||
+		!reflect.DeepEqual(session.records, wantRecords) {
+		t.Fatalf(
+			"unsupported reverse changed durable/project state: format=%d apps=%v article=%+v/%t records=%v",
+			state.FormatVersion(),
+			state.Apps(),
+			article,
+			exists,
+			session.records,
+		)
+	}
+	if fake.openCount != 1 || session.readCount != 1 || fake.relationCapabilityCount != 1 ||
+		session.beginCount != 0 || session.relationBeginCount != 0 || len(session.transitions) != 0 ||
+		len(session.relationIntents) != 0 || session.closeCount != 1 {
+		t.Fatalf(
+			"unsupported reverse crossed begin: open=%d read=%d capability=%d scalar=%d relation=%d transitions=%v intents=%d close=%d",
+			fake.openCount,
+			session.readCount,
+			fake.relationCapabilityCount,
+			session.beginCount,
+			session.relationBeginCount,
+			session.transitions,
+			len(session.relationIntents),
+			session.closeCount,
+		)
+	}
+}
+
 func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *testing.T) {
 	t.Parallel()
 
@@ -430,6 +487,69 @@ func TestExecutorMigrateLoadedNullableRelationAddUsesChangedTargetOnly(t *testin
 		len(addIntent.Operations[1].Targets) != 1 || addIntent.Operations[1].Targets[0].SourceField.Name != "editor" ||
 		addIntent.Operations[1].Targets[0].TargetModel.Name != "author" {
 		t.Fatalf("nullable Add public backend intent = %#v", addIntent)
+	}
+}
+
+func TestExecutorMigrateLoadedRelationRemakeFailureOwnsOriginalAddField(t *testing.T) {
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	records := lifecycleRecords(
+		MigrationKey{App: "authors", Name: "0001_author"},
+		MigrationKey{App: "blog", Name: "0001_article"},
+		MigrationKey{App: "blog", Name: "0002_editor"},
+	)
+	transaction := newLifecycleTestTransaction()
+	cause := errors.New("bounded remake copy fault")
+	transaction.failures["remove_field"] = cause
+	session := newLifecycleTestSession(records, []backend.RevisionFencedTransaction{transaction})
+	fake := newLifecycleTestBackend(session)
+	fake.relationCapabilities = lifecycleAllRelationCapabilities()
+
+	state, err := (Executor{Backend: fake}).Migrate(
+		lifecycleLoadedContext(t, definitions),
+		definitions,
+		TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})),
+	)
+	assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, 1, "AddField")
+	if !errors.Is(err, cause) || state.FormatVersion() != RelationStateFormatVersion ||
+		session.readCount != 1 || fake.relationCapabilityCount != 1 ||
+		session.relationBeginCount != 1 || session.beginCount != 0 ||
+		!reflect.DeepEqual(transaction.calls, []string{"remove_field", "rollback"}) {
+		t.Fatalf(
+			"relation remake execution failure = err:%v format:%d read:%d capability:%d relation:%d scalar:%d calls:%v",
+			err,
+			state.FormatVersion(),
+			session.readCount,
+			fake.relationCapabilityCount,
+			session.relationBeginCount,
+			session.beginCount,
+			transaction.calls,
+		)
+	}
+}
+
+func TestExecutorMigrateLoadedRelationRemakeRecorderFailureIsNoOperation(t *testing.T) {
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	records := lifecycleRecords(
+		MigrationKey{App: "authors", Name: "0001_author"},
+		MigrationKey{App: "blog", Name: "0001_article"},
+		MigrationKey{App: "blog", Name: "0002_editor"},
+	)
+	transaction := newLifecycleTestTransaction()
+	cause := errors.New("bounded remake recorder fault")
+	transaction.failures["record_unapplied"] = cause
+	session := newLifecycleTestSession(records, []backend.RevisionFencedTransaction{transaction})
+	fake := newLifecycleTestBackend(session)
+	fake.relationCapabilities = lifecycleAllRelationCapabilities()
+
+	state, err := (Executor{Backend: fake}).Migrate(
+		lifecycleLoadedContext(t, definitions),
+		definitions,
+		TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})),
+	)
+	assertMigrationError(t, err, CategoryRecorder, CodeRecordFailed, NoOperation, "")
+	if !errors.Is(err, cause) || state.FormatVersion() != RelationStateFormatVersion ||
+		!reflect.DeepEqual(transaction.calls, []string{"remove_field", "remove_field", "record_unapplied:blog.0002_editor", "rollback"}) {
+		t.Fatalf("relation remake recorder failure = err:%v format:%d calls:%v", err, state.FormatVersion(), transaction.calls)
 	}
 }
 

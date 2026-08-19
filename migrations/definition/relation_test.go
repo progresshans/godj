@@ -620,8 +620,9 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 
 		// Seed only the recorder transition. This deliberately advances the
 		// token while leaving schema, rows, and existing FKs untouched, so a
-		// freshly loaded set reconstructs the applied relation Add and must
-		// reject its reverse Remove before any new begin or physical mutation.
+		// freshly loaded set reconstructs the applied relation Add and must reject
+		// its reverse Remove during physical preflight because the declared Before
+		// shape was never actually installed.
 		seedDefinitionSQLiteHistoryTransition(t, database, backend.HistoryTransition{
 			Migration: backend.AppliedMigration{App: "blog", Name: "0003_article_reviewer"},
 			Kind:      backend.HistoryTransitionApply,
@@ -648,8 +649,8 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 				t,
 				removeErr,
 				migrations.DirectionBackward,
-				"relation_migration",
-				"RemoveForeignKeyByTableRemake",
+				"sqlite_relation_migration",
+				"has 3 columns, want 4",
 			)
 			assertDefinitionSQLiteRestartRelationState(t, removeState, true)
 		}()
@@ -661,7 +662,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 	}()
 }
 
-func TestLoadedNullableRelationAddMigratesThroughSQLiteAndReverseRemoveStaysUnsupported(t *testing.T) {
+func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "loaded-nullable-relation-add.sqlite")
 	baseHistory := []backend.AppliedMigration{
@@ -764,7 +765,7 @@ func TestLoadedNullableRelationAddMigratesThroughSQLiteAndReverseRemoveStaysUnsu
 	}
 
 	// Fresh backend + freshly decoded sources must treat Latest as an exact
-	// no-op, then reject reverse Remove before changing any durable state.
+	// no-op, then perform reverse Remove through the bounded remake path.
 	database = openDefinitionSQLiteRestartBackend(t, path)
 	defer closeDefinitionSQLiteRestartBackend(t, database)
 	loaded = loadDefinitionSQLiteRestartSet(t, "blog", "nullable-reviewer", "authors", "tail")
@@ -787,26 +788,43 @@ func TestLoadedNullableRelationAddMigratesThroughSQLiteAndReverseRemoveStaysUnsu
 			App: "blog", Name: "0002_article_title",
 		})),
 	)
-	assertDefinitionSQLiteRestartCapabilityError(
-		t,
-		removeErr,
-		migrations.DirectionBackward,
-		"relation_migration",
-		"RemoveForeignKeyByTableRemake",
-	)
-	assertDefinitionSQLiteRestartRelationState(t, removeState, true)
-	afterRemove := readDefinitionSQLiteRestartSnapshot(t, path)
-	if !reflect.DeepEqual(afterRemove, beforeRemove) {
-		t.Fatalf("reverse Remove changed nullable Add snapshot:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
+	if removeErr != nil {
+		t.Fatalf("reverse nullable Remove by remake: %v", removeErr)
 	}
-	if reviewer := readDefinitionSQLiteNullableInteger(t, path, `SELECT "reviewer_id" FROM "blog_article" WHERE "id"=51`); reviewer != updatedReviewer {
-		t.Fatalf("reverse Remove changed reviewer = %v, want %v", reviewer, updatedReviewer)
+	assertDefinitionSQLiteRestartRelationState(t, removeState, false)
+	afterRemove := readDefinitionSQLiteRestartSnapshot(t, path)
+	if afterRemove.Revision != beforeRemove.Revision+1 || afterRemove.Epoch != beforeRemove.Epoch ||
+		!reflect.DeepEqual(afterRemove.History, baseHistory) ||
+		!reflect.DeepEqual(afterRemove.Rows, beforeRemove.Rows) || len(afterRemove.ForeignKeys) != 1 ||
+		afterRemove.ForeignKeys[0].FromColumn != "author_id" {
+		t.Fatalf("reverse nullable Remove durable transition:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
+	}
+	if removed := readDefinitionSQLiteInteger(t, path, `SELECT COUNT(*) FROM pragma_table_xinfo('blog_article') WHERE "name"='reviewer_id'`); removed != 0 {
+		t.Fatalf("reverse nullable Remove retained reviewer column count=%d", removed)
 	}
 	if authorSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`); authorSequence != updatedAuthorSequence {
 		t.Fatalf("reverse Remove changed author sequence = %d, want %d", authorSequence, updatedAuthorSequence)
 	}
 	if articleSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`); articleSequence != updatedArticleSequence {
 		t.Fatalf("reverse Remove changed article sequence = %d, want %d", articleSequence, updatedArticleSequence)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatalf("Close(nullable Remove process): %v", err)
+	}
+	database = openDefinitionSQLiteRestartBackend(t, path)
+	defer closeDefinitionSQLiteRestartBackend(t, database)
+	loaded = loadDefinitionSQLiteRestartSet(t, "tail", "authors", "blog", "nullable-reviewer")
+	reappliedState, reapplyErr := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if reapplyErr != nil {
+		t.Fatalf("reapply nullable relation after reopen: %v", reapplyErr)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, reappliedState, true)
+	reapplied := readDefinitionSQLiteRestartSnapshot(t, path)
+	if reapplied.Revision != afterRemove.Revision+1 || reapplied.Epoch != afterRemove.Epoch ||
+		!reflect.DeepEqual(reapplied.History, addHistory) || !reflect.DeepEqual(reapplied.Rows, afterRemove.Rows) ||
+		readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`) != updatedArticleSequence ||
+		readDefinitionSQLiteNullableInteger(t, path, `SELECT "reviewer_id" FROM "blog_article" WHERE "id"=51`).Valid {
+		t.Fatalf("nullable relation reapply durable transition:\nremoved=%+v\nreapplied=%+v", afterRemove, reapplied)
 	}
 }
 
@@ -911,12 +929,26 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 			App: "blog", Name: "0002_article_title",
 		})),
 	)
+	if removeErr != nil {
+		t.Fatalf("reverse required Remove by remake: %v", removeErr)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, removeState, false)
+	afterRemove := readDefinitionSQLiteRestartSnapshot(t, path)
+	articleSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`)
+	if afterRemove.Revision != beforeRemove.Revision+1 || afterRemove.Epoch != beforeRemove.Epoch ||
+		!reflect.DeepEqual(afterRemove.History, baseHistory) || !reflect.DeepEqual(afterRemove.Rows, beforeRemove.Rows) ||
+		len(afterRemove.ForeignKeys) != 1 || afterRemove.ForeignKeys[0].FromColumn != "author_id" ||
+		readDefinitionSQLiteInteger(t, path, `SELECT COUNT(*) FROM pragma_table_xinfo('blog_article') WHERE "name"='reviewer_id'`) != 0 {
+		t.Fatalf("reverse required Remove durable transition:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
+	}
+	reapplyState, reapplyErr := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
 	assertDefinitionSQLiteRestartCapabilityError(
-		t, removeErr, migrations.DirectionBackward, "relation_migration", "RemoveForeignKeyByTableRemake",
+		t, reapplyErr, migrations.DirectionForward, "sqlite_relation_migration", "contains rows",
 	)
-	assertDefinitionSQLiteRestartRelationState(t, removeState, true)
-	if afterRemove := readDefinitionSQLiteRestartSnapshot(t, path); !reflect.DeepEqual(afterRemove, beforeRemove) {
-		t.Fatalf("reverse Remove changed required Add state:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
+	assertDefinitionSQLiteRestartRelationState(t, reapplyState, false)
+	if afterRejectedReapply := readDefinitionSQLiteRestartSnapshot(t, path); !reflect.DeepEqual(afterRejectedReapply, afterRemove) ||
+		readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`) != articleSequence {
+		t.Fatalf("rejected required reapply changed remade state:\nremoved=%+v\nafter=%+v", afterRemove, afterRejectedReapply)
 	}
 }
 
