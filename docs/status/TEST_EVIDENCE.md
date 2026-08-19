@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-19
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-095
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-096
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -8349,5 +8349,203 @@ Evidence history, implementation boundary and next work:
 - Run `32248885053` proves only exact test-only head `424ec4d80684c07e8d961d858909e394ac8de9a9`. It does not
   prove this later EVID-095 append/current exact-18 documentation mirror, the ordered taxonomy/capability/adapter
   heads, completion, terminal status or any contract transition.
+- This append is deliberately nonrecursive. Draft PR #1 remains open/draft/unmerged, and this evidence does not
+  authorize merge or release.
+
+## EVID-20260819-096 — GDJ-0035 D4b Documentation and D4c Loaded Relation Error Taxonomy Verification
+
+- Date/time: D4b hosted 2026-08-19T12:28:27Z through `12:39:12Z`; D4c local final-byte gates completed
+  2026-08-19 KST and hosted 2026-08-19T13:05:07Z through `13:13:29Z`
+- Work/contract IDs: GDJ-0035 Phase D4b bounded-restart completion documentation and Phase D4c bounded
+  test-only loaded SQLite error taxonomy; MIG-075..MIG-086 remain exact 12 reference-only `oracle_locked`;
+  Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- D4b checkout/commit: exact 18-document head `84588f9e8354ae43526a6eab32b530ea302d74b6`, parent
+  `424ec4d80684c07e8d961d858909e394ac8de9a9`, tree
+  `cac62023f9db8596ec33ff3259096a79692ef6ec`
+- D4b hosted run: [run 32252834752](https://github.com/progresshans/godj/actions/runs/32252834752), workflow
+  `CI`, run number 87, attempt 1, event `pull_request`, terminal `completed/success`; this was the unique run for
+  exact head `84588f9e8354ae43526a6eab32b530ea302d74b6`
+- D4c checkout/commit: exact one-test-file head `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`, parent
+  `84588f9e8354ae43526a6eab32b530ea302d74b6`, tree
+  `76d5a585c5a3e8933b434b9af6dc21221fa2765a`
+- D4c hosted run: [run 32256113658](https://github.com/progresshans/godj/actions/runs/32256113658), workflow
+  `CI`, run number 88, attempt 1, event `pull_request`, terminal `completed/success`; this was the unique run for
+  exact head `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`
+- Result summary: D4b and D4c each passed their own exact-head 26/26-job, 342/342-step hosted CI and independent
+  audit P0/P1/P2/P3=`0/0/0/0`. D4c additionally passed the bounded local final-byte gates below.
+- Status boundary: D4c verifies six injected forward failures only through one existing-product-path loaded
+  relation test. It changes no product source, public API, workflow, capability, status or inventory and does not
+  prove Add/Remove/remake, actual MIG adapter, general restart or completion/terminal status.
+
+### D4b exact documentation boundary and frozen bytes
+
+- Commit `84588f9e8354ae43526a6eab32b530ea302d74b6`
+  (`docs: record loaded relation restart evidence`) changed exactly these 18 Markdown paths:
+  `conformance/README.md`, `docs/ARCHITECTURE.md`, `docs/BACKEND_MATRIX.md`,
+  `docs/CAPABILITY_CATALOG.md`, `docs/COMPATIBILITY.md`, `docs/CONCURRENCY.md`, `docs/LICENSING.md`,
+  `docs/OPEN_QUESTIONS.md`, `docs/ROADMAP.md`, `docs/SOURCES.md`, `docs/TESTING.md`,
+  `docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md`, `docs/adr/README.md`,
+  `docs/status/CURRENT.md`, `docs/status/IMPLEMENTATION_MATRIX.md`, `docs/status/TEST_EVIDENCE.md`,
+  `work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md` and `work/README.md`.
+- The exact C/path-sorted manifest protocol is one UTF-8 row per path,
+  `path<TAB>bytes<TAB>sha256<LF>`. Its payload is 1,787 bytes/SHA-256
+  `c775b0bb9bb4b47a6c58b2e80b7f84ebff6381ac27ece55ecc65b1d94a9f6e79`.
+- C/path-sorted raw concatenation of the 18 final file contents is 1,620,984 bytes/SHA-256
+  `de5f784ad23a1cd922f71d2332070b4ffab4138ad562240ad5e739a6dd480616`.
+- The unambiguous per-file framed stream `path<NUL>u64be(content-bytes)<NUL>content` is 1,621,655 bytes/SHA-256
+  `6c94a645777371d42c441d514e38d5a5e2db829dccbd718940fc332b119ccc74`.
+- The exact binary parent diff is 88,096 bytes/894 LF lines/SHA-256
+  `7ea13f2e3620e3c4dffd2703c93a48140875f596ebb96c363e071987846f8a26`.
+- The final D4b `docs/status/TEST_EVIDENCE.md` was exact 849,639 bytes/SHA-256
+  `8c0c02c8ae2f5d7c4feda017976b164f4adf0ca9cab8f3c3058c75d8b0b4cb9d`. EVID-095 began at zero-based
+  byte offset 838,277; its exact 11,362-byte section had SHA-256
+  `3d6efcaec1a9f457b92ae9217a950b47f2fe9a92d26baa9f0aa90d8d8f7f3644`.
+
+### D4b exact hosted identity and raw-log audit
+
+- Hosted synthetic merge `3bbb8217284a272a496391b2f3facf1bd9629df2` had ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 84588f9e8354ae43526a6eab32b530ea302d74b6]` and tree
+  `cac62023f9db8596ec33ff3259096a79692ef6ec`, equal to the exact head tree. All 26 checkout traces recorded this
+  exact synthetic merge.
+- All 26 jobs, 342 recorded steps and 26 checks concluded success; other conclusions and annotations were 0.
+- All four relation-product coordinates reproduced exact 806 run/806 pass/0 skip, 82,321 bytes and SHA-256
+  `a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`.
+- All four SQLite feasibility coordinates reproduced exact 75 run/75 pass/0 skip, 9,736 bytes and SHA-256
+  `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Six Python coordinates each completed 216 profiles: five portable/matrix coordinates skipped 19 exact-only
+  profiles and the exact coordinate skipped 0. All 13 oracle checks and all 13 checksum checks passed. Linux/386
+  compile 7 plus relation execution succeeded; all 24 clean-worktree and all 10 no-rewrite checks passed.
+- The raw GitHub log ZIP was exact 776,671 bytes/SHA-256
+  `c37332f1e4d74c732b9178461111c0d6b7cc50cd6d6c25b3c72f8f570ac1dbb1` with 394 members. C/path-sorted
+  full-member concatenation was 3,746,105 bytes/31,496 LF lines/SHA-256
+  `fb60225292b1ed06e845e9661e724c733c0e8f6d5df3ce3fd63b2e86cee2e5fc`.
+- The aggregate-plus-system member subset was 1,880,643 bytes/15,842 LF lines/SHA-256
+  `09e7d792cbbae4ccce4ee3cb47eba539d5f4ed50c7a0857696d4e2e3e10fe6d2`. The `gh run view --log` stream
+  was 2,842,365 bytes/15,654 lines/SHA-256
+  `cd2bb190cdd6ac8f86a5a6c38392b4514cb6617b9039073e21e184002f796ec6`.
+- All specified error, warning, nonzero-exit, fatal, panic, data-race, top-level FAIL, WaitDelay and incomplete-log
+  markers were 0. Hosted audit findings were P0/P1/P2/P3=`0/0/0/0`.
+- Draft PR #1 remained `OPEN`, draft, unmerged and `CLEAN`. This run proves only the D4b docs head, not the later
+  D4c test head or this EVID-096 exact-six documentation head.
+
+### D4c exact test-only boundary and loaded fixture
+
+- Commit `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`
+  (`test: verify relation migration error ownership`) changed only regular mode-100644 path
+  `db/sqlite/migration_relation_test.go`, with +665/-0 lines.
+- The final file is exact 122,474 bytes/3,139 LF lines/SHA-256
+  `87aa50a27ed5989e5d028baf888b0a5c304bbdc60f313b419f5ae094927cea74`, Git blob
+  `7d2b564b0df01769dc57338304389021d2072ded`.
+- Its exact parent diff is 26,219 bytes/691 LF lines/SHA-256
+  `cbbbd6ce77cb59c79cf7b1fbbb025cc92e3958af0ba543deefa37c45d8a5a3c9`.
+- The fixture first loads and applies one legacy ABI-1 `authors.0001_author` CreateModel, inserts author ID 41,
+  closes that Backend and captures the authors-only seed. A fresh load combines that author definition with ABI-2
+  relation-bearing `blog.0001_article`.
+- Blog operation 0 is CreateModel with a required `author_id` ForeignKey to `authors_author`. Operation 1 is a
+  zero-target scalar nullable Char `summary` AddField with `max_length=64` and default null. It is explicitly not
+  an `AddNullableForeignKey` capability proof.
+- Every fault case uses the real public `definition.Load`→`Set.Migrate`→SQLite path, a forward
+  `blog.0001_article` transition and the exact two-operation intent. The fault is injected once and consumed.
+
+### Six-case taxonomy, ownership and lifecycle counters
+
+| Injected fault | Category / code | Operation ownership | Checkpoints | Public rollback | SQL rollback |
+|---|---|---:|---:|---:|---:|
+| Wrapper-injected synthetic Begin | `CategoryTransaction` / `CodeBeginFailed` | `NoOperation` | 0 | 0 | 0 |
+| `PRAGMA foreign_keys = ON` set | `CategoryTransaction` / `CodeBeginFailed` | `NoOperation` | 0 | 0 | 0 |
+| Catalog query | `CategoryTransaction` / `CodeBeginFailed` | `NoOperation` | 3 | 0 | 1 |
+| Revision claim busy | `CategoryTransaction` / `CodeHistoryRevisionContended` | `NoOperation` | 5 | 0 | 1 |
+| Final foreign-key check | `CategoryExecution` / `CodeOperationFailed` | operation 1 `AddField` | 6 | 1 | 1 |
+| Recorder insert | `CategoryRecorder` / `CodeRecordFailed` | `NoOperation` | 6 | 1 | 1 |
+
+- Every returned error retains `DirectionForward`, app `blog`, migration `0001_article`, the exact injected cause
+  and `RollbackCause=nil`. Synthetic Begin is injected by the wrapper before the physical SQLite
+  Begin/`BEGIN IMMEDIATE` sequence and is not a failed SQL Begin observation.
+- Claim-busy additionally exposes the direct `Cause` as
+  `RevisionFenceError{Kind: RevisionFenceFailureContended}` and remains
+  `errors.Is`-linked to the exact coded busy sentinel.
+- Capability, open, read, begin and close calls are exactly one for each case. The connection hook is zero for the
+  synthetic Begin failure and one for each other case. Public transaction rollback is called only for final-FK
+  and recorder; the pinned SQL rollback counts are shown separately in the table.
+- Every return state is exactly `Equal(seed)`. After closing the faulted Backend, a new read-only connection
+  captures format/epoch/revision/fingerprint, sorted history, canonical `sqlite_schema`, author rows and structured
+  physical ForeignKey rows; the complete reopened structured snapshot equals its pre-fault capture.
+
+### D4c local final-byte verification
+
+- Passed `go test -count=1 ./db/sqlite -run '^TestSQLiteRelationForeignKeyCheckRunsBeforeRecorder$'`.
+- Passed `go test -race -count=1 ./db/sqlite -run '^TestSQLiteRelationForeignKeyCheckRunsBeforeRecorder$'`.
+- Passed `go test -count=1 ./db/sqlite ./migrations/...` and
+  `go test -race -count=1 ./db/sqlite ./migrations/...`.
+- Passed `CGO_ENABLED=0 go test -count=1 ./db/sqlite ./migrations/...` and
+  `go vet ./db/sqlite ./migrations/...`.
+- Relation-product inventory remained exact 806 run/806 pass/0 skip, 82,321 bytes and SHA-256
+  `a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`.
+- Independent local test-semantics auditors reported P0/P1/P2/P3=`0/0/0/0`. No product or inventory-correction
+  file changed after those gates.
+
+### D4c exact hosted identity, inventories and raw-log audit
+
+- Hosted synthetic merge `f798b83d0ad7046e4f0413fd1f0d86c2b525019c` had ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, e4fbc7b337c5b66b84ee74a22bbf3182d298532d]` and tree
+  `76d5a585c5a3e8933b434b9af6dc21221fa2765a`, equal to the exact head tree. All 26 checkout logs recorded
+  this exact synthetic merge.
+- All 26 jobs and 342 recorded steps concluded success; other conclusions were 0. All 26 checks concluded
+  success and annotations were 0.
+- All four relation-product coordinates reproduced exact 806 run/806 pass/0 skip, 82,321 bytes and SHA-256
+  `a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`.
+- All four SQLite feasibility coordinates reproduced exact 75 run/75 pass/0 skip, 9,736 bytes and SHA-256
+  `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Six Python coordinates each completed 216 profiles: five portable/matrix coordinates skipped 19 exact-only
+  profiles, while the exact coordinate skipped 0. All 13 oracle and 13 checksum checks passed. Linux/386 compile
+  7 plus relation execution succeeded; all 24 clean-worktree and all 10 no-rewrite checks passed.
+- The raw GitHub log ZIP is exact 776,519 bytes/SHA-256
+  `71e7db5d8498d851b252c01081c1f4332ddcabbcf6b86da68600594be6f140e1` with 394 members. C/path-sorted
+  full-member concatenation is 3,748,371 bytes/31,528 LF lines/SHA-256
+  `63d758f9359d86c993bda74d9f877067155cda5f83255f7c2793dc315d1a3780`.
+- The aggregate-plus-system subset is 1,881,764 bytes/15,858 LF lines/SHA-256
+  `772e07adc284b0b0b8d34f76e702e7c9442a31dc51276c92a118a0cd43ed49d6`. The `gh run view --log` stream is
+  2,844,319 bytes/15,670 lines/SHA-256
+  `f0a023f529e480d1e46c358e0080be79d9bdda6752e6a4c67616f39ff6ddeb1`.
+- All specified error, warning, nonzero-exit, fatal, panic, data-race, top-level FAIL, WaitDelay and incomplete-log
+  markers were 0. Hosted audit findings were P0/P1/P2/P3=`0/0/0/0`.
+- Draft PR #1 remained `OPEN`, draft, unmerged, mergeable and `CLEAN`; base/head identity matched the audited run.
+  No merge, rerun or cancellation was performed.
+
+### Explicit non-claims, status and next exact work
+
+- D4c changes no product source, public API/signature/entrypoint, workflow, capability, contract status or locked
+  inventory. Exact SQLite capabilities remain `{CreateModelForeignKeys:true, AddNullableForeignKey:false,
+  AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`.
+- MIG-075..086 remain reference-only `oracle_locked`. Product aggregate remains exact 12 adapters/127 contracts=
+  `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12. Q-010/Q-012/Q-013 remain `Partial`;
+  Q-017/Q-019 remain P1/open. ADR-0034 remains `Accepted` and GDJ-0035 remains active/Partially Implemented.
+- The structured snapshot proof is not raw database-file byte equality or `sqlite_sequence` preservation. The six
+  cases do not prove general restart, a PRAGMA-read fault, live contention, backward direction, commit outcomes,
+  global retry/no-retry behavior, arbitrary failure taxonomy, actual MIG adapter/status transition or Q closure.
+- The next work first gives this exact-six EVID-096 documentation head its own unique hosted proof. Only after
+  that proof may a separate bounded product/evidence head implement `AddNullableForeignKey`, while preserving
+  required-empty Add and Remove/remake as false.
+- That AddNullable slice is limited to pre-existing ForeignKey target snapshots sealed and resolvable inside the
+  exact loaded graph. It does not claim an arbitrary target universe. Later separate heads remain ordered as
+  `AddRequiredForeignKeyToEmptyTable` → `RemoveForeignKeyByTableRemake` → actual MIG-075..086 adapter → overall
+  completion documentation → terminal evidence/status.
+
+### Evidence history and recursive-proof boundary
+
+- Immediately before this fixed-length pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact
+  849,639 bytes/SHA-256 `8c0c02c8ae2f5d7c4feda017976b164f4adf0ca9cab8f3c3058c75d8b0b4cb9d`.
+- The retained old-file suffix in byte range `[326, 849639)` was exact 849,313 bytes/SHA-256
+  `a05972b12b5c2d310a8b0f913579b82c515315a320c55dd57fca4e8e7ac4546a`. The actual EVID-001 heading remains
+  at zero-based byte offset 524; the EVID-001..095 body in byte range `[524, 849639)` was exact 849,115
+  bytes/SHA-256 `7841073badf97419b788b8963346513fba0e1e1fceb57526168d47d352651e9d`.
+- The EVID-095 heading remains at zero-based byte offset 838,277; its exact 11,362-byte section has SHA-256
+  `3d6efcaec1a9f457b92ae9217a950b47f2fe9a92d26baa9f0aa90d8d8f7f3644`. This change edits only the
+  fixed-length top latest-evidence pointer from `095` to `096` and appends EVID-096 after the old EOF;
+  EVID-001..095 remain byte-identical.
+- Run `32252834752` proves only exact D4b docs head `84588f9e8354ae43526a6eab32b530ea302d74b6`. Run
+  `32256113658` proves only exact D4c test head `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`. Neither proves this
+  later EVID-096 append/current exact-six documentation mirror, capability/adapter heads, completion, terminal
+  status or any contract transition.
 - This append is deliberately nonrecursive. Draft PR #1 remains open/draft/unmerged, and this evidence does not
   authorize merge or release.

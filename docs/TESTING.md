@@ -1431,3 +1431,50 @@ and tree `6f43ae7b...61e7`, equal to the head tree. Hosted audit reported P0/P1/
 This verifies only the existing product path's bounded captured durable-snapshot restart scenario. It is not
 raw-file equality, `sqlite_sequence` preservation, general restart support, Add/Remove/remake implementation,
 MIG-075..086 actual adapter/status proof, Q closure, completion/terminal proof or a public API change.
+
+## GDJ-0035 Phase D4b documentation and D4c loaded relation error taxonomy verification
+
+[EVID-096](status/TEST_EVIDENCE.md#evid-20260819-096--gdj-0035-d4b-documentation-and-d4c-loaded-relation-error-taxonomy-verification)
+separates the D4b documentation proof from the later D4c test-only proof. Exact 18-document D4b head
+`84588f9e8354ae43526a6eab32b530ea302d74b6`, parent `424ec4d...`, tree `cac62023...c6ec`, passed unique
+CI #87 attempt 1 [run 32252834752](https://github.com/progresshans/godj/actions/runs/32252834752),
+2026-08-19T12:28:27Z through 12:39:12Z: exact 26/26 jobs, 342/342 steps, 26 checks, annotations 0 and hosted
+audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the D4b docs head.
+
+Exact one-test-file D4c head `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`, parent `84588f9...`, tree
+`76d5a585c5a3e8933b434b9af6dc21221fa2765a`, adds 665 lines only to
+`db/sqlite/migration_relation_test.go`. Its real `definition.Load`→`Set.Migrate`→SQLite path injects six
+`DirectionForward` `blog.0001_article` faults. Synthetic Begin, PRAGMA-set and catalog failures are
+`CategoryTransaction`/`CodeBeginFailed`/`NoOperation`; claim-busy is
+`CategoryTransaction`/`CodeHistoryRevisionContended`/`NoOperation` with a direct contended
+`RevisionFenceError` cause and exact coded sentinel; final foreign-key check is
+`CategoryExecution`/`CodeOperationFailed` owned by operation 1 `AddField`; recorder is
+`CategoryRecorder`/`CodeRecordFailed`/`NoOperation`. Synthetic Begin is wrapper-injected before the physical
+SQLite Begin/`BEGIN IMMEDIATE` sequence; it is not a failed SQL Begin observation. Every case preserves the exact
+cause, has `RollbackCause=nil`, consumes the one fault, returns state equal to the authors-only seed and leaves
+the reopened structured token/history/schema/author-row/foreign-key snapshot unchanged.
+
+The fixture is one legacy ABI-1 author CreateModel plus one ABI-2 relation-bearing blog CreateModel at operation
+0 and a zero-target scalar nullable Char `summary` AddField at operation 1 (`max_length=64`, default null). The
+second operation is not an AddNullable ForeignKey capability proof. Exact checkpoints and public/SQL rollback
+counts are `0/0/0`, `0/0/0`, `3/0/1`, `5/0/1`, `6/1/1`, `6/1/1` for Begin, PRAGMA-set, catalog,
+claim-busy, final-FK and recorder respectively. Capability/open/read/begin/close calls are one in every case;
+the connection hook is zero only for synthetic Begin and one for the other five.
+
+On final D4c bytes, focused normal/race, `./db/sqlite ./migrations/...` normal/race/CGO-disabled and focused
+`go vet` passed. Relation inventory remained exact 806/806/0·82,321 bytes·`a326e00c...bd0`. Unique CI #88
+attempt 1 [run 32256113658](https://github.com/progresshans/godj/actions/runs/32256113658),
+2026-08-19T13:05:07Z through 13:13:29Z, passed exact 26/26 jobs, 342/342 steps, 26 checks, annotations/other 0.
+Four relation and SQLite coordinates reproduced their exact locked inventories; Python 216, oracle/checksum 13,
+Linux/386, clean 24 and no-rewrite 10 gates passed. Synthetic merge `f798b83d...019c` had parents
+`[f8a5e20c...,e4fbc7b...]` and the exact head tree. Hosted audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+D4c changes no product source, public API, workflow, capability, status or inventory. Capabilities remain
+`{true,false,false,false}`, MIG-075..086 remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, and GDJ-0035
+remains active/Partially Implemented. It does not prove raw database-file equality, `sqlite_sequence`, general
+restart, PRAGMA-read faults, live contention, backward or commit outcomes, global retry, actual adapter, Q closure
+or completion/terminal status. Runs #87/#88 do not recursively prove the EVID-096 exact-six documentation head.
+After that head receives its own unique hosted proof, the next separate product/evidence head is bounded
+`AddNullableForeignKey`, limited to pre-existing target snapshots sealed and resolvable in the exact loaded graph;
+arbitrary target universes are not claimed. Required-empty Add, Remove/remake, actual adapter and
+completion/terminal remain later ordered heads.

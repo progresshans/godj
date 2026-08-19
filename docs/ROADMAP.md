@@ -28,8 +28,11 @@
   one-test-file verification head `424ec4d...`도
   [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification) /
   run `32248885053`의 exact 26/26·342/342를 통과해 기존 product path의 bounded captured-snapshot restart를
-  Verified했습니다. 현재 단계는 이 exact 18-path D4 completion-documentation head의 고유 hosted proof이며,
-  그 다음은 real `definition.Load`→`Set.Migrate`→SQLite cross-layer fault/core taxonomy test-only proof입니다.
+  Verified했습니다. D4b exact 18-document head `84588f9...`는 run `32252834752`의 unique exact
+  26/26·342/342와 audit P0..P3=0을 통과했고, D4c exact one-test-file head `e4fbc7b...`도
+  [EVID-096](status/TEST_EVIDENCE.md#evid-20260819-096--gdj-0035-d4b-documentation-and-d4c-loaded-relation-error-taxonomy-verification) /
+  run `32256113658`의 unique exact 26/26·342/342와 audit P0..P3=0에서 six-case loaded SQLite taxonomy를
+  검증했습니다. 현재 단계는 EVID-096 exact-six docs head의 고유 hosted proof입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-19
@@ -627,12 +630,16 @@ activation head `52f9bcb7...`는
    file-backed SQLite를 process-scope별로 close/reopen하고 fresh loaded mixed set/Backend로 latest no-op,
    target child-first unapply와 second-restart reapply를 재구성했습니다. EVID-095/run `32248885053`은 이
    captured schema/rows/history/token/FK snapshot scenario만 검증하며 product source/API/workflow는 불변입니다.
-7. Phase D4b (**next**): 현재 exact 18-path D4 bounded-restart completion-documentation head를 고유
-   exact-head hosted CI와 independent audit로 먼저 검증합니다.
-8. Phase D4c (**test-only taxonomy**): real `definition.Load`→`Set.Migrate`→SQLite 경로에서
-   Begin/PRAGMA/catalog/claim failure는 `NoOperation`, final-FK failure는 exact last operation, recorder failure는
-   `NoOperation`임을 검증합니다. Product source/capability/public API/status는 바꾸지 않습니다.
-9. Phase D4d (**capability 1**): `AddNullableForeignKey`를 별도 product/evidence head에서 구현·검증합니다.
+7. Phase D4b (**hosted-verified**): exact 18-document bounded-restart completion-documentation head `84588f9...`는
+   EVID-096/run `32252834752`의 unique exact-head hosted CI와 independent audit를 통과했습니다.
+8. Phase D4c (**test-only taxonomy hosted-verified**): exact one-test-file head `e4fbc7b...`는 real
+   `definition.Load`→`Set.Migrate`→SQLite 경로에서 Begin/PRAGMA-set/catalog/claim-busy failure는
+   `NoOperation`, final-FK failure는 operation 1 `AddField`, recorder failure는 `NoOperation`임을
+   EVID-096/run `32256113658`에서 검증했습니다. Product/API/workflow/capability/status/inventory는 불변입니다.
+9. Phase D4d (**next after EVID-096 docs proof**): 현재 exact-six documentation head의 고유 hosted
+   proof 후, sealed/resolvable pre-existing FK target snapshot의 bounded loaded universe에서
+   `AddNullableForeignKey`를 별도 product/evidence head로 구현·검증합니다. Arbitrary target universe는
+   주장하지 않으며 required-empty Add/Remove-remake는 false로 보존합니다.
 10. Phase D4e (**capability 2**): `AddRequiredForeignKeyToEmptyTable`을 별도 head에서 구현·검증합니다.
 11. Phase D4f (**capability 3**): `RemoveForeignKeyByTableRemake`를 별도 head에서 구현·검증합니다.
 12. Phase D4g/E: 그 뒤 actual GoDj adapter가 expected-fixture replay 없이 MIG-075..086 observation을 생성하게

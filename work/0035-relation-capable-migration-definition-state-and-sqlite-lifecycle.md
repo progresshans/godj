@@ -344,7 +344,8 @@ EVID-085에 기록했습니다.
 - 상태: **decision Accepted in a separate documentation head; Proposed decision-freeze head hosted-verified by
   EVID-091; acceptance head `7cdc6d6...` exact-hosted-verified by EVID-092/run `32187094845`; bounded
   D1/D2/D3a product sub-slices and D3b core integration are implemented/verified; D4 bounded restart scenario is
-  verified; current-docs hosted proof → real taxonomy proof → capability heads → actual adapter remains open**.
+  verified; D4b docs and D4c test-only taxonomy heads are hosted-verified; EVID-096 docs proof → bounded
+  AddNullable → later capability heads → actual adapter remains open**.
 - [x] Phase A/B 결과로 version values, one-loader/digest/state/wire/preflight, exact optional
       backend/error/SQLite order의 behavior를 test-only head `7d36502...`에서 검증하고 EVID-089/090으로 고정;
       이 Accepted decision이 additive public constant/port/type names를 선택하며 test-only proof는 product
@@ -384,10 +385,12 @@ EVID-085에 기록했습니다.
   source-order-permuted mixed `Load`, exact epoch/revision/fingerprint/full history, actual DAG/private state,
   Latest no-op → target child-first unapply → second-restart reapply와 unsupported Add/Remove snapshot 불변을
   bounded captured schema/rows/history/token/FK observation으로 검증; EVID-095/run `32248885053`
-- [ ] **D4b**: 현재 exact 18-path D4 bounded-restart completion-documentation head의 고유 hosted proof
-- [ ] **D4c**: product change 없는 real `definition.Load`→`Set.Migrate`→SQLite test-only taxonomy proof;
-      Begin/PRAGMA/catalog/claim은 `NoOperation`, final-FK는 exact last operation, recorder는 `NoOperation` 검증;
-      product source/capability/public API/status change 0
+- [x] **D4b**: exact 18-document D4 bounded-restart completion-documentation head `84588f9...`의 고유
+      hosted proof; EVID-096/run `32252834752`, 26/26·342/342, audit P0..P3=0
+- [x] **D4c**: product change 없는 real `definition.Load`→`Set.Migrate`→SQLite test-only taxonomy proof;
+      Begin/PRAGMA-set/catalog/claim-busy는 `NoOperation`, final-FK는 operation 1 `AddField`, recorder는
+      `NoOperation`; exact one test head `e4fbc7b...`, EVID-096/run `32256113658`, 26/26·342/342,
+      audit P0..P3=0; product/API/workflow/capability/status/inventory change 0
 - [ ] **D4d**: `AddNullableForeignKey`를 별도 product/evidence head로 구현·검증
 - [ ] **D4e**: `AddRequiredForeignKeyToEmptyTable`을 별도 product/evidence head로 구현·검증
 - [ ] **D4f**: `RemoveForeignKeyByTableRemake`를 별도 product/evidence head로 구현·검증
@@ -414,10 +417,14 @@ EVID-085에 기록했습니다.
       26/26 jobs·342/342 steps, audit P0..P3=0
 - [x] D4 bounded restart verification head local/hosted proof — EVID-095/run `32248885053`; exact one `_test.go`,
       product source/API/workflow/inventory unchanged, 26/26 jobs·342/342 steps
-- [ ] 현재 D4 bounded-restart completion-documentation head를 고유 exact-head hosted CI로 검증
-- [ ] 그 다음 taxonomy test-only head, `AddNullableForeignKey`, `AddRequiredForeignKeyToEmptyTable`,
-      `RemoveForeignKeyByTableRemake`, actual adapter,
-      overall completion-documentation, terminal evidence/status를 위 순서의 서로 다른 exact-head CI로 검증
+- [x] D4b bounded-restart completion-documentation head `84588f9...`의 고유 exact-head hosted CI —
+      EVID-096/run `32252834752`
+- [x] D4c taxonomy test-only head `e4fbc7b...`의 local/unique exact-head hosted CI —
+      EVID-096/run `32256113658`
+- [ ] 현재 EVID-096 exact-six documentation head의 고유 hosted CI
+- [ ] 그 다음 bounded `AddNullableForeignKey`, `AddRequiredForeignKeyToEmptyTable`,
+      `RemoveForeignKeyByTableRemake`, actual adapter, overall completion-documentation, terminal evidence/status를
+      위 순서의 서로 다른 exact-head CI로 검증
 - [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034 bounded design을 별도 head에서 Accepted로 전환
 
 ## 명시적 비목표와 금지 경계
@@ -447,15 +454,14 @@ Phase A/B/C와 acceptance evidence는 EVID-085..092에 분리돼 있습니다. �
 EVID-093의 고유 hosted run에서 검증됐습니다. D3b `74c2b72`/`167ef03`도 EVID-094/run
 `32231149900`에서 normal loaded core integration을 구현·검증했습니다. D4a exact one-test-file head
 `424ec4d...`도 EVID-095/run `32248885053`에서 file close/reopen마다 fresh loaded set/backend를 사용한
-full/branch/full captured-snapshot restart를 검증했습니다. 다음 정확한 작업은 현재 exact 18-path D4
-bounded-restart completion-documentation head의 고유 hosted proof입니다. 그 다음 product change 없는 real
-`definition.Load`→`Set.Migrate`→SQLite taxonomy test-only head에서 Begin/PRAGMA/catalog/claim `NoOperation`,
-final-FK exact last operation, recorder `NoOperation`을 검증합니다. 이 proof는 capability/public API/status를
-바꾸지 않습니다. 그 뒤 `AddNullableForeignKey` → `AddRequiredForeignKeyToEmptyTable` →
-`RemoveForeignKeyByTableRemake`를 서로 다른 product/evidence head로 구현·검증하고, actual MIG-075..086
-adapter, overall completion, terminal 순서로
-닫습니다. D4a를 raw database-file equality, `sqlite_sequence`, general restart 또는 adapter proof로 확대하지
-않습니다.
+full/branch/full captured-snapshot restart를 검증했습니다. D4b `84588f9...`는 EVID-096/run
+`32252834752`에서 exact18 docs head를, D4c `e4fbc7b...`는 EVID-096/run `32256113658`에서
+six-case loaded SQLite taxonomy를 각 고유 hosted proof로 검증했습니다. 다음 정확한 작업은 현재
+EVID-096 exact-six documentation head의 고유 hosted proof입니다. 그 성공 후
+`AddNullableForeignKey`를 pre-existing FK target snapshot이 sealed/resolvable인 bounded loaded universe에서
+별도 product/evidence head로 구현·검증합니다. Arbitrary target universe는 주장하지 않고
+required-empty Add/Remove-remake는 false로 보존합니다. 그 뒤 remaining capabilities → actual adapter →
+overall completion → terminal 순서로 닫습니다.
 
 ## 결과와 인수인계
 
@@ -463,15 +469,17 @@ adapter, overall completion, terminal 순서로
 port와 D3b normal loaded core integration은 각각 Implemented이고 EVID-093/094의 local/hosted 환경에서
 Verified입니다. Normal `Load`→`Set.Migrate` relation-bearing CreateModel은 SQLite에서
 apply/unapply/reapply합니다. D4a는 이 기존 product path의 bounded captured-snapshot file restart scenario를
-EVID-095 환경에서 Verified했습니다. D3a 현재 capability는 CreateModel FK만 true이고 target-bearing
+EVID-095 환경에서 Verified했습니다. D4b docs head와 D4c test-only six-case taxonomy head는 EVID-096의
+각 hosted 환경에서 Verified했습니다. D3a 현재 capability는 CreateModel FK만 true이고 target-bearing
 Add/Remove/remake는 false이며 general restart/actual adapter는 미지원입니다. Reference는 exact
 13/139/156=`122+5+12 locked`, product contract는
 12/127=`122+5+0`으로 불변이고 MIG-075..086은 여전히 `oracle_locked`입니다.
 
 EVID-093의 D1/D2/D3a runs는 각 correction head만 증명하고 EVID-094/run `32231149900`은 D3b correction
-head `167ef03...`만 증명합니다. EVID-095/run `32248885053`은 D4a test-only head `424ec4d...`만 증명하고
-이 documentation head, later taxonomy/capability/adapter, completion/terminal 또는 MIG status 전환을 재귀적으로
-증명하지 않습니다. Public raw
+head `167ef03...`만 증명합니다. EVID-095/run `32248885053`은 D4a test-only head `424ec4d...`만,
+run `32252834752`는 D4b docs head `84588f9...`만, run `32256113658`은 D4c test-only head
+`e4fbc7b...`만 증명합니다. 이 EVID-096 documentation head, later capability/adapter, completion/terminal
+또는 MIG status 전환을 재귀적으로 증명하지 않습니다. Public raw
 `NewStateReconstructor`의 relation input은 계속 `CategoryState`/`CodeInvalidState`고 carrier-less raw relation
 execution은 `CategoryCapability`/`CodeUnsupported`입니다.
 Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를

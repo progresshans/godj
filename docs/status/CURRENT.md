@@ -257,6 +257,12 @@
 - GDJ-0035 Phase D4 bounded restart verification head:
   `424ec4d80684c07e8d961d858909e394ac8de9a9`
   (`test: verify loaded relation restart lifecycle`)
+- GDJ-0035 Phase D4b bounded-restart completion-documentation/hosted-tested head:
+  `84588f9e8354ae43526a6eab32b530ea302d74b6`
+  (`docs: record loaded relation restart evidence`)
+- GDJ-0035 Phase D4c loaded relation taxonomy test-only/hosted-tested head:
+  `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`
+  (`test: verify relation migration error ownership`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -350,7 +356,12 @@
   [EVID-095](TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification) /
   run `32248885053`의 exact 26/26·342/342와 audit P0..P3=0에서 existing product path의 bounded
   captured-snapshot file restart를 검증했습니다. D3a Add/Remove/remake capabilities는 false이고 general
-  restart/actual adapter는 미지원입니다. MIG-075..086과 Q-010/Q-012/Q-013 분류는 불변입니다.
+  restart/actual adapter는 미지원입니다. D4b exact 18-document head `84588f9...`는 run `32252834752`의
+  unique exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. D4c exact one-test-file head `e4fbc7b...`는
+  [EVID-096](TEST_EVIDENCE.md#evid-20260819-096--gdj-0035-d4b-documentation-and-d4c-loaded-relation-error-taxonomy-verification) /
+  run `32256113658`의 unique exact 26/26·342/342와 audit P0..P3=0에서 real loaded SQLite path의 six-case
+  forward error ownership과 structured snapshot 불변만 검증했습니다. Product/API/workflow/capability/status/
+  inventory는 바뀌지 않았고 MIG-075..086과 Q-010/Q-012/Q-013 분류도 불변입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -1339,17 +1350,25 @@ Phase D의 현재 경계는 다음과 같습니다.
   Latest no-op, target child-first unapply와 second-restart reapply를 exact epoch/revision/fingerprint/history,
   canonical schema/rows와 physical FK captured snapshot으로 검증했습니다. EVID-095/run `32248885053`은
   exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. Product source/API/workflow/inventory는 불변입니다.
+- **D4b hosted-verified documentation boundary:** exact 18-document head `84588f9...`는 EVID-096/run
+  `32252834752`의 고유 26/26·342/342와 audit P0..P3=0을 통과했습니다. 이 run은 D4c test head나 현재
+  EVID-096 exact-six documentation head를 증명하지 않습니다.
+- **D4c Verified only as bounded test-only taxonomy evidence:** exact one-test-file head `e4fbc7b...`는 actual
+  `definition.Load`→`Set.Migrate`→SQLite 경로에서 forward `blog.0001_article`의 Begin, PRAGMA-set,
+  catalog, claim-busy, final-FK, recorder 여섯 fault를 검증했습니다. Step-global 네 case와 recorder는
+  `NoOperation`, final-FK만 operation 1 `AddField`를 소유하며, 모든 case가 exact cause/
+  `RollbackCause=nil`, seed state 및 reopened structured snapshot 불변을 보존합니다. EVID-096/run
+  `32256113658`은 고유 26/26·342/342와 audit P0..P3=0을 통과했습니다.
 
-다음 정확한 순서는 (1) 현재 exact 18-path D4 bounded-restart completion-documentation head의 고유
-hosted proof, (2) product를 바꾸지 않는 real `definition.Load`→`Set.Migrate`→SQLite test-only cross-layer
-taxonomy proof입니다. 두 번째 proof는 Begin/PRAGMA/catalog/claim failure의 `NoOperation`, final-FK failure의
-exact last operation, recorder failure의 `NoOperation`을 검증하며 product source/capability/public API/status를 바꾸지
-않습니다. 그 뒤 `AddNullableForeignKey`, `AddRequiredForeignKeyToEmptyTable`,
-`RemoveForeignKeyByTableRemake`를 각각 별도 product/evidence head로 순차 구현·검증하고, 모든 capability
-head 후에 actual GoDj adapter가 expected fixture replay
-없이 MIG-075..086 observation을 생성해야 합니다. Completion/terminal은 그 뒤 다시 별도 head로
-닫습니다. D4a를 raw database-file equality, `sqlite_sequence`, general restart, actual adapter 또는
-completion/terminal proof로 확대하지 않습니다.
+다음 정확한 작업은 (1) 현재 EVID-096 exact-six documentation head의 고유 hosted proof, (2) 그
+성공 후 bounded `AddNullableForeignKey` product/evidence head입니다. AddNullable slice는 pre-existing
+ForeignKey target snapshot을 seal하고 exact loaded graph에서 resolve할 수 있는 bounded universe만 다루며 arbitrary
+target universe를 지원한다고 주장하지 않습니다. `AddRequiredForeignKeyToEmptyTable`/
+`RemoveForeignKeyByTableRemake`는 false로 보존한 뒤 각 별도 head에서 순차 구현·검증하고, 그 후 actual
+GoDj adapter가 expected fixture replay 없이 MIG-075..086 observation을 생성해야 합니다. Completion/
+terminal은 그 뒤 다시 별도 head로 닫습니다. D4c는 raw database-file equality, `sqlite_sequence`,
+general restart, PRAGMA-read fault, live contention, backward direction, commit outcomes, global retry, actual adapter
+또는 completion/terminal proof가 아닙니다.
 
 Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 pre-Begin `CategoryCapability`/
 `CodeUnsupported`, feature `relation_migration`으로 fail-closed합니다. Reference는 exact
@@ -1571,9 +1590,10 @@ Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 p
   EVID-094/run `32231149900`의 exact 26/26·342/342·audit P0..P3=0에서 normal loaded core integration을
   구현·검증했습니다. D4 test-only head `424ec4d...`는 EVID-095/run `32248885053`의 exact
   26/26·342/342·audit P0..P3=0에서 fresh Backend/loaded set의 bounded captured-snapshot restart를
-  검증했습니다. Add/Remove/remake capabilities는 false입니다. 다음은 현재 D4 docs head의 고유
-  hosted proof 후 real `Load`→`Set.Migrate`→SQLite taxonomy test-only proof이고, capability별 head와 actual adapter는
-  그 뒤 순서입니다.
+  검증했습니다. D4b docs head `84588f9...`는 run `32252834752`, D4c taxonomy head `e4fbc7b...`는
+  EVID-096/run `32256113658`의 각 unique 26/26·342/342·audit P0..P3=0을 통과했습니다. Capabilities는
+  `{true,false,false,false}`로 불변입니다. 다음은 EVID-096 docs head의 고유 hosted proof 후 bounded
+  `AddNullableForeignKey` product head이며 required-empty Add/Remove-remake와 actual adapter는 그 뒤 순서입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
