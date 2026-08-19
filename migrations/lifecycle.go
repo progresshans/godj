@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/progresshans/godj/migrations/backend"
@@ -65,18 +66,66 @@ func (e Executor) Migrate(
 		return resultState, err
 	}
 
+	// A relation carrier is the only path that may mint private loaded-state
+	// authority. Scan caller-owned values before either the carrier or the
+	// definitions can be cloned.
+	hasCarrier := definitionhandoff.Has(ctx)
+	if hasCarrier {
+		if err := validateLoadedDefinitionResources(definitions); err != nil {
+			return resultState, err
+		}
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+	}
+	hasRelation := definitionsContainRelation(definitions)
+	if !hasCarrier && hasRelation {
+		unsupported := relationMigrationUnsupported(definitions, "", errors.New("loader definition handoff is missing"))
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+		return resultState, unsupported
+	}
+	if err := ctx.Err(); err != nil {
+		return resultState, executionContextError(PlanStep{}, err)
+	}
+
 	// Snapshot caller-owned definitions before any backend I/O. The
 	// reconstructor then validates the graph and deep-copies every supported
 	// operation so neither planning nor execution retains caller aliases.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
-	ctx, err = consumeDefinitionHandoff(ctx, definitionSnapshot, "")
+	var authority *loadedDefinitionAuthority
+	ctx, authority, err = consumeDefinitionHandoff(ctx, definitionSnapshot, "")
 	if err != nil {
 		return resultState, err
 	}
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
 	}
-	reconstructor, err := NewStateReconstructor(definitionSnapshot...)
+	var reconstructor StateReconstructor
+	if authority != nil && hasRelation {
+		loaded, loadedErr := newLoadedStateReconstructor(authority, definitionSnapshot)
+		if loadedErr != nil {
+			return resultState, loadedErr
+		}
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+		// Keep the private engine live through complete static construction and
+		// readiness replay. D3 will consume it to bind the optional backend port;
+		// D2 must still stop before session/history/backend I/O.
+		_ = loaded
+		unsupported := relationMigrationUnsupported(
+			definitionSnapshot,
+			"",
+			errors.New("validated relation state is ready; relation backend lifecycle is not implemented"),
+		)
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+		return resultState, unsupported
+	}
+	reconstructor, err = NewStateReconstructor(definitionSnapshot...)
 	if err != nil {
 		return resultState, err
 	}
@@ -209,38 +258,48 @@ func consumeDefinitionHandoff(
 	ctx context.Context,
 	definitions []Migration,
 	direction Direction,
-) (context.Context, error) {
+) (context.Context, *loadedDefinitionAuthority, error) {
 	baseContext, handoff, found := definitionhandoff.Take(ctx)
 	hasRelation := definitionsContainRelation(definitions)
 	if !found {
 		if hasRelation {
-			return baseContext, relationMigrationUnsupported(definitions, direction, errors.New("loader definition handoff is missing"))
+			return baseContext, nil, relationMigrationUnsupported(definitions, direction, errors.New("loader definition handoff is missing"))
 		}
-		return baseContext, nil
+		return baseContext, nil, nil
 	}
 
 	visible := make([]definitionhandoff.Definition, len(definitions))
 	for index := range definitions {
 		converted, err := migrationHandoffDefinition(definitions[index])
 		if err != nil {
-			return baseContext, relationMigrationUnsupported(definitions, direction, fmt.Errorf("definition[%d]: %w", index, err))
+			return baseContext, nil, relationMigrationUnsupported(definitions, direction, fmt.Errorf("definition[%d]: %w", index, err))
 		}
 		visible[index] = converted
 	}
 	if err := handoff.ValidateVisible(visible); err != nil {
-		return baseContext, relationMigrationUnsupported(definitions, direction, err)
+		return baseContext, nil, relationMigrationUnsupported(definitions, direction, err)
 	}
-	if _, err := NewPlanner(definitions...); err != nil {
-		return baseContext, relationMigrationUnsupported(definitions, direction, fmt.Errorf("sealed full graph is invalid: %w", err))
+	planner, err := NewPlanner(definitions...)
+	if err != nil {
+		return baseContext, nil, relationMigrationUnsupported(definitions, direction, fmt.Errorf("sealed full graph is invalid: %w", err))
 	}
-	if hasRelation {
-		return baseContext, relationMigrationUnsupported(
-			definitions,
-			direction,
-			errors.New("relation historical state handoff is not implemented"),
-		)
+	records := handoff.Records()
+	profiles := make(map[MigrationKey]loadedDefinitionProfile, len(records))
+	for index := range records {
+		record := records[index]
+		key := MigrationKey{App: record.Definition.App, Name: record.Definition.Name}
+		if _, exists := profiles[key]; exists {
+			return baseContext, nil, relationMigrationUnsupported(definitions, direction, fmt.Errorf("sealed profile graph duplicates %s.%s", key.App, key.Name))
+		}
+		profiles[key] = loadedDefinitionProfile{
+			definitionFormat: record.Profile.DefinitionFormat,
+			loaderABI:        record.Profile.LoaderABI,
+			operationCodec:   record.Profile.OperationCodec,
+			schemaIR:         record.Profile.SchemaIR,
+		}
 	}
-	return baseContext, nil
+	authority := &loadedDefinitionAuthority{marker: &loadedDefinitionAuthorityMarker{}, planner: planner, profiles: profiles}
+	return baseContext, authority, nil
 }
 
 func relationMigrationUnsupported(definitions []Migration, direction Direction, cause error) *Error {
@@ -248,13 +307,19 @@ func relationMigrationUnsupported(definitions []Migration, direction Direction, 
 	found := false
 	for index := range definitions {
 		if migrationContainsRelation(definitions[index]) {
-			migration = definitions[index]
-			found = true
-			break
+			if !found || migrationKeyLess(definitions[index].Key(), migration.Key()) {
+				migration = definitions[index]
+				found = true
+			}
 		}
 	}
 	if !found && len(definitions) != 0 {
 		migration = definitions[0]
+		for index := 1; index < len(definitions); index++ {
+			if migrationKeyLess(definitions[index].Key(), migration.Key()) {
+				migration = definitions[index]
+			}
+		}
 	}
 	capability := backend.NewCapabilityError("relation_migration", "validated relation lifecycle is unavailable", cause)
 	return migrationError(CategoryCapability, CodeUnsupported, direction, migration, NoOperation, "", capability)
@@ -288,9 +353,246 @@ func migrationContainsRelation(migration Migration) bool {
 			if value != nil && fieldContainsRelation(value.Field) {
 				return true
 			}
+		default:
+			if embeddedBuiltinContainsRelation(operation) {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+var (
+	createModelOperationType = reflect.TypeOf(CreateModel{})
+	addFieldOperationType    = reflect.TypeOf(AddField{})
+	operationInterfaceType   = reflect.TypeOf((*Operation)(nil)).Elem()
+)
+
+type embeddedBuiltinProviderKind uint8
+
+const (
+	embeddedCreateModelProvider embeddedBuiltinProviderKind = iota + 1
+	embeddedAddFieldProvider
+	embeddedInterfaceProvider
+)
+
+type embeddedBuiltinProvider struct {
+	kind embeddedBuiltinProviderKind
+	path []int
+}
+
+type embeddedBuiltinTypeNode struct {
+	typeValue    reflect.Type
+	path         []int
+	multiplicity uint8
+}
+
+// embeddedBuiltinContainsRelation closes the Go method-promotion escape hatch
+// around Operation's package-private marker. It runs only for a non-built-in
+// dynamic type and inspects anonymous wrappers until it finds an embedded
+// built-in operation value.
+func embeddedBuiltinContainsRelation(operation Operation) bool {
+	if isNilOperation(operation) {
+		return false
+	}
+	return embeddedBuiltinValueContainsRelation(reflect.ValueOf(operation))
+}
+
+func embeddedBuiltinValueContainsRelation(value reflect.Value) bool {
+	visitedPointers := make(map[uintptr]struct{})
+	current := value
+	for {
+		unwrapped, ok := reflectedUnwrapValue(current, visitedPointers)
+		if !ok {
+			return true
+		}
+		provider, found, unambiguous := firstEmbeddedBuiltinProvider(unwrapped.Type())
+		if !unambiguous {
+			return true
+		}
+		if !found {
+			return false
+		}
+		providerValue := unwrapped
+		for _, index := range provider.path {
+			providerValue, ok = reflectedUnwrapValue(providerValue, visitedPointers)
+			if !ok || providerValue.Kind() != reflect.Struct || index < 0 || index >= providerValue.NumField() {
+				return true
+			}
+			providerValue = providerValue.Field(index)
+		}
+		providerValue, ok = reflectedUnwrapValue(providerValue, visitedPointers)
+		if !ok {
+			return true
+		}
+		switch provider.kind {
+		case embeddedCreateModelProvider:
+			contains, readable := reflectedCreateModelContainsRelation(providerValue)
+			return !readable || contains
+		case embeddedAddFieldProvider:
+			contains, readable := reflectedAddFieldContainsRelation(providerValue)
+			return !readable || contains
+		case embeddedInterfaceProvider:
+			current = providerValue
+		default:
+			return true
+		}
+	}
+}
+
+// firstEmbeddedBuiltinProvider mirrors Go selector promotion: only built-in
+// operation providers at the minimum anonymous-field depth participate. A
+// deeper relation-bearing field shadowed by a shallower scalar provider is
+// not the operation whose methods will execute. True same-depth ambiguity and
+// an unreadable runtime provider fail closed.
+func firstEmbeddedBuiltinProvider(
+	root reflect.Type,
+) (embeddedBuiltinProvider, bool, bool) {
+	for root.Kind() == reflect.Pointer {
+		root = root.Elem()
+	}
+	switch root {
+	case createModelOperationType:
+		return embeddedBuiltinProvider{kind: embeddedCreateModelProvider}, true, true
+	case addFieldOperationType:
+		return embeddedBuiltinProvider{kind: embeddedAddFieldProvider}, true, true
+	}
+	if root.Kind() != reflect.Struct {
+		return embeddedBuiltinProvider{}, false, true
+	}
+	level := []embeddedBuiltinTypeNode{{typeValue: root, multiplicity: 1}}
+	seenDepth := map[reflect.Type]int{root: 0}
+	depth := 0
+	for len(level) != 0 {
+		depth++
+		var provider embeddedBuiltinProvider
+		providerCount := uint8(0)
+		next := make([]embeddedBuiltinTypeNode, 0)
+		nextIndex := make(map[reflect.Type]int)
+		for _, node := range level {
+			for index := 0; index < node.typeValue.NumField(); index++ {
+				field := node.typeValue.Field(index)
+				if !field.Anonymous {
+					continue
+				}
+				path := append(append([]int(nil), node.path...), index)
+				fieldType := field.Type
+				if fieldType.Kind() == reflect.Interface && fieldType.Implements(operationInterfaceType) {
+					if providerCount == 0 {
+						provider = embeddedBuiltinProvider{kind: embeddedInterfaceProvider, path: path}
+					}
+					providerCount = cappedProviderMultiplicity(providerCount, node.multiplicity)
+					continue
+				}
+				for fieldType.Kind() == reflect.Pointer {
+					fieldType = fieldType.Elem()
+				}
+				switch fieldType {
+				case createModelOperationType:
+					if providerCount == 0 {
+						provider = embeddedBuiltinProvider{kind: embeddedCreateModelProvider, path: path}
+					}
+					providerCount = cappedProviderMultiplicity(providerCount, node.multiplicity)
+					continue
+				case addFieldOperationType:
+					if providerCount == 0 {
+						provider = embeddedBuiltinProvider{kind: embeddedAddFieldProvider, path: path}
+					}
+					providerCount = cappedProviderMultiplicity(providerCount, node.multiplicity)
+					continue
+				}
+				if fieldType.Kind() != reflect.Struct {
+					continue
+				}
+				if seen, exists := seenDepth[fieldType]; exists && seen < depth {
+					continue
+				}
+				if nextPosition, exists := nextIndex[fieldType]; exists {
+					next[nextPosition].multiplicity = cappedProviderMultiplicity(next[nextPosition].multiplicity, node.multiplicity)
+					continue
+				}
+				seenDepth[fieldType] = depth
+				nextIndex[fieldType] = len(next)
+				next = append(next, embeddedBuiltinTypeNode{typeValue: fieldType, path: path, multiplicity: node.multiplicity})
+			}
+		}
+		if providerCount > 1 {
+			return embeddedBuiltinProvider{}, false, false
+		}
+		if providerCount == 1 {
+			return provider, true, true
+		}
+		level = next
+	}
+	return embeddedBuiltinProvider{}, false, true
+}
+
+func cappedProviderMultiplicity(left, right uint8) uint8 {
+	if left >= 2 || right >= 2 || left+right >= 2 {
+		return 2
+	}
+	return left + right
+}
+
+func reflectedUnwrapValue(value reflect.Value, visitedPointers map[uintptr]struct{}) (reflect.Value, bool) {
+	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
+		if value.IsNil() {
+			return reflect.Value{}, false
+		}
+		if value.Kind() == reflect.Pointer {
+			identity := value.Pointer()
+			if _, exists := visitedPointers[identity]; exists {
+				return reflect.Value{}, false
+			}
+			visitedPointers[identity] = struct{}{}
+		}
+		value = value.Elem()
+	}
+	return value, value.IsValid()
+}
+
+func reflectedCreateModelContainsRelation(value reflect.Value) (bool, bool) {
+	model := value.FieldByName("Model")
+	if !model.IsValid() || model.Kind() != reflect.Struct {
+		return false, false
+	}
+	fields := model.FieldByName("Fields")
+	if !fields.IsValid() || fields.Kind() != reflect.Slice {
+		return false, false
+	}
+	for index := 0; index < fields.Len(); index++ {
+		contains, ok := reflectedFieldContainsRelation(fields.Index(index))
+		if !ok || contains {
+			return contains, ok
+		}
+	}
+	return false, true
+}
+
+func reflectedAddFieldContainsRelation(value reflect.Value) (bool, bool) {
+	field := value.FieldByName("Field")
+	if !field.IsValid() {
+		return false, false
+	}
+	return reflectedFieldContainsRelation(field)
+}
+
+func reflectedFieldContainsRelation(value reflect.Value) (bool, bool) {
+	for value.IsValid() && (value.Kind() == reflect.Interface || value.Kind() == reflect.Pointer) {
+		if value.IsNil() {
+			return false, false
+		}
+		value = value.Elem()
+	}
+	if !value.IsValid() || value.Kind() != reflect.Struct {
+		return false, false
+	}
+	kind := value.FieldByName("Kind")
+	relation := value.FieldByName("Relation")
+	if !kind.IsValid() || kind.Kind() != reflect.String || !relation.IsValid() || relation.Kind() != reflect.Pointer {
+		return false, false
+	}
+	return kind.String() == string(ir.FieldForeignKey) || !relation.IsNil(), true
 }
 
 func modelContainsRelation(model ir.Model) bool {

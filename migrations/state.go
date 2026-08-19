@@ -10,7 +10,10 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const StateFormatVersion = 1
+const (
+	StateFormatVersion         = 1
+	RelationStateFormatVersion = 2
+)
 
 // ProjectState is an immutable snapshot of normalized Schema IR grouped by
 // app label. Accessors return deep clones so callers cannot mutate history.
@@ -98,19 +101,25 @@ func (s ProjectState) Equal(other ProjectState) bool {
 }
 
 func (s ProjectState) validate() error {
-	if s.FormatVersion() != StateFormatVersion {
+	expectedIRVersion := 0
+	switch s.FormatVersion() {
+	case StateFormatVersion:
+		expectedIRVersion = ir.FormatVersion
+	case RelationStateFormatVersion:
+		expectedIRVersion = ir.RelationFormatVersion
+	default:
 		return fmt.Errorf("unsupported project state version %d", s.FormatVersion())
 	}
 	for app, schema := range s.apps {
 		if schema.AppLabel != app {
 			return fmt.Errorf("project app key %q does not match schema app label %q", app, schema.AppLabel)
 		}
-		if schema.FormatVersion != ir.FormatVersion {
+		if schema.FormatVersion != expectedIRVersion {
 			return fmt.Errorf(
 				"project app %s uses Schema IR version %d; migration state requires version %d",
 				app,
 				schema.FormatVersion,
-				ir.FormatVersion,
+				expectedIRVersion,
 			)
 		}
 		normalized, err := ir.Normalize(schema)
@@ -137,8 +146,12 @@ func (s ProjectState) withoutApp(app string) ProjectState {
 }
 
 func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
+	return normalizedSingleModelVersion(app, model, ir.FormatVersion)
+}
+
+func normalizedSingleModelVersion(app string, model ir.Model, formatVersion int) (ir.Model, error) {
 	schema, err := ir.Normalize(ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: formatVersion,
 		AppLabel:      app,
 		Models:        []ir.Model{model.Clone()},
 	})
@@ -146,6 +159,83 @@ func normalizedSingleModel(app string, model ir.Model) (ir.Model, error) {
 		return ir.Model{}, err
 	}
 	return schema.Models[0].Clone(), nil
+}
+
+// promoteProjectState performs the sole scalar-to-relation state transition
+// used by the loader-authorized lifecycle. Public constructors deliberately
+// continue to accept only scalar Schema IR v2.
+func promoteProjectState(value ProjectState) (ProjectState, error) {
+	if err := value.validate(); err != nil {
+		return ProjectState{}, err
+	}
+	if value.FormatVersion() != StateFormatVersion {
+		return ProjectState{}, fmt.Errorf("project state promotion requires version %d", StateFormatVersion)
+	}
+	promoted := value.Clone()
+	promoted.formatVersion = RelationStateFormatVersion
+	for app, schema := range promoted.apps {
+		schema.FormatVersion = ir.RelationFormatVersion
+		normalized, err := ir.Normalize(schema)
+		if err != nil {
+			return ProjectState{}, fmt.Errorf("promote project app %s: %w", app, err)
+		}
+		promoted.apps[app] = normalized.Clone()
+	}
+	if err := promoted.validate(); err != nil {
+		return ProjectState{}, err
+	}
+	return promoted.Clone(), nil
+}
+
+// demoteProjectState is permitted only after a whole relation-bearing step
+// has removed the final relation arm. It never discards relation meaning.
+func demoteProjectState(value ProjectState) (ProjectState, error) {
+	if err := value.validate(); err != nil {
+		return ProjectState{}, err
+	}
+	if value.FormatVersion() != RelationStateFormatVersion {
+		return ProjectState{}, fmt.Errorf("project state demotion requires version %d", RelationStateFormatVersion)
+	}
+	if app, model, field, exists := firstProjectStateRelation(value); exists {
+		return ProjectState{}, fmt.Errorf("cannot demote relation-bearing project state at %s.%s.%s", app, model, field)
+	}
+	demoted := value.Clone()
+	demoted.formatVersion = StateFormatVersion
+	for app, schema := range demoted.apps {
+		schema.FormatVersion = ir.FormatVersion
+		normalized, err := ir.Normalize(schema)
+		if err != nil {
+			return ProjectState{}, fmt.Errorf("demote project app %s: %w", app, err)
+		}
+		demoted.apps[app] = normalized.Clone()
+	}
+	if err := demoted.validate(); err != nil {
+		return ProjectState{}, err
+	}
+	return demoted.Clone(), nil
+}
+
+func firstProjectStateRelation(value ProjectState) (app, model, field string, exists bool) {
+	apps := value.Apps()
+	for _, app = range apps {
+		schema := value.apps[app]
+		models := append([]ir.Model(nil), schema.Models...)
+		sort.Slice(models, func(left, right int) bool { return models[left].Name < models[right].Name })
+		for _, candidate := range models {
+			fields := append([]ir.Field(nil), candidate.Fields...)
+			sort.Slice(fields, func(left, right int) bool { return fields[left].Name < fields[right].Name })
+			for _, candidateField := range fields {
+				if fieldContainsRelation(candidateField) {
+					return app, candidate.Name, candidateField.Name, true
+				}
+			}
+		}
+	}
+	return "", "", "", false
+}
+
+func projectStateRequiresRelationLifecycle(value ProjectState) bool {
+	return value.FormatVersion() == RelationStateFormatVersion
 }
 
 func modelEqual(left, right ir.Model) bool {

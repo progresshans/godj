@@ -5,11 +5,107 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync/atomic"
 	"testing"
 
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/schema/ir"
 )
+
+type stagedRawCancellationContext struct {
+	context.Context
+	calls    atomic.Int32
+	cancelAt int32
+}
+
+type interfaceEmbeddedOperation struct {
+	Operation
+}
+
+type nestedEmbeddedRelation struct {
+	AddField
+}
+
+type shadowedEmbeddedOperation struct {
+	CreateModel
+	nestedEmbeddedRelation
+}
+
+type wideScalarEmbeddedOperation struct {
+	f00 uint8
+	f01 uint8
+	f02 uint8
+	f03 uint8
+	f04 uint8
+	f05 uint8
+	f06 uint8
+	f07 uint8
+	f08 uint8
+	f09 uint8
+	f10 uint8
+	f11 uint8
+	f12 uint8
+	f13 uint8
+	f14 uint8
+	f15 uint8
+	f16 uint8
+	f17 uint8
+	f18 uint8
+	f19 uint8
+	f20 uint8
+	f21 uint8
+	f22 uint8
+	f23 uint8
+	f24 uint8
+	f25 uint8
+	f26 uint8
+	f27 uint8
+	f28 uint8
+	f29 uint8
+	f30 uint8
+	f31 uint8
+	f32 uint8
+	f33 uint8
+	f34 uint8
+	f35 uint8
+	f36 uint8
+	f37 uint8
+	f38 uint8
+	f39 uint8
+	f40 uint8
+	f41 uint8
+	f42 uint8
+	f43 uint8
+	f44 uint8
+	f45 uint8
+	f46 uint8
+	f47 uint8
+	f48 uint8
+	f49 uint8
+	f50 uint8
+	f51 uint8
+	f52 uint8
+	f53 uint8
+	f54 uint8
+	f55 uint8
+	f56 uint8
+	f57 uint8
+	f58 uint8
+	f59 uint8
+	f60 uint8
+	f61 uint8
+	f62 uint8
+	f63 uint8
+	f64 uint8
+	CreateModel
+}
+
+func (value *stagedRawCancellationContext) Err() error {
+	if value.calls.Add(1) >= value.cancelAt {
+		return context.Canceled
+	}
+	return nil
+}
 
 func TestExecutorPreflightsAllStateBeforeBeginningTransaction(t *testing.T) {
 	t.Parallel()
@@ -82,6 +178,12 @@ func TestExecutorRawRelationApplyAndUnapplyFailCapabilityBeforeIO(t *testing.T) 
 				(*CreateModel)(nil), (*AddField)(nil), AddField{AppLabel: "blog", ModelName: "post", Field: relation},
 			}},
 		},
+		{
+			name: "embedded built-in relation cannot bypass raw guard",
+			migration: Migration{App: "blog", Name: "0002_embedded", Operations: []Operation{
+				unsupportedStateOperation{CreateModel: CreateModel{AppLabel: "blog", Model: relationMigrationSchema().Models[0]}},
+			}},
+		},
 	}
 	for _, test := range tests {
 		test := test
@@ -111,6 +213,160 @@ func TestExecutorRawRelationApplyAndUnapplyFailCapabilityBeforeIO(t *testing.T) 
 			}
 		})
 	}
+}
+
+func TestExecutorRawScalarOperationsRejectPrivateRelationStateBeforeIO(t *testing.T) {
+	t.Parallel()
+
+	relationState := relationExecutorProjectState(t)
+	scalarMigration := Migration{App: "blog", Name: "0003_summary", Operations: []Operation{AddField{
+		AppLabel: "blog", ModelName: "post", Field: summaryField(),
+	}}}
+	for _, direction := range []Direction{DirectionForward, DirectionBackward} {
+		fake := &fakeBackend{transaction: newFakeTransaction()}
+		var err error
+		if direction == DirectionForward {
+			_, err = (Executor{Backend: fake}).Apply(context.Background(), relationState, scalarMigration)
+		} else {
+			_, err = (Executor{Backend: fake}).Unapply(context.Background(), relationState, scalarMigration)
+		}
+		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+		var capability *backend.CapabilityError
+		if !errors.As(err, &capability) || capability.Feature != "relation_migration" || fake.beginCount != 0 {
+			t.Fatalf("%s scalar/raw relation-state boundary = error:%v begin:%d", direction, err, fake.beginCount)
+		}
+	}
+}
+
+func TestExecutorRawRelationPostScanCancellationBeatsCapability(t *testing.T) {
+	t.Parallel()
+
+	migration := Migration{App: "blog", Name: "0002_author", Operations: []Operation{AddField{
+		AppLabel: "blog", ModelName: "post", Field: relationMigrationField(),
+	}}}
+	ctx := &stagedRawCancellationContext{Context: context.Background(), cancelAt: 2}
+	fake := &fakeBackend{transaction: newFakeTransaction()}
+	_, err := (Executor{Backend: fake}).Apply(ctx, EmptyProjectState(), migration)
+	var capability *backend.CapabilityError
+	if !errors.Is(err, context.Canceled) || errors.As(err, &capability) || fake.beginCount != 0 || ctx.calls.Load() < 2 {
+		t.Fatalf("raw relation post-scan cancellation = error:%v capability:%#v begin:%d calls:%d", err, capability, fake.beginCount, ctx.calls.Load())
+	}
+}
+
+func TestEmbeddedRelationWrapperTraversalIsCycleSafeAndBounded(t *testing.T) {
+	t.Parallel()
+
+	cyclic := &interfaceEmbeddedOperation{}
+	cyclic.Operation = cyclic
+	assertRawWrapperRelationCapability(t, cyclic)
+
+	var deep Operation = CreateModel{AppLabel: "blog", Model: relationMigrationSchema().Models[0]}
+	for index := 0; index < 80; index++ {
+		deep = interfaceEmbeddedOperation{Operation: deep}
+	}
+	assertRawWrapperRelationCapability(t, deep)
+
+	scalarModel := relationMigrationSchema().Models[0].Clone()
+	scalarModel.Fields = scalarModel.Fields[:1]
+	var deepScalar Operation = CreateModel{AppLabel: "blog", Model: scalarModel}
+	for index := 0; index < 80; index++ {
+		deepScalar = interfaceEmbeddedOperation{Operation: deepScalar}
+	}
+	assertRawWrapperScalarLegacy(t, deepScalar)
+	assertRawWrapperScalarLegacy(t, wideScalarEmbeddedOperation{CreateModel: CreateModel{AppLabel: "blog", Model: scalarModel}})
+
+	var typedNil *interfaceEmbeddedOperation
+	_, err := (Executor{}).Apply(context.Background(), EmptyProjectState(), Migration{
+		App: "blog", Name: "0001_nil", Operations: []Operation{typedNil},
+	})
+	assertMigrationError(t, err, CategoryState, CodeInvalidState, 0, "")
+}
+
+func assertRawWrapperScalarLegacy(t *testing.T, operation Operation) {
+	t.Helper()
+	_, err := (Executor{}).Apply(context.Background(), EmptyProjectState(), Migration{
+		App: "blog", Name: "0001_wrapped_scalar", Operations: []Operation{operation},
+	})
+	assertMigrationError(t, err, CategoryTransaction, CodeBeginFailed, NoOperation, "")
+	var capability *backend.CapabilityError
+	if errors.As(err, &capability) {
+		t.Fatalf("scalar wrapper selected relation capability = %#v", capability)
+	}
+}
+
+func TestEmbeddedRelationScannerFollowsEffectiveMinimumDepthProvider(t *testing.T) {
+	t.Parallel()
+
+	scalarModel := relationMigrationSchema().Models[0].Clone()
+	scalarModel.Fields = scalarModel.Fields[:1]
+	shadowed := shadowedEmbeddedOperation{
+		CreateModel: CreateModel{AppLabel: "blog", Model: scalarModel},
+		nestedEmbeddedRelation: nestedEmbeddedRelation{AddField: AddField{
+			AppLabel: "blog", ModelName: "post", Field: relationMigrationField(),
+		}},
+	}
+	_, err := (Executor{}).Apply(context.Background(), EmptyProjectState(), Migration{
+		App: "blog", Name: "0001_shadowed", Operations: []Operation{shadowed},
+	})
+	var capability *backend.CapabilityError
+	assertMigrationError(t, err, CategoryTransaction, CodeBeginFailed, NoOperation, "")
+	if errors.As(err, &capability) {
+		t.Fatalf("shadowed relation selected capability = %#v", capability)
+	}
+
+	ambiguous := struct {
+		CreateModel
+		AddField
+	}{
+		CreateModel: CreateModel{AppLabel: "blog", Model: scalarModel},
+		AddField:    AddField{AppLabel: "blog", ModelName: "post", Field: relationMigrationField()},
+	}
+	if !embeddedBuiltinValueContainsRelation(reflect.ValueOf(ambiguous)) {
+		t.Fatal("ambiguous same-depth providers did not fail closed")
+	}
+}
+
+func assertRawWrapperRelationCapability(t *testing.T, operation Operation) {
+	t.Helper()
+	fake := &fakeBackend{transaction: newFakeTransaction()}
+	_, err := (Executor{Backend: fake}).Apply(context.Background(), EmptyProjectState(), Migration{
+		App: "blog", Name: "0001_wrapped", Operations: []Operation{operation},
+	})
+	var capability *backend.CapabilityError
+	if !errors.As(err, &capability) || capability.Feature != "relation_migration" || fake.beginCount != 0 {
+		t.Fatalf("wrapped relation boundary = error:%v capability:%#v begin:%d", err, capability, fake.beginCount)
+	}
+}
+
+func relationExecutorProjectState(t *testing.T) ProjectState {
+	t.Helper()
+	author := ir.Schema{
+		FormatVersion: ir.FormatVersion, AppLabel: "authors",
+		Models: []ir.Model{{
+			Name: "author", GoName: "Author", DBTable: "authors_author",
+			Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+		}},
+	}
+	post := ir.Schema{
+		FormatVersion: ir.FormatVersion, AppLabel: "blog",
+		Models: []ir.Model{{
+			Name: "post", GoName: "Post", DBTable: "blog_post",
+			Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+		}},
+	}
+	state, err := NewProjectState(author, post)
+	if err != nil {
+		t.Fatalf("NewProjectState(): %v", err)
+	}
+	state, err = promoteProjectState(state)
+	if err != nil {
+		t.Fatalf("promoteProjectState(): %v", err)
+	}
+	state, err = (AddField{AppLabel: "blog", ModelName: "post", Field: relationMigrationField()}).stateForward(state)
+	if err != nil {
+		t.Fatalf("relation stateForward(): %v", err)
+	}
+	return state
 }
 
 func TestExecutorRejectsContextCanceledDuringStatePreflightBeforeIO(t *testing.T) {

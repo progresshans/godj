@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -186,6 +187,49 @@ func TestExecutorMigrateRejectsRelationDefinitionsBeforeBackendOrRecorderIO(t *t
 			t.Fatalf("relation precedence = error:%v open:%d", err, fake.openCount)
 		}
 	})
+
+	t.Run("cancellation after raw relation scan beats capability", func(t *testing.T) {
+		definition := tests[0].definition
+		ctx := &stagedRawCancellationContext{Context: context.Background(), cancelAt: 2}
+		fake := newLifecycleTestBackend(newLifecycleTestSession(nil, nil))
+		_, err := (Executor{Backend: fake}).Migrate(ctx, []Migration{definition}, LatestLifecycleRequest())
+		var capability *backend.CapabilityError
+		if !errors.Is(err, context.Canceled) || errors.As(err, &capability) || fake.openCount != 0 || ctx.calls.Load() < 2 {
+			t.Fatalf("Migrate post-scan cancellation = error:%v capability:%#v open:%d calls:%d", err, capability, fake.openCount, ctx.calls.Load())
+		}
+	})
+}
+
+func TestExecutorMigrateCarrierResourceScanPrecedesRelationInspectionAndCloning(t *testing.T) {
+	t.Parallel()
+
+	handoff, err := definitionhandoff.New([]definitionhandoff.Record{{
+		SourceID: "sealed", Producer: definitionhandoff.Producer{Name: "test", Version: "1"},
+		Profile:    definitionhandoff.Compatibility{DefinitionFormat: 1, LoaderABI: 1, OperationCodec: 1, SchemaIR: 2},
+		Definition: definitionhandoff.Definition{App: "sealed", Name: "0001_initial"},
+	}})
+	if err != nil {
+		t.Fatalf("definitionhandoff.New(): %v", err)
+	}
+	oversizedFields := make([]ir.Field, definitionhandoff.MaxFieldsPerCreateModel+1)
+	definition := Migration{App: "blog", Name: "0001_oversized", Operations: []Operation{CreateModel{
+		AppLabel: "blog", Model: ir.Model{Name: "post", GoName: "Post", DBTable: "blog_post", Fields: oversizedFields},
+	}}}
+	session := newLifecycleTestSession(nil, nil)
+	fake := newLifecycleTestBackend(session)
+	ctx := definitionhandoff.WithContext(context.Background(), handoff)
+	_, err = (Executor{Backend: fake}).Migrate(ctx, []Migration{definition}, LatestLifecycleRequest())
+	assertMigrationError(t, err, CategoryState, CodeInvalidState, 0, "CreateModel")
+	var migrationError *Error
+	if !errors.As(err, &migrationError) {
+		t.Fatalf("carrier resource error = %#v, want *Error", err)
+	}
+	if !strings.Contains(migrationError.Cause.Error(), "field_count") {
+		t.Fatalf("carrier resource error = %v", migrationError.Cause)
+	}
+	if fake.openCount != 0 || fake.legacyBeginCount != 0 || session.readCount != 0 || session.beginCount != 0 {
+		t.Fatalf("oversized carrier touched I/O: open=%d legacy=%d read=%d begin=%d", fake.openCount, fake.legacyBeginCount, session.readCount, session.beginCount)
+	}
 }
 
 func TestExecutorMigrateHistoryAndTargetPrecedence(t *testing.T) {

@@ -91,6 +91,55 @@ func TestExecutorExecutePlanRejectsRawRelationBeforeEmptyNoOpOrIO(t *testing.T) 
 	}
 }
 
+func TestExecutorExecutePlanRejectsPrivateRelationStateWithScalarDefinitions(t *testing.T) {
+	t.Parallel()
+
+	before := relationExecutorProjectState(t)
+	definition := Migration{App: "blog", Name: "0003_summary", Operations: []Operation{AddField{
+		AppLabel: "blog", ModelName: "post", Field: summaryField(),
+	}}}
+	for _, plan := range [][]PlanStep{nil, {{Key: definition.Key(), Direction: DirectionForward}}} {
+		fake := &planTestBackend{}
+		after, err := (Executor{Backend: fake}).ExecutePlan(context.Background(), before, []Migration{definition}, plan)
+		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+		var capability *backend.CapabilityError
+		if !errors.As(err, &capability) || capability.Feature != "relation_migration" || fake.beginCount != 0 || !after.Equal(before) {
+			t.Fatalf("ExecutePlan scalar/private relation-state = error:%v begin:%d", err, fake.beginCount)
+		}
+	}
+}
+
+func TestExecutorExecutePlanPostScanCancellationBeatsRelationCapability(t *testing.T) {
+	t.Parallel()
+
+	definition := Migration{App: "blog", Name: "0001_post", Operations: []Operation{
+		CreateModel{AppLabel: "blog", Model: relationMigrationSchema().Models[0]},
+	}}
+	ctx := &stagedRawCancellationContext{Context: context.Background(), cancelAt: 2}
+	fake := &planTestBackend{}
+	_, err := (Executor{Backend: fake}).ExecutePlan(ctx, EmptyProjectState(), []Migration{definition}, nil)
+	var capability *backend.CapabilityError
+	if !errors.Is(err, context.Canceled) || errors.As(err, &capability) || fake.beginCount != 0 || ctx.calls.Load() < 2 {
+		t.Fatalf("ExecutePlan post-scan cancellation = error:%v capability:%#v begin:%d calls:%d", err, capability, fake.beginCount, ctx.calls.Load())
+	}
+}
+
+func TestExecutorRelationStateScalarDefinitionErrorContextIsInputOrderIndependent(t *testing.T) {
+	t.Parallel()
+
+	before := relationExecutorProjectState(t)
+	alpha := Migration{App: "alpha", Name: "0002", Operations: []Operation{CreateModel{AppLabel: "alpha", Model: stateModel("entry", "alpha_entry")}}}
+	zeta := Migration{App: "zeta", Name: "0001", Operations: []Operation{CreateModel{AppLabel: "zeta", Model: stateModel("entry", "zeta_entry")}}}
+	for _, definitions := range [][]Migration{{zeta, alpha}, {alpha, zeta}} {
+		_, err := (Executor{}).ExecutePlan(context.Background(), before, definitions, nil)
+		var migrationError *Error
+		if !errors.As(err, &migrationError) || migrationError.Category != CategoryCapability ||
+			migrationError.Code != CodeUnsupported || migrationError.App != alpha.App || migrationError.Migration != alpha.Name {
+			t.Fatalf("relation-state scalar error context = %#v", err)
+		}
+	}
+}
+
 func TestExecutorExecutePlanRejectsStructuralErrorsBeforeIO(t *testing.T) {
 	t.Parallel()
 

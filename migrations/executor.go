@@ -128,10 +128,11 @@ func (e Executor) Unapply(ctx context.Context, before ProjectState, migration Mi
 }
 
 type preparedOperation struct {
-	index int
-	op    Operation
-	from  ProjectState
-	to    ProjectState
+	index           int
+	op              Operation
+	from            ProjectState
+	to              ProjectState
+	relationTargets []loadedRelationTarget
 }
 
 func (e Executor) execute(ctx context.Context, before ProjectState, migration Migration, direction Direction) (ProjectState, error) {
@@ -141,12 +142,14 @@ func (e Executor) execute(ctx context.Context, before ProjectState, migration Mi
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
 	}
-	migrationSnapshot := cloneMigrationDefinitions([]Migration{migration})[0]
-	var err error
-	ctx, err = consumeDefinitionHandoff(ctx, []Migration{migrationSnapshot}, direction)
-	if err != nil {
-		return before.Clone(), err
+	if projectStateRequiresRelationLifecycle(before) || migrationContainsRelation(migration) {
+		unsupported := relationMigrationUnsupported([]Migration{migration}, direction, errors.New("direct Apply/Unapply relation execution is not loader-authorized"))
+		if err := ctx.Err(); err != nil {
+			return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", err)
+		}
+		return before.Clone(), unsupported
 	}
+	migrationSnapshot := cloneMigrationDefinitions([]Migration{migration})[0]
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migrationSnapshot, NoOperation, "", err)
 	}

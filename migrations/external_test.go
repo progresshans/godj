@@ -11,6 +11,33 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
+type externalHiddenCreateModel struct {
+	migrations.CreateModel
+}
+
+type externalNestedCreateModel struct {
+	externalHiddenCreateModel
+}
+
+type externalNestedAddField struct {
+	migrations.AddField
+}
+
+type externalShadowedOperation struct {
+	migrations.CreateModel
+	externalNestedAddField
+}
+
+func TestExternalConsumerSeesAdditiveUntypedRelationStateVersion(t *testing.T) {
+	t.Parallel()
+
+	type consumerVersion int
+	const version consumerVersion = migrations.RelationStateFormatVersion
+	if migrations.StateFormatVersion != 1 || version != 2 {
+		t.Fatalf("migration state versions = scalar:%d relation:%d", migrations.StateFormatVersion, version)
+	}
+}
+
 func TestExternalConsumerCanConstructAndRunMigrationPlanner(t *testing.T) {
 	t.Parallel()
 
@@ -168,6 +195,78 @@ func TestExternalConsumerSeesRelationMigrationFailClosedBoundary(t *testing.T) {
 		migrationError.Code != migrations.CodeUnsupported || migrationError.OperationIndex != migrations.NoOperation ||
 		!errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" {
 		t.Fatalf("Executor.Apply(raw relation) error = %#v capability=%#v", err, capabilityError)
+	}
+}
+
+func TestExternalNestedHiddenOperationCannotBypassRawRelationBoundary(t *testing.T) {
+	t.Parallel()
+
+	relationModel := ir.Model{
+		Name: "post", GoName: "Post", DBTable: "blog_post",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{
+				Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target: ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, Cardinality: ir.RelationManyToOne,
+					Reverse: ir.ReverseRelation{Name: "posts"}, OnDelete: ir.DeleteProtect,
+				},
+			},
+		},
+	}
+	wrappedRelation := externalNestedCreateModel{externalHiddenCreateModel{migrations.CreateModel{AppLabel: "blog", Model: relationModel}}}
+	_, err := (migrations.Executor{}).Apply(context.Background(), migrations.EmptyProjectState(), migrations.Migration{
+		App: "blog", Name: "0001_relation", Operations: []migrations.Operation{wrappedRelation},
+	})
+	var migrationError *migrations.Error
+	var capability *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capability) || capability.Feature != "relation_migration" {
+		t.Fatalf("nested hidden relation wrapper error = %#v capability=%#v", err, capability)
+	}
+
+	scalarModel := relationModel.Clone()
+	scalarModel.Fields = scalarModel.Fields[:1]
+	wrappedScalar := externalNestedCreateModel{externalHiddenCreateModel{migrations.CreateModel{AppLabel: "blog", Model: scalarModel}}}
+	_, err = (migrations.Executor{}).Apply(context.Background(), migrations.EmptyProjectState(), migrations.Migration{
+		App: "blog", Name: "0001_scalar", Operations: []migrations.Operation{wrappedScalar},
+	})
+	migrationError = nil
+	capability = nil
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
+		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capability) {
+		t.Fatalf("nested hidden scalar wrapper error = %#v capability=%#v", err, capability)
+	}
+}
+
+func TestExternalShadowedRelationUsesEffectiveScalarOperation(t *testing.T) {
+	t.Parallel()
+
+	scalar := ir.Model{
+		Name: "post", GoName: "Post", DBTable: "blog_post",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	relation := ir.Field{
+		Name: "author", GoName: "AuthorID", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target: ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}, Cardinality: ir.RelationManyToOne,
+			Reverse: ir.ReverseRelation{Name: "posts"}, OnDelete: ir.DeleteProtect,
+		},
+	}
+	operation := externalShadowedOperation{
+		CreateModel: migrations.CreateModel{AppLabel: "blog", Model: scalar},
+		externalNestedAddField: externalNestedAddField{AddField: migrations.AddField{
+			AppLabel: "blog", ModelName: "post", Field: relation,
+		}},
+	}
+	_, err := (migrations.Executor{}).Apply(context.Background(), migrations.EmptyProjectState(), migrations.Migration{
+		App: "blog", Name: "0001_shadowed", Operations: []migrations.Operation{operation},
+	})
+	var migrationError *migrations.Error
+	var capability *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
+		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capability) {
+		t.Fatalf("shadowed external relation error = %#v capability=%#v", err, capability)
 	}
 }
 

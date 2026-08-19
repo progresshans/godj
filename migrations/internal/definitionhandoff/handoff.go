@@ -139,6 +139,9 @@ func New(records []Record) (Handoff, error) {
 	if len(records) == 0 {
 		return Handoff{}, errors.New("definition handoff requires at least one record")
 	}
+	if err := validateRecordResources(records); err != nil {
+		return Handoff{}, err
+	}
 	canonical := cloneRecords(records)
 	sort.Slice(canonical, func(left, right int) bool {
 		if canonical[left].Definition.App != canonical[right].Definition.App {
@@ -228,6 +231,9 @@ func (h Handoff) ValidateVisible(visible []Definition) error {
 	if h.IsZero() {
 		return errors.New("definition handoff is empty")
 	}
+	if err := ValidateDefinitionResources(visible); err != nil {
+		return err
+	}
 	definitions := cloneDefinitions(visible)
 	sort.Slice(definitions, func(left, right int) bool {
 		if definitions[left].App != definitions[right].App {
@@ -284,6 +290,17 @@ type carrierContext struct {
 // Callers must not pass a nil context.
 func WithContext(ctx context.Context, handoff Handoff) context.Context {
 	return carrierContext{Context: ctx, handoff: handoff.Clone()}
+}
+
+// Has reports whether the exact outer private wrapper carries authority. It
+// performs no carrier or definition clone and exists so Executor.Migrate can
+// enforce caller-owned resource limits before consuming the handoff.
+func Has(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	value, ok := ctx.(carrierContext)
+	return ok && !value.handoff.IsZero()
 }
 
 // Take consumes the outer private wrapper and returns its original base

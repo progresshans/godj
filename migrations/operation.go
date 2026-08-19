@@ -33,7 +33,7 @@ func (op CreateModel) App() string {
 }
 
 func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
-	model, err := normalizedSingleModel(op.AppLabel, op.Model)
+	model, err := normalizedSingleModelVersion(op.AppLabel, op.Model, stateSchemaIRVersion(state))
 	if err != nil {
 		return state, fmt.Errorf("normalize model: %w", err)
 	}
@@ -42,7 +42,7 @@ func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
 	}
 	schema, exists := state.Schema(op.AppLabel)
 	if !exists {
-		schema = ir.Schema{FormatVersion: ir.FormatVersion, AppLabel: op.AppLabel}
+		schema = ir.Schema{FormatVersion: stateSchemaIRVersion(state), AppLabel: op.AppLabel}
 	}
 	schema.Models = append(schema.Models, model)
 	normalized, err := ir.Normalize(schema)
@@ -53,7 +53,7 @@ func (op CreateModel) stateForward(state ProjectState) (ProjectState, error) {
 }
 
 func (op CreateModel) stateBackward(state ProjectState) (ProjectState, error) {
-	want, err := normalizedSingleModel(op.AppLabel, op.Model)
+	want, err := normalizedSingleModelVersion(op.AppLabel, op.Model, stateSchemaIRVersion(state))
 	if err != nil {
 		return state, fmt.Errorf("normalize model: %w", err)
 	}
@@ -80,6 +80,13 @@ func (op CreateModel) stateBackward(state ProjectState) (ProjectState, error) {
 		return state, fmt.Errorf("normalize project app %s: %w", op.AppLabel, err)
 	}
 	return state.withSchema(normalized), nil
+}
+
+func stateSchemaIRVersion(state ProjectState) int {
+	if state.FormatVersion() == RelationStateFormatVersion {
+		return ir.RelationFormatVersion
+	}
+	return ir.FormatVersion
 }
 
 func (op CreateModel) databaseForward(ctx context.Context, editor backend.SchemaEditor, _ ProjectState, to ProjectState) error {

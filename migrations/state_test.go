@@ -137,7 +137,7 @@ func TestExecutorRejectsUnsupportedProjectStateVersionBeforeIO(t *testing.T) {
 	t.Parallel()
 
 	state := EmptyProjectState()
-	state.formatVersion = StateFormatVersion + 1
+	state.formatVersion = RelationStateFormatVersion + 1
 	fake := &fakeBackend{transaction: newFakeTransaction()}
 	_, err := (Executor{Backend: fake}).Apply(context.Background(), state, articleMigration())
 	assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")

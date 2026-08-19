@@ -31,21 +31,23 @@ func (e Executor) ExecutePlan(
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), executionContextError(PlanStep{}, err)
 	}
+	if projectStateRequiresRelationLifecycle(before) || definitionsContainRelation(definitions) {
+		direction := Direction("")
+		if len(plan) != 0 {
+			direction = plan[0].Direction
+		}
+		unsupported := relationMigrationUnsupported(definitions, direction, errors.New("direct ExecutePlan relation execution is not loader-authorized"))
+		if err := ctx.Err(); err != nil {
+			return before.Clone(), executionContextError(PlanStep{}, err)
+		}
+		return before.Clone(), unsupported
+	}
 
 	// Snapshot caller-owned slices and the built-in operation values before
 	// preflight. Operations are sealed by their package-private marker method;
 	// the known built-ins are deep-copied below.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
 	planSnapshot := append([]PlanStep(nil), plan...)
-	direction := Direction("")
-	if len(planSnapshot) != 0 {
-		direction = planSnapshot[0].Direction
-	}
-	var err error
-	ctx, err = consumeDefinitionHandoff(ctx, definitionSnapshot, direction)
-	if err != nil {
-		return before.Clone(), err
-	}
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), executionContextError(PlanStep{}, err)
 	}
