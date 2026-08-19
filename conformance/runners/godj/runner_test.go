@@ -3,6 +3,7 @@ package godj
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/conformance/migrationrelationproduct"
 	relationauthors "github.com/progresshans/godj/conformance/relationproduct/authors"
 	relationblog "github.com/progresshans/godj/conformance/relationproduct/blog"
 	"github.com/progresshans/godj/db"
@@ -2722,4 +2724,224 @@ func findObservation(t *testing.T, suite protocol.ObservationSuite, contractID s
 	}
 	t.Fatalf("observation %s is missing", contractID)
 	return protocol.Observation{}
+}
+
+func TestMigrationRelationCharacterizationRemainsLockedUnregisteredAndDeterministic(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-relation-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Contracts) != 12 || len(migrationRelationCharacterizationCases) != 12 {
+		t.Fatalf("migration relation characterization inventory = manifest:%d cases:%d", len(manifest.Contracts), len(migrationRelationCharacterizationCases))
+	}
+	productCaseCounts := make(map[migrationrelationproduct.Case]int, len(migrationRelationCharacterizationCases))
+	for _, contract := range manifest.Contracts {
+		if contract.Status != protocol.ContractOracleLocked {
+			t.Fatalf("migration relation contract %s status = %q, want oracle_locked", contract.ID, contract.Status)
+		}
+		if _, registered := lookupScenarioHandler(contract.Scenario); registered {
+			t.Fatalf("locked migration relation scenario %q is registered", contract.Scenario)
+		}
+		characterization, exists := migrationRelationCharacterizationCases[contract.Scenario]
+		if !exists || characterization.phase != contract.Phase || !reflect.DeepEqual(characterization.comparison, contract.Comparison) {
+			t.Fatalf("migration relation scenario %q dimensions drifted", contract.Scenario)
+		}
+		productCaseCounts[characterization.product]++
+	}
+	if len(productCaseCounts) != len(migrationrelationproduct.Cases()) {
+		t.Fatalf("migration relation distinct mapped product cases = %d, want %d", len(productCaseCounts), len(migrationrelationproduct.Cases()))
+	}
+	for _, productCase := range migrationrelationproduct.Cases() {
+		if productCaseCounts[productCase] != 1 {
+			t.Fatalf("migration relation product case %q mapping count = %d, want 1", productCase, productCaseCounts[productCase])
+		}
+	}
+	required, err := RequiredObservedContractIDs(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(required) != 0 {
+		t.Fatalf("locked migration relation required observed IDs = %v, want empty", required)
+	}
+	normal, err := Generate(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(normal.Contracts) != len(manifest.Contracts) {
+		t.Fatalf("normal Generate migration relation observations = %d, want %d", len(normal.Contracts), len(manifest.Contracts))
+	}
+	for index, observation := range normal.Contracts {
+		contract := manifest.Contracts[index]
+		if observation.ID != contract.ID || observation.Phase != contract.Phase {
+			t.Fatalf("normal Generate migration relation observation %d identity = %q/%q, want %q/%q", index, observation.ID, observation.Phase, contract.ID, contract.Phase)
+		}
+		if observation.Status != protocol.StatusNotImplemented || observation.Result != nil || observation.Error != nil ||
+			observation.DBState != nil || observation.Metrics != nil {
+			t.Fatalf("normal Generate migration relation observation = %#v, want payload-free not_implemented", observation)
+		}
+	}
+
+	first, err := CharacterizeMigrationRelation(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := CharacterizeMigrationRelation(context.Background(), profile, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := protocol.ValidateSuiteAgainst(profile, manifest, first); err != nil {
+		t.Fatal(err)
+	}
+	for index, observation := range first.Contracts {
+		contract := manifest.Contracts[index]
+		if observation.Status != protocol.StatusObserved || observation.Result == nil || observation.Metrics == nil {
+			t.Fatalf("characterization %s missing actual dimensions: %#v", contract.ID, observation)
+		}
+		wantDatabase := false
+		for _, dimension := range contract.Comparison {
+			wantDatabase = wantDatabase || dimension == protocol.CompareDBState
+		}
+		if wantDatabase != (observation.DBState != nil) || observation.Error != nil {
+			t.Fatalf("characterization %s database/error dimensions = %t/%#v", contract.ID, observation.DBState != nil, observation.Error)
+		}
+	}
+	firstBytes, err := protocol.MarshalCanonical(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondBytes, err := protocol.MarshalCanonical(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(firstBytes, secondBytes) {
+		t.Fatalf("independent migration relation actual bytes changed: first=%x second=%x", sha256.Sum256(firstBytes), sha256.Sum256(secondBytes))
+	}
+	if capturePath := os.Getenv("GODJ_MIGRATION_RELATION_ACTUAL_CAPTURE"); capturePath != "" {
+		if err := writeExclusiveMigrationRelationCapture(capturePath, firstBytes); err != nil {
+			t.Fatalf("write exclusive migration relation actual capture: %v", err)
+		}
+	}
+	t.Logf("migration_relation_actual bytes=%d sha256=%x", len(firstBytes), sha256.Sum256(firstBytes))
+}
+
+func writeExclusiveMigrationRelationCapture(path string, contents []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(contents); err != nil {
+		return errors.Join(err, file.Close())
+	}
+	if err := file.Sync(); err != nil {
+		return errors.Join(err, file.Close())
+	}
+	return file.Close()
+}
+
+func TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-relation-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		mutate func(*protocol.Contract)
+	}{
+		{name: "status", mutate: func(contract *protocol.Contract) { contract.Status = protocol.ContractPassing }},
+		{name: "phase", mutate: func(contract *protocol.Contract) { contract.Phase = protocol.PhaseRollback }},
+		{name: "dimension", mutate: func(contract *protocol.Contract) {
+			contract.Comparison = []protocol.ComparisonDimension{protocol.CompareResult}
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			changed := manifest
+			changed.Contracts = append([]protocol.Contract(nil), manifest.Contracts...)
+			test.mutate(&changed.Contracts[0])
+			if _, err := CharacterizeMigrationRelation(context.Background(), profile, changed); err == nil {
+				t.Fatalf("CharacterizeMigrationRelation accepted %s drift", test.name)
+			}
+		})
+	}
+}
+
+func TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "migration-relation-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract := manifest.Contracts[0]
+	characterization := migrationRelationCharacterizationCases[contract.Scenario]
+	first, err := migrationRelationCharacterizationObservation(context.Background(), contract, characterization)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract.ID = "MIG-900"
+	second, err := migrationRelationCharacterizationObservation(context.Background(), contract, characterization)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.ID != "MIG-900" {
+		t.Fatalf("arbitrary characterization ID = %q", second.ID)
+	}
+	first.ID = second.ID
+	if !reflect.DeepEqual(first, second) {
+		t.Fatal("contract identity changed actual migration relation facts")
+	}
+}
+
+func TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut(t *testing.T) {
+	source, err := os.ReadFile("migration_relation_scenarios.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.ToLower(string(source))
+	for _, forbidden := range []string{
+		"migration-relation-oracle",
+		"migration-relation-not-implemented",
+		"sha256sums",
+		"/oracles/",
+		"runners/django/",
+		"protocol.compare(",
+		"loadobservationsuite",
+		"switch contract.id",
+		"switch contractid",
+	} {
+		if strings.Contains(text, forbidden) {
+			t.Errorf("migration relation characterization contains forbidden shortcut %q", forbidden)
+		}
+	}
+	if got := strings.Count(string(source), "migrationrelationproduct.Observe("); got != 1 {
+		t.Errorf("migration relation product Observe call sites = %d, want exact one", got)
+	}
+	parsed, err := parser.ParseFile(token.NewFileSet(), "migration_relation_scenarios.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forbiddenCalls := map[string]bool{
+		"LoadManifest": true, "LoadObservationSuite": true, "Compare": true,
+		"ReadFile": true, "Open": true, "OpenFile": true, "ReadAll": true,
+		"Unmarshal": true, "NewDecoder": true,
+	}
+	ast.Inspect(parsed, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if ok && forbiddenCalls[selector.Sel.Name] {
+			t.Errorf("migration relation characterization contains forbidden call %s", selector.Sel.Name)
+		}
+		return true
+	})
 }

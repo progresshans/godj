@@ -277,7 +277,19 @@ func TestMigrationRelationIsReferenceOnlyInMakeTargets(t *testing.T) {
 	if relationProductStart < 0 || productProjectStart <= relationProductStart || sqliteStart <= productProjectStart {
 		t.Fatal("cannot isolate hosted relation-product and SQLite jobs")
 	}
-	if relationProduct := workflow[relationProductStart:productProjectStart]; strings.Contains(relationProduct, "./conformance/migrationrelation") {
+	relationProduct := workflow[relationProductStart:productProjectStart]
+	hasPackageToken := func(want string) bool {
+		for _, token := range strings.Fields(relationProduct) {
+			if token == want {
+				return true
+			}
+		}
+		return false
+	}
+	if !hasPackageToken("./conformance/migrationrelationproduct") {
+		t.Fatal("migration-relation product observer package is missing from relation-product inventory")
+	}
+	if hasPackageToken("./conformance/migrationrelation") {
 		t.Fatal("Phase B no-product feasibility package leaked into relation-product inventory")
 	}
 	sqliteJob := workflow[sqliteStart:]
