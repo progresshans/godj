@@ -191,7 +191,10 @@ GDJ-0035 Phase C는 existing revision-fenced migration transaction을 보존하�
 [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded design은
 EVID-091로 증명된 Proposed docs head 뒤 Accepted됐습니다. D1/D2/D3a bounded product slices는
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
-구현·검증됐지만 D3b core integration 전에는 아래 전체 lifecycle을 지원하는 보장으로 표현하지 않습니다.
+구현·검증됐고 D3b core integration은
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
+normal loaded Create/Delete path에 한해 구현·검증됐습니다. 아래 경계는 D4 file restart나 false인
+Add/Remove/remake capability까지 지원하는 보장이 아닙니다.
 
 - Static request/resource/carrier/profile/digest/graph/chronology/readiness preflight는 backend/session 전에
   끝나며 failure DB/session I/O는 0입니다. 그 뒤 existing fenced session에서 applied history를 exact once
@@ -229,9 +232,11 @@ FK check → recorder/revision → `CommitFenced` once입니다. `CommitRolledBa
 token을 보존하고 retry는 0입니다. Candidate-local reopen은 actual epoch/fingerprint/DAG/`StateReconstructor`
 restart 증거가 아닙니다. Phase C proof head `7d36502...`/EVID-090은 hosted-verified됐고 Proposed docs-freeze head `5bdf013...`/EVID-091도 별도로
 hosted-verified됐고 acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유 exact-head hosted gate를
-통과했습니다. D1/D2/D3a는 EVID-093에서 각 bounded slice로 별도 검증됐습니다. D3a는
-direct Create/Delete port만 소유하며 Add/Remove/remake caps는 false입니다. Core relation execution은 D3b
-전 pre-session Unsupported이고 D3b는 새 public API를 추가하지 않습니다.
+통과했습니다. D1/D2/D3a는 EVID-093에서 각 bounded slice로 별도 검증됐습니다. D3b product
+`74c2b72...`/correction `167ef03...`는 EVID-094/run `32231149900`의 exact 26/26·342/342와 audit
+P0..P3=0을 통과했습니다. D3a는 direct Create/Delete port만 소유하고 D3b는 이를 normal loaded core에
+연결했으며 새 public API를 추가하지 않았습니다. Add/Remove/remake caps는 false이고 actual file restart는
+D4 전 미지원입니다.
 
 Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
 semantics도 범위 밖입니다.

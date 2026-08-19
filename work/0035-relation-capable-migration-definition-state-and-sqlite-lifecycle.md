@@ -125,8 +125,9 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 test-only proof와 Proposed decision-freeze docs head의 별도 local/hosted proof를 거쳐
 [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
 decision으로 **Accepted**됐습니다. 이는 제품 구현, product contract `passing`, backend support 또는 제품
-**Verified**를 자동으로 뜻하지 않습니다. 현재 checkout은 후속 Phase D1/D2/D3a의 bounded
-sub-slice를 구현·검증했지만 core loaded relation execution은 여전히 D3b 전 Unsupported입니다.
+**Verified**를 자동으로 뜻하지 않습니다. 현재 checkout은 후속 Phase D1/D2/D3a의 bounded sub-slice와
+D3b normal loaded relation core integration을 구현·검증했습니다. Add/Remove/remake와 file-backed restart,
+MIG product adapter/status 전환은 아직 완료하지 않았습니다.
 
 ## 기준 상태와 activation 경계
 
@@ -174,13 +175,20 @@ sub-slice를 구현·검증했지만 core loaded relation execution은 여전히
 - Phase D2 product head `ec8877e08b0b196787ef161eb65f6987493e0ba0`과 correction head
   `80776b5b82effd7cf9892839400b6c6624aef845`는 private relation state/reconstructor/readiness를
   구현했습니다. EVID-093/[run 32205324145](https://github.com/progresshans/godj/actions/runs/32205324145)의
-  exact 26/26·342/342와 audit P0..P3=0을 통과했으며 valid relation graph도 D3b 전에는
-  session/I/O 전 `relation_migration` Unsupported입니다.
+  exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. 그 당시 valid relation graph의 D3b 전
+  pre-session `relation_migration` Unsupported 경계는 EVID-093의 historical checkout 사실로 보존합니다.
 - Phase D3a product head `2eafde10656a7f819fe5685c8ddf7d63a09f839a`과 correction head
   `ce58c5e1975e9e21d9c3ee6ed901302d5ce31bc7`는 exact optional backend API와 direct SQLite
   relation-bearing Create/Delete port를 구현했습니다. EVID-093/
   [run 32218003207](https://github.com/progresshans/godj/actions/runs/32218003207)의 exact 26/26·342/342와
   audit P0..P3=0을 통과했습니다. 이는 direct optional port만의 증거이며 core support가 아닙니다.
+- Phase D3b product head `74c2b7241aca3448f999d84e625fc9233434d977`과 inventory correction head
+  `167ef0335fcdbcafadecaacf301e6a33671d2ee3`는 normal loaded relation core를 exact-one history/actual
+  Planner/whole-plan dry validation/conditional capability와 D3a port에 연결했습니다.
+  [EVID-094](../docs/status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification) /
+  [run 32231149900](https://github.com/progresshans/godj/actions/runs/32231149900)의 exact 26/26·342/342와
+  audit P0..P3=0을 통과했습니다. 이는 normal loaded Create/Delete apply/unapply/reapply만의 증거이며
+  Add/Remove/remake와 file restart를 포함하지 않습니다.
 - 이 문서만 `active`이고 `ready`는 0입니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
 
 ## 보존해야 하는 legacy 불변 조건
@@ -328,7 +336,7 @@ EVID-085에 기록했습니다.
 
 - 상태: **decision Accepted in a separate documentation head; Proposed decision-freeze head hosted-verified by
   EVID-091; acceptance head `7cdc6d6...` exact-hosted-verified by EVID-092/run `32187094845`; bounded
-  D1/D2/D3a product sub-slices are implemented/verified, core relation execution remains blocked**.
+  D1/D2/D3a product sub-slices and D3b core integration are implemented/verified; D4 restart remains open**.
 - [x] Phase A/B 결과로 version values, one-loader/digest/state/wire/preflight, exact optional
       backend/error/SQLite order의 behavior를 test-only head `7d36502...`에서 검증하고 EVID-089/090으로 고정;
       이 Accepted decision이 additive public constant/port/type names를 선택하며 test-only proof는 product
@@ -358,12 +366,14 @@ EVID-085에 기록했습니다.
   구현; exact pinned connection, one fenced transaction, physical preflight, `NO ACTION`, final FK check,
   direct-session fault/rollback을 검증; Add/Remove/remake caps false이고 core hookup은 없음; exact product `2eafde1`,
   correction `ce58c5e`, EVID-093/run `32218003207`
-- [ ] **D3b**: static request/resource/carrier/profile/digest/graph/chronology/readiness → exact-one fenced
-  history → actual Planner → whole-plan dry validation → actual-plan relation capability 순서를 core
+- [x] **D3b**: static request/resource/carrier/profile/digest/graph/chronology/readiness → exact-one fenced
+  history → fresh actual Planner → whole-plan dry validation → actual-plan relation capability 순서를 core
   `Executor.Migrate`에 새 public API 없이 연결; scalar/no-op relation calls 0, unsupported relation step 시
-  scalar partial commit 0을 검증
-- [ ] **D3b/D4**: core operation error ownership, file-backed actual recorder epoch/revision/full-history/DAG
-  restart와 supported capability별 Add/Remove/remake 후속 slice를 각각 구현·검증
+  scalar partial commit 0, step-global `NoOperation`/operation exact error ownership과 normal loaded SQLite
+  Create/Delete apply/unapply/reapply를 검증; product `74c2b72`, correction `167ef03`, EVID-094/run
+  `32231149900`
+- [ ] **D4**: file-backed actual recorder epoch/revision/full-history/DAG restart와 supported capability별
+  Add/Remove/remake 후속 slice를 각각 구현·검증
 - [ ] Actual GoDj adapter가 expected fixture replay 없이 MIG-075..086 observation을 생성
 
 ### E. 검증과 evidence heads
@@ -382,7 +392,9 @@ EVID-085에 기록했습니다.
 - [x] Acceptance documentation head를 EVID-092의 별도 고유 exact-head CI/evidence로 검증하고 EVID-091을 재사용하지 않음
 - [x] Phase D1/D2/D3a product/correction head를 서로 다른 exact-head hosted CI로 검증 —
       EVID-093/runs `32195313382`, `32205324145`, `32218003207`
-- [ ] D3b core implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
+- [x] D3b core product/correction head local/hosted verification — EVID-094/run `32231149900`; exact
+      26/26 jobs·342/342 steps, audit P0..P3=0
+- [ ] D4 implementation, completion-documentation, terminal evidence/status를 서로 다른 exact-head hosted CI로 검증
 - [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034 bounded design을 별도 head에서 Accepted로 전환
 
 ## 명시적 비목표와 금지 경계
@@ -409,23 +421,27 @@ EVID-085에 기록했습니다.
 
 Phase A/B/C와 acceptance evidence는 EVID-085..092에 분리돼 있습니다. 이후 D1
 `42aa9a9`/`f22a498`, D2 `ec8877e`/`80776b5`, D3a `2eafde1`/`ce58c5e`가 각각 구현됐고
-EVID-093의 고유 hosted run에서 검증됐습니다. 다음 정확한 작업은 D3b core integration입니다.
-Static authority/readiness를 먼저 검증한 뒤 exact-one fenced history로 actual Planner를 한 번 실행하고,
-whole actual plan을 dry-validate한 후에만 relation capability를 조회해야 합니다. Every begin/mutation
-전에 필요 capability를 다 확정하며 scalar/no-op plan의 relation call과 unsupported mixed plan의 scalar
-partial commit은 각각 0이어야 합니다. 이 연결이 끝나기 전에는 core relation support를 주장하지 않습니다.
+EVID-093의 고유 hosted run에서 검증됐습니다. D3b `74c2b72`/`167ef03`도 EVID-094/run
+`32231149900`에서 normal loaded core integration을 구현·검증했습니다. 다음 정확한 작업은 **D4 actual
+file-backed restart**입니다. Disposable file-backed SQLite를 close/reopen한 뒤 recorder epoch/revision/
+full-history fingerprint, loaded mixed definition set, actual DAG와 private relation reconstructor가 같은
+latest/target state와 child-first unapply/reapply를 재구성하는지 검증해야 합니다. 그 전에는 candidate-local
+restart나 in-memory D3b 성공을 actual restart support로 주장하지 않습니다. Add/Remove/remake capability는
+별도 후속 slice입니다.
 
 ## 결과와 인수인계
 
 현재 D1 definition/handoff, D2 private historical state/readiness, D3a direct SQLite Create/Delete optional
-port는 각각 Implemented이고 EVID-093의 local/hosted 환경에서 Verified입니다. D3a 현재 capability는
-CreateModel FK만 true이고 target-bearing Add/Remove/remake는 false입니다. Core `Load`→`Set.Migrate`
-relation execution은 D3b 전 pre-session `relation_migration` Unsupported이므로 actual product restart/support를
-주장하지 않습니다. Reference는 exact 13/139/156=`122+5+12 locked`, product contract는
+port와 D3b normal loaded core integration은 각각 Implemented이고 EVID-093/094의 local/hosted 환경에서
+Verified입니다. Normal `Load`→`Set.Migrate` relation-bearing CreateModel은 SQLite에서
+apply/unapply/reapply합니다. D3a 현재 capability는 CreateModel FK만 true이고 target-bearing
+Add/Remove/remake는 false이며 actual file-backed restart는 D4 전 지원하지 않습니다. Reference는 exact
+13/139/156=`122+5+12 locked`, product contract는
 12/127=`122+5+0`으로 불변이고 MIG-075..086은 여전히 `oracle_locked`입니다.
 
-EVID-093의 D1/D2/D3a runs는 각 correction head만 증명하며 이 documentation head, D3b,
-completion/terminal 또는 MIG status 전환을 재귀적으로 증명하지 않습니다. Public raw
+EVID-093의 D1/D2/D3a runs는 각 correction head만 증명하고 EVID-094/run `32231149900`은 D3b correction
+head `167ef03...`만 증명합니다. 이 documentation head, D4, completion/terminal 또는 MIG status 전환을
+재귀적으로 증명하지 않습니다. Public raw
 `NewStateReconstructor`의 relation input은 계속 `CategoryState`/`CodeInvalidState`고 carrier-less raw relation
 execution은 `CategoryCapability`/`CodeUnsupported`입니다.
 Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를

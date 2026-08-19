@@ -111,7 +111,9 @@ head `5bdf013...`도 EVID-091/run `32183309328`에서 별도 local/hosted 검증
 `7cdc6d6...`는 EVID-092/run `32187094845`에서 별도 hosted-verified됐습니다. Later D1/D2/D3a
 bounded product slices는 EVID-093에서 각 구현·검증됐지만 이 사건도 checked-in Phase A
 artifact의 provenance/license 분류를 소급 변경하지 않습니다. MIG-075..086은 `oracle_locked`이고
-core relation execution은 D3b 전 Unsupported입니다.
+D3b loaded relation core integration `74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`에서
+구현·검증됐지만 checked-in Phase A artifact의 provenance/license 분류나 MIG status를 바꾸지 않습니다.
+Add/Remove/remake와 file-backed restart는 여전히 미지원입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

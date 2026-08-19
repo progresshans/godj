@@ -437,7 +437,7 @@ GDJ-0035의 relation-migration decision 상태는 `Accepted/Partially Implemente
 legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
 다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
-채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a 한계를 따릅니다.
+채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b 한계를 따릅니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
 - MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
@@ -454,5 +454,8 @@ Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`에서 별도 hos
 바뀌지 않았습니다. Later D1 definition/handoff, D2 private state/readiness와 D3a direct optional
 SQLite Create/Delete port는
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
-각 bounded Implemented/Verified됐습니다. D3a Add/Remove/remake caps는 false이고 core relation execution은
-D3b 전 pre-session Unsupported입니다. MIG-075..086은 계속 `oracle_locked`입니다.
+각 bounded Implemented/Verified됐습니다. D3b는
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
+normal loaded relation-bearing Create/Delete core apply/unapply/reapply와 actual-plan preflight를
+Implemented/Verified했습니다. D3a Add/Remove/remake caps는 계속 false이고 file-backed restart는 D4 전
+미지원입니다. MIG-075..086은 계속 `oracle_locked`입니다.

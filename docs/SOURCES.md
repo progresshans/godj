@@ -251,5 +251,8 @@ design은 Accepted입니다. EVID-091은 Proposed docs head `5bdf013...`만 증�
 D2 private state/readiness, D3a direct optional SQLite Create/Delete port는
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)의
 각 product/correction head에서 구현·검증됐습니다. 이 product 작업은 위 upstream source/provenance
-분류를 재작성하지 않으며 MIG-075..086은 계속 `oracle_locked`입니다. Core relation execution은
-D3b 전 Unsupported이고 Add/Remove/remake caps는 false입니다.
+분류를 재작성하지 않으며 MIG-075..086은 계속 `oracle_locked`입니다. D3b normal loaded core integration
+`74c2b72...`/`167ef03...`도
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
+구현·검증됐지만 upstream source/provenance와 MIG status를 바꾸지 않습니다. Add/Remove/remake caps는 false이고
+file-backed restart는 D4 전 미지원입니다.

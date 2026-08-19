@@ -1332,8 +1332,57 @@ The same exact gate rerun with PATH-pinned cached uv 0.10.12, SHA-256 prefix/suf
 216/216 plus 13 oracle checks. No code byte changed between those environment outcomes.
 
 D1/D2/D3a are Implemented/Verified only within those bounded slices. Current D3a capabilities are CreateModel FK
-true and Add/Remove/remake false. Core `Load`→`Set.Migrate` relation execution still fails pre-session as
-`relation_migration` Unsupported until D3b connects static readiness → exact-one fenced history → actual
-Planner → whole-plan dry validation → conditional capability. Scalar/no-op plans make zero relation calls,
-and an unsupported relation step must prevent any scalar partial commit. MIG-075..086 remain `oracle_locked` and
-Q-010/Q-012/Q-013 remain `Partial`.
+true and Add/Remove/remake false. EVID-093 does not prove D3b, file restart or a contract-status transition.
+
+## GDJ-0035 Phase D3b loaded relation core verification
+
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)
+records the separate D3b product/correction boundary. Product commit
+`74c2b7241aca3448f999d84e625fc9233434d977`, parent
+`2be01f078a93b9570db7f2683478606756a20036`, tree
+`b957f41829f0ea9d159b78791f3de4262a68e52c` changed exact five C/path-sorted product/test paths totaling
+327,907 source bytes. The exact 518-byte size-annotated `<sha256>  <bytes>  <path>\n` payload has SHA-256
+`b271d0fa4115d0b5908c5f1eebecfa6eb3b27ffb9f31c5c96ebe063cf9ca51d9`; its corresponding exact 483-byte
+plain `shasum`-row payload has SHA-256
+`c0156f373e31a744c4fe3d0780366178f287aac5dc7e52a1105606b9895bd5ad`.
+
+Correction commit `167ef0335fcdbcafadecaacf301e6a33671d2ee3`, tree
+`8d5193b7eda06b5fd6fa5eacbc0f796cc20ac0a1`, changed only `.github/workflows/ci.yml` and
+`conformance/internal/protocol/migration_project_check_artifacts_test.go` to lock the new exact
+806/806/0·82,321-byte·`a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`
+relation-product inventory. The initially measured 518-byte non-C explicit-order manifest digest was valid but
+mislabeled as sorted; the canonical C/path-sorted size/plain digests above were independently regenerated without
+changing product bytes. This was an evidence-protocol correction, not a product failure.
+
+Local final-byte gates passed full normal/race/CGO-disabled/vet, migrations shuffle-20, focused
+state/resource and real SQLite loaded Create/Delete/reapply, Add/Remove capability rejection, scalar profile and
+alias coverage. `gofmt -d` was empty, `git diff --check` passed, and independent lifecycle and state/resource
+audits each reported P0/P1/P2/P3=`0/0/0/0`. No D3b local offline `make ci`, exact Python/oracle/checksum,
+Linux/386, clean/no-rewrite result is claimed; those gates belong only to the hosted run.
+
+Correction head `167ef03...` was verified by unique CI #84 attempt 1
+[run 32231149900](https://github.com/progresshans/godj/actions/runs/32231149900), 2026-08-19T08:08:26Z through
+08:20:01Z. It completed exact 26/26 jobs, 342/342 recorded steps, 26/26 checks and annotations 0. All four
+relation-product coordinates reproduced 806/806/0·82,321 bytes·
+`a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`; SQLite feasibility remained
+75/75/0·9,736 bytes·`48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`. Hosted exact Python
+216/216, all 13 oracle/checksum checks, Linux/386,
+clean-worktree and no-rewrite gates passed. The raw ZIP was 337,187 bytes/SHA-256
+`989cf1d8dea569f9d50aab0be013d343de620fb08c0dae6104579284b4128dda`, with 52
+members totaling 1,885,492 uncompressed bytes/15,924 LF lines and sorted-concatenation SHA-256
+`a75c4e58671fbdfe11e03e740d4842bdda0a61d08294f7a8137d9da1b9ac0e99`; the `gh run view --log` stream was
+2,592,526 bytes/15,736 lines/SHA-256
+`7d8d2fdc41003a677f66a880885a919031989ab0f782a08c0112d13c37006ed7`. Failure/warning/nonzero/fatal/panic/
+data-race/top-level FAIL/WaitDelay/incomplete markers were 0,
+and the independent hosted audit was P0/P1/P2/P3=`0/0/0/0`.
+
+D3b connects static loaded authority/readiness to exact-one fenced history, a fresh actual Planner, whole-plan dry
+validation and conditional capability selection before every begin/mutation. Normal loaded relation-bearing
+CreateModel now applies, child-first DeleteModel unapplies, and the same set reapplies through SQLite. Scalar-only
+and no-op plans make zero relation capability/begin calls, and any unsupported relation step rejects the whole
+actual plan before a scalar prefix begins. Step-global begin/PRAGMA/catalog/physical-preflight/claim failures use
+`NoOperation`; operation execution/final-FK failures keep exact operation ownership. No public API was added.
+
+This is bounded D3b support, not MIG-075..086 product adapter/status proof. Add/Remove/remake capabilities remain
+false, file-backed close/reopen recorder epoch/revision/full-history/DAG restart is D4 work, and
+MIG-075..086 remain `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`.

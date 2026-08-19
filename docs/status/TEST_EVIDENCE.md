@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-19
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-093
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-094
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -8065,3 +8065,141 @@ Evidence history, implementation boundary and next work:
 - No hosted run listed here proves this later EVID-093 append, the current documentation mirror edits, D3b,
   completion or terminal status. This evidence append is deliberately nonrecursive and does not authorize a
   merge, release or contract-status transition.
+
+## EVID-20260819-094 — GDJ-0035 Phase D3b Loaded Relation Core Integration Local and Hosted Verification
+
+- Date/time: local final-byte gates and independent audits completed 2026-08-19 KST; hosted
+  2026-08-19T08:08:26Z through `08:20:01Z` (`17:08:26+09:00` through `17:20:01+09:00` KST)
+- Work/contract IDs: GDJ-0035 Phase D3b loaded relation core integration; MIG-075..MIG-086 remain exact 12
+  reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Checkout/commit: product `74c2b7241aca3448f999d84e625fc9233434d977`; inventory-correction/current exact
+  head `167ef0335fcdbcafadecaacf301e6a33671d2ee3`
+- Hosted run: [run 32231149900](https://github.com/progresshans/godj/actions/runs/32231149900), workflow `CI`,
+  run number 84, attempt 1, event `pull_request`, check suite `87371590760`, terminal `completed/success`
+- Result summary: D3b product and correction heads passed the bounded local gates below; the correction head passed
+  exact hosted 26/26 jobs, 342/342 recorded steps, 26/26 checks, annotations 0 and independent hosted audit
+  P0/P1/P2/P3=`0/0/0/0`
+- Status boundary: normal loaded `definition.Load`→`definition.Set.Migrate`→`Executor.Migrate` now executes
+  relation-bearing CreateModel apply, child-first DeleteModel unapply and reapply through the D3a SQLite optional
+  port after exact-one history and whole-plan validation. This is a bounded D3b implementation, not a public API,
+  file-backed restart, Add/Remove/remake, product-adapter or contract-status claim
+
+### Exact D3b product and correction boundary
+
+- Product commit: `74c2b7241aca3448f999d84e625fc9233434d977`
+  (`feat(migrations): execute loaded relation plans`), parent
+  `2be01f078a93b9570db7f2683478606756a20036`, tree
+  `b957f41829f0ea9d159b78791f3de4262a68e52c`
+- Product boundary: exact five C/path-sorted paths — `migrations/definition/relation_test.go`,
+  `migrations/lifecycle.go`, `migrations/lifecycle_test.go`, `migrations/reconstructor.go`,
+  `migrations/reconstructor_test.go` — totaling 327,907 source bytes
+- Size-annotated product manifest: exact 518-byte `<sha256>  <bytes>  <path>\n` encoding, including final LF,
+  SHA-256 `b271d0fa4115d0b5908c5f1eebecfa6eb3b27ffb9f31c5c96ebe063cf9ca51d9`
+- Corresponding plain product manifest: exact 483-byte `shasum`-row `<sha256>  <path>\n` encoding, including
+  final LF, SHA-256 `c0156f373e31a744c4fe3d0780366178f287aac5dc7e52a1105606b9895bd5ad`
+- Inventory-correction commit and current exact head:
+  `167ef0335fcdbcafadecaacf301e6a33671d2ee3` (`chore(ci): update relation product inventory`), parent
+  `74c2b7241aca3448f999d84e625fc9233434d977`, tree
+  `8d5193b7eda06b5fd6fa5eacbc0f796cc20ac0a1`
+- The correction changed exactly two lock paths and no product source:
+  `.github/workflows/ci.yml` and
+  `conformance/internal/protocol/migration_project_check_artifacts_test.go`. Both moved the relation-product lock
+  from 798/81,414/`5fd31fcb...928f` to exact 806 run/806 pass/0 skip, 82,321 bytes and SHA-256
+  `a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`.
+- An initial 518-byte manifest used a valid non-C explicit path order but was mislabeled as sorted. The canonical
+  C/path-sorted size-annotated and plain payloads above were independently regenerated without a product-byte
+  change. This is an evidence-protocol correction, not a product behavior failure.
+
+### Implemented behavior and ownership boundary
+
+- Static request/resource/carrier/profile/provenance/digest/definition/full-graph seal, chronology and loaded
+  readiness remain before backend/session/history I/O. After that succeeds, D3b opens the existing fenced session,
+  reads applied history exactly once and rebuilds a fresh actual `NewAppliedState` → `NewPlanner` →
+  `CheckHistory` → `Plan` sequence from that snapshot.
+- The entire actual plan is dry-materialized against one private mutable historical builder before optional
+  relation capability selection or any migration begin. Each execution step is regenerated and compared against
+  its dry-validation requirements/relation/seal before mutation.
+- Relation capability is queried exactly once only when the actual plan contains a relation-bearing step. All
+  required capabilities are validated before every scalar or relation begin. Scalar-only and no-op actual plans
+  make zero relation capability and `BeginRelationFencedMigration` calls. Any unsupported relation step rejects
+  the entire actual plan before a scalar prefix begins or commits.
+- A loaded relation-bearing CreateModel uses the complete intent and existing fenced transaction. The real SQLite
+  integration applies target/source tables, enforces the physical FK, child-first unapplies them, then reapplies
+  them and reconstructs relation state/history. A target-bearing Add or reverse Remove remains a structured
+  capability rejection with history, schema, rows and scalar prefix unchanged because D3a advertises only
+  `CreateModelForeignKeys=true`.
+- `BeginFencedMigration`/`BeginRelationFencedMigration`, connection-level PRAGMA, catalog/physical-preflight and
+  fence-claim failures retain step-level `OperationIndex=NoOperation` with their existing typed category/code.
+  `SchemaEditor`/row-copy and final FK-check failures owned by operation execution retain exact operation context.
+  Recorder, commit, rollback, cleanup and session-close ownership and no-retry semantics remain unchanged.
+- No public signature, entrypoint or relation executor was added. Carrier-less raw relation `Executor.Migrate`,
+  `Set.Definitions()` copies, direct legacy Apply/Unapply/ExecutePlan and raw public relation reconstruction retain
+  their existing fail-closed boundaries. Legacy/empty/scalar behavior and D3a capability values are unchanged.
+
+### Local final-byte verification
+
+- Passed `go test -count=1 ./...`.
+- Passed `go test -race -count=1 ./...`; there was no failure or flaky retry in this D3b final gate.
+- Passed `CGO_ENABLED=0 go test -count=1 ./...` and `go vet ./...`.
+- Passed `go test -shuffle=on -count=20 ./migrations/...`.
+- Focused migrations state/resource tests and definition tests passed the real SQLite loaded relation
+  Create/Delete/reapply path, Add/Remove capability rejection, scalar profile and alias boundaries.
+- `gofmt -d` was empty and `git diff --check` passed.
+- Independent lifecycle and state/resource audits on the same five product bytes each reported
+  P0/P1/P2/P3=`0/0/0/0`.
+- No local offline `make ci`, exact Python/oracle/checksum, Linux/386, clean-worktree or no-rewrite result was
+  reported for D3b, so none is claimed as local evidence. Those gates below are hosted-run evidence only.
+
+### Exact hosted identity, inventory and raw-log audit
+
+- Hosted synthetic merge: `53b10c58111d67efa60985bc498650b8b4d89b8f`, ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 167ef0335fcdbcafadecaacf301e6a33671d2ee3]`,
+  tree `8d5193b7eda06b5fd6fa5eacbc0f796cc20ac0a1`, equal to the correction-head tree. All 26 job logs recorded
+  fetch, checkout and final exact synthetic-merge identity.
+- All four hosted relation-product coordinates reproduced exact 806 run/806 pass/0 skip, 82,321 bytes and
+  SHA-256 `a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`.
+- All four SQLite feasibility coordinates remained exact 75 run/75 pass/0 skip, 9,736 bytes and SHA-256
+  `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Hosted gates also passed exact Python 216/216 with skip 0, all 13 oracle checks, all 13 checksum checks,
+  Linux/386 compile/runtime, clean-worktree and no-rewrite checks.
+- The GitHub raw-log ZIP was exact 337,187 bytes/SHA-256
+  `989cf1d8dea569f9d50aab0be013d343de620fb08c0dae6104579284b4128dda`. Its 52 members comprise 26 job logs
+  and 26 system logs, with exact uncompressed total 1,885,492 bytes and 15,924 LF lines. C/path-sorted member
+  concatenation has SHA-256 `a75c4e58671fbdfe11e03e740d4842bdda0a61d08294f7a8137d9da1b9ac0e99`.
+- The `gh run view --log` stream was exact 2,592,526 bytes, 15,736 lines and SHA-256
+  `7d8d2fdc41003a677f66a880885a919031989ab0f782a08c0112d13c37006ed7`.
+- Error, warning, nonzero-exit, fatal, panic, data-race, top-level FAIL, WaitDelay and incomplete-log markers were
+  all 0. Hosted independent audit findings were P0/P1/P2/P3=`0/0/0/0`.
+
+### Explicit non-claims and next exact work
+
+- MIG-075..086 remain reference-only `oracle_locked`. The product aggregate remains exact 12 adapters/
+  127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12. Q-010/Q-012/Q-013 remain
+  `Partial`; Q-017/Q-019 remain P1/open. ADR-0034 remains `Accepted` and GDJ-0035 remains active/Partially
+  Implemented.
+- D3b does not add target-bearing AddField/RemoveField or remake support; the exact D3a capabilities remain
+  `{CreateModelForeignKeys:true, AddNullableForeignKey:false, AddRequiredForeignKeyToEmptyTable:false,
+  RemoveForeignKeyByTableRemake:false}`.
+- D3b's in-memory loaded Create/Delete/reapply proof is not an actual file-backed close/reopen proof. The next
+  exact work is D4: reopen the SQLite file and verify recorder epoch/revision/full-history fingerprint, loaded
+  mixed definitions, actual DAG and private relation reconstruction for latest/target/unapply/reapply. Candidate
+  restart tests and earlier scalar restart evidence are not reused for that claim.
+- Writer/autodetector, product adapter/status transition, arbitrary backfill/default, broader table remake,
+  non-SQLite backend, Q closure, completion/terminal status and Draft PR merge remain outside this evidence.
+
+### Evidence history and recursive-proof boundary
+
+- Immediately before this fixed-length pointer update and append, `docs/status/TEST_EVIDENCE.md` was exact
+  827,288 bytes/SHA-256 `a53cadbfe523e812943252e290904eaeb7b511326919cca2d0cce1ac2679a6af`.
+- The retained old-file suffix in byte range `[326, 827288)` was exact 826,962 bytes/SHA-256
+  `42f207974c89dca0dd8a4d79775d590fbefa4f06224ceadff9dd05352f1e286f`. The actual EVID-001 heading remains
+  at zero-based byte offset 524; the EVID-001..093 body in byte range `[524, 827288)` was exact 826,764
+  bytes/SHA-256 `b37455eafdd0afe0632bb1ed980fc8b880aae240fc150184acd532f70c527f65`. The EVID-093 heading begins at
+  zero-based byte offset 814,167. This change edits only the fixed-length top latest-evidence pointer from `093`
+  to `094` and appends EVID-094 after the old EOF; EVID-001..093, including EVID-093's historical pre-D3b
+  Unsupported statement, remain byte-identical.
+- Run `32231149900` proves only correction head `167ef0335fcdbcafadecaacf301e6a33671d2ee3`. The exact five-path
+  product bytes and the two-path inventory correction are bounded separately above. This run does not prove this
+  later EVID-094 append/current 18-document mirror, D4, completion, terminal status or any contract transition.
+- This append is deliberately nonrecursive. Draft PR #1 remains open/draft/unmerged, and this evidence does not
+  authorize merge or release.

@@ -801,7 +801,9 @@ Proposed decision-freeze docs head `5bdf013...`도 EVID-091/run `32183309328`의
 통과했고 그 성공을 근거로 ADR-0034 bounded design이 Accepted됐습니다. Product status는 그
 acceptance boundary에서 바뀌지 않았습니다. Later Phase D1/D2/D3a bounded product slices는
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
-각각 Implemented/Verified됐지만 이는 MIG-075..086을 `passing`으로 전환하지 않습니다.
+각각 Implemented/Verified됐고 D3b loaded relation core integration은
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
+별도 Implemented/Verified됐습니다. 이 bounded product 증거들은 MIG-075..086을 `passing`으로 전환하지 않습니다.
 
 Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
@@ -836,7 +838,7 @@ Django 관찰은 recorder fault 전 schema-editor DDL이 이미 commit되어 sch
 Pre-DDL fault만 완전 rollback됐습니다. 이 관찰을 GoDj same-transaction atomic proposal의 parity로 표현하지
 않습니다. Accepted product design은 `migrations/backend`의 additive `RelationRevisionFencedBackend`/
 `RelationRevisionFencedSession`, exact four capabilities와 existing `RevisionFencedTransaction` 하나입니다.
-Relation support는 D3b 구현 후에도 `definition.Load`/`Set.Migrate`/`Executor.Migrate` normal path만 소유하며 direct
+Relation support는 implemented D3b에서도 `definition.Load`/`Set.Migrate`/`Executor.Migrate` normal path만 소유하며 direct
 legacy Apply/Unapply/ExecutePlan은 relation-bearing input을 capability error로 거부합니다. Loader profile/
 provenance/digest authority는 implemented `migrations/internal/definitionhandoff.Handoff`에 raw bytes/alias 없이 담고,
 relation/mixed `Set.Migrate`만 fresh context carrier로 existing Executor에 넘깁니다. Executor는 context precedence
@@ -848,7 +850,8 @@ reconstructor raw relation은 existing `CategoryState`/`CodeInvalidState`입니�
 consumer API가 아닙니다. D1 internal handoff, D2 private relation state/reconstructor/readiness와 D3a direct
 optional SQLite Create/Delete port는 EVID-093의 각 product/correction head에서 구현·검증됐습니다. D3b는
 static authority/readiness 뒤 exact-one fenced history로 actual Planner를 실행하고 whole actual plan을
-dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증합니다. Scalar/no-op plan은
-relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Core relation-bearing
-`Set.Migrate`는 D3b 전 pre-session Unsupported이고 D3a Add/Remove/remake caps는 false입니다. EVID-091/092는
-각 docs head만, EVID-093은 D1/D2/D3a bounded slices만 증명합니다.
+dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증하도록 구현했습니다. Scalar/no-op
+plan은 relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Normal loaded
+relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply하지만 D3a Add/Remove/remake caps는 false이고
+file-backed restart는 D4 전 미지원입니다. EVID-091/092는 각 docs head만, EVID-093은 D1/D2/D3a bounded
+slices만, EVID-094는 D3b product/correction head만 증명합니다.

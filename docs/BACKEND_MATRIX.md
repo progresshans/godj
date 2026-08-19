@@ -46,8 +46,9 @@ spatial fields/lookups/aggregates
 각 milestone 시작 시 DB server/client/library 버전을 정확히 pin하고 [SOURCES.md](SOURCES.md)와 CI matrix에 기록합니다. 로컬 macOS의 SQLite 버전은 개발 환경 관찰일 뿐 compatibility 약속이 아닙니다.
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
-read/write와 `CreateModel`/nullable no-default `AddField` 단면뿐입니다. Table rebuild가
-필요한 default backfill이나 column dependency는 구조화된 capability error로 거부합니다.
+read/write, scalar `CreateModel`/nullable no-default `AddField`와 normal loaded AutoField-target ForeignKey
+Create/Delete apply/unapply/reapply 단면입니다. Table rebuild가 필요한 default backfill, column dependency와
+relation Add/Remove는 구조화된 capability error로 거부합니다.
 Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
@@ -65,10 +66,15 @@ embed하고 existing `RevisionFencedTransaction`을 그대로 반환합니다. S
 Phase D3a product `2eafde1...`과 inventory correction `ce58c5e...`는 additive optional API와 direct SQLite
 relation-bearing Create/Delete port를 구현했고 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification) /
 run `32218003207`에서 exact 26/26 jobs·342/342 steps·audit P0..P3=0으로 검증됐습니다.
+D3b product `74c2b72...`과 inventory correction `167ef03...`은 normal loaded `definition.Load`→
+`Set.Migrate` core가 exact-one fenced history, fresh actual Planner, whole-plan dry validation과 conditional
+relation capability를 거쳐 SQLite Create/Delete를 apply/unapply/reapply하도록 연결했고
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification) /
+run `32231149900`에서 exact 26/26·342/342와 audit P0..P3=0으로 검증됐습니다.
 현재 SQLite capability는 exact `{CreateModelForeignKeys:true, AddNullableForeignKey:false,
 AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent의
-zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. Core loaded
-relation execution은 D3b 전 pre-session Unsupported이며 MIG-075..086은 계속 reference-only
+zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. File-backed
+restart와 target-bearing Add/Remove/remake는 D4 전 미지원이며 MIG-075..086은 계속 reference-only
 `oracle_locked`입니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
 physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK
 failure는 exact operation을 소유합니다.

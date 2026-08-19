@@ -9,10 +9,10 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 D1 profile/handoff·D2 private readiness는 bounded Implemented/Verified이지만 D3b core handshake와 generator/library semver·repair는 open |
+| Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 D1 profile/handoff·D2 private readiness·D3b loaded core handshake는 bounded Implemented/Verified이지만 generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 D3a direct SQLite Create/Delete port는 bounded Implemented/Verified이지만 D3b core lifecycle, Add/Remove/remake, writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 D1/D2/D3a bounded slices는 Implemented/Verified이지만 core AutoField FK migration은 D3b 전 unsupported이고 broader relation/backend 범위는 open |
+| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 D3a direct SQLite Create/Delete port와 D3b loaded core lifecycle은 bounded Implemented/Verified이지만 Add/Remove/remake, file restart, writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
+| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 D1/D2/D3a/D3b bounded slices와 normal loaded AutoField FK Create/Delete는 Implemented/Verified이지만 broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -541,9 +541,11 @@ relation constants, one-loader dispatch, digest v2, whole-step state transition,
 three-stage preflight, additive existing-fence port/four capabilities와 SQLite order는 Accepted design으로
 동결됐습니다. Later D1 definition/handoff, D2 private state/readiness와 D3a direct optional SQLite
 Create/Delete port는 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)의
-분리된 product/correction head에서 구현·검증됐습니다. 그러나 core `Load`→`Set.Migrate` relation
-execution은 D3b 전 pre-session Unsupported이고 Add/Remove/remake caps는 false이며 Q 상태도 불변입니다.
+분리된 product/correction head에서 구현·검증됐습니다. D3b normal loaded core integration은
+[EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)의
+별도 `74c2b72...`/`167ef03...` head에서 구현·검증됐습니다. Normal loaded relation-bearing CreateModel은
+apply/unapply/reapply하지만 Add/Remove/remake caps는 false이고 file-backed restart는 D4 전 미지원이며 Q 상태도
+불변입니다.
 Acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`의 unique exact-head hosted gate를 통과했으며
 EVID-091을 재사용하지 않았습니다. EVID-093은 각 D1/D2/D3a bounded slice만 증명하며
-MIG contract 분류나 Q 상태를 바꾸지 않습니다. D3b는 static readiness → exact-one fenced history →
-actual Planner → whole-plan dry validation → conditional capability를 새 public API 없이 연결합니다.
+EVID-094는 D3b product/correction head만 증명합니다. 둘 다 MIG contract 분류나 Q 상태를 바꾸지 않습니다.

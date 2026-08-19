@@ -84,10 +84,11 @@ bounded design을 Accepted로 전환했습니다. Acceptance docs head `7cdc6d6.
 고유 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Later D1 definition/handoff
 `42aa9a9...`/`f22a498...`, D2 private state/readiness `ec8877e...`/`80776b5...`, D3a direct optional
 SQLite Create/Delete `2eafde1...`/`ce58c5e...`는 EVID-093/runs `32195313382`, `32205324145`,
-`32218003207`에서 각 bounded Implemented/Verified됐습니다. Core relation execution은 D3b 전
-pre-session Unsupported이고 Add/Remove/remake caps는 false입니다. 다음 작업은 static readiness →
-exact-one fenced history → actual Planner → whole-plan dry validation → conditional capability를 새 public API 없이
-연결하는 D3b입니다.
+`32218003207`에서 각 bounded Implemented/Verified됐습니다. D3b loaded relation core
+`74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`에서 normal loaded SQLite Create/Delete
+apply/unapply/reapply, exact-one history/actual-plan preflight와 scalar/no-op/unsupported-tail 경계를
+Implemented/Verified했습니다. Add/Remove/remake caps는 false이고 다음 작업은 actual file-backed recorder
+epoch/revision/full-history/DAG restart를 검증하는 D4입니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는
