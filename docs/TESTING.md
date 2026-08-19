@@ -1383,6 +1383,51 @@ and no-op plans make zero relation capability/begin calls, and any unsupported r
 actual plan before a scalar prefix begins. Step-global begin/PRAGMA/catalog/physical-preflight/claim failures use
 `NoOperation`; operation execution/final-FK failures keep exact operation ownership. No public API was added.
 
-This is bounded D3b support, not MIG-075..086 product adapter/status proof. Add/Remove/remake capabilities remain
-false, file-backed close/reopen recorder epoch/revision/full-history/DAG restart is D4 work, and
-MIG-075..086 remain `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`.
+At that D3b boundary, this was not MIG-075..086 product adapter/status proof. Add/Remove/remake capabilities
+remained false, file-backed close/reopen recorder epoch/revision/full-history/DAG restart remained D4 work, and
+MIG-075..086 remained `oracle_locked`; Q-010/Q-012/Q-013 remained `Partial`.
+
+## GDJ-0035 Phase D4 loaded relation file-backed restart verification
+
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)
+records exact test-only head `424ec4d80684c07e8d961d858909e394ac8de9a9`, parent `05e959a...`, tree
+`6f43ae7b902ceaa82d32ea719431c9dd8fabf96a`. It changes only
+`migrations/definition/relation_test.go`; the final file is 56,437 bytes/SHA-256
+`267fcdb1242ca3367bb39c7cc14c845182ab384a395f6d655f543b8c1366a744`, and its 32,296-byte parent diff has
+SHA-256 `bf3fa8f5432bdb11e78addb88a20cf745cf4fd185932bb5705a553efbf3eaf67`. Product source, public API,
+workflow and inventory locks are unchanged.
+
+The extended existing top-level test uses a three-node mixed DAG: legacy `authors.0001_author`, relation
+`blog.0001_article`, and legacy scalar tail `blog.0002_article_title`. Each process scope closes the file and
+discards its Backend/Set, then opens a fresh Backend and loads newly created sources in a different order. A
+read-only structured snapshot captures the 16-byte epoch, revision, 32-byte independently recomputed full-history
+fingerprint, sorted recorder history, canonical `sqlite_schema` rows, selected user rows and physical FK rows.
+It does not compare raw database-file bytes or inspect `sqlite_sequence`.
+
+The initial Latest reaches revision 3/full fingerprint `e2dfbdf7...3507`. First reopen Latest is an exact captured
+snapshot no-op; a target request then child-first unapplies the scalar tail and relation table to revision 5/branch
+fingerprint `7f42d0b7...e9b9c`. A second reopen/reload Latest reapplies to revision 7 with the same nonzero epoch and
+full fingerprint but a strictly newer revision, and the captured schema/rows/FK snapshot matches the initial
+full state. This is the bounded ABA observation. A recorder-only seed reaches revision 8/fingerprint
+`e9b4004c...049e`; unsupported forward Add and seeded reverse Remove both return the structured capability error
+and preserve the exact captured snapshot. Add/Remove/remake capabilities remain false.
+
+Local final-byte gates passed the focused test normal/race, full normal/race/CGO-disabled, `go vet ./...`, and the
+canonical `go test -shuffle=on -count=20 ./migrations/...`. Relation inventory remained exact
+806/806/0·82,321 bytes·`a326e00c...bd0`, SQLite feasibility remained 75/75/0·9,736 bytes·`48e7beb1...92ec`,
+`gofmt -d` was empty and `git diff --check` passed. The separate noncanonical overbroad
+`go test -shuffle=on -count=20 ./...` did not complete within ten minutes while an unrelated `./codegen`
+external-subprocess test remained; the D4 `migrations/definition` repetitions had passed, and the scoped
+`./migrations/...` shuffle-20 gate passed separately. The timeout is recorded, not converted into a full-repo pass
+or a D4 failure.
+
+Unique CI #86 attempt 1 [run 32248885053](https://github.com/progresshans/godj/actions/runs/32248885053),
+2026-08-19T11:42:09Z through 11:52:00Z, completed exact 26/26 jobs, 342/342 steps, 26/26 checks and annotations 0.
+All four relation coordinates reproduced 806/806/0·82,321 bytes·`a326e00c...bd0`; all four SQLite coordinates
+reproduced 75/75/0·9,736 bytes·`48e7beb1...92ec`. Exact/portable Python 216, oracle 13, checksum 13, Linux/386,
+clean 24 and no-rewrite 10 gates passed. Synthetic merge `6b543f91...0b85` had parents `[f8a5e20c...,424ec4d...]`
+and tree `6f43ae7b...61e7`, equal to the head tree. Hosted audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+This verifies only the existing product path's bounded captured durable-snapshot restart scenario. It is not
+raw-file equality, `sqlite_sequence` preservation, general restart support, Add/Remove/remake implementation,
+MIG-075..086 actual adapter/status proof, Q closure, completion/terminal proof or a public API change.

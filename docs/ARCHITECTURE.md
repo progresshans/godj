@@ -441,7 +441,9 @@ support를 자동으로 뜻하지 않습니다. 후속 Phase D1/D2/D3a bounded p
 별도 Implemented/Verified됐고 D3b loaded core integration도
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
 Implemented/Verified됐습니다. 이는 bounded Create/Delete normal loaded path에 한하며 D4 restart와
-Add/Remove/remake를 자동으로 지원하지 않습니다.
+Add/Remove/remake를 자동으로 지원하지 않습니다. D4 test-only verification head `424ec4d...`는
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
+이 기존 제품 경로의 bounded captured durable-snapshot restart 시나리오만 Verified했습니다.
 
 ```text
 legacy (1,1,1,2) document ─┐
@@ -495,5 +497,7 @@ acceptance docs head `7cdc6d6...`/EVID-092는 각각 별도로 hosted-verified�
 `definitionhandoff` product bridge를 구현하거나 검증하지 않았고 EVID-092는 acceptance docs head만 증명합니다.
 Later D1/D2/D3a는 EVID-093의 서로 다른 product/correction head와 hosted run을 소유합니다. D3b core
 `Load`→`Set.Migrate` integration은 EVID-094의 별도 product/correction head와 hosted run을 소유합니다.
-Actual file-backed close/reopen epoch/fingerprint/full-history/DAG restart와 Add/Remove/remake는 D4 전
-지원하지 않으며 새 public API도 추가되지 않았습니다.
+D4 `424ec4d...`는 disposable SQLite file을 매 process scope마다 닫고 새 backend와 source-order-permuted
+`Load`로 다시 연 뒤 exact epoch/revision/fingerprint/history, canonical schema/rows와 physical FK snapshot을
+비교했습니다. 이는 raw database-file byte equality, `sqlite_sequence`, general restart 또는
+Add/Remove/remake support가 아니며 product source/public API/workflow도 바꾸지 않았습니다.

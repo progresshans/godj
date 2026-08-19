@@ -251,6 +251,12 @@
   (`docs: record relation migration product evidence`)
 - GDJ-0035 Phase D3b loaded relation core product and inventory-correction heads:
   `74c2b7241aca3448f999d84e625fc9233434d977` / `167ef0335fcdbcafadecaacf301e6a33671d2ee3`
+- GDJ-0035 Phase D3b evidence/status handoff head:
+  `05e959a03e0783e00bc49e3adcd445b9e4341cb2`
+  (`docs: record loaded relation lifecycle evidence`)
+- GDJ-0035 Phase D4 bounded restart verification head:
+  `424ec4d80684c07e8d961d858909e394ac8de9a9`
+  (`test: verify loaded relation restart lifecycle`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -340,8 +346,11 @@
   exact-one fenced history, fresh actual Planner, whole-plan dry validation과 conditional relation capability에
   연결했습니다. [EVID-094](TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification) /
   run `32231149900`은 correction head의 exact 26/26·342/342와 audit P0..P3=0을 증명합니다. Normal loaded
-  relation CreateModel은 SQLite에서 apply/unapply/reapply하지만 D3a의 Add/Remove/remake capabilities는 false이고
-  file-backed restart는 D4 전 미지원입니다. MIG-075..086과 Q-010/Q-012/Q-013 분류는 불변입니다.
+  relation CreateModel은 SQLite에서 apply/unapply/reapply합니다. D4 test-only head `424ec4d...`는
+  [EVID-095](TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification) /
+  run `32248885053`의 exact 26/26·342/342와 audit P0..P3=0에서 existing product path의 bounded
+  captured-snapshot file restart를 검증했습니다. D3a Add/Remove/remake capabilities는 false이고 general
+  restart/actual adapter는 미지원입니다. MIG-075..086과 Q-010/Q-012/Q-013 분류는 불변입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -872,8 +881,10 @@
   relation tail은 어떤 prefix begin/commit보다 먼저 거부됩니다.
 - Current SQLite relation capability는 CreateModel FK만 true입니다. Normal loaded relation-bearing CreateModel은
   dependency와 함께 apply되고 child-first DeleteModel unapply/reapply가 검증됐습니다. Target-bearing
-  Add/Remove/remake와 file-backed close/reopen restart는 아직 지원하지 않습니다. Raw carrier-less relation
-  execution과 public raw reconstructor relation input의 fail-closed 경계는 그대로입니다.
+  Add/Remove/remake는 아직 지원하지 않습니다. D4는 close/reopen마다 fresh Backend/loaded set을 사용한 exact
+  full/branch/full captured schema/rows/history/token/FK snapshot scenario를 검증했지만 raw-file equality,
+  `sqlite_sequence`나 general restart는 주장하지 않습니다. Raw carrier-less relation execution과 public raw
+  reconstructor relation input의 fail-closed 경계는 그대로입니다.
 - Exact 두 argv를 지원하는 global `cmd/godj`, public two-export
   `project.Config{MigrationDefinitionRoots []string}`/`project.Run(ctx, config, argv, stdin, stdout) error`,
   independent `internal/projectcheck` global/linked/protocol kernel과 flat no-follow source discovery가
@@ -1323,12 +1334,22 @@ Phase D의 현재 경계는 다음과 같습니다.
   exact-one fenced history, fresh actual Planner, whole-plan dry validation과 conditional capability에 연결했고,
   correction `167ef03...`의 EVID-094/run `32231149900`이 exact 26/26·342/342와 audit P0..P3=0을
   통과했습니다. Normal loaded relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply합니다.
+- **D4a Verified for one existing-product-path scenario:** exact one-test-file head `424ec4d...`가 disposable
+  SQLite file을 process scope마다 닫고 fresh Backend와 source-order-permuted mixed `Load`로 다시 열어
+  Latest no-op, target child-first unapply와 second-restart reapply를 exact epoch/revision/fingerprint/history,
+  canonical schema/rows와 physical FK captured snapshot으로 검증했습니다. EVID-095/run `32248885053`은
+  exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. Product source/API/workflow/inventory는 불변입니다.
 
-다음 정확한 작업은 **D4 actual file-backed restart**입니다. Disposable file-backed SQLite를 close/reopen한
-뒤 recorder epoch/revision/full-history fingerprint, loaded mixed definitions, actual DAG와 private relation
-reconstructor가 같은 latest/target state와 child-first unapply/reapply를 재구성하는지 검증해야 합니다.
-Candidate-local restart와 in-memory D3b 성공은 이 proof로 재사용하지 않습니다. Supported capability별
-Add/Remove/remake는 그 뒤 별도 slice입니다.
+다음 정확한 순서는 (1) 현재 exact 18-path D4 bounded-restart completion-documentation head의 고유
+hosted proof, (2) product를 바꾸지 않는 real `definition.Load`→`Set.Migrate`→SQLite test-only cross-layer
+taxonomy proof입니다. 두 번째 proof는 Begin/PRAGMA/catalog/claim failure의 `NoOperation`, final-FK failure의
+exact last operation, recorder failure의 `NoOperation`을 검증하며 product source/capability/public API/status를 바꾸지
+않습니다. 그 뒤 `AddNullableForeignKey`, `AddRequiredForeignKeyToEmptyTable`,
+`RemoveForeignKeyByTableRemake`를 각각 별도 product/evidence head로 순차 구현·검증하고, 모든 capability
+head 후에 actual GoDj adapter가 expected fixture replay
+없이 MIG-075..086 observation을 생성해야 합니다. Completion/terminal은 그 뒤 다시 별도 head로
+닫습니다. D4a를 raw database-file equality, `sqlite_sequence`, general restart, actual adapter 또는
+completion/terminal proof로 확대하지 않습니다.
 
 Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 pre-Begin `CategoryCapability`/
 `CodeUnsupported`, feature `relation_migration`으로 fail-closed합니다. Reference는 exact
@@ -1514,7 +1535,8 @@ Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 p
   reverse/write/generated upgrade는 Q-017 P1/open;
   [ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 bounded relation
   migration definition/state/SQLite lifecycle design에 한해 Accepted; D1/D2/D3a bounded slices와 D3b
-  normal loaded relation core는 Implemented/Verified이지만 Add/Remove/remake와 file restart는 미완료
+  normal loaded relation core는 Implemented/Verified이고 D4 bounded captured-snapshot restart는 Verified이지만
+  Add/Remove/remake, general restart와 actual adapter는 미완료
 - 현재 reference 분류: 13 sets/139 unique contract+scenario/156 ordered cross-binding=
   `122 passing + 5 deviation + 12 oracle_locked`. Hosted product manifest는 별도 12/127=`122+5+0`이고
   REL-001..012 전부 `passing`
@@ -1547,8 +1569,11 @@ Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 p
   P0..P3=0에서 검증됐습니다. D1은 definition/handoff, D2는 private state/readiness, D3a는 direct
   optional SQLite Create/Delete port를 소유합니다. D3b product `74c2b72...`/correction `167ef03...`는
   EVID-094/run `32231149900`의 exact 26/26·342/342·audit P0..P3=0에서 normal loaded core integration을
-  구현·검증했습니다. Add/Remove/remake capabilities는 false이고 다음은 actual file-backed recorder
-  epoch/revision/full-history/DAG restart를 검증하는 D4입니다.
+  구현·검증했습니다. D4 test-only head `424ec4d...`는 EVID-095/run `32248885053`의 exact
+  26/26·342/342·audit P0..P3=0에서 fresh Backend/loaded set의 bounded captured-snapshot restart를
+  검증했습니다. Add/Remove/remake capabilities는 false입니다. 다음은 현재 D4 docs head의 고유
+  hosted proof 후 real `Load`→`Set.Migrate`→SQLite taxonomy test-only proof이고, capability별 head와 actual adapter는
+  그 뒤 순서입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1716,6 +1741,11 @@ Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 p
   both `8d5193b7...`, four relation coordinates each 806/806/0·82,321 bytes·`a326e00c...bd0`, SQLite
   unchanged, exact Python 216/216 plus 13 oracle/checksum checks, Linux/386, clean/no-rewrite PASS, audit
   P0/P1/P2/P3=0; bounded normal loaded Create/Delete core only, D4 restart/Add/Remove/remake not proved
+- GDJ-0035 Phase D4 bounded restart hosted: test-only head `424ec4d...`; EVID-095/run `32248885053` unique
+  attempt-1 exact 26/26 jobs·342/342 steps PASS, synthetic merge/head tree both `6f43ae7b...`, four relation
+  coordinates unchanged 806/806/0·82,321 bytes·`a326e00c...bd0`, SQLite unchanged, exact Python/oracle/checksum,
+  Linux/386, clean/no-rewrite PASS, audit P0/P1/P2/P3=0; one captured-snapshot scenario only, product
+  source/API/workflow/inventory unchanged
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent
@@ -1777,7 +1807,8 @@ Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 p
   no-product exact head run 31653237691 exact 26/26 PASS; Phase C exact 8-test-only proof head run 32174259324
   exact 26/26 PASS; Proposed decision-freeze docs head run 32183309328 exact 26/26 PASS; acceptance docs head run
   32187094845 exact 26/26 PASS; Phase D1/D2/D3a correction-head runs 32195313382/32205324145/32218003207
-  each exact 26/26 PASS; Phase D3b correction-head run 32231149900 exact 26/26 PASS
+  each exact 26/26 PASS; Phase D3b correction-head run 32231149900 exact 26/26 PASS; Phase D4 test-only restart
+  head run 32248885053 exact 26/26 PASS
 - 건드리면 안 되는 외부 범위: `/Users/hanhyeonjin/Documents/django` reference checkout
 - 가장 위험한 과장: EVID-072/074/076/077/078/079/080/081/082/083/084를 각각의
   activation/decision/implementation/completion/terminal/local-source/hosted-implementation/hosted-completion/
@@ -1785,7 +1816,9 @@ Carrier 없는 raw relation execution과 false Add/Remove/remake capability는 p
   reference/Phase B no-product/Phase C test-only/Proposed docs/acceptance docs 경계를 actual SQLite port, product
   `StateReconstructor`, later `definitionhandoff` bridge 또는 relation migration support 증거로 확대하는 것.
   EVID-093의 D1/D2/D3a sub-slice를 D3b core 증거로, EVID-094의 bounded normal loaded Create/Delete를
-  Add/Remove/remake, actual file restart, MIG status 전환, completion/terminal proof로 확대하는 것도 금지합니다.
+  D4 증거로, EVID-095의 bounded captured-snapshot restart를 Add/Remove/remake, raw database-file equality,
+  `sqlite_sequence`, general restart, actual adapter, MIG status 전환, completion/terminal proof로 확대하는 것도
+  금지합니다.
   Exact assigned target pointer의 bounded wrapper ownership을 cross-materialization identity map으로 확대하거나
   REL-002 packet을 generated `select_related` cause-loss P2 repair, general generated upgrade, reverse assignment
   또는 non-SQLite support로 과장하는 것도 금지합니다.

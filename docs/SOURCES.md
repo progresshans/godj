@@ -255,4 +255,7 @@ D2 private state/readiness, D3a direct optional SQLite Create/Delete port는
 `74c2b72...`/`167ef03...`도
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
 구현·검증됐지만 upstream source/provenance와 MIG status를 바꾸지 않습니다. Add/Remove/remake caps는 false이고
-file-backed restart는 D4 전 미지원입니다.
+D4 test-only verification `424ec4d...`도
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
+기존 product path의 bounded captured-snapshot restart만 검증했으므로 upstream source/provenance와 MIG status는
+계속 불변입니다. General restart와 actual adapter는 미지원입니다.

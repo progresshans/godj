@@ -193,8 +193,10 @@ EVID-091로 증명된 Proposed docs head 뒤 Accepted됐습니다. D1/D2/D3a bou
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
 구현·검증됐고 D3b core integration은
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
-normal loaded Create/Delete path에 한해 구현·검증됐습니다. 아래 경계는 D4 file restart나 false인
-Add/Remove/remake capability까지 지원하는 보장이 아닙니다.
+normal loaded Create/Delete path에 한해 구현·검증됐습니다. D4 test-only head `424ec4d...`는
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
+close/reopen마다 fresh backend/loaded set을 쓰는 bounded captured-snapshot restart만 검증했습니다. 아래 경계는
+false인 Add/Remove/remake capability나 general restart까지 지원하는 보장이 아닙니다.
 
 - Static request/resource/carrier/profile/digest/graph/chronology/readiness preflight는 backend/session 전에
   끝나며 failure DB/session I/O는 0입니다. 그 뒤 existing fenced session에서 applied history를 exact once
@@ -225,7 +227,8 @@ Add/Remove/remake capability까지 지원하는 보장이 아닙니다.
 - `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/physical-preflight/claim failure는
   step-level `NoOperation`과 existing typed class를 유지하고, SchemaEditor/row-copy/final-FK failure만
   exact operation을 소유합니다.
-- File restart와 concurrent caller alias/race gate는 MIG-078/084/085/086에서 별도로 검증합니다.
+- File restart는 bounded D4 captured-snapshot scenario에서 검증했고 concurrent caller alias/race gate와 broader
+  MIG-078/084/085/086 actual adapter는 별도로 남습니다.
 
 Exact order는 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake →
 FK check → recorder/revision → `CommitFenced` once입니다. `CommitRolledBack`/`CommitUnknown`은 pre-step state와
@@ -235,8 +238,9 @@ hosted-verified됐고 acceptance docs head `7cdc6d6...`도 EVID-092/run `3218709
 통과했습니다. D1/D2/D3a는 EVID-093에서 각 bounded slice로 별도 검증됐습니다. D3b product
 `74c2b72...`/correction `167ef03...`는 EVID-094/run `32231149900`의 exact 26/26·342/342와 audit
 P0..P3=0을 통과했습니다. D3a는 direct Create/Delete port만 소유하고 D3b는 이를 normal loaded core에
-연결했으며 새 public API를 추가하지 않았습니다. Add/Remove/remake caps는 false이고 actual file restart는
-D4 전 미지원입니다.
+연결했으며 새 public API를 추가하지 않았습니다. D4 `424ec4d...`/EVID-095/run `32248885053`은 existing
+product path의 bounded close/reopen token/history/DAG reconstruction을 검증했지만 product source/API/workflow를
+바꾸지 않았습니다. Add/Remove/remake caps는 false이고 raw-file equality/general restart는 주장하지 않습니다.
 
 Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
 semantics도 범위 밖입니다.

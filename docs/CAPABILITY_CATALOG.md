@@ -457,5 +457,8 @@ SQLite Create/Delete port는
 각 bounded Implemented/Verified됐습니다. D3b는
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
 normal loaded relation-bearing Create/Delete core apply/unapply/reapply와 actual-plan preflight를
-Implemented/Verified했습니다. D3a Add/Remove/remake caps는 계속 false이고 file-backed restart는 D4 전
-미지원입니다. MIG-075..086은 계속 `oracle_locked`입니다.
+Implemented/Verified했습니다. D4 exact test-only head `424ec4d...`는
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
+기존 제품 경로의 bounded captured-snapshot close/reopen 시나리오를 Verified했습니다. D3a
+Add/Remove/remake caps는 계속 false이고 general restart나 actual MIG adapter는 아직 없습니다.
+MIG-075..086은 계속 `oracle_locked`입니다.

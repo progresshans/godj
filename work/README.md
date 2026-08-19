@@ -87,8 +87,14 @@ SQLite Create/Delete `2eafde1...`/`ce58c5e...`는 EVID-093/runs `32195313382`, `
 `32218003207`에서 각 bounded Implemented/Verified됐습니다. D3b loaded relation core
 `74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`에서 normal loaded SQLite Create/Delete
 apply/unapply/reapply, exact-one history/actual-plan preflight와 scalar/no-op/unsupported-tail 경계를
-Implemented/Verified했습니다. Add/Remove/remake caps는 false이고 다음 작업은 actual file-backed recorder
-epoch/revision/full-history/DAG restart를 검증하는 D4입니다.
+Implemented/Verified했습니다. D4 exact one-test-file head `424ec4d...`도 EVID-095/run `32248885053`에서
+fresh loaded set/backend와 captured schema/rows/history/token/FK snapshot을 사용한 bounded file-backed
+full/branch/full restart를 Verified했습니다. Product source/API/workflow/inventory는 불변이고
+Add/Remove/remake caps는 false입니다. 다음 순서는 현재 exact18 D4 docs head의 고유 hosted proof →
+product source/capability/public API/status change 없는 real `Load`→`Set.Migrate`→SQLite taxonomy test-only proof
+(Begin/PRAGMA/catalog/claim `NoOperation`; final-FK exact last operation; recorder `NoOperation`) →
+`AddNullableForeignKey` → `AddRequiredForeignKeyToEmptyTable` → `RemoveForeignKeyByTableRemake` capability
+heads → actual MIG-075..086 adapter → completion/terminal입니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는

@@ -803,7 +803,10 @@ acceptance boundary에서 바뀌지 않았습니다. Later Phase D1/D2/D3a bound
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
 각각 Implemented/Verified됐고 D3b loaded relation core integration은
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
-별도 Implemented/Verified됐습니다. 이 bounded product 증거들은 MIG-075..086을 `passing`으로 전환하지 않습니다.
+별도 Implemented/Verified됐습니다. D4 test-only head `424ec4d...`는
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
+기존 product path의 bounded file-backed restart observation만 Verified했습니다. 이 bounded 증거들은
+MIG-075..086을 `passing`으로 전환하지 않습니다.
 
 Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
@@ -853,5 +856,8 @@ static authority/readiness 뒤 exact-one fenced history로 actual Planner를 실
 dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증하도록 구현했습니다. Scalar/no-op
 plan은 relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Normal loaded
 relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply하지만 D3a Add/Remove/remake caps는 false이고
-file-backed restart는 D4 전 미지원입니다. EVID-091/092는 각 docs head만, EVID-093은 D1/D2/D3a bounded
-slices만, EVID-094는 D3b product/correction head만 증명합니다.
+D4 `424ec4d...`는 file close/reopen마다 backend와 loaded set을 새로 만들고 full/branch/full history 및
+revision-fingerprint ABA, canonical schema/rows와 physical FK snapshot을 비교했습니다. Raw SQLite file bytes,
+`sqlite_sequence`, general restart와 actual adapter는 검증하지 않았습니다. EVID-091/092는 각 docs head만,
+EVID-093은 D1/D2/D3a bounded slices만, EVID-094는 D3b product/correction head만, EVID-095는 D4 exact
+test-only verification head만 증명합니다.

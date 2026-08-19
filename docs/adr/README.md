@@ -48,6 +48,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0031](0031-relation-aware-project-facade-and-generated-upgrade-boundary.md) | Accepted | Physical fixture를 보존하는 test-only project facade compile feasibility 경계; production 이름/API/upgrade 정책은 open |
 | [0032](0032-production-forward-project-facade-and-additive-first-publication.md) | Accepted | Frozen generated exact 13 위 bounded Gate 0 project-only forward facade companion의 additive first-publication |
 | [0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | Accepted | Django-first REL-002 forward assignment/save, PK-presence, canonical preflight와 per-edge COW cache 경계 |
-| [0034](0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) | Accepted | Relation definition/state profile과 exact existing-fence SQLite ForeignKey lifecycle의 bounded design; D1/D2/D3a는 EVID-093, D3b normal loaded Create/Delete core는 EVID-094에서 bounded Implemented/Verified; Add/Remove/remake와 file restart는 미완료 |
+| [0034](0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) | Accepted | Relation definition/state profile과 exact existing-fence SQLite ForeignKey lifecycle의 bounded design; D1/D2/D3a는 EVID-093, D3b normal loaded Create/Delete core는 EVID-094에서 bounded Implemented/Verified; D4 bounded captured-snapshot restart는 EVID-095에서 Verified; Add/Remove/remake, general restart와 actual adapter는 미완료 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

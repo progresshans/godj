@@ -113,7 +113,9 @@ bounded product slices는 EVID-093에서 각 구현·검증됐지만 이 사건�
 artifact의 provenance/license 분류를 소급 변경하지 않습니다. MIG-075..086은 `oracle_locked`이고
 D3b loaded relation core integration `74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`에서
 구현·검증됐지만 checked-in Phase A artifact의 provenance/license 분류나 MIG status를 바꾸지 않습니다.
-Add/Remove/remake와 file-backed restart는 여전히 미지원입니다.
+D4 test-only verification `424ec4d...`/EVID-095/run `32248885053`도 existing product path의 bounded
+file-backed restart observation만 추가하며 source provenance/license 분류나 MIG status를 바꾸지 않습니다.
+Add/Remove/remake와 general restart는 여전히 미지원입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

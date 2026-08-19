@@ -47,8 +47,9 @@ spatial fields/lookups/aggregates
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`와 normal loaded AutoField-target ForeignKey
-Create/Delete apply/unapply/reapply 단면입니다. Table rebuild가 필요한 default backfill, column dependency와
-relation Add/Remove는 구조화된 capability error로 거부합니다.
+Create/Delete apply/unapply/reapply 및 bounded file-backed close/reopen 단면입니다. Restart 검증은 captured
+schema/rows/history/token/FK snapshot에 한하며 raw database-file bytes나 general restart를 뜻하지 않습니다.
+Table rebuild가 필요한 default backfill, column dependency와 relation Add/Remove는 구조화된 capability error로 거부합니다.
 Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
@@ -71,10 +72,14 @@ D3b product `74c2b72...`과 inventory correction `167ef03...`은 normal loaded `
 relation capability를 거쳐 SQLite Create/Delete를 apply/unapply/reapply하도록 연결했고
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification) /
 run `32231149900`에서 exact 26/26·342/342와 audit P0..P3=0으로 검증됐습니다.
+D4 test-only verification head `424ec4d...`는 새 backend와 fresh mixed `Load`를 사용한 close/reopen,
+Latest no-op, target child-first unapply와 second-restart reapply를
+[EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification) /
+run `32248885053`에서 검증했습니다. Product source/API/workflow와 inventory lock은 바뀌지 않았습니다.
 현재 SQLite capability는 exact `{CreateModelForeignKeys:true, AddNullableForeignKey:false,
 AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent의
-zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. File-backed
-restart와 target-bearing Add/Remove/remake는 D4 전 미지원이며 MIG-075..086은 계속 reference-only
+zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. Target-bearing
+Add/Remove/remake와 general restart는 계속 미지원이며 MIG-075..086은 계속 reference-only
 `oracle_locked`입니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
 physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK
 failure는 exact operation을 소유합니다.

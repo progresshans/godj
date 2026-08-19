@@ -51,6 +51,11 @@ contract `passing`, 전체 relation backend support 또는 전체 경로의 **Ve
   `167ef0335fcdbcafadecaacf301e6a33671d2ee3`를 별도 local/hosted proof로 검증합니다. Normal loaded
   relation-bearing CreateModel apply/unapply/reapply와 actual-plan preflight만 증명하며 D4 file restart,
   Add/Remove/remake나 MIG status 전환을 증명하지 않습니다.
+- [EVID-095](../status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)은
+  exact one-test-file head `424ec4d80684c07e8d961d858909e394ac8de9a9`에서 existing product path의
+  bounded file-backed restart scenario를 검증합니다. Product source/API/workflow, capability와 MIG status는
+  바뀌지 않았고 raw database-file byte equality, `sqlite_sequence`, general restart와 actual adapter를
+  증명하지 않습니다.
 
 이번 결정은 existing scalar migration ABI를 보존하면서 AutoField-target `ForeignKey` definition과 historical
 state를 기존 revision-fenced SQLite lifecycle로 전달하는 단면만 다룹니다. Writer/autodetector, arbitrary schema
@@ -65,7 +70,9 @@ authority를 구현합니다. Phase D2는 `RelationStateFormatVersion=2`와 priv
 구현했고 Phase D3a는 optional backend API와 SQLite direct Create/Delete port를 구현했습니다. Phase D3b는
 core `Executor.Migrate`가 exact applied history로 actual plan을 만들고 whole-plan dry validation 뒤 relation
 capability를 선택하도록 연결했습니다. Normal loaded relation-bearing CreateModel은 SQLite에서
-apply/unapply/reapply할 수 있지만 target-bearing Add/Remove/remake와 file-backed restart는 아직 미지원입니다.
+apply/unapply/reapply할 수 있습니다. D4는 file close/reopen마다 fresh backend와 mixed loaded set을 만들고
+captured schema/rows/history/token/FK snapshot으로 bounded restart를 검증했습니다. Target-bearing
+Add/Remove/remake, general restart와 actual MIG adapter는 아직 미지원입니다.
 
 SQLite ForeignKey constraint는 connection-local `PRAGMA foreign_keys`와 table definition에 결속됩니다.
 Column/FK removal은 table remake가 필요할 수 있고 user rows, `sqlite_sequence`, index/trigger/view와 inbound
@@ -408,10 +415,12 @@ after-state에서 deterministic temporary table 생성
 - Restart는 file close/reopen 뒤 actual recorder history, revision epoch/token, loaded mixed definition set,
   actual DAG와 product `StateReconstructor`로 같은 latest/target plan을 재구성해야 합니다.
 
-Phase C의 candidate-local restart, fake recorder/revision, private catalog와 helper hash는 이 actual product restart를
-증명하지 않습니다. Phase D2 private state/reconstructor readiness와 D3a direct SQLite optional port는
-구현됐고 D3b가 actual recorder history→Planner→core relation lifecycle를 연결했습니다. File close/reopen 뒤
-epoch/revision/fingerprint/full-history/DAG reconstruction을 검증하는 D4가 restart blocker로 남습니다.
+Phase C의 candidate-local restart, fake recorder/revision, private catalog와 helper hash는 actual product-path
+restart를 증명하지 않습니다. Phase D2 private state/reconstructor readiness와 D3a direct SQLite optional port는
+구현됐고 D3b가 actual recorder history→Planner→core relation lifecycle를 연결했습니다. D4 exact one-test-file
+head `424ec4d...`는 file close/reopen 뒤 fresh loaded set/backend가 exact epoch/revision/fingerprint/full-history,
+actual DAG와 private reconstructed state를 사용해 full/branch/full transition을 재구성하는 bounded scenario를
+검증했습니다. 이는 captured structured snapshot의 관찰이며 raw file bytes나 general restart 계약이 아닙니다.
 
 ### Product entry boundary
 
@@ -430,7 +439,8 @@ epoch/revision/fingerprint/full-history/DAG reconstruction을 검증하는 D4가
   history, migration DAG와 actual `StateReconstructor` replay를 검증한 것이 아닙니다.
 - D1/D2의 loaded authority/readiness와 D3a의 direct optional SQLite session 검증은 각각 Implemented/Verified입니다.
   D3b는 normal loaded relation-bearing CreateModel을 exact-one history/actual-plan preflight 뒤 direct port로
-  연결했습니다. Carrier 없는 raw relation entry와 false Add/Remove/remake capability는 계속 pre-Begin
+  연결했습니다. D4는 이 기존 경로의 bounded file-backed captured-snapshot restart만 Verified했습니다.
+  Carrier 없는 raw relation entry와 false Add/Remove/remake capability는 계속 pre-Begin
   `CategoryCapability`/`CodeUnsupported`, feature `relation_migration`에서 정지합니다.
 
 ### Error ownership
@@ -471,7 +481,7 @@ epoch/revision/fingerprint/full-history/DAG reconstruction을 검증하는 D4가
 | MIG-081 | Populated nullable success, empty required support, populated required rejection | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-082 | FK remove/remake row and `sqlite_sequence` preservation | `oracle_locked` / Django observed |
 | MIG-083 | Exact connection FK-on, physical `NO ACTION` and existing fence reuse | `oracle_locked` / observed + Accepted-decision separation |
-| MIG-084 | File-backed restart | `oracle_locked` / Django observed; product restart blocked |
+| MIG-084 | File-backed restart | `oracle_locked` / Django observed; bounded product-path scenario Verified, actual adapter blocked |
 | MIG-085 | Precommit rollback/cause behavior and one fenced transaction | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-086 | Commit success/definite failure/unknown outcome and no retry | `oracle_locked` / Accepted-decision reference |
 
@@ -488,8 +498,9 @@ compatibility surface와 test matrix를 늘립니다.
 
 현재 checkout은 D1 definition/handoff, D2 private relation state/readiness, D3a direct SQLite Create/Delete
 optional port와 D3b normal loaded core integration을 구현했고 각 bounded sub-slice를 local/hosted에서
-검증했습니다. 그러나 product contract/Q status는 바뀌지 않았고 MIG-075..086은 모두 reference-only
-`oracle_locked`입니다. Add/Remove/remake와 file-backed restart는 미완료입니다.
+검증했습니다. D4 exact test-only head는 existing product path의 bounded captured-snapshot restart scenario를
+추가 검증했습니다. 그러나 product contract/Q status는 바뀌지 않았고 MIG-075..086은 모두 reference-only
+`oracle_locked`입니다. Add/Remove/remake, general restart와 actual adapter는 미완료입니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -517,12 +528,14 @@ optional port와 D3b normal loaded core integration을 구현했고 각 bounded 
 8. D3b는 이 ADR의 exact-one history → actual Planner → whole-plan dry validation → conditional relation
    capability 순서를 새 public API 없이 구현했고 EVID-094의 local/hosted proof를 통과했습니다. Normal loaded
    relation-bearing CreateModel apply/unapply/reapply만 bounded support로 주장합니다.
-9. File-backed actual restart와 Add/Remove/remake 지원은 D4 이후 각자의 exact local/hosted evidence 전에는
-   주장하지 않습니다.
+9. D4 exact one-test-file head는 EVID-095의 local/hosted evidence에서 bounded file-backed
+   full/branch/full captured-snapshot restart만 Verified했습니다. Add/Remove/remake, raw file-byte equality,
+   `sqlite_sequence`, general restart와 actual adapter는 각자의 exact evidence 전에는 주장하지 않습니다.
 
 EVID-090/run `32174259324`는 exact test-only proof head만, EVID-091/run `32183309328`은 exact Proposed
 decision-freeze docs head `5bdf013...`만, EVID-092/run `32187094845`는 acceptance docs head `7cdc6d6...`만
 증명합니다. EVID-093의 세 hosted run도 각 D1/D2/D3a correction head만 증명합니다. EVID-094/run
-`32231149900`은 D3b correction head `167ef03...`만 증명하며 D4, completion 또는 terminal proof로 재사용하지
+`32231149900`은 D3b correction head `167ef03...`만 증명합니다. EVID-095/run `32248885053`은 D4 test-only
+head `424ec4d...`만 증명하며 later taxonomy/capability/adapter, completion 또는 terminal proof로 재사용하지
 않습니다.
 Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.

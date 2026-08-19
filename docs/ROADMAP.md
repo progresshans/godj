@@ -24,8 +24,12 @@
   분리된 product/correction heads와 runs `32195313382`, `32205324145`, `32218003207`에서 각각
   Implemented/Verified됐습니다. D3b normal loaded relation core product `74c2b72...`와 inventory correction
   `167ef03...`도 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification) /
-  run `32231149900`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. 현재 단계는 D4
-  file-backed restart입니다.
+  run `32231149900`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. D4 exact
+  one-test-file verification head `424ec4d...`도
+  [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification) /
+  run `32248885053`의 exact 26/26·342/342를 통과해 기존 product path의 bounded captured-snapshot restart를
+  Verified했습니다. 현재 단계는 이 exact 18-path D4 completion-documentation head의 고유 hosted proof이며,
+  그 다음은 real `definition.Load`→`Set.Migrate`→SQLite cross-layer fault/core taxonomy test-only proof입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-19
@@ -619,17 +623,29 @@ activation head `52f9bcb7...`는
    Planner → whole-plan dry validation → actual-plan relation capability를 core `Executor.Migrate`에 새 public
    API 없이 연결했습니다. Scalar/no-op relation call 0과 unsupported mixed plan의 scalar partial commit 0,
    normal loaded SQLite Create/Delete apply/unapply/reapply를 EVID-094/run `32231149900`에서 검증했습니다.
-6. Phase D4/E (**next**): actual file-backed recorder epoch/revision/full-history/DAG restart, supported
-   capability별 Add/Remove/remake와
-   implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
+6. Phase D4a (**bounded restart scenario verified**): exact one-test-file head `424ec4d...`가 disposable
+   file-backed SQLite를 process-scope별로 close/reopen하고 fresh loaded mixed set/Backend로 latest no-op,
+   target child-first unapply와 second-restart reapply를 재구성했습니다. EVID-095/run `32248885053`은 이
+   captured schema/rows/history/token/FK snapshot scenario만 검증하며 product source/API/workflow는 불변입니다.
+7. Phase D4b (**next**): 현재 exact 18-path D4 bounded-restart completion-documentation head를 고유
+   exact-head hosted CI와 independent audit로 먼저 검증합니다.
+8. Phase D4c (**test-only taxonomy**): real `definition.Load`→`Set.Migrate`→SQLite 경로에서
+   Begin/PRAGMA/catalog/claim failure는 `NoOperation`, final-FK failure는 exact last operation, recorder failure는
+   `NoOperation`임을 검증합니다. Product source/capability/public API/status는 바꾸지 않습니다.
+9. Phase D4d (**capability 1**): `AddNullableForeignKey`를 별도 product/evidence head에서 구현·검증합니다.
+10. Phase D4e (**capability 2**): `AddRequiredForeignKeyToEmptyTable`을 별도 head에서 구현·검증합니다.
+11. Phase D4f (**capability 3**): `RemoveForeignKeyByTableRemake`를 별도 head에서 구현·검증합니다.
+12. Phase D4g/E: 그 뒤 actual GoDj adapter가 expected-fixture replay 없이 MIG-075..086 observation을 생성하게
+    하고, completion/terminal을 다시 서로 다른 exact-head hosted CI와 independent audit로 닫습니다.
 
 Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다. Final Phase-A artifact는
 manifest/oracle/NI/checksum 7,792/125,248/1,846/1,245 bytes로 측정했습니다. Reference는 exact
 13/139/156=`122+5+12 locked`이며 product는 계속 exact 12/127=
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Writer/autodetector/CLI,
 self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019는 이 sequence 밖입니다. Phase B/C
-proof는 later D1/D2/D3a/D3b를 증명하지 않고, candidate-local restart도 product epoch/fingerprint/DAG/
-reconstructor 증거가 아닙니다. EVID-093의 D1/D2/D3a는 D3b core support를 증명하지 않고 EVID-094의
-D3b는 D4 restart나 Add/Remove/remake를 증명하지 않습니다. Relation support는 normal
+proof는 later D1/D2/D3a/D3b를 증명하지 않고, candidate-local restart도 D4 product-path proof가 아닙니다.
+EVID-093의 D1/D2/D3a는 D3b core support를, EVID-094의 D3b는 D4 restart를, EVID-095의 bounded D4 scenario는
+Add/Remove/remake, raw database-file equality, `sqlite_sequence`, general restart나 actual MIG adapter를
+증명하지 않습니다. Relation support는 normal
 `definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유하며
 direct legacy execution은 relation-bearing input을 capability error로 거부합니다.
