@@ -275,6 +275,15 @@
 - GDJ-0035 Phase D4d deterministic resource-scan correction/hosted-tested head:
   `dd8336296afec1c05f739817c7ab77bdb63a2535`
   (`test(migrations): make resource scan bound deterministic`)
+- GDJ-0035 Phase D4d completion-documentation/hosted-tested head:
+  `c59669c6fd436b243e96eaf72256535454b705ed`
+  (`docs: record bounded nullable relation add evidence`)
+- GDJ-0035 Phase D4e bounded required relation Add product head:
+  `7c07805918dd680bfd5f85440d71aa14825972b6`
+  (`feat(sqlite): support required relation additions on empty tables`)
+- GDJ-0035 Phase D4e inventory lock/hosted-tested head:
+  `1d86f6e921ec57403980423b83efc17a248a3864`
+  (`test: refresh required relation inventory lock`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -378,7 +387,11 @@
   `3950d98...`, immutable inventory lock `28b141e...`의 first run `32267789056`은 macOS Intel race job의
   wall-clock assertion P1 실패를 보존합니다. Deterministic visit-count fix `dd83362...`의 distinct run
   `32271361724`가 26/26·342/342와 audit P0..P3=0을 통과했으므로 exact bounded nullable ForeignKey Add만
-  Implemented/Verified입니다. Current capability tuple은 `{true,true,false,false}`이고 MIG/Q 분류는 불변입니다.
+  Implemented/Verified입니다. EVID-097 docs head `c59669c...`는 unique run `32278555810`의
+  26/26·342/342와 audit P0..P3=0에서 별도로 닫혔습니다. D4e product `7c07805...`/inventory lock
+  `1d86f6e...`의 distinct run `32282269755`도 26/26·342/342와 audit P0..P3=0을 통과했으므로 bounded
+  empty-source required ForeignKey Add가 Implemented/Verified입니다. Current capability tuple은
+  `{true,true,true,false}`이고 MIG/Q 분류는 불변입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -907,12 +920,14 @@
   relation capability를 거쳐 scalar step은 `BeginFencedMigration`, relation-bearing step은
   `BeginRelationFencedMigration`으로 실행합니다. Scalar/no-op actual plan의 relation call은 0이고 unsupported
   relation tail은 어떤 prefix begin/commit보다 먼저 거부됩니다.
-- Current SQLite relation capability tuple은 exact `{true,true,false,false}`입니다. Normal loaded
+- Current SQLite relation capability tuple은 exact `{true,true,true,false}`입니다. Normal loaded
   relation-bearing CreateModel은 dependency와 함께 apply되고 child-first DeleteModel unapply/reapply가
-  검증됐습니다. D4d는 forward exact append nullable/no-default/non-PK ForeignKey Add를 source model당 한 개,
+  검증됐습니다. D4d/D4e는 forward exact append no-default/non-PK ForeignKey Add를 source model당 한 개,
   changed sealed target과 모든 pre-existing source relation의 exact same symbolic target이라는 bounded shape에서
   지원합니다. Public `Targets`는 changed field 하나만 유지하고 SQLite private execution만 sealed same-target
-  snapshot을 source relation-field order로 확장합니다. Required Add/Remove-remake는 아직 false입니다. D4는
+  snapshot을 source relation-field order로 확장합니다. Nullable Add는 empty/populated source를 허용하고 required
+  Add는 `PROTECT`와 empty source만 허용합니다. Existing source emptiness는 pinned `BEGIN IMMEDIATE` 뒤 revision
+  claim 전에 확인하고 same-intent created source는 statically empty입니다. Remove/remake는 아직 false입니다. D4는
   close/reopen마다 fresh Backend/loaded set을 사용한 exact
   full/branch/full captured schema/rows/history/token/FK snapshot scenario를 검증했지만 raw-file equality,
   `sqlite_sequence`나 general restart는 주장하지 않습니다. Raw carrier-less relation execution과 public raw
@@ -1391,14 +1406,25 @@ Phase D의 현재 경계는 다음과 같습니다.
   distinct run `32271361724`는 exact 26/26 jobs·342/342 steps, annotations 0과 audit P0..P3=0을 통과했습니다.
   Current tuple은 `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
   AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다.
+- **D4d evidence/status hosted-verified:** exact 18-document docs head `c59669c...`, tree `d1e0ede...`는
+  EVID-098/run `32278555810`의 고유 26/26 jobs·342/342 steps, annotations 0과 audit P0..P3=0을 통과했습니다.
+  이 run을 D4e product proof로 재사용하지 않습니다.
+- **D4e bounded required ForeignKey Add Implemented/Verified:** immutable product head `7c07805...`, tree
+  `8f449a9...`는 exact no-default/non-PK/required `PROTECT` Add를 sealed same-target authority에서 구현했습니다.
+  Existing source emptiness는 exact pinned transaction의 `BEGIN IMMEDIATE` 뒤 claim 전에 확인하고 same-intent
+  created source는 statically empty입니다. Inventory lock `1d86f6e...`, tree `fa17073...`의 distinct
+  EVID-098/run `32282269755`는 exact 26/26 jobs·342/342 steps, annotations 0과 audit P0..P3=0을 통과했습니다.
+  Current tuple은 `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+  AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:false}`입니다.
 
-다음 정확한 작업은 D4e bounded `AddRequiredForeignKeyToEmptyTable` product slice입니다. D4d는 nullable Add의
-exact bounded universe만 소유하며 arbitrary/different/nested/self/cyclic target, multi-add, Remove/remake, general
-restart나 actual adapter 지원으로 확대하지 않습니다. `RemoveForeignKeyByTableRemake`는 false로 보존한 뒤 별도
-head에서 구현·검증하고, 그 후 actual GoDj adapter가 expected fixture replay 없이 MIG-075..086 observation을
+다음 정확한 작업은 D4f bounded `RemoveForeignKeyByTableRemake` product slice입니다. D4d/D4e는 nullable Add와
+empty-source required Add의 exact bounded universe만 소유하며 arbitrary/different/nested/self/cyclic target,
+multi-add, populated required Add, Remove/remake, general restart나 actual adapter 지원으로 확대하지 않습니다.
+`RemoveForeignKeyByTableRemake`는 현재 false이며 별도 head에서 구현·검증하고, 그 후 actual GoDj adapter가
+expected fixture replay 없이 MIG-075..086 observation을
 생성해야 합니다. Completion/terminal은 그 뒤 다시 별도 head로 닫습니다.
 
-Carrier 없는 raw relation execution과 false required Add/Remove-remake capability는 pre-Begin `CategoryCapability`/
+Carrier 없는 raw relation execution과 false Remove/remake capability는 pre-Begin `CategoryCapability`/
 `CodeUnsupported`, feature `relation_migration`으로 fail-closed합니다. Reference는 exact
 13/139/156=`122 passing + 5 deviation + 12 oracle_locked`, product contract는 exact
 12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변이며 MIG-075..086은 계속
@@ -1574,6 +1600,11 @@ Carrier 없는 raw relation execution과 false required Add/Remove-remake capabi
   `dd8336296afec1c05f739817c7ab77bdb63a2535`; first run `32267789056`은 macOS Intel race P1 failure,
   distinct run `32271361724`는 correction head의 unique attempt-1 exact 26/26·342/342 PASS, annotations 0,
   audit P0..P3=0
+- GDJ-0035 D4d completion documentation: `c59669c6fd436b243e96eaf72256535454b705ed`;
+  EVID-098/run `32278555810` unique attempt-1 exact 26/26·342/342 PASS, annotations 0, audit P0..P3=0
+- GDJ-0035 D4e required-empty ForeignKey Add: product `7c07805918dd680bfd5f85440d71aa14825972b6`, inventory
+  lock `1d86f6e921ec57403980423b83efc17a248a3864`; EVID-098/run `32282269755` unique attempt-1 exact
+  26/26·342/342 PASS, annotations 0, audit P0..P3=0
 - 최근 완료 work:
   [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - active work:
@@ -1590,8 +1621,9 @@ Carrier 없는 raw relation execution과 false required Add/Remove-remake capabi
   reverse/write/generated upgrade는 Q-017 P1/open;
   [ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 bounded relation
   migration definition/state/SQLite lifecycle design에 한해 Accepted; D1/D2/D3a bounded slices와 D3b
-  normal loaded relation core, D4d bounded nullable ForeignKey Add는 Implemented/Verified이고 D4 bounded
-  captured-snapshot restart는 Verified이지만 required Add/Remove-remake, general restart와 actual adapter는 미완료
+  normal loaded relation core, D4d bounded nullable ForeignKey Add와 D4e bounded empty-source required Add는
+  Implemented/Verified이고 D4 bounded captured-snapshot restart는 Verified이지만 populated required Add,
+  Remove-remake, general restart와 actual adapter는 미완료
 - 현재 reference 분류: 13 sets/139 unique contract+scenario/156 ordered cross-binding=
   `122 passing + 5 deviation + 12 oracle_locked`. Hosted product manifest는 별도 12/127=`122+5+0`이고
   REL-001..012 전부 `passing`
@@ -1630,8 +1662,10 @@ Carrier 없는 raw relation execution과 false required Add/Remove-remake capabi
   `32256113658`, D4c evidence/status head `62df9b2...`는 run `32260744096`의 각 unique
   26/26·342/342·audit P0..P3=0을 통과했습니다. D4d product `3950d98...`/inventory lock `28b141e...`의 first
   run `32267789056` P1을 보존했고 deterministic fix `dd83362...`의 distinct run `32271361724`가
-  26/26·342/342·audit P0..P3=0을 통과했습니다. Capability tuple은 `{true,true,false,false}`입니다. 다음은
-  D4e required-empty Add이며 Remove-remake와 actual adapter는 그 뒤 순서입니다.
+  26/26·342/342·audit P0..P3=0을 통과했습니다. D4d docs head `c59669c...`/run `32278555810`과 D4e
+  product `7c07805...`/inventory lock `1d86f6e...`/run `32282269755`도 각각 unique
+  26/26·342/342·audit P0..P3=0을 통과했습니다. Capability tuple은 `{true,true,true,false}`입니다. 다음은
+  D4f Remove-remake이며 actual adapter는 그 뒤 순서입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명

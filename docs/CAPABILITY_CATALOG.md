@@ -437,7 +437,7 @@ GDJ-0035의 relation-migration decision 상태는 `Accepted/Partially Implemente
 legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
 다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
-채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b/D4d 한계를 따릅니다.
+채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b/D4d/D4e 한계를 따릅니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
 - MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
@@ -464,9 +464,14 @@ Implemented/Verified했습니다. D4 exact test-only head `424ec4d...`는
 `dd83362...`는
 [EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
 run `32271361724`에서 sealed same-target loaded universe의 nullable ForeignKey Add를 Implemented/Verified했습니다.
-Exact capability는 `{true,true,false,false}`입니다. Public Add intent는 changed target 하나만 소유하고 SQLite가
+그 D4d head의 exact capability는 `{true,true,false,false}`였습니다. Public Add intent는 changed target 하나만 소유하고 SQLite가
 그 sealed snapshot을 같은 symbolic target의 pre-existing source ForeignKey에만 privately 확장합니다. Native
 `ALTER TABLE ... ADD COLUMN ... INTEGER NULL REFERENCES ... ON DELETE NO ACTION`, populated-row NULL 보존,
-canonical mixed declaration, reopen/fault/resource 경계를 검증했습니다. Required Add/Remove-remake, general
-restart와 actual MIG adapter는 아직 없습니다.
+canonical mixed declaration, reopen/fault/resource 경계를 검증했습니다. 이어 EVID-097 docs head `c59669c...`는 run `32278555810`에서
+닫혔고 D4e final head `1d86f6e...`는
+[EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
+run `32282269755`에서 bounded empty-source required Add를 Implemented/Verified했습니다. Exact capability는
+`{true,true,true,false}`입니다. Required field는 no-default/non-PK/`PROTECT`이고 existing source emptiness는 pinned
+`BEGIN IMMEDIATE` 뒤 claim 전에 확인합니다. Same-intent created source는 statically empty이며 populated source와
+Remove/remake는 fail-closed입니다. General restart와 actual MIG adapter는 아직 없습니다.
 MIG-075..086은 계속 `oracle_locked`입니다.

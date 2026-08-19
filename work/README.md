@@ -99,9 +99,13 @@ workflow/capability/status/inventory를 바꾸지 않습니다. EVID-096 exact-s
 run `32267789056`은 macOS Intel race의 wall-clock assertion P1로 25/26에서 실패했고, deterministic visit-count
 fix `dd83362...` 뒤 distinct run `32271361724`가 exact 26/26·342/342·audit P0..P3=0을 통과했습니다.
 EVID-097은 sealed/resolvable same-target snapshot에 한정한 nullable ForeignKey Add, native ALTER, populated row/
-sequence, canonical mixed SQL, reopen/fault/resource proof를 기록합니다. Capability는 `{true,true,false,false}`이고
-다음은 required-empty Add → Remove/remake → actual adapter → completion/terminal입니다. Arbitrary target universe는
-주장하지 않습니다.
+sequence, canonical mixed SQL, reopen/fault/resource proof를 기록합니다. 그 D4d head의 capability는
+`{true,true,false,false}`였고
+EVID-097 docs head `c59669c...`는 run `32278555810`에서 별도로 닫혔습니다. D4e product `7c07805...`/inventory
+lock `1d86f6e...`는 EVID-098/run `32282269755`에서 empty-source required `PROTECT` Add, native NOT NULL ALTER,
+pre-claim emptiness, fault/reopen 경계를 exact 26/26·342/342·audit P0..P3=0으로 검증했습니다. Capability는
+`{true,true,true,false}`이고 다음은 Remove/remake → actual adapter → completion/terminal입니다. Arbitrary target
+universe는 주장하지 않습니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는

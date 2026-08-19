@@ -261,5 +261,9 @@ D4 test-only verification `424ec4d...`도
 계속 불변입니다. EVID-096 docs head `62df9b2...`/run `32260744096`과 D4d final head `dd83362...`의
 [EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
 run `32271361724`도 Phase A source payload를 rewrite하거나 재분류하지 않습니다. Nullable Add는 GoDj-owned
-independent implementation이며 exact capability는 `{true,true,false,false}`입니다. Required Add/Remove-remake,
-general restart와 actual adapter는 미지원입니다.
+independent implementation이며 당시 exact capability는 `{true,true,false,false}`입니다. EVID-097 docs head
+`c59669c...`/run `32278555810`과 D4e final head `1d86f6e...`의
+[EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
+run `32282269755`도 reference source를 rewrite하지 않습니다. Required-empty Add 역시 GoDj-owned independent
+implementation이고 exact capability는 `{true,true,true,false}`입니다. Remove-remake, general restart와 actual
+adapter는 미지원입니다.

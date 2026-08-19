@@ -1522,7 +1522,46 @@ passes the focused three-test normal/race gates 50 times each plus the normal/ra
 set. Distinct CI #91 [run 32271361724](https://github.com/progresshans/godj/actions/runs/32271361724) passed exact
 26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0`.
 
-D4d does not change public signatures, workflow topology, reference artifacts, MIG-075..086 status or Q status.
-Required Add/Remove-remake remain false, MIG-075..086 remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`,
-and general restart/actual adapter/completion/terminal remain later work. Next is D4e
-`AddRequiredForeignKeyToEmptyTable` on a distinct product/evidence head.
+D4d did not change public signatures, workflow topology, reference artifacts, MIG-075..086 status or Q status.
+At that D4d head required Add/Remove-remake remained false; MIG-075..086 remained `oracle_locked`,
+Q-010/Q-012/Q-013 remained `Partial`, and D4e was the next distinct product/evidence head.
+
+## GDJ-0035 Phase D4e bounded required ForeignKey Add verification
+
+[EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification)
+first closes the EVID-097 documentation head `c59669c6fd436b243e96eaf72256535454b705ed` with unique CI #92
+[run 32278555810](https://github.com/progresshans/godj/actions/runs/32278555810): exact 26/26 jobs, 342/342 steps
+and audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the documentation head.
+
+D4e product `7c07805918dd680bfd5f85440d71aa14825972b6` changes exact six migration/SQLite source and test paths.
+It extends the same closed public changed-target-only/private same-target authority to an exact appended, no-default,
+non-PK, non-null `PROTECT` ForeignKey. Nullable and required Adds share one source-model/step limit. Existing source
+emptiness is queried on the exact pinned connection after `PRAGMA foreign_keys=1` and `BEGIN IMMEDIATE`, before
+revision claim; a source created earlier in the same intent is statically empty and performs no query. SQLite emits
+`ALTER TABLE "main"."news_article" ADD COLUMN "reviewer_id" INTEGER NOT NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION`.
+The exact capability tuple is `{true,true,true,false}`.
+
+Tests cover direct and normal loaded empty-source success, populated-source pre-claim rejection, same-intent created
+source, `pragma_table_xinfo.notnull=1`, exact FK metadata, valid inserts and NULL/orphan rejection, target row/sequence
+preservation, fresh reopen/Latest no-op and reverse Remove rejection. Core dry/rematerialization authority failures
+remain pre-capability/pre-Begin. SQLite independent direct static seal failures remain
+pre-new-pinned-connection/pre-SQL-BEGIN. Raw empty-source query faults are
+`CategoryTransaction/CodeBeginFailed` with `NoOperation`; native ALTER/final-FK faults are
+`CategoryExecution/CodeOperationFailed` on exact `AddField`; recorder faults are
+`CategoryRecorder/CodeRecordFailed` with `NoOperation`. Clean rollback retains `RollbackCause=nil`, structured
+snapshot equality and sticky no-retry.
+
+Frozen product bytes passed `git diff --check`, gofmt, normal/race/CGO-disabled tests for
+`./migrations ./db/sqlite ./migrations/definition`, vet, `go test -count=1 ./...` and Linux/386 builds for those three
+packages. Focused required+nullable normal count-10 and race count-3 gates also passed; independent core normal/race
+and SQLite exact-12 normal/race auditors reported P0/P1/P2/P3=`0/0/0/0`. Inventory correction
+`1d86f6e921ec57403980423b83efc17a248a3864` locks exact 827/827/0, 84,674 bytes and SHA-256
+`0ed230272d623ec6de97b05469814e2acee7ee9cab28b1164658e45ba9dc7b2c` while Phase B remains 75/75/0,
+9,736 bytes and `48e7beb1...92ec`.
+
+Unique CI #93 [run 32282269755](https://github.com/progresshans/godj/actions/runs/32282269755) passed exact
+26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0` on exact final head
+`1d86f6e...`. D4e changes no public API, reference artifact, product adapter or contract/Q status. MIG-075..086
+remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, Remove/remake remains false, and general restart,
+actual adapter, completion and terminal status remain later work. Next is D4f `RemoveForeignKeyByTableRemake` on a
+distinct product/evidence head.

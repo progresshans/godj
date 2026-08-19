@@ -810,7 +810,10 @@ MIG-075..086을 `passing`으로 전환하지 않습니다. EVID-096 exact-six do
 run `32260744096`에서 고유하게 닫혔고, D4d final head `dd83362...`는
 [EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
 run `32271361724`에서 bounded nullable ForeignKey Add를 Implemented/Verified했습니다. Reference artifact와
-MIG status는 바뀌지 않았습니다.
+MIG status는 바뀌지 않았습니다. EVID-097 docs head `c59669c...`는 run `32278555810`에서 닫혔고 D4e final head
+`1d86f6e...`는 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
+run `32282269755`에서 bounded required-empty Add를 Implemented/Verified했습니다. Reference artifact와 MIG
+status는 계속 불변입니다.
 
 Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
@@ -859,19 +862,23 @@ optional SQLite Create/Delete port는 EVID-093의 각 product/correction head에
 static authority/readiness 뒤 exact-one fenced history로 actual Planner를 실행하고 whole actual plan을
 dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증하도록 구현했습니다. Scalar/no-op
 plan은 relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Normal loaded
-relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply합니다. D4d는 nullable, no-default, non-PK
-ForeignKey append를 empty/populated source에서 지원하되 public changed-target 하나가 source의 모든 기존
+relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply합니다. D4d/D4e는 no-default, non-PK
+ForeignKey append를 지원하되 public changed-target 하나가 source의 모든 기존
 ForeignKey와 exact same symbolic target을 나타내고 sealed target model이 relation-free인 경우로 닫았습니다.
-Source model당 migration step의 nullable relation Add는 하나입니다. Loaded core authority/resource closure는
+Source model당 migration step의 nullable/required relation Add를 합쳐 하나입니다. Nullable Add는 empty/populated
+source를 허용하고 required Add는 `PROTECT`와 empty source만 허용합니다. Existing source emptiness는 exact pinned
+connection의 `BEGIN IMMEDIATE` 뒤 physical preflight에서 revision claim 전에 확인하며 same-intent created source는
+statically empty입니다. Loaded core authority/resource closure는
 pre-capability/pre-Begin이고 missing capability는 selection 중 pre-Begin 실패합니다. SQLite independent static
 seal은 remaining invalid/direct shapes를 새 pinned relation connection과 SQL `BEGIN` 전에 거부합니다. Physical
 target-outgoing cycle/pre-existing drift는 `BEGIN IMMEDIATE` 뒤 physical preflight에서 검사하지만 revision
 claim/mutation 전 rollback합니다. Capability tuple은
-`{true,true,false,false}`입니다. D4 `424ec4d...`는 file
+`{true,true,true,false}`입니다. D4 `424ec4d...`는 file
 close/reopen마다 backend와 loaded set을 새로 만들고 full/branch/full history 및
 revision-fingerprint ABA, canonical schema/rows와 physical FK snapshot을 비교했습니다. Raw SQLite file bytes,
-general restart와 actual adapter는 검증하지 않았습니다. Required Add와 Remove/remake는 false입니다.
+general restart와 actual adapter는 검증하지 않았습니다. Populated required Add는 unsupported이고
+Remove/remake capability는 false입니다.
 EVID-091/092는 각 docs head만,
 EVID-093은 D1/D2/D3a bounded slices만, EVID-094는 D3b product/correction head만, EVID-095는 D4 exact
-test-only verification head만 증명합니다. EVID-097은 final D4d head까지의 bounded product evidence이며
-MIG-081 status 전환이나 actual adapter 증거가 아닙니다.
+test-only verification head만 증명합니다. EVID-097/EVID-098은 각각 final D4d/D4e head까지의 bounded product
+evidence이며 MIG-081 status 전환이나 actual adapter 증거가 아닙니다.

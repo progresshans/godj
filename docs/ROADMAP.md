@@ -38,7 +38,11 @@
   deterministic resource-scan count fix `dd83362...`를 적용했습니다. 이 final head는
   [EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
   run `32271361724`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 sealed same-target nullable ForeignKey Add를
-  검증했습니다. 현재 단계는 D4e required-empty ForeignKey Add입니다.
+  검증했습니다. EVID-097 docs head `c59669c...`는 run `32278555810`에서 별도로 닫혔고 D4e product
+  `7c07805...`/inventory `1d86f6e...`는
+  [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
+  run `32282269755`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 empty-source required ForeignKey Add를
+  검증했습니다. 현재 단계는 D4f Remove-by-remake입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-20
@@ -649,8 +653,13 @@ activation head `52f9bcb7...`는
    reopen, fault rollback/no-retry와 resource bounds를 검증했습니다. First run `32267789056`의 P1은
    wall-clock assertion을 deterministic visit counts로 바꿔 제거했고 distinct run `32271361724`는 exact
    26/26·342/342와 audit P0..P3=0을 통과했습니다. Capability는 `{true,true,false,false}`입니다.
-10. Phase D4e (**next; capability 2**): `AddRequiredForeignKeyToEmptyTable`을 별도 head에서 구현·검증합니다.
-11. Phase D4f (**capability 3**): `RemoveForeignKeyByTableRemake`를 별도 head에서 구현·검증합니다.
+10. Phase D4e (**implemented and hosted-verified; capability 2**): EVID-097 documentation head `c59669c...`를
+    run `32278555810`에서 별도로 닫은 뒤 product `7c07805...`와 inventory lock `1d86f6e...`로 exact
+    no-default/non-PK/required `PROTECT` ForeignKey를 empty source에 native NOT NULL ALTER로 추가했습니다.
+    Existing source emptiness는 pinned `BEGIN IMMEDIATE` 뒤 claim 전에 확인하고 same-intent created source는
+    statically empty로 처리합니다. Run `32282269755`는 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다.
+    Capability는 `{true,true,true,false}`입니다.
+11. Phase D4f (**next; capability 3**): `RemoveForeignKeyByTableRemake`를 별도 head에서 구현·검증합니다.
 12. Phase D4g/E: 그 뒤 actual GoDj adapter가 expected-fixture replay 없이 MIG-075..086 observation을 생성하게
     하고, completion/terminal을 다시 서로 다른 exact-head hosted CI와 independent audit로 닫습니다.
 

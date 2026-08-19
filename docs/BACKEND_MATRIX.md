@@ -47,10 +47,11 @@ spatial fields/lookups/aggregates
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey
-Create/Delete apply/unapply/reapply 및 sealed same-target universe의 nullable ForeignKey Add 단면입니다. File
+Create/Delete apply/unapply/reapply 및 sealed same-target universe의 nullable ForeignKey Add와 empty-source required
+ForeignKey Add 단면입니다. File
 reopen 검증은 captured schema/rows/history/token/FK snapshot에 한하며 raw database-file bytes나 general restart를
-뜻하지 않습니다. Required relation Add와 table rebuild가 필요한 relation Remove는 구조화된 capability error로
-거부합니다.
+뜻하지 않습니다. Required relation Add는 no-default/non-PK/`PROTECT`와 empty source에 한해 지원하며 populated
+source와 table rebuild가 필요한 relation Remove는 구조화된 capability error로 거부합니다.
 Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
@@ -80,13 +81,19 @@ run `32248885053`에서 검증했습니다. Product source/API/workflow와 inven
 EVID-096 documentation head `62df9b2...`는 run `32260744096`에서 고유하게 닫혔습니다. D4d product
 `3950d98...`, inventory lock `28b141e...`와 deterministic resource-scan fix `dd83362...`는
 [EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
-run `32271361724`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0에서 검증됐습니다. 현재 SQLite
-capability는 exact `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
-AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent의
+run `32271361724`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0에서 검증됐습니다. 그 뒤 EVID-097
+documentation head `c59669c...`는 run `32278555810`에서 별도로 닫혔습니다. D4e product `7c07805...`와
+inventory lock `1d86f6e...`는
+[EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
+run `32282269755`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0에서 검증됐습니다. 현재 SQLite capability는
+exact `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent의
 zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. Nullable Add는
 public changed-field target 하나를 유지하고, pre-existing source ForeignKey가 모두 그 exact symbolic target을
 가리키며 target snapshot에 relation이 없을 때만 private full target list를 파생합니다. Migration step마다 source
-model당 nullable relation Add 하나만 허용합니다. Required Add/Remove/remake와 general restart는 계속 미지원이며
+model당 nullable/required relation Add를 합쳐 하나만 허용합니다. Required Add는 empty existing source를 pinned
+transaction에서 claim 전에 확인하거나 same-intent created source를 statically empty로 증명하며 native NOT NULL
+FK를 추가합니다. Populated source와 Remove/remake, general restart는 계속 미지원이며
 MIG-075..086은 계속 reference-only
 `oracle_locked`입니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
 physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK

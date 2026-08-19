@@ -118,7 +118,10 @@ file-backed restart observation만 추가하며 source provenance/license 분류
 EVID-096 docs head `62df9b2...`의 run `32260744096`과 D4d product/fix final head `dd83362...`의
 EVID-097/run `32271361724`도 checked-in Phase A reference를 rewrite하지 않습니다. D4d nullable ForeignKey
 Add source와 tests는 GoDj-owned independent implementation이며 upstream source, fixture, comment 또는 assertion
-구조를 복사·번역하지 않았습니다. Required Add/Remove-remake와 general restart는 여전히 미지원입니다.
+구조를 복사·번역하지 않았습니다. EVID-097 docs head `c59669c...`/run `32278555810`과 D4e
+product/inventory final head `1d86f6e...`의 EVID-098/run `32282269755`도 reference를 rewrite하지 않습니다.
+D4e required-empty Add source와 tests 역시 GoDj-owned independent implementation입니다. Remove-remake와 general
+restart는 여전히 미지원입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.
