@@ -436,7 +436,9 @@ Phase C test-only decision proof는 EVID-085..090에서 local/hosted 검증됐�
 docs head `5bdf013...`도 EVID-091/run `32183309328`의 별도 local/hosted proof를 통과했고,
 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 그 증거로
 다음 bounded product pipeline을 채택했습니다. Accepted는 설계 상태이며 Implemented, Verified 또는 backend
-support를 뜻하지 않습니다.
+support를 자동으로 뜻하지 않습니다. 후속 Phase D1/D2/D3a bounded product slices는
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
+별도 Implemented/Verified됐지만 core relation execution은 D3b 전 Unsupported입니다.
 
 ```text
 legacy (1,1,1,2) document ─┐
@@ -449,38 +451,41 @@ legacy digest v1 / relation-or-mixed digest v2 + module-private Handoff
 Set.Migrate context carrier → Executor pre-I/O seal → whole-step state promotion
                                                   │
                                                   ↓
-static zero-I/O → optional existing-fence session → existing history/plan
+static authority/readiness → exact-one fenced history → actual Planner + whole-plan dry validation
                                                   │
                                                   ↓
-exact-connection PRAGMA → one RevisionFencedTransaction → SQLite physical preflight
+conditional relation capability → exact-connection PRAGMA → one fenced transaction + physical preflight
 ```
 
 Legacy-only digest v1, scalar State v1과 existing lifecycle는 필수 보존 조건입니다. Relation-only/mixed set은
 digest v2 domain을 사용하고 wire `target_field` 없이 operation 시점 historical model의 exact one AutoField PK를
-파생합니다. Promotion/demotion은 whole migration-step 경계에만 있고 actual `StateReconstructor` 통합은 아직
-blocker입니다.
+파생합니다. Promotion/demotion은 whole migration-step 경계에만 있습니다. D2 private reconstructor/readiness는
+구현됐지만 actual recorder history/Planner를 core lifecycle에 연결하는 D3b가 blocker입니다.
 
-Loader와 lifecycle 사이의 profile/provenance loss는 planned
+Loader와 lifecycle 사이의 profile/provenance loss는 implemented
 `migrations/internal/definitionhandoff.Handoff`로 닫습니다. Successful `definition.Load`가 per-migration exact
 profile, cloned source/producer, canonical definition seal, set digest와 sorted full-graph seal을 alias/raw bytes 없이
 만들고 relation-only/mixed `Set`의 unexported field에 보관합니다. `Set.Migrate`는 호출별 fresh clone을 nonnil
 context의 typed private key에 붙여 existing `Executor.Migrate`를 호출합니다. Executor는 context precedence 뒤,
-capability/session/I/O 전에 caller-visible definitions와 carrier seals를 synchronous/no-retain 검증하고 그 경계에서만
-private relation reconstructor/prepared lifecycle을 mint합니다. Legacy/empty set에는 carrier가 없고 모든 existing
+backend/session/I/O 전에 caller-visible definitions와 carrier seals를 synchronous/no-retain 검증하고 그 경계에서만
+private relation reconstructor/readiness를 mint합니다. Legacy/empty set에는 carrier가 없고 모든 existing
 public signature와 entrypoint 수는 그대로입니다. Internal exported identifier는 Go module-private이지 consumer
 API가 아닙니다. Mixed operation sequence, `Before`/`After`, `OperationIndex`와 `Targets` 값 불변식은
 [ADR-0034의 additive backend API section](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md#additive-exact-existing-fence-backend-api)을 정본으로 합니다.
 
 Optional product boundary는 exact `RelationRevisionFencedBackend`/`RelationRevisionFencedSession`, four explicit
-capabilities와 existing `RevisionFencedTransaction` 하나입니다. SQLite는 exact connection에서
+capabilities와 existing `RevisionFencedTransaction` 하나입니다. D3a의 direct SQLite port는 exact connection에서
 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake → FK check →
-recorder/revision → one commit 순서를 사용하고 physical action은 `NO ACTION`입니다. Populated nullable AddField와
-empty-table required AddField만 허용하며 populated required는 pre-mutation 거부합니다. Bounded remake 밖의
-inbound FK/index/trigger/view/generated object는 fail-closed합니다.
+recorder/revision → one commit 순서를 사용하고 physical action은 `NO ACTION`입니다. 현재 capability는
+CreateModel FK만 true이고 nullable/required AddField와 Remove/remake는 false입니다. D3b는 static
+request/resource/carrier/profile/digest/graph/chronology/readiness 검증 뒤 exact-one fenced history로 actual
+Planner를 실행하고 whole plan을 dry-validate한 뒤에만 relation capability를 조회합니다.
+Scalar/no-op plan의 relation call은 0이고 unsupported mixed plan의 scalar partial commit은 없습니다.
 
 Test-only helper/type/error names, golden/hash와 private catalogs는 noncanonical입니다. Writer/autodetector,
 general schema preservation, self/cyclic/inbound relation, non-AutoField target, non-SQLite backend와 Q-017/Q-019는
 범위 밖입니다. Exact test-only head `7d36502...`/EVID-090, Proposed docs-freeze head `5bdf013...`/EVID-091과
 acceptance docs head `7cdc6d6...`/EVID-092는 각각 별도로 hosted-verified됐습니다. Test-only head는 later
-`definitionhandoff` product bridge를 구현하거나 검증하지 않았고 actual port/reconstructor/restart도 미구현입니다.
-EVID-092는 acceptance documentation head만 증명하며 product implementation proof로 재사용하지 않습니다.
+`definitionhandoff` product bridge를 구현하거나 검증하지 않았고 EVID-092는 acceptance docs head만 증명합니다.
+Later D1/D2/D3a는 EVID-093의 서로 다른 product/correction head와 hosted run을 소유합니다. 그러나
+core `Load`→`Set.Migrate` relation execution과 actual full-history/DAG restart는 D3b 전 지원하지 않습니다.

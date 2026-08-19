@@ -1269,8 +1269,9 @@ oracle/checksum, full repo normal/race/CGO0/vet와 independent audits P0..P3=0�
 four relation-product 725/725/0 inventories와 hosted audit P0..P3=0을 통과했습니다.
 
 이 proof는 product source/manifest/oracle/NI/workflow/artifact를 바꾸지 않았고 MIG-075..086은 계속
-`oracle_locked`입니다. Actual SQLite optional relation port와 actual `StateReconstructor` relation state/restart는
-blocker입니다. Actual `definitionhandoff` carrier도 미구현입니다. Phase D는 Accepted additive public surface의
+`oracle_locked`입니다. 그 Phase C proof boundary에서 actual SQLite optional relation port, actual
+`StateReconstructor` relation state/restart와 `definitionhandoff` carrier는 blocker이자 미구현이었습니다.
+Phase D는 Accepted additive public surface의
 exact expected inventory 일치, 그 named addition을 제외한 legacy public
 signature/entrypoint inventory의 byte-for-byte unchanged, legacy/empty zero-carrier와 raw legacy lifecycle/reconstructor
 preservation, relation/mixed fresh clone/no-alias/no-retain, nil/cancel/deadline/value precedence, seal mismatch와
@@ -1283,3 +1284,56 @@ steps와 audit P0..P3=0을 통과했고, 이 별도 docs head에서 ADR-0034 bou
 [run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845)는 별도 acceptance docs head
 `7cdc6d6...`의 unique exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 기록합니다. EVID-090/091/092를 later
 product proof로 재사용하지 않고 Draft PR은 merge하지 않습니다.
+
+## GDJ-0035 Phase D1/D2/D3a bounded product verification
+
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)은
+Phase C/acceptance 증거를 재사용하지 않고 다음 three bounded product slices를 서로 다른
+product head, inventory-correction head, local gates와 hosted run으로 분리합니다.
+
+- **D1 definition/handoff:** product `42aa9a90db01c548923b443a82ffb8682d4ce9c0`, tree
+  `e576ac6658ef728e31ca4f8c78e3a55e618d1e79`; exact 18 C/path-sorted paths total 289,236 source
+  bytes, and their plain `shasum`-row `<sha256>  <path>\n` manifest has SHA-256
+  `b38594fa1dd7e2bdab35146623585919dad4705ee3c78cfbfab6d1c1e468202d`. Inventory correction
+  `f22a4983a200570902daaa921a8e96d144c95d07` is the exact head proven by run `32195313382`.
+  Hosted four relation coordinates each reproduced 734/734/0·74,741 bytes·
+  `27bcdd16f8962d01c1a1645bf211535ad1e665fd507c6bc508ca2d9adee7f16f`; SQLite stayed
+  75/75/0·9,736 bytes·`48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- **D2 private state/readiness:** product `ec8877e08b0b196787ef161eb65f6987493e0ba0`, tree
+  `a8d4d5d3f1e277e6acb80da7dc914d1665d23a35`; exact 18 C/path-sorted paths total 431,891 source
+  bytes, and their plain `shasum`-row `<sha256>  <path>\n` manifest has SHA-256
+  `1738785b43832258491ae8970d09e09b252f9a98520643087f0cd88a807ab549`. Inventory correction
+  `80776b5b82effd7cf9892839400b6c6624aef845` is the exact head proven by run `32205324145`.
+  Hosted four relation coordinates each reproduced 766/766/0·78,202 bytes·
+  `c055cbaf611665988885731b2f038b204fd51915e57a89d843a2ed98b4e145d1`; SQLite stayed unchanged.
+- **D3a direct optional SQLite port:** product `2eafde10656a7f819fe5685c8ddf7d63a09f839a`, tree
+  `34a52c57368f6de98f55059ec2fc3cc0d9c1189e`; exact eight C/path-sorted paths total 359,895
+  source bytes. Their exact 901-byte size-annotated `<sha256>  <bytes>  <path>\n` manifest, including final LF,
+  has SHA-256 `5ebcaf672d0660e4ffadad166498472d7b8ca31a16776226f298c92677e6dcd9`; the corresponding
+  plain `shasum`-row `<sha256>  <path>\n` manifest has SHA-256
+  `50734641fa50ff6a6b925c414e9a394c314644b16f83b776f922c7900980cdb9`. Inventory correction
+  `ce58c5e1975e9e21d9c3ee6ed901302d5ce31bc7` is the exact head proven by run `32218003207`.
+  Hosted four relation coordinates each reproduced 798/798/0·81,414 bytes·
+  `5fd31fcbaf62bc243c8e98805e87fb196f4b9e99ffe24854063f3a090b38928f`; SQLite stayed unchanged.
+
+Each hosted run was attempt 1 and exact 26/26 jobs·342/342 recorded steps·26/26 successful checks with
+annotations 0 and audit P0/P1/P2/P3=`0/0/0/0`. D3a also passed exact Python 216/216, 13 oracle checks,
+13 checksums, 386, clean-worktree and no-rewrite gates. Raw combined-log byte/hash was not collected for D2/D3a,
+so no such value is claimed.
+
+The first independent D3a `go test -race ./... -count=1` failed only the unchanged D2
+`TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes` at about 2.01 seconds against its fixed
+2-second timeout under full-suite parallel load. Isolated race count 10 passed at about 0.6 seconds per run, the
+standard full-race retry passed at about 45.4 seconds, and full `-race -p=1` passed. DB/SQLite/D3a tests passed and
+the manifest did not change. This is recorded as an existing parallel-load timing flake, not a data race or D3a failure.
+
+The initial exact local Python command under Homebrew uv 0.12.3 failed closed with 19 `ProfileMismatch` results.
+The same exact gate rerun with PATH-pinned cached uv 0.10.12, SHA-256 prefix/suffix `905d1df4...b900`, passed
+216/216 plus 13 oracle checks. No code byte changed between those environment outcomes.
+
+D1/D2/D3a are Implemented/Verified only within those bounded slices. Current D3a capabilities are CreateModel FK
+true and Add/Remove/remake false. Core `Load`→`Set.Migrate` relation execution still fails pre-session as
+`relation_migration` Unsupported until D3b connects static readiness → exact-one fenced history → actual
+Planner → whole-plan dry validation → conditional capability. Scalar/no-op plans make zero relation calls,
+and an unsupported relation step must prevent any scalar partial commit. MIG-075..086 remain `oracle_locked` and
+Q-010/Q-012/Q-013 remain `Partial`.

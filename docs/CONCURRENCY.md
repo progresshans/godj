@@ -189,12 +189,15 @@ Hook/signal은 실행 순서, sync/async 여부, transaction commit 전후, 오�
 GDJ-0035 Phase C는 existing revision-fenced migration transaction을 보존하면서 relation editor/remake를
 추가하는 exact concurrency boundary를 test-only proof로 동결했습니다.
 [ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded design은
-EVID-091로 증명된 Proposed docs head 뒤 Accepted됐지만, 다음을 현재 구현된 보장으로 표현하지 않습니다.
+EVID-091로 증명된 Proposed docs head 뒤 Accepted됐습니다. D1/D2/D3a bounded product slices는
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
+구현·검증됐지만 D3b core integration 전에는 아래 전체 lifecycle을 지원하는 보장으로 표현하지 않습니다.
 
-- Static relation/state/creator-ancestry/resource preflight와 optional capability selection은 pinned
-  connection/session 전에 끝나며 failure I/O는 0입니다. Existing session의 exact-one history snapshot과 actual
-  planner preflight는 별도 두 번째 stage이고, SQLite schema/cardinality inspection은 transaction 안의 세 번째
-  physical stage입니다.
+- Static request/resource/carrier/profile/digest/graph/chronology/readiness preflight는 backend/session 전에
+  끝나며 failure DB/session I/O는 0입니다. 그 뒤 existing fenced session에서 applied history를 exact once
+  읽고 actual Planner를 실행한 뒤 actual plan 전체를 dry-validate합니다. Relation capability는 이
+  history/plan stage 성공 후 every begin/mutation 전에만 검증하고, SQLite schema/cardinality inspection은
+  transaction 안의 별도 physical stage입니다.
 - Relation-only/mixed `definition.Set`은 immutable module-private `definitionhandoff.Handoff`를 소유하고
   `Set.Migrate` 호출마다 fresh clone을 nonnil context의 typed unexported key에 붙입니다. Executor는 기존
   context nil/cancel/deadline/value precedence 뒤, capability/session/I/O 전에 carrier를 synchronous하게 읽고
@@ -213,15 +216,22 @@ EVID-091로 증명된 Proposed docs head 뒤 Accepted됐지만, 다음을 현재
   Relation용 두 번째 session/transaction은 없습니다.
 - Precommit fault는 failed migration을 rollback하고 앞선 migration commit은 보존합니다. Commit outcome은
   success/definite failure/unknown outcome을 구분하고 unknown을 automatic retry하지 않습니다.
+- Scalar-only/no-op actual plan은 relation capability/`BeginRelationFencedMigration` call이 0입니다. Nonempty
+  scalar-only plan은 existing `BeginFencedMigration`을 사용하며, unsupported relation step이 하나라도 있으면
+  scalar prefix를 begin/commit하지 않습니다.
+- `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/physical-preflight/claim failure는
+  step-level `NoOperation`과 existing typed class를 유지하고, SchemaEditor/row-copy/final-FK failure만
+  exact operation을 소유합니다.
 - File restart와 concurrent caller alias/race gate는 MIG-078/084/085/086에서 별도로 검증합니다.
 
 Exact order는 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake →
 FK check → recorder/revision → `CommitFenced` once입니다. `CommitRolledBack`/`CommitUnknown`은 pre-step state와
 token을 보존하고 retry는 0입니다. Candidate-local reopen은 actual epoch/fingerprint/DAG/`StateReconstructor`
-restart 증거가 아닙니다. Phase C proof head `7d36502...`/EVID-090은 hosted-verified됐지만 actual SQLite port와
-reconstructor 및 internal handoff는 미구현입니다. Proposed docs-freeze head `5bdf013...`/EVID-091도 별도로
+restart 증거가 아닙니다. Phase C proof head `7d36502...`/EVID-090은 hosted-verified됐고 Proposed docs-freeze head `5bdf013...`/EVID-091도 별도로
 hosted-verified됐고 acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유 exact-head hosted gate를
-통과했습니다. 이 증거는 product concurrency/lifecycle implementation을 검증하지 않습니다.
+통과했습니다. D1/D2/D3a는 EVID-093에서 각 bounded slice로 별도 검증됐습니다. D3a는
+direct Create/Delete port만 소유하며 Add/Remove/remake caps는 false입니다. Core relation execution은 D3b
+전 pre-session Unsupported이고 D3b는 새 public API를 추가하지 않습니다.
 
 Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
 semantics도 범위 밖입니다.

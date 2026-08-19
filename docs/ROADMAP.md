@@ -19,7 +19,10 @@
   Proposed docs-freeze head `5bdf013...`는 EVID-091/run `32183309328`의 별도 local/hosted gates와 audit
   P0..P3=0을 통과했고 그 성공을 근거로 이 별도 documentation head에서 ADR-0034 bounded design을 Accepted로
   전환했습니다. Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유 exact 26/26 jobs·342/342
-  steps와 audit P0..P3=0을 통과했습니다. Product status는 불변이며 현재 단계는 Phase D bounded implementation입니다.
+  steps와 audit P0..P3=0을 통과했습니다. 그 후 Phase D1 definition/handoff, D2 private state/readiness,
+  D3a direct optional SQLite Create/Delete port가 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)의
+  분리된 product/correction heads와 runs `32195313382`, `32205324145`, `32218003207`에서 각각
+  Implemented/Verified됐습니다. 현재 단계는 D3b core integration입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-19
@@ -604,16 +607,23 @@ activation head `52f9bcb7...`는
    EVID-091/run `32183309328`의 고유 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고, 이 별도 head에서
    ADR-0034를 Accepted로 전환했습니다. Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유
    26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다.
-4. Phase D: legacy `(1,1,1,2)`/digest v1/state v1을 보존하며 relation profile/state/editor/SQLite lifecycle를
-   bounded implementation합니다. 아직 구현을 시작하거나 완료한 것으로 표시하지 않습니다.
-5. Phase E: implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
+4. Phase D1/D2/D3a (**bounded slices implemented and hosted-verified**): D1 `42aa9a9...`/`f22a498...`,
+   D2 `ec8877e...`/`80776b5...`, D3a `2eafde1...`/`ce58c5e...`는 각 EVID-093 hosted run의
+   exact 26/26 jobs·342/342 steps·audit P0..P3=0을 통과했습니다. D3a는 direct relation-bearing
+   Create/Delete만 지원하고 Add/Remove/remake caps는 false입니다.
+5. Phase D3b (**next**): static request/resource/carrier/profile/digest/graph/chronology/readiness → exact-one
+   fenced history → actual Planner → whole-plan dry validation → actual-plan relation capability를 core
+   `Executor.Migrate`에 새 public API 없이 연결합니다. Scalar/no-op relation call 0과 unsupported mixed
+   plan의 scalar partial commit 0을 강제합니다.
+6. Phase D4/E: supported capability별 Add/Remove/remake, actual full-history/DAG restart와
+   implementation/completion/terminal을 각각 고유 exact-head hosted CI와 independent audit로 닫습니다.
 
 Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다. Final Phase-A artifact는
 manifest/oracle/NI/checksum 7,792/125,248/1,846/1,245 bytes로 측정했습니다. Reference는 exact
 13/139/156=`122+5+12 locked`이며 product는 계속 exact 12/127=
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Writer/autodetector/CLI,
 self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019는 이 sequence 밖입니다. Phase B/C
-proof는 actual SQLite product optional relation port나 actual `StateReconstructor` relation state를 구현·검증하지
-않았고, candidate-local restart도 product epoch/fingerprint/DAG/reconstructor 증거가 아닙니다. Relation support는
-구현 후 normal `definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유하며 direct legacy execution은
-relation-bearing input을 capability error로 거부합니다.
+proof는 later D1/D2/D3a를 증명하지 않고, candidate-local restart도 product epoch/fingerprint/DAG/
+reconstructor 증거가 아닙니다. EVID-093의 D1/D2/D3a도 core support를 증명하지 않습니다.
+Relation support는 D3b 구현 후 normal `definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유하며
+direct legacy execution은 relation-bearing input을 capability error로 거부합니다.

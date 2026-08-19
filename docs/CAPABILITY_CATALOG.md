@@ -433,11 +433,11 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 
 ## Active Accepted design: relation-capable migration lifecycle
 
-GDJ-0035의 relation-migration decision 상태는 `Accepted/Not implemented`입니다. Existing migration 제품의
+GDJ-0035의 relation-migration decision 상태는 `Accepted/Partially Implemented`입니다. Existing migration 제품의
 legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
 다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
-채택한 bounded decision surface이지 현재 지원 표면이 아닙니다.
+채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a 한계를 따릅니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
 - MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
@@ -447,8 +447,12 @@ legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle�
 
 Product aggregate는 계속 exact 12 adapters/127 contracts=`122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12입니다. Phase C exact 8-test-only head `7d36502...`는 EVID-089/090 local/hosted gates를 통과했습니다.
-그 proof는 actual SQLite optional port, actual `StateReconstructor`, product restart 또는 support를 구현하지 않습니다.
+그 proof는 later product support를 구현하지 않았습니다.
 Test-only helper/hash/private catalog는 noncanonical입니다. Proposed docs-freeze head `5bdf013...`는
 EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 그 성공을 근거로 bounded design만 Accepted됐습니다.
 Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`에서 별도 hosted-verified됐으며 product state는
-바뀌지 않았습니다.
+바뀌지 않았습니다. Later D1 definition/handoff, D2 private state/readiness와 D3a direct optional
+SQLite Create/Delete port는
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
+각 bounded Implemented/Verified됐습니다. D3a Add/Remove/remake caps는 false이고 core relation execution은
+D3b 전 pre-session Unsupported입니다. MIG-075..086은 계속 `oracle_locked`입니다.

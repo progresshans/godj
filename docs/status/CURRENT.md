@@ -237,6 +237,15 @@
 - GDJ-0035 Phase C test-only decision-proof/hosted-tested commit:
   `7d36502f104daa62b39744b5705478acc19a7ead`
   (`test: freeze relation migration decision proof`)
+- GDJ-0035 acceptance evidence/status head:
+  `1d4403461fff0dbc9718d99a7d9cf25876502194`
+  (`docs: record relation migration acceptance evidence`)
+- GDJ-0035 Phase D1 definition/handoff product and inventory-correction heads:
+  `42aa9a90db01c548923b443a82ffb8682d4ce9c0` / `f22a4983a200570902daaa921a8e96d144c95d07`
+- GDJ-0035 Phase D2 private historical-state product and inventory-correction heads:
+  `ec8877e08b0b196787ef161eb65f6987493e0ba0` / `80776b5b82effd7cf9892839400b6c6624aef845`
+- GDJ-0035 Phase D3a direct SQLite relation-port product and inventory-correction heads:
+  `2eafde10656a7f819fe5685c8ddf7d63a09f839a` / `ce58c5e1975e9e21d9c3ee6ed901302d5ce31bc7`
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -316,7 +325,14 @@
   head에서 ADR-0034 bounded design을 Accepted로 전환했습니다. Acceptance docs head `7cdc6d6...`, tree
   `240879d...`도 [EVID-092](TEST_EVIDENCE.md#evid-20260819-092--gdj-0035-adr-0034-acceptance-documentation-head-exact-head-hosted-ci) /
   [run 32187094845](https://github.com/progresshans/godj/actions/runs/32187094845)의 별도 unique 26/26 jobs·342/342
-  steps와 audit P0..P3=0을 통과했습니다. Product source/status는 불변입니다.
+  steps와 audit P0..P3=0을 통과했습니다. Product source/status는 그 acceptance evidence boundary에서 불변이었습니다.
+  이후 Phase D1 definition/profile/codec/digest/module-private handoff, D2 carrier-only private historical
+  state/reconstructor/readiness와 D3a direct optional SQLite relation-bearing Create/Delete port가 각각 구현됐고
+  [EVID-093](TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)의
+  분리된 local/hosted proof를 통과했습니다. D1 run `32195313382`, D2 run `32205324145`, D3a run
+  `32218003207`은 각각 correction head의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 증명합니다.
+  Core `Load`→`Set.Migrate` relation execution은 D3b 전 pre-session `relation_migration` Unsupported이고,
+  D3a의 Add/Remove/remake capabilities는 false입니다. MIG-075..086과 Q-010/Q-012/Q-013 분류는 불변입니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -1270,38 +1286,35 @@ steps와 audit P0..P3=0을 통과했습니다. GDJ-0034는 terminally closed이�
 [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)이고 ready는 0입니다.
 MIG-075..086 exact 12 reference-only contracts와
 [Accepted ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
-design만 활성화했습니다.
-Legacy `(1,1,1,2)`/digest v1/scalar state v1을 보존하는 전제 아래 relation `(1,2,2,3)`, mixed digest,
-relation state, full preflight과 SQLite FK lifecycle/remake를 Phase A/B/C에서 검증했고 bounded design으로
-Accepted했습니다. Acceptance documentation head까지 hosted-verified됐지만 product 구현은 아직 pending입니다.
+design을 활성화했습니다. Phase A/B/C와 acceptance는 EVID-084..092의 분리된 증거입니다.
 
-Exact 16-document activation head는 EVID-084/run `31618469072`에서 EVID-083과 다른 고유 exact-head
-26/26 jobs·326/326 steps 및 audit P0..P3=0을 통과했습니다. Phase A reference-only artifact/local gates는
-EVID-085에서 20/20 focused, exact Python 216/216, Go 725/725/0과 artifact checksum으로 고정했습니다.
-Exact committed head `84e16bf...`는 EVID-086/run `31625898551`의 고유 attempt-1 exact 26/26·326/326과
-audit P0..P3=0을 통과해 Phase A를 hosted-verified했습니다. Phase B는 product를 바꾸지 않는 exact 14개
-`_test.go`에서 tuple/profile dispatch, mixed digest, state promote/demote, structural preflight, SQLite
-pinned-connection/remake/fault feasibility를 locally implemented/verified했습니다. Exact inventory는
-75/75/0·9,736 bytes·`48e7beb1...92ec`; exact 14-file aggregate는 693,557 bytes·`ca579837...09e5`이고
-두 independent final audit는 P0/P1/P2/P3=`0/0/0/0`입니다. Reference는 exact 13/139/156=`122+5+12 locked`, product는 exact
-12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12로 유지합니다.
-Q-010/Q-012/Q-013은 `Partial`, Q-017/Q-019는 P1/open이며 Draft PR은 사용자 요청 전 merge하지 않습니다.
-Exact Phase B head `c2ecb292...`, tree `c114812f...`는 EVID-088/run `31653237691`의 고유 attempt-1 exact
-26/26 jobs·342/342 steps와 hosted audit P0..P3=0을 통과했습니다. Four SQLite coordinates는 각각
-75/75/0·9,736 bytes·`48e7beb1...92ec`, four relation-product coordinates는 각각
-725/725/0·73,806 bytes·`2ad28eb2...a5d4`를 재현했습니다. Phase B는 completed and hosted-verified입니다.
-Phase C exact 8-test-only decision proof head `7d36502...`는 EVID-089/090/run `32174259324`에서
-local/unique hosted 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다. Candidate-local restart는
-product epoch/fingerprint/DAG/reconstructor 증거가 아니며 actual SQLite optional port와 actual
-`StateReconstructor`는 implementation blocker이고 현재 relation-bearing `AddField`를
-`CategoryState`/`CodeInvalidState`로 거부합니다. Actual `definitionhandoff` carrier/Set context bridge/Executor
-seal validation도 미구현입니다. Carrier 없는 raw relation entry의 frozen failure는 pre-Begin
-`CategoryCapability`/`CodeUnsupported` feature `relation_migration`이고 raw legacy/public scalar behavior는
-보존합니다. Proposed decision-freeze documentation head `5bdf013...`는 EVID-091/run `32183309328`의 고유
-local/hosted gates를 통과했고 이 별도 head에서 ADR-0034 bounded design을 Accepted로 전환했습니다. Acceptance
-documentation head `7cdc6d6...`도 EVID-092/run `32187094845`의 own unique exact-head hosted CI와 independent
-audit P0..P3=0을 통과했고 EVID-091을 재사용하지 않았습니다. 다음 정확한 작업은 Phase D bounded product
-implementation이며 legacy profile/digest/state/lifecycle bytes와 behavior 보존부터 시작합니다.
+Phase D의 현재 경계는 다음과 같습니다.
+
+- **D1 Implemented/Verified in its bounded slice:** `42aa9a9...`가 legacy bytes/behavior를 보존하며
+  relation tuple/codec/digest v2와 module-private handoff를 구현했고, inventory correction
+  `f22a498...`의 EVID-093/run `32195313382`가 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다.
+- **D2 Implemented/Verified in its bounded slice:** `ec8877e...`가 carrier-only private historical
+  relation state/reconstructor/readiness를 구현했고, correction `80776b5...`의 EVID-093/run
+  `32205324145`가 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다.
+- **D3a Implemented/Verified in its bounded slice:** `2eafde1...`가 additive backend API와 direct optional
+  SQLite relation-bearing Create/Delete port를 구현했고, correction `ce58c5e...`의 EVID-093/run
+  `32218003207`가 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. Current capability는
+  CreateModel FK만 true이고 Add/Remove/remake는 false입니다.
+
+다음 정확한 작업은 **D3b core integration**입니다. Static request/resource/carrier/profile/digest/
+graph/chronology/readiness를 backend 전에 검증한 뒤 exact-one fenced history로 actual Planner를 실행하고,
+actual plan 전체를 dry-validate한 뒤에만 relation capability를 조회해 every begin/mutation 전에
+필요 capability를 고정합니다. Scalar-only/no-op actual plan의 relation call은 0이어야 하고,
+unsupported relation step이 하나라도 있으면 scalar prefix를 begin/commit하지 않습니다. `BeginFencedMigration`/
+`BeginRelationFencedMigration`, global PRAGMA/catalog/physical-preflight/claim failure는 step-level
+`NoOperation`과 existing typed class를 사용하고,
+`SchemaEditor`/final-FK failure만 exact operation을 소유합니다. D3b는 새 public API를 추가하지 않습니다.
+
+Core `Load`→`Set.Migrate` relation execution은 D3b 전 pre-session `CategoryCapability`/
+`CodeUnsupported`, feature `relation_migration`으로 fail-closed합니다. Reference는 exact
+13/139/156=`122 passing + 5 deviation + 12 oracle_locked`, product contract는 exact
+12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변이며 MIG-075..086은 계속
+`oracle_locked`, Q-010/Q-012/Q-013은 `Partial`입니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
 ## 작업 재개 체크포인트
 
@@ -1480,7 +1493,8 @@ implementation이며 legacy profile/digest/state/lifecycle bytes와 behavior 보
   forward assignment/save/cache ownership; broader
   reverse/write/generated upgrade는 Q-017 P1/open;
   [ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는 bounded relation
-  migration definition/state/SQLite lifecycle design에 한해 Accepted; product는 미구현
+  migration definition/state/SQLite lifecycle design에 한해 Accepted; D1/D2/D3a bounded slices는
+  Implemented/Verified이지만 core relation execution은 D3b 전 Unsupported
 - 현재 reference 분류: 13 sets/139 unique contract+scenario/156 ordered cross-binding=
   `122 passing + 5 deviation + 12 oracle_locked`. Hosted product manifest는 별도 12/127=`122+5+0`이고
   REL-001..012 전부 `passing`
@@ -1505,20 +1519,16 @@ implementation이며 legacy profile/digest/state/lifecycle bytes와 behavior 보
   implementation head `3099bd62...`는 EVID-081에서 hosted-verified됐고 code는 Implemented입니다. 새 Q/ADR, public
   API, relation manifest/oracle/status 변경은 없습니다. Exact completion head `45cfccd...`는 EVID-082에서
   hosted-verified됐고 exact terminal head `0bb8c969...`는 EVID-083에서 terminally closed됐습니다.
-- GDJ-0035: active; MIG-075..086 exact 12 reference-only contracts와 Accepted ADR-0034 bounded design을 소유합니다. Exact16
-  Markdown activation은 EVID-084에서 hosted-verified됐고 Phase A artifact/local gate는 EVID-085에서 completed입니다.
-  Exact Phase A head `84e16bf...`는 EVID-086/run `31625898551`에서 hosted-verified됐고 product 변경은 0입니다.
-  No-product Phase B feasibility는 EVID-087의 local final-byte gates와 두 audit P0..P3=0을 통과했습니다. Exact 14개
-  `_test.go`만 추가한 head `c2ecb292...`도 EVID-088/run `31653237691`의 고유 exact 26/26·342/342와 hosted
-  audit P0..P3=0을 통과했습니다. Phase B는 completed and hosted-verified이나 product 상태는 불변입니다. Phase C
-  exact 8-test-only proof `7d36502...`도 EVID-089/090의 local/hosted gates와 audit P0..P3=0을 통과해 decision
-  boundary를 동결했습니다. Proposed docs-freeze head `5bdf013...`는 EVID-091/run `32183309328`에서 별도
-  local/hosted 검증됐고 그 성공 뒤 bounded design만 Accepted됐습니다. Actual SQLite optional port는
-  미구현이고 actual product `StateReconstructor`는 relation-bearing `AddField`를
-  `CategoryState`/`CodeInvalidState`로 계속 거부합니다. Accepted design의 module-private `definitionhandoff.Handoff`와
-  Set→context→Executor seal validation도 아직 product에 없습니다. Existing public signatures/entrypoint는
-  변경하지 않는 결정입니다. Acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`에서 별도
-  hosted-verified됐습니다. 다음은 Phase D bounded product implementation입니다.
+- GDJ-0035: active; MIG-075..086 exact 12 reference-only contracts와 Accepted ADR-0034 bounded design을 소유합니다.
+  Activation/Phase A/B/C/acceptance는 EVID-084..092에서 분리 검증됐습니다. Phase D1
+  `42aa9a9...`/`f22a498...`, D2 `ec8877e...`/`80776b5...`, D3a
+  `2eafde1...`/`ce58c5e...`는 각 bounded product slice를 구현했고 EVID-093/runs
+  `32195313382`, `32205324145`, `32218003207`의 고유 exact 26/26 jobs·342/342 steps·audit
+  P0..P3=0에서 검증됐습니다. D1은 definition/handoff, D2는 private state/readiness, D3a는 direct
+  optional SQLite Create/Delete port만 소유합니다. Add/Remove/remake capabilities는 false이고 core
+  relation-bearing `Set.Migrate`는 D3b 전 pre-session `relation_migration` Unsupported입니다. 다음은
+  static readiness → exact-one fenced history → actual Planner → whole-plan dry validation → conditional
+  capability를 새 public API 없이 연결하는 D3b입니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
@@ -1669,6 +1679,18 @@ implementation이며 legacy profile/digest/state/lifecycle bytes와 behavior 보
   relation-product coordinates each 725/725/0·73,806 bytes·`2ad28eb2...a5d4`, annotations/log markers 0, audit
   P0/P1/P2/P3=0; acceptance docs head only, later EVID-092 append/status handoff is deliberately nonrecursive,
   product not proved
+- GDJ-0035 Phase D1 definition/handoff hosted: product `42aa9a9...`, inventory correction `f22a498...`;
+  EVID-093/run `32195313382` unique attempt-1 exact 26/26 jobs·342/342 steps PASS, four relation coordinates
+  each 734/734/0·74,741 bytes·`27bcdd16...f16f`, SQLite unchanged 75/75/0·9,736·`48e7beb1...92ec`,
+  audit P0/P1/P2/P3=0; D1 bounded slice only
+- GDJ-0035 Phase D2 private historical state/readiness hosted: product `ec8877e...`, inventory correction
+  `80776b5...`; EVID-093/run `32205324145` unique attempt-1 exact 26/26 jobs·342/342 steps PASS, four relation
+  coordinates each 766/766/0·78,202 bytes·`c055cbaf...45d1`, SQLite unchanged, audit P0/P1/P2/P3=0;
+  D2 bounded slice only
+- GDJ-0035 Phase D3a direct optional SQLite relation port hosted: product `2eafde1...`, inventory correction
+  `ce58c5e...`; EVID-093/run `32218003207` unique attempt-1 exact 26/26 jobs·342/342 steps PASS, four relation
+  coordinates each 798/798/0·81,414 bytes·`5fd31fcb...928f`, SQLite unchanged, exact Python 216/216 plus
+  13 oracle/checksum checks, audit P0/P1/P2/P3=0; direct Create/Delete slice only, core hookup absent
 - GDJ-0025 activation: EVID-039/run 31354040515 exact 26/26·326/326 PASS; activation head만 증명
 - GDJ-0025 implementation local: EVID-039; Go 1.26.5 darwin/arm64, CPython 3.14.3 + uv 0.12.3,
   `make ci`, exact 492/492/0 inventory·49,902 bytes·SHA-256 `05064a7f...82eb`, 12 adapters와 independent

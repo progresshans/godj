@@ -246,5 +246,10 @@ source provenance를 바꾸는 사건이 아닙니다.
 Checked-in Phase A manifest/oracle/NI/checksum의 GoDj-owned payload는 계속 historical `kind=proposal`, decision ID
 `GDJ-0035`, `derived=false`이고 Django-observed payload와 합치거나 `kind=decision`으로 소급 재분류하지 않습니다.
 Test-only candidate helpers, golden/hash와 private catalogs는 source/public API 정본이 아닙니다. ADR-0034 bounded
-design만 Accepted이고 actual SQLite optional port/`StateReconstructor`는 미구현입니다. EVID-091은 Proposed
-docs head `5bdf013...`만 증명하고 EVID-092/run `32187094845`는 별도 acceptance head `7cdc6d6...`만 증명합니다.
+design은 Accepted입니다. EVID-091은 Proposed docs head `5bdf013...`만 증명하고 EVID-092/run
+`32187094845`는 별도 acceptance head `7cdc6d6...`만 증명합니다. Later D1 definition/handoff,
+D2 private state/readiness, D3a direct optional SQLite Create/Delete port는
+[EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)의
+각 product/correction head에서 구현·검증됐습니다. 이 product 작업은 위 upstream source/provenance
+분류를 재작성하지 않으며 MIG-075..086은 계속 `oracle_locked`입니다. Core relation execution은
+D3b 전 Unsupported이고 Add/Remove/remake caps는 false입니다.

@@ -107,8 +107,11 @@ ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Phase 
 `7d36502...`는 EVID-090/run `32174259324`에서 각각 hosted-verified됐습니다. Proposed decision-freeze docs
 head `5bdf013...`도 EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 ADR-0034 bounded design은
 그 뒤 Accepted됐습니다. Later acceptance는 Phase A artifact의 historical `kind=proposal`, decision ID
-`GDJ-0035`, `derived=false`를 `kind=decision`으로 소급 변경하지 않습니다. Product는 미구현이고 현재
-acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`에서 별도 hosted-verified됐습니다.
+`GDJ-0035`, `derived=false`를 `kind=decision`으로 소급 변경하지 않습니다. Acceptance docs head
+`7cdc6d6...`는 EVID-092/run `32187094845`에서 별도 hosted-verified됐습니다. Later D1/D2/D3a
+bounded product slices는 EVID-093에서 각 구현·검증됐지만 이 사건도 checked-in Phase A
+artifact의 provenance/license 분류를 소급 변경하지 않습니다. MIG-075..086은 `oracle_locked`이고
+core relation execution은 D3b 전 Unsupported입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

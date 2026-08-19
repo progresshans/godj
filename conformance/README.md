@@ -73,8 +73,11 @@ GDJ-0035 Phase B와 Phase C는 `conformance/migrationrelation`의 test-only cand
 Exact Phase C head `7d36502...`/EVID-090은 one-loader/profile/digest/state/wire/preflight/existing-fence/SQLite
 decision boundary를 동결했고 Proposed docs head `5bdf013...`/EVID-091의 별도 local/hosted 성공 뒤 ADR-0034의
 bounded design이 Accepted됐습니다. Acceptance docs head `7cdc6d6...`도 EVID-092/run `32187094845`의 고유
-exact-head hosted gate를 통과했습니다. MIG-075..086 product handler, actual SQLite optional port와 actual
-`StateReconstructor`는 여전히 미구현입니다.
+exact-head hosted gate를 통과했습니다. Later D1 definition/handoff, D2 private historical
+state/readiness, D3a direct optional SQLite Create/Delete port는
+[EVID-093](../docs/status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)에서
+각 bounded product slice로 구현·검증됐습니다. MIG-075..086 product handler/status는 그대로
+`oracle_locked`이고 core relation execution은 D3b 전 pre-session Unsupported이며 Add/Remove/remake caps는 false입니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -835,6 +838,10 @@ unique run `31625898551`에서 26/26 jobs와 326/326 steps 모두 성공해 host
 Phase B test-only 후보나 ADR-0034 수락을 재귀적으로 증명하지 않습니다. Phase B head `c2ecb292...`는
 EVID-087/088, Phase C exact 8-test-only proof head `7d36502...`는 EVID-089/090/run `32174259324`의
 별도 local/hosted gate를 통과했습니다. Product aggregate와 MIG-075..086 `oracle_locked` 분류는 불변입니다.
+Later D1/D2/D3a product/correction heads는 EVID-093/runs `32195313382`, `32205324145`, `32218003207`에서
+각각 exact 26/26 jobs·342/342 steps·audit P0..P3=0을 통과했습니다. 이 증거는 conformance
+`migrationrelation` test-only helper를 product adapter로 재분류하거나 MIG-075..086을 `passing`으로
+전환하지 않습니다.
 
 Phase A에서 아직 Accepted되지 않았던 GoDj-owned GDJ-0035 candidate payload는 historical provenance
 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로 계속 분류합니다. Pinned Django BSD source/test

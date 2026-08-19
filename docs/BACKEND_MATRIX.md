@@ -60,7 +60,15 @@ Exact four capability는 relation-bearing CreateModel, nullable ForeignKey AddFi
 ForeignKey AddField와 bounded remake remove입니다. Optional port는 existing revision-fenced backend/session을
 embed하고 existing `RevisionFencedTransaction`을 그대로 반환합니다. SQLite transaction order는 exact connection
 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → revision/history claim → DDL/remake →
-`foreign_key_check` → recorder/successor revision → one commit입니다. 이 경계는 test-only head
-`7d36502...`와 EVID-089/090에서
-검증됐지만 현재 SQLite product에 구현되거나 Verified된 capability가 아닙니다. MIG-075..086도 모두
-reference-only `oracle_locked`입니다.
+`foreign_key_check` → recorder/successor revision → one commit입니다.
+
+Phase D3a product `2eafde1...`과 inventory correction `ce58c5e...`는 additive optional API와 direct SQLite
+relation-bearing Create/Delete port를 구현했고 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification) /
+run `32218003207`에서 exact 26/26 jobs·342/342 steps·audit P0..P3=0으로 검증됐습니다.
+현재 SQLite capability는 exact `{CreateModelForeignKeys:true, AddNullableForeignKey:false,
+AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent의
+zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. Core loaded
+relation execution은 D3b 전 pre-session Unsupported이며 MIG-075..086은 계속 reference-only
+`oracle_locked`입니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
+physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK
+failure는 exact operation을 소유합니다.
