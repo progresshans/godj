@@ -813,7 +813,10 @@ run `32271361724`에서 bounded nullable ForeignKey Add를 Implemented/Verified�
 MIG status는 바뀌지 않았습니다. EVID-097 docs head `c59669c...`는 run `32278555810`에서 닫혔고 D4e final head
 `1d86f6e...`는 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
 run `32282269755`에서 bounded required-empty Add를 Implemented/Verified했습니다. Reference artifact와 MIG
-status는 계속 불변입니다.
+status는 계속 불변입니다. EVID-098 docs head `85f9270...`는 CI #94/run `32288383027`에서 닫혔고 D4f final
+head `9d5b894...`는 [EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+CI #95/run `32294983953`에서 bounded ForeignKey reverse/remove table remake를 Implemented/Verified했습니다.
+Reference artifact와 MIG status는 계속 불변입니다.
 
 Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
@@ -863,22 +866,28 @@ static authority/readiness 뒤 exact-one fenced history로 actual Planner를 실
 dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증하도록 구현했습니다. Scalar/no-op
 plan은 relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Normal loaded
 relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply합니다. D4d/D4e는 no-default, non-PK
-ForeignKey append를 지원하되 public changed-target 하나가 source의 모든 기존
+ForeignKey append를 지원하고 D4f는 그 exact appended relation의 bounded backward/unapply를 지원하되 public
+changed-target 하나가 source의 모든 기존
 ForeignKey와 exact same symbolic target을 나타내고 sealed target model이 relation-free인 경우로 닫았습니다.
-Source model당 migration step의 nullable/required relation Add를 합쳐 하나입니다. Nullable Add는 empty/populated
+Source model당 migration step의 nullable/required relation mutation을 합쳐 하나입니다. Nullable Add는 empty/populated
 source를 허용하고 required Add는 `PROTECT`와 empty source만 허용합니다. Existing source emptiness는 exact pinned
 connection의 `BEGIN IMMEDIATE` 뒤 physical preflight에서 revision claim 전에 확인하며 same-intent created source는
 statically empty입니다. Loaded core authority/resource closure는
 pre-capability/pre-Begin이고 missing capability는 selection 중 pre-Begin 실패합니다. SQLite independent static
 seal은 remaining invalid/direct shapes를 새 pinned relation connection과 SQL `BEGIN` 전에 거부합니다. Physical
 target-outgoing cycle/pre-existing drift는 `BEGIN IMMEDIATE` 뒤 physical preflight에서 검사하지만 revision
-claim/mutation 전 rollback합니다. Capability tuple은
-`{true,true,true,false}`입니다. D4 `424ec4d...`는 file
+claim/mutation 전 rollback합니다. D4f Remove는 exact unique field-order/prefix candidate, deterministic temporary
+name, retained-column PK-order copy, affected/stored row counts, exact `sqlite_sequence`, final canonical/FK와
+`foreign_key_check`를 같은 fenced transaction에서 검증합니다. Remake source를 참조하는 inbound FK,
+remake source 위 non-PK user index, touched/control table을 소유하거나 참조하는 trigger/view, relevant
+declared table의 generated/hidden column 또는 unsupported option, relevant sequence의 invalid/case-variant/
+noninteger/negative form, namespace/deterministic-temp/control collision은 claim 전에 fail-closed합니다. 이
+범위 밖 unrelated harmless object는 허용합니다. Capability tuple은 `{true,true,true,true}`입니다. D4 `424ec4d...`는 file
 close/reopen마다 backend와 loaded set을 새로 만들고 full/branch/full history 및
 revision-fingerprint ABA, canonical schema/rows와 physical FK snapshot을 비교했습니다. Raw SQLite file bytes,
-general restart와 actual adapter는 검증하지 않았습니다. Populated required Add는 unsupported이고
-Remove/remake capability는 false입니다.
+general restart와 actual adapter는 검증하지 않았습니다. Populated required Add/reapply와 arbitrary/general
+remake는 unsupported입니다.
 EVID-091/092는 각 docs head만,
 EVID-093은 D1/D2/D3a bounded slices만, EVID-094는 D3b product/correction head만, EVID-095는 D4 exact
-test-only verification head만 증명합니다. EVID-097/EVID-098은 각각 final D4d/D4e head까지의 bounded product
-evidence이며 MIG-081 status 전환이나 actual adapter 증거가 아닙니다.
+test-only verification head만 증명합니다. EVID-097/EVID-098/EVID-099는 각각 final D4d/D4e/D4f head까지의
+bounded product evidence이며 MIG-081/MIG-082 status 전환이나 actual adapter 증거가 아닙니다.

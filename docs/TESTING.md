@@ -1565,3 +1565,59 @@ Unique CI #93 [run 32282269755](https://github.com/progresshans/godj/actions/run
 remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, Remove/remake remains false, and general restart,
 actual adapter, completion and terminal status remain later work. Next is D4f `RemoveForeignKeyByTableRemake` on a
 distinct product/evidence head.
+
+## GDJ-0035 Phase D4f bounded ForeignKey Remove by table remake verification
+
+[EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification)
+first closes the EVID-098 documentation head `85f92704ded6b9d6bd7da32b3fcff12fe747f74b` with unique CI #94
+[run 32288383027](https://github.com/progresshans/godj/actions/runs/32288383027): exact 26/26 jobs, 342/342 steps
+and audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the documentation head.
+
+D4f product `4982e27437b575cf202b55e7ce8c01fd56a94c9c` changes exact eight migration/SQLite source and test paths
+with `+1608/-119`; inventory lock `9d5b894643f3394974c91a1127534b219840e0a1` changes exact two CI/protocol
+expectation paths with `+6/-6`. The normal loaded core accepts only the backward/unapply inverse of an exact appended,
+no-default, non-PK ForeignKey: nullable `PROTECT` or `SET_NULL`, and required `PROTECT`. The frozen D4f direct E2E
+fixtures cover nullable `PROTECT` and required `PROTECT`; no dedicated nullable `SET_NULL` D4f E2E proof is claimed.
+Public `Targets` remains the exact changed target one. Dry validation and execution rematerialization require
+same-symbolic-target source closure, a relation-free
+target with exact one non-null AutoField PK, and at most one relation mutation per source model/step. A false
+`RemoveForeignKeyByTableRemake` capability fails before every Begin and publishes no state. The exact capability tuple
+is `{true,true,true,true}`; no public API/signature/entrypoint was added.
+
+SQLite selects one exact field-order/prefix authority candidate. On the exact pinned connection it executes
+`BEGIN IMMEDIATE`, then rejects before revision claim an inbound FK to the remake source, a non-PK index on that
+source, a trigger/view owning or referencing a touched/control table, generated/hidden columns or unsupported options
+on relevant tables, an invalid/case-variant/noninteger/negative `sqlite_sequence` row, or a namespace/temp/control
+collision. Unrelated harmless objects are permitted. The temp name is `__godj_relation_` plus 32 lowercase hexadecimal characters
+from the first 16 bytes of SHA-256 over a versioned, unsigned-64 big-endian length-framed transition tuple. After claim,
+one existing fenced transaction performs count → temp CREATE → explicit retained-column PK-order copy →
+`RowsAffected` plus stored-count equality → source DROP → temp RENAME → sequence clear/restore/verify → final canonical
+schema/FKs/`foreign_key_check` → recorder/successor revision → one commit.
+
+Tests preserve user rows, PK/column values, the remaining same-target ForeignKey and exact source/target high-water
+sequence. Nullable Add can reopen, reverse-remake, reopen and reapply. A populated required source can reverse-remove,
+but the later forward required reapply correctly fails the existing nonempty-source rule without snapshot drift.
+Closed-shape hazards fail pre-claim. CREATE/copy/DROP/RENAME/sequence-clear/sequence-restore/final-FK faults preserve
+the original cause through `errors.Is`, roll back exactly once, do not retry and leak no temp table. Even a coded
+`SQLITE_BUSY` in those post-claim stages remains `CategoryExecution/CodeOperationFailed` owned by the original
+backward `AddField`; recorder failure is `CategoryRecorder/CodeRecordFailed` with `NoOperation`.
+
+Frozen product bytes passed scoped normal/race tests for `./migrations ./db/sqlite ./migrations/definition`, focused
+authority/remake/sequence/temp/inbound/fault/restart/reapply normal count-10 and race count-3 gates, vet, gofmt,
+`git diff --check`, exported-API/static scans and independent core/SQLite audits at P0/P1/P2/P3=`0/0/0/0`.
+The exact eight product files are 730,772 bytes; product manifest/raw/framed hashes and the config-neutral full-index
+diff are recorded in EVID-099. The final inventory is exact 837/837/0, 85,756 bytes and SHA-256
+`c30c14ac691bb942d9f694d293b1917152231e0ba534b5d89010ce10707eb910`; Phase B remains exact 75/75/0,
+9,736 bytes and `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+
+Unique CI #95 [run 32294983953](https://github.com/progresshans/godj/actions/runs/32294983953) passed exact
+26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0` on exact final head
+`9d5b894...`. D4f changes no reference artifact, product adapter or contract/Q status. MIG-075..086 remain
+`oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, and GDJ-0035 remains active/Partially Implemented. Arbitrary/
+general remake, preserving unrecognized indexes/triggers/views/generated columns/options, inbound/self/cyclic/
+different/nested/non-AutoField/`to_field`/M2M/non-SQLite relations, populated required Add/reapply, raw-file equality,
+general restart, writer/autodetector, actual adapter, completion and terminal status remain later or excluded work.
+
+The next D4g action is oracle-blind observer-only characterization with all 12 MIG statuses still locked. Before any
+status or deviation decision, the packet must explicitly decide whether to add currently omitted
+`conformance/cmd/godjcheck/main.go` and whether a DEV/deviation path is required; no deviation is authorized here.

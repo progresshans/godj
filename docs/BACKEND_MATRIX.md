@@ -47,11 +47,14 @@ spatial fields/lookups/aggregates
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey
-Create/Delete apply/unapply/reapply 및 sealed same-target universe의 nullable ForeignKey Add와 empty-source required
-ForeignKey Add 단면입니다. File
+Create/Delete apply/unapply/reapply 및 sealed same-target universe의 nullable ForeignKey Add, empty-source required
+ForeignKey Add와 bounded ForeignKey reverse/remove table remake 단면입니다. File
 reopen 검증은 captured schema/rows/history/token/FK snapshot에 한하며 raw database-file bytes나 general restart를
 뜻하지 않습니다. Required relation Add는 no-default/non-PK/`PROTECT`와 empty source에 한해 지원하며 populated
-source와 table rebuild가 필요한 relation Remove는 구조화된 capability error로 거부합니다.
+source는 구조화된 capability error로 거부합니다. Relation Remove 구현은 exact appended nullable
+`PROTECT` 또는 `SET_NULL`, required `PROTECT` ForeignKey와 closed remake eligibility를 모두 만족할 때만
+지원합니다. Frozen D4f direct E2E fixture는 nullable `PROTECT`와 required `PROTECT`만 다루며
+dedicated nullable `SET_NULL` D4f E2E coverage는 주장하지 않습니다.
 Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
@@ -86,14 +89,24 @@ documentation head `c59669c...`는 run `32278555810`에서 별도로 닫혔습�
 inventory lock `1d86f6e...`는
 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
 run `32282269755`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0에서 검증됐습니다. 현재 SQLite capability는
-exact `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
-AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent의
+당시 exact `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:false}`였습니다. EVID-098 docs head
+`85f9270...`는 CI #94/run `32288383027`에서 별도로 닫혔고, D4f product `4982e27...`와 inventory lock
+`9d5b894...`는 [EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+CI #95/run `32294983953`의 exact 26/26 jobs·342/342 steps와 audit P0..P3=0에서 검증됐습니다. 현재 SQLite
+capability는 exact `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:true}`입니다. Complete relation intent의
 zero-target scalar Add/Remove는 실행할 수 있지만 relation Add/Remove support로 세지 않습니다. Nullable Add는
 public changed-field target 하나를 유지하고, pre-existing source ForeignKey가 모두 그 exact symbolic target을
 가리키며 target snapshot에 relation이 없을 때만 private full target list를 파생합니다. Migration step마다 source
 model당 nullable/required relation Add를 합쳐 하나만 허용합니다. Required Add는 empty existing source를 pinned
 transaction에서 claim 전에 확인하거나 same-intent created source를 statically empty로 증명하며 native NOT NULL
-FK를 추가합니다. Populated source와 Remove/remake, general restart는 계속 미지원이며
+FK를 추가합니다. D4f Remove는 deterministic temporary table, explicit retained-column PK-order copy, exact row
+count와 `sqlite_sequence`, final canonical/FK 검증을 같은 fenced transaction에서 수행합니다. Remake source
+inbound FK/non-PK index, touched/control trigger/view, relevant generated/hidden/option, malformed sequence와
+namespace/temp/control collision은 pre-claim 거부하지만 unrelated harmless object는 허용합니다. Populated required
+Add/reapply, arbitrary/general remake와 general
+restart는 계속 미지원이며
 MIG-075..086은 계속 reference-only
 `oracle_locked`입니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
 physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK

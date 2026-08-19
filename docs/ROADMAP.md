@@ -42,7 +42,11 @@
   `7c07805...`/inventory `1d86f6e...`는
   [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
   run `32282269755`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 empty-source required ForeignKey Add를
-  검증했습니다. 현재 단계는 D4f Remove-by-remake입니다.
+  검증했습니다. EVID-098 docs head `85f9270...`는 CI #94/run `32288383027`에서 별도로 닫혔고 D4f product
+  `4982e27...`/inventory lock `9d5b894...`는
+  [EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+  CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
+  Remove-by-remake를 검증했습니다. 현재 단계는 D4g observer-only characterization입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-20
@@ -659,9 +663,21 @@ activation head `52f9bcb7...`는
     Existing source emptiness는 pinned `BEGIN IMMEDIATE` 뒤 claim 전에 확인하고 same-intent created source는
     statically empty로 처리합니다. Run `32282269755`는 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다.
     Capability는 `{true,true,true,false}`입니다.
-11. Phase D4f (**next; capability 3**): `RemoveForeignKeyByTableRemake`를 별도 head에서 구현·검증합니다.
-12. Phase D4g/E: 그 뒤 actual GoDj adapter가 expected-fixture replay 없이 MIG-075..086 observation을 생성하게
-    하고, completion/terminal을 다시 서로 다른 exact-head hosted CI와 independent audit로 닫습니다.
+11. Phase D4f (**implemented and hosted-verified; capability 3**): EVID-098 documentation head `85f9270...`를
+    CI #94/run `32288383027`에서 별도로 닫은 뒤 product `4982e27...`와 inventory lock `9d5b894...`로
+    exact appended nullable `PROTECT` 또는 `SET_NULL`, required `PROTECT` ForeignKey의 backward/unapply를 bounded
+    table remake로 구현했습니다. Frozen direct E2E fixture는 nullable `PROTECT`와 required `PROTECT`만
+    검증했으며 dedicated nullable `SET_NULL` D4f E2E proof는 주장하지 않습니다. Same-target relation-free
+    AutoField authority, max-one relation mutation/source/step, pre-claim
+    relevant-shape rejection, deterministic temp, retained-column PK-order copy, row/sequence preservation,
+    error ownership/rollback/no-retry와 reopen/reapply를 검증했습니다. CI #95/run `32294983953`은 exact
+    26/26·342/342와 audit P0..P3=0을 통과했습니다. Capability는 `{true,true,true,true}`입니다.
+12. Phase D4g (**next, no status flip yet**): 첫 작업은 expected fixture/oracle을 보지 않는 observer-only
+    characterization으로 actual GoDj observation을 수집하고 MIG-075..086 12개를 모두 `oracle_locked`로
+    유지하는 것입니다. 현재 allowed paths에 없는 `conformance/cmd/godjcheck/main.go` 추가와 DEV/deviation
+    경로 필요 여부는 별도 explicit scope/decision gate에서 먼저 결정하며 deviation을 묵시적으로 승인하지 않습니다.
+13. Phase E: D4g characterization과 explicit status/deviation decision 뒤에만 completion/terminal을 다시 서로
+    다른 exact-head hosted CI와 independent audit로 닫습니다.
 
 Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다. Final Phase-A artifact는
 manifest/oracle/NI/checksum 7,792/125,248/1,846/1,245 bytes로 측정했습니다. Reference는 exact
@@ -671,6 +687,7 @@ self/cyclic/inbound/general schema remake, non-AutoField/non-SQLite, Q-017/Q-019
 proof는 later D1/D2/D3a/D3b를 증명하지 않고, candidate-local restart도 D4 product-path proof가 아닙니다.
 EVID-093의 D1/D2/D3a는 D3b core support를, EVID-094의 D3b는 D4 restart를, EVID-095의 bounded D4 scenario는
 Add/Remove/remake, raw database-file equality, `sqlite_sequence`, general restart나 actual MIG adapter를
+증명하지 않습니다. EVID-099은 bounded D4f product만 증명하며 actual adapter/status/deviation 결정을
 증명하지 않습니다. Relation support는 normal
 `definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유하며
 direct legacy execution은 relation-bearing input을 capability error로 거부합니다.

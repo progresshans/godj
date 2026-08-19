@@ -104,8 +104,16 @@ sequence, canonical mixed SQL, reopen/fault/resource proof를 기록합니다. �
 EVID-097 docs head `c59669c...`는 run `32278555810`에서 별도로 닫혔습니다. D4e product `7c07805...`/inventory
 lock `1d86f6e...`는 EVID-098/run `32282269755`에서 empty-source required `PROTECT` Add, native NOT NULL ALTER,
 pre-claim emptiness, fault/reopen 경계를 exact 26/26·342/342·audit P0..P3=0으로 검증했습니다. Capability는
-`{true,true,true,false}`이고 다음은 Remove/remake → actual adapter → completion/terminal입니다. Arbitrary target
-universe는 주장하지 않습니다.
+당시 `{true,true,true,false}`였습니다. EVID-098 docs head `85f9270...`는 CI #94/run `32288383027`에서
+별도로 닫혔고 D4f product `4982e27...`/inventory lock `9d5b894...`는 EVID-099/CI #95 run
+`32294983953`에서 exact appended nullable `PROTECT` 또는 `SET_NULL`, required `PROTECT` reverse를 허용하는
+bounded table remake를 구현했습니다. Frozen direct E2E fixture는 nullable `PROTECT`와 required `PROTECT`만
+검증했으며 dedicated nullable `SET_NULL` D4f E2E proof는 주장하지 않습니다. Row/sequence preservation,
+fault ownership/rollback/no-retry와 reopen/reapply를 exact 26/26·342/342·audit P0..P3=0으로 검증했습니다.
+Capability는 `{true,true,true,true}`입니다. 다음은 oracle-blind D4g observer
+characterization이며 MIG-075..086은 계속 locked입니다. Omitted allowed path와 DEV/deviation 필요 여부를
+explicit decision하기 전에는 status/deviation을 바꾸지 않습니다. Arbitrary/general target/remake universe는
+주장하지 않습니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는

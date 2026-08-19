@@ -265,5 +265,10 @@ independent implementation이며 당시 exact capability는 `{true,true,false,fa
 `c59669c...`/run `32278555810`과 D4e final head `1d86f6e...`의
 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
 run `32282269755`도 reference source를 rewrite하지 않습니다. Required-empty Add 역시 GoDj-owned independent
-implementation이고 exact capability는 `{true,true,true,false}`입니다. Remove-remake, general restart와 actual
-adapter는 미지원입니다.
+implementation이고 당시 exact capability는 `{true,true,true,false}`였습니다. EVID-098 docs head `85f9270...` /
+CI #94 run `32288383027`과 D4f final head `9d5b894...`의
+[EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+CI #95 run `32294983953`도 reference source를 rewrite하지 않습니다. Bounded Remove/remake 역시 GoDj-owned
+independent implementation이고 exact capability는 `{true,true,true,true}`입니다. General/arbitrary remake,
+general restart와 actual adapter는 미지원입니다. D4g observer characterization은 oracle-blind하게 시작하고
+그 결과에 대한 source/deviation/status 결정 전에는 MIG-075..086을 계속 `oracle_locked`로 유지합니다.

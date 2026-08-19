@@ -450,6 +450,10 @@ run `32271361724`에서 sealed same-target nullable ForeignKey Add를 Implemente
 그 EVID-097 documentation head `c59669c...`는 run `32278555810`에서 별도로 닫혔고, D4e final head
 `1d86f6e...`는 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
 run `32282269755`에서 empty-source required ForeignKey Add를 Implemented/Verified했습니다.
+EVID-098 documentation head `85f9270...`는 CI #94/run `32288383027`에서 별도로 닫혔고, D4f product
+`4982e27...`와 inventory lock/final head `9d5b894...`는
+[EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+CI #95/run `32294983953`에서 bounded reverse/unapply table remake를 Implemented/Verified했습니다.
 
 ```text
 legacy (1,1,1,2) document ─┐
@@ -491,7 +495,7 @@ capabilities와 existing `RevisionFencedTransaction` 하나입니다. D3a의 dir
 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake → FK check →
 recorder/revision → one commit 순서를 사용하고 physical action은 `NO ACTION`입니다. 현재 capability는
 `{CreateModelForeignKeys:true, AddNullableForeignKey:true, AddRequiredForeignKeyToEmptyTable:true,
-RemoveForeignKeyByTableRemake:false}`입니다. D3b core는 static
+RemoveForeignKeyByTableRemake:true}`입니다. D3b core는 static
 request/resource/carrier/profile/digest/graph/chronology/readiness 검증 뒤 exact-one fenced history로 actual
 Planner를 실행하고 whole plan을 dry-validate한 뒤에만 relation capability를 조회하도록 구현됐습니다.
 Normal loaded relation-bearing CreateModel은 same-session scalar dependency와 함께 apply되고 child-first
@@ -501,7 +505,13 @@ DeleteModel unapply/reapply가 가능합니다. D4d/D4e relation Add는 public A
 relation Add를 합쳐 하나이며, nullable은 native `INTEGER NULL`, required는 no-default/non-PK/`PROTECT`와 empty
 source에 한해 native `INTEGER NOT NULL REFERENCES ... ON DELETE NO ACTION`을 사용합니다. Existing source의 empty
 검사는 pinned `BEGIN IMMEDIATE` 뒤 claim 전에 실행하고 same-intent created source는 statically empty입니다.
-Remove/remake는 capability error로 mutation 전에 닫힙니다.
+D4f reverse/unapply는 exact appended changed ForeignKey 하나, relation-free exact non-null AutoField target과
+same-symbolic-target closure를 dry pass와 rematerialization에서 다시 검증합니다. SQLite는 exact field-order/prefix
+authority가 하나일 때만 deterministic temporary table을 sealed하고 `BEGIN IMMEDIATE` 뒤 claim 전에 remake
+source inbound FK/non-PK index, touched/control trigger/view, relevant generated/hidden/option, sequence와
+namespace/temp/control collision을 fail-closed합니다. Unrelated harmless object는 허용합니다. 같은 fenced
+transaction에서 retained columns를 PK order로 copy하고 row count, table replacement,
+`sqlite_sequence`, canonical schema/FK와 `foreign_key_check`를 검증한 뒤 recorder/revision을 거쳐 commit합니다.
 
 Test-only helper/type/error names, golden/hash와 private catalogs는 noncanonical입니다. Writer/autodetector,
 general schema preservation, self/cyclic/inbound relation, non-AutoField target, non-SQLite backend와 Q-017/Q-019는
@@ -514,5 +524,6 @@ D4 `424ec4d...`는 disposable SQLite file을 매 process scope마다 닫고 새 
 `Load`로 다시 연 뒤 exact epoch/revision/fingerprint/history, canonical schema/rows와 physical FK snapshot을
 비교했습니다. 이는 raw database-file byte equality, `sqlite_sequence`, general restart 또는
 Add/Remove/remake support가 아니며 product source/public API/workflow도 바꾸지 않았습니다. D4d/D4e는 nullable
-Add와 empty-source required Add의 forward/fresh-reopen Latest no-op까지만 더하며 reverse Remove, general restart와
-actual adapter는 여전히 범위 밖입니다.
+Add와 empty-source required Add의 forward/fresh-reopen Latest no-op를 더했고 D4f는 exact bounded reverse/remove,
+row/sequence preservation, rollback/no-retry와 nullable reopen/reapply만 더합니다. Arbitrary/general remake,
+raw-file equality, general restart와 actual adapter는 여전히 범위 밖입니다.

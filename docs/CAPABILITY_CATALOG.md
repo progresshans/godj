@@ -437,7 +437,7 @@ GDJ-0035의 relation-migration decision 상태는 `Accepted/Partially Implemente
 legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
 다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
-채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b/D4d/D4e 한계를 따릅니다.
+채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b/D4d/D4e/D4f 한계를 따릅니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
 - MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
@@ -471,7 +471,16 @@ canonical mixed declaration, reopen/fault/resource 경계를 검증했습니다.
 닫혔고 D4e final head `1d86f6e...`는
 [EVID-098](status/TEST_EVIDENCE.md#evid-20260820-098--gdj-0035-d4e-bounded-required-foreignkey-add-local-and-hosted-verification) /
 run `32282269755`에서 bounded empty-source required Add를 Implemented/Verified했습니다. Exact capability는
-`{true,true,true,false}`입니다. Required field는 no-default/non-PK/`PROTECT`이고 existing source emptiness는 pinned
+당시 `{true,true,true,false}`였습니다. Required field는 no-default/non-PK/`PROTECT`이고 existing source emptiness는 pinned
 `BEGIN IMMEDIATE` 뒤 claim 전에 확인합니다. Same-intent created source는 statically empty이며 populated source와
-Remove/remake는 fail-closed입니다. General restart와 actual MIG adapter는 아직 없습니다.
+Remove/remake는 그 head에서 fail-closed였습니다. EVID-098 docs head `85f9270...`는 CI #94/run
+`32288383027`에서 별도로 닫혔고, D4f product `4982e27...`와 final inventory head `9d5b894...`는
+[EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
+CI #95/run `32294983953`에서 bounded `RemoveForeignKeyByTableRemake`를 Implemented/Verified했습니다. Exact
+capability는 `{true,true,true,true}`입니다. 구현은 exact appended nullable `PROTECT` 또는 `SET_NULL`,
+required `PROTECT` reverse only를 허용합니다. Frozen D4f direct E2E fixture는 nullable `PROTECT`와
+required `PROTECT`만 검증했으며 dedicated nullable `SET_NULL` D4f E2E proof는 주장하지 않습니다.
+Same-target relation-free AutoField authority, max one relation mutation/source/step, closed relevant physical shape,
+row/PK/value/sequence preservation과 rollback/no-retry를 검증했습니다. Arbitrary/general remake, general restart와
+actual MIG adapter는 아직 없습니다.
 MIG-075..086은 계속 `oracle_locked`입니다.
