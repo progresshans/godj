@@ -1255,6 +1255,45 @@ func TestLoadedNullableRelationAddAuthorityRunsInDryAndRematerializationAfterSta
 	}
 }
 
+func TestLoadedRequiredRelationAddAuthorityRunsInDryAndRematerialization(t *testing.T) {
+	definitions := lifecycleLoadedRelationAddDefinitions()
+	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
+	sourceKey := MigrationKey{App: "blog", Name: "0001_post"}
+	addKey := MigrationKey{App: "blog", Name: "0002_post_author"}
+	reconstructor := mustLoadedStateReconstructor(t, definitions, addKey)
+	applied, err := NewAppliedState(targetKey, sourceKey)
+	if err != nil {
+		t.Fatalf("NewAppliedState(): %v", err)
+	}
+	plan, err := reconstructor.planner.Plan(applied, NamedTarget(addKey))
+	if err != nil || !reflect.DeepEqual(plan, []PlanStep{{Key: addKey, Direction: DirectionForward}}) {
+		t.Fatalf("required Add plan = (%v, %v)", plan, err)
+	}
+	builder, err := reconstructor.builderForApplied(context.Background(), reconstructor.planner, applied)
+	if err != nil {
+		t.Fatalf("builderForApplied(): %v", err)
+	}
+	dry, err := reconstructor.dryLoadedPlan(context.Background(), builder.clone(), plan)
+	if err != nil || len(dry) != 1 || !dry[0].relation ||
+		dry[0].requirements != loadedRequiresAddRequiredForeignKeyToEmptyTable {
+		t.Fatalf("dryLoadedPlan(required Add) = (%+v, %v)", dry, err)
+	}
+	materialized, err := reconstructor.materializeLoadedStep(context.Background(), builder.clone(), plan[0], true)
+	if err != nil {
+		t.Fatalf("materializeLoadedStep(required Add): %v", err)
+	}
+	if materialized.requirements != loadedRequiresAddRequiredForeignKeyToEmptyTable ||
+		len(materialized.intent.operations) != 1 || len(materialized.intent.operations[0].targets) != 1 {
+		t.Fatalf("materialized required Add intent = %+v requirements=%v", materialized.intent, materialized.requirements)
+	}
+	target := materialized.intent.operations[0].targets[0]
+	if target.sourceField.Name != "author" || target.sourceField.Nullable || target.sourceField.Default != nil ||
+		target.sourceField.Relation == nil || target.sourceField.Relation.OnDelete != ir.DeleteProtect ||
+		target.targetModel.Name != "author" || target.targetKey.Kind != ir.FieldAuto {
+		t.Fatalf("materialized required Add target = %+v", target)
+	}
+}
+
 func TestLoadedDefinitionResourceScanAcceptsLoaderValidLongSemanticIdentifier(t *testing.T) {
 	t.Parallel()
 

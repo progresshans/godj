@@ -37,12 +37,13 @@ var _ migrationbackend.RelationRevisionFencedBackend = (*Backend)(nil)
 var _ migrationbackend.RelationRevisionFencedSession = (*sqliteRevisionFencedSession)(nil)
 
 // RelationMigrationCapabilities advertises only the direct relation DDL that
-// this slice implements. Required Add and Remove remain fail-closed.
+// this slice implements. Required Add is bounded to empty tables; Remove
+// remains fail-closed.
 func (*Backend) RelationMigrationCapabilities() migrationbackend.RelationMigrationCapabilities {
 	return migrationbackend.RelationMigrationCapabilities{
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
-		AddRequiredForeignKeyToEmptyTable: false,
+		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKeyByTableRemake:     false,
 	}
 }
@@ -448,7 +449,7 @@ func validateAndSealSQLiteRelationIntent(
 	if err != nil {
 		return sqliteRelationIntentSeal{}, err
 	}
-	// Nullable ForeignKey Add validation expands the sealed private copy from
+	// ForeignKey Add validation expands the sealed private copy from
 	// the public changed-field target to a complete source-field-ordered target
 	// list. Re-scan the derived representation so cloning that authority cannot
 	// evade the original aggregate resource envelope.
@@ -773,7 +774,7 @@ func validateSQLiteRelationIntent(
 	beforeModels := make([]ir.Model, len(intent.Operations))
 	afterModels := make([]ir.Model, len(intent.Operations))
 	expectedRelationFields := make([][]ir.Field, len(intent.Operations))
-	nullableRelationAdds := make(map[string]int)
+	relationAdds := make(map[string]int)
 	for position := range intent.Operations {
 		operation := intent.Operations[position]
 		wantIndex := position
@@ -809,14 +810,14 @@ func validateSQLiteRelationIntent(
 			}
 			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
 				sourceKey := sqliteRelationIdentifierKey(after.Name)
-				nullableRelationAdds[sourceKey]++
-				if nullableRelationAdds[sourceKey] > 1 {
+				relationAdds[sourceKey]++
+				if relationAdds[sourceKey] > 1 {
 					return nil, relationIntentUnsupported(
-						"nullable relation AddField permits at most one relation Add per source model %q in a migration step",
+						"relation AddField permits at most one relation Add per source model %q in a migration step",
 						after.Name,
 					)
 				}
-				derived, err := deriveSQLiteNullableRelationAddTargets(operation, field)
+				derived, err := deriveSQLiteRelationAddTargets(operation, field)
 				if err != nil {
 					return nil, err
 				}
@@ -1074,8 +1075,8 @@ func validateSQLiteRelationStaticOperation(
 	case migrationbackend.RelationMigrationAddField:
 		field := after.Fields[len(after.Fields)-1]
 		if field.Kind == ir.FieldForeignKey {
-			if _, err := compileSQLiteNullableRelationAddField(before, field, operation.Targets); err != nil {
-				return relationIntentUnsupported("nullable relation AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
+			if _, err := compileSQLiteRelationAddField(before, field, operation.Targets); err != nil {
+				return relationIntentUnsupported("relation AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
 			}
 		} else {
 			if field.PrimaryKey {
@@ -1111,23 +1112,23 @@ func validateSQLiteRelationAddDelta(before, after ir.Model) (ir.Field, error) {
 	return after.Fields[len(after.Fields)-1], nil
 }
 
-// deriveSQLiteNullableRelationAddTargets independently enforces the same
+// deriveSQLiteRelationAddTargets independently enforces the same
 // closed authority universe as migrations core. The public intent supplies
 // target metadata only for the changed field; SQLite may derive bindings for
 // pre-existing source relations solely by reusing that sealed snapshot when
 // every symbolic target is exactly identical. It never consults the physical
 // catalog or a current runtime registry to fill missing historical metadata.
-// The enclosing validator also permits at most one nullable relation Add per
+// The enclosing validator also permits at most one relation Add per
 // source model in a migration step so the initial/final target prefix is
 // unambiguous.
-func deriveSQLiteNullableRelationAddTargets(
+func deriveSQLiteRelationAddTargets(
 	operation migrationbackend.RelationMigrationOperation,
 	field ir.Field,
 ) ([]migrationbackend.RelationMigrationTarget, error) {
-	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey ||
-		!field.Nullable || field.Default != nil {
+	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil ||
+		(!field.Nullable && field.Relation.OnDelete != ir.DeleteProtect) {
 		return nil, relationIntentUnsupported(
-			"relation AddField operation %d requires a nullable non-primary-key ForeignKey with no migration default",
+			"relation AddField operation %d requires a non-primary-key ForeignKey with no migration default; required fields must use PROTECT",
 			operation.OperationIndex,
 		)
 	}
@@ -1201,27 +1202,27 @@ func validateSQLiteDerivedTargetExpansionResources(
 	changed migrationbackend.RelationMigrationTarget,
 ) error {
 	derived := sqliteRelationResourceBudget{}
-	if err := derived.consumeNodes("derived nullable relation targets", len(sources)); err != nil {
+	if err := derived.consumeNodes("derived relation targets", len(sources)); err != nil {
 		return err
 	}
 	for index := range sources {
-		if err := derived.scanField(fmt.Sprintf("derived nullable relation targets[%d].source_field", index), sources[index]); err != nil {
+		if err := derived.scanField(fmt.Sprintf("derived relation targets[%d].source_field", index), sources[index]); err != nil {
 			return err
 		}
 	}
 	perTarget := sqliteRelationResourceBudget{}
-	if err := perTarget.scanModel("derived nullable relation target.model", changed.TargetModel); err != nil {
+	if err := perTarget.scanModel("derived relation target.model", changed.TargetModel); err != nil {
 		return err
 	}
-	if err := perTarget.scanField("derived nullable relation target.key", changed.TargetKey); err != nil {
+	if err := perTarget.scanField("derived relation target.key", changed.TargetKey); err != nil {
 		return err
 	}
 	count := uint64(len(sources))
 	if perTarget.nodes != 0 && count > (sqliteRelationMaxNodes-derived.nodes)/perTarget.nodes {
-		return relationIntentIntegrity("derived nullable relation targets exceed the aggregate relation intent node limit %d", sqliteRelationMaxNodes)
+		return relationIntentIntegrity("derived relation targets exceed the aggregate relation intent node limit %d", sqliteRelationMaxNodes)
 	}
 	if perTarget.bytes != 0 && count > (sqliteRelationMaxAggregateBytes-derived.bytes)/perTarget.bytes {
-		return relationIntentIntegrity("derived nullable relation targets exceed the aggregate relation intent byte limit %d", sqliteRelationMaxAggregateBytes)
+		return relationIntentIntegrity("derived relation targets exceed the aggregate relation intent byte limit %d", sqliteRelationMaxAggregateBytes)
 	}
 	return nil
 }
@@ -1377,7 +1378,7 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 		var statement string
 		var err error
 		if field.Kind == ir.FieldForeignKey {
-			statement, err = compileSQLiteNullableRelationAddField(operation.Before, wantField, operation.Targets)
+			statement, err = compileSQLiteRelationAddField(operation.Before, wantField, operation.Targets)
 		} else {
 			if field.PrimaryKey {
 				return relationIntentUnsupported("SQLite relation-step AddField must be non-primary-key")
@@ -1541,19 +1542,19 @@ func compileSQLiteRelationCreateModel(
 	return "CREATE TABLE " + table + " (" + strings.Join(parts, ", ") + ")", nil
 }
 
-func compileSQLiteNullableRelationAddField(
+func compileSQLiteRelationAddField(
 	model ir.Model,
 	field ir.Field,
 	targets []migrationbackend.RelationMigrationTarget,
 ) (string, error) {
-	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey ||
-		!field.Nullable || field.Default != nil {
-		return "", errors.New("nullable relation AddField requires a nullable non-primary-key ForeignKey with no migration default")
+	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil ||
+		(!field.Nullable && field.Relation.OnDelete != ir.DeleteProtect) {
+		return "", errors.New("relation AddField requires a non-primary-key ForeignKey with no migration default; required fields must use PROTECT")
 	}
 	relationFields := relationFieldsInModel(model)
 	if len(targets) != len(relationFields)+1 {
 		return "", relationIntentIntegrity(
-			"nullable relation AddField %q has %d targets, want %d",
+			"relation AddField %q has %d targets, want %d",
 			model.DBTable,
 			len(targets),
 			len(relationFields)+1,
@@ -1561,25 +1562,29 @@ func compileSQLiteNullableRelationAddField(
 	}
 	changed := targets[len(targets)-1]
 	if !reflect.DeepEqual(changed.SourceField, field) {
-		return "", relationIntentIntegrity("nullable relation AddField %q changed target does not match the added field", model.DBTable)
+		return "", relationIntentIntegrity("relation AddField %q changed target does not match the added field", model.DBTable)
 	}
 	table, err := quoteIdentifier(model.DBTable)
 	if err != nil {
-		return "", fmt.Errorf("compile SQLite nullable relation AddField table: %w", err)
+		return "", fmt.Errorf("compile SQLite relation AddField table: %w", err)
 	}
 	column, err := quoteIdentifier(field.Column)
 	if err != nil {
-		return "", fmt.Errorf("compile SQLite nullable relation AddField column: %w", err)
+		return "", fmt.Errorf("compile SQLite relation AddField column: %w", err)
 	}
 	targetTable, err := quoteIdentifier(changed.TargetModel.DBTable)
 	if err != nil {
-		return "", fmt.Errorf("compile SQLite nullable relation AddField target table: %w", err)
+		return "", fmt.Errorf("compile SQLite relation AddField target table: %w", err)
 	}
 	targetColumn, err := quoteIdentifier(changed.TargetKey.Column)
 	if err != nil {
-		return "", fmt.Errorf("compile SQLite nullable relation AddField target column: %w", err)
+		return "", fmt.Errorf("compile SQLite relation AddField target column: %w", err)
 	}
-	return "ALTER TABLE \"main\"." + table + " ADD COLUMN " + column + " INTEGER NULL REFERENCES " +
+	nullability := " NOT NULL"
+	if field.Nullable {
+		nullability = " NULL"
+	}
+	return "ALTER TABLE \"main\"." + table + " ADD COLUMN " + column + " INTEGER" + nullability + " REFERENCES " +
 		targetTable + " (" + targetColumn + ") ON DELETE NO ACTION", nil
 }
 
@@ -1940,8 +1945,12 @@ func preflightSQLiteRelationModels(
 				)
 			}
 			if !empty {
+				feature := "sqlite_add_field"
+				if field.Kind == ir.FieldForeignKey {
+					feature = "sqlite_relation_migration"
+				}
 				return migrationbackend.NewCapabilityError(
-					"sqlite_add_field",
+					feature,
 					fmt.Sprintf("table %s contains rows; adding non-null field %s requires table rebuild", operation.Before.DBTable, field.Column),
 					nil,
 				)
@@ -2108,7 +2117,7 @@ func sqliteRelationTargetsForModel(
 	}
 	operation := seal.intent.Operations[operationIndex]
 	if len(operation.Targets) != len(relationFields) {
-		// A nullable relation Add seals the complete After target list. Its
+		// A bounded relation Add seals the complete After target list. Its
 		// initial Before model contains the exact field-order prefix ending just
 		// before the changed ForeignKey; no other subset is authoritative.
 		if operation.Kind != migrationbackend.RelationMigrationAddField ||
@@ -2258,7 +2267,7 @@ func validateSQLiteRelationPhysicalGraph(
 			}
 			target := sqliteRelationIdentifierKey(operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
 			if source == target {
-				return relationPhysicalDrift("nullable relation AddField table %q has a physical self relation", model.DBTable)
+				return relationPhysicalDrift("relation AddField table %q has a physical self relation", model.DBTable)
 			}
 			if !graph.hasEdge(source, target) && len(graph.outgoing[target]) != 0 {
 				// The sealed Add authority requires a relation-free target and its
@@ -2266,7 +2275,7 @@ func validateSQLiteRelationPhysicalGraph(
 				// keys. This constant-time defensive check closes any future path
 				// that could turn the new edge into a cycle without rescanning an
 				// unrelated legacy graph for every Add.
-				return relationPhysicalDrift("nullable relation AddField target %q has an outgoing physical relation that could create a cycle", operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
+				return relationPhysicalDrift("relation AddField target %q has an outgoing physical relation that could create a cycle", operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
 			}
 			graph.add(source, target)
 		}

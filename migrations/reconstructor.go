@@ -1804,7 +1804,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		}
 	}
 	r.finishLoadedMigration(builder, migration)
-	if err := validateLoadedNullableRelationAddAuthorities(step, migration, operationViews); err != nil {
+	if err := validateLoadedRelationAddAuthorities(step, migration, operationViews); err != nil {
 		return loadedMaterializedStep{}, err
 	}
 
@@ -1885,12 +1885,12 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 	}, nil
 }
 
-// validateLoadedNullableRelationAddAuthorities closes the intentionally narrow
+// validateLoadedRelationAddAuthorities closes the intentionally narrow
 // target universe that can be represented by the public AddField intent. The
 // public operation carries only the changed field's target snapshot, so core
-// authorizes a nullable ForeignKey Add only when that one immutable snapshot
+// authorizes a bounded ForeignKey Add only when that one immutable snapshot
 // also identifies every relation already present on the source model and the
-// target snapshot contains no nested relations. At most one nullable relation
+// target snapshot contains no nested relations. At most one relation
 // Add may target a given source model in one migration step, keeping every
 // Before/After boundary unambiguous. Backends must independently enforce the
 // same closure before deriving any additional target bindings.
@@ -1900,7 +1900,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 // it against their exact historical builders. Its capability error deliberately
 // has NoOperation attribution: no prefix in the migration step may begin when
 // the complete relation intent cannot be sealed.
-func validateLoadedNullableRelationAddAuthorities(
+func validateLoadedRelationAddAuthorities(
 	step PlanStep,
 	migration Migration,
 	views []loadedOperationView,
@@ -1929,27 +1929,30 @@ func validateLoadedNullableRelationAddAuthorities(
 		if !fieldContainsRelation(field) {
 			continue
 		}
-		// Other AddField shapes keep their existing capability routing. In
-		// particular, a required ForeignKey is owned by the separate
-		// AddRequiredForeignKeyToEmptyTable capability and must not be
-		// relabelled by this nullable-only authority closure.
-		if field.Kind != ir.FieldForeignKey || field.Relation == nil || !field.Nullable ||
+		if field.Kind != ir.FieldForeignKey || field.Relation == nil ||
 			field.Default != nil || field.PrimaryKey {
+			continue
+		}
+		// Required relation additions are deliberately limited to PROTECT. A
+		// nullable SET_NULL relation remains part of the already-supported
+		// nullable slice, but SET_NULL cannot describe a required field in
+		// normalized IR and is rejected before this authority check.
+		if !field.Nullable && field.Relation.OnDelete != ir.DeleteProtect {
 			continue
 		}
 		source := loadedModelIdentity{app: view.appLabel, model: view.before.Name}
 		counts[source]++
 		if counts[source] > 1 {
-			return fail("nullable ForeignKey Add permits at most one relation Add per source model in a migration step")
+			return fail("ForeignKey Add permits at most one relation Add per source model in a migration step")
 		}
 		if !view.beforeExists {
-			return fail("nullable ForeignKey Add source model is not present in the sealed historical state")
+			return fail("ForeignKey Add source model is not present in the sealed historical state")
 		}
 		if len(view.targets) != 1 || view.targets[0].sourceFieldName != field.Name {
-			return fail("nullable ForeignKey Add requires exactly one changed-field target snapshot")
+			return fail("ForeignKey Add requires exactly one changed-field target snapshot")
 		}
 		if modelContainsRelation(view.targets[0].targetModel) {
-			return fail("nullable ForeignKey Add target model contains nested relation fields outside the sealed target universe")
+			return fail("ForeignKey Add target model contains nested relation fields outside the sealed target universe")
 		}
 		want := field.Relation.Target
 		for index := range view.before.Fields {
@@ -1958,7 +1961,7 @@ func validateLoadedNullableRelationAddAuthorities(
 				continue
 			}
 			if existing.Kind != ir.FieldForeignKey || existing.Relation == nil || existing.Relation.Target != want {
-				return fail("nullable ForeignKey Add source contains a pre-existing relation with a different symbolic target")
+				return fail("ForeignKey Add source contains a pre-existing relation with a different symbolic target")
 			}
 		}
 	}

@@ -23,7 +23,7 @@ func TestSQLiteRelationMigrationCapabilities(t *testing.T) {
 	want := migrationbackend.RelationMigrationCapabilities{
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
-		AddRequiredForeignKeyToEmptyTable: false,
+		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKeyByTableRemake:     false,
 	}
 	if got != want {
@@ -207,7 +207,7 @@ func TestSQLiteNullableRelationDerivedTargetExpansionIsBoundedBeforeAllocation(t
 		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
-	if err == nil || !strings.Contains(err.Error(), "derived nullable relation targets") ||
+	if err == nil || !strings.Contains(err.Error(), "derived relation targets") ||
 		!strings.Contains(err.Error(), "aggregate relation intent node limit") {
 		t.Fatalf("derived expansion resource error = %v", err)
 	}
@@ -256,7 +256,7 @@ func TestSQLiteNullableRelationDerivedTargetExpansionBytesAreBoundedBeforeAlloca
 		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest_bytes"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
-	if err == nil || !strings.Contains(err.Error(), "derived nullable relation targets") ||
+	if err == nil || !strings.Contains(err.Error(), "derived relation targets") ||
 		!strings.Contains(err.Error(), "aggregate relation intent byte limit") ||
 		strings.Contains(err.Error(), "node limit") {
 		t.Fatalf("derived expansion byte resource error = %v", err)
@@ -653,6 +653,295 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	}
 }
 
+func TestSQLiteRequiredRelationAddToEmptyTableUsesNativeNotNullForeignKey(t *testing.T) {
+	ctx := context.Background()
+	database, err := OpenMemory(ctx, "required-relation-add-empty")
+	if err != nil {
+		t.Fatalf("OpenMemory(): %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	target, before, author := sqliteRelationTestModels()
+	initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+	seedSQLiteRelationPhysicalSchemaAndHistory(t, ctx, database, initial, target, before, author)
+	if _, err := database.ExecContext(ctx, `INSERT INTO "news_author" ("name") VALUES ('Ada'), ('Grace')`); err != nil {
+		t.Fatalf("seed target rows: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "news_article" ("title", "author_id") VALUES ('deleted', 1)`); err != nil {
+		t.Fatalf("seed source sequence: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `DELETE FROM "news_article"`); err != nil {
+		t.Fatalf("empty required Add source: %v", err)
+	}
+	var sourceSequenceBefore int64
+	if err := database.database.QueryRowContext(ctx,
+		`SELECT "seq" FROM main.sqlite_sequence WHERE "name"='news_article'`,
+	).Scan(&sourceSequenceBefore); err != nil {
+		t.Fatalf("read empty source sequence: %v", err)
+	}
+	reviewer := author.Clone()
+	reviewer.Name, reviewer.GoName, reviewer.Column = "reviewer", "Reviewer", "reviewer_id"
+	reviewer.Relation.Reverse.Name = "reviewed_articles"
+	after := before.Clone()
+	after.Fields = append(after.Fields, reviewer)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField,
+		Before: before, After: after,
+		Targets: []migrationbackend.RelationMigrationTarget{{
+			SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0],
+		}},
+	}}}
+	transition := migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_reviewer"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}
+	session := openSQLiteRelationSession(t, database)
+	if records, err := session.ReadAppliedMigrations(ctx); err != nil ||
+		!reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
+		t.Fatalf("pre-Add history = (%v, %v)", records, err)
+	}
+	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	if err != nil {
+		t.Fatalf("BeginRelationFencedMigration(required Add): %v", err)
+	}
+	if err := transaction.AddField(ctx, before.Clone(), reviewer.Clone()); err != nil {
+		t.Fatalf("AddField(required relation): %v", err)
+	}
+	if err := transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name); err != nil {
+		t.Fatalf("RecordApplied(required relation): %v", err)
+	}
+	outcome, err := transaction.CommitFenced(ctx)
+	if err != nil || outcome.Durability != migrationbackend.CommitCommitted {
+		t.Fatalf("CommitFenced(required relation) = (%+v, %v)", outcome, err)
+	}
+	if err := session.Close(ctx); err != nil {
+		t.Fatalf("Close(required Add session): %v", err)
+	}
+
+	var createSQL string
+	if err := database.database.QueryRowContext(ctx,
+		`SELECT "sql" FROM main.sqlite_schema WHERE "type"='table' AND "name"='news_article'`,
+	).Scan(&createSQL); err != nil {
+		t.Fatalf("read post-Add CREATE SQL: %v", err)
+	}
+	wantSQL := `CREATE TABLE "news_article" (` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"title" VARCHAR(200) NOT NULL, ` +
+		`"author_id" INTEGER NOT NULL, ` +
+		`"reviewer_id" INTEGER NOT NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION, ` +
+		`FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION)`
+	if createSQL != wantSQL {
+		t.Fatalf("required Add CREATE SQL = %q, want exact %q", createSQL, wantSQL)
+	}
+	foreignKeys, err := readSQLiteRelationForeignKeys(ctx, database.database, before.DBTable, 2)
+	if err != nil {
+		t.Fatalf("read required Add foreign keys: %v", err)
+	}
+	bySource := make(map[string]sqliteRelationPhysicalForeignKey, len(foreignKeys))
+	for _, foreignKey := range foreignKeys {
+		bySource[foreignKey.from] = foreignKey
+	}
+	for _, column := range []string{"author_id", "reviewer_id"} {
+		foreignKey, exists := bySource[column]
+		if !exists || foreignKey.table != "news_author" || foreignKey.to != "id" ||
+			foreignKey.sequence != 0 || foreignKey.onUpdate != "NO ACTION" ||
+			foreignKey.onDelete != "NO ACTION" || foreignKey.match != "NONE" {
+			t.Fatalf("required Add foreign key %q = %+v", column, foreignKey)
+		}
+	}
+	var sourceSequenceAfter int64
+	if err := database.database.QueryRowContext(ctx,
+		`SELECT "seq" FROM main.sqlite_sequence WHERE "name"='news_article'`,
+	).Scan(&sourceSequenceAfter); err != nil || sourceSequenceAfter != sourceSequenceBefore {
+		t.Fatalf("required Add source sequence = (%d, %v), want %d", sourceSequenceAfter, err, sourceSequenceBefore)
+	}
+	var notNull int
+	rows, err := database.database.QueryContext(ctx, `PRAGMA main.table_xinfo("news_article")`)
+	if err != nil {
+		t.Fatalf("table_xinfo: %v", err)
+	}
+	for rows.Next() {
+		var cid, columnNotNull, primaryKey, hidden int
+		var name, fieldType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &fieldType, &columnNotNull, &defaultValue, &primaryKey, &hidden); err != nil {
+			_ = rows.Close()
+			t.Fatalf("scan table_xinfo: %v", err)
+		}
+		if name == "reviewer_id" {
+			notNull = columnNotNull
+		}
+	}
+	if err := rows.Close(); err != nil || notNull != 1 {
+		t.Fatalf("required reviewer notnull = %d, close=%v", notNull, err)
+	}
+	if _, err := database.ExecContext(ctx,
+		`INSERT INTO "news_article" ("title", "author_id", "reviewer_id") VALUES ('valid', 1, 2)`,
+	); err != nil {
+		t.Fatalf("insert valid required relation: %v", err)
+	}
+	if _, err := database.ExecContext(ctx,
+		`INSERT INTO "news_article" ("title", "author_id", "reviewer_id") VALUES ('null', 1, NULL)`,
+	); err == nil || !strings.Contains(strings.ToLower(err.Error()), "not null") {
+		t.Fatalf("NULL required relation insert error = %v", err)
+	}
+	if _, err := database.ExecContext(ctx,
+		`INSERT INTO "news_article" ("title", "author_id", "reviewer_id") VALUES ('orphan', 1, 999)`,
+	); err == nil || !strings.Contains(strings.ToLower(err.Error()), "foreign key") {
+		t.Fatalf("orphan required relation insert error = %v", err)
+	}
+	snapshot, err := readAtomicMigrationRevisionSnapshot(ctx, database)
+	if err != nil || snapshot.token.revision != 2 ||
+		!reflect.DeepEqual(snapshot.records, []migrationbackend.AppliedMigration{initial, transition.Migration}) {
+		t.Fatalf("required Add revision snapshot = (%+v, %v)", snapshot, err)
+	}
+}
+
+func TestSQLiteRequiredRelationAddRejectsPopulatedSourceBeforeRevisionClaim(t *testing.T) {
+	ctx := context.Background()
+	database, err := OpenMemory(ctx, "required-relation-add-populated")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	target, before, author := sqliteRelationTestModels()
+	initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+	seedSQLiteRelationPhysicalSchemaAndHistory(t, ctx, database, initial, target, before, author)
+	if _, err := database.ExecContext(ctx, `INSERT INTO "news_author" ("name") VALUES ('Ada')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "news_article" ("title", "author_id") VALUES ('existing', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	beforeSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, database)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reviewer := author.Clone()
+	reviewer.Name, reviewer.GoName, reviewer.Column = "reviewer", "Reviewer", "reviewer_id"
+	reviewer.Relation.Reverse.Name = "reviewed_articles"
+	after := before.Clone()
+	after.Fields = append(after.Fields, reviewer)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+	}}}
+	session := openSQLiteRelationSession(t, database)
+	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
+		t.Fatal(err)
+	}
+	concrete := session.(*sqliteRevisionFencedSession)
+	var checkpoints []sqliteRelationBeginCheckpoint
+	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
+		checkpoints = append(checkpoints, checkpoint)
+	}
+	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_reviewer"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if transaction != nil || err == nil {
+		t.Fatalf("Begin required Add on populated source = (%v, %v)", transaction, err)
+	}
+	var capability *migrationbackend.CapabilityError
+	if !errors.As(err, &capability) || capability.Feature != "sqlite_relation_migration" ||
+		!strings.Contains(capability.Detail, "contains rows") {
+		t.Fatalf("populated required Add error = %#v (%v)", capability, err)
+	}
+	wantCheckpoints := []sqliteRelationBeginCheckpoint{
+		sqliteRelationCheckpointForeignKeysSet,
+		sqliteRelationCheckpointForeignKeysRead,
+		sqliteRelationCheckpointTransactionBegun,
+	}
+	if !reflect.DeepEqual(checkpoints, wantCheckpoints) {
+		t.Fatalf("populated required Add checkpoints = %v, want %v", checkpoints, wantCheckpoints)
+	}
+	afterSnapshot, snapshotErr := readAtomicMigrationRevisionSnapshot(ctx, database)
+	if snapshotErr != nil || !reflect.DeepEqual(afterSnapshot, beforeSnapshot) {
+		t.Fatalf("populated required Add changed durable snapshot: before=%+v after=%+v err=%v", beforeSnapshot, afterSnapshot, snapshotErr)
+	}
+	if sqliteRelationTestColumnExists(t, database, before.DBTable, reviewer.Column) {
+		t.Fatal("populated required Add created reviewer column")
+	}
+	if closeErr := session.Close(ctx); closeErr != nil {
+		t.Fatal(closeErr)
+	}
+}
+
+func TestSQLiteRequiredRelationAddTreatsSameIntentCreatedSourceAsStaticallyEmpty(t *testing.T) {
+	ctx := context.Background()
+	database, err := OpenMemory(ctx, "required-relation-add-same-intent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	target, _, author := sqliteRelationTestModels()
+	before := ir.Model{
+		Name: "article", GoName: "Article", DBTable: "news_article",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{Name: "title", GoName: "Title", Column: "title", Kind: ir.FieldChar, MaxLength: 200},
+		},
+	}
+	reviewer := author.Clone()
+	reviewer.Name, reviewer.GoName, reviewer.Column = "reviewer", "Reviewer", "reviewer_id"
+	reviewer.Relation.Reverse.Name = "reviewed_articles"
+	after := before.Clone()
+	after.Fields = append(after.Fields, reviewer)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationCreateModel, After: target},
+		{OperationIndex: 1, Kind: migrationbackend.RelationMigrationCreateModel, After: before},
+		{
+			OperationIndex: 2, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
+			Targets: []migrationbackend.RelationMigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+		},
+	}}
+	transition := migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_required"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}
+	session := openSQLiteRelationSession(t, database)
+	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
+		t.Fatal(err)
+	}
+	concrete := session.(*sqliteRevisionFencedSession)
+	emptyProbe := &sqliteRelationBeginFaultConnection{
+		method: "query_row", contains: "SELECT EXISTS", remaining: 1,
+	}
+	concrete.relationConnectionHook = func(connection migrationPinnedConnection) migrationPinnedConnection {
+		emptyProbe.migrationPinnedConnection = connection
+		return emptyProbe
+	}
+	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	if err != nil {
+		t.Fatalf("BeginRelationFencedMigration(same-intent required Add): %v", err)
+	}
+	if emptyProbe.remaining != 1 {
+		t.Fatal("same-intent created source performed a physical emptiness query")
+	}
+	if err := transaction.CreateModel(ctx, target.Clone()); err != nil {
+		t.Fatal(err)
+	}
+	if err := transaction.CreateModel(ctx, before.Clone()); err != nil {
+		t.Fatal(err)
+	}
+	if err := transaction.AddField(ctx, before.Clone(), reviewer.Clone()); err != nil {
+		t.Fatal(err)
+	}
+	if err := transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name); err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := transaction.CommitFenced(ctx)
+	if err != nil || outcome.Durability != migrationbackend.CommitCommitted {
+		t.Fatalf("CommitFenced(same-intent required Add) = (%+v, %v)", outcome, err)
+	}
+	if err := session.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !sqliteRelationTestColumnExists(t, database, before.DBTable, reviewer.Column) {
+		t.Fatal("same-intent required Add did not create reviewer column")
+	}
+}
+
 func TestSQLiteNullableRelationAddFaultsRollbackExactDurableSnapshot(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -1032,6 +1321,136 @@ func TestSQLiteLoadedNullableRelationAddFaultTaxonomyAndRollback(t *testing.T) {
 	}
 }
 
+func TestSQLiteLoadedRequiredRelationAddFaultTaxonomyAndRollback(t *testing.T) {
+	tests := []struct {
+		name        string
+		method      string
+		contains    string
+		category    migrations.ErrorCategory
+		code        migrations.ErrorCode
+		operation   int
+		kind        string
+		preflight   bool
+		wantRawText string
+	}{
+		{
+			name: "empty source query", method: "query_row", contains: "SELECT EXISTS",
+			category: migrations.CategoryTransaction, code: migrations.CodeBeginFailed,
+			operation: migrations.NoOperation, preflight: true, wantRawText: "__godj_relation_begin_fault__",
+		},
+		{
+			name: "alter", method: "exec", contains: `ALTER TABLE "main"."news_article"`,
+			category: migrations.CategoryExecution, code: migrations.CodeOperationFailed,
+			operation: 0, kind: "AddField",
+		},
+		{
+			name: "final foreign key check", method: "query", contains: "foreign_key_check",
+			category: migrations.CategoryExecution, code: migrations.CodeOperationFailed,
+			operation: 0, kind: "AddField",
+		},
+		{
+			name: "recorder", method: "exec", contains: `INSERT INTO "godj_migrations"`,
+			category: migrations.CategoryRecorder, code: migrations.CodeRecordFailed,
+			operation: migrations.NoOperation,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			path := filepath.Join(t.TempDir(), "loaded-required-add-fault.sqlite")
+			loaded := loadSQLiteLoadedRequiredRelationAddSet(t, test.name)
+			database := openSQLiteLoadedRelationTaxonomyBackend(t, path)
+			seedState, err := loaded.Migrate(
+				ctx,
+				migrations.Executor{Backend: database},
+				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+					App: "news", Name: "0002_article",
+				})),
+			)
+			if err != nil {
+				t.Fatalf("Migrate(required Add taxonomy seed): %v", err)
+			}
+			assertSQLiteLoadedNullableRelationAddSeedState(t, seedState)
+			if _, err := database.ExecContext(ctx, `INSERT INTO "news_author" ("name") VALUES ('Ada')`); err != nil {
+				t.Fatalf("insert required Add taxonomy target: %v", err)
+			}
+			if err := database.Close(); err != nil {
+				t.Fatalf("close required Add taxonomy seed: %v", err)
+			}
+			before := readSQLiteNullableRelationAddSnapshot(t, path)
+
+			database = openSQLiteLoadedRelationTaxonomyBackend(t, path)
+			cause := fmt.Errorf("loaded required Add %s raw fault", test.name)
+			connectionFault := &sqliteRelationBeginFaultConnection{
+				method: test.method, contains: test.contains, remaining: 1, faultErr: cause,
+			}
+			probe := &sqliteLoadedRelationTaxonomyBackend{Backend: database, fault: connectionFault}
+			state, err := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+			var migrationError *migrations.Error
+			if !errors.As(err, &migrationError) || migrationError == nil ||
+				migrationError.Category != test.category || migrationError.Code != test.code ||
+				migrationError.Direction != migrations.DirectionForward || migrationError.App != "news" ||
+				migrationError.Migration != "0003_editor" || migrationError.OperationIndex != test.operation ||
+				migrationError.Operation != test.kind || migrationError.RollbackCause != nil {
+				t.Fatalf("%s required Add taxonomy = %#v (%v)", test.name, migrationError, err)
+			}
+			if test.wantRawText != "" {
+				if !strings.Contains(err.Error(), test.wantRawText) {
+					t.Fatalf("%s required Add preflight error = %v, want %q", test.name, err, test.wantRawText)
+				}
+			} else if !errors.Is(err, cause) {
+				t.Fatalf("%s required Add lost raw cause: %v", test.name, err)
+			}
+			var fenceError *migrationbackend.RevisionFenceError
+			if errors.As(migrationError.Cause, &fenceError) {
+				t.Fatalf("%s required Add fault was reclassified as revision fence error: %#v", test.name, fenceError)
+			}
+			if !state.Equal(seedState) {
+				t.Fatalf("%s required Add returned state differs from exact pre-step state", test.name)
+			}
+			assertSQLiteLoadedRequiredRelationAddIntent(t, test.name, probe.transition, probe.intent)
+			wantCheckpoints := []sqliteRelationBeginCheckpoint{
+				sqliteRelationCheckpointForeignKeysSet,
+				sqliteRelationCheckpointForeignKeysRead,
+				sqliteRelationCheckpointTransactionBegun,
+			}
+			wantTransactionRollbacks := 0
+			if !test.preflight {
+				wantCheckpoints = append(wantCheckpoints,
+					sqliteRelationCheckpointPhysicalPreflightComplete,
+					sqliteRelationCheckpointRevisionClaimStarting,
+					sqliteRelationCheckpointRevisionClaimed,
+				)
+				wantTransactionRollbacks = 1
+			}
+			if !reflect.DeepEqual(probe.checkpoints, wantCheckpoints) {
+				t.Fatalf("%s required Add checkpoints = %v, want %v", test.name, probe.checkpoints, wantCheckpoints)
+			}
+			if connectionFault.remaining != 0 || connectionFault.closeCalls != 1 ||
+				connectionFault.rawCalls != 0 || connectionFault.rollbackCalls != 1 {
+				t.Fatalf("%s required Add connection = remaining:%d close:%d raw:%d rollback:%d",
+					test.name, connectionFault.remaining, connectionFault.closeCalls,
+					connectionFault.rawCalls, connectionFault.rollbackCalls)
+			}
+			if probe.capabilityCalls != 1 || probe.openCalls != 1 || probe.readCalls != 1 ||
+				probe.beginCalls != 1 || probe.closeCalls != 1 || probe.connectionHookCalls != 1 ||
+				probe.transactionRollbackCalls != wantTransactionRollbacks {
+				t.Fatalf("%s required Add lifecycle = capability:%d open:%d read:%d begin:%d close:%d hook:%d rollback:%d",
+					test.name, probe.capabilityCalls, probe.openCalls, probe.readCalls, probe.beginCalls,
+					probe.closeCalls, probe.connectionHookCalls, probe.transactionRollbackCalls)
+			}
+			if err := database.Close(); err != nil {
+				t.Fatalf("close required Add taxonomy fault database: %v", err)
+			}
+			after := readSQLiteNullableRelationAddSnapshot(t, path)
+			if !reflect.DeepEqual(after, before) {
+				t.Fatalf("%s required Add changed durable snapshot:\nbefore=%+v\nafter=%+v", test.name, before, after)
+			}
+		})
+	}
+}
+
 func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing.T) {
 	target, before, authorField := sqliteRelationTestModels()
 	baseEditor := authorField.Clone()
@@ -1056,8 +1475,9 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 		}}}
 	}
 
-	required := baseEditor.Clone()
-	required.Nullable = false
+	defaultedRequired := baseEditor.Clone()
+	defaultedRequired.Nullable = false
+	defaultedRequired.Default = &ir.ScalarDefault{Kind: ir.ScalarInteger, Integer: 1}
 	differentTarget := target.Clone()
 	differentTarget.Name = "editor"
 	differentTarget.GoName = "Editor"
@@ -1098,6 +1518,7 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 	reviewer.Name = "reviewer"
 	reviewer.GoName = "Reviewer"
 	reviewer.Column = "reviewer_id"
+	reviewer.Nullable = false
 	reviewer.Relation.Reverse.Name = "reviewed_articles"
 	secondAfter := firstAfter.Clone()
 	secondAfter.Fields = append(secondAfter.Fields, reviewer)
@@ -1118,7 +1539,7 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 		intent migrationbackend.RelationMigrationIntent
 		detail string
 	}{
-		{name: "required", intent: addIntent(required, target, target.Fields[0]), detail: "requires a nullable"},
+		{name: "defaulted required", intent: addIntent(defaultedRequired, target, target.Fields[0]), detail: "ForeignKey defaults are not supported"},
 		{name: "different target", intent: addIntent(different, differentTarget, differentTarget.Fields[0]), detail: "different symbolic target"},
 		{name: "nested target", intent: addIntent(baseEditor, nestedTarget, nestedTarget.Fields[0]), detail: "nested relation fields"},
 		{name: "reverse conflict", intent: addIntent(reverseConflict, target, target.Fields[0]), detail: "duplicated by"},
@@ -1801,7 +2222,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
 	})
 
-	t.Run("target_bearing_add_is_unsupported", func(t *testing.T) {
+	t.Run("self_target_bearing_add_is_integrity", func(t *testing.T) {
 		before := target.Clone()
 		relationField := sourceField.Clone()
 		relationField.Relation.Target.ModelName = target.Name
@@ -1818,7 +2239,9 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 				TargetKey:   target.Fields[0],
 			}},
 		}}})
-		assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+		if err == nil || migrationbackend.IsCapabilityError(err) || !strings.Contains(err.Error(), "self relation") {
+			t.Fatalf("self relation Add validation error = %v", err)
+		}
 	})
 
 	t.Run("wrong_direction_is_integrity_before_session", func(t *testing.T) {
@@ -3851,6 +4274,33 @@ func loadSQLiteLoadedNullableRelationAddSet(t *testing.T, label string) migratio
 	return loaded
 }
 
+func loadSQLiteLoadedRequiredRelationAddSet(t *testing.T, label string) migrationdefinition.Set {
+	t.Helper()
+	suffix := strings.ReplaceAll(label, " ", "-")
+	loaded, report, err := migrationdefinition.Load(
+		migrationdefinition.Source{
+			SourceID: "loaded-required-add-author-" + suffix,
+			Document: sqliteLoadedNullableRelationAddAuthorDocument(),
+		},
+		migrationdefinition.Source{
+			SourceID: "loaded-required-add-article-" + suffix,
+			Document: sqliteLoadedNullableRelationAddArticleDocument(),
+		},
+		migrationdefinition.Source{
+			SourceID: "loaded-required-add-editor-" + suffix,
+			Document: sqliteLoadedRequiredRelationAddEditorDocument(),
+		},
+	)
+	if err != nil {
+		t.Fatalf("Load(required Add taxonomy %s): %v", label, err)
+	}
+	if report.DocumentsReceived != 3 || report.HeadersValidated != 3 || report.OperationsDecoded != 3 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 3 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("Load(required Add taxonomy %s) report = %+v", label, report)
+	}
+	return loaded
+}
+
 func sqliteLoadedNullableRelationAddAuthorDocument() []byte {
 	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
 		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
@@ -3889,6 +4339,19 @@ func sqliteLoadedNullableRelationAddEditorDocument() []byte {
 		`{"kind":"add_field","app_label":"news","model_name":"article","field":{` +
 		`"name":"editor","go_name":"Editor","column":"editor_id","kind":"foreign_key",` +
 		`"primary_key":false,"nullable":true,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"news","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"edited_articles","disabled":false},` +
+		`"on_delete":"protect"}}}]}}`)
+}
+
+func sqliteLoadedRequiredRelationAddEditorDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"loaded-required-add","version":"1"},` +
+		`"migration":{"app":"news","name":"0003_editor",` +
+		`"dependencies":[{"app":"news","name":"0002_article"}],"operations":[` +
+		`{"kind":"add_field","app_label":"news","model_name":"article","field":{` +
+		`"name":"editor","go_name":"Editor","column":"editor_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
 		`"relation":{"target":{"app_label":"news","model_name":"author"},` +
 		`"cardinality":"many_to_one","reverse":{"name":"edited_articles","disabled":false},` +
 		`"on_delete":"protect"}}}]}}`)
@@ -3965,6 +4428,33 @@ func assertSQLiteLoadedNullableRelationAddIntent(
 		operation.Targets[0].TargetModel.DBTable != "news_author" ||
 		len(operation.Targets[0].TargetModel.Fields) != 2 || operation.Targets[0].TargetKey.Column != "id" {
 		t.Fatalf("%s loaded nullable Add operation payload = %+v", label, operation)
+	}
+}
+
+func assertSQLiteLoadedRequiredRelationAddIntent(
+	t *testing.T,
+	label string,
+	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.RelationMigrationIntent,
+) {
+	t.Helper()
+	if transition != (migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0003_editor"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}) || len(intent.Operations) != 1 {
+		t.Fatalf("%s loaded required Add begin payload = transition:%+v intent:%+v", label, transition, intent)
+	}
+	operation := intent.Operations[0]
+	if operation.OperationIndex != 0 || operation.Kind != migrationbackend.RelationMigrationAddField ||
+		operation.Before.DBTable != "news_article" || len(operation.Before.Fields) != 3 ||
+		operation.After.DBTable != "news_article" || len(operation.After.Fields) != 4 ||
+		operation.After.Fields[3].Name != "editor" || operation.After.Fields[3].Nullable ||
+		operation.After.Fields[3].Default != nil || operation.After.Fields[3].Relation == nil ||
+		operation.After.Fields[3].Relation.OnDelete != ir.DeleteProtect ||
+		len(operation.Targets) != 1 || !reflect.DeepEqual(operation.Targets[0].SourceField, operation.After.Fields[3]) ||
+		operation.Targets[0].TargetModel.DBTable != "news_author" ||
+		len(operation.Targets[0].TargetModel.Fields) != 2 || operation.Targets[0].TargetKey.Column != "id" {
+		t.Fatalf("%s loaded required Add operation payload = %+v", label, operation)
 	}
 }
 
@@ -4653,6 +5143,34 @@ func sqliteRelationTestTableExists(t *testing.T, backend *Backend, table string)
 		t.Fatalf("inspect table %q: %v", table, err)
 	}
 	return count == 1
+}
+
+func sqliteRelationTestColumnExists(t *testing.T, backend *Backend, table, column string) bool {
+	t.Helper()
+	quotedTable, err := quoteIdentifier(table)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := backend.database.QueryContext(context.Background(), `PRAGMA main.table_xinfo(`+quotedTable+`)`)
+	if err != nil {
+		t.Fatalf("inspect columns for %q: %v", table, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cid, notNull, primaryKey, hidden int
+		var name, fieldType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &fieldType, &notNull, &defaultValue, &primaryKey, &hidden); err != nil {
+			t.Fatalf("scan columns for %q: %v", table, err)
+		}
+		if name == column {
+			return true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate columns for %q: %v", table, err)
+	}
+	return false
 }
 
 func assertSQLiteRelationCapabilityFeature(t *testing.T, err error, feature string) {

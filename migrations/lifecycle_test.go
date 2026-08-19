@@ -450,8 +450,8 @@ func TestExecutorMigrateLoadedNullableRelationAuthorityRejectsWholePlanBeforeCap
 			detail: "nested relation fields",
 		},
 		{
-			name:   "two Adds on one source",
-			defs:   lifecycleLoadedNullableMultipleAddDefinitions(),
+			name:   "nullable and required Adds on one source",
+			defs:   lifecycleLoadedMixedMultipleAddDefinitions(),
 			detail: "at most one relation Add per source model",
 		},
 	}
@@ -1796,11 +1796,14 @@ func lifecycleLoadedNullableNestedTargetDefinitions() []Migration {
 	}
 }
 
-func lifecycleLoadedNullableMultipleAddDefinitions() []Migration {
+func lifecycleLoadedMixedMultipleAddDefinitions() []Migration {
 	definitions := lifecycleLoadedNullableSameTargetDefinitions()
 	definitions[2].Operations = append(definitions[2].Operations, AddField{
 		AppLabel: "blog", ModelName: "article",
-		Field: lifecycleLoadedRelationField("reviewer", "Reviewer", "reviewer_id", "authors", "author", "reviewed_articles", true),
+		// Deliberately combine the nullable editor Add with a required reviewer
+		// Add. Both capability slices share the one-relation-Add-per-source
+		// authority boundary.
+		Field: lifecycleLoadedRelationField("reviewer", "Reviewer", "reviewer_id", "authors", "author", "reviewed_articles", false),
 	})
 	return definitions
 }

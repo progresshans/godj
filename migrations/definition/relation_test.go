@@ -332,29 +332,37 @@ func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testin
 	}
 
 	// The loaded core reaches SQLite only after exact history and whole-plan
-	// validation. SQLite advertises Create/Delete relation support but rejects
-	// this target-bearing AddField before any scalar prefix can begin.
+	// validation. The required relation Add is authorized because the source
+	// created by the preceding migration remains physically empty under the
+	// pinned transaction preflight.
 	sqliteBackend, err := sqlite.OpenMemory(context.Background(), "definition-core-relation-blocker-"+t.Name())
 	if err != nil {
 		t.Fatalf("OpenMemory(SQLite relation port): %v", err)
 	}
 	sqliteBoundary := &sqliteRelationCoreBlockerBackend{database: sqliteBackend}
-	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: sqliteBoundary}, migrations.LatestLifecycleRequest())
-	migrationError = nil
-	capabilityError = nil
-	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
-		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capabilityError) ||
-		capabilityError.Feature != "relation_migration" {
-		t.Fatalf("Set.Migrate(SQLite optional port) error = %#v capability=%#v", err, capabilityError)
+	state, err := loaded.Migrate(context.Background(), migrations.Executor{Backend: sqliteBoundary}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Set.Migrate(SQLite required relation port): %v", err)
+	}
+	article, exists := state.Model("blog", "article")
+	if !exists || len(article.Fields) != 2 || article.Fields[1].Name != "author" ||
+		article.Fields[1].Nullable || article.Fields[1].Relation == nil {
+		t.Fatalf("Set.Migrate(SQLite required relation state) = %#v/%t", article, exists)
 	}
 	if sqliteBoundary.capabilityCalls != 1 || sqliteBoundary.openCalls != 1 || sqliteBoundary.beginCalls != 0 {
 		t.Fatalf("loaded core SQLite calls: capabilities=%d open=%d legacy-begin=%d", sqliteBoundary.capabilityCalls, sqliteBoundary.openCalls, sqliteBoundary.beginCalls)
 	}
-	if records := readDefinitionSQLiteHistory(t, sqliteBackend); len(records) != 0 {
-		t.Fatalf("rejected relation AddField recorded history: %v", records)
+	if records := readDefinitionSQLiteHistory(t, sqliteBackend); len(records) != 3 {
+		t.Fatalf("required relation lifecycle history: %v", records)
 	}
-	if _, execErr := sqliteBackend.ExecContext(context.Background(), `INSERT INTO "authors_author" ("id") VALUES (1)`); execErr == nil {
-		t.Fatal("rejected relation AddField committed its scalar creator prefix")
+	if _, execErr := sqliteBackend.ExecContext(context.Background(), `INSERT INTO "authors_author" ("id") VALUES (1)`); execErr != nil {
+		t.Fatalf("insert required relation target: %v", execErr)
+	}
+	if _, execErr := sqliteBackend.ExecContext(context.Background(), `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); execErr != nil {
+		t.Fatalf("insert valid required relation row: %v", execErr)
+	}
+	if _, execErr := sqliteBackend.ExecContext(context.Background(), `INSERT INTO "blog_article" ("id", "author_id") VALUES (2, NULL)`); execErr == nil {
+		t.Fatal("required relation port accepted NULL")
 	}
 	if err := sqliteBackend.Close(); err != nil {
 		t.Fatalf("Close(SQLite relation port): %v", err)
@@ -589,9 +597,9 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 			t.Fatalf("reapply physical ABA mismatch:\ninitial=%+v\nreapplied=%+v", initialSnapshot, reappliedSnapshot)
 		}
 
-		// A forward required relation Add is unsupported on the current SQLite
-		// capability. Whole-plan preflight must leave every durable byte observed
-		// by the read-only snapshot unchanged.
+		// A forward required relation Add is supported only for an empty source.
+		// This populated source must fail during the pinned physical preflight and
+		// leave every durable byte observed by the read-only snapshot unchanged.
 		beforeAdd := readDefinitionSQLiteRestartSnapshot(t, path)
 		func() {
 			addSet := loadDefinitionSQLiteRestartSet(t, "reviewer", "tail", "authors", "blog")
@@ -600,7 +608,8 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 				t,
 				addErr,
 				migrations.DirectionForward,
-				"AddRequiredForeignKeyToEmptyTable",
+				"sqlite_relation_migration",
+				"contains rows",
 			)
 			assertDefinitionSQLiteRestartRelationState(t, addState, false)
 		}()
@@ -639,6 +648,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 				t,
 				removeErr,
 				migrations.DirectionBackward,
+				"relation_migration",
 				"RemoveForeignKeyByTableRemake",
 			)
 			assertDefinitionSQLiteRestartRelationState(t, removeState, true)
@@ -781,6 +791,7 @@ func TestLoadedNullableRelationAddMigratesThroughSQLiteAndReverseRemoveStaysUnsu
 		t,
 		removeErr,
 		migrations.DirectionBackward,
+		"relation_migration",
 		"RemoveForeignKeyByTableRemake",
 	)
 	assertDefinitionSQLiteRestartRelationState(t, removeState, true)
@@ -796,6 +807,116 @@ func TestLoadedNullableRelationAddMigratesThroughSQLiteAndReverseRemoveStaysUnsu
 	}
 	if articleSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`); articleSequence != updatedArticleSequence {
 		t.Fatalf("reverse Remove changed article sequence = %d, want %d", articleSequence, updatedArticleSequence)
+	}
+}
+
+func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoOp(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "loaded-required-relation-add.sqlite")
+	baseHistory := []backend.AppliedMigration{
+		{App: "authors", Name: "0001_author"},
+		{App: "blog", Name: "0001_article"},
+		{App: "blog", Name: "0002_article_title"},
+	}
+	addHistory := append(append([]backend.AppliedMigration(nil), baseHistory...), backend.AppliedMigration{
+		App: "blog", Name: "0003_article_reviewer",
+	})
+
+	database := openDefinitionSQLiteRestartBackend(t, path)
+	base := loadDefinitionSQLiteRestartSet(t, "authors", "blog", "tail")
+	state, err := base.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Migrate(required Add base): %v", err)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, state, false)
+	// The target may be populated; only the source table must be empty at the
+	// pinned BEGIN IMMEDIATE preflight.
+	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (41)`); err != nil {
+		t.Fatalf("insert required Add target row: %v", err)
+	}
+	baseSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+	authorSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`)
+
+	loaded := loadDefinitionSQLiteRestartSet(t, "reviewer", "tail", "authors", "blog")
+	state, err = loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Migrate(required relation Add): %v", err)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, state, true)
+	article, exists := state.Model("blog", "article")
+	if !exists || len(article.Fields) != 4 || article.Fields[3].Name != "reviewer" ||
+		article.Fields[3].Nullable || article.Fields[3].Default != nil ||
+		article.Fields[3].Relation == nil || article.Fields[3].Relation.OnDelete != ir.DeleteProtect {
+		t.Fatalf("required reviewer historical state = %#v/%t", article, exists)
+	}
+	addSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+	if addSnapshot.Revision != baseSnapshot.Revision+1 || addSnapshot.Epoch != baseSnapshot.Epoch ||
+		!reflect.DeepEqual(addSnapshot.History, addHistory) ||
+		!reflect.DeepEqual(addSnapshot.Rows, baseSnapshot.Rows) ||
+		readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`) != authorSequence {
+		t.Fatalf("required Add durable transition: base=%+v add=%+v", baseSnapshot, addSnapshot)
+	}
+	var articleSQL string
+	for _, object := range addSnapshot.Schema {
+		if object.Type == "table" && object.Name == "blog_article" {
+			articleSQL = object.Definition
+		}
+	}
+	wantArticleSQL := `CREATE TABLE "blog_article" (` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"author_id" INTEGER NOT NULL, ` +
+		`"title" VARCHAR(64) NOT NULL, ` +
+		`"reviewer_id" INTEGER NOT NULL REFERENCES "authors_author" ("id") ON DELETE NO ACTION, ` +
+		`FOREIGN KEY ("author_id") REFERENCES "authors_author" ("id") ON DELETE NO ACTION)`
+	if articleSQL != wantArticleSQL ||
+		readDefinitionSQLiteInteger(t, path, `SELECT "notnull" FROM pragma_table_xinfo('blog_article') WHERE "name"='reviewer_id'`) != 1 {
+		t.Fatalf("required Add canonical SQL/notnull = %q", articleSQL)
+	}
+	if _, err := database.ExecContext(ctx,
+		`INSERT INTO "blog_article" ("id", "author_id", "title", "reviewer_id") VALUES (51, 41, 'valid', 41)`,
+	); err != nil {
+		t.Fatalf("insert valid required reviewer: %v", err)
+	}
+	if _, err := database.ExecContext(ctx,
+		`INSERT INTO "blog_article" ("id", "author_id", "title", "reviewer_id") VALUES (52, 41, 'null', NULL)`,
+	); err == nil || !strings.Contains(strings.ToLower(err.Error()), "not null") {
+		t.Fatalf("required reviewer NULL error = %v", err)
+	}
+	if _, err := database.ExecContext(ctx,
+		`INSERT INTO "blog_article" ("id", "author_id", "title", "reviewer_id") VALUES (53, 41, 'orphan', 9999)`,
+	); err == nil || !strings.Contains(strings.ToLower(err.Error()), "foreign key") {
+		t.Fatalf("required reviewer orphan error = %v", err)
+	}
+	committedSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+	if err := database.Close(); err != nil {
+		t.Fatalf("Close(required Add process): %v", err)
+	}
+
+	database = openDefinitionSQLiteRestartBackend(t, path)
+	defer closeDefinitionSQLiteRestartBackend(t, database)
+	loaded = loadDefinitionSQLiteRestartSet(t, "blog", "reviewer", "authors", "tail")
+	noOpState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("reopened required Add Latest: %v", err)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, noOpState, true)
+	beforeRemove := readDefinitionSQLiteRestartSnapshot(t, path)
+	if !reflect.DeepEqual(beforeRemove, committedSnapshot) {
+		t.Fatalf("reopened Latest changed required Add state:\ncommitted=%+v\nreopened=%+v", committedSnapshot, beforeRemove)
+	}
+	removeState, removeErr := loaded.Migrate(
+		ctx,
+		migrations.Executor{Backend: database},
+		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+			App: "blog", Name: "0002_article_title",
+		})),
+	)
+	assertDefinitionSQLiteRestartCapabilityError(
+		t, removeErr, migrations.DirectionBackward, "relation_migration", "RemoveForeignKeyByTableRemake",
+	)
+	assertDefinitionSQLiteRestartRelationState(t, removeState, true)
+	if afterRemove := readDefinitionSQLiteRestartSnapshot(t, path); !reflect.DeepEqual(afterRemove, beforeRemove) {
+		t.Fatalf("reverse Remove changed required Add state:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
 	}
 }
 
@@ -1002,6 +1123,7 @@ func assertDefinitionSQLiteRestartCapabilityError(
 	t *testing.T,
 	err error,
 	direction migrations.Direction,
+	feature,
 	detail string,
 ) {
 	t.Helper()
@@ -1011,7 +1133,7 @@ func assertDefinitionSQLiteRestartCapabilityError(
 		migrationError.Code != migrations.CodeUnsupported || migrationError.Direction != direction ||
 		migrationError.App != "blog" || migrationError.Migration != "0003_article_reviewer" ||
 		migrationError.OperationIndex != migrations.NoOperation || !errors.As(err, &capabilityError) ||
-		capabilityError.Feature != "relation_migration" || !strings.Contains(capabilityError.Detail, detail) {
+		capabilityError.Feature != feature || !strings.Contains(capabilityError.Detail, detail) {
 		t.Fatalf("relation restart capability error = %#v capability=%#v, want %s %s", err, capabilityError, direction, detail)
 	}
 }
