@@ -1195,6 +1195,14 @@ func TestLoadedDefinitionResourceScanChargesNeutralWireOperationKind(t *testing.
 	if budget.bytes != wantBytes || budget.nodes != 1 {
 		t.Fatalf("AddField resource charge = bytes:%d nodes:%d, want bytes:%d nodes:1", budget.bytes, budget.nodes, wantBytes)
 	}
+
+	exhausted := loadedResourceBudget{nodeOverflow: true}
+	loadedScanOperationResource(&exhausted, Migration{App: "a", Name: "0001"}, 0, operation)
+	loadedScanFieldResource(&exhausted, Migration{App: "a", Name: "0001"}, 0, operation.Kind(), "operations[0].field", operation.Field)
+	wantScan := loadedResourceScanCounts{operations: 1, fields: 1}
+	if exhausted.scan != wantScan {
+		t.Fatalf("exhausted helper scan counts = %+v, want %+v", exhausted.scan, wantScan)
+	}
 }
 
 func TestLoadedNullableRelationAddAuthorityRunsInDryAndRematerializationAfterStateChecks(t *testing.T) {
@@ -1274,15 +1282,22 @@ func TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes(t
 		definitions[index] = Migration{App: "a", Name: "m", Operations: operations}
 	}
 
-	done := make(chan error, 1)
-	go func() { done <- validateLoadedDefinitionResources(definitions) }()
-	select {
-	case err := <-done:
-		if err == nil || !strings.Contains(err.Error(), "aggregate resource limit") {
-			t.Fatalf("shared-alias loaded scan error = %v", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("shared-alias loaded scan did not stop after node exhaustion")
+	counts, err := scanLoadedDefinitionResources(definitions)
+	if err == nil || !strings.Contains(err.Error(), "aggregate resource limit") {
+		t.Fatalf("shared-alias loaded scan error = %v", err)
+	}
+	availableNodes := uint64(definitionhandoff.MaxDefinitionNodes) -
+		uint64(definitionhandoff.MaxDefinitions) -
+		uint64(definitionhandoff.MaxOperations)
+	nodesPerFullOperation := uint64(1 + definitionhandoff.MaxFieldsPerCreateModel)
+	fullOperations := availableNodes / nodesPerFullOperation
+	want := loadedResourceScanCounts{
+		definitions: 1,
+		operations:  fullOperations + 1,
+		fields:      fullOperations * uint64(definitionhandoff.MaxFieldsPerCreateModel),
+	}
+	if counts != want {
+		t.Fatalf("shared-alias loaded scan counts = %+v, want %+v", counts, want)
 	}
 }
 

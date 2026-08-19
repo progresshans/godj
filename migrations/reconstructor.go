@@ -2592,20 +2592,32 @@ type loadedResourceViolation struct {
 	reason        string
 }
 
+type loadedResourceScanCounts struct {
+	definitions uint64
+	operations  uint64
+	fields      uint64
+}
+
 type loadedResourceBudget struct {
 	nodes        uint64
 	bytes        uint64
 	nodeOverflow bool
 	byteOverflow bool
 	best         *loadedResourceViolation
+	scan         loadedResourceScanCounts
 }
 
 // validateLoadedDefinitionResources is deliberately the first operation over
 // caller-owned definition contents at the loader-authorized boundary. It does
 // not sort, clone, normalize, or canonicalize any slice or nested IR value.
 func validateLoadedDefinitionResources(definitions []Migration) error {
+	_, err := scanLoadedDefinitionResources(definitions)
+	return err
+}
+
+func scanLoadedDefinitionResources(definitions []Migration) (loadedResourceScanCounts, error) {
 	if len(definitions) > definitionhandoff.MaxDefinitions {
-		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition count exceeds resource limit"))
+		return loadedResourceScanCounts{}, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition count exceeds resource limit"))
 	}
 	budget := loadedResourceBudget{}
 	loadedConsumeNodes(&budget, uint64(len(definitions)))
@@ -2613,6 +2625,7 @@ func validateLoadedDefinitionResources(definitions []Migration) error {
 		if budget.nodeOverflow {
 			break
 		}
+		budget.scan.definitions++
 		definition := definitions[definitionIndex]
 		definitionStart := budget.bytes
 		loadedConsumeString(&budget, definition, NoOperation, "", "app", definition.App, false)
@@ -2648,24 +2661,25 @@ func validateLoadedDefinitionResources(definitions []Migration) error {
 		}
 	}
 	if budget.nodeOverflow || budget.nodes > definitionhandoff.MaxDefinitionNodes {
-		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition nodes exceed aggregate resource limit"))
+		return budget.scan, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition nodes exceed aggregate resource limit"))
 	}
 	if budget.byteOverflow || budget.bytes > definitionhandoff.MaxDefinitionSetBytes {
-		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition bytes exceed aggregate resource limit"))
+		return budget.scan, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition bytes exceed aggregate resource limit"))
 	}
 	if budget.best != nil {
 		violation := budget.best
-		return invalidLoadedState(
+		return budget.scan, invalidLoadedState(
 			violation.migration,
 			violation.operation,
 			violation.operationKind,
 			fmt.Errorf("loaded definition resource limit exceeded at %s: %s", violation.path, violation.reason),
 		)
 	}
-	return nil
+	return budget.scan, nil
 }
 
 func loadedScanOperationResource(budget *loadedResourceBudget, migration Migration, index int, operation Operation) {
+	budget.scan.operations++
 	if budget.nodeOverflow || isNilOperation(operation) {
 		return
 	}
@@ -2739,6 +2753,7 @@ func loadedScanModelResource(budget *loadedResourceBudget, migration Migration, 
 }
 
 func loadedScanFieldResource(budget *loadedResourceBudget, migration Migration, operationIndex int, kind, path string, field ir.Field) {
+	budget.scan.fields++
 	if budget.nodeOverflow {
 		return
 	}
