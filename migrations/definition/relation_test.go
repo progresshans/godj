@@ -2,7 +2,12 @@ package definition
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -456,114 +461,656 @@ func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testin
 
 func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsRemove(t *testing.T) {
 	ctx := context.Background()
-	loaded, _, err := Load(
-		Source{SourceID: "authors-create", Document: relationCreatorDocument("authors", "0001_author", "author", "Author", "authors_author", nil)},
-		Source{SourceID: "blog-relation-create", Document: relationCreateModelDocument()},
-	)
-	if err != nil {
-		t.Fatalf("Load(relation CreateModel lifecycle): %v", err)
+	path := filepath.Join(t.TempDir(), "loaded-relation-restart.sqlite")
+	fullHistory := []backend.AppliedMigration{
+		{App: "authors", Name: "0001_author"},
+		{App: "blog", Name: "0001_article"},
+		{App: "blog", Name: "0002_article_title"},
 	}
-	database, err := sqlite.OpenMemory(ctx, "definition-relation-create-lifecycle-"+t.Name())
-	if err != nil {
-		t.Fatalf("OpenMemory(): %v", err)
-	}
-	defer func() {
-		if closeErr := database.Close(); closeErr != nil {
-			t.Errorf("Close(): %v", closeErr)
-		}
-	}()
-	executor := migrations.Executor{Backend: database}
-
-	state, err := loaded.Migrate(ctx, executor, migrations.LatestLifecycleRequest())
-	if err != nil {
-		t.Fatalf("Set.Migrate(relation CreateModel apply): %v", err)
-	}
-	if state.FormatVersion() != migrations.RelationStateFormatVersion {
-		t.Fatalf("applied state format = %d, want relation format", state.FormatVersion())
-	}
-	if _, exists := state.Model("authors", "author"); !exists {
-		t.Fatal("applied state is missing authors.author")
-	}
-	if post, exists := state.Model("blog", "article"); !exists || len(post.Fields) != 2 || post.Fields[1].Relation == nil {
-		t.Fatalf("applied relation model = %#v, exists=%t", post, exists)
-	}
-	assertDefinitionSQLiteHistory(t, database,
-		backend.AppliedMigration{App: "authors", Name: "0001_author"},
-		backend.AppliedMigration{App: "blog", Name: "0001_article"},
-	)
-	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (1)`); err != nil {
-		t.Fatalf("insert relation target: %v", err)
-	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); err != nil {
-		t.Fatalf("insert valid relation source: %v", err)
-	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (2, 999)`); err == nil {
-		t.Fatal("SQLite accepted an invalid loaded relation foreign key")
-	}
-
-	state, err = loaded.Migrate(ctx, executor, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("authors")))
-	if err != nil {
-		t.Fatalf("Set.Migrate(relation DeleteModel unapply): %v", err)
-	}
-	if len(state.Apps()) != 0 {
-		t.Fatalf("unapplied state apps = %v, want empty", state.Apps())
-	}
-	assertDefinitionSQLiteHistory(t, database)
-	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); err == nil {
-		t.Fatal("relation source table survived DeleteModel unapply")
-	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (1)`); err == nil {
-		t.Fatal("relation target table survived dependency unapply")
-	}
-
-	state, err = loaded.Migrate(ctx, executor, migrations.LatestLifecycleRequest())
-	if err != nil {
-		t.Fatalf("Set.Migrate(relation CreateModel reapply): %v", err)
-	}
-	if _, exists := state.Model("blog", "article"); !exists {
-		t.Fatal("reapplied state is missing blog.article")
-	}
-	assertDefinitionSQLiteHistory(t, database,
-		backend.AppliedMigration{App: "authors", Name: "0001_author"},
-		backend.AppliedMigration{App: "blog", Name: "0001_article"},
-	)
-	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (1)`); err != nil {
-		t.Fatalf("insert relation target after reapply: %v", err)
-	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); err != nil {
-		t.Fatalf("insert valid relation source after reapply: %v", err)
-	}
-
-	// Seed only the additional recorder transition on top of the physically
-	// equivalent relation CreateModel state. The AddField definition set then
-	// reconstructs an applied target-bearing Add and must reject its reverse
-	// Remove capability before changing revision, schema, or rows.
-	seedDefinitionSQLiteHistoryTransition(t, database, backend.HistoryTransition{
-		Migration: backend.AppliedMigration{App: "blog", Name: "0002_article_author"},
-		Kind:      backend.HistoryTransitionApply,
+	branchHistory := []backend.AppliedMigration{{App: "authors", Name: "0001_author"}}
+	seededHistory := append(append([]backend.AppliedMigration(nil), fullHistory...), backend.AppliedMigration{
+		App: "blog", Name: "0003_article_reviewer",
 	})
-	addSet := loadValidRelationLifecycleSet(t)
-	beforeRecords := readDefinitionSQLiteHistory(t, database)
-	state, err = addSet.Migrate(ctx, executor, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("authors")))
+
+	// The initial process owns both the backend and loaded Set only inside this
+	// scope. Later phases reopen the file and decode fresh source bytes in a
+	// different order; no ProjectState or private handoff crosses the boundary.
+	initialSnapshot, setDigest := func() (definitionSQLiteRestartSnapshot, string) {
+		database := openDefinitionSQLiteRestartBackend(t, path)
+		defer closeDefinitionSQLiteRestartBackend(t, database)
+		loaded := loadDefinitionSQLiteRestartSet(t, "authors", "blog", "tail")
+		if loaded.handoff.IsZero() {
+			t.Fatal("mixed legacy/relation restart set has no loader handoff")
+		}
+		state, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+		if err != nil {
+			t.Fatalf("initial file-backed Latest: %v", err)
+		}
+		assertDefinitionSQLiteRestartRelationState(t, state, false)
+		insertDefinitionSQLiteRestartRows(t, database, true)
+		assertDefinitionSQLiteRestartForeignKeyEnforcement(t, database)
+		snapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+		assertDefinitionSQLiteRestartToken(t, snapshot, 3, "e2dfbdf7719c41466f78cef67396a2961a71745c85d2673a47dc3cbdfaa83507", fullHistory)
+		assertDefinitionSQLiteRestartForeignKeys(t, snapshot)
+		return snapshot, loaded.Digest()
+	}()
+
+	// First restart: the sources are re-created and permuted. Latest must be a
+	// byte-for-byte recorder/schema/row/FK no-op before a branch target removes
+	// the scalar tail then its relation-bearing blog table. Parent-first table
+	// deletion would make the tail's reverse RemoveField fail, so success also
+	// proves child-first DAG execution.
+	branchSnapshot := func() definitionSQLiteRestartSnapshot {
+		database := openDefinitionSQLiteRestartBackend(t, path)
+		defer closeDefinitionSQLiteRestartBackend(t, database)
+		loaded := loadDefinitionSQLiteRestartSet(t, "tail", "authors", "blog")
+		if loaded.Digest() != setDigest {
+			t.Fatalf("first restart digest = %q, want %q", loaded.Digest(), setDigest)
+		}
+		noOpState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+		if err != nil {
+			t.Fatalf("first restart Latest no-op: %v", err)
+		}
+		assertDefinitionSQLiteRestartRelationState(t, noOpState, false)
+		noOpSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+		if !reflect.DeepEqual(noOpSnapshot, initialSnapshot) {
+			t.Fatalf("reopened Latest changed durable snapshot:\ninitial=%+v\nreopened=%+v", initialSnapshot, noOpSnapshot)
+		}
+
+		targetState, err := loaded.Migrate(
+			ctx,
+			migrations.Executor{Backend: database},
+			migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")),
+		)
+		if err != nil {
+			t.Fatalf("first restart target blog zero: %v", err)
+		}
+		if targetState.FormatVersion() != migrations.StateFormatVersion ||
+			!reflect.DeepEqual(targetState.Apps(), []string{"authors"}) {
+			t.Fatalf("target branch state = format:%d apps:%v", targetState.FormatVersion(), targetState.Apps())
+		}
+		if _, exists := targetState.Model("authors", "author"); !exists {
+			t.Fatal("target branch state lost the legacy authors root")
+		}
+		snapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+		assertDefinitionSQLiteRestartToken(t, snapshot, 5, "7f42d0b7c454db7954a6767a518a34f0db777a80a1dec0e5578bd403ef5e9b9c", branchHistory)
+		if snapshot.Epoch != initialSnapshot.Epoch {
+			t.Fatalf("target branch changed epoch: initial=%x target=%x", initialSnapshot.Epoch, snapshot.Epoch)
+		}
+		if len(snapshot.ForeignKeys) != 0 {
+			t.Fatalf("target branch retained physical FKs: %+v", snapshot.ForeignKeys)
+		}
+		wantRows := []definitionSQLiteRestartRow{{Table: "authors_author", ID: 41}}
+		if !reflect.DeepEqual(snapshot.Rows, wantRows) {
+			t.Fatalf("target branch rows = %+v, want %+v", snapshot.Rows, wantRows)
+		}
+		return snapshot
+	}()
+
+	// Second restart: use a third source order, rebuild the actual plan from
+	// recorder history, and return to the same full history/fingerprint and
+	// physical bytes with a strictly newer revision in the same epoch (ABA).
+	func() {
+		database := openDefinitionSQLiteRestartBackend(t, path)
+		defer closeDefinitionSQLiteRestartBackend(t, database)
+		loaded := loadDefinitionSQLiteRestartSet(t, "blog", "tail", "authors")
+		if loaded.Digest() != setDigest {
+			t.Fatalf("second restart digest = %q, want %q", loaded.Digest(), setDigest)
+		}
+		reappliedState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+		if err != nil {
+			t.Fatalf("second restart Latest reapply: %v", err)
+		}
+		assertDefinitionSQLiteRestartRelationState(t, reappliedState, false)
+		insertDefinitionSQLiteRestartRows(t, database, false)
+		assertDefinitionSQLiteRestartForeignKeyEnforcement(t, database)
+		reappliedSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+		assertDefinitionSQLiteRestartToken(t, reappliedSnapshot, 7, "e2dfbdf7719c41466f78cef67396a2961a71745c85d2673a47dc3cbdfaa83507", fullHistory)
+		assertDefinitionSQLiteRestartForeignKeys(t, reappliedSnapshot)
+		if reappliedSnapshot.Epoch != initialSnapshot.Epoch ||
+			reappliedSnapshot.Revision <= initialSnapshot.Revision ||
+			reappliedSnapshot.Fingerprint != initialSnapshot.Fingerprint {
+			t.Fatalf(
+				"reapply ABA token = epoch:%x revision:%d fingerprint:%x, initial epoch:%x revision:%d fingerprint:%x",
+				reappliedSnapshot.Epoch,
+				reappliedSnapshot.Revision,
+				reappliedSnapshot.Fingerprint,
+				initialSnapshot.Epoch,
+				initialSnapshot.Revision,
+				initialSnapshot.Fingerprint,
+			)
+		}
+		if branchSnapshot.Revision >= reappliedSnapshot.Revision || branchSnapshot.Epoch != reappliedSnapshot.Epoch {
+			t.Fatalf("reapply did not advance branch token in one epoch: branch=%+v reapply=%+v", branchSnapshot, reappliedSnapshot)
+		}
+		if !reflect.DeepEqual(reappliedSnapshot.Schema, initialSnapshot.Schema) ||
+			!reflect.DeepEqual(reappliedSnapshot.Rows, initialSnapshot.Rows) ||
+			!reflect.DeepEqual(reappliedSnapshot.ForeignKeys, initialSnapshot.ForeignKeys) {
+			t.Fatalf("reapply physical ABA mismatch:\ninitial=%+v\nreapplied=%+v", initialSnapshot, reappliedSnapshot)
+		}
+
+		// A forward required relation Add is unsupported on the current SQLite
+		// capability. Whole-plan preflight must leave every durable byte observed
+		// by the read-only snapshot unchanged.
+		beforeAdd := readDefinitionSQLiteRestartSnapshot(t, path)
+		func() {
+			addSet := loadDefinitionSQLiteRestartSet(t, "reviewer", "tail", "authors", "blog")
+			addState, addErr := addSet.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+			assertDefinitionSQLiteRestartCapabilityError(
+				t,
+				addErr,
+				migrations.DirectionForward,
+				"AddRequiredForeignKeyToEmptyTable",
+			)
+			assertDefinitionSQLiteRestartRelationState(t, addState, false)
+		}()
+		afterAdd := readDefinitionSQLiteRestartSnapshot(t, path)
+		if !reflect.DeepEqual(afterAdd, beforeAdd) {
+			t.Fatalf("unsupported relation Add changed snapshot:\nbefore=%+v\nafter=%+v", beforeAdd, afterAdd)
+		}
+
+		// Seed only the recorder transition. This deliberately advances the
+		// token while leaving schema, rows, and existing FKs untouched, so a
+		// freshly loaded set reconstructs the applied relation Add and must
+		// reject its reverse Remove before any new begin or physical mutation.
+		seedDefinitionSQLiteHistoryTransition(t, database, backend.HistoryTransition{
+			Migration: backend.AppliedMigration{App: "blog", Name: "0003_article_reviewer"},
+			Kind:      backend.HistoryTransitionApply,
+		})
+		seededSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+		assertDefinitionSQLiteRestartToken(t, seededSnapshot, 8, "e9b4004ca1d944d26393a59e4745c56308a281660341b3514e66b7461148049e", seededHistory)
+		if seededSnapshot.Epoch != beforeAdd.Epoch || seededSnapshot.Revision != beforeAdd.Revision+1 ||
+			!reflect.DeepEqual(seededSnapshot.Schema, beforeAdd.Schema) ||
+			!reflect.DeepEqual(seededSnapshot.Rows, beforeAdd.Rows) ||
+			!reflect.DeepEqual(seededSnapshot.ForeignKeys, beforeAdd.ForeignKeys) {
+			t.Fatalf("recorder-only seed changed physical snapshot or wrong token:\nbefore=%+v\nseeded=%+v", beforeAdd, seededSnapshot)
+		}
+
+		func() {
+			removeSet := loadDefinitionSQLiteRestartSet(t, "blog", "reviewer", "authors", "tail")
+			removeState, removeErr := removeSet.Migrate(
+				ctx,
+				migrations.Executor{Backend: database},
+				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+					App: "blog", Name: "0002_article_title",
+				})),
+			)
+			assertDefinitionSQLiteRestartCapabilityError(
+				t,
+				removeErr,
+				migrations.DirectionBackward,
+				"RemoveForeignKeyByTableRemake",
+			)
+			assertDefinitionSQLiteRestartRelationState(t, removeState, true)
+		}()
+		afterRemove := readDefinitionSQLiteRestartSnapshot(t, path)
+		if !reflect.DeepEqual(afterRemove, seededSnapshot) {
+			t.Fatalf("unsupported relation Remove changed snapshot:\nbefore=%+v\nafter=%+v", seededSnapshot, afterRemove)
+		}
+		assertDefinitionSQLiteRestartForeignKeyEnforcement(t, database)
+	}()
+}
+
+const definitionSQLiteRestartEpochSize = 16
+
+type definitionSQLiteRestartSnapshot struct {
+	Epoch       [definitionSQLiteRestartEpochSize]byte
+	Revision    int64
+	Fingerprint [sha256.Size]byte
+	History     []backend.AppliedMigration
+	Schema      []definitionSQLiteRestartSchemaObject
+	Rows        []definitionSQLiteRestartRow
+	ForeignKeys []definitionSQLiteRestartForeignKey
+}
+
+type definitionSQLiteRestartSchemaObject struct {
+	Type       string
+	Name       string
+	Table      string
+	Definition string
+}
+
+type definitionSQLiteRestartRow struct {
+	Table     string
+	ID        int64
+	RelatedID int64
+	Related   bool
+	Text      string
+}
+
+type definitionSQLiteRestartForeignKey struct {
+	SourceTable string
+	ID          int64
+	Sequence    int64
+	TargetTable string
+	FromColumn  string
+	ToColumn    string
+	OnUpdate    string
+	OnDelete    string
+	Match       string
+}
+
+func openDefinitionSQLiteRestartBackend(t *testing.T, path string) *sqlite.Backend {
+	t.Helper()
+	database, err := sqlite.Open(context.Background(), "file:"+filepath.ToSlash(path)+"?mode=rwc")
+	if err != nil {
+		t.Fatalf("Open(file-backed relation restart): %v", err)
+	}
+	return database
+}
+
+func closeDefinitionSQLiteRestartBackend(t *testing.T, database *sqlite.Backend) {
+	t.Helper()
+	if err := database.Close(); err != nil {
+		t.Errorf("Close(file-backed relation restart): %v", err)
+	}
+}
+
+func loadDefinitionSQLiteRestartSet(t *testing.T, order ...string) Set {
+	t.Helper()
+	sources := make([]Source, 0, len(order))
+	for _, name := range order {
+		switch name {
+		case "authors":
+			sources = append(sources, Source{
+				SourceID: "legacy-authors-create",
+				Document: legacyRelationRestartAuthorDocument(),
+			})
+		case "blog":
+			sources = append(sources, Source{
+				SourceID: "relation-blog-create",
+				Document: relationCreateModelDocument(),
+			})
+		case "tail":
+			sources = append(sources, Source{
+				SourceID: "legacy-blog-tail",
+				Document: legacyRelationRestartTailDocument(),
+			})
+		case "reviewer":
+			sources = append(sources, Source{
+				SourceID: "relation-blog-reviewer",
+				Document: relationRestartReviewerDocument(),
+			})
+		default:
+			t.Fatalf("unknown relation restart source %q", name)
+		}
+	}
+	loaded, report, err := Load(sources...)
+	if err != nil {
+		t.Fatalf("Load(file-backed relation restart %v): %v", order, err)
+	}
+	if report.DocumentsReceived != len(order) || report.HeadersValidated != len(order) ||
+		report.OperationsDecoded != len(order) || report.PlannerConstruction != 1 ||
+		report.DefinitionsPublished != len(order) || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("Load(file-backed relation restart %v) report = %+v", order, report)
+	}
+	return loaded
+}
+
+func legacyRelationRestartAuthorDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
+		`"producer":{"name":"restart-legacy","version":"1"},` +
+		`"migration":{"app":"authors","name":"0001_author","dependencies":[],"operations":[` +
+		`{"kind":"create_model","app_label":"authors","model":{` +
+		`"name":"author","go_name":"Author","db_table":"authors_author","fields":[` +
+		`{"name":"id","go_name":"ID","column":"id","kind":"auto",` +
+		`"primary_key":true,"nullable":false,"max_length":0,"default":null}]}}]}}`)
+}
+
+func legacyRelationRestartTailDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
+		`"producer":{"name":"restart-legacy","version":"1"},` +
+		`"migration":{"app":"blog","name":"0002_article_title",` +
+		`"dependencies":[{"app":"blog","name":"0001_article"}],"operations":[` +
+		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
+		`"name":"title","go_name":"Title","column":"title","kind":"char",` +
+		`"primary_key":false,"nullable":false,"max_length":64,` +
+		`"default":{"kind":"string","string":"untitled"}}}]}}`)
+}
+
+func relationRestartReviewerDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"restart-relation","version":"1"},` +
+		`"migration":{"app":"blog","name":"0003_article_reviewer",` +
+		`"dependencies":[{"app":"blog","name":"0002_article_title"}],"operations":[` +
+		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
+		`"name":"reviewer","go_name":"Reviewer","column":"reviewer_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"review_comments","disabled":false},` +
+		`"on_delete":"protect"}}}]}}`)
+}
+
+func assertDefinitionSQLiteRestartRelationState(t *testing.T, state migrations.ProjectState, wantReviewer bool) {
+	t.Helper()
+	if state.FormatVersion() != migrations.RelationStateFormatVersion ||
+		!reflect.DeepEqual(state.Apps(), []string{"authors", "blog"}) {
+		t.Fatalf("relation restart state = format:%d apps:%v", state.FormatVersion(), state.Apps())
+	}
+	author, authorExists := state.Model("authors", "author")
+	article, articleExists := state.Model("blog", "article")
+	wantArticleFields := 3
+	if wantReviewer {
+		wantArticleFields = 4
+	}
+	if !authorExists || len(author.Fields) != 1 || !articleExists || len(article.Fields) != wantArticleFields ||
+		article.Fields[1].Relation == nil || article.Fields[2].Name != "title" {
+		t.Fatalf(
+			"relation restart models = author:%#v/%t article:%#v/%t",
+			author,
+			authorExists,
+			article,
+			articleExists,
+		)
+	}
+	if wantReviewer && (article.Fields[3].Name != "reviewer" || article.Fields[3].Relation == nil) {
+		t.Fatalf("seeded reviewer state = %#v", article.Fields[3])
+	}
+}
+
+func insertDefinitionSQLiteRestartRows(t *testing.T, database *sqlite.Backend, includeAuthor bool) {
+	t.Helper()
+	ctx := context.Background()
+	if includeAuthor {
+		if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (41)`); err != nil {
+			t.Fatalf("insert restart author: %v", err)
+		}
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id", "title") VALUES (51, 41, 'kept')`); err != nil {
+		t.Fatalf("insert restart article: %v", err)
+	}
+}
+
+func assertDefinitionSQLiteRestartForeignKeyEnforcement(t *testing.T, database *sqlite.Backend) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id", "title") VALUES (52, 9999, 'orphan')`); err == nil {
+		t.Fatal("file-backed restart accepted an orphan blog author")
+	}
+	if _, err := database.ExecContext(ctx, `DELETE FROM "authors_author" WHERE "id" = 41`); err == nil {
+		t.Fatal("file-backed restart deleted an author with a blog child")
+	}
+}
+
+func assertDefinitionSQLiteRestartCapabilityError(
+	t *testing.T,
+	err error,
+	direction migrations.Direction,
+	detail string,
+) {
+	t.Helper()
 	var migrationError *migrations.Error
 	var capabilityError *backend.CapabilityError
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
-		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capabilityError) ||
-		!strings.Contains(capabilityError.Detail, "RemoveForeignKeyByTableRemake") {
-		t.Fatalf("Set.Migrate(relation RemoveField capability) = %#v capability=%#v", err, capabilityError)
+		migrationError.Code != migrations.CodeUnsupported || migrationError.Direction != direction ||
+		migrationError.App != "blog" || migrationError.Migration != "0003_article_reviewer" ||
+		migrationError.OperationIndex != migrations.NoOperation || !errors.As(err, &capabilityError) ||
+		capabilityError.Feature != "relation_migration" || !strings.Contains(capabilityError.Detail, detail) {
+		t.Fatalf("relation restart capability error = %#v capability=%#v, want %s %s", err, capabilityError, direction, detail)
 	}
-	if _, exists := state.Model("blog", "article"); !exists {
-		t.Fatal("rejected relation RemoveField did not return reconstructed durable state")
+}
+
+func readDefinitionSQLiteRestartSnapshot(t *testing.T, path string) definitionSQLiteRestartSnapshot {
+	t.Helper()
+	ctx := context.Background()
+	reader, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open read-only restart snapshot: %v", err)
 	}
-	afterRecords := readDefinitionSQLiteHistory(t, database)
-	if !reflect.DeepEqual(afterRecords, beforeRecords) {
-		t.Fatalf("rejected relation RemoveField changed history: before=%v after=%v", beforeRecords, afterRecords)
+	reader.SetMaxOpenConns(1)
+	defer func() {
+		if err := reader.Close(); err != nil {
+			t.Errorf("close read-only restart snapshot: %v", err)
+		}
+	}()
+	tx, err := reader.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("begin read-only restart snapshot: %v", err)
 	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (2, 1)`); err != nil {
-		t.Fatalf("rejected relation RemoveField changed physical schema or rows: %v", err)
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	snapshot := definitionSQLiteRestartSnapshot{
+		History:     make([]backend.AppliedMigration, 0),
+		Schema:      make([]definitionSQLiteRestartSchemaObject, 0),
+		Rows:        make([]definitionSQLiteRestartRow, 0),
+		ForeignKeys: make([]definitionSQLiteRestartForeignKey, 0),
 	}
-	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (3, 999)`); err == nil {
-		t.Fatal("rejected relation RemoveField disabled the physical foreign key")
+	var formatVersion int64
+	var epoch, fingerprint []byte
+	if err := tx.QueryRowContext(
+		ctx,
+		`SELECT "format_version", "epoch", "revision", "history_fingerprint" `+
+			`FROM "godj_migration_revision" WHERE "singleton" = 1`,
+	).Scan(&formatVersion, &epoch, &snapshot.Revision, &fingerprint); err != nil {
+		t.Fatalf("read restart revision token: %v", err)
+	}
+	if formatVersion != 1 || len(epoch) != definitionSQLiteRestartEpochSize || len(fingerprint) != sha256.Size {
+		t.Fatalf("restart revision token shape = format:%d epoch:%d fingerprint:%d", formatVersion, len(epoch), len(fingerprint))
+	}
+	copy(snapshot.Epoch[:], epoch)
+	copy(snapshot.Fingerprint[:], fingerprint)
+
+	historyRows, err := tx.QueryContext(
+		ctx,
+		`SELECT "app", "name" FROM "godj_migrations" ORDER BY "app", "name"`,
+	)
+	if err != nil {
+		t.Fatalf("read full restart history: %v", err)
+	}
+	for historyRows.Next() {
+		var migration backend.AppliedMigration
+		if err := historyRows.Scan(&migration.App, &migration.Name); err != nil {
+			_ = historyRows.Close()
+			t.Fatalf("scan full restart history: %v", err)
+		}
+		snapshot.History = append(snapshot.History, migration)
+	}
+	if err := historyRows.Err(); err != nil {
+		_ = historyRows.Close()
+		t.Fatalf("iterate full restart history: %v", err)
+	}
+	if err := historyRows.Close(); err != nil {
+		t.Fatalf("close full restart history: %v", err)
+	}
+	for index := 1; index < len(snapshot.History); index++ {
+		previous := snapshot.History[index-1]
+		current := snapshot.History[index]
+		if previous.App > current.App || previous.App == current.App && previous.Name >= current.Name {
+			t.Fatalf("restart history is not strictly sorted: %v", snapshot.History)
+		}
+	}
+	computed := definitionSQLiteRestartHistoryFingerprint(snapshot.History)
+	if computed != snapshot.Fingerprint {
+		t.Fatalf("restart fingerprint = %x, independently computed %x", snapshot.Fingerprint, computed)
+	}
+
+	schemaRows, err := tx.QueryContext(
+		ctx,
+		`SELECT "type", "name", "tbl_name", COALESCE("sql", '') FROM main.sqlite_schema `+
+			`WHERE "name" NOT LIKE 'sqlite_%' ORDER BY "type", "name", "tbl_name", "sql"`,
+	)
+	if err != nil {
+		t.Fatalf("read restart schema: %v", err)
+	}
+	tables := make(map[string]struct{})
+	for schemaRows.Next() {
+		var object definitionSQLiteRestartSchemaObject
+		if err := schemaRows.Scan(&object.Type, &object.Name, &object.Table, &object.Definition); err != nil {
+			_ = schemaRows.Close()
+			t.Fatalf("scan restart schema: %v", err)
+		}
+		snapshot.Schema = append(snapshot.Schema, object)
+		if object.Type == "table" {
+			tables[object.Name] = struct{}{}
+		}
+	}
+	if err := schemaRows.Err(); err != nil {
+		_ = schemaRows.Close()
+		t.Fatalf("iterate restart schema: %v", err)
+	}
+	if err := schemaRows.Close(); err != nil {
+		t.Fatalf("close restart schema: %v", err)
+	}
+
+	if _, exists := tables["authors_author"]; exists {
+		readDefinitionSQLiteRestartRows(t, tx, &snapshot, "authors_author", `SELECT "id" FROM "authors_author" ORDER BY "id"`, false, false)
+	}
+	if _, exists := tables["blog_article"]; exists {
+		readDefinitionSQLiteRestartRows(t, tx, &snapshot, "blog_article", `SELECT "id", "author_id", "title" FROM "blog_article" ORDER BY "id"`, true, true)
+	}
+	readDefinitionSQLiteRestartForeignKeys(t, tx, &snapshot, tables)
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit read-only restart snapshot: %v", err)
+	}
+	committed = true
+	return snapshot
+}
+
+func readDefinitionSQLiteRestartRows(
+	t *testing.T,
+	tx *sql.Tx,
+	snapshot *definitionSQLiteRestartSnapshot,
+	table string,
+	statement string,
+	related bool,
+	text bool,
+) {
+	t.Helper()
+	rows, err := tx.QueryContext(context.Background(), statement)
+	if err != nil {
+		t.Fatalf("read restart rows for %s: %v", table, err)
+	}
+	for rows.Next() {
+		row := definitionSQLiteRestartRow{Table: table, Related: related}
+		if related && text {
+			err = rows.Scan(&row.ID, &row.RelatedID, &row.Text)
+		} else if related {
+			err = rows.Scan(&row.ID, &row.RelatedID)
+		} else {
+			err = rows.Scan(&row.ID)
+		}
+		if err != nil {
+			_ = rows.Close()
+			t.Fatalf("scan restart rows for %s: %v", table, err)
+		}
+		snapshot.Rows = append(snapshot.Rows, row)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		t.Fatalf("iterate restart rows for %s: %v", table, err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatalf("close restart rows for %s: %v", table, err)
+	}
+}
+
+func readDefinitionSQLiteRestartForeignKeys(
+	t *testing.T,
+	tx *sql.Tx,
+	snapshot *definitionSQLiteRestartSnapshot,
+	tables map[string]struct{},
+) {
+	t.Helper()
+	checks := []struct {
+		table     string
+		statement string
+	}{
+		{table: "authors_author", statement: `PRAGMA main.foreign_key_list("authors_author")`},
+		{table: "blog_article", statement: `PRAGMA main.foreign_key_list("blog_article")`},
+	}
+	for _, check := range checks {
+		if _, exists := tables[check.table]; !exists {
+			continue
+		}
+		rows, err := tx.QueryContext(context.Background(), check.statement)
+		if err != nil {
+			t.Fatalf("read restart foreign keys for %s: %v", check.table, err)
+		}
+		for rows.Next() {
+			foreignKey := definitionSQLiteRestartForeignKey{SourceTable: check.table}
+			if err := rows.Scan(
+				&foreignKey.ID,
+				&foreignKey.Sequence,
+				&foreignKey.TargetTable,
+				&foreignKey.FromColumn,
+				&foreignKey.ToColumn,
+				&foreignKey.OnUpdate,
+				&foreignKey.OnDelete,
+				&foreignKey.Match,
+			); err != nil {
+				_ = rows.Close()
+				t.Fatalf("scan restart foreign keys for %s: %v", check.table, err)
+			}
+			snapshot.ForeignKeys = append(snapshot.ForeignKeys, foreignKey)
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			t.Fatalf("iterate restart foreign keys for %s: %v", check.table, err)
+		}
+		if err := rows.Close(); err != nil {
+			t.Fatalf("close restart foreign keys for %s: %v", check.table, err)
+		}
+	}
+}
+
+func definitionSQLiteRestartHistoryFingerprint(records []backend.AppliedMigration) [sha256.Size]byte {
+	hash := sha256.New()
+	var length [8]byte
+	binary.BigEndian.PutUint64(length[:], uint64(len(records)))
+	_, _ = hash.Write(length[:])
+	for _, record := range records {
+		for _, value := range []string{record.App, record.Name} {
+			binary.BigEndian.PutUint64(length[:], uint64(len(value)))
+			_, _ = hash.Write(length[:])
+			_, _ = hash.Write([]byte(value))
+		}
+	}
+	var fingerprint [sha256.Size]byte
+	copy(fingerprint[:], hash.Sum(nil))
+	return fingerprint
+}
+
+func assertDefinitionSQLiteRestartToken(
+	t *testing.T,
+	snapshot definitionSQLiteRestartSnapshot,
+	wantRevision int64,
+	wantFingerprint string,
+	wantHistory []backend.AppliedMigration,
+) {
+	t.Helper()
+	if snapshot.Epoch == ([definitionSQLiteRestartEpochSize]byte{}) {
+		t.Fatal("restart epoch is all zero")
+	}
+	if snapshot.Revision != wantRevision || hex.EncodeToString(snapshot.Fingerprint[:]) != wantFingerprint ||
+		!reflect.DeepEqual(snapshot.History, wantHistory) {
+		t.Fatalf(
+			"restart token/history = revision:%d fingerprint:%x history:%v, want revision:%d fingerprint:%s history:%v",
+			snapshot.Revision,
+			snapshot.Fingerprint,
+			snapshot.History,
+			wantRevision,
+			wantFingerprint,
+			wantHistory,
+		)
+	}
+}
+
+func assertDefinitionSQLiteRestartForeignKeys(t *testing.T, snapshot definitionSQLiteRestartSnapshot) {
+	t.Helper()
+	want := []definitionSQLiteRestartForeignKey{
+		{
+			SourceTable: "blog_article", ID: 0, Sequence: 0,
+			TargetTable: "authors_author", FromColumn: "author_id", ToColumn: "id",
+			OnUpdate: "NO ACTION", OnDelete: "NO ACTION", Match: "NONE",
+		},
+	}
+	if !reflect.DeepEqual(snapshot.ForeignKeys, want) {
+		t.Fatalf("restart physical foreign keys = %+v, want %+v", snapshot.ForeignKeys, want)
 	}
 }
 
