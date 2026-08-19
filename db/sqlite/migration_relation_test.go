@@ -11,7 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -1808,6 +1810,8 @@ func TestSQLiteRelationForeignKeyCheckRunsBeforeRecorder(t *testing.T) {
 	if sqliteRelationTestTableExists(t, backend, target.DBTable) || sqliteRelationTestTableExists(t, backend, source.DBTable) {
 		t.Fatal("foreign_key_check failure published relation DDL")
 	}
+
+	assertSQLiteLoadedRelationErrorTaxonomy(t)
 }
 
 func TestSQLiteRelationPhysicalValidationCachesRepeatedQueries(t *testing.T) {
@@ -2338,6 +2342,667 @@ func seedSQLiteMigrationHistory(
 	if err := session.Close(ctx); err != nil {
 		t.Fatal(err)
 	}
+}
+
+type sqliteLoadedRelationTaxonomyCase struct {
+	name        string
+	beginErr    error
+	method      string
+	contains    string
+	cause       error
+	category    migrations.ErrorCategory
+	code        migrations.ErrorCode
+	operation   int
+	kind        string
+	fenceKind   migrationbackend.RevisionFenceFailureKind
+	checkpoints []sqliteRelationBeginCheckpoint
+	rollbacks   int
+}
+
+func assertSQLiteLoadedRelationErrorTaxonomy(t *testing.T) {
+	t.Helper()
+	beginCause := errors.New("loaded relation Begin fault")
+	pragmaCause := errors.New("loaded relation PRAGMA-set fault")
+	catalogCause := errors.New("loaded relation catalog fault")
+	claimCause := &codedRevisionSQLiteError{code: 5}
+	foreignKeyCause := errors.New("loaded relation final foreign-key-check fault")
+	recorderCause := errors.New("loaded relation recorder fault")
+	fullCheckpoints := []sqliteRelationBeginCheckpoint{
+		sqliteRelationCheckpointForeignKeysSet,
+		sqliteRelationCheckpointForeignKeysRead,
+		sqliteRelationCheckpointTransactionBegun,
+		sqliteRelationCheckpointPhysicalPreflightComplete,
+		sqliteRelationCheckpointRevisionClaimStarting,
+		sqliteRelationCheckpointRevisionClaimed,
+	}
+	tests := []sqliteLoadedRelationTaxonomyCase{
+		{
+			name:      "begin",
+			beginErr:  beginCause,
+			cause:     beginCause,
+			category:  migrations.CategoryTransaction,
+			code:      migrations.CodeBeginFailed,
+			operation: migrations.NoOperation,
+		},
+		{
+			name:      "pragma_set",
+			method:    "exec",
+			contains:  "PRAGMA foreign_keys = ON",
+			cause:     pragmaCause,
+			category:  migrations.CategoryTransaction,
+			code:      migrations.CodeBeginFailed,
+			operation: migrations.NoOperation,
+		},
+		{
+			name:        "catalog",
+			method:      "query",
+			contains:    "FROM main.sqlite_schema",
+			cause:       catalogCause,
+			category:    migrations.CategoryTransaction,
+			code:        migrations.CodeBeginFailed,
+			operation:   migrations.NoOperation,
+			checkpoints: fullCheckpoints[:3],
+		},
+		{
+			name:        "claim_busy",
+			method:      "exec",
+			contains:    `UPDATE "godj_migration_revision"`,
+			cause:       claimCause,
+			category:    migrations.CategoryTransaction,
+			code:        migrations.CodeHistoryRevisionContended,
+			operation:   migrations.NoOperation,
+			fenceKind:   migrationbackend.RevisionFenceFailureContended,
+			checkpoints: fullCheckpoints[:5],
+		},
+		{
+			name:        "final_foreign_key_check",
+			method:      "query",
+			contains:    "foreign_key_check",
+			cause:       foreignKeyCause,
+			category:    migrations.CategoryExecution,
+			code:        migrations.CodeOperationFailed,
+			operation:   1,
+			kind:        "AddField",
+			checkpoints: fullCheckpoints,
+			rollbacks:   1,
+		},
+		{
+			name:        "recorder",
+			method:      "exec",
+			contains:    `INSERT INTO "godj_migrations"`,
+			cause:       recorderCause,
+			category:    migrations.CategoryRecorder,
+			code:        migrations.CodeRecordFailed,
+			operation:   migrations.NoOperation,
+			checkpoints: fullCheckpoints,
+			rollbacks:   1,
+		},
+	}
+
+	for _, test := range tests {
+		path := filepath.Join(t.TempDir(), "loaded-relation-taxonomy-"+test.name+".sqlite")
+		database := openSQLiteLoadedRelationTaxonomyBackend(t, path)
+		seedState := seedSQLiteLoadedRelationTaxonomyAuthor(t, database)
+		if err := database.Close(); err != nil {
+			t.Fatalf("%s seed Close(): %v", test.name, err)
+		}
+		before := readSQLiteLoadedRelationTaxonomySnapshot(t, path)
+		assertSQLiteLoadedRelationTaxonomySeed(t, test.name, before)
+
+		database = openSQLiteLoadedRelationTaxonomyBackend(t, path)
+		var connectionFault *sqliteRelationBeginFaultConnection
+		if test.method != "" {
+			connectionFault = &sqliteRelationBeginFaultConnection{
+				method:    test.method,
+				contains:  test.contains,
+				remaining: 1,
+				faultErr:  test.cause,
+			}
+		}
+		probe := &sqliteLoadedRelationTaxonomyBackend{
+			Backend:  database,
+			beginErr: test.beginErr,
+			fault:    connectionFault,
+		}
+		loaded := loadSQLiteLoadedRelationTaxonomySet(t, test.name)
+		state, err := loaded.Migrate(
+			context.Background(),
+			migrations.Executor{Backend: probe},
+			migrations.LatestLifecycleRequest(),
+		)
+		assertSQLiteLoadedRelationTaxonomyError(t, test, err)
+		assertSQLiteLoadedRelationTaxonomyState(t, test.name, state, seedState)
+		assertSQLiteLoadedRelationTaxonomyIntent(t, test.name, probe.transition, probe.intent)
+		if connectionFault != nil && connectionFault.remaining != 0 {
+			t.Fatalf("%s fault remaining = %d, want 0", test.name, connectionFault.remaining)
+		}
+		if connectionFault != nil {
+			wantRollbacks := 1
+			if test.name == "pragma_set" {
+				wantRollbacks = 0
+			}
+			if connectionFault.closeCalls != 1 || connectionFault.rawCalls != 0 ||
+				connectionFault.rollbackCalls != wantRollbacks {
+				t.Fatalf(
+					"%s connection cleanup = close:%d raw:%d rollback:%d, want 1/0/%d",
+					test.name,
+					connectionFault.closeCalls,
+					connectionFault.rawCalls,
+					connectionFault.rollbackCalls,
+					wantRollbacks,
+				)
+			}
+		}
+		wantHooks := 1
+		if test.beginErr != nil {
+			wantHooks = 0
+		}
+		if probe.capabilityCalls != 1 || probe.openCalls != 1 || probe.readCalls != 1 || probe.beginCalls != 1 ||
+			probe.closeCalls != 1 || probe.connectionHookCalls != wantHooks ||
+			probe.transactionRollbackCalls != test.rollbacks {
+			t.Fatalf(
+				"%s lifecycle calls = capability:%d open:%d read:%d begin:%d close:%d hook:%d rollback:%d, want 1/1/1/1/1/%d/%d",
+				test.name,
+				probe.capabilityCalls,
+				probe.openCalls,
+				probe.readCalls,
+				probe.beginCalls,
+				probe.closeCalls,
+				probe.connectionHookCalls,
+				probe.transactionRollbackCalls,
+				wantHooks,
+				test.rollbacks,
+			)
+		}
+		if !reflect.DeepEqual(probe.checkpoints, test.checkpoints) {
+			t.Fatalf("%s checkpoints = %v, want %v", test.name, probe.checkpoints, test.checkpoints)
+		}
+		if stats := database.database.Stats(); stats.InUse != 0 {
+			t.Fatalf("%s database in-use connections = %d, want 0", test.name, stats.InUse)
+		}
+		if err := database.Close(); err != nil {
+			t.Fatalf("%s fault Close(): %v", test.name, err)
+		}
+		after := readSQLiteLoadedRelationTaxonomySnapshot(t, path)
+		if !reflect.DeepEqual(after, before) {
+			t.Fatalf("%s changed reopened durable snapshot:\nbefore=%+v\nafter=%+v", test.name, before, after)
+		}
+	}
+}
+
+func assertSQLiteLoadedRelationTaxonomyError(
+	t *testing.T,
+	test sqliteLoadedRelationTaxonomyCase,
+	err error,
+) {
+	t.Helper()
+	var migrationError *migrations.Error
+	if !errors.As(err, &migrationError) || migrationError == nil ||
+		migrationError.Category != test.category || migrationError.Code != test.code ||
+		migrationError.Direction != migrations.DirectionForward || migrationError.App != "blog" ||
+		migrationError.Migration != "0001_article" || migrationError.OperationIndex != test.operation ||
+		migrationError.Operation != test.kind || migrationError.RollbackCause != nil ||
+		!errors.Is(err, test.cause) {
+		t.Fatalf(
+			"%s taxonomy error = %#v (%v), want %s/%s forward blog.0001_article operation[%d]=%q cause %v",
+			test.name,
+			migrationError,
+			err,
+			test.category,
+			test.code,
+			test.operation,
+			test.kind,
+			test.cause,
+		)
+	}
+	var fenceError *migrationbackend.RevisionFenceError
+	if test.fenceKind == 0 {
+		if errors.As(migrationError.Cause, &fenceError) {
+			t.Fatalf("%s raw fault was reclassified as revision fence error: %#v", test.name, fenceError)
+		}
+	} else if !errors.As(migrationError.Cause, &fenceError) || fenceError == nil || fenceError.Kind != test.fenceKind {
+		t.Fatalf("%s revision fence error = %#v, want kind %d", test.name, fenceError, test.fenceKind)
+	}
+}
+
+func assertSQLiteLoadedRelationTaxonomyState(
+	t *testing.T,
+	label string,
+	state migrations.ProjectState,
+	seed migrations.ProjectState,
+) {
+	t.Helper()
+	if !state.Equal(seed) {
+		t.Fatalf(
+			"%s rollback state = format:%d apps:%v, want exact seed format:%d apps:%v",
+			label,
+			state.FormatVersion(),
+			state.Apps(),
+			seed.FormatVersion(),
+			seed.Apps(),
+		)
+	}
+}
+
+func assertSQLiteLoadedRelationTaxonomyIntent(
+	t *testing.T,
+	label string,
+	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.RelationMigrationIntent,
+) {
+	t.Helper()
+	if transition != (migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "blog", Name: "0001_article"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}) || len(intent.Operations) != 2 {
+		t.Fatalf("%s relation begin payload = transition:%+v intent:%+v", label, transition, intent)
+	}
+	create := intent.Operations[0]
+	add := intent.Operations[1]
+	if create.OperationIndex != 0 || create.Kind != migrationbackend.RelationMigrationCreateModel ||
+		create.After.DBTable != "blog_article" || len(create.Targets) != 1 ||
+		create.Targets[0].TargetModel.DBTable != "authors_author" ||
+		create.Targets[0].SourceField.Column != "author_id" ||
+		add.OperationIndex != 1 || add.Kind != migrationbackend.RelationMigrationAddField ||
+		len(add.Targets) != 0 || len(add.After.Fields) != 3 ||
+		add.After.Fields[2].Name != "summary" || !add.After.Fields[2].Nullable {
+		t.Fatalf("%s relation operation payload = create:%+v add:%+v", label, create, add)
+	}
+}
+
+func openSQLiteLoadedRelationTaxonomyBackend(t *testing.T, path string) *Backend {
+	t.Helper()
+	database, err := Open(context.Background(), "file:"+filepath.ToSlash(path)+"?mode=rwc")
+	if err != nil {
+		t.Fatalf("Open(file-backed loaded relation taxonomy): %v", err)
+	}
+	return database
+}
+
+func seedSQLiteLoadedRelationTaxonomyAuthor(t *testing.T, database *Backend) migrations.ProjectState {
+	t.Helper()
+	ctx := context.Background()
+	loaded, report, err := migrationdefinition.Load(migrationdefinition.Source{
+		SourceID: "loaded-taxonomy-authors",
+		Document: sqliteLoadedRelationTaxonomyAuthorDocument(),
+	})
+	if err != nil {
+		t.Fatalf("Load(loaded taxonomy author): %v", err)
+	}
+	if report.DocumentsReceived != 1 || report.HeadersValidated != 1 || report.OperationsDecoded != 1 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 1 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("Load(loaded taxonomy author) report = %+v", report)
+	}
+	state, err := loaded.Migrate(
+		ctx,
+		migrations.Executor{Backend: database},
+		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+			App: "authors", Name: "0001_author",
+		})),
+	)
+	if err != nil {
+		t.Fatalf("Migrate(loaded taxonomy author): %v", err)
+	}
+	if state.FormatVersion() != migrations.StateFormatVersion || !reflect.DeepEqual(state.Apps(), []string{"authors"}) {
+		t.Fatalf("loaded taxonomy seed state = format:%d apps:%v", state.FormatVersion(), state.Apps())
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (41)`); err != nil {
+		t.Fatalf("insert loaded taxonomy author: %v", err)
+	}
+	return state.Clone()
+}
+
+func loadSQLiteLoadedRelationTaxonomySet(t *testing.T, label string) migrationdefinition.Set {
+	t.Helper()
+	loaded, report, err := migrationdefinition.Load(
+		migrationdefinition.Source{
+			SourceID: "loaded-taxonomy-blog-" + label,
+			Document: sqliteLoadedRelationTaxonomyBlogDocument(),
+		},
+		migrationdefinition.Source{
+			SourceID: "loaded-taxonomy-authors-" + label,
+			Document: sqliteLoadedRelationTaxonomyAuthorDocument(),
+		},
+	)
+	if err != nil {
+		t.Fatalf("%s Load(loaded relation taxonomy): %v", label, err)
+	}
+	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 3 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("%s Load(loaded relation taxonomy) report = %+v", label, report)
+	}
+	return loaded
+}
+
+func sqliteLoadedRelationTaxonomyAuthorDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
+		`"producer":{"name":"loaded-taxonomy","version":"1"},` +
+		`"migration":{"app":"authors","name":"0001_author","dependencies":[],"operations":[` +
+		`{"kind":"create_model","app_label":"authors","model":{` +
+		`"name":"author","go_name":"Author","db_table":"authors_author","fields":[` +
+		`{"name":"id","go_name":"ID","column":"id","kind":"auto",` +
+		`"primary_key":true,"nullable":false,"max_length":0,"default":null}]}}]}}`)
+}
+
+func sqliteLoadedRelationTaxonomyBlogDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"loaded-taxonomy","version":"1"},` +
+		`"migration":{"app":"blog","name":"0001_article",` +
+		`"dependencies":[{"app":"authors","name":"0001_author"}],"operations":[` +
+		`{"kind":"create_model","app_label":"blog","model":{` +
+		`"name":"article","go_name":"Article","db_table":"blog_article","fields":[` +
+		`{"name":"id","go_name":"ID","column":"id","kind":"auto",` +
+		`"primary_key":true,"nullable":false,"max_length":0,"default":null},` +
+		`{"name":"author","go_name":"Author","column":"author_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"articles","disabled":false},` +
+		`"on_delete":"protect"}}]}},` +
+		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
+		`"name":"summary","go_name":"Summary","column":"summary","kind":"char",` +
+		`"primary_key":false,"nullable":true,"max_length":64,"default":null}}]}}`)
+}
+
+const (
+	sqliteLoadedRelationTaxonomyEpochBytes       = 16
+	sqliteLoadedRelationTaxonomyFingerprintBytes = 32
+)
+
+type sqliteLoadedRelationTaxonomySnapshot struct {
+	FormatVersion int64
+	Epoch         [sqliteLoadedRelationTaxonomyEpochBytes]byte
+	Revision      int64
+	Fingerprint   [sqliteLoadedRelationTaxonomyFingerprintBytes]byte
+	History       []migrationbackend.AppliedMigration
+	Schema        []sqliteLoadedRelationTaxonomySchemaObject
+	AuthorIDs     []int64
+	ForeignKeys   []sqliteLoadedRelationTaxonomyForeignKey
+}
+
+type sqliteLoadedRelationTaxonomySchemaObject struct {
+	Type       string
+	Name       string
+	Table      string
+	Definition string
+}
+
+type sqliteLoadedRelationTaxonomyForeignKey struct {
+	SourceTable string
+	ID          int64
+	Sequence    int64
+	TargetTable string
+	FromColumn  string
+	ToColumn    string
+	OnUpdate    string
+	OnDelete    string
+	Match       string
+}
+
+func readSQLiteLoadedRelationTaxonomySnapshot(t *testing.T, path string) sqliteLoadedRelationTaxonomySnapshot {
+	t.Helper()
+	ctx := context.Background()
+	reader, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open read-only loaded relation taxonomy snapshot: %v", err)
+	}
+	reader.SetMaxOpenConns(1)
+	defer func() {
+		if err := reader.Close(); err != nil {
+			t.Errorf("close read-only loaded relation taxonomy snapshot: %v", err)
+		}
+	}()
+	tx, err := reader.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("begin read-only loaded relation taxonomy snapshot: %v", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	snapshot := sqliteLoadedRelationTaxonomySnapshot{
+		History:     make([]migrationbackend.AppliedMigration, 0),
+		Schema:      make([]sqliteLoadedRelationTaxonomySchemaObject, 0),
+		AuthorIDs:   make([]int64, 0),
+		ForeignKeys: make([]sqliteLoadedRelationTaxonomyForeignKey, 0),
+	}
+	var epoch, fingerprint []byte
+	if err := tx.QueryRowContext(
+		ctx,
+		`SELECT "format_version", "epoch", "revision", "history_fingerprint" `+
+			`FROM "godj_migration_revision" WHERE "singleton" = 1`,
+	).Scan(&snapshot.FormatVersion, &epoch, &snapshot.Revision, &fingerprint); err != nil {
+		t.Fatalf("read loaded relation taxonomy revision token: %v", err)
+	}
+	if len(epoch) != len(snapshot.Epoch) || len(fingerprint) != len(snapshot.Fingerprint) {
+		t.Fatalf("loaded relation taxonomy token bytes = epoch:%d fingerprint:%d", len(epoch), len(fingerprint))
+	}
+	copy(snapshot.Epoch[:], epoch)
+	copy(snapshot.Fingerprint[:], fingerprint)
+
+	historyRows, err := tx.QueryContext(ctx, `SELECT "app", "name" FROM "godj_migrations" ORDER BY "app", "name"`)
+	if err != nil {
+		t.Fatalf("read loaded relation taxonomy history: %v", err)
+	}
+	for historyRows.Next() {
+		var record migrationbackend.AppliedMigration
+		if err := historyRows.Scan(&record.App, &record.Name); err != nil {
+			_ = historyRows.Close()
+			t.Fatalf("scan loaded relation taxonomy history: %v", err)
+		}
+		snapshot.History = append(snapshot.History, record)
+	}
+	if err := historyRows.Err(); err != nil {
+		_ = historyRows.Close()
+		t.Fatalf("iterate loaded relation taxonomy history: %v", err)
+	}
+	if err := historyRows.Close(); err != nil {
+		t.Fatalf("close loaded relation taxonomy history: %v", err)
+	}
+
+	schemaRows, err := tx.QueryContext(
+		ctx,
+		`SELECT "type", "name", "tbl_name", COALESCE("sql", '') FROM main.sqlite_schema `+
+			`WHERE "name" NOT LIKE 'sqlite_%' ORDER BY "type", "name", "tbl_name", "sql"`,
+	)
+	if err != nil {
+		t.Fatalf("read loaded relation taxonomy schema: %v", err)
+	}
+	for schemaRows.Next() {
+		var object sqliteLoadedRelationTaxonomySchemaObject
+		if err := schemaRows.Scan(&object.Type, &object.Name, &object.Table, &object.Definition); err != nil {
+			_ = schemaRows.Close()
+			t.Fatalf("scan loaded relation taxonomy schema: %v", err)
+		}
+		snapshot.Schema = append(snapshot.Schema, object)
+	}
+	if err := schemaRows.Err(); err != nil {
+		_ = schemaRows.Close()
+		t.Fatalf("iterate loaded relation taxonomy schema: %v", err)
+	}
+	if err := schemaRows.Close(); err != nil {
+		t.Fatalf("close loaded relation taxonomy schema: %v", err)
+	}
+
+	authorRows, err := tx.QueryContext(ctx, `SELECT "id" FROM "authors_author" ORDER BY "id"`)
+	if err != nil {
+		t.Fatalf("read loaded relation taxonomy author rows: %v", err)
+	}
+	for authorRows.Next() {
+		var id int64
+		if err := authorRows.Scan(&id); err != nil {
+			_ = authorRows.Close()
+			t.Fatalf("scan loaded relation taxonomy author rows: %v", err)
+		}
+		snapshot.AuthorIDs = append(snapshot.AuthorIDs, id)
+	}
+	if err := authorRows.Err(); err != nil {
+		_ = authorRows.Close()
+		t.Fatalf("iterate loaded relation taxonomy author rows: %v", err)
+	}
+	if err := authorRows.Close(); err != nil {
+		t.Fatalf("close loaded relation taxonomy author rows: %v", err)
+	}
+
+	for _, table := range []string{"authors_author", "blog_article"} {
+		rows, err := tx.QueryContext(ctx, `PRAGMA main.foreign_key_list("`+table+`")`)
+		if err != nil {
+			t.Fatalf("read loaded relation taxonomy foreign keys for %s: %v", table, err)
+		}
+		for rows.Next() {
+			foreignKey := sqliteLoadedRelationTaxonomyForeignKey{SourceTable: table}
+			if err := rows.Scan(
+				&foreignKey.ID,
+				&foreignKey.Sequence,
+				&foreignKey.TargetTable,
+				&foreignKey.FromColumn,
+				&foreignKey.ToColumn,
+				&foreignKey.OnUpdate,
+				&foreignKey.OnDelete,
+				&foreignKey.Match,
+			); err != nil {
+				_ = rows.Close()
+				t.Fatalf("scan loaded relation taxonomy foreign keys for %s: %v", table, err)
+			}
+			snapshot.ForeignKeys = append(snapshot.ForeignKeys, foreignKey)
+		}
+		if err := rows.Err(); err != nil {
+			_ = rows.Close()
+			t.Fatalf("iterate loaded relation taxonomy foreign keys for %s: %v", table, err)
+		}
+		if err := rows.Close(); err != nil {
+			t.Fatalf("close loaded relation taxonomy foreign keys for %s: %v", table, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit read-only loaded relation taxonomy snapshot: %v", err)
+	}
+	committed = true
+	return snapshot
+}
+
+func assertSQLiteLoadedRelationTaxonomySeed(t *testing.T, label string, snapshot sqliteLoadedRelationTaxonomySnapshot) {
+	t.Helper()
+	wantHistory := []migrationbackend.AppliedMigration{{App: "authors", Name: "0001_author"}}
+	if snapshot.FormatVersion != migrationRevisionFormatVersion || snapshot.Revision != 1 ||
+		snapshot.Epoch == ([sqliteLoadedRelationTaxonomyEpochBytes]byte{}) ||
+		snapshot.Fingerprint != fingerprintMigrationHistory(snapshot.History) ||
+		!reflect.DeepEqual(snapshot.History, wantHistory) || !reflect.DeepEqual(snapshot.AuthorIDs, []int64{41}) ||
+		len(snapshot.ForeignKeys) != 0 {
+		t.Fatalf("%s loaded relation taxonomy seed snapshot = %+v", label, snapshot)
+	}
+	for _, object := range snapshot.Schema {
+		if object.Name == "blog_article" {
+			t.Fatalf("%s seed snapshot already contains blog_article: %+v", label, object)
+		}
+	}
+}
+
+type sqliteLoadedRelationTaxonomyBackend struct {
+	*Backend
+	beginErr                 error
+	fault                    *sqliteRelationBeginFaultConnection
+	transition               migrationbackend.HistoryTransition
+	intent                   migrationbackend.RelationMigrationIntent
+	checkpoints              []sqliteRelationBeginCheckpoint
+	capabilityCalls          int
+	openCalls                int
+	readCalls                int
+	beginCalls               int
+	closeCalls               int
+	connectionHookCalls      int
+	transactionRollbackCalls int
+}
+
+type sqliteLoadedRelationTaxonomySession struct {
+	migrationbackend.RelationRevisionFencedSession
+	owner *sqliteLoadedRelationTaxonomyBackend
+}
+
+type sqliteLoadedRelationTaxonomyTransaction struct {
+	migrationbackend.RevisionFencedTransaction
+	owner *sqliteLoadedRelationTaxonomyBackend
+}
+
+var _ migrationbackend.AtomicBackend = (*sqliteLoadedRelationTaxonomyBackend)(nil)
+var _ migrationbackend.RelationRevisionFencedBackend = (*sqliteLoadedRelationTaxonomyBackend)(nil)
+var _ migrationbackend.RelationRevisionFencedSession = (*sqliteLoadedRelationTaxonomySession)(nil)
+var _ migrationbackend.RevisionFencedTransaction = (*sqliteLoadedRelationTaxonomyTransaction)(nil)
+
+func (backend *sqliteLoadedRelationTaxonomyBackend) RelationMigrationCapabilities() migrationbackend.RelationMigrationCapabilities {
+	backend.capabilityCalls++
+	return backend.Backend.RelationMigrationCapabilities()
+}
+
+func (backend *sqliteLoadedRelationTaxonomyBackend) OpenRevisionFencedSession(
+	ctx context.Context,
+) (migrationbackend.RevisionFencedSession, error) {
+	backend.openCalls++
+	raw, err := backend.Backend.OpenRevisionFencedSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	concrete, ok := raw.(*sqliteRevisionFencedSession)
+	if !ok {
+		_ = raw.Close(context.Background())
+		return nil, fmt.Errorf("loaded relation taxonomy SQLite session has type %T", raw)
+	}
+	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
+		backend.checkpoints = append(backend.checkpoints, checkpoint)
+	}
+	if backend.fault != nil {
+		concrete.relationConnectionHook = func(connection migrationPinnedConnection) migrationPinnedConnection {
+			backend.connectionHookCalls++
+			backend.fault.migrationPinnedConnection = connection
+			return backend.fault
+		}
+	}
+	relation, ok := raw.(migrationbackend.RelationRevisionFencedSession)
+	if !ok {
+		_ = raw.Close(context.Background())
+		return nil, fmt.Errorf("loaded relation taxonomy SQLite session lacks relation port: %T", raw)
+	}
+	return &sqliteLoadedRelationTaxonomySession{RelationRevisionFencedSession: relation, owner: backend}, nil
+}
+
+func (session *sqliteLoadedRelationTaxonomySession) ReadAppliedMigrations(
+	ctx context.Context,
+) ([]migrationbackend.AppliedMigration, error) {
+	session.owner.readCalls++
+	return session.RelationRevisionFencedSession.ReadAppliedMigrations(ctx)
+}
+
+func (session *sqliteLoadedRelationTaxonomySession) BeginRelationFencedMigration(
+	ctx context.Context,
+	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.RelationMigrationIntent,
+) (migrationbackend.RevisionFencedTransaction, error) {
+	session.owner.beginCalls++
+	session.owner.transition = transition
+	session.owner.intent = cloneSQLiteRelationIntent(intent)
+	if session.owner.beginErr != nil {
+		return nil, session.owner.beginErr
+	}
+	transaction, err := session.RelationRevisionFencedSession.BeginRelationFencedMigration(ctx, transition, intent)
+	if err != nil || transaction == nil {
+		return transaction, err
+	}
+	return &sqliteLoadedRelationTaxonomyTransaction{
+		RevisionFencedTransaction: transaction,
+		owner:                     session.owner,
+	}, nil
+}
+
+func (session *sqliteLoadedRelationTaxonomySession) Close(ctx context.Context) error {
+	session.owner.closeCalls++
+	return session.RelationRevisionFencedSession.Close(ctx)
+}
+
+func (transaction *sqliteLoadedRelationTaxonomyTransaction) Rollback(ctx context.Context) error {
+	transaction.owner.transactionRollbackCalls++
+	return transaction.RevisionFencedTransaction.Rollback(ctx)
 }
 
 func openSQLiteRelationSession(t *testing.T, backend *Backend) migrationbackend.RelationRevisionFencedSession {
