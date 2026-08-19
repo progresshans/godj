@@ -101,6 +101,7 @@ func TestExternalConsumerCompiles(t *testing.T) {
 		"write_external_consumer.go.txt",
 		"save_external_consumer.go.txt",
 		"migration_external_consumer.go.txt",
+		"migration_relation_external_consumer.go.txt",
 		"migration_definition_external_consumer.go.txt",
 		"project_external_consumer.go.txt",
 		"relation_project/external_consumer.go.txt",

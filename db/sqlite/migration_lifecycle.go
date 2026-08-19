@@ -79,14 +79,16 @@ const (
 )
 
 type sqliteRevisionFencedSession struct {
-	mu        sync.Mutex
-	backend   *Backend
-	state     revisionSessionState
-	records   []migrationbackend.AppliedMigration
-	token     migrationRevisionToken
-	active    *sqliteRevisionFencedTransaction
-	closeDone chan struct{}
-	closeErr  error
+	mu                      sync.Mutex
+	backend                 *Backend
+	state                   revisionSessionState
+	records                 []migrationbackend.AppliedMigration
+	token                   migrationRevisionToken
+	active                  *sqliteRevisionFencedTransaction
+	relationBeginCheckpoint func(sqliteRelationBeginCheckpoint)
+	relationConnectionHook  func(migrationPinnedConnection) migrationPinnedConnection
+	closeDone               chan struct{}
+	closeErr                error
 }
 
 func (b *Backend) OpenRevisionFencedSession(ctx context.Context) (migrationbackend.RevisionFencedSession, error) {
@@ -317,6 +319,7 @@ type sqliteRevisionFencedTransaction struct {
 	successorToken   migrationRevisionToken
 	bootstrap        bool
 	recorderCalled   bool
+	relation         *sqliteRelationFencedState
 	failure          error
 	done             bool
 }
@@ -401,6 +404,9 @@ func (transaction *sqliteRevisionFencedTransaction) claimRevision(ctx context.Co
 }
 
 func (transaction *sqliteRevisionFencedTransaction) CreateModel(ctx context.Context, model ir.Model) error {
+	if transaction != nil && transaction.relation != nil {
+		return transaction.executeRelationCreateModel(ctx, model)
+	}
 	statement, err := compileMigrationCreateModel(model)
 	if err != nil {
 		return err
@@ -414,6 +420,9 @@ func (transaction *sqliteRevisionFencedTransaction) CreateModel(ctx context.Cont
 }
 
 func (transaction *sqliteRevisionFencedTransaction) DeleteModel(ctx context.Context, model ir.Model) error {
+	if transaction != nil && transaction.relation != nil {
+		return transaction.executeRelationDeleteModel(ctx, model)
+	}
 	statement, err := compileMigrationDeleteModel(model)
 	if err != nil {
 		return err
@@ -442,6 +451,9 @@ func (transaction *sqliteRevisionFencedTransaction) TableExists(ctx context.Cont
 }
 
 func (transaction *sqliteRevisionFencedTransaction) AddField(ctx context.Context, model ir.Model, field ir.Field) error {
+	if transaction != nil && transaction.relation != nil {
+		return transaction.executeRelationAddField(ctx, model, field)
+	}
 	if field.PrimaryKey {
 		return migrationbackend.NewCapabilityError(
 			"sqlite_add_field",
@@ -482,6 +494,9 @@ func (transaction *sqliteRevisionFencedTransaction) AddField(ctx context.Context
 }
 
 func (transaction *sqliteRevisionFencedTransaction) RemoveField(ctx context.Context, model ir.Model, field ir.Field) error {
+	if transaction != nil && transaction.relation != nil {
+		return transaction.executeRelationRemoveField(ctx, model, field)
+	}
 	if field.PrimaryKey {
 		return migrationbackend.NewCapabilityError(
 			"sqlite_drop_column",
@@ -543,6 +558,9 @@ func (transaction *sqliteRevisionFencedTransaction) record(
 				migrationbackend.RevisionFenceFailureIntegrity,
 				fmt.Errorf("recorder transition %d %s.%s does not match declared transition", kind, app, name),
 			)
+		}
+		if err := transaction.verifyRelationBeforeRecord(ctx, executor); err != nil {
+			return err
 		}
 		if kind == migrationbackend.HistoryTransitionApply {
 			if transaction.bootstrap {
@@ -620,6 +638,12 @@ func (transaction *sqliteRevisionFencedTransaction) CommitFenced(ctx context.Con
 		transaction.mu.Unlock()
 		transaction.session.finishTransaction(transaction, false, migrationRevisionToken{}, nil, true)
 		return migrationbackend.CommitOutcome{Durability: migrationbackend.CommitRolledBack}, errors.Join(primary, cleanupErr)
+	}
+	if err := transaction.verifyRelationCommitReady(); err != nil {
+		cleanupErr := transaction.rollbackLocked(ctx)
+		transaction.mu.Unlock()
+		transaction.session.finishTransaction(transaction, false, migrationRevisionToken{}, nil, true)
+		return migrationbackend.CommitOutcome{Durability: migrationbackend.CommitRolledBack}, errors.Join(err, cleanupErr)
 	}
 	if err := transaction.verifySuccessor(ctx); err != nil {
 		cleanupErr := transaction.rollbackLocked(ctx)

@@ -327,6 +327,30 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 		t.Fatalf("valid relation graph opened backend %d time(s), want 0", backendSpy.openCalls)
 	}
 
+	// D3a exposes the optional port directly on SQLite, but the loaded core
+	// lifecycle deliberately remains stopped at the D2 capability boundary.
+	// In particular, core must not inspect SQLite capabilities, open a fenced
+	// session, or fall back to the legacy transaction entry point yet.
+	sqliteBackend, err := sqlite.OpenMemory(context.Background(), "definition-core-relation-blocker-"+t.Name())
+	if err != nil {
+		t.Fatalf("OpenMemory(SQLite relation port): %v", err)
+	}
+	sqliteBoundary := &sqliteRelationCoreBlockerBackend{database: sqliteBackend}
+	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: sqliteBoundary}, migrations.LatestLifecycleRequest())
+	migrationError = nil
+	capabilityError = nil
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capabilityError) ||
+		capabilityError.Feature != "relation_migration" {
+		t.Fatalf("Set.Migrate(SQLite optional port) error = %#v capability=%#v", err, capabilityError)
+	}
+	if sqliteBoundary.capabilityCalls != 0 || sqliteBoundary.openCalls != 0 || sqliteBoundary.beginCalls != 0 {
+		t.Fatalf("loaded core crossed D3a boundary: capabilities=%d open=%d legacy-begin=%d", sqliteBoundary.capabilityCalls, sqliteBoundary.openCalls, sqliteBoundary.beginCalls)
+	}
+	if err := sqliteBackend.Close(); err != nil {
+		t.Fatalf("Close(SQLite relation port): %v", err)
+	}
+
 	// Definitions() is intentionally only a deep copy of the public raw
 	// migration values. It must not copy the private carrier authority that is
 	// available exclusively through Set.Migrate.
@@ -428,6 +452,28 @@ type rawRelationAuthorityBoundaryBackend struct {
 	beginCalls int
 	openCalls  int
 	readCalls  int
+}
+
+type sqliteRelationCoreBlockerBackend struct {
+	database        *sqlite.Backend
+	beginCalls      int
+	openCalls       int
+	capabilityCalls int
+}
+
+func (value *sqliteRelationCoreBlockerBackend) BeginMigration(ctx context.Context) (backend.Transaction, error) {
+	value.beginCalls++
+	return value.database.BeginMigration(ctx)
+}
+
+func (value *sqliteRelationCoreBlockerBackend) OpenRevisionFencedSession(ctx context.Context) (backend.RevisionFencedSession, error) {
+	value.openCalls++
+	return value.database.OpenRevisionFencedSession(ctx)
+}
+
+func (value *sqliteRelationCoreBlockerBackend) RelationMigrationCapabilities() backend.RelationMigrationCapabilities {
+	value.capabilityCalls++
+	return value.database.RelationMigrationCapabilities()
 }
 
 func (value *rawRelationAuthorityBoundaryBackend) BeginMigration(context.Context) (backend.Transaction, error) {

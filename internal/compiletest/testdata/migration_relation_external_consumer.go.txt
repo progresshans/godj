@@ -1,0 +1,64 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+const (
+	createModel backend.RelationMigrationOperationKind = backend.RelationMigrationCreateModel
+	deleteModel backend.RelationMigrationOperationKind = backend.RelationMigrationDeleteModel
+	addField    backend.RelationMigrationOperationKind = backend.RelationMigrationAddField
+	removeField backend.RelationMigrationOperationKind = backend.RelationMigrationRemoveField
+)
+
+var (
+	_ backend.RelationRevisionFencedBackend = (*relationBackend)(nil)
+	_ backend.RelationRevisionFencedSession = (*relationSession)(nil)
+)
+
+type relationBackend struct{}
+
+func (*relationBackend) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
+	return &relationSession{}, nil
+}
+
+func (*relationBackend) RelationMigrationCapabilities() backend.RelationMigrationCapabilities {
+	return backend.RelationMigrationCapabilities{
+		CreateModelForeignKeys:            true,
+		AddNullableForeignKey:             false,
+		AddRequiredForeignKeyToEmptyTable: false,
+		RemoveForeignKeyByTableRemake:     false,
+	}
+}
+
+type relationSession struct{}
+
+func (*relationSession) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
+	return nil, nil
+}
+
+func (*relationSession) BeginFencedMigration(context.Context, backend.HistoryTransition) (backend.RevisionFencedTransaction, error) {
+	return nil, nil
+}
+
+func (*relationSession) BeginRelationFencedMigration(context.Context, backend.HistoryTransition, backend.RelationMigrationIntent) (backend.RevisionFencedTransaction, error) {
+	return nil, nil
+}
+
+func (*relationSession) Close(context.Context) error { return nil }
+
+func relationIntent(model, targetModel ir.Model, sourceField, targetKey ir.Field) backend.RelationMigrationIntent {
+	return backend.RelationMigrationIntent{Operations: []backend.RelationMigrationOperation{{
+		OperationIndex: 0,
+		Kind:           createModel,
+		After:          model,
+		Targets: []backend.RelationMigrationTarget{{
+			SourceField: sourceField,
+			TargetModel: targetModel,
+			TargetKey:   targetKey,
+		}},
+	}}}
+}
