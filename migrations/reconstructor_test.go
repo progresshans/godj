@@ -1,9 +1,11 @@
 package migrations
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -1108,6 +1110,50 @@ func TestLoadedFullProjectionPlansSharedChainAndManyLeavesOnce(t *testing.T) {
 			t.Fatalf("shared-chain projection repeated %v", step.Key)
 		}
 		seen[step.Key] = struct{}{}
+	}
+}
+
+func TestLoadedMaterializationMarksEmptyScalarStepStateUnchanged(t *testing.T) {
+	definitions := append([]Migration(nil), lifecycleLoadedRelationCreateDefinitions()[:2]...)
+	emptyKey := MigrationKey{App: "blog", Name: "0002_empty"}
+	definitions = append(definitions, Migration{
+		App: emptyKey.App, Name: emptyKey.Name,
+		Dependencies: []MigrationKey{{App: "blog", Name: "0001_post"}},
+	})
+	reconstructor := mustLoadedStateReconstructor(
+		t,
+		definitions,
+		MigrationKey{App: "blog", Name: "0001_post"},
+	)
+	builder := newLoadedStateBuilder()
+	for index := 0; index < 2; index++ {
+		if err := reconstructor.applyLoadedMigration(builder, definitions[index], DirectionForward); err != nil {
+			t.Fatalf("applyLoadedMigration(%d): %v", index, err)
+		}
+	}
+	before, err := builder.projectState()
+	if err != nil {
+		t.Fatalf("projectState(before empty step): %v", err)
+	}
+	materialized, err := reconstructor.materializeLoadedStep(
+		context.Background(),
+		builder,
+		PlanStep{Key: emptyKey, Direction: DirectionForward},
+		true,
+	)
+	if err != nil {
+		t.Fatalf("materializeLoadedStep(empty scalar): %v", err)
+	}
+	if !materialized.stateUnchanged || materialized.relation || len(materialized.execution) != 0 ||
+		len(materialized.prepared.after.Apps()) != 0 {
+		t.Fatalf("empty scalar materialization = unchanged:%t relation:%t ops:%d retained-after:%v", materialized.stateUnchanged, materialized.relation, len(materialized.execution), materialized.prepared.after.Apps())
+	}
+	after, err := builder.projectState()
+	if err != nil {
+		t.Fatalf("projectState(after empty step): %v", err)
+	}
+	if !reflect.DeepEqual(after, before) {
+		t.Fatalf("empty scalar step changed builder state: before=%#v after=%#v", before, after)
 	}
 }
 

@@ -294,7 +294,7 @@ func TestRelationProfileDispatchAndWireRemainStrict(t *testing.T) {
 	}
 }
 
-func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
+func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testing.T) {
 	t.Parallel()
 
 	invalid, _, err := Load(Source{SourceID: "source", Document: relationDefinitionDocument("producer", "1", nil)})
@@ -318,19 +318,17 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
 	migrationError = nil
 	capabilityError = nil
-	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
-		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capabilityError) ||
-		capabilityError.Feature != "relation_migration" || !strings.Contains(capabilityError.Error(), "validated relation state is ready") {
-		t.Fatalf("Set.Migrate(valid relation graph) error = %#v capability=%#v", err, capabilityError)
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
+		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capabilityError) {
+		t.Fatalf("Set.Migrate(valid relation graph) error = %#v", err)
 	}
-	if backendSpy.openCalls != 0 {
-		t.Fatalf("valid relation graph opened backend %d time(s), want 0", backendSpy.openCalls)
+	if backendSpy.openCalls != 1 {
+		t.Fatalf("valid relation graph opened backend %d time(s), want 1", backendSpy.openCalls)
 	}
 
-	// D3a exposes the optional port directly on SQLite, but the loaded core
-	// lifecycle deliberately remains stopped at the D2 capability boundary.
-	// In particular, core must not inspect SQLite capabilities, open a fenced
-	// session, or fall back to the legacy transaction entry point yet.
+	// The loaded core reaches SQLite only after exact history and whole-plan
+	// validation. SQLite advertises Create/Delete relation support but rejects
+	// this target-bearing AddField before any scalar prefix can begin.
 	sqliteBackend, err := sqlite.OpenMemory(context.Background(), "definition-core-relation-blocker-"+t.Name())
 	if err != nil {
 		t.Fatalf("OpenMemory(SQLite relation port): %v", err)
@@ -344,8 +342,14 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 		capabilityError.Feature != "relation_migration" {
 		t.Fatalf("Set.Migrate(SQLite optional port) error = %#v capability=%#v", err, capabilityError)
 	}
-	if sqliteBoundary.capabilityCalls != 0 || sqliteBoundary.openCalls != 0 || sqliteBoundary.beginCalls != 0 {
-		t.Fatalf("loaded core crossed D3a boundary: capabilities=%d open=%d legacy-begin=%d", sqliteBoundary.capabilityCalls, sqliteBoundary.openCalls, sqliteBoundary.beginCalls)
+	if sqliteBoundary.capabilityCalls != 1 || sqliteBoundary.openCalls != 1 || sqliteBoundary.beginCalls != 0 {
+		t.Fatalf("loaded core SQLite calls: capabilities=%d open=%d legacy-begin=%d", sqliteBoundary.capabilityCalls, sqliteBoundary.openCalls, sqliteBoundary.beginCalls)
+	}
+	if records := readDefinitionSQLiteHistory(t, sqliteBackend); len(records) != 0 {
+		t.Fatalf("rejected relation AddField recorded history: %v", records)
+	}
+	if _, execErr := sqliteBackend.ExecContext(context.Background(), `INSERT INTO "authors_author" ("id") VALUES (1)`); execErr == nil {
+		t.Fatal("rejected relation AddField committed its scalar creator prefix")
 	}
 	if err := sqliteBackend.Close(); err != nil {
 		t.Fatalf("Close(SQLite relation port): %v", err)
@@ -379,13 +383,14 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 		t.Fatalf("Set.Definitions mutation escaped into Set: %#v", freshOperation.Field.Relation)
 	}
 	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	migrationError = nil
 	capabilityError = nil
-	if !errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" ||
-		!strings.Contains(capabilityError.Error(), "validated relation state is ready") {
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
+		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capabilityError) {
 		t.Fatalf("Set after raw-copy use lost authority = %v", err)
 	}
-	if backendSpy.openCalls != 0 {
-		t.Fatalf("Set after raw-copy use opened backend %d time(s), want 0", backendSpy.openCalls)
+	if backendSpy.openCalls != 2 {
+		t.Fatalf("Set after raw-copy use opened backend %d time(s), want 2", backendSpy.openCalls)
 	}
 	staged := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 5}
 	_, err = loaded.Migrate(staged, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
@@ -393,8 +398,8 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || staged.calls.Load() < staged.cancelAt {
 		t.Fatalf("post-static cancellation = error:%v capability:%#v calls:%d", err, capabilityError, staged.calls.Load())
 	}
-	if backendSpy.openCalls != 0 {
-		t.Fatalf("post-static cancellation opened backend %d time(s), want 0", backendSpy.openCalls)
+	if backendSpy.openCalls != 2 {
+		t.Fatalf("post-static cancellation changed backend opens to %d", backendSpy.openCalls)
 	}
 	postSelection := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 6}
 	_, err = loaded.Migrate(postSelection, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
@@ -402,8 +407,8 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || postSelection.calls.Load() < postSelection.cancelAt {
 		t.Fatalf("post-capability-selection cancellation = error:%v capability:%#v calls:%d", err, capabilityError, postSelection.calls.Load())
 	}
-	if backendSpy.openCalls != 0 {
-		t.Fatalf("post-capability-selection cancellation opened backend %d time(s), want 0", backendSpy.openCalls)
+	if backendSpy.openCalls != 2 {
+		t.Fatalf("post-capability-selection cancellation changed backend opens to %d", backendSpy.openCalls)
 	}
 
 	tampered := loaded
@@ -437,14 +442,189 @@ func TestLoadedRelationSetValidatesCarrierThenStopsBeforeIO(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expired-deadline Set.Migrate error = %v", err)
 	}
+	openCallsBeforeInvalidRequest := backendSpy.openCalls
 	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LifecycleRequest{})
 	var planningError *migrations.PlanningError
 	if !errors.As(err, &planningError) || planningError.Category != migrations.CategoryPlan ||
 		planningError.Code != migrations.CodeInvalidTarget {
 		t.Fatalf("invalid-request Set.Migrate error = %v", err)
 	}
-	if backendSpy.openCalls != 0 {
-		t.Fatalf("outer precedence opened backend %d time(s), want 0", backendSpy.openCalls)
+	if backendSpy.openCalls != openCallsBeforeInvalidRequest {
+		t.Fatalf("outer precedence changed backend opens from %d to %d", openCallsBeforeInvalidRequest, backendSpy.openCalls)
+	}
+}
+
+func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsRemove(t *testing.T) {
+	ctx := context.Background()
+	loaded, _, err := Load(
+		Source{SourceID: "authors-create", Document: relationCreatorDocument("authors", "0001_author", "author", "Author", "authors_author", nil)},
+		Source{SourceID: "blog-relation-create", Document: relationCreateModelDocument()},
+	)
+	if err != nil {
+		t.Fatalf("Load(relation CreateModel lifecycle): %v", err)
+	}
+	database, err := sqlite.OpenMemory(ctx, "definition-relation-create-lifecycle-"+t.Name())
+	if err != nil {
+		t.Fatalf("OpenMemory(): %v", err)
+	}
+	defer func() {
+		if closeErr := database.Close(); closeErr != nil {
+			t.Errorf("Close(): %v", closeErr)
+		}
+	}()
+	executor := migrations.Executor{Backend: database}
+
+	state, err := loaded.Migrate(ctx, executor, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Set.Migrate(relation CreateModel apply): %v", err)
+	}
+	if state.FormatVersion() != migrations.RelationStateFormatVersion {
+		t.Fatalf("applied state format = %d, want relation format", state.FormatVersion())
+	}
+	if _, exists := state.Model("authors", "author"); !exists {
+		t.Fatal("applied state is missing authors.author")
+	}
+	if post, exists := state.Model("blog", "article"); !exists || len(post.Fields) != 2 || post.Fields[1].Relation == nil {
+		t.Fatalf("applied relation model = %#v, exists=%t", post, exists)
+	}
+	assertDefinitionSQLiteHistory(t, database,
+		backend.AppliedMigration{App: "authors", Name: "0001_author"},
+		backend.AppliedMigration{App: "blog", Name: "0001_article"},
+	)
+	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (1)`); err != nil {
+		t.Fatalf("insert relation target: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); err != nil {
+		t.Fatalf("insert valid relation source: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (2, 999)`); err == nil {
+		t.Fatal("SQLite accepted an invalid loaded relation foreign key")
+	}
+
+	state, err = loaded.Migrate(ctx, executor, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("authors")))
+	if err != nil {
+		t.Fatalf("Set.Migrate(relation DeleteModel unapply): %v", err)
+	}
+	if len(state.Apps()) != 0 {
+		t.Fatalf("unapplied state apps = %v, want empty", state.Apps())
+	}
+	assertDefinitionSQLiteHistory(t, database)
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); err == nil {
+		t.Fatal("relation source table survived DeleteModel unapply")
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (1)`); err == nil {
+		t.Fatal("relation target table survived dependency unapply")
+	}
+
+	state, err = loaded.Migrate(ctx, executor, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Set.Migrate(relation CreateModel reapply): %v", err)
+	}
+	if _, exists := state.Model("blog", "article"); !exists {
+		t.Fatal("reapplied state is missing blog.article")
+	}
+	assertDefinitionSQLiteHistory(t, database,
+		backend.AppliedMigration{App: "authors", Name: "0001_author"},
+		backend.AppliedMigration{App: "blog", Name: "0001_article"},
+	)
+	if _, err := database.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (1)`); err != nil {
+		t.Fatalf("insert relation target after reapply: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (1, 1)`); err != nil {
+		t.Fatalf("insert valid relation source after reapply: %v", err)
+	}
+
+	// Seed only the additional recorder transition on top of the physically
+	// equivalent relation CreateModel state. The AddField definition set then
+	// reconstructs an applied target-bearing Add and must reject its reverse
+	// Remove capability before changing revision, schema, or rows.
+	seedDefinitionSQLiteHistoryTransition(t, database, backend.HistoryTransition{
+		Migration: backend.AppliedMigration{App: "blog", Name: "0002_article_author"},
+		Kind:      backend.HistoryTransitionApply,
+	})
+	addSet := loadValidRelationLifecycleSet(t)
+	beforeRecords := readDefinitionSQLiteHistory(t, database)
+	state, err = addSet.Migrate(ctx, executor, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("authors")))
+	var migrationError *migrations.Error
+	var capabilityError *backend.CapabilityError
+	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capabilityError) ||
+		!strings.Contains(capabilityError.Detail, "RemoveForeignKeyByTableRemake") {
+		t.Fatalf("Set.Migrate(relation RemoveField capability) = %#v capability=%#v", err, capabilityError)
+	}
+	if _, exists := state.Model("blog", "article"); !exists {
+		t.Fatal("rejected relation RemoveField did not return reconstructed durable state")
+	}
+	afterRecords := readDefinitionSQLiteHistory(t, database)
+	if !reflect.DeepEqual(afterRecords, beforeRecords) {
+		t.Fatalf("rejected relation RemoveField changed history: before=%v after=%v", beforeRecords, afterRecords)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (2, 1)`); err != nil {
+		t.Fatalf("rejected relation RemoveField changed physical schema or rows: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `INSERT INTO "blog_article" ("id", "author_id") VALUES (3, 999)`); err == nil {
+		t.Fatal("rejected relation RemoveField disabled the physical foreign key")
+	}
+}
+
+func readDefinitionSQLiteHistory(t *testing.T, database *sqlite.Backend) []backend.AppliedMigration {
+	t.Helper()
+	ctx := context.Background()
+	session, err := database.OpenRevisionFencedSession(ctx)
+	if err != nil {
+		t.Fatalf("OpenRevisionFencedSession(): %v", err)
+	}
+	records, readErr := session.ReadAppliedMigrations(ctx)
+	closeErr := session.Close(ctx)
+	if readErr != nil {
+		t.Fatalf("ReadAppliedMigrations(): %v", readErr)
+	}
+	if closeErr != nil {
+		t.Fatalf("Close revision session: %v", closeErr)
+	}
+	return records
+}
+
+func assertDefinitionSQLiteHistory(t *testing.T, database *sqlite.Backend, want ...backend.AppliedMigration) {
+	t.Helper()
+	got := readDefinitionSQLiteHistory(t, database)
+	if len(got) != len(want) {
+		t.Fatalf("SQLite migration history = %v, want %v", got, want)
+	}
+	for index := range want {
+		if got[index] != want[index] {
+			t.Fatalf("SQLite migration history = %v, want %v", got, want)
+		}
+	}
+}
+
+func seedDefinitionSQLiteHistoryTransition(
+	t *testing.T,
+	database *sqlite.Backend,
+	transition backend.HistoryTransition,
+) {
+	t.Helper()
+	ctx := context.Background()
+	session, err := database.OpenRevisionFencedSession(ctx)
+	if err != nil {
+		t.Fatalf("OpenRevisionFencedSession(seed): %v", err)
+	}
+	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
+		t.Fatalf("ReadAppliedMigrations(seed): %v", err)
+	}
+	transaction, err := session.BeginFencedMigration(ctx, transition)
+	if err != nil {
+		t.Fatalf("BeginFencedMigration(seed): %v", err)
+	}
+	if err := transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name); err != nil {
+		t.Fatalf("RecordApplied(seed): %v", err)
+	}
+	outcome, err := transaction.CommitFenced(ctx)
+	if err != nil || outcome.Durability != backend.CommitCommitted {
+		t.Fatalf("CommitFenced(seed) = (%+v, %v)", outcome, err)
+	}
+	if err := session.Close(ctx); err != nil {
+		t.Fatalf("Close(seed): %v", err)
 	}
 }
 
@@ -523,8 +703,9 @@ func TestRelationSetConcurrentAccessDoesNotRetainAliases(t *testing.T) {
 				migrations.Executor{},
 				migrations.LatestLifecycleRequest(),
 			)
-			var capabilityError *backend.CapabilityError
-			if !errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" {
+			var migrationError *migrations.Error
+			if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
+				migrationError.Code != migrations.CodeRevisionFenceUnsupported {
 				t.Errorf("concurrent Set.Migrate error = %v", err)
 			}
 		}()
@@ -592,6 +773,19 @@ func relationDefinitionDocument(producerName, producerVersion string, dependency
 		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
 		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
 		`"cardinality":"many_to_one","reverse":{"name":"articles","disabled":false},"on_delete":"protect"}}}]}}`)
+}
+
+func relationCreateModelDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"producer","version":"1"},` +
+		`"migration":{"app":"blog","name":"0001_article","dependencies":[{"app":"authors","name":"0001_author"}],"operations":[` +
+		`{"kind":"create_model","app_label":"blog","model":{` +
+		`"name":"article","go_name":"Article","db_table":"blog_article","fields":[` +
+		`{"name":"id","go_name":"ID","column":"id","kind":"auto","primary_key":true,"nullable":false,"max_length":0,"default":null},` +
+		`{"name":"author","go_name":"Author","column":"author_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"articles","disabled":false},"on_delete":"protect"}}]}}]}}`)
 }
 
 type carrierObservationBackend struct {

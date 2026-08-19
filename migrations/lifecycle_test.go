@@ -200,6 +200,556 @@ func TestExecutorMigrateRejectsRelationDefinitionsBeforeBackendOrRecorderIO(t *t
 	})
 }
 
+func TestExecutorMigrateLoadedRelationRoutesByActualHistory(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleLoadedRelationCreateDefinitions()
+	allCapabilities := backend.RelationMigrationCapabilities{
+		CreateModelForeignKeys:            true,
+		AddNullableForeignKey:             true,
+		AddRequiredForeignKeyToEmptyTable: true,
+		RemoveForeignKeyByTableRemake:     true,
+	}
+	tests := []struct {
+		name                string
+		records             []backend.AppliedMigration
+		transactionCount    int
+		wantCapabilityCalls int
+		wantScalarBegins    int
+		wantRelationBegins  int
+		wantRelationState   bool
+	}{
+		{
+			name:                "fresh history selects relation plan",
+			transactionCount:    3,
+			wantCapabilityCalls: 1,
+			wantScalarBegins:    2,
+			wantRelationBegins:  1,
+			wantRelationState:   true,
+		},
+		{
+			name: "applied relation leaves scalar plan",
+			records: lifecycleRecords(
+				MigrationKey{App: "authors", Name: "0001_author"},
+				MigrationKey{App: "blog", Name: "0001_post"},
+			),
+			transactionCount:  1,
+			wantScalarBegins:  1,
+			wantRelationState: true,
+		},
+		{
+			name: "fully applied history is no-op",
+			records: lifecycleRecords(
+				MigrationKey{App: "authors", Name: "0001_author"},
+				MigrationKey{App: "blog", Name: "0001_post"},
+				MigrationKey{App: "zeta", Name: "0001_note"},
+			),
+			wantRelationState: true,
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			session := newLifecycleTestSession(test.records, lifecycleCommittedTransactions(test.transactionCount))
+			fake := newLifecycleTestBackend(session)
+			fake.relationCapabilities = allCapabilities
+			state, err := (Executor{Backend: fake}).Migrate(
+				lifecycleLoadedContext(t, definitions),
+				definitions,
+				LatestLifecycleRequest(),
+			)
+			if err != nil {
+				t.Fatalf("Migrate(loaded relation): %v", err)
+			}
+			if session.readCount != 1 || fake.relationCapabilityCount != test.wantCapabilityCalls ||
+				session.beginCount != test.wantScalarBegins || session.relationBeginCount != test.wantRelationBegins {
+				t.Fatalf(
+					"calls = read:%d capability:%d scalar:%d relation:%d, want 1/%d/%d/%d",
+					session.readCount, fake.relationCapabilityCount, session.beginCount,
+					session.relationBeginCount, test.wantCapabilityCalls,
+					test.wantScalarBegins, test.wantRelationBegins,
+				)
+			}
+			if test.wantRelationState && state.FormatVersion() != RelationStateFormatVersion {
+				t.Fatalf("loaded result format = %d, want relation state", state.FormatVersion())
+			}
+			if test.wantRelationBegins == 1 {
+				if len(session.relationIntents) != 1 || len(session.relationIntents[0].Operations) != 1 {
+					t.Fatalf("relation intents = %#v", session.relationIntents)
+				}
+				operation := session.relationIntents[0].Operations[0]
+				if operation.OperationIndex != 0 || operation.Kind != backend.RelationMigrationCreateModel ||
+					len(operation.Targets) != 1 || operation.Targets[0].TargetModel.Name != "author" ||
+					operation.Targets[0].TargetKey.Kind != ir.FieldAuto {
+					t.Fatalf("relation CreateModel intent = %#v", operation)
+				}
+			}
+		})
+	}
+}
+
+func TestExecutorMigrateLoadedRelationDryValidatesCapabilitiesBeforeEveryBegin(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleLoadedRelationAddDefinitions()
+	session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(len(definitions)))
+	fake := newLifecycleTestBackend(session)
+	state, err := (Executor{Backend: fake}).Migrate(
+		lifecycleLoadedContext(t, definitions),
+		definitions,
+		LatestLifecycleRequest(),
+	)
+	assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+	var capability *backend.CapabilityError
+	if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
+		!strings.Contains(capability.Detail, "AddRequiredForeignKeyToEmptyTable") {
+		t.Fatalf("loaded AddField capability error = %#v", err)
+	}
+	if len(state.Apps()) != 0 || session.readCount != 1 || fake.relationCapabilityCount != 1 ||
+		session.beginCount != 0 || session.relationBeginCount != 0 || len(session.transitions) != 0 {
+		t.Fatalf(
+			"unsupported tail touched partial lifecycle: apps=%v read=%d capability=%d scalar=%d relation=%d transitions=%v",
+			state.Apps(), session.readCount, fake.relationCapabilityCount,
+			session.beginCount, session.relationBeginCount, session.transitions,
+		)
+	}
+}
+
+func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleLoadedCompleteIntentDefinitions()
+	allCapabilities := backend.RelationMigrationCapabilities{
+		CreateModelForeignKeys:            true,
+		AddNullableForeignKey:             true,
+		AddRequiredForeignKeyToEmptyTable: true,
+		RemoveForeignKeyByTableRemake:     true,
+	}
+
+	t.Run("forward", func(t *testing.T) {
+		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(2))
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = allCapabilities
+		_, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		if err != nil {
+			t.Fatalf("Migrate(complete forward): %v", err)
+		}
+		if len(session.relationIntents) != 1 {
+			t.Fatalf("forward relation intents = %#v", session.relationIntents)
+		}
+		operations := session.relationIntents[0].Operations
+		wantKinds := []backend.RelationMigrationOperationKind{
+			backend.RelationMigrationCreateModel,
+			backend.RelationMigrationAddField,
+			backend.RelationMigrationAddField,
+		}
+		if len(operations) != 3 {
+			t.Fatalf("forward operations = %#v", operations)
+		}
+		for index := range operations {
+			if operations[index].OperationIndex != index || operations[index].Kind != wantKinds[index] {
+				t.Fatalf("forward operation[%d] = %#v", index, operations[index])
+			}
+		}
+		if len(operations[0].Targets) != 0 || len(operations[1].Targets) != 0 || len(operations[2].Targets) != 1 {
+			t.Fatalf("forward target membership = %d/%d/%d", len(operations[0].Targets), len(operations[1].Targets), len(operations[2].Targets))
+		}
+	})
+
+	t.Run("reverse", func(t *testing.T) {
+		records := lifecycleRecords(
+			MigrationKey{App: "authors", Name: "0001_author"},
+			MigrationKey{App: "blog", Name: "0001_post"},
+		)
+		session := newLifecycleTestSession(records, lifecycleCommittedTransactions(2))
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = allCapabilities
+		state, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions),
+			definitions,
+			TargetedLifecycleRequest(ZeroTarget("authors")),
+		)
+		if err != nil {
+			t.Fatalf("Migrate(complete reverse): %v", err)
+		}
+		if len(state.Apps()) != 0 || len(session.relationIntents) != 1 {
+			t.Fatalf("reverse result = apps:%v intents:%#v", state.Apps(), session.relationIntents)
+		}
+		operations := session.relationIntents[0].Operations
+		wantIndices := []int{2, 1, 0}
+		wantKinds := []backend.RelationMigrationOperationKind{
+			backend.RelationMigrationRemoveField,
+			backend.RelationMigrationRemoveField,
+			backend.RelationMigrationDeleteModel,
+		}
+		if len(operations) != 3 {
+			t.Fatalf("reverse operations = %#v", operations)
+		}
+		for index := range operations {
+			if operations[index].OperationIndex != wantIndices[index] || operations[index].Kind != wantKinds[index] {
+				t.Fatalf("reverse operation[%d] = %#v", index, operations[index])
+			}
+		}
+		if len(operations[0].Targets) != 1 || len(operations[1].Targets) != 0 || len(operations[2].Targets) != 0 {
+			t.Fatalf("reverse target membership = %d/%d/%d", len(operations[0].Targets), len(operations[1].Targets), len(operations[2].Targets))
+		}
+	})
+}
+
+func TestExecutorMigrateLoadedRelationCancellationAndOptionalPortBoundaries(t *testing.T) {
+	definitions := lifecycleLoadedRelationCreateDefinitions()[:2]
+
+	t.Run("Open cancellation closes without reading", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		session := newLifecycleTestSession(nil, nil)
+		fake := newLifecycleTestBackend(session)
+		fake.openHook = cancel
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		if !errors.Is(err, context.Canceled) || session.readCount != 0 || session.closeCount != 1 ||
+			fake.relationCapabilityCount != 0 || session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("Open cancellation = err:%v read:%d close:%d capability:%d scalar:%d relation:%d", err, session.readCount, session.closeCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("Open cancellation wins over a nil session", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		fake := newLifecycleTestBackend(nil)
+		fake.openHook = cancel
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		if !errors.Is(err, context.Canceled) || fake.openCount != 1 || fake.relationCapabilityCount != 0 {
+			t.Fatalf("Open nil-session cancellation = err:%v open:%d capability:%d", err, fake.openCount, fake.relationCapabilityCount)
+		}
+	})
+
+	t.Run("Read cancellation wins before applied-state interpretation", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		session := newLifecycleTestSession([]backend.AppliedMigration{{Name: "malformed"}}, nil)
+		session.readHook = cancel
+		fake := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		var planning *PlanningError
+		if !errors.Is(err, context.Canceled) || errors.As(err, &planning) || session.readCount != 1 ||
+			session.closeCount != 1 || fake.relationCapabilityCount != 0 || session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("Read cancellation = err:%v planning:%#v read:%d close:%d capability:%d scalar:%d relation:%d", err, planning, session.readCount, session.closeCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("capability cancellation wins over a false capability", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		session := newLifecycleTestSession(nil, nil)
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilityHook = cancel
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		var capability *backend.CapabilityError
+		if !errors.Is(err, context.Canceled) || errors.As(err, &capability) || session.readCount != 1 ||
+			fake.relationCapabilityCount != 1 || session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("capability cancellation = err:%v capability:%#v read:%d calls:%d scalar:%d relation:%d", err, capability, session.readCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("missing relation backend follows exact history and dry validation", func(t *testing.T) {
+		session := newLifecycleTestSession(nil, nil)
+		delegate := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: &lifecycleNoRelationBackend{delegate: delegate}}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+		if session.readCount != 1 || session.closeCount != 1 || session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("missing relation backend calls = read:%d close:%d scalar:%d relation:%d", session.readCount, session.closeCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("missing relation session follows capability selection", func(t *testing.T) {
+		delegate := newLifecycleTestSession(nil, nil)
+		session := &lifecycleNoRelationSession{delegate: delegate}
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		_, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+		if delegate.readCount != 1 || delegate.closeCount != 1 || fake.relationCapabilityCount != 1 ||
+			delegate.beginCount != 0 || delegate.relationBeginCount != 0 {
+			t.Fatalf("missing relation session calls = read:%d close:%d capability:%d scalar:%d relation:%d", delegate.readCount, delegate.closeCount, fake.relationCapabilityCount, delegate.beginCount, delegate.relationBeginCount)
+		}
+	})
+
+	t.Run("relation Begin nonnil error rolls back", func(t *testing.T) {
+		cause := errors.New("relation begin sentinel")
+		transaction := newLifecycleTestTransaction()
+		session := newLifecycleTestSession(
+			lifecycleRecords(MigrationKey{App: "authors", Name: "0001_author"}),
+			[]backend.RevisionFencedTransaction{transaction},
+		)
+		session.beginErrors = []error{cause}
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		state, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		assertMigrationError(t, err, CategoryTransaction, CodeBeginFailed, NoOperation, "")
+		if !errors.Is(err, cause) || session.relationBeginCount != 1 || session.beginCount != 0 ||
+			!reflect.DeepEqual(transaction.calls, []string{"rollback"}) {
+			t.Fatalf("relation Begin error = err:%v scalar:%d relation:%d calls:%v", err, session.beginCount, session.relationBeginCount, transaction.calls)
+		}
+		if _, exists := state.Model("authors", "author"); !exists {
+			t.Fatal("relation Begin error lost reconstructed durable history")
+		}
+	})
+
+	t.Run("post-Begin cancellation rolls back before editor", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		transaction := newLifecycleTestTransaction()
+		session := newLifecycleTestSession(
+			lifecycleRecords(MigrationKey{App: "authors", Name: "0001_author"}),
+			[]backend.RevisionFencedTransaction{transaction},
+		)
+		session.relationBeginHook = cancel
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(transaction.calls, []string{"rollback"}) {
+			t.Fatalf("post-Begin cancellation = err:%v calls:%v", err, transaction.calls)
+		}
+	})
+
+	t.Run("post-operation cancellation rolls back before recorder", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		transaction := newLifecycleTestTransaction()
+		transaction.hooks["create_model"] = cancel
+		session := newLifecycleTestSession(
+			lifecycleRecords(MigrationKey{App: "authors", Name: "0001_author"}),
+			[]backend.RevisionFencedTransaction{transaction},
+		)
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, 0, "CreateModel")
+		if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(transaction.calls, []string{"create_model", "rollback"}) {
+			t.Fatalf("post-operation cancellation = err:%v calls:%v", err, transaction.calls)
+		}
+	})
+
+	t.Run("post-recorder cancellation rolls back before commit", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		transaction := newLifecycleTestTransaction()
+		transaction.hooks["record_applied"] = cancel
+		session := newLifecycleTestSession(
+			lifecycleRecords(MigrationKey{App: "authors", Name: "0001_author"}),
+			[]backend.RevisionFencedTransaction{transaction},
+		)
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		_, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
+		want := []string{"create_model", "record_applied:blog.0001_post", "rollback"}
+		if !errors.Is(err, context.Canceled) || !reflect.DeepEqual(transaction.calls, want) {
+			t.Fatalf("post-recorder cancellation = err:%v calls:%v, want %v", err, transaction.calls, want)
+		}
+	})
+}
+
+func TestExecutorMigrateLoadedRelationResourceValidationPrecedesCapabilitiesAndBegins(t *testing.T) {
+	t.Run("loader-authorized scalar targets retain loaded resource bounds", func(t *testing.T) {
+		definitions := lifecycleTestDefinitions()[:1]
+		request := LifecycleRequest{
+			kind:    lifecycleRequestTargeted,
+			targets: make([]Target, definitionhandoff.MaxDefinitions+1),
+		}
+		session := newLifecycleTestSession(nil, nil)
+		fake := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, definitions), definitions, request)
+		assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
+		if fake.openCount != 0 || session.readCount != 0 || session.beginCount != 0 {
+			t.Fatalf("loader-authorized scalar oversized targets touched IO: open:%d read:%d begin:%d", fake.openCount, session.readCount, session.beginCount)
+		}
+	})
+
+	t.Run("loader-authorized scalar history retains loaded resource bounds", func(t *testing.T) {
+		definitions := lifecycleTestDefinitions()[:1]
+		records := make([]backend.AppliedMigration, definitionhandoff.MaxDefinitions+1)
+		for index := range records {
+			records[index] = backend.AppliedMigration{App: "unknown", Name: fmt.Sprintf("%04d", index)}
+		}
+		session := newLifecycleTestSession(records, nil)
+		fake := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
+		if session.readCount != 1 || session.closeCount != 1 || session.beginCount != 0 {
+			t.Fatalf("loader-authorized scalar oversized history calls = read:%d close:%d begin:%d", session.readCount, session.closeCount, session.beginCount)
+		}
+	})
+
+	t.Run("oversized target request fails before copy and IO", func(t *testing.T) {
+		definitions := lifecycleLoadedRelationCreateDefinitions()[:2]
+		request := LifecycleRequest{
+			kind:    lifecycleRequestTargeted,
+			targets: make([]Target, definitionhandoff.MaxDefinitions+1),
+		}
+		session := newLifecycleTestSession(nil, nil)
+		fake := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: fake}).Migrate(lifecycleLoadedContext(t, definitions), definitions, request)
+		assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
+		if fake.openCount != 0 || session.readCount != 0 || fake.relationCapabilityCount != 0 ||
+			session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("oversized targets touched IO: open:%d read:%d capability:%d scalar:%d relation:%d", fake.openCount, session.readCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("oversized exact history fails before key allocation and capability", func(t *testing.T) {
+		definitions := lifecycleLoadedRelationCreateDefinitions()[:2]
+		records := make([]backend.AppliedMigration, definitionhandoff.MaxDefinitions+1)
+		for index := range records {
+			records[index] = backend.AppliedMigration{App: "unknown", Name: fmt.Sprintf("%04d", index)}
+		}
+		session := newLifecycleTestSession(records, nil)
+		fake := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
+		if session.readCount != 1 || session.closeCount != 1 || fake.relationCapabilityCount != 0 ||
+			session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("oversized history calls = read:%d close:%d capability:%d scalar:%d relation:%d", session.readCount, session.closeCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("semantic target identity may exceed source ID limit", func(t *testing.T) {
+		definitions := lifecycleLoadedRelationCreateDefinitions()[:2]
+		longName := strings.Repeat("m", definitionhandoff.MaxSourceIDBytes+1)
+		definitions[1].Name = longName
+		session := newLifecycleTestSession(nil, nil)
+		fake := newLifecycleTestBackend(session)
+		_, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions),
+			definitions,
+			TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: longName})),
+		)
+		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+		if fake.openCount != 1 || session.readCount != 1 || fake.relationCapabilityCount != 1 ||
+			session.beginCount != 0 || session.relationBeginCount != 0 {
+			t.Fatalf("long semantic identity calls = open:%d read:%d capability:%d scalar:%d relation:%d", fake.openCount, session.readCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount)
+		}
+	})
+
+	t.Run("oversized later supported relation intent prevents scalar prefix", func(t *testing.T) {
+		definitions := lifecycleLoadedOversizedRelationIntentDefinitions()
+		session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(len(definitions)))
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		state, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		var migrationError *Error
+		if !errors.As(err, &migrationError) || migrationError.Category != CategoryState ||
+			migrationError.Code != CodeInvalidState || !strings.Contains(migrationError.Cause.Error(), "derived relation intent resource limit") {
+			t.Fatalf("oversized derived intent error = %#v", err)
+		}
+		if len(state.Apps()) != 0 || session.readCount != 1 || fake.relationCapabilityCount != 0 ||
+			session.beginCount != 0 || session.relationBeginCount != 0 || len(session.transitions) != 0 {
+			t.Fatalf("oversized later intent touched partial lifecycle: apps:%v read:%d capability:%d scalar:%d relation:%d transitions:%v", state.Apps(), session.readCount, fake.relationCapabilityCount, session.beginCount, session.relationBeginCount, session.transitions)
+		}
+	})
+}
+
+func TestExecutorMigrateLoadedRelationCommitOutcomesPublishOnlyDurableState(t *testing.T) {
+	definitions := lifecycleLoadedRelationCreateDefinitions()[:2]
+	records := lifecycleRecords(MigrationKey{App: "authors", Name: "0001_author"})
+
+	t.Run("committed cleanup and session close errors retain after state", func(t *testing.T) {
+		cleanupCause := errors.New("relation commit cleanup")
+		closeCause := errors.New("relation session close")
+		transaction := newLifecycleTestTransaction()
+		transaction.commitErr = cleanupCause
+		session := newLifecycleTestSession(records, []backend.RevisionFencedTransaction{transaction})
+		session.closeErr = closeCause
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		state, err := (Executor{Backend: fake}).Migrate(
+			lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+		)
+		assertMigrationError(t, err, CategoryTransaction, CodeCommitCleanupFailed, NoOperation, "")
+		if !errors.Is(err, cleanupCause) || !errors.Is(err, closeCause) {
+			t.Fatalf("committed cleanup error = %v, want commit and close causes", err)
+		}
+		if _, exists := state.Model("blog", "post"); !exists {
+			t.Fatal("committed cleanup error lost relation after state")
+		}
+		want := []string{"create_model", "record_applied:blog.0001_post", "commit_fenced"}
+		if !reflect.DeepEqual(transaction.calls, want) {
+			t.Fatalf("committed cleanup calls = %v, want %v", transaction.calls, want)
+		}
+	})
+
+	for _, test := range []struct {
+		name       string
+		durability backend.CommitDurability
+		code       ErrorCode
+	}{
+		{name: "rolled back", durability: backend.CommitRolledBack, code: CodeCommitFailed},
+		{name: "unknown", durability: backend.CommitUnknown, code: CodeCommitOutcomeUnknown},
+	} {
+		test := test
+		t.Run(test.name+" preserves before state", func(t *testing.T) {
+			cause := errors.New("relation " + test.name)
+			transaction := newLifecycleTestTransaction()
+			transaction.outcome = backend.CommitOutcome{Durability: test.durability}
+			transaction.commitErr = cause
+			session := newLifecycleTestSession(records, []backend.RevisionFencedTransaction{transaction})
+			fake := newLifecycleTestBackend(session)
+			fake.relationCapabilities = lifecycleAllRelationCapabilities()
+			state, err := (Executor{Backend: fake}).Migrate(
+				lifecycleLoadedContext(t, definitions), definitions, LatestLifecycleRequest(),
+			)
+			assertMigrationError(t, err, CategoryTransaction, test.code, NoOperation, "")
+			if !errors.Is(err, cause) {
+				t.Fatalf("%s error = %v, want cause", test.name, err)
+			}
+			if _, exists := state.Model("authors", "author"); !exists {
+				t.Fatalf("%s lost durable before state", test.name)
+			}
+			if _, exists := state.Model("blog", "post"); exists {
+				t.Fatalf("%s published non-durable relation state", test.name)
+			}
+		})
+	}
+
+	t.Run("cancellation after final committed relation step is success", func(t *testing.T) {
+		base, cancel := context.WithCancel(context.Background())
+		ctx := lifecycleLoadedContextFrom(t, base, definitions)
+		transaction := newLifecycleTestTransaction()
+		transaction.commitHook = cancel
+		session := newLifecycleTestSession(records, []backend.RevisionFencedTransaction{transaction})
+		fake := newLifecycleTestBackend(session)
+		fake.relationCapabilities = lifecycleAllRelationCapabilities()
+		state, err := (Executor{Backend: fake}).Migrate(ctx, definitions, LatestLifecycleRequest())
+		if err != nil {
+			t.Fatalf("final committed relation cancellation error = %v", err)
+		}
+		if _, exists := state.Model("blog", "post"); !exists {
+			t.Fatal("final committed relation cancellation lost after state")
+		}
+		assertDetachedBoundedCleanup(t, session.closeContextCanceled, session.closeDeadline)
+	})
+}
+
 func TestExecutorMigrateCarrierResourceScanPrecedesRelationInspectionAndCloning(t *testing.T) {
 	t.Parallel()
 
@@ -1002,6 +1552,202 @@ func lifecycleTestDefinitions() []Migration {
 	}
 }
 
+func lifecycleLoadedRelationCreateDefinitions() []Migration {
+	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
+	return []Migration{
+		{
+			App: targetKey.App, Name: targetKey.Name,
+			Operations: []Operation{CreateModel{AppLabel: "authors", Model: lifecycleLoadedAuthorModel()}},
+		},
+		{
+			App: "blog", Name: "0001_post", Dependencies: []MigrationKey{targetKey},
+			Operations: []Operation{CreateModel{AppLabel: "blog", Model: ir.Model{
+				Name: "post", GoName: "Post", DBTable: "blog_post",
+				Fields: []ir.Field{
+					{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+					lifecycleLoadedAuthorField(),
+				},
+			}}},
+		},
+		{
+			App: "zeta", Name: "0001_note",
+			Operations: []Operation{CreateModel{AppLabel: "zeta", Model: ir.Model{
+				Name: "note", GoName: "Note", DBTable: "zeta_note",
+				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+			}}},
+		},
+	}
+}
+
+func lifecycleLoadedRelationAddDefinitions() []Migration {
+	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
+	sourceKey := MigrationKey{App: "blog", Name: "0001_post"}
+	return []Migration{
+		{
+			App: targetKey.App, Name: targetKey.Name,
+			Operations: []Operation{CreateModel{AppLabel: "authors", Model: lifecycleLoadedAuthorModel()}},
+		},
+		{
+			App: sourceKey.App, Name: sourceKey.Name, Dependencies: []MigrationKey{targetKey},
+			Operations: []Operation{CreateModel{AppLabel: "blog", Model: ir.Model{
+				Name: "post", GoName: "Post", DBTable: "blog_post",
+				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+			}}},
+		},
+		{
+			App: "blog", Name: "0002_post_author", Dependencies: []MigrationKey{sourceKey},
+			Operations: []Operation{AddField{
+				AppLabel: "blog", ModelName: "post", Field: lifecycleLoadedAuthorField(),
+			}},
+		},
+	}
+}
+
+func lifecycleLoadedCompleteIntentDefinitions() []Migration {
+	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
+	return []Migration{
+		{
+			App: targetKey.App, Name: targetKey.Name,
+			Operations: []Operation{CreateModel{AppLabel: "authors", Model: lifecycleLoadedAuthorModel()}},
+		},
+		{
+			App: "blog", Name: "0001_post", Dependencies: []MigrationKey{targetKey},
+			Operations: []Operation{
+				CreateModel{AppLabel: "blog", Model: ir.Model{
+					Name: "post", GoName: "Post", DBTable: "blog_post",
+					Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+				}},
+				AddField{AppLabel: "blog", ModelName: "post", Field: lifecyclePublishedField()},
+				AddField{AppLabel: "blog", ModelName: "post", Field: lifecycleLoadedAuthorField()},
+			},
+		},
+	}
+}
+
+func lifecycleLoadedOversizedRelationIntentDefinitions() []Migration {
+	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
+	sourceKey := MigrationKey{App: "blog", Name: "0001_post"}
+	prefixKey := MigrationKey{App: "blog", Name: "0002_prefix"}
+	operations := make([]Operation, 0, 513)
+	for index := 0; index < 512; index++ {
+		name := fmt.Sprintf("field_%04d", index)
+		operations = append(operations, AddField{
+			AppLabel:  "blog",
+			ModelName: "post",
+			Field: ir.Field{
+				Name: name, GoName: fmt.Sprintf("Field%04d", index), Column: name,
+				Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean},
+			},
+		})
+	}
+	operations = append(operations, CreateModel{AppLabel: "blog", Model: ir.Model{
+		Name: "comment", GoName: "Comment", DBTable: "blog_comment",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{
+				Name: "author", GoName: "Author", Column: "author_id", Kind: ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+					Cardinality: ir.RelationManyToOne, Reverse: ir.ReverseRelation{Name: "comments"},
+					OnDelete: ir.DeleteProtect,
+				},
+			},
+		},
+	}})
+	return []Migration{
+		{
+			App: targetKey.App, Name: targetKey.Name,
+			Operations: []Operation{CreateModel{AppLabel: "authors", Model: lifecycleLoadedAuthorModel()}},
+		},
+		{
+			App: sourceKey.App, Name: sourceKey.Name, Dependencies: []MigrationKey{targetKey},
+			Operations: []Operation{CreateModel{AppLabel: "blog", Model: ir.Model{
+				Name: "post", GoName: "Post", DBTable: "blog_post",
+				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+			}}},
+		},
+		{
+			App: prefixKey.App, Name: prefixKey.Name, Dependencies: []MigrationKey{sourceKey},
+			Operations: []Operation{AddField{
+				AppLabel: "blog", ModelName: "post",
+				Field: ir.Field{Name: "prefix", GoName: "Prefix", Column: "prefix", Kind: ir.FieldBoolean, Default: &ir.ScalarDefault{Kind: ir.ScalarBoolean}},
+			}},
+		},
+		{
+			App: "blog", Name: "0003_oversized_relation_create", Dependencies: []MigrationKey{prefixKey},
+			Operations: operations,
+		},
+	}
+}
+
+func lifecycleAllRelationCapabilities() backend.RelationMigrationCapabilities {
+	return backend.RelationMigrationCapabilities{
+		CreateModelForeignKeys:            true,
+		AddNullableForeignKey:             true,
+		AddRequiredForeignKeyToEmptyTable: true,
+		RemoveForeignKeyByTableRemake:     true,
+	}
+}
+
+func lifecycleLoadedAuthorModel() ir.Model {
+	return ir.Model{
+		Name: "author", GoName: "Author", DBTable: "authors_author",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+}
+
+func lifecycleLoadedAuthorField() ir.Field {
+	return ir.Field{
+		Name: "author", GoName: "Author", Column: "author_id", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "posts"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func lifecycleLoadedContext(t *testing.T, definitions []Migration) context.Context {
+	return lifecycleLoadedContextFrom(t, context.Background(), definitions)
+}
+
+func lifecycleLoadedContextFrom(t *testing.T, base context.Context, definitions []Migration) context.Context {
+	t.Helper()
+	records := make([]definitionhandoff.Record, len(definitions))
+	for index := range definitions {
+		definition, err := migrationHandoffDefinition(definitions[index])
+		if err != nil {
+			t.Fatalf("migrationHandoffDefinition(%d): %v", index, err)
+		}
+		profile := definitionhandoff.Compatibility{
+			DefinitionFormat: 1,
+			LoaderABI:        1,
+			OperationCodec:   1,
+			SchemaIR:         2,
+		}
+		if migrationContainsRelation(definitions[index]) {
+			profile = definitionhandoff.Compatibility{
+				DefinitionFormat: 1,
+				LoaderABI:        2,
+				OperationCodec:   2,
+				SchemaIR:         3,
+			}
+		}
+		records[index] = definitionhandoff.Record{
+			SourceID:   fmt.Sprintf("loaded-%d", index),
+			Producer:   definitionhandoff.Producer{Name: "lifecycle-test", Version: "1"},
+			Profile:    profile,
+			Definition: definition,
+		}
+	}
+	handoff, err := definitionhandoff.New(records)
+	if err != nil {
+		t.Fatalf("definitionhandoff.New(): %v", err)
+	}
+	return definitionhandoff.WithContext(base, handoff)
+}
+
 func lifecyclePublishedField() ir.Field {
 	return ir.Field{
 		Name:     "published",
@@ -1050,14 +1796,19 @@ func assertDetachedBoundedCleanup(t *testing.T, canceled bool, deadline time.Tim
 }
 
 type lifecycleTestBackend struct {
-	session          backend.RevisionFencedSession
-	openErr          error
-	openCount        int
-	legacyBeginCount int
+	session                 backend.RevisionFencedSession
+	openErr                 error
+	openHook                func()
+	openCount               int
+	legacyBeginCount        int
+	relationCapabilities    backend.RelationMigrationCapabilities
+	relationCapabilityCount int
+	relationCapabilityHook  func()
 }
 
 var _ backend.AtomicBackend = (*lifecycleTestBackend)(nil)
 var _ backend.RevisionFencedBackend = (*lifecycleTestBackend)(nil)
+var _ backend.RelationRevisionFencedBackend = (*lifecycleTestBackend)(nil)
 
 func newLifecycleTestBackend(session backend.RevisionFencedSession) *lifecycleTestBackend {
 	return &lifecycleTestBackend{session: session}
@@ -1070,7 +1821,33 @@ func (b *lifecycleTestBackend) BeginMigration(context.Context) (backend.Transact
 
 func (b *lifecycleTestBackend) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
 	b.openCount++
+	if b.openHook != nil {
+		b.openHook()
+	}
 	return b.session, b.openErr
+}
+
+func (b *lifecycleTestBackend) RelationMigrationCapabilities() backend.RelationMigrationCapabilities {
+	b.relationCapabilityCount++
+	if b.relationCapabilityHook != nil {
+		b.relationCapabilityHook()
+	}
+	return b.relationCapabilities
+}
+
+type lifecycleNoRelationBackend struct {
+	delegate *lifecycleTestBackend
+}
+
+var _ backend.AtomicBackend = (*lifecycleNoRelationBackend)(nil)
+var _ backend.RevisionFencedBackend = (*lifecycleNoRelationBackend)(nil)
+
+func (b *lifecycleNoRelationBackend) BeginMigration(ctx context.Context) (backend.Transaction, error) {
+	return b.delegate.BeginMigration(ctx)
+}
+
+func (b *lifecycleNoRelationBackend) OpenRevisionFencedSession(ctx context.Context) (backend.RevisionFencedSession, error) {
+	return b.delegate.OpenRevisionFencedSession(ctx)
 }
 
 type lifecycleTestSession struct {
@@ -1081,7 +1858,10 @@ type lifecycleTestSession struct {
 	transactions         []backend.RevisionFencedTransaction
 	beginErrors          []error
 	beginCount           int
+	relationBeginCount   int
+	relationBeginHook    func()
 	transitions          []backend.HistoryTransition
+	relationIntents      []backend.RelationMigrationIntent
 	closeErr             error
 	closeCount           int
 	closeContextCanceled bool
@@ -1089,6 +1869,7 @@ type lifecycleTestSession struct {
 }
 
 var _ backend.RevisionFencedSession = (*lifecycleTestSession)(nil)
+var _ backend.RelationRevisionFencedSession = (*lifecycleTestSession)(nil)
 
 func newLifecycleTestSession(records []backend.AppliedMigration, transactions []backend.RevisionFencedTransaction) *lifecycleTestSession {
 	return &lifecycleTestSession{records: records, transactions: transactions}
@@ -1103,9 +1884,32 @@ func (s *lifecycleTestSession) ReadAppliedMigrations(context.Context) ([]backend
 }
 
 func (s *lifecycleTestSession) BeginFencedMigration(_ context.Context, transition backend.HistoryTransition) (backend.RevisionFencedTransaction, error) {
-	index := s.beginCount
+	index := s.beginCount + s.relationBeginCount
 	s.beginCount++
 	s.transitions = append(s.transitions, transition)
+	var transaction backend.RevisionFencedTransaction
+	if index < len(s.transactions) {
+		transaction = s.transactions[index]
+	}
+	var err error
+	if index < len(s.beginErrors) {
+		err = s.beginErrors[index]
+	}
+	return transaction, err
+}
+
+func (s *lifecycleTestSession) BeginRelationFencedMigration(
+	_ context.Context,
+	transition backend.HistoryTransition,
+	intent backend.RelationMigrationIntent,
+) (backend.RevisionFencedTransaction, error) {
+	index := s.beginCount + s.relationBeginCount
+	s.relationBeginCount++
+	s.transitions = append(s.transitions, transition)
+	s.relationIntents = append(s.relationIntents, cloneLifecycleRelationIntent(intent))
+	if s.relationBeginHook != nil {
+		s.relationBeginHook()
+	}
 	var transaction backend.RevisionFencedTransaction
 	if index < len(s.transactions) {
 		transaction = s.transactions[index]
@@ -1122,6 +1926,27 @@ func (s *lifecycleTestSession) Close(ctx context.Context) error {
 	s.closeContextCanceled = ctx.Err() != nil
 	s.closeDeadline, _ = ctx.Deadline()
 	return s.closeErr
+}
+
+type lifecycleNoRelationSession struct {
+	delegate *lifecycleTestSession
+}
+
+var _ backend.RevisionFencedSession = (*lifecycleNoRelationSession)(nil)
+
+func (s *lifecycleNoRelationSession) ReadAppliedMigrations(ctx context.Context) ([]backend.AppliedMigration, error) {
+	return s.delegate.ReadAppliedMigrations(ctx)
+}
+
+func (s *lifecycleNoRelationSession) BeginFencedMigration(
+	ctx context.Context,
+	transition backend.HistoryTransition,
+) (backend.RevisionFencedTransaction, error) {
+	return s.delegate.BeginFencedMigration(ctx, transition)
+}
+
+func (s *lifecycleNoRelationSession) Close(ctx context.Context) error {
+	return s.delegate.Close(ctx)
 }
 
 type lifecycleTestTransaction struct {
@@ -1151,6 +1976,27 @@ func lifecycleCommittedTransactions(count int) []backend.RevisionFencedTransacti
 		transactions[index] = newLifecycleTestTransaction()
 	}
 	return transactions
+}
+
+func cloneLifecycleRelationIntent(value backend.RelationMigrationIntent) backend.RelationMigrationIntent {
+	cloned := backend.RelationMigrationIntent{
+		Operations: make([]backend.RelationMigrationOperation, len(value.Operations)),
+	}
+	for operationIndex := range value.Operations {
+		operation := value.Operations[operationIndex]
+		operation.Before = operation.Before.Clone()
+		operation.After = operation.After.Clone()
+		operation.Targets = make([]backend.RelationMigrationTarget, len(value.Operations[operationIndex].Targets))
+		for targetIndex := range value.Operations[operationIndex].Targets {
+			target := value.Operations[operationIndex].Targets[targetIndex]
+			target.SourceField = target.SourceField.Clone()
+			target.TargetModel = target.TargetModel.Clone()
+			target.TargetKey = target.TargetKey.Clone()
+			operation.Targets[targetIndex] = target
+		}
+		cloned.Operations[operationIndex] = operation
+	}
+	return cloned
 }
 
 func (t *lifecycleTestTransaction) CreateModel(context.Context, ir.Model) error {

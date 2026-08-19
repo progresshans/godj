@@ -61,7 +61,7 @@ func (e Executor) Migrate(
 		return resultState, executionContextError(PlanStep{}, err)
 	}
 
-	requestKind, requestTargets, err := snapshotLifecycleRequest(request)
+	requestKind, requestTargetView, err := inspectLifecycleRequest(request)
 	if err != nil {
 		return resultState, err
 	}
@@ -89,6 +89,12 @@ func (e Executor) Migrate(
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
 	}
+	if hasCarrier {
+		if err := validateLoadedLifecycleTargets(definitions, requestTargetView); err != nil {
+			return resultState, err
+		}
+	}
+	requestTargets := append([]Target(nil), requestTargetView...)
 
 	// Snapshot caller-owned definitions before any backend I/O. The
 	// reconstructor then validates the graph and deep-copies every supported
@@ -103,6 +109,7 @@ func (e Executor) Migrate(
 		return resultState, executionContextError(PlanStep{}, err)
 	}
 	var reconstructor StateReconstructor
+	var loadedReconstructor *loadedStateReconstructor
 	if authority != nil && hasRelation {
 		loaded, loadedErr := newLoadedStateReconstructor(authority, definitionSnapshot)
 		if loadedErr != nil {
@@ -111,23 +118,12 @@ func (e Executor) Migrate(
 		if err := ctx.Err(); err != nil {
 			return resultState, executionContextError(PlanStep{}, err)
 		}
-		// Keep the private engine live through complete static construction and
-		// readiness replay. D3 will consume it to bind the optional backend port;
-		// D2 must still stop before session/history/backend I/O.
-		_ = loaded
-		unsupported := relationMigrationUnsupported(
-			definitionSnapshot,
-			"",
-			errors.New("validated relation state is ready; relation backend lifecycle is not implemented"),
-		)
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
+		loadedReconstructor = &loaded
+	} else {
+		reconstructor, err = NewStateReconstructor(definitionSnapshot...)
+		if err != nil {
+			return resultState, err
 		}
-		return resultState, unsupported
-	}
-	reconstructor, err = NewStateReconstructor(definitionSnapshot...)
-	if err != nil {
-		return resultState, err
 	}
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
@@ -171,6 +167,11 @@ func (e Executor) Migrate(
 	if openErr != nil {
 		return resultState, classifyLifecycleError(openErr, CategoryTransaction, CodeBeginFailed, PlanStep{})
 	}
+	if authority != nil {
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+	}
 	if isNilInterface(session) {
 		return resultState, migrationError(
 			CategoryTransaction,
@@ -190,6 +191,21 @@ func (e Executor) Migrate(
 		}
 		return resultState, newRecorderReadError(err)
 	}
+	if authority != nil {
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+		historyTargetCount := len(requestTargets)
+		if requestKind == lifecycleRequestLatest {
+			historyTargetCount = len(authority.planner.graph.appLeaves())
+		}
+		if err := validateLoadedHistoryPlanResources(definitionSnapshot, historyTargetCount, records); err != nil {
+			return resultState, err
+		}
+		if err := ctx.Err(); err != nil {
+			return resultState, executionContextError(PlanStep{}, err)
+		}
+	}
 	keys := make([]MigrationKey, len(records))
 	for index, record := range records {
 		keys[index] = MigrationKey{App: record.App, Name: record.Name}
@@ -200,6 +216,17 @@ func (e Executor) Migrate(
 	}
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
+	}
+	if loadedReconstructor != nil {
+		return e.migrateLoadedPlan(
+			ctx,
+			session,
+			*loadedReconstructor,
+			definitionSnapshot,
+			applied,
+			requestKind,
+			requestTargets,
+		)
 	}
 
 	// Check history before interpreting contained targets. This preserves the
@@ -252,6 +279,429 @@ func (e Executor) Migrate(
 	// Cancellation observed only after the final durable commit cannot undo the
 	// successful lifecycle. Mandatory Close uses its own bounded context.
 	return working.Clone(), nil
+}
+
+func (e Executor) migrateLoadedPlan(
+	ctx context.Context,
+	session backend.RevisionFencedSession,
+	reconstructor loadedStateReconstructor,
+	definitions []Migration,
+	applied AppliedState,
+	requestKind lifecycleRequestKind,
+	requestTargets []Target,
+) (ProjectState, error) {
+	// The planner used for the actual request is deliberately rebuilt only
+	// after the exact fenced history snapshot exists. Static readiness proves
+	// that this immutable graph is safe to rebuild; it does not guess which
+	// migrations the snapshot will make current.
+	planner, err := NewPlanner(definitions...)
+	if err != nil {
+		return EmptyProjectState(), err
+	}
+	if err := planner.CheckHistory(applied); err != nil {
+		return EmptyProjectState(), err
+	}
+	if err := ctx.Err(); err != nil {
+		return EmptyProjectState(), executionContextError(PlanStep{}, err)
+	}
+
+	var targets []Target
+	switch requestKind {
+	case lifecycleRequestLatest:
+		leaves := planner.graph.appLeaves()
+		targets = make([]Target, len(leaves))
+		for index, leaf := range leaves {
+			targets[index] = NamedTarget(leaf)
+		}
+	case lifecycleRequestTargeted:
+		targets = requestTargets
+	}
+	plan, err := planner.Plan(applied, targets...)
+	if err != nil {
+		return EmptyProjectState(), err
+	}
+	if err := ctx.Err(); err != nil {
+		return EmptyProjectState(), executionContextError(PlanStep{}, err)
+	}
+
+	initialBuilder, err := reconstructor.builderForApplied(ctx, planner, applied)
+	if err != nil {
+		return EmptyProjectState(), err
+	}
+	before, err := initialBuilder.projectState()
+	if err != nil {
+		return EmptyProjectState(), invalidLoadedState(Migration{}, NoOperation, "", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(PlanStep{}, err)
+	}
+
+	// Validate every actual step against one mutable historical builder before
+	// selecting any optional relation port or opening any migration transaction.
+	// Retain only capability requirements and a semantic seal for each step;
+	// operation snapshots are regenerated one step at a time after selection.
+	dryBuilder := initialBuilder.clone()
+	prepared, err := reconstructor.dryLoadedPlan(ctx, dryBuilder, plan)
+	if err != nil {
+		return before.Clone(), err
+	}
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(PlanStep{}, err)
+	}
+	relationSession, err := selectLoadedRelationLifecycle(ctx, e.Backend, session, reconstructor, prepared)
+	if err != nil {
+		return before.Clone(), err
+	}
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(PlanStep{}, err)
+	}
+
+	working := before.Clone()
+	executionBuilder := initialBuilder
+	for _, expected := range prepared {
+		if err := ctx.Err(); err != nil {
+			return working.Clone(), executionContextError(expected.step, err)
+		}
+		materialized, materializeErr := reconstructor.materializeLoadedStep(ctx, executionBuilder, expected.step, true)
+		if materializeErr != nil {
+			return working.Clone(), materializeErr
+		}
+		if materialized.requirements != expected.requirements ||
+			materialized.relation != expected.relation ||
+			materialized.seal != expected.seal {
+			migration := reconstructor.definitions[expected.step.Key]
+			return working.Clone(), migrationError(
+				CategoryState,
+				CodeInvalidState,
+				expected.step.Direction,
+				migration,
+				NoOperation,
+				"",
+				errors.New("loaded migration step changed after whole-plan validation"),
+			)
+		}
+		working, err = executeLoadedFencedMigration(
+			ctx,
+			session,
+			relationSession,
+			working,
+			materialized,
+		)
+		if err != nil {
+			return working.Clone(), err
+		}
+	}
+	return working.Clone(), nil
+}
+
+func selectLoadedRelationLifecycle(
+	ctx context.Context,
+	value backend.AtomicBackend,
+	session backend.RevisionFencedSession,
+	reconstructor loadedStateReconstructor,
+	steps []loadedPlanStep,
+) (backend.RelationRevisionFencedSession, error) {
+	firstRelation := -1
+	for index := range steps {
+		if steps[index].relation {
+			firstRelation = index
+			break
+		}
+	}
+	if firstRelation < 0 {
+		return nil, nil
+	}
+	first := steps[firstRelation]
+	migration := reconstructor.definitions[first.step.Key]
+	relationBackend, ok := value.(backend.RelationRevisionFencedBackend)
+	if !ok || isNilInterface(relationBackend) {
+		return nil, loadedRelationCapabilityError(
+			first.step,
+			migration,
+			"backend does not implement relation revision-fenced migrations",
+		)
+	}
+	capabilities := relationBackend.RelationMigrationCapabilities()
+	if err := ctx.Err(); err != nil {
+		return nil, executionContextError(first.step, err)
+	}
+	for _, step := range steps {
+		if !step.relation {
+			continue
+		}
+		missing := firstMissingLoadedRelationCapability(step.requirements, capabilities)
+		if missing != "" {
+			return nil, loadedRelationCapabilityError(
+				step.step,
+				reconstructor.definitions[step.step.Key],
+				"required relation capability is false: "+missing,
+			)
+		}
+	}
+	relationSession, ok := session.(backend.RelationRevisionFencedSession)
+	if !ok || isNilInterface(relationSession) {
+		return nil, loadedRelationCapabilityError(
+			first.step,
+			migration,
+			"fenced session does not implement relation migration begin",
+		)
+	}
+	return relationSession, nil
+}
+
+func firstMissingLoadedRelationCapability(
+	requirements loadedRelationRequirements,
+	capabilities backend.RelationMigrationCapabilities,
+) string {
+	checks := []struct {
+		bit       loadedRelationRequirements
+		supported bool
+		name      string
+	}{
+		{loadedRequiresCreateModelForeignKeys, capabilities.CreateModelForeignKeys, "CreateModelForeignKeys"},
+		{loadedRequiresAddNullableForeignKey, capabilities.AddNullableForeignKey, "AddNullableForeignKey"},
+		{loadedRequiresAddRequiredForeignKeyToEmptyTable, capabilities.AddRequiredForeignKeyToEmptyTable, "AddRequiredForeignKeyToEmptyTable"},
+		{loadedRequiresRemoveForeignKeyByTableRemake, capabilities.RemoveForeignKeyByTableRemake, "RemoveForeignKeyByTableRemake"},
+	}
+	for _, check := range checks {
+		if requirements&check.bit != 0 && !check.supported {
+			return check.name
+		}
+	}
+	return ""
+}
+
+func loadedRelationCapabilityError(step PlanStep, migration Migration, detail string) *Error {
+	return migrationError(
+		CategoryCapability,
+		CodeUnsupported,
+		step.Direction,
+		migration,
+		NoOperation,
+		"",
+		backend.NewCapabilityError("relation_migration", detail, nil),
+	)
+}
+
+func executeLoadedFencedMigration(
+	ctx context.Context,
+	session backend.RevisionFencedSession,
+	relationSession backend.RelationRevisionFencedSession,
+	before ProjectState,
+	materialized loadedMaterializedStep,
+) (ProjectState, error) {
+	prepared := materialized.prepared
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(prepared.step, err)
+	}
+	transitionKind := backend.HistoryTransitionApply
+	if prepared.step.Direction == DirectionBackward {
+		transitionKind = backend.HistoryTransitionUnapply
+	}
+	transition := backend.HistoryTransition{
+		Migration: backend.AppliedMigration{App: prepared.step.Key.App, Name: prepared.step.Key.Name},
+		Kind:      transitionKind,
+	}
+
+	var transaction backend.RevisionFencedTransaction
+	var beginErr error
+	if materialized.relation {
+		if isNilInterface(relationSession) {
+			return before.Clone(), loadedRelationCapabilityError(
+				prepared.step,
+				prepared.migration,
+				"validated relation step has no relation session",
+			)
+		}
+		beginIntent := loadedBackendRelationIntent(materialized.intent)
+		if err := ctx.Err(); err != nil {
+			return before.Clone(), executionContextError(prepared.step, err)
+		}
+		transaction, beginErr = relationSession.BeginRelationFencedMigration(
+			ctx,
+			transition,
+			beginIntent,
+		)
+	} else {
+		transaction, beginErr = session.BeginFencedMigration(ctx, transition)
+	}
+	if beginErr != nil {
+		primary := classifyLifecycleError(beginErr, CategoryTransaction, CodeBeginFailed, prepared.step)
+		if !isNilInterface(transaction) {
+			return before.Clone(), rollbackFenced(ctx, transaction, primary)
+		}
+		return before.Clone(), primary
+	}
+	if isNilInterface(transaction) {
+		return before.Clone(), migrationError(
+			CategoryTransaction,
+			CodeBeginFailed,
+			prepared.step.Direction,
+			prepared.migration,
+			NoOperation,
+			"",
+			errors.New("backend returned a nil revision-fenced transaction"),
+		)
+	}
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), rollbackFenced(ctx, transaction, executionContextError(prepared.step, err))
+	}
+
+	if primary := executeLoadedMigrationBody(
+		ctx,
+		prepared.migration,
+		prepared.step.Direction,
+		materialized.execution,
+		transaction,
+	); primary != nil {
+		return before.Clone(), rollbackFenced(ctx, transaction, primary)
+	}
+
+	outcome, commitErr := transaction.CommitFenced(ctx)
+	switch outcome.Durability {
+	case backend.CommitCommitted:
+		committed := before
+		if !materialized.stateUnchanged {
+			committed = prepared.after
+		}
+		if commitErr == nil {
+			return committed, nil
+		}
+		return committed, migrationError(
+			CategoryTransaction,
+			CodeCommitCleanupFailed,
+			prepared.step.Direction,
+			prepared.migration,
+			NoOperation,
+			"",
+			commitErr,
+		)
+	case backend.CommitRolledBack:
+		if commitErr == nil {
+			commitErr = errors.New("backend reported a rolled-back commit without an error")
+		}
+		return before.Clone(), classifyLifecycleError(commitErr, CategoryTransaction, CodeCommitFailed, prepared.step)
+	case backend.CommitUnknown:
+		if commitErr == nil {
+			commitErr = errors.New("backend reported an unknown commit outcome without an error")
+		}
+		return before.Clone(), migrationError(
+			CategoryTransaction,
+			CodeCommitOutcomeUnknown,
+			prepared.step.Direction,
+			prepared.migration,
+			NoOperation,
+			"",
+			commitErr,
+		)
+	default:
+		if commitErr == nil {
+			commitErr = fmt.Errorf("backend returned invalid commit durability %d", outcome.Durability)
+		} else {
+			commitErr = fmt.Errorf("backend returned invalid commit durability %d: %w", outcome.Durability, commitErr)
+		}
+		return before.Clone(), migrationError(
+			CategoryTransaction,
+			CodeCommitOutcomeUnknown,
+			prepared.step.Direction,
+			prepared.migration,
+			NoOperation,
+			"",
+			commitErr,
+		)
+	}
+}
+
+func loadedBackendRelationIntent(value loadedRelationIntent) backend.RelationMigrationIntent {
+	intent := backend.RelationMigrationIntent{
+		Operations: make([]backend.RelationMigrationOperation, len(value.operations)),
+	}
+	for operationIndex := range value.operations {
+		operation := value.operations[operationIndex]
+		targets := make([]backend.RelationMigrationTarget, len(operation.targets))
+		for targetIndex := range operation.targets {
+			target := operation.targets[targetIndex]
+			targets[targetIndex] = backend.RelationMigrationTarget{
+				SourceField: target.sourceField.Clone(),
+				TargetModel: target.targetModel.Clone(),
+				TargetKey:   target.targetKey.Clone(),
+			}
+		}
+		intent.Operations[operationIndex] = backend.RelationMigrationOperation{
+			OperationIndex: operation.operationIndex,
+			Kind:           backend.RelationMigrationOperationKind(operation.kind),
+			Before:         operation.before.Clone(),
+			After:          operation.after.Clone(),
+			Targets:        targets,
+		}
+	}
+	return intent
+}
+
+func executeLoadedMigrationBody(
+	ctx context.Context,
+	migration Migration,
+	direction Direction,
+	operations []loadedOperationView,
+	transaction migrationBodyTransaction,
+) *Error {
+	step := PlanStep{Key: migration.Key(), Direction: direction}
+	for _, operation := range operations {
+		if err := ctx.Err(); err != nil {
+			return executionContextError(step, err)
+		}
+		from := loadedSparseProjectState(
+			operation.beforeFormat,
+			operation.appLabel,
+			operation.before,
+			operation.beforeExists,
+		)
+		to := loadedSparseProjectState(
+			operation.afterFormat,
+			operation.appLabel,
+			operation.after,
+			operation.afterExists,
+		)
+		if err := ctx.Err(); err != nil {
+			return executionContextError(step, err)
+		}
+		var err error
+		if direction == DirectionForward {
+			err = operation.operation.databaseForward(ctx, transaction, from, to)
+		} else {
+			err = operation.operation.databaseBackward(ctx, transaction, from, to)
+		}
+		if err != nil {
+			category, code := operationErrorClass(err)
+			return migrationError(category, code, direction, migration, operation.index, operation.operation.Kind(), err)
+		}
+		if err := ctx.Err(); err != nil {
+			return migrationError(
+				CategoryExecution,
+				CodeOperationFailed,
+				direction,
+				migration,
+				operation.index,
+				operation.operation.Kind(),
+				err,
+			)
+		}
+	}
+
+	var err error
+	if direction == DirectionForward {
+		err = transaction.RecordApplied(ctx, migration.App, migration.Name)
+	} else {
+		err = transaction.RecordUnapplied(ctx, migration.App, migration.Name)
+	}
+	if err != nil {
+		category, code := recorderErrorClass(err)
+		return migrationError(category, code, direction, migration, NoOperation, "", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return executionContextError(step, err)
+	}
+	return nil
 }
 
 func consumeDefinitionHandoff(
@@ -678,7 +1128,7 @@ func migrationHandoffField(value ir.Field) definitionhandoff.Field {
 	return field
 }
 
-func snapshotLifecycleRequest(request LifecycleRequest) (lifecycleRequestKind, []Target, error) {
+func inspectLifecycleRequest(request LifecycleRequest) (lifecycleRequestKind, []Target, error) {
 	switch request.kind {
 	case lifecycleRequestLatest:
 		if request.targets != nil {
@@ -689,10 +1139,129 @@ func snapshotLifecycleRequest(request LifecycleRequest) (lifecycleRequestKind, [
 		if len(request.targets) == 0 {
 			return 0, nil, invalidLifecycleRequest()
 		}
-		return lifecycleRequestTargeted, append([]Target(nil), request.targets...), nil
+		return lifecycleRequestTargeted, request.targets, nil
 	default:
 		return 0, nil, invalidLifecycleRequest()
 	}
+}
+
+func validateLoadedLifecycleTargets(definitions []Migration, targets []Target) error {
+	if len(targets) > definitionhandoff.MaxDefinitions {
+		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded lifecycle target count exceeds resource limit"))
+	}
+	budget := loadedLifecycleIdentityBudget{}
+	if err := budget.consumeDefinitions(definitions); err != nil {
+		return invalidLoadedState(Migration{}, NoOperation, "", err)
+	}
+	if err := budget.consumeNodes("targets", len(targets)); err != nil {
+		return invalidLoadedState(Migration{}, NoOperation, "", err)
+	}
+	for index := range targets {
+		if err := budget.consumeTarget(index, targets[index]); err != nil {
+			return invalidLoadedState(Migration{}, NoOperation, "", err)
+		}
+	}
+	return nil
+}
+
+func validateLoadedHistoryPlanResources(
+	definitions []Migration,
+	targetCount int,
+	records []backend.AppliedMigration,
+) error {
+	if len(records) > definitionhandoff.MaxDefinitions {
+		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded applied-history record count exceeds resource limit"))
+	}
+	budget := loadedLifecycleIdentityBudget{}
+	if err := budget.consumeDefinitions(definitions); err != nil {
+		return invalidLoadedState(Migration{}, NoOperation, "", err)
+	}
+	if err := budget.consumeNodes("targets", targetCount); err != nil {
+		return invalidLoadedState(Migration{}, NoOperation, "", err)
+	}
+	if err := budget.consumeNodes("records", len(records)); err != nil {
+		return invalidLoadedState(Migration{}, NoOperation, "", err)
+	}
+	for index := range records {
+		if err := budget.consumeString(fmt.Sprintf("records[%d].app", index), records[index].App); err != nil {
+			return invalidLoadedState(Migration{}, NoOperation, "", err)
+		}
+		if err := budget.consumeString(fmt.Sprintf("records[%d].name", index), records[index].Name); err != nil {
+			return invalidLoadedState(Migration{}, NoOperation, "", err)
+		}
+	}
+	return nil
+}
+
+type loadedLifecycleIdentityBudget struct {
+	nodes uint64
+	bytes uint64
+}
+
+func (budget *loadedLifecycleIdentityBudget) consumeDefinitions(definitions []Migration) error {
+	if err := budget.consumeNodes("definitions", len(definitions)); err != nil {
+		return err
+	}
+	for definitionIndex := range definitions {
+		definition := definitions[definitionIndex]
+		prefix := fmt.Sprintf("definitions[%d]", definitionIndex)
+		if err := budget.consumeString(prefix+".app", definition.App); err != nil {
+			return err
+		}
+		if err := budget.consumeString(prefix+".name", definition.Name); err != nil {
+			return err
+		}
+		if err := budget.consumeNodes(prefix+".dependencies", len(definition.Dependencies)); err != nil {
+			return err
+		}
+		for dependencyIndex := range definition.Dependencies {
+			dependency := definition.Dependencies[dependencyIndex]
+			dependencyPrefix := fmt.Sprintf("%s.dependencies[%d]", prefix, dependencyIndex)
+			if err := budget.consumeString(dependencyPrefix+".app", dependency.App); err != nil {
+				return err
+			}
+			if err := budget.consumeString(dependencyPrefix+".name", dependency.Name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (budget *loadedLifecycleIdentityBudget) consumeTarget(index int, target Target) error {
+	prefix := fmt.Sprintf("targets[%d]", index)
+	switch target.kind {
+	case targetNamed:
+		if err := budget.consumeString(prefix+".app", target.key.App); err != nil {
+			return err
+		}
+		return budget.consumeString(prefix+".name", target.key.Name)
+	case targetZero:
+		return budget.consumeString(prefix+".app", target.app)
+	default:
+		// Planner owns target-shape errors. Resource validation only bounds
+		// caller-controlled traversal before the request is copied.
+		return nil
+	}
+}
+
+func (budget *loadedLifecycleIdentityBudget) consumeNodes(path string, count int) error {
+	if count < 0 || uint64(count) > loadedDerivedIntentMaxNodes-budget.nodes {
+		return fmt.Errorf("loaded lifecycle %s exceeds aggregate node resource limit", path)
+	}
+	budget.nodes += uint64(count)
+	return nil
+}
+
+func (budget *loadedLifecycleIdentityBudget) consumeString(path, value string) error {
+	if len(value) > definitionhandoff.MaxDefinitionBytes {
+		return fmt.Errorf("loaded lifecycle identity %s has %d bytes, maximum %d", path, len(value), definitionhandoff.MaxDefinitionBytes)
+	}
+	if uint64(len(value)) > uint64(definitionhandoff.MaxDefinitionSetBytes)-budget.bytes {
+		return fmt.Errorf("loaded lifecycle identity bytes exceed aggregate resource limit")
+	}
+	budget.bytes += uint64(len(value))
+	return nil
 }
 
 func invalidLifecycleRequest() error {
