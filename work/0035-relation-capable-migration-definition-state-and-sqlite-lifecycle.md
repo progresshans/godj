@@ -13,6 +13,7 @@ allowed_paths:
   - "conformance/README.md"
   - "conformance/migrationrelation/**"
   - "conformance/contracts/migration-relation-manifest.json"
+  - "conformance/fixtures/godj-migration-relation-deviation-expected.json"
   - "conformance/fixtures/godj-migration-relation-not-implemented.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS"
@@ -34,6 +35,8 @@ allowed_paths:
   - "conformance/internal/protocol/migration_project_check_artifacts_test.go"
   - "conformance/internal/protocol/migration_relation_artifacts_test.go"
   - "conformance/internal/protocol/write_migration_artifacts_test.go"
+  - "conformance/cmd/godjcheck/deviation_policy.go"
+  - "conformance/cmd/godjcheck/main.go"
   - "conformance/cmd/godjcheck/main_test.go"
   - "conformance/migrationrelationproduct/observer.go"
   - "conformance/migrationrelationproduct/product_test.go"
@@ -96,6 +99,7 @@ allowed_paths:
   - "docs/CAPABILITY_CATALOG.md"
   - "docs/COMPATIBILITY.md"
   - "docs/CONCURRENCY.md"
+  - "docs/DEVIATIONS.md"
   - "docs/LICENSING.md"
   - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
@@ -222,6 +226,16 @@ arbitrary/general remake, general restart와 MIG product adapter/status 전환�
   [EVID-099](../docs/status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
   unique CI #95 [run 32294983953](https://github.com/progresshans/godj/actions/runs/32294983953)의 exact
   26/26·342/342와 audit P0..P3=0을 통과했습니다. EVID-099은 bounded D4f 결과를 기록합니다.
+- D4g Phase 0 observer-only head `b80f06a5a0699dc08278e841087150fe2b232ce2`, tree
+  `d8f56993f6a85e84e9a5f3745d577e29d8a1fa20`는 MIG-075..086을 registry에 등록하지 않고 locked-only
+  `CharacterizeMigrationRelation`으로 actual typed facts를 수집했습니다. Unique CI #97
+  [run 32310167590](https://github.com/progresshans/godj/actions/runs/32310167590)은 이 exact observer-only head에서
+  success였습니다. 서로 다른 fresh process의 repo-external O_EXCL capture 두 개는 각각 624,739 bytes,
+  SHA-256 `0679a54035605ab9e8b94dec2b9729e4b699c6a96cf20dc694282dec528dffb3`로 exact 동일했습니다.
+  Frozen inventory는 845 tests/86,738 bytes/SHA-256
+  `9bb0ef63e521749b256bbce1348c9e71bd7628e01306abe00dc546352ab733f3`입니다. Normal `Generate`, status와
+  registry는 불변이고 MIG-075..086은 모두 `oracle_locked`/unregistered입니다. CI #97은 later comparison,
+  deviation acceptance 또는 status transition을 증명하지 않습니다.
 - 이 문서만 `active`이고 `ready`는 0입니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
 
 ## 보존해야 하는 legacy 불변 조건
@@ -453,9 +467,20 @@ EVID-085에 기록했습니다.
       candidate, pre-claim relevant-shape hazards, deterministic temp/PK-order copy/row+sequence preservation,
       fault ownership/rollback/no-retry와 nullable reopen/reapply를 EVID-099/CI #95 run `32294983953`에서 검증.
       별도 CI #94/run `32288383027`은 prior EVID-098 docs head `85f9270...`만 닫았으며 D4f proof로 재사용하지 않음
-- [ ] **D4g**: first action은 expected fixture/oracle을 보지 않는 observer-only characterization. MIG-075..086
-      12개 status를 모두 `oracle_locked`로 유지한 채 actual observation을 수집하고, omitted allowed path와
-      DEV/deviation 필요 여부를 explicit scope/decision gate에서 먼저 결정; deviation을 묵시적으로 승인하지 않음
+- [x] **D4g Phase 0 observer-only characterization**: expected fixture/oracle을 읽지 않는 exact head
+      `b80f06a...`에서 MIG-075..086 actual typed facts를 locked-only/unregistered 경로로 두 번 결정적으로 수집;
+      capture each 624,739 bytes/SHA-256 `0679a540...dffb3`, inventory
+      845/86,738/`9bb0ef63...ab733f3`, unique CI #97/run `32310167590` success. Normal `Generate`, status,
+      registry와 12개 `oracle_locked` 분류는 불변
+- [ ] **D4g explicit comparison/status subphases**: immutable actual을 explicit comparison한 strict 결과는
+      0/12 contracts, 0/30 declared dimensions입니다. Actual의 generic `{case,outcomes}`/`{snapshots}`/
+      `{loads,trace}` envelope와 contract별 oracle projection 차이가 먼저 드러났으므로 이를 12개 product semantic
+      failure로 해석하지 않습니다. P1 수정 항목은 MIG-076 relation case의 required author dependency 누락,
+      public `*migrations.PlanningError` typed classification 누락, MIG-080..085 raw SQL statement count/kind actual
+      metric 미계측입니다. Projection/metric 보완 뒤 passing 검토 후보는 MIG-075/080/082/084이고, Proposed
+      `DEV-0003` 검토 후보는 MIG-076..079/081/083/085/086입니다. `DEV-0003`은 아직 Accepted가 아니며
+      deviation이나 status flip을 승인하지 않습니다. Exact order는 observer fixes → contract projections + actual
+      metrics → deterministic recapture → sparse DEV review → status/registry transition입니다.
 
 ### E. 검증과 evidence heads
 
@@ -490,8 +515,12 @@ EVID-085에 기록했습니다.
 - [x] EVID-098 docs head `85f9270...`와 bounded `RemoveForeignKeyByTableRemake` final head `9d5b894...`의
       각 고유 exact-head hosted CI — EVID-099/CI #94/#95 runs `32288383027`/`32294983953`; 각 exact
       26/26·342/342, audit P0..P3=0
-- [ ] 그 다음 oracle-blind D4g observer characterization → explicit status/deviation decision → overall
-      completion-documentation → terminal evidence/status를 서로 다른 exact-head CI로 검증
+- [x] D4g Phase 0 oracle-blind observer-only head `b80f06a...`와 unique CI #97/run `32310167590` success;
+      deterministic capture 624,739 bytes/`0679a540...dffb3`, inventory
+      845/86,738/`9bb0ef63...ab733f3`, normal Generate/status/registry 불변
+- [ ] observer fixes → contract projections + actual metrics → deterministic recapture → sparse DEV review →
+      status/registry transition → overall completion-documentation → terminal evidence/status를 서로 다른
+      exact-head CI로 검증; Proposed `DEV-0003`을 아직 Accepted로 쓰지 않음
 - [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034 bounded design을 별도 head에서 Accepted로 전환
 
 ## 명시적 비목표와 금지 경계
@@ -533,8 +562,14 @@ D4e product `7c07805...`/inventory lock `1d86f6e...`는 EVID-098/run `3228226975
 EVID-098 docs head `85f9270...`는 CI #94/run `32288383027`에서 별도로 닫혔고 D4f product
 `4982e27...`/inventory lock `9d5b894...`는 EVID-099/CI #95 run `32294983953`에서 bounded
 `RemoveForeignKeyByTableRemake`를 구현·검증했습니다. Exact capability는 `{true,true,true,true}`입니다. 다음
-정확한 작업은 oracle-blind D4g observer-only characterization입니다. MIG-075..086을 locked로 유지한 채 actual
-observation을 먼저 수집하고 omitted allowed path와 DEV/deviation 필요 여부를 explicit decision한 뒤에만 status,
+Phase 0 observer-only head `b80f06a...`는 unique CI #97/run `32310167590`에서 success였고, locked-only actual
+capture 두 개는 각각 624,739 bytes/SHA-256 `0679a540...dffb3`로 exact 동일했습니다. Frozen inventory는
+845/86,738/`9bb0ef63...ab733f3`이고 normal Generate/status/registry는 불변입니다. Explicit comparison의 strict
+결과는 generic actual projection 때문에 0/12 contracts, 0/30 dimensions이며 이를 곧바로 product semantic
+failure로 해석하지 않습니다. 다음 정확한 작업은 MIG-076 dependency와 `PlanningError` classification을 고치고
+raw SQL metric을 실제 계측한 뒤 contract projection, deterministic recapture를 순서대로 수행하는 것입니다.
+그 뒤 MIG-075/080/082/084 passing 후보와 MIG-076..079/081/083/085/086 Proposed `DEV-0003` 후보를 sparse
+DEV review에서 분리합니다. `DEV-0003`은 아직 Accepted가 아니며, review 뒤에만 status/registry를 전환하고
 overall completion, terminal 순서로 닫습니다.
 
 ## 결과와 인수인계
@@ -551,7 +586,10 @@ D4f `4982e27...`/`9d5b894...`는 EVID-099 환경에서 bounded ForeignKey Remove
 Implemented/Verified했습니다. 현재 capability는 `{true,true,true,true}`입니다. Populated required Add/reapply,
 arbitrary/general remake, general restart/actual adapter는 미지원입니다. Reference는 exact
 13/139/156=`122+5+12 locked`, product contract는
-12/127=`122+5+0`으로 불변이고 MIG-075..086은 여전히 `oracle_locked`입니다.
+12/127=`122+5+0`으로 불변이고 MIG-075..086은 여전히 `oracle_locked`입니다. D4g Phase 0 exact head
+`b80f06a...`/CI #97 run `32310167590`은 observer-only characterization만 증명합니다. Generic projection의
+strict 0/12 결과, 세 P1 observer/metric 수정 항목과 Proposed `DEV-0003` 후보 분류는 later status나 deviation을
+Accepted로 만들지 않았고 normal Generate/registry도 바꾸지 않았습니다.
 
 EVID-093의 D1/D2/D3a runs는 각 correction head만 증명하고 EVID-094/run `32231149900`은 D3b correction
 head `167ef03...`만 증명합니다. EVID-095/run `32248885053`은 D4a test-only head `424ec4d...`만,
@@ -564,5 +602,8 @@ final head `9d5b894...`만 증명합니다. 이 EVID-099 documentation mirror, l
 decision, completion/terminal 또는 MIG status 전환을 재귀적으로 증명하지 않습니다. Public raw
 `NewStateReconstructor`의 relation input은 계속 `CategoryState`/`CodeInvalidState`고 carrier-less raw relation
 execution은 `CategoryCapability`/`CodeUnsupported`입니다.
+CI #97/run `32310167590`도 exact D4g Phase 0 head `b80f06a...`만 증명하며 explicit comparison 결과,
+Proposed `DEV-0003`, later sparse deviation review/status/registry transition 또는 completion/terminal proof로
+재사용하지 않습니다.
 Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를
 다시 승인합니다.

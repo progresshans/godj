@@ -293,6 +293,9 @@
 - GDJ-0035 Phase D4f inventory lock/hosted-tested head:
   `9d5b894643f3394974c91a1127534b219840e0a1`
   (`test: refresh relation remake inventory lock`)
+- GDJ-0035 Phase D4g observer-only characterization/hosted-tested head:
+  `b80f06a5a0699dc08278e841087150fe2b232ce2`
+  (`test(conformance): characterize migration relation product`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
 - 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -404,7 +407,18 @@
   `32288383027`은 26/26·342/342와 audit P0..P3=0에서 별도로 닫혔습니다. D4f product `4982e27...`와
   inventory lock/final head `9d5b894...`의 distinct CI #95/run `32294983953`도 26/26·342/342와 audit
   P0..P3=0을 통과했으므로 bounded ForeignKey Remove-by-remake가 Implemented/Verified입니다. Current
-  capability tuple은 `{true,true,true,true}`이고 MIG/Q 분류는 불변입니다.
+  capability tuple은 `{true,true,true,true}`이고 MIG/Q 분류는 불변입니다. D4g Phase 0 observer-only head
+  `b80f06a...`, tree `d8f5699...`의 unique CI #97
+  [run 32310167590](https://github.com/progresshans/godj/actions/runs/32310167590)은 success였습니다. 서로 다른
+  fresh process가 repo 밖 O_EXCL 경로에 남긴 actual capture 두 개는 각각 624,739 bytes/SHA-256
+  `0679a54035605ab9e8b94dec2b9729e4b699c6a96cf20dc694282dec528dffb3`로 exact 동일했고, frozen inventory는
+  845 tests/86,738 bytes/SHA-256 `9bb0ef63e521749b256bbce1348c9e71bd7628e01306abe00dc546352ab733f3`입니다.
+  Normal `Generate`, status/registry는 불변이고 MIG-075..086은 모두 `oracle_locked`/unregistered입니다. Explicit
+  comparison은 generic actual projection 때문에 strict 0/12 contracts, 0/30 declared dimensions였으며 이를
+  12개 semantic product failure로 해석하지 않습니다. 남은 P1은 MIG-076 required author dependency,
+  public `*migrations.PlanningError` typed classification, MIG-080..085 raw SQL statement count/kind actual metric
+  보완입니다. Projection/metric 보완 뒤 passing 검토 후보는 MIG-075/080/082/084, Proposed `DEV-0003` 후보는
+  MIG-076..079/081/083/085/086입니다. `DEV-0003`은 아직 Accepted가 아니며 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
@@ -1451,15 +1465,23 @@ Phase D의 현재 경계는 다음과 같습니다.
   26/26 jobs·342/342 steps, annotations 0과 audit P0..P3=0을 통과했습니다. Current tuple은
   `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
   AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:true}`입니다.
+- **D4g Phase 0 observer-only completed/hosted-tested:** exact head `b80f06a...`, tree `d8f5699...`는 normal
+  registry에 등록하지 않은 locked-only characterization으로 actual typed facts만 수집했습니다. Unique CI #97/run
+  `32310167590`은 success였고 fresh-process capture 두 개는 each 624,739 bytes/`0679a540...dffb3`, inventory는
+  845/86,738/`9bb0ef63...ab733f3`입니다. Normal Generate/status/registry는 불변이고 MIG-075..086은 모두
+  `oracle_locked`/unregistered입니다. CI #97은 later comparison, deviation acceptance 또는 status transition을
+  증명하지 않습니다.
 
-다음 정확한 작업은 D4g oracle-blind observer-only characterization입니다. D4d/D4e/D4f는 nullable Add,
-empty-source required Add와 exact bounded reverse/remove universe만 소유하며 arbitrary/different/nested/self/cyclic
-target, multi-mutation, populated required Add/reapply, inbound/general remake, general restart나 actual adapter
-지원으로 확대하지 않습니다. First D4g action은 expected fixture/oracle을 보지 않고 actual GoDj observation을
-수집하되 MIG-075..086 12개 상태를 모두 `oracle_locked`로 유지합니다. 현재 work allowed paths에 없는
-`conformance/cmd/godjcheck/main.go` 추가와 DEV/deviation path 필요 여부는 별도 explicit scope/decision gate에서
-먼저 결정해야 하며 deviation을 묵시적으로 승인하지 않습니다. Completion/terminal은 그 뒤 다시 별도 head로
-닫습니다.
+Explicit comparison gate의 strict 결과는 generic `{case,outcomes}`/`{snapshots}`/`{loads,trace}` projection과
+contract별 oracle shape 차이 때문에 0/12 contracts, 0/30 dimensions입니다. 따라서 현재는 12개 모두 locked를
+유지합니다. 다음 정확한 순서는 observer fixes(MIG-076 dependency, `PlanningError`) → contract projections +
+actual raw SQL metrics → deterministic recapture → sparse DEV review → status/registry transition입니다.
+Projection/metric 보완 뒤 MIG-075/080/082/084는 passing 후보이고 MIG-076..079/081/083/085/086은 Proposed
+`DEV-0003` 후보이나, 이 문서는 `DEV-0003`을 Accepted로 전환하거나 deviation/status flip을 승인하지 않습니다.
+D4d/D4e/D4f는 nullable Add, empty-source required Add와 exact bounded reverse/remove universe만 소유하며
+arbitrary/different/nested/self/cyclic target, multi-mutation, populated required Add/reapply, inbound/general remake,
+general restart나 broader actual adapter 지원으로 확대하지 않습니다. Completion/terminal은 status/registry 전환
+뒤 별도 head에서 닫습니다.
 
 Carrier 없는 raw relation execution과 false Remove/remake capability를 가진 다른 backend는 pre-Begin
 `CategoryCapability`/`CodeUnsupported`, feature `relation_migration`으로 fail-closed합니다. Reference는 exact
@@ -1711,9 +1733,13 @@ Carrier 없는 raw relation execution과 false Remove/remake capability를 가�
   26/26·342/342·audit P0..P3=0을 통과했습니다. D4e docs head `85f9270...`/CI #94 run
   `32288383027`과 D4f product `4982e27...`/inventory lock `9d5b894...`/CI #95 run `32294983953`도 각각
   unique 26/26·342/342·audit P0..P3=0을 통과했습니다. Capability tuple은 `{true,true,true,true}`입니다.
-  다음은 MIG-075..086을 `oracle_locked`로 유지하는 D4g oracle-blind observer-only
-  characterization이며 omitted allowed path와 DEV/deviation 필요 여부를 explicit decision gate에서 먼저
-  다룹니다. Actual adapter/status transition은 그 뒤 순서입니다.
+  D4g Phase 0 observer-only head `b80f06a...`/CI #97 run `32310167590`은 success였고, exact capture는
+  624,739 bytes/`0679a540...dffb3`, inventory는 845/86,738/`9bb0ef63...ab733f3`입니다. Normal
+  Generate/status/registry는 불변이며 MIG-075..086은 모두 `oracle_locked`/unregistered입니다. Explicit
+  comparison strict 0/12는 generic projection gap을 먼저 드러냈습니다. 다음은 MIG-076 dependency와
+  `PlanningError` classification 수정 → contract projection 및 raw SQL actual metric → recapture → sparse
+  `DEV-0003` review → status/registry 순서입니다. Passing 후보 MIG-075/080/082/084와 Proposed DEV 후보
+  MIG-076..079/081/083/085/086은 아직 status 또는 Accepted deviation이 아닙니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명
