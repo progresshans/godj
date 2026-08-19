@@ -22,12 +22,276 @@ func TestSQLiteRelationMigrationCapabilities(t *testing.T) {
 	got := (&Backend{}).RelationMigrationCapabilities()
 	want := migrationbackend.RelationMigrationCapabilities{
 		CreateModelForeignKeys:            true,
-		AddNullableForeignKey:             false,
+		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: false,
 		RemoveForeignKeyByTableRemake:     false,
 	}
 	if got != want {
 		t.Fatalf("RelationMigrationCapabilities() = %+v, want %+v", got, want)
+	}
+}
+
+func TestSQLiteRelationCanonicalTableMatcherAcceptsOnlyExactTableAndMixedForms(t *testing.T) {
+	target, before, author := sqliteRelationTestModels()
+	editor := author.Clone()
+	editor.Name, editor.GoName, editor.Column, editor.Nullable = "editor", "Editor", "editor_id", true
+	editor.Relation.Reverse.Name = "edited_articles"
+	model := before.Clone()
+	model.Fields = append(model.Fields, editor)
+	targets := []migrationbackend.RelationMigrationTarget{
+		{SourceField: author, TargetModel: target, TargetKey: target.Fields[0]},
+		{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]},
+	}
+	tableLevel, err := compileSQLiteRelationCreateModel(model, targets)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mixed := `CREATE TABLE "news_article" (` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"title" VARCHAR(200) NOT NULL, ` +
+		`"author_id" INTEGER NOT NULL, ` +
+		`"editor_id" INTEGER NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION, ` +
+		`FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION)`
+	allInline := `CREATE TABLE "news_article" (` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"title" VARCHAR(200) NOT NULL, ` +
+		`"author_id" INTEGER NOT NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION, ` +
+		`"editor_id" INTEGER NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION)`
+	for name, statement := range map[string]string{
+		"table level": tableLevel,
+		"mixed":       mixed,
+		"all inline":  allInline,
+	} {
+		t.Run("accept "+name, func(t *testing.T) {
+			matches, err := matchesSQLiteRelationCanonicalTableSQL(statement, model, targets)
+			if err != nil || !matches {
+				t.Fatalf("canonical matcher(%s) = (%t, %v) for %q", name, matches, err, statement)
+			}
+		})
+	}
+	rejections := map[string]string{
+		"lowercase":             strings.Replace(mixed, "CREATE TABLE", "create table", 1),
+		"wrong source table":    strings.Replace(mixed, `"news_article"`, `"news_articles"`, 1),
+		"wrong target table":    strings.Replace(mixed, `"news_author"`, `"news_editor"`, 1),
+		"wrong target key":      strings.Replace(mixed, `("id") ON DELETE`, `("other_id") ON DELETE`, 1),
+		"cascade":               strings.Replace(mixed, "ON DELETE NO ACTION", "ON DELETE CASCADE", 1),
+		"deferrable":            strings.Replace(mixed, "ON DELETE NO ACTION", "ON DELETE NO ACTION DEFERRABLE", 1),
+		"check":                 strings.Replace(mixed, `"editor_id" INTEGER NULL`, `"editor_id" INTEGER NULL CHECK ("editor_id" > 0)`, 1),
+		"collate":               strings.Replace(mixed, `"editor_id" INTEGER NULL`, `"editor_id" INTEGER NULL COLLATE BINARY`, 1),
+		"unique":                strings.Replace(mixed, `"editor_id" INTEGER NULL`, `"editor_id" INTEGER NULL UNIQUE`, 1),
+		"constraint order":      strings.Replace(mixed, `"editor_id" INTEGER NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION, FOREIGN KEY ("author_id")`, `FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION, "editor_id" INTEGER NULL`, 1),
+		"missing constraint":    strings.Replace(mixed, `, FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION`, "", 1),
+		"duplicate constraint":  strings.Replace(mixed, `FOREIGN KEY ("author_id")`, `FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION, FOREIGN KEY ("author_id")`, 1),
+		"trailing whitespace":   mixed + " ",
+		"trailing statement":    mixed + "; SELECT 1",
+		"malformed quote":       strings.Replace(mixed, `"editor_id"`, `"editor_id`, 1),
+		"malformed parenthesis": strings.TrimSuffix(mixed, ")"),
+		"malformed comma":       strings.Replace(mixed, `, "editor_id"`, `,"editor_id"`, 1),
+	}
+	for name, statement := range rejections {
+		t.Run("reject "+name, func(t *testing.T) {
+			matches, err := matchesSQLiteRelationCanonicalTableSQL(statement, model, targets)
+			if err != nil {
+				t.Fatalf("canonical matcher(%s) unexpected error = %v", name, err)
+			}
+			if matches {
+				t.Fatalf("canonical matcher accepted %s: %q", name, statement)
+			}
+		})
+	}
+}
+
+func TestSQLiteRelationCanonicalTableMatcherAcceptsLargeMixedFormInOnePass(t *testing.T) {
+	target, _, baseRelation := sqliteRelationTestModels()
+	model := ir.Model{
+		Name: "wide", GoName: "Wide", DBTable: "wide_relation",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	targets := make([]migrationbackend.RelationMigrationTarget, 0, sqliteRelationMaxFields-1)
+	pending := make([]string, 0, sqliteRelationMaxFields/2)
+	var statement strings.Builder
+	statement.WriteString(`CREATE TABLE "wide_relation" ("id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT`)
+	for index := 1; index < sqliteRelationMaxFields; index++ {
+		field := baseRelation.Clone()
+		field.Name = fmt.Sprintf("author_%04d", index)
+		field.GoName = fmt.Sprintf("Author%04d", index)
+		field.Column = fmt.Sprintf("author_%04d_id", index)
+		field.Nullable = true
+		field.Relation.Reverse.Name = fmt.Sprintf("wide_%04d", index)
+		model.Fields = append(model.Fields, field)
+		targetMetadata := migrationbackend.RelationMigrationTarget{
+			SourceField: field,
+			TargetModel: target,
+			TargetKey:   target.Fields[0],
+		}
+		targets = append(targets, targetMetadata)
+		column, err := compileSQLiteRelationColumn(field)
+		if err != nil {
+			t.Fatal(err)
+		}
+		constraint, err := compileSQLiteRelationConstraint(targetMetadata)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statement.WriteString(", ")
+		statement.WriteString(column)
+		if index%2 == 0 {
+			statement.WriteString(" REFERENCES ")
+			statement.WriteString(constraint)
+		} else {
+			quoted, err := quoteIdentifier(field.Column)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pending = append(pending, "FOREIGN KEY ("+quoted+") REFERENCES "+constraint)
+		}
+	}
+	for _, constraint := range pending {
+		statement.WriteString(", ")
+		statement.WriteString(constraint)
+	}
+	statement.WriteByte(')')
+	canonical := statement.String()
+	matches, err := matchesSQLiteRelationCanonicalTableSQL(canonical, model, targets)
+	if err != nil || !matches {
+		t.Fatalf("large mixed canonical matcher = (%t, %v), bytes=%d fields=%d", matches, err, len(canonical), len(model.Fields))
+	}
+	drifted := strings.Replace(canonical, "ON DELETE NO ACTION)", "ON DELETE CASCADE)", 1)
+	matches, err = matchesSQLiteRelationCanonicalTableSQL(drifted, model, targets)
+	if err != nil || matches {
+		t.Fatalf("large mixed canonical matcher accepted tail drift = (%t, %v)", matches, err)
+	}
+}
+
+func TestSQLiteNullableRelationDerivedTargetExpansionIsBoundedBeforeAllocation(t *testing.T) {
+	const width = 600
+	target := ir.Model{
+		Name: "target", GoName: "Target", DBTable: "wide_target",
+		Fields: make([]ir.Field, 0, width+1),
+	}
+	target.Fields = append(target.Fields, ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true})
+	for index := 0; index < width; index++ {
+		target.Fields = append(target.Fields, ir.Field{
+			Name: fmt.Sprintf("value_%03d", index), GoName: fmt.Sprintf("Value%03d", index),
+			Column: fmt.Sprintf("value_%03d", index), Kind: ir.FieldChar, MaxLength: 1,
+		})
+	}
+	before := ir.Model{
+		Name: "source", GoName: "Source", DBTable: "wide_source",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	for index := 0; index < width; index++ {
+		before.Fields = append(before.Fields, ir.Field{
+			Name: fmt.Sprintf("target_%03d", index), GoName: fmt.Sprintf("Target%03d", index),
+			Column: fmt.Sprintf("target_%03d_id", index), Kind: ir.FieldForeignKey, Nullable: true,
+			Relation: &ir.ForeignKeyRelation{
+				Target: ir.ModelIdentity{AppLabel: "wide", ModelName: "target"}, Cardinality: ir.RelationManyToOne,
+				Reverse: ir.ReverseRelation{Name: fmt.Sprintf("sources_%03d", index)}, OnDelete: ir.DeleteProtect,
+			},
+		})
+	}
+	added := ir.Field{
+		Name: "latest_target", GoName: "LatestTarget", Column: "latest_target_id", Kind: ir.FieldForeignKey, Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target: ir.ModelIdentity{AppLabel: "wide", ModelName: "target"}, Cardinality: ir.RelationManyToOne,
+			Reverse: ir.ReverseRelation{Name: "latest_sources"}, OnDelete: ir.DeleteProtect,
+		},
+	}
+	after := before.Clone()
+	after.Fields = append(after.Fields, added)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
+	}}}
+	_, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if err == nil || !strings.Contains(err.Error(), "derived nullable relation targets") ||
+		!strings.Contains(err.Error(), "aggregate relation intent node limit") {
+		t.Fatalf("derived expansion resource error = %v", err)
+	}
+}
+
+func TestSQLiteNullableRelationDerivedTargetExpansionBytesAreBoundedBeforeAllocation(t *testing.T) {
+	const relationCount = 40
+	target := ir.Model{
+		Name: "target", GoName: "Target", DBTable: "wide_byte_target",
+		Fields: []ir.Field{
+			{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+			{
+				Name: "payload", GoName: strings.Repeat("A", 512<<10), Column: "payload",
+				Kind: ir.FieldChar, MaxLength: 1,
+			},
+		},
+	}
+	before := ir.Model{
+		Name: "source", GoName: "Source", DBTable: "wide_byte_source",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	for index := 0; index < relationCount; index++ {
+		before.Fields = append(before.Fields, ir.Field{
+			Name: fmt.Sprintf("target_%02d", index), GoName: fmt.Sprintf("Target%02d", index),
+			Column: fmt.Sprintf("target_%02d_id", index), Kind: ir.FieldForeignKey, Nullable: true,
+			Relation: &ir.ForeignKeyRelation{
+				Target: ir.ModelIdentity{AppLabel: "wide", ModelName: "target"}, Cardinality: ir.RelationManyToOne,
+				Reverse: ir.ReverseRelation{Name: fmt.Sprintf("byte_sources_%02d", index)}, OnDelete: ir.DeleteProtect,
+			},
+		})
+	}
+	added := ir.Field{
+		Name: "latest_target", GoName: "LatestTarget", Column: "latest_target_id", Kind: ir.FieldForeignKey, Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target: ir.ModelIdentity{AppLabel: "wide", ModelName: "target"}, Cardinality: ir.RelationManyToOne,
+			Reverse: ir.ReverseRelation{Name: "latest_byte_sources"}, OnDelete: ir.DeleteProtect,
+		},
+	}
+	after := before.Clone()
+	after.Fields = append(after.Fields, added)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
+	}}}
+	_, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest_bytes"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if err == nil || !strings.Contains(err.Error(), "derived nullable relation targets") ||
+		!strings.Contains(err.Error(), "aggregate relation intent byte limit") ||
+		strings.Contains(err.Error(), "node limit") {
+		t.Fatalf("derived expansion byte resource error = %v", err)
+	}
+}
+
+func TestSQLiteNullableRelationDerivedTargetsDoNotRetainCallerAliases(t *testing.T) {
+	target, before, author := sqliteRelationTestModels()
+	editor := author.Clone()
+	editor.Name, editor.GoName, editor.Column, editor.Nullable = "editor", "Editor", "editor_id", true
+	editor.Relation.Reverse.Name = "edited_articles"
+	after := before.Clone()
+	after.Fields = append(after.Fields, editor)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
+	}}}
+	seal, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if err != nil {
+		t.Fatalf("validateAndSealSQLiteRelationIntent(): %v", err)
+	}
+	intent.Operations[0].Before.Fields[2].Column = "mutated_author_id"
+	intent.Operations[0].Targets[0].TargetModel.Fields[0].Column = "mutated_id"
+	intent.Operations[0].Targets[0].TargetKey.Column = "mutated_id"
+	derived := seal.intent.Operations[0].Targets
+	if len(derived) != 2 || derived[0].SourceField.Column != "author_id" || derived[1].SourceField.Column != "editor_id" ||
+		derived[0].TargetModel.Fields[0].Column != "id" || derived[1].TargetModel.Fields[0].Column != "id" ||
+		derived[0].TargetKey.Column != "id" || derived[1].TargetKey.Column != "id" {
+		t.Fatalf("sealed derived targets retained caller alias: %+v", derived)
+	}
+	if err := verifySQLiteRelationIntentSeal(&seal); err != nil {
+		t.Fatalf("caller mutation changed sealed intent: %v", err)
 	}
 }
 
@@ -201,6 +465,794 @@ func TestSQLiteRelationCreateModelRoundTripUsesOneFencedTransaction(t *testing.T
 	}
 	if len(snapshot.records) != 0 || snapshot.token.revision != 2 {
 		t.Fatalf("final revision snapshot = %+v", snapshot)
+	}
+}
+
+func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(t *testing.T) {
+	ctx := context.Background()
+	backend, err := OpenMemory(ctx, "nullable-relation-add")
+	if err != nil {
+		t.Fatalf("OpenMemory(): %v", err)
+	}
+	t.Cleanup(func() { _ = backend.Close() })
+
+	target, before, authorField := sqliteRelationTestModels()
+	initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+	seedSQLiteRelationPhysicalSchemaAndHistory(t, ctx, backend, initial, target, before, authorField)
+	if _, err := backend.ExecContext(ctx, `INSERT INTO "news_author" ("name") VALUES ('Ada'), ('Grace')`); err != nil {
+		t.Fatalf("insert authors: %v", err)
+	}
+	if _, err := backend.ExecContext(ctx, `INSERT INTO "news_article" ("title", "author_id") VALUES ('first', 1), ('second', 1)`); err != nil {
+		t.Fatalf("insert populated articles: %v", err)
+	}
+	var sequenceBefore int64
+	if err := backend.database.QueryRowContext(ctx, `SELECT "seq" FROM main.sqlite_sequence WHERE "name" = 'news_article'`).Scan(&sequenceBefore); err != nil {
+		t.Fatalf("read source sequence before Add: %v", err)
+	}
+
+	editor := authorField.Clone()
+	editor.Name = "editor"
+	editor.GoName = "Editor"
+	editor.Column = "editor_id"
+	editor.Nullable = true
+	editor.Relation.Reverse.Name = "edited_articles"
+	after := before.Clone()
+	after.Fields = append(after.Fields, editor)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.RelationMigrationAddField,
+		Before:         before,
+		After:          after,
+		Targets: []migrationbackend.RelationMigrationTarget{{
+			SourceField: editor,
+			TargetModel: target,
+			TargetKey:   target.Fields[0],
+		}},
+	}}}
+	transition := migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}
+	session := openSQLiteRelationSession(t, backend)
+	if records, err := session.ReadAppliedMigrations(ctx); err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
+		t.Fatalf("pre-Add history = (%v, %v)", records, err)
+	}
+	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	if err != nil {
+		t.Fatalf("BeginRelationFencedMigration(nullable Add): %v", err)
+	}
+	// The caller-visible contract remains the changed-field target only. The
+	// backend derives its full private source target list without retaining
+	// these aliases.
+	intent.Operations[0].Targets[0].TargetModel.DBTable = "mutated_target"
+	intent.Operations[0].After.Fields[len(intent.Operations[0].After.Fields)-1].Column = "mutated_editor_id"
+	if err := transaction.AddField(ctx, before.Clone(), editor.Clone()); err != nil {
+		t.Fatalf("AddField(nullable relation): %v", err)
+	}
+	if err := transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name); err != nil {
+		t.Fatalf("RecordApplied(nullable relation): %v", err)
+	}
+	outcome, err := transaction.CommitFenced(ctx)
+	if err != nil || outcome.Durability != migrationbackend.CommitCommitted {
+		t.Fatalf("CommitFenced(nullable relation) = (%+v, %v)", outcome, err)
+	}
+	if err := session.Close(ctx); err != nil {
+		t.Fatalf("Close(nullable Add session): %v", err)
+	}
+
+	var createSQL string
+	if err := backend.database.QueryRowContext(ctx, `SELECT "sql" FROM main.sqlite_schema WHERE "type"='table' AND "name"='news_article'`).Scan(&createSQL); err != nil {
+		t.Fatalf("read post-Add CREATE SQL: %v", err)
+	}
+	wantSQL := `CREATE TABLE "news_article" (` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"title" VARCHAR(200) NOT NULL, ` +
+		`"author_id" INTEGER NOT NULL, ` +
+		`"editor_id" INTEGER NULL REFERENCES "news_author" ("id") ON DELETE NO ACTION, ` +
+		`FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION)`
+	if createSQL != wantSQL {
+		t.Fatalf("post-Add CREATE SQL = %q, want exact %q", createSQL, wantSQL)
+	}
+	foreignKeys, err := readSQLiteRelationForeignKeys(ctx, backend.database, before.DBTable, 2)
+	if err != nil {
+		t.Fatalf("read post-Add foreign keys: %v", err)
+	}
+	bySource := make(map[string]sqliteRelationPhysicalForeignKey, len(foreignKeys))
+	for _, foreignKey := range foreignKeys {
+		bySource[foreignKey.from] = foreignKey
+	}
+	for _, column := range []string{"author_id", "editor_id"} {
+		foreignKey, exists := bySource[column]
+		if !exists || foreignKey.table != "news_author" || foreignKey.to != "id" ||
+			foreignKey.onUpdate != "NO ACTION" || foreignKey.onDelete != "NO ACTION" ||
+			foreignKey.match != "NONE" || foreignKey.sequence != 0 {
+			t.Fatalf("post-Add foreign key %q = %+v", column, foreignKey)
+		}
+	}
+	rows, err := backend.database.QueryContext(ctx, `SELECT "id", "title", "author_id", "editor_id" FROM "news_article" ORDER BY "id"`)
+	if err != nil {
+		t.Fatalf("query populated rows after Add: %v", err)
+	}
+	defer rows.Close()
+	wantRows := []struct {
+		id     int64
+		title  string
+		author int64
+	}{{1, "first", 1}, {2, "second", 1}}
+	for index := range wantRows {
+		if !rows.Next() {
+			t.Fatalf("populated rows ended at %d", index)
+		}
+		var id, author int64
+		var title string
+		var editorID sql.NullInt64
+		if err := rows.Scan(&id, &title, &author, &editorID); err != nil {
+			t.Fatalf("scan populated row %d: %v", index, err)
+		}
+		if id != wantRows[index].id || title != wantRows[index].title || author != wantRows[index].author || editorID.Valid {
+			t.Fatalf("populated row %d = (%d,%q,%d,%v)", index, id, title, author, editorID)
+		}
+	}
+	if extra := rows.Next(); extra || rows.Err() != nil {
+		t.Fatalf("unexpected populated row tail: next=%t err=%v", extra, rows.Err())
+	}
+	var sequenceAfter int64
+	if err := backend.database.QueryRowContext(ctx, `SELECT "seq" FROM main.sqlite_sequence WHERE "name" = 'news_article'`).Scan(&sequenceAfter); err != nil || sequenceAfter != sequenceBefore {
+		t.Fatalf("source sequence after Add = (%d, %v), want %d", sequenceAfter, err, sequenceBefore)
+	}
+	if _, err := backend.ExecContext(ctx, `UPDATE "news_article" SET "editor_id"=2 WHERE "id"=1`); err != nil {
+		t.Fatalf("set valid editor relation: %v", err)
+	}
+	if _, err := backend.ExecContext(ctx, `UPDATE "news_article" SET "editor_id"=999 WHERE "id"=2`); err == nil {
+		t.Fatal("orphan editor relation update succeeded")
+	}
+
+	// A fresh session revalidates the durable history. Reverse Remove remains a
+	// pre-connection capability rejection and cannot mutate the mixed table.
+	session = openSQLiteRelationSession(t, backend)
+	if records, err := session.ReadAppliedMigrations(ctx); err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial, transition.Migration}) {
+		t.Fatalf("reopened Add history = (%v, %v)", records, err)
+	}
+	concrete := session.(*sqliteRevisionFencedSession)
+	connectionCalls := 0
+	concrete.relationConnectionHook = func(connection migrationPinnedConnection) migrationPinnedConnection {
+		connectionCalls++
+		return connection
+	}
+	remove := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.RelationMigrationRemoveField,
+		Before:         after,
+		After:          before,
+		Targets: []migrationbackend.RelationMigrationTarget{{
+			SourceField: editor,
+			TargetModel: target,
+			TargetKey:   target.Fields[0],
+		}},
+	}}}
+	removeTransition := transition
+	removeTransition.Kind = migrationbackend.HistoryTransitionUnapply
+	if transaction, err := session.BeginRelationFencedMigration(ctx, removeTransition, remove); transaction != nil || err == nil {
+		t.Fatalf("BeginRelationFencedMigration(reverse Remove) = (%v, %v), want unsupported", transaction, err)
+	} else {
+		assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+	}
+	if connectionCalls != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
+		t.Fatalf("unsupported reverse Remove crossed connection boundary: calls=%d active=%v state=%d", connectionCalls, concrete.active, concrete.state)
+	}
+	if err := session.Close(ctx); err != nil {
+		t.Fatalf("Close(reopened Remove session): %v", err)
+	}
+	var editorOne sql.NullInt64
+	var editorTwo sql.NullInt64
+	if err := backend.database.QueryRowContext(ctx, `SELECT "editor_id" FROM "news_article" WHERE "id"=1`).Scan(&editorOne); err != nil || !editorOne.Valid || editorOne.Int64 != 2 {
+		t.Fatalf("row 1 editor after rejected Remove = (%v, %v)", editorOne, err)
+	}
+	if err := backend.database.QueryRowContext(ctx, `SELECT "editor_id" FROM "news_article" WHERE "id"=2`).Scan(&editorTwo); err != nil || editorTwo.Valid {
+		t.Fatalf("row 2 editor after rejected Remove = (%v, %v)", editorTwo, err)
+	}
+}
+
+func TestSQLiteNullableRelationAddFaultsRollbackExactDurableSnapshot(t *testing.T) {
+	tests := []struct {
+		name             string
+		method           string
+		contains         string
+		corruptCanonical bool
+		owner            string
+		wantDetail       string
+		wantAlterCalls   int
+		wantFKChecks     int
+		wantRecorder     int
+	}{
+		{
+			name:           "alter",
+			method:         "exec",
+			contains:       `ALTER TABLE "main"."news_article"`,
+			owner:          "AddField",
+			wantAlterCalls: 1,
+		},
+		{
+			name:             "final canonical",
+			corruptCanonical: true,
+			owner:            "AddField",
+			wantDetail:       "canonical declaration",
+			wantAlterCalls:   1,
+		},
+		{
+			name:           "final foreign key check",
+			method:         "query",
+			contains:       "foreign_key_check",
+			owner:          "AddField",
+			wantAlterCalls: 1,
+			wantFKChecks:   1,
+		},
+		{
+			name:           "recorder",
+			method:         "exec",
+			contains:       `INSERT INTO "godj_migrations"`,
+			owner:          "RecordApplied",
+			wantAlterCalls: 1,
+			wantFKChecks:   1,
+			wantRecorder:   1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			path := filepath.Join(t.TempDir(), "nullable-add-fault.sqlite")
+			open := func() *Backend {
+				t.Helper()
+				backend, err := Open(ctx, "file:"+filepath.ToSlash(path)+"?mode=rwc")
+				if err != nil {
+					t.Fatalf("Open(nullable Add fault database): %v", err)
+				}
+				return backend
+			}
+
+			target, before, authorField := sqliteRelationTestModels()
+			initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+			backend := open()
+			seedSQLiteRelationPhysicalSchemaAndHistory(t, ctx, backend, initial, target, before, authorField)
+			if _, err := backend.ExecContext(ctx, `INSERT INTO "news_author" ("name") VALUES ('Ada'), ('Grace')`); err != nil {
+				t.Fatalf("seed nullable Add fault authors: %v", err)
+			}
+			if _, err := backend.ExecContext(ctx, `INSERT INTO "news_article" ("title", "author_id") VALUES ('first', 1), ('second', 2)`); err != nil {
+				t.Fatalf("seed nullable Add fault articles: %v", err)
+			}
+			if err := backend.Close(); err != nil {
+				t.Fatalf("close nullable Add fault seed: %v", err)
+			}
+			beforeSnapshot := readSQLiteNullableRelationAddSnapshot(t, path)
+			assertSQLiteNullableRelationAddSeedSnapshot(t, beforeSnapshot, initial)
+
+			editor := authorField.Clone()
+			editor.Name, editor.GoName, editor.Column, editor.Nullable = "editor", "Editor", "editor_id", true
+			editor.Relation.Reverse.Name = "edited_articles"
+			after := before.Clone()
+			after.Fields = append(after.Fields, editor)
+			intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+				OperationIndex: 0,
+				Kind:           migrationbackend.RelationMigrationAddField,
+				Before:         before,
+				After:          after,
+				Targets: []migrationbackend.RelationMigrationTarget{{
+					SourceField: editor,
+					TargetModel: target,
+					TargetKey:   target.Fields[0],
+				}},
+			}}}
+			transition := migrationbackend.HistoryTransition{
+				Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
+				Kind:      migrationbackend.HistoryTransitionApply,
+			}
+
+			backend = open()
+			backendClosed := false
+			defer func() {
+				if !backendClosed {
+					_ = backend.Close()
+				}
+			}()
+			session := openSQLiteRelationSession(t, backend)
+			if records, err := session.ReadAppliedMigrations(ctx); err != nil ||
+				!reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
+				t.Fatalf("read nullable Add fault history = (%v, %v)", records, err)
+			}
+			concrete := session.(*sqliteRevisionFencedSession)
+			var faultErr error
+			if test.method != "" {
+				faultErr = fmt.Errorf("nullable Add %s raw fault", test.name)
+			}
+			var boundary *sqliteNullableRelationAddFaultConnection
+			connectionHooks := 0
+			var checkpoints []sqliteRelationBeginCheckpoint
+			concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
+				checkpoints = append(checkpoints, checkpoint)
+			}
+			concrete.relationConnectionHook = func(connection migrationPinnedConnection) migrationPinnedConnection {
+				connectionHooks++
+				boundary = &sqliteNullableRelationAddFaultConnection{
+					migrationPinnedConnection: connection,
+					method:                    test.method,
+					contains:                  test.contains,
+					faultErr:                  faultErr,
+					remaining:                 1,
+					corruptCanonical:          test.corruptCanonical,
+				}
+				return boundary
+			}
+			transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+			if err != nil {
+				t.Fatalf("BeginRelationFencedMigration(nullable Add %s): %v", test.name, err)
+			}
+			if connectionHooks != 1 || boundary == nil {
+				t.Fatalf("nullable Add %s connection hooks = %d boundary=%v", test.name, connectionHooks, boundary)
+			}
+			wantCheckpoints := []sqliteRelationBeginCheckpoint{
+				sqliteRelationCheckpointForeignKeysSet,
+				sqliteRelationCheckpointForeignKeysRead,
+				sqliteRelationCheckpointTransactionBegun,
+				sqliteRelationCheckpointPhysicalPreflightComplete,
+				sqliteRelationCheckpointRevisionClaimStarting,
+				sqliteRelationCheckpointRevisionClaimed,
+			}
+			if !reflect.DeepEqual(checkpoints, wantCheckpoints) {
+				t.Fatalf("nullable Add %s Begin checkpoints = %v, want %v", test.name, checkpoints, wantCheckpoints)
+			}
+
+			addErr := transaction.AddField(ctx, before.Clone(), editor.Clone())
+			var ownedErr error
+			switch test.owner {
+			case "AddField":
+				if addErr == nil {
+					t.Fatalf("AddField(nullable Add %s) succeeded", test.name)
+				}
+				ownedErr = addErr
+			case "RecordApplied":
+				if addErr != nil {
+					t.Fatalf("AddField(nullable Add recorder fault): %v", addErr)
+				}
+				ownedErr = transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name)
+				if ownedErr == nil {
+					t.Fatal("RecordApplied(nullable Add recorder fault) succeeded")
+				}
+			default:
+				t.Fatalf("unknown nullable Add fault owner %q", test.owner)
+			}
+			wantDetail := test.wantDetail
+			if faultErr != nil {
+				wantDetail = faultErr.Error()
+			}
+			if !strings.Contains(ownedErr.Error(), wantDetail) {
+				t.Fatalf("%s(nullable Add %s) error = %v, want detail %q", test.owner, test.name, ownedErr, wantDetail)
+			}
+			if faultErr != nil && (!errors.Is(ownedErr, faultErr) || boundary.remaining != 0) {
+				t.Fatalf("nullable Add %s raw fault = errors.Is:%t remaining:%d", test.name, errors.Is(ownedErr, faultErr), boundary.remaining)
+			}
+			var fenceError *migrationbackend.RevisionFenceError
+			if errors.As(ownedErr, &fenceError) {
+				t.Fatalf("nullable Add %s raw fault was reclassified as revision fence error: %#v", test.name, fenceError)
+			}
+			wantCanonicalCorruptions := 0
+			if test.corruptCanonical {
+				wantCanonicalCorruptions = 1
+			}
+			wantCounts := [4]int{test.wantAlterCalls, test.wantFKChecks, test.wantRecorder, wantCanonicalCorruptions}
+			if got := boundary.operationCounts(); got != wantCounts {
+				t.Fatalf("nullable Add %s operation counts = %v, want %v", test.name, got, wantCounts)
+			}
+
+			// A failed owner poisons the transaction. Repeating that exact API call
+			// must return the sticky failure without executing SQL or consuming a
+			// second fault.
+			var retryErr error
+			if test.owner == "AddField" {
+				retryErr = transaction.AddField(ctx, before.Clone(), editor.Clone())
+			} else {
+				retryErr = transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name)
+			}
+			if retryErr == nil || retryErr.Error() != ownedErr.Error() {
+				t.Fatalf("%s(nullable Add %s retry) = %v, want sticky %v", test.owner, test.name, retryErr, ownedErr)
+			}
+			if got := boundary.operationCounts(); got != wantCounts {
+				t.Fatalf("nullable Add %s retry executed SQL: counts=%v want=%v", test.name, got, wantCounts)
+			}
+			if err := transaction.Rollback(ctx); err != nil {
+				t.Fatalf("Rollback(nullable Add %s): %v", test.name, err)
+			}
+			if boundary.rollbackCalls != 1 {
+				t.Fatalf("nullable Add %s rollback calls = %d, want 1", test.name, boundary.rollbackCalls)
+			}
+			if err := session.Close(ctx); err != nil {
+				t.Fatalf("Close(nullable Add %s session): %v", test.name, err)
+			}
+			if err := backend.Close(); err != nil {
+				t.Fatalf("Close(nullable Add %s backend): %v", test.name, err)
+			}
+			backendClosed = true
+
+			afterSnapshot := readSQLiteNullableRelationAddSnapshot(t, path)
+			if !reflect.DeepEqual(afterSnapshot, beforeSnapshot) {
+				t.Fatalf("nullable Add %s changed reopened durable snapshot:\nbefore=%+v\nafter=%+v", test.name, beforeSnapshot, afterSnapshot)
+			}
+		})
+	}
+}
+
+func TestSQLiteLoadedNullableRelationAddFaultTaxonomyAndRollback(t *testing.T) {
+	tests := []struct {
+		name      string
+		method    string
+		contains  string
+		category  migrations.ErrorCategory
+		code      migrations.ErrorCode
+		operation int
+		kind      string
+	}{
+		{
+			name:      "alter",
+			method:    "exec",
+			contains:  `ALTER TABLE "main"."news_article"`,
+			category:  migrations.CategoryExecution,
+			code:      migrations.CodeOperationFailed,
+			operation: 0,
+			kind:      "AddField",
+		},
+		{
+			name:      "final foreign key check",
+			method:    "query",
+			contains:  "foreign_key_check",
+			category:  migrations.CategoryExecution,
+			code:      migrations.CodeOperationFailed,
+			operation: 0,
+			kind:      "AddField",
+		},
+		{
+			name:      "recorder",
+			method:    "exec",
+			contains:  `INSERT INTO "godj_migrations"`,
+			category:  migrations.CategoryRecorder,
+			code:      migrations.CodeRecordFailed,
+			operation: migrations.NoOperation,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			path := filepath.Join(t.TempDir(), "loaded-nullable-add-fault.sqlite")
+			loaded := loadSQLiteLoadedNullableRelationAddSet(t, test.name)
+			database := openSQLiteLoadedRelationTaxonomyBackend(t, path)
+			seedState, err := loaded.Migrate(
+				ctx,
+				migrations.Executor{Backend: database},
+				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+					App: "news", Name: "0002_article",
+				})),
+			)
+			if err != nil {
+				t.Fatalf("Migrate(nullable Add taxonomy seed): %v", err)
+			}
+			assertSQLiteLoadedNullableRelationAddSeedState(t, seedState)
+			if _, err := database.ExecContext(ctx, `INSERT INTO "news_author" ("name") VALUES ('Ada'), ('Grace')`); err != nil {
+				t.Fatalf("insert nullable Add taxonomy authors: %v", err)
+			}
+			if _, err := database.ExecContext(ctx, `INSERT INTO "news_article" ("title", "author_id") VALUES ('first', 1), ('second', 2)`); err != nil {
+				t.Fatalf("insert nullable Add taxonomy articles: %v", err)
+			}
+			if err := database.Close(); err != nil {
+				t.Fatalf("close nullable Add taxonomy seed: %v", err)
+			}
+			before := readSQLiteNullableRelationAddSnapshot(t, path)
+			assertSQLiteLoadedNullableRelationAddSeedSnapshot(t, before)
+
+			database = openSQLiteLoadedRelationTaxonomyBackend(t, path)
+			cause := fmt.Errorf("loaded nullable Add %s raw fault", test.name)
+			connectionFault := &sqliteRelationBeginFaultConnection{
+				method: test.method, contains: test.contains, remaining: 1, faultErr: cause,
+			}
+			probe := &sqliteLoadedRelationTaxonomyBackend{Backend: database, fault: connectionFault}
+			state, err := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+			var migrationError *migrations.Error
+			if !errors.As(err, &migrationError) || migrationError == nil ||
+				migrationError.Category != test.category || migrationError.Code != test.code ||
+				migrationError.Direction != migrations.DirectionForward || migrationError.App != "news" ||
+				migrationError.Migration != "0003_editor" || migrationError.OperationIndex != test.operation ||
+				migrationError.Operation != test.kind || migrationError.RollbackCause != nil ||
+				!errors.Is(err, cause) {
+				t.Fatalf(
+					"%s nullable Add taxonomy = %#v (%v), want %s/%s forward news.0003_editor operation[%d]=%q raw cause",
+					test.name,
+					migrationError,
+					err,
+					test.category,
+					test.code,
+					test.operation,
+					test.kind,
+				)
+			}
+			var fenceError *migrationbackend.RevisionFenceError
+			if errors.As(migrationError.Cause, &fenceError) {
+				t.Fatalf("%s nullable Add fault was reclassified as revision fence error: %#v", test.name, fenceError)
+			}
+			if !state.Equal(seedState) {
+				t.Fatalf("%s nullable Add returned state differs from exact pre-step state", test.name)
+			}
+			assertSQLiteLoadedNullableRelationAddIntent(t, test.name, probe.transition, probe.intent)
+			wantCheckpoints := []sqliteRelationBeginCheckpoint{
+				sqliteRelationCheckpointForeignKeysSet,
+				sqliteRelationCheckpointForeignKeysRead,
+				sqliteRelationCheckpointTransactionBegun,
+				sqliteRelationCheckpointPhysicalPreflightComplete,
+				sqliteRelationCheckpointRevisionClaimStarting,
+				sqliteRelationCheckpointRevisionClaimed,
+			}
+			if !reflect.DeepEqual(probe.checkpoints, wantCheckpoints) {
+				t.Fatalf("%s nullable Add checkpoints = %v, want %v", test.name, probe.checkpoints, wantCheckpoints)
+			}
+			if connectionFault.remaining != 0 || connectionFault.closeCalls != 1 ||
+				connectionFault.rawCalls != 0 || connectionFault.rollbackCalls != 1 {
+				t.Fatalf(
+					"%s nullable Add connection = remaining:%d close:%d raw:%d rollback:%d, want 0/1/0/1",
+					test.name,
+					connectionFault.remaining,
+					connectionFault.closeCalls,
+					connectionFault.rawCalls,
+					connectionFault.rollbackCalls,
+				)
+			}
+			if probe.capabilityCalls != 1 || probe.openCalls != 1 || probe.readCalls != 1 ||
+				probe.beginCalls != 1 || probe.closeCalls != 1 || probe.connectionHookCalls != 1 ||
+				probe.transactionRollbackCalls != 1 {
+				t.Fatalf(
+					"%s nullable Add lifecycle = capability:%d open:%d read:%d begin:%d close:%d hook:%d rollback:%d, want all 1",
+					test.name,
+					probe.capabilityCalls,
+					probe.openCalls,
+					probe.readCalls,
+					probe.beginCalls,
+					probe.closeCalls,
+					probe.connectionHookCalls,
+					probe.transactionRollbackCalls,
+				)
+			}
+			if stats := database.database.Stats(); stats.InUse != 0 {
+				t.Fatalf("%s nullable Add database in-use connections = %d, want 0", test.name, stats.InUse)
+			}
+			if err := database.Close(); err != nil {
+				t.Fatalf("close nullable Add taxonomy fault database: %v", err)
+			}
+			after := readSQLiteNullableRelationAddSnapshot(t, path)
+			if !reflect.DeepEqual(after, before) {
+				t.Fatalf("%s nullable Add changed reopened durable snapshot:\nbefore=%+v\nafter=%+v", test.name, before, after)
+			}
+		})
+	}
+}
+
+func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing.T) {
+	target, before, authorField := sqliteRelationTestModels()
+	baseEditor := authorField.Clone()
+	baseEditor.Name = "editor"
+	baseEditor.GoName = "Editor"
+	baseEditor.Column = "editor_id"
+	baseEditor.Nullable = true
+	baseEditor.Relation.Reverse.Name = "edited_articles"
+	addIntent := func(field ir.Field, targetModel ir.Model, targetKey ir.Field) migrationbackend.RelationMigrationIntent {
+		after := before.Clone()
+		after.Fields = append(after.Fields, field)
+		return migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+			OperationIndex: 0,
+			Kind:           migrationbackend.RelationMigrationAddField,
+			Before:         before,
+			After:          after,
+			Targets: []migrationbackend.RelationMigrationTarget{{
+				SourceField: field,
+				TargetModel: targetModel,
+				TargetKey:   targetKey,
+			}},
+		}}}
+	}
+
+	required := baseEditor.Clone()
+	required.Nullable = false
+	differentTarget := target.Clone()
+	differentTarget.Name = "editor"
+	differentTarget.GoName = "Editor"
+	differentTarget.DBTable = "news_editor"
+	different := baseEditor.Clone()
+	different.Relation.Target.ModelName = "editor"
+	nestedTarget := target.Clone()
+	nestedTarget.Fields = append(nestedTarget.Fields, ir.Field{
+		Name: "publisher", GoName: "Publisher", Column: "publisher_id", Kind: ir.FieldForeignKey, Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "news", ModelName: "publisher"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "authors"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	})
+	reverseConflict := baseEditor.Clone()
+	reverseConflict.Relation.Reverse.Name = authorField.Relation.Reverse.Name
+	forged := addIntent(baseEditor, target, target.Fields[0])
+	forged.Operations[0].Targets[0].SourceField.Column = "forged_editor_id"
+	selfBefore := ir.Model{
+		Name: "node", GoName: "Node", DBTable: "news_node",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	selfField := baseEditor.Clone()
+	selfField.Name, selfField.GoName, selfField.Column = "parent", "Parent", "parent_id"
+	selfField.Relation.Target.ModelName = selfBefore.Name
+	selfField.Relation.Reverse.Name = "children"
+	selfAfter := selfBefore.Clone()
+	selfAfter.Fields = append(selfAfter.Fields, selfField)
+	selfIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: selfBefore, After: selfAfter,
+		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: selfField, TargetModel: selfBefore, TargetKey: selfBefore.Fields[0]}},
+	}}}
+	firstAfter := before.Clone()
+	firstAfter.Fields = append(firstAfter.Fields, baseEditor)
+	reviewer := baseEditor.Clone()
+	reviewer.Name = "reviewer"
+	reviewer.GoName = "Reviewer"
+	reviewer.Column = "reviewer_id"
+	reviewer.Relation.Reverse.Name = "reviewed_articles"
+	secondAfter := firstAfter.Clone()
+	secondAfter.Fields = append(secondAfter.Fields, reviewer)
+	multiple := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+		{
+			OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField,
+			Before: before, After: firstAfter,
+			Targets: []migrationbackend.RelationMigrationTarget{{SourceField: baseEditor, TargetModel: target, TargetKey: target.Fields[0]}},
+		},
+		{
+			OperationIndex: 1, Kind: migrationbackend.RelationMigrationAddField,
+			Before: firstAfter, After: secondAfter,
+			Targets: []migrationbackend.RelationMigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+		},
+	}}
+	tests := []struct {
+		name   string
+		intent migrationbackend.RelationMigrationIntent
+		detail string
+	}{
+		{name: "required", intent: addIntent(required, target, target.Fields[0]), detail: "requires a nullable"},
+		{name: "different target", intent: addIntent(different, differentTarget, differentTarget.Fields[0]), detail: "different symbolic target"},
+		{name: "nested target", intent: addIntent(baseEditor, nestedTarget, nestedTarget.Fields[0]), detail: "nested relation fields"},
+		{name: "reverse conflict", intent: addIntent(reverseConflict, target, target.Fields[0]), detail: "duplicated by"},
+		{name: "self relation", intent: selfIntent, detail: "self relation"},
+		{name: "forged source", intent: forged, detail: "changed-field target snapshot"},
+		{name: "multiple Adds", intent: multiple, detail: "at most one relation Add"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			backend, err := OpenMemory(ctx, "nullable-add-reject-"+strings.ReplaceAll(test.name, " ", "-"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = backend.Close() })
+			session := openSQLiteRelationSession(t, backend)
+			if _, err := session.ReadAppliedMigrations(ctx); err != nil {
+				t.Fatal(err)
+			}
+			concrete := session.(*sqliteRevisionFencedSession)
+			connectionCalls := 0
+			var checkpoints []sqliteRelationBeginCheckpoint
+			concrete.relationConnectionHook = func(connection migrationPinnedConnection) migrationPinnedConnection {
+				connectionCalls++
+				return connection
+			}
+			concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
+				checkpoints = append(checkpoints, checkpoint)
+			}
+			transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+				Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
+				Kind:      migrationbackend.HistoryTransitionApply,
+			}, test.intent)
+			if transaction != nil || err == nil || !strings.Contains(err.Error(), test.detail) {
+				t.Fatalf("BeginRelationFencedMigration(%s) = (%v, %v), want detail %q", test.name, transaction, err, test.detail)
+			}
+			if connectionCalls != 0 || len(checkpoints) != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
+				t.Fatalf("%s crossed static boundary: connections=%d checkpoints=%v active=%v state=%d", test.name, connectionCalls, checkpoints, concrete.active, concrete.state)
+			}
+			if err := session.Close(ctx); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestSQLiteNullableRelationAddCanonicalDriftFailsBeforeRevisionClaim(t *testing.T) {
+	ctx := context.Background()
+	backend, err := OpenMemory(ctx, "nullable-add-canonical-drift")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = backend.Close() })
+	target, before, authorField := sqliteRelationTestModels()
+	targetSQL, err := compileMigrationCreateModel(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Exact columns and FK semantics, but deliberately noncanonical keyword
+	// casing. Shape PRAGMAs pass; the strict one-pass SQL matcher must reject it.
+	driftSQL := `create table "news_article"(` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"title" VARCHAR(200) NOT NULL, "author_id" INTEGER NOT NULL, ` +
+		`FOREIGN KEY ("author_id") REFERENCES "news_author" ("id") ON DELETE NO ACTION)`
+	for _, statement := range []string{targetSQL, driftSQL} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("seed drift schema %q: %v", statement, err)
+		}
+	}
+	initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+	seedSQLiteMigrationHistory(t, ctx, backend, initial)
+	editor := authorField.Clone()
+	editor.Name, editor.GoName, editor.Column, editor.Nullable = "editor", "Editor", "editor_id", true
+	editor.Relation.Reverse.Name = "edited_articles"
+	after := before.Clone()
+	after.Fields = append(after.Fields, editor)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
+	}}}
+	beforeSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sourceSQLBefore string
+	if err := backend.database.QueryRowContext(ctx, `SELECT "sql" FROM main.sqlite_schema WHERE "name"='news_article'`).Scan(&sourceSQLBefore); err != nil {
+		t.Fatal(err)
+	}
+	var columnsBefore int
+	if err := backend.database.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_xinfo('news_article')`).Scan(&columnsBefore); err != nil {
+		t.Fatal(err)
+	}
+	session := openSQLiteRelationSession(t, backend)
+	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
+		t.Fatal(err)
+	}
+	concrete := session.(*sqliteRevisionFencedSession)
+	connectionCalls := 0
+	var checkpoints []sqliteRelationBeginCheckpoint
+	concrete.relationConnectionHook = func(connection migrationPinnedConnection) migrationPinnedConnection {
+		connectionCalls++
+		return connection
+	}
+	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
+		checkpoints = append(checkpoints, checkpoint)
+	}
+	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if transaction != nil || err == nil || !strings.Contains(err.Error(), "canonical declaration") {
+		t.Fatalf("BeginRelationFencedMigration(canonical drift) = (%v, %v)", transaction, err)
+	}
+	if connectionCalls != 1 {
+		t.Fatalf("canonical drift connection calls = %d, want 1", connectionCalls)
+	}
+	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
+	if err := session.Close(ctx); err != nil {
+		t.Fatalf("Close(canonical drift): %v", err)
+	}
+	afterSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
+	if err != nil || !reflect.DeepEqual(afterSnapshot, beforeSnapshot) {
+		t.Fatalf("canonical drift changed history snapshot: before=%+v after=%+v err=%v", beforeSnapshot, afterSnapshot, err)
+	}
+	var sourceSQLAfter string
+	var columnsAfter int
+	if err := backend.database.QueryRowContext(ctx, `SELECT "sql" FROM main.sqlite_schema WHERE "name"='news_article'`).Scan(&sourceSQLAfter); err != nil {
+		t.Fatal(err)
+	}
+	if err := backend.database.QueryRowContext(ctx, `SELECT COUNT(*) FROM pragma_table_xinfo('news_article')`).Scan(&columnsAfter); err != nil {
+		t.Fatal(err)
+	}
+	if sourceSQLAfter != sourceSQLBefore || columnsAfter != columnsBefore || strings.Contains(sourceSQLAfter, "editor_id") {
+		t.Fatalf("canonical drift changed source schema: SQL %q -> %q columns %d -> %d", sourceSQLBefore, sourceSQLAfter, columnsBefore, columnsAfter)
 	}
 }
 
@@ -1066,22 +2118,112 @@ func TestSQLiteRelationUnrelatedLegacyForeignKeyCycleDoesNotBlock(t *testing.T) 
 		}
 	}
 	target, source, sourceField := sqliteRelationTestModels()
+	initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+	seedSQLiteRelationPhysicalSchemaAndHistory(t, ctx, backend, initial, target, source, sourceField)
+	editor := sourceField.Clone()
+	editor.Name, editor.GoName, editor.Column, editor.Nullable = "editor", "Editor", "editor_id", true
+	editor.Relation.Reverse.Name = "edited_articles"
+	after := source.Clone()
+	after.Fields = append(after.Fields, editor)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.RelationMigrationAddField,
+		Before:         source,
+		After:          after,
+		Targets: []migrationbackend.RelationMigrationTarget{{
+			SourceField: editor,
+			TargetModel: target,
+			TargetKey:   target.Fields[0],
+		}},
+	}}}
 	session := openSQLiteRelationSession(t, backend)
-	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
-		t.Fatal(err)
+	if records, err := session.ReadAppliedMigrations(ctx); err != nil ||
+		!reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
+		t.Fatalf("unrelated cycle history = (%v, %v)", records, err)
 	}
 	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
-		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
 		Kind:      migrationbackend.HistoryTransitionApply,
-	}, sqliteRelationApplyIntent(target, source, sourceField))
+	}, intent)
 	if err != nil {
-		t.Fatalf("unrelated legacy cycle blocked relation Begin: %v", err)
+		t.Fatalf("unrelated legacy cycle blocked nullable relation Add Begin: %v", err)
 	}
 	if err := transaction.Rollback(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err := session.Close(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSQLiteNullableRelationAddTargetOutgoingCycleFailsBeforeClaim(t *testing.T) {
+	ctx := context.Background()
+	backend, err := OpenMemory(ctx, "nullable-add-target-cycle")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = backend.Close() })
+	target, source, author := sqliteRelationTestModels()
+	initial := migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"}
+	seedSQLiteRelationPhysicalSchemaAndHistory(t, ctx, backend, initial, target, source, author)
+	if _, err := backend.ExecContext(
+		ctx,
+		`ALTER TABLE "news_author" ADD COLUMN "featured_article_id" INTEGER NULL REFERENCES "news_article" ("id") ON DELETE NO ACTION`,
+	); err != nil {
+		t.Fatalf("seed target outgoing cycle: %v", err)
+	}
+	beforeSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	editor := author.Clone()
+	editor.Name, editor.GoName, editor.Column, editor.Nullable = "editor", "Editor", "editor_id", true
+	editor.Relation.Reverse.Name = "edited_articles"
+	after := source.Clone()
+	after.Fields = append(after.Fields, editor)
+	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.RelationMigrationAddField,
+		Before:         source,
+		After:          after,
+		Targets: []migrationbackend.RelationMigrationTarget{{
+			SourceField: editor,
+			TargetModel: target,
+			TargetKey:   target.Fields[0],
+		}},
+	}}}
+	session := openSQLiteRelationSession(t, backend)
+	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
+		t.Fatal(err)
+	}
+	concrete := session.(*sqliteRevisionFencedSession)
+	var checkpoints []sqliteRelationBeginCheckpoint
+	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
+		checkpoints = append(checkpoints, checkpoint)
+	}
+	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}, intent)
+	if transaction != nil || err == nil || !errors.Is(err, errSQLiteRelationPhysicalDrift) {
+		t.Fatalf("BeginRelationFencedMigration(target outgoing cycle) = (%v, %v)", transaction, err)
+	}
+	assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
+	if err := session.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+	afterSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
+	if err != nil || !reflect.DeepEqual(afterSnapshot, beforeSnapshot) {
+		t.Fatalf("target cycle changed history snapshot: before=%+v after=%+v err=%v", beforeSnapshot, afterSnapshot, err)
+	}
+	var editorColumns int
+	if err := backend.database.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*) FROM pragma_table_xinfo('news_article') WHERE "name" = 'editor_id'`,
+	).Scan(&editorColumns); err != nil || editorColumns != 0 {
+		t.Fatalf("target cycle editor columns = (%d, %v), want 0", editorColumns, err)
 	}
 }
 
@@ -2344,6 +3486,488 @@ func seedSQLiteMigrationHistory(
 	}
 }
 
+type sqliteNullableRelationAddSnapshot struct {
+	FormatVersion        int64
+	Epoch                [16]byte
+	Revision             int64
+	Fingerprint          [32]byte
+	History              []migrationbackend.AppliedMigration
+	Schema               []sqliteNullableRelationAddSchemaObject
+	Columns              []sqliteNullableRelationAddColumn
+	ForeignKeys          []sqliteNullableRelationAddForeignKey
+	Sequences            []sqliteNullableRelationAddSequence
+	Authors              []sqliteNullableRelationAddAuthor
+	Articles             []sqliteNullableRelationAddArticle
+	ForeignKeyViolations int
+}
+
+type sqliteNullableRelationAddSchemaObject struct {
+	Type       string
+	Name       string
+	Table      string
+	Definition string
+}
+
+type sqliteNullableRelationAddColumn struct {
+	Table        string
+	Position     int
+	Name         string
+	DeclaredType string
+	NotNull      int
+	DefaultValue sql.NullString
+	PrimaryKey   int
+	Hidden       int
+}
+
+type sqliteNullableRelationAddForeignKey struct {
+	SourceTable string
+	ID          int
+	Sequence    int
+	TargetTable string
+	FromColumn  string
+	ToColumn    string
+	OnUpdate    string
+	OnDelete    string
+	Match       string
+}
+
+type sqliteNullableRelationAddSequence struct {
+	Table string
+	Value int64
+}
+
+type sqliteNullableRelationAddAuthor struct {
+	ID   int64
+	Name string
+}
+
+type sqliteNullableRelationAddArticle struct {
+	ID       int64
+	Title    string
+	AuthorID int64
+}
+
+func readSQLiteNullableRelationAddSnapshot(t *testing.T, path string) sqliteNullableRelationAddSnapshot {
+	t.Helper()
+	ctx := context.Background()
+	reader, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open read-only nullable Add snapshot: %v", err)
+	}
+	reader.SetMaxOpenConns(1)
+	defer func() {
+		if err := reader.Close(); err != nil {
+			t.Errorf("close read-only nullable Add snapshot: %v", err)
+		}
+	}()
+	tx, err := reader.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("begin read-only nullable Add snapshot: %v", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	snapshot := sqliteNullableRelationAddSnapshot{
+		History:     make([]migrationbackend.AppliedMigration, 0),
+		Schema:      make([]sqliteNullableRelationAddSchemaObject, 0),
+		Columns:     make([]sqliteNullableRelationAddColumn, 0),
+		ForeignKeys: make([]sqliteNullableRelationAddForeignKey, 0),
+		Sequences:   make([]sqliteNullableRelationAddSequence, 0),
+		Authors:     make([]sqliteNullableRelationAddAuthor, 0),
+		Articles:    make([]sqliteNullableRelationAddArticle, 0),
+	}
+	var epoch, fingerprint []byte
+	if err := tx.QueryRowContext(
+		ctx,
+		`SELECT "format_version", "epoch", "revision", "history_fingerprint" `+
+			`FROM "godj_migration_revision" WHERE "singleton" = 1`,
+	).Scan(&snapshot.FormatVersion, &epoch, &snapshot.Revision, &fingerprint); err != nil {
+		t.Fatalf("read nullable Add revision token: %v", err)
+	}
+	if len(epoch) != len(snapshot.Epoch) || len(fingerprint) != len(snapshot.Fingerprint) {
+		t.Fatalf("nullable Add token bytes = epoch:%d fingerprint:%d", len(epoch), len(fingerprint))
+	}
+	copy(snapshot.Epoch[:], epoch)
+	copy(snapshot.Fingerprint[:], fingerprint)
+
+	historyRows, err := tx.QueryContext(ctx, `SELECT "app", "name" FROM "godj_migrations" ORDER BY "app", "name"`)
+	if err != nil {
+		t.Fatalf("read nullable Add history: %v", err)
+	}
+	for historyRows.Next() {
+		var record migrationbackend.AppliedMigration
+		if err := historyRows.Scan(&record.App, &record.Name); err != nil {
+			_ = historyRows.Close()
+			t.Fatalf("scan nullable Add history: %v", err)
+		}
+		snapshot.History = append(snapshot.History, record)
+	}
+	if err := historyRows.Err(); err != nil {
+		_ = historyRows.Close()
+		t.Fatalf("iterate nullable Add history: %v", err)
+	}
+	if err := historyRows.Close(); err != nil {
+		t.Fatalf("close nullable Add history: %v", err)
+	}
+
+	schemaRows, err := tx.QueryContext(
+		ctx,
+		`SELECT "type", "name", "tbl_name", COALESCE("sql", '') FROM main.sqlite_schema `+
+			`WHERE "name" NOT LIKE 'sqlite_%' ORDER BY "type", "name", "tbl_name", "sql"`,
+	)
+	if err != nil {
+		t.Fatalf("read nullable Add schema: %v", err)
+	}
+	for schemaRows.Next() {
+		var object sqliteNullableRelationAddSchemaObject
+		if err := schemaRows.Scan(&object.Type, &object.Name, &object.Table, &object.Definition); err != nil {
+			_ = schemaRows.Close()
+			t.Fatalf("scan nullable Add schema: %v", err)
+		}
+		snapshot.Schema = append(snapshot.Schema, object)
+	}
+	if err := schemaRows.Err(); err != nil {
+		_ = schemaRows.Close()
+		t.Fatalf("iterate nullable Add schema: %v", err)
+	}
+	if err := schemaRows.Close(); err != nil {
+		t.Fatalf("close nullable Add schema: %v", err)
+	}
+
+	for _, table := range []string{"news_author", "news_article"} {
+		columnRows, err := tx.QueryContext(ctx, `PRAGMA main.table_xinfo("`+table+`")`)
+		if err != nil {
+			t.Fatalf("read nullable Add columns for %s: %v", table, err)
+		}
+		for columnRows.Next() {
+			column := sqliteNullableRelationAddColumn{Table: table}
+			if err := columnRows.Scan(
+				&column.Position,
+				&column.Name,
+				&column.DeclaredType,
+				&column.NotNull,
+				&column.DefaultValue,
+				&column.PrimaryKey,
+				&column.Hidden,
+			); err != nil {
+				_ = columnRows.Close()
+				t.Fatalf("scan nullable Add columns for %s: %v", table, err)
+			}
+			snapshot.Columns = append(snapshot.Columns, column)
+		}
+		if err := columnRows.Err(); err != nil {
+			_ = columnRows.Close()
+			t.Fatalf("iterate nullable Add columns for %s: %v", table, err)
+		}
+		if err := columnRows.Close(); err != nil {
+			t.Fatalf("close nullable Add columns for %s: %v", table, err)
+		}
+
+		foreignKeyRows, err := tx.QueryContext(ctx, `PRAGMA main.foreign_key_list("`+table+`")`)
+		if err != nil {
+			t.Fatalf("read nullable Add foreign keys for %s: %v", table, err)
+		}
+		for foreignKeyRows.Next() {
+			foreignKey := sqliteNullableRelationAddForeignKey{SourceTable: table}
+			if err := foreignKeyRows.Scan(
+				&foreignKey.ID,
+				&foreignKey.Sequence,
+				&foreignKey.TargetTable,
+				&foreignKey.FromColumn,
+				&foreignKey.ToColumn,
+				&foreignKey.OnUpdate,
+				&foreignKey.OnDelete,
+				&foreignKey.Match,
+			); err != nil {
+				_ = foreignKeyRows.Close()
+				t.Fatalf("scan nullable Add foreign keys for %s: %v", table, err)
+			}
+			snapshot.ForeignKeys = append(snapshot.ForeignKeys, foreignKey)
+		}
+		if err := foreignKeyRows.Err(); err != nil {
+			_ = foreignKeyRows.Close()
+			t.Fatalf("iterate nullable Add foreign keys for %s: %v", table, err)
+		}
+		if err := foreignKeyRows.Close(); err != nil {
+			t.Fatalf("close nullable Add foreign keys for %s: %v", table, err)
+		}
+	}
+
+	sequenceRows, err := tx.QueryContext(ctx, `SELECT "name", "seq" FROM main.sqlite_sequence ORDER BY "name"`)
+	if err != nil {
+		t.Fatalf("read nullable Add sequences: %v", err)
+	}
+	for sequenceRows.Next() {
+		var sequence sqliteNullableRelationAddSequence
+		if err := sequenceRows.Scan(&sequence.Table, &sequence.Value); err != nil {
+			_ = sequenceRows.Close()
+			t.Fatalf("scan nullable Add sequences: %v", err)
+		}
+		snapshot.Sequences = append(snapshot.Sequences, sequence)
+	}
+	if err := sequenceRows.Err(); err != nil {
+		_ = sequenceRows.Close()
+		t.Fatalf("iterate nullable Add sequences: %v", err)
+	}
+	if err := sequenceRows.Close(); err != nil {
+		t.Fatalf("close nullable Add sequences: %v", err)
+	}
+
+	authorRows, err := tx.QueryContext(ctx, `SELECT "id", "name" FROM "news_author" ORDER BY "id"`)
+	if err != nil {
+		t.Fatalf("read nullable Add authors: %v", err)
+	}
+	for authorRows.Next() {
+		var author sqliteNullableRelationAddAuthor
+		if err := authorRows.Scan(&author.ID, &author.Name); err != nil {
+			_ = authorRows.Close()
+			t.Fatalf("scan nullable Add authors: %v", err)
+		}
+		snapshot.Authors = append(snapshot.Authors, author)
+	}
+	if err := authorRows.Err(); err != nil {
+		_ = authorRows.Close()
+		t.Fatalf("iterate nullable Add authors: %v", err)
+	}
+	if err := authorRows.Close(); err != nil {
+		t.Fatalf("close nullable Add authors: %v", err)
+	}
+
+	articleRows, err := tx.QueryContext(ctx, `SELECT "id", "title", "author_id" FROM "news_article" ORDER BY "id"`)
+	if err != nil {
+		t.Fatalf("read nullable Add articles: %v", err)
+	}
+	for articleRows.Next() {
+		var article sqliteNullableRelationAddArticle
+		if err := articleRows.Scan(&article.ID, &article.Title, &article.AuthorID); err != nil {
+			_ = articleRows.Close()
+			t.Fatalf("scan nullable Add articles: %v", err)
+		}
+		snapshot.Articles = append(snapshot.Articles, article)
+	}
+	if err := articleRows.Err(); err != nil {
+		_ = articleRows.Close()
+		t.Fatalf("iterate nullable Add articles: %v", err)
+	}
+	if err := articleRows.Close(); err != nil {
+		t.Fatalf("close nullable Add articles: %v", err)
+	}
+
+	violationRows, err := tx.QueryContext(ctx, `PRAGMA main.foreign_key_check`)
+	if err != nil {
+		t.Fatalf("read nullable Add foreign-key violations: %v", err)
+	}
+	for violationRows.Next() {
+		snapshot.ForeignKeyViolations++
+		var table, parent string
+		var rowID sql.NullInt64
+		var foreignKeyID int
+		if err := violationRows.Scan(&table, &rowID, &parent, &foreignKeyID); err != nil {
+			_ = violationRows.Close()
+			t.Fatalf("scan nullable Add foreign-key violation: %v", err)
+		}
+	}
+	if err := violationRows.Err(); err != nil {
+		_ = violationRows.Close()
+		t.Fatalf("iterate nullable Add foreign-key violations: %v", err)
+	}
+	if err := violationRows.Close(); err != nil {
+		t.Fatalf("close nullable Add foreign-key violations: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit read-only nullable Add snapshot: %v", err)
+	}
+	committed = true
+	return snapshot
+}
+
+func assertSQLiteNullableRelationAddSeedSnapshot(
+	t *testing.T,
+	snapshot sqliteNullableRelationAddSnapshot,
+	initial migrationbackend.AppliedMigration,
+) {
+	t.Helper()
+	wantHistory := []migrationbackend.AppliedMigration{initial}
+	wantAuthors := []sqliteNullableRelationAddAuthor{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Grace"}}
+	wantArticles := []sqliteNullableRelationAddArticle{
+		{ID: 1, Title: "first", AuthorID: 1},
+		{ID: 2, Title: "second", AuthorID: 2},
+	}
+	wantSequences := []sqliteNullableRelationAddSequence{{Table: "news_article", Value: 2}, {Table: "news_author", Value: 2}}
+	if snapshot.FormatVersion != migrationRevisionFormatVersion || snapshot.Revision != 1 ||
+		snapshot.Epoch == ([16]byte{}) || snapshot.Fingerprint != fingerprintMigrationHistory(snapshot.History) ||
+		!reflect.DeepEqual(snapshot.History, wantHistory) ||
+		!reflect.DeepEqual(snapshot.Authors, wantAuthors) ||
+		!reflect.DeepEqual(snapshot.Articles, wantArticles) ||
+		!reflect.DeepEqual(snapshot.Sequences, wantSequences) ||
+		snapshot.ForeignKeyViolations != 0 {
+		t.Fatalf("nullable Add fault seed snapshot = %+v", snapshot)
+	}
+	if len(snapshot.Columns) != 5 || len(snapshot.ForeignKeys) != 1 {
+		t.Fatalf("nullable Add fault seed shape = columns:%+v foreignKeys:%+v", snapshot.Columns, snapshot.ForeignKeys)
+	}
+	foreignKey := snapshot.ForeignKeys[0]
+	if foreignKey.SourceTable != "news_article" || foreignKey.TargetTable != "news_author" ||
+		foreignKey.FromColumn != "author_id" || foreignKey.ToColumn != "id" ||
+		foreignKey.Sequence != 0 || foreignKey.OnUpdate != "NO ACTION" ||
+		foreignKey.OnDelete != "NO ACTION" || foreignKey.Match != "NONE" {
+		t.Fatalf("nullable Add fault seed foreign key = %+v", foreignKey)
+	}
+	for _, object := range snapshot.Schema {
+		if object.Name == "news_article" && strings.Contains(object.Definition, "editor_id") {
+			t.Fatalf("nullable Add fault seed already contains editor column: %+v", object)
+		}
+	}
+}
+
+func loadSQLiteLoadedNullableRelationAddSet(t *testing.T, label string) migrationdefinition.Set {
+	t.Helper()
+	suffix := strings.ReplaceAll(label, " ", "-")
+	loaded, report, err := migrationdefinition.Load(
+		migrationdefinition.Source{
+			SourceID: "loaded-nullable-add-author-" + suffix,
+			Document: sqliteLoadedNullableRelationAddAuthorDocument(),
+		},
+		migrationdefinition.Source{
+			SourceID: "loaded-nullable-add-article-" + suffix,
+			Document: sqliteLoadedNullableRelationAddArticleDocument(),
+		},
+		migrationdefinition.Source{
+			SourceID: "loaded-nullable-add-editor-" + suffix,
+			Document: sqliteLoadedNullableRelationAddEditorDocument(),
+		},
+	)
+	if err != nil {
+		t.Fatalf("Load(nullable Add taxonomy %s): %v", label, err)
+	}
+	if report.DocumentsReceived != 3 || report.HeadersValidated != 3 || report.OperationsDecoded != 3 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 3 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("Load(nullable Add taxonomy %s) report = %+v", label, report)
+	}
+	return loaded
+}
+
+func sqliteLoadedNullableRelationAddAuthorDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
+		`"migration":{"app":"news","name":"0001_author","dependencies":[],"operations":[` +
+		`{"kind":"create_model","app_label":"news","model":{` +
+		`"name":"author","go_name":"Author","db_table":"news_author","fields":[` +
+		`{"name":"id","go_name":"ID","column":"id","kind":"auto",` +
+		`"primary_key":true,"nullable":false,"max_length":0,"default":null},` +
+		`{"name":"name","go_name":"Name","column":"name","kind":"char",` +
+		`"primary_key":false,"nullable":false,"max_length":120,"default":null}]}}]}}`)
+}
+
+func sqliteLoadedNullableRelationAddArticleDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
+		`"migration":{"app":"news","name":"0002_article",` +
+		`"dependencies":[{"app":"news","name":"0001_author"}],"operations":[` +
+		`{"kind":"create_model","app_label":"news","model":{` +
+		`"name":"article","go_name":"Article","db_table":"news_article","fields":[` +
+		`{"name":"id","go_name":"ID","column":"id","kind":"auto",` +
+		`"primary_key":true,"nullable":false,"max_length":0,"default":null},` +
+		`{"name":"title","go_name":"Title","column":"title","kind":"char",` +
+		`"primary_key":false,"nullable":false,"max_length":200,"default":null},` +
+		`{"name":"author","go_name":"Author","column":"author_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"news","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"articles","disabled":false},` +
+		`"on_delete":"protect"}}]}}]}}`)
+}
+
+func sqliteLoadedNullableRelationAddEditorDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
+		`"migration":{"app":"news","name":"0003_editor",` +
+		`"dependencies":[{"app":"news","name":"0002_article"}],"operations":[` +
+		`{"kind":"add_field","app_label":"news","model_name":"article","field":{` +
+		`"name":"editor","go_name":"Editor","column":"editor_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":true,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"news","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"edited_articles","disabled":false},` +
+		`"on_delete":"protect"}}}]}}`)
+}
+
+func assertSQLiteLoadedNullableRelationAddSeedState(t *testing.T, state migrations.ProjectState) {
+	t.Helper()
+	if state.FormatVersion() != migrations.RelationStateFormatVersion ||
+		!reflect.DeepEqual(state.Apps(), []string{"news"}) {
+		t.Fatalf("nullable Add taxonomy seed state = format:%d apps:%v", state.FormatVersion(), state.Apps())
+	}
+	author, authorExists := state.Model("news", "author")
+	article, articleExists := state.Model("news", "article")
+	if !authorExists || len(author.Fields) != 2 || !articleExists || len(article.Fields) != 3 ||
+		article.Fields[2].Relation == nil || article.Fields[2].Relation.Target.ModelName != "author" {
+		t.Fatalf("nullable Add taxonomy seed models = author:%+v/%t article:%+v/%t", author, authorExists, article, articleExists)
+	}
+}
+
+func assertSQLiteLoadedNullableRelationAddSeedSnapshot(t *testing.T, snapshot sqliteNullableRelationAddSnapshot) {
+	t.Helper()
+	wantHistory := []migrationbackend.AppliedMigration{
+		{App: "news", Name: "0001_author"},
+		{App: "news", Name: "0002_article"},
+	}
+	wantAuthors := []sqliteNullableRelationAddAuthor{{ID: 1, Name: "Ada"}, {ID: 2, Name: "Grace"}}
+	wantArticles := []sqliteNullableRelationAddArticle{
+		{ID: 1, Title: "first", AuthorID: 1},
+		{ID: 2, Title: "second", AuthorID: 2},
+	}
+	wantSequences := []sqliteNullableRelationAddSequence{{Table: "news_article", Value: 2}, {Table: "news_author", Value: 2}}
+	if snapshot.FormatVersion != migrationRevisionFormatVersion || snapshot.Revision != 2 ||
+		snapshot.Epoch == ([16]byte{}) || snapshot.Fingerprint != fingerprintMigrationHistory(snapshot.History) ||
+		!reflect.DeepEqual(snapshot.History, wantHistory) ||
+		!reflect.DeepEqual(snapshot.Authors, wantAuthors) ||
+		!reflect.DeepEqual(snapshot.Articles, wantArticles) ||
+		!reflect.DeepEqual(snapshot.Sequences, wantSequences) ||
+		snapshot.ForeignKeyViolations != 0 || len(snapshot.Columns) != 5 || len(snapshot.ForeignKeys) != 1 {
+		t.Fatalf("loaded nullable Add seed snapshot = %+v", snapshot)
+	}
+	foreignKey := snapshot.ForeignKeys[0]
+	if foreignKey.SourceTable != "news_article" || foreignKey.TargetTable != "news_author" ||
+		foreignKey.FromColumn != "author_id" || foreignKey.ToColumn != "id" ||
+		foreignKey.Sequence != 0 || foreignKey.OnUpdate != "NO ACTION" ||
+		foreignKey.OnDelete != "NO ACTION" || foreignKey.Match != "NONE" {
+		t.Fatalf("loaded nullable Add seed foreign key = %+v", foreignKey)
+	}
+	for _, object := range snapshot.Schema {
+		if object.Name == "news_article" && strings.Contains(object.Definition, "editor_id") {
+			t.Fatalf("loaded nullable Add seed already contains editor column: %+v", object)
+		}
+	}
+}
+
+func assertSQLiteLoadedNullableRelationAddIntent(
+	t *testing.T,
+	label string,
+	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.RelationMigrationIntent,
+) {
+	t.Helper()
+	if transition != (migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0003_editor"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}) || len(intent.Operations) != 1 {
+		t.Fatalf("%s loaded nullable Add begin payload = transition:%+v intent:%+v", label, transition, intent)
+	}
+	operation := intent.Operations[0]
+	if operation.OperationIndex != 0 || operation.Kind != migrationbackend.RelationMigrationAddField ||
+		operation.Before.DBTable != "news_article" || len(operation.Before.Fields) != 3 ||
+		operation.After.DBTable != "news_article" || len(operation.After.Fields) != 4 ||
+		operation.After.Fields[3].Name != "editor" || !operation.After.Fields[3].Nullable ||
+		len(operation.Targets) != 1 || !reflect.DeepEqual(operation.Targets[0].SourceField, operation.After.Fields[3]) ||
+		operation.Targets[0].TargetModel.DBTable != "news_author" ||
+		len(operation.Targets[0].TargetModel.Fields) != 2 || operation.Targets[0].TargetKey.Column != "id" {
+		t.Fatalf("%s loaded nullable Add operation payload = %+v", label, operation)
+	}
+}
+
 type sqliteLoadedRelationTaxonomyCase struct {
 	name        string
 	beginErr    error
@@ -3060,6 +4684,99 @@ func (executor *countingRelationSQLExecutor) QueryContext(
 ) (*sql.Rows, error) {
 	executor.queryCalls++
 	return executor.migrationSQLExecutor.QueryContext(ctx, statement, arguments...)
+}
+
+type sqliteNullableRelationAddFaultConnection struct {
+	migrationPinnedConnection
+	method               string
+	contains             string
+	faultErr             error
+	remaining            int
+	corruptCanonical     bool
+	alterCalls           int
+	foreignKeyCheckCalls int
+	recorderCalls        int
+	canonicalCorruptions int
+	rollbackCalls        int
+}
+
+func (connection *sqliteNullableRelationAddFaultConnection) ExecContext(
+	ctx context.Context,
+	statement string,
+	arguments ...any,
+) (sql.Result, error) {
+	if statement == "ROLLBACK" {
+		connection.rollbackCalls++
+	}
+	isAlter := strings.Contains(statement, `ALTER TABLE "main"."news_article"`)
+	if isAlter {
+		connection.alterCalls++
+	}
+	if strings.Contains(statement, `INSERT INTO "godj_migrations"`) {
+		connection.recorderCalls++
+	}
+	if err := connection.inject("exec", statement); err != nil {
+		return nil, err
+	}
+	result, err := connection.migrationPinnedConnection.ExecContext(ctx, statement, arguments...)
+	if err != nil || !isAlter || !connection.corruptCanonical {
+		return result, err
+	}
+	if _, err := connection.migrationPinnedConnection.ExecContext(ctx, `PRAGMA writable_schema = ON`); err != nil {
+		return result, fmt.Errorf("enable writable_schema for canonical fault: %w", err)
+	}
+	update, updateErr := connection.migrationPinnedConnection.ExecContext(
+		ctx,
+		`UPDATE main.sqlite_schema SET "sql" = "sql" || ' ' WHERE "type" = 'table' AND "name" = 'news_article'`,
+	)
+	_, disableErr := connection.migrationPinnedConnection.ExecContext(ctx, `PRAGMA writable_schema = OFF`)
+	if updateErr != nil || disableErr != nil {
+		return result, errors.Join(
+			fmt.Errorf("corrupt nullable Add canonical SQL: %w", updateErr),
+			fmt.Errorf("disable writable_schema after canonical fault: %w", disableErr),
+		)
+	}
+	rows, err := update.RowsAffected()
+	if err != nil {
+		return result, fmt.Errorf("count nullable Add canonical SQL corruption: %w", err)
+	}
+	if rows != 1 {
+		return result, fmt.Errorf("corrupt nullable Add canonical SQL changed %d rows, want 1", rows)
+	}
+	connection.canonicalCorruptions++
+	return result, nil
+}
+
+func (connection *sqliteNullableRelationAddFaultConnection) QueryContext(
+	ctx context.Context,
+	statement string,
+	arguments ...any,
+) (*sql.Rows, error) {
+	if strings.Contains(statement, "foreign_key_check") {
+		connection.foreignKeyCheckCalls++
+	}
+	if err := connection.inject("query", statement); err != nil {
+		return nil, err
+	}
+	return connection.migrationPinnedConnection.QueryContext(ctx, statement, arguments...)
+}
+
+func (connection *sqliteNullableRelationAddFaultConnection) inject(method, statement string) error {
+	if connection.remaining == 0 || connection.method != method ||
+		!strings.Contains(statement, connection.contains) {
+		return nil
+	}
+	connection.remaining--
+	return connection.faultErr
+}
+
+func (connection *sqliteNullableRelationAddFaultConnection) operationCounts() [4]int {
+	return [4]int{
+		connection.alterCalls,
+		connection.foreignKeyCheckCalls,
+		connection.recorderCalls,
+		connection.canonicalCorruptions,
+	}
 }
 
 type sqliteRelationBeginFaultConnection struct {

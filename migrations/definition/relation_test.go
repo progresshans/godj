@@ -651,6 +651,154 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 	}()
 }
 
+func TestLoadedNullableRelationAddMigratesThroughSQLiteAndReverseRemoveStaysUnsupported(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "loaded-nullable-relation-add.sqlite")
+	baseHistory := []backend.AppliedMigration{
+		{App: "authors", Name: "0001_author"},
+		{App: "blog", Name: "0001_article"},
+		{App: "blog", Name: "0002_article_title"},
+	}
+	addHistory := append(append([]backend.AppliedMigration(nil), baseHistory...), backend.AppliedMigration{
+		App: "blog", Name: "0003_article_reviewer",
+	})
+
+	database := openDefinitionSQLiteRestartBackend(t, path)
+	base := loadDefinitionSQLiteRestartSet(t, "authors", "blog", "tail")
+	state, err := base.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Migrate(nullable Add base): %v", err)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, state, false)
+	insertDefinitionSQLiteRestartRows(t, database, true)
+	baseSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+	if !reflect.DeepEqual(baseSnapshot.History, baseHistory) {
+		t.Fatalf("nullable Add base history = %v", baseSnapshot.History)
+	}
+	sequenceBefore := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`)
+	authorSequenceBefore := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`)
+
+	loaded := loadDefinitionSQLiteRestartSet(t, "nullable-reviewer", "tail", "authors", "blog")
+	state, err = loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("Migrate(nullable relation Add): %v", err)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, state, true)
+	articleState, exists := state.Model("blog", "article")
+	if !exists || len(articleState.Fields) != 4 || articleState.Fields[3].Name != "reviewer" ||
+		!articleState.Fields[3].Nullable || articleState.Fields[3].Default != nil {
+		t.Fatalf("nullable reviewer historical state = %#v/%t", articleState, exists)
+	}
+	addSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+	if addSnapshot.Revision != baseSnapshot.Revision+1 || addSnapshot.Epoch != baseSnapshot.Epoch ||
+		!reflect.DeepEqual(addSnapshot.History, addHistory) ||
+		!reflect.DeepEqual(addSnapshot.Rows, baseSnapshot.Rows) {
+		t.Fatalf("nullable Add durable transition: base=%+v add=%+v", baseSnapshot, addSnapshot)
+	}
+	if sequenceAfter := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`); sequenceAfter != sequenceBefore {
+		t.Fatalf("nullable Add sequence = %d, want %d", sequenceAfter, sequenceBefore)
+	}
+	if authorSequenceAfter := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`); authorSequenceAfter != authorSequenceBefore {
+		t.Fatalf("nullable Add author sequence = %d, want %d", authorSequenceAfter, authorSequenceBefore)
+	}
+	if reviewer := readDefinitionSQLiteNullableInteger(t, path, `SELECT "reviewer_id" FROM "blog_article" WHERE "id"=51`); reviewer.Valid {
+		t.Fatalf("existing row reviewer after nullable Add = %v, want NULL", reviewer)
+	}
+	foreignKeys := make(map[string]definitionSQLiteRestartForeignKey, len(addSnapshot.ForeignKeys))
+	for _, foreignKey := range addSnapshot.ForeignKeys {
+		foreignKeys[foreignKey.FromColumn] = foreignKey
+	}
+	if len(foreignKeys) != 2 {
+		t.Fatalf("nullable Add physical foreign keys = %+v", addSnapshot.ForeignKeys)
+	}
+	for _, column := range []string{"author_id", "reviewer_id"} {
+		foreignKey, exists := foreignKeys[column]
+		if !exists || foreignKey.SourceTable != "blog_article" || foreignKey.TargetTable != "authors_author" ||
+			foreignKey.ToColumn != "id" || foreignKey.Sequence != 0 || foreignKey.OnUpdate != "NO ACTION" ||
+			foreignKey.OnDelete != "NO ACTION" || foreignKey.Match != "NONE" {
+			t.Fatalf("nullable Add foreign key %q = %+v", column, foreignKey)
+		}
+	}
+	var articleSQL string
+	for _, object := range addSnapshot.Schema {
+		if object.Type == "table" && object.Name == "blog_article" {
+			articleSQL = object.Definition
+		}
+	}
+	wantArticleSQL := `CREATE TABLE "blog_article" (` +
+		`"id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, ` +
+		`"author_id" INTEGER NOT NULL, ` +
+		`"title" VARCHAR(64) NOT NULL, ` +
+		`"reviewer_id" INTEGER NULL REFERENCES "authors_author" ("id") ON DELETE NO ACTION, ` +
+		`FOREIGN KEY ("author_id") REFERENCES "authors_author" ("id") ON DELETE NO ACTION)`
+	if articleSQL != wantArticleSQL {
+		t.Fatalf("nullable Add canonical mixed CREATE SQL = %q, want %q", articleSQL, wantArticleSQL)
+	}
+	if _, err := database.ExecContext(ctx, `UPDATE "blog_article" SET "reviewer_id"=41 WHERE "id"=51`); err != nil {
+		t.Fatalf("set valid loaded reviewer: %v", err)
+	}
+	if _, err := database.ExecContext(ctx, `UPDATE "blog_article" SET "reviewer_id"=9999 WHERE "id"=51`); err == nil {
+		t.Fatal("loaded nullable Add accepted orphan reviewer")
+	}
+	updatedSnapshot := readDefinitionSQLiteRestartSnapshot(t, path)
+	updatedReviewer := readDefinitionSQLiteNullableInteger(t, path, `SELECT "reviewer_id" FROM "blog_article" WHERE "id"=51`)
+	updatedAuthorSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`)
+	updatedArticleSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`)
+	if !updatedReviewer.Valid || updatedReviewer.Int64 != 41 ||
+		updatedAuthorSequence != authorSequenceBefore || updatedArticleSequence != sequenceBefore ||
+		!reflect.DeepEqual(updatedSnapshot, addSnapshot) {
+		t.Fatalf("updated nullable Add values = reviewer:%v author-seq:%d article-seq:%d", updatedReviewer, updatedAuthorSequence, updatedArticleSequence)
+	}
+	if err := database.Close(); err != nil {
+		t.Fatalf("Close(nullable Add process): %v", err)
+	}
+
+	// Fresh backend + freshly decoded sources must treat Latest as an exact
+	// no-op, then reject reverse Remove before changing any durable state.
+	database = openDefinitionSQLiteRestartBackend(t, path)
+	defer closeDefinitionSQLiteRestartBackend(t, database)
+	loaded = loadDefinitionSQLiteRestartSet(t, "blog", "nullable-reviewer", "authors", "tail")
+	noOpState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	if err != nil {
+		t.Fatalf("reopened nullable Add Latest: %v", err)
+	}
+	assertDefinitionSQLiteRestartRelationState(t, noOpState, true)
+	beforeRemove := readDefinitionSQLiteRestartSnapshot(t, path)
+	if !reflect.DeepEqual(beforeRemove, updatedSnapshot) ||
+		readDefinitionSQLiteNullableInteger(t, path, `SELECT "reviewer_id" FROM "blog_article" WHERE "id"=51`) != updatedReviewer ||
+		readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`) != updatedAuthorSequence ||
+		readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`) != updatedArticleSequence {
+		t.Fatalf("reopened Latest changed nullable Add durable state:\nupdated=%+v\nreopened=%+v", updatedSnapshot, beforeRemove)
+	}
+	removeState, removeErr := loaded.Migrate(
+		ctx,
+		migrations.Executor{Backend: database},
+		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+			App: "blog", Name: "0002_article_title",
+		})),
+	)
+	assertDefinitionSQLiteRestartCapabilityError(
+		t,
+		removeErr,
+		migrations.DirectionBackward,
+		"RemoveForeignKeyByTableRemake",
+	)
+	assertDefinitionSQLiteRestartRelationState(t, removeState, true)
+	afterRemove := readDefinitionSQLiteRestartSnapshot(t, path)
+	if !reflect.DeepEqual(afterRemove, beforeRemove) {
+		t.Fatalf("reverse Remove changed nullable Add snapshot:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
+	}
+	if reviewer := readDefinitionSQLiteNullableInteger(t, path, `SELECT "reviewer_id" FROM "blog_article" WHERE "id"=51`); reviewer != updatedReviewer {
+		t.Fatalf("reverse Remove changed reviewer = %v, want %v", reviewer, updatedReviewer)
+	}
+	if authorSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`); authorSequence != updatedAuthorSequence {
+		t.Fatalf("reverse Remove changed author sequence = %d, want %d", authorSequence, updatedAuthorSequence)
+	}
+	if articleSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`); articleSequence != updatedArticleSequence {
+		t.Fatalf("reverse Remove changed article sequence = %d, want %d", articleSequence, updatedArticleSequence)
+	}
+}
+
 const definitionSQLiteRestartEpochSize = 16
 
 type definitionSQLiteRestartSnapshot struct {
@@ -731,6 +879,11 @@ func loadDefinitionSQLiteRestartSet(t *testing.T, order ...string) Set {
 				SourceID: "relation-blog-reviewer",
 				Document: relationRestartReviewerDocument(),
 			})
+		case "nullable-reviewer":
+			sources = append(sources, Source{
+				SourceID: "relation-blog-nullable-reviewer",
+				Document: relationRestartNullableReviewerDocument(),
+			})
 		default:
 			t.Fatalf("unknown relation restart source %q", name)
 		}
@@ -776,6 +929,19 @@ func relationRestartReviewerDocument() []byte {
 		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
 		`"name":"reviewer","go_name":"Reviewer","column":"reviewer_id","kind":"foreign_key",` +
 		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
+		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
+		`"cardinality":"many_to_one","reverse":{"name":"review_comments","disabled":false},` +
+		`"on_delete":"protect"}}}]}}`)
+}
+
+func relationRestartNullableReviewerDocument() []byte {
+	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+		`"producer":{"name":"restart-relation","version":"1"},` +
+		`"migration":{"app":"blog","name":"0003_article_reviewer",` +
+		`"dependencies":[{"app":"blog","name":"0002_article_title"}],"operations":[` +
+		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
+		`"name":"reviewer","go_name":"Reviewer","column":"reviewer_id","kind":"foreign_key",` +
+		`"primary_key":false,"nullable":true,"max_length":0,"default":null,` +
 		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
 		`"cardinality":"many_to_one","reverse":{"name":"review_comments","disabled":false},` +
 		`"on_delete":"protect"}}}]}}`)
@@ -969,6 +1135,34 @@ func readDefinitionSQLiteRestartSnapshot(t *testing.T, path string) definitionSQ
 	}
 	committed = true
 	return snapshot
+}
+
+func readDefinitionSQLiteInteger(t *testing.T, path, statement string) int64 {
+	t.Helper()
+	reader, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open read-only SQLite integer: %v", err)
+	}
+	defer func() { _ = reader.Close() }()
+	var value int64
+	if err := reader.QueryRowContext(context.Background(), statement).Scan(&value); err != nil {
+		t.Fatalf("read SQLite integer with %q: %v", statement, err)
+	}
+	return value
+}
+
+func readDefinitionSQLiteNullableInteger(t *testing.T, path, statement string) sql.NullInt64 {
+	t.Helper()
+	reader, err := sql.Open("sqlite", "file:"+filepath.ToSlash(path)+"?mode=ro")
+	if err != nil {
+		t.Fatalf("open read-only SQLite nullable integer: %v", err)
+	}
+	defer func() { _ = reader.Close() }()
+	var value sql.NullInt64
+	if err := reader.QueryRowContext(context.Background(), statement).Scan(&value); err != nil {
+		t.Fatalf("read SQLite nullable integer with %q: %v", statement, err)
+	}
+	return value
 }
 
 func readDefinitionSQLiteRestartRows(

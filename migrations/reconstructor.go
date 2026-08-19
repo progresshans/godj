@@ -1804,6 +1804,9 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		}
 	}
 	r.finishLoadedMigration(builder, migration)
+	if err := validateLoadedNullableRelationAddAuthorities(step, migration, operationViews); err != nil {
+		return loadedMaterializedStep{}, err
+	}
 
 	intent := loadedRelationIntent{}
 	if relationBearing {
@@ -1880,6 +1883,86 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		stateUnchanged: stateUnchanged,
 		seal:           seal,
 	}, nil
+}
+
+// validateLoadedNullableRelationAddAuthorities closes the intentionally narrow
+// target universe that can be represented by the public AddField intent. The
+// public operation carries only the changed field's target snapshot, so core
+// authorizes a nullable ForeignKey Add only when that one immutable snapshot
+// also identifies every relation already present on the source model and the
+// target snapshot contains no nested relations. At most one nullable relation
+// Add may target a given source model in one migration step, keeping every
+// Before/After boundary unambiguous. Backends must independently enforce the
+// same closure before deriving any additional target bindings.
+//
+// This check is part of materialization rather than constructor readiness so
+// both the whole-plan dry pass and the execution rematerialization re-evaluate
+// it against their exact historical builders. Its capability error deliberately
+// has NoOperation attribution: no prefix in the migration step may begin when
+// the complete relation intent cannot be sealed.
+func validateLoadedNullableRelationAddAuthorities(
+	step PlanStep,
+	migration Migration,
+	views []loadedOperationView,
+) error {
+	if step.Direction != DirectionForward {
+		return nil
+	}
+	fail := func(detail string) error {
+		return loadedRelationCapabilityError(step, migration, detail)
+	}
+	counts := make(map[loadedModelIdentity]int)
+	for viewIndex := range views {
+		view := views[viewIndex]
+		var field ir.Field
+		switch value := view.operation.(type) {
+		case AddField:
+			field = value.Field
+		case *AddField:
+			if value == nil {
+				continue
+			}
+			field = value.Field
+		default:
+			continue
+		}
+		if !fieldContainsRelation(field) {
+			continue
+		}
+		// Other AddField shapes keep their existing capability routing. In
+		// particular, a required ForeignKey is owned by the separate
+		// AddRequiredForeignKeyToEmptyTable capability and must not be
+		// relabelled by this nullable-only authority closure.
+		if field.Kind != ir.FieldForeignKey || field.Relation == nil || !field.Nullable ||
+			field.Default != nil || field.PrimaryKey {
+			continue
+		}
+		source := loadedModelIdentity{app: view.appLabel, model: view.before.Name}
+		counts[source]++
+		if counts[source] > 1 {
+			return fail("nullable ForeignKey Add permits at most one relation Add per source model in a migration step")
+		}
+		if !view.beforeExists {
+			return fail("nullable ForeignKey Add source model is not present in the sealed historical state")
+		}
+		if len(view.targets) != 1 || view.targets[0].sourceFieldName != field.Name {
+			return fail("nullable ForeignKey Add requires exactly one changed-field target snapshot")
+		}
+		if modelContainsRelation(view.targets[0].targetModel) {
+			return fail("nullable ForeignKey Add target model contains nested relation fields outside the sealed target universe")
+		}
+		want := field.Relation.Target
+		for index := range view.before.Fields {
+			existing := view.before.Fields[index]
+			if !fieldContainsRelation(existing) {
+				continue
+			}
+			if existing.Kind != ir.FieldForeignKey || existing.Relation == nil || existing.Relation.Target != want {
+				return fail("nullable ForeignKey Add source contains a pre-existing relation with a different symbolic target")
+			}
+		}
+	}
+	return nil
 }
 
 func loadedBuilderModelView(builder *loadedStateBuilder, identity loadedModelIdentity) (ir.Model, bool) {

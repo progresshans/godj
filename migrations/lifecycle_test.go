@@ -399,6 +399,93 @@ func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *
 	})
 }
 
+func TestExecutorMigrateLoadedNullableRelationAddUsesChangedTargetOnly(t *testing.T) {
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(len(definitions)))
+	fake := newLifecycleTestBackend(session)
+	fake.relationCapabilities = backend.RelationMigrationCapabilities{
+		CreateModelForeignKeys: true,
+		AddNullableForeignKey:  true,
+	}
+	state, err := (Executor{Backend: fake}).Migrate(
+		lifecycleLoadedContext(t, definitions),
+		definitions,
+		LatestLifecycleRequest(),
+	)
+	if err != nil {
+		t.Fatalf("Migrate(nullable same-target Add): %v", err)
+	}
+	if state.FormatVersion() != RelationStateFormatVersion || fake.relationCapabilityCount != 1 ||
+		session.readCount != 1 || session.beginCount != 1 || session.relationBeginCount != 2 ||
+		len(session.relationIntents) != 2 {
+		t.Fatalf(
+			"nullable Add lifecycle = format:%d capability:%d read:%d scalar:%d relation:%d intents:%d",
+			state.FormatVersion(), fake.relationCapabilityCount, session.readCount,
+			session.beginCount, session.relationBeginCount, len(session.relationIntents),
+		)
+	}
+	addIntent := session.relationIntents[1]
+	if len(addIntent.Operations) != 2 || addIntent.Operations[0].Kind != backend.RelationMigrationAddField ||
+		len(addIntent.Operations[0].Targets) != 0 || addIntent.Operations[1].Kind != backend.RelationMigrationAddField ||
+		len(addIntent.Operations[1].Targets) != 1 || addIntent.Operations[1].Targets[0].SourceField.Name != "editor" ||
+		addIntent.Operations[1].Targets[0].TargetModel.Name != "author" {
+		t.Fatalf("nullable Add public backend intent = %#v", addIntent)
+	}
+}
+
+func TestExecutorMigrateLoadedNullableRelationAuthorityRejectsWholePlanBeforeCapabilityAndBegins(t *testing.T) {
+	tests := []struct {
+		name   string
+		defs   []Migration
+		detail string
+	}{
+		{
+			name:   "different pre-existing target",
+			defs:   lifecycleLoadedNullableDifferentTargetDefinitions(),
+			detail: "different symbolic target",
+		},
+		{
+			name:   "nested target",
+			defs:   lifecycleLoadedNullableNestedTargetDefinitions(),
+			detail: "nested relation fields",
+		},
+		{
+			name:   "two Adds on one source",
+			defs:   lifecycleLoadedNullableMultipleAddDefinitions(),
+			detail: "at most one relation Add per source model",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			session := newLifecycleTestSession(nil, lifecycleCommittedTransactions(len(test.defs)))
+			fake := newLifecycleTestBackend(session)
+			fake.relationCapabilities = backend.RelationMigrationCapabilities{
+				CreateModelForeignKeys: true,
+				AddNullableForeignKey:  true,
+			}
+			state, err := (Executor{Backend: fake}).Migrate(
+				lifecycleLoadedContext(t, test.defs),
+				test.defs,
+				LatestLifecycleRequest(),
+			)
+			assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+			var capability *backend.CapabilityError
+			if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
+				!strings.Contains(capability.Detail, test.detail) {
+				t.Fatalf("authority closure error = %#v capability=%#v", err, capability)
+			}
+			if len(state.Apps()) != 0 || fake.relationCapabilityCount != 0 || session.readCount != 1 ||
+				session.beginCount != 0 || session.relationBeginCount != 0 || len(session.transitions) != 0 {
+				t.Fatalf(
+					"authority rejection touched lifecycle: apps=%v capability=%d read=%d scalar=%d relation=%d transitions=%v",
+					state.Apps(), fake.relationCapabilityCount, session.readCount,
+					session.beginCount, session.relationBeginCount, session.transitions,
+				)
+			}
+		})
+	}
+}
+
 func TestExecutorMigrateLoadedRelationCancellationAndOptionalPortBoundaries(t *testing.T) {
 	definitions := lifecycleLoadedRelationCreateDefinitions()[:2]
 
@@ -1620,6 +1707,120 @@ func lifecycleLoadedCompleteIntentDefinitions() []Migration {
 				AddField{AppLabel: "blog", ModelName: "post", Field: lifecyclePublishedField()},
 				AddField{AppLabel: "blog", ModelName: "post", Field: lifecycleLoadedAuthorField()},
 			},
+		},
+	}
+}
+
+func lifecycleLoadedNullableSameTargetDefinitions() []Migration {
+	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
+	sourceKey := MigrationKey{App: "blog", Name: "0001_article"}
+	return []Migration{
+		{
+			App: targetKey.App, Name: targetKey.Name,
+			Operations: []Operation{CreateModel{AppLabel: targetKey.App, Model: lifecycleLoadedAuthorModel()}},
+		},
+		{
+			App: sourceKey.App, Name: sourceKey.Name, Dependencies: []MigrationKey{targetKey},
+			Operations: []Operation{CreateModel{AppLabel: sourceKey.App, Model: ir.Model{
+				Name: "article", GoName: "Article", DBTable: "blog_article",
+				Fields: []ir.Field{
+					{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+					lifecycleLoadedRelationField("author", "Author", "author_id", "authors", "author", "articles", false),
+				},
+			}}},
+		},
+		{
+			App: "blog", Name: "0002_editor", Dependencies: []MigrationKey{sourceKey},
+			Operations: []Operation{
+				AddField{AppLabel: "blog", ModelName: "article", Field: ir.Field{
+					Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, MaxLength: 64, Nullable: true,
+				}},
+				AddField{AppLabel: "blog", ModelName: "article", Field: lifecycleLoadedRelationField(
+					"editor", "Editor", "editor_id", "authors", "author", "edited_articles", true,
+				)},
+			},
+		},
+	}
+}
+
+func lifecycleLoadedNullableDifferentTargetDefinitions() []Migration {
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	editorKey := MigrationKey{App: "editors", Name: "0001_editor"}
+	editorModel := lifecycleLoadedAuthorModel()
+	editorModel.Name = "editor"
+	editorModel.GoName = "Editor"
+	editorModel.DBTable = "editors_editor"
+	definitions = append(definitions[:1], append([]Migration{{
+		App: editorKey.App, Name: editorKey.Name,
+		Operations: []Operation{CreateModel{AppLabel: editorKey.App, Model: editorModel}},
+	}}, definitions[1:]...)...)
+	definitions[2].Dependencies = append(definitions[2].Dependencies, editorKey)
+	add := definitions[3].Operations[1].(AddField)
+	add.Field.Relation.Target = ir.ModelIdentity{AppLabel: "editors", ModelName: "editor"}
+	definitions[3].Operations[1] = add
+	return definitions
+}
+
+func lifecycleLoadedNullableNestedTargetDefinitions() []Migration {
+	organizationKey := MigrationKey{App: "organizations", Name: "0001_organization"}
+	authorKey := MigrationKey{App: "authors", Name: "0001_author"}
+	sourceKey := MigrationKey{App: "blog", Name: "0001_article"}
+	organization := ir.Model{
+		Name: "organization", GoName: "Organization", DBTable: "organizations_organization",
+		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
+	}
+	author := lifecycleLoadedAuthorModel()
+	author.Fields = append(author.Fields, lifecycleLoadedRelationField(
+		"organization", "Organization", "organization_id", "organizations", "organization", "authors", false,
+	))
+	return []Migration{
+		{App: organizationKey.App, Name: organizationKey.Name, Operations: []Operation{CreateModel{AppLabel: organizationKey.App, Model: organization}}},
+		{App: authorKey.App, Name: authorKey.Name, Dependencies: []MigrationKey{organizationKey}, Operations: []Operation{CreateModel{AppLabel: authorKey.App, Model: author}}},
+		{
+			App: sourceKey.App, Name: sourceKey.Name, Dependencies: []MigrationKey{authorKey},
+			Operations: []Operation{CreateModel{AppLabel: sourceKey.App, Model: ir.Model{
+				Name: "article", GoName: "Article", DBTable: "blog_article",
+				Fields: []ir.Field{
+					{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+					lifecycleLoadedRelationField("author", "Author", "author_id", "authors", "author", "articles", false),
+				},
+			}}},
+		},
+		{
+			App: "blog", Name: "0002_editor", Dependencies: []MigrationKey{sourceKey},
+			Operations: []Operation{
+				AddField{AppLabel: "blog", ModelName: "article", Field: ir.Field{Name: "summary", GoName: "Summary", Column: "summary", Kind: ir.FieldChar, MaxLength: 64, Nullable: true}},
+				AddField{AppLabel: "blog", ModelName: "article", Field: lifecycleLoadedRelationField("editor", "Editor", "editor_id", "authors", "author", "edited_articles", true)},
+			},
+		},
+	}
+}
+
+func lifecycleLoadedNullableMultipleAddDefinitions() []Migration {
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	definitions[2].Operations = append(definitions[2].Operations, AddField{
+		AppLabel: "blog", ModelName: "article",
+		Field: lifecycleLoadedRelationField("reviewer", "Reviewer", "reviewer_id", "authors", "author", "reviewed_articles", true),
+	})
+	return definitions
+}
+
+func lifecycleLoadedRelationField(
+	name,
+	goName,
+	column,
+	targetApp,
+	targetModel,
+	reverse string,
+	nullable bool,
+) ir.Field {
+	return ir.Field{
+		Name: name, GoName: goName, Column: column, Kind: ir.FieldForeignKey, Nullable: nullable,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: targetApp, ModelName: targetModel},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: reverse},
+			OnDelete:    ir.DeleteProtect,
 		},
 	}
 }

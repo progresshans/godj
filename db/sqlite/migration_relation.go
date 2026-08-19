@@ -37,11 +37,11 @@ var _ migrationbackend.RelationRevisionFencedBackend = (*Backend)(nil)
 var _ migrationbackend.RelationRevisionFencedSession = (*sqliteRevisionFencedSession)(nil)
 
 // RelationMigrationCapabilities advertises only the direct relation DDL that
-// this slice implements. Add/remove relation fields remain fail-closed.
+// this slice implements. Required Add and Remove remain fail-closed.
 func (*Backend) RelationMigrationCapabilities() migrationbackend.RelationMigrationCapabilities {
 	return migrationbackend.RelationMigrationCapabilities{
 		CreateModelForeignKeys:            true,
-		AddNullableForeignKey:             false,
+		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: false,
 		RemoveForeignKeyByTableRemake:     false,
 	}
@@ -179,62 +179,76 @@ func (index *sqliteRelationReverseAppOwners) firstFieldCollision(
 func registerSQLiteInitialRelationReverseOwners(
 	transition migrationbackend.HistoryTransition,
 	intent migrationbackend.RelationMigrationIntent,
-	expectedRelationFields [][]ir.Field,
 	initial map[string]ir.Model,
-	owners *sqliteRelationReverseAppOwners,
+	owners *sqliteRelationReverseOwnerIndex,
 ) error {
-	initialFieldNames := make(map[string]map[string]struct{})
 	for position := range intent.Operations {
 		operation := intent.Operations[position]
-		if operation.Kind != migrationbackend.RelationMigrationDeleteModel {
+		if reflect.DeepEqual(operation.Before, ir.Model{}) {
 			continue
 		}
-		relationFields := expectedRelationFields[position]
-		if len(operation.Targets) != len(relationFields) {
-			continue
-		}
+		relationFields := relationFieldsInModel(operation.Before)
 		for targetIndex := range relationFields {
 			field := relationFields[targetIndex]
-			target := operation.Targets[targetIndex]
-			if field.Relation == nil ||
-				!reflect.DeepEqual(target.SourceField, field) ||
-				field.Relation.Target.AppLabel != transition.Migration.App ||
-				target.TargetModel.Name != field.Relation.Target.ModelName {
+			if field.Relation == nil {
+				return relationIntentIntegrity(
+					"relation operation %d initial source field %q has no relation metadata",
+					operation.OperationIndex,
+					field.Name,
+				)
+			}
+			if len(operation.Targets) == 0 {
+				// A scalar operation on a relation-bearing source carries no
+				// target metadata. A later relation operation on the same ordered
+				// source will seed the owner from its complete sealed target list;
+				// otherwise normal exact-target validation fails closed.
 				continue
+			}
+			if targetIndex >= len(operation.Targets) ||
+				!reflect.DeepEqual(operation.Targets[targetIndex].SourceField, field) {
+				return relationIntentIntegrity(
+					"relation operation %d initial source target %d is not in exact field order",
+					operation.OperationIndex,
+					targetIndex,
+				)
+			}
+			target := &operation.Targets[targetIndex]
+			if target.TargetModel.Name != field.Relation.Target.ModelName {
+				return relationIntentIntegrity(
+					"relation operation %d initial source field %q lacks exact sealed target metadata",
+					operation.OperationIndex,
+					field.Name,
+				)
 			}
 			reverse := field.Relation.Reverse.Name
 			if reverse == "" {
 				continue
 			}
-			targetKey := sqliteRelationIdentifierKey(field.Relation.Target.ModelName)
-			initialTarget, exists := initial[targetKey]
-			if !exists {
-				continue
-			}
-			fieldNames := initialFieldNames[targetKey]
-			if fieldNames == nil {
-				fieldNames = make(map[string]struct{}, len(initialTarget.Fields))
-				for fieldIndex := range initialTarget.Fields {
-					fieldNames[initialTarget.Fields[fieldIndex].Name] = struct{}{}
+			targetSnapshot := target.TargetModel
+			if field.Relation.Target.AppLabel == transition.Migration.App {
+				if visible, exists := initial[sqliteRelationIdentifierKey(field.Relation.Target.ModelName)]; exists {
+					targetSnapshot = visible
 				}
-				initialFieldNames[targetKey] = fieldNames
+			}
+			for fieldIndex := range targetSnapshot.Fields {
+				if targetSnapshot.Fields[fieldIndex].Name == reverse {
+					return relationIntentIntegrity(
+						"relation operation %d initial target field %q collides with reverse name registered by %s.%s",
+						operation.OperationIndex,
+						reverse,
+						operation.Before.Name,
+						field.Name,
+					)
+				}
 			}
 			owner := sqliteRelationReverseOwner{model: operation.Before.Name, field: field.Name}
-			if _, collision := fieldNames[reverse]; collision {
-				return relationIntentIntegrity(
-					"relation operation %d initial target field %q collides with reverse name registered by %s.%s",
-					operation.OperationIndex,
-					reverse,
-					owner.model,
-					owner.field,
-				)
-			}
-			if previous, duplicate := owners.register(initialTarget.Name, reverse, owner); duplicate && previous != owner {
+			targetOwners := owners.app(field.Relation.Target.AppLabel)
+			if previous, duplicate := targetOwners.register(target.TargetModel.Name, reverse, owner); duplicate && previous != owner {
 				return relationIntentIntegrity(
 					"relation reverse name %q on %s.%s is duplicated by %s.%s",
 					reverse,
-					transition.Migration.App,
-					initialTarget.Name,
+					field.Relation.Target.AppLabel,
+					target.TargetModel.Name,
 					previous.model,
 					previous.field,
 				)
@@ -432,6 +446,13 @@ func validateAndSealSQLiteRelationIntent(
 	pinned := cloneSQLiteRelationIntent(intent)
 	externalTargets, err := validateSQLiteRelationIntent(transition, pinned)
 	if err != nil {
+		return sqliteRelationIntentSeal{}, err
+	}
+	// Nullable ForeignKey Add validation expands the sealed private copy from
+	// the public changed-field target to a complete source-field-ordered target
+	// list. Re-scan the derived representation so cloning that authority cannot
+	// evade the original aggregate resource envelope.
+	if err := scanSQLiteRelationIntentResources(transition, pinned); err != nil {
 		return sqliteRelationIntentSeal{}, err
 	}
 	digest, err := hashSQLiteRelationIntent(pinned)
@@ -752,6 +773,7 @@ func validateSQLiteRelationIntent(
 	beforeModels := make([]ir.Model, len(intent.Operations))
 	afterModels := make([]ir.Model, len(intent.Operations))
 	expectedRelationFields := make([][]ir.Field, len(intent.Operations))
+	nullableRelationAdds := make(map[string]int)
 	for position := range intent.Operations {
 		operation := intent.Operations[position]
 		wantIndex := position
@@ -785,8 +807,24 @@ func validateSQLiteRelationIntent(
 			if err != nil {
 				return nil, relationIntentIntegrity("relation AddField operation %d: %v", operation.OperationIndex, err)
 			}
-			if field.Kind == ir.FieldForeignKey || len(operation.Targets) != 0 {
-				return nil, relationIntentUnsupported("SQLite D3a does not support relation-bearing AddField operation %d", operation.OperationIndex)
+			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
+				sourceKey := sqliteRelationIdentifierKey(after.Name)
+				nullableRelationAdds[sourceKey]++
+				if nullableRelationAdds[sourceKey] > 1 {
+					return nil, relationIntentUnsupported(
+						"nullable relation AddField permits at most one relation Add per source model %q in a migration step",
+						after.Name,
+					)
+				}
+				derived, err := deriveSQLiteNullableRelationAddTargets(operation, field)
+				if err != nil {
+					return nil, err
+				}
+				intent.Operations[position].Targets = derived
+				operation = intent.Operations[position]
+				expectedRelationFields[position] = relationFieldsInModel(after)
+			} else if len(operation.Targets) != 0 {
+				return nil, relationIntentIntegrity("scalar relation-step AddField operation %d has target metadata", operation.OperationIndex)
 			}
 		case migrationbackend.RelationMigrationDeleteModel:
 			if !reflect.DeepEqual(operation.After, ir.Model{}) {
@@ -804,7 +842,7 @@ func validateSQLiteRelationIntent(
 				return nil, relationIntentIntegrity("relation RemoveField operation %d: %v", operation.OperationIndex, err)
 			}
 			if field.Kind == ir.FieldForeignKey || len(operation.Targets) != 0 {
-				return nil, relationIntentUnsupported("SQLite D3a does not support relation-bearing RemoveField operation %d", operation.OperationIndex)
+				return nil, relationIntentUnsupported("SQLite does not support relation-bearing RemoveField operation %d", operation.OperationIndex)
 			}
 		default:
 			return nil, relationIntentIntegrity("relation operation %d has invalid kind %d", operation.OperationIndex, operation.Kind)
@@ -864,9 +902,8 @@ func validateSQLiteRelationIntent(
 	if err := registerSQLiteInitialRelationReverseOwners(
 		transition,
 		intent,
-		expectedRelationFields,
 		current,
-		localReverseOwners,
+		reverseOwners,
 	); err != nil {
 		return nil, err
 	}
@@ -893,8 +930,9 @@ func validateSQLiteRelationIntent(
 		}
 		for targetIndex := range operation.Targets {
 			if operation.Kind != migrationbackend.RelationMigrationCreateModel &&
-				operation.Kind != migrationbackend.RelationMigrationDeleteModel {
-				return nil, relationIntentUnsupported("SQLite D3a does not support relation target metadata on operation %d kind %d", operation.OperationIndex, operation.Kind)
+				operation.Kind != migrationbackend.RelationMigrationDeleteModel &&
+				operation.Kind != migrationbackend.RelationMigrationAddField {
+				return nil, relationIntentUnsupported("SQLite relation target metadata is unsupported on operation %d kind %d", operation.OperationIndex, operation.Kind)
 			}
 			hasSupportedRelation = true
 			target := operation.Targets[targetIndex]
@@ -1035,11 +1073,17 @@ func validateSQLiteRelationStaticOperation(
 		}
 	case migrationbackend.RelationMigrationAddField:
 		field := after.Fields[len(after.Fields)-1]
-		if field.PrimaryKey || field.Kind == ir.FieldForeignKey {
-			return relationIntentUnsupported("relation-step AddField operation %d must be scalar and non-primary-key", operation.OperationIndex)
-		}
-		if _, err := compileMigrationAddField(before, field); err != nil {
-			return relationIntentUnsupported("relation-step AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
+		if field.Kind == ir.FieldForeignKey {
+			if _, err := compileSQLiteNullableRelationAddField(before, field, operation.Targets); err != nil {
+				return relationIntentUnsupported("nullable relation AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
+			}
+		} else {
+			if field.PrimaryKey {
+				return relationIntentUnsupported("relation-step AddField operation %d must be non-primary-key", operation.OperationIndex)
+			}
+			if _, err := compileMigrationAddField(before, field); err != nil {
+				return relationIntentUnsupported("relation-step AddField operation %d cannot compile safely: %v", operation.OperationIndex, err)
+			}
 		}
 	case migrationbackend.RelationMigrationRemoveField:
 		field := before.Fields[len(before.Fields)-1]
@@ -1065,6 +1109,121 @@ func validateSQLiteRelationAddDelta(before, after ir.Model) (ir.Field, error) {
 		return ir.Field{}, errors.New("After must append exactly one field to the same model")
 	}
 	return after.Fields[len(after.Fields)-1], nil
+}
+
+// deriveSQLiteNullableRelationAddTargets independently enforces the same
+// closed authority universe as migrations core. The public intent supplies
+// target metadata only for the changed field; SQLite may derive bindings for
+// pre-existing source relations solely by reusing that sealed snapshot when
+// every symbolic target is exactly identical. It never consults the physical
+// catalog or a current runtime registry to fill missing historical metadata.
+// The enclosing validator also permits at most one nullable relation Add per
+// source model in a migration step so the initial/final target prefix is
+// unambiguous.
+func deriveSQLiteNullableRelationAddTargets(
+	operation migrationbackend.RelationMigrationOperation,
+	field ir.Field,
+) ([]migrationbackend.RelationMigrationTarget, error) {
+	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey ||
+		!field.Nullable || field.Default != nil {
+		return nil, relationIntentUnsupported(
+			"relation AddField operation %d requires a nullable non-primary-key ForeignKey with no migration default",
+			operation.OperationIndex,
+		)
+	}
+	if len(operation.Targets) != 1 || !reflect.DeepEqual(operation.Targets[0].SourceField, field) {
+		return nil, relationIntentIntegrity(
+			"relation AddField operation %d requires exactly the changed-field target snapshot",
+			operation.OperationIndex,
+		)
+	}
+	changed := operation.Targets[0]
+	if err := validateExactNormalizedRelationModel(changed.TargetModel); err != nil {
+		return nil, relationIntentIntegrity(
+			"relation AddField operation %d target model is not exact normalized IR: %v",
+			operation.OperationIndex,
+			err,
+		)
+	}
+	if changed.TargetModel.Name != field.Relation.Target.ModelName {
+		return nil, relationIntentIntegrity(
+			"relation AddField operation %d target model name %q does not match source declaration %q",
+			operation.OperationIndex,
+			changed.TargetModel.Name,
+			field.Relation.Target.ModelName,
+		)
+	}
+	primaryKey, err := exactRelationTargetPrimaryKey(changed.TargetModel)
+	if err != nil {
+		return nil, relationIntentIntegrity("relation AddField operation %d target: %v", operation.OperationIndex, err)
+	}
+	if !reflect.DeepEqual(changed.TargetKey, primaryKey) {
+		return nil, relationIntentIntegrity(
+			"relation AddField operation %d target key is not the exact historical AutoField primary key",
+			operation.OperationIndex,
+		)
+	}
+	if len(relationFieldsInModel(changed.TargetModel)) != 0 {
+		return nil, relationIntentUnsupported(
+			"relation AddField operation %d target model contains nested relation fields outside the sealed target universe",
+			operation.OperationIndex,
+		)
+	}
+
+	relationFields := relationFieldsInModel(operation.After)
+	if err := validateSQLiteDerivedTargetExpansionResources(relationFields, changed); err != nil {
+		return nil, err
+	}
+	derived := make([]migrationbackend.RelationMigrationTarget, len(relationFields))
+	for index := range relationFields {
+		source := relationFields[index]
+		if source.Relation == nil || source.Relation.Target != field.Relation.Target {
+			return nil, relationIntentUnsupported(
+				"relation AddField operation %d source contains a pre-existing relation with a different symbolic target",
+				operation.OperationIndex,
+			)
+		}
+		derived[index] = migrationbackend.RelationMigrationTarget{
+			SourceField: source.Clone(),
+			// These values belong to the already-cloned private intent. Reuse the
+			// one immutable target snapshot across the derived bindings so an
+			// R-field source and T-field target never allocate O(R*T) model
+			// copies before the aggregate scanner can reject them.
+			TargetModel: changed.TargetModel,
+			TargetKey:   changed.TargetKey,
+		}
+	}
+	return derived, nil
+}
+
+func validateSQLiteDerivedTargetExpansionResources(
+	sources []ir.Field,
+	changed migrationbackend.RelationMigrationTarget,
+) error {
+	derived := sqliteRelationResourceBudget{}
+	if err := derived.consumeNodes("derived nullable relation targets", len(sources)); err != nil {
+		return err
+	}
+	for index := range sources {
+		if err := derived.scanField(fmt.Sprintf("derived nullable relation targets[%d].source_field", index), sources[index]); err != nil {
+			return err
+		}
+	}
+	perTarget := sqliteRelationResourceBudget{}
+	if err := perTarget.scanModel("derived nullable relation target.model", changed.TargetModel); err != nil {
+		return err
+	}
+	if err := perTarget.scanField("derived nullable relation target.key", changed.TargetKey); err != nil {
+		return err
+	}
+	count := uint64(len(sources))
+	if perTarget.nodes != 0 && count > (sqliteRelationMaxNodes-derived.nodes)/perTarget.nodes {
+		return relationIntentIntegrity("derived nullable relation targets exceed the aggregate relation intent node limit %d", sqliteRelationMaxNodes)
+	}
+	if perTarget.bytes != 0 && count > (sqliteRelationMaxAggregateBytes-derived.bytes)/perTarget.bytes {
+		return relationIntentIntegrity("derived nullable relation targets exceed the aggregate relation intent byte limit %d", sqliteRelationMaxAggregateBytes)
+	}
+	return nil
 }
 
 func validateSQLiteRelationRemoveDelta(before, after ir.Model) (ir.Field, error) {
@@ -1202,7 +1361,7 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 	model ir.Model,
 	field ir.Field,
 ) error {
-	return transaction.execute(ctx, "add scalar field in relation step", func(executor migrationSQLExecutor) error {
+	return transaction.execute(ctx, "add field in relation step", func(executor migrationSQLExecutor) error {
 		state := transaction.relation
 		if state == nil || state.cursor >= len(state.seal.intent.Operations) {
 			return relationIntentIntegrity("unexpected relation-step AddField after intent cursor %d", stateCursor(state))
@@ -1215,14 +1374,20 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 		if !reflect.DeepEqual(model, operation.Before) || !reflect.DeepEqual(field, wantField) {
 			return relationIntentIntegrity("relation-step AddField does not match sealed model/field at cursor %d", state.cursor)
 		}
-		if field.PrimaryKey || field.Kind == ir.FieldForeignKey {
-			return relationIntentUnsupported("SQLite D3a relation-step AddField must be scalar and non-primary-key")
+		var statement string
+		var err error
+		if field.Kind == ir.FieldForeignKey {
+			statement, err = compileSQLiteNullableRelationAddField(operation.Before, wantField, operation.Targets)
+		} else {
+			if field.PrimaryKey {
+				return relationIntentUnsupported("SQLite relation-step AddField must be non-primary-key")
+			}
+			statement, err = compileMigrationAddField(operation.Before, wantField)
 		}
-		statement, err := compileMigrationAddField(operation.Before, wantField)
 		if err != nil {
 			return err
 		}
-		if field.Default != nil || !field.Nullable {
+		if field.Kind != ir.FieldForeignKey && (field.Default != nil || !field.Nullable) {
 			empty, err := sqliteTableEmpty(ctx, executor, operation.Before.DBTable)
 			if err != nil {
 				return err
@@ -1243,7 +1408,7 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationAddField(
 			}
 		}
 		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("add SQLite scalar field %s.%s in relation step: %w", operation.Before.DBTable, field.Column, err)
+			return fmt.Errorf("add SQLite field %s.%s in relation step: %w", operation.Before.DBTable, field.Column, err)
 		}
 		state.cursor++
 		return transaction.completeRelationOperationIfLast(ctx, executor)
@@ -1269,7 +1434,7 @@ func (transaction *sqliteRevisionFencedTransaction) executeRelationRemoveField(
 			return relationIntentIntegrity("relation-step RemoveField does not match sealed model/field at cursor %d", state.cursor)
 		}
 		if field.PrimaryKey || field.Kind == ir.FieldForeignKey {
-			return relationIntentUnsupported("SQLite D3a relation-step RemoveField must be scalar and non-primary-key")
+			return relationIntentUnsupported("SQLite relation-step RemoveField must be scalar and non-primary-key")
 		}
 		statement, err := compileMigrationRemoveField(operation.Before, wantField)
 		if err != nil {
@@ -1374,6 +1539,48 @@ func compileSQLiteRelationCreateModel(
 		parts = append(parts, "FOREIGN KEY ("+sourceColumn+") REFERENCES "+targetTable+" ("+targetColumn+") ON DELETE NO ACTION")
 	}
 	return "CREATE TABLE " + table + " (" + strings.Join(parts, ", ") + ")", nil
+}
+
+func compileSQLiteNullableRelationAddField(
+	model ir.Model,
+	field ir.Field,
+	targets []migrationbackend.RelationMigrationTarget,
+) (string, error) {
+	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey ||
+		!field.Nullable || field.Default != nil {
+		return "", errors.New("nullable relation AddField requires a nullable non-primary-key ForeignKey with no migration default")
+	}
+	relationFields := relationFieldsInModel(model)
+	if len(targets) != len(relationFields)+1 {
+		return "", relationIntentIntegrity(
+			"nullable relation AddField %q has %d targets, want %d",
+			model.DBTable,
+			len(targets),
+			len(relationFields)+1,
+		)
+	}
+	changed := targets[len(targets)-1]
+	if !reflect.DeepEqual(changed.SourceField, field) {
+		return "", relationIntentIntegrity("nullable relation AddField %q changed target does not match the added field", model.DBTable)
+	}
+	table, err := quoteIdentifier(model.DBTable)
+	if err != nil {
+		return "", fmt.Errorf("compile SQLite nullable relation AddField table: %w", err)
+	}
+	column, err := quoteIdentifier(field.Column)
+	if err != nil {
+		return "", fmt.Errorf("compile SQLite nullable relation AddField column: %w", err)
+	}
+	targetTable, err := quoteIdentifier(changed.TargetModel.DBTable)
+	if err != nil {
+		return "", fmt.Errorf("compile SQLite nullable relation AddField target table: %w", err)
+	}
+	targetColumn, err := quoteIdentifier(changed.TargetKey.Column)
+	if err != nil {
+		return "", fmt.Errorf("compile SQLite nullable relation AddField target column: %w", err)
+	}
+	return "ALTER TABLE \"main\"." + table + " ADD COLUMN " + column + " INTEGER NULL REFERENCES " +
+		targetTable + " (" + targetColumn + ") ON DELETE NO ACTION", nil
 }
 
 func preflightSQLiteRelationIntent(
@@ -1901,12 +2108,26 @@ func sqliteRelationTargetsForModel(
 	}
 	operation := seal.intent.Operations[operationIndex]
 	if len(operation.Targets) != len(relationFields) {
-		return nil, false
+		// A nullable relation Add seals the complete After target list. Its
+		// initial Before model contains the exact field-order prefix ending just
+		// before the changed ForeignKey; no other subset is authoritative.
+		if operation.Kind != migrationbackend.RelationMigrationAddField ||
+			len(operation.Targets) != len(relationFields)+1 ||
+			len(operation.After.Fields) == 0 ||
+			operation.After.Fields[len(operation.After.Fields)-1].Kind != ir.FieldForeignKey {
+			return nil, false
+		}
 	}
-	for targetIndex := range operation.Targets {
+	for targetIndex := range relationFields {
 		if !reflect.DeepEqual(operation.Targets[targetIndex].SourceField, relationFields[targetIndex]) {
 			return nil, false
 		}
+	}
+	if len(operation.Targets) == len(relationFields)+1 {
+		return operation.Targets[:len(relationFields)], true
+	}
+	if len(operation.Targets) != len(relationFields) {
+		return nil, false
 	}
 	return operation.Targets, true
 }
@@ -2030,6 +2251,24 @@ func validateSQLiteRelationPhysicalGraph(
 				return relationPhysicalDrift("relation DeleteModel table %q has inbound foreign key from %q", model.DBTable, owners[0])
 			}
 			graph.remove(source)
+		case migrationbackend.RelationMigrationAddField:
+			if len(operation.Targets) == 0 || len(operation.After.Fields) == 0 ||
+				operation.After.Fields[len(operation.After.Fields)-1].Kind != ir.FieldForeignKey {
+				continue
+			}
+			target := sqliteRelationIdentifierKey(operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
+			if source == target {
+				return relationPhysicalDrift("nullable relation AddField table %q has a physical self relation", model.DBTable)
+			}
+			if !graph.hasEdge(source, target) && len(graph.outgoing[target]) != 0 {
+				// The sealed Add authority requires a relation-free target and its
+				// exact physical-shape preflight has already enforced zero foreign
+				// keys. This constant-time defensive check closes any future path
+				// that could turn the new edge into a cycle without rescanning an
+				// unrelated legacy graph for every Add.
+				return relationPhysicalDrift("nullable relation AddField target %q has an outgoing physical relation that could create a cycle", operation.Targets[len(operation.Targets)-1].TargetModel.DBTable)
+			}
+			graph.add(source, target)
 		}
 	}
 	return nil
@@ -2047,6 +2286,11 @@ func (graph *sqliteRelationPhysicalGraph) add(source, target string) {
 		graph.incoming[target] = make(map[string]struct{})
 	}
 	graph.incoming[target][source] = struct{}{}
+}
+
+func (graph sqliteRelationPhysicalGraph) hasEdge(source, target string) bool {
+	_, exists := graph.outgoing[source][target]
+	return exists
 }
 
 func (graph *sqliteRelationPhysicalGraph) remove(source string) {
@@ -2544,14 +2788,134 @@ func assertSQLiteRelationCanonicalTableSQL(
 			}
 		}
 	}
-	expectedSQL, err := compileSQLiteRelationCreateModel(model, targets)
+	matches, err := matchesSQLiteRelationCanonicalTableSQL(actualSQL, model, targets)
 	if err != nil {
 		return err
 	}
-	if actualSQL != expectedSQL {
+	if !matches {
 		return relationPhysicalDrift("table %q SQL differs from exact sealed/canonical declaration", model.DBTable)
 	}
 	return nil
+}
+
+// matchesSQLiteRelationCanonicalTableSQL consumes the exact CREATE TABLE
+// grammar emitted by GoDj and SQLite's native ALTER ADD rewrite in one forward
+// pass. Relation columns may carry their REFERENCES clause inline, while any
+// relation column without an inline clause must have its exact table-level
+// constraint after all columns in the same field order. No case folding,
+// whitespace normalization, token subset, or trailing SQL is accepted.
+func matchesSQLiteRelationCanonicalTableSQL(
+	actual string,
+	model ir.Model,
+	targets []migrationbackend.RelationMigrationTarget,
+) (bool, error) {
+	table, err := quoteIdentifier(model.DBTable)
+	if err != nil {
+		return false, err
+	}
+	prefix := "CREATE TABLE " + table + " ("
+	if !strings.HasPrefix(actual, prefix) {
+		return false, nil
+	}
+	cursor := len(prefix)
+	pending := make([]string, 0, len(targets))
+	targetIndex := 0
+	consumeDelimiter := func() bool {
+		if cursor+2 > len(actual) || actual[cursor:cursor+2] != ", " {
+			return false
+		}
+		cursor += 2
+		return true
+	}
+	consume := func(fragment string) bool {
+		if !strings.HasPrefix(actual[cursor:], fragment) {
+			return false
+		}
+		cursor += len(fragment)
+		return cursor == len(actual)-1 && actual[cursor] == ')' ||
+			cursor+2 <= len(actual) && actual[cursor:cursor+2] == ", "
+	}
+
+	for fieldIndex := range model.Fields {
+		if fieldIndex != 0 && !consumeDelimiter() {
+			return false, nil
+		}
+		field := model.Fields[fieldIndex]
+		if field.Kind != ir.FieldForeignKey {
+			column, err := compileMigrationColumn(field)
+			if err != nil {
+				return false, err
+			}
+			if !consume(column) {
+				return false, nil
+			}
+			continue
+		}
+		if targetIndex >= len(targets) || !reflect.DeepEqual(targets[targetIndex].SourceField, field) {
+			return false, relationIntentIntegrity("canonical table %q target metadata does not match field %d", model.DBTable, fieldIndex)
+		}
+		target := targets[targetIndex]
+		targetIndex++
+		column, err := compileSQLiteRelationColumn(field)
+		if err != nil {
+			return false, err
+		}
+		constraint, err := compileSQLiteRelationConstraint(target)
+		if err != nil {
+			return false, err
+		}
+		inline := column + " REFERENCES " + constraint
+		if consume(inline) {
+			continue
+		}
+		if !consume(column) {
+			return false, nil
+		}
+		quotedColumn, err := quoteIdentifier(field.Column)
+		if err != nil {
+			return false, err
+		}
+		pending = append(pending, "FOREIGN KEY ("+quotedColumn+") REFERENCES "+constraint)
+	}
+	if targetIndex != len(targets) {
+		return false, relationIntentIntegrity("canonical table %q has %d unused targets", model.DBTable, len(targets)-targetIndex)
+	}
+	for index := range pending {
+		if !consumeDelimiter() || !consume(pending[index]) {
+			return false, nil
+		}
+	}
+	return cursor == len(actual)-1 && actual[cursor] == ')', nil
+}
+
+func compileSQLiteRelationColumn(field ir.Field) (string, error) {
+	column, err := quoteIdentifier(field.Column)
+	if err != nil {
+		return "", err
+	}
+	if field.Kind != ir.FieldForeignKey || field.Relation == nil || field.PrimaryKey || field.Default != nil {
+		return "", errors.New("canonical relation column is not an exact ForeignKey")
+	}
+	declaration := column + " INTEGER"
+	if field.Nullable {
+		declaration += " NULL"
+	} else {
+		declaration += " NOT NULL"
+	}
+	return declaration, nil
+}
+
+// compileSQLiteRelationConstraint returns the portion following REFERENCES.
+func compileSQLiteRelationConstraint(target migrationbackend.RelationMigrationTarget) (string, error) {
+	table, err := quoteIdentifier(target.TargetModel.DBTable)
+	if err != nil {
+		return "", err
+	}
+	column, err := quoteIdentifier(target.TargetKey.Column)
+	if err != nil {
+		return "", err
+	}
+	return table + " (" + column + ") ON DELETE NO ACTION", nil
 }
 
 func (cache *sqliteRelationPhysicalValidationCache) assertAutoKey(

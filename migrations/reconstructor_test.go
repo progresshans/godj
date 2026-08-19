@@ -1197,6 +1197,56 @@ func TestLoadedDefinitionResourceScanChargesNeutralWireOperationKind(t *testing.
 	}
 }
 
+func TestLoadedNullableRelationAddAuthorityRunsInDryAndRematerializationAfterStateChecks(t *testing.T) {
+	definitions := lifecycleLoadedNullableSameTargetDefinitions()
+	sourceKey := MigrationKey{App: "blog", Name: "0001_article"}
+	addKey := MigrationKey{App: "blog", Name: "0002_editor"}
+	reconstructor := mustLoadedStateReconstructor(t, definitions, sourceKey, addKey)
+	applied, err := NewAppliedState(
+		MigrationKey{App: "authors", Name: "0001_author"},
+		sourceKey,
+	)
+	if err != nil {
+		t.Fatalf("NewAppliedState(): %v", err)
+	}
+	plan, err := reconstructor.planner.Plan(applied, NamedTarget(addKey))
+	if err != nil || len(plan) != 1 || plan[0] != (PlanStep{Key: addKey, Direction: DirectionForward}) {
+		t.Fatalf("nullable Add plan = (%v, %v)", plan, err)
+	}
+	builder, err := reconstructor.builderForApplied(context.Background(), reconstructor.planner, applied)
+	if err != nil {
+		t.Fatalf("builderForApplied(): %v", err)
+	}
+	dry, err := reconstructor.dryLoadedPlan(context.Background(), builder.clone(), plan)
+	if err != nil || len(dry) != 1 || !dry[0].relation ||
+		dry[0].requirements != loadedRequiresAddNullableForeignKey {
+		t.Fatalf("dryLoadedPlan(nullable Add) = (%+v, %v)", dry, err)
+	}
+	materialized, err := reconstructor.materializeLoadedStep(context.Background(), builder.clone(), plan[0], true)
+	if err != nil {
+		t.Fatalf("materializeLoadedStep(nullable Add): %v", err)
+	}
+	if materialized.requirements != loadedRequiresAddNullableForeignKey ||
+		len(materialized.intent.operations) != 2 || len(materialized.intent.operations[0].targets) != 0 ||
+		len(materialized.intent.operations[1].targets) != 1 ||
+		materialized.intent.operations[1].targets[0].sourceField.Name != "editor" {
+		t.Fatalf("materialized nullable Add intent = %+v", materialized.intent)
+	}
+
+	// Authority decisions come after ordinary state transition and resource
+	// validation. A missing historical source therefore retains the exact
+	// CategoryState/operation[0] error instead of being relabelled as a
+	// NoOperation capability rejection.
+	corrupted := builder.clone()
+	delete(corrupted.apps["blog"].models, "article")
+	_, err = reconstructor.materializeLoadedStep(context.Background(), corrupted, plan[0], false)
+	migrationError := assertStateReconstructionError(t, err, addKey, 0, "AddField")
+	if migrationError.Category != CategoryState || migrationError.Code != CodeInvalidState ||
+		!strings.Contains(migrationError.Cause.Error(), "does not exist") {
+		t.Fatalf("state precedence error = %#v", migrationError)
+	}
+}
+
 func TestLoadedDefinitionResourceScanAcceptsLoaderValidLongSemanticIdentifier(t *testing.T) {
 	t.Parallel()
 
