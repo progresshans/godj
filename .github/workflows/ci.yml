@@ -469,10 +469,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 821, sorted(runs)
-          assert len(payload) == 84006, len(payload)
+          assert len(runs) == 827, sorted(runs)
+          assert len(payload) == 84674, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "b5906bf73717353aed25c8a1b7c71deb34bbe7b2eeece0d4c4237085f80db9c2"
+          assert payload_sha256 == "0ed230272d623ec6de97b05469814e2acee7ee9cab28b1164658e45ba9dc7b2c"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
