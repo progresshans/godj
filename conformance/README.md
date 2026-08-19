@@ -81,8 +81,13 @@ state/readiness, D3a direct optional SQLite Create/Delete port는
 normal loaded `Load`→`Set.Migrate`의 bounded relation Create/Delete apply/unapply/reapply와 actual-plan
 preflight를 구현·검증했습니다. MIG-075..086 product handler/status는 그대로 `oracle_locked`이고
 D4 verification head `424ec4d...`는 [EVID-095](../docs/status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
-기존 normal loaded 제품 경로의 bounded file-backed close/reopen 시나리오를 검증했습니다. 이는
-`migrationrelation` actual adapter나 MIG status 전환이 아니며 Add/Remove/remake capability도 계속 false입니다.
+기존 normal loaded 제품 경로의 bounded file-backed close/reopen 시나리오를 검증했습니다. 이후 EVID-096
+documentation head `62df9b2...`는 unique run `32260744096`에서 닫혔고, D4d product `3950d98...`, inventory
+lock `28b141e...`, deterministic resource-scan fix `dd83362...`를 포함한 exact head는
+[EVID-097](../docs/status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`에서 bounded nullable ForeignKey Add를 검증했습니다. 이는 `migrationrelation` actual adapter나
+MIG status 전환이 아닙니다. Exact capability는 `{true,true,false,false}`이고 required-empty Add와
+Remove/remake는 계속 false입니다.
 제품용 Schema/ORM/SQLite/migration 구현은 루트의 `schema`, `codegen`, `query`, `orm`,
 `db`, `migrations` package에 있으며 이 디렉터리는 그 동작을 oracle에 연결합니다.
 
@@ -847,8 +852,12 @@ Later D1/D2/D3a product/correction heads는 EVID-093/runs `32195313382`, `322053
 각각 exact 26/26 jobs·342/342 steps·audit P0..P3=0을 통과했습니다. D3b product/correction heads
 `74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`의 별도 exact 26/26·342/342와 audit
 P0..P3=0을 통과했습니다. D4 exact one-test-file head `424ec4d...`도 EVID-095/run `32248885053`의
-별도 exact 26/26·342/342를 통과했습니다. 이 증거는 conformance `migrationrelation` test-only helper를
-product adapter로 재분류하거나 MIG-075..086을 `passing`으로 전환하지 않습니다.
+별도 exact 26/26·342/342를 통과했습니다. EVID-096 exact-six docs head `62df9b2...`도 run
+`32260744096`의 고유 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. D4d final head
+`dd83362...`는 nullable no-default non-PK ForeignKey Add를 sealed same-target loaded universe에서 구현했고
+run `32271361724`의 고유 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. 이 증거는 conformance
+`migrationrelation` test-only helper를 product adapter로 재분류하거나 MIG-075..086을 `passing`으로
+전환하지 않습니다.
 
 Phase A에서 아직 Accepted되지 않았던 GoDj-owned GDJ-0035 candidate payload는 historical provenance
 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로 계속 분류합니다. Pinned Django BSD source/test

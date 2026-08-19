@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-19
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260819-096
+- 마지막 갱신: 2026-08-20
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-097
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -8547,5 +8547,293 @@ Evidence history, implementation boundary and next work:
   `32256113658` proves only exact D4c test head `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`. Neither proves this
   later EVID-096 append/current exact-six documentation mirror, capability/adapter heads, completion, terminal
   status or any contract transition.
+- This append is deliberately nonrecursive. Draft PR #1 remains open/draft/unmerged, and this evidence does not
+  authorize merge or release.
+
+## EVID-20260820-097 — GDJ-0035 D4d Bounded Nullable ForeignKey Add Local and Hosted Verification
+
+- Date/time: prior documentation hosted 2026-08-19T13:53:43Z through `14:04:25Z`; first D4d hosted
+  2026-08-19T15:03:55Z through `15:15:00Z`; deterministic-fix hosted 2026-08-19T15:39:26Z through `15:47:56Z`;
+  documentation mirror and evidence append completed 2026-08-20 KST
+- Work/contract IDs: GDJ-0035 Phase D4d bounded nullable ForeignKey Add; MIG-075..MIG-086 remain exact 12
+  reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Prior documentation checkout/commit: exact-six head `62df9b2ca3bb397ec826d07b2840408544231845`, parent
+  `e4fbc7b337c5b66b84ee74a22bbf3182d298532d`, tree
+  `8657ca9a8b2c6d9d306a2815a238c1b7629dca4e`
+- Product checkout/commit: immutable D4d product head `3950d98f10544ed18821c1af7960eb1696384eb4`, parent
+  `62df9b2ca3bb397ec826d07b2840408544231845`, tree
+  `8c109bcd48247488f33ce0790cf034dd991cce70`
+- Inventory lock checkout/commit: `28b141e023d5e851e25e6560fc21a463982bf1be`, parent
+  `3950d98f10544ed18821c1af7960eb1696384eb4`, tree
+  `d08b35f32f11ca4e90d818387162bff8923cd66d`
+- Deterministic correction checkout/commit: final product-proof head
+  `dd8336296afec1c05f739817c7ab77bdb63a2535`, parent
+  `28b141e023d5e851e25e6560fc21a463982bf1be`, tree
+  `a7f73944247f9410291f902a2095e7c302aa262f`
+- Hosted runs: prior docs [run 32260744096](https://github.com/progresshans/godj/actions/runs/32260744096),
+  CI #89 attempt 1 `completed/success`; first D4d
+  [run 32267789056](https://github.com/progresshans/godj/actions/runs/32267789056), CI #90 attempt 1
+  `completed/failure`; deterministic fix
+  [run 32271361724](https://github.com/progresshans/godj/actions/runs/32271361724), CI #91 attempt 1
+  `completed/success`. CI #91 is a distinct new run, not a rerun of CI #90.
+- Result summary: the prior docs head and deterministic final D4d head each passed their own exact-head 26/26-job,
+  342/342-step hosted CI and independent audit P0/P1/P2/P3=`0/0/0/0`. CI #90's exact P1 timing failure remains
+  recorded rather than erased. D4d implements and verifies only the bounded nullable Add slice.
+- Status boundary: ADR-0034 remains `Accepted`; GDJ-0035 remains active/Partially Implemented. Exact SQLite
+  capabilities are now `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+  AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`. Reference/product aggregate
+  classifications do not change.
+
+### Prior EVID-096 documentation-head closure
+
+- Commit `62df9b2ca3bb397ec826d07b2840408544231845`
+  (`docs: record relation migration error evidence`) changed exactly six regular Markdown paths:
+  `docs/ROADMAP.md`, `docs/TESTING.md`, `docs/status/CURRENT.md`, `docs/status/TEST_EVIDENCE.md`,
+  `work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md` and `work/README.md`.
+- Hosted synthetic merge `a7b6a74e46c88e1c4591639d9dd9d24f58ac85e0` had ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 62df9b2ca3bb397ec826d07b2840408544231845]` and tree
+  `8657ca9a8b2c6d9d306a2815a238c1b7629dca4e`, equal to the exact head tree.
+- CI #89 completed all 26 jobs, 342 recorded steps and 26 checks successfully; annotations were 0. All four
+  relation-product coordinates reproduced exact 806 run/806 pass/0 skip, 82,321 bytes and SHA-256
+  `a326e00c09115ffa83a16afcd1490682ad40109447ae2cc1d6788b4667005bd0`. All four SQLite coordinates reproduced
+  exact 75/75/0, 9,736 bytes and SHA-256
+  `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Six Python coordinates each completed 216 profiles: five skipped 19 exact-only profiles and the exact coordinate
+  skipped 0. All 13 oracle and 13 checksum checks passed. Linux/386 compile 7 plus relation execution succeeded;
+  all 24 clean-worktree and all 10 no-rewrite checks passed.
+- The raw GitHub log ZIP was exact 778,511 bytes/SHA-256
+  `e2d580bd02d8e9ba17785542adfe04477ab6a7c5dfe4a9aba8f5713988746dd5` with 394 members. C/path-sorted
+  full-member concatenation was 3,751,791 bytes/31,552 LF lines/SHA-256
+  `b83ea82cd7d6e42141db1f9d486e7845da411407ef15a2415c65739a9fc52ebd`; the aggregate-plus-system subset was
+  1,883,477 bytes/15,870 LF lines/SHA-256
+  `d86e663c628d3d26c6d62a22645420d358cde5e7442a205633813439d6706696`. The `gh run view --log` stream was
+  2,846,316 bytes/15,682 lines/SHA-256
+  `1cd2ae3ed068ca00ba97518cd3b89419cc195c9089955093165986647f03a45d`.
+- Audited markers and P0/P1/P2/P3 findings were all 0. This run proves only exact docs head `62df9b2...`; it is
+  not reused as proof of the later D4d product, correction or this EVID-097 append.
+
+### Immutable product, inventory-lock and correction bytes
+
+The D4d product commit changes exactly these six regular paths. The byte count and SHA-256 are final contents at
+`3950d98f10544ed18821c1af7960eb1696384eb4`.
+
+| Path | Bytes | SHA-256 |
+|---|---:|---|
+| `db/sqlite/migration_relation.go` | 115,609 | `e7327530f9293860d61c176d8864123bc65ed4e7e2904aa9b45d5dd95d135988` |
+| `db/sqlite/migration_relation_test.go` | 196,159 | `5df37084235baf4ece4b242c95ea137ea072483dfc597508b666e1604d1190f0` |
+| `migrations/definition/relation_test.go` | 67,019 | `6c8159e01864decec9bb8093e8e955eccbb7e8af68ab56798d18f69c7c7130ef` |
+| `migrations/lifecycle_test.go` | 95,531 | `9ab8211a74c984616a6b7d8b7ab746501a3150ca1056de8491016f9948ca678a` |
+| `migrations/reconstructor.go` | 99,711 | `c6876b087ca35074b8e473f727d6bc5cf759a3006e282538b1c347420f2b2dca` |
+| `migrations/reconstructor_test.go` | 64,683 | `a8d5acf53031d6a394754883e364506fd429df17c7065cd9a7127d223e6bee8e` |
+
+- The six contents total 638,712 bytes. Their C/path-sorted
+  `path<TAB>bytes<TAB>sha256<LF>` manifest is 626 bytes/SHA-256
+  `a8d78f1cde9b09c76ec464bca7f5dc64b74cd57a3e6ba401afaab2dd8366b440`; C/path-sorted raw concatenation is
+  SHA-256 `178f4f0eb74b3ee37e55d3b994d16ded166193ff80e324de95da168f2c716a51`.
+- The exact product comparator is the explicit minimal full-index binary protocol
+  `git -c core.autocrlf=false -c core.safecrlf=false -c color.ui=false --no-pager diff --diff-algorithm=minimal --full-index --binary 62df9b2... 3950d98... -- <exact-six-paths>`.
+  Its output is 136,469 bytes/3,057 LF lines/SHA-256
+  `0f1154778ddb71103db81efac19a89591145c40ea17a468d71756a94fa7e136a`, with +2,675/-66 minimal lines.
+- Inventory lock `28b141e023d5e851e25e6560fc21a463982bf1be` changes exactly
+  `.github/workflows/ci.yml` at 30,245 bytes/SHA-256
+  `f867119556417ea5cb8e09bcf883dc74a7d21d8bd38313acd02a834692e64808` and
+  `conformance/internal/protocol/migration_project_check_artifacts_test.go` at 30,494 bytes/SHA-256
+  `ade13a90707fd5906ada41b0f85cde59c6c5f97afe54961b807fd265f5d73b22`. The two-row manifest is
+  239 bytes/SHA-256 `4b79928aabc50a83856240b1e963b2a9ba5e0a56ad70049cdf7000dd3eebb10d`; its minimal full-index
+  parent diff is 1,988 bytes/35 LF lines/SHA-256
+  `db60e635a2410d28ac17ee9e1687dcdf6cb3864bd472ee6271f8cf8f2e4fc2dd`, +6/-6.
+- Deterministic fix `dd8336296afec1c05f739817c7ab77bdb63a2535` changes exactly
+  `migrations/reconstructor.go` at 100,173 bytes/SHA-256
+  `834791bf4fe5da801b1e05cae5d09921f8506cd32ce9fdab7d4d48a274b8b353` (+20/-5) and
+  `migrations/reconstructor_test.go` at 65,523 bytes/SHA-256
+  `25c6928d62cfa96fe29ada548234240eb36e953a3793acb755867bd9b2203cdb` (+24/-9). Its manifest is
+  204 bytes/SHA-256 `6e82965ef69538ec0652a954252cb46294c5f1920f09e220e0888a9da3dadfde`; raw concatenation is
+  165,696 bytes/SHA-256 `4e2a8144c882cfcc2ad9dd397baa8f0caf3e071918848fcbeead61bfe323fcd2`; framed stream is
+  165,775 bytes/SHA-256 `cfd23109a26ccbf9eb82c938bec46cea12249259c040697c77cf7715661012aa`.
+  Its minimal full-index parent diff is 6,081 bytes/135 LF lines/SHA-256
+  `6a9456cd0c8aefb7bbdcc8a1f4c6d6129c2220ccd72f22813f071720c961a52f`, +44/-14.
+- Across `62df9b2...` through `dd83362...`, exact eight changed paths have a 866-byte manifest/SHA-256
+  `bfea7b263f50deb5684ed379bdfa1a0f3f153d0328e3f9d16ceea357d844fd90`, 700,753-byte raw concatenation/
+  SHA-256 `dcea0d281864f547b060e1973b886007591c179d4b30a2da628f8a58af785808` and 701,120-byte framed stream/
+  SHA-256 `957ea5628edc04e0d9657644a9951aaa5009cf233a44abb47e4adae16bc5610c`. The explicit minimal full-index
+  binary diff is 143,812 bytes/3,212 LF lines/SHA-256
+  `795cefc0625bb93829deaf7cb17bf980c5fee76466838fbd877aeb9a439f2bea`, +2,725/-86.
+
+### Bounded eligibility, authority and public/private target contract
+
+- The only new forward shape is an exact appended `AddField` whose added field is a nullable, no-default,
+  non-primary-key ForeignKey. The public Add operation continues to carry exactly the changed field in `Targets`;
+  no public signature, entrypoint or target meaning changes.
+- Loaded core validates that exact public authority during whole-plan dry validation and again during execution
+  rematerialization after state/resource work. Every pre-existing ForeignKey on the source model must declare the
+  exact same symbolic `(app, model)` target as the changed field. The changed sealed target model must be
+  relation-free and expose an exact unique non-null AutoField primary key.
+- The core rematerialization check still occurs before backend capability lookup and before any migration begin.
+  Therefore a later unsupported or forged relation tail cannot commit an earlier scalar prefix.
+- SQLite independently revalidates the closure, then privately reuses that one immutable sealed target snapshot for
+  the complete source relation-field order. It does not infer missing historical authority from the physical catalog
+  or current runtime registry, and caller aliases do not remain attached to the derived intent.
+- One migration step permits at most one nullable relation Add per source model. Loaded core authority/resource
+  closure is pre-capability/pre-Begin, and a missing capability fails during capability selection pre-Begin. SQLite's
+  independent static seal rejects remaining invalid/direct shapes before acquiring a new pinned relation connection
+  or executing SQL `BEGIN`. Physical target-outgoing cycle and pre-existing catalog drift are checked after
+  `BEGIN IMMEDIATE` during physical preflight, but before revision claim/mutation; failure rolls back the transaction.
+- Existing resource caps remain 2,048 definitions/operations/fields/targets as applicable, 1 MiB per bounded string
+  payload, 16 MiB aggregate bytes and 262,144 aggregate nodes. Derived target expansion charges nodes and bytes
+  before allocation.
+
+### Native ALTER, canonical SQL and successful lifecycle observations
+
+- SQLite emits the exact native statement
+  `ALTER TABLE "main"."source" ADD COLUMN "editor_id" INTEGER NULL REFERENCES "target" ("id") ON DELETE NO ACTION`.
+  It does not remake the table for the nullable Add.
+- The post-ALTER matcher consumes one exact canonical grammar in one forward pass. It accepts GoDj table-level
+  constraints, the SQLite native inline clause, their exact mixed form and the all-inline form. It rejects
+  case/whitespace/table/column/target/key/action/order/trailing drift and large malformed inputs without fallback
+  normalization.
+- Empty and populated source tables succeed. Existing rows and primary-key values remain unchanged, the new column
+  is NULL, and the pre-existing `sqlite_sequence` value is preserved. Valid target assignments succeed while orphan
+  assignments fail under the physical `NO ACTION` ForeignKey.
+- Fresh file close/reopen with a fresh Backend and loaded set observes the exact new schema/rows/history/revision
+  token/ForeignKey state. Latest is a no-op. After the loaded session is opened and exact history is read, reverse
+  Remove remains a pre-relation-Begin/pre-mutation `RemoveForeignKeyByTableRemake:false` capability rejection; no new
+  pinned relation connection is opened and the durable snapshot remains unchanged.
+- The product tests also cover changed-target-only public alias isolation, exact target/key sealing, mixed scalar
+  relation steps, source relation order, canonical caching, operation/field/target/identity resource boundaries and
+  deterministic pre-claim rejection of unsealed authority.
+
+### Fault ownership, rollback, retry and resource proof
+
+| Loaded fault | Category / code | Operation ownership | Durable result |
+|---|---|---:|---|
+| Native `ALTER TABLE` execution | `CategoryExecution` / `CodeOperationFailed` | operation 0 `AddField` | same-transaction rollback; reopened snapshot unchanged |
+| Final `foreign_key_check` | `CategoryExecution` / `CodeOperationFailed` | operation 0 `AddField` | same-transaction rollback; reopened snapshot unchanged |
+| Recorder insert | `CategoryRecorder` / `CodeRecordFailed` | `NoOperation` | same-transaction rollback; reopened snapshot unchanged |
+
+- Direct SQLite tests additionally inject final canonical drift between native ALTER and FK check. ALTER,
+  canonical, final-FK and recorder owners become sticky after the first failure: repeating the exact owner API
+  executes no additional SQL and consumes no second fault. Explicit rollback occurs once and all connections are
+  released.
+- Every loaded fault returns the exact raw cause through `errors.Is`, preserves `RollbackCause=nil`, forward
+  `news.0003_editor` context and pre-step returned state, and is not reclassified as a `RevisionFenceError`.
+- Resource tests exercise exact operation/field/target caps, long transition/model names, repeated aliases and both
+  aggregate node and byte limits. The final correction exposes deterministic definition/operation/field visit counts
+  to the test and removes wall-clock completion from the pass/fail contract.
+
+### Local final-byte product and correction gates
+
+- The immutable D4d product bytes passed product-freeze diff checking and `gofmt` verification.
+- Passed `go test ./... -count=1`.
+- Passed `go test ./migrations ./migrations/definition ./db/sqlite -count=1` and the same exact package set with
+  `-race -count=1`.
+- Passed `CGO_ENABLED=0 go test ./migrations ./migrations/definition ./db/sqlite -count=1` and
+  `go vet ./migrations ./migrations/definition ./db/sqlite`.
+- Passed `go test -shuffle=on -count=20 ./migrations/...`.
+- The relation-product inventory was independently reproduced twice at exact 821 run/821 pass/0 skip, 84,006 bytes
+  and SHA-256 `b5906bf73717353aed25c8a1b7c71deb34bbe7b2eeece0d4c4237085f80db9c2`.
+  The Phase B SQLite inventory was independently reproduced twice at exact 75/75/0, 9,736 bytes and SHA-256
+  `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Two independent focused normal/race auditors reported P0/P1/P2/P3=`0/0/0/0` on the frozen product bytes.
+- The deterministic correction passed its focused three-test normal and race gates 50 times each; migrations normal,
+  race and vet; the exact 19-package workflow normal/race/CGO-disabled/vet package set; and a
+  `GOOS=darwin GOARCH=amd64 CGO_ENABLED=0` migrations test-binary compile. Independent audits remained
+  P0/P1/P2/P3=`0/0/0/0`, and both locked inventories were unchanged. No timing claim is inferred from these gates.
+
+### CI #90 preserved failure and raw-log audit
+
+- CI #90 synthetic merge `41392b5046a53dd0603207f1f4a0483bdacb2718` had ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 28b141e023d5e851e25e6560fc21a463982bf1be]` and tree
+  `d08b35f32f11ca4e90d818387162bff8923cd66d`, equal to the inventory-lock head tree.
+- Jobs concluded 25 success/1 failure. Recorded steps concluded 336 success/1 failure/5 skipped; checks concluded
+  25 success/1 failure and annotations were 1. The sole failing job was `Relation product (macos-15-intel)`, step
+  `Run relation product race tests`.
+- The exact failing test was `TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes`. Its
+  two-second wall-clock assertion observed 2.01 seconds under the hosted race run. This was classified P1 because
+  wall time is scheduler-dependent even though the resource scan is structurally bounded.
+- Despite the failed coordinate, the collected relation inventories remained exact 821/821/0, 84,006 bytes and
+  `b5906bf73717353aed25c8a1b7c71deb34bbe7b2eeece0d4c4237085f80db9c2`; SQLite inventories remained exact
+  75/75/0, 9,736 bytes and `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- The raw GitHub log ZIP was exact 774,831 bytes/SHA-256
+  `4d14a776cac82b6944e81f73c7ce192035ed7c0f2bf90169ff69fe0bd226953b` with 389 members. Full-member
+  concatenation was 3,748,632 bytes/31,464 LF lines/SHA-256
+  `c7c0257b112563cadcd76e4842364c2e34cea3f011569df1aa8556924d3dba1c`; aggregate-plus-system was
+  1,881,908 bytes/15,826 LF lines/SHA-256
+  `8b5396bb66aa7568a181edcaf36c3592e8cd56f40f19790982549d2ef3e6a4b0`.
+- The 389-row member manifest was 50,158 bytes/SHA-256
+  `fc4d1fd777a6cbb827c6a529e4f44071d2b7c01cfc44adf1b0753647673e8e14`; the framed member stream had
+  SHA-256 `656db96ae656e1fb77f9e77d424c73da7d8c997017377ac08afcca997799cb76`. The `gh run view --log` stream was
+  2,842,903 bytes/15,638 lines/SHA-256
+  `e87a2905ef3f61ef29a14dcd8ae374f78e76a98737b73a38d59e01a56b268bf8`.
+- Hosted audit findings were P0/P1/P2/P3=`0/1/0/0`; the PR head was unstable. The failed run was not rerun or
+  relabelled successful.
+
+### CI #91 distinct correction-head success and raw-log audit
+
+- CI #91 synthetic merge `7d68a55516784be3abf01db729a710ae38486b4b` had ordered parents
+  `[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, dd8336296afec1c05f739817c7ab77bdb63a2535]` and tree
+  `a7f73944247f9410291f902a2095e7c302aa262f`, equal to the correction-head tree. All checkout traces selected
+  this distinct fixed head.
+- All 26 jobs, 342 recorded steps and 26 checks concluded success; annotations were 0. The prior macOS Intel race
+  coordinate passed. Race, CGO-disabled, vet, all 24 clean-worktree and all 10 no-rewrite checks succeeded.
+- All four relation-product coordinates reproduced exact 821/821/0, 84,006 bytes and SHA-256
+  `b5906bf73717353aed25c8a1b7c71deb34bbe7b2eeece0d4c4237085f80db9c2`. All four SQLite coordinates reproduced
+  exact 75/75/0, 9,736 bytes and SHA-256
+  `48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec`.
+- Six Python coordinates each completed 216 profiles: five skipped 19 exact-only profiles and the exact coordinate
+  skipped 0. All 13 oracle and 13 checksum checks passed. Linux/386 compile 7 plus relation execution succeeded.
+- The raw GitHub log ZIP was exact 779,478 bytes/SHA-256
+  `7a6c6f102f628770a76b7f91ef284120ad32f7cb34d1218a083451870919b890` with 394 members. Full-member
+  concatenation was 3,768,225 bytes/31,630 LF lines/SHA-256
+  `2729ceabecc1e1a723bdae8498b53dbf109fdfe0bf02a1549f58e428cc73a79c`; aggregate-plus-system was
+  1,891,694 bytes/15,909 LF lines/SHA-256
+  `12c44317371337ecc318b92af764fdba082d06f473dcd94e1695f16815e99d12`.
+- The 394-row member manifest was 50,884 bytes/SHA-256
+  `d0d002cfcf5a4b0a9284e9ec4dfb5763f0ee2041af638c6f65c942fb588be5da`; the framed member stream had
+  SHA-256 `2142fce58c71e763163a7a52c582f647a9360d582fba9ac76137f3dea7d2f909`. The `gh run view --log` stream was
+  2,858,695 bytes/15,721 lines/SHA-256
+  `1cf1714483c621257178db38741197eca05c17e738dd5192e444e745d316d2d4`.
+- Audited error/warning/nonzero-exit/fatal/panic/data-race/top-level-FAIL/WaitDelay/incomplete-log markers were 0,
+  and hosted audit findings were P0/P1/P2/P3=`0/0/0/0`.
+- Draft PR #1 remained `OPEN`, draft, unmerged, `MERGEABLE` and `CLEAN`. No merge, rerun or cancellation was
+  performed.
+
+### Explicit non-claims, status and next exact work
+
+- D4d changes no public API/signature/entrypoint and does not make catalog/runtime-registry inference part of the
+  historical authority. Inventory lock changes only the two recorded inventory values; workflow topology, reference
+  artifacts and product adapter classification remain unchanged.
+- Reference aggregate remains exact 13 sets/139 unique contracts+scenarios/156 ordered cross-bindings=
+  `122 passing + 5 deviation + 12 oracle_locked`. Product aggregate remains exact 12 adapters/127 contracts=
+  `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12.
+- MIG-075..086 remain reference-only `oracle_locked`; Q-010/Q-012/Q-013 remain `Partial`; ADR-0034 remains
+  `Accepted`; GDJ-0035 remains active/Partially Implemented. No actual MIG adapter or status transition is claimed.
+- Required ForeignKey Add and Remove/remake remain false. D4d does not prove arbitrary/different/nested/self/cyclic
+  targets, multiple relation Adds per source step, general restart, raw database-file byte equality, general failure
+  taxonomy, completion or terminal status.
+- The next exact work is a separate D4e product/evidence head for bounded
+  `AddRequiredForeignKeyToEmptyTable`. Later distinct heads remain ordered as
+  `RemoveForeignKeyByTableRemake` → actual MIG-075..086 adapter → overall completion documentation → terminal
+  evidence/status.
+
+### Evidence history and recursive-proof boundary
+
+- Immediately before this fixed-length metadata update and append, `docs/status/TEST_EVIDENCE.md` was exact
+  864,915 bytes/SHA-256 `5b0bd7a37254ba342cf1ac79fb2d2979645c8dd2a5014a4689baf9d47db0a524`.
+- The old and resulting fixed-length top prefix in byte range `[0, 326)` were respectively exact 326 bytes/
+  SHA-256 `413ba8332cdc53676ace0a5d33b95cf9af1d902c5869cafb1e489ef34b1fe6b7` and 326 bytes/SHA-256
+  `d1e7acdfc8d4be0072d5f6666bf4138db1a8fa3af478816d517205cce1b947b5`.
+- The retained old-file suffix in byte range `[326, 864915)` was exact 864,589 bytes/SHA-256
+  `e100d14c9da6e2cbbe6f426d5cc81e6a2ff68583ec3a25396a9b6538664504a5`. The EVID-001 heading remains at
+  zero-based byte offset 524; the EVID-001..096 body in byte range `[524, 864915)` was exact 864,391 bytes/
+  SHA-256 `efb89ef09892fed1f9e709ddbb01e83d3ec295f0abc63a973f29a62be7714359`.
+- The EVID-096 heading remains at zero-based byte offset 849,640; its exact 15,275-byte section has SHA-256
+  `25941fad85bed294d18b7b40853277c8d069d51fbe589ed6965bb2e4f23a8ffb`. Before the old EOF, this change edits
+  only two fixed-length top metadata fields: `마지막 갱신` from `2026-08-19` to `2026-08-20` in zero-based byte
+  ranges `[56, 58)`, and the latest-evidence pointer from `EVID-20260819-096` to `EVID-20260820-097` in byte ranges
+  `[124, 126)` and `[129, 130)`. It appends EVID-097 at exact old EOF byte 864,915; EVID-001..096 remain
+  byte-identical.
+- Run `32260744096` proves only prior docs head `62df9b2...`. Run `32267789056` proves the preserved P1 failure at
+  inventory head `28b141e...`. Distinct run `32271361724` proves only correction head `dd83362...`; it does not
+  prove this later EVID-097 append, D4e/remake/adapter, completion, terminal status or a contract transition.
 - This append is deliberately nonrecursive. Draft PR #1 remains open/draft/unmerged, and this evidence does not
   authorize merge or release.

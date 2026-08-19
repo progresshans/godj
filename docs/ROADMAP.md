@@ -32,10 +32,16 @@
   26/26·342/342와 audit P0..P3=0을 통과했고, D4c exact one-test-file head `e4fbc7b...`도
   [EVID-096](status/TEST_EVIDENCE.md#evid-20260819-096--gdj-0035-d4b-documentation-and-d4c-loaded-relation-error-taxonomy-verification) /
   run `32256113658`의 unique exact 26/26·342/342와 audit P0..P3=0에서 six-case loaded SQLite taxonomy를
-  검증했습니다. 현재 단계는 EVID-096 exact-six docs head의 고유 hosted proof입니다.
+  검증했습니다. EVID-096 exact-six docs head `62df9b2...`도 run `32260744096`의 고유 exact
+  26/26·342/342와 audit P0..P3=0에서 닫혔습니다. D4d product `3950d98...`, inventory lock `28b141e...` 뒤
+  첫 hosted run `32267789056`은 macOS Intel race test의 wall-clock assertion P1로 25/26 jobs에서 실패했고,
+  deterministic resource-scan count fix `dd83362...`를 적용했습니다. 이 final head는
+  [EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+  run `32271361724`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 sealed same-target nullable ForeignKey Add를
+  검증했습니다. 현재 단계는 D4e required-empty ForeignKey Add입니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
-- 마지막 검토: 2026-08-19
+- 마지막 검토: 2026-08-20
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -636,11 +642,14 @@ activation head `52f9bcb7...`는
    `definition.Load`→`Set.Migrate`→SQLite 경로에서 Begin/PRAGMA-set/catalog/claim-busy failure는
    `NoOperation`, final-FK failure는 operation 1 `AddField`, recorder failure는 `NoOperation`임을
    EVID-096/run `32256113658`에서 검증했습니다. Product/API/workflow/capability/status/inventory는 불변입니다.
-9. Phase D4d (**next after EVID-096 docs proof**): 현재 exact-six documentation head의 고유 hosted
-   proof 후, sealed/resolvable pre-existing FK target snapshot의 bounded loaded universe에서
-   `AddNullableForeignKey`를 별도 product/evidence head로 구현·검증합니다. Arbitrary target universe는
-   주장하지 않으며 required-empty Add/Remove-remake는 false로 보존합니다.
-10. Phase D4e (**capability 2**): `AddRequiredForeignKeyToEmptyTable`을 별도 head에서 구현·검증합니다.
+9. Phase D4d (**implemented and hosted-verified**): EVID-096 docs head `62df9b2...`/run `32260744096`을
+   별도로 닫은 뒤 product `3950d98...`, inventory lock `28b141e...`, deterministic scan fix `dd83362...`로
+   sealed/resolvable same-target loaded universe의 `AddNullableForeignKey`를 구현했습니다. Public intent는 changed
+   target 하나만 유지하고 private expansion, native inline ALTER, mixed canonical SQL, populated rows/sequence,
+   reopen, fault rollback/no-retry와 resource bounds를 검증했습니다. First run `32267789056`의 P1은
+   wall-clock assertion을 deterministic visit counts로 바꿔 제거했고 distinct run `32271361724`는 exact
+   26/26·342/342와 audit P0..P3=0을 통과했습니다. Capability는 `{true,true,false,false}`입니다.
+10. Phase D4e (**next; capability 2**): `AddRequiredForeignKeyToEmptyTable`을 별도 head에서 구현·검증합니다.
 11. Phase D4f (**capability 3**): `RemoveForeignKeyByTableRemake`를 별도 head에서 구현·검증합니다.
 12. Phase D4g/E: 그 뒤 actual GoDj adapter가 expected-fixture replay 없이 MIG-075..086 observation을 생성하게
     하고, completion/terminal을 다시 서로 다른 exact-head hosted CI와 independent audit로 닫습니다.

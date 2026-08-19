@@ -806,7 +806,11 @@ acceptance boundary에서 바뀌지 않았습니다. Later Phase D1/D2/D3a bound
 별도 Implemented/Verified됐습니다. D4 test-only head `424ec4d...`는
 [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
 기존 product path의 bounded file-backed restart observation만 Verified했습니다. 이 bounded 증거들은
-MIG-075..086을 `passing`으로 전환하지 않습니다.
+MIG-075..086을 `passing`으로 전환하지 않습니다. EVID-096 exact-six documentation head `62df9b2...`는
+run `32260744096`에서 고유하게 닫혔고, D4d final head `dd83362...`는
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`에서 bounded nullable ForeignKey Add를 Implemented/Verified했습니다. Reference artifact와
+MIG status는 바뀌지 않았습니다.
 
 Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
@@ -822,7 +826,7 @@ Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migratio
 | MIG-081 | Populated nullable AddField, empty required support와 populated required rejection | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-082 | FK remove/remake row/sequence preservation | `oracle_locked` / Django observed |
 | MIG-083 | Exact pinned connection FK-on, physical `NO ACTION`와 existing revision-fence reuse | `oracle_locked` / observed + Accepted-decision separation |
-| MIG-084 | File-backed restart observation; actual epoch/fingerprint/DAG/`StateReconstructor` product proof blocked | `oracle_locked` / Django observed |
+| MIG-084 | File-backed restart observation; bounded epoch/fingerprint/DAG/`StateReconstructor` product-path scenario Verified, actual MIG adapter/general restart blocked | `oracle_locked` / Django observed |
 | MIG-085 | Three-stage preflight, one existing fenced transaction, rollback/cause policy | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-086 | Commit three outcomes, no retry | `oracle_locked` / Accepted-decision reference |
 
@@ -855,9 +859,19 @@ optional SQLite Create/Delete port는 EVID-093의 각 product/correction head에
 static authority/readiness 뒤 exact-one fenced history로 actual Planner를 실행하고 whole actual plan을
 dry-validate한 뒤에만 relation capability를 every begin/mutation 전에 검증하도록 구현했습니다. Scalar/no-op
 plan은 relation call 0이고 unsupported mixed plan은 scalar prefix를 commit하지 않습니다. Normal loaded
-relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply하지만 D3a Add/Remove/remake caps는 false이고
-D4 `424ec4d...`는 file close/reopen마다 backend와 loaded set을 새로 만들고 full/branch/full history 및
+relation-bearing CreateModel은 SQLite에서 apply/unapply/reapply합니다. D4d는 nullable, no-default, non-PK
+ForeignKey append를 empty/populated source에서 지원하되 public changed-target 하나가 source의 모든 기존
+ForeignKey와 exact same symbolic target을 나타내고 sealed target model이 relation-free인 경우로 닫았습니다.
+Source model당 migration step의 nullable relation Add는 하나입니다. Loaded core authority/resource closure는
+pre-capability/pre-Begin이고 missing capability는 selection 중 pre-Begin 실패합니다. SQLite independent static
+seal은 remaining invalid/direct shapes를 새 pinned relation connection과 SQL `BEGIN` 전에 거부합니다. Physical
+target-outgoing cycle/pre-existing drift는 `BEGIN IMMEDIATE` 뒤 physical preflight에서 검사하지만 revision
+claim/mutation 전 rollback합니다. Capability tuple은
+`{true,true,false,false}`입니다. D4 `424ec4d...`는 file
+close/reopen마다 backend와 loaded set을 새로 만들고 full/branch/full history 및
 revision-fingerprint ABA, canonical schema/rows와 physical FK snapshot을 비교했습니다. Raw SQLite file bytes,
-`sqlite_sequence`, general restart와 actual adapter는 검증하지 않았습니다. EVID-091/092는 각 docs head만,
+general restart와 actual adapter는 검증하지 않았습니다. Required Add와 Remove/remake는 false입니다.
+EVID-091/092는 각 docs head만,
 EVID-093은 D1/D2/D3a bounded slices만, EVID-094는 D3b product/correction head만, EVID-095는 D4 exact
-test-only verification head만 증명합니다.
+test-only verification head만 증명합니다. EVID-097은 final D4d head까지의 bounded product evidence이며
+MIG-081 status 전환이나 actual adapter 증거가 아닙니다.

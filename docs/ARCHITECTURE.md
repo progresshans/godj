@@ -443,7 +443,10 @@ support를 자동으로 뜻하지 않습니다. 후속 Phase D1/D2/D3a bounded p
 Implemented/Verified됐습니다. 이는 bounded Create/Delete normal loaded path에 한하며 D4 restart와
 Add/Remove/remake를 자동으로 지원하지 않습니다. D4 test-only verification head `424ec4d...`는
 [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
-이 기존 제품 경로의 bounded captured durable-snapshot restart 시나리오만 Verified했습니다.
+이 기존 제품 경로의 bounded captured durable-snapshot restart 시나리오만 Verified했습니다. EVID-096
+documentation head `62df9b2...`는 run `32260744096`에서 별도로 닫혔고, D4d final head `dd83362...`는
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`에서 sealed same-target nullable ForeignKey Add를 Implemented/Verified했습니다.
 
 ```text
 legacy (1,1,1,2) document ─┐
@@ -484,11 +487,16 @@ Optional product boundary는 exact `RelationRevisionFencedBackend`/`RelationRevi
 capabilities와 existing `RevisionFencedTransaction` 하나입니다. D3a의 direct SQLite port는 exact connection에서
 `PRAGMA foreign_keys=1` → `BEGIN IMMEDIATE` → physical preflight → fence claim → DDL/remake → FK check →
 recorder/revision → one commit 순서를 사용하고 physical action은 `NO ACTION`입니다. 현재 capability는
-CreateModel FK만 true이고 nullable/required AddField와 Remove/remake는 false입니다. D3b core는 static
+`{CreateModelForeignKeys:true, AddNullableForeignKey:true, AddRequiredForeignKeyToEmptyTable:false,
+RemoveForeignKeyByTableRemake:false}`입니다. D3b core는 static
 request/resource/carrier/profile/digest/graph/chronology/readiness 검증 뒤 exact-one fenced history로 actual
 Planner를 실행하고 whole plan을 dry-validate한 뒤에만 relation capability를 조회하도록 구현됐습니다.
 Normal loaded relation-bearing CreateModel은 same-session scalar dependency와 함께 apply되고 child-first
-DeleteModel unapply/reapply가 가능하지만, target-bearing Add/Remove는 capability error로 mutation 전에 닫힙니다.
+DeleteModel unapply/reapply가 가능합니다. D4d nullable Add는 public Add operation의 exact changed target 하나를
+유지하면서, pre-existing source ForeignKey가 전부 같은 symbolic target이고 sealed target snapshot이 relation-free인
+경우에만 SQLite가 ordered full target list를 privately 파생합니다. Source model당 migration step의 nullable
+relation Add는 하나이며 native `ALTER TABLE ... ADD COLUMN ... INTEGER NULL REFERENCES ... ON DELETE NO ACTION`을
+사용합니다. Required Add와 Remove/remake는 capability error로 mutation 전에 닫힙니다.
 
 Test-only helper/type/error names, golden/hash와 private catalogs는 noncanonical입니다. Writer/autodetector,
 general schema preservation, self/cyclic/inbound relation, non-AutoField target, non-SQLite backend와 Q-017/Q-019는
@@ -500,4 +508,6 @@ Later D1/D2/D3a는 EVID-093의 서로 다른 product/correction head와 hosted r
 D4 `424ec4d...`는 disposable SQLite file을 매 process scope마다 닫고 새 backend와 source-order-permuted
 `Load`로 다시 연 뒤 exact epoch/revision/fingerprint/history, canonical schema/rows와 physical FK snapshot을
 비교했습니다. 이는 raw database-file byte equality, `sqlite_sequence`, general restart 또는
-Add/Remove/remake support가 아니며 product source/public API/workflow도 바꾸지 않았습니다.
+Add/Remove/remake support가 아니며 product source/public API/workflow도 바꾸지 않았습니다. D4d는 nullable Add
+forward와 그 fresh-reopen Latest no-op까지만 더하며 reverse Remove, required Add, general restart와 actual adapter는
+여전히 범위 밖입니다.

@@ -115,7 +115,10 @@ D3b loaded relation core integration `74c2b72...`/`167ef03...`도 EVID-094/run `
 구현·검증됐지만 checked-in Phase A artifact의 provenance/license 분류나 MIG status를 바꾸지 않습니다.
 D4 test-only verification `424ec4d...`/EVID-095/run `32248885053`도 existing product path의 bounded
 file-backed restart observation만 추가하며 source provenance/license 분류나 MIG status를 바꾸지 않습니다.
-Add/Remove/remake와 general restart는 여전히 미지원입니다.
+EVID-096 docs head `62df9b2...`의 run `32260744096`과 D4d product/fix final head `dd83362...`의
+EVID-097/run `32271361724`도 checked-in Phase A reference를 rewrite하지 않습니다. D4d nullable ForeignKey
+Add source와 tests는 GoDj-owned independent implementation이며 upstream source, fixture, comment 또는 assertion
+구조를 복사·번역하지 않았습니다. Required Add/Remove-remake와 general restart는 여전히 미지원입니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

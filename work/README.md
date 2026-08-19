@@ -90,14 +90,18 @@ apply/unapply/reapply, exact-one history/actual-plan preflight와 scalar/no-op/u
 Implemented/Verified했습니다. D4 exact one-test-file head `424ec4d...`도 EVID-095/run `32248885053`에서
 fresh loaded set/backend와 captured schema/rows/history/token/FK snapshot을 사용한 bounded file-backed
 full/branch/full restart를 Verified했습니다. Product source/API/workflow/inventory는 불변이고
-Add/Remove/remake caps는 false입니다. D4b exact18 docs head `84588f9...`는 EVID-096/run
+그 당시 Add/Remove/remake caps는 false였습니다. D4b exact18 docs head `84588f9...`는 EVID-096/run
 `32252834752`, D4c exact one-test-file taxonomy head `e4fbc7b...`는 EVID-096/run `32256113658`의 각 unique
 26/26·342/342·audit P0..P3=0을 통과했습니다. D4c는 Begin/PRAGMA-set/catalog/claim-busy
 `NoOperation`, final-FK operation 1 `AddField`, recorder `NoOperation`의 bounded forward proof이며 product/API/
-workflow/capability/status/inventory를 바꾸지 않습니다. 다음은 이 EVID-096 exact-six docs head의 고유
-hosted proof → sealed/resolvable pre-existing target snapshot에 한정한 `AddNullableForeignKey` product head →
-required-empty Add → Remove/remake → actual adapter → completion/terminal입니다. Arbitrary target universe는 주장하지
-않습니다.
+workflow/capability/status/inventory를 바꾸지 않습니다. EVID-096 exact-six docs head `62df9b2...`는 run
+`32260744096`에서 고유하게 닫혔습니다. D4d product `3950d98...`/inventory lock `28b141e...`의 첫 hosted
+run `32267789056`은 macOS Intel race의 wall-clock assertion P1로 25/26에서 실패했고, deterministic visit-count
+fix `dd83362...` 뒤 distinct run `32271361724`가 exact 26/26·342/342·audit P0..P3=0을 통과했습니다.
+EVID-097은 sealed/resolvable same-target snapshot에 한정한 nullable ForeignKey Add, native ALTER, populated row/
+sequence, canonical mixed SQL, reopen/fault/resource proof를 기록합니다. Capability는 `{true,true,false,false}`이고
+다음은 required-empty Add → Remove/remake → actual adapter → completion/terminal입니다. Arbitrary target universe는
+주장하지 않습니다.
 Active는 1, ready는 0이며 Draft PR은 merge하지 않습니다.
 GDJ-0024 final evidence/status head `5bf143575e9b703117a328c1fc5b7eb5823fbfd6`은 run
 `31351169780`의 exact 26/26 jobs·326/326 recorded steps를 통과해 EVID-038에 기록됐습니다. GDJ-0025는

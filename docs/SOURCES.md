@@ -254,8 +254,12 @@ D2 private state/readiness, D3a direct optional SQLite Create/Delete port는
 분류를 재작성하지 않으며 MIG-075..086은 계속 `oracle_locked`입니다. D3b normal loaded core integration
 `74c2b72...`/`167ef03...`도
 [EVID-094](status/TEST_EVIDENCE.md#evid-20260819-094--gdj-0035-phase-d3b-loaded-relation-core-integration-local-and-hosted-verification)에서
-구현·검증됐지만 upstream source/provenance와 MIG status를 바꾸지 않습니다. Add/Remove/remake caps는 false이고
+구현·검증됐지만 upstream source/provenance와 MIG status를 바꾸지 않습니다.
 D4 test-only verification `424ec4d...`도
 [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
 기존 product path의 bounded captured-snapshot restart만 검증했으므로 upstream source/provenance와 MIG status는
-계속 불변입니다. General restart와 actual adapter는 미지원입니다.
+계속 불변입니다. EVID-096 docs head `62df9b2...`/run `32260744096`과 D4d final head `dd83362...`의
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`도 Phase A source payload를 rewrite하거나 재분류하지 않습니다. Nullable Add는 GoDj-owned
+independent implementation이며 exact capability는 `{true,true,false,false}`입니다. Required Add/Remove-remake,
+general restart와 actual adapter는 미지원입니다.

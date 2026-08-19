@@ -1,7 +1,7 @@
 ---
 id: GDJ-0035
 status: active
-updated: 2026-08-19
+updated: 2026-08-20
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "0bb8c969d0658f50f40d916996f027e7393bce14"
 depends_on: ["GDJ-0034"]
@@ -125,10 +125,9 @@ apply/unapply/reapply/restart할 수 있습니다. `PROTECT`와 `SET_NULL`은 Go
 test-only proof와 Proposed decision-freeze docs head의 별도 local/hosted proof를 거쳐
 [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
 decision으로 **Accepted**됐습니다. 이는 제품 구현, product contract `passing`, backend support 또는 제품
-**Verified**를 자동으로 뜻하지 않습니다. 현재 checkout은 후속 Phase D1/D2/D3a의 bounded sub-slice와
-D3b normal loaded relation core integration을 구현·검증했고 D4 exact test-only head에서 이 기존 경로의
-bounded file-backed restart scenario를 추가 검증했습니다. Add/Remove/remake, general restart와 MIG product
-adapter/status 전환은 아직 완료하지 않았습니다.
+**Verified**를 자동으로 뜻하지 않습니다. 현재 checkout은 후속 Phase D1/D2/D3a/D3b bounded slices,
+D4 existing-path restart와 D4d sealed same-target nullable ForeignKey Add를 구현·검증했습니다. Required
+ForeignKey Add, Remove/remake, general restart와 MIG product adapter/status 전환은 아직 완료하지 않았습니다.
 
 ## 기준 상태와 activation 경계
 
@@ -196,6 +195,16 @@ adapter/status 전환은 아직 완료하지 않았습니다.
   [EVID-095](../docs/status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification) /
   [run 32248885053](https://github.com/progresshans/godj/actions/runs/32248885053)의 exact 26/26·342/342를
   통과했습니다. Product source/API/workflow와 inventory lock은 불변입니다.
+- D4b/D4c를 기록한 EVID-096 exact-six documentation head
+  `62df9b2ca3bb397ec826d07b2840408544231845`는 unique
+  [run 32260744096](https://github.com/progresshans/godj/actions/runs/32260744096)의 exact
+  26/26·342/342와 audit P0..P3=0을 통과했습니다.
+- D4d product `3950d98f10544ed18821c1af7960eb1696384eb4`와 inventory lock
+  `28b141e023d5e851e25e6560fc21a463982bf1be` 뒤 첫 run `32267789056`은 macOS Intel race의
+  wall-clock assertion P1로 25/26 jobs에서 실패했습니다. Deterministic scan-count fix
+  `dd8336296afec1c05f739817c7ab77bdb63a2535`는 distinct
+  [run 32271361724](https://github.com/progresshans/godj/actions/runs/32271361724)의 exact
+  26/26·342/342와 audit P0..P3=0을 통과했습니다. EVID-097은 이 bounded D4d 결과를 기록합니다.
 - 이 문서만 `active`이고 `ready`는 0입니다. Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
 
 ## 보존해야 하는 legacy 불변 조건
@@ -283,9 +292,13 @@ adapter/status 전환은 아직 완료하지 않았습니다.
   `CommitFenced` once입니다. Physical preflight는 DB I/O이며 static zero-I/O preflight와 별도입니다.
 - Precommit DDL/recorder/revision fault는 same-transaction rollback과 original cause를 보존합니다. Commit은
   success/definite-failure/unknown-outcome 세 결과를 그대로 전달하고 automatic retry를 하지 않습니다.
-- D3a 현재 SQLite capability는 CreateModel FK만 true이고 nullable Add, empty-required Add, Remove/remake는
-  false입니다. Target-bearing Add/Remove는 거부하지만 complete relation intent의 zero-target scalar Add/Remove는
-  같은 transaction에서 수행합니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
+- D3a 당시 SQLite capability는 CreateModel FK만 true였습니다. D4d 이후 exact tuple은
+  `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+  AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. Nullable Add는 public
+  changed-field target 하나를 유지하면서 pre-existing source relation이 모두 같은 symbolic target이고 sealed
+  target model이 relation-free인 경우에만 private full target list를 파생합니다. Source model당 step의 nullable
+  relation Add는 하나입니다. Complete relation intent의 zero-target scalar Add/Remove도 같은 transaction에서
+  수행할 수 있습니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
   physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK
   failure는 exact operation을 소유합니다.
 
@@ -307,7 +320,7 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 | MIG-081 | Populated-table nullable success, empty-table required support와 populated-table required rejection | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-082 | FK removal table remake의 row/order/sequence preservation | `oracle_locked` / Django observed |
 | MIG-083 | Exact pinned connection FK-on과 physical `NO ACTION` | `oracle_locked` / observed + Accepted-decision separation |
-| MIG-084 | File-backed close/reopen restart와 applied-state reconstruction | `oracle_locked` / Django observed; actual product restart blocked |
+| MIG-084 | File-backed close/reopen restart와 applied-state reconstruction | `oracle_locked` / Django observed; bounded product-path scenario Verified, actual MIG adapter/general restart blocked |
 | MIG-085 | Pre-DDL full rollback, recorder-fault committed-schema boundary, GoDj atomic proposal | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | `oracle_locked` / Accepted-decision reference |
 
@@ -391,7 +404,10 @@ EVID-085에 기록했습니다.
       Begin/PRAGMA-set/catalog/claim-busy는 `NoOperation`, final-FK는 operation 1 `AddField`, recorder는
       `NoOperation`; exact one test head `e4fbc7b...`, EVID-096/run `32256113658`, 26/26·342/342,
       audit P0..P3=0; product/API/workflow/capability/status/inventory change 0
-- [ ] **D4d**: `AddNullableForeignKey`를 별도 product/evidence head로 구현·검증
+- [x] **D4d**: sealed same-target loaded universe의 `AddNullableForeignKey`를 product `3950d98...`, inventory
+      lock `28b141e...`, deterministic resource-scan fix `dd83362...`로 구현; public changed-target-only/private
+      ordered expansion, native ALTER/mixed canonical SQL, populated rows/sequence, reopen, fault/no-retry와
+      resource bounds를 EVID-097/run `32271361724`에서 검증; first run `32267789056` P1도 보존
 - [ ] **D4e**: `AddRequiredForeignKeyToEmptyTable`을 별도 product/evidence head로 구현·검증
 - [ ] **D4f**: `RemoveForeignKeyByTableRemake`를 별도 product/evidence head로 구현·검증
 - [ ] **D4g**: 모든 capability head 후 actual GoDj adapter가 expected fixture replay 없이 MIG-075..086
@@ -421,10 +437,11 @@ EVID-085에 기록했습니다.
       EVID-096/run `32252834752`
 - [x] D4c taxonomy test-only head `e4fbc7b...`의 local/unique exact-head hosted CI —
       EVID-096/run `32256113658`
-- [ ] 현재 EVID-096 exact-six documentation head의 고유 hosted CI
-- [ ] 그 다음 bounded `AddNullableForeignKey`, `AddRequiredForeignKeyToEmptyTable`,
-      `RemoveForeignKeyByTableRemake`, actual adapter, overall completion-documentation, terminal evidence/status를
-      위 순서의 서로 다른 exact-head CI로 검증
+- [x] EVID-096 exact-six documentation head `62df9b2...`의 고유 hosted CI — run `32260744096`
+- [x] Bounded `AddNullableForeignKey` final head `dd83362...`의 local/unique exact-head hosted CI —
+      EVID-097/run `32271361724`; exact 26/26 jobs·342/342 steps, audit P0..P3=0
+- [ ] 그 다음 `AddRequiredForeignKeyToEmptyTable`, `RemoveForeignKeyByTableRemake`, actual adapter, overall
+      completion-documentation, terminal evidence/status를 위 순서의 서로 다른 exact-head CI로 검증
 - [x] CURRENT/MATRIX/TEST_EVIDENCE/work를 실제 local 상태에 맞춰 갱신; ADR-0034 bounded design을 별도 head에서 Accepted로 전환
 
 ## 명시적 비목표와 금지 경계
@@ -456,12 +473,13 @@ EVID-093의 고유 hosted run에서 검증됐습니다. D3b `74c2b72`/`167ef03`�
 `424ec4d...`도 EVID-095/run `32248885053`에서 file close/reopen마다 fresh loaded set/backend를 사용한
 full/branch/full captured-snapshot restart를 검증했습니다. D4b `84588f9...`는 EVID-096/run
 `32252834752`에서 exact18 docs head를, D4c `e4fbc7b...`는 EVID-096/run `32256113658`에서
-six-case loaded SQLite taxonomy를 각 고유 hosted proof로 검증했습니다. 다음 정확한 작업은 현재
-EVID-096 exact-six documentation head의 고유 hosted proof입니다. 그 성공 후
-`AddNullableForeignKey`를 pre-existing FK target snapshot이 sealed/resolvable인 bounded loaded universe에서
-별도 product/evidence head로 구현·검증합니다. Arbitrary target universe는 주장하지 않고
-required-empty Add/Remove-remake는 false로 보존합니다. 그 뒤 remaining capabilities → actual adapter →
-overall completion → terminal 순서로 닫습니다.
+six-case loaded SQLite taxonomy를 각 고유 hosted proof로 검증했습니다. EVID-096 exact-six docs head
+`62df9b2...`도 run `32260744096`에서 별도로 닫혔습니다. D4d product `3950d98...`, inventory lock
+`28b141e...`와 deterministic scan fix `dd83362...`는 EVID-097/run `32271361724`에서 sealed/resolvable
+same-target loaded universe의 `AddNullableForeignKey`를 구현·검증했습니다. Exact capability는
+`{true,true,false,false}`입니다. 다음 정확한 작업은 D4e `AddRequiredForeignKeyToEmptyTable`을 별도
+product/evidence head에서 구현·검증하는 것입니다. 그 뒤 Remove/remake → actual adapter → overall completion →
+terminal 순서로 닫습니다.
 
 ## 결과와 인수인계
 
@@ -470,16 +488,20 @@ port와 D3b normal loaded core integration은 각각 Implemented이고 EVID-093/
 Verified입니다. Normal `Load`→`Set.Migrate` relation-bearing CreateModel은 SQLite에서
 apply/unapply/reapply합니다. D4a는 이 기존 product path의 bounded captured-snapshot file restart scenario를
 EVID-095 환경에서 Verified했습니다. D4b docs head와 D4c test-only six-case taxonomy head는 EVID-096의
-각 hosted 환경에서 Verified했습니다. D3a 현재 capability는 CreateModel FK만 true이고 target-bearing
-Add/Remove/remake는 false이며 general restart/actual adapter는 미지원입니다. Reference는 exact
+각 hosted 환경에서 Verified했고 exact-six docs head 자체도 run `32260744096`에서 검증됐습니다. D4d
+`3950d98...`/`28b141e...`/`dd83362...`는 EVID-097 환경에서 bounded nullable Add를 Implemented/Verified했습니다.
+현재 capability는 `{true,true,false,false}`이고 required Add/Remove-remake, general restart/actual adapter는
+미지원입니다. Reference는 exact
 13/139/156=`122+5+12 locked`, product contract는
 12/127=`122+5+0`으로 불변이고 MIG-075..086은 여전히 `oracle_locked`입니다.
 
 EVID-093의 D1/D2/D3a runs는 각 correction head만 증명하고 EVID-094/run `32231149900`은 D3b correction
 head `167ef03...`만 증명합니다. EVID-095/run `32248885053`은 D4a test-only head `424ec4d...`만,
 run `32252834752`는 D4b docs head `84588f9...`만, run `32256113658`은 D4c test-only head
-`e4fbc7b...`만 증명합니다. 이 EVID-096 documentation head, later capability/adapter, completion/terminal
-또는 MIG status 전환을 재귀적으로 증명하지 않습니다. Public raw
+`e4fbc7b...`만 증명합니다. Run `32260744096`은 EVID-096 docs head `62df9b2...`만, first D4d run
+`32267789056`은 P1 실패 head `28b141e...`만, run `32271361724`는 fixed D4d head `dd83362...`만
+증명합니다. 이 EVID-097 documentation mirror, later capability/adapter, completion/terminal 또는 MIG status
+전환을 재귀적으로 증명하지 않습니다. Public raw
 `NewStateReconstructor`의 relation input은 계속 `CategoryState`/`CodeInvalidState`고 carrier-less raw relation
 execution은 `CategoryCapability`/`CodeUnsupported`입니다.
 Allowed path 이름을 바꿔야 하면 source를 만들기 전에 이 frontmatter를 먼저 수정하고 통합 담당자가 scope를

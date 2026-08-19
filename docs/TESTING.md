@@ -1478,3 +1478,51 @@ After that head receives its own unique hosted proof, the next separate product/
 `AddNullableForeignKey`, limited to pre-existing target snapshots sealed and resolvable in the exact loaded graph;
 arbitrary target universes are not claimed. Required-empty Add, Remove/remake, actual adapter and
 completion/terminal remain later ordered heads.
+
+## GDJ-0035 Phase D4d bounded nullable ForeignKey Add verification
+
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification)
+first closes the prior EVID-096 documentation head `62df9b2ca3bb397ec826d07b2840408544231845` with unique
+CI #89 [run 32260744096](https://github.com/progresshans/godj/actions/runs/32260744096): exact 26/26 jobs,
+342/342 steps and audit P0/P1/P2/P3=`0/0/0/0`. That run proves only the docs head.
+
+D4d product `3950d98f10544ed18821c1af7960eb1696384eb4` changes exact six migration/SQLite source and test paths.
+It keeps public AddField `Targets` at the exact changed field only, then core and SQLite independently admit only a
+nullable, no-default, non-PK ForeignKey append where every pre-existing source relation has the same symbolic target,
+the sealed target model is relation-free and at most one nullable relation is added per source model per step. SQLite
+privately expands the ordered full target list without catalog/current-registry inference, checks aggregate node/byte
+bounds before allocation and emits native
+`ALTER TABLE "main"."source" ADD COLUMN "editor_id" INTEGER NULL REFERENCES "target" ("id") ON DELETE NO ACTION`.
+The exact capability tuple is `{true,true,false,false}`.
+
+Product tests cover empty/populated source tables, same-target existing ForeignKeys, exact mixed inline/table-level
+canonical SQL, existing-row NULL and sequence preservation, valid/orphan writes, caller-alias isolation, fresh reopen
+Latest no-op and reverse Remove rejection. Loaded core authority/resource closure is pre-capability/pre-Begin; a
+missing capability fails during selection pre-Begin. SQLite's independent static seal rejects remaining invalid/direct
+shapes before acquiring a new pinned relation connection or executing SQL `BEGIN`. Physical target-outgoing cycle/
+pre-existing drift is checked after `BEGIN IMMEDIATE` during physical preflight, but before revision claim/mutation
+and with rollback. Direct ALTER,
+post-ALTER canonical drift, final `foreign_key_check` and recorder faults retain their raw causes, execute no automatic
+retry, roll back the same transaction and preserve the reopened structured durable snapshot. Loaded ALTER/final-FK
+failures are `CategoryExecution`/`CodeOperationFailed` at the exact AddField; recorder is
+`CategoryRecorder`/`CodeRecordFailed`/`NoOperation`.
+
+Final product bytes passed `go test ./... -count=1`, focused normal/race/CGO-disabled/vet, full race and CGO-disabled
+gates, `go test -shuffle=on -count=20 ./migrations/...`, exact inventory twice and two independent focused audits with
+P0..P3=0. Inventory lock `28b141e023d5e851e25e6560fc21a463982bf1be` records exact
+821/821/0·84,006 bytes·SHA-256 `b5906bf73717353aed25c8a1b7c71deb34bbe7b2eeece0d4c4237085f80db9c2`.
+
+The first hosted inventory head, CI #90
+[run 32267789056](https://github.com/progresshans/godj/actions/runs/32267789056), completed 25 success/1 failure.
+`Relation product (macos-15-intel)` failed only
+`TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes` because its 2-second wall-clock assertion
+observed 2.01 seconds under race; hosted audit classified this P1. Fix
+`dd8336296afec1c05f739817c7ab77bdb63a2535` replaces timing with exact visited definition/operation/field counts and
+passes the focused three-test normal/race gates 50 times each plus the normal/race/CGO-disabled/vet workflow package
+set. Distinct CI #91 [run 32271361724](https://github.com/progresshans/godj/actions/runs/32271361724) passed exact
+26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0`.
+
+D4d does not change public signatures, workflow topology, reference artifacts, MIG-075..086 status or Q status.
+Required Add/Remove-remake remain false, MIG-075..086 remain `oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`,
+and general restart/actual adapter/completion/terminal remain later work. Next is D4e
+`AddRequiredForeignKeyToEmptyTable` on a distinct product/evidence head.

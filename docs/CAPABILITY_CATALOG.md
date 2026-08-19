@@ -437,7 +437,7 @@ GDJ-0035의 relation-migration decision 상태는 `Accepted/Partially Implemente
 legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
 다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
-채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b 한계를 따릅니다.
+채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b/D4d 한계를 따릅니다.
 
 - MIG-075: legacy profile/digest/state ABI preservation
 - MIG-076..078: exact relation profile, one-loader mixed digest v2, whole-step relation state promotion/demotion
@@ -459,6 +459,14 @@ SQLite Create/Delete port는
 normal loaded relation-bearing Create/Delete core apply/unapply/reapply와 actual-plan preflight를
 Implemented/Verified했습니다. D4 exact test-only head `424ec4d...`는
 [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
-기존 제품 경로의 bounded captured-snapshot close/reopen 시나리오를 Verified했습니다. D3a
-Add/Remove/remake caps는 계속 false이고 general restart나 actual MIG adapter는 아직 없습니다.
+기존 제품 경로의 bounded captured-snapshot close/reopen 시나리오를 Verified했습니다. EVID-096 docs head
+`62df9b2...`는 run `32260744096`에서 고유하게 검증됐고, D4d final head
+`dd83362...`는
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`에서 sealed same-target loaded universe의 nullable ForeignKey Add를 Implemented/Verified했습니다.
+Exact capability는 `{true,true,false,false}`입니다. Public Add intent는 changed target 하나만 소유하고 SQLite가
+그 sealed snapshot을 같은 symbolic target의 pre-existing source ForeignKey에만 privately 확장합니다. Native
+`ALTER TABLE ... ADD COLUMN ... INTEGER NULL REFERENCES ... ON DELETE NO ACTION`, populated-row NULL 보존,
+canonical mixed declaration, reopen/fault/resource 경계를 검증했습니다. Required Add/Remove-remake, general
+restart와 actual MIG adapter는 아직 없습니다.
 MIG-075..086은 계속 `oracle_locked`입니다.

@@ -196,7 +196,8 @@ EVID-091로 증명된 Proposed docs head 뒤 Accepted됐습니다. D1/D2/D3a bou
 normal loaded Create/Delete path에 한해 구현·검증됐습니다. D4 test-only head `424ec4d...`는
 [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
 close/reopen마다 fresh backend/loaded set을 쓰는 bounded captured-snapshot restart만 검증했습니다. 아래 경계는
-false인 Add/Remove/remake capability나 general restart까지 지원하는 보장이 아닙니다.
+general restart까지 지원하는 보장이 아닙니다. D4d는 EVID-097/run `32271361724`에서 nullable relation Add만
+별도 구현·검증했고 required Add와 Remove/remake는 계속 false입니다.
 
 - Static request/resource/carrier/profile/digest/graph/chronology/readiness preflight는 backend/session 전에
   끝나며 failure DB/session I/O는 0입니다. 그 뒤 existing fenced session에서 applied history를 exact once
@@ -224,6 +225,10 @@ false인 Add/Remove/remake capability나 general restart까지 지원하는 보�
 - Scalar-only/no-op actual plan은 relation capability/`BeginRelationFencedMigration` call이 0입니다. Nonempty
   scalar-only plan은 existing `BeginFencedMigration`을 사용하며, unsupported relation step이 하나라도 있으면
   scalar prefix를 begin/commit하지 않습니다.
+- Nullable relation Add authority는 whole-plan dry pass와 execution rematerialization에서 각각 재검증합니다.
+  Public intent는 changed target 하나만 전달하고 SQLite는 그 immutable snapshot을 exact same symbolic target의
+  pre-existing source relations에만 privately 확장합니다. Source model당 한 step의 nullable relation Add는 하나이며
+  resource node/byte cap을 allocation 전에 검사합니다.
 - `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/physical-preflight/claim failure는
   step-level `NoOperation`과 existing typed class를 유지하고, SchemaEditor/row-copy/final-FK failure만
   exact operation을 소유합니다.
@@ -240,7 +245,11 @@ hosted-verified됐고 acceptance docs head `7cdc6d6...`도 EVID-092/run `3218709
 P0..P3=0을 통과했습니다. D3a는 direct Create/Delete port만 소유하고 D3b는 이를 normal loaded core에
 연결했으며 새 public API를 추가하지 않았습니다. D4 `424ec4d...`/EVID-095/run `32248885053`은 existing
 product path의 bounded close/reopen token/history/DAG reconstruction을 검증했지만 product source/API/workflow를
-바꾸지 않았습니다. Add/Remove/remake caps는 false이고 raw-file equality/general restart는 주장하지 않습니다.
+바꾸지 않았습니다. EVID-096 docs head `62df9b2...`는 run `32260744096`에서 닫혔고 D4d product
+`3950d98...`/lock `28b141e...`/fix `dd83362...`는 EVID-097/run `32271361724`에서 exact
+26/26·342/342와 audit P0..P3=0을 통과했습니다. Native nullable Add, final canonical/FK/recorder fault의
+same-transaction rollback과 sticky no-retry, reopened durable snapshot 불변을 검증했습니다. Capabilities는
+`{true,true,false,false}`이고 raw-file equality/general restart는 주장하지 않습니다.
 
 Q-019 retained unknown-outcome connection policy는 이 packet이 답하지 않으며, non-SQLite concurrency
 semantics도 범위 밖입니다.

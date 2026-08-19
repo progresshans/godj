@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-19
+- 마지막 검토: 2026-08-20
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -11,8 +11,8 @@
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 D1 profile/handoff·D2 private readiness·D3b loaded core handshake와 D4 bounded restart observation은 Verified이지만 generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 D3a direct SQLite Create/Delete port, D3b loaded core lifecycle과 D4 bounded captured-snapshot restart는 Verified이지만 Add/Remove/remake, general restart/actual adapter, writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 D1/D2/D3a/D3b bounded slices, normal loaded AutoField FK Create/Delete와 D4 bounded restart observation은 Verified이지만 broader relation/backend 범위는 open |
+| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 D3a direct SQLite Create/Delete port, D3b loaded core, D4 bounded restart와 D4d nullable FK Add는 Verified이지만 required Add/Remove-remake, general restart/actual adapter, writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
+| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 D1/D2/D3a/D3b/D4d bounded slices, normal loaded AutoField FK Create/Delete와 sealed same-target nullable Add는 Verified이지만 broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -547,8 +547,12 @@ Create/Delete port는 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-
 apply/unapply/reapply합니다. D4 exact one-test-file head `424ec4d...`는
 [EVID-095](status/TEST_EVIDENCE.md#evid-20260819-095--gdj-0035-phase-d4-loaded-relation-file-backed-restart-local-and-hosted-verification)에서
 fresh backend/loaded set과 structured durable snapshot을 사용한 bounded close/reopen scenario만 Verified했습니다.
-Add/Remove/remake caps는 false이고 general restart/actual adapter는 미지원이며 Q 상태도 불변입니다.
+EVID-096 docs head `62df9b2...`는 run `32260744096`에서 고유하게 닫혔습니다. D4d final head `dd83362...`는
+[EVID-097](status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification) /
+run `32271361724`에서 public changed-target-only/private sealed same-target expansion과 native nullable
+ForeignKey Add를 구현·검증했습니다. Capability는 `{true,true,false,false}`이고 required Add/Remove-remake,
+general restart/actual adapter는 미지원이며 Q 상태도 불변입니다.
 Acceptance docs head `7cdc6d6...`는 EVID-092/run `32187094845`의 unique exact-head hosted gate를 통과했으며
 EVID-091을 재사용하지 않았습니다. EVID-093은 각 D1/D2/D3a bounded slice만 증명하며
-EVID-094는 D3b product/correction head만, EVID-095는 D4 verification head만 증명합니다. 어느 것도 MIG
+EVID-094는 D3b product/correction head만, EVID-095는 D4 verification head만 증명합니다. EVID-097도 MIG
 contract 분류나 Q 상태를 바꾸지 않습니다.

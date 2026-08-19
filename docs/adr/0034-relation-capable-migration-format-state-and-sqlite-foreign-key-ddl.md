@@ -4,6 +4,7 @@
 - 날짜: 2026-08-13
 - Phase C decision freeze: 2026-08-19
 - Decision accepted: 2026-08-19
+- Latest bounded implementation evidence: 2026-08-20
 - 관련 work/contract:
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md),
   MIG-075..MIG-086, Q-010, Q-012, Q-013
@@ -56,6 +57,15 @@ contract `passing`, 전체 relation backend support 또는 전체 경로의 **Ve
   bounded file-backed restart scenario를 검증합니다. Product source/API/workflow, capability와 MIG status는
   바뀌지 않았고 raw database-file byte equality, `sqlite_sequence`, general restart와 actual adapter를
   증명하지 않습니다.
+- EVID-096 exact-six documentation head `62df9b2ca3bb397ec826d07b2840408544231845`는 unique
+  [run 32260744096](https://github.com/progresshans/godj/actions/runs/32260744096)의 exact
+  26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했습니다.
+- [EVID-097](../status/TEST_EVIDENCE.md#evid-20260820-097--gdj-0035-d4d-bounded-nullable-foreignkey-add-local-and-hosted-verification)은
+  D4d product `3950d98f10544ed18821c1af7960eb1696384eb4`, inventory lock
+  `28b141e023d5e851e25e6560fc21a463982bf1be`와 deterministic resource-scan fix
+  `dd8336296afec1c05f739817c7ab77bdb63a2535`를 기록합니다. First hosted run `32267789056`의 P1을
+  보존하고 distinct [run 32271361724](https://github.com/progresshans/godj/actions/runs/32271361724)의 exact
+  26/26·342/342와 audit P0..P3=0으로 fixed head를 검증합니다.
 
 이번 결정은 existing scalar migration ABI를 보존하면서 AutoField-target `ForeignKey` definition과 historical
 state를 기존 revision-fenced SQLite lifecycle로 전달하는 단면만 다룹니다. Writer/autodetector, arbitrary schema
@@ -71,8 +81,9 @@ authority를 구현합니다. Phase D2는 `RelationStateFormatVersion=2`와 priv
 core `Executor.Migrate`가 exact applied history로 actual plan을 만들고 whole-plan dry validation 뒤 relation
 capability를 선택하도록 연결했습니다. Normal loaded relation-bearing CreateModel은 SQLite에서
 apply/unapply/reapply할 수 있습니다. D4는 file close/reopen마다 fresh backend와 mixed loaded set을 만들고
-captured schema/rows/history/token/FK snapshot으로 bounded restart를 검증했습니다. Target-bearing
-Add/Remove/remake, general restart와 actual MIG adapter는 아직 미지원입니다.
+captured schema/rows/history/token/FK snapshot으로 bounded restart를 검증했습니다. D4d는 아래 Accepted
+shape 안에서 target-bearing nullable Add를 구현했습니다. Required Add/Remove-remake, general restart와 actual
+MIG adapter는 아직 미지원입니다.
 
 SQLite ForeignKey constraint는 connection-local `PRAGMA foreign_keys`와 table definition에 결속됩니다.
 Column/FK removal은 table remake가 필요할 수 있고 user rows, `sqlite_sequence`, index/trigger/view와 inbound
@@ -375,12 +386,36 @@ static request/resource/carrier/profile/digest/graph/chronology/readiness prefli
 - ForeignKey remove/reverse/unapply는 `RemoveForeignKeyByTableRemake` capability와 bounded remake eligibility를
   모두 통과해야 합니다. Parent-first apply, child-first unapply, 마지막 relation 제거 후 demotion을 유지합니다.
 
-Phase D3a 현재 SQLite capability는 exact
-`{CreateModelForeignKeys:true, AddNullableForeignKey:false,
-AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. 따라서 direct
-optional port의 relation-bearing CreateModel/DeleteModel만 구현·검증됐고 target-bearing Add/Remove/remake는
-structured capability error로 거부됩니다. Complete relation intent 내의 zero-target scalar Add/Remove는 같은
-transaction에서 실행할 수 있지만 그 것을 relation Add/Remove capability로 세지 않습니다.
+Phase D3a 당시 SQLite capability는 exact `{true,false,false,false}`였습니다. D4d 이후 exact tuple은
+`{CreateModelForeignKeys:true, AddNullableForeignKey:true,
+AddRequiredForeignKeyToEmptyTable:false, RemoveForeignKeyByTableRemake:false}`입니다. Complete relation intent
+내의 zero-target scalar Add/Remove는 같은 transaction에서 실행할 수 있지만 그 것을 relation Add/Remove
+capability로 세지 않습니다.
+
+D4d nullable Add 구현은 Accepted public `Targets` 의미를 바꾸지 않고 다음 bounded shape로 닫습니다.
+
+- Forward exact append `AddField`이고 added field는 nullable, no-default, non-primary-key `ForeignKey`여야 합니다.
+- Public Add operation의 `Targets`는 exact changed field 하나입니다. Core dry pass와 execution rematerialization은
+  pre-existing source relations가 모두 그 field와 exact same symbolic `(app, model)` target을 선언하는지,
+  sealed changed `TargetModel`이 relation-free이고 unique non-null AutoField PK를 갖는지 재검증합니다.
+- SQLite는 그 one private immutable target snapshot을 existing source relation field order로만 확장합니다.
+  Physical catalog/current runtime registry에서 missing historical authority를 추론하지 않습니다.
+- 한 migration step에서 source model당 nullable relation Add는 하나만 허용합니다. Loaded core의 sealed
+  authority/resource closure는 capability lookup과 Begin 전이고, missing capability는 capability selection에서
+  pre-Begin 실패합니다. SQLite의 independent static seal은 remaining invalid/direct shapes를 새 pinned relation
+  connection 획득과 SQL `BEGIN` 전에 거부합니다. Physical target-outgoing cycle과 pre-existing catalog drift는
+  `BEGIN IMMEDIATE` 뒤 physical preflight에서 검사하지만 revision claim과 mutation 전이며, failure는 transaction을
+  rollback합니다.
+- SQLite native SQL의 exact exemplar는
+  `ALTER TABLE "main"."source" ADD COLUMN "editor_id" INTEGER NULL REFERENCES "target" ("id") ON DELETE NO ACTION`입니다.
+  Post-ALTER table SQL은 GoDj emitted table-level constraints와 SQLite native
+  inline clause가 섞인 exact one-pass canonical grammar로 검증하며 case/whitespace/action/order/trailing drift를
+  허용하지 않습니다.
+- Empty/populated source에서 existing rows와 sequence를 보존하고 new column은 NULL입니다. Final canonical,
+  `foreign_key_check`와 recorder fault는 same transaction rollback, sticky failure/no automatic retry와 reopened
+  structured snapshot 불변을 유지합니다.
+
+Required Add/Remove-remake는 structured capability error로 계속 거부됩니다.
 
 ### Bounded SQLite table remake
 
@@ -439,8 +474,9 @@ actual DAG와 private reconstructed state를 사용해 full/branch/full transiti
   history, migration DAG와 actual `StateReconstructor` replay를 검증한 것이 아닙니다.
 - D1/D2의 loaded authority/readiness와 D3a의 direct optional SQLite session 검증은 각각 Implemented/Verified입니다.
   D3b는 normal loaded relation-bearing CreateModel을 exact-one history/actual-plan preflight 뒤 direct port로
-  연결했습니다. D4는 이 기존 경로의 bounded file-backed captured-snapshot restart만 Verified했습니다.
-  Carrier 없는 raw relation entry와 false Add/Remove/remake capability는 계속 pre-Begin
+  연결했고 D4는 이 기존 경로의 bounded file-backed captured-snapshot restart만 Verified했습니다. D4d는 같은
+  sealed loaded 경로에서 bounded nullable ForeignKey Add만 구현·검증했습니다. Carrier 없는 raw relation entry와
+  required Add/Remove-remake의 false capability는 계속 pre-Begin
   `CategoryCapability`/`CodeUnsupported`, feature `relation_migration`에서 정지합니다.
 
 ### Error ownership
@@ -497,10 +533,11 @@ version/capability/fence 경계에 놓입니다. Three-stage preflight와 bounde
 compatibility surface와 test matrix를 늘립니다.
 
 현재 checkout은 D1 definition/handoff, D2 private relation state/readiness, D3a direct SQLite Create/Delete
-optional port와 D3b normal loaded core integration을 구현했고 각 bounded sub-slice를 local/hosted에서
-검증했습니다. D4 exact test-only head는 existing product path의 bounded captured-snapshot restart scenario를
-추가 검증했습니다. 그러나 product contract/Q status는 바뀌지 않았고 MIG-075..086은 모두 reference-only
-`oracle_locked`입니다. Add/Remove/remake, general restart와 actual adapter는 미완료입니다.
+optional port, D3b normal loaded core integration과 D4d bounded nullable ForeignKey Add를 구현했고 각 bounded
+product slice를 local/hosted에서 검증했습니다. D4 exact test-only head는 existing product path의 bounded
+captured-snapshot restart scenario를 추가 검증했습니다. 그러나 product contract/Q status는 바뀌지 않았고
+MIG-075..086은 모두 reference-only `oracle_locked`입니다. Required Add/Remove-remake, general restart와 actual
+adapter는 미완료입니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -531,11 +568,20 @@ optional port와 D3b normal loaded core integration을 구현했고 각 bounded 
 9. D4 exact one-test-file head는 EVID-095의 local/hosted evidence에서 bounded file-backed
    full/branch/full captured-snapshot restart만 Verified했습니다. Add/Remove/remake, raw file-byte equality,
    `sqlite_sequence`, general restart와 actual adapter는 각자의 exact evidence 전에는 주장하지 않습니다.
+10. EVID-096 exact-six documentation head `62df9b2...`는 별도 run `32260744096`의 고유 exact
+    26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했고, 그 run을 later D4d product proof로 재사용하지
+    않았습니다.
+11. D4d product `3950d98...`와 inventory lock `28b141e...`의 first hosted run `32267789056`은 macOS Intel
+    race job의 wall-clock assertion P1 실패를 보존합니다. Deterministic visit-count fix `dd83362...`의 distinct
+    run `32271361724`가 exact 26/26 jobs·342/342 steps와 audit P0..P3=0을 통과했으므로 bounded nullable
+    ForeignKey Add만 Implemented/Verified로 주장합니다. Required Add/Remove-remake, general restart, actual
+    adapter와 completion/terminal은 주장하지 않습니다.
 
 EVID-090/run `32174259324`는 exact test-only proof head만, EVID-091/run `32183309328`은 exact Proposed
 decision-freeze docs head `5bdf013...`만, EVID-092/run `32187094845`는 acceptance docs head `7cdc6d6...`만
 증명합니다. EVID-093의 세 hosted run도 각 D1/D2/D3a correction head만 증명합니다. EVID-094/run
 `32231149900`은 D3b correction head `167ef03...`만 증명합니다. EVID-095/run `32248885053`은 D4 test-only
-head `424ec4d...`만 증명하며 later taxonomy/capability/adapter, completion 또는 terminal proof로 재사용하지
-않습니다.
+head `424ec4d...`만 증명하고 EVID-096/run `32260744096`은 exact-six docs head `62df9b2...`만 증명합니다.
+EVID-097의 run `32267789056`은 P1 failure를, distinct run `32271361724`는 deterministic fix head
+`dd83362...`만 증명하며 이 문서 append나 later adapter/completion/terminal proof로 재귀 사용하지 않습니다.
 Draft PR #1은 open/draft/unmerged이며 사용자 요청 전 merge하지 않습니다.
