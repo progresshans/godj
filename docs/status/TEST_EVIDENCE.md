@@ -9672,8 +9672,9 @@ The terminal hosted audit retained repeatable repo-external captures:
   `ee9f0322158cbe18c6d54f41f5b912836aed5f3f7bca3f707d95c9fa6d80e71c`.
 - EVID-101 remains at zero-based offset 938,841, exact 6,429 bytes/SHA-256
   `69795053cd03f6f90d58c81c4d9b71d8be1bab03ee56bfb79a610bdecff27600`.
-- The old-length prefix is byte-identical after only the fixed-length top pointer changes from `101` to `102` at
-  zero-based offset 113. One LF separator follows the old EOF, and EVID-102 begins at offset 945,271.
+- The old-length prefix is byte-identical after only the fixed-length top pointer changes from `101` to `102`;
+  its `EVID-...` marker begins at zero-based offset 113 and the sole changed byte is at offset 129. One LF separator
+  follows the old EOF, and EVID-102 begins at offset 945,271.
 
 ### Non-claims and next gate
 
