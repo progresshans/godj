@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-20
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-100
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-101
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -9482,3 +9482,101 @@ on the corrected commit.
 - Exact-head local commands prove implementation commit `f6f56ea3...` only. They do not recursively prove this later
   EVID-100 append or its status mirrors. Those Markdown-only changes use link/frontmatter/fence/diff checks and need
   a future hosted exact-head run before GDJ-0036 can become `Verified`/completed.
+
+## EVID-20260820-101 — GDJ-0036 Current-only Reset Cleanup Exact-head Local Verification
+
+- Date/time: 2026-08-20T14:12:33+09:00
+- Work/contract IDs: GDJ-0036; Q-010/Q-012/Q-013 remain `Partial`, Q-017 remains P1/open; MIG-057..074 remain
+  `passing`, MIG-075..086 remain `oracle_locked`/unregistered
+- Checkout/commit: branch `feature/pre-release-compatibility-reset`, exact cleanup commit
+  `bd31a77ba10c20717f761cca088678297b160a6c`, sole parent
+  `8d4e771655e9044afbdd2cb5efe9484563021a5f`, tree
+  `c9cffe3e11d781831de68338e5b5fb14ad714204`, subject
+  `refactor: finish current-only reset cleanup`
+- Environment/backend: repo-external clean local clone `/tmp/godj-gdj0036-cleanup.fNcs6t/repo`; macOS Darwin
+  25.6.0 arm64, Go 1.26.5, uv 0.12.3, host Python 3.13.3; uv selected cached CPython 3.14.3 for the portable
+  locked Python suite; modernc SQLite product and locked Django 6.1/SQLite reference artifacts
+- Exit status: exact-head full offline integration 0; Linux/386 all-package compile 0; two independent postcommit
+  static audits P0/P1/P2/P3=`0/0/0/0`
+- Result summary: residual development-generation compatibility plumbing and stale current-vs-historical wording were
+  removed without changing product classification or widening support. This is exact local `Implemented` evidence,
+  not hosted `Verified` or GDJ-0036 completion.
+
+### Exact-head commands and results
+
+The repo-external clone checked out the exact commit/tree above with a clean tracked worktree and ran:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+```
+
+The command completed exit 0. It covered deterministic generation drift, all Go normal tests, `go vet ./...`, all
+Go race tests, the configured CGO-disabled matrix, external consumer/project-check compilation, portable Python
+216 tests with 19 expected exact-profile skips, every contract/oracle/static-fixture check, DEV-0001/DEV-0002
+expectations, MIG-057..064 exact 8-contract comparison, MIG-065..074 exact 10-contract comparison and REL-001..012
+exact 12-contract comparison.
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+This command also completed exit 0 for every package. It proves Linux/386 CGO-disabled compilation only;
+`-exec=/usr/bin/true` deliberately does not claim 386 execution on this arm64 host. The clone still resolved to the
+exact commit/tree after both commands and `git status --short` remained empty.
+
+### Cleanup boundary
+
+- Removed unused `plannerGraphsEqual`, the unread relation-delete model format field and the no-longer-used
+  normalize/validate format argument plumbing.
+- Reframed residual v2/v3/legacy/old-byte test names around the current-only invariant without weakening assertions.
+- Updated current status, architecture and developer-experience mirrors so local implementation, historical hosted
+  evidence and still-pending hosted verification are not conflated.
+- ADR-0025~0030 and ADR-0033 remain Accepted for their observable predicate/object/cache/prefetch/eager/delete/write
+  runtime meanings. ADR-0035 only supersedes their historical IR-version, generated-file roster, exact-byte and
+  additive-publication clauses; live `RelationAtomic` and product behavior remain intact.
+- Project-level generated manifest, whole-candidate compile and coordinated publication/recovery remain Q-017.
+  MIG-075..086 remain diagnostic-only, locked and absent from the normal product registry.
+
+### Exact cleanup commit packet
+
+- The commit changes exactly 28 modified paths, all regular `100644 -> 100644`, with no add/delete/rename/mode/type
+  change. Numstat is exact `+265/-153`; every path is covered by the 46-pattern GDJ-0036 allowed-path set.
+- The C-path-sorted change manifest uses the EVID-100 protocol
+  `status<TAB>path<TAB>oldmode<TAB>newmode<TAB>oldbytes<TAB>oldsha256<TAB>newbytes<TAB>newsha256<LF>`.
+  An absent side would use mode `000000`, byte count `0` and SHA-256 sentinel `-`. It is 5,451 bytes/28 LF lines/
+  SHA-256 `ad64064851fcd602f9b86c9adf7dc1b31482eb05f2750580b26dce1dde74479c`.
+- Raw concatenation of all nondeleted final blobs in that C order is 1,027,258 bytes/17,017 LF lines/SHA-256
+  `704d15c58e9101def7023ed327eb9157bdbbfa3f02c508052f389917830625e7`.
+- The EVID-100-compatible dual old/new framed stream is 2,044,556 bytes/33,923 LF lines/SHA-256
+  `0f0a8752324b5921b4eb5bb859b429f19b593d575b52317ab51eb1217796b53f`; old/new content totals are
+  1,015,319/1,027,258 bytes.
+- The config-neutral parent diff command below produces 109,207 bytes/1,137 LF lines/SHA-256
+  `1fa2fe544630bcecb76c5009c1a50397b9a4ce7b69fd6b56a963fb9e3b773cce`:
+
+```bash
+LC_ALL=C git \
+  -c core.autocrlf=false -c core.safecrlf=false -c color.ui=false \
+  --no-pager diff --binary --full-index --no-ext-diff --no-renames \
+  8d4e771655e9044afbdd2cb5efe9484563021a5f \
+  bd31a77ba10c20717f761cca088678297b160a6c
+```
+
+Two independent read-only postcommit audits reproduced the identity, exact 28-path scope, modes, numstat,
+allowed-path membership, current-only residue scan, status/contract boundaries and clean index/worktree. Both reported
+P0/P1/P2/P3=`0/0/0/0` and performed no edits, tests or network access.
+
+### Non-claims and recursive-proof boundary
+
+- This evidence does not claim a hosted run for `bd31a77...`, MIG-075..086 semantic parity or publication,
+  PostgreSQL/non-SQLite support, populated-required reapply, general remake/restart, migration writer/autodetector,
+  project-level atomic generated publication, Web Core or full-stack production readiness.
+- Immediately before this fixed-length latest-pointer update and append, `TEST_EVIDENCE.md` was exact 938,840 bytes/
+  SHA-256 `4e0587f73110bdccf88ff3a29ff44c5bdc39511f95c9f296999db49a4d8a8389`.
+  EVID-100 remained the exact final 11,218-byte section at zero-based offset 927,622 with SHA-256
+  `9abd648d059062e7c5ecdfce64e89399781460e77ff6e1820c6c62d3b5ecc0ac`; outside this append only the fixed-length
+  top pointer changes from `100` to `101`.
+- The exact-head commands prove cleanup commit `bd31a77...` only. They do not recursively prove this later EVID-101
+  append or its status mirrors. GDJ-0036 therefore remains `active` and local `Implemented`; the next gate is a
+  distinct exact-head hosted matrix after this documentation-only handoff is committed. Push, PR mutation, merge and
+  release were not performed or authorized by this record.

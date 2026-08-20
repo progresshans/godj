@@ -3,7 +3,9 @@
 - 마지막 갱신: 2026-08-20
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 구현 기준 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
+- 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
+  (`refactor: finish current-only reset cleanup`)
+- 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
   (`refactor: reset pre-release compatibility surface`)
 - EVID-100/status mirror commit: `8d4e771655e9044afbdd2cb5efe9484563021a5f`
   (`docs: record current-only reset local evidence`)
@@ -1437,13 +1439,18 @@ general generated upgrade는 계속 open입니다.
 - relation-product exact no-skip inventory는 두 fresh process에서 각각
   `842/842/0`, 86,679 bytes, SHA-256
   `706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`로 일치했습니다.
-- Exact local implementation commit `f6f56ea3...`의 full offline `make ci`, Linux/386 compile, 235-path packet,
-  independent P0/P1/P2=0 감사와 이 mirror가 해소한 temporal P3 1건은
+- Exact implementation commit `f6f56ea3...`의 235-path reset과 EVID-100/status mirror 뒤, cleanup commit
+  `bd31a77...`는 dead compatibility plumbing과 stale current/historical 문구를 정리했습니다. 저장소 외부 exact
+  clone의 full offline `make ci`, Linux/386 all-package compile, exact 28-path packet과 independent
+  P0/P1/P2/P3=0 감사는
+  [EVID-101](TEST_EVIDENCE.md#evid-20260820-101--gdj-0036-current-only-reset-cleanup-exact-head-local-verification)에
+  기록했습니다. 선행 구현 증거와 비재귀 mirror 경계는
   [EVID-100](TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
   기록했습니다.
 
 EVID-100과 status mirror의 비재귀 문서 commit은 `8d4e771655e9044afbdd2cb5efe9484563021a5f`에서
-완료됐습니다. 남은 정확한 작업은 이 정합성 수정까지 포함한 최종 frozen head의 hosted matrix입니다.
+완료됐고 cleanup commit `bd31a77...`도 local exact-head gate를 통과했습니다. 이 EVID-101/status mirror를 포함하는
+별도 문서 commit 뒤 남은 정확한 작업은 그 최종 frozen head의 hosted matrix입니다.
 Push/merge/release는 사용자 요청 없이 수행하지 않습니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)
