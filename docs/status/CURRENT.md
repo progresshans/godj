@@ -3,6 +3,8 @@
 - 마지막 갱신: 2026-08-20
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
+- 현재 hosted-attempt/status head: `971f427ce0eebcc84878b0d5298704aee92649c9`
+  (`docs: record current-only cleanup evidence`)
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -1437,8 +1439,10 @@ general generated upgrade는 계속 open입니다.
   639,682 bytes/`374a31be2a5a2f9d64a726f5fc29f9dadf4ffcde30b68b7e42adcb5ca4504ed2`지만 generic typed
   characterization이며 oracle semantic comparison이 아닙니다. 12 contract는 모두 `oracle_locked`/unregistered입니다.
 - relation-product exact no-skip inventory는 두 fresh process에서 각각
-  `842/842/0`, 86,679 bytes, SHA-256
-  `706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`로 일치했습니다.
+  `842/842/0`, 86,694 bytes, SHA-256
+  `42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3`로 일치했습니다.
+- Python compatibility 4개 exact runtime은 각각 139 scenario, 618,616 bytes, SHA-256
+  `5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`로 일치했습니다.
 - Exact implementation commit `f6f56ea3...`의 235-path reset과 EVID-100/status mirror 뒤, cleanup commit
   `bd31a77...`는 dead compatibility plumbing과 stale current/historical 문구를 정리했습니다. 저장소 외부 exact
   clone의 full offline `make ci`, Linux/386 all-package compile, exact 28-path packet과 independent
@@ -1448,10 +1452,13 @@ general generated upgrade는 계속 open입니다.
   [EVID-100](TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
   기록했습니다.
 
-EVID-100과 status mirror의 비재귀 문서 commit은 `8d4e771655e9044afbdd2cb5efe9484563021a5f`에서
-완료됐고 cleanup commit `bd31a77...`도 local exact-head gate를 통과했습니다. 이 EVID-101/status mirror를 포함하는
-별도 문서 commit 뒤 남은 정확한 작업은 그 최종 frozen head의 hosted matrix입니다.
-Push/merge/release는 사용자 요청 없이 수행하지 않습니다.
+EVID-101/status mirror를 포함한 `971f427...`는 기존 Draft PR #1 head로 non-force fast-forward됐고,
+[CI #99](https://github.com/progresshans/godj/actions/runs/32336573749)는 exact head/tree에서 26 jobs를 실행했습니다.
+제품 테스트와 portable Python 216/19 suite는 통과했지만 cleanup 뒤 바뀐 relation test-name inventory와 current
+Python semantic aggregate의 hosted-only 고정값이 갱신되지 않아 18 success/8 failure로 끝났습니다. 현재 working
+tree는 workflow와 protocol mirror를 위 새 값으로 동기화했고 [EVID-102](TEST_EVIDENCE.md#evid-20260820-102--gdj-0036-first-exact-head-hosted-failure-and-aggregate-lock-correction)에
+실패와 교정 검증을 기록했습니다. 다음은 이 correction을 별도 승인으로 commit/push한 새 exact head의 hosted
+matrix입니다. Merge/release는 승인되지 않았고 GDJ-0036은 계속 `active`입니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)
 

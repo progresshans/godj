@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-20
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-101
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-102
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -9580,3 +9580,109 @@ P0/P1/P2/P3=`0/0/0/0` and performed no edits, tests or network access.
   append or its status mirrors. GDJ-0036 therefore remains `active` and local `Implemented`; the next gate is a
   distinct exact-head hosted matrix after this documentation-only handoff is committed. Push, PR mutation, merge and
   release were not performed or authorized by this record.
+
+## EVID-20260820-102 — GDJ-0036 First Exact-head Hosted Failure and Aggregate-lock Correction
+
+- Date/time: 2026-08-20T05:41:45Z–05:49:19Z hosted run; correction verification completed
+  2026-08-20T15:03:20+09:00
+- Work/contract IDs: GDJ-0036; Q-010/Q-012/Q-013 remain `Partial`, Q-017 remains open; MIG-057..074 remain
+  `passing`, MIG-075..086 remain `oracle_locked`/unregistered
+- Checkout/commit: Draft PR #1 exact head `971f427ce0eebcc84878b0d5298704aee92649c9`, sole parent
+  `bd31a77ba10c20717f761cca088678297b160a6c`, tree
+  `5075809c82862e236d10a96d464fbba873f1d22e`, subject
+  `docs: record current-only cleanup evidence`
+- Environment/backend: GitHub Actions `pull_request` attempt 1 plus macOS Darwin 25.6.0 arm64 local correction;
+  Go 1.26.5, uv 0.12.3, exact CPython 3.12.13/3.13.15/3.14.3/3.14.7, Django 6.1,
+  asgiref 3.12.1 and sqlparse 0.5.5
+- Exit status: hosted CI #99 `failure`; corrected local protocol, exact inventories, actionlint and full offline
+  `make ci` all exit 0
+- Result summary: the first current-only exact-head hosted matrix found two stale workflow aggregates, not a product
+  behavior regression. Current relation and Python pins were recomputed, mirrored and locally verified. GDJ-0036
+  remains `active`; corrected-head hosted success is still required.
+
+### Authorized publication and exact hosted identity
+
+- User-authorized A+B non-force fast-forwarded the existing Draft PR branch from `d824b691...` to exact
+  `971f427...` and updated the same Draft PR title/body to the current-only reset scope. No force push, new PR,
+  merge or release occurred.
+- [CI #99 / run 32336573749](https://github.com/progresshans/godj/actions/runs/32336573749) was the unique run for
+  exact head `971f427...`, attempt 1, event `pull_request`. The synthetic merge
+  `547467d84195ac9196a0214bed667de76c199177` had ordered parents base `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821`
+  and head `971f427...`; its tree was exact `5075809c...`, byte-equivalent to the head tree.
+- All 26 jobs and 326 recorded steps reached terminal state. Jobs/checks were 18 success + 8 failure; steps were
+  282 success + 8 failure + 36 skipped. Check-run annotations were exactly 8 failure annotations. The PR remained
+  OPEN/DRAFT/MERGEABLE but became `UNSTABLE`, not `CLEAN`.
+
+### Exact failure boundary
+
+- All four relation-product coordinates completed the normal Go test command far enough to prove exact 842
+  top-level runs. Each then failed the same hosted-only assertion: observed payload 86,694 bytes versus stale lock
+  86,679. Their later race, CGO-disabled, vet, no-rewrite and clean steps were skipped.
+- Independent exact-source processes, including two fresh processes after the correction, each produced exact
+  842 runs/842 passes/0 skips, 86,694 bytes and SHA-256
+  `42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3`.
+- All four exact portable Python jobs first passed 216 tests with the expected 19 exact-profile skips and proved
+  139 scenarios. Each then failed the same stale length assertion: observed 618,616 versus locked 623,543 bytes;
+  the old digest assertion was therefore not reached and the four clean steps were skipped.
+- Local exact runtimes CPython 3.12.13, 3.13.15, 3.14.3 and 3.14.7 independently produced the same 139-scenario
+  payload: 618,616 bytes, SHA-256
+  `5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`.
+- The other 18 jobs succeeded. In particular, exact Darwin passed 216/216 with zero skip and 13 oracle checks;
+  portable validation passed 216/19 and 13 checksum checks; all four relation-binding coordinates passed normal,
+  race, CGO-disabled, vet, no-rewrite and clean; Linux/386 compile/execution gates passed.
+
+The workflow and its Go protocol mirror were updated together from relation
+`86679`/`706ded97...` to `86694`/`42d26a72...`, and from Python
+`623543`/`f4f48c4c...` to `618616`/`5068ac45...`. This corrects EVID-101's copied 86,679-byte inventory statement:
+the cleanup renamed current-only test symbols without changing their 842 count, while local `make ci` did not run
+the hosted inventory aggregation. EVID-101's exact commit identity, full local gate and Linux/386 evidence remain
+valid; only that hosted-only aggregate claim is superseded here.
+
+### Local correction commands and artifacts
+
+The current correction bytes passed:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -count=1 ./conformance/internal/protocol
+```
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+```
+
+The exact workflow relation package set was also run twice in fresh `go test -json -count=1` processes after the
+correction and reduced using the workflow's sorted `package<NUL>test<LF>` protocol. A read-only actionlint run on
+the workflow passed. The four Python runtimes were isolated with uv and the workflow's sorted
+`name<NUL>canonical_json<NUL>` protocol; all four matched the new bytes and digest above. `git diff --check` passed,
+and no generated artifact or path outside this correction/status packet changed.
+
+The terminal hosted audit retained repeatable repo-external captures:
+
+- raw log ZIP twice byte-identical: 579,095 bytes, 342 unique members, SHA-256
+  `fc0dfbc23d5e5f862a14b0a0c4f64e7552d2dee6c14fd93afdbe013383eec8be`
+- `gh run view --log` twice byte-identical: 1,897,021 bytes/11,466 LF, SHA-256
+  `2acbb66014b2b1c9cf776495e6986d34ce0ffc2dae2b120c47afd6277db25dd6`
+- 342-row member manifest: 43,490 bytes, SHA-256
+  `486d8f29384346fb577d4c247edb3e7b38a6d574eb1cb5506a2591b718c67c81`
+
+### Evidence retention
+
+- Before this fixed-length pointer update and append, the exact HEAD evidence file was 945,270 bytes/SHA-256
+  `ee9f0322158cbe18c6d54f41f5b912836aed5f3f7bca3f707d95c9fa6d80e71c`.
+- EVID-101 remains at zero-based offset 938,841, exact 6,429 bytes/SHA-256
+  `69795053cd03f6f90d58c81c4d9b71d8be1bab03ee56bfb79a610bdecff27600`.
+- The old-length prefix is byte-identical after only the fixed-length top pointer changes from `101` to `102` at
+  zero-based offset 113. One LF separator follows the old EOF, and EVID-102 begins at offset 945,271.
+
+### Non-claims and next gate
+
+- This failed run is not product failure evidence and is not GDJ-0036 completion. It does not prove the corrected
+  uncommitted workflow bytes, later race/CGO-disabled/vet/no-rewrite/clean steps in the eight failed jobs, or a
+  terminal successful exact-head hosted matrix.
+- MIG-075..086 remain diagnostic-only and unregistered. No semantic-parity/status transition, PostgreSQL,
+  non-SQLite, general restart/remake, populated-required reapply, migration writer/autodetector, project-level
+  coordinated generated publication, Web Core, merge or release claim is added.
+- The next gate is a separately authorized commit and non-force push of this correction, followed by the new
+  pull-request-triggered exact-head hosted matrix. Only that new terminal success may close GDJ-0036 and become the
+  clean baseline for proposed GDJ-0037/Q-017 work.

@@ -472,9 +472,9 @@ jobs:
               for package, test in sorted(runs)
           )
           assert len(runs) == 842, sorted(runs)
-          assert len(payload) == 86679, len(payload)
+          assert len(payload) == 86694, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d"
+          assert payload_sha256 == "42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -734,9 +734,9 @@ jobs:
               for name in sorted(SCENARIOS)
           )
           assert len(SCENARIOS) == 139, len(SCENARIOS)
-          assert len(payload) == 623543, len(payload)
+          assert len(payload) == 618616, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "f4f48c4c680debbe5ed7ab2b962e01e9110064b7bf3064b7c6fd9a06539018da", digest
+          assert digest == "5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e", digest
           PY
 
       - name: Require a clean worktree

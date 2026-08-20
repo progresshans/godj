@@ -158,28 +158,35 @@ apply/unapply/restart합니다. Scalar와 ForeignKey 모델은 같은 current fo
 - [x] 최종 local 통합 검증
 - [x] EVID-100 문서 인수인계
 - [x] current-only residue cleanup과 exact postcommit EVID-101 local 검증
+- [x] exact head `971f427...`를 기존 Draft PR #1에 non-force fast-forward하고 PR 설명을 current-only reset으로 갱신
+- [x] CI #99의 8개 실패를 hosted-only relation/Python aggregate lock stale로 진단하고 current 값으로 교정
 - [ ] exact-head hosted 검증
 
 ## 다음 정확한 작업
 
-Exact cleanup commit `bd31a77ba10c20717f761cca088678297b160a6c`의 repo-external full
-normal/race/CGO-disabled/vet/`make ci`와 Linux/386 all-package compile은 통과했고
-[EVID-101](../docs/status/TEST_EVIDENCE.md#evid-20260820-101--gdj-0036-current-only-reset-cleanup-exact-head-local-verification)에
-비재귀적으로 기록했습니다. 선행 235-path reset은 EVID-100이 소유합니다. 다음은 이 EVID-101/status mirror를
-commit한 exact head의 hosted matrix이며 completion은 그 별도 증거로 닫습니다.
+Exact cleanup commit `bd31a77ba10c20717f761cca088678297b160a6c`의 repo-external local gate는
+[EVID-101](../docs/status/TEST_EVIDENCE.md#evid-20260820-101--gdj-0036-current-only-reset-cleanup-exact-head-local-verification)이
+소유합니다. 이를 포함한 exact head `971f427...`의 [CI #99](https://github.com/progresshans/godj/actions/runs/32336573749)는
+제품 회귀가 아니라 stale hosted-only aggregate lock 두 건으로 18/26 success에 그쳤습니다. 교정 원인과 새
+relation/Python 고정값은 [EVID-102](../docs/status/TEST_EVIDENCE.md#evid-20260820-102--gdj-0036-first-exact-head-hosted-failure-and-aggregate-lock-correction)에
+기록했습니다. 다음은 이 correction을 별도 승인으로 commit/push한 새 exact head의 hosted matrix이며 completion은
+그 성공 증거로만 닫습니다.
 
 ## 결과와 인수인계
 
 Checkpoint A/B/C 구현은 완료됐고 current relation-product inventory는 fresh process 두 번 모두
-`842/842/0`, 86,679 bytes, SHA-256 `706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`로
+`842/842/0`, 86,694 bytes, SHA-256 `42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3`로
 일치했습니다. C는 current generated ABI와 checked-in output 재기준화까지이며, Q-017의 project-level manifest와
 coordinated publication은 구현하지 않았습니다. Current MIG-075..086 manifest/oracle은 각각
 7,858/120,502 bytes, SHA-256 `ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9` /
 `5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968`로 재기준화됐습니다. Go diagnostic
 actual은 639,682 bytes/`374a31be2a5a2f9d64a726f5fc29f9dadf4ffcde30b68b7e42adcb5ca4504ed2`이지만 oracle
 semantic comparison이 아니며 12 contract는 계속 locked/unregistered입니다. 현재 기준점과 GDJ-0035 증거는
-불변입니다. `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci`와
+불변입니다. Python compatibility 4개 exact runtime도 각각 139 scenario, 618,616 bytes, SHA-256
+`5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`로 일치합니다.
+`GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci`와
 `GOOS=linux GOARCH=386 CGO_ENABLED=0 ... go test -run '^$' -exec=/usr/bin/true ./...`가 exact cleanup commit
-`bd31a77...`에서 통과했습니다. 아직 hosted exact-head 증거는 없으므로 migration relation contract status나
-broader framework support를 올리지 않습니다. 235-path implementation packet은 EVID-100, cleanup exact28 packet과
-최신 명령/nonclaim은 EVID-101에 고정했습니다.
+`bd31a77...`에서 통과했습니다. CI #99의 exact-head 실패 증거는 있지만 아직 successful hosted exact-head 증거는
+없으므로 migration relation contract status나 broader framework support를 올리지 않습니다. 235-path implementation
+packet은 EVID-100, cleanup exact28 packet은 EVID-101, 첫 hosted 실패와 current correction 명령/nonclaim은
+EVID-102에 고정했습니다.
