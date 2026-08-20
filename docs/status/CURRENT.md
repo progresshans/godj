@@ -1331,9 +1331,11 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-GDJ-0036의 current-only reset 구현에는 외부 blocker가 없습니다. 현재 checkout은 아직 미커밋 통합 상태이지만
-최신 implementation bytes의 full local `make ci`와 Linux/386 all-package compile은 통과했습니다. 따라서 local
-`Implemented` 후보이며, 최종 frozen tree의 hosted matrix를 통과하기 전에는 이 reset 자체를 `Verified` 또는
+GDJ-0036의 current-only reset 구현에는 외부 blocker가 없습니다. Exact local implementation commit
+`f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`의 full local `make ci`와 Linux/386 all-package compile은 통과해
+[EVID-100](TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+기록됐습니다. 따라서 local `Implemented` 후보이며, final evidence/status head의 hosted matrix를 통과하기 전에는
+이 reset 자체를 `Verified` 또는
 completed로 올리지 않습니다. MIG-075..086은 계속 `oracle_locked`/unregistered이고 D4g Phase 0 capture는
 characterization 증거로만 남습니다. 이번 reset은 PostgreSQL, Web Core, 새 Field/Relation 종류, general migration
 writer를 추가하지 않습니다.
@@ -1421,10 +1423,13 @@ general generated upgrade는 계속 open입니다.
 - relation-product exact no-skip inventory는 두 fresh process에서 각각
   `842/842/0`, 86,679 bytes, SHA-256
   `706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`로 일치했습니다.
+- Exact local implementation commit `f6f56ea3...`의 full offline `make ci`, Linux/386 compile, 235-path packet,
+  independent P0/P1/P2=0 감사와 이 mirror가 해소한 temporal P3 1건은
+  [EVID-100](TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+  기록했습니다.
 
-남은 정확한 순서는 frozen tree independent audit → local implementation commit → EVID-100과 status mirror의
-비재귀 문서 commit입니다. Hosted matrix는 그 뒤 별도 exact-head 증거이며, push/merge/release는 사용자 요청 없이
-수행하지 않습니다.
+남은 정확한 순서는 EVID-100과 status mirror의 비재귀 문서 commit → 그 exact head의 hosted matrix입니다.
+Push/merge/release는 사용자 요청 없이 수행하지 않습니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)
 

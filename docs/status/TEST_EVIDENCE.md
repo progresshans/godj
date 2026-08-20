@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-20
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-099
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-100
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -9333,3 +9333,152 @@ The inventory-lock commit changes only `.github/workflows/ci.yml` and
   completion, terminal status or a contract transition.
 - This append is deliberately nonrecursive. Draft PR #1 remains open/draft/unmerged, and this evidence does not
   authorize merge or release.
+
+## EVID-20260820-100 — GDJ-0036 Pre-release Current-only Compatibility Reset Local Integration Verification
+
+- Date/time: 2026-08-20T13:05:14+09:00
+- Work/contract IDs: GDJ-0036; Q-010/Q-012/Q-013 remain `Partial`, Q-017 remains P1/open; MIG-057..074 retain
+  `passing`, MIG-075..086 remain `oracle_locked`/unregistered
+- Checkout/commit: branch `feature/pre-release-compatibility-reset`, exact local implementation commit
+  `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`, parent
+  `d824b6916348286abb50dfa16a492332e97cd714`, tree
+  `56657d82d3d37e08bc96e6b17df27e5862b85721`, subject
+  `refactor: reset pre-release compatibility surface`
+- Environment/backend: macOS Darwin 25.6.0 arm64, Go 1.26.5, Python 3.13.3, uv 0.12.3; modernc SQLite product
+  plus locked Django 6.1/SQLite reference artifacts; all final commands used local toolchains and offline dependency
+  settings
+- Exit status: exact-head full local integration 0; Linux/386 all-package compile 0; implementation-commit static
+  audit P0/P1/P2=`0/0/0` with one non-blocking temporal P3 that this later status mirror resolves
+- Result summary: the pre-release compatibility reset replaces development-snapshot legacy readers and additive
+  shims with one current format and one explicit lifecycle while retaining historical migration safety, D4d/D4e/D4f
+  SQLite semantics, current product classifications and deterministic generated consumers. This is local
+  `Implemented` evidence, not hosted `Verified` or work completion.
+
+### Exact-head commands and results
+
+After the implementation commit was created, a clean repo-external local clone checked out at that exact commit
+passed:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+```
+
+The command completed exit 0. It included deterministic generation drift, all Go normal tests, `go vet ./...`, all
+Go race tests, the configured CGO-disabled product matrix, external consumer/project-check compilation, Python
+216-test conformance with the expected 19 portable-profile skips, every contract/oracle/static-fixture validation,
+DEV-0001/DEV-0002 product expectation comparison, MIG-057..064 exact 8-contract product comparison,
+MIG-065..074 exact 10-contract product comparison and REL-001..012 exact 12-contract product comparison.
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+This second exact-head command completed exit 0 for every package. It proves Linux/386 CGO-disabled compilation;
+`-exec=/usr/bin/true` intentionally does not claim 386 execution on this arm64 host.
+
+An earlier mutable integration attempt is not hidden or reused as success: before the current reference reset it
+failed eight Python migration-relation tests because the runner still reconstructed the retired compatibility tuple
+and legacy digest. The active manifest, Python decision runner, Go characterization and artifact locks were then
+reframed to current-only MIG-075..079 meanings. The final exact-head commands above are distinct post-commit reruns
+on the corrected commit.
+
+### Implemented current-only architecture
+
+- Schema IR has one `CurrentFormatVersion = 1`; scalar and ForeignKey schemas share it, and zero/unknown versions
+  fail closed.
+- Migration Definition has one persisted `format_version = 1`, one canonical digest domain and no loader/codec/IR
+  compatibility tuple. `definition.Load` publishes a root-owned opaque `migrations.LoadedDefinitionSet`.
+- The high-level lifecycle is exactly `Executor.Migrate(ctx, loaded, request)`. The hidden context handoff,
+  `definition.Set.Migrate`, raw-slice lifecycle authority and dual scalar/relation profile readers were removed.
+- `ProjectState` uses the current IR directly. Public and loaded reconstruction share the relation-capable immutable
+  chronology/readiness/resource core; promotion/demotion and split state formats were removed.
+- A loaded backend exposes mandatory `MigrationCapabilities` and one sealed
+  `BeginMigration(HistoryTransition, MigrationIntent)`. Raw scalar primitives live on `DirectExecutor`; raw relation
+  execution remains pre-I/O fail-closed.
+- SQLite retains FK-on pinned-session, revision-fence, rollback, restart, nullable Add, empty-source required Add and
+  bounded Remove/remake semantics. Nil intent authority fails closed; an explicit non-nil empty operation list is a
+  valid history-only step.
+- The current app generator emits scalar/FK model, descriptor, scan/clone, write and relation metadata in one main
+  ABI. App-owned relation-query companions and the project facade's duplicate private write model were removed and
+  all checked-in relation consumers were regenerated.
+- GDJ-0036 owns only current ABI/output rebaselining. Project-level schema manifest, whole-candidate compile,
+  coordinated multi-file publication/recovery and a public general generator remain Q-017 follow-up work; no false
+  atomic bundle claim is made.
+
+### Contract, artifact and diagnostic boundary
+
+- Current reference aggregate is exact 13 sets/139 unique contracts or scenarios/156 ordered bindings=
+  `122 passing + 5 deviation + 12 oracle_locked`. Current product aggregate is exact 12 adapters/127 contracts=
+  `122 passing + 5 deviation + 0 oracle_locked`; REL-001..012 remain 12/12 `passing`.
+- MIG-057..064 remain 8 `passing` registered contracts and MIG-065..074 remain 10 `passing` registered contracts.
+  Their current-only artifact bytes and provenance were rebaselined without a status regression.
+- MIG-075..079 now describe current ABI, exact-format rejection, one digest domain, one state representation and
+  static/history/physical staged preflight. MIG-075..086 all remain diagnostic `oracle_locked` and are absent from
+  the normal product registry.
+- Migration Definition artifact locks are manifest 5,151 bytes/
+  `b5bc2612f3cfc642397ebff779294aa1cdc1a25b675632d2c7a2e615d47ee7fa`, oracle 29,654 bytes/
+  `61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410`, static fixture 1,574 bytes/
+  `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`.
+- Project-check artifact locks are manifest 5,085 bytes/
+  `e689b37098a4b26e4faddbd7c7e8a09d9145526f2b7bd1de7fb6cd5cb139c16b`, oracle 19,971 bytes/
+  `8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa`, static fixture 1,729 bytes/
+  `86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`.
+- Migration-relation diagnostic locks are manifest 7,858 bytes/
+  `ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9`, oracle 120,502 bytes/
+  `5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968`, static fixture 1,846 bytes/
+  `f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`. The shared 13-line checksum catalog is
+  1,245 bytes/`76578c225edfa6af4bf2d119f93fdcdf633cfee8ebb5a9092aa5157e5f218be1`.
+- Two fresh relation-product inventory processes independently produced exact 842 run/842 pass/0 skip, 86,679
+  payload bytes and SHA-256 `706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`.
+- The deterministic Go migration-relation diagnostic capture is 639,682 bytes/SHA-256
+  `374a31be2a5a2f9d64a726f5fc29f9dadf4ffcde30b68b7e42adcb5ca4504ed2`. It validates public-product observation
+  determinism and boundaries but uses generic typed projections and is not an ID-specific oracle comparison or a
+  status-transition proof.
+
+### Exact implementation commit packet
+
+- The commit changes exact 235 paths: 9 added, 35 deleted and 191 modified; every added/current/deleted mode is
+  regular `100644`. Numstat is exact `+7,584/-40,510`; no path is outside the 38 GDJ-0036 allowed patterns.
+- The C-path-sorted change manifest protocol is
+  `status<TAB>path<TAB>oldmode<TAB>newmode<TAB>oldbytes<TAB>oldsha256<TAB>newbytes<TAB>newsha256<LF>`.
+  An absent side is encoded as mode `000000`, byte count `0` and SHA-256 sentinel `-`.
+  It is 45,035 bytes/235 LF lines/SHA-256
+  `06dd18782a5e1aa9dad5340ab940705fe4870c2f925a3e2a1ac24e180c799179`.
+- Raw concatenation of all nondeleted final blobs in that path order is 4,451,200 bytes/101,997 LF lines/SHA-256
+  `a8338459032f1a3c72bfead3c657aa36276508fc48a3c28ef45593ad0acd3463`.
+- The dual-content framed protocol repeats
+  `status<NUL>path<NUL>oldmode<NUL>newmode<NUL>u64be(oldbytes)<NUL>oldcontent`
+  `u64be(newbytes)<NUL>newcontent`. It is 10,188,440 bytes/236,920 LF lines/SHA-256
+  `01a9eb3889160bc9b92b5f56ca88c2053f01a93c888200a767141b1bd0d1840c`.
+- The config-neutral `--full-index --binary --no-renames` parent diff is 3,011,369 bytes/60,206 LF lines/SHA-256
+  `d3524ba7df8c2b77075f01b6afdd878299328616d6076f528bca7870c15cf148`. Commit and cached diff checks are clean;
+  the implementation commit ended with a clean index/worktree and has no configured upstream.
+
+### Independent review, non-claims and next boundary
+
+- Independent core/codegen/status and provenance/license auditors found implementation-commit P0/P1/P2=`0/0/0`.
+  They checked all 235 paths against the work packet, current/historical language, current format/API residue,
+  generator rosters, registry/status counts, artifact provenance and local Markdown structure without editing the
+  tree. One interim P1 found the old resume checkpoint still presented GDJ-0035/IR v3 as current; it was explicitly
+  relabeled historical before the final commit and re-audited clean. The final commit auditor then reported one
+  non-blocking P3 because a few handoff lines still described the already-created local commit as future work; this
+  documentation-only mirror resolves that temporal wording and does not use its own later audit as recursive proof.
+- This evidence does not claim a hosted run for `f6f56ea3...`, MIG-075..086 semantic parity, adapter registration,
+  passing/deviation transition, PostgreSQL or other non-SQLite support, general table remake/restart, populated
+  required Add/reapply, migration writer/autodetector, project-level atomic generated publication, Web Core or
+  full-stack production readiness.
+- GDJ-0036 therefore remains `active`; its code is a local `Implemented` candidate. The next allowed action is this
+  documentation-only evidence/status mirror commit, followed by a distinct exact-head hosted matrix if the branch is
+  later pushed. Push, PR mutation, merge and release were not performed or authorized by this record.
+
+### Evidence retention and recursive-proof boundary
+
+- Immediately before this fixed-length latest-pointer update and append, `TEST_EVIDENCE.md` was exact 927,621 bytes/
+  SHA-256 `01e827bd79cc81097c5d8a7835babd1918f3b9cc95ad20bde38a5392f3b14952`.
+- EVID-099 remained at zero-based offset 909,985 and its exact 17,636-byte section remained SHA-256
+  `22e6d177e429d2fe0ac9573f8afcd9e66e8575f9eea78d038aecdb747f182b5e`. Outside the newly appended section,
+  only the fixed-length top pointer changes from `099` to `100`; prior evidence bodies are preserved.
+- Exact-head local commands prove implementation commit `f6f56ea3...` only. They do not recursively prove this later
+  EVID-100 append or its status mirrors. Those Markdown-only changes use link/frontmatter/fence/diff checks and need
+  a future hosted exact-head run before GDJ-0036 can become `Verified`/completed.

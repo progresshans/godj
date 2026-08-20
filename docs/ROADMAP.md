@@ -6,8 +6,9 @@
   `LoadedDefinitionSet`→`Executor.Migrate`, `DirectExecutor` raw scalar 경계, mandatory
   `MigrationCapabilities`+single `BeginMigration(MigrationIntent)`, current codegen ABI를 한 번에
   재기준화합니다. MIG-057..074는 current-format artifact로 갱신했고 GDJ-0035 Phase-B
-  MIG-075..086 publication/D4g status sequence는 retire했습니다. 현재 working tree의 local gates와 문서
-  mirror는 진행 중이며 최종 frozen head의 hosted 검증 전에는 GDJ-0036을 `Verified`로 표시하지 않습니다.
+  MIG-075..086 publication/D4g status sequence는 retire했습니다. Exact local implementation commit
+  `f6f56ea3...`의 full local gates와 EVID-100/status mirror는 완료됐으며, 이 문서 head의 hosted 검증 전에는
+  GDJ-0036을 `Verified`로 표시하지 않습니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit

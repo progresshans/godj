@@ -124,7 +124,7 @@ apply/unapply/restart합니다. Scalar와 ForeignKey 모델은 같은 current fo
 - [x] affected package normal/CGO0/vet와 focused SQLite lifecycle
 - [x] full normal/race/CGO0/386, clean consumer compile, generate-check
 - [ ] 최종 frozen tree의 full hosted matrix 한 번
-- [ ] CURRENT/MATRIX/TEST_EVIDENCE와 남은 제한을 최종 결과에 맞춰 한 번 갱신
+- [x] CURRENT/MATRIX/TEST_EVIDENCE와 남은 제한을 최종 결과에 맞춰 한 번 갱신
 
 ## 검증 주기
 
@@ -148,13 +148,16 @@ apply/unapply/restart합니다. Scalar와 ForeignKey 모델은 같은 current fo
 - [x] Checkpoint B 구현
 - [x] Checkpoint C 구현
 - [x] 최종 local 통합 검증
-- [ ] EVID-100 문서 인수인계와 exact-head hosted 검증
+- [x] EVID-100 문서 인수인계
+- [ ] exact-head hosted 검증
 
 ## 다음 정확한 작업
 
-최신 implementation bytes의 full normal/race/CGO-disabled/vet/`make ci`와 Linux/386 all-package compile은
-통과했습니다. 독립 최종 감사를 닫고 local implementation commit을 만든 뒤 EVID-100과 상태 mirror를 비재귀적으로
-기록합니다. Hosted matrix와 completion은 그 exact head의 별도 증거로 닫습니다.
+Exact local implementation commit `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`의 full
+normal/race/CGO-disabled/vet/`make ci`와 Linux/386 all-package compile은 통과했고
+[EVID-100](../docs/status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+비재귀적으로 기록했습니다. 다음은 이 evidence/status mirror를 commit한 exact head의 hosted matrix이며 completion은
+그 별도 증거로 닫습니다.
 
 ## 결과와 인수인계
 
@@ -169,4 +172,6 @@ semantic comparison이 아니며 12 contract는 계속 locked/unregistered입니
 불변입니다. `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci`와
 `GOOS=linux GOARCH=386 CGO_ENABLED=0 ... go test -run '^$' -exec=/usr/bin/true ./...`가 최신 implementation
 bytes에서 통과했습니다. 아직 hosted exact-head 증거는 없으므로 migration relation contract status나 broader
-framework support를 올리지 않습니다.
+framework support를 올리지 않습니다. Exact command, artifact, 235-path commit packet과 nonclaim은
+[EVID-100](../docs/status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+고정했습니다.
