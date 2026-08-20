@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-13
+- 마지막 검토: 2026-08-20
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -84,6 +84,9 @@ conformance/
   contracts/migration-state-reconstruction-manifest.json
   contracts/migration-lifecycle-manifest.json
   contracts/migration-definition-source-manifest.json
+  contracts/migration-project-check-manifest.json
+  contracts/relation-manifest.json
+  contracts/migration-relation-manifest.json  # current-only locked diagnostic reference
   profiles/
   runners/django/
   runners/godj/
@@ -102,9 +105,14 @@ conformance/
   fixtures/godj-migration-restart-not-implemented.json
   fixtures/godj-migration-state-reconstruction-not-implemented.json
   fixtures/godj-migration-definition-source-not-implemented.json
+  fixtures/godj-migration-project-check-not-implemented.json
+  fixtures/godj-relation-not-implemented.json
+  fixtures/godj-migration-relation-not-implemented.json  # current locked/unregistered baseline
   oracles/django-6.1-sqlite-darwin-arm64/
   codegenbootstrap/
   definitionload/
+  projectcheck/
+  relation*product/
 ```
 
 ## Reference 환경 잠금
@@ -388,6 +396,28 @@ reviewed expectation과 10-contract match입니다.
 session을 poison하며 semantic retry를 하지 않습니다. Default-bearing `AddField`는 empty table의
 logical default와 physical no-default를 함께 확인하고 nonempty table은 거부합니다.
 
+### Current MIG-057..074 reset gate
+
+GDJ-0036은 contract ID를 바꾸지 않고 definition-source/project-check reference와 product adapter를
+current-only format으로 재기준화했습니다.
+
+- MIG-057..064 document는 top-level `format_version=1` 하나만 가지며 canonical digest도 current domain
+  하나입니다. Observation은 `format`, `execution`, `lifecycle`, `session_open_calls`를 사용하고 MIG-064는
+  opaque `LoadedDefinitionSet`을 `Executor.Migrate`에 정확히 한 번 전달하는 경계입니다.
+- MIG-065..074는 같은 current definition-set digest를 사용합니다. Definition-related contract에는
+  ADR-0035 provenance를 더하되 ordered ID와 `passing` 상태를 유지합니다.
+- Current artifact lock은 definition manifest 5,151 bytes/`b5bc2612...`, oracle 29,654 bytes/
+  `61401746...`; project-check manifest 5,085 bytes/`e689b370...`, oracle 19,971 bytes/`8bbf10c0...`입니다.
+  두 status-only NI fixture는 각각 1,574/1,729 bytes로 바뀌지 않았습니다.
+- Exact uv 0.10.12 oracle regeneration `--check`, Python unittest 38개(1 exact-profile skip), GoDj oracle
+  comparison 8/8·10/10, oracle/NI `contractcheck`, ordered 8·10 false-green mismatch와
+  `go test -count=1 ./conformance/...`를 current bytes에서 통과했습니다.
+
+이 검증은 현재 working tree의 local evidence입니다. 최종 frozen head의 hosted matrix와
+`docs/status/TEST_EVIDENCE.md` 반영 전에는 hosted `Verified`로 확대하지 않습니다.
+
+아래 GDJ-0019~0022 단락은 기존 tuple/API/artifact의 당시 evidence를 보존합니다.
+
 GDJ-0019는 MIG-057..064를 열 번째 contract-only reference set으로 추가했습니다. Explicit
 caller bytes의 strict JSON v1 framing, exact tuple `(1,1,1,2)`, closed
 `CreateModel`/non-PK `char`·`boolean` `AddField` codec, canonical normalized definitions/digest,
@@ -496,7 +526,7 @@ Status-only manifest는 4,520 bytes/
 | 변경 | 최소 검증 |
 |---|---|
 | Schema/IR | validation, normalization, round-trip, deterministic hash, fuzz |
-| Codegen | golden, idempotency, compile, stale output, multi-file failure atomicity |
+| Codegen | golden, idempotency, compile, stale output, current per-file last-good preservation; project-level multi-file publisher를 도입할 때는 whole-candidate failure rollback과 crash recovery까지 추가 |
 | Typed query API | compile-positive/negative, AST invariant, differential result |
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
@@ -538,7 +568,7 @@ exact `exact-darwin-validation`을 보존합니다. 별도 `project-check-matrix
 normal/race/CGO-disabled/vet, 20분 timeout, `fail-fast: false`, no `continue-on-error`와 final clean
 worktree를 요구합니다. Ubuntu `python-compatibility-matrix`는 exact
 3.12.13/3.13.15/3.14.3/3.14.7 네 leg에서 Django 6.1/asgiref 3.12.1/sqlparse 0.5.5, portable
-193/17 expected skips와 127-scenario payload를 검증합니다. Existing topology 18은 full/exact 2 +
+216/19 expected skips와 139-scenario payload를 검증합니다. Existing topology 18은 full/exact 2 +
 project-check proof 4 + SQLite 4 + product 4 + Python 4입니다. Routine
 Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
 GDJ-0023은 이 exact 18을 유지하면서 test-only
@@ -546,7 +576,7 @@ GDJ-0023은 이 exact 18을 유지하면서 test-only
 CGO-disabled/vet/clean으로 독립 실행하는 `relation-binding-matrix`를 추가해 exact 22 required
 executions로 확장했습니다. 이 proof는 relation 제품 adapter가 아니며 PostgreSQL/Windows 지원 claim도
 아닙니다. Local routine Python은 CPython 3.14.3 + uv 0.12.3 하나만 실행하고, 3.12.13/3.13.15/
-3.14.3/3.14.7 exact compatibility와 갱신된 127-scenario digest는 hosted matrix가 담당합니다.
+3.14.3/3.14.7 exact compatibility와 갱신된 139-scenario digest는 hosted matrix가 담당합니다.
 Completed GDJ-0024는 existing exact 22를 대체하지 않고 같은 four-coordinate의 actual
 `relation-product-matrix` 4 legs를 별도로 추가한 exact 26을 implementation acceptance로 운영합니다.
 각 새 leg는 mixed v2 target/v3 source companion/bridge compile, app-to-app import edge 0, atomic binder,
@@ -1148,7 +1178,33 @@ tool profile에서 focused CGO-disabled Go, exact Python 164/164, all-oracle/no-
 [run 31310606332](https://github.com/progresshans/godj/actions/runs/31310606332)의 Ubuntu/macOS 두
 job을 통과했으므로 run 31310002784를 그 patch의 PASS로 재사용하지 않습니다.
 
-## GDJ-0035 activation and Phase A/B/C test-only hosted verification
+## GDJ-0036 current-only integration test boundary
+
+Current reset의 required regression은 다음을 함께 통과해야 합니다.
+
+1. Schema IR/Definition/ProjectState current version 1 strict decode, canonical digest와 unknown-version rejection
+2. `definition.Load`→opaque `LoadedDefinitionSet`→`Executor.Migrate` exact lifecycle 및
+   `DirectExecutor` raw scalar/relation fail-closed 분리
+3. Mandatory `MigrationCapabilities`와 single `BeginMigration(HistoryTransition, MigrationIntent)`를 통한
+   scalar/relation/no-op whole-plan validation
+4. Public `StateReconstructor`의 current scalar/relation replay와 lifecycle state/rematerialization seal 일치
+5. D4d nullable Add, D4e empty-source required Add, D4f bounded Remove/remake의 rollback/reopen/row/sequence 회귀
+6. Current main codegen descriptor/write ABI, app relation-query 및 facade-private write model 부재,
+   project-owned cross-app binding/query/facade compile
+7. Current generated roster `8 / 9 / 11 / 12 / 13`, deterministic regeneration, external consumer compile와
+   last-good preservation
+
+GDJ-0035 Phase-B/C candidate bytes와 EVID는 역사적 characterization으로만 보존합니다. 현재 checked-in
+MIG-075..086 manifest/oracle은 ADR-0035 current-only 진단 reference로 재기준화됐고 reference aggregate에는
+포함되지만, 계속 `oracle_locked`/unregistered라 product publication/status gate에는 쓰지 않습니다. Go
+characterization은 oracle semantic comparison이 아니라 typed current-product 진단이므로 둘을 동일시하지
+않습니다. 최종 지원 주장은 frozen tree의 full normal/race/CGO0/386/generate-check와 hosted matrix가 끝난
+뒤에만 올립니다.
+
+## Historical GDJ-0035 activation and Phase A/B/C test-only hosted verification
+
+이 절부터 GDJ-0035 D4f까지는 reset 이전 checkout의 exact evidence입니다. Dual tuple/digest/state,
+`definitionhandoff`, `Set.Migrate`, optional relation begin과 Phase D4g-next 서술은 current API/계획이 아닙니다.
 
 GDJ-0034 terminal baseline `0bb8c969...`는
 [EVID-083](status/TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
@@ -1612,12 +1668,13 @@ diff are recorded in EVID-099. The final inventory is exact 837/837/0, 85,756 by
 
 Unique CI #95 [run 32294983953](https://github.com/progresshans/godj/actions/runs/32294983953) passed exact
 26/26 jobs, 342/342 steps, 26 checks, annotations 0 and audit P0/P1/P2/P3=`0/0/0/0` on exact final head
-`9d5b894...`. D4f changes no reference artifact, product adapter or contract/Q status. MIG-075..086 remain
-`oracle_locked`, Q-010/Q-012/Q-013 remain `Partial`, and GDJ-0035 remains active/Partially Implemented. Arbitrary/
+`9d5b894...`. At that checkout D4f changed no reference artifact, product adapter or contract/Q status;
+MIG-075..086 remained `oracle_locked`, Q-010/Q-012/Q-013 remained `Partial`, and GDJ-0035 remained
+active/Partially Implemented. Arbitrary/
 general remake, preserving unrecognized indexes/triggers/views/generated columns/options, inbound/self/cyclic/
 different/nested/non-AutoField/`to_field`/M2M/non-SQLite relations, populated required Add/reapply, raw-file equality,
 general restart, writer/autodetector, actual adapter, completion and terminal status remain later or excluded work.
 
-The next D4g action is oracle-blind observer-only characterization with all 12 MIG statuses still locked. Before any
-status or deviation decision, the packet must explicitly decide whether to add currently omitted
-`conformance/cmd/godjcheck/main.go` and whether a DEV/deviation path is required; no deviation is authorized here.
+The planned next D4g action was oracle-blind observer-only characterization with all 12 MIG statuses locked.
+GDJ-0036 retired that publication sequence before execution; it did not authorize a deviation or convert the
+historical MIG-075..086 artifact into current product status.

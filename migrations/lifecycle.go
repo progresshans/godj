@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/migrations/backend"
-	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -44,13 +43,12 @@ func TargetedLifecycleRequest(first Target, rest ...Target) LifecycleRequest {
 
 const lifecycleCleanupTimeout = 5 * time.Second
 
-// Migrate reads one revision-bound history snapshot, validates and plans the
-// complete lifecycle, then executes each migration in its own fenced
-// transaction. Backends without the optional revision-fence capability fail
-// closed; this method never falls back to the legacy transaction path.
+// Migrate reads one revision-bound history snapshot from an opaque loader
+// publication, validates and plans the complete lifecycle, then executes each
+// migration in its own fenced transaction.
 func (e Executor) Migrate(
 	ctx context.Context,
-	definitions []Migration,
+	loaded LoadedDefinitionSet,
 	request LifecycleRequest,
 ) (resultState ProjectState, resultErr error) {
 	resultState = EmptyProjectState()
@@ -65,34 +63,23 @@ func (e Executor) Migrate(
 	if err != nil {
 		return resultState, err
 	}
-
-	// A relation carrier is the only path that may mint private loaded-state
-	// authority. Scan caller-owned values before either the carrier or the
-	// definitions can be cloned.
-	hasCarrier := definitionhandoff.Has(ctx)
-	if hasCarrier {
-		if err := validateLoadedDefinitionResources(definitions); err != nil {
-			return resultState, err
-		}
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
-		}
+	snapshot, ok := loaded.snapshot()
+	if !ok {
+		return resultState, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is not initialized"))
 	}
-	hasRelation := definitionsContainRelation(definitions)
-	if !hasCarrier && hasRelation {
-		unsupported := relationMigrationUnsupported(definitions, "", errors.New("loader definition handoff is missing"))
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
-		}
-		return resultState, unsupported
+	definitions := snapshot.Values
+
+	// Revalidate the loader-owned snapshot before retaining values or opening a
+	// backend. The private publication replaces the former hidden context
+	// authority while preserving a second trust-boundary resource scan.
+	if err := validateLoadedDefinitionResources(definitions); err != nil {
+		return resultState, err
 	}
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
 	}
-	if hasCarrier {
-		if err := validateLoadedLifecycleTargets(definitions, requestTargetView); err != nil {
-			return resultState, err
-		}
+	if err := validateLoadedLifecycleTargets(definitions, requestTargetView); err != nil {
+		return resultState, err
 	}
 	requestTargets := append([]Target(nil), requestTargetView...)
 
@@ -100,30 +87,12 @@ func (e Executor) Migrate(
 	// reconstructor then validates the graph and deep-copies every supported
 	// operation so neither planning nor execution retains caller aliases.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
-	var authority *loadedDefinitionAuthority
-	ctx, authority, err = consumeDefinitionHandoff(ctx, definitionSnapshot, "")
-	if err != nil {
-		return resultState, err
-	}
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
 	}
-	var reconstructor StateReconstructor
-	var loadedReconstructor *loadedStateReconstructor
-	if authority != nil && hasRelation {
-		loaded, loadedErr := newLoadedStateReconstructor(authority, definitionSnapshot)
-		if loadedErr != nil {
-			return resultState, loadedErr
-		}
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
-		}
-		loadedReconstructor = &loaded
-	} else {
-		reconstructor, err = NewStateReconstructor(definitionSnapshot...)
-		if err != nil {
-			return resultState, err
-		}
+	reconstructor, err := newLoadedStateReconstructor(definitionSnapshot)
+	if err != nil {
+		return resultState, err
 	}
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
@@ -132,10 +101,7 @@ func (e Executor) Migrate(
 	if isNilInterface(e.Backend) {
 		return resultState, revisionFenceUnsupportedError(errors.New("backend is nil"))
 	}
-	fencedBackend, ok := e.Backend.(backend.RevisionFencedBackend)
-	if !ok || isNilInterface(fencedBackend) {
-		return resultState, revisionFenceUnsupportedError(errors.New("backend does not implement revision-fenced migrations"))
-	}
+	fencedBackend := e.Backend
 
 	cleanupBase := context.WithoutCancel(ctx)
 	session, openErr := fencedBackend.OpenRevisionFencedSession(ctx)
@@ -167,10 +133,8 @@ func (e Executor) Migrate(
 	if openErr != nil {
 		return resultState, classifyLifecycleError(openErr, CategoryTransaction, CodeBeginFailed, PlanStep{})
 	}
-	if authority != nil {
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
-		}
+	if err := ctx.Err(); err != nil {
+		return resultState, executionContextError(PlanStep{}, err)
 	}
 	if isNilInterface(session) {
 		return resultState, migrationError(
@@ -191,20 +155,18 @@ func (e Executor) Migrate(
 		}
 		return resultState, newRecorderReadError(err)
 	}
-	if authority != nil {
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
-		}
-		historyTargetCount := len(requestTargets)
-		if requestKind == lifecycleRequestLatest {
-			historyTargetCount = len(authority.planner.graph.appLeaves())
-		}
-		if err := validateLoadedHistoryPlanResources(definitionSnapshot, historyTargetCount, records); err != nil {
-			return resultState, err
-		}
-		if err := ctx.Err(); err != nil {
-			return resultState, executionContextError(PlanStep{}, err)
-		}
+	if err := ctx.Err(); err != nil {
+		return resultState, executionContextError(PlanStep{}, err)
+	}
+	historyTargetCount := len(requestTargets)
+	if requestKind == lifecycleRequestLatest {
+		historyTargetCount = len(reconstructor.planner.graph.appLeaves())
+	}
+	if err := validateLoadedHistoryPlanResources(definitionSnapshot, historyTargetCount, records); err != nil {
+		return resultState, err
+	}
+	if err := ctx.Err(); err != nil {
+		return resultState, executionContextError(PlanStep{}, err)
 	}
 	keys := make([]MigrationKey, len(records))
 	for index, record := range records {
@@ -217,68 +179,15 @@ func (e Executor) Migrate(
 	if err := ctx.Err(); err != nil {
 		return resultState, executionContextError(PlanStep{}, err)
 	}
-	if loadedReconstructor != nil {
-		return e.migrateLoadedPlan(
-			ctx,
-			session,
-			*loadedReconstructor,
-			definitionSnapshot,
-			applied,
-			requestKind,
-			requestTargets,
-		)
-	}
-
-	// Check history before interpreting contained targets. This preserves the
-	// command-level safety precedence: known inconsistent history prevents plan
-	// evaluation and every migration transaction.
-	if err := reconstructor.planner.CheckHistory(applied); err != nil {
-		return resultState, err
-	}
-	before, err := reconstructor.Reconstruct(AppliedStateRequest(applied))
-	if err != nil {
-		return resultState, err
-	}
-	resultState = before.Clone()
-	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
-	}
-
-	var targets []Target
-	switch requestKind {
-	case lifecycleRequestLatest:
-		leaves := reconstructor.graph().appLeaves()
-		targets = make([]Target, len(leaves))
-		for index, leaf := range leaves {
-			targets[index] = NamedTarget(leaf)
-		}
-	case lifecycleRequestTargeted:
-		targets = requestTargets
-	}
-	plan, err := reconstructor.planner.Plan(applied, targets...)
-	if err != nil {
-		return resultState, err
-	}
-	prepared, err := preflightPlan(ctx, before, definitionSnapshot, plan)
-	if err != nil {
-		return resultState, err
-	}
-
-	working := before.Clone()
-	for _, preparedStep := range prepared {
-		if err := ctx.Err(); err != nil {
-			return working.Clone(), executionContextError(preparedStep.step, err)
-		}
-		working, err = executeFencedMigration(ctx, session, working, preparedStep)
-		resultState = working.Clone()
-		if err != nil {
-			return resultState, err
-		}
-	}
-
-	// Cancellation observed only after the final durable commit cannot undo the
-	// successful lifecycle. Mandatory Close uses its own bounded context.
-	return working.Clone(), nil
+	return e.migrateLoadedPlan(
+		ctx,
+		session,
+		reconstructor,
+		definitionSnapshot,
+		applied,
+		requestKind,
+		requestTargets,
+	)
 }
 
 func (e Executor) migrateLoadedPlan(
@@ -337,7 +246,7 @@ func (e Executor) migrateLoadedPlan(
 	}
 
 	// Validate every actual step against one mutable historical builder before
-	// selecting any optional relation port or opening any migration transaction.
+	// opening any migration transaction.
 	// Retain only capability requirements and a semantic seal for each step;
 	// operation snapshots are regenerated one step at a time after selection.
 	dryBuilder := initialBuilder.clone()
@@ -348,8 +257,7 @@ func (e Executor) migrateLoadedPlan(
 	if err := ctx.Err(); err != nil {
 		return before.Clone(), executionContextError(PlanStep{}, err)
 	}
-	relationSession, err := selectLoadedRelationLifecycle(ctx, e.Backend, session, reconstructor, prepared)
-	if err != nil {
+	if err := validateLoadedMigrationCapabilities(ctx, e.Backend, reconstructor, prepared); err != nil {
 		return before.Clone(), err
 	}
 	if err := ctx.Err(); err != nil {
@@ -367,7 +275,6 @@ func (e Executor) migrateLoadedPlan(
 			return working.Clone(), materializeErr
 		}
 		if materialized.requirements != expected.requirements ||
-			materialized.relation != expected.relation ||
 			materialized.seal != expected.seal {
 			migration := reconstructor.definitions[expected.step.Key]
 			return working.Clone(), migrationError(
@@ -383,7 +290,6 @@ func (e Executor) migrateLoadedPlan(
 		working, err = executeLoadedFencedMigration(
 			ctx,
 			session,
-			relationSession,
 			working,
 			materialized,
 		)
@@ -394,64 +300,54 @@ func (e Executor) migrateLoadedPlan(
 	return working.Clone(), nil
 }
 
-func selectLoadedRelationLifecycle(
+func validateLoadedMigrationCapabilities(
 	ctx context.Context,
-	value backend.AtomicBackend,
-	session backend.RevisionFencedSession,
+	value backend.RevisionFencedBackend,
 	reconstructor loadedStateReconstructor,
 	steps []loadedPlanStep,
-) (backend.RelationRevisionFencedSession, error) {
-	firstRelation := -1
+) error {
+	firstRequired := -1
 	for index := range steps {
-		if steps[index].relation {
-			firstRelation = index
+		if steps[index].requirements != 0 {
+			firstRequired = index
 			break
 		}
 	}
-	if firstRelation < 0 {
-		return nil, nil
+	if firstRequired < 0 {
+		return nil
 	}
-	first := steps[firstRelation]
+	first := steps[firstRequired]
 	migration := reconstructor.definitions[first.step.Key]
-	relationBackend, ok := value.(backend.RelationRevisionFencedBackend)
-	if !ok || isNilInterface(relationBackend) {
-		return nil, loadedRelationCapabilityError(
+	if isNilInterface(value) {
+		return loadedRelationCapabilityError(
 			first.step,
 			migration,
-			"backend does not implement relation revision-fenced migrations",
+			"backend migration capabilities are unavailable",
 		)
 	}
-	capabilities := relationBackend.RelationMigrationCapabilities()
+	capabilities := value.MigrationCapabilities()
 	if err := ctx.Err(); err != nil {
-		return nil, executionContextError(first.step, err)
+		return executionContextError(first.step, err)
 	}
 	for _, step := range steps {
-		if !step.relation {
+		if step.requirements == 0 {
 			continue
 		}
 		missing := firstMissingLoadedRelationCapability(step.requirements, capabilities)
 		if missing != "" {
-			return nil, loadedRelationCapabilityError(
+			return loadedRelationCapabilityError(
 				step.step,
 				reconstructor.definitions[step.step.Key],
 				"required relation capability is false: "+missing,
 			)
 		}
 	}
-	relationSession, ok := session.(backend.RelationRevisionFencedSession)
-	if !ok || isNilInterface(relationSession) {
-		return nil, loadedRelationCapabilityError(
-			first.step,
-			migration,
-			"fenced session does not implement relation migration begin",
-		)
-	}
-	return relationSession, nil
+	return nil
 }
 
 func firstMissingLoadedRelationCapability(
 	requirements loadedRelationRequirements,
-	capabilities backend.RelationMigrationCapabilities,
+	capabilities backend.MigrationCapabilities,
 ) string {
 	checks := []struct {
 		bit       loadedRelationRequirements
@@ -486,7 +382,6 @@ func loadedRelationCapabilityError(step PlanStep, migration Migration, detail st
 func executeLoadedFencedMigration(
 	ctx context.Context,
 	session backend.RevisionFencedSession,
-	relationSession backend.RelationRevisionFencedSession,
 	before ProjectState,
 	materialized loadedMaterializedStep,
 ) (ProjectState, error) {
@@ -503,28 +398,11 @@ func executeLoadedFencedMigration(
 		Kind:      transitionKind,
 	}
 
-	var transaction backend.RevisionFencedTransaction
-	var beginErr error
-	if materialized.relation {
-		if isNilInterface(relationSession) {
-			return before.Clone(), loadedRelationCapabilityError(
-				prepared.step,
-				prepared.migration,
-				"validated relation step has no relation session",
-			)
-		}
-		beginIntent := loadedBackendRelationIntent(materialized.intent)
-		if err := ctx.Err(); err != nil {
-			return before.Clone(), executionContextError(prepared.step, err)
-		}
-		transaction, beginErr = relationSession.BeginRelationFencedMigration(
-			ctx,
-			transition,
-			beginIntent,
-		)
-	} else {
-		transaction, beginErr = session.BeginFencedMigration(ctx, transition)
+	beginIntent := loadedBackendRelationIntent(materialized.intent)
+	if err := ctx.Err(); err != nil {
+		return before.Clone(), executionContextError(prepared.step, err)
 	}
+	transaction, beginErr := session.BeginMigration(ctx, transition, beginIntent)
 	if beginErr != nil {
 		primary := classifyLifecycleError(beginErr, CategoryTransaction, CodeBeginFailed, prepared.step)
 		if !isNilInterface(transaction) {
@@ -612,24 +490,24 @@ func executeLoadedFencedMigration(
 	}
 }
 
-func loadedBackendRelationIntent(value loadedRelationIntent) backend.RelationMigrationIntent {
-	intent := backend.RelationMigrationIntent{
-		Operations: make([]backend.RelationMigrationOperation, len(value.operations)),
+func loadedBackendRelationIntent(value loadedRelationIntent) backend.MigrationIntent {
+	intent := backend.MigrationIntent{
+		Operations: make([]backend.MigrationOperation, len(value.operations)),
 	}
 	for operationIndex := range value.operations {
 		operation := value.operations[operationIndex]
-		targets := make([]backend.RelationMigrationTarget, len(operation.targets))
+		targets := make([]backend.MigrationTarget, len(operation.targets))
 		for targetIndex := range operation.targets {
 			target := operation.targets[targetIndex]
-			targets[targetIndex] = backend.RelationMigrationTarget{
+			targets[targetIndex] = backend.MigrationTarget{
 				SourceField: target.sourceField.Clone(),
 				TargetModel: target.targetModel.Clone(),
 				TargetKey:   target.targetKey.Clone(),
 			}
 		}
-		intent.Operations[operationIndex] = backend.RelationMigrationOperation{
+		intent.Operations[operationIndex] = backend.MigrationOperation{
 			OperationIndex: operation.operationIndex,
-			Kind:           backend.RelationMigrationOperationKind(operation.kind),
+			Kind:           backend.MigrationOperationKind(operation.kind),
 			Before:         operation.before.Clone(),
 			After:          operation.after.Clone(),
 			Targets:        targets,
@@ -650,18 +528,8 @@ func executeLoadedMigrationBody(
 		if err := ctx.Err(); err != nil {
 			return executionContextError(step, err)
 		}
-		from := loadedSparseProjectState(
-			operation.beforeFormat,
-			operation.appLabel,
-			operation.before,
-			operation.beforeExists,
-		)
-		to := loadedSparseProjectState(
-			operation.afterFormat,
-			operation.appLabel,
-			operation.after,
-			operation.afterExists,
-		)
+		from := loadedSparseProjectState(operation.appLabel, operation.before, operation.beforeExists)
+		to := loadedSparseProjectState(operation.appLabel, operation.after, operation.afterExists)
 		if err := ctx.Err(); err != nil {
 			return executionContextError(step, err)
 		}
@@ -702,54 +570,6 @@ func executeLoadedMigrationBody(
 		return executionContextError(step, err)
 	}
 	return nil
-}
-
-func consumeDefinitionHandoff(
-	ctx context.Context,
-	definitions []Migration,
-	direction Direction,
-) (context.Context, *loadedDefinitionAuthority, error) {
-	baseContext, handoff, found := definitionhandoff.Take(ctx)
-	hasRelation := definitionsContainRelation(definitions)
-	if !found {
-		if hasRelation {
-			return baseContext, nil, relationMigrationUnsupported(definitions, direction, errors.New("loader definition handoff is missing"))
-		}
-		return baseContext, nil, nil
-	}
-
-	visible := make([]definitionhandoff.Definition, len(definitions))
-	for index := range definitions {
-		converted, err := migrationHandoffDefinition(definitions[index])
-		if err != nil {
-			return baseContext, nil, relationMigrationUnsupported(definitions, direction, fmt.Errorf("definition[%d]: %w", index, err))
-		}
-		visible[index] = converted
-	}
-	if err := handoff.ValidateVisible(visible); err != nil {
-		return baseContext, nil, relationMigrationUnsupported(definitions, direction, err)
-	}
-	planner, err := NewPlanner(definitions...)
-	if err != nil {
-		return baseContext, nil, relationMigrationUnsupported(definitions, direction, fmt.Errorf("sealed full graph is invalid: %w", err))
-	}
-	records := handoff.Records()
-	profiles := make(map[MigrationKey]loadedDefinitionProfile, len(records))
-	for index := range records {
-		record := records[index]
-		key := MigrationKey{App: record.Definition.App, Name: record.Definition.Name}
-		if _, exists := profiles[key]; exists {
-			return baseContext, nil, relationMigrationUnsupported(definitions, direction, fmt.Errorf("sealed profile graph duplicates %s.%s", key.App, key.Name))
-		}
-		profiles[key] = loadedDefinitionProfile{
-			definitionFormat: record.Profile.DefinitionFormat,
-			loaderABI:        record.Profile.LoaderABI,
-			operationCodec:   record.Profile.OperationCodec,
-			schemaIR:         record.Profile.SchemaIR,
-		}
-	}
-	authority := &loadedDefinitionAuthority{marker: &loadedDefinitionAuthorityMarker{}, planner: planner, profiles: profiles}
-	return baseContext, authority, nil
 }
 
 func relationMigrationUnsupported(definitions []Migration, direction Direction, cause error) *Error {
@@ -1058,76 +878,6 @@ func fieldContainsRelation(field ir.Field) bool {
 	return field.Kind == ir.FieldForeignKey || field.Relation != nil
 }
 
-func migrationHandoffDefinition(value Migration) (definitionhandoff.Definition, error) {
-	definition := definitionhandoff.Definition{
-		App:          value.App,
-		Name:         value.Name,
-		Dependencies: make([]definitionhandoff.Identity, len(value.Dependencies)),
-		Operations:   make([]definitionhandoff.Operation, len(value.Operations)),
-	}
-	for index := range value.Dependencies {
-		definition.Dependencies[index] = definitionhandoff.Identity{App: value.Dependencies[index].App, Name: value.Dependencies[index].Name}
-	}
-	for index, operation := range value.Operations {
-		converted, err := migrationHandoffOperation(operation)
-		if err != nil {
-			return definitionhandoff.Definition{}, fmt.Errorf("operation %d: %w", index, err)
-		}
-		definition.Operations[index] = converted
-	}
-	return definition, nil
-}
-
-func migrationHandoffOperation(value Operation) (definitionhandoff.Operation, error) {
-	switch operation := value.(type) {
-	case CreateModel:
-		return definitionhandoff.Operation{Kind: "create_model", AppLabel: operation.AppLabel, HasModel: true, Model: migrationHandoffModel(operation.Model)}, nil
-	case *CreateModel:
-		if operation == nil {
-			return definitionhandoff.Operation{}, errors.New("nil *CreateModel")
-		}
-		return definitionhandoff.Operation{Kind: "create_model", AppLabel: operation.AppLabel, HasModel: true, Model: migrationHandoffModel(operation.Model)}, nil
-	case AddField:
-		return definitionhandoff.Operation{Kind: "add_field", AppLabel: operation.AppLabel, ModelName: operation.ModelName, HasField: true, Field: migrationHandoffField(operation.Field)}, nil
-	case *AddField:
-		if operation == nil {
-			return definitionhandoff.Operation{}, errors.New("nil *AddField")
-		}
-		return definitionhandoff.Operation{Kind: "add_field", AppLabel: operation.AppLabel, ModelName: operation.ModelName, HasField: true, Field: migrationHandoffField(operation.Field)}, nil
-	default:
-		return definitionhandoff.Operation{}, fmt.Errorf("unsupported operation %T", value)
-	}
-}
-
-func migrationHandoffModel(value ir.Model) definitionhandoff.Model {
-	model := definitionhandoff.Model{Name: value.Name, GoName: value.GoName, DBTable: value.DBTable, Fields: make([]definitionhandoff.Field, len(value.Fields))}
-	for index := range value.Fields {
-		model.Fields[index] = migrationHandoffField(value.Fields[index])
-	}
-	return model
-}
-
-func migrationHandoffField(value ir.Field) definitionhandoff.Field {
-	field := definitionhandoff.Field{
-		Name: value.Name, GoName: value.GoName, Column: value.Column, Kind: string(value.Kind),
-		PrimaryKey: value.PrimaryKey, Nullable: value.Nullable, MaxLength: int64(value.MaxLength),
-	}
-	if value.Default != nil {
-		field.Default = definitionhandoff.Default{
-			Present: true, Kind: string(value.Default.Kind), String: value.Default.String,
-			Boolean: value.Default.Boolean, Integer: value.Default.Integer,
-		}
-	}
-	if value.Relation != nil {
-		field.Relation = definitionhandoff.Relation{
-			Present: true, TargetApp: value.Relation.Target.AppLabel, TargetModel: value.Relation.Target.ModelName,
-			Cardinality: string(value.Relation.Cardinality), ReverseName: value.Relation.Reverse.Name,
-			ReverseDisabled: value.Relation.Reverse.Disabled, OnDelete: string(value.Relation.OnDelete),
-		}
-	}
-	return field
-}
-
 func inspectLifecycleRequest(request LifecycleRequest) (lifecycleRequestKind, []Target, error) {
 	switch request.kind {
 	case lifecycleRequestLatest:
@@ -1146,7 +896,7 @@ func inspectLifecycleRequest(request LifecycleRequest) (lifecycleRequestKind, []
 }
 
 func validateLoadedLifecycleTargets(definitions []Migration, targets []Target) error {
-	if len(targets) > definitionhandoff.MaxDefinitions {
+	if len(targets) > maxLoadedDefinitions {
 		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded lifecycle target count exceeds resource limit"))
 	}
 	budget := loadedLifecycleIdentityBudget{}
@@ -1169,7 +919,7 @@ func validateLoadedHistoryPlanResources(
 	targetCount int,
 	records []backend.AppliedMigration,
 ) error {
-	if len(records) > definitionhandoff.MaxDefinitions {
+	if len(records) > maxLoadedDefinitions {
 		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded applied-history record count exceeds resource limit"))
 	}
 	budget := loadedLifecycleIdentityBudget{}
@@ -1254,10 +1004,10 @@ func (budget *loadedLifecycleIdentityBudget) consumeNodes(path string, count int
 }
 
 func (budget *loadedLifecycleIdentityBudget) consumeString(path, value string) error {
-	if len(value) > definitionhandoff.MaxDefinitionBytes {
-		return fmt.Errorf("loaded lifecycle identity %s has %d bytes, maximum %d", path, len(value), definitionhandoff.MaxDefinitionBytes)
+	if len(value) > maxLoadedDefinitionBytes {
+		return fmt.Errorf("loaded lifecycle identity %s has %d bytes, maximum %d", path, len(value), maxLoadedDefinitionBytes)
 	}
-	if uint64(len(value)) > uint64(definitionhandoff.MaxDefinitionSetBytes)-budget.bytes {
+	if uint64(len(value)) > uint64(maxLoadedDefinitionSetBytes)-budget.bytes {
 		return fmt.Errorf("loaded lifecycle identity bytes exceed aggregate resource limit")
 	}
 	budget.bytes += uint64(len(value))
@@ -1266,105 +1016,6 @@ func (budget *loadedLifecycleIdentityBudget) consumeString(path, value string) e
 
 func invalidLifecycleRequest() error {
 	return newPlanningError(CategoryPlan, CodeInvalidTarget, MigrationKey{}, MigrationKey{}, nil)
-}
-
-func executeFencedMigration(
-	ctx context.Context,
-	session backend.RevisionFencedSession,
-	before ProjectState,
-	prepared preparedPlanStep,
-) (ProjectState, error) {
-	// The outer loop owns the between-step gate. Repeat it immediately before
-	// handing control to the backend so cancellation cannot open a transaction
-	// in the small interval after that check.
-	if err := ctx.Err(); err != nil {
-		return before.Clone(), executionContextError(prepared.step, err)
-	}
-
-	transitionKind := backend.HistoryTransitionApply
-	if prepared.step.Direction == DirectionBackward {
-		transitionKind = backend.HistoryTransitionUnapply
-	}
-	transition := backend.HistoryTransition{
-		Migration: backend.AppliedMigration{App: prepared.step.Key.App, Name: prepared.step.Key.Name},
-		Kind:      transitionKind,
-	}
-
-	transaction, err := session.BeginFencedMigration(ctx, transition)
-	if err != nil {
-		return before.Clone(), classifyLifecycleError(err, CategoryTransaction, CodeBeginFailed, prepared.step)
-	}
-	if isNilInterface(transaction) {
-		return before.Clone(), migrationError(
-			CategoryTransaction,
-			CodeBeginFailed,
-			prepared.step.Direction,
-			prepared.migration,
-			NoOperation,
-			"",
-			errors.New("backend returned a nil revision-fenced transaction"),
-		)
-	}
-
-	if primary := executeMigrationBody(
-		ctx,
-		prepared.migration,
-		prepared.step.Direction,
-		prepared.operations,
-		transaction,
-	); primary != nil {
-		return before.Clone(), rollbackFenced(ctx, transaction, primary)
-	}
-
-	outcome, commitErr := transaction.CommitFenced(ctx)
-	switch outcome.Durability {
-	case backend.CommitCommitted:
-		if commitErr == nil {
-			return prepared.after.Clone(), nil
-		}
-		return prepared.after.Clone(), migrationError(
-			CategoryTransaction,
-			CodeCommitCleanupFailed,
-			prepared.step.Direction,
-			prepared.migration,
-			NoOperation,
-			"",
-			commitErr,
-		)
-	case backend.CommitRolledBack:
-		if commitErr == nil {
-			commitErr = errors.New("backend reported a rolled-back commit without an error")
-		}
-		return before.Clone(), classifyLifecycleError(commitErr, CategoryTransaction, CodeCommitFailed, prepared.step)
-	case backend.CommitUnknown:
-		if commitErr == nil {
-			commitErr = errors.New("backend reported an unknown commit outcome without an error")
-		}
-		return before.Clone(), migrationError(
-			CategoryTransaction,
-			CodeCommitOutcomeUnknown,
-			prepared.step.Direction,
-			prepared.migration,
-			NoOperation,
-			"",
-			commitErr,
-		)
-	default:
-		if commitErr == nil {
-			commitErr = fmt.Errorf("backend returned invalid commit durability %d", outcome.Durability)
-		} else {
-			commitErr = fmt.Errorf("backend returned invalid commit durability %d: %w", outcome.Durability, commitErr)
-		}
-		return before.Clone(), migrationError(
-			CategoryTransaction,
-			CodeCommitOutcomeUnknown,
-			prepared.step.Direction,
-			prepared.migration,
-			NoOperation,
-			"",
-			commitErr,
-		)
-	}
 }
 
 func rollbackFenced(ctx context.Context, transaction backend.RevisionFencedTransaction, primary *Error) error {

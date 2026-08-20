@@ -27,7 +27,7 @@ func TestGenerateRelationProjectionIsDeterministicAndByteLocked(t *testing.T) {
 		wantExported []string
 	}{
 		{
-			name:        "v2 target",
+			name:        "current target",
 			packageName: "authors",
 			schema:      authors,
 			golden:      "authors.golden",
@@ -50,7 +50,7 @@ func TestGenerateRelationProjectionIsDeterministicAndByteLocked(t *testing.T) {
 			wantExported: []string{"GoDjRelationProjectionGeneratorVersion", "GoDjRelationProjectionSchemaSHA256"},
 		},
 		{
-			name:        "v3 source",
+			name:        "current source",
 			packageName: "blog",
 			schema:      blog,
 			golden:      "blog.golden",
@@ -61,10 +61,10 @@ func TestGenerateRelationProjectionIsDeterministicAndByteLocked(t *testing.T) {
 				[]byte("scanReviewerID sql.NullInt64"),
 				[]byte("if _scan.scanReviewerID.Valid"),
 				[]byte("_value.ReviewerID = &_scanned"),
+				[]byte("_value.godjPrimaryKeyPresent = true"),
 				[]byte("query.Integer(_scan.scanID.Int64), orm.ProjectionPresent"),
 			},
 			forbidden: [][]byte{
-				[]byte("godjPrimaryKeyPresent"),
 				[]byte("func (PostDescriptor) Scan("),
 				[]byte("authors.Author"),
 				[]byte("panic("),
@@ -170,9 +170,6 @@ func TestGenerateRelationProjectionSnapshotsInputPreservesOldBytesAndLastGood(t 
 	oldBlogMetadataBefore := mustGeneratedCode(t, "blog metadata before", func() ([]byte, error) {
 		return codegen.GenerateRelationMetadata("blog", blog)
 	})
-	oldBlogQueryBefore := mustGeneratedCode(t, "blog query before", func() ([]byte, error) {
-		return codegen.GenerateRelationQuery("blog", blog)
-	})
 	oldBlogObjectBefore := mustGeneratedCode(t, "blog object before", func() ([]byte, error) {
 		return codegen.GenerateRelationObject("blog", blog)
 	})
@@ -201,17 +198,14 @@ func TestGenerateRelationProjectionSnapshotsInputPreservesOldBytesAndLastGood(t 
 	oldBlogMetadataAfter := mustGeneratedCode(t, "blog metadata after", func() ([]byte, error) {
 		return codegen.GenerateRelationMetadata("blog", freshBlog)
 	})
-	oldBlogQueryAfter := mustGeneratedCode(t, "blog query after", func() ([]byte, error) {
-		return codegen.GenerateRelationQuery("blog", freshBlog)
-	})
 	oldBlogObjectAfter := mustGeneratedCode(t, "blog object after", func() ([]byte, error) {
 		return codegen.GenerateRelationObject("blog", freshBlog)
 	})
-	before := [][]byte{oldAuthorsMainBefore, oldAuthorsMetadataBefore, oldAuthorsObjectBefore, oldBlogMainBefore, oldBlogMetadataBefore, oldBlogQueryBefore, oldBlogObjectBefore}
-	after := [][]byte{oldAuthorsMainAfter, oldAuthorsMetadataAfter, oldAuthorsObjectAfter, oldBlogMainAfter, oldBlogMetadataAfter, oldBlogQueryAfter, oldBlogObjectAfter}
+	before := [][]byte{oldAuthorsMainBefore, oldAuthorsMetadataBefore, oldAuthorsObjectBefore, oldBlogMainBefore, oldBlogMetadataBefore, oldBlogObjectBefore}
+	after := [][]byte{oldAuthorsMainAfter, oldAuthorsMetadataAfter, oldAuthorsObjectAfter, oldBlogMainAfter, oldBlogMetadataAfter, oldBlogObjectAfter}
 	for index := range before {
 		if !bytes.Equal(before[index], after[index]) {
-			t.Fatalf("new relation projection generation changed old prerequisite byte stream %d", index)
+			t.Fatalf("relation projection generation changed current prerequisite byte stream %d", index)
 		}
 	}
 
@@ -277,10 +271,6 @@ func writeGeneratedRelationProjectionApps(
 	if err != nil {
 		t.Fatalf("generate blog metadata: %v", err)
 	}
-	blogQuery, err := codegen.GenerateRelationQuery("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog query: %v", err)
-	}
 	blogObject, err := codegen.GenerateRelationObject("blog", blog)
 	if err != nil {
 		t.Fatalf("generate blog object: %v", err)
@@ -305,7 +295,6 @@ replace github.com/progresshans/godj => %s
 	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation_projection.go", authorsProjection)
 	writeGeneratedTestFile(t, directory, "blog/zz_godj_generated.go", blogMain)
 	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation.go", blogMetadata)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_query.go", blogQuery)
 	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_object.go", blogObject)
 	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_projection.go", blogProjection)
 	if includeTests {

@@ -100,10 +100,10 @@ class MigrationRelationScenarioTests(unittest.TestCase):
         self.assertEqual(
             list(scenarios.SCENARIOS),
             [
-                "godj.migration.relation.legacy_abi",
-                "godj.migration.relation.profile_dispatch",
-                "godj.migration.relation.mixed_digest",
-                "godj.migration.relation.state_promotion",
+                "godj.migration.relation.current_abi",
+                "godj.migration.relation.current_format_validation",
+                "godj.migration.relation.current_digest",
+                "godj.migration.relation.current_state",
                 "godj.migration.relation.structural_preflight",
                 "django.migration.relation.create_lifecycle",
                 "django.migration.relation.add_nullable_populated",
@@ -166,16 +166,7 @@ class MigrationRelationScenarioTests(unittest.TestCase):
             ],
         )
 
-        proposal_ids = {
-            "MIG-076",
-            "MIG-077",
-            "MIG-078",
-            "MIG-079",
-            "MIG-081",
-            "MIG-083",
-            "MIG-085",
-            "MIG-086",
-        }
+        proposal_ids: set[str] = set()
         django_ids = {
             "MIG-080",
             "MIG-081",
@@ -190,6 +181,10 @@ class MigrationRelationScenarioTests(unittest.TestCase):
                 provenance = contract["provenance"]
                 self.assertTrue(provenance)
                 self.assertNotIn("ADR-0034", json.dumps(provenance))
+                self.assertIn(
+                    "ADR-0035",
+                    {item["reference"] for item in provenance},
+                )
                 proposals = [item for item in provenance if item["kind"] == "proposal"]
                 django_sources = [
                     item for item in provenance if item["kind"] in {"source", "test"}
@@ -199,12 +194,12 @@ class MigrationRelationScenarioTests(unittest.TestCase):
                 for item in provenance:
                     self.assertIs(item["derived"], False)
                     if item["kind"] == "proposal":
-                        self.assertEqual(item["reference"], "GDJ-0035")
+                        self.assertEqual(item["reference"], "GDJ-0036")
                         self.assertNotIn("license", item)
                     elif item["kind"] == "decision":
                         self.assertIn(
                             item["reference"],
-                            {"ADR-0010", "ADR-0017", "ADR-0019", "ADR-0020"},
+                            {"ADR-0010", "ADR-0017", "ADR-0035"},
                         )
                         self.assertNotIn("license", item)
                     else:
@@ -302,98 +297,120 @@ class MigrationRelationScenarioTests(unittest.TestCase):
             for number, scenario in enumerate(scenarios.SCENARIOS.values(), 75):
                 scenario(f"MIG-{number:03d}")
 
-    def test_legacy_profile_digest_and_scalar_state_are_unchanged(self) -> None:
-        value = observed(scenarios.legacy_abi, "MIG-075")
-        legacy = value["result"]["legacy"]
-        self.assertEqual(legacy["profile_tuple"], [1, 1, 1, 2])
-        self.assertEqual(legacy["state_format"], 1)
-        self.assertEqual(legacy["digest_domain"], "godj:migration-definition-set:v1")
-        self.assertEqual(legacy["canonical_sha256"], legacy["definition_set_digest"])
-        self.assertRegex(legacy["definition_set_digest"], r"^sha256:[0-9a-f]{64}$")
+    def test_current_abi_is_single_deterministic_and_tuple_free(self) -> None:
+        value = observed(scenarios.current_abi, "MIG-075")
+        current = value["result"]["current"]
+        self.assertEqual(
+            current["format"],
+            {"definition": 1, "schema_ir": 1, "state": 1},
+        )
+        self.assertEqual(current["digest_domain"], "godj:migration-definition-set:v1")
+        self.assertEqual(current["canonical_sha256"], current["definition_set_digest"])
+        self.assertRegex(current["definition_set_digest"], r"^sha256:[0-9a-f]{64}$")
         self.assertTrue(value["result"]["repeat_equal"])
-        self.assertFalse(value["result"]["relation_fields_accepted"])
-        self.assertEqual(value["metrics"]["legacy_bytes_rewritten"], 0)
+        self.assertTrue(value["result"]["scalar_and_relation_share_format"])
+        self.assertFalse(value["result"]["retired_compatibility_tuple_present"])
+        self.assertEqual(value["metrics"]["compatibility_upgrades"], 0)
 
-    def test_profile_dispatch_rejects_hybrids_and_unknown_coordinates(self) -> None:
-        value = observed(scenarios.profile_dispatch, "MIG-076")
+    def test_current_format_rejects_invalid_and_retired_envelopes(self) -> None:
+        value = observed(scenarios.current_format_validation, "MIG-076")
         cases = value["result"]["cases"]
         self.assertEqual([item["case"] for item in cases], [
-            "legacy_exact",
-            "relation_exact",
-            "hybrid_loader_only",
-            "hybrid_codec_and_ir",
-            "unknown_definition_format",
+            "exact_current",
+            "missing_format_version",
+            "unknown_format_version",
+            "wrong_type_format_version",
+            "overflow_format_version",
+            "retired_compatibility_tuple",
         ])
-        self.assertEqual([item["accepted"] for item in cases], [True, True, False, False, False])
         self.assertEqual(
-            [item["error"]["code"] for item in cases[2:]],
+            [item["accepted"] for item in cases],
+            [True, False, False, False, False, False],
+        )
+        self.assertEqual(
+            [item["error"]["code"] for item in cases[1:]],
             [
-                "hybrid_profile_incompatible",
-                "hybrid_profile_incompatible",
+                "invalid_definition_document",
                 "definition_format_incompatible",
+                "invalid_definition_document",
+                "invalid_definition_document",
+                "invalid_definition_document",
             ],
         )
+        self.assertEqual(
+            [item["error"]["reason"] for item in cases[1:]],
+            [
+                "missing_field",
+                "format_version",
+                "wrong_type",
+                "out_of_range",
+                "unknown_field",
+            ],
+        )
+        self.assertEqual(value["metrics"]["accepted_documents"], 1)
+        self.assertEqual(value["metrics"]["rejected_documents"], 5)
         self.assertEqual(value["metrics"]["database_io"], 0)
 
-    def test_mixed_digest_is_profiled_ordered_and_domain_separated(self) -> None:
-        value = observed(scenarios.mixed_digest, "MIG-077")
+    def test_current_digest_is_ordered_single_domain_and_profile_free(self) -> None:
+        value = observed(scenarios.current_digest, "MIG-077")
         result = value["result"]
-        self.assertEqual(result["legacy_only"]["domain"], "godj:migration-definition-set:v1")
-        self.assertEqual(result["relation_only"]["domain"], "godj:migration-definition-set:v2")
-        self.assertEqual(result["mixed"]["domain"], "godj:migration-definition-set:v2")
-        self.assertTrue(result["mixed"]["permutation_equal"])
+        self.assertEqual(result["scalar_only"]["domain"], "godj:migration-definition-set:v1")
+        self.assertEqual(result["relation_only"]["domain"], "godj:migration-definition-set:v1")
+        self.assertEqual(result["combined"]["domain"], "godj:migration-definition-set:v1")
+        self.assertTrue(result["combined"]["permutation_equal"])
+        self.assertFalse(result["profile_metadata_present"])
         self.assertEqual(
-            [item["definition"]["app"] for item in result["mixed"]["canonical_items"]],
+            [item["app"] for item in result["combined"]["canonical_definitions"]],
             ["alpha", "blog"],
-        )
-        self.assertEqual(
-            result["mixed"]["canonical_items"][1]["profile"],
-            scenarios._RELATION_PROFILE,
         )
         self.assertEqual(
             len(
                 {
-                    result["legacy_only"]["digest"],
+                    result["scalar_only"]["digest"],
                     result["relation_only"]["digest"],
-                    result["mixed"]["digest"],
+                    result["combined"]["digest"],
                 }
             ),
             3,
         )
 
-    def test_state_promotion_is_lossless_alias_free_and_fail_closed(self) -> None:
-        value = observed(scenarios.state_promotion, "MIG-078")
+    def test_current_state_is_single_format_alias_free_and_transition_free(self) -> None:
+        value = observed(scenarios.current_state, "MIG-078")
         result = value["result"]
-        self.assertTrue(result["promote"]["lossless"])
         self.assertTrue(result["alias_free"])
-        self.assertEqual(result["promote"]["before"]["format_version"], 1)
-        self.assertEqual(result["promote"]["after"]["format_version"], 2)
-        self.assertIsNone(result["scalar_only_demote"]["error"])
-        self.assertIsNone(result["relation_demote"]["state"])
-        self.assertEqual(
-            result["relation_demote"]["error"]["code"],
-            "relation_state_demotion_rejected",
-        )
+        self.assertTrue(result["single_format"])
+        self.assertFalse(result["format_transition_required"])
+        self.assertEqual(result["scalar_state"]["format_version"], 1)
+        self.assertEqual(result["relation_state"]["format_version"], 1)
+        self.assertEqual(value["metrics"]["format_transitions"], 0)
 
-    def test_structural_preflight_matrix_has_zero_database_io(self) -> None:
+    def test_structural_preflight_has_three_staged_no_mutation_lanes(self) -> None:
         value = observed(scenarios.structural_preflight, "MIG-079")
-        cases = value["result"]["cases"]
-        self.assertEqual(len(cases), 10)
-        self.assertEqual(sum(item["valid"] for item in cases), 1)
+        lanes = value["result"]["lanes"]
         self.assertEqual(
-            [item["case"] for item in cases[1:]],
-            value["result"]["error_precedence"],
+            [item["lane"] for item in lanes],
+            [
+                "static_invalid",
+                "history_invalid",
+                "physical_populated_required",
+            ],
         )
-        for key in {
-            "begin_calls",
-            "connection_pins",
-            "ddl_writes",
-            "recorder_writes",
-            "revision_writes",
-            "schema_reads",
-            "session_opens",
-        }:
-            self.assertEqual(value["metrics"][key], 0)
+        self.assertEqual(lanes[0]["trace_events"], 0)
+        self.assertEqual(
+            lanes[1]["forbidden_trace"],
+            ["begin_migration", "ddl", "record", "revision"],
+        )
+        self.assertTrue(lanes[2]["reads_allowed"])
+        self.assertEqual(lanes[2]["mutation_events"], 0)
+        self.assertTrue(lanes[2]["durable_unchanged"])
+        capability = value["result"]["mandatory_backend_capability"]
+        self.assertTrue(capability["optional_relation_port_retired"])
+        self.assertEqual(
+            capability["replacement_error"],
+            "migration_capability_unavailable",
+        )
+        self.assertEqual(value["metrics"]["lanes_checked"], 3)
+        self.assertEqual(value["metrics"]["mutation_events"], 0)
 
     def test_create_apply_unapply_reapply_uses_live_schema_and_recorder(self) -> None:
         value = observed(scenarios.create_lifecycle, "MIG-080")
@@ -541,20 +558,27 @@ class MigrationRelationScenarioTests(unittest.TestCase):
                 }
             )
 
-        changed_legacy_profile = {**scenarios._LEGACY_PROFILE, "schema_ir": 9}
-        with patch.object(scenarios, "_LEGACY_PROFILE", changed_legacy_profile):
+        with patch.object(scenarios, "_CURRENT_DIGEST_DOMAIN", "godj:mutation:v1"):
             with self.assertRaisesRegex(AssertionError, "canonical bytes"):
-                scenarios.legacy_abi("MIG-075")
+                scenarios.current_abi("MIG-075")
 
         mutations = []
 
-        baseline = comparable(scenarios.profile_dispatch, "MIG-076")
-        with patch.object(scenarios, "_RELATION_PROFILE", {**scenarios._RELATION_PROFILE, "schema_ir": 4}):
-            mutations.append(("MIG-076", baseline, comparable(scenarios.profile_dispatch, "MIG-076")))
+        baseline = comparable(scenarios.current_format_validation, "MIG-076")
+        original_format_case = scenarios._format_case
 
-        baseline = comparable(scenarios.mixed_digest, "MIG-077")
-        with patch.object(scenarios, "_MIXED_DIGEST_DOMAIN", "godj:mutation:v2"):
-            mutations.append(("MIG-077", baseline, comparable(scenarios.mixed_digest, "MIG-077")))
+        def changed_format_case(name, document):
+            result = original_format_case(name, document)
+            if name == "retired_compatibility_tuple":
+                result["error"]["code"] = "mutated_format_error"
+            return result
+
+        with patch.object(scenarios, "_format_case", changed_format_case):
+            mutations.append(("MIG-076", baseline, comparable(scenarios.current_format_validation, "MIG-076")))
+
+        baseline = comparable(scenarios.current_digest, "MIG-077")
+        with patch.object(scenarios, "_CURRENT_DIGEST_DOMAIN", "godj:mutation:v1"):
+            mutations.append(("MIG-077", baseline, comparable(scenarios.current_digest, "MIG-077")))
 
         original_scalar_state = scenarios._scalar_state
 
@@ -563,13 +587,13 @@ class MigrationRelationScenarioTests(unittest.TestCase):
             state["models"][0]["table"] = "mutation_article"
             return state
 
-        baseline = comparable(scenarios.state_promotion, "MIG-078")
+        baseline = comparable(scenarios.current_state, "MIG-078")
         with patch.object(scenarios, "_scalar_state", changed_scalar_state):
-            mutations.append(("MIG-078", baseline, comparable(scenarios.state_promotion, "MIG-078")))
+            mutations.append(("MIG-078", baseline, comparable(scenarios.current_state, "MIG-078")))
 
         def changed_error(code, *, stage, reason):
             return {
-                "category": "migration_relation_proposal_error",
+                "category": "migration_relation_decision_error",
                 "code": "mutated_" + code,
                 "message_is_contract": False,
                 "reason": reason,
@@ -577,7 +601,7 @@ class MigrationRelationScenarioTests(unittest.TestCase):
             }
 
         baseline = comparable(scenarios.structural_preflight, "MIG-079")
-        with patch.object(scenarios, "_proposal_error", changed_error):
+        with patch.object(scenarios, "_decision_error", changed_error):
             mutations.append(("MIG-079", baseline, comparable(scenarios.structural_preflight, "MIG-079")))
 
         baseline = comparable(scenarios.create_lifecycle, "MIG-080")
@@ -616,7 +640,7 @@ class MigrationRelationScenarioTests(unittest.TestCase):
             mutations.append(("MIG-085", baseline, comparable(scenarios.precommit_faults, "MIG-085")))
 
         baseline = comparable(scenarios.commit_outcomes, "MIG-086")
-        with patch.object(scenarios, "_proposal_error", changed_error):
+        with patch.object(scenarios, "_decision_error", changed_error):
             mutations.append(("MIG-086", baseline, comparable(scenarios.commit_outcomes, "MIG-086")))
 
         self.assertEqual([item[0] for item in mutations], [f"MIG-{number:03d}" for number in range(76, 87)])

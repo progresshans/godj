@@ -21,7 +21,7 @@ func Compile(plan query.Plan) (string, []any, error) {
 	return compileScalar(plan)
 }
 
-// compileScalar is the compatibility-preserving single-table compiler. Keep
+// compileScalar is the single-table scalar compiler. Keep
 // relation-specific qualification and validation out of this path so plans
 // built before relation traversal retain their exact SQL and error behavior.
 func compileScalar(plan query.Plan) (string, []any, error) {

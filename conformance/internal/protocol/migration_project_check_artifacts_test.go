@@ -23,8 +23,8 @@ func TestMigrationProjectCheckArtifactHashesAreLocked(t *testing.T) {
 		sha256 string
 	}{
 		"conformance/contracts/migration-project-check-manifest.json": {
-			size:   4520,
-			sha256: "0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048",
+			size:   5085,
+			sha256: "e689b37098a4b26e4faddbd7c7e8a09d9145526f2b7bd1de7fb6cd5cb139c16b",
 		},
 		"conformance/fixtures/godj-migration-project-check-not-implemented.json": {
 			size:   1729,
@@ -32,7 +32,7 @@ func TestMigrationProjectCheckArtifactHashesAreLocked(t *testing.T) {
 		},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-project-check-oracle.json": {
 			size:   19971,
-			sha256: "49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2",
+			sha256: "8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa",
 		},
 	}
 	for name, want := range wanted {
@@ -132,12 +132,17 @@ func TestMigrationProjectCheckArtifactBoundaryIsLocked(t *testing.T) {
 		if !reflect.DeepEqual(contract.Comparison, wantComparison) {
 			t.Fatalf("contract %s comparison = %#v, want %#v", contract.ID, contract.Comparison, wantComparison)
 		}
-		if len(contract.Provenance) != 1 {
-			t.Fatalf("contract %s provenance count = %d, want 1", contract.ID, len(contract.Provenance))
+		wantReferences := []string{"ADR-0021"}
+		if index < 4 || contract.ID == "MIG-073" {
+			wantReferences = append(wantReferences, "ADR-0035")
 		}
-		provenance := contract.Provenance[0]
-		if provenance.Kind != "decision" || provenance.Reference != "ADR-0021" || provenance.Derived == nil || *provenance.Derived || provenance.License != "" {
-			t.Fatalf("contract %s provenance = %#v, want decision/ADR-0021/derived=false", contract.ID, provenance)
+		if len(contract.Provenance) != len(wantReferences) {
+			t.Fatalf("contract %s provenance count = %d, want %d", contract.ID, len(contract.Provenance), len(wantReferences))
+		}
+		for provenanceIndex, provenance := range contract.Provenance {
+			if provenance.Kind != "decision" || provenance.Reference != wantReferences[provenanceIndex] || provenance.Derived == nil || *provenance.Derived || provenance.License != "" {
+				t.Fatalf("contract %s provenance %d = %#v, want decision/%s/derived=false", contract.ID, provenanceIndex, provenance, wantReferences[provenanceIndex])
+			}
 		}
 		if oracle.Contracts[index].ID != contract.ID || oracle.Contracts[index].Status != StatusObserved {
 			t.Fatalf("oracle contract %d = %#v, want %s observed", index, oracle.Contracts[index], contract.ID)
@@ -428,9 +433,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 845`,
-		`assert len(payload) == 86738`,
-		`9bb0ef63e521749b256bbce1348c9e71bd7628e01306abe00dc546352ab733f3`,
+		`assert len(runs) == 842`,
+		`assert len(payload) == 86679`,
+		`706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,

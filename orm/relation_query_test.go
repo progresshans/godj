@@ -280,7 +280,7 @@ func relationObjectTestPostField(name string) ir.Field {
 
 func relationObjectTestSchemas() (ir.Schema, ir.Schema) {
 	authors := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "authors",
 		Models: []ir.Model{{
 			Name:   "author",
@@ -292,7 +292,7 @@ func relationObjectTestSchemas() (ir.Schema, ir.Schema) {
 		}},
 	}
 	blog := ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "blog",
 		Models: []ir.Model{{
 			Name:   "post",

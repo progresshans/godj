@@ -77,7 +77,7 @@ func TestRunMapsProtocolDiscoveryAndDefinitionFailures(t *testing.T) {
 		t.Fatalf("root failure = %+v, %+v, %v", response, report, err)
 	}
 
-	broken := []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"producer":{"name":"test","version":"1"},"migration":{"app":"alpha","name":"0001","name":"duplicate","dependencies":[],"operations":[]}}`)
+	broken := []byte(`{"format_version":1,"producer":{"name":"test","version":"1"},"migration":{"app":"alpha","name":"0001","name":"duplicate","dependencies":[],"operations":[]}}`)
 	writeFile(t, filepath.Join(root, "migrations", "broken.godj.json"), broken)
 	response, report, err = invoke(t, root, []string{"migrations"}, protocol.RequestDocument(), nil)
 	if err != nil || response.Failure != (protocol.Failure{Category: protocol.CategorySource, Code: "invalid_definition_document"}) {
@@ -554,7 +554,7 @@ func migrationDocument(app, name string, dependencies [][2]string) []byte {
 		encodedDependencies[index] = fmt.Sprintf(`{"app":%q,"name":%q}`, dependency[0], dependency[1])
 	}
 	return []byte(fmt.Sprintf(
-		`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"producer":{"name":"linked-test","version":"1"},"migration":{"app":%q,"name":%q,"dependencies":[%s],"operations":[]}}`,
+		`{"format_version":1,"producer":{"name":"linked-test","version":"1"},"migration":{"app":%q,"name":%q,"dependencies":[%s],"operations":[]}}`,
 		app,
 		name,
 		strings.Join(encodedDependencies, ","),

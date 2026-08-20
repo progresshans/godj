@@ -1,6 +1,6 @@
 # ADR-0032: Production Forward Project Facade and Additive First Publication
 
-- 상태: Accepted
+- 상태: Superseded by [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 날짜: 2026-08-12
 - 관련 work/contract:
   [GDJ-0032](../../work/0032-production-forward-project-facade-and-additive-first-publication.md), Q-013, Q-017

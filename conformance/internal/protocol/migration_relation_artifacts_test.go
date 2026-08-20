@@ -22,16 +22,16 @@ func TestMigrationRelationArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/migration-relation-manifest.json": {
-			size:   7792,
-			sha256: "dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b",
+			size:   7858,
+			sha256: "ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9",
 		},
 		"conformance/fixtures/godj-migration-relation-not-implemented.json": {
 			size:   1846,
 			sha256: "f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24",
 		},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json": {
-			size:   125248,
-			sha256: "c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27",
+			size:   120502,
+			sha256: "5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968",
 		},
 	}
 	for name, want := range wanted {
@@ -54,10 +54,10 @@ func TestMigrationRelationArtifactBoundaryIsLocked(t *testing.T) {
 
 	profile, manifest, oracle, baseline := loadMigrationRelationArtifacts(t)
 	wantSlugs := []string{
-		"godj.migration.relation.legacy_abi",
-		"godj.migration.relation.profile_dispatch",
-		"godj.migration.relation.mixed_digest",
-		"godj.migration.relation.state_promotion",
+		"godj.migration.relation.current_abi",
+		"godj.migration.relation.current_format_validation",
+		"godj.migration.relation.current_digest",
+		"godj.migration.relation.current_state",
 		"godj.migration.relation.structural_preflight",
 		"django.migration.relation.create_lifecycle",
 		"django.migration.relation.add_nullable_populated",
@@ -186,53 +186,10 @@ func TestMigrationRelationStaticFixtureExitsOneWithTwelveOrderedMismatches(t *te
 	}
 }
 
-func TestMigrationRelationIsReferenceOnlyInMakeTargets(t *testing.T) {
+func TestMigrationRelationReferenceAndProductWiringIsLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	packageDirectory := filepath.Join(root, "conformance", "migrationrelation")
-	entries, err := os.ReadDir(packageDirectory)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantFiles := []string{
-		"backend_candidate_test.go",
-		"backend_test.go",
-		"fault_candidate_test.go",
-		"fault_test.go",
-		"lifecycle_candidate_test.go",
-		"lifecycle_test.go",
-		"preflight_candidate_test.go",
-		"preflight_test.go",
-		"profile_candidate_test.go",
-		"profile_test.go",
-		"sqlite_candidate_test.go",
-		"sqlite_test.go",
-		"state_candidate_test.go",
-		"state_test.go",
-	}
-	if len(entries) != len(wantFiles) {
-		t.Fatalf("Phase B feasibility package entries = %d, want exact %d test-only files", len(entries), len(wantFiles))
-	}
-	for index, entry := range entries {
-		if entry.IsDir() || entry.Name() != wantFiles[index] || !strings.HasSuffix(entry.Name(), "_test.go") {
-			t.Fatalf("Phase B feasibility entry %d = %q (dir=%t), want test-only %q", index, entry.Name(), entry.IsDir(), wantFiles[index])
-		}
-		contents, err := os.ReadFile(filepath.Join(packageDirectory, entry.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, forbidden := range []string{
-			"conformance/contracts/",
-			"conformance/oracles/",
-			"conformance/fixtures/",
-		} {
-			if bytes.Contains(contents, []byte(forbidden)) {
-				t.Fatalf("Phase B feasibility file %q reads or names checked artifact boundary %q", entry.Name(), forbidden)
-			}
-		}
-	}
-
 	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
 	if err != nil {
 		t.Fatal(err)
@@ -289,27 +246,6 @@ func TestMigrationRelationIsReferenceOnlyInMakeTargets(t *testing.T) {
 	if !hasPackageToken("./conformance/migrationrelationproduct") {
 		t.Fatal("migration-relation product observer package is missing from relation-product inventory")
 	}
-	if hasPackageToken("./conformance/migrationrelation") {
-		t.Fatal("Phase B no-product feasibility package leaked into relation-product inventory")
-	}
-	sqliteJob := workflow[sqliteStart:]
-	requiredFeasibilityFragments := []string{
-		"Run GDJ-0035 Phase B no-product feasibility inventory",
-		"go test -json -count=1 ./conformance/migrationrelation",
-		"assert len(runs) == 75",
-		"assert passes == runs",
-		"assert skipped == []",
-		"assert len(payload) == 9736",
-		"48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec",
-		"go test -race -count=1 ./conformance/migrationrelation",
-		"CGO_ENABLED=0 go test -count=1 ./conformance/migrationrelation",
-		"go vet ./conformance/migrationrelation",
-	}
-	for _, fragment := range requiredFeasibilityFragments {
-		if count := strings.Count(sqliteJob, fragment); count != 1 {
-			t.Fatalf("SQLite Phase B feasibility fragment %q count = %d, want 1", fragment, count)
-		}
-	}
 }
 
 func TestMigrationRelationDeclaredDimensionsCannotFalseGreen(t *testing.T) {
@@ -356,42 +292,43 @@ func TestMigrationRelationSemanticPayloadMutationsCannotFalseGreen(t *testing.T)
 		mutate     func(*testing.T, *Observation)
 	}{
 		{
-			name:       "legacy digest remains byte stable",
+			name:       "current digest remains byte stable",
 			contractID: "MIG-075",
 			mutate: func(t *testing.T, observation *Observation) {
-				legacy := objectField(t, observation.Result, "legacy")
-				*objectField(t, legacy, "canonical_sha256") = String("sha256:changed")
+				current := objectField(t, observation.Result, "current")
+				*objectField(t, current, "canonical_sha256") = String("sha256:changed")
 			},
 		},
 		{
-			name:       "hybrid profile rejection code",
+			name:       "retired compatibility tuple rejection code",
 			contractID: "MIG-076",
 			mutate: func(t *testing.T, observation *Observation) {
 				cases := migrationRelationListField(t, observation.Result, "cases")
-				errorValue := objectField(t, &cases.Items[2], "error")
-				*objectField(t, errorValue, "code") = String("changed_profile_error")
+				errorValue := objectField(t, &cases.Items[5], "error")
+				*objectField(t, errorValue, "code") = String("changed_format_error")
 			},
 		},
 		{
-			name:       "mixed digest domain",
+			name:       "combined current digest",
 			contractID: "MIG-077",
 			mutate: func(t *testing.T, observation *Observation) {
-				mixed := objectField(t, observation.Result, "mixed")
-				*objectField(t, mixed, "digest") = String("sha256:changed")
+				combined := objectField(t, observation.Result, "combined")
+				*objectField(t, combined, "digest") = String("sha256:changed")
 			},
 		},
 		{
-			name:       "state promotion alias freedom",
+			name:       "current state alias freedom",
 			contractID: "MIG-078",
 			mutate: func(t *testing.T, observation *Observation) {
 				*objectField(t, observation.Result, "alias_free") = Boolean(false)
 			},
 		},
 		{
-			name:       "structural preflight opens no sessions",
+			name:       "static structural preflight has no trace",
 			contractID: "MIG-079",
 			mutate: func(t *testing.T, observation *Observation) {
-				*objectField(t, observation.Metrics, "session_opens") = Integer("1")
+				lanes := migrationRelationListField(t, observation.Result, "lanes")
+				*objectField(t, &lanes.Items[0], "trace_events") = Integer("1")
 			},
 		},
 		{
@@ -490,34 +427,34 @@ func TestMigrationRelationProvenanceMutationsCannotFalseGreen(t *testing.T) {
 			},
 		},
 		{
-			name: "proposal reference",
-			mutate: func(changed *Manifest) {
-				changed.Contracts[1].Provenance[0].Reference = "GDJ-9999"
-			},
-		},
-		{
-			name: "proposal derived",
+			name: "current decision derived",
 			mutate: func(changed *Manifest) {
 				value := true
-				changed.Contracts[2].Provenance[1].Derived = &value
+				changed.Contracts[2].Provenance[0].Derived = &value
 			},
 		},
 		{
 			name: "Django source license",
 			mutate: func(changed *Manifest) {
-				changed.Contracts[5].Provenance[0].License = "changed"
+				changed.Contracts[5].Provenance[1].License = "changed"
 			},
 		},
 		{
 			name: "Django source on decision-only contract",
 			mutate: func(changed *Manifest) {
-				changed.Contracts[0].Provenance = append(changed.Contracts[0].Provenance, changed.Contracts[5].Provenance[0])
+				changed.Contracts[0].Provenance = append(changed.Contracts[0].Provenance, changed.Contracts[5].Provenance[1])
 			},
 		},
 		{
 			name: "missing provenance",
 			mutate: func(changed *Manifest) {
 				changed.Contracts[11].Provenance = nil
+			},
+		},
+		{
+			name: "missing current reset decision",
+			mutate: func(changed *Manifest) {
+				changed.Contracts[11].Provenance = changed.Contracts[11].Provenance[:1]
 			},
 		},
 	}
@@ -608,16 +545,7 @@ func loadMigrationRelationArtifacts(t *testing.T) (Profile, Manifest, Observatio
 }
 
 func validateMigrationRelationProvenance(contract Contract) error {
-	proposalIDs := map[string]bool{
-		"MIG-076": true,
-		"MIG-077": true,
-		"MIG-078": true,
-		"MIG-079": true,
-		"MIG-081": true,
-		"MIG-083": true,
-		"MIG-085": true,
-		"MIG-086": true,
-	}
+	proposalIDs := map[string]bool{}
 	djangoIDs := map[string]bool{
 		"MIG-080": true,
 		"MIG-081": true,
@@ -629,14 +557,14 @@ func validateMigrationRelationProvenance(contract Contract) error {
 	allowedDecisions := map[string]bool{
 		"ADR-0010": true,
 		"ADR-0017": true,
-		"ADR-0019": true,
-		"ADR-0020": true,
+		"ADR-0035": true,
 	}
 	if len(contract.Provenance) == 0 {
 		return fmt.Errorf("contract %s has no provenance", contract.ID)
 	}
 	hasProposal := false
 	hasDjango := false
+	hasCurrentDecision := false
 	for index, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			return fmt.Errorf("contract %s provenance %d derived = %#v, want false", contract.ID, index, provenance.Derived)
@@ -646,9 +574,10 @@ func validateMigrationRelationProvenance(contract Contract) error {
 			if !allowedDecisions[provenance.Reference] || provenance.License != "" {
 				return fmt.Errorf("contract %s decision provenance = %#v", contract.ID, provenance)
 			}
+			hasCurrentDecision = hasCurrentDecision || provenance.Reference == "ADR-0035"
 		case "proposal":
 			hasProposal = true
-			if provenance.Reference != "GDJ-0035" || provenance.License != "" {
+			if provenance.Reference != "GDJ-0036" || provenance.License != "" {
 				return fmt.Errorf("contract %s proposal provenance = %#v", contract.ID, provenance)
 			}
 		case "source", "test":
@@ -665,6 +594,9 @@ func validateMigrationRelationProvenance(contract Contract) error {
 	}
 	if hasProposal != proposalIDs[contract.ID] {
 		return fmt.Errorf("contract %s proposal provenance presence = %t, want %t", contract.ID, hasProposal, proposalIDs[contract.ID])
+	}
+	if !hasCurrentDecision {
+		return fmt.Errorf("contract %s has no ADR-0035 current decision provenance", contract.ID)
 	}
 	if hasDjango != djangoIDs[contract.ID] {
 		return fmt.Errorf("contract %s Django provenance presence = %t, want %t", contract.ID, hasDjango, djangoIDs[contract.ID])

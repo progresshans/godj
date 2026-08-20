@@ -921,7 +921,7 @@ func TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput(t *te
 		t.Fatal(err)
 	}
 	manifest.Contracts[0].Status = protocol.ContractPassing
-	if _, err := godjrunner.RequiredObservedContractIDs(manifest); err == nil || !strings.Contains(err.Error(), `unregistered scenario "godj.migration.relation.legacy_abi" contract MIG-075 has status "passing"; want oracle_locked`) {
+	if _, err := godjrunner.RequiredObservedContractIDs(manifest); err == nil || !strings.Contains(err.Error(), `unregistered scenario "godj.migration.relation.current_abi" contract MIG-075 has status "passing"; want oracle_locked`) {
 		t.Fatalf("handler registry error = %v", err)
 	}
 	contents, err := protocol.MarshalCanonical(manifest)
@@ -948,7 +948,7 @@ func TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput(t *te
 	if stdout.Len() != 0 {
 		t.Fatalf("stdout = %q, want empty", stdout.String())
 	}
-	if !strings.Contains(stderr.String(), `actual handler registry: unregistered scenario "godj.migration.relation.legacy_abi" contract MIG-075 has status "passing"; want oracle_locked`) {
+	if !strings.Contains(stderr.String(), `actual handler registry: unregistered scenario "godj.migration.relation.current_abi" contract MIG-075 has status "passing"; want oracle_locked`) {
 		t.Fatalf("stderr = %q", stderr.String())
 	}
 	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {

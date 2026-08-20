@@ -4,12 +4,12 @@ package authors
 
 import "github.com/progresshans/godj/schema/ir"
 
-const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-v1"
-const GoDjRelationSchemaSHA256 = "c92828fba502fae92b5e882538537943682ff1a9d90a837d64eb625c1af906b9"
+const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
+const GoDjRelationSchemaSHA256 = "a4823a324f40c2598c767629714afbfafe343fe3539fb2ffc76f61701a9e34e4"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "authors",
 		Models: []ir.Model{
 			{

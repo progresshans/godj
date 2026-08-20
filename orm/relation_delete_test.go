@@ -225,12 +225,12 @@ func relationDeleteTestAuthorModel() ir.Model {
 
 func relationDeleteTestSchemas() (ir.Schema, ir.Schema) {
 	authors := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "authors",
 		Models:        []ir.Model{relationDeleteTestAuthorModel()},
 	}
 	blog := ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "blog",
 		Models: []ir.Model{{
 			Name:    "post",
@@ -537,7 +537,7 @@ func TestBindRelationDeleterValidatesDescriptorBindingAndFingerprint(t *testing.
 		t.Fatalf("BindRelationDeleter(valid) error = %v", err)
 	}
 	authorsV3, blogV3 := relationDeleteTestSchemas()
-	authorsV3.FormatVersion = ir.RelationFormatVersion
+	authorsV3.FormatVersion = ir.CurrentFormatVersion
 	v3Binding, err := BindProject(authorsV3, blogV3)
 	if err != nil {
 		t.Fatalf("BindProject(v3 scalar target) error = %v", err)
@@ -606,10 +606,10 @@ func TestBindRelationDeleterValidatesDescriptorBindingAndFingerprint(t *testing.
 	}
 
 	authorsOutgoing, blogOutgoing := relationDeleteTestSchemas()
-	authorsOutgoing.FormatVersion = ir.RelationFormatVersion
+	authorsOutgoing.FormatVersion = ir.CurrentFormatVersion
 	authorsOutgoing.Models[0] = relationDeleteOutgoingTargetDescriptor{}.Metadata()
 	organizations := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "organizations",
 		Models: []ir.Model{{
 			Name: "organization", GoName: "Organization", DBTable: "organizations_organization",
@@ -702,7 +702,7 @@ func TestRelationDeleterQueriesEveryProtectEdgeAndDistinctsBySourceIdentityAndKe
 		},
 	})
 	archive := ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "archive",
 		Models: []ir.Model{{
 			Name: "entry", GoName: "Entry", DBTable: "archive_entry",

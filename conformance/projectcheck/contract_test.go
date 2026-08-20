@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	oneModelDigest = "sha256:07e61f8d956002cff0d7fe2db10c16ea4a30829e9f0ced09c69c40ff2c2399bc"
-	twoModelDigest = "sha256:5a73e03d3448f3f19f7646eed67f4e312610f4389f2e3e537c379e725f0b106d"
+	oneModelDigest = "sha256:b15b980386317e4c75746910d01bf5492876a5eb31a2ed3f560722866c15a1b6"
+	twoModelDigest = "sha256:23717638bb5e764e69fbda28da817a2a3290f12a729474969a15ed07c9aa55be"
 )
 
 type baseScenario struct {
@@ -267,7 +267,7 @@ func mustMkdir(t *testing.T, path string) {
 
 func oneCreateModelDocument() []byte {
 	return []byte(`{
-  "compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},
+  "format_version":1,
   "producer":{"name":"godj-example-generator","version":"0.1.0"},
   "migration":{"app":"alpha","name":"0001_initial","dependencies":[],"operations":[
     {"kind":"create_model","app_label":"alpha","model":{"name":"widget","go_name":"Widget","db_table":"alpha_widget","fields":[
@@ -278,11 +278,11 @@ func oneCreateModelDocument() []byte {
 }
 
 func lifecycleRootDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0001_initial","dependencies":[],"operations":[{"kind":"create_model","app_label":"alpha","model":{"name":"entry","go_name":"Entry","db_table":"godj_definition_alpha_entry","fields":[{"name":"id","go_name":"ID","column":"id","kind":"auto","primary_key":true,"nullable":false,"max_length":0,"default":null},{"name":"title","go_name":"Title","column":"title","kind":"char","primary_key":false,"nullable":false,"max_length":64,"default":{"kind":"string","string":"untitled"}}]}}]}}`)
+	return []byte(`{"format_version":1,"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0001_initial","dependencies":[],"operations":[{"kind":"create_model","app_label":"alpha","model":{"name":"entry","go_name":"Entry","db_table":"godj_definition_alpha_entry","fields":[{"name":"id","go_name":"ID","column":"id","kind":"auto","primary_key":true,"nullable":false,"max_length":0,"default":null},{"name":"title","go_name":"Title","column":"title","kind":"char","primary_key":false,"nullable":false,"max_length":64,"default":{"kind":"string","string":"untitled"}}]}}]}}`)
 }
 
 func lifecycleTailDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0002_fields","dependencies":[{"app":"alpha","name":"0001_initial"}],"operations":[{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"published","go_name":"Published","column":"published","kind":"boolean","primary_key":false,"nullable":false,"max_length":0,"default":{"kind":"boolean","boolean":false}}},{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"summary","go_name":"Summary","column":"summary","kind":"char","primary_key":false,"nullable":true,"max_length":255,"default":null}}]}}`)
+	return []byte(`{"format_version":1,"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0002_fields","dependencies":[{"app":"alpha","name":"0001_initial"}],"operations":[{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"published","go_name":"Published","column":"published","kind":"boolean","primary_key":false,"nullable":false,"max_length":0,"default":{"kind":"boolean","boolean":false}}},{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"summary","go_name":"Summary","column":"summary","kind":"char","primary_key":false,"nullable":true,"max_length":255,"default":null}}]}}`)
 }
 
 func TestCanonicalFilesystemOrderIgnoresRootAndEnumerationPermutation(t *testing.T) {

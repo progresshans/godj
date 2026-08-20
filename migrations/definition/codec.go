@@ -12,72 +12,37 @@ import (
 
 const maximumWireLength int64 = 1<<31 - 1
 
-type compatibilityTuple struct {
-	definitionFormat int64
-	loaderABI        int64
-	operationCodec   int64
-	schemaIR         int64
-}
-
 type parsedDocument struct {
 	source        sourceSnapshot
 	root          jsonValue
-	compatibility compatibilityTuple
+	formatVersion int64
 	producer      Producer
 }
 
 type decodedDocument struct {
-	source        sourceSnapshot
-	producer      Producer
-	profile       definitionProfile
-	compatibility compatibilityTuple
-	migration     migrations.Migration
+	source    sourceSnapshot
+	producer  Producer
+	migration migrations.Migration
 }
 
 // parseEnvelope owns strict outer shape and the pieces that must be trusted
-// before compatibility negotiation. Nested operation and IR shape remains a
+// before format dispatch. Nested operation and IR shape remains a
 // semantic-stage concern.
 func parseEnvelope(source sourceSnapshot, root jsonValue, framing []failureCandidate) (parsedDocument, []failureCandidate) {
 	parsed := parsedDocument{source: source, root: root}
 	candidates := append([]failureCandidate(nil), framing...)
-	rootObject, ok, faults := exactDocumentObject(root, []string{"compatibility", "migration", "producer"}, source.sourceID, "")
+	rootObject, ok, faults := exactDocumentObject(root, []string{"format_version", "migration", "producer"}, source.sourceID, "")
 	candidates = append(candidates, faults...)
 	if !ok {
 		return parsed, candidates
 	}
 
-	compatibility, exists := rootObject.member("compatibility")
-	if exists {
-		compatibilityObject, objectOK, objectFaults := exactDocumentObject(
-			compatibility,
-			[]string{"definition_format", "loader_abi", "operation_codec", "schema_ir"},
-			source.sourceID,
-			"/compatibility",
-		)
-		candidates = append(candidates, objectFaults...)
-		if objectOK {
-			coordinates := []struct {
-				name   string
-				target *int64
-			}{
-				{name: "definition_format", target: &parsed.compatibility.definitionFormat},
-				{name: "loader_abi", target: &parsed.compatibility.loaderABI},
-				{name: "operation_codec", target: &parsed.compatibility.operationCodec},
-				{name: "schema_ir", target: &parsed.compatibility.schemaIR},
-			}
-			for _, coordinate := range coordinates {
-				value, present := compatibilityObject.member(coordinate.name)
-				if !present {
-					continue
-				}
-				pointer := "/compatibility/" + coordinate.name
-				parsedValue, reason, valid := signedInteger(value)
-				if !valid {
-					candidates = append(candidates, documentFailure(source.sourceID, pointer, reason))
-					continue
-				}
-				*coordinate.target = parsedValue
-			}
+	if version, exists := rootObject.member("format_version"); exists {
+		parsedValue, reason, valid := signedInteger(version)
+		if !valid {
+			candidates = append(candidates, documentFailure(source.sourceID, "/format_version", reason))
+		} else {
+			parsed.formatVersion = parsedValue
 		}
 	}
 
@@ -213,24 +178,11 @@ func maxLengthLexicalCandidate(field jsonValue, sourceID, pointer string) []fail
 	return nil
 }
 
-func compatibilityCandidates(documents []parsedDocument) []failureCandidate {
-	type coordinate struct {
-		name string
-		code ErrorCode
-	}
-	coordinates := []coordinate{
-		{name: "definition_format", code: CodeDefinitionFormatIncompatible},
-		{name: "loader_abi", code: CodeLoaderABIIncompatible},
-		{name: "operation_codec", code: CodeOperationCodecIncompatible},
-		{name: "schema_ir", code: CodeSchemaIRIncompatible},
-	}
+func formatCandidates(documents []parsedDocument) []failureCandidate {
 	candidates := make([]failureCandidate, 0)
-	for _, coordinate := range coordinates {
-		for _, document := range documents {
-			if _, supported := dispatchProfile(document.compatibility); !supported &&
-				unsupportedProfileCoordinate(document.compatibility) == coordinate.name {
-				candidates = append(candidates, compatibilityFailure(coordinate.code, document.source.sourceID, coordinate.name))
-			}
+	for _, document := range documents {
+		if document.formatVersion != DefinitionFormatVersion {
+			candidates = append(candidates, formatFailure(document.source.sourceID))
 		}
 	}
 	sortFailureCandidates(candidates)
@@ -368,8 +320,7 @@ func migrationIdentity(migration jsonValue) (string, string) {
 }
 
 func semanticCandidates(document parsedDocument) []failureCandidate {
-	profile, supported := dispatchProfile(document.compatibility)
-	if !supported {
+	if document.formatVersion != DefinitionFormatVersion {
 		return nil
 	}
 	migration, exists := document.root.member("migration")
@@ -414,7 +365,7 @@ func semanticCandidates(document parsedDocument) []failureCandidate {
 		candidates = append(candidates, semanticFailure(CodeInvalidOperation, document.source.sourceID, "/migration/operations", app, name, -1, "invalid_operation"))
 	} else {
 		for index, operation := range operations.array {
-			candidates = append(candidates, collectOperationCandidates(operation, document.source.sourceID, app, name, index, profile)...)
+			candidates = append(candidates, collectOperationCandidates(operation, document.source.sourceID, app, name, index)...)
 		}
 	}
 	sortFailureCandidates(candidates)
@@ -503,7 +454,7 @@ func semanticReason(code ErrorCode) string {
 	}
 }
 
-func collectOperationCandidates(value jsonValue, sourceID, app, name string, operationIndex int, profile definitionProfile) []failureCandidate {
+func collectOperationCandidates(value jsonValue, sourceID, app, name string, operationIndex int) []failureCandidate {
 	pointer := "/migration/operations/" + strconv.Itoa(operationIndex)
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidOperation, sourceID, pointer, app, name, operationIndex, "invalid_operation")}
@@ -534,7 +485,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 
 	if kind.string == "create_model" {
 		if model, present := object.member("model"); present {
-			candidates = append(candidates, collectModelCandidates(model, sourceID, pointer+"/model", app, name, operationIndex, profile)...)
+			candidates = append(candidates, collectModelCandidates(model, sourceID, pointer+"/model", app, name, operationIndex)...)
 		}
 	} else {
 		if modelName, present := object.member("model_name"); present {
@@ -543,11 +494,11 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 			}
 		}
 		if field, present := object.member("field"); present {
-			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex, profile)...)
+			candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/field", app, name, operationIndex)...)
 			if field.kind == jsonObject {
 				if fieldKind, exists := field.member("kind"); exists && fieldKind.kind == jsonString &&
 					fieldKind.string != string(ir.FieldChar) && fieldKind.string != string(ir.FieldBoolean) &&
-					(profile != relationDefinitionProfile || fieldKind.string != string(ir.FieldForeignKey)) {
+					fieldKind.string != string(ir.FieldForeignKey) {
 					candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/field/kind", app, name, operationIndex, "invalid_ir"))
 				}
 				if primaryKey, exists := field.member("primary_key"); exists && primaryKey.kind == jsonBoolean && primaryKey.boolean {
@@ -559,7 +510,7 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	return candidates
 }
 
-func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int, profile definitionProfile) []failureCandidate {
+func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"db_table", "fields", "go_name", "name"}
 	object, objectOK, candidates := semanticObjectCandidates(value, fields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	if !objectOK {
@@ -590,7 +541,7 @@ func collectModelCandidates(value jsonValue, sourceID, pointer, app, name string
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/fields", app, name, operationIndex, "invalid_ir"))
 		} else {
 			for index, field := range child.array {
-				candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/fields/"+strconv.Itoa(index), app, name, operationIndex, profile)...)
+				candidates = append(candidates, collectFieldCandidates(field, sourceID, pointer+"/fields/"+strconv.Itoa(index), app, name, operationIndex)...)
 			}
 			candidates = append(candidates, collectModelFieldAggregateCandidates(child.array, sourceID, pointer+"/fields", app, name, operationIndex)...)
 		}
@@ -656,18 +607,11 @@ func collectModelFieldAggregateCandidates(values []jsonValue, sourceID, pointer,
 	return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 }
 
-func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int, profile definitionProfile) []failureCandidate {
+func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	fields := []string{"column", "default", "go_name", "kind", "max_length", "name", "nullable", "primary_key"}
-	var object jsonValue
-	var objectOK bool
-	var candidates []failureCandidate
-	if profile == relationDefinitionProfile {
-		object, objectOK, candidates = semanticObjectWithOptionalCandidates(
-			value, fields, []string{"relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
-		)
-	} else {
-		object, objectOK, candidates = semanticObjectCandidates(value, fields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
-	}
+	object, objectOK, candidates := semanticObjectWithOptionalCandidates(
+		value, fields, []string{"relation"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR,
+	)
 	if !objectOK {
 		return candidates
 	}
@@ -722,8 +666,8 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 	defaultValid := false
 	var defaultValue *ir.ScalarDefault
 	if defaultNode, exists := object.member("default"); exists {
-		candidates = append(candidates, collectDefaultCandidates(defaultNode, sourceID, pointer+"/default", app, name, operationIndex, profile)...)
-		if decoded, valid := materializeDefault(defaultNode, profile); valid {
+		candidates = append(candidates, collectDefaultCandidates(defaultNode, sourceID, pointer+"/default", app, name, operationIndex)...)
+		if decoded, valid := materializeDefault(defaultNode); valid {
 			defaultValid = true
 			defaultValue = decoded
 		}
@@ -787,10 +731,6 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 				}
 			}
 		case ir.FieldForeignKey:
-			if profile != relationDefinitionProfile {
-				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
-				break
-			}
 			if defaultValid && defaultValue != nil {
 				candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/default", app, name, operationIndex, "invalid_ir"))
 			}
@@ -808,9 +748,6 @@ func collectFieldCandidates(value jsonValue, sourceID, pointer, app, name string
 		}
 	}
 	relationNode, hasRelation := object.member("relation")
-	if profile != relationDefinitionProfile {
-		return candidates
-	}
 	kindNode, hasKind := object.member("kind")
 	isForeignKey := hasKind && kindNode.kind == jsonString && kindNode.string == string(ir.FieldForeignKey)
 	if !hasRelation {
@@ -880,17 +817,14 @@ func collectRelationCandidates(value jsonValue, sourceID, pointer, app, name str
 	return candidates
 }
 
-func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int, profile definitionProfile) []failureCandidate {
+func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name string, operationIndex int) []failureCandidate {
 	if value.kind == jsonNull {
 		return nil
 	}
 	if value.kind != jsonObject {
 		return []failureCandidate{semanticFailure(CodeInvalidIR, sourceID, pointer, app, name, operationIndex, "invalid_ir")}
 	}
-	commonFields := []string{"boolean", "kind", "string"}
-	if profile == relationDefinitionProfile {
-		commonFields = append(commonFields, "integer")
-	}
+	commonFields := []string{"boolean", "integer", "kind", "string"}
 	candidates := semanticUnknownCandidates(value, commonFields, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 	kind, exists := value.member("kind")
 	if !exists || kind.kind != jsonString {
@@ -910,10 +844,6 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/boolean", app, name, operationIndex, "invalid_ir"))
 		}
 	case string(ir.ScalarInteger):
-		if profile != relationDefinitionProfile {
-			candidates = append(candidates, semanticFailure(CodeInvalidIR, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_ir"))
-			break
-		}
 		object, _, faults := semanticObjectCandidates(value, []string{"integer", "kind"}, sourceID, pointer, app, name, operationIndex, CodeInvalidIR)
 		candidates = append(candidates, faults...)
 		if child, present := object.member("integer"); present {
@@ -928,11 +858,8 @@ func collectDefaultCandidates(value jsonValue, sourceID, pointer, app, name stri
 }
 
 func decodeDocument(document parsedDocument) (decodedDocument, int, []failureCandidate) {
-	profile, supported := dispatchProfile(document.compatibility)
-	if !supported {
-		return decodedDocument{}, 0, []failureCandidate{compatibilityFailure(
-			CodeDefinitionFormatIncompatible, document.source.sourceID, unsupportedProfileCoordinate(document.compatibility),
-		)}
+	if document.formatVersion != DefinitionFormatVersion {
+		return decodedDocument{}, 0, []failureCandidate{formatFailure(document.source.sourceID)}
 	}
 	migration, exists := document.root.member("migration")
 	if !exists || migration.kind != jsonObject {
@@ -963,7 +890,7 @@ func decodeDocument(document parsedDocument) (decodedDocument, int, []failureCan
 	operationsNode, _ := migration.member("operations")
 	operations := make([]migrations.Operation, 0, len(operationsNode.array))
 	for index, operationNode := range operationsNode.array {
-		operation, ok := materializeOperation(operationNode, app, profile)
+		operation, ok := materializeOperation(operationNode, app)
 		if !ok {
 			pointer := "/migration/operations/" + strconv.Itoa(index)
 			return decodedDocument{}, len(operations), []failureCandidate{semanticFailure(CodeInvalidOperation, document.source.sourceID, pointer, app, name, index, "invalid_operation")}
@@ -971,10 +898,8 @@ func decodeDocument(document parsedDocument) (decodedDocument, int, []failureCan
 		operations = append(operations, operation)
 	}
 	return decodedDocument{
-		source:        document.source,
-		producer:      document.producer,
-		profile:       profile,
-		compatibility: document.compatibility,
+		source:   document.source,
+		producer: document.producer,
 		migration: migrations.Migration{
 			App:          app,
 			Name:         name,
@@ -996,7 +921,7 @@ func materializeDependency(value jsonValue) (string, string, bool) {
 	return app.string, name.string, true
 }
 
-func materializeOperation(value jsonValue, migrationApp string, profile definitionProfile) (migrations.Operation, bool) {
+func materializeOperation(value jsonValue, migrationApp string) (migrations.Operation, bool) {
 	if value.kind != jsonObject {
 		return nil, false
 	}
@@ -1011,8 +936,8 @@ func materializeOperation(value jsonValue, migrationApp string, profile definiti
 		if !exists {
 			return nil, false
 		}
-		model, valid := materializeModel(modelValue, profile)
-		if !valid || !fullyNormalizedCreateModel(appLabel.string, model, profile) {
+		model, valid := materializeModel(modelValue)
+		if !valid || !fullyNormalizedCreateModel(appLabel.string, model) {
 			return nil, false
 		}
 		return migrations.CreateModel{AppLabel: appLabel.string, Model: model.Clone()}, true
@@ -1022,8 +947,8 @@ func materializeOperation(value jsonValue, migrationApp string, profile definiti
 		if !modelExists || !fieldExists || modelName.kind != jsonString || !validAddFieldModelName(modelName.string) {
 			return nil, false
 		}
-		field, valid := materializeField(fieldValue, profile)
-		if !valid || !fullyNormalizedAddField(appLabel.string, field, profile) {
+		field, valid := materializeField(fieldValue)
+		if !valid || !fullyNormalizedAddField(appLabel.string, field) {
 			return nil, false
 		}
 		return migrations.AddField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field)}, true
@@ -1032,7 +957,7 @@ func materializeOperation(value jsonValue, migrationApp string, profile definiti
 	}
 }
 
-func materializeModel(value jsonValue, profile definitionProfile) (ir.Model, bool) {
+func materializeModel(value jsonValue) (ir.Model, bool) {
 	if value.kind != jsonObject {
 		return ir.Model{}, false
 	}
@@ -1045,7 +970,7 @@ func materializeModel(value jsonValue, profile definitionProfile) (ir.Model, boo
 	}
 	decodedFields := make([]ir.Field, len(fields.array))
 	for index, fieldValue := range fields.array {
-		field, valid := materializeField(fieldValue, profile)
+		field, valid := materializeField(fieldValue)
 		if !valid {
 			return ir.Model{}, false
 		}
@@ -1054,7 +979,7 @@ func materializeModel(value jsonValue, profile definitionProfile) (ir.Model, boo
 	return ir.Model{Name: name.string, GoName: goName.string, DBTable: dbTable.string, Fields: decodedFields}, true
 }
 
-func materializeField(value jsonValue, profile definitionProfile) (ir.Field, bool) {
+func materializeField(value jsonValue) (ir.Field, bool) {
 	if value.kind != jsonObject {
 		return ir.Field{}, false
 	}
@@ -1075,7 +1000,7 @@ func materializeField(value jsonValue, profile definitionProfile) (ir.Field, boo
 	if !valid || parsedMaximum < 0 || parsedMaximum > maximumWireLength {
 		return ir.Field{}, false
 	}
-	decodedDefault, valid := materializeDefault(defaultValue, profile)
+	decodedDefault, valid := materializeDefault(defaultValue)
 	if !valid {
 		return ir.Field{}, false
 	}
@@ -1090,9 +1015,6 @@ func materializeField(value jsonValue, profile definitionProfile) (ir.Field, boo
 		Default:    decodedDefault,
 	}
 	if relationValue, exists := value.member("relation"); exists {
-		if profile != relationDefinitionProfile {
-			return ir.Field{}, false
-		}
 		relation, valid := materializeRelation(relationValue)
 		if !valid {
 			return ir.Field{}, false
@@ -1130,7 +1052,7 @@ func materializeRelation(value jsonValue) (ir.ForeignKeyRelation, bool) {
 	}, true
 }
 
-func materializeDefault(value jsonValue, profile definitionProfile) (*ir.ScalarDefault, bool) {
+func materializeDefault(value jsonValue) (*ir.ScalarDefault, bool) {
 	if value.kind == jsonNull {
 		return nil, true
 	}
@@ -1155,9 +1077,6 @@ func materializeDefault(value jsonValue, profile definitionProfile) (*ir.ScalarD
 		}
 		return &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: payload.boolean}, true
 	case string(ir.ScalarInteger):
-		if profile != relationDefinitionProfile {
-			return nil, false
-		}
 		payload, exists := value.member("integer")
 		if !exists {
 			return nil, false

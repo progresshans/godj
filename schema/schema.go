@@ -53,7 +53,7 @@ func Column(name string) FieldOption {
 
 // Default records an explicitly typed application default. Exact scalar
 // types keep the declaration surface small for the M2 field subset while
-// preserving false and empty string as present values in Schema IR v2.
+// preserving false and empty string as present values in the current Schema IR.
 type DefaultScalar interface {
 	string | bool | int64
 }
@@ -123,16 +123,8 @@ func ForeignKey(
 }
 
 func Build(definition Definition) (ir.Schema, error) {
-	formatVersion := ir.FormatVersion
-	for _, model := range definition.Models {
-		for _, field := range model.Fields {
-			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
-				formatVersion = ir.RelationFormatVersion
-			}
-		}
-	}
 	result := ir.Schema{
-		FormatVersion: formatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      definition.AppLabel,
 		Models:        make([]ir.Model, len(definition.Models)),
 	}

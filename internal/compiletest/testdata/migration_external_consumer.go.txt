@@ -77,7 +77,7 @@ func HistoricalStates(applied migrations.AppliedState) ([]migrations.ProjectStat
 	return append(states, empty), nil
 }
 
-func MigrateLoaded(ctx context.Context, definitions []migrations.Migration, target migrations.Target) (migrations.ProjectState, error) {
+func MigrateLoaded(ctx context.Context, definitions migrations.LoadedDefinitionSet, target migrations.Target) (migrations.ProjectState, error) {
 	port := &externalLifecyclePort{}
 	executor := migrations.Executor{Backend: port}
 	if target == (migrations.Target{}) {
@@ -86,12 +86,16 @@ func MigrateLoaded(ctx context.Context, definitions []migrations.Migration, targ
 	return executor.Migrate(ctx, definitions, migrations.TargetedLifecycleRequest(target))
 }
 
+func ApplyDirect(ctx context.Context, before migrations.ProjectState, migration migrations.Migration) (migrations.ProjectState, error) {
+	return (migrations.DirectExecutor{Backend: &externalDirectPort{}}).Apply(ctx, before, migration)
+}
+
 var (
-	_ backend.AtomicBackend             = (*externalLifecyclePort)(nil)
 	_ backend.RevisionFencedBackend     = (*externalLifecyclePort)(nil)
-	_ backend.RevisionFencedSession     = (*externalLifecyclePort)(nil)
-	_ backend.Transaction               = (*externalLifecyclePort)(nil)
-	_ backend.RevisionFencedTransaction = (*externalLifecyclePort)(nil)
+	_ backend.AtomicBackend             = (*externalDirectPort)(nil)
+	_ backend.RevisionFencedSession     = (*externalLifecycleSession)(nil)
+	_ backend.Transaction               = (*externalLifecycleTransaction)(nil)
+	_ backend.RevisionFencedTransaction = (*externalLifecycleTransaction)(nil)
 	_ error                             = &backend.RevisionFenceError{Kind: backend.RevisionFenceFailureIntegrity}
 	_ migrations.ErrorCategory          = migrations.CategoryConflict
 	_ migrations.ErrorCode              = migrations.CodeCommitOutcomeUnknown
@@ -99,33 +103,47 @@ var (
 
 type externalLifecyclePort struct{}
 
-func (p *externalLifecyclePort) BeginMigration(context.Context) (backend.Transaction, error) {
-	return p, nil
-}
-
 func (p *externalLifecyclePort) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
-	return p, nil
+	return &externalLifecycleSession{}, nil
 }
 
-func (*externalLifecyclePort) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
+func (*externalLifecyclePort) MigrationCapabilities() backend.MigrationCapabilities {
+	return backend.MigrationCapabilities{}
+}
+
+type externalDirectPort struct{}
+
+func (*externalDirectPort) BeginMigration(context.Context) (backend.Transaction, error) {
+	return &externalLifecycleTransaction{}, nil
+}
+
+type externalLifecycleSession struct{}
+
+func (*externalLifecycleSession) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
 	return nil, nil
 }
 
-func (p *externalLifecyclePort) BeginFencedMigration(context.Context, backend.HistoryTransition) (backend.RevisionFencedTransaction, error) {
-	return p, nil
+func (*externalLifecycleSession) BeginMigration(context.Context, backend.HistoryTransition, backend.MigrationIntent) (backend.RevisionFencedTransaction, error) {
+	return &externalLifecycleTransaction{}, nil
 }
 
-func (*externalLifecyclePort) Close(context.Context) error { return nil }
+func (*externalLifecycleSession) Close(context.Context) error { return nil }
 
-func (*externalLifecyclePort) CreateModel(context.Context, ir.Model) error           { return nil }
-func (*externalLifecyclePort) DeleteModel(context.Context, ir.Model) error           { return nil }
-func (*externalLifecyclePort) AddField(context.Context, ir.Model, ir.Field) error    { return nil }
-func (*externalLifecyclePort) RemoveField(context.Context, ir.Model, ir.Field) error { return nil }
-func (*externalLifecyclePort) RecordApplied(context.Context, string, string) error   { return nil }
-func (*externalLifecyclePort) RecordUnapplied(context.Context, string, string) error { return nil }
-func (*externalLifecyclePort) Commit(context.Context) error                          { return nil }
-func (*externalLifecyclePort) Rollback(context.Context) error                        { return nil }
+type externalLifecycleTransaction struct{}
 
-func (*externalLifecyclePort) CommitFenced(context.Context) (backend.CommitOutcome, error) {
+func (*externalLifecycleTransaction) CreateModel(context.Context, ir.Model) error        { return nil }
+func (*externalLifecycleTransaction) DeleteModel(context.Context, ir.Model) error        { return nil }
+func (*externalLifecycleTransaction) AddField(context.Context, ir.Model, ir.Field) error { return nil }
+func (*externalLifecycleTransaction) RemoveField(context.Context, ir.Model, ir.Field) error {
+	return nil
+}
+func (*externalLifecycleTransaction) RecordApplied(context.Context, string, string) error { return nil }
+func (*externalLifecycleTransaction) RecordUnapplied(context.Context, string, string) error {
+	return nil
+}
+func (*externalLifecycleTransaction) Commit(context.Context) error   { return nil }
+func (*externalLifecycleTransaction) Rollback(context.Context) error { return nil }
+
+func (*externalLifecycleTransaction) CommitFenced(context.Context) (backend.CommitOutcome, error) {
 	return backend.CommitOutcome{Durability: backend.CommitCommitted}, nil
 }

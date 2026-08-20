@@ -26,7 +26,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func TestCheckedInGeneratedSelectRelatedProjectMatchesTwelveDeterministicCandidates(t *testing.T) {
+func TestCheckedInGeneratedSelectRelatedProjectMatchesElevenDeterministicCandidates(t *testing.T) {
 	t.Parallel()
 
 	authorsSchema, err := fixture.AuthorsSchema()
@@ -52,7 +52,6 @@ func TestCheckedInGeneratedSelectRelatedProjectMatchesTwelveDeterministicCandida
 		{path: "authors/zz_godj_relation_projection.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationProjection("authors", authorsSchema) })},
 		{path: "blog/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
 		{path: "blog/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation_query.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationQuery("blog", blogSchema) })},
 		{path: "blog/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("blog", blogSchema) })},
 		{path: "blog/zz_godj_relation_projection.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationProjection("blog", blogSchema) })},
 		{path: "project/zz_godj_bindings.go", data: generated(t, func() ([]byte, error) {
@@ -83,16 +82,12 @@ func TestCheckedInGeneratedSelectRelatedProjectMatchesTwelveDeterministicCandida
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(selectRelatedSource, []byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"`)) {
-		t.Fatal("checked-in select-related companion does not expose the v2 provenance lock")
+	if project.GoDjProjectRelationSelectRelatedGeneratorVersion != codegen.ProjectRelationSelectRelatedGeneratorVersion {
+		t.Fatalf("checked-in select-related generator version = %q, want %q", project.GoDjProjectRelationSelectRelatedGeneratorVersion, codegen.ProjectRelationSelectRelatedGeneratorVersion)
 	}
 	if count := bytes.Count(selectRelatedSource, []byte("configurationErr error")); count != 2 {
 		t.Fatalf("typed select-related private configuration error fields = %d, want exact 2", count)
 	}
-	if bytes.Contains(selectRelatedSource, []byte("godj-codegen-rel-select-related-project-v1")) {
-		t.Fatal("checked-in select-related companion retains stale v1 provenance")
-	}
-
 	var generatedFiles []string
 	for _, directory := range []string{"authors", "blog", "project"} {
 		err := filepath.WalkDir(filepath.Join(root, directory), func(path string, entry fs.DirEntry, err error) error {
@@ -115,7 +110,7 @@ func TestCheckedInGeneratedSelectRelatedProjectMatchesTwelveDeterministicCandida
 	}
 	slices.Sort(wantFiles)
 	if !reflect.DeepEqual(generatedFiles, wantFiles) {
-		t.Fatalf("generated file inventory = %#v, want exact twelve %#v", generatedFiles, wantFiles)
+		t.Fatalf("generated file inventory = %#v, want exact eleven %#v", generatedFiles, wantFiles)
 	}
 }
 

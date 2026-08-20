@@ -15,9 +15,9 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]string{
-		"conformance/contracts/migration-definition-source-manifest.json":                            "688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488",
+		"conformance/contracts/migration-definition-source-manifest.json":                            "b5bc2612f3cfc642397ebff779294aa1cdc1a25b675632d2c7a2e615d47ee7fa",
 		"conformance/fixtures/godj-migration-definition-source-not-implemented.json":                 "41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299",
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json": "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f",
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-definition-source-oracle.json": "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410",
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -31,7 +31,7 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestMigrationRelationChecksumIsAppendedAfterUnchangedTwelveLines(t *testing.T) {
+func TestMigrationOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -48,12 +48,12 @@ func TestMigrationRelationChecksumIsAppendedAfterUnchangedTwelveLines(t *testing
 		"d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682  query-cache-oracle.json\n" +
 		"05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb  save-lifecycle-oracle.json\n" +
 		"35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac  write-migration-oracle.json\n"
-	const definitionSource = "efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f  migration-definition-source-oracle.json\n"
-	const projectCheck = "49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2  migration-project-check-oracle.json\n"
+	const definitionSource = "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410  migration-definition-source-oracle.json\n"
+	const projectCheck = "8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa  migration-project-check-oracle.json\n"
 	const relation = "6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290  relation-oracle.json\n"
-	const migrationRelation = "c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27  migration-relation-oracle.json\n"
+	const migrationRelation = "5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968  migration-relation-oracle.json\n"
 	if string(contents) != previous+definitionSource+projectCheck+relation+migrationRelation {
-		t.Fatal("SHA256SUMS did not preserve the previous twelve lines and append exactly one migration-relation oracle")
+		t.Fatal("SHA256SUMS does not match the current migration oracle catalog")
 	}
 }
 
@@ -226,7 +226,7 @@ func TestMigrationDefinitionSourceSemanticPayloadMutationsCannotFalseGreen(t *te
 			},
 		},
 		{
-			name:       "tuple mismatch stage",
+			name:       "format mismatch stage",
 			contractID: "MIG-060",
 			mutate: func(t *testing.T, observation *Observation) {
 				failure := objectField(t, observation.Metrics, "failure")
@@ -258,15 +258,15 @@ func TestMigrationDefinitionSourceSemanticPayloadMutationsCannotFalseGreen(t *te
 			},
 		},
 		{
-			name:       "public handoff observed digest",
+			name:       "public execution observed digest",
 			contractID: "MIG-064",
 			mutate: func(t *testing.T, observation *Observation) {
-				handoff := objectField(t, observation.Result, "handoff")
-				*objectField(t, handoff, "observed_digest") = String("sha256:changed")
+				execution := objectField(t, observation.Result, "execution")
+				*objectField(t, execution, "observed_digest") = String("sha256:changed")
 			},
 		},
 		{
-			name:       "public handoff final migration records",
+			name:       "public execution final migration records",
 			contractID: "MIG-064",
 			mutate: func(t *testing.T, observation *Observation) {
 				after := objectField(t, observation.DBState, "after")
@@ -275,10 +275,10 @@ func TestMigrationDefinitionSourceSemanticPayloadMutationsCannotFalseGreen(t *te
 			},
 		},
 		{
-			name:       "public handoff exactly once metric",
+			name:       "public execution exactly once metric",
 			contractID: "MIG-064",
 			mutate: func(t *testing.T, observation *Observation) {
-				*objectField(t, observation.Metrics, "handoff_calls") = Integer("2")
+				*objectField(t, observation.Metrics, "session_open_calls") = Integer("2")
 			},
 		},
 	}
@@ -559,7 +559,7 @@ func validateMigrationDefinitionSourceProvenance(contract Contract) error {
 		}
 		if provenance.Kind == "decision" {
 			decisionCount++
-			if provenance.Reference != "ADR-0019" || provenance.License != "" {
+			if provenance.Reference != "ADR-0035" || provenance.License != "" {
 				return fmt.Errorf("contract %s decision provenance = %#v", contract.ID, provenance)
 			}
 			continue

@@ -27,14 +27,11 @@ func (e *ValidationError) Error() string {
 
 func Normalize(input Schema) (Schema, error) {
 	schema := input.Clone()
-	if schema.FormatVersion == 0 {
-		schema.FormatVersion = FormatVersion
-	}
-	if schema.FormatVersion != FormatVersion && schema.FormatVersion != RelationFormatVersion {
+	if schema.FormatVersion != CurrentFormatVersion {
 		return Schema{}, validation(
 			"format_version",
 			"unsupported_version",
-			fmt.Sprintf("got %d, want %d or %d", schema.FormatVersion, FormatVersion, RelationFormatVersion),
+			fmt.Sprintf("got %d, want %d", schema.FormatVersion, CurrentFormatVersion),
 		)
 	}
 	if !databaseIdentifier.MatchString(schema.AppLabel) {
@@ -144,10 +141,7 @@ func normalizeModel(model *Model, path string, formatVersion int) error {
 	return nil
 }
 
-func validateField(field Field, path string, formatVersion int) error {
-	if formatVersion == FormatVersion && field.Relation != nil {
-		return validation(path+".relation", "unsupported", "relation arm requires schema format version 3")
-	}
+func validateField(field Field, path string, _ int) error {
 	if field.Kind != FieldForeignKey && field.Relation != nil {
 		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
 	}
@@ -199,9 +193,6 @@ func validateField(field Field, path string, formatVersion int) error {
 			return validation(path+".default", "type_mismatch", "BooleanField default must be a boolean")
 		}
 	case FieldForeignKey:
-		if formatVersion != RelationFormatVersion {
-			return validation(path+".kind", "unsupported_field_kind", string(field.Kind))
-		}
 		if field.PrimaryKey {
 			return validation(path+".primary_key", "unsupported", "ForeignKey cannot be the primary key")
 		}

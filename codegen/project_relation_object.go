@@ -123,20 +123,11 @@ func canonicalRelationObjectPackages(packages []RelationObjectPackage) ([]normal
 		if err != nil {
 			return nil, fmt.Errorf("normalize relation object package %q: %w", candidate.Alias, err)
 		}
-		switch schema.FormatVersion {
-		case ir.FormatVersion:
-			if err := validateGeneratedNames(schema); err != nil {
-				return nil, fmt.Errorf("validate scalar object package %q: %w", candidate.Alias, err)
-			}
-			if err := validateRelationMetadataNames(schema); err != nil {
-				return nil, fmt.Errorf("validate scalar object metadata package %q: %w", candidate.Alias, err)
-			}
-		case ir.RelationFormatVersion:
-			if err := validateRelationQueryNames(schema); err != nil {
-				return nil, fmt.Errorf("validate relation object package %q: %w", candidate.Alias, err)
-			}
-		default:
-			return nil, fmt.Errorf("relation object package %q has unsupported format version %d", candidate.Alias, schema.FormatVersion)
+		if err := validateGeneratedNames(schema); err != nil {
+			return nil, fmt.Errorf("validate object package %q: %w", candidate.Alias, err)
+		}
+		if err := validateRelationMetadataNames(schema); err != nil {
+			return nil, fmt.Errorf("validate object metadata package %q: %w", candidate.Alias, err)
 		}
 		if err := validateRelationObjectNames(schema); err != nil {
 			return nil, fmt.Errorf("validate relation object companion package %q: %w", candidate.Alias, err)
@@ -356,7 +347,7 @@ func validateProjectRelationObjectNamespaces(
 		}
 	}
 	// The immutable project relation-query v1 companion is published in the
-	// same package. Seed every declaration it would emit so the additive object
+	// same package. Seed every declaration it would emit so the current object
 	// generator fails before returning bytes on an old/new union collision.
 	for _, source := range sources {
 		owner := source.model.identity.AppLabel + "." + source.model.identity.ModelName

@@ -44,7 +44,7 @@ func canonicalDefinitionSet(definitions []migrations.Migration) ([]byte, error) 
 		})
 	}
 
-	output := []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"definitions":[`)
+	output := []byte(`{"definitions":[`)
 	for definitionIndex, current := range canonical {
 		if definitionIndex != 0 {
 			output = append(output, ',')
@@ -95,7 +95,7 @@ func canonicalDefinitionSet(definitions []migrations.Migration) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	return append(output, '}'), nil
+	return append(output, `,"format_version":1}`...), nil
 }
 
 func appendCanonicalOperation(output []byte, operation migrations.Operation) ([]byte, error) {
@@ -207,6 +207,10 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 			output = append(output, `{"boolean":`...)
 			output = strconv.AppendBool(output, field.Default.Boolean)
 			output = append(output, `,"kind":"boolean"}`...)
+		case ir.ScalarInteger:
+			output = append(output, `{"integer":`...)
+			output = strconv.AppendInt(output, field.Default.Integer, 10)
+			output = append(output, `,"kind":"integer"}`...)
 		default:
 			return nil, fmt.Errorf("unsupported canonical default %q", field.Default.Kind)
 		}
@@ -232,6 +236,36 @@ func appendCanonicalField(output []byte, field ir.Field) ([]byte, error) {
 	output = strconv.AppendBool(output, field.Nullable)
 	output = append(output, `,"primary_key":`...)
 	output = strconv.AppendBool(output, field.PrimaryKey)
+	if field.Relation != nil {
+		output = append(output, `,"relation":{"cardinality":`...)
+		output, err = appendCanonicalString(output, string(field.Relation.Cardinality))
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, `,"on_delete":`...)
+		output, err = appendCanonicalString(output, string(field.Relation.OnDelete))
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, `,"reverse":{"disabled":`...)
+		output = strconv.AppendBool(output, field.Relation.Reverse.Disabled)
+		output = append(output, `,"name":`...)
+		output, err = appendCanonicalString(output, field.Relation.Reverse.Name)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, `},"target":{"app_label":`...)
+		output, err = appendCanonicalString(output, field.Relation.Target.AppLabel)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, `,"model_name":`...)
+		output, err = appendCanonicalString(output, field.Relation.Target.ModelName)
+		if err != nil {
+			return nil, err
+		}
+		output = append(output, `}}`...)
+	}
 	return append(output, '}'), nil
 }
 

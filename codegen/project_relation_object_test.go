@@ -95,7 +95,7 @@ func TestGenerateProjectRelationObjectRejectsInvalidInputsAndNamespaces(t *testi
 	valid := relationObjectGenerationPackages(authors, blog)
 	falseAlias := relationObjectGenerationPackages(authors, blog)
 	falseAlias[0].Alias = "false"
-	collisionAuthors, collisionBlog := oldNewRelationObjectCollisionSchemas()
+	collisionAuthors, collisionBlog := relationObjectProjectNamespaceCollisionSchemas()
 	tests := []struct {
 		name     string
 		pkg      string
@@ -132,7 +132,7 @@ func TestGenerateProjectRelationObjectRejectsInvalidInputsAndNamespaces(t *testi
 		{name: "Fresh method collision", pkg: "project", packages: relationObjectPackagesWithFieldGoName(authors, blog, 2, "FreshID")},
 		{name: "nullable From field collision", pkg: "project", packages: relationObjectPackagesWithFieldGoName(authors, blog, 3, "FromID")},
 		{name: "nullable ParseDynamic field collision", pkg: "project", packages: relationObjectPackagesWithFieldGoName(authors, blog, 3, "ParseDynamicID")},
-		{name: "old query and new object type collision", pkg: "project", packages: relationObjectGenerationPackages(collisionAuthors, collisionBlog)},
+		{name: "project query and object type collision", pkg: "project", packages: relationObjectGenerationPackages(collisionAuthors, collisionBlog)},
 		{name: "derived surface collision", pkg: "project", packages: collidingRelationObjectSurfaces()},
 	}
 	for _, test := range tests {
@@ -176,7 +176,7 @@ func TestGenerateProjectRelationObjectZeroProjectUsesNoUnusedImports(t *testing.
 func TestGeneratedRelationObjectProjectCompilesBindsAndHasNoAppEdges(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	const modulePath = "example.com/godj-relation-object-project"
-	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, true, true)
+	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, true)
 	validateGeneratedRelationObjectImportGraph(t, directory, modulePath, "authors", "blog")
 
 	command := exec.Command("go", "test", "-mod=mod", "./...")
@@ -199,7 +199,7 @@ func TestGeneratedProjectRelationObjectConsumesUnrelatedBoundModels(t *testing.T
 	})
 
 	const modulePath = "example.com/godj-relation-object-unrelated"
-	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, true, false)
+	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, false)
 	generated, err := os.ReadFile(filepath.Join(directory, "project", "zz_godj_relation_object.go"))
 	if err != nil {
 		t.Fatalf("read generated project relation object: %v", err)
@@ -220,146 +220,17 @@ func TestGeneratedProjectRelationObjectConsumesUnrelatedBoundModels(t *testing.T
 	}
 }
 
-func TestGeneratedRelationObjectCompanionMissingQueryPrerequisiteFailsAtPublication(t *testing.T) {
-	authors, blog := relationQueryGenerationSchemas()
-	const modulePath = "example.com/godj-relation-object-missing-prerequisite"
-	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, false, false)
-	command := exec.Command("go", "test", "-mod=mod", "./...")
-	command.Dir = directory
-	command.Env = generatedTestEnvironment()
-	output, err := command.CombinedOutput()
-	if err == nil {
-		t.Fatal("generated project without the v3 relation-query descriptor prerequisite unexpectedly compiled")
-	}
-	if !bytes.Contains(output, []byte("PostDescriptor")) {
-		t.Fatalf("missing prerequisite compiler output does not identify PostDescriptor:\n%s", output)
-	}
-}
-
 func TestGeneratedRelationObjectValidateSelectorCompilesWithPrivateSelfCheck(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	blog.Models[0].Fields[2].GoName = "ValidateID"
 	const modulePath = "example.com/godj-relation-object-validate-selector"
-	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, true, false)
+	directory := writeGeneratedRelationObjectProject(t, modulePath, "authors", "blog", authors, blog, false)
 	command := exec.Command("go", "test", "-mod=mod", "./...")
 	command.Dir = directory
 	command.Env = generatedTestEnvironment()
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("generated Validate relation selector did not compile beside the private self-check: %v\n%s", err, output)
-	}
-}
-
-func TestOldProjectQueryAndNewObjectTypeCollisionFailsBeforePublication(t *testing.T) {
-	authors, blog := oldNewRelationObjectCollisionSchemas()
-	const modulePath = "example.com/godj-relation-object-union-collision"
-	fullObjectPackages := []codegen.RelationObjectPackage{
-		{Alias: "authors", ImportPath: modulePath + "/authors", Schema: authors},
-		{Alias: "blog", ImportPath: modulePath + "/blog", Schema: blog},
-	}
-	generated, err := codegen.GenerateProjectRelationObject("project", fullObjectPackages)
-	if err == nil {
-		t.Fatal("GenerateProjectRelationObject() returned bytes for an old-query/new-object type collision")
-	} else if !strings.Contains(err.Error(), "BlogPostReviewerObjectRelation") {
-		t.Fatalf("collision error does not identify the shared declaration: %v", err)
-	}
-	if len(generated) != 0 {
-		t.Fatalf("collision returned %d candidate bytes, want no partial output", len(generated))
-	}
-
-	// Build the exact pre-fix union boundary: immutable v1 output from the full
-	// schema plus a new object candidate rendered from the nullable subset. Both
-	// independently produce the same package-level type, so publication must
-	// fail even though each byte stream formats successfully on its own.
-	candidateBlog := blog.Clone()
-	candidateBlog.Models[0].Fields = append(
-		append([]ir.Field(nil), candidateBlog.Models[0].Fields[:2]...),
-		candidateBlog.Models[0].Fields[3:]...,
-	)
-	candidateObjectPackages := []codegen.RelationObjectPackage{
-		{Alias: "authors", ImportPath: modulePath + "/authors", Schema: authors},
-		{Alias: "blog", ImportPath: modulePath + "/blog", Schema: candidateBlog},
-	}
-	candidateObject, err := codegen.GenerateProjectRelationObject("project", candidateObjectPackages)
-	if err != nil {
-		t.Fatalf("generate independently valid nullable object candidate: %v", err)
-	}
-	oldQuery, err := codegen.GenerateProjectRelationQuery("project", []codegen.RelationQueryPackage{
-		{Alias: "authors", ImportPath: modulePath + "/authors", Schema: authors},
-		{Alias: "blog", ImportPath: modulePath + "/blog", Schema: blog},
-	})
-	if err != nil {
-		t.Fatalf("generate immutable old project relation query: %v", err)
-	}
-	if !bytes.Contains(oldQuery, []byte("type BlogPostReviewerObjectRelation struct")) ||
-		!bytes.Contains(candidateObject, []byte("type BlogPostReviewerObjectRelation struct")) {
-		t.Fatal("collision fixture does not reproduce the shared package declaration")
-	}
-
-	authorsMain, err := codegen.Generate("authors", authors)
-	if err != nil {
-		t.Fatalf("generate collision authors main: %v", err)
-	}
-	authorsMetadata, err := codegen.GenerateRelationMetadata("authors", authors)
-	if err != nil {
-		t.Fatalf("generate collision authors metadata: %v", err)
-	}
-	authorsObject, err := codegen.GenerateRelationObject("authors", authors)
-	if err != nil {
-		t.Fatalf("generate collision authors object: %v", err)
-	}
-	blogMain, err := codegen.Generate("blog", blog)
-	if err != nil {
-		t.Fatalf("generate collision blog main: %v", err)
-	}
-	blogMetadata, err := codegen.GenerateRelationMetadata("blog", blog)
-	if err != nil {
-		t.Fatalf("generate collision blog metadata: %v", err)
-	}
-	blogQuery, err := codegen.GenerateRelationQuery("blog", blog)
-	if err != nil {
-		t.Fatalf("generate collision blog query: %v", err)
-	}
-	blogObject, err := codegen.GenerateRelationObject("blog", blog)
-	if err != nil {
-		t.Fatalf("generate collision blog object: %v", err)
-	}
-	binding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
-		{Alias: "authors", ImportPath: modulePath + "/authors"},
-		{Alias: "blog", ImportPath: modulePath + "/blog"},
-	})
-	if err != nil {
-		t.Fatalf("generate collision project binding: %v", err)
-	}
-
-	directory := t.TempDir()
-	writeGeneratedTestFile(t, directory, "go.mod", []byte(fmt.Sprintf(`module %s
-
-go 1.26.0
-
-require github.com/progresshans/godj v0.0.0
-
-replace github.com/progresshans/godj => %s
-`, modulePath, filepath.ToSlash(codegenRepositoryRoot(t)))))
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_generated.go", authorsMain)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", authorsMetadata)
-	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation_object.go", authorsObject)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_generated.go", blogMain)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation.go", blogMetadata)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_query.go", blogQuery)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_object.go", blogObject)
-	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", binding)
-	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", oldQuery)
-	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_object.go", candidateObject)
-	command := exec.Command("go", "test", "-mod=mod", "./...")
-	command.Dir = directory
-	command.Env = generatedTestEnvironment()
-	output, err := command.CombinedOutput()
-	if err == nil {
-		t.Fatal("actual old-query/new-object collision union unexpectedly compiled")
-	}
-	if !bytes.Contains(output, []byte("BlogPostReviewerObjectRelation redeclared")) {
-		t.Fatalf("actual union failure does not identify the redeclared type:\n%s", output)
 	}
 }
 
@@ -401,7 +272,7 @@ func relationObjectPackagesWithFieldGoName(authors, blog ir.Schema, fieldIndex i
 	return relationObjectGenerationPackages(authors, blog)
 }
 
-func oldNewRelationObjectCollisionSchemas() (ir.Schema, ir.Schema) {
+func relationObjectProjectNamespaceCollisionSchemas() (ir.Schema, ir.Schema) {
 	authors, blog := relationQueryGenerationSchemas()
 	blog.Models[0].Fields[2].GoName = "ReviewerObjectID"
 	return authors, blog
@@ -420,7 +291,7 @@ func writeGeneratedRelationObjectProject(
 	t *testing.T,
 	modulePath, targetPackage, sourcePackage string,
 	authors, blog ir.Schema,
-	includeQueryPrerequisite, includeExternalTest bool,
+	includeExternalTest bool,
 ) string {
 	t.Helper()
 	authorsMain, err := codegen.Generate(targetPackage, authors)
@@ -442,10 +313,6 @@ func writeGeneratedRelationObjectProject(
 	blogMetadata, err := codegen.GenerateRelationMetadata(sourcePackage, blog)
 	if err != nil {
 		t.Fatalf("generate blog metadata: %v", err)
-	}
-	blogQuery, err := codegen.GenerateRelationQuery(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate blog query: %v", err)
 	}
 	blogObject, err := codegen.GenerateRelationObject(sourcePackage, blog)
 	if err != nil {
@@ -488,17 +355,11 @@ replace github.com/progresshans/godj => %s
 	writeGeneratedTestFile(t, directory, "target/zz_godj_relation_object.go", authorsObject)
 	writeGeneratedTestFile(t, directory, "source/zz_godj_generated.go", blogMain)
 	writeGeneratedTestFile(t, directory, "source/zz_godj_relation.go", blogMetadata)
-	if includeQueryPrerequisite {
-		writeGeneratedTestFile(t, directory, "source/zz_godj_relation_query.go", blogQuery)
-	}
 	writeGeneratedTestFile(t, directory, "source/zz_godj_relation_object.go", blogObject)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", projectBinding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", projectQuery)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_object.go", projectObject)
 	if includeExternalTest {
-		if !includeQueryPrerequisite {
-			t.Fatal("external generated test requires the v3 relation-query prerequisite")
-		}
 		surface := strings.ToUpper(sourcePackage[:1]) + sourcePackage[1:] + "Post"
 		writeGeneratedTestFile(t, directory, "project/relation_object_test.go", generatedRelationObjectExternalTest(modulePath, surface))
 	}
@@ -560,7 +421,7 @@ func TestGeneratedRelationObjects(t *testing.T) {
 	}
 
 	if storage, ok := (target.AuthorDescriptor{}).BindRelationStorage(target.GoDjRelationSchema().Models[0].Fields[0]); ok || storage != nil {
-		t.Fatal("v2 target descriptor exposed relation storage")
+		t.Fatal("relation-free target descriptor exposed relation storage")
 	}
 	metadata := source.GoDjRelationSchema()
 	authorField := metadata.Models[0].Fields[2]
@@ -719,7 +580,7 @@ func TestGeneratedProjectRelationObjectAdversarialAliasesCompile(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			modulePath := "example.com/godj-relation-object-alias-" + strings.ReplaceAll(test.name, " ", "-")
-			directory := writeGeneratedRelationObjectProject(t, modulePath, test.target, test.source, authors, blog, true, true)
+			directory := writeGeneratedRelationObjectProject(t, modulePath, test.target, test.source, authors, blog, true)
 			command := exec.Command("go", "test", "-mod=mod", "./...")
 			command.Dir = directory
 			command.Env = generatedTestEnvironment()

@@ -11,7 +11,7 @@
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         },
         {
@@ -38,7 +38,7 @@
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         }
       ],
@@ -53,7 +53,7 @@
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         }
       ],
@@ -61,14 +61,14 @@
     },
     {
       "id": "MIG-060",
-      "title": "The complete definition compatibility tuple is checked before semantic decode",
-      "scenario": "godj.migration.definition_source.incompatible_tuple",
+      "title": "An unsupported current definition format is rejected before semantic decode",
+      "scenario": "godj.migration.definition_source.unsupported_format",
       "phase": "environment",
       "status": "passing",
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         }
       ],
@@ -83,7 +83,7 @@
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         }
       ],
@@ -98,7 +98,7 @@
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         }
       ],
@@ -113,7 +113,7 @@
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         }
       ],
@@ -121,14 +121,14 @@
     },
     {
       "id": "MIG-064",
-      "title": "A loaded snapshot reaches the public migration executor exactly once",
-      "scenario": "django.migration.definition_source.public_lifecycle_handoff",
+      "title": "An opaque loaded snapshot reaches the public migration executor exactly once",
+      "scenario": "django.migration.definition_source.public_loaded_executor",
       "phase": "commit",
       "status": "passing",
       "provenance": [
         {
           "kind": "decision",
-          "reference": "ADR-0019",
+          "reference": "ADR-0035",
           "derived": false
         },
         {

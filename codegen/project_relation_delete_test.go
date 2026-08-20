@@ -165,8 +165,6 @@ func TestGenerateProjectRelationDeleteRejectsInvalidInputsBeforeBytes(t *testing
 
 	authors, blog := relationQueryGenerationSchemas()
 	valid := relationDeletePackages("example.com/godj-relation-delete-invalid", "authors", "blog", authors, blog)
-	v3Target := authors.Clone()
-	v3Target.FormatVersion = ir.RelationFormatVersion
 	unsupportedPolicy := blog.Clone()
 	unsupportedPolicy.Models[0].Fields[2].Relation.OnDelete = ir.DeletePolicy("cascade")
 	invalidSetNull := blog.Clone()
@@ -200,18 +198,6 @@ func TestGenerateProjectRelationDeleteRejectsInvalidInputsBeforeBytes(t *testing
 			name: "invalid target key", pkg: "project",
 			packages: relationDeletePackages("example.com/godj-relation-delete-key", "authors", "blog", invalidTargetKey, blog),
 			contains: "AutoField must be the primary key",
-		},
-		{
-			name: "v3 incoming target",
-			pkg:  "project",
-			packages: relationDeletePackages(
-				"example.com/godj-relation-delete-v3-target",
-				"authors",
-				"blog",
-				v3Target,
-				blog,
-			),
-			contains: "format version 3",
 		},
 		{
 			name:     "aggregate field collision",
@@ -298,20 +284,20 @@ func TestGenerateProjectRelationDeleteAliasDiffersFromAppLabelAndZeroUniverse(t 
 	}
 }
 
-func TestGenerateProjectRelationDeletePreservesPrerequisiteBytesAndLastGood(t *testing.T) {
+func TestGenerateProjectRelationDeleteLeavesCurrentPrerequisitesStableAndPreservesLastGood(t *testing.T) {
 	t.Parallel()
 
 	authors, blog := relationQueryGenerationSchemas()
-	const modulePath = "example.com/godj-relation-delete-old-lock"
+	const modulePath = "example.com/godj-relation-delete-current-stability"
 	packages := relationDeletePackages(modulePath, "authors", "blog", authors, blog)
-	oldBefore := projectRelationDeletePrerequisiteBytes(t, modulePath, authors, blog, packages)
+	before := projectRelationDeletePrerequisiteBytes(t, modulePath, authors, blog, packages)
 	candidate, err := codegen.GenerateProjectRelationDelete("project", packages)
 	if err != nil {
 		t.Fatalf("GenerateProjectRelationDelete() error = %v", err)
 	}
-	oldAfter := projectRelationDeletePrerequisiteBytes(t, modulePath, authors, blog, packages)
-	for index := range oldBefore {
-		if !bytes.Equal(oldBefore[index], oldAfter[index]) {
+	after := projectRelationDeletePrerequisiteBytes(t, modulePath, authors, blog, packages)
+	for index := range before {
+		if !bytes.Equal(before[index], after[index]) {
 			t.Fatalf("relation delete generation changed prerequisite byte stream %d", index)
 		}
 	}
@@ -338,7 +324,7 @@ func TestGenerateProjectRelationDeletePreservesPrerequisiteBytesAndLastGood(t *t
 	}
 }
 
-func TestGeneratedProjectRelationDeleteExactThirteenFileUnionCompilesAndBinds(t *testing.T) {
+func TestGeneratedProjectRelationDeleteExactTwelveFileUnionCompilesAndBinds(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	const modulePath = "example.com/godj-relation-delete-union"
 	directory, files := writeGeneratedRelationSelectRelatedProject(
@@ -360,8 +346,8 @@ func TestGeneratedProjectRelationDeleteExactThirteenFileUnionCompilesAndBinds(t 
 	const companionPath = "project/zz_godj_relation_delete.go"
 	writeGeneratedTestFile(t, directory, companionPath, companion)
 	files = append(files, companionPath)
-	if len(files) != 13 {
-		t.Fatalf("generated relation delete union has %d files, want exact 13: %v", len(files), files)
+	if len(files) != 12 {
+		t.Fatalf("generated relation delete union has %d files, want exact 12: %v", len(files), files)
 	}
 	writeGeneratedTestFile(
 		t,
@@ -390,7 +376,7 @@ func TestGeneratedRelationDeleteAggregateBinds(t *testing.T) {
 	command.Env = generatedTestEnvironment()
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("generated exact thirteen-file relation delete union did not compile and bind: %v\n%s", err, output)
+		t.Fatalf("generated exact twelve-file relation delete union did not compile and bind: %v\n%s", err, output)
 	}
 }
 
@@ -557,7 +543,7 @@ func relationDeletePackages(
 
 func relationDeleteAggregateFieldCollisionPackages() []codegen.RelationObjectPackage {
 	firstTarget := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "one",
 		Models: []ir.Model{{
 			Name: "c", GoName: "C",
@@ -565,7 +551,7 @@ func relationDeleteAggregateFieldCollisionPackages() []codegen.RelationObjectPac
 		}},
 	}
 	secondTarget := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "two",
 		Models: []ir.Model{{
 			Name: "bc", GoName: "BC",
@@ -573,7 +559,7 @@ func relationDeleteAggregateFieldCollisionPackages() []codegen.RelationObjectPac
 		}},
 	}
 	source := ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "source",
 		Models: []ir.Model{{
 			Name: "link", GoName: "Link",
@@ -605,7 +591,7 @@ func relationDeleteAggregateFieldCollisionPackages() []codegen.RelationObjectPac
 
 func relationDeleteAdditionalSchemas() (ir.Schema, ir.Schema) {
 	categories := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "categories",
 		Models: []ir.Model{{
 			Name: "category", GoName: "Category",
@@ -616,7 +602,7 @@ func relationDeleteAdditionalSchemas() (ir.Schema, ir.Schema) {
 		}},
 	}
 	reviews := ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "reviews",
 		Models: []ir.Model{{
 			Name: "review", GoName: "Review",

@@ -2,6 +2,7 @@ package ir_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/progresshans/godj/schema"
@@ -36,8 +37,8 @@ func TestNormalizeAddsImplicitAutoFieldAndDefaults(t *testing.T) {
 	if !model.Fields[3].Nullable {
 		t.Fatal("summary should be nullable")
 	}
-	if got.FormatVersion != 2 {
-		t.Fatalf("FormatVersion = %d, want 2", got.FormatVersion)
+	if got.FormatVersion != ir.CurrentFormatVersion {
+		t.Fatalf("FormatVersion = %d, want %d", got.FormatVersion, ir.CurrentFormatVersion)
 	}
 	publishedDefault := model.Fields[2].Default
 	if publishedDefault == nil || publishedDefault.Kind != ir.ScalarBoolean || publishedDefault.Boolean {
@@ -49,7 +50,8 @@ func TestCanonicalHashIsStableAndInputIsNotMutated(t *testing.T) {
 	t.Parallel()
 
 	input := ir.Schema{
-		AppLabel: "news",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",
@@ -67,7 +69,7 @@ func TestCanonicalHashIsStableAndInputIsNotMutated(t *testing.T) {
 	if first != second {
 		t.Fatalf("hash changed: %s != %s", first, second)
 	}
-	if input.FormatVersion != 0 || len(input.Models[0].Fields) != 1 || input.Models[0].DBTable != "" {
+	if input.FormatVersion != ir.CurrentFormatVersion || len(input.Models[0].Fields) != 1 || input.Models[0].DBTable != "" {
 		t.Fatalf("Normalize mutated input: %#v", input)
 	}
 	if len(first) != 64 {
@@ -119,7 +121,8 @@ func TestNormalizeRejectsMismatchedTypedDefault(t *testing.T) {
 	t.Parallel()
 
 	_, err := ir.Normalize(ir.Schema{
-		AppLabel: "news",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",
@@ -148,13 +151,19 @@ func TestSchemaCloneDoesNotShareDefaultState(t *testing.T) {
 	}
 }
 
-func TestNormalizeRejectsSchemaIRV1(t *testing.T) {
+func TestNormalizeRejectsNonCurrentSchemaIRVersion(t *testing.T) {
 	t.Parallel()
 
-	_, err := ir.Normalize(ir.Schema{FormatVersion: 1, AppLabel: "news"})
-	var validation *ir.ValidationError
-	if !errors.As(err, &validation) || validation.Code != "unsupported_version" {
-		t.Fatalf("error = %v, want unsupported_version ValidationError", err)
+	for _, version := range []int{0, ir.CurrentFormatVersion + 1} {
+		version := version
+		t.Run(fmt.Sprintf("version_%d", version), func(t *testing.T) {
+			t.Parallel()
+			_, err := ir.Normalize(ir.Schema{FormatVersion: version, AppLabel: "news"})
+			var validation *ir.ValidationError
+			if !errors.As(err, &validation) || validation.Code != "unsupported_version" || validation.Path != "format_version" {
+				t.Fatalf("error = %#v, want format_version unsupported_version ValidationError", err)
+			}
+		})
 	}
 }
 
@@ -162,7 +171,8 @@ func TestNormalizeRejectsInvalidUTF8StringDefault(t *testing.T) {
 	t.Parallel()
 
 	_, err := ir.Normalize(ir.Schema{
-		AppLabel: "news",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",

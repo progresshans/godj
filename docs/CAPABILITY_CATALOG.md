@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-20
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -112,7 +112,13 @@ completed GDJ-0022/Accepted ADR-0022의 exact `godj migrations check`까지입�
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
-Writer/upgrade/DB-aware execution은 포함하지 않습니다.
+Writer/upgrade와 public migrate CLI는 포함하지 않습니다. 아래 library-level loaded execution은 별도 제품 경계입니다.
+
+GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
+DB-aware entry는 `Executor.Migrate(ctx, loaded, request)` 하나입니다. Historical reconstruction은 scalar와
+ForeignKey를 같은 Schema IR/ProjectState로 표현합니다. Raw scalar execution은 별도 `DirectExecutor`가 맡고
+relation-bearing raw input은 loader authority 없이 실행하지 않습니다. 이는 public migrate CLI, writer 또는
+autodetector가 구현됐다는 뜻이 아닙니다.
 
 장기 operation 범위:
 
@@ -391,16 +397,18 @@ four-coordinate 687/687/0 inventory를 통과한 GDJ-0030 completion classificat
 canonical facade, cache invalidation, recursive/bulk/CASCADE delete, DDL/migration과 non-SQLite는 그 packet에
 포함하지 않았습니다.
 
+다음 GDJ-0033/0034 단락은 GDJ-0036 reset 이전 checkout의 historical implementation evidence입니다.
+
 Completed GDJ-0033/Accepted ADR-0033은 bounded Gate 0 facade에 exact `New`/`Save`/`With*`/clear API,
 project-private write descriptor, explicit PK-presence, pending-only reconciliation, corrected canonical three-phase
 preflight와 per-edge COW cache를 추가했습니다. Implementation head `be6f3d4e...`의 EVID-076/run `31586910749`은
-exact 26/26 jobs·326/326 steps와 four-coordinate 715/715/0 inventory를 통과했고 current bounded product는
+exact 26/26 jobs·326/326 steps와 four-coordinate 715/715/0 inventory를 통과했고 그 checkout의 bounded product는
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. 이는 SQLite/AutoField forward assignment/save
 capability만 뜻합니다. Q-013 `Partial`과 Q-017 P1/open, reverse/general facade, relation-capable migration,
 coordinated generated upgrade와 non-SQLite backend는 그대로 남습니다.
 
 Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_related` resolve/bind cause-loss P2를
-별도로 수정했습니다. Private stored configuration error와 context-first terminal pre-I/O 반환을 generator v2와
+별도로 수정했습니다. 당시 private stored configuration error와 context-first terminal pre-I/O 반환을 generator v2와
 두 checked-in companion에 결정적으로 반영했고, exact implementation head `3099bd62...`의 EVID-081/run
 `31605477297`이 26/26 jobs·326/326 steps를 통과했습니다. 새 capability, contract, public API 또는 backend 지원을
 추가하지 않았으므로 product 분류는 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12 그대로입니다.
@@ -431,10 +439,31 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 
 이 카탈로그의 어떤 항목도 자체적으로 완료 표시하지 않습니다. 현재 구현과 검증 여부는 [IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md), 실제 명령은 [TEST_EVIDENCE.md](status/TEST_EVIDENCE.md)를 기준으로 합니다.
 
-## Active Accepted design: relation-capable migration lifecycle
+## Current implementation mirror: pre-release compatibility reset
 
-GDJ-0035의 relation-migration decision 상태는 `Accepted/Partially Implemented`입니다. Existing migration 제품의
-legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle는 구현·검증 상태를 유지합니다.
+[GDJ-0036](../work/0036-pre-release-compatibility-reset.md)과 Accepted
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)가 현재 설계를 소유합니다.
+
+- Schema IR, Definition wire/digest와 `ProjectState`는 각각 current version 1 하나입니다.
+- Loader는 `format_version` 하나를 strict decode하고 opaque `LoadedDefinitionSet`을 게시합니다. Lifecycle은
+  `Executor.Migrate`로만 들어가며 context carrier나 raw definition slice authority가 없습니다.
+- Backend는 mandatory `MigrationCapabilities`와 ordered `MigrationIntent`를 받는 session
+  `BeginMigration` 하나를 사용합니다. `DirectExecutor`는 raw scalar 전용입니다.
+- Public `StateReconstructor`의 최종 계약은 scalar/relation을 같은 current historical state로 재생하는 것입니다.
+- Current main codegen은 relation model의 descriptor/write metadata를 직접 만들고, app relation-query file과
+  facade-private write model은 제거했습니다. Project-owned cross-app query/binding/facade 책임은 유지합니다.
+- MIG-057..074는 current format/result vocabulary로 재기준화됐습니다. GDJ-0035 Phase-B의 legacy
+  tuple/profile/promotion publication 계획과 당시 artifact bytes는 retire되어 Git/EVID에만 남습니다. 현재
+  checked-in MIG-075..086 manifest/oracle은 ADR-0035 current-only 진단 reference이며 reference aggregate에
+  포함되지만 계속 `oracle_locked`/unregistered라 product publication/status 입력은 아닙니다.
+
+이 reset은 working tree에서 구현·검증 중이며 아직 최종 hosted `Verified` 또는 public release compatibility
+정책을 뜻하지 않습니다.
+
+### Historical GDJ-0035 design and evidence snapshot
+
+GDJ-0035 당시 relation-migration decision 상태는 `Accepted/Partially Implemented`였습니다. Existing migration 제품의
+legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 SQLite scalar lifecycle 보존은 당시 설계 기준이었습니다.
 다음 항목은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)와
 [active work](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)가 Phase C에서
 채택한 bounded decision surface입니다. 구현 범위는 아래 D1/D2/D3a/D3b/D4d/D4e/D4f 한계를 따릅니다.
@@ -483,4 +512,4 @@ required `PROTECT`만 검증했으며 dedicated nullable `SET_NULL` D4f E2E proo
 Same-target relation-free AutoField authority, max one relation mutation/source/step, closed relevant physical shape,
 row/PK/value/sequence preservation과 rollback/no-retry를 검증했습니다. Arbitrary/general remake, general restart와
 actual MIG adapter는 아직 없습니다.
-MIG-075..086은 계속 `oracle_locked`입니다.
+이 snapshot에서 MIG-075..086은 `oracle_locked`였습니다. GDJ-0036 current publication에는 포함하지 않습니다.

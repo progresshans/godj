@@ -2,11 +2,275 @@
 
 package blog
 
-const GoDjGeneratorVersion = "godj-codegen-rel-v1"
-const GoDjSchemaSHA256 = "f6e1ac16bc940517cb87b91877e7551c28fb559cce3bcf14d936f4397fb10742"
+import (
+	"database/sql"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjSchemaSHA256 = "75d05d7d8e5e0dde5f6c049d7c93ef332b4db488e1256c314145fa234a550684"
 
 type Post struct {
-	ID         int64
-	AuthorID   int64
-	ReviewerID *int64
+	ID                    int64
+	AuthorID              int64
+	ReviewerID            *int64
+	godjPrimaryKeyPresent bool
+}
+
+type PostDescriptor struct{}
+
+var _ orm.ModelDescriptor[Post] = PostDescriptor{}
+
+var _ orm.WriteDescriptor[Post] = PostDescriptor{}
+
+func (PostDescriptor) Metadata() ir.Model {
+	return postMetadata()
+}
+
+func (PostDescriptor) Scan(row db.Row) (Post, error) {
+	var value Post
+	var scanReviewerID sql.NullInt64
+	if err := row.Scan(&value.ID, &value.AuthorID, &scanReviewerID); err != nil {
+		return Post{}, err
+	}
+	if scanReviewerID.Valid {
+		scanned := scanReviewerID.Int64
+		value.ReviewerID = &scanned
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (PostDescriptor) PrimaryKey(value Post) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (PostDescriptor) SetPrimaryKey(value *Post, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (PostDescriptor) ClearPrimaryKey(value *Post) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (PostDescriptor) CloneModel(value Post) Post {
+	clone := value
+	if value.ReviewerID != nil {
+		clonedReviewerID := *value.ReviewerID
+		clone.ReviewerID = &clonedReviewerID
+	}
+	return clone
+}
+
+func (descriptor PostDescriptor) CloneWriteModel(value Post) Post {
+	return descriptor.CloneModel(value)
+}
+
+func (PostDescriptor) WriteFieldValue(value Post, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "author":
+		return query.Integer(value.AuthorID), true
+	case "reviewer":
+		if value.ReviewerID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.ReviewerID), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+type PostFieldSet struct {
+	ID orm.IntegerField[Post]
+}
+
+var PostFields = func() PostFieldSet {
+	metadata := postMetadata()
+	return PostFieldSet{
+		ID: orm.NewIntegerField[Post](metadata.Fields[0]),
+	}
+}()
+
+var PostObjects = orm.NewManager[Post](PostDescriptor{})
+
+func NewPostWithID(key int64) Post {
+	return Post{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func PostUpdateFields(fields ...orm.WritableField[Post]) orm.SaveOption[Post] {
+	return orm.UpdateFields(fields...)
+}
+
+func PostUpdateFieldNames(names ...string) orm.SaveOption[Post] {
+	return orm.UpdateFieldNames[Post](names...)
+}
+
+func PostForceInsert() orm.SaveOption[Post] {
+	return orm.ForceInsert[Post]()
+}
+
+func PostForceUpdate() orm.SaveOption[Post] {
+	return orm.ForceUpdate[Post]()
+}
+
+type PostCreate struct {
+	authorID   orm.Change[int64]
+	reviewerID orm.NullableChange[int64]
+}
+
+func NewPostCreate(authorID int64) PostCreate {
+	return PostCreate{
+		authorID: orm.Set(authorID),
+	}
+}
+
+func (input PostCreate) WithAuthorID(value int64) PostCreate {
+	input.authorID = orm.Set(value)
+	return input
+}
+
+func (input PostCreate) WithReviewerID(value int64) PostCreate {
+	input.reviewerID = orm.SetNullable(value)
+	return input
+}
+
+func (input PostCreate) WithReviewerIDNull() PostCreate {
+	input.reviewerID = orm.SetNull[int64]()
+	return input
+}
+
+func (input PostCreate) BuildCreate() orm.Mutation[Post] {
+	metadata := postMetadata()
+	var value Post
+	assignments := make([]query.Assignment, 0, 2)
+	changedAuthorID, changedAuthorIDSet := input.authorID.Get()
+	if !changedAuthorIDSet {
+		return orm.InvalidMutation[Post](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "author",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.AuthorID = changedAuthorID
+	assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.Integer(changedAuthorID)))
+	changedReviewerID, changedReviewerIDState := input.reviewerID.Get()
+	switch changedReviewerIDState {
+	case orm.NullableChangeUnset:
+		value.ReviewerID = nil
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Null()))
+	case orm.NullableChangeValue:
+		storedReviewerID := changedReviewerID
+		value.ReviewerID = &storedReviewerID
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Integer(changedReviewerID)))
+	case orm.NullableChangeNull:
+		value.ReviewerID = nil
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Null()))
+	default:
+		return orm.InvalidMutation[Post](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "reviewer",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewCreateMutation(value, metadata.DBTable, assignments)
+}
+
+type PostPatch struct {
+	authorID   orm.Change[int64]
+	reviewerID orm.NullableChange[int64]
+}
+
+func (input PostPatch) WithAuthorID(value int64) PostPatch {
+	input.authorID = orm.Set(value)
+	return input
+}
+
+func (input PostPatch) WithReviewerID(value int64) PostPatch {
+	input.reviewerID = orm.SetNullable(value)
+	return input
+}
+
+func (input PostPatch) WithReviewerIDNull() PostPatch {
+	input.reviewerID = orm.SetNull[int64]()
+	return input
+}
+
+func (input PostPatch) BuildPatch(current Post) orm.Mutation[Post] {
+	metadata := postMetadata()
+	value := current
+	assignments := make([]query.Assignment, 0, 2)
+	if changedAuthorID, ok := input.authorID.Get(); ok {
+		value.AuthorID = changedAuthorID
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[1], query.Integer(changedAuthorID)))
+	}
+	changedReviewerID, changedReviewerIDState := input.reviewerID.Get()
+	switch changedReviewerIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedReviewerID := changedReviewerID
+		value.ReviewerID = &storedReviewerID
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Integer(changedReviewerID)))
+	case orm.NullableChangeNull:
+		value.ReviewerID = nil
+		assignments = append(assignments, orm.NewAssignment(metadata.Fields[2], query.Null()))
+	default:
+		return orm.InvalidMutation[Post](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "reviewer",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	return orm.NewPatchMutation(value, metadata.DBTable, assignments)
+}
+
+func postMetadata() ir.Model {
+	return ir.Model{
+		Name:    "post",
+		GoName:  "Post",
+		DBTable: "blog_post",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:   "author",
+				GoName: "AuthorID",
+				Column: "author_id",
+				Kind:   ir.FieldForeignKey,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "posts"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+			{
+				Name:     "reviewer",
+				GoName:   "ReviewerID",
+				Column:   "reviewer_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "reviewed_posts"},
+					OnDelete:    ir.DeleteSetNull,
+				},
+			},
+		},
+	}
 }

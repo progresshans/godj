@@ -11,9 +11,8 @@ import (
 
 const RelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
 
-// GenerateRelationProjection renders an additive app-local joined-projection
-// scanner. The existing main, relation metadata, query, and object companions
-// remain independent byte streams.
+// GenerateRelationProjection renders the current app-local joined-projection
+// scanner against the descriptor published by the main generator.
 func GenerateRelationProjection(packageName string, input ir.Schema) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
@@ -22,20 +21,11 @@ func GenerateRelationProjection(packageName string, input ir.Schema) ([]byte, er
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation projection schema: %w", err)
 	}
-	switch schema.FormatVersion {
-	case ir.FormatVersion:
-		if err := validateGeneratedNames(schema); err != nil {
-			return nil, fmt.Errorf("validate scalar projection prerequisite names: %w", err)
-		}
-		if err := validateRelationMetadataNames(schema); err != nil {
-			return nil, fmt.Errorf("validate scalar projection metadata names: %w", err)
-		}
-	case ir.RelationFormatVersion:
-		if err := validateRelationQueryNames(schema); err != nil {
-			return nil, fmt.Errorf("validate relation projection query names: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("generate relation projection schema: unsupported format version %d", schema.FormatVersion)
+	if err := validateGeneratedNames(schema); err != nil {
+		return nil, fmt.Errorf("validate projection prerequisite names: %w", err)
+	}
+	if err := validateRelationMetadataNames(schema); err != nil {
+		return nil, fmt.Errorf("validate projection metadata names: %w", err)
 	}
 	if err := validateRelationObjectNames(schema); err != nil {
 		return nil, fmt.Errorf("validate relation projection object names: %w", err)
@@ -66,7 +56,7 @@ func GenerateRelationProjection(packageName string, input ir.Schema) ([]byte, er
 	fmt.Fprintf(&output, "const GoDjRelationProjectionSchemaSHA256 = %s\n\n", strconv.Quote(hash))
 
 	for _, model := range schema.Models {
-		renderRelationProjectionModel(&output, schema.FormatVersion, model)
+		renderRelationProjectionModel(&output, model)
 	}
 
 	formatted, err := format.Source(output.Bytes())
@@ -119,7 +109,7 @@ func validateRelationProjectionNames(schema ir.Schema) error {
 	return nil
 }
 
-func renderRelationProjectionModel(output *bytes.Buffer, formatVersion int, model ir.Model) {
+func renderRelationProjectionModel(output *bytes.Buffer, model ir.Model) {
 	descriptor := model.GoName + "Descriptor"
 	scanType := lowerFirst(model.GoName) + "ProjectionScan"
 	key, _ := primaryKey(model)
@@ -185,9 +175,7 @@ func renderRelationProjectionModel(output *bytes.Buffer, formatVersion int, mode
 		}
 		fmt.Fprintf(output, "\t_value.%s = %s.%s\n", field.GoName, storage, relationProjectionSQLHolderValue(field))
 	}
-	if formatVersion == ir.FormatVersion {
-		fmt.Fprintln(output, "\t_value.godjPrimaryKeyPresent = true")
-	}
+	fmt.Fprintln(output, "\t_value.godjPrimaryKeyPresent = true")
 	fmt.Fprintf(
 		output,
 		"\treturn _value, query.Integer(_scan.%s.Int64), orm.ProjectionPresent\n",

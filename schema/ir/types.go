@@ -4,10 +4,11 @@
 // other.
 package ir
 
-const (
-	FormatVersion         = 2
-	RelationFormatVersion = 3
-)
+// CurrentFormatVersion is the only Schema IR format accepted before GoDj's
+// first external release. Scalar and relation-bearing schemas use the same
+// normalized representation; relation presence is a field property, not a
+// format generation.
+const CurrentFormatVersion = 1
 
 type Schema struct {
 	FormatVersion int     `json:"format_version"`

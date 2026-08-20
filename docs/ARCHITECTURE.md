@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-20
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -24,6 +24,48 @@ Backend compiler + schema editor + adapters
         ↓
 SQLite / PostgreSQL / MySQL / MariaDB / Oracle
 ```
+
+## 현재 pre-release 구현 경계
+
+[GDJ-0036](../work/0036-pre-release-compatibility-reset.md)과
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)는 첫 외부 alpha 전의
+개발 중 ABI를 지원 대상으로 보지 않습니다. 현재 제품 경계는 다음 하나의 흐름입니다.
+
+```text
+Schema IR current v1 (scalar + ForeignKey)
+        ↓
+definition.Load(format_version=1, current digest)
+        ↓
+opaque migrations.LoadedDefinitionSet
+        ↓
+Executor.Migrate(ctx, loaded, request)
+        ↓
+mandatory MigrationCapabilities
+        ↓
+RevisionFencedSession.BeginMigration(transition, MigrationIntent)
+```
+
+- `ProjectState` format 1은 current Schema IR만 담습니다. 관계 유무는 version 승격/강등이 아니라 field
+  의미로 판단합니다. Public `StateReconstructor`도 scalar와 relation operation을 같은 current
+  `ProjectState`로 재생하는 최종 계약을 가지며, lifecycle 전용 readiness/materialization은 공개된 두 번째
+  state format이 아닙니다.
+- `definition.Load`만 초기화된 `LoadedDefinitionSet`을 만들 수 있습니다. `Executor`는 이 opaque 값과
+  revision-fenced backend를 소유하고, raw `[]Migration`을 실행 권한으로 받거나 context에 숨은 handoff를
+  싣지 않습니다.
+- `DirectExecutor`는 의도적으로 분리된 raw scalar `Apply`/`Unapply`/`ExecutePlan` 경계입니다. Relation-bearing
+  state나 operation은 loader authority 없이 실행하지 않고 structured capability error로 fail-closed합니다.
+- Backend ABI는 scalar/relation별 optional begin을 나누지 않습니다. 모든 backend가 capability를 보고하고
+  `BeginMigration(HistoryTransition, MigrationIntent)` 하나를 구현하며, scalar operation은 같은 intent에서
+  relation target이 비어 있습니다.
+- Current main generator `godj-codegen-current-v1`은 scalar와 ForeignKey model 모두에 model, descriptor,
+  scan/clone/write metadata와 manager를 직접 생성합니다. App-local relation-query companion은 제거했고
+  cross-app typed relation wiring은 project-owned query generator가 맡습니다. Project facade도 app descriptor를
+  직접 재사용하며 compatibility-only private write model을 만들지 않습니다. 물리 파일 분할은 공개 ABI가
+  아니며 current candidate set의 deterministic compile/publication 경계로 관리합니다.
+
+아래 GDJ-000x~0035 설명은 각 당시 checkout의 설계·증거 기록입니다. 위 current 경계와 충돌하는
+v2/v3 byte-preservation, dual profile/state, context carrier와 optional relation port 서술은 현재 지원 계약이
+아닙니다.
 
 ## 계층별 책임
 
@@ -428,7 +470,12 @@ version handshake는 Q-010으로 남아 있고, generator runner는 여전히 `i
 
 현재 핵심 미결정 사항은 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md), 채택된 이유는 [adr/](adr/README.md)에 기록합니다.
 
-## GDJ-0035 relation-capable migration Accepted decision boundary
+## Historical GDJ-0035 relation-capable migration decision boundary
+
+이 절은 GDJ-0036 reset 이전의 Accepted/Partially Implemented 경계와 검증 이력을 보존합니다. 여기의 legacy
+tuple, digest v2, state promotion/demotion, `definitionhandoff`, `Set.Migrate`와 dual begin entry는
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에 의해 현재 제품 경계에서
+대체됐습니다.
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 completed
 GDJ-0034 terminal baseline 위의 단일 active contract-first packet입니다. Phase A/B reference/feasibility와

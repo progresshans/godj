@@ -1,6 +1,7 @@
 # 기준 출처와 검증 기록
 
-- 마지막 확인: 2026-08-12 (Asia/Seoul)
+- 외부 source 마지막 확인: 2026-08-12 (Asia/Seoul)
+- current artifact/provenance 마지막 검토: 2026-08-20 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -59,34 +60,36 @@ PyPI Django 6.1 wheel SHA-256은
 
 ## GoDj decision provenance
 
-Accepted [ADR-0019](adr/0019-versioned-migration-definition-source.md)는 Django source가
-정의하지 않는 GoDj migration definition JSON v1, compatibility tuple `(1,1,1,2)`, closed
-`CreateModel`/`AddField` codec, canonical digest, atomic publication과 failure precedence의
-정본입니다. MIG-057..064 manifest의 여덟 contract는 모두 이 ADR을 `kind=decision`,
-`derived=false`로 참조합니다. Pinned Django source/test provenance는 실제 공통 동작을 관찰한
-MIG-057과 MIG-064에만 별도로 기록하므로 GoDj wire 결정을 Django format claim과 섞지 않습니다.
+Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)는 Django source가
+정의하지 않는 현재 GoDj migration definition 단일 format, closed codec, canonical digest와 opaque loaded-set
+publication의 정본입니다. 현재 MIG-057..064 manifest의 여덟 contract는 모두 이 ADR을 `kind=decision`,
+`derived=false`로 참조합니다. Pinned Django source/test provenance는 실제 공통 동작을 관찰한 MIG-057과
+MIG-064에만 별도로 기록하므로 GoDj wire 결정을 Django format claim과 섞지 않습니다. Superseded
+[ADR-0019](adr/0019-versioned-migration-definition-source.md)의 compatibility tuple과 당시 artifact는 Git/EVID에
+보존된 역사이지 현재 지원 형식이 아닙니다.
 
-GDJ-0019 locked artifact는 manifest 5,195 bytes/
-`8a5f914a05eaa6382d1f43589743e4e8ba466b747e6fa80eb1cabef61bb924e6`, oracle 29,851
-bytes/`efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`, static fixture
-1,574 bytes/`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. Oracle
-directory의 `SHA256SUMS`는 959 bytes/
-`c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다.
+현재 migration-definition reference artifact는 manifest 5,151 bytes/
+`b5bc2612f3cfc642397ebff779294aa1cdc1a25b675632d2c7a2e615d47ee7fa`, oracle 29,654 bytes/
+`61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410`, static fixture 1,574 bytes/
+`41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다. MIG-057..064는 기존
+`passing`/registered product adapter 상태를 유지하며, reset은 artifact bytes와 decision provenance만 current-only로
+재기준화했습니다.
 
 Accepted [ADR-0021](adr/0021-project-linked-migration-check.md)은 Django가 정의하지 않는
 GoDj `godj.toml` project selection, descriptor-v1 subset, private project-runner JSON
 protocol, flat no-follow source discovery와 public exit/cancellation 의미의 정본입니다.
-MIG-065..074 manifest의 열 contract는 모두 이 ADR만 `kind=decision`,
-`derived=false`로 참조하며 Django source/test provenance는 없습니다. 기존 Django-named
-exact profile/runner/oracle directory를 재사용하는 것은 protocol-v2 reference corpus와
-checksum을 한 gate에서 유지하기 위한 것이고 Django behavior parity 주장이 아닙니다.
+현재 MIG-065..074 manifest의 열 contract는 모두 ADR-0021을 `kind=decision`, `derived=false`로 참조하고,
+definition format/digest를 직접 다루는 MIG-065..068과 MIG-073은 ADR-0035도 함께 참조합니다. Django
+source/test provenance는 없습니다. 기존 Django-named exact profile/runner/oracle directory를 재사용하는 것은
+protocol-v2 reference corpus와 checksum을 한 gate에서 유지하기 위한 것이고 Django behavior parity 주장이
+아닙니다.
 
-GDJ-0021 reference artifact는 manifest 4,580 bytes/
-`0cd8d77b03820af75c8bda8434620f40acd1a3cb6319cf4fb732db4b38d44218`, oracle 19,971
-bytes/`49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, static fixture
-1,729 bytes/`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. 기존
-`SHA256SUMS` 10줄은 byte-for-byte prefix로 보존하고 새 oracle을 11번째 줄에 append해
-1,061 bytes/`74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`로 만들었습니다.
+현재 migration-project-check reference artifact는 manifest 5,085 bytes/
+`e689b37098a4b26e4faddbd7c7e8a09d9145526f2b7bd1de7fb6cd5cb139c16b`, oracle 19,971 bytes/
+`8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa`, static fixture 1,729 bytes/
+`86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. MIG-065..074도 기존
+`passing`/registered product adapter 상태를 유지하며, current-only rebaseline은 status/registry를 새로 전환한 사건이
+아닙니다.
 
 GDJ-0021 implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`의 hosted 검증은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)입니다. GitHub의
@@ -223,12 +226,12 @@ hosted-verified됐습니다.
 
 Pinned Django 관찰과 GoDj-owned decision을 구분합니다. Relation tuple `(1,2,2,3)`, mixed digest v2,
 Relation State v2, physical `NO ACTION`과 bounded remake는 Django file ABI parity가 아니라
-[Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 GoDj-owned
-decision입니다. Phase A에서 Accepted 전 생성된 candidate payload는 historical `kind=proposal`, decision ID
+[ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)가 역사적으로 Accepted했던
+GoDj-owned decision이며 현재는 ADR-0035에 의해 Superseded됐습니다. Phase A에서 Accepted 전 생성된 candidate payload는 historical `kind=proposal`, decision ID
 `GDJ-0035`, `derived=false`로 기록합니다.
 Django BSD source/test reference는 위 exact object 중 실제 관찰한 부분에만 붙이고 GoDj scenario/payload는 독립적으로
 작성하며 source, fixture, comment 또는 assertion 구조를 복사·번역하지 않습니다. Phase A artifact를 만들 때 exact
-upstream path/test name, commit, observed symbol과 license/provenance를 artifact 가까이에 기록했습니다. Final
+upstream path/test name, commit, observed symbol과 license/provenance를 artifact 가까이에 기록했습니다. Phase-A final
 manifest/oracle/ordered NI/checksum은 7,792/125,248/1,846/1,245 bytes이고 SHA-256은 각각
 `dfe021c22931de3383b44068cf5f6e0ecbc86aa5f8ed96cb017c60171dcb569b`,
 `c742f91abee12708ef635c540578c6757470e34270e6594ad8a618f9b1afde27`,
@@ -243,10 +246,18 @@ GoDj same-transaction proposal은 서로 다른 provenance payload로 유지하�
 Phase C Proposed decision freeze와 later EVID-091-backed acceptance는 relation public constants/profile,
 digest/state, wire ownership, three-stage preflight, additive existing-fence backend와 SQLite order를 동결했지만
 source provenance를 바꾸는 사건이 아닙니다.
-Checked-in Phase A manifest/oracle/NI/checksum의 GoDj-owned payload는 계속 historical `kind=proposal`, decision ID
-`GDJ-0035`, `derived=false`이고 Django-observed payload와 합치거나 `kind=decision`으로 소급 재분류하지 않습니다.
+Phase-A checkout/Git history의 manifest/oracle/NI/checksum payload는 계속 historical `kind=proposal`, decision ID
+`GDJ-0035`, `derived=false`이고 Django-observed payload와 합치거나 소급 재분류하지 않습니다. 현재 checked-in
+same-ID diagnostic corpus는 별도 사건인 ADR-0035 current-only reset으로 재생성됐으며 manifest 7,858 bytes/
+`ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9`, oracle 120,502 bytes/
+`5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968`, static fixture 1,846 bytes/
+`f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`입니다. 현재 manifest는 ADR-0035를
+`kind=decision`, `derived=false`로 기록하지만 12 contract는 모두 `oracle_locked`이고 normal registry에
+미등록이므로 이 재생성만으로 product passing/지원이 되지 않습니다. 현재 13-line shared `SHA256SUMS`는 1,245 bytes/
+`76578c225edfa6af4bf2d119f93fdcdf633cfee8ebb5a9092aa5157e5f218be1`이며, 같은 크기의 Phase-A checksum
+`5022a230...`과 다른 current catalog입니다.
 Test-only candidate helpers, golden/hash와 private catalogs는 source/public API 정본이 아닙니다. ADR-0034 bounded
-design은 Accepted입니다. EVID-091은 Proposed docs head `5bdf013...`만 증명하고 EVID-092/run
+design은 역사적으로 Accepted됐고 현재는 ADR-0035에 의해 Superseded됐습니다. EVID-091은 Proposed docs head `5bdf013...`만 증명하고 EVID-092/run
 `32187094845`는 별도 acceptance head `7cdc6d6...`만 증명합니다. Later D1 definition/handoff,
 D2 private state/readiness, D3a direct optional SQLite Create/Delete port는
 [EVID-093](status/TEST_EVIDENCE.md#evid-20260819-093--gdj-0035-phase-d1-d2-d3a-bounded-product-slices-local-and-hosted-verification)의

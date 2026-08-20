@@ -1,6 +1,7 @@
 ---
 id: GDJ-0035
-status: active
+status: superseded
+superseded_by: "GDJ-0036"
 updated: 2026-08-20
 baseline_branch: "codex/revision-fenced-migration-lifecycle"
 baseline_commit: "0bb8c969d0658f50f40d916996f027e7393bce14"
@@ -117,6 +118,12 @@ integration_owner: "one primary agent"
 ---
 
 # Relation-capable Migration Definition, State, and SQLite Lifecycle
+
+> 2026-08-20: D4d~D4f 구현과 D4g Phase 0 characterization 증거는 역사적 결과로 보존합니다. 그러나
+> dual definition/state/backend/generated compatibility topology와 D4g publication 경로는
+> [GDJ-0036](0036-pre-release-compatibility-reset.md) 및
+> [ADR-0035](../docs/adr/0035-pre-release-current-only-format-and-generated-publication.md)로 대체됐습니다.
+> MIG-075..086 status/registry는 전환하지 않았습니다.
 
 ## 사용자에게 보이는 단일 결과
 
@@ -373,11 +380,13 @@ Phase A의 pinned Django 관찰은 이 GoDj 후보와 다른 경계를 보였습
 | MIG-085 | Pre-DDL full rollback, recorder-fault committed-schema boundary, GoDj atomic proposal | `oracle_locked` / observed + Accepted-decision separation |
 | MIG-086 | Commit success/definite failure/unknown outcome, no automatic retry | `oracle_locked` / Accepted-decision reference |
 
-이 12개 ID만 현재 고정합니다. 이 표는 Phase A의 historical observation/proposal과 later Accepted decision을
-함께 보여 주며, later decision을 Phase A artifact가 관찰한 사실로 소급하지 않습니다. Checked-in
-Phase A manifest/oracle/static fixture/checksum payload의 provenance는 historical `kind=proposal`, decision ID
-`GDJ-0035`, `derived=false`로 불변입니다. 각 artifact는 7,792/125,248/1,846/1,245 bytes이며 exact SHA-256은
-EVID-085에 기록했습니다.
+GDJ-0035 당시에는 이 12개 ID를 위 의미로 고정했습니다. 이 표는 Phase A의 historical observation/proposal과
+later Accepted decision을 함께 보여 주며, later decision을 Phase A artifact가 관찰한 사실로 소급하지 않습니다.
+Phase A checkout/Git history의 manifest/oracle/static fixture/checksum provenance는 historical
+`kind=proposal`, decision ID `GDJ-0035`, `derived=false`였고 각 artifact는
+7,792/125,248/1,846/1,245 bytes였습니다. Exact SHA-256은 EVID-085에 보존합니다. 현재 checked-in same-ID
+manifest/oracle은 [GDJ-0036](0036-pre-release-compatibility-reset.md)의 ADR-0035 current-only 의미로
+재기준화됐으므로 이 표나 옛 bytes를 현재 artifact 설명으로 사용하지 않습니다.
 
 ## 실행 단계
 

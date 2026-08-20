@@ -349,7 +349,7 @@ func validateGeneratedImportGraph(t *testing.T, directory string) {
 
 func mutualRelationGenerationSchemas() (ir.Schema, ir.Schema) {
 	authors, blog := relationGenerationSchemas()
-	authors.FormatVersion = ir.RelationFormatVersion
+	authors.FormatVersion = ir.CurrentFormatVersion
 	authors.Models[0].Fields = append(authors.Models[0].Fields,
 		ir.Field{
 			Name:     "favorite_post",

@@ -7,9 +7,9 @@ import (
 	"strconv"
 )
 
-const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"
+const ProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v1"
 
-// GenerateProjectRelationSelectRelated renders the additive project-only
+// GenerateProjectRelationSelectRelated renders the current project-only
 // select-related companion. It attaches a singular builder to the existing
 // relation-object factory; it does not create another project binding root.
 func GenerateProjectRelationSelectRelated(

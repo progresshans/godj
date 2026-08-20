@@ -1,5 +1,38 @@
 # GoDj Compatibility Lab
 
+## GDJ-0036 current lab boundary
+
+GoDj는 아직 첫 외부 alpha 전이므로 개발 중 migration/generated ABI를 영구 legacy로 지원하지 않습니다.
+[GDJ-0036](../work/0036-pre-release-compatibility-reset.md)과
+[ADR-0035](../docs/adr/0035-pre-release-current-only-format-and-generated-publication.md)에 따른 현재 lab 경계는
+다음과 같습니다.
+
+- Schema IR, Migration Definition wire/digest와 `ProjectState`는 각각 current version 1 하나입니다.
+- `definition.Load`는 opaque `migrations.LoadedDefinitionSet`을 반환하고 complete product lifecycle은
+  `Executor.Migrate(ctx, loaded, request)` 하나입니다. Raw scalar execution은 `DirectExecutor`가 소유하며
+  relation-bearing raw input은 fail-closed합니다.
+- Backend는 mandatory `MigrationCapabilities`와
+  `BeginMigration(HistoryTransition, MigrationIntent)` 하나를 사용합니다.
+- MIG-057..064 observation은 single `format_version`, current digest와
+  `format`/`execution`/`lifecycle`/`session_open_calls` vocabulary로 재기준화했습니다. MIG-065..074도 같은
+  current definition-set digest/provenance를 사용하며 기존 contract ID와 `passing` status를 유지합니다.
+- Definition manifest/oracle은 5,151/29,654 bytes와 SHA-256 `b5bc2612...`/`61401746...`, project-check
+  manifest/oracle은 5,085/19,971 bytes와 `e689b370...`/`8bbf10c0...`입니다. 두 NI fixture는 status-only라
+  기존 1,574/1,729 bytes를 유지합니다.
+- Current codegen main ABI는 relation model descriptor/write metadata를 직접 생성합니다. App-local
+  relation-query generated file과 facade-private write model은 없고 cross-app query/binding/facade는
+  project-owned입니다. Relation generated roster는 단계별 exact `8 / 9 / 11 / 12 / 13`입니다.
+- GDJ-0035 Phase-B의 legacy tuple/profile/promotion publication sequence는 retire했습니다. MIG-075..086의
+  checked-in manifest/oracle은 ADR-0035 current-only 진단 reference로 재기준화했으며 계속
+  `oracle_locked`/unregistered입니다. 이전 artifact bytes는 Git history와 EVID에만 남고, current reference
+  aggregate에는 이 locked set을 포함하지만 product aggregate에는 포함하지 않습니다.
+
+Current bytes에서 exact uv 0.10.12 oracle `--check`, focused Python 38 tests(1 exact-profile skip), GoDj
+oracle compare 8/8·10/10, contract/false-green gates와 `go test -count=1 ./conformance/...`를 통과했습니다.
+최종 frozen head의 hosted matrix 전에는 이 local 결과를 hosted `Verified`로 확대하지 않습니다.
+
+## Historical progression
+
 이 디렉터리는 Django reference profile, contract manifest, normalized observation,
 comparator, M0 codegen bootstrap spike와 GoDj observation adapter를 보관합니다.
 GDJ-0003은 같은 exact profile에 write/migration 전용 두 번째 contract set을 추가했고,
@@ -112,28 +145,27 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
 | `contracts/migration-state-reconstruction-manifest.json` | Historical ProjectState reconstruction reference contract 10개 |
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
-| `contracts/migration-definition-source-manifest.json` | Explicit versioned migration definition source reference contract 8개 |
+| `contracts/migration-definition-source-manifest.json` | Current-format migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
-| `contracts/migration-relation-manifest.json` | Relation-capable migration reference-only MIG-075..086 12개; 현재 모두 `oracle_locked` |
+| `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `runners/godj` | M1 read부터 relation metadata까지 제품 package를 실행하는 열두 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
-| `relationqueryproduct` | checked-in generated required relation-query fixture와 REL-004 actual SQLite observation root |
+| `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
-| `relationreverseproduct` | exact nine-file generated reverse-relation fixture와 REL-005 actual SQLite observation root |
-| `relationprefetchproduct` | exact ten-file generated reverse-prefetch fixture와 REL-012 actual two-query SQLite observation root |
-| `relationselectproduct` | exact twelve-file generated one-hop forward select-related fixture와 REL-009/010/011 actual SQLite observation root |
-| `relationdeleteproduct` | current generator v2 exact thirteen-file generated prerequisite와 facade를 합친 exact fourteen-file fixture; REL-002/007/008 actual SQLite observation root |
+| `relationreverseproduct` | current exact eight-file generated reverse-relation fixture와 REL-005 actual SQLite observation root |
+| `relationprefetchproduct` | current exact nine-file generated reverse-prefetch fixture와 REL-012 actual two-query SQLite observation root |
+| `relationselectproduct` | current exact eleven-file generated one-hop forward select-related fixture와 REL-009/010/011 actual SQLite observation root |
+| `relationdeleteproduct` | current exact twelve-file generated prerequisite와 facade를 합친 exact thirteen-file fixture; REL-002/007/008 actual SQLite observation root |
 | `oracles/**/*.json` | 정확한 provenance에 묶인 byte-deterministic expected reference observation |
 | `oracles/**/SHA256SUMS` | checked-in oracle byte checksum |
 | `internal/protocol` | strict decoder/validator/canonical value, all-observed comparator와 required-observed product comparator |
 | `fixtures/godj*.json` | 미구현 상태가 pass되지 않는 set별 protocol fixture와 reviewed sparse deviation expectation |
 | `codegenbootstrap` | Q-001 package bootstrap 실행 실험 |
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
-| `definitionload` | GDJ-0019 test-only feasibility proof와 GDJ-0020 public loader의 independent black-box equivalence gate |
+| `definitionload` | Current format/load ownership과 opaque lifecycle authority를 검증하는 focused gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
-| `migrationrelation` | GDJ-0035 Phase B feasibility와 Phase C exact decision boundary를 검증하는 test-only no-product gate; numeric version/profile behavior, digest/state/wire/three-stage preflight와 planned additive existing-fence backend behavior를 proof하지만 public constant names나 actual relation DDL product integration/adapter를 export하지 않음 |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -424,8 +456,8 @@ go run ./conformance/cmd/godjcheck \
   -deviation-expected conformance/fixtures/godj-migration-lifecycle-deviation-expected.json
 ```
 
-Migration definition source 제품 adapter는 public `migrations/definition.Load`와
-`Set.Migrate`를 실행합니다. MIG-057..064는 Django result parity가 아닌 Accepted ADR decision
+Migration definition source 제품 adapter는 public `migrations/definition.Load`와 opaque
+`LoadedDefinitionSet`을 받는 `Executor.Migrate`를 실행합니다. MIG-057..064는 Django result parity가 아닌 Accepted ADR decision
 set이므로 성공 문구는 `locked reference oracle`이며, Django-derived set의 기존
 `locked Django oracle` 문구와 구분합니다.
 
@@ -461,18 +493,18 @@ go run ./conformance/cmd/observationcmp \
   -actual conformance/fixtures/godj-migration-project-check-not-implemented.json
 ```
 
-Relation product adapter는 기존 checked-in generated bridge로 REL-001 metadata를 관찰하고, 별도
-`relationqueryproduct`의 generated query companion/project bridge와 실제 SQLite rows로 REL-004의 두 forward
+Relation product adapter는 checked-in current generated bridge로 REL-001 metadata를 관찰하고, 별도
+`relationqueryproduct`의 project-owned generated query bridge와 실제 SQLite rows로 REL-004의 두 forward
 predicate case를 관찰합니다. `relationobjectproduct`는 independently generated descriptor seal/object bridge와
 actual SQLite source rows로 REL-003 cold/warm object cache와 REL-006 null access/JOIN-0 `isnull`을 관찰합니다.
-`relationreverseproduct`는 exact nine generated files의 project-only companion, freshly loaded owner accessor와
-typed/dynamic reverse lookup을 actual SQLite에서 관찰합니다. `relationprefetchproduct`는 기존 exact nine-file
-union에 project-only prefetch companion 하나만 더한 exact ten-file union을 사용해 owner SELECT 1회와 root
+`relationreverseproduct`는 exact eight generated files의 project-only companion, freshly loaded owner accessor와
+typed/dynamic reverse lookup을 actual SQLite에서 관찰합니다. `relationprefetchproduct`는 exact eight-file
+reverse union에 project-only prefetch companion 하나를 더한 exact nine-file union을 사용해 owner SELECT 1회와 root
 `author_id IN` batch SELECT 1회, JOIN 0, warm access 추가 query 0을 actual SQLite에서 관찰합니다.
-`relationselectproduct`는 exact twelve-file union과 actual SQLite joined row scan으로 REL-009/010의
+`relationselectproduct`는 exact eleven-file union과 actual SQLite joined row scan으로 REL-009/010의
 required INNER/nullable LEFT OUTER eager access를 관찰하고, 같은 resolver로 REL-011 reverse path를 pre-I/O
-거부합니다. `relationdeleteproduct`는 현재 generator v2 prerequisite를 exact thirteen-file union으로 결정적으로
-재생성하고 project facade 한 파일을 더한 exact fourteen-file generated union을 사용합니다. REL-002는 new source에 no-PK target을
+거부합니다. `relationdeleteproduct`는 current generator prerequisite를 exact twelve-file union으로 결정적으로
+재생성하고 project facade 한 파일을 더한 exact thirteen-file generated union을 사용합니다. REL-002는 new source에 no-PK target을
 할당한 뒤 Save가 query/mutation 0, database unchanged와 `model_state_error/unsaved_related_object`로 실패하는 것을
 관찰합니다. 같은 실제 `NO ACTION`/`RESTRICT` FK와 pinned `BEGIN IMMEDIATE` transaction에서 REL-007의 전 incoming
 edge `PROTECT` count 2와 mutation 0, REL-008의 `UPDATE(2) -> DELETE(1)`/caller key clear도 계속 관찰합니다.
@@ -702,6 +734,11 @@ reviewed product expectation과 10-contract match입니다. 이때 확정된 9 p
 역사적 분류는 `92 passing + 5 deviation`이며, 97 unique contract와 72 ordered
 cross-binding gate를 유지합니다.
 
+### Historical GDJ-0019..0022 artifact snapshots
+
+다음 definition/project-check API, artifact hash와 집계는 각 완료 checkout의 증거입니다. Current
+MIG-057..074 format/API/artifact는 이 문서 상단의 GDJ-0036 boundary를 따릅니다.
+
 완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)과 Accepted
 [ADR-0019](../docs/adr/0019-versioned-migration-definition-source.md)는 caller-provided bytes,
 strict data-only JSON v1, tuple `(1,1,1,2)`, closed `CreateModel`/non-PK `char`·`boolean`
@@ -795,22 +832,31 @@ Oracle 33,792
 bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
 bytes/`2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, 12-line
 `SHA256SUMS` 1,148 bytes/`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`는
-바꾸지 않았습니다. 기존 REL-001/004 fixture bytes도 보존합니다. 별도 checked-in REL-004 fixture는 v2 target/v3
-source schema에서 main/metadata/query companion과 두 project bridge를 실제 재생성하고 manual FK-enabled
-SQLite fixture의 real QuerySet 결과를 관찰합니다. REL-003/006 fixture는 additive object companions/project
+바꾸지 않았습니다.
+
+### GDJ-0036 current generated relation fixture shape
+
+GDJ-0036에서는 checked-in generated fixture bytes를 current ABI로 재기준화했습니다.
+별도 checked-in REL-004 fixture는 current target/source schema에서 main/metadata와 project-owned
+binding/query bridge를 실제 재생성하고 manual FK-enabled
+SQLite fixture의 real QuerySet 결과를 관찰했습니다. 다음 파일 수는 GDJ-0036 current ABI로 재기준화했습니다.
+REL-003/006 fixture는 object companions/project
 object bridge를 재생성하고 actual SQLite loader/cache/source-key Plan을 관찰합니다. REL-005 fixture는 authors
-main/metadata/object, blog main/metadata/query/object와 project binding/reverse companion의 exact nine files를
-재생성하고 accessor `[10,11]`과 lookup `[1]`을 관찰합니다. REL-012 fixture는 이 exact nine-file union을
-바꾸지 않고 project prefetch companion 하나를 더해 exact ten files를 재생성하며 `[1:[10,11],2:[],3:[12]]`,
+main/metadata/object, blog main/metadata/object와 project binding/reverse companion의 exact eight files를
+재생성하고 accessor `[10,11]`과 lookup `[1]`을 관찰합니다. REL-012 fixture는 이 exact eight-file union에
+project prefetch companion을 더한 exact nine files로 `[1:[10,11],2:[],3:[12]]`,
 두 SELECT, root `author_id IN`, key count 3, JOIN 0과 warm access extra query 0을 관찰합니다.
-REL-009/010/011 fixture는 기존 object product 아홉 파일에 app-local projection companion 두 개와 project
-select-related companion 하나를 더한 exact twelve files를 재생성합니다. Required plain/eager 4-vs-1 SELECT와
+REL-009/010/011 fixture는 current object product에 app-local projection companion 두 개와 project
+select-related companion 하나를 더한 exact eleven files를 재생성합니다. Required plain/eager 4-vs-1 SELECT와
 INNER 1, nullable LEFT OUTER 1, warm access extra query 0, reverse `posts` path의 query/mutation 0을 관찰합니다.
-REL-007/008 fixture의 prerequisite exact thirteen generated union은 현재 generator versions로 결정적으로
-재생성됩니다. GDJ-0033 project facade를 더한 exact fourteen-file union에서 REL-002 assignment/Save와 supplemental
+REL-007/008 fixture의 prerequisite exact twelve generated union은 current generator로 결정적으로
+재생성됩니다. Project facade를 더한 exact thirteen-file union에서 REL-002 assignment/Save와 supplemental
 presence/reconciliation/per-edge COW cache/rollback 경계를 검증합니다. 같은 실제 FK schema에서 `PROTECT` distinct
 source count 2와 mutation 0, `SET_NULL` UPDATE 2행 뒤 target DELETE 1행 및 하나의 transaction도 계속 관찰합니다.
 모든 actual은 oracle/static expected artifact를 import하지 않습니다.
+
+다음 workflow/inventory 수치는 GDJ-0035 final checkout의 historical snapshot입니다. GDJ-0036 final frozen
+inventory와 hosted topology는 통합 gate에서 새로 기록해야 합니다.
 
 Required workflow topology는 full/exact 2 + independent project-check proof 4 + relation-binding proof 4 +
 SQLite 4 + actual project-check product 4 + Python compatibility 4의 existing exact 22를 보존하고,
@@ -833,15 +879,21 @@ recorder-restart/historical-state/lifecycle/definition-source scenario는 Django
 번역하지 않고 GoDj 고유 fixture로 독립적으로
 작성했습니다. Static migration fixture도 public `migrate` 경로를 관찰하기 위한 독립
 정의입니다. Manifest의
-upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. MIG-057..064는
-모두 Accepted ADR-0019 decision provenance를 가지며, Django behavior를 실제 관찰한
+upstream 문서/test reference는 동작 근거와 버전을 추적하기 위한 것입니다. Current MIG-057..064는
+모두 Accepted ADR-0035 decision provenance를 가지며, Django behavior를 실제 관찰한
 MIG-057/MIG-064만 pinned Django provenance를 별도로 가집니다. 파생물
 분류와 고지 규칙은 `docs/LICENSING.md`와 `NOTICE.md`를 따릅니다.
-MIG-065..074는 Accepted ADR-0021 decision provenance만 가지며 Django source/test를
+MIG-065..074는 Accepted ADR-0021 decision provenance를 유지하고, current definition load/digest를 직접
+소유하는 MIG-065..068/MIG-073은 ADR-0035 decision provenance도 가집니다. 이 set은 Django source/test를
 참조하지 않습니다. Django-named exact profile과 oracle directory 재사용은 corpus 관리
 경계일 뿐 Django-derived 분류가 아닙니다. REL-001..012는 Django 6.1 commit에 고정된 documentation/test
 provenance를 가지지만 scenario와 GoDj product fixture는 독립 작성했으며 Django source를 번역하지
 않았습니다.
+
+아래 GDJ-0035 provenance와 artifact bytes는 historical evidence입니다. 그 Phase-B legacy
+tuple/profile/promotion 의미와 product publication sequence는 GDJ-0036에서 retire했습니다. 현재 checked-in
+MIG-075..086 artifact는 ADR-0035 current-only 진단 reference로 대체됐고 reference aggregate에는 포함되지만,
+계속 `oracle_locked`/unregistered라 product aggregate에는 포함하지 않습니다.
 
 GDJ-0035 exact 16-document activation head는 EVID-084/run `31618469072`에서 hosted-verified됐습니다. Phase A는
 [EVID-085](../docs/status/TEST_EVIDENCE.md#evid-20260813-085--gdj-0035-phase-a-reference-only-artifacts-and-local-validation)에서
@@ -871,7 +923,8 @@ head `85f9270...`와 D4f final head `9d5b894...`도 각각 unique CI #94/#95 run
 `32288383027`/`32294983953`의 exact 26/26·342/342와 audit P0..P3=0을 통과했습니다. D4f bounded
 reverse/unapply remake 구현은 exact appended nullable `PROTECT` 또는 `SET_NULL`, required `PROTECT`를
 허용합니다. Frozen D4f direct E2E fixture는 nullable `PROTECT`와 required `PROTECT`만 검증했으며
-dedicated nullable `SET_NULL` D4f E2E proof를 주장하지 않습니다. MIG-075..086은 계속 `oracle_locked`입니다.
+dedicated nullable `SET_NULL` D4f E2E proof를 주장하지 않습니다. 그 checkout에서 MIG-075..086은
+`oracle_locked`였습니다.
 
 Phase A에서 아직 Accepted되지 않았던 GoDj-owned GDJ-0035 candidate payload는 historical provenance
 `kind=proposal`, decision ID `GDJ-0035`, `derived=false`로 계속 분류합니다. Pinned Django BSD source/test

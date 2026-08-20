@@ -15,9 +15,6 @@ const (
 	CodeInvalidSource                ErrorCode = "invalid_definition_source"
 	CodeInvalidDocument              ErrorCode = "invalid_definition_document"
 	CodeDefinitionFormatIncompatible ErrorCode = "definition_format_incompatible"
-	CodeLoaderABIIncompatible        ErrorCode = "loader_abi_incompatible"
-	CodeOperationCodecIncompatible   ErrorCode = "operation_codec_incompatible"
-	CodeSchemaIRIncompatible         ErrorCode = "schema_ir_incompatible"
 	CodeUnsupportedOperation         ErrorCode = "unsupported_definition_operation"
 	CodeInvalidOperation             ErrorCode = "invalid_definition_operation"
 	CodeInvalidIR                    ErrorCode = "invalid_definition_ir"
@@ -129,15 +126,15 @@ func documentFailure(sourceID, pointer, reason string) failureCandidate {
 	}
 }
 
-func compatibilityFailure(code ErrorCode, sourceID, coordinate string) failureCandidate {
+func formatFailure(sourceID string) failureCandidate {
 	return failureCandidate{
-		code: code,
+		code: CodeDefinitionFormatIncompatible,
 		context: FailureContext{
-			Stage:          "compatibility",
+			Stage:          "format",
 			SourceID:       sourceID,
-			JSONPointer:    "/compatibility/" + coordinate,
+			JSONPointer:    "/format_version",
 			OperationIndex: -1,
-			Reason:         coordinate,
+			Reason:         "format_version",
 		},
 	}
 }
@@ -263,7 +260,7 @@ func lessFailureCandidate(left, right failureCandidate) bool {
 		if leftLimit != rightLimit {
 			return leftLimit < rightLimit
 		}
-	} else if left.context.Stage == "source" || left.context.Stage == "compatibility" {
+	} else if left.context.Stage == "source" || left.context.Stage == "format" {
 		leftReason := failureReasonRank(left.context.Stage, left.context.Reason)
 		rightReason := failureReasonRank(right.context.Stage, right.context.Reason)
 		if leftReason != rightReason {
@@ -311,7 +308,7 @@ func failureStageRank(stage string) int {
 		return 0
 	case "document":
 		return 1
-	case "compatibility":
+	case "format":
 		return 2
 	case "semantic":
 		return 3
@@ -381,16 +378,10 @@ func failureReasonRank(stage, reason string) int {
 		case "trailing_value":
 			return 8
 		}
-	case "compatibility":
+	case "format":
 		switch reason {
-		case "definition_format":
+		case "format_version":
 			return 0
-		case "loader_abi":
-			return 1
-		case "operation_codec":
-			return 2
-		case "schema_ir":
-			return 3
 		}
 	case "semantic":
 		switch reason {

@@ -17,17 +17,17 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestSQLiteRelationMigrationCapabilities(t *testing.T) {
+func TestSQLiteMigrationCapabilities(t *testing.T) {
 	t.Parallel()
-	got := (&Backend{}).RelationMigrationCapabilities()
-	want := migrationbackend.RelationMigrationCapabilities{
+	got := (&Backend{}).MigrationCapabilities()
+	want := migrationbackend.MigrationCapabilities{
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
 		RemoveForeignKeyByTableRemake:     true,
 	}
 	if got != want {
-		t.Fatalf("RelationMigrationCapabilities() = %+v, want %+v", got, want)
+		t.Fatalf("MigrationCapabilities() = %+v, want %+v", got, want)
 	}
 }
 
@@ -39,12 +39,12 @@ func TestSQLiteRelationTargetAuthorityIndexSelectsExactSameTableSnapshot(t *test
 	editor.Relation.Reverse.Name = "edited_articles"
 	after := created.Clone()
 	after.Fields = append(after.Fields, editor)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          created,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: author,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
@@ -52,10 +52,10 @@ func TestSQLiteRelationTargetAuthorityIndexSelectsExactSameTableSnapshot(t *test
 		},
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationAddField,
+			Kind:           migrationbackend.MigrationAddField,
 			Before:         created,
 			After:          after,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: editor,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
@@ -85,7 +85,7 @@ func TestSQLiteRelationCanonicalTableMatcherAcceptsOnlyExactTableAndMixedForms(t
 	editor.Relation.Reverse.Name = "edited_articles"
 	model := before.Clone()
 	model.Fields = append(model.Fields, editor)
-	targets := []migrationbackend.RelationMigrationTarget{
+	targets := []migrationbackend.MigrationTarget{
 		{SourceField: author, TargetModel: target, TargetKey: target.Fields[0]},
 		{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]},
 	}
@@ -154,7 +154,7 @@ func TestSQLiteRelationCanonicalTableMatcherAcceptsLargeMixedFormInOnePass(t *te
 		Name: "wide", GoName: "Wide", DBTable: "wide_relation",
 		Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
 	}
-	targets := make([]migrationbackend.RelationMigrationTarget, 0, sqliteRelationMaxFields-1)
+	targets := make([]migrationbackend.MigrationTarget, 0, sqliteRelationMaxFields-1)
 	pending := make([]string, 0, sqliteRelationMaxFields/2)
 	var statement strings.Builder
 	statement.WriteString(`CREATE TABLE "wide_relation" ("id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT`)
@@ -166,7 +166,7 @@ func TestSQLiteRelationCanonicalTableMatcherAcceptsLargeMixedFormInOnePass(t *te
 		field.Nullable = true
 		field.Relation.Reverse.Name = fmt.Sprintf("wide_%04d", index)
 		model.Fields = append(model.Fields, field)
-		targetMetadata := migrationbackend.RelationMigrationTarget{
+		targetMetadata := migrationbackend.MigrationTarget{
 			SourceField: field,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -246,9 +246,9 @@ func TestSQLiteNullableRelationDerivedTargetExpansionIsBoundedBeforeAllocation(t
 	}
 	after := before.Clone()
 	after.Fields = append(after.Fields, added)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.MigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
 	}}}
 	_, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest"},
@@ -295,9 +295,9 @@ func TestSQLiteNullableRelationDerivedTargetExpansionBytesAreBoundedBeforeAlloca
 	}
 	after := before.Clone()
 	after.Fields = append(after.Fields, added)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.MigrationTarget{{SourceField: added, TargetModel: target, TargetKey: target.Fields[0]}},
 	}}}
 	_, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "wide", Name: "0002_latest_bytes"},
@@ -317,9 +317,9 @@ func TestSQLiteNullableRelationDerivedTargetsDoNotRetainCallerAliases(t *testing
 	editor.Relation.Reverse.Name = "edited_articles"
 	after := before.Clone()
 	after.Fields = append(after.Fields, editor)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.MigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
 	}}}
 	seal, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
@@ -360,17 +360,17 @@ func TestSQLiteRelationCreateModelRoundTripUsesOneFencedTransaction(t *testing.T
 
 	target, source, sourceField := sqliteRelationTestModels()
 	targetKey := target.Fields[0]
-	applyIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	applyIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          target,
 		},
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   targetKey,
@@ -386,9 +386,9 @@ func TestSQLiteRelationCreateModelRoundTripUsesOneFencedTransaction(t *testing.T
 	if records, err := session.ReadAppliedMigrations(ctx); err != nil || len(records) != 0 {
 		t.Fatalf("fresh relation snapshot = (%v, %v), want empty", records, err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, applyIntent)
+	transaction, err := session.BeginMigration(ctx, transition, applyIntent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(apply): %v", err)
+		t.Fatalf("BeginMigration(apply): %v", err)
 	}
 
 	// The backend owns a deep sealed copy after Begin. Mutating every caller
@@ -452,12 +452,12 @@ func TestSQLiteRelationCreateModelRoundTripUsesOneFencedTransaction(t *testing.T
 		t.Fatalf("clear child rows: %v", err)
 	}
 
-	unapplyIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	unapplyIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationDeleteModel,
+			Kind:           migrationbackend.MigrationDeleteModel,
 			Before:         executeSource,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: executeSourceField,
 				TargetModel: executeTarget,
 				TargetKey:   executeTarget.Fields[0],
@@ -465,7 +465,7 @@ func TestSQLiteRelationCreateModelRoundTripUsesOneFencedTransaction(t *testing.T
 		},
 		{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationDeleteModel,
+			Kind:           migrationbackend.MigrationDeleteModel,
 			Before:         executeTarget,
 		},
 	}}
@@ -476,9 +476,9 @@ func TestSQLiteRelationCreateModelRoundTripUsesOneFencedTransaction(t *testing.T
 	if err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{transition.Migration}) {
 		t.Fatalf("unapply snapshot = (%v, %v)", records, err)
 	}
-	transaction, err = session.BeginRelationFencedMigration(ctx, unapplyTransition, unapplyIntent)
+	transaction, err = session.BeginMigration(ctx, unapplyTransition, unapplyIntent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(unapply): %v", err)
+		t.Fatalf("BeginMigration(unapply): %v", err)
 	}
 	if err := transaction.DeleteModel(ctx, executeSource); err != nil {
 		t.Fatalf("DeleteModel(child): %v", err)
@@ -545,12 +545,12 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	editor.Relation.Reverse.Name = "edited_articles"
 	after := before.Clone()
 	after.Fields = append(after.Fields, editor)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationAddField,
+		Kind:           migrationbackend.MigrationAddField,
 		Before:         before,
 		After:          after,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -564,9 +564,9 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	if records, err := session.ReadAppliedMigrations(ctx); err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
 		t.Fatalf("pre-Add history = (%v, %v)", records, err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err := session.BeginMigration(ctx, transition, intent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(nullable Add): %v", err)
+		t.Fatalf("BeginMigration(nullable Add): %v", err)
 	}
 	// The caller-visible contract remains the changed-field target only. The
 	// backend derives its full private source target list without retaining
@@ -668,12 +668,12 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	}
 	removeBefore := before.Clone()
 	removeBefore.Fields = append(removeBefore.Fields, editor.Clone())
-	remove := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	remove := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationRemoveField,
+		Kind:           migrationbackend.MigrationRemoveField,
 		Before:         removeBefore,
 		After:          before,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -681,9 +681,9 @@ func TestSQLiteNullableRelationAddUsesSealedSameTargetAndPreservesPopulatedRows(
 	}}}
 	removeTransition := transition
 	removeTransition.Kind = migrationbackend.HistoryTransitionUnapply
-	transaction, err = session.BeginRelationFencedMigration(ctx, removeTransition, remove)
+	transaction, err = session.BeginMigration(ctx, removeTransition, remove)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(reverse Remove): %v", err)
+		t.Fatalf("BeginMigration(reverse Remove): %v", err)
 	}
 	if err := transaction.RemoveField(ctx, removeBefore.Clone(), editor.Clone()); err != nil {
 		t.Fatalf("RemoveField(reverse relation remake): %v", err)
@@ -742,10 +742,10 @@ func TestSQLiteRequiredRelationAddToEmptyTableUsesNativeNotNullForeignKey(t *tes
 	reviewer.Relation.Reverse.Name = "reviewed_articles"
 	after := before.Clone()
 	after.Fields = append(after.Fields, reviewer)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField,
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField,
 		Before: before, After: after,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0],
 		}},
 	}}}
@@ -758,9 +758,9 @@ func TestSQLiteRequiredRelationAddToEmptyTableUsesNativeNotNullForeignKey(t *tes
 		!reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
 		t.Fatalf("pre-Add history = (%v, %v)", records, err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err := session.BeginMigration(ctx, transition, intent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(required Add): %v", err)
+		t.Fatalf("BeginMigration(required Add): %v", err)
 	}
 	if err := transaction.AddField(ctx, before.Clone(), reviewer.Clone()); err != nil {
 		t.Fatalf("AddField(required relation): %v", err)
@@ -880,9 +880,9 @@ func TestSQLiteRequiredRelationAddRejectsPopulatedSourceBeforeRevisionClaim(t *t
 	reviewer.Relation.Reverse.Name = "reviewed_articles"
 	after := before.Clone()
 	after.Fields = append(after.Fields, reviewer)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.MigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
 	}}}
 	session := openSQLiteRelationSession(t, database)
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
@@ -893,7 +893,7 @@ func TestSQLiteRequiredRelationAddRejectsPopulatedSourceBeforeRevisionClaim(t *t
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_reviewer"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
@@ -945,12 +945,12 @@ func TestSQLiteRequiredRelationAddTreatsSameIntentCreatedSourceAsStaticallyEmpty
 	reviewer.Relation.Reverse.Name = "reviewed_articles"
 	after := before.Clone()
 	after.Fields = append(after.Fields, reviewer)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
-		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationCreateModel, After: target},
-		{OperationIndex: 1, Kind: migrationbackend.RelationMigrationCreateModel, After: before},
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
+		{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: target},
+		{OperationIndex: 1, Kind: migrationbackend.MigrationCreateModel, After: before},
 		{
-			OperationIndex: 2, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
-			Targets: []migrationbackend.RelationMigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+			OperationIndex: 2, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
+			Targets: []migrationbackend.MigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
 		},
 	}}
 	transition := migrationbackend.HistoryTransition{
@@ -969,9 +969,9 @@ func TestSQLiteRequiredRelationAddTreatsSameIntentCreatedSourceAsStaticallyEmpty
 		emptyProbe.migrationPinnedConnection = connection
 		return emptyProbe
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err := session.BeginMigration(ctx, transition, intent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(same-intent required Add): %v", err)
+		t.Fatalf("BeginMigration(same-intent required Add): %v", err)
 	}
 	if emptyProbe.remaining != 1 {
 		t.Fatal("same-intent created source performed a physical emptiness query")
@@ -1079,12 +1079,12 @@ func TestSQLiteNullableRelationAddFaultsRollbackExactDurableSnapshot(t *testing.
 			editor.Relation.Reverse.Name = "edited_articles"
 			after := before.Clone()
 			after.Fields = append(after.Fields, editor)
-			intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+			intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 				OperationIndex: 0,
-				Kind:           migrationbackend.RelationMigrationAddField,
+				Kind:           migrationbackend.MigrationAddField,
 				Before:         before,
 				After:          after,
-				Targets: []migrationbackend.RelationMigrationTarget{{
+				Targets: []migrationbackend.MigrationTarget{{
 					SourceField: editor,
 					TargetModel: target,
 					TargetKey:   target.Fields[0],
@@ -1130,9 +1130,9 @@ func TestSQLiteNullableRelationAddFaultsRollbackExactDurableSnapshot(t *testing.
 				}
 				return boundary
 			}
-			transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+			transaction, err := session.BeginMigration(ctx, transition, intent)
 			if err != nil {
-				t.Fatalf("BeginRelationFencedMigration(nullable Add %s): %v", test.name, err)
+				t.Fatalf("BeginMigration(nullable Add %s): %v", test.name, err)
 			}
 			if connectionHooks != 1 || boundary == nil {
 				t.Fatalf("nullable Add %s connection hooks = %d boundary=%v", test.name, connectionHooks, boundary)
@@ -1272,13 +1272,14 @@ func TestSQLiteLoadedNullableRelationAddFaultTaxonomyAndRollback(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "loaded-nullable-add-fault.sqlite")
 			loaded := loadSQLiteLoadedNullableRelationAddSet(t, test.name)
 			database := openSQLiteLoadedRelationTaxonomyBackend(t, path)
-			seedState, err := loaded.Migrate(
+			seedState, err := (migrations.Executor{Backend: database}).Migrate(
 				ctx,
-				migrations.Executor{Backend: database},
+				loaded,
 				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 					App: "news", Name: "0002_article",
 				})),
 			)
+
 			if err != nil {
 				t.Fatalf("Migrate(nullable Add taxonomy seed): %v", err)
 			}
@@ -1301,7 +1302,7 @@ func TestSQLiteLoadedNullableRelationAddFaultTaxonomyAndRollback(t *testing.T) {
 				method: test.method, contains: test.contains, remaining: 1, faultErr: cause,
 			}
 			probe := &sqliteLoadedRelationTaxonomyBackend{Backend: database, fault: connectionFault}
-			state, err := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+			state, err := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 			var migrationError *migrations.Error
 			if !errors.As(err, &migrationError) || migrationError == nil ||
 				migrationError.Category != test.category || migrationError.Code != test.code ||
@@ -1419,13 +1420,14 @@ func TestSQLiteLoadedRequiredRelationAddFaultTaxonomyAndRollback(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "loaded-required-add-fault.sqlite")
 			loaded := loadSQLiteLoadedRequiredRelationAddSet(t, test.name)
 			database := openSQLiteLoadedRelationTaxonomyBackend(t, path)
-			seedState, err := loaded.Migrate(
+			seedState, err := (migrations.Executor{Backend: database}).Migrate(
 				ctx,
-				migrations.Executor{Backend: database},
+				loaded,
 				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 					App: "news", Name: "0002_article",
 				})),
 			)
+
 			if err != nil {
 				t.Fatalf("Migrate(required Add taxonomy seed): %v", err)
 			}
@@ -1444,7 +1446,7 @@ func TestSQLiteLoadedRequiredRelationAddFaultTaxonomyAndRollback(t *testing.T) {
 				method: test.method, contains: test.contains, remaining: 1, faultErr: cause,
 			}
 			probe := &sqliteLoadedRelationTaxonomyBackend{Backend: database, fault: connectionFault}
-			state, err := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+			state, err := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 			var migrationError *migrations.Error
 			if !errors.As(err, &migrationError) || migrationError == nil ||
 				migrationError.Category != test.category || migrationError.Code != test.code ||
@@ -1517,15 +1519,15 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 	baseEditor.Column = "editor_id"
 	baseEditor.Nullable = true
 	baseEditor.Relation.Reverse.Name = "edited_articles"
-	addIntent := func(field ir.Field, targetModel ir.Model, targetKey ir.Field) migrationbackend.RelationMigrationIntent {
+	addIntent := func(field ir.Field, targetModel ir.Model, targetKey ir.Field) migrationbackend.MigrationIntent {
 		after := before.Clone()
 		after.Fields = append(after.Fields, field)
-		return migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationAddField,
+			Kind:           migrationbackend.MigrationAddField,
 			Before:         before,
 			After:          after,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: field,
 				TargetModel: targetModel,
 				TargetKey:   targetKey,
@@ -1566,9 +1568,9 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 	selfField.Relation.Reverse.Name = "children"
 	selfAfter := selfBefore.Clone()
 	selfAfter.Fields = append(selfAfter.Fields, selfField)
-	selfIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: selfBefore, After: selfAfter,
-		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: selfField, TargetModel: selfBefore, TargetKey: selfBefore.Fields[0]}},
+	selfIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: selfBefore, After: selfAfter,
+		Targets: []migrationbackend.MigrationTarget{{SourceField: selfField, TargetModel: selfBefore, TargetKey: selfBefore.Fields[0]}},
 	}}}
 	firstAfter := before.Clone()
 	firstAfter.Fields = append(firstAfter.Fields, baseEditor)
@@ -1580,21 +1582,21 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 	reviewer.Relation.Reverse.Name = "reviewed_articles"
 	secondAfter := firstAfter.Clone()
 	secondAfter.Fields = append(secondAfter.Fields, reviewer)
-	multiple := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	multiple := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
-			OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField,
+			OperationIndex: 0, Kind: migrationbackend.MigrationAddField,
 			Before: before, After: firstAfter,
-			Targets: []migrationbackend.RelationMigrationTarget{{SourceField: baseEditor, TargetModel: target, TargetKey: target.Fields[0]}},
+			Targets: []migrationbackend.MigrationTarget{{SourceField: baseEditor, TargetModel: target, TargetKey: target.Fields[0]}},
 		},
 		{
-			OperationIndex: 1, Kind: migrationbackend.RelationMigrationAddField,
+			OperationIndex: 1, Kind: migrationbackend.MigrationAddField,
 			Before: firstAfter, After: secondAfter,
-			Targets: []migrationbackend.RelationMigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
+			Targets: []migrationbackend.MigrationTarget{{SourceField: reviewer, TargetModel: target, TargetKey: target.Fields[0]}},
 		},
 	}}
 	tests := []struct {
 		name   string
-		intent migrationbackend.RelationMigrationIntent
+		intent migrationbackend.MigrationIntent
 		detail string
 	}{
 		{name: "defaulted required", intent: addIntent(defaultedRequired, target, target.Fields[0]), detail: "ForeignKey defaults are not supported"},
@@ -1627,12 +1629,12 @@ func TestSQLiteNullableRelationAddRejectsUnsealedAuthorityBeforeClaim(t *testing
 			concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 				checkpoints = append(checkpoints, checkpoint)
 			}
-			transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+			transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 				Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
 				Kind:      migrationbackend.HistoryTransitionApply,
 			}, test.intent)
 			if transaction != nil || err == nil || !strings.Contains(err.Error(), test.detail) {
-				t.Fatalf("BeginRelationFencedMigration(%s) = (%v, %v), want detail %q", test.name, transaction, err, test.detail)
+				t.Fatalf("BeginMigration(%s) = (%v, %v), want detail %q", test.name, transaction, err, test.detail)
 			}
 			if connectionCalls != 0 || len(checkpoints) != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
 				t.Fatalf("%s crossed static boundary: connections=%d checkpoints=%v active=%v state=%d", test.name, connectionCalls, checkpoints, concrete.active, concrete.state)
@@ -1674,9 +1676,9 @@ func TestSQLiteNullableRelationAddCanonicalDriftFailsBeforeRevisionClaim(t *test
 	editor.Relation.Reverse.Name = "edited_articles"
 	after := before.Clone()
 	after.Fields = append(after.Fields, editor)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
-		OperationIndex: 0, Kind: migrationbackend.RelationMigrationAddField, Before: before, After: after,
-		Targets: []migrationbackend.RelationMigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0, Kind: migrationbackend.MigrationAddField, Before: before, After: after,
+		Targets: []migrationbackend.MigrationTarget{{SourceField: editor, TargetModel: target, TargetKey: target.Fields[0]}},
 	}}}
 	beforeSnapshot, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
 	if err != nil {
@@ -1704,12 +1706,12 @@ func TestSQLiteNullableRelationAddCanonicalDriftFailsBeforeRevisionClaim(t *test
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
 	if transaction != nil || err == nil || !strings.Contains(err.Error(), "canonical declaration") {
-		t.Fatalf("BeginRelationFencedMigration(canonical drift) = (%v, %v)", transaction, err)
+		t.Fatalf("BeginMigration(canonical drift) = (%v, %v)", transaction, err)
 	}
 	if connectionCalls != 1 {
 		t.Fatalf("canonical drift connection calls = %d, want 1", connectionCalls)
@@ -1755,7 +1757,7 @@ func TestSQLiteRelationDirectPortSurvivesCloseReopenApplyUnapplyReapply(t *testi
 		if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 			t.Fatal(err)
 		}
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migration,
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}, sqliteRelationApplyIntent(target, source, sourceField))
@@ -1785,7 +1787,7 @@ func TestSQLiteRelationDirectPortSurvivesCloseReopenApplyUnapplyReapply(t *testi
 		if err != nil || !reflect.DeepEqual(records, []migrationbackend.AppliedMigration{migration}) {
 			t.Fatalf("ReadAppliedMigrations(unapply) = (%v, %v)", records, err)
 		}
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migration,
 			Kind:      migrationbackend.HistoryTransitionUnapply,
 		}, sqliteRelationUnapplyIntent(target, source, sourceField))
@@ -1845,7 +1847,7 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 		name        string
 		method      string
 		contains    string
-		setup       func(*testing.T, context.Context, *Backend, *ir.Model, *ir.Model, *ir.Field) migrationbackend.RelationMigrationIntent
+		setup       func(*testing.T, context.Context, *Backend, *ir.Model, *ir.Model, *ir.Field) migrationbackend.MigrationIntent
 		checkpoints []sqliteRelationBeginCheckpoint
 		begun       bool
 	}{
@@ -1863,7 +1865,7 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 				sqliteRelationCheckpointForeignKeysRead,
 				sqliteRelationCheckpointTransactionBegun,
 			},
-			setup: func(t *testing.T, ctx context.Context, backend *Backend, target, source *ir.Model, sourceField *ir.Field) migrationbackend.RelationMigrationIntent {
+			setup: func(t *testing.T, ctx context.Context, backend *Backend, target, source *ir.Model, sourceField *ir.Field) migrationbackend.MigrationIntent {
 				t.Helper()
 				statement, err := compileMigrationCreateModel(*target)
 				if err != nil {
@@ -1874,11 +1876,11 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 				}
 				sourceField.Relation.Target.AppLabel = "accounts"
 				source.Fields[2] = sourceField.Clone()
-				return migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+				return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 					OperationIndex: 0,
-					Kind:           migrationbackend.RelationMigrationCreateModel,
+					Kind:           migrationbackend.MigrationCreateModel,
 					After:          source.Clone(),
-					Targets: []migrationbackend.RelationMigrationTarget{{
+					Targets: []migrationbackend.MigrationTarget{{
 						SourceField: sourceField.Clone(),
 						TargetModel: target.Clone(),
 						TargetKey:   target.Fields[0].Clone(),
@@ -1931,12 +1933,12 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 				fault.migrationPinnedConnection = connection
 				return fault
 			}
-			transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+			transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 				Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 				Kind:      migrationbackend.HistoryTransitionApply,
 			}, intent)
 			if transaction != nil || err == nil || fault.remaining != 0 {
-				t.Fatalf("BeginRelationFencedMigration() = (%v, %v), remaining fault=%d", transaction, err, fault.remaining)
+				t.Fatalf("BeginMigration() = (%v, %v), remaining fault=%d", transaction, err, fault.remaining)
 			}
 			if !reflect.DeepEqual(checkpoints, test.checkpoints) {
 				t.Fatalf("begin checkpoints = %v, want %v", checkpoints, test.checkpoints)
@@ -1979,7 +1981,7 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 			t.Fatal(err)
 		}
 		target, source, sourceField := sqliteRelationTestModels()
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}, sqliteRelationApplyIntent(target, source, sourceField))
@@ -2018,7 +2020,7 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 			return fault
 		}
 		target, source, sourceField := sqliteRelationTestModels()
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}, sqliteRelationApplyIntent(target, source, sourceField))
@@ -2057,7 +2059,7 @@ func TestSQLiteRelationBeginFaultsCleanUpBeforePublication(t *testing.T) {
 			return fault
 		}
 		target, source, sourceField := sqliteRelationTestModels()
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}, sqliteRelationApplyIntent(target, source, sourceField))
@@ -2088,7 +2090,7 @@ func TestSQLiteRelationCreateModelRequiresExactCursorAndRecorderExhaustion(t *te
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err := session.BeginMigration(ctx, transition, intent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2118,7 +2120,7 @@ func TestSQLiteRelationCreateModelRequiresExactCursorAndRecorderExhaustion(t *te
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
 	}
-	transaction, err = session.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err = session.BeginMigration(ctx, transition, intent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2149,33 +2151,53 @@ func TestSQLiteRelationMixedScalarFieldRoundTripAndReapply(t *testing.T) {
 	extra := ir.Field{Name: "published", GoName: "Published", Column: "published", Kind: ir.FieldBoolean}
 	sourceAfterAdd := source.Clone()
 	sourceAfterAdd.Fields = append(sourceAfterAdd.Fields, extra)
-	applyIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
-		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationCreateModel, After: target},
+	applyIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
+		{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: target},
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
 			}},
 		},
-		{OperationIndex: 2, Kind: migrationbackend.RelationMigrationAddField, Before: source, After: sourceAfterAdd},
+		{
+			OperationIndex: 2,
+			Kind:           migrationbackend.MigrationAddField,
+			Before:         source,
+			After:          sourceAfterAdd,
+			Targets: []migrationbackend.MigrationTarget{{
+				SourceField: sourceField,
+				TargetModel: target,
+				TargetKey:   target.Fields[0],
+			}},
+		},
 	}}
-	unapplyIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
-		{OperationIndex: 2, Kind: migrationbackend.RelationMigrationRemoveField, Before: sourceAfterAdd, After: source},
+	unapplyIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
+		{
+			OperationIndex: 2,
+			Kind:           migrationbackend.MigrationRemoveField,
+			Before:         sourceAfterAdd,
+			After:          source,
+			Targets: []migrationbackend.MigrationTarget{{
+				SourceField: sourceField,
+				TargetModel: target,
+				TargetKey:   target.Fields[0],
+			}},
+		},
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationDeleteModel,
+			Kind:           migrationbackend.MigrationDeleteModel,
 			Before:         source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
 			}},
 		},
-		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationDeleteModel, Before: target},
+		{OperationIndex: 0, Kind: migrationbackend.MigrationDeleteModel, Before: target},
 	}}
 	migration := migrationbackend.AppliedMigration{App: "news", Name: "0001_mixed_relation"}
 
@@ -2185,12 +2207,12 @@ func TestSQLiteRelationMixedScalarFieldRoundTripAndReapply(t *testing.T) {
 		if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 			t.Fatal(err)
 		}
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migration,
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}, applyIntent)
 		if err != nil {
-			t.Fatalf("BeginRelationFencedMigration(apply): %v", err)
+			t.Fatalf("BeginMigration(apply): %v", err)
 		}
 		if err := transaction.CreateModel(ctx, target); err != nil {
 			t.Fatal(err)
@@ -2218,12 +2240,12 @@ func TestSQLiteRelationMixedScalarFieldRoundTripAndReapply(t *testing.T) {
 		if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 			t.Fatal(err)
 		}
-		transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+		transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: migration,
 			Kind:      migrationbackend.HistoryTransitionUnapply,
 		}, unapplyIntent)
 		if err != nil {
-			t.Fatalf("BeginRelationFencedMigration(unapply): %v", err)
+			t.Fatalf("BeginMigration(unapply): %v", err)
 		}
 		if err := transaction.RemoveField(ctx, sourceAfterAdd, extra); err != nil {
 			t.Fatalf("RemoveField(relation table): %v", err)
@@ -2271,13 +2293,15 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 	}
 	valid := sqliteRelationApplyIntent(target, source, sourceField)
 
-	t.Run("scalar_only_uses_sqlite_feature", func(t *testing.T) {
-		_, err := validateAndSealSQLiteRelationIntent(transition, migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	t.Run("scalar_only_is_a_valid_unified_intent", func(t *testing.T) {
+		seal, err := validateAndSealSQLiteRelationIntent(transition, migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          target,
 		}}})
-		assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+		if err != nil || len(seal.intent.Operations) != 1 || len(seal.intent.Operations[0].Targets) != 0 {
+			t.Fatalf("scalar unified intent = (%+v, %v)", seal.intent, err)
+		}
 	})
 
 	t.Run("self_target_bearing_add_is_integrity", func(t *testing.T) {
@@ -2286,12 +2310,12 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		relationField.Relation.Target.ModelName = target.Name
 		after := before.Clone()
 		after.Fields = append(after.Fields, relationField)
-		_, err := validateAndSealSQLiteRelationIntent(transition, migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		_, err := validateAndSealSQLiteRelationIntent(transition, migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationAddField,
+			Kind:           migrationbackend.MigrationAddField,
 			Before:         before,
 			After:          after,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: relationField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
@@ -2303,7 +2327,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 	})
 
 	t.Run("wrong_direction_is_integrity_before_session", func(t *testing.T) {
-		single := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{valid.Operations[1]}}
+		single := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{valid.Operations[1]}}
 		single.Operations[0].OperationIndex = 0
 		wrongDirection := transition
 		wrongDirection.Kind = migrationbackend.HistoryTransitionUnapply
@@ -2338,11 +2362,16 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		after := before.Clone()
 		after.Fields = append(after.Fields, extra)
 		forged := cloneSQLiteRelationIntent(valid)
-		forged.Operations = append(forged.Operations, migrationbackend.RelationMigrationOperation{
+		forged.Operations = append(forged.Operations, migrationbackend.MigrationOperation{
 			OperationIndex: 2,
-			Kind:           migrationbackend.RelationMigrationAddField,
+			Kind:           migrationbackend.MigrationAddField,
 			Before:         before,
 			After:          after,
+			Targets: []migrationbackend.MigrationTarget{{
+				SourceField: sourceField,
+				TargetModel: target,
+				TargetKey:   target.Fields[0],
+			}},
 		})
 		_, err := validateAndSealSQLiteRelationIntent(transition, forged)
 		if err == nil || !strings.Contains(err.Error(), "discontinuous") {
@@ -2361,11 +2390,11 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 				field,
 			},
 		}
-		_, err := validateAndSealSQLiteRelationIntent(transition, migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+		_, err := validateAndSealSQLiteRelationIntent(transition, migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          child,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: field,
 				TargetModel: external,
 				TargetKey:   external.Fields[0],
@@ -2383,13 +2412,13 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 		field.Relation.Target.AppLabel = "accounts"
 		crossAppSource := source.Clone()
 		crossAppSource.Fields[2] = field
-		intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
-			{OperationIndex: 0, Kind: migrationbackend.RelationMigrationCreateModel, After: localTarget},
+		intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
+			{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: localTarget},
 			{
 				OperationIndex: 1,
-				Kind:           migrationbackend.RelationMigrationCreateModel,
+				Kind:           migrationbackend.MigrationCreateModel,
 				After:          crossAppSource,
-				Targets: []migrationbackend.RelationMigrationTarget{{
+				Targets: []migrationbackend.MigrationTarget{{
 					SourceField: field,
 					TargetModel: externalTarget,
 					TargetKey:   externalTarget.Fields[0],
@@ -2408,7 +2437,7 @@ func TestSQLiteRelationIntentStaticBoundaryIsClosedAndDeterministic(t *testing.T
 	})
 
 	t.Run("resource_limit_precedes_clone", func(t *testing.T) {
-		forged := migrationbackend.RelationMigrationIntent{Operations: make([]migrationbackend.RelationMigrationOperation, sqliteRelationMaxOperations+1)}
+		forged := migrationbackend.MigrationIntent{Operations: make([]migrationbackend.MigrationOperation, sqliteRelationMaxOperations+1)}
 		_, err := validateAndSealSQLiteRelationIntent(transition, forged)
 		if err == nil || !strings.Contains(err.Error(), "maximum") {
 			t.Fatalf("resource validation error = %v", err)
@@ -2429,9 +2458,9 @@ func TestSQLiteRelationLaterTargetFieldCannotCollideWithRegisteredReverseBeforeC
 		Name: "articles", GoName: "Articles", Column: "articles", Kind: ir.FieldBoolean,
 	})
 	intent := sqliteRelationApplyIntent(target, source, sourceField)
-	intent.Operations = append(intent.Operations, migrationbackend.RelationMigrationOperation{
+	intent.Operations = append(intent.Operations, migrationbackend.MigrationOperation{
 		OperationIndex: 2,
-		Kind:           migrationbackend.RelationMigrationAddField,
+		Kind:           migrationbackend.MigrationAddField,
 		Before:         target,
 		After:          targetAfter,
 	})
@@ -2445,12 +2474,12 @@ func TestSQLiteRelationLaterTargetFieldCannotCollideWithRegisteredReverseBeforeC
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_reverse_collision"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
 	if transaction != nil || err == nil || !strings.Contains(err.Error(), "collides with reverse name") {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want ordered reverse collision", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want ordered reverse collision", transaction, err)
 	}
 	if len(checkpoints) != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
 		t.Fatalf("reverse collision crossed connection boundary: checkpoints=%v active=%v state=%d", checkpoints, concrete.active, concrete.state)
@@ -2481,18 +2510,18 @@ func TestSQLiteRelationInitialReverseCollisionCannotBeRemovedBeforeDelete(t *tes
 	targetBefore.Fields = append(targetBefore.Fields, ir.Field{
 		Name: "articles", GoName: "Articles", Column: "articles", Kind: ir.FieldBoolean,
 	})
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationRemoveField,
+			Kind:           migrationbackend.MigrationRemoveField,
 			Before:         targetBefore,
 			After:          targetAfter,
 		},
 		{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationDeleteModel,
+			Kind:           migrationbackend.MigrationDeleteModel,
 			Before:         source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: targetAfter,
 				TargetKey:   targetAfter.Fields[0],
@@ -2513,12 +2542,12 @@ func TestSQLiteRelationInitialReverseCollisionCannotBeRemovedBeforeDelete(t *tes
 		connectionCalls++
 		return connection
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migration,
 		Kind:      migrationbackend.HistoryTransitionUnapply,
 	}, intent)
 	if transaction != nil || err == nil || !strings.Contains(err.Error(), "collides with reverse name") {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want initial reverse collision", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want initial reverse collision", transaction, err)
 	}
 	if connectionCalls != 0 || len(checkpoints) != 0 || concrete.active != nil || concrete.state != revisionSessionReady {
 		t.Fatalf(
@@ -2566,7 +2595,7 @@ func TestSQLiteRelationNonASCIITempDecoyDoesNotShadowASCIIIdentifier(t *testing.
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_nonascii"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, sqliteRelationApplyIntent(target, source, sourceField))
@@ -2606,12 +2635,12 @@ func TestSQLiteRelationUnrelatedLegacyForeignKeyCycleDoesNotBlock(t *testing.T) 
 	editor.Relation.Reverse.Name = "edited_articles"
 	after := source.Clone()
 	after.Fields = append(after.Fields, editor)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationAddField,
+		Kind:           migrationbackend.MigrationAddField,
 		Before:         source,
 		After:          after,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -2622,7 +2651,7 @@ func TestSQLiteRelationUnrelatedLegacyForeignKeyCycleDoesNotBlock(t *testing.T) 
 		!reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
 		t.Fatalf("unrelated cycle history = (%v, %v)", records, err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
@@ -2663,12 +2692,12 @@ func TestSQLiteNullableRelationAddTargetOutgoingCycleFailsBeforeClaim(t *testing
 	editor.Relation.Reverse.Name = "edited_articles"
 	after := source.Clone()
 	after.Fields = append(after.Fields, editor)
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationAddField,
+		Kind:           migrationbackend.MigrationAddField,
 		Before:         source,
 		After:          after,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: editor,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -2683,12 +2712,12 @@ func TestSQLiteNullableRelationAddTargetOutgoingCycleFailsBeforeClaim(t *testing
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
 	if transaction != nil || err == nil || !errors.Is(err, errSQLiteRelationPhysicalDrift) {
-		t.Fatalf("BeginRelationFencedMigration(target outgoing cycle) = (%v, %v)", transaction, err)
+		t.Fatalf("BeginMigration(target outgoing cycle) = (%v, %v)", transaction, err)
 	}
 	assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
 	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
@@ -2734,11 +2763,11 @@ func TestSQLiteRelationExternalTargetWithHarmlessSchemaObjects(t *testing.T) {
 		}
 	}
 
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationCreateModel,
+		Kind:           migrationbackend.MigrationCreateModel,
 		After:          source,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: sourceField,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -2752,9 +2781,9 @@ func TestSQLiteRelationExternalTargetWithHarmlessSchemaObjects(t *testing.T) {
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err := session.BeginMigration(ctx, transition, intent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(): %v", err)
+		t.Fatalf("BeginMigration(): %v", err)
 	}
 	if err := transaction.CreateModel(ctx, source); err != nil {
 		t.Fatal(err)
@@ -2776,7 +2805,7 @@ func TestSQLiteRelationCompilerAlwaysUsesNoAction(t *testing.T) {
 	sourceField.Nullable = true
 	sourceField.Relation.OnDelete = ir.DeleteSetNull
 	source.Fields[2] = sourceField
-	statement, err := compileSQLiteRelationCreateModel(source, []migrationbackend.RelationMigrationTarget{{
+	statement, err := compileSQLiteRelationCreateModel(source, []migrationbackend.MigrationTarget{{
 		SourceField: sourceField,
 		TargetModel: target,
 		TargetKey:   target.Fields[0],
@@ -2809,12 +2838,12 @@ func TestSQLiteRelationBeginCheckpointOrderAndPostClaimCancellation(t *testing.T
 			cancel()
 		}
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_cancel_after_claim"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, sqliteRelationApplyIntent(target, source, sourceField))
 	if transaction != nil || !errors.Is(err, context.Canceled) {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want nil/context.Canceled", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want nil/context.Canceled", transaction, err)
 	}
 	want := []sqliteRelationBeginCheckpoint{
 		sqliteRelationCheckpointForeignKeysSet,
@@ -2835,7 +2864,7 @@ func TestSQLiteRelationBeginCheckpointOrderAndPostClaimCancellation(t *testing.T
 	}
 }
 
-func TestSQLiteRelationStaticUnsupportedDoesNotConsumeReadySession(t *testing.T) {
+func TestSQLiteMigrationStaticInvalidDoesNotConsumeReadySession(t *testing.T) {
 	ctx := context.Background()
 	backend, err := OpenMemory(ctx, "relation-static-zero-io")
 	if err != nil {
@@ -2856,19 +2885,26 @@ func TestSQLiteRelationStaticUnsupportedDoesNotConsumeReadySession(t *testing.T)
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	transaction, err := session.BeginMigration(ctx, transition, migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationCreateModel,
+		Kind:           migrationbackend.MigrationCreateModel,
 		After:          target,
+		Targets: []migrationbackend.MigrationTarget{{
+			SourceField: sourceField,
+			TargetModel: target,
+			TargetKey:   target.Fields[0],
+		}},
 	}}})
 	if transaction != nil {
-		t.Fatalf("scalar-only Begin returned transaction %v", transaction)
+		t.Fatalf("invalid Begin returned transaction %v", transaction)
 	}
-	assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
+	if err == nil || !strings.Contains(err.Error(), "has 1 targets, want 0") {
+		t.Fatalf("invalid Begin error = %v", err)
+	}
 	if len(checkpoints) != 0 || concrete.state != revisionSessionReady || concrete.active != nil {
 		t.Fatalf("static rejection checkpoints/state/active = %v/%d/%v, want empty/ready/nil", checkpoints, concrete.state, concrete.active)
 	}
-	transaction, err = session.BeginRelationFencedMigration(ctx, transition, sqliteRelationApplyIntent(target, source, sourceField))
+	transaction, err = session.BeginMigration(ctx, transition, sqliteRelationApplyIntent(target, source, sourceField))
 	if err != nil {
 		t.Fatalf("valid Begin after static rejection: %v", err)
 	}
@@ -3037,12 +3073,12 @@ func TestSQLiteRelationPhysicalPreflightStopsBeforeRevisionClaim(t *testing.T) {
 			concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 				checkpoints = append(checkpoints, checkpoint)
 			}
-			transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+			transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 				Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 				Kind:      migrationbackend.HistoryTransitionApply,
 			}, sqliteRelationApplyIntent(target, source, sourceField))
 			if transaction != nil || err == nil {
-				t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want physical preflight failure", transaction, err)
+				t.Fatalf("BeginMigration() = (%v, %v), want physical preflight failure", transaction, err)
 			}
 			for _, checkpoint := range checkpoints {
 				if checkpoint == sqliteRelationCheckpointRevisionClaimStarting || checkpoint == sqliteRelationCheckpointRevisionClaimed {
@@ -3078,21 +3114,21 @@ func TestSQLiteRelationExternalTargetRequiresExactAutoIncrementShape(t *testing.
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_external"},
 		Kind:      migrationbackend.HistoryTransitionApply,
-	}, migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	}, migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationCreateModel,
+		Kind:           migrationbackend.MigrationCreateModel,
 		After:          source,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: sourceField,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
 		}},
 	}}})
 	if transaction != nil || err == nil || !strings.Contains(err.Error(), "canonical declaration") {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want AUTOINCREMENT drift failure", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want AUTOINCREMENT drift failure", transaction, err)
 	}
 	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
 }
@@ -3120,12 +3156,12 @@ func TestSQLiteRelationCreateRejectsOrphanSequenceBeforeClaim(t *testing.T) {
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, sqliteRelationApplyIntent(target, source, sourceField))
 	if transaction != nil || err == nil || !strings.Contains(err.Error(), "orphan row") {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want orphan sequence failure", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want orphan sequence failure", transaction, err)
 	}
 	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
 }
@@ -3159,9 +3195,9 @@ func TestSQLiteRelationNonEmptyScalarAddFailsBeforeClaim(t *testing.T) {
 	profileAfter.Fields = append(profileAfter.Fields, extra)
 	target, source, sourceField := sqliteRelationTestModels()
 	intent := sqliteRelationApplyIntent(target, source, sourceField)
-	intent.Operations = append([]migrationbackend.RelationMigrationOperation{{
+	intent.Operations = append([]migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationAddField,
+		Kind:           migrationbackend.MigrationAddField,
 		Before:         profile,
 		After:          profileAfter,
 	}}, intent.Operations...)
@@ -3177,12 +3213,12 @@ func TestSQLiteRelationNonEmptyScalarAddFailsBeforeClaim(t *testing.T) {
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, intent)
 	if transaction != nil || err == nil {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want nonempty AddField failure", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want nonempty AddField failure", transaction, err)
 	}
 	assertSQLiteRelationCapabilityFeature(t, err, "sqlite_add_field")
 	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
@@ -3331,12 +3367,12 @@ func TestSQLiteRelationDeletePreflightRejectsUnsealedSchemaHazards(t *testing.T)
 			concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 				checkpoints = append(checkpoints, checkpoint)
 			}
-			transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+			transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 				Migration: migration,
 				Kind:      migrationbackend.HistoryTransitionUnapply,
 			}, sqliteRelationUnapplyIntent(target, source, sourceField))
 			if transaction != nil || err == nil {
-				t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want closed preflight failure", transaction, err)
+				t.Fatalf("BeginMigration() = (%v, %v), want closed preflight failure", transaction, err)
 			}
 			assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
 			if !sqliteRelationTestTableExists(t, backend, target.DBTable) || !sqliteRelationTestTableExists(t, backend, source.DBTable) {
@@ -3374,12 +3410,12 @@ func TestSQLiteRelationControlInboundForeignKeyFailsBeforeClaimWithoutCascade(t 
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_relation"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}, sqliteRelationApplyIntent(target, source, sourceField))
 	if transaction != nil || err == nil {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want control-inbound failure", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want control-inbound failure", transaction, err)
 	}
 	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
 	var rows int
@@ -3408,7 +3444,7 @@ func TestSQLiteRelationForeignKeyCheckRunsBeforeRecorder(t *testing.T) {
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, transition, sqliteRelationApplyIntent(target, source, sourceField))
+	transaction, err := session.BeginMigration(ctx, transition, sqliteRelationApplyIntent(target, source, sourceField))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3545,19 +3581,19 @@ func TestSQLiteRelationScalarRemoveRejectsExternalInboundColumnBeforeClaim(t *te
 		}
 	}
 
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 2,
-			Kind:           migrationbackend.RelationMigrationDeleteModel,
+			Kind:           migrationbackend.MigrationDeleteModel,
 			Before:         source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
 			}},
 		},
-		{OperationIndex: 1, Kind: migrationbackend.RelationMigrationDeleteModel, Before: target},
-		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationRemoveField, Before: profileBefore, After: profileAfter},
+		{OperationIndex: 1, Kind: migrationbackend.MigrationDeleteModel, Before: target},
+		{OperationIndex: 0, Kind: migrationbackend.MigrationRemoveField, Before: profileBefore, After: profileAfter},
 	}}
 	session := openSQLiteRelationSession(t, backend)
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
@@ -3568,12 +3604,12 @@ func TestSQLiteRelationScalarRemoveRejectsExternalInboundColumnBeforeClaim(t *te
 	concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 		checkpoints = append(checkpoints, checkpoint)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migration,
 		Kind:      migrationbackend.HistoryTransitionUnapply,
 	}, intent)
 	if transaction != nil || err == nil {
-		t.Fatalf("BeginRelationFencedMigration() = (%v, %v), want inbound removed-column failure", transaction, err)
+		t.Fatalf("BeginMigration() = (%v, %v), want inbound removed-column failure", transaction, err)
 	}
 	assertSQLiteRelationCapabilityFeature(t, err, "sqlite_drop_column")
 	assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
@@ -3604,8 +3640,8 @@ func TestSQLiteRelationScalarRemoveRejectsExternalInboundColumnBeforeClaim(t *te
 func TestSQLiteRelationTargetLookupUsesSealedTableIndexAtOperationLimit(t *testing.T) {
 	target, _, sourceField := sqliteRelationTestModels()
 	sourceField.Relation.Target.AppLabel = "accounts"
-	intent := migrationbackend.RelationMigrationIntent{
-		Operations: make([]migrationbackend.RelationMigrationOperation, sqliteRelationMaxOperations),
+	intent := migrationbackend.MigrationIntent{
+		Operations: make([]migrationbackend.MigrationOperation, sqliteRelationMaxOperations),
 	}
 	models := make([]ir.Model, sqliteRelationMaxOperations)
 	longSuffix := strings.Repeat("x", 1_024)
@@ -3622,11 +3658,11 @@ func TestSQLiteRelationTargetLookupUsesSealedTableIndexAtOperationLimit(t *testi
 			},
 		}
 		models[index] = model
-		intent.Operations[index] = migrationbackend.RelationMigrationOperation{
+		intent.Operations[index] = migrationbackend.MigrationOperation{
 			OperationIndex: index,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          model,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: field,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
@@ -3686,9 +3722,9 @@ func TestSQLiteRelationReverseCollisionCheckBoundsLongModelNameAtFieldLimit(t *t
 	}
 	target, source, sourceField := sqliteRelationTestModels()
 	intent := sqliteRelationApplyIntent(target, source, sourceField)
-	intent.Operations = append([]migrationbackend.RelationMigrationOperation{{
+	intent.Operations = append([]migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationCreateModel,
+		Kind:           migrationbackend.MigrationCreateModel,
 		After:          wide,
 	}}, intent.Operations...)
 	intent.Operations[1].OperationIndex = 1
@@ -3722,11 +3758,11 @@ func TestSQLiteRelationReverseCollisionIndexSelectsLongTransitionAppOnce(t *test
 		t.Fatalf("short model lookups = %d, want %d", transitionOwners.modelLookups, sqliteRelationMaxOperations)
 	}
 
-	operations := make([]migrationbackend.RelationMigrationOperation, sqliteRelationMaxOperations)
+	operations := make([]migrationbackend.MigrationOperation, sqliteRelationMaxOperations)
 	for index := 0; index < len(operations)-2; index++ {
-		operations[index] = migrationbackend.RelationMigrationOperation{
+		operations[index] = migrationbackend.MigrationOperation{
 			OperationIndex: index,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After: ir.Model{
 				Name:    fmt.Sprintf("scalar_%04d", index),
 				GoName:  fmt.Sprintf("Scalar%d", index),
@@ -3740,16 +3776,16 @@ func TestSQLiteRelationReverseCollisionIndexSelectsLongTransitionAppOnce(t *test
 	target, source, sourceField := sqliteRelationTestModels()
 	sourceField.Relation.Target.AppLabel = longApp
 	source.Fields[2] = sourceField
-	operations[len(operations)-2] = migrationbackend.RelationMigrationOperation{
+	operations[len(operations)-2] = migrationbackend.MigrationOperation{
 		OperationIndex: len(operations) - 2,
-		Kind:           migrationbackend.RelationMigrationCreateModel,
+		Kind:           migrationbackend.MigrationCreateModel,
 		After:          target,
 	}
-	operations[len(operations)-1] = migrationbackend.RelationMigrationOperation{
+	operations[len(operations)-1] = migrationbackend.MigrationOperation{
 		OperationIndex: len(operations) - 1,
-		Kind:           migrationbackend.RelationMigrationCreateModel,
+		Kind:           migrationbackend.MigrationCreateModel,
 		After:          source,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: sourceField,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -3758,7 +3794,7 @@ func TestSQLiteRelationReverseCollisionIndexSelectsLongTransitionAppOnce(t *test
 	seal, err := validateAndSealSQLiteRelationIntent(migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: longApp, Name: "0001_relation"},
 		Kind:      migrationbackend.HistoryTransitionApply,
-	}, migrationbackend.RelationMigrationIntent{Operations: operations})
+	}, migrationbackend.MigrationIntent{Operations: operations})
 	if err != nil {
 		t.Fatalf("validateAndSealSQLiteRelationIntent(long transition app at operation limit): %v", err)
 	}
@@ -3785,7 +3821,7 @@ func TestSQLiteRelationResourceScanBoundsTransitionIdentityBeforeClone(t *testin
 func TestSQLiteRelationReverseOwnersRetainLongSourceStructurallyAtTargetLimit(t *testing.T) {
 	target, _, baseField := sqliteRelationTestModels()
 	fields := make([]ir.Field, sqliteRelationMaxFields)
-	targets := make([]migrationbackend.RelationMigrationTarget, sqliteRelationMaxFields-1)
+	targets := make([]migrationbackend.MigrationTarget, sqliteRelationMaxFields-1)
 	fields[0] = ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}
 	for index := 1; index < len(fields); index++ {
 		field := baseField.Clone()
@@ -3794,7 +3830,7 @@ func TestSQLiteRelationReverseOwnersRetainLongSourceStructurallyAtTargetLimit(t 
 		field.Column = fmt.Sprintf("target_%04d_id", index)
 		field.Relation.Reverse.Name = fmt.Sprintf("sources_%04d", index)
 		fields[index] = field
-		targets[index-1] = migrationbackend.RelationMigrationTarget{
+		targets[index-1] = migrationbackend.MigrationTarget{
 			SourceField: field,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -3807,15 +3843,15 @@ func TestSQLiteRelationReverseOwnersRetainLongSourceStructurallyAtTargetLimit(t 
 		DBTable: "wide_relation_source",
 		Fields:  fields,
 	}
-	intent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+	intent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 0,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          target,
 		},
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          source,
 			Targets:        targets,
 		},
@@ -3872,14 +3908,14 @@ func sqliteRelationTestModels() (ir.Model, ir.Model, ir.Field) {
 	return target, source, sourceField
 }
 
-func sqliteRelationApplyIntent(target, source ir.Model, sourceField ir.Field) migrationbackend.RelationMigrationIntent {
-	return migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
-		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationCreateModel, After: target},
+func sqliteRelationApplyIntent(target, source ir.Model, sourceField ir.Field) migrationbackend.MigrationIntent {
+	return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
+		{OperationIndex: 0, Kind: migrationbackend.MigrationCreateModel, After: target},
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationCreateModel,
+			Kind:           migrationbackend.MigrationCreateModel,
 			After:          source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
@@ -3888,19 +3924,19 @@ func sqliteRelationApplyIntent(target, source ir.Model, sourceField ir.Field) mi
 	}}
 }
 
-func sqliteRelationUnapplyIntent(target, source ir.Model, sourceField ir.Field) migrationbackend.RelationMigrationIntent {
-	return migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{
+func sqliteRelationUnapplyIntent(target, source ir.Model, sourceField ir.Field) migrationbackend.MigrationIntent {
+	return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{
 		{
 			OperationIndex: 1,
-			Kind:           migrationbackend.RelationMigrationDeleteModel,
+			Kind:           migrationbackend.MigrationDeleteModel,
 			Before:         source,
-			Targets: []migrationbackend.RelationMigrationTarget{{
+			Targets: []migrationbackend.MigrationTarget{{
 				SourceField: sourceField,
 				TargetModel: target,
 				TargetKey:   target.Fields[0],
 			}},
 		},
-		{OperationIndex: 0, Kind: migrationbackend.RelationMigrationDeleteModel, Before: target},
+		{OperationIndex: 0, Kind: migrationbackend.MigrationDeleteModel, Before: target},
 	}}
 }
 
@@ -3918,7 +3954,7 @@ func seedSQLiteRelationPhysicalSchemaAndHistory(
 	if err != nil {
 		t.Fatal(err)
 	}
-	sourceSQL, err := compileSQLiteRelationCreateModel(source, []migrationbackend.RelationMigrationTarget{{
+	sourceSQL, err := compileSQLiteRelationCreateModel(source, []migrationbackend.MigrationTarget{{
 		SourceField: sourceField,
 		TargetModel: target,
 		TargetKey:   target.Fields[0],
@@ -3948,10 +3984,11 @@ func seedSQLiteMigrationHistory(
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatal(err)
 	}
-	transaction, err := session.BeginFencedMigration(ctx, migrationbackend.HistoryTransition{
+	transaction, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migration,
 		Kind:      migrationbackend.HistoryTransitionApply,
-	})
+	}, emptySQLiteMigrationIntent())
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4305,7 +4342,7 @@ func assertSQLiteNullableRelationAddSeedSnapshot(
 	}
 }
 
-func loadSQLiteLoadedNullableRelationAddSet(t *testing.T, label string) migrationdefinition.Set {
+func loadSQLiteLoadedNullableRelationAddSet(t *testing.T, label string) migrations.LoadedDefinitionSet {
 	t.Helper()
 	suffix := strings.ReplaceAll(label, " ", "-")
 	loaded, report, err := migrationdefinition.Load(
@@ -4332,7 +4369,7 @@ func loadSQLiteLoadedNullableRelationAddSet(t *testing.T, label string) migratio
 	return loaded
 }
 
-func loadSQLiteLoadedRequiredRelationAddSet(t *testing.T, label string) migrationdefinition.Set {
+func loadSQLiteLoadedRequiredRelationAddSet(t *testing.T, label string) migrations.LoadedDefinitionSet {
 	t.Helper()
 	suffix := strings.ReplaceAll(label, " ", "-")
 	loaded, report, err := migrationdefinition.Load(
@@ -4360,7 +4397,7 @@ func loadSQLiteLoadedRequiredRelationAddSet(t *testing.T, label string) migratio
 }
 
 func sqliteLoadedNullableRelationAddAuthorDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
 		`"migration":{"app":"news","name":"0001_author","dependencies":[],"operations":[` +
 		`{"kind":"create_model","app_label":"news","model":{` +
@@ -4372,7 +4409,7 @@ func sqliteLoadedNullableRelationAddAuthorDocument() []byte {
 }
 
 func sqliteLoadedNullableRelationAddArticleDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
 		`"migration":{"app":"news","name":"0002_article",` +
 		`"dependencies":[{"app":"news","name":"0001_author"}],"operations":[` +
@@ -4390,7 +4427,7 @@ func sqliteLoadedNullableRelationAddArticleDocument() []byte {
 }
 
 func sqliteLoadedNullableRelationAddEditorDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"loaded-nullable-add","version":"1"},` +
 		`"migration":{"app":"news","name":"0003_editor",` +
 		`"dependencies":[{"app":"news","name":"0002_article"}],"operations":[` +
@@ -4403,7 +4440,7 @@ func sqliteLoadedNullableRelationAddEditorDocument() []byte {
 }
 
 func sqliteLoadedRequiredRelationAddEditorDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"loaded-required-add","version":"1"},` +
 		`"migration":{"app":"news","name":"0003_editor",` +
 		`"dependencies":[{"app":"news","name":"0002_article"}],"operations":[` +
@@ -4417,7 +4454,7 @@ func sqliteLoadedRequiredRelationAddEditorDocument() []byte {
 
 func assertSQLiteLoadedNullableRelationAddSeedState(t *testing.T, state migrations.ProjectState) {
 	t.Helper()
-	if state.FormatVersion() != migrations.RelationStateFormatVersion ||
+	if state.FormatVersion() != migrations.StateFormatVersion ||
 		!reflect.DeepEqual(state.Apps(), []string{"news"}) {
 		t.Fatalf("nullable Add taxonomy seed state = format:%d apps:%v", state.FormatVersion(), state.Apps())
 	}
@@ -4468,7 +4505,7 @@ func assertSQLiteLoadedNullableRelationAddIntent(
 	t *testing.T,
 	label string,
 	transition migrationbackend.HistoryTransition,
-	intent migrationbackend.RelationMigrationIntent,
+	intent migrationbackend.MigrationIntent,
 ) {
 	t.Helper()
 	if transition != (migrationbackend.HistoryTransition{
@@ -4478,7 +4515,7 @@ func assertSQLiteLoadedNullableRelationAddIntent(
 		t.Fatalf("%s loaded nullable Add begin payload = transition:%+v intent:%+v", label, transition, intent)
 	}
 	operation := intent.Operations[0]
-	if operation.OperationIndex != 0 || operation.Kind != migrationbackend.RelationMigrationAddField ||
+	if operation.OperationIndex != 0 || operation.Kind != migrationbackend.MigrationAddField ||
 		operation.Before.DBTable != "news_article" || len(operation.Before.Fields) != 3 ||
 		operation.After.DBTable != "news_article" || len(operation.After.Fields) != 4 ||
 		operation.After.Fields[3].Name != "editor" || !operation.After.Fields[3].Nullable ||
@@ -4493,7 +4530,7 @@ func assertSQLiteLoadedRequiredRelationAddIntent(
 	t *testing.T,
 	label string,
 	transition migrationbackend.HistoryTransition,
-	intent migrationbackend.RelationMigrationIntent,
+	intent migrationbackend.MigrationIntent,
 ) {
 	t.Helper()
 	if transition != (migrationbackend.HistoryTransition{
@@ -4503,7 +4540,7 @@ func assertSQLiteLoadedRequiredRelationAddIntent(
 		t.Fatalf("%s loaded required Add begin payload = transition:%+v intent:%+v", label, transition, intent)
 	}
 	operation := intent.Operations[0]
-	if operation.OperationIndex != 0 || operation.Kind != migrationbackend.RelationMigrationAddField ||
+	if operation.OperationIndex != 0 || operation.Kind != migrationbackend.MigrationAddField ||
 		operation.Before.DBTable != "news_article" || len(operation.Before.Fields) != 3 ||
 		operation.After.DBTable != "news_article" || len(operation.After.Fields) != 4 ||
 		operation.After.Fields[3].Name != "editor" || operation.After.Fields[3].Nullable ||
@@ -4637,11 +4674,12 @@ func assertSQLiteLoadedRelationErrorTaxonomy(t *testing.T) {
 			fault:    connectionFault,
 		}
 		loaded := loadSQLiteLoadedRelationTaxonomySet(t, test.name)
-		state, err := loaded.Migrate(
+		state, err := (migrations.Executor{Backend: probe}).Migrate(
 			context.Background(),
-			migrations.Executor{Backend: probe},
+			loaded,
 			migrations.LatestLifecycleRequest(),
 		)
+
 		assertSQLiteLoadedRelationTaxonomyError(t, test, err)
 		assertSQLiteLoadedRelationTaxonomyState(t, test.name, state, seedState)
 		assertSQLiteLoadedRelationTaxonomyIntent(t, test.name, probe.transition, probe.intent)
@@ -4760,7 +4798,7 @@ func assertSQLiteLoadedRelationTaxonomyIntent(
 	t *testing.T,
 	label string,
 	transition migrationbackend.HistoryTransition,
-	intent migrationbackend.RelationMigrationIntent,
+	intent migrationbackend.MigrationIntent,
 ) {
 	t.Helper()
 	if transition != (migrationbackend.HistoryTransition{
@@ -4771,12 +4809,12 @@ func assertSQLiteLoadedRelationTaxonomyIntent(
 	}
 	create := intent.Operations[0]
 	add := intent.Operations[1]
-	if create.OperationIndex != 0 || create.Kind != migrationbackend.RelationMigrationCreateModel ||
+	if create.OperationIndex != 0 || create.Kind != migrationbackend.MigrationCreateModel ||
 		create.After.DBTable != "blog_article" || len(create.Targets) != 1 ||
 		create.Targets[0].TargetModel.DBTable != "authors_author" ||
 		create.Targets[0].SourceField.Column != "author_id" ||
-		add.OperationIndex != 1 || add.Kind != migrationbackend.RelationMigrationAddField ||
-		len(add.Targets) != 0 || len(add.After.Fields) != 3 ||
+		add.OperationIndex != 1 || add.Kind != migrationbackend.MigrationAddField ||
+		len(add.Targets) != 1 || add.Targets[0].SourceField.Name != "author" || len(add.After.Fields) != 3 ||
 		add.After.Fields[2].Name != "summary" || !add.After.Fields[2].Nullable {
 		t.Fatalf("%s relation operation payload = create:%+v add:%+v", label, create, add)
 	}
@@ -4805,13 +4843,14 @@ func seedSQLiteLoadedRelationTaxonomyAuthor(t *testing.T, database *Backend) mig
 		report.PlannerConstruction != 1 || report.DefinitionsPublished != 1 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Load(loaded taxonomy author) report = %+v", report)
 	}
-	state, err := loaded.Migrate(
+	state, err := (migrations.Executor{Backend: database}).Migrate(
 		ctx,
-		migrations.Executor{Backend: database},
+		loaded,
 		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 			App: "authors", Name: "0001_author",
 		})),
 	)
+
 	if err != nil {
 		t.Fatalf("Migrate(loaded taxonomy author): %v", err)
 	}
@@ -4824,7 +4863,7 @@ func seedSQLiteLoadedRelationTaxonomyAuthor(t *testing.T, database *Backend) mig
 	return state.Clone()
 }
 
-func loadSQLiteLoadedRelationTaxonomySet(t *testing.T, label string) migrationdefinition.Set {
+func loadSQLiteLoadedRelationTaxonomySet(t *testing.T, label string) migrations.LoadedDefinitionSet {
 	t.Helper()
 	loaded, report, err := migrationdefinition.Load(
 		migrationdefinition.Source{
@@ -4847,7 +4886,7 @@ func loadSQLiteLoadedRelationTaxonomySet(t *testing.T, label string) migrationde
 }
 
 func sqliteLoadedRelationTaxonomyAuthorDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"loaded-taxonomy","version":"1"},` +
 		`"migration":{"app":"authors","name":"0001_author","dependencies":[],"operations":[` +
 		`{"kind":"create_model","app_label":"authors","model":{` +
@@ -4857,7 +4896,7 @@ func sqliteLoadedRelationTaxonomyAuthorDocument() []byte {
 }
 
 func sqliteLoadedRelationTaxonomyBlogDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"loaded-taxonomy","version":"1"},` +
 		`"migration":{"app":"blog","name":"0001_article",` +
 		`"dependencies":[{"app":"authors","name":"0001_author"}],"operations":[` +
@@ -5077,7 +5116,7 @@ type sqliteLoadedRelationTaxonomyBackend struct {
 	beginErr                 error
 	fault                    *sqliteRelationBeginFaultConnection
 	transition               migrationbackend.HistoryTransition
-	intent                   migrationbackend.RelationMigrationIntent
+	intent                   migrationbackend.MigrationIntent
 	checkpoints              []sqliteRelationBeginCheckpoint
 	capabilityCalls          int
 	openCalls                int
@@ -5089,7 +5128,7 @@ type sqliteLoadedRelationTaxonomyBackend struct {
 }
 
 type sqliteLoadedRelationTaxonomySession struct {
-	migrationbackend.RelationRevisionFencedSession
+	migrationbackend.RevisionFencedSession
 	owner *sqliteLoadedRelationTaxonomyBackend
 }
 
@@ -5099,13 +5138,13 @@ type sqliteLoadedRelationTaxonomyTransaction struct {
 }
 
 var _ migrationbackend.AtomicBackend = (*sqliteLoadedRelationTaxonomyBackend)(nil)
-var _ migrationbackend.RelationRevisionFencedBackend = (*sqliteLoadedRelationTaxonomyBackend)(nil)
-var _ migrationbackend.RelationRevisionFencedSession = (*sqliteLoadedRelationTaxonomySession)(nil)
+var _ migrationbackend.RevisionFencedBackend = (*sqliteLoadedRelationTaxonomyBackend)(nil)
+var _ migrationbackend.RevisionFencedSession = (*sqliteLoadedRelationTaxonomySession)(nil)
 var _ migrationbackend.RevisionFencedTransaction = (*sqliteLoadedRelationTaxonomyTransaction)(nil)
 
-func (backend *sqliteLoadedRelationTaxonomyBackend) RelationMigrationCapabilities() migrationbackend.RelationMigrationCapabilities {
+func (backend *sqliteLoadedRelationTaxonomyBackend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 	backend.capabilityCalls++
-	return backend.Backend.RelationMigrationCapabilities()
+	return backend.Backend.MigrationCapabilities()
 }
 
 func (backend *sqliteLoadedRelationTaxonomyBackend) OpenRevisionFencedSession(
@@ -5131,25 +5170,20 @@ func (backend *sqliteLoadedRelationTaxonomyBackend) OpenRevisionFencedSession(
 			return backend.fault
 		}
 	}
-	relation, ok := raw.(migrationbackend.RelationRevisionFencedSession)
-	if !ok {
-		_ = raw.Close(context.Background())
-		return nil, fmt.Errorf("loaded relation taxonomy SQLite session lacks relation port: %T", raw)
-	}
-	return &sqliteLoadedRelationTaxonomySession{RelationRevisionFencedSession: relation, owner: backend}, nil
+	return &sqliteLoadedRelationTaxonomySession{RevisionFencedSession: raw, owner: backend}, nil
 }
 
 func (session *sqliteLoadedRelationTaxonomySession) ReadAppliedMigrations(
 	ctx context.Context,
 ) ([]migrationbackend.AppliedMigration, error) {
 	session.owner.readCalls++
-	return session.RelationRevisionFencedSession.ReadAppliedMigrations(ctx)
+	return session.RevisionFencedSession.ReadAppliedMigrations(ctx)
 }
 
-func (session *sqliteLoadedRelationTaxonomySession) BeginRelationFencedMigration(
+func (session *sqliteLoadedRelationTaxonomySession) BeginMigration(
 	ctx context.Context,
 	transition migrationbackend.HistoryTransition,
-	intent migrationbackend.RelationMigrationIntent,
+	intent migrationbackend.MigrationIntent,
 ) (migrationbackend.RevisionFencedTransaction, error) {
 	session.owner.beginCalls++
 	session.owner.transition = transition
@@ -5157,7 +5191,7 @@ func (session *sqliteLoadedRelationTaxonomySession) BeginRelationFencedMigration
 	if session.owner.beginErr != nil {
 		return nil, session.owner.beginErr
 	}
-	transaction, err := session.RelationRevisionFencedSession.BeginRelationFencedMigration(ctx, transition, intent)
+	transaction, err := session.RevisionFencedSession.BeginMigration(ctx, transition, intent)
 	if err != nil || transaction == nil {
 		return transaction, err
 	}
@@ -5169,7 +5203,7 @@ func (session *sqliteLoadedRelationTaxonomySession) BeginRelationFencedMigration
 
 func (session *sqliteLoadedRelationTaxonomySession) Close(ctx context.Context) error {
 	session.owner.closeCalls++
-	return session.RelationRevisionFencedSession.Close(ctx)
+	return session.RevisionFencedSession.Close(ctx)
 }
 
 func (transaction *sqliteLoadedRelationTaxonomyTransaction) Rollback(ctx context.Context) error {
@@ -5177,17 +5211,13 @@ func (transaction *sqliteLoadedRelationTaxonomyTransaction) Rollback(ctx context
 	return transaction.RevisionFencedTransaction.Rollback(ctx)
 }
 
-func openSQLiteRelationSession(t *testing.T, backend *Backend) migrationbackend.RelationRevisionFencedSession {
+func openSQLiteRelationSession(t *testing.T, backend *Backend) migrationbackend.RevisionFencedSession {
 	t.Helper()
 	raw, err := backend.OpenRevisionFencedSession(context.Background())
 	if err != nil {
 		t.Fatalf("OpenRevisionFencedSession(): %v", err)
 	}
-	session, ok := raw.(migrationbackend.RelationRevisionFencedSession)
-	if !ok {
-		t.Fatalf("SQLite session type %T does not implement RelationRevisionFencedSession", raw)
-	}
-	return session
+	return raw
 }
 
 func sqliteRelationTestTableExists(t *testing.T, backend *Backend, table string) bool {

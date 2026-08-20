@@ -15,10 +15,10 @@ import (
 
 func TestObserveCasesTwiceDeterministically(t *testing.T) {
 	wantCases := []Case{
-		CaseLegacyABI,
-		CaseProfileDispatch,
-		CaseMixedDigest,
-		CaseStatePromotion,
+		CaseCurrentABI,
+		CaseCurrentFormat,
+		CaseCurrentDigest,
+		CaseCurrentState,
 		CaseStructuralPreflight,
 		CaseCreateLifecycle,
 		CaseAddRelation,
@@ -76,10 +76,282 @@ func TestObserveCasesTwiceDeterministically(t *testing.T) {
 	}
 }
 
+func TestCurrentFormatValidationUsesOneExactEnvelopeAndFailsClosed(t *testing.T) {
+	observation, err := Observe(context.Background(), CaseCurrentFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []struct {
+		name      string
+		accepted  bool
+		code      string
+		pointer   string
+		reason    string
+		stage     string
+		published int
+	}{
+		{name: "exact_current", accepted: true, published: 1},
+		{name: "missing_format_version", code: "invalid_definition_document", pointer: "/format_version", reason: "missing_field", stage: "document"},
+		{name: "unknown_format_version", code: "definition_format_incompatible", pointer: "/format_version", reason: "format_version", stage: "format"},
+		{name: "wrong_type_format_version", code: "invalid_definition_document", pointer: "/format_version", reason: "wrong_type", stage: "document"},
+		{name: "overflow_format_version", code: "invalid_definition_document", pointer: "/format_version", reason: "out_of_range", stage: "document"},
+		{name: "retired_compatibility_tuple", code: "invalid_definition_document", pointer: "/compatibility", reason: "unknown_field", stage: "document"},
+	}
+	if len(observation.Outcomes) != len(want)+1 {
+		t.Fatalf("current format outcomes = %d, want %d cases plus constants", len(observation.Outcomes), len(want))
+	}
+	if len(observation.Metrics.Loads) != len(want) {
+		t.Fatalf("current format load facts = %d, want %d", len(observation.Metrics.Loads), len(want))
+	}
+	for index, expected := range want {
+		outcome := observation.Outcomes[index]
+		load := observation.Metrics.Loads[index]
+		if outcome.Name != expected.name || load.Name != expected.name || outcome.Accepted != expected.accepted {
+			t.Fatalf("current format case %d identity/accepted = %q/%q/%t, want %q/%q/%t", index, outcome.Name, load.Name, outcome.Accepted, expected.name, expected.name, expected.accepted)
+		}
+		if outcome.Error.Code != expected.code || outcome.Error.JSONPointer != expected.pointer || outcome.Error.Reason != expected.reason || outcome.Error.Stage != expected.stage {
+			t.Fatalf("current format case %s error = %#v, want %s %s %s %s", expected.name, outcome.Error, expected.code, expected.pointer, expected.reason, expected.stage)
+		}
+		if expected.accepted {
+			if outcome.Error.Present || outcome.Error.Category != "" {
+				t.Fatalf("current format accepted case %s published an error: %#v", expected.name, outcome.Error)
+			}
+		} else if !outcome.Error.Present || outcome.Error.Category != "migration_definition_source_error" {
+			t.Fatalf("current format rejected case %s error presence/category = %#v", expected.name, outcome.Error)
+		}
+		if load.DefinitionsPublished != expected.published || load.DefinitionSetsPublished != expected.published {
+			t.Fatalf("current format case %s publication = definitions:%d sets:%d, want %d/%d", expected.name, load.DefinitionsPublished, load.DefinitionSetsPublished, expected.published, expected.published)
+		}
+	}
+	constants := observation.Outcomes[len(want)]
+	if constants.Name != "public_constants" || !constants.Accepted || len(constants.Integers) != 3 {
+		t.Fatalf("current public constants = %#v", constants)
+	}
+	for _, value := range constants.Integers {
+		if value.Value != 1 {
+			t.Fatalf("current public constant %s = %d, want 1", value.Name, value.Value)
+		}
+	}
+	if reflect.DeepEqual(currentAuthorDocument(), withoutFormatVersion(currentAuthorDocument())) ||
+		reflect.DeepEqual(currentAuthorDocument(), withFormatVersion(currentAuthorDocument(), "2")) ||
+		reflect.DeepEqual(currentAuthorDocument(), withRetiredCompatibilityTuple(currentAuthorDocument())) {
+		t.Fatal("current format negative fixture transformation left source bytes unchanged")
+	}
+}
+
+func TestCurrentABIUsesOneFormatAcrossRelationLifecycle(t *testing.T) {
+	observation, err := Observe(context.Background(), CaseCurrentABI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(observation.Outcomes) != 3 {
+		t.Fatalf("current ABI outcomes = %d, want load/latest/zero", len(observation.Outcomes))
+	}
+	load, latest, zero := observation.Outcomes[0], observation.Outcomes[1], observation.Outcomes[2]
+	if load.Name != "current_load" || latest.Name != "latest" || zero.Name != "zero_blog" ||
+		!load.Accepted || !latest.Accepted || !zero.Accepted {
+		t.Fatalf("current ABI lifecycle = load:%#v latest:%#v zero:%#v", load, latest, zero)
+	}
+	for _, name := range []string{"definition_format", "schema_ir", "state_format"} {
+		if value := namedInteger(load.Integers, name); value != 1 {
+			t.Fatalf("current ABI %s = %d, want 1", name, value)
+		}
+	}
+	retiredTuplePresent, retiredTupleFact := lookupNamedBoolean(load.Booleans, "retired_compatibility_tuple_present")
+	if !retiredTupleFact || retiredTuplePresent ||
+		!namedBoolean(load.Booleans, "scalar_and_relation_share_format") {
+		t.Fatalf("current ABI compatibility facts = %#v", load.Booleans)
+	}
+	if !definitionsHaveRelation(load.Definitions) || !stateHasRelation(latest.State) {
+		t.Fatalf("current ABI lost relation facts: load=%#v latest=%#v", load.Definitions, latest.State)
+	}
+	if latest.State.FormatVersion != 1 || zero.State.FormatVersion != 1 {
+		t.Fatalf("current ABI state formats = latest:%d zero:%d, want 1/1", latest.State.FormatVersion, zero.State.FormatVersion)
+	}
+}
+
+func TestCurrentDigestUsesOneDomainAndSemanticSetIdentity(t *testing.T) {
+	observation, err := Observe(context.Background(), CaseCurrentDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantNames := []string{"scalar_only", "relation_only", "combined", "combined_permuted"}
+	if len(observation.Outcomes) != len(wantNames) {
+		t.Fatalf("current digest outcomes = %d, want %d", len(observation.Outcomes), len(wantNames))
+	}
+	for index, name := range wantNames {
+		outcome := observation.Outcomes[index]
+		if outcome.Name != name || !outcome.Accepted || outcome.Digest == "" {
+			t.Fatalf("current digest outcome %d = %#v, want accepted %s with digest", index, outcome, name)
+		}
+	}
+	scalar, relation := observation.Outcomes[0], observation.Outcomes[1]
+	combined, permuted := observation.Outcomes[2], observation.Outcomes[3]
+	if definitionsHaveRelation(scalar.Definitions) || !definitionsHaveRelation(relation.Definitions) ||
+		!definitionsHaveRelation(combined.Definitions) || !definitionsHaveRelation(permuted.Definitions) {
+		t.Fatalf("current digest relation membership = scalar:%t relation:%t combined:%t permuted:%t",
+			definitionsHaveRelation(scalar.Definitions), definitionsHaveRelation(relation.Definitions),
+			definitionsHaveRelation(combined.Definitions), definitionsHaveRelation(permuted.Definitions))
+	}
+	semanticDigests := map[string]struct{}{scalar.Digest: {}, relation.Digest: {}, combined.Digest: {}}
+	if len(semanticDigests) != 3 {
+		t.Fatalf("scalar/relation/combined digests are not distinct: %q %q %q", scalar.Digest, relation.Digest, combined.Digest)
+	}
+	if permuted.Digest != combined.Digest || !namedBoolean(permuted.Booleans, "equals_combined_digest") {
+		t.Fatalf("combined permutation changed digest: combined=%q permuted=%#v", combined.Digest, permuted)
+	}
+}
+
+func TestCurrentStateUsesOneFormatWithoutPromotionOrDemotion(t *testing.T) {
+	observation, err := Observe(context.Background(), CaseCurrentState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(observation.Outcomes) != 3 {
+		t.Fatalf("current state outcomes = %d, want load/forward/backward", len(observation.Outcomes))
+	}
+	load, forward, backward := observation.Outcomes[0], observation.Outcomes[1], observation.Outcomes[2]
+	if load.Name != "current_load" || forward.Name != "forward" || backward.Name != "backward" ||
+		!load.Accepted || !forward.Accepted || !backward.Accepted {
+		t.Fatalf("current state lifecycle = load:%#v forward:%#v backward:%#v", load, forward, backward)
+	}
+	if forward.State.FormatVersion != 1 || backward.State.FormatVersion != 1 {
+		t.Fatalf("current state format transitioned: forward=%d backward=%d", forward.State.FormatVersion, backward.State.FormatVersion)
+	}
+	if !stateHasRelation(forward.State) || !namedBoolean(forward.Booleans, "state_accessor_isolated") {
+		t.Fatalf("current forward relation/alias facts = state:%#v booleans:%#v", forward.State, forward.Booleans)
+	}
+	if !reflect.DeepEqual(backward.State.Apps, []string{"authors"}) || len(backward.State.Models) != 1 ||
+		backward.State.Models[0].App != "authors" || backward.State.Models[0].Name != "author" || stateHasRelation(backward.State) {
+		t.Fatalf("current backward state = %#v, want only scalar authors.author", backward.State)
+	}
+}
+
+func TestCurrentOnlyCasesAndUnifiedMigrationTraceAreExplicit(t *testing.T) {
+	for _, selected := range Cases() {
+		observation, err := Observe(context.Background(), selected)
+		if err != nil {
+			t.Fatalf("Observe(%s): %v", selected, err)
+		}
+		for _, event := range observation.Metrics.Trace {
+			if event.Name == "begin_legacy" || event.Name == "begin_fenced" || event.Name == "begin_relation" {
+				t.Fatalf("Observe(%s) emitted retired begin trace %#v", selected, event)
+			}
+		}
+		for _, outcome := range observation.Outcomes {
+			for _, intent := range outcome.Intents {
+				hasRelation := false
+				for _, operation := range intent.Operations {
+					hasRelation = hasRelation || len(operation.Targets) != 0 || operation.Before.Fields != nil && modelHasRelation(operation.Before) || operation.After.Fields != nil && modelHasRelation(operation.After)
+				}
+				if intent.HasRelation != hasRelation {
+					t.Fatalf("Observe(%s) intent relation fact = %t, derived %t: %#v", selected, intent.HasRelation, hasRelation, intent)
+				}
+			}
+		}
+	}
+}
+
+func TestStructuralPreflightCharacterizesThreeStagedNoMutationLanes(t *testing.T) {
+	observation, err := Observe(context.Background(), CaseStructuralPreflight)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(observation.Outcomes) != 3 {
+		t.Fatalf("structural preflight outcomes = %d, want static/history/physical", len(observation.Outcomes))
+	}
+	static, history, physical := observation.Outcomes[0], observation.Outcomes[1], observation.Outcomes[2]
+	if static.Name != "static_invalid" || static.Accepted || namedInteger(static.Integers, "backend_trace_events") != 0 || namedString(static.Strings, "trace") != "" {
+		t.Fatalf("static lane crossed backend boundary: %#v", static)
+	}
+	if static.Error.Category != "migration_state_error" || static.Error.Code != "invalid_state" {
+		t.Fatalf("static lane error = %#v, want migration_state_error/invalid_state", static.Error)
+	}
+	if namedString(static.Strings, "capability_unavailable_error") != "migration_capability_unavailable" {
+		t.Fatalf("static lane did not retire optional relation editor wording: %#v", static.Strings)
+	}
+	if history.Name != "history_invalid" || history.Accepted || namedInteger(history.Integers, "history_read_events") != 1 ||
+		namedInteger(history.Integers, "session_open_events") != 1 || namedInteger(history.Integers, "begin_migration_events") != 0 || namedInteger(history.Integers, "mutation_events") != 0 {
+		t.Fatalf("history lane boundary = %#v", history)
+	}
+	if history.Error.Category != "migration_history_error" || history.Error.Code != "inconsistent_applied_history" {
+		t.Fatalf("history lane error = %#v, want migration_history_error/inconsistent_applied_history", history.Error)
+	}
+	if physical.Name != "physical_invalid" || physical.Accepted || !namedBoolean(physical.Booleans, "durable_unchanged") ||
+		namedInteger(physical.Integers, "history_read_events") != 1 || namedInteger(physical.Integers, "begin_migration_events") != 1 ||
+		namedInteger(physical.Integers, "mutation_events") != 0 {
+		t.Fatalf("physical lane boundary = %#v", physical)
+	}
+	if physical.Error.Category != "migration_capability_error" || physical.Error.Code != "unsupported_operation" {
+		t.Fatalf("physical lane error = %#v, want migration_capability_error/unsupported_operation", physical.Error)
+	}
+}
+
+func modelHasRelation(model ModelFact) bool {
+	for _, field := range model.Fields {
+		if field.HasRelation {
+			return true
+		}
+	}
+	return false
+}
+
+func definitionsHaveRelation(definitions []DefinitionFact) bool {
+	for _, definition := range definitions {
+		for _, operation := range definition.Operations {
+			if operation.Field.HasRelation || modelHasRelation(operation.Model) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func stateHasRelation(state StateFact) bool {
+	for _, model := range state.Models {
+		if modelHasRelation(model) {
+			return true
+		}
+	}
+	return false
+}
+
+func namedBoolean(values []NamedBooleanFact, name string) bool {
+	value, _ := lookupNamedBoolean(values, name)
+	return value
+}
+
+func lookupNamedBoolean(values []NamedBooleanFact, name string) (bool, bool) {
+	for _, value := range values {
+		if value.Name == name {
+			return value.Value, true
+		}
+	}
+	return false, false
+}
+
+func namedInteger(values []NamedIntegerFact, name string) int64 {
+	for _, value := range values {
+		if value.Name == name {
+			return value.Value
+		}
+	}
+	return -1
+}
+
+func namedString(values []NamedStringFact, name string) string {
+	for _, value := range values {
+		if value.Name == name {
+			return value.Value
+		}
+	}
+	return ""
+}
+
 func TestObserverOwnedSourceMutationChangesTypedFactsWithoutChangingSemanticDigest(t *testing.T) {
 	baseMetrics := Metrics{Loads: make([]LoadFact, 0), Trace: make([]TraceEvent, 0)}
-	_, base := loadOutcome("load", &baseMetrics, sourceFor(sourceLegacyAuthor))
-	changedSource := sourceFor(sourceLegacyAuthor)
+	_, base := loadOutcome("load", &baseMetrics, sourceFor(sourceCurrentAuthor))
+	changedSource := sourceFor(sourceCurrentAuthor)
 	changedSource.SourceID = "owned-mutated-source"
 	changedSource.Document = []byte(strings.Replace(string(changedSource.Document), `"version":"1"`, `"version":"2"`, 1))
 	changedMetrics := Metrics{Loads: make([]LoadFact, 0), Trace: make([]TraceEvent, 0)}
@@ -102,12 +374,12 @@ func TestObserverOwnedSourceMutationChangesTypedFactsWithoutChangingSemanticDige
 }
 
 func TestObserverContextAndCaseBoundary(t *testing.T) {
-	if _, err := Observe(nil, CaseLegacyABI); err == nil {
+	if _, err := Observe(nil, CaseCurrentABI); err == nil {
 		t.Fatal("Observe(nil) succeeded")
 	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := Observe(canceled, CaseLegacyABI); err == nil {
+	if _, err := Observe(canceled, CaseCurrentABI); err == nil {
 		t.Fatal("Observe(canceled) succeeded")
 	}
 	if _, err := Observe(context.Background(), Case("unknown")); err == nil {

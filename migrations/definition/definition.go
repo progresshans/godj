@@ -4,22 +4,14 @@
 package definition
 
 import (
-	"context"
-
 	"github.com/progresshans/godj/migrations"
-	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
+	"github.com/progresshans/godj/migrations/internal/loadeddefinition"
 )
 
 const (
-	DefinitionFormatVersion       int64 = 1
-	LoaderABIVersion              int64 = 1
-	OperationCodecVersion         int64 = 1
-	SchemaIRVersion               int64 = 2
-	RelationLoaderABIVersion      int64 = 2
-	RelationOperationCodecVersion int64 = 2
-	RelationSchemaIRVersion       int64 = 3
+	DefinitionFormatVersion int64 = 1
 
-	EmptySetDigest = "sha256:53f20df43573a361318abbff8c9e6bebad203a7f13f86c1f55c2df2cf4a43450"
+	EmptySetDigest = "sha256:1412c48d7da2299b6f2be7a614c5bb9ce510027328f6baed72ae05cbecc9b494"
 )
 
 // Source is one explicitly supplied migration definition document. SourceID is
@@ -31,70 +23,23 @@ type Source struct {
 }
 
 // Producer records non-semantic generator provenance from a source envelope.
-type Producer struct {
-	Name    string
-	Version string
-}
+type Producer = migrations.DefinitionProducer
 
 // SourceInfo is the immutable-by-contract inventory entry published for one
 // successfully loaded definition.
-type SourceInfo struct {
-	SourceID  string
-	Producer  Producer
-	Migration migrations.MigrationKey
-}
-
-// Set owns a canonical migration-definition snapshot. Its zero value is the
-// canonical empty set. It never retains raw source documents.
-type Set struct {
-	definitions []migrations.Migration
-	digest      string
-	sources     []SourceInfo
-	handoff     definitionhandoff.Handoff
-}
-
-// Digest returns the canonical semantic definition-set fingerprint.
-func (s Set) Digest() string {
-	if s.digest == "" {
-		return EmptySetDigest
-	}
-	return s.digest
-}
-
-// Definitions returns a fresh deep copy of the loaded migration definitions.
-func (s Set) Definitions() []migrations.Migration {
-	return cloneMigrations(s.definitions)
-}
-
-// Sources returns a fresh copy of the canonical source inventory.
-func (s Set) Sources() []SourceInfo {
-	return append([]SourceInfo(nil), s.sources...)
-}
-
-// Migrate hands a fresh definition snapshot and the caller's immutable request
-// value to the existing revision-fenced lifecycle exactly once. Request
-// validation and snapshotting remain owned by migrations.Executor.
-func (s Set) Migrate(
-	ctx context.Context,
-	executor migrations.Executor,
-	request migrations.LifecycleRequest,
-) (migrations.ProjectState, error) {
-	if ctx != nil && !s.handoff.IsZero() {
-		ctx = definitionhandoff.WithContext(ctx, s.handoff.Clone())
-	}
-	return executor.Migrate(ctx, cloneMigrations(s.definitions), request)
-}
+type SourceInfo = migrations.DefinitionSourceInfo
 
 func newSet(
 	definitions []migrations.Migration,
 	digest string,
 	sources []SourceInfo,
-	handoff definitionhandoff.Handoff,
-) Set {
-	return Set{
-		definitions: cloneMigrations(definitions),
-		digest:      digest,
-		sources:     append([]SourceInfo(nil), sources...),
-		handoff:     handoff.Clone(),
-	}
+) migrations.LoadedDefinitionSet {
+	published := loadeddefinition.New(
+		definitions,
+		digest,
+		sources,
+		cloneMigrations,
+		func(values []SourceInfo) []SourceInfo { return append([]SourceInfo(nil), values...) },
+	)
+	return migrations.LoadedDefinitionSet(published)
 }

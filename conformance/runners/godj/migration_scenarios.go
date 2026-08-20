@@ -66,7 +66,7 @@ func withMigrationDatabase(ctx context.Context, contractID string, scenario migr
 
 func migrationCreateModel(ctx context.Context, contractID string) (protocol.Observation, error) {
 	return withMigrationDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend, observer *sql.DB) (protocol.Observation, error) {
-		executor := migrations.Executor{Backend: backend}
+		executor := migrations.DirectExecutor{Backend: backend}
 		if _, err := executor.Apply(ctx, migrations.EmptyProjectState(), initialMigration()); err != nil {
 			return protocol.Observation{}, err
 		}
@@ -76,7 +76,7 @@ func migrationCreateModel(ctx context.Context, contractID string) (protocol.Obse
 
 func migrationAddNullableField(ctx context.Context, contractID string) (protocol.Observation, error) {
 	return withMigrationDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend, observer *sql.DB) (protocol.Observation, error) {
-		executor := migrations.Executor{Backend: backend}
+		executor := migrations.DirectExecutor{Backend: backend}
 		state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initialMigration())
 		if err != nil {
 			return protocol.Observation{}, err
@@ -93,7 +93,7 @@ func migrationAddNullableField(ctx context.Context, contractID string) (protocol
 
 func migrationReverseNullableField(ctx context.Context, contractID string) (protocol.Observation, error) {
 	return withMigrationDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend, observer *sql.DB) (protocol.Observation, error) {
-		executor := migrations.Executor{Backend: backend}
+		executor := migrations.DirectExecutor{Backend: backend}
 		state1, err := executor.Apply(ctx, migrations.EmptyProjectState(), initialMigration())
 		if err != nil {
 			return protocol.Observation{}, err
@@ -140,7 +140,7 @@ func migrationAtomicFailure(ctx context.Context, contractID string) (protocol.Ob
 
 		before := migrations.EmptyProjectState()
 		observedBackend := &observedMigrationBackend{Backend: backend}
-		after, executionErr := (migrations.Executor{Backend: observedBackend}).Apply(ctx, before, failureMigration())
+		after, executionErr := (migrations.DirectExecutor{Backend: observedBackend}).Apply(ctx, before, failureMigration())
 		if executionErr == nil {
 			return protocol.Observation{}, errors.New("atomic failure migration unexpectedly succeeded")
 		}

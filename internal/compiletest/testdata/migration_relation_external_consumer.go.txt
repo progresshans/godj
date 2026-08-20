@@ -8,15 +8,15 @@ import (
 )
 
 const (
-	createModel backend.RelationMigrationOperationKind = backend.RelationMigrationCreateModel
-	deleteModel backend.RelationMigrationOperationKind = backend.RelationMigrationDeleteModel
-	addField    backend.RelationMigrationOperationKind = backend.RelationMigrationAddField
-	removeField backend.RelationMigrationOperationKind = backend.RelationMigrationRemoveField
+	createModel backend.MigrationOperationKind = backend.MigrationCreateModel
+	deleteModel backend.MigrationOperationKind = backend.MigrationDeleteModel
+	addField    backend.MigrationOperationKind = backend.MigrationAddField
+	removeField backend.MigrationOperationKind = backend.MigrationRemoveField
 )
 
 var (
-	_ backend.RelationRevisionFencedBackend = (*relationBackend)(nil)
-	_ backend.RelationRevisionFencedSession = (*relationSession)(nil)
+	_ backend.RevisionFencedBackend = (*relationBackend)(nil)
+	_ backend.RevisionFencedSession = (*relationSession)(nil)
 )
 
 type relationBackend struct{}
@@ -25,8 +25,8 @@ func (*relationBackend) OpenRevisionFencedSession(context.Context) (backend.Revi
 	return &relationSession{}, nil
 }
 
-func (*relationBackend) RelationMigrationCapabilities() backend.RelationMigrationCapabilities {
-	return backend.RelationMigrationCapabilities{
+func (*relationBackend) MigrationCapabilities() backend.MigrationCapabilities {
+	return backend.MigrationCapabilities{
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             false,
 		AddRequiredForeignKeyToEmptyTable: false,
@@ -40,22 +40,18 @@ func (*relationSession) ReadAppliedMigrations(context.Context) ([]backend.Applie
 	return nil, nil
 }
 
-func (*relationSession) BeginFencedMigration(context.Context, backend.HistoryTransition) (backend.RevisionFencedTransaction, error) {
-	return nil, nil
-}
-
-func (*relationSession) BeginRelationFencedMigration(context.Context, backend.HistoryTransition, backend.RelationMigrationIntent) (backend.RevisionFencedTransaction, error) {
+func (*relationSession) BeginMigration(context.Context, backend.HistoryTransition, backend.MigrationIntent) (backend.RevisionFencedTransaction, error) {
 	return nil, nil
 }
 
 func (*relationSession) Close(context.Context) error { return nil }
 
-func relationIntent(model, targetModel ir.Model, sourceField, targetKey ir.Field) backend.RelationMigrationIntent {
-	return backend.RelationMigrationIntent{Operations: []backend.RelationMigrationOperation{{
+func relationIntent(model, targetModel ir.Model, sourceField, targetKey ir.Field) backend.MigrationIntent {
+	return backend.MigrationIntent{Operations: []backend.MigrationOperation{{
 		OperationIndex: 0,
 		Kind:           createModel,
 		After:          model,
-		Targets: []backend.RelationMigrationTarget{{
+		Targets: []backend.MigrationTarget{{
 			SourceField: sourceField,
 			TargetModel: targetModel,
 			TargetKey:   targetKey,

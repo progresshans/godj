@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -72,60 +71,44 @@ func AppliedStateRequest(applied AppliedState) StateRequest {
 	}
 }
 
-// StateReconstructor owns an immutable migration graph and deep-copied built-in
-// definitions. Its zero value is equivalent to NewStateReconstructor() and is
-// safe for repeated and concurrent Reconstruct calls.
+// StateReconstructor owns the same immutable, relation-capable historical core
+// used by the loaded migration lifecycle. Its zero value is equivalent to
+// NewStateReconstructor() and is safe for repeated and concurrent Reconstruct
+// calls.
 type StateReconstructor struct {
-	planner     Planner
-	definitions map[MigrationKey]Migration
+	core        loadedStateReconstructor
+	initialized bool
 }
 
-// NewStateReconstructor validates the identity graph and snapshots every
-// supported built-in operation. Unsupported or nil sealed operations fail
-// closed rather than retaining an alias to caller-owned state.
+// NewStateReconstructor validates the complete relation chronology and
+// forward/reverse readiness before publishing an immutable definition
+// snapshot. Unsupported or nil sealed operations fail closed rather than
+// retaining an alias to caller-owned state.
 func NewStateReconstructor(migrations ...Migration) (StateReconstructor, error) {
-	planner, err := NewPlanner(migrations...)
+	core, err := newLoadedStateReconstructor(migrations)
 	if err != nil {
 		return StateReconstructor{}, err
 	}
-	definitions, err := cloneReconstructorDefinitions(planner.graph, migrations)
-	if err != nil {
-		return StateReconstructor{}, err
-	}
-	return StateReconstructor{planner: planner, definitions: definitions}, nil
+	return StateReconstructor{core: core, initialized: true}, nil
 }
 
 // Reconstruct replays only in-memory state transitions. It performs no
 // backend, recorder, SQL, or other I/O and returns a fresh ProjectState.
 func (r StateReconstructor) Reconstruct(request StateRequest) (ProjectState, error) {
-	targets, applied, err := validateStateRequest(request)
+	core, err := r.currentCore()
 	if err != nil {
 		return EmptyProjectState(), err
 	}
+	return core.Reconstruct(request)
+}
 
-	var steps []PlanStep
-	switch request.kind {
-	case stateRequestEmpty:
-		return EmptyProjectState(), nil
-	case stateRequestLatest:
-		steps, err = r.fullForwardProjection()
-	case stateRequestBefore, stateRequestAfter:
-		steps, err = r.targetProjection(targets)
-		if err == nil && request.kind == stateRequestBefore {
-			steps = withoutExplicitTargets(steps, targets)
-		}
-	case stateRequestApplied:
-		if err = r.planner.CheckHistory(applied); err == nil {
-			steps, err = r.fullForwardProjection()
-		}
-		if err == nil {
-			steps = onlyAppliedSteps(steps, applied)
-		}
+func (r StateReconstructor) currentCore() (loadedStateReconstructor, error) {
+	if r.initialized {
+		return r.core, nil
 	}
-	if err != nil {
-		return EmptyProjectState(), err
-	}
-	return r.replay(steps)
+	// Construct a fresh empty immutable core instead of mutating the zero value.
+	// Concurrent calls therefore remain pure and race-free.
+	return newLoadedStateReconstructor(nil)
 }
 
 func validateStateRequest(request StateRequest) ([]MigrationKey, AppliedState, error) {
@@ -168,26 +151,15 @@ func invalidStateRequest(node MigrationKey) error {
 	return newPlanningError(CategoryPlan, CodeInvalidTarget, node, MigrationKey{}, nil)
 }
 
-func (r StateReconstructor) graph() *plannerGraph {
-	if r.planner.graph == nil {
-		return emptyPlannerGraph()
-	}
-	return r.planner.graph
-}
-
-func (r StateReconstructor) fullForwardProjection() ([]PlanStep, error) {
-	return r.targetProjection(r.graph().appLeaves())
-}
-
 // targetProjection asks Planner for each closure independently. Passing every
 // target to a single Plan call would use Planner's sequential target semantics:
 // a later already-applied ancestor can intentionally roll descendants back.
 // Historical reconstruction instead takes a caller-ordered closure union.
-func (r StateReconstructor) targetProjection(targets []MigrationKey) ([]PlanStep, error) {
+func historicalTargetProjection(planner Planner, targets []MigrationKey) ([]PlanStep, error) {
 	seen := make(map[MigrationKey]struct{})
 	steps := make([]PlanStep, 0)
 	for _, target := range targets {
-		closure, err := r.planner.Plan(AppliedState{}, NamedTarget(target))
+		closure, err := planner.Plan(AppliedState{}, NamedTarget(target))
 		if err != nil {
 			return nil, err
 		}
@@ -237,107 +209,6 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 	return filtered
 }
 
-func (r StateReconstructor) replay(steps []PlanStep) (ProjectState, error) {
-	state := EmptyProjectState()
-	for _, step := range steps {
-		migration, exists := r.definitions[step.Key]
-		if !exists {
-			return EmptyProjectState(), migrationError(
-				CategoryState,
-				CodeInvalidState,
-				DirectionForward,
-				Migration{App: step.Key.App, Name: step.Key.Name},
-				NoOperation,
-				"",
-				errors.New("historical projection has no migration definition"),
-			)
-		}
-		_, next, err := preflight(state, migration, DirectionForward)
-		if err != nil {
-			return EmptyProjectState(), err
-		}
-		state = next
-	}
-	return state.Clone(), nil
-}
-
-func cloneReconstructorDefinitions(graph *plannerGraph, migrations []Migration) (map[MigrationKey]Migration, error) {
-	byKey := make(map[MigrationKey]Migration, len(migrations))
-	for _, migration := range migrations {
-		byKey[migration.Key()] = migration
-	}
-
-	cloned := make(map[MigrationKey]Migration, len(migrations))
-	for _, key := range graph.nodes {
-		definition := byKey[key]
-		snapshot := Migration{
-			App:          definition.App,
-			Name:         definition.Name,
-			Dependencies: append([]MigrationKey(nil), definition.Dependencies...),
-			Operations:   make([]Operation, len(definition.Operations)),
-		}
-		for index, operation := range definition.Operations {
-			if isNilOperation(operation) {
-				return nil, invalidReconstructorOperation(definition, index, "", errors.New("operation is nil"))
-			}
-			copy, kind, supported := cloneReconstructorOperation(operation)
-			if !supported {
-				return nil, invalidReconstructorOperation(
-					definition,
-					index,
-					"",
-					fmt.Errorf("operation type %T is not supported by StateReconstructor", operation),
-				)
-			}
-			if fieldName, incompatible := relationIncompatibleField(copy); incompatible {
-				return nil, invalidReconstructorOperation(
-					definition,
-					index,
-					kind,
-					fmt.Errorf("Schema IR v2 migration state cannot represent relation-bearing field %q", fieldName),
-				)
-			}
-			if copy.App() != definition.App {
-				return nil, invalidReconstructorOperation(
-					definition,
-					index,
-					kind,
-					fmt.Errorf("operation app %q does not match migration app %q", copy.App(), definition.App),
-				)
-			}
-			snapshot.Operations[index] = copy
-		}
-		cloned[key] = snapshot
-	}
-	return cloned, nil
-}
-
-func relationIncompatibleField(operation Operation) (string, bool) {
-	switch operation := operation.(type) {
-	case CreateModel:
-		for _, field := range operation.Model.Fields {
-			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
-				return field.Name, true
-			}
-		}
-	case *CreateModel:
-		for _, field := range operation.Model.Fields {
-			if field.Kind == ir.FieldForeignKey || field.Relation != nil {
-				return field.Name, true
-			}
-		}
-	case AddField:
-		if operation.Field.Kind == ir.FieldForeignKey || operation.Field.Relation != nil {
-			return operation.Field.Name, true
-		}
-	case *AddField:
-		if operation.Field.Kind == ir.FieldForeignKey || operation.Field.Relation != nil {
-			return operation.Field.Name, true
-		}
-	}
-	return "", false
-}
-
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := operation.(type) {
 	case CreateModel:
@@ -371,36 +242,10 @@ func invalidReconstructorOperation(migration Migration, index int, kind string, 
 	)
 }
 
-// loadedDefinitionAuthority is minted only after the definition package's
-// private carrier has been consumed and validated by Executor.Migrate. It is
-// intentionally neither constructible nor observable outside this package.
-type loadedDefinitionAuthority struct {
-	marker   *loadedDefinitionAuthorityMarker
-	planner  Planner
-	profiles map[MigrationKey]loadedDefinitionProfile
-}
-
-type loadedDefinitionAuthorityMarker struct{}
-
-type loadedDefinitionProfile struct {
-	definitionFormat int64
-	loaderABI        int64
-	operationCodec   int64
-	schemaIR         int64
-}
-
-func (a *loadedDefinitionAuthority) valid() bool {
-	return a != nil && a.marker != nil
-}
-
-func (a *loadedDefinitionAuthority) relationProfile(key MigrationKey) bool {
-	profile, exists := a.profiles[key]
-	return exists && profile == (loadedDefinitionProfile{definitionFormat: 1, loaderABI: 2, operationCodec: 2, schemaIR: 3})
-}
-
-// loadedStateReconstructor is the relation-capable historical state engine.
-// It has no public constructor: a fresh instance can be built only from a
-// just-validated loader authority and the exact visible full DAG.
+// loadedStateReconstructor is the single relation-capable historical state
+// engine shared by the public reconstruction API and loaded lifecycle. Its
+// constructor snapshots and validates the exact visible full DAG before this
+// value can be published through either boundary.
 type loadedStateReconstructor struct {
 	planner      Planner
 	definitions  map[MigrationKey]Migration
@@ -433,13 +278,6 @@ type loadedRelationDeclaration struct {
 	field          ir.Field
 }
 
-type loadedRelationTarget struct {
-	SourceModel      ir.Model
-	SourceField      ir.Field
-	TargetModel      ir.Model
-	TargetPrimaryKey ir.Field
-}
-
 // loadedRelationTargetView borrows immutable values from the sealed
 // definition and loaded-state builder. It exists so the complete backend
 // intent can be resource-counted before any of its model snapshots are
@@ -454,8 +292,6 @@ type loadedOperationView struct {
 	index        int
 	operation    Operation
 	appLabel     string
-	beforeFormat int
-	afterFormat  int
 	before       ir.Model
 	beforeExists bool
 	after        ir.Model
@@ -469,7 +305,6 @@ type loadedOperationView struct {
 // the accepted definition payload instead of repeatedly cloning the whole
 // growing ProjectState for every AddField operation.
 type loadedStateBuilder struct {
-	formatVersion int
 	apps          map[string]*loadedStateApp
 	relationCount uint64
 	reverse       map[loadedModelIdentity]map[string]loadedReverseOwner
@@ -548,7 +383,6 @@ type loadedRelationBackendTarget struct {
 type loadedPlanStep struct {
 	step         PlanStep
 	requirements loadedRelationRequirements
-	relation     bool
 	seal         [sha256.Size]byte
 }
 
@@ -557,7 +391,6 @@ type loadedMaterializedStep struct {
 	execution      []loadedOperationView
 	intent         loadedRelationIntent
 	requirements   loadedRelationRequirements
-	relation       bool
 	stateUnchanged bool
 	seal           [sha256.Size]byte
 }
@@ -569,15 +402,6 @@ type loadedStepSealPayload struct {
 	BeforeFormat int                           `json:"before_format"`
 	AfterFormat  int                           `json:"after_format"`
 	Operations   []loadedRelationOperationSeal `json:"operations"`
-}
-
-type loadedScalarStepSealPayload struct {
-	Direction    Direction                    `json:"direction"`
-	App          string                       `json:"app"`
-	Migration    string                       `json:"migration"`
-	BeforeFormat int                          `json:"before_format"`
-	AfterFormat  int                          `json:"after_format"`
-	Definition   definitionhandoff.Definition `json:"definition"`
 }
 
 type loadedRelationOperationSeal struct {
@@ -596,9 +420,8 @@ type loadedRelationTargetSeal struct {
 
 func newLoadedStateBuilder() *loadedStateBuilder {
 	return &loadedStateBuilder{
-		formatVersion: StateFormatVersion,
-		apps:          make(map[string]*loadedStateApp),
-		reverse:       make(map[loadedModelIdentity]map[string]loadedReverseOwner),
+		apps:    make(map[string]*loadedStateApp),
+		reverse: make(map[loadedModelIdentity]map[string]loadedReverseOwner),
 	}
 }
 
@@ -607,7 +430,6 @@ func (builder *loadedStateBuilder) clone() *loadedStateBuilder {
 		return newLoadedStateBuilder()
 	}
 	cloned := newLoadedStateBuilder()
-	cloned.formatVersion = builder.formatVersion
 	cloned.relationCount = builder.relationCount
 	for appLabel, app := range builder.apps {
 		clonedApp := &loadedStateApp{
@@ -637,13 +459,6 @@ func (builder *loadedStateBuilder) clone() *loadedStateBuilder {
 	return cloned
 }
 
-func (builder *loadedStateBuilder) schemaIRVersion() int {
-	if builder.formatVersion == RelationStateFormatVersion {
-		return ir.RelationFormatVersion
-	}
-	return ir.FormatVersion
-}
-
 func (builder *loadedStateBuilder) model(identity loadedModelIdentity) (*loadedStateModel, bool) {
 	app, exists := builder.apps[identity.app]
 	if !exists {
@@ -654,10 +469,10 @@ func (builder *loadedStateBuilder) model(identity loadedModelIdentity) (*loadedS
 }
 
 func (builder *loadedStateBuilder) projectState() (ProjectState, error) {
-	state := ProjectState{formatVersion: builder.formatVersion, apps: make(map[string]ir.Schema, len(builder.apps))}
+	state := ProjectState{formatVersion: StateFormatVersion, apps: make(map[string]ir.Schema, len(builder.apps))}
 	for appLabel, app := range builder.apps {
 		schema := ir.Schema{
-			FormatVersion: builder.schemaIRVersion(),
+			FormatVersion: ir.CurrentFormatVersion,
 			AppLabel:      appLabel,
 			Models:        make([]ir.Model, 0, len(app.order)),
 		}
@@ -690,40 +505,19 @@ func (builder *loadedStateBuilder) empty() bool {
 }
 
 func newLoadedStateReconstructor(
-	authority *loadedDefinitionAuthority,
 	definitions []Migration,
 ) (loadedStateReconstructor, error) {
-	if !authority.valid() {
-		return loadedStateReconstructor{}, invalidLoadedState(Migration{}, NoOperation, "", errors.New("validated loader authority is missing"))
-	}
 	if err := validateLoadedDefinitionResources(definitions); err != nil {
 		return loadedStateReconstructor{}, err
 	}
-	// Rebuild from the newest visible bytes even though the authority already
-	// owns the planner produced at carrier validation. Equality of graph nodes
-	// is checked without retaining either caller-owned graph representation.
 	planner, err := NewPlanner(definitions...)
 	if err != nil {
 		return loadedStateReconstructor{}, err
-	}
-	if !plannerGraphsEqual(planner.graph, authority.planner.graph) {
-		return loadedStateReconstructor{}, invalidLoadedState(Migration{}, NoOperation, "", errors.New("validated loader graph changed before state reconstruction"))
 	}
 
 	cloned, err := cloneLoadedReconstructorDefinitions(planner.graph, definitions)
 	if err != nil {
 		return loadedStateReconstructor{}, err
-	}
-	if len(authority.profiles) != len(cloned) {
-		return loadedStateReconstructor{}, invalidLoadedState(Migration{}, NoOperation, "", errors.New("validated profile graph is incomplete"))
-	}
-	for key := range cloned {
-		if _, exists := authority.profiles[key]; !exists {
-			return loadedStateReconstructor{}, invalidLoadedState(cloned[key], NoOperation, "", errors.New("validated migration profile is missing"))
-		}
-		if migrationContainsRelation(cloned[key]) && !authority.relationProfile(key) {
-			return loadedStateReconstructor{}, invalidLoadedState(cloned[key], firstRelationOperation(cloned[key]), operationKindAt(cloned[key], firstRelationOperation(cloned[key])), errors.New("relation operation requires the relation definition profile"))
-		}
 	}
 
 	reconstructor := loadedStateReconstructor{planner: planner, definitions: cloned}
@@ -767,7 +561,7 @@ func cloneLoadedReconstructorDefinitions(graph *plannerGraph, definitions []Migr
 			}
 			copy, kind, supported := cloneReconstructorOperation(operation)
 			if !supported {
-				return nil, invalidReconstructorOperation(definition, index, "", fmt.Errorf("operation type %T is not supported by loaded state reconstruction", operation))
+				return nil, invalidReconstructorOperation(definition, index, "", fmt.Errorf("operation type %T is not supported by state reconstruction", operation))
 			}
 			if copy.App() != definition.App {
 				return nil, invalidReconstructorOperation(definition, index, kind, fmt.Errorf("operation app %q does not match migration app %q", copy.App(), definition.App))
@@ -1083,7 +877,6 @@ func (r loadedStateReconstructor) applyLoadedMigration(
 			return err
 		}
 	}
-	r.finishLoadedMigration(builder, migration)
 	return nil
 }
 
@@ -1094,10 +887,6 @@ func (r loadedStateReconstructor) beginLoadedMigration(
 ) error {
 	if migration.App == "" || migration.Name == "" {
 		return migrationError(CategoryState, CodeInvalidState, direction, migration, NoOperation, "", errors.New("migration identity is empty"))
-	}
-	relationBearing := migrationContainsRelation(migration)
-	if relationBearing && builder.formatVersion == StateFormatVersion {
-		builder.formatVersion = RelationStateFormatVersion
 	}
 	return nil
 }
@@ -1149,7 +938,7 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 			err = builder.removeField(*value)
 		}
 	default:
-		err = fmt.Errorf("operation type %T is not supported by loaded state reconstruction", operation)
+		err = fmt.Errorf("operation type %T is not supported by state reconstruction", operation)
 	}
 	if err != nil {
 		return migrationError(CategoryState, CodeInvalidState, direction, migration, index, operation.Kind(), err)
@@ -1157,14 +946,8 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 	return nil
 }
 
-func (r loadedStateReconstructor) finishLoadedMigration(builder *loadedStateBuilder, migration Migration) {
-	if migrationContainsRelation(migration) && builder.formatVersion == RelationStateFormatVersion && builder.relationCount == 0 {
-		builder.formatVersion = StateFormatVersion
-	}
-}
-
 func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
-	normalized, err := normalizedSingleModelVersion(operation.AppLabel, operation.Model, builder.schemaIRVersion())
+	normalized, err := normalizedSingleModel(operation.AppLabel, operation.Model)
 	if err != nil {
 		return fmt.Errorf("normalize model: %w", err)
 	}
@@ -1208,7 +991,7 @@ func (builder *loadedStateBuilder) createModel(operation CreateModel) error {
 }
 
 func (builder *loadedStateBuilder) deleteModel(operation CreateModel) error {
-	want, err := normalizedSingleModelVersion(operation.AppLabel, operation.Model, builder.schemaIRVersion())
+	want, err := normalizedSingleModel(operation.AppLabel, operation.Model)
 	if err != nil {
 		return fmt.Errorf("normalize model: %w", err)
 	}
@@ -1267,7 +1050,7 @@ func (builder *loadedStateBuilder) addField(operation AddField) error {
 	if !exists {
 		return fmt.Errorf("model %s.%s does not exist", identity.app, identity.model)
 	}
-	field, err := normalizeLoadedAddedField(operation.AppLabel, operation.Field, builder.schemaIRVersion())
+	field, err := normalizeLoadedAddedField(operation.AppLabel, operation.Field)
 	if err != nil {
 		return fmt.Errorf("normalize added field: %w", err)
 	}
@@ -1298,7 +1081,7 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 	if !exists {
 		return fmt.Errorf("model %s.%s does not exist", identity.app, identity.model)
 	}
-	want, err := normalizeLoadedAddedField(operation.AppLabel, operation.Field, builder.schemaIRVersion())
+	want, err := normalizeLoadedAddedField(operation.AppLabel, operation.Field)
 	if err != nil {
 		return fmt.Errorf("normalize removed field: %w", err)
 	}
@@ -1323,7 +1106,7 @@ func (builder *loadedStateBuilder) removeField(operation AddField) error {
 	return nil
 }
 
-func normalizeLoadedAddedField(appLabel string, value ir.Field, formatVersion int) (ir.Field, error) {
+func normalizeLoadedAddedField(appLabel string, value ir.Field) (ir.Field, error) {
 	syntheticName := "_godj_loaded_pk"
 	syntheticGoName := "GodjLoadedPK"
 	syntheticColumn := "_godj_loaded_pk"
@@ -1333,7 +1116,7 @@ func normalizeLoadedAddedField(appLabel string, value ir.Field, formatVersion in
 		syntheticColumn += "_"
 	}
 	schema, err := ir.Normalize(ir.Schema{
-		FormatVersion: formatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      appLabel,
 		Models: []ir.Model{{
 			Name:    "_godj_loaded_validation",
@@ -1428,7 +1211,7 @@ func (r loadedStateReconstructor) validateReadiness() error {
 			return err
 		}
 	}
-	if !builder.empty() || builder.formatVersion != StateFormatVersion {
+	if !builder.empty() {
 		return invalidLoadedState(Migration{}, NoOperation, "", errors.New("full reverse readiness did not reconstruct the empty state"))
 	}
 	return nil
@@ -1465,19 +1248,22 @@ func (r loadedStateReconstructor) Reconstruct(request StateRequest) (ProjectStat
 }
 
 func (r loadedStateReconstructor) fullForwardProjection() ([]PlanStep, error) {
-	leaves := r.planner.graph.appLeaves()
-	targets := make([]Target, len(leaves))
-	for index := range leaves {
-		targets[index] = NamedTarget(leaves[index])
+	return historicalFullForwardProjection(r.planner)
+}
+
+func historicalFullForwardProjection(planner Planner) ([]PlanStep, error) {
+	graph := planner.graph
+	if graph == nil {
+		graph = emptyPlannerGraph()
 	}
-	steps, err := r.planner.Plan(AppliedState{}, targets...)
+	steps, err := historicalTargetProjection(planner, graph.appLeaves())
 	if err != nil {
 		return nil, err
 	}
-	if len(steps) != len(r.planner.graph.nodes) {
+	if len(steps) != len(graph.nodes) {
 		return nil, invalidLoadedState(Migration{}, NoOperation, "", fmt.Errorf(
 			"full historical projection covers %d of %d graph nodes",
-			len(steps), len(r.planner.graph.nodes),
+			len(steps), len(graph.nodes),
 		))
 	}
 	seen := make(map[MigrationKey]struct{}, len(steps))
@@ -1500,7 +1286,7 @@ func (r loadedStateReconstructor) fullForwardProjection() ([]PlanStep, error) {
 		}
 		seen[step.Key] = struct{}{}
 	}
-	for _, key := range r.planner.graph.nodes {
+	for _, key := range graph.nodes {
 		if _, exists := seen[key]; !exists {
 			return nil, invalidLoadedState(
 				Migration{App: key.App, Name: key.Name},
@@ -1514,8 +1300,7 @@ func (r loadedStateReconstructor) fullForwardProjection() ([]PlanStep, error) {
 }
 
 func (r loadedStateReconstructor) targetProjection(targets []MigrationKey) ([]PlanStep, error) {
-	projection := StateReconstructor{planner: r.planner, definitions: r.definitions}
-	return projection.targetProjection(targets)
+	return historicalTargetProjection(r.planner, targets)
 }
 
 func (r loadedStateReconstructor) replay(steps []PlanStep) (ProjectState, error) {
@@ -1541,7 +1326,7 @@ func (r loadedStateReconstructor) builderForApplied(
 	planner Planner,
 	applied AppliedState,
 ) (*loadedStateBuilder, error) {
-	steps, err := loadedFullForwardProjection(planner)
+	steps, err := historicalFullForwardProjection(planner)
 	if err != nil {
 		return nil, err
 	}
@@ -1567,49 +1352,6 @@ func (r loadedStateReconstructor) builderForApplied(
 		}
 	}
 	return builder, nil
-}
-
-func loadedFullForwardProjection(planner Planner) ([]PlanStep, error) {
-	graph := planner.graph
-	if graph == nil {
-		graph = emptyPlannerGraph()
-	}
-	leaves := graph.appLeaves()
-	targets := make([]Target, len(leaves))
-	for index := range leaves {
-		targets[index] = NamedTarget(leaves[index])
-	}
-	steps, err := planner.Plan(AppliedState{}, targets...)
-	if err != nil {
-		return nil, err
-	}
-	if len(steps) != len(graph.nodes) {
-		return nil, invalidLoadedState(Migration{}, NoOperation, "", fmt.Errorf(
-			"fresh full historical projection covers %d of %d graph nodes",
-			len(steps), len(graph.nodes),
-		))
-	}
-	seen := make(map[MigrationKey]struct{}, len(steps))
-	for _, step := range steps {
-		if step.Direction != DirectionForward {
-			return nil, invalidLoadedState(
-				Migration{App: step.Key.App, Name: step.Key.Name},
-				NoOperation,
-				"",
-				errors.New("fresh full historical projection contains a non-forward step"),
-			)
-		}
-		if _, exists := seen[step.Key]; exists {
-			return nil, invalidLoadedState(
-				Migration{App: step.Key.App, Name: step.Key.Name},
-				NoOperation,
-				"",
-				errors.New("fresh full historical projection repeats a graph node"),
-			)
-		}
-		seen[step.Key] = struct{}{}
-	}
-	return steps, nil
 }
 
 func (r loadedStateReconstructor) dryLoadedPlan(
@@ -1663,7 +1405,6 @@ func (r loadedStateReconstructor) dryLoadedPlan(
 		prepared = append(prepared, loadedPlanStep{
 			step:         step,
 			requirements: materialized.requirements,
-			relation:     materialized.relation,
 			seal:         materialized.seal,
 		})
 	}
@@ -1685,8 +1426,7 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		)
 	}
 	indices := operationIndices(len(migration.Operations), step.Direction)
-	relationBearing := migrationContainsRelation(migration)
-	if relationBearing && len(indices) > loadedDerivedIntentMaxOperations {
+	if len(indices) > loadedDerivedIntentMaxOperations {
 		return loadedMaterializedStep{}, migrationError(
 			CategoryState, CodeInvalidState, step.Direction, migration,
 			NoOperation, "", fmt.Errorf(
@@ -1695,32 +1435,26 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			),
 		)
 	}
-	var budget *loadedDerivedIntentBudget
-	if relationBearing {
-		budget = &loadedDerivedIntentBudget{}
-		if err := budget.consumeNodes("transition", 1); err != nil {
-			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
-		}
-		if err := budget.consumeString("transition.migration.app", step.Key.App); err != nil {
-			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
-		}
-		if err := budget.consumeString("transition.migration.name", step.Key.Name); err != nil {
-			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
-		}
-		if err := budget.consumeNodes("operations", len(indices)); err != nil {
-			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
-		}
+	budget := &loadedDerivedIntentBudget{}
+	if err := budget.consumeNodes("transition", 1); err != nil {
+		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
+	}
+	if err := budget.consumeString("transition.migration.app", step.Key.App); err != nil {
+		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
+	}
+	if err := budget.consumeString("transition.migration.name", step.Key.Name); err != nil {
+		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
+	}
+	if err := budget.consumeNodes("operations", len(indices)); err != nil {
+		return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, NoOperation, "", err)
 	}
 
-	beforeFormat := builder.formatVersion
+	beforeFormat := StateFormatVersion
 	if err := r.beginLoadedMigration(builder, migration, step.Direction); err != nil {
 		return loadedMaterializedStep{}, err
 	}
 
-	var operationViews []loadedOperationView
-	if relationBearing || includeExecutionState {
-		operationViews = make([]loadedOperationView, 0, len(indices))
-	}
+	operationViews := make([]loadedOperationView, 0, len(indices))
 	var requirements loadedRelationRequirements
 	for intentIndex, operationIndex := range indices {
 		if err := ctx.Err(); err != nil {
@@ -1735,15 +1469,14 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		}
 		appLabel, modelName := operationSourceModel(operation)
 		beforeModel, beforeExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
+		changedRelationFields := operationRelationFieldViews(operation)
 		targets, err := loadedBuilderRelationTargets(builder, migration, operationIndex, step.Direction)
 		if err != nil {
 			return loadedMaterializedStep{}, err
 		}
-		beforeOperationFormat := builder.formatVersion
 		if err := r.applyLoadedOperation(builder, migration, operationIndex, step.Direction); err != nil {
 			return loadedMaterializedStep{}, err
 		}
-		afterOperationFormat := builder.formatVersion
 		afterModel, afterExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
 		sourceModel := afterModel
 		sourceExists := afterExists
@@ -1768,48 +1501,45 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			}
 			sourceFields[targetIndex] = sourceField
 		}
-		if relationBearing {
-			if err := budget.scanOperation(
-				intentIndex,
-				loadedOptionalModelView(beforeModel, beforeExists),
-				loadedOptionalModelView(afterModel, afterExists),
-				sourceFields,
-				targets,
-			); err != nil {
-				return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, operationIndex, operation.Kind(), err)
-			}
-			kind, err := loadedBackendOperationKind(operation, step.Direction)
-			if err != nil {
-				return loadedMaterializedStep{}, migrationError(
-					CategoryState, CodeInvalidState, step.Direction, migration,
-					operationIndex, operation.Kind(), err,
-				)
-			}
-			requirements |= loadedRequirementsForSourceFields(kind, sourceFields)
+		if err := budget.scanOperation(
+			intentIndex,
+			loadedOptionalModelView(beforeModel, beforeExists),
+			loadedOptionalModelView(afterModel, afterExists),
+			sourceFields,
+			targets,
+		); err != nil {
+			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, operationIndex, operation.Kind(), err)
 		}
-		if relationBearing || includeExecutionState {
-			operationViews = append(operationViews, loadedOperationView{
-				index:        operationIndex,
-				operation:    operation,
-				appLabel:     appLabel,
-				beforeFormat: beforeOperationFormat,
-				afterFormat:  afterOperationFormat,
-				before:       beforeModel,
-				beforeExists: beforeExists,
-				after:        afterModel,
-				afterExists:  afterExists,
-				sourceFields: sourceFields,
-				targets:      targets,
-			})
+		kind, err := loadedBackendOperationKind(operation, step.Direction)
+		if err != nil {
+			return loadedMaterializedStep{}, migrationError(
+				CategoryState, CodeInvalidState, step.Direction, migration,
+				operationIndex, operation.Kind(), err,
+			)
 		}
+		// Capability bits describe the operation's mutation, not retained
+		// relations that are carried only to seal the complete model boundary.
+		// A scalar Add/Remove on a relation-bearing model therefore transports
+		// target authority without requiring a relation Add/Remove capability.
+		requirements |= loadedRequirementsForSourceFields(kind, changedRelationFields)
+		operationViews = append(operationViews, loadedOperationView{
+			index:        operationIndex,
+			operation:    operation,
+			appLabel:     appLabel,
+			before:       beforeModel,
+			beforeExists: beforeExists,
+			after:        afterModel,
+			afterExists:  afterExists,
+			sourceFields: sourceFields,
+			targets:      targets,
+		})
 	}
-	r.finishLoadedMigration(builder, migration)
 	if err := validateLoadedRelationMutationAuthorities(step, migration, operationViews); err != nil {
 		return loadedMaterializedStep{}, err
 	}
 
 	intent := loadedRelationIntent{}
-	if relationBearing {
+	if len(operationViews) != 0 {
 		intent.operations = make([]loadedRelationOperation, len(operationViews))
 		for viewIndex := range operationViews {
 			view := operationViews[viewIndex]
@@ -1850,20 +1580,14 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			)
 		}
 	}
-	var seal [sha256.Size]byte
-	var err error
-	if relationBearing {
-		seal, err = sealLoadedStep(loadedStepSealPayload{
-			Direction:    step.Direction,
-			App:          step.Key.App,
-			Migration:    step.Key.Name,
-			BeforeFormat: beforeFormat,
-			AfterFormat:  builder.formatVersion,
-			Operations:   loadedRelationSealOperations(intent),
-		})
-	} else {
-		seal, err = sealLoadedScalarStep(step, migration, beforeFormat, builder.formatVersion)
-	}
+	seal, err := sealLoadedStep(loadedStepSealPayload{
+		Direction:    step.Direction,
+		App:          step.Key.App,
+		Migration:    step.Key.Name,
+		BeforeFormat: beforeFormat,
+		AfterFormat:  StateFormatVersion,
+		Operations:   loadedRelationSealOperations(intent),
+	})
 	if err != nil {
 		return loadedMaterializedStep{}, migrationError(
 			CategoryState, CodeInvalidState, step.Direction, migration,
@@ -1879,7 +1603,6 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 		execution:      operationViews,
 		intent:         intent,
 		requirements:   requirements,
-		relation:       relationBearing,
 		stateUnchanged: stateUnchanged,
 		seal:           seal,
 	}, nil
@@ -1995,6 +1718,16 @@ func loadedBuilderRelationTargets(
 ) ([]loadedRelationTargetView, error) {
 	operation := migration.Operations[operationIndex]
 	fields := operationRelationFieldViews(operation)
+	if len(fields) == 0 {
+		appLabel, modelName := operationSourceModel(operation)
+		if source, exists := builder.model(loadedModelIdentity{app: appLabel, model: modelName}); exists {
+			for index := range source.value.Fields {
+				if fieldContainsRelation(source.value.Fields[index]) {
+					fields = append(fields, source.value.Fields[index])
+				}
+			}
+		}
+	}
 	if len(fields) == 0 {
 		return nil, nil
 	}
@@ -2231,17 +1964,13 @@ func loadedOptionalModel(model ir.Model, exists bool) ir.Model {
 	return model.Clone()
 }
 
-func loadedSparseProjectState(formatVersion int, app string, model ir.Model, exists bool) ProjectState {
-	state := ProjectState{formatVersion: formatVersion, apps: make(map[string]ir.Schema)}
+func loadedSparseProjectState(app string, model ir.Model, exists bool) ProjectState {
+	state := EmptyProjectState()
 	if !exists {
 		return state
 	}
-	schemaVersion := ir.FormatVersion
-	if formatVersion == RelationStateFormatVersion {
-		schemaVersion = ir.RelationFormatVersion
-	}
 	state.apps[app] = ir.Schema{
-		FormatVersion: schemaVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      app,
 		Models:        []ir.Model{model.Clone()},
 	}
@@ -2280,146 +2009,6 @@ func sealLoadedStep(payload loadedStepSealPayload) ([sha256.Size]byte, error) {
 	return sha256.Sum256(encoded), nil
 }
 
-func sealLoadedScalarStep(
-	step PlanStep,
-	migration Migration,
-	beforeFormat int,
-	afterFormat int,
-) ([sha256.Size]byte, error) {
-	definition, err := migrationHandoffDefinition(migration)
-	if err != nil {
-		return [sha256.Size]byte{}, err
-	}
-	encoded, err := json.Marshal(loadedScalarStepSealPayload{
-		Direction:    step.Direction,
-		App:          step.Key.App,
-		Migration:    step.Key.Name,
-		BeforeFormat: beforeFormat,
-		AfterFormat:  afterFormat,
-		Definition:   definition,
-	})
-	if err != nil {
-		return [sha256.Size]byte{}, err
-	}
-	return sha256.Sum256(encoded), nil
-}
-
-func (r loadedStateReconstructor) preflight(
-	before ProjectState,
-	migration Migration,
-	direction Direction,
-) ([]preparedOperation, ProjectState, error) {
-	if err := before.validate(); err != nil {
-		return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, NoOperation, "", err)
-	}
-	if migration.App == "" || migration.Name == "" {
-		return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, NoOperation, "", errors.New("migration identity is empty"))
-	}
-	relationBearing := migrationContainsRelation(migration)
-	state := before.Clone()
-	if relationBearing && state.FormatVersion() == StateFormatVersion {
-		promoted, err := promoteProjectState(state)
-		if err != nil {
-			index := firstRelationOperation(migration)
-			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, operationKindAt(migration, index), err)
-		}
-		state = promoted
-	}
-	indices := operationIndices(len(migration.Operations), direction)
-	prepared := make([]preparedOperation, 0, len(indices))
-	for _, index := range indices {
-		operation := migration.Operations[index]
-		if isNilOperation(operation) {
-			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, "", errors.New("operation is nil"))
-		}
-		if operation.App() != migration.App {
-			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, operation.Kind(), fmt.Errorf("operation app %q does not match migration app %q", operation.App(), migration.App))
-		}
-		from := state.Clone()
-		var next ProjectState
-		var err error
-		if direction == DirectionForward {
-			next, err = operation.stateForward(from)
-		} else {
-			next, err = operation.stateBackward(from)
-		}
-		if err != nil {
-			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, operation.Kind(), err)
-		}
-		targets, err := r.bindOperationRelations(from, next, migration, index, direction)
-		if err != nil {
-			return nil, before.Clone(), err
-		}
-		if err := validateLoadedRelationState(next); err != nil {
-			return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, index, operation.Kind(), err)
-		}
-		prepared = append(prepared, preparedOperation{index: index, op: operation, from: from, to: next.Clone(), relationTargets: targets})
-		state = next
-	}
-	if relationBearing && state.FormatVersion() == RelationStateFormatVersion {
-		if _, _, _, exists := firstProjectStateRelation(state); !exists {
-			demoted, err := demoteProjectState(state)
-			if err != nil {
-				return nil, before.Clone(), migrationError(CategoryState, CodeInvalidState, direction, migration, NoOperation, "", err)
-			}
-			state = demoted
-		}
-	}
-	return prepared, state.Clone(), nil
-}
-
-func (r loadedStateReconstructor) bindOperationRelations(
-	from, to ProjectState,
-	migration Migration,
-	operationIndex int,
-	direction Direction,
-) ([]loadedRelationTarget, error) {
-	operation := migration.Operations[operationIndex]
-	fields := operationRelationFields(operation)
-	if len(fields) == 0 {
-		return nil, nil
-	}
-	sourceApp, sourceModelName := operationSourceModel(operation)
-	visible := from
-	if direction == DirectionBackward {
-		visible = from
-	}
-	sourceModel, sourceExists := relationSourceModelForBoundary(from, to, sourceApp, sourceModelName, direction)
-	if !sourceExists {
-		return nil, migrationError(CategoryState, CodeInvalidState, direction, migration, operationIndex, operation.Kind(), fmt.Errorf("relation source model %s.%s is missing", sourceApp, sourceModelName))
-	}
-	targets := make([]loadedRelationTarget, 0, len(fields))
-	for _, field := range fields {
-		if field.Relation == nil {
-			continue
-		}
-		targetIdentity := field.Relation.Target
-		targetModel, exists := visible.Model(targetIdentity.AppLabel, targetIdentity.ModelName)
-		if !exists {
-			return nil, migrationError(CategoryState, CodeInvalidState, direction, migration, operationIndex, operation.Kind(), fmt.Errorf("historical target model %s.%s is not visible", targetIdentity.AppLabel, targetIdentity.ModelName))
-		}
-		primaryKey, err := exactAutoPrimaryKey(targetModel)
-		if err != nil {
-			return nil, migrationError(CategoryState, CodeInvalidState, direction, migration, operationIndex, operation.Kind(), err)
-		}
-		targets = append(targets, loadedRelationTarget{
-			SourceModel: sourceModel.Clone(), SourceField: field.Clone(),
-			TargetModel: targetModel.Clone(), TargetPrimaryKey: primaryKey.Clone(),
-		})
-	}
-	return targets, nil
-}
-
-func relationSourceModelForBoundary(from, to ProjectState, app, model string, direction Direction) (ir.Model, bool) {
-	if direction == DirectionBackward {
-		return from.Model(app, model)
-	}
-	if value, exists := to.Model(app, model); exists {
-		return value, true
-	}
-	return from.Model(app, model)
-}
-
 func operationSourceModel(operation Operation) (string, string) {
 	switch value := operation.(type) {
 	case CreateModel:
@@ -2433,35 +2022,6 @@ func operationSourceModel(operation Operation) (string, string) {
 	default:
 		return operation.App(), ""
 	}
-}
-
-func operationRelationFields(operation Operation) []ir.Field {
-	fields := make([]ir.Field, 0)
-	switch value := operation.(type) {
-	case CreateModel:
-		for _, field := range value.Model.Fields {
-			if fieldContainsRelation(field) {
-				fields = append(fields, field.Clone())
-			}
-		}
-	case *CreateModel:
-		if value != nil {
-			for _, field := range value.Model.Fields {
-				if fieldContainsRelation(field) {
-					fields = append(fields, field.Clone())
-				}
-			}
-		}
-	case AddField:
-		if fieldContainsRelation(value.Field) {
-			fields = append(fields, value.Field.Clone())
-		}
-	case *AddField:
-		if value != nil && fieldContainsRelation(value.Field) {
-			fields = append(fields, value.Field.Clone())
-		}
-	}
-	return fields
 }
 
 func operationRelationFieldViews(operation Operation) []ir.Field {
@@ -2518,75 +2078,6 @@ func exactAutoPrimaryKeyView(model ir.Model) (ir.Field, error) {
 	return key, nil
 }
 
-func validateLoadedRelationState(state ProjectState) error {
-	type relationValue struct {
-		source loadedModelIdentity
-		field  ir.Field
-	}
-	relations := make([]relationValue, 0)
-	for _, app := range state.Apps() {
-		schema := state.apps[app]
-		for _, model := range schema.Models {
-			for _, field := range model.Fields {
-				if fieldContainsRelation(field) {
-					relations = append(relations, relationValue{source: loadedModelIdentity{app: app, model: model.Name}, field: field.Clone()})
-				}
-			}
-		}
-	}
-	sort.Slice(relations, func(left, right int) bool {
-		if relations[left].source != relations[right].source {
-			return loadedIdentityLess(relations[left].source, relations[right].source)
-		}
-		return relations[left].field.Name < relations[right].field.Name
-	})
-	reverseOwners := make(map[string]relationValue)
-	declarations := make([]loadedRelationDeclaration, 0, len(relations))
-	for _, relation := range relations {
-		if relation.field.Relation == nil {
-			return fmt.Errorf("relation field %s.%s.%s has no relation arm", relation.source.app, relation.source.model, relation.field.Name)
-		}
-		targetIdentity := relation.field.Relation.Target
-		target, exists := state.Model(targetIdentity.AppLabel, targetIdentity.ModelName)
-		if !exists {
-			return fmt.Errorf("relation target %s.%s is missing", targetIdentity.AppLabel, targetIdentity.ModelName)
-		}
-		if _, err := exactAutoPrimaryKey(target); err != nil {
-			return err
-		}
-		if relation.source == (loadedModelIdentity{app: targetIdentity.AppLabel, model: targetIdentity.ModelName}) {
-			return fmt.Errorf("self-referential relation %s.%s.%s is unsupported", relation.source.app, relation.source.model, relation.field.Name)
-		}
-		reverse := relation.field.Relation.Reverse
-		if reverse.Name != "" {
-			for _, targetField := range target.Fields {
-				if targetField.Name == reverse.Name {
-					return fmt.Errorf("reverse name %q collides with target field %s.%s.%s", reverse.Name, targetIdentity.AppLabel, targetIdentity.ModelName, targetField.Name)
-				}
-			}
-			namespace := targetIdentity.AppLabel + "\x00" + targetIdentity.ModelName + "\x00" + reverse.Name
-			if previous, exists := reverseOwners[namespace]; exists {
-				return fmt.Errorf("reverse name %q collides between %s.%s.%s and %s.%s.%s", reverse.Name, previous.source.app, previous.source.model, previous.field.Name, relation.source.app, relation.source.model, relation.field.Name)
-			}
-			reverseOwners[namespace] = relation
-		}
-		declarations = append(declarations, loadedRelationDeclaration{source: relation.source, field: relation.field.Clone()})
-	}
-	if cycle := firstLoadedRelationCycle(declarations); len(cycle) != 0 {
-		return fmt.Errorf("relation graph contains a cycle at %s.%s", cycle[0].app, cycle[0].model)
-	}
-	return nil
-}
-
-func firstRelationOperation(migration Migration) int {
-	for index, operation := range migration.Operations {
-		if len(operationRelationFields(operation)) != 0 {
-			return index
-		}
-	}
-	return NoOperation
-}
-
 func operationKindAt(migration Migration, index int) string {
 	if index < 0 || index >= len(migration.Operations) || isNilOperation(migration.Operations[index]) {
 		return ""
@@ -2630,7 +2121,7 @@ func validateLoadedDefinitionResources(definitions []Migration) error {
 }
 
 func scanLoadedDefinitionResources(definitions []Migration) (loadedResourceScanCounts, error) {
-	if len(definitions) > definitionhandoff.MaxDefinitions {
+	if len(definitions) > maxLoadedDefinitions {
 		return loadedResourceScanCounts{}, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition count exceeds resource limit"))
 	}
 	budget := loadedResourceBudget{}
@@ -2644,7 +2135,7 @@ func scanLoadedDefinitionResources(definitions []Migration) (loadedResourceScanC
 		definitionStart := budget.bytes
 		loadedConsumeString(&budget, definition, NoOperation, "", "app", definition.App, false)
 		loadedConsumeString(&budget, definition, NoOperation, "", "name", definition.Name, false)
-		if len(definition.Dependencies) > definitionhandoff.MaxDependencies {
+		if len(definition.Dependencies) > maxLoadedDependencies {
 			loadedConsiderViolation(&budget, loadedResourceViolation{migration: definition, operation: NoOperation, path: "dependencies", reason: "dependency_count"})
 		} else {
 			loadedConsumeNodes(&budget, uint64(len(definition.Dependencies)))
@@ -2656,7 +2147,7 @@ func scanLoadedDefinitionResources(definitions []Migration) (loadedResourceScanC
 				loadedConsumeString(&budget, definition, NoOperation, "", fmt.Sprintf("dependencies[%d].name", index), definition.Dependencies[index].Name, false)
 			}
 		}
-		if len(definition.Operations) > definitionhandoff.MaxOperations {
+		if len(definition.Operations) > maxLoadedOperations {
 			loadedConsiderViolation(&budget, loadedResourceViolation{migration: definition, operation: NoOperation, path: "operations", reason: "operation_count"})
 		} else {
 			loadedConsumeNodes(&budget, uint64(len(definition.Operations)))
@@ -2670,14 +2161,14 @@ func scanLoadedDefinitionResources(definitions []Migration) (loadedResourceScanC
 				loadedScanOperationResource(&budget, definition, operationIndex, operation)
 			}
 		}
-		if !budget.byteOverflow && budget.bytes >= definitionStart && budget.bytes-definitionStart > definitionhandoff.MaxDefinitionBytes {
+		if !budget.byteOverflow && budget.bytes >= definitionStart && budget.bytes-definitionStart > maxLoadedDefinitionBytes {
 			loadedConsiderViolation(&budget, loadedResourceViolation{migration: definition, operation: NoOperation, path: "definition", reason: "definition_bytes"})
 		}
 	}
-	if budget.nodeOverflow || budget.nodes > definitionhandoff.MaxDefinitionNodes {
+	if budget.nodeOverflow || budget.nodes > maxLoadedDefinitionNodes {
 		return budget.scan, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition nodes exceed aggregate resource limit"))
 	}
-	if budget.byteOverflow || budget.bytes > definitionhandoff.MaxDefinitionSetBytes {
+	if budget.byteOverflow || budget.bytes > maxLoadedDefinitionSetBytes {
 		return budget.scan, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition bytes exceed aggregate resource limit"))
 	}
 	if budget.best != nil {
@@ -2750,7 +2241,7 @@ func loadedScanModelResource(budget *loadedResourceBudget, migration Migration, 
 	loadedConsumeString(budget, migration, operationIndex, kind, prefix+".name", model.Name, false)
 	loadedConsumeString(budget, migration, operationIndex, kind, prefix+".go_name", model.GoName, false)
 	loadedConsumeString(budget, migration, operationIndex, kind, prefix+".db_table", model.DBTable, false)
-	if len(model.Fields) > definitionhandoff.MaxFieldsPerCreateModel {
+	if len(model.Fields) > maxLoadedFieldsPerCreateModel {
 		loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: kind, path: prefix + ".fields", reason: "field_count"})
 		return
 	}
@@ -2797,7 +2288,7 @@ func loadedScanFieldResource(budget *loadedResourceBudget, migration Migration, 
 }
 
 func loadedConsumeNodes(budget *loadedResourceBudget, count uint64) {
-	if budget.nodeOverflow || count > uint64(definitionhandoff.MaxDefinitionNodes)-budget.nodes {
+	if budget.nodeOverflow || count > uint64(maxLoadedDefinitionNodes)-budget.nodes {
 		budget.nodeOverflow = true
 		return
 	}
@@ -2812,12 +2303,12 @@ func loadedConsumeString(
 	payload bool,
 ) {
 	if payload {
-		if len(value) > definitionhandoff.MaxDefinitionBytes {
+		if len(value) > maxLoadedDefinitionBytes {
 			loadedConsiderViolation(budget, loadedResourceViolation{migration: migration, operation: operationIndex, operationKind: operationKind, path: path, reason: "payload_bytes"})
 		}
 	}
 	count := uint64(len(value))
-	if budget.byteOverflow || count > uint64(definitionhandoff.MaxDefinitionSetBytes)-budget.bytes {
+	if budget.byteOverflow || count > uint64(maxLoadedDefinitionSetBytes)-budget.bytes {
 		budget.byteOverflow = true
 		return
 	}

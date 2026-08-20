@@ -1,6 +1,6 @@
 # ADR-0019: Migration definition source는 explicit versioned data document로 제한한다
 
-- 상태: Accepted
+- 상태: Superseded by [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 날짜: 2026-08-09
 - 관련 work/contract: GDJ-0019, MIG-057..MIG-064, Q-010, Q-012
 - 대체하는 ADR: 없음

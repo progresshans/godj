@@ -33,21 +33,22 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0016](0016-historical-project-state-reconstruction.md) | Accepted | Loaded migration definition의 dependency-ordered historical state replay |
 | [0017](0017-revision-fenced-migration-lifecycle.md) | Accepted | 각 migration transaction의 recorder revision fence |
 | [0018](0018-revision-fenced-migration-lifecycle-product-shape.md) | Accepted | Connection-free revision session, commit durability와 MIG-052 canonical-order deviation |
-| [0019](0019-versioned-migration-definition-source.md) | Accepted | Explicit strict data document, version tuple와 atomic definition load 경계 |
-| [0020](0020-migration-definition-loader-product-shape.md) | Accepted | Bounded definition loader package, immutable set/report와 existing lifecycle handoff |
+| [0019](0019-versioned-migration-definition-source.md) | Superseded | Strict data document의 dual tuple 경계; ADR-0035가 current-only wire로 대체 |
+| [0020](0020-migration-definition-loader-product-shape.md) | Superseded | Existing lifecycle/context handoff; ADR-0035가 explicit loaded set으로 대체 |
 | [0021](0021-project-linked-migration-check.md) | Accepted | `godj.toml`, private project runner와 DB-free migration check의 contract/test-only 경계 |
 | [0022](0022-project-runtime-and-global-migration-check.md) | Accepted | Public project runtime과 global `godj migrations check` 제품 경계 |
 | [0023](0023-symbolic-relation-binding-and-shared-relation-ast.md) | Accepted | Symbolic cross-app relation binding, import-cycle-free project bridge와 shared relation AST |
-| [0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md) | Accepted | AutoField ForeignKey IR v3, additive mixed-app companion과 atomic project binding |
+| [0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md) | Superseded | ForeignKey IR v3/additive bytes; ADR-0035가 current-only IR/publication으로 대체 |
 | [0025](0025-forward-foreign-key-predicate-and-sqlite-inner-join.md) | Accepted | Required forward FK exact predicate, shared relation path와 SQLite reusable INNER JOIN |
 | [0026](0026-forward-foreign-key-object-cache-and-nullability.md) | Accepted | Forward FK object wrapper/cache, nullable access와 relation-aware SQLite isnull trim |
 | [0027](0027-reverse-foreign-key-accessor-and-lookup.md) | Accepted | Reverse FK exact lookup, owner related-set accessor와 SQLite reverse INNER JOIN |
 | [0028](0028-reverse-foreign-key-prefetch.md) | Accepted | Reverse FK two-stage batch prefetch와 atomic warm related-set publication |
 | [0029](0029-one-hop-forward-select-related.md) | Accepted | One-hop forward required/nullable eager projection과 reverse-path pre-I/O rejection |
 | [0030](0030-project-bound-protect-and-set-null-delete.md) | Accepted | Declared project incoming policy 기반 SQLite PROTECT/SET_NULL relation delete |
-| [0031](0031-relation-aware-project-facade-and-generated-upgrade-boundary.md) | Accepted | Physical fixture를 보존하는 test-only project facade compile feasibility 경계; production 이름/API/upgrade 정책은 open |
-| [0032](0032-production-forward-project-facade-and-additive-first-publication.md) | Accepted | Frozen generated exact 13 위 bounded Gate 0 project-only forward facade companion의 additive first-publication |
+| [0031](0031-relation-aware-project-facade-and-generated-upgrade-boundary.md) | Superseded | Physical fixture byte-preserving feasibility; ADR-0035가 current bundle publication으로 대체 |
+| [0032](0032-production-forward-project-facade-and-additive-first-publication.md) | Superseded | Frozen exact-13 additive publication; ADR-0035가 current bundle publication으로 대체 |
 | [0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | Accepted | Django-first REL-002 forward assignment/save, PK-presence, canonical preflight와 per-edge COW cache 경계 |
-| [0034](0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) | Accepted | Relation definition/state profile과 exact existing-fence SQLite ForeignKey lifecycle의 bounded design; D1/D2/D3a는 EVID-093, D3b normal loaded Create/Delete core는 EVID-094, D4 bounded restart는 EVID-095, D4d nullable Add는 EVID-097, D4e empty-source required Add는 EVID-098, D4f bounded Remove-by-remake는 EVID-099에서 Implemented/Verified; arbitrary/general remake, general restart, actual adapter와 status transition은 미완료 |
+| [0034](0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) | Superseded | D4d~D4f evidence는 보존; dual profile/state/backend와 D4g publication은 ADR-0035로 대체 |
+| [0035](0035-pre-release-current-only-format-and-generated-publication.md) | Accepted | Current-only IR/definition/state, explicit loaded set, unified migration intent와 current generated ABI reset |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

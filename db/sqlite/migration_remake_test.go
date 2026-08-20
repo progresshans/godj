@@ -22,7 +22,7 @@ type sqliteRelationRemakeFixture struct {
 	after      ir.Model
 	removed    ir.Field
 	transition migrationbackend.HistoryTransition
-	intent     migrationbackend.RelationMigrationIntent
+	intent     migrationbackend.MigrationIntent
 }
 
 type sqliteRelationRemakeDurableSnapshot struct {
@@ -152,13 +152,13 @@ func TestSQLiteRelationRemakeRejectsClosedShapeHazardsBeforeClaim(t *testing.T) 
 			concrete.relationBeginCheckpoint = func(checkpoint sqliteRelationBeginCheckpoint) {
 				checkpoints = append(checkpoints, checkpoint)
 			}
-			transaction, err := session.BeginRelationFencedMigration(
+			transaction, err := session.BeginMigration(
 				context.Background(),
 				fixture.transition,
 				fixture.intent,
 			)
 			if transaction != nil || err == nil || !strings.Contains(err.Error(), test.detail) {
-				t.Fatalf("BeginRelationFencedMigration(hazard) = (%v, %v), want %q", transaction, err, test.detail)
+				t.Fatalf("BeginMigration(hazard) = (%v, %v), want %q", transaction, err, test.detail)
 			}
 			assertSQLiteRelationCapabilityFeature(t, err, "sqlite_relation_migration")
 			assertSQLiteRelationNoClaimCheckpoint(t, checkpoints)
@@ -180,9 +180,9 @@ func TestSQLiteRelationRemakePreservesRowsHighWaterAndRemainingForeignKey(t *tes
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatalf("ReadAppliedMigrations(success): %v", err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, fixture.transition, fixture.intent)
+	transaction, err := session.BeginMigration(ctx, fixture.transition, fixture.intent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(success): %v", err)
+		t.Fatalf("BeginMigration(success): %v", err)
 	}
 	// Mutation of the caller-visible aliases after Begin cannot change the
 	// physical plan sealed from the exact transition tuple and snapshots.
@@ -301,13 +301,13 @@ func TestSQLiteRelationRemakeMutationFaultsRollbackWithoutRetryOrTemporaryLeak(t
 				}
 				return fault
 			}
-			transaction, err := session.BeginRelationFencedMigration(
+			transaction, err := session.BeginMigration(
 				context.Background(),
 				fixture.transition,
 				fixture.intent,
 			)
 			if err != nil {
-				t.Fatalf("BeginRelationFencedMigration(fault): %v", err)
+				t.Fatalf("BeginMigration(fault): %v", err)
 			}
 			firstErr := transaction.RemoveField(context.Background(), fixture.after.Clone(), fixture.removed.Clone())
 			if !errors.Is(firstErr, cause) {
@@ -367,13 +367,14 @@ func TestSQLiteLoadedRelationRemakeBusyFaultsStayOwnedByOriginalAddField(t *test
 			path := filepath.Join(t.TempDir(), "loaded-remake-busy.sqlite")
 			loaded := loadSQLiteLoadedNullableRelationAddSet(t, "remake-busy-"+test.name)
 			database := openSQLiteLoadedRelationTaxonomyBackend(t, path)
-			seedState, err := loaded.Migrate(
+			seedState, err := (migrations.Executor{Backend: database}).Migrate(
 				ctx,
-				migrations.Executor{Backend: database},
+				loaded,
 				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 					App: "news", Name: "0002_article",
 				})),
 			)
+
 			if err != nil {
 				t.Fatalf("Migrate(relation remake seed): %v", err)
 			}
@@ -384,7 +385,7 @@ func TestSQLiteLoadedRelationRemakeBusyFaultsStayOwnedByOriginalAddField(t *test
 			if _, err := database.ExecContext(ctx, `INSERT INTO "news_article" ("title", "author_id") VALUES ('first', 1), ('second', 2)`); err != nil {
 				t.Fatalf("insert relation remake articles: %v", err)
 			}
-			appliedState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+			appliedState, err := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 			if err != nil {
 				t.Fatalf("Migrate(relation remake Add): %v", err)
 			}
@@ -399,13 +400,14 @@ func TestSQLiteLoadedRelationRemakeBusyFaultsStayOwnedByOriginalAddField(t *test
 				method: test.method, contains: test.contains, remaining: 1, faultErr: cause,
 			}
 			probe := &sqliteLoadedRelationTaxonomyBackend{Backend: database, fault: connectionFault}
-			state, err := loaded.Migrate(
+			state, err := (migrations.Executor{Backend: probe}).Migrate(
 				ctx,
-				migrations.Executor{Backend: probe},
+				loaded,
 				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 					App: "news", Name: "0002_article",
 				})),
 			)
+
 			var migrationError *migrations.Error
 			if !errors.As(err, &migrationError) || migrationError == nil ||
 				migrationError.Category != migrations.CategoryExecution ||
@@ -510,12 +512,12 @@ func prepareSQLiteRelationRemakeFixture(t *testing.T) sqliteRelationRemakeFixtur
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_editor"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	addIntent := migrationbackend.RelationMigrationIntent{Operations: []migrationbackend.RelationMigrationOperation{{
+	addIntent := migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
 		OperationIndex: 0,
-		Kind:           migrationbackend.RelationMigrationAddField,
+		Kind:           migrationbackend.MigrationAddField,
 		Before:         before,
 		After:          after,
-		Targets: []migrationbackend.RelationMigrationTarget{{
+		Targets: []migrationbackend.MigrationTarget{{
 			SourceField: removed,
 			TargetModel: target,
 			TargetKey:   target.Fields[0],
@@ -526,9 +528,9 @@ func prepareSQLiteRelationRemakeFixture(t *testing.T) sqliteRelationRemakeFixtur
 		!reflect.DeepEqual(records, []migrationbackend.AppliedMigration{initial}) {
 		t.Fatalf("ReadAppliedMigrations(prepare remake)=(%v,%v)", records, err)
 	}
-	transaction, err := session.BeginRelationFencedMigration(ctx, apply, addIntent)
+	transaction, err := session.BeginMigration(ctx, apply, addIntent)
 	if err != nil {
-		t.Fatalf("BeginRelationFencedMigration(prepare Add): %v", err)
+		t.Fatalf("BeginMigration(prepare Add): %v", err)
 	}
 	if err := transaction.AddField(ctx, before.Clone(), removed.Clone()); err != nil {
 		t.Fatalf("AddField(prepare remake): %v", err)
@@ -553,13 +555,13 @@ func prepareSQLiteRelationRemakeFixture(t *testing.T) sqliteRelationRemakeFixtur
 		after:      after,
 		removed:    removed,
 		transition: remove,
-		intent: migrationbackend.RelationMigrationIntent{
-			Operations: []migrationbackend.RelationMigrationOperation{{
+		intent: migrationbackend.MigrationIntent{
+			Operations: []migrationbackend.MigrationOperation{{
 				OperationIndex: 0,
-				Kind:           migrationbackend.RelationMigrationRemoveField,
+				Kind:           migrationbackend.MigrationRemoveField,
 				Before:         after,
 				After:          before,
-				Targets: []migrationbackend.RelationMigrationTarget{{
+				Targets: []migrationbackend.MigrationTarget{{
 					SourceField: removed,
 					TargetModel: target,
 					TargetKey:   target.Fields[0],

@@ -58,9 +58,9 @@ type projectRelationQuerySource struct {
 	relations     []projectRelationQueryEdge
 }
 
-// GenerateProjectRelationQuery renders project-owned typed relation wiring.
-// It accepts mixed scalar-v2 target packages and relation-v3 source packages;
-// only normalized symbolic model identities cross into generated runtime code.
+// GenerateProjectRelationQuery renders project-owned typed relation wiring for
+// current app schemas. Only normalized symbolic model identities cross into
+// generated runtime code.
 func GenerateProjectRelationQuery(packageName string, packages []RelationQueryPackage) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
@@ -129,12 +129,11 @@ func canonicalRelationQueryPackages(packages []RelationQueryPackage) ([]normaliz
 		if !validImportPath(candidate.ImportPath) {
 			return nil, fmt.Errorf("invalid relation query import path %q", candidate.ImportPath)
 		}
-		if schema.FormatVersion == ir.RelationFormatVersion {
-			if err := validateRelationQueryNames(schema); err != nil {
-				return nil, fmt.Errorf("validate relation query package %q: %w", candidate.Alias, err)
-			}
-		} else if err := validateGeneratedNames(schema); err != nil {
-			return nil, fmt.Errorf("validate scalar query package %q: %w", candidate.Alias, err)
+		if err := validateGeneratedNames(schema); err != nil {
+			return nil, fmt.Errorf("validate query package %q: %w", candidate.Alias, err)
+		}
+		if err := validateRelationMetadataNames(schema); err != nil {
+			return nil, fmt.Errorf("validate query metadata package %q: %w", candidate.Alias, err)
 		}
 		canonical[index] = normalizedRelationQueryPackage{
 			alias:      candidate.Alias,

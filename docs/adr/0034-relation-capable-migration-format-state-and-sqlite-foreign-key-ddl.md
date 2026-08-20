@@ -1,6 +1,6 @@
 # ADR-0034: Relation-capable Migration Format, State, and SQLite ForeignKey DDL
 
-- 상태: Accepted
+- 상태: Superseded by [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 날짜: 2026-08-13
 - Phase C decision freeze: 2026-08-19
 - Decision accepted: 2026-08-19

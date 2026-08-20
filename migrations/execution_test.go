@@ -15,7 +15,7 @@ func TestExecutorExecutePlanValidatesContextBeforeEmptyNoOp(t *testing.T) {
 	t.Parallel()
 
 	backend := &planTestBackend{}
-	executor := Executor{Backend: backend}
+	executor := DirectExecutor{Backend: backend}
 	before := EmptyProjectState()
 
 	for _, test := range []struct {
@@ -52,7 +52,7 @@ func TestExecutorExecutePlanEmptyPlanDoesNotInspectDefinitionsOrBackend(t *testi
 	}
 	var typedNilBackend *planTestBackend
 	before := EmptyProjectState()
-	after, err := (Executor{Backend: typedNilBackend}).ExecutePlan(
+	after, err := (DirectExecutor{Backend: typedNilBackend}).ExecutePlan(
 		context.Background(),
 		before,
 		definitions,
@@ -79,7 +79,7 @@ func TestExecutorExecutePlanRejectsRawRelationBeforeEmptyNoOpOrIO(t *testing.T) 
 	} {
 		fake := &planTestBackend{}
 		before := EmptyProjectState()
-		after, err := (Executor{Backend: fake}).ExecutePlan(context.Background(), before, []Migration{definition}, plan)
+		after, err := (DirectExecutor{Backend: fake}).ExecutePlan(context.Background(), before, []Migration{definition}, plan)
 		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
 		var capability *backend.CapabilityError
 		if !errors.As(err, &capability) || capability.Feature != "relation_migration" {
@@ -100,7 +100,7 @@ func TestExecutorExecutePlanRejectsPrivateRelationStateWithScalarDefinitions(t *
 	}}}
 	for _, plan := range [][]PlanStep{nil, {{Key: definition.Key(), Direction: DirectionForward}}} {
 		fake := &planTestBackend{}
-		after, err := (Executor{Backend: fake}).ExecutePlan(context.Background(), before, []Migration{definition}, plan)
+		after, err := (DirectExecutor{Backend: fake}).ExecutePlan(context.Background(), before, []Migration{definition}, plan)
 		assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
 		var capability *backend.CapabilityError
 		if !errors.As(err, &capability) || capability.Feature != "relation_migration" || fake.beginCount != 0 || !after.Equal(before) {
@@ -117,7 +117,7 @@ func TestExecutorExecutePlanPostScanCancellationBeatsRelationCapability(t *testi
 	}}
 	ctx := &stagedRawCancellationContext{Context: context.Background(), cancelAt: 2}
 	fake := &planTestBackend{}
-	_, err := (Executor{Backend: fake}).ExecutePlan(ctx, EmptyProjectState(), []Migration{definition}, nil)
+	_, err := (DirectExecutor{Backend: fake}).ExecutePlan(ctx, EmptyProjectState(), []Migration{definition}, nil)
 	var capability *backend.CapabilityError
 	if !errors.Is(err, context.Canceled) || errors.As(err, &capability) || fake.beginCount != 0 || ctx.calls.Load() < 2 {
 		t.Fatalf("ExecutePlan post-scan cancellation = error:%v capability:%#v begin:%d calls:%d", err, capability, fake.beginCount, ctx.calls.Load())
@@ -131,7 +131,7 @@ func TestExecutorRelationStateScalarDefinitionErrorContextIsInputOrderIndependen
 	alpha := Migration{App: "alpha", Name: "0002", Operations: []Operation{CreateModel{AppLabel: "alpha", Model: stateModel("entry", "alpha_entry")}}}
 	zeta := Migration{App: "zeta", Name: "0001", Operations: []Operation{CreateModel{AppLabel: "zeta", Model: stateModel("entry", "zeta_entry")}}}
 	for _, definitions := range [][]Migration{{zeta, alpha}, {alpha, zeta}} {
-		_, err := (Executor{}).ExecutePlan(context.Background(), before, definitions, nil)
+		_, err := (DirectExecutor{}).ExecutePlan(context.Background(), before, definitions, nil)
 		var migrationError *Error
 		if !errors.As(err, &migrationError) || migrationError.Category != CategoryCapability ||
 			migrationError.Code != CodeUnsupported || migrationError.App != alpha.App || migrationError.Migration != alpha.Name {
@@ -208,7 +208,7 @@ func TestExecutorExecutePlanRejectsStructuralErrorsBeforeIO(t *testing.T) {
 			t.Parallel()
 			fake := &planTestBackend{}
 			before := EmptyProjectState()
-			after, err := (Executor{Backend: fake}).ExecutePlan(
+			after, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 				context.Background(),
 				before,
 				test.definitions,
@@ -240,7 +240,7 @@ func TestExecutorExecutePlanPreflightsEveryStateTransitionBeforeIO(t *testing.T)
 	}
 	fake := &planTestBackend{}
 	before := EmptyProjectState()
-	after, err := (Executor{Backend: fake}).ExecutePlan(
+	after, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 		context.Background(),
 		before,
 		[]Migration{first, invalidTail},
@@ -264,7 +264,7 @@ func TestExecutorExecutePlanRunsForwardAndBackwardInPlanOrder(t *testing.T) {
 	first, second, _ := planTestMigrations()
 	definitions := []Migration{first, second}
 	forwardBackend := newPlanTestBackend(2)
-	executor := Executor{Backend: forwardBackend}
+	executor := DirectExecutor{Backend: forwardBackend}
 	state0 := EmptyProjectState()
 	state2, err := executor.ExecutePlan(
 		context.Background(),
@@ -286,7 +286,7 @@ func TestExecutorExecutePlanRunsForwardAndBackwardInPlanOrder(t *testing.T) {
 	}
 
 	backwardBackend := newPlanTestBackend(2)
-	state0Again, err := (Executor{Backend: backwardBackend}).ExecutePlan(
+	state0Again, err := (DirectExecutor{Backend: backwardBackend}).ExecutePlan(
 		context.Background(),
 		state2,
 		definitions,
@@ -313,7 +313,7 @@ func TestExecutorExecutePlanStopsAtFirstFailureAndReturnsLastDurableState(t *tes
 	fake := newPlanTestBackend(3)
 	fake.transactions[1].failures["add_field"] = failure
 	state0 := EmptyProjectState()
-	stateAfter, err := (Executor{Backend: fake}).ExecutePlan(
+	stateAfter, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 		context.Background(),
 		state0,
 		[]Migration{first, second, third},
@@ -363,7 +363,7 @@ func TestExecutorExecutePlanBackwardFailurePreservesEarlierReverseCommit(t *test
 	failure := errors.New("forced backward second-step failure")
 	fake := newPlanTestBackend(3)
 	fake.transactions[1].failures["remove_field"] = failure
-	stateAfter, err := (Executor{Backend: fake}).ExecutePlan(
+	stateAfter, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 		context.Background(),
 		state,
 		definitions,
@@ -402,7 +402,7 @@ func TestExecutorExecutePlanCancellationGates(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		fake := newPlanTestBackend(2)
 		fake.transactions[0].hooks["commit"] = cancel
-		stateAfter, err := (Executor{Backend: fake}).ExecutePlan(ctx, EmptyProjectState(), definitions, plan)
+		stateAfter, err := (DirectExecutor{Backend: fake}).ExecutePlan(ctx, EmptyProjectState(), definitions, plan)
 		assertMigrationError(t, err, CategoryExecution, CodeOperationFailed, NoOperation, "")
 		if !errors.Is(err, context.Canceled) {
 			t.Fatalf("ExecutePlan() error = %v, want context.Canceled", err)
@@ -426,7 +426,7 @@ func TestExecutorExecutePlanCancellationGates(t *testing.T) {
 		fake.transactions[0].hooks["create_model"] = cancel
 		fake.transactions[0].failures["create_model"] = context.Canceled
 		fake.transactions[0].failures["rollback"] = rollbackFailure
-		stateAfter, err := (Executor{Backend: fake}).ExecutePlan(
+		stateAfter, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 			ctx,
 			EmptyProjectState(),
 			[]Migration{first},
@@ -448,7 +448,7 @@ func TestExecutorExecutePlanCancellationGates(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		fake := newPlanTestBackend(1)
 		fake.transactions[0].hooks["commit"] = cancel
-		stateAfter, err := (Executor{Backend: fake}).ExecutePlan(
+		stateAfter, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 			ctx,
 			EmptyProjectState(),
 			[]Migration{first},
@@ -483,7 +483,7 @@ func TestExecutorExecutePlanSnapshotsCallerPlanAndDefinitions(t *testing.T) {
 		definitions[1].Operations[0] = mutated
 		plan[1] = PlanStep{Key: first.Key(), Direction: DirectionBackward}
 	}
-	stateAfter, err := (Executor{Backend: fake}).ExecutePlan(
+	stateAfter, err := (DirectExecutor{Backend: fake}).ExecutePlan(
 		context.Background(),
 		EmptyProjectState(),
 		definitions,

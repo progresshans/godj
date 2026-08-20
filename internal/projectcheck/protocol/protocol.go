@@ -21,7 +21,7 @@ const (
 	MaxResponseBytes        = 64 << 10
 	MaxCount                = 2_048
 
-	EmptySetDigest = "sha256:53f20df43573a361318abbff8c9e6bebad203a7f13f86c1f55c2df2cf4a43450"
+	EmptySetDigest = "sha256:1412c48d7da2299b6f2be7a614c5bb9ce510027328f6baed72ae05cbecc9b494"
 )
 
 const (
@@ -251,9 +251,6 @@ func ExitCode(failure Failure) (int, bool) {
 			"invalid_definition_source",
 			"invalid_definition_document",
 			"definition_format_incompatible",
-			"loader_abi_incompatible",
-			"operation_codec_incompatible",
-			"schema_ir_incompatible",
 			"unsupported_definition_operation",
 			"invalid_definition_operation",
 			"invalid_definition_ir",

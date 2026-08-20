@@ -23,6 +23,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -597,7 +598,7 @@ func TestMigrationProjectCheckAdapterUsesActualProductEntryPointsWithoutExpected
 		"conformance/projectcheck",
 		"LoadObservationSuite",
 		"MIG-065",
-		"sha256:07e61f8d956002cff0d7fe2db10c16ea4a30829e9f0ced09c69c40ff2c2399bc",
+		"sha256:b15b980386317e4c75746910d01bf5492876a5eb31a2ed3f560722866c15a1b6",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("migration project-check adapter contains forbidden expected replay fragment %q", forbidden)
@@ -810,8 +811,14 @@ func TestMigrationLifecycleAdapterUsesPublicMigrateWithoutContractPayloadHardcod
 			t.Fatalf("migration-lifecycle adapter contains forbidden hardcoded or legacy execution payload %q", forbidden)
 		}
 	}
-	if got := strings.Count(text, ".Migrate("); got < 6 {
-		t.Fatalf("migration-lifecycle adapter public Migrate call sites = %d, want setup and capture coverage", got)
+	if got := strings.Count(text, ".Migrate("); got != 1 {
+		t.Fatalf("migration-lifecycle adapter Executor.Migrate call sites = %d, want one current lifecycle entry", got)
+	}
+	if got := strings.Count(text, "definition.Load("); got != 1 {
+		t.Fatalf("migration-lifecycle adapter definition.Load call sites = %d, want one current loader boundary", got)
+	}
+	if got := strings.Count(text, "migrationLifecycleMigrate("); got < 7 {
+		t.Fatalf("migration-lifecycle adapter helper call/declaration sites = %d, want setup and capture coverage", got)
 	}
 }
 
@@ -1969,6 +1976,58 @@ func TestMigrationDefinitionSourceFixtureUsesArbitraryContractIdentity(t *testin
 	}
 }
 
+func TestMigrationDefinitionSourceUsesCurrentFormatAndLifecycleVocabulary(t *testing.T) {
+	t.Parallel()
+
+	for name, document := range map[string]map[string]any{
+		"root": migrationDefinitionRootDocument(),
+		"tail": migrationDefinitionTailDocument(),
+	} {
+		if got := document["format_version"]; got != definition.DefinitionFormatVersion {
+			t.Fatalf("%s format_version = %#v, want %d", name, got, definition.DefinitionFormatVersion)
+		}
+		if _, exists := document["compatibility"]; exists {
+			t.Fatalf("%s document retains a compatibility tuple", name)
+		}
+	}
+
+	set, report, err := definition.Load(migrationDefinitionCanonicalSources()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := migrationDefinitionSuccessResult(set, true, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, current := range []string{"definition_set", "execution", "format", "sources"} {
+		if _, exists := result[current]; !exists {
+			t.Fatalf("current result field %q is missing", current)
+		}
+	}
+	for _, retired := range []string{"compatibility", "handoff"} {
+		if _, exists := result[retired]; exists {
+			t.Fatalf("retired result field %q is still present", retired)
+		}
+	}
+
+	lifecycle := protocol.Object(map[string]protocol.Value{"route": protocol.String("probe")})
+	metrics := migrationDefinitionMetrics(report, 1, &lifecycle)
+	metricNames := make(map[string]struct{}, len(metrics.Fields))
+	for _, field := range metrics.Fields {
+		metricNames[field.Name] = struct{}{}
+	}
+	for _, current := range []string{"lifecycle", "session_open_calls"} {
+		if _, exists := metricNames[current]; !exists {
+			t.Fatalf("current metric field %q is missing", current)
+		}
+	}
+	for _, retired := range []string{"handoff", "handoff_calls"} {
+		if _, exists := metricNames[retired]; exists {
+			t.Fatalf("retired metric field %q is still present", retired)
+		}
+	}
+}
+
 func TestMigrationDefinitionSourceMutationsProduceProtocolDifferences(t *testing.T) {
 	t.Parallel()
 
@@ -1989,12 +2048,12 @@ func TestMigrationDefinitionSourceMutationsProduceProtocolDifferences(t *testing
 			},
 		},
 		{
-			name:                    "compatibility header",
+			name:                    "format version",
 			scenario:                "godj.migration.definition_source.canonical_batch",
 			wantComparisonRejection: true,
 			mutate: func(fixture *migrationDefinitionSourceFixture) {
 				migrationDefinitionMutateFixtureDocument(t, fixture, "opaque-z-root", func(document map[string]any) {
-					document["compatibility"].(map[string]any)["definition_format"] = float64(2)
+					document["format_version"] = float64(definition.DefinitionFormatVersion + 1)
 				})
 			},
 		},
@@ -2086,8 +2145,7 @@ func TestMigrationDefinitionSourceAdapterHasNoOracleOrTestCandidateShortcut(t *t
 		"os.OpenFile",
 		"ioutil.ReadFile",
 		"io.ReadAll",
-		"handoffCalls++",
-		"handoffCalls := 1",
+		"sessionOpenCalls := 1",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("migration definition source adapter contains forbidden shortcut %q", forbidden)
@@ -2097,7 +2155,7 @@ func TestMigrationDefinitionSourceAdapterHasNoOracleOrTestCandidateShortcut(t *t
 		t.Fatalf("migration definition source adapter Load call sites = %d, want actual product loading paths", got)
 	}
 	if got := strings.Count(text, ".Migrate("); got != 1 {
-		t.Fatalf("migration definition source adapter Set.Migrate call sites = %d, want exactly one", got)
+		t.Fatalf("migration definition source adapter Executor.Migrate call sites = %d, want exactly one", got)
 	}
 
 	fileSet := token.NewFileSet()
@@ -2126,7 +2184,7 @@ func TestMigrationDefinitionSourceAdapterHasNoOracleOrTestCandidateShortcut(t *t
 	})
 }
 
-func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(t *testing.T) {
+func TestMigrationDefinitionLifecycleObservationRequiresExplicitExecutorLifecycle(t *testing.T) {
 	t.Parallel()
 
 	source, err := os.ReadFile("migration_definition_source_scenarios.go")
@@ -2140,7 +2198,8 @@ func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(
 	}
 
 	foundFunction := false
-	setMigrateCalls := 0
+	executorBindings := 0
+	executorMigrateCalls := 0
 	returnedStateCaptures := 0
 	probeCounterReads := 0
 	for _, declaration := range parsed.Decls {
@@ -2151,6 +2210,20 @@ func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(
 		foundFunction = true
 		ast.Inspect(function.Body, func(node ast.Node) bool {
 			assignment, ok := node.(*ast.AssignStmt)
+			if ok && len(assignment.Lhs) == 1 && len(assignment.Rhs) == 1 {
+				left, leftOK := assignment.Lhs[0].(*ast.Ident)
+				composite, compositeOK := assignment.Rhs[0].(*ast.CompositeLit)
+				if leftOK && compositeOK && left.Name == "executor" && len(composite.Elts) == 1 {
+					binding, bindingOK := composite.Elts[0].(*ast.KeyValueExpr)
+					if bindingOK {
+						key, keyOK := binding.Key.(*ast.Ident)
+						value, valueOK := binding.Value.(*ast.Ident)
+						if keyOK && valueOK && key.Name == "Backend" && value.Name == "probe" {
+							executorBindings++
+						}
+					}
+				}
+			}
 			if !ok || len(assignment.Rhs) != 1 {
 				return true
 			}
@@ -2159,7 +2232,7 @@ func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(
 				if receiverOK && receiver.Name == "probe" && selector.Sel.Name == "sessionOpenCalls" &&
 					len(assignment.Lhs) == 1 {
 					left, leftOK := assignment.Lhs[0].(*ast.Ident)
-					if leftOK && left.Name == "handoffCalls" {
+					if leftOK && left.Name == "sessionOpenCalls" {
 						probeCounterReads++
 					}
 				}
@@ -2174,10 +2247,10 @@ func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(
 				return true
 			}
 			receiver, ok := selector.X.(*ast.Ident)
-			if !ok || receiver.Name != "set" {
+			if !ok || receiver.Name != "executor" {
 				return true
 			}
-			setMigrateCalls++
+			executorMigrateCalls++
 			if len(assignment.Lhs) >= 1 {
 				left, ok := assignment.Lhs[0].(*ast.Ident)
 				if ok && left.Name == "returnedState" {
@@ -2185,23 +2258,12 @@ func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(
 				}
 			}
 			if len(call.Args) != 3 {
-				t.Errorf("Set.Migrate arguments = %d, want context, instrumented executor, request", len(call.Args))
+				t.Errorf("Executor.Migrate arguments = %d, want context, loaded definition set, request", len(call.Args))
 				return true
 			}
-			executor, ok := call.Args[1].(*ast.CompositeLit)
-			if !ok || len(executor.Elts) != 1 {
-				t.Error("Set.Migrate does not receive one explicit instrumented Executor backend")
-				return true
-			}
-			binding, ok := executor.Elts[0].(*ast.KeyValueExpr)
-			if !ok {
-				t.Error("Set.Migrate Executor backend is not an explicit keyed binding")
-				return true
-			}
-			key, keyOK := binding.Key.(*ast.Ident)
-			value, valueOK := binding.Value.(*ast.Ident)
-			if !keyOK || !valueOK || key.Name != "Backend" || value.Name != "probe" {
-				t.Errorf("Set.Migrate Executor binding = %#v, want Backend: probe", binding)
+			loaded, ok := call.Args[1].(*ast.Ident)
+			if !ok || loaded.Name != "set" {
+				t.Errorf("Executor.Migrate loaded definitions = %#v, want set", call.Args[1])
 			}
 			return true
 		})
@@ -2209,15 +2271,16 @@ func TestMigrationDefinitionLifecycleObservationRequiresActualSetMigrateHandoff(
 	if !foundFunction {
 		t.Fatal("migrationDefinitionLifecycleObservation function is missing")
 	}
-	if setMigrateCalls != 1 || returnedStateCaptures != 1 {
+	if executorBindings != 1 || executorMigrateCalls != 1 || returnedStateCaptures != 1 {
 		t.Fatalf(
-			"actual Set.Migrate handoff/captured state = (%d, %d), want exactly (1, 1)",
-			setMigrateCalls,
+			"actual Executor binding/Migrate/captured state = (%d, %d, %d), want exactly (1, 1, 1)",
+			executorBindings,
+			executorMigrateCalls,
 			returnedStateCaptures,
 		)
 	}
 	if probeCounterReads != 1 {
-		t.Fatalf("handoff_calls instrumented session-open reads = %d, want exactly one", probeCounterReads)
+		t.Fatalf("session_open_calls instrumented reads = %d, want exactly one", probeCounterReads)
 	}
 	text := string(source)
 	if strings.Count(text, "migrationDefinitionTransitionValues(probe.transitions)") != 1 ||
@@ -2726,7 +2789,7 @@ func findObservation(t *testing.T, suite protocol.ObservationSuite, contractID s
 	return protocol.Observation{}
 }
 
-func TestMigrationRelationCharacterizationRemainsLockedUnregisteredAndDeterministic(t *testing.T) {
+func TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	profile, err := protocol.LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
 	if err != nil {
@@ -2738,6 +2801,27 @@ func TestMigrationRelationCharacterizationRemainsLockedUnregisteredAndDeterminis
 	}
 	if len(manifest.Contracts) != 12 || len(migrationRelationCharacterizationCases) != 12 {
 		t.Fatalf("migration relation characterization inventory = manifest:%d cases:%d", len(manifest.Contracts), len(migrationRelationCharacterizationCases))
+	}
+	wantScenarios := []string{
+		"godj.migration.relation.current_abi",
+		"godj.migration.relation.current_format_validation",
+		"godj.migration.relation.current_digest",
+		"godj.migration.relation.current_state",
+		"godj.migration.relation.structural_preflight",
+		"django.migration.relation.create_lifecycle",
+		"django.migration.relation.add_nullable_populated",
+		"django.migration.relation.remove_remake",
+		"django.migration.relation.physical_fk_policy",
+		"django.migration.relation.file_restart",
+		"django.migration.relation.precommit_faults",
+		"godj.migration.relation.commit_outcomes",
+	}
+	gotScenarios := make([]string, len(manifest.Contracts))
+	for index, contract := range manifest.Contracts {
+		gotScenarios[index] = contract.Scenario
+	}
+	if !reflect.DeepEqual(gotScenarios, wantScenarios) {
+		t.Fatalf("migration relation scenario order = %#v, want current exact %#v", gotScenarios, wantScenarios)
 	}
 	productCaseCounts := make(map[migrationrelationproduct.Case]int, len(migrationRelationCharacterizationCases))
 	for _, contract := range manifest.Contracts {

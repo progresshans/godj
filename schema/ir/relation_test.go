@@ -9,11 +9,12 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestScalarV2CanonicalHashRemainsByteLocked(t *testing.T) {
+func TestCurrentScalarCanonicalHashIsDeterministic(t *testing.T) {
 	t.Parallel()
 
 	input := ir.Schema{
-		AppLabel: "godj_conformance",
+		FormatVersion: ir.CurrentFormatVersion,
+		AppLabel:      "godj_conformance",
 		Models: []ir.Model{{
 			Name:   "article",
 			GoName: "Article",
@@ -28,20 +29,20 @@ func TestScalarV2CanonicalHashRemainsByteLocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CanonicalJSON() error = %v", err)
 	}
-	const want = "{\"format_version\":2,\"app_label\":\"godj_conformance\",\"models\":[{\"name\":\"article\",\"go_name\":\"Article\",\"db_table\":\"godj_conformance_article\",\"fields\":[{\"name\":\"id\",\"go_name\":\"ID\",\"column\":\"id\",\"kind\":\"auto\",\"primary_key\":true,\"nullable\":false},{\"name\":\"title\",\"go_name\":\"Title\",\"column\":\"title\",\"kind\":\"char\",\"primary_key\":false,\"nullable\":false,\"max_length\":200},{\"name\":\"published\",\"go_name\":\"Published\",\"column\":\"published\",\"kind\":\"boolean\",\"primary_key\":false,\"nullable\":false,\"default\":{\"kind\":\"boolean\"}},{\"name\":\"summary\",\"go_name\":\"Summary\",\"column\":\"summary\",\"kind\":\"char\",\"primary_key\":false,\"nullable\":true,\"max_length\":200}]}]}\n"
+	const want = "{\"format_version\":1,\"app_label\":\"godj_conformance\",\"models\":[{\"name\":\"article\",\"go_name\":\"Article\",\"db_table\":\"godj_conformance_article\",\"fields\":[{\"name\":\"id\",\"go_name\":\"ID\",\"column\":\"id\",\"kind\":\"auto\",\"primary_key\":true,\"nullable\":false},{\"name\":\"title\",\"go_name\":\"Title\",\"column\":\"title\",\"kind\":\"char\",\"primary_key\":false,\"nullable\":false,\"max_length\":200},{\"name\":\"published\",\"go_name\":\"Published\",\"column\":\"published\",\"kind\":\"boolean\",\"primary_key\":false,\"nullable\":false,\"default\":{\"kind\":\"boolean\"}},{\"name\":\"summary\",\"go_name\":\"Summary\",\"column\":\"summary\",\"kind\":\"char\",\"primary_key\":false,\"nullable\":true,\"max_length\":200}]}]}\n"
 	if !bytes.Equal(canonical, []byte(want)) {
-		t.Fatalf("scalar v2 canonical bytes changed\nwant: %s\n got: %s", want, canonical)
+		t.Fatalf("current scalar canonical bytes changed\nwant: %s\n got: %s", want, canonical)
 	}
 	hash, err := ir.Hash(input)
 	if err != nil {
 		t.Fatalf("Hash() error = %v", err)
 	}
-	if hash != "b10fcd2ffbc2369355c165abef4725178c04bb9a6055f77f31214188aad37621" {
-		t.Fatalf("scalar v2 hash = %s", hash)
+	if hash != "3e6ec104d26c21665690e9d4a20f547ae2f7212b2eb35f5e741d38a85274647d" {
+		t.Fatalf("current scalar hash = %s", hash)
 	}
 }
 
-func TestRelationV3NormalizesRoundTripsAndDoesNotAliasInput(t *testing.T) {
+func TestCurrentRelationNormalizesRoundTripsAndDoesNotAliasInput(t *testing.T) {
 	t.Parallel()
 
 	input := relationSchema()
@@ -50,7 +51,7 @@ func TestRelationV3NormalizesRoundTripsAndDoesNotAliasInput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Normalize() error = %v", err)
 	}
-	if normalized.FormatVersion != ir.RelationFormatVersion || normalized.Models[0].Fields[1].Column != "author_id" {
+	if normalized.FormatVersion != ir.CurrentFormatVersion || normalized.Models[0].Fields[1].Column != "author_id" {
 		t.Fatalf("normalized relation schema = %#v", normalized)
 	}
 	if input.Models[0].Fields[1].Column != "" {
@@ -81,7 +82,7 @@ func TestRelationV3NormalizesRoundTripsAndDoesNotAliasInput(t *testing.T) {
 	}
 }
 
-func TestRelationV3ExplicitColumnAndScalarColumnDefaults(t *testing.T) {
+func TestCurrentRelationExplicitColumnAndScalarColumnDefaults(t *testing.T) {
 	t.Parallel()
 
 	input := relationSchema()
@@ -98,7 +99,7 @@ func TestRelationV3ExplicitColumnAndScalarColumnDefaults(t *testing.T) {
 	}
 }
 
-func TestRelationV3ValidationMatrix(t *testing.T) {
+func TestCurrentRelationValidationMatrix(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -107,7 +108,6 @@ func TestRelationV3ValidationMatrix(t *testing.T) {
 		path string
 		code string
 	}{
-		{name: "v2 relation arm", edit: func(s *ir.Schema) { s.FormatVersion = ir.FormatVersion }, path: "models[0].fields[1].relation", code: "unsupported"},
 		{name: "unsupported version", edit: func(s *ir.Schema) { s.FormatVersion = 4 }, path: "format_version", code: "unsupported_version"},
 		{name: "relation on scalar", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Kind = ir.FieldChar; s.Models[0].Fields[1].MaxLength = 20 }, path: "models[0].fields[1].relation", code: "unsupported"},
 		{name: "missing relation", edit: func(s *ir.Schema) { s.Models[0].Fields[1].Relation = nil }, path: "models[0].fields[1].relation", code: "required"},
@@ -164,7 +164,7 @@ func TestFieldAndModelCloneDeepCopyDefaultAndRelation(t *testing.T) {
 
 func relationSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "blog",
 		Models: []ir.Model{{
 			Name:   "post",

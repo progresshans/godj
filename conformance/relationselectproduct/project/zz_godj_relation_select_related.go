@@ -10,7 +10,7 @@ import (
 	query "github.com/progresshans/godj/query"
 )
 
-const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"
+const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v1"
 
 var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}
 var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}

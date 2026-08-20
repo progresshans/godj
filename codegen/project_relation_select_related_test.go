@@ -38,7 +38,7 @@ func TestGenerateProjectRelationSelectRelatedIsCanonicalAndByteLocked(t *testing
 		t.Fatalf("project relation select-related bytes drifted\ngot:\n%s\nwant:\n%s", first, want)
 	}
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-v2"`),
+		[]byte(`const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v1"`),
 		[]byte("var _ orm.ProjectionDescriptor[authors.Author] = authors.AuthorDescriptor{}"),
 		[]byte("var _ orm.ProjectionDescriptor[blog.Post] = blog.PostDescriptor{}"),
 		[]byte("type BlogPostSelectRelated struct"),
@@ -205,11 +205,11 @@ func TestGenerateProjectRelationSelectRelatedRejectsInvalidInputsAndNamespaces(t
 	}
 }
 
-func TestGenerateProjectRelationSelectRelatedPreservesOldBytesAndLastGood(t *testing.T) {
+func TestGenerateProjectRelationSelectRelatedLeavesCurrentPrerequisitesStableAndPreservesLastGood(t *testing.T) {
 	t.Parallel()
 
 	authors, blog := relationQueryGenerationSchemas()
-	const modulePath = "example.com/godj-relation-select-related-old-lock"
+	const modulePath = "example.com/godj-relation-select-related-current-stability"
 	packages := relationSelectRelatedPackages(modulePath, "authors", "blog", authors, blog)
 	oldBindingBefore := mustGeneratedCode(t, "project binding before", func() ([]byte, error) {
 		return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
@@ -270,7 +270,7 @@ func TestGenerateProjectRelationSelectRelatedPreservesOldBytesAndLastGood(t *tes
 	}
 }
 
-func TestGeneratedProjectRelationSelectRelatedExactTwelveFileUnionCompiles(t *testing.T) {
+func TestGeneratedProjectRelationSelectRelatedExactElevenFileUnionCompiles(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	const modulePath = "example.com/godj-relation-select-related-union"
 	directory, files := writeGeneratedRelationSelectRelatedProject(
@@ -282,8 +282,8 @@ func TestGeneratedProjectRelationSelectRelatedExactTwelveFileUnionCompiles(t *te
 		blog,
 		true,
 	)
-	if len(files) != 12 {
-		t.Fatalf("generated union has %d files, want exact 12: %v", len(files), files)
+	if len(files) != 11 {
+		t.Fatalf("generated union has %d files, want exact 11: %v", len(files), files)
 	}
 	writeGeneratedTestFile(
 		t,
@@ -332,8 +332,8 @@ func TestGeneratedProjectRelationSelectRelatedAdversarialAliasesCompile(t *testi
 				blog,
 				true,
 			)
-			if len(files) != 12 {
-				t.Fatalf("generated adversarial union has %d files, want exact 12", len(files))
+			if len(files) != 11 {
+				t.Fatalf("generated adversarial union has %d files, want exact 11", len(files))
 			}
 			command := exec.Command("go", "test", "-mod=mod", "./...")
 			command.Dir = directory
@@ -415,10 +415,6 @@ func writeGeneratedRelationSelectRelatedProject(
 	if err != nil {
 		t.Fatalf("generate source metadata: %v", err)
 	}
-	blogQuery, err := codegen.GenerateRelationQuery(sourcePackage, blog)
-	if err != nil {
-		t.Fatalf("generate source query: %v", err)
-	}
 	blogObject, err := codegen.GenerateRelationObject(sourcePackage, blog)
 	if err != nil {
 		t.Fatalf("generate source object: %v", err)
@@ -463,7 +459,6 @@ replace github.com/progresshans/godj => %s
 		{name: "target/zz_godj_relation_projection.go", data: authorsProjection},
 		{name: "source/zz_godj_generated.go", data: blogMain},
 		{name: "source/zz_godj_relation.go", data: blogMetadata},
-		{name: "source/zz_godj_relation_query.go", data: blogQuery},
 		{name: "source/zz_godj_relation_object.go", data: blogObject},
 		{name: "source/zz_godj_relation_projection.go", data: blogProjection},
 		{name: "project/zz_godj_binding.go", data: projectBinding},

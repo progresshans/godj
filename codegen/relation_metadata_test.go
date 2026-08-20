@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestGenerateRelationMetadataSupportsV2AndV3FreshSchemaCompanions(t *testing.T) {
+func TestGenerateRelationMetadataSupportsCurrentScalarAndRelationSchemas(t *testing.T) {
 	t.Parallel()
 
 	authors, blog := relationGenerationSchemas()
@@ -19,26 +19,26 @@ func TestGenerateRelationMetadataSupportsV2AndV3FreshSchemaCompanions(t *testing
 		forbidden [][]byte
 	}{
 		{
-			name:  "v2 target app",
+			name:  "current scalar target app",
 			input: authors,
 			fragments: [][]byte{
-				[]byte(`const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-v1"`),
+				[]byte(`const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"`),
 				[]byte("const GoDjRelationSchemaSHA256 ="),
 				[]byte("func GoDjRelationSchema() ir.Schema"),
-				[]byte("FormatVersion: ir.FormatVersion"),
+				[]byte("FormatVersion: ir.CurrentFormatVersion"),
 				[]byte(`"authors"`),
 				[]byte(`"author"`),
 			},
 			forbidden: [][]byte{[]byte("ForeignKeyRelation"), []byte("blog")},
 		},
 		{
-			name:  "v3 source app",
+			name:  "current relation source app",
 			input: blog,
 			fragments: [][]byte{
-				[]byte(`const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-v1"`),
+				[]byte(`const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"`),
 				[]byte("const GoDjRelationSchemaSHA256 ="),
 				[]byte("func GoDjRelationSchema() ir.Schema"),
-				[]byte("FormatVersion: ir.RelationFormatVersion"),
+				[]byte("FormatVersion: ir.CurrentFormatVersion"),
 				[]byte("ir.FieldForeignKey"),
 				[]byte(`Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}`),
 				[]byte("Cardinality: ir.RelationManyToOne"),

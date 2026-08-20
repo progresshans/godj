@@ -8,14 +8,13 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/migrations"
-	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 )
 
 type plannerValidator func([]migrations.Migration) error
 
 // Load synchronously snapshots and validates all explicitly supplied source
-// documents, then atomically publishes one immutable-by-contract Set.
-func Load(sources ...Source) (Set, LoadReport, error) {
+// documents, then atomically publishes one opaque migrations snapshot.
+func Load(sources ...Source) (migrations.LoadedDefinitionSet, LoadReport, error) {
 	return loadWithPlanner(sources, validateDefinitionGraph)
 }
 
@@ -24,7 +23,7 @@ func validateDefinitionGraph(definitions []migrations.Migration) error {
 	return err
 }
 
-func loadWithPlanner(sources []Source, validate plannerValidator) (Set, LoadReport, error) {
+func loadWithPlanner(sources []Source, validate plannerValidator) (migrations.LoadedDefinitionSet, LoadReport, error) {
 	report := LoadReport{DocumentsReceived: len(sources)}
 	snapshots, failure, failed := preflightAndSnapshot(sources)
 	if failed {
@@ -69,7 +68,7 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (Set, LoadRepo
 		return failLoad(report, documentFailures[0])
 	}
 
-	if candidates := compatibilityCandidates(parsed); len(candidates) != 0 {
+	if candidates := formatCandidates(parsed); len(candidates) != 0 {
 		sortFailureCandidates(candidates)
 		return failLoad(report, candidates[0])
 	}
@@ -124,28 +123,12 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (Set, LoadRepo
 	report.PlannerConstruction++
 	if err := validate(definitions); err != nil {
 		failure := graphFailureCandidate(err, decoded)
-		return Set{}, withFailure(report, failure.context), err
+		return migrations.LoadedDefinitionSet{}, withFailure(report, failure.context), err
 	}
 
-	digest := ""
-	var handoff definitionhandoff.Handoff
-	hasRelationProfile := false
-	for index := range decoded {
-		hasRelationProfile = hasRelationProfile || decoded[index].profile == relationDefinitionProfile
-	}
-	if hasRelationProfile {
-		var err error
-		handoff, err = newDefinitionHandoff(decoded)
-		if err != nil {
-			return Set{}, report, err
-		}
-		digest = handoff.Digest()
-	} else {
-		var err error
-		digest, err = definitionSetDigest(definitions)
-		if err != nil {
-			return Set{}, report, err
-		}
+	digest, err := definitionSetDigest(definitions)
+	if err != nil {
+		return migrations.LoadedDefinitionSet{}, report, err
 	}
 	inventory := make([]SourceInfo, len(decoded))
 	for index := range decoded {
@@ -160,7 +143,7 @@ func loadWithPlanner(sources []Source, validate plannerValidator) (Set, LoadRepo
 	})
 	report.DefinitionsPublished = len(definitions)
 	report.DefinitionSetsPublished = 1
-	return newSet(definitions, digest, inventory, handoff), report, nil
+	return newSet(definitions, digest, inventory), report, nil
 }
 
 func preflightAndSnapshot(sources []Source) ([]sourceSnapshot, failureCandidate, bool) {
@@ -346,6 +329,6 @@ func graphFailureCandidate(err error, decoded []decodedDocument) failureCandidat
 	return failureCandidate{context: context}
 }
 
-func failLoad(report LoadReport, failure failureCandidate) (Set, LoadReport, error) {
-	return Set{}, withFailure(report, failure.context), newSourceError(failure)
+func failLoad(report LoadReport, failure failureCandidate) (migrations.LoadedDefinitionSet, LoadReport, error) {
+	return migrations.LoadedDefinitionSet{}, withFailure(report, failure.context), newSourceError(failure)
 }

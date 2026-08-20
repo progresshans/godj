@@ -260,10 +260,6 @@ func TestGeneratedProjectRelationReverseExactNineFileUnionCompiles(t *testing.T)
 	if err != nil {
 		t.Fatalf("generate blog metadata: %v", err)
 	}
-	blogQuery, err := codegen.GenerateRelationQuery("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog query: %v", err)
-	}
 	blogObject, err := codegen.GenerateRelationObject("blog", blog)
 	if err != nil {
 		t.Fatalf("generate blog object: %v", err)
@@ -301,13 +297,12 @@ replace github.com/progresshans/godj => %s
 		{name: "authors/zz_godj_relation_object.go", data: authorsObject},
 		{name: "blog/zz_godj_generated.go", data: blogMain},
 		{name: "blog/zz_godj_relation.go", data: blogMetadata},
-		{name: "blog/zz_godj_relation_query.go", data: blogQuery},
 		{name: "blog/zz_godj_relation_object.go", data: blogObject},
 		{name: "project/zz_godj_bindings.go", data: projectBinding},
 		{name: "project/zz_godj_relation_reverse.go", data: projectReverse},
 	}
-	if len(generatedFiles) != 9 {
-		t.Fatalf("generated inventory has %d files, want exact nine", len(generatedFiles))
+	if len(generatedFiles) != 8 {
+		t.Fatalf("generated inventory has %d files, want exact eight", len(generatedFiles))
 	}
 	for _, file := range generatedFiles {
 		writeGeneratedTestFile(t, directory, file.name, file.data)
@@ -319,49 +314,7 @@ replace github.com/progresshans/godj => %s
 	command.Env = generatedTestEnvironment()
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("exact nine-file generated reverse project did not compile: %v\n%s", err, output)
-	}
-}
-
-func TestGeneratedProjectRelationReverseMissingQueryPrerequisiteFailsWithoutReplacingLastKnownGood(t *testing.T) {
-	authors, blog := relationQueryGenerationSchemas()
-	const modulePath = "example.com/godj-relation-reverse-missing-prerequisite"
-
-	publicationDirectory := t.TempDir()
-	publicationPath := filepath.Join(publicationDirectory, "zz_godj_relation_reverse.go")
-	lastKnownGood := []byte("package project\n\nconst LastKnownGood = true\n")
-	if err := os.WriteFile(publicationPath, lastKnownGood, 0o644); err != nil {
-		t.Fatalf("write last-known-good reverse output: %v", err)
-	}
-
-	candidateDirectory := writeProjectRelationReverseVariant(
-		t,
-		modulePath,
-		[]namedRelationReverseSchema{
-			{name: "authors", schema: authors},
-			{name: "blog", schema: blog},
-		},
-		"",
-		"blog",
-		"",
-	)
-	command := exec.Command("go", "test", "-mod=mod", "./...")
-	command.Dir = candidateDirectory
-	command.Env = generatedTestEnvironment()
-	output, err := command.CombinedOutput()
-	if err == nil {
-		t.Fatal("reverse union without the blog relation-query prerequisite unexpectedly compiled")
-	}
-	if !bytes.Contains(output, []byte("PostDescriptor")) {
-		t.Fatalf("missing prerequisite compiler output does not identify PostDescriptor:\n%s", output)
-	}
-
-	got, err := os.ReadFile(publicationPath)
-	if err != nil {
-		t.Fatalf("read last-known-good reverse output: %v", err)
-	}
-	if !bytes.Equal(got, lastKnownGood) {
-		t.Fatalf("failed candidate replaced last-known-good output:\n%s", got)
+		t.Fatalf("exact eight-file generated reverse project did not compile: %v\n%s", err, output)
 	}
 }
 
@@ -384,7 +337,6 @@ func TestGeneratedProjectRelationReverseMissingObjectPrerequisitesFailWithoutRep
 					{name: "authors", schema: authors},
 					{name: "blog", schema: blog},
 				},
-				"",
 				"",
 				omitted,
 			)
@@ -411,49 +363,41 @@ func TestGeneratedProjectRelationReverseMissingObjectPrerequisitesFailWithoutRep
 	}
 }
 
-func TestGeneratedProjectRelationReverseQueryOnlyAndNoEdgeVariantsCompile(t *testing.T) {
+func TestGeneratedProjectRelationReverseCurrentAndNoEdgeVariantsCompile(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
-	v3Authors := authors.Clone()
-	v3Authors.FormatVersion = ir.RelationFormatVersion
 
-	t.Run("v3 reverse owner is query-only", func(t *testing.T) {
-		const modulePath = "example.com/godj-relation-reverse-query-only"
+	t.Run("current reverse owner is object capable", func(t *testing.T) {
+		const modulePath = "example.com/godj-relation-reverse-current"
 		generated := generateProjectRelationReverseVariant(t, modulePath, []namedRelationReverseSchema{
-			{name: "authors", schema: v3Authors},
+			{name: "authors", schema: authors},
 			{name: "blog", schema: blog},
 		})
 		for _, required := range [][]byte{
 			[]byte("type AuthorsAuthorReverseRelations struct"),
 			[]byte("Posts         AuthorsAuthorPostsReverseRelation"),
-			[]byte("type ReverseObjects struct"),
-			[]byte("func BindReverseObjects() (ReverseObjects, error)"),
-		} {
-			if !bytes.Contains(generated, required) {
-				t.Fatalf("query-only reverse source does not contain %q:\n%s", required, generated)
-			}
-		}
-		for _, forbidden := range [][]byte{
 			[]byte("AuthorsAuthorReverseObjectFactory"),
 			[]byte("AuthorsAuthorReverseObject struct"),
+			[]byte("type ReverseObjects struct"),
+			[]byte("func BindReverseObjects() (ReverseObjects, error)"),
 			[]byte(`db "github.com/progresshans/godj/db"`),
 			[]byte(`query "github.com/progresshans/godj/query"`),
 		} {
-			if bytes.Contains(generated, forbidden) {
-				t.Fatalf("query-only reverse source contains %q:\n%s", forbidden, generated)
+			if !bytes.Contains(generated, required) {
+				t.Fatalf("current reverse source does not contain %q:\n%s", required, generated)
 			}
 		}
 		compileProjectRelationReverseVariant(t, modulePath, []namedRelationReverseSchema{
-			{name: "authors", schema: v3Authors},
+			{name: "authors", schema: authors},
 			{name: "blog", schema: blog},
 		}, `package project_test
 
 import (
 	"testing"
 
-	project "example.com/godj-relation-reverse-query-only/project"
+	project "example.com/godj-relation-reverse-current/project"
 )
 
-func TestQueryOnlyReverse(t *testing.T) {
+func TestCurrentReverse(t *testing.T) {
 	relations, err := project.BindReverseRelations()
 	if err != nil {
 		t.Fatal(err)
@@ -546,7 +490,7 @@ func relationReversePackagesWithFieldGoName(
 
 func selfReverseUnionCollisionSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "nodes",
 		Models: []ir.Model{{
 			Name:   "node",
@@ -602,7 +546,7 @@ func compileProjectRelationReverseVariant(
 	externalTest string,
 ) {
 	t.Helper()
-	directory := writeProjectRelationReverseVariant(t, modulePath, schemas, externalTest, "", "")
+	directory := writeProjectRelationReverseVariant(t, modulePath, schemas, externalTest, "")
 	command := exec.Command("go", "test", "-mod=mod", "./...")
 	command.Dir = directory
 	command.Env = generatedTestEnvironment()
@@ -617,7 +561,6 @@ func writeProjectRelationReverseVariant(
 	modulePath string,
 	schemas []namedRelationReverseSchema,
 	externalTest string,
-	omitQueryFor string,
 	omitObjectFor string,
 ) string {
 	t.Helper()
@@ -654,13 +597,6 @@ replace github.com/progresshans/godj => %s
 		writeGeneratedTestFile(t, directory, candidate.name+"/zz_godj_relation.go", metadata)
 		if candidate.name != omitObjectFor {
 			writeGeneratedTestFile(t, directory, candidate.name+"/zz_godj_relation_object.go", object)
-		}
-		if candidate.schema.FormatVersion == ir.RelationFormatVersion && candidate.name != omitQueryFor {
-			queryCompanion, err := codegen.GenerateRelationQuery(candidate.name, candidate.schema)
-			if err != nil {
-				t.Fatalf("generate %s query: %v", candidate.name, err)
-			}
-			writeGeneratedTestFile(t, directory, candidate.name+"/zz_godj_relation_query.go", queryCompanion)
 		}
 	}
 	bridge, err := codegen.GenerateProjectBridge("project", bridgePackages)

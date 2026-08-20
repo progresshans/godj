@@ -18,21 +18,21 @@ type migrationRelationCharacterizationCase struct {
 }
 
 var migrationRelationCharacterizationCases = map[string]migrationRelationCharacterizationCase{
-	"godj.migration.relation.legacy_abi": {
+	"godj.migration.relation.current_abi": {
 		phase: protocol.PhaseConstruction, comparison: migrationRelationResultMetrics(),
-		product: migrationrelationproduct.CaseLegacyABI,
+		product: migrationrelationproduct.CaseCurrentABI,
 	},
-	"godj.migration.relation.profile_dispatch": {
+	"godj.migration.relation.current_format_validation": {
 		phase: protocol.PhaseEnvironment, comparison: migrationRelationResultMetrics(),
-		product: migrationrelationproduct.CaseProfileDispatch,
+		product: migrationrelationproduct.CaseCurrentFormat,
 	},
-	"godj.migration.relation.mixed_digest": {
+	"godj.migration.relation.current_digest": {
 		phase: protocol.PhaseConstruction, comparison: migrationRelationResultMetrics(),
-		product: migrationrelationproduct.CaseMixedDigest,
+		product: migrationrelationproduct.CaseCurrentDigest,
 	},
-	"godj.migration.relation.state_promotion": {
+	"godj.migration.relation.current_state": {
 		phase: protocol.PhaseConstruction, comparison: migrationRelationResultMetrics(),
-		product: migrationrelationproduct.CaseStatePromotion,
+		product: migrationrelationproduct.CaseCurrentState,
 	},
 	"godj.migration.relation.structural_preflight": {
 		phase: protocol.PhaseEvaluation, comparison: migrationRelationResultMetrics(),

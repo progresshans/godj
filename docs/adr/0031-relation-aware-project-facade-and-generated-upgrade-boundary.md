@@ -1,6 +1,6 @@
 # ADR-0031: Relation-aware Project Facade and Generated Upgrade Boundary
 
-- 상태: Accepted
+- 상태: Superseded by [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 날짜: 2026-08-12
 - 관련 work/contract:
   [GDJ-0031](../../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md), Q-013, Q-017

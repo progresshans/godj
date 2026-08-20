@@ -2,14 +2,12 @@ package sqlite
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"sync"
 	"time"
@@ -137,101 +135,6 @@ func (session *sqliteRevisionFencedSession) ReadAppliedMigrations(ctx context.Co
 	session.token = snapshot.token
 	session.state = revisionSessionReady
 	return cloneAppliedMigrations(snapshot.records), nil
-}
-
-func (session *sqliteRevisionFencedSession) BeginFencedMigration(
-	ctx context.Context,
-	transition migrationbackend.HistoryTransition,
-) (migrationbackend.RevisionFencedTransaction, error) {
-	if session == nil {
-		return nil, errors.New("begin SQLite revision-fenced migration: session is nil")
-	}
-	if ctx == nil {
-		return nil, errors.New("begin SQLite revision-fenced migration: context is nil")
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("begin SQLite revision-fenced migration: %w", err)
-	}
-	if transition.Migration.App == "" || transition.Migration.Name == "" {
-		return nil, newRevisionFenceError(
-			migrationbackend.RevisionFenceFailureIntegrity,
-			errors.New("history transition requires a non-empty app and migration name"),
-		)
-	}
-	if transition.Kind != migrationbackend.HistoryTransitionApply && transition.Kind != migrationbackend.HistoryTransitionUnapply {
-		return nil, newRevisionFenceError(
-			migrationbackend.RevisionFenceFailureIntegrity,
-			fmt.Errorf("history transition kind %d is invalid", transition.Kind),
-		)
-	}
-
-	session.mu.Lock()
-	defer session.mu.Unlock()
-	if session.state != revisionSessionReady {
-		return nil, fmt.Errorf("begin SQLite revision-fenced migration: session state %d is not ready", session.state)
-	}
-
-	successorRecords, err := migrationHistorySuccessor(session.records, transition)
-	if err != nil {
-		session.state = revisionSessionPoisoned
-		return nil, err
-	}
-	successorToken := session.token
-	successorToken.initialized = true
-	successorToken.fingerprint = fingerprintMigrationHistory(successorRecords)
-	if session.token.initialized {
-		if session.token.revision == math.MaxInt64 {
-			session.state = revisionSessionPoisoned
-			return nil, newRevisionFenceError(
-				migrationbackend.RevisionFenceFailureIntegrity,
-				errors.New("SQLite migration revision is exhausted"),
-			)
-		}
-		successorToken.revision = session.token.revision + 1
-	} else {
-		if transition.Kind != migrationbackend.HistoryTransitionApply {
-			session.state = revisionSessionPoisoned
-			return nil, newRevisionFenceError(
-				migrationbackend.RevisionFenceFailureIntegrity,
-				errors.New("an uninitialized history cannot begin with an unapply transition"),
-			)
-		}
-		if _, err := rand.Read(successorToken.epoch[:]); err != nil {
-			session.state = revisionSessionPoisoned
-			return nil, fmt.Errorf("generate SQLite migration revision epoch: %w", err)
-		}
-		successorToken.revision = 1
-	}
-
-	connection, err := session.backend.database.Conn(ctx)
-	if err != nil {
-		session.state = revisionSessionPoisoned
-		return nil, classifyRevisionIO("acquire pinned migration connection", err)
-	}
-	if _, err := connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
-		discardErr := discardMigrationConnection(connection)
-		session.state = revisionSessionPoisoned
-		return nil, errors.Join(classifyRevisionIO("begin immediate migration transaction", err), discardErr)
-	}
-
-	transaction := &sqliteRevisionFencedTransaction{
-		connection:       connection,
-		session:          session,
-		transition:       transition,
-		expectedRecords:  cloneAppliedMigrations(session.records),
-		successorRecords: cloneAppliedMigrations(successorRecords),
-		expectedToken:    session.token,
-		successorToken:   successorToken,
-		bootstrap:        !session.token.initialized,
-	}
-	if err := transaction.claimRevision(ctx); err != nil {
-		cleanupErr := transaction.rollbackWithoutSession(ctx)
-		session.state = revisionSessionPoisoned
-		return nil, errors.Join(err, cleanupErr)
-	}
-	session.active = transaction
-	session.state = revisionSessionActive
-	return transaction, nil
 }
 
 func (session *sqliteRevisionFencedSession) Close(ctx context.Context) error {
@@ -404,35 +307,11 @@ func (transaction *sqliteRevisionFencedTransaction) claimRevision(ctx context.Co
 }
 
 func (transaction *sqliteRevisionFencedTransaction) CreateModel(ctx context.Context, model ir.Model) error {
-	if transaction != nil && transaction.relation != nil {
-		return transaction.executeRelationCreateModel(ctx, model)
-	}
-	statement, err := compileMigrationCreateModel(model)
-	if err != nil {
-		return err
-	}
-	return transaction.execute(ctx, "create model", func(executor migrationSQLExecutor) error {
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("create SQLite model %q: %w", model.DBTable, err)
-		}
-		return nil
-	})
+	return transaction.executeRelationCreateModel(ctx, model)
 }
 
 func (transaction *sqliteRevisionFencedTransaction) DeleteModel(ctx context.Context, model ir.Model) error {
-	if transaction != nil && transaction.relation != nil {
-		return transaction.executeRelationDeleteModel(ctx, model)
-	}
-	statement, err := compileMigrationDeleteModel(model)
-	if err != nil {
-		return err
-	}
-	return transaction.execute(ctx, "delete model", func(executor migrationSQLExecutor) error {
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("delete SQLite model %q: %w", model.DBTable, err)
-		}
-		return nil
-	})
+	return transaction.executeRelationDeleteModel(ctx, model)
 }
 
 func (transaction *sqliteRevisionFencedTransaction) TableExists(ctx context.Context, table string) (bool, error) {
@@ -451,79 +330,11 @@ func (transaction *sqliteRevisionFencedTransaction) TableExists(ctx context.Cont
 }
 
 func (transaction *sqliteRevisionFencedTransaction) AddField(ctx context.Context, model ir.Model, field ir.Field) error {
-	if transaction != nil && transaction.relation != nil {
-		return transaction.executeRelationAddField(ctx, model, field)
-	}
-	if field.PrimaryKey {
-		return migrationbackend.NewCapabilityError(
-			"sqlite_add_field",
-			fmt.Sprintf("field %s.%s must be non-primary-key", model.DBTable, field.Column),
-			nil,
-		)
-	}
-	statement, err := compileMigrationAddField(model, field)
-	if err != nil {
-		return err
-	}
-	return transaction.execute(ctx, "add field", func(executor migrationSQLExecutor) error {
-		if field.Default != nil || !field.Nullable {
-			empty, err := sqliteTableEmpty(ctx, executor, model.DBTable)
-			if err != nil {
-				return err
-			}
-			if !empty && field.Default != nil {
-				return migrationbackend.NewCapabilityError(
-					"sqlite_add_field",
-					fmt.Sprintf("table %s contains rows; adding field %s with a migration default requires one-time backfill or table rebuild", model.DBTable, field.Column),
-					nil,
-				)
-			}
-			if !empty {
-				return migrationbackend.NewCapabilityError(
-					"sqlite_add_field",
-					fmt.Sprintf("table %s contains rows; adding non-null field %s requires table rebuild", model.DBTable, field.Column),
-					nil,
-				)
-			}
-		}
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("add SQLite field %s.%s: %w", model.DBTable, field.Column, err)
-		}
-		return nil
-	})
+	return transaction.executeRelationAddField(ctx, model, field)
 }
 
 func (transaction *sqliteRevisionFencedTransaction) RemoveField(ctx context.Context, model ir.Model, field ir.Field) error {
-	if transaction != nil && transaction.relation != nil {
-		return transaction.executeRelationRemoveField(ctx, model, field)
-	}
-	if field.PrimaryKey {
-		return migrationbackend.NewCapabilityError(
-			"sqlite_drop_column",
-			fmt.Sprintf("field %s.%s must be non-primary-key", model.DBTable, field.Column),
-			nil,
-		)
-	}
-	statement, err := compileMigrationRemoveField(model, field)
-	if err != nil {
-		return err
-	}
-	return transaction.execute(ctx, "remove field", func(executor migrationSQLExecutor) error {
-		if err := preflightSQLiteDropColumn(ctx, executor, model, field); err != nil {
-			return err
-		}
-		if _, err := executor.ExecContext(ctx, statement); err != nil {
-			if sqliteDropColumnCapabilityFailure(err) {
-				return migrationbackend.NewCapabilityError(
-					"sqlite_drop_column",
-					fmt.Sprintf("SQLite rejected native DROP COLUMN for %s.%s; table rebuild is disabled", model.DBTable, field.Column),
-					err,
-				)
-			}
-			return fmt.Errorf("remove SQLite field %s.%s: %w", model.DBTable, field.Column, err)
-		}
-		return nil
-	})
+	return transaction.executeRelationRemoveField(ctx, model, field)
 }
 
 func (transaction *sqliteRevisionFencedTransaction) RecordApplied(ctx context.Context, app, name string) error {
@@ -1386,7 +1197,7 @@ func rollbackAndReleasePinnedMigration(ctx context.Context, connection migration
 	)
 }
 
-func rejectLegacyMigrationWhenRevisionMetadataPresent(ctx context.Context, executor migrationSQLExecutor) error {
+func rejectDirectAtomicMigrationWhenRevisionMetadataPresent(ctx context.Context, executor migrationSQLExecutor) error {
 	objectType, present, err := sqliteSchemaObjectType(ctx, executor, migrationRevisionTable)
 	if err != nil {
 		return err
@@ -1405,7 +1216,7 @@ func rejectLegacyMigrationWhenRevisionMetadataPresent(ctx context.Context, execu
 	}
 	return migrationbackend.NewCapabilityError(
 		"revision_fenced_migration_lifecycle",
-		"revision metadata exists; use the revision-fenced lifecycle instead of legacy BeginMigration",
+		"revision metadata exists; use the loaded revision-fenced lifecycle instead of direct atomic BeginMigration",
 		nil,
 	)
 }

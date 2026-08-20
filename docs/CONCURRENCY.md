@@ -1,7 +1,7 @@
 # 동시성·비동기·성능 방향
 
 - 상태: 기본 방향 Accepted; QuerySet 평가 상태와 bounded relation-object cache 계약 Accepted
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-20
 
 GoDj의 출발점에는 Django보다 적은 프로세스와 메모리 중복으로 I/O 동시성과 멀티코어 실행을 자연스럽게 활용하려는 목적이 있습니다. 그러나 “Go로 작성했다”는 사실만으로 성능을 주장하지 않습니다. 측정 가능한 workload와 회귀 기준이 있어야 합니다.
 
@@ -184,7 +184,33 @@ Hook/signal은 실행 순서, sync/async 여부, transaction commit 전후, 오�
 - benchmark 결과는 checkout과 환경이 연결된 `docs/status/TEST_EVIDENCE.md`에 남깁니다.
 - 수치 목표와 허용 회귀폭은 M1 walking skeleton이 안정된 뒤 별도 performance ADR에서 정합니다.
 
-## GDJ-0035 Accepted SQLite lifecycle concurrency boundary
+## Current loaded migration concurrency boundary
+
+GDJ-0036은 cancellation과 transaction 안전성을 유지하면서 compatibility-only carrier와 dual begin 경로를
+제거했습니다.
+
+- `LoadedDefinitionSet`은 loader-owned immutable publication입니다. `Executor.Migrate`는 호출 시작 시 private
+  snapshot을 검증·복제하며 context에는 cancellation/deadline과 호출자 value만 남습니다. Hidden lifecycle
+  authority를 context에 저장하거나 호출 사이에 공유하지 않습니다.
+- Backend/session은 mandatory capability 조회와
+  `BeginMigration(ctx, HistoryTransition, MigrationIntent)` 하나를 사용합니다. Scalar/relation/no-op은 같은
+  ordered intent와 session state machine을 통과하며 unsupported whole plan은 scalar prefix begin 전에 실패합니다.
+- `Executor`는 complete revision-fenced lifecycle, `DirectExecutor`는 raw scalar transaction을 소유합니다.
+  Raw relation input은 backend I/O 전에 fail-closed하므로 두 executor 사이의 fallback이나 자동 재시도는 없습니다.
+- Pure definition/resource/graph/history/readiness 검증, pinned-connection physical preflight, claim, DDL/remake,
+  recorder/revision과 commit durability 순서는 유지됩니다. Public `StateReconstructor`의 current scalar/relation
+  replay도 backend I/O 없는 immutable state 경계입니다.
+- Commit success/definite rollback/unknown outcome, sticky no-retry와 session close/poison 의미는 reset 대상이
+  아닙니다.
+
+이 working-tree 경계는 로컬 gate 기준이며 최종 frozen head의 hosted 검증 전에는 hosted `Verified`로
+확대하지 않습니다.
+
+## Historical GDJ-0035 SQLite lifecycle concurrency boundary
+
+이 절은 GDJ-0036 이전 dual profile/context handoff/optional begin 구현의 evidence snapshot입니다. 아래
+`definitionhandoff`, `Set.Migrate`, `BeginFencedMigration`/`BeginRelationFencedMigration` 서술은 현재 API가
+아닙니다.
 
 GDJ-0035 Phase C는 existing revision-fenced migration transaction을 보존하면서 relation editor/remake를
 추가하는 exact concurrency boundary를 test-only proof로 동결했습니다.

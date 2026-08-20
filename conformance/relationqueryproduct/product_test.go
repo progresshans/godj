@@ -43,7 +43,6 @@ func TestCheckedInGeneratedRelationQueryProjectMatchesDeterministicCandidates(t 
 		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
 		{path: "blog/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
 		{path: "blog/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation_query.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationQuery("blog", blogSchema) })},
 		{path: "project/zz_godj_bindings.go", data: generated(t, func() ([]byte, error) {
 			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 				{Alias: "authors", ImportPath: rootImport + "authors"},
@@ -205,7 +204,6 @@ func TestGeneratedAppsHaveNoAppToAppImportsAndObserverIsOracleBlind(t *testing.T
 		"authors/zz_godj_relation.go",
 		"blog/zz_godj_generated.go",
 		"blog/zz_godj_relation.go",
-		"blog/zz_godj_relation_query.go",
 	} {
 		imports := parsedImports(t, filepath.Join(root, relative))
 		for _, imported := range imports {

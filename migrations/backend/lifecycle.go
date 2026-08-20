@@ -22,11 +22,11 @@ type HistoryTransition struct {
 	Kind      HistoryTransitionKind
 }
 
-// RevisionFencedBackend is the optional backend capability required by the
-// high-level migration lifecycle. It is intentionally separate from
-// AtomicBackend so existing migration backends and external implementations
-// remain source compatible.
+// RevisionFencedBackend is the backend capability required by the high-level
+// migration lifecycle. Every implementation reports its current migration
+// feature set through the same port used to open a fenced session.
 type RevisionFencedBackend interface {
+	MigrationCapabilities() MigrationCapabilities
 	OpenRevisionFencedSession(context.Context) (RevisionFencedSession, error)
 }
 
@@ -35,7 +35,7 @@ type RevisionFencedBackend interface {
 // read and must advance their token only after a committed fenced transaction.
 type RevisionFencedSession interface {
 	AppliedMigrationReader
-	BeginFencedMigration(context.Context, HistoryTransition) (RevisionFencedTransaction, error)
+	BeginMigration(context.Context, HistoryTransition, MigrationIntent) (RevisionFencedTransaction, error)
 	Close(context.Context) error
 }
 

@@ -15,17 +15,17 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const oneCreateModelDigest = "sha256:07e61f8d956002cff0d7fe2db10c16ea4a30829e9f0ced09c69c40ff2c2399bc"
+const oneCreateModelDigest = "sha256:b15b980386317e4c75746910d01bf5492876a5eb31a2ed3f560722866c15a1b6"
 
-func TestZeroSetAndEmptyLoadAreCanonical(t *testing.T) {
+func TestZeroLoadedDefinitionSetAndEmptyLoadAreCanonical(t *testing.T) {
 	t.Parallel()
 
-	var zero Set
-	if zero.Digest() != EmptySetDigest {
-		t.Fatalf("zero Set digest = %q, want %q", zero.Digest(), EmptySetDigest)
+	var zero migrations.LoadedDefinitionSet
+	if zero.Digest() != "" {
+		t.Fatalf("zero loaded set digest = %q, want invalid empty string", zero.Digest())
 	}
 	if len(zero.Definitions()) != 0 || len(zero.Sources()) != 0 {
-		t.Fatalf("zero Set is not empty: definitions=%v sources=%v", zero.Definitions(), zero.Sources())
+		t.Fatalf("zero loaded set is not empty: definitions=%v sources=%v", zero.Definitions(), zero.Sources())
 	}
 
 	loaded, report, err := Load()
@@ -97,7 +97,7 @@ func TestLoadPublishesOwnedCanonicalSnapshot(t *testing.T) {
 	fresh := loaded.Definitions()
 	freshOperation := fresh[0].Operations[0].(migrations.CreateModel)
 	if fresh[0].Name != "0001_initial" || freshOperation.Model.Fields[0].Name != "id" {
-		t.Fatalf("caller mutation reached Set: %#v", fresh)
+		t.Fatalf("caller mutation reached loaded set: %#v", fresh)
 	}
 	if loaded.Sources()[0].SourceID != "z-source" || loaded.Digest() != oneCreateModelDigest {
 		t.Fatal("caller mutation changed source inventory or digest")
@@ -185,7 +185,7 @@ func TestLoadInvokesInjectedPlannerExactlyOnceAndNeverBeforeGraphStage(t *testin
 	if err != wantFailure || calls != 1 || report.PlannerConstruction != 1 || report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 {
 		t.Fatalf("injected graph failure = calls:%d report:%+v error:%v", calls, report, err)
 	}
-	if failed.Digest() != EmptySetDigest || len(failed.Definitions()) != 0 || len(failed.Sources()) != 0 {
+	if failed.Digest() != "" || len(failed.Definitions()) != 0 || len(failed.Sources()) != 0 {
 		t.Fatalf("injected graph failure published set: %#v", failed)
 	}
 	context, exists := report.Failure()
@@ -270,7 +270,7 @@ func TestLoadPreservesEveryRawPlanningDiagnosticAndGraphSourceMapping(t *testing
 			if !exists || context.Stage != "graph" || context.JSONPointer != test.pointer || context.SourceID != test.primary || context.Reason != string(test.code) || !reflect.DeepEqual(context.GraphSources(), test.graphSources) {
 				t.Fatalf("graph report context = %+v sources=%#v, want source=%q pointer=%q sources=%#v", context, context.GraphSources(), test.primary, test.pointer, test.graphSources)
 			}
-			if report.PlannerConstruction != 1 || report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 || set.Digest() != EmptySetDigest || len(set.Definitions()) != 0 || len(set.Sources()) != 0 {
+			if report.PlannerConstruction != 1 || report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 || set.Digest() != "" || len(set.Definitions()) != 0 || len(set.Sources()) != 0 {
 				t.Fatalf("graph failure was not atomic: set=%#v report=%+v", set, report)
 			}
 		})
@@ -381,7 +381,7 @@ func TestDefinitionCloneDeepCopiesNestedRelationPointers(t *testing.T) {
 	}
 }
 
-func TestDefinitionTupleAndHiddenRelationPayloadRemainFailClosed(t *testing.T) {
+func TestCurrentDefinitionFieldRelationShapeRemainsFailClosed(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -393,15 +393,7 @@ func TestDefinitionTupleAndHiddenRelationPayloadRemainFailClosed(t *testing.T) {
 		reason  string
 	}{
 		{
-			name:    "schema ir tuple 3",
-			doc:     strings.Replace(string(oneCreateModelDocument("alpha", "0001_initial")), `"schema_ir":2`, `"schema_ir":3`, 1),
-			code:    CodeSchemaIRIncompatible,
-			stage:   "compatibility",
-			pointer: "/compatibility/schema_ir",
-			reason:  "schema_ir",
-		},
-		{
-			name: "tuple 2 hidden relation arm",
+			name: "non-foreign-key hidden relation arm",
 			doc: strings.Replace(
 				string(oneCreateModelDocument("alpha", "0001_initial")),
 				`"default":null`,
@@ -427,7 +419,7 @@ func TestDefinitionTupleAndHiddenRelationPayloadRemainFailClosed(t *testing.T) {
 			if context.Stage != test.stage || context.JSONPointer != test.pointer || context.Reason != test.reason {
 				t.Fatalf("Load() failure context = %+v", context)
 			}
-			if set.Digest() != EmptySetDigest || len(set.Definitions()) != 0 ||
+			if set.Digest() != "" || len(set.Definitions()) != 0 ||
 				report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 {
 				t.Fatalf("failed Load published partial definitions: set=%#v report=%+v", set.Definitions(), report)
 			}
@@ -464,21 +456,22 @@ func TestLoadedSetMigratesThroughIndependentRevisionFencedExecutors(t *testing.T
 		if openErr != nil {
 			t.Fatalf("OpenMemory(%d): %v", run, openErr)
 		}
-		state, migrateErr := loaded.Migrate(
+		state, migrateErr := (migrations.Executor{Backend: backend}).Migrate(
 			ctx,
-			migrations.Executor{Backend: backend},
+			loaded,
 			migrations.LatestLifecycleRequest(),
 		)
+
 		closeErr := backend.Close()
 		if migrateErr != nil {
-			t.Fatalf("Set.Migrate(%d): %v", run, migrateErr)
+			t.Fatalf("Executor.Migrate(%d): %v", run, migrateErr)
 		}
 		if closeErr != nil {
 			t.Fatalf("close backend %d: %v", run, closeErr)
 		}
 		model, exists := state.Model("alpha", "entry")
 		if !exists {
-			t.Fatalf("Set.Migrate(%d) state has no alpha.entry", run)
+			t.Fatalf("Executor.Migrate(%d) state has no alpha.entry", run)
 		}
 		gotFields := make([]string, len(model.Fields))
 		for index, field := range model.Fields {
@@ -486,12 +479,12 @@ func TestLoadedSetMigratesThroughIndependentRevisionFencedExecutors(t *testing.T
 		}
 		wantFields := []string{"id", "title", "published", "summary"}
 		if !reflect.DeepEqual(gotFields, wantFields) {
-			t.Fatalf("Set.Migrate(%d) fields = %v, want %v", run, gotFields, wantFields)
+			t.Fatalf("Executor.Migrate(%d) fields = %v, want %v", run, gotFields, wantFields)
 		}
 	}
 }
 
-func TestSetMigrateCallsTheExistingLifecycleOnceAndPreservesItsRawCause(t *testing.T) {
+func TestExecutorMigrateCallsLoadedLifecycleOnceAndPreservesRawCause(t *testing.T) {
 	t.Parallel()
 
 	loaded, _, err := Load(Source{SourceID: "source", Document: oneCreateModelDocument("alpha", "0001_initial")})
@@ -499,21 +492,22 @@ func TestSetMigrateCallsTheExistingLifecycleOnceAndPreservesItsRawCause(t *testi
 		t.Fatalf("Load(valid): %v", err)
 	}
 	raw := errors.New("raw fenced session open failure")
-	backend := &definitionHandoffFailureBackend{openErr: raw}
-	_, err = loaded.Migrate(
+	backend := &definitionLifecycleFailureBackend{openErr: raw}
+	_, err = (migrations.Executor{Backend: backend}).Migrate(
 		context.Background(),
-		migrations.Executor{Backend: backend},
+		loaded,
 		migrations.LatestLifecycleRequest(),
 	)
+
 	if backend.openCalls != 1 {
-		t.Fatalf("Set.Migrate backend open calls = %d, want 1", backend.openCalls)
+		t.Fatalf("Executor.Migrate backend open calls = %d, want 1", backend.openCalls)
 	}
 	if !errors.Is(err, raw) {
-		t.Fatalf("Set.Migrate error = %T %v, want raw lifecycle cause", err, err)
+		t.Fatalf("Executor.Migrate error = %T %v, want raw lifecycle cause", err, err)
 	}
 	var migrationError *migrations.Error
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction || migrationError.Code != migrations.CodeBeginFailed {
-		t.Fatalf("Set.Migrate lifecycle classification = %#v", migrationError)
+		t.Fatalf("Executor.Migrate lifecycle classification = %#v", migrationError)
 	}
 }
 
@@ -541,7 +535,7 @@ func assertLimitFailure(t *testing.T, report LoadReport, err error, code ErrorCo
 
 func oneCreateModelDocument(app, name string) []byte {
 	return []byte(`{
-  "compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},
+  "format_version":1,
   "producer":{"name":"godj-example-generator","version":"0.1.0"},
   "migration":{"app":"` + app + `","name":"` + name + `","dependencies":[],"operations":[
     {"kind":"create_model","app_label":"` + app + `","model":{"name":"widget","go_name":"Widget","db_table":"alpha_widget","fields":[
@@ -552,11 +546,11 @@ func oneCreateModelDocument(app, name string) []byte {
 }
 
 func lifecycleRootDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0001_initial","dependencies":[],"operations":[{"kind":"create_model","app_label":"alpha","model":{"name":"entry","go_name":"Entry","db_table":"godj_definition_alpha_entry","fields":[{"name":"id","go_name":"ID","column":"id","kind":"auto","primary_key":true,"nullable":false,"max_length":0,"default":null},{"name":"title","go_name":"Title","column":"title","kind":"char","primary_key":false,"nullable":false,"max_length":64,"default":{"kind":"string","string":"untitled"}}]}}]}}`)
+	return []byte(`{"format_version":1,"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0001_initial","dependencies":[],"operations":[{"kind":"create_model","app_label":"alpha","model":{"name":"entry","go_name":"Entry","db_table":"godj_definition_alpha_entry","fields":[{"name":"id","go_name":"ID","column":"id","kind":"auto","primary_key":true,"nullable":false,"max_length":0,"default":null},{"name":"title","go_name":"Title","column":"title","kind":"char","primary_key":false,"nullable":false,"max_length":64,"default":{"kind":"string","string":"untitled"}}]}}]}}`)
 }
 
 func lifecycleTailDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0002_fields","dependencies":[{"app":"alpha","name":"0001_initial"}],"operations":[{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"published","go_name":"Published","column":"published","kind":"boolean","primary_key":false,"nullable":false,"max_length":0,"default":{"kind":"boolean","boolean":false}}},{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"summary","go_name":"Summary","column":"summary","kind":"char","primary_key":false,"nullable":true,"max_length":255,"default":null}}]}}`)
+	return []byte(`{"format_version":1,"producer":{"name":"godj-reference","version":"0.1.0"},"migration":{"app":"alpha","name":"0002_fields","dependencies":[{"app":"alpha","name":"0001_initial"}],"operations":[{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"published","go_name":"Published","column":"published","kind":"boolean","primary_key":false,"nullable":false,"max_length":0,"default":{"kind":"boolean","boolean":false}}},{"kind":"add_field","app_label":"alpha","model_name":"entry","field":{"name":"summary","go_name":"Summary","column":"summary","kind":"char","primary_key":false,"nullable":true,"max_length":255,"default":null}}]}}`)
 }
 
 type graphDefinitionSource struct {
@@ -574,13 +568,8 @@ func graphDefinitionSources(t *testing.T, definitions ...graphDefinitionSource) 
 			dependencies[dependencyIndex] = map[string]string{"app": dependency.App, "name": dependency.Name}
 		}
 		document, err := json.Marshal(map[string]any{
-			"compatibility": map[string]int64{
-				"definition_format": DefinitionFormatVersion,
-				"loader_abi":        LoaderABIVersion,
-				"operation_codec":   OperationCodecVersion,
-				"schema_ir":         SchemaIRVersion,
-			},
-			"producer": map[string]string{"name": "graph-test", "version": "1"},
+			"format_version": DefinitionFormatVersion,
+			"producer":       map[string]string{"name": "graph-test", "version": "1"},
 			"migration": map[string]any{
 				"app":          definition.key.App,
 				"name":         definition.key.Name,
@@ -596,16 +585,16 @@ func graphDefinitionSources(t *testing.T, definitions ...graphDefinitionSource) 
 	return sources
 }
 
-type definitionHandoffFailureBackend struct {
+type definitionLifecycleFailureBackend struct {
 	openCalls int
 	openErr   error
 }
 
-func (backend *definitionHandoffFailureBackend) BeginMigration(context.Context) (migrationbackend.Transaction, error) {
-	return nil, errors.New("legacy migration path must not run")
-}
-
-func (backend *definitionHandoffFailureBackend) OpenRevisionFencedSession(context.Context) (migrationbackend.RevisionFencedSession, error) {
+func (backend *definitionLifecycleFailureBackend) OpenRevisionFencedSession(context.Context) (migrationbackend.RevisionFencedSession, error) {
 	backend.openCalls++
 	return nil, backend.openErr
+}
+
+func (*definitionLifecycleFailureBackend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
+	return migrationbackend.MigrationCapabilities{}
 }

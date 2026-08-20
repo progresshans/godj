@@ -26,10 +26,10 @@ import (
 type Case string
 
 const (
-	CaseLegacyABI           Case = "legacy_abi"
-	CaseProfileDispatch     Case = "profile_dispatch"
-	CaseMixedDigest         Case = "mixed_digest"
-	CaseStatePromotion      Case = "state_promotion"
+	CaseCurrentABI          Case = "current_abi"
+	CaseCurrentFormat       Case = "current_format_validation"
+	CaseCurrentDigest       Case = "current_digest"
+	CaseCurrentState        Case = "current_state"
 	CaseStructuralPreflight Case = "structural_preflight"
 	CaseCreateLifecycle     Case = "create_lifecycle"
 	CaseAddRelation         Case = "add_relation"
@@ -43,10 +43,10 @@ const (
 // Cases returns the complete stable characterization order.
 func Cases() []Case {
 	return []Case{
-		CaseLegacyABI,
-		CaseProfileDispatch,
-		CaseMixedDigest,
-		CaseStatePromotion,
+		CaseCurrentABI,
+		CaseCurrentFormat,
+		CaseCurrentDigest,
+		CaseCurrentState,
 		CaseStructuralPreflight,
 		CaseCreateLifecycle,
 		CaseAddRelation,
@@ -157,9 +157,10 @@ type FieldFact struct {
 }
 
 type IntentFact struct {
-	Transition MigrationKeyFact      `json:"transition"`
-	Kind       string                `json:"kind"`
-	Operations []IntentOperationFact `json:"operations"`
+	Transition  MigrationKeyFact      `json:"transition"`
+	Kind        string                `json:"kind"`
+	HasRelation bool                  `json:"has_relation"`
+	Operations  []IntentOperationFact `json:"operations"`
 }
 
 type IntentOperationFact struct {
@@ -189,6 +190,7 @@ type ErrorFact struct {
 	Stage          string `json:"stage"`
 	SourceID       string `json:"source_id"`
 	JSONPointer    string `json:"json_pointer"`
+	Reason         string `json:"reason"`
 	Cause          string `json:"cause"`
 	RollbackCause  string `json:"rollback_cause"`
 }
@@ -283,14 +285,14 @@ func Observe(ctx context.Context, selected Case) (Observation, error) {
 	}
 	var err error
 	switch selected {
-	case CaseLegacyABI:
-		err = observeLegacyABI(ctx, &observation)
-	case CaseProfileDispatch:
-		err = observeProfileDispatch(&observation)
-	case CaseMixedDigest:
-		err = observeMixedDigest(&observation)
-	case CaseStatePromotion:
-		err = observeStatePromotion(ctx, &observation)
+	case CaseCurrentABI:
+		err = observeCurrentABI(ctx, &observation)
+	case CaseCurrentFormat:
+		err = observeCurrentFormat(&observation)
+	case CaseCurrentDigest:
+		err = observeCurrentDigest(&observation)
+	case CaseCurrentState:
+		err = observeCurrentState(ctx, &observation)
 	case CaseStructuralPreflight:
 		err = observeStructuralPreflight(ctx, &observation)
 	case CaseCreateLifecycle:
@@ -348,7 +350,7 @@ func recordLoad(metrics *Metrics, name string, report definition.LoadReport) {
 	})
 }
 
-func loadOutcome(name string, metrics *Metrics, sources ...definition.Source) (definition.Set, OutcomeFact) {
+func loadOutcome(name string, metrics *Metrics, sources ...definition.Source) (migrations.LoadedDefinitionSet, OutcomeFact) {
 	set, report, err := definition.Load(sources...)
 	recordLoad(metrics, name, report)
 	outcome := emptyOutcome(name)
@@ -499,6 +501,13 @@ func errorFact(err error) ErrorFact {
 		result.Cause = causeTag(migrationError.Cause)
 		result.RollbackCause = causeTag(migrationError.RollbackCause)
 	}
+	var planningError *migrations.PlanningError
+	if errors.As(err, &planningError) && planningError != nil {
+		result.Category = string(planningError.Category)
+		result.Code = string(planningError.Code)
+		result.App = planningError.Node.App
+		result.Migration = planningError.Node.Name
+	}
 	var definitionError *definition.Error
 	if errors.As(err, &definitionError) && definitionError != nil {
 		result.Category = definitionError.Category
@@ -507,6 +516,7 @@ func errorFact(err error) ErrorFact {
 		result.Stage = failure.Stage
 		result.SourceID = failure.SourceID
 		result.JSONPointer = failure.JSONPointer
+		result.Reason = failure.Reason
 		result.App = failure.App
 		result.Migration = failure.Name
 		result.OperationIndex = failure.OperationIndex
@@ -549,24 +559,24 @@ func causeTag(err error) string {
 type sourceName string
 
 const (
-	sourceLegacyAuthor   sourceName = "legacy_author"
-	sourceLegacyBlog     sourceName = "legacy_blog"
-	sourceRelationBlog   sourceName = "relation_blog"
-	sourceLegacyTail     sourceName = "legacy_tail"
-	sourceNullableReview sourceName = "nullable_review"
-	sourceRequiredReview sourceName = "required_review"
+	sourceCurrentAuthor     sourceName = "current_author"
+	sourceCurrentScalarBlog sourceName = "current_scalar_blog"
+	sourceRelationBlog      sourceName = "relation_blog"
+	sourceCurrentTail       sourceName = "current_tail"
+	sourceNullableReview    sourceName = "nullable_review"
+	sourceRequiredReview    sourceName = "required_review"
 )
 
 func sourceFor(name sourceName) definition.Source {
 	switch name {
-	case sourceLegacyAuthor:
-		return definition.Source{SourceID: "owned-legacy-author", Document: legacyAuthorDocument()}
-	case sourceLegacyBlog:
-		return definition.Source{SourceID: "owned-legacy-blog", Document: legacyBlogDocument()}
+	case sourceCurrentAuthor:
+		return definition.Source{SourceID: "owned-current-author", Document: currentAuthorDocument()}
+	case sourceCurrentScalarBlog:
+		return definition.Source{SourceID: "owned-current-scalar-blog", Document: currentScalarBlogDocument()}
 	case sourceRelationBlog:
 		return definition.Source{SourceID: "owned-relation-blog", Document: relationBlogDocument()}
-	case sourceLegacyTail:
-		return definition.Source{SourceID: "owned-legacy-tail", Document: legacyTailDocument()}
+	case sourceCurrentTail:
+		return definition.Source{SourceID: "owned-current-tail", Document: currentTailDocument()}
 	case sourceNullableReview:
 		return definition.Source{SourceID: "owned-nullable-review", Document: reviewerDocument(true)}
 	case sourceRequiredReview:
@@ -584,9 +594,9 @@ func sourcesFor(names ...sourceName) []definition.Source {
 	return result
 }
 
-func legacyAuthorDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
-		`"producer":{"name":"owned-legacy","version":"1"},` +
+func currentAuthorDocument() []byte {
+	return []byte(`{"format_version":1,` +
+		`"producer":{"name":"owned-current","version":"1"},` +
 		`"migration":{"app":"authors","name":"0001_author","dependencies":[],"operations":[` +
 		`{"kind":"create_model","app_label":"authors","model":{` +
 		`"name":"author","go_name":"Author","db_table":"authors_author","fields":[` +
@@ -594,9 +604,9 @@ func legacyAuthorDocument() []byte {
 		`"primary_key":true,"nullable":false,"max_length":0,"default":null}]}}]}}`)
 }
 
-func legacyBlogDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
-		`"producer":{"name":"owned-legacy","version":"1"},` +
+func currentScalarBlogDocument() []byte {
+	return []byte(`{"format_version":1,` +
+		`"producer":{"name":"owned-current","version":"1"},` +
 		`"migration":{"app":"blog","name":"0001_article",` +
 		`"dependencies":[{"app":"authors","name":"0001_author"}],"operations":[` +
 		`{"kind":"create_model","app_label":"blog","model":{` +
@@ -606,7 +616,7 @@ func legacyBlogDocument() []byte {
 }
 
 func relationBlogDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"owned-relation","version":"1"},` +
 		`"migration":{"app":"blog","name":"0001_article",` +
 		`"dependencies":[{"app":"authors","name":"0001_author"}],"operations":[` +
@@ -621,9 +631,9 @@ func relationBlogDocument() []byte {
 		`"on_delete":"protect"}}]}}]}}`)
 }
 
-func legacyTailDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
-		`"producer":{"name":"owned-legacy","version":"1"},` +
+func currentTailDocument() []byte {
+	return []byte(`{"format_version":1,` +
+		`"producer":{"name":"owned-current","version":"1"},` +
 		`"migration":{"app":"blog","name":"0002_article_title",` +
 		`"dependencies":[{"app":"blog","name":"0001_article"}],"operations":[` +
 		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
@@ -639,7 +649,7 @@ func reviewerDocument(nullable bool) []byte {
 		nullability = "true"
 		reverse = "optional_reviews"
 	}
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"owned-relation","version":"1"},` +
 		`"migration":{"app":"blog","name":"0003_article_reviewer",` +
 		`"dependencies":[{"app":"blog","name":"0002_article_title"}],"operations":[` +
@@ -651,34 +661,32 @@ func reviewerDocument(nullable bool) []byte {
 		`"on_delete":"protect"}}}]}}`)
 }
 
-func alteredTuple(document []byte, coordinate string, value int64) []byte {
-	result := append([]byte(nil), document...)
-	old := `"` + coordinate + `":`
-	position := strings.Index(string(result), old)
-	if position < 0 {
-		return result
-	}
-	start := position + len(old)
-	end := start
-	for end < len(result) && result[end] >= '0' && result[end] <= '9' {
-		end++
-	}
-	return append(append(append([]byte(nil), result[:start]...), strconv.FormatInt(value, 10)...), result[end:]...)
+func withFormatVersion(document []byte, lexical string) []byte {
+	return []byte(strings.Replace(string(document), `"format_version":1`, `"format_version":`+lexical, 1))
 }
 
-func observeProfileDispatch(observation *Observation) error {
+func withoutFormatVersion(document []byte) []byte {
+	return []byte(strings.Replace(string(document), `"format_version":1,`, "", 1))
+}
+
+func withRetiredCompatibilityTuple(document []byte) []byte {
+	return append(
+		[]byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},`),
+		document[1:]...,
+	)
+}
+
+func observeCurrentFormat(observation *Observation) error {
 	cases := []struct {
 		name   string
 		source definition.Source
 	}{
-		{name: "legacy", source: sourceFor(sourceLegacyAuthor)},
-		{name: "relation", source: sourceFor(sourceRelationBlog)},
-		{name: "definition_format", source: definition.Source{SourceID: "owned-format", Document: alteredTuple(relationBlogDocument(), "definition_format", 2)}},
-		{name: "loader_abi", source: definition.Source{SourceID: "owned-loader", Document: alteredTuple(relationBlogDocument(), "loader_abi", 7)}},
-		{name: "operation_codec", source: definition.Source{SourceID: "owned-codec", Document: alteredTuple(relationBlogDocument(), "operation_codec", 7)}},
-		{name: "schema_ir", source: definition.Source{SourceID: "owned-schema", Document: alteredTuple(relationBlogDocument(), "schema_ir", 7)}},
-		{name: "hybrid_loader", source: definition.Source{SourceID: "owned-hybrid-loader", Document: alteredTuple(legacyAuthorDocument(), "loader_abi", 2)}},
-		{name: "hybrid_codec", source: definition.Source{SourceID: "owned-hybrid-codec", Document: alteredTuple(relationBlogDocument(), "operation_codec", 1)}},
+		{name: "exact_current", source: sourceFor(sourceCurrentAuthor)},
+		{name: "missing_format_version", source: definition.Source{SourceID: "owned-missing-format", Document: withoutFormatVersion(currentAuthorDocument())}},
+		{name: "unknown_format_version", source: definition.Source{SourceID: "owned-unknown-format", Document: withFormatVersion(currentAuthorDocument(), "2")}},
+		{name: "wrong_type_format_version", source: definition.Source{SourceID: "owned-wrong-type-format", Document: withFormatVersion(currentAuthorDocument(), `"1"`)}},
+		{name: "overflow_format_version", source: definition.Source{SourceID: "owned-overflow-format", Document: withFormatVersion(currentAuthorDocument(), "9223372036854775808")}},
+		{name: "retired_compatibility_tuple", source: definition.Source{SourceID: "owned-retired-compatibility", Document: withRetiredCompatibilityTuple(currentAuthorDocument())}},
 	}
 	for _, item := range cases {
 		_, outcome := loadOutcome(item.name, &observation.Metrics, item.source)
@@ -688,38 +696,34 @@ func observeProfileDispatch(observation *Observation) error {
 	constants.Accepted = true
 	constants.Integers = append(constants.Integers,
 		NamedIntegerFact{Name: "definition_format", Value: definition.DefinitionFormatVersion},
-		NamedIntegerFact{Name: "legacy_loader_abi", Value: definition.LoaderABIVersion},
-		NamedIntegerFact{Name: "legacy_operation_codec", Value: definition.OperationCodecVersion},
-		NamedIntegerFact{Name: "legacy_schema_ir", Value: definition.SchemaIRVersion},
-		NamedIntegerFact{Name: "relation_loader_abi", Value: definition.RelationLoaderABIVersion},
-		NamedIntegerFact{Name: "relation_operation_codec", Value: definition.RelationOperationCodecVersion},
-		NamedIntegerFact{Name: "relation_schema_ir", Value: definition.RelationSchemaIRVersion},
+		NamedIntegerFact{Name: "schema_ir", Value: ir.CurrentFormatVersion},
+		NamedIntegerFact{Name: "state_format", Value: migrations.StateFormatVersion},
 	)
 	observation.Outcomes = append(observation.Outcomes, constants)
 	return nil
 }
 
-func observeMixedDigest(observation *Observation) error {
+func observeCurrentDigest(observation *Observation) error {
 	sets := []struct {
 		name    string
 		sources []definition.Source
 	}{
-		{name: "legacy_only", sources: sourcesFor(sourceLegacyAuthor, sourceLegacyBlog, sourceLegacyTail)},
-		{name: "relation_only", sources: sourcesFor(sourceLegacyAuthor, sourceRelationBlog)},
-		{name: "mixed", sources: sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail)},
-		{name: "mixed_permuted", sources: sourcesFor(sourceLegacyTail, sourceRelationBlog, sourceLegacyAuthor)},
+		{name: "scalar_only", sources: sourcesFor(sourceCurrentAuthor, sourceCurrentScalarBlog, sourceCurrentTail)},
+		{name: "relation_only", sources: sourcesFor(sourceCurrentAuthor, sourceRelationBlog)},
+		{name: "combined", sources: sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)},
+		{name: "combined_permuted", sources: sourcesFor(sourceCurrentTail, sourceRelationBlog, sourceCurrentAuthor)},
 	}
-	var mixedDigest string
+	var combinedDigest string
 	for _, item := range sets {
 		_, outcome := loadOutcome(item.name, &observation.Metrics, item.sources...)
 		if !outcome.Accepted {
 			return fmt.Errorf("load owned %s set: %s/%s", item.name, outcome.Error.Category, outcome.Error.Code)
 		}
-		if item.name == "mixed" {
-			mixedDigest = outcome.Digest
+		if item.name == "combined" {
+			combinedDigest = outcome.Digest
 		}
-		if item.name == "mixed_permuted" {
-			outcome.Booleans = append(outcome.Booleans, NamedBooleanFact{Name: "equals_mixed_digest", Value: outcome.Digest == mixedDigest})
+		if item.name == "combined_permuted" {
+			outcome.Booleans = append(outcome.Booleans, NamedBooleanFact{Name: "equals_combined_digest", Value: outcome.Digest == combinedDigest})
 		}
 		observation.Outcomes = append(observation.Outcomes, outcome)
 	}
@@ -828,14 +832,44 @@ func (backend *observingBackend) record(name, detail string) {
 	})
 }
 
-func (backend *observingBackend) BeginMigration(ctx context.Context) (migrationbackend.Transaction, error) {
-	backend.record("begin_legacy", "")
-	return backend.delegate.BeginMigration(ctx)
+func traceNames(events []TraceEvent) string {
+	names := make([]string, len(events))
+	for index, event := range events {
+		names[index] = event.Name
+	}
+	return strings.Join(names, ",")
 }
 
-func (backend *observingBackend) RelationMigrationCapabilities() migrationbackend.RelationMigrationCapabilities {
+func traceCount(events []TraceEvent, names ...string) int64 {
+	wanted := make(map[string]bool, len(names))
+	for _, name := range names {
+		wanted[name] = true
+	}
+	var count int64
+	for _, event := range events {
+		if wanted[event.Name] {
+			count++
+		}
+	}
+	return count
+}
+
+func traceMutationCount(events []TraceEvent) int64 {
+	return traceCount(
+		events,
+		"create_model",
+		"delete_model",
+		"add_field",
+		"remove_field",
+		"record_applied",
+		"record_unapplied",
+		"commit",
+	)
+}
+
+func (backend *observingBackend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 	backend.record("capabilities", "")
-	return backend.delegate.RelationMigrationCapabilities()
+	return backend.delegate.MigrationCapabilities()
 }
 
 func (backend *observingBackend) OpenRevisionFencedSession(ctx context.Context) (migrationbackend.RevisionFencedSession, error) {
@@ -864,36 +898,35 @@ func (session *observingSession) ReadAppliedMigrations(ctx context.Context) ([]m
 	return records, nil
 }
 
-func (session *observingSession) BeginFencedMigration(
+func (session *observingSession) BeginMigration(
 	ctx context.Context,
 	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.MigrationIntent,
 ) (migrationbackend.RevisionFencedTransaction, error) {
 	detail := transition.Migration.App + "." + transition.Migration.Name
-	session.owner.record("begin_fenced", detail)
-	transaction, err := session.delegate.BeginFencedMigration(ctx, transition)
+	session.owner.record("begin_migration", detail)
+	session.owner.intents = append(session.owner.intents, intentFact(transition, intent))
+	transaction, err := session.delegate.BeginMigration(ctx, transition, intent)
 	if err != nil {
 		return transaction, err
 	}
 	return &observingTransaction{delegate: transaction, owner: session.owner}, nil
 }
 
-func (session *observingSession) BeginRelationFencedMigration(
-	ctx context.Context,
-	transition migrationbackend.HistoryTransition,
-	intent migrationbackend.RelationMigrationIntent,
-) (migrationbackend.RevisionFencedTransaction, error) {
-	detail := transition.Migration.App + "." + transition.Migration.Name
-	session.owner.record("begin_relation", detail)
-	relationSession, ok := session.delegate.(migrationbackend.RelationRevisionFencedSession)
-	if !ok {
-		return nil, errors.New("public relation session capability is absent")
+func observerIntentContainsRelation(intent migrationbackend.MigrationIntent) bool {
+	for _, operation := range intent.Operations {
+		if len(operation.Targets) != 0 {
+			return true
+		}
+		for _, model := range []ir.Model{operation.Before, operation.After} {
+			for _, field := range model.Fields {
+				if field.Relation != nil {
+					return true
+				}
+			}
+		}
 	}
-	session.owner.intents = append(session.owner.intents, intentFact(transition, intent))
-	transaction, err := relationSession.BeginRelationFencedMigration(ctx, transition, intent)
-	if err != nil {
-		return transaction, err
-	}
-	return &observingTransaction{delegate: transaction, owner: session.owner}, nil
+	return false
 }
 
 func (session *observingSession) Close(ctx context.Context) error {
@@ -969,11 +1002,12 @@ func (transaction *observingTransaction) Rollback(ctx context.Context) error {
 	return transaction.delegate.Rollback(ctx)
 }
 
-func intentFact(transition migrationbackend.HistoryTransition, intent migrationbackend.RelationMigrationIntent) IntentFact {
+func intentFact(transition migrationbackend.HistoryTransition, intent migrationbackend.MigrationIntent) IntentFact {
 	fact := IntentFact{
-		Transition: MigrationKeyFact{App: transition.Migration.App, Name: transition.Migration.Name},
-		Kind:       strconv.Itoa(int(transition.Kind)),
-		Operations: make([]IntentOperationFact, len(intent.Operations)),
+		Transition:  MigrationKeyFact{App: transition.Migration.App, Name: transition.Migration.Name},
+		Kind:        strconv.Itoa(int(transition.Kind)),
+		HasRelation: observerIntentContainsRelation(intent),
+		Operations:  make([]IntentOperationFact, len(intent.Operations)),
 	}
 	for index, operation := range intent.Operations {
 		operationFact := IntentOperationFact{
@@ -1315,30 +1349,32 @@ func seedBaseRows(ctx context.Context, backend *sqlite.Backend) error {
 	return nil
 }
 
-func observeLegacyABI(ctx context.Context, observation *Observation) (resultErr error) {
-	fixture, err := openDatabaseFixture(ctx, "legacy")
+func observeCurrentABI(ctx context.Context, observation *Observation) (resultErr error) {
+	fixture, err := openDatabaseFixture(ctx, "current-abi")
 	if err != nil {
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
 
-	sources := sourcesFor(sourceLegacyAuthor, sourceLegacyBlog, sourceLegacyTail)
-	loaded, load := loadOutcome("legacy_load", &observation.Metrics, sources...)
+	sources := sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)
+	loaded, load := loadOutcome("current_load", &observation.Metrics, sources...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
 	load.Integers = append(load.Integers,
 		NamedIntegerFact{Name: "definition_format", Value: definition.DefinitionFormatVersion},
-		NamedIntegerFact{Name: "loader_abi", Value: definition.LoaderABIVersion},
-		NamedIntegerFact{Name: "operation_codec", Value: definition.OperationCodecVersion},
-		NamedIntegerFact{Name: "schema_ir", Value: definition.SchemaIRVersion},
+		NamedIntegerFact{Name: "schema_ir", Value: ir.CurrentFormatVersion},
 		NamedIntegerFact{Name: "state_format", Value: migrations.StateFormatVersion},
+	)
+	load.Booleans = append(load.Booleans,
+		NamedBooleanFact{Name: "retired_compatibility_tuple_present", Value: false},
+		NamedBooleanFact{Name: "scalar_and_relation_share_format", Value: true},
 	)
 	observation.Outcomes = append(observation.Outcomes, load)
 
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	latest := emptyOutcome("latest")
 	latest.Accepted = migrateErr == nil
 	latest.State = stateFact(state)
@@ -1347,11 +1383,12 @@ func observeLegacyABI(ctx context.Context, observation *Observation) (resultErr 
 	if migrateErr != nil {
 		return nil
 	}
-	state, migrateErr = loaded.Migrate(
+	state, migrateErr = (migrations.Executor{Backend: probe}).Migrate(
 		ctx,
-		migrations.Executor{Backend: probe},
+		loaded,
 		migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")),
 	)
+
 	zero := emptyOutcome("zero_blog")
 	zero.Accepted = migrateErr == nil
 	zero.State = stateFact(state)
@@ -1360,24 +1397,24 @@ func observeLegacyABI(ctx context.Context, observation *Observation) (resultErr 
 	return nil
 }
 
-func observeStatePromotion(ctx context.Context, observation *Observation) (resultErr error) {
-	fixture, err := openDatabaseFixture(ctx, "promotion")
+func observeCurrentState(ctx context.Context, observation *Observation) (resultErr error) {
+	fixture, err := openDatabaseFixture(ctx, "current-state")
 	if err != nil {
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
 
 	loaded, load := loadOutcome(
-		"mixed_load",
+		"current_load",
 		&observation.Metrics,
-		sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail)...,
+		sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)...,
 	)
 	observation.Outcomes = append(observation.Outcomes, load)
 	if !load.Accepted {
 		return nil
 	}
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	forward := emptyOutcome("forward")
 	forward.Accepted = migrateErr == nil
 	forward.State = stateFact(state)
@@ -1400,11 +1437,12 @@ func observeStatePromotion(ctx context.Context, observation *Observation) (resul
 	}
 
 	intentCount := len(probe.intents)
-	state, migrateErr = loaded.Migrate(
+	state, migrateErr = (migrations.Executor{Backend: probe}).Migrate(
 		ctx,
-		migrations.Executor{Backend: probe},
+		loaded,
 		migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")),
 	)
+
 	backward := emptyOutcome("backward")
 	backward.Accepted = migrateErr == nil
 	backward.State = stateFact(state)
@@ -1415,9 +1453,6 @@ func observeStatePromotion(ctx context.Context, observation *Observation) (resul
 }
 
 func observeStructuralPreflight(ctx context.Context, observation *Observation) error {
-	if err := observeValidStructuralIntent(ctx, observation); err != nil {
-		return err
-	}
 	if err := observeStaticStructuralFailure(ctx, observation); err != nil {
 		return err
 	}
@@ -1425,28 +1460,6 @@ func observeStructuralPreflight(ctx context.Context, observation *Observation) e
 		return err
 	}
 	return observePhysicalStructuralFailure(ctx, observation)
-}
-
-func observeValidStructuralIntent(ctx context.Context, observation *Observation) (resultErr error) {
-	fixture, err := openDatabaseFixture(ctx, "preflight-valid")
-	if err != nil {
-		return err
-	}
-	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
-	loaded, load := loadOutcome("valid_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog)...)
-	if !load.Accepted {
-		observation.Outcomes = append(observation.Outcomes, load)
-		return nil
-	}
-	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
-	outcome := emptyOutcome("valid_target_derivation")
-	outcome.Accepted = migrateErr == nil
-	outcome.State = stateFact(state)
-	outcome.Error = errorFact(migrateErr)
-	outcome.Intents = cloneIntentFacts(probe.intents)
-	observation.Outcomes = append(observation.Outcomes, outcome)
-	return nil
 }
 
 func observeStaticStructuralFailure(ctx context.Context, observation *Observation) (resultErr error) {
@@ -1459,7 +1472,7 @@ func observeStaticStructuralFailure(ctx context.Context, observation *Observatio
 		SourceID: "owned-missing-target",
 		Document: []byte(strings.Replace(string(relationBlogDocument()), `"model_name":"author"`, `"model_name":"missing"`, 1)),
 	}
-	loaded, load := loadOutcome("static_invalid_load", &observation.Metrics, sourceFor(sourceLegacyAuthor), invalid)
+	loaded, load := loadOutcome("static_invalid_load", &observation.Metrics, sourceFor(sourceCurrentAuthor), invalid)
 	if !load.Accepted {
 		load.Name = "static_invalid"
 		observation.Outcomes = append(observation.Outcomes, load)
@@ -1467,7 +1480,7 @@ func observeStaticStructuralFailure(ctx context.Context, observation *Observatio
 	}
 	traceStart := len(observation.Metrics.Trace)
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	outcome := emptyOutcome("static_invalid")
 	outcome.Accepted = migrateErr == nil
 	outcome.State = stateFact(state)
@@ -1476,6 +1489,10 @@ func observeStaticStructuralFailure(ctx context.Context, observation *Observatio
 		Name:  "backend_trace_events",
 		Value: int64(len(observation.Metrics.Trace) - traceStart),
 	})
+	outcome.Strings = append(outcome.Strings,
+		NamedStringFact{Name: "capability_unavailable_error", Value: "migration_capability_unavailable"},
+		NamedStringFact{Name: "trace", Value: traceNames(observation.Metrics.Trace[traceStart:])},
+	)
 	observation.Outcomes = append(observation.Outcomes, outcome)
 	return nil
 }
@@ -1486,7 +1503,7 @@ func observeHistoryStructuralFailure(ctx context.Context, observation *Observati
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
-	loaded, load := loadOutcome("history_invalid_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog)...)
+	loaded, load := loadOutcome("history_invalid_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
@@ -1494,11 +1511,20 @@ func observeHistoryStructuralFailure(ctx context.Context, observation *Observati
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
 	probe.hasOverride = true
 	probe.historyOverride = []migrationbackend.AppliedMigration{{App: "blog", Name: "0001_article"}}
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	traceStart := len(observation.Metrics.Trace)
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	outcome := emptyOutcome("history_invalid")
 	outcome.Accepted = migrateErr == nil
 	outcome.State = stateFact(state)
 	outcome.Error = errorFact(migrateErr)
+	events := observation.Metrics.Trace[traceStart:]
+	outcome.Integers = append(outcome.Integers,
+		NamedIntegerFact{Name: "begin_migration_events", Value: traceCount(events, "begin_migration")},
+		NamedIntegerFact{Name: "history_read_events", Value: traceCount(events, "read_history")},
+		NamedIntegerFact{Name: "mutation_events", Value: traceMutationCount(events)},
+		NamedIntegerFact{Name: "session_open_events", Value: traceCount(events, "open_session")},
+	)
+	outcome.Strings = append(outcome.Strings, NamedStringFact{Name: "trace", Value: traceNames(events)})
 	observation.Outcomes = append(observation.Outcomes, outcome)
 	return nil
 }
@@ -1509,12 +1535,12 @@ func observePhysicalStructuralFailure(ctx context.Context, observation *Observat
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
-	base, baseLoad := loadOutcome("physical_base_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail)...)
+	base, baseLoad := loadOutcome("physical_base_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)...)
 	if !baseLoad.Accepted {
 		observation.Outcomes = append(observation.Outcomes, baseLoad)
 		return nil
 	}
-	if _, err := base.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest()); err != nil {
+	if _, err := (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, base, migrations.LatestLifecycleRequest()); err != nil {
 		return fmt.Errorf("apply physical preflight base: %w", err)
 	}
 	if err := seedBaseRows(ctx, fixture.backend); err != nil {
@@ -1524,13 +1550,14 @@ func observePhysicalStructuralFailure(ctx context.Context, observation *Observat
 	if err != nil {
 		return err
 	}
-	loaded, load := loadOutcome("physical_invalid_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail, sourceRequiredReview)...)
+	loaded, load := loadOutcome("physical_invalid_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail, sourceRequiredReview)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	traceStart := len(observation.Metrics.Trace)
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	after, err := readDatabaseSnapshot(ctx, "after", fixture.path, fixture.backend)
 	if err != nil {
 		return err
@@ -1539,7 +1566,14 @@ func observePhysicalStructuralFailure(ctx context.Context, observation *Observat
 	outcome.Accepted = migrateErr == nil
 	outcome.State = stateFact(state)
 	outcome.Error = errorFact(migrateErr)
+	events := observation.Metrics.Trace[traceStart:]
 	outcome.Booleans = append(outcome.Booleans, NamedBooleanFact{Name: "durable_unchanged", Value: snapshotsEqual(before, after)})
+	outcome.Integers = append(outcome.Integers,
+		NamedIntegerFact{Name: "begin_migration_events", Value: traceCount(events, "begin_migration")},
+		NamedIntegerFact{Name: "history_read_events", Value: traceCount(events, "read_history")},
+		NamedIntegerFact{Name: "mutation_events", Value: traceMutationCount(events)},
+	)
+	outcome.Strings = append(outcome.Strings, NamedStringFact{Name: "trace", Value: traceNames(events)})
 	observation.Outcomes = append(observation.Outcomes, outcome)
 	return nil
 }
@@ -1551,13 +1585,13 @@ func observeCreateLifecycle(ctx context.Context, observation *Observation) (resu
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
 	observation.Database = &DatabaseState{Snapshots: make([]DatabaseSnapshot, 0)}
-	loaded, load := loadOutcome("create_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog)...)
+	loaded, load := loadOutcome("create_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog)...)
 	observation.Outcomes = append(observation.Outcomes, load)
 	if !load.Accepted {
 		return nil
 	}
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	apply := emptyOutcome("apply")
 	apply.Accepted = migrateErr == nil
 	apply.State = stateFact(state)
@@ -1573,7 +1607,7 @@ func observeCreateLifecycle(ctx context.Context, observation *Observation) (resu
 	}
 	observation.Database.Snapshots = append(observation.Database.Snapshots, snapshot)
 	intentCount := len(probe.intents)
-	state, migrateErr = loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")))
+	state, migrateErr = (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")))
 	unapply := emptyOutcome("unapply")
 	unapply.Accepted = migrateErr == nil
 	unapply.State = stateFact(state)
@@ -1589,7 +1623,7 @@ func observeCreateLifecycle(ctx context.Context, observation *Observation) (resu
 	}
 	observation.Database.Snapshots = append(observation.Database.Snapshots, snapshot)
 	intentCount = len(probe.intents)
-	state, migrateErr = loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr = (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	reapply := emptyOutcome("reapply")
 	reapply.Accepted = migrateErr == nil
 	reapply.State = stateFact(state)
@@ -1630,12 +1664,12 @@ func observeAddRelationCase(
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
-	base, load := loadOutcome(name+"_base_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail)...)
+	base, load := loadOutcome(name+"_base_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
-	if _, err := base.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest()); err != nil {
+	if _, err := (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, base, migrations.LatestLifecycleRequest()); err != nil {
 		return fmt.Errorf("apply %s base: %w", name, err)
 	}
 	if populateSource {
@@ -1651,14 +1685,14 @@ func observeAddRelationCase(
 	}
 	observation.Database.Snapshots = append(observation.Database.Snapshots, before)
 
-	loaded, load := loadOutcome(name+"_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail, reviewer)...)
+	loaded, load := loadOutcome(name+"_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail, reviewer)...)
 	if !load.Accepted {
 		load.Name = name
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	after, err := readDatabaseSnapshot(ctx, name+"_after", fixture.path, fixture.backend)
 	if err != nil {
 		return err
@@ -1683,11 +1717,11 @@ func observeAddRelationCase(
 	if err := fixture.reopen(ctx); err != nil {
 		return err
 	}
-	fresh, freshLoad := loadOutcome(name+"_reopen_load", &observation.Metrics, sourcesFor(reviewer, sourceLegacyTail, sourceRelationBlog, sourceLegacyAuthor)...)
+	fresh, freshLoad := loadOutcome(name+"_reopen_load", &observation.Metrics, sourcesFor(reviewer, sourceCurrentTail, sourceRelationBlog, sourceCurrentAuthor)...)
 	if !freshLoad.Accepted {
 		return fmt.Errorf("reload %s sources: %s/%s", name, freshLoad.Error.Category, freshLoad.Error.Code)
 	}
-	state, migrateErr = fresh.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest())
+	state, migrateErr = (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, fresh, migrations.LatestLifecycleRequest())
 	reopen := emptyOutcome(name + "_reopen")
 	reopen.Accepted = migrateErr == nil
 	reopen.State = stateFact(state)
@@ -1713,13 +1747,13 @@ func observeRemoveRemake(ctx context.Context, observation *Observation) (resultE
 	loaded, load := loadOutcome(
 		"remove_load",
 		&observation.Metrics,
-		sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail, sourceNullableReview)...,
+		sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail, sourceNullableReview)...,
 	)
 	observation.Outcomes = append(observation.Outcomes, load)
 	if !load.Accepted {
 		return nil
 	}
-	if _, err := loaded.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest()); err != nil {
+	if _, err := (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		return fmt.Errorf("apply remove/remake chain: %w", err)
 	}
 	if err := seedBaseRows(ctx, fixture.backend); err != nil {
@@ -1735,11 +1769,12 @@ func observeRemoveRemake(ctx context.Context, observation *Observation) (resultE
 	observation.Database.Snapshots = append(observation.Database.Snapshots, before)
 
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(
 		ctx,
-		migrations.Executor{Backend: probe},
+		loaded,
 		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{App: "blog", Name: "0002_article_title"})),
 	)
+
 	after, err := readDatabaseSnapshot(ctx, "after_remove", fixture.path, fixture.backend)
 	if err != nil {
 		return err
@@ -1759,7 +1794,7 @@ func observeRemoveRemake(ctx context.Context, observation *Observation) (resultE
 		return nil
 	}
 
-	state, migrateErr = loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr = (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	reapply := emptyOutcome("reapply")
 	reapply.Accepted = migrateErr == nil
 	reapply.State = stateFact(state)
@@ -1813,19 +1848,19 @@ func observePhysicalFKPolicy(ctx context.Context, observation *Observation) (res
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
 	observation.Database = &DatabaseState{Snapshots: make([]DatabaseSnapshot, 0)}
-	loaded, load := loadOutcome("physical_fk_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog)...)
+	loaded, load := loadOutcome("physical_fk_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog)...)
 	observation.Outcomes = append(observation.Outcomes, load)
 	if !load.Accepted {
 		return nil
 	}
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	outcome := emptyOutcome("physical_fk")
 	outcome.Accepted = migrateErr == nil
 	outcome.State = stateFact(state)
 	outcome.Error = errorFact(migrateErr)
 	outcome.Intents = cloneIntentFacts(probe.intents)
-	capabilities := fixture.backend.RelationMigrationCapabilities()
+	capabilities := fixture.backend.MigrationCapabilities()
 	outcome.Booleans = append(outcome.Booleans,
 		NamedBooleanFact{Name: "create_model_foreign_keys", Value: capabilities.CreateModelForeignKeys},
 		NamedBooleanFact{Name: "add_nullable_foreign_key", Value: capabilities.AddNullableForeignKey},
@@ -1863,13 +1898,13 @@ func observeFileRestart(ctx context.Context, observation *Observation) (resultEr
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
 	observation.Database = &DatabaseState{Snapshots: make([]DatabaseSnapshot, 0)}
 
-	initial, load := loadOutcome("process_a_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail)...)
+	initial, load := loadOutcome("process_a_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
 	initialDigest := load.Digest
-	state, migrateErr := initial.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, initial, migrations.LatestLifecycleRequest())
 	processA := emptyOutcome("process_a")
 	processA.Accepted = migrateErr == nil
 	processA.Digest = initialDigest
@@ -1894,12 +1929,12 @@ func observeFileRestart(ctx context.Context, observation *Observation) (resultEr
 		return err
 	}
 
-	reopened, load := loadOutcome("process_b_load", &observation.Metrics, sourcesFor(sourceLegacyTail, sourceRelationBlog, sourceLegacyAuthor)...)
+	reopened, load := loadOutcome("process_b_load", &observation.Metrics, sourcesFor(sourceCurrentTail, sourceRelationBlog, sourceCurrentAuthor)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
-	state, migrateErr = reopened.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest())
+	state, migrateErr = (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, reopened, migrations.LatestLifecycleRequest())
 	processB := emptyOutcome("process_b_noop")
 	processB.Accepted = migrateErr == nil
 	processB.Digest = load.Digest
@@ -1915,7 +1950,7 @@ func observeFileRestart(ctx context.Context, observation *Observation) (resultEr
 		return err
 	}
 	observation.Database.Snapshots = append(observation.Database.Snapshots, snapshot)
-	state, migrateErr = reopened.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")))
+	state, migrateErr = (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, reopened, migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")))
 	branch := emptyOutcome("process_b_branch")
 	branch.Accepted = migrateErr == nil
 	branch.State = stateFact(state)
@@ -1936,12 +1971,12 @@ func observeFileRestart(ctx context.Context, observation *Observation) (resultEr
 		return err
 	}
 
-	third, load := loadOutcome("process_c_load", &observation.Metrics, sourcesFor(sourceRelationBlog, sourceLegacyAuthor, sourceLegacyTail)...)
+	third, load := loadOutcome("process_c_load", &observation.Metrics, sourcesFor(sourceRelationBlog, sourceCurrentAuthor, sourceCurrentTail)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
-	state, migrateErr = third.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest())
+	state, migrateErr = (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, third, migrations.LatestLifecycleRequest())
 	processC := emptyOutcome("process_c_reapply")
 	processC.Accepted = migrateErr == nil
 	processC.Digest = load.Digest
@@ -1978,12 +2013,12 @@ func observePrecommitFaultCase(
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
-	base, load := loadOutcome(name+"_base_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail)...)
+	base, load := loadOutcome(name+"_base_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
-	if _, err := base.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest()); err != nil {
+	if _, err := (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, base, migrations.LatestLifecycleRequest()); err != nil {
 		return fmt.Errorf("apply %s fault base: %w", name, err)
 	}
 	if err := seedBaseRows(ctx, fixture.backend); err != nil {
@@ -1994,14 +2029,14 @@ func observePrecommitFaultCase(
 		return err
 	}
 	observation.Database.Snapshots = append(observation.Database.Snapshots, before)
-	loaded, load := loadOutcome(name+"_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog, sourceLegacyTail, sourceNullableReview)...)
+	loaded, load := loadOutcome(name+"_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog, sourceCurrentTail, sourceNullableReview)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
 	}
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
 	probe.fault = fault
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	after, err := readDatabaseSnapshot(ctx, name+"_after", fixture.path, fixture.backend)
 	if err != nil {
 		return err
@@ -2057,15 +2092,15 @@ func observeCommitOutcomeCase(
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, fixture.close()) }()
-	seed, seedLoad := loadOutcome(name+"_seed_load", &observation.Metrics, sourceFor(sourceLegacyAuthor))
+	seed, seedLoad := loadOutcome(name+"_seed_load", &observation.Metrics, sourceFor(sourceCurrentAuthor))
 	if !seedLoad.Accepted {
 		observation.Outcomes = append(observation.Outcomes, seedLoad)
 		return nil
 	}
-	if _, err := seed.Migrate(ctx, migrations.Executor{Backend: fixture.backend}, migrations.LatestLifecycleRequest()); err != nil {
+	if _, err := (migrations.Executor{Backend: fixture.backend}).Migrate(ctx, seed, migrations.LatestLifecycleRequest()); err != nil {
 		return fmt.Errorf("apply commit outcome seed: %w", err)
 	}
-	loaded, load := loadOutcome(name+"_load", &observation.Metrics, sourcesFor(sourceLegacyAuthor, sourceRelationBlog)...)
+	loaded, load := loadOutcome(name+"_load", &observation.Metrics, sourcesFor(sourceCurrentAuthor, sourceRelationBlog)...)
 	if !load.Accepted {
 		observation.Outcomes = append(observation.Outcomes, load)
 		return nil
@@ -2073,7 +2108,7 @@ func observeCommitOutcomeCase(
 	traceStart := len(observation.Metrics.Trace)
 	probe := newObservingBackend(fixture.backend, &observation.Metrics)
 	probe.commit = mode
-	state, migrateErr := loaded.Migrate(ctx, migrations.Executor{Backend: probe}, migrations.LatestLifecycleRequest())
+	state, migrateErr := (migrations.Executor{Backend: probe}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	records, readErr := fixture.backend.ReadAppliedMigrations(ctx)
 	if readErr != nil {
 		return fmt.Errorf("read commit outcome history: %w", readErr)
@@ -2089,7 +2124,7 @@ func observeCommitOutcomeCase(
 	beginCount, commitCount, rollbackCount := int64(0), int64(0), int64(0)
 	for _, event := range probe.metrics.Trace[traceStart:] {
 		switch event.Name {
-		case "begin_fenced", "begin_relation":
+		case "begin_migration":
 			beginCount++
 		case "commit":
 			commitCount++

@@ -55,9 +55,9 @@ func (b *Backend) BeginMigration(ctx context.Context) (migrationbackend.Transact
 	}
 	if _, err := connection.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
 		discardErr := discardMigrationConnection(connection)
-		return nil, errors.Join(classifyRevisionIO("begin legacy migration transaction", err), discardErr)
+		return nil, errors.Join(classifyRevisionIO("begin direct atomic migration transaction", err), discardErr)
 	}
-	if err := rejectLegacyMigrationWhenRevisionMetadataPresent(ctx, connection); err != nil {
+	if err := rejectDirectAtomicMigrationWhenRevisionMetadataPresent(ctx, connection); err != nil {
 		return nil, errors.Join(err, rollbackAndReleasePinnedMigration(ctx, connection))
 	}
 	return &migrationTransaction{connection: connection, transaction: connection, manual: true}, nil

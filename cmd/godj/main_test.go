@@ -419,7 +419,7 @@ import (
 
 func main() {
 	if os.Getenv("GODJ_E2E_INVALID_RESPONSE") == "1" && len(os.Args) == 2 && os.Args[1] == "__godj_project_runner_v1" {
-		_, _ = fmt.Print("{\"protocol_version\":1,\"status\":\"ok\",\"status\":\"ok\",\"result\":{\"source_count\":0,\"definition_count\":0,\"definition_set_digest\":\"sha256:53f20df43573a361318abbff8c9e6bebad203a7f13f86c1f55c2df2cf4a43450\"}}")
+		_, _ = fmt.Print("{\"protocol_version\":1,\"status\":\"ok\",\"status\":\"ok\",\"result\":{\"source_count\":0,\"definition_count\":0,\"definition_set_digest\":\"sha256:1412c48d7da2299b6f2be7a614c5bb9ce510027328f6baed72ae05cbecc9b494\"}}")
 		return
 	}
 	if os.Getenv("GODJ_E2E_HANG") == "1" && len(os.Args) == 2 && os.Args[1] == "__godj_project_runner_v1" {

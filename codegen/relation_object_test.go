@@ -28,7 +28,7 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 		wantExported []string
 	}{
 		{
-			name:        "v2 target",
+			name:        "current target",
 			packageName: "authors",
 			schema:      authors,
 			golden:      "authors.golden",
@@ -49,7 +49,7 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 			wantExported: []string{"GoDjRelationObjectGeneratorVersion", "GoDjRelationObjectSchemaSHA256"},
 		},
 		{
-			name:        "v3 source",
+			name:        "current source",
 			packageName: "blog",
 			schema:      blog,
 			golden:      "blog.golden",
@@ -126,18 +126,10 @@ func TestGenerateRelationObjectIsDeterministicAndByteLocked(t *testing.T) {
 	}
 }
 
-func TestGenerateRelationObjectSnapshotsInputPreservesPrerequisitesAndNeverWritesOnFailure(t *testing.T) {
+func TestGenerateRelationObjectSnapshotsInputAndNeverWritesOnFailure(t *testing.T) {
 	t.Parallel()
 
-	authors, blog := relationQueryGenerationSchemas()
-	oldBlogBefore, err := codegen.GenerateRelationQuery("blog", blog)
-	if err != nil {
-		t.Fatalf("GenerateRelationQuery() before error = %v", err)
-	}
-	oldProjectBefore, err := codegen.GenerateProjectRelationQuery("project", relationQueryGenerationPackages(authors, blog))
-	if err != nil {
-		t.Fatalf("GenerateProjectRelationQuery() before error = %v", err)
-	}
+	_, blog := relationQueryGenerationSchemas()
 	generated, err := codegen.GenerateRelationObject("blog", blog)
 	if err != nil {
 		t.Fatalf("GenerateRelationObject() error = %v", err)
@@ -147,17 +139,6 @@ func TestGenerateRelationObjectSnapshotsInputPreservesPrerequisitesAndNeverWrite
 		t.Fatal("post-generation schema mutation changed relation object bytes")
 	}
 	_, freshBlog := relationQueryGenerationSchemas()
-	oldBlogAfter, err := codegen.GenerateRelationQuery("blog", freshBlog)
-	if err != nil {
-		t.Fatalf("GenerateRelationQuery() after error = %v", err)
-	}
-	oldProjectAfter, err := codegen.GenerateProjectRelationQuery("project", relationQueryGenerationPackages(authors, freshBlog))
-	if err != nil {
-		t.Fatalf("GenerateProjectRelationQuery() after error = %v", err)
-	}
-	if !bytes.Equal(oldBlogBefore, oldBlogAfter) || !bytes.Equal(oldProjectBefore, oldProjectAfter) {
-		t.Fatal("new relation object generation changed an existing v1 generator byte stream")
-	}
 
 	directory := t.TempDir()
 	sentinelPath := filepath.Join(directory, "committed.go")

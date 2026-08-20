@@ -38,7 +38,7 @@ type projectRelationDeleteTarget struct {
 	fingerprint string
 }
 
-// GenerateProjectRelationDelete renders the additive project-only aggregate
+// GenerateProjectRelationDelete renders the current project-only aggregate
 // for relation-aware deletes. The supplied packages are the same authoritative
 // declared project universe used by the generated Bind function.
 func GenerateProjectRelationDelete(
@@ -171,22 +171,6 @@ func buildProjectRelationDeleteSurface(
 					field.Name,
 				)
 			}
-			if target.formatVersion != ir.FormatVersion {
-				return nil, fmt.Errorf(
-					"relation delete target %s.%s uses schema format version %d, want %d",
-					target.identity.AppLabel,
-					target.identity.ModelName,
-					target.formatVersion,
-					ir.FormatVersion,
-				)
-			}
-			if !projectRelationDeleteScalarTarget(target.model) {
-				return nil, fmt.Errorf(
-					"relation delete target %s.%s is not a relation-free scalar model",
-					target.identity.AppLabel,
-					target.identity.ModelName,
-				)
-			}
 			if _, ok := projectRelationObjectAutoPrimaryKey(target.model); !ok {
 				return nil, fmt.Errorf(
 					"relation delete target %s.%s does not have exactly one non-null AutoField primary key",
@@ -248,20 +232,6 @@ func buildProjectRelationDeleteSurface(
 		targets = append(targets, target)
 	}
 	return targets, nil
-}
-
-func projectRelationDeleteScalarTarget(model ir.Model) bool {
-	for _, field := range model.Fields {
-		if field.Relation != nil {
-			return false
-		}
-		switch field.Kind {
-		case ir.FieldAuto, ir.FieldChar, ir.FieldBoolean:
-		default:
-			return false
-		}
-	}
-	return true
 }
 
 func validateProjectRelationDeleteEdge(field ir.Field) error {

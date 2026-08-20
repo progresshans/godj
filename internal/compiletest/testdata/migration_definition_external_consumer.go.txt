@@ -8,13 +8,7 @@ import (
 )
 
 const (
-	definitionFormat             = definition.DefinitionFormatVersion
-	loaderABI                    = definition.LoaderABIVersion
-	operationCodec               = definition.OperationCodecVersion
-	schemaIR                     = definition.SchemaIRVersion
-	relationLoaderABI      int64 = definition.RelationLoaderABIVersion
-	relationOperationCodec int64 = definition.RelationOperationCodecVersion
-	relationSchemaIR       int64 = definition.RelationSchemaIRVersion
+	definitionFormat = definition.DefinitionFormatVersion
 
 	maxSources                  = definition.MaxSources
 	maxSourceIDBytes            = definition.MaxSourceIDBytes
@@ -35,15 +29,12 @@ var (
 	_ definition.ErrorCode = definition.CodeInvalidSource
 	_ definition.ErrorCode = definition.CodeInvalidDocument
 	_ definition.ErrorCode = definition.CodeDefinitionFormatIncompatible
-	_ definition.ErrorCode = definition.CodeLoaderABIIncompatible
-	_ definition.ErrorCode = definition.CodeOperationCodecIncompatible
-	_ definition.ErrorCode = definition.CodeSchemaIRIncompatible
 	_ definition.ErrorCode = definition.CodeUnsupportedOperation
 	_ definition.ErrorCode = definition.CodeInvalidOperation
 	_ definition.ErrorCode = definition.CodeInvalidIR
 
-	_ func(...definition.Source) (definition.Set, definition.LoadReport, error)                                                = definition.Load
-	_ func(definition.Set, context.Context, migrations.Executor, migrations.LifecycleRequest) (migrations.ProjectState, error) = definition.Set.Migrate
+	_ func(...definition.Source) (migrations.LoadedDefinitionSet, definition.LoadReport, error)                                                = definition.Load
+	_ func(migrations.Executor, context.Context, migrations.LoadedDefinitionSet, migrations.LifecycleRequest) (migrations.ProjectState, error) = migrations.Executor.Migrate
 )
 
 func InspectMigrationDefinitions(sources ...definition.Source) (string, []migrations.Migration, []definition.SourceInfo, definition.LoadReport, error) {

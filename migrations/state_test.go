@@ -2,8 +2,6 @@ package migrations
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -83,26 +81,22 @@ func TestProjectStateRejectsDuplicateApps(t *testing.T) {
 	}
 }
 
-func TestProjectStateAndOperationWrappersRejectRelationIRV3(t *testing.T) {
+func TestProjectStateAndOperationWrappersUseOneCurrentRelationFormat(t *testing.T) {
 	t.Parallel()
 
 	relationSchema := relationMigrationSchema()
 	state, err := NewProjectState(relationSchema)
-	if err == nil || !strings.Contains(err.Error(), "migration state requires version 2") {
-		t.Fatalf("NewProjectState(v3) = state:%#v err:%v", state, err)
+	if err != nil || state.FormatVersion() != StateFormatVersion {
+		t.Fatalf("NewProjectState(current relation) = state:%#v err:%v", state, err)
 	}
-	if len(state.Apps()) != 0 {
-		t.Fatalf("failed NewProjectState published apps %v", state.Apps())
+	if model, exists := state.Model("blog", "post"); !exists || len(model.Fields) != 2 || model.Fields[1].Relation == nil {
+		t.Fatalf("current relation state = %#v/%t", model, exists)
 	}
 
 	create := CreateModel{AppLabel: "blog", Model: relationSchema.Models[0]}
 	afterCreate, err := create.stateForward(EmptyProjectState())
-	var validation *ir.ValidationError
-	if !errors.As(err, &validation) || validation.Path != "models[0].fields[1].relation" {
-		t.Fatalf("CreateModel relation error = %#v", err)
-	}
-	if len(afterCreate.Apps()) != 0 {
-		t.Fatalf("failed CreateModel state = %v", afterCreate.Apps())
+	if err != nil || !afterCreate.Equal(state) {
+		t.Fatalf("CreateModel current relation = state:%#v err:%v", afterCreate, err)
 	}
 
 	before, err := NewProjectState(articleSchema())
@@ -111,25 +105,22 @@ func TestProjectStateAndOperationWrappersRejectRelationIRV3(t *testing.T) {
 	}
 	add := AddField{AppLabel: "news", ModelName: "article", Field: relationMigrationField()}
 	afterAdd, err := add.stateForward(before)
-	validation = nil
-	if !errors.As(err, &validation) || validation.Path != "models[0].fields[3].relation" {
-		t.Fatalf("AddField relation error = %#v", err)
-	}
-	if !afterAdd.Equal(before) {
-		t.Fatal("failed AddField changed project state")
+	model, exists := afterAdd.Model("news", "article")
+	if err != nil || !exists || len(model.Fields) != 4 || model.Fields[3].Relation == nil {
+		t.Fatalf("AddField current relation = model:%#v exists:%t err:%v", model, exists, err)
 	}
 }
 
-func TestProjectStateValidationRejectsRetainedRelationVersionBeforeIO(t *testing.T) {
+func TestDirectExecutorRelationStateUsesCapabilityBoundaryBeforeIO(t *testing.T) {
 	t.Parallel()
 
 	state := EmptyProjectState()
 	state.apps["blog"] = relationMigrationSchema()
 	fake := &fakeBackend{transaction: newFakeTransaction()}
-	_, err := (Executor{Backend: fake}).Apply(context.Background(), state, articleMigration())
-	assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
-	if fake.beginCount != 0 || !strings.Contains(err.Error(), "migration state requires version 2") {
-		t.Fatalf("Apply(v3 state) = err:%v begin:%d", err, fake.beginCount)
+	_, err := (DirectExecutor{Backend: fake}).Apply(context.Background(), state, articleMigration())
+	assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
+	if fake.beginCount != 0 {
+		t.Fatalf("Apply(current relation state) = err:%v begin:%d", err, fake.beginCount)
 	}
 }
 
@@ -137,9 +128,9 @@ func TestExecutorRejectsUnsupportedProjectStateVersionBeforeIO(t *testing.T) {
 	t.Parallel()
 
 	state := EmptyProjectState()
-	state.formatVersion = RelationStateFormatVersion + 1
+	state.formatVersion = StateFormatVersion + 1
 	fake := &fakeBackend{transaction: newFakeTransaction()}
-	_, err := (Executor{Backend: fake}).Apply(context.Background(), state, articleMigration())
+	_, err := (DirectExecutor{Backend: fake}).Apply(context.Background(), state, articleMigration())
 	assertMigrationError(t, err, CategoryState, CodeInvalidState, NoOperation, "")
 	if fake.beginCount != 0 {
 		t.Fatalf("BeginMigration() calls = %d, want 0", fake.beginCount)
@@ -148,7 +139,7 @@ func TestExecutorRejectsUnsupportedProjectStateVersionBeforeIO(t *testing.T) {
 
 func articleSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "news",
 		Models: []ir.Model{{
 			Name:    "article",
@@ -176,7 +167,7 @@ func summaryField() ir.Field {
 
 func relationMigrationSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "blog",
 		Models: []ir.Model{{
 			Name:    "post",

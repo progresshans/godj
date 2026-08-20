@@ -177,12 +177,12 @@ func externalRelationDeleteAuthorModel() ir.Model {
 
 func externalRelationDeleteSchemas() (ir.Schema, ir.Schema) {
 	authors := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "authors",
 		Models:        []ir.Model{externalRelationDeleteAuthorModel()},
 	}
 	blog := ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "blog",
 		Models: []ir.Model{{
 			Name:    "post",

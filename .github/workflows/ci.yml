@@ -471,10 +471,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 845, sorted(runs)
-          assert len(payload) == 86738, len(payload)
+          assert len(runs) == 842, sorted(runs)
+          assert len(payload) == 86679, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "9bb0ef63e521749b256bbce1348c9e71bd7628e01306abe00dc546352ab733f3"
+          assert payload_sha256 == "706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -799,75 +799,6 @@ jobs:
 
       - name: Vet SQLite packages
         run: go vet ./migrations ./db/sqlite
-
-      - name: Run GDJ-0035 Phase B no-product feasibility inventory
-        run: |
-          set -o pipefail
-          log="$RUNNER_TEMP/migration-relation-feasibility-tests.json"
-          status=0
-          go test -json -count=1 ./conformance/migrationrelation > "$log" || status=$?
-          if [ "$status" -ne 0 ]; then
-            tail -c 60000 "$log"
-            exit "$status"
-          fi
-          python3 - "$log" <<'PY'
-          import hashlib
-          import json
-          import sys
-
-          with open(sys.argv[1], encoding="utf-8") as stream:
-              events = [json.loads(line) for line in stream if line.strip()]
-          runs = {
-              (event.get("Package"), event["Test"])
-              for event in events
-              if event.get("Action") == "run"
-              and "Test" in event
-              and "/" not in event["Test"]
-          }
-          passes = {
-              (event.get("Package"), event["Test"])
-              for event in events
-              if event.get("Action") == "pass"
-              and "Test" in event
-              and "/" not in event["Test"]
-          }
-          skipped = [
-              (event.get("Package"), event["Test"])
-              for event in events
-              if event.get("Action") == "skip" and "Test" in event
-          ]
-          payload = b"".join(
-              package.encode("utf-8")
-              + b"\0"
-              + test.encode("utf-8")
-              + b"\n"
-              for package, test in sorted(runs)
-          )
-          assert len(runs) == 75, sorted(runs)
-          assert passes == runs, (sorted(runs), sorted(passes))
-          assert skipped == [], skipped
-          assert len(payload) == 9736, len(payload)
-          digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "48e7beb1994c099a0f550da54d0abdcd5bc08157b74a9db22ae3dd42d42592ec", digest
-          print(json.dumps({
-              "migration_relation_feasibility_inventory": {
-                  "runs": len(runs),
-                  "passes": len(passes),
-                  "skips": len(skipped),
-                  "payload_bytes": len(payload),
-                  "payload_sha256": digest,
-              }
-          }, sort_keys=True))
-          PY
-
-      - name: Run GDJ-0035 Phase B no-product feasibility race tests
-        run: go test -race -count=1 ./conformance/migrationrelation
-
-      - name: Run GDJ-0035 Phase B no-product feasibility without CGO
-        run: CGO_ENABLED=0 go test -count=1 ./conformance/migrationrelation
-
-      - name: Vet GDJ-0035 Phase B no-product feasibility
-        run: go vet ./conformance/migrationrelation
 
       - name: Require a clean worktree
         run: |

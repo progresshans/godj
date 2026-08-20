@@ -119,17 +119,18 @@ class MigrationProjectCheckScenarioTests(unittest.TestCase):
             [contract["comparison"] for contract in manifest["contracts"]],
             [["result", "metrics"]] * 4 + [["error", "metrics"]] * 6,
         )
+        current_format_ids = {"MIG-065", "MIG-066", "MIG-067", "MIG-068", "MIG-073"}
         for contract in manifest["contracts"]:
             with self.subTest(contract=contract["id"]):
                 self.assertEqual(contract["status"], "passing")
+                references = ["ADR-0021"]
+                if contract["id"] in current_format_ids:
+                    references.append("ADR-0035")
                 self.assertEqual(
                     contract["provenance"],
                     [
-                        {
-                            "kind": "decision",
-                            "reference": "ADR-0021",
-                            "derived": False,
-                        }
+                        {"kind": "decision", "reference": reference, "derived": False}
+                        for reference in references
                     ],
                 )
 

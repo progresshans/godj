@@ -1,11 +1,11 @@
 """Reference observations for relation-capable migration contracts.
 
 The Django-facing scenarios execute fresh migration values against disposable
-file-backed SQLite databases.  The GoDj definition/profile/state/preflight and
-commit-policy values are deliberately marked as proposal observations: Django
-doesn't define GoDj's JSON tuple, digest domain, revision fence, or unknown
-commit outcome.  Scenarios never read checked-in manifests, oracles, or static
-fixtures.
+file-backed SQLite databases.  The GoDj current definition/state/preflight and
+commit-policy values are deliberately marked as decision observations: Django
+doesn't define GoDj's JSON format, digest domain, revision
+fence, or unknown commit outcome.  Scenarios never read checked-in manifests,
+oracles, or static fixtures.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from django.db.backends.sqlite3.schema import DatabaseSchemaEditor
 from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.recorder import MigrationRecorder
 
-from . import migration_definition_source_scenarios as legacy_definition
+from . import migration_definition_source_scenarios as current_definition
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -42,31 +42,10 @@ _DATABASE_ALIAS = "godj_migration_relation_reference"
 _TABLE_PREFIX = "godj_migration_relation_"
 _AUTHOR_TABLE = _TABLE_PREFIX + "author"
 _ARTICLE_TABLE = _TABLE_PREFIX + "article"
-_LEGACY_PROFILE = {
-    "definition_format": 1,
-    "loader_abi": 1,
-    "operation_codec": 1,
-    "schema_ir": 2,
-}
-_RELATION_PROFILE = {
-    "definition_format": 1,
-    "loader_abi": 2,
-    "operation_codec": 2,
-    "schema_ir": 3,
-}
-_PROFILE_ORDER = (
-    "definition_format",
-    "loader_abi",
-    "operation_codec",
-    "schema_ir",
-)
-_PROFILE_ERROR_CODES = {
-    "definition_format": "definition_format_incompatible",
-    "loader_abi": "loader_abi_incompatible",
-    "operation_codec": "operation_codec_incompatible",
-    "schema_ir": "schema_ir_incompatible",
-}
-_MIXED_DIGEST_DOMAIN = "godj:migration-definition-set:v2"
+_CURRENT_FORMAT = current_definition._FORMAT_VERSION
+_CURRENT_SCHEMA_IR = current_definition._SCHEMA_IR_VERSION
+_CURRENT_STATE_FORMAT = current_definition._STATE_FORMAT_VERSION
+_CURRENT_DIGEST_DOMAIN = current_definition._DIGEST_DOMAIN
 
 
 class RelationMigrationDDLFailure(RuntimeError):
@@ -97,20 +76,16 @@ def _success(
 
 
 def _canonical_json(value: Any) -> bytes:
-    return legacy_definition._canonical_json(value)
+    return current_definition._canonical_json(value)
 
 
 def _sha256(value: bytes) -> str:
     return "sha256:" + hashlib.sha256(value).hexdigest()
 
 
-def _profile_tuple(profile: dict[str, int]) -> list[int]:
-    return [profile[name] for name in _PROFILE_ORDER]
-
-
-def _proposal_error(code: str, *, stage: str, reason: str) -> dict[str, Any]:
+def _decision_error(code: str, *, stage: str, reason: str) -> dict[str, Any]:
     return {
-        "category": "migration_relation_proposal_error",
+        "category": "migration_relation_decision_error",
         "code": code,
         "message_is_contract": False,
         "reason": reason,
@@ -118,132 +93,129 @@ def _proposal_error(code: str, *, stage: str, reason: str) -> dict[str, Any]:
     }
 
 
-def _legacy_vector() -> dict[str, Any]:
-    loaded, report = legacy_definition._load(
-        legacy_definition._fixture_sources()
+def _current_vector() -> dict[str, Any]:
+    loaded, report = current_definition._load(
+        current_definition._fixture_sources()
     )
+    definitions = deepcopy(list(loaded.definitions))
+    definitions.sort(key=lambda item: (item["app"], item["name"]))
+    for definition in definitions:
+        definition["dependencies"].sort(
+            key=lambda item: (item["app"], item["name"])
+        )
     digest_document = {
-        "compatibility": deepcopy(_LEGACY_PROFILE),
-        "definitions": deepcopy(list(loaded.definitions)),
-        "domain": legacy_definition._DIGEST_DOMAIN,
+        "definitions": definitions,
+        "domain": _CURRENT_DIGEST_DOMAIN,
+        "format_version": _CURRENT_FORMAT,
     }
     canonical = _canonical_json(digest_document)
     if _sha256(canonical) != loaded.digest:
-        raise AssertionError("legacy canonical bytes no longer match digest")
+        raise AssertionError("current canonical bytes no longer match digest")
     return {
         "canonical_bytes": len(canonical),
         "canonical_sha256": _sha256(canonical),
         "definition_count": len(loaded.definitions),
         "definition_set_digest": loaded.digest,
-        "digest_domain": legacy_definition._DIGEST_DOMAIN,
+        "digest_domain": _CURRENT_DIGEST_DOMAIN,
+        "format": {
+            "definition": _CURRENT_FORMAT,
+            "schema_ir": _CURRENT_SCHEMA_IR,
+            "state": _CURRENT_STATE_FORMAT,
+        },
         "operation_count": report["operations_decoded"],
-        "profile": deepcopy(_LEGACY_PROFILE),
-        "profile_tuple": _profile_tuple(_LEGACY_PROFILE),
-        "state_format": 1,
     }
 
 
-def legacy_abi(contract_id: str) -> dict[str, Any]:
-    first = _legacy_vector()
-    second = _legacy_vector()
+def current_abi(contract_id: str) -> dict[str, Any]:
+    first = _current_vector()
+    second = _current_vector()
     return _success(
         contract_id,
         "construction",
         {
-            "classification": "accepted_decision_reference",
-            "legacy": first,
+            "classification": "current_only_decision_reference",
+            "current": first,
+            "retired_compatibility_tuple_present": False,
             "repeat_equal": first == second,
-            "relation_fields_accepted": False,
+            "scalar_and_relation_share_format": True,
         },
         metrics={
             "artifact_reads": 0,
             "definition_loads": 2,
-            "legacy_bytes_rewritten": 0,
             "published_sets": 2,
+            "compatibility_upgrades": 0,
         },
     )
 
 
-def _dispatch_profile(profile: dict[str, int]) -> dict[str, Any]:
-    if profile == _LEGACY_PROFILE:
+def _format_case(name: str, document: dict[str, Any]) -> dict[str, Any]:
+    source = current_definition.SourceDocument(
+        f"case-{name}", current_definition._encode_document(document)
+    )
+    try:
+        loaded, _ = current_definition._load((source,))
+    except current_definition._DefinitionSourceError as error:
         return {
-            "accepted": True,
-            "decoder": "legacy_scalar_v1",
-            "error": None,
-            "profile": deepcopy(profile),
+            "accepted": False,
+            "case": name,
+            "error": {
+                "category": error.category,
+                "code": error.code,
+                "json_pointer": error.context["json_pointer"],
+                "reason": error.context["reason"],
+                "stage": error.context["stage"],
+            },
+            "published_definitions": 0,
         }
-    if profile == _RELATION_PROFILE:
-        return {
-            "accepted": True,
-            "decoder": "relation_v2",
-            "error": None,
-            "profile": deepcopy(profile),
-        }
-    for coordinate in _PROFILE_ORDER:
-        if profile.get(coordinate) not in {
-            _LEGACY_PROFILE[coordinate],
-            _RELATION_PROFILE[coordinate],
-        }:
-            return {
-                "accepted": False,
-                "decoder": None,
-                "error": _proposal_error(
-                    _PROFILE_ERROR_CODES[coordinate],
-                    stage="compatibility",
-                    reason=coordinate,
-                ),
-                "profile": deepcopy(profile),
-            }
-    for coordinate in _PROFILE_ORDER:
-        if profile.get(coordinate) != _LEGACY_PROFILE[coordinate]:
-            return {
-                "accepted": False,
-                "decoder": None,
-                "error": _proposal_error(
-                    "hybrid_profile_incompatible",
-                    stage="compatibility",
-                    reason=coordinate,
-                ),
-                "profile": deepcopy(profile),
-            }
-    raise AssertionError("profile dispatch reached an impossible case")
+    return {
+        "accepted": True,
+        "case": name,
+        "error": None,
+        "published_definitions": len(loaded.definitions),
+    }
 
 
-def profile_dispatch(contract_id: str) -> dict[str, Any]:
-    cases = [
-        ("legacy_exact", deepcopy(_LEGACY_PROFILE)),
-        ("relation_exact", deepcopy(_RELATION_PROFILE)),
-        (
-            "hybrid_loader_only",
-            {**_LEGACY_PROFILE, "loader_abi": 2},
-        ),
-        (
-            "hybrid_codec_and_ir",
-            {**_LEGACY_PROFILE, "operation_codec": 2, "schema_ir": 3},
-        ),
-        (
-            "unknown_definition_format",
-            {**_RELATION_PROFILE, "definition_format": 9},
-        ),
-    ]
+def current_format_validation(contract_id: str) -> dict[str, Any]:
+    exact = current_definition._root_document()
+    missing = current_definition._root_document()
+    missing.pop("format_version")
+    unknown = current_definition._root_document()
+    unknown["format_version"] = _CURRENT_FORMAT + 1
+    wrong_type = current_definition._root_document()
+    wrong_type["format_version"] = str(_CURRENT_FORMAT)
+    overflow = current_definition._root_document()
+    overflow["format_version"] = 1 << 63
+    retired_tuple = current_definition._root_document()
+    retired_tuple["compatibility"] = {
+        "definition_format": 1,
+        "loader_abi": 2,
+        "operation_codec": 2,
+        "schema_ir": 3,
+    }
     observations = [
-        {"case": name, **_dispatch_profile(profile)}
-        for name, profile in cases
+        _format_case("exact_current", exact),
+        _format_case("missing_format_version", missing),
+        _format_case("unknown_format_version", unknown),
+        _format_case("wrong_type_format_version", wrong_type),
+        _format_case("overflow_format_version", overflow),
+        _format_case("retired_compatibility_tuple", retired_tuple),
     ]
     return _success(
         contract_id,
         "environment",
         {
             "cases": observations,
-            "classification": "gdj_0035_proposal",
+            "classification": "current_only_decision_reference",
             "publication_atomic": True,
         },
         metrics={
-            "accepted_profiles": sum(item["accepted"] for item in observations),
+            "accepted_documents": sum(item["accepted"] for item in observations),
             "artifact_reads": 0,
             "database_io": 0,
-            "profiles_checked": len(observations),
-            "rejected_profiles": sum(not item["accepted"] for item in observations),
+            "documents_checked": len(observations),
+            "rejected_documents": sum(
+                not item["accepted"] for item in observations
+            ),
         },
     )
 
@@ -258,15 +230,21 @@ def _relation_definition() -> dict[str, Any]:
                 "app_label": "blog",
                 "field": {
                     "column": "author_id",
+                    "default": None,
+                    "go_name": "AuthorID",
                     "kind": "foreign_key",
+                    "max_length": 0,
                     "name": "author",
                     "nullable": False,
-                    "on_delete": "protect",
-                    "related_name": "articles",
-                    "target": {
-                        "app": "authors",
-                        "model": "author",
-                        "field": "id",
+                    "primary_key": False,
+                    "relation": {
+                        "cardinality": "many_to_one",
+                        "on_delete": "protect",
+                        "reverse": {"disabled": False, "name": "articles"},
+                        "target": {
+                            "app_label": "authors",
+                            "model_name": "author",
+                        },
                     },
                 },
                 "kind": "add_field",
@@ -276,80 +254,70 @@ def _relation_definition() -> dict[str, Any]:
     }
 
 
-def _v2_digest(
-    items: Sequence[tuple[dict[str, int], dict[str, Any]]],
+def _current_digest(
+    definitions: Sequence[dict[str, Any]],
 ) -> tuple[str, list[dict[str, Any]]]:
-    canonical_items = [
-        {"definition": deepcopy(definition), "profile": deepcopy(profile)}
-        for profile, definition in items
-    ]
-    canonical_items.sort(
-        key=lambda item: (
-            item["definition"]["app"].encode("utf-8"),
-            item["definition"]["name"].encode("utf-8"),
+    canonical_items = deepcopy(list(definitions))
+    canonical_items.sort(key=lambda item: (item["app"], item["name"]))
+    for definition in canonical_items:
+        definition["dependencies"].sort(
+            key=lambda item: (item["app"], item["name"])
         )
-    )
     document = {
         "definitions": canonical_items,
-        "domain": _MIXED_DIGEST_DOMAIN,
+        "domain": _CURRENT_DIGEST_DOMAIN,
+        "format_version": _CURRENT_FORMAT,
     }
     return _sha256(_canonical_json(document)), canonical_items
 
 
-def mixed_digest(contract_id: str) -> dict[str, Any]:
-    legacy = _legacy_vector()
-    loaded, _ = legacy_definition._load(legacy_definition._fixture_sources())
-    legacy_definition_value = deepcopy(loaded.definitions[0])
+def current_digest(contract_id: str) -> dict[str, Any]:
+    loaded, _ = current_definition._load(current_definition._fixture_sources())
+    scalar_definition = deepcopy(loaded.definitions[0])
     relation = _relation_definition()
-    relation_digest, relation_items = _v2_digest(
-        ((_RELATION_PROFILE, relation),)
+    scalar_digest, scalar_items = _current_digest((scalar_definition,))
+    relation_digest, relation_items = _current_digest((relation,))
+    combined_digest, combined_items = _current_digest(
+        (relation, scalar_definition)
     )
-    mixed_digest_value, mixed_items = _v2_digest(
-        (
-            (_RELATION_PROFILE, relation),
-            (_LEGACY_PROFILE, legacy_definition_value),
-        )
-    )
-    permuted_digest, _ = _v2_digest(
-        (
-            (_LEGACY_PROFILE, legacy_definition_value),
-            (_RELATION_PROFILE, relation),
-        )
+    permuted_digest, _ = _current_digest(
+        (scalar_definition, relation)
     )
     return _success(
         contract_id,
         "construction",
         {
-            "classification": "mixed_accepted_and_proposal_reference",
-            "legacy_only": {
-                "digest": legacy["definition_set_digest"],
-                "domain": legacy["digest_domain"],
-                "profile": deepcopy(_LEGACY_PROFILE),
-            },
-            "mixed": {
-                "canonical_items": mixed_items,
-                "digest": mixed_digest_value,
-                "domain": _MIXED_DIGEST_DOMAIN,
-                "permutation_equal": mixed_digest_value == permuted_digest,
+            "classification": "current_only_decision_reference",
+            "combined": {
+                "canonical_definitions": combined_items,
+                "digest": combined_digest,
+                "domain": _CURRENT_DIGEST_DOMAIN,
+                "permutation_equal": combined_digest == permuted_digest,
             },
             "relation_only": {
-                "canonical_items": relation_items,
+                "canonical_definitions": relation_items,
                 "digest": relation_digest,
-                "domain": _MIXED_DIGEST_DOMAIN,
+                "domain": _CURRENT_DIGEST_DOMAIN,
             },
+            "scalar_only": {
+                "canonical_definitions": scalar_items,
+                "digest": scalar_digest,
+                "domain": _CURRENT_DIGEST_DOMAIN,
+            },
+            "profile_metadata_present": False,
         },
         metrics={
             "artifact_reads": 0,
             "database_io": 0,
             "digest_computations": 4,
-            "legacy_documents_rewritten": 0,
+            "compatibility_branches": 0,
         },
     )
 
 
 def _scalar_state() -> dict[str, Any]:
     return {
-        "format_version": 1,
+        "format_version": _CURRENT_STATE_FORMAT,
         "models": [
             {
                 "app": "blog",
@@ -364,40 +332,12 @@ def _scalar_state() -> dict[str, Any]:
     }
 
 
-def _promote(state: dict[str, Any]) -> dict[str, Any]:
-    promoted = deepcopy(state)
-    promoted["format_version"] = 2
-    promoted["relation_index"] = []
-    return promoted
-
-
-def _demote(state: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    relations = state.get("relation_index", [])
-    if relations:
-        return None, _proposal_error(
-            "relation_state_demotion_rejected",
-            stage="state",
-            reason="relation_present",
-        )
-    demoted = deepcopy(state)
-    demoted["format_version"] = 1
-    demoted.pop("relation_index", None)
-    return demoted, None
-
-
-def state_promotion(contract_id: str) -> dict[str, Any]:
+def current_state(contract_id: str) -> dict[str, Any]:
     scalar = _scalar_state()
-    promoted = _promote(scalar)
-    demoted, demotion_error = _demote(promoted)
-    relation_state = deepcopy(promoted)
-    relation_state["relation_index"] = [
-        {
-            "field": "author",
-            "source": {"app": "blog", "model": "article"},
-            "target": {"app": "authors", "field": "id", "model": "author"},
-        }
-    ]
-    rejected, relation_error = _demote(relation_state)
+    relation_state = deepcopy(scalar)
+    relation_state["models"][0]["fields"].append(
+        deepcopy(_relation_definition()["operations"][0]["field"])
+    )
     cloned = deepcopy(relation_state)
     cloned["models"][0]["fields"][0]["name"] = "changed_only_in_clone"
     return _success(
@@ -405,74 +345,85 @@ def state_promotion(contract_id: str) -> dict[str, Any]:
         "construction",
         {
             "alias_free": relation_state["models"][0]["fields"][0]["name"] == "id",
-            "classification": "gdj_0035_proposal",
-            "promote": {
-                "after": promoted,
-                "before": scalar,
-                "lossless": demoted == scalar,
-            },
-            "scalar_only_demote": {"error": demotion_error, "state": demoted},
-            "relation_demote": {"error": relation_error, "state": rejected},
+            "classification": "current_only_decision_reference",
+            "format_transition_required": False,
             "relation_state": relation_state,
+            "scalar_state": scalar,
+            "single_format": (
+                scalar["format_version"]
+                == relation_state["format_version"]
+                == _CURRENT_STATE_FORMAT
+            ),
         },
         metrics={
             "artifact_reads": 0,
             "database_io": 0,
-            "demotions_attempted": 2,
-            "promotions_attempted": 1,
+            "format_transitions": 0,
             "state_publications": 2,
         },
     )
 
 
 def structural_preflight(contract_id: str) -> dict[str, Any]:
-    cases = [
-        ("valid_cross_app_ancestry", None),
-        ("source_model_missing", "source_model_not_found"),
-        ("target_model_missing", "target_model_not_found"),
-        ("target_primary_key_not_auto", "target_autofield_required"),
-        ("declared_table_mismatch", "declared_table_mismatch"),
-        ("declared_column_mismatch", "declared_column_mismatch"),
-        ("reverse_namespace_collision", "reverse_namespace_collision"),
-        ("set_null_not_nullable", "set_null_requires_nullable"),
-        ("creator_not_in_dependency_ancestry", "target_creator_not_ancestor"),
-        ("relation_editor_unavailable", "relation_editor_unsupported"),
+    lanes = [
+        {
+            "error": _decision_error(
+                "target_model_not_found",
+                stage="static_preflight",
+                reason="target_model_missing",
+            ),
+            "lane": "static_invalid",
+            "trace": [],
+            "trace_events": 0,
+        },
+        {
+            "error": _decision_error(
+                "applied_history_not_in_graph",
+                stage="history_preflight",
+                reason="history_requires_missing_ancestor",
+            ),
+            "lane": "history_invalid",
+            "allowed_trace": [
+                "capabilities",
+                "open_session",
+                "read_history",
+                "close_session",
+            ],
+            "forbidden_trace": [
+                "begin_migration",
+                "ddl",
+                "record",
+                "revision",
+            ],
+        },
+        {
+            "durable_unchanged": True,
+            "error": _decision_error(
+                "required_foreign_key_requires_backfill",
+                stage="physical_preflight",
+                reason="populated_table",
+            ),
+            "lane": "physical_populated_required",
+            "mutation_events": 0,
+            "reads_allowed": True,
+        },
     ]
-    results = []
-    for name, code in cases:
-        results.append(
-            {
-                "case": name,
-                "error": (
-                    None
-                    if code is None
-                    else _proposal_error(code, stage="preflight", reason=name)
-                ),
-                "valid": code is None,
-            }
-        )
-    zero_io = {
-        "begin_calls": 0,
-        "connection_pins": 0,
-        "ddl_writes": 0,
-        "recorder_writes": 0,
-        "revision_writes": 0,
-        "schema_reads": 0,
-        "session_opens": 0,
-    }
     return _success(
         contract_id,
         "evaluation",
         {
-            "cases": results,
-            "classification": "gdj_0035_proposal",
-            "error_precedence": [name for name, _ in cases[1:]],
-            "pure_preflight": True,
+            "classification": "current_only_staged_preflight_decision_reference",
+            "lanes": lanes,
+            "mandatory_backend_capability": {
+                "optional_relation_port_retired": True,
+                "replacement_error": "migration_capability_unavailable",
+            },
         },
         metrics={
-            "cases_checked": len(results),
-            "rejected_cases": sum(not item["valid"] for item in results),
-            **zero_io,
+            "artifact_reads": 0,
+            "lanes_checked": len(lanes),
+            "mutation_events": 0,
+            "rejected_lanes": len(lanes),
         },
     )
 
@@ -754,7 +705,7 @@ def add_nullable_populated(contract_id: str) -> dict[str, Any]:
         contract_id,
         "commit",
         {
-            "classification": "django_observed_plus_gdj_0035_proposal",
+            "classification": "django_observed_plus_current_godj_decision",
             "django_observation": {
                 "existing_rows_received_null": all(
                     row["editor_id"] is None
@@ -766,7 +717,7 @@ def add_nullable_populated(contract_id: str) -> dict[str, Any]:
                 "plan": _plan_value(plan),
             },
             "gdj_required_populated_policy": {
-                "error": _proposal_error(
+                "error": _decision_error(
                     "required_foreign_key_requires_backfill",
                     stage="preflight",
                     reason="populated_table_without_default",
@@ -845,7 +796,7 @@ def physical_fk_policy(contract_id: str) -> dict[str, Any]:
         contract_id,
         "commit",
         {
-            "classification": "django_observed_plus_gdj_0035_proposal",
+            "classification": "django_observed_plus_current_godj_decision",
             "django_observation": {
                 "constraint_actions": [
                     {
@@ -1008,7 +959,7 @@ def precommit_faults(contract_id: str) -> dict[str, Any]:
         contract_id,
         "rollback",
         {
-            "classification": "django_observed_plus_gdj_0035_proposal",
+            "classification": "django_observed_plus_current_godj_decision",
             "django_faults": [
                 {
                     key: value
@@ -1065,7 +1016,7 @@ def commit_outcomes(contract_id: str) -> dict[str, Any]:
         {
             "commit_calls": 1,
             "durable_result_known": True,
-            "error": _proposal_error(
+            "error": _decision_error(
                 "commit_definite_failure",
                 stage="commit",
                 reason="not_committed",
@@ -1077,7 +1028,7 @@ def commit_outcomes(contract_id: str) -> dict[str, Any]:
         {
             "commit_calls": 1,
             "durable_result_known": False,
-            "error": _proposal_error(
+            "error": _decision_error(
                 "commit_outcome_unknown",
                 stage="commit",
                 reason="durability_unknown",
@@ -1092,8 +1043,8 @@ def commit_outcomes(contract_id: str) -> dict[str, Any]:
         "commit",
         {
             "cases": cases,
-            "classification": "accepted_no_retry_plus_gdj_0035_proposal",
-            "retained_connection_policy": "outside_gdj_0035",
+            "classification": "accepted_no_retry_plus_current_godj_decision",
+            "retained_connection_policy": "outside_compatibility_reset_scope",
         },
         metrics={
             "artifact_reads": 0,
@@ -1105,10 +1056,10 @@ def commit_outcomes(contract_id: str) -> dict[str, Any]:
 
 
 SCENARIOS: dict[str, Callable[[str], dict[str, Any]]] = {
-    "godj.migration.relation.legacy_abi": legacy_abi,
-    "godj.migration.relation.profile_dispatch": profile_dispatch,
-    "godj.migration.relation.mixed_digest": mixed_digest,
-    "godj.migration.relation.state_promotion": state_promotion,
+    "godj.migration.relation.current_abi": current_abi,
+    "godj.migration.relation.current_format_validation": current_format_validation,
+    "godj.migration.relation.current_digest": current_digest,
+    "godj.migration.relation.current_state": current_state,
     "godj.migration.relation.structural_preflight": structural_preflight,
     "django.migration.relation.create_lifecycle": create_lifecycle,
     "django.migration.relation.add_nullable_populated": add_nullable_populated,

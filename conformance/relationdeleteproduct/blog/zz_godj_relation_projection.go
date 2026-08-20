@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "f599489ae0ccd1d01418426a29147cdfad4c979edc217fe087a6617dbf31c944"
+const GoDjRelationProjectionSchemaSHA256 = "62dd8ea4742bd730f5627e3c68081e83a00df4e39015c141f12c4d9bc0f2fb14"
 
 var _ orm.ProjectionDescriptor[Post] = PostDescriptor{}
 
@@ -60,5 +60,6 @@ func (_scan *postProjectionScan) Decode() (Post, query.Value, orm.ProjectionPres
 		_scanned := _scan.scanReviewerID.Int64
 		_value.ReviewerID = &_scanned
 	}
+	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }

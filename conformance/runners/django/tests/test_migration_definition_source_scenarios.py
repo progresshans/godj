@@ -100,7 +100,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         metrics = error.metrics
         self.assertEqual(metrics["definition_sets_published"], 0)
         self.assertEqual(metrics["definitions_published"], 0)
-        self.assertEqual(metrics["handoff_calls"], 0)
+        self.assertEqual(metrics["session_open_calls"], 0)
         self.assertEqual(metrics["source_reads_after_snapshot"], 0)
         self.assertEqual(metrics["failure"]["stage"], stage)
         self.assertEqual(metrics["failure"]["reason"], reason)
@@ -124,11 +124,11 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
                 "godj.migration.definition_source.canonical_batch",
                 "godj.migration.definition_source.empty_source",
                 "godj.migration.definition_source.canonical_syntax_and_order",
-                "godj.migration.definition_source.incompatible_tuple",
+                "godj.migration.definition_source.unsupported_format",
                 "godj.migration.definition_source.malformed_atomic_batch",
                 "godj.migration.definition_source.duplicate_identity",
                 "godj.migration.definition_source.closed_codec",
-                "django.migration.definition_source.public_lifecycle_handoff",
+                "django.migration.definition_source.public_loaded_executor",
             ],
         )
 
@@ -179,7 +179,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
                 self.assertIn(
                     {
                         "kind": "decision",
-                        "reference": "ADR-0019",
+                        "reference": "ADR-0035",
                         "derived": False,
                     },
                     contract["provenance"],
@@ -323,9 +323,13 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
                 {"name": "godj-reference", "version": "0.1.0"},
             ],
         )
-        self.assertEqual(result["handoff"]["calls"], 0)
-        self.assertFalse(result["handoff"]["attempted"])
-        self.assertIsNone(result["handoff"]["observed_digest"])
+        self.assertEqual(result["execution"]["session_open_calls"], 0)
+        self.assertFalse(result["execution"]["attempted"])
+        self.assertIsNone(result["execution"]["observed_digest"])
+        self.assertEqual(
+            result["format"],
+            {"definition_format": 1, "schema_ir": 1, "state_format": 1},
+        )
         self.assertEqual(metrics["documents_received"], 2)
         self.assertEqual(metrics["headers_validated"], 2)
         self.assertEqual(metrics["operations_decoded"], 3)
@@ -379,15 +383,15 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         loaded, _ = scenarios._load((source("golden", golden),))
         canonical = scenarios._canonical_json(
             {
-                "compatibility": deepcopy(scenarios._COMPATIBILITY),
                 "definitions": list(loaded.definitions),
                 "domain": scenarios._DIGEST_DOMAIN,
+                "format_version": scenarios._FORMAT_VERSION,
             }
         )
-        self.assertEqual(len(canonical), 470)
+        self.assertEqual(len(canonical), 400)
         self.assertEqual(
             loaded.digest,
-            "sha256:07e61f8d956002cff0d7fe2db10c16ea4a30829e9f0ced09c69c40ff2c2399bc",
+            "sha256:b15b980386317e4c75746910d01bf5492876a5eb31a2ed3f560722866c15a1b6",
         )
         self.assertEqual(
             loaded.digest,
@@ -408,53 +412,46 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
             digest,
         )
 
-    def test_compatibility_coordinate_precedence_before_semantic_decode(self) -> None:
+    def test_current_format_precedes_semantic_decode(self) -> None:
         base = scenarios._root_document()
-        expected_codes = {
-            "definition_format": "definition_format_incompatible",
-            "loader_abi": "loader_abi_incompatible",
-            "operation_codec": "operation_codec_incompatible",
-            "schema_ir": "schema_ir_incompatible",
-        }
-        for coordinate, expected_code in expected_codes.items():
-            for value in (0, scenarios._COMPATIBILITY[coordinate] + 1):
-                with self.subTest(coordinate=coordinate, value=value):
-                    document = deepcopy(base)
-                    document["compatibility"][coordinate] = value
-                    document["migration"]["operations"] = [
-                        {"app_label": "alpha", "kind": "run_python"}
-                    ]
-                    error = load_error((source("version", document),))
-                    self.assert_atomic_failure(
-                        error,
-                        code=expected_code,
-                        stage="compatibility",
-                        reason=coordinate,
-                    )
-                    self.assertEqual(error.metrics["operations_decoded"], 0)
+        for value in (0, scenarios._FORMAT_VERSION + 1):
+            with self.subTest(value=value):
+                document = deepcopy(base)
+                document["format_version"] = value
+                document["migration"]["operations"] = [
+                    {"app_label": "alpha", "kind": "run_python"}
+                ]
+                error = load_error((source("version", document),))
+                self.assert_atomic_failure(
+                    error,
+                    code="definition_format_incompatible",
+                    stage="format",
+                    reason="format_version",
+                )
+                self.assertEqual(error.metrics["operations_decoded"], 0)
 
-        format_document = deepcopy(base)
-        format_document["compatibility"]["definition_format"] = 2
-        schema_document = deepcopy(base)
-        schema_document["compatibility"]["schema_ir"] = 3
+        first_document = deepcopy(base)
+        first_document["format_version"] = 2
+        second_document = deepcopy(base)
+        second_document["format_version"] = 3
         for inputs in (
             (
-                source("z-format", format_document),
-                source("a-schema", schema_document),
+                source("z-format", first_document),
+                source("a-format", second_document),
             ),
             (
-                source("a-schema", schema_document),
-                source("z-format", format_document),
+                source("a-format", second_document),
+                source("z-format", first_document),
             ),
         ):
             error = load_error(inputs)
             self.assertEqual(error.code, "definition_format_incompatible")
-            self.assertEqual(error.metrics["failure"]["source_id"], "z-format")
+            self.assertEqual(error.metrics["failure"]["source_id"], "a-format")
 
         for value in (-(1 << 63) - 1, 1 << 63):
             with self.subTest(out_of_range=value):
                 document = deepcopy(base)
-                document["compatibility"]["loader_abi"] = value
+                document["format_version"] = value
                 error = load_error((source("range", document),))
                 self.assert_atomic_failure(
                     error,
@@ -464,18 +461,18 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     error.metrics["failure"]["json_pointer"],
-                    "/compatibility/loader_abi",
+                    "/format_version",
                 )
 
-    def test_nested_max_length_int64_framing_precedes_tuple_handshake(self) -> None:
+    def test_nested_max_length_int64_framing_precedes_format_check(self) -> None:
         create_model = scenarios._root_document()
-        create_model["compatibility"]["definition_format"] = 2
+        create_model["format_version"] = 2
         create_model["migration"]["operations"][0]["model"]["fields"][1][
             "max_length"
         ] = 1 << 63
 
         add_field = scenarios._tail_document()
-        add_field["compatibility"]["definition_format"] = 2
+        add_field["format_version"] = 2
         add_field["migration"]["operations"][0]["field"]["max_length"] = (
             -(1 << 63) - 1
         )
@@ -519,11 +516,11 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
             "/migration/operations/0/model/fields/1/max_length",
         )
 
-    def test_empty_producer_framing_precedes_tuple_handshake(self) -> None:
+    def test_empty_producer_framing_precedes_format_check(self) -> None:
         for member in ("name", "version"):
             with self.subTest(member=member):
                 document = scenarios._root_document()
-                document["compatibility"]["definition_format"] = 2
+                document["format_version"] = 2
                 document["producer"][member] = ""
                 error = load_error((source("empty-producer", document),))
                 self.assert_atomic_failure(
@@ -548,18 +545,18 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
             }
         ]
 
-        incompatible = deepcopy(unsupported)
-        incompatible["compatibility"]["definition_format"] = 2
-        error = load_error((source("unsupported-payload", incompatible),))
+        unsupported_format = deepcopy(unsupported)
+        unsupported_format["format_version"] = 2
+        error = load_error((source("unsupported-payload", unsupported_format),))
         self.assert_atomic_failure(
             error,
             code="definition_format_incompatible",
-            stage="compatibility",
-            reason="definition_format",
+            stage="format",
+            reason="format_version",
         )
         self.assertEqual(
             error.metrics["failure"]["json_pointer"],
-            "/compatibility/definition_format",
+            "/format_version",
         )
         self.assertEqual(error.metrics["operations_decoded"], 0)
 
@@ -579,12 +576,12 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
     def test_base_failure_outcomes_have_exact_typed_failure_context(self) -> None:
         expected = [
             (
-                scenarios.incompatible_tuple,
+                scenarios.unsupported_format,
                 "definition_format_incompatible",
-                "compatibility",
-                "definition_format",
+                "format",
+                "format_version",
                 "a-version",
-                "/compatibility/definition_format",
+                "/format_version",
             ),
             (
                 scenarios.malformed_atomic_batch,
@@ -628,13 +625,13 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
                 self.assertEqual(failure["source_id"], source_id)
                 self.assertEqual(failure["json_pointer"], pointer)
                 self.assertEqual(value["metrics"]["definitions_published"], 0)
-                self.assertEqual(value["metrics"]["handoff_calls"], 0)
+                self.assertEqual(value["metrics"]["session_open_calls"], 0)
 
     def test_strict_document_framing_rejects_each_false_green_shape(self) -> None:
         root_bytes = scenarios._encode_document(scenarios._root_document())
         cases = {
             "invalid_utf8": b"\xff",
-            "syntax": b'{"compatibility":',
+            "syntax": b'{"format_version":',
             "duplicate_key": root_bytes.replace(
                 b'"name":"0001_initial"',
                 b'"name":"0001_initial","name":"duplicate"',
@@ -693,8 +690,8 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         )
 
         decimal_version = root_bytes.replace(
-            b'"definition_format":1',
-            b'"definition_format":1.0',
+            b'"format_version":1',
+            b'"format_version":1.0',
             1,
         )
         error = load_error(
@@ -708,12 +705,12 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         )
         self.assertEqual(
             error.metrics["failure"]["json_pointer"],
-            "/compatibility/definition_format",
+            "/format_version",
         )
 
-        incompatible = scenarios._root_document()
-        incompatible["compatibility"]["definition_format"] = 2
-        combined = scenarios._encode_document(incompatible).replace(
+        unsupported_format = scenarios._root_document()
+        unsupported_format["format_version"] = 2
+        combined = scenarios._encode_document(unsupported_format).replace(
             b'"max_length":64',
             b'"max_length":1e2',
             1,
@@ -747,8 +744,8 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         self.assertEqual(error.metrics["failure"]["json_pointer"], "")
 
         nested_first = root_bytes.replace(
-            b'"definition_format":1',
-            b'"definition_format":1,"definition_format":2',
+            b'"format_version":1',
+            b'"format_version":1,"format_version":2',
             1,
         ).replace(
             b"{",
@@ -760,7 +757,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         )
         self.assertEqual(
             error.metrics["failure"]["json_pointer"],
-            "/compatibility/definition_format",
+            "/format_version",
         )
 
         escaped_key = root_bytes.replace(
@@ -777,7 +774,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
     def test_document_stage_beats_version_and_is_source_order_stable(self) -> None:
         invalid = scenarios._encode_document(scenarios._tail_document()) + b" {}"
         version = scenarios._root_document()
-        version["compatibility"]["definition_format"] = 2
+        version["format_version"] = 2
         inputs = (
             scenarios.SourceDocument("a-document", invalid),
             source("z-version", version),
@@ -1759,7 +1756,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
         self.assertEqual(first_order.definitions, second_order.definitions)
         self.assertEqual(first_order.digest, second_order.digest)
 
-    def test_public_lifecycle_handoff_uses_explicit_graph_and_one_migrate_call(
+    def test_public_loaded_executor_uses_explicit_graph_and_one_migrate_call(
         self,
     ) -> None:
         original = MigrationExecutor.migrate
@@ -1770,27 +1767,27 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
             return original(executor, targets, plan=plan, **kwargs)
 
         with patch.object(MigrationExecutor, "migrate", spy):
-            value = observed(scenarios.public_lifecycle_handoff, "MIG-064")
+            value = observed(scenarios.public_loaded_executor, "MIG-064")
 
         self.assertEqual(len(calls), 1)
         self.assertEqual(
             calls[0]["targets"],
             [("alpha", "0002_fields")],
         )
-        self.assertEqual(value["metrics"]["handoff_calls"], 1)
+        self.assertEqual(value["metrics"]["session_open_calls"], 1)
         self.assertEqual(value["metrics"]["source_reads_after_snapshot"], 0)
         self.assertIsNone(value["metrics"]["failure"])
         self.assertEqual(
-            value["metrics"]["handoff"]["route"],
-            "explicit_graph_public_executor",
+            value["metrics"]["lifecycle"]["route"],
+            "loaded_definition_executor",
         )
-        self.assertTrue(value["metrics"]["handoff"]["definitions_unchanged"])
+        self.assertTrue(value["metrics"]["lifecycle"]["definitions_unchanged"])
         self.assertEqual(
-            value["result"]["handoff"],
+            value["result"]["execution"],
             {
                 "attempted": True,
-                "calls": 1,
                 "observed_digest": value["result"]["definition_set"]["digest"],
+                "session_open_calls": 1,
             },
         )
         self.assertEqual(
@@ -1827,7 +1824,7 @@ class MigrationDefinitionSourceScenarioTests(unittest.TestCase):
 
         with patch.object(MigrationExecutor, "migrate", fail):
             with self.assertRaisesRegex(RuntimeError, "sentinel lifecycle failure"):
-                scenarios.public_lifecycle_handoff("untrusted-contract")
+                scenarios.public_loaded_executor("untrusted-contract")
         self.assertEqual(len(calls), 1)
         self.assertNotIn(scenarios._DATABASE_ALIAS, connections.databases)
 

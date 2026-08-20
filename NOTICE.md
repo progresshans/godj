@@ -24,26 +24,31 @@ tables, operations, sentinels, and assertions; every provenance entry is marked
 code and does not embed Django source or fixtures.
 
 GDJ-0019 independently authored MIG-057..064 with GoDj-specific documents,
-identities, operations, values, diagnostics, and assertions. Every contract
-records the Accepted ADR-0019 decision as `derived=false`; this is the
-provenance for GoDj's strict JSON format, compatibility tuple, closed codec,
-canonical digest, atomic publication, and failure precedence. MIG-057 and
-MIG-064 additionally cite pinned Django 6.1 source or tests for observed
+identities, operations, values, diagnostics, and assertions. The pre-release
+compatibility reset rebaselined the current eight-contract corpus to the single
+current format defined by Accepted ADR-0035; every current contract records
+that decision as `derived=false`. The former ADR-0019 compatibility-tuple
+corpus remains historical Git/evidence, not a supported input format. MIG-057
+and MIG-064 additionally cite pinned Django 6.1 source or tests for observed
 migration identity, graph, ordered-operation, and public executor behavior.
 Those Django entries are behavioral provenance, not a claim that Django uses
 GoDj's data format, and do not make the other six decision-oracle contracts
-Django observations. MIG-064 is reference-only and does not claim a GoDj
-product loader, adapter, or CLI implementation.
+Django observations. All eight contracts retain their existing `passing`
+status and registered GoDj product adapter coverage; the reference assets and
+their provenance do not attribute the product format to Django.
 
 GDJ-0021 independently authored MIG-065..074 with GoDj-specific project
 selection, descriptor, flat source catalog, private runner protocol, failure,
-counter, and publication observations. Every contract records Proposed
-ADR-0021 as `kind=decision` and `derived=false`; none cites or derives from
-Django source, tests, fixtures, comments, or assertion structure. The
+counter, and publication observations. All ten current contracts record
+Accepted ADR-0021 as `kind=decision` and `derived=false`; the definition-format
+touching MIG-065..068 and MIG-073 additionally record Accepted ADR-0035 after
+the current-only reset. None cites or derives from Django source, tests,
+fixtures, comments, or assertion structure. The
 Django-named profile, runner namespace, and oracle directory are reused only
 to keep one protocol-v2 reference corpus and checksum gate. These ten
-`oracle_locked` decision contracts do not claim that Django provides GoDj's
-descriptor or protocol, or that GoDj already has a product project-check CLI.
+contracts retain their existing `passing` status and registered GoDj
+project-check product adapter coverage; none of that claims Django provides
+GoDj's descriptor, protocol, or CLI semantics.
 
 GDJ-0023 independently authored REL-001..012 with GoDj-specific `authors` and
 `blog` apps, rows, capture windows, normalized SQL-shape observations, and
@@ -53,21 +58,25 @@ symbols, and tests only as behavioral provenance; all entries are
 or assertion structure. The relation fixture and oracle cover cross-app
 ForeignKey metadata, forward/reverse access, nullable relations,
 `PROTECT`/`SET_NULL`, `select_related`, and reverse `prefetch_related`. Their
-`oracle_locked` status does not claim a GoDj ForeignKey product API, relation
-adapter, or non-SQLite backend implementation.
+current 12 contracts are all `passing` through registered GoDj product adapters.
+That product coverage does not attribute the behavior to copied Django code and
+does not claim non-SQLite backend implementation.
 
-GDJ-0035 Phase A locally locked an independently authored, reference-only set of
-12 MIG-075..086 contracts while evaluating candidates from Proposed ADR-0034.
-Until that decision is accepted, GoDj-owned relation-migration tuple, digest,
-state, preflight, and SQLite DDL payloads use `kind=proposal`, decision ID
-`GDJ-0035`, and `derived=false`; they are not described as Django parity or as
-accepted GoDj behavior. Pinned Django BSD 3-Clause source and test references
-are limited to the portions actually observed. GoDj scenarios, fixtures,
-payloads, and assertions are written independently and do not copy or translate
-Django source, fixtures, comments, or assertion structure. Any future copied,
+GDJ-0035 Phase A historically locked an independently authored, reference-only
+set of 12 MIG-075..086 contracts while evaluating candidates from Proposed
+ADR-0034. Those original bytes retain historical `kind=proposal`, decision ID
+`GDJ-0035`, and `derived=false` provenance in Git/evidence. The current
+checked-in same-ID diagnostic corpus was regenerated for the ADR-0035
+current-only format and records ADR-0035 (plus ADR-0017 for MIG-086) as
+`kind=decision`, `derived=false`. All twelve contracts remain `oracle_locked`
+and unregistered, so this rebaseline is neither Django parity nor product
+publication. Pinned Django BSD 3-Clause source and test references are limited
+to the portions actually observed. GoDj scenarios, fixtures, payloads, and
+assertions are written independently and do not copy or translate Django
+source, fixtures, comments, or assertion structure. Any future copied,
 translated, or adapted expression requires separate derived-work provenance and
-file-level notices. Local EVID-085 records the measured artifact and test locks;
-hosted exact-head verification of the Phase A tree is still pending.
+file-level notices. EVID-085 and EVID-086 retain the original local and hosted
+Phase A proof; they do not prove the current reset bytes.
 
 GDJ-0014 connected a GoDj product adapter to the existing recorder-restart
 scenarios and changed their implementation status; it did not add a new

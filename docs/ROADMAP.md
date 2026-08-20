@@ -1,8 +1,15 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
-  유일한 active contract-first packet이고 ready는 0입니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
+- 현재 단계: [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)이 active pre-release reset입니다.
+  Schema IR/Definition/digest/ProjectState를 각각 current version 1 하나로 통합하고, opaque
+  `LoadedDefinitionSet`→`Executor.Migrate`, `DirectExecutor` raw scalar 경계, mandatory
+  `MigrationCapabilities`+single `BeginMigration(MigrationIntent)`, current codegen ABI를 한 번에
+  재기준화합니다. MIG-057..074는 current-format artifact로 갱신했고 GDJ-0035 Phase-B
+  MIG-075..086 publication/D4g status sequence는 retire했습니다. 현재 working tree의 local gates와 문서
+  mirror는 진행 중이며 최종 frozen head의 hosted 검증 전에는 GDJ-0036을 `Verified`로 표시하지 않습니다.
+- 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
+  당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
   P0..P3=0을 통과했습니다. Product/Q 상태는 불변입니다. GDJ-0035는 MIG-075..086 exact 12
   planned contracts와 당시 Proposed ADR-0034를 활성화했으며 source/workflow/artifact/product 변경은 0입니다.
@@ -46,7 +53,8 @@
   `4982e27...`/inventory lock `9d5b894...`는
   [EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
-  Remove-by-remake를 검증했습니다. 현재 단계는 D4g observer-only characterization입니다.
+  Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
+  GDJ-0036 activation에서 publication 순서를 중단했습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
 - 마지막 검토: 2026-08-20
@@ -596,7 +604,11 @@ M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 - 관계 없는 package나 같은 공개 API를 병렬 에이전트에 나누지 않습니다.
 - 긴 milestone은 contract group별 work item으로 쪼개되 milestone gate는 하나의 통합 담당자가 닫습니다.
 
-## Active GDJ-0035 sequence
+## Retired GDJ-0035 sequence
+
+아래 순서는 GDJ-0036 activation 전의 exact-head/evidence 계획을 보존합니다. D4g observer와 Phase E
+publication은 실행하지 않으며 current 구현 순서는
+[GDJ-0036](../work/0036-pre-release-compatibility-reset.md)의 A~D checkpoint를 따릅니다.
 
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 exact 26/26 jobs·326/326 steps와
 audit P0..P3=0을 통과했습니다. 이 clean baseline에서
@@ -672,14 +684,14 @@ activation head `52f9bcb7...`는
     relevant-shape rejection, deterministic temp, retained-column PK-order copy, row/sequence preservation,
     error ownership/rollback/no-retry와 reopen/reapply를 검증했습니다. CI #95/run `32294983953`은 exact
     26/26·342/342와 audit P0..P3=0을 통과했습니다. Capability는 `{true,true,true,true}`입니다.
-12. Phase D4g (**next, no status flip yet**): 첫 작업은 expected fixture/oracle을 보지 않는 observer-only
+12. Phase D4g (**retired before publication**): 당시 첫 작업 후보는 expected fixture/oracle을 보지 않는 observer-only
     characterization으로 actual GoDj observation을 수집하고 MIG-075..086 12개를 모두 `oracle_locked`로
     유지하는 것입니다. 현재 allowed paths에 없는 `conformance/cmd/godjcheck/main.go` 추가와 DEV/deviation
     경로 필요 여부는 별도 explicit scope/decision gate에서 먼저 결정하며 deviation을 묵시적으로 승인하지 않습니다.
-13. Phase E: D4g characterization과 explicit status/deviation decision 뒤에만 completion/terminal을 다시 서로
-    다른 exact-head hosted CI와 independent audit로 닫습니다.
+13. Phase E (**retired**): D4g characterization 뒤의 completion/terminal publication 계획이었으나
+    GDJ-0036 current-only reset으로 대체됐습니다.
 
-Candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐입니다. Final Phase-A artifact는
+당시 candidate relation tuple은 `(1,2,2,3)`, locked IDs는 MIG-075..086뿐이었습니다. Final Phase-A artifact는
 manifest/oracle/NI/checksum 7,792/125,248/1,846/1,245 bytes로 측정했습니다. Reference는 exact
 13/139/156=`122+5+12 locked`이며 product는 계속 exact 12/127=
 `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Writer/autodetector/CLI,
@@ -688,6 +700,7 @@ proof는 later D1/D2/D3a/D3b를 증명하지 않고, candidate-local restart도 
 EVID-093의 D1/D2/D3a는 D3b core support를, EVID-094의 D3b는 D4 restart를, EVID-095의 bounded D4 scenario는
 Add/Remove/remake, raw database-file equality, `sqlite_sequence`, general restart나 actual MIG adapter를
 증명하지 않습니다. EVID-099은 bounded D4f product만 증명하며 actual adapter/status/deviation 결정을
-증명하지 않습니다. Relation support는 normal
-`definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유하며
-direct legacy execution은 relation-bearing input을 capability error로 거부합니다.
+증명하지 않습니다. 당시 relation support는 normal
+`definition.Load`/`Set.Migrate`/`Executor.Migrate` 경로만 소유했으며 direct legacy execution은
+relation-bearing input을 capability error로 거부했습니다. Current entry는 이 문서 상단의
+`definition.Load`→opaque `LoadedDefinitionSet`→`Executor.Migrate` 경계입니다.

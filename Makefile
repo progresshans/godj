@@ -44,7 +44,8 @@ MIGRATION_RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-relati
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
 format-check:
-	@unformatted="$$(git ls-files -z --cached --others --exclude-standard -- '*.go' | xargs -0 gofmt -l)"; \
+	@unformatted="$$(git ls-files -z --cached --others --exclude-standard -- '*.go' | \
+		xargs -0 sh -c 'for file do test ! -f "$$file" || gofmt -l "$$file"; done' sh)"; \
 	if [ -n "$$unformatted" ]; then \
 		echo "unformatted Go files:"; \
 		echo "$$unformatted"; \

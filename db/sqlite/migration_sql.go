@@ -9,8 +9,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// migrationSQLExecutor is the common statement boundary shared by the legacy
-// database/sql transaction and the revision-fenced pinned connection. Keeping
+// migrationSQLExecutor is the common statement boundary shared by direct
+// database/sql transactions and the loaded revision-fenced lifecycle. Keeping
 // this private prevents the manual BEGIN IMMEDIATE implementation from leaking
 // database/sql details into the backend-neutral migration ports.
 type migrationSQLExecutor interface {

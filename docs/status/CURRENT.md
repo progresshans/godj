@@ -2,7 +2,9 @@
 
 - 마지막 갱신: 2026-08-20
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
-- 브랜치: `codex/revision-fenced-migration-lifecycle`
+- 브랜치: `feature/pre-release-compatibility-reset`
+- 현재 기준 commit: `d824b6916348286abb50dfa16a492332e97cd714`
+  (`docs(work): authorize migration relation comparison gate`)
 - GDJ-0018 제품 commit:
   `d076bd20f5964074b7b76b44147ca59f7b3e6eb8`
   (`feat: add revision-fenced migration lifecycle`)
@@ -298,9 +300,15 @@
   (`test(conformance): characterize migration relation product`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
-  유일한 active contract-first packet입니다. 선행 [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)는
-  terminally completed입니다. 그 앞의 선행
+- 현재 단계: [GDJ-0036](../../work/0036-pre-release-compatibility-reset.md)은 유일한 active packet입니다.
+  외부 alpha 이전의 development snapshot을 영구 legacy로 보존하지 않고 current-only Schema IR,
+  Migration Definition/State, explicit loaded set, unified backend entry와 하나의 current generated ABI로
+  reset합니다. Project-level manifest와 coordinated publication/repair는 Q-017 후속 작업입니다.
+  [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
+  D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
+  [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)가 이전 dual-format/additive
+  compatibility 결정을 대체합니다. 선행
+  [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)는 terminally completed입니다. 그 앞의 선행
   [GDJ-0033](../../work/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 completed이고
   [ADR-0033](../adr/0033-forward-foreign-key-assignment-save-and-cache-ownership.md)은 Phase A/B/C를 근거로
   Accepted, exact 23-path bounded code는 Implemented, EVID-076의 명시된 hosted 환경에서는 Verified입니다. Activation head `a4a627a...`의
@@ -413,16 +421,17 @@
   fresh process가 repo 밖 O_EXCL 경로에 남긴 actual capture 두 개는 각각 624,739 bytes/SHA-256
   `0679a54035605ab9e8b94dec2b9729e4b699c6a96cf20dc694282dec528dffb3`로 exact 동일했고, frozen inventory는
   845 tests/86,738 bytes/SHA-256 `9bb0ef63e521749b256bbce1348c9e71bd7628e01306abe00dc546352ab733f3`입니다.
-  Normal `Generate`, status/registry는 불변이고 MIG-075..086은 모두 `oracle_locked`/unregistered입니다. Explicit
-  comparison은 generic actual projection 때문에 strict 0/12 contracts, 0/30 declared dimensions였으며 이를
-  12개 semantic product failure로 해석하지 않습니다. 남은 P1은 MIG-076 required author dependency,
-  public `*migrations.PlanningError` typed classification, MIG-080..085 raw SQL statement count/kind actual metric
-  보완입니다. Projection/metric 보완 뒤 passing 검토 후보는 MIG-075/080/082/084, Proposed `DEV-0003` 후보는
-  MIG-076..079/081/083/085/086입니다. `DEV-0003`은 아직 Accepted가 아니며 status flip도 없습니다.
+  이 결과는 reset 이전 D4g Phase 0의 역사적 characterization입니다. 당시 Normal `Generate`, status/registry는
+  불변이고 MIG-075..086은 모두 `oracle_locked`/unregistered였습니다. Generic actual projection의 strict
+  0/12 contracts·0/30 dimensions는 12개 semantic product failure가 아니었습니다. GDJ-0036은 그 뒤
+  MIG-075..079를 current ABI/format/digest/state/staged-preflight 진단 계약으로 재기준화하고 dependency 및
+  public `*migrations.PlanningError` typed classification false-green을 닫았습니다. 현재 same-ID reference는
+  계속 13/139/156 aggregate에 포함되지만 locked/unregistered이며, reset 전 passing/`DEV-0003` 후보 순서는
+  superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
 - 활성 작업:
-  [GDJ-0035 Relation-capable Migration Definition, State, and SQLite Lifecycle](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)
+  [GDJ-0036 Pre-release Compatibility Reset](../../work/0036-pre-release-compatibility-reset.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -883,36 +892,29 @@
 ### 제품 구현
 
 - Go module은 `github.com/progresshans/godj`, language/toolchain은 Go 1.26/1.26.5입니다.
-- Schema DSL과 normalized IR v2, deterministic codegen, generic Manager/QuerySet,
-  typed/dynamic Query AST, SQLite query/write와 Save lifecycle 제품 단면이 구현됐습니다.
-- Hosted-tested implementation head `4858ab88b82647793cd463e9f348e43d3f5e4bb7`은 GDJ-0024의
-  v2-byte-preserving relation IR v3/ForeignKey DSL,
-  mixed v2/v3 metadata companion/project bridge와 immutable `orm.BindProject` 위에 additive query companion,
-  project query bridge, immutable typed/dynamic relation path와 SQLite required reusable `INNER JOIN`을
-  보존합니다. Additive sealed descriptor/storage, required/nullable object loader/cache,
-  relation-object companions/project bridge, nullable source-key AST와 SQLite JOIN-0 trim을 더해 REL-003/006도
-  actual입니다. Additive reverse query/object/project companion과 SQLite reverse exact INNER JOIN을 더해
-  REL-005도 actual로 전환했습니다. GDJ-0028은 그 위에 immutable IN AST,
-  one-batch reverse prefetch/atomic warm `RelatedSet`, separate project companion, SQLite root-table IN과
-  oracle-blind REL-012 actual을 구현·검증했습니다. General eager/custom Prefetch/write/delete/DDL/migration
-  codec는 여전히 제품에 없습니다. ADR-0027은 bounded REL-005 slice, ADR-0028은 bounded REL-012 SQLite
-  slice에 한해 Accepted입니다.
+- Schema DSL과 scalar/ForeignKey를 함께 표현하는 normalized current IR format `1`, deterministic codegen,
+  generic Manager/QuerySet, typed/dynamic Query AST, SQLite query/write와 Save lifecycle 제품 단면이 구현됐습니다.
+  Zero/unknown IR format은 fail-closed합니다.
+- App의 current main generator는 scalar/FK 모두 model, descriptor, scan/clone/write와 relation metadata 기반을 직접
+  생성합니다. App-local relation-query file과 facade-private write model은 제거했고 project generator는 cross-app
+  binding/query/object/prefetch/select/delete/facade를 소유합니다. 이 reset은 current ABI와 checked-in output set을
+  재기준화했지만 Q-017의 project-level manifest/coordinated publication은 아직 구현하지 않았습니다.
 - Migration core는 versioned `ProjectState`, immutable graph/`AppliedState`, zero-I/O `Planner`,
   preflighted `ExecutePlan`, recorder-backed restart planning과 immutable historical-state
   reconstruction을 제공합니다.
-- Accepted [ADR-0018](../adr/0018-revision-fenced-migration-lifecycle-product-shape.md)에 따라
-  zero value가 invalid인 `LifecycleRequest`, `LatestLifecycleRequest`,
-  `TargetedLifecycleRequest`와
-  `Executor.Migrate(ctx, definitions, request)`가 구현됐습니다. Caller-owned definition,
-  operation/nested IR와 target은 lifecycle 시작 전에 snapshot/deep-copy됩니다.
-- `Migrate`는 Executor-owned backend의 optional `RevisionFencedBackend`만 사용합니다. 정확히 한
-  atomic applied-history snapshot, explicit known-history check, state reconstruction, plan,
-  full preflight와 migration별 fenced execution을 한 public lifecycle로 묶습니다. Optional port가
-  없으면 legacy transaction으로 fallback하지 않습니다.
-- Backend port는 connection-free `RevisionFencedSession`, declared `HistoryTransition`, dedicated
-  `RevisionFencedTransaction`과 `CommitRolledBack`/`CommitCommitted`/`CommitUnknown` durability를
-  사용합니다. Mandatory `Close`는 caller cancellation과 분리된 bounded cleanup context를
-  사용합니다.
+- Accepted [ADR-0018](../adr/0018-revision-fenced-migration-lifecycle-product-shape.md)과 current
+  [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)에 따라 zero value가 invalid인
+  `LifecycleRequest`, `LatestLifecycleRequest`, `TargetedLifecycleRequest`와
+  `Executor.Migrate(ctx, loadedDefinitionSet, request)`가 구현됐습니다. Opaque loaded set의 definition,
+  operation/nested IR, provenance와 target은 publication/execution 경계에서 snapshot·검증됩니다.
+- `Executor`는 mandatory `RevisionFencedBackend`를 사용하는 loaded lifecycle 전용이고, raw scalar
+  `Apply`/`Unapply`/`ExecutePlan` primitive는 별도 `DirectExecutor`가 소유합니다. Loaded lifecycle은 정확히 한
+  atomic applied-history snapshot, known-history check, current state reconstruction, whole-plan preflight와
+  migration별 fenced execution을 묶으며 hidden context carrier나 legacy fallback이 없습니다.
+- Backend port는 mandatory `MigrationCapabilities`, `RevisionFencedSession`, declared `HistoryTransition`, sealed
+  `MigrationIntent`, 하나의 `BeginMigration`과 dedicated `RevisionFencedTransaction`을 사용합니다. Commit durability는
+  `CommitRolledBack`/`CommitCommitted`/`CommitUnknown`이고 mandatory `Close`는 caller cancellation과 분리된 bounded
+  cleanup context를 사용합니다.
 - `CommitCommitted`만 core의 returned state와 session token을 successor로 전진시킵니다.
   `CommitRolledBack`은 pre-step state/token을 보존하고, unknown/zero outcome은 마지막 confirmed
   pre-step state와 `commit_outcome_unknown`을 반환합니다. SQLite 구현은 rollback을 포함한 어느
@@ -926,33 +928,32 @@
 - Metadata와 recorder가 모두 absent인 fresh database의 첫 nonempty apply만 transaction 안에서
   bootstrap합니다. Empty plan은 metadata/recorder를 만들지 않습니다. Metadata 없이 recorder가
   존재하면 row가 0개여도 `revision_fence_adoption_required`이고 public adoption API는 없습니다.
-  Metadata 생성 뒤 legacy `BeginMigration`은 fail-closed합니다.
+  SQLite loaded session은 nil/missing intent를 거부하고 explicit non-nil empty intent도 같은 fenced seal/cursor 경로로
+  처리합니다. Raw direct transaction은 loaded revision metadata와 섞이면 fail-closed합니다.
 - SQLite default-bearing `AddField`는 table이 empty일 때만 logical default를 보존하면서 physical
   persistent default 없이 허용합니다. Nonempty table은 backfill/rebuild가 없으므로 기존
   `unsupported_operation`으로 거부합니다.
-- 새 leaf package `migrations/definition`은 caller-provided `Source` JSON bytes를 파일 I/O 없이
-  snapshot하고 tuple `(1,1,1,2)`, strict closed codec과 normalized IR을 bounded하게 검증합니다.
-  `Load(...Source)`는 zero `Set`을 canonical empty set으로 정의하고 success/error 모두 value-only
-  `LoadReport`를 반환하며, failure에서 partial definition을 publish하지 않습니다.
+- `migrations/definition`은 caller-provided `Source` JSON bytes를 파일 I/O 없이 snapshot하고 top-level
+  `format_version: 1`, strict closed codec과 current normalized IR을 bounded하게 검증합니다. Unknown format과 retired
+  `compatibility` envelope는 fail-closed합니다. `Load(...Source)`는 initialized opaque
+  `migrations.LoadedDefinitionSet`과 value-only `LoadReport`를 반환하며 failure에서 partial set을 publish하지 않습니다.
 - Loader는 source 2,048, SourceID 1,024 bytes, document 1 MiB, batch 16 MiB, JSON depth 64,
   per-document values 65,536, aggregate values 262,144, dependencies 2,047, operations 2,048,
   CreateModel fields 2,048의 exact cap을 적용합니다. Strict scanner는 any-depth duplicate,
   surrogate/numeric lexeme와 RFC 6901 error order를 bounded lazy path representation으로 처리합니다.
-- `Set` accessor는 raw source bytes를 보존하지 않고 매번 dependency/operation/nested IR까지 fresh
-  deep copy합니다. `Set.Migrate`는 fresh definitions와 caller의 immutable request value를 existing
-  `Executor.Migrate`에 정확히 한 번 전달하며 graph/lifecycle error를 wrap/reclassify하지 않습니다.
-- Relation document는 additive tuple `(1,2,2,3)`, digest v2, module-private immutable handoff와
-  `RelationStateFormatVersion=2` private historical state/readiness를 사용합니다. Normal loaded relation path는
-  static seal/readiness 뒤 exact-one fenced history, fresh actual Planner, whole-plan dry validation과 conditional
-  relation capability를 거쳐 scalar step은 `BeginFencedMigration`, relation-bearing step은
-  `BeginRelationFencedMigration`으로 실행합니다. Scalar/no-op actual plan의 relation call은 0이고 unsupported
-  relation tail은 어떤 prefix begin/commit보다 먼저 거부됩니다.
+- Loaded set accessor는 raw source bytes를 보존하지 않고 매번 dependency/operation/nested IR와 source inventory를
+  fresh copy합니다. Executor는 opaque snapshot을 다시 resource/graph 검증하고 current scalar/relation state core,
+  whole-plan dry materialization과 execution rematerialization seal을 사용합니다.
+- Scalar와 relation document는 같은 format/digest domain/state format을 사용합니다. Relation 여부와 capability
+  requirement는 실제 changed operation/snapshot에서 계산하고, 모든 step은 하나의 sealed `MigrationIntent`와
+  `BeginMigration`으로 실행됩니다. Unsupported relation tail은 어떤 prefix begin/commit보다 먼저 거부됩니다.
 - Current SQLite relation capability tuple은 exact `{true,true,true,true}`입니다. Normal loaded
   relation-bearing CreateModel은 dependency와 함께 apply되고 child-first DeleteModel unapply/reapply가
   검증됐습니다. D4d/D4e는 forward exact append no-default/non-PK ForeignKey Add를 source model당 한 개,
   changed sealed target과 모든 pre-existing source relation의 exact same symbolic target이라는 bounded shape에서
-  지원합니다. Public `Targets`는 changed field 하나만 유지하고 SQLite private execution만 sealed same-target
-  snapshot을 source relation-field order로 확장합니다. Nullable Add는 empty/populated source를 허용하고 required
+  지원합니다. Relation mutation의 `Targets`는 changed field authority를 싣고, relation-bearing model의 scalar
+  operation은 retained physical FK의 complete historical target authority를 싣습니다. Capability bit는 retained
+  relation이 아니라 실제 changed relation field에서만 계산합니다. Nullable Add는 empty/populated source를 허용하고 required
   Add는 `PROTECT`와 empty source만 허용합니다. Existing source emptiness는 pinned `BEGIN IMMEDIATE` 뒤 revision
   claim 전에 확인하고 same-intent created source는 statically empty입니다. D4f reverse/remove 구현은 exact
   appended nullable `PROTECT` 또는 `SET_NULL`, required `PROTECT` ForeignKey와 same-target relation-free AutoField
@@ -963,8 +964,8 @@
   transaction에서 검증합니다. D4a captured-restart scenario 자체는 close/reopen마다 fresh
   Backend/loaded set을 사용해 exact full/branch/full schema/rows/history/token/FK snapshot만 비교했고
   `sqlite_sequence`를 검증하지 않았습니다. 별도 D4f bounded remake는 source/target sequence preservation을
-  검증했지만, 두 proof 모두 raw-file equality나 general restart를 주장하지 않습니다. Raw carrier-less relation execution과 public raw
-  reconstructor relation input의 fail-closed 경계는 그대로입니다.
+  검증했지만, 두 proof 모두 raw-file equality나 general restart를 주장하지 않습니다. Opaque loaded authority 없는
+  `DirectExecutor` relation execution은 semantic scan에서 fail-closed합니다.
 - Exact 두 argv를 지원하는 global `cmd/godj`, public two-export
   `project.Config{MigrationDefinitionRoots []string}`/`project.Run(ctx, config, argv, stdin, stdout) error`,
   independent `internal/projectcheck` global/linked/protocol kernel과 flat no-follow source discovery가
@@ -990,8 +991,8 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 12 ordered set, 127 unique contract/scenario와 132 ordered
-  cross-binding이 있습니다. Exact implementation head `be6f3d4...`의 hosted product는 12개 set에 actual GoDj adapter를 가지며
+- Protocol v2 reference에는 13 ordered set, 139 unique contract/scenario와 156 ordered
+  cross-binding이 있습니다. Current product는 12개 set에 actual GoDj adapter를 가지며
   127 contract 분류는 `122 passing + 5 deviation + 0 oracle_locked`입니다. Relation set REL-001..012 actual은 모두
   `passing`입니다. 직전 hosted-accepted decision head는 source 변경 전 `121 + 5 + 1`, relation 11/12였고
   [EVID-076](TEST_EVIDENCE.md#evid-20260812-076--gdj-0033-github-hosted-rel-002-implementation-head-exact-26-job-ci)이
@@ -1001,32 +1002,25 @@
   MIG-052는
   [DEV-0002](../DEVIATIONS.md#dev-0002--app-zero의-incomparable-sibling은-godj-canonical-order를-유지)입니다.
 - Tenth set MIG-057..064는 Django result parity가 아닌 Accepted
-  [ADR-0019](../adr/0019-versioned-migration-definition-source.md)의 synthetic GoDj decision oracle입니다.
-  Manifest/adapter의 8개 contract가 `passing`이며 public loader actual로 관찰합니다. Product commit
-  `6172d843a4bb234592cafc176a8d1191933b141c`의 exact-head hosted CI까지 통과해 GDJ-0020은
-  completed입니다.
+  [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)의 current-only GoDj decision
+  reference입니다. Manifest/adapter의 8개 contract는 기존 `passing`/registered 상태를 유지하며 public loader actual로
+  관찰합니다. Superseded ADR-0019 tuple과 그 artifact는 historical checkout에만 남습니다.
 - Eleventh set MIG-065..074도 Django parity가 아닌 Accepted
   [ADR-0021](../adr/0021-project-linked-migration-check.md)의 independent GoDj decision oracle입니다.
   Accepted [ADR-0022](../adr/0022-project-runtime-and-global-migration-check.md)의 independent product
   kernel/adapter가 exact 10 status를 `passing`으로 전환했습니다. Test-only
   `conformance/projectcheck` proof는 byte-preserved 독립 gate로 남고 product code가 import/read하지
   않습니다.
-- Source contract artifact pins는 status-only manifest 5,147 bytes,
-  `688556c4a338e4ad7f580bfcd4d6121ddda0e72c871d1bfba625c352d22c3488`; oracle 29,851 bytes,
-  `efd8cb148bd37445e797da6bc9c1a5184c05214335db64367bafac485956082f`; static fixture 1,574 bytes,
-  `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`; `SHA256SUMS` 959 bytes,
-  `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`입니다.
-- Reference registry/test pins는 scenario source 102,128 bytes,
-  `53c52e3dbcd8af13e0307e62738383a01d6f307464332942c5c8ad97b71aad77`; status-only assertion이
-  바뀐 scenario test는 68,498 bytes,
-  `b8237e761caaf98ae050cc9fcb3031ead3f5fb9c40b7ce53ec2dc451012d2ecc`입니다.
-- Project-check status-only manifest는 4,520 bytes
-  `0bbf254e80fea17b52070d0589da5ddcd401ff67440062a89b4fcd3e8309c048`이고, static fixture 1,729 bytes
-  `86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`, oracle 19,971 bytes
-  `49f50b97bfa1973cef6fe464296a7c973b87e4ad1f9aaefecee24ab64f04d4d2`, 11-line `SHA256SUMS`
-  1,061 bytes `74b5b253b2026b98ff4cf5a6abce4c0aa4881488df6c874c9012050495b0b59f`입니다. 기존 10-line/
-  959-byte prefix `c87e6aaaadae94cd7e8bf2f746df81870ba1f88d542ed2d3d2b820d4863b6f1a`는 불변입니다.
-- Twelfth relation manifest는 REL-002까지 `passing`으로 전환한 10,770 bytes
+- Current definition artifact pins는 manifest 5,151 bytes/
+  `b5bc2612f3cfc642397ebff779294aa1cdc1a25b675632d2c7a2e615d47ee7fa`, oracle 29,654 bytes/
+  `61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410`, static fixture 1,574 bytes/
+  `41ec09d0aba93924fc85fc5b84168ab9124fe2422ab0d86c06228102ad4bf299`입니다.
+- Current project-check artifact pins는 manifest 5,085 bytes/
+  `e689b37098a4b26e4faddbd7c7e8a09d9145526f2b7bd1de7fb6cd5cb139c16b`, oracle 19,971 bytes/
+  `8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa`, static fixture 1,729 bytes/
+  `86e0190cc30cd4cf3cb30d882ace3b1c3e2577fd03cca6fe4684a366e7260680`입니다. MIG-065..068과 MIG-073은
+  ADR-0021에 ADR-0035 provenance를 함께 가지며 10개 모두 기존 `passing`/registered 상태입니다.
+- Twelfth relation manifest는 REL-001..012 모두 `passing`인 10,770 bytes
   `791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b`, static fixture는 1,859 bytes
   `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`, exact oracle은 33,792 bytes
   `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`입니다. 12-line
@@ -1035,16 +1029,21 @@
   `2e1c34f3604a324f40cb19bf255086cf71672712409321fc54f6d02216c9a995`입니다.
 - REL-001..012 oracle/static은 각각 `observed`/`not_implemented` exact 12로 byte-frozen이고 product manifest는
   REL-001..012 모두 `passing`입니다. Static comparison은 ordered mismatch 12/exit 1이고 product `godjcheck`는 trusted
-  oracle-blind actual adapters로 exact 12 contract를 관찰해 성공합니다. 따라서 hosted aggregate는 reference
-  12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리합니다. Local transition은
-  EVID-075, exact implementation-head hosted acceptance는 EVID-076이 각각 증명합니다.
-- Existing MIG-057..064와 새 MIG-065..074 actual product comparison은 각각 locked reference oracle과
+  oracle-blind actual adapters로 exact 12 contract를 관찰해 성공합니다. EVID-076 당시 hosted aggregate는 reference
+  12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했고, current 전체 reference aggregate는
+  MIG-075..086 diagnostic set을 포함한 13/139/156입니다. Local transition은 EVID-075, exact implementation-head hosted
+  acceptance는 EVID-076이 각각 증명합니다.
+- MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
   difference 0입니다. Project-check static comparison은 exit 1/ordered mismatch 10을 유지하고, product
   `godjcheck`는 registered actual adapter로 성공합니다. Unknown/unregistered set만 conformance-tool
   exit 2/no actual로 fail-closed합니다. Django-derived set의 기존 성공 문구는 `locked Django oracle`,
   synthetic decision set은 `locked reference oracle`로 구분합니다.
-- 기존 9 product set, 97 product contract, prior artifact byte pins와
-  `92 passing + 5 deviation`은 변경되지 않았습니다.
+- Thirteenth MIG-075..086 current diagnostic reference는 manifest 7,858 bytes/
+  `ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9`, oracle 120,502 bytes/
+  `5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968`, static fixture 1,846 bytes/
+  `f9bd9c47b5ab3f91e3bb2b0ca5bf4fc88c1d612caf8d6051236af6738eef9e24`이며 12개 모두
+  `oracle_locked`/unregistered입니다. Shared 13-line `SHA256SUMS`는 1,245 bytes/
+  `76578c225edfa6af4bf2d119f93fdcdf633cfee8ebb5a9092aa5157e5f218be1`입니다.
 
 ### 검증 증거
 
@@ -1143,7 +1142,10 @@
   [EVID-20260810-032](TEST_EVIDENCE.md#evid-20260810-032--gdj-0023-github-hosted-exact-22-job-implementation-head-ci)에
   기록했습니다.
 
-## 확정된 결정
+## Historical decisions before the GDJ-0036 reset
+
+아래 결정·API·artifact 서술은 해당 완료 checkout의 정확한 기록입니다. ADR-0035가 supersede한 tuple,
+`[]Migration` lifecycle, optional backend와 generated ABI를 현재 public surface로 해석하지 않습니다.
 
 - [ADR-0017](../adr/0017-revision-fenced-migration-lifecycle.md)의 per-step first-write fence와
   atomic successor 안전성 방향을 [ADR-0018](../adr/0018-revision-fenced-migration-lifecycle-product-shape.md)의
@@ -1182,7 +1184,7 @@
   INNER JOIN은 exact implementation-head hosted acceptance까지 통과했습니다. REL-012 prefetch,
   eager/write/delete/DDL/migration과 broader target/backend는 acceptance 밖입니다.
 
-## Accepted source contract 경계
+## Historical ADR-0019 source contract boundary
 
 - [ADR-0019](../adr/0019-versioned-migration-definition-source.md)은 caller-provided strict data-only
   JSON v1과 tuple `(definition format 1, loader ABI 1, operation codec 1, Schema IR 2)`을 채택합니다.
@@ -1197,7 +1199,7 @@
 - 이 source tuple은 Q-010의 global CLI/library/generator semver handshake 전체를 해결하지
   않습니다. CLI는 product loader 뒤 별도 orchestration으로 다룹니다.
 
-## Completed GDJ-0020 제품 경계
+## Historical completed GDJ-0020 product boundary
 
 - Contract baseline은
   `codex/revision-fenced-migration-lifecycle@eecc75f7507414ad6043a090c97b84080ab0fb8b`, activation
@@ -1240,7 +1242,7 @@
   아래 GDJ-0021의 별도 workflow expansion은 그 completed product artifact/support claim을 바꾸지
   않습니다.
 
-## Completed GDJ-0021 contract 경계
+## Historical completed GDJ-0021 contract boundary
 
 - Baseline은
   `codex/revision-fenced-migration-lifecycle@53729103651bfc34acc5fe07fb4376d5dd78c204`, activation은
@@ -1300,7 +1302,7 @@
   31322122760에서 10/10 PASS했고, EVID-026 commit `f7fbbd50465a610ed9492227909eece524455f15`도
   run 31322959993에서 10/10 PASS했습니다.
 
-## Completed GDJ-0022 제품화 경계
+## Historical completed GDJ-0022 productization boundary
 
 - Completed work는 [GDJ-0022](../../work/0022-migration-project-check-product-slice.md), decision은
   [ADR-0022](../adr/0022-project-runtime-and-global-migration-check.md) Accepted입니다.
@@ -1328,6 +1330,18 @@
   전체를 불필요하게 재생성하지 않기 위한 의도적 재현 경계입니다.
 
 ## 현재 차단 요인과 알려진 제한
+
+GDJ-0036의 current-only reset 구현에는 외부 blocker가 없습니다. 현재 checkout은 아직 미커밋 통합 상태이지만
+최신 implementation bytes의 full local `make ci`와 Linux/386 all-package compile은 통과했습니다. 따라서 local
+`Implemented` 후보이며, 최종 frozen tree의 hosted matrix를 통과하기 전에는 이 reset 자체를 `Verified` 또는
+completed로 올리지 않습니다. MIG-075..086은 계속 `oracle_locked`/unregistered이고 D4g Phase 0 capture는
+characterization 증거로만 남습니다. 이번 reset은 PostgreSQL, Web Core, 새 Field/Relation 종류, general migration
+writer를 추가하지 않습니다.
+
+다음의 긴 단락은 reset 이전 bounded product의 역사적 제한과 CI 계보를 보존한 기록입니다. 현재 public format,
+loaded lifecycle 또는 generated ABI의 설명으로 읽지 않습니다.
+
+### Historical bounded limitations before GDJ-0036
 
 외부 blocker는 없습니다. GDJ-0023..GDJ-0030은 completed/Accepted bounded slices입니다. GDJ-0029 activation
 `0a1da373...`, implementation `c02aab67...`, completion-documentation
@@ -1385,6 +1399,34 @@ general generated upgrade는 계속 open입니다.
 - Live schema drift, non-cooperating direct SQL writer, pre-cutover completed ABA와 crash repair
 
 ## 다음 정확한 작업
+
+현재 유일한 active work는
+[GDJ-0036](../../work/0036-pre-release-compatibility-reset.md)이고 ready는 0입니다. 구현은 다음 current-only 경계로
+통합됐습니다.
+
+- Schema IR, Migration Definition document/digest와 ProjectState는 각각 current format `1` 하나만 사용합니다.
+- `definition.Load`는 opaque `migrations.LoadedDefinitionSet`을 반환하고, public lifecycle은
+  `Executor.Migrate(ctx, loaded, request)` 하나입니다. Context handoff와 raw slice lifecycle entry는 없습니다.
+- loaded lifecycle backend는 mandatory capability와 `BeginMigration(HistoryTransition, MigrationIntent)` 하나를
+  사용합니다. Raw atomic primitives는 별도 `DirectExecutor`가 소유합니다.
+- scalar와 ForeignKey app은 동일 current main generator ABI를 사용하고, project generator는 cross-app binding과
+  facade만 게시합니다. 과거 app relation-query companion와 facade private write model은 삭제했습니다.
+- MIG-057..074 reference/product artifacts는 current format과 lifecycle vocabulary로 재기준화됐습니다.
+- MIG-075..079도 current ABI/format/digest/state/staged-preflight diagnostic reference로 재정의했습니다. 현재
+  MIG-075..086 manifest는 7,858 bytes/SHA-256
+  `ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9`, oracle은 120,502 bytes/
+  `5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968`입니다. Go diagnostic actual은
+  639,682 bytes/`374a31be2a5a2f9d64a726f5fc29f9dadf4ffcde30b68b7e42adcb5ca4504ed2`지만 generic typed
+  characterization이며 oracle semantic comparison이 아닙니다. 12 contract는 모두 `oracle_locked`/unregistered입니다.
+- relation-product exact no-skip inventory는 두 fresh process에서 각각
+  `842/842/0`, 86,679 bytes, SHA-256
+  `706ded972a7beb198cb44aa67feb6c1560e72b0389042df734fd54f24da6759d`로 일치했습니다.
+
+남은 정확한 순서는 frozen tree independent audit → local implementation commit → EVID-100과 status mirror의
+비재귀 문서 commit입니다. Hosted matrix는 그 뒤 별도 exact-head 증거이며, push/merge/release는 사용자 요청 없이
+수행하지 않습니다.
+
+### Historical GDJ-0035 handoff (superseded by GDJ-0036)
 
 GDJ-0034 exact terminal head `0bb8c969...`, tree `341deb1d...`는
 [EVID-083](TEST_EVIDENCE.md#evid-20260812-083--gdj-0034-terminal-exact-head-ci-and-clean-baseline) /
@@ -1465,31 +1507,30 @@ Phase D의 현재 경계는 다음과 같습니다.
   26/26 jobs·342/342 steps, annotations 0과 audit P0..P3=0을 통과했습니다. Current tuple은
   `{CreateModelForeignKeys:true, AddNullableForeignKey:true,
   AddRequiredForeignKeyToEmptyTable:true, RemoveForeignKeyByTableRemake:true}`입니다.
-- **D4g Phase 0 observer-only completed/hosted-tested:** exact head `b80f06a...`, tree `d8f5699...`는 normal
-  registry에 등록하지 않은 locked-only characterization으로 actual typed facts만 수집했습니다. Unique CI #97/run
-  `32310167590`은 success였고 fresh-process capture 두 개는 each 624,739 bytes/`0679a540...dffb3`, inventory는
-  845/86,738/`9bb0ef63...ab733f3`입니다. Normal Generate/status/registry는 불변이고 MIG-075..086은 모두
-  `oracle_locked`/unregistered입니다. CI #97은 later comparison, deviation acceptance 또는 status transition을
-  증명하지 않습니다.
+- **Historical D4g Phase 0 observer-only proof:** exact head `b80f06a...`, tree `d8f5699...`는 reset 이전
+  locked-only characterization으로 actual typed facts만 수집했습니다. Unique CI #97/run `32310167590`은
+  success였고 당시 fresh-process capture 두 개는 each 624,739 bytes/`0679a540...dffb3`, inventory는
+  845/86,738/`9bb0ef63...ab733f3`이었습니다. CI #97은 GDJ-0036 current artifact, comparison, deviation acceptance
+  또는 status transition을 증명하지 않습니다.
 
-Explicit comparison gate의 strict 결과는 generic `{case,outcomes}`/`{snapshots}`/`{loads,trace}` projection과
-contract별 oracle shape 차이 때문에 0/12 contracts, 0/30 dimensions입니다. 따라서 현재는 12개 모두 locked를
-유지합니다. 다음 정확한 순서는 observer fixes(MIG-076 dependency, `PlanningError`) → contract projections +
-actual raw SQL metrics → deterministic recapture → sparse DEV review → status/registry transition입니다.
-Projection/metric 보완 뒤 MIG-075/080/082/084는 passing 후보이고 MIG-076..079/081/083/085/086은 Proposed
-`DEV-0003` 후보이나, 이 문서는 `DEV-0003`을 Accepted로 전환하거나 deviation/status flip을 승인하지 않습니다.
+그 checkout의 strict 0/12 contracts·0/30 dimensions는 generic projection과 contract별 oracle shape 차이를
+측정한 역사적 결과이며 12개 semantic product failure가 아닙니다. GDJ-0036은 MIG-075..079를 current
+ABI/format/digest/state/staged-preflight reference로 재기준화하고 dependency 및 typed `PlanningError`
+false-green을 수정했습니다. Current diagnostic Go actual은 oracle semantic comparison이 아니며 same-ID 12개는
+계속 `oracle_locked`/unregistered입니다. Reset 전 passing/Proposed `DEV-0003` 후보와 status-transition 순서는
+superseded됐고, 이 문서는 deviation 또는 status flip을 승인하지 않습니다.
 D4d/D4e/D4f는 nullable Add, empty-source required Add와 exact bounded reverse/remove universe만 소유하며
 arbitrary/different/nested/self/cyclic target, multi-mutation, populated required Add/reapply, inbound/general remake,
 general restart나 broader actual adapter 지원으로 확대하지 않습니다. Completion/terminal은 status/registry 전환
 뒤 별도 head에서 닫습니다.
 
-Carrier 없는 raw relation execution과 false Remove/remake capability를 가진 다른 backend는 pre-Begin
+Loaded authority가 없는 raw relation execution과 false Remove/remake capability를 가진 다른 backend는 pre-Begin
 `CategoryCapability`/`CodeUnsupported`, feature `relation_migration`으로 fail-closed합니다. Reference는 exact
 13/139/156=`122 passing + 5 deviation + 12 oracle_locked`, product contract는 exact
 12/127=`122 passing + 5 deviation + 0 oracle_locked`로 불변이며 MIG-075..086은 계속
 `oracle_locked`, Q-010/Q-012/Q-013은 `Partial`입니다. Draft PR은 사용자 요청 전 merge하지 않습니다.
 
-## 작업 재개 체크포인트
+## Historical 작업 재개 체크포인트 (GDJ-0036 이전)
 
 - GDJ-0022 historical activation baseline: branch
   `codex/revision-fenced-migration-lifecycle@f7fbbd50465a610ed9492227909eece524455f15`
@@ -1671,12 +1712,12 @@ Carrier 없는 raw relation execution과 false Remove/remake capability를 가�
   `4982e27437b575cf202b55e7ce8c01fd56a94c9c`, inventory lock
   `9d5b894643f3394974c91a1127534b219840e0a1`; EVID-099/CI #95 run `32294983953` unique attempt-1
   exact 26/26·342/342 PASS, annotations 0, audit P0..P3=0
-- 최근 완료 work:
+- 당시 최근 완료 work:
   [GDJ-0034](../../work/0034-typed-generated-select-related-cause-preservation.md)
-- active work:
+- 당시 active work:
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)
-- ready work: 없음
-- current decision: [ADR-0030](../adr/0030-project-bound-protect-and-set-null-delete.md) Accepted for bounded
+- 당시 ready work: 없음
+- 당시 current decision: [ADR-0030](../adr/0030-project-bound-protect-and-set-null-delete.md) Accepted for bounded
   REL-007/008 low-level delete; [ADR-0029](../adr/0029-one-hop-forward-select-related.md) Accepted for bounded eager;
   [ADR-0031](../adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 test-only compile
   feasibility에 한해 Accepted이고
@@ -1690,17 +1731,17 @@ Carrier 없는 raw relation execution과 false Remove/remake capability를 가�
   normal loaded relation core, D4d bounded nullable ForeignKey Add, D4e bounded empty-source required Add와 D4f
   bounded ForeignKey Remove-by-remake는 Implemented/Verified이고 D4 bounded captured-snapshot restart는
   Verified이지만 populated required Add/reapply, arbitrary/general remake, general restart와 actual adapter는 미완료
-- 현재 reference 분류: 13 sets/139 unique contract+scenario/156 ordered cross-binding=
+- 당시 reference 분류: 13 sets/139 unique contract+scenario/156 ordered cross-binding=
   `122 passing + 5 deviation + 12 oracle_locked`. Hosted product manifest는 별도 12/127=`122+5+0`이고
   REL-001..012 전부 `passing`
 - GDJ-0023 Phase B: test-only relationbinding local normal/race/CGO-disabled/vet/race count-20, four hosted
   coordinates와 local/hosted independent audits P0/P1/P2/P3 0; ADR-0023 Accepted
-- 현재 hosted 제품 분류: 12 product adapter/127 product contract=
+- 당시 hosted 제품 분류: 12 product adapter/127 product contract=
   `122 passing + 5 deviation + 0 oracle_locked`, REL-001..012 actual 12/12; status-changing product proof EVID-076,
   unchanged classification reverified by EVID-081/EVID-082/EVID-083
 - Q-010/Q-012: `Partial`; exact global check/public project runner는 구현됐지만 full handshake,
   writer/upgrade와 DB-aware check는 미구현
-- Q-013: `Partial`; symbolic architecture, IR v3/REL-001 metadata, REL-004 predicate/INNER JOIN, REL-003/006
+- 당시 Q-013: `Partial`; symbolic architecture, IR v3/REL-001 metadata, REL-004 predicate/INNER JOIN, REL-003/006
   object/cache/nullability, REL-005 reverse와 REL-012 bounded reverse-prefetch slices는 Accepted/hosted-verified입니다.
   REL-009/010/011 bounded forward select-related와 REL-007/008 low-level delete도 Accepted/hosted-verified입니다. General
   eager/custom Prefetch/filter/order/write/delete/DDL/migration과 broader backend는 open입니다.
@@ -1714,7 +1755,8 @@ Carrier 없는 raw relation execution과 false Remove/remake capability를 가�
   implementation head `3099bd62...`는 EVID-081에서 hosted-verified됐고 code는 Implemented입니다. 새 Q/ADR, public
   API, relation manifest/oracle/status 변경은 없습니다. Exact completion head `45cfccd...`는 EVID-082에서
   hosted-verified됐고 exact terminal head `0bb8c969...`는 EVID-083에서 terminally closed됐습니다.
-- GDJ-0035: active; MIG-075..086 exact 12 reference-only contracts와 Accepted ADR-0034 bounded design을 소유합니다.
+- GDJ-0035: superseded by GDJ-0036. 아래 내용은 MIG-075..086의 reset 이전 exact 12 reference-only 계약과
+  당시 Accepted ADR-0034 bounded design에 대한 역사적 snapshot입니다.
   Activation/Phase A/B/C/acceptance는 EVID-084..092에서 분리 검증됐습니다. Phase D1
   `42aa9a9...`/`f22a498...`, D2 `ec8877e...`/`80776b5...`, D3a
   `2eafde1...`/`ce58c5e...`는 각 bounded product slice를 구현했고 EVID-093/runs
@@ -1736,10 +1778,10 @@ Carrier 없는 raw relation execution과 false Remove/remake capability를 가�
   D4g Phase 0 observer-only head `b80f06a...`/CI #97 run `32310167590`은 success였고, exact capture는
   624,739 bytes/`0679a540...dffb3`, inventory는 845/86,738/`9bb0ef63...ab733f3`입니다. Normal
   Generate/status/registry는 불변이며 MIG-075..086은 모두 `oracle_locked`/unregistered입니다. Explicit
-  comparison strict 0/12는 generic projection gap을 먼저 드러냈습니다. 다음은 MIG-076 dependency와
-  `PlanningError` classification 수정 → contract projection 및 raw SQL actual metric → recapture → sparse
-  `DEV-0003` review → status/registry 순서입니다. Passing 후보 MIG-075/080/082/084와 Proposed DEV 후보
-  MIG-076..079/081/083/085/086은 아직 status 또는 Accepted deviation이 아닙니다.
+  comparison strict 0/12는 generic projection gap을 먼저 드러냈습니다. 이 reset 이전의 dependency/
+  `PlanningError`/projection/`DEV-0003` 다음 순서는 GDJ-0036에서 superseded됐습니다. Current checked-in
+  same-ID reference는 ADR-0035 의미로 재기준화됐지만 계속 locked/unregistered이고 status 또는 Accepted
+  deviation 전환은 없습니다.
 - Q-019: P1/open; GoDj SQLite unknown-outcome retained connection이 `Backend.Close`까지 누적될 수 있는 resource
   policy는 별도 work/ADR에서 결정하며 GDJ-0033은 `db/**`를 바꾸지 않습니다.
 - GDJ-0026 activation: EVID-043/run 31364944816 exact 26/26·326/326 PASS; activation head만 증명

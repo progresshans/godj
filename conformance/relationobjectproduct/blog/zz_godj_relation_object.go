@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
-const GoDjRelationObjectSchemaSHA256 = "f599489ae0ccd1d01418426a29147cdfad4c979edc217fe087a6617dbf31c944"
+const GoDjRelationObjectSchemaSHA256 = "62dd8ea4742bd730f5627e3c68081e83a00df4e39015c141f12c4d9bc0f2fb14"
 
 var _ orm.RelationObjectDescriptor[Post] = PostDescriptor{}
 

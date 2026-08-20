@@ -11,10 +11,8 @@ import (
 
 const RelationObjectGeneratorVersion = "godj-codegen-rel-object-v1"
 
-// GenerateRelationObject renders the additive descriptor seal and relation-key
-// storage companion. Scalar-v2 packages provide their descriptor in the main
-// generated file; relation-v3 packages provide it in the relation-query
-// companion. This generator deliberately rewrites neither prerequisite.
+// GenerateRelationObject renders the relation-key storage companion for the
+// descriptor published by the current main generator.
 func GenerateRelationObject(packageName string, input ir.Schema) ([]byte, error) {
 	if !validGeneratedPackageName(packageName) {
 		return nil, fmt.Errorf("invalid generated package name %q", packageName)
@@ -23,20 +21,11 @@ func GenerateRelationObject(packageName string, input ir.Schema) ([]byte, error)
 	if err != nil {
 		return nil, fmt.Errorf("normalize relation object schema: %w", err)
 	}
-	switch schema.FormatVersion {
-	case ir.FormatVersion:
-		if err := validateGeneratedNames(schema); err != nil {
-			return nil, fmt.Errorf("validate scalar object prerequisite names: %w", err)
-		}
-		if err := validateRelationMetadataNames(schema); err != nil {
-			return nil, fmt.Errorf("validate scalar object metadata names: %w", err)
-		}
-	case ir.RelationFormatVersion:
-		if err := validateRelationQueryNames(schema); err != nil {
-			return nil, fmt.Errorf("validate relation object query prerequisite names: %w", err)
-		}
-	default:
-		return nil, fmt.Errorf("generate relation object schema: unsupported format version %d", schema.FormatVersion)
+	if err := validateGeneratedNames(schema); err != nil {
+		return nil, fmt.Errorf("validate object prerequisite names: %w", err)
+	}
+	if err := validateRelationMetadataNames(schema); err != nil {
+		return nil, fmt.Errorf("validate object metadata names: %w", err)
 	}
 	if err := validateRelationObjectNames(schema); err != nil {
 		return nil, fmt.Errorf("validate relation object names: %w", err)
@@ -101,18 +90,6 @@ func validateRelationObjectNames(schema ir.Schema) error {
 		{symbol: "GoDjRelationObjectGeneratorVersion", owner: "relation object provenance constant"},
 		{symbol: "GoDjRelationObjectSchemaSHA256", owner: "relation object schema provenance constant"},
 	}
-	if schema.FormatVersion == ir.RelationFormatVersion {
-		fixed = append(fixed,
-			struct {
-				symbol string
-				owner  string
-			}{symbol: "GoDjRelationQueryGeneratorVersion", owner: "relation query provenance constant"},
-			struct {
-				symbol string
-				owner  string
-			}{symbol: "GoDjRelationQuerySchemaSHA256", owner: "relation query schema provenance constant"},
-		)
-	}
 	for _, candidate := range fixed {
 		if err := add(candidate.symbol, candidate.owner); err != nil {
 			return err
@@ -121,21 +98,23 @@ func validateRelationObjectNames(schema ir.Schema) error {
 
 	for _, model := range schema.Models {
 		owner := "model " + model.GoName
-		symbols := []string{model.GoName, model.GoName + "Descriptor", model.GoName + "FieldSet", model.GoName + "Fields", model.GoName + "Objects"}
-		if schema.FormatVersion == ir.FormatVersion {
-			symbols = append(symbols,
-				model.GoName+"Create",
-				model.GoName+"Patch",
-				"New"+model.GoName+"Create",
-				model.GoName+"UpdateFields",
-				model.GoName+"UpdateFieldNames",
-				model.GoName+"ForceInsert",
-				model.GoName+"ForceUpdate",
-				lowerFirst(model.GoName)+"Metadata",
-			)
-			if key, ok := primaryKey(model); ok {
-				symbols = append(symbols, "New"+model.GoName+"With"+key.GoName)
-			}
+		symbols := []string{
+			model.GoName,
+			model.GoName + "Descriptor",
+			model.GoName + "FieldSet",
+			model.GoName + "Fields",
+			model.GoName + "Objects",
+			model.GoName + "Create",
+			model.GoName + "Patch",
+			"New" + model.GoName + "Create",
+			model.GoName + "UpdateFields",
+			model.GoName + "UpdateFieldNames",
+			model.GoName + "ForceInsert",
+			model.GoName + "ForceUpdate",
+			lowerFirst(model.GoName) + "Metadata",
+		}
+		if key, ok := primaryKey(model); ok {
+			symbols = append(symbols, "New"+model.GoName+"With"+key.GoName)
 		}
 		for _, symbol := range symbols {
 			if err := add(symbol, owner); err != nil {

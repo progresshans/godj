@@ -1,6 +1,6 @@
 # ADR-0024: AutoField ForeignKey Schema IR vNext and Atomic Project Binding
 
-- 상태: Accepted
+- 상태: Superseded by [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 날짜: 2026-08-10
 - 관련 work/contract:
   [GDJ-0024](../../work/0024-autofield-foreign-key-schema-ir-vnext-and-rel001-product-metadata.md),

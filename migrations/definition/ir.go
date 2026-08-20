@@ -7,14 +7,6 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// Keep the wire coordinate literal and fail compilation in either direction
-// if the current normalized IR format drifts. Updating schema/ir must not
-// silently reinterpret already-written migration definition documents.
-var _ [SchemaIRVersion - int64(ir.FormatVersion)]struct{}
-var _ [int64(ir.FormatVersion) - SchemaIRVersion]struct{}
-var _ [RelationSchemaIRVersion - int64(ir.RelationFormatVersion)]struct{}
-var _ [int64(ir.RelationFormatVersion) - RelationSchemaIRVersion]struct{}
-
 func cloneField(field ir.Field) ir.Field {
 	return field.Clone()
 }
@@ -72,10 +64,6 @@ func cloneMigrations(definitions []migrations.Migration) []migrations.Migration 
 	return clones
 }
 
-func schemaVersion() int {
-	return int(SchemaIRVersion)
-}
-
 func fixedAutoField() ir.Field {
 	return ir.Field{
 		Name:       "_godj_loader_pk",
@@ -102,7 +90,7 @@ func exactNormalized(schema ir.Schema) bool {
 
 func validAppLabel(value string) bool {
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      value,
 		Models:        []ir.Model{fixedValidationModel()},
 	})
@@ -112,7 +100,7 @@ func validModelName(value string) bool {
 	model := fixedValidationModel()
 	model.Name = value
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	})
@@ -122,7 +110,7 @@ func validModelGoName(value string) bool {
 	model := fixedValidationModel()
 	model.GoName = value
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	})
@@ -132,7 +120,7 @@ func validModelTable(value string) bool {
 	model := fixedValidationModel()
 	model.DBTable = value
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	})
@@ -144,7 +132,7 @@ func validFieldName(value string) bool {
 	model := fixedValidationModel()
 	model.Fields = []ir.Field{field}
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	})
@@ -156,7 +144,7 @@ func validFieldGoName(value string) bool {
 	model := fixedValidationModel()
 	model.Fields = []ir.Field{field}
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	})
@@ -168,15 +156,15 @@ func validFieldColumn(value string) bool {
 	model := fixedValidationModel()
 	model.Fields = []ir.Field{field}
 	return exactNormalized(ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	})
 }
 
-func fullyNormalizedCreateModel(appLabel string, model ir.Model, profile definitionProfile) bool {
+func fullyNormalizedCreateModel(appLabel string, model ir.Model) bool {
 	wrapper := ir.Schema{
-		FormatVersion: profileSchemaVersion(profile),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      appLabel,
 		Models:        []ir.Model{model.Clone()},
 	}
@@ -190,16 +178,15 @@ func validAddFieldModelName(modelName string) bool {
 	model := fixedValidationModel()
 	model.Name = modelName
 	wrapper := ir.Schema{
-		FormatVersion: schemaVersion(),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "_godj_loader_validation",
 		Models:        []ir.Model{model},
 	}
 	return exactNormalized(wrapper)
 }
 
-func fullyNormalizedAddField(appLabel string, field ir.Field, profile definitionProfile) bool {
-	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldBoolean &&
-		(profile != relationDefinitionProfile || field.Kind != ir.FieldForeignKey)) {
+func fullyNormalizedAddField(appLabel string, field ir.Field) bool {
+	if field.PrimaryKey || (field.Kind != ir.FieldChar && field.Kind != ir.FieldBoolean && field.Kind != ir.FieldForeignKey) {
 		return false
 	}
 
@@ -225,7 +212,7 @@ func fullyNormalizedAddField(appLabel string, field ir.Field, profile definition
 		Fields:  []ir.Field{synthetic, cloneField(field)},
 	}
 	wrapper := ir.Schema{
-		FormatVersion: profileSchemaVersion(profile),
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      appLabel,
 		Models:        []ir.Model{model},
 	}
@@ -235,11 +222,4 @@ func fullyNormalizedAddField(appLabel string, field ir.Field, profile definition
 		len(normalized.Models) == 1 &&
 		len(normalized.Models[0].Fields) == 2 &&
 		reflect.DeepEqual(normalized.Models[0].Fields[1], field)
-}
-
-func profileSchemaVersion(profile definitionProfile) int {
-	if profile == relationDefinitionProfile {
-		return int(RelationSchemaIRVersion)
-	}
-	return schemaVersion()
 }

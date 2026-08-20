@@ -162,10 +162,6 @@ func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T
 	if err != nil {
 		t.Fatalf("generate blog metadata: %v", err)
 	}
-	blogQuery, err := codegen.GenerateRelationQuery("blog", blog)
-	if err != nil {
-		t.Fatalf("generate blog query companion: %v", err)
-	}
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "authors", ImportPath: "example.com/godj-relation-query-project/authors"},
 		{Alias: "blog", ImportPath: "example.com/godj-relation-query-project/blog"},
@@ -192,7 +188,6 @@ replace github.com/progresshans/godj => %s
 	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", authorsMetadata)
 	writeGeneratedTestFile(t, directory, "blog/zz_godj_generated.go", blogMain)
 	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation.go", blogMetadata)
-	writeGeneratedTestFile(t, directory, "blog/zz_godj_relation_query.go", blogQuery)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", projectBinding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", projectQuery)
 	writeGeneratedTestFile(t, directory, "project/relation_query_test.go", []byte(`package project_test
@@ -296,10 +291,6 @@ func validateGeneratedProjectRelationQueryAlias(t *testing.T, alias string) {
 	if err != nil {
 		t.Fatalf("generate source metadata: %v", err)
 	}
-	sourceQuery, err := codegen.GenerateRelationQuery(alias, blog)
-	if err != nil {
-		t.Fatalf("generate source query: %v", err)
-	}
 	projectBinding, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
 		{Alias: "target", ImportPath: modulePath + "/target"},
 		{Alias: alias, ImportPath: modulePath + "/source"},
@@ -328,7 +319,6 @@ replace github.com/progresshans/godj => %s
 	writeGeneratedTestFile(t, directory, "target/zz_godj_relation.go", targetMetadata)
 	writeGeneratedTestFile(t, directory, "source/zz_godj_generated.go", sourceMain)
 	writeGeneratedTestFile(t, directory, "source/zz_godj_relation.go", sourceMetadata)
-	writeGeneratedTestFile(t, directory, "source/zz_godj_relation_query.go", sourceQuery)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_binding.go", projectBinding)
 	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", projectQuery)
 
@@ -381,7 +371,7 @@ func relationQueryPackagesWithFieldGoName(authors, blog ir.Schema, goName string
 
 func collidingRelationQuerySurfaces() []codegen.RelationQueryPackage {
 	target := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "target",
 		Models: []ir.Model{{
 			Name:   "record",
@@ -391,7 +381,7 @@ func collidingRelationQuerySurfaces() []codegen.RelationQueryPackage {
 	}
 	source := func(appLabel, modelName, goName, reverse string) ir.Schema {
 		return ir.Schema{
-			FormatVersion: ir.RelationFormatVersion,
+			FormatVersion: ir.CurrentFormatVersion,
 			AppLabel:      appLabel,
 			Models: []ir.Model{{
 				Name:   modelName,

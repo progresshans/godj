@@ -144,20 +144,11 @@ func canonicalRelationReversePackages(packages []RelationReversePackage) ([]norm
 		if err != nil {
 			return nil, fmt.Errorf("normalize relation reverse package %q: %w", candidate.Alias, err)
 		}
-		switch schema.FormatVersion {
-		case ir.FormatVersion:
-			if err := validateGeneratedNames(schema); err != nil {
-				return nil, fmt.Errorf("validate scalar reverse package %q: %w", candidate.Alias, err)
-			}
-			if err := validateRelationMetadataNames(schema); err != nil {
-				return nil, fmt.Errorf("validate scalar reverse metadata package %q: %w", candidate.Alias, err)
-			}
-		case ir.RelationFormatVersion:
-			if err := validateRelationQueryNames(schema); err != nil {
-				return nil, fmt.Errorf("validate relation reverse package %q: %w", candidate.Alias, err)
-			}
-		default:
-			return nil, fmt.Errorf("relation reverse package %q has unsupported format version %d", candidate.Alias, schema.FormatVersion)
+		if err := validateGeneratedNames(schema); err != nil {
+			return nil, fmt.Errorf("validate reverse package %q: %w", candidate.Alias, err)
+		}
+		if err := validateRelationMetadataNames(schema); err != nil {
+			return nil, fmt.Errorf("validate reverse metadata package %q: %w", candidate.Alias, err)
 		}
 		if err := validateRelationObjectNames(schema); err != nil {
 			return nil, fmt.Errorf("validate relation reverse object prerequisite %q: %w", candidate.Alias, err)
@@ -342,16 +333,7 @@ func buildProjectRelationReverseSurface(
 }
 
 func projectRelationReverseObjectOwners(owners []projectRelationReverseOwner) []projectRelationReverseOwner {
-	result := make([]projectRelationReverseOwner, 0, len(owners))
-	for _, owner := range owners {
-		// Relation-v3 descriptors deliberately do not carry the hidden primary-key
-		// presence bit. They retain the query-only reverse namespace while the
-		// object aggregate publishes only statically known v2 capability owners.
-		if owner.model.app.schema.FormatVersion == ir.FormatVersion {
-			result = append(result, owner)
-		}
-	}
-	return result
+	return append([]projectRelationReverseOwner(nil), owners...)
 }
 
 func projectRelationReverseUsedModels(
@@ -459,10 +441,8 @@ func validateProjectRelationReverseNamespaces(
 		names := map[string]string{
 			owner.relationsType: "reverse relations for " + identity,
 		}
-		if owner.model.app.schema.FormatVersion == ir.FormatVersion {
-			names[owner.factoryType] = "reverse object factory for " + identity
-			names[owner.objectType] = "reverse object wrapper for " + identity
-		}
+		names[owner.factoryType] = "reverse object factory for " + identity
+		names[owner.objectType] = "reverse object wrapper for " + identity
 		for name, kind := range names {
 			if err := addPackageName(name, kind); err != nil {
 				return err
@@ -472,11 +452,9 @@ func validateProjectRelationReverseNamespaces(
 		selectors := map[string]string{
 			"ParseDynamic": "generated reverse query method",
 		}
-		if owner.model.app.schema.FormatVersion == ir.FormatVersion {
-			selectors["Model"] = "generated reverse object method"
-			selectors["Fresh"] = "generated reverse object method"
-			selectors["From"] = "generated reverse object factory method"
-		}
+		selectors["Model"] = "generated reverse object method"
+		selectors["Fresh"] = "generated reverse object method"
+		selectors["From"] = "generated reverse object factory method"
 		privateFields := map[string]string{
 			"model":   "generated model field",
 			"factory": "generated factory field",
@@ -491,9 +469,6 @@ func validateProjectRelationReverseNamespaces(
 				return fmt.Errorf("reverse selector %s for %s.%s conflicts with %s", relation.selector, identity, relation.name, previous)
 			}
 			selectors[relation.selector] = relation.name
-			if owner.model.app.schema.FormatVersion != ir.FormatVersion {
-				continue
-			}
 			private := lowerFirst(relation.selector)
 			if previous, duplicate := privateFields[private]; duplicate {
 				return fmt.Errorf("private reverse field %s for %s.%s conflicts with %s", private, identity, relation.name, previous)

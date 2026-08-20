@@ -26,12 +26,12 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 const (
-	relationFacadePhysicalBytes               = 142058
-	relationFacadePhysicalDigest              = "d87264ce06831e9c8da03f171053fbf25d82ad14665caf4a6d7b8943f2a1cac6"
-	relationFacadePrerequisiteGeneratedBytes  = 27150
-	relationFacadePrerequisiteGeneratedDigest = "4287eb23ede031f90f4f0c7f70b15e303d0ba737012b4687d66b477d0712baa2"
-	relationFacadeGeneratedBytes              = 59690
-	relationFacadeGeneratedDigest             = "5b8b7934ad29a96b91f7a705f0934badb90a5aeda1327300f1b0efb309fdd757"
+	relationFacadePhysicalBytes               = 146722
+	relationFacadePhysicalDigest              = "91892e18ce2c7b3a6324fc1d5eaedea69fa60424f21326245e8506692bef4fb4"
+	relationFacadePrerequisiteGeneratedBytes  = 34267
+	relationFacadePrerequisiteGeneratedDigest = "46b8091dccfdc09f55ae51310a934b6eab8ea7732e16f7146781416b09b386cb"
+	relationFacadeGeneratedBytes              = 64645
+	relationFacadeGeneratedDigest             = "74693b450aefdbc05b92fc9157ab78bb882f2edba867b5e088d575f3612338e2"
 )
 
 var relationFacadePhysicalFiles = []string{
@@ -43,7 +43,6 @@ var relationFacadePhysicalFiles = []string{
 	"blog/zz_godj_relation.go",
 	"blog/zz_godj_relation_object.go",
 	"blog/zz_godj_relation_projection.go",
-	"blog/zz_godj_relation_query.go",
 	"fixture/schema.go",
 	"observer.go",
 	"product_test.go",
@@ -71,7 +70,6 @@ var relationFacadePrerequisiteGeneratedFiles = []string{
 	"blog/zz_godj_relation.go",
 	"blog/zz_godj_relation_object.go",
 	"blog/zz_godj_relation_projection.go",
-	"blog/zz_godj_relation_query.go",
 	"project/zz_godj_bindings.go",
 	"project/zz_godj_relation_delete.go",
 	"project/zz_godj_relation_object.go",
@@ -87,7 +85,6 @@ var relationFacadeGeneratedFiles = []string{
 	"blog/zz_godj_relation.go",
 	"blog/zz_godj_relation_object.go",
 	"blog/zz_godj_relation_projection.go",
-	"blog/zz_godj_relation_query.go",
 	"project/zz_godj_bindings.go",
 	"project/zz_godj_relation_delete.go",
 	"project/zz_godj_relation_facade.go",
@@ -784,9 +781,9 @@ func verifyRelationFacadePhysicalInventory(t *testing.T, inventory relationFacad
 		prerequisiteGenerated[name] = content
 	}
 	prerequisiteBytes, prerequisiteDigest := digestRelationFacadeFiles(prerequisiteGenerated)
-	if len(prerequisiteGenerated) != 13 || prerequisiteBytes != relationFacadePrerequisiteGeneratedBytes || prerequisiteDigest != relationFacadePrerequisiteGeneratedDigest {
+	if len(prerequisiteGenerated) != 12 || prerequisiteBytes != relationFacadePrerequisiteGeneratedBytes || prerequisiteDigest != relationFacadePrerequisiteGeneratedDigest {
 		t.Fatalf(
-			"relation facade prerequisite generated inventory = %d/%d/%s, want 13/%d/%s",
+			"relation facade prerequisite generated inventory = %d/%d/%s, want 12/%d/%s",
 			len(prerequisiteGenerated),
 			prerequisiteBytes,
 			prerequisiteDigest,
@@ -803,9 +800,9 @@ func verifyRelationFacadePhysicalInventory(t *testing.T, inventory relationFacad
 		generated[name] = content
 	}
 	generatedBytes, generatedDigest := digestRelationFacadeFiles(generated)
-	if len(generated) != 14 || generatedBytes != relationFacadeGeneratedBytes || generatedDigest != relationFacadeGeneratedDigest {
+	if len(generated) != 13 || generatedBytes != relationFacadeGeneratedBytes || generatedDigest != relationFacadeGeneratedDigest {
 		t.Fatalf(
-			"relation facade generated inventory = %d/%d/%s, want 14/%d/%s",
+			"relation facade generated inventory = %d/%d/%s, want 13/%d/%s",
 			len(generated),
 			generatedBytes,
 			generatedDigest,
@@ -923,7 +920,6 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 				"zz_godj_relation.go",
 				"zz_godj_relation_object.go",
 				"zz_godj_relation_projection.go",
-				"zz_godj_relation_query.go",
 			},
 		},
 		modulePath + "/conformance/relationdeleteproduct/fixture": {

@@ -153,36 +153,27 @@ func TestGenerateProjectRelationPrefetchRejectsGeneratorOwnedInputsWithNilBytes(
 	}
 }
 
-func TestGenerateProjectRelationPrefetchOmitsQueryOnlyOwnersAndHandlesEmptyProject(t *testing.T) {
+func TestGenerateProjectRelationPrefetchPublishesCurrentOwnersAndHandlesEmptyProject(t *testing.T) {
 	t.Parallel()
 
 	authors, blog := relationQueryGenerationSchemas()
-	v3Authors := authors.Clone()
-	v3Authors.FormatVersion = ir.RelationFormatVersion
-	queryOnly, err := codegen.GenerateProjectRelationPrefetch(
+	current, err := codegen.GenerateProjectRelationPrefetch(
 		"project",
-		relationReverseGenerationPackages(v3Authors, blog),
+		relationReverseGenerationPackages(authors, blog),
 	)
 	if err != nil {
-		t.Fatalf("GenerateProjectRelationPrefetch() query-only error = %v", err)
+		t.Fatalf("GenerateProjectRelationPrefetch() current error = %v", err)
 	}
 	for _, required := range [][]byte{
 		[]byte(`const GoDjProjectRelationPrefetchGeneratorVersion = "godj-codegen-rel-prefetch-project-v1"`),
+		[]byte("type AuthorsAuthorReversePrefetches struct"),
+		[]byte("orm.ReversePrefetch"),
 		[]byte("type ReversePrefetches struct"),
 		[]byte("func BindReversePrefetches() (ReversePrefetches, error)"),
-		[]byte("if _, _err := BindReverseObjects(); _err != nil"),
+		[]byte("_objects, _err := BindReverseObjects()"),
 	} {
-		if !bytes.Contains(queryOnly, required) {
-			t.Fatalf("query-only prefetch source does not contain %q:\n%s", required, queryOnly)
-		}
-	}
-	for _, forbidden := range [][]byte{
-		[]byte("AuthorsAuthorReversePrefetches"),
-		[]byte("orm.ReversePrefetch"),
-		[]byte("import"),
-	} {
-		if bytes.Contains(queryOnly, forbidden) {
-			t.Fatalf("query-only prefetch source contains %q:\n%s", forbidden, queryOnly)
+		if !bytes.Contains(current, required) {
+			t.Fatalf("current prefetch source does not contain %q:\n%s", required, current)
 		}
 	}
 
@@ -195,7 +186,7 @@ func TestGenerateProjectRelationPrefetchOmitsQueryOnlyOwnersAndHandlesEmptyProje
 	}
 }
 
-func TestGeneratedProjectRelationPrefetchExactTenFileUnionCompiles(t *testing.T) {
+func TestGeneratedProjectRelationPrefetchExactNineFileUnionCompiles(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	const modulePath = "example.com/godj-relation-prefetch-project"
 	schemas := []namedRelationReverseSchema{
@@ -225,8 +216,8 @@ func TestGeneratedProjectRelationPrefetchExactTenFileUnionCompiles(t *testing.T)
 	if err != nil {
 		t.Fatalf("walk generated ten-file union: %v", err)
 	}
-	if generatedCount != 10 {
-		t.Fatalf("generated union has %d generated files, want exact ten", generatedCount)
+	if generatedCount != 9 {
+		t.Fatalf("generated union has %d generated files, want exact nine", generatedCount)
 	}
 
 	command := exec.Command("go", "test", "-mod=mod", "./...")
@@ -234,7 +225,7 @@ func TestGeneratedProjectRelationPrefetchExactTenFileUnionCompiles(t *testing.T)
 	command.Env = generatedTestEnvironment()
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("exact ten-file generated prefetch project did not compile: %v\n%s", err, output)
+		t.Fatalf("exact nine-file generated prefetch project did not compile: %v\n%s", err, output)
 	}
 }
 
@@ -424,7 +415,7 @@ func writeProjectRelationPrefetchVariant(
 	externalTest []byte,
 ) (string, []byte) {
 	t.Helper()
-	directory := writeProjectRelationReverseVariant(t, modulePath, schemas, "", "", "")
+	directory := writeProjectRelationReverseVariant(t, modulePath, schemas, "", "")
 	packages := make([]codegen.RelationReversePackage, len(schemas))
 	for index, candidate := range schemas {
 		packages[index] = codegen.RelationReversePackage{

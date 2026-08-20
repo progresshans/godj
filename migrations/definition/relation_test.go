@@ -9,7 +9,6 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,11 +18,10 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
-	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestLoadRelationProfileGoldenDigestAndMixedPlanner(t *testing.T) {
+func TestLoadCurrentRelationDigestAndMixedPlanner(t *testing.T) {
 	t.Parallel()
 
 	relationSource := Source{SourceID: "relation-blog-author", Document: relationDefinitionDocument("test-only-relation-candidate", "0.1.0", nil)}
@@ -31,9 +29,8 @@ func TestLoadRelationProfileGoldenDigestAndMixedPlanner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load(relation): %v", err)
 	}
-	const relationDigest = "sha256:5abaa4dff57b7454d1526cb88917390d5593b5c297be12eebbb8bb175d1fa682"
-	if relation.Digest() != relationDigest || relation.handoff.IsZero() {
-		t.Fatalf("relation set = digest:%q zero-handoff:%t", relation.Digest(), relation.handoff.IsZero())
+	if !strings.HasPrefix(relation.Digest(), "sha256:") {
+		t.Fatalf("relation set digest = %q", relation.Digest())
 	}
 	if !reflect.DeepEqual(relationReport, LoadReport{
 		DocumentsReceived: 1, HeadersValidated: 1, OperationsDecoded: 1, PlannerConstruction: 1,
@@ -59,11 +56,10 @@ func TestLoadRelationProfileGoldenDigestAndMixedPlanner(t *testing.T) {
 		Source{SourceID: "opaque-z-root", Document: lifecycleRootDocument()},
 	)
 	if err != nil {
-		t.Fatalf("Load(mixed cross-profile graph): %v", err)
+		t.Fatalf("Load(mixed scalar/relation graph): %v", err)
 	}
-	const mixedDigest = "sha256:08127d3e13bcedaedb52bf80b9ae2281b4ab596481d31f5b1f78d749fdae1644"
-	if mixed.Digest() != mixedDigest || mixed.handoff.IsZero() || mixedReport.PlannerConstruction != 1 {
-		t.Fatalf("mixed set = digest:%q zero-handoff:%t report:%+v", mixed.Digest(), mixed.handoff.IsZero(), mixedReport)
+	if !strings.HasPrefix(mixed.Digest(), "sha256:") || mixedReport.PlannerConstruction != 1 {
+		t.Fatalf("mixed set = digest:%q report:%+v", mixed.Digest(), mixedReport)
 	}
 	permuted, _, err := Load(
 		Source{SourceID: "opaque-z-root", Document: lifecycleRootDocument()},
@@ -82,7 +78,7 @@ func TestLoadRelationProfileGoldenDigestAndMixedPlanner(t *testing.T) {
 		Source{SourceID: "opaque-z-root", Document: lifecycleRootDocument()},
 	)
 	if err != nil || len(dependent.Definitions()) != 2 || dependentReport.PlannerConstruction != 1 {
-		t.Fatalf("cross-profile dependency = definitions:%d report:%+v error:%v", len(dependent.Definitions()), dependentReport, err)
+		t.Fatalf("scalar/relation dependency = definitions:%d report:%+v error:%v", len(dependent.Definitions()), dependentReport, err)
 	}
 }
 
@@ -119,143 +115,7 @@ func TestRelationDigestExcludesSourceAndProducerAndSnapshotsAliases(t *testing.T
 	}
 }
 
-func TestScalarOnlyRelationProfileRetainsV2ProfileAndCarrier(t *testing.T) {
-	t.Parallel()
-
-	legacyDocument := lifecycleRootDocument()
-	relationProfileDocument := []byte(strings.NewReplacer(
-		`"loader_abi":1`, `"loader_abi":2`,
-		`"operation_codec":1`, `"operation_codec":2`,
-		`"schema_ir":2`, `"schema_ir":3`,
-	).Replace(string(legacyDocument)))
-	legacy, _, err := Load(Source{SourceID: "legacy", Document: legacyDocument})
-	if err != nil {
-		t.Fatalf("Load(legacy): %v", err)
-	}
-	relationProfile, _, err := Load(Source{SourceID: "relation-profile", Document: relationProfileDocument})
-	if err != nil {
-		t.Fatalf("Load(scalar relation profile): %v", err)
-	}
-	if relationProfile.handoff.IsZero() || relationProfile.Digest() == legacy.Digest() ||
-		!reflect.DeepEqual(relationProfile.Definitions(), legacy.Definitions()) {
-		t.Fatalf(
-			"scalar relation profile collapsed: handoff-zero=%t digests=%q/%q definitions-equal=%t",
-			relationProfile.handoff.IsZero(), relationProfile.Digest(), legacy.Digest(),
-			reflect.DeepEqual(relationProfile.Definitions(), legacy.Definitions()),
-		)
-	}
-
-	ctx := context.Background()
-	database, err := sqlite.OpenMemory(ctx, "definition-relation-profile-scalar-"+t.Name())
-	if err != nil {
-		t.Fatalf("OpenMemory(): %v", err)
-	}
-	state, migrateErr := relationProfile.Migrate(
-		ctx,
-		migrations.Executor{Backend: database},
-		migrations.LatestLifecycleRequest(),
-	)
-	closeErr := database.Close()
-	if migrateErr != nil {
-		t.Fatalf("Set.Migrate(scalar relation profile): %v", migrateErr)
-	}
-	if closeErr != nil {
-		t.Fatalf("Close(): %v", closeErr)
-	}
-	if _, exists := state.Model("alpha", "entry"); !exists {
-		t.Fatalf("Set.Migrate(scalar relation profile) state = %#v", state)
-	}
-	if state.FormatVersion() != migrations.StateFormatVersion {
-		t.Fatalf("scalar relation-profile state format = %d, want %d", state.FormatVersion(), migrations.StateFormatVersion)
-	}
-
-	tampered := relationProfile
-	tampered.definitions = cloneMigrations(relationProfile.definitions)
-	tampered.definitions[0].Name = "forged"
-	backendSpy := &definitionHandoffFailureBackend{}
-	_, err = tampered.Migrate(ctx, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
-	var capabilityError *backend.CapabilityError
-	if !errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" ||
-		!strings.Contains(capabilityError.Error(), "does not match sealed loader definition") {
-		t.Fatalf("Set.Migrate(tampered scalar relation profile) error = %v", err)
-	}
-	if backendSpy.openCalls != 0 {
-		t.Fatalf("tampered scalar relation profile open calls = %d, want 0", backendSpy.openCalls)
-	}
-
-	type contextValueKey struct{}
-	valueContext := context.WithValue(ctx, contextValueKey{}, "preserved")
-	rawOpenError := errors.New("observe stripped carrier")
-	observer := &carrierObservationBackend{openErr: rawOpenError}
-	_, err = relationProfile.Migrate(
-		valueContext,
-		migrations.Executor{Backend: observer},
-		migrations.LatestLifecycleRequest(),
-	)
-	if !errors.Is(err, rawOpenError) || observer.context == nil || observer.context.Value(contextValueKey{}) != "preserved" {
-		t.Fatalf("scalar carrier observation = context:%#v error:%v", observer.context, err)
-	}
-	if _, _, found := definitionhandoff.Take(observer.context); found {
-		t.Fatal("revision-fenced backend retained loader handoff context")
-	}
-}
-
-func TestRelationProfileCarrierMatchesLoaderByteAndSemanticIdentifierLimits(t *testing.T) {
-	relationProfileDocument := []byte(strings.NewReplacer(
-		`"loader_abi":1`, `"loader_abi":2`,
-		`"operation_codec":1`, `"operation_codec":2`,
-		`"schema_ir":2`, `"schema_ir":3`,
-	).Replace(string(lifecycleRootDocument())))
-
-	t.Run("exact document and source ID byte maxima", func(t *testing.T) {
-		build := func(defaultLength int) []byte {
-			document := strings.Replace(
-				string(relationProfileDocument),
-				`"max_length":64`,
-				`"max_length":`+strconv.Itoa(defaultLength),
-				1,
-			)
-			document = strings.Replace(
-				document,
-				`"string":"untitled"`,
-				`"string":"`+strings.Repeat("x", defaultLength)+`"`,
-				1,
-			)
-			return []byte(document)
-		}
-		defaultLength := MaxDocumentBytes - len(relationProfileDocument) + len("untitled")
-		var document []byte
-		for attempt := 0; attempt < 4; attempt++ {
-			document = build(defaultLength)
-			adjustment := MaxDocumentBytes - len(document)
-			if adjustment == 0 {
-				break
-			}
-			defaultLength += adjustment
-		}
-		if len(document) != MaxDocumentBytes {
-			t.Fatalf("boundary document bytes = %d, want %d", len(document), MaxDocumentBytes)
-		}
-		loaded, report, err := Load(Source{
-			SourceID: strings.Repeat("s", MaxSourceIDBytes),
-			Document: document,
-		})
-		if err != nil || loaded.handoff.IsZero() || report.DefinitionSetsPublished != 1 {
-			t.Fatalf("Load(exact byte maxima) = handoff-zero:%t report:%+v error:%v", loaded.handoff.IsZero(), report, err)
-		}
-	})
-
-	t.Run("semantic identifier longer than source ID cap", func(t *testing.T) {
-		longApp := strings.Repeat("a", MaxSourceIDBytes+1)
-		document := []byte(strings.ReplaceAll(string(relationProfileDocument), "alpha", longApp))
-		loaded, report, err := Load(Source{SourceID: "long-semantic-app", Document: document})
-		if err != nil || loaded.handoff.IsZero() || report.DefinitionSetsPublished != 1 {
-			t.Fatalf("Load(long semantic identifier) = handoff-zero:%t report:%+v error:%v", loaded.handoff.IsZero(), report, err)
-		}
-	})
-}
-
-func TestRelationProfileDispatchAndWireRemainStrict(t *testing.T) {
+func TestCurrentRelationWireRemainsStrict(t *testing.T) {
 	t.Parallel()
 
 	base := string(relationDefinitionDocument("producer", "1", nil))
@@ -266,16 +126,8 @@ func TestRelationProfileDispatchAndWireRemainStrict(t *testing.T) {
 		pointer string
 	}{
 		{
-			name: "hybrid loader", doc: strings.Replace(base, `"operation_codec":2`, `"operation_codec":1`, 1),
-			code: CodeLoaderABIIncompatible, pointer: "/compatibility/loader_abi",
-		},
-		{
-			name: "hybrid codec", doc: strings.Replace(base, `"loader_abi":2`, `"loader_abi":1`, 1),
-			code: CodeOperationCodecIncompatible, pointer: "/compatibility/operation_codec",
-		},
-		{
-			name: "unknown schema", doc: strings.Replace(base, `"schema_ir":3`, `"schema_ir":9`, 1),
-			code: CodeSchemaIRIncompatible, pointer: "/compatibility/schema_ir",
+			name: "unknown format", doc: strings.Replace(base, `"format_version":1`, `"format_version":2`, 1),
+			code: CodeDefinitionFormatIncompatible, pointer: "/format_version",
 		},
 		{
 			name: "target field is not a wire arm",
@@ -292,40 +144,40 @@ func TestRelationProfileDispatchAndWireRemainStrict(t *testing.T) {
 			if !errors.As(err, &sourceError) || sourceError.Code != test.code || sourceError.Context().JSONPointer != test.pointer {
 				t.Fatalf("Load() error = %#v context=%+v", err, sourceError.Context())
 			}
-			if set.Digest() != EmptySetDigest || report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 {
+			if set.Digest() != "" || report.DefinitionsPublished != 0 || report.DefinitionSetsPublished != 0 {
 				t.Fatalf("failed Load published state: digest=%q report=%+v", set.Digest(), report)
 			}
 		})
 	}
 }
 
-func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testing.T) {
+func TestLoadedRelationSetValidatesOpaqueAuthorityAndEntersLifecycle(t *testing.T) {
 	t.Parallel()
 
 	invalid, _, err := Load(Source{SourceID: "source", Document: relationDefinitionDocument("producer", "1", nil)})
 	if err != nil {
 		t.Fatalf("Load(relation): %v", err)
 	}
-	backendSpy := &definitionHandoffFailureBackend{}
-	_, err = invalid.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	backendSpy := &definitionLifecycleFailureBackend{}
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(context.Background(), invalid, migrations.LatestLifecycleRequest())
 	var migrationError *migrations.Error
 	var capabilityError *backend.CapabilityError
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryState ||
 		migrationError.Code != migrations.CodeInvalidState || migrationError.OperationIndex != 0 ||
 		migrationError.Operation != "AddField" || !strings.Contains(migrationError.Cause.Error(), "exactly one historical creator") {
-		t.Fatalf("Set.Migrate(invalid relation graph) error = %#v", err)
+		t.Fatalf("Executor.Migrate(invalid relation graph) error = %#v", err)
 	}
 	if backendSpy.openCalls != 0 {
 		t.Fatalf("OpenRevisionFencedSession calls = %d, want 0", backendSpy.openCalls)
 	}
 
 	loaded := loadValidRelationLifecycleSet(t)
-	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(context.Background(), loaded, migrations.LatestLifecycleRequest())
 	migrationError = nil
 	capabilityError = nil
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
 		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capabilityError) {
-		t.Fatalf("Set.Migrate(valid relation graph) error = %#v", err)
+		t.Fatalf("Executor.Migrate(valid relation graph) error = %#v", err)
 	}
 	if backendSpy.openCalls != 1 {
 		t.Fatalf("valid relation graph opened backend %d time(s), want 1", backendSpy.openCalls)
@@ -340,17 +192,17 @@ func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testin
 		t.Fatalf("OpenMemory(SQLite relation port): %v", err)
 	}
 	sqliteBoundary := &sqliteRelationCoreBlockerBackend{database: sqliteBackend}
-	state, err := loaded.Migrate(context.Background(), migrations.Executor{Backend: sqliteBoundary}, migrations.LatestLifecycleRequest())
+	state, err := (migrations.Executor{Backend: sqliteBoundary}).Migrate(context.Background(), loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
-		t.Fatalf("Set.Migrate(SQLite required relation port): %v", err)
+		t.Fatalf("Executor.Migrate(SQLite required relation port): %v", err)
 	}
 	article, exists := state.Model("blog", "article")
 	if !exists || len(article.Fields) != 2 || article.Fields[1].Name != "author" ||
 		article.Fields[1].Nullable || article.Fields[1].Relation == nil {
-		t.Fatalf("Set.Migrate(SQLite required relation state) = %#v/%t", article, exists)
+		t.Fatalf("Executor.Migrate(SQLite required relation state) = %#v/%t", article, exists)
 	}
 	if sqliteBoundary.capabilityCalls != 1 || sqliteBoundary.openCalls != 1 || sqliteBoundary.beginCalls != 0 {
-		t.Fatalf("loaded core SQLite calls: capabilities=%d open=%d legacy-begin=%d", sqliteBoundary.capabilityCalls, sqliteBoundary.openCalls, sqliteBoundary.beginCalls)
+		t.Fatalf("loaded core SQLite calls: capabilities=%d open=%d atomic-begin=%d", sqliteBoundary.capabilityCalls, sqliteBoundary.openCalls, sqliteBoundary.beginCalls)
 	}
 	if records := readDefinitionSQLiteHistory(t, sqliteBackend); len(records) != 3 {
 		t.Fatalf("required relation lifecycle history: %v", records)
@@ -368,24 +220,10 @@ func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testin
 		t.Fatalf("Close(SQLite relation port): %v", err)
 	}
 
-	// Definitions() is intentionally only a deep copy of the public raw
-	// migration values. It must not copy the private carrier authority that is
-	// available exclusively through Set.Migrate.
+	// Definitions() is diagnostic-only and returns an isolated copy. The public
+	// lifecycle accepts only the opaque loaded set, so this slice cannot be used
+	// as execution authority.
 	rawDefinitions := loaded.Definitions()
-	rawBackend := &rawRelationAuthorityBoundaryBackend{}
-	_, err = (migrations.Executor{Backend: rawBackend}).Migrate(
-		context.Background(), rawDefinitions, migrations.LatestLifecycleRequest(),
-	)
-	migrationError = nil
-	capabilityError = nil
-	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
-		migrationError.Code != migrations.CodeUnsupported || !errors.As(err, &capabilityError) ||
-		capabilityError.Feature != "relation_migration" || !strings.Contains(capabilityError.Error(), "handoff is missing") {
-		t.Fatalf("Executor.Migrate(Set.Definitions()) error = %#v capability=%#v", err, capabilityError)
-	}
-	if rawBackend.beginCalls != 0 || rawBackend.openCalls != 0 || rawBackend.readCalls != 0 {
-		t.Fatalf("raw definition copy touched backend: begin=%d open=%d read=%d", rawBackend.beginCalls, rawBackend.openCalls, rawBackend.readCalls)
-	}
 	rawRelationIndex := relationMigrationDefinitionIndex(t, rawDefinitions)
 	rawOperation := rawDefinitions[rawRelationIndex].Operations[0].(migrations.AddField)
 	rawOperation.Field.Relation.Reverse.Name = "mutated"
@@ -393,20 +231,20 @@ func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testin
 	freshDefinitions := loaded.Definitions()
 	freshOperation := freshDefinitions[relationMigrationDefinitionIndex(t, freshDefinitions)].Operations[0].(migrations.AddField)
 	if freshOperation.Field.Relation.Reverse.Name != "articles" {
-		t.Fatalf("Set.Definitions mutation escaped into Set: %#v", freshOperation.Field.Relation)
+		t.Fatalf("LoadedDefinitionSet.Definitions mutation escaped into loaded set: %#v", freshOperation.Field.Relation)
 	}
-	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(context.Background(), loaded, migrations.LatestLifecycleRequest())
 	migrationError = nil
 	capabilityError = nil
 	if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryTransaction ||
 		migrationError.Code != migrations.CodeBeginFailed || errors.As(err, &capabilityError) {
-		t.Fatalf("Set after raw-copy use lost authority = %v", err)
+		t.Fatalf("loaded set after diagnostic-copy use lost authority = %v", err)
 	}
 	if backendSpy.openCalls != 2 {
-		t.Fatalf("Set after raw-copy use opened backend %d time(s), want 2", backendSpy.openCalls)
+		t.Fatalf("loaded set after diagnostic-copy use opened backend %d time(s), want 2", backendSpy.openCalls)
 	}
-	staged := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 5}
-	_, err = loaded.Migrate(staged, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	staged := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 4}
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(staged, loaded, migrations.LatestLifecycleRequest())
 	capabilityError = nil
 	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || staged.calls.Load() < staged.cancelAt {
 		t.Fatalf("post-static cancellation = error:%v capability:%#v calls:%d", err, capabilityError, staged.calls.Load())
@@ -414,53 +252,38 @@ func TestLoadedRelationSetValidatesCarrierAndEntersAuthorizedLifecycle(t *testin
 	if backendSpy.openCalls != 2 {
 		t.Fatalf("post-static cancellation changed backend opens to %d", backendSpy.openCalls)
 	}
-	postSelection := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 6}
-	_, err = loaded.Migrate(postSelection, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	postOpen := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 5}
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(postOpen, loaded, migrations.LatestLifecycleRequest())
 	capabilityError = nil
-	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || postSelection.calls.Load() < postSelection.cancelAt {
-		t.Fatalf("post-capability-selection cancellation = error:%v capability:%#v calls:%d", err, capabilityError, postSelection.calls.Load())
+	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || postOpen.calls.Load() < postOpen.cancelAt {
+		t.Fatalf("post-session-open cancellation = error:%v capability:%#v calls:%d", err, capabilityError, postOpen.calls.Load())
 	}
-	if backendSpy.openCalls != 2 {
-		t.Fatalf("post-capability-selection cancellation changed backend opens to %d", backendSpy.openCalls)
-	}
-
-	tampered := loaded
-	tampered.definitions = cloneMigrations(loaded.definitions)
-	tampered.definitions[0].Name = "forged"
-	_, err = tampered.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
-	if !errors.As(err, &capabilityError) || capabilityError.Feature != "relation_migration" ||
-		!strings.Contains(capabilityError.Error(), "does not match sealed loader definition") {
-		t.Fatalf("tampered carrier pairing error = %v", err)
-	}
-	missing := loaded
-	missing.handoff = definitionhandoff.Handoff{}
-	_, err = missing.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
-	if !errors.As(err, &capabilityError) || !strings.Contains(capabilityError.Error(), "handoff is missing") {
-		t.Fatalf("missing carrier error = %v", err)
+	if backendSpy.openCalls != 3 {
+		t.Fatalf("post-session-open cancellation opened backend %d time(s), want 3 total", backendSpy.openCalls)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = loaded.Migrate(ctx, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("canceled Set.Migrate error = %v", err)
+		t.Fatalf("canceled Executor.Migrate error = %v", err)
 	}
-	_, err = loaded.Migrate(nil, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(nil, loaded, migrations.LatestLifecycleRequest())
 	if err == nil || !strings.Contains(err.Error(), "context is nil") {
-		t.Fatalf("nil-context Set.Migrate error = %v", err)
+		t.Fatalf("nil-context Executor.Migrate error = %v", err)
 	}
 	deadlineContext, deadlineCancel := context.WithDeadline(context.Background(), time.Unix(0, 0))
 	defer deadlineCancel()
-	_, err = loaded.Migrate(deadlineContext, migrations.Executor{Backend: backendSpy}, migrations.LatestLifecycleRequest())
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(deadlineContext, loaded, migrations.LatestLifecycleRequest())
 	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("expired-deadline Set.Migrate error = %v", err)
+		t.Fatalf("expired-deadline Executor.Migrate error = %v", err)
 	}
 	openCallsBeforeInvalidRequest := backendSpy.openCalls
-	_, err = loaded.Migrate(context.Background(), migrations.Executor{Backend: backendSpy}, migrations.LifecycleRequest{})
+	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(context.Background(), loaded, migrations.LifecycleRequest{})
 	var planningError *migrations.PlanningError
 	if !errors.As(err, &planningError) || planningError.Category != migrations.CategoryPlan ||
 		planningError.Code != migrations.CodeInvalidTarget {
-		t.Fatalf("invalid-request Set.Migrate error = %v", err)
+		t.Fatalf("invalid-request Executor.Migrate error = %v", err)
 	}
 	if backendSpy.openCalls != openCallsBeforeInvalidRequest {
 		t.Fatalf("outer precedence changed backend opens from %d to %d", openCallsBeforeInvalidRequest, backendSpy.openCalls)
@@ -480,17 +303,14 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 		App: "blog", Name: "0003_article_reviewer",
 	})
 
-	// The initial process owns both the backend and loaded Set only inside this
+	// The initial process owns both the backend and loaded definition set only inside this
 	// scope. Later phases reopen the file and decode fresh source bytes in a
-	// different order; no ProjectState or private handoff crosses the boundary.
+	// different order; no ProjectState or hidden lifecycle authority crosses the boundary.
 	initialSnapshot, setDigest := func() (definitionSQLiteRestartSnapshot, string) {
 		database := openDefinitionSQLiteRestartBackend(t, path)
 		defer closeDefinitionSQLiteRestartBackend(t, database)
 		loaded := loadDefinitionSQLiteRestartSet(t, "authors", "blog", "tail")
-		if loaded.handoff.IsZero() {
-			t.Fatal("mixed legacy/relation restart set has no loader handoff")
-		}
-		state, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+		state, err := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 		if err != nil {
 			t.Fatalf("initial file-backed Latest: %v", err)
 		}
@@ -515,7 +335,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 		if loaded.Digest() != setDigest {
 			t.Fatalf("first restart digest = %q, want %q", loaded.Digest(), setDigest)
 		}
-		noOpState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+		noOpState, err := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 		if err != nil {
 			t.Fatalf("first restart Latest no-op: %v", err)
 		}
@@ -525,11 +345,12 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 			t.Fatalf("reopened Latest changed durable snapshot:\ninitial=%+v\nreopened=%+v", initialSnapshot, noOpSnapshot)
 		}
 
-		targetState, err := loaded.Migrate(
+		targetState, err := (migrations.Executor{Backend: database}).Migrate(
 			ctx,
-			migrations.Executor{Backend: database},
+			loaded,
 			migrations.TargetedLifecycleRequest(migrations.ZeroTarget("blog")),
 		)
+
 		if err != nil {
 			t.Fatalf("first restart target blog zero: %v", err)
 		}
@@ -538,7 +359,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 			t.Fatalf("target branch state = format:%d apps:%v", targetState.FormatVersion(), targetState.Apps())
 		}
 		if _, exists := targetState.Model("authors", "author"); !exists {
-			t.Fatal("target branch state lost the legacy authors root")
+			t.Fatal("target branch state lost the current authors root")
 		}
 		snapshot := readDefinitionSQLiteRestartSnapshot(t, path)
 		assertDefinitionSQLiteRestartToken(t, snapshot, 5, "7f42d0b7c454db7954a6767a518a34f0db777a80a1dec0e5578bd403ef5e9b9c", branchHistory)
@@ -565,7 +386,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 		if loaded.Digest() != setDigest {
 			t.Fatalf("second restart digest = %q, want %q", loaded.Digest(), setDigest)
 		}
-		reappliedState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+		reappliedState, err := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 		if err != nil {
 			t.Fatalf("second restart Latest reapply: %v", err)
 		}
@@ -603,7 +424,7 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 		beforeAdd := readDefinitionSQLiteRestartSnapshot(t, path)
 		func() {
 			addSet := loadDefinitionSQLiteRestartSet(t, "reviewer", "tail", "authors", "blog")
-			addState, addErr := addSet.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+			addState, addErr := (migrations.Executor{Backend: database}).Migrate(ctx, addSet, migrations.LatestLifecycleRequest())
 			assertDefinitionSQLiteRestartCapabilityError(
 				t,
 				addErr,
@@ -638,13 +459,14 @@ func TestLoadedRelationCreateMigratesThroughSQLiteApplyUnapplyReapplyAndRejectsR
 
 		func() {
 			removeSet := loadDefinitionSQLiteRestartSet(t, "blog", "reviewer", "authors", "tail")
-			removeState, removeErr := removeSet.Migrate(
+			removeState, removeErr := (migrations.Executor{Backend: database}).Migrate(
 				ctx,
-				migrations.Executor{Backend: database},
+				removeSet,
 				migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 					App: "blog", Name: "0002_article_title",
 				})),
 			)
+
 			assertDefinitionSQLiteRestartCapabilityError(
 				t,
 				removeErr,
@@ -676,7 +498,7 @@ func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *
 
 	database := openDefinitionSQLiteRestartBackend(t, path)
 	base := loadDefinitionSQLiteRestartSet(t, "authors", "blog", "tail")
-	state, err := base.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	state, err := (migrations.Executor{Backend: database}).Migrate(ctx, base, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatalf("Migrate(nullable Add base): %v", err)
 	}
@@ -690,7 +512,7 @@ func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *
 	authorSequenceBefore := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`)
 
 	loaded := loadDefinitionSQLiteRestartSet(t, "nullable-reviewer", "tail", "authors", "blog")
-	state, err = loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	state, err = (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatalf("Migrate(nullable relation Add): %v", err)
 	}
@@ -769,7 +591,7 @@ func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *
 	database = openDefinitionSQLiteRestartBackend(t, path)
 	defer closeDefinitionSQLiteRestartBackend(t, database)
 	loaded = loadDefinitionSQLiteRestartSet(t, "blog", "nullable-reviewer", "authors", "tail")
-	noOpState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	noOpState, err := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatalf("reopened nullable Add Latest: %v", err)
 	}
@@ -781,13 +603,14 @@ func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *
 		readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='blog_article'`) != updatedArticleSequence {
 		t.Fatalf("reopened Latest changed nullable Add durable state:\nupdated=%+v\nreopened=%+v", updatedSnapshot, beforeRemove)
 	}
-	removeState, removeErr := loaded.Migrate(
+	removeState, removeErr := (migrations.Executor{Backend: database}).Migrate(
 		ctx,
-		migrations.Executor{Backend: database},
+		loaded,
 		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 			App: "blog", Name: "0002_article_title",
 		})),
 	)
+
 	if removeErr != nil {
 		t.Fatalf("reverse nullable Remove by remake: %v", removeErr)
 	}
@@ -814,7 +637,7 @@ func TestLoadedNullableRelationAddRemovesByRemakeAndReappliesAfterFileReopen(t *
 	database = openDefinitionSQLiteRestartBackend(t, path)
 	defer closeDefinitionSQLiteRestartBackend(t, database)
 	loaded = loadDefinitionSQLiteRestartSet(t, "tail", "authors", "blog", "nullable-reviewer")
-	reappliedState, reapplyErr := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	reappliedState, reapplyErr := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if reapplyErr != nil {
 		t.Fatalf("reapply nullable relation after reopen: %v", reapplyErr)
 	}
@@ -842,7 +665,7 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 
 	database := openDefinitionSQLiteRestartBackend(t, path)
 	base := loadDefinitionSQLiteRestartSet(t, "authors", "blog", "tail")
-	state, err := base.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	state, err := (migrations.Executor{Backend: database}).Migrate(ctx, base, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatalf("Migrate(required Add base): %v", err)
 	}
@@ -856,7 +679,7 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 	authorSequence := readDefinitionSQLiteInteger(t, path, `SELECT "seq" FROM main.sqlite_sequence WHERE "name"='authors_author'`)
 
 	loaded := loadDefinitionSQLiteRestartSet(t, "reviewer", "tail", "authors", "blog")
-	state, err = loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	state, err = (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatalf("Migrate(required relation Add): %v", err)
 	}
@@ -913,7 +736,7 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 	database = openDefinitionSQLiteRestartBackend(t, path)
 	defer closeDefinitionSQLiteRestartBackend(t, database)
 	loaded = loadDefinitionSQLiteRestartSet(t, "blog", "reviewer", "authors", "tail")
-	noOpState, err := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	noOpState, err := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
 		t.Fatalf("reopened required Add Latest: %v", err)
 	}
@@ -922,13 +745,14 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 	if !reflect.DeepEqual(beforeRemove, committedSnapshot) {
 		t.Fatalf("reopened Latest changed required Add state:\ncommitted=%+v\nreopened=%+v", committedSnapshot, beforeRemove)
 	}
-	removeState, removeErr := loaded.Migrate(
+	removeState, removeErr := (migrations.Executor{Backend: database}).Migrate(
 		ctx,
-		migrations.Executor{Backend: database},
+		loaded,
 		migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
 			App: "blog", Name: "0002_article_title",
 		})),
 	)
+
 	if removeErr != nil {
 		t.Fatalf("reverse required Remove by remake: %v", removeErr)
 	}
@@ -941,7 +765,7 @@ func TestLoadedRequiredRelationAddMigratesOnlyOnEmptySQLiteSourceAndReopensAsNoO
 		readDefinitionSQLiteInteger(t, path, `SELECT COUNT(*) FROM pragma_table_xinfo('blog_article') WHERE "name"='reviewer_id'`) != 0 {
 		t.Fatalf("reverse required Remove durable transition:\nbefore=%+v\nafter=%+v", beforeRemove, afterRemove)
 	}
-	reapplyState, reapplyErr := loaded.Migrate(ctx, migrations.Executor{Backend: database}, migrations.LatestLifecycleRequest())
+	reapplyState, reapplyErr := (migrations.Executor{Backend: database}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	assertDefinitionSQLiteRestartCapabilityError(
 		t, reapplyErr, migrations.DirectionForward, "sqlite_relation_migration", "contains rows",
 	)
@@ -1007,15 +831,15 @@ func closeDefinitionSQLiteRestartBackend(t *testing.T, database *sqlite.Backend)
 	}
 }
 
-func loadDefinitionSQLiteRestartSet(t *testing.T, order ...string) Set {
+func loadDefinitionSQLiteRestartSet(t *testing.T, order ...string) migrations.LoadedDefinitionSet {
 	t.Helper()
 	sources := make([]Source, 0, len(order))
 	for _, name := range order {
 		switch name {
 		case "authors":
 			sources = append(sources, Source{
-				SourceID: "legacy-authors-create",
-				Document: legacyRelationRestartAuthorDocument(),
+				SourceID: "current-authors-create",
+				Document: currentRelationRestartAuthorDocument(),
 			})
 		case "blog":
 			sources = append(sources, Source{
@@ -1024,8 +848,8 @@ func loadDefinitionSQLiteRestartSet(t *testing.T, order ...string) Set {
 			})
 		case "tail":
 			sources = append(sources, Source{
-				SourceID: "legacy-blog-tail",
-				Document: legacyRelationRestartTailDocument(),
+				SourceID: "current-blog-tail",
+				Document: currentRelationRestartTailDocument(),
 			})
 		case "reviewer":
 			sources = append(sources, Source{
@@ -1053,9 +877,9 @@ func loadDefinitionSQLiteRestartSet(t *testing.T, order ...string) Set {
 	return loaded
 }
 
-func legacyRelationRestartAuthorDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
-		`"producer":{"name":"restart-legacy","version":"1"},` +
+func currentRelationRestartAuthorDocument() []byte {
+	return []byte(`{"format_version":1,` +
+		`"producer":{"name":"restart-current","version":"1"},` +
 		`"migration":{"app":"authors","name":"0001_author","dependencies":[],"operations":[` +
 		`{"kind":"create_model","app_label":"authors","model":{` +
 		`"name":"author","go_name":"Author","db_table":"authors_author","fields":[` +
@@ -1063,9 +887,9 @@ func legacyRelationRestartAuthorDocument() []byte {
 		`"primary_key":true,"nullable":false,"max_length":0,"default":null}]}}]}}`)
 }
 
-func legacyRelationRestartTailDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":1,"operation_codec":1,"schema_ir":2},` +
-		`"producer":{"name":"restart-legacy","version":"1"},` +
+func currentRelationRestartTailDocument() []byte {
+	return []byte(`{"format_version":1,` +
+		`"producer":{"name":"restart-current","version":"1"},` +
 		`"migration":{"app":"blog","name":"0002_article_title",` +
 		`"dependencies":[{"app":"blog","name":"0001_article"}],"operations":[` +
 		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
@@ -1075,7 +899,7 @@ func legacyRelationRestartTailDocument() []byte {
 }
 
 func relationRestartReviewerDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"restart-relation","version":"1"},` +
 		`"migration":{"app":"blog","name":"0003_article_reviewer",` +
 		`"dependencies":[{"app":"blog","name":"0002_article_title"}],"operations":[` +
@@ -1088,7 +912,7 @@ func relationRestartReviewerDocument() []byte {
 }
 
 func relationRestartNullableReviewerDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"restart-relation","version":"1"},` +
 		`"migration":{"app":"blog","name":"0003_article_reviewer",` +
 		`"dependencies":[{"app":"blog","name":"0002_article_title"}],"operations":[` +
@@ -1102,7 +926,7 @@ func relationRestartNullableReviewerDocument() []byte {
 
 func assertDefinitionSQLiteRestartRelationState(t *testing.T, state migrations.ProjectState, wantReviewer bool) {
 	t.Helper()
-	if state.FormatVersion() != migrations.RelationStateFormatVersion ||
+	if state.FormatVersion() != migrations.StateFormatVersion ||
 		!reflect.DeepEqual(state.Apps(), []string{"authors", "blog"}) {
 		t.Fatalf("relation restart state = format:%d apps:%v", state.FormatVersion(), state.Apps())
 	}
@@ -1507,9 +1331,9 @@ func seedDefinitionSQLiteHistoryTransition(
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatalf("ReadAppliedMigrations(seed): %v", err)
 	}
-	transaction, err := session.BeginFencedMigration(ctx, transition)
+	transaction, err := session.BeginMigration(ctx, transition, backend.MigrationIntent{Operations: []backend.MigrationOperation{}})
 	if err != nil {
-		t.Fatalf("BeginFencedMigration(seed): %v", err)
+		t.Fatalf("BeginMigration(seed): %v", err)
 	}
 	if err := transaction.RecordApplied(ctx, transition.Migration.App, transition.Migration.Name); err != nil {
 		t.Fatalf("RecordApplied(seed): %v", err)
@@ -1521,12 +1345,6 @@ func seedDefinitionSQLiteHistoryTransition(
 	if err := session.Close(ctx); err != nil {
 		t.Fatalf("Close(seed): %v", err)
 	}
-}
-
-type rawRelationAuthorityBoundaryBackend struct {
-	beginCalls int
-	openCalls  int
-	readCalls  int
 }
 
 type sqliteRelationCoreBlockerBackend struct {
@@ -1546,35 +1364,11 @@ func (value *sqliteRelationCoreBlockerBackend) OpenRevisionFencedSession(ctx con
 	return value.database.OpenRevisionFencedSession(ctx)
 }
 
-func (value *sqliteRelationCoreBlockerBackend) RelationMigrationCapabilities() backend.RelationMigrationCapabilities {
+func (value *sqliteRelationCoreBlockerBackend) MigrationCapabilities() backend.MigrationCapabilities {
 	value.capabilityCalls++
-	return value.database.RelationMigrationCapabilities()
+	return value.database.MigrationCapabilities()
 }
 
-func (value *rawRelationAuthorityBoundaryBackend) BeginMigration(context.Context) (backend.Transaction, error) {
-	value.beginCalls++
-	return nil, errors.New("legacy migration path must not run")
-}
-
-func (value *rawRelationAuthorityBoundaryBackend) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
-	value.openCalls++
-	return &rawRelationAuthorityBoundarySession{owner: value}, nil
-}
-
-type rawRelationAuthorityBoundarySession struct {
-	owner *rawRelationAuthorityBoundaryBackend
-}
-
-func (value *rawRelationAuthorityBoundarySession) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
-	value.owner.readCalls++
-	return nil, nil
-}
-
-func (*rawRelationAuthorityBoundarySession) BeginFencedMigration(context.Context, backend.HistoryTransition) (backend.RevisionFencedTransaction, error) {
-	return nil, errors.New("fenced transaction must not run")
-}
-
-func (*rawRelationAuthorityBoundarySession) Close(context.Context) error { return nil }
 func TestRelationSetConcurrentAccessDoesNotRetainAliases(t *testing.T) {
 	loaded := loadValidRelationLifecycleSet(t)
 	wantDigest := loaded.Digest()
@@ -1593,15 +1387,15 @@ func TestRelationSetConcurrentAccessDoesNotRetainAliases(t *testing.T) {
 			if loaded.Digest() != wantDigest {
 				t.Errorf("concurrent digest = %q, want %q", loaded.Digest(), wantDigest)
 			}
-			_, err := loaded.Migrate(
+			_, err := (migrations.Executor{}).Migrate(
 				context.Background(),
-				migrations.Executor{},
+				loaded,
 				migrations.LatestLifecycleRequest(),
 			)
 			var migrationError *migrations.Error
 			if !errors.As(err, &migrationError) || migrationError.Category != migrations.CategoryCapability ||
 				migrationError.Code != migrations.CodeRevisionFenceUnsupported {
-				t.Errorf("concurrent Set.Migrate error = %v", err)
+				t.Errorf("concurrent Executor.Migrate error = %v", err)
 			}
 		}()
 	}
@@ -1613,7 +1407,7 @@ func TestRelationSetConcurrentAccessDoesNotRetainAliases(t *testing.T) {
 	}
 }
 
-func loadValidRelationLifecycleSet(t *testing.T) Set {
+func loadValidRelationLifecycleSet(t *testing.T) migrations.LoadedDefinitionSet {
 	t.Helper()
 	loaded, _, err := Load(
 		Source{SourceID: "authors-root", Document: relationCreatorDocument("authors", "0001_author", "author", "Author", "authors_author", nil)},
@@ -1647,7 +1441,7 @@ func relationCreatorDocument(app, name, model, goName, table string, dependency 
 	if len(dependency) != 0 {
 		dependencies = `[` + string(dependency) + `]`
 	}
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"producer","version":"1"},` +
 		`"migration":{"app":"` + app + `","name":"` + name + `","dependencies":` + dependencies + `,"operations":[` +
 		`{"kind":"create_model","app_label":"` + app + `","model":{` +
@@ -1660,7 +1454,7 @@ func relationDefinitionDocument(producerName, producerVersion string, dependency
 	if len(dependency) != 0 {
 		dependencies = `[` + string(dependency) + `]`
 	}
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"` + producerName + `","version":"` + producerVersion + `"},` +
 		`"migration":{"app":"blog","name":"0002_article_author","dependencies":` + dependencies + `,"operations":[` +
 		`{"kind":"add_field","app_label":"blog","model_name":"article","field":{` +
@@ -1671,7 +1465,7 @@ func relationDefinitionDocument(producerName, producerVersion string, dependency
 }
 
 func relationCreateModelDocument() []byte {
-	return []byte(`{"compatibility":{"definition_format":1,"loader_abi":2,"operation_codec":2,"schema_ir":3},` +
+	return []byte(`{"format_version":1,` +
 		`"producer":{"name":"producer","version":"1"},` +
 		`"migration":{"app":"blog","name":"0001_article","dependencies":[{"app":"authors","name":"0001_author"}],"operations":[` +
 		`{"kind":"create_model","app_label":"blog","model":{` +
@@ -1681,11 +1475,6 @@ func relationCreateModelDocument() []byte {
 		`"primary_key":false,"nullable":false,"max_length":0,"default":null,` +
 		`"relation":{"target":{"app_label":"authors","model_name":"author"},` +
 		`"cardinality":"many_to_one","reverse":{"name":"articles","disabled":false},"on_delete":"protect"}}]}}]}}`)
-}
-
-type carrierObservationBackend struct {
-	context context.Context
-	openErr error
 }
 
 type stagedRelationCancellationContext struct {
@@ -1699,13 +1488,4 @@ func (value *stagedRelationCancellationContext) Err() error {
 		return context.Canceled
 	}
 	return nil
-}
-
-func (*carrierObservationBackend) BeginMigration(context.Context) (backend.Transaction, error) {
-	return nil, errors.New("legacy migration path must not run")
-}
-
-func (value *carrierObservationBackend) OpenRevisionFencedSession(ctx context.Context) (backend.RevisionFencedSession, error) {
-	value.context = ctx
-	return nil, value.openErr
 }

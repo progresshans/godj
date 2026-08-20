@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -249,7 +250,12 @@ func runMigrationLifecycleFixture(
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	returnedState, executionErr := (migrations.Executor{Backend: trace}).Migrate(ctx, definitions, request)
+	returnedState, executionErr := migrationLifecycleMigrate(
+		ctx,
+		migrations.Executor{Backend: trace},
+		definitions,
+		request,
+	)
 	if err := trace.validate(plan, planErr, executionErr); err != nil {
 		return protocol.Observation{}, fmt.Errorf("validate migration lifecycle trace: %w", err)
 	}
@@ -365,8 +371,9 @@ func setupMigrationLifecycleDatabase(
 		if err != nil {
 			return protocol.Value{}, err
 		}
-		_, err = executor.Migrate(
+		_, err = migrationLifecycleMigrate(
 			ctx,
+			executor,
 			definitions,
 			request,
 		)
@@ -375,7 +382,7 @@ func setupMigrationLifecycleDatabase(
 		if len(setupTargets) != 0 {
 			return protocol.Value{}, errors.New("migration lifecycle full setup cannot have targets")
 		}
-		_, err := executor.Migrate(ctx, definitions, migrations.LatestLifecycleRequest())
+		_, err := migrationLifecycleMigrate(ctx, executor, definitions, migrations.LatestLifecycleRequest())
 		return protocol.Null(), err
 	case migrationLifecycleSetupLegacy:
 		setupDefinitions := append(append([]migrations.Migration(nil), definitions...), migrations.Migration{
@@ -388,8 +395,9 @@ func setupMigrationLifecycleDatabase(
 		if err != nil {
 			return protocol.Value{}, err
 		}
-		_, err = executor.Migrate(
+		_, err = migrationLifecycleMigrate(
 			ctx,
+			executor,
 			setupDefinitions,
 			request,
 		)
@@ -398,8 +406,9 @@ func setupMigrationLifecycleDatabase(
 		if len(setupTargets) != 0 {
 			return protocol.Value{}, errors.New("migration lifecycle inconsistent setup cannot have targets")
 		}
-		_, err := executor.Migrate(
+		_, err := migrationLifecycleMigrate(
 			ctx,
+			executor,
 			[]migrations.Migration{{App: migrationLifecycleA2.App, Name: migrationLifecycleA2.Name}},
 			migrations.LatestLifecycleRequest(),
 		)
@@ -442,7 +451,12 @@ func setupFailedMigrationLifecycle(
 	}
 	fault := migrationLifecycleA2
 	trace := newMigrationLifecycleTraceBackend(backend, &fault)
-	_, executionErr := (migrations.Executor{Backend: trace}).Migrate(ctx, definitions, migrations.LatestLifecycleRequest())
+	_, executionErr := migrationLifecycleMigrate(
+		ctx,
+		migrations.Executor{Backend: trace},
+		definitions,
+		migrations.LatestLifecycleRequest(),
+	)
 	if executionErr == nil {
 		return protocol.Value{}, errors.New("migration lifecycle failure setup unexpectedly succeeded")
 	}
@@ -526,6 +540,141 @@ func migrationLifecycleDefinitions() []migrations.Migration {
 				},
 			}},
 		},
+	}
+}
+
+func migrationLifecycleMigrate(
+	ctx context.Context,
+	executor migrations.Executor,
+	definitions []migrations.Migration,
+	request migrations.LifecycleRequest,
+) (migrations.ProjectState, error) {
+	loaded, _, err := definition.Load(migrationLifecycleDefinitionSources(definitions)...)
+	if err != nil {
+		return migrations.ProjectState{}, fmt.Errorf("load migration lifecycle definitions: %w", err)
+	}
+	return executor.Migrate(ctx, loaded, request)
+}
+
+func migrationLifecycleDefinitionSources(definitions []migrations.Migration) []definition.Source {
+	sources := make([]definition.Source, len(definitions))
+	for index, migration := range definitions {
+		dependencies := make([]any, len(migration.Dependencies))
+		for dependencyIndex, dependency := range migration.Dependencies {
+			dependencies[dependencyIndex] = map[string]any{
+				"app":  dependency.App,
+				"name": dependency.Name,
+			}
+		}
+		operations := make([]any, len(migration.Operations))
+		for operationIndex, operation := range migration.Operations {
+			operations[operationIndex] = migrationLifecycleDefinitionOperation(operation)
+		}
+		document := map[string]any{
+			"format_version": definition.DefinitionFormatVersion,
+			"migration": map[string]any{
+				"app":          migration.App,
+				"dependencies": dependencies,
+				"name":         migration.Name,
+				"operations":   operations,
+			},
+			"producer": map[string]any{
+				"name":    "godj-conformance",
+				"version": "current",
+			},
+		}
+		sources[index] = definition.Source{
+			SourceID: fmt.Sprintf("lifecycle-%04d-%s-%s", index, migration.App, migration.Name),
+			Document: migrationDefinitionMarshal(document, false),
+		}
+	}
+	return sources
+}
+
+func migrationLifecycleDefinitionOperation(operation migrations.Operation) map[string]any {
+	switch current := operation.(type) {
+	case migrations.CreateModel:
+		return map[string]any{
+			"app_label": current.AppLabel,
+			"kind":      "create_model",
+			"model":     migrationLifecycleDefinitionModel(current.Model),
+		}
+	case *migrations.CreateModel:
+		if current == nil {
+			return nil
+		}
+		return migrationLifecycleDefinitionOperation(*current)
+	case migrations.AddField:
+		return map[string]any{
+			"app_label":  current.AppLabel,
+			"field":      migrationLifecycleDefinitionField(current.Field),
+			"kind":       "add_field",
+			"model_name": current.ModelName,
+		}
+	case *migrations.AddField:
+		if current == nil {
+			return nil
+		}
+		return migrationLifecycleDefinitionOperation(*current)
+	default:
+		return nil
+	}
+}
+
+func migrationLifecycleDefinitionModel(model ir.Model) map[string]any {
+	fields := make([]any, len(model.Fields))
+	for index, field := range model.Fields {
+		fields[index] = migrationLifecycleDefinitionField(field)
+	}
+	return map[string]any{
+		"db_table": model.DBTable,
+		"fields":   fields,
+		"go_name":  model.GoName,
+		"name":     model.Name,
+	}
+}
+
+func migrationLifecycleDefinitionField(field ir.Field) map[string]any {
+	document := map[string]any{
+		"column":      field.Column,
+		"default":     migrationLifecycleDefinitionDefault(field.Default),
+		"go_name":     field.GoName,
+		"kind":        string(field.Kind),
+		"max_length":  field.MaxLength,
+		"name":        field.Name,
+		"nullable":    field.Nullable,
+		"primary_key": field.PrimaryKey,
+	}
+	if field.Relation != nil {
+		document["relation"] = map[string]any{
+			"cardinality": string(field.Relation.Cardinality),
+			"on_delete":   string(field.Relation.OnDelete),
+			"reverse": map[string]any{
+				"disabled": field.Relation.Reverse.Disabled,
+				"name":     field.Relation.Reverse.Name,
+			},
+			"target": map[string]any{
+				"app_label":  field.Relation.Target.AppLabel,
+				"model_name": field.Relation.Target.ModelName,
+			},
+		}
+	}
+	return document
+}
+
+func migrationLifecycleDefinitionDefault(value *ir.ScalarDefault) any {
+	if value == nil {
+		return nil
+	}
+	switch value.Kind {
+	case ir.ScalarString:
+		return map[string]any{"kind": string(value.Kind), "string": value.String}
+	case ir.ScalarBoolean:
+		return map[string]any{"boolean": value.Boolean, "kind": string(value.Kind)}
+	case ir.ScalarInteger:
+		return map[string]any{"integer": value.Integer, "kind": string(value.Kind)}
+	default:
+		return map[string]any{"kind": string(value.Kind)}
 	}
 }
 
@@ -733,7 +882,7 @@ func migrationLifecycleErrorValue(err error) (*protocol.ObservedError, error) {
 		return nil, fmt.Errorf("migration lifecycle returned unstructured error %T: %w", err, err)
 	}
 	if pythonType == "" {
-		return nil, fmt.Errorf("migration lifecycle error %s/%s has no compatibility type mapping", category, code)
+		return nil, fmt.Errorf("migration lifecycle error %s/%s has no protocol type mapping", category, code)
 	}
 	return &protocol.ObservedError{
 		Category:          string(category),
@@ -751,7 +900,6 @@ type migrationLifecycleTraceBackend struct {
 	steps         []*migrationLifecycleTraceStep
 }
 
-var _ migrationbackend.AtomicBackend = (*migrationLifecycleTraceBackend)(nil)
 var _ migrationbackend.RevisionFencedBackend = (*migrationLifecycleTraceBackend)(nil)
 
 func newMigrationLifecycleTraceBackend(
@@ -766,8 +914,8 @@ func newMigrationLifecycleTraceBackend(
 	return &migrationLifecycleTraceBackend{delegate: delegate, fault: faultCopy}
 }
 
-func (trace *migrationLifecycleTraceBackend) BeginMigration(context.Context) (migrationbackend.Transaction, error) {
-	return nil, errors.New("migration lifecycle adapter forbids the legacy transaction path")
+func (trace *migrationLifecycleTraceBackend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
+	return trace.delegate.MigrationCapabilities()
 }
 
 func (trace *migrationLifecycleTraceBackend) OpenRevisionFencedSession(
@@ -845,9 +993,10 @@ func (session *migrationLifecycleTraceSession) ReadAppliedMigrations(ctx context
 	return session.delegate.ReadAppliedMigrations(ctx)
 }
 
-func (session *migrationLifecycleTraceSession) BeginFencedMigration(
+func (session *migrationLifecycleTraceSession) BeginMigration(
 	ctx context.Context,
 	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.MigrationIntent,
 ) (migrationbackend.RevisionFencedTransaction, error) {
 	direction := migrations.DirectionForward
 	if transition.Kind == migrationbackend.HistoryTransitionUnapply {
@@ -855,7 +1004,7 @@ func (session *migrationLifecycleTraceSession) BeginFencedMigration(
 	} else if transition.Kind != migrationbackend.HistoryTransitionApply {
 		return nil, fmt.Errorf("migration lifecycle trace saw transition kind %d", transition.Kind)
 	}
-	delegate, err := session.delegate.BeginFencedMigration(ctx, transition)
+	delegate, err := session.delegate.BeginMigration(ctx, transition, intent)
 	if err != nil {
 		return nil, err
 	}

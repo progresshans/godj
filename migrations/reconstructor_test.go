@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/migrations/backend"
-	"github.com/progresshans/godj/migrations/internal/definitionhandoff"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -283,8 +282,7 @@ func TestStateReconstructorStructuredValidationAndReplayErrors(t *testing.T) {
 			AppLabel: "broken", ModelName: "missing", Field: summaryField(),
 		}},
 	}
-	broken := mustStateReconstructor(t, invalidTransition)
-	_, err = broken.Reconstruct(LatestStateRequest())
+	_, err = NewStateReconstructor(invalidTransition)
 	assertStateReconstructionError(t, err, invalidTransition.Key(), 0, "AddField")
 }
 
@@ -315,51 +313,40 @@ func TestStateReconstructorConstructorRejectsAliasedOrInvalidOperations(t *testi
 	}
 }
 
-func TestStateReconstructorRejectsRelationOperationsAtConstructorBoundary(t *testing.T) {
+func TestStateReconstructorUsesCurrentStateForScalarAndRelationOperations(t *testing.T) {
 	t.Parallel()
 
-	relation := relationMigrationField()
-	scalarWithRelation := summaryField()
-	scalarWithRelation.Relation = relation.Relation
-	tests := []struct {
-		name      string
-		operation Operation
-		kind      string
-	}{
-		{
-			name: "CreateModel value ForeignKey kind",
-			operation: CreateModel{AppLabel: "blog", Model: ir.Model{
-				Name: "post", GoName: "Post", DBTable: "blog_post",
-				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}, relation},
-			}},
-			kind: "CreateModel",
+	authors := Migration{App: "authors", Name: "0001_author", Operations: []Operation{CreateModel{
+		AppLabel: "authors",
+		Model: ir.Model{
+			Name: "author", GoName: "Author", DBTable: "authors_author",
+			Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
 		},
-		{
-			name: "CreateModel pointer hidden relation arm",
-			operation: &CreateModel{AppLabel: "blog", Model: ir.Model{
-				Name: "post", GoName: "Post", DBTable: "blog_post",
-				Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}, scalarWithRelation},
-			}},
-			kind: "CreateModel",
+	}}}
+	blog := Migration{App: "blog", Name: "0001_post", Dependencies: []MigrationKey{authors.Key()}, Operations: []Operation{CreateModel{
+		AppLabel: "blog",
+		Model: ir.Model{
+			Name: "post", GoName: "Post", DBTable: "blog_post",
+			Fields: []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}},
 		},
-		{name: "AddField value ForeignKey kind", operation: AddField{AppLabel: "blog", ModelName: "post", Field: relation}, kind: "AddField"},
-		{name: "AddField pointer hidden relation arm", operation: &AddField{AppLabel: "blog", ModelName: "post", Field: scalarWithRelation}, kind: "AddField"},
+	}}}
+	relation := Migration{App: "blog", Name: "0002_author", Dependencies: []MigrationKey{blog.Key()}, Operations: []Operation{AddField{
+		AppLabel: "blog", ModelName: "post", Field: relationMigrationField(),
+	}}}
+
+	reconstructor, err := NewStateReconstructor(authors, blog, relation)
+	if err != nil {
+		t.Fatalf("NewStateReconstructor(current relation): %v", err)
 	}
-	for _, test := range tests {
-		test := test
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			migration := Migration{App: "blog", Name: "0001_relation", Operations: []Operation{test.operation}}
-			reconstructor, err := NewStateReconstructor(migration)
-			migrationError := assertStateReconstructionError(t, err, migration.Key(), 0, test.kind)
-			if !strings.Contains(migrationError.Cause.Error(), "Schema IR v2 migration state cannot represent relation-bearing field") {
-				t.Fatalf("relation constructor cause = %v", migrationError.Cause)
-			}
-			state, reconstructErr := reconstructor.Reconstruct(LatestStateRequest())
-			if reconstructErr != nil || len(state.Apps()) != 0 {
-				t.Fatalf("failed constructor published reconstructor = state:%v err:%v", state.Apps(), reconstructErr)
-			}
-		})
+	state, err := reconstructor.Reconstruct(LatestStateRequest())
+	if err != nil {
+		t.Fatalf("Reconstruct(current relation): %v", err)
+	}
+	post, exists := state.Model("blog", "post")
+	if !exists || state.FormatVersion() != StateFormatVersion || len(post.Fields) != 2 ||
+		post.Fields[1].Kind != ir.FieldForeignKey || post.Fields[1].Relation == nil ||
+		post.Fields[1].Relation.Target != (ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}) {
+		t.Fatalf("current relation state = format:%d post:%#v exists:%t", state.FormatVersion(), post, exists)
 	}
 }
 
@@ -441,8 +428,8 @@ func TestLoadedStateReconstructorPromotesWholeStepAndSupportsHistoricalRequests(
 	if err != nil {
 		t.Fatalf("Reconstruct(after relation + independent): %v", err)
 	}
-	if after.FormatVersion() != RelationStateFormatVersion {
-		t.Fatalf("after format = %d, want %d", after.FormatVersion(), RelationStateFormatVersion)
+	if after.FormatVersion() != StateFormatVersion {
+		t.Fatalf("after format = %d, want %d", after.FormatVersion(), StateFormatVersion)
 	}
 	article, exists := after.Model("blog", "article")
 	if !exists || len(article.Fields) != 3 || article.Fields[2].Relation == nil || article.Fields[2].Relation.Target.AppLabel != "authors" {
@@ -465,32 +452,53 @@ func TestLoadedStateReconstructorPromotesWholeStepAndSupportsHistoricalRequests(
 	if err != nil || appliedState.FormatVersion() != StateFormatVersion {
 		t.Fatalf("Reconstruct(applied roots) = format:%d error:%v", appliedState.FormatVersion(), err)
 	}
-	forwardPrepared, _, err := reconstructor.preflight(before, definitions[2], DirectionForward)
+	forwardBuilder, err := reconstructor.builderForApplied(context.Background(), reconstructor.planner, applied)
 	if err != nil {
-		t.Fatalf("relation forward preflight: %v", err)
+		t.Fatalf("builderForApplied(forward): %v", err)
 	}
-	if len(forwardPrepared) != 2 || forwardPrepared[0].from.FormatVersion() != RelationStateFormatVersion ||
-		forwardPrepared[0].to.FormatVersion() != RelationStateFormatVersion ||
-		forwardPrepared[1].from.FormatVersion() != RelationStateFormatVersion {
-		t.Fatalf("whole-step forward promotion = %#v", forwardPrepared)
+	forward, err := reconstructor.materializeLoadedStep(
+		context.Background(),
+		forwardBuilder,
+		PlanStep{Key: relationKey, Direction: DirectionForward},
+		true,
+	)
+	if err != nil {
+		t.Fatalf("materializeLoadedStep(forward): %v", err)
+	}
+	if len(forward.execution) != 2 || forward.execution[0].index != 0 || forward.execution[1].index != 1 ||
+		forward.prepared.after.FormatVersion() != StateFormatVersion {
+		t.Fatalf("whole-step forward materialization = %#v", forward)
 	}
 
-	prepared, empty, err := reconstructor.preflight(afterWithoutIndependent(t, after), definitions[2], DirectionBackward)
+	appliedWithRelation, err := NewAppliedState(authorKey, articleKey, relationKey)
 	if err != nil {
-		t.Fatalf("relation backward preflight: %v", err)
+		t.Fatalf("NewAppliedState(with relation): %v", err)
 	}
-	if len(prepared) != 2 || prepared[0].index != 1 || prepared[1].index != 0 ||
-		prepared[0].from.FormatVersion() != RelationStateFormatVersion || prepared[1].to.FormatVersion() != RelationStateFormatVersion ||
-		empty.FormatVersion() != StateFormatVersion {
-		t.Fatalf("backward chronology = prepared:%#v final-format:%d", prepared, empty.FormatVersion())
+	backwardBuilder, err := reconstructor.builderForApplied(context.Background(), reconstructor.planner, appliedWithRelation)
+	if err != nil {
+		t.Fatalf("builderForApplied(backward): %v", err)
 	}
-	if len(prepared[0].relationTargets) != 1 || prepared[0].relationTargets[0].TargetPrimaryKey.Kind != ir.FieldAuto ||
-		prepared[0].relationTargets[0].TargetPrimaryKey.Nullable {
-		t.Fatalf("historical target binding = %#v", prepared[0].relationTargets)
+	backward, err := reconstructor.materializeLoadedStep(
+		context.Background(),
+		backwardBuilder,
+		PlanStep{Key: relationKey, Direction: DirectionBackward},
+		true,
+	)
+	if err != nil {
+		t.Fatalf("materializeLoadedStep(backward): %v", err)
+	}
+	if len(backward.execution) != 2 || backward.execution[0].index != 1 || backward.execution[1].index != 0 ||
+		backward.prepared.after.FormatVersion() != StateFormatVersion {
+		t.Fatalf("backward chronology = %#v", backward)
+	}
+	if len(backward.intent.operations) != 2 || len(backward.intent.operations[0].targets) != 1 ||
+		backward.intent.operations[0].targets[0].targetKey.Kind != ir.FieldAuto ||
+		backward.intent.operations[0].targets[0].targetKey.Nullable {
+		t.Fatalf("historical target binding = %#v", backward.intent.operations)
 	}
 }
 
-func TestLoadedStateReconstructorRejectsUnrelatedTargetCreatorDeterministically(t *testing.T) {
+func TestStateReconstructorCoreRejectsUnrelatedTargetCreatorDeterministically(t *testing.T) {
 	t.Parallel()
 
 	target := Migration{App: "authors", Name: "0001_author", Operations: []Operation{CreateModel{AppLabel: "authors", Model: ir.Model{
@@ -507,12 +515,7 @@ func TestLoadedStateReconstructorRejectsUnrelatedTargetCreatorDeterministically(
 			}},
 		},
 	}}}}
-	planner, err := NewPlanner(target, source)
-	if err != nil {
-		t.Fatalf("NewPlanner(): %v", err)
-	}
-	authority := testLoadedAuthority(planner, []Migration{target, source}, source.Key())
-	_, err = newLoadedStateReconstructor(authority, []Migration{source, target})
+	err := sharedStateReconstructorConstructorError(t, []Migration{source, target})
 	migrationError := assertStateReconstructionError(t, err, source.Key(), 0, "CreateModel")
 	if !strings.Contains(migrationError.Cause.Error(), "not dependency ancestry") {
 		t.Fatalf("unrelated creator cause = %v", migrationError.Cause)
@@ -545,11 +548,7 @@ func TestLoadedStateReconstructorRejectsUnrelatedSourceCreatorBeforeIncidentalLa
 			}}},
 		},
 	}
-	planner, err := NewPlanner(definitions...)
-	if err != nil {
-		t.Fatalf("NewPlanner(): %v", err)
-	}
-	_, err = newLoadedStateReconstructor(testLoadedAuthority(planner, definitions, relationKey), definitions)
+	_, err := newLoadedStateReconstructor(definitions)
 	migrationError := assertStateReconstructionError(t, err, relationKey, 0, "AddField")
 	if !strings.Contains(migrationError.Cause.Error(), "source creator blog.0001_article is not dependency ancestry") {
 		t.Fatalf("unrelated source creator cause = %v", migrationError.Cause)
@@ -582,8 +581,8 @@ func TestLoadedStateReconstructorAcceptsEarlierSameMigrationCreators(t *testing.
 	if err != nil {
 		t.Fatalf("Reconstruct(latest): %v", err)
 	}
-	if state.FormatVersion() != RelationStateFormatVersion {
-		t.Fatalf("latest format = %d, want %d", state.FormatVersion(), RelationStateFormatVersion)
+	if state.FormatVersion() != StateFormatVersion {
+		t.Fatalf("latest format = %d, want %d", state.FormatVersion(), StateFormatVersion)
 	}
 	article, exists := state.Model("blog", "article")
 	if !exists || len(article.Fields) != 2 || article.Fields[1].Relation == nil ||
@@ -653,11 +652,7 @@ func TestLoadedStateReconstructorRejectsLaterAndSelfCreatorsAtRelationOperation(
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			planner, err := NewPlanner(test.definitions...)
-			if err != nil {
-				t.Fatalf("NewPlanner(): %v", err)
-			}
-			_, err = newLoadedStateReconstructor(testLoadedAuthority(planner, test.definitions, test.relationKey), test.definitions)
+			_, err := newLoadedStateReconstructor(test.definitions)
 			migrationError := assertStateReconstructionError(t, err, test.relationKey, 0, operationKindAt(test.definitions[len(test.definitions)-1], 0))
 			if !strings.Contains(migrationError.Cause.Error(), test.wantSubstring) {
 				t.Fatalf("cause = %v, want discriminator %q", migrationError.Cause, test.wantSubstring)
@@ -666,7 +661,7 @@ func TestLoadedStateReconstructorRejectsLaterAndSelfCreatorsAtRelationOperation(
 	}
 }
 
-func TestLoadedStateRelationCycleErrorIsCanonicalAcrossDefinitionAndFieldOrder(t *testing.T) {
+func TestStateReconstructorCoreRelationCycleErrorIsCanonicalAcrossDefinitionAndFieldOrder(t *testing.T) {
 	relationModel := func(name, goName, target, reverse string, relationFirst bool) ir.Model {
 		primary := ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}
 		relation := ir.Field{
@@ -693,11 +688,7 @@ func TestLoadedStateRelationCycleErrorIsCanonicalAcrossDefinitionAndFieldOrder(t
 		if iteration%2 != 0 {
 			definitions[0], definitions[1] = definitions[1], definitions[0]
 		}
-		planner, err := NewPlanner(definitions...)
-		if err != nil {
-			t.Fatalf("iteration %d NewPlanner(): %v", iteration, err)
-		}
-		_, err = newLoadedStateReconstructor(testLoadedAuthority(planner, definitions, first.Key(), second.Key()), definitions)
+		err := sharedStateReconstructorConstructorError(t, definitions)
 		migrationError := assertStateReconstructionError(t, err, first.Key(), 0, "CreateModel")
 		if !strings.Contains(migrationError.Cause.Error(), "relation cycle") {
 			t.Fatalf("iteration %d cycle cause = %v", iteration, migrationError.Cause)
@@ -705,7 +696,7 @@ func TestLoadedStateRelationCycleErrorIsCanonicalAcrossDefinitionAndFieldOrder(t
 	}
 }
 
-func TestLoadedStateRejectsReverseNameCollisionsAtCanonicalOperation(t *testing.T) {
+func TestStateReconstructorCoreRejectsReverseNameCollisionsAtCanonicalOperation(t *testing.T) {
 	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
 	target := func(withCollisionField bool) Migration {
 		fields := []ir.Field{{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}}
@@ -760,11 +751,7 @@ func TestLoadedStateRejectsReverseNameCollisionsAtCanonicalOperation(t *testing.
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			planner, err := NewPlanner(test.definitions...)
-			if err != nil {
-				t.Fatalf("NewPlanner(): %v", err)
-			}
-			_, err = newLoadedStateReconstructor(testLoadedAuthority(planner, test.definitions, test.key), test.definitions)
+			err := sharedStateReconstructorConstructorError(t, test.definitions)
 			migrationError := assertStateReconstructionError(t, err, test.key, test.operation, "CreateModel")
 			if !strings.Contains(migrationError.Cause.Error(), "collides") {
 				t.Fatalf("reverse collision cause = %v", migrationError.Cause)
@@ -773,7 +760,7 @@ func TestLoadedStateRejectsReverseNameCollisionsAtCanonicalOperation(t *testing.
 	}
 }
 
-func TestLoadedStateRejectsInvalidHistoricalTargetPrimaryKeyAtCreator(t *testing.T) {
+func TestStateReconstructorCoreRejectsInvalidHistoricalTargetPrimaryKeyAtCreator(t *testing.T) {
 	targetKey := MigrationKey{App: "authors", Name: "0001_author"}
 	relationKey := MigrationKey{App: "blog", Name: "0001_post"}
 	tests := []struct {
@@ -818,17 +805,13 @@ func TestLoadedStateRejectsInvalidHistoricalTargetPrimaryKeyAtCreator(t *testing
 				},
 			}}}
 			definitions := []Migration{source, target}
-			planner, err := NewPlanner(definitions...)
-			if err != nil {
-				t.Fatalf("NewPlanner(): %v", err)
-			}
-			_, err = newLoadedStateReconstructor(testLoadedAuthority(planner, definitions, relationKey), definitions)
+			err := sharedStateReconstructorConstructorError(t, definitions)
 			assertStateReconstructionError(t, err, targetKey, 0, "CreateModel")
 		})
 	}
 }
 
-func TestLoadedStatePreflightPreservesCreateModelRelationFieldOrderBothDirections(t *testing.T) {
+func TestLoadedStateMaterializationPreservesCreateModelRelationFieldOrderBothDirections(t *testing.T) {
 	t.Parallel()
 
 	targetKey := MigrationKey{App: "authors", Name: "0001_targets"}
@@ -864,24 +847,47 @@ func TestLoadedStatePreflightPreservesCreateModelRelationFieldOrderBothDirection
 	}}
 	definitions := []Migration{targets, source}
 	reconstructor := mustLoadedStateReconstructor(t, definitions, sourceKey)
-	before, err := reconstructor.Reconstruct(BeforeStateRequest(sourceKey))
+	before, err := NewAppliedState(targetKey)
 	if err != nil {
-		t.Fatalf("Reconstruct(before): %v", err)
+		t.Fatalf("NewAppliedState(before): %v", err)
 	}
-	forward, latest, err := reconstructor.preflight(before, source, DirectionForward)
+	forwardBuilder, err := reconstructor.builderForApplied(context.Background(), reconstructor.planner, before)
 	if err != nil {
-		t.Fatalf("forward preflight: %v", err)
+		t.Fatalf("builderForApplied(forward): %v", err)
 	}
-	backward, _, err := reconstructor.preflight(latest, source, DirectionBackward)
+	forward, err := reconstructor.materializeLoadedStep(
+		context.Background(),
+		forwardBuilder,
+		PlanStep{Key: sourceKey, Direction: DirectionForward},
+		true,
+	)
 	if err != nil {
-		t.Fatalf("backward preflight: %v", err)
+		t.Fatalf("materializeLoadedStep(forward): %v", err)
+	}
+	applied, err := NewAppliedState(targetKey, sourceKey)
+	if err != nil {
+		t.Fatalf("NewAppliedState(after): %v", err)
+	}
+	backwardBuilder, err := reconstructor.builderForApplied(context.Background(), reconstructor.planner, applied)
+	if err != nil {
+		t.Fatalf("builderForApplied(backward): %v", err)
+	}
+	backward, err := reconstructor.materializeLoadedStep(
+		context.Background(),
+		backwardBuilder,
+		PlanStep{Key: sourceKey, Direction: DirectionBackward},
+		true,
+	)
+	if err != nil {
+		t.Fatalf("materializeLoadedStep(backward): %v", err)
 	}
 	want := []string{"z_author", "a_editor"}
-	for label, prepared := range map[string][]preparedOperation{"forward": forward, "backward": backward} {
-		if len(prepared) != 1 || len(prepared[0].relationTargets) != len(want) {
-			t.Fatalf("%s relation targets = %#v", label, prepared)
+	for label, materialized := range map[string]loadedMaterializedStep{"forward": forward, "backward": backward} {
+		if len(materialized.intent.operations) != 1 || len(materialized.intent.operations[0].targets) != len(want) {
+			t.Fatalf("%s relation targets = %#v", label, materialized.intent.operations)
 		}
-		got := []string{prepared[0].relationTargets[0].SourceField.Name, prepared[0].relationTargets[1].SourceField.Name}
+		targets := materialized.intent.operations[0].targets
+		got := []string{targets[0].sourceField.Name, targets[1].sourceField.Name}
 		if !slices.Equal(got, want) {
 			t.Fatalf("%s target field order = %v, want %v", label, got, want)
 		}
@@ -910,11 +916,7 @@ func TestLoadedStateDuplicateCreatorSelectionIsDeterministicAcrossInputOrder(t *
 		rand.New(rand.NewSource(int64(iteration))).Shuffle(len(definitions), func(left, right int) {
 			definitions[left], definitions[right] = definitions[right], definitions[left]
 		})
-		planner, err := NewPlanner(definitions...)
-		if err != nil {
-			t.Fatalf("iteration %d NewPlanner(): %v", iteration, err)
-		}
-		_, err = newLoadedStateReconstructor(testLoadedAuthority(planner, definitions), definitions)
+		_, err := newLoadedStateReconstructor(definitions)
 		migrationError := assertStateReconstructionError(t, err, alphaSecond, 0, "CreateModel")
 		if !strings.Contains(migrationError.Cause.Error(), "model alpha.shared has multiple historical creators") {
 			t.Fatalf("iteration %d duplicate cause = %v", iteration, migrationError.Cause)
@@ -1034,7 +1036,7 @@ func TestLoadedStateBuilderHandlesLongAddFieldHistoryWithoutWholeStateSnapshots(
 		t.Fatalf("Reconstruct(long latest): %v", err)
 	}
 	model, exists := latest.Model("blog", "post")
-	if !exists || len(model.Fields) != addedFields+2 || latest.FormatVersion() != RelationStateFormatVersion {
+	if !exists || len(model.Fields) != addedFields+2 || latest.FormatVersion() != StateFormatVersion {
 		t.Fatalf("long latest = fields:%d exists:%t format:%d", len(model.Fields), exists, latest.FormatVersion())
 	}
 	model.Fields[len(model.Fields)-1].Name = "mutated"
@@ -1087,11 +1089,7 @@ func TestLoadedFullProjectionPlansSharedChainAndManyLeavesOnce(t *testing.T) {
 			App: "graph", Name: fmt.Sprintf("l_%04d", index), Dependencies: []MigrationKey{keys[len(keys)-1]},
 		})
 	}
-	planner, err := NewPlanner(definitions...)
-	if err != nil {
-		t.Fatalf("NewPlanner(shared chain): %v", err)
-	}
-	reconstructor, err := newLoadedStateReconstructor(testLoadedAuthority(planner, definitions, keys[1]), definitions)
+	reconstructor, err := newLoadedStateReconstructor(definitions)
 	if err != nil {
 		t.Fatalf("newLoadedStateReconstructor(shared chain): %v", err)
 	}
@@ -1145,9 +1143,9 @@ func TestLoadedMaterializationMarksEmptyScalarStepStateUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("materializeLoadedStep(empty scalar): %v", err)
 	}
-	if !materialized.stateUnchanged || materialized.relation || len(materialized.execution) != 0 ||
+	if !materialized.stateUnchanged || len(materialized.execution) != 0 || len(materialized.intent.operations) != 0 ||
 		len(materialized.prepared.after.Apps()) != 0 {
-		t.Fatalf("empty scalar materialization = unchanged:%t relation:%t ops:%d retained-after:%v", materialized.stateUnchanged, materialized.relation, len(materialized.execution), materialized.prepared.after.Apps())
+		t.Fatalf("empty migration materialization = unchanged:%t ops:%d intent:%d retained-after:%v", materialized.stateUnchanged, len(materialized.execution), len(materialized.intent.operations), materialized.prepared.after.Apps())
 	}
 	after, err := builder.projectState()
 	if err != nil {
@@ -1161,7 +1159,7 @@ func TestLoadedMaterializationMarksEmptyScalarStepStateUnchanged(t *testing.T) {
 func TestLoadedDefinitionResourceScanCountsEveryAddFieldArmBeforeClone(t *testing.T) {
 	t.Parallel()
 
-	operations := make([]Operation, definitionhandoff.MaxOperations)
+	operations := make([]Operation, maxLoadedOperations)
 	for index := range operations {
 		operations[index] = AddField{
 			AppLabel: "sample", ModelName: "entry",
@@ -1227,8 +1225,7 @@ func TestLoadedNullableRelationAddAuthorityRunsInDryAndRematerializationAfterSta
 		t.Fatalf("builderForApplied(): %v", err)
 	}
 	dry, err := reconstructor.dryLoadedPlan(context.Background(), builder.clone(), plan)
-	if err != nil || len(dry) != 1 || !dry[0].relation ||
-		dry[0].requirements != loadedRequiresAddNullableForeignKey {
+	if err != nil || len(dry) != 1 || dry[0].requirements != loadedRequiresAddNullableForeignKey {
 		t.Fatalf("dryLoadedPlan(nullable Add) = (%+v, %v)", dry, err)
 	}
 	materialized, err := reconstructor.materializeLoadedStep(context.Background(), builder.clone(), plan[0], true)
@@ -1236,7 +1233,8 @@ func TestLoadedNullableRelationAddAuthorityRunsInDryAndRematerializationAfterSta
 		t.Fatalf("materializeLoadedStep(nullable Add): %v", err)
 	}
 	if materialized.requirements != loadedRequiresAddNullableForeignKey ||
-		len(materialized.intent.operations) != 2 || len(materialized.intent.operations[0].targets) != 0 ||
+		len(materialized.intent.operations) != 2 || len(materialized.intent.operations[0].targets) != 1 ||
+		materialized.intent.operations[0].targets[0].sourceField.Name != "author" ||
 		len(materialized.intent.operations[1].targets) != 1 ||
 		materialized.intent.operations[1].targets[0].sourceField.Name != "editor" {
 		t.Fatalf("materialized nullable Add intent = %+v", materialized.intent)
@@ -1275,8 +1273,7 @@ func TestLoadedRequiredRelationAddAuthorityRunsInDryAndRematerialization(t *test
 		t.Fatalf("builderForApplied(): %v", err)
 	}
 	dry, err := reconstructor.dryLoadedPlan(context.Background(), builder.clone(), plan)
-	if err != nil || len(dry) != 1 || !dry[0].relation ||
-		dry[0].requirements != loadedRequiresAddRequiredForeignKeyToEmptyTable {
+	if err != nil || len(dry) != 1 || dry[0].requirements != loadedRequiresAddRequiredForeignKeyToEmptyTable {
 		t.Fatalf("dryLoadedPlan(required Add) = (%+v, %v)", dry, err)
 	}
 	materialized, err := reconstructor.materializeLoadedStep(context.Background(), builder.clone(), plan[0], true)
@@ -1298,7 +1295,7 @@ func TestLoadedRequiredRelationAddAuthorityRunsInDryAndRematerialization(t *test
 func TestLoadedDefinitionResourceScanAcceptsLoaderValidLongSemanticIdentifier(t *testing.T) {
 	t.Parallel()
 
-	longApp := strings.Repeat("a", definitionhandoff.MaxSourceIDBytes+1)
+	longApp := strings.Repeat("a", maxLoadedSourceIDBytes+1)
 	definition := Migration{App: longApp, Name: "m", Operations: []Operation{CreateModel{
 		AppLabel: longApp,
 		Model: ir.Model{
@@ -1312,12 +1309,12 @@ func TestLoadedDefinitionResourceScanAcceptsLoaderValidLongSemanticIdentifier(t 
 }
 
 func TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes(t *testing.T) {
-	fields := make([]ir.Field, definitionhandoff.MaxFieldsPerCreateModel)
-	operations := make([]Operation, definitionhandoff.MaxOperations)
+	fields := make([]ir.Field, maxLoadedFieldsPerCreateModel)
+	operations := make([]Operation, maxLoadedOperations)
 	for index := range operations {
 		operations[index] = CreateModel{AppLabel: "a", Model: ir.Model{Fields: fields}}
 	}
-	definitions := make([]Migration, definitionhandoff.MaxDefinitions)
+	definitions := make([]Migration, maxLoadedDefinitions)
 	for index := range definitions {
 		definitions[index] = Migration{App: "a", Name: "m", Operations: operations}
 	}
@@ -1326,15 +1323,15 @@ func TestLoadedDefinitionResourceScanStopsSharedAliasTraversalAtAggregateNodes(t
 	if err == nil || !strings.Contains(err.Error(), "aggregate resource limit") {
 		t.Fatalf("shared-alias loaded scan error = %v", err)
 	}
-	availableNodes := uint64(definitionhandoff.MaxDefinitionNodes) -
-		uint64(definitionhandoff.MaxDefinitions) -
-		uint64(definitionhandoff.MaxOperations)
-	nodesPerFullOperation := uint64(1 + definitionhandoff.MaxFieldsPerCreateModel)
+	availableNodes := uint64(maxLoadedDefinitionNodes) -
+		uint64(maxLoadedDefinitions) -
+		uint64(maxLoadedOperations)
+	nodesPerFullOperation := uint64(1 + maxLoadedFieldsPerCreateModel)
 	fullOperations := availableNodes / nodesPerFullOperation
 	want := loadedResourceScanCounts{
 		definitions: 1,
 		operations:  fullOperations + 1,
-		fields:      fullOperations * uint64(definitionhandoff.MaxFieldsPerCreateModel),
+		fields:      fullOperations * uint64(maxLoadedFieldsPerCreateModel),
 	}
 	if counts != want {
 		t.Fatalf("shared-alias loaded scan counts = %+v, want %+v", counts, want)
@@ -1359,26 +1356,29 @@ func TestLoadedRelationBackwardRemoveAuthorityRejectsUnsealedUniversesBeforeCapa
 			}
 			session := newLifecycleTestSession(records, nil)
 			fake := newLifecycleTestBackend(session)
-			fake.relationCapabilities = lifecycleAllRelationCapabilities()
+			fake.capabilities = lifecycleAllRelationCapabilities()
 			state, err := (Executor{Backend: fake}).Migrate(
-				lifecycleLoadedContext(t, test.defs),
-				test.defs,
-				TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})),
-			)
+				lifecycleLoadedContext(t, test.defs), testLoadedDefinitionSet(
+
+					test.defs),
+
+				TargetedLifecycleRequest(NamedTarget(MigrationKey{App: "blog", Name: "0001_article"})))
+
 			assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
 			var capability *backend.CapabilityError
 			if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
 				!strings.Contains(capability.Detail, test.detail) || session.readCount != 1 ||
-				fake.relationCapabilityCount != 0 || session.beginCount != 0 || session.relationBeginCount != 0 ||
-				state.FormatVersion() != RelationStateFormatVersion {
+				fake.capabilityCount != 0 || session.beginCount != 0 ||
+				len(lifecycleRelationBearingIntents(session.intents)) != 0 ||
+				state.FormatVersion() != StateFormatVersion {
 				t.Fatalf(
-					"backward authority rejection = err:%v capability:%#v read:%d cap:%d scalar:%d relation:%d format:%d",
+					"backward authority rejection = err:%v capability:%#v read:%d cap:%d begin:%d relation-bearing:%d format:%d",
 					err,
 					capability,
 					session.readCount,
-					fake.relationCapabilityCount,
+					fake.capabilityCount,
 					session.beginCount,
-					session.relationBeginCount,
+					len(lifecycleRelationBearingIntents(session.intents)),
 					state.FormatVersion(),
 				)
 			}
@@ -1386,42 +1386,29 @@ func TestLoadedRelationBackwardRemoveAuthorityRejectsUnsealedUniversesBeforeCapa
 	}
 }
 
-func mustLoadedStateReconstructor(t *testing.T, definitions []Migration, relationKeys ...MigrationKey) loadedStateReconstructor {
+func mustLoadedStateReconstructor(t *testing.T, definitions []Migration, _ ...MigrationKey) loadedStateReconstructor {
 	t.Helper()
-	planner, err := NewPlanner(definitions...)
-	if err != nil {
-		t.Fatalf("NewPlanner(): %v", err)
-	}
-	reconstructor, err := newLoadedStateReconstructor(testLoadedAuthority(planner, definitions, relationKeys...), definitions)
+	reconstructor, err := newLoadedStateReconstructor(definitions)
 	if err != nil {
 		t.Fatalf("newLoadedStateReconstructor(): %v", err)
 	}
 	return reconstructor
 }
 
-func testLoadedAuthority(planner Planner, definitions []Migration, relationKeys ...MigrationKey) *loadedDefinitionAuthority {
-	relations := make(map[MigrationKey]struct{}, len(relationKeys))
-	for _, key := range relationKeys {
-		relations[key] = struct{}{}
-	}
-	profiles := make(map[MigrationKey]loadedDefinitionProfile, len(definitions))
-	for _, definition := range definitions {
-		profile := loadedDefinitionProfile{definitionFormat: 1, loaderABI: 1, operationCodec: 1, schemaIR: 2}
-		if _, exists := relations[definition.Key()]; exists {
-			profile = loadedDefinitionProfile{definitionFormat: 1, loaderABI: 2, operationCodec: 2, schemaIR: 3}
-		}
-		profiles[definition.Key()] = profile
-	}
-	return &loadedDefinitionAuthority{marker: &loadedDefinitionAuthorityMarker{}, planner: planner, profiles: profiles}
-}
-
-func afterWithoutIndependent(t *testing.T, state ProjectState) ProjectState {
+func sharedStateReconstructorConstructorError(t *testing.T, definitions []Migration) error {
 	t.Helper()
-	next := state.withoutApp("audit")
-	if err := next.validate(); err != nil {
-		t.Fatalf("state without independent branch: %v", err)
+	_, lifecycleErr := newLoadedStateReconstructor(definitions)
+	if lifecycleErr == nil {
+		t.Fatal("lifecycle state constructor unexpectedly succeeded")
 	}
-	return next
+	_, publicErr := NewStateReconstructor(definitions...)
+	if publicErr == nil {
+		t.Fatal("public StateReconstructor constructor unexpectedly succeeded")
+	}
+	if publicErr.Error() != lifecycleErr.Error() {
+		t.Fatalf("public/lifecycle constructor errors differ\npublic:    %v\nlifecycle: %v", publicErr, lifecycleErr)
+	}
+	return publicErr
 }
 
 func TestStateReconstructorZeroValueMatchesEmptyConstructor(t *testing.T) {

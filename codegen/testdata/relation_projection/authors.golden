@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "72789463ecdb885f51c6c86dbeb80e577bb27a186412fe7fafe83857e8e3cd10"
+const GoDjRelationProjectionSchemaSHA256 = "0c789dbe1bc5f154fe6a2efe63c0f1caa2940a1a41418002b39979ab0215b798"
 
 var _ orm.ProjectionDescriptor[Author] = AuthorDescriptor{}
 

@@ -116,26 +116,32 @@ func (m Migration) Key() MigrationKey {
 }
 
 type Executor struct {
+	Backend backend.RevisionFencedBackend
+}
+
+// DirectExecutor owns the deliberately narrow raw migration path. It remains
+// separate from Executor so a loaded lifecycle backend is not required to
+// implement the non-fenced direct transaction port.
+type DirectExecutor struct {
 	Backend backend.AtomicBackend
 }
 
-func (e Executor) Apply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
+func (e DirectExecutor) Apply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
 	return e.execute(ctx, before, migration, DirectionForward)
 }
 
-func (e Executor) Unapply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
+func (e DirectExecutor) Unapply(ctx context.Context, before ProjectState, migration Migration) (ProjectState, error) {
 	return e.execute(ctx, before, migration, DirectionBackward)
 }
 
 type preparedOperation struct {
-	index           int
-	op              Operation
-	from            ProjectState
-	to              ProjectState
-	relationTargets []loadedRelationTarget
+	index int
+	op    Operation
+	from  ProjectState
+	to    ProjectState
 }
 
-func (e Executor) execute(ctx context.Context, before ProjectState, migration Migration, direction Direction) (ProjectState, error) {
+func (e DirectExecutor) execute(ctx context.Context, before ProjectState, migration Migration, direction Direction) (ProjectState, error) {
 	if ctx == nil {
 		return before.Clone(), migrationError(CategoryExecution, CodeOperationFailed, direction, migration, NoOperation, "", errors.New("context is nil"))
 	}
@@ -185,7 +191,7 @@ func (e Executor) execute(ctx context.Context, before ProjectState, migration Mi
 }
 
 // migrationBodyTransaction is the common operation/recorder boundary shared
-// by legacy and revision-fenced transactions. Begin, commit, rollback, and
+// by direct atomic and revision-fenced transactions. Begin, commit, rollback, and
 // durability classification deliberately stay outside this kernel.
 type migrationBodyTransaction interface {
 	backend.SchemaEditor

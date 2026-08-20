@@ -9,8 +9,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjGeneratorVersion = "godj-codegen-m2-v3"
-const GoDjSchemaSHA256 = "c92828fba502fae92b5e882538537943682ff1a9d90a837d64eb625c1af906b9"
+const GoDjGeneratorVersion = "godj-codegen-current-v1"
+const GoDjSchemaSHA256 = "a4823a324f40c2598c767629714afbfafe343fe3539fb2ffc76f61701a9e34e4"
 
 type Author struct {
 	ID                    int64

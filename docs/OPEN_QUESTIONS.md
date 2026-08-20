@@ -9,14 +9,14 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0035 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI는 implemented and exact 18 hosted accepted; GDJ-0035 D1 profile/handoff·D2 private readiness·D3b loaded core handshake와 D4 bounded restart observation은 Verified이지만 generator/library semver·repair는 open |
+| Q-010 | Partial | GDJ-0036 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI의 이전 hosted evidence는 유지; current definition/loaded lifecycle은 working tree에서 단일 형식으로 reset됐지만 generator/library semver·repair는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0035 active / broader migration 후속 | MIG-047..074 product subset은 implemented/passing and exact 18 hosted accepted; GDJ-0035 D3a direct SQLite Create/Delete port, D3b loaded core, D4 bounded restart와 D4d nullable/D4e empty-source required FK Add, D4f bounded Remove-by-remake는 Verified이지만 populated required Add/reapply, general/arbitrary remake, general restart/actual adapter, writer/upgrade/custom operation/public migrate/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0035 active / broader relation·backend 후속 | REL-002 bounded assignment/save/cache product는 Implemented/Verified and `passing`; GDJ-0035 D1/D2/D3a/D3b/D4d/D4e/D4f bounded slices, normal loaded AutoField FK Create/Delete와 sealed same-target nullable/required-empty Add/bounded reverse Remove는 Verified이지만 broader relation/backend 범위는 open |
+| Q-012 | Partial | GDJ-0036 active / broader migration 후속 | MIG-047..074 product subset은 passing; current `LoadedDefinitionSet` lifecycle와 unified backend ABI는 working tree에 구현됐지만 final hosted reset gate, public migrate/writer/upgrade/custom operation/general restart/non-SQLite/crash recovery는 open |
+| Q-013 | Partial | GDJ-0036 active / broader relation·backend 후속 | REL-002와 bounded SQLite FK slices의 이전 evidence는 유지; current Schema IR/codegen/state/lifecycle로 통합 중이지만 broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0033 completed / facade breadth 후속 | bounded forward read/write names는 Implemented/Verified; prerequisite provenance, raw-model UX/capability/namespace, reverse/general upgrade는 open |
+| Q-017 | P1 | GDJ-0036 active / facade breadth 후속 | current main generator와 facade는 compatibility-only app query/private write model을 제거; project-wide publication, raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -43,6 +43,28 @@
 |---|---|
 | Q-006 | generated create/patch와 nullable change state는 ADR-0009, mutable instance Save/typed mask/explicit key orchestration은 [ADR-0011](adr/0011-m2-save-lifecycle-orchestration.md); MOD-001..019 verified |
 | Q-012 core | preflighted ProjectState/Operation/Executor와 한 transaction의 SQLite editor/recorder — [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md) |
+
+## GDJ-0036 current answer boundary
+
+Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)는 아래 질문의
+현재 기준을 바꿨지만 전체를 닫지는 않습니다.
+
+- Q-010/Q-012: Definition wire/digest와 ProjectState는 current version 1 하나입니다. `definition.Load`가
+  opaque `LoadedDefinitionSet`을 만들고 `Executor.Migrate(ctx, loaded, request)`가 complete lifecycle을
+  소유합니다. `DirectExecutor`는 raw scalar 실행만 소유합니다.
+- Q-012/Q-013: Backend는 mandatory capability와 ordered `MigrationIntent`를 받는 `BeginMigration` 하나를
+  사용합니다. Public `StateReconstructor`의 최종 계약도 scalar/relation을 같은 current state로 재생합니다.
+- Q-013/Q-017: Main generator가 relation model descriptor/write metadata를 직접 생성합니다. App-local
+  relation-query file과 facade-private write model은 current ABI에서 제거됐고 project-owned cross-app
+  binding/query/facade는 유지됩니다.
+- Q-017: 현재 generator bytes는 한 번 재기준화됐지만 물리 companion roster는 장기 public ABI가 아닙니다.
+  Whole-project candidate compile/publish, upgrade/repair와 first-alpha 이후 compatibility 기간은 여전히 open입니다.
+
+GDJ-0035 Phase-B의 legacy tuple/profile/promotion product publication sequence는 retire됐습니다. 그 옛
+artifact bytes와 evidence는 당시 의사결정의 역사 기록입니다. 현재 checked-in MIG-075..086 artifact는
+ADR-0035 current-only 진단 reference로 재기준화되어 reference aggregate에는 포함되지만, 계속
+`oracle_locked`/unregistered라 위 질문의 제품 status 입력은 아닙니다. GDJ-0036 최종 frozen head가 hosted
+검증되기 전에는 이 working-tree answer를 hosted `Verified`로 올리지 않습니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 
@@ -81,6 +103,10 @@ Q-007은 해결됐습니다. Q-011은 QuerySet evaluation subset만 해결됐고
 transaction-bound session과 hook의 goroutine ownership은 후속 단계에 남습니다.
 
 ## Q-010 — CLI와 project/library version handshake
+
+현재 definition handshake는 persisted `format_version=1` 하나입니다. 아래 GDJ-0019/0020 tuple과 ABI
+설명은 당시 evidence snapshot이며 current reader/upgrade 약속이 아닙니다. Full CLI/project/library semver와
+repair가 남아 있으므로 Q-010은 계속 `Partial`입니다.
 
 [완료된 GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)와
 [Accepted ADR-0019](adr/0019-versioned-migration-definition-source.md)은 caller-provided migration
@@ -147,6 +173,11 @@ semver, stale repair와 installed runner lifecycle은 계속 open이므로 Q-010
 Partial입니다.
 
 ## Q-012 — Migration format과 실행 수명주기
+
+현재 complete lifecycle entry는 `Executor.Migrate(ctx, LoadedDefinitionSet, request)`이며 raw scalar
+`Apply`/`Unapply`/`ExecutePlan`은 `DirectExecutor`로 분리됐습니다. Historical state는 current relation-aware
+`ProjectState` 하나로 표현하고 backend begin도 하나로 통합했습니다. 아래 단계별 API는 당시 checkout의
+evidence를 설명합니다.
 
 MIG-001~004와 GDJ-0004 제품 구현을 거쳐 state/operation/executor/schema editor/
 recorder core를 [ADR-0010](adr/0010-m2-migration-state-and-executor-boundary.md)에서
@@ -315,6 +346,10 @@ PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다
 
 ## Q-013 — 관계 API
 
+Current Schema IR은 scalar와 ForeignKey를 version 1 하나로 표현합니다. Relation main model도 scalar와 같은
+descriptor/write ABI를 생성하며 app-local relation-query companion을 요구하지 않습니다. 아래 v2/v3 additive
+설명은 당시 증거이고 broader relation API가 남아 있어 Q-013은 계속 `Partial`입니다.
+
 초안의 `RelationField[Post]`에는 target type이 없지만 `PostFields.Author.Name`을 사용합니다. symbolic relation binding, target descriptor, generated loader, reverse relation과 import cycle을 한 설계로 검증해야 합니다.
 
 Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)과
@@ -431,6 +466,10 @@ generated upgrade를 닫지 않습니다. Relation-capable migration은 계속 �
 
 ## Q-017 — 공개 API와 generated upgrade
 
+GDJ-0036 current ABI는 relation main descriptor/write generation을 통합하고 facade-private write model과
+app-local relation-query file을 제거했습니다. Project-owned cross-app surface는 유지합니다. 이 reset은 첫 alpha
+전 재기준화이며 project-wide coordinated publication/repair나 final raw-model UX를 닫지 않습니다.
+
 GDJ-0030의 bounded REL-007/008 low-level engine 뒤
 [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)은 completed이고
 [ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 test-only feasibility 방법에
@@ -520,7 +559,11 @@ growth gate가 필요합니다.
 
 새 작업이 이 표의 질문에 의존하면 추측으로 확정하지 말고 작업 문서에 명시하고 필요한 ADR/prototype을 먼저 만듭니다.
 
-## GDJ-0035 Accepted decision impact
+## Historical GDJ-0035 Accepted decision impact
+
+이 절의 dual profile/state/context handoff/optional backend와 Phase D4g 순서는 GDJ-0036 이전 기록입니다.
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)가 현재 제품 계약을 대체했고
+MIG-075..086 publication은 retire됐습니다.
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 Q-010/Q-012/Q-013에
 의존하지만 세 질문을 닫지 않습니다. Q-010/Q-012/Q-013은 계속 `Partial`, Q-017/Q-019는

@@ -17,9 +17,9 @@ func TestExternalRelationPublicSurface(t *testing.T) {
 	if field.Kind != ir.FieldForeignKey || field.Relation == nil {
 		t.Fatalf("ForeignKey() = %#v", field)
 	}
-	if ir.FormatVersion != 2 || ir.RelationFormatVersion != 3 ||
+	if ir.CurrentFormatVersion != 1 ||
 		ir.RelationManyToOne != "many_to_one" || ir.RelationOneToMany != "one_to_many" ||
 		ir.DeleteProtect != "protect" || ir.DeleteSetNull != "set_null" {
-		t.Fatal("public relation version/token constants drifted")
+		t.Fatal("public current-format relation tokens drifted")
 	}
 }

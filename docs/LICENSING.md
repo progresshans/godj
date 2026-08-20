@@ -1,7 +1,7 @@
 # 라이선스와 upstream provenance 정책
 
 - 상태: Accepted for conformance artifacts
-- 마지막 검토: 2026-08-13
+- 마지막 검토: 2026-08-20
 
 ## 현재 저장소 라이선스
 
@@ -61,25 +61,26 @@ revision-fence harness는 GoDj concurrency design evidence이며 upstream Django
 번역하지 않았습니다.
 
 GDJ-0019의 MIG-057..064 migration definition source scenario도 GoDj 고유 document,
-identity, operation, value, diagnostic과 assertion으로 독립 작성했습니다. 여덟 contract 모두
-Accepted ADR-0019를 `kind=decision`, `derived=false`로 기록해 strict JSON v1, tuple
-`(1,1,1,2)`, closed codec, canonical digest, atomic snapshot과 failure precedence가 GoDj
-결정임을 명시합니다. MIG-057과 MIG-064에만 별도의 pinned Django 6.1 source/test
+identity, operation, value, diagnostic과 assertion으로 독립 작성했습니다. Pre-release reset 뒤 현재 여덟
+contract는 Accepted ADR-0035를 `kind=decision`, `derived=false`로 기록해 single current format, closed codec,
+canonical digest와 opaque loaded-set publication이 GoDj 결정임을 명시합니다. Superseded ADR-0019 tuple과
+그 artifact는 Git/EVID의 역사이며 현재 지원 형식이 아닙니다. MIG-057과 MIG-064에만 별도의 pinned Django 6.1 source/test
 provenance와 `BSD-3-Clause`를 기록합니다. 이 두 entry는 migration identity/dependency/
 ordered operation과 public graph/executor 동작의 관찰 근거이며 Django가 GoDj JSON 또는
 loader ABI를 제공한다는 뜻이 아닙니다. 모든 entry는 `derived=false`이고 Django source,
-fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다.
+fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다. MIG-057..064는 현재도 `passing`이며
+registered GoDj product adapter가 이 독립 작성 계약을 실행합니다.
 
 GDJ-0021의 MIG-065..074 migration project-check scenario는 GoDj 고유 project marker,
 descriptor, flat source catalog, private runner protocol, category/code, counter와
-publication observation으로 독립 작성했습니다. 열 contract 모두 Accepted ADR-0021을
-`kind=decision`, `derived=false`로만 기록하며 Django source/test provenance를 갖지
-않습니다. Django-named exact profile, runner namespace와 oracle directory는 protocol-v2
+publication observation으로 독립 작성했습니다. 현재 열 contract 모두 Accepted ADR-0021을
+`kind=decision`, `derived=false`로 기록하고, definition을 직접 다루는 MIG-065..068과 MIG-073은 Accepted
+ADR-0035도 함께 기록합니다. Django source/test provenance는 없습니다. Django-named exact profile, runner namespace와 oracle directory는 protocol-v2
 reference corpus와 checksum gate를 함께 유지하기 위해 재사용할 뿐입니다. Django가
 GoDj descriptor, JSON source discovery, runner wire 또는 exit 의미를 제공한다는 뜻이
 아니며, Django source, fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다.
-Contract 상태 `oracle_locked`는 제품 CLI나 project-linked runner 구현·지원을 뜻하지
-않습니다.
+MIG-065..074는 현재도 `passing`이며 registered GoDj project-check product adapter가 이 독립 작성 계약을
+실행합니다. 이는 Django가 GoDj CLI/runner 의미를 제공한다는 뜻이 아닙니다.
 
 GDJ-0023의 REL-001..012 relation scenario는 GoDj 고유 `authors.Author`/
 `blog.Post` 모델명, row 값, capture window, SQL shape normalizer와 mutation assertion으로
@@ -106,17 +107,20 @@ ADR-0034 Accepted나 product implementation으로 올리지 않습니다. Phase 
 `31625898551`, Phase B no-product head는 EVID-088/run `31653237691`, Phase C test-only decision proof head
 `7d36502...`는 EVID-090/run `32174259324`에서 각각 hosted-verified됐습니다. Proposed decision-freeze docs
 head `5bdf013...`도 EVID-091/run `32183309328`에서 별도 local/hosted 검증됐고 ADR-0034 bounded design은
-그 뒤 Accepted됐습니다. Later acceptance는 Phase A artifact의 historical `kind=proposal`, decision ID
-`GDJ-0035`, `derived=false`를 `kind=decision`으로 소급 변경하지 않습니다. Acceptance docs head
+그 뒤 Accepted됐습니다. Later acceptance는 Phase A checkout/Git history의 historical `kind=proposal`, decision ID
+`GDJ-0035`, `derived=false`를 소급 변경하지 않습니다. 현재 checked-in same-ID diagnostic corpus는 별도
+ADR-0035 current-only reset으로 재생성되어 `kind=decision`, `derived=false`를 기록하지만 12개 모두
+`oracle_locked`이고 normal product registry에 미등록입니다. 따라서 이 current provenance는 Phase A 역사
+재작성도, Django parity도, product support도 뜻하지 않습니다. Acceptance docs head
 `7cdc6d6...`는 EVID-092/run `32187094845`에서 별도 hosted-verified됐습니다. Later D1/D2/D3a
-bounded product slices는 EVID-093에서 각 구현·검증됐지만 이 사건도 checked-in Phase A
+bounded product slices는 EVID-093에서 각 구현·검증됐지만 이 사건도 historical Phase A
 artifact의 provenance/license 분류를 소급 변경하지 않습니다. MIG-075..086은 `oracle_locked`이고
 D3b loaded relation core integration `74c2b72...`/`167ef03...`도 EVID-094/run `32231149900`에서
-구현·검증됐지만 checked-in Phase A artifact의 provenance/license 분류나 MIG status를 바꾸지 않습니다.
+구현·검증됐지만 historical Phase A artifact의 provenance/license 분류나 MIG status를 바꾸지 않습니다.
 D4 test-only verification `424ec4d...`/EVID-095/run `32248885053`도 existing product path의 bounded
 file-backed restart observation만 추가하며 source provenance/license 분류나 MIG status를 바꾸지 않습니다.
 EVID-096 docs head `62df9b2...`의 run `32260744096`과 D4d product/fix final head `dd83362...`의
-EVID-097/run `32271361724`도 checked-in Phase A reference를 rewrite하지 않습니다. D4d nullable ForeignKey
+EVID-097/run `32271361724`도 historical Phase A reference를 rewrite하지 않습니다. D4d nullable ForeignKey
 Add source와 tests는 GoDj-owned independent implementation이며 upstream source, fixture, comment 또는 assertion
 구조를 복사·번역하지 않았습니다. EVID-097 docs head `c59669c...`/run `32278555810`과 D4e
 product/inventory final head `1d86f6e...`의 EVID-098/run `32282269755`도 reference를 rewrite하지 않습니다.

@@ -9,7 +9,9 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// GenerateRelationMetadata renders an additive per-app schema companion. The
+const RelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
+
+// GenerateRelationMetadata renders the current per-app schema companion. The
 // returned GoDjRelationSchema function constructs a fresh IR value on every
 // call, so generated project bindings never share caller-mutable slices or
 // relation pointers.
@@ -35,7 +37,7 @@ func GenerateRelationMetadata(packageName string, input ir.Schema) ([]byte, erro
 	fmt.Fprintf(&output, "package %s\n\n", packageName)
 	fmt.Fprintln(&output, `import "github.com/progresshans/godj/schema/ir"`)
 	fmt.Fprintln(&output)
-	fmt.Fprintf(&output, "const GoDjRelationMetadataGeneratorVersion = %s\n", strconv.Quote(RelationGeneratorVersion))
+	fmt.Fprintf(&output, "const GoDjRelationMetadataGeneratorVersion = %s\n", strconv.Quote(RelationMetadataGeneratorVersion))
 	fmt.Fprintf(&output, "const GoDjRelationSchemaSHA256 = %s\n\n", strconv.Quote(hash))
 	fmt.Fprintln(&output, "func GoDjRelationSchema() ir.Schema {")
 	fmt.Fprintln(&output, "\treturn ir.Schema{")
@@ -126,10 +128,8 @@ func renderRelationLiteral(output *bytes.Buffer, relation ir.ForeignKeyRelation,
 
 func schemaFormatLiteral(version int) string {
 	switch version {
-	case ir.FormatVersion:
-		return "ir.FormatVersion"
-	case ir.RelationFormatVersion:
-		return "ir.RelationFormatVersion"
+	case ir.CurrentFormatVersion:
+		return "ir.CurrentFormatVersion"
 	default:
 		return strconv.Itoa(version)
 	}

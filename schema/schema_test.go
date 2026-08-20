@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestBuildPreservesScalarV2AndBuildsForeignKeyV3(t *testing.T) {
+func TestBuildUsesOneCurrentFormatForScalarAndForeignKey(t *testing.T) {
 	t.Parallel()
 
 	scalar, err := schema.Build(schema.Definition{
@@ -22,8 +22,8 @@ func TestBuildPreservesScalarV2AndBuildsForeignKeyV3(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build(scalar) error = %v", err)
 	}
-	if scalar.FormatVersion != ir.FormatVersion {
-		t.Fatalf("scalar format version = %d, want %d", scalar.FormatVersion, ir.FormatVersion)
+	if scalar.FormatVersion != ir.CurrentFormatVersion {
+		t.Fatalf("scalar format version = %d, want %d", scalar.FormatVersion, ir.CurrentFormatVersion)
 	}
 
 	definition := schema.Definition{
@@ -53,8 +53,8 @@ func TestBuildPreservesScalarV2AndBuildsForeignKeyV3(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build(relation) error = %v", err)
 	}
-	if built.FormatVersion != ir.RelationFormatVersion {
-		t.Fatalf("relation format version = %d, want %d", built.FormatVersion, ir.RelationFormatVersion)
+	if built.FormatVersion != ir.CurrentFormatVersion {
+		t.Fatalf("relation format version = %d, want %d", built.FormatVersion, ir.CurrentFormatVersion)
 	}
 	fields := built.Models[0].Fields
 	if got := fields[1]; got.Kind != ir.FieldForeignKey || got.Column != "author_id" || got.Nullable ||

@@ -4,8 +4,33 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-12
+- 현재 형식 mirror 검토: 2026-08-20
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
+
+## Pre-release current-format policy
+
+Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에 따라 첫 외부 alpha
+이전의 GoDj 내부 format/generated ABI는 하위호환 대상이 아닙니다. 이는 Django observable contract를
+버린다는 뜻이 아니라, 개발 중 GoDj v2/v3를 배포된 두 세대처럼 동시에 읽지 않는다는 뜻입니다.
+
+- Schema IR, Definition wire/digest와 historical `ProjectState`는 각각 current version 1 하나만 지원합니다.
+  Unknown version은 계속 fail-closed합니다.
+- `definition.Load`는 opaque `migrations.LoadedDefinitionSet`을 만들고 public lifecycle은
+  `Executor.Migrate(ctx, loaded, request)` 하나입니다. Raw scalar `Apply`/`Unapply`/`ExecutePlan`은 별도
+  `DirectExecutor` 책임이고 relation-bearing raw input은 capability error입니다.
+- Backend는 mandatory `MigrationCapabilities`와 `BeginMigration(HistoryTransition, MigrationIntent)` 하나를
+  사용합니다. Historical scalar/relation state도 하나의 current `StateReconstructor` 계약으로 수렴합니다.
+- MIG-057..064는 single `format_version`, current digest, `execution`/`lifecycle`/`session_open_calls` vocabulary와
+  opaque loaded executor 의미로 재기준화됐습니다. MIG-065..074의 definition-set digest/provenance도 같은 current
+  format으로 재기준화됐으며 contract ID와 `passing` 상태는 유지합니다.
+- GDJ-0035 Phase-B의 legacy tuple/profile/promotion artifact와 product publication sequence는 retire됐습니다.
+  그 정확한 옛 bytes/EVID는 역사 기록입니다. 현재 checked-in MIG-075..086 manifest/oracle은 ADR-0035
+  current-only 진단 reference로 다시 생성됐고 reference aggregate에는 포함되지만, 계속
+  `oracle_locked`/unregistered라 제품 지원 또는 status 전환 주장은 아닙니다.
+
+현재 reset working tree의 로컬 검증은 완료 단계에 있지만, 최종 frozen head의 hosted gate 전에는 이 절을
+새 release compatibility 또는 hosted `Verified` 주장으로 읽지 않습니다.
 
 ## 프로필 범위
 
@@ -472,6 +497,11 @@ no-fallback/no-automatic-adoption입니다. `CommitRolledBack`은 confirmed stat
 `AddField`는 logical default를 보존하되 physical persistent default를 만들지 않으며 nonempty
 table은 계속 unsupported입니다.
 
+### Historical GDJ-0019..0022 definition/project-check snapshot
+
+다음 단락의 tuple, `Set.Migrate`, artifact hash와 집계는 각 완료 checkout의 증거입니다. 현재 계약은
+문서 상단의 pre-release current-format policy와 MIG-057..074 재기준화를 따릅니다.
+
 완료된 [GDJ-0019](../work/0019-migration-definition-source-compatibility-contracts.md)은
 [`migration-definition-source-manifest.json`](../conformance/contracts/migration-definition-source-manifest.json)을
 열 번째 ordered reference set으로 추가했습니다. MIG-057..064는 explicit document bytes,
@@ -782,7 +812,11 @@ Django 문서와 테스트에서 파생한 시나리오는 upstream version, 파
 공식 기준 링크와 로컬 검증 정보는 [SOURCES.md](SOURCES.md), 구체적인 파생물 정책은
 [LICENSING.md](LICENSING.md)에 있습니다.
 
-## MIG-075..086 Accepted decision compatibility boundary
+## Historical MIG-075..086 decision compatibility boundary
+
+이 절은 GDJ-0036 이전 GDJ-0035 Phase A~D의 artifact와 evidence를 보존합니다. 아래 dual profile/digest/state,
+context handoff와 optional relation backend 설명은 [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에
+의해 현재 제품 계약에서 대체됐으며 MIG-075..086 publication은 retire됐습니다.
 
 [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 MIG-075..086 exact
 12 reference-only contract ID를 고정했습니다. Exact 16-document activation head `52f9bcb7...`는
@@ -821,7 +855,7 @@ Reference artifact와 MIG status는 계속 불변입니다.
 Compatibility decision은 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)에
 다음과 같이 분리합니다.
 
-| ID | Accepted decision/reference observation | 현재 분류 |
+| ID | 당시 Accepted decision/reference observation | 당시 분류 |
 |---|---|---|
 | MIG-075 | Legacy tuple `(1,1,1,2)`, digest v1, scalar state v1과 lifecycle ABI 보존 | `oracle_locked` / Accepted-decision reference |
 | MIG-076 | Additive public relation constants `(loader ABI, codec, IR)=(2,2,3)`, one `Load`, per-document dispatch와 hybrid rejection | `oracle_locked` / Accepted-decision reference |

@@ -37,8 +37,9 @@ func TestSQLiteRevisionFenceBootstrapReopenAddFieldAndReverse(t *testing.T) {
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001_initial"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	transaction := beginLifecycleTransaction(t, session, initial)
-	if err := transaction.CreateModel(ctx, migrationTestModel(false)); err != nil {
+	initialModel := migrationTestModel(false)
+	transaction := beginLifecycleTransaction(t, session, initial, createModelMigrationIntent(initialModel))
+	if err := transaction.CreateModel(ctx, initialModel); err != nil {
 		t.Fatalf("CreateModel(): %v", err)
 	}
 	if err := transaction.RecordApplied(ctx, "news", "0001_initial"); err != nil {
@@ -82,7 +83,10 @@ func TestSQLiteRevisionFenceBootstrapReopenAddFieldAndReverse(t *testing.T) {
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0002_featured"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	transaction = beginLifecycleTransaction(t, session, addTransition)
+	beforeAdd := migrationTestModel(false)
+	afterAdd := beforeAdd.Clone()
+	afterAdd.Fields = append(afterAdd.Fields, field.Clone())
+	transaction = beginLifecycleTransaction(t, session, addTransition, addFieldMigrationIntent(beforeAdd, afterAdd))
 	if err := transaction.AddField(ctx, migrationTestModel(false), field); err != nil {
 		t.Fatalf("AddField(Boolean(false)): %v", err)
 	}
@@ -105,9 +109,9 @@ func TestSQLiteRevisionFenceBootstrapReopenAddFieldAndReverse(t *testing.T) {
 		Migration: addTransition.Migration,
 		Kind:      migrationbackend.HistoryTransitionUnapply,
 	}
-	transaction = beginLifecycleTransaction(t, session, reverseTransition)
 	modelWithField := migrationTestModel(false)
 	modelWithField.Fields = append(modelWithField.Fields, field)
+	transaction = beginLifecycleTransaction(t, session, reverseTransition, removeFieldMigrationIntent(modelWithField, migrationTestModel(false)))
 	if err := transaction.RemoveField(ctx, modelWithField, field); err != nil {
 		t.Fatalf("RemoveField(): %v", err)
 	}
@@ -190,6 +194,35 @@ func TestSQLiteRevisionFenceRequiresAdoptionForExistingRecorder(t *testing.T) {
 	}
 }
 
+func TestSQLiteRevisionSessionRequiresSealedIntentEvenWhenEmpty(t *testing.T) {
+	ctx := context.Background()
+	backend := openMigrationTestBackend(t)
+	session := openLifecycleSession(t, backend)
+	if records, err := session.ReadAppliedMigrations(ctx); err != nil || len(records) != 0 {
+		t.Fatalf("fresh snapshot = (%v, %v), want empty", records, err)
+	}
+	transition := migrationbackend.HistoryTransition{
+		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001"},
+		Kind:      migrationbackend.HistoryTransitionApply,
+	}
+
+	transaction, err := session.BeginMigration(ctx, transition, migrationbackend.MigrationIntent{})
+	if transaction != nil || err == nil || !strings.Contains(err.Error(), "intent operations are missing") {
+		t.Fatalf("BeginMigration(missing intent) = (%v, %v), want nil missing-intent error", transaction, err)
+	}
+
+	transaction, err = session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent())
+	if err != nil || transaction == nil {
+		t.Fatalf("BeginMigration(empty sealed intent) = (%v, %v), want transaction", transaction, err)
+	}
+	if err := transaction.Rollback(ctx); err != nil {
+		t.Fatalf("Rollback(empty sealed intent): %v", err)
+	}
+	if err := session.Close(ctx); err != nil {
+		t.Fatalf("Close(): %v", err)
+	}
+}
+
 func TestSQLiteRevisionSessionStateMachine(t *testing.T) {
 	ctx := context.Background()
 	transition := migrationbackend.HistoryTransition{
@@ -220,8 +253,8 @@ func TestSQLiteRevisionSessionStateMachine(t *testing.T) {
 	t.Run("begin_before_snapshot_and_closed_reuse", func(t *testing.T) {
 		backend := openMigrationTestBackend(t)
 		session := openLifecycleSession(t, backend)
-		if _, err := session.BeginFencedMigration(ctx, transition); err == nil {
-			t.Fatal("BeginFencedMigration before snapshot succeeded")
+		if _, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
+			t.Fatal("BeginMigration before snapshot succeeded")
 		}
 		if sqliteTableExists(t, backend, migrationRevisionTable) || sqliteTableExists(t, backend, migrationRecorderTable) {
 			t.Fatal("begin-before-snapshot mutated history")
@@ -232,7 +265,7 @@ func TestSQLiteRevisionSessionStateMachine(t *testing.T) {
 		if _, err := session.ReadAppliedMigrations(ctx); err == nil {
 			t.Fatal("closed session snapshot succeeded")
 		}
-		if _, err := session.BeginFencedMigration(ctx, transition); err == nil {
+		if _, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
 			t.Fatal("closed session begin succeeded")
 		}
 	})
@@ -244,13 +277,13 @@ func TestSQLiteRevisionSessionStateMachine(t *testing.T) {
 			t.Fatal(err)
 		}
 		transaction := beginLifecycleTransaction(t, session, transition)
-		if _, err := session.BeginFencedMigration(ctx, transition); err == nil {
+		if _, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
 			t.Fatal("second active transaction began")
 		}
 		if err := transaction.Rollback(ctx); err != nil {
 			t.Fatalf("Rollback(): %v", err)
 		}
-		if _, err := session.BeginFencedMigration(ctx, transition); err == nil {
+		if _, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
 			t.Fatal("poisoned session begin succeeded")
 		}
 		if _, err := session.ReadAppliedMigrations(ctx); err == nil {
@@ -469,7 +502,7 @@ func TestSQLiteRevisionSessionStateMachine(t *testing.T) {
 			}()
 			go func() {
 				<-start
-				transaction, err := session.BeginFencedMigration(ctx, transition)
+				transaction, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent())
 				beginDone <- beginResult{transaction: transaction, err: err}
 			}()
 			close(start)
@@ -524,7 +557,7 @@ func TestSQLiteRevisionFencedDeclaredTransitionIntegrity(t *testing.T) {
 			if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 				t.Fatal(err)
 			}
-			transaction := beginLifecycleTransaction(t, session, transition)
+			transaction := beginLifecycleTransaction(t, session, transition, createModelMigrationIntent(migrationTestModel(false)))
 			if err := transaction.CreateModel(ctx, migrationTestModel(false)); err != nil {
 				t.Fatal(err)
 			}
@@ -542,7 +575,7 @@ func TestSQLiteRevisionFencedDeclaredTransitionIntegrity(t *testing.T) {
 					t.Fatalf("invalid declared transition preserved table %q", table)
 				}
 			}
-			if _, beginErr := session.BeginFencedMigration(ctx, transition); beginErr == nil {
+			if _, beginErr := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); beginErr == nil {
 				t.Fatal("session remained reusable after transition integrity failure")
 			}
 			if err := session.Close(ctx); err != nil {
@@ -571,7 +604,7 @@ func TestSQLiteRevisionFencedDeclaredTransitionIntegrity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = session.BeginFencedMigration(ctx, transition)
+		_, err = session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent())
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureIntegrity)
 		after, err := readAtomicMigrationRevisionSnapshot(ctx, backend)
 		if err != nil || !equalMigrationRevisionToken(before.token, after.token) || !equalAppliedMigrations(before.records, after.records) {
@@ -588,10 +621,11 @@ func TestSQLiteRevisionFencedDeclaredTransitionIntegrity(t *testing.T) {
 		if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 			t.Fatal(err)
 		}
-		_, err := session.BeginFencedMigration(ctx, migrationbackend.HistoryTransition{
+		_, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 			Migration: transition.Migration,
 			Kind:      migrationbackend.HistoryTransitionUnapply,
-		})
+		}, emptySQLiteMigrationIntent())
+
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureIntegrity)
 		if sqliteTableExists(t, backend, migrationRevisionTable) || sqliteTableExists(t, backend, migrationRecorderTable) {
 			t.Fatal("missing unapply mutated fresh history")
@@ -988,7 +1022,7 @@ func TestSQLiteRevisionFenceRejectsOverflowBeforeMutation(t *testing.T) {
 	if _, err := backend.ExecContext(
 		ctx,
 		`INSERT INTO "godj_migration_revision" VALUES (1, 1, ?, ?, ?)`,
-		make([]byte, migrationRevisionEpochSize), math.MaxInt64, hash[:],
+		make([]byte, migrationRevisionEpochSize), int64(math.MaxInt64), hash[:],
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -996,10 +1030,11 @@ func TestSQLiteRevisionFenceRejectsOverflowBeforeMutation(t *testing.T) {
 	if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 		t.Fatalf("ReadAppliedMigrations(): %v", err)
 	}
-	_, err := session.BeginFencedMigration(ctx, migrationbackend.HistoryTransition{
+	_, err := session.BeginMigration(ctx, migrationbackend.HistoryTransition{
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001"},
 		Kind:      migrationbackend.HistoryTransitionApply,
-	})
+	}, emptySQLiteMigrationIntent())
+
 	assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureIntegrity)
 	if sqliteTableExists(t, backend, "overflow_domain") {
 		t.Fatal("overflow attempt created domain table")
@@ -1026,8 +1061,8 @@ func TestSQLiteRevisionFenceSameTokenContentionThenStale(t *testing.T) {
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	leftTransaction := beginLifecycleTransaction(t, leftSession, transition)
-	if _, err := busySession.BeginFencedMigration(ctx, transition); err == nil {
+	leftTransaction := beginLifecycleTransaction(t, leftSession, transition, createModelMigrationIntent(migrationTestModel(false)))
+	if _, err := busySession.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
 		t.Fatal("same-token contender unexpectedly began")
 	} else {
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureContended)
@@ -1041,7 +1076,7 @@ func TestSQLiteRevisionFenceSameTokenContentionThenStale(t *testing.T) {
 	if outcome, err := leftTransaction.CommitFenced(ctx); err != nil || outcome.Durability != migrationbackend.CommitCommitted {
 		t.Fatalf("winner commit = (%+v, %v)", outcome, err)
 	}
-	if _, err := staleSession.BeginFencedMigration(ctx, transition); err == nil {
+	if _, err := staleSession.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
 		t.Fatal("old snapshot began after winner commit")
 	} else {
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureStale)
@@ -1115,7 +1150,7 @@ func TestSQLiteRevisionFenceRejectsFingerprintABAWithHigherRevision(t *testing.T
 	if before.token.revision != 1 || after.token.revision != 3 {
 		t.Fatalf("ABA revisions = %d -> %d, want 1 -> 3", before.token.revision, after.token.revision)
 	}
-	if _, err := stale.BeginFencedMigration(ctx, second); err == nil {
+	if _, err := stale.BeginMigration(ctx, second, emptySQLiteMigrationIntent()); err == nil {
 		t.Fatal("stale pre-ABA token began after identities returned to the same fingerprint")
 	} else {
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureStale)
@@ -1268,7 +1303,7 @@ func TestSQLiteRevisionFenceProcessHelper(t *testing.T) {
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	transaction, err := session.BeginFencedMigration(ctx, transition)
+	transaction, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent())
 	if err != nil {
 		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureContended)
 		if closeErr := session.Close(ctx); closeErr != nil {
@@ -1370,7 +1405,7 @@ func TestSQLiteLegacyAndFencedWritersCannotCrossCutover(t *testing.T) {
 			Migration: migrationbackend.AppliedMigration{App: "legacy", Name: "0001"},
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}
-		if _, err := session.BeginFencedMigration(ctx, transition); err == nil {
+		if _, err := session.BeginMigration(ctx, transition, emptySQLiteMigrationIntent()); err == nil {
 			t.Fatal("fenced writer crossed active legacy transaction")
 		} else {
 			assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureContended)
@@ -1536,7 +1571,7 @@ func TestSQLiteRevisionFencedCommitOutcomes(t *testing.T) {
 			Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001"},
 			Kind:      migrationbackend.HistoryTransitionApply,
 		}
-		transaction := beginLifecycleTransaction(t, session, transition)
+		transaction := beginLifecycleTransaction(t, session, transition, createModelMigrationIntent(migrationTestModel(false)))
 		if err := transaction.CreateModel(ctx, migrationTestModel(false)); err != nil {
 			t.Fatal(err)
 		}
@@ -1570,7 +1605,7 @@ func TestSQLiteRevisionSessionCloseRollsBackAbandonedTransactionWithCanceledCont
 		Migration: migrationbackend.AppliedMigration{App: "news", Name: "0001"},
 		Kind:      migrationbackend.HistoryTransitionApply,
 	}
-	transaction := beginLifecycleTransaction(t, session, transition)
+	transaction := beginLifecycleTransaction(t, session, transition, createModelMigrationIntent(migrationTestModel(false)))
 	if err := transaction.CreateModel(ctx, migrationTestModel(false)); err != nil {
 		t.Fatal(err)
 	}
@@ -1832,7 +1867,11 @@ func TestSQLiteRevisionIOClassifiesBusyAndLockedAtLiveCallSites(t *testing.T) {
 			if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 				t.Fatal(err)
 			}
-			transaction := beginLifecycleTransaction(t, session, transition)
+			intent := emptySQLiteMigrationIntent()
+			if test.name == "domain" || test.name == "recorder" {
+				intent = createModelMigrationIntent(migrationTestModel(false))
+			}
+			transaction := beginLifecycleTransaction(t, session, transition, intent)
 			if test.prepare != nil {
 				test.prepare(t, transaction)
 			}
@@ -1864,7 +1903,7 @@ func TestSQLiteRevisionIOClassifiesBusyAndLockedAtLiveCallSites(t *testing.T) {
 		if _, err := session.ReadAppliedMigrations(ctx); err != nil {
 			t.Fatal(err)
 		}
-		transaction := beginLifecycleTransaction(t, session, transition)
+		transaction := beginLifecycleTransaction(t, session, transition, createModelMigrationIntent(migrationTestModel(false)))
 		if err := transaction.CreateModel(ctx, migrationTestModel(false)); err != nil {
 			t.Fatal(err)
 		}
@@ -2088,13 +2127,51 @@ func beginLifecycleTransaction(
 	t *testing.T,
 	session migrationbackend.RevisionFencedSession,
 	transition migrationbackend.HistoryTransition,
+	intents ...migrationbackend.MigrationIntent,
 ) migrationbackend.RevisionFencedTransaction {
 	t.Helper()
-	transaction, err := session.BeginFencedMigration(context.Background(), transition)
+	intent := emptySQLiteMigrationIntent()
+	if len(intents) > 1 {
+		t.Fatalf("begin lifecycle transaction received %d intents, want at most 1", len(intents))
+	}
+	if len(intents) == 1 {
+		intent = intents[0]
+	}
+	transaction, err := session.BeginMigration(context.Background(), transition, intent)
 	if err != nil {
-		t.Fatalf("BeginFencedMigration(%+v): %v", transition, err)
+		t.Fatalf("BeginMigration(%+v): %v", transition, err)
 	}
 	return transaction
+}
+
+func emptySQLiteMigrationIntent() migrationbackend.MigrationIntent {
+	return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}}
+}
+
+func createModelMigrationIntent(model ir.Model) migrationbackend.MigrationIntent {
+	return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.MigrationCreateModel,
+		After:          model.Clone(),
+	}}}
+}
+
+func addFieldMigrationIntent(before, after ir.Model) migrationbackend.MigrationIntent {
+	return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.MigrationAddField,
+		Before:         before.Clone(),
+		After:          after.Clone(),
+	}}}
+}
+
+func removeFieldMigrationIntent(before, after ir.Model) migrationbackend.MigrationIntent {
+	return migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+		OperationIndex: 0,
+		Kind:           migrationbackend.MigrationRemoveField,
+		Before:         before.Clone(),
+		After:          after.Clone(),
+	}}}
 }
 
 func assertRevisionFenceKind(t *testing.T, err error, want migrationbackend.RevisionFenceFailureKind) {

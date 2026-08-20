@@ -215,6 +215,16 @@ func TestClosedTaxonomyAndExitCodes(t *testing.T) {
 	if _, ok := ExitCode(unknown); ok || IsLinkedFailure(unknown) {
 		t.Fatalf("unknown pair accepted: %+v", unknown)
 	}
+	for _, retired := range []string{
+		"loader_abi_incompatible",
+		"operation_codec_incompatible",
+		"schema_ir_incompatible",
+	} {
+		failure := Failure{Category: CategorySource, Code: retired}
+		if _, ok := ExitCode(failure); ok || IsLinkedFailure(failure) {
+			t.Fatalf("retired compatibility code accepted: %+v", failure)
+		}
+	}
 }
 
 func TestWriteResponseRejectsNilShortAndFailedWriters(t *testing.T) {

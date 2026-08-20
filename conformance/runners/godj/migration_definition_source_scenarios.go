@@ -36,9 +36,9 @@ type migrationDefinitionSourceFixture struct {
 	targets []migrations.MigrationKey
 }
 
-// migrationDefinitionLifecycleBackendProbe derives handoff and plan facts
-// from the backend calls made by Set.Migrate while delegating every operation
-// to a fresh SQLite backend.
+// migrationDefinitionLifecycleBackendProbe derives execution and plan facts
+// from the backend calls made by Executor.Migrate while delegating
+// every operation to a fresh SQLite backend.
 type migrationDefinitionLifecycleBackendProbe struct {
 	delegate         *sqlite.Backend
 	sessionOpenCalls int
@@ -49,6 +49,10 @@ func (probe *migrationDefinitionLifecycleBackendProbe) BeginMigration(
 	ctx context.Context,
 ) (migrationbackend.Transaction, error) {
 	return probe.delegate.BeginMigration(ctx)
+}
+
+func (probe *migrationDefinitionLifecycleBackendProbe) MigrationCapabilities() migrationbackend.MigrationCapabilities {
+	return probe.delegate.MigrationCapabilities()
 }
 
 func (probe *migrationDefinitionLifecycleBackendProbe) OpenRevisionFencedSession(
@@ -73,11 +77,12 @@ func (probe *migrationDefinitionLifecycleSessionProbe) ReadAppliedMigrations(
 	return probe.delegate.ReadAppliedMigrations(ctx)
 }
 
-func (probe *migrationDefinitionLifecycleSessionProbe) BeginFencedMigration(
+func (probe *migrationDefinitionLifecycleSessionProbe) BeginMigration(
 	ctx context.Context,
 	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.MigrationIntent,
 ) (migrationbackend.RevisionFencedTransaction, error) {
-	transaction, err := probe.delegate.BeginFencedMigration(ctx, transition)
+	transaction, err := probe.delegate.BeginMigration(ctx, transition, intent)
 	if err == nil {
 		probe.owner.transitions = append(probe.owner.transitions, transition)
 	}
@@ -109,9 +114,9 @@ var migrationDefinitionSourceFixtures = map[string]func() migrationDefinitionSou
 			sources: migrationDefinitionCanonicalSources(),
 		}
 	},
-	"godj.migration.definition_source.incompatible_tuple": func() migrationDefinitionSourceFixture {
+	"godj.migration.definition_source.unsupported_format": func() migrationDefinitionSourceFixture {
 		document := migrationDefinitionRootDocument()
-		document["compatibility"].(map[string]any)["definition_format"] = 2
+		document["format_version"] = definition.DefinitionFormatVersion + 1
 		return migrationDefinitionSourceFixture{
 			phase: protocol.PhaseEnvironment,
 			kind:  migrationDefinitionSourceLoad,
@@ -170,7 +175,7 @@ var migrationDefinitionSourceFixtures = map[string]func() migrationDefinitionSou
 			}},
 		}
 	},
-	"django.migration.definition_source.public_lifecycle_handoff": func() migrationDefinitionSourceFixture {
+	"django.migration.definition_source.public_loaded_executor": func() migrationDefinitionSourceFixture {
 		return migrationDefinitionSourceFixture{
 			phase:   protocol.PhaseCommit,
 			kind:    migrationDefinitionSourceLifecycle,
@@ -225,7 +230,7 @@ func runMigrationDefinitionSourceFixture(
 func migrationDefinitionLoadObservation(
 	contractID string,
 	phase protocol.Phase,
-	set definition.Set,
+	set migrations.LoadedDefinitionSet,
 	report definition.LoadReport,
 	loadErr error,
 ) (protocol.Observation, error) {
@@ -334,7 +339,7 @@ func migrationDefinitionLifecycleObservation(
 		return protocol.Observation{}, fmt.Errorf("create migration definition lifecycle directory: %w", err)
 	}
 	defer func() { resultErr = errors.Join(resultErr, os.RemoveAll(directory)) }()
-	databasePath := filepath.Join(directory, "handoff.sqlite3")
+	databasePath := filepath.Join(directory, "lifecycle.sqlite3")
 	backend, err := sqlite.Open(ctx, databasePath)
 	if err != nil {
 		return protocol.Observation{}, fmt.Errorf("open migration definition lifecycle backend: %w", err)
@@ -356,13 +361,14 @@ func migrationDefinitionLifecycleObservation(
 	frozenDefinitions := set.Definitions()
 	frozenDigest := set.Digest()
 	probe := &migrationDefinitionLifecycleBackendProbe{delegate: backend}
-	returnedState, err := set.Migrate(ctx, migrations.Executor{Backend: probe}, request)
+	executor := migrations.Executor{Backend: probe}
+	returnedState, err := executor.Migrate(ctx, set, request)
 	if err != nil {
 		return protocol.Observation{}, fmt.Errorf("migrate loaded definition set: %w", err)
 	}
-	handoffCalls := probe.sessionOpenCalls
-	if handoffCalls != 1 {
-		return protocol.Observation{}, fmt.Errorf("loaded definition set backend handoff calls = %d, want one", handoffCalls)
+	sessionOpenCalls := probe.sessionOpenCalls
+	if sessionOpenCalls != 1 {
+		return protocol.Observation{}, fmt.Errorf("loaded definition set session-open calls = %d, want one", sessionOpenCalls)
 	}
 	after, err := migrationDefinitionDatabaseSnapshot(ctx, observer)
 	if err != nil {
@@ -370,7 +376,7 @@ func migrationDefinitionLifecycleObservation(
 	}
 	definitionsUnchanged := reflect.DeepEqual(frozenDefinitions, set.Definitions()) && frozenDigest == set.Digest()
 
-	result, err := migrationDefinitionSuccessResult(set, true, handoffCalls)
+	result, err := migrationDefinitionSuccessResult(set, true, sessionOpenCalls)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
@@ -383,12 +389,12 @@ func migrationDefinitionLifecycleObservation(
 		"returned_state": returnedStateValue,
 		"targets":        protocol.List(migrationDefinitionKeyValues(fixture.targets)...),
 	})
-	handoffMetrics := protocol.Object(map[string]protocol.Value{
+	lifecycleMetrics := protocol.Object(map[string]protocol.Value{
 		"definitions_unchanged": protocol.Boolean(definitionsUnchanged),
 		"digest":                protocol.String(frozenDigest),
 		"graph_node_count":      protocol.Integer(strconv.Itoa(len(definitions))),
 		"plan_step_count":       protocol.Integer(strconv.Itoa(len(probe.transitions))),
-		"route":                 protocol.String("explicit_graph_public_executor"),
+		"route":                 protocol.String("loaded_definition_executor"),
 	})
 	return protocol.Observation{
 		ID:     contractID,
@@ -399,14 +405,14 @@ func migrationDefinitionLifecycleObservation(
 			"after":  after,
 			"before": before,
 		})),
-		Metrics: valuePointer(migrationDefinitionMetrics(report, handoffCalls, &handoffMetrics)),
+		Metrics: valuePointer(migrationDefinitionMetrics(report, sessionOpenCalls, &lifecycleMetrics)),
 	}, nil
 }
 
 func migrationDefinitionSuccessResult(
-	set definition.Set,
+	set migrations.LoadedDefinitionSet,
 	attempted bool,
-	handoffCalls int,
+	sessionOpenCalls int,
 ) (map[string]protocol.Value, error) {
 	definitions, err := migrationDefinitionValues(set.Definitions())
 	if err != nil {
@@ -417,33 +423,32 @@ func migrationDefinitionSuccessResult(
 		observedDigest = protocol.String(set.Digest())
 	}
 	return map[string]protocol.Value{
-		"compatibility": migrationDefinitionCompatibilityValue(),
+		"format": migrationDefinitionFormatValue(),
 		"definition_set": protocol.Object(map[string]protocol.Value{
 			"definitions": protocol.List(definitions...),
 			"digest":      protocol.String(set.Digest()),
 		}),
-		"handoff": protocol.Object(map[string]protocol.Value{
-			"attempted":       protocol.Boolean(attempted),
-			"calls":           protocol.Integer(strconv.Itoa(handoffCalls)),
-			"observed_digest": observedDigest,
+		"execution": protocol.Object(map[string]protocol.Value{
+			"attempted":          protocol.Boolean(attempted),
+			"observed_digest":    observedDigest,
+			"session_open_calls": protocol.Integer(strconv.Itoa(sessionOpenCalls)),
 		}),
 		"sources": protocol.List(migrationDefinitionSourceValues(set.Sources())...),
 	}, nil
 }
 
-func migrationDefinitionCompatibilityValue() protocol.Value {
+func migrationDefinitionFormatValue() protocol.Value {
 	return protocol.Object(map[string]protocol.Value{
 		"definition_format": protocol.Integer(strconv.FormatInt(definition.DefinitionFormatVersion, 10)),
-		"loader_abi":        protocol.Integer(strconv.FormatInt(definition.LoaderABIVersion, 10)),
-		"operation_codec":   protocol.Integer(strconv.FormatInt(definition.OperationCodecVersion, 10)),
-		"schema_ir":         protocol.Integer(strconv.FormatInt(definition.SchemaIRVersion, 10)),
+		"schema_ir":         protocol.Integer(strconv.Itoa(ir.CurrentFormatVersion)),
+		"state_format":      protocol.Integer(strconv.Itoa(migrations.StateFormatVersion)),
 	})
 }
 
 func migrationDefinitionMetrics(
 	report definition.LoadReport,
-	handoffCalls int,
-	handoff *protocol.Value,
+	sessionOpenCalls int,
+	lifecycle *protocol.Value,
 ) protocol.Value {
 	failure := protocol.Null()
 	if context, ok := report.Failure(); ok {
@@ -454,13 +459,13 @@ func migrationDefinitionMetrics(
 		"definitions_published":       protocol.Integer(strconv.Itoa(report.DefinitionsPublished)),
 		"documents_received":          protocol.Integer(strconv.Itoa(report.DocumentsReceived)),
 		"failure":                     failure,
-		"handoff_calls":               protocol.Integer(strconv.Itoa(handoffCalls)),
+		"session_open_calls":          protocol.Integer(strconv.Itoa(sessionOpenCalls)),
 		"headers_validated":           protocol.Integer(strconv.Itoa(report.HeadersValidated)),
 		"operations_decoded":          protocol.Integer(strconv.Itoa(report.OperationsDecoded)),
 		"source_reads_after_snapshot": protocol.Integer("0"),
 	}
-	if handoff != nil {
-		fields["handoff"] = *handoff
+	if lifecycle != nil {
+		fields["lifecycle"] = *lifecycle
 	}
 	return protocol.Object(fields)
 }
@@ -803,15 +808,6 @@ func migrationDefinitionCanonicalSources() []definition.Source {
 	}
 }
 
-func migrationDefinitionCompatibilityDocument() map[string]any {
-	return map[string]any{
-		"definition_format": definition.DefinitionFormatVersion,
-		"loader_abi":        definition.LoaderABIVersion,
-		"operation_codec":   definition.OperationCodecVersion,
-		"schema_ir":         definition.SchemaIRVersion,
-	}
-}
-
 func migrationDefinitionAutoField() map[string]any {
 	return map[string]any{
 		"column":      "id",
@@ -859,7 +855,7 @@ func migrationDefinitionBooleanField(name string, goName string, defaultValue an
 
 func migrationDefinitionRootDocument() map[string]any {
 	return map[string]any{
-		"compatibility": migrationDefinitionCompatibilityDocument(),
+		"format_version": definition.DefinitionFormatVersion,
 		"migration": map[string]any{
 			"app":          "alpha",
 			"dependencies": []any{},
@@ -892,7 +888,7 @@ func migrationDefinitionRootDocument() map[string]any {
 
 func migrationDefinitionTailDocument() map[string]any {
 	return map[string]any{
-		"compatibility": migrationDefinitionCompatibilityDocument(),
+		"format_version": definition.DefinitionFormatVersion,
 		"migration": map[string]any{
 			"app": "alpha",
 			"dependencies": []any{

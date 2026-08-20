@@ -7,15 +7,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"go/format"
-	"sort"
 	"strconv"
 
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-v2"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"
 
-const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-v2"
+const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v1"
 
 type projectRelationFacadeModel struct {
 	model     *projectRelationObjectModel
@@ -24,10 +23,8 @@ type projectRelationFacadeModel struct {
 	queryType string
 }
 
-// GenerateProjectRelationFacade renders the additive application-facing
-// project facade. It deliberately consumes the already published project
-// binding, relation-object, and select-related companions instead of
-// re-rendering or replacing any of them.
+// GenerateProjectRelationFacade renders the application-facing project facade
+// over the current app model and project relation surfaces.
 func GenerateProjectRelationFacade(
 	packageName string,
 	packages []RelationObjectPackage,
@@ -86,9 +83,6 @@ func GenerateProjectRelationFacade(
 		fmt.Fprintln(&output, "\torm \"github.com/progresshans/godj/orm\"")
 	}
 	fmt.Fprintln(&output, "\tquery \"github.com/progresshans/godj/query\"")
-	if projectRelationFacadeHasPrivateWriteModels(facadeModels) {
-		fmt.Fprintln(&output, "\tir \"github.com/progresshans/godj/schema/ir\"")
-	}
 	fmt.Fprintln(&output, ")")
 	fmt.Fprintln(&output)
 	fmt.Fprintf(
@@ -100,7 +94,6 @@ func GenerateProjectRelationFacade(
 
 	renderProjectRelationFacadeFoundation(&output, len(facadeModels) > 0, projectRelationFacadeHasRelationSources(facadeModels))
 	for index := range facadeModels {
-		renderProjectRelationFacadePrivateWriteModel(&output, facadeModels[index])
 		renderProjectRelationFacadeModel(&output, facadeModels[index])
 	}
 	renderProjectRelationFacadeAggregate(&output, facadeModels)
@@ -216,20 +209,6 @@ func validateProjectRelationFacadeNamespaces(
 				return err
 			}
 		}
-		if projectRelationFacadeNeedsPrivateWriteModel(model) {
-			for _, candidate := range []struct {
-				name  string
-				owner string
-			}{
-				{name: projectRelationFacadePrivateWriteName(model), owner: "project private write model for " + identity},
-				{name: projectRelationFacadePrivateWriteDescriptorName(model), owner: "project private write descriptor for " + identity},
-				{name: projectRelationFacadePrivateWriteManagerName(model), owner: "project private write manager for " + identity},
-			} {
-				if err := add(candidate.name, candidate.owner); err != nil {
-					return err
-				}
-			}
-		}
 		if model.source == nil {
 			continue
 		}
@@ -315,15 +294,6 @@ func projectRelationFacadeInputSHA256(
 	return hex.EncodeToString(digest[:]), nil
 }
 
-func projectRelationFacadeHasPrivateWriteModels(models []projectRelationFacadeModel) bool {
-	for _, model := range models {
-		if projectRelationFacadeNeedsPrivateWriteModel(model) {
-			return true
-		}
-	}
-	return false
-}
-
 func projectRelationFacadeHasRelationSources(models []projectRelationFacadeModel) bool {
 	for _, model := range models {
 		if model.source != nil {
@@ -331,128 +301,6 @@ func projectRelationFacadeHasRelationSources(models []projectRelationFacadeModel
 		}
 	}
 	return false
-}
-
-func projectRelationFacadeNeedsPrivateWriteModel(model projectRelationFacadeModel) bool {
-	return model.model.app.schema.FormatVersion == ir.RelationFormatVersion
-}
-
-func projectRelationFacadePrivateWriteName(model projectRelationFacadeModel) string {
-	return lowerFirst(model.surface) + "WriteModel"
-}
-
-func projectRelationFacadePrivateWriteDescriptorName(model projectRelationFacadeModel) string {
-	return lowerFirst(model.surface) + "WriteDescriptor"
-}
-
-func projectRelationFacadePrivateWriteManagerName(model projectRelationFacadeModel) string {
-	return lowerFirst(model.surface) + "WriteObjects"
-}
-
-// renderProjectRelationFacadePrivateWriteModel is deliberately project-owned:
-// relation-format app models stay byte-for-byte unchanged while the facade can
-// still reuse generic Manager.Save and its presence-aware write lifecycle.
-func renderProjectRelationFacadePrivateWriteModel(output *bytes.Buffer, model projectRelationFacadeModel) {
-	if !projectRelationFacadeNeedsPrivateWriteModel(model) {
-		return
-	}
-	rawType := model.model.app.alias + "." + model.model.model.GoName
-	writeType := projectRelationFacadePrivateWriteName(model)
-	descriptorType := projectRelationFacadePrivateWriteDescriptorName(model)
-	managerName := projectRelationFacadePrivateWriteManagerName(model)
-	primary, ok := primaryKey(model.model.model)
-	if !ok {
-		// Normalization and the project-surface builders already require one
-		// canonical AutoField. Keep this renderer total for malformed callers.
-		return
-	}
-
-	fmt.Fprintf(output, "type %s struct {\n", writeType)
-	fmt.Fprintf(output, "\tmodel %s\n", rawType)
-	fmt.Fprintln(output, "\tprimaryKeyPresent bool")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "type %s struct{}\n\n", descriptorType)
-	fmt.Fprintf(output, "var _ orm.WriteDescriptor[%s] = %s{}\n\n", writeType, descriptorType)
-	fmt.Fprintf(output, "func (%s) Metadata() ir.Model {\n", descriptorType)
-	fmt.Fprintf(output, "\treturn (%s.%sDescriptor{}).Metadata()\n", model.model.app.alias, model.model.model.GoName)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) Scan(_row db.Row) (%s, error) {\n", descriptorType, writeType)
-	fmt.Fprintf(output, "\t_model, _err := (%s.%sDescriptor{}).Scan(_row)\n", model.model.app.alias, model.model.model.GoName)
-	fmt.Fprintln(output, "\tif _err != nil {")
-	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", writeType)
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\treturn %s{model: _model, primaryKeyPresent: true}, nil\n", writeType)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) CloneModel(_value %s) %s {\n", descriptorType, writeType, writeType)
-	fmt.Fprintf(output, "\t_value.model = (%s.%sDescriptor{}).CloneModel(_value.model)\n", model.model.app.alias, model.model.model.GoName)
-	fmt.Fprintln(output, "\treturn _value")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (_descriptor %s) CloneWriteModel(_value %s) %s {\n", descriptorType, writeType, writeType)
-	fmt.Fprintln(output, "\treturn _descriptor.CloneModel(_value)")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) PrimaryKey(_value %s) (query.Value, bool) {\n", descriptorType, writeType)
-	fmt.Fprintf(output, "\treturn query.Integer(_value.model.%s), _value.primaryKeyPresent\n", primary.GoName)
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) SetPrimaryKey(_value *%s, _key int64) {\n", descriptorType, writeType)
-	fmt.Fprintf(output, "\t_value.model.%s = _key\n", primary.GoName)
-	fmt.Fprintln(output, "\t_value.primaryKeyPresent = true")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) ClearPrimaryKey(_value *%s) {\n", descriptorType, writeType)
-	fmt.Fprintf(output, "\t_value.model.%s = 0\n", primary.GoName)
-	fmt.Fprintln(output, "\t_value.primaryKeyPresent = false")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "func (%s) WriteFieldValue(_value %s, _field ir.Field) (query.Value, bool) {\n", descriptorType, writeType)
-	fmt.Fprintln(output, "\tswitch _field.Name {")
-	fields := append([]ir.Field(nil), model.model.model.Fields...)
-	sort.Slice(fields, func(left, right int) bool {
-		if fields[left].Name != fields[right].Name {
-			return fields[left].Name < fields[right].Name
-		}
-		if fields[left].GoName != fields[right].GoName {
-			return fields[left].GoName < fields[right].GoName
-		}
-		return fields[left].Column < fields[right].Column
-	})
-	for _, field := range fields {
-		fmt.Fprintf(output, "\tcase %s:\n", strconv.Quote(field.Name))
-		renderProjectRelationFacadeWriteFieldValue(output, field, "_value.model."+field.GoName)
-	}
-	fmt.Fprintln(output, "\tdefault:")
-	fmt.Fprintln(output, "\t\treturn query.Value{}, false")
-	fmt.Fprintln(output, "\t}")
-	fmt.Fprintln(output, "}")
-	fmt.Fprintln(output)
-	fmt.Fprintf(output, "var %s = orm.NewManager[%s](%s{})\n\n", managerName, writeType, descriptorType)
-}
-
-func renderProjectRelationFacadeWriteFieldValue(output *bytes.Buffer, field ir.Field, expression string) {
-	if field.Nullable {
-		switch field.Kind {
-		case ir.FieldChar, ir.FieldForeignKey:
-			fmt.Fprintf(output, "\t\tif %s == nil {\n", expression)
-			fmt.Fprintln(output, "\t\t\treturn query.Null(), true")
-			fmt.Fprintln(output, "\t\t}")
-			expression = "*" + expression
-		}
-	}
-	switch field.Kind {
-	case ir.FieldAuto, ir.FieldForeignKey:
-		fmt.Fprintf(output, "\t\treturn query.Integer(%s), true\n", expression)
-	case ir.FieldChar:
-		fmt.Fprintf(output, "\t\treturn query.String(%s), true\n", expression)
-	case ir.FieldBoolean:
-		fmt.Fprintf(output, "\t\treturn query.Boolean(%s), true\n", expression)
-	default:
-		fmt.Fprintln(output, "\t\treturn query.Value{}, false")
-	}
 }
 
 func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasRelationSources bool) {
@@ -699,16 +547,9 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 
 func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelationFacadeModel) {
 	rawType := model.model.app.alias + "." + model.model.model.GoName
-	privateWrite := projectRelationFacadeNeedsPrivateWriteModel(model)
-	writeType := projectRelationFacadePrivateWriteName(model)
-	descriptorType := projectRelationFacadePrivateWriteDescriptorName(model)
 	fmt.Fprintf(output, "type %s struct {\n", model.surface)
 	fmt.Fprintln(output, "\tstate *relationFacadeState")
-	if privateWrite {
-		fmt.Fprintf(output, "\twrite %s\n", writeType)
-	} else {
-		fmt.Fprintf(output, "\tmodel %s\n", rawType)
-	}
+	fmt.Fprintf(output, "\tmodel %s\n", rawType)
 	if model.source != nil {
 		fmt.Fprintf(output, "\tobject *%s\n", model.source.objectType)
 		for _, relation := range model.source.relations {
@@ -728,19 +569,15 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tif _err := _state.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	if privateWrite {
-		fmt.Fprintf(output, "\t_write := (%s{}).CloneWriteModel(%s{model: _value, primaryKeyPresent: true})\n", descriptorType, writeType)
-		if model.source == nil {
-			fmt.Fprintf(output, "\t_result := &%s{state: _state, write: _write}\n", model.surface)
-		} else {
-			fmt.Fprintf(output, "\t_object, _err := _state.objects.%s.From(_state.backend, _write.model)\n", model.source.surface)
-			fmt.Fprintln(output, "\tif _err != nil {")
-			fmt.Fprintln(output, "\t\treturn nil, _err")
-			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\t_result := &%s{state: _state, write: _write, object: _object}\n", model.surface)
-		}
+	fmt.Fprintf(output, "\t_cloned := (%s.%sDescriptor{}).CloneWriteModel(_value)\n", model.model.app.alias, model.model.model.GoName)
+	if model.source == nil {
+		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: _cloned}\n", model.surface)
 	} else {
-		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: (%s.%sDescriptor{}).CloneModel(_value)}\n", model.surface, model.model.app.alias, model.model.model.GoName)
+		fmt.Fprintf(output, "\t_object, _err := _state.objects.%s.From(_state.backend, _cloned)\n", model.source.surface)
+		fmt.Fprintln(output, "\tif _err != nil {")
+		fmt.Fprintln(output, "\t\treturn nil, _err")
+		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: _cloned, object: _object}\n", model.surface)
 	}
 	if model.source != nil {
 		renderProjectRelationFacadeInitialCaches(output, model, "_value", false)
@@ -754,19 +591,15 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tif _err := _state.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	if privateWrite {
-		fmt.Fprintf(output, "\t_write := (%s{}).CloneWriteModel(%s{model: _value})\n", descriptorType, writeType)
-		if model.source == nil {
-			fmt.Fprintf(output, "\t_result := &%s{state: _state, write: _write}\n", model.surface)
-		} else {
-			fmt.Fprintf(output, "\t_object, _err := _state.objects.%s.From(_state.backend, _write.model)\n", model.source.surface)
-			fmt.Fprintln(output, "\tif _err != nil {")
-			fmt.Fprintln(output, "\t\treturn nil, _err")
-			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\t_result := &%s{state: _state, write: _write, object: _object}\n", model.surface)
-		}
+	fmt.Fprintf(output, "\t_cloned := (%s.%sDescriptor{}).CloneWriteModel(_value)\n", model.model.app.alias, model.model.model.GoName)
+	if model.source == nil {
+		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: _cloned}\n", model.surface)
 	} else {
-		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: (%s.%sDescriptor{}).CloneModel(_value)}\n", model.surface, model.model.app.alias, model.model.model.GoName)
+		fmt.Fprintf(output, "\t_object, _err := _state.objects.%s.From(_state.backend, _cloned)\n", model.source.surface)
+		fmt.Fprintln(output, "\tif _err != nil {")
+		fmt.Fprintln(output, "\t\treturn nil, _err")
+		fmt.Fprintln(output, "\t}")
+		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: _cloned, object: _object}\n", model.surface)
 	}
 	if model.source != nil {
 		renderProjectRelationFacadeInitialCaches(output, model, "_value", true)
@@ -788,8 +621,8 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_write := (%s{}).CloneWriteModel(%s{model: _model, primaryKeyPresent: true})\n", descriptorType, writeType)
-		fmt.Fprintf(output, "\t_result := &%s{state: _state, write: _write, object: _object}\n", model.surface)
+		fmt.Fprintf(output, "\t_cloned := (%s.%sDescriptor{}).CloneWriteModel(_model)\n", model.model.app.alias, model.model.model.GoName)
+		fmt.Fprintf(output, "\t_result := &%s{state: _state, model: _cloned, object: _object}\n", model.surface)
 		renderProjectRelationFacadeInitialCaches(output, model, "_model", false)
 		fmt.Fprintln(output, "\t_result._self = _result")
 		fmt.Fprintln(output, "\treturn _result, nil")
@@ -809,11 +642,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn 0, false, _err")
 	fmt.Fprintln(output, "\t}")
-	if privateWrite {
-		fmt.Fprintf(output, "\t_value, _present := (%s{}).PrimaryKey(_model.write)\n", descriptorType)
-	} else {
-		fmt.Fprintf(output, "\t_value, _present := (%s.%sDescriptor{}).PrimaryKey(_model.model)\n", model.model.app.alias, model.model.model.GoName)
-	}
+	fmt.Fprintf(output, "\t_value, _present := (%s.%sDescriptor{}).PrimaryKey(_model.model)\n", model.model.app.alias, model.model.model.GoName)
 	fmt.Fprintln(output, "\t_key, _ok := _value.Integer()")
 	fmt.Fprintln(output, "\tif !_ok {")
 	fmt.Fprintln(output, "\t\treturn 0, false, relationFacadeQueryInvalid(\"generated model descriptor returned a non-integer primary key\")")
@@ -850,11 +679,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 			}
 		}
 	}
-	if privateWrite {
-		fmt.Fprintf(output, "\treturn (%s.%sDescriptor{}).CloneModel(_model.write.model), nil\n", model.model.app.alias, model.model.model.GoName)
-	} else {
-		fmt.Fprintf(output, "\treturn (%s.%sDescriptor{}).CloneModel(_model.model), nil\n", model.model.app.alias, model.model.model.GoName)
-	}
+	fmt.Fprintf(output, "\treturn (%s.%sDescriptor{}).CloneModel(_model.model), nil\n", model.model.app.alias, model.model.model.GoName)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 
@@ -870,11 +695,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\t\treturn _err")
 		fmt.Fprintln(output, "\t}")
 	}
-	if privateWrite {
-		fmt.Fprintf(output, "\treturn %s.Save(_ctx, _model.state.backend, &_model.write)\n", projectRelationFacadePrivateWriteManagerName(model))
-	} else {
-		fmt.Fprintf(output, "\treturn %s.%sObjects.Save(_ctx, _model.state.backend, &_model.model)\n", model.model.app.alias, model.model.model.GoName)
-	}
+	fmt.Fprintf(output, "\treturn %s.%sObjects.Save(_ctx, _model.state.backend, &_model.model)\n", model.model.app.alias, model.model.model.GoName)
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 
@@ -988,19 +809,19 @@ func renderProjectRelationFacadeInitialCaches(output *bytes.Buffer, model projec
 }
 
 func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, model projectRelationFacadeModel) {
-	writeType := projectRelationFacadePrivateWriteName(model)
-	descriptorType := projectRelationFacadePrivateWriteDescriptorName(model)
+	rawType := model.model.app.alias + "." + model.model.model.GoName
+	descriptor := model.model.app.alias + "." + model.model.model.GoName + "Descriptor"
 
-	fmt.Fprintf(output, "func (_model *%s) relationFacadeDerived(_write %s) (*%s, error) {\n", model.surface, writeType, model.surface)
+	fmt.Fprintf(output, "func (_model *%s) relationFacadeDerived(_value %s) (*%s, error) {\n", model.surface, rawType, model.surface)
 	fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_write = (%s{}).CloneWriteModel(_write)\n", descriptorType)
-	fmt.Fprintf(output, "\t_object, _err := _model.state.objects.%s.From(_model.state.backend, _write.model)\n", model.source.surface)
+	fmt.Fprintf(output, "\t_value = (%s{}).CloneWriteModel(_value)\n", descriptor)
+	fmt.Fprintf(output, "\t_object, _err := _model.state.objects.%s.From(_model.state.backend, _value)\n", model.source.surface)
 	fmt.Fprintln(output, "\tif _err != nil {")
 	fmt.Fprintln(output, "\t\treturn nil, _err")
 	fmt.Fprintln(output, "\t}")
-	fmt.Fprintf(output, "\t_result := &%s{state: _model.state, write: _write, object: _object}\n", model.surface)
+	fmt.Fprintf(output, "\t_result := &%s{state: _model.state, model: _value, object: _object}\n", model.surface)
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
 		if !relation.field.Nullable {
@@ -1069,22 +890,22 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintf(output, "\t_%sReconcile := _%sState == relationFacadeRelationAssignedPresent && _%sPending\n", name, name, name)
 		fmt.Fprintf(output, "\t_%sInvalidate := false\n", name)
 		fmt.Fprintf(output, "\tif _%sState == relationFacadeRelationAssignedPresent && !_%sPending {\n", name, name)
-		fmt.Fprintln(output, "\t\t_"+name+"Invalidate = "+projectRelationFacadeRawKeyMismatch(relation.field, "_model.write.model."+relation.field.GoName, "_"+name+"Key"))
+		fmt.Fprintln(output, "\t\t_"+name+"Invalidate = "+projectRelationFacadeRawKeyMismatch(relation.field, "_model.model."+relation.field.GoName, "_"+name+"Key"))
 		fmt.Fprintln(output, "\t}")
 	}
-	fmt.Fprintf(output, "\t_nextWrite := (%s{}).CloneWriteModel(_model.write)\n", descriptorType)
+	fmt.Fprintf(output, "\t_nextModel := (%s{}).CloneWriteModel(_model.model)\n", descriptor)
 	fmt.Fprintln(output, "\t_rebuild := false")
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
 		fmt.Fprintf(output, "\tif _%sReconcile {\n", name)
-		renderProjectRelationFacadeAssignRawKey(output, relation.field, "_nextWrite.model."+relation.field.GoName, "_"+name+"Key", "\t\t")
+		renderProjectRelationFacadeAssignRawKey(output, relation.field, "_nextModel."+relation.field.GoName, "_"+name+"Key", "\t\t")
 		fmt.Fprintln(output, "\t\t_rebuild = true")
 		fmt.Fprintf(output, "\t} else if _%sInvalidate {\n", name)
 		fmt.Fprintln(output, "\t\t_rebuild = true")
 		fmt.Fprintln(output, "\t}")
 	}
 	fmt.Fprintln(output, "\tif _rebuild {")
-	fmt.Fprintf(output, "\t\t_nextObject, _err := _model.state.objects.%s.From(_model.state.backend, _nextWrite.model)\n", model.source.surface)
+	fmt.Fprintf(output, "\t\t_nextObject, _err := _model.state.objects.%s.From(_model.state.backend, _nextModel)\n", model.source.surface)
 	fmt.Fprintln(output, "\t\tif _err != nil {")
 	fmt.Fprintln(output, "\t\t\treturn _err")
 	fmt.Fprintln(output, "\t\t}")
@@ -1098,7 +919,7 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintf(output, "\t\t\tif _err := _next%sCache.store(relationFacadeRelationUnassigned, nil, false); _err != nil { return _err }\n", relation.selector)
 		fmt.Fprintln(output, "\t\t}")
 	}
-	fmt.Fprintln(output, "\t\t_model.write = _nextWrite")
+	fmt.Fprintln(output, "\t\t_model.model = _nextModel")
 	fmt.Fprintln(output, "\t\t_model.object = _nextObject")
 	for _, relation := range model.source.relations {
 		name := lowerFirst(relation.selector)
@@ -1129,13 +950,13 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_write := (%s{}).CloneWriteModel(_model.write)\n", descriptorType)
+		fmt.Fprintf(output, "\t_value := (%s{}).CloneWriteModel(_model.model)\n", descriptor)
 		fmt.Fprintln(output, "\tif _present {")
-		renderProjectRelationFacadeAssignRawKey(output, relation.field, "_write.model."+relation.field.GoName, "_key", "\t\t")
+		renderProjectRelationFacadeAssignRawKey(output, relation.field, "_value."+relation.field.GoName, "_key", "\t\t")
 		fmt.Fprintln(output, "\t} else {")
-		renderProjectRelationFacadeClearRawKey(output, relation.field, "_write.model."+relation.field.GoName, "\t\t")
+		renderProjectRelationFacadeClearRawKey(output, relation.field, "_value."+relation.field.GoName, "\t\t")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_write)")
+		fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_value)")
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -1155,18 +976,18 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 		fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
-		fmt.Fprintf(output, "\t_write := (%s{}).CloneWriteModel(_model.write)\n", descriptorType)
+		fmt.Fprintf(output, "\t_value := (%s{}).CloneWriteModel(_model.model)\n", descriptor)
 		fmt.Fprintf(output, "\t_, _, _pending, _err := _model.%sCache.snapshot()\n", name)
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
 		if relation.field.Nullable {
-			fmt.Fprintln(output, "\t_same := !_pending && "+projectRelationFacadeRawKeyEqualExpression(relation.field, "_write.model."+relation.field.GoName, "_key"))
+			fmt.Fprintln(output, "\t_same := !_pending && "+projectRelationFacadeRawKeyEqualExpression(relation.field, "_value."+relation.field.GoName, "_key"))
 		} else {
-			fmt.Fprintln(output, "\t_same := _model."+name+"ScalarPresent && !_pending && "+projectRelationFacadeRawKeyEqualExpression(relation.field, "_write.model."+relation.field.GoName, "_key"))
+			fmt.Fprintln(output, "\t_same := _model."+name+"ScalarPresent && !_pending && "+projectRelationFacadeRawKeyEqualExpression(relation.field, "_value."+relation.field.GoName, "_key"))
 		}
-		renderProjectRelationFacadeAssignRawKey(output, relation.field, "_write.model."+relation.field.GoName, "_key", "\t")
-		fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_write)")
+		renderProjectRelationFacadeAssignRawKey(output, relation.field, "_value."+relation.field.GoName, "_key", "\t")
+		fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_value)")
 		fmt.Fprintln(output, "\tif _err != nil {")
 		fmt.Fprintln(output, "\t\treturn nil, _err")
 		fmt.Fprintln(output, "\t}")
@@ -1187,9 +1008,9 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 			fmt.Fprintln(output, "\tif _err := _model.validate(); _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, _err")
 			fmt.Fprintln(output, "\t}")
-			fmt.Fprintf(output, "\t_write := (%s{}).CloneWriteModel(_model.write)\n", descriptorType)
-			fmt.Fprintf(output, "\t_write.model.%s = nil\n", relation.field.GoName)
-			fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_write)")
+			fmt.Fprintf(output, "\t_value := (%s{}).CloneWriteModel(_model.model)\n", descriptor)
+			fmt.Fprintf(output, "\t_value.%s = nil\n", relation.field.GoName)
+			fmt.Fprintln(output, "\t_result, _err := _model.relationFacadeDerived(_value)")
 			fmt.Fprintln(output, "\tif _err != nil {")
 			fmt.Fprintln(output, "\t\treturn nil, _err")
 			fmt.Fprintln(output, "\t}")
@@ -1205,8 +1026,8 @@ func renderProjectRelationFacadeSourceMutationHelpers(output *bytes.Buffer, mode
 
 func renderProjectRelationFacadeAssignRawKey(output *bytes.Buffer, field ir.Field, destination, key, indent string) {
 	if field.Nullable {
-		fmt.Fprintf(output, "%s_value := %s\n", indent, key)
-		fmt.Fprintf(output, "%s%s = &_value\n", indent, destination)
+		fmt.Fprintf(output, "%s_relationKeyValue := %s\n", indent, key)
+		fmt.Fprintf(output, "%s%s = &_relationKeyValue\n", indent, destination)
 		return
 	}
 	fmt.Fprintf(output, "%s%s = %s\n", indent, destination, key)

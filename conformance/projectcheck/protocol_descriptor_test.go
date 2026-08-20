@@ -214,7 +214,7 @@ func allowedLinkedPair(category, code string) bool {
 		}
 	case "migration_definition_source_error":
 		switch code {
-		case "invalid_definition_source", "invalid_definition_document", "definition_format_incompatible", "loader_abi_incompatible", "operation_codec_incompatible", "schema_ir_incompatible", "unsupported_definition_operation", "invalid_definition_operation", "invalid_definition_ir":
+		case "invalid_definition_source", "invalid_definition_document", "definition_format_incompatible", "unsupported_definition_operation", "invalid_definition_operation", "invalid_definition_ir":
 			return true
 		}
 	case "migration_graph_error":

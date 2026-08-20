@@ -4,12 +4,12 @@ package blog
 
 import "github.com/progresshans/godj/schema/ir"
 
-const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-v1"
-const GoDjRelationSchemaSHA256 = "f599489ae0ccd1d01418426a29147cdfad4c979edc217fe087a6617dbf31c944"
+const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
+const GoDjRelationSchemaSHA256 = "62dd8ea4742bd730f5627e3c68081e83a00df4e39015c141f12c4d9bc0f2fb14"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "blog",
 		Models: []ir.Model{
 			{

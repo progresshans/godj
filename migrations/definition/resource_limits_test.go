@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/progresshans/godj/migrations"
 )
 
 func TestResourceLimitBoundariesAndCombinedFaultPrecedence(t *testing.T) {
@@ -98,47 +100,47 @@ func TestResourceLimitBoundariesAndCombinedFaultPrecedence(t *testing.T) {
 	}
 }
 
-func TestCompatibilityPrecedesSemanticCapsAndUnknownContainersDoNotGuessLimits(t *testing.T) {
+func TestFormatPrecedesSemanticCapsAndUnknownContainersDoNotGuessLimits(t *testing.T) {
 	semanticOverLimit := []struct {
 		name     string
 		sourceID string
-		document func(compatibilityTupleTest) []byte
+		document func(int64) []byte
 	}{
 		{
 			name: "dependencies", sourceID: "dependencies",
-			document: func(tuple compatibilityTupleTest) []byte {
-				return resourceEnvelope(tuple, repeatedJSONArray(`{}`, MaxDependenciesPerMigration+1), []byte(`[]`))
+			document: func(formatVersion int64) []byte {
+				return resourceEnvelope(formatVersion, repeatedJSONArray(`{}`, MaxDependenciesPerMigration+1), []byte(`[]`))
 			},
 		},
 		{
 			name: "operations", sourceID: "operations",
-			document: func(tuple compatibilityTupleTest) []byte {
-				return resourceEnvelope(tuple, []byte(`[]`), repeatedJSONArray(`{}`, MaxOperationsPerMigration+1))
+			document: func(formatVersion int64) []byte {
+				return resourceEnvelope(formatVersion, []byte(`[]`), repeatedJSONArray(`{}`, MaxOperationsPerMigration+1))
 			},
 		},
 		{
 			name: "CreateModel fields", sourceID: "fields",
-			document: func(tuple compatibilityTupleTest) []byte {
-				return resourceCreateModelEnvelope(tuple, repeatedJSONArray(`{}`, MaxFieldsPerCreateModel+1))
+			document: func(formatVersion int64) []byte {
+				return resourceCreateModelEnvelope(formatVersion, repeatedJSONArray(`{}`, MaxFieldsPerCreateModel+1))
 			},
 		},
 	}
 	for _, test := range semanticOverLimit {
-		t.Run("tuple before "+test.name, func(t *testing.T) {
+		t.Run("format before "+test.name, func(t *testing.T) {
 			set, report, err := Load(Source{
 				SourceID: test.sourceID,
-				Document: test.document(compatibilityTupleTest{definitionFormat: 1, loaderABI: 1, operationCodec: 1, schemaIR: 3}),
+				Document: test.document(2),
 			})
 			definitionError := requireSourceDefinitionError(t, err)
-			if definitionError.Code != CodeSchemaIRIncompatible {
-				t.Fatalf("error code = %q, want %q", definitionError.Code, CodeSchemaIRIncompatible)
+			if definitionError.Code != CodeDefinitionFormatIncompatible {
+				t.Fatalf("error code = %q, want %q", definitionError.Code, CodeDefinitionFormatIncompatible)
 			}
 			context := definitionError.Context()
-			if context.Stage != "compatibility" || context.JSONPointer != "/compatibility/schema_ir" || context.Reason != "schema_ir" || context.Limit != "" || context.Maximum != 0 || context.Actual != 0 {
-				t.Fatalf("tuple precedence context = %+v", context)
+			if context.Stage != "format" || context.JSONPointer != "/format_version" || context.Reason != "format_version" || context.Limit != "" || context.Maximum != 0 || context.Actual != 0 {
+				t.Fatalf("format precedence context = %+v", context)
 			}
 			if report.PlannerConstruction != 0 {
-				t.Fatalf("tuple failure crossed planner boundary: %+v", report)
+				t.Fatalf("format failure crossed planner boundary: %+v", report)
 			}
 			assertAtomicLoadFailure(t, set, report)
 		})
@@ -154,17 +156,17 @@ func TestCompatibilityPrecedesSemanticCapsAndUnknownContainersDoNotGuessLimits(t
 	}{
 		{
 			name: "dependencies object", sourceID: "dependencies",
-			document: resourceEnvelope(validCompatibilityTuple(), []byte(`{}`), []byte(`[]`)),
+			document: resourceEnvelope(DefinitionFormatVersion, []byte(`{}`), []byte(`[]`)),
 			code:     CodeInvalidOperation, pointer: "/migration/dependencies", reason: "invalid_operation",
 		},
 		{
 			name: "operations object", sourceID: "operations",
-			document: resourceEnvelope(validCompatibilityTuple(), []byte(`[]`), []byte(`{}`)),
+			document: resourceEnvelope(DefinitionFormatVersion, []byte(`[]`), []byte(`{}`)),
 			code:     CodeInvalidOperation, pointer: "/migration/operations", reason: "invalid_operation",
 		},
 		{
 			name: "fields object", sourceID: "fields",
-			document: resourceCreateModelEnvelope(validCompatibilityTuple(), []byte(`{}`)),
+			document: resourceCreateModelEnvelope(DefinitionFormatVersion, []byte(`{}`)),
 			code:     CodeInvalidIR, pointer: "/migration/operations/0/model/fields", reason: "invalid_ir",
 		},
 	}
@@ -191,7 +193,7 @@ func TestCompatibilityPrecedesSemanticCapsAndUnknownContainersDoNotGuessLimits(t
 }
 
 func TestSourceErrorsUseExactCodesAndImmutableReportContext(t *testing.T) {
-	valid := resourceEnvelope(validCompatibilityTuple(), []byte(`[]`), []byte(`[]`))
+	valid := resourceEnvelope(DefinitionFormatVersion, []byte(`[]`), []byte(`[]`))
 	tests := []struct {
 		name   string
 		source Source
@@ -199,13 +201,10 @@ func TestSourceErrorsUseExactCodesAndImmutableReportContext(t *testing.T) {
 	}{
 		{name: "invalid source", source: Source{SourceID: "", Document: valid}, code: CodeInvalidSource},
 		{name: "invalid document", source: Source{SourceID: "source", Document: []byte(`{`)}, code: CodeInvalidDocument},
-		{name: "definition format", source: Source{SourceID: "source", Document: resourceEnvelope(compatibilityTupleTest{2, 1, 1, 2}, []byte(`[]`), []byte(`[]`))}, code: CodeDefinitionFormatIncompatible},
-		{name: "loader ABI", source: Source{SourceID: "source", Document: resourceEnvelope(compatibilityTupleTest{1, 2, 1, 2}, []byte(`[]`), []byte(`[]`))}, code: CodeLoaderABIIncompatible},
-		{name: "operation codec", source: Source{SourceID: "source", Document: resourceEnvelope(compatibilityTupleTest{1, 1, 2, 2}, []byte(`[]`), []byte(`[]`))}, code: CodeOperationCodecIncompatible},
-		{name: "Schema IR", source: Source{SourceID: "source", Document: resourceEnvelope(compatibilityTupleTest{1, 1, 1, 3}, []byte(`[]`), []byte(`[]`))}, code: CodeSchemaIRIncompatible},
-		{name: "unsupported operation", source: Source{SourceID: "source", Document: resourceEnvelope(validCompatibilityTuple(), []byte(`[]`), []byte(`[{"kind":"run_python"}]`))}, code: CodeUnsupportedOperation},
-		{name: "invalid operation", source: Source{SourceID: "source", Document: resourceEnvelope(validCompatibilityTuple(), []byte(`[]`), []byte(`[{}]`))}, code: CodeInvalidOperation},
-		{name: "invalid IR", source: Source{SourceID: "source", Document: resourceCreateModelEnvelope(validCompatibilityTuple(), []byte(`[{}]`))}, code: CodeInvalidIR},
+		{name: "definition format", source: Source{SourceID: "source", Document: resourceEnvelope(2, []byte(`[]`), []byte(`[]`))}, code: CodeDefinitionFormatIncompatible},
+		{name: "unsupported operation", source: Source{SourceID: "source", Document: resourceEnvelope(DefinitionFormatVersion, []byte(`[]`), []byte(`[{"kind":"run_python"}]`))}, code: CodeUnsupportedOperation},
+		{name: "invalid operation", source: Source{SourceID: "source", Document: resourceEnvelope(DefinitionFormatVersion, []byte(`[]`), []byte(`[{}]`))}, code: CodeInvalidOperation},
+		{name: "invalid IR", source: Source{SourceID: "source", Document: resourceCreateModelEnvelope(DefinitionFormatVersion, []byte(`[{}]`))}, code: CodeInvalidIR},
 	}
 
 	seen := make(map[ErrorCode]struct{}, len(tests))
@@ -247,8 +246,8 @@ func TestSourceErrorsUseExactCodesAndImmutableReportContext(t *testing.T) {
 			assertAtomicLoadFailure(t, set, report)
 		})
 	}
-	if len(seen) != 9 {
-		t.Fatalf("observed source-owned error codes = %d, want all 9", len(seen))
+	if len(seen) != len(tests) {
+		t.Fatalf("observed source-owned error codes = %d, want all %d", len(seen), len(tests))
 	}
 }
 
@@ -456,7 +455,7 @@ func TestProductMaxLengthUsesTheLiteral32BitWireBoundary(t *testing.T) {
 }
 
 func FuzzStrictScannerViaLoadNeverPanics(f *testing.F) {
-	valid := resourceEnvelope(validCompatibilityTuple(), []byte(`[]`), []byte(`[]`))
+	valid := resourceEnvelope(DefinitionFormatVersion, []byte(`[]`), []byte(`[]`))
 	duplicate := bytes.Replace(valid, []byte(`"name":"0001_initial"`), []byte(`"name":"0001_initial","name":"shadow"`), 1)
 	seeds := [][]byte{
 		nil,
@@ -511,7 +510,7 @@ type expectedLimitFailure struct {
 	operationIndex int
 }
 
-func requireResourceLimitFailure(t *testing.T, set Set, report LoadReport, err error, want expectedLimitFailure) {
+func requireResourceLimitFailure(t *testing.T, set migrations.LoadedDefinitionSet, report LoadReport, err error, want expectedLimitFailure) {
 	t.Helper()
 	definitionError := requireSourceDefinitionError(t, err)
 	if definitionError.Category != CategorySource || definitionError.Code != want.code {
@@ -557,10 +556,10 @@ func assertLimitGuardPassed(t *testing.T, report LoadReport, err error, limit st
 	}
 }
 
-func assertAtomicLoadFailure(t *testing.T, set Set, report LoadReport) {
+func assertAtomicLoadFailure(t *testing.T, set migrations.LoadedDefinitionSet, report LoadReport) {
 	t.Helper()
-	if set.Digest() != EmptySetDigest || len(set.Definitions()) != 0 || len(set.Sources()) != 0 {
-		t.Fatalf("failed Load returned non-zero Set: digest=%q definitions=%d sources=%d", set.Digest(), len(set.Definitions()), len(set.Sources()))
+	if set.Digest() != "" || len(set.Definitions()) != 0 || len(set.Sources()) != 0 {
+		t.Fatalf("failed Load returned non-zero loaded set: digest=%q definitions=%d sources=%d", set.Digest(), len(set.Definitions()), len(set.Sources()))
 	}
 	if report.PlannerConstruction != 0 && report.DefinitionsPublished == 0 {
 		// A raw graph failure is allowed to construct the planner exactly once;
@@ -655,48 +654,37 @@ func jsonDocumentWithValues(values int) []byte {
 func resourceDependencies(count int) []Source {
 	return []Source{{
 		SourceID: "dependencies",
-		Document: resourceEnvelope(validCompatibilityTuple(), repeatedJSONArray(`{}`, count), []byte(`[]`)),
+		Document: resourceEnvelope(DefinitionFormatVersion, repeatedJSONArray(`{}`, count), []byte(`[]`)),
 	}}
 }
 
 func resourceOperations(count int) []Source {
 	return []Source{{
 		SourceID: "operations",
-		Document: resourceEnvelope(validCompatibilityTuple(), []byte(`[]`), repeatedJSONArray(`{}`, count)),
+		Document: resourceEnvelope(DefinitionFormatVersion, []byte(`[]`), repeatedJSONArray(`{}`, count)),
 	}}
 }
 
 func resourceCreateModelFields(count int) []Source {
 	return []Source{{
 		SourceID: "fields",
-		Document: resourceCreateModelEnvelope(validCompatibilityTuple(), repeatedJSONArray(`{}`, count)),
+		Document: resourceCreateModelEnvelope(DefinitionFormatVersion, repeatedJSONArray(`{}`, count)),
 	}}
 }
 
-type compatibilityTupleTest struct {
-	definitionFormat int64
-	loaderABI        int64
-	operationCodec   int64
-	schemaIR         int64
-}
-
-func validCompatibilityTuple() compatibilityTupleTest {
-	return compatibilityTupleTest{definitionFormat: 1, loaderABI: 1, operationCodec: 1, schemaIR: 2}
-}
-
-func resourceEnvelope(tuple compatibilityTupleTest, dependencies, operations []byte) []byte {
+func resourceEnvelope(formatVersion int64, dependencies, operations []byte) []byte {
 	return []byte(fmt.Sprintf(
-		`{"compatibility":{"definition_format":%d,"loader_abi":%d,"operation_codec":%d,"schema_ir":%d},"producer":{"name":"resource-test","version":"1"},"migration":{"app":"alpha","name":"0001_initial","dependencies":%s,"operations":%s}}`,
-		tuple.definitionFormat, tuple.loaderABI, tuple.operationCodec, tuple.schemaIR, dependencies, operations,
+		`{"format_version":%d,"producer":{"name":"resource-test","version":"1"},"migration":{"app":"alpha","name":"0001_initial","dependencies":%s,"operations":%s}}`,
+		formatVersion, dependencies, operations,
 	))
 }
 
-func resourceCreateModelEnvelope(tuple compatibilityTupleTest, fields []byte) []byte {
+func resourceCreateModelEnvelope(formatVersion int64, fields []byte) []byte {
 	operation := []byte(fmt.Sprintf(
 		`[{"kind":"create_model","app_label":"alpha","model":{"name":"widget","go_name":"Widget","db_table":"alpha_widget","fields":%s}}]`,
 		fields,
 	))
-	return resourceEnvelope(tuple, []byte(`[]`), operation)
+	return resourceEnvelope(formatVersion, []byte(`[]`), operation)
 }
 
 func repeatedJSONArray(element string, count int) []byte {

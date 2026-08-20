@@ -31,20 +31,20 @@ type sqliteRelationRemakePlan struct {
 	operationIndex int
 	before         ir.Model
 	after          ir.Model
-	targets        []migrationbackend.RelationMigrationTarget
+	targets        []migrationbackend.MigrationTarget
 	temporary      string
 	primaryKey     ir.Field
 	sequence       sqliteRelationSequenceSnapshot
 }
 
 type sqliteRelationRemakeSealPlan struct {
-	OperationIndex int                                        `json:"operation_index"`
-	Before         ir.Model                                   `json:"before"`
-	After          ir.Model                                   `json:"after"`
-	Targets        []migrationbackend.RelationMigrationTarget `json:"targets"`
-	Temporary      string                                     `json:"temporary"`
-	PrimaryKey     ir.Field                                   `json:"primary_key"`
-	Sequence       sqliteRelationRemakeSealSequence           `json:"sequence"`
+	OperationIndex int                                `json:"operation_index"`
+	Before         ir.Model                           `json:"before"`
+	After          ir.Model                           `json:"after"`
+	Targets        []migrationbackend.MigrationTarget `json:"targets"`
+	Temporary      string                             `json:"temporary"`
+	PrimaryKey     ir.Field                           `json:"primary_key"`
+	Sequence       sqliteRelationRemakeSealSequence   `json:"sequence"`
 }
 
 type sqliteRelationRemakeSealSequence struct {
@@ -115,7 +115,7 @@ func preflightSQLiteRelationRemakes(
 
 	for position := range seal.intent.Operations {
 		operation := seal.intent.Operations[position]
-		if operation.Kind != migrationbackend.RelationMigrationRemoveField ||
+		if operation.Kind != migrationbackend.MigrationRemoveField ||
 			!sqliteRelationOperationChangesForeignKey(operation) {
 			continue
 		}
@@ -246,11 +246,11 @@ func sqliteRelationRemakeTemporary(
 }
 
 func cloneSQLiteRelationTargets(
-	targets []migrationbackend.RelationMigrationTarget,
-) []migrationbackend.RelationMigrationTarget {
-	cloned := make([]migrationbackend.RelationMigrationTarget, len(targets))
+	targets []migrationbackend.MigrationTarget,
+) []migrationbackend.MigrationTarget {
+	cloned := make([]migrationbackend.MigrationTarget, len(targets))
 	for index := range targets {
-		cloned[index] = migrationbackend.RelationMigrationTarget{
+		cloned[index] = migrationbackend.MigrationTarget{
 			SourceField: targets[index].SourceField.Clone(),
 			TargetModel: targets[index].TargetModel.Clone(),
 			TargetKey:   targets[index].TargetKey.Clone(),

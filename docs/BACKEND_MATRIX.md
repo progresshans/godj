@@ -59,6 +59,23 @@ Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
 
+## 현재 migration backend ABI
+
+GDJ-0036 working tree는 scalar와 relation lifecycle을 같은 mandatory port로 통합했습니다.
+
+- `RevisionFencedBackend`는 `MigrationCapabilities()`와 `OpenRevisionFencedSession(ctx)`을 제공합니다.
+- Session은 `BeginMigration(ctx, HistoryTransition, MigrationIntent)` 하나만 제공합니다. Scalar step도 같은
+  ordered intent를 사용하며 relation target이 없을 수 있습니다.
+- Capability는 operation 선택 전에 whole-plan을 검증하기 위한 지원 범위이고, SQLite의 FK-on, catalog,
+  physical preflight와 remake는 sealed intent를 실행하는 backend 내부 단계입니다.
+- `Executor.Migrate`만 opaque `LoadedDefinitionSet`의 complete lifecycle을 실행합니다. 별도
+  `DirectExecutor`는 raw scalar transaction 경계이며 relation input을 fail-closed합니다.
+
+이 ABI와 current-format 회귀는 로컬 working-tree gate에서 검증 중입니다. 아래 hosted run은 GDJ-0035 당시
+dual optional-port 구현의 역사적 증거이며 GDJ-0036 최종 hosted `Verified` 주장이 아닙니다.
+
+## Historical GDJ-0035 backend evidence
+
 GDJ-0035 Phase C는 relation migration에 필요한 optional backend 경계를
 [Accepted ADR-0034](adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded
 design으로 채택했습니다. Proposed docs-freeze head `5bdf013...`의 local/hosted proof는 EVID-091에 기록했고,
@@ -107,7 +124,7 @@ inbound FK/non-PK index, touched/control trigger/view, relevant generated/hidden
 namespace/temp/control collision은 pre-claim 거부하지만 unrelated harmless object는 허용합니다. Populated required
 Add/reapply, arbitrary/general remake와 general
 restart는 계속 미지원이며
-MIG-075..086은 계속 reference-only
-`oracle_locked`입니다. `BeginFencedMigration`/`BeginRelationFencedMigration`, global PRAGMA/catalog/
-physical-preflight/claim failure는 step-level `NoOperation`과 existing typed class를, SchemaEditor/final-FK
-failure는 exact operation을 소유합니다.
+GDJ-0035의 MIG-075..086 reference-only `oracle_locked` 분류는 당시 증거입니다. GDJ-0036에서는 그
+Phase-B publication을 retire했고 current product error ownership만 회귀 기준으로 유지합니다. Current
+`BeginMigration`의 global PRAGMA/catalog/physical-preflight/claim failure는 step-level `NoOperation`과 existing
+typed class를, SchemaEditor/final-FK failure는 exact operation을 소유합니다.

@@ -9,13 +9,12 @@ import (
 	db "github.com/progresshans/godj/db"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
-	ir "github.com/progresshans/godj/schema/ir"
 	reflect "reflect"
 	sync "sync"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-v2"
-const GoDjProjectRelationFacadeInputSHA256 = "d5a67c078a346bed346837a0660a9d4872f0eb0b622c7270e580cda71015bdfc"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"
+const GoDjProjectRelationFacadeInputSHA256 = "ee17296658e8da1472a55449d24d274970ccf7c1f5c682f44eb2d81c52c7a3f6"
 
 const (
 	relationFacadeRelationUnassigned uint8 = iota
@@ -223,7 +222,8 @@ func (_state *relationFacadeState) wrapAuthorsAuthor(_value authors.Author) (*Au
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
-	_result := &AuthorsAuthor{state: _state, model: (authors.AuthorDescriptor{}).CloneModel(_value)}
+	_cloned := (authors.AuthorDescriptor{}).CloneWriteModel(_value)
+	_result := &AuthorsAuthor{state: _state, model: _cloned}
 	_result._self = _result
 	return _result, nil
 }
@@ -232,7 +232,8 @@ func (_state *relationFacadeState) newAuthorsAuthor(_value authors.Author) (*Aut
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
-	_result := &AuthorsAuthor{state: _state, model: (authors.AuthorDescriptor{}).CloneModel(_value)}
+	_cloned := (authors.AuthorDescriptor{}).CloneWriteModel(_value)
+	_result := &AuthorsAuthor{state: _state, model: _cloned}
 	_result._self = _result
 	return _result, nil
 }
@@ -272,70 +273,6 @@ func (_model *AuthorsAuthor) Save(_ctx context.Context) error {
 	}
 	return authors.AuthorObjects.Save(_ctx, _model.state.backend, &_model.model)
 }
-
-type blogPostWriteModel struct {
-	model             blog.Post
-	primaryKeyPresent bool
-}
-
-type blogPostWriteDescriptor struct{}
-
-var _ orm.WriteDescriptor[blogPostWriteModel] = blogPostWriteDescriptor{}
-
-func (blogPostWriteDescriptor) Metadata() ir.Model {
-	return (blog.PostDescriptor{}).Metadata()
-}
-
-func (blogPostWriteDescriptor) Scan(_row db.Row) (blogPostWriteModel, error) {
-	_model, _err := (blog.PostDescriptor{}).Scan(_row)
-	if _err != nil {
-		return blogPostWriteModel{}, _err
-	}
-	return blogPostWriteModel{model: _model, primaryKeyPresent: true}, nil
-}
-
-func (blogPostWriteDescriptor) CloneModel(_value blogPostWriteModel) blogPostWriteModel {
-	_value.model = (blog.PostDescriptor{}).CloneModel(_value.model)
-	return _value
-}
-
-func (_descriptor blogPostWriteDescriptor) CloneWriteModel(_value blogPostWriteModel) blogPostWriteModel {
-	return _descriptor.CloneModel(_value)
-}
-
-func (blogPostWriteDescriptor) PrimaryKey(_value blogPostWriteModel) (query.Value, bool) {
-	return query.Integer(_value.model.ID), _value.primaryKeyPresent
-}
-
-func (blogPostWriteDescriptor) SetPrimaryKey(_value *blogPostWriteModel, _key int64) {
-	_value.model.ID = _key
-	_value.primaryKeyPresent = true
-}
-
-func (blogPostWriteDescriptor) ClearPrimaryKey(_value *blogPostWriteModel) {
-	_value.model.ID = 0
-	_value.primaryKeyPresent = false
-}
-
-func (blogPostWriteDescriptor) WriteFieldValue(_value blogPostWriteModel, _field ir.Field) (query.Value, bool) {
-	switch _field.Name {
-	case "author":
-		return query.Integer(_value.model.AuthorID), true
-	case "id":
-		return query.Integer(_value.model.ID), true
-	case "reviewer":
-		if _value.model.ReviewerID == nil {
-			return query.Null(), true
-		}
-		return query.Integer(*_value.model.ReviewerID), true
-	case "title":
-		return query.String(_value.model.Title), true
-	default:
-		return query.Value{}, false
-	}
-}
-
-var blogPostWriteObjects = orm.NewManager[blogPostWriteModel](blogPostWriteDescriptor{})
 
 type BlogPostQuery struct {
 	Related BlogPostRelationSelectors
@@ -421,7 +358,7 @@ func (_query BlogPostQuery) All(_ctx context.Context) ([]*BlogPost, error) {
 
 type BlogPost struct {
 	state               *relationFacadeState
-	write               blogPostWriteModel
+	model               blog.Post
 	object              *BlogPostObject
 	authorCache         *relationFacadeRelationCache[AuthorsAuthor]
 	authorScalarPresent bool
@@ -433,12 +370,12 @@ func (_state *relationFacadeState) wrapBlogPost(_value blog.Post) (*BlogPost, er
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(blogPostWriteModel{model: _value, primaryKeyPresent: true})
-	_object, _err := _state.objects.BlogPost.From(_state.backend, _write.model)
+	_cloned := (blog.PostDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.BlogPost.From(_state.backend, _cloned)
 	if _err != nil {
 		return nil, _err
 	}
-	_result := &BlogPost{state: _state, write: _write, object: _object}
+	_result := &BlogPost{state: _state, model: _cloned, object: _object}
 	_result.authorCache = newRelationFacadeRelationCache[AuthorsAuthor]()
 	_result.authorScalarPresent = true
 	_result.reviewerCache = newRelationFacadeRelationCache[AuthorsAuthor]()
@@ -453,12 +390,12 @@ func (_state *relationFacadeState) newBlogPost(_value blog.Post) (*BlogPost, err
 	if _err := _state.validate(); _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(blogPostWriteModel{model: _value})
-	_object, _err := _state.objects.BlogPost.From(_state.backend, _write.model)
+	_cloned := (blog.PostDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.BlogPost.From(_state.backend, _cloned)
 	if _err != nil {
 		return nil, _err
 	}
-	_result := &BlogPost{state: _state, write: _write, object: _object}
+	_result := &BlogPost{state: _state, model: _cloned, object: _object}
 	_result.authorCache = newRelationFacadeRelationCache[AuthorsAuthor]()
 	_result.authorScalarPresent = _value.AuthorID != 0
 	_result.reviewerCache = newRelationFacadeRelationCache[AuthorsAuthor]()
@@ -480,8 +417,8 @@ func (_state *relationFacadeState) wrapBlogPostObject(_object *BlogPostObject) (
 	if _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(blogPostWriteModel{model: _model, primaryKeyPresent: true})
-	_result := &BlogPost{state: _state, write: _write, object: _object}
+	_cloned := (blog.PostDescriptor{}).CloneWriteModel(_model)
+	_result := &BlogPost{state: _state, model: _cloned, object: _object}
 	_result.authorCache = newRelationFacadeRelationCache[AuthorsAuthor]()
 	_result.authorScalarPresent = true
 	_result.reviewerCache = newRelationFacadeRelationCache[AuthorsAuthor]()
@@ -503,7 +440,7 @@ func (_model *BlogPost) relationFacadePrimaryKey() (int64, bool, error) {
 	if _err := _model.validate(); _err != nil {
 		return 0, false, _err
 	}
-	_value, _present := (blogPostWriteDescriptor{}).PrimaryKey(_model.write)
+	_value, _present := (blog.PostDescriptor{}).PrimaryKey(_model.model)
 	_key, _ok := _value.Integer()
 	if !_ok {
 		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
@@ -532,7 +469,7 @@ func (_model *BlogPost) Unwrap() (blog.Post, error) {
 	if !_model.authorScalarPresent {
 		return blog.Post{}, relationFacadeRequiredRelated("author")
 	}
-	return (blog.PostDescriptor{}).CloneModel(_model.write.model), nil
+	return (blog.PostDescriptor{}).CloneModel(_model.model), nil
 }
 
 func (_model *BlogPost) Save(_ctx context.Context) error {
@@ -545,19 +482,19 @@ func (_model *BlogPost) Save(_ctx context.Context) error {
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	return blogPostWriteObjects.Save(_ctx, _model.state.backend, &_model.write)
+	return blog.PostObjects.Save(_ctx, _model.state.backend, &_model.model)
 }
 
-func (_model *BlogPost) relationFacadeDerived(_write blogPostWriteModel) (*BlogPost, error) {
+func (_model *BlogPost) relationFacadeDerived(_value blog.Post) (*BlogPost, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
 	}
-	_write = (blogPostWriteDescriptor{}).CloneWriteModel(_write)
-	_object, _err := _model.state.objects.BlogPost.From(_model.state.backend, _write.model)
+	_value = (blog.PostDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.BlogPost.From(_model.state.backend, _value)
 	if _err != nil {
 		return nil, _err
 	}
-	_result := &BlogPost{state: _model.state, write: _write, object: _object}
+	_result := &BlogPost{state: _model.state, model: _value, object: _object}
 	_result.authorScalarPresent = _model.authorScalarPresent
 	_result.authorCache, _err = _model.authorCache.clone()
 	if _err != nil {
@@ -617,30 +554,30 @@ func (_model *BlogPost) relationFacadePrepareSave() error {
 	_authorReconcile := _authorState == relationFacadeRelationAssignedPresent && _authorPending
 	_authorInvalidate := false
 	if _authorState == relationFacadeRelationAssignedPresent && !_authorPending {
-		_authorInvalidate = _model.write.model.AuthorID != _authorKey
+		_authorInvalidate = _model.model.AuthorID != _authorKey
 	}
 	_reviewerReconcile := _reviewerState == relationFacadeRelationAssignedPresent && _reviewerPending
 	_reviewerInvalidate := false
 	if _reviewerState == relationFacadeRelationAssignedPresent && !_reviewerPending {
-		_reviewerInvalidate = _model.write.model.ReviewerID == nil || *_model.write.model.ReviewerID != _reviewerKey
+		_reviewerInvalidate = _model.model.ReviewerID == nil || *_model.model.ReviewerID != _reviewerKey
 	}
-	_nextWrite := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_nextModel := (blog.PostDescriptor{}).CloneWriteModel(_model.model)
 	_rebuild := false
 	if _authorReconcile {
-		_nextWrite.model.AuthorID = _authorKey
+		_nextModel.AuthorID = _authorKey
 		_rebuild = true
 	} else if _authorInvalidate {
 		_rebuild = true
 	}
 	if _reviewerReconcile {
-		_value := _reviewerKey
-		_nextWrite.model.ReviewerID = &_value
+		_relationKeyValue := _reviewerKey
+		_nextModel.ReviewerID = &_relationKeyValue
 		_rebuild = true
 	} else if _reviewerInvalidate {
 		_rebuild = true
 	}
 	if _rebuild {
-		_nextObject, _err := _model.state.objects.BlogPost.From(_model.state.backend, _nextWrite.model)
+		_nextObject, _err := _model.state.objects.BlogPost.From(_model.state.backend, _nextModel)
 		if _err != nil {
 			return _err
 		}
@@ -670,7 +607,7 @@ func (_model *BlogPost) relationFacadePrepareSave() error {
 				return _err
 			}
 		}
-		_model.write = _nextWrite
+		_model.model = _nextModel
 		_model.object = _nextObject
 		_model.authorCache = _nextAuthorCache
 		if _authorReconcile {
@@ -695,13 +632,13 @@ func (_model *BlogPost) WithAuthor(_target *AuthorsAuthor) (*BlogPost, error) {
 	if _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_value := (blog.PostDescriptor{}).CloneWriteModel(_model.model)
 	if _present {
-		_write.model.AuthorID = _key
+		_value.AuthorID = _key
 	} else {
-		_write.model.AuthorID = 0
+		_value.AuthorID = 0
 	}
-	_result, _err := _model.relationFacadeDerived(_write)
+	_result, _err := _model.relationFacadeDerived(_value)
 	if _err != nil {
 		return nil, _err
 	}
@@ -716,14 +653,14 @@ func (_model *BlogPost) WithAuthorID(_key int64) (*BlogPost, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_value := (blog.PostDescriptor{}).CloneWriteModel(_model.model)
 	_, _, _pending, _err := _model.authorCache.snapshot()
 	if _err != nil {
 		return nil, _err
 	}
-	_same := _model.authorScalarPresent && !_pending && _write.model.AuthorID == _key
-	_write.model.AuthorID = _key
-	_result, _err := _model.relationFacadeDerived(_write)
+	_same := _model.authorScalarPresent && !_pending && _value.AuthorID == _key
+	_value.AuthorID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
 	if _err != nil {
 		return nil, _err
 	}
@@ -750,14 +687,14 @@ func (_model *BlogPost) WithReviewer(_target *AuthorsAuthor) (*BlogPost, error) 
 	if _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_value := (blog.PostDescriptor{}).CloneWriteModel(_model.model)
 	if _present {
-		_value := _key
-		_write.model.ReviewerID = &_value
+		_relationKeyValue := _key
+		_value.ReviewerID = &_relationKeyValue
 	} else {
-		_write.model.ReviewerID = nil
+		_value.ReviewerID = nil
 	}
-	_result, _err := _model.relationFacadeDerived(_write)
+	_result, _err := _model.relationFacadeDerived(_value)
 	if _err != nil {
 		return nil, _err
 	}
@@ -771,15 +708,15 @@ func (_model *BlogPost) WithReviewerID(_key int64) (*BlogPost, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
+	_value := (blog.PostDescriptor{}).CloneWriteModel(_model.model)
 	_, _, _pending, _err := _model.reviewerCache.snapshot()
 	if _err != nil {
 		return nil, _err
 	}
-	_same := !_pending && _write.model.ReviewerID != nil && *_write.model.ReviewerID == _key
-	_value := _key
-	_write.model.ReviewerID = &_value
-	_result, _err := _model.relationFacadeDerived(_write)
+	_same := !_pending && _value.ReviewerID != nil && *_value.ReviewerID == _key
+	_relationKeyValue := _key
+	_value.ReviewerID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
 	if _err != nil {
 		return nil, _err
 	}
@@ -795,9 +732,9 @@ func (_model *BlogPost) ClearReviewer() (*BlogPost, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, _err
 	}
-	_write := (blogPostWriteDescriptor{}).CloneWriteModel(_model.write)
-	_write.model.ReviewerID = nil
-	_result, _err := _model.relationFacadeDerived(_write)
+	_value := (blog.PostDescriptor{}).CloneWriteModel(_model.model)
+	_value.ReviewerID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
 	if _err != nil {
 		return nil, _err
 	}

@@ -65,7 +65,7 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-v2"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type Models struct {\n\tAuthorsAuthor AuthorsAuthorQuery\n\tBlogPost      BlogPostQuery\n}"),
@@ -180,7 +180,7 @@ func TestGeneratedProjectRelationFacadeBroadUniversesCompile(t *testing.T) {
 			},
 		})
 		tags := ir.Schema{
-			FormatVersion: ir.FormatVersion,
+			FormatVersion: ir.CurrentFormatVersion,
 			AppLabel:      "tags",
 			Models: []ir.Model{{
 				Name: "tag", GoName: "Tag", DBTable: "tags_tag",
@@ -521,7 +521,7 @@ func relationFacadePackages(modulePath string, authors, blog ir.Schema) []codege
 
 func relationFacadeSurfaceCollisionPackages() []codegen.RelationObjectPackage {
 	first := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "one",
 		Models: []ir.Model{{
 			Name: "bc", GoName: "BC", DBTable: "one_bc",
@@ -529,7 +529,7 @@ func relationFacadeSurfaceCollisionPackages() []codegen.RelationObjectPackage {
 		}},
 	}
 	second := ir.Schema{
-		FormatVersion: ir.FormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "two",
 		Models: []ir.Model{{
 			Name: "c", GoName: "C", DBTable: "two_c",
@@ -544,7 +544,7 @@ func relationFacadeSurfaceCollisionPackages() []codegen.RelationObjectPackage {
 
 func relationFacadeSelfSchema() ir.Schema {
 	return ir.Schema{
-		FormatVersion: ir.RelationFormatVersion,
+		FormatVersion: ir.CurrentFormatVersion,
 		AppLabel:      "nodes",
 		Models: []ir.Model{{
 			Name: "node", GoName: "Node", DBTable: "nodes_node",
@@ -600,12 +600,6 @@ replace github.com/progresshans/godj => %s
 		})
 		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_generated.go", main)
 		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation.go", metadata)
-		if candidate.Schema.FormatVersion == ir.RelationFormatVersion {
-			relationQuery := mustGeneratedCode(t, candidate.Alias+" query", func() ([]byte, error) {
-				return codegen.GenerateRelationQuery(candidate.Alias, candidate.Schema)
-			})
-			writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation_query.go", relationQuery)
-		}
 		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation_object.go", object)
 		writeGeneratedTestFile(t, directory, directoryName+"/zz_godj_relation_projection.go", projection)
 	}
@@ -918,10 +912,10 @@ func TestProjectRelationFacadeCanonicalRelationPreflightOrder(t *testing.T) {
 	}
 	authorStateAfter, authorTargetAfter, authorPendingAfter, _ := staged.authorCache.snapshot()
 	reviewerStateAfter, reviewerTargetAfter, reviewerPendingAfter, _ := staged.reviewerCache.snapshot()
-	if staged.write.model.AuthorID != 0 || staged.authorScalarPresent || staged.object != objectBefore ||
+	if staged.model.AuthorID != 0 || staged.authorScalarPresent || staged.object != objectBefore ||
 		authorStateAfter != authorStateBefore || authorTargetAfter != authorTargetBefore || authorPendingAfter != authorPendingBefore ||
 		reviewerStateAfter != reviewerStateBefore || reviewerTargetAfter != reviewerTargetBefore || reviewerPendingAfter != reviewerPendingBefore {
-		t.Fatalf("failed preflight partially published author: raw=%%d scalar=%%v", staged.write.model.AuthorID, staged.authorScalarPresent)
+		t.Fatalf("failed preflight partially published author: raw=%%d scalar=%%v", staged.model.AuthorID, staged.authorScalarPresent)
 	}
 }
 
@@ -935,7 +929,8 @@ func TestProjectRelationFacadeAllCacheTuplesPrecedeUnsavedTargets(t *testing.T) 
 
 	assertStructuralFirst := func(label string, candidate *BlogPost) {
 		t.Helper()
-		writeBefore := (blogPostWriteDescriptor{}).CloneWriteModel(candidate.write)
+		modelBefore := (blog.PostDescriptor{}).CloneWriteModel(candidate.model)
+		_, primaryBefore := (blog.PostDescriptor{}).PrimaryKey(modelBefore)
 		objectBefore := candidate.object
 		authorCacheBefore := candidate.authorCache
 		reviewerCacheBefore := candidate.reviewerCache
@@ -951,11 +946,12 @@ func TestProjectRelationFacadeAllCacheTuplesPrecedeUnsavedTargets(t *testing.T) 
 		if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || backend.io() != beforeIO {
 			t.Fatalf("%%s Save = %%v, io=%%d want structural invalid_plan/I/O %%d", label, err, backend.io(), beforeIO)
 		}
-		if candidate.write.model.ID != writeBefore.model.ID || candidate.write.model.Title != writeBefore.model.Title ||
-			candidate.write.model.AuthorID != writeBefore.model.AuthorID ||
-			(candidate.write.model.ReviewerID == nil) != (writeBefore.model.ReviewerID == nil) ||
-			(candidate.write.model.ReviewerID != nil && *candidate.write.model.ReviewerID != *writeBefore.model.ReviewerID) ||
-			candidate.write.primaryKeyPresent != writeBefore.primaryKeyPresent || candidate.authorScalarPresent != authorScalarBefore ||
+		_, primaryAfter := (blog.PostDescriptor{}).PrimaryKey(candidate.model)
+		if candidate.model.ID != modelBefore.ID || candidate.model.Title != modelBefore.Title ||
+			candidate.model.AuthorID != modelBefore.AuthorID ||
+			(candidate.model.ReviewerID == nil) != (modelBefore.ReviewerID == nil) ||
+			(candidate.model.ReviewerID != nil && *candidate.model.ReviewerID != *modelBefore.ReviewerID) ||
+			primaryAfter != primaryBefore || candidate.authorScalarPresent != authorScalarBefore ||
 			candidate.object != objectBefore || candidate.authorCache != authorCacheBefore || candidate.reviewerCache != reviewerCacheBefore ||
 			candidate.authorCache.state != authorStateBefore || candidate.authorCache.target != authorTargetBefore || candidate.authorCache.pending != authorPendingBefore ||
 			candidate.reviewerCache.state != reviewerStateBefore || candidate.reviewerCache.target != reviewerTargetBefore || candidate.reviewerCache.pending != reviewerPendingBefore {
@@ -998,7 +994,8 @@ func TestProjectRelationFacadeRebuildConstructionFailureDoesNotPublish(t *testin
 	author, _ := models.AuthorsAuthor.New(authors.Author{Name: "later key"})
 	staged, _ := source.WithAuthor(author)
 	if err := author.Save(ctx); err != nil { t.Fatal(err) }
-	writeBefore := (blogPostWriteDescriptor{}).CloneWriteModel(staged.write)
+	modelBefore := (blog.PostDescriptor{}).CloneWriteModel(staged.model)
+	_, primaryBefore := (blog.PostDescriptor{}).PrimaryKey(modelBefore)
 	objectBefore := staged.object
 	cacheBefore := staged.authorCache
 	stateBefore, targetBefore, pendingBefore, _ := cacheBefore.snapshot()
@@ -1010,8 +1007,9 @@ func TestProjectRelationFacadeRebuildConstructionFailureDoesNotPublish(t *testin
 		t.Fatalf("rebuild construction failure = %%v, io=%%d want %%d", err, backend.io(), beforeIO)
 	}
 	stateAfter, targetAfter, pendingAfter, _ := staged.authorCache.snapshot()
-	if staged.write.model.ID != writeBefore.model.ID || staged.write.model.Title != writeBefore.model.Title || staged.write.model.AuthorID != writeBefore.model.AuthorID ||
-		staged.write.primaryKeyPresent != writeBefore.primaryKeyPresent || staged.object != objectBefore || staged.authorCache != cacheBefore ||
+	_, primaryAfter := (blog.PostDescriptor{}).PrimaryKey(staged.model)
+	if staged.model.ID != modelBefore.ID || staged.model.Title != modelBefore.Title || staged.model.AuthorID != modelBefore.AuthorID ||
+		primaryAfter != primaryBefore || staged.object != objectBefore || staged.authorCache != cacheBefore ||
 		staged.authorScalarPresent != scalarBefore || stateAfter != stateBefore || targetAfter != targetBefore || pendingAfter != pendingBefore {
 		t.Fatalf("rebuild construction failure partially published source")
 	}
@@ -1026,7 +1024,7 @@ func TestProjectRelationFacadeCorruptCacheTuplesFailBeforeIO(t *testing.T) {
 	source, _ = source.WithAuthor(author)
 	assertCorrupt := func(label string, cache *relationFacadeRelationCache[AuthorsAuthor]) {
 		t.Helper()
-		candidate, _ := source.relationFacadeDerived(source.write)
+		candidate, _ := source.relationFacadeDerived(source.model)
 		candidate.authorCache = cache
 		before := backend.io()
 		if _, err := candidate.Unwrap(); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || backend.io() != before {

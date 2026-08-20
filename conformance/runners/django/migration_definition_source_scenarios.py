@@ -1,9 +1,9 @@
 """Reference observations for GoDj migration-definition source contracts.
 
-The JSON envelope, compatibility tuple, canonical digest, and failure order in
-this module are GoDj decisions from ADR-0019. Django is used only where the
-contract intentionally preserves named migrations, ordered operations,
-dependency graph construction, and the public executor lifecycle handoff.
+The current-only JSON envelope, canonical digest, and failure order in this
+module are GoDj decisions from ADR-0035. Django is used only where the contract
+intentionally preserves named migrations, ordered operations, dependency graph
+construction, and the public executor lifecycle.
 
 Every source is supplied by the caller as immutable bytes. This module never
 interprets a source ID as a path and never performs migration module discovery.
@@ -42,27 +42,12 @@ configure_django()
 
 NodeKey = tuple[str, str]
 
-_COMPATIBILITY = {
-    "definition_format": 1,
-    "loader_abi": 1,
-    "operation_codec": 1,
-    "schema_ir": 2,
-}
-_COMPATIBILITY_ORDER = (
-    "definition_format",
-    "loader_abi",
-    "operation_codec",
-    "schema_ir",
-)
-_COMPATIBILITY_CODES = {
-    "definition_format": "definition_format_incompatible",
-    "loader_abi": "loader_abi_incompatible",
-    "operation_codec": "operation_codec_incompatible",
-    "schema_ir": "schema_ir_incompatible",
-}
+_FORMAT_VERSION = 1
+_SCHEMA_IR_VERSION = 1
+_STATE_FORMAT_VERSION = 1
 _DIGEST_DOMAIN = "godj:migration-definition-set:v1"
 _EMPTY_DIGEST = (
-    "sha256:53f20df43573a361318abbff8c9e6bebad203a7f13f86c1f55c2df2cf4a43450"
+    "sha256:1412c48d7da2299b6f2be7a614c5bb9ce510027328f6baed72ae05cbecc9b494"
 )
 _SOURCE_ERROR_CATEGORY = "migration_definition_source_error"
 _GRAPH_ERROR_CATEGORY = "migration_graph_error"
@@ -172,8 +157,8 @@ def _source_error(
     if stage is None:
         if code == "invalid_definition_source":
             stage = "source"
-        elif code.endswith("_incompatible"):
-            stage = "compatibility"
+        elif code == "definition_format_incompatible":
+            stage = "format"
         elif code in {
             "unsupported_definition_operation",
             "invalid_definition_operation",
@@ -184,10 +169,7 @@ def _source_error(
             stage = "document"
     if reason is None:
         reason = {
-            "definition_format_incompatible": "definition_format",
-            "loader_abi_incompatible": "loader_abi",
-            "operation_codec_incompatible": "operation_codec",
-            "schema_ir_incompatible": "schema_ir",
+            "definition_format_incompatible": "format_version",
             "unsupported_definition_operation": "unsupported_operation",
             "invalid_definition_operation": "invalid_operation",
             "invalid_definition_ir": "invalid_ir",
@@ -281,7 +263,7 @@ def _base_metrics(documents_received: int) -> dict[str, Any]:
         "definition_sets_published": 0,
         "definitions_published": 0,
         "documents_received": documents_received,
-        "handoff_calls": 0,
+        "session_open_calls": 0,
         "headers_validated": 0,
         "operations_decoded": 0,
         "source_reads_after_snapshot": 0,
@@ -700,46 +682,34 @@ def _parse_outer(source: _SourceSnapshot) -> _ParsedDocument:
     value, errors = _plain_json(parsed, "$", source.source_id)
     root = _collect_object_shape_errors(
         value,
-        frozenset({"compatibility", "migration", "producer"}),
+        frozenset({"format_version", "migration", "producer"}),
         source_id=source.source_id,
         path="$",
         errors=errors,
     )
     if root is not None:
-        compatibility = None
-        if "compatibility" in root:
-            compatibility = _collect_object_shape_errors(
-                root["compatibility"],
-                frozenset(_COMPATIBILITY_ORDER),
-                source_id=source.source_id,
-                path="$.compatibility",
-                errors=errors,
-            )
-        if compatibility is not None:
-            for coordinate in _COMPATIBILITY_ORDER:
-                if coordinate not in compatibility:
-                    continue
-                coordinate_value = compatibility[coordinate]
-                if isinstance(coordinate_value, bool) or not isinstance(
-                    coordinate_value, int
-                ):
-                    errors.append(
-                        _source_error(
-                            "invalid_definition_document",
-                            source_id=source.source_id,
-                            json_path=f"$.compatibility.{coordinate}",
-                            reason="wrong_type",
-                        )
+        if "format_version" in root:
+            format_version = root["format_version"]
+            if isinstance(format_version, bool) or not isinstance(
+                format_version, int
+            ):
+                errors.append(
+                    _source_error(
+                        "invalid_definition_document",
+                        source_id=source.source_id,
+                        json_path="$.format_version",
+                        reason="wrong_type",
                     )
-                elif not _INT64_MIN <= coordinate_value <= _INT64_MAX:
-                    errors.append(
-                        _source_error(
-                            "invalid_definition_document",
-                            source_id=source.source_id,
-                            json_path=f"$.compatibility.{coordinate}",
-                            reason="out_of_range",
-                        )
+                )
+            elif not _INT64_MIN <= format_version <= _INT64_MAX:
+                errors.append(
+                    _source_error(
+                        "invalid_definition_document",
+                        source_id=source.source_id,
+                        json_path="$.format_version",
+                        reason="out_of_range",
                     )
+                )
 
         if "migration" in root:
             _collect_object_shape_errors(
@@ -782,18 +752,15 @@ def _parse_outer(source: _SourceSnapshot) -> _ParsedDocument:
     return _ParsedDocument(source=source, value=root)
 
 
-def _check_compatibility(documents: Sequence[_ParsedDocument]) -> None:
-    for coordinate in _COMPATIBILITY_ORDER:
-        expected = _COMPATIBILITY[coordinate]
-        for document in documents:
-            actual = document.value["compatibility"][coordinate]
-            if actual != expected:
-                raise _source_error(
-                    _COMPATIBILITY_CODES[coordinate],
-                    source_id=document.source.source_id,
-                    json_path=f"$.compatibility.{coordinate}",
-                    reason=coordinate,
-                )
+def _check_format(documents: Sequence[_ParsedDocument]) -> None:
+    for document in documents:
+        if document.value["format_version"] != _FORMAT_VERSION:
+            raise _source_error(
+                "definition_format_incompatible",
+                source_id=document.source.source_id,
+                json_path="$.format_version",
+                reason="format_version",
+            )
 
 
 def _is_exported_go_identifier(value: str) -> bool:
@@ -1424,7 +1391,7 @@ def _collect_model_candidates(
     ):
         wrapper = {
             "app_label": app,
-            "format_version": 2,
+            "format_version": _SCHEMA_IR_VERSION,
             "models": [deepcopy(model)],
         }
         if _normalize_model_wrapper(app, model) != wrapper:
@@ -1846,7 +1813,7 @@ def _normalize_model_wrapper(
 
     normalized = {
         "app_label": app_label,
-        "format_version": 2,
+        "format_version": _SCHEMA_IR_VERSION,
         "models": [deepcopy(model)],
     }
     normalized_model = normalized["models"][0]
@@ -1896,7 +1863,7 @@ def _normalize_add_field_wrapper(
     }
     wrapper = {
         "app_label": app_label,
-        "format_version": 2,
+        "format_version": _SCHEMA_IR_VERSION,
         "models": [sentinel],
     }
     normalized = _normalize_model_wrapper(app_label, sentinel)
@@ -2233,7 +2200,7 @@ def _decode_model(
     decoded["fields"] = decoded_fields
     wrapper = {
         "app_label": app,
-        "format_version": 2,
+        "format_version": _SCHEMA_IR_VERSION,
         "models": [deepcopy(decoded)],
     }
     if _normalize_model_wrapper(app, decoded) != wrapper:
@@ -2638,10 +2605,16 @@ def _canonical_json(value: Any) -> bytes:
 
 
 def _definition_digest(definitions: Sequence[dict[str, Any]]) -> str:
+    canonical_definitions = deepcopy(list(definitions))
+    canonical_definitions.sort(key=lambda item: (item["app"], item["name"]))
+    for definition in canonical_definitions:
+        definition["dependencies"].sort(
+            key=lambda item: (item["app"], item["name"])
+        )
     digest_document = {
-        "compatibility": deepcopy(_COMPATIBILITY),
-        "definitions": list(definitions),
+        "definitions": canonical_definitions,
         "domain": _DIGEST_DOMAIN,
+        "format_version": _FORMAT_VERSION,
     }
     return "sha256:" + hashlib.sha256(_canonical_json(digest_document)).hexdigest()
 
@@ -2659,7 +2632,7 @@ def _load(
         for source in snapshots:
             parsed.append(_parse_outer(source))
             metrics["headers_validated"] += 1
-        _check_compatibility(parsed)
+        _check_format(parsed)
         decoded = [_decode_document(document, metrics) for document in parsed]
         ordered = _validate_graph(decoded)
         definitions = tuple(deepcopy(item.value) for item in ordered)
@@ -2696,18 +2669,22 @@ def _success_result(
     loaded: _LoadedDefinitionSet,
     *,
     attempted: bool = False,
-    calls: int = 0,
+    session_open_calls: int = 0,
 ) -> dict[str, Any]:
     return {
-        "compatibility": deepcopy(_COMPATIBILITY),
+        "format": {
+            "definition_format": _FORMAT_VERSION,
+            "schema_ir": _SCHEMA_IR_VERSION,
+            "state_format": _STATE_FORMAT_VERSION,
+        },
         "definition_set": {
             "definitions": deepcopy(list(loaded.definitions)),
             "digest": loaded.digest,
         },
-        "handoff": {
+        "execution": {
             "attempted": attempted,
-            "calls": calls,
             "observed_digest": loaded.digest if attempted else None,
+            "session_open_calls": session_open_calls,
         },
         "sources": deepcopy(list(loaded.sources)),
     }
@@ -2815,7 +2792,7 @@ def _boolean_field(
 
 def _root_document() -> dict[str, Any]:
     return {
-        "compatibility": deepcopy(_COMPATIBILITY),
+        "format_version": _FORMAT_VERSION,
         "migration": {
             "app": "alpha",
             "dependencies": [],
@@ -2847,7 +2824,7 @@ def _root_document() -> dict[str, Any]:
 
 def _tail_document() -> dict[str, Any]:
     return {
-        "compatibility": deepcopy(_COMPATIBILITY),
+        "format_version": _FORMAT_VERSION,
         "migration": {
             "app": "alpha",
             "dependencies": [{"app": "alpha", "name": "0001_initial"}],
@@ -2977,9 +2954,9 @@ def canonical_syntax_and_order(contract_id: str) -> dict[str, Any]:
     )
 
 
-def incompatible_tuple(contract_id: str) -> dict[str, Any]:
+def unsupported_format(contract_id: str) -> dict[str, Any]:
     format_mismatch = _root_document()
-    format_mismatch["compatibility"]["definition_format"] = 2
+    format_mismatch["format_version"] = _FORMAT_VERSION + 1
     return _failure_observation(
         contract_id,
         "environment",
@@ -3129,7 +3106,7 @@ def _isolated_database() -> Iterator[Any]:
         raise AssertionError("definition-source database alias already exists")
     with tempfile.TemporaryDirectory(prefix="godj-definition-source-") as directory:
         configuration = dict(connections.databases["default"])
-        configuration["NAME"] = str(Path(directory) / "handoff.sqlite3")
+        configuration["NAME"] = str(Path(directory) / "lifecycle.sqlite3")
         connections.databases[_DATABASE_ALIAS] = configuration
         database_connection = connections[_DATABASE_ALIAS]
         try:
@@ -3198,7 +3175,7 @@ def _project_state_value(state: ProjectState) -> dict[str, Any]:
     }
 
 
-def public_lifecycle_handoff(contract_id: str) -> dict[str, Any]:
+def public_loaded_executor(contract_id: str) -> dict[str, Any]:
     loaded, metrics = _load(_fixture_sources())
     frozen_digest = loaded.digest
     frozen_definitions = deepcopy(list(loaded.definitions))
@@ -3210,16 +3187,16 @@ def public_lifecycle_handoff(contract_id: str) -> dict[str, Any]:
         executor.loader.check_consistent_history(database_connection)
         targets = list(executor.loader.graph.leaf_nodes())
         plan = executor.migration_plan(targets)
-        metrics["handoff_calls"] += 1
+        metrics["session_open_calls"] += 1
         state = executor.migrate(targets, plan=plan)
         after = _database_snapshot(database_connection)
 
-    if metrics["handoff_calls"] != 1:
-        raise AssertionError("loaded definition set was not handed off exactly once")
+    if metrics["session_open_calls"] != 1:
+        raise AssertionError("loaded definition set did not open one lifecycle session")
     if loaded.digest != frozen_digest or list(loaded.definitions) != frozen_definitions:
-        raise AssertionError("handoff mutated the loaded definition snapshot")
+        raise AssertionError("lifecycle execution mutated the loaded snapshot")
 
-    result = _success_result(loaded, attempted=True, calls=1)
+    result = _success_result(loaded, attempted=True, session_open_calls=1)
     result["lifecycle"] = {
         "plan": [
             {
@@ -3232,12 +3209,12 @@ def public_lifecycle_handoff(contract_id: str) -> dict[str, Any]:
         "returned_state": _project_state_value(state),
         "targets": [{"app": app, "name": name} for app, name in targets],
     }
-    metrics["handoff"] = {
+    metrics["lifecycle"] = {
         "definitions_unchanged": True,
         "digest": frozen_digest,
         "graph_node_count": len(executor.loader.graph.nodes),
         "plan_step_count": len(plan),
-        "route": "explicit_graph_public_executor",
+        "route": "loaded_definition_executor",
     }
     return _success_observation(
         contract_id,
@@ -3254,13 +3231,13 @@ SCENARIOS = {
     (
         "godj.migration.definition_source.canonical_syntax_and_order"
     ): canonical_syntax_and_order,
-    "godj.migration.definition_source.incompatible_tuple": incompatible_tuple,
+    "godj.migration.definition_source.unsupported_format": unsupported_format,
     (
         "godj.migration.definition_source.malformed_atomic_batch"
     ): malformed_atomic_batch,
     "godj.migration.definition_source.duplicate_identity": duplicate_identity,
     "godj.migration.definition_source.closed_codec": closed_codec,
     (
-        "django.migration.definition_source.public_lifecycle_handoff"
-    ): public_lifecycle_handoff,
+        "django.migration.definition_source.public_loaded_executor"
+    ): public_loaded_executor,
 }

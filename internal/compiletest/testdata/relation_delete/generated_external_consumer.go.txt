@@ -19,7 +19,6 @@ var generatedRelationDeletePrerequisites = [...]string{
 	authors.GoDjRelationProjectionGeneratorVersion,
 	blog.GoDjGeneratorVersion,
 	blog.GoDjRelationMetadataGeneratorVersion,
-	blog.GoDjRelationQueryGeneratorVersion,
 	blog.GoDjRelationObjectGeneratorVersion,
 	blog.GoDjRelationProjectionGeneratorVersion,
 	project.GoDjProjectBindingGeneratorVersion,
@@ -38,8 +37,8 @@ var (
 var boundRelationDeleters project.RelationDeleters
 
 func init() {
-	if len(generatedRelationDeletePrerequisites) != 13 {
-		panic("generated relation-delete prerequisite inventory is not exact 13")
+	if len(generatedRelationDeletePrerequisites) != 12 {
+		panic("generated relation-delete prerequisite inventory is not exact 12")
 	}
 	aggregateType := reflect.TypeOf((*project.RelationDeleters)(nil)).Elem()
 	deleterType := reflect.TypeOf((*orm.RelationDeleter[authors.Author])(nil)).Elem()
