@@ -43,16 +43,27 @@ main `4243ab11...`은 authoritative evidence가 아닙니다. Checkout을 바꾸
 | `docs/topics/db/transactions.txt` | `4733a95bf823e22fc9b9027bfdaffec8498c782b` | 28,481 | 190–194 rollback does not restore memory |
 
 Assignment/FK/cache와 rollback memory non-rewind는 Django observation입니다. Fresh Go source wrapper, exact local target
-pointer, corrected canonical three-phase validation, per-edge COW cache와 project-private descriptor는 Accepted ADR-0033의
+pointer, corrected canonical three-phase validation, per-edge COW cache와 project-private descriptor는 ADR-0033 당시의
 Go-specific decision입니다. 이 translation은 exact implementation head `be6f3d4e...`의 EVID-076/run `31586910749`에서
-Implemented/Verified됐습니다. GoDj는 Django source를 포팅하지 않고 result, side effect, error timing과 transaction
-meaning만 independent Go tests로 번역합니다.
+Implemented/Verified됐습니다. Accepted ADR-0035 current reset은 observable assignment/cache 의미를 유지하면서
+facade-private write descriptor 중복을 제거하고 app main generator의 current descriptor/write metadata를 직접 사용합니다.
+그 current ABI는 EVID-100의 exact local implementation evidence만 가지며 아직 hosted `Verified`가 아닙니다. GoDj는
+Django source를 포팅하지 않고 result, side effect, error timing과 transaction meaning만 independent Go tests로 번역합니다.
 
-Phase A에서 다시 고정한 GoDj relation artifacts는 manifest 10,776 bytes/SHA-256
+GDJ-0033 Phase A에서 다시 고정했던 historical GoDj relation artifacts는 manifest 10,776 bytes/SHA-256
 `3dd02b5a0ba3512dac1697a5ba84261fe589ee49ee69ee77243fd5f1c64e8f46`, pinned Django oracle 33,792
 bytes/SHA-256 `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static not-implemented fixture
 1,859 bytes/SHA-256 `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`입니다. Phase A/B/C
 decision은 이 bytes를 수정하지 않았습니다.
+
+현재 relation reference artifact는 manifest 10,770 bytes/SHA-256
+`791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b`, 같은 pinned Django oracle 33,792
+bytes/SHA-256 `6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static fixture 1,859
+bytes/SHA-256 `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`입니다. 이 relation triple을
+처음 추가한 12-line `SHA256SUMS` prefix는 1,148 bytes/SHA-256
+`067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`이고, 현재 shared 13-line catalog는
+1,245 bytes/SHA-256 `76578c225edfa6af4bf2d119f93fdcdf633cfee8ebb5a9092aa5157e5f218be1`입니다.
+REL-001..012는 current product에서 모두 `passing`이지만, 이 current reset 자체의 hosted 검증은 아직 남았습니다.
 
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며
@@ -102,7 +113,7 @@ required job은 digest-pinned service image, health check, UTC timezone과 C loc
 durable restart/persistence contract를 모두 실행해야 합니다. Expected contract 수와 executed 수가
 같고 `skipped=0`, `continue-on-error` 없음, final clean worktree도 함께 요구합니다.
 
-GDJ-0023 relation reference는 exact Django 6.1 commit
+GDJ-0023 당시 relation reference는 exact Django 6.1 commit
 `fe0a859f537d4238cf49fca39073513206f83122`와 기존
 `django-6.1-sqlite-darwin-arm64` profile을 사용합니다. Scenario와 fixture는 upstream
 표현을 복사하지 않은 독립 작성이고 manifest 12개 provenance는 모두
@@ -113,8 +124,9 @@ bytes/`6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290`, static
 11-line/1,061-byte `SHA256SUMS` prefix는 byte-for-byte 보존하고 `relation-oracle.json`을
 12번째 줄로 append해 1,148 bytes/
 `067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`로 만들었습니다.
-Relation manifest는 `oracle_locked`, static fixture는 ordered 12 `not_implemented`이며
-GoDj product relation adapter나 PostgreSQL/MySQL 지원을 주장하지 않습니다.
+당시 Relation manifest는 `oracle_locked`, static fixture는 ordered 12 `not_implemented`였고
+GoDj product relation adapter나 PostgreSQL/MySQL 지원을 주장하지 않았습니다. 이는 위에 별도로 기록한 current
+REL-001..012 `passing` 상태를 소급해 부정하지 않는 historical baseline입니다.
 
 ## Python과 환경 도구
 
@@ -281,5 +293,7 @@ CI #94 run `32288383027`과 D4f final head `9d5b894...`의
 [EVID-099](status/TEST_EVIDENCE.md#evid-20260820-099--gdj-0035-d4f-bounded-foreignkey-remove-by-table-remake-local-and-hosted-verification) /
 CI #95 run `32294983953`도 reference source를 rewrite하지 않습니다. Bounded Remove/remake 역시 GoDj-owned
 independent implementation이고 exact capability는 `{true,true,true,true}`입니다. General/arbitrary remake,
-general restart와 actual adapter는 미지원입니다. D4g observer characterization은 oracle-blind하게 시작하고
-그 결과에 대한 source/deviation/status 결정 전에는 MIG-075..086을 계속 `oracle_locked`로 유지합니다.
+general restart와 actual adapter는 미지원입니다. D4g observer-only characterization은 reset 전에
+`b80f06a...`에서 실행됐지만 publication/status sequence는 GDJ-0036에서 retire됐습니다. 현재 same-ID diagnostic
+corpus와 그 Go capture는 oracle semantic comparison이나 adapter 등록 증거가 아니므로 MIG-075..086은 계속
+`oracle_locked`/unregistered입니다.

@@ -203,7 +203,7 @@ GDJ-0036은 cancellation과 transaction 안전성을 유지하면서 compatibili
 - Commit success/definite rollback/unknown outcome, sticky no-retry와 session close/poison 의미는 reset 대상이
   아닙니다.
 
-이 working-tree 경계는 로컬 gate 기준이며 최종 frozen head의 hosted 검증 전에는 hosted `Verified`로
+이 current implementation 경계는 exact local gate를 통과했지만 최종 frozen head의 hosted 검증 전에는 hosted `Verified`로
 확대하지 않습니다.
 
 ## Historical GDJ-0035 SQLite lifecycle concurrency boundary

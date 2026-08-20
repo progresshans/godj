@@ -101,7 +101,7 @@ func TestProjectStateAndOperationWrappersUseOneCurrentRelationFormat(t *testing.
 
 	before, err := NewProjectState(articleSchema())
 	if err != nil {
-		t.Fatalf("NewProjectState(v2) error = %v", err)
+		t.Fatalf("NewProjectState(current scalar) error = %v", err)
 	}
 	add := AddField{AppLabel: "news", ModelName: "article", Field: relationMigrationField()}
 	afterAdd, err := add.stateForward(before)

@@ -457,7 +457,7 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
   checked-in MIG-075..086 manifest/oracle은 ADR-0035 current-only 진단 reference이며 reference aggregate에
   포함되지만 계속 `oracle_locked`/unregistered라 product publication/status 입력은 아닙니다.
 
-이 reset은 working tree에서 구현·검증 중이며 아직 최종 hosted `Verified` 또는 public release compatibility
+이 reset은 exact local implementation commit에서 구현되어 local gate를 통과했지만 아직 최종 hosted `Verified` 또는 public release compatibility
 정책을 뜻하지 않습니다.
 
 ### Historical GDJ-0035 design and evidence snapshot

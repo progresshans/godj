@@ -151,26 +151,26 @@ func TestGenerateRelationProjectionRejectsInvalidInputsAndOwnNamespace(t *testin
 	}
 }
 
-func TestGenerateRelationProjectionSnapshotsInputPreservesOldBytesAndLastGood(t *testing.T) {
+func TestGenerateRelationProjectionSnapshotsInputPreservesPrerequisiteBytesAndLastGood(t *testing.T) {
 	t.Parallel()
 
 	authors, blog := relationQueryGenerationSchemas()
-	oldAuthorsMainBefore := mustGeneratedCode(t, "authors main before", func() ([]byte, error) {
+	authorsMainBefore := mustGeneratedCode(t, "authors main before", func() ([]byte, error) {
 		return codegen.Generate("authors", authors)
 	})
-	oldAuthorsMetadataBefore := mustGeneratedCode(t, "authors metadata before", func() ([]byte, error) {
+	authorsMetadataBefore := mustGeneratedCode(t, "authors metadata before", func() ([]byte, error) {
 		return codegen.GenerateRelationMetadata("authors", authors)
 	})
-	oldAuthorsObjectBefore := mustGeneratedCode(t, "authors object before", func() ([]byte, error) {
+	authorsObjectBefore := mustGeneratedCode(t, "authors object before", func() ([]byte, error) {
 		return codegen.GenerateRelationObject("authors", authors)
 	})
-	oldBlogMainBefore := mustGeneratedCode(t, "blog main before", func() ([]byte, error) {
+	blogMainBefore := mustGeneratedCode(t, "blog main before", func() ([]byte, error) {
 		return codegen.Generate("blog", blog)
 	})
-	oldBlogMetadataBefore := mustGeneratedCode(t, "blog metadata before", func() ([]byte, error) {
+	blogMetadataBefore := mustGeneratedCode(t, "blog metadata before", func() ([]byte, error) {
 		return codegen.GenerateRelationMetadata("blog", blog)
 	})
-	oldBlogObjectBefore := mustGeneratedCode(t, "blog object before", func() ([]byte, error) {
+	blogObjectBefore := mustGeneratedCode(t, "blog object before", func() ([]byte, error) {
 		return codegen.GenerateRelationObject("blog", blog)
 	})
 
@@ -183,26 +183,26 @@ func TestGenerateRelationProjectionSnapshotsInputPreservesOldBytesAndLastGood(t 
 		t.Fatal("post-generation input mutation changed relation projection bytes")
 	}
 	_, freshBlog := relationQueryGenerationSchemas()
-	oldAuthorsMainAfter := mustGeneratedCode(t, "authors main after", func() ([]byte, error) {
+	authorsMainAfter := mustGeneratedCode(t, "authors main after", func() ([]byte, error) {
 		return codegen.Generate("authors", authors)
 	})
-	oldAuthorsMetadataAfter := mustGeneratedCode(t, "authors metadata after", func() ([]byte, error) {
+	authorsMetadataAfter := mustGeneratedCode(t, "authors metadata after", func() ([]byte, error) {
 		return codegen.GenerateRelationMetadata("authors", authors)
 	})
-	oldAuthorsObjectAfter := mustGeneratedCode(t, "authors object after", func() ([]byte, error) {
+	authorsObjectAfter := mustGeneratedCode(t, "authors object after", func() ([]byte, error) {
 		return codegen.GenerateRelationObject("authors", authors)
 	})
-	oldBlogMainAfter := mustGeneratedCode(t, "blog main after", func() ([]byte, error) {
+	blogMainAfter := mustGeneratedCode(t, "blog main after", func() ([]byte, error) {
 		return codegen.Generate("blog", freshBlog)
 	})
-	oldBlogMetadataAfter := mustGeneratedCode(t, "blog metadata after", func() ([]byte, error) {
+	blogMetadataAfter := mustGeneratedCode(t, "blog metadata after", func() ([]byte, error) {
 		return codegen.GenerateRelationMetadata("blog", freshBlog)
 	})
-	oldBlogObjectAfter := mustGeneratedCode(t, "blog object after", func() ([]byte, error) {
+	blogObjectAfter := mustGeneratedCode(t, "blog object after", func() ([]byte, error) {
 		return codegen.GenerateRelationObject("blog", freshBlog)
 	})
-	before := [][]byte{oldAuthorsMainBefore, oldAuthorsMetadataBefore, oldAuthorsObjectBefore, oldBlogMainBefore, oldBlogMetadataBefore, oldBlogObjectBefore}
-	after := [][]byte{oldAuthorsMainAfter, oldAuthorsMetadataAfter, oldAuthorsObjectAfter, oldBlogMainAfter, oldBlogMetadataAfter, oldBlogObjectAfter}
+	before := [][]byte{authorsMainBefore, authorsMetadataBefore, authorsObjectBefore, blogMainBefore, blogMetadataBefore, blogObjectBefore}
+	after := [][]byte{authorsMainAfter, authorsMetadataAfter, authorsObjectAfter, blogMainAfter, blogMetadataAfter, blogObjectAfter}
 	for index := range before {
 		if !bytes.Equal(before[index], after[index]) {
 			t.Fatalf("relation projection generation changed current prerequisite byte stream %d", index)

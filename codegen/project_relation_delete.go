@@ -18,10 +18,9 @@ const ProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-project-v
 const projectRelationDeletePolicyVersion = "godj-relation-delete-policy-v1"
 
 type projectRelationDeleteModel struct {
-	app           normalizedRelationObjectPackage
-	identity      ir.ModelIdentity
-	model         ir.Model
-	formatVersion int
+	app      normalizedRelationObjectPackage
+	identity ir.ModelIdentity
+	model    ir.Model
 }
 
 type projectRelationDeleteEdge struct {
@@ -142,10 +141,9 @@ func buildProjectRelationDeleteSurface(
 		for _, model := range app.schema.Models {
 			identity := ir.ModelIdentity{AppLabel: app.schema.AppLabel, ModelName: model.Name}
 			candidate := &projectRelationDeleteModel{
-				app:           app,
-				identity:      identity,
-				model:         model.Clone(),
-				formatVersion: app.schema.FormatVersion,
+				app:      app,
+				identity: identity,
+				model:    model.Clone(),
 			}
 			models = append(models, candidate)
 			byIdentity[identity] = candidate

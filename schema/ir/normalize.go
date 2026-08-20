@@ -68,14 +68,14 @@ func Normalize(input Schema) (Schema, error) {
 		if duplicate(tables, model.DBTable) {
 			return Schema{}, validation(modelPath+".db_table", "duplicate", model.DBTable)
 		}
-		if err := normalizeModel(model, modelPath, schema.FormatVersion); err != nil {
+		if err := normalizeModel(model, modelPath); err != nil {
 			return Schema{}, err
 		}
 	}
 	return schema, nil
 }
 
-func normalizeModel(model *Model, path string, formatVersion int) error {
+func normalizeModel(model *Model, path string) error {
 	hasAuto := false
 	for _, field := range model.Fields {
 		if field.Kind == FieldAuto {
@@ -131,7 +131,7 @@ func normalizeModel(model *Model, path string, formatVersion int) error {
 		if field.PrimaryKey {
 			primaryKeys++
 		}
-		if err := validateField(*field, fieldPath, formatVersion); err != nil {
+		if err := validateField(*field, fieldPath); err != nil {
 			return err
 		}
 	}
@@ -141,7 +141,7 @@ func normalizeModel(model *Model, path string, formatVersion int) error {
 	return nil
 }
 
-func validateField(field Field, path string, _ int) error {
+func validateField(field Field, path string) error {
 	if field.Kind != FieldForeignKey && field.Relation != nil {
 		return validation(path+".relation", "unsupported", "relation arm requires ForeignKey field kind")
 	}

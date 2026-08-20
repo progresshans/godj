@@ -61,7 +61,7 @@ Backend별 verified 상태는 기능 contract와
 
 ## 현재 migration backend ABI
 
-GDJ-0036 working tree는 scalar와 relation lifecycle을 같은 mandatory port로 통합했습니다.
+GDJ-0036 current local implementation은 scalar와 relation lifecycle을 같은 mandatory port로 통합했습니다.
 
 - `RevisionFencedBackend`는 `MigrationCapabilities()`와 `OpenRevisionFencedSession(ctx)`을 제공합니다.
 - Session은 `BeginMigration(ctx, HistoryTransition, MigrationIntent)` 하나만 제공합니다. Scalar step도 같은
@@ -71,7 +71,7 @@ GDJ-0036 working tree는 scalar와 relation lifecycle을 같은 mandatory port�
 - `Executor.Migrate`만 opaque `LoadedDefinitionSet`의 complete lifecycle을 실행합니다. 별도
   `DirectExecutor`는 raw scalar transaction 경계이며 relation input을 fail-closed합니다.
 
-이 ABI와 current-format 회귀는 로컬 working-tree gate에서 검증 중입니다. 아래 hosted run은 GDJ-0035 당시
+이 ABI와 current-format 회귀는 exact local implementation commit의 gate를 통과했습니다. 아래 hosted run은 GDJ-0035 당시
 dual optional-port 구현의 역사적 증거이며 GDJ-0036 최종 hosted `Verified` 주장이 아닙니다.
 
 ## Historical GDJ-0035 backend evidence

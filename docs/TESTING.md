@@ -413,8 +413,9 @@ current-only format으로 재기준화했습니다.
   comparison 8/8·10/10, oracle/NI `contractcheck`, ordered 8·10 false-green mismatch와
   `go test -count=1 ./conformance/...`를 current bytes에서 통과했습니다.
 
-이 검증은 현재 working tree의 local evidence입니다. 최종 frozen head의 hosted matrix와
-`docs/status/TEST_EVIDENCE.md` 반영 전에는 hosted `Verified`로 확대하지 않습니다.
+이 검증은 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+기록된 exact local implementation evidence입니다. 최종 frozen head의 hosted matrix 전에는 hosted `Verified`로
+확대하지 않습니다.
 
 아래 GDJ-0019~0022 단락은 기존 tuple/API/artifact의 당시 evidence를 보존합니다.
 

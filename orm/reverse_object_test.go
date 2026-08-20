@@ -13,8 +13,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// The existing v2-style owner descriptor gains the presence-aware sealed
-// capability that generated scalar descriptors already expose.
+// The current owner descriptor implements the presence-aware sealed capability
+// that generated scalar descriptors expose.
 func (relationObjectTestAuthorDescriptor) PrimaryKey(value relationObjectTestAuthor) (query.Value, bool) {
 	return query.Integer(value.ID), value.ID != 0
 }

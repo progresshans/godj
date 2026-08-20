@@ -536,22 +536,22 @@ func TestBindRelationDeleterValidatesDescriptorBindingAndFingerprint(t *testing.
 	); err != nil {
 		t.Fatalf("BindRelationDeleter(valid) error = %v", err)
 	}
-	authorsV3, blogV3 := relationDeleteTestSchemas()
-	authorsV3.FormatVersion = ir.CurrentFormatVersion
-	v3Binding, err := BindProject(authorsV3, blogV3)
+	currentAuthors, currentBlog := relationDeleteTestSchemas()
+	currentAuthors.FormatVersion = ir.CurrentFormatVersion
+	currentBinding, err := BindProject(currentAuthors, currentBlog)
 	if err != nil {
-		t.Fatalf("BindProject(v3 scalar target) error = %v", err)
+		t.Fatalf("BindProject(current scalar target) error = %v", err)
 	}
-	if got := relationDeleteTestActualFingerprint(t, v3Binding); got != relationDeleteTestFingerprint {
-		t.Fatalf("direct v3 scalar target fingerprint = %q", got)
+	if got := relationDeleteTestActualFingerprint(t, currentBinding); got != relationDeleteTestFingerprint {
+		t.Fatalf("direct current scalar target fingerprint = %q", got)
 	}
 	if _, err := BindRelationDeleter[relationDeleteTestAuthor](
-		v3Binding,
+		currentBinding,
 		target,
 		relationDeleteTestAuthorDescriptor{},
 		relationDeleteTestFingerprint,
 	); err != nil {
-		t.Fatalf("direct BindRelationDeleter(v3 scalar target) error = %v", err)
+		t.Fatalf("direct BindRelationDeleter(current scalar target) error = %v", err)
 	}
 
 	var typedNil *relationDeleteTestAuthorDescriptor

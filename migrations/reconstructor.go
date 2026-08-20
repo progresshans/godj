@@ -532,16 +532,6 @@ func newLoadedStateReconstructor(
 	return reconstructor, nil
 }
 
-func plannerGraphsEqual(left, right *plannerGraph) bool {
-	if left == nil {
-		left = emptyPlannerGraph()
-	}
-	if right == nil {
-		right = emptyPlannerGraph()
-	}
-	return reflect.DeepEqual(left.nodes, right.nodes) && reflect.DeepEqual(left.parents, right.parents)
-}
-
 func cloneLoadedReconstructorDefinitions(graph *plannerGraph, definitions []Migration) (map[MigrationKey]Migration, error) {
 	byKey := make(map[MigrationKey]Migration, len(definitions))
 	for index := range definitions {

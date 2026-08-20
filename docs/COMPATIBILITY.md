@@ -29,7 +29,7 @@ Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publi
   current-only 진단 reference로 다시 생성됐고 reference aggregate에는 포함되지만, 계속
   `oracle_locked`/unregistered라 제품 지원 또는 status 전환 주장은 아닙니다.
 
-현재 reset working tree의 로컬 검증은 완료 단계에 있지만, 최종 frozen head의 hosted gate 전에는 이 절을
+현재 reset exact local implementation commit의 검증은 완료됐지만, 최종 frozen head의 hosted gate 전에는 이 절을
 새 release compatibility 또는 hosted `Verified` 주장으로 읽지 않습니다.
 
 ## 프로필 범위

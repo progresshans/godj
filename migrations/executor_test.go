@@ -272,8 +272,8 @@ func TestEmbeddedRelationWrapperTraversalIsCycleSafeAndBounded(t *testing.T) {
 	for index := 0; index < 80; index++ {
 		deepScalar = interfaceEmbeddedOperation{Operation: deepScalar}
 	}
-	assertRawWrapperScalarLegacy(t, deepScalar)
-	assertRawWrapperScalarLegacy(t, wideScalarEmbeddedOperation{CreateModel: CreateModel{AppLabel: "blog", Model: scalarModel}})
+	assertRawWrapperScalarPath(t, deepScalar)
+	assertRawWrapperScalarPath(t, wideScalarEmbeddedOperation{CreateModel: CreateModel{AppLabel: "blog", Model: scalarModel}})
 
 	var typedNil *interfaceEmbeddedOperation
 	_, err := (DirectExecutor{}).Apply(context.Background(), EmptyProjectState(), Migration{
@@ -282,7 +282,7 @@ func TestEmbeddedRelationWrapperTraversalIsCycleSafeAndBounded(t *testing.T) {
 	assertMigrationError(t, err, CategoryState, CodeInvalidState, 0, "")
 }
 
-func assertRawWrapperScalarLegacy(t *testing.T, operation Operation) {
+func assertRawWrapperScalarPath(t *testing.T, operation Operation) {
 	t.Helper()
 	_, err := (DirectExecutor{}).Apply(context.Background(), EmptyProjectState(), Migration{
 		App: "blog", Name: "0001_wrapped_scalar", Operations: []Operation{operation},
@@ -640,7 +640,7 @@ func TestExecutorBeginClassifiesBackendCapabilityAndRevisionFenceFailures(t *tes
 	}{
 		{
 			name:     "capability",
-			cause:    backend.NewCapabilityError("legacy_migration_writer", "revision metadata is active", nil),
+			cause:    backend.NewCapabilityError("migration_writer", "revision metadata is active", nil),
 			category: CategoryCapability,
 			code:     CodeUnsupported,
 		},

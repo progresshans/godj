@@ -147,18 +147,20 @@ posts, err := PostObjects.Using(backend).
 
 `All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
 
-### 관계를 포함한 project facade — bounded production first-publication implemented
+### 관계를 포함한 project facade — current generated ABI local implementation
 
 관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
 relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
-[ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)은 이 목표 중 forward read-only
-compile shape만 physical-byte-preserving test-only overlay로 검증해 그 feasibility 방법에 한해 Accepted했습니다.
-[GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)는 existing generated
-exact 13을 보존하면서 project-only companion 한 파일을 실제 first-publish했고,
-[ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)는 아래 Gate 0 surface와 bounded
-forward facade architecture에 한해 Accepted입니다. Activation EVID-068과 implementation EVID-069는 서로 다른
-exact head를 증명합니다. 아래 이름은 이 bounded facade에서 canonical이지만 general generated upgrade나 전체 ORM
-surface의 영구 naming policy까지 결정하지 않습니다.
+[ADR-0031](adr/0031-relation-aware-project-facade-and-generated-upgrade-boundary.md)의 physical-byte-preserving
+test-only overlay, [GDJ-0032](../work/0032-production-forward-project-facade-and-additive-first-publication.md)와
+[ADR-0032](adr/0032-production-forward-project-facade-and-additive-first-publication.md)의 additive first-publication은
+historical feasibility/product evidence입니다. 두 ADR의 byte-preservation/publication topology는 현재
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에 의해 Superseded됐습니다.
+Current app main generator는 scalar/FK model, descriptor와 write metadata를 함께 만들고 project generator는 cross-app
+binding/query/facade를 소유합니다. Facade-private write model과 app-local relation-query output은 없습니다. 이 current
+ABI는 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)의
+exact local implementation evidence를 통과했지만 final hosted `Verified`는 아닙니다. 아래 이름은 bounded Gate 0
+surface에서 유지되지만 general generated upgrade나 전체 ORM surface의 영구 naming policy까지 결정하지 않습니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
@@ -234,8 +236,9 @@ Gate 0는 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` root
 `BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`을 이 bounded facade의 exact 이름으로 고정했습니다.
 Common Author/Reviewer selector와 선택된 eager evaluation state는 Filter/OrderBy/Limit 전후에도 유지되고,
 복사·반복한 같은 eager query는 한 evaluation을 공유하지만 derived chain은 독립입니다. Source relation cache는
-source wrapper-scoped입니다. Wrapper JSON/custom method, FK mutation/cache invalidation, reverse manager, stable target
-pointer identity/downstream cache와 general generated upgrade는 계속 후속입니다.
+source wrapper-scoped입니다. Bounded forward FK mutation/cache invalidation은 아래 GDJ-0033 경계에 구현됐고,
+Wrapper JSON/custom method, reverse manager, stable target pointer identity/downstream cache와 general generated upgrade는
+계속 후속입니다.
 
 Django가 주는 장기 목표는 scalar field, user-defined model method와 relation accessor가 한 logical model처럼 보이는
 경험입니다. Go에서는 lazy I/O의 `context.Context`/`error`를 숨기지 않되, Gate 0의 canonical `Unwrap`을 전체 model
@@ -290,11 +293,13 @@ Nullable relation은 `WithReviewer`, `WithReviewerID`와 `ClearReviewer`를 사�
 - Session-origin wrapper는 callback 내부만 지원하고 callback 이후 behavior는 warm cache를 포함해 noncontractual입니다.
 
 Manually key-present but unpersisted target은 key `0`을 포함해 preflight를 통과하고 database FK constraint가 존재
-여부를 판단합니다. App-level generated model을 바꾸지 않고 project-private write model/descriptor와 generic Manager
-Save를 재사용합니다. Numeric ID로 savedness를 추론하지 않으며 required scalar presence, cache와 pending을 각각
-추적합니다. Current bounded product는 exact `122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다.
-Q-013은 broader relation/backend 때문에 `Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade
-때문에 P1/open이며 relation-capable migration과 non-SQLite backend는 별도 packet입니다.
+여부를 판단합니다. Current ABI는 app main generator의 write descriptor/PK-presence를 generic Manager Save와 직접
+재사용하며 facade-private write model을 중복 생성하지 않습니다. Numeric ID로 savedness를 추론하지 않고 required
+scalar presence, cache와 pending을 각각 추적합니다. Current bounded product는 exact
+`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12입니다. Q-013은 broader relation/backend 때문에
+`Partial`, Q-017은 raw-model UX/capability/namespace/reverse/general upgrade 때문에 P1/open입니다. Bounded
+relation-capable SQLite migration lifecycle은 GDJ-0036 current local implementation에 통합됐지만 non-SQLite와 general
+migration surface는 계속 별도 후속입니다.
 
 Completed GDJ-0034 뒤 typed generated `SelectRelated(...).All(ctx)`는 stale/mismatched generated 조합의 path
 resolve 또는 required/nullable bind failure를 generic invalid-plan으로 축약하지 않습니다. Nil/typed-nil 또는 이미
@@ -343,6 +348,8 @@ Go generic method는 새 result type parameter를 선언할 수 없으므로 `Qu
 
 ## 8. Migration
 
+장기 사용자 명령 목표는 다음과 같습니다. 두 명령은 아직 public product command가 아닙니다.
+
 ```bash
 godj makemigrations
 godj migrate
@@ -350,10 +357,33 @@ godj migrate
 
 사용자는 schema 변경에서 migration plan을 만들고 forward/backward를 실행합니다. data migration은 현재 generated `Post`가 아니라 해당 migration 시점의 historical model/state API를 사용해야 합니다.
 
-Migration file format과 Go callback ABI는 Q-012 결정 전에는 확정하지 않습니다.
+현재 persisted Migration Definition은 strict data-only `format_version=1` 하나를 사용합니다. Scalar와 ForeignKey가
+같은 current Schema IR/ProjectState를 사용하며 unknown format, unsupported/custom/data operation은 fail-closed합니다.
+Executable Go callback ABI와 public writer/autodetector는 아직 정하지 않았습니다.
 
-현재 제품 API는 caller가 I/O를 끝낸 explicit definition source를 bounded
-`migrations/definition.Load`에 넘기는 loader와, completed GDJ-0022의 exact project-linked check 단면입니다.
+Library lifecycle의 current shape는 다음과 같습니다.
+
+```go
+loaded, _, err := definition.Load(sources...)
+if err != nil {
+    return err
+}
+
+state, err := (migrations.Executor{Backend: backend}).Migrate(
+    ctx,
+    loaded,
+    migrations.LatestLifecycleRequest(),
+)
+```
+
+`LoadedDefinitionSet`은 loader-owned opaque snapshot이고 complete lifecycle authority입니다. `Executor.Migrate`는
+mandatory backend capabilities와 하나의 sealed `BeginMigration` entry를 사용합니다. Raw scalar atomic primitive는
+별도 `DirectExecutor`가 소유하며 raw relation execution은 I/O 전에 거부합니다. 이 경계와 bounded SQLite
+ForeignKey Create/Add/Remove/restart 회귀는 EVID-100의 exact local implementation에서 통과했지만 MIG-075..086은
+계속 `oracle_locked`/unregistered이고 final hosted reset gate가 남았습니다.
+
+Global CLI의 현재 제품 범위는 caller가 I/O를 끝낸 explicit definition source를 bounded
+`migrations/definition.Load`에 넘기는 loader와 completed GDJ-0022의 exact project-linked check 단면뿐입니다.
 지원하는 global argv는 다음 둘뿐입니다.
 
 ```bash

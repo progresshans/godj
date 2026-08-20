@@ -9,6 +9,7 @@
   [ADR-0024](0024-autofield-foreign-key-schema-ir-vnext-and-project-binding.md),
   [ADR-0026](0026-forward-foreign-key-object-cache-and-nullability.md),
   [ADR-0032](0032-production-forward-project-facade-and-additive-first-publication.md)
+- 후속 재기준화: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md)
 - 대체하는 ADR: 없음
 
 ## 상태와 범위
@@ -18,6 +19,11 @@ EVID-076의 명시된 hosted 환경에서 **Verified**됐습니다. Pinned Djang
 forward ForeignKey assignment/save 관찰 의미를 먼저 호환 의무로 고정하고, 그 의미를 Go value, explicit error,
 project wrapper와 generated code로 옮기는 정확한 ownership/API 경계를 결정·구현합니다. `Verified`는 verification
 상태이며 ADR enum을 대체하지 않습니다.
+
+ADR-0035는 이 ADR의 Django-observed assignment/save 의미, public `New`/`Save`/`With*`/clear API와 cache ownership을
+유지합니다. 다만 아래 GDJ-0033 당시의 exact-13 byte 보존, facade-private write descriptor와 single-companion
+publication topology는 Superseded했습니다. 해당 물리 publication 설명은 historical implementation evidence이지 현재
+generated ABI 정본이 아닙니다.
 
 결정, local implementation과 hosted verification의 근거는 서로 재사용하지 않는 다음 증거입니다.
 
@@ -40,9 +46,9 @@ EVID-076 append와 completion/status transition은 exact completion head `81f4aa
 `31590911735`에서 별도 검증됐습니다. EVID-077 append와 terminal evidence/status transition은 completion run이
 재귀적으로 증명하지 않으므로 다시 별도 exact-head CI가 필요합니다.
 
-ADR-0032가 Accepted한 bounded Gate 0의 `Backend=db.Queryer+db.Mutator`, `Using`, all-model wrappers, read/eager
-surface와 one-companion publication은 재개방하지 않습니다. Callback 뒤 session-origin wrapper 동작도 계속
-noncontractual입니다.
+ADR-0032가 당시 Accepted한 bounded Gate 0의 `Backend=db.Queryer+db.Mutator`, `Using`, all-model wrappers와
+read/eager behavior는 유지합니다. One-companion publication topology는 ADR-0035가 Superseded했습니다. Callback 뒤
+session-origin wrapper 동작은 계속 noncontractual입니다.
 
 ## Django가 정한 호환 의미
 
@@ -175,11 +181,12 @@ Fresh source derivation은 cache/evaluation/flight/mutex를 original과 공유�
 이 규칙은 selected Author를 바꾸어도 already-warm Reviewer를 유지하면서, original wrapper의 후속 cache publication이
 derived wrapper로 새는 일을 막습니다.
 
-### Write implementation boundary
+### Historical GDJ-0033 write publication boundary (superseded by ADR-0035)
 
-`blog.Post`에 PK-presence field를 넣거나 existing app-generated exact 13을 다시 쓰지 않습니다. Project companion
-내부에 private write model/descriptor와 `orm.Manager[private]`를 생성합니다. App descriptor의 metadata/scan/clone을
-재사용하고, FK는 `query.Integer`/`query.Null` write value로 local render합니다.
+GDJ-0033 implementation head에서는 `blog.Post`에 PK-presence field를 넣거나 existing app-generated exact 13을 다시
+쓰지 않았습니다. Project companion 내부에 private write model/descriptor와 `orm.Manager[private]`를 생성했습니다.
+App descriptor의 metadata/scan/clone을 재사용했고, FK는 `query.Integer`/`query.Null` write value로 local
+render했습니다.
 
 Generic core 변경은 다음 두 seam에 한정합니다.
 
@@ -188,7 +195,8 @@ Generic core 변경은 다음 두 seam에 한정합니다.
 
 SQLite compiler, schema/IR, migrations, DB session, existing app generated files는 수정하지 않습니다. Candidate facade,
 golden, collision, last-good, external consumer와 product runtime을 함께 검증한 뒤 existing project companion 한 파일만
-deterministically replace합니다.
+deterministically replace했습니다. Current ADR-0035 ABI에서는 app main generator가 model/descriptor/write metadata를
+직접 생성하고 project facade가 이를 사용하며, facade-private write model은 없습니다.
 
 ## Session, concurrency와 rollback
 
@@ -200,7 +208,7 @@ deterministically replace합니다.
   않습니다. Caller가 transaction outcome을 확인하고 reload/re-derive합니다.
 - Unknown transaction outcome의 retained connection policy는 Q-019/ADR-0030 후속 범위입니다.
 
-## Publication과 호환 경계
+## Historical GDJ-0033 publication과 호환 경계 (superseded topology)
 
 - Existing app-generated exact 13은 byte-for-byte 보존합니다.
 - Current project facade companion 하나의 deterministic replacement만 허용합니다.
@@ -210,11 +218,15 @@ deterministically replace합니다.
 - Q-017 project-generation manifest/component ABI는 coordinated multi-file upgrade/general `--check` 전에 별도
   결정합니다. Single-companion REL-002 publication의 선행 조건은 아닙니다.
 
+첫 두 bullet의 exact-13/single-companion physical rule은 ADR-0035가 Superseded했습니다. REL-002 status/oracle과
+assignment/cache behavior는 유지하며, current per-file deterministic generation과 아직 열린 project-wide
+manifest/coordinated publication 경계는 ADR-0035와 Q-017이 소유합니다.
+
 ## 거부한 대안
 
 - Numeric ID의 0/비0으로 savedness 추론
 - DB existence를 preflight query로 확인
-- Existing app model/generated exact 13에 write-state 추가
+- Historical physical choice: existing app model/generated exact 13에 write-state 추가 (ADR-0035가 Superseded)
 - Original과 derived wrapper가 low-level evaluation/cache state를 공유
 - 모든 relation cache를 fresh/cold로 재구성
 - Key-present assignment 뒤 target PK 변경을 자동 추종
@@ -230,8 +242,8 @@ deterministically replace합니다.
 - Accepted Gate 0의 `Unwrap`-only 장기 UX, read/write capability 분리와 facade namespace는 후속 Q-017 compile
   prototype 대상입니다. 이 ADR은 그 문제를 해결했다고 주장하지 않습니다.
 - Low-level typed `select_related`가 Resolve/Bind original cause를 zero query로 잃는 P2는 독립 remediation입니다.
-- Relation-capable migration tuple/ProjectState/codec/SQLite FK DDL/apply-unapply/restart는 별도 contract-first vertical
-  packet입니다.
+- Current relation-capable migration lifecycle은 ADR-0035/GDJ-0036이 별도로 소유하며 MIG-075..086은 아직
+  `oracle_locked`/unregistered입니다. 이 ADR의 REL-002 proof는 migration contract status를 올리지 않습니다.
 
 ## 증거와 재귀 경계
 

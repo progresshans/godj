@@ -154,7 +154,7 @@ func TestPureByteGeneratorsDoNotWriteCommittedSentinelsOnValidationFailure(t *te
 	}
 }
 
-func TestGeneratedMixedV2V3ProjectCompilesBindsAndReturnsFreshSchemas(t *testing.T) {
+func TestGeneratedCurrentRelationProjectCompilesBindsAndReturnsFreshSchemas(t *testing.T) {
 	authors, blog := relationGenerationSchemas()
 	validateGeneratedRelationProject(t, authors, blog, 2, 2)
 }
