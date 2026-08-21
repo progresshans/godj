@@ -1,6 +1,6 @@
 # GoDj Compatibility Lab
 
-## GDJ-0036 current lab boundary
+## GDJ-0036/0037 current lab boundary
 
 GoDj는 아직 첫 외부 alpha 전이므로 개발 중 migration/generated ABI를 영구 legacy로 지원하지 않습니다.
 [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)과
@@ -21,15 +21,17 @@ GoDj는 아직 첫 외부 alpha 전이므로 개발 중 migration/generated ABI�
   기존 1,574/1,729 bytes를 유지합니다.
 - Current codegen main ABI는 relation model descriptor/write metadata를 직접 생성합니다. App-local
   relation-query generated file과 facade-private write model은 없고 cross-app query/binding/facade는
-  project-owned입니다. Relation generated roster는 단계별 exact `8 / 9 / 11 / 12 / 13`입니다.
+  project-owned입니다. GDJ-0036 당시 단계별 roster `8 / 9 / 11 / 12 / 13`은 현재 GDJ-0037 whole-project
+  adoption에서 Article exact 12, relationdelete exact 16 source와 별도 canonical manifest로 수렴했습니다.
 - GDJ-0035 Phase-B의 legacy tuple/profile/promotion publication sequence는 retire했습니다. MIG-075..086의
   checked-in manifest/oracle은 ADR-0035 current-only 진단 reference로 재기준화했으며 계속
   `oracle_locked`/unregistered입니다. 이전 artifact bytes는 Git history와 EVID에만 남고, current reference
   aggregate에는 이 locked set을 포함하지만 product aggregate에는 포함하지 않습니다.
 
-Current bytes에서 exact uv 0.10.12 oracle `--check`, focused Python 38 tests(1 exact-profile skip), GoDj
-oracle compare 8/8·10/10, contract/false-green gates와 `go test -count=1 ./conformance/...`를 통과했습니다.
-최종 frozen head의 hosted matrix 전에는 이 local 결과를 hosted `Verified`로 확대하지 않습니다.
+GDJ-0036 corrected exact head는 EVID-103 hosted matrix를 통과했습니다. 현재 GDJ-0037 working tree의 generation
+bundle/manifest, Article 12/relationdelete 16 adoption과 relation behavior는 affected 및 final
+full/386/source-clean-copy local gates를 통과했지만 exact-head hosted 검증 전에는 GDJ-0037을 `Verified`로 확대하지
+않습니다.
 
 ## Historical progression
 

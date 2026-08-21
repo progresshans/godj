@@ -276,13 +276,23 @@ func TestCommittedDescriptorCloneModelIsolatesNullablePointers(t *testing.T) {
 func TestGeneratedArticleMatchesCommittedGolden(t *testing.T) {
 	t.Parallel()
 
-	irSchema, err := modeldef.Schema()
+	spec, err := modeldef.ProjectSpec(context.Background())
 	if err != nil {
-		t.Fatalf("Schema() error = %v", err)
+		t.Fatalf("ProjectSpec() error = %v", err)
 	}
-	want, err := codegen.Generate("models", irSchema)
+	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
+		t.Fatalf("GenerateProject() error = %v", err)
+	}
+	var want []byte
+	for _, file := range bundle.Files() {
+		if file.Path == "models/zz_godj_generated.go" {
+			want = file.Source()
+			break
+		}
+	}
+	if len(want) == 0 {
+		t.Fatal("GenerateProject() omitted models/zz_godj_generated.go")
 	}
 	_, currentFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -295,7 +305,7 @@ func TestGeneratedArticleMatchesCommittedGolden(t *testing.T) {
 		t.Fatalf("read committed generated source: %v", err)
 	}
 	if !bytes.Equal(got, want) {
-		t.Fatal("committed generated Article differs from codegen output; run go run ./internal/cmd/m1generate")
+		t.Fatal("committed generated Article differs from codegen output; run go run ./cmd/godj generate --project examples/article/godj.toml")
 	}
 }
 

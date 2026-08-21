@@ -10,7 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestDescriptorByteCapActualGlobalTriplet(t *testing.T) {
@@ -110,6 +113,43 @@ func TestRunnerResponseCapActualGlobalProcessTriplet(t *testing.T) {
 			}
 			if got := backend.last.StdoutScalar.RetainedBytes; got != min(size, protocol.MaxResponseBytes) || backend.last.StdoutScalar.Truncated != (size > protocol.MaxResponseBytes) {
 				t.Fatalf("response %d scalar = %+v", size, backend.last.StdoutScalar)
+			}
+		})
+	}
+}
+
+func TestGenerationRunnerResponseCapExactMaxAndMaxPlusOne(t *testing.T) {
+	for _, size := range []int{projectgenerateprotocol.MaxResponseBytes, projectgenerateprotocol.MaxResponseBytes + 1} {
+		t.Run(strconv.Itoa(size), func(t *testing.T) {
+			fixture := newGlobalFixture(t, 0)
+			wire, err := projectgenerateprotocol.EncodeResponse(projectgenerateprotocol.Response{OK: true, ProjectSpec: codegen.ProjectSpec{
+				Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/site/project", Directory: "project"},
+				Apps: []codegen.AppSpec{{
+					Alias: "articles", Package: codegen.PackageSpec{PackageName: "articles", ImportPath: "example.com/site/articles", Directory: "articles"},
+					Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "articles"},
+				}},
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			backend := &actualStageBackend{
+				stage: GenerationRunnerStage,
+				mode:  "generation-wire",
+				extra: map[string]string{
+					"GODJ_HELPER_WIRE":         string(wire),
+					"GODJ_HELPER_STDOUT_BYTES": strconv.Itoa(size),
+				},
+			}
+			var stdout, stderr bytes.Buffer
+			report := RunGenerate(GenerationInvocation{
+				Context: context.Background(), CWD: fixture.project, Args: []string{"generate", "--check"}, Environment: fixture.environment,
+				Stdout: &stdout, Stderr: &stderr, Backend: backend,
+			})
+			if report.ExitCode != 3 || report.GenerationFailure != (GenerationFailure{Category: GenerationCategoryProtocol, Code: projectgenerateprotocol.CodeInvalidResponse}) || report.BuildCalls != 1 || report.RunnerCalls != 1 {
+				t.Fatalf("response %d = %+v stdout=%q stderr=%q", size, report, stdout.String(), stderr.String())
+			}
+			if got := backend.last.StdoutScalar.RetainedBytes; got != projectgenerateprotocol.MaxResponseBytes || backend.last.StdoutScalar.Truncated != (size > projectgenerateprotocol.MaxResponseBytes) {
+				t.Fatalf("response %d scalar=%+v", size, backend.last.StdoutScalar)
 			}
 		})
 	}

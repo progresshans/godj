@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-20
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260820-102
+- 마지막 갱신: 2026-08-21
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260821-104
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -9687,3 +9687,173 @@ The terminal hosted audit retained repeatable repo-external captures:
 - The next gate is a separately authorized commit and non-force push of this correction, followed by the new
   pull-request-triggered exact-head hosted matrix. Only that new terminal success may close GDJ-0036 and become the
   clean baseline for proposed GDJ-0037/Q-017 work.
+
+## EVID-20260820-103 — GDJ-0036 Corrected Exact-head Hosted Completion
+
+- Date/time: 2026-08-20T08:06:40Z–08:15:12Z
+- Work/contract IDs: GDJ-0036 completion; Q-010/Q-012/Q-013 remain `Partial`; Q-017 moves to GDJ-0037;
+  MIG-075..086 remain `oracle_locked`/unregistered
+- Checkout/commit: exact head `57ddff374f7afa97346532ed143f4a88d73c7428`, sole parent
+  `37b6340bc43cf2f4ca9e57baefd9370d83211c32`, tree
+  `b53f7811bfb869e851abffc37c134c0e30733974`, subject `docs: correct EVID-102 pointer offset`
+- Environment/backend: GitHub Actions `pull_request` attempt 1; synthetic merge `a645f9a4...` with ordered parents
+  `main f8a5e20c...` and exact head `57ddff374...`; merge tree equals exact-head tree
+- Command/run: [CI #101 / run 32347190714](https://github.com/progresshans/godj/actions/runs/32347190714)
+- Exit status: terminal `completed/success`
+
+### Result summary
+
+- Exact 26/26 jobs and 326/326 recorded steps succeeded; workflow skipped steps 0 and annotations 0.
+- All four relation-product coordinates passed the exact no-skip gate:
+  `842/842/0`, 86,694 bytes, SHA-256
+  `42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3`.
+- Python compatibility 3.12.13/3.13.15/3.14.3/3.14.7 each passed 216 tests with 19 expected portable-profile
+  skips and the 139-scenario aggregate: 618,616 bytes, SHA-256
+  `5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`.
+- Clean-worktree gates passed 24/24 and no-rewrite gates passed 10/10.
+- PR #1 remained OPEN/DRAFT/MERGEABLE with `mergeStateStatus=CLEAN`; no rerun, cancellation, merge or release was
+  performed.
+- Independent read-only audit reported P0/P1/P2/P3=`0/0/0/0` for the exact correction head and evidence boundary.
+
+### Completion and non-claims
+
+- This run closes GDJ-0036's current-only compatibility reset and provides the clean baseline for GDJ-0037.
+- It does not transition MIG-075..086, implement Q-017 publication, prove PostgreSQL/Web support, merge the Draft PR
+  or publish a release.
+- The EVID-103 append and GDJ-0037 activation are a later documentation/planning change. Under the repository's
+  milestone verification policy they receive link/frontmatter/status/diff checks and do not recursively require a
+  second full hosted matrix.
+
+## EVID-20260821-104 — GDJ-0037 Project Bundle and Recoverable Publication Affected Local Verification
+
+- Date/time: 2026-08-21, Asia/Seoul
+- Work/contract IDs: GDJ-0037; ADR-0036 Accepted; Q-010 remains Partial; Q-017 remains P1/open
+- Checkout/commit: branch `feature/pre-release-compatibility-reset`; hosted baseline HEAD
+  `57ddff374f7afa97346532ed143f4a88d73c7428`; uncommitted implementation/documentation working tree
+- Environment/backend: macOS 26.6.1 / Darwin 25.6.0 arm64; Go 1.26.5 darwin/arm64; local filesystem publisher;
+  `GOTOOLCHAIN=local`, `GOWORK=off`, `GOPROXY=off` for offline generation/check gates
+- Status: Phase A/B/C/D affected checkpoint and final full local/386/repository-external source-clean-copy passed;
+  exact committed-head hosted verification pending
+
+### Frozen implementation packet
+
+The implementation-only working-tree manifest excludes Markdown/status/work files and `AGENTS.md`. It is the
+C-sorted `git status --porcelain=v1 --untracked-files=all` roster with one line per path:
+`status<TAB>path<TAB>mode<TAB>size<TAB>sha256`; deleted paths use `-`, `0`, `-`. It contains 104 paths and 12,504
+bytes with SHA-256 `2a4aac20255cc3eefd71cab5c8020331ff3a2f00c815f7823d0cd4a69e18fc1c`.
+
+- Article manifest: 3,963 bytes, SHA-256
+  `3e3a4065488578c271532f5a6b9b3b71919542a4960f9c1a3933c56908295a4b`; exact app 4/project 8=`12` files;
+  snapshot `2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe`.
+- relationdelete manifest: 4,815 bytes, SHA-256
+  `822f9e04fd38acee4a75133249d28b398213fa07a05ea924b74ea490c2fd6e73`; exact app 8/project 8=`16` files;
+  snapshot `4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775`.
+- Both manifests use format 1, exact 13 ABI roles, canonical 0644 source roster/hash/owner entries and final LF.
+  Snapshot marker compile seals bind every app companion and all eight project sources. Generated app-to-app direct
+  imports are zero.
+
+### Commands and results
+
+```bash
+GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off \
+  go test -count=1 ./internal/projectgenerate/...
+GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off \
+  go test -race -count=1 ./internal/projectgenerate
+GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off CGO_ENABLED=0 \
+  go test -count=1 ./internal/projectgenerate
+GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off \
+  go vet ./internal/projectgenerate
+```
+
+All passed. The focused SIGKILL restart boundary
+`TestPublishRecoversAfterProcessCrashAtPrecommitAndPostcommitBoundaries|TestPublicationCrashHelper` also passed.
+Independent Phase C audit reported P0/P1/P2/P3=`0/0/0/0` after checking journal/manifest authority, retained root and
+parent identities, no-replace moves, exact-old/next recovery, cancellation, concurrent first publishers and cleanup
+revalidation.
+
+```bash
+GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off \
+  go test -count=1 \
+  ./codegen ./internal/projectspec \
+  ./internal/projectgenerate/protocol ./internal/projectgenerate/linked \
+  ./internal/projectcheck ./cmd/godj ./project \
+  ./examples/article ./conformance/relationdeleteproduct \
+  ./conformance/internal/protocol ./internal/compiletest
+```
+
+The same affected package groups passed with `-race`, with `CGO_ENABLED=0`, and under `go vet`. The first combined
+normal run exposed one stale single-file Article golden that compared seal-free `Generate` bytes with the official
+sealed whole-project output. The test was rebaselined to `ProjectSpec → GenerateProject` and the full `./codegen`
+normal/race/CGO-disabled/vet gates passed on the corrected bytes. Independent Phase A/B and Phase D audits each
+reported P0/P1/P2/P3=`0/0/0/0`.
+
+```bash
+GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off make generate-check
+make format-check
+git diff --check
+```
+
+All passed. `generate-check` returned deterministic clean results for Article 12 and relationdelete 16. It used a
+private GOMODCACHE and a safe read-only ambient download-cache file proxy while `GOPROXY=off`; project bytes were
+unchanged. Manifest is not ignored, while exact lock/journal/transactions lifecycle controls are ignored. The retired
+`internal/cmd/m1generate` executable has no remaining file or live code/Makefile invocation.
+
+The final local integration gates also passed:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+`make ci` completed exit 0 across format/generation drift, all Go tests, vet, race, the configured CGO-disabled
+slice, the 216-test Python suite with 19 expected portable-profile skips, all contract/oracle/static-fixture checks
+and all GoDj comparisons. The Linux/386 command completed exit 0 for every package; `-exec=/usr/bin/true` proves
+CGO-disabled compilation only and does not claim 386 execution on this arm64 host.
+
+The repository-external source-clean copy at `/tmp/godj-gdj0037-clean-copy.Fy342P/tree` contained the exact 677
+present tracked/nonignored-untracked files from a 679-entry roster; the two intentionally deleted `m1generate`
+files were absent. It included both generated manifests and no lock/journal/transaction lifecycle controls. Present
+file payloads totaled 10,192,960 bytes, and the gate-boundary frozen roster SHA-256 was
+`824129f53fb52ead3cd41e90533e9d46d6d5d409f543545dd16a5079dac79bfb`. The path/mode/size/bytes framed stream had SHA-256
+`3be96ffd2f6480fc50b8908ec1990762e9a578d54ac77608de1ba2dbdd67f84a` for source and copy both before and after:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make generate-check
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 go test -run '^$' ./...
+```
+
+Both copy commands completed exit 0; generation remained Article 12/relationdelete 16 with the exact snapshots
+above. This is a repository-external exact source copy without `.git`, not an exact committed-head Git clone. The
+second command compiles every package but intentionally selects no tests. Later Markdown-only documentation/evidence/status edits are not
+retroactively included in this copy hash; they do not change the 104-path implementation packet and are closed by
+the final static documentation/scope audit rather than a recursive copy gate.
+
+### Safety outcomes
+
+- One opaque ProjectSpec produces one immutable GeneratedBundle and manifest; deep caller mutation and app
+  permutation do not alter retained bytes.
+- Candidate compile uses overlays and `go test -c`; user `init` and `TestMain` are not executed. Missing and broken
+  generated targets do not block the declaration runner bootstrap.
+- Selected project root device/inode identity is sealed through check, verifier and publication. Symlink, FIFO,
+  nonregular target, path rebound, unowned conflict and CAS drift fail before destructive mutation.
+- Publication uses a retained writer lock, same-filesystem stage, durable bounded journal, atomic no-replace moves,
+  manifest-last directory fsync and exact-old/exact-next recovery. Ordinary precommit failure preserves prior state;
+  publisher postcommit cancellation keeps the committed next state.
+- Outer private-workspace/root cleanup can still fail after a durable target commit. The CLI then returns no success
+  stdout, exact `project_generation_process_error/project_cleanup_failed` and exit 3; callers must diagnose with
+  read-only `godj generate --check` before retrying.
+
+### Non-claims and next gate
+
+- This is affected plus final local evidence for an uncommitted working tree, not an exact committed-head or hosted
+  proof. It does not close GDJ-0037 or mark the feature Verified.
+- SIGKILL tests cover process restart; literal power loss is not injected. Fsync/rename durability ordering was also
+  independently audited statically. Distributed/network filesystems, Windows publication and arbitrary user-edited
+  generated source merge are unsupported.
+- Q-017 remains P1/open for raw-model UX, capability/namespace, reverse/general facade and upgrade semantics. Q-010
+  remains Partial for installed runner/library/generator version negotiation, semver and general repair/upgrader UX.
+- Product contract status stays exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`; MIG-075..086 remain
+  diagnostic `oracle_locked`/unregistered. PostgreSQL, Web Core, new Field/Relation breadth, migration writer,
+  commit/push/hosted/merge/release are not claimed.
+- Next: only a separately authorized commit/push and exact-head hosted run may complete the work.

@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-20
+- 마지막 검토: 2026-08-21
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,14 +9,14 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0036 active / full handshake 후속 | Exact public project entrypoint와 전역 check CLI의 이전 hosted evidence는 유지; current definition/loaded lifecycle은 exact local implementation commit에서 단일 형식으로 reset됐지만 generator/library semver·repair는 open |
+| Q-010 | Partial | GDJ-0037 active / project generation handshake | Current definition/loaded lifecycle은 hosted-verified; ProjectSpec, global generate/check와 project-wide manifest/publication은 final local gates를 통과한 Implemented candidate이고 exact-head hosted verification이 pending; installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0036 active / broader migration 후속 | MIG-047..074 product subset은 passing; current `LoadedDefinitionSet` lifecycle와 unified backend ABI는 exact local implementation commit에 구현됐지만 final hosted reset gate, public migrate/writer/upgrade/custom operation/general restart/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0036 active / broader relation·backend 후속 | REL-002와 bounded SQLite FK slices의 이전 evidence는 유지; current Schema IR/codegen/state/lifecycle로 통합됐지만 final hosted reset gate와 broader relation/backend 범위는 open |
+| Q-012 | Partial | GDJ-0036 completed / broader migration 후속 | MIG-047..074 product subset과 current `LoadedDefinitionSet` lifecycle/unified backend ABI는 exact-head hosted 검증까지 완료; public migrate/writer/upgrade/custom operation/general restart/non-SQLite/crash recovery는 open |
+| Q-013 | Partial | GDJ-0036 completed / broader relation·backend 후속 | REL-002와 bounded SQLite FK slices는 current Schema IR/codegen/state/lifecycle로 통합되어 exact-head hosted 검증까지 완료; broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0036 active / facade breadth 후속 | current main generator와 facade는 compatibility-only app query/private write model을 제거; project-wide publication, raw-model UX/capability/namespace와 reverse/general upgrade는 open |
+| Q-017 | P1 | GDJ-0037 active / project publication | ProjectSpec/manifest/whole-candidate compile/recoverable publication 하위 경계는 final local gates를 통과한 Implemented candidate이고 exact-head hosted verification이 pending; raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -57,14 +57,17 @@ Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publi
 - Q-013/Q-017: Main generator가 relation model descriptor/write metadata를 직접 생성합니다. App-local
   relation-query file과 facade-private write model은 current ABI에서 제거됐고 project-owned cross-app
   binding/query/facade는 유지됩니다.
-- Q-017: 현재 generator bytes는 한 번 재기준화됐지만 물리 companion roster는 장기 public ABI가 아닙니다.
-  Whole-project candidate compile/publish, upgrade/repair와 first-alpha 이후 compatibility 기간은 여전히 open입니다.
+- Q-017: ProjectSpec, manifest, whole-project candidate compile과 recoverable publish는 GDJ-0037 working tree에
+  구현됐습니다. 물리 companion roster를 first-alpha 이후 장기 public ABI로 보장하는 기간, general upgrader/repair와
+  raw-model/facade UX는 여전히 open입니다.
 
 GDJ-0035 Phase-B의 legacy tuple/profile/promotion product publication sequence는 retire됐습니다. 그 옛
 artifact bytes와 evidence는 당시 의사결정의 역사 기록입니다. 현재 checked-in MIG-075..086 artifact는
 ADR-0035 current-only 진단 reference로 재기준화되어 reference aggregate에는 포함되지만, 계속
-`oracle_locked`/unregistered라 위 질문의 제품 status 입력은 아닙니다. GDJ-0036 최종 frozen head가 hosted
-검증되기 전에는 이 current local implementation answer를 hosted `Verified`로 올리지 않습니다.
+`oracle_locked`/unregistered라 위 질문의 제품 status 입력은 아닙니다. GDJ-0036의 corrected exact head는
+[EVID-103](status/TEST_EVIDENCE.md#evid-20260820-103--gdj-0036-corrected-exact-head-hosted-completion)에서 hosted
+검증됐습니다. GDJ-0037의 publication 하위 경계는 affected 및 final full/386/repository-external
+source-clean-copy local gates를 통과했지만 exact-head hosted verification 전에는 Verified가 아닙니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 
@@ -470,6 +473,13 @@ GDJ-0036 current ABI는 relation main descriptor/write generation을 통합하�
 app-local relation-query file을 제거했습니다. Project-owned cross-app surface는 유지합니다. 이 reset은 첫 alpha
 전 재기준화이며 project-wide coordinated publication/repair나 final raw-model UX를 닫지 않습니다.
 
+GDJ-0036의 corrected exact head hosted completion 뒤
+[GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)이 active이고
+[ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)은 Accepted입니다. 현재 working tree는
+ProjectSpec/immutable bundle, manifest, whole-candidate compile, read-only check와 recoverable publication 하위 경계를
+구현했고 affected local gates를 통과했습니다. Final frozen verification은 pending이며 raw-model
+embedding/unwrap/sidecar, capability/namespace와 broader facade/general upgrade UX는 계속 open입니다.
+
 ### Historical pre-reset Gate 0와 additive publication evidence
 
 GDJ-0030의 bounded REL-007/008 low-level engine 뒤
@@ -532,19 +542,19 @@ external compile prototype으로 비교해 raw fields/user methods, namespace co
 
 Binder-first, original binder-error precedence, valid binding 뒤 nil/typed-nil backend의
 `backend_error/invalid_plan`과 I/O 0은 stable contract이고 detail message만 noncontractual입니다. Current generator는
-per-file deterministic candidate와 해당 파일의 last-good preservation을 제공하지만, project-wide manifest, 전체
-candidate compile, coordinated multi-file publication/recovery, CLI와 rename/deprecation/repair는 제공하지 않습니다.
-따라서 production forward facade가 완료돼도 broader generated upgrade 질문은 Q-017에 남습니다.
+ProjectSpec, project snapshot/ABI manifest, 전체 candidate compile, sealed-root check와 journaled publication/recovery를
+제공합니다. Renderer rename/deprecation, installed version negotiation과 general repair/upgrader UX는 제공하지 않으므로
+broader generated upgrade 질문은 Q-017에 남습니다.
 
 GDJ-0033이 좁게 Accepted한 forward relation assignment/save의 observable behavior와 binder/cache ownership은
 유지합니다. 당시 existing exact 13 보존과 single project-facade companion publication rule은 ADR-0035 current main
-ABI reset으로 Superseded됐습니다. Broader capability split, namespace, raw-model UX와 project-wide upgrade는 여전히
-open입니다.
+ABI reset으로 Superseded됐습니다. Project-wide current bundle publication은 GDJ-0037에 구현됐지만 broader capability
+split, namespace, raw-model UX와 general upgrade는 여전히 open입니다.
 
-Facade input hash가 current Schema/edge input은 잠그지만 prerequisite generator ABI/version과 prerequisite output
-digest 전체를 project snapshot으로 증명하지는 않습니다. 이 provenance gap은 Q-017에 남기며 coordinated multi-file
-upgrade와 general `godj generate --check` 전에 반드시 해결합니다. Bounded REL-002 behavior의 무조건적 선행
-blocker로 과장하지 않습니다.
+Current manifest는 normalized Schema/layout, 13-role generator ABI와 exact output digest 전체를 project snapshot 아래
+증명합니다. 남은 provenance/upgrade 질문은 installed library/runner/generator version negotiation, renderer
+rename/deprecation과 first-alpha 이후 compatibility 기간입니다. Bounded REL-002 behavior의 무조건적 선행 blocker로
+과장하지 않습니다.
 
 ## Q-019 — SQLite unknown-outcome retained connection resource policy
 

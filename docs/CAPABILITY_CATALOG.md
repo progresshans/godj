@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-20
+- 마지막 검토: 2026-08-21
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -457,8 +457,23 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
   checked-in MIG-075..086 manifest/oracle은 ADR-0035 current-only 진단 reference이며 reference aggregate에
   포함되지만 계속 `oracle_locked`/unregistered라 product publication/status 입력은 아닙니다.
 
-이 reset은 exact local implementation commit에서 구현되어 local gate를 통과했지만 아직 최종 hosted `Verified` 또는 public release compatibility
-정책을 뜻하지 않습니다.
+이 reset은 corrected exact head의 EVID-103 hosted matrix까지 완료됐지만 public release compatibility 정책을
+뜻하지 않습니다.
+
+## Current implementation mirror: project generated bundle
+
+[GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)과 Accepted
+[ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)이 project generation 하위 경계를
+소유합니다.
+
+- Declaration-only `ProjectSpec`은 immutable bundle, format-1 manifest와 exact app `4n`/project 8 roster를 만듭니다.
+- Global `godj generate`/`--check`는 sealed project root, compile-only whole candidate와 recoverable publisher를
+  사용합니다. Article은 12, relationdelete는 16 source입니다.
+- `--check`는 selected project tree/Git을 변경하지 않습니다. Precommit ordinary failure는 exact prior,
+  postcommit publisher cleanup은 exact next를 유지하며 outer workspace cleanup failure는 별도 closed process
+  outcome입니다.
+- Darwin/Linux local filesystem implementation과 affected 및 final full/386/repository-external source-clean-copy local gates는
+  완료됐지만 exact-head hosted matrix 전에는 GDJ-0037을 Verified/completed로 표시하지 않습니다.
 
 ### Historical GDJ-0035 design and evidence snapshot
 

@@ -302,3 +302,5 @@ func articleMetadata() ir.Model {
 		},
 	}
 }
+
+type GoDjProjectSnapshot_2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe struct{}

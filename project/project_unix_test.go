@@ -17,8 +17,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestPublicFacadeMatchesLinkedEntrypointAndOwnsInputs(t *testing.T) {
@@ -68,6 +71,79 @@ func TestPublicFacadeMatchesLinkedEntrypointAndOwnsInputs(t *testing.T) {
 	response, failure, failed := protocol.ParseResponse(output.Bytes(), true)
 	if failed || failure != (protocol.Failure{}) || !response.OK {
 		t.Fatalf("mutated public response = %+v, %+v, %v", response, failure, failed)
+	}
+}
+
+func TestPublicFacadeSeparatesMigrationAndGenerationLoaders(t *testing.T) {
+	enterProjectRoot(t)
+	loaderCalls := 0
+	config := Config{
+		MigrationDefinitionRoots: []string{"migrations"},
+		LoadProjectSpec: func(context.Context) (codegen.ProjectSpec, error) {
+			loaderCalls++
+			return codegen.ProjectSpec{
+				Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/site/project", Directory: "project"},
+				Apps: []codegen.AppSpec{{
+					Alias:   "blog",
+					Package: codegen.PackageSpec{PackageName: "models", ImportPath: "example.com/site/models", Directory: "models"},
+					Schema: ir.Schema{
+						FormatVersion: ir.CurrentFormatVersion,
+						AppLabel:      "blog",
+						Models: []ir.Model{{Name: "article", GoName: "Article", DBTable: "blog_article", Fields: []ir.Field{{
+							Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true,
+						}}}},
+					},
+				}},
+			}, nil
+		},
+	}
+
+	var migrationOutput bytes.Buffer
+	if err := Run(
+		context.Background(),
+		config,
+		[]string{protocol.PrivateArgument},
+		bytes.NewReader(protocol.RequestDocument()),
+		&migrationOutput,
+	); err != nil {
+		t.Fatalf("migration request: %v", err)
+	}
+	if loaderCalls != 0 {
+		t.Fatalf("migration request loader calls = %d, want 0", loaderCalls)
+	}
+
+	var generationOutput bytes.Buffer
+	if err := Run(
+		context.Background(),
+		config,
+		[]string{projectgenerateprotocol.PrivateArgument},
+		bytes.NewReader(projectgenerateprotocol.RequestDocument()),
+		&generationOutput,
+	); err != nil {
+		t.Fatalf("generation request: %v", err)
+	}
+	if loaderCalls != 1 {
+		t.Fatalf("generation request loader calls = %d, want 1", loaderCalls)
+	}
+	response, failure, failed := projectgenerateprotocol.ParseResponse(generationOutput.Bytes(), true)
+	if failed || failure != (projectgenerateprotocol.Failure{}) || !response.OK || len(response.ProjectSpec.Apps) != 1 {
+		t.Fatalf("generation response = %+v failure=%+v failed=%v", response, failure, failed)
+	}
+	response.ProjectSpec.Apps[0].Schema.Models[0].Name = "mutated"
+
+	var secondOutput bytes.Buffer
+	if err := Run(
+		context.Background(),
+		config,
+		[]string{projectgenerateprotocol.PrivateArgument},
+		bytes.NewReader(projectgenerateprotocol.RequestDocument()),
+		&secondOutput,
+	); err != nil {
+		t.Fatalf("second generation request: %v", err)
+	}
+	second, failure, failed := projectgenerateprotocol.ParseResponse(secondOutput.Bytes(), true)
+	if failed || failure != (projectgenerateprotocol.Failure{}) || !second.OK || second.ProjectSpec.Apps[0].Schema.Models[0].Name != "article" {
+		t.Fatalf("second generation response = %+v failure=%+v failed=%v", second, failure, failed)
 	}
 }
 

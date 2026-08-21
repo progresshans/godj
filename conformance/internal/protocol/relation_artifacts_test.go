@@ -21,6 +21,10 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
+		"conformance/relationdeleteproduct/.godj/generated-manifest.json": {
+			size:   4815,
+			sha256: "822f9e04fd38acee4a75133249d28b398213fa07a05ea924b74ea490c2fd6e73",
+		},
 		"conformance/contracts/relation-manifest.json": {
 			size:   10770,
 			sha256: "791408c2c31864217f63b15218740214e4a850997d1e2b65dbb32b41586ff25b",
@@ -95,26 +99,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 			digest: "7972bf08da7ee2f2200a65154bfce0d46615c02cf32e762f997083daa165aa04",
 		},
 		{
-			name: "current exact twelve-file relation-delete product",
-			path: "relationdeleteproduct",
-			files: []string{
-				"authors/zz_godj_generated.go",
-				"authors/zz_godj_relation.go",
-				"authors/zz_godj_relation_object.go",
-				"authors/zz_godj_relation_projection.go",
-				"blog/zz_godj_generated.go",
-				"blog/zz_godj_relation.go",
-				"blog/zz_godj_relation_object.go",
-				"blog/zz_godj_relation_projection.go",
-				"project/zz_godj_bindings.go",
-				"project/zz_godj_relation_delete.go",
-				"project/zz_godj_relation_object.go",
-				"project/zz_godj_relation_select_related.go",
-			},
-			digest: "46b8091dccfdc09f55ae51310a934b6eab8ea7732e16f7146781416b09b386cb",
-		},
-		{
-			name: "current exact thirteen-file relation-assignment facade product",
+			name: "current exact sixteen-file relation-delete project bundle",
 			path: "relationdeleteproduct",
 			files: []string{
 				"authors/zz_godj_generated.go",
@@ -129,9 +114,12 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 				"project/zz_godj_relation_delete.go",
 				"project/zz_godj_relation_facade.go",
 				"project/zz_godj_relation_object.go",
+				"project/zz_godj_relation_prefetch.go",
+				"project/zz_godj_relation_query.go",
+				"project/zz_godj_relation_reverse.go",
 				"project/zz_godj_relation_select_related.go",
 			},
-			digest: "74693b450aefdbc05b92fc9157ab78bb882f2edba867b5e088d575f3612338e2",
+			digest: "b027b8104aaa659e27e302916eb482b5f96b72d1b696b04622635eea4f9f5ec4",
 		},
 	}
 	for _, test := range tests {

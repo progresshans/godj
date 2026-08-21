@@ -59,14 +59,19 @@ proposed → ready → active → completed
 | [GDJ-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | completed | REL-002 forward ForeignKey assignment/save/cache ownership |
 | [GDJ-0034](0034-typed-generated-select-related-cause-preservation.md) | completed | Typed generated `select_related` resolve/bind original cause 보존 |
 | [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md) | superseded | Relation-capable migration D4d~D4f와 D4g Phase 0; compatibility topology/publication은 GDJ-0036으로 대체 |
-| [GDJ-0036](0036-pre-release-compatibility-reset.md) | active | Current-only Schema/Definition/State, explicit loaded set, unified backend와 generated publication reset |
+| [GDJ-0036](0036-pre-release-compatibility-reset.md) | completed | Current-only Schema/Definition/State, explicit loaded set, unified backend와 generated ABI reset |
+| [GDJ-0037](0037-project-schema-generated-bundle-and-recoverable-publication.md) | active | Project Schema bundle, whole-candidate compile과 recoverable coordinated publication |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0034](0034-typed-generated-select-related-cause-preservation.md)이고,
+[GDJ-0036](0036-pre-release-compatibility-reset.md)이고,
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
-증거를 보존한 채 superseded됐습니다. 유일한 active 항목은
-[GDJ-0036](0036-pre-release-compatibility-reset.md), ready는 0입니다. GDJ-0034
+증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
+`32347190714` exact 26/26 success로 completed됐습니다. 유일한 active 항목은
+[GDJ-0037](0037-project-schema-generated-bundle-and-recoverable-publication.md), ready는 0입니다. GDJ-0037은
+ProjectSpec/bundle/manifest, whole-candidate check와 recoverable publication을 현재 working tree에 구현해 affected와
+final full/386/source-clean-copy local checkpoints를 통과했지만 exact-head hosted verification이 남아 있어
+active/local Implemented candidate입니다. GDJ-0034
 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

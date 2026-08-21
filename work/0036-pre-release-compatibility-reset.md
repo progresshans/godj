@@ -1,6 +1,6 @@
 ---
 id: GDJ-0036
-status: active
+status: completed
 updated: 2026-08-20
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "d824b6916348286abb50dfa16a492332e97cd714"
@@ -131,7 +131,7 @@ apply/unapply/restart합니다. Scalar와 ForeignKey 모델은 같은 current fo
 
 - [x] affected package normal/CGO0/vet와 focused SQLite lifecycle
 - [x] full normal/race/CGO0/386, clean consumer compile, generate-check
-- [ ] 최종 frozen tree의 full hosted matrix 한 번
+- [x] 최종 frozen tree의 full hosted matrix 한 번
 - [x] CURRENT/MATRIX/TEST_EVIDENCE와 남은 제한을 최종 결과에 맞춰 한 번 갱신
 
 ## 검증 주기
@@ -160,17 +160,20 @@ apply/unapply/restart합니다. Scalar와 ForeignKey 모델은 같은 current fo
 - [x] current-only residue cleanup과 exact postcommit EVID-101 local 검증
 - [x] exact head `971f427...`를 기존 Draft PR #1에 non-force fast-forward하고 PR 설명을 current-only reset으로 갱신
 - [x] CI #99의 8개 실패를 hosted-only relation/Python aggregate lock stale로 진단하고 current 값으로 교정
-- [ ] exact-head hosted 검증
+- [x] corrected exact head `57ddff3...`의 CI #101 exact 26/26 hosted 검증
 
 ## 다음 정확한 작업
 
 Exact cleanup commit `bd31a77ba10c20717f761cca088678297b160a6c`의 repo-external local gate는
 [EVID-101](../docs/status/TEST_EVIDENCE.md#evid-20260820-101--gdj-0036-current-only-reset-cleanup-exact-head-local-verification)이
 소유합니다. 이를 포함한 exact head `971f427...`의 [CI #99](https://github.com/progresshans/godj/actions/runs/32336573749)는
-제품 회귀가 아니라 stale hosted-only aggregate lock 두 건으로 18/26 success에 그쳤습니다. 교정 원인과 새
-relation/Python 고정값은 [EVID-102](../docs/status/TEST_EVIDENCE.md#evid-20260820-102--gdj-0036-first-exact-head-hosted-failure-and-aggregate-lock-correction)에
-기록했습니다. 다음은 이 correction을 별도 승인으로 commit/push한 새 exact head의 hosted matrix이며 completion은
-그 성공 증거로만 닫습니다.
+제품 회귀가 아니라 stale hosted-only aggregate lock 두 건으로 18/26 success에 그쳤고 교정은
+[EVID-102](../docs/status/TEST_EVIDENCE.md#evid-20260820-102--gdj-0036-first-exact-head-hosted-failure-and-aggregate-lock-correction)에
+기록했습니다. Corrected exact head `57ddff374f7afa97346532ed143f4a88d73c7428`의
+[CI #101](https://github.com/progresshans/godj/actions/runs/32347190714)은 exact 26/26 jobs·326/326 steps,
+annotations 0, clean-worktree 24/24와 no-rewrite 10/10을 통과했습니다. Terminal proof는
+[EVID-103](../docs/status/TEST_EVIDENCE.md#evid-20260820-103--gdj-0036-corrected-exact-head-hosted-completion)에
+기록했고 다음 active work는 [GDJ-0037](0037-project-schema-generated-bundle-and-recoverable-publication.md)입니다.
 
 ## 결과와 인수인계
 
@@ -186,7 +189,7 @@ semantic comparison이 아니며 12 contract는 계속 locked/unregistered입니
 `5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`로 일치합니다.
 `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci`와
 `GOOS=linux GOARCH=386 CGO_ENABLED=0 ... go test -run '^$' -exec=/usr/bin/true ./...`가 exact cleanup commit
-`bd31a77...`에서 통과했습니다. CI #99의 exact-head 실패 증거는 있지만 아직 successful hosted exact-head 증거는
-없으므로 migration relation contract status나 broader framework support를 올리지 않습니다. 235-path implementation
-packet은 EVID-100, cleanup exact28 packet은 EVID-101, 첫 hosted 실패와 current correction 명령/nonclaim은
-EVID-102에 고정했습니다.
+`bd31a77...`에서 통과했고 corrected head `57ddff3...`의 CI #101도 terminal success였습니다. 이 완료는
+current-only reset과 bounded SQLite relation lifecycle을 검증하지만 migration relation contract status나 broader
+framework support를 올리지 않습니다. 235-path implementation packet은 EVID-100, cleanup exact28 packet은
+EVID-101, 첫 hosted 실패와 correction은 EVID-102, corrected terminal success는 EVID-103에 고정했습니다.

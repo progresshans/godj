@@ -1,10 +1,10 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-20
+- 마지막 갱신: 2026-08-21
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 hosted-attempt/status head: `971f427ce0eebcc84878b0d5298704aee92649c9`
-  (`docs: record current-only cleanup evidence`)
+- 현재 hosted-verified baseline head: `57ddff374f7afa97346532ed143f4a88d73c7428`
+  (`docs: correct EVID-102 pointer offset`), CI #101/run `32347190714`
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -15,7 +15,7 @@
 ## Historical commit and evidence chronology before GDJ-0036
 
 다음 commit/phase 설명의 API, format, `Accepted` 상태와 non-goal은 각 당시 checkout의 증거입니다. 현재 구현과
-지원 경계는 아래 `현재 checkout에서 확인된 사실`, ADR-0035와 active GDJ-0036 packet이 정본입니다.
+지원 경계는 아래 `현재 checkout에서 확인된 사실`, ADR-0035와 active GDJ-0037 packet이 정본입니다.
 
 - GDJ-0018 제품 commit:
   `d076bd20f5964074b7b76b44147ca59f7b3e6eb8`
@@ -312,10 +312,12 @@
   (`test(conformance): characterize migration relation product`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: [GDJ-0036](../../work/0036-pre-release-compatibility-reset.md)은 유일한 active packet입니다.
-  외부 alpha 이전의 development snapshot을 영구 legacy로 보존하지 않고 current-only Schema IR,
-  Migration Definition/State, explicit loaded set, unified backend entry와 하나의 current generated ABI로
-  reset합니다. Project-level manifest와 coordinated publication/repair는 Q-017 후속 작업입니다.
+- 현재 단계: [GDJ-0036](../../work/0036-pre-release-compatibility-reset.md)은 corrected exact head
+  `57ddff3...`의 CI #101 exact 26/26으로 completed됐습니다. 유일한 active packet은
+  [GDJ-0037](../../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)입니다. 하나의
+  ProjectSpec/GeneratedBundle, whole-candidate compile, read-only check와 recoverable coordinated publication으로
+  Q-017의 project-wide publication 하위 경계를 닫습니다. Raw-model UX, capability/namespace와 reverse/general
+  upgrade를 포함한 Q-017 전체는 계속 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
   [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)가 이전 dual-format/additive
@@ -441,9 +443,9 @@
   계속 13/139/156 aggregate에 포함되지만 locked/unregistered이며, reset 전 passing/`DEV-0003` 후보 순서는
   superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0034 Typed Generated select_related Cause Preservation](../../work/0034-typed-generated-select-related-cause-preservation.md)
-- 활성 작업:
   [GDJ-0036 Pre-release Compatibility Reset](../../work/0036-pre-release-compatibility-reset.md)
+- 활성 작업:
+  [GDJ-0037 Project Schema Generated Bundle and Recoverable Publication](../../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -914,8 +916,10 @@
   Zero/unknown IR format은 fail-closed합니다.
 - App의 current main generator는 scalar/FK 모두 model, descriptor, scan/clone/write와 relation metadata 기반을 직접
   생성합니다. App-local relation-query file과 facade-private write model은 제거했고 project generator는 cross-app
-  binding/query/object/prefetch/select/delete/facade를 소유합니다. 이 reset은 current ABI와 checked-in output set을
-  재기준화했지만 Q-017의 project-level manifest/coordinated publication은 아직 구현하지 않았습니다.
+  binding/query/object/prefetch/select/delete/facade를 소유합니다. `ProjectSpec` 하나가 app 4/project 8 source,
+  format-1 manifest와 13-role ABI/snapshot seal을 가진 immutable bundle을 생성합니다. Whole-candidate compile,
+  read-only check와 recoverable coordinated publication은 current working tree에 구현됐고 final milestone gate가
+  pending입니다.
 - Migration core는 versioned `ProjectState`, immutable graph/`AppliedState`, zero-I/O `Planner`,
   preflighted `ExecutePlan`, recorder-backed restart planning과 immutable historical-state
   reconstruction을 제공합니다.
@@ -983,11 +987,10 @@
   `sqlite_sequence`를 검증하지 않았습니다. 별도 D4f bounded remake는 source/target sequence preservation을
   검증했지만, 두 proof 모두 raw-file equality나 general restart를 주장하지 않습니다. Opaque loaded authority 없는
   `DirectExecutor` relation execution은 semantic scan에서 fail-closed합니다.
-- Exact 두 argv를 지원하는 global `cmd/godj`, public two-export
-  `project.Config{MigrationDefinitionRoots []string}`/`project.Run(ctx, config, argv, stdin, stdout) error`,
-  independent `internal/projectcheck` global/linked/protocol kernel과 flat no-follow source discovery가
-  구현됐습니다. 명령은 DB/recorder/lifecycle을 호출하지 않고 actual `definition.Load`를 정확히 한 번
-  호출합니다.
+- Global `cmd/godj`는 migration check 두 argv와 generation 네 argv를 exact 지원합니다. Public two-export
+  `project.Config`/`project.Run`에서 migration source loader와 `LoadProjectSpec` loader는 서로 다른 private
+  protocol command가 호출합니다. Migration check는 DB/recorder/lifecycle을 열지 않고 actual `definition.Load`를
+  정확히 한 번 호출하며 generation declaration runner는 generated app/project target을 import하지 않습니다.
 
 ### 오류와 durability 경계
 
@@ -1349,14 +1352,16 @@
 
 ## 현재 차단 요인과 알려진 제한
 
-GDJ-0036의 current-only reset 구현에는 외부 blocker가 없습니다. Exact local implementation commit
-`f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`의 full local `make ci`와 Linux/386 all-package compile은 통과해
-[EVID-100](TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
-기록됐습니다. 따라서 local `Implemented` 후보이며, final evidence/status head의 hosted matrix를 통과하기 전에는
-이 reset 자체를 `Verified` 또는
-completed로 올리지 않습니다. MIG-075..086은 계속 `oracle_locked`/unregistered이고 D4g Phase 0 capture는
-characterization 증거로만 남습니다. 이번 reset은 PostgreSQL, Web Core, 새 Field/Relation 종류, general migration
-writer를 추가하지 않습니다.
+GDJ-0036은 exact local `make ci`/Linux-386 증거 EVID-100/101과 corrected exact head `57ddff3...`의
+[EVID-103](TEST_EVIDENCE.md#evid-20260820-103--gdj-0036-corrected-exact-head-hosted-completion) / CI #101
+26/26으로 completed됐습니다. GDJ-0037의 ProjectSpec, format-1 manifest, 13-role `4n+8` bundle,
+whole-candidate compile, sealed-root check/publish와 journaled recovery는 현재 working tree에 구현되어 affected
+normal/race/CGO-disabled/vet, full offline `make ci`, Linux/386 all-package compile과 repository-external source-clean-copy
+`generate --check`/compile-only gate를 통과했습니다. Exact committed-head hosted matrix가 남아 있으므로 local
+Implemented candidate이지 Verified/completed가 아닙니다. 이 local evidence는
+[EVID-104](TEST_EVIDENCE.md#evid-20260821-104--gdj-0037-project-bundle-and-recoverable-publication-affected-local-verification)에
+기록했습니다. MIG-075..086은 계속 `oracle_locked`/unregistered이고 PostgreSQL, Web Core, 새 Field/Relation 종류와
+general migration writer도 아직 구현하지 않았습니다.
 
 다음의 긴 단락은 reset 이전 bounded product의 역사적 제한과 CI 계보를 보존한 기록입니다. 현재 public format,
 loaded lifecycle 또는 generated ABI의 설명으로 읽지 않습니다.
@@ -1421,44 +1426,33 @@ general generated upgrade는 계속 open입니다.
 ## 다음 정확한 작업
 
 현재 유일한 active work는
-[GDJ-0036](../../work/0036-pre-release-compatibility-reset.md)이고 ready는 0입니다. 구현은 다음 current-only 경계로
-통합됐습니다.
+[GDJ-0037](../../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)이고 ready는 0입니다.
+Hosted baseline은 GDJ-0036 corrected exact head `57ddff374f7afa97346532ed143f4a88d73c7428`입니다. 그 위 현재
+working tree의 GDJ-0037 구현 사실은 다음과 같습니다.
 
-- Schema IR, Migration Definition document/digest와 ProjectState는 각각 current format `1` 하나만 사용합니다.
-- `definition.Load`는 opaque `migrations.LoadedDefinitionSet`을 반환하고, public lifecycle은
-  `Executor.Migrate(ctx, loaded, request)` 하나입니다. Context handoff와 raw slice lifecycle entry는 없습니다.
-- loaded lifecycle backend는 mandatory capability와 `BeginMigration(HistoryTransition, MigrationIntent)` 하나를
-  사용합니다. Raw atomic primitives는 별도 `DirectExecutor`가 소유합니다.
-- scalar와 ForeignKey app은 동일 current main generator ABI를 사용하고, project generator는 cross-app binding과
-  facade만 게시합니다. 과거 app relation-query companion와 facade private write model은 삭제했습니다.
-- MIG-057..074 reference/product artifacts는 current format과 lifecycle vocabulary로 재기준화됐습니다.
-- MIG-075..079도 current ABI/format/digest/state/staged-preflight diagnostic reference로 재정의했습니다. 현재
-  MIG-075..086 manifest는 7,858 bytes/SHA-256
-  `ec90feaf988e5c014a9cc08d00f6744993af146f2e5d5c4cd86d1ed6e18f25a9`, oracle은 120,502 bytes/
-  `5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968`입니다. Go diagnostic actual은
-  639,682 bytes/`374a31be2a5a2f9d64a726f5fc29f9dadf4ffcde30b68b7e42adcb5ca4504ed2`지만 generic typed
-  characterization이며 oracle semantic comparison이 아닙니다. 12 contract는 모두 `oracle_locked`/unregistered입니다.
-- relation-product exact no-skip inventory는 두 fresh process에서 각각
-  `842/842/0`, 86,694 bytes, SHA-256
-  `42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3`로 일치했습니다.
-- Python compatibility 4개 exact runtime은 각각 139 scenario, 618,616 bytes, SHA-256
-  `5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`로 일치했습니다.
-- Exact implementation commit `f6f56ea3...`의 235-path reset과 EVID-100/status mirror 뒤, cleanup commit
-  `bd31a77...`는 dead compatibility plumbing과 stale current/historical 문구를 정리했습니다. 저장소 외부 exact
-  clone의 full offline `make ci`, Linux/386 all-package compile, exact 28-path packet과 independent
-  P0/P1/P2/P3=0 감사는
-  [EVID-101](TEST_EVIDENCE.md#evid-20260820-101--gdj-0036-current-only-reset-cleanup-exact-head-local-verification)에
-  기록했습니다. 선행 구현 증거와 비재귀 mirror 경계는
-  [EVID-100](TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
-  기록했습니다.
+- `codegen.ProjectSpec` 하나를 normalize해 immutable `GeneratedBundle`, format-1 canonical manifest와 13-role
+  generator ABI를 만듭니다. App마다 4개, project마다 8개인 exact `4n+8` roster를 snapshot seal로 묶습니다.
+- Article은 app 4/project 8=`12` files, relationdelete는 app 8/project 8=`16` files이며 각각
+  `2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe`,
+  `4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775` snapshot입니다.
+- 별도 generation private protocol/linked runner는 generated target을 import하지 않는 declaration loader에서
+  ProjectSpec을 받습니다. Global CLI는 exact `generate [--check] [--project <descriptor>]` 네 형태를 지원합니다.
+- `Check`는 selected project tree/Git을 변경하지 않고 exact manifest/roster/hash/snapshot/interrupted drift를
+  진단합니다. Candidate compile은 project 밖 private overlay/cache에서 `go test -c`로만 수행해 user init/TestMain을
+  실행하지 않습니다.
+- Project root device/inode identity는 `SealProjectRoot`에서 고정해 Check, verifier, Publish까지 전달합니다.
+  Publisher는 lock, double CAS, same-filesystem stage, durable journal, atomic no-replace rename, manifest-last fsync와
+  exact old/new recovery를 사용합니다. Darwin/Linux local filesystem만 현재 구현 범위입니다.
+- Phase A~D affected normal/race/CGO-disabled/vet, SIGKILL recovery, offline `make generate-check`, full `make ci`,
+  Linux/386 all-package compile, repository-external source-clean-copy와 source independent audit
+  P0/P1/P2/P3=`0/0/0/0`이 통과했습니다. 이는 exact committed-head hosted proof가 아니며 actual
+  power-loss/distributed filesystem/Windows 지원을 뜻하지 않습니다. Exact local evidence는
+  [EVID-104](TEST_EVIDENCE.md#evid-20260821-104--gdj-0037-project-bundle-and-recoverable-publication-affected-local-verification)입니다.
 
-EVID-101/status mirror를 포함한 `971f427...`는 기존 Draft PR #1 head로 non-force fast-forward됐고,
-[CI #99](https://github.com/progresshans/godj/actions/runs/32336573749)는 exact head/tree에서 26 jobs를 실행했습니다.
-제품 테스트와 portable Python 216/19 suite는 통과했지만 cleanup 뒤 바뀐 relation test-name inventory와 current
-Python semantic aggregate의 hosted-only 고정값이 갱신되지 않아 18 success/8 failure로 끝났습니다. 현재 working
-tree는 workflow와 protocol mirror를 위 새 값으로 동기화했고 [EVID-102](TEST_EVIDENCE.md#evid-20260820-102--gdj-0036-first-exact-head-hosted-failure-and-aggregate-lock-correction)에
-실패와 교정 검증을 기록했습니다. 다음은 이 correction을 별도 승인으로 commit/push한 새 exact head의 hosted
-matrix입니다. Merge/release는 승인되지 않았고 GDJ-0036은 계속 `active`입니다.
+다음은 frozen implementation/documentation tree의 commit/push와 exact-head hosted matrix이며 별도 사용자 승인이 있어야
+수행합니다.
+Q-017의 project-wide publication 하위 경계는 구현됐지만 raw-model UX, capability/namespace, reverse/general upgrade와
+generator/library semver 때문에 Q-017 전체는 P1/open입니다. Draft PR merge와 release는 승인되지 않았습니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)
 

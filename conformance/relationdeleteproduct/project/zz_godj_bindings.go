@@ -16,3 +16,9 @@ func Bind() (orm.ProjectBinding, error) {
 		blog.GoDjRelationSchema(),
 	)
 }
+
+type goDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775 struct{}
+
+var _ goDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775
+var _ authors.GoDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775
+var _ blog.GoDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775

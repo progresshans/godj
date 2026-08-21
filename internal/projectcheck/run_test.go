@@ -73,8 +73,8 @@ func TestRunSuccessUsesClosedCommandsPrivateEnvironmentAndSinglePublication(t *t
 		t.Fatalf("commands = %d", len(backend.commands))
 	}
 	build := backend.commands[0]
-	wantBuildPrefix := []string{"go", "build", "-mod=readonly", "-o"}
-	if !reflect.DeepEqual(build.Argv[:4], wantBuildPrefix) || build.Argv[len(build.Argv)-1] != "./cmd/site" || build.Dir != fixture.project {
+	wantBuildPrefix := []string{"go", "build", "-buildvcs=false", "-mod=readonly", "-o"}
+	if !reflect.DeepEqual(build.Argv[:5], wantBuildPrefix) || build.Argv[len(build.Argv)-1] != "./cmd/site" || build.Dir != fixture.project {
 		t.Fatalf("build command = %+v", build)
 	}
 	runner := backend.commands[1]
@@ -90,11 +90,41 @@ func TestRunSuccessUsesClosedCommandsPrivateEnvironmentAndSinglePublication(t *t
 			t.Fatalf("private directory %s remained: %v", environment[key], err)
 		}
 	}
-	if environment["GOWORK"] != "off" || environment["GOTOOLCHAIN"] != "local" || environment["GOENV"] != "off" || environment["GOFLAGS"] != "" || environment["GOCACHEPROG"] != "" || environment["NETRC"] != "/explicit/netrc" || environment["GOTELEMETRY"] != "ambient" {
+	if environment["GOWORK"] != "off" || environment["GOTOOLCHAIN"] != "local" || environment["GOENV"] != "off" || environment["GOFLAGS"] != "-modcacherw" || environment["GOCACHEPROG"] != "" || environment["NETRC"] != "/explicit/netrc" || environment["GOTELEMETRY"] != "ambient" {
 		t.Fatalf("child environment = %#v", environment)
 	}
 	if report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 || !report.RawDiagnosticsDiscarded {
 		t.Fatalf("cleanup report = %+v", report)
+	}
+}
+
+func TestRunRunnerCleanupFailurePrecedesResponseParsing(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	wire, err := protocol.EncodeResponse(protocol.Response{OK: true, Result: protocol.Result{
+		SourceCount: 0, DefinitionCount: 0, DefinitionSetDigest: protocol.EmptySetDigest,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	responseBacking := wire
+	backend := &scriptedBackend{
+		build: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+		runner: ProcessResult{
+			Started: true, ExitCode: 0, DirectReaps: 1, CleanupFailed: true,
+			Stdout: responseBacking, StdoutScalar: StreamScalar{RetainedBytes: len(responseBacking)},
+		},
+	}
+	var stdout, stderr bytes.Buffer
+	report := Run(Invocation{
+		Context: context.Background(), CWD: fixture.project, Args: []string{"migrations", "check"},
+		Environment: fixture.environment, Stdout: &stdout, Stderr: &stderr, Backend: backend,
+	})
+	if report.ExitCode != 3 || report.HasResult || report.Failure != failure(protocol.CategoryProcess, protocol.CodeProjectCleanupFailed) || report.CleanupFailed != 1 || stdout.Len() != 0 || stderr.String() != protocol.CategoryProcess+"/"+protocol.CodeProjectCleanupFailed+"\n" {
+		t.Fatalf("runner cleanup precedence=%+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+	}
+	if !bytes.Equal(responseBacking, make([]byte, len(responseBacking))) {
+		t.Fatalf("runner response was not zeroized: %q", responseBacking)
 	}
 }
 
@@ -266,7 +296,7 @@ func TestPrivateWorkspacePhysicalBoundariesAndDefault(t *testing.T) {
 		}
 		backend := backendFunc(func(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 			if stage == BuildStage {
-				root := filepath.Dir(command.Argv[4])
+				root := filepath.Dir(command.Argv[5])
 				paths := []string{root}
 				values := environmentValues(command.Env)
 				for _, key := range []string{"TMPDIR", "GOTMPDIR", "GOCACHE", "GOMODCACHE", "HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "TEST_TELEMETRY_DIR"} {

@@ -50,5 +50,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md) | Accepted | Django-first REL-002 forward assignment/save, PK-presence, canonical preflight와 per-edge COW cache 경계 |
 | [0034](0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md) | Superseded | D4d~D4f evidence는 보존; dual profile/state/backend와 D4g publication은 ADR-0035로 대체 |
 | [0035](0035-pre-release-current-only-format-and-generated-publication.md) | Accepted | Current-only IR/definition/state, explicit loaded set, unified migration intent와 current generated ABI reset |
+| [0036](0036-project-schema-generated-bundle-and-recoverable-publication.md) | Accepted | ProjectSpec/GeneratedBundle, whole-candidate compile와 recoverable coordinated publication |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

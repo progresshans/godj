@@ -2,6 +2,7 @@ package compiletest
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -21,20 +22,23 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/conformance/relationdeleteproduct/fixture"
+	"github.com/progresshans/godj/internal/projectgenerate"
 )
 
 const modulePath = "github.com/progresshans/godj"
 
 const (
-	relationFacadePhysicalBytes               = 146722
-	relationFacadePhysicalDigest              = "91892e18ce2c7b3a6324fc1d5eaedea69fa60424f21326245e8506692bef4fb4"
-	relationFacadePrerequisiteGeneratedBytes  = 34267
-	relationFacadePrerequisiteGeneratedDigest = "46b8091dccfdc09f55ae51310a934b6eab8ea7732e16f7146781416b09b386cb"
-	relationFacadeGeneratedBytes              = 64645
-	relationFacadeGeneratedDigest             = "74693b450aefdbc05b92fc9157ab78bb882f2edba867b5e088d575f3612338e2"
+	relationFacadePhysicalBytes   = 169598
+	relationFacadePhysicalDigest  = "7ec13167dec1c24b76bba6c9a0ab7856161233dfe30fad4f10dfe72284fb2953"
+	relationFacadeGeneratedBytes  = 77483
+	relationFacadeGeneratedDigest = "b027b8104aaa659e27e302916eb482b5f96b72d1b696b04622635eea4f9f5ec4"
 )
 
 var relationFacadePhysicalFiles = []string{
+	".godj/generated-manifest.json",
 	"authors/zz_godj_generated.go",
 	"authors/zz_godj_relation.go",
 	"authors/zz_godj_relation_object.go",
@@ -43,37 +47,30 @@ var relationFacadePhysicalFiles = []string{
 	"blog/zz_godj_relation.go",
 	"blog/zz_godj_relation_object.go",
 	"blog/zz_godj_relation_projection.go",
+	"cmd/projectrunner/main.go",
 	"fixture/schema.go",
+	"godj.toml",
 	"observer.go",
 	"product_test.go",
 	"project/zz_godj_bindings.go",
 	"project/zz_godj_relation_delete.go",
 	"project/zz_godj_relation_facade.go",
 	"project/zz_godj_relation_object.go",
+	"project/zz_godj_relation_prefetch.go",
+	"project/zz_godj_relation_query.go",
+	"project/zz_godj_relation_reverse.go",
 	"project/zz_godj_relation_select_related.go",
 }
 
 var relationFacadePhysicalDirectories = []string{
 	".",
+	".godj",
 	"authors",
 	"blog",
+	"cmd",
+	"cmd/projectrunner",
 	"fixture",
 	"project",
-}
-
-var relationFacadePrerequisiteGeneratedFiles = []string{
-	"authors/zz_godj_generated.go",
-	"authors/zz_godj_relation.go",
-	"authors/zz_godj_relation_object.go",
-	"authors/zz_godj_relation_projection.go",
-	"blog/zz_godj_generated.go",
-	"blog/zz_godj_relation.go",
-	"blog/zz_godj_relation_object.go",
-	"blog/zz_godj_relation_projection.go",
-	"project/zz_godj_bindings.go",
-	"project/zz_godj_relation_delete.go",
-	"project/zz_godj_relation_object.go",
-	"project/zz_godj_relation_select_related.go",
 }
 
 var relationFacadeGeneratedFiles = []string{
@@ -89,6 +86,31 @@ var relationFacadeGeneratedFiles = []string{
 	"project/zz_godj_relation_delete.go",
 	"project/zz_godj_relation_facade.go",
 	"project/zz_godj_relation_object.go",
+	"project/zz_godj_relation_prefetch.go",
+	"project/zz_godj_relation_query.go",
+	"project/zz_godj_relation_reverse.go",
+	"project/zz_godj_relation_select_related.go",
+}
+
+var relationFacadeCommandViewFiles = []string{
+	"authors/zz_godj_generated.go",
+	"authors/zz_godj_relation.go",
+	"authors/zz_godj_relation_object.go",
+	"authors/zz_godj_relation_projection.go",
+	"blog/zz_godj_generated.go",
+	"blog/zz_godj_relation.go",
+	"blog/zz_godj_relation_object.go",
+	"blog/zz_godj_relation_projection.go",
+	"fixture/schema.go",
+	"observer.go",
+	"product_test.go",
+	"project/zz_godj_bindings.go",
+	"project/zz_godj_relation_delete.go",
+	"project/zz_godj_relation_facade.go",
+	"project/zz_godj_relation_object.go",
+	"project/zz_godj_relation_prefetch.go",
+	"project/zz_godj_relation_query.go",
+	"project/zz_godj_relation_reverse.go",
 	"project/zz_godj_relation_select_related.go",
 }
 
@@ -286,7 +308,7 @@ replace %s => %s
 	productOutput := filepath.Join(directory, "relationdeleteproduct.test")
 	productCompile := compileRelationFacadeProduct(t, root, productOutput)
 	if productCompile.err != nil {
-		t.Fatalf("relation facade physical exact-17 product did not compile: %v\n%s", productCompile.err, productCompile.output)
+		t.Fatalf("relation facade physical current bundle product did not compile: %v\n%s", productCompile.err, productCompile.output)
 	}
 	productInfo, err := os.Lstat(productOutput)
 	if err != nil {
@@ -630,6 +652,22 @@ func loadRelationFacadeInventory(root string, wantDirectories, wantFiles []strin
 		if entry.Type()&os.ModeSymlink != 0 {
 			return fmt.Errorf("relation facade physical fixture contains symlink %s", path)
 		}
+		switch relative {
+		case ".godj/generate.lock", ".godj/publication-journal.json":
+			info, err := entry.Info()
+			if err != nil {
+				return fmt.Errorf("inspect relation facade lifecycle control %s: %w", relative, err)
+			}
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("relation facade lifecycle control %s is not a regular file (%s)", relative, info.Mode())
+			}
+			return nil
+		case ".godj/transactions":
+			if !entry.IsDir() {
+				return fmt.Errorf("relation facade lifecycle control %s is not a directory", relative)
+			}
+			return filepath.SkipDir
+		}
 		if entry.IsDir() {
 			if _, expected := directories[relative]; !expected {
 				return fmt.Errorf("relation facade physical fixture contains unexpected directory %s", relative)
@@ -673,6 +711,120 @@ func loadRelationFacadeInventory(root string, wantDirectories, wantFiles []strin
 	return relationFacadeInventory{files: files, names: names, bytes: contentBytes, digest: digest}, nil
 }
 
+func TestRelationFacadePhysicalInventoryExcludesOnlyGenerationLifecycleControls(t *testing.T) {
+	repository := repositoryRoot(t)
+	fixtureRoot := filepath.Join(repository, "conformance", "relationdeleteproduct")
+	baseline := readRelationFacadeInventory(t, fixtureRoot)
+
+	root := t.TempDir()
+	for _, directory := range relationFacadePhysicalDirectories {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(directory)), 0o755); err != nil {
+			t.Fatalf("create relation facade inventory directory %s: %v", directory, err)
+		}
+	}
+	for _, name := range relationFacadePhysicalFiles {
+		filename := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.WriteFile(filename, baseline.files[name], 0o644); err != nil {
+			t.Fatalf("copy relation facade inventory file %s: %v", name, err)
+		}
+	}
+
+	spec, err := fixture.ProjectSpec(context.Background())
+	if err != nil {
+		t.Fatalf("load relation facade ProjectSpec: %v", err)
+	}
+	bundle, err := codegen.GenerateProject(spec)
+	if err != nil {
+		t.Fatalf("generate relation facade project bundle: %v", err)
+	}
+	verifierCalls := 0
+	err = projectgenerate.Publish(
+		context.Background(),
+		root,
+		bundle,
+		projectgenerate.CandidateVerifyFunc(func(context.Context, string) error {
+			verifierCalls++
+			return nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("publish unchanged relation facade bundle: %v", err)
+	}
+	if verifierCalls != 0 {
+		t.Fatalf("unchanged relation facade publication verifier calls = %d, want 0", verifierCalls)
+	}
+	for _, control := range []struct {
+		path      string
+		directory bool
+	}{
+		{path: ".godj/generate.lock"},
+		{path: ".godj/transactions", directory: true},
+	} {
+		info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(control.path)))
+		if err != nil || info.IsDir() != control.directory || (!control.directory && !info.Mode().IsRegular()) {
+			t.Fatalf("successful publication control %s = %v, %v", control.path, info, err)
+		}
+	}
+	afterPublish, err := loadRelationFacadeInventory(root, relationFacadePhysicalDirectories, relationFacadePhysicalFiles)
+	if err != nil {
+		t.Fatalf("inventory after successful publication: %v", err)
+	}
+	assertRelationFacadeInventoryEqual(t, baseline, afterPublish, "successful publication controls")
+	report, err := projectgenerate.Check(context.Background(), root, bundle)
+	if err != nil || !report.Clean() {
+		t.Fatalf("generate check with persistent successful controls: report=%#v error=%v", report, err)
+	}
+
+	journalPath := filepath.Join(root, ".godj", "publication-journal.json")
+	if err := os.WriteFile(journalPath, []byte("interrupted\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	transactionPath := filepath.Join(root, ".godj", "transactions", "interrupted", "stage")
+	if err := os.MkdirAll(transactionPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(transactionPath, "candidate"), []byte("partial\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	afterInterruption, err := loadRelationFacadeInventory(root, relationFacadePhysicalDirectories, relationFacadePhysicalFiles)
+	if err != nil {
+		t.Fatalf("inventory with interrupted publication controls: %v", err)
+	}
+	assertRelationFacadeInventoryEqual(t, baseline, afterInterruption, "interrupted publication controls")
+	report, err = projectgenerate.Check(context.Background(), root, bundle)
+	if !errors.Is(err, projectgenerate.ErrGeneratedDrift) || !errors.Is(err, projectgenerate.ErrPublicationInterrupted) || !report.Interrupted || report.Clean() {
+		t.Fatalf("generate check interrupted publication: report=%#v error=%v", report, err)
+	}
+	for _, path := range []string{".godj/publication-journal.json", ".godj/transactions/interrupted"} {
+		if !relationFacadeHasDrift(report.Drifts, path, projectgenerate.DriftInterrupted) {
+			t.Fatalf("generate check interrupted drifts = %#v, want %s", report.Drifts, path)
+		}
+	}
+
+	if err := os.WriteFile(filepath.Join(root, ".godj", "rogue-state.json"), []byte("rogue\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadRelationFacadeInventory(root, relationFacadePhysicalDirectories, relationFacadePhysicalFiles); err == nil || !strings.Contains(err.Error(), "unexpected non-Go entry") {
+		t.Fatalf("inventory rogue .godj error = %v, want fail-closed non-Go rejection", err)
+	}
+}
+
+func assertRelationFacadeInventoryEqual(t *testing.T, left, right relationFacadeInventory, label string) {
+	t.Helper()
+	if !slices.Equal(left.names, right.names) || left.bytes != right.bytes || left.digest != right.digest || !equalRelationFacadeFiles(left.files, right.files) {
+		t.Fatalf("relation facade inventory changed under %s: before=%d/%s/%q after=%d/%s/%q", label, left.bytes, left.digest, left.names, right.bytes, right.digest, right.names)
+	}
+}
+
+func relationFacadeHasDrift(drifts []projectgenerate.Drift, path string, kind projectgenerate.DriftKind) bool {
+	for _, drift := range drifts {
+		if drift.Path == path && drift.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
 func validateRelationFacadeInventoryEntry(path string, entry fs.DirEntry) error {
 	if entry.Type()&os.ModeSymlink != 0 {
 		return fmt.Errorf("relation facade physical fixture contains symlink %s", path)
@@ -687,7 +839,7 @@ func validateRelationFacadeInventoryEntry(path string, entry fs.DirEntry) error 
 	if !info.Mode().IsRegular() {
 		return fmt.Errorf("relation facade physical fixture contains non-regular entry %s (%s)", path, info.Mode())
 	}
-	if filepath.Ext(entry.Name()) != ".go" {
+	if filepath.Ext(entry.Name()) != ".go" && entry.Name() != "godj.toml" && entry.Name() != "generated-manifest.json" {
 		return fmt.Errorf("relation facade physical fixture contains unexpected non-Go entry %s", path)
 	}
 	return nil
@@ -772,25 +924,6 @@ func verifyRelationFacadePhysicalInventory(t *testing.T, inventory relationFacad
 	if inventory.bytes != relationFacadePhysicalBytes || inventory.digest != relationFacadePhysicalDigest {
 		t.Fatalf("relation facade physical inventory = %d/%s, want %d/%s", inventory.bytes, inventory.digest, relationFacadePhysicalBytes, relationFacadePhysicalDigest)
 	}
-	prerequisiteGenerated := make(map[string][]byte, len(relationFacadePrerequisiteGeneratedFiles))
-	for _, name := range relationFacadePrerequisiteGeneratedFiles {
-		content, ok := inventory.files[name]
-		if !ok {
-			t.Fatalf("relation facade prerequisite generated file %s is absent", name)
-		}
-		prerequisiteGenerated[name] = content
-	}
-	prerequisiteBytes, prerequisiteDigest := digestRelationFacadeFiles(prerequisiteGenerated)
-	if len(prerequisiteGenerated) != 12 || prerequisiteBytes != relationFacadePrerequisiteGeneratedBytes || prerequisiteDigest != relationFacadePrerequisiteGeneratedDigest {
-		t.Fatalf(
-			"relation facade prerequisite generated inventory = %d/%d/%s, want 12/%d/%s",
-			len(prerequisiteGenerated),
-			prerequisiteBytes,
-			prerequisiteDigest,
-			relationFacadePrerequisiteGeneratedBytes,
-			relationFacadePrerequisiteGeneratedDigest,
-		)
-	}
 	generated := make(map[string][]byte, len(relationFacadeGeneratedFiles))
 	for _, name := range relationFacadeGeneratedFiles {
 		content, ok := inventory.files[name]
@@ -800,9 +933,9 @@ func verifyRelationFacadePhysicalInventory(t *testing.T, inventory relationFacad
 		generated[name] = content
 	}
 	generatedBytes, generatedDigest := digestRelationFacadeFiles(generated)
-	if len(generated) != 13 || generatedBytes != relationFacadeGeneratedBytes || generatedDigest != relationFacadeGeneratedDigest {
+	if len(generated) != 16 || generatedBytes != relationFacadeGeneratedBytes || generatedDigest != relationFacadeGeneratedDigest {
 		t.Fatalf(
-			"relation facade generated inventory = %d/%d/%s, want 13/%d/%s",
+			"relation facade generated inventory = %d/%d/%s, want 16/%d/%s",
 			len(generated),
 			generatedBytes,
 			generatedDigest,
@@ -933,6 +1066,9 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 				"zz_godj_relation_delete.go",
 				"zz_godj_relation_facade.go",
 				"zz_godj_relation_object.go",
+				"zz_godj_relation_prefetch.go",
+				"zz_godj_relation_query.go",
+				"zz_godj_relation_reverse.go",
 				"zz_godj_relation_select_related.go",
 			},
 		},
@@ -943,7 +1079,7 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 		wantPackages[path] = files
 	}
 	seenPackages := make(map[string]bool, len(wantPackages))
-	physicalFiles := make([]string, 0, len(relationFacadePhysicalFiles))
+	physicalFiles := make([]string, 0, len(relationFacadeCommandViewFiles))
 	decoder := json.NewDecoder(bytes.NewReader(output))
 	for {
 		var listed struct {
@@ -993,8 +1129,8 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 		t.Fatalf("production relation facade package closure = %d packages, want exact %d", len(seenPackages), len(wantPackages))
 	}
 	slices.Sort(physicalFiles)
-	if !slices.Equal(physicalFiles, relationFacadePhysicalFiles) {
-		t.Fatalf("production relation facade command-view files = %q, want physical exact %d %q", physicalFiles, len(relationFacadePhysicalFiles), relationFacadePhysicalFiles)
+	if !slices.Equal(physicalFiles, relationFacadeCommandViewFiles) {
+		t.Fatalf("production relation facade command-view files = %q, want exact %d %q", physicalFiles, len(relationFacadeCommandViewFiles), relationFacadeCommandViewFiles)
 	}
 }
 
@@ -1931,7 +2067,16 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 		{from: modulePath + "/orm", to: modulePath + "/db/sqlite"},
 		{from: modulePath + "/codegen", to: modulePath + "/examples/article/models"},
 		{from: modulePath + "/examples/article/models", to: modulePath + "/codegen"},
-		{from: modulePath + "/internal/cmd/m1generate", to: modulePath + "/examples/article/models"},
+		{from: modulePath + "/examples/article/modeldef", to: modulePath + "/examples/article/models"},
+		{from: modulePath + "/examples/article/modeldef", to: modulePath + "/examples/article/project"},
+		{from: modulePath + "/examples/article/cmd/projectrunner", to: modulePath + "/examples/article/models"},
+		{from: modulePath + "/examples/article/cmd/projectrunner", to: modulePath + "/examples/article/project"},
+		{from: modulePath + "/conformance/relationdeleteproduct/fixture", to: modulePath + "/conformance/relationdeleteproduct/authors"},
+		{from: modulePath + "/conformance/relationdeleteproduct/fixture", to: modulePath + "/conformance/relationdeleteproduct/blog"},
+		{from: modulePath + "/conformance/relationdeleteproduct/fixture", to: modulePath + "/conformance/relationdeleteproduct/project"},
+		{from: modulePath + "/conformance/relationdeleteproduct/cmd/projectrunner", to: modulePath + "/conformance/relationdeleteproduct/authors"},
+		{from: modulePath + "/conformance/relationdeleteproduct/cmd/projectrunner", to: modulePath + "/conformance/relationdeleteproduct/blog"},
+		{from: modulePath + "/conformance/relationdeleteproduct/cmd/projectrunner", to: modulePath + "/conformance/relationdeleteproduct/project"},
 		{from: modulePath + "/migrations", to: modulePath + "/migrations/definition"},
 		{from: modulePath + "/internal/projectcheck", to: modulePath + "/internal/projectcheck/linked"},
 		{from: modulePath + "/internal/projectcheck/linked", to: modulePath + "/internal/projectcheck"},
@@ -1989,10 +2134,16 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 func TestProjectCheckDirectImportGraph(t *testing.T) {
 	want := map[string][]string{
 		modulePath + "/project": {
+			modulePath + "/codegen",
 			modulePath + "/internal/projectcheck/linked",
+			modulePath + "/internal/projectgenerate/linked",
+			modulePath + "/internal/projectgenerate/protocol",
 		},
 		modulePath + "/internal/projectcheck": {
+			modulePath + "/codegen",
 			modulePath + "/internal/projectcheck/protocol",
+			modulePath + "/internal/projectgenerate",
+			modulePath + "/internal/projectgenerate/protocol",
 		},
 		modulePath + "/internal/projectcheck/linked": {
 			modulePath + "/internal/projectcheck/protocol",
@@ -2000,6 +2151,21 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 			modulePath + "/migrations/definition",
 		},
 		modulePath + "/internal/projectcheck/protocol": nil,
+		modulePath + "/internal/projectgenerate": {
+			modulePath + "/codegen",
+		},
+		modulePath + "/internal/projectgenerate/linked": {
+			modulePath + "/codegen",
+			modulePath + "/internal/projectgenerate/protocol",
+		},
+		modulePath + "/internal/projectgenerate/protocol": {
+			modulePath + "/codegen",
+			modulePath + "/internal/projectspec",
+			modulePath + "/schema/ir",
+		},
+		modulePath + "/internal/projectspec": {
+			modulePath + "/schema/ir",
+		},
 	}
 
 	packages := make([]string, 0, len(want))

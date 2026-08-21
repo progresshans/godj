@@ -114,7 +114,7 @@ func Run(input Invocation) Report {
 	buildCommand := Command{
 		Dir: selected.rootPath,
 		Argv: []string{
-			"go", "build", "-mod=readonly", "-o",
+			"go", "build", "-buildvcs=false", "-mod=readonly", "-o",
 			filepath.Join(workspace.root, "godj-project-runner"),
 			selected.descriptor.packagePath,
 		},
@@ -157,6 +157,7 @@ func Run(input Invocation) Report {
 	runner := input.Backend.Execute(input.Context, input.Interrupt, RunnerStage, cloneCommand(runnerCommand))
 	recordProcess(&report, RunnerStage, runner)
 	primary = processFailure(RunnerStage, runner)
+	primary = combineProcessCleanup(primary, runner.CleanupFailed)
 	var response protocol.Response
 	if primary == nil {
 		if runner.StdoutScalar.Truncated {
@@ -174,7 +175,6 @@ func Run(input Invocation) Report {
 	}
 	clear(runner.Stdout)
 	primary = barrierFailure(input, primary)
-	primary = combineProcessCleanup(primary, runner.CleanupFailed)
 	if primary != nil {
 		chooseFailure(&report, *primary)
 	} else if response.OK {

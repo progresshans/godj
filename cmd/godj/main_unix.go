@@ -30,6 +30,18 @@ func main() {
 }
 
 func execute(ctx context.Context, cwd string, args, environment []string, stdout, stderr io.Writer, interrupt <-chan struct{}) int {
+	if len(args) != 0 && args[0] == "generate" {
+		report := projectcheck.RunGenerate(projectcheck.GenerationInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
 	report := projectcheck.Run(projectcheck.Invocation{
 		Context:     ctx,
 		CWD:         cwd,

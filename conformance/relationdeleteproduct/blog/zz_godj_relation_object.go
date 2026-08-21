@@ -57,3 +57,5 @@ func (postReviewerIDRelationStorage) Value(value Post) (query.Value, bool) {
 	}
 	return query.Integer(*value.ReviewerID), true
 }
+
+var _ GoDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775

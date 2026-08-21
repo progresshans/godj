@@ -4,7 +4,7 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-12
-- 현재 형식 mirror 검토: 2026-08-20
+- 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
 
@@ -29,8 +29,10 @@ Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publi
   current-only 진단 reference로 다시 생성됐고 reference aggregate에는 포함되지만, 계속
   `oracle_locked`/unregistered라 제품 지원 또는 status 전환 주장은 아닙니다.
 
-현재 reset exact local implementation commit의 검증은 완료됐지만, 최종 frozen head의 hosted gate 전에는 이 절을
-새 release compatibility 또는 hosted `Verified` 주장으로 읽지 않습니다.
+Current-only reset은 EVID-103의 hosted gate까지 완료됐습니다. GDJ-0037의 format-1 manifest read-old/write-current는
+첫 alpha 전 내부 generated upgrade/recovery 계약이며 공개 하위호환 보장은 아닙니다. GDJ-0037 final
+full/386/repository-external source-clean-copy local gates는 통과했지만 exact-head hosted gate 전에는 project publication을
+Verified/completed로 읽지 않습니다.
 
 ## 프로필 범위
 

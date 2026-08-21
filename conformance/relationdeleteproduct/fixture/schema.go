@@ -4,8 +4,10 @@
 package fixture
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -65,4 +67,52 @@ func BlogSchema() (ir.Schema, error) {
 		return ir.Schema{}, fmt.Errorf("build blog relation-delete schema: %w", err)
 	}
 	return result, nil
+}
+
+// ProjectSpec returns the declaration-only whole-project generation input for
+// the canonical relation-delete product. It never imports checked-in generated
+// app or project packages.
+func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
+	if ctx == nil {
+		return codegen.ProjectSpec{}, fmt.Errorf("relation-delete project spec: nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	authors, err := AuthorsSchema()
+	if err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	blog, err := BlogSchema()
+	if err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	const rootImport = "github.com/progresshans/godj/conformance/relationdeleteproduct/"
+	return codegen.ProjectSpec{
+		Project: codegen.PackageSpec{
+			PackageName: "project",
+			ImportPath:  rootImport + "project",
+			Directory:   "project",
+		},
+		Apps: []codegen.AppSpec{
+			{
+				Alias: "authors",
+				Package: codegen.PackageSpec{
+					PackageName: "authors",
+					ImportPath:  rootImport + "authors",
+					Directory:   "authors",
+				},
+				Schema: authors,
+			},
+			{
+				Alias: "blog",
+				Package: codegen.PackageSpec{
+					PackageName: "blog",
+					ImportPath:  rootImport + "blog",
+					Directory:   "blog",
+				},
+				Schema: blog,
+			},
+		},
+	}, nil
 }

@@ -3,6 +3,10 @@
 package modeldef
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -22,4 +26,37 @@ var Definition = schema.Definition{
 
 func Schema() (ir.Schema, error) {
 	return schema.Build(Definition)
+}
+
+// ProjectSpec returns the declaration-only whole-project generation input.
+// This package deliberately does not import the generated models or project
+// packages, so generation can bootstrap missing or stale output.
+func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
+	if ctx == nil {
+		return codegen.ProjectSpec{}, fmt.Errorf("article project spec: nil context")
+	}
+	if err := ctx.Err(); err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	appSchema, err := Schema()
+	if err != nil {
+		return codegen.ProjectSpec{}, err
+	}
+	const rootImport = "github.com/progresshans/godj/examples/article/"
+	return codegen.ProjectSpec{
+		Project: codegen.PackageSpec{
+			PackageName: "project",
+			ImportPath:  rootImport + "project",
+			Directory:   "project",
+		},
+		Apps: []codegen.AppSpec{{
+			Alias: "models",
+			Package: codegen.PackageSpec{
+				PackageName: "models",
+				ImportPath:  rootImport + "models",
+				Directory:   "models",
+			},
+			Schema: appSchema,
+		}},
+	}, nil
 }

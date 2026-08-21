@@ -37,6 +37,15 @@ func TestOwnedProcessHelper(t *testing.T) {
 		stderrBytes, _ := strconv.Atoi(os.Getenv("GODJ_HELPER_STDERR_BYTES"))
 		_, _ = io.CopyN(os.Stderr, strings.NewReader(strings.Repeat("y", stderrBytes)), int64(stderrBytes))
 		os.Exit(0)
+	case "generation-wire":
+		wire := os.Getenv("GODJ_HELPER_WIRE")
+		stdoutBytes, _ := strconv.Atoi(os.Getenv("GODJ_HELPER_STDOUT_BYTES"))
+		_, _ = io.WriteString(os.Stdout, wire)
+		remaining := stdoutBytes - len(wire)
+		if remaining > 0 {
+			_, _ = io.CopyN(os.Stdout, strings.NewReader(strings.Repeat(" ", remaining)), int64(remaining))
+		}
+		os.Exit(0)
 	case "ignore":
 		signal.Ignore(os.Interrupt)
 		if err := publishHelperReady(strconv.Itoa(os.Getpid())); err != nil {

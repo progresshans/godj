@@ -69,12 +69,14 @@ type Invocation struct {
 	workspace   workspaceHooks
 }
 
-// ProcessStage identifies the only two child programs the global kernel owns.
+// ProcessStage identifies the child programs the global kernel owns. The two
+// runner stages intentionally have different private response bounds.
 type ProcessStage uint8
 
 const (
 	BuildStage ProcessStage = iota + 1
 	RunnerStage
+	GenerationRunnerStage
 )
 
 // Command is a fully separated argv invocation. It is never interpreted by a

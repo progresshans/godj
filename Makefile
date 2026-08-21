@@ -53,7 +53,8 @@ format-check:
 	fi
 
 generate-check:
-	go run ./internal/cmd/m1generate -check
+	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
+	go run ./cmd/godj generate --check --project ./conformance/relationdeleteproduct/godj.toml
 
 go-test:
 	go test ./...

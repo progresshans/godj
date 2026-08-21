@@ -144,6 +144,52 @@ func TestGenerateProjectRelationQueryZeroProjectUsesNoUnusedImports(t *testing.T
 	}
 }
 
+func TestGeneratedProjectRelationQueryScalarOnlyModelsCompile(t *testing.T) {
+	authors, _ := relationQueryGenerationSchemas()
+	const modulePath = "example.com/godj-relation-query-scalar-only"
+	mainSource, err := codegen.Generate("authors", authors)
+	if err != nil {
+		t.Fatalf("generate scalar app main: %v", err)
+	}
+	metadataSource, err := codegen.GenerateRelationMetadata("authors", authors)
+	if err != nil {
+		t.Fatalf("generate scalar app metadata: %v", err)
+	}
+	bindingSource, err := codegen.GenerateProjectBridge("project", []codegen.BridgePackage{{Alias: "authors", ImportPath: modulePath + "/authors"}})
+	if err != nil {
+		t.Fatalf("generate scalar project binding: %v", err)
+	}
+	querySource, err := codegen.GenerateProjectRelationQuery("project", []codegen.RelationQueryPackage{{
+		Alias: "authors", ImportPath: modulePath + "/authors", Schema: authors,
+	}})
+	if err != nil {
+		t.Fatalf("generate scalar project query: %v", err)
+	}
+	if bytes.Contains(querySource, []byte("_model0")) {
+		t.Fatalf("scalar-only project query binds an unused model:\n%s", querySource)
+	}
+
+	directory := t.TempDir()
+	writeGeneratedTestFile(t, directory, "go.mod", []byte(fmt.Sprintf(`module %s
+
+go 1.26.0
+
+require github.com/progresshans/godj v0.0.0
+
+replace github.com/progresshans/godj => %s
+`, modulePath, filepath.ToSlash(codegenRepositoryRoot(t)))))
+	writeGeneratedTestFile(t, directory, "authors/zz_godj_generated.go", mainSource)
+	writeGeneratedTestFile(t, directory, "authors/zz_godj_relation.go", metadataSource)
+	writeGeneratedTestFile(t, directory, "project/zz_godj_bindings.go", bindingSource)
+	writeGeneratedTestFile(t, directory, "project/zz_godj_relation_query.go", querySource)
+	command := exec.Command("go", "test", "-mod=mod", "./...")
+	command.Dir = directory
+	command.Env = generatedTestEnvironment()
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("scalar-only generated project did not compile: %v\n%s\nproject source:\n%s", err, output, querySource)
+	}
+}
+
 func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
 	authorsMain, err := codegen.Generate("authors", authors)

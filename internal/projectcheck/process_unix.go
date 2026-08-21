@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	"golang.org/x/sys/unix"
 )
 
@@ -26,6 +27,9 @@ func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, st
 	retainStdout := false
 	if stage == RunnerStage {
 		stdoutMaximum = protocol.MaxResponseBytes
+		retainStdout = true
+	} else if stage == GenerationRunnerStage {
+		stdoutMaximum = projectgenerateprotocol.MaxResponseBytes
 		retainStdout = true
 	}
 	return executeOwnedProcess(ctx, interrupt, cloneCommand(command), stdoutMaximum, maxDiagnosticBytes, retainStdout)

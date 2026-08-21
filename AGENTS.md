@@ -62,6 +62,16 @@ API 예시는 검증 전 가설일 수 있다. 특히 codegen bootstrap, 앱 간
 - 테스트를 실행하지 않았으면 통과했다고 쓰지 않는다. 테스트 증거에는 명령, 날짜, checkout 식별자, 결과를 남긴다.
 - false green을 금지한다. 미구현 계약은 명시적으로 미구현 상태여야 한다.
 
+### 검증 주기
+
+- 매 변경에서는 `gofmt`, compile, affected package test와 관련 generated drift만 실행한다.
+- work checkpoint에서는 해당 수직 단면의 normal/race/CGO-disabled와 필요한 backend canary를 실행한다.
+- full `make ci`, 전체 race/386, clean-clone과 hosted matrix는 active work의 final frozen milestone에서 한 번 실행한다.
+- 문서-only 변경은 link, frontmatter, status consistency와 `git diff --check`를 기본 gate로 삼는다. 제품 동작이나
+  workflow lock을 바꾸지 않은 문서 append 때문에 전체 product matrix를 재귀적으로 반복하지 않는다.
+- hosted 실패 뒤 source/lock이 바뀌면 새 exact head가 final gate가 된다. 과거 run을 새 바이트의 증거로 재사용하지 않는다.
+- 활성 work가 더 강한 검증을 요구하면 그 경계를 따르되, subtask마다 full hosted/evidence cycle을 만들지 않는다.
+
 ## 작업 종료와 인수인계
 
 작업이 끝나거나 중단될 때 다음을 함께 갱신한다.

@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-20
+- 마지막 검토: 2026-08-21
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -441,8 +441,8 @@ codegen ────→ schema/ir
 migrations ─→ schema/ir, backend contracts
 migrations/definition ─→ migrations, schema/ir
 query ──────→ schema/ir
-cmd/godj ───→ internal/projectcheck ─→ internal/projectcheck/protocol
-project ────→ internal/projectcheck/linked ─→ protocol, migrations/definition
+cmd/godj ───→ internal/projectcheck ─→ internal/projectcheck/protocol, internal/projectgenerate
+project ────→ internal/projectcheck/linked, internal/projectgenerate/linked ─→ protocols, codegen, migrations/definition
 orm ────────→ query, schema/ir metadata, backend contracts
 backends ───→ query, schema/ir, backend contracts
 forms/auth/templates ─→ metadata와 제한된 ORM interface
@@ -461,8 +461,12 @@ gis extension ────────→ schema/query/backend의 명시적 exte
 사용합니다. Target 교체 전 candidate를 `gofmt`/parse하고 Go overlay로 실제 target
 package를 compile하며, 실패하면 last-good bytes를 보존합니다. 이 결정과 M0
 rename/delete/stale fixture는 [ADR-0006](adr/0006-codegen-input-package-boundary.md)에
-기록합니다. Exact migration-check private protocol은 구현됐지만 full CLI/project library/generator
-version handshake는 Q-010으로 남아 있고, generator runner는 여전히 `internal/cmd/m1generate`입니다.
+기록합니다. Migration check와 project generation은 서로 다른 strict private protocol을 사용합니다. 선언 package의
+`ProjectSpec` loader는 generated app/project target을 import하지 않으며, global `godj generate`는 하나의 immutable
+bundle을 전체 candidate로 compile한 뒤 recoverable publisher에 넘깁니다. 선택한 project root의 device/inode
+identity는 check, candidate compile과 publication이 끝날 때까지 seal합니다. Manifest·renderer ABI·snapshot
+handshake는 [ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)이 소유합니다.
+Generator/library semver와 first-alpha 이후 upgrade policy는 Q-010에 남습니다.
 
 ## 목표 저장소 구조
 

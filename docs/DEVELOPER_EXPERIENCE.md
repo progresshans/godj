@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
 - 상태: 장기 사용자 흐름 Accepted, M1 Article 단면 Implemented/Verified, 나머지 문법 Proposed
-- 마지막 검토: 2026-08-12
+- 마지막 검토: 2026-08-21
 
 별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -47,10 +47,14 @@ articles, err := models.ArticleObjects.Using(sqliteBackend).
     All(ctx)
 ```
 
-생성 확인은 공개 CLI가 아닌 M1 runner로 수행합니다.
+현재 생성과 drift 확인은 global CLI가 소유합니다. `godj.toml`이 가리키는 declaration runner는 `ProjectSpec`만
+반환하며 generated target을 import하지 않습니다.
 
 ```bash
-go run ./internal/cmd/m1generate -check
+godj generate
+godj generate --check
+godj generate --project ./godj.toml
+godj generate --check --project ./godj.toml
 ```
 
 ## 1. 프로젝트 시작
@@ -111,7 +115,14 @@ var PostObjects /* Manager[Post] */
 var PostDescriptor /* generated descriptor */
 ```
 
-생성 결과는 `gofmt`되고 동일 입력에서 byte-identical해야 합니다. 생성 파일은 Git에 커밋하며 사용자가 직접 수정하지 않습니다. generation 실패는 기존 정상 파일 전체를 보존해야 합니다.
+생성 결과는 `gofmt`되고 동일 입력에서 byte-identical해야 합니다. 생성 파일은 Git에 커밋하며 사용자가 직접 수정하지 않습니다. Manifest durable commit 전 ordinary generation failure는 prior committed bundle을 exact 보존합니다.
+
+`--check`는 선택한 project tree와 Git 상태를 변경하지 않습니다. Candidate compile용 임시 build/cache workspace는
+project tree 밖에 만들고 정리합니다. Manifest가 durable commit되기 전 취소·오류는 prior bundle을 exact 보존하고,
+commit 뒤 publisher 내부 cleanup은 caller cancellation을 무시하며 새 snapshot을 유지합니다. 다만 publisher 성공 뒤
+바깥 private workspace 또는 retained root FD cleanup이 실패하면 target에는 새 generation이 이미 commit된 상태로 CLI가
+성공 stdout 없이 `project_generation_process_error/project_cleanup_failed`와 exit 3을 반환할 수 있습니다. 이때는
+재시도 전에 `godj generate --check`로 committed 상태를 확인합니다.
 
 ## 4. 사용자 모델 메서드
 
@@ -380,23 +391,26 @@ state, err := (migrations.Executor{Backend: backend}).Migrate(
 mandatory backend capabilities와 하나의 sealed `BeginMigration` entry를 사용합니다. Raw scalar atomic primitive는
 별도 `DirectExecutor`가 소유하며 raw relation execution은 I/O 전에 거부합니다. 이 경계와 bounded SQLite
 ForeignKey Create/Add/Remove/restart 회귀는 EVID-100의 exact local implementation에서 통과했지만 MIG-075..086은
-계속 `oracle_locked`/unregistered이고 final hosted reset gate가 남았습니다.
+계속 `oracle_locked`/unregistered입니다. Current-only reset의 hosted gate는 EVID-103에서 완료됐습니다.
 
-Global CLI의 현재 제품 범위는 caller가 I/O를 끝낸 explicit definition source를 bounded
-`migrations/definition.Load`에 넘기는 loader와 completed GDJ-0022의 exact project-linked check 단면뿐입니다.
-지원하는 global argv는 다음 둘뿐입니다.
+Global CLI의 현재 제품 범위에는 completed GDJ-0022의 exact project-linked migration check와 GDJ-0037의
+project generation/check 단면이 함께 포함됩니다. 지원하는 exact argv는 다음과 같습니다.
 
 ```bash
 godj migrations check
 godj migrations check --project ./godj.toml
+godj generate
+godj generate --check
+godj generate --project ./godj.toml
+godj generate --check --project ./godj.toml
 ```
 
-두 번째 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
-성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
-보고합니다. Public project entrypoint는 exact two-export `project.Config`/`project.Run`이며 global
-mutable registration이나 public protocol/report는 없습니다. `conformance/projectcheck/**` proof와 독립인
-제품 global/linked/protocol kernel, production project-linked runner와 actual flat filesystem discovery가
-구현됐고 MIG-065..074는 10 `passing`입니다.
+`--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
+Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
+보고합니다. `project.Config`의 migration source loader와 `LoadProjectSpec(context.Context)`는 각 private command에서만
+호출됩니다. Global mutable registration이나 public wire/report는 없습니다. Generation은 current app 4/project 8
+roster, canonical manifest, whole-candidate compile, sealed project root, journaled recovery와 read-only drift check를
+사용합니다. 기존 migration product도 유지되어 MIG-065..074는 10 `passing`입니다.
 
 선행 test-only implementation head `84ddf109c04acd72992b816aa72140c6e748e5f0`은 Draft PR #1
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 기존 full/exact 2개,
@@ -473,8 +487,8 @@ mysite/
 └─ locale/
 ```
 
-Schema declaration과 generated model package는 ADR-0006에 따라 분리합니다. 전체
-project template과 app 간 배치는 relation/CLI 단면 전까지 Proposed입니다.
+Schema declaration과 generated model package는 ADR-0006에 따라 분리합니다. 전체 startproject/app template은 계속
+Proposed이며, declaration/generated package와 generation CLI 경계만 현재 구현됐습니다.
 
 ## 오류와 미지원 기능
 

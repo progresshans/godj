@@ -19,3 +19,5 @@ func (AuthorDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDes
 func (AuthorDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Author], bool) {
 	return nil, false
 }
+
+var _ GoDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775

@@ -8,7 +8,6 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,12 +23,32 @@ import (
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/fixture"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/project"
 	"github.com/progresshans/godj/db"
+	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const relationDeletePolicyDigest = "eb6914dc35eb53e3df8c392f7a6dac52dc81f9bfd00910adf5fda3bcf99c9a58"
+
+var relationDeleteBundleRoster = []string{
+	"authors/zz_godj_generated.go",
+	"authors/zz_godj_relation.go",
+	"authors/zz_godj_relation_object.go",
+	"authors/zz_godj_relation_projection.go",
+	"blog/zz_godj_generated.go",
+	"blog/zz_godj_relation.go",
+	"blog/zz_godj_relation_object.go",
+	"blog/zz_godj_relation_projection.go",
+	"project/zz_godj_bindings.go",
+	"project/zz_godj_relation_delete.go",
+	"project/zz_godj_relation_facade.go",
+	"project/zz_godj_relation_object.go",
+	"project/zz_godj_relation_prefetch.go",
+	"project/zz_godj_relation_query.go",
+	"project/zz_godj_relation_reverse.go",
+	"project/zz_godj_relation_select_related.go",
+}
 
 var (
 	facadeBackendInvalidPlan = &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}
@@ -63,69 +82,81 @@ func (backend *facadeMinimalBackend) Delete(context.Context, query.DeletePlan) (
 	return 0, facadeUnexpectedIO
 }
 
-func TestCheckedInGeneratedRelationDeleteProjectRegeneratesExactTwelveAndAddsFacade(t *testing.T) {
+func TestCheckedInGeneratedRelationDeleteProjectRegeneratesExactBundle(t *testing.T) {
 	t.Parallel()
 
-	authorsSchema, err := fixture.AuthorsSchema()
+	spec, err := fixture.ProjectSpec(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	blogSchema, err := fixture.BlogSchema()
+	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	const rootImport = "github.com/progresshans/godj/conformance/relationdeleteproduct/"
-	objectPackages := []codegen.RelationObjectPackage{
-		{Alias: "authors", ImportPath: rootImport + "authors", Schema: authorsSchema},
-		{Alias: "blog", ImportPath: rootImport + "blog", Schema: blogSchema},
+	files := bundle.Files()
+	if len(files) != 16 {
+		t.Fatalf("generated bundle file count = %d, want exact 16", len(files))
 	}
-	type generatedCandidate struct {
-		path string
-		data []byte
+	gotFiles := make([]string, len(files))
+	for index := range files {
+		gotFiles[index] = files[index].Path
 	}
-	prerequisiteCandidates := []generatedCandidate{
-		{path: "authors/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("authors", authorsSchema) })},
-		{path: "authors/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("authors", authorsSchema) })},
-		{path: "authors/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("authors", authorsSchema) })},
-		{path: "authors/zz_godj_relation_projection.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationProjection("authors", authorsSchema) })},
-		{path: "blog/zz_godj_generated.go", data: generated(t, func() ([]byte, error) { return codegen.Generate("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationMetadata("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationObject("blog", blogSchema) })},
-		{path: "blog/zz_godj_relation_projection.go", data: generated(t, func() ([]byte, error) { return codegen.GenerateRelationProjection("blog", blogSchema) })},
-		{path: "project/zz_godj_bindings.go", data: generated(t, func() ([]byte, error) {
-			return codegen.GenerateProjectBridge("project", []codegen.BridgePackage{
-				{Alias: "authors", ImportPath: rootImport + "authors"},
-				{Alias: "blog", ImportPath: rootImport + "blog"},
-			})
-		})},
-		{path: "project/zz_godj_relation_object.go", data: generated(t, func() ([]byte, error) {
-			return codegen.GenerateProjectRelationObject("project", objectPackages)
-		})},
-		{path: "project/zz_godj_relation_select_related.go", data: generated(t, func() ([]byte, error) {
-			return codegen.GenerateProjectRelationSelectRelated("project", objectPackages)
-		})},
-		{path: "project/zz_godj_relation_delete.go", data: generated(t, func() ([]byte, error) {
-			return codegen.GenerateProjectRelationDelete("project", objectPackages)
-		})},
+	if !reflect.DeepEqual(gotFiles, relationDeleteBundleRoster) {
+		t.Fatalf("generated bundle roster = %#v, want exact 16 %#v", gotFiles, relationDeleteBundleRoster)
 	}
-	facadeCandidate := generated(t, func() ([]byte, error) {
-		return codegen.GenerateProjectRelationFacade("project", objectPackages)
-	})
-	candidates := append(slices.Clone(prerequisiteCandidates), generatedCandidate{
-		path: "project/zz_godj_relation_facade.go",
-		data: facadeCandidate,
-	})
 
 	root := relationDeleteProductDirectory(t)
-	for _, candidate := range candidates {
-		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(candidate.path)))
+	for _, file := range files {
+		path := filepath.Join(root, filepath.FromSlash(file.Path))
+		contents, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(contents, candidate.data) {
-			t.Fatalf("checked-in generated file %s differs from deterministic candidate", candidate.path)
+		if !bytes.Equal(contents, file.Source()) {
+			t.Fatalf("checked-in generated file %s differs from project bundle", file.Path)
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !info.Mode().IsRegular() || info.Mode().Perm() != file.Mode.Perm() {
+			t.Fatalf("checked-in generated file %s mode = %v, want regular %v", file.Path, info.Mode(), file.Mode.Perm())
 		}
 	}
+	checkedManifest, err := os.ReadFile(filepath.Join(root, codegen.GeneratedManifestPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(checkedManifest, bundle.Manifest()) {
+		t.Fatal("checked-in generated manifest differs from project bundle")
+	}
+
+	regenerated, err := codegen.GenerateProject(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRelationDeleteBundlesEqual(t, bundle, regenerated)
+	reorderedSpec := spec
+	reorderedSpec.Apps = slices.Clone(spec.Apps)
+	reorderedSpec.Apps[0], reorderedSpec.Apps[1] = reorderedSpec.Apps[1], reorderedSpec.Apps[0]
+	reordered, err := codegen.GenerateProject(reorderedSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertRelationDeleteBundlesEqual(t, bundle, reordered)
+
+	mutableFiles := bundle.Files()
+	originalFirst := files[0].Source()
+	mutableFiles[0].Path = "mutated"
+	mutableSource := mutableFiles[0].Source()
+	mutableSource[0] ^= 0xff
+	mutableManifest := bundle.Manifest()
+	mutableManifest[0] ^= 0xff
+	freshFiles := bundle.Files()
+	if freshFiles[0].Path != relationDeleteBundleRoster[0] || !bytes.Equal(freshFiles[0].Source(), originalFirst) || !bytes.Equal(bundle.Manifest(), checkedManifest) {
+		t.Fatal("GeneratedBundle retained caller mutation")
+	}
+
 	selectRelatedSource, err := os.ReadFile(filepath.Join(root, "project", "zz_godj_relation_select_related.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -136,54 +167,26 @@ func TestCheckedInGeneratedRelationDeleteProjectRegeneratesExactTwelveAndAddsFac
 	if count := bytes.Count(selectRelatedSource, []byte("configurationErr error")); count != 2 {
 		t.Fatalf("relation-delete typed select-related private configuration error fields = %d, want exact 2", count)
 	}
-	var generatedFiles []string
+	var checkedFiles []string
 	for _, directory := range []string{"authors", "blog", "project"} {
-		err := filepath.WalkDir(filepath.Join(root, directory), func(path string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if !entry.IsDir() && strings.HasPrefix(entry.Name(), "zz_godj_") && strings.HasSuffix(entry.Name(), ".go") {
-				generatedFiles = append(generatedFiles, filepath.ToSlash(strings.TrimPrefix(path, root+string(filepath.Separator))))
-			}
-			return nil
-		})
+		entries, err := os.ReadDir(filepath.Join(root, directory))
 		if err != nil {
 			t.Fatal(err)
 		}
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasPrefix(entry.Name(), "zz_godj_") && strings.HasSuffix(entry.Name(), ".go") {
+				checkedFiles = append(checkedFiles, directory+"/"+entry.Name())
+			}
+		}
 	}
-	slices.Sort(generatedFiles)
-	wantFiles := make([]string, len(candidates))
-	for index, candidate := range candidates {
-		wantFiles[index] = candidate.path
-	}
-	slices.Sort(wantFiles)
-	if !reflect.DeepEqual(generatedFiles, wantFiles) {
-		t.Fatalf("generated file inventory = %#v, want exact thirteen %#v", generatedFiles, wantFiles)
+	slices.Sort(checkedFiles)
+	if !reflect.DeepEqual(checkedFiles, relationDeleteBundleRoster) {
+		t.Fatalf("checked-in generated file inventory = %#v, want exact sixteen %#v", checkedFiles, relationDeleteBundleRoster)
 	}
 
-	if len(prerequisiteCandidates) != 12 {
-		t.Fatalf("prerequisite generated candidate count = %d, want exact 12", len(prerequisiteCandidates))
-	}
-	deleteCandidate := prerequisiteCandidates[len(prerequisiteCandidates)-1].data
+	deleteCandidate := bundleFileSource(t, bundle, "project/zz_godj_relation_delete.go")
 	if !bytes.Contains(deleteCandidate, []byte(relationDeletePolicyDigest)) {
 		t.Fatalf("generated relation-delete aggregate omits exact policy digest %s", relationDeletePolicyDigest)
-	}
-	reordered, err := codegen.GenerateProjectRelationDelete("project", []codegen.RelationObjectPackage{objectPackages[1], objectPackages[0]})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(reordered, deleteCandidate) {
-		t.Fatal("relation-delete regeneration changed under project package reordering")
-	}
-	reorderedFacade, err := codegen.GenerateProjectRelationFacade(
-		"project",
-		[]codegen.RelationObjectPackage{objectPackages[1], objectPackages[0]},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(reorderedFacade, facadeCandidate) {
-		t.Fatal("relation-facade regeneration changed under project package reordering")
 	}
 	if project.GoDjProjectRelationDeleteGeneratorVersion != codegen.ProjectRelationDeleteGeneratorVersion {
 		t.Fatalf(
@@ -1399,6 +1402,93 @@ func TestGeneratedAppsHaveNoAppEdgesAndObserverIsOracleBlind(t *testing.T) {
 	}
 }
 
+func TestRelationDeleteDeclarationRunnerBootstrapsMissingAndBrokenGeneratedOutputs(t *testing.T) {
+	t.Parallel()
+	root := relationDeleteProductDirectory(t)
+	repository := filepath.Clean(filepath.Join(root, "..", ".."))
+	const rootImport = "github.com/progresshans/godj/conformance/relationdeleteproduct/"
+	list := exec.Command("go", "list", "-deps", "-f", "{{.ImportPath}}", rootImport+"cmd/projectrunner")
+	list.Dir = repository
+	list.Env = relationDeleteOfflineGoEnvironment()
+	output, err := list.CombinedOutput()
+	if err != nil {
+		t.Fatalf("list relation-delete declaration runner: %v\n%s", err, output)
+	}
+	dependencies := strings.Fields(string(output))
+	for _, forbidden := range []string{rootImport + "authors", rootImport + "blog", rootImport + "project"} {
+		if slices.Contains(dependencies, forbidden) {
+			t.Fatalf("relation-delete declaration runner imports generated package %s", forbidden)
+		}
+	}
+
+	generated := make([]string, 0, len(relationDeleteBundleRoster))
+	for _, path := range relationDeleteBundleRoster {
+		generated = append(generated, filepath.Join(root, filepath.FromSlash(path)))
+	}
+	t.Run("missing", func(t *testing.T) {
+		replacements := make(map[string]string, len(generated))
+		for _, path := range generated {
+			replacements[path] = ""
+		}
+		assertRelationDeleteRunnerBuildAndSpec(t, repository, replacements)
+	})
+	t.Run("broken", func(t *testing.T) {
+		broken := filepath.Join(t.TempDir(), "broken.go")
+		if err := os.WriteFile(broken, []byte("package authors\nfunc broken( {\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		assertRelationDeleteRunnerBuildAndSpec(t, repository, map[string]string{generated[0]: broken})
+	})
+}
+
+func assertRelationDeleteRunnerBuildAndSpec(t *testing.T, repository string, replacements map[string]string) {
+	t.Helper()
+	overlay := filepath.Join(t.TempDir(), "overlay.json")
+	document, err := json.Marshal(struct {
+		Replace map[string]string `json:"Replace"`
+	}{Replace: replacements})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(overlay, document, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(t.TempDir(), "projectrunner")
+	build := exec.Command("go", "build", "-overlay="+overlay, "-o", binary, "./conformance/relationdeleteproduct/cmd/projectrunner")
+	build.Dir = repository
+	build.Env = relationDeleteOfflineGoEnvironment()
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build relation-delete declaration runner: %v\n%s", err, output)
+	}
+
+	command := exec.CommandContext(context.Background(), binary, projectgenerateprotocol.PrivateArgument)
+	command.Stdin = bytes.NewReader(projectgenerateprotocol.RequestDocument())
+	var stdout, stderr bytes.Buffer
+	command.Stdout = &stdout
+	command.Stderr = &stderr
+	if err := command.Run(); err != nil {
+		t.Fatalf("run relation-delete declaration runner: %v; stderr=%q", err, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("relation-delete declaration runner stderr = %q", stderr.String())
+	}
+	response, failure, failed := projectgenerateprotocol.ParseResponse(stdout.Bytes(), true)
+	if failed || failure != (projectgenerateprotocol.Failure{}) || !response.OK || len(response.ProjectSpec.Apps) != 2 {
+		t.Fatalf("relation-delete declaration response = %+v, failure=%+v, failed=%v", response, failure, failed)
+	}
+}
+
+func relationDeleteOfflineGoEnvironment() []string {
+	result := make([]string, 0, len(os.Environ())+2)
+	for _, entry := range os.Environ() {
+		if strings.HasPrefix(entry, "GOWORK=") || strings.HasPrefix(entry, "GOPROXY=") {
+			continue
+		}
+		result = append(result, entry)
+	}
+	return append(result, "GOWORK=off", "GOPROXY=off")
+}
+
 func initialDatabaseState() DatabaseState {
 	reviewer := int64(2)
 	return DatabaseState{
@@ -1479,13 +1569,36 @@ func parsedImports(t *testing.T, path string) []string {
 	return imports
 }
 
-func generated(t *testing.T, generate func() ([]byte, error)) []byte {
+func assertRelationDeleteBundlesEqual(t *testing.T, left, right codegen.GeneratedBundle) {
 	t.Helper()
-	contents, err := generate()
-	if err != nil {
-		t.Fatal(err)
+	if left.SnapshotSHA256() != right.SnapshotSHA256() || !bytes.Equal(left.Manifest(), right.Manifest()) {
+		t.Fatal("project bundle snapshot or manifest is nondeterministic")
 	}
-	return contents
+	leftFiles := left.Files()
+	rightFiles := right.Files()
+	if len(leftFiles) != len(rightFiles) {
+		t.Fatalf("project bundle file counts differ: %d != %d", len(leftFiles), len(rightFiles))
+	}
+	for index := range leftFiles {
+		if leftFiles[index].Path != rightFiles[index].Path ||
+			leftFiles[index].Owner != rightFiles[index].Owner ||
+			leftFiles[index].SHA256 != rightFiles[index].SHA256 ||
+			leftFiles[index].Mode != rightFiles[index].Mode ||
+			!bytes.Equal(leftFiles[index].Source(), rightFiles[index].Source()) {
+			t.Fatalf("project bundle file %d is nondeterministic", index)
+		}
+	}
+}
+
+func bundleFileSource(t *testing.T, bundle codegen.GeneratedBundle, path string) []byte {
+	t.Helper()
+	for _, file := range bundle.Files() {
+		if file.Path == path {
+			return file.Source()
+		}
+	}
+	t.Fatalf("bundle file %s is absent", path)
+	return nil
 }
 
 func relationDeleteProductDirectory(t *testing.T) string {

@@ -162,6 +162,110 @@ func TestActualGodjMigrationCheckProcess(t *testing.T) {
 	})
 }
 
+func TestActualGodjGenerateProcess(t *testing.T) {
+	fixture := newProcessFixture(t)
+	if strings.Contains(e2eProjectMain, "\n\t\"example.com/godj-e2e/generated/") {
+		t.Fatal("declaration runner source imports generated packages")
+	}
+
+	t.Run("invalid generation arguments precede deleted cwd resolution", func(t *testing.T) {
+		if runtime.GOOS != "linux" {
+			t.Skip("Linux deleted-cwd process regression")
+		}
+		deleted := filepath.Join(fixture.universe, "deleted-generate-cwd")
+		if err := os.Mkdir(deleted, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		command := exec.Command("/bin/sh", "-c", `cd "$1" && rmdir "$1" && exec "$2" generate --project`, "godj-deleted-cwd", deleted, fixture.godj)
+		command.Env = fixture.environment(nil)
+		var stdout, stderr bytes.Buffer
+		command.Stdout = &stdout
+		command.Stderr = &stderr
+		err := command.Run()
+		var exitError *exec.ExitError
+		if !errors.As(err, &exitError) || exitError.ExitCode() != 2 || stdout.Len() != 0 || stderr.String() != "project_generation_command_error/invalid_arguments\n" {
+			t.Fatalf("deleted-cwd generation args err=%v stdout=%q stderr=%q", err, stdout.String(), stderr.String())
+		}
+	})
+
+	t.Run("read-only drift from nested cwd", func(t *testing.T) {
+		before := snapshotProject(t, fixture.project)
+		result := fixture.run(t, fixture.nested, map[string]string{"GOPROXY": "off"}, "generate", "--check")
+		if result.exit != 1 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"drift"`) || !strings.Contains(result.stdout, `"actual_snapshot_sha256":""`) {
+			t.Fatalf("initial check=%+v", result)
+		}
+		after := snapshotProject(t, fixture.project)
+		if !reflect.DeepEqual(before, after) {
+			t.Fatalf("generate --check mutated tree\nbefore=%v\nafter=%v", before, after)
+		}
+	})
+
+	t.Run("generate with isolated offline build", func(t *testing.T) {
+		initMarker := filepath.Join(fixture.universe, "user-init-ran")
+		testMainMarker := filepath.Join(fixture.universe, "user-testmain-ran")
+		result := fixture.run(t, fixture.nested, map[string]string{
+			"GOPROXY": "off", "GODJ_E2E_INIT_MARKER": initMarker, "GODJ_E2E_TESTMAIN_MARKER": testMainMarker,
+		}, "generate")
+		if result.exit != 0 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"generated"`) || !strings.Contains(result.stdout, `"file_count":16`) {
+			t.Fatalf("generate=%+v", result)
+		}
+		for _, marker := range []string{initMarker, testMainMarker} {
+			if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("candidate compilation executed user code %s: %v", marker, err)
+			}
+		}
+		if _, err := os.Stat(filepath.Join(fixture.project, ".godj", "generated-manifest.json")); err != nil {
+			t.Fatalf("manifest missing: %v", err)
+		}
+	})
+
+	t.Run("explicit clean check", func(t *testing.T) {
+		result := fixture.run(t, fixture.universe, map[string]string{"GOPROXY": "off"}, "generate", "--check", "--project", filepath.Join(fixture.project, "godj.toml"))
+		if result.exit != 0 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"clean"`) || !strings.Contains(result.stdout, `"file_count":16`) {
+			t.Fatalf("clean check=%+v", result)
+		}
+	})
+
+	generated := filepath.Join(fixture.project, "generated", "blog", "zz_godj_generated.go")
+	t.Run("missing old generated file is reported and publication fails closed", func(t *testing.T) {
+		if err := os.Remove(generated); err != nil {
+			t.Fatal(err)
+		}
+		before := snapshotProject(t, fixture.project)
+		result := fixture.run(t, fixture.project, map[string]string{"GOPROXY": "off"}, "generate", "--check")
+		if result.exit != 1 || result.stderr != "" || !strings.Contains(result.stdout, `"path":"generated/blog/zz_godj_generated.go","kind":"missing"`) {
+			t.Fatalf("missing check=%+v", result)
+		}
+		if after := snapshotProject(t, fixture.project); !reflect.DeepEqual(before, after) {
+			t.Fatalf("missing check mutated tree\nbefore=%v\nafter=%v", before, after)
+		}
+		result = fixture.run(t, fixture.project, map[string]string{"GOPROXY": "off"}, "generate")
+		if result.exit != 1 || result.stdout != "" || result.stderr != generationCategoryGenerationForE2E+"/project_generate_publish_failed\n" {
+			t.Fatalf("missing publication=%+v", result)
+		}
+		if _, err := os.Stat(generated); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("missing target was guessed/recreated: %v", err)
+		}
+	})
+
+	t.Run("broken old generated source stays outside declaration runner dependencies and fails publish CAS", func(t *testing.T) {
+		if err := os.WriteFile(generated, []byte("package blog\nfunc broken( {\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		result := fixture.run(t, fixture.nested, map[string]string{"GOPROXY": "off"}, "generate")
+		if result.exit != 1 || result.stdout != "" || result.stderr != generationCategoryGenerationForE2E+"/project_generate_publish_failed\n" {
+			t.Fatalf("broken publication=%+v", result)
+		}
+		contents, err := os.ReadFile(generated)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(contents, []byte("func broken")) {
+			t.Fatal("broken generated source was unexpectedly replaced")
+		}
+	})
+}
+
 func TestActualMainDoesNotResolveCWDBeforeGlobalArgumentParsing(t *testing.T) {
 	_, source, _, ok := runtime.Caller(0)
 	if !ok {
@@ -218,6 +322,7 @@ func newProcessFixture(t *testing.T) processFixture {
 		fixture.project,
 		fixture.nested,
 		filepath.Join(fixture.project, "cmd", "site"),
+		filepath.Join(fixture.project, "sentinel"),
 		fixture.scratch,
 		filepath.Join(universe, "home"),
 		filepath.Join(universe, "xdg-config"),
@@ -241,6 +346,12 @@ func newProcessFixture(t *testing.T) processFixture {
 	}
 	fixture.writeDescriptor(t, canonicalE2EDescriptor)
 	fixture.writeMain(t, e2eProjectMain)
+	if err := os.WriteFile(filepath.Join(fixture.project, "sentinel", "sentinel.go"), []byte(e2eSentinelSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fixture.project, "sentinel", "sentinel_test.go"), []byte(e2eSentinelTestSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	build := exec.Command("go", "build", "-o", fixture.godj, "./cmd/godj")
 	build.Dir = repository
 	if output, err := build.CombinedOutput(); err != nil {
@@ -250,6 +361,10 @@ func newProcessFixture(t *testing.T) processFixture {
 	fixture.baseEnv["XDG_CONFIG_HOME"] = filepath.Join(universe, "xdg-config")
 	fixture.baseEnv["XDG_CACHE_HOME"] = filepath.Join(universe, "xdg-cache")
 	fixture.baseEnv["TMPDIR"] = fixture.scratch
+	// The product still gives every child an empty writable GOMODCACHE. The
+	// candidate verifier may expose this ambient cache's immutable download
+	// subtree as a file:// module proxy, including while GOPROXY=off.
+	fixture.baseEnv["GOMODCACHE"] = strings.TrimSpace(string(moduleCacheBytes))
 	return fixture
 }
 
@@ -282,6 +397,8 @@ func (fixture processFixture) environment(extra map[string]string) []string {
 	delete(values, "GODJ_E2E_READY")
 	delete(values, "GODJ_E2E_USE_MIGRATIONS")
 	delete(values, "GODJ_E2E_INVALID_RESPONSE")
+	delete(values, "GODJ_E2E_INIT_MARKER")
+	delete(values, "GODJ_E2E_TESTMAIN_MARKER")
 	for key, value := range extra {
 		values[key] = value
 	}
@@ -405,6 +522,34 @@ func stopE2EProcess(command *exec.Cmd, waited <-chan error, cause error) error {
 
 const canonicalE2EDescriptor = "format_version = 1\n\n[project]\npackage = \"./cmd/site\"\n"
 
+const generationCategoryGenerationForE2E = "project_generation_error"
+
+const e2eSentinelSource = `package sentinel
+
+import "os"
+
+func init() {
+	if marker := os.Getenv("GODJ_E2E_INIT_MARKER"); marker != "" {
+		_ = os.WriteFile(marker, []byte("init ran"), 0o600)
+	}
+}
+`
+
+const e2eSentinelTestSource = `package sentinel
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(testingMain *testing.M) {
+	if marker := os.Getenv("GODJ_E2E_TESTMAIN_MARKER"); marker != "" {
+		_ = os.WriteFile(marker, []byte("TestMain ran"), 0o600)
+	}
+	os.Exit(testingMain.Run())
+}
+`
+
 const e2eProjectMain = `package main
 
 import (
@@ -414,7 +559,9 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/project"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func main() {
@@ -433,7 +580,39 @@ func main() {
 	if os.Getenv("GODJ_E2E_USE_MIGRATIONS") == "1" {
 		roots = []string{"migrations"}
 	}
-	if err := project.Run(context.Background(), project.Config{MigrationDefinitionRoots: roots}, os.Args[1:], os.Stdin, os.Stdout); err != nil {
+	config := project.Config{
+		MigrationDefinitionRoots: roots,
+		LoadProjectSpec: func(context.Context) (codegen.ProjectSpec, error) {
+			authors := ir.Schema{
+				FormatVersion: ir.CurrentFormatVersion,
+				AppLabel: "authors",
+				Models: []ir.Model{{Name: "author", GoName: "Author", Fields: []ir.Field{
+					{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 100},
+				}}},
+			}
+			blog := ir.Schema{
+				FormatVersion: ir.CurrentFormatVersion,
+				AppLabel: "blog",
+				Models: []ir.Model{{Name: "blog_post", GoName: "BlogPost", Fields: []ir.Field{
+					{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
+					{Name: "author", GoName: "AuthorID", Kind: ir.FieldForeignKey, Relation: &ir.ForeignKeyRelation{
+						Target: ir.ModelIdentity{AppLabel: "authors", ModelName: "author"},
+						Cardinality: ir.RelationManyToOne,
+						Reverse: ir.ReverseRelation{Name: "blog_posts"},
+						OnDelete: ir.DeleteProtect,
+					}},
+				}}},
+			}
+			return codegen.ProjectSpec{
+				Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/godj-e2e/generated/project", Directory: "generated/project"},
+				Apps: []codegen.AppSpec{
+					{Alias: "blog", Package: codegen.PackageSpec{PackageName: "blog", ImportPath: "example.com/godj-e2e/generated/blog", Directory: "generated/blog"}, Schema: blog},
+					{Alias: "authors", Package: codegen.PackageSpec{PackageName: "authors", ImportPath: "example.com/godj-e2e/generated/authors", Directory: "generated/authors"}, Schema: authors},
+				},
+			}, nil
+		},
+	}
+	if err := project.Run(context.Background(), config, os.Args[1:], os.Stdin, os.Stdout); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "project runner failed")
 		os.Exit(1)
 	}

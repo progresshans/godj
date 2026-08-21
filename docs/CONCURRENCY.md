@@ -1,7 +1,7 @@
 # 동시성·비동기·성능 방향
 
 - 상태: 기본 방향 Accepted; QuerySet 평가 상태와 bounded relation-object cache 계약 Accepted
-- 마지막 검토: 2026-08-20
+- 마지막 검토: 2026-08-21
 
 GoDj의 출발점에는 Django보다 적은 프로세스와 메모리 중복으로 I/O 동시성과 멀티코어 실행을 자연스럽게 활용하려는 목적이 있습니다. 그러나 “Go로 작성했다”는 사실만으로 성능을 주장하지 않습니다. 측정 가능한 workload와 회귀 기준이 있어야 합니다.
 
@@ -203,8 +203,14 @@ GDJ-0036은 cancellation과 transaction 안전성을 유지하면서 compatibili
 - Commit success/definite rollback/unknown outcome, sticky no-retry와 session close/poison 의미는 reset 대상이
   아닙니다.
 
-이 current implementation 경계는 exact local gate를 통과했지만 최종 frozen head의 hosted 검증 전에는 hosted `Verified`로
-확대하지 않습니다.
+이 current migration implementation 경계는 EVID-103 hosted 검증까지 완료됐습니다.
+
+GDJ-0037 project generation은 project당 retained writer lock으로 publisher를 직렬화하고 선택한 root device/inode를
+check, candidate verification과 publication 전체에서 seal합니다. Manifest durable commit 전 취소·오류는 exact prior를
+복구하며 commit 뒤 publisher cleanup은 caller cancellation을 무시하고 exact next를 유지합니다. Publisher 성공 뒤
+outer workspace/root cleanup 실패는 committed target과 별개인 `project_cleanup_failed` outcome이며 caller는
+`godj generate --check`로 상태를 확인합니다. 이 경계는 affected local normal/race/CGO-disabled gate를 통과했지만
+GDJ-0037 final hosted 검증 전에는 Verified/completed가 아닙니다.
 
 ## Historical GDJ-0035 SQLite lifecycle concurrency boundary
 

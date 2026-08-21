@@ -5,6 +5,7 @@ package projectcheck
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -64,6 +65,7 @@ func createPrivateWorkspaceWithHooks(project retainedProject, ambient []string, 
 		primary := failure("migration_project_build_error", "project_temporary_storage_failed")
 		return privateWorkspace{}, &primary
 	}
+	moduleProxy := ambientWorkspaceModuleProxy(project, environment)
 	baseInput := environment["TMPDIR"]
 	var physicalBase string
 	var err error
@@ -146,10 +148,17 @@ func createPrivateWorkspaceWithHooks(project retainedProject, ambient []string, 
 			child[key] = value
 		}
 	}
+	if moduleProxy != "" {
+		upstream := environment["GOPROXY"]
+		if upstream == "" {
+			upstream = "https://proxy.golang.org,direct"
+		}
+		child["GOPROXY"] = moduleProxy + "," + upstream
+	}
 	child["GOWORK"] = "off"
 	child["GOTOOLCHAIN"] = "local"
 	child["GOENV"] = "off"
-	child["GOFLAGS"] = ""
+	child["GOFLAGS"] = "-modcacherw"
 	child["GOCACHEPROG"] = ""
 	for key, relative := range privatePaths {
 		child[key] = filepath.Join(physicalRoot, relative)
@@ -160,6 +169,63 @@ func createPrivateWorkspaceWithHooks(project retainedProject, ambient []string, 
 		base:        base,
 		name:        filepath.Base(physicalRoot),
 	}, nil
+}
+
+func ambientWorkspaceModuleProxy(project retainedProject, environment map[string]string) string {
+	candidates := []string{environment["GOMODCACHE"]}
+	if goPath := environment["GOPATH"]; goPath != "" {
+		candidates = append(candidates, filepath.Join(strings.Split(goPath, string(os.PathListSeparator))[0], "pkg", "mod"))
+	}
+	if home := environment["HOME"]; home != "" {
+		candidates = append(candidates, filepath.Join(home, "go", "pkg", "mod"))
+	}
+	for _, candidate := range candidates {
+		physicalCache, safe := externalWorkspaceDirectory(candidate, project.rootPath)
+		if !safe {
+			continue
+		}
+		physicalDownload, safe := externalWorkspaceDirectory(filepath.Join(physicalCache, "cache", "download"), project.rootPath)
+		if !safe {
+			continue
+		}
+		proxy := (&url.URL{Scheme: "file", Path: filepath.ToSlash(physicalDownload)}).String()
+		proxy = strings.ReplaceAll(proxy, ",", "%2C")
+		proxy = strings.ReplaceAll(proxy, "|", "%7C")
+		return proxy
+	}
+	return ""
+}
+
+func externalWorkspaceDirectory(candidate, projectRoot string) (string, bool) {
+	if candidate == "" || !filepath.IsAbs(candidate) || projectRoot == "" {
+		return "", false
+	}
+	physicalProject, err := filepath.EvalSymlinks(filepath.Clean(projectRoot))
+	if err != nil {
+		return "", false
+	}
+	physicalProject, err = filepath.Abs(physicalProject)
+	if err != nil {
+		return "", false
+	}
+	physical, err := filepath.EvalSymlinks(filepath.Clean(candidate))
+	if err != nil {
+		return "", false
+	}
+	physical, err = filepath.Abs(physical)
+	if err != nil {
+		return "", false
+	}
+	info, err := os.Lstat(physical)
+	if err != nil || info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return "", false
+	}
+	physical = filepath.Clean(physical)
+	physicalProject = filepath.Clean(physicalProject)
+	if sameOrDescendant(physical, physicalProject) || sameOrDescendant(physicalProject, physical) {
+		return "", false
+	}
+	return physical, true
 }
 
 func (workspace *privateWorkspace) cleanup() error {

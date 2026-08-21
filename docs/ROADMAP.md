@@ -1,14 +1,15 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)이 active pre-release reset입니다.
-  Schema IR/Definition/digest/ProjectState를 각각 current version 1 하나로 통합하고, opaque
-  `LoadedDefinitionSet`→`Executor.Migrate`, `DirectExecutor` raw scalar 경계, mandatory
-  `MigrationCapabilities`+single `BeginMigration(MigrationIntent)`, current codegen ABI를 한 번에
-  재기준화합니다. MIG-057..074는 current-format artifact로 갱신했고 GDJ-0035 Phase-B
-  MIG-075..086 publication/D4g status sequence는 retire했습니다. Exact implementation commit `f6f56ea3...`와
-  EVID-100/status mirror 뒤 cleanup commit `bd31a77...`의 repo-external full local gate와 EVID-101 기록까지
-  완료됐습니다. 이 문서 head의 hosted 검증 전에는 GDJ-0036을 `Verified`로 표시하지 않습니다.
+- 현재 단계: [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)은 corrected exact head `57ddff3...`의
+  CI #101/run `32347190714` exact 26/26 success로 completed됐습니다. 현재 active work는
+  [GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)입니다. 하나의 ProjectSpec,
+  immutable bundle/manifest, whole-candidate compile, read-only `generate --check`와 recoverable coordinated
+  publication으로 Q-017의 project-wide publication 하위 경계를 닫습니다. Q-017 전체는 raw-model UX,
+  capability/namespace와 reverse/general upgrade 때문에 P1/open입니다. PostgreSQL backend와 최소 Web Core는 독립 경계에서 병렬 준비할 수 있지만,
+  codegen-heavy Field/Form/Admin/API 확대 전에는 이 publication 경계를 먼저 완성합니다. 현재 working tree는 이
+  하위 경계를 구현해 affected와 final full/386/source-clean-copy local gates를 통과했고 exact-head hosted
+  verification이 남았습니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -58,7 +59,7 @@
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
-- 마지막 검토: 2026-08-20
+- 마지막 검토: 2026-08-21
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -604,6 +605,8 @@ M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 - 조사 spike와 production implementation을 구분합니다.
 - 관계 없는 package나 같은 공개 API를 병렬 에이전트에 나누지 않습니다.
 - 긴 milestone은 contract group별 work item으로 쪼개되 milestone gate는 하나의 통합 담당자가 닫습니다.
+- 매 변경은 affected compile/test, phase checkpoint는 관련 normal/race/CGO0, full local/386/hosted matrix는 final
+  frozen milestone에서 한 번 실행합니다. 문서-only evidence append 때문에 product matrix를 재귀 반복하지 않습니다.
 
 ## Retired GDJ-0035 sequence
 

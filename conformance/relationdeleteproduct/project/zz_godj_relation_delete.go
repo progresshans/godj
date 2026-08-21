@@ -53,3 +53,5 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		AuthorsAuthor: _deleter0,
 	}, nil
 }
+
+var _ goDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775
