@@ -9,14 +9,14 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0037 active / project generation handshake | Current definition/loaded lifecycle은 hosted-verified; ProjectSpec, global generate/check와 project-wide manifest/publication은 final local gates를 통과한 Implemented candidate이고 exact-head hosted verification이 pending; installed runner/library/generator semver와 general upgrader/repair UX는 open |
+| Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
 | Q-012 | Partial | GDJ-0036 completed / broader migration 후속 | MIG-047..074 product subset과 current `LoadedDefinitionSet` lifecycle/unified backend ABI는 exact-head hosted 검증까지 완료; public migrate/writer/upgrade/custom operation/general restart/non-SQLite/crash recovery는 open |
 | Q-013 | Partial | GDJ-0036 completed / broader relation·backend 후속 | REL-002와 bounded SQLite FK slices는 current Schema IR/codegen/state/lifecycle로 통합되어 exact-head hosted 검증까지 완료; broader relation/backend 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0037 active / project publication | ProjectSpec/manifest/whole-candidate compile/recoverable publication 하위 경계는 final local gates를 통과한 Implemented candidate이고 exact-head hosted verification이 pending; raw-model UX/capability/namespace와 reverse/general upgrade는 open |
+| Q-017 | P1 | GDJ-0037 completed / raw-model and general upgrade | ProjectSpec/manifest/whole-candidate compile/recoverable publication 하위 경계는 exact-head hosted-verified; raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -57,17 +57,19 @@ Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publi
 - Q-013/Q-017: Main generator가 relation model descriptor/write metadata를 직접 생성합니다. App-local
   relation-query file과 facade-private write model은 current ABI에서 제거됐고 project-owned cross-app
   binding/query/facade는 유지됩니다.
-- Q-017: ProjectSpec, manifest, whole-project candidate compile과 recoverable publish는 GDJ-0037 working tree에
-  구현됐습니다. 물리 companion roster를 first-alpha 이후 장기 public ABI로 보장하는 기간, general upgrader/repair와
-  raw-model/facade UX는 여전히 open입니다.
+- Q-017: ProjectSpec, manifest, whole-project candidate compile과 recoverable publish는 GDJ-0037 exact correction
+  head에서 hosted-verified됐습니다. 물리 companion roster를 first-alpha 이후 장기 public ABI로 보장하는 기간,
+  general upgrader/repair와 raw-model/facade UX는 여전히 open입니다.
 
 GDJ-0035 Phase-B의 legacy tuple/profile/promotion product publication sequence는 retire됐습니다. 그 옛
 artifact bytes와 evidence는 당시 의사결정의 역사 기록입니다. 현재 checked-in MIG-075..086 artifact는
 ADR-0035 current-only 진단 reference로 재기준화되어 reference aggregate에는 포함되지만, 계속
 `oracle_locked`/unregistered라 위 질문의 제품 status 입력은 아닙니다. GDJ-0036의 corrected exact head는
 [EVID-103](status/TEST_EVIDENCE.md#evid-20260820-103--gdj-0036-corrected-exact-head-hosted-completion)에서 hosted
-검증됐습니다. GDJ-0037의 publication 하위 경계는 affected 및 final full/386/repository-external
-source-clean-copy local gates를 통과했지만 exact-head hosted verification 전에는 Verified가 아닙니다.
+검증됐습니다. GDJ-0037의 publication 하위 경계는 affected 및 final full/386/repository-external source-clean-copy
+local gates와 exact correction head `d4643068...`의
+[EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+26/26 jobs·326/326 steps를 통과해 completed/hosted-verified됐습니다. Q-010은 `Partial`, Q-017은 P1/open입니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 
@@ -474,10 +476,11 @@ app-local relation-query file을 제거했습니다. Project-owned cross-app sur
 전 재기준화이며 project-wide coordinated publication/repair나 final raw-model UX를 닫지 않습니다.
 
 GDJ-0036의 corrected exact head hosted completion 뒤
-[GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)이 active이고
-[ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)은 Accepted입니다. 현재 working tree는
-ProjectSpec/immutable bundle, manifest, whole-candidate compile, read-only check와 recoverable publication 하위 경계를
-구현했고 affected local gates를 통과했습니다. Final frozen verification은 pending이며 raw-model
+[GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)은 exact correction head
+`d4643068...`의 [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) /
+CI #103에서 completed/hosted-verified됐고
+[ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)은 Accepted입니다. ProjectSpec/immutable
+bundle, manifest, whole-candidate compile, read-only check와 recoverable publication 하위 경계는 닫혔지만 raw-model
 embedding/unwrap/sidecar, capability/namespace와 broader facade/general upgrade UX는 계속 open입니다.
 
 ### Historical pre-reset Gate 0와 additive publication evidence

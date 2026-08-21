@@ -472,8 +472,11 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 - `--check`는 selected project tree/Git을 변경하지 않습니다. Precommit ordinary failure는 exact prior,
   postcommit publisher cleanup은 exact next를 유지하며 outer workspace cleanup failure는 별도 closed process
   outcome입니다.
-- Darwin/Linux local filesystem implementation과 affected 및 final full/386/repository-external source-clean-copy local gates는
-  완료됐지만 exact-head hosted matrix 전에는 GDJ-0037을 Verified/completed로 표시하지 않습니다.
+- Darwin/Linux local filesystem implementation은 affected 및 final full/386/repository-external source-clean-copy local
+  gates 뒤 exact correction head `d4643068...`의
+  [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+  26/26 jobs·326/326 steps에서 hosted-verified됐고 GDJ-0037은 completed입니다. 이 완료는 Q-010/Q-017의 남은
+  semver·raw-model·general upgrade나 PostgreSQL/Web capability를 구현했다는 뜻이 아닙니다.
 
 ### Historical GDJ-0035 design and evidence snapshot
 

@@ -1235,8 +1235,11 @@ Affected checkpoint는 다음을 함께 검증합니다.
     `project_generation_process_error/project_cleanup_failed` exit 3 구분
 
 Current implementation checkpoint는 affected normal/race/CGO-disabled/vet, offline `make generate-check`, full
-`make ci`, Linux/386와 repository-external source-clean-copy를 통과했지만 exact-head hosted matrix 전에는
-Verified/completed로 올리지 않습니다.
+`make ci`, Linux/386와 repository-external source-clean-copy 뒤 exact correction head `d4643068...`의
+[EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+26/26 jobs·326/326 steps를 통과했습니다. 따라서 GDJ-0037의 project bundle/publication 하위 경계는
+completed/hosted-verified입니다. Q-010 `Partial`, Q-017 P1/open과 PostgreSQL/Web `Not started` 상태는 바뀌지
+않습니다.
 
 ## Historical GDJ-0035 activation and Phase A/B/C test-only hosted verification
 

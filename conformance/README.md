@@ -28,10 +28,11 @@ GoDj는 아직 첫 외부 alpha 전이므로 개발 중 migration/generated ABI�
   `oracle_locked`/unregistered입니다. 이전 artifact bytes는 Git history와 EVID에만 남고, current reference
   aggregate에는 이 locked set을 포함하지만 product aggregate에는 포함하지 않습니다.
 
-GDJ-0036 corrected exact head는 EVID-103 hosted matrix를 통과했습니다. 현재 GDJ-0037 working tree의 generation
-bundle/manifest, Article 12/relationdelete 16 adoption과 relation behavior는 affected 및 final
-full/386/source-clean-copy local gates를 통과했지만 exact-head hosted 검증 전에는 GDJ-0037을 `Verified`로 확대하지
-않습니다.
+GDJ-0036 corrected exact head는 EVID-103 hosted matrix를 통과했습니다. GDJ-0037의 generation bundle/manifest,
+Article 12/relationdelete 16 adoption과 relation behavior는 EVID-104 local gates 뒤 exact correction head
+`d4643068...`의 [EVID-105](../docs/status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) /
+CI #103에서 26/26 jobs·326/326 steps로 hosted-verified됐습니다. GDJ-0037은 completed지만 Q-010은 `Partial`,
+Q-017은 P1/open이고 PostgreSQL/Web 또는 MIG-075..086 제품 전환을 뜻하지 않습니다.
 
 ## Historical progression
 

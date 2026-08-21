@@ -30,9 +30,11 @@ Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publi
   `oracle_locked`/unregistered라 제품 지원 또는 status 전환 주장은 아닙니다.
 
 Current-only reset은 EVID-103의 hosted gate까지 완료됐습니다. GDJ-0037의 format-1 manifest read-old/write-current는
-첫 alpha 전 내부 generated upgrade/recovery 계약이며 공개 하위호환 보장은 아닙니다. GDJ-0037 final
-full/386/repository-external source-clean-copy local gates는 통과했지만 exact-head hosted gate 전에는 project publication을
-Verified/completed로 읽지 않습니다.
+첫 alpha 전 내부 generated upgrade/recovery 계약이며 공개 하위호환 보장은 아닙니다. GDJ-0037은 final
+full/386/repository-external source-clean-copy local gates와 exact correction head `d4643068...`의
+[EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+26/26 jobs·326/326 steps를 통과해 project publication 하위 경계에서 completed/hosted-verified됐습니다. Q-010은
+`Partial`, Q-017은 P1/open이며 first-alpha 이후 일반 upgrader/semver 호환은 여전히 open입니다.
 
 ## 프로필 범위
 

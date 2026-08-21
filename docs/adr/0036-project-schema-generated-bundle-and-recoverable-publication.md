@@ -135,8 +135,11 @@ Generated 파일과 사용자 source가 같은 package directory에 있으므로
 - Normal failure와 crash recovery 보장이 구분됩니다.
 - Manifest-owned stale deletion과 사용자 파일 보호가 명시됩니다.
 - 현재 relation runtime 의미와 contract status는 바뀌지 않습니다.
-- 이 ADR의 `Accepted`는 current 방향 채택을 뜻하며 `Verified`와 같지 않습니다. GDJ-0037의 final
-  full/386/repository-external source-clean-copy local gate는 통과했지만 exact-head hosted 검증은 pending입니다.
+- 이 ADR은 current 방향에 대해 계속 `Accepted`입니다. 구현은 GDJ-0037의 final
+  full/386/repository-external source-clean-copy local gate와 exact correction head `d4643068...`의
+  [EVID-105](../status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+  26/26 jobs·326/326 steps를 통과해 packet 범위에서 completed/hosted-verified됐습니다. 이는 ADR 상태를 별도
+  `Verified` 상태로 바꾸거나 Q-010/Q-017 전체를 닫는다는 뜻이 아닙니다.
 
 ## 비목표
 

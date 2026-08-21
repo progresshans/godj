@@ -209,8 +209,11 @@ GDJ-0037 project generation은 project당 retained writer lock으로 publisher�
 check, candidate verification과 publication 전체에서 seal합니다. Manifest durable commit 전 취소·오류는 exact prior를
 복구하며 commit 뒤 publisher cleanup은 caller cancellation을 무시하고 exact next를 유지합니다. Publisher 성공 뒤
 outer workspace/root cleanup 실패는 committed target과 별개인 `project_cleanup_failed` outcome이며 caller는
-`godj generate --check`로 상태를 확인합니다. 이 경계는 affected local normal/race/CGO-disabled gate를 통과했지만
-GDJ-0037 final hosted 검증 전에는 Verified/completed가 아닙니다.
+`godj generate --check`로 상태를 확인합니다. 이 경계는 affected local normal/race/CGO-disabled gate 뒤 exact
+correction head `d4643068...`의
+[EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+26/26 jobs·326/326 steps를 통과해 GDJ-0037 범위에서 completed/hosted-verified됐습니다. Literal power-loss,
+Windows와 distributed/network filesystem publication은 검증하거나 지원한다는 뜻이 아닙니다.
 
 ## Historical GDJ-0035 SQLite lifecycle concurrency boundary
 

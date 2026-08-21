@@ -1,6 +1,6 @@
 ---
 id: GDJ-0037
-status: active
+status: completed
 updated: 2026-08-21
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "57ddff374f7afa97346532ed143f4a88d73c7428"
@@ -306,7 +306,7 @@ make generate-check
 - [x] generated target bootstrap 순환 없음
 - [x] current relation product behavior/status 불변
 - [x] final local full/386/source-clean-copy gate
-- [ ] final exact-head hosted matrix와 independent P0..P3=0 audit
+- [x] final exact-head hosted matrix와 independent P0..P3=0 audit
 - [x] CURRENT/MATRIX/TEST_EVIDENCE/ADR/work 정합성
 
 ## 2026-08-21 affected local checkpoint
@@ -325,11 +325,34 @@ make generate-check
   통과했고 independent source audit은 P0/P1/P2/P3=`0/0/0/0`이었습니다.
 - `GOTOOLCHAIN=local GOWORK=off GOPROXY=off GOSUMDB=off make generate-check`, `make format-check`, `gofmt`와
   `git diff --check`가 통과했습니다. Final full offline `make ci`, Linux/386 all-package compile과
-  repository-external source-clean-copy `generate --check`/compile-only gate도 통과했습니다. Exact committed-head
-  hosted matrix가 아직 없으므로 work는 active/local Implemented candidate입니다.
+  repository-external source-clean-copy `generate --check`/compile-only gate도 통과했습니다. 이 local checkpoint
+  당시에는 exact committed-head hosted matrix가 없었으므로 work 상태가 active/local Implemented candidate였습니다.
+
+## 2026-08-21 exact-head hosted completion
+
+- Implementation commit `9258a08402ebd7bd0077d17910a5e1f0621d6e78` (`feat: add recoverable project bundle
+  publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`, parent `57ddff374f7afa97346532ed143f4a88d73c7428`은
+  122 files=`A69/M51/D2`, `+16,504/-608`의 frozen product packet입니다.
+- 첫 exact-head hosted CI #102/run `32442800124`는 18 success, 4 failure, 4 cancelled로 끝났습니다. 네 실패는
+  모두 relation product의 실제 inventory `864` runs/`88,789` bytes/`04eecd80...`를 이전 lock
+  `842`/`86,694`/`42d26a72...`와 비교한 동일한 stale workflow assertion이었고 제품 실패로 분류하지 않았습니다.
+- Correction commit `d46430681d27ed1b658fb4853eee1cbd991107a4` (`ci: refresh relation product inventory`), tree
+  `2de27fe1a4f9e69b80ca61608b859d4ef049ca17`, parent `9258a084...`은 두 workflow/protocol lock 파일만
+  `+6/-6`으로 교정했고 `864/864/0`, 88,789 bytes,
+  `04eecd80595350ab0c990b6471f670d6c005e3b9362aeb115d567e3f18479a1f`를 독립 재현했습니다.
+- Exact correction head는
+  [EVID-105](../docs/status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) /
+  [CI #103](https://github.com/progresshans/godj/actions/runs/32443119987)에서 26/26 jobs·326/326 recorded steps,
+  skipped/failure 0과 annotations 0으로 성공했습니다. Synthetic merge tree도 exact head tree와 같았습니다.
+- EVID-104의 independent Phase A/B/C/D source audit P0/P1/P2/P3=`0/0/0/0`과 terminal hosted success를 함께
+  근거로 GDJ-0037은 completed/hosted-verified입니다. Product는 12/127=`122 passing + 5 deviation + 0
+  oracle_locked`, relation 12/12이고 Q-010 `Partial`, Q-017 P1/open은 불변입니다.
+- 이 EVID-105 append와 completion mirror는 product exact head 뒤의 docs-only descendant입니다. 정적
+  link/frontmatter/status/diff 검사만 적용하며 recursive full/hosted matrix를 요구하지 않습니다.
 
 ## 다음 정확한 작업
 
-Final local integration과 Phase E 문서·상태 갱신은 끝났습니다. 다음은 frozen implementation/documentation tree의
-commit/push와 exact-head hosted verification이며 별도 사용자 승인이 있을 때만 수행합니다. Q-017 전체는 raw-model UX,
-capability/namespace, reverse/general upgrade와 generator/library semver 때문에 계속 P1/open입니다.
+GDJ-0037은 completed이고 현재 active/ready work는 각각 0입니다. 이 completion packet은 다음 work item을 만들거나
+활성화하지 않습니다. 후속 소유자는 raw-model UX 단기 gate, PostgreSQL 수직 단면 또는 최소 Web Core 중 범위를 별도
+work/ADR에서 선택해야 합니다. PostgreSQL/Web은 계속 `Not started`이고 Q-017 전체는 raw-model UX,
+capability/namespace, reverse/general upgrade와 generator/library semver 때문에 P1/open입니다.

@@ -1,15 +1,15 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)은 corrected exact head `57ddff3...`의
-  CI #101/run `32347190714` exact 26/26 success로 completed됐습니다. 현재 active work는
-  [GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)입니다. 하나의 ProjectSpec,
-  immutable bundle/manifest, whole-candidate compile, read-only `generate --check`와 recoverable coordinated
-  publication으로 Q-017의 project-wide publication 하위 경계를 닫습니다. Q-017 전체는 raw-model UX,
-  capability/namespace와 reverse/general upgrade 때문에 P1/open입니다. PostgreSQL backend와 최소 Web Core는 독립 경계에서 병렬 준비할 수 있지만,
-  codegen-heavy Field/Form/Admin/API 확대 전에는 이 publication 경계를 먼저 완성합니다. 현재 working tree는 이
-  하위 경계를 구현해 affected와 final full/386/source-clean-copy local gates를 통과했고 exact-head hosted
-  verification이 남았습니다.
+- 현재 단계: [GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)은 exact correction
+  head `d4643068...`의
+  [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
+  26/26 jobs·326/326 steps success로 completed/hosted-verified됐습니다. ProjectSpec, immutable bundle/manifest,
+  whole-candidate compile, read-only `generate --check`와 recoverable coordinated publication으로 Q-017의
+  project-wide publication 하위 경계는 닫혔습니다. 현재 active work와 ready work는 각각 0입니다. Q-017 전체는
+  raw-model UX, capability/namespace와 reverse/general upgrade 때문에 P1/open이고 Q-010도 `Partial`입니다.
+  PostgreSQL backend와 최소 Web Core는 모두 `Not started`이며, 어느 후속 범위를 활성화할지는 별도 work/ADR
+  결정으로 handoff합니다. 이 completion 문서 변경은 새 packet을 만들거나 활성화하지 않습니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit

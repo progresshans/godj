@@ -9857,3 +9857,79 @@ the final static documentation/scope audit rather than a recursive copy gate.
   diagnostic `oracle_locked`/unregistered. PostgreSQL, Web Core, new Field/Relation breadth, migration writer,
   commit/push/hosted/merge/release are not claimed.
 - Next: only a separately authorized commit/push and exact-head hosted run may complete the work.
+
+## EVID-20260821-105 — GDJ-0037 Exact-head Hosted Completion
+
+- Date/time: terminal run 2026-08-21T03:22:01Z–03:33:13Z
+- Work/contract IDs: GDJ-0037 completion; ADR-0036 remains `Accepted`; Q-010 remains `Partial`; Q-017 remains
+  P1/open; MIG-075..086 remain `oracle_locked`/unregistered
+- Local documentation checkout branch: `feature/pre-release-compatibility-reset`
+- Hosted PR head branch/event: `codex/revision-fenced-migration-lifecycle`; GitHub Actions `pull_request`, attempt 1
+- Terminal command/run: [CI #103 / run 32443119987](https://github.com/progresshans/godj/actions/runs/32443119987)
+- Exit status: terminal `completed/success`
+
+### Frozen implementation and correction identities
+
+- Implementation commit `9258a08402ebd7bd0077d17910a5e1f0621d6e78`, subject
+  `feat: add recoverable project bundle publication`, tree `e60006dfa2d0e8ef817122904f01f84707b22109`, parent
+  `57ddff374f7afa97346532ed143f4a88d73c7428`. Its exact packet is 122 changed paths=`A69/M51/D2`,
+  `+16,504/-608`.
+- Correction commit and terminal product head `d46430681d27ed1b658fb4853eee1cbd991107a4`, subject
+  `ci: refresh relation product inventory`, tree `2de27fe1a4f9e69b80ca61608b859d4ef049ca17`, sole parent
+  `9258a08402ebd7bd0077d17910a5e1f0621d6e78`. It changes exactly two lock-bearing files by `+6/-6`; product
+  implementation bytes from `9258a084...` are unchanged.
+- The terminal synthetic merge was `20e95e70...` with ordered parents `[main f8a5e20c...,
+  d46430681d27ed1b658fb4853eee1cbd991107a4]`. Its tree was
+  `2de27fe1a4f9e69b80ca61608b859d4ef049ca17`, equal to the exact terminal-head tree.
+
+### First hosted failure and bounded correction
+
+- First hosted [CI #102 / run 32442800124](https://github.com/progresshans/godj/actions/runs/32442800124) executed
+  exact implementation head `9258a084...` and ended with 18 successful, 4 failed and 4 cancelled jobs.
+- All four failures were the same stale relation-product inventory assertion on the four hosted coordinates. Actual
+  output was 864 runs, 88,789 bytes and SHA-256
+  `04eecd80595350ab0c990b6471f670d6c005e3b9362aeb115d567e3f18479a1f`, while the workflow still locked the
+  GDJ-0036 value 842 runs, 86,694 bytes and SHA-256
+  `42d26a72f0d13ea4b420ec6f64fc2eacb70c28225b8d783003be85d26e6d7aa3`. This is a stale inventory lock,
+  not a product behavior failure; the failure and its cancelled tail are retained rather than hidden.
+- The two-file correction `d4643068...` independently reproduced exact `864/864/0`, 88,789 bytes and the new
+  SHA-256 before publication. It changes only the workflow assertion and its protocol source lock.
+
+### Terminal hosted result
+
+- Exact correction head CI #103 succeeded with 26/26 jobs and 326/326 recorded steps. Failed/skipped steps were 0
+  and annotations were 0.
+- The hosted full gate completed `make ci` successfully. Clean-worktree gates passed 24/24 and no-rewrite gates
+  passed 10/10.
+- Python compatibility 3.12.13/3.13.15/3.14.3/3.14.7 each passed 216 tests with 19 expected portable-profile
+  skips and the exact 139-scenario aggregate: 618,616 bytes, SHA-256
+  `5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e`.
+- The hosted artifact job passed the checked-in relation/oracle checksum gates, the Linux/386 compile-only product
+  set and the separate Linux/386 relation-product execution gate. The compile-only product set does not claim full
+  all-package 386 execution or a new oracle profile.
+- The relation-product coordinates therefore used the corrected exact inventory `864/864/0`, 88,789 bytes and
+  `04eecd80595350ab0c990b6471f670d6c005e3b9362aeb115d567e3f18479a1f`.
+- EVID-104's frozen Article exact 12/snapshot `2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe`
+  and relationdelete exact 16/snapshot
+  `4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775` remain the project adoption boundary.
+  Product status remains exact 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12.
+- EVID-104's independent Phase A/B/C/D source audits remain P0/P1/P2/P3=`0/0/0/0`. Together with this terminal
+  exact-head hosted success they satisfy GDJ-0037's final completion gate.
+- PR #1 remained OPEN/DRAFT/MERGEABLE with `mergeStateStatus=CLEAN` at exact head `d4643068...`. No merge or
+  release is claimed.
+
+### Completion, non-claims and recursive-proof boundary
+
+- This evidence closes GDJ-0037 and marks its project bundle/recoverable publication implementation
+  completed/hosted-verified. It closes only Q-017's project-wide publication sub-boundary.
+- Q-010 remains `Partial` for installed runner/library/generator version negotiation, semver and general repair;
+  Q-017 remains P1/open for raw-model UX, capability/namespace and reverse/general upgrade.
+- PostgreSQL, Web Core, new Field/Relation breadth, migration writer/autodetector, literal power-loss injection,
+  Windows and distributed/network filesystem publication remain unimplemented, unsupported or unproved as stated
+  in the active capability documents. MIG-075..086 remain diagnostic-only and unregistered.
+- This EVID-105 append and the GDJ-0037 completion mirrors are a subsequent docs-only descendant of product exact
+  head `d4643068...`; they are not retroactively included in CI #103. Under the repository's milestone verification
+  policy they receive only link/anchor/fence/frontmatter/status/diff and allowed-path checks and do not recursively
+  require product tests or another hosted matrix.
+- No next work packet is created or activated by this completion change. Current active/ready counts are 0/0;
+  later scope selection is a separate handoff decision.
