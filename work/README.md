@@ -62,11 +62,12 @@ proposed → ready → active → completed
 | [GDJ-0036](0036-pre-release-compatibility-reset.md) | completed | Current-only Schema/Definition/State, explicit loaded set, unified backend와 generated ABI reset |
 | [GDJ-0037](0037-project-schema-generated-bundle-and-recoverable-publication.md) | completed | Project Schema bundle, whole-candidate compile과 recoverable coordinated publication |
 | [GDJ-0038](0038-postgresql-and-minimal-web-vertical-slices.md) | completed | PostgreSQL current backend와 최소 Web/Article HTTP 병렬 수직 단면 |
-| [GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | active | Typed projection, scalar aggregate와 stable pagination Article 수직 단면 |
+| [GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | completed | Typed projection, scalar aggregate와 stable pagination Article 수직 단면 |
+| [GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md) | active | Composable typed Boolean predicate와 Article 검색 수직 단면 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0038](0038-postgresql-and-minimal-web-vertical-slices.md)이고,
+[GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md)이고,
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
@@ -78,12 +79,15 @@ correction head `187638f9...`는
 [EVID-108](../docs/status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
 CI run `32626539049`에서 exact PostgreSQL 17.10 profile, required actual 12/12·skip 0와 restart resume를 포함한
 27/27 jobs·341/341 steps·failure/skip 0으로 통과했습니다. DB-PG-001..010과 WEB-001..010 bounded slice는
-Verified, GDJ-0038은 completed입니다. 현재 유일한 active는
-[GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md), ready는 0입니다. Source/result shape를
-분리해 typed projection, Count/Max aggregate, distinct/offset을 SQLite/PostgreSQL Article 흐름에 함께 구현합니다.
-GDJ-0034
-terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
-audit P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation
+Verified, GDJ-0038은 completed입니다. GDJ-0039 submitted head `253455d...`도
+[EVID-110](../docs/status/TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) / run
+`32634741186`에서 exact 27/27 jobs·341/341 steps로 통과해 QRY-022..033 bounded slice를 Verified하고
+completed됐습니다. 현재 유일한 active는
+[GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다. 하나의 typed Boolean
+predicate tree, QRY-034..043과 Article `(title OR summary) AND NOT title` 검색을 SQLite/PostgreSQL 흐름으로
+구현합니다.
+GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
+audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086
 exact 12 reference-only contracts를 고정했고 [ADR-0034](../docs/adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)는
 bounded design에 한해 Accepted입니다. Activation head `52f9bcb7...`는 EVID-084/run `31618469072`, Phase A committed head

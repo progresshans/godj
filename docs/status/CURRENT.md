@@ -3,10 +3,10 @@
 - 마지막 갱신: 2026-08-23
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 hosted-verified product head: `187638f9b3904162d510138d4b9f89f004168eb6`
-  (`ci: fix PostgreSQL restart validation`), tree `002941b24b90c563a5f8b3c99e8b5bd6f7c14681`,
-  [EVID-108](TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
-  CI run `32626539049` exact 27/27 jobs·341/341 steps
+- 현재 hosted-verified submitted head: `253455d734ec683c469beed44f94f7b8a8c0bec3`
+  (`docs: record typed query breadth local checkpoint`), tree `d3f1bba2784edec544495475cfd8d6226209608a`,
+  [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
+  CI run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0
 - GDJ-0037 implementation commit: `9258a08402ebd7bd0077d17910a5e1f0621d6e78`
   (`feat: add recoverable project bundle publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`
 - GDJ-0038 activation baseline: `681b07132be5772286b0c960756719aed59a2079`
@@ -15,13 +15,12 @@
 - GDJ-0038 source-frozen implementation head: `cb90f7a69d70c131ccf8868fb83efcf7bd7c2548`
   (`feat: add PostgreSQL migration and restart lifecycle`), tree
   `2528710760de889c0f05166e9e702f92d4633483`; [EVID-107](TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)
-- GDJ-0039 activation baseline: final GDJ-0038 correction head `187638f9b3904162d510138d4b9f89f004168eb6`;
-  active [work packet](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md) /
-  [ADR-0039](../adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)
-- GDJ-0039 source-frozen local head: `695916c8c351535f19968f06d52648d4ae078f89`
+- GDJ-0039 source-frozen product head: `695916c8c351535f19968f06d52648d4ae078f89`
   (`test: refresh query lifecycle inventory lock`), tree `01a6aa337995ba4894440f6d8ee947ca006b4a22`;
-  [EVID-109](TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint),
-  exact-head hosted gate pending
+  [EVID-109](TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)
+- GDJ-0040 activation baseline: hosted-verified GDJ-0039 submitted head `253455d734ec683c469beed44f94f7b8a8c0bec3`;
+  active [work packet](../../work/0040-composable-typed-boolean-predicates-and-article-search.md) /
+  [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -329,18 +328,16 @@
   (`test(conformance): characterize migration relation product`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: [GDJ-0038](../../work/0038-postgresql-and-minimal-web-vertical-slices.md)은 final correction head
-  `187638f9...`의
-  [EVID-108](TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
-  run `32626539049` exact 27/27 jobs·341/341 steps로 completed/hosted-verified됐습니다. 현재 유일한 active
-  packet은 [GDJ-0039](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md), ready는 0입니다.
-  Accepted [ADR-0039](../adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 source/result
-  query shape, typed DTO projection, Count/Max aggregate와 distinct/offset을 SQLite/PostgreSQL Article 흐름으로
-  구현했습니다. Final source `695916c8...`은
-  [Local EVID-109](TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)의
-  full/386/source-clean-copy, actual PostgreSQL Article E2E와 독립 audit P0..P3=0을 통과한 local
-  `Implemented candidate`이며, non-force push와 exact-head hosted gate가 남았습니다. Current reference는
-  14 sets/151 scenarios/182 bindings=`134 passing + 5 deviation + 12 oracle_locked`, product는
+- 현재 단계: [GDJ-0039](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 submitted
+  head `253455d...`의
+  [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
+  run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033 bounded slice를
+  `Verified`하고 completed됐습니다. 현재 유일한 active packet은
+  [GDJ-0040](../../work/0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다.
+  Accepted [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
+  독립 Django contract/oracle을 먼저 동결한 뒤, 하나의 immutable typed Boolean predicate tree와 bounded
+  Article 검색을 SQLite/PostgreSQL에 연결합니다. 현재 구현·product status 전환은 0입니다.
+  Current reference는 14 sets/151 scenarios/182 bindings=`134 passing + 5 deviation + 12 oracle_locked`, product는
   13 adapters/139=`134 passing + 5 deviation`입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -468,9 +465,9 @@
   13/139/156이었고, same-ID 12개는 현재 전체 14/151/182 reference에도 포함되지만
   locked/unregistered입니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0038 PostgreSQL and Minimal Web Vertical Slices](../../work/0038-postgresql-and-minimal-web-vertical-slices.md)
-- 활성 작업:
   [GDJ-0039 Typed Projection, Scalar Aggregate, and Stable Pagination](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)
+- 활성 작업:
+  [GDJ-0040 Composable Typed Boolean Predicates and Article Search](../../work/0040-composable-typed-boolean-predicates-and-article-search.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1033,9 +1030,12 @@
   general raw-model serialization은 포함하지 않습니다.
 - GDJ-0039은 [ADR-0039](../adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 source/result
   query shape를 분리하고 typed DTO projection, scalar Count/Max, distinct/offset을 SQLite/PostgreSQL Article
-  검색·리포트 흐름으로 구현한 현재 유일한 active packet입니다. Final source `695916c8...`은 local
-  `Implemented candidate`이고 [EVID-109](TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)의
-  final gates를 통과했지만 exact-head hosted 검증 전이므로 `Verified`/completed는 주장하지 않습니다.
+  검색·리포트 흐름으로 구현했습니다. Final source `695916c8...`의 local gates와 submitted docs head
+  `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) / run
+  `32634741186`이 exact 27/27 jobs·341/341 steps로 통과해 QRY-022..033은 `Verified`, work는 completed입니다.
+- GDJ-0040은 [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라
+  QRY-034..043 scalar Boolean composition과 Article search를 여는 현재 active packet입니다. Contract-first Phase A
+  전이므로 새 reference/product 세트, 구현, passing 또는 aggregate 변경을 아직 주장하지 않습니다.
 
 ### 오류와 durability 경계
 
@@ -1421,10 +1421,12 @@ local final gates와 exact correction head `d4643068...`의
 26/26 jobs·326/326 steps를 통과해 completed/hosted-verified됐습니다. Baseline docs head `681b0713...`도 CI #104
 exact 26/26 jobs·326/326 steps를 통과했습니다. GDJ-0038은 final correction head `187638f9...`의
 [EVID-108](TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
-run `32626539049` exact 27/27 jobs·341/341 steps success로 bounded `Verified`/completed입니다. 현재 active는
-GDJ-0039, ready는 0이고 외부 blocker는 없습니다. Final source `695916c8...`의 projection/aggregate/distinct/
-offset bounded slice는 local `Implemented candidate`이며 full/386/source-clean-copy와 audit을 통과했습니다.
-남은 blocker가 아닌 외부 경계는 non-force push와 exact-head hosted 결과입니다.
+run `32626539049` exact 27/27 jobs·341/341 steps success로 bounded `Verified`/completed입니다. GDJ-0039도
+submitted head `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
+run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033을 `Verified`하고
+completed됐습니다. 현재 active는 GDJ-0040, ready는 0이고 외부 blocker는 없습니다. Phase A의
+QRY-034..043 독립 Django scenario/oracle가 다음 경계이며 relation leaf under OR/NOT, F expression,
+bulk/locking/Form은 이 packet에서 명시적으로 제외합니다.
 MIG-075..086은 계속 `oracle_locked`/unregistered이고 새 Field/Relation 종류와 general migration writer도 아직
 구현하지 않았습니다.
 
@@ -1491,12 +1493,13 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0039 local source checkpoint 뒤 다음 순서로 닫습니다.
+GDJ-0040을 다음 순서로 진행합니다.
 
-1. Final source/docs head를 remote `codex/revision-fenced-migration-lifecycle`에 non-force push합니다.
-2. Draft PR #1의 제목/본문을 GDJ-0039 query breadth까지 갱신합니다.
-3. Exact head의 hosted job/step/no-skip/inventory/PostgreSQL 결과를 확인합니다.
-4. 성공한 동일 head를 EVID-110 terminal mirror에 기록하고 GDJ-0039을 completed로 전환합니다.
+1. QRY-034..043 독립 Django scenario/test를 expected artifact와 분리해 작성합니다.
+2. Exact profile에서 nullable NOT truth table을 관찰하고 manifest/oracle/static/provenance를 동결합니다.
+3. `query`/`orm`을 평면 조건과 tree 이중 경로 없이 하나의 immutable Boolean tree로 전환합니다.
+4. SQLite/PostgreSQL recursive compiler와 Article bounded search/product adapter를 병렬 구현·통합합니다.
+5. Work checkpoint를 통과한 뒤 final frozen milestone에서만 full/386/source-clean/hosted gate를 실행합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
 release는 이 작업의 권한·범위가 아닙니다.

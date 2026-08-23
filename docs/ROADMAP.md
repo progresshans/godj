@@ -1,18 +1,16 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)은 final correction head
-  `187638f9...`의
-  [EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
-  CI run `32626539049`에서 PostgreSQL 17.10 exact profile, required actual 12/12·skip 0와 durable restart를
-  포함한 27/27 jobs·341/341 steps로 completed/hosted-verified됐습니다. 현재 유일한 active work는
-  [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md), ready는 0입니다. Accepted
-  [ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 source/result query shape,
-  typed DTO projection, Count/Max aggregate와 distinct/offset을 SQLite/PostgreSQL Article 검색·리포트 수직 단면으로
-  넓혔습니다. Final source `695916c8...`은
-  [Local EVID-109](status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)의
-  full/386/source-clean-copy와 audit P0..P3=0을 통과했고 exact-head hosted gate가 pending입니다.
-  Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
+- 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 final source
+  `695916c8...`의 local frozen gates와 submitted head `253455d...`의
+  [EVID-110](status/TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
+  CI run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0을 통과해 QRY-022..033 bounded
+  query breadth를 `Verified`하고 completed됐습니다. 현재 유일한 active work는
+  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다. Accepted
+  [ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
+  독립 Django contract/oracle, 하나의 immutable typed Boolean predicate tree, SQLite/PostgreSQL recursive
+  compiler와 bounded Article 검색을 contract-first로 구현합니다. 새 product/status/aggregate 변경은
+  아직 0입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -576,8 +574,17 @@ M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 [ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 M4의 첫 broad read slice를
 구현합니다. Article filter → distinct/stable order → offset/limit → typed DTO projection → Count/Max report를
 SQLite/PostgreSQL에서 같은 AST로 실행하고 QRY-022..033 실제 SQLite adapter는 12/12 zero-diff입니다. Final
-source `695916c8...`은 local `Implemented candidate`이고 exact-head hosted 검증 전입니다. Q/F, bulk, locking,
-annotation/subquery/window와 related projection은 이 packet에 포함하지 않으므로 M4 전체는 완료되지 않았습니다.
+source `695916c8...`과 submitted head `253455d...`는
+[EVID-109](status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint) /
+[EVID-110](status/TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion)의 local·hosted gate를
+통과해 bounded `Verified`/completed입니다.
+
+[GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과 Accepted
+[ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)은 다음 read slice로 scalar typed
+`And`/`Or`/`Not`, nullable NOT truth table, predicate reuse, projection/aggregate composition과 Article bounded search를
+QRY-034..043으로 엽니다. Contract-first Phase A 전이므로 아직 구현·passing을 주장하지 않습니다.
+Relation leaf under OR/NOT, F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
+M4 전체는 계속 완료되지 않았습니다.
 
 ## M5 — Web Core
 
@@ -591,7 +598,9 @@ startup state, static router, request-local generated facade와 explicit DTO/tem
 Article PostgreSQL migration/generated CRUD/HTTP actual을 통과했고 final
 [EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
 run `32626539049`에서 bounded `Verified`/completed로 전환됐습니다. GDJ-0039은 이 request-local DTO 경계를
-유지한 채 검색/리포트 query breadth만 넓힙니다.
+유지한 채 검색/리포트 query breadth를 넓혀 EVID-110으로 completed됐습니다. GDJ-0040은 public Web
+Core를 넓히지 않고 기존 Article handler의 bounded query parsing과 request-local 두 DB query 계약에 scalar Boolean
+검색만 연결합니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

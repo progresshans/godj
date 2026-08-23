@@ -578,13 +578,22 @@ PostgreSQL parity와 cross-model compile rejection은 각각 Article PostgreSQL 
 13 adapters/139 contracts(134 passing + 5 reviewed deviations)입니다. Final source commit `695916c8...`의
 artifact, actual adapter, generated bundle, local PostgreSQL, full/386/source-clean-copy와 independent audit 결과는
 [EVID-109](../docs/status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)에
-기록합니다. Hosted exact-head 결과 전까지 이 단면은 local `Implemented candidate`입니다. Exact profile에서
-재생성하고 일반 환경에서 bytes를 확인하려면 다음을 사용합니다.
+기록합니다. Submitted head `253455d...`의
+[EVID-110](../docs/status/TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) / run
+`32634741186`는 exact 27/27 jobs·341/341 steps, QRY-022..033 actual 12/12, PostgreSQL 17.10 required actual
+12/12·skip 0을 통과했습니다. 따라서 이 bounded 단면은 `Verified`, GDJ-0039은 completed입니다.
+Exact profile에서 재생성하고 일반 환경에서 bytes를 확인하려면 다음을 사용합니다.
 
 ```bash
 uvx --from uv==0.10.12 uv run --frozen python -m conformance.querybreadth.reference --write
 uv run --frozen python -m conformance.querybreadth.reference
 ```
+
+GDJ-0040은 QRY-034..043 scalar Boolean composition set을 contract-first로 준비합니다. 이 activation
+checkout에서는 아직 manifest/oracle/static fixture, runner registry, product adapter를 추가하지 않았으므로
+위 14 reference sets/151 scenarios/182 bindings와 13 product adapters/139 contracts 집계는 불변입니다.
+QRY-034..043은 독립 Django scenario/test와 nullable NOT 관찰을 먼저 통과한 뒤만 artifact·status에
+등록합니다.
 
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든

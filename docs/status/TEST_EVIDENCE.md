@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-23
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-109
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-110
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -10360,3 +10360,55 @@ Before and after `make generate-check` plus `go test -run '^$' ./...`, its path/
 - This evidence/status/documentation append follows the exact-source product gates. It records them but is not
   recursively proved by those earlier commands; documentation-only consistency gates and the later hosted head are
   separate evidence boundaries.
+
+## EVID-20260823-110 — GDJ-0039 Exact-Head Hosted Completion
+
+- Date/time: run created 2026-08-23T10:47:58Z and completed 2026-08-23T11:01:56Z
+- Work/contract IDs: GDJ-0039 completed; QRY-022..033 `Verified`; Q-011 remains `Partial`
+- Branch/PR: remote `codex/revision-fenced-migration-lifecycle`; Draft PR #1 remains open, draft and unmerged
+- Exact submitted commit/tree: `253455d734ec683c469beed44f94f7b8a8c0bec3` /
+  `d3f1bba2784edec544495475cfd8d6226209608a`
+- Final product source ancestor: `695916c8c351535f19968f06d52648d4ae078f89` /
+  `01a6aa337995ba4894440f6d8ee947ca006b4a22`; `695916c..253455d` changes exactly the seven checkpoint Markdown files
+- GitHub Actions: CI run [32634741186](https://github.com/progresshans/godj/actions/runs/32634741186), attempt 1,
+  pull-request event, exact head `253455d...`, conclusion `success`
+- Result: 27/27 jobs completed/success; 341/341 recorded steps completed/success; job/step failure, cancelled and skipped
+  counts all 0; 27/27 check-runs success with annotations 0
+
+### Hosted compatibility and product proof
+
+- Four exact Python jobs, 3.12.13/3.13.15/3.14.3/3.14.7, each passed the workflow's exact portable-suite and
+  semantic-digest assertions. The captured 3.14.7 log reports 227 tests and 20 intentional exact-profile skips.
+- Each Python coordinate asserted 151 canonical scenarios, 660,905 payload bytes and SHA-256
+  `fb9ebeabeaafb6a041f334c375718d3b4535e0685af406bbe5a036ccc6242f6f`.
+- The checked-artifact job passed portable conformance, project-linked contracts, Linux/386 product compilation/runtime,
+  all 14 oracle checks and no-rewrite gates. Its query-breadth product log reports
+  `GoDj observations match the locked reference oracle for 12 contracts`; QRY-022..033 is exact 12/12 zero-diff.
+- The query-breadth manifest/oracle/static/checksum bytes remain the EVID-109 locks. Hosted checksum verification reports
+  `query-breadth-oracle.json: OK`, and the checked contract/fixture/profile/oracle worktree remained clean.
+- All four relation-product coordinates—Ubuntu 22.04 x64, Ubuntu 24.04 arm64, macOS 26 arm64 and macOS 15 Intel—passed
+  the exact no-skip lock. Each independently asserted 916 runs/916 passes/0 skips, 93,953 payload bytes and SHA-256
+  `6a6b6e1c2b642b6346d5d6983f11e1f5bbe135227c64a378d82688a623f093c5`, followed by race, CGO-disabled, vet,
+  generated-drift and clean-worktree gates.
+
+### PostgreSQL 17.10 actual and restart
+
+- The pinned service was `postgres:17.10-bookworm` at image digest
+  `sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`. The exact 16-field profile assertion used
+  server version number 170010, UTF8/C/UTC, standard strings/synchronous commit/fsync/full-page writes on and read
+  committed/non-read-only/non-deferrable/origin settings.
+- The actual product step required 12 named sentinels across `db/postgres`, Article and generated relation/project-runner
+  packages. Step success proves every sentinel emitted pass and none emitted skip; normal, race and CGO-disabled suites,
+  vet and clean-worktree all passed.
+- The durable restart log is exact `prepare` history/rows 1/1 → Docker service restart and current published-port probe →
+  `resume` 2/2 → `verify` 2/2 → cleanup, all status `ok`.
+
+### Completion and non-claims
+
+This run closes the bounded typed projection, scalar Count/Max, distinct/offset and Article search/report base as
+Implemented/Verified. It does not complete M4 or Q-011 and does not add Q/F expressions, annotation/grouping, related
+result projection, bulk mutation, locking, transaction-bound QuerySet, request transaction, Form/Auth/Admin/API,
+production PostgreSQL readiness, merge or release.
+
+The EVID-110 terminal mirror and GDJ-0040 activation are a later documentation-only descendant. They record this exact
+run but are not recursively proved by it; their gates are frontmatter/status/link consistency and `git diff --check`.
