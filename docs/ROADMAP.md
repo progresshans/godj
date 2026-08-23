@@ -9,10 +9,12 @@
   [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md), ready는 0입니다. Accepted
   [ADR-0037](adr/0037-postgresql-current-contract-backend.md)과
   [ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)에 따라 PostgreSQL current backend와
-  SQLite 기반 최소 Web Core/Article HTTP를 exclusive path lane으로 병렬 구현합니다. Phase A/B/C query/write/Atomic과
-  Web/Article HTTP는 local `Implemented candidate`이고 EVID-106 affected gates를 통과했지만, PostgreSQL
-  schema/migration/recorder/revision/restart와 final hosted gate가 남아 있습니다. Q-010/Q-011/Q-012/Q-013은 `Partial`,
-  Q-017은 P1/open이고 PostgreSQL/Web support를 주장하지 않습니다.
+  최소 Web Core/Article HTTP를 exclusive path lane으로 병렬 구현했습니다. Exact source commit `cb90f7a...`은
+  query/write/Atomic, schema/migration/recorder/revision/restart와 Article/generated relation PostgreSQL actual을
+  source-frozen local `Implemented candidate`로 묶었고 [EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)의
+  required 12/12·skip 0, full/386/source-clean-copy와 audit P0..P3=0을 통과했습니다. 남은 것은 non-force push와
+  final PostgreSQL 17.10 exact-head hosted gate입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이고
+  PostgreSQL/Web support를 아직 주장하지 않습니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -62,7 +64,7 @@
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
 - 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
   REL-001..012 12/12; REL-002 `passing` and hosted-verified.
-- 마지막 검토: 2026-08-21
+- 마지막 검토: 2026-08-23
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -327,8 +329,9 @@ completion-documentation commit `34ae58fc2490deb8f884a0b5591520b11bae8669`도 �
 `f7fbbd50465a610ed9492227909eece524455f15`도 별도 run `31322959993`의 같은 exact 10 job을
 통과했습니다.
 
-Windows는 native process/path contract 전에는 지원 runner를 만들지 않습니다. Current actual backend는
-SQLite뿐이므로 PostgreSQL/MySQL service-only job도 false green으로 금지합니다. Future backend job은
+Windows는 native process/path contract 전에는 지원 runner를 만들지 않습니다. 이 historical CI 확장 시점의 actual
+backend는 SQLite뿐이었으므로 PostgreSQL/MySQL service-only job을 false green으로 금지했습니다. Current GDJ-0038
+PostgreSQL job도 같은 원칙에 따라
 digest-pinned service image, health check, UTC timezone과 C locale 또는 명시적으로 승인된 collation,
 actual query/write/transaction/schema/migration/recorder/revision-lifecycle 및 durable restart/
 persistence contract를 먼저 실행해야 합니다. Expected contract 수와 executed 수가 같고 `skipped=0`,
@@ -396,20 +399,21 @@ recorded steps를 성공해 EVID-045에 기록했습니다. 이 EVID-045를 포�
 patch는 당시 그 뒤의 별도 diff였고, 이후 exact final-status head `9ba1d0ee...`의 run `31374150640`이
 26/26·326/326을 성공해 EVID-046에서 닫았습니다. Run `31372360481`은 그 later patch의 증거로 재사용하지
 않았습니다.
-이는 PostgreSQL/MySQL
-service-only job 추가가 아닙니다. M3의 첫 PostgreSQL required job은 Q-013/actual backend contract와
-query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable persistence 구현 뒤에만
-추가합니다. MySQL은 M9 actual adapter까지 같은 원칙을 따릅니다.
+이는 당시 PostgreSQL/MySQL service-only job 추가가 아니었습니다. M3의 첫 PostgreSQL required job은 이후
+GDJ-0038 source commit `cb90f7a...`에서 query/write/transaction/schema/migration/recorder/revision lifecycle,
+durable restart와 exact pass/no-skip inventory를 함께 갖춰 구현됐고 hosted result는 아직 pending입니다. MySQL은
+M9 actual adapter까지 같은 원칙을 따릅니다.
 
 ## M3 — Relations + PostgreSQL
 
 [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)과 Accepted
 [ADR-0037](adr/0037-postgresql-current-contract-backend.md)이 첫 actual PostgreSQL current-contract backend를
-활성화했습니다. Query/write/Atomic만으로 support를 주장하지 않고 schema/migration/recorder/revision, close/reopen와
-actual server restart까지 하나의 final gate에서 검증합니다. PostgreSQL REL-007/008 project-aware delete는 이 packet의
-비목표입니다. Phase-1 query/write/Atomic source와 disposable PostgreSQL 17.5 local smoke는
-[EVID-106](status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의
-`Implemented candidate`이며 final reference 17.10 또는 backend support 증거가 아닙니다.
+활성화했습니다. Source commit `cb90f7a...`은 query/write/Atomic뿐 아니라 explicit-schema DDL/catalog,
+recorder/revision, close/reopen, process contention와 actual server restart까지 구현했습니다.
+[EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)은
+PostgreSQL 17.5 exact 16-field profile, required actual 12/12·skip 0, generated Article/relation, durable restart,
+full/386/source-clean-copy와 audit P0..P3=0을 기록합니다. PostgreSQL REL-007/008 project-aware delete는 이 packet의
+비목표이고 final reference 17.10 hosted result 전에는 backend support/`Verified` 증거가 아닙니다.
 
 - Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
   ForeignKey 외부 동작 REL-001..012와 Q-013 cross-app binding/import-cycle/shared-AST feasibility를
@@ -570,12 +574,14 @@ M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 ## M5 — Web Core
 
 [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)과 Accepted
-[ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)이 SQLite 기반 최소 Web/Article HTTP 수직
+[ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)이 최소 Web/Article HTTP 수직
 단면을 PostgreSQL lane과 병렬 활성화했습니다. Declaration runner는 보존하고 별도 Article site binary, immutable
 startup state, static router, request-local generated facade와 explicit DTO/template만 구현합니다. Global
 `godj runserver`, DTL/Form/Auth/Admin/API는 이 packet의 비목표입니다. 이 bounded Web slice는
-[EVID-106](status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의 local affected gate를
-통과한 `Implemented candidate`이며 PostgreSQL smoke와 exact-head hosted 검증은 pending입니다.
+[EVID-106](status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의 SQLite loopback과
+[EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)의
+Article PostgreSQL migration/generated CRUD/HTTP actual을 통과한 source-frozen local `Implemented candidate`입니다.
+Exact-head hosted 검증은 pending입니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

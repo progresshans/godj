@@ -74,8 +74,12 @@ proposed → ready → active → completed
 CI #103 exact 26/26 jobs·326/326 steps success로 completed/hosted-verified됐습니다. 그 docs descendant
 `681b0713...`도 CI #104/run `32444841140`의 exact 26/26 jobs·326/326 steps를 통과했습니다. 현재 유일한 active는
 [GDJ-0038](0038-postgresql-and-minimal-web-vertical-slices.md), ready는 0입니다. PostgreSQL current backend와
-SQLite 기반 최소 Web Core의 Phase A/B/C는 local `Implemented candidate`와 EVID-106 affected gates에 도달했고,
-다음은 local checkpoint commit 뒤 PostgreSQL migration/restart Phase D와 Article PostgreSQL smoke입니다. GDJ-0034
+최소 Web Core는 exact source commit `cb90f7a...`에서 Phase D migration/revision/restart와 Article/generated relation
+PostgreSQL integration까지 source-frozen local `Implemented candidate`에 도달했습니다.
+[EVID-107](../docs/status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)의
+exact 16-field local profile, required 12/12·skip 0, full/386/source-clean-copy와 audit P0..P3=0을 통과했고 다음은
+documentation commit, non-force push와 PostgreSQL 17.10 exact-head hosted gate입니다. Hosted success 전에는
+support/Verified/completed로 전환하지 않습니다. GDJ-0034
 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

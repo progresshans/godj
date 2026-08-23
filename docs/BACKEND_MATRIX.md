@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
-- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified
-- 마지막 검토: 2026-08-21
+- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL source-frozen local candidate
+- 마지막 검토: 2026-08-23
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -10,7 +10,7 @@
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
 | SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | Phase-1 query/write/Atomic Implemented candidate; unverified | relation, locking, production-oriented semantics |
+| PostgreSQL | M3 | DB-PG-001..010 source-frozen local Implemented candidate; hosted unverified | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -45,6 +45,12 @@ spatial fields/lookups/aggregates
 
 각 milestone 시작 시 DB server/client/library 버전을 정확히 pin하고 [SOURCES.md](SOURCES.md)와 CI matrix에 기록합니다. 로컬 macOS의 SQLite 버전은 개발 환경 관찰일 뿐 compatibility 약속이 아닙니다.
 
+GDJ-0038의 local PostgreSQL 17.5 profile은 exact
+`170005|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`이고 hosted PostgreSQL 17.10
+target은 첫 필드만 `170010`입니다. 이는 server version, server/client encoding, locale provider/provider locale/
+collation/ctype, timezone, standard strings, synchronous commit, default transaction isolation/read-only/deferrable,
+fsync, full-page writes와 replication role의 16-field lock입니다. Local profile 통과는 hosted support 약속이 아닙니다.
+
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey
 Create/Delete apply/unapply/reapply 및 sealed same-target universe의 nullable ForeignKey Add, empty-source required
@@ -61,7 +67,7 @@ Backend별 verified 상태는 기능 contract와
 
 ## 현재 migration backend ABI
 
-GDJ-0036 current local implementation은 scalar와 relation lifecycle을 같은 mandatory port로 통합했습니다.
+Current migration backend ABI는 scalar와 relation lifecycle을 같은 mandatory port로 통합합니다.
 
 - `RevisionFencedBackend`는 `MigrationCapabilities()`와 `OpenRevisionFencedSession(ctx)`을 제공합니다.
 - Session은 `BeginMigration(ctx, HistoryTransition, MigrationIntent)` 하나만 제공합니다. Scalar step도 같은
@@ -71,8 +77,20 @@ GDJ-0036 current local implementation은 scalar와 relation lifecycle을 같은 
 - `Executor.Migrate`만 opaque `LoadedDefinitionSet`의 complete lifecycle을 실행합니다. 별도
   `DirectExecutor`는 raw scalar transaction 경계이며 relation input을 fail-closed합니다.
 
-이 ABI와 current-format 회귀는 exact local implementation commit의 gate를 통과했습니다. 아래 hosted run은 GDJ-0035 당시
-dual optional-port 구현의 역사적 증거이며 GDJ-0036 최종 hosted `Verified` 주장이 아닙니다.
+이 ABI와 current-format 회귀는 GDJ-0036 exact hosted gate를 통과했습니다. 아래 hosted run은 GDJ-0035 당시 dual
+optional-port 구현의 역사적 증거이며 현재 PostgreSQL support 주장이 아닙니다.
+
+## GDJ-0038 PostgreSQL source-frozen local candidate
+
+Source commit `cb90f7a69d70c131ccf8868fb83efcf7bd7c2548`은 위 mandatory ABI를 PostgreSQL current profile에
+구현합니다. 모든 user/control object는 explicit schema와 closed catalog profile 아래에 있고 schema DDL, exact recorder
+transition과 revision advance는 하나의 pinned fenced transaction에 속합니다. Generated CRUD/relation, loaded
+apply/unapply/reapply, contention, close/reopen와 actual server stop/start resume가 같은 local product gate에서 실행됩니다.
+
+[EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)은
+exact 16-field local profile, required actual 12/12·skip 0, race/CGO0/full/386/source-clean-copy와 audit P0..P3=0을
+기록합니다. PostgreSQL 17.10 hosted exact-head result가 아직 없으므로 이 행은 `Implemented candidate`이며 support,
+`Verified`, production readiness 또는 excluded REL-007/008/adoption/repair/retry를 주장하지 않습니다.
 
 ## Historical GDJ-0035 backend evidence
 

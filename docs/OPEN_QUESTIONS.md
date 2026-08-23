@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-21
+- 마지막 검토: 2026-08-23
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -10,9 +10,9 @@
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
-| Q-011 | Partial | GDJ-0038 active / M5+ | QuerySet evaluation subset은 ADR-0012로 해결; ADR-0038 synchronous request lifetime/DTO 하위 경계는 local Implemented candidate이고 transaction container/async hook/background ownership은 open |
-| Q-012 | Partial | GDJ-0038 active / broader migration 후속 | Current `LoadedDefinitionSet` lifecycle/unified backend ABI는 hosted-verified; PostgreSQL query/write/Atomic은 local Implemented candidate지만 schema/recorder/revision/restart와 public migrate/writer/upgrade/custom operation/general crash recovery는 open |
-| Q-013 | Partial | GDJ-0038 active / broader relation·backend 후속 | Bounded SQLite FK slices는 current Schema IR/codegen/state/lifecycle로 통합됨; PostgreSQL current one-hop relation query/write는 local candidate이고 broader relation/backend·migration 범위는 open |
+| Q-011 | Partial | GDJ-0038 active / M5+ | QuerySet evaluation subset은 ADR-0012로 해결; ADR-0038 synchronous request lifetime/DTO와 Article SQLite/PostgreSQL bounded flow는 local candidate이고 transaction container/async hook/background ownership은 open |
+| Q-012 | Partial | GDJ-0038 active / broader migration 후속 | Current loaded lifecycle/unified ABI는 hosted-verified이고 bounded PostgreSQL schema/recorder/revision/restart는 source-frozen local candidate; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
+| Q-013 | Partial | GDJ-0038 active / broader relation·backend 후속 | Bounded SQLite FK slices는 current IR/codegen/state/lifecycle로 통합됐고 generated PostgreSQL required/nullable relation flow는 local candidate; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
@@ -74,9 +74,11 @@ local gates와 exact correction head `d4643068...`의
 Current [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)은 Accepted
 [ADR-0037](adr/0037-postgresql-current-contract-backend.md)의 PostgreSQL current backend와
 [ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)의 synchronous request/explicit DTO
-하위 경계를 병렬 구현합니다. Phase A/B/C는 local `Implemented candidate`와 affected EVID-106까지 도달했지만 이
-checkpoint는 Q-011/Q-012/Q-013을 해결하거나 Q-017 general raw-model UX를 닫지 않으며, actual final
-PostgreSQL/Web gate 전에는 support/Verified 상태가 아닙니다.
+하위 경계를 병렬 구현합니다. Exact source commit `cb90f7a...`은 Phase D/E를 포함한 source-frozen local
+`Implemented candidate`이고 [EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)의
+PostgreSQL schema/recorder/revision/restart, generated Article/relation, required 12/12·skip 0과 full local gates를
+통과했습니다. 이 bounded 결과도 Q-011/Q-012/Q-013을 해결하거나 Q-017 general raw-model UX를 닫지 않으며,
+PostgreSQL 17.10 exact-head hosted gate 전에는 support/Verified 상태가 아닙니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 
@@ -162,7 +164,7 @@ porcelain-empty clean worktree gate를 만족했습니다. Exact 16-file complet
 run `31329294154`에서 18/18 성공했습니다. Initial run의 네 Python pre-test uv assertion failure/cancel과
 fix는 EVID-028에 기록했습니다. Portable/compatibility는 uv
 0.12.3, historical exact darwin oracle만 embedded profile의 uv 0.10.12를 사용합니다. Windows
-native contract가 없고 actual backend는 SQLite뿐이므로 Windows green skip과 PostgreSQL/MySQL
+native contract가 없고 GDJ-0022 완료 당시 actual backend는 SQLite뿐이었으므로 Windows green skip과 PostgreSQL/MySQL
 service-only CI는 support evidence로 만들지
 않습니다. Future backend는 digest-pinned service image, health check, UTC timezone과 C locale 또는
 명시적으로 승인된 collation, actual query/write/transaction/schema/migration/recorder/
@@ -333,10 +335,10 @@ wrap/reclassify/retry하지 않습니다. Literal Schema IR 2는 two-way compile
 [run 31320798963](https://github.com/progresshans/godj/actions/runs/31320798963)의 exact 10 job에서
 통과했습니다.
 
-File/directory/module/remote discovery, public CLI, writer/upgrade/cache, executable/custom/data/
-raw-SQL operation, global CLI/project handshake, adoption/repair command, copy/restore epoch,
-crash reconciliation과 PostgreSQL/MySQL 등 non-SQLite backend는 계속 Q-012/Q-010의 open
-범위입니다.
+File/directory/module/remote discovery, public CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation,
+global CLI/project handshake, adoption/repair command, copy/restore epoch와 crash/unknown-commit reconciliation은
+계속 Q-012/Q-010의 open 범위입니다. PostgreSQL은 GDJ-0038 bounded current lifecycle만 local candidate이고
+REL-007/008/general recovery 및 MySQL 등 다른 backend는 여전히 open입니다.
 
 GDJ-0021은 위 open 범위 중 project-relative flat file discovery와 check-only process boundary만
 MIG-065..074로 분리해 완료했습니다. Accepted contract는 linked project code가 clean root list를 제공하고
@@ -354,7 +356,8 @@ writer/upgrade와 DB-aware lifecycle은 계속 제외합니다. GDJ-0022 완료 
 contract의 `110 passing + 5 deviation`이었고 exact 18 hosted acceptance도 완료됐습니다. Completed
 GDJ-0025의 REL-001 metadata와 REL-004 required predicate actual까지 포함한 GDJ-0025 완료 시점 aggregate는
 12 adapter/127 contract의 `112 passing + 5 deviation + 10 oracle_locked`입니다.
-PostgreSQL/MySQL job은 actual backend contract 전까지 만들지 않습니다.
+이 GDJ-0022 완료 시점에는 PostgreSQL/MySQL job을 actual backend contract 전까지 만들지 않았습니다. 현재
+PostgreSQL required job source는 GDJ-0038에 구현됐지만 hosted result는 pending이고 MySQL 정책은 불변입니다.
 
 ## Q-013 — 관계 API
 

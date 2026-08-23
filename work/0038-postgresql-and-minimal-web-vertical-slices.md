@@ -105,7 +105,7 @@ smoke를 추가합니다. 기존 declaration runner와 `godj.toml` bootstrap은 
 - Baseline CI #104/run `32444841140`은 exact 26/26 jobs·326/326 steps, annotations 0,
   clean-worktree 24/24와 no-rewrite 10/10을 통과했습니다.
 - GDJ-0037의 project bundle/publication은 completed/hosted-verified이고 Q-010은 `Partial`, Q-017은 P1/open입니다.
-- Current product는 12/127=`122 passing + 5 deviation`, relation 12/12이며 MIG-075..086은 계속
+- Current product는 12/127=`122 passing + 5 deviation + 0 oracle_locked`, relation 12/12이며 MIG-075..086은 계속
   `oracle_locked`/unregistered입니다.
 - PostgreSQL/Web은 이 activation 전까지 `Not started`였습니다.
 
@@ -141,8 +141,9 @@ Web application factory는 `db.Queryer + db.Mutator`의 기존 public boundary�
 ## PostgreSQL 결정 경계
 
 - Driver는 `github.com/jackc/pgx/v5` v5.10.0의 `database/sql` bridge를 사용합니다.
-- 지원 major는 PostgreSQL 17이며 hosted reference profile은
-  17.10/server·database·client UTF8/libc C locale/`standard_conforming_strings=on`/UTC로 고정합니다.
+- 지원 major는 PostgreSQL 17이며 hosted reference profile은 다음 16-field fingerprint로 고정합니다.
+  `170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`.
+  Local 17.5 checkpoint는 첫 필드만 `170005`인 exact profile을 사용합니다.
 - `postgres.Config{URL, Schema}`가 explicit schema를 요구합니다. 모든 user/control object를 schema-qualified로
   접근하고 connection `search_path`는 `pg_catalog`, timezone은 UTC로 고정합니다.
 - PostgreSQL 63-byte identifier와 현재 GoDj identifier 규칙을 I/O 전에 검증합니다.
@@ -240,20 +241,21 @@ Web application factory는 `db.Queryer + db.Mutator`의 기존 public boundary�
 
 ### Phase D — PostgreSQL migration/restart
 
-- [ ] schema editor/type/FK/catalog mapping
-- [ ] recorder/revision/control bootstrap
-- [ ] revision-fenced session/transaction and failure taxonomy
-- [ ] apply/unapply/reapply and close/reopen
-- [ ] two-process contention and actual server restart resume
+- [x] schema editor/type/FK/catalog mapping
+- [x] recorder/revision/control bootstrap
+- [x] revision-fenced session/transaction and failure taxonomy
+- [x] apply/unapply/reapply and close/reopen
+- [x] two-process contention and actual server restart resume
 
 ### Phase E — integration and hardening
 
-- [ ] Article Web PostgreSQL smoke without changing generated bundle
-- [ ] PostgreSQL hosted actual-service gate; service-only green forbidden
-- [ ] affected normal/race/CGO0/vet and generated drift
-- [ ] final full/386/hosted milestone gate once
-- [ ] independent P0..P3 frozen-byte audit
-- [ ] CURRENT/MATRIX/TEST_EVIDENCE/work handoff
+- [x] Article Web PostgreSQL smoke without changing generated bundle
+- [x] required actual-service workflow and exact 12-sentinel/no-skip lock
+- [x] affected normal/race/CGO0/vet and generated drift
+- [x] final full/386/repository-external source-clean-copy local milestone gate once
+- [x] independent P0..P3 frozen-byte audit
+- [x] source-frozen CURRENT/MATRIX/TEST_EVIDENCE/work handoff
+- [ ] non-force push, hosted PostgreSQL 17.10 result mirror and work completion
 
 ## 검증 cadence
 
@@ -266,16 +268,20 @@ PostgreSQL final gate는 실제 query/write/transaction/schema/migration/recorde
 
 ## 현재 체크포인트와 다음 정확한 작업
 
-Phase A/B/C source는 하나의 candidate로 동결됐습니다. Shared API/SQLite exact regression과 external consumer compile,
-PostgreSQL 17.5 UTF8/libc-C/UTC local query/write/Atomic normal·race smoke, Web core와 Article loopback E2E가
-[EVID-106](../docs/status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)에
-기록됐습니다. Integrated affected normal/race/CGO-disabled/vet, all-package compile-only, generate/format drift와
-independent PostgreSQL/SQLite·Web audit P0/P1/P2/P3=`0/0/0/0`도 통과했습니다. 17.5는 affected local smoke이며
-17.10 hosted reference 증거가 아닙니다.
+Phase A/B/C source commit `c0ee1d4...`의 descendant인 exact source commit
+`cb90f7a69d70c131ccf8868fb83efcf7bd7c2548`, tree
+`2528710760de889c0f05166e9e702f92d4633483`에 Phase D/E local candidate를 동결했습니다. Explicit-schema
+DDL/catalog, recorder/revision bootstrap, pinned fenced transaction, apply/unapply/reapply, process contention,
+close/reopen와 actual server restart resume가 같은 mandatory migration ABI 위에 구현됐습니다. Article generated
+CRUD/HTTP와 generated relation 흐름도 PostgreSQL actual DB에서 실행됩니다.
 
-다음 정확한 작업은 이 checkpoint를 exact scope로 local commit하고 remote push 없이 그 descendant에서 Phase D
-migration/restart를 시작하는 것입니다. Full/386/clean-copy/hosted matrix는 final frozen milestone에서 한 번만
-실행합니다.
+[EVID-107](../docs/status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)은
+local PostgreSQL 17.5 exact 16-field profile, required actual normal 12/12·skip 0, actual race/CGO-disabled, vet,
+generate/protocol, `prepare` history/rows 1 → server stop/start → `resume`/`verify` history/rows 2와 cleanup을 기록합니다.
+Exact source commit의 final `make ci`, all-package Linux/386 compile-only와 repository-external 736-file source-clean-copy
+gate도 통과했고 independent final source audit는 P0/P1/P2/P3=`0/0/0/0`입니다.
 
-이 activation은 PostgreSQL/Web support 또는 Q-011/Q-017 해결을 주장하지 않습니다. Source는 구현되는 범위마다
-`Implemented candidate`로만 전환하고 actual final hosted evidence 전에는 `Verified`로 표시하지 않습니다.
+다음 정확한 작업은 이 source-frozen mirror를 documentation commit으로 만들고 Draft PR #1에 non-force push한 뒤,
+hosted PostgreSQL 17.10 exact profile과 12 required sentinel을 포함한 exact-head matrix를 확인하는 것입니다. Hosted
+success와 terminal mirror 전에는 PostgreSQL/Web support, `Verified`, GDJ-0038 completion 또는 Q-011/Q-017 해결을
+주장하지 않습니다.

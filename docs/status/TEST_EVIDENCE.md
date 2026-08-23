@@ -10035,3 +10035,159 @@ The following package set was used for normal, race, CGO-disabled and vet:
 - This evidence append and status mirrors follow the product test runs. Static Markdown/allowed-path checks and the
   final exact committed-head hosted run are distinct; this entry does not recursively claim that its own final bytes
   were included in the preceding local commands.
+
+## EVID-20260823-107 — GDJ-0038 PostgreSQL Migration and Web Integration Source-Frozen Local Checkpoint
+
+- Date/time: final local gates completed 2026-08-23T16:01:15+09:00
+- Work/contract IDs: GDJ-0038 active; DB-PG-001..010 and WEB-001..010 bounded source-frozen local candidates;
+  Q-010/Q-011/Q-012/Q-013 remain `Partial`; Q-017 remains P1/open
+- Branch: `feature/pre-release-compatibility-reset`
+- Source commit/tree: `cb90f7a69d70c131ccf8868fb83efcf7bd7c2548` /
+  `2528710760de889c0f05166e9e702f92d4633483`, subject
+  `feat: add PostgreSQL migration and restart lifecycle`
+- Parent Phase A/B/C commit/tree: `c0ee1d4bda896aed0262142b71ad08895e885610` /
+  `a4e54963822c50c23d627d5063021c9625875a6d`, subject
+  `feat: add PostgreSQL query and minimal Web slices`
+- Baseline-to-source packet: 93 paths=`A59/M34`, `+16,314/-83`; the Phase D/E source commit itself is 30
+  paths=`A22/M8`, `+10,243/-49`
+- Environment: macOS 26.6.2 / Darwin 25.6.0 arm64; Go 1.26.5 darwin/arm64; Homebrew PostgreSQL 17.5
+- Result: exact source commit is a local `Implemented candidate`; PostgreSQL 17.10 hosted verification, support,
+  `Verified` and GDJ-0038 completion are not claimed by this entry.
+
+### Source-frozen implementation
+
+- `db/postgres` implements schema-qualified current model/scalar/ForeignKey DDL, deterministic constraints and
+  identity sequences, closed catalog verification, recorder/revision bootstrap, exact history snapshots and one
+  pinned-connection revision-fenced transaction. Schema operations, recorder transition and successor revision
+  commit together; contended/stale/integrity and commit-outcome-unknown retain backend-neutral ownership.
+- Loaded latest/target/no-op apply, child-first unapply, reapply, close/reopen, two-connection/process contention and
+  durable restart resume use the same mandatory `BeginMigration(HistoryTransition, MigrationIntent)` ABI as SQLite.
+  No scalar/relation compatibility entry or hidden context carrier was added.
+- Connection startup/reset validates the complete physical and session profile. Runtime parameters are allowlisted,
+  framework-owned `search_path`/timezone/encoding/transaction/durability settings are forced, replication-role
+  overrides are rejected and credential-bearing URL causes are redacted.
+- Physical and logical limits cover recorder identity, intent resources, PostgreSQL identifier/VARCHAR/model/attribute
+  slots, bounded catalog rows, at most 2,048 history rows and exact revision-token byte widths. Malformed control
+  objects, extra rows, disabled/internal triggers and inbound control-table foreign keys fail closed before mutation.
+- The Article fixture loads a current migration definition, migrates PostgreSQL, executes generated Create/Save/query/
+  update/delete and serves the existing explicit DTO/template HTTP application. A separate generated relation product
+  proves required/nullable forward and reverse/eager behavior. Checked-in generated bundle bytes remain unchanged.
+- CI now contains a digest-pinned PostgreSQL 17.10 service, exact 16-field server/session fingerprint assertion,
+  required actual normal/race/CGO-disabled tests, a no-skip 12-sentinel inventory, durable service-restart runner,
+  vet and clean-worktree gates. Protocol tests lock this workflow structure; a service-only green is impossible.
+
+### Exact local PostgreSQL profile and required actual inventory
+
+The disposable cluster fingerprint was exactly:
+
+```text
+170005|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin
+```
+
+The hosted target uses the same 16 fields with only the first value changed to `170010`. The fields are server
+version, server/client encoding, locale provider/provider locale/collation/ctype, timezone,
+`standard_conforming_strings`, `synchronous_commit`, default isolation/read-only/deferrable, `fsync`,
+`full_page_writes` and `session_replication_role`.
+
+```bash
+GODJ_TEST_POSTGRES_URL=postgresql://127.0.0.1:55441/postgres \
+  GODJ_REQUIRE_POSTGRES=1 \
+  go test -json -count=1 \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/...
+```
+
+The JSON inventory completed with required passes `12/12` and skips `0`. Each required sentinel had exactly a pass
+event and no skip event:
+
+1. `TestPostgreSQLPhase1Integration`
+2. `TestPostgresRevisionFencedMigrationIntegration`
+3. `TestPostgresRevisionFenceCrossProcessIntegration`
+4. `TestPostgresMigrationCreateThenAddInOneDefinitionIntegration`
+5. `TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration`
+6. `TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration`
+7. `TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration`
+8. `TestPostgresMigrationRejectsInitializedRevisionZeroIntegration`
+9. `TestPostgresMigrationRejectsInboundControlForeignKeyIntegration`
+10. `TestArticlePostgresMigrationGeneratedCRUDAndHTTP`
+11. `TestGeneratedRelationPostgresE2E`
+12. `TestProjectRunnerSameServerLifecycle`
+
+The same four actual product packages passed the following independent checkpoints:
+
+```bash
+GODJ_TEST_POSTGRES_URL=postgresql://127.0.0.1:55441/postgres \
+  GODJ_REQUIRE_POSTGRES=1 go test -race -count=1 \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/...
+
+GODJ_TEST_POSTGRES_URL=postgresql://127.0.0.1:55441/postgres \
+  GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -count=1 \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/...
+
+go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... \
+  ./conformance/internal/protocol
+make format-check generate-check
+go test -count=1 ./conformance/internal/protocol
+git diff --check
+```
+
+All passed. Generated drift remained Article exact 12/snapshot
+`2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe` and relationdelete exact 16/snapshot
+`4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775`.
+
+Focused actual corruption canaries also passed. A 17-byte epoch and 33-byte history fingerprint were rejected as
+integrity faults without partial history; initialized revision zero, 2,049 recorder rows and an inbound `CASCADE`
+foreign key targeting a control table were rejected without changing schema, history, revision or shadow rows.
+Recorder-stage failure rolled back schema/history/revision together.
+
+### Durable restart sequence
+
+The process runner used a unique explicit schema and produced:
+
+```text
+prepare: status=ok history=1 rows=1
+PostgreSQL fast stop
+PostgreSQL start with the same data directory and exact 16-field profile
+resume:  status=ok history=2 rows=2
+verify:  status=ok history=2 rows=2
+cleanup: status=ok
+```
+
+This is an orderly real server stop/start with a fresh process and retained data directory. It proves the bounded
+restart contract, not literal power-loss or crash-recovery reconciliation.
+
+### Final local milestone gates on the exact source commit
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local \
+  GOPROXY=off GOSUMDB=off go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+Both passed. `make ci` completed format/generation drift, all Go normal/vet/race tests, the configured CGO-disabled
+slice, portable Python 216 tests with 19 expected profile skips, every contract/oracle/static-fixture check and every
+GoDj comparison. The Linux/386 command compiles every package with CGO disabled; `/usr/bin/true` means it is
+compile-only evidence and does not claim 386 execution on this arm64 host.
+
+A repository-external `git archive` copy of exact source commit `cb90f7a...` contained 736 tracked regular files.
+Before and after `make generate-check` plus `go test -run '^$' ./...`, its sorted per-file SHA-256 listing digest was exactly
+`7319992ccf4c7bd22cffb3040a3fdcc5d73fe417e8d8e95fcf34670d0ba6bca7`. Generation retained the exact Article/
+relationdelete snapshots above and all packages compiled. The disposable cluster, JSON log and source-clean copy were
+stopped or moved to the macOS Trash after verification, so they remain recoverable and port 55441 is no longer live.
+
+### Independent audit and remaining boundary
+
+- Independent lifecycle and product/process reviewers audited the final source bytes. Findings around profile drift,
+  connection cleanup, credential redaction, transaction defaults/durability, recorder/resource/catalog bounds,
+  impossible revision/token shapes, internal trigger accounting and required-test inventory were reproduced and fixed.
+  The final independent source result is P0/P1/P2/P3=`0/0/0/0`.
+- This local evidence does not prove the digest-pinned hosted PostgreSQL 17.10 service, the pushed documentation head or
+  the full hosted job matrix. Those require the next non-force push and an exact-head GitHub Actions result.
+- PostgreSQL REL-007/008 project-aware delete, arbitrary existing-database adoption/repair, automatic retry/unknown-
+  commit reconciliation, explicit-key identity-sequence reconciliation, broader field/relation types, migration
+  writer/autodetector and production readiness remain excluded.
+- Q-010/Q-011/Q-012/Q-013 remain `Partial`, Q-017 remains P1/open, MIG-075..086 stay diagnostic
+  `oracle_locked`/unregistered and product conformance remains exact
+  12/127=`122 passing + 5 deviation + 0 oracle_locked`.
+- GDJ-0038 remains active and the Draft PR remains unmerged. Only a successful exact-head hosted run followed by a
+  terminal evidence/status mirror may mark the bounded PostgreSQL/Web work `Verified` and completed.
