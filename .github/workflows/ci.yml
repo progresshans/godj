@@ -483,10 +483,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 950, sorted(runs)
-          assert len(payload) == 97469, len(payload)
+          assert len(runs) == 968, sorted(runs)
+          assert len(payload) == 99177, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "7c1546c3c98179bba31e8bd27cf28d7e4f751897aaaa31c03bac76f0e7ddac29"
+          assert payload_sha256 == "8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -720,9 +720,9 @@ jobs:
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 236
+          test "$(grep -c '^test_' "$log")" -eq 239
           test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
-          grep -Fq 'Ran 236 tests' "$log"
+          grep -Fq 'Ran 239 tests' "$log"
           grep -Fq 'OK (skipped=21)' "$log"
 
       - name: Verify all-scenario semantic digest
@@ -745,10 +745,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 161, len(SCENARIOS)
-          assert len(payload) == 702415, len(payload)
+          assert len(SCENARIOS) == 171, len(SCENARIOS)
+          assert len(payload) == 750165, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e", digest
+          assert digest == "489bca88ab3167a9011bc66dd5f2744a8fbfa668969d9d1b6a9f79af487e8500", digest
           PY
 
       - name: Require a clean worktree

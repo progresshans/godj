@@ -20,8 +20,8 @@ func TestQueryExpressionArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/query-expression-manifest.json": {
-			size:   16652,
-			sha256: "90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3",
+			size:   16592,
+			sha256: "a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17",
 		},
 		"conformance/fixtures/godj-query-expression-not-implemented.json": {
 			size:   2465,
@@ -82,12 +82,8 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 		if contract.ID != wantID || contract.Scenario != wantScenarios[index] {
 			t.Fatalf("contract %d = %s/%s, want %s/%s", index, contract.ID, contract.Scenario, wantID, wantScenarios[index])
 		}
-		wantStatus := ContractPassing
-		if index >= 10 {
-			wantStatus = ContractOracleLocked
-		}
-		if contract.Status != wantStatus {
-			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
+		if contract.Status != ContractPassing {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		if contract.Phase != PhaseEvaluation {
 			t.Fatalf("contract %s phase = %q, want %q", contract.ID, contract.Phase, PhaseEvaluation)
@@ -173,8 +169,8 @@ func TestQueryExpressionTransitionYieldsCurrentReferenceStatusAggregate(t *testi
 			}
 		}
 	}
-	if passing != 144 || deviations != 5 || oracleLocked != 22 {
-		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 22", passing, deviations, oracleLocked)
+	if passing != 154 || deviations != 5 || oracleLocked != 12 {
+		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 154 + 5 + 12", passing, deviations, oracleLocked)
 	}
 }
 

@@ -19,20 +19,30 @@ import (
 type queryExpressionScenario func(context.Context, string) (protocol.Observation, error)
 
 var queryExpressionScenarioRegistry = map[string]queryExpressionScenario{
-	"django.query.expression.scalar_exact_or":                                queryExpressionScalarExactOr,
-	"django.query.expression.escaped_ascii_icontains_or":                     queryExpressionEscapedASCIIInsensitiveContainsOr,
-	"django.query.expression.grouped_or_and_reuse":                           queryExpressionGroupedOrAndReuse,
-	"django.query.expression.nonnull_scalar_not":                             queryExpressionNonNullScalarNot,
-	"django.query.expression.nullable_negation_truth_table":                  queryExpressionNullableNegationTruthTable,
-	"django.query.expression.implicit_filter_and":                            queryExpressionImplicitFilterAnd,
-	"django.query.expression.nested_connector_order_and_source_independence": queryExpressionNestedConnectorOrderAndSourceIndependence,
-	"django.query.expression.composite_distinct_stable_page":                 queryExpressionCompositeDistinctStablePage,
-	"django.query.expression.projection_outside_predicate":                   queryExpressionProjectionOutsidePredicate,
-	"django.query.expression.composite_count_max":                            queryExpressionCompositeCountMax,
+	"django.query.expression.scalar_exact_or":                                  queryExpressionScalarExactOr,
+	"django.query.expression.escaped_ascii_icontains_or":                       queryExpressionEscapedASCIIInsensitiveContainsOr,
+	"django.query.expression.grouped_or_and_reuse":                             queryExpressionGroupedOrAndReuse,
+	"django.query.expression.nonnull_scalar_not":                               queryExpressionNonNullScalarNot,
+	"django.query.expression.nullable_negation_truth_table":                    queryExpressionNullableNegationTruthTable,
+	"django.query.expression.implicit_filter_and":                              queryExpressionImplicitFilterAnd,
+	"django.query.expression.nested_connector_order_and_source_independence":   queryExpressionNestedConnectorOrderAndSourceIndependence,
+	"django.query.expression.composite_distinct_stable_page":                   queryExpressionCompositeDistinctStablePage,
+	"django.query.expression.projection_outside_predicate":                     queryExpressionProjectionOutsidePredicate,
+	"django.query.expression.composite_count_max":                              queryExpressionCompositeCountMax,
+	"django.query.expression.integer_gt_literal_boundary":                      queryExpressionIntegerGreaterThanLiteralBoundary,
+	"django.query.expression.integer_gte_literal_boundary":                     queryExpressionIntegerGreaterThanOrEqualLiteralBoundary,
+	"django.query.expression.integer_lt_literal_boundary":                      queryExpressionIntegerLessThanLiteralBoundary,
+	"django.query.expression.integer_lte_literal_boundary":                     queryExpressionIntegerLessThanOrEqualLiteralBoundary,
+	"django.query.expression.range_composition_negation_and_reuse":             queryExpressionRangeCompositionNegationAndReuse,
+	"django.query.expression.same_field_reference_boundaries":                  queryExpressionSameFieldReferenceBoundaries,
+	"django.query.expression.same_model_field_reference_and_nullable_negation": queryExpressionSameModelFieldReferenceAndNullableNegation,
+	"django.query.expression.nullable_ordering_negation_truth_table":           queryExpressionNullableOrderingNegationTruthTable,
+	"django.query.expression.field_reference_stable_projection":                queryExpressionFieldReferenceStableProjection,
+	"django.query.expression.field_reference_count_max":                        queryExpressionFieldReferenceCountMax,
 }
 
 // queryExpressionScenarioHandler is the only query-expression registry
-// boundary consumed by the shared runner. A name must match one of the ten
+// boundary consumed by the shared runner. A name must match one of the twenty
 // contract scenarios exactly; near misses remain unregistered and fail closed.
 func queryExpressionScenarioHandler(scenario string) (scenarioHandler, bool) {
 	run, ok := queryExpressionScenarioRegistry[scenario]
@@ -333,6 +343,305 @@ func queryExpressionCompositeCountMax(ctx context.Context, contractID string) (p
 			models.ArticleFields.Title.Exact("missing"),
 			models.ArticleFields.Summary.Exact("missing"),
 		))
+
+		nonemptyValue, nonemptyMetric, err := queryExpressionCaptureStep(recorder, "nonempty", func() (queryExpressionAggregate, error) {
+			return queryExpressionAggregateValues(ctx, nonempty)
+		})
+		if err != nil {
+			return protocol.Observation{}, err
+		}
+		emptyValue, emptyMetric, err := queryExpressionCaptureStep(recorder, "empty", func() (queryExpressionAggregate, error) {
+			return queryExpressionAggregateValues(ctx, empty)
+		})
+		if err != nil {
+			return protocol.Observation{}, err
+		}
+		return queryBreadthStepsObservation(
+			ctx,
+			backend,
+			contractID,
+			protocol.PhaseEvaluation,
+			[]protocol.Value{
+				queryBreadthResultStep("nonempty", queryExpressionAggregateValue(nonemptyValue)),
+				queryBreadthResultStep("empty", queryExpressionAggregateValue(emptyValue)),
+			},
+			[]protocol.Value{nonemptyMetric, emptyMetric},
+		)
+	})
+}
+
+func queryExpressionIntegerLiteralBoundary(
+	ctx context.Context,
+	contractID string,
+	lookup string,
+	rhs int64,
+	predicate orm.Predicate[models.Article],
+) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		recorder := &queryExpressionSQLRecorder{}
+		source := models.ArticleObjects.Using(queryExpressionObserved(backend, recorder)).
+			Filter(predicate).
+			OrderBy(models.ArticleFields.ID.Asc())
+		rows, metrics, err := queryExpressionCapture(recorder, func() ([]int64, error) {
+			return queryExpressionPrimaryKeyRows(ctx, source)
+		})
+		if err != nil {
+			return protocol.Observation{}, fmt.Errorf("integer %s literal boundary: %w", lookup, err)
+		}
+		result := protocol.Object(map[string]protocol.Value{
+			"lookup": protocol.String(lookup),
+			"rhs":    queryBreadthInteger(rhs),
+			"rows":   queryBreadthPrimaryKeys(rows),
+		})
+		return resultObservation(ctx, backend, contractID, protocol.PhaseEvaluation, result, &metrics)
+	})
+}
+
+func queryExpressionIntegerGreaterThanLiteralBoundary(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return queryExpressionIntegerLiteralBoundary(
+		ctx,
+		contractID,
+		"gt",
+		2,
+		models.ArticleFields.ID.GreaterThan(2),
+	)
+}
+
+func queryExpressionIntegerGreaterThanOrEqualLiteralBoundary(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return queryExpressionIntegerLiteralBoundary(
+		ctx,
+		contractID,
+		"gte",
+		2,
+		models.ArticleFields.ID.GreaterThanOrEqual(2),
+	)
+}
+
+func queryExpressionIntegerLessThanLiteralBoundary(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return queryExpressionIntegerLiteralBoundary(
+		ctx,
+		contractID,
+		"lt",
+		3,
+		models.ArticleFields.ID.LessThan(3),
+	)
+}
+
+func queryExpressionIntegerLessThanOrEqualLiteralBoundary(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return queryExpressionIntegerLiteralBoundary(
+		ctx,
+		contractID,
+		"lte",
+		3,
+		models.ArticleFields.ID.LessThanOrEqual(3),
+	)
+}
+
+func queryExpressionRangeCompositionNegationAndReuse(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		recorder := &queryExpressionSQLRecorder{}
+		observed := queryExpressionObserved(backend, recorder)
+		predicate := orm.And(
+			models.ArticleFields.ID.GreaterThan(1),
+			models.ArticleFields.ID.LessThanOrEqual(3),
+		)
+		base := models.ArticleObjects.Using(observed)
+		cases := []struct {
+			name   string
+			source orm.QuerySet[models.Article]
+		}{
+			{name: "explicit_q_range", source: base.Filter(predicate)},
+			{name: "keyword_range", source: base.Filter(
+				models.ArticleFields.ID.GreaterThan(1),
+				models.ArticleFields.ID.LessThanOrEqual(3),
+			)},
+			{name: "negated_range", source: base.Filter(orm.Not(predicate))},
+			{name: "reused_published", source: base.Filter(
+				predicate,
+				models.ArticleFields.Published.Exact(true),
+			)},
+		}
+		resultSteps := make([]protocol.Value, 0, len(cases))
+		metricSteps := make([]protocol.Value, 0, len(cases))
+		for _, test := range cases {
+			rows, metric, err := queryExpressionCaptureStep(recorder, test.name, func() ([]int64, error) {
+				return queryExpressionPrimaryKeyRows(ctx, test.source.OrderBy(models.ArticleFields.ID.Asc()))
+			})
+			if err != nil {
+				return protocol.Observation{}, err
+			}
+			queryBreadthAppendStep(
+				&resultSteps,
+				&metricSteps,
+				test.name,
+				queryBreadthPrimaryKeys(rows),
+				metric,
+			)
+		}
+		return queryBreadthStepsObservation(ctx, backend, contractID, protocol.PhaseEvaluation, resultSteps, metricSteps)
+	})
+}
+
+func queryExpressionSameFieldReferenceBoundaries(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		recorder := &queryExpressionSQLRecorder{}
+		observed := queryExpressionObserved(backend, recorder)
+		id := models.ArticleFields.ID
+		idReference := orm.F(id)
+		cases := []struct {
+			name      string
+			predicate orm.Predicate[models.Article]
+		}{
+			{name: "id_exact_id", predicate: id.ExactField(idReference)},
+			{name: "id_gt_id", predicate: id.GreaterThanField(idReference)},
+			{name: "id_gte_id", predicate: id.GreaterThanOrEqualField(idReference)},
+			{name: "id_lt_id", predicate: id.LessThanField(idReference)},
+			{name: "id_lte_id", predicate: id.LessThanOrEqualField(idReference)},
+		}
+		resultSteps := make([]protocol.Value, 0, len(cases))
+		metricSteps := make([]protocol.Value, 0, len(cases))
+		for _, test := range cases {
+			rows, metric, err := queryExpressionCaptureStep(recorder, test.name, func() ([]int64, error) {
+				return queryExpressionPrimaryKeyRows(ctx, models.ArticleObjects.Using(observed).
+					Filter(test.predicate).
+					OrderBy(models.ArticleFields.ID.Asc()))
+			})
+			if err != nil {
+				return protocol.Observation{}, err
+			}
+			queryBreadthAppendStep(
+				&resultSteps,
+				&metricSteps,
+				test.name,
+				queryBreadthPrimaryKeys(rows),
+				metric,
+			)
+		}
+		return queryBreadthStepsObservation(ctx, backend, contractID, protocol.PhaseEvaluation, resultSteps, metricSteps)
+	})
+}
+
+func queryExpressionSameModelFieldReferenceAndNullableNegation(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		summary := "same"
+		if err := queryBreadthInsertArticle(ctx, backend, 5, "same", false, &summary); err != nil {
+			return protocol.Observation{}, err
+		}
+		recorder := &queryExpressionSQLRecorder{}
+		observed := queryExpressionObserved(backend, recorder)
+		titleEqualsSummary := models.ArticleFields.Title.ExactField(orm.F(models.ArticleFields.Summary))
+		cases := []struct {
+			name      string
+			predicate orm.Predicate[models.Article]
+		}{
+			{name: "cross_field_exact", predicate: titleEqualsSummary},
+			{name: "cross_field_not_exact", predicate: orm.Not(titleEqualsSummary)},
+			{name: "equal_row_gt", predicate: orm.And(
+				models.ArticleFields.ID.Exact(5),
+				models.ArticleFields.Title.GreaterThanField(orm.F(models.ArticleFields.Summary)),
+			)},
+			{name: "nullable_rhs_direct", predicate: orm.And(
+				models.ArticleFields.ID.Exact(1),
+				titleEqualsSummary,
+			)},
+		}
+		resultSteps := make([]protocol.Value, 0, len(cases))
+		metricSteps := make([]protocol.Value, 0, len(cases))
+		for _, test := range cases {
+			rows, metric, err := queryExpressionCaptureStep(recorder, test.name, func() ([]int64, error) {
+				return queryExpressionPrimaryKeyRows(ctx, models.ArticleObjects.Using(observed).
+					Filter(test.predicate).
+					OrderBy(models.ArticleFields.ID.Asc()))
+			})
+			if err != nil {
+				return protocol.Observation{}, err
+			}
+			queryBreadthAppendStep(
+				&resultSteps,
+				&metricSteps,
+				test.name,
+				queryBreadthPrimaryKeys(rows),
+				metric,
+			)
+		}
+		return queryBreadthStepsObservation(ctx, backend, contractID, protocol.PhaseEvaluation, resultSteps, metricSteps)
+	})
+}
+
+func queryExpressionNullableOrderingNegationTruthTable(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		recorder := &queryExpressionSQLRecorder{}
+		observed := queryExpressionObserved(backend, recorder)
+		cases := []struct {
+			name      string
+			predicate orm.Predicate[models.Article]
+		}{
+			{name: "not_gt_empty", predicate: orm.Not(models.ArticleFields.Summary.GreaterThan(""))},
+			{name: "not_gte_empty", predicate: orm.Not(models.ArticleFields.Summary.GreaterThanOrEqual(""))},
+			{name: "not_lt_orm", predicate: orm.Not(models.ArticleFields.Summary.LessThan("ORM"))},
+			{name: "not_lte_orm", predicate: orm.Not(models.ArticleFields.Summary.LessThanOrEqual("ORM"))},
+		}
+		resultSteps := make([]protocol.Value, 0, len(cases))
+		metricSteps := make([]protocol.Value, 0, len(cases))
+		for _, test := range cases {
+			rows, metric, err := queryExpressionCaptureStep(recorder, test.name, func() ([]int64, error) {
+				return queryExpressionPrimaryKeyRows(ctx, models.ArticleObjects.Using(observed).
+					Filter(test.predicate).
+					OrderBy(models.ArticleFields.ID.Asc()))
+			})
+			if err != nil {
+				return protocol.Observation{}, err
+			}
+			queryBreadthAppendStep(
+				&resultSteps,
+				&metricSteps,
+				test.name,
+				queryBreadthPrimaryKeys(rows),
+				metric,
+			)
+		}
+		return queryBreadthStepsObservation(ctx, backend, contractID, protocol.PhaseEvaluation, resultSteps, metricSteps)
+	})
+}
+
+func queryExpressionFieldReferenceSource(queryer db.Queryer) orm.QuerySet[models.Article] {
+	return models.ArticleObjects.Using(queryer).Filter(orm.And(
+		models.ArticleFields.ID.GreaterThanOrEqual(2),
+		orm.Or(
+			models.ArticleFields.Summary.GreaterThanOrEqualField(orm.F(models.ArticleFields.Summary)),
+			models.ArticleFields.Summary.IsNull(true),
+		),
+	))
+}
+
+func queryExpressionFieldReferenceStableProjection(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		recorder := &queryExpressionSQLRecorder{}
+		source := queryExpressionFieldReferenceSource(queryExpressionObserved(backend, recorder)).
+			OrderBy(models.ArticleFields.ID.Desc())
+		rows, metrics, err := queryExpressionCapture(recorder, func() ([]queryExpressionProjectedRow, error) {
+			return queryExpressionProjectedRows(ctx, source)
+		})
+		if err != nil {
+			return protocol.Observation{}, fmt.Errorf("field-reference stable projection: %w", err)
+		}
+		result := protocol.Object(map[string]protocol.Value{
+			"filter_fields":     queryBreadthStrings("id", "summary"),
+			"order_fields":      queryBreadthStrings("-id"),
+			"projection_fields": queryBreadthStrings("id", "title"),
+			"rows":              queryExpressionProjectedRowValues(rows),
+		})
+		return resultObservation(ctx, backend, contractID, protocol.PhaseEvaluation, result, &metrics)
+	})
+}
+
+func queryExpressionFieldReferenceCountMax(ctx context.Context, contractID string) (protocol.Observation, error) {
+	return withArticleDatabase(ctx, contractID, func(ctx context.Context, backend *sqlite.Backend) (protocol.Observation, error) {
+		recorder := &queryExpressionSQLRecorder{}
+		observed := queryExpressionObserved(backend, recorder)
+		nonempty := queryExpressionFieldReferenceSource(observed)
+		empty := models.ArticleObjects.Using(observed).
+			Filter(models.ArticleFields.ID.GreaterThanField(orm.F(models.ArticleFields.ID)))
 
 		nonemptyValue, nonemptyMetric, err := queryExpressionCaptureStep(recorder, "nonempty", func() (queryExpressionAggregate, error) {
 			return queryExpressionAggregateValues(ctx, nonempty)

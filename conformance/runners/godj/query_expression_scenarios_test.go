@@ -29,6 +29,16 @@ func TestQueryExpressionScenarioRegistryIsExactAndFailClosed(t *testing.T) {
 		"django.query.expression.composite_distinct_stable_page",
 		"django.query.expression.projection_outside_predicate",
 		"django.query.expression.composite_count_max",
+		"django.query.expression.integer_gt_literal_boundary",
+		"django.query.expression.integer_gte_literal_boundary",
+		"django.query.expression.integer_lt_literal_boundary",
+		"django.query.expression.integer_lte_literal_boundary",
+		"django.query.expression.range_composition_negation_and_reuse",
+		"django.query.expression.same_field_reference_boundaries",
+		"django.query.expression.same_model_field_reference_and_nullable_negation",
+		"django.query.expression.nullable_ordering_negation_truth_table",
+		"django.query.expression.field_reference_stable_projection",
+		"django.query.expression.field_reference_count_max",
 	}
 	if len(queryExpressionScenarioRegistry) != len(wanted) {
 		t.Fatalf("query-expression registry size = %d, want %d", len(queryExpressionScenarioRegistry), len(wanted))
@@ -64,8 +74,8 @@ func TestQueryExpressionProductMatchesLockedOracleAndIsDeterministic(t *testing.
 		if len(differences) != 0 {
 			t.Fatalf("Compare(%s) differences = %#v", name, differences)
 		}
-		if len(actual.Contracts) != 10 {
-			t.Fatalf("%s contract count = %d, want 10", name, len(actual.Contracts))
+		if len(actual.Contracts) != 20 {
+			t.Fatalf("%s contract count = %d, want 20", name, len(actual.Contracts))
 		}
 		for _, observation := range actual.Contracts {
 			if observation.Status != protocol.StatusObserved {
@@ -120,13 +130,23 @@ func TestQueryExpressionSQLRecorderUsesCompiledShapeAndNullableNot(t *testing.T)
 		t.Fatal(err)
 	}
 
+	fieldNotSource := models.ArticleObjects.Using(observed).
+		Filter(orm.Not(models.ArticleFields.Title.ExactField(orm.F(models.ArticleFields.Summary))))
+	rows, err = observed.Query(context.Background(), fieldNotSource.Plan())
+	if err != nil {
+		t.Fatalf("record nullable field-reference NOT: %v", err)
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+
 	metric, err := recorder.metricSince(0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	statements := queryBreadthTestObjectField(t, metric, "statements")
-	if len(statements.Items) != 2 {
-		t.Fatalf("recorded statement count = %d, want 2", len(statements.Items))
+	if len(statements.Items) != 3 {
+		t.Fatalf("recorded statement count = %d, want 3", len(statements.Items))
 	}
 	assertQueryExpressionStatementShape(t, statements.Items[0], queryExpressionShapeExpectation{
 		distinct:  true,
@@ -151,8 +171,60 @@ func TestQueryExpressionSQLRecorderUsesCompiledShapeAndNullableNot(t *testing.T)
 			protocol.String("%orm%"),
 		},
 	})
-	if delegate.calls != 2 {
-		t.Fatalf("delegate calls = %d, want 2", delegate.calls)
+	assertQueryExpressionStatementShape(t, statements.Items[2], queryExpressionShapeExpectation{
+		andCount:   "1",
+		notCount:   "1",
+		orCount:    "0",
+		isNotNull:  "1",
+		isNull:     "0",
+		parameters: []protocol.Value{},
+	})
+	if delegate.calls != 3 {
+		t.Fatalf("delegate calls = %d, want 3", delegate.calls)
+	}
+}
+
+func TestQueryExpressionExtendedPredicateReusePreservesSourcesWithoutIO(t *testing.T) {
+	delegate := &queryExpressionTestQueryer{}
+	base := models.ArticleObjects.Using(delegate)
+	basePlan := base.Plan()
+	predicate := orm.And(
+		models.ArticleFields.ID.GreaterThan(1),
+		models.ArticleFields.ID.LessThanOrEqual(3),
+	)
+
+	rangeSource := base.Filter(predicate)
+	rangePlan := rangeSource.Plan()
+	negatedSource := base.Filter(orm.Not(predicate))
+	publishedSource := base.Filter(
+		predicate,
+		models.ArticleFields.Published.Exact(true),
+	)
+	fieldSource := queryExpressionFieldReferenceSource(delegate)
+	orderedFieldSource := fieldSource.OrderBy(models.ArticleFields.ID.Desc())
+
+	if !base.Plan().Equal(basePlan) {
+		t.Fatal("deriving comparison sources mutated the base query plan")
+	}
+	if !rangeSource.Plan().Equal(rangePlan) {
+		t.Fatal("reusing the range predicate mutated the first derived source")
+	}
+	for name, plan := range map[string]query.Plan{
+		"range":              rangeSource.Plan(),
+		"negated range":      negatedSource.Plan(),
+		"published range":    publishedSource.Plan(),
+		"field reference":    fieldSource.Plan(),
+		"ordered projection": orderedFieldSource.Plan(),
+	} {
+		if plan.Equal(basePlan) {
+			t.Fatalf("%s plan unexpectedly equals the unfiltered base", name)
+		}
+	}
+	if fieldSource.Plan().Equal(orderedFieldSource.Plan()) {
+		t.Fatal("ordering did not derive a distinct field-reference plan")
+	}
+	if delegate.calls != 0 {
+		t.Fatalf("comparison source construction performed %d backend calls", delegate.calls)
 	}
 }
 

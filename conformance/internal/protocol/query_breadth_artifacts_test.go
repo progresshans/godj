@@ -195,7 +195,7 @@ func TestCurrentFifteenReferenceSetsHave171UniqueContractsAndReject210OrderedCro
 	}
 }
 
-func TestCurrentFourteenProductSetsHave144PassingFiveDeviationsAndTenOracleLocked(t *testing.T) {
+func TestCurrentFourteenProductSetsHave154PassingFiveDeviationsAndNoOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -234,8 +234,8 @@ func TestCurrentFourteenProductSetsHave144PassingFiveDeviationsAndTenOracleLocke
 			}
 		}
 	}
-	if passing != 144 || deviations != 5 || oracleLocked != 10 {
-		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 10", passing, deviations, oracleLocked)
+	if passing != 154 || deviations != 5 || oracleLocked != 0 {
+		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 154 + 5 + 0", passing, deviations, oracleLocked)
 	}
 }
 

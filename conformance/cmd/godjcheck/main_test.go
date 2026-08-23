@@ -210,14 +210,14 @@ func TestRunMatchesPinnedQueryExpressionOracle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(manifest.Contracts) != 10 || manifest.Contracts[0].ID != "QRY-034" || manifest.Contracts[9].ID != "QRY-043" {
+	if len(manifest.Contracts) != 20 || manifest.Contracts[0].ID != "QRY-034" || manifest.Contracts[19].ID != "QRY-053" {
 		t.Fatalf("query-expression contracts = %#v", manifest.Contracts)
 	}
 	required, err := godjrunner.RequiredObservedContractIDs(manifest)
 	if err != nil {
 		t.Fatalf("query-expression handler registry: %v", err)
 	}
-	if len(required) != 10 || required[0] != "QRY-034" || required[9] != "QRY-043" {
+	if len(required) != 20 || required[0] != "QRY-034" || required[19] != "QRY-053" {
 		t.Fatalf("query-expression required product handlers = %#v", required)
 	}
 
@@ -232,7 +232,7 @@ func TestRunMatchesPinnedQueryExpressionOracle(t *testing.T) {
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
 	}
-	if stdout.String() != "GoDj observations match the locked reference oracle for 10 contracts\n" {
+	if stdout.String() != "GoDj observations match the locked reference oracle for 20 contracts\n" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 	if stderr.Len() != 0 {
@@ -246,6 +246,9 @@ func TestRunMatchesPinnedQueryExpressionOracle(t *testing.T) {
 	oracle, err := protocol.LoadObservationSuite(oraclePath)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(actual.Contracts) != 20 {
+		t.Fatalf("query-expression actual contract count = %d, want 20", len(actual.Contracts))
 	}
 	for index, observation := range actual.Contracts {
 		contract := manifest.Contracts[index]
@@ -270,17 +273,24 @@ func TestRunRejectsUnregisteredQueryExpressionScenarioBeforePublishingActualOutp
 	if err != nil {
 		t.Fatal(err)
 	}
+	manifest.Contracts = append([]protocol.Contract(nil), manifest.Contracts[:10]...)
 	manifest.Contracts[0].Scenario = "django.query.expression.unregistered_sentinel"
 	if _, err := godjrunner.RequiredObservedContractIDs(manifest); err == nil || !strings.Contains(err.Error(), `unregistered scenario "django.query.expression.unregistered_sentinel" contract QRY-034 has status "passing"; want oracle_locked`) {
 		t.Fatalf("handler registry error = %v", err)
 	}
 	directory := t.TempDir()
 	manifestPath := writeCanonicalMainTestArtifact(t, directory, "false-green-query-expression-manifest.json", manifest)
+	oracle, err := protocol.LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oracle.Contracts = append([]protocol.Observation(nil), oracle.Contracts[:10]...)
+	expectedPath := writeCanonicalMainTestArtifact(t, directory, "false-green-query-expression-oracle.json", oracle)
 	actualPath := filepath.Join(directory, "must-not-exist.json")
 	arguments := []string{
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", manifestPath,
-		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json"),
+		"-expected", expectedPath,
 		"-actual-output", actualPath,
 	}
 	var stdout bytes.Buffer
