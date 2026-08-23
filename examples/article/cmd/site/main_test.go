@@ -169,10 +169,18 @@ func TestRunRejectsNilContextBeforeSideEffects(t *testing.T) {
 	}
 }
 
-func TestRunClosesListenerOnceWhenContextCancelsBeforeServeOwnership(t *testing.T) {
+func TestRunClosesBackendAndListenerOnceWhenContextCancelsBeforeServeOwnership(t *testing.T) {
 	clearArticleDatabaseEnvironment(t)
 	t.Setenv(articleSQLiteDatabaseEnv, "file:site-cancel-window?mode=memory&cache=shared")
 	ctx, cancel := context.WithCancel(context.Background())
+	var backendCloses atomic.Int32
+	openBackend := func(ctx context.Context, config databaseConfig) (articleBackend, error) {
+		backend, err := openArticleBackend(ctx, config)
+		if err != nil {
+			return nil, err
+		}
+		return &countingArticleBackend{articleBackend: backend, closes: &backendCloses}, nil
+	}
 	var listener *countingListener
 	listen := func(network, address string) (net.Listener, error) {
 		opened, err := net.Listen(network, "127.0.0.1:0")
@@ -189,6 +197,7 @@ func TestRunClosesListenerOnceWhenContextCancelsBeforeServeOwnership(t *testing.
 		stdout,
 		&bytes.Buffer{},
 		listen,
+		openBackend,
 	)
 	if err != nil {
 		t.Fatalf("runWithListener() error = %v", err)
@@ -199,6 +208,19 @@ func TestRunClosesListenerOnceWhenContextCancelsBeforeServeOwnership(t *testing.
 	if closes := listener.closes.Load(); closes != 1 {
 		t.Fatalf("listener Close() calls = %d, want 1", closes)
 	}
+	if closes := backendCloses.Load(); closes != 1 {
+		t.Fatalf("backend Close() calls = %d, want 1", closes)
+	}
+}
+
+type countingArticleBackend struct {
+	articleBackend
+	closes *atomic.Int32
+}
+
+func (backend *countingArticleBackend) Close() error {
+	backend.closes.Add(1)
+	return backend.articleBackend.Close()
 }
 
 func clearArticleDatabaseEnvironment(t *testing.T) {

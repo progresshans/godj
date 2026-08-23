@@ -65,22 +65,27 @@ func main() {
 }
 
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) error {
-	return runWithListener(ctx, arguments, stdout, stderr, net.Listen)
+	return runWithListener(ctx, arguments, stdout, stderr, net.Listen, openArticleBackend)
 }
 
 type listenFunc func(network, address string) (net.Listener, error)
+type openArticleBackendFunc func(context.Context, databaseConfig) (articleBackend, error)
 
 func runWithListener(
 	ctx context.Context,
 	arguments []string,
 	stdout, stderr io.Writer,
 	listen listenFunc,
+	openBackend openArticleBackendFunc,
 ) (resultErr error) {
 	if ctx == nil {
 		return errors.New("article site: nil context")
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if openBackend == nil {
+		return errors.New("article site: nil backend opener")
 	}
 	config, err := parseServeConfig(arguments, stderr)
 	if err != nil {
@@ -90,7 +95,7 @@ func runWithListener(
 	if err != nil {
 		return err
 	}
-	backend, err := openArticleBackend(ctx, database)
+	backend, err := openBackend(ctx, database)
 	if err != nil {
 		return err
 	}
