@@ -1,6 +1,6 @@
 ---
 id: GDJ-0040
-status: active
+status: completed
 updated: 2026-08-23
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "253455d734ec683c469beed44f94f7b8a8c0bec3"
@@ -165,7 +165,7 @@ rows/close/context failure는 Go-native gates이며 Django parity claim에 포�
 - [x] affected normal/race/CGO0/vet/generated drift
 - [x] final full/386/repository-external source-clean-copy once
 - [x] independent frozen-byte audit
-- [ ] non-force push, exact-head hosted result와 terminal mirror
+- [x] non-force push, exact-head hosted result와 terminal mirror
 
 ## 검증 cadence
 
@@ -184,7 +184,7 @@ rows/close/context failure는 Go-native gates이며 Django parity claim에 포�
 - [x] Projection/Count/Max와 full model query가 같은 where 의미를 사용합니다.
 - [x] Relation OR/NOT, invalid/cross-model/over-limit input이 pre-I/O fail-closed합니다.
 - [x] Rows/error/context/cache lifecycle과 exactly-two-query HTTP contract가 통과합니다.
-- [ ] Final local/hosted evidence와 status/matrix/handoff가 같은 frozen bytes를 가리킵니다.
+- [x] Final local/hosted evidence와 status/matrix/handoff가 같은 frozen bytes를 가리킵니다.
 
 ## 현재 체크포인트와 다음 정확한 작업
 
@@ -217,8 +217,15 @@ SHA-256 `7c1546c3...`입니다. Correction `73b912d...`/tree `f3c9ef59...`는 wo
 갱신했고, full `make ci`, Linux/386 82 packages, 775-file external archive와 독립 audit을 새 exact bytes에서 모두
 다시 통과했습니다.
 [EVID-114](../docs/status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
-failure/correction/refreeze를 기록합니다. 다음 정확한 작업은 이 correction evidence 문서를 commit하고 non-force
-push/Draft PR 갱신 뒤 새 고유 exact-head hosted result와 terminal mirror를 닫는 것입니다.
+failure/correction/refreeze를 기록합니다. Corrected submitted head
+`136e82572206eef7fd04931ae94dffb5ff0660e2`/tree `84f24feed0c1fde641aa196f6d4f581404820c42`의 고유
+[CI run 32642341459](https://github.com/progresshans/godj/actions/runs/32642341459)은 exact 27/27 jobs와
+341/341 steps를 failure/cancel/skip 없이 통과했습니다. 네 relation-product 좌표는 각각
+950/950/0, 97,469 bytes/SHA-256 `7c1546c3...`를 독립 확인했고 PostgreSQL 17.10 required 12/12와 restart,
+Python 네 좌표의 236/21도 통과했습니다.
+[EVID-115](../docs/status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)이
+terminal proof를 고정하므로 GDJ-0040은 completed/hosted-verified입니다. 다음 제품 작업은 별도 GDJ-0041
+packet에서 Q/F expression 수직 단면을 계약화하며 Q-011과 M4 전체는 계속 incomplete입니다.
 
 ## 위험과 rollback
 

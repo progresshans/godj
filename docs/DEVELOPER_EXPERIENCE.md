@@ -1,6 +1,6 @@
 # 목표 개발 경험
 
-- 상태: M1 Article bounded 단면 hosted-Verified, GDJ-0040 Boolean 문법 Implemented/local-verified, 나머지 문법 Proposed
+- 상태: M1 Article bounded 단면과 GDJ-0040 Boolean 문법 hosted-Verified, 나머지 문법 Proposed
 - 마지막 검토: 2026-08-23
 
 별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
@@ -52,7 +52,7 @@ articles, err := models.ArticleObjects.Using(sqliteBackend).
 ```
 
 `And`/`Or` require at least two `Predicate[M]` values and cannot mix model types. Relation predicates under OR/NOT,
-F/field-to-field expressions, annotation/grouping, bulk mutation and locking remain outside this locally verified slice.
+F/field-to-field expressions, annotation/grouping, bulk mutation and locking remain outside this hosted-verified slice.
 
 ```go
 predicates, err := orm.ParseDynamic(

@@ -1776,4 +1776,7 @@ stale 916-test assertion에서만 네 좌표가 실패했습니다. Current list
 950/950/0, 97,469 bytes, SHA-256 `7c1546c3...`입니다. Workflow와 protocol mirror만 바꾼 `73b912d...`에서
 full/386/repository-external source-clean-copy를 모두 다시 실행했습니다. 실패 topology와 corrected local refreeze는
 [EVID-114](status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
-기록하며 새 exact-head hosted 전에는 terminal success를 주장하지 않습니다.
+기록합니다. Corrected submitted head `136e825...`의
+[EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
+run `32642341459`은 exact 27/27 jobs·341/341 steps, 네 relation-product 좌표 950/950/0과
+PostgreSQL 17.10/QRY-034..043 actual을 통과해 terminal success를 고정했습니다.

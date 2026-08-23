@@ -632,7 +632,9 @@ affected local/audit 증거는
 initial full/386/775-file source-clean-copy를 통과했습니다. First hosted run의 stale 916-test workflow lock과
 correction `73b912d...`의 current 950/950/0 refreeze는
 [EVID-114](../docs/status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
-기록하며 새 exact-head hosted만 별도 Phase D 경계로 남습니다.
+기록합니다. Corrected submitted head `136e825...`의
+[EVID-115](../docs/status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
+run `32642341459`은 exact 27/27 jobs·341/341 steps와 네 플랫폼 950/950/0을 통과해 Phase D를 닫았습니다.
 
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든

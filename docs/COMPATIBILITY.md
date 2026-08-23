@@ -819,7 +819,10 @@ leaf만 허용, malformed/cross-source/over-limit pre-I/O failure, SQLite/Postgr
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
 affected/local PostgreSQL/audit checkpoint이고
 [EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은
-full/386/775-file source-clean-copy를 통과했습니다. Exact-head hosted는 아직 주장하지 않습니다.
+full/386/775-file source-clean-copy를 통과했습니다. Corrected submitted head `136e825...`의
+[EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
+run `32642341459`은 exact 27/27 jobs·341/341 steps와 QRY-034..043 actual 10/10을 통과해 이 bounded
+product boundary를 hosted-verified로 닫았습니다.
 
 ## 데이터 호환성
 

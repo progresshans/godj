@@ -241,7 +241,7 @@ typed field predicate ─┐
 dynamic lookup ────────┘
 ```
 
-Accepted ADR-0040/current GDJ-0040 Phase B/C는 이 `validated expression`을 제품 구조로 구현했습니다.
+Accepted ADR-0040/completed GDJ-0040은 이 `validated expression`을 제품 구조로 구현했습니다.
 `query.Plan`은 where authority로 private-node `Expression` 하나만 보관하고 flat condition mirror나 compiler
 fallback을 두지 않습니다. Leaf/ordered n-ary AND·OR/unary NOT은 immutable handle이며 same-kind connector만 순서를
 보존해 flatten합니다. Public typed `orm.And`/`orm.Or`는 최소 두 `Predicate[M]`, `orm.Not`은 정확히 하나를
@@ -255,7 +255,9 @@ DFS로 순회합니다. `Conditions()`는 기존 diagnostics/tests를 위한 det
 붙입니다. Relation leaf under OR/NOT은 join 의미를 추측하지 않고 structured unsupported로 pre-I/O 거부합니다.
 Local product/actual proof는
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)에
-기록하며 final hosted는 pending입니다.
+기록하고 corrected exact-head hosted proof는
+[EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)에
+기록합니다.
 
 QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. M1 dynamic API는
 `ParseDynamic`에서 construction 오류를 즉시 반환하고, 성공한 `Predicate[M]`를 typed

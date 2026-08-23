@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-23
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-110
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-115
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -10741,3 +10741,74 @@ GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
 
 The next exact submitted head must include `73b912d...` and this evidence mirror. Only that new run can close Phase D;
 run `32641160967` remains failure evidence and is not reused as success proof.
+
+## EVID-20260823-115 — GDJ-0040 Corrected Exact-Head Hosted Completion
+
+- Date/time: run created 2026-08-23T13:26:17Z and completed 2026-08-23T13:39:45Z
+- Work/contract IDs: GDJ-0040 completed; QRY-034..043 `Verified`; Q-011 remains `Partial`
+- Branch/PR: remote `codex/revision-fenced-migration-lifecycle`; Draft PR #1 remains open, draft and unmerged
+- Exact submitted commit/tree: `136e82572206eef7fd04931ae94dffb5ff0660e2` /
+  `84f24feed0c1fde641aa196f6d4f581404820c42`, subject `docs: record hosted inventory correction`
+- Inventory correction ancestor/tree: `73b912d8332b3fd286eff1c56483f3588ffd89b8` /
+  `f3c9ef59bd22581f6dcdf2d3e16a190e5db125ab`
+- GitHub Actions: CI run [32642341459](https://github.com/progresshans/godj/actions/runs/32642341459), run #113,
+  attempt 1, pull-request event, exact head `136e825...`, conclusion `success`
+- Synthetic merge: `a60105f772128a8b0c639e4875ccd889dee7ab5b`, parents base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and submitted head `136e825...`; its tree is exactly
+  `84f24feed0c1fde641aa196f6d4f581404820c42`
+- Result: 27/27 jobs completed/success; 341/341 recorded steps completed/success; job/step failure, cancelled and skipped
+  counts all 0; 27/27 check-runs success with annotations 0
+
+### Corrected relation-product proof
+
+All four relation-product coordinates completed every normal, race, CGO-disabled, vet, generated/reference no-rewrite
+and clean-worktree step successfully:
+
+| Runner | Job ID | Runs/passes/skips | Payload bytes | SHA-256 |
+|---|---:|---:|---:|---|
+| Ubuntu 22.04 x64 | `97201257216` | `950/950/0` | 97,469 | `7c1546c3c98179bba31e8bd27cf28d7e4f751897aaaa31c03bac76f0e7ddac29` |
+| Ubuntu 24.04 ARM64 | `97201257330` | `950/950/0` | 97,469 | `7c1546c3c98179bba31e8bd27cf28d7e4f751897aaaa31c03bac76f0e7ddac29` |
+| macOS 15 Intel | `97201257213` | `950/950/0` | 97,469 | `7c1546c3c98179bba31e8bd27cf28d7e4f751897aaaa31c03bac76f0e7ddac29` |
+| macOS 26 ARM64 | `97201257276` | `950/950/0` | 97,469 | `7c1546c3c98179bba31e8bd27cf28d7e4f751897aaaa31c03bac76f0e7ddac29` |
+
+This independently executes the workflow lock corrected in `73b912d...`. The previous run `32641160967` and its
+916-test assertion remain explicit failure evidence in EVID-114; they are not reclassified or reused as success.
+
+### Compatibility and product proof
+
+- Python 3.12.13 job `97201257262`, 3.13.15 `97201257260`, 3.14.3 `97201257364` and 3.14.7
+  `97201257234` each passed 236 tests with 21 intentional exact-profile skips. Each independently asserted 161 canonical
+  scenarios, 702,415 payload bytes and SHA-256
+  `aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`; every clean-worktree step passed.
+- Checked-artifact job `97201257155` passed portable Python 236/21, every fourteen registered product comparison,
+  project-linked contracts, Linux/386 definition/project-check compile and relation-product runtime, all fifteen oracle
+  checks and no-rewrite gates. Its query-expression comparison reports
+  `GoDj observations match the locked reference oracle for 10 contracts`; QRY-034..043 is hosted 10/10 zero-diff.
+- `query-expression-oracle.json: OK`; manifest/oracle/static/checksum bytes remain the EVID-112 locks and checked
+  reference paths remained clean.
+
+### PostgreSQL 17.10 actual and restart
+
+- Job `97201257267` passed against `postgres:17.10-bookworm` at digest
+  `sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+- The exact 16-field profile matched
+  `170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`: server/client encoding,
+  locale provider/provider locale/collation/ctype, timezone, standard strings, synchronous commit, default transaction
+  isolation/read-only/deferrable, fsync, full-page writes and replication role.
+- The required product loop found every 12/12 sentinel and zero skips. Normal, race, CGO-disabled, vet and clean gates
+  all succeeded, covering the GDJ-0040 recursive Boolean compiler, nullable NOT parity and Article flow together with
+  the prior PostgreSQL lifecycle/query surface.
+- Durable restart stayed exact: `prepare` history/rows 1/1, `resume` 2/2 and `verify` 2/2, all status `ok`.
+
+### Completion and non-claims
+
+This distinct corrected run closes GDJ-0040's bounded immutable Boolean predicate tree, SQLite/PostgreSQL compiler,
+QRY-034..043 actual and exactly-two-query Article search as Implemented/Verified. The product aggregate remains exact
+14 adapters/149 contracts=`144 passing + 5 deviation`; the reference aggregate remains 15/161/210=
+`144 passing + 5 deviation + 12 oracle_locked`, with only MIG-075..086 locked/unregistered.
+
+It does not complete Q-011 or M4 and does not add relation predicates under OR/NOT, F/field-to-field expressions,
+annotation/grouping/having, subquery/window, bulk mutation, locking, transaction-bound QuerySet, request transaction,
+Form/Auth/Admin/API, production readiness, merge or release. This terminal mirror is a later documentation-only
+descendant; it records the exact submitted run but is not recursively proved by it. Its gates are link/frontmatter/
+status consistency and `git diff --check`.

@@ -87,8 +87,9 @@ model-safe typed `And`/`Or`/`Not`, canonical Filter AND, order/limit/offset/dist
 하나의 immutable where/result plan에 연결합니다. SQLite와 PostgreSQL recursive compiler, nullable odd-NOT
 truth table와 Article q/published/exclude exactly-two-query 흐름은
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)와
-[final local EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)에서
-affected/final local-verified됐습니다. 이 문단은 아래 장기 목록의 Q/F 전체, comparison/range/custom lookup,
+[final local EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates),
+[hosted EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)에서
+affected/final local/hosted-verified됐습니다. 이 문단은 아래 장기 목록의 Q/F 전체, comparison/range/custom lookup,
 annotation/grouping/having, subquery/window, bulk/locking 또는 relation OR/NOT이 구현됐다는 뜻이 아닙니다.
 
 ## Django 6.1 profile-specific backlog

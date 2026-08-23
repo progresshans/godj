@@ -60,7 +60,8 @@ structured unsupported로 I/O 전에 닫습니다.
 
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
 SQLite actual QRY-034..043 10/10 zero-diff와 PostgreSQL 17.5 compiler/normal/race Article actual을 기록합니다.
-PostgreSQL 17.10 exact hosted 검증 전이므로 새 Boolean/Article slice의 hosted claim은 pending입니다. 이는
+[EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)은
+PostgreSQL 17.10 required 12/12, Boolean/Article actual, restart와 전체 exact 27/27 matrix를 통과했습니다. 이는
 collation/Unicode 일반화, relation OR/NOT, broader PostgreSQL support나 production readiness를 추가하지 않습니다.
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
