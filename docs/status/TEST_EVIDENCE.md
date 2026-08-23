@@ -10191,3 +10191,71 @@ stopped or moved to the macOS Trash after verification, so they remain recoverab
   12/127=`122 passing + 5 deviation + 0 oracle_locked`.
 - GDJ-0038 remains active and the Draft PR remains unmerged. Only a successful exact-head hosted run followed by a
   terminal evidence/status mirror may mark the bounded PostgreSQL/Web work `Verified` and completed.
+
+## EVID-20260823-108 — GDJ-0038 PostgreSQL 17.10 Exact-Head Hosted Completion
+
+- Date: 2026-08-23 KST
+- Work/contract IDs: GDJ-0038 completion; DB-PG-001..010 and WEB-001..010 bounded product slices;
+  Q-010/Q-011/Q-012/Q-013 remain `Partial`, Q-017/Q-019 remain P1/open
+- Final source/correction commit: `187638f9b3904162d510138d4b9f89f004168eb6`
+  (`ci: fix PostgreSQL restart validation`)
+- Final tree: `002941b24b90c563a5f8b3c99e8b5bd6f7c14681`
+- Source implementation ancestry: `c0ee1d4bda896aed0262142b71ad08895e885610` →
+  `cb90f7a69d70c131ccf8868fb83efcf7bd7c2548`
+- Hosted environment: GitHub Actions CI, attempt 1, pull-request event, PostgreSQL 17.10 digest-pinned service plus
+  Linux x64/arm64 and macOS Intel/Apple Silicon product matrix
+- Result: bounded PostgreSQL/Web slices `Verified`; GDJ-0038 `completed`
+
+### Failed-run diagnosis and exact correction
+
+The first pushed mirror head `99b409b4df0ec9c40e34220e964703d782cbdc5a` started run
+`32625157588`. PostgreSQL profile/query/write/migration required gates passed, but the relation-product inventory still
+expected the previous source count and the restart leg failed. The run was intentionally cancelled after evidence was
+collected; it ended 13 success, 3 failure and 11 cancelled jobs and is not reused as acceptance proof.
+
+Correction `1aa41415597339ce6c51b1635921b99fdb166b2f` updated the exact relation inventory to
+867/867/0, 89,069 bytes, SHA-256
+`777c8c4c6f8a2c82fc22a8b8657e09261973611795581e05381480fc2416d658`. Run `32625841476` proved the new
+inventory and all normal PostgreSQL actual legs, but its restart probe still failed before `resume`; it was cancelled
+after 22 successful, 1 failed and 4 cancelled jobs.
+
+The failure was not PostgreSQL recovery or data corruption. GitHub created the service with Docker `-p 5432`, which
+allocated an ephemeral host port. The workflow had rendered `${{ job.services.postgres.ports[5432] }}` before the
+container restart, while Docker can release and reallocate that host port across stop/start. PostgreSQL had completed a
+clean restart but all probes addressed the stale host port. Final correction `187638f9...` now inspects
+`NetworkSettings.Ports["5432/tcp"][0].HostPort` after restart, validates the numeric 1..65535 range and re-exports the
+actual connection URL before probing. It also removes the invalid assumption that a PostgreSQL identity sequence is
+gapless: restart verification requires a new key greater than the prepared key and exact durable row/history meaning,
+not key `2` specifically. Protocol-lock and projectrunner unit tests cover both corrections.
+
+The final correction received local gofmt/diff, normal/race/CGO-disabled/vet gates for projectrunner and protocol,
+Ruby YAML parsing, actual PostgreSQL 17.5 normal/race/CGO-disabled productrunner gates and the complete local restart
+sequence. Exact local output was `prepare` history/rows 1/1 → fast server restart → `probe` 1/1 → `resume` 2/2 →
+`verify` 2/2 → cleanup. Docker-specific local reproduction was not claimed because the installed Docker CLI had no
+running daemon; the exact Docker path was subsequently exercised by hosted CI.
+
+### Exact final hosted acceptance
+
+[CI run 32626539049](https://github.com/progresshans/godj/actions/runs/32626539049) executed exact head
+`187638f9b3904162d510138d4b9f89f004168eb6` from `2026-08-23T07:48:10Z` through
+`2026-08-23T08:01:59Z` and completed `success`:
+
+- 27/27 jobs successful; 341/341 recorded steps successful; failure 0; skipped job/step 0
+- check-run annotations 0, clean-worktree gates 25/25 and generated/artifact no-rewrite gates 4/4
+- four relation-product coordinates each reproduced exact 867/867/0, 89,069 bytes and SHA-256
+  `777c8c4c6f8a2c82fc22a8b8657e09261973611795581e05381480fc2416d658`
+- PostgreSQL required job passed the exact hosted profile
+  `170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`
+- all 12 named required PostgreSQL actual tests executed and passed with skip 0, including query/write/Atomic,
+  Article generated CRUD/HTTP, generated relations, schema/migration/recorder/revision, contention and restart
+- hosted restart output was exact `prepare` history/rows 1/1 → container restart/current-port readiness → `resume`
+  history/rows 2/2 → `verify` 2/2 → cleanup `ok`
+- normal, race, CGO-disabled and vet PostgreSQL legs, all portable conformance, exact Darwin profile, four Python
+  runtimes, SQLite/project-check/product/relation matrices and Linux/386 compile gates all passed
+
+This terminal mirror records the already completed exact product run; as a documentation-only descendant it is not
+recursively proved by run `32626539049`. The bounded `Verified` claim does not cover PostgreSQL production readiness,
+REL-007/008 project-aware delete, arbitrary database adoption/repair, automatic retry/unknown-commit reconciliation,
+explicit-key sequence reconciliation, broader fields/relations, migration writer/autodetector, global `godj runserver`,
+dynamic routing, request transactions, DTL/Form/Auth/Admin/API or the remaining Q-010/Q-011/Q-012/Q-013/Q-017/Q-019
+questions. Draft PR #1 remains open, draft and unmerged.

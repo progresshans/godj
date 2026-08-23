@@ -53,5 +53,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0036](0036-project-schema-generated-bundle-and-recoverable-publication.md) | Accepted | ProjectSpec/GeneratedBundle, whole-candidate compile와 recoverable coordinated publication |
 | [0037](0037-postgresql-current-contract-backend.md) | Accepted | PostgreSQL 17 current backend profile, returned insert key와 semantic migration capability |
 | [0038](0038-minimal-web-core-request-lifetime-and-representation.md) | Accepted | Immutable Web Core, request lifetime와 explicit DTO representation |
+| [0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | Accepted | Source/result shape 분리, typed projection/scalar aggregate와 stable pagination |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

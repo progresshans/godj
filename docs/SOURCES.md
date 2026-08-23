@@ -193,12 +193,17 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
   current minor를 유지하는 근거.
 - [PostgreSQL identifier limits](https://www.postgresql.org/docs/17/limits.html) — default 63-byte identifier
   경계를 I/O 전에 검증하는 근거.
+- [PostgreSQL 17 sequence functions](https://www.postgresql.org/docs/17/functions-sequence.html) — sequence는
+  gapless counter가 아니며 failed/conflicting allocation 뒤 hole이 남을 수 있다는 restart assertion 근거.
+- [Docker Engine API published-port behavior](https://github.com/moby/moby/blob/master/api/docs/v1.24.md#L634-L639) —
+  ephemeral published port는 stop 때 해제되고 start/restart에서 다시 할당될 수 있으므로 service restart 뒤
+  current host port를 재조회해야 한다는 CI 교정 근거.
 
 2026-08-21 기준 GDJ-0038은 `github.com/jackc/pgx/v5 v5.10.0`을 direct runtime dependency로
 고정했습니다. 지원 후보는 PostgreSQL major 17, hosted reference profile은 17.10/UTF8/C locale/UTC입니다.
-로컬의 더 이른 17.x smoke는 affected implementation evidence일 뿐 reference minor나 support claim을
-대체하지 않습니다. 정확한 backend transaction/schema/migration/revision/restart와 hosted service gate가 끝나기
-전 상태는 `Implemented candidate`입니다. 선택과 제한은
+로컬의 더 이른 17.x smoke는 affected implementation evidence일 뿐 reference minor를 대체하지 않습니다.
+Exact 17.10 transaction/schema/migration/revision/restart hosted gate는 GDJ-0038/EVID-108에서 bounded
+`Verified`됐습니다. Broader support/production readiness 제한은
 [ADR-0037](adr/0037-postgresql-current-contract-backend.md)이 소유합니다.
 
 ## Codex 작업 지침

@@ -1,20 +1,15 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)은 exact correction
-  head `d4643068...`의
-  [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103에서
-  completed/hosted-verified됐고 docs descendant `681b0713...`도 CI #104 exact 26/26 jobs·326/326 steps를
-  통과했습니다. 현재 유일한 active work는
-  [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md), ready는 0입니다. Accepted
-  [ADR-0037](adr/0037-postgresql-current-contract-backend.md)과
-  [ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)에 따라 PostgreSQL current backend와
-  최소 Web Core/Article HTTP를 exclusive path lane으로 병렬 구현했습니다. Exact source commit `cb90f7a...`은
-  query/write/Atomic, schema/migration/recorder/revision/restart와 Article/generated relation PostgreSQL actual을
-  source-frozen local `Implemented candidate`로 묶었고 [EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)의
-  required 12/12·skip 0, full/386/source-clean-copy와 audit P0..P3=0을 통과했습니다. 남은 것은 non-force push와
-  final PostgreSQL 17.10 exact-head hosted gate입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이고
-  PostgreSQL/Web support를 아직 주장하지 않습니다.
+- 현재 단계: [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)은 final correction head
+  `187638f9...`의
+  [EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
+  CI run `32626539049`에서 PostgreSQL 17.10 exact profile, required actual 12/12·skip 0와 durable restart를
+  포함한 27/27 jobs·341/341 steps로 completed/hosted-verified됐습니다. 현재 유일한 active work는
+  [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md), ready는 0입니다. Accepted
+  [ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 source/result query shape,
+  typed DTO projection, Count/Max aggregate와 distinct/offset을 SQLite/PostgreSQL Article 검색·리포트 수직 단면으로
+  넓힙니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -400,8 +395,8 @@ patch는 당시 그 뒤의 별도 diff였고, 이후 exact final-status head `9b
 26/26·326/326을 성공해 EVID-046에서 닫았습니다. Run `31372360481`은 그 later patch의 증거로 재사용하지
 않았습니다.
 이는 당시 PostgreSQL/MySQL service-only job 추가가 아니었습니다. M3의 첫 PostgreSQL required job은 이후
-GDJ-0038 source commit `cb90f7a...`에서 query/write/transaction/schema/migration/recorder/revision lifecycle,
-durable restart와 exact pass/no-skip inventory를 함께 갖춰 구현됐고 hosted result는 아직 pending입니다. MySQL은
+GDJ-0038 final head `187638f9...`에서 query/write/transaction/schema/migration/recorder/revision lifecycle,
+durable restart와 exact pass/no-skip inventory를 함께 갖춰 EVID-108 hosted gate를 통과했습니다. MySQL은
 M9 actual adapter까지 같은 원칙을 따릅니다.
 
 ## M3 — Relations + PostgreSQL
@@ -413,7 +408,10 @@ recorder/revision, close/reopen, process contention와 actual server restart까�
 [EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)은
 PostgreSQL 17.5 exact 16-field profile, required actual 12/12·skip 0, generated Article/relation, durable restart,
 full/386/source-clean-copy와 audit P0..P3=0을 기록합니다. PostgreSQL REL-007/008 project-aware delete는 이 packet의
-비목표이고 final reference 17.10 hosted result 전에는 backend support/`Verified` 증거가 아닙니다.
+비목표입니다. Final correction head `187638f9...`는
+[EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
+run `32626539049`에서 PostgreSQL 17.10과 exact 27/27 jobs·341/341 steps를 통과해 DB-PG-001..010 bounded
+slice를 `Verified`했습니다. Broader/production backend support는 여전히 open입니다.
 
 - Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
   ForeignKey 외부 동작 REL-001..012와 Q-013 cross-app binding/import-cycle/shared-AST feasibility를
@@ -571,6 +569,12 @@ Q-007의 result cache/terminal semantics는 이후 projection/aggregate/relation
 같은 평가 상태를 재사용하기 전에 GDJ-0007/0008의 선행 단면으로 완료했습니다. 이는
 M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 
+[GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)과 Accepted
+[ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 M4의 첫 broad read slice를
+활성화합니다. Article filter → distinct/stable order → offset/limit → typed DTO projection → Count/Max report를
+SQLite/PostgreSQL에서 같은 AST로 실행합니다. QRY-022..033은 아직 planned이며 Q/F, bulk, locking,
+annotation/subquery/window와 related projection은 이 packet에 포함하지 않습니다.
+
 ## M5 — Web Core
 
 [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)과 Accepted
@@ -580,8 +584,10 @@ startup state, static router, request-local generated facade와 explicit DTO/tem
 `godj runserver`, DTL/Form/Auth/Admin/API는 이 packet의 비목표입니다. 이 bounded Web slice는
 [EVID-106](status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의 SQLite loopback과
 [EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)의
-Article PostgreSQL migration/generated CRUD/HTTP actual을 통과한 source-frozen local `Implemented candidate`입니다.
-Exact-head hosted 검증은 pending입니다.
+Article PostgreSQL migration/generated CRUD/HTTP actual을 통과했고 final
+[EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
+run `32626539049`에서 bounded `Verified`/completed로 전환됐습니다. GDJ-0039은 이 request-local DTO 경계를
+유지한 채 검색/리포트 query breadth만 넓힙니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

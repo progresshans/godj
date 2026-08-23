@@ -1,6 +1,6 @@
 # Database Backend Matrix
 
-- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL source-frozen local candidate
+- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010 bounded slice Verified
 - 마지막 검토: 2026-08-23
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
@@ -10,7 +10,7 @@
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
 | SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | DB-PG-001..010 source-frozen local Implemented candidate; hosted unverified | relation, locking, production-oriented semantics |
+| PostgreSQL | M3 | DB-PG-001..010 bounded Implemented/Verified; broader support open | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -49,7 +49,8 @@ GDJ-0038의 local PostgreSQL 17.5 profile은 exact
 `170005|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`이고 hosted PostgreSQL 17.10
 target은 첫 필드만 `170010`입니다. 이는 server version, server/client encoding, locale provider/provider locale/
 collation/ctype, timezone, standard strings, synchronous commit, default transaction isolation/read-only/deferrable,
-fsync, full-page writes와 replication role의 16-field lock입니다. Local profile 통과는 hosted support 약속이 아닙니다.
+fsync, full-page writes와 replication role의 16-field lock입니다. Final PostgreSQL 17.10 profile과 bounded actual
+product는 EVID-108/run `32626539049`에서 검증됐지만 이 profile은 broader/production support 약속이 아닙니다.
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey
@@ -80,7 +81,7 @@ Current migration backend ABI는 scalar와 relation lifecycle을 같은 mandator
 이 ABI와 current-format 회귀는 GDJ-0036 exact hosted gate를 통과했습니다. 아래 hosted run은 GDJ-0035 당시 dual
 optional-port 구현의 역사적 증거이며 현재 PostgreSQL support 주장이 아닙니다.
 
-## GDJ-0038 PostgreSQL source-frozen local candidate
+## GDJ-0038 PostgreSQL bounded verified slice
 
 Source commit `cb90f7a69d70c131ccf8868fb83efcf7bd7c2548`은 위 mandatory ABI를 PostgreSQL current profile에
 구현합니다. 모든 user/control object는 explicit schema와 closed catalog profile 아래에 있고 schema DDL, exact recorder
@@ -89,8 +90,11 @@ apply/unapply/reapply, contention, close/reopen와 actual server stop/start resu
 
 [EVID-107](status/TEST_EVIDENCE.md#evid-20260823-107--gdj-0038-postgresql-migration-and-web-integration-source-frozen-local-checkpoint)은
 exact 16-field local profile, required actual 12/12·skip 0, race/CGO0/full/386/source-clean-copy와 audit P0..P3=0을
-기록합니다. PostgreSQL 17.10 hosted exact-head result가 아직 없으므로 이 행은 `Implemented candidate`이며 support,
-`Verified`, production readiness 또는 excluded REL-007/008/adoption/repair/retry를 주장하지 않습니다.
+기록합니다. Docker restart published-port/sequence assertion correction head `187638f9...`는
+[EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
+run `32626539049`에서 PostgreSQL 17.10 exact profile, required actual 12/12·skip 0와 durable restart를 포함해
+27/27 jobs·341/341 steps로 통과했습니다. 따라서 DB-PG-001..010만 `Verified`이며 production readiness,
+REL-007/008, adoption/repair/retry 또는 broader PostgreSQL support는 주장하지 않습니다.
 
 ## Historical GDJ-0035 backend evidence
 

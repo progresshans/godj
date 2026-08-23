@@ -1,6 +1,6 @@
 ---
 id: GDJ-0038
-status: active
+status: completed
 updated: 2026-08-23
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "681b07132be5772286b0c960756719aed59a2079"
@@ -255,7 +255,7 @@ Web application factory는 `db.Queryer + db.Mutator`의 기존 public boundary�
 - [x] final full/386/repository-external source-clean-copy local milestone gate once
 - [x] independent P0..P3 frozen-byte audit
 - [x] source-frozen CURRENT/MATRIX/TEST_EVIDENCE/work handoff
-- [ ] non-force push, hosted PostgreSQL 17.10 result mirror and work completion
+- [x] non-force push, hosted PostgreSQL 17.10 result mirror and work completion
 
 ## 검증 cadence
 
@@ -266,7 +266,7 @@ final frozen milestone에서 한 번 실행합니다. 문서-only mirror는 link
 PostgreSQL final gate는 실제 query/write/transaction/schema/migration/recorder/revision과 close/reopen/server restart를
 실행해야 합니다. Service가 뜨기만 한 job이나 skip-only integration은 지원 증거가 아닙니다.
 
-## 현재 체크포인트와 다음 정확한 작업
+## 완료 체크포인트와 다음 작업
 
 Phase A/B/C source commit `c0ee1d4...`의 descendant인 exact source commit
 `cb90f7a69d70c131ccf8868fb83efcf7bd7c2548`, tree
@@ -281,7 +281,21 @@ generate/protocol, `prepare` history/rows 1 → server stop/start → `resume`/`
 Exact source commit의 final `make ci`, all-package Linux/386 compile-only와 repository-external 736-file source-clean-copy
 gate도 통과했고 independent final source audit는 P0/P1/P2/P3=`0/0/0/0`입니다.
 
-다음 정확한 작업은 이 source-frozen mirror를 documentation commit으로 만들고 Draft PR #1에 non-force push한 뒤,
-hosted PostgreSQL 17.10 exact profile과 12 required sentinel을 포함한 exact-head matrix를 확인하는 것입니다. Hosted
-success와 terminal mirror 전에는 PostgreSQL/Web support, `Verified`, GDJ-0038 completion 또는 Q-011/Q-017 해결을
-주장하지 않습니다.
+Source mirror 뒤 restart workflow를 두 번 교정했습니다. 첫 correction은 relation-product inventory를 exact
+867/867/0·89,069 bytes·SHA-256 `777c8c4c...d658`로 갱신했고, final correction commit
+`187638f9b3904162d510138d4b9f89f004168eb6`, tree
+`002941b24b90c563a5f8b3c99e8b5bd6f7c14681`은 Docker service restart 뒤 현재 published PostgreSQL port를
+재조회하며 sequence key를 gapless counter로 오해하지 않도록 restart 검증을 고쳤습니다.
+
+[EVID-108](../docs/status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion)은
+final exact-head CI run `32626539049`의 27/27 jobs·341/341 steps·skip/failure 0과 annotations 0을 기록합니다.
+Hosted PostgreSQL profile은 exact
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`이었고 required actual
+12/12·skip 0, `prepare` 1/1 → container restart/current-port probe → `resume` 2/2 → `verify` 2/2 → cleanup이
+통과했습니다. 따라서 이 packet의 DB-PG-001..010과 WEB-001..010 bounded slice는 `Verified`, work는
+`completed`입니다.
+
+이 전이는 PostgreSQL 전체/production readiness, REL-007/008 project-aware delete, arbitrary database
+adoption/repair/retry, global `godj runserver`, dynamic routing, request transaction, DTL/Form/Auth/Admin/API 또는
+Q-011/Q-012/Q-013/Q-017 전체 해결을 뜻하지 않습니다. 다음 구현은 별도 active packet에서 QuerySet의
+Article 검색·리포트 수직 단면을 넓힙니다.
