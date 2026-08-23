@@ -13,8 +13,8 @@ import (
 	sync "sync"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"
-const GoDjProjectRelationFacadeInputSHA256 = "ee17296658e8da1472a55449d24d274970ccf7c1f5c682f44eb2d81c52c7a3f6"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"
+const GoDjProjectRelationFacadeInputSHA256 = "539753f392a341da558b8f8c64f5b579f71a0a107da0783fbfbaf85be6c31e03"
 
 const (
 	relationFacadeRelationUnassigned uint8 = iota
@@ -166,6 +166,11 @@ func (_query AuthorsAuthorQuery) OrderBy(_orderings ...orm.Ordering[authors.Auth
 	return _query
 }
 
+func (_query AuthorsAuthorQuery) Distinct() AuthorsAuthorQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
 func (_query AuthorsAuthorQuery) Limit(_limit int) (AuthorsAuthorQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return AuthorsAuthorQuery{}, _err
@@ -176,6 +181,40 @@ func (_query AuthorsAuthorQuery) Limit(_limit int) (AuthorsAuthorQuery, error) {
 	}
 	_query.query = _limited
 	return _query, nil
+}
+
+func (_query AuthorsAuthorQuery) Offset(_offset int) (AuthorsAuthorQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AuthorsAuthorQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return AuthorsAuthorQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query AuthorsAuthorQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuthorQuery, _projection orm.Projection[authors.Author, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuthorQuery, _aggregate orm.Aggregate[authors.Author, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
 func (_query AuthorsAuthorQuery) First(_ctx context.Context) (*AuthorsAuthor, bool, error) {
@@ -310,6 +349,11 @@ func (_query BlogPostQuery) OrderBy(_orderings ...orm.Ordering[blog.Post]) BlogP
 	return _query
 }
 
+func (_query BlogPostQuery) Distinct() BlogPostQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
 func (_query BlogPostQuery) Limit(_limit int) (BlogPostQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return BlogPostQuery{}, _err
@@ -320,6 +364,40 @@ func (_query BlogPostQuery) Limit(_limit int) (BlogPostQuery, error) {
 	}
 	_query.query = _limited
 	return _query, nil
+}
+
+func (_query BlogPostQuery) Offset(_offset int) (BlogPostQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return BlogPostQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query BlogPostQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _projection orm.Projection[blog.Post, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _aggregate orm.Aggregate[blog.Post, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
 func (_query BlogPostQuery) First(_ctx context.Context) (*BlogPost, bool, error) {
@@ -979,4 +1057,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775
+var _ goDjProjectSnapshot_2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b

@@ -65,11 +65,16 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
 		[]byte("type Models struct {\n\tAuthorsAuthor AuthorsAuthorQuery\n\tBlogPost      BlogPostQuery\n}"),
 		[]byte("func Using(_backend Backend) (Models, error)"),
+		[]byte("func (_query BlogPostQuery) Distinct() BlogPostQuery"),
+		[]byte("func (_query BlogPostQuery) Offset(_offset int) (BlogPostQuery, error)"),
+		[]byte("func (_query BlogPostQuery) Count(_ctx context.Context) (int64, error)"),
+		[]byte("func SelectBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _projection orm.Projection[blog.Post, R]) ([]R, error)"),
+		[]byte("func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _aggregate orm.Aggregate[blog.Post, R]) (R, error)"),
 		[]byte("func (_query BlogPostQuery) First(_ctx context.Context) (*BlogPost, bool, error)"),
 		[]byte("func (_model *BlogPost) Author(_ctx context.Context) (*AuthorsAuthor, error)"),
 		[]byte("func (_model *BlogPost) Reviewer(_ctx context.Context) (*AuthorsAuthor, bool, error)"),
@@ -97,6 +102,8 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		t.Fatalf("BindObjects index %d must precede backend nil validation index %d", bindIndex, nilIndex)
 	}
 	wantExported := []string{
+		"AggregateAuthorsAuthorInto",
+		"AggregateBlogPostInto",
 		"AuthorsAuthor",
 		"AuthorsAuthorQuery",
 		"Backend",
@@ -108,6 +115,8 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		"GoDjProjectRelationFacadeGeneratorVersion",
 		"GoDjProjectRelationFacadeInputSHA256",
 		"Models",
+		"SelectAuthorsAuthorInto",
+		"SelectBlogPostInto",
 		"Using",
 	}
 	if got := projectRelationFacadeExportedDeclarations(t, first); !slices.Equal(got, wantExported) {
@@ -195,7 +204,13 @@ func TestGeneratedProjectRelationFacadeBroadUniversesCompile(t *testing.T) {
 			{Alias: "blog", ImportPath: modulePath + "/blog", Schema: blog},
 			{Alias: "authors", ImportPath: modulePath + "/authors", Schema: multiAuthors},
 		}
-		directory, facade := writeGeneratedRelationFacadeUniverse(t, modulePath, packages, nil, nil)
+		directory, facade := writeGeneratedRelationFacadeUniverse(
+			t,
+			modulePath,
+			packages,
+			nil,
+			generatedRelationFacadeTypedResultCompileTest(modulePath),
+		)
 		for _, fragment := range [][]byte{
 			[]byte("AuthorsAuthor  AuthorsAuthorQuery"),
 			[]byte("AuthorsProfile AuthorsProfileQuery"),
@@ -238,6 +253,33 @@ func TestGeneratedProjectRelationFacadeBroadUniversesCompile(t *testing.T) {
 		}
 		compileGeneratedRelationFacadeUniverse(t, directory)
 	})
+}
+
+func TestGeneratedProjectRelationFacadeRejectsCrossModelTypedResultsAtCompileTime(t *testing.T) {
+	t.Parallel()
+
+	authors, blog := relationQueryGenerationSchemas()
+	const modulePath = "example.com/godj-relation-facade-cross-result"
+	directory, _ := writeGeneratedRelationFacadeUniverse(
+		t,
+		modulePath,
+		relationFacadePackages(modulePath, authors, blog),
+		nil,
+		generatedRelationFacadeCrossModelResultCompileFailure(modulePath),
+	)
+	command := exec.Command("go", "test", "-mod=mod", "./...")
+	command.Dir = directory
+	command.Env = generatedTestEnvironment()
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatal("cross-model typed results unexpectedly compiled")
+	}
+	if !bytes.Contains(output, []byte("Projection[")) || !bytes.Contains(output, []byte("SelectBlogPostInto")) {
+		t.Fatalf("cross-model compile failure did not identify the typed projection boundary: %v\n%s", err, output)
+	}
+	if !bytes.Contains(output, []byte("Aggregate[")) || !bytes.Contains(output, []byte("AggregateBlogPostInto")) {
+		t.Fatalf("cross-model compile failure did not identify the typed aggregate boundary: %v\n%s", err, output)
+	}
 }
 
 func TestProjectRelationFacadeRuntime(t *testing.T) {
@@ -285,7 +327,7 @@ func pointerKeyMustNotCompile(_model *BlogPost) {
 
 func TestProjectRelationFacadeReservedImports(t *testing.T) {
 	authors, blog := relationQueryGenerationSchemas()
-	for _, reserved := range []string{"context", "ir", "sync"} {
+	for _, reserved := range []string{"any", "context", "int", "int64", "iota", "ir", "reflect", "sync", "true"} {
 		t.Run(reserved+" alias", func(t *testing.T) {
 			packages := relationFacadePackages("example.com/godj-relation-facade-reserved-"+reserved, authors, blog)
 			packages[0].Alias = reserved
@@ -293,6 +335,8 @@ func TestProjectRelationFacadeReservedImports(t *testing.T) {
 				t.Fatalf("reserved alias %q = (%d bytes, %v)", reserved, len(generated), err)
 			}
 		})
+	}
+	for _, reserved := range []string{"context", "ir", "sync"} {
 		t.Run(reserved+" path", func(t *testing.T) {
 			packages := relationFacadePackages("example.com/godj-relation-facade-reserved-"+reserved, authors, blog)
 			path := reserved
@@ -305,6 +349,17 @@ func TestProjectRelationFacadeReservedImports(t *testing.T) {
 			}
 		})
 	}
+	t.Run("non-conflicting alias", func(t *testing.T) {
+		packages := relationFacadePackages("example.com/godj-relation-facade-non-conflicting", authors, blog)
+		packages[0].Alias = "domainapp"
+		generated, err := codegen.GenerateProjectRelationFacade("project", packages)
+		if err != nil {
+			t.Fatalf("non-conflicting alias rejected: %v", err)
+		}
+		if len(generated) == 0 {
+			t.Fatal("non-conflicting alias returned empty generated bytes")
+		}
+	})
 }
 
 func TestProjectRelationFacadeEagerCOW(t *testing.T) {
@@ -1258,6 +1313,7 @@ func (backend *crossSelectorBackend) Query(context.Context, query.Plan) (db.Rows
 	backend.io++
 	return nil, errors.New("unexpected query")
 }
+
 func (*crossSelectorBackend) Insert(context.Context, query.InsertPlan) (int64, error) { return 0, nil }
 func (*crossSelectorBackend) Update(context.Context, query.UpdatePlan) (int64, error) { return 0, nil }
 func (*crossSelectorBackend) Delete(context.Context, query.DeletePlan) (int64, error) { return 0, nil }
@@ -1277,6 +1333,68 @@ func TestCrossModelSelectorFailsBeforeIO(t *testing.T) {
 	}
 }
 `)
+}
+
+func generatedRelationFacadeTypedResultCompileTest(modulePath string) []byte {
+	return []byte(fmt.Sprintf(`package project
+
+import (
+	"context"
+
+	blog %q
+	"github.com/progresshans/godj/orm"
+)
+
+type typedPostRow struct {
+	ID int64
+	Title string
+}
+
+type typedPostReport struct {
+	Count int64
+	LatestID orm.Optional[int64]
+}
+
+func compileTypedPostResultSurface(ctx context.Context, source BlogPostQuery) error {
+	projection := orm.Project2(blog.PostFields.ID, blog.PostFields.Title, func(id int64, title string) typedPostRow {
+		return typedPostRow{ID: id, Title: title}
+	})
+	if _, err := SelectBlogPostInto(ctx, source.Distinct(), projection); err != nil {
+		return err
+	}
+	offset, err := source.Offset(1)
+	if err != nil {
+		return err
+	}
+	if _, err := offset.Count(ctx); err != nil {
+		return err
+	}
+	aggregate := orm.Aggregate2(orm.CountRows[blog.Post](), orm.Max(blog.PostFields.ID), func(count int64, latestID orm.Optional[int64]) typedPostReport {
+		return typedPostReport{Count: count, LatestID: latestID}
+	})
+	_, err = AggregateBlogPostInto(ctx, source, aggregate)
+	return err
+}
+`, modulePath+"/blog"))
+}
+
+func generatedRelationFacadeCrossModelResultCompileFailure(modulePath string) []byte {
+	return []byte(fmt.Sprintf(`package project
+
+import (
+	"context"
+
+	authors %q
+	"github.com/progresshans/godj/orm"
+)
+
+func crossModelTypedResultMustNotCompile(ctx context.Context, source BlogPostQuery) {
+	projection := orm.Project1(authors.AuthorFields.ID, func(id int64) int64 { return id })
+	_, _ = SelectBlogPostInto(ctx, source, projection)
+	aggregate := orm.Aggregate1(orm.CountRows[authors.Author](), func(count int64) int64 { return count })
+	_, _ = AggregateBlogPostInto(ctx, source, aggregate)
+}
+`, modulePath+"/authors"))
 }
 
 func projectRelationFacadePrerequisiteBytes(

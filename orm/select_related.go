@@ -308,7 +308,7 @@ func (s ForwardSelect[S, T]) Select(source QuerySet[S]) ForwardSelectQuery[S, T]
 		reflect.TypeOf(source.descriptor) != reflect.TypeOf(s.state.sourceDescriptor) ||
 		!reflect.DeepEqual(source.descriptor.Metadata(), s.state.path.relation.sourceModel) ||
 		source.plan.Table() != s.state.path.relation.sourceModel.DBTable ||
-		!reflect.DeepEqual(source.plan.Columns(), modelFieldReferences(s.state.path.relation.sourceModel)) {
+		!reflect.DeepEqual(source.plan.SourceFields(), modelFieldReferences(s.state.path.relation.sourceModel)) {
 		result.configurationErr = relationInvalidPlan("source QuerySet does not match the resolved forward select source")
 		return result
 	}
@@ -474,7 +474,7 @@ func (q ForwardSelectQuery[S, T]) validateTerminal(ctx context.Context) error {
 	projection, ok := q.plan.RelationProjection()
 	if !ok || !projection.Equal(q.selection.path.projection) ||
 		q.plan.Table() != q.selection.path.relation.sourceModel.DBTable ||
-		!reflect.DeepEqual(q.plan.Columns(), modelFieldReferences(q.selection.path.relation.sourceModel)) {
+		!reflect.DeepEqual(q.plan.SourceFields(), modelFieldReferences(q.selection.path.relation.sourceModel)) {
 		return relationInvalidPlan("forward select query plan is zero or changed")
 	}
 	return nil
@@ -508,7 +508,7 @@ func (q ForwardSelectQuery[S, T]) scanAll(ctx context.Context) ([]forwardSelecte
 		}
 		sourceDestinations := sourceScan.Destinations()
 		targetDestinations := targetScan.Destinations()
-		if !validProjectionDestinations(sourceDestinations, len(q.plan.Columns())) ||
+		if !validProjectionDestinations(sourceDestinations, len(q.plan.SourceFields())) ||
 			!validProjectionDestinations(targetDestinations, len(q.selection.path.projection.TargetColumns())) {
 			err = relationInvalidPlan("projection scan destinations do not match the selected columns")
 			break
@@ -531,12 +531,8 @@ func (q ForwardSelectQuery[S, T]) scanAll(ctx context.Context) ([]forwardSelecte
 			targetPresence: targetPresence,
 		})
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+	err = finishRowsLifecycle(ctx, err, rows)
 	if err != nil {
-		return nil, err
-	}
-	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 

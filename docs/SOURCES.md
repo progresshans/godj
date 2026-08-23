@@ -1,7 +1,7 @@
 # 기준 출처와 검증 기록
 
 - 외부 source 마지막 확인: 2026-08-12 (Asia/Seoul)
-- current artifact/provenance 마지막 검토: 2026-08-20 (Asia/Seoul)
+- current artifact/provenance 마지막 검토: 2026-08-23 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -47,7 +47,9 @@ pointer, corrected canonical three-phase validation, per-edge COW cache와 proje
 Go-specific decision입니다. 이 translation은 exact implementation head `be6f3d4e...`의 EVID-076/run `31586910749`에서
 Implemented/Verified됐습니다. Accepted ADR-0035 current reset은 observable assignment/cache 의미를 유지하면서
 facade-private write descriptor 중복을 제거하고 app main generator의 current descriptor/write metadata를 직접 사용합니다.
-그 current ABI는 EVID-100의 exact local implementation evidence만 가지며 아직 hosted `Verified`가 아닙니다. GoDj는
+그 current ABI는 EVID-100의 local evidence 뒤 corrected exact head의
+[EVID-103](status/TEST_EVIDENCE.md#evid-20260820-103--gdj-0036-corrected-exact-head-hosted-completion)에서
+hosted-verified됐습니다. GoDj는
 Django source를 포팅하지 않고 result, side effect, error timing과 transaction meaning만 independent Go tests로 번역합니다.
 
 GDJ-0033 Phase A에서 다시 고정했던 historical GoDj relation artifacts는 manifest 10,776 bytes/SHA-256
@@ -63,11 +65,36 @@ bytes/SHA-256 `2450dcb948d7418f06458359c73fa78492df59336f0ff666e11a3ca860bd9209`
 처음 추가한 12-line `SHA256SUMS` prefix는 1,148 bytes/SHA-256
 `067b7d8963233f215cabb86ac8e57cd5e674ad7ecac9d3373e42281136411056`이고, 현재 shared 13-line catalog는
 1,245 bytes/SHA-256 `76578c225edfa6af4bf2d119f93fdcdf633cfee8ebb5a9092aa5157e5f218be1`입니다.
-REL-001..012는 current product에서 모두 `passing`이지만, 이 current reset 자체의 hosted 검증은 아직 남았습니다.
+REL-001..012는 current product에서 모두 `passing`이고 current reset은 EVID-103에서 hosted-verified됐습니다.
 
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며
 `uv.lock`과 exact profile에 기록했습니다.
+
+## GDJ-0039 query-breadth source and provenance lock
+
+QRY-022..033은 Django exact commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`의 공개 QuerySet·aggregate 결과와 cursor 수명 경계를
+관찰합니다. Manifest는 contract마다 실제 사용한 문서 section/test symbol만 가리키며, 아래 표는 그
+reference가 속한 exact object inventory입니다.
+
+| Exact object | Blob | Bytes | 관찰 의미 |
+|---|---|---:|---|
+| `docs/ref/models/querysets.txt` | `eec3ac51d359f5568d787b29706f278e59a7d1d1` | 160,722 | values/values_list, distinct, slicing, count, iterator |
+| `tests/lookup/tests.py` | `9314fa05b082ecf604d1a5e07373bda8dcaef571` | 78,011 | projection field order와 filtered values_list |
+| `docs/topics/db/queries.txt` | `507017f9675b12088154661cf68d6739cbdb1137` | 78,439 | QuerySet filter/order/slicing 외부 의미 |
+| `django/db/models/query.py` | `ff5105748aa18fd7db9e5bcd5acf4d288b212638` | 118,105 | public QuerySet count/aggregate/iterator boundary |
+| `tests/queries/tests.py` | `169ca4924af46bf4d0506c213ee50959d891c66b` | 184,540 | distinct/order/slice/count 결과 회귀 |
+| `django/db/models/sql/query.py` | `22dd479d67d9ea8e20f6e5e007dab492667ff0b3` | 123,905 | aggregate source query construction 의미 |
+| `docs/topics/db/aggregation.txt` | `8d8fff021127e1dcfe3d1d864e12cf15f03ae82f` | 28,701 | empty/filtered Count와 Max 결과 |
+| `tests/aggregation/tests.py` | `eda328621714ca348a3cdcaa946cb10290cb7a07` | 106,211 | aggregate over sliced/filtered QuerySet |
+| `django/db/models/sql/compiler.py` | `575143a7d6b22a8e83b3f190456b368267dbedfa` | 96,047 | iterator cursor close와 row delivery boundary |
+
+ADR-0039의 Go source/result AST, top-level generic result builder, cache ownership과 backend error policy는
+Django internal object ABI를 복제한 것이 아닌 GoDj-owned `kind=decision`, `derived=false` provenance입니다.
+Reference scenario, fixture, expected payload와 Go product adapter도 독립 작성했으며 Django source/test의 코드,
+fixture, comment 또는 assertion 구조를 복사·번역하지 않았습니다. BSD-3-Clause reference는 동작 근거와 exact
+version 추적에만 사용하고 파생물 분류·고지는 `LICENSING.md`와 `NOTICE.md`를 따릅니다.
 
 ## GoDj decision provenance
 

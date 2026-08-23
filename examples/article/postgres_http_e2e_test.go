@@ -12,10 +12,12 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	articleproject "github.com/progresshans/godj/examples/article/project"
@@ -23,6 +25,8 @@ import (
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 )
 
 //go:embed testdata/postgres/0001_initial.godj.json
@@ -166,8 +170,83 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 		second.Title != "Saved Empty Summary" || !second.Published || second.Summary == nil || *second.Summary != "" {
 		t.Fatalf("ordered Article values = first:%+v second:%+v", first, second)
 	}
+	nullableMaximum := orm.Aggregate2(
+		orm.CountRows[articlemodels.Article](),
+		orm.Max(articlemodels.ArticleFields.Summary),
+		func(count int64, maximum orm.Optional[string]) articlePostgresNullableMaximum {
+			return articlePostgresNullableMaximum{count: count, maximum: maximum}
+		},
+	)
+	emptyMaximum, err := articleproject.AggregateModelsArticleInto(
+		ctx,
+		bound.ModelsArticle.Filter(articlemodels.ArticleFields.Title.Exact("missing aggregate source")),
+		nullableMaximum,
+	)
+	if err != nil {
+		t.Fatalf("aggregate nullable MAX over empty PostgreSQL source: %v", err)
+	}
+	if _, present := emptyMaximum.maximum.Get(); emptyMaximum.count != 0 || present {
+		t.Fatalf("empty PostgreSQL nullable MAX = count %d/present %t, want 0/false", emptyMaximum.count, present)
+	}
+	allNullMaximum, err := articleproject.AggregateModelsArticleInto(
+		ctx,
+		bound.ModelsArticle.Filter(articlemodels.ArticleFields.ID.Exact(nullArticle.ID)),
+		nullableMaximum,
+	)
+	if err != nil {
+		t.Fatalf("aggregate nullable MAX over all-NULL PostgreSQL source: %v", err)
+	}
+	if _, present := allNullMaximum.maximum.Get(); allNullMaximum.count != 1 || present {
+		t.Fatalf("all-NULL PostgreSQL nullable MAX = count %d/present %t, want 1/false", allNullMaximum.count, present)
+	}
+	idMaximum := orm.Aggregate2(
+		orm.CountRows[articlemodels.Article](),
+		orm.Max(articlemodels.ArticleFields.ID),
+		func(count int64, maximum orm.Optional[int64]) articlePostgresIDMaximum {
+			return articlePostgresIDMaximum{count: count, maximum: maximum}
+		},
+	)
+	slicedSource := bound.ModelsArticle.
+		Distinct().
+		OrderBy(articlemodels.ArticleFields.ID.Asc())
+	slicedSource, err = slicedSource.Offset(1)
+	if err != nil {
+		t.Fatalf("offset PostgreSQL aggregate source: %v", err)
+	}
+	slicedSource, err = slicedSource.Limit(1)
+	if err != nil {
+		t.Fatalf("limit PostgreSQL aggregate source: %v", err)
+	}
+	slicedMaximum, err := articleproject.AggregateModelsArticleInto(ctx, slicedSource, idMaximum)
+	if err != nil {
+		t.Fatalf("aggregate over distinct sliced PostgreSQL source: %v", err)
+	}
+	if maximum, present := slicedMaximum.maximum.Get(); slicedMaximum.count != 1 || !present || maximum != emptyArticle.ID {
+		t.Fatalf(
+			"distinct sliced PostgreSQL aggregate = count %d/MAX (%d,%t), want 1/(%d,true)",
+			slicedMaximum.count,
+			maximum,
+			present,
+			emptyArticle.ID,
+		)
+	}
+	zeroLimitSource := bound.ModelsArticle.
+		Distinct().
+		OrderBy(articlemodels.ArticleFields.ID.Asc())
+	zeroLimitSource, err = zeroLimitSource.Limit(0)
+	if err != nil {
+		t.Fatalf("zero-limit PostgreSQL aggregate source: %v", err)
+	}
+	zeroLimitMaximum, err := articleproject.AggregateModelsArticleInto(ctx, zeroLimitSource, idMaximum)
+	if err != nil {
+		t.Fatalf("aggregate over zero-limit PostgreSQL source: %v", err)
+	}
+	if _, present := zeroLimitMaximum.maximum.Get(); zeroLimitMaximum.count != 0 || present {
+		t.Fatalf("zero-limit PostgreSQL aggregate = count %d/present %t, want 0/false", zeroLimitMaximum.count, present)
+	}
 
-	application, err := webapp.NewApplication(backend)
+	httpBackend := &articlePostgresHTTPBackend{delegate: backend}
+	application, err := webapp.NewApplication(httpBackend)
 	if err != nil {
 		t.Fatalf("build Article PostgreSQL web application: %v", err)
 	}
@@ -175,6 +254,7 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := &http.Client{Timeout: 5 * time.Second}
 	body := articlePostgresHTTPBody(t, client, server.URL+webapp.ArticleListPath)
+	wantHTTPQueries := uint64(2)
 	if strings.Contains(body, "<script>") || !strings.Contains(body, "&lt;script&gt;alert(1)&lt;/script&gt;") {
 		t.Fatalf("PostgreSQL Article title was not HTML-escaped: %q", body)
 	}
@@ -191,6 +271,71 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 		strings.Index(body, `data-article-id="`+strconv.FormatInt(emptyArticle.ID, 10)+`"`) {
 		t.Fatalf("PostgreSQL HTTP Articles are not ordered by primary key: %q", body)
 	}
+	assertArticleListMetadata(t, body, 2, strconv.FormatInt(emptyArticle.ID, 10), 0, 20, 2)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL HTTP query count = %d, want %d", got, wantHTTPQueries)
+	}
+
+	published := articlePostgresHTTPBody(t, client, server.URL+webapp.ArticleListPath+"?published=true")
+	wantHTTPQueries += 2
+	if !strings.Contains(published, `data-article-id="`+strconv.FormatInt(nullArticle.ID, 10)+`"`) ||
+		!strings.Contains(published, `data-article-id="`+strconv.FormatInt(emptyArticle.ID, 10)+`"`) {
+		t.Fatalf("PostgreSQL published=true response = %q", published)
+	}
+	assertArticleListMetadata(t, published, 2, strconv.FormatInt(emptyArticle.ID, 10), 0, 20, 2)
+
+	unpublished := articlePostgresHTTPBody(t, client, server.URL+webapp.ArticleListPath+"?published=false")
+	wantHTTPQueries += 2
+	if !strings.Contains(unpublished, `<li class="empty">No articles.</li>`) {
+		t.Fatalf("PostgreSQL published=false response = %q", unpublished)
+	}
+	assertArticleListMetadata(t, unpublished, 0, "", 0, 20, 0)
+
+	paged := articlePostgresHTTPBody(t, client, server.URL+webapp.ArticleListPath+"?offset=1&limit=1")
+	wantHTTPQueries += 2
+	if strings.Contains(paged, `data-article-id="`+strconv.FormatInt(nullArticle.ID, 10)+`"`) ||
+		!strings.Contains(paged, `data-article-id="`+strconv.FormatInt(emptyArticle.ID, 10)+`"`) {
+		t.Fatalf("PostgreSQL offset/limit response = %q", paged)
+	}
+	assertArticleListMetadata(t, paged, 2, strconv.FormatInt(emptyArticle.ID, 10), 1, 1, 1)
+
+	outOfRange := articlePostgresHTTPBody(t, client, server.URL+webapp.ArticleListPath+"?offset=99&limit=1")
+	wantHTTPQueries += 2
+	if !strings.Contains(outOfRange, `<li class="empty">No articles.</li>`) {
+		t.Fatalf("PostgreSQL out-of-range offset response = %q", outOfRange)
+	}
+	assertArticleListMetadata(t, outOfRange, 2, strconv.FormatInt(emptyArticle.ID, 10), 99, 1, 0)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL HTTP query count = %d, want %d", got, wantHTTPQueries)
+	}
+
+	for _, rawQuery := range []string{"?published=1", "?offset=-1", "?limit=0", "?limit=1&limit=2", "?limit=1;offset=2"} {
+		response, requestErr := client.Get(server.URL + webapp.ArticleListPath + rawQuery)
+		if requestErr != nil {
+			t.Fatalf("GET invalid PostgreSQL Article query %q: %v", rawQuery, requestErr)
+		}
+		invalidBody, readErr := io.ReadAll(response.Body)
+		_ = response.Body.Close()
+		if readErr != nil {
+			t.Fatalf("read invalid PostgreSQL Article query %q: %v", rawQuery, readErr)
+		}
+		if response.StatusCode != http.StatusBadRequest || string(invalidBody) != "Bad Request\n" {
+			t.Fatalf("invalid PostgreSQL Article query %q = status %d body %q", rawQuery, response.StatusCode, invalidBody)
+		}
+	}
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("invalid PostgreSQL HTTP queries performed DB I/O: got %d, want %d", got, wantHTTPQueries)
+	}
+}
+
+type articlePostgresNullableMaximum struct {
+	count   int64
+	maximum orm.Optional[string]
+}
+
+type articlePostgresIDMaximum struct {
+	count   int64
+	maximum orm.Optional[int64]
 }
 
 func articlePostgresHTTPBody(t *testing.T, client *http.Client, address string) string {
@@ -229,4 +374,26 @@ func articlePostgresRedactedConnectionError(err error) error {
 		return fmt.Errorf("PostgreSQL SQLSTATE %s", structured.SQLState())
 	}
 	return errors.New("PostgreSQL connection failed")
+}
+
+type articlePostgresHTTPBackend struct {
+	delegate articleproject.Backend
+	queries  atomic.Uint64
+}
+
+func (backend *articlePostgresHTTPBackend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	backend.queries.Add(1)
+	return backend.delegate.Query(ctx, plan)
+}
+
+func (backend *articlePostgresHTTPBackend) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+	return backend.delegate.Insert(ctx, plan)
+}
+
+func (backend *articlePostgresHTTPBackend) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+	return backend.delegate.Update(ctx, plan)
+}
+
+func (backend *articlePostgresHTTPBackend) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
+	return backend.delegate.Delete(ctx, plan)
 }

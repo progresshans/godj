@@ -20,6 +20,7 @@ const (
 	CodeDisallowedLookup             = "disallowed_lookup"
 	CodeInvalidValue                 = "invalid_value"
 	CodeInvalidLimit                 = "invalid_limit"
+	CodeInvalidOffset                = "invalid_offset"
 	CodeInvalidIndex                 = "invalid_index"
 	CodeUnorderedQuery               = "unordered_query"
 	CodeInvalidPlan                  = "invalid_plan"

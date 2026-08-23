@@ -750,7 +750,7 @@ func TestRelationDeleterQueriesEveryProtectEdgeAndDistinctsBySourceIdentityAndKe
 	if len(session.queryPlans) != 3 || len(session.setNullPlans) != 0 || len(session.deletePlans) != 0 {
 		t.Fatalf("global distinct calls = query %d set-null %d delete %d", len(session.queryPlans), len(session.setNullPlans), len(session.deletePlans))
 	}
-	if got := []string{session.queryPlans[0].Table(), session.queryPlans[1].Columns()[1].Name(), session.queryPlans[2].Columns()[1].Name()}; !reflect.DeepEqual(got, []string{"archive_entry", "author", "editor"}) {
+	if got := []string{session.queryPlans[0].Table(), session.queryPlans[1].SourceFields()[1].Name(), session.queryPlans[2].SourceFields()[1].Name()}; !reflect.DeepEqual(got, []string{"archive_entry", "author", "editor"}) {
 		t.Fatalf("canonical PROTECT order = %#v", got)
 	}
 	for index, rows := range rowSets {
@@ -1306,7 +1306,7 @@ func assertRelationDeletePlans(t *testing.T, session *relationDeleteTestSession,
 		t.Fatalf("plan counts = query %d set-null %d delete %d", len(session.queryPlans), len(session.setNullPlans), len(session.deletePlans))
 	}
 	protect := session.queryPlans[0]
-	columns := protect.Columns()
+	columns := protect.SourceFields()
 	conditions := protect.Conditions()
 	if protect.Table() != "blog_post" || len(columns) != 2 || columns[0].Name() != "id" || columns[1].Name() != "author" ||
 		len(conditions) != 1 || !conditions[0].Field().Equal(columns[1]) || conditions[0].Lookup() != query.LookupExact ||

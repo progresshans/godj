@@ -31,10 +31,10 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 const (
-	relationFacadePhysicalBytes   = 169598
-	relationFacadePhysicalDigest  = "7ec13167dec1c24b76bba6c9a0ab7856161233dfe30fad4f10dfe72284fb2953"
-	relationFacadeGeneratedBytes  = 77483
-	relationFacadeGeneratedDigest = "b027b8104aaa659e27e302916eb482b5f96b72d1b696b04622635eea4f9f5ec4"
+	relationFacadePhysicalBytes   = 171929
+	relationFacadePhysicalDigest  = "c47cb33a2d426ce14122208e3498f6884ffb84ef96538af500f2b89bf7bfb1a0"
+	relationFacadeGeneratedBytes  = 79814
+	relationFacadeGeneratedDigest = "c7ddaf0f760987b71f743dab51dfc8b7af842031529999a8dd1d9d1cd246fd13"
 )
 
 var relationFacadePhysicalFiles = []string{
@@ -279,6 +279,31 @@ func verifyRelationFacadeProduction(t *testing.T) {
 			label: "BlogPost.ClearReviewer",
 			old:   "func (_model *BlogPost) ClearReviewer() (*BlogPost, error)",
 			new:   "func (_model *BlogPost) ClearReviewer(_clear bool) (*BlogPost, error)",
+		},
+		{
+			label: "AuthorsAuthorQuery.Distinct",
+			old:   "func (_query AuthorsAuthorQuery) Distinct() AuthorsAuthorQuery",
+			new:   "func (_query AuthorsAuthorQuery) Distinct() BlogPostQuery",
+		},
+		{
+			label: "AuthorsAuthorQuery.Offset",
+			old:   "func (_query AuthorsAuthorQuery) Offset(_offset int) (AuthorsAuthorQuery, error)",
+			new:   "func (_query AuthorsAuthorQuery) Offset(_offset int64) (AuthorsAuthorQuery, error)",
+		},
+		{
+			label: "AuthorsAuthorQuery.Count",
+			old:   "func (_query AuthorsAuthorQuery) Count(_ctx context.Context) (int64, error)",
+			new:   "func (_query AuthorsAuthorQuery) Count(_ctx context.Context) (int, error)",
+		},
+		{
+			label: "SelectAuthorsAuthorInto",
+			old:   "func SelectAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuthorQuery, _projection orm.Projection[authors.Author, R]) ([]R, error)",
+			new:   "func SelectAuthorsAuthorInto[R any](_ctx context.Context, _source AuthorsAuthorQuery, _projection orm.Projection[blog.Post, R]) ([]R, error)",
+		},
+		{
+			label: "AggregateBlogPostInto",
+			old:   "func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _aggregate orm.Aggregate[blog.Post, R]) (R, error)",
+			new:   "func AggregateBlogPostInto[R any](_ctx context.Context, _source BlogPostQuery, _aggregate orm.Aggregate[authors.Author, R]) (R, error)",
 		},
 	} {
 		mutated := replaceRelationFacadeToken(t, productSource, []byte(mutation.old), []byte(mutation.new))
@@ -1171,36 +1196,59 @@ func validateRelationFacadeProductSource(source []byte) error {
 		"AuthorsAuthorQuery.New":      true,
 		"AuthorsAuthorQuery.Filter":   true,
 		"AuthorsAuthorQuery.OrderBy":  true,
+		"AuthorsAuthorQuery.Distinct": true,
 		"AuthorsAuthorQuery.Limit":    true,
+		"AuthorsAuthorQuery.Offset":   true,
+		"AuthorsAuthorQuery.Count":    true,
 		"AuthorsAuthorQuery.First":    true,
 		"AuthorsAuthorQuery.All":      true,
+		".SelectAuthorsAuthorInto":    true,
+		".AggregateAuthorsAuthorInto": true,
 		"BlogPostQuery.New":           true,
 		"BlogPostQuery.Filter":        true,
 		"BlogPostQuery.OrderBy":       true,
+		"BlogPostQuery.Distinct":      true,
 		"BlogPostQuery.Limit":         true,
+		"BlogPostQuery.Offset":        true,
+		"BlogPostQuery.Count":         true,
 		"BlogPostQuery.First":         true,
 		"BlogPostQuery.All":           true,
 		"BlogPostQuery.SelectRelated": true,
+		".SelectBlogPostInto":         true,
+		".AggregateBlogPostInto":      true,
 		"BlogPostEagerQuery.Filter":   true,
 		"BlogPostEagerQuery.OrderBy":  true,
 		"BlogPostEagerQuery.Limit":    true,
 		"BlogPostEagerQuery.All":      true,
 	}
 	wantABISignatures := map[string]string{
-		"AuthorsAuthorQuery.New":  "func(_value authors.Author) (*AuthorsAuthor, error)",
-		"BlogPostQuery.New":       "func(_value blog.Post) (*BlogPost, error)",
-		"AuthorsAuthor.Save":      "func(_ctx context.Context) error",
-		"BlogPost.Save":           "func(_ctx context.Context) error",
-		"BlogPost.WithAuthor":     "func(_target *AuthorsAuthor) (*BlogPost, error)",
-		"BlogPost.WithAuthorID":   "func(_key int64) (*BlogPost, error)",
-		"BlogPost.WithReviewer":   "func(_target *AuthorsAuthor) (*BlogPost, error)",
-		"BlogPost.WithReviewerID": "func(_key int64) (*BlogPost, error)",
-		"BlogPost.ClearReviewer":  "func() (*BlogPost, error)",
+		"AuthorsAuthorQuery.New":      "func(_value authors.Author) (*AuthorsAuthor, error)",
+		"BlogPostQuery.New":           "func(_value blog.Post) (*BlogPost, error)",
+		"AuthorsAuthor.Save":          "func(_ctx context.Context) error",
+		"BlogPost.Save":               "func(_ctx context.Context) error",
+		"BlogPost.WithAuthor":         "func(_target *AuthorsAuthor) (*BlogPost, error)",
+		"BlogPost.WithAuthorID":       "func(_key int64) (*BlogPost, error)",
+		"BlogPost.WithReviewer":       "func(_target *AuthorsAuthor) (*BlogPost, error)",
+		"BlogPost.WithReviewerID":     "func(_key int64) (*BlogPost, error)",
+		"BlogPost.ClearReviewer":      "func() (*BlogPost, error)",
+		"AuthorsAuthorQuery.Distinct": "func() AuthorsAuthorQuery",
+		"AuthorsAuthorQuery.Offset":   "func(_offset int) (AuthorsAuthorQuery, error)",
+		"AuthorsAuthorQuery.Count":    "func(_ctx context.Context) (int64, error)",
+		"BlogPostQuery.Distinct":      "func() BlogPostQuery",
+		"BlogPostQuery.Offset":        "func(_offset int) (BlogPostQuery, error)",
+		"BlogPostQuery.Count":         "func(_ctx context.Context) (int64, error)",
+	}
+	wantGenericABISignatures := map[string]string{
+		".SelectAuthorsAuthorInto":    "func(_ctx context.Context, _source AuthorsAuthorQuery, _projection orm.Projection[authors.Author, R]) ([]R, error)",
+		".AggregateAuthorsAuthorInto": "func(_ctx context.Context, _source AuthorsAuthorQuery, _aggregate orm.Aggregate[authors.Author, R]) (R, error)",
+		".SelectBlogPostInto":         "func(_ctx context.Context, _source BlogPostQuery, _projection orm.Projection[blog.Post, R]) ([]R, error)",
+		".AggregateBlogPostInto":      "func(_ctx context.Context, _source BlogPostQuery, _aggregate orm.Aggregate[blog.Post, R]) (R, error)",
 	}
 	seenTypes := make(map[string]bool, len(wantTypes))
 	seenConstants := make(map[string]bool, len(wantConstants))
 	seenFunctions := make(map[string]bool, len(wantFunctions))
 	seenABISignatures := make(map[string]bool, len(wantABISignatures))
+	seenGenericABISignatures := make(map[string]bool, len(wantGenericABISignatures))
 	for _, declaration := range file.Decls {
 		switch declaration := declaration.(type) {
 		case *ast.GenDecl:
@@ -1282,14 +1330,21 @@ func validateRelationFacadeProductSource(source []byte) error {
 				}
 				seenABISignatures[key] = true
 			}
+			if wantSignature, exact := wantGenericABISignatures[key]; exact {
+				if err := validateRelationFacadeGenericFunctionSignature(declaration, wantSignature); err != nil {
+					return fmt.Errorf("production relation facade function %q signature: %w", key, err)
+				}
+				seenGenericABISignatures[key] = true
+			}
 			seenFunctions[key] = true
 		default:
 			return fmt.Errorf("forbidden production relation facade declaration %T", declaration)
 		}
 	}
-	if len(seenTypes) != len(wantTypes) || len(seenConstants) != len(wantConstants) || len(seenFunctions) != len(wantFunctions) || len(seenABISignatures) != len(wantABISignatures) {
+	if len(seenTypes) != len(wantTypes) || len(seenConstants) != len(wantConstants) || len(seenFunctions) != len(wantFunctions) ||
+		len(seenABISignatures) != len(wantABISignatures) || len(seenGenericABISignatures) != len(wantGenericABISignatures) {
 		return fmt.Errorf(
-			"production relation facade exported declaration set is incomplete: types=%d/%d constants=%d/%d functions=%d/%d ABI signatures=%d/%d",
+			"production relation facade exported declaration set is incomplete: types=%d/%d constants=%d/%d functions=%d/%d ABI signatures=%d/%d generic ABI signatures=%d/%d",
 			len(seenTypes),
 			len(wantTypes),
 			len(seenConstants),
@@ -1298,9 +1353,27 @@ func validateRelationFacadeProductSource(source []byte) error {
 			len(wantFunctions),
 			len(seenABISignatures),
 			len(wantABISignatures),
+			len(seenGenericABISignatures),
+			len(wantGenericABISignatures),
 		)
 	}
 	return nil
+}
+
+func validateRelationFacadeGenericFunctionSignature(declaration *ast.FuncDecl, wantSignature string) error {
+	if declaration.Type.TypeParams == nil || len(declaration.Type.TypeParams.List) != 1 {
+		return fmt.Errorf("generic type parameter list is not exactly [R any]")
+	}
+	parameter := declaration.Type.TypeParams.List[0]
+	if len(parameter.Names) != 1 || parameter.Names[0].Name != "R" {
+		return fmt.Errorf("generic type parameter name is not exactly R")
+	}
+	if err := validateRelationFacadeExpressionSchema(parameter.Type, "any"); err != nil {
+		return fmt.Errorf("generic type parameter R constraint: %w", err)
+	}
+	functionType := *declaration.Type
+	functionType.TypeParams = nil
+	return validateRelationFacadeExpressionSchema(&functionType, wantSignature)
 }
 
 func validateRelationFacadeProductType(name string, expression ast.Expr) error {

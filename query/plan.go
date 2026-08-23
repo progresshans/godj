@@ -3,6 +3,7 @@
 package query
 
 import (
+	"math"
 	"slices"
 	"strings"
 )
@@ -188,23 +189,30 @@ func (o Ordering) Equal(other Ordering) bool {
 
 type Plan struct {
 	table              string
-	columns            []FieldRef
+	sourceFields       []FieldRef
 	conditions         []Condition
 	orderings          []Ordering
 	limit              *int
+	offset             *int
+	distinct           bool
+	result             ResultShape
 	relationProjection *RelationProjection
 }
 
-func NewPlan(table string, columns []FieldRef) Plan {
-	return Plan{table: table, columns: append([]FieldRef(nil), columns...)}
+func NewPlan(table string, sourceFields []FieldRef) Plan {
+	return Plan{
+		table:        table,
+		sourceFields: append([]FieldRef(nil), sourceFields...),
+		result:       modelResult(),
+	}
 }
 
 func (p Plan) Table() string {
 	return p.table
 }
 
-func (p Plan) Columns() []FieldRef {
-	return append([]FieldRef(nil), p.columns...)
+func (p Plan) SourceFields() []FieldRef {
+	return append([]FieldRef(nil), p.sourceFields...)
 }
 
 func (p Plan) Conditions() []Condition {
@@ -221,6 +229,17 @@ func (p Plan) Limit() (int, bool) {
 	}
 	return *p.limit, true
 }
+
+func (p Plan) Offset() (int, bool) {
+	if p.offset == nil {
+		return 0, false
+	}
+	return *p.offset, true
+}
+
+func (p Plan) Distinct() bool { return p.distinct }
+
+func (p Plan) ResultShape() ResultShape { return p.result.clone() }
 
 // RelationProjection returns a detached copy of the singular eager relation
 // projection carried by this plan. Plans without eager selection retain the
@@ -241,6 +260,9 @@ func (p Plan) WithRelationProjection(projection RelationProjection) (Plan, error
 	}
 	if err := projection.validate(); err != nil {
 		return Plan{}, err
+	}
+	if p.result.Kind() != ResultModel {
+		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
 	}
 	clone := p.clone()
 	value := projection.clone()
@@ -269,8 +291,41 @@ func (p Plan) WithLimit(limit int) (Plan, error) {
 	return clone, nil
 }
 
+func (p Plan) WithOffset(offset int) (Plan, error) {
+	if offset < 0 || int64(offset) > math.MaxInt32 {
+		return Plan{}, &Error{Category: CategoryQuery, Code: CodeInvalidOffset, Detail: "offset must be between zero and 2147483647"}
+	}
+	clone := p.clone()
+	clone.offset = &offset
+	return clone, nil
+}
+
+func (p Plan) WithDistinct() Plan {
+	clone := p.clone()
+	clone.distinct = true
+	return clone
+}
+
+func (p Plan) WithResultShape(result ResultShape) (Plan, error) {
+	if err := result.validate(); err != nil {
+		return Plan{}, err
+	}
+	if p.relationProjection != nil && result.Kind() != ResultModel {
+		return Plan{}, invalidPlanError("relation projection cannot combine with a non-model result")
+	}
+	for _, expression := range result.Expressions() {
+		if field, ok := expression.Field(); ok && !slices.Contains(p.sourceFields, field) {
+			return Plan{}, invalidPlanError("result field is not part of the plan source metadata")
+		}
+	}
+	clone := p.clone()
+	clone.result = result.clone()
+	return clone, nil
+}
+
 func (p Plan) Equal(other Plan) bool {
-	if p.table != other.table || !slices.Equal(p.columns, other.columns) {
+	if p.table != other.table || !slices.Equal(p.sourceFields, other.sourceFields) ||
+		p.distinct != other.distinct || !p.result.Equal(other.result) {
 		return false
 	}
 	if !slices.EqualFunc(p.conditions, other.conditions, func(left, right Condition) bool { return left.Equal(right) }) {
@@ -284,6 +339,11 @@ func (p Plan) Equal(other Plan) bool {
 	if leftOK != rightOK || (leftOK && leftLimit != rightLimit) {
 		return false
 	}
+	leftOffset, leftOK := p.Offset()
+	rightOffset, rightOK := other.Offset()
+	if leftOK != rightOK || (leftOK && leftOffset != rightOffset) {
+		return false
+	}
 	leftProjection, leftOK := p.RelationProjection()
 	rightProjection, rightOK := other.RelationProjection()
 	return leftOK == rightOK && (!leftOK || leftProjection.Equal(rightProjection))
@@ -291,13 +351,18 @@ func (p Plan) Equal(other Plan) bool {
 
 func (p Plan) clone() Plan {
 	clone := p
-	clone.columns = append([]FieldRef(nil), p.columns...)
+	clone.sourceFields = append([]FieldRef(nil), p.sourceFields...)
 	clone.conditions = cloneConditions(p.conditions)
 	clone.orderings = append([]Ordering(nil), p.orderings...)
 	if p.limit != nil {
 		limit := *p.limit
 		clone.limit = &limit
 	}
+	if p.offset != nil {
+		offset := *p.offset
+		clone.offset = &offset
+	}
+	clone.result = p.result.clone()
 	if p.relationProjection != nil {
 		projection := p.relationProjection.clone()
 		clone.relationProjection = &projection

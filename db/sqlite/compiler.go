@@ -10,13 +10,22 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
-	if _, selected := plan.RelationProjection(); selected {
+	_, selected := plan.RelationProjection()
+	related := false
+	for _, condition := range plan.Conditions() {
+		if _, ok := condition.RelationPath(); ok {
+			related = true
+			break
+		}
+	}
+	if plan.ResultShape().Kind() != query.ResultModel && (selected || related) {
+		return "", nil, unsupportedResult("SQLite projection and aggregate results cannot combine with relation paths or relation projection")
+	}
+	if selected {
 		return compileRelation(plan)
 	}
-	for _, condition := range plan.Conditions() {
-		if _, related := condition.RelationPath(); related {
-			return compileRelation(plan)
-		}
+	if related {
+		return compileRelation(plan)
 	}
 	return compileScalar(plan)
 }
@@ -28,14 +37,41 @@ func compileScalar(plan query.Plan) (string, []any, error) {
 	if plan.Table() == "" {
 		return "", nil, invalidPlan("table is empty")
 	}
-	columns := plan.Columns()
-	if len(columns) == 0 {
+	sourceFields := plan.SourceFields()
+	if err := validateReadSourceFields(sourceFields); err != nil {
+		return "", nil, err
+	}
+	result := plan.ResultShape()
+	switch result.Kind() {
+	case query.ResultModel:
+		if len(result.Expressions()) != 0 {
+			return "", nil, invalidPlan("model result contains explicit expressions")
+		}
+		return compileScalarRows(plan, sourceFields, sourceFields)
+	case query.ResultProjection:
+		projectionFields, err := scalarProjectionFields(result, sourceFields)
+		if err != nil {
+			return "", nil, err
+		}
+		return compileScalarRows(plan, projectionFields, sourceFields)
+	case query.ResultAggregate:
+		return compileScalarAggregate(plan, result, sourceFields)
+	default:
+		return "", nil, invalidPlan("query result kind is invalid")
+	}
+}
+
+func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.FieldRef) (string, []any, error) {
+	if len(selectedFields) == 0 {
 		return "", nil, invalidPlan("select columns are empty")
 	}
 
 	var sql strings.Builder
 	sql.WriteString("SELECT ")
-	for index, column := range columns {
+	if plan.Distinct() {
+		sql.WriteString("DISTINCT ")
+	}
+	for index, column := range selectedFields {
 		if index > 0 {
 			sql.WriteString(", ")
 		}
@@ -61,7 +97,7 @@ func compileScalar(plan query.Plan) (string, []any, error) {
 		if index > 0 {
 			sql.WriteString(" AND ")
 		}
-		if !containsField(columns, condition.Field()) {
+		if !containsField(sourceFields, condition.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
 		}
 		field, err := quoteIdentifier(condition.Field().Column())
@@ -84,7 +120,7 @@ func compileScalar(plan query.Plan) (string, []any, error) {
 		if index > 0 {
 			sql.WriteString(", ")
 		}
-		if !containsField(columns, ordering.Field()) {
+		if !containsField(sourceFields, ordering.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
 		}
 		field, err := quoteIdentifier(ordering.Field().Column())
@@ -100,12 +136,171 @@ func compileScalar(plan query.Plan) (string, []any, error) {
 		default:
 			return "", nil, invalidPlan("unknown ordering direction")
 		}
+		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
+			!containsField(selectedFields, ordering.Field()) {
+			return "", nil, unsupportedDistinctOrdering(ordering.Field())
+		}
 	}
-	if limit, ok := plan.Limit(); ok {
+	arguments = appendPagination(&sql, arguments, plan)
+	return sql.String(), arguments, nil
+}
+
+func scalarProjectionFields(result query.ResultShape, sourceFields []query.FieldRef) ([]query.FieldRef, error) {
+	expressions := result.Expressions()
+	if len(expressions) == 0 {
+		return nil, invalidPlan("projection result is empty")
+	}
+	fields := make([]query.FieldRef, len(expressions))
+	for index, expression := range expressions {
+		field, ok := expression.Field()
+		if expression.Kind() != query.ResultField || !ok || !containsField(sourceFields, field) {
+			return nil, invalidPlan("projection result contains a field outside the plan source metadata")
+		}
+		fields[index] = field
+	}
+	return fields, nil
+}
+
+func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFields []query.FieldRef) (string, []any, error) {
+	expressions := result.Expressions()
+	if len(expressions) == 0 {
+		return "", nil, invalidPlan("aggregate result is empty")
+	}
+	_, limited := plan.Limit()
+	_, offset := plan.Offset()
+	if !plan.Distinct() && !limited && !offset {
+		return compileDirectScalarAggregate(plan, expressions, sourceFields)
+	}
+	innerSQL, arguments, err := compileScalarRows(plan, sourceFields, sourceFields)
+	if err != nil {
+		return "", nil, err
+	}
+
+	const sourceAlias = "godj_aggregate_source"
+	quotedAlias, err := quoteIdentifier(sourceAlias)
+	if err != nil {
+		return "", nil, err
+	}
+	var sql strings.Builder
+	sql.WriteString("SELECT ")
+	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, sourceAlias); err != nil {
+		return "", nil, err
+	}
+	sql.WriteString(" FROM (")
+	sql.WriteString(innerSQL)
+	sql.WriteString(") AS ")
+	sql.WriteString(quotedAlias)
+	return sql.String(), arguments, nil
+}
+
+func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExpression, sourceFields []query.FieldRef) (string, []any, error) {
+	table, err := quoteIdentifier(plan.Table())
+	if err != nil {
+		return "", nil, err
+	}
+
+	var sql strings.Builder
+	sql.WriteString("SELECT ")
+	if err := appendScalarAggregateExpressions(&sql, expressions, sourceFields, ""); err != nil {
+		return "", nil, err
+	}
+	sql.WriteString(" FROM ")
+	sql.WriteString(table)
+
+	conditions := plan.Conditions()
+	arguments := make([]any, 0, len(conditions))
+	if len(conditions) > 0 {
+		sql.WriteString(" WHERE ")
+	}
+	for index, condition := range conditions {
+		if index > 0 {
+			sql.WriteString(" AND ")
+		}
+		if !containsField(sourceFields, condition.Field()) {
+			return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
+		}
+		field, err := quoteIdentifier(condition.Field().Column())
+		if err != nil {
+			return "", nil, err
+		}
+		sql.WriteString(field)
+		conditionArguments, err := compileCondition(&sql, condition)
+		if err != nil {
+			return "", nil, err
+		}
+		arguments = append(arguments, conditionArguments...)
+	}
+	if err := validateOmittedScalarOrderings(plan.Orderings(), sourceFields); err != nil {
+		return "", nil, err
+	}
+	return sql.String(), arguments, nil
+}
+
+func validateOmittedScalarOrderings(orderings []query.Ordering, sourceFields []query.FieldRef) error {
+	for _, ordering := range orderings {
+		if !containsField(sourceFields, ordering.Field()) {
+			return invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+		}
+		if _, err := quoteIdentifier(ordering.Field().Column()); err != nil {
+			return err
+		}
+		switch ordering.Direction() {
+		case query.Ascending, query.Descending:
+		default:
+			return invalidPlan("unknown ordering direction")
+		}
+	}
+	return nil
+}
+
+func appendScalarAggregateExpressions(sql *strings.Builder, expressions []query.ResultExpression, sourceFields []query.FieldRef, sourceAlias string) error {
+	for index, expression := range expressions {
+		if index > 0 {
+			sql.WriteString(", ")
+		}
+		switch expression.Kind() {
+		case query.ResultCountAll:
+			if _, ok := expression.Field(); ok {
+				return invalidPlan("COUNT(*) result contains a field")
+			}
+			sql.WriteString("COUNT(*)")
+		case query.ResultMax:
+			field, ok := expression.Field()
+			if !ok || !containsField(sourceFields, field) ||
+				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
+				return invalidPlan("MAX result requires an integer or string source field")
+			}
+			quoted, err := quoteIdentifier(field.Column())
+			if sourceAlias != "" {
+				quoted, err = quoteQualified(sourceAlias, field.Column())
+			}
+			if err != nil {
+				return err
+			}
+			sql.WriteString("MAX(")
+			sql.WriteString(quoted)
+			sql.WriteByte(')')
+		default:
+			return invalidPlan("aggregate result contains an unsupported expression")
+		}
+	}
+	return nil
+}
+
+func appendPagination(sql *strings.Builder, arguments []any, plan query.Plan) []any {
+	limit, limited := plan.Limit()
+	if limited {
 		sql.WriteString(" LIMIT ?")
 		arguments = append(arguments, int64(limit))
 	}
-	return sql.String(), arguments, nil
+	if offset, ok := plan.Offset(); ok {
+		if !limited {
+			sql.WriteString(" LIMIT -1")
+		}
+		sql.WriteString(" OFFSET ?")
+		arguments = append(arguments, int64(offset))
+	}
+	return arguments
 }
 
 type relationJoinKey struct {
@@ -124,12 +319,15 @@ type relationJoin struct {
 }
 
 func compileRelation(plan query.Plan) (string, []any, error) {
+	if plan.ResultShape().Kind() != query.ResultModel {
+		return "", nil, unsupportedResult("SQLite relation compilation requires a model result")
+	}
 	if plan.Table() == "" {
 		return "", nil, invalidPlan("table is empty")
 	}
-	columns := plan.Columns()
-	if len(columns) == 0 {
-		return "", nil, invalidPlan("select columns are empty")
+	columns := plan.SourceFields()
+	if err := validateReadSourceFields(columns); err != nil {
+		return "", nil, err
 	}
 
 	conditions := plan.Conditions()
@@ -258,6 +456,9 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 	const rootAlias = "t0"
 	var sql strings.Builder
 	sql.WriteString("SELECT ")
+	if plan.Distinct() {
+		sql.WriteString("DISTINCT ")
+	}
 	for index, column := range columns {
 		if index > 0 {
 			sql.WriteString(", ")
@@ -380,10 +581,7 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 			return "", nil, invalidPlan("unknown ordering direction")
 		}
 	}
-	if limit, ok := plan.Limit(); ok {
-		sql.WriteString(" LIMIT ?")
-		arguments = append(arguments, int64(limit))
-	}
+	arguments = appendPagination(&sql, arguments, plan)
 	return sql.String(), arguments, nil
 }
 
@@ -406,7 +604,7 @@ func validateRelationProjection(plan query.Plan, projection query.RelationProjec
 		return relationJoinKey{}, invalidPlan("relation projection contains non-canonical metadata")
 	}
 	sourceKey := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
-	if !containsField(plan.Columns(), sourceKey) {
+	if !containsField(plan.SourceFields(), sourceKey) {
 		return relationJoinKey{}, invalidPlan(fmt.Sprintf(
 			"relation projection source key %q is not selected model metadata",
 			hop.Field(),
@@ -610,6 +808,40 @@ func quoteIdentifier(identifier string) (string, error) {
 	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`, nil
 }
 
+// validateReadSourceFields closes the decoder metadata domain without
+// narrowing SQLite's existing quoted-identifier policy. Logical names remain
+// exact GoDj names, while physical columns use SQLite's ASCII case folding.
+func validateReadSourceFields(fields []query.FieldRef) error {
+	if len(fields) == 0 {
+		return invalidPlan("select columns are empty")
+	}
+	names := make(map[string]struct{}, len(fields))
+	columns := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		if _, err := quoteIdentifier(field.Name()); err != nil {
+			return invalidPlan(fmt.Sprintf("field name %q is empty or contains NUL", field.Name()))
+		}
+		if _, err := quoteIdentifier(field.Column()); err != nil {
+			return invalidPlan(fmt.Sprintf("field column %q is empty or contains NUL", field.Column()))
+		}
+		switch field.Kind() {
+		case query.FieldInteger, query.FieldString, query.FieldBoolean:
+		default:
+			return invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
+		}
+		if _, duplicate := names[field.Name()]; duplicate {
+			return invalidPlan(fmt.Sprintf("field name %q is duplicated", field.Name()))
+		}
+		columnKey := sqliteIdentifierKey(field.Column())
+		if _, duplicate := columns[columnKey]; duplicate {
+			return invalidPlan(fmt.Sprintf("field column %q is duplicated under SQLite identifier rules", field.Column()))
+		}
+		names[field.Name()] = struct{}{}
+		columns[columnKey] = struct{}{}
+	}
+	return nil
+}
+
 func escapeLike(value string) string {
 	value = strings.ReplaceAll(value, `\`, `\\`)
 	value = strings.ReplaceAll(value, `%`, `\%`)
@@ -652,5 +884,22 @@ func unsupportedRelatedCondition(condition query.Condition, detail string) error
 		Field:    condition.Field().Name(),
 		Lookup:   string(condition.Lookup()),
 		Detail:   detail,
+	}
+}
+
+func unsupportedResult(detail string) error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeUnsupported,
+		Detail:   detail,
+	}
+}
+
+func unsupportedDistinctOrdering(field query.FieldRef) error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeUnsupported,
+		Field:    field.Name(),
+		Detail:   "SQLite DISTINCT projection requires every ordering field in the result shape",
 	}
 }

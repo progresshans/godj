@@ -798,7 +798,7 @@ func assertProductAuthorPlan(t *testing.T, plan query.Plan) {
 	if plan.Table() != "authors_author" {
 		t.Fatalf("generated author plan table = %q, want authors_author", plan.Table())
 	}
-	columns := plan.Columns()
+	columns := plan.SourceFields()
 	if len(columns) != 2 || columns[0].Name() != "id" || columns[1].Name() != "name" {
 		t.Fatalf("generated author plan columns = %#v", columns)
 	}

@@ -117,6 +117,31 @@ func (qs QuerySet[M]) Limit(limit int) (QuerySet[M], error) {
 	return qs, nil
 }
 
+// Offset derives a new QuerySet that skips the first offset rows. It performs
+// no I/O and never shares the source evaluation cache.
+func (qs QuerySet[M]) Offset(offset int) (QuerySet[M], error) {
+	if qs.configurationErr != nil {
+		return qs, qs.configurationErr
+	}
+	plan, err := qs.plan.WithOffset(offset)
+	if err != nil {
+		return QuerySet[M]{}, err
+	}
+	qs.plan = plan
+	qs.evaluation = newEvaluationState[M]()
+	return qs, nil
+}
+
+// Distinct derives a new QuerySet whose complete selected rows are unique. It
+// performs no I/O and never shares the source evaluation cache.
+func (qs QuerySet[M]) Distinct() QuerySet[M] {
+	qs.evaluation = newEvaluationState[M]()
+	if qs.configurationErr == nil {
+		qs.plan = qs.plan.WithDistinct()
+	}
+	return qs
+}
+
 // Fresh returns the same immutable query plan with a new, unpopulated
 // evaluation state. It performs no backend I/O.
 func (qs QuerySet[M]) Fresh() QuerySet[M] {
@@ -172,11 +197,6 @@ func (qs QuerySet[M]) All(ctx context.Context) ([]M, error) {
 		state.mu.Unlock()
 
 		values, err := qs.scanAll(ctx)
-		if err == nil {
-			if contextErr := ctx.Err(); contextErr != nil {
-				err = contextErr
-			}
-		}
 
 		state.mu.Lock()
 		if err == nil {
@@ -196,8 +216,8 @@ func (qs QuerySet[M]) All(ctx context.Context) ([]M, error) {
 }
 
 // Count returns the number of rows represented by the plan. A warm full
-// result cache is reused; a cold count drains backend rows without retaining
-// decoded models or populating that cache.
+// result cache is reused; a cold count compiles a scalar COUNT over the
+// logical sliced/distinct source without populating the model cache.
 func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 	if err := qs.validateTerminal(ctx); err != nil {
 		return 0, err
@@ -205,7 +225,21 @@ func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 	if values, ok := qs.cachedValues(); ok {
 		return int64(len(values)), nil
 	}
+	// Scalar aggregate terminals intentionally reject relation traversal.
+	// Preserve Count's established cold/warm behavior for relation-backed
+	// QuerySets by retaining the legacy row-drain path until relation
+	// aggregates become an explicit compiler capability.
+	if planUsesRelations(qs.plan) {
+		return qs.countRowsByIteration(ctx)
+	}
+	return AggregateInto(
+		ctx,
+		qs,
+		Aggregate1(CountRows[M](), func(count int64) int64 { return count }),
+	)
+}
 
+func (qs QuerySet[M]) countRowsByIteration(ctx context.Context) (int64, error) {
 	rows, err := qs.openRows(ctx, qs.plan)
 	if err != nil {
 		return 0, err
@@ -214,15 +248,23 @@ func (qs QuerySet[M]) Count(ctx context.Context) (int64, error) {
 	for rows.Next() {
 		count++
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+	err = finishRowsLifecycle(ctx, err, rows)
 	if err != nil {
 		return 0, err
 	}
-	if err := ctx.Err(); err != nil {
-		return 0, err
-	}
 	return count, nil
+}
+
+func planUsesRelations(plan query.Plan) bool {
+	if _, selected := plan.RelationProjection(); selected {
+		return true
+	}
+	for _, condition := range plan.Conditions() {
+		if _, related := condition.RelationPath(); related {
+			return true
+		}
+	}
+	return false
 }
 
 // Exists reports whether the plan contains at least one row. Cold evaluation
@@ -240,12 +282,8 @@ func (qs QuerySet[M]) Exists(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	exists := rows.Next()
-	err = joinRowsErr(nil, rows)
-	err = closeRows(err, rows)
+	err = finishRowsLifecycle(ctx, nil, rows)
 	if err != nil {
-		return false, err
-	}
-	if err := ctx.Err(); err != nil {
 		return false, err
 	}
 	return exists, nil
@@ -300,12 +338,8 @@ func (qs QuerySet[M]) At(ctx context.Context, index int) (M, bool, error) {
 		}
 		break
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+	err = finishRowsLifecycle(ctx, err, rows)
 	if err != nil {
-		return zero, false, err
-	}
-	if err := ctx.Err(); err != nil {
 		return zero, false, err
 	}
 	return value, found, nil
@@ -346,17 +380,12 @@ func (qs QuerySet[M]) Iterate(ctx context.Context, callback func(M) error) error
 			break
 		}
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
-	if err != nil {
-		return err
-	}
-	return ctx.Err()
+	return finishRowsLifecycle(ctx, err, rows)
 }
 
 func (qs QuerySet[M]) validateTerminal(ctx context.Context) error {
-	if ctx == nil {
-		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	if interfaceIsNil(ctx) {
+		return invalidTerminalContext()
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -402,8 +431,7 @@ func (qs QuerySet[M]) scanAll(ctx context.Context) ([]M, error) {
 		// canonical cache. A second clone is made for every caller below.
 		values = append(values, qs.descriptor.CloneModel(value))
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
+	err = finishRowsLifecycle(ctx, err, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -423,19 +451,47 @@ func (qs QuerySet[M]) openRows(ctx context.Context, plan query.Plan) (db.Rows, e
 	if err != nil {
 		if !interfaceIsNil(rows) {
 			if closeErr := rows.Close(); closeErr != nil {
-				return nil, errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
+				err = errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
 			}
 		}
-		return nil, err
+		return nil, joinContextErr(err, ctx)
 	}
 	if interfaceIsNil(rows) {
-		return nil, &query.Error{
+		return nil, joinContextErr(&query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeInvalidPlan,
 			Detail:   "backend returned nil rows without an error",
-		}
+		}, ctx)
 	}
 	return rows, nil
+}
+
+func finishRowsLifecycle(ctx context.Context, err error, rows db.Rows) error {
+	err = joinRowsErr(err, rows)
+	err = closeRows(err, rows)
+	return joinContextErr(err, ctx)
+}
+
+func joinContextErr(err error, ctx context.Context) error {
+	if interfaceIsNil(ctx) {
+		contextErr := invalidTerminalContext()
+		if err == nil {
+			return contextErr
+		}
+		return errors.Join(err, contextErr)
+	}
+	contextErr := ctx.Err()
+	if contextErr == nil {
+		return err
+	}
+	if err == nil {
+		return contextErr
+	}
+	return errors.Join(err, contextErr)
+}
+
+func invalidTerminalContext() error {
+	return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "context is nil"}
 }
 
 func joinRowsErr(err error, rows db.Rows) error {

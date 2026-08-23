@@ -7,6 +7,13 @@
 <body>
   <main>
     <h1>Articles</h1>
+    <section id="article-report" data-matching-count="{{.Report.MatchingCount}}"{{with .Report.LatestID}} data-latest-id="{{.}}"{{end}}>
+      <p>Matching articles: <span class="matching-count">{{.Report.MatchingCount}}</span></p>
+      {{with .Report.LatestID}}<p>Latest article ID: <span class="latest-id">{{.}}</span></p>{{else}}<p class="latest-id latest-id-null">No matching article.</p>{{end}}
+    </section>
+    <nav id="article-pagination" data-offset="{{.Pagination.Offset}}" data-limit="{{.Pagination.Limit}}" data-page-count="{{.Pagination.Returned}}" aria-label="Article pagination">
+      Offset {{.Pagination.Offset}}, limit {{.Pagination.Limit}}, returned {{.Pagination.Returned}}
+    </nav>
     <ul>
       {{range .Articles}}
       <li data-article-id="{{.ID}}" data-published="{{.Published}}">

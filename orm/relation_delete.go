@@ -345,12 +345,7 @@ func collectProtectedRelationRows(
 		}
 		protected[relationDeleteProtectedSource{source: edge.metadata.Source, primaryKey: primaryKey}] = struct{}{}
 	}
-	err = joinRowsErr(err, rows)
-	err = closeRows(err, rows)
-	if err != nil {
-		return err
-	}
-	return ctx.Err()
+	return finishRowsLifecycle(ctx, err, rows)
 }
 
 type relationDeleteCallbackGuard struct {

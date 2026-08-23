@@ -142,6 +142,57 @@ func TestRunMatchesLockedQueryCacheOracle(t *testing.T) {
 	}
 }
 
+func TestRunMatchesPinnedQueryBreadthOracle(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	profilePath := filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json")
+	manifestPath := filepath.Join(root, "conformance", "contracts", "query-breadth-manifest.json")
+	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-breadth-oracle.json")
+	actualPath := filepath.Join(t.TempDir(), "query-breadth-actual.json")
+	arguments := []string{
+		"-profile", profilePath,
+		"-manifest", manifestPath,
+		"-expected", oraclePath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, stderr = %s", code, stderr.String())
+	}
+	if stdout.String() != "GoDj observations match the locked reference oracle for 12 contracts\n" {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+
+	manifest, err := protocol.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	required, err := godjrunner.RequiredObservedContractIDs(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(required) != 12 || required[0] != "QRY-022" || required[11] != "QRY-033" {
+		t.Fatalf("query-breadth required IDs = %#v", required)
+	}
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(actual.Contracts) != 12 || actual.Contracts[0].ID != "QRY-022" || actual.Contracts[11].ID != "QRY-033" {
+		t.Fatalf("query-breadth actual contracts = %#v", actual.Contracts)
+	}
+	for _, observation := range actual.Contracts {
+		if observation.Status != protocol.StatusObserved {
+			t.Fatalf("query-breadth contract %s status = %q, want observed", observation.ID, observation.Status)
+		}
+	}
+}
+
 func TestRunQueryCacheActualOutputIsDeterministic(t *testing.T) {
 	t.Parallel()
 

@@ -36,4 +36,17 @@ type articleListPage struct {
 	ProjectName string
 	SelfURL     string
 	Articles    []ArticleView
+	Report      articleListReport
+	Pagination  articleListPagination
+}
+
+type articleListReport struct {
+	MatchingCount int64
+	LatestID      *int64
+}
+
+type articleListPagination struct {
+	Offset   int
+	Limit    int
+	Returned int
 }

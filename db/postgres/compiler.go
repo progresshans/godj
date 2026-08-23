@@ -17,33 +17,65 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	if err := validateSchemaIdentifier(schema); err != nil {
 		return "", nil, invalidPlan(err.Error())
 	}
-	if _, selected := plan.RelationProjection(); selected {
-		return compileRelation(schema, plan)
-	}
+	_, relationProjection := plan.RelationProjection()
+	hasRelation := relationProjection
 	for _, condition := range plan.Conditions() {
 		if _, related := condition.RelationPath(); related {
-			return compileRelation(schema, plan)
+			hasRelation = true
+			break
 		}
 	}
-	return compileScalar(schema, plan)
+
+	resultKind := plan.ResultShape().Kind()
+	if resultKind != query.ResultModel && hasRelation {
+		return "", nil, unsupportedResultShape(
+			"PostgreSQL scalar projection and aggregate results cannot traverse or project relations",
+		)
+	}
+	switch resultKind {
+	case query.ResultModel, query.ResultProjection:
+		if hasRelation {
+			return compileRelation(schema, plan)
+		}
+		return compileScalar(schema, plan)
+	case query.ResultAggregate:
+		return compileAggregate(schema, plan)
+	default:
+		return "", nil, invalidPlan("query result kind is invalid")
+	}
 }
 
 func compileScalar(schema string, plan query.Plan) (string, []any, error) {
 	if err := validateIdentifier(plan.Table()); err != nil {
 		return "", nil, invalidPlan("table " + err.Error())
 	}
-	columns := plan.Columns()
-	if len(columns) == 0 {
-		return "", nil, invalidPlan("select columns are empty")
+	sourceFields, err := validateReadSourceFields(plan.SourceFields())
+	if err != nil {
+		return "", nil, err
 	}
+	selectedFields, err := scalarSelectedFields(plan, sourceFields)
+	if err != nil {
+		return "", nil, err
+	}
+	return compileScalarSelect(schema, plan, sourceFields, selectedFields)
+}
 
+func compileScalarSelect(
+	schema string,
+	plan query.Plan,
+	sourceFields,
+	selectedFields []query.FieldRef,
+) (string, []any, error) {
 	var statement strings.Builder
 	statement.WriteString("SELECT ")
-	for index, column := range columns {
+	if plan.Distinct() {
+		statement.WriteString("DISTINCT ")
+	}
+	for index, field := range selectedFields {
 		if index > 0 {
 			statement.WriteString(", ")
 		}
-		quoted, err := quoteIdentifier(column.Column())
+		quoted, err := quoteIdentifier(field.Column())
 		if err != nil {
 			return "", nil, err
 		}
@@ -56,28 +88,9 @@ func compileScalar(schema string, plan query.Plan) (string, []any, error) {
 	}
 	statement.WriteString(table)
 
-	conditions := plan.Conditions()
-	arguments := make([]any, 0, len(conditions)+1)
-	if len(conditions) > 0 {
-		statement.WriteString(" WHERE ")
-	}
-	for index, condition := range conditions {
-		if index > 0 {
-			statement.WriteString(" AND ")
-		}
-		if !containsField(columns, condition.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
-		}
-		field, err := quoteIdentifier(condition.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		statement.WriteString(field)
-		conditionArguments, err := compileCondition(&statement, condition, len(arguments)+1)
-		if err != nil {
-			return "", nil, err
-		}
-		arguments = append(arguments, conditionArguments...)
+	arguments, err := appendScalarConditions(&statement, plan.Conditions(), sourceFields)
+	if err != nil {
+		return "", nil, err
 	}
 
 	orderings := plan.Orderings()
@@ -88,8 +101,12 @@ func compileScalar(schema string, plan query.Plan) (string, []any, error) {
 		if index > 0 {
 			statement.WriteString(", ")
 		}
-		if !containsField(columns, ordering.Field()) {
+		if !containsField(sourceFields, ordering.Field()) {
 			return "", nil, invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+		}
+		if plan.Distinct() && plan.ResultShape().Kind() == query.ResultProjection &&
+			!containsField(selectedFields, ordering.Field()) {
+			return "", nil, unsupportedDistinctOrdering(ordering.Field())
 		}
 		field, err := quoteIdentifier(ordering.Field().Column())
 		if err != nil {
@@ -105,12 +122,237 @@ func compileScalar(schema string, plan query.Plan) (string, []any, error) {
 			return "", nil, invalidPlan("unknown ordering direction")
 		}
 	}
-	if limit, ok := plan.Limit(); ok {
-		statement.WriteString(" LIMIT ")
-		statement.WriteString(placeholder(len(arguments) + 1))
-		arguments = append(arguments, int64(limit))
+	appendPagination(&statement, &arguments, plan)
+	return statement.String(), arguments, nil
+}
+
+func compileAggregate(schema string, plan query.Plan) (string, []any, error) {
+	if err := validateIdentifier(plan.Table()); err != nil {
+		return "", nil, invalidPlan("table " + err.Error())
+	}
+	sourceFields, err := validateReadSourceFields(plan.SourceFields())
+	if err != nil {
+		return "", nil, err
+	}
+	expressions := plan.ResultShape().Expressions()
+	if len(expressions) == 0 {
+		return "", nil, invalidPlan("aggregate result is empty")
+	}
+	_, limited := plan.Limit()
+	_, offset := plan.Offset()
+	if !plan.Distinct() && !limited && !offset {
+		return compileDirectAggregate(schema, plan, expressions, sourceFields)
+	}
+	return compileDerivedAggregate(schema, plan, expressions, sourceFields)
+}
+
+func compileDerivedAggregate(
+	schema string,
+	plan query.Plan,
+	expressions []query.ResultExpression,
+	sourceFields []query.FieldRef,
+) (string, []any, error) {
+	const sourceAlias = "godj_source"
+	var statement strings.Builder
+	statement.WriteString("SELECT ")
+	if err := appendAggregateExpressions(&statement, expressions, sourceFields, sourceAlias); err != nil {
+		return "", nil, err
+	}
+
+	inner, arguments, err := compileScalarSelect(schema, plan, sourceFields, sourceFields)
+	if err != nil {
+		return "", nil, err
+	}
+	quotedAlias, err := quoteIdentifier(sourceAlias)
+	if err != nil {
+		return "", nil, err
+	}
+	statement.WriteString(" FROM (")
+	statement.WriteString(inner)
+	statement.WriteString(") AS ")
+	statement.WriteString(quotedAlias)
+	return statement.String(), arguments, nil
+}
+
+func compileDirectAggregate(
+	schema string,
+	plan query.Plan,
+	expressions []query.ResultExpression,
+	sourceFields []query.FieldRef,
+) (string, []any, error) {
+	table, err := quoteTable(schema, plan.Table())
+	if err != nil {
+		return "", nil, err
+	}
+
+	var statement strings.Builder
+	statement.WriteString("SELECT ")
+	if err := appendAggregateExpressions(&statement, expressions, sourceFields, ""); err != nil {
+		return "", nil, err
+	}
+	statement.WriteString(" FROM ")
+	statement.WriteString(table)
+
+	arguments, err := appendScalarConditions(&statement, plan.Conditions(), sourceFields)
+	if err != nil {
+		return "", nil, err
+	}
+	if err := validateOmittedAggregateOrderings(plan.Orderings(), sourceFields); err != nil {
+		return "", nil, err
 	}
 	return statement.String(), arguments, nil
+}
+
+func appendScalarConditions(
+	statement *strings.Builder,
+	conditions []query.Condition,
+	sourceFields []query.FieldRef,
+) ([]any, error) {
+	arguments := make([]any, 0, len(conditions))
+	if len(conditions) > 0 {
+		statement.WriteString(" WHERE ")
+	}
+	for index, condition := range conditions {
+		if index > 0 {
+			statement.WriteString(" AND ")
+		}
+		if !containsField(sourceFields, condition.Field()) {
+			return nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
+		}
+		field, err := quoteIdentifier(condition.Field().Column())
+		if err != nil {
+			return nil, err
+		}
+		statement.WriteString(field)
+		conditionArguments, err := compileCondition(statement, condition, len(arguments)+1)
+		if err != nil {
+			return nil, err
+		}
+		arguments = append(arguments, conditionArguments...)
+	}
+	return arguments, nil
+}
+
+func validateOmittedAggregateOrderings(orderings []query.Ordering, sourceFields []query.FieldRef) error {
+	for _, ordering := range orderings {
+		if !containsField(sourceFields, ordering.Field()) {
+			return invalidPlan(fmt.Sprintf("ordering field %q is not selected model metadata", ordering.Field().Name()))
+		}
+		if _, err := quoteIdentifier(ordering.Field().Column()); err != nil {
+			return err
+		}
+		switch ordering.Direction() {
+		case query.Ascending, query.Descending:
+		default:
+			return invalidPlan("unknown ordering direction")
+		}
+	}
+	return nil
+}
+
+func appendAggregateExpressions(
+	statement *strings.Builder,
+	expressions []query.ResultExpression,
+	sourceFields []query.FieldRef,
+	sourceAlias string,
+) error {
+	for index, expression := range expressions {
+		if index > 0 {
+			statement.WriteString(", ")
+		}
+		switch expression.Kind() {
+		case query.ResultCountAll:
+			if _, hasField := expression.Field(); hasField {
+				return invalidPlan("COUNT(*) result contains a field")
+			}
+			statement.WriteString("COUNT(*)")
+		case query.ResultMax:
+			field, ok := expression.Field()
+			if !ok || !containsField(sourceFields, field) ||
+				(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
+				return invalidPlan("MAX result field is not supported source metadata")
+			}
+			quoted, err := quoteIdentifier(field.Column())
+			if sourceAlias != "" {
+				quoted, err = quoteQualified(sourceAlias, field.Column())
+			}
+			if err != nil {
+				return err
+			}
+			statement.WriteString("MAX(")
+			statement.WriteString(quoted)
+			statement.WriteByte(')')
+		default:
+			return invalidPlan("aggregate result contains an unsupported expression")
+		}
+	}
+	return nil
+}
+
+func scalarSelectedFields(plan query.Plan, sourceFields []query.FieldRef) ([]query.FieldRef, error) {
+	switch plan.ResultShape().Kind() {
+	case query.ResultModel:
+		return sourceFields, nil
+	case query.ResultProjection:
+		expressions := plan.ResultShape().Expressions()
+		if len(expressions) == 0 {
+			return nil, invalidPlan("projection result is empty")
+		}
+		selected := make([]query.FieldRef, len(expressions))
+		for index, expression := range expressions {
+			field, ok := expression.Field()
+			if expression.Kind() != query.ResultField || !ok || !containsField(sourceFields, field) {
+				return nil, invalidPlan("projection result field is not supported source metadata")
+			}
+			selected[index] = field
+		}
+		return selected, nil
+	default:
+		return nil, invalidPlan("scalar compiler requires a model or projection result")
+	}
+}
+
+func validateReadSourceFields(fields []query.FieldRef) ([]query.FieldRef, error) {
+	if len(fields) == 0 {
+		return nil, invalidPlan("select columns are empty")
+	}
+	names := make(map[string]struct{}, len(fields))
+	columns := make(map[string]struct{}, len(fields))
+	for _, field := range fields {
+		if err := validateIdentifier(field.Name()); err != nil {
+			return nil, invalidPlan("field name " + err.Error())
+		}
+		if err := validateIdentifier(field.Column()); err != nil {
+			return nil, invalidPlan("field column " + err.Error())
+		}
+		switch field.Kind() {
+		case query.FieldInteger, query.FieldString, query.FieldBoolean:
+		default:
+			return nil, invalidPlan(fmt.Sprintf("field %q has unsupported kind %q", field.Name(), field.Kind()))
+		}
+		if _, duplicate := names[field.Name()]; duplicate {
+			return nil, invalidPlan(fmt.Sprintf("field name %q is duplicated", field.Name()))
+		}
+		if _, duplicate := columns[field.Column()]; duplicate {
+			return nil, invalidPlan(fmt.Sprintf("field column %q is duplicated", field.Column()))
+		}
+		names[field.Name()] = struct{}{}
+		columns[field.Column()] = struct{}{}
+	}
+	return fields, nil
+}
+
+func appendPagination(statement *strings.Builder, arguments *[]any, plan query.Plan) {
+	if limit, ok := plan.Limit(); ok {
+		statement.WriteString(" LIMIT ")
+		statement.WriteString(placeholder(len(*arguments) + 1))
+		*arguments = append(*arguments, int64(limit))
+	}
+	if offset, ok := plan.Offset(); ok {
+		statement.WriteString(" OFFSET ")
+		statement.WriteString(placeholder(len(*arguments) + 1))
+		*arguments = append(*arguments, int64(offset))
+	}
 }
 
 type relationJoinKey struct {
@@ -132,9 +374,9 @@ func compileRelation(schema string, plan query.Plan) (string, []any, error) {
 	if err := validateIdentifier(plan.Table()); err != nil {
 		return "", nil, invalidPlan("table " + err.Error())
 	}
-	columns := plan.Columns()
-	if len(columns) == 0 {
-		return "", nil, invalidPlan("select columns are empty")
+	columns, err := validateReadSourceFields(plan.SourceFields())
+	if err != nil {
+		return "", nil, err
 	}
 
 	conditions := plan.Conditions()
@@ -249,6 +491,9 @@ func compileRelation(schema string, plan query.Plan) (string, []any, error) {
 	const rootAlias = "t0"
 	var statement strings.Builder
 	statement.WriteString("SELECT ")
+	if plan.Distinct() {
+		statement.WriteString("DISTINCT ")
+	}
 	for index, column := range columns {
 		if index > 0 {
 			statement.WriteString(", ")
@@ -365,11 +610,7 @@ func compileRelation(schema string, plan query.Plan) (string, []any, error) {
 			return "", nil, invalidPlan("unknown ordering direction")
 		}
 	}
-	if limit, ok := plan.Limit(); ok {
-		statement.WriteString(" LIMIT ")
-		statement.WriteString(placeholder(len(arguments) + 1))
-		arguments = append(arguments, int64(limit))
-	}
+	appendPagination(&statement, &arguments, plan)
 	return statement.String(), arguments, nil
 }
 
@@ -402,7 +643,7 @@ func validateRelationProjection(plan query.Plan, projection query.RelationProjec
 		return relationJoinKey{}, invalidPlan("relation projection contains non-canonical metadata")
 	}
 	sourceKey := query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())
-	if !containsField(plan.Columns(), sourceKey) {
+	if !containsField(plan.SourceFields(), sourceKey) {
 		return relationJoinKey{}, invalidPlan(fmt.Sprintf("relation projection source key %q is not selected model metadata", hop.Field()))
 	}
 	targetColumns := projection.TargetColumns()
@@ -672,5 +913,22 @@ func unsupportedRelatedCondition(condition query.Condition, detail string) error
 		Field:    condition.Field().Name(),
 		Lookup:   string(condition.Lookup()),
 		Detail:   detail,
+	}
+}
+
+func unsupportedResultShape(detail string) error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeUnsupported,
+		Detail:   detail,
+	}
+}
+
+func unsupportedDistinctOrdering(field query.FieldRef) error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeUnsupported,
+		Field:    field.Name(),
+		Detail:   fmt.Sprintf("PostgreSQL DISTINCT projection cannot order by unprojected field %q", field.Name()),
 	}
 }

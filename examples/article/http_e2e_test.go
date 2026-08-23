@@ -3,6 +3,7 @@ package article_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,7 +18,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func TestArticleHTTPEndToEndAndRequestLocalQueryCache(t *testing.T) {
+func TestArticleHTTPEndToEndProjectionReportFilteringAndPagination(t *testing.T) {
 	ctx := context.Background()
 	backend, err := sqlite.OpenMemory(ctx, "article-http-"+t.Name())
 	if err != nil {
@@ -36,8 +37,10 @@ func TestArticleHTTPEndToEndAndRequestLocalQueryCache(t *testing.T) {
 	server := httptest.NewServer(application)
 	t.Cleanup(server.Close)
 	client := &http.Client{Timeout: 5 * time.Second}
+	wantQueries := uint64(0)
 
 	first := getBody(t, client, server.URL+webapp.ArticleListPath, http.StatusOK)
+	wantQueries += 2
 	if !strings.HasPrefix(http.DetectContentType([]byte(first)), "text/html") {
 		t.Fatalf("response is not HTML: %q", first)
 	}
@@ -55,16 +58,85 @@ func TestArticleHTTPEndToEndAndRequestLocalQueryCache(t *testing.T) {
 	if strings.Index(first, `data-article-id="1"`) > strings.Index(first, `data-article-id="2"`) {
 		t.Fatalf("articles are not ordered by primary key: %q", first)
 	}
+	assertArticleListMetadata(t, first, 2, "2", 0, 20, 2)
+	assertArticleQueryCount(t, backend, wantQueries)
 
 	if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES (3, 'Inserted Later', TRUE, NULL)`); err != nil {
 		t.Fatal(err)
 	}
 	second := getBody(t, client, server.URL+webapp.ArticleListPath, http.StatusOK)
+	wantQueries += 2
 	if !strings.Contains(second, `data-article-id="3"`) || !strings.Contains(second, "Inserted Later") {
 		t.Fatalf("second request reused a stale QuerySet result: %q", second)
 	}
-	if queries := backend.QueryCount(); queries != 2 {
-		t.Fatalf("query count after two requests = %d, want 2", queries)
+	assertArticleListMetadata(t, second, 3, "3", 0, 20, 3)
+	assertArticleQueryCount(t, backend, wantQueries)
+
+	published := getBody(t, client, server.URL+webapp.ArticleListPath+"?published=true", http.StatusOK)
+	wantQueries += 2
+	if !strings.Contains(published, `data-article-id="1"`) || !strings.Contains(published, `data-article-id="3"`) ||
+		strings.Contains(published, `data-article-id="2"`) {
+		t.Fatalf("published=true response = %q", published)
+	}
+	assertArticleListMetadata(t, published, 2, "3", 0, 20, 2)
+
+	unpublished := getBody(t, client, server.URL+webapp.ArticleListPath+"?published=false", http.StatusOK)
+	wantQueries += 2
+	if !strings.Contains(unpublished, `data-article-id="2"`) || strings.Contains(unpublished, `data-article-id="1"`) ||
+		strings.Contains(unpublished, `data-article-id="3"`) {
+		t.Fatalf("published=false response = %q", unpublished)
+	}
+	assertArticleListMetadata(t, unpublished, 1, "2", 0, 20, 1)
+
+	paged := getBody(t, client, server.URL+webapp.ArticleListPath+"?offset=1&limit=1", http.StatusOK)
+	wantQueries += 2
+	if !strings.Contains(paged, `data-article-id="2"`) || strings.Contains(paged, `data-article-id="1"`) ||
+		strings.Contains(paged, `data-article-id="3"`) {
+		t.Fatalf("offset/limit response = %q", paged)
+	}
+	assertArticleListMetadata(t, paged, 3, "3", 1, 1, 1)
+
+	outOfRange := getBody(t, client, server.URL+webapp.ArticleListPath+"?offset=99&limit=1", http.StatusOK)
+	wantQueries += 2
+	if !strings.Contains(outOfRange, `<li class="empty">No articles.</li>`) {
+		t.Fatalf("out-of-range offset response = %q", outOfRange)
+	}
+	assertArticleListMetadata(t, outOfRange, 3, "3", 99, 1, 0)
+
+	capped := getBody(t, client, server.URL+webapp.ArticleListPath+"?limit=1000", http.StatusOK)
+	wantQueries += 2
+	assertArticleListMetadata(t, capped, 3, "3", 0, 100, 3)
+
+	unknown := getBody(t, client, server.URL+webapp.ArticleListPath+"?unknown=ignored&limit=1", http.StatusOK)
+	wantQueries += 2
+	if !strings.Contains(unknown, `data-article-id="1"`) || strings.Contains(unknown, `data-article-id="2"`) {
+		t.Fatalf("unknown query parameter changed known pagination semantics: %q", unknown)
+	}
+	assertArticleListMetadata(t, unknown, 3, "3", 0, 1, 1)
+	assertArticleQueryCount(t, backend, wantQueries)
+
+	badQueries := []string{
+		"?published=yes",
+		"?published=True",
+		"?published=true&published=false",
+		"?offset=-1",
+		"?offset=2147483648",
+		"?offset=1&offset=2",
+		"?limit=zero",
+		"?limit=0",
+		"?limit=1&limit=2",
+		"?limit=1;offset=2",
+	}
+	for _, rawQuery := range badQueries {
+		body := getBody(t, client, server.URL+webapp.ArticleListPath+rawQuery, http.StatusBadRequest)
+		if body != "Bad Request\n" {
+			t.Fatalf("invalid query %q body = %q, want deterministic Bad Request", rawQuery, body)
+		}
+	}
+	assertArticleQueryCount(t, backend, wantQueries)
+
+	if queries := backend.QueryCount(); queries != wantQueries {
+		t.Fatalf("query count before concurrent requests = %d, want %d", queries, wantQueries)
 	}
 
 	const concurrentRequests = 24
@@ -95,9 +167,8 @@ func TestArticleHTTPEndToEndAndRequestLocalQueryCache(t *testing.T) {
 	for failure := range failures {
 		t.Error(failure)
 	}
-	if queries := backend.QueryCount(); queries != 2+concurrentRequests {
-		t.Fatalf("query count after concurrent requests = %d, want %d", queries, 2+concurrentRequests)
-	}
+	wantQueries += 2 * concurrentRequests
+	assertArticleQueryCount(t, backend, wantQueries)
 
 	missing := getResponse(t, client, http.MethodGet, server.URL+"/missing/")
 	defer missing.Body.Close()
@@ -108,6 +179,32 @@ func TestArticleHTTPEndToEndAndRequestLocalQueryCache(t *testing.T) {
 	defer wrongMethod.Body.Close()
 	if wrongMethod.StatusCode != http.StatusMethodNotAllowed || wrongMethod.Header.Get("Allow") != http.MethodGet {
 		t.Fatalf("method response = %d Allow=%q", wrongMethod.StatusCode, wrongMethod.Header.Get("Allow"))
+	}
+}
+
+func assertArticleListMetadata(t *testing.T, body string, matching int64, latestID string, offset, limit, returned int) {
+	t.Helper()
+	wantReport := fmt.Sprintf(`id="article-report" data-matching-count="%d"`, matching)
+	if !strings.Contains(body, wantReport) {
+		t.Fatalf("report metadata %q is missing from %q", wantReport, body)
+	}
+	if latestID == "" {
+		if strings.Contains(body, "data-latest-id=") {
+			t.Fatalf("empty report unexpectedly contains latest ID: %q", body)
+		}
+	} else if wantLatest := `data-latest-id="` + latestID + `"`; !strings.Contains(body, wantLatest) {
+		t.Fatalf("latest metadata %q is missing from %q", wantLatest, body)
+	}
+	wantPagination := fmt.Sprintf(`id="article-pagination" data-offset="%d" data-limit="%d" data-page-count="%d"`, offset, limit, returned)
+	if !strings.Contains(body, wantPagination) {
+		t.Fatalf("pagination metadata %q is missing from %q", wantPagination, body)
+	}
+}
+
+func assertArticleQueryCount(t *testing.T, backend *sqlite.Backend, want uint64) {
+	t.Helper()
+	if got := backend.QueryCount(); got != want {
+		t.Fatalf("Article HTTP query count = %d, want %d", got, want)
 	}
 }
 

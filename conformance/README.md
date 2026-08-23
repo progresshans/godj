@@ -98,8 +98,9 @@ GDJ-0030은 별도 exact thirteen-file relation-delete product와 project-bound 
 REL-007 `PROTECT`와 REL-008 `SET_NULL`을 `passing`으로 전환했습니다. GDJ-0033은 existing exact thirteen-file
 generated prerequisite를 byte-for-byte 보존하면서 project facade companion 하나를 교체한 exact fourteen-file
 union에서 forward assignment와 Save를 실행해 REL-002도 `passing`으로 전환했습니다. GDJ-0035 Phase A는
-MIG-075..086을 13번째 reference-only set으로 고정했습니다. 현재 reference는 13 set/139 unique
-contract/139 unique scenario/156 ordered cross-binding이고, 제품 분류는 계속 12 adapter/127 contract의
+MIG-075..086을 13번째 reference-only set으로 고정했습니다. 그 GDJ-0035 Phase A checkout의 reference는
+13 set/139 unique contract/139 unique scenario/156 ordered cross-binding이고, 제품 분류는 계속
+12 adapter/127 contract의
 `122 passing + 5 deviation + 0 oracle_locked`입니다. 이는 relation metadata, required predicate/object cache,
 nullable local-key access/`isnull`, bounded reverse accessor/lookup, exact reverse prefetch와 one-hop forward eager
 selection, forward assignment/Save 및 bounded project-bound `PROTECT`/`SET_NULL` delete 12/12의 제품 증거이며
@@ -143,6 +144,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/write-migration-manifest.json` | M2 write/transaction/migration contract 11개 |
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
+| `contracts/query-breadth-manifest.json` | Typed projection/scalar aggregate/stable pagination reference contract QRY-022..033 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -153,7 +155,8 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
-| `runners/godj` | M1 read부터 relation metadata까지 제품 package를 실행하는 열두 GoDj observation adapter와 immutable actual-handler registry |
+| `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
+| `runners/godj` | M1 read부터 query breadth까지 제품 package를 실행하는 열세 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -560,6 +563,26 @@ byte-identical한 것은 아닙니다. Result/error/DB state/metrics의 계약 �
 [EVID-20260808-007](../docs/status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
 기록합니다.
 
+GDJ-0039는 QRY-022..033의 typed ordered projection, projection 밖 source field filter/order,
+projection/model-cache 독립, distinct, stable offset/limit, cold/warm Count, sliced Count, nullable Max와
+terminal rows ownership 결과를 새 query-breadth set에 고정하고 실제 Article ORM/SQLite adapter를 연결합니다.
+Manifest 12개는 모두 `passing`이며 actual adapter는 pinned Django oracle과 12/12 zero-diff입니다.
+`godj-query-breadth-not-implemented.json`은 ordered 12 mismatch false-green fixture로 남습니다.
+
+QRY-032의 reference payload는 consumer stop과 decode/iteration/close ownership을 고정합니다. Go context
+cancellation은 ORM unit gate에서 별도로 검증합니다. QRY-033 payload는 SQLite 결과 anchor만 소유하며, 실제
+PostgreSQL parity와 cross-model compile rejection은 각각 Article PostgreSQL E2E와 generated compile gate가
+따로 소유합니다. Manifest/oracle/static fixture는 각각 11,282/41,943/1,867 bytes와 SHA-256
+`04665808...`/`0236bdab...`/`f618ca12...`입니다. 현재 reference inventory는 migration-relation diagnostic을
+포함해 14 sets/151 unique contracts와 182 ordered cross-bindings이고, product inventory는
+13 adapters/139 contracts(134 passing + 5 reviewed deviations)입니다. Exact profile에서 재생성하고 일반
+환경에서 bytes를 확인하려면 다음을 사용합니다.
+
+```bash
+uvx --from uv==0.10.12 uv run --frozen python -m conformance.querybreadth.reference --write
+uv run --frozen python -m conformance.querybreadth.reference
+```
+
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든
 20개 ordered cross-pair가 validation에서 거부됩니다. Oracle은 39,139 bytes, SHA-256
@@ -892,6 +915,10 @@ MIG-065..074는 Accepted ADR-0021 decision provenance를 유지하고, current d
 경계일 뿐 Django-derived 분류가 아닙니다. REL-001..012는 Django 6.1 commit에 고정된 documentation/test
 provenance를 가지지만 scenario와 GoDj product fixture는 독립 작성했으며 Django source를 번역하지
 않았습니다.
+QRY-022..033도 같은 pinned Django 6.1 commit의 QuerySet/aggregation documentation, public tests와 cursor
+iteration boundary를 contract별로 좁게 참조하지만 scenario/oracle/Go adapter는 독립 작성했습니다. Source/result
+AST, fixed-arity top-level generic builders, cache ownership과 backend error policy는 ADR-0039의 GoDj-owned
+`kind=decision`, `derived=false` provenance이며 Django internal object ABI를 복제하거나 번역하지 않습니다.
 
 아래 GDJ-0035 provenance와 artifact bytes는 historical evidence입니다. 그 Phase-B legacy
 tuple/profile/promotion 의미와 product publication sequence는 GDJ-0036에서 retire했습니다. 현재 checked-in

@@ -77,10 +77,10 @@ func TestForwardRelationPathAccessorsAndPlanCopies(t *testing.T) {
 	if !ok || !gotPath.Equal(path) {
 		t.Fatal("Plan.Conditions() exposed mutable related condition storage")
 	}
-	if !plan.Equal(query.NewPlan("blog_post", plan.Columns()).WithConditions(related)) {
+	if !plan.Equal(query.NewPlan("blog_post", plan.SourceFields()).WithConditions(related)) {
 		t.Fatal("equal relation plans differ")
 	}
-	if plan.Equal(query.NewPlan("blog_post", plan.Columns()).WithConditions(
+	if plan.Equal(query.NewPlan("blog_post", plan.SourceFields()).WithConditions(
 		query.NewCondition(name, query.LookupExact, query.String("Ada")),
 	)) {
 		t.Fatal("scalar and related conditions compared equal")
@@ -147,7 +147,7 @@ func TestNullableForwardRelationSourceKeyPathAccessorsAndPlanCopies(t *testing.T
 	if !ok || !clonedPath.Equal(path) || clonedPath.TerminalScope() != query.RelationTerminalSourceKey {
 		t.Fatalf("derived source-key path = (%#v, %v)", clonedPath, ok)
 	}
-	unlimited := query.NewPlan("blog_post", plan.Columns()).WithConditions(condition)
+	unlimited := query.NewPlan("blog_post", plan.SourceFields()).WithConditions(condition)
 	if derived.Equal(unlimited) {
 		t.Fatal("limited and unlimited plans compared equal")
 	}

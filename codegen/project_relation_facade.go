@@ -12,9 +12,9 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"
 
-const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v1"
+const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v2"
 
 type projectRelationFacadeModel struct {
 	model     *projectRelationObjectModel
@@ -111,7 +111,7 @@ func validateProjectRelationFacadeImports(apps []normalizedRelationObjectPackage
 	}
 	for _, app := range apps {
 		switch app.alias {
-		case "int", "reflect", "sync":
+		case "any", "int", "int64", "iota", "reflect", "sync", "true":
 			return fmt.Errorf("invalid relation facade package alias %q", app.alias)
 		}
 		if app.importPath == "context" || app.importPath == "reflect" || app.importPath == "sync" ||
@@ -204,6 +204,8 @@ func validateProjectRelationFacadeNamespaces(
 			{name: model.surface, owner: "project wrapper for " + identity},
 			{name: model.queryType, owner: "project query root for " + identity},
 			{name: "new" + model.surface + "Query", owner: "project query constructor for " + identity},
+			{name: "Select" + model.surface + "Into", owner: "project typed projection bridge for " + identity},
+			{name: "Aggregate" + model.surface + "Into", owner: "project typed aggregate bridge for " + identity},
 		} {
 			if err := add(candidate.name, candidate.owner); err != nil {
 				return err
@@ -497,6 +499,11 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\treturn _query")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) Distinct() %s {\n", model.queryType, model.queryType)
+	fmt.Fprintln(output, "\t_query.query = _query.query.Distinct()")
+	fmt.Fprintln(output, "\treturn _query")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) Limit(_limit int) (%s, error) {\n", model.queryType, model.queryType)
 	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
 	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", model.queryType)
@@ -507,6 +514,40 @@ func renderProjectRelationFacadeQuery(output *bytes.Buffer, model projectRelatio
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "\t_query.query = _limited")
 	fmt.Fprintln(output, "\treturn _query, nil")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) Offset(_offset int) (%s, error) {\n", model.queryType, model.queryType)
+	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", model.queryType)
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_offsetQuery, _err := _query.query.Offset(_offset)")
+	fmt.Fprintln(output, "\tif _err != nil {")
+	fmt.Fprintf(output, "\t\treturn %s{}, _err\n", model.queryType)
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_query.query = _offsetQuery")
+	fmt.Fprintln(output, "\treturn _query, nil")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func (_query %s) Count(_ctx context.Context) (int64, error) {\n", model.queryType)
+	fmt.Fprintln(output, "\tif _err := _query.validate(); _err != nil {")
+	fmt.Fprintln(output, "\t\treturn 0, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\treturn _query.query.Count(_ctx)")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func Select%sInto[R any](_ctx context.Context, _source %s, _projection orm.Projection[%s, R]) ([]R, error) {\n", model.surface, model.queryType, rawType)
+	fmt.Fprintln(output, "\tif _err := _source.validate(); _err != nil {")
+	fmt.Fprintln(output, "\t\treturn nil, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\treturn orm.SelectInto(_ctx, _source.query, _projection)")
+	fmt.Fprintln(output, "}")
+	fmt.Fprintln(output)
+	fmt.Fprintf(output, "func Aggregate%sInto[R any](_ctx context.Context, _source %s, _aggregate orm.Aggregate[%s, R]) (R, error) {\n", model.surface, model.queryType, rawType)
+	fmt.Fprintln(output, "\tvar _zero R")
+	fmt.Fprintln(output, "\tif _err := _source.validate(); _err != nil {")
+	fmt.Fprintln(output, "\t\treturn _zero, _err")
+	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\treturn orm.AggregateInto(_ctx, _source.query, _aggregate)")
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintf(output, "func (_query %s) First(_ctx context.Context) (*%s, bool, error) {\n", model.queryType, model.surface)

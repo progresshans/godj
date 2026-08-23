@@ -46,6 +46,7 @@ func TestMigrationOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 		"bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9  migration-state-reconstruction-oracle.json\n" +
 		"e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869  oracle.json\n" +
 		"d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682  query-cache-oracle.json\n" +
+		"0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94  query-breadth-oracle.json\n" +
 		"05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb  save-lifecycle-oracle.json\n" +
 		"35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac  write-migration-oracle.json\n"
 	const definitionSource = "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410  migration-definition-source-oracle.json\n"
@@ -440,8 +441,8 @@ func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets
 	if got := strings.Count(productTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance migration-definition-source manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 12 {
-		t.Fatalf("godj-conformance adapter count = %d, want 12", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 13 {
+		t.Fatalf("godj-conformance adapter count = %d, want 13", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-definition-source manifest count = %d, want 1", got)

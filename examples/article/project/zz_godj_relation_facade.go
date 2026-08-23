@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v1"
-const GoDjProjectRelationFacadeInputSHA256 = "953458659e87cea9ef9acefb9d6f60dee1f78c23c5e8b11d8a7a23bae9c2707d"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"
+const GoDjProjectRelationFacadeInputSHA256 = "9cfc346be04ebf73f80f971f379eee6d71c4c65d42ac7d41b8d6757484eb20a0"
 
 type Backend interface {
 	db.Queryer
@@ -94,6 +94,11 @@ func (_query ModelsArticleQuery) OrderBy(_orderings ...orm.Ordering[models.Artic
 	return _query
 }
 
+func (_query ModelsArticleQuery) Distinct() ModelsArticleQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
 func (_query ModelsArticleQuery) Limit(_limit int) (ModelsArticleQuery, error) {
 	if _err := _query.validate(); _err != nil {
 		return ModelsArticleQuery{}, _err
@@ -104,6 +109,40 @@ func (_query ModelsArticleQuery) Limit(_limit int) (ModelsArticleQuery, error) {
 	}
 	_query.query = _limited
 	return _query, nil
+}
+
+func (_query ModelsArticleQuery) Offset(_offset int) (ModelsArticleQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return ModelsArticleQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return ModelsArticleQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query ModelsArticleQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectModelsArticleInto[R any](_ctx context.Context, _source ModelsArticleQuery, _projection orm.Projection[models.Article, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateModelsArticleInto[R any](_ctx context.Context, _source ModelsArticleQuery, _aggregate orm.Aggregate[models.Article, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
 }
 
 func (_query ModelsArticleQuery) First(_ctx context.Context) (*ModelsArticle, bool, error) {
@@ -221,4 +260,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe
+var _ goDjProjectSnapshot_0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675

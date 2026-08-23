@@ -16,13 +16,23 @@ allowed_paths:
   - "db/postgres/**"
   - "codegen/**"
   - "examples/article/**"
+  - "internal/compiletest/**"
   - "conformance/querybreadth/**"
+  - "conformance/relationdeleteproduct/**"
+  - "conformance/relationobjectproduct/product_test.go"
   - "conformance/runners/django/query_breadth_scenarios.py"
   - "conformance/runners/django/tests/test_query_breadth_scenarios.py"
+  - "conformance/runners/django/runner.py"
+  - "conformance/runners/django/tests/test_scenarios.py"
+  - "conformance/runners/django/tests/test_runner_safety.py"
+  - "conformance/runners/godj/runner.go"
   - "conformance/runners/godj/query_breadth_scenarios.go"
+  - "conformance/runners/godj/query_breadth_scenarios_test.go"
+  - "conformance/cmd/godjcheck/main_test.go"
   - "conformance/contracts/query-breadth-manifest.json"
   - "conformance/fixtures/godj-query-breadth-not-implemented.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json"
+  - "conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS"
   - "conformance/SHA256SUMS"
   - "conformance/README.md"
   - "conformance/internal/protocol/**"
@@ -56,7 +66,7 @@ Article 목록을 full-model load 한 가지에서 검색·리포트 흐름으�
 GET /articles/?published=true&offset=20&limit=20
 → typed filter
 → distinct + stable ID ordering + offset/limit
-→ ID/title/published ArticleListRow projection
+→ ID/title/published/summary ArticleView projection
 → matching count + latest ID aggregate
 → SQLite/PostgreSQL에서 같은 response
 ```
@@ -69,7 +79,8 @@ GET /articles/?published=true&offset=20&limit=20
 - SQLite/PostgreSQL compiler가 같은 result semantics와 structured error를 제공합니다.
 - generated project facade에서 model-specific generic bridge를 게시합니다.
 - Article request-local flow를 projection/aggregate/stable pagination으로 확장합니다.
-- QRY-022..033을 pinned Django 결과와 실제 두 backend product adapter로 검증합니다.
+- QRY-022..033을 pinned Django 결과와 실제 Article ORM/SQLite product adapter로 검증하고, PostgreSQL
+  parity와 cross-model rejection은 별도 actual/compile gate로 검증합니다.
 - core/backend/generated/final의 큰 checkpoint만 사용해 구현 속도를 높입니다.
 
 ## 비목표
@@ -107,8 +118,8 @@ GET /articles/?published=true&offset=20&limit=20
 | QRY-029 | filter/distinct/offset/limit 뒤 Count |
 | QRY-030 | empty Count와 nullable Max |
 | QRY-031 | filtered Count/Max aggregate result |
-| QRY-032 | cancellation/scan/iteration/close failure ownership |
-| QRY-033 | SQLite/PostgreSQL result parity와 cross-model compile rejection |
+| QRY-032 | consumer stop과 decode/iteration/close failure ownership; Go cancellation은 별도 unit gate |
+| QRY-033 | SQLite reference anchor; PostgreSQL parity와 cross-model rejection은 별도 actual/compile gate |
 
 ## 병렬 소유권
 
@@ -124,28 +135,28 @@ GET /articles/?published=true&offset=20&limit=20
 
 ### Phase A — result-shape와 API freeze
 
-- [ ] QRY-022..033 reference/protocol roster와 provenance
-- [ ] source/result separation, distinct/offset immutable Plan
-- [ ] typed projection/aggregate compile-positive/negative gate
-- [ ] existing full-model/relation AST regression
+- [x] QRY-022..033 reference/protocol roster와 provenance
+- [x] source/result separation, distinct/offset immutable Plan
+- [x] typed projection/aggregate compile-positive/negative gate
+- [x] existing full-model/relation AST regression
 
 ### Phase B — backend 병렬 구현
 
-- [ ] SQLite projection/distinct/offset/derived aggregate compiler
-- [ ] PostgreSQL projection/distinct/offset/derived aggregate compiler
-- [ ] rows/cancellation/scan/close failure와 cache independence
-- [ ] actual SQLite/PostgreSQL parity
+- [x] SQLite projection/distinct/offset/direct·derived aggregate compiler
+- [x] PostgreSQL projection/distinct/offset/direct·derived aggregate compiler
+- [x] rows/cancellation/scan/close failure와 cache independence
+- [x] actual SQLite/PostgreSQL parity
 
 ### Phase C — generated Article 수직 단면
 
-- [ ] model-specific facade generic bridges
-- [ ] whole-project candidate compile와 one-shot generated publication
-- [ ] Article query parsing/page cap/DTO/report response
-- [ ] SQLite/PostgreSQL loopback HTTP E2E
+- [x] model-specific facade generic bridges
+- [x] whole-project candidate compile와 two-consumer one-shot generated publication
+- [x] Article query parsing/page cap/DTO/report response
+- [x] SQLite/PostgreSQL loopback HTTP E2E
 
 ### Phase D — final hardening
 
-- [ ] affected normal/race/CGO0/vet와 generated drift
+- [x] affected normal/race/CGO0/vet와 generated drift
 - [ ] final full/386/repository-external source-clean-copy once
 - [ ] independent frozen-byte audit
 - [ ] non-force push, exact-head hosted result와 terminal mirror
@@ -159,6 +170,9 @@ GET /articles/?published=true&offset=20&limit=20
 ## 현재 체크포인트와 다음 정확한 작업
 
 GDJ-0038 exact product head `187638f9...`가 CI run `32626539049`의 27/27 jobs·341/341 steps를 통과한 clean
-baseline에서 이 packet을 활성화했습니다. 다음은 Phase A에서 source/result authority를 먼저 분리하고 typed
-projection/aggregate 및 distinct/offset external compile gate를 통과시키는 것입니다. Relation paths, mutation,
-locking 또는 Web Core API를 같은 checkpoint에서 열지 않습니다.
+baseline에서 이 packet을 활성화했습니다. Phase A~C와 affected Phase D는 현재 working tree에서 통과했습니다.
+Query-breadth artifact는 14-set reference/13-adapter product inventory에 연결됐고 Article과 relationdeleteproduct
+두 checked-in bundle은 current facade ABI v2로 한 번에 재생성됐습니다. 다음은 exact source commit을 동결하고
+final full/386/repository-external source-clean-copy와 독립 frozen-byte audit을 한 번 실행한 뒤 non-force push와
+exact-head hosted gate를 닫는 것입니다. Relation path projection, mutation, locking 또는 Web Core public API는
+이 packet에서 열지 않습니다.

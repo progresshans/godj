@@ -224,7 +224,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsInTwelveAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInCurrentThirteenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInTwelveAdapterProductTarget(t *testing.T) 
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 12 {
-		t.Fatalf("product adapter count = %d, want 12", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 13 {
+		t.Fatalf("product adapter count = %d, want 13", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -434,9 +434,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 867`,
-		`assert len(payload) == 89069`,
-		`777c8c4c6f8a2c82fc22a8b8657e09261973611795581e05381480fc2416d658`,
+		`assert len(runs) == 912`,
+		`assert len(payload) == 93566`,
+		`ef87c84759a4ade38133afba8c7cea555d04b70adef19d14f925c32df15df47d`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
@@ -526,14 +526,14 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"sqlparse.__version__ == \"0.5.5\"",
 		"python -m unittest discover -s conformance/runners/django/tests -v",
 		"grep -c '^test_'",
-		"-eq 216",
+		"-eq 227",
 		"grep -c ' \\.\\.\\. skipped '",
-		"-eq 19",
-		"Ran 216 tests",
-		"OK (skipped=19)",
-		"len(SCENARIOS) == 139",
-		"len(payload) == 618616",
-		"5068ac45a8659668abda865d61c26bfeae1fbe34c8deb73380567df51c62f32e",
+		"-eq 20",
+		"Ran 227 tests",
+		"OK (skipped=20)",
+		"len(SCENARIOS) == 151",
+		"len(payload) == 660905",
+		"fb9ebeabeaafb6a041f334c375718d3b4535e0685af406bbe5a036ccc6242f6f",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
