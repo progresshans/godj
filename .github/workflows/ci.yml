@@ -856,6 +856,23 @@ jobs:
           go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner
           "$project_runner" prepare
           docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
+          # GitHub services publish an ephemeral host port that Docker may
+          # reallocate when the container stops and starts.
+          postgres_host_port="$(
+            docker inspect --format '{{with (index .NetworkSettings.Ports "5432/tcp")}}{{(index . 0).HostPort}}{{end}}' \
+              "$POSTGRES_CONTAINER_ID"
+          )"
+          case "$postgres_host_port" in
+            ""|*[!0-9]*)
+              echo "restarted PostgreSQL service has no numeric published port" >&2
+              exit 1
+              ;;
+          esac
+          if [ "$postgres_host_port" -lt 1 ] || [ "$postgres_host_port" -gt 65535 ]; then
+            echo "restarted PostgreSQL service published port is outside the valid range" >&2
+            exit 1
+          fi
+          export GODJ_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
           ready=0
           for attempt in $(seq 1 30); do
             if timeout 3s "$project_runner" probe >/dev/null 2>&1; then

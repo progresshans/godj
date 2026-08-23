@@ -143,14 +143,18 @@ func resumeProduct(ctx context.Context, config runnerConfig) (modeResult, error)
 		if err != nil {
 			return fmt.Errorf("insert resumed PostgreSQL product row: %w", err)
 		}
-		if identifier != 2 {
-			return fmt.Errorf("resumed PostgreSQL product key = %d, want 2", identifier)
+		// PostgreSQL sequences guarantee uniqueness, not gapless numbering.
+		if identifier <= 1 {
+			return fmt.Errorf("resumed PostgreSQL product key = %d, want greater than 1", identifier)
 		}
 		rows, err := readProductRows(ctx, backend, true)
 		if err != nil {
 			return err
 		}
-		return requireProductRows(rows, completeRows())
+		return requireProductRows(rows, []productRow{
+			{id: 1, title: "prepared"},
+			{id: identifier, title: "resumed", summary: sql.NullString{String: "after-restart", Valid: true}},
+		})
 	})
 	if err != nil {
 		return modeResult{}, err
@@ -178,7 +182,7 @@ func verifyProduct(ctx context.Context, config runnerConfig) (modeResult, error)
 		if err != nil {
 			return err
 		}
-		return requireProductRows(rows, completeRows())
+		return requireCompleteProductRows(rows)
 	}); err != nil {
 		return modeResult{}, err
 	}
@@ -350,13 +354,6 @@ func readProductRows(ctx context.Context, backend *postgres.Backend, includeSumm
 	return values, nil
 }
 
-func completeRows() []productRow {
-	return []productRow{
-		{id: 1, title: "prepared"},
-		{id: 2, title: "resumed", summary: sql.NullString{String: "after-restart", Valid: true}},
-	}
-}
-
 func requireProductRows(got, want []productRow) error {
 	if len(got) != len(want) {
 		return fmt.Errorf("PostgreSQL product row count = %d, want %d", len(got), len(want))
@@ -365,6 +362,25 @@ func requireProductRows(got, want []productRow) error {
 		if got[index] != want[index] {
 			return fmt.Errorf("PostgreSQL product row[%d] = %+v, want %+v", index, got[index], want[index])
 		}
+	}
+	return nil
+}
+
+func requireCompleteProductRows(got []productRow) error {
+	if len(got) != 2 {
+		return fmt.Errorf("PostgreSQL product row count = %d, want 2", len(got))
+	}
+	wantPrepared := productRow{id: 1, title: "prepared"}
+	if got[0] != wantPrepared {
+		return fmt.Errorf("PostgreSQL product row[0] = %+v, want %+v", got[0], wantPrepared)
+	}
+	wantResumed := productRow{
+		id:      got[1].id,
+		title:   "resumed",
+		summary: sql.NullString{String: "after-restart", Valid: true},
+	}
+	if got[1].id <= got[0].id || got[1] != wantResumed {
+		return fmt.Errorf("PostgreSQL product row[1] = %+v, want resumed row with key greater than %d", got[1], got[0].id)
 	}
 	return nil
 }

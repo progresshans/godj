@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"os"
@@ -11,6 +12,21 @@ import (
 	"testing"
 	"time"
 )
+
+func TestRequireCompleteProductRowsAllowsSequenceGaps(t *testing.T) {
+	t.Parallel()
+	rows := []productRow{
+		{id: 1, title: "prepared"},
+		{id: 33, title: "resumed", summary: sql.NullString{String: "after-restart", Valid: true}},
+	}
+	if err := requireCompleteProductRows(rows); err != nil {
+		t.Fatalf("require complete rows with a sequence gap: %v", err)
+	}
+	rows[1].id = 1
+	if err := requireCompleteProductRows(rows); err == nil {
+		t.Fatal("require complete rows accepted a reused identity key")
+	}
+}
 
 func TestValidateRunnerSchema(t *testing.T) {
 	t.Parallel()
