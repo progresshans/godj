@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
-- 상태: 장기 사용자 흐름 Accepted, M1 Article 단면 Implemented/Verified, 나머지 문법 Proposed
-- 마지막 검토: 2026-08-21
+- 상태: M1 Article bounded 단면 hosted-Verified, GDJ-0040 Boolean 문법 Implemented/local-verified, 나머지 문법 Proposed
+- 마지막 검토: 2026-08-23
 
 별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -32,6 +32,27 @@ articles, err := models.ArticleObjects.Using(sqliteBackend).
     All(ctx)
 // articles has type []models.Article
 ```
+
+Current GDJ-0040 bounded slice also compiles and runs reusable model-safe Boolean predicates:
+
+```go
+search := orm.Or(
+    models.ArticleFields.Title.IContains("go"),
+    models.ArticleFields.Summary.IContains("go"),
+)
+articles, err := models.ArticleObjects.Using(sqliteBackend).
+    Filter(
+        search,
+        models.ArticleFields.Published.Exact(true),
+        orm.Not(models.ArticleFields.Title.IContains("draft")),
+    ).
+    Distinct().
+    OrderBy(models.ArticleFields.ID.Asc()).
+    All(ctx)
+```
+
+`And`/`Or` require at least two `Predicate[M]` values and cannot mix model types. Relation predicates under OR/NOT,
+F/field-to-field expressions, annotation/grouping, bulk mutation and locking remain outside this locally verified slice.
 
 ```go
 predicates, err := orm.ParseDynamic(

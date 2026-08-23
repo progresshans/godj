@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-21
+- 마지막 검토: 2026-08-23
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -81,6 +81,15 @@
 - context cancellation과 resource cleanup
 - connection pool과 transaction affinity
 - structured error taxonomy
+
+Current bounded implementation은 QRY-001..043 중 scalar exact/ASCII `icontains`/`isnull`/IN leaf,
+model-safe typed `And`/`Or`/`Not`, canonical Filter AND, order/limit/offset/distinct, typed projection과 Count/Max를
+하나의 immutable where/result plan에 연결합니다. SQLite와 PostgreSQL recursive compiler, nullable odd-NOT
+truth table와 Article q/published/exclude exactly-two-query 흐름은
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)와
+[final local EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)에서
+affected/final local-verified됐습니다. 이 문단은 아래 장기 목록의 Q/F 전체, comparison/range/custom lookup,
+annotation/grouping/having, subquery/window, bulk/locking 또는 relation OR/NOT이 구현됐다는 뜻이 아닙니다.
 
 ## Django 6.1 profile-specific backlog
 

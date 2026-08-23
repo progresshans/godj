@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-12
+- 마지막 검증: 2026-08-23
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -797,6 +797,29 @@ Python 236 tests/21 expected skips가 통과했습니다. Exact semantic registr
 SHA-256 `aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift와
 oracle/static `contractcheck`도 통과했지만 QRY-034..043을 `passing`으로 올리려면 Phase B/C의 independent GoDj
 actual과 comparator evidence가 별도로 필요합니다.
+
+## GDJ-0040 Phase B/C current Boolean predicate product boundary
+
+Product source `86d6b169...`와 actual conformance `0ec6f385...`는 Phase A oracle/static bytes를 입력으로 읽지
+않는 GoDj handler를 연결하고 QRY-034..043을 10/10 `passing`으로 전환했습니다. Manifest는 status 10개만
+바뀐 8,075 bytes/SHA-256 `e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`입니다.
+Oracle 41,264 bytes/`8b087a39...`와 ordered not-implemented fixture 1,715 bytes/`0df90735...`, shared
+15-line checksum catalog는 불변입니다.
+
+두 독립 actual은 각각 41,134 bytes/SHA-256
+`20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
+Django result/error/DB-state/metrics와 protocol difference 0입니다. Raw JSON field order와 byte equality는
+비교 계약이 아닙니다. Current reference aggregate는 15/161/210=
+`144 passing + 5 deviation + 12 oracle_locked`, product는 14 adapters/149 contracts=
+`144 passing + 5 deviation`입니다.
+
+Go-native 경계는 별도로 다음을 강제합니다: model-safe typed connector compile, one authoritative immutable where
+tree, depth 64/node 1,024, deterministic DFS arguments/placeholders, nullable odd-NOT guard, root-conjunctive relation
+leaf만 허용, malformed/cross-source/over-limit pre-I/O failure, SQLite/PostgreSQL Article exactly-two-query flow입니다.
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
+affected/local PostgreSQL/audit checkpoint이고
+[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은
+full/386/775-file source-clean-copy를 통과했습니다. Exact-head hosted는 아직 주장하지 않습니다.
 
 ## 데이터 호환성
 

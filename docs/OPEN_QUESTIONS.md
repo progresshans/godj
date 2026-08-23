@@ -10,7 +10,7 @@
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
-| Q-011 | Partial | GDJ-0039 completed / GDJ-0040 Phase A frozen and Phase B active / M4-M5+ | QuerySet cache, ADR-0038 bounded synchronous request/DTO flow and GDJ-0039 typed projection/Count·Max/distinct·offset Article slice는 hosted-verified; GDJ-0040 QRY-034..043 reference-only Phase A는 local-frozen됐고 product tree/search는 active; transaction container/async hook/background ownership은 open |
+| Q-011 | Partial | GDJ-0039 completed / GDJ-0040 Phase B/C local-frozen and Phase D active / M4-M5+ | QuerySet cache, bounded synchronous request/DTO flow and typed projection/Count·Max/distinct·offset are hosted-verified; GDJ-0040 immutable Boolean tree and bounded Article search are local affected-verified with QRY-034..043 10/10 passing, while final hosted and transaction/async/background ownership remain open |
 | Q-012 | Partial | GDJ-0038 completed / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
@@ -95,10 +95,14 @@ completed로 닫았습니다.
 
 Current [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)은 Accepted
 [ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)의 하나의 immutable typed Boolean predicate tree와
-bounded Article search를 QRY-034..043으로 여는 contract-first active packet입니다. Phase A checkpoint
-`fe4996f...`는 신규 reference-only set을 10개 `oracle_locked`로 고정해 reference를 15/161/210으로 확장했지만
-product는 13/139로 유지했습니다. Passing 전환과 제품 adapter는 없습니다. Q/F 전체, relation under OR/NOT, bulk/locking,
-annotation/subquery/window, related projection, transaction container와 async/background ownership은 별도 후속입니다.
+bounded Article search를 QRY-034..043으로 여는 active packet입니다. Phase A `fe4996f...`는 신규 reference-only
+set을 고정했고 Phase B/C product `86d6b169...`/actual `0ec6f385...`는 하나의 capped tree, typed connector,
+SQLite/PostgreSQL compiler와 Article q/exclude flow를 구현했습니다. QRY-034..043은 10/10 `passing`, current
+reference는 15/161/210=`144+5+12 locked`, product는 14/149=`144+5`입니다.
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
+affected/local checkpoint이고 final hosted 전까지 work는 active입니다. Q/F 전체, relation under OR/NOT,
+bulk/locking, annotation/subquery/window, related projection, transaction container와 async/background ownership은
+별도 후속입니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 

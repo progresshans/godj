@@ -10494,3 +10494,170 @@ drift or a passed `make oracle-check` claim.
 - Phase C must add SQLite/PostgreSQL recursive compilers, the oracle-blind GoDj actual adapter and bounded Article search.
 - No backend, Article, race/CGO-disabled/vet product, full/386/source-clean-copy or hosted milestone gate is claimed by
   this reference-only checkpoint. Those run at the work checkpoints defined by GDJ-0040.
+
+## EVID-20260823-112 — GDJ-0040 Boolean Predicate and Article Search Phase B/C Local Checkpoint
+
+- Date/time: 2026-08-23T21:34:39+09:00
+- Work/contract IDs: GDJ-0040 active; QRY-034..043 `passing`; Q-011 remains `Partial`
+- Branch: `feature/pre-release-compatibility-reset`
+- Product source commit/tree: `86d6b1696466e9f36d95f971f9adf0541de5b5f9` /
+  `88a7496c6b38f7a5d24ad9606709c0418aae9f75`, subject
+  `feat: add composable boolean predicates and article search`
+- Actual conformance commit/tree: `0ec6f38583d10a866298b7248fe0b9682fd5a0cf` /
+  `98d6d94390bad6d4166142caea3e59373a34cda0`, subject
+  `test: verify boolean predicate product contracts`
+- Combined committed delta from `ff5c66d...`: 47 paths, `+4,660/-374`; product and conformance changes are in
+  separate commits
+- Environment: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5 darwin/arm64; local PostgreSQL 17.5
+  server `170005`
+- Result: Phase B/C source is locally frozen, affected-verified and independently audited. This entry does not claim
+  final full/386/repository-external source-clean-copy, exact-head hosted success, GDJ-0040 completion, merge or release.
+
+### Implemented behavior
+
+- `query.Plan` now owns one private-node immutable `Expression` tree and no authoritative flat condition mirror.
+  Same-kind ordered AND/OR flattening, explicit unary NOT, detached accessors, scalar source binding, depth 64 and node
+  1,024 caps all fail closed. `Conditions()` is a computed DFS diagnostic inventory only.
+- `orm.And`, `orm.Or` and `orm.Not` preserve model typing and operand order. Typed and dynamic scalar/relation leaves,
+  variadic and repeated `Filter` calls converge on the same tree. Cross-model composition and one-operand connectors
+  fail at external compile time.
+- SQLite and PostgreSQL recursively render the same tree for model, typed projection and direct/derived aggregate
+  results. SQL grouping is explicit, arguments/placeholders follow deterministic DFS order and relation aliases remain
+  deterministic. Existing relation leaves are accepted only at a root conjunction; relation descendants under OR/NOT
+  return structured unsupported before I/O.
+- Nullable exact/`icontains`/IN leaves receive the Django complement guard only at odd NOT parity. SQLite actual and
+  PostgreSQL compiler/actual tests cover odd, even and triple parity; `isnull=true/false` preserves its direct predicate.
+- Article `GET /articles/` accepts optional `q` and `exclude_title` as valid UTF-8, NUL-free values of at most 256
+  bytes. Duplicate/malformed/invalid UTF-8/NUL/oversize input returns the exact 400 response before DB I/O. Search is
+  `(title IContains q OR summary IContains q) AND published AND NOT title IContains exclude_title`; projection page and
+  filtered Count/Max report share the same source and execute exactly two queries on SQLite and PostgreSQL.
+- QuerySet cache/source immutability, rows/error/context ownership, escaped `%`/`_`, empty values, stable pagination and
+  no-match results remain covered. Generated Article/relation-delete source snapshots are unchanged.
+
+### Current contracts and deterministic artifacts
+
+- Query-expression manifest changed only the ten statuses to `passing`: 8,075 bytes, SHA-256
+  `e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`.
+- Locked oracle remains 41,264 bytes/SHA-256
+  `8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`; ordered static fixture remains
+  1,715 bytes/SHA-256 `0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`.
+  The shared 15-line oracle `SHA256SUMS` remains 1,432 bytes/SHA-256
+  `24949f4eb6099d4c9a8b501cefe257b134a23bc3717799c32276c3f8a083a13c` and every entry verifies.
+- Two independent GoDj actual outputs were byte-identical at 41,134 bytes/SHA-256
+  `20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`; both compare with zero protocol
+  differences against the locked oracle. Raw Go/Python JSON byte equality is not a contract.
+- Current reference inventory is 15 sets/161 unique contracts and scenarios/210 ordered cross-bindings=
+  `144 passing + 5 deviation + 12 oracle_locked`. Product inventory is 14 adapters/149 contracts=
+  `144 passing + 5 deviation`; QRY-034..043 actual is 10/10 zero-diff.
+
+### Affected local verification
+
+The following latest-byte gates passed:
+
+```bash
+go test -count=1 ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+go vet ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+CGO_ENABLED=0 go test -count=1 ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+go test -race -count=1 ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+
+GODJ_TEST_POSTGRES_URL='postgresql://hanhyeonjin@127.0.0.1:5432/postgres?sslmode=disable' \
+  GODJ_REQUIRE_POSTGRES=1 go test -count=1 \
+  -run '^(TestPostgreSQLPhase1Integration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP)$' \
+  ./db/postgres ./examples/article
+GODJ_TEST_POSTGRES_URL='postgresql://hanhyeonjin@127.0.0.1:5432/postgres?sslmode=disable' \
+  GODJ_REQUIRE_POSTGRES=1 go test -race -count=1 \
+  -run '^(TestPostgreSQLPhase1Integration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP)$' \
+  ./db/postgres ./examples/article
+
+make generate-check
+make conformance-check
+make godj-conformance
+make format-check
+git diff --check
+```
+
+Both independent frozen-byte audits returned no P0/P1/P2/P3 functional, contract or test-adequacy finding after the
+NUL pre-I/O and PostgreSQL nullable-negation parity corrections. The conformance audit separately verified exact
+registry closure, expected-artifact independence, two-run determinism, aggregate locks and zero oracle/static/checksum
+drift.
+
+### Remaining boundary
+
+- Run the final full `make ci`, Linux/386 all-package compile and repository-external source-clean-copy once on this
+  frozen source lineage. Any source-changing correction creates a new exact source head and invalidates that result.
+- Commit the checkpoint documentation, non-force push the branch, update open Draft PR #1 and wait for one unique
+  exact-head hosted result. No previous GDJ-0039 run is reused as GDJ-0040 proof.
+- Relation predicates under OR/NOT, F/field-to-field expressions, bulk mutation/locking, annotation/grouping/having,
+  subquery/window, related-column results, request transactions and broader Web/Core remain out of scope. Q-011 and
+  M4 therefore remain incomplete.
+
+## EVID-20260823-113 — GDJ-0040 Frozen Source Final Local Gates
+
+- Date/time: 2026-08-23T21:55:23+09:00
+- Work/contract IDs: GDJ-0040 Phase D local complete; QRY-034..043 `passing`; Q-011 remains `Partial`
+- Exact product/conformance source commit/tree: `0ec6f38583d10a866298b7248fe0b9682fd5a0cf` /
+  `98d6d94390bad6d4166142caea3e59373a34cda0`
+- Environment: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5 darwin/arm64
+- Result: final local full, Linux/386 compile and repository-external source-clean-copy gates passed without a
+  source-changing correction. Exact-head hosted verification is still pending; this entry does not claim work
+  completion, merge, release or production readiness.
+
+### Final full local gate
+
+With product/conformance source still exactly at `0ec6f385...`, the following command exited 0:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+```
+
+This ran deterministic generate checks, all-package normal test and vet, all-package race, the selected CGO-disabled
+matrix, portable Python compatibility, every `contractcheck` pair and every registered GoDj product comparison. Article
+and relation-delete snapshots stayed respectively 12 files/`0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675`
+and 16 files/`2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`. Portable Python ran
+236 tests with 21 expected profile skips. QRY-034..043 product comparison reported 10 matching contracts.
+
+Only the 13 documentation/status files being prepared for EVID-112 were dirty during this command; no Go, Python,
+manifest, oracle, fixture, generated source or workflow byte differed from the exact source commit. The gate added no
+tracked change.
+
+### Linux/386 compile-only gate
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+This exited 0 for all 82 packages in 15.78 seconds. Binary diff and porcelain snapshots taken before and after the
+command were byte-identical; the only dirty paths remained the same 13 documentation files.
+
+### Repository-external exact archive gate
+
+An external temporary directory was populated only from `git archive 0ec6f385...`. Its tree roster was verified against
+`git ls-tree -r -z --full-tree 0ec6f385...` before executing:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make generate-check
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 go test -run '^$' ./...
+```
+
+- Tracked/archive regular files: 775/775; Git mode `100644`: 775; executable/other/non-regular entries: 0.
+- Blob OID and mode comparison: 775/775 exact before and after the gate.
+- `git ls-tree -r -z` stream SHA-256:
+  `7c6ed1c656c945082e6fe2ffa66e705a8a1a3a3616ca551c92ae9d099b6d8730`.
+- Framed `path<NUL>sha256(file)<NUL>` aggregate before/after:
+  `bc27f1787f699c4255d8669c4979c46e38956da67f42bbb50ff03f73b6cf749b` / identical.
+- Both generate checks and all-package host compile exited 0. The temporary gate directory was moved to Trash and
+  `/tmp` retained no GDJ-0040 gate directory.
+
+The separate product/conformance and documentation audits both returned P0/P1/P2/P3=`0/0/0/0`. The remaining terminal
+sequence is documentation commit, non-force push, Draft PR update, one unique exact submitted-head hosted matrix, and a
+docs-only terminal mirror. A source or workflow correction would invalidate this local final and require rerunning it
+on the new source head.

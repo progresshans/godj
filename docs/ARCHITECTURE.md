@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-21
+- 마지막 검토: 2026-08-23
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -240,6 +240,22 @@ typed field predicate ─┐
                       ├─→ validated expression ─→ Query AST ─→ backend compiler
 dynamic lookup ────────┘
 ```
+
+Accepted ADR-0040/current GDJ-0040 Phase B/C는 이 `validated expression`을 제품 구조로 구현했습니다.
+`query.Plan`은 where authority로 private-node `Expression` 하나만 보관하고 flat condition mirror나 compiler
+fallback을 두지 않습니다. Leaf/ordered n-ary AND·OR/unary NOT은 immutable handle이며 same-kind connector만 순서를
+보존해 flatten합니다. Public typed `orm.And`/`orm.Or`는 최소 두 `Predicate[M]`, `orm.Not`은 정확히 하나를
+받으므로 다른 model 혼합과 connector arity 오류는 compile 경계에서 닫힙니다. Dynamic leaf와 기존 Filter chain도
+같은 tree에 합류합니다.
+
+Plan construction은 scalar field source binding, depth 64/node 1,024와 relation root-conjunction 경계를 검증합니다.
+SQLite/PostgreSQL compiler도 tree를 독립 재검증하고 model/projection/direct·derived aggregate 전부를 같은 grouped
+DFS로 순회합니다. `Conditions()`는 기존 diagnostics/tests를 위한 detached leaf inventory일 뿐 실행 의미가
+아닙니다. Nullable negation은 explicit NOT 구조를 보존하면서 odd parity scalar leaf에만 Django complement guard를
+붙입니다. Relation leaf under OR/NOT은 join 의미를 추측하지 않고 structured unsupported로 pre-I/O 거부합니다.
+Local product/actual proof는
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)에
+기록하며 final hosted는 pending입니다.
 
 QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. M1 dynamic API는
 `ParseDynamic`에서 construction 오류를 즉시 반환하고, 성공한 `Predicate[M]`를 typed

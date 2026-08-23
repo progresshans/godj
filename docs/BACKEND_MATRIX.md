@@ -52,6 +52,17 @@ collation/ctype, timezone, standard strings, synchronous commit, default transac
 fsync, full-page writes와 replication role의 16-field lock입니다. Final PostgreSQL 17.10 profile과 bounded actual
 product는 EVID-108/run `32626539049`에서 검증됐지만 이 profile은 broader/production support 약속이 아닙니다.
 
+GDJ-0040 source `86d6b169...`는 SQLite와 PostgreSQL의 model/projection/direct·derived aggregate 경로가 하나의
+authoritative Boolean where tree를 재귀적으로 compile하도록 전환했습니다. 두 backend 모두 explicit grouping과
+deterministic DFS argument order를 사용하고 nullable exact/`icontains`/IN의 Django complement guard를 odd NOT
+parity에만 적용합니다. Existing relation predicate는 root conjunction에서만 허용하며 OR/NOT descendant는
+structured unsupported로 I/O 전에 닫습니다.
+
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
+SQLite actual QRY-034..043 10/10 zero-diff와 PostgreSQL 17.5 compiler/normal/race Article actual을 기록합니다.
+PostgreSQL 17.10 exact hosted 검증 전이므로 새 Boolean/Article slice의 hosted claim은 pending입니다. 이는
+collation/Unicode 일반화, relation OR/NOT, broader PostgreSQL support나 production readiness를 추가하지 않습니다.
+
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey
 Create/Delete apply/unapply/reapply 및 sealed same-target universe의 nullable ForeignKey Add, empty-source required

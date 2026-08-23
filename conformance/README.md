@@ -1,6 +1,6 @@
 # GoDj Compatibility Lab
 
-## GDJ-0036/0037 current lab boundary
+## GDJ-0036/0037 current migration/generated ABI boundary
 
 GoDj는 아직 첫 외부 alpha 전이므로 개발 중 migration/generated ABI를 영구 legacy로 지원하지 않습니다.
 [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)과
@@ -145,7 +145,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `contracts/query-breadth-manifest.json` | Typed projection/scalar aggregate/stable pagination reference contract QRY-022..033 |
-| `contracts/query-expression-manifest.json` | Composable scalar Boolean predicate reference contract QRY-034..043; Phase A `oracle_locked` |
+| `contracts/query-expression-manifest.json` | Composable scalar Boolean predicate contract QRY-034..043; current 10/10 `passing` |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -158,7 +158,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..043 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 query breadth까지 제품 package를 실행하는 열세 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 query expression까지 제품 package를 실행하는 열네 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -615,6 +615,22 @@ uvx --from uv==0.10.12 uv run --frozen python -m conformance.queryexpression.ref
 uv run --frozen python -m conformance.queryexpression.reference
 ```
 
+GDJ-0040 Phase B/C는 위 Phase A reference bytes 중 oracle/static/checksum을 바꾸지 않고 manifest status만
+10/10 `passing`으로 전환하고 oracle-blind GoDj/SQLite actual adapter를 등록했습니다. Current manifest는
+8,075 bytes/SHA-256 `e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`입니다.
+두 독립 actual은 각각 41,134 bytes/SHA-256
+`20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
+oracle과 protocol difference 0입니다. Scenario registry는 정확히 10개이며 expected artifact를 읽지 않고 실제
+ORM/SQLite plan, compiled SQL shape, DB state와 metrics를 관찰합니다.
+
+Current reference inventory는 exact 15 sets/161 unique contracts+scenarios/210 ordered cross-bindings의
+`144 passing + 5 deviation + 12 oracle_locked`입니다. Product inventory는 14 adapters/149 contracts의
+`144 passing + 5 deviation`이며 QRY-034..043 actual은 10/10 zero-diff입니다. Source/conformance commit과
+affected local/audit 증거는
+[EVID-112](../docs/status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)에
+기록합니다. 이어진 [EVID-113](../docs/status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은
+full/386/775-file source-clean-copy를 통과했고 exact-head hosted만 별도 Phase D 경계로 남습니다.
+
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든
 20개 ordered cross-pair가 validation에서 거부됩니다. Oracle은 39,139 bytes, SHA-256
@@ -950,6 +966,10 @@ provenance를 가지지만 scenario와 GoDj product fixture는 독립 작성했�
 QRY-022..033도 같은 pinned Django 6.1 commit의 QuerySet/aggregation documentation, public tests와 cursor
 iteration boundary를 contract별로 좁게 참조하지만 scenario/oracle/Go adapter는 독립 작성했습니다. Source/result
 AST, fixed-arity top-level generic builders, cache ownership과 backend error policy는 ADR-0039의 GoDj-owned
+`kind=decision`, `derived=false` provenance이며 Django internal object ABI를 복제하거나 번역하지 않습니다.
+QRY-034..043도 같은 pinned Django 6.1 commit의 public `Q`/lookup documentation과 public tests를 관찰 근거로
+좁게 참조하지만 scenario, expected payload와 Go actual adapter는 독립 작성했습니다. Immutable Boolean tree,
+typed `And`/`Or`/`Not` API, depth/node caps, backend lowering과 relation OR/NOT 제한은 ADR-0040의 GoDj-owned
 `kind=decision`, `derived=false` provenance이며 Django internal object ABI를 복제하거나 번역하지 않습니다.
 
 아래 GDJ-0035 provenance와 artifact bytes는 historical evidence입니다. 그 Phase-B legacy

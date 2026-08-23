@@ -150,21 +150,21 @@ rows/close/context failure는 Go-native gates이며 Django parity claim에 포�
 
 ### Phase B — one core tree
 
-- [ ] immutable query expression/tree와 validation/resource bounds
-- [ ] typed ORM And/Or/Not 및 Filter canonicalization
-- [ ] typed/dynamic convergence, cache/cancellation/rows regression
+- [x] immutable query expression/tree와 validation/resource bounds
+- [x] typed ORM And/Or/Not 및 Filter canonicalization
+- [x] typed/dynamic convergence, cache/cancellation/rows regression
 
 ### Phase C — parallel backend and user flow
 
-- [ ] SQLite recursive compiler와 actual product adapter
-- [ ] PostgreSQL recursive placeholder/compiler와 actual integration
-- [ ] Article bounded search/400/query-count/rendered parity
+- [x] SQLite recursive compiler와 actual product adapter
+- [x] PostgreSQL recursive placeholder/compiler와 actual integration
+- [x] Article bounded search/400/query-count/rendered parity
 
 ### Phase D — hardening
 
-- [ ] affected normal/race/CGO0/vet/generated drift
-- [ ] final full/386/repository-external source-clean-copy once
-- [ ] independent frozen-byte audit
+- [x] affected normal/race/CGO0/vet/generated drift
+- [x] final full/386/repository-external source-clean-copy once
+- [x] independent frozen-byte audit
 - [ ] non-force push, exact-head hosted result와 terminal mirror
 
 ## 검증 cadence
@@ -178,32 +178,41 @@ rows/close/context failure는 Go-native gates이며 Django parity claim에 포�
 
 ## 완료 조건
 
-- [ ] Article composite search가 SQLite/PostgreSQL에서 같은 bounded response를 냅니다.
-- [ ] QRY-034..043 oracle-blind actual 10/10이 locked Django result와 일치합니다.
-- [ ] Predicate tree는 immutable/capped이고 typed/dynamic/Filter chain이 한 AST로 수렴합니다.
-- [ ] Projection/Count/Max와 full model query가 같은 where 의미를 사용합니다.
-- [ ] Relation OR/NOT, invalid/cross-model/over-limit input이 pre-I/O fail-closed합니다.
-- [ ] Rows/error/context/cache lifecycle과 exactly-two-query HTTP contract가 통과합니다.
+- [x] Article composite search가 SQLite/PostgreSQL에서 같은 bounded response를 냅니다.
+- [x] QRY-034..043 oracle-blind actual 10/10이 locked Django result와 일치합니다.
+- [x] Predicate tree는 immutable/capped이고 typed/dynamic/Filter chain이 한 AST로 수렴합니다.
+- [x] Projection/Count/Max와 full model query가 같은 where 의미를 사용합니다.
+- [x] Relation OR/NOT, invalid/cross-model/over-limit input이 pre-I/O fail-closed합니다.
+- [x] Rows/error/context/cache lifecycle과 exactly-two-query HTTP contract가 통과합니다.
 - [ ] Final local/hosted evidence와 status/matrix/handoff가 같은 frozen bytes를 가리킵니다.
 
 ## 현재 체크포인트와 다음 정확한 작업
 
-GDJ-0039 exact submitted head `253455d...`는 EVID-110/run `32634741186`에서 27/27 jobs·341/341 steps와
-PostgreSQL 17.10 actual/restart, four-coordinate 916/916/0 inventory, QRY-022..033 12/12를 통과했습니다.
-이 docs-only terminal/activation descendant는 그 run의 recursive proof가 아닙니다. Phase A는 expected artifact를
-읽지 않는 QRY-034..043 Django scenario 10개, manifest/oracle/static fixture와 runner registry를 고정했습니다.
-Manifest/oracle/static fixture는 exact 8,135/41,264/1,715 bytes이고 SHA-256은 각각
-`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`,
-`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`,
-`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. Exact focused runner는
-60/60, portable focused runner는 60 tests/16 expected skips, 전체 portable Python은 236 tests/21 expected
-skips를 통과했습니다. Exact semantic registry는 161 scenarios/702,415 bytes/SHA-256
-`aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift와 oracle/static
-두 `contractcheck`도 통과했습니다.
+Phase A reference commit `fe4996f...`는 expected artifact를 읽지 않는 QRY-034..043 Django scenario 10개와
+oracle/static fixture를 고정했습니다. Product source commit
+`86d6b1696466e9f36d95f971f9adf0541de5b5f9` (tree `88a7496c6b38f7a5d24ad9606709c0418aae9f75`)은
+authoritative immutable expression tree, typed `orm.And`/`orm.Or`/`orm.Not`, SQLite/PostgreSQL recursive
+compiler와 bounded Article search를 구현했습니다. Actual conformance commit
+`0ec6f38583d10a866298b7248fe0b9682fd5a0cf` (tree `98d6d94390bad6d4166142caea3e59373a34cda0`)은
+oracle-blind GoDj/SQLite adapter를 등록하고 QRY-034..043을 10/10 `passing`으로 전환했습니다.
 
-QRY-034..043은 계속 `oracle_locked`이고 GoDj actual adapter가 없으므로 제품 지원/status 전환은 없습니다.
-다음 정확한 작업은 Phase B의 authoritative immutable expression tree, resource bound와 typed
-`orm.And`/`orm.Or`/`orm.Not`을 구현·검증하는 것입니다.
+Current manifest/oracle/static fixture는 8,075/41,264/1,715 bytes이고 SHA-256은 각각
+`e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`,
+`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`,
+`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. 두 독립 actual은 각각
+41,134 bytes/SHA-256 `20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical했고
+locked oracle와 protocol difference 0입니다. Reference aggregate는 15/161/210=
+`144 passing + 5 deviation + 12 oracle_locked`, product는 14 adapters/149 contracts=
+`144 passing + 5 deviation`입니다.
+
+Affected normal/race/CGO-disabled/vet/generated drift, SQLite actual, local PostgreSQL 17.5 normal/race actual,
+`make conformance-check`, `make godj-conformance`, format/diff와 두 독립 source/conformance audit가 통과했습니다.
+[EVID-112](../docs/status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)는
+source-frozen affected checkpoint를 기록합니다. 이어서 source-changing fix 없이 full `make ci`, Linux/386 82-package
+compile과 repository-external 775-file archive gate가 모두 통과했고
+[EVID-113](../docs/status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)에 고정했습니다.
+다음 정확한 작업은 문서 checkpoint를 commit하고 non-force push/Draft PR 갱신 뒤 고유 exact-head hosted result와
+terminal mirror를 닫는 것입니다.
 
 ## 위험과 rollback
 

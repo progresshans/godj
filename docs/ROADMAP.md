@@ -1,17 +1,15 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 final source
-  `695916c8...`의 local frozen gates와 submitted head `253455d...`의
-  [EVID-110](status/TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
-  CI run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0을 통과해 QRY-022..033 bounded
-  query breadth를 `Verified`하고 completed됐습니다. 현재 유일한 active work는
-  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다. Accepted
-  [ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
-  독립 Django contract/oracle Phase A는 `fe4996f...`/EVID-111에서 reference-only로 동결했습니다. 다음은 하나의
-  immutable typed Boolean predicate tree, SQLite/PostgreSQL recursive compiler와 bounded Article 검색을
-  구현하는 Phase B/C입니다. Reference는 15/161/210=`134+5+22 locked`, product는 status 전환 없이
-  13/139=`134+5`입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
+- 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
+  QRY-022..033을 hosted-verified하고 completed됐습니다. 현재 유일한 active work는
+  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다. Phase A
+  `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
+  `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
+  bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
+  15/161/210=`144+5+12 locked`, product는 14/149=`144+5`입니다. EVID-112의 affected/local gate와
+  EVID-113의 final full/386/775-file source-clean-copy는 통과했고 다음은 exact-head hosted입니다.
+  Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -59,8 +57,8 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 제품 기준: 12 adapter/127 contract의 `122 passing + 5 deviation + 0 oracle_locked`, relation actual
-  REL-001..012 12/12; REL-002 `passing` and hosted-verified.
+- 현재 제품 기준: 14 adapters/149 contracts의 `144 passing + 5 deviation + 0 oracle_locked`; relation
+  REL-001..012 12/12와 query expression QRY-034..043 10/10 actual이 `passing`입니다. GDJ-0040 final hosted는 pending입니다.
 - 마지막 검토: 2026-08-23
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -583,8 +581,12 @@ source `695916c8...`과 submitted head `253455d...`는
 [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과 Accepted
 [ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)은 다음 read slice로 scalar typed
 `And`/`Or`/`Not`, nullable NOT truth table, predicate reuse, projection/aggregate composition과 Article bounded search를
-QRY-034..043으로 엽니다. Contract-first Phase A는 `fe4996f...`/EVID-111에서 exact 10 reference를
-`oracle_locked`로 동결했고 product adapter/passing 전환은 없습니다. Phase B/C 구현은 계속 active입니다.
+QRY-034..043으로 엽니다. Contract-first Phase A는 `fe4996f...`/EVID-111에서 exact 10 reference를 동결했고,
+Phase B/C `86d6b169...`/`0ec6f385...`는 product/actual을 구현해 10/10 `passing`과 zero-diff로 전환했습니다.
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)의
+affected/local PostgreSQL/audit와
+[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)의
+full/386/source-clean-copy가 통과했고 exact-head hosted가 남아 active입니다.
 Relation leaf under OR/NOT, F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
 M4 전체는 계속 완료되지 않았습니다.
 
@@ -601,8 +603,8 @@ Article PostgreSQL migration/generated CRUD/HTTP actual을 통과했고 final
 [EVID-108](status/TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion) /
 run `32626539049`에서 bounded `Verified`/completed로 전환됐습니다. GDJ-0039은 이 request-local DTO 경계를
 유지한 채 검색/리포트 query breadth를 넓혀 EVID-110으로 completed됐습니다. GDJ-0040은 public Web
-Core를 넓히지 않고 기존 Article handler의 bounded query parsing과 request-local 두 DB query 계약에 scalar Boolean
-검색만 연결합니다.
+Core를 넓히지 않고 기존 Article handler의 bounded q/published/exclude parsing과 request-local 두 DB query 계약에
+scalar Boolean 검색을 연결했고 EVID-112에서 SQLite/PostgreSQL local E2E를 통과했습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-21
+- 마지막 검토: 2026-08-23
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -1748,3 +1748,25 @@ Artifact exact bytes/SHA-256은 manifest
 15/161/210의 `134 passing + 5 deviation + 22 oracle_locked`, product inventory는 13 adapters/139 contracts의
 `134 passing + 5 deviation + 0 oracle_locked`로 서로 분리합니다. Phase A에서 Go unit/backend/Article actual,
 race/CGO0/vet/full/386/hosted product matrix를 실행했다고 주장하지 않으며 QRY-034..043 status도 전환하지 않습니다.
+
+## GDJ-0040 Phase B/C Boolean product verification
+
+Phase B/C source `86d6b169...`와 actual `0ec6f385...`는 independent reference scenario나 checked-in expected
+artifact를 읽지 않는 GoDj registry를 정확히 10개 등록합니다. 실제 Article ORM/SQLite를 실행하고 compiled
+where shape, deterministic DFS parameter order, result, DB state와 metrics를 protocol observation으로 만듭니다.
+두 독립 actual은 41,134 bytes/SHA-256
+`20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
+oracle과 10/10 zero-diff입니다.
+
+Manifest는 status 10개만 `passing`으로 바뀐 8,075 bytes/SHA-256
+`e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`입니다. Oracle/static/checksum bytes는
+Phase A와 동일합니다. Reference aggregate는 15/161/210=`144 passing + 5 deviation + 12 oracle_locked`,
+product는 14 adapters/149 contracts=`144 passing + 5 deviation`입니다.
+
+Affected gate는 query/orm/SQLite/PostgreSQL/Article/compiletest/conformance normal·race·CGO-disabled·vet,
+generated drift, `make conformance-check`, `make godj-conformance`, local PostgreSQL 17.5 required normal/race actual,
+format/diff와 두 독립 audit입니다. 자세한 명령과 non-claim은
+[EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)에
+기록합니다. 이 checkpoint 자체는 final gate를 주장하지 않습니다. 이어진
+[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은 full `make ci`,
+Linux/386와 repository-external source-clean-copy를 한 번 통과했고 exact-head hosted만 남깁니다.
