@@ -15,8 +15,9 @@ type commandArguments struct {
 }
 
 type projectDescriptor struct {
-	formatVersion uint16
-	packagePath   string
+	formatVersion        uint16
+	packagePath          string
+	runserverPackagePath string
 }
 
 func parseArguments(argv []string) (commandArguments, *Failure) {
@@ -42,7 +43,7 @@ func parseProjectDescriptor(document []byte) (projectDescriptor, *Failure) {
 	if !ok {
 		return invalid()
 	}
-	semantic := make([]string, 0, 3)
+	semantic := make([]string, 0, 4)
 	for _, line := range lines {
 		trimmed := strings.Trim(line, " \t")
 		if trimmed == "" {
@@ -56,7 +57,7 @@ func parseProjectDescriptor(document []byte) (projectDescriptor, *Failure) {
 		}
 		semantic = append(semantic, line)
 	}
-	if len(semantic) != 3 || strings.Trim(semantic[1], " \t") != "[project]" {
+	if (len(semantic) != 3 && len(semantic) != 4) || strings.Trim(semantic[1], " \t") != "[project]" {
 		return invalid()
 	}
 	versionText, ok := descriptorAssignment(semantic[0], "format_version")
@@ -75,11 +76,26 @@ func parseProjectDescriptor(document []byte) (projectDescriptor, *Failure) {
 	if !validProjectPackage(packageValue) {
 		return invalid()
 	}
+	runserverPackageValue := ""
+	if len(semantic) == 4 {
+		runserverPackageText, ok := descriptorAssignment(semantic[3], "runserver_package")
+		if !ok || len(runserverPackageText) < 2 || runserverPackageText[0] != '"' || runserverPackageText[len(runserverPackageText)-1] != '"' {
+			return invalid()
+		}
+		runserverPackageValue = runserverPackageText[1 : len(runserverPackageText)-1]
+		if !validProjectPackage(runserverPackageValue) || runserverPackageValue == packageValue {
+			return invalid()
+		}
+	}
 	if version != 1 {
 		primary := failure("migration_project_selection_error", "project_descriptor_incompatible")
 		return projectDescriptor{}, &primary
 	}
-	return projectDescriptor{formatVersion: uint16(version), packagePath: packageValue}, nil
+	return projectDescriptor{
+		formatVersion:        uint16(version),
+		packagePath:          packageValue,
+		runserverPackagePath: runserverPackageValue,
+	}, nil
 }
 
 func descriptorLines(document []byte) ([]string, bool) {
@@ -157,7 +173,7 @@ func validProjectPackage(value string) bool {
 		return false
 	}
 	remainder := value[2:]
-	if path.Clean(remainder) != remainder || strings.ContainsAny(remainder, "\\\x00*?[]{}") {
+	if path.Clean(remainder) != remainder || strings.Contains(remainder, "...") || strings.HasSuffix(remainder, ".go") || strings.ContainsAny(remainder, "\\\x00*?[]{}") {
 		return false
 	}
 	for i := 0; i < len(remainder); i++ {

@@ -1,3 +1,4 @@
 format_version = 1
 [project]
 package = "./cmd/projectrunner"
+runserver_package = "./cmd/site"

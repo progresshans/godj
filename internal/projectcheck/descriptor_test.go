@@ -36,12 +36,21 @@ func TestArgumentsAndDescriptorAreClosed(t *testing.T) {
 
 	valid := []byte("format_version = 1\n\n[project]\npackage = \"./cmd/site\"\n")
 	parsed, primary := parseProjectDescriptor(valid)
-	if primary != nil || parsed.packagePath != "./cmd/site" || parsed.formatVersion != 1 {
+	if primary != nil || parsed.packagePath != "./cmd/site" || parsed.runserverPackagePath != "" || parsed.formatVersion != 1 {
 		t.Fatalf("valid descriptor = %+v, %+v", parsed, primary)
+	}
+	withRunserver := []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site\"\n")
+	parsed, primary = parseProjectDescriptor(withRunserver)
+	if primary != nil || parsed.packagePath != "./cmd/projectrunner" || parsed.runserverPackagePath != "./cmd/site" || parsed.formatVersion != 1 {
+		t.Fatalf("valid runserver descriptor = %+v, %+v", parsed, primary)
 	}
 	crlf := []byte("# comment\r\nformat_version\t=\t1\r\n[project]\r\npackage = \"./cmd/site\"\r\n")
 	if _, primary := parseProjectDescriptor(crlf); primary != nil {
 		t.Fatalf("valid CRLF descriptor = %+v", primary)
+	}
+	crlfWithRunserver := []byte("format_version = 1\r\n[project]\r\npackage = \"./cmd/projectrunner\"\r\n# optional capability\r\nrunserver_package = \"./cmd/site\"\r\n")
+	if parsed, primary := parseProjectDescriptor(crlfWithRunserver); primary != nil || parsed.runserverPackagePath != "./cmd/site" {
+		t.Fatalf("valid CRLF runserver descriptor = %+v, %+v", parsed, primary)
 	}
 
 	invalidDocuments := [][]byte{
@@ -54,6 +63,16 @@ func TestArgumentsAndDescriptorAreClosed(t *testing.T) {
 		[]byte("format_version = 1\n[project]\npackage = \"./a{b\"\n"),
 		[]byte("format_version = 1\n[project]\npackage = \"./a}b\"\n"),
 		[]byte("format_version = 1 # inline\n[project]\npackage = \"./cmd/site\"\n"),
+		[]byte("format_version = 1\n[project]\nrunserver_package = \"./cmd/site\"\npackage = \"./cmd/projectrunner\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nunknown = \"./cmd/site\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\npackage = \"./cmd/site\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site\"\nrunserver_package = \"./cmd/other\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/site\"\nrunserver_package = \"./cmd/site\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"cmd/site\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/site\"\nrunserver_package = \"./cmd/site...\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner/main.go\"\nrunserver_package = \"./cmd/site\"\n"),
+		[]byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site/main.go\"\n"),
 	}
 	for _, document := range invalidDocuments {
 		_, primary := parseProjectDescriptor(document)
@@ -64,6 +83,10 @@ func TestArgumentsAndDescriptorAreClosed(t *testing.T) {
 	incompatible := []byte("format_version = 2\n[project]\npackage = \"./cmd/site\"\n")
 	if _, primary := parseProjectDescriptor(incompatible); primary == nil || primary.Code != protocol.CodeProjectDescriptorIncompatible {
 		t.Fatalf("incompatible descriptor = %+v", primary)
+	}
+	incompatibleWithRunserver := []byte("format_version = 2\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site\"\n")
+	if _, primary := parseProjectDescriptor(incompatibleWithRunserver); primary == nil || primary.Code != protocol.CodeProjectDescriptorIncompatible {
+		t.Fatalf("incompatible runserver descriptor = %+v", primary)
 	}
 	incompatibleAndInvalid := []byte("format_version = 2\n[project]\npackage = \"cmd/site\"\n")
 	if _, primary := parseProjectDescriptor(incompatibleAndInvalid); primary == nil || primary.Code != protocol.CodeInvalidProjectDescriptor {
