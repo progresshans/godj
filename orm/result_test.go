@@ -461,6 +461,65 @@ func TestAggregateIntoRequiresExactlyOneRow(t *testing.T) {
 	}
 }
 
+func TestAggregateIntoFirstNextFailureDoesNotSynthesizeCardinalityError(t *testing.T) {
+	iterationFailure := errors.New("aggregate first-next iteration failure")
+	closeFailure := errors.New("aggregate first-next close failure")
+	aggregate := Aggregate1(CountRows[resultTestModel](), func(count int64) int64 { return count })
+
+	tests := []struct {
+		name      string
+		configure func(*resultTestRows, context.CancelFunc)
+		want      []error
+	}{
+		{
+			name: "iteration",
+			configure: func(rows *resultTestRows, _ context.CancelFunc) {
+				rows.iterationErr = iterationFailure
+			},
+			want: []error{iterationFailure},
+		},
+		{
+			name: "context and close",
+			configure: func(rows *resultTestRows, cancel context.CancelFunc) {
+				rows.closeErr = closeFailure
+				rows.onNext = func(call int) {
+					if call == 1 {
+						cancel()
+					}
+				}
+			},
+			want: []error{closeFailure, context.Canceled},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			rows := &resultTestRows{}
+			test.configure(rows, cancel)
+			backend := &resultTestBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) { return rows, nil }}
+
+			value, err := AggregateInto(ctx, newResultTestQuerySet(backend), aggregate)
+			if value != 0 {
+				t.Fatalf("AggregateInto() value = %d, want zero", value)
+			}
+			for _, want := range test.want {
+				if !errors.Is(err, want) {
+					t.Errorf("AggregateInto() error %v does not preserve %v", err, want)
+				}
+			}
+			var queryErr *query.Error
+			if errors.As(err, &queryErr) && queryErr.Category == query.CategoryBackend && queryErr.Code == query.CodeInvalidPlan {
+				t.Fatalf("AggregateInto() synthesized cardinality error over lifecycle failure: %v", err)
+			}
+			if rows.nextCalls != 1 || rows.scanCalls != 0 || rows.errCalls != 1 || rows.closeCalls != 1 {
+				t.Fatalf("rows lifecycle = next %d scan %d err %d close %d, want 1/0/1/1", rows.nextCalls, rows.scanCalls, rows.errCalls, rows.closeCalls)
+			}
+		})
+	}
+}
+
 func TestAggregateIntoRowsAndContextFailuresCloseExactlyOnce(t *testing.T) {
 	scanFailure := errors.New("aggregate scan failure")
 	iterationFailure := errors.New("aggregate iteration failure")

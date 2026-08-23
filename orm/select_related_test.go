@@ -450,6 +450,80 @@ func TestForwardSelectFailuresCloseOnceDoNotPublishAndRetry(t *testing.T) {
 	}
 }
 
+func TestForwardSelectQueryFailurePreservesCancellationAndLetsWaiterRetry(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	driverFailure := errors.New("forward select driver failure")
+	closeFailure := errors.New("forward select returned rows close failure")
+	failedRows := &selectRelatedRows{closeErr: closeFailure}
+	backend := &selectRelatedBackend{query: func(call int, _ context.Context, _ query.Plan) (db.Rows, error) {
+		if call == 0 {
+			close(started)
+			<-release
+			return failedRows, driverFailure
+		}
+		return &selectRelatedRows{values: []selectRelatedJoinedValue{selectRelatedRequiredValue()}}, nil
+	}}
+	eager := requiredSelectQuery(t, backend)
+	ownerCtx, cancelOwner := context.WithCancel(context.Background())
+	defer cancelOwner()
+	ownerResult := make(chan error, 1)
+	go func() {
+		_, err := eager.All(ownerCtx)
+		ownerResult <- err
+	}()
+	awaitSignal(t, started, "forward select canceled owner query")
+
+	waiterReady := make(chan struct{})
+	waiterCtx := &selectRelatedDoneSignalContext{Context: context.Background(), called: waiterReady}
+	waiterResult := make(chan struct {
+		count int
+		err   error
+	}, 1)
+	go func() {
+		values, err := eager.All(waiterCtx)
+		waiterResult <- struct {
+			count int
+			err   error
+		}{count: len(values), err: err}
+	}()
+	awaitSignal(t, waiterReady, "forward select live waiter")
+	cancelOwner()
+	close(release)
+
+	ownerErr := awaitValue(t, ownerResult, "forward select canceled owner")
+	for _, want := range []error{driverFailure, closeFailure, context.Canceled} {
+		if !errors.Is(ownerErr, want) {
+			t.Errorf("owner error %v does not preserve %v", ownerErr, want)
+		}
+	}
+	waiter := awaitValue(t, waiterResult, "forward select live waiter retry")
+	if waiter.err != nil || waiter.count != 1 {
+		t.Fatalf("live waiter retry = (%d, %v), want (1, nil)", waiter.count, waiter.err)
+	}
+	if got := backend.callCount(); got != 2 {
+		t.Fatalf("canceled owner/live waiter backend calls = %d, want 2", got)
+	}
+	if got := failedRows.closeCalls.Load(); got != 1 {
+		t.Fatalf("canceled owner returned rows Close calls = %d, want 1", got)
+	}
+}
+
+func TestForwardSelectNilRowsPreservesConcurrentCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	backend := &selectRelatedBackend{query: func(int, context.Context, query.Plan) (db.Rows, error) {
+		cancel()
+		return nil, nil
+	}}
+
+	_, err := requiredSelectQuery(t, backend).All(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("nil rows error %v does not preserve context cancellation", err)
+	}
+	assertSelectRelatedError(t, err, query.CategoryBackend, query.CodeInvalidPlan, "")
+}
+
 func TestForwardSelectProjectionIntegrityAndShapeFailuresArePrePublication(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -701,6 +775,17 @@ type selectRelatedBackend struct {
 	mu    sync.Mutex
 	plans []query.Plan
 	query func(int, context.Context, query.Plan) (db.Rows, error)
+}
+
+type selectRelatedDoneSignalContext struct {
+	context.Context
+	called chan struct{}
+	once   sync.Once
+}
+
+func (ctx *selectRelatedDoneSignalContext) Done() <-chan struct{} {
+	ctx.once.Do(func() { close(ctx.called) })
+	return ctx.Context.Done()
 }
 
 func (backend *selectRelatedBackend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {

@@ -383,6 +383,7 @@ type relationDeleteTestSession struct {
 	deleteErr        error
 	deletePlans      []query.DeletePlan
 	mutationOrder    []string
+	onQuery          func()
 	onSetNull        func()
 	forbiddenMutator int
 }
@@ -399,6 +400,9 @@ func (session *relationDeleteTestSession) Query(_ context.Context, plan query.Pl
 	var err error
 	if index < len(session.queryErrs) {
 		err = session.queryErrs[index]
+	}
+	if session.onQuery != nil {
+		session.onQuery()
 	}
 	return rows, err
 }
@@ -976,6 +980,68 @@ func TestRelationDeleterMutationFailuresReturnZeroAndPreserveCaller(t *testing.T
 			}
 			if got := len(session.deletePlans) != 0; got != test.wantDeleteRun {
 				t.Fatalf("target Delete ran = %v, want %v", got, test.wantDeleteRun)
+			}
+		})
+	}
+}
+
+func TestRelationDeleterQueryFailurePreservesConcurrentCancellation(t *testing.T) {
+	t.Parallel()
+
+	var typedNil *relationDeleteTypedNilRows
+	tests := []struct {
+		name       string
+		rows       db.Rows
+		queryErr   error
+		want       []error
+		invalid    bool
+		closeCalls int
+	}{
+		{
+			name:       "primary and close errors",
+			rows:       &relationDeleteTestRows{closeErr: errRelationDeleteClose},
+			queryErr:   errRelationDeleteQuery,
+			want:       []error{errRelationDeleteQuery, errRelationDeleteClose, context.Canceled},
+			closeCalls: 1,
+		},
+		{name: "nil rows", want: []error{context.Canceled}, invalid: true},
+		{name: "typed nil rows", rows: typedNil, want: []error{context.Canceled}, invalid: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			session := &relationDeleteTestSession{
+				queryRows:   []db.Rows{test.rows},
+				queryErrs:   []error{test.queryErr},
+				deleteCount: 1,
+				onQuery:     cancel,
+			}
+			target := relationDeleteTestAuthorValue(1)
+			before := target
+
+			rows, err := deleter.Delete(ctx, relationDeleteConformingBackend(session), &target)
+			if rows != 0 || target != before {
+				t.Fatalf("Delete() = (%d, %v), target %#v, want zero/error/unchanged", rows, err, target)
+			}
+			for _, want := range test.want {
+				if !errors.Is(err, want) {
+					t.Errorf("Delete() error %v does not preserve %v", err, want)
+				}
+			}
+			if test.invalid {
+				var queryErr *query.Error
+				if !errors.As(err, &queryErr) || queryErr.Category != query.CategoryBackend || queryErr.Code != query.CodeInvalidPlan {
+					t.Fatalf("Delete() error = %v, want backend invalid_plan plus cancellation", err)
+				}
+			}
+			if len(session.setNullPlans) != 0 || len(session.deletePlans) != 0 {
+				t.Fatalf("query failure mutated rows: set-null %d delete %d", len(session.setNullPlans), len(session.deletePlans))
+			}
+			if genuine, ok := test.rows.(*relationDeleteTestRows); ok && genuine.closeCalls != test.closeCalls {
+				t.Fatalf("Close calls = %d, want %d", genuine.closeCalls, test.closeCalls)
 			}
 		})
 	}

@@ -376,8 +376,12 @@ func AggregateInto[M, R any](ctx context.Context, source QuerySet[M], aggregate 
 	}
 	decoder := aggregate.newDecoder()
 	if !rows.Next() {
-		err = &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned no row"}
-	} else if scanErr := rows.Scan(decoder.destinations...); scanErr != nil {
+		if err := finishRowsLifecycle(ctx, nil, rows); err != nil {
+			return zero, err
+		}
+		return zero, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned no row"}
+	}
+	if scanErr := rows.Scan(decoder.destinations...); scanErr != nil {
 		err = fmt.Errorf("scan aggregate row: %w", scanErr)
 	} else if rows.Next() {
 		err = &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "aggregate query returned more than one row"}

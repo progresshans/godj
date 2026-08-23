@@ -558,13 +558,13 @@ func (q ForwardSelectQuery[S, T]) openRows(ctx context.Context) (db.Rows, error)
 	if err != nil {
 		if !interfaceIsNil(rows) {
 			if closeErr := rows.Close(); closeErr != nil {
-				return nil, errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
+				err = errors.Join(err, fmt.Errorf("close rows returned with backend error: %w", closeErr))
 			}
 		}
-		return nil, err
+		return nil, joinContextErr(err, ctx)
 	}
 	if interfaceIsNil(rows) {
-		return nil, relationBackendInvalidPlan("backend returned nil rows without an error")
+		return nil, joinContextErr(relationBackendInvalidPlan("backend returned nil rows without an error"), ctx)
 	}
 	return rows, nil
 }

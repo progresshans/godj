@@ -317,13 +317,13 @@ func collectProtectedRelationRows(
 	if err != nil {
 		if !interfaceIsNil(rows) {
 			if closeErr := rows.Close(); closeErr != nil {
-				return errors.Join(err, fmt.Errorf("close protected relation rows returned with backend error: %w", closeErr))
+				err = errors.Join(err, fmt.Errorf("close protected relation rows returned with backend error: %w", closeErr))
 			}
 		}
-		return err
+		return joinContextErr(err, ctx)
 	}
 	if interfaceIsNil(rows) {
-		return relationBackendInvalidPlan("relation session returned nil protected rows without an error")
+		return joinContextErr(relationBackendInvalidPlan("relation session returned nil protected rows without an error"), ctx)
 	}
 
 	for rows.Next() {
