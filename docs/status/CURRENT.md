@@ -49,6 +49,10 @@
 - GDJ-0041 terminal submitted head: `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`, tree
   `bcba40b731a5ed3e6554174e40cad62938e4b710`; [EVID-118](TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
   CI #115 run `32647746430` exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart
+- GDJ-0042 activation baseline: terminal docs head `052de65cae20ea0b80dfa337629e6da198abc827`, tree
+  `c365b492bfb008f80a73718f7033a6edb40d4c30`; active
+  [work packet](../../work/0042-project-linked-runserver-and-article-development-loop.md) / Proposed
+  [ADR-0042](../adr/0042-project-linked-runserver-and-article-development-loop.md), planned WEB-011..020, product change 0
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -391,6 +395,11 @@
   hosted-Verified하고 GDJ-0041을 completed로 닫았습니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
+  [GDJ-0042](../../work/0042-project-linked-runserver-and-article-development-loop.md)는 terminal docs baseline
+  `052de65...`에서 active로 전환했습니다. Proposed
+  [ADR-0042](../adr/0042-project-linked-runserver-and-article-development-loop.md)는 optional runtime package,
+  current-bundle read-only preflight, loopback-only global `runserver`, long-lived child drain/reap와 actual
+  SQLite/PostgreSQL Article flow를 WEB-011..020으로 계획합니다. 이 activation의 제품 변경과 passing contract는 0입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
   [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)가 이전 dual-format/additive
@@ -1496,7 +1505,8 @@ submitted head `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gd
 run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033을 `Verified`하고
 completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `32642341459` exact
 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0041도 submitted head `e97a4e3...`의 EVID-118/run
-`32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. 현재 active/ready는 0이고 외부 blocker도 0입니다. GDJ-0040 Phase A의
+`32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. 현재 GDJ-0042가 active, ready는 0이고 외부
+blocker도 0입니다. Proposed ADR-0042/WEB-011..020은 아직 activation-only이며 제품 구현·지원·검증 주장은 0입니다. GDJ-0040 Phase A의
 QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐고, Phase B/C
 source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate를 통과했습니다.
 첫 hosted run의 stale 916-test inventory failure와 correction `73b912d...`의 exact 950-test lock 및 새
@@ -1576,8 +1586,10 @@ general generated upgrade는 계속 open입니다.
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
 독립 감사와 exact hosted matrix를 모두 통과했습니다. QRY-044..053은 `Verified`, GDJ-0041은 completed입니다.
-다음 정확한 작업은 별도 GDJ-0042 work/ADR에서 public boundary를 짧게 고정한 뒤 다음 넓은 사용자 수직 단면을
-구현하는 것입니다. Terminal 문서 mirror 자체는 docs-only consistency gate만 사용합니다.
+Active GDJ-0042의 다음 정확한 작업은 Phase A descriptor/argv/address parser, current-bundle read-only loader와
+long-lived streaming process owner의 failure/interrupt 경계를 구현·검증하는 것입니다. 그 뒤 하나의 retained
+project selection에서 SQLite Article actual child 수직 단면을 연결합니다. Activation 문서 mirror 자체는 docs-only
+consistency gate만 사용합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
 release는 이 작업의 권한·범위가 아닙니다.

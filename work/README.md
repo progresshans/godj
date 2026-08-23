@@ -65,10 +65,12 @@ proposed → ready → active → completed
 | [GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | completed | Typed projection, scalar aggregate와 stable pagination Article 수직 단면 |
 | [GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md) | completed | Composable typed Boolean predicate와 Article 검색 수직 단면 |
 | [GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md) | completed | Typed scalar comparison, field reference와 Article advanced filtering |
+| [GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md) | active | Project-linked `runserver`와 Article 개발 루프 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이고, 현재 active/ready packet은 없습니다.
+[GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이고, 현재 active packet은
+[GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md), ready packet은 0입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
@@ -94,6 +96,10 @@ filter를 구현했습니다. QRY-044..053 oracle-blind actual은 10/10 zero-dif
 Submitted head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
 CI #115 run `32647746430`은 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart를
 통과해 QRY-044..053을 Verified하고 GDJ-0041을 completed로 닫았습니다.
+GDJ-0042는 terminal docs baseline `052de65...`에서 active로 전환했고 Proposed ADR-0042와 WEB-011..020을
+고정했습니다. Optional project-linked runtime package, read-only current-bundle preflight, loopback-only global
+`runserver`, long-lived child drain/reap와 SQLite/PostgreSQL Article actual이 계획 범위입니다. Activation 자체의
+제품 구현·지원·검증 주장은 0입니다.
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

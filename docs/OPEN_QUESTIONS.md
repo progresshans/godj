@@ -9,14 +9,14 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
+| Q-010 | Partial | GDJ-0037 completed; GDJ-0042 active / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; optional project-linked runserver는 WEB-011..020에서 진행 중이고 installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
 | Q-012 | Partial | GDJ-0038 completed / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0038 completed / raw-model and general upgrade | Project publication과 ADR-0038 Web-only explicit DTO representation은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
+| Q-017 | P1 | GDJ-0038 completed; GDJ-0042 active / raw-model and general upgrade | Project publication과 ADR-0038 Web-only explicit DTO representation은 hosted-verified; generated-aware runserver usability는 WEB-011..020에서 진행 중이고 general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -118,6 +118,13 @@ submitted head `e97a4e3...`의
 `32647746430` exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual을 통과해
 work를 completed/hosted-verified로 닫았습니다. Q-011은 아래 broader scope 때문에 계속 `Partial`입니다.
 Arithmetic/function/annotation, relation/cross-model F, transaction container와 async/background ownership은 open입니다.
+
+Active [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)와 Proposed
+[ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)는 Q-010의 direct project command와
+Q-017의 generated runtime usability를 WEB-011..020으로 좁혀 진행합니다. Optional descriptor capability,
+current-bundle read-only preflight, loopback-only `godj runserver`, long-lived child lifecycle과 actual
+SQLite/PostgreSQL Article flow가 계획 범위입니다. Activation baseline에서는 제품 변경과 passing contract가 0이며,
+installed semver/upgrader/general raw-model UX를 결정하지 않으므로 두 질문의 상태는 그대로입니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 

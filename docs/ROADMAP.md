@@ -5,7 +5,10 @@
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과
   [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)도 completed됐습니다. 현재
-  active/ready work는 0입니다. GDJ-0040 Phase A
+  [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)가 active이고 ready work는 0입니다.
+  Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)는 WEB-011..020의 optional
+  runtime package, read-only bundle preflight, loopback-only global `runserver`와 Article actual child 개발 루프를
+  계획하며 activation 시점 제품 구현·지원 주장은 없습니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -637,6 +640,12 @@ scalar Boolean 검색을 연결했고 EVID-112에서 SQLite/PostgreSQL local E2E
 GDJ-0041은 같은 handler에 `min_id`/`max_id`/`title_matches_summary`를 추가해 invalid request DB I/O 0과 성공
 projection+aggregate 두 query를 유지했고 EVID-118/run `32647746430`의 exact-head PostgreSQL 17.10 actual까지
 통과해 completed/hosted-verified됐습니다.
+
+[GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)는 M5의 다음 active 수직 단면입니다.
+Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)에 따라 declaration runner와
+generated-aware runtime package를 분리한 채 current bundle을 read-only 확인하고 global `godj runserver`가
+loopback Article server를 build/start/drain/reap하도록 WEB-011..020을 계획합니다. Auto-generate/migrate/reload,
+public DB settings와 production server는 제외하며 이 activation만으로 구현 상태를 올리지 않습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
