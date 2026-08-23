@@ -10412,3 +10412,85 @@ production PostgreSQL readiness, merge or release.
 
 The EVID-110 terminal mirror and GDJ-0040 activation are a later documentation-only descendant. They record this exact
 run but are not recursively proved by it; their gates are frontmatter/status/link consistency and `git diff --check`.
+
+## EVID-20260823-111 — GDJ-0040 Query Expression Reference-Only Phase A Checkpoint
+
+- Date/time: 2026-08-23T20:50:31+09:00
+- Work/contract IDs: GDJ-0040 active; QRY-034..043 Phase A reference-only; Q-011 remains `Partial`
+- Branch: `feature/pre-release-compatibility-reset`
+- Exact Phase A commit/tree: `fe4996f4c2664ae2e2d5a8d482473c3de637b527` /
+  `c39bb5f187a55e05a020bfec58213f5fc09491eb`, subject `test: lock boolean predicate reference contracts`
+- Parent activation/documentation commit: `f6ae770572da78d4394db00f2fe0890c642764cb`
+- Packet diff: 24 paths, `+1,729/-38`; eight new reference/protocol/scenario files and sixteen updated registry,
+  checksum, workflow, test and documentation files
+- Result: independent Django observations and fail-closed reference wiring are locally byte-frozen. QRY-034..043 remain
+  `oracle_locked`/unregistered; this evidence does not claim a GoDj Boolean product implementation, `passing`, hosted
+  verification, merge or release.
+
+### Frozen behavior and artifacts
+
+- The ten ordered scenarios cover scalar exact OR, escaped ASCII `icontains` OR, grouped OR+AND reuse, non-null NOT,
+  nullable exact/`icontains`/`isnull` negation, implicit Filter AND, nested connector/source reuse, distinct stable page,
+  projection fields outside the predicate and composite Count/Max.
+- QRY-038 locks the nullable complement truth table: exact and `icontains` negation return IDs `[1,3,4]` with an
+  `IS NOT NULL` guard; negated `isnull=true` returns `[2,3]`; negated `isnull=false` returns `[1,4]`.
+- Manifest/oracle/static fixture are respectively 8,135/41,264/1,715 bytes with SHA-256
+  `8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`,
+  `8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e` and
+  `0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`.
+- The shared oracle catalog is exact 15 lines/1,432 bytes/SHA-256
+  `24949f4eb6099d4c9a8b501cefe257b134a23bc3717799c32276c3f8a083a13c`; all 15 entries passed checksum validation.
+- Reference inventory is 15 sets/161 unique contracts and scenarios/210 ordered cross-bindings=
+  `134 passing + 5 deviation + 22 oracle_locked`. Product stays 13 adapters/139 contracts=
+  `134 passing + 5 deviation + 0 oracle_locked`; the new set has zero required product handlers and produces the
+  canonical ten-entry not-implemented actual until a later status transition.
+
+### Local verification
+
+The following affected gates passed:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 LC_ALL=C TZ=UTC \
+  uv run --frozen python -m unittest discover -s conformance/runners/django/tests -v
+# Ran 236 tests; OK (skipped=21)
+
+PYTHONDONTWRITEBYTECODE=1 GODJ_EXACT_PROFILE=1 \
+  PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC \
+  uvx --from uv==0.10.12 uv run --frozen python \
+  -m unittest discover -s conformance/runners/django/tests -v
+# Ran 236 tests; OK
+
+PYTHONDONTWRITEBYTECODE=1 LC_ALL=C TZ=UTC \
+  uvx --from uv==0.10.12 uv run --frozen python \
+  -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/query-expression-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json --check
+
+make conformance-check
+go test -count=1 ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+shasum -a 256 -c conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS
+make format-check
+ruby -e 'require "yaml"; YAML.load_file(".github/workflows/ci.yml")'
+git diff --check
+```
+
+The portable semantic registry was independently measured at 161 scenarios/702,415 canonical bytes/SHA-256
+`aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`. Focused scenario tests passed 7/7; the
+scenario/registry/runner-safety group passed 60/60 under the exact profile and 60 tests with 16 expected profile skips
+portably. Protocol tests lock every declared result/database-state/metrics dimension, ordering, phase, profile binding,
+provenance, Makefile reference/product separation and the pre-publication false-green failure.
+
+A direct local `make oracle-check` failed closed before writing because the exact profile requires uv 0.10.12 while the
+normal local tool is uv 0.12.3. The isolated pinned command above then reproduced the query-expression oracle exactly,
+and the full exact-profile suite passed with zero skips. This is the intended exact/portable tool split, not an artifact
+drift or a passed `make oracle-check` claim.
+
+### Remaining boundary
+
+- Phase B must replace the flat condition authority with one immutable expression tree, add typed `And`/`Or`/`Not`,
+  retain Filter implicit AND, enforce depth 64/node 1,024 and prove typed/dynamic/cache/cancellation behavior.
+- Phase C must add SQLite/PostgreSQL recursive compilers, the oracle-blind GoDj actual adapter and bounded Article search.
+- No backend, Article, race/CGO-disabled/vet product, full/386/source-clean-copy or hosted milestone gate is claimed by
+  this reference-only checkpoint. Those run at the work checkpoints defined by GDJ-0040.

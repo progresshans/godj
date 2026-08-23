@@ -21,6 +21,9 @@
 - GDJ-0040 activation baseline: hosted-verified GDJ-0039 submitted head `253455d734ec683c469beed44f94f7b8a8c0bec3`;
   active [work packet](../../work/0040-composable-typed-boolean-predicates-and-article-search.md) /
   [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)
+- GDJ-0040 Phase A reference checkpoint: `fe4996f4c2664ae2e2d5a8d482473c3de637b527`
+  (`test: lock boolean predicate reference contracts`), tree `c39bb5f187a55e05a020bfec58213f5fc09491eb`;
+  [EVID-111](TEST_EVIDENCE.md#evid-20260823-111--gdj-0040-query-expression-reference-only-phase-a-checkpoint)
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -335,10 +338,11 @@
   `Verified`하고 completed됐습니다. 현재 유일한 active packet은
   [GDJ-0040](../../work/0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다.
   Accepted [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
-  독립 Django contract/oracle을 먼저 동결한 뒤, 하나의 immutable typed Boolean predicate tree와 bounded
-  Article 검색을 SQLite/PostgreSQL에 연결합니다. 현재 구현·product status 전환은 0입니다.
-  Current reference는 14 sets/151 scenarios/182 bindings=`134 passing + 5 deviation + 12 oracle_locked`, product는
-  13 adapters/139=`134 passing + 5 deviation`입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
+  독립 Django contract/oracle을 Phase A checkpoint `fe4996f...`에서 동결했습니다. 다음은 하나의 immutable
+  typed Boolean predicate tree와 bounded Article 검색을 SQLite/PostgreSQL에 연결하는 Phase B/C이며 현재 product
+  구현·status 전환은 0입니다. Current reference는 15 sets/161 scenarios/210 bindings=
+  `134 passing + 5 deviation + 22 oracle_locked`, product는 13 adapters/139=
+  `134 passing + 5 deviation`입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
@@ -462,7 +466,7 @@
   0/12 contracts·0/30 dimensions는 12개 semantic product failure가 아니었습니다. GDJ-0036은 그 뒤
   MIG-075..079를 current ABI/format/digest/state/staged-preflight 진단 계약으로 재기준화하고 dependency 및
   public `*migrations.PlanningError` typed classification false-green을 닫았습니다. 그 GDJ-0036 시점 aggregate는
-  13/139/156이었고, same-ID 12개는 현재 전체 14/151/182 reference에도 포함되지만
+  13/139/156이었고, same-ID 12개는 현재 전체 15/161/210 reference에도 포함되지만
   locked/unregistered입니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0039 Typed Projection, Scalar Aggregate, and Stable Pagination](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)
@@ -1034,8 +1038,9 @@
   `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) / run
   `32634741186`이 exact 27/27 jobs·341/341 steps로 통과해 QRY-022..033은 `Verified`, work는 completed입니다.
 - GDJ-0040은 [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라
-  QRY-034..043 scalar Boolean composition과 Article search를 여는 현재 active packet입니다. Contract-first Phase A
-  전이므로 새 reference/product 세트, 구현, passing 또는 aggregate 변경을 아직 주장하지 않습니다.
+  QRY-034..043 scalar Boolean composition과 Article search를 여는 현재 active packet입니다. Phase A는
+  `fe4996f...`/EVID-111에서 reference-only 10개를 `oracle_locked`로 동결했고 product adapter와 passing 전환은
+  없습니다. Phase B/C 구현은 아직 제품 증거가 아닙니다.
 
 ### 오류와 durability 경계
 
@@ -1056,7 +1061,7 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 현재 14 ordered set, 151 unique contract/scenario와 182 ordered
+- Protocol v2 reference에는 현재 15 ordered set, 161 unique contract/scenario와 210 ordered
   cross-binding이 있습니다. Current product는 13개 set에 actual GoDj adapter를 가지며
   139 contract 분류는 `134 passing + 5 deviation + 0 oracle_locked`입니다. QRY-022..033 actual은 12/12
   zero-diff이고 Relation set REL-001..012 actual도 모두 `passing`입니다. GDJ-0039 전 reference/product aggregate는
@@ -1099,8 +1104,9 @@
   REL-001..012 모두 `passing`입니다. Static comparison은 ordered mismatch 12/exit 1이고 product `godjcheck`는 trusted
   oracle-blind actual adapters로 exact 12 contract를 관찰해 성공합니다. EVID-076 당시 hosted aggregate는 reference
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
-  MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, current 전체는 QRY-022..033까지 포함한
-  14/151/182입니다. Local relation transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
+  MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
+  14/151/182였습니다. Current 전체는 QRY-034..043 reference-only set을 더한 15/161/210입니다. Local relation
+  transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
   difference 0입니다. Project-check static comparison은 exit 1/ordered mismatch 10을 유지하고, product
@@ -1115,8 +1121,12 @@
   `76578c225edfa6af4bf2d119f93fdcdf633cfee8ebb5a9092aa5157e5f218be1`입니다.
 - Fourteenth QRY-022..033 query-breadth reference는 manifest/oracle/static fixture
   11,282/41,943/1,867 bytes와 SHA-256 `04665808...`/`0236bdab...`/`f618ca12...`이며 actual 12/12가
-  `passing`입니다. Current shared 14-line `SHA256SUMS`는 1,337 bytes/SHA-256
+  `passing`입니다. GDJ-0039 당시 shared 14-line `SHA256SUMS`는 1,337 bytes/SHA-256
   `23e147bed6eda0ab5c621dbf8cb847d25878a299b2397b3a45202cc73cdf0b16`입니다.
+- Fifteenth QRY-034..043 query-expression reference는 manifest/oracle/static fixture
+  8,135/41,264/1,715 bytes와 SHA-256 `8ed9ef62...`/`8b087a39...`/`0df90735...`이며 10개 모두
+  `oracle_locked`/unregistered입니다. Current shared 15-line `SHA256SUMS`는 1,432 bytes/SHA-256
+  `24949f4eb6099d4c9a8b501cefe257b134a23bc3717799c32276c3f8a083a13c`입니다.
 
 ### 검증 증거
 
@@ -1425,7 +1435,8 @@ run `32626539049` exact 27/27 jobs·341/341 steps success로 bounded `Verified`/
 submitted head `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
 run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033을 `Verified`하고
 completed됐습니다. 현재 active는 GDJ-0040, ready는 0이고 외부 blocker는 없습니다. Phase A의
-QRY-034..043 독립 Django scenario/oracle가 다음 경계이며 relation leaf under OR/NOT, F expression,
+QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐습니다. 다음 경계는
+authoritative immutable expression tree와 typed ORM composition이며 relation leaf under OR/NOT, F expression,
 bulk/locking/Form은 이 packet에서 명시적으로 제외합니다.
 MIG-075..086은 계속 `oracle_locked`/unregistered이고 새 Field/Relation 종류와 general migration writer도 아직
 구현하지 않았습니다.
@@ -1495,10 +1506,10 @@ general generated upgrade는 계속 open입니다.
 
 GDJ-0040을 다음 순서로 진행합니다.
 
-1. QRY-034..043 독립 Django scenario/test를 expected artifact와 분리해 작성합니다.
-2. Exact profile에서 nullable NOT truth table을 관찰하고 manifest/oracle/static/provenance를 동결합니다.
-3. `query`/`orm`을 평면 조건과 tree 이중 경로 없이 하나의 immutable Boolean tree로 전환합니다.
-4. SQLite/PostgreSQL recursive compiler와 Article bounded search/product adapter를 병렬 구현·통합합니다.
+1. `query`/`orm`을 평면 조건과 tree 이중 경로 없이 하나의 immutable Boolean tree로 전환합니다.
+2. Typed/dynamic convergence, resource cap, reuse/cache/cancellation과 cross-model compile rejection을 검증합니다.
+3. SQLite/PostgreSQL recursive compiler와 Article bounded search/product adapter를 병렬 구현·통합합니다.
+4. QRY-034..043 actual을 oracle-blind로 연결하고 status 전환 전 comparator evidence를 고정합니다.
 5. Work checkpoint를 통과한 뒤 final frozen milestone에서만 full/386/source-clean/hosted gate를 실행합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와

@@ -8,9 +8,10 @@
   query breadth를 `Verified`하고 completed됐습니다. 현재 유일한 active work는
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md), ready는 0입니다. Accepted
   [ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
-  독립 Django contract/oracle, 하나의 immutable typed Boolean predicate tree, SQLite/PostgreSQL recursive
-  compiler와 bounded Article 검색을 contract-first로 구현합니다. 새 product/status/aggregate 변경은
-  아직 0입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
+  독립 Django contract/oracle Phase A는 `fe4996f...`/EVID-111에서 reference-only로 동결했습니다. 다음은 하나의
+  immutable typed Boolean predicate tree, SQLite/PostgreSQL recursive compiler와 bounded Article 검색을
+  구현하는 Phase B/C입니다. Reference는 15/161/210=`134+5+22 locked`, product는 status 전환 없이
+  13/139=`134+5`입니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -582,7 +583,8 @@ source `695916c8...`과 submitted head `253455d...`는
 [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과 Accepted
 [ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)은 다음 read slice로 scalar typed
 `And`/`Or`/`Not`, nullable NOT truth table, predicate reuse, projection/aggregate composition과 Article bounded search를
-QRY-034..043으로 엽니다. Contract-first Phase A 전이므로 아직 구현·passing을 주장하지 않습니다.
+QRY-034..043으로 엽니다. Contract-first Phase A는 `fe4996f...`/EVID-111에서 exact 10 reference를
+`oracle_locked`로 동결했고 product adapter/passing 전환은 없습니다. Phase B/C 구현은 계속 active입니다.
 Relation leaf under OR/NOT, F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
 M4 전체는 계속 완료되지 않았습니다.
 
