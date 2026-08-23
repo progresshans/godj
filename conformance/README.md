@@ -174,6 +174,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | Current format/load ownership과 opaque lifecycle authority를 검증하는 focused gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
+| `runserverproduct` | GDJ-0042 global `godj runserver` lifecycle, actual SQLite Article와 required PostgreSQL Article sentinel |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -184,6 +185,39 @@ ordered contract ID/position, phase와 payload dimension이 suite를 선택 mani
 
 현재 wire format은 protocol v2입니다. v2는 contract manifest의 expected phase를
 필수화하며 v1 profile, manifest와 observation suite를 조용히 받아들이지 않습니다.
+
+## GDJ-0042 runserver product gate
+
+`conformance/runserverproduct`는 Darwin/Linux에서 actual global CLI를 build하고 strict optional
+`runserver_package`가 지정된 Article project를 실행합니다. 한 번 retained selection한 project에서 declaration runner를
+한 번 build/run하고 current bundle을 계산한 뒤 `CheckRoot` → isolated readonly runtime build → `CheckRoot` 순서를
+통과해야만 exact `<private-binary> serve --listen <loopback-address>` child를 시작합니다. Actual test는 project tree를
+수정하지 않으며 global 명령이 generate publication, migration 또는 reload를 실행하지 않는 경계를 고정합니다.
+
+SQLite sentinel은 pre-migrated file-backed DB의 exact nine rows/history를 준비하고 같은 concrete port의 repeated
+start/stop, advanced Article HTTP response, durable DB state, exact declaration/runtime build 대상, stale/missing/interrupted
+pre-start failure, process group과 private temp residue 0을 관찰합니다. PostgreSQL sentinel은 isolated schema에 같은 nine
+rows를 준비하고 같은 HTTP/clean-interrupt/durable-state/project-tree-no-write 흐름과 secret-free global output을 관찰합니다.
+
+Local PostgreSQL을 required로 실행할 때는 test-only connection URL을 다음처럼 전달합니다.
+
+```bash
+GODJ_TEST_POSTGRES_URL='postgresql://…' \
+GODJ_REQUIRE_POSTGRES=1 \
+  go test -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct
+```
+
+`GODJ_REQUIRE_POSTGRES=1`인데 URL이 없으면 failure이고, required PostgreSQL CI에서는 skip 0 sentinel로 잠급니다. Test
+harness는 test-only 변수를 runtime environment에서 제거하고 example-owned
+`GODJ_ARTICLE_POSTGRES_URL`/`GODJ_ARTICLE_POSTGRES_SCHEMA` pair만 application에 전달합니다. 일반 portable 실행에서
+PostgreSQL URL이 없으면 이 한 test만 명시적으로 skip하고 SQLite/process/unit gate는 계속 실행합니다.
+
+Black-box Article HTTP는 response와 durable state 증거이며 in-process exactly-two-query instrumentation이나 Django
+differential comparison을 수행하지 않습니다. `go test -race`도 harness/in-process lifecycle을 instrument할 뿐 test가 일반
+`go build`로 만든 global/runtime child까지 race-instrumented됐다는 뜻은 아닙니다. No-shell process-group streaming,
+SIGINT/bounded force/direct reap, output failure와 held pipe의 세부 fault injection은 `internal/projectcheck` unit/process test가
+소유합니다. Windows, production serving, non-loopback/TLS와 daemonized descendant 보장은 이 package의 claim이 아닙니다.
 
 ## Exact profile
 

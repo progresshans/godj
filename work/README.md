@@ -97,9 +97,11 @@ Submitted head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-2
 CI #115 run `32647746430`은 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart를
 통과해 QRY-044..053을 Verified하고 GDJ-0041을 completed로 닫았습니다.
 GDJ-0042는 terminal docs baseline `052de65...`에서 active로 전환했고 Proposed ADR-0042와 WEB-011..020을
-고정했습니다. Optional project-linked runtime package, read-only current-bundle preflight, loopback-only global
-`runserver`, long-lived child drain/reap와 SQLite/PostgreSQL Article actual이 계획 범위입니다. Activation 자체의
-제품 구현·지원·검증 주장은 0입니다.
+고정했습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+clean-checkout fixture correction `2a61376...`과 backend-close ownership correction `810149f...`은 optional
+project-linked runtime package, read-only current-bundle preflight, loopback-only global `runserver`, long-lived child
+drain/reap와 SQLite/PostgreSQL Article actual을 locally implemented/passing으로 전환했습니다. Final
+full/386/external/hosted와 ADR acceptance는 pending입니다.
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

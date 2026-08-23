@@ -52,7 +52,18 @@
 - GDJ-0042 activation baseline: terminal docs head `052de65cae20ea0b80dfa337629e6da198abc827`, tree
   `c365b492bfb008f80a73718f7033a6edb40d4c30`; active
   [work packet](../../work/0042-project-linked-runserver-and-article-development-loop.md) / Proposed
-  [ADR-0042](../adr/0042-project-linked-runserver-and-article-development-loop.md), planned WEB-011..020, product change 0
+  [ADR-0042](../adr/0042-project-linked-runserver-and-article-development-loop.md)
+- GDJ-0042 product source: `23b1936f46c20e46e4aa689dc6387a78a9847877`, tree
+  `cbe09d9ca8ee2c6c4fb6f3fc337f8b8f52d6caed`; PostgreSQL/CI checkpoint
+  `60da43b64cbc763f0700841ed821401e9a7253e0`, tree `b1772e7a6be3c8fe9e0318eaa17cbec818d0a456`
+- GDJ-0042 clean-cache correction: `6101140ef58578ad899c6699fa208b90bc527f81`, tree
+  `b9d2e4a1a2af08bb4a3e9fb8fbb119dc00a60503`
+- GDJ-0042 clean-checkout fixture correction: `2a61376cdc15cc7a2481210dbf6d3f105517c7a2`, tree
+  `eb6a0d742f3edd155f25e88c6e9255252a9a9143`
+- GDJ-0042 current source checkpoint: `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
+  `682b037e71040e7373d8da303cc618207abd4643`; exact backend/listener close ownership,
+  [local EVID-119](TEST_EVIDENCE.md#evid-20260824-119--gdj-0042-project-linked-runserver-source-checkpoint),
+  WEB-011..020 local bounded product proof complete, final full/386/external/hosted pending
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -396,10 +407,11 @@
   Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0042](../../work/0042-project-linked-runserver-and-article-development-loop.md)는 terminal docs baseline
-  `052de65...`에서 active로 전환했습니다. Proposed
-  [ADR-0042](../adr/0042-project-linked-runserver-and-article-development-loop.md)는 optional runtime package,
-  current-bundle read-only preflight, loopback-only global `runserver`, long-lived child drain/reap와 actual
-  SQLite/PostgreSQL Article flow를 WEB-011..020으로 계획합니다. 이 activation의 제품 변경과 passing contract는 0입니다.
+  `052de65...`에서 active로 전환했습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache
+  correction `6101140...`, clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은 optional runtime package, current-bundle read-only preflight, loopback-only global
+  `runserver`, long-lived child drain/reap와 actual SQLite/PostgreSQL Article flow를 WEB-011..020으로 구현했습니다.
+  Digest-pinned local PostgreSQL 17.10 normal/race/CGO-disabled actual과 portable/required pass-no-skip wiring이
+  통과했습니다. Proposed ADR-0042의 acceptance와 hosted `Verified`는 final frozen/full/hosted 증거 전까지 보류합니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
   [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)가 이전 dual-format/additive
@@ -1083,11 +1095,12 @@
   [EVID-108](TEST_EVIDENCE.md#evid-20260823-108--gdj-0038-postgresql-1710-exact-head-hosted-completion)에서
   27/27 jobs·341/341 steps로 통과했습니다. DB-PG-001..010 bounded slice는 `Verified`이며 broader backend나
   production readiness 주장이 아닙니다.
-- Minimal Web Core는 immutable app/settings snapshot, static named router, synchronous once-only middleware,
+- The GDJ-0038 Minimal Web Core slice는 immutable app/settings snapshot, static named router, synchronous once-only middleware,
   borrowed request, bounded response와 graceful server를 제공합니다. Article은 request-local generated facade를
   explicit DTO/template로 변환하며 SQLite loopback뿐 아니라 current definition migration 뒤 PostgreSQL generated
-  CRUD/HTTP actual도 통과했습니다. Global runserver, dynamic routing, request transaction, DTL/Form/Auth/Admin/API와
-  general raw-model serialization은 포함하지 않습니다.
+  CRUD/HTTP actual도 통과했습니다. 그 historical slice 자체에는 global runserver가 없었고 current GDJ-0042가 아래에서
+  별도 소유합니다. Dynamic routing, request transaction, DTL/Form/Auth/Admin/API와 general raw-model serialization은
+  계속 포함하지 않습니다.
 - GDJ-0039은 [ADR-0039](../adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 source/result
   query shape를 분리하고 typed DTO projection, scalar Count/Max, distinct/offset을 SQLite/PostgreSQL Article
   검색·리포트 흐름으로 구현했습니다. Final source `695916c8...`의 local gates와 submitted docs head
@@ -1506,7 +1519,10 @@ run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022.
 completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `32642341459` exact
 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0041도 submitted head `e97a4e3...`의 EVID-118/run
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. 현재 GDJ-0042가 active, ready는 0이고 외부
-blocker도 0입니다. Proposed ADR-0042/WEB-011..020은 아직 activation-only이며 제품 구현·지원·검증 주장은 0입니다. GDJ-0040 Phase A의
+blocker도 0입니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
+WEB-011..020의 bounded implementation/local actual을 닫았습니다. Proposed ADR-0042와 hosted `Verified`/completion은
+final full/386/external clean-copy 및 exact submitted-head matrix 전까지 보류합니다. GDJ-0040 Phase A의
 QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐고, Phase B/C
 source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate를 통과했습니다.
 첫 hosted run의 stale 916-test inventory failure와 correction `73b912d...`의 exact 950-test lock 및 새
@@ -1586,10 +1602,11 @@ general generated upgrade는 계속 open입니다.
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
 독립 감사와 exact hosted matrix를 모두 통과했습니다. QRY-044..053은 `Verified`, GDJ-0041은 completed입니다.
-Active GDJ-0042의 다음 정확한 작업은 Phase A descriptor/argv/address parser, current-bundle read-only loader와
-long-lived streaming process owner의 failure/interrupt 경계를 구현·검증하는 것입니다. 그 뒤 하나의 retained
-project selection에서 SQLite Article actual child 수직 단면을 연결합니다. Activation 문서 mirror 자체는 docs-only
-consistency gate만 사용합니다.
+Active GDJ-0042의 다음 정확한 작업은 source checkpoint `810149f...`의 문서/status mirror를 마친 뒤 final frozen
+`make ci`, Linux/386 all-package compile-only, repository-external clean-copy와 independent audit를 한 번 수행하는 것입니다.
+그 exact source/docs bytes를 비강제 푸시하고 four-coordinate portable runserver와 PostgreSQL 17.10 required sentinel을
+포함한 hosted matrix를 기다립니다. Hosted success 뒤 ADR-0042 acceptance, terminal evidence/status와 다음 work packet만
+docs-only consistency gate로 닫습니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
 release는 이 작업의 권한·범위가 아닙니다.

@@ -8,7 +8,8 @@
   [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)가 active이고 ready work는 0입니다.
   Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)는 WEB-011..020의 optional
   runtime package, read-only bundle preflight, loopback-only global `runserver`와 Article actual child 개발 루프를
-  계획하며 activation 시점 제품 구현·지원 주장은 없습니다. GDJ-0040 Phase A
+  source `810149f...`에서 locally implemented했습니다. SQLite와 digest-pinned PostgreSQL 17.10 actual 및
+  affected gates는 통과했고 final full/386/external/hosted와 ADR acceptance는 pending입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -644,8 +645,9 @@ projection+aggregate 두 query를 유지했고 EVID-118/run `32647746430`의 exa
 [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)는 M5의 다음 active 수직 단면입니다.
 Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)에 따라 declaration runner와
 generated-aware runtime package를 분리한 채 current bundle을 read-only 확인하고 global `godj runserver`가
-loopback Article server를 build/start/drain/reap하도록 WEB-011..020을 계획합니다. Auto-generate/migrate/reload,
-public DB settings와 production server는 제외하며 이 activation만으로 구현 상태를 올리지 않습니다.
+loopback Article server를 build/start/drain/reap하도록 WEB-011..020을 구현했습니다. SQLite/PostgreSQL Article actual과
+portable/required pass-no-skip lock은 locally passing이고 exact-head hosted가 pending입니다. Auto-generate/migrate/reload,
+public DB settings와 production server는 계속 제외합니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

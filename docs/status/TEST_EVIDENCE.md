@@ -11028,3 +11028,225 @@ QuerySet, request transactions, Form/Auth/Admin/API and production readiness rem
 OPEN/DRAFT/unmerged; merge and release are not authorized. This terminal documentation append is a later docs-only
 descendant: it records the exact submitted run and is validated by link/frontmatter/status consistency and
 `git diff --check`, not by recursively repeating the product matrix.
+
+## EVID-20260824-119 — GDJ-0042 Project-linked Runserver Source Checkpoint
+
+- Date/time: 2026-08-24T00:24:00+09:00 through 2026-08-24T03:04:00+09:00
+- Work/contract IDs: GDJ-0042 active; WEB-011..020 bounded local `passing`; Q-010 remains `Partial`, Q-017 remains P1/open
+- Activation head: `937229e5c3f377572c271fdd30662c2a44463ad1`, tree
+  `48ef40de2809d3fb0058e3729217f1838173ca0a`
+- Product source head: `23b1936f46c20e46e4aa689dc6387a78a9847877`, tree
+  `cbe09d9ca8ee2c6c4fb6f3fc337f8b8f52d6caed`, subject `feat: add project-linked runserver development loop`
+- PostgreSQL/CI head: `60da43b64cbc763f0700841ed821401e9a7253e0`, tree
+  `b1772e7a6be3c8fe9e0318eaa17cbec818d0a456`, subject `test: add PostgreSQL runserver product gate`
+- Clean-cache correction head: `6101140ef58578ad899c6699fa208b90bc527f81`, tree
+  `b9d2e4a1a2af08bb4a3e9fb8fbb119dc00a60503`, subject `test: keep runserver fixture offline`
+- Clean-checkout correction head: `2a61376cdc15cc7a2481210dbf6d3f105517c7a2`, tree
+  `eb6a0d742f3edd155f25e88c6e9255252a9a9143`, subject `test: create interrupted runserver fixture directory`
+- Current source head: `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
+  `682b037e71040e7373d8da303cc618207abd4643`, subject `test: verify article backend close ownership`
+- Environment: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5 darwin/arm64; disposable digest-pinned PostgreSQL
+  17.10 container
+- Result: product, SQLite/PostgreSQL actual, affected gates and CI locks are local source-checkpoint complete. Final
+  full/Linux-386 all-package/repository-external clean-copy, exact submitted-head hosted success, ADR acceptance,
+  work completion, merge, release and production readiness are not claimed by this entry.
+
+### Implemented product boundary
+
+- Descriptor format 1 accepts one optional strict `runserver_package` after `package`. Missing capability remains valid
+  for migration/generation and only runserver closes as `runserver_not_configured`; duplicate/reordered/unknown lines,
+  Go package patterns, `.go` file arguments, symlink/case aliases and same physical declaration/runtime directories fail
+  before external workspace creation.
+- The global CLI accepts exactly `runserver`, optional ordered `--project`, optional trailing `--addr`, defaults to
+  `127.0.0.1:8000` and accepts only canonical IPv4 loopback plus port 0..65535. Invalid argv closes before selection.
+- One retained selection owns one declaration build/run, GeneratedBundle computation, `CheckRoot`, isolated readonly
+  runtime build and a second `CheckRoot`. Runtime argv is exactly `<binary> serve --listen <address>`; build uses private
+  cache/temp/home, prepends a safe local module proxy to `GOPROXY` when available and retains the other non-private
+  ambient variables. Runtime receives the exact snapshotted ambient application environment. This is not an untrusted
+  project/toolchain credential sandbox.
+- Long-lived stdout/stderr streaming, separate process group, single direct `Wait`, SIGINT, bounded grace, conditional
+  SIGKILL, held-pipe/output-writer failure, direct reap and invocation-local cleanup are implemented without a shell.
+- Article selects either `GODJ_ARTICLE_SQLITE_DATABASE` or the exact PostgreSQL URL/schema pair. Mixed/incomplete/empty
+  configuration fails before serving. Global CLI does not parse or print application database configuration.
+- Runserver never publishes/repairs generated source and never migrates, retries, reloads or starts a background watcher.
+
+### SQLite actual, process and source gates
+
+The actual global SQLite sentinel performed two complete start/HTTP/SIGINT/stop cycles on the same concrete port. It
+verified the advanced Article response, all nine rows and one migration history record, exact two-build audit per
+invocation, clean global exit/stderr, process-group absence, workspace residue zero and strong project-tree identity.
+Missing, modified and interrupted copied bundles each exited 1 with the exact stale diagnostic after one declaration
+build, no runtime build, absent DB file, unchanged project tree and no private residue.
+
+On the final Phase A/B product bytes, affected normal/race/CGO-disabled package gates, vet and deterministic generation
+checks passed. Article stayed 12 files/SHA-256
+`0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675`; relation-delete stayed 16 files/SHA-256
+`2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`.
+
+At clean-cache correction `6101140...`, the following checkpoint gates passed:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -count=1 ./conformance/runserverproduct ./conformance/internal/protocol
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -race -count=1 ./conformance/runserverproduct
+CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -count=1 ./conformance/runserverproduct
+go vet ./conformance/runserverproduct
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off make cgo-zero-build
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./conformance/runserverproduct
+```
+
+The three focused runserver package legs completed in 55.401s normal, 57.400s race and 55.762s CGO-disabled;
+`conformance/internal/protocol` completed in 2.213s. The expanded explicit CGO-disabled product set also passed;
+its runserver package leg completed in 44.822s. YAML parsing, gofmt, `git diff --check`, workflow wiring lock and the
+existing exact-27 central workflow lock passed.
+
+After clean-checkout correction `2a61376...`, the correction-source runserver package passed normal in 33.254s,
+race in 34.163s, CGO-disabled in 33.265s and vet. Current source `810149f...` then added injected backend/listener
+close-once ownership and passed the following exact affected commands:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -count=1 ./examples/article/cmd/site
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -count=1 ./conformance/runserverproduct
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -race -count=1 ./examples/article/cmd/site ./conformance/runserverproduct
+CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -count=1 ./examples/article/cmd/site ./conformance/runserverproduct
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go vet ./examples/article/cmd/site ./conformance/runserverproduct
+```
+
+Normal completed in 0.601s for the site package and 32.335s for runserverproduct; race completed in 2.057s/34.293s,
+CGO-disabled in 0.499s/34.216s and vet passed. Final all-package frozen gates remain separate below the current work
+checkpoint.
+
+### PostgreSQL 17.10 actual
+
+The local service used exact image
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`
+and exact fingerprint, asserted before running the current source,
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`.
+For current source `810149f...`, `gdj_pg_url` had exact shape
+`postgresql://godj:<redacted-disposable-password>@127.0.0.1:32770/godj?sslmode=disable`. The password belonged only
+to the removed container. The exact inventory helper and focused commands were:
+
+```bash
+set -o pipefail
+gdj_pg_url="postgresql://godj:${GODJ_GDJ0042_DISPOSABLE_PASSWORD}@127.0.0.1:32770/godj?sslmode=disable"
+gdj_check_pg_json() {
+  ruby -rjson -e 'pass_count = 0; skip_count = 0; elapsed = nil;
+    ARGF.each_line do |line|; event = JSON.parse(line);
+      next unless event["Package"] == "github.com/progresshans/godj/conformance/runserverproduct" &&
+        event["Test"] == "TestGlobalRunserverArticlePostgresDevelopmentLoop";
+      pass_count += 1 if event["Action"] == "pass";
+      skip_count += 1 if event["Action"] == "skip";
+      elapsed = event["Elapsed"] if event["Action"] == "pass"; end;
+    abort unless pass_count == 1 && skip_count == 0;
+    puts "PostgreSQL sentinel pass=1 skip=0 elapsed=#{elapsed}s"'
+}
+GODJ_TEST_POSTGRES_URL="$gdj_pg_url" GODJ_REQUIRE_POSTGRES=1 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -json -count=1 \
+  -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct | gdj_check_pg_json
+GODJ_TEST_POSTGRES_URL="$gdj_pg_url" GODJ_REQUIRE_POSTGRES=1 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -race -json -count=1 \
+  -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct | gdj_check_pg_json
+GODJ_TEST_POSTGRES_URL="$gdj_pg_url" GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -json -count=1 \
+  -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct | gdj_check_pg_json
+```
+
+With `GODJ_REQUIRE_POSTGRES=1`, the exact current-source sentinel passed normally in 12.16s, with race in 11.78s and
+with CGO disabled in 11.95s. Each JSON inventory independently required pass 1/skip 0.
+
+Each execution created a unique schema, loaded the current initial migration, inserted the exact nine rows through the
+generated typed Create API, ran the actual global CLI and generated site child, verified the advanced HTTP response,
+cleanly interrupted without force, reopened the backend and compared one history record plus all nine rows including
+NULL versus empty summary. Runtime stdout was the exact readiness line, stderr was empty, raw URL/password were absent,
+the Article project tree was unchanged, Go build audit was declaration/runtime exactly once, and process groups/private
+workspace were absent. Test cleanup's `DROP SCHEMA ... CASCADE` succeeded. The exact disposable container was then
+stopped and removed; unrelated containers were not changed.
+
+```bash
+docker exec godj-gdj0042-pg17-810149f-20260824 \
+  psql -U godj -d godj -At \
+  -c "SELECT count(*) FROM pg_namespace WHERE nspname LIKE 'godj_runserver_article_%';"
+# 0
+```
+
+### Hosted clean-cache failure and correction
+
+The first source-only hosted run [32653832710](https://github.com/progresshans/godj/actions/runs/32653832710) targeted
+`23b1936...`. Its checked-artifact job failed only in copied stale-fixture preparation: `go mod tidy` traversed
+`pgpassfile` test-only metadata and attempted to fetch `testify@v1.3.0` while the child boundary had `GOPROXY=off`.
+This was a fixture false-negative, not a runserver runtime failure.
+
+Correction `6101140...` removes `tidy`. The copied module snapshots the current root dependency declarations and
+checked-in `go.sum`, then proves the real declaration build under exact `-buildvcs=false -mod=readonly`. A fresh isolated
+`GOMODCACHE`/`GOCACHE` reproduction downloaded only outer build dependencies; the three stale cases passed in 11.06s,
+the offline child did not fetch `testify`, and the copied `go.sum` was included in the before/after strong no-write
+snapshot. The one-off isolated-cache paths and outer invocation were not retained, so this observation is characterization,
+not the formal reproducible gate. An independent audit reported P0/P1/P2/P3=`0/0/0/0` for the correction source.
+
+The next source run [32655361725](https://github.com/progresshans/godj/actions/runs/32655361725) targeted `6101140...`.
+It was later cancelled by the correction push, but completed Ubuntu job `97233141312` had already exposed a second
+fixture-only failure: Git clean checkout does not preserve the empty `.godj/transactions` directory, so the interrupted
+publication mutation could not create its sentinel. The SQLite start/stop and first two stale cases passed in that job;
+the digest-pinned PostgreSQL required job also passed all of its runserver normal/race/CGO-disabled/vet wiring.
+Correction `2a61376...` makes the interrupted fixture create its own transaction directory before the sentinel. The
+focused stale actual gate passed locally in 10.039s, and a `git archive` clean checkout that first asserted the empty
+directory was absent passed the same gate in 10.651s. This is a test-harness portability correction; it does not
+change the runserver product behavior or convert the cancelled run into hosted success.
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -count=1 \
+  -run '^TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime$' \
+  ./conformance/runserverproduct
+gdj_archive_dir=$(mktemp -d "${TMPDIR:-/tmp}/godj-gdj0042-clean-XXXXXX")
+git archive 2a61376cdc15cc7a2481210dbf6d3f105517c7a2 | tar -x -C "$gdj_archive_dir"
+test ! -d "$gdj_archive_dir/examples/article/.godj/transactions"
+(cd "$gdj_archive_dir" && GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -timeout=15m -count=1 \
+  -run '^TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime$' \
+  ./conformance/runserverproduct)
+gdj_archive_status=$?
+/usr/bin/trash "$gdj_archive_dir"
+exit "$gdj_archive_status"
+```
+
+### CI evidence ownership and non-claims
+
+- Four portable product-project coordinates run the package normally, with race, CGO disabled and vet. Normal JSON
+  requires pass/no-skip for SQLite actual, stale preflight and forced descendant cleanup; the PostgreSQL test's one
+  intentional skip is not misreported as backend evidence.
+- Only the digest-pinned PostgreSQL job sets `GODJ_REQUIRE_POSTGRES=1` and requires the PostgreSQL runserver exact
+  pass/no-skip sentinel. Normal, race, CGO-disabled and vet wiring is statically locked under
+  `conformance/runserverproduct` without changing the exact 27-job topology.
+- Race gates instrument the Go test/coordinator code; binaries built by the test's internal plain `go build` are not
+  claimed as race-instrumented children.
+- PostgreSQL actual proves one-process-run durability after backend reopen, not PostgreSQL service restart. Existing
+  restart tests own restart evidence. The actual HTTP body does not independently prove exactly-two-query execution;
+  Article handler/unit integration owns that contract.
+- Process actual proves observed group count, clean SIGINT/exit/group absence and no force. Direct-reap count,
+  listener/backend close count, forced-kill/output failure and full taxonomy are completed by focused unit/process tests.
+- Private workspace isolation redirects cache/temp/home keys and may prepend a safe local module proxy to `GOPROXY`, but
+  retains the other non-private ambient environment, including application DB variables and explicit credential/tool
+  helpers. Secret confidentiality from an untrusted project or toolchain is not
+  claimed; the narrower claim is that the global CLI does not parse or duplicate the URL in argv/framework diagnostics.
+- P3 nonblocking limitations are port reservation release-to-bind TOCTOU and possible disposable schema residue if
+  `CREATE SCHEMA` commits immediately before an ambiguous disconnect. Neither creates a false green on successful runs.
+
+Checkpoint audits found no blocking P0/P1 defect; their P2/P3 evidence-boundary findings were addressed by `810149f...`
+and this documentation mirror. Final frozen audit, full/386/
+external clean-copy and exact-head hosted proof remain the next gates; any source/workflow correction invalidates the
+pending final freeze.

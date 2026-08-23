@@ -1807,3 +1807,39 @@ advanced invalid zero-I/O/success exactly-two-query 경계를 포함합니다. S
 [EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run `32647746430`은
 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0, Python 4좌표와 PostgreSQL 17.10 required 12/12·restart를
 통과했습니다. 따라서 QRY-044..053은 hosted `Verified`, GDJ-0041은 completed입니다.
+
+## GDJ-0042 project-linked runserver test boundary
+
+Current source checkpoint `810149fd90ecf0b3a9cb7b4b98344476082ce769`/tree
+`682b037e71040e7373d8da303cc618207abd4643`는 global `godj runserver`의 WEB-011..020 제품 경로와
+`conformance/runserverproduct`를 연결합니다. 이 checkpoint는 다음 층을 의도적으로 분리합니다.
+
+- `internal/projectcheck` unit/orchestration test는 strict optional `runserver_package`, closed four-form argv,
+  exact loopback address, invalid-before-selection, one retained selection/declaration build-run, runtime build 앞뒤
+  `CheckRoot`, private cache/temp/home build env와 exact ambient runtime env, exact child argv와 closed failure/exit taxonomy를 소유합니다.
+  Private keys 교체와 safe local module proxy의 `GOPROXY` prepend를 제외한 non-private ambient 변수가 build/runner에 남는
+  documented credential-isolation limit도 이 경계에 포함합니다.
+  Stale/missing/mixed/interrupted bundle과 runtime build failure는 publish/migrate/runtime start/project-tree write 0으로
+  닫습니다.
+- Unix process test는 shell 없는 process-group start, stdout/stderr streaming, SIGINT, bounded grace, conditional
+  SIGKILL, direct `Wait` exactly once, held pipe/descendant와 output writer failure의 bounded force/reap를 검증합니다.
+  In-flight drain count와 injected failure ownership은 이 층의 증거이며 black-box HTTP test에 귀속하지 않습니다.
+- Actual SQLite sentinel은 global CLI가 pre-migrated Article project를 같은 concrete loopback port에서 반복 start/stop하고
+  advanced Article HTTP response, durable exact nine rows/history, exact declaration/runtime Go build 대상, project-tree
+  no-write, process-group/temp residue 0을 관찰합니다. Missing/modified/interrupted generated state는 actual global
+  command에서 runtime/DB 생성 전에 exit 1로 닫습니다.
+- Actual PostgreSQL sentinel `TestGlobalRunserverArticlePostgresDevelopmentLoop`는 isolated schema와 pre-migrated
+  exact nine rows를 준비하고 같은 global CLI/Article HTTP 흐름, clean SIGINT/reap, durable DB state, build audit,
+  secret-free output와 project-tree/temp no-write를 관찰합니다. PostgreSQL job은
+  `GODJ_TEST_POSTGRES_URL`과 `GODJ_REQUIRE_POSTGRES=1`로 이 sentinel을 required/skip-0으로 실행하며, runtime에는
+  example-owned `GODJ_ARTICLE_POSTGRES_URL`/`GODJ_ARTICLE_POSTGRES_SCHEMA` pair만 전달합니다.
+
+Actual child HTTP는 response와 durable state를 보는 black-box proof입니다. 기존 Article in-process test의
+exactly-two-query instrumentation을 실행하지 않으므로 query count나 Django differential parity를 이 sentinel에서
+새로 주장하지 않습니다. `go test -race`는 Go test harness와 해당 process/orchestration code를 instrument하지만 그
+test가 일반 `go build`로 만든 global/runtime child binary를 race-instrumented product라고 뜻하지도 않습니다.
+
+이 gate는 auto-generate/migrate/reload가 없는 Darwin/Linux loopback development lifecycle에 한정합니다. Windows,
+non-loopback/TLS, production serving, parent fatal-exit scavenging과 independently daemonized descendant 보장은 범위
+밖입니다. Source checkpoint와 required workflow wiring은 final frozen full/386/repository-external clean-copy 및
+exact-head hosted completion을 대신하지 않으며, 그 결과는 GDJ-0042의 별도 evidence에 기록합니다.

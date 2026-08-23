@@ -475,6 +475,33 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 이 reset은 corrected exact head의 EVID-103 hosted matrix까지 완료됐지만 public release compatibility 정책을
 뜻하지 않습니다.
 
+## Current implementation mirror: project-linked runserver
+
+[GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)와 Proposed
+[ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)가 전역 CLI에서 generated-aware Article
+development server를 실행하는 bounded 수직 단면을 소유합니다. Source checkpoint
+`810149fd90ecf0b3a9cb7b4b98344476082ce769`에서 제품 코드는 `Implemented`이고 SQLite와 PostgreSQL 17
+actual development-loop local gate를 통과했지만, exact-head hosted gate가 끝나기 전이므로 GDJ-0042
+전체를 `Verified`로 올리지 않습니다.
+
+- Descriptor format 1의 `runserver_package`는 declaration `package` 뒤의 optional strict field입니다. 없어도
+  migration/generate descriptor는 유효하고 `runserver`만 `runserver_not_configured`로 닫힙니다.
+- Global `godj runserver [--project ...] [--addr ...]`는 current bundle을 read-only preflight한 뒤 별도 runtime
+  package를 no-shell로 build/run합니다. 현재 address는 exact IPv4 loopback와 canonical port만 허용하며,
+  implicit generate publication, migrate, repair, retry, watch/reload를 수행하지 않습니다.
+- Article example은 `GODJ_ARTICLE_SQLITE_DATABASE` 하나 또는
+  `GODJ_ARTICLE_POSTGRES_URL`/`GODJ_ARTICLE_POSTGRES_SCHEMA` exact pair 하나를 상호 배타적으로
+  선택합니다. 이는 example-owned runtime environment이며 framework-wide public database settings가
+  아닙니다.
+- SQLite actual은 pre-migrated file DB, global child Article advanced HTTP response, repeated same-port start/stop,
+  durable row/history, stale bundle no-start/no-write와 clean process/temp 경계를 로컬에서 검증합니다.
+- PostgreSQL 17 actual은 isolated schema에서 같은 global child Article advanced HTTP response와 child 종료 후
+  row/history reopen durability를 로컬에서 검증합니다. 새 runserver 테스트 자체는 query count나
+  PostgreSQL service/container restart를 증명하지 않습니다.
+
+이 단면은 development-only loopback server입니다. MySQL, Windows process semantics, non-loopback/TLS,
+production readiness, general reload 오케스트레이션은 지원 주장에서 제외합니다.
+
 ## Current implementation mirror: project generated bundle
 
 [GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)과 Accepted

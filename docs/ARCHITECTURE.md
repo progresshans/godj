@@ -442,10 +442,46 @@ durable restart/persistence contract를 모두 실행해야 합니다. Expected 
 
 ## CLI와 프로젝트 실행
 
-전역 `godj` CLI의 첫 좁은 단면인 exact `godj migrations check`와
-`godj migrations check --project <descriptor-file>`가 구현됐습니다. 그 밖의 향후 `version`,
-`startproject`, `startapp`, broader 프로젝트 탐색과 orchestration은 아직 목표 책임입니다. 프로젝트
-설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행하는 방향입니다.
+전역 `godj` CLI에는 project-linked migration check와 generate에 더해 Darwin/Linux 개발용 current
+`runserver` 단면이 구현됐습니다. Descriptor format 1은 declaration-only `package` 바로 뒤에 strict optional
+`runserver_package`를 받을 수 있습니다. 이 필드가 없어도 migration/generate descriptor는 유효하지만
+`runserver`만 `runserver_not_configured`로 닫힙니다. 두 package는 서로 다른 실제 directory여야 하며 Go package
+pattern `...`, `.go` file argument와 alias로 같은 directory를 가리키는 조합은 허용하지 않습니다.
+
+허용하는 CLI 형태는 `godj runserver`, `godj runserver --addr <address>`,
+`godj runserver --project <godj.toml>`, `godj runserver --project <godj.toml> --addr <address>` 네 가지입니다.
+기본 주소는 `127.0.0.1:8000`이고 current 단면은 exact IPv4 loopback literal과 canonical decimal port
+`0..65535`만 받습니다. 한 번 retained selection한 project에서 다음 순서를 지킵니다.
+
+```text
+declaration runner build/run exactly once
+        ↓ current GeneratedBundle
+CheckRoot(read-only)
+        ↓
+runserver_package readonly isolated build
+        ↓
+CheckRoot(read-only)
+        ↓
+<private-binary> serve --listen <loopback-address>
+```
+
+두 build는 shell 없이 private external workspace와 private cache/temp/home에서
+`go build -buildvcs=false -mod=readonly`를 실행합니다. Private keys는 교체되고 safe local module proxy가 있으면 기존
+`GOPROXY` 앞에 추가되며, 그 밖의 non-private ambient environment는 유지됩니다. 따라서 application DB 변수와 explicit
+credential/tool helper도 build/runner에서 보일 수 있고, 이는 untrusted project/toolchain의
+credential sandbox가 아닙니다. Runtime child는 project root를 cwd로 하고 호출 시점의 ambient application environment를
+그대로 받으며 전역 CLI는 database URL/schema를 해석하거나 출력하지 않습니다.
+두 `CheckRoot`는 committed current bundle을 읽기만 하며 stale/missing/mixed/interrupted bundle이면 runtime을
+시작하지 않습니다. 이 명령은 generated source를 publish/repair하지 않고 migration, retry, watch/reload 또는 background
+task를 실행하지 않습니다.
+
+Long-lived child는 새 process group에서 stdout/stderr를 streaming하고, operator SIGINT를 group에 전달한 뒤 bounded
+grace 동안 종료를 기다립니다. Clean exit는 direct child를 한 번 reap하고 force signal 없이 끝나며, hung child/held
+pipe/output delivery failure는 필요할 때 group SIGKILL을 보내고 bounded cleanup 뒤 구조화된 nonzero 결과로 닫습니다.
+Windows process/path 의미와 non-loopback/TLS/production serving은 이 개발 단면의 범위 밖입니다. `version`,
+`startproject`, `startapp`, general custom-command dispatcher와 persistent build/reload cache도 아직 목표 책임입니다.
+
+프로젝트 설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행하는 방향입니다.
 
 ```text
 godj CLI
@@ -459,7 +495,9 @@ godj CLI
   └─ custom commands
 ```
 
-`manage.py` 파일은 복제하지 않지만 프로젝트 전용 실행기라는 역할은 보존합니다. `go generate`는 보조 진입점이고 공식 orchestration은 `godj generate`입니다.
+`manage.py` 파일은 복제하지 않지만 프로젝트 전용 실행기라는 역할은 보존합니다. `go generate`는 보조 진입점이고 공식
+generation orchestration은 `godj generate`입니다. Current `runserver`는 이 generation 결과를 자동 갱신하지 않고
+두 번의 read-only check만 수행합니다.
 
 ## 의존 방향
 

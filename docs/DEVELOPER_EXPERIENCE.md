@@ -1,9 +1,9 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법과 GDJ-0041 typed comparison/F 단면 hosted-Verified
+- 상태: M1 Article/GDJ-0040 Boolean 문법과 GDJ-0041 typed comparison/F 단면 hosted-Verified, GDJ-0042 runserver source implemented
 - 마지막 검토: 2026-08-24
 
-별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
+아래 `M1 verified` 단면과 §10의 GDJ-0042 current-source boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
 
 ## M1 verified 단면
@@ -480,12 +480,59 @@ Generic base type을 사용할 수 있지만 `ModelForm[M]`, `ModelAdmin[M]`, `M
 
 ## 10. 프로젝트 실행과 배포
 
-개발자는 `godj runserver`처럼 친숙한 명령을 사용합니다. 내부적으로 global CLI가 project를 찾아 project-aware binary를 build/run할 수 있습니다.
+Darwin/Linux 개발 단면에서는 global CLI가 project를 찾아 current generated-aware runtime을 build/run합니다.
+Descriptor는 declaration package와 별도인 optional runtime package를 exact 순서로 선언합니다.
 
-GDJ-0021/Accepted ADR-0021은 이 방향의 descriptor selection, no-shell build, strict runner framing과
-exit/cancel 의미를 test-only로 좁게 먼저 검증했습니다. Completed GDJ-0022와
-Accepted ADR-0022는 그 proof와 독립인 exact `godj migrations check` 및 public project API를
-구현했습니다. Broader `runserver`/project command dispatcher는 아직 구현하지 않았습니다.
+```toml
+format_version = 1
+[project]
+package = "./cmd/projectrunner"
+runserver_package = "./cmd/site"
+```
+
+`runserver_package`가 없는 project도 migration check와 generate에는 유효하지만 `godj runserver`는
+`runserver_not_configured`로 실패합니다. 현재 허용형은 다음 네 개뿐이고 기본 주소는
+`127.0.0.1:8000`입니다. Address는 exact `127.0.0.1:<canonical-port>`만 허용합니다.
+
+```bash
+godj runserver
+godj runserver --addr 127.0.0.1:8080
+godj runserver --project ./godj.toml
+godj runserver --project ./godj.toml --addr 127.0.0.1:8080
+```
+
+한 번 선택한 project에서 declaration runner를 한 번 build/run하고 current bundle을 계산합니다. Committed
+generated bundle을 read-only로 확인한 뒤 runtime package를 isolated external workspace에서
+`go build -buildvcs=false -mod=readonly`로 build하고 같은 bundle을 다시 확인합니다. 두 check 사이에
+missing/stale/mixed/interrupted generated state가 보이면 server를 시작하지 않습니다. 성공하면 runtime에는 exact
+`<private-binary> serve --listen <address>` argv와 project root cwd, 호출 시점의 ambient environment가 전달됩니다.
+Build/runner는 private cache/temp/home을 사용하고 safe local module proxy가 있으면 기존 `GOPROXY` 앞에 추가하지만, 그 밖의
+non-private ambient environment는 유지합니다. 따라서 Article DB 변수나 explicit credential/tool helper도 build/runner에
+보일 수 있으며, 이 단면은 untrusted project/toolchain의 secret sandbox가 아닙니다. Runtime은 원래 ambient snapshot 전체를
+받습니다.
+
+Article example은 database 설정을 project-owned environment로 선택합니다.
+
+```bash
+GODJ_ARTICLE_SQLITE_DATABASE=./article.sqlite3 \
+  godj runserver --project ./examples/article/godj.toml --addr 127.0.0.1:8000
+
+GODJ_ARTICLE_POSTGRES_URL='postgresql://…' \
+GODJ_ARTICLE_POSTGRES_SCHEMA='article_dev' \
+  godj runserver --project ./examples/article/godj.toml --addr 127.0.0.1:8000
+```
+
+SQLite 변수와 PostgreSQL 변수는 함께 사용할 수 없고 PostgreSQL URL/schema는 반드시 pair로 설정합니다. Direct
+`./site serve --database ...` compatibility entry는 남아 있지만 global `runserver`는 database 값을 argv로 옮기거나
+로그에 복제하지 않습니다. Framework-wide database settings 형식을 확정한 것도 아닙니다.
+
+Runtime stdout/stderr는 실행 중 그대로 전달됩니다. Ctrl-C는 runtime process group에 SIGINT를 전달하고 bounded
+grace 안의 Web drain, listener/backend close와 direct child reap를 기다립니다. Grace를 넘긴 child 또는 held output
+pipe는 필요한 경우 group force-kill 뒤 bounded cleanup으로 닫습니다. 이 lifecycle은 shell을 사용하지 않습니다.
+
+이 명령은 generated source를 생성·수정·repair하지 않고 migration, retry, watch/reload 또는 background task를
+암묵적으로 실행하지 않습니다. General custom-command dispatcher, persistent build cache, Windows, non-loopback/TLS와
+production server tuning은 아직 구현 범위가 아닙니다.
 
 Production에서는 한 project binary로 명령을 실행하는 방향입니다.
 

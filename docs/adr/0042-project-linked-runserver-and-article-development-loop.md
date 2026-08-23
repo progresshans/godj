@@ -11,9 +11,9 @@
 ## 맥락
 
 Global `godj`는 project-linked migration check와 recoverable `generate --check`를 제공하고, Article example에는 generated
-model/project package를 import하는 별도 site binary와 graceful Web server가 있습니다. 그러나 사용자는 아직 site package를
-직접 build하고 DB argv를 조립해야 합니다. ADR-0004가 의도한 project-aware command 경험과 실제 generated Web 흐름이
-연결되지 않았습니다.
+model/project package를 import하는 별도 site binary와 graceful Web server가 있습니다. 이 ADR을 제안할 당시에는 사용자가 site
+package를 직접 build하고 DB argv를 조립해야 했고, ADR-0004가 의도한 project-aware command 경험과 실제 generated Web 흐름이
+연결되지 않았습니다. 아래 결정의 current implementation이 그 간극을 닫았습니다.
 
 Declaration runner는 stale/missing generated source에서도 ProjectSpec을 load해야 하므로 generated package를 import할 수
 없습니다. 따라서 같은 descriptor package를 runserver로 재사용하면 ADR-0036/0038 bootstrap graph를 깨뜨립니다. 반대로
@@ -55,9 +55,9 @@ General command registry와 public compatibility surface를 먼저 고정하며 
 
 Existing selector/build isolation을 재사용하고 Web이 없는 project는 capability를 생략할 수 있습니다. Generated-aware binary는
 DB/settings를 project-owned environment에서 열고 global CLI는 build/process lifecycle만 소유합니다. 이 선택지를 Phase A/B에서
-검증합니다.
+검증했습니다.
 
-## 제안 결정
+## 결정
 
 1. Current descriptor format 1은 exact `package` 뒤 optional
    `runserver_package = "./cmd/site"` 한 줄을 허용합니다. 같은 strict path grammar와 canonical ordering을 사용하고 두 package는
@@ -68,11 +68,13 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
    기본 주소는 `127.0.0.1:8000`; first slice는 exact IPv4 loopback literal과 canonical port 0..65535만 허용합니다.
 3. One retained project selection과 one private external workspace에서 declaration runner를 exactly once build/run하고 current
    GeneratedBundle을 계산합니다. `projectgenerate.CheckRoot`가 committed manifest/source와 interrupted publication을 read-only로
-   검증합니다. Stable drift에서는 runtime build/start와 GoDj-owned DB I/O가 0입니다.
+   검증합니다. Stable drift에서는 runtime build/start와 GoDj-owned Article runtime DB I/O가 0입니다.
 4. Clean preflight 뒤 exact
    `go build -buildvcs=false -mod=readonly -o <private>/godj-project-server <runserver_package>`를 shell 없이 실행합니다. Build는
-   existing scrubbed external 0700 workspace/GOWORK-off/GOTOOLCHAIN-local policy를 사용합니다. Runtime build 뒤 같은 selected root와
-   bundle을 다시 check하고 달라졌으면 child를 시작하지 않습니다.
+   existing external 0700 workspace와 private cache/temp/home, GOWORK-off/GOTOOLCHAIN-local policy를 사용합니다. Private keys는
+   교체되고 safe local module proxy가 있으면 `GOPROXY` 앞에 추가되며, 그 밖의 non-private ambient environment는
+   declaration/runtime build에도 남으므로 이는 credential sandbox가 아닙니다. Runtime build 뒤 같은 selected
+   root와 bundle을 다시 check하고 달라졌으면 child를 시작하지 않습니다.
 5. Runtime argv는 exact `<binary> serve --listen <address>`입니다. Project root cwd와 snapshotted ambient application environment,
    user stdout/stderr를 전달합니다. Global은 DB URL/schema를 해석·출력하지 않습니다.
 6. Runtime child는 별도 long-lived owner가 새 process group에서 시작합니다. Operator SIGINT를 group에 한 번 전달하고 child
@@ -93,6 +95,9 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
 - Strong stale preflight 때문에 declaration runner build/run 비용이 있고 runtime build도 invocation마다 수행합니다. Persistent cache와
   reload는 후속입니다.
 - Runtime application output/environment는 project-owned이므로 global private protocol과 다른 trust/diagnostic 경계를 가집니다.
+- Safe local module proxy가 `GOPROXY` 앞에 추가될 수 있는 점 외에는 build/runner도 non-private ambient environment와 explicit
+  credential/tool helpers를 볼 수 있습니다. Project와 toolchain을 신뢰하지
+  않는 환경의 secret confidentiality를 이 단면이 보장하지 않습니다.
 - Q-010의 direct runserver 하위 경계와 Q-017의 generated runtime usability는 진전하지만 semver/upgrade/general raw-model UX가 남아
   둘 다 닫지 않습니다.
 
@@ -107,12 +112,33 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
 
 ## 검증 계획
 
-- Descriptor optional capability, closed argv/address와 invalid-before-selection tests
-- Strong preflight의 declaration runner exactly once, stable drift에서 runtime build/start/DB 0와 project-tree no-write
-- Build argv/env/no-shell/private workspace and post-build bundle recheck
-- Long-lived streaming child의 clean SIGINT/SIGKILL 0, hung child conditional kill, direct reap/output failure/cleanup tests
-- Actual global CLI + pre-migrated SQLite Article child HTTP and repeated port reuse
-- Hosted PostgreSQL 17 required Article child sentinel with skip 0
-- Affected normal/race/CGO0/vet, Linux/386, final full/repository-external clean-copy and independent audit
+- [x] Descriptor optional capability, closed argv/address와 invalid-before-selection tests
+- [x] Strong preflight의 declaration runner exactly once, stable drift에서 runtime build/start/GoDj-owned Article runtime DB I/O 0와 project-tree no-write
+- [x] Build argv/env/no-shell/private workspace and post-build bundle recheck
+- [x] Long-lived streaming child의 clean SIGINT/SIGKILL 0, hung child conditional kill, direct reap/output failure/cleanup tests
+- [x] Actual global CLI + pre-migrated SQLite Article child HTTP and repeated port reuse
+- [x] Digest-pinned local PostgreSQL 17.10 Article child sentinel normal/race/CGO-disabled, pass 1/skip 0
+- [ ] Four-coordinate portable와 hosted PostgreSQL 17.10 exact-head required gates
+- [ ] Final full/Linux-386/repository-external clean-copy and independent final audit
 
-이 ADR은 Phase A/B product proof 전까지 Proposed입니다. WEB-011..020 문서만으로 구현/지원/Verified를 주장하지 않습니다.
+## 현재 구현 상태
+
+Product source `23b1936f46c20e46e4aa689dc6387a78a9847877`은 위 1~8 결정을 구현합니다. PostgreSQL/CI checkpoint
+`60da43b64cbc763f0700841ed821401e9a7253e0`은 portable SQLite/stale/forced-cleanup pass/no-skip과 PostgreSQL
+required pass/no-skip을 서로 다른 lane에 잠갔습니다. Clean-cache correction
+`6101140ef58578ad899c6699fa208b90bc527f81`은 copied fixture에서 `go mod tidy`를 제거하고 current root
+dependency/checksum snapshot으로 readonly build만 수행합니다. Clean-checkout fixture correction
+`2a61376cdc15cc7a2481210dbf6d3f105517c7a2`는 Git이 빈 디렉터리를 보존하지 않는 checkout에서도 interrupted
+publication case가 필요한 transaction directory를 명시적으로 만듭니다.
+Backend-close ownership correction `810149fd90ecf0b3a9cb7b4b98344476082ce769`은 Article runtime의 injected
+backend/listener close를 각각 정확히 한 번 계수합니다.
+
+SQLite와 digest-pinned PostgreSQL 17.10 local actual 및 current `810149f...` affected normal/race/CGO-disabled/vet가
+통과했습니다. Workflow lock과 focused Linux/386 compile-only는 earlier `6101140...` checkpoint에서 통과했고 final frozen
+all-package gates는 아직 pending입니다. PostgreSQL actual은 global CLI → generated runtime → advanced HTTP → clean SIGINT → backend
+reopen 뒤 migration history 1건/9행 exact durability를 증명합니다. DB service restart, query count, 전체 failure taxonomy와 spawned
+child binary 자체의 race 계측은 각각 기존 PostgreSQL restart, Article handler, unit/process evidence 소유이며 이 black-box 하나의
+주장이 아닙니다.
+
+이 ADR은 구현 후보가 되었지만 final frozen full/386/external clean-copy와 exact-head hosted matrix가 끝날 때까지 Proposed입니다.
+WEB-011..020 문서나 local actual만으로 hosted `Verified`, production readiness, Windows/non-loopback 지원을 주장하지 않습니다.

@@ -9,8 +9,8 @@
 
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
-| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | DB-PG-001..010 bounded Implemented/Verified; broader support open | relation, locking, production-oriented semantics |
+| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver `Implemented`/local actual pass, exact-head hosted pending | read/write, transaction, 최소 migration conformance |
+| PostgreSQL | M3 | DB-PG-001..010 bounded Implemented/Verified; GDJ-0042 PostgreSQL 17 runserver `Implemented`/local actual pass, exact-head hosted pending; broader support open | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -87,6 +87,29 @@ dedicated nullable `SET_NULL` D4f E2E coverage는 주장하지 않습니다.
 Backend별 verified 상태는 기능 contract와
 [status/IMPLEMENTATION_MATRIX.md](status/IMPLEMENTATION_MATRIX.md)에서 관리합니다. 이
 문서에는 실제 통과하지 않은 체크 표시를 추가하지 않습니다.
+
+## GDJ-0042 project-linked Article development loop
+
+Source checkpoint `810149fd90ecf0b3a9cb7b4b98344476082ce769`은 optional descriptor
+`runserver_package`와 global loopback `godj runserver`를 구현했습니다. Article runtime backend는
+`GODJ_ARTICLE_SQLITE_DATABASE` 하나 또는
+`GODJ_ARTICLE_POSTGRES_URL`/`GODJ_ARTICLE_POSTGRES_SCHEMA` exact pair를 상호 배타적으로
+선택합니다. Global CLI는 이 값을 DB public configuration으로 해석하지 않고 runtime environment로
+전달하며, URL을 child argv나 framework diagnostic에 복제하지 않습니다.
+
+- SQLite actual product gate는 pre-migrated file DB와 global child를 사용해 Article advanced HTTP response,
+  repeated same-port start/stop, row/history durability, project-tree no-write와 process/temp cleanup을 로컬에서
+  검증했습니다.
+- PostgreSQL 17 actual product gate는 isolated schema에서 같은 global child response와 child 종료 후 exact
+  Article row/history reopen durability를 로컬에서 검증했습니다. 새 runserver test는 query-count
+  instrumentation이나 PostgreSQL service/container stop/start를 실행하지 않으므로, 기존 query/restart
+  gate와 별도 증거로 유지합니다.
+- 두 actual gate는 local pass이지만 GDJ-0042 exact-head hosted run은 pending입니다. 따라서 이
+  단면을 hosted `Verified`로 표시하지 않습니다.
+
+Runserver는 current generated bundle을 read-only preflight하며 auto-generate, auto-migrate, reload를 수행하지
+않습니다. 현재 지원 주장은 IPv4 loopback development server와 SQLite/PostgreSQL 17로 한정되며
+MySQL, Windows process semantics, non-loopback/TLS와 production readiness를 포함하지 않습니다.
 
 ## 현재 migration backend ABI
 
