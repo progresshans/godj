@@ -575,8 +575,11 @@ PostgreSQL parity와 cross-model compile rejection은 각각 Article PostgreSQL 
 따로 소유합니다. Manifest/oracle/static fixture는 각각 11,282/41,943/1,867 bytes와 SHA-256
 `04665808...`/`0236bdab...`/`f618ca12...`입니다. 현재 reference inventory는 migration-relation diagnostic을
 포함해 14 sets/151 unique contracts와 182 ordered cross-bindings이고, product inventory는
-13 adapters/139 contracts(134 passing + 5 reviewed deviations)입니다. Exact profile에서 재생성하고 일반
-환경에서 bytes를 확인하려면 다음을 사용합니다.
+13 adapters/139 contracts(134 passing + 5 reviewed deviations)입니다. Final source commit `695916c8...`의
+artifact, actual adapter, generated bundle, local PostgreSQL, full/386/source-clean-copy와 independent audit 결과는
+[EVID-109](../docs/status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)에
+기록합니다. Hosted exact-head 결과 전까지 이 단면은 local `Implemented candidate`입니다. Exact profile에서
+재생성하고 일반 환경에서 bytes를 확인하려면 다음을 사용합니다.
 
 ```bash
 uvx --from uv==0.10.12 uv run --frozen python -m conformance.querybreadth.reference --write

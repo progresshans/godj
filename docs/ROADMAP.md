@@ -9,7 +9,10 @@
   [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md), ready는 0입니다. Accepted
   [ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 source/result query shape,
   typed DTO projection, Count/Max aggregate와 distinct/offset을 SQLite/PostgreSQL Article 검색·리포트 수직 단면으로
-  넓힙니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
+  넓혔습니다. Final source `695916c8...`은
+  [Local EVID-109](status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)의
+  full/386/source-clean-copy와 audit P0..P3=0을 통과했고 exact-head hosted gate가 pending입니다.
+  Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -571,9 +574,10 @@ M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 
 [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)과 Accepted
 [ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 M4의 첫 broad read slice를
-활성화합니다. Article filter → distinct/stable order → offset/limit → typed DTO projection → Count/Max report를
-SQLite/PostgreSQL에서 같은 AST로 실행합니다. QRY-022..033은 아직 planned이며 Q/F, bulk, locking,
-annotation/subquery/window와 related projection은 이 packet에 포함하지 않습니다.
+구현합니다. Article filter → distinct/stable order → offset/limit → typed DTO projection → Count/Max report를
+SQLite/PostgreSQL에서 같은 AST로 실행하고 QRY-022..033 실제 SQLite adapter는 12/12 zero-diff입니다. Final
+source `695916c8...`은 local `Implemented candidate`이고 exact-head hosted 검증 전입니다. Q/F, bulk, locking,
+annotation/subquery/window와 related projection은 이 packet에 포함하지 않으므로 M4 전체는 완료되지 않았습니다.
 
 ## M5 — Web Core
 

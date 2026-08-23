@@ -157,8 +157,8 @@ GET /articles/?published=true&offset=20&limit=20
 ### Phase D — final hardening
 
 - [x] affected normal/race/CGO0/vet와 generated drift
-- [ ] final full/386/repository-external source-clean-copy once
-- [ ] independent frozen-byte audit
+- [x] final full/386/repository-external source-clean-copy once
+- [x] independent frozen-byte audit
 - [ ] non-force push, exact-head hosted result와 terminal mirror
 
 ## 검증 cadence
@@ -170,9 +170,13 @@ GET /articles/?published=true&offset=20&limit=20
 ## 현재 체크포인트와 다음 정확한 작업
 
 GDJ-0038 exact product head `187638f9...`가 CI run `32626539049`의 27/27 jobs·341/341 steps를 통과한 clean
-baseline에서 이 packet을 활성화했습니다. Phase A~C와 affected Phase D는 현재 working tree에서 통과했습니다.
-Query-breadth artifact는 14-set reference/13-adapter product inventory에 연결됐고 Article과 relationdeleteproduct
-두 checked-in bundle은 current facade ABI v2로 한 번에 재생성됐습니다. 다음은 exact source commit을 동결하고
-final full/386/repository-external source-clean-copy와 독립 frozen-byte audit을 한 번 실행한 뒤 non-force push와
-exact-head hosted gate를 닫는 것입니다. Relation path projection, mutation, locking 또는 Web Core public API는
-이 packet에서 열지 않습니다.
+baseline에서 이 packet을 활성화했습니다. Final source는 `695916c8...`, tree `01a6aa33...`에 동결됐고
+[EVID-109](../docs/status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)의
+full `make ci`, all-package Linux/386 compile, actual PostgreSQL Article E2E, repository-external source-clean-copy와
+독립 audit P0..P3=`0/0/0/0`을 통과했습니다. Query-breadth artifact는 exact 14-set reference/13-adapter product
+inventory에 연결됐고 Article과 relationdeleteproduct 두 checked-in bundle은 current facade ABI v2입니다.
+Audit에서 발견한 aggregate first-row 및 relation query cancellation identity P2 두 건은 correction `093fcd2...`로
+해소했고, 그 네 회귀 테스트를 포함한 hosted relation inventory는 `695916c8...`에서 exact
+916/916/0·93,953 bytes·`6a6b6e1c...`로 다시 잠갔습니다. 다음은 non-force push와 exact-head hosted gate,
+terminal mirror입니다. Relation path projection, mutation, locking 또는 Web Core public API는 이 packet에서 열지
+않습니다.

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-21
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260821-104
+- 마지막 갱신: 2026-08-23
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-109
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -10259,3 +10259,104 @@ REL-007/008 project-aware delete, arbitrary database adoption/repair, automatic 
 explicit-key sequence reconciliation, broader fields/relations, migration writer/autodetector, global `godj runserver`,
 dynamic routing, request transactions, DTL/Form/Auth/Admin/API or the remaining Q-010/Q-011/Q-012/Q-013/Q-017/Q-019
 questions. Draft PR #1 remains open, draft and unmerged.
+
+## EVID-20260823-109 — GDJ-0039 Typed Query Breadth Source-Frozen Local Checkpoint
+
+- Date/time: final exact-source local gates completed 2026-08-23T19:33:30+09:00
+- Work/contract IDs: GDJ-0039 active; QRY-022..033 local `Implemented candidate`; Q-011 remains `Partial`
+- Branch: `feature/pre-release-compatibility-reset`
+- Final source commit/tree: `695916c8c351535f19968f06d52648d4ae078f89` /
+  `01a6aa337995ba4894440f6d8ee947ca006b4a22`, subject
+  `test: refresh query lifecycle inventory lock`
+- Source chain: implementation `9ec420cb0d4e0006fde5f313afdc8b4ee2ccb37c` → lifecycle correction
+  `093fcd238bdcd52fcf8b05b1f6ae5d035fcc1819` → exact inventory lock `695916c8...`
+- Activation baseline: GDJ-0038 hosted correction `187638f9b3904162d510138d4b9f89f004168eb6`; local activation/status
+  parent `9edcb93430c0c3fe7e918d6838e697a35debcd03`
+- Activation-parent-to-final source packet: 85 paths=`A15/M70`, `+8,689/-282`; hosted-baseline-to-final including
+  activation documentation: 95 paths=`A17/M78`, `+9,137/-344`
+- Environment: macOS 26.6.2 build 25G83 / Darwin arm64; Go 1.26.5 darwin/arm64; local PostgreSQL 17 service
+- Result: exact source is locally source-frozen and independently audited. This entry does not claim exact-head hosted
+  verification, `Verified`, GDJ-0039 completion, merge or release.
+
+### Implemented bounded user flow
+
+- `query.Plan` now keeps canonical source fields separate from a sealed full-model/projection/aggregate result shape.
+  Distinct and offset are immutable; invalid, negative or overflowing pagination fails before I/O.
+- `orm` publishes typed `Project1..4`, `Aggregate1..4`, `SelectInto`, `AggregateInto`, `CountRows` and nullable `Max`.
+  Cold `Count` uses aggregate SQL while warm model-cache `Count` preserves the existing cache contract. Projection and
+  aggregate results never populate or consume the model result cache.
+- SQLite and PostgreSQL compile projection, distinct, stable offset/limit and direct or derived Count/Max over the
+  exact logical source. Source metadata, relation traversal, PostgreSQL distinct/order mismatches and malformed result
+  shapes fail closed before query I/O.
+- Facade generator version 2 publishes model-specific Distinct/Offset/Count and typed Select/Aggregate bridges. It
+  rejects cross-model fields and aliases that would shadow emitted predeclared identifiers before candidate publication.
+- Article `GET /articles/` parses published/offset/limit strictly, executes a stable ID-ordered typed DTO projection and
+  Count/Max report in exactly two DB queries, and renders the same request-local representation on SQLite/PostgreSQL.
+  Malformed query encodings return 400 before DB I/O.
+
+### Compatibility and generated artifacts
+
+- Query-breadth manifest/oracle/static fixture are respectively:
+  - 11,282 bytes / SHA-256 `04665808db8f775096c07ac1705e6e10f139ac233f71a10c2892403005245167`
+  - 41,943 bytes / SHA-256 `0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94`
+  - 1,867 bytes / SHA-256 `f618ca120d38304f8b06064514ac06e4380a492819ad1f3dbb8627183e1eb969`
+- Exact current reference inventory is 14 sets/151 unique contracts and scenarios/182 ordered cross-bindings=
+  `134 passing + 5 deviation + 12 oracle_locked`. Product inventory is 13 adapters/139 contracts=
+  `134 passing + 5 reviewed deviations`; QRY-022..033 actual is 12/12 zero-diff.
+- The all-scenario canonical semantic inventory is 151 scenarios, 660,905 bytes, SHA-256
+  `fb9ebeabeaafb6a041f334c375718d3b4535e0685af406bbe5a036ccc6242f6f`.
+- Article generation is exact 12 files/snapshot
+  `0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675`; its manifest is 3,963 bytes/SHA-256
+  `5258df529487b0b7934bb97dd0a64dcfff8f56fcb2292f9d026d22086c2eb3fa`.
+- Relation-delete generation is exact 16 files/snapshot
+  `2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`; its manifest is 4,815 bytes/SHA-256
+  `5da11251c6c238be46932edf0a6d970b94861bd9fe162b0ee38684c6a2c23937`. The physical compile inventory is
+  22 files/171,929 bytes/`c47cb33a2d426ce14122208e3498f6884ffb84ef96538af500f2b89bf7bfb1a0`; generated-only inventory is
+  16 files/79,814 bytes/`c7ddaf0f760987b71f743dab51dfc8b7af842031529999a8dd1d9d1cd246fd13`.
+
+### Audit corrections and exact hosted inventory lock
+
+- The frozen audit found two P2 lifecycle gaps: first aggregate-row iteration/cancellation could be joined with a
+  synthetic `invalid_plan`, and ForwardSelect/protected-relation query failures could lose context cancellation identity.
+- Correction `093fcd2...` now evaluates aggregate `Rows.Err` → `Close` → context before synthesizing a zero-row contract
+  fault, and joins driver/returned-rows-close/context causes on relation query failures. A canceled ForwardSelect owner
+  lets an already waiting live caller retry; nil/typed-nil rows are never closed and failed protected scans mutate zero rows.
+- The four new top-level regression tests passed 100 normal repetitions and 20 race repetitions. Two independent
+  exact-archive hosted-inventory captures were byte-identical at 916 runs/916 passes/0 skips, 93,953 payload bytes,
+  SHA-256 `6a6b6e1c2b642b6346d5d6983f11e1f5bbe135227c64a378d82688a623f093c5`. The workflow and protocol mirror lock
+  those exact values.
+- Independent final core and contract audits on `695916c8...` each returned P0/P1/P2/P3=`0/0/0/0`.
+
+### Final local gates on the exact source commit
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local \
+  GOPROXY=off GOSUMDB=off go test -run '^$' -exec=/usr/bin/true ./...
+
+GODJ_TEST_POSTGRES_URL='postgresql://127.0.0.1:5432/postgres?sslmode=disable' \
+  GODJ_REQUIRE_POSTGRES=1 go test -count=1 ./examples/article \
+  -run '^TestArticlePostgresMigrationGeneratedCRUDAndHTTP$'
+```
+
+All passed. `make ci` covered generated drift, all Go normal/vet/race tests, the configured CGO-disabled slice,
+portable Python 227 tests with 20 intentional exact-profile-only skips, all 28 reference validations, all 13 product
+adapters and QRY-022..033 zero-diff. The Linux/386 command compiled every package with CGO disabled; `/usr/bin/true`
+makes this compile-only evidence. The required local PostgreSQL test executed migration, generated CRUD, typed
+projection, distinct/order/offset/limit, direct/derived Count/Max including zero-limit, and loopback HTTP.
+
+A repository-external `git archive` of exact source `695916c8...` contained 753 tracked mode `100644`/`100755` files.
+Before and after `make generate-check` plus `go test -run '^$' ./...`, its path/file digest was exactly
+`3a06271375a7acf5070e6e8e6c70461f9c98d6c3ea0076ce4cb5b6a76e6fc5d0`; no tracked byte changed.
+
+### Remaining boundary and non-claims
+
+- The next boundary is a non-force push, Draft PR #1 update and unique exact-head hosted result. No prior local or
+  GDJ-0038 run is reused as hosted proof.
+- Projection and report are two queries and do not claim one transaction snapshot. Transaction-bound QuerySet,
+  Q/F expressions, bulk mutation, locking, annotation/grouping/having, subquery/window, related-column results and
+  broader Web/Core APIs remain out of scope. Q-011 therefore remains `Partial` and M4 is not complete.
+- This evidence/status/documentation append follows the exact-source product gates. It records them but is not
+  recursively proved by those earlier commands; documentation-only consistency gates and the later hosted head are
+  separate evidence boundaries.

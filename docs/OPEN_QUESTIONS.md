@@ -10,7 +10,7 @@
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
-| Q-011 | Partial | GDJ-0039 active / M4-M5+ | QuerySet cache와 ADR-0038 bounded synchronous request/DTO Article flow는 hosted-verified; GDJ-0039 projection/aggregate/pagination active, transaction container/async hook/background ownership은 open |
+| Q-011 | Partial | GDJ-0039 local source-frozen / M4-M5+ | QuerySet cache와 ADR-0038 bounded synchronous request/DTO Article flow는 hosted-verified; GDJ-0039 typed projection/Count·Max/distinct·offset Article slice는 local EVID-109를 통과했고 exact-head hosted gate가 pending; transaction container/async hook/background ownership은 open |
 | Q-012 | Partial | GDJ-0038 completed / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
@@ -85,9 +85,12 @@ DB-PG-001..010/WEB-001..010을 `Verified`하고 work를 completed로 닫았습�
 
 Current [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 Accepted
 [ADR-0039](adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)에 따라 Q-011/M4의 첫 넓은 read
-slice를 활성화했습니다. Source/result shape 분리, typed DTO projection, scalar Count/Max, distinct/offset을
-SQLite/PostgreSQL Article 검색·리포트 흐름으로 묶지만 아직 구현/검증 상태가 아닙니다. Q/F/bulk/locking,
-annotation/subquery/window와 related projection은 별도 후속입니다.
+slice를 구현했습니다. Final source `695916c8...`은 source/result shape 분리, typed DTO projection, scalar
+Count/Max, distinct/offset을 SQLite/PostgreSQL Article 검색·리포트 흐름으로 묶고
+[Local EVID-109](status/TEST_EVIDENCE.md#evid-20260823-109--gdj-0039-typed-query-breadth-source-frozen-local-checkpoint)의
+full/386/source-clean-copy와 audit을 통과했습니다. Exact-head hosted gate 전에는 local `Implemented candidate`이며
+Q/F/bulk/locking, annotation/subquery/window, related projection, transaction container와 async/background ownership은
+별도 후속입니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 
