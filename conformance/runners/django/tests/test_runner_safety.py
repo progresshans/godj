@@ -33,6 +33,8 @@ from conformance.runners.django.runner import (
     DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE,
     DEFAULT_QUERY_BREADTH_MANIFEST,
     DEFAULT_QUERY_BREADTH_ORACLE,
+    DEFAULT_QUERY_EXPRESSION_MANIFEST,
+    DEFAULT_QUERY_EXPRESSION_ORACLE,
     DEFAULT_QUERY_CACHE_MANIFEST,
     DEFAULT_QUERY_CACHE_ORACLE,
     DEFAULT_RELATION_MANIFEST,
@@ -201,6 +203,28 @@ class RunnerSafetyTests(unittest.TestCase):
                 [
                     "--manifest",
                     str(DEFAULT_QUERY_BREADTH_MANIFEST),
+                    "--check",
+                ]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
+    def test_query_expression_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_QUERY_EXPRESSION_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                [
+                    "--manifest",
+                    str(DEFAULT_QUERY_EXPRESSION_MANIFEST),
                     "--check",
                 ]
             )

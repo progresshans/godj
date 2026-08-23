@@ -145,6 +145,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `contracts/query-breadth-manifest.json` | Typed projection/scalar aggregate/stable pagination reference contract QRY-022..033 |
+| `contracts/query-expression-manifest.json` | Composable scalar Boolean predicate reference contract QRY-034..043; Phase A `oracle_locked` |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -156,6 +157,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
+| `queryexpression` | QRY-034..043 전용 deterministic reference check/regeneration entrypoint |
 | `runners/godj` | M1 read부터 query breadth까지 제품 package를 실행하는 열세 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
@@ -589,11 +591,29 @@ uvx --from uv==0.10.12 uv run --frozen python -m conformance.querybreadth.refere
 uv run --frozen python -m conformance.querybreadth.reference
 ```
 
-GDJ-0040은 QRY-034..043 scalar Boolean composition set을 contract-first로 준비합니다. 이 activation
-checkout에서는 아직 manifest/oracle/static fixture, runner registry, product adapter를 추가하지 않았으므로
-위 14 reference sets/151 scenarios/182 bindings와 13 product adapters/139 contracts 집계는 불변입니다.
-QRY-034..043은 독립 Django scenario/test와 nullable NOT 관찰을 먼저 통과한 뒤만 artifact·status에
-등록합니다.
+GDJ-0040 Phase A는 QRY-034..043 scalar Boolean composition set을 reference-only로 고정했습니다. 독립 Django
+scenario는 exact/public `Q`와 `QuerySet` 동작만 관찰하며 checked-in expected artifact를 읽지 않습니다. 새
+manifest의 10개 status는 모두 `oracle_locked`, oracle observation은 `observed`, static fixture는 ordered 10개
+`not_implemented`입니다. Manifest/oracle/static fixture는 exact 8,135/41,264/1,715 bytes와 SHA-256
+`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`/
+`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`/
+`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다.
+
+Reference inventory는 exact 15 sets/161 unique contracts+scenarios/210 ordered cross-bindings의
+`134 passing + 5 deviation + 22 oracle_locked`입니다. Product inventory는 query-expression adapter를
+등록하지 않은 exact 13 adapters/139 contracts의 `134 passing + 5 deviation + 0 oracle_locked`로 불변입니다.
+Focused scenario 7/7, exact focused runner 60/60, portable focused runner 60 tests/16 expected skips와 전체
+portable Python 236 tests/21 expected skips를 통과했습니다. Exact semantic registry는 161 scenarios/
+702,415 bytes/SHA-256 `aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`이며 reference drift와
+oracle/static 두 `contractcheck`도 통과했습니다. 이 Phase A 결과는 GoDj Boolean tree/compiler/Article 제품
+지원이나 QRY-034..043 `passing` 전환 증거가 아닙니다.
+
+Exact profile에서 query-expression oracle을 재생성하고 checked-in bytes를 확인하려면 다음을 사용합니다.
+
+```bash
+uvx --from uv==0.10.12 uv run --frozen python -m conformance.queryexpression.reference --write
+uv run --frozen python -m conformance.queryexpression.reference
+```
 
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든

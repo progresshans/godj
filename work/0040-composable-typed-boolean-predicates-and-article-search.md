@@ -100,8 +100,9 @@ GET /articles/?q=go&published=true&exclude_title=draft&offset=0&limit=20
 - [ADR-0040](../docs/adr/0040-composable-typed-boolean-predicates-and-article-search.md) Accepted
 - [ADR-0039](../docs/adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md) projection/aggregate/pagination
   경계와 generated facade ABI v2를 보존합니다.
-- Current reference/product aggregate는 14/151/182와 13/139이며 새 계약은 Phase A byte 측정 전 status를
-  전환하지 않습니다.
+- Phase A reference aggregate는 exact 15 sets/161 unique contracts+scenarios/210 ordered cross-bindings이며
+  `134 passing + 5 deviation + 22 oracle_locked`입니다. Product aggregate는 13 adapters/139 contracts의
+  `134 passing + 5 deviation + 0 oracle_locked`로 불변입니다.
 - Dirty 사용자 파일은 없고 Draft PR #1은 merge/release하지 않습니다.
 
 ## Django Reference / Contract
@@ -143,9 +144,9 @@ rows/close/context failure는 Go-native gates이며 Django parity claim에 포�
 
 ### Phase A — contract/decision
 
-- [ ] QRY-034..043 independent Django scenarios/tests
-- [ ] manifest/oracle/static fixture/checksum과 provenance
-- [ ] Phase A status는 locked/reference-only로 유지하고 bytes를 실측
+- [x] QRY-034..043 independent Django scenarios/tests
+- [x] manifest/oracle/static fixture/checksum과 provenance
+- [x] Phase A status는 locked/reference-only로 유지하고 bytes를 실측
 
 ### Phase B — one core tree
 
@@ -189,9 +190,20 @@ rows/close/context failure는 Go-native gates이며 Django parity claim에 포�
 
 GDJ-0039 exact submitted head `253455d...`는 EVID-110/run `32634741186`에서 27/27 jobs·341/341 steps와
 PostgreSQL 17.10 actual/restart, four-coordinate 916/916/0 inventory, QRY-022..033 12/12를 통과했습니다.
-이 docs-only terminal/activation descendant는 그 run의 recursive proof가 아닙니다. 다음은 QRY-034..043 Django
-scenario source와 tests를 expected artifact 없이 작성하고, nullable NOT truth table을 exact profile에서 먼저
-관찰하는 Phase A입니다. Product/registry/status는 oracle bytes와 independent runner가 고정되기 전 바꾸지 않습니다.
+이 docs-only terminal/activation descendant는 그 run의 recursive proof가 아닙니다. Phase A는 expected artifact를
+읽지 않는 QRY-034..043 Django scenario 10개, manifest/oracle/static fixture와 runner registry를 고정했습니다.
+Manifest/oracle/static fixture는 exact 8,135/41,264/1,715 bytes이고 SHA-256은 각각
+`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`,
+`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`,
+`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. Exact focused runner는
+60/60, portable focused runner는 60 tests/16 expected skips, 전체 portable Python은 236 tests/21 expected
+skips를 통과했습니다. Exact semantic registry는 161 scenarios/702,415 bytes/SHA-256
+`aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift와 oracle/static
+두 `contractcheck`도 통과했습니다.
+
+QRY-034..043은 계속 `oracle_locked`이고 GoDj actual adapter가 없으므로 제품 지원/status 전환은 없습니다.
+다음 정확한 작업은 Phase B의 authoritative immutable expression tree, resource bound와 typed
+`orm.And`/`orm.Or`/`orm.Not`을 구현·검증하는 것입니다.
 
 ## 위험과 rollback
 

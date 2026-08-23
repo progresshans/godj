@@ -32,6 +32,8 @@ from conformance.runners.django.runner import (
     DEFAULT_PROFILE,
     DEFAULT_QUERY_BREADTH_MANIFEST,
     DEFAULT_QUERY_BREADTH_ORACLE,
+    DEFAULT_QUERY_EXPRESSION_MANIFEST,
+    DEFAULT_QUERY_EXPRESSION_ORACLE,
     DEFAULT_QUERY_CACHE_MANIFEST,
     DEFAULT_QUERY_CACHE_ORACLE,
     DEFAULT_RELATION_MANIFEST,
@@ -80,6 +82,9 @@ from conformance.runners.django.query_cache_scenarios import (
 )
 from conformance.runners.django.query_breadth_scenarios import (
     SCENARIOS as QUERY_BREADTH_SCENARIOS,
+)
+from conformance.runners.django.query_expression_scenarios import (
+    SCENARIOS as QUERY_EXPRESSION_SCENARIOS,
 )
 from conformance.runners.django.relation_scenarios import (
     SCENARIOS as RELATION_SCENARIOS,
@@ -170,6 +175,7 @@ class ScenarioTests(unittest.TestCase):
             SAVE_LIFECYCLE_SCENARIOS,
             QUERY_CACHE_SCENARIOS,
             QUERY_BREADTH_SCENARIOS,
+            QUERY_EXPRESSION_SCENARIOS,
             MIGRATION_PLANNING_SCENARIOS,
             MIGRATION_EXECUTION_SCENARIOS,
             MIGRATION_RESTART_SCENARIOS,
@@ -191,6 +197,7 @@ class ScenarioTests(unittest.TestCase):
             (DEFAULT_SAVE_LIFECYCLE_MANIFEST, SAVE_LIFECYCLE_SCENARIOS),
             (DEFAULT_QUERY_CACHE_MANIFEST, QUERY_CACHE_SCENARIOS),
             (DEFAULT_QUERY_BREADTH_MANIFEST, QUERY_BREADTH_SCENARIOS),
+            (DEFAULT_QUERY_EXPRESSION_MANIFEST, QUERY_EXPRESSION_SCENARIOS),
             (DEFAULT_MIGRATION_PLANNING_MANIFEST, MIGRATION_PLANNING_SCENARIOS),
             (DEFAULT_MIGRATION_EXECUTION_MANIFEST, MIGRATION_EXECUTION_SCENARIOS),
             (DEFAULT_MIGRATION_RESTART_MANIFEST, MIGRATION_RESTART_SCENARIOS),
@@ -216,7 +223,7 @@ class ScenarioTests(unittest.TestCase):
                 MIGRATION_RELATION_SCENARIOS,
             ),
         )
-        self.assertEqual(len(contract_sets), 14)
+        self.assertEqual(len(contract_sets), 15)
         selected_across_sets = []
         contract_ids_across_sets = []
         inventories = []
@@ -241,10 +248,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 151)
+        self.assertEqual(len(selected_across_sets), 161)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 151)
+        self.assertEqual(len(contract_ids_across_sets), 161)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -259,7 +266,7 @@ class ScenarioTests(unittest.TestCase):
                         source_contract_ids.isdisjoint(target_contract_ids)
                     )
                 cross_bindings += 1
-        self.assertEqual(cross_bindings, 182)
+        self.assertEqual(cross_bindings, 210)
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
         profile = _load_json(DEFAULT_PROFILE)
@@ -269,6 +276,7 @@ class ScenarioTests(unittest.TestCase):
             DEFAULT_SAVE_LIFECYCLE_MANIFEST,
             DEFAULT_QUERY_CACHE_MANIFEST,
             DEFAULT_QUERY_BREADTH_MANIFEST,
+            DEFAULT_QUERY_EXPRESSION_MANIFEST,
             DEFAULT_MIGRATION_PLANNING_MANIFEST,
             DEFAULT_MIGRATION_EXECUTION_MANIFEST,
             DEFAULT_MIGRATION_RESTART_MANIFEST,
@@ -439,6 +447,26 @@ class ScenarioTests(unittest.TestCase):
             [contract["id"] for contract in manifest["contracts"]],
         )
         self.assertEqual(first, DEFAULT_QUERY_BREADTH_ORACLE.read_bytes())
+
+    @unittest.skipUnless(
+        os.environ.get("GODJ_EXACT_PROFILE") == "1",
+        "requires the locked darwin/arm64 reference profile",
+    )
+    def test_query_expression_suite_is_byte_deterministic_and_ordered(self) -> None:
+        first = canonical_json(
+            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_EXPRESSION_MANIFEST)
+        )
+        second = canonical_json(
+            generate_suite(DEFAULT_PROFILE, DEFAULT_QUERY_EXPRESSION_MANIFEST)
+        )
+        self.assertEqual(first, second)
+        manifest = _load_json(DEFAULT_QUERY_EXPRESSION_MANIFEST)
+        suite = json.loads(first)
+        self.assertEqual(
+            [contract["id"] for contract in suite["contracts"]],
+            [contract["id"] for contract in manifest["contracts"]],
+        )
+        self.assertEqual(first, DEFAULT_QUERY_EXPRESSION_ORACLE.read_bytes())
 
     @unittest.skipUnless(
         os.environ.get("GODJ_EXACT_PROFILE") == "1",

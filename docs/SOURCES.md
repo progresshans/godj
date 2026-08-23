@@ -352,3 +352,38 @@ general restart와 actual adapter는 미지원입니다. D4g observer-only chara
 `b80f06a...`에서 실행됐지만 publication/status sequence는 GDJ-0036에서 retire됐습니다. 현재 same-ID diagnostic
 corpus와 그 Go capture는 oracle semantic comparison이나 adapter 등록 증거가 아니므로 MIG-075..086은 계속
 `oracle_locked`/unregistered입니다.
+
+## GDJ-0040 Phase A query-expression source and provenance lock
+
+QRY-034..043은 pinned Django 6.1 commit
+`fe0a859f537d4238cf49fca39073513206f83122`의 public `Q`/`QuerySet` observable behavior를 독립 scenario로
+관찰합니다. GoDj는 Django의 Python `Q` object layout이나 compiler 내부 구조를 복사·호환하지 않으며,
+[ADR-0040](adr/0040-composable-typed-boolean-predicates-and-article-search.md)의 Go-owned immutable tree를 별도로
+구현합니다. Manifest provenance는 contract별로 실제 사용한 아래 documentation/source/test locator와 BSD-3-Clause
+license를 기록합니다.
+
+| Upstream locator | QRY | 관찰 범위 |
+|---|---|---|
+| `docs/topics/db/queries.txt#complex-lookups-with-q` | 034, 036, 037, 039 | `Q` OR/AND/negation과 grouped lookup 외부 동작 |
+| `docs/topics/db/queries.txt#filtered-querysets-are-unique` | 040 | chained source의 독립성과 재사용 |
+| `docs/ref/models/querysets.txt#icontains` | 035 | ASCII wildcard escaping과 case-insensitive containment |
+| `docs/ref/models/querysets.txt#distinct` | 041 | composite predicate 뒤 distinct 결과 |
+| `docs/topics/db/queries.txt#limiting-querysets` | 041 | stable order 뒤 offset/limit 결과 |
+| `docs/ref/models/querysets.txt#values` | 042 | projection 밖 field를 predicate에 사용하는 결과 |
+| `docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset` | 043 | filtered source의 Count/Max |
+| `django/db/models/sql/query.py::Query.build_filter` | 038 | nullable negation의 `IS NOT NULL` guard 관찰 |
+| `django/db/models/query_utils.py::Q._combine` | 040 | connector 결합 뒤 source/child 재사용 관찰 |
+| `tests/or_lookups/tests.py::OrLookupsTests.test_filter_or` | 034 | scalar exact OR result/order |
+| `tests/or_lookups/tests.py::OrLookupsTests.test_q_negated` | 036, 037 | grouped OR와 negation result |
+| `tests/or_lookups/tests.py::OrLookupsTests.test_q_and` | 039 | variadic/repeated implicit AND |
+| `tests/lookup/tests.py::LookupTests.test_escaping` | 035 | lookup wildcard escaping |
+| `tests/lookup/tests.py::LookupTests.test_isnull_textfield` | 038 | nullable exact/`icontains`/`isnull` negation truth table |
+| `tests/lookup/tests.py::LookupTests.test_values_list_filter_and_no_fields` | 042 | filtered field와 projected field 분리 |
+| `tests/aggregation/tests.py::AggregateTestCase.test_multiple_aggregates` | 043 | 한 filtered source의 Count/Max 결과 |
+
+Phase A의 GoDj-owned scenario, manifest와 payload는 upstream source, fixture, comment 또는 assertion 구조를
+복사·번역하지 않았습니다. Exact manifest/oracle/ordered NI fixture는 8,135/41,264/1,715 bytes이고 SHA-256은
+각각 `8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`,
+`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`,
+`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. 모든 QRY-034..043 status는
+`oracle_locked`이며 이 source/provenance lock만으로 GoDj product support나 `passing`을 주장하지 않습니다.

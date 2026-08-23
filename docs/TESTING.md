@@ -1718,3 +1718,33 @@ general restart, writer/autodetector, actual adapter, completion and terminal st
 The planned next D4g action was oracle-blind observer-only characterization with all 12 MIG statuses locked.
 GDJ-0036 retired that publication sequence before execution; it did not authorize a deviation or convert the
 historical MIG-075..086 artifact into current product status.
+
+## GDJ-0040 Phase A query-expression reference verification
+
+Phase A는 QRY-034..043의 independent Django scenario, runner binding, manifest/oracle/static fixture와 protocol
+registration만 검증합니다. Scenario는 manifest/oracle/static expected bytes를 읽지 않으며 public `Q`와
+`QuerySet` 결과, DB state와 normalized metrics를 관찰합니다. Exact profile 밖에서는 locked-oracle regeneration
+test를 expected skip하고 portable registry/artifact validation을 실행합니다.
+
+Focused scenario module은 exact profile에서 7/7을 통과했습니다. Scenario/registry/runner-safety focused 묶음은
+exact profile에서 60/60, portable environment에서 60 tests/16 expected skips를 통과했습니다. 전체 portable
+Python은 236 tests/21 expected skips이고 semantic registry는 exact 161 scenarios/702,415 bytes/SHA-256
+`aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift check와
+oracle/static fixture에 대한 두 `contractcheck`도 통과했습니다.
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC \
+  uv run --frozen python -m unittest \
+  conformance.runners.django.tests.test_query_expression_scenarios \
+  conformance.runners.django.tests.test_scenarios \
+  conformance.runners.django.tests.test_runner_safety -v
+LC_ALL=C TZ=UTC uv run --frozen python -m conformance.queryexpression.reference
+```
+
+Artifact exact bytes/SHA-256은 manifest
+8,135/`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`, oracle
+41,264/`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`, ordered NI fixture
+1,715/`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. Reference inventory는
+15/161/210의 `134 passing + 5 deviation + 22 oracle_locked`, product inventory는 13 adapters/139 contracts의
+`134 passing + 5 deviation + 0 oracle_locked`로 서로 분리합니다. Phase A에서 Go unit/backend/Article actual,
+race/CGO0/vet/full/386/hosted product matrix를 실행했다고 주장하지 않으며 QRY-034..043 status도 전환하지 않습니다.

@@ -14,6 +14,9 @@ QUERY_CACHE_NOT_IMPLEMENTED := conformance/fixtures/godj-query-cache-not-impleme
 QUERY_BREADTH_MANIFEST := conformance/contracts/query-breadth-manifest.json
 QUERY_BREADTH_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json
 QUERY_BREADTH_NOT_IMPLEMENTED := conformance/fixtures/godj-query-breadth-not-implemented.json
+QUERY_EXPRESSION_MANIFEST := conformance/contracts/query-expression-manifest.json
+QUERY_EXPRESSION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json
+QUERY_EXPRESSION_NOT_IMPLEMENTED := conformance/fixtures/godj-query-expression-not-implemented.json
 MIGRATION_PLANNING_MANIFEST := conformance/contracts/migration-planning-manifest.json
 MIGRATION_PLANNING_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-planning-oracle.json
 MIGRATION_PLANNING_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-planning-not-implemented.json
@@ -116,6 +119,10 @@ conformance-check:
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(QUERY_BREADTH_MANIFEST) -suite $(QUERY_BREADTH_NOT_IMPLEMENTED)
 	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(QUERY_EXPRESSION_MANIFEST) -suite $(QUERY_EXPRESSION_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(QUERY_EXPRESSION_MANIFEST) -suite $(QUERY_EXPRESSION_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) -suite $(MIGRATION_PLANNING_ORACLE)
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) -suite $(MIGRATION_PLANNING_NOT_IMPLEMENTED)
@@ -210,6 +217,9 @@ oracle-check:
 		--profile $(PROFILE) --manifest $(QUERY_BREADTH_MANIFEST) \
 		--output $(QUERY_BREADTH_ORACLE) --check
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(QUERY_EXPRESSION_MANIFEST) \
+		--output $(QUERY_EXPRESSION_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_PLANNING_MANIFEST) \
 		--output $(MIGRATION_PLANNING_ORACLE) --check
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -252,6 +262,9 @@ oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(QUERY_BREADTH_MANIFEST) \
 		--output $(QUERY_BREADTH_ORACLE)
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(QUERY_EXPRESSION_MANIFEST) \
+		--output $(QUERY_EXPRESSION_ORACLE)
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_PLANNING_MANIFEST) \
 		--output $(MIGRATION_PLANNING_ORACLE)

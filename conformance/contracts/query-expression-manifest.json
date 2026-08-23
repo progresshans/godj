@@ -1,0 +1,136 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "QRY-034",
+      "title": "Two non-null scalar exact leaves compose with OR and preserve total result order",
+      "scenario": "django.query.expression.scalar_exact_or",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#complex-lookups-with-q", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/or_lookups/tests.py::OrLookupsTests.test_filter_or", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-035",
+      "title": "Escaped ASCII icontains leaves compose with OR without mutating the input",
+      "scenario": "django.query.expression.escaped_ascii_icontains_or",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#icontains", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_escaping", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-036",
+      "title": "A grouped OR predicate composes with AND and remains reusable",
+      "scenario": "django.query.expression.grouped_or_and_reuse",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#complex-lookups-with-q", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/or_lookups/tests.py::OrLookupsTests.test_q_negated", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-037",
+      "title": "Negating a non-null scalar predicate returns the ordered complement",
+      "scenario": "django.query.expression.nonnull_scalar_not",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#complex-lookups-with-q", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/or_lookups/tests.py::OrLookupsTests.test_q_negated", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-038",
+      "title": "Nullable exact, icontains, and isnull negation preserve Django NULL truth semantics",
+      "scenario": "django.query.expression.nullable_negation_truth_table",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/sql/query.py::Query.build_filter", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_isnull_textfield", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-039",
+      "title": "Variadic and repeated Filter calls share canonical implicit AND semantics",
+      "scenario": "django.query.expression.implicit_filter_and",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#complex-lookups-with-q", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/or_lookups/tests.py::OrLookupsTests.test_q_and", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-040",
+      "title": "Nested connector order and derived QuerySets preserve source and predicate reuse",
+      "scenario": "django.query.expression.nested_connector_order_and_source_independence",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/query_utils.py::Q._combine", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filtered-querysets-are-unique", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-041",
+      "title": "Composite predicates preserve distinct stable ordering across offset and limit",
+      "scenario": "django.query.expression.composite_distinct_stable_page",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#distinct", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#limiting-querysets", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-042",
+      "title": "Projection may omit fields used only by a composite predicate",
+      "scenario": "django.query.expression.projection_outside_predicate",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#values", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/lookup/tests.py::LookupTests.test_values_list_filter_and_no_fields", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "QRY-043",
+      "title": "Count and nullable Max evaluate over empty and nonempty composite filtered sources",
+      "scenario": "django.query.expression.composite_count_max",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0040", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/aggregation/tests.py::AggregateTestCase.test_multiple_aggregates", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

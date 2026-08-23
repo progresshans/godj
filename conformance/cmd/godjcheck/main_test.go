@@ -193,6 +193,128 @@ func TestRunMatchesPinnedQueryBreadthOracle(t *testing.T) {
 	}
 }
 
+func TestRunLeavesQueryExpressionReferenceNotImplementedWithoutProductHandlers(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	profilePath := filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json")
+	manifestPath := filepath.Join(root, "conformance", "contracts", "query-expression-manifest.json")
+	oraclePath := filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json")
+	staticPath := filepath.Join(root, "conformance", "fixtures", "godj-query-expression-not-implemented.json")
+	actualPath := filepath.Join(t.TempDir(), "query-expression-actual.json")
+
+	profile, err := protocol.LoadProfile(profilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := protocol.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Contracts) != 10 || manifest.Contracts[0].ID != "QRY-034" || manifest.Contracts[9].ID != "QRY-043" {
+		t.Fatalf("query-expression contracts = %#v", manifest.Contracts)
+	}
+	required, err := godjrunner.RequiredObservedContractIDs(manifest)
+	if err != nil {
+		t.Fatalf("query-expression handler registry: %v", err)
+	}
+	if len(required) != 0 {
+		t.Fatalf("query-expression required product handlers = %#v, want none", required)
+	}
+
+	arguments := []string{
+		"-profile", profilePath,
+		"-manifest", manifestPath,
+		"-expected", oraclePath,
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+		t.Fatalf("run() code = %d, want 0; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if stdout.String() != "GoDj product observations match 0 required contracts; 10 remain not implemented\n" {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("stderr = %q, want empty", stderr.String())
+	}
+
+	actualBytes, err := os.ReadFile(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	static, err := protocol.LoadObservationSuite(staticPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staticCanonical, err := protocol.MarshalCanonical(static)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(actualBytes, staticCanonical) {
+		t.Fatal("zero-handler query-expression output differs from the canonical checked-in not-implemented fixture")
+	}
+	actual, err := protocol.LoadObservationSuite(actualPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oracle, err := protocol.LoadObservationSuite(oraclePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, observation := range actual.Contracts {
+		contract := manifest.Contracts[index]
+		if observation.ID != contract.ID || observation.Status != protocol.StatusNotImplemented || observation.Phase != contract.Phase {
+			t.Fatalf("actual contract %d = %#v, want %s not_implemented/%s", index, observation, contract.ID, contract.Phase)
+		}
+		if observation.Result != nil || observation.Error != nil || observation.DBState != nil || observation.Metrics != nil {
+			t.Fatalf("not-implemented contract %s contains product payloads: %#v", observation.ID, observation)
+		}
+	}
+	differences, err := protocol.CompareProduct(profile, manifest, oracle, actual, required)
+	if err != nil || len(differences) != 0 {
+		t.Fatalf("query-expression zero-handler comparison differences=%#v error=%v", differences, err)
+	}
+}
+
+func TestRunRejectsQueryExpressionFalseGreenBeforePublishingActualOutput(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "..")
+	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "query-expression-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Contracts[0].Status = protocol.ContractPassing
+	if _, err := godjrunner.RequiredObservedContractIDs(manifest); err == nil || !strings.Contains(err.Error(), `unregistered scenario "django.query.expression.scalar_exact_or" contract QRY-034 has status "passing"; want oracle_locked`) {
+		t.Fatalf("handler registry error = %v", err)
+	}
+	directory := t.TempDir()
+	manifestPath := writeCanonicalMainTestArtifact(t, directory, "false-green-query-expression-manifest.json", manifest)
+	actualPath := filepath.Join(directory, "must-not-exist.json")
+	arguments := []string{
+		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+		"-manifest", manifestPath,
+		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-expression-oracle.json"),
+		"-actual-output", actualPath,
+	}
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if code := run(context.Background(), arguments, &stdout, &stderr); code != 2 {
+		t.Fatalf("run() code = %d, want 2; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), `actual handler registry: unregistered scenario "django.query.expression.scalar_exact_or" contract QRY-034 has status "passing"; want oracle_locked`) {
+		t.Fatalf("stderr = %q", stderr.String())
+	}
+	if _, err := os.Stat(actualPath); !os.IsNotExist(err) {
+		t.Fatalf("actual output Stat() error = %v, want not-exist", err)
+	}
+}
+
 func TestRunQueryCacheActualOutputIsDeterministic(t *testing.T) {
 	t.Parallel()
 

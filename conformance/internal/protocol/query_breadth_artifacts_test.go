@@ -129,7 +129,7 @@ func TestQueryBreadthPassingManifestKeepsExplicitNotImplementedBaseline(t *testi
 	}
 }
 
-func TestCurrentFourteenReferenceSetsHave151UniqueContractsAndReject182OrderedCrossBindings(t *testing.T) {
+func TestCurrentFifteenReferenceSetsHave161UniqueContractsAndReject210OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -151,6 +151,7 @@ func TestCurrentFourteenReferenceSetsHave151UniqueContractsAndReject182OrderedCr
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "relation", "relation-manifest.json", "relation-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "query-breadth", "query-breadth-manifest.json", "query-breadth-oracle.json"),
+		loadMigrationDefinitionSourceContractSet(t, root, "query-expression", "query-expression-manifest.json", "query-expression-oracle.json"),
 		loadMigrationDefinitionSourceContractSet(t, root, "migration-relation", "migration-relation-manifest.json", "migration-relation-oracle.json"),
 	}
 
@@ -173,8 +174,8 @@ func TestCurrentFourteenReferenceSetsHave151UniqueContractsAndReject182OrderedCr
 			scenarios[contract.Scenario] = set.name
 		}
 	}
-	if totalContracts != 151 || len(contractIDs) != 151 || len(scenarios) != 151 {
-		t.Fatalf("current reference inventory = %d contracts/%d IDs/%d scenarios, want 151 each", totalContracts, len(contractIDs), len(scenarios))
+	if totalContracts != 161 || len(contractIDs) != 161 || len(scenarios) != 161 {
+		t.Fatalf("current reference inventory = %d contracts/%d IDs/%d scenarios, want 161 each", totalContracts, len(contractIDs), len(scenarios))
 	}
 
 	crossBindings := 0
@@ -189,8 +190,8 @@ func TestCurrentFourteenReferenceSetsHave151UniqueContractsAndReject182OrderedCr
 			}
 		}
 	}
-	if crossBindings != 182 {
-		t.Fatalf("current ordered cross-set bindings = %d, want 182", crossBindings)
+	if crossBindings != 210 {
+		t.Fatalf("current ordered cross-set bindings = %d, want 210", crossBindings)
 	}
 }
 

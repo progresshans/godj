@@ -776,6 +776,28 @@ macOS 15 arm64 job이 모두 통과했고, Ubuntu는 focused test를 실제 Linu
 module/remote discovery, CLI, writer/upgrade/cache, executable/custom/data/raw-SQL operation,
 existing database adoption/repair, crash reconciliation과 non-SQLite backend는 계속 미지원입니다.
 
+## GDJ-0040 Phase A composable Boolean predicate reference boundary
+
+QRY-034..043은 pinned Django 6.1/SQLite exact profile에서 scalar exact/`icontains` OR, grouped OR+AND,
+non-null/nullable NOT, canonical implicit AND, nested connector/source reuse, distinct/stable slicing, projection 밖
+predicate field와 filtered Count/Max를 관찰합니다. Manifest의 10개 contract는 모두 `oracle_locked`, oracle은
+`observed`, ordered static fixture는 10개 `not_implemented`입니다. 이 reference-only 상태는 GoDj query tree,
+SQLite/PostgreSQL compiler나 Article search의 구현/지원 증거가 아닙니다.
+
+Artifact lock은 manifest 8,135 bytes/
+`8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895`, oracle 41,264 bytes/
+`8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`, ordered NI fixture 1,715 bytes/
+`0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. Exact reference aggregate는
+15 sets/161 unique contracts+scenarios/210 ordered cross-bindings의
+`134 passing + 5 deviation + 22 oracle_locked`입니다. Product aggregate는 query-expression adapter를 추가하지
+않아 13 adapters/139 contracts의 `134 passing + 5 deviation + 0 oracle_locked`로 유지됩니다.
+
+Focused scenario 7/7, exact focused runner 60/60, portable focused runner 60 tests/16 expected skips, 전체 portable
+Python 236 tests/21 expected skips가 통과했습니다. Exact semantic registry는 161 scenarios/702,415 bytes/
+SHA-256 `aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니다. Reference drift와
+oracle/static `contractcheck`도 통과했지만 QRY-034..043을 `passing`으로 올리려면 Phase B/C의 independent GoDj
+actual과 comparator evidence가 별도로 필요합니다.
+
 ## 데이터 호환성
 
 다음은 장기 대상이며 구현 전에는 지원을 주장하지 않습니다.
