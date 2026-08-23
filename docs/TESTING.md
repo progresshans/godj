@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-23
+- 마지막 검토: 2026-08-24
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -1780,3 +1780,28 @@ full/386/repository-external source-clean-copy를 모두 다시 실행했습니�
 [EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
 run `32642341459`은 exact 27/27 jobs·341/341 steps, 네 relation-product 좌표 950/950/0과
 PostgreSQL 17.10/QRY-034..043 actual을 통과해 terminal success를 고정했습니다.
+
+## GDJ-0041 typed comparison/F reference local verification
+
+Phase A에서 QRY-044..053 신규 10개를 `oracle_locked`로 고정한 manifest는 16,652 bytes/
+`90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`였습니다. Oracle/ordered NI fixture는
+87,852/2,465 bytes와
+`4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`/
+`7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`입니다. 당시 reference는
+15/171/210=`144 passing + 5 deviation + 22 oracle_locked`, product는
+14/159=`144 passing + 5 deviation + 10 oracle_locked`였고 제품 actual을 주장하지 않았습니다.
+
+Current manifest는 신규 status 10개를 `passing`으로 전환한 16,592 bytes/
+`a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`입니다. Oracle-blind GoDj/SQLite
+adapter 두 번의 actual은 각각 87,592 bytes/
+`c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical하고
+QRY-034..053 20/20, 신규 QRY-044..053 10/10 result/DB-state/metrics zero-diff입니다. Reference aggregate는
+15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
+14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다.
+
+Frozen source HEAD `7f2bb2232afa7d71bea56d8910a52a045ec11faa`/tree
+`221467b95b712dfed199b12f5a14ed17d987a7ac`에서 affected normal/race/CGO-disabled/vet/generated drift,
+full `make ci`, 386, repository-external source-clean-copy와 independent frozen-byte audit가 통과했습니다.
+이 local-final은 typed literal/reference AST, SQLite/PostgreSQL identifier RHS와 nullable odd/even `NOT`, Article
+advanced invalid zero-I/O/success exactly-two-query 경계를 포함합니다. Exact-head hosted 결과는 아직 pending이므로
+이 절은 GDJ-0041 hosted `Verified`나 completed 상태의 증거가 아닙니다.

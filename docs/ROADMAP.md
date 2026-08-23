@@ -4,7 +4,7 @@
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)도 completed됐습니다. 현재
-  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이 active이고 ready는 0입니다. Phase A
+  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이 active이고 ready는 0입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -13,6 +13,11 @@
   950/950/0 inventory를 잠갔고 EVID-114에서 full/386/775-file source-clean-copy를 새 bytes로 다시 통과했습니다.
   Corrected submitted head `136e825...`는 EVID-115/run `32642341459`의 exact 27/27 jobs·341/341 steps와
   네 플랫폼 950/950/0, PostgreSQL 17.10/QRY-034..043 actual을 통과해 completed/hosted-verified됐습니다.
+  GDJ-0041 current source `7f2bb223...`은 Integer/String range, sealed same-model/same-kind `orm.F`, RHS
+  union/source validation, nullable RHS odd-`NOT`, SQLite/PostgreSQL identifier RHS와 bounded Article advanced
+  exactly-two-query filter를 구현하고 local-final gates를 통과했습니다. QRY-034..053은 20/20, 신규
+  QRY-044..053은 10/10 zero-diff이고 reference는 15/171/210=`154+5+12 locked`, product는
+  14/159=`154+5+0`입니다. Exact-head hosted는 pending이므로 GDJ-0041은 active입니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
@@ -61,9 +66,10 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 제품 기준: 14 adapters/149 contracts의 `144 passing + 5 deviation + 0 oracle_locked`; relation
-  REL-001..012 12/12와 query expression QRY-034..043 10/10 actual이 `passing`/hosted-verified입니다.
-- 마지막 검토: 2026-08-23
+- 현재 제품 기준: 14 adapters/159 contracts의 `154 passing + 5 deviation + 0 oracle_locked`; relation
+  REL-001..012 12/12와 query expression QRY-034..053 20/20 actual이 `passing`입니다. QRY-034..043 10개는
+  hosted-verified됐고 QRY-044..053 신규 10개는 local-final 뒤 exact-head hosted가 pending입니다.
+- 마지막 검토: 2026-08-24
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -595,14 +601,16 @@ first hosted run은 stale inventory lock에서만 실패했습니다.
 correction `73b912d...`는 950/950/0과 full/386/source-clean-copy를 다시 통과했습니다. Corrected submitted
 `136e825...`의 [EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
 run `32642341459`은 exact 27/27 jobs·341/341 steps로 이 bounded slice를 completed/hosted-verified로 닫았습니다.
-Relation leaf under OR/NOT, F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
+Relation leaf under OR/NOT, F arithmetic/relation F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
 M4 전체는 계속 완료되지 않았습니다.
 
-[GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)은 그 다음 넓은 read
-slice로 Integer/String range lookup, same-model typed field-reference RHS와 nullable negation을 기존 Boolean tree,
-projection/aggregate, SQLite/PostgreSQL과 Article exactly-two-query 흐름에 합류시킵니다. QRY-044..053 reference와
-external compile proof 전 [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)은 Proposed이며,
-arithmetic/annotation/relation F/bulk/locking/subquery/window는 계속 후속입니다.
+[GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)과 Accepted
+[ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)은 그 다음 넓은 read slice로 Integer/String range,
+sealed same-model/same-kind `orm.F`, private RHS union/source validation과 nullable RHS odd-`NOT`을 기존 Boolean tree,
+projection/aggregate, SQLite/PostgreSQL identifier compiler와 Article exactly-two-query 흐름에 합류시켰습니다.
+Frozen source `7f2bb223...`의 local-final과 QRY-034..053 20/20·신규 QRY-044..053 10/10 zero-diff는
+통과했고 exact-head hosted는 pending입니다. Arithmetic/function/annotation, relation/cross-model F,
+bulk/locking/subquery/window는 계속 후속입니다.
 
 ## M5 — Web Core
 
@@ -619,6 +627,8 @@ run `32626539049`에서 bounded `Verified`/completed로 전환됐습니다. GDJ-
 유지한 채 검색/리포트 query breadth를 넓혀 EVID-110으로 completed됐습니다. GDJ-0040은 public Web
 Core를 넓히지 않고 기존 Article handler의 bounded q/published/exclude parsing과 request-local 두 DB query 계약에
 scalar Boolean 검색을 연결했고 EVID-112에서 SQLite/PostgreSQL local E2E를 통과했습니다.
+GDJ-0041은 같은 handler에 `min_id`/`max_id`/`title_matches_summary`를 추가해 invalid request DB I/O 0과 성공
+projection+aggregate 두 query를 local-final에서 유지했으며 hosted는 pending입니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

@@ -387,3 +387,28 @@ Phase A의 GoDj-owned scenario, manifest와 payload는 upstream source, fixture,
 `8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e`,
 `0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb`입니다. 모든 QRY-034..043 status는
 `oracle_locked`이며 이 source/provenance lock만으로 GoDj product support나 `passing`을 주장하지 않습니다.
+
+## GDJ-0041 typed comparison and field-reference provenance
+
+QRY-044..053도 pinned Django 6.1 commit
+`fe0a859f537d4238cf49fca39073513206f83122`의 public observable만 독립 관찰합니다. GoDj의 sealed `orm.F`,
+private RHS union과 backend compiler는 upstream Python object layout을 복사하지 않는 Go-owned 구현입니다.
+
+| Upstream locator | QRY | 관찰 범위 |
+|---|---|---|
+| `docs/ref/models/querysets.txt#gt/#gte/#lt/#lte`와 `django/db/models/lookups.py` ordering lookup classes | 044..047 | Integer literal ordering boundary와 parameter 의미 |
+| `docs/topics/db/queries.txt#complex-lookups-with-q`, `#filtered-querysets-are-unique` | 048 | range AND/negation과 predicate/source 재사용 |
+| `docs/topics/db/queries.txt#filters-can-reference-fields-on-the-model` | 049, 050, 052, 053 | same-row field RHS, projection과 aggregate source |
+| `django/db/models/sql/query.py::Query.build_filter` | 050, 051 | nullable LHS/RHS negation complement guard |
+| `tests/expressions/tests.py::BasicExpressionsTests.test_filter_inter_attribute` | 049 | same-field exact/ordering reference |
+| `tests/queries/tests.py::ExcludeTests.test_exclude_nullable_fields` | 050 | nullable field-reference exclusion result |
+| `docs/ref/models/querysets.txt#values` | 052 | predicate 밖 typed projection |
+| `docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset` | 053 | field-filtered Count/Max |
+
+Phase A manifest 16,652 bytes/`90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`와
+신규 10 `oracle_locked` 분류는 역사 경계로 보존합니다. Current manifest는 20 `passing`, 16,592 bytes/
+`a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`입니다. Oracle 87,852 bytes/
+`4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`와 ordered NI fixture 2,465 bytes/
+`7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`는 바뀌지 않았습니다. Product actual은
+expected artifact를 읽지 않고 QRY-034..053 20/20·신규 10/10 zero-diff를 냅니다. Frozen source
+`7f2bb223...`은 local-final까지만 통과했고 hosted는 pending입니다.

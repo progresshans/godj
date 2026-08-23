@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-23
+- 마지막 검토: 2026-08-24
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -10,7 +10,7 @@
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
-| Q-011 | Partial | GDJ-0039/GDJ-0040 completed; GDJ-0041 active / M4-M5+ | QuerySet cache, bounded synchronous request/DTO flow, typed projection/Count·Max/distinct·offset, immutable Boolean tree and bounded Article search are hosted-verified with QRY-034..043 10/10 passing; typed range/F reference is active, while transaction/async/background ownership remains open |
+| Q-011 | Partial | GDJ-0039/GDJ-0040 completed; GDJ-0041 active / M4-M5+ | Hosted-verified cache/projection/Boolean baseline에 locally verified typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing을 추가; GDJ-0041 hosted와 transaction/async/background ownership은 open |
 | Q-012 | Partial | GDJ-0038 completed / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
@@ -106,6 +106,15 @@ affected/local checkpoint입니다. Correction `73b912d...` 뒤 submitted `136e8
 Q/F 전체, relation under OR/NOT,
 bulk/locking, annotation/subquery/window, related projection, transaction container와 async/background ownership은
 별도 후속입니다.
+
+Active [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)과 Accepted
+[ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)은 Q-011의 다음 bounded read 답변입니다.
+Integer/String `gt`/`gte`/`lt`/`lte`, sealed same-model/same-kind `orm.F`, private RHS union/source validation,
+nullable RHS odd-`NOT`, SQLite/PostgreSQL identifier RHS와 Article advanced exactly-two-query flow를 구현했습니다.
+Current QRY-034..053은 20/20, 신규 QRY-044..053은 10/10 zero-diff이고 reference는
+15/171/210=`154+5+12 locked`, product는 14/159=`154+5+0`입니다. Frozen source `7f2bb223...`의 local-final은
+통과했지만 exact-head hosted가 pending이므로 Q-011은 계속 `Partial`이고 work completion도 주장하지 않습니다.
+Arithmetic/function/annotation, relation/cross-model F, transaction container와 async/background ownership은 open입니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 

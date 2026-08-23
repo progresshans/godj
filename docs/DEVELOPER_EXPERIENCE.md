@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
-- 상태: M1 Article bounded 단면과 GDJ-0040 Boolean 문법 hosted-Verified, 나머지 문법 Proposed
-- 마지막 검토: 2026-08-23
+- 상태: M1 Article/GDJ-0040 Boolean 문법 hosted-Verified; GDJ-0041 typed comparison/F 단면 local-final, hosted pending
+- 마지막 검토: 2026-08-24
 
 별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -51,8 +51,30 @@ articles, err := models.ArticleObjects.Using(sqliteBackend).
     All(ctx)
 ```
 
-`And`/`Or` require at least two `Predicate[M]` values and cannot mix model types. Relation predicates under OR/NOT,
-F/field-to-field expressions, annotation/grouping, bulk mutation and locking remain outside this hosted-verified slice.
+`And`/`Or` require at least two `Predicate[M]` values and cannot mix model types. GDJ-0041은 같은 tree에 bounded
+Integer/String 비교와 sealed field reference를 추가합니다.
+
+```go
+bounded := orm.And(
+    models.ArticleFields.ID.GreaterThanOrEqual(10),
+    models.ArticleFields.ID.LessThanOrEqual(100),
+)
+sameRow := models.ArticleFields.Title.ExactField(
+    orm.F(models.ArticleFields.Summary),
+)
+articles, err := models.ArticleObjects.Using(sqliteBackend).
+    Filter(bounded, sameRow).
+    OrderBy(models.ArticleFields.ID.Asc()).
+    All(ctx)
+```
+
+`orm.F`는 same-model/same-kind `FieldReference[M,V]`만 만들고 arithmetic/function API를 열지 않습니다. Field RHS는
+SQL parameter가 아니라 검증·quote된 identifier이며 nullable RHS를 부정하면 odd `NOT` complement guard가 붙습니다.
+Dynamic API의 `gt`/`gte`/`lt`/`lte`는 literal만 받고 dynamic F parser는 없습니다. Article HTTP의
+`min_id`/`max_id`/`title_matches_summary`는 invalid input에서 DB I/O 0, 성공 시 projection+aggregate 정확히 두
+query를 사용합니다. 이 GDJ-0041 단면은 frozen source `7f2bb223...`의 local-final을 통과했고 exact-head hosted는
+pending입니다. Relation predicates under OR/NOT, relation/cross-model F, annotation/grouping, bulk mutation and
+locking remain outside the bounded slice.
 
 ```go
 predicates, err := orm.ParseDynamic(

@@ -88,6 +88,12 @@ completed됐습니다. GDJ-0040 corrected submitted head `136e825...`도
 [EVID-115](../docs/status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
 run `32642341459`에서 exact 27/27 jobs·341/341 steps와 네 플랫폼 950/950/0 inventory를 통과해
 QRY-034..043을 Verified하고 completed됐습니다. GDJ-0041은 그 hosted product baseline에서 active이며 ready는 0입니다.
+Current local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa` / tree
+`221467b95b712dfed199b12f5a14ed17d987a7ac`은 Accepted ADR-0041의 typed range와 sealed same-model field
+reference, SQLite/PostgreSQL compiler와 Article advanced filter를 구현했습니다. QRY-044..053 oracle-blind actual은
+10/10 zero-diff이고 current reference는 15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
+14/159=`154 passing + 5 deviation`입니다. Exact-head hosted PostgreSQL/matrix가 아직 남아 있으므로 이 packet은
+`Implemented`/local-final이지만 `Verified`/completed가 아닙니다.
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

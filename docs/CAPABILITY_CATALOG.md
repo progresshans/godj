@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-23
+- 마지막 검토: 2026-08-24
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -82,15 +82,19 @@
 - connection pool과 transaction affinity
 - structured error taxonomy
 
-Current bounded implementation은 QRY-001..043 중 scalar exact/ASCII `icontains`/`isnull`/IN leaf,
-model-safe typed `And`/`Or`/`Not`, canonical Filter AND, order/limit/offset/distinct, typed projection과 Count/Max를
-하나의 immutable where/result plan에 연결합니다. SQLite와 PostgreSQL recursive compiler, nullable odd-NOT
-truth table와 Article q/published/exclude exactly-two-query 흐름은
+Current bounded implementation은 QRY-001..053 중 scalar exact/ASCII `icontains`/`isnull`/IN leaf,
+Integer/String literal `gt`/`gte`/`lt`/`lte`, sealed same-model/same-kind `orm.F` field RHS, model-safe typed
+`And`/`Or`/`Not`, canonical Filter AND, order/limit/offset/distinct, typed projection과 Count/Max를 하나의 immutable
+where/result plan에 연결합니다. Condition RHS는 private literal/list/field union이고 source/kind validation이
+terminal I/O 전에 닫습니다. SQLite와 PostgreSQL recursive compiler, nullable LHS/RHS odd-NOT truth table와
+Article q/published/exclude/range/field-match exactly-two-query 흐름 중 GDJ-0040 경계는
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)와
 [final local EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates),
 [hosted EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)에서
-affected/final local/hosted-verified됐습니다. 이 문단은 아래 장기 목록의 Q/F 전체, comparison/range/custom lookup,
-annotation/grouping/having, subquery/window, bulk/locking 또는 relation OR/NOT이 구현됐다는 뜻이 아닙니다.
+affected/final local/hosted-verified됐습니다. GDJ-0041 확장은 frozen source `7f2bb223...`의 local-final과
+QRY-034..053 20/20·신규 10/10 zero-diff까지만 확인됐고 hosted는 pending입니다. 이 문단은 아래 장기 목록의
+Q/F arithmetic/functions, Django `range` lookup/custom lookup, annotation/grouping/having, subquery/window,
+bulk/locking, relation/cross-model F 또는 relation OR/NOT이 구현됐다는 뜻이 아닙니다.
 
 ## Django 6.1 profile-specific backlog
 

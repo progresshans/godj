@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-23
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-115
+- 마지막 갱신: 2026-08-24
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-117
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -10812,3 +10812,153 @@ annotation/grouping/having, subquery/window, bulk mutation, locking, transaction
 Form/Auth/Admin/API, production readiness, merge or release. This terminal mirror is a later documentation-only
 descendant; it records the exact submitted run but is not recursively proved by it. Its gates are link/frontmatter/
 status consistency and `git diff --check`.
+
+## EVID-20260823-116 — GDJ-0041 Typed Comparison and Field Reference Local Checkpoint
+
+- Date/time: source commits created 2026-08-23T23:29:16+09:00 through 2026-08-23T23:49:24+09:00
+- Work/contract IDs: GDJ-0041 Phase A/B/C complete; QRY-044..053 `passing`; Q-011 remains `Partial`
+- Branch: `feature/pre-release-compatibility-reset`
+- Reference commit/tree: `609609711cb542d4532e5962d0d15ed5123ebca6` /
+  `8ac61294b2d8358a47efe926a9f22f428e39e2e4`, subject `test: lock typed comparison reference contracts`
+- Product source commit/tree: `05042276baf10a758897d88764b2952afdb8919d` /
+  `0b390e957fb9d3c69df845926412847642cc9211`, subject `feat: add typed comparisons and field references`
+- Hardening commits: `8d6b3e9d8d4bc7a6614496b6592a0d35172d5712` rejects nil/typed-nil `orm.F` sources;
+  `839516910cbea36fd576cb1926f79388e0a9e29d` preserves unsupported-kind diagnostics
+- Actual/final source commit/tree: `7f2bb2232afa7d71bea56d8910a52a045ec11faa` /
+  `221467b95b712dfed199b12f5a14ed17d987a7ac`, subject `test: verify typed comparison product contracts`
+- Environment: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5 darwin/arm64; exact reference uv 0.10.12;
+  local `GODJ_TEST_POSTGRES_URL` unset
+- Result: Phase A reference, Phase B/C product and oracle-blind GoDj/SQLite actual are locally implemented, affected-
+  verified and independently audited. This entry does not claim hosted verification, PostgreSQL actual DB success,
+  GDJ-0041 completion, merge, release or production readiness.
+
+### Implemented behavior
+
+- `query.Condition` carries exactly one literal/list/field RHS; clone/equality and plan validation bind both LHS and RHS
+  to the source inventory and reject malformed, mismatched-kind, relation and unsupported lookup combinations before I/O.
+- Typed Integer/String fields expose `gt`/`gte`/`lt`/`lte` literal methods and a sealed same-model/same-kind `orm.F`
+  reference. Cross-model, kind, Boolean and relation use fails external compilation; nil and typed-nil sources return a
+  structured invalid plan instead of panicking.
+- SQLite and PostgreSQL compile field RHS as escaped identifiers with zero added placeholders. Nullable LHS or RHS adds
+  the Django complement guard only at odd NOT parity and deduplicates identical fields.
+- Article accepts strict optional `min_id`, `max_id` and `title_matches_summary`; malformed, duplicate, out-of-range or
+  inverted input returns the fixed 400 response before DB I/O. Valid input reuses one source for projection plus
+  Count/Max and executes exactly two queries.
+
+### Contracts and deterministic artifacts
+
+- Query-expression manifest: 16,592 bytes/SHA-256
+  `a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`; all QRY-034..053 are `passing`.
+- Locked oracle: 87,852 bytes/SHA-256
+  `4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`; static fixture: 2,465 bytes/SHA-256
+  `7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`.
+- Two independent GoDj actuals were byte-identical at 87,592 bytes/SHA-256
+  `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c` and compared 20/20 with zero differences;
+  QRY-044..053 is the newly implemented 10/10 subset. The adapter derives values from real ORM/SQLite execution and
+  does not read the oracle or fixture.
+- Current reference inventory is 15 sets/171 unique scenarios/210 ordered bindings=
+  `154 passing + 5 deviation + 12 oracle_locked`; product is 14 adapters/159 contracts=
+  `154 passing + 5 deviation + 0 oracle_locked`.
+- Workflow relation-product inventory was independently reconstructed as 968 runs/968 passes/0 skips, 99,177 framed
+  bytes/SHA-256 `8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e`.
+
+### Affected verification
+
+The exact Django profile ran 239/239 with zero skips through pinned uv 0.10.12; the portable suite ran 239 with 21
+intentional profile skips. The new query-expression oracle reproduced without rewrite and the previous QRY-034..043
+observation prefix stayed byte-identical:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 GODJ_EXACT_PROFILE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC \
+  uvx --from uv==0.10.12 uv run --frozen python \
+  -m unittest discover -s conformance/runners/django/tests -v
+PYTHONDONTWRITEBYTECODE=1 LC_ALL=C TZ=UTC \
+  uvx --from uv==0.10.12 uv run --frozen python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/query-expression-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json --check
+```
+
+An initial exact invocation through the ambient uv 0.12.3 failed 21 profile-version assertions before scenario
+evaluation. The isolated pinned invocation above then passed 239/239; no oracle byte or product source was changed to
+hide that tool mismatch.
+
+The latest product bytes passed:
+
+```bash
+go test -count=1 ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+go test -race -count=1 ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+CGO_ENABLED=0 go test -count=1 ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+go vet ./query ./orm ./db/sqlite ./db/postgres ./examples/article/... \
+  ./internal/compiletest ./conformance/internal/protocol ./conformance/cmd/contractcheck \
+  ./conformance/cmd/godjcheck ./conformance/runners/godj
+make format-check generate-check conformance-check godj-conformance
+```
+
+The oracle checksums, workflow YAML parse and `git diff --check` passed. One initial exact-archive audit of `0504227...`
+found the nil/typed-nil panic and unsupported-kind diagnostic regression; the two explicit fix commits added regression
+tests. Independent review of the final actual/workflow diff then returned no P0/P1/P2/P3 finding and independently
+reproduced the 968-test inventory. PostgreSQL compiler and integration source tests passed locally, but no local actual
+DB success is claimed because the connection URL was unset.
+
+## EVID-20260823-117 — GDJ-0041 Frozen Source Final Local Gates
+
+- Date/time: 2026-08-23T23:54:56+09:00
+- Work/contract IDs: GDJ-0041 Phase D local complete; QRY-044..053 `passing`; Q-011 remains `Partial`
+- Exact product/conformance source commit/tree: `7f2bb2232afa7d71bea56d8910a52a045ec11faa` /
+  `221467b95b712dfed199b12f5a14ed17d987a7ac`
+- Environment: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5 darwin/arm64
+- Result: final full, Linux/386 compile and repository-external source-clean-copy gates passed without a source or
+  workflow correction. Exact-head hosted verification and PostgreSQL 17.10 actual remain pending; this entry does not
+  claim work completion, merge, release or production readiness.
+
+### Final full local gate
+
+On a clean exact `7f2bb22...` worktree, this command exited 0 in 158.90 seconds:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+```
+
+It ran deterministic Article/relation-delete generation checks, all-package normal tests and vet, all-package race,
+the configured CGO-disabled matrix, portable Python, every reference/static `contractcheck` pair and all fourteen
+product comparisons. Python ran 239 tests with 21 intentional skips; query expression reported 20 matching contracts.
+Article and relation-delete snapshots stayed 12 files/`0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675`
+and 16 files/`2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`. The gate added no tracked change.
+
+### Linux/386 compile-only gate
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+This exited 0 for all 82 packages in 7.01 seconds. HEAD, index and worktree remained clean and exact.
+
+### Repository-external exact archive gate
+
+Two external directories were populated only from `git archive 7f2bb22...`. One stayed as the byte reference while the
+other ran offline `make generate-check` in 8.09 seconds and all-package host compile in 23.27 seconds:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make generate-check
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -run '^$' ./...
+```
+
+- Tracked/archive regular files: 788/788; Git mode `100644`: 788; other modes/non-regular entries: 0.
+- `git ls-tree -r -z --full-tree` SHA-256:
+  `8c1af4413b098c899e39400537e80f20fe238d4a99a05fe3863abebfcdbb5714`.
+- Sorted per-file SHA-256 aggregate before/after:
+  `8904ea5211c331c84507e5f0febaef3d338dcdb857439543100aa18e41617b7f` / identical.
+- `diff -qr` returned no difference, both generated snapshots stayed clean and all 82 packages compiled.
+- The external temporary directory was moved recoverably to Trash; `/tmp` retains no GDJ-0041 gate directory.
+
+The final actual/source audit returned P0/P1/P2/P3=`0/0/0/0`. The remaining sequence is documentation commit,
+non-force push, Draft PR update, one unique exact submitted-head hosted matrix with PostgreSQL 17.10, and a docs-only
+terminal mirror. Any source/workflow/artifact correction invalidates these final gates and requires a new refreeze.

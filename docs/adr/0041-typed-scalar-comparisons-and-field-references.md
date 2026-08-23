@@ -88,5 +88,9 @@ Generated field를 `orm.F`로 감싸 model/value type을 보존하고, condition
   union/source/relation rejection을 검증합니다.
 - Article advanced filter는 invalid input DB I/O 0, success request projection+aggregate 정확히 2 query를 검증합니다.
 - Phase A proof는 exact Django 전체 239/239, QRY-034..043 observation-prefix 동일성, same-model/same-kind external
-  compile과 cross-model/kind/Boolean/relation compile-fail을 통과했습니다. 제품·actual·hosted 검증은 active work의
-  후속 phase에서 별도로 기록합니다.
+  compile과 cross-model/kind/Boolean/relation compile-fail을 통과했습니다.
+- Current product/actual은 QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff이며 manifest 16,592 bytes/
+  `a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`, actual 87,592 bytes/
+  `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 고정됐습니다.
+- Frozen source `7f2bb223...`의 local-final gates는 통과했고 exact-head hosted는 pending입니다. 따라서 decision은
+  Accepted이지만 GDJ-0041 work completion이나 hosted `Verified`는 아직 주장하지 않습니다.

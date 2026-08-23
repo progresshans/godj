@@ -1,7 +1,7 @@
 ---
 id: GDJ-0041
 status: active
-updated: 2026-08-23
+updated: 2026-08-24
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "136e82572206eef7fd04931ae94dffb5ff0660e2"
 depends_on: ["GDJ-0040"]
@@ -147,22 +147,22 @@ rows/context/cache lifetime과 Article pre-I/O 400/query count는 Go-native gate
 - [x] SQLite identifier RHS compiler, nullable NOT and actual integration
 - [x] PostgreSQL identifier RHS compiler, placeholder order and actual integration
 - [x] Article bounded range/F filtering, pre-I/O 400, exactly-two-query rendered parity
-- [ ] oracle-blind GoDj/SQLite QRY-044..053 actual adapter
+- [x] oracle-blind GoDj/SQLite QRY-044..053 actual adapter
 
 ### Phase D — hardening
 
-- [ ] affected normal/race/CGO0/vet/generated drift
-- [ ] final full/386/repository-external source-clean-copy once
-- [ ] independent frozen-byte audit
+- [x] affected normal/race/CGO0/vet/generated drift
+- [x] final full/386/repository-external source-clean-copy once
+- [x] independent frozen-byte audit
 - [ ] non-force push, exact-head hosted result와 terminal mirror
 
 ## 완료 조건
 
 - [ ] Article advanced filter가 SQLite/PostgreSQL에서 같은 bounded response를 정확히 두 query로 냅니다.
-- [ ] QRY-044..053 oracle-blind actual 10/10이 locked Django observable result와 일치합니다.
-- [ ] Literal/reference RHS가 같은 immutable Boolean AST와 projection/aggregate source를 공유합니다.
-- [ ] Nullable RHS NOT, placeholder/argument order와 identifier escaping이 두 backend에서 검증됩니다.
-- [ ] Invalid HTTP, forged AST, cross-model/source/kind/relation 입력이 terminal I/O 전에 fail-closed합니다.
+- [x] QRY-044..053 oracle-blind actual 10/10이 locked Django observable result와 일치합니다.
+- [x] Literal/reference RHS가 같은 immutable Boolean AST와 projection/aggregate source를 공유합니다.
+- [x] Nullable RHS NOT, placeholder/argument order와 identifier escaping이 두 backend에서 검증됩니다.
+- [x] Invalid HTTP, forged AST, cross-model/source/kind/relation 입력이 terminal I/O 전에 fail-closed합니다.
 - [ ] Final local/hosted evidence와 status/matrix/handoff가 같은 frozen bytes를 가리킵니다.
 
 ## 검증 cadence
@@ -175,10 +175,19 @@ rows/context/cache lifetime과 Article pre-I/O 400/query count는 Go-native gate
 
 ## 현재 체크포인트와 다음 정확한 작업
 
-Phase A reference-only 계약과 Accepted ADR-0041을 고정했습니다. Exact Django 전체 239/239와 QRY-034..043
-observation-prefix 동일성을 확인했고, typed `orm.F` external compile 및 cross-model/kind/Boolean/relation compile-fail을
-통과했습니다. 다음은 이미 병렬 구현한 query/ORM·SQLite/PostgreSQL·Article source를 하나의 affected checkpoint로
-통합하고, oracle-blind GoDj/SQLite QRY-044..053 actual adapter를 붙이는 작업입니다.
+Phase A reference commit `609609711cb542d4532e5962d0d15ed5123ebca6`은 exact Django 239/239,
+QRY-034..043 observation-prefix 동일성과 typed `orm.F` external compile/cross-model·kind·Boolean·relation
+compile-fail을 고정했습니다. Product source `05042276baf10a758897d88764b2952afdb8919d` 뒤 공개 `orm.F`의
+nil/typed-nil panic은 `8d6b3e9d8d4bc7a6614496b6592a0d35172d5712`, unsupported-kind diagnostic 회귀는
+`839516910cbea36fd576cb1926f79388e0a9e29d`에서 각각 fail-closed로 수정했습니다.
+
+Actual/source-final commit `7f2bb2232afa7d71bea56d8910a52a045ec11faa`, tree
+`221467b95b712dfed199b12f5a14ed17d987a7ac`는 QRY-044..053을 `passing`으로 전환하고 20/20 query-expression
+zero-diff를 냅니다. 두 actual은 87,592 bytes/SHA-256
+`c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical했습니다. Affected
+normal/race/CGO0/vet/generated drift, full `make ci`, Linux/386 82-package compile, 788-file repository-external
+source-clean-copy와 두 독립 감사가 모두 통과했습니다. 다음 정확한 작업은 이 local-final 증거·상태를 문서 commit으로
+고정하고 non-force push/Draft PR 갱신 뒤 exact-head hosted matrix와 PostgreSQL 17.10 actual을 기다리는 것입니다.
 
 ## 위험과 rollback
 
@@ -192,4 +201,5 @@ observation-prefix 동일성을 확인했고, typed `orm.F` external compile 및
 ## 미결정/Blocker
 
 - Blocker 없음.
-- Method spelling과 nullable RHS guard의 exact SQL shape는 Phase A proof가 결정합니다.
+- 로컬 `GODJ_TEST_POSTGRES_URL`은 미설정입니다. 이는 진행 blocker가 아니며 PostgreSQL 실제 DB 완료 판정은 기존
+  hosted PostgreSQL 17.10 job이 새 exact submitted head에서 통과한 뒤에만 합니다.

@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-23
+- 마지막 검토: 2026-08-24
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -258,6 +258,16 @@ Local product/actual proof는
 기록하고 corrected exact-head hosted proof는
 [EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)에
 기록합니다.
+
+Accepted [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)과 active GDJ-0041은 leaf RHS를
+private literal/list/field discriminated union으로 확장했습니다. Integer/String typed literal 비교와 dynamic literal
+`gt`/`gte`/`lt`/`lte`는 같은 condition을 만들고, `orm.F(typedField)`는 same-model/same-kind만 노출하는 sealed
+immutable reference입니다. Plan과 두 backend compiler는 LHS/RHS source inventory, kind와 malformed union을 I/O 전에
+검증합니다. Field RHS는 quote된 identifier라 placeholder/argument를 소비하지 않으며, nullable LHS 또는 RHS의
+Django complement guard는 odd `NOT`에서만 추가되고 같은 field guard는 중복되지 않습니다. 이 경계는 arithmetic,
+function, annotation, relation/cross-model F 또는 update expression을 열지 않습니다. Frozen source
+`7f2bb223...`에서 SQLite/PostgreSQL과 Article exactly-two-query local-final gates, QRY-034..053 actual 20/20 및
+신규 QRY-044..053 10/10 zero-diff를 통과했지만 exact-head hosted 결과는 아직 pending입니다.
 
 QuerySet 체이닝은 기존 plan을 변경하지 않고 새 plan을 만듭니다. M1 dynamic API는
 `ParseDynamic`에서 construction 오류를 즉시 반환하고, 성공한 `Predicate[M]`를 typed

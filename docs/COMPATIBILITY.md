@@ -824,6 +824,34 @@ full/386/775-file source-clean-copy를 통과했습니다. Corrected submitted h
 run `32642341459`은 exact 27/27 jobs·341/341 steps와 QRY-034..043 actual 10/10을 통과해 이 bounded
 product boundary를 hosted-verified로 닫았습니다.
 
+## GDJ-0041 typed comparison and field-reference boundary
+
+GDJ-0041 Phase A는 QRY-044..053의 Integer ordering boundary, range composition/reuse, same-row `F` comparison,
+nullable negation, projection과 Count/Max observable을 같은 query-expression set에 추가했습니다. 그 Phase A
+manifest는 16,652 bytes/SHA-256
+`90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`이고 신규 10개는
+`oracle_locked`였습니다. Oracle과 ordered NI fixture는 각각 87,852/2,465 bytes와
+`4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`/
+`7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`입니다. 당시 reference는
+15/171/210=`144 passing + 5 deviation + 22 oracle_locked`, product는 actual 등록 전
+14/159=`144 passing + 5 deviation + 10 oracle_locked`였습니다. 이 수치는 Phase A 역사 경계입니다.
+
+Current source는 Accepted [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)에 따라
+Integer/String literal range와 sealed same-model/same-kind `orm.F`를 private literal/list/field RHS union에
+구현합니다. Source inventory/kind/malformed union은 pre-I/O 검증하고, SQLite/PostgreSQL field RHS는 quote된
+identifier라 parameter를 소비하지 않습니다. Nullable LHS/RHS complement guard는 odd `NOT`에만 적용되며 같은
+field guard는 중복하지 않습니다. Bounded Article `min_id`/`max_id`/`title_matches_summary` flow는 invalid 입력
+DB I/O 0과 성공 projection+aggregate 두 query를 유지합니다.
+
+Current manifest는 16,592 bytes/
+`a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`이고 oracle/NI fixture는 Phase A bytes를
+유지합니다. 두 독립 oracle-blind actual은 87,592 bytes/
+`c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical하며
+QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff입니다. Current reference는
+15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
+14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates는
+통과했지만 exact-head hosted 결과는 아직 pending이므로 GDJ-0041 완료나 hosted `Verified`를 주장하지 않습니다.
+
 ## 데이터 호환성
 
 다음은 장기 대상이며 구현 전에는 지원을 주장하지 않습니다.

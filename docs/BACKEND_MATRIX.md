@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
 - 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010 bounded slice Verified
-- 마지막 검토: 2026-08-23
+- 마지막 검토: 2026-08-24
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -63,6 +63,14 @@ SQLite actual QRY-034..043 10/10 zero-diff와 PostgreSQL 17.5 compiler/normal/ra
 [EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)은
 PostgreSQL 17.10 required 12/12, Boolean/Article actual, restart와 전체 exact 27/27 matrix를 통과했습니다. 이는
 collation/Unicode 일반화, relation OR/NOT, broader PostgreSQL support나 production readiness를 추가하지 않습니다.
+
+GDJ-0041 frozen source `7f2bb223...`는 두 compiler에 Integer/String literal range와 same-source field RHS를
+추가했습니다. SQLite/PostgreSQL 모두 field RHS를 quote된 identifier로 내리고 placeholder/argument를 소비하지 않으며,
+nullable LHS/RHS odd-`NOT` guard와 duplicate guard 제거, RHS source/kind/union fail-closed를 같은 규칙으로
+검증합니다. SQLite actual과 PostgreSQL compiler/backend-independent Article tests는 invalid request DB I/O 0과 성공
+projection+aggregate 정확히 두 query를 통과했습니다. QRY-034..053 SQLite actual 20/20과 신규 10/10도
+zero-diff입니다. 로컬 PostgreSQL URL은 미설정이었고 exact-head hosted service 결과도 아직 pending이므로 이
+GDJ-0041 증거를 PostgreSQL actual 또는 backend hosted `Verified`로 표시하지 않습니다.
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey
