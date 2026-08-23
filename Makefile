@@ -175,6 +175,9 @@ godj-conformance:
 		-profile $(PROFILE) -manifest $(QUERY_BREADTH_MANIFEST) \
 		-expected $(QUERY_BREADTH_ORACLE)
 	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(QUERY_EXPRESSION_MANIFEST) \
+		-expected $(QUERY_EXPRESSION_ORACLE)
+	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_PLANNING_MANIFEST) \
 		-expected $(MIGRATION_PLANNING_ORACLE)
 	go run ./conformance/cmd/godjcheck \

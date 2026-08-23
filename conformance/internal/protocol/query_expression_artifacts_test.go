@@ -20,8 +20,8 @@ func TestQueryExpressionArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/query-expression-manifest.json": {
-			size:   8135,
-			sha256: "8ed9ef62b568a2bf4843e3136574c3d73d5571ddd4fe7f1efad0493c7300e895",
+			size:   8075,
+			sha256: "e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69",
 		},
 		"conformance/fixtures/godj-query-expression-not-implemented.json": {
 			size:   1715,
@@ -72,8 +72,8 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 		if contract.ID != wantID || contract.Scenario != wantScenarios[index] {
 			t.Fatalf("contract %d = %s/%s, want %s/%s", index, contract.ID, contract.Scenario, wantID, wantScenarios[index])
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractOracleLocked)
+		if contract.Status != ContractPassing {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
 		}
 		if contract.Phase != PhaseEvaluation {
 			t.Fatalf("contract %s phase = %q, want %q", contract.ID, contract.Phase, PhaseEvaluation)
@@ -119,6 +119,51 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 	}
 }
 
+func TestQueryExpressionTransitionYieldsCurrentReferenceStatusAggregate(t *testing.T) {
+	t.Parallel()
+
+	root := conformanceRepositoryRoot(t)
+	manifestNames := []string{
+		"manifest.json",
+		"write-migration-manifest.json",
+		"save-lifecycle-manifest.json",
+		"query-cache-manifest.json",
+		"migration-planning-manifest.json",
+		"migration-execution-manifest.json",
+		"migration-restart-manifest.json",
+		"migration-state-reconstruction-manifest.json",
+		"migration-lifecycle-manifest.json",
+		"migration-definition-source-manifest.json",
+		"migration-project-check-manifest.json",
+		"relation-manifest.json",
+		"query-breadth-manifest.json",
+		"query-expression-manifest.json",
+		"migration-relation-manifest.json",
+	}
+	passing, deviations, oracleLocked := 0, 0, 0
+	for _, name := range manifestNames {
+		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, contract := range manifest.Contracts {
+			switch contract.Status {
+			case ContractPassing:
+				passing++
+			case ContractDeviation:
+				deviations++
+			case ContractOracleLocked:
+				oracleLocked++
+			default:
+				t.Fatalf("manifest %s contract %s has unexpected status %q", name, contract.ID, contract.Status)
+			}
+		}
+	}
+	if passing != 144 || deviations != 5 || oracleLocked != 12 {
+		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 12", passing, deviations, oracleLocked)
+	}
+}
+
 func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	t.Parallel()
 
@@ -143,11 +188,11 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	if got := strings.Count(referenceTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 2 {
 		t.Fatalf("reference conformance query-expression manifest count = %d, want 2", got)
 	}
-	if got := strings.Count(productTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 0 {
-		t.Fatalf("product conformance query-expression manifest count = %d, want 0", got)
+	if got := strings.Count(productTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
+		t.Fatalf("product conformance query-expression manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 13 {
-		t.Fatalf("godj-conformance adapter count = %d, want 13 with query-expression still excluded", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 14 {
+		t.Fatalf("godj-conformance adapter count = %d, want 14 with query-expression included", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check query-expression manifest count = %d, want 1", got)

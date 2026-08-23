@@ -195,7 +195,7 @@ func TestCurrentFifteenReferenceSetsHave161UniqueContractsAndReject210OrderedCro
 	}
 }
 
-func TestCurrentThirteenProductSetsHave134PassingFiveDeviationsAndNoOracleLocked(t *testing.T) {
+func TestCurrentFourteenProductSetsHave144PassingFiveDeviationsAndNoOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -213,6 +213,7 @@ func TestCurrentThirteenProductSetsHave134PassingFiveDeviationsAndNoOracleLocked
 		"migration-project-check-manifest.json",
 		"relation-manifest.json",
 		"query-breadth-manifest.json",
+		"query-expression-manifest.json",
 	}
 	passing, deviations, oracleLocked := 0, 0, 0
 	for _, name := range manifestNames {
@@ -233,12 +234,12 @@ func TestCurrentThirteenProductSetsHave134PassingFiveDeviationsAndNoOracleLocked
 			}
 		}
 	}
-	if passing != 134 || deviations != 5 || oracleLocked != 0 {
-		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 134 + 5 + 0", passing, deviations, oracleLocked)
+	if passing != 144 || deviations != 5 || oracleLocked != 0 {
+		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 0", passing, deviations, oracleLocked)
 	}
 }
 
-func TestQueryBreadthProductEntersCurrentThirteenAdapterTarget(t *testing.T) {
+func TestQueryBreadthProductRemainsInCurrentFourteenAdapterTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -256,8 +257,8 @@ func TestQueryBreadthProductEntersCurrentThirteenAdapterTarget(t *testing.T) {
 	if !strings.Contains(target, "QUERY_BREADTH") {
 		t.Fatal("query-breadth product set is missing from godj-conformance")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 13 {
-		t.Fatalf("current product adapter count = %d, want 13", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 14 {
+		t.Fatalf("current product adapter count = %d, want 14", got)
 	}
 }
 

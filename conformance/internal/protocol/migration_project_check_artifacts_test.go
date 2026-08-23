@@ -224,7 +224,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsInCurrentThirteenAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInCurrentFourteenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentThirteenAdapterProductTarget(t *te
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 13 {
-		t.Fatalf("product adapter count = %d, want 13", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 14 {
+		t.Fatalf("product adapter count = %d, want 14", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)

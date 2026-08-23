@@ -98,6 +98,9 @@ func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Obse
 }
 
 func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
+	if handler, ok := queryExpressionScenarioHandler(scenario); ok {
+		return handler, true
+	}
 	if handler, ok := queryBreadthScenarioHandler(scenario); ok {
 		return handler, true
 	}
