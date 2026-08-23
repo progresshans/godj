@@ -4,6 +4,7 @@ package forms
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -178,7 +179,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".label", Code: "invalid"}
 	}
 	for index, validator := range config.validators {
-		if validator == nil {
+		if nilInterface(validator) {
 			return Field{}, &ConfigError{Path: fmt.Sprintf("fields.%s.validators[%d]", name, index), Code: "nil"}
 		}
 	}
@@ -351,7 +352,7 @@ func NewSpec(fields []Field, validators ...CrossValidator) (Spec, error) {
 		cloned[index] = field.clone()
 	}
 	for index, validator := range validators {
-		if validator == nil {
+		if nilInterface(validator) {
 			return Spec{}, &ConfigError{Path: fmt.Sprintf("validators[%d]", index), Code: "nil"}
 		}
 	}
@@ -600,4 +601,20 @@ func validName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// nilInterface rejects typed nil implementations before an immutable Spec is
+// published. Reflection is limited to startup validation; form evaluation
+// does not pay this cost.
+func nilInterface(value any) bool {
+	if value == nil {
+		return true
+	}
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }

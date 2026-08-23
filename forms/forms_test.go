@@ -237,4 +237,12 @@ func TestConfigurationFailuresAreFailClosed(t *testing.T) {
 	if _, err := (forms.Spec{}).Bind(forms.NewData(nil), nil); err == nil {
 		t.Fatal("zero Spec accepted")
 	}
+	var fieldValidator forms.FieldValidatorFunc
+	if _, err := forms.CharField("typed_nil_field", forms.WithValidators(fieldValidator)); err == nil {
+		t.Fatal("typed-nil field validator accepted")
+	}
+	var crossValidator forms.CrossValidatorFunc
+	if _, err := forms.NewSpec([]forms.Field{field}, crossValidator); err == nil {
+		t.Fatal("typed-nil cross validator accepted")
+	}
 }
