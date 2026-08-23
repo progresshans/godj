@@ -1770,3 +1770,10 @@ format/diff와 두 독립 audit입니다. 자세한 명령과 non-claim은
 기록합니다. 이 checkpoint 자체는 final gate를 주장하지 않습니다. 이어진
 [EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은 full `make ci`,
 Linux/386와 repository-external source-clean-copy를 한 번 통과했고 exact-head hosted만 남깁니다.
+
+첫 submitted head의 hosted run `32641160967`은 underlying Go tests가 아니라 relation-product exact inventory의
+stale 916-test assertion에서만 네 좌표가 실패했습니다. Current list를 모든 raw log와 로컬에서 재계산한 exact lock은
+950/950/0, 97,469 bytes, SHA-256 `7c1546c3...`입니다. Workflow와 protocol mirror만 바꾼 `73b912d...`에서
+full/386/repository-external source-clean-copy를 모두 다시 실행했습니다. 실패 topology와 corrected local refreeze는
+[EVID-114](status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
+기록하며 새 exact-head hosted 전에는 terminal success를 주장하지 않습니다.

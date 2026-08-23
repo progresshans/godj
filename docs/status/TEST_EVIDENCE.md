@@ -10661,3 +10661,83 @@ The separate product/conformance and documentation audits both returned P0/P1/P2
 sequence is documentation commit, non-force push, Draft PR update, one unique exact submitted-head hosted matrix, and a
 docs-only terminal mirror. A source or workflow correction would invalidate this local final and require rerunning it
 on the new source head.
+
+## EVID-20260823-114 — GDJ-0040 First Hosted Inventory-Lock Failure and Corrected Local Refreeze
+
+- Date/time: 2026-08-23T22:18:40+09:00
+- Work/contract IDs: GDJ-0040 Phase D active; QRY-034..043 `passing`; Q-011 remains `Partial`
+- First submitted documentation head/tree: `fc8fedfca15ffc3cab01d2be704279c945c9dc1d` /
+  `f5b1cb6d9892bd4f4b613fa89e49d1c30611664f`
+- Corrected workflow/source head/tree: `73b912d8332b3fd286eff1c56483f3588ffd89b8` /
+  `f3c9ef59bd22581f6dcdf2d3e16a190e5db125ab`, subject `ci: refresh relation product inventory lock`
+- Result: the first exact-head hosted run exposed only a stale GDJ-0039 relation-product inventory fingerprint. The
+  two-file correction is locally refrozen and independently audited, but its own exact-head hosted result is pending.
+  This entry does not claim GDJ-0040 completion, merge, release or production readiness.
+
+### Exact first-hosted failure
+
+[CI run 32641160967](https://github.com/progresshans/godj/actions/runs/32641160967), run #112/attempt 1, completed
+`failure` for exact PR head `fc8fedf...` at 2026-08-23T13:16:37Z. The Actions synthetic merge checkout was
+`42bf907eee28db29e2f97ca4a73d266208c66768`.
+
+- Exact topology: 27 jobs=`23 success + 4 failure`; 341 steps=`313 success + 4 failure + 24 skipped`; cancelled
+  jobs/steps and skipped jobs were all zero.
+- The only failed jobs were Relation product `macos-26` job `97198349346`, `ubuntu-22.04` `97198349365`,
+  `ubuntu-24.04-arm` `97198349409` and `macos-15-intel` `97198349421`.
+- In each coordinate checkout/setup/runner assertions and the underlying `go test -json -count=1` succeeded. The sole
+  failing step was `Run relation product and exact no-skip inventory`: its first Python assertion still required 916
+  tests and received an exact sorted 950-test list. Exactly six downstream steps per job were skipped because of that
+  failure; all other 23 jobs, including PostgreSQL 17.10, exact/portable Python, SQLite, project/product-project,
+  relation-binding and checked-in conformance, completed successfully.
+- Independent parsing of every four raw AssertionError lists with the workflow's exact
+  `package<NUL>test<LF>` framing produced identical 950 runs, 97,469 payload bytes and SHA-256
+  `7c1546c3c98179bba31e8bd27cf28d7e4f751897aaaa31c03bac76f0e7ddac29`. The stale lock was
+  916/93,953/`6a6b6e1c...`. No Go test failure diagnostic occurred. Because the first size assertion stopped the script,
+  the later pass-equality/no-skip assertions were not themselves reached in this failed run.
+
+### Correction and focused verification
+
+Commit `73b912d...` changes only `.github/workflows/ci.yml` and its
+`conformance/internal/protocol/migration_project_check_artifacts_test.go` mirror, `+6/-6`, to exact
+950/97,469/`7c1546c3...`. It changes no product behavior, manifest, oracle, fixture, generated source or contract status.
+
+The exact workflow package list was executed three independent times after measurement/correction: two primary runs
+and one read-only audit each produced 950 runs/950 passes/0 skips, 97,469 bytes and the same SHA-256. The focused mirror
+test passed:
+
+```bash
+go test -count=1 ./conformance/internal/protocol
+gofmt -d conformance/internal/protocol/migration_project_check_artifacts_test.go
+git diff --check
+```
+
+`actionlint` was not installed locally. The protocol mirror checks the exact 27-execution topology and literal workflow
+lock; the corrected submitted workflow must still be parsed and executed by its new hosted run.
+
+### Corrected exact-head final local rerun
+
+Because workflow/source bytes changed, every Phase D local final gate was rerun on clean exact `73b912d...`:
+
+```bash
+/usr/bin/time -p env GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -exec=/usr/bin/true ./...
+```
+
+- Full `make ci` exited 0 in 85.60 seconds: generate drift, all-package normal/vet/race, selected CGO-disabled,
+  portable Python 236 tests/21 expected profile skips, every contract pair and all fourteen product adapters passed.
+- Linux/386 compile-only exited 0 for 82 packages in 1.492 seconds; HEAD, index, worktree and path-set digests remained
+  clean and byte-identical.
+- A repository-external archive contained exact 775/775 regular tracked files, all mode `100644`; blob/mode comparison
+  was 775/775 before and after. Raw `git ls-tree -r -z --full-tree` was 77,508 bytes/SHA-256
+  `4049081573911cea06bb1fc89d9d7754a1988283f09a93f1e272c1fdc115c1cf`. Framed
+  `path<NUL>sha256(file)<NUL>` stayed
+  `85fce74e40e16f994d7782f70c216d0f9fabc7dc4d402a5d98d55a0ed7534a88` before/after.
+- External offline `make generate-check` and `go test -run '^$' ./...` both passed. Article stayed
+  12/`0af11c64...`; relation-delete stayed 16/`2a28734c...`; all 82 packages compiled. The temporary copy was moved
+  recoverably to Trash and `/tmp` retained no correction gate directory.
+- The focused inventory correction audit returned P0/P1/P2/P3=`0/0/0/0` and verified that old 916 values remain only
+  in explicit GDJ-0039 historical evidence.
+
+The next exact submitted head must include `73b912d...` and this evidence mirror. Only that new run can close Phase D;
+run `32641160967` remains failure evidence and is not reused as success proof.

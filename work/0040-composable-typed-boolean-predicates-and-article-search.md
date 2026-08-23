@@ -211,8 +211,14 @@ Affected normal/race/CGO-disabled/vet/generated drift, SQLite actual, local Post
 source-frozen affected checkpoint를 기록합니다. 이어서 source-changing fix 없이 full `make ci`, Linux/386 82-package
 compile과 repository-external 775-file archive gate가 모두 통과했고
 [EVID-113](../docs/status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)에 고정했습니다.
-다음 정확한 작업은 문서 checkpoint를 commit하고 non-force push/Draft PR 갱신 뒤 고유 exact-head hosted result와
-terminal mirror를 닫는 것입니다.
+첫 submitted head `fc8fedf...`의 run `32641160967`은 제품 테스트가 아니라 relation-product workflow의 GDJ-0039
+916-test inventory lock에서만 네 좌표가 실패했습니다. Exact current inventory는 950/950/0, 97,469 bytes,
+SHA-256 `7c1546c3...`입니다. Correction `73b912d...`/tree `f3c9ef59...`는 workflow와 protocol mirror 두 파일만
+갱신했고, full `make ci`, Linux/386 82 packages, 775-file external archive와 독립 audit을 새 exact bytes에서 모두
+다시 통과했습니다.
+[EVID-114](../docs/status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
+failure/correction/refreeze를 기록합니다. 다음 정확한 작업은 이 correction evidence 문서를 commit하고 non-force
+push/Draft PR 갱신 뒤 새 고유 exact-head hosted result와 terminal mirror를 닫는 것입니다.
 
 ## 위험과 rollback
 

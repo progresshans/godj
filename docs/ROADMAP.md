@@ -7,8 +7,10 @@
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
-  15/161/210=`144+5+12 locked`, product는 14/149=`144+5`입니다. EVID-112의 affected/local gate와
-  EVID-113의 final full/386/775-file source-clean-copy는 통과했고 다음은 exact-head hosted입니다.
+  15/161/210=`144+5+12 locked`, product는 14/149=`144+5`입니다. First hosted run `32641160967`은 stale
+  916-test workflow lock에서만 네 relation-product 좌표가 실패했습니다. Correction `73b912d...`는 current
+  950/950/0 inventory를 잠갔고 EVID-114에서 full/386/775-file source-clean-copy를 새 bytes로 다시 통과했습니다.
+  다음은 corrected exact-head hosted입니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
@@ -585,8 +587,10 @@ QRY-034..043으로 엽니다. Contract-first Phase A는 `fe4996f...`/EVID-111에
 Phase B/C `86d6b169...`/`0ec6f385...`는 product/actual을 구현해 10/10 `passing`과 zero-diff로 전환했습니다.
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)의
 affected/local PostgreSQL/audit와
-[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)의
-full/386/source-clean-copy가 통과했고 exact-head hosted가 남아 active입니다.
+[EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)의 initial final local 뒤
+first hosted run은 stale inventory lock에서만 실패했습니다.
+[EVID-114](status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)의
+correction `73b912d...`는 950/950/0과 full/386/source-clean-copy를 다시 통과했고 새 exact-head hosted가 남아 active입니다.
 Relation leaf under OR/NOT, F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
 M4 전체는 계속 완료되지 않았습니다.
 

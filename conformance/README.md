@@ -629,7 +629,10 @@ Current reference inventory는 exact 15 sets/161 unique contracts+scenarios/210 
 affected local/audit 증거는
 [EVID-112](../docs/status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)에
 기록합니다. 이어진 [EVID-113](../docs/status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)은
-full/386/775-file source-clean-copy를 통과했고 exact-head hosted만 별도 Phase D 경계로 남습니다.
+initial full/386/775-file source-clean-copy를 통과했습니다. First hosted run의 stale 916-test workflow lock과
+correction `73b912d...`의 current 950/950/0 refreeze는
+[EVID-114](../docs/status/TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)에
+기록하며 새 exact-head hosted만 별도 Phase D 경계로 남습니다.
 
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든

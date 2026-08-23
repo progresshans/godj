@@ -30,6 +30,9 @@
   (`test: verify boolean predicate product contracts`), tree `98d6d94390bad6d4166142caea3e59373a34cda0`;
   [EVID-112](TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint) /
   [final local EVID-113](TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)
+- GDJ-0040 hosted inventory correction: `73b912d8332b3fd286eff1c56483f3588ffd89b8`
+  (`ci: refresh relation product inventory lock`), tree `f3c9ef59bd22581f6dcdf2d3e16a190e5db125ab`;
+  [EVID-114](TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -348,8 +351,11 @@
   `86d6b169...`와 actual `0ec6f385...`는 immutable Boolean tree, SQLite/PostgreSQL compiler와 bounded Article
   search를 구현하고 QRY-034..043을 10/10 `passing`으로 전환했습니다. Current reference는
   15 sets/161 scenarios/210 bindings=`144 passing + 5 deviation + 12 oracle_locked`, product는
-  14 adapters/149=`144 passing + 5 deviation`입니다. EVID-112 affected gate와 EVID-113 final
-  full/386/source-clean-copy local gate를 통과했고 exact-head hosted가 남았습니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
+  14 adapters/149=`144 passing + 5 deviation`입니다. EVID-112 affected gate와 EVID-113 initial final local gate 뒤,
+  first submitted run `32641160967`은 stale 916-test workflow lock 하나 때문에 23/27 jobs success·4 relation-product
+  jobs failure로 끝났습니다. Correction `73b912d...`는 exact 950-test lock을 게시하고 EVID-114에서
+  full/386/source-clean-copy local gate를 새 bytes로 다시 통과했습니다. Corrected exact-head hosted가 남았습니다.
+  Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
@@ -1051,8 +1057,11 @@
   compiler와 bounded Article search를 구현하고 QRY-034..043을 10/10 `passing`으로 전환했습니다.
   [EVID-112](TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)의
   affected normal/race/CGO0/vet/generated drift, local PostgreSQL 17.5 actual과 두 독립 audit를 통과했습니다.
-  [EVID-113](TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)의 full `make ci`, Linux/386와
-  repository-external source-clean-copy도 통과했지만 exact-head hosted가 남아 work는 active입니다.
+  [EVID-113](TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates)의 initial full local 뒤
+  run `32641160967`이 stale workflow inventory에서만 실패했습니다. Correction `73b912d...`와
+  [EVID-114](TEST_EVIDENCE.md#evid-20260823-114--gdj-0040-first-hosted-inventory-lock-failure-and-corrected-local-refreeze)은
+  current 950/950/0 lock과 full `make ci`, Linux/386, repository-external source-clean-copy를 다시 통과했지만 새
+  exact-head hosted가 남아 work는 active입니다.
 
 ### 오류와 durability 경계
 
@@ -1451,9 +1460,10 @@ submitted head `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gd
 run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033을 `Verified`하고
 completed됐습니다. 현재 active는 GDJ-0040, ready는 0이고 외부 blocker는 없습니다. Phase A의
 QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐고, Phase B/C
-source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate와 EVID-113의
-final full/386/repository-external source-clean-copy를 source-changing fix 없이 통과했습니다. 다음 경계는
-문서 checkpoint commit, non-force push와 exact-head hosted result입니다. Relation leaf under OR/NOT, F expression, bulk/locking/Form은 이 packet에서
+source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate를 통과했습니다.
+첫 hosted run의 stale 916-test inventory failure와 correction `73b912d...`의 exact 950-test lock 및 새
+full/386/source-clean-copy는 EVID-114에 기록했습니다. 다음 경계는 correction evidence 문서 commit, non-force
+push와 새 exact-head hosted result입니다. Relation leaf under OR/NOT, F expression, bulk/locking/Form은 이 packet에서
 명시적으로 제외합니다.
 MIG-075..086은 계속 `oracle_locked`/unregistered이고 새 Field/Relation 종류와 general migration writer도 아직
 구현하지 않았습니다.
@@ -1523,10 +1533,10 @@ general generated upgrade는 계속 open입니다.
 
 GDJ-0040을 다음 순서로 진행합니다.
 
-1. EVID-113으로 고정한 source-frozen final local bytes를 변경하지 않습니다.
-2. Checkpoint 문서를 commit하고 remote Draft PR branch에 non-force push한 뒤 PR 설명을 갱신합니다.
-3. 새 submitted exact head의 hosted PostgreSQL 17.10/전체 matrix를 기다려 job·step·skip·artifact를 감사합니다.
-4. Hosted 실패가 source/workflow correction을 요구하면 새 exact source head에서 Phase D gate를 처음부터 다시 실행합니다.
+1. EVID-114로 재고정한 correction `73b912d...` final local bytes를 변경하지 않습니다.
+2. Correction evidence 문서를 commit하고 remote Draft PR branch에 non-force push한 뒤 PR 설명을 갱신합니다.
+3. 새 submitted exact head의 hosted PostgreSQL 17.10/전체 matrix를 기다려 job·step·skip·950-test artifact를 감사합니다.
+4. 새 hosted 실패가 source/workflow correction을 요구하면 새 exact source head에서 Phase D gate를 다시 실행합니다.
 5. 고유 hosted success를 terminal evidence/status/work에 반영하고 그 docs-only descendant는 status consistency
    gate로 닫습니다.
 
