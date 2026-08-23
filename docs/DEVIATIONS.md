@@ -1,8 +1,8 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-09
-- 현재 승인된 deviation: DEV-0001, DEV-0002 두 건 / contract 다섯 개
+- 마지막 갱신: 2026-08-24
+- 현재 구현된 deviation: DEV-0001..DEV-0005 다섯 건 / contract 열 개
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
 
@@ -216,3 +216,174 @@ Django와의 exact sibling execution order가 existing GoDj planner stability보
 사용자 근거가 생기거나, dependency/side-effect contract가 B1/A3의 order를 의미 있게 만들면 새
 ADR과 deviation으로 이 결정을 Superseded합니다. 단순히 comparator를 완화하거나 locked oracle을
 수정해서 복귀하지 않습니다.
+
+## DEV-0003 — Template은 closed value algebra만 해석하고 arbitrary attribute/callable을 실행하지 않음
+
+- Status: Implemented
+- Date: 2026-08-24
+- Contracts: WEB-022, WEB-027
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj closed template value runtime
+- Related ADR/work/evidence:
+  [ADR-0043](adr/0043-safe-template-and-model-form-validation.md),
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)
+
+### Django의 관찰 가능 동작
+
+Locked WEB-022 reference는 같은 probe에 class attribute `name=attribute-value`와 dictionary lookup
+`name=dictionary-value`를 함께 두고 renderer가 dictionary lookup을 한 번 호출해 attribute fallback보다 우선했음을 관찰합니다.
+따라서 `attribute_fallback_shadowed=true`, `object_dictionary_lookups=1`입니다. Locked WEB-027 reference는 dotted
+lookup에서 zero-argument callable을 자동 호출해 `auto_called=true`,
+`rendered_return_category=callable_return`, `callable_invocations=1`을 관찰합니다.
+
+### GoDj에서 채택한 동작
+
+`templates.Value`는 String/Boolean/Integer/List/Object/Null/SafeHTML의 closed algebra만 받습니다. Raw `any`,
+reflection, Go struct attribute/property, application dictionary callback, function/method 값을 template resolver에
+게시하지 않습니다. WEB-022는 closed Object member와 list-index 결과 자체는 렌더링하지만 경쟁 attribute fallback이나
+application callback이 없으므로 `attribute_fallback_shadowed=false`, `object_dictionary_lookups=0`입니다. WEB-027은
+`auto_called=false`, `rendered_return_category=closed_value`, `callable_invocations=0`입니다. DEV-0003은 이 다섯 selector만
+교체합니다.
+
+### 이유와 고려한 대안
+
+Python callable auto-call을 복제하면 template text가 context/error 경계 없이 DB/network I/O나 mutation을 실행할 수 있습니다.
+Reflection 기반 zero-argument method 호출, caller FuncMap, marker interface로 허용 callable을 구분하는 안을 검토했지만 첫 public
+slice의 권한 표면과 실패 의미를 과도하게 넓혀 채택하지 않았습니다. Handler가 값을 명시적으로 계산해 closed context에 넣는 경계를
+사용합니다.
+
+### 사용자·데이터·migration 영향
+
+Django template에서 attribute/property/callable처럼 보이거나 application `__getitem__`에 의존하던 값을 GoDj template으로 옮길 때
+handler 또는 typed adapter가 먼저 평가해 closed Object/List 값으로 게시해야 합니다.
+Template render 자체는 application I/O나 mutation을 유발하지 않습니다. Persisted data, Schema IR, migration과 generated ABI에는 변화가
+없습니다.
+
+### backend/concurrency/security 영향
+
+Backend 영향은 없습니다. Immutable Engine과 closed Value는 concurrent render에서 application callable state를 공유하지 않습니다.
+이 차이는 template injection이 임의 Go method/function 실행으로 확대되는 경로를 닫는 보안 경계입니다.
+
+### 구현과 검증 조건
+
+- WEB-022와 WEB-027만 이 set의 `deviation`이고 각각 정확히 하나의 `decision=DEV-0003`, `derived=false` provenance를 가짐
+- Sparse expectation과 code-owned policy는 WEB-022 result/metrics 각 한 selector와 WEB-027 result 두 selector/metrics 한
+  selector만 허용
+- Exported template Value/Context 진입점에 function, raw `any`, empty interface 또는 reflection callable ingress가 없음을 source/API gate로 검증
+- Oracle-blind actual은 expected/oracle/fixture를 읽지 않고 public Engine/Value 경계에서 closed result를 생성
+- Affected normal/race/CGO-disabled/vet와 final frozen matrix가 통과해야 `Verified`로 승격
+
+### 복귀 또는 supersede 조건
+
+Context/error/cancellation과 I/O 권한을 명시적으로 표현하는 안전한 typed callable capability가 별도 ADR로 설계되고 실제 사용자 요구가
+확인되면 DEV-0003을 supersede할 수 있습니다. Reflection이나 comparator 완화만으로 Django auto-call을 복원하지 않습니다.
+
+## DEV-0004 — Admin logout redirect와 session cookie lifetime을 명시적으로 고정
+
+- Status: Implemented
+- Date: 2026-08-24
+- Contracts: AUT-004, AUT-005
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj process-memory session store
+- Related ADR/work/evidence:
+  [ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md),
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)
+
+### Django의 관찰 가능 동작
+
+AUT-004의 Django Admin logout POST는 authenticated session을 flush한 뒤 redirect 없이 200 logout view를 반환합니다. AUT-005의
+기본 login session cookie는 browser-session cookie라 `Expires`와 `Max-Age`가 없고, deletion cookie의 HttpOnly observation은
+false입니다.
+
+### GoDj에서 채택한 동작
+
+실제 `admin.Site` logout POST는 session과 bearer cookies를 삭제한 뒤 `/admin/login/`으로 302 redirect합니다. Session cookie는
+configured 2-hour lifetime을 wire `Expires`와 `Max-Age=7200`으로 명시하고, login과 deletion 모두 HttpOnly를 유지합니다. 따라서
+DEV-0004의 exact scope는 다음 네 selector입니다.
+
+- AUT-004 `result.redirect`: `none` → `admin_login`
+- AUT-005 `result.delete.http_only`: `false` → `true`
+- AUT-005 `result.login.expires_present`: `false` → `true`
+- AUT-005 `result.login.max_age`: `null` → `7200`
+
+Deletion cookie의 Go 내부 `MaxAge < 0`은 wire에서 `Max-Age=0`으로 직렬화되므로 reference와 같은 normalized 0이며 deviation이
+아닙니다.
+
+### 이유와 고려한 대안
+
+별도 logged-out template 대신 좁은 static route set의 login으로 돌아가고, server-side absolute/idle expiry와 client expiry를
+명시적으로 정렬합니다. Django browser-session cookie를 그대로 쓰는 안과 logout 200 view를 추가하는 안도 가능하지만 첫 bounded
+Admin surface에 별도 template/state를 늘리지 않는 현재 구성을 채택했습니다. 명시적 2시간 cookie는 브라우저 재시작 뒤에도 expiry까지
+남을 수 있으므로 무조건 더 안전하다고 주장하지 않습니다.
+
+### 사용자·데이터·migration 영향
+
+Logout 직후 사용자는 login 화면으로 이동합니다. 로그인 cookie는 브라우저 종료가 아니라 최대 2시간의 client expiry를 가집니다.
+Server session flush, 이후 anonymous request, cookie path/SameSite/Secure와 deletion 의미는 reference expectation과 동일합니다.
+Schema/migration/generated Article data에는 영향이 없습니다.
+
+### backend/concurrency/security 영향
+
+현재 session store는 process-memory only이며 restart/multi-process 공유를 지원하지 않습니다. HttpOnly는 script access를 줄이지만
+explicit persistence는 브라우저 재시작 경계를 넓힙니다. TLS/non-loopback production cookie policy는 이 deviation이 승인하지 않습니다.
+
+### 구현과 검증 조건
+
+- AUT-004/AUT-005만 DEV-0004 `deviation`이고 각각 정확히 하나의 decision provenance를 가짐
+- Sparse expectation과 code-owned policy는 위 네 selector만 exact order로 허용
+- Actual은 실제 `admin.Site` login/logout HTTP route, Runtime cookie change와 server Store row를 관찰하며 surrogate response를 합성하지 않음
+- Raw cookie/session/CSRF/password/hash 값은 actual, oracle, diagnostic에 직렬화하지 않음
+- Affected normal/race/CGO-disabled/vet와 final frozen matrix가 통과해야 `Verified`로 승격
+
+### 복귀 또는 supersede 조건
+
+Browser-session cookie 또는 logout confirmation view가 제품 요구가 되면 새 ADR에서 expiry/UX/CSRF tradeoff를 검토해 supersede할 수
+있습니다. Wire deletion normalization 차이를 새 deviation으로 확대하지 않습니다.
+
+## DEV-0005 — 첫 Admin은 Article 하나와 publish action 하나만 게시
+
+- Status: Implemented
+- Date: 2026-08-24
+- Contracts: ADM-002
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3 Article Admin
+- Related ADR/work/evidence:
+  [ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md),
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)
+
+### Django의 관찰 가능 동작
+
+Locked ADM-002 Admin list에는 `delete_selected`와 fixture `publish_selected` 두 action이 있고, reference Admin registry에는 Article 외
+auth 관련 모델까지 세 개가 등록됩니다.
+
+### GoDj에서 채택한 동작
+
+첫 immutable Registry는 generated Article adapter 하나만 등록하고 selected-row action은 bounded atomic `publish` 하나만 게시합니다.
+ADM-002 product expectation은 `result.actions=[publish]`, `metrics.registered_models=1`이며 그 밖의 list column/order/page/row와
+query metrics는 reference와 같아야 합니다.
+
+### 이유와 고려한 대안
+
+Generic bulk delete action은 confirmed single-object delete, permission/mutation-zero, audit와 rollback 의미보다 넓은 public surface를
+추가합니다. Django auth/group model discovery도 current Schema IR/system migration을 우회합니다. 첫 slice에서는 실제 Article 사용자
+흐름에 필요한 한 모델과 selected publish만 구현하고 multi-model discovery와 bulk delete를 후속 작업으로 둡니다.
+
+### 사용자·데이터·migration 영향
+
+Admin list에서 bulk delete와 auth 관련 모델은 보이지 않습니다. Article은 add/change/confirmed delete로 관리하고 선택 게시만 action으로
+수행합니다. Existing Article schema/data와 migration 형식에는 변화가 없습니다.
+
+### backend/concurrency/security 영향
+
+Publish는 selected ID cap과 `db.Atomic`을 사용하며 SQLite/PostgreSQL capability 경계를 유지합니다. 권한 없는 사용자는 action을 볼 수
+없고 실행할 수 없습니다. 이 결정은 general multi-model Admin, object permission 또는 durable audit를 승인하지 않습니다.
+
+### 구현과 검증 조건
+
+- ADM-002만 `deviation`이고 정확히 하나의 `decision=DEV-0005`, `derived=false` provenance를 가짐
+- Sparse expectation과 code-owned policy는 `result.actions`와 `metrics.registered_models` 두 selector만 허용
+- Oracle-blind actual은 실제 list HTML, immutable Registry descriptor, SQLite row state와 public Site request를 관찰
+- List/search/page와 selected publish의 나머지 result/db_state/metrics는 locked reference와 exact match
+- Affected normal/race/CGO-disabled/vet와 final frozen matrix가 통과해야 `Verified`로 승격
+
+### 복귀 또는 supersede 조건
+
+Generic confirmed bulk delete 또는 auth/group model registration이 별도 system-state 설계와 함께 제품 범위가 되면 새 contract/ADR로
+DEV-0005를 좁히거나 supersede합니다. DOM이나 action 이름 comparator를 완화해서 복귀하지 않습니다.

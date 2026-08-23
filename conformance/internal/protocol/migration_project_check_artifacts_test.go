@@ -224,7 +224,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsInCurrentFourteenAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInCurrentSeventeenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentFourteenAdapterProductTarget(t *te
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 14 {
-		t.Fatalf("product adapter count = %d, want 14", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 17 {
+		t.Fatalf("product adapter count = %d, want 17", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -441,9 +441,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 968`,
-		`assert len(payload) == 99177`,
-		`8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e`,
+		`assert len(runs) == 993`,
+		`assert len(payload) == 101957`,
+		`feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
@@ -631,7 +631,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 			t.Fatalf("PostgreSQL product job fragment %q count = %d, want 1", required, strings.Count(postgres, required))
 		}
 	}
-	for _, sentinel := range []string{
+	postgresRequiredSentinels := []string{
 		"github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration",
@@ -642,9 +642,15 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration",
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration",
 		"github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP",
+		"github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow",
 		"github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E",
 		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
-	} {
+		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
+	}
+	if len(postgresRequiredSentinels) != 14 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 14", len(postgresRequiredSentinels))
+	}
+	for _, sentinel := range postgresRequiredSentinels {
 		if strings.Count(postgres, sentinel) != 1 {
 			t.Fatalf("PostgreSQL required actual-test sentinel %q count = %d, want 1", sentinel, strings.Count(postgres, sentinel))
 		}

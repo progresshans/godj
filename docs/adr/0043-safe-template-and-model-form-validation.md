@@ -61,7 +61,8 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
    grammar/filter/tag, duplicate/unclosed inheritance block, invalid name/path와 cap 초과는 structured error로 fail-closed합니다.
 2. Resolver 입력은 String, Boolean, Integer, List, Object, Null과 trusted-code-only SafeHTML의 closed immutable value입니다.
    Raw `any`, reflection, generated model, `template.HTML`, caller FuncMap과 arbitrary method/function invocation은 받지 않습니다.
-   Object key의 underscore/private 접근도 거부합니다.
+   Object key의 underscore/private 접근도 거부합니다. Dotted Object lookup은 공개 `Value.Member`가 제공하는 closed member
+   의미일 뿐 Go struct attribute/property/method fallback이 아닙니다.
 3. First language subset은 variable/dotted lookup, `if`, `for`/`empty`, `extends`/`block`, `include`, closed
    `default`/`length`/`lower`, URL reverse와 CSRF capability입니다. Autoescape가 기본이며 SafeHTML만 escape를 생략합니다.
 4. Parse tree depth/node count, include/inheritance depth, loop item count, context depth와 rendered bytes에 explicit cap을 적용합니다.
@@ -75,8 +76,10 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
 8. Persistence는 Form core가 소유하지 않습니다. Article adapter가 typed cleaned accessor를 generated `NewArticleCreate`와
    `ArticlePatch`에 명시적으로 연결하고 Manager Create/Update를 호출합니다. Reflection, dynamic field assignment와 generic autosave는
    추가하지 않습니다.
-9. WEB-027 Django callable observation은 GoDj no-call 결과와 다를 수 있습니다. Phase A actual에서 차이가 확인되면 oracle을
-   완화하지 않고 좁은 DEV-0003 candidate와 explicit `deviation`으로 검토합니다.
+9. WEB-022 Django attribute/dictionary precedence probe와 WEB-027 callable observation은 GoDj closed Value 결과와 실제로
+   다릅니다. Oracle을 완화하지 않고 `DEV-0003`의 exact result/metric 차이만 reviewed `deviation`으로 고정합니다. Exported
+   `templates` function과 모든 method의 public type ingress에 function, `any`, empty interface 또는 reflection이 생기면 static
+   gate가 fail-closed합니다.
 
 ## 결과
 
@@ -96,14 +99,20 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
 
 ## 검증
 
-- [ ] WEB-021..027 and FRM-001..005 pinned Django reference, not-implemented fixtures and oracle no-rewrite
-- [ ] Parser/resolver fuzz, unknown/private/callable negative tests, all resource caps and context cancellation
-- [ ] Autoescape/SafeHTML, include/inheritance cycle and partial-output atomicity tests
-- [ ] IR projection clone/order/default/null/max-length and unsupported-field startup tests
-- [ ] Bound/unbound/cleaned/changed/error determinism, invalid mutation I/O 0 and external compile usability
-- [ ] Race/CGO0/vet, SQLite/PostgreSQL Article form actual and final frozen hosted matrix
+- [x] WEB-021..027 and FRM-001..005 pinned Django reference, payload-free baseline and oracle no-rewrite locks
+- [x] Parser/resolver fuzz, unknown/private/callable negative tests, all resource caps and context cancellation
+- [x] Autoescape/SafeHTML, include/inheritance cycle and partial-output atomicity tests
+- [x] IR projection clone/order/default/null/max-length and unsupported-field startup tests
+- [x] Bound/unbound/cleaned/changed/error determinism and invalid mutation I/O 0
+- [x] Local normal/race/CGO0/vet and SQLite/pinned PostgreSQL Article form/Admin actual
+- [ ] Final frozen full/386/external-copy audit and exact submitted-head hosted matrix
 
 ## 현재 구현 상태
 
-Activation 시점에는 Proposed입니다. Product code, passing contract 또는 accepted deviation은 없습니다. Phase A compile/reference
-checkpoint와 Phase B product gates 뒤에만 위 exact public names와 Accepted status를 확정합니다.
+상태는 계속 Proposed입니다. Product source와 local integration은 구현됐고 current working-tree candidate에서 WEB-021,
+WEB-023..026과 FRM-001..005는 passing, WEB-022/027은 reviewed `DEV-0003` deviation으로 exact 12-contract
+`godjcheck`를 통과했습니다. WEB-022 actual은 `Object`/`List`와 공개 `Value.Member`/`Items` 결과만 관찰하며 competing Go
+attribute fallback이나 application dictionary callback은 없음을 sparse deviation으로 명시합니다.
+Scoped 993/993/skip-0 inventory와 local normal/race/CGO0/vet, SQLite/pinned PostgreSQL full flow도 통과했습니다. 다만 이 bytes의
+final frozen full/386/external-copy audit와 exact submitted-head hosted matrix가 pending이므로 아직 Accepted 또는 bounded Verified로
+승격하지 않습니다.

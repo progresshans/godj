@@ -46,6 +46,18 @@ RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-relation-not-implemented.j
 MIGRATION_RELATION_MANIFEST := conformance/contracts/migration-relation-manifest.json
 MIGRATION_RELATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json
 MIGRATION_RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-relation-not-implemented.json
+TEMPLATE_FORM_MANIFEST := conformance/contracts/template-form-manifest.json
+TEMPLATE_FORM_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json
+TEMPLATE_FORM_NOT_IMPLEMENTED := conformance/fixtures/godj-template-form-not-implemented.json
+TEMPLATE_FORM_DEVIATION_EXPECTED := conformance/fixtures/godj-template-form-deviation-expected.json
+AUTH_SESSION_MANIFEST := conformance/contracts/auth-session-manifest.json
+AUTH_SESSION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json
+AUTH_SESSION_NOT_IMPLEMENTED := conformance/fixtures/godj-auth-session-not-implemented.json
+AUTH_SESSION_DEVIATION_EXPECTED := conformance/fixtures/godj-auth-session-deviation-expected.json
+ARTICLE_ADMIN_MANIFEST := conformance/contracts/article-admin-manifest.json
+ARTICLE_ADMIN_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json
+ARTICLE_ADMIN_NOT_IMPLEMENTED := conformance/fixtures/godj-article-admin-not-implemented.json
+ARTICLE_ADMIN_DEVIATION_EXPECTED := conformance/fixtures/godj-article-admin-deviation-expected.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -159,6 +171,18 @@ conformance-check:
 		-profile $(PROFILE) -manifest $(MIGRATION_RELATION_MANIFEST) -suite $(MIGRATION_RELATION_ORACLE)
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_RELATION_MANIFEST) -suite $(MIGRATION_RELATION_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(TEMPLATE_FORM_MANIFEST) -suite $(TEMPLATE_FORM_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(TEMPLATE_FORM_MANIFEST) -suite $(TEMPLATE_FORM_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(AUTH_SESSION_MANIFEST) -suite $(AUTH_SESSION_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(AUTH_SESSION_MANIFEST) -suite $(AUTH_SESSION_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) -suite $(ARTICLE_ADMIN_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) -suite $(ARTICLE_ADMIN_NOT_IMPLEMENTED)
 
 godj-conformance:
 	go run ./conformance/cmd/godjcheck \
@@ -204,6 +228,18 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
 		-expected $(RELATION_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(TEMPLATE_FORM_MANIFEST) \
+		-expected $(TEMPLATE_FORM_ORACLE) \
+		-deviation-expected $(TEMPLATE_FORM_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(AUTH_SESSION_MANIFEST) \
+		-expected $(AUTH_SESSION_ORACLE) \
+		-deviation-expected $(AUTH_SESSION_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) \
+		-expected $(ARTICLE_ADMIN_ORACLE) \
+		-deviation-expected $(ARTICLE_ADMIN_DEVIATION_EXPECTED)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -250,6 +286,15 @@ oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_RELATION_MANIFEST) \
 		--output $(MIGRATION_RELATION_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(TEMPLATE_FORM_MANIFEST) \
+		--output $(TEMPLATE_FORM_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(AUTH_SESSION_MANIFEST) \
+		--output $(AUTH_SESSION_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(ARTICLE_ADMIN_MANIFEST) \
+		--output $(ARTICLE_ADMIN_ORACLE) --check
 
 oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -296,6 +341,15 @@ oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_RELATION_MANIFEST) \
 		--output $(MIGRATION_RELATION_ORACLE)
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(TEMPLATE_FORM_MANIFEST) \
+		--output $(TEMPLATE_FORM_ORACLE)
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(AUTH_SESSION_MANIFEST) \
+		--output $(AUTH_SESSION_ORACLE)
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(ARTICLE_ADMIN_MANIFEST) \
+		--output $(ARTICLE_ADMIN_ORACLE)
 
 ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance
 

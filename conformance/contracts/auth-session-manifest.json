@@ -7,9 +7,9 @@
       "title": "An anonymous request has no principal permission or session write",
       "scenario": "django.auth_session.anonymous_request",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
         {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#authentication-in-web-requests", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "metrics"]
@@ -19,9 +19,9 @@
       "title": "Valid login authenticates and rotates the preexisting session without exposing secrets",
       "scenario": "django.auth_session.valid_login_rotation",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
         {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::login", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "metrics"]
@@ -31,9 +31,9 @@
       "title": "Invalid and inactive credentials remain anonymous and publish no auth state",
       "scenario": "django.auth_session.rejected_login",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
         {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#how-to-log-a-user-in", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "metrics"]
@@ -43,10 +43,11 @@
       "title": "Logout flushes the authenticated session and the next request is anonymous",
       "scenario": "django.auth_session.logout_flush",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "deviation",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
-        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::logout", "derived": false, "license": "BSD-3-Clause"}
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::logout", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0004", "derived": false}
       ],
       "comparison": ["result", "metrics"]
     },
@@ -55,10 +56,11 @@
       "title": "Session cookies retain normalized path HttpOnly SameSite Secure expiry and delete semantics",
       "scenario": "django.auth_session.cookie_policy",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "deviation",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
-        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#settings", "derived": false, "license": "BSD-3-Clause"}
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#settings", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0004", "derived": false}
       ],
       "comparison": ["result", "metrics"]
     },
@@ -67,9 +69,9 @@
       "title": "Anonymous redirect permission denial and unsafe next targets remain fail closed",
       "scenario": "django.auth_session.permission_and_safe_next",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
         {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/views.py::LoginView", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "metrics"]
@@ -79,9 +81,9 @@
       "title": "Missing and wrong CSRF tokens reject unsafe writes with zero Article mutation",
       "scenario": "django.auth_session.csrf_rejection",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
         {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/howto/csrf.txt#using-csrf-protection", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "db_state", "metrics"]
@@ -91,9 +93,9 @@
       "title": "Form and header CSRF tokens pass while login rotation rejects a pre-login replay",
       "scenario": "django.auth_session.csrf_acceptance_and_rotation",
       "phase": "commit",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0044", "derived": false},
         {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/middleware/csrf.py::CsrfViewMiddleware", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "db_state", "metrics"]

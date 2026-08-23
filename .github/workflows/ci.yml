@@ -489,10 +489,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 968, sorted(runs)
-          assert len(payload) == 99177, len(payload)
+          assert len(runs) == 993, sorted(runs)
+          assert len(payload) == 101957, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e"
+          assert payload_sha256 == "feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -875,6 +875,7 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration"
             "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration"
             "github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP"
+            "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
             "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
             "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"

@@ -63,7 +63,9 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
    Article example은 startup-provided one-admin credential을 current secure PBKDF2-SHA256 implementation으로 memory에 보관합니다.
    Username/password/hash/session/token은 diagnostic, URL, oracle/actual payload에 포함하지 않습니다.
 4. Authentication 성공은 session ID와 CSRF cookie secret을 회전합니다. Invalid/inactive credential은 uniform failure와 auth-state write 0을
-   반환합니다. Logout은 auth와 unrelated session values를 flush하고 prior cookie를 삭제합니다.
+   반환합니다. Logout은 auth와 unrelated session values를 flush하고 prior cookie를 삭제한 뒤 Admin login으로 redirect합니다.
+   Django의 response-in-place logout과 다른 이 actual `admin.Site` redirect 및 current persistent cookie/delete semantics는
+   `DEV-0004`에 exact difference로 고정합니다.
 5. CSRF는 safe method를 exempt하고 anonymous safe GET에서도 session write 없이 CSPRNG cookie secret을 발급할 수 있습니다. Unsafe
    method는 cookie secret과 masked form token 또는 supported header token을 constant-time 검증합니다. Login은 cookie secret을
    회전하므로 missing/malformed/wrong/pre-login token은 403과 mutation 0입니다. Token/source body size를 cap합니다.
@@ -81,11 +83,14 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
     rollback합니다. Bulk SQL이나 raw SQL은 사용하지 않습니다. Commit outcome unknown은 Article state를 추측하거나 자동 재시도하지
     않고 reconciliation-required error로 반환합니다.
 11. Admin audit는 actor ID, action, object ID, changed field names와 sequence를 저장하는 process-lifetime in-memory append-only log입니다.
-    Raw values/password/token은 기록하지 않습니다. Confirmed Article DB commit 뒤 non-failing memory append를 publish합니다. Commit
-    outcome unknown에서는 success event를 합성하지 않으며 audit가 DB outcome을 증명한다고 주장하지 않습니다. Restart durability도
-    주장하지 않습니다.
+    변경된 field 값, credential, password/hash, session/CSRF/token은 기록하지 않습니다. 객체 식별용 bounded `object_repr`/display
+    label은 보존하며 application data를 포함할 수 있습니다. Confirmed Article DB commit 뒤 non-failing memory append를 publish합니다.
+    Commit outcome unknown에서는 success event를 합성하지 않으며 audit가 DB outcome을 증명한다고 주장하지 않습니다. Restart
+    durability도 주장하지 않습니다.
 12. Exact Django DOM/CSS/table schema가 아니라 normalized status/location, ordered semantic view model, DB row delta, permission/CSRF
     outcome와 audit event를 비교합니다.
+13. First Admin breadth는 Article 한 모델과 selected-only `publish` action입니다. Django fixture의 세 registered model 및
+    `delete_selected`/`publish_selected` action breadth와의 차이는 `DEV-0005`로 고정하며 미구현 breadth를 passing으로 합성하지 않습니다.
 
 ## 결과
 
@@ -106,15 +111,21 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 
 ## 검증
 
-- [ ] AUT-001..008 and ADM-001..010 pinned Django semantics, secret-free oracles and not-implemented fixtures
-- [ ] CSPRNG failure, expiry/rotation/fixation/flush, concurrent memory Store and cookie policy tests
-- [ ] Password constant-time shape, inactive/unpermissioned user and safe-next/open-redirect negative tests
-- [ ] CSRF safe/unsafe, cookie/masked/header, anonymous session-write 0, replay/rotation/body caps and mutation-0 tests
-- [ ] Admin registration/config clone/duplicate/unknown capability and external compile tests
-- [ ] Article add/change/delete/history/selected publish normal/failure/rollback/commit-unknown with stable event and no-retry ownership
-- [ ] Global runserver SQLite/PostgreSQL actual, race/CGO0/vet and final frozen hosted matrix
+- [x] AUT-001..008 and ADM-001..010 pinned Django semantics, secret-free oracles and payload-free baselines
+- [x] CSPRNG failure, expiry/rotation/fixation/flush, concurrent memory Store and cookie policy tests
+- [x] Password constant-time shape, inactive/unpermissioned user and safe-next/open-redirect negative tests
+- [x] CSRF safe/unsafe, cookie/masked/header, anonymous session-write 0, replay/rotation/body caps and mutation-0 tests
+- [x] Admin registration/config clone/duplicate/unknown capability tests
+- [x] Article add/change/delete/history/selected publish normal/failure/rollback/commit-unknown with stable event and no-retry ownership
+- [x] Actual Site SQLite/pinned PostgreSQL user flow and local normal/race/CGO0/vet
+- [ ] Final frozen full/386/external-copy audit and exact submitted-head hosted matrix
 
 ## 현재 구현 상태
 
-Activation 시점에는 Proposed입니다. Route/API/password parameter/cookie 이름은 Phase A compile/security tests 전 가설입니다. Product
-code, passing contract, durable auth/session 또는 M6 completion을 주장하지 않습니다.
+상태는 계속 Proposed입니다. Product source와 actual `admin.Site`/typed Article/SQLite integration은 구현됐습니다. Current
+working-tree candidate에서 AUT-001..008은 `DEV-0004`, ADM-001..010은 `DEV-0005` 아래 exact `godjcheck`를 통과했고,
+`AUT-004` logout redirect는 surrogate가 아니라 Site login/logout/cookie 경계에서 관찰했습니다. CSRF missing/wrong/form/header와
+pre-login replay도 actual add/change POST 및 SQLite before/after로 검증했습니다. SQLite와 pinned PostgreSQL 17 login-to-logout flow,
+scoped 993/993/skip-0 inventory와 local normal/race/CGO0/vet이 통과했습니다. Session/user/audit는 여전히 process-lifetime이며 durable
+auth/session 또는 M6 completion을 주장하지 않습니다. Final frozen full/386/external-copy audit와 exact submitted-head hosted matrix가
+pending이므로 아직 Accepted 또는 bounded Verified로 승격하지 않습니다.

@@ -33,7 +33,11 @@ const (
 var articleAdminCSRFPattern = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([A-Za-z0-9_-]{128})"`)
 
 func TestArticleAdminSiteSQLiteUserFlow(t *testing.T) {
-	fixture := newArticleAdminSiteFixture(t)
+	runArticleAdminSiteUserFlow(t, newArticleAdminSiteFixture(t))
+}
+
+func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) {
+	t.Helper()
 
 	// The first protected request preserves only an allowlisted local next URI.
 	anonymous := fixture.request(t, http.MethodGet, articleAdminBasePath+"/articles/", nil)
@@ -294,6 +298,12 @@ func newArticleAdminSiteFixture(t *testing.T) articleAdminSiteFixture {
 		}
 	}
 
+	return newArticleAdminSiteFixtureWithBackend(t, backend)
+}
+
+func newArticleAdminSiteFixtureWithBackend(t *testing.T, backend adminapp.Backend) articleAdminSiteFixture {
+	t.Helper()
+	ctx := context.Background()
 	audit, err := admin.NewAuditLog(64)
 	if err != nil {
 		t.Fatal(err)

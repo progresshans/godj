@@ -129,7 +129,7 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 	}
 }
 
-func TestGDJ0043ReferenceActivationYieldsCurrentStatusAggregate(t *testing.T) {
+func TestGDJ0043ProductPublicationYieldsCurrentStatusAggregate(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -172,8 +172,8 @@ func TestGDJ0043ReferenceActivationYieldsCurrentStatusAggregate(t *testing.T) {
 			}
 		}
 	}
-	if passing != 154 || deviations != 5 || oracleLocked != 42 {
-		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 154 + 5 + 42", passing, deviations, oracleLocked)
+	if passing != 179 || deviations != 10 || oracleLocked != 12 {
+		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 179 + 10 + 12", passing, deviations, oracleLocked)
 	}
 }
 
@@ -204,14 +204,14 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	if got := strings.Count(productTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance query-expression manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 14 {
-		t.Fatalf("godj-conformance adapter count = %d, want 14 with query-expression included", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 17 {
+		t.Fatalf("godj-conformance adapter count = %d, want 17 with query-expression included", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check query-expression manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(oracleCheckTarget, "python -m conformance.runners.django"); got != 15 {
-		t.Fatalf("oracle-check reference runner count = %d, want 15", got)
+	if got := strings.Count(oracleCheckTarget, "python -m conformance.runners.django"); got != 18 {
+		t.Fatalf("oracle-check reference runner count = %d, want 18", got)
 	}
 	if got := strings.Count(oracleRegenerateTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-regenerate query-expression manifest count = %d, want 1", got)

@@ -29,8 +29,11 @@ allowed_paths:
   - "conformance/contracts/auth-session-manifest.json"
   - "conformance/contracts/article-admin-manifest.json"
   - "conformance/fixtures/godj-template-form-not-implemented.json"
+  - "conformance/fixtures/godj-template-form-deviation-expected.json"
   - "conformance/fixtures/godj-auth-session-not-implemented.json"
+  - "conformance/fixtures/godj-auth-session-deviation-expected.json"
   - "conformance/fixtures/godj-article-admin-not-implemented.json"
+  - "conformance/fixtures/godj-article-admin-deviation-expected.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json"
@@ -123,6 +126,14 @@ PostgreSQL 17에 실제로 저장되지만 첫 slice의 user/session/audit state
 - Current IR은 Auto/Char/Boolean/ForeignKey뿐이므로 framework system table을 억지로 추가하지 않고 explicit Store port를 사용합니다.
 - Existing generated `ArticleCreate`/`ArticlePatch`는 private field를 가지므로 form-to-model 변환은 Article app-owned typed closure가 소유합니다.
 - Draft PR #1은 OPEN/DRAFT/unmerged이며 merge/release/production rollout은 이 work의 권한 밖입니다.
+- 구현 checkpoint는 reference `02b755da03d673a73a93d46494a6968b4890f91d`, template/form
+  `477ab6028aeeda735c87811a80b073ec513374cc`, Article repository
+  `2ec631997640b5c015c91a2a7578b5153f9178f7`, Admin registry
+  `404a8903a1fdd0bad7f94aa895cec463dd1398a2`, session/auth/CSRF
+  `a5ae33a4a91a51a454aa0e73973170acf3af3c20`, bounded Admin Site
+  `b814e20b5e180d9e532edb4fa168522cf7747ba4`까지 순서대로 쌓였습니다.
+- 현재 conformance publication, deviation fixture, PostgreSQL user-flow와 CI inventory lock은 `b814e20...` 위 working-tree
+  integration candidate입니다. 아직 frozen commit이나 submitted head가 아니므로 local 결과를 hosted 증거로 재사용하지 않습니다.
 
 ## Django Reference / Contract
 
@@ -133,12 +144,14 @@ rendered semantic fragment, ordered form error, auth state, normalized redirect/
 ### Template/Form manifest — exact 12
 
 - `WEB-021`: scalar render와 missing variable empty
-- `WEB-022`: dict/attribute/list-index dotted lookup precedence와 lookup-call metric
+- `WEB-022`: dict/list-index와 closed Object member 결과는 비교하지만, GoDj에는 competing Go attribute fallback과 application
+  dictionary callback이 없습니다. `attribute_fallback_shadowed=false`와 `object_dictionary_lookups=0`은 reviewed
+  `DEV-0003` deviation입니다.
 - `WEB-023`: autoescape와 explicit safe value
 - `WEB-024`: if truth, ordered for와 empty branch
 - `WEB-025`: closed `default`/`length`/`lower` filters
 - `WEB-026`: unknown tag/filter, underscore access와 unclosed grammar의 construction-time structured error
-- `WEB-027`: Django callable exposure observation; GoDj no-call policy는 ADR acceptance 전 deviation candidate
+- `WEB-027`: Django callable exposure observation; GoDj closed Value/no-call policy는 reviewed `DEV-0003` deviation
 - `FRM-001`: unbound와 bound-empty validation lifecycle
 - `FRM-002`: Article valid clean, strip, typed Boolean와 nullable summary
 - `FRM-003`: required/max-length/NUL stable field code/order
@@ -150,8 +163,10 @@ rendered semantic fragment, ordered form error, auth state, normalized redirect/
 - `AUT-001`: anonymous principal/no permission/session write 0
 - `AUT-002`: valid login, session rotation과 secret-free observation
 - `AUT-003`: invalid/inactive login remains anonymous with auth-state write 0
-- `AUT-004`: logout flush and subsequent anonymous request
-- `AUT-005`: normalized cookie path/HttpOnly/SameSite/Secure/expiry/delete semantics
+- `AUT-004`: actual `admin.Site` logout flush and subsequent anonymous request. Django response-in-place와 달리 GoDj는
+  `admin_login`으로 redirect하는 reviewed `DEV-0004` deviation
+- `AUT-005`: actual `admin.Site` login/logout cookie의 normalized path/HttpOnly/SameSite/Secure/expiry/delete semantics;
+  persistent lifetime/delete-cookie 차이는 같은 `DEV-0004`에 고정
 - `AUT-006`: anonymous redirect, authenticated-no-permission 403와 safe `next` boundary
 - `AUT-007`: unsafe POST missing/wrong CSRF is 403 with mutation 0
 - `AUT-008`: form/header token acceptance, login rotation과 pre-login replay rejection
@@ -202,49 +217,49 @@ examples/article/adminapp → admin + generated Article/project
 
 ### Phase A — reference and decision freeze
 
-- [ ] exact 12/8/10 manifests, independent Django scenarios/oracles와 payload-free not-implemented fixtures
-- [ ] registry/manifest/profile/provenance/comparison mutation gates and two-process deterministic bytes
-- [ ] existing 15 reference oracle no-rewrite gate
-- [ ] public compile prototypes, package import-direction gate와 WEB-027 deviation decision
+- [x] exact 12/8/10 manifests, independent Django scenarios/oracles와 payload-free not-implemented fixtures
+- [x] registry/manifest/profile/provenance/comparison mutation gates and two-process deterministic bytes
+- [x] existing 15 reference oracle no-rewrite gate
+- [x] package dependency direction과 closed public surface gate, `DEV-0003`/`DEV-0004`/`DEV-0005` review lock
 
 ### Phase B — safe template and validation/forms
 
-- [ ] startup parse/load, closed value resolver, autoescape/safe value and resource caps
-- [ ] variable/if/for-empty, inheritance/block/include, closed filter, URL/CSRF capability
-- [ ] ordered validation errors, bound/unbound, cleaned/initial/changed data and cross-field hook
-- [ ] IR Char/Boolean/nullable/default/max-length mapping and Article typed Create/Patch mapping
+- [x] startup parse/load, closed value resolver, autoescape/safe value and resource caps
+- [x] variable/if/for-empty, inheritance/block/include, closed filter, URL/CSRF capability
+- [x] ordered validation errors, bound/unbound, cleaned/initial/changed data and cross-field hook
+- [x] IR Char/Boolean/nullable/default/max-length mapping and Article typed Create/Patch mapping
 
 ### Phase C — session/auth/CSRF
 
-- [ ] concurrent memory Store, expiry/rotation/flush and bounded cookie codec
-- [ ] constant-time credential verification, inactive/permission/safe-next behavior
-- [ ] CSRF safe-method policy, cookie secret, masked form token/header token, rotation and replay rejection
-- [ ] secret-free error/log surface, size/resource limits and race tests
+- [x] concurrent memory Store, expiry/rotation/flush and bounded cookie codec
+- [x] constant-time credential verification, inactive/permission/safe-next behavior
+- [x] CSRF safe-method policy, cookie secret, masked form token/header token, rotation and replay rejection
+- [x] secret-free error/log surface, size/resource limits and race tests
 
 ### Phase D — Article Admin actual
 
-- [ ] immutable registration/startup checks and static namespaced route set
-- [ ] login/logout, list/search/page and add/change/delete/history views
-- [ ] selected-only publish action in `db.Atomic`, stable messages and semantic audit events
-- [ ] global `godj runserver` SQLite and PostgreSQL 17 full user-flow actual
+- [x] immutable registration/startup checks and static namespaced route set
+- [x] login/logout, list/search/page and add/change/delete/history views
+- [x] selected-only publish action in `db.Atomic`, stable messages and semantic audit events
+- [x] actual `admin.Site` SQLite와 pinned PostgreSQL 17 login-to-logout full user flow
 
 ### Phase E — frozen hardening
 
-- [ ] affected normal/race/CGO-disabled/vet and relevant generated drift at each checkpoint
-- [ ] SQLite/PostgreSQL actual, security/error/restart boundaries and inventory locks
+- [x] affected normal/race/CGO-disabled/vet and relevant generated drift at implementation checkpoints
+- [x] SQLite/PostgreSQL actual, security/error/restart boundaries and scoped 993/993/skip-0 inventory lock
 - [ ] final source-only full `make ci`, all-package Linux/386 and repository-external clean copy once
 - [ ] independent final audits and exact submitted-head hosted matrix once
 - [ ] ADR acceptance, bounded Verified/status/evidence/Draft PR mirror only after those gates
 
 ## 완료 조건
 
-- [ ] 사용자가 login부터 logout까지 exact Article Admin flow를 수행합니다.
-- [ ] 30개 contract가 explicit passing/deviation status와 oracle-blind actual을 가지며 false-green mutation gate를 통과합니다.
-- [ ] Arbitrary Go callable/underscore/private value와 unknown template grammar가 startup 또는 render 전에 fail-closed합니다.
-- [ ] Invalid form/auth/CSRF/permission request는 Article mutation 0이고 secret을 diagnostic에 노출하지 않습니다.
-- [ ] Confirmed-success add/change/delete/publish가 expected Article row와 process-lifetime audit event만 변경하고,
+- [x] actual Site에서 login부터 logout까지 SQLite와 pinned PostgreSQL 17 Article Admin flow를 수행합니다.
+- [x] 30개 contract가 25 `passing` + 5 reviewed `deviation` status와 oracle-blind actual을 가지며 false-green mutation gate를 통과합니다.
+- [x] Arbitrary Go callable/underscore/private value와 unknown template grammar가 startup 또는 render 전에 fail-closed합니다.
+- [x] Invalid form/auth/CSRF/permission request는 Article mutation 0이고 secret을 diagnostic에 노출하지 않습니다.
+- [x] Confirmed-success add/change/delete/publish가 expected Article row와 process-lifetime audit event만 변경하고,
   commit outcome unknown은 자동 재시도나 success audit 없이 reconciliation-required로 닫습니다.
-- [ ] SQLite/PostgreSQL 17 actual이 동일한 bounded semantic flow를 통과합니다.
+- [x] SQLite/PostgreSQL 17 actual이 동일한 bounded semantic flow를 통과합니다.
 - [ ] Affected/final frozen cadence와 independent audit가 통과합니다.
 - [ ] CURRENT/work/matrix/evidence/ADR/PR이 같은 exact bytes와 비목표를 가리킵니다.
 
@@ -253,15 +268,22 @@ examples/article/adminapp → admin + generated Article/project
 - [x] code topology, current metadata/write/Web/runserver boundary 조사
 - [x] exact 30-contract proposal와 false-green boundary 조사
 - [x] active work와 Proposed ADR-0043/0044 activation
-- [ ] Phase A reference/compile checkpoint
-- [ ] Phase B/C product checkpoint
-- [ ] Phase D SQLite/PostgreSQL actual checkpoint
+- [x] Phase A reference/compile checkpoint
+- [x] Phase B/C product checkpoint
+- [x] Phase D SQLite/PostgreSQL actual checkpoint
 - [ ] Phase E frozen hardening and handoff
 
 ## 수정 파일
 
 - Activation: 이 work, ADR-0043/0044, ADR/work indexes, CURRENT/ROADMAP/OPEN_QUESTIONS/IMPLEMENTATION_MATRIX
-- Product/reference/evidence paths는 각 checkpoint 뒤 exact commit과 함께 이 절에 기록합니다.
+- Product: `validation/**`, `forms/**`, `templates/**`, `sessions/**`, `auth/**`, `web/sessionauth/**`, `admin/**`,
+  `examples/article/adminapp/**`와 SQLite Admin integration test
+- Reference: exact three manifests/oracles/not-implemented fixtures, `conformance/templateform/**`,
+  `conformance/authadmin/**`, Django auth/admin fixture/scenario/worker와 artifact locks
+- Current integration candidate: three `godj-*-deviation-expected.json` fixtures, three GDJ-0043 GoDj scenario/test pairs,
+  shared runner/registry, `godjcheck` deviation policy, Makefile wiring, PostgreSQL Admin integration test와 CI inventory/required lock
+- Documentation in this checkpoint: 이 work와 ADR-0043/0044. CURRENT/IMPLEMENTATION_MATRIX/TEST_EVIDENCE/DEVIATIONS는
+  integration owner가 frozen source/hosted 결과와 함께 별도로 동기화합니다.
 
 ## 결정된 사항
 
@@ -270,21 +292,55 @@ examples/article/adminapp → admin + generated Article/project
 - 2026-08-24: Schema IR/system migration 확장 대신 session/user/audit는 explicit process store, Article만 actual DB persistence를 사용합니다.
 - 2026-08-24: generated Create/Patch private state를 reflection으로 우회하지 않고 Article-owned typed conversion closure를 사용합니다.
 - 2026-08-24: arbitrary Go callable 자동 호출은 지원하지 않는 안전 경계를 ADR-0043의 Proposed decision으로 검증합니다.
+- 2026-08-24: `WEB-022`는 closed Object/List member 결과만 직접 비교합니다. Go struct attribute, property, method fallback이나
+  application dictionary callback을 지원하지 않으므로 Django precedence probe의 result/metric 두 selector는 `DEV-0003`으로
+  분류하고, exported template API의 function/`any`/empty-interface/reflection ingress를 fail-closed gate로 잠급니다.
+- 2026-08-24: 30개 계약은 25 passing과 `WEB-022`, `WEB-027`, `AUT-004`, `AUT-005`, `ADM-002` 다섯 deviation으로 publication합니다.
+  결정 envelope는 각각 `DEV-0003`, `DEV-0004`, `DEV-0005`이며 Django oracle bytes를 제품 결과에 맞춰 rewrite하지 않습니다.
+- 2026-08-24: `AUT-004`는 surrogate handler가 아니라 actual `admin.Site` logout을 관찰합니다. GoDj의 successful logout 뒤
+  `admin_login` redirect는 Django의 response-in-place 결과와 다른 의도적 `DEV-0004`입니다.
+- 2026-08-24: session/user/audit의 process-lifetime 제한을 유지하면서 Article row만 public typed service와 SQLite/PostgreSQL에
+  저장합니다. Pinned PostgreSQL flow도 SQLite와 동일한 Site 경로를 사용합니다.
 
 ## 미결정/Blocker
 
 - External blocker는 없습니다.
-- `WEB-027`은 Django callable behavior와 의도적으로 달라질 가능성이 있으므로 ADR-0043 acceptance와 좁은 deviation record 전에는
-  passing으로 분류하지 않습니다.
-- Exact password hasher parameters, cookie names와 route names는 Phase A compile/security tests 뒤 ADR current implementation에 고정합니다.
+- `WEB-022` closed lookup, `WEB-027` no-call, `AUT-004` redirect와 `AUT-005` cookie policy, `ADM-002` bounded action/model breadth는
+  reviewed deviation으로 고정됐습니다. ADR-0043/0044는 구현됐더라도 final frozen/hosted gate 전까지 Proposed를 유지합니다.
 - Durable session/user/audit schema와 restart persistence는 current IR 확장 없이 구현하지 않으며 후속 packet입니다.
+- 남은 blocker가 아니라 required gate는 final source freeze, full `make ci`, Linux/386, repository-external clean copy,
+  independent audit와 exact submitted-head hosted matrix입니다.
 
 ## 테스트 증거
 
-- Evidence ID: activation-only, 없음
-- Command: docs consistency gate만 실행 예정
-- Result: 제품/contract test를 아직 실행하지 않음
-- Not run: Phase A reference, product, DB actual, full/386/hosted
+- Checkout: `b814e20b5e180d9e532edb4fa168522cf7747ba4` 위 current working-tree integration candidate. 아직 frozen commit이
+  아니므로 TEST_EVIDENCE ID나 hosted evidence로 승격하지 않습니다.
+- Exact product comparison:
+  `go run ./conformance/cmd/godjcheck -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json`
+  을 각 template-form/auth-session/article-admin manifest·oracle·deviation fixture에 실행해 각각 12/`DEV-0003`,
+  8/`DEV-0004`, 10/`DEV-0005` contract PASS를 관찰했습니다.
+- Focused GoDj runner: template/auth 공개경계 test의 normal, `-race`, `CGO_ENABLED=0`, `go vet`가 PASS했고 Article Admin
+  scenario를 포함한 package gate도 PASS했습니다.
+- Scoped inventory: 아래 exact package set의 `go test -json -count=1` top-level Test run/pass/skip 정규화 결과는
+  `993/993/0`, payload length `101957`, SHA-256
+  `feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f`입니다.
+
+  ```text
+  ./schema/... ./query ./codegen ./orm ./db/sqlite ./migrations ./migrations/definition
+  ./conformance/relationproduct/... ./conformance/relationqueryproduct/...
+  ./conformance/relationobjectproduct/... ./conformance/relationreverseproduct/...
+  ./conformance/relationprefetchproduct/... ./conformance/relationselectproduct/...
+  ./conformance/relationdeleteproduct/... ./conformance/migrationrelationproduct
+  ./conformance/internal/protocol ./conformance/runners/godj
+  ./conformance/cmd/godjcheck ./internal/compiletest
+  ```
+
+  같은 package set의 `-race`, `CGO_ENABLED=0`와 `go vet`도 PASS했습니다.
+- DB actual: `TestArticleAdminSiteSQLiteUserFlow`가 PASS했고, 환경변수로 주입한 pinned PostgreSQL 17 URL에
+  `GODJ_REQUIRE_POSTGRES=1 go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...`를 실행해
+  `TestArticleAdminSitePostgresUserFlow`를 포함한 normal/race/CGO0/vet package set이 PASS했습니다.
+- Not run/complete for these bytes: final source-only full `make ci`, all-package Linux/386, repository-external clean copy,
+  exact committed/submitted-head hosted matrix. Hosted는 pending입니다.
 
 ## 위험과 rollback
 
@@ -294,15 +350,19 @@ examples/article/adminapp → admin + generated Article/project
 - Data: Article action은 `db.Atomic`을 사용하고 process audit의 restart 비내구성을 명시합니다. Commit outcome unknown은
   committed 여부를 추측하거나 audit로 success를 합성하지 않고 no-retry/reconciliation-required로 반환합니다.
 - Backend: runtime raw SQL/system table을 추가하지 않고 existing SQLite/PostgreSQL public backend boundary만 사용합니다.
-- Rollback: activation은 docs-only이고, 각 product checkpoint는 독립 commit이므로 accepted/publication 전 revert 가능합니다.
+- Rollback: activation과 각 product checkpoint는 독립 commit입니다. Current integration candidate는 아직 committed/accepted/hosted
+  publication이 아니므로 관련 runner/wiring/deviation fixture checkpoint를 함께 revert할 수 있습니다.
 
 ## 다음 정확한 작업
 
-`conformance/internal/protocol`의 manifest limit과 current Django settings initialization을 기준으로 exact 12/8/10 manifests,
-separate deterministic Auth/Admin runner와 payload-free not-implemented fixtures를 구현합니다. 동시에 Phase A external compile
-prototype으로 `templates`, `forms/model`, `sessions`, `auth`, `web/sessionauth`, `admin`의 dependency direction을 검증합니다.
+Integration owner가 current candidate의 의도한 source/wiring/docs만 stage해 frozen local source commit을 만듭니다. 그 exact commit에서
+full `make ci`, all-package Linux/386, repository-external clean copy와 independent final audit를 한 번 실행합니다. 모두 통과하면 push해
+Draft PR #1을 갱신하고 exact submitted-head hosted matrix를 기다립니다. Hosted success 뒤에만 ADR-0043/0044를 Accepted로 바꾸고
+CURRENT/IMPLEMENTATION_MATRIX/TEST_EVIDENCE/DEVIATIONS/PR mirror를 같은 bytes와 evidence로 동기화합니다.
 
 ## 결과와 인수인계
 
-현재는 activation 상태입니다. Product code, passing contract, Accepted ADR 또는 M5/M6 완료를 주장하지 않습니다. Integration
-owner가 public API/ADR/CURRENT를 단독 소유하고 reference, template/form, auth/session lanes는 서로 다른 파일을 병렬 수정합니다.
+Product와 local integration은 구현됐고 exact 30 contracts는 25 passing/5 reviewed deviations로 관찰됐습니다. SQLite와 pinned
+PostgreSQL user flow, scoped 993/993/0 inventory와 affected normal/race/CGO0/vet도 통과했습니다. 그러나 current bytes는 아직
+frozen/submitted/hosted head가 아니며 ADR-0043/0044는 Proposed, GDJ-0043은 active입니다. Integration owner가 final source freeze,
+독립 audit와 hosted completion을 단독 소유합니다.

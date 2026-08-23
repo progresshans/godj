@@ -1494,8 +1494,87 @@ func TestDeviationPolicyDispatchKeepsReviewedScopesSeparate(t *testing.T) {
 			t.Fatalf("DEV-0002 change %d = %#v", index, change)
 		}
 	}
+	type reviewedContract struct {
+		id    string
+		paths []string
+	}
+	for _, test := range []struct {
+		decision  string
+		contracts []reviewedContract
+	}{
+		{decision: "DEV-0003", contracts: []reviewedContract{
+			{id: "WEB-022", paths: []string{"attribute_fallback_shadowed", "object_dictionary_lookups"}},
+			{id: "WEB-027", paths: []string{"auto_called", "rendered_return_category", "callable_invocations"}},
+		}},
+		{decision: "DEV-0004", contracts: []reviewedContract{
+			{id: "AUT-004", paths: []string{"redirect"}},
+			{id: "AUT-005", paths: []string{"delete.http_only", "login.expires_present", "login.max_age"}},
+		}},
+		{decision: "DEV-0005", contracts: []reviewedContract{
+			{id: "ADM-002", paths: []string{"actions", "registered_models"}},
+		}},
+	} {
+		policy, err := deviationPolicyForDecision(test.decision)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if policy.Decision != test.decision || len(policy.Contracts) != len(test.contracts) {
+			t.Fatalf("%s policy = %#v", test.decision, policy)
+		}
+		for contractIndex, contract := range test.contracts {
+			got := policy.Contracts[contractIndex]
+			if got.ID != contract.id || len(got.Changes) != len(contract.paths) {
+				t.Fatalf("%s contract %d = %#v, want %s/%#v", test.decision, contractIndex, got, contract.id, contract.paths)
+			}
+			for changeIndex, change := range got.Changes {
+				if change.Path != contract.paths[changeIndex] || change.Operation != protocol.DeviationReplace {
+					t.Fatalf("%s contract %s change %d = %#v", test.decision, contract.id, changeIndex, change)
+				}
+			}
+		}
+	}
 	if _, err := deviationPolicyForDecision("DEV-9999"); err == nil || !strings.Contains(err.Error(), "unsupported deviation decision") {
 		t.Fatalf("unknown decision error = %v", err)
+	}
+}
+
+func TestRunGDJ0043ReviewedProductExpectations(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	tests := []struct {
+		name      string
+		manifest  string
+		oracle    string
+		fixture   string
+		decision  string
+		contracts int
+	}{
+		{name: "template-form", manifest: "template-form-manifest.json", oracle: "template-form-oracle.json", fixture: "godj-template-form-deviation-expected.json", decision: "DEV-0003", contracts: 12},
+		{name: "auth-session", manifest: "auth-session-manifest.json", oracle: "auth-session-oracle.json", fixture: "godj-auth-session-deviation-expected.json", decision: "DEV-0004", contracts: 8},
+		{name: "article-admin", manifest: "article-admin-manifest.json", oracle: "article-admin-oracle.json", fixture: "godj-article-admin-deviation-expected.json", decision: "DEV-0005", contracts: 10},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actualPath := filepath.Join(t.TempDir(), test.name+"-actual.json")
+			arguments := []string{
+				"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
+				"-manifest", filepath.Join(root, "conformance", "contracts", test.manifest),
+				"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", test.oracle),
+				"-deviation-expected", filepath.Join(root, "conformance", "fixtures", test.fixture),
+				"-actual-output", actualPath,
+			}
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
+				t.Fatalf("run() code = %d; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+			}
+			want := fmt.Sprintf("match the reviewed product expectation for %d contracts under %s", test.contracts, test.decision)
+			if !strings.Contains(stdout.String(), want) {
+				t.Fatalf("stdout = %q, want %q", stdout.String(), want)
+			}
+			if _, err := protocol.LoadObservationSuite(actualPath); err != nil {
+				t.Fatalf("load actual output: %v", err)
+			}
+		})
 	}
 }
 

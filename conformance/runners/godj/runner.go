@@ -98,6 +98,15 @@ func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Obse
 }
 
 func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
+	if handler, ok := templateFormScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := authSessionScenarioHandler(scenario); ok {
+		return handler, true
+	}
+	if handler, ok := articleAdminScenarioHandler(scenario); ok {
+		return handler, true
+	}
 	if handler, ok := queryExpressionScenarioHandler(scenario); ok {
 		return handler, true
 	}
