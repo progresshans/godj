@@ -302,12 +302,16 @@ func prepareCopiedRunserverArticleProject(t *testing.T, repository string) strin
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "article-base")
 	copyRunserverTree(t, filepath.Join(repository, "examples", "article"), root)
-	document := fmt.Sprintf(`module example.com/godj-runserver-fixture
-
-go 1.26.0
-
-toolchain go1.26.5
-
+	rootModule, err := os.ReadFile(filepath.Join(repository, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const moduleDeclaration = "module github.com/progresshans/godj\n"
+	if !strings.HasPrefix(string(rootModule), moduleDeclaration) || strings.Count(string(rootModule), moduleDeclaration) != 1 {
+		t.Fatal("repository go.mod has an unexpected module declaration")
+	}
+	document := strings.Replace(string(rootModule), moduleDeclaration, "module example.com/godj-runserver-fixture\n", 1)
+	document += fmt.Sprintf(`
 require github.com/progresshans/godj v0.0.0
 
 replace github.com/progresshans/godj => %s
@@ -315,11 +319,12 @@ replace github.com/progresshans/godj => %s
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(document), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	command := exec.Command("go", "mod", "tidy")
-	command.Dir = root
-	command.Env = offlineRunserverEnvironment(os.Environ())
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("prepare copied Article module: %v\n%s", err, output)
+	sums, err := os.ReadFile(filepath.Join(repository, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.sum"), sums, 0o600); err != nil {
+		t.Fatal(err)
 	}
 	return root
 }
