@@ -88,7 +88,7 @@ func modeFromArguments(arguments []string) string {
 		return ""
 	}
 	switch arguments[0] {
-	case "prepare", "resume", "verify", "cleanup":
+	case "prepare", "probe", "resume", "verify", "cleanup":
 		return arguments[0]
 	default:
 		return ""

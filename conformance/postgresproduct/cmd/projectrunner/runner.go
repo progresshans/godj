@@ -39,6 +39,8 @@ func executeMode(ctx context.Context, config runnerConfig, mode string) (modeRes
 	switch mode {
 	case "prepare":
 		return prepareProduct(ctx, config)
+	case "probe":
+		return probePreparedProduct(ctx, config)
 	case "resume":
 		return resumeProduct(ctx, config)
 	case "verify":
@@ -95,16 +97,18 @@ func prepareProduct(ctx context.Context, config runnerConfig) (modeResult, error
 	return modeResult{Mode: "prepare", Status: "ok", History: 1, Rows: 1}, nil
 }
 
+func probePreparedProduct(ctx context.Context, config runnerConfig) (modeResult, error) {
+	if err := withProductBackend(ctx, config, func(backend *postgres.Backend) error {
+		return requirePreparedProduct(ctx, backend)
+	}); err != nil {
+		return modeResult{}, err
+	}
+	return modeResult{Mode: "probe", Status: "ok", History: 1, Rows: 1}, nil
+}
+
 func resumeProduct(ctx context.Context, config runnerConfig) (modeResult, error) {
 	err := withProductBackend(ctx, config, func(backend *postgres.Backend) error {
-		if err := requireHistory(ctx, backend, initialHistory()); err != nil {
-			return err
-		}
-		before, err := readProductRows(ctx, backend, false)
-		if err != nil {
-			return err
-		}
-		if err := requireProductRows(before, []productRow{{id: 1, title: "prepared"}}); err != nil {
+		if err := requirePreparedProduct(ctx, backend); err != nil {
 			return err
 		}
 		loaded, err := loadProductDefinitions()
@@ -152,6 +156,17 @@ func resumeProduct(ctx context.Context, config runnerConfig) (modeResult, error)
 		return modeResult{}, err
 	}
 	return modeResult{Mode: "resume", Status: "ok", History: 2, Rows: 2}, nil
+}
+
+func requirePreparedProduct(ctx context.Context, backend *postgres.Backend) error {
+	if err := requireHistory(ctx, backend, initialHistory()); err != nil {
+		return err
+	}
+	rows, err := readProductRows(ctx, backend, false)
+	if err != nil {
+		return err
+	}
+	return requireProductRows(rows, []productRow{{id: 1, title: "prepared"}})
 }
 
 func verifyProduct(ctx context.Context, config runnerConfig) (modeResult, error) {

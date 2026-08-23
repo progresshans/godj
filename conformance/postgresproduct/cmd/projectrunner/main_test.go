@@ -14,6 +14,18 @@ import (
 
 func TestValidateRunnerSchema(t *testing.T) {
 	t.Parallel()
+	t.Run("supported modes", func(t *testing.T) {
+		for _, mode := range []string{"prepare", "probe", "resume", "verify", "cleanup"} {
+			if got := modeFromArguments([]string{mode}); got != mode {
+				t.Fatalf("modeFromArguments(%q) = %q", mode, got)
+			}
+		}
+		for _, arguments := range [][]string{nil, {}, {"unknown"}, {"prepare", "resume"}} {
+			if got := modeFromArguments(arguments); got != "" {
+				t.Fatalf("modeFromArguments(%q) = %q, want empty", arguments, got)
+			}
+		}
+	})
 	tests := []struct {
 		name   string
 		schema string
@@ -82,6 +94,7 @@ func TestProjectRunnerSameServerLifecycle(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), runnerTimeout)
 	defer cancel()
 	requireModeResult(t, ctx, "prepare", modeResult{Mode: "prepare", Status: "ok", History: 1, Rows: 1})
+	requireModeResult(t, ctx, "probe", modeResult{Mode: "probe", Status: "ok", History: 1, Rows: 1})
 	requireModeResult(t, ctx, "resume", modeResult{Mode: "resume", Status: "ok", History: 2, Rows: 2})
 	requireModeResult(t, ctx, "verify", modeResult{Mode: "verify", Status: "ok", History: 2, Rows: 2})
 	requireModeResult(t, ctx, "cleanup", modeResult{Mode: "cleanup", Status: "ok"})

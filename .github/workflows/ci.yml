@@ -471,10 +471,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 864, sorted(runs)
-          assert len(payload) == 88789, len(payload)
+          assert len(runs) == 867, sorted(runs)
+          assert len(payload) == 89069, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "04eecd80595350ab0c990b6471f670d6c005e3b9362aeb115d567e3f18479a1f"
+          assert payload_sha256 == "777c8c4c6f8a2c82fc22a8b8657e09261973611795581e05381480fc2416d658"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -852,20 +852,22 @@ jobs:
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
-          go run ./conformance/postgresproduct/cmd/projectrunner prepare
+          project_runner="$RUNNER_TEMP/postgres-projectrunner"
+          go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner
+          "$project_runner" prepare
           docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
           ready=0
           for attempt in $(seq 1 30); do
-            if docker exec "$POSTGRES_CONTAINER_ID" pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+            if timeout 3s "$project_runner" probe >/dev/null 2>&1; then
               ready=1
               break
             fi
             sleep 1
           done
           test "$ready" -eq 1
-          go run ./conformance/postgresproduct/cmd/projectrunner resume
-          go run ./conformance/postgresproduct/cmd/projectrunner verify
-          go run ./conformance/postgresproduct/cmd/projectrunner cleanup
+          "$project_runner" resume
+          "$project_runner" verify
+          "$project_runner" cleanup
 
       - name: Vet PostgreSQL product packages
         run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/...
