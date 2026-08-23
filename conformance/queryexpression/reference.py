@@ -1,4 +1,4 @@
-"""Generate or verify the pinned QRY-034..043 Django SQLite oracle."""
+"""Generate or verify the pinned QRY-034..053 Django SQLite oracle."""
 
 from __future__ import annotations
 
@@ -50,9 +50,9 @@ def generate_suite(
         raise RuntimeError("query-expression manifest profile_id mismatch")
 
     contracts = manifest.get("contracts")
-    if not isinstance(contracts, list) or len(contracts) != 10:
-        raise RuntimeError("query-expression manifest must contain exactly 10 contracts")
-    expected_ids = [f"QRY-{number:03d}" for number in range(34, 44)]
+    if not isinstance(contracts, list) or len(contracts) != 20:
+        raise RuntimeError("query-expression manifest must contain exactly 20 contracts")
+    expected_ids = [f"QRY-{number:03d}" for number in range(34, 54)]
     if [contract.get("id") for contract in contracts] != expected_ids:
         raise RuntimeError("query-expression manifest contract order mismatch")
     if [contract.get("scenario") for contract in contracts] != list(

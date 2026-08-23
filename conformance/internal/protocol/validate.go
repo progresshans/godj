@@ -18,6 +18,33 @@ var (
 	deviationPathPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\[[0-9]+\])?(\.[a-z][a-z0-9_]*(\[[0-9]+\])?)*$`)
 )
 
+const queryExpressionScenarioPrefix = "django.query.expression."
+
+func extendedQueryExpressionScenarioRegistry() [20]string {
+	return [...]string{
+		queryExpressionScenarioPrefix + "scalar_exact_or",
+		queryExpressionScenarioPrefix + "escaped_ascii_icontains_or",
+		queryExpressionScenarioPrefix + "grouped_or_and_reuse",
+		queryExpressionScenarioPrefix + "nonnull_scalar_not",
+		queryExpressionScenarioPrefix + "nullable_negation_truth_table",
+		queryExpressionScenarioPrefix + "implicit_filter_and",
+		queryExpressionScenarioPrefix + "nested_connector_order_and_source_independence",
+		queryExpressionScenarioPrefix + "composite_distinct_stable_page",
+		queryExpressionScenarioPrefix + "projection_outside_predicate",
+		queryExpressionScenarioPrefix + "composite_count_max",
+		queryExpressionScenarioPrefix + "integer_gt_literal_boundary",
+		queryExpressionScenarioPrefix + "integer_gte_literal_boundary",
+		queryExpressionScenarioPrefix + "integer_lt_literal_boundary",
+		queryExpressionScenarioPrefix + "integer_lte_literal_boundary",
+		queryExpressionScenarioPrefix + "range_composition_negation_and_reuse",
+		queryExpressionScenarioPrefix + "same_field_reference_boundaries",
+		queryExpressionScenarioPrefix + "same_model_field_reference_and_nullable_negation",
+		queryExpressionScenarioPrefix + "nullable_ordering_negation_truth_table",
+		queryExpressionScenarioPrefix + "field_reference_stable_projection",
+		queryExpressionScenarioPrefix + "field_reference_count_max",
+	}
+}
+
 func (p Profile) Validate() error {
 	if p.FormatVersion != FormatVersion {
 		return fmt.Errorf("format_version must be %d", FormatVersion)
@@ -109,8 +136,9 @@ func (m Manifest) Validate() error {
 	if strings.TrimSpace(m.ProfileID) == "" {
 		return fmt.Errorf("profile_id is required")
 	}
-	if len(m.Contracts) < 8 || len(m.Contracts) > 12 {
-		return fmt.Errorf("contracts must contain 8 to 12 ordered entries, got %d", len(m.Contracts))
+	contractCount := len(m.Contracts)
+	if contractCount < 8 || (contractCount > 12 && !manifestHasExactExtendedQueryExpressionRegistry(m.Contracts)) {
+		return fmt.Errorf("contracts must contain 8 to 12 ordered entries or the exact 20-entry query-expression registry, got %d", contractCount)
 	}
 	seen := make(map[string]struct{}, len(m.Contracts))
 	for index := range m.Contracts {
@@ -124,6 +152,19 @@ func (m Manifest) Validate() error {
 		seen[contract.ID] = struct{}{}
 	}
 	return nil
+}
+
+func manifestHasExactExtendedQueryExpressionRegistry(contracts []Contract) bool {
+	scenarios := extendedQueryExpressionScenarioRegistry()
+	if len(contracts) != len(scenarios) {
+		return false
+	}
+	for index, scenario := range scenarios {
+		if contracts[index].ID != fmt.Sprintf("QRY-%03d", index+34) || contracts[index].Scenario != scenario {
+			return false
+		}
+	}
+	return true
 }
 
 func (c Contract) Validate() error {

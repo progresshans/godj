@@ -129,7 +129,7 @@ func TestQueryBreadthPassingManifestKeepsExplicitNotImplementedBaseline(t *testi
 	}
 }
 
-func TestCurrentFifteenReferenceSetsHave161UniqueContractsAndReject210OrderedCrossBindings(t *testing.T) {
+func TestCurrentFifteenReferenceSetsHave171UniqueContractsAndReject210OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -174,8 +174,8 @@ func TestCurrentFifteenReferenceSetsHave161UniqueContractsAndReject210OrderedCro
 			scenarios[contract.Scenario] = set.name
 		}
 	}
-	if totalContracts != 161 || len(contractIDs) != 161 || len(scenarios) != 161 {
-		t.Fatalf("current reference inventory = %d contracts/%d IDs/%d scenarios, want 161 each", totalContracts, len(contractIDs), len(scenarios))
+	if totalContracts != 171 || len(contractIDs) != 171 || len(scenarios) != 171 {
+		t.Fatalf("current reference inventory = %d contracts/%d IDs/%d scenarios, want 171 each", totalContracts, len(contractIDs), len(scenarios))
 	}
 
 	crossBindings := 0
@@ -195,7 +195,7 @@ func TestCurrentFifteenReferenceSetsHave161UniqueContractsAndReject210OrderedCro
 	}
 }
 
-func TestCurrentFourteenProductSetsHave144PassingFiveDeviationsAndNoOracleLocked(t *testing.T) {
+func TestCurrentFourteenProductSetsHave144PassingFiveDeviationsAndTenOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -234,8 +234,8 @@ func TestCurrentFourteenProductSetsHave144PassingFiveDeviationsAndNoOracleLocked
 			}
 		}
 	}
-	if passing != 144 || deviations != 5 || oracleLocked != 0 {
-		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 0", passing, deviations, oracleLocked)
+	if passing != 144 || deviations != 5 || oracleLocked != 10 {
+		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 10", passing, deviations, oracleLocked)
 	}
 }
 

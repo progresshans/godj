@@ -145,7 +145,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/save-lifecycle-manifest.json` | Save lifecycle reference contract 12개 |
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `contracts/query-breadth-manifest.json` | Typed projection/scalar aggregate/stable pagination reference contract QRY-022..033 |
-| `contracts/query-expression-manifest.json` | Composable scalar Boolean predicate contract QRY-034..043; current 10/10 `passing` |
+| `contracts/query-expression-manifest.json` | Boolean/range/field-reference query contract QRY-034..053; current 10 `passing` + 10 `oracle_locked` |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -635,6 +635,19 @@ correction `73b912d...`의 current 950/950/0 refreeze는
 기록합니다. Corrected submitted head `136e825...`의
 [EVID-115](../docs/status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
 run `32642341459`은 exact 27/27 jobs·341/341 steps와 네 플랫폼 950/950/0을 통과해 Phase D를 닫았습니다.
+
+GDJ-0041 Phase A는 같은 set에 QRY-044..053 typed range와 same-row field-reference observable을 추가했습니다.
+신규 10개는 reference-only `oracle_locked`이며 QRY-034..043의 기존 observation prefix는 canonical SHA-256
+`3eeadea95edffb87cac52dc9a7fca6b439bda31322fe797aa726a7909bd5483c`로 동일합니다. Current
+manifest/oracle/static fixture는 각각 16,652/87,852/2,465 bytes, SHA-256
+`90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`/
+`4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`/
+`7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`입니다. Exact Django 전체
+239/239, reference regeneration/check와 oracle/static `contractcheck`가 통과했습니다. Reference inventory는
+15 sets/171 unique contracts+scenarios/210 ordered cross-bindings의
+`144 passing + 5 deviation + 22 oracle_locked`이고, product inventory는 actual 등록 전
+14 sets/159 contracts의 `144 passing + 5 deviation + 10 oracle_locked`입니다. 이 Phase A는 QRY-044..053
+GoDj actual이나 backend 제품 검증 증거가 아닙니다.
 
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든

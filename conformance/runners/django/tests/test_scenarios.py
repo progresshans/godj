@@ -188,7 +188,10 @@ class ScenarioTests(unittest.TestCase):
         ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
-                self.assertLessEqual(len(scenarios), 12)
+                if scenarios is QUERY_EXPRESSION_SCENARIOS:
+                    self.assertEqual(len(scenarios), 20)
+                else:
+                    self.assertLessEqual(len(scenarios), 12)
 
     def test_each_manifest_matches_its_scenario_registry_exactly(self) -> None:
         contract_sets = (
@@ -248,10 +251,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 161)
+        self.assertEqual(len(selected_across_sets), 171)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 161)
+        self.assertEqual(len(contract_ids_across_sets), 171)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -292,6 +295,23 @@ class ScenarioTests(unittest.TestCase):
                 len(_validate_manifest_basics(manifest, profile)),
                 len(manifest["contracts"]),
             )
+
+    def test_extended_query_expression_manifest_requires_exact_registry(
+        self,
+    ) -> None:
+        profile = _load_json(DEFAULT_PROFILE)
+        manifest = _load_json(DEFAULT_QUERY_EXPRESSION_MANIFEST)
+        self.assertEqual(
+            len(_validate_manifest_basics(manifest, profile)),
+            20,
+        )
+
+        near_miss = deepcopy(manifest)
+        near_miss["contracts"][-1]["scenario"] = near_miss["contracts"][0][
+            "scenario"
+        ]
+        with self.assertRaisesRegex(RuntimeError, "exact query-expression registry"):
+            _validate_manifest_basics(near_miss, profile)
 
     def test_locked_or_later_manifest_statuses_can_generate_oracle(self) -> None:
         profile = _load_json(DEFAULT_PROFILE)

@@ -12,7 +12,7 @@ from collections.abc import Callable
 from typing import Any
 
 from django.db import connection
-from django.db.models import Count, Max, Q
+from django.db.models import Count, F, Max, Q
 
 from .normalizer import PrimaryKey
 from .query_breadth_scenarios import (
@@ -345,6 +345,194 @@ def composite_count_max(contract_id: str) -> dict[str, Any]:
         )
 
 
+def _integer_literal_boundary(
+    contract_id: str,
+    lookup: str,
+    rhs: int,
+) -> dict[str, Any]:
+    with article_database():
+        rows, metrics = _capture(
+            lambda: _primary_keys(
+                Article.objects.filter(**{f"id__{lookup}": rhs}).order_by(
+                    "id"
+                )
+            )
+        )
+        return _observed(
+            contract_id,
+            {"lookup": lookup, "rhs": rhs, "rows": rows},
+            metrics,
+        )
+
+
+def integer_gt_literal_boundary(contract_id: str) -> dict[str, Any]:
+    return _integer_literal_boundary(contract_id, "gt", 2)
+
+
+def integer_gte_literal_boundary(contract_id: str) -> dict[str, Any]:
+    return _integer_literal_boundary(contract_id, "gte", 2)
+
+
+def integer_lt_literal_boundary(contract_id: str) -> dict[str, Any]:
+    return _integer_literal_boundary(contract_id, "lt", 3)
+
+
+def integer_lte_literal_boundary(contract_id: str) -> dict[str, Any]:
+    return _integer_literal_boundary(contract_id, "lte", 3)
+
+
+def range_composition_negation_and_reuse(
+    contract_id: str,
+) -> dict[str, Any]:
+    with article_database():
+        predicate = Q(id__gt=1) & Q(id__lte=3)
+        cases = [
+            (
+                "explicit_q_range",
+                Article.objects.filter(predicate),
+            ),
+            (
+                "keyword_range",
+                Article.objects.filter(id__gt=1, id__lte=3),
+            ),
+            (
+                "negated_range",
+                Article.objects.filter(~predicate),
+            ),
+            (
+                "reused_published",
+                Article.objects.filter(predicate, published=True),
+            ),
+        ]
+        result_steps = []
+        metric_steps = []
+        for name, source in cases:
+            rows, metrics = _capture(
+                lambda source=source: _primary_keys(source.order_by("id"))
+            )
+            result_steps.append(_step(name, rows))
+            metric_steps.append(_metric_step(name, metrics))
+        return _observed_steps(contract_id, result_steps, metric_steps)
+
+
+def same_field_reference_boundaries(contract_id: str) -> dict[str, Any]:
+    with article_database():
+        cases = [
+            ("id_exact_id", Q(id=F("id"))),
+            ("id_gt_id", Q(id__gt=F("id"))),
+            ("id_gte_id", Q(id__gte=F("id"))),
+            ("id_lt_id", Q(id__lt=F("id"))),
+            ("id_lte_id", Q(id__lte=F("id"))),
+        ]
+        result_steps = []
+        metric_steps = []
+        for name, predicate in cases:
+            rows, metrics = _capture(
+                lambda predicate=predicate: _primary_keys(
+                    Article.objects.filter(predicate).order_by("id")
+                )
+            )
+            result_steps.append(_step(name, rows))
+            metric_steps.append(_metric_step(name, metrics))
+        return _observed_steps(contract_id, result_steps, metric_steps)
+
+
+def same_model_field_reference_and_nullable_negation(
+    contract_id: str,
+) -> dict[str, Any]:
+    with article_database():
+        Article.objects.create(
+            id=5,
+            title="same",
+            published=False,
+            summary="same",
+        )
+        cases = [
+            ("cross_field_exact", Q(title=F("summary"))),
+            ("cross_field_not_exact", ~Q(title=F("summary"))),
+            ("equal_row_gt", Q(id=5, title__gt=F("summary"))),
+            ("nullable_rhs_direct", Q(id=1, title=F("summary"))),
+        ]
+        result_steps = []
+        metric_steps = []
+        for name, predicate in cases:
+            rows, metrics = _capture(
+                lambda predicate=predicate: _primary_keys(
+                    Article.objects.filter(predicate).order_by("id")
+                )
+            )
+            result_steps.append(_step(name, rows))
+            metric_steps.append(_metric_step(name, metrics))
+        return _observed_steps(contract_id, result_steps, metric_steps)
+
+
+def nullable_ordering_negation_truth_table(
+    contract_id: str,
+) -> dict[str, Any]:
+    with article_database():
+        cases = [
+            ("not_gt_empty", ~Q(summary__gt="")),
+            ("not_gte_empty", ~Q(summary__gte="")),
+            ("not_lt_orm", ~Q(summary__lt="ORM")),
+            ("not_lte_orm", ~Q(summary__lte="ORM")),
+        ]
+        result_steps = []
+        metric_steps = []
+        for name, predicate in cases:
+            rows, metrics = _capture(
+                lambda predicate=predicate: _primary_keys(
+                    Article.objects.filter(predicate).order_by("id")
+                )
+            )
+            result_steps.append(_step(name, rows))
+            metric_steps.append(_metric_step(name, metrics))
+        return _observed_steps(contract_id, result_steps, metric_steps)
+
+
+def _field_reference_source() -> Any:
+    return Article.objects.filter(
+        Q(id__gte=2)
+        & (Q(summary__gte=F("summary")) | Q(summary__isnull=True))
+    )
+
+
+def field_reference_stable_projection(contract_id: str) -> dict[str, Any]:
+    with article_database():
+        source = _field_reference_source().order_by("-id")
+        rows, metrics = _capture(lambda: _projected_rows(source))
+        return _observed(
+            contract_id,
+            {
+                "filter_fields": ["id", "summary"],
+                "order_fields": ["-id"],
+                "projection_fields": ["id", "title"],
+                "rows": rows,
+            },
+            metrics,
+        )
+
+
+def field_reference_count_max(contract_id: str) -> dict[str, Any]:
+    with article_database():
+        nonempty = _field_reference_source()
+        empty = Article.objects.filter(id__gt=F("id"))
+        nonempty_result, nonempty_metrics = _capture(
+            lambda: _aggregate_values(nonempty)
+        )
+        empty_result, empty_metrics = _capture(lambda: _aggregate_values(empty))
+        return _observed_steps(
+            contract_id,
+            [
+                _step("nonempty", nonempty_result),
+                _step("empty", empty_result),
+            ],
+            [
+                _metric_step("nonempty", nonempty_metrics),
+                _metric_step("empty", empty_metrics),
+            ],
+        )
+
+
 SCENARIOS: dict[str, Callable[[str], dict[str, Any]]] = {
     "django.query.expression.scalar_exact_or": scalar_exact_or,
     "django.query.expression.escaped_ascii_icontains_or": (
@@ -366,4 +554,34 @@ SCENARIOS: dict[str, Callable[[str], dict[str, Any]]] = {
         projection_outside_predicate
     ),
     "django.query.expression.composite_count_max": composite_count_max,
+    "django.query.expression.integer_gt_literal_boundary": (
+        integer_gt_literal_boundary
+    ),
+    "django.query.expression.integer_gte_literal_boundary": (
+        integer_gte_literal_boundary
+    ),
+    "django.query.expression.integer_lt_literal_boundary": (
+        integer_lt_literal_boundary
+    ),
+    "django.query.expression.integer_lte_literal_boundary": (
+        integer_lte_literal_boundary
+    ),
+    "django.query.expression.range_composition_negation_and_reuse": (
+        range_composition_negation_and_reuse
+    ),
+    "django.query.expression.same_field_reference_boundaries": (
+        same_field_reference_boundaries
+    ),
+    "django.query.expression.same_model_field_reference_and_nullable_negation": (
+        same_model_field_reference_and_nullable_negation
+    ),
+    "django.query.expression.nullable_ordering_negation_truth_table": (
+        nullable_ordering_negation_truth_table
+    ),
+    "django.query.expression.field_reference_stable_projection": (
+        field_reference_stable_projection
+    ),
+    "django.query.expression.field_reference_count_max": (
+        field_reference_count_max
+    ),
 }

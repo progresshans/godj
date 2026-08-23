@@ -353,8 +353,20 @@ def _validate_manifest_basics(
     if manifest.get("profile_id") != profile.get("id"):
         raise RuntimeError("manifest profile_id does not match the selected profile")
     contracts = manifest.get("contracts")
-    if not isinstance(contracts, list) or not 8 <= len(contracts) <= 12:
-        raise RuntimeError("manifest must contain between 8 and 12 contracts")
+    if not isinstance(contracts, list):
+        raise RuntimeError("manifest contracts must be a list")
+    scenario_order = [
+        contract.get("scenario") if isinstance(contract, dict) else None
+        for contract in contracts
+    ]
+    extended_query_expression_set = scenario_order == list(
+        QUERY_EXPRESSION_SCENARIOS
+    )
+    if not 8 <= len(contracts) <= 12 and not extended_query_expression_set:
+        raise RuntimeError(
+            "manifest must contain between 8 and 12 contracts or the exact "
+            "query-expression registry"
+        )
 
     seen: set[str] = set()
     for contract in contracts:

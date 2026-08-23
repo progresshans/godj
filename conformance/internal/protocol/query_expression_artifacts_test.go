@@ -20,16 +20,16 @@ func TestQueryExpressionArtifactBytesAreLocked(t *testing.T) {
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
 		"conformance/contracts/query-expression-manifest.json": {
-			size:   8075,
-			sha256: "e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69",
+			size:   16652,
+			sha256: "90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3",
 		},
 		"conformance/fixtures/godj-query-expression-not-implemented.json": {
-			size:   1715,
-			sha256: "0df907357fcab944272eb45158189e68520e3567678c57995e05c5a0feccbffb",
+			size:   2465,
+			sha256: "7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2",
 		},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-expression-oracle.json": {
-			size:   41264,
-			sha256: "8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e",
+			size:   87852,
+			sha256: "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f",
 		},
 	}
 	for name, want := range wanted {
@@ -62,6 +62,16 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 		"django.query.expression.composite_distinct_stable_page",
 		"django.query.expression.projection_outside_predicate",
 		"django.query.expression.composite_count_max",
+		"django.query.expression.integer_gt_literal_boundary",
+		"django.query.expression.integer_gte_literal_boundary",
+		"django.query.expression.integer_lt_literal_boundary",
+		"django.query.expression.integer_lte_literal_boundary",
+		"django.query.expression.range_composition_negation_and_reuse",
+		"django.query.expression.same_field_reference_boundaries",
+		"django.query.expression.same_model_field_reference_and_nullable_negation",
+		"django.query.expression.nullable_ordering_negation_truth_table",
+		"django.query.expression.field_reference_stable_projection",
+		"django.query.expression.field_reference_count_max",
 	}
 	wantComparison := []ComparisonDimension{CompareResult, CompareDBState, CompareMetrics}
 	if len(manifest.Contracts) != len(wantScenarios) || len(oracle.Contracts) != len(wantScenarios) || len(baseline.Contracts) != len(wantScenarios) {
@@ -72,8 +82,12 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 		if contract.ID != wantID || contract.Scenario != wantScenarios[index] {
 			t.Fatalf("contract %d = %s/%s, want %s/%s", index, contract.ID, contract.Scenario, wantID, wantScenarios[index])
 		}
-		if contract.Status != ContractPassing {
-			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, ContractPassing)
+		wantStatus := ContractPassing
+		if index >= 10 {
+			wantStatus = ContractOracleLocked
+		}
+		if contract.Status != wantStatus {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
 		}
 		if contract.Phase != PhaseEvaluation {
 			t.Fatalf("contract %s phase = %q, want %q", contract.ID, contract.Phase, PhaseEvaluation)
@@ -159,8 +173,8 @@ func TestQueryExpressionTransitionYieldsCurrentReferenceStatusAggregate(t *testi
 			}
 		}
 	}
-	if passing != 144 || deviations != 5 || oracleLocked != 12 {
-		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 12", passing, deviations, oracleLocked)
+	if passing != 144 || deviations != 5 || oracleLocked != 22 {
+		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 144 + 5 + 22", passing, deviations, oracleLocked)
 	}
 }
 
@@ -350,6 +364,58 @@ func assertQueryExpressionProvenance(t *testing.T, index int, contract Contract)
 			{kind: "decision", reference: "ADR-0040"},
 			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset", license: "BSD-3-Clause"},
 			{kind: "test", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:tests/aggregation/tests.py::AggregateTestCase.test_multiple_aggregates", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#gt", license: "BSD-3-Clause"},
+			{kind: "source", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/lookups.py::GreaterThan", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#gte", license: "BSD-3-Clause"},
+			{kind: "source", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/lookups.py::GreaterThanOrEqual", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#lt", license: "BSD-3-Clause"},
+			{kind: "source", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/lookups.py::LessThan", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#lte", license: "BSD-3-Clause"},
+			{kind: "source", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/lookups.py::LessThanOrEqual", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#complex-lookups-with-q", license: "BSD-3-Clause"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filtered-querysets-are-unique", license: "BSD-3-Clause"},
+			{kind: "test", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:tests/or_lookups/tests.py::OrLookupsTests.test_q_and", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filters-can-reference-fields-on-the-model", license: "BSD-3-Clause"},
+			{kind: "test", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:tests/expressions/tests.py::BasicExpressionsTests.test_filter_inter_attribute", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filters-can-reference-fields-on-the-model", license: "BSD-3-Clause"},
+			{kind: "source", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/sql/query.py::Query.build_filter", license: "BSD-3-Clause"},
+			{kind: "test", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:tests/queries/tests.py::ExcludeTests.test_exclude_nullable_fields", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#gt", license: "BSD-3-Clause"},
+			{kind: "source", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/models/sql/query.py::Query.build_filter", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filters-can-reference-fields-on-the-model", license: "BSD-3-Clause"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/models/querysets.txt#values", license: "BSD-3-Clause"},
+		},
+		{
+			{kind: "decision", reference: "ADR-0041"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/aggregation.txt#generating-aggregates-over-a-queryset", license: "BSD-3-Clause"},
+			{kind: "documentation", reference: "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/db/queries.txt#filters-can-reference-fields-on-the-model", license: "BSD-3-Clause"},
 		},
 	}
 	want := wanted[index]

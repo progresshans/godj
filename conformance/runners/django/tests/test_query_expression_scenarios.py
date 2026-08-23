@@ -52,6 +52,16 @@ class QueryExpressionScenarioTests(unittest.TestCase):
         "django.query.expression.composite_distinct_stable_page",
         "django.query.expression.projection_outside_predicate",
         "django.query.expression.composite_count_max",
+        "django.query.expression.integer_gt_literal_boundary",
+        "django.query.expression.integer_gte_literal_boundary",
+        "django.query.expression.integer_lt_literal_boundary",
+        "django.query.expression.integer_lte_literal_boundary",
+        "django.query.expression.range_composition_negation_and_reuse",
+        "django.query.expression.same_field_reference_boundaries",
+        "django.query.expression.same_model_field_reference_and_nullable_negation",
+        "django.query.expression.nullable_ordering_negation_truth_table",
+        "django.query.expression.field_reference_stable_projection",
+        "django.query.expression.field_reference_count_max",
     ]
 
     def run_scenarios(self) -> dict[str, dict[str, Any]]:
@@ -159,6 +169,112 @@ class QueryExpressionScenarioTests(unittest.TestCase):
             ],
         )
 
+    def test_literal_comparison_and_range_composition_results(self) -> None:
+        observations = self.run_scenarios()
+
+        self.assertEqual(
+            observations["QRY-044"]["result"],
+            {"lookup": "gt", "rhs": 2, "rows": [3, 4]},
+        )
+        self.assertEqual(
+            observations["QRY-045"]["result"],
+            {"lookup": "gte", "rhs": 2, "rows": [2, 3, 4]},
+        )
+        self.assertEqual(
+            observations["QRY-046"]["result"],
+            {"lookup": "lt", "rhs": 3, "rows": [1, 2]},
+        )
+        self.assertEqual(
+            observations["QRY-047"]["result"],
+            {"lookup": "lte", "rhs": 3, "rows": [1, 2, 3]},
+        )
+        self.assertEqual(
+            observations["QRY-048"]["result"]["steps"],
+            [
+                {"name": "explicit_q_range", "value": [2, 3]},
+                {"name": "keyword_range", "value": [2, 3]},
+                {"name": "negated_range", "value": [1, 4]},
+                {"name": "reused_published", "value": [3]},
+            ],
+        )
+
+    def test_field_reference_nullable_projection_and_aggregate_results(
+        self,
+    ) -> None:
+        observations = self.run_scenarios()
+
+        self.assertEqual(
+            observations["QRY-049"]["result"]["steps"],
+            [
+                {"name": "id_exact_id", "value": [1, 2, 3, 4]},
+                {"name": "id_gt_id", "value": []},
+                {"name": "id_gte_id", "value": [1, 2, 3, 4]},
+                {"name": "id_lt_id", "value": []},
+                {"name": "id_lte_id", "value": [1, 2, 3, 4]},
+            ],
+        )
+        self.assertEqual(
+            observations["QRY-050"]["result"]["steps"],
+            [
+                {"name": "cross_field_exact", "value": [5]},
+                {"name": "cross_field_not_exact", "value": [1, 2, 3, 4]},
+                {"name": "equal_row_gt", "value": []},
+                {"name": "nullable_rhs_direct", "value": []},
+            ],
+        )
+        self.assertEqual(
+            observations["QRY-051"]["result"]["steps"],
+            [
+                {"name": "not_gt_empty", "value": [1, 3, 4]},
+                {"name": "not_gte_empty", "value": [1, 4]},
+                {"name": "not_lt_orm", "value": [1, 2, 4]},
+                {"name": "not_lte_orm", "value": [1, 4]},
+            ],
+        )
+        self.assertEqual(
+            observations["QRY-052"]["result"],
+            {
+                "filter_fields": ["id", "summary"],
+                "order_fields": ["-id"],
+                "projection_fields": ["id", "title"],
+                "rows": [
+                    [4, "Other"],
+                    [3, "Django Deep Dive"],
+                    [2, "django Tips"],
+                ],
+            },
+        )
+        self.assertEqual(
+            observations["QRY-053"]["result"]["steps"],
+            [
+                {
+                    "name": "nonempty",
+                    "value": {
+                        "fields": ["row_count", "latest_id"],
+                        "values": [3, 4],
+                    },
+                },
+                {
+                    "name": "empty",
+                    "value": {
+                        "fields": ["row_count", "latest_id"],
+                        "values": [0, None],
+                    },
+                },
+            ],
+        )
+
+        articles = observations["QRY-050"]["db_state"]["articles"]
+        self.assertEqual(
+            articles[-1],
+            {
+                "id": 5,
+                "published": False,
+                "summary": "same",
+                "title": "same",
+            },
+        )
+
     def test_real_query_shapes_and_counts_are_bounded(self) -> None:
         observations = self.run_scenarios()
         expected_counts = {
@@ -172,6 +288,16 @@ class QueryExpressionScenarioTests(unittest.TestCase):
             "QRY-041": [1],
             "QRY-042": [1],
             "QRY-043": [1, 1],
+            "QRY-044": [1],
+            "QRY-045": [1],
+            "QRY-046": [1],
+            "QRY-047": [1],
+            "QRY-048": [1, 1, 1, 1],
+            "QRY-049": [1, 1, 1, 1, 1],
+            "QRY-050": [1, 1, 1, 1],
+            "QRY-051": [1, 1, 1, 1],
+            "QRY-052": [1],
+            "QRY-053": [1, 1],
         }
         for contract_id, counts in expected_counts.items():
             metrics = observations[contract_id]["metrics"]
@@ -196,6 +322,11 @@ class QueryExpressionScenarioTests(unittest.TestCase):
         self.assertTrue(pagination["has_offset"])
 
         for step in observations["QRY-043"]["metrics"]["steps"]:
+            self.assertEqual(
+                step["statements"][0]["aggregate_functions"],
+                ["COUNT", "MAX"],
+            )
+        for step in observations["QRY-053"]["metrics"]["steps"]:
             self.assertEqual(
                 step["statements"][0]["aggregate_functions"],
                 ["COUNT", "MAX"],
@@ -251,6 +382,89 @@ class QueryExpressionScenarioTests(unittest.TestCase):
                 [True],
                 ["%django%", "Other", False],
             ],
+        )
+
+        literal_parameters = [
+            observations[contract_id]["metrics"]["statements"][0][
+                "parameters"
+            ]
+            for contract_id in ("QRY-044", "QRY-045", "QRY-046", "QRY-047")
+        ]
+        self.assertEqual(literal_parameters, [[2], [2], [3], [3]])
+
+        range_steps = observations["QRY-048"]["metrics"]["steps"]
+        self.assertEqual(
+            [step["statements"][0]["parameters"] for step in range_steps],
+            [[1, 3], [1, 3], [1, 3], [1, 3, True]],
+        )
+        self.assertEqual(
+            [
+                step["statements"][0]["logical_operators"]
+                for step in range_steps
+            ],
+            [
+                {"and": 1, "not": 0, "or": 0},
+                {"and": 1, "not": 0, "or": 0},
+                {"and": 1, "not": 1, "or": 0},
+                {"and": 2, "not": 0, "or": 0},
+            ],
+        )
+
+        same_field = observations["QRY-049"]["metrics"]["steps"]
+        self.assertEqual(
+            [step["statements"][0]["parameters"] for step in same_field],
+            [[], [], [], [], []],
+        )
+
+        cross_field = observations["QRY-050"]["metrics"]["steps"]
+        self.assertEqual(
+            [step["statements"][0]["parameters"] for step in cross_field],
+            [[], [], [5], [1]],
+        )
+        self.assertEqual(
+            cross_field[1]["statements"][0]["logical_operators"],
+            {"and": 1, "not": 1, "or": 0},
+        )
+        self.assertEqual(
+            cross_field[1]["statements"][0]["null_predicates"],
+            {"is_not_null": 1, "is_null": 0},
+        )
+
+        nullable_ordering = observations["QRY-051"]["metrics"]["steps"]
+        self.assertEqual(
+            [
+                step["statements"][0]["logical_operators"]
+                for step in nullable_ordering
+            ],
+            [{"and": 1, "not": 1, "or": 0}] * 4,
+        )
+        self.assertEqual(
+            [
+                step["statements"][0]["null_predicates"]
+                for step in nullable_ordering
+            ],
+            [{"is_not_null": 1, "is_null": 0}] * 4,
+        )
+        self.assertEqual(
+            [step["statements"][0]["parameters"] for step in nullable_ordering],
+            [[""], [""], ["ORM"], ["ORM"]],
+        )
+
+        projection = observations["QRY-052"]["metrics"]["statements"][0]
+        self.assertEqual(
+            projection["logical_operators"],
+            {"and": 1, "not": 0, "or": 1},
+        )
+        self.assertEqual(
+            projection["null_predicates"],
+            {"is_not_null": 0, "is_null": 1},
+        )
+        self.assertEqual(projection["parameters"], [2])
+
+        aggregate_steps = observations["QRY-053"]["metrics"]["steps"]
+        self.assertEqual(
+            [step["statements"][0]["parameters"] for step in aggregate_steps],
+            [[2], []],
         )
 
     def test_live_fixture_changes_propagate_to_every_scenario(self) -> None:

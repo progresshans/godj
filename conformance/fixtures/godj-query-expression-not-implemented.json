@@ -35,6 +35,16 @@
     {"id": "QRY-040", "status": "not_implemented", "phase": "evaluation"},
     {"id": "QRY-041", "status": "not_implemented", "phase": "evaluation"},
     {"id": "QRY-042", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "QRY-043", "status": "not_implemented", "phase": "evaluation"}
+    {"id": "QRY-043", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-044", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-045", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-046", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-047", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-048", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-049", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-050", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-051", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-052", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-053", "status": "not_implemented", "phase": "evaluation"}
   ]
 }

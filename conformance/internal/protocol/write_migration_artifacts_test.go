@@ -217,7 +217,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		"oracle.json":                    "e26450788453d2ec294249fa512df5c518f1e03ca338aaf77d5398ea9668e869",
 		"query-cache-oracle.json":        "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682",
 		"query-breadth-oracle.json":      "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94",
-		"query-expression-oracle.json":   "8b087a394b52620b84d510d6981e77171179ac3690fda738261bf64bea00583e",
+		"query-expression-oracle.json":   "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f",
 		"save-lifecycle-oracle.json":     "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
 		"write-migration-oracle.json":    "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
 	} {
