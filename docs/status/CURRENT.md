@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-21
+- 마지막 갱신: 2026-08-23
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
 - 현재 hosted-verified product head: `d46430681d27ed1b658fb4853eee1cbd991107a4`
@@ -9,8 +9,9 @@
   CI #103/run `32443119987`
 - GDJ-0037 implementation commit: `9258a08402ebd7bd0077d17910a5e1f0621d6e78`
   (`feat: add recoverable project bundle publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`
-- 현재 EVID-105/completion mirror는 product exact head 뒤의 docs-only descendant이며 recursive hosted proof 대상이
-  아닙니다.
+- GDJ-0038 activation baseline: `681b07132be5772286b0c960756719aed59a2079`
+  (`docs: record GDJ-0037 hosted completion`), tree `f1a2fcc501c0e3b30d2df5facb76b36e53c2c05f`,
+  CI #104/run `32444841140` exact 26/26 jobs·326/326 steps
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -324,8 +325,16 @@
   [EVID-105](TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
   26/26 jobs·326/326 steps success로 completed/hosted-verified됐습니다. 하나의 ProjectSpec/GeneratedBundle,
   whole-candidate compile, read-only check와 recoverable coordinated publication으로 Q-017의 project-wide
-  publication 하위 경계는 닫혔습니다. 현재 active/ready packet은 각각 0입니다. Raw-model UX,
-  capability/namespace와 reverse/general upgrade를 포함한 Q-017 전체는 계속 P1/open이고 Q-010은 `Partial`입니다.
+  publication 하위 경계는 닫혔습니다. 현재 유일한 active packet은
+  [GDJ-0038](../../work/0038-postgresql-and-minimal-web-vertical-slices.md), ready는 0입니다. Accepted
+  [ADR-0037](../adr/0037-postgresql-current-contract-backend.md)과
+  [ADR-0038](../adr/0038-minimal-web-core-request-lifetime-and-representation.md)에 따라 PostgreSQL current backend와
+  SQLite 기반 최소 Web Core를 exclusive path lane으로 병렬 구현합니다. Phase A/B/C는 returned-key와 semantic
+  migration capability, PostgreSQL query/write/Atomic, Web Core와 Article HTTP까지 `Implemented candidate`이고
+  [Local EVID-106](TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의 affected gate와
+  PostgreSQL 17.5 actual normal/race smoke를 통과했습니다. Schema/migration/recorder/revision/restart와 exact-head
+  hosted 검증은 아직 남아 있습니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general upgrade를 포함한
+  Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
   [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)가 이전 dual-format/additive
@@ -1365,9 +1374,14 @@ compile, sealed-root check/publish와 journaled recovery는
 [EVID-104](TEST_EVIDENCE.md#evid-20260821-104--gdj-0037-project-bundle-and-recoverable-publication-affected-local-verification)의
 local final gates와 exact correction head `d4643068...`의
 [EVID-105](TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
-26/26 jobs·326/326 steps를 통과해 completed/hosted-verified됐습니다. 현재 active/ready packet은 각각 0입니다.
-MIG-075..086은 계속 `oracle_locked`/unregistered이고 PostgreSQL, Web Core, 새 Field/Relation 종류와 general
-migration writer도 아직 구현하지 않았습니다.
+26/26 jobs·326/326 steps를 통과해 completed/hosted-verified됐습니다. Baseline docs head `681b0713...`도 CI #104
+exact 26/26 jobs·326/326 steps를 통과했습니다. 현재 active는 GDJ-0038, ready는 0이고 외부 blocker는 없습니다.
+PostgreSQL Phase-1 query/write/Atomic과 SQLite 기반 Web Core/Article HTTP는 `Implemented candidate`이며
+[Local EVID-106](TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의 affected local gate를
+통과했습니다. PostgreSQL schema/migration/recorder/revision/restart, Article PostgreSQL smoke, final reference 17.10과
+exact-head hosted gate가 남아 있어 PostgreSQL/Web support 또는 `Verified` 상태는 아닙니다.
+MIG-075..086은 계속 `oracle_locked`/unregistered이고 새 Field/Relation 종류와 general migration writer도 아직
+구현하지 않았습니다.
 
 다음의 긴 단락은 reset 이전 bounded product의 역사적 제한과 CI 계보를 보존한 기록입니다. 현재 public format,
 loaded lifecycle 또는 generated ABI의 설명으로 읽지 않습니다.
@@ -1431,19 +1445,19 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0037은 exact product head `d46430681d27ed1b658fb4853eee1cbd991107a4`의
-[EVID-105](TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103에서
-completed/hosted-verified됐습니다. 현재 active와 ready work는 각각 0이고 이 completion packet은 새 work item을
-만들거나 활성화하지 않습니다.
+GDJ-0038 Phase A/B/C local checkpoint를 exact scope로 commit하고, remote push 없이 그 local descendant에서 Phase D를
+시작합니다. Full `make ci`, 386, clean-copy와 hosted matrix는 active work의 final frozen milestone에서 한 번만
+실행합니다.
 
-후속 범위는 별도 결정에서 raw-model UX 단기 gate, PostgreSQL 수직 단면 또는 최소 Web Core 중 하나 이상을 선택해
-새 work/ADR로 활성화해야 합니다. 현재 정본은 어느 후보도 선택하지 않았으며 PostgreSQL과 Web Core는 모두
-`Not started`입니다. Q-010은 `Partial`, Q-017은 raw-model UX, capability/namespace, reverse/general upgrade와
-generator/library semver 때문에 P1/open입니다. Draft PR #1은 OPEN/DRAFT/MERGEABLE/CLEAN이고 merge/release는
-수행하거나 주장하지 않습니다.
+1. PostgreSQL schema editor/type/FK/catalog mapping을 current state와 explicit schema 아래에 구현합니다.
+2. recorder/revision control bootstrap과 하나의 revision-fenced transaction을 연결합니다.
+3. apply/unapply/reapply, two-connection/process contention, close/reopen와 actual server restart resume를 검증합니다.
+4. 같은 Article application을 PostgreSQL backend에 주입하는 smoke 뒤 final full/race/386/clean-copy gate를 실행하고,
+   그 exact committed head만 Draft PR에 non-force push해 hosted matrix를 한 번 확인합니다.
 
-이 EVID-105 append와 completion mirror는 hosted product exact head 뒤의 docs-only descendant입니다. 지정된 문서의
-link/frontmatter/status/diff 정적 검사만 적용하며 product/full/hosted matrix를 재귀적으로 반복하지 않습니다.
+각 lane은 affected gate만 실행하고 final frozen milestone에서 full/386/hosted matrix를 한 번 수행합니다. PostgreSQL/Web
+source가 존재한다는 이유만으로 support/Verified를 주장하지 않습니다. Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은
+P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)
 

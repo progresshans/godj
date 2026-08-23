@@ -14,7 +14,7 @@ func TestMigrationCapabilitiesAndIntentCurrentShape(t *testing.T) {
 		"CreateModelForeignKeys",
 		"AddNullableForeignKey",
 		"AddRequiredForeignKeyToEmptyTable",
-		"RemoveForeignKeyByTableRemake",
+		"RemoveForeignKey",
 	}
 	if capabilities.NumField() != len(wantCapabilities) {
 		t.Fatalf("MigrationCapabilities fields = %d, want %d", capabilities.NumField(), len(wantCapabilities))

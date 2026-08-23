@@ -106,3 +106,17 @@ These notices cover the two selected packages, not a completed audit of every
 transitive dependency in a future distributed binary. GoDj has not selected
 its own distribution license yet, and no release artifact should be published
 until the full dependency notice set and root project license are approved.
+
+## pgx
+
+GoDj's GDJ-0038 PostgreSQL backend directly uses
+`github.com/jackc/pgx/v5 v5.10.0` through its `database/sql` bridge. pgx is
+licensed under the MIT License; its upstream license text is preserved as
+[`LICENSE.pgx`](LICENSE.pgx).
+
+The selected module graph also includes `pgpassfile`, `pgservicefile`, and
+`puddle` under MIT terms and `golang.org/x/sync` and `golang.org/x/text` under
+BSD 3-Clause terms. This notice records the implementation dependency; it is
+not the complete binary-distribution audit required before a release. GoDj's
+own distribution license and the full transitive notice set remain release
+gates.

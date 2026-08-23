@@ -13,7 +13,7 @@ import (
 // call. Required/default/null decisions therefore fail without database I/O.
 func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input CreateInput[M]) (M, error) {
 	var zero M
-	descriptor, metadata, _, err := m.writeConfiguration(ctx, backend)
+	descriptor, metadata, primaryKey, err := m.writeConfiguration(ctx, backend)
 	if err != nil {
 		return zero, err
 	}
@@ -24,7 +24,11 @@ func (m Manager[M]) Create(ctx context.Context, backend db.Mutator, input Create
 	if err := validateMutation(mutation, MutationCreate, metadata, descriptor, nil); err != nil {
 		return zero, err
 	}
-	lastInsertID, err := backend.Insert(ctx, query.NewInsertPlan(metadata.DBTable, mutation.assignments))
+	lastInsertID, err := backend.Insert(ctx, query.NewInsertPlanReturningKey(
+		metadata.DBTable,
+		mutation.assignments,
+		fieldReference(primaryKey),
+	))
 	if err != nil {
 		return zero, err
 	}

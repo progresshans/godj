@@ -3,13 +3,16 @@
 - 상태: Accepted direction
 - 현재 단계: [GDJ-0037](../work/0037-project-schema-generated-bundle-and-recoverable-publication.md)은 exact correction
   head `d4643068...`의
-  [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
-  26/26 jobs·326/326 steps success로 completed/hosted-verified됐습니다. ProjectSpec, immutable bundle/manifest,
-  whole-candidate compile, read-only `generate --check`와 recoverable coordinated publication으로 Q-017의
-  project-wide publication 하위 경계는 닫혔습니다. 현재 active work와 ready work는 각각 0입니다. Q-017 전체는
-  raw-model UX, capability/namespace와 reverse/general upgrade 때문에 P1/open이고 Q-010도 `Partial`입니다.
-  PostgreSQL backend와 최소 Web Core는 모두 `Not started`이며, 어느 후속 범위를 활성화할지는 별도 work/ADR
-  결정으로 handoff합니다. 이 completion 문서 변경은 새 packet을 만들거나 활성화하지 않습니다.
+  [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103에서
+  completed/hosted-verified됐고 docs descendant `681b0713...`도 CI #104 exact 26/26 jobs·326/326 steps를
+  통과했습니다. 현재 유일한 active work는
+  [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md), ready는 0입니다. Accepted
+  [ADR-0037](adr/0037-postgresql-current-contract-backend.md)과
+  [ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)에 따라 PostgreSQL current backend와
+  SQLite 기반 최소 Web Core/Article HTTP를 exclusive path lane으로 병렬 구현합니다. Phase A/B/C query/write/Atomic과
+  Web/Article HTTP는 local `Implemented candidate`이고 EVID-106 affected gates를 통과했지만, PostgreSQL
+  schema/migration/recorder/revision/restart와 final hosted gate가 남아 있습니다. Q-010/Q-011/Q-012/Q-013은 `Partial`,
+  Q-017은 P1/open이고 PostgreSQL/Web support를 주장하지 않습니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit
@@ -400,6 +403,14 @@ query/write/transaction/schema/migration/recorder/revision lifecycle 및 durable
 
 ## M3 — Relations + PostgreSQL
 
+[GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)과 Accepted
+[ADR-0037](adr/0037-postgresql-current-contract-backend.md)이 첫 actual PostgreSQL current-contract backend를
+활성화했습니다. Query/write/Atomic만으로 support를 주장하지 않고 schema/migration/recorder/revision, close/reopen와
+actual server restart까지 하나의 final gate에서 검증합니다. PostgreSQL REL-007/008 project-aware delete는 이 packet의
+비목표입니다. Phase-1 query/write/Atomic source와 disposable PostgreSQL 17.5 local smoke는
+[EVID-106](status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의
+`Implemented candidate`이며 final reference 17.10 또는 backend support 증거가 아닙니다.
+
 - Completed [GDJ-0023](../work/0023-foreign-key-relation-compatibility-contracts-and-binding-feasibility.md)은
   ForeignKey 외부 동작 REL-001..012와 Q-013 cross-app binding/import-cycle/shared-AST feasibility를
   contract-only/test-only로 고정했습니다. Schema IR v2나 제품 API는 변경하지 않았습니다.
@@ -557,6 +568,14 @@ Q-007의 result cache/terminal semantics는 이후 projection/aggregate/relation
 M4 전체 breadth가 구현됐다는 뜻이 아닙니다.
 
 ## M5 — Web Core
+
+[GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)과 Accepted
+[ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)이 SQLite 기반 최소 Web/Article HTTP 수직
+단면을 PostgreSQL lane과 병렬 활성화했습니다. Declaration runner는 보존하고 별도 Article site binary, immutable
+startup state, static router, request-local generated facade와 explicit DTO/template만 구현합니다. Global
+`godj runserver`, DTL/Form/Auth/Admin/API는 이 packet의 비목표입니다. 이 bounded Web slice는
+[EVID-106](status/TEST_EVIDENCE.md#evid-20260821-106--gdj-0038-phase-a-b-and-c-local-checkpoint)의 local affected gate를
+통과한 `Implemented candidate`이며 PostgreSQL smoke와 exact-head hosted 검증은 pending입니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

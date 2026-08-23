@@ -30,6 +30,7 @@ func TestGeneratedCreatePreservesDefaultNullEmptyAndBuilderImmutability(t *testi
 	}
 	assertAssignmentValue(t, firstBackend.insertPlan.Assignments(), "published", query.ValueBoolean, false)
 	assertAssignmentValue(t, firstBackend.insertPlan.Assignments(), "summary", query.ValueString, "")
+	assertInsertReturningKey(t, firstBackend.insertPlan, query.NewFieldRef("id", "id", query.FieldInteger, false))
 
 	secondBackend := &writeSpy{lastInsertID: 42, updateRows: 1, deleteRows: 1}
 	fromBase, err := models.ArticleObjects.Create(context.Background(), secondBackend, base)
@@ -318,6 +319,7 @@ func TestManagerCreateAcceptsForeignKeyIntegerValues(t *testing.T) {
 				t.Fatalf("Create() = (%#v, calls=%d), want generated key and one insert", created, backend.calls)
 			}
 			assertAssignmentValue(t, backend.insertPlan.Assignments(), "author", query.ValueInteger, int64(0))
+			assertInsertReturningKey(t, backend.insertPlan, query.NewFieldRef("id", "id", query.FieldInteger, false))
 			if test.reviewerID == nil {
 				assertAssignmentValue(t, backend.insertPlan.Assignments(), "reviewer", query.ValueNull, nil)
 			} else {
@@ -525,4 +527,12 @@ func assertAssignmentValue(t *testing.T, assignments []query.Assignment, field s
 		return
 	}
 	t.Fatalf("assignment for field %s not found", field)
+}
+
+func assertInsertReturningKey(t *testing.T, plan query.InsertPlan, want query.FieldRef) {
+	t.Helper()
+	got, present := plan.ReturningKey()
+	if !present || !got.Equal(want) {
+		t.Fatalf("insert returning key = (%#v, %v), want (%#v, true)", got, present, want)
+	}
 }

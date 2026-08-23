@@ -139,7 +139,7 @@ func TestExecutorMigrateLoadedRelationRoutesByActualHistory(t *testing.T) {
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKeyByTableRemake:     true,
+		RemoveForeignKey:                  true,
 	}
 	tests := []struct {
 		name                      string
@@ -252,7 +252,7 @@ func TestExecutorMigrateLoadedRelationDryValidatesCapabilitiesBeforeEveryBegin(t
 	}
 }
 
-func TestExecutorMigrateLoadedRelationReverseRequiresRemakeCapabilityBeforeBegin(t *testing.T) {
+func TestExecutorMigrateLoadedRelationReverseRequiresRemoveForeignKeyCapabilityBeforeBegin(t *testing.T) {
 	t.Parallel()
 
 	definitions := lifecycleLoadedNullableSameTargetDefinitions()
@@ -265,7 +265,7 @@ func TestExecutorMigrateLoadedRelationReverseRequiresRemakeCapabilityBeforeBegin
 	session := newLifecycleTestSession(records, nil)
 	fake := newLifecycleTestBackend(session)
 	fake.capabilities = lifecycleAllRelationCapabilities()
-	fake.capabilities.RemoveForeignKeyByTableRemake = false
+	fake.capabilities.RemoveForeignKey = false
 
 	state, err := (Executor{Backend: fake}).Migrate(
 		lifecycleLoadedContext(t, definitions), testLoadedDefinitionSet(
@@ -277,7 +277,7 @@ func TestExecutorMigrateLoadedRelationReverseRequiresRemakeCapabilityBeforeBegin
 	assertMigrationError(t, err, CategoryCapability, CodeUnsupported, NoOperation, "")
 	var capability *backend.CapabilityError
 	if !errors.As(err, &capability) || capability.Feature != "relation_migration" ||
-		!strings.Contains(capability.Detail, "RemoveForeignKeyByTableRemake") {
+		!strings.Contains(capability.Detail, "RemoveForeignKey") {
 		t.Fatalf("loaded reverse relation capability error = %#v", err)
 	}
 	article, exists := state.Model("blog", "article")
@@ -318,7 +318,7 @@ func TestExecutorMigrateLoadedRelationPassesCompleteForwardAndReverseIntents(t *
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKeyByTableRemake:     true,
+		RemoveForeignKey:                  true,
 	}
 
 	t.Run("forward", func(t *testing.T) {
@@ -2005,7 +2005,7 @@ func lifecycleAllRelationCapabilities() backend.MigrationCapabilities {
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKeyByTableRemake:     true,
+		RemoveForeignKey:                  true,
 	}
 }
 

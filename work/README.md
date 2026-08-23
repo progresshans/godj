@@ -61,6 +61,7 @@ proposed → ready → active → completed
 | [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md) | superseded | Relation-capable migration D4d~D4f와 D4g Phase 0; compatibility topology/publication은 GDJ-0036으로 대체 |
 | [GDJ-0036](0036-pre-release-compatibility-reset.md) | completed | Current-only Schema/Definition/State, explicit loaded set, unified backend와 generated ABI reset |
 | [GDJ-0037](0037-project-schema-generated-bundle-and-recoverable-publication.md) | completed | Project Schema bundle, whole-candidate compile과 recoverable coordinated publication |
+| [GDJ-0038](0038-postgresql-and-minimal-web-vertical-slices.md) | active | PostgreSQL current backend와 최소 Web/Article HTTP 병렬 수직 단면 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
@@ -70,8 +71,11 @@ proposed → ready → active → completed
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
 #102에서 stale relation inventory lock 네 건이 실패한 뒤 correction head `d4643068...`의
 [EVID-105](../docs/status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) /
-CI #103 exact 26/26 jobs·326/326 steps success로 completed/hosted-verified됐습니다. 현재 active와 ready 항목은
-각각 0이며 후속 packet은 아직 만들거나 활성화하지 않았습니다. GDJ-0034
+CI #103 exact 26/26 jobs·326/326 steps success로 completed/hosted-verified됐습니다. 그 docs descendant
+`681b0713...`도 CI #104/run `32444841140`의 exact 26/26 jobs·326/326 steps를 통과했습니다. 현재 유일한 active는
+[GDJ-0038](0038-postgresql-and-minimal-web-vertical-slices.md), ready는 0입니다. PostgreSQL current backend와
+SQLite 기반 최소 Web Core의 Phase A/B/C는 local `Implemented candidate`와 EVID-106 affected gates에 도달했고,
+다음은 local checkpoint commit 뒤 PostgreSQL migration/restart Phase D와 Article PostgreSQL smoke입니다. GDJ-0034
 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. Product는 계속 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

@@ -336,7 +336,7 @@ const (
 	loadedRequiresCreateModelForeignKeys loadedRelationRequirements = 1 << iota
 	loadedRequiresAddNullableForeignKey
 	loadedRequiresAddRequiredForeignKeyToEmptyTable
-	loadedRequiresRemoveForeignKeyByTableRemake
+	loadedRequiresRemoveForeignKey
 )
 
 const (
@@ -1941,7 +1941,7 @@ func loadedRequirementsForSourceFields(
 		}
 		return loadedRequiresAddRequiredForeignKeyToEmptyTable
 	case loadedRelationRemoveField:
-		return loadedRequiresRemoveForeignKeyByTableRemake
+		return loadedRequiresRemoveForeignKey
 	default:
 		return 0
 	}

@@ -41,7 +41,7 @@ func (*Backend) MigrationCapabilities() migrationbackend.MigrationCapabilities {
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             true,
 		AddRequiredForeignKeyToEmptyTable: true,
-		RemoveForeignKeyByTableRemake:     true,
+		RemoveForeignKey:                  true,
 	}
 }
 

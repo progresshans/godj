@@ -10,13 +10,13 @@
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
 | Q-010 | Partial | GDJ-0037 completed / broader generation handshake | Current definition/loaded lifecycle과 ProjectSpec, global generate/check, project-wide manifest/publication은 exact-head hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
-| Q-011 | Partial | GDJ-0008/M5+ | QuerySet evaluation subset은 ADR-0012와 race/cancellation test로 해결; request/transaction/hook 범위는 후속 단계에서 결정 |
-| Q-012 | Partial | GDJ-0036 completed / broader migration 후속 | MIG-047..074 product subset과 current `LoadedDefinitionSet` lifecycle/unified backend ABI는 exact-head hosted 검증까지 완료; public migrate/writer/upgrade/custom operation/general restart/non-SQLite/crash recovery는 open |
-| Q-013 | Partial | GDJ-0036 completed / broader relation·backend 후속 | REL-002와 bounded SQLite FK slices는 current Schema IR/codegen/state/lifecycle로 통합되어 exact-head hosted 검증까지 완료; broader relation/backend 범위는 open |
+| Q-011 | Partial | GDJ-0038 active / M5+ | QuerySet evaluation subset은 ADR-0012로 해결; ADR-0038 synchronous request lifetime/DTO 하위 경계는 local Implemented candidate이고 transaction container/async hook/background ownership은 open |
+| Q-012 | Partial | GDJ-0038 active / broader migration 후속 | Current `LoadedDefinitionSet` lifecycle/unified backend ABI는 hosted-verified; PostgreSQL query/write/Atomic은 local Implemented candidate지만 schema/recorder/revision/restart와 public migrate/writer/upgrade/custom operation/general crash recovery는 open |
+| Q-013 | Partial | GDJ-0038 active / broader relation·backend 후속 | Bounded SQLite FK slices는 current Schema IR/codegen/state/lifecycle로 통합됨; PostgreSQL current one-hop relation query/write는 local candidate이고 broader relation/backend·migration 범위는 open |
 | Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
 | Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
-| Q-017 | P1 | GDJ-0037 completed / raw-model and general upgrade | ProjectSpec/manifest/whole-candidate compile/recoverable publication 하위 경계는 exact-head hosted-verified; raw-model UX/capability/namespace와 reverse/general upgrade는 open |
+| Q-017 | P1 | GDJ-0038 active / raw-model and general upgrade | Project publication은 hosted-verified; ADR-0038의 Web-only explicit DTO representation은 local Implemented candidate이나 general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 
@@ -70,6 +70,13 @@ ADR-0035 current-only 진단 reference로 재기준화되어 reference aggregate
 local gates와 exact correction head `d4643068...`의
 [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
 26/26 jobs·326/326 steps를 통과해 completed/hosted-verified됐습니다. Q-010은 `Partial`, Q-017은 P1/open입니다.
+
+Current [GDJ-0038](../work/0038-postgresql-and-minimal-web-vertical-slices.md)은 Accepted
+[ADR-0037](adr/0037-postgresql-current-contract-backend.md)의 PostgreSQL current backend와
+[ADR-0038](adr/0038-minimal-web-core-request-lifetime-and-representation.md)의 synchronous request/explicit DTO
+하위 경계를 병렬 구현합니다. Phase A/B/C는 local `Implemented candidate`와 affected EVID-106까지 도달했지만 이
+checkpoint는 Q-011/Q-012/Q-013을 해결하거나 Q-017 general raw-model UX를 닫지 않으며, actual final
+PostgreSQL/Web gate 전에는 support/Verified 상태가 아닙니다.
 
 ## Q-001 — Codegen bootstrap — Resolved
 

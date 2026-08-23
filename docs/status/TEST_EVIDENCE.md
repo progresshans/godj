@@ -9933,3 +9933,105 @@ the final static documentation/scope audit rather than a recursive copy gate.
   require product tests or another hosted matrix.
 - No next work packet is created or activated by this completion change. Current active/ready counts are 0/0;
   later scope selection is a separate handoff decision.
+
+## EVID-20260821-106 — GDJ-0038 Phase A, B and C Local Checkpoint
+
+- Date/time: 2026-08-21T13:50:36+09:00
+- Work/contract IDs: GDJ-0038 active; DB-PG-001..005 bounded Phase-1 candidate; WEB-001..010 bounded candidate;
+  Q-011/Q-012/Q-013 remain `Partial`; Q-017 remains P1/open
+- Branch: `feature/pre-release-compatibility-reset`
+- Baseline commit/tree: `681b07132be5772286b0c960756719aed59a2079` /
+  `f1a2fcc501c0e3b30d2df5facb76b36e53c2c05f`
+- Environment: macOS 26.6.1 / Darwin 25.6.0 arm64; Go 1.26.5 darwin/arm64
+- Result: Phase A/B/C source is a local `Implemented candidate`; this entry is not an exact committed-head or hosted
+  verification record.
+
+### Implemented checkpoint
+
+- Shared portability adds immutable optional returned-key metadata to `query.InsertPlan`; generated Create/Save insert
+  paths pass the exact AutoField. SQLite keeps its existing SQL and `LastInsertId` path. The external consumer compile
+  fixture covers the new constructor/accessor.
+- The migration capability is flag-day renamed to backend-neutral `RemoveForeignKey`, with no compatibility alias.
+  SQLite still performs its closed table-remake implementation; the historical conformance fact name remains a data
+  label rather than a Go identifier.
+- The public `db.Atomic` contract now states that literal COMMIT errors may have committed. PostgreSQL and SQLite return
+  `CategoryBackend/CodeCommitOutcomeUnknown`, preserve causes and never auto-retry; callback/context paths still require
+  a confirmed rollback before returning their original failure.
+- `db/postgres` pins pgx v5.10.0 and requires PostgreSQL 17 with server/database/client UTF8, libc provider and exact
+  `C` collation/ctype, SQL NULL provider locale, `standard_conforming_strings=on`, UTC and
+  `search_path=pg_catalog`. It implements schema-qualified scalar/one-hop relation compilation, `$n` arguments,
+  returned-key Insert, Update/Delete, SQLSTATE classification and callback-bound Atomic/Session lifecycle.
+- PostgreSQL SQLSTATE 23503 maps Insert/Update assignment failures to `related_object_missing`, Delete constraint
+  failures to `protected_foreign_key`, and unrelated operations conservatively remain generic. The Delete mapping is
+  unit-locked here; this checkpoint does not claim REL-007/008 project-aware PostgreSQL delete support.
+- `apps`, `settings` and `web` implement immutable startup snapshots, exact static routing/reverse, deterministic
+  404/405, synchronous once-only middleware, borrowed requests, bounded buffered responses, sanitized zero-partial
+  500 and bounded server drain/force-close on cancellation or permanent listener failure.
+- The Article slice uses a separate generated-dependent `cmd/site`, request-local `project.Using`, explicit
+  `Unwrap -> ArticleView DTO -> html/template`, real loopback HTTP and SQLite. The declaration runner and checked-in
+  generated 12-file bundle remain unchanged.
+
+### Affected local gates on final source bytes
+
+The following package set was used for normal, race, CGO-disabled and vet:
+
+```text
+./query ./orm ./migrations/... ./db ./db/sqlite ./db/postgres
+./internal/compiletest ./conformance/migrationrelationproduct
+./apps ./settings ./web ./examples/article/...
+```
+
+- `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -count=1 <set>`: PASS.
+- Same command with `-race`: PASS.
+- Same command with `CGO_ENABLED=0`: PASS.
+- `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go vet <set>`: PASS.
+- `GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -run '^$' ./...`: PASS; this is all-package
+  compile-only evidence, not a full all-package test run.
+- `make generate-check`: PASS. Article remains exact 12 files/snapshot
+  `2f39e045e436ae70856736b78d203d494124cf5cc6e6f5ab57dcb4a9c2b07fbe`; relationdelete remains exact 16
+  files/snapshot `4b618261fcdec4fb126e8b20714700343543613390d1187439a315455ef5f775`.
+- `make format-check`, offline `go mod tidy` recheck and `git diff --check`: PASS.
+- Web author gates additionally repeated server lifecycle 30 times, the site listener-ownership window 50 times and
+  Article HTTP E2E 10 times. The independent final Web audit repeated the relevant race paths and returned
+  P0/P1/P2/P3=`0/0/0/0`.
+
+### Disposable actual PostgreSQL 17.5 canary
+
+- A fresh Homebrew PostgreSQL 17.5 cluster was initialized under a unique `/tmp/godj-gdj0038-pg17-final.*` path with
+  UTF8/libc `C`, trust-only local test credentials, loopback listener and UTC. A dedicated test database was created.
+- With `GODJ_REQUIRE_POSTGRES=1`, `TestPostgreSQLPhase1Integration` passed once normally and once with `-race` on the
+  final PostgreSQL source bytes. Catalog output was exact
+  `17.5 (Homebrew)|UTF8|UTF8|on|c|C|C|t`, where the last value proves `datlocale IS NULL`.
+- The canary executed raw-plan returned-key writes, scalar and one-hop forward/reverse/eager reads, update/delete,
+  missing relation SQLSTATE, Atomic commit/rollback/cancel, session expiry, concurrent queries and close behavior.
+  It uses manual DDL and does not prove generated Manager Create/Save, migration or restart behavior.
+- The server was stopped and the exact temporary cluster directory was deleted and verified absent after the run.
+  It was disposable test data with no recovery target.
+
+### Audit corrections and final verdict
+
+- The first PostgreSQL audit found incomplete connection/profile locking, a public Atomic comment that denied
+  commit-unknown, and overbroad 23503 classification. The first Web audit found active connections surviving a
+  permanent listener error and a listen-to-Serve cancellation ownership window.
+- Corrections force and validate the complete PostgreSQL profile, align PostgreSQL and SQLite Atomic outcome-unknown,
+  split FK classification by operation, drain/force-close every server terminal path and close the site listener
+  exactly once across startup cancellation.
+- A later final-packet audit found that the exact-router root exception also admitted `//`; the corrected path
+  classifier keeps `/` and `/articles/` valid while rejecting `//`, `/articles//` and other non-clean paths.
+- Independent final PostgreSQL/SQLite and Web audits on the corrected source each returned
+  P0/P1/P2/P3=`0/0/0/0`.
+
+### Non-claims and next boundary
+
+- PostgreSQL schema editor, migration recorder/revision fence, apply/unapply/reapply, two-process contention,
+  close/reopen and actual server restart remain Phase D. PostgreSQL REL-007/008, explicit-key sequence reconciliation,
+  retry and arbitrary database adoption remain excluded.
+- The hosted reference is PostgreSQL 17.10; the local 17.5 canary is affected development evidence only. No
+  PostgreSQL service is added to CI by this checkpoint, and no support/`Verified` claim is made.
+- Web is SQLite-first. Article-on-PostgreSQL, global `godj runserver`, dynamic routing, request transactions,
+  DTL/Form/Auth/Admin/API and general raw-model serialization remain pending or out of scope.
+- Full `make ci`, all-package Linux/386 execution and the exact-head hosted matrix were not run locally. They remain a
+  final frozen milestone gate. No intermediate push/hosted cycle is required for this checkpoint.
+- This evidence append and status mirrors follow the product test runs. Static Markdown/allowed-path checks and the
+  final exact committed-head hosted run are distinct; this entry does not recursively claim that its own final bytes
+  were included in the preceding local commands.

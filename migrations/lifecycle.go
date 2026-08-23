@@ -357,7 +357,7 @@ func firstMissingLoadedRelationCapability(
 		{loadedRequiresCreateModelForeignKeys, capabilities.CreateModelForeignKeys, "CreateModelForeignKeys"},
 		{loadedRequiresAddNullableForeignKey, capabilities.AddNullableForeignKey, "AddNullableForeignKey"},
 		{loadedRequiresAddRequiredForeignKeyToEmptyTable, capabilities.AddRequiredForeignKeyToEmptyTable, "AddRequiredForeignKeyToEmptyTable"},
-		{loadedRequiresRemoveForeignKeyByTableRemake, capabilities.RemoveForeignKeyByTableRemake, "RemoveForeignKeyByTableRemake"},
+		{loadedRequiresRemoveForeignKey, capabilities.RemoveForeignKey, "RemoveForeignKey"},
 	}
 	for _, check := range checks {
 		if requirements&check.bit != 0 && !check.supported {

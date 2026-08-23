@@ -178,6 +178,29 @@ backend SQLite 3.53.3은 Django reference SQLite 3.50.4와 별도 fingerprint입
 선택과 제한은 [ADR-0008](adr/0008-m1-sqlite-driver-and-execution-boundary.md)에
 기록합니다.
 
+## Go PostgreSQL backend
+
+- [`pgx v5.10.0` source tag](https://github.com/jackc/pgx/tree/v5.10.0) — GDJ-0038의
+  `database/sql` driver bridge exact pin.
+- [`pgx/stdlib v5.10.0` package documentation](https://pkg.go.dev/github.com/jackc/pgx/v5/stdlib@v5.10.0) —
+  standard-library SQL adapter 경계.
+- [`pgx v5.10.0` MIT license](https://github.com/jackc/pgx/blob/v5.10.0/LICENSE) —
+  root `LICENSE.pgx`의 upstream source.
+- [PostgreSQL 17 documentation](https://www.postgresql.org/docs/17/)와
+  [17.10 release notes](https://www.postgresql.org/docs/release/17.10/) — supported major와 hosted
+  reference minor.
+- [PostgreSQL versioning policy](https://www.postgresql.org/support/versioning/) — supported major 안에서
+  current minor를 유지하는 근거.
+- [PostgreSQL identifier limits](https://www.postgresql.org/docs/17/limits.html) — default 63-byte identifier
+  경계를 I/O 전에 검증하는 근거.
+
+2026-08-21 기준 GDJ-0038은 `github.com/jackc/pgx/v5 v5.10.0`을 direct runtime dependency로
+고정했습니다. 지원 후보는 PostgreSQL major 17, hosted reference profile은 17.10/UTF8/C locale/UTC입니다.
+로컬의 더 이른 17.x smoke는 affected implementation evidence일 뿐 reference minor나 support claim을
+대체하지 않습니다. 정확한 backend transaction/schema/migration/revision/restart와 hosted service gate가 끝나기
+전 상태는 `Implemented candidate`입니다. 선택과 제한은
+[ADR-0037](adr/0037-postgresql-current-contract-backend.md)이 소유합니다.
+
 ## Codex 작업 지침
 
 - [OpenAI 공식 AGENTS.md 문서](https://learn.chatgpt.com/docs/agent-configuration/agents-md) — Codex가 작업 전 지침 chain을 구성하고 project root에서 현재 directory까지 계층적으로 파일을 읽는 방식.

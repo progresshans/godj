@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
 - 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified
-- 마지막 검토: 2026-08-19
+- 마지막 검토: 2026-08-21
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -10,7 +10,7 @@
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
 | SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | Not started | relation, locking, production-oriented semantics |
+| PostgreSQL | M3 | Phase-1 query/write/Atomic Implemented candidate; unverified | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |

@@ -17,6 +17,13 @@ M1/M2 SQLite backend가 사용하는 `modernc.org/sqlite v1.56.0`과 locked depe
 `LICENSE.modernc-sqlite`, `LICENSE.modernc-libc`에 보존합니다. 이 두 고지는 향후
 binary에 들어가는 모든 transitive dependency의 배포 검토를 대신하지 않습니다.
 
+GDJ-0038 PostgreSQL backend가 직접 사용하는 `github.com/jackc/pgx/v5 v5.10.0`의
+MIT 전문은 `LICENSE.pgx`에 보존합니다. 현재 pgx graph의 `pgpassfile`,
+`pgservicefile`, `puddle`은 MIT, `golang.org/x/sync`와 `golang.org/x/text`는
+BSD 3-Clause입니다. 이 기록은 구현 checkpoint의 dependency provenance이며 전체
+binary graph의 고지 수집이나 GoDj 자체 배포 라이선스 결정을 완료했다는 뜻이
+아닙니다. 두 항목은 공개 binary/release 전 gate로 남습니다.
+
 ## Conformance artifact 분류
 
 각 contract provenance는 다음 두 경우를 구분합니다.

@@ -45,7 +45,11 @@ type Session interface {
 }
 
 // Atomic executes callback in one transaction-bound Session. A nil callback,
-// callback error, context cancellation, or commit error cannot commit writes.
+// callback error, or context cancellation observed before commit does not
+// commit writes when rollback is confirmed. An error returned by the literal
+// COMMIT operation has an unknown outcome: implementations return
+// query.CodeCommitOutcomeUnknown, callers must not retry automatically, and
+// reconciliation is required before deciding whether to issue the work again.
 type Atomic interface {
 	Atomic(context.Context, func(Session) error) error
 }

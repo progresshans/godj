@@ -1865,7 +1865,7 @@ func observePhysicalFKPolicy(ctx context.Context, observation *Observation) (res
 		NamedBooleanFact{Name: "create_model_foreign_keys", Value: capabilities.CreateModelForeignKeys},
 		NamedBooleanFact{Name: "add_nullable_foreign_key", Value: capabilities.AddNullableForeignKey},
 		NamedBooleanFact{Name: "add_required_foreign_key_to_empty", Value: capabilities.AddRequiredForeignKeyToEmptyTable},
-		NamedBooleanFact{Name: "remove_foreign_key_by_remake", Value: capabilities.RemoveForeignKeyByTableRemake},
+		NamedBooleanFact{Name: "remove_foreign_key_by_remake", Value: capabilities.RemoveForeignKey},
 	)
 	if migrateErr == nil {
 		if _, err := fixture.backend.ExecContext(ctx, `INSERT INTO "authors_author" ("id") VALUES (41)`); err != nil {

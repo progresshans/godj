@@ -8,7 +8,7 @@ type MigrationCapabilities struct {
 	CreateModelForeignKeys            bool
 	AddNullableForeignKey             bool
 	AddRequiredForeignKeyToEmptyTable bool
-	RemoveForeignKeyByTableRemake     bool
+	RemoveForeignKey                  bool
 }
 
 // MigrationOperationKind identifies one operation in the complete

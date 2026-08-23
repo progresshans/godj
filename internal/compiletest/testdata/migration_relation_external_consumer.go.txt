@@ -30,7 +30,7 @@ func (*relationBackend) MigrationCapabilities() backend.MigrationCapabilities {
 		CreateModelForeignKeys:            true,
 		AddNullableForeignKey:             false,
 		AddRequiredForeignKeyToEmptyTable: false,
-		RemoveForeignKeyByTableRemake:     false,
+		RemoveForeignKey:                  false,
 	}
 }
 

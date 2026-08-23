@@ -206,6 +206,7 @@ func TestMutationPlansDoNotExposeMutableAssignmentStorage(t *testing.T) {
 		query.NewAssignment(published, query.Boolean(false)),
 	}
 	insert := query.NewInsertPlan("news_article", assignments)
+	returningInsert := query.NewInsertPlanReturningKey("news_article", assignments, id)
 	update := query.NewUpdatePlan("news_article", assignments, id, query.Integer(7))
 	assignments[0] = query.NewAssignment(title, query.String("source-mutated"))
 
@@ -214,6 +215,9 @@ func TestMutationPlansDoNotExposeMutableAssignmentStorage(t *testing.T) {
 	if got, _ := insert.Assignments()[0].Value().String(); got != "before" {
 		t.Fatalf("insert plan was mutated through external slice: %q", got)
 	}
+	if got, _ := returningInsert.Assignments()[0].Value().String(); got != "before" {
+		t.Fatalf("returning insert plan shared source assignments: %q", got)
+	}
 	if got, _ := update.Assignments()[0].Value().String(); got != "before" {
 		t.Fatalf("update plan shared source assignments: %q", got)
 	}
@@ -221,6 +225,34 @@ func TestMutationPlansDoNotExposeMutableAssignmentStorage(t *testing.T) {
 		query.NewDeletePlan("news_article", id, query.Integer(7)),
 	) {
 		t.Fatal("equal delete plans differ")
+	}
+}
+
+func TestInsertPlanReturningKeyPresenceAndEquality(t *testing.T) {
+	t.Parallel()
+
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	otherID := query.NewFieldRef("article_id", "article_id", query.FieldInteger, false)
+	title := query.NewFieldRef("title", "title", query.FieldString, false)
+	assignments := []query.Assignment{query.NewAssignment(title, query.String("GoDj"))}
+
+	legacy := query.NewInsertPlan("news_article", assignments)
+	if key, present := legacy.ReturningKey(); present || !key.Equal(query.FieldRef{}) {
+		t.Fatalf("legacy ReturningKey() = (%#v, %v), want zero/false", key, present)
+	}
+
+	returning := query.NewInsertPlanReturningKey("news_article", assignments, id)
+	if key, present := returning.ReturningKey(); !present || !key.Equal(id) {
+		t.Fatalf("returning key = (%#v, %v), want (%#v, true)", key, present, id)
+	}
+	if !returning.Equal(query.NewInsertPlanReturningKey("news_article", assignments, id)) {
+		t.Fatal("identical returning insert plans differ")
+	}
+	if returning.Equal(legacy) {
+		t.Fatal("returning insert plan equals plan without a returning key")
+	}
+	if returning.Equal(query.NewInsertPlanReturningKey("news_article", assignments, otherID)) {
+		t.Fatal("insert plans with different returning keys compare equal")
 	}
 }
 
