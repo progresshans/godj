@@ -359,6 +359,130 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 	postID := integrationInsert(t, ctx, backend, phase1PostInsert(fields, "Hello 50%_Go", true, adaID, &bobID))
 	secondPostID := integrationInsert(t, ctx, backend, phase1PostInsert(fields, "Second", false, adaID, nil))
 
+	t.Run("composable Boolean expression query", func(t *testing.T) {
+		titleMatch, err := query.NewExpression(query.NewCondition(fields.title, query.LookupIContains, query.String("50%_")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		summaryMatch, err := query.NewExpression(query.NewCondition(fields.summary, query.LookupIContains, query.String("orm")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		either, err := query.OrExpressions(titleMatch, summaryMatch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		published, err := query.NewExpression(query.NewCondition(fields.published, query.LookupExact, query.Boolean(true)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		excluded, err := query.NewExpression(query.NewCondition(fields.title, query.LookupIContains, query.String("draft")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		excluded, err = query.NotExpression(excluded)
+		if err != nil {
+			t.Fatal(err)
+		}
+		where, err := query.AndExpressions(either, published, excluded)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan, err := query.NewPlan("blog_post", []query.FieldRef{
+			fields.id, fields.title, fields.published, fields.summary, fields.authorKey, fields.editorKey,
+		}).WithWhere(where)
+		if err != nil {
+			t.Fatal(err)
+		}
+		projection, err := query.NewProjectionResult(fields.id, fields.title)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan, err = plan.WithResultShape(projection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err := backend.Query(ctx, plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := collectTwoColumnIDs(t, rows); len(got) != 1 || got[0] != postID {
+			t.Fatalf("Boolean expression IDs = %v, want [%d]", got, postID)
+		}
+
+		nullableExact, err := query.NewExpression(query.NewCondition(fields.summary, query.LookupExact, query.String("ORM")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullableComplement, err := query.NotExpression(nullableExact)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullablePlan, err := query.NewPlan("blog_post", []query.FieldRef{
+			fields.id, fields.title, fields.published, fields.summary, fields.authorKey, fields.editorKey,
+		}).WithWhere(nullableComplement)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullablePlan, err = nullablePlan.WithResultShape(projection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullablePlan = nullablePlan.WithOrderings(query.NewOrdering(fields.id, query.Ascending))
+		rows, err = backend.Query(ctx, nullablePlan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := collectTwoColumnIDs(t, rows); len(got) != 2 || got[0] != postID || got[1] != secondPostID {
+			t.Fatalf("nullable NOT IDs = %v, want [%d %d]", got, postID, secondPostID)
+		}
+
+		nullableEven, err := query.NotExpression(nullableComplement)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullableEvenPlan, err := query.NewPlan("blog_post", []query.FieldRef{
+			fields.id, fields.title, fields.published, fields.summary, fields.authorKey, fields.editorKey,
+		}).WithWhere(nullableEven)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullableEvenPlan, err = nullableEvenPlan.WithResultShape(projection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err = backend.Query(ctx, nullableEvenPlan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := collectTwoColumnIDs(t, rows); len(got) != 0 {
+			t.Fatalf("nullable double-NOT IDs = %v, want []", got)
+		}
+
+		nullableTriple, err := query.NotExpression(nullableEven)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullableTriplePlan, err := query.NewPlan("blog_post", []query.FieldRef{
+			fields.id, fields.title, fields.published, fields.summary, fields.authorKey, fields.editorKey,
+		}).WithWhere(nullableTriple)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullableTriplePlan, err = nullableTriplePlan.WithResultShape(projection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nullableTriplePlan = nullableTriplePlan.WithOrderings(query.NewOrdering(fields.id, query.Ascending))
+		rows, err = backend.Query(ctx, nullableTriplePlan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := collectTwoColumnIDs(t, rows); len(got) != 2 || got[0] != postID || got[1] != secondPostID {
+			t.Fatalf("nullable triple-NOT IDs = %v, want [%d %d]", got, postID, secondPostID)
+		}
+	})
+
 	t.Run("scalar query update and delete", func(t *testing.T) {
 		plan := query.NewPlan("blog_post", []query.FieldRef{
 			fields.id, fields.title, fields.published, fields.summary, fields.authorKey, fields.editorKey,

@@ -34,7 +34,7 @@ func TestCompilePredicatesOrderingAndLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT "id", "title", "published" FROM "news_article" WHERE "title" LIKE ? ESCAPE '\' AND "published" = ? ORDER BY "title" DESC, "id" ASC LIMIT ?`
+	wantSQL := `SELECT "id", "title", "published" FROM "news_article" WHERE ("title" LIKE ? ESCAPE '\' AND "published" = ?) ORDER BY "title" DESC, "id" ASC LIMIT ?`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -109,7 +109,7 @@ func TestCompileDistinctProjectionLimitOffsetPreservesArgumentOrder(t *testing.T
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT DISTINCT "title", "id" FROM "news_article" WHERE "title" LIKE ? ESCAPE '\' AND "published" = ? ORDER BY "title" ASC, "id" DESC LIMIT ? OFFSET ?`
+	wantSQL := `SELECT DISTINCT "title", "id" FROM "news_article" WHERE ("title" LIKE ? ESCAPE '\' AND "published" = ?) ORDER BY "title" ASC, "id" DESC LIMIT ? OFFSET ?`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -242,7 +242,7 @@ func TestCompileSimpleAggregateUsesDirectSourceAndDropsOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT COUNT(*), MAX("id"), MAX("summary") FROM "news_article" WHERE "published" = ? AND "summary" LIKE ? ESCAPE '\'`
+	wantSQL := `SELECT COUNT(*), MAX("id"), MAX("summary") FROM "news_article" WHERE ("published" = ? AND "summary" LIKE ? ESCAPE '\')`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -876,7 +876,7 @@ func TestCompileRootInConditionsPreserveValueOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT "id", "title", "published" FROM "news_article" WHERE "id" IN (?, ?, ?) AND "title" IN (?, ?) AND "published" IN (?, ?) ORDER BY "id" ASC`
+	wantSQL := `SELECT "id", "title", "published" FROM "news_article" WHERE ("id" IN (?, ?, ?) AND "title" IN (?, ?) AND "published" IN (?, ?)) ORDER BY "id" ASC`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -938,7 +938,7 @@ func TestCompileRequiredForwardRelationQualifiesAndReusesJoin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT "t0"."id", "t0"."title", "t0"."author_id" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t1"."name" = ? AND "t1"."id" = ? ORDER BY "t0"."id" ASC`
+	wantSQL := `SELECT "t0"."id", "t0"."title", "t0"."author_id" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE ("t1"."name" = ? AND "t1"."id" = ?) ORDER BY "t0"."id" ASC`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -965,7 +965,7 @@ func TestCompileReverseRelationInvertsRootAndReusesJoin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "authors_author" AS "t0" INNER JOIN "blog_post" AS "t1" ON "t0"."id" = "t1"."author_id" WHERE "t1"."title" = ? AND "t1"."id" = ? ORDER BY "t0"."id" ASC`
+	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "authors_author" AS "t0" INNER JOIN "blog_post" AS "t1" ON "t0"."id" = "t1"."author_id" WHERE ("t1"."title" = ? AND "t1"."id" = ?) ORDER BY "t0"."id" ASC`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -1026,7 +1026,7 @@ func TestCompileForwardAndReverseSelfEdgesHaveDistinctJoinKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "people_person" AS "t0" INNER JOIN "people_person" AS "t1" ON "t0"."manager_id" = "t1"."id" INNER JOIN "people_person" AS "t2" ON "t0"."id" = "t2"."manager_id" WHERE "t1"."name" = ? AND "t2"."name" = ?`
+	wantSQL := `SELECT "t0"."id", "t0"."name" FROM "people_person" AS "t0" INNER JOIN "people_person" AS "t1" ON "t0"."manager_id" = "t1"."id" INNER JOIN "people_person" AS "t2" ON "t0"."id" = "t2"."manager_id" WHERE ("t1"."name" = ? AND "t2"."name" = ?)`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -1200,7 +1200,7 @@ func TestCompileNullableForwardSourceKeyCanCoexistWithRequiredJoin(t *testing.T)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	want := `SELECT "t0"."id", "t0"."author_id", "t0"."reviewer_id" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t0"."reviewer_id" IS NULL AND "t1"."name" = ?`
+	want := `SELECT "t0"."id", "t0"."author_id", "t0"."reviewer_id" FROM "blog_post" AS "t0" INNER JOIN "authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE ("t0"."reviewer_id" IS NULL AND "t1"."name" = ?)`
 	if statement != want {
 		t.Fatalf("SQL = %q\nwant  %q", statement, want)
 	}

@@ -40,7 +40,7 @@ func TestCompileScalarUsesQualifiedTablesAndNumberedArguments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("compilePlan() error = %v", err)
 	}
-	wantSQL := `SELECT "id", "title", "published", "summary" FROM "godj_app"."news_article" WHERE "summary" IS NOT NULL AND "title" ILIKE $1 ESCAPE '\' AND "id" IN ($2, $3) AND "published" = $4 ORDER BY "title" DESC, "id" ASC LIMIT $5`
+	wantSQL := `SELECT "id", "title", "published", "summary" FROM "godj_app"."news_article" WHERE (("summary" IS NOT NULL) AND ("title" ILIKE $1 ESCAPE '\') AND ("id" IN ($2, $3)) AND ("published" = $4)) ORDER BY "title" DESC, "id" ASC LIMIT $5`
 	if statement != wantSQL {
 		t.Fatalf("SQL = %q\nwant  %q", statement, wantSQL)
 	}
@@ -75,7 +75,7 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantForward := `SELECT "t0"."id", "t0"."title", "t0"."author_id" FROM "godj_app"."blog_post" AS "t0" INNER JOIN "godj_app"."authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t1"."name" = $1`
+	wantForward := `SELECT "t0"."id", "t0"."title", "t0"."author_id" FROM "godj_app"."blog_post" AS "t0" INNER JOIN "godj_app"."authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE ("t1"."name" = $1)`
 	if statement != wantForward || !reflect.DeepEqual(arguments, []any{"Ada"}) {
 		t.Fatalf("forward = %q %#v", statement, arguments)
 	}
@@ -94,7 +94,7 @@ func TestCompileOneHopRelationsAndProjection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantReverse := `SELECT "t0"."id", "t0"."name" FROM "godj_app"."authors_author" AS "t0" INNER JOIN "godj_app"."blog_post" AS "t1" ON "t0"."id" = "t1"."author_id" WHERE "t1"."title" = $1`
+	wantReverse := `SELECT "t0"."id", "t0"."name" FROM "godj_app"."authors_author" AS "t0" INNER JOIN "godj_app"."blog_post" AS "t1" ON "t0"."id" = "t1"."author_id" WHERE ("t1"."title" = $1)`
 	if statement != wantReverse || !reflect.DeepEqual(arguments, []any{"Hello"}) {
 		t.Fatalf("reverse = %q %#v", statement, arguments)
 	}
@@ -142,7 +142,7 @@ func TestCompileNullableRelationIsNullTrimsJoin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `SELECT "t0"."id", "t0"."author_id" FROM "godj_app"."blog_post" AS "t0" WHERE "t0"."author_id" IS NULL`
+	want := `SELECT "t0"."id", "t0"."author_id" FROM "godj_app"."blog_post" AS "t0" WHERE ("t0"."author_id" IS NULL)`
 	if statement != want || len(arguments) != 0 {
 		t.Fatalf("nullable isnull = %q %#v", statement, arguments)
 	}

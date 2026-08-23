@@ -75,15 +75,32 @@ func (qs QuerySet[M]) Filter(predicates ...Predicate[M]) QuerySet[M] {
 	if qs.configurationErr != nil {
 		return qs
 	}
-	conditions := make([]query.Condition, len(predicates))
+	if len(predicates) == 0 {
+		return qs
+	}
+	expressions := make([]query.Expression, len(predicates))
 	for index := range predicates {
 		if predicates[index].err != nil {
 			qs.configurationErr = predicates[index].err
 			return qs
 		}
-		conditions[index] = predicates[index].condition
+		expressions[index] = predicates[index].expression
 	}
-	qs.plan = qs.plan.WithConditions(conditions...)
+	expression := expressions[0]
+	if len(expressions) > 1 {
+		var err error
+		expression, err = query.AndExpressions(expressions[0], expressions[1], expressions[2:]...)
+		if err != nil {
+			qs.configurationErr = err
+			return qs
+		}
+	}
+	plan, err := qs.plan.WithWhere(expression)
+	if err != nil {
+		qs.configurationErr = err
+		return qs
+	}
+	qs.plan = plan
 	return qs
 }
 
@@ -259,12 +276,8 @@ func planUsesRelations(plan query.Plan) bool {
 	if _, selected := plan.RelationProjection(); selected {
 		return true
 	}
-	for _, condition := range plan.Conditions() {
-		if _, related := condition.RelationPath(); related {
-			return true
-		}
-	}
-	return false
+	where, ok := plan.Where()
+	return ok && where.HasRelations()
 }
 
 // Exists reports whether the plan contains at least one row. Cold evaluation

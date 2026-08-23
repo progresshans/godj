@@ -33,7 +33,7 @@ func TestCompileScalarProjectionUsesResultOrderAndSourceValidation(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `SELECT "title", "id" FROM "godj_app"."news_article" WHERE "published" = $1 ORDER BY "summary" DESC`
+	want := `SELECT "title", "id" FROM "godj_app"."news_article" WHERE ("published" = $1) ORDER BY "summary" DESC`
 	if statement != want || !reflect.DeepEqual(arguments, []any{true}) {
 		t.Fatalf("projection = %q %#v, want %q %#v", statement, arguments, want, []any{true})
 	}
@@ -73,7 +73,7 @@ func TestCompileDistinctProjectionAndPaginationPreservePlaceholderOrder(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `SELECT DISTINCT "title", "id" FROM "godj_app"."news_article" WHERE "title" ILIKE $1 ESCAPE '\' AND "published" = $2 ORDER BY "id" DESC LIMIT $3 OFFSET $4`
+	want := `SELECT DISTINCT "title", "id" FROM "godj_app"."news_article" WHERE (("title" ILIKE $1 ESCAPE '\') AND ("published" = $2)) ORDER BY "id" DESC LIMIT $3 OFFSET $4`
 	wantArguments := []any{`%50\%\_Go\\SQL%`, true, int64(2), int64(3)}
 	if statement != want || !reflect.DeepEqual(arguments, wantArguments) {
 		t.Fatalf("distinct projection = %q %#v, want %q %#v", statement, arguments, want, wantArguments)
@@ -95,7 +95,7 @@ func TestCompileOffsetOnlyAndDistinctModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantOffset := `SELECT "id", "title" FROM "godj_app"."news_article" WHERE "title" = $1 OFFSET $2`
+	wantOffset := `SELECT "id", "title" FROM "godj_app"."news_article" WHERE ("title" = $1) OFFSET $2`
 	if statement != wantOffset || !reflect.DeepEqual(arguments, []any{"hello", int64(9)}) {
 		t.Fatalf("offset-only = %q %#v", statement, arguments)
 	}
@@ -104,7 +104,7 @@ func TestCompileOffsetOnlyAndDistinctModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantDistinct := `SELECT DISTINCT "id", "title" FROM "godj_app"."news_article" WHERE "title" = $1`
+	wantDistinct := `SELECT DISTINCT "id", "title" FROM "godj_app"."news_article" WHERE ("title" = $1)`
 	if statement != wantDistinct || !reflect.DeepEqual(arguments, []any{"hello"}) {
 		t.Fatalf("distinct model = %q %#v", statement, arguments)
 	}
@@ -148,7 +148,7 @@ func TestCompileAggregateWrapsTheSlicedLogicalSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `SELECT MAX("godj_source"."title"), COUNT(*), MAX("godj_source"."id") FROM (SELECT DISTINCT "id", "title", "published" FROM "godj_app"."news_article" WHERE "title" ILIKE $1 ESCAPE '\' AND "published" = $2 ORDER BY "id" DESC LIMIT $3 OFFSET $4) AS "godj_source"`
+	want := `SELECT MAX("godj_source"."title"), COUNT(*), MAX("godj_source"."id") FROM (SELECT DISTINCT "id", "title", "published" FROM "godj_app"."news_article" WHERE (("title" ILIKE $1 ESCAPE '\') AND ("published" = $2)) ORDER BY "id" DESC LIMIT $3 OFFSET $4) AS "godj_source"`
 	wantArguments := []any{`%50\%\_Go\\SQL%`, true, int64(2), int64(3)}
 	if statement != want || !reflect.DeepEqual(arguments, wantArguments) {
 		t.Fatalf("aggregate = %q %#v, want %q %#v", statement, arguments, want, wantArguments)
@@ -184,7 +184,7 @@ func TestCompileSimpleAggregateUsesDirectSourceAndDropsOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `SELECT COUNT(*), MAX("id"), MAX("summary") FROM "godj_app"."news_article" WHERE "published" = $1 AND "summary" ILIKE $2 ESCAPE '\'`
+	want := `SELECT COUNT(*), MAX("id"), MAX("summary") FROM "godj_app"."news_article" WHERE (("published" = $1) AND ("summary" ILIKE $2 ESCAPE '\'))`
 	wantArguments := []any{true, "%Go%"}
 	if statement != want || !reflect.DeepEqual(arguments, wantArguments) {
 		t.Fatalf("direct aggregate = %q %#v, want %q %#v", statement, arguments, want, wantArguments)
@@ -419,7 +419,7 @@ func TestCompileRelationModelSupportsDistinctAndOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := `SELECT DISTINCT "t0"."id", "t0"."author_id" FROM "godj_app"."blog_post" AS "t0" INNER JOIN "godj_app"."authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE "t1"."name" = $1 OFFSET $2`
+	want := `SELECT DISTINCT "t0"."id", "t0"."author_id" FROM "godj_app"."blog_post" AS "t0" INNER JOIN "godj_app"."authors_author" AS "t1" ON "t0"."author_id" = "t1"."id" WHERE ("t1"."name" = $1) OFFSET $2`
 	if statement != want || !reflect.DeepEqual(arguments, []any{"Ada", int64(4)}) {
 		t.Fatalf("relation distinct offset = %q %#v, want %q", statement, arguments, want)
 	}

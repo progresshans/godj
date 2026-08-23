@@ -116,11 +116,11 @@ func (r ReverseObject[Owner, Source]) From(
 		return nil, relationInvalidPlan("reverse relation owner descriptor returned an invalid primary key value")
 	}
 
-	predicate := Predicate[Source]{condition: query.NewCondition(
+	predicate := predicateFromCondition[Source](query.NewCondition(
 		fieldReference(r.state.sourceForeignKey),
 		query.LookupExact,
 		query.Integer(identifier),
-	)}
+	), nil)
 	ordering := NewIntegerField[Source](r.state.sourcePrimaryKey).Asc()
 	querySet := NewManager[Source](r.state.sourceDescriptor).
 		Using(backend).

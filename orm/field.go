@@ -27,9 +27,9 @@ type WritableField[M any] interface {
 }
 
 type Predicate[M any] struct {
-	condition query.Condition
-	err       error
-	marker    [0]func(M)
+	expression query.Expression
+	err        error
+	marker     [0]func(M)
 }
 
 type Ordering[M any] struct {
@@ -137,7 +137,7 @@ func newField[M any](metadata ir.Field, kind query.FieldKind, expectedKind ir.Fi
 }
 
 func (f field[M]) predicate(lookup query.Lookup, value query.Value) Predicate[M] {
-	return Predicate[M]{condition: query.NewCondition(f.reference, lookup, value), err: f.err}
+	return predicateFromCondition[M](query.NewCondition(f.reference, lookup, value), f.err)
 }
 
 func (f field[M]) ordering(direction query.Direction) Ordering[M] {

@@ -141,7 +141,7 @@ func (p ReversePrefetch[Owner, Source]) Load(
 	ordering := NewIntegerField[Source](p.state.sourcePrimaryKey).Asc()
 	base := NewManager[Source](p.state.reverse.sourceDescriptor).Using(backend)
 	batch := base.
-		Filter(Predicate[Source]{condition: inCondition}).
+		Filter(predicateFromCondition[Source](inCondition, nil)).
 		OrderBy(ordering)
 	if batch.configurationErr != nil {
 		return nil, batch.configurationErr
@@ -149,11 +149,11 @@ func (p ReversePrefetch[Owner, Source]) Load(
 
 	coldSets := make([]*RelatedSet[Source], len(ownerKeys))
 	for index, identifier := range ownerKeys {
-		exact := Predicate[Source]{condition: query.NewCondition(
+		exact := predicateFromCondition[Source](query.NewCondition(
 			fieldReference(p.state.sourceForeignKey),
 			query.LookupExact,
 			query.Integer(identifier),
-		)}
+		), nil)
 		querySet := base.Filter(exact).OrderBy(ordering)
 		if querySet.configurationErr != nil {
 			return nil, querySet.configurationErr

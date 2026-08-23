@@ -61,9 +61,11 @@ func ParseDynamicRelations[M any](
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Predicate[M]{
-			condition: query.NewRelatedCondition(path, query.LookupExact, value),
-		})
+		predicate := predicateFromCondition[M](query.NewRelatedCondition(path, query.LookupExact, value), nil)
+		if predicate.err != nil {
+			return nil, predicate.err
+		}
+		result = append(result, predicate)
 	}
 	return result, nil
 }
@@ -120,9 +122,11 @@ func ParseDynamicReverseRelations[M any](
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Predicate[M]{
-			condition: query.NewRelatedCondition(path, query.LookupExact, value),
-		})
+		predicate := predicateFromCondition[M](query.NewRelatedCondition(path, query.LookupExact, value), nil)
+		if predicate.err != nil {
+			return nil, predicate.err
+		}
+		result = append(result, predicate)
 	}
 	return result, nil
 }
@@ -206,7 +210,11 @@ func parseDynamicNullableRelationIsNull[M any](
 	if err != nil {
 		return Predicate[M]{}, err
 	}
-	return Predicate[M]{condition: query.NewRelatedCondition(path, query.LookupIsNull, value)}, nil
+	predicate := predicateFromCondition[M](query.NewRelatedCondition(path, query.LookupIsNull, value), nil)
+	if predicate.err != nil {
+		return Predicate[M]{}, predicate.err
+	}
+	return predicate, nil
 }
 
 func isRelationLookupSuffix(name string) bool {

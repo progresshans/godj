@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/progresshans/godj/apps"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
@@ -24,9 +26,10 @@ const (
 	ArticleListRoute = "godj_conformance:article-list"
 	ArticleListPath  = "/articles/"
 
-	defaultArticleListLimit = 20
-	maximumArticleListLimit = 100
-	articleListBadQueryBody = "Bad Request\n"
+	defaultArticleListLimit   = 20
+	maximumArticleListLimit   = 100
+	maximumArticleSearchBytes = 256
+	articleListBadQueryBody   = "Bad Request\n"
 )
 
 //go:embed templates/article_list.html
@@ -90,8 +93,19 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 		return web.Response{}, fmt.Errorf("article list: bind request facade: %w", err)
 	}
 	matching := bound.ModelsArticle
+	if options.Query != nil {
+		matching = matching.Filter(orm.Or(
+			articlemodels.ArticleFields.Title.IContains(*options.Query),
+			articlemodels.ArticleFields.Summary.IContains(*options.Query),
+		))
+	}
 	if options.Published != nil {
 		matching = matching.Filter(articlemodels.ArticleFields.Published.Exact(*options.Published))
+	}
+	if options.ExcludeTitle != nil {
+		matching = matching.Filter(orm.Not(
+			articlemodels.ArticleFields.Title.IContains(*options.ExcludeTitle),
+		))
 	}
 	matching = matching.Distinct()
 	pageQuery, err := matching.
@@ -155,9 +169,11 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 }
 
 type articleListOptions struct {
-	Published *bool
-	Offset    int
-	Limit     int
+	Query        *string
+	Published    *bool
+	ExcludeTitle *string
+	Offset       int
+	Limit        int
 }
 
 func parseArticleListOptions(request *web.Request) (articleListOptions, error) {
@@ -169,6 +185,11 @@ func parseArticleListOptions(request *web.Request) (articleListOptions, error) {
 	values, parseErr := url.ParseQuery(httpRequest.URL.RawQuery)
 	if parseErr != nil {
 		return articleListOptions{}, invalidArticleListQuery("query string is malformed")
+	}
+	if raw, present, err := articleListBoundedTextQueryValue(values, "q"); err != nil {
+		return articleListOptions{}, err
+	} else if present {
+		options.Query = &raw
 	}
 	if raw, present, err := articleListQueryValue(values, "published"); err != nil {
 		return articleListOptions{}, err
@@ -183,6 +204,11 @@ func parseArticleListOptions(request *web.Request) (articleListOptions, error) {
 			return articleListOptions{}, invalidArticleListQuery("published must be true or false")
 		}
 		options.Published = &published
+	}
+	if raw, present, err := articleListBoundedTextQueryValue(values, "exclude_title"); err != nil {
+		return articleListOptions{}, err
+	} else if present {
+		options.ExcludeTitle = &raw
 	}
 	if raw, present, err := articleListQueryValue(values, "offset"); err != nil {
 		return articleListOptions{}, err
@@ -206,6 +232,23 @@ func parseArticleListOptions(request *web.Request) (articleListOptions, error) {
 		options.Limit = int(limit)
 	}
 	return options, nil
+}
+
+func articleListBoundedTextQueryValue(values url.Values, name string) (string, bool, error) {
+	raw, present, err := articleListQueryValue(values, name)
+	if err != nil || !present {
+		return "", present, err
+	}
+	if !utf8.ValidString(raw) {
+		return "", false, invalidArticleListQuery(name + " must be valid UTF-8")
+	}
+	if strings.ContainsRune(raw, '\x00') {
+		return "", false, invalidArticleListQuery(name + " must not contain NUL")
+	}
+	if len(raw) > maximumArticleSearchBytes {
+		return "", false, invalidArticleListQuery(name + " exceeds the 256-byte limit")
+	}
+	return raw, true, nil
 }
 
 func articleListQueryValue(values url.Values, name string) (string, bool, error) {

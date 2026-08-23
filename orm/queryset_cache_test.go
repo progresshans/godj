@@ -104,6 +104,33 @@ func TestQuerySetDirectCopySharesStateWhileEverySuccessfulChainGetsFreshState(t 
 	}
 }
 
+func TestCompositeFilterDerivesFreshCacheWithoutMutatingWarmSource(t *testing.T) {
+	backend := &cacheTestBackend{query: func(call int, _ context.Context, _ query.Plan) (db.Rows, error) {
+		return rowsForIDs(int64(call + 1)), nil
+	}}
+	base := newCacheTestManager().Using(backend)
+	assertCacheTestID(t, base, 1)
+
+	metadata := cacheTestDescriptor{}.Metadata()
+	id := NewIntegerField[cacheTestModel](metadata.Fields[0])
+	search := Or(id.Exact(1), id.Exact(2))
+	derived := base.Filter(search, Not(id.Exact(3)))
+	assertCacheTestID(t, derived, 2)
+	assertCacheTestID(t, derived, 2)
+	assertCacheTestID(t, base, 1)
+	if got := backend.callCount(); got != 2 {
+		t.Fatalf("backend calls = %d, want 2 independent caches", got)
+	}
+
+	where, ok := derived.Plan().Where()
+	if !ok || where.Kind() != query.ExpressionAnd || len(where.Children()) != 2 {
+		t.Fatalf("derived composite tree = (%#v, %v)", where, ok)
+	}
+	if _, ok := base.Plan().Where(); ok {
+		t.Fatal("composite Filter mutated the warm source plan")
+	}
+}
+
 func TestQuerySetAllDirectCopyConcurrentSingleflightAndCallerIsolation(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})

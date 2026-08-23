@@ -1943,6 +1943,23 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			},
 		},
 		{
+			name:    "predicate composition model mismatch",
+			fixture: "predicate_composition_model_mismatch.go.txt",
+			wantFragments: []string{
+				"orm.Or",
+				"orm.Predicate[Other]",
+				"orm.Predicate[models.Article]",
+			},
+		},
+		{
+			name:    "predicate connector arity",
+			fixture: "predicate_connector_arity.go.txt",
+			wantFragments: []string{
+				"not enough arguments in call to orm.And",
+				"not enough arguments in call to orm.Or",
+			},
+		},
+		{
 			name:    "descriptor model mismatch",
 			fixture: "descriptor_model_mismatch.go.txt",
 			wantFragments: []string{

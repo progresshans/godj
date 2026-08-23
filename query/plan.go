@@ -190,7 +190,7 @@ func (o Ordering) Equal(other Ordering) bool {
 type Plan struct {
 	table              string
 	sourceFields       []FieldRef
-	conditions         []Condition
+	where              Expression
 	orderings          []Ordering
 	limit              *int
 	offset             *int
@@ -215,8 +215,22 @@ func (p Plan) SourceFields() []FieldRef {
 	return append([]FieldRef(nil), p.sourceFields...)
 }
 
+// Where returns the one authoritative immutable Boolean expression tree.
+// False means that the plan has no predicate; there is no empty Boolean
+// constant in the query AST.
+func (p Plan) Where() (Expression, bool) {
+	if p.where.node == nil {
+		return Expression{}, false
+	}
+	return p.where, true
+}
+
+// Conditions returns a detached ordered DFS leaf inventory for diagnostics
+// and compatibility tests. It is computed from Where on every call and is not
+// an authoritative query representation; connector and negation semantics
+// are intentionally absent from this view.
 func (p Plan) Conditions() []Condition {
-	return cloneConditions(p.conditions)
+	return expressionConditions(p.where)
 }
 
 func (p Plan) Orderings() []Ordering {
@@ -272,8 +286,109 @@ func (p Plan) WithRelationProjection(projection RelationProjection) (Plan, error
 
 func (p Plan) WithConditions(conditions ...Condition) Plan {
 	clone := p.clone()
-	clone.conditions = append(clone.conditions, cloneConditions(conditions)...)
+	expressions := make([]Expression, 0, len(conditions)+1)
+	if clone.where.node != nil {
+		expressions = append(expressions, clone.where)
+	}
+	for _, condition := range conditions {
+		expressions = append(expressions, newUncheckedExpression(condition))
+	}
+	clone.where = uncheckedAndExpressions(expressions...)
 	return clone
+}
+
+// WithWhere derives a plan by implicitly AND-ing one validated expression
+// with the existing authoritative where tree. It is the error-returning path
+// used by ORM construction; low-level callers that need the historical
+// non-error signature continue to use WithConditions.
+func (p Plan) WithWhere(expression Expression) (Plan, error) {
+	if err := expression.validate(); err != nil {
+		return Plan{}, err
+	}
+	where := expression
+	if p.where.node != nil {
+		var err error
+		where, err = AndExpressions(p.where, expression)
+		if err != nil {
+			return Plan{}, err
+		}
+	}
+	if err := p.validateWhereSource(where); err != nil {
+		return Plan{}, err
+	}
+	clone := p.clone()
+	clone.where = where
+	return clone, nil
+}
+
+func (p Plan) validateWhereSource(expression Expression) error {
+	return p.validateWhereNode(expression.node, true)
+}
+
+func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction bool) error {
+	if node.kind == ExpressionLeaf {
+		condition := node.condition
+		path := condition.relationPath
+		if path == nil {
+			if !slices.Contains(p.sourceFields, condition.field) {
+				return invalidPlanError("query expression scalar field is not part of the plan source metadata")
+			}
+			return nil
+		}
+		if !relationAtRootConjunction {
+			return &Error{
+				Category: CategoryQuery,
+				Code:     CodeUnsupported,
+				Field:    condition.field.name,
+				Lookup:   string(condition.lookup),
+				Detail:   "relation predicates under OR or NOT are not supported",
+			}
+		}
+		if len(path.hops) != 1 {
+			return invalidPlanError("query expression relation path must contain exactly one hop")
+		}
+		hop := path.hops[0]
+		switch path.scope {
+		case RelationTerminalSourceKey:
+			if !slices.Contains(p.sourceFields, condition.field) {
+				return invalidPlanError("query expression relation source key is not part of the plan source metadata")
+			}
+		case RelationTerminalRelatedField:
+			switch hop.direction {
+			case RelationForward:
+				sourceKey := NewFieldRef(hop.field, hop.sourceColumn, FieldInteger, hop.nullable)
+				if hop.sourceTable != p.table || !slices.Contains(p.sourceFields, sourceKey) {
+					return invalidPlanError("query expression forward relation source key is not part of the plan source metadata")
+				}
+			case RelationReverse:
+				if hop.targetTable != p.table || !containsPlanIntegerColumn(p.sourceFields, hop.targetPrimaryKeyColumn) {
+					return invalidPlanError("query expression reverse relation root key is not part of the plan source metadata")
+				}
+			default:
+				return invalidPlanError("query expression relation direction is invalid")
+			}
+		default:
+			return invalidPlanError("query expression relation terminal scope is invalid")
+		}
+		return nil
+	}
+
+	childRelationAtRoot := relationAtRootConjunction && node.kind == ExpressionAnd
+	for _, child := range node.children {
+		if err := p.validateWhereNode(child.node, childRelationAtRoot); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func containsPlanIntegerColumn(fields []FieldRef, column string) bool {
+	for _, field := range fields {
+		if field.column == column && field.kind == FieldInteger && !field.nullable {
+			return true
+		}
+	}
+	return false
 }
 
 func (p Plan) WithOrderings(orderings ...Ordering) Plan {
@@ -328,7 +443,7 @@ func (p Plan) Equal(other Plan) bool {
 		p.distinct != other.distinct || !p.result.Equal(other.result) {
 		return false
 	}
-	if !slices.EqualFunc(p.conditions, other.conditions, func(left, right Condition) bool { return left.Equal(right) }) {
+	if !p.where.Equal(other.where) {
 		return false
 	}
 	if !slices.EqualFunc(p.orderings, other.orderings, func(left, right Ordering) bool { return left.Equal(right) }) {
@@ -352,7 +467,6 @@ func (p Plan) Equal(other Plan) bool {
 func (p Plan) clone() Plan {
 	clone := p
 	clone.sourceFields = append([]FieldRef(nil), p.sourceFields...)
-	clone.conditions = cloneConditions(p.conditions)
 	clone.orderings = append([]Ordering(nil), p.orderings...)
 	if p.limit != nil {
 		limit := *p.limit
@@ -366,17 +480,6 @@ func (p Plan) clone() Plan {
 	if p.relationProjection != nil {
 		projection := p.relationProjection.clone()
 		clone.relationProjection = &projection
-	}
-	return clone
-}
-
-func cloneConditions(conditions []Condition) []Condition {
-	if conditions == nil {
-		return nil
-	}
-	clone := make([]Condition, len(conditions))
-	for index := range conditions {
-		clone[index] = conditions[index].clone()
 	}
 	return clone
 }

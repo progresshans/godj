@@ -66,7 +66,11 @@ func ParseDynamic[M any](descriptor ModelDescriptor[M], policy LookupPolicy, inp
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, Predicate[M]{condition: query.NewCondition(fieldReference(field), lookup, value)})
+		predicate := predicateFromCondition[M](query.NewCondition(fieldReference(field), lookup, value), nil)
+		if predicate.err != nil {
+			return nil, predicate.err
+		}
+		result = append(result, predicate)
 	}
 	return result, nil
 }

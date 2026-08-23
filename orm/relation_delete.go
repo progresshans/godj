@@ -135,7 +135,10 @@ func (d RelationDeleter[M]) Delete(
 	if err != nil {
 		return 0, err
 	}
-	protectPlans, setNullPlans, deletePlan := d.state.plans(targetKey)
+	protectPlans, setNullPlans, deletePlan, err := d.state.plans(targetKey)
+	if err != nil {
+		return 0, err
+	}
 	guard := &relationDeleteCallbackGuard{}
 	callback := func(session db.RelationSession) error {
 		return guard.invoke(func() error {
@@ -219,15 +222,23 @@ func (state relationDeleteState[M]) preflight(target M) (int64, error) {
 	return targetKey, nil
 }
 
-func (state relationDeleteState[M]) plans(targetKey int64) ([]query.Plan, []query.RelationSetNullPlan, query.DeletePlan) {
+func (state relationDeleteState[M]) plans(targetKey int64) ([]query.Plan, []query.RelationSetNullPlan, query.DeletePlan, error) {
 	keyValue := query.Integer(targetKey)
 	protect := make([]query.Plan, len(state.protect))
 	for index, edge := range state.protect {
 		foreignKey := fieldReference(edge.sourceForeignKey)
-		protect[index] = query.NewPlan(
+		expression, err := query.NewExpression(query.NewCondition(foreignKey, query.LookupExact, keyValue))
+		if err != nil {
+			return nil, nil, query.DeletePlan{}, err
+		}
+		plan, err := query.NewPlan(
 			edge.sourceModel.DBTable,
 			[]query.FieldRef{fieldReference(edge.sourcePrimaryKey), foreignKey},
-		).WithConditions(query.NewCondition(foreignKey, query.LookupExact, keyValue))
+		).WithWhere(expression)
+		if err != nil {
+			return nil, nil, query.DeletePlan{}, err
+		}
+		protect[index] = plan
 	}
 	setNull := make([]query.RelationSetNullPlan, len(state.setNull))
 	for index, edge := range state.setNull {
@@ -241,7 +252,7 @@ func (state relationDeleteState[M]) plans(targetKey int64) ([]query.Plan, []quer
 		state.targetModel.DBTable,
 		fieldReference(state.targetKey),
 		keyValue,
-	)
+	), nil
 }
 
 func (state relationDeleteState[M]) execute(

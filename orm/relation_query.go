@@ -160,14 +160,14 @@ func (f RelatedIntegerField[M]) Exact(value int64) Predicate[M] {
 	if !f.valid {
 		return Predicate[M]{err: relationInvalidPlan("related integer field is unbound")}
 	}
-	return Predicate[M]{condition: query.NewRelatedCondition(f.path, query.LookupExact, query.Integer(value))}
+	return predicateFromCondition[M](query.NewRelatedCondition(f.path, query.LookupExact, query.Integer(value)), nil)
 }
 
 func (f RelatedStringField[M]) Exact(value string) Predicate[M] {
 	if !f.valid {
 		return Predicate[M]{err: relationInvalidPlan("related string field is unbound")}
 	}
-	return Predicate[M]{condition: query.NewRelatedCondition(f.path, query.LookupExact, query.String(value))}
+	return predicateFromCondition[M](query.NewRelatedCondition(f.path, query.LookupExact, query.String(value)), nil)
 }
 
 func validateBoundModel[M any](model BoundModel[M]) error {

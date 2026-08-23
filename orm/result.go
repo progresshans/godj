@@ -404,10 +404,8 @@ func validateScalarResultSource(plan query.Plan) error {
 	if _, selected := plan.RelationProjection(); selected {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed scalar result cannot combine with relation projection"}
 	}
-	for _, condition := range plan.Conditions() {
-		if _, related := condition.RelationPath(); related {
-			return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed scalar result cannot combine with relation traversal"}
-		}
+	if where, ok := plan.Where(); ok && where.HasRelations() {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "typed scalar result cannot combine with relation traversal"}
 	}
 	return nil
 }

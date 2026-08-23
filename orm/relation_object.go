@@ -176,9 +176,10 @@ func (r NullableForwardObject[S, T]) IsNull(value bool) Predicate[S] {
 	if !r.state.valid || !r.state.nullable || r.state.nullablePath.TerminalScope() != query.RelationTerminalSourceKey {
 		return Predicate[S]{err: relationInvalidPlan("nullable forward object relation is unbound")}
 	}
-	return Predicate[S]{
-		condition: query.NewRelatedCondition(r.state.nullablePath, query.LookupIsNull, query.Boolean(value)),
-	}
+	return predicateFromCondition[S](
+		query.NewRelatedCondition(r.state.nullablePath, query.LookupIsNull, query.Boolean(value)),
+		nil,
+	)
 }
 
 func (state forwardObjectState[S, T]) from(backend db.Queryer, source S) (*RelatedObject[T], error) {

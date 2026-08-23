@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"strconv"
@@ -326,6 +327,118 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
 		t.Fatalf("invalid PostgreSQL HTTP queries performed DB I/O: got %d, want %d", got, wantHTTPQueries)
 	}
+
+	createSearchArticle := func(title string, published bool, summary *string) articlemodels.Article {
+		t.Helper()
+		input := articlemodels.NewArticleCreate(title).WithPublished(published)
+		if summary == nil {
+			input = input.WithSummaryNull()
+		} else {
+			input = input.WithSummary(*summary)
+		}
+		article, createErr := articlemodels.ArticleObjects.Create(ctx, backend, input)
+		if createErr != nil {
+			t.Fatalf("create PostgreSQL search Article %q: %v", title, createErr)
+		}
+		return article
+	}
+	goSummary := "A Go summary"
+	draftSummary := "Release candidate"
+	percentSummary := "under_score"
+	wildcardSummary := "underXscore"
+	goLaunch := createSearchArticle("Go Launch", true, nil)
+	summaryMatch := createSearchArticle("Rust Notes", true, &goSummary)
+	draft := createSearchArticle("Go Draft", true, &draftSummary)
+	hidden := createSearchArticle("Go Hidden", false, nil)
+	percent := createSearchArticle("100% Coverage", true, &percentSummary)
+	wildcard := createSearchArticle("1000 Coverage", true, &wildcardSummary)
+
+	orSearch := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"q": {"go"}}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, orSearch, articlePostgresIDs(goLaunch, summaryMatch, draft, hidden), articlePostgresIDs(nullArticle, emptyArticle, percent, wildcard))
+	if !strings.Contains(articlePostgresElement(t, orSearch, strconv.FormatInt(goLaunch.ID, 10)), `class="summary summary-null"`) {
+		t.Fatalf("PostgreSQL title-side OR match with NULL summary was lost: %q", orSearch)
+	}
+	assertArticleListMetadata(t, orSearch, 4, strconv.FormatInt(hidden.ID, 10), 0, 20, 4)
+
+	combined := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{
+		"q":             {"go"},
+		"published":     {"true"},
+		"exclude_title": {"draft"},
+	}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, combined, articlePostgresIDs(goLaunch, summaryMatch), articlePostgresIDs(draft, hidden, percent, wildcard))
+	assertArticleListMetadata(t, combined, 2, strconv.FormatInt(summaryMatch.ID, 10), 0, 20, 2)
+
+	searchPage := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{
+		"q":             {"go"},
+		"exclude_title": {"draft"},
+		"offset":        {"1"},
+		"limit":         {"1"},
+	}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, searchPage, articlePostgresIDs(summaryMatch), articlePostgresIDs(goLaunch, draft, hidden, percent, wildcard))
+	assertArticleListMetadata(t, searchPage, 3, strconv.FormatInt(hidden.ID, 10), 1, 1, 1)
+
+	percentSearch := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"q": {"100%"}}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, percentSearch, articlePostgresIDs(percent), articlePostgresIDs(wildcard))
+	assertArticleListMetadata(t, percentSearch, 1, strconv.FormatInt(percent.ID, 10), 0, 20, 1)
+
+	underscoreSearch := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"q": {"under_"}}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, underscoreSearch, articlePostgresIDs(percent), articlePostgresIDs(wildcard))
+	assertArticleListMetadata(t, underscoreSearch, 1, strconv.FormatInt(percent.ID, 10), 0, 20, 1)
+
+	emptyQuery := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"q": {""}}))
+	wantHTTPQueries += 2
+	assertArticleListMetadata(t, emptyQuery, 8, strconv.FormatInt(wildcard.ID, 10), 0, 20, 8)
+	emptyExclude := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"exclude_title": {""}}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, emptyExclude, nil, articlePostgresIDs(nullArticle, emptyArticle, goLaunch, summaryMatch, draft, hidden, percent, wildcard))
+	assertArticleListMetadata(t, emptyExclude, 0, "", 0, 20, 0)
+
+	validMultibyte := strings.Repeat("한", 85)
+	if len(validMultibyte) != 255 {
+		t.Fatalf("PostgreSQL multibyte test query bytes = %d, want 255", len(validMultibyte))
+	}
+	multibyte := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"q": {validMultibyte}}))
+	wantHTTPQueries += 2
+	assertArticleListMetadata(t, multibyte, 0, "", 0, 20, 0)
+	exactCap := strings.Repeat("a", 256)
+	if len(exactCap) != 256 {
+		t.Fatalf("PostgreSQL exact-cap test query bytes = %d, want 256", len(exactCap))
+	}
+	exactCapBody := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"q": {exactCap}}))
+	wantHTTPQueries += 2
+	assertArticleListMetadata(t, exactCapBody, 0, "", 0, 20, 0)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL Boolean-search HTTP query count = %d, want %d", got, wantHTTPQueries)
+	}
+
+	for _, rawQuery := range []string{
+		"q=go&q=rust",
+		"exclude_title=draft&exclude_title=old",
+		"q=" + strings.Repeat("a", 257),
+		"exclude_title=" + strings.Repeat("b", 257),
+		"q=" + url.QueryEscape(strings.Repeat("한", 86)),
+		"q=%",
+		"exclude_title=%ZZ",
+		"q=%FF",
+		"q=%00",
+		"exclude_title=%00",
+	} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "http://example.test"+webapp.ArticleListPath, nil)
+		request.URL.RawQuery = rawQuery
+		application.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest || response.Body.String() != "Bad Request\n" {
+			t.Fatalf("invalid PostgreSQL raw query %q = status %d body %q", rawQuery, response.Code, response.Body.String())
+		}
+		if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+			t.Fatalf("invalid PostgreSQL raw query %q performed DB I/O: got %d, want %d", rawQuery, got, wantHTTPQueries)
+		}
+	}
 }
 
 type articlePostgresNullableMaximum struct {
@@ -336,6 +449,14 @@ type articlePostgresNullableMaximum struct {
 type articlePostgresIDMaximum struct {
 	count   int64
 	maximum orm.Optional[int64]
+}
+
+func articlePostgresIDs(articles ...articlemodels.Article) []string {
+	ids := make([]string, len(articles))
+	for index, article := range articles {
+		ids[index] = strconv.FormatInt(article.ID, 10)
+	}
+	return ids
 }
 
 func articlePostgresHTTPBody(t *testing.T, client *http.Client, address string) string {

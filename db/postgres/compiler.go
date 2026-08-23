@@ -17,14 +17,19 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	if err := validateSchemaIdentifier(schema); err != nil {
 		return "", nil, invalidPlan(err.Error())
 	}
-	_, relationProjection := plan.RelationProjection()
-	hasRelation := relationProjection
-	for _, condition := range plan.Conditions() {
-		if _, related := condition.RelationPath(); related {
-			hasRelation = true
-			break
-		}
+	if err := validateIdentifier(plan.Table()); err != nil {
+		return "", nil, invalidPlan("table " + err.Error())
 	}
+	sourceFields, err := validateReadSourceFields(plan.SourceFields())
+	if err != nil {
+		return "", nil, err
+	}
+	where, err := analyzeWhere(plan, sourceFields)
+	if err != nil {
+		return "", nil, err
+	}
+	_, relationProjection := plan.RelationProjection()
+	hasRelation := relationProjection || where.hasRelations
 
 	resultKind := plan.ResultShape().Kind()
 	if resultKind != query.ResultModel && hasRelation {
@@ -35,29 +40,27 @@ func compilePlan(schema string, plan query.Plan) (string, []any, error) {
 	switch resultKind {
 	case query.ResultModel, query.ResultProjection:
 		if hasRelation {
-			return compileRelation(schema, plan)
+			return compileRelation(schema, plan, sourceFields, where)
 		}
-		return compileScalar(schema, plan)
+		return compileScalar(schema, plan, sourceFields, where)
 	case query.ResultAggregate:
-		return compileAggregate(schema, plan)
+		return compileAggregate(schema, plan, sourceFields, where)
 	default:
 		return "", nil, invalidPlan("query result kind is invalid")
 	}
 }
 
-func compileScalar(schema string, plan query.Plan) (string, []any, error) {
-	if err := validateIdentifier(plan.Table()); err != nil {
-		return "", nil, invalidPlan("table " + err.Error())
-	}
-	sourceFields, err := validateReadSourceFields(plan.SourceFields())
-	if err != nil {
-		return "", nil, err
-	}
+func compileScalar(
+	schema string,
+	plan query.Plan,
+	sourceFields []query.FieldRef,
+	where whereAnalysis,
+) (string, []any, error) {
 	selectedFields, err := scalarSelectedFields(plan, sourceFields)
 	if err != nil {
 		return "", nil, err
 	}
-	return compileScalarSelect(schema, plan, sourceFields, selectedFields)
+	return compileScalarSelect(schema, plan, sourceFields, selectedFields, where)
 }
 
 func compileScalarSelect(
@@ -65,6 +68,7 @@ func compileScalarSelect(
 	plan query.Plan,
 	sourceFields,
 	selectedFields []query.FieldRef,
+	where whereAnalysis,
 ) (string, []any, error) {
 	var statement strings.Builder
 	statement.WriteString("SELECT ")
@@ -88,7 +92,7 @@ func compileScalarSelect(
 	}
 	statement.WriteString(table)
 
-	arguments, err := appendScalarConditions(&statement, plan.Conditions(), sourceFields)
+	arguments, err := appendWhere(&statement, where, scalarWhereField)
 	if err != nil {
 		return "", nil, err
 	}
@@ -126,14 +130,12 @@ func compileScalarSelect(
 	return statement.String(), arguments, nil
 }
 
-func compileAggregate(schema string, plan query.Plan) (string, []any, error) {
-	if err := validateIdentifier(plan.Table()); err != nil {
-		return "", nil, invalidPlan("table " + err.Error())
-	}
-	sourceFields, err := validateReadSourceFields(plan.SourceFields())
-	if err != nil {
-		return "", nil, err
-	}
+func compileAggregate(
+	schema string,
+	plan query.Plan,
+	sourceFields []query.FieldRef,
+	where whereAnalysis,
+) (string, []any, error) {
 	expressions := plan.ResultShape().Expressions()
 	if len(expressions) == 0 {
 		return "", nil, invalidPlan("aggregate result is empty")
@@ -141,9 +143,9 @@ func compileAggregate(schema string, plan query.Plan) (string, []any, error) {
 	_, limited := plan.Limit()
 	_, offset := plan.Offset()
 	if !plan.Distinct() && !limited && !offset {
-		return compileDirectAggregate(schema, plan, expressions, sourceFields)
+		return compileDirectAggregate(schema, plan, expressions, sourceFields, where)
 	}
-	return compileDerivedAggregate(schema, plan, expressions, sourceFields)
+	return compileDerivedAggregate(schema, plan, expressions, sourceFields, where)
 }
 
 func compileDerivedAggregate(
@@ -151,6 +153,7 @@ func compileDerivedAggregate(
 	plan query.Plan,
 	expressions []query.ResultExpression,
 	sourceFields []query.FieldRef,
+	where whereAnalysis,
 ) (string, []any, error) {
 	const sourceAlias = "godj_source"
 	var statement strings.Builder
@@ -159,7 +162,7 @@ func compileDerivedAggregate(
 		return "", nil, err
 	}
 
-	inner, arguments, err := compileScalarSelect(schema, plan, sourceFields, sourceFields)
+	inner, arguments, err := compileScalarSelect(schema, plan, sourceFields, sourceFields, where)
 	if err != nil {
 		return "", nil, err
 	}
@@ -179,6 +182,7 @@ func compileDirectAggregate(
 	plan query.Plan,
 	expressions []query.ResultExpression,
 	sourceFields []query.FieldRef,
+	where whereAnalysis,
 ) (string, []any, error) {
 	table, err := quoteTable(schema, plan.Table())
 	if err != nil {
@@ -193,7 +197,7 @@ func compileDirectAggregate(
 	statement.WriteString(" FROM ")
 	statement.WriteString(table)
 
-	arguments, err := appendScalarConditions(&statement, plan.Conditions(), sourceFields)
+	arguments, err := appendWhere(&statement, where, scalarWhereField)
 	if err != nil {
 		return "", nil, err
 	}
@@ -203,34 +207,303 @@ func compileDirectAggregate(
 	return statement.String(), arguments, nil
 }
 
-func appendScalarConditions(
-	statement *strings.Builder,
-	conditions []query.Condition,
-	sourceFields []query.FieldRef,
-) ([]any, error) {
-	arguments := make([]any, 0, len(conditions))
-	if len(conditions) > 0 {
-		statement.WriteString(" WHERE ")
+const (
+	maximumWhereDepth = 64
+	maximumWhereNodes = 1024
+)
+
+type whereLeaf struct {
+	related  bool
+	hop      query.RelationHop
+	usesJoin bool
+}
+
+type whereAnalysis struct {
+	expression   query.Expression
+	present      bool
+	hasRelations bool
+	leaves       []whereLeaf
+}
+
+type whereAnalyzer struct {
+	plan         query.Plan
+	sourceFields []query.FieldRef
+	visited      int
+	leaves       []whereLeaf
+}
+
+// analyzeWhere validates the authoritative Boolean tree independently of the
+// query constructors. That second boundary is intentional: WithConditions
+// preserves malformed historical inputs so every backend must still fail
+// closed before database I/O.
+func analyzeWhere(plan query.Plan, sourceFields []query.FieldRef) (whereAnalysis, error) {
+	expression, present := plan.Where()
+	if !present {
+		return whereAnalysis{}, nil
 	}
-	for index, condition := range conditions {
-		if index > 0 {
-			statement.WriteString(" AND ")
+	analyzer := whereAnalyzer{plan: plan, sourceFields: sourceFields}
+	hasRelations, err := analyzer.walk(expression, 1, true)
+	if err != nil {
+		return whereAnalysis{}, err
+	}
+	if expression.HasRelations() != hasRelations {
+		return whereAnalysis{}, invalidPlan("query expression relation metadata is malformed")
+	}
+	return whereAnalysis{
+		expression:   expression,
+		present:      true,
+		hasRelations: hasRelations,
+		leaves:       analyzer.leaves,
+	}, nil
+}
+
+func (a *whereAnalyzer) walk(
+	expression query.Expression,
+	depth int,
+	relationAtRootConjunction bool,
+) (bool, error) {
+	if depth > maximumWhereDepth {
+		return false, invalidPlan("query expression exceeds the maximum depth of 64")
+	}
+	a.visited++
+	if a.visited > maximumWhereNodes {
+		return false, invalidPlan("query expression exceeds the maximum node count of 1024")
+	}
+
+	kind := expression.Kind()
+	children := expression.Children()
+	switch kind {
+	case query.ExpressionLeaf:
+		if len(children) != 0 {
+			return false, invalidPlan("query expression leaf is malformed")
 		}
-		if !containsField(sourceFields, condition.Field()) {
-			return nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
+		condition, ok := expression.Condition()
+		if !ok {
+			return false, invalidPlan("query expression leaf is malformed")
 		}
-		field, err := quoteIdentifier(condition.Field().Column())
+		leaf, err := a.analyzeLeaf(condition, relationAtRootConjunction)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
-		statement.WriteString(field)
-		conditionArguments, err := compileCondition(statement, condition, len(arguments)+1)
+		a.leaves = append(a.leaves, leaf)
+		if expression.HasRelations() != leaf.related {
+			return false, invalidPlan("query expression relation metadata is malformed")
+		}
+		return leaf.related, nil
+	case query.ExpressionAnd, query.ExpressionOr:
+		if len(children) < 2 {
+			return false, invalidPlan("AND and OR query expressions require at least two children")
+		}
+	case query.ExpressionNot:
+		if len(children) != 1 {
+			return false, invalidPlan("NOT query expressions require exactly one child")
+		}
+	default:
+		return false, invalidPlan("query expression is zero or malformed")
+	}
+
+	childRelationAtRoot := relationAtRootConjunction && kind == query.ExpressionAnd
+	hasRelations := false
+	for _, child := range children {
+		childRelations, err := a.walk(child, depth+1, childRelationAtRoot)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
-		arguments = append(arguments, conditionArguments...)
+		hasRelations = hasRelations || childRelations
+	}
+	if expression.HasRelations() != hasRelations {
+		return false, invalidPlan("query expression relation metadata is malformed")
+	}
+	return hasRelations, nil
+}
+
+func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootConjunction bool) (whereLeaf, error) {
+	if err := validateWhereCondition(condition); err != nil {
+		return whereLeaf{}, err
+	}
+	path, related := condition.RelationPath()
+	if !related {
+		if !containsField(a.sourceFields, condition.Field()) {
+			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
+		}
+		return whereLeaf{}, nil
+	}
+	if !relationAtRootConjunction {
+		return whereLeaf{}, unsupportedBooleanRelation(condition)
+	}
+	if condition.Lookup() == query.LookupIn {
+		return whereLeaf{}, invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
+	}
+	hops := path.Hops()
+	if len(hops) != 1 {
+		return whereLeaf{}, invalidPlan("PostgreSQL relation compiler requires exactly one relation hop")
+	}
+	hop := hops[0]
+	if hop.Direction() == query.RelationForward && hop.SourceTable() != a.plan.Table() {
+		return whereLeaf{}, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), a.plan.Table()))
+	}
+	if hop.Direction() == query.RelationReverse && hop.TargetTable() != a.plan.Table() {
+		return whereLeaf{}, invalidPlan(fmt.Sprintf("relation target table %q does not match reverse plan root table %q", hop.TargetTable(), a.plan.Table()))
+	}
+	if !condition.Field().Equal(path.Terminal()) {
+		return whereLeaf{}, invalidPlan("related condition field does not match relation path terminal")
+	}
+
+	leaf := whereLeaf{related: true, hop: hop}
+	switch path.TerminalScope() {
+	case query.RelationTerminalRelatedField:
+		switch hop.Direction() {
+		case query.RelationForward:
+			if hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
+				return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports required forward many-to-one related-field paths only")
+			}
+		case query.RelationReverse:
+			if err := validateReverseRelatedCondition(condition, hop); err != nil {
+				return whereLeaf{}, err
+			}
+		default:
+			return whereLeaf{}, invalidPlan("relation path has an unknown direction")
+		}
+		if condition.Lookup() != query.LookupExact {
+			return whereLeaf{}, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports exact related lookups only")
+		}
+		leaf.usesJoin = true
+	case query.RelationTerminalSourceKey:
+		if err := validateNullableSourceKeyCondition(a.sourceFields, condition, hop); err != nil {
+			return whereLeaf{}, err
+		}
+	default:
+		return whereLeaf{}, invalidPlan("relation path has an unknown terminal scope")
+	}
+	return leaf, nil
+}
+
+func validateWhereCondition(condition query.Condition) error {
+	field := condition.Field()
+	if err := validateIdentifier(field.Name()); err != nil {
+		return invalidPlan("condition field name " + err.Error())
+	}
+	if err := validateIdentifier(field.Column()); err != nil {
+		return invalidPlan("condition field column " + err.Error())
+	}
+	switch field.Kind() {
+	case query.FieldInteger, query.FieldString, query.FieldBoolean:
+	default:
+		return invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
+	}
+
+	switch condition.Lookup() {
+	case query.LookupExact:
+		if !valueMatchesField(condition.Value().Kind(), field.Kind()) {
+			return invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", condition.Value().Kind(), field.Name()))
+		}
+	case query.LookupIContains:
+		if _, ok := condition.Value().String(); field.Kind() != query.FieldString || !ok {
+			return unsupportedLookup(field, condition.Lookup())
+		}
+	case query.LookupIsNull:
+		if _, ok := condition.Value().Boolean(); !ok {
+			return unsupportedLookup(field, condition.Lookup())
+		}
+	case query.LookupIn:
+		if _, related := condition.RelationPath(); related {
+			return invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
+		}
+		if _, ok := condition.Values(); !ok {
+			return invalidPlan("PostgreSQL IN requires a valid root-table list-backed condition")
+		}
+	default:
+		return unsupportedLookup(field, condition.Lookup())
+	}
+	return nil
+}
+
+type whereFieldResolver func(query.Condition) (string, error)
+
+func scalarWhereField(condition query.Condition) (string, error) {
+	return quoteIdentifier(condition.Field().Column())
+}
+
+func appendWhere(
+	statement *strings.Builder,
+	where whereAnalysis,
+	resolveField whereFieldResolver,
+) ([]any, error) {
+	arguments := make([]any, 0, len(where.leaves))
+	if !where.present {
+		return arguments, nil
+	}
+	statement.WriteString(" WHERE ")
+	if err := appendWhereExpression(statement, where.expression, resolveField, &arguments, false); err != nil {
+		return nil, err
 	}
 	return arguments, nil
+}
+
+func appendWhereExpression(
+	statement *strings.Builder,
+	expression query.Expression,
+	resolveField whereFieldResolver,
+	arguments *[]any,
+	negated bool,
+) error {
+	statement.WriteByte('(')
+	switch expression.Kind() {
+	case query.ExpressionLeaf:
+		condition, ok := expression.Condition()
+		if !ok {
+			return invalidPlan("query expression leaf is malformed")
+		}
+		field, err := resolveField(condition)
+		if err != nil {
+			return err
+		}
+		statement.WriteString(field)
+		conditionArguments, err := compileCondition(statement, condition, len(*arguments)+1)
+		if err != nil {
+			return err
+		}
+		*arguments = append(*arguments, conditionArguments...)
+		_, related := condition.RelationPath()
+		if negated && !related && condition.Field().Nullable() && nullableNegationGuard(condition.Lookup()) {
+			statement.WriteString(" AND ")
+			statement.WriteString(field)
+			statement.WriteString(" IS NOT NULL")
+		}
+	case query.ExpressionAnd, query.ExpressionOr:
+		children := expression.Children()
+		operator := " AND "
+		if expression.Kind() == query.ExpressionOr {
+			operator = " OR "
+		}
+		for index, child := range children {
+			if index > 0 {
+				statement.WriteString(operator)
+			}
+			if err := appendWhereExpression(statement, child, resolveField, arguments, negated); err != nil {
+				return err
+			}
+		}
+	case query.ExpressionNot:
+		children := expression.Children()
+		statement.WriteString("NOT ")
+		if err := appendWhereExpression(statement, children[0], resolveField, arguments, !negated); err != nil {
+			return err
+		}
+	default:
+		return invalidPlan("query expression is zero or malformed")
+	}
+	statement.WriteByte(')')
+	return nil
+}
+
+func nullableNegationGuard(lookup query.Lookup) bool {
+	switch lookup {
+	case query.LookupExact, query.LookupIContains, query.LookupIn:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateOmittedAggregateOrderings(orderings []query.Ordering, sourceFields []query.FieldRef) error {
@@ -370,80 +643,27 @@ type relationJoin struct {
 	leftOuter bool
 }
 
-func compileRelation(schema string, plan query.Plan) (string, []any, error) {
-	if err := validateIdentifier(plan.Table()); err != nil {
-		return "", nil, invalidPlan("table " + err.Error())
-	}
-	columns, err := validateReadSourceFields(plan.SourceFields())
-	if err != nil {
-		return "", nil, err
-	}
-
-	conditions := plan.Conditions()
+func compileRelation(
+	schema string,
+	plan query.Plan,
+	columns []query.FieldRef,
+	where whereAnalysis,
+) (string, []any, error) {
 	joinsByKey := make(map[relationJoinKey]query.RelationHop)
-	conditionKeys := make([]relationJoinKey, len(conditions))
-	relatedConditions := make([]bool, len(conditions))
-	sourceKeyHops := make([]query.RelationHop, 0, len(conditions))
-	for index, condition := range conditions {
-		path, related := condition.RelationPath()
-		if !related {
-			if !containsField(columns, condition.Field()) {
-				return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
-			}
+	sourceKeyHops := make([]query.RelationHop, 0, len(where.leaves))
+	for _, leaf := range where.leaves {
+		if !leaf.related {
 			continue
 		}
-		if condition.Lookup() == query.LookupIn {
-			return "", nil, invalidPlan("PostgreSQL IN conditions cannot traverse a relation path")
-		}
-		hops := path.Hops()
-		if len(hops) != 1 {
-			return "", nil, invalidPlan("PostgreSQL relation compiler requires exactly one relation hop")
-		}
-		hop := hops[0]
-		if hop.Direction() == query.RelationForward && hop.SourceTable() != plan.Table() {
-			return "", nil, invalidPlan(fmt.Sprintf("relation source table %q does not match plan root table %q", hop.SourceTable(), plan.Table()))
-		}
-		if hop.Direction() == query.RelationReverse && hop.TargetTable() != plan.Table() {
-			return "", nil, invalidPlan(fmt.Sprintf("relation target table %q does not match reverse plan root table %q", hop.TargetTable(), plan.Table()))
-		}
-		if !condition.Field().Equal(path.Terminal()) {
-			return "", nil, invalidPlan("related condition field does not match relation path terminal")
-		}
-
-		switch path.TerminalScope() {
-		case query.RelationTerminalRelatedField:
-			switch hop.Direction() {
-			case query.RelationForward:
-				if hop.Cardinality() != ir.RelationManyToOne || hop.Nullable() {
-					return "", nil, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports required forward many-to-one related-field paths only")
-				}
-			case query.RelationReverse:
-				if err := validateReverseRelatedCondition(condition, hop); err != nil {
-					return "", nil, err
-				}
-			default:
-				return "", nil, invalidPlan("relation path has an unknown direction")
-			}
-			if condition.Lookup() != query.LookupExact {
-				return "", nil, unsupportedRelatedCondition(condition, "PostgreSQL relation compiler supports exact related lookups only")
-			}
-			relatedConditions[index] = true
-		case query.RelationTerminalSourceKey:
-			if err := validateNullableSourceKeyCondition(columns, condition, hop); err != nil {
-				return "", nil, err
-			}
-			sourceKeyHops = append(sourceKeyHops, hop)
+		if !leaf.usesJoin {
+			sourceKeyHops = append(sourceKeyHops, leaf.hop)
 			continue
-		default:
-			return "", nil, invalidPlan("relation path has an unknown terminal scope")
 		}
-
-		key := relationKey(hop)
-		if previous, exists := joinsByKey[key]; exists && !previous.Equal(hop) {
+		key := relationKey(leaf.hop)
+		if previous, exists := joinsByKey[key]; exists && !previous.Equal(leaf.hop) {
 			return "", nil, invalidPlan(fmt.Sprintf("relation edge %s.%s.%s has inconsistent metadata", key.sourceApp, key.sourceModel, key.field))
 		}
-		joinsByKey[key] = hop
-		conditionKeys[index] = key
+		joinsByKey[key] = leaf.hop
 	}
 
 	projection, selected := plan.RelationProjection()
@@ -561,28 +781,21 @@ func compileRelation(schema string, plan query.Plan) (string, []any, error) {
 		statement.WriteString(joinedColumn)
 	}
 
-	arguments := make([]any, 0, len(conditions)+1)
-	if len(conditions) > 0 {
-		statement.WriteString(" WHERE ")
-	}
-	for index, condition := range conditions {
-		if index > 0 {
-			statement.WriteString(" AND ")
-		}
+	resolveField := func(condition query.Condition) (string, error) {
 		alias := rootAlias
-		if relatedConditions[index] {
-			alias = joins[conditionKeys[index]].alias
+		if path, related := condition.RelationPath(); related && path.TerminalScope() == query.RelationTerminalRelatedField {
+			hops := path.Hops()
+			join, ok := joins[relationKey(hops[0])]
+			if !ok {
+				return "", invalidPlan("relation predicate join metadata is missing")
+			}
+			alias = join.alias
 		}
-		field, err := quoteQualified(alias, condition.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		statement.WriteString(field)
-		conditionArguments, err := compileCondition(&statement, condition, len(arguments)+1)
-		if err != nil {
-			return "", nil, err
-		}
-		arguments = append(arguments, conditionArguments...)
+		return quoteQualified(alias, condition.Field().Column())
+	}
+	arguments, err := appendWhere(&statement, where, resolveField)
+	if err != nil {
+		return "", nil, err
 	}
 
 	orderings := plan.Orderings()
@@ -913,6 +1126,16 @@ func unsupportedRelatedCondition(condition query.Condition, detail string) error
 		Field:    condition.Field().Name(),
 		Lookup:   string(condition.Lookup()),
 		Detail:   detail,
+	}
+}
+
+func unsupportedBooleanRelation(condition query.Condition) error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeUnsupported,
+		Field:    condition.Field().Name(),
+		Lookup:   string(condition.Lookup()),
+		Detail:   "PostgreSQL relation predicates under OR or NOT are not supported",
 	}
 }
 

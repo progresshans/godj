@@ -10,35 +10,36 @@ import (
 )
 
 func Compile(plan query.Plan) (string, []any, error) {
-	_, selected := plan.RelationProjection()
-	related := false
-	for _, condition := range plan.Conditions() {
-		if _, ok := condition.RelationPath(); ok {
-			related = true
-			break
-		}
+	where, err := analyzeWhere(plan)
+	if err != nil {
+		return "", nil, err
 	}
+	_, selected := plan.RelationProjection()
+	related := where.hasRelations
 	if plan.ResultShape().Kind() != query.ResultModel && (selected || related) {
 		return "", nil, unsupportedResult("SQLite projection and aggregate results cannot combine with relation paths or relation projection")
 	}
 	if selected {
-		return compileRelation(plan)
+		return compileRelation(plan, where)
 	}
 	if related {
-		return compileRelation(plan)
+		return compileRelation(plan, where)
 	}
-	return compileScalar(plan)
+	return compileScalar(plan, where)
 }
 
 // compileScalar is the single-table scalar compiler. Keep
 // relation-specific qualification and validation out of this path so plans
 // built before relation traversal retain their exact SQL and error behavior.
-func compileScalar(plan query.Plan) (string, []any, error) {
+func compileScalar(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, error) {
 	if plan.Table() == "" {
 		return "", nil, invalidPlan("table is empty")
 	}
 	sourceFields := plan.SourceFields()
 	if err := validateReadSourceFields(sourceFields); err != nil {
+		return "", nil, err
+	}
+	if err := bindScalarWhere(where, sourceFields); err != nil {
 		return "", nil, err
 	}
 	result := plan.ResultShape()
@@ -47,21 +48,21 @@ func compileScalar(plan query.Plan) (string, []any, error) {
 		if len(result.Expressions()) != 0 {
 			return "", nil, invalidPlan("model result contains explicit expressions")
 		}
-		return compileScalarRows(plan, sourceFields, sourceFields)
+		return compileScalarRows(plan, sourceFields, sourceFields, where)
 	case query.ResultProjection:
 		projectionFields, err := scalarProjectionFields(result, sourceFields)
 		if err != nil {
 			return "", nil, err
 		}
-		return compileScalarRows(plan, projectionFields, sourceFields)
+		return compileScalarRows(plan, projectionFields, sourceFields, where)
 	case query.ResultAggregate:
-		return compileScalarAggregate(plan, result, sourceFields)
+		return compileScalarAggregate(plan, result, sourceFields, where)
 	default:
 		return "", nil, invalidPlan("query result kind is invalid")
 	}
 }
 
-func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.FieldRef) (string, []any, error) {
+func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
 	if len(selectedFields) == 0 {
 		return "", nil, invalidPlan("select columns are empty")
 	}
@@ -88,28 +89,9 @@ func compileScalarRows(plan query.Plan, selectedFields, sourceFields []query.Fie
 	}
 	sql.WriteString(table)
 
-	conditions := plan.Conditions()
-	arguments := make([]any, 0, len(conditions)+1)
-	if len(conditions) > 0 {
-		sql.WriteString(" WHERE ")
-	}
-	for index, condition := range conditions {
-		if index > 0 {
-			sql.WriteString(" AND ")
-		}
-		if !containsField(sourceFields, condition.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
-		}
-		field, err := quoteIdentifier(condition.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		sql.WriteString(field)
-		conditionArguments, err := compileCondition(&sql, condition)
-		if err != nil {
-			return "", nil, err
-		}
-		arguments = append(arguments, conditionArguments...)
+	arguments, err := appendWhere(&sql, where)
+	if err != nil {
+		return "", nil, err
 	}
 
 	orderings := plan.Orderings()
@@ -161,7 +143,7 @@ func scalarProjectionFields(result query.ResultShape, sourceFields []query.Field
 	return fields, nil
 }
 
-func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFields []query.FieldRef) (string, []any, error) {
+func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
 	expressions := result.Expressions()
 	if len(expressions) == 0 {
 		return "", nil, invalidPlan("aggregate result is empty")
@@ -169,9 +151,9 @@ func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFie
 	_, limited := plan.Limit()
 	_, offset := plan.Offset()
 	if !plan.Distinct() && !limited && !offset {
-		return compileDirectScalarAggregate(plan, expressions, sourceFields)
+		return compileDirectScalarAggregate(plan, expressions, sourceFields, where)
 	}
-	innerSQL, arguments, err := compileScalarRows(plan, sourceFields, sourceFields)
+	innerSQL, arguments, err := compileScalarRows(plan, sourceFields, sourceFields, where)
 	if err != nil {
 		return "", nil, err
 	}
@@ -193,7 +175,7 @@ func compileScalarAggregate(plan query.Plan, result query.ResultShape, sourceFie
 	return sql.String(), arguments, nil
 }
 
-func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExpression, sourceFields []query.FieldRef) (string, []any, error) {
+func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExpression, sourceFields []query.FieldRef, where *sqliteWhereAnalysis) (string, []any, error) {
 	table, err := quoteIdentifier(plan.Table())
 	if err != nil {
 		return "", nil, err
@@ -207,28 +189,9 @@ func compileDirectScalarAggregate(plan query.Plan, expressions []query.ResultExp
 	sql.WriteString(" FROM ")
 	sql.WriteString(table)
 
-	conditions := plan.Conditions()
-	arguments := make([]any, 0, len(conditions))
-	if len(conditions) > 0 {
-		sql.WriteString(" WHERE ")
-	}
-	for index, condition := range conditions {
-		if index > 0 {
-			sql.WriteString(" AND ")
-		}
-		if !containsField(sourceFields, condition.Field()) {
-			return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
-		}
-		field, err := quoteIdentifier(condition.Field().Column())
-		if err != nil {
-			return "", nil, err
-		}
-		sql.WriteString(field)
-		conditionArguments, err := compileCondition(&sql, condition)
-		if err != nil {
-			return "", nil, err
-		}
-		arguments = append(arguments, conditionArguments...)
+	arguments, err := appendWhere(&sql, where)
+	if err != nil {
+		return "", nil, err
 	}
 	if err := validateOmittedScalarOrderings(plan.Orderings(), sourceFields); err != nil {
 		return "", nil, err
@@ -318,7 +281,7 @@ type relationJoin struct {
 	leftOuter bool
 }
 
-func compileRelation(plan query.Plan) (string, []any, error) {
+func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any, error) {
 	if plan.ResultShape().Kind() != query.ResultModel {
 		return "", nil, unsupportedResult("SQLite relation compilation requires a model result")
 	}
@@ -330,12 +293,12 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		return "", nil, err
 	}
 
-	conditions := plan.Conditions()
 	joinsByKey := make(map[relationJoinKey]query.RelationHop)
-	conditionKeys := make([]relationJoinKey, len(conditions))
-	relatedConditions := make([]bool, len(conditions))
-	sourceKeyHops := make([]query.RelationHop, 0, len(conditions))
-	for index, condition := range conditions {
+	conditionKeys := make([]relationJoinKey, len(where.leaves))
+	relatedConditions := make([]bool, len(where.leaves))
+	sourceKeyHops := make([]query.RelationHop, 0, len(where.leaves))
+	for index, leaf := range where.leaves {
+		condition := leaf.condition
 		path, related := condition.RelationPath()
 		if !related {
 			if !containsField(columns, condition.Field()) {
@@ -532,28 +495,20 @@ func compileRelation(plan query.Plan) (string, []any, error) {
 		sql.WriteString(joinedColumn)
 	}
 
-	arguments := make([]any, 0, len(conditions)+1)
-	if len(conditions) > 0 {
-		sql.WriteString(" WHERE ")
-	}
-	for index, condition := range conditions {
-		if index > 0 {
-			sql.WriteString(" AND ")
-		}
+	for index, leaf := range where.leaves {
 		alias := rootAlias
 		if relatedConditions[index] {
 			alias = joins[conditionKeys[index]].alias
 		}
-		field, err := quoteQualified(alias, condition.Field().Column())
+		field, err := quoteQualified(alias, leaf.condition.Field().Column())
 		if err != nil {
 			return "", nil, err
 		}
-		sql.WriteString(field)
-		conditionArguments, err := compileCondition(&sql, condition)
-		if err != nil {
-			return "", nil, err
-		}
-		arguments = append(arguments, conditionArguments...)
+		leaf.fieldSQL = field
+	}
+	arguments, err := appendWhere(&sql, where)
+	if err != nil {
+		return "", nil, err
 	}
 
 	orderings := plan.Orderings()
