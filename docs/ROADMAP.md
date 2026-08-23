@@ -653,6 +653,12 @@ loopback Article server를 build/start/drain/reap하도록 WEB-011..020을 구�
 portable/required pass-no-skip lock은 EVID-122/run `32659704239`에서 exact hosted-verified됐습니다. Auto-generate/migrate/reload,
 public DB settings와 production server는 계속 제외합니다.
 
+[GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)은 M5 template 요청과 M6의 첫
+Form/Auth/Admin을 하나의 active wide vertical batch로 연결합니다. Proposed [ADR-0043](adr/0043-safe-template-and-model-form-validation.md)과
+[ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md)는 closed-value DTL, IR-derived form, process-lifetime
+session/auth/CSRF와 Article list/search/add/change/delete/history/publish 흐름을 검증합니다. Activation 시점에는 30개 계약 모두
+미구현/미등록이고 M5/M6 completion 또는 durable system state를 주장하지 않습니다.
+
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
 - view와 template 한 요청 수직 단면

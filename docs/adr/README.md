@@ -57,5 +57,7 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0040](0040-composable-typed-boolean-predicates-and-article-search.md) | Accepted | 하나의 typed Boolean predicate tree와 bounded Article 검색 |
 | [0041](0041-typed-scalar-comparisons-and-field-references.md) | Accepted | Typed scalar comparison과 same-model field reference RHS |
 | [0042](0042-project-linked-runserver-and-article-development-loop.md) | Accepted | Optional project-linked `runserver`와 generated-aware 개발 루프 |
+| [0043](0043-safe-template-and-model-form-validation.md) | Proposed | Closed-value safe template와 IR-derived Model Form validation 경계 |
+| [0044](0044-session-auth-csrf-and-bounded-article-admin.md) | Proposed | Process session/auth/CSRF와 bounded Article Admin 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

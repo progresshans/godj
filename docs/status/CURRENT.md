@@ -75,6 +75,12 @@
   `292b82a042afe4af205c5caa5d4b541309d53ee7`; [EVID-122](TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
   CI #124 run `32659704239` exact 27/27 jobs·358/358 steps, four-coordinate portable required 12 pass/skip 0과
   PostgreSQL 17.10 required 13 pass/skip 0
+- GDJ-0043 activation baseline: terminal docs head `9099a5306f805fe382bdbc4671262cbe87f4216a`, tree
+  `afdda323e1f83f5c67a6a6d87cd3215874d03a53`; active
+  [work packet](../../work/0043-safe-template-validation-session-auth-and-article-admin.md) / Proposed
+  [ADR-0043](../adr/0043-safe-template-and-model-form-validation.md) and
+  [ADR-0044](../adr/0044-session-auth-csrf-and-bounded-article-admin.md), exact WEB-021..027 + FRM-001..005 +
+  AUT-001..008 + ADM-001..010은 activation-only이며 아직 product passing/registration 0
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -1535,8 +1541,10 @@ run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022.
 completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `32642341459` exact
 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0041도 submitted head `e97a4e3...`의 EVID-118/run
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0042도 submitted `2bfdbd5...`의
-EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재 active/ready는 0/0이고
-외부 blocker도 0입니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재 active/ready는 1/0이고
+외부 blocker도 0입니다. Active는 [GDJ-0043](../../work/0043-safe-template-validation-session-auth-and-article-admin.md)이며
+Proposed ADR-0043/0044 아래 exact 30-contract template/form/auth/admin vertical batch를 시작했습니다. Activation 시점에는
+product code/passing registration/M5·M6 completion이 없습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
 WEB-011..020의 bounded implementation/local actual을 닫았습니다. First submitted `46a57aa...` run은 26 success 뒤
 20-minute timeout으로 끝났고, correction `2b49938...`의 EVID-121 local refreeze 뒤 corrected run이 portable required
@@ -1625,12 +1633,14 @@ GDJ-0042의 product source `810149f...`, initial local-final `47b0eb8...`와 tim
 EVID-119..121의 affected/PostgreSQL 17.10 actual과 corrected full/386/803-file archive/audits를 통과했습니다. First
 submitted run `32657774073`은 26 success/1 timeout이므로 재사용하지 않습니다. Corrected submitted `2bfdbd5...`의
 EVID-122/run `32659704239`는 exact 27/27 jobs·358/358 steps, failure/cancel/skip/annotation 0으로 통과했습니다.
-ADR-0042는 Accepted, WEB-011..020은 bounded hosted `Verified`, GDJ-0042는 completed입니다. 현재 새 packet은 아직
-활성화하지 않았으며 다음 정확한 작업은 이 terminal docs-only descendant를 consistency gate로 커밋·비강제 푸시하고
-M5/M6의 다음 넓은 수직 단면을 별도 activation으로 여는 것입니다.
+ADR-0042는 Accepted, WEB-011..020은 bounded hosted `Verified`, GDJ-0042는 completed입니다. GDJ-0043은
+terminal docs baseline `9099a53...`에서 시작한 current activation descendant에서 active로 전환했고 exact 12/8/10
+reference manifests와 separate deterministic Auth/Admin runner, payload-free not-implemented fixtures,
+dependency-direction compile prototype을 Phase A로 구현합니다. 그 뒤
+template/form과 session/auth를 파일 소유권이 겹치지 않는 lane에서 병렬 구현하고 integration owner가 Article Admin과 status를 합칩니다.
 
-Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
-release는 이 작업의 권한·범위가 아닙니다.
+Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 GDJ-0043/Proposed ADR에서 open, Q-017은 P1/open이며
+Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와 release는 이 작업의 권한·범위가 아닙니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)
 

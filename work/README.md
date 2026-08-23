@@ -66,11 +66,12 @@ proposed → ready → active → completed
 | [GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md) | completed | Composable typed Boolean predicate와 Article 검색 수직 단면 |
 | [GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md) | completed | Typed scalar comparison, field reference와 Article advanced filtering |
 | [GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md) | completed | Project-linked `runserver`와 Article 개발 루프 |
+| [GDJ-0043](0043-safe-template-validation-session-auth-and-article-admin.md) | active | Safe template, validation, session/auth와 Article Admin 수직 단면 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md)이고, 현재 active packet과 ready packet은
-각각 0입니다.
+[GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md)입니다. 현재 active packet은
+[GDJ-0043](0043-safe-template-validation-session-auth-and-article-admin.md) 하나이고 ready packet은 0입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI

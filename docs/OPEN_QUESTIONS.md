@@ -13,8 +13,8 @@
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
 | Q-012 | Partial | GDJ-0038 completed / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
-| Q-014 | P2 | M5 전 | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가 |
-| Q-015 | P2 | M6 전 | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가 |
+| Q-014 | P2 | GDJ-0043 active / ADR-0043 Proposed | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가; closed value/no arbitrary callable 경계를 검증 중 |
+| Q-015 | P2 | GDJ-0043 active / ADR-0044 Proposed | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가; Article semantic flow를 검증 중 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
