@@ -15,6 +15,10 @@ from django.db import IntegrityError, connection
 
 from conformance.runners.django.relation_fixture import relation_database
 from conformance.runners.django.runner import (
+    DEFAULT_ARTICLE_ADMIN_MANIFEST,
+    DEFAULT_ARTICLE_ADMIN_ORACLE,
+    DEFAULT_AUTH_SESSION_MANIFEST,
+    DEFAULT_AUTH_SESSION_ORACLE,
     DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
     DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE,
     DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
@@ -41,6 +45,8 @@ from conformance.runners.django.runner import (
     DEFAULT_RELATION_ORACLE,
     DEFAULT_SAVE_LIFECYCLE_MANIFEST,
     DEFAULT_SAVE_LIFECYCLE_ORACLE,
+    DEFAULT_TEMPLATE_FORM_MANIFEST,
+    DEFAULT_TEMPLATE_FORM_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     REPOSITORY_ROOT,
@@ -231,6 +237,29 @@ class RunnerSafetyTests(unittest.TestCase):
 
         self.assertEqual(status, 0)
         generate_suite.assert_called_once()
+
+    def test_gdj0043_manifests_without_output_use_only_their_oracles(self) -> None:
+        for manifest, oracle in (
+            (DEFAULT_TEMPLATE_FORM_MANIFEST, DEFAULT_TEMPLATE_FORM_ORACLE),
+            (DEFAULT_AUTH_SESSION_MANIFEST, DEFAULT_AUTH_SESSION_ORACLE),
+            (DEFAULT_ARTICLE_ADMIN_MANIFEST, DEFAULT_ARTICLE_ADMIN_ORACLE),
+        ):
+            with self.subTest(manifest=manifest.name):
+                expected = oracle.read_bytes()
+                with (
+                    patch(
+                        "conformance.runners.django.runner.generate_suite",
+                        return_value={},
+                    ) as generate_suite,
+                    patch(
+                        "conformance.runners.django.runner.canonical_json",
+                        return_value=expected,
+                    ),
+                ):
+                    status = main(["--manifest", str(manifest), "--check"])
+
+                self.assertEqual(status, 0)
+                generate_suite.assert_called_once()
 
     def test_migration_planning_manifest_without_output_uses_its_oracle(self) -> None:
         expected = DEFAULT_MIGRATION_PLANNING_ORACLE.read_bytes()

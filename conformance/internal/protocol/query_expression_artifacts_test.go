@@ -129,7 +129,7 @@ func TestQueryExpressionReferenceBoundaryIsLocked(t *testing.T) {
 	}
 }
 
-func TestQueryExpressionTransitionYieldsCurrentReferenceStatusAggregate(t *testing.T) {
+func TestGDJ0043ReferenceActivationYieldsCurrentStatusAggregate(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -149,6 +149,9 @@ func TestQueryExpressionTransitionYieldsCurrentReferenceStatusAggregate(t *testi
 		"query-breadth-manifest.json",
 		"query-expression-manifest.json",
 		"migration-relation-manifest.json",
+		"template-form-manifest.json",
+		"auth-session-manifest.json",
+		"article-admin-manifest.json",
 	}
 	passing, deviations, oracleLocked := 0, 0, 0
 	for _, name := range manifestNames {
@@ -169,8 +172,8 @@ func TestQueryExpressionTransitionYieldsCurrentReferenceStatusAggregate(t *testi
 			}
 		}
 	}
-	if passing != 154 || deviations != 5 || oracleLocked != 12 {
-		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 154 + 5 + 12", passing, deviations, oracleLocked)
+	if passing != 154 || deviations != 5 || oracleLocked != 42 {
+		t.Fatalf("current reference statuses = %d passing + %d deviation + %d oracle_locked, want 154 + 5 + 42", passing, deviations, oracleLocked)
 	}
 }
 

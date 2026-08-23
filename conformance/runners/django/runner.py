@@ -69,6 +69,10 @@ from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
 from .migration_relation_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_RELATION_SCENARIOS,
 )
+from .template_form_scenarios import (  # noqa: E402
+    SCENARIOS as TEMPLATE_FORM_SCENARIOS,
+)
+from .auth_admin_proxy import SCENARIOS as AUTH_ADMIN_SCENARIOS  # noqa: E402
 
 
 SCENARIO_REGISTRIES = (
@@ -87,6 +91,8 @@ SCENARIO_REGISTRIES = (
     MIGRATION_PROJECT_CHECK_SCENARIOS,
     RELATION_SCENARIOS,
     MIGRATION_RELATION_SCENARIOS,
+    TEMPLATE_FORM_SCENARIOS,
+    AUTH_ADMIN_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -218,6 +224,27 @@ DEFAULT_MIGRATION_RELATION_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json"
 )
+DEFAULT_TEMPLATE_FORM_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/template-form-manifest.json"
+)
+DEFAULT_TEMPLATE_FORM_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json"
+)
+DEFAULT_AUTH_SESSION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/auth-session-manifest.json"
+)
+DEFAULT_AUTH_SESSION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json"
+)
+DEFAULT_ARTICLE_ADMIN_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/article-admin-manifest.json"
+)
+DEFAULT_ARTICLE_ADMIN_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
@@ -240,6 +267,9 @@ KNOWN_MANIFEST_ORACLES = {
     ),
     DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
     DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
+    DEFAULT_TEMPLATE_FORM_MANIFEST.resolve(): DEFAULT_TEMPLATE_FORM_ORACLE,
+    DEFAULT_AUTH_SESSION_MANIFEST.resolve(): DEFAULT_AUTH_SESSION_ORACLE,
+    DEFAULT_ARTICLE_ADMIN_MANIFEST.resolve(): DEFAULT_ARTICLE_ADMIN_ORACLE,
 }
 
 

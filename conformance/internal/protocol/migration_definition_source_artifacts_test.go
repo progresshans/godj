@@ -31,7 +31,7 @@ func TestMigrationDefinitionSourceArtifactHashesAreLocked(t *testing.T) {
 	}
 }
 
-func TestMigrationOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
+func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -54,7 +54,10 @@ func TestMigrationOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	const relation = "6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290  relation-oracle.json\n"
 	const migrationRelation = "5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968  migration-relation-oracle.json\n"
 	const queryExpression = "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f  query-expression-oracle.json\n"
-	if string(contents) != previous+definitionSource+projectCheck+relation+migrationRelation+queryExpression {
+	const gdj0043 = "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa  template-form-oracle.json\n" +
+		"9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc  auth-session-oracle.json\n" +
+		"869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378  article-admin-oracle.json\n"
+	if string(contents) != previous+definitionSource+projectCheck+relation+migrationRelation+queryExpression+gdj0043 {
 		t.Fatal("SHA256SUMS does not match the current migration oracle catalog")
 	}
 }

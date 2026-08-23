@@ -1,0 +1,126 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "ADM-001",
+      "title": "Anonymous nonstaff and permitted staff requests follow the Admin access matrix",
+      "scenario": "django.article_admin.access_matrix",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/contrib/admin/index.txt#modeladmin-has-module-permission", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "ADM-002",
+      "title": "Article changelist columns ordering pagination and actions are stable",
+      "scenario": "django.article_admin.stable_list",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/contrib/admin/index.txt#django.contrib.admin.ModelAdmin.list_display", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-003",
+      "title": "Article search returns exact ordered identifiers and invalid input leaves the database unchanged",
+      "scenario": "django.article_admin.search_boundary",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/contrib/admin/index.txt#django.contrib.admin.ModelAdmin.search_fields", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-004",
+      "title": "Article change form preserves field order typed initial values and allowed operations",
+      "scenario": "django.article_admin.change_form_shape",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin.changeform_view", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-005",
+      "title": "Invalid Article edit preserves error order and sticky intent with zero mutation",
+      "scenario": "django.article_admin.invalid_edit",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin._changeform_view", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-006",
+      "title": "Valid Article add publishes one row one audit event and a local redirect",
+      "scenario": "django.article_admin.valid_add",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin.log_addition", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-007",
+      "title": "Valid Article edit records exact changed fields row state event and redirect category",
+      "scenario": "django.article_admin.valid_edit",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin.log_change", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-008",
+      "title": "Confirmed Article delete records one event while unsafe or unauthorized attempts mutate nothing",
+      "scenario": "django.article_admin.delete_boundaries",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/admin/options.py::ModelAdmin.delete_view", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-009",
+      "title": "Article history preserves ordered add change delete actor action object and changed-field semantics",
+      "scenario": "django.article_admin.semantic_history",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/contrib/admin/index.txt#modeladmin-methods", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "ADM-010",
+      "title": "The publish action changes selected Articles only and reports the affected count",
+      "scenario": "django.article_admin.publish_action",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "decision", "reference": "ADR-0044", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/ref/contrib/admin/actions.txt#writing-actions", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

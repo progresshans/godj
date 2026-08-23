@@ -12,6 +12,8 @@ from django.db.migrations.recorder import MigrationRecorder
 
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
+    DEFAULT_ARTICLE_ADMIN_MANIFEST,
+    DEFAULT_AUTH_SESSION_MANIFEST,
     DEFAULT_MANIFEST,
     DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
     DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE,
@@ -40,6 +42,7 @@ from conformance.runners.django.runner import (
     DEFAULT_RELATION_ORACLE,
     DEFAULT_SAVE_LIFECYCLE_MANIFEST,
     DEFAULT_SAVE_LIFECYCLE_ORACLE,
+    DEFAULT_TEMPLATE_FORM_MANIFEST,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     ProfileMismatch,
@@ -85,6 +88,14 @@ from conformance.runners.django.query_breadth_scenarios import (
 )
 from conformance.runners.django.query_expression_scenarios import (
     SCENARIOS as QUERY_EXPRESSION_SCENARIOS,
+)
+from conformance.runners.django.template_form_scenarios import (
+    SCENARIOS as TEMPLATE_FORM_SCENARIOS,
+)
+from conformance.runners.django.auth_admin_proxy import (
+    ADMIN_SCENARIOS,
+    AUTH_SCENARIOS,
+    SCENARIOS as AUTH_ADMIN_SCENARIOS,
 )
 from conformance.runners.django.relation_scenarios import (
     SCENARIOS as RELATION_SCENARIOS,
@@ -225,8 +236,17 @@ class ScenarioTests(unittest.TestCase):
                 DEFAULT_MIGRATION_RELATION_MANIFEST,
                 MIGRATION_RELATION_SCENARIOS,
             ),
+            (DEFAULT_TEMPLATE_FORM_MANIFEST, TEMPLATE_FORM_SCENARIOS),
+            (
+                DEFAULT_AUTH_SESSION_MANIFEST,
+                {name: AUTH_ADMIN_SCENARIOS[name] for name in AUTH_SCENARIOS},
+            ),
+            (
+                DEFAULT_ARTICLE_ADMIN_MANIFEST,
+                {name: AUTH_ADMIN_SCENARIOS[name] for name in ADMIN_SCENARIOS},
+            ),
         )
-        self.assertEqual(len(contract_sets), 15)
+        self.assertEqual(len(contract_sets), 18)
         selected_across_sets = []
         contract_ids_across_sets = []
         inventories = []
@@ -251,10 +271,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 171)
+        self.assertEqual(len(selected_across_sets), 201)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 171)
+        self.assertEqual(len(contract_ids_across_sets), 201)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -269,7 +289,7 @@ class ScenarioTests(unittest.TestCase):
                         source_contract_ids.isdisjoint(target_contract_ids)
                     )
                 cross_bindings += 1
-        self.assertEqual(cross_bindings, 210)
+        self.assertEqual(cross_bindings, 306)
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
         profile = _load_json(DEFAULT_PROFILE)
@@ -289,6 +309,9 @@ class ScenarioTests(unittest.TestCase):
             DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
             DEFAULT_RELATION_MANIFEST,
             DEFAULT_MIGRATION_RELATION_MANIFEST,
+            DEFAULT_TEMPLATE_FORM_MANIFEST,
+            DEFAULT_AUTH_SESSION_MANIFEST,
+            DEFAULT_ARTICLE_ADMIN_MANIFEST,
         ):
             manifest = _load_json(manifest_path)
             self.assertEqual(
