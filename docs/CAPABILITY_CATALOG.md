@@ -91,8 +91,9 @@ Article q/published/exclude/range/field-match exactly-two-query 흐름 중 GDJ-0
 [EVID-112](status/TEST_EVIDENCE.md#evid-20260823-112--gdj-0040-boolean-predicate-and-article-search-phase-bc-local-checkpoint)와
 [final local EVID-113](status/TEST_EVIDENCE.md#evid-20260823-113--gdj-0040-frozen-source-final-local-gates),
 [hosted EVID-115](status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion)에서
-affected/final local/hosted-verified됐습니다. GDJ-0041 확장은 frozen source `7f2bb223...`의 local-final과
-QRY-034..053 20/20·신규 10/10 zero-diff까지만 확인됐고 hosted는 pending입니다. 이 문단은 아래 장기 목록의
+affected/final local/hosted-verified됐습니다. GDJ-0041 확장도 frozen source `7f2bb223...`의 local-final과
+[hosted EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion)에서
+QRY-034..053 20/20·신규 10/10 zero-diff 및 PostgreSQL 17.10 actual까지 검증됐습니다. 이 문단은 아래 장기 목록의
 Q/F arithmetic/functions, Django `range` lookup/custom lookup, annotation/grouping/having, subquery/window,
 bulk/locking, relation/cross-model F 또는 relation OR/NOT이 구현됐다는 뜻이 아닙니다.
 

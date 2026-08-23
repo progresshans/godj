@@ -1,6 +1,6 @@
 ---
 id: GDJ-0041
-status: active
+status: completed
 updated: 2026-08-24
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "136e82572206eef7fd04931ae94dffb5ff0660e2"
@@ -154,16 +154,16 @@ rows/context/cache lifetime과 Article pre-I/O 400/query count는 Go-native gate
 - [x] affected normal/race/CGO0/vet/generated drift
 - [x] final full/386/repository-external source-clean-copy once
 - [x] independent frozen-byte audit
-- [ ] non-force push, exact-head hosted result와 terminal mirror
+- [x] non-force push, exact-head hosted result와 terminal mirror
 
 ## 완료 조건
 
-- [ ] Article advanced filter가 SQLite/PostgreSQL에서 같은 bounded response를 정확히 두 query로 냅니다.
+- [x] Article advanced filter가 SQLite/PostgreSQL에서 같은 bounded response를 정확히 두 query로 냅니다.
 - [x] QRY-044..053 oracle-blind actual 10/10이 locked Django observable result와 일치합니다.
 - [x] Literal/reference RHS가 같은 immutable Boolean AST와 projection/aggregate source를 공유합니다.
 - [x] Nullable RHS NOT, placeholder/argument order와 identifier escaping이 두 backend에서 검증됩니다.
 - [x] Invalid HTTP, forged AST, cross-model/source/kind/relation 입력이 terminal I/O 전에 fail-closed합니다.
-- [ ] Final local/hosted evidence와 status/matrix/handoff가 같은 frozen bytes를 가리킵니다.
+- [x] Final local/hosted evidence와 status/matrix/handoff가 같은 frozen bytes를 가리킵니다.
 
 ## 검증 cadence
 
@@ -186,8 +186,13 @@ Actual/source-final commit `7f2bb2232afa7d71bea56d8910a52a045ec11faa`, tree
 zero-diff를 냅니다. 두 actual은 87,592 bytes/SHA-256
 `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical했습니다. Affected
 normal/race/CGO0/vet/generated drift, full `make ci`, Linux/386 82-package compile, 788-file repository-external
-source-clean-copy와 두 독립 감사가 모두 통과했습니다. 다음 정확한 작업은 이 local-final 증거·상태를 문서 commit으로
-고정하고 non-force push/Draft PR 갱신 뒤 exact-head hosted matrix와 PostgreSQL 17.10 actual을 기다리는 것입니다.
+source-clean-copy와 두 독립 감사가 모두 통과했습니다.
+
+Submitted documentation head `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`, tree
+`bcba40b731a5ed3e6554174e40cad62938e4b710`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+CI #115 run `32647746430`은 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0 inventory, Python 네 좌표와
+PostgreSQL 17.10 required 12/12·restart를 모두 성공했습니다. QRY-044..053은 `Verified`이고 이 packet은
+completed입니다. 다음 제품 작업은 별도 work/ADR activation에서 새 경계를 고정합니다.
 
 ## 위험과 rollback
 

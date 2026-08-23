@@ -3,8 +3,9 @@
 - 상태: Accepted direction
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
-  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)도 completed됐습니다. 현재
-  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이 active이고 ready는 0입니다. GDJ-0040 Phase A
+  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과
+  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)도 completed됐습니다. 현재
+  active/ready work는 0입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -17,7 +18,10 @@
   union/source validation, nullable RHS odd-`NOT`, SQLite/PostgreSQL identifier RHS와 bounded Article advanced
   exactly-two-query filter를 구현하고 local-final gates를 통과했습니다. QRY-034..053은 20/20, 신규
   QRY-044..053은 10/10 zero-diff이고 reference는 15/171/210=`154+5+12 locked`, product는
-  14/159=`154+5+0`입니다. Exact-head hosted는 pending이므로 GDJ-0041은 active입니다.
+  14/159=`154+5+0`입니다. Submitted head `e97a4e3...`는
+  [EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run
+  `32647746430`의 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual을
+  통과해 GDJ-0041을 completed/hosted-verified로 닫았습니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
@@ -67,8 +71,8 @@
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
 - 현재 제품 기준: 14 adapters/159 contracts의 `154 passing + 5 deviation + 0 oracle_locked`; relation
-  REL-001..012 12/12와 query expression QRY-034..053 20/20 actual이 `passing`입니다. QRY-034..043 10개는
-  hosted-verified됐고 QRY-044..053 신규 10개는 local-final 뒤 exact-head hosted가 pending입니다.
+  REL-001..012 12/12와 query expression QRY-034..053 20/20 actual이 `passing`이며 모두
+  exact-head hosted-verified됐습니다.
 - 마지막 검토: 2026-08-24
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -609,7 +613,10 @@ M4 전체는 계속 완료되지 않았습니다.
 sealed same-model/same-kind `orm.F`, private RHS union/source validation과 nullable RHS odd-`NOT`을 기존 Boolean tree,
 projection/aggregate, SQLite/PostgreSQL identifier compiler와 Article exactly-two-query 흐름에 합류시켰습니다.
 Frozen source `7f2bb223...`의 local-final과 QRY-034..053 20/20·신규 QRY-044..053 10/10 zero-diff는
-통과했고 exact-head hosted는 pending입니다. Arithmetic/function/annotation, relation/cross-model F,
+통과했습니다. Submitted head `e97a4e3...`의
+[EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run
+`32647746430`도 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual을 통과해
+이 bounded slice를 completed/hosted-verified로 닫았습니다. Arithmetic/function/annotation, relation/cross-model F,
 bulk/locking/subquery/window는 계속 후속입니다.
 
 ## M5 — Web Core
@@ -628,7 +635,8 @@ run `32626539049`에서 bounded `Verified`/completed로 전환됐습니다. GDJ-
 Core를 넓히지 않고 기존 Article handler의 bounded q/published/exclude parsing과 request-local 두 DB query 계약에
 scalar Boolean 검색을 연결했고 EVID-112에서 SQLite/PostgreSQL local E2E를 통과했습니다.
 GDJ-0041은 같은 handler에 `min_id`/`max_id`/`title_matches_summary`를 추가해 invalid request DB I/O 0과 성공
-projection+aggregate 두 query를 local-final에서 유지했으며 hosted는 pending입니다.
+projection+aggregate 두 query를 유지했고 EVID-118/run `32647746430`의 exact-head PostgreSQL 17.10 actual까지
+통과해 completed/hosted-verified됐습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

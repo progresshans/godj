@@ -664,9 +664,10 @@ Current manifest는 16,592 bytes/SHA-256
 87,592 bytes/SHA-256 `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical합니다.
 Current reference inventory는 15 sets/171 unique contracts+scenarios/210 ordered cross-bindings의
 `154 passing + 5 deviation + 12 oracle_locked`, product inventory는 14 adapters/159 contracts의
-`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates는
-통과했지만 exact-head hosted 결과는 아직 pending이므로 이 문단은 hosted `Verified` 또는 work completion을
-주장하지 않습니다.
+`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates와 submitted
+head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+run `32647746430` exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual이 통과해
+QRY-044..053은 hosted `Verified`, GDJ-0041은 completed입니다.
 
 Migration planning set은 GDJ-0009에서 MIG-005..016의 exact Django 결과와 provenance를
 `oracle_locked`로 고정했습니다. 다섯 manifest의 ID/scenario는 전역으로 유일하고 모든

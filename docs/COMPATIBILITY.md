@@ -849,8 +849,10 @@ Current manifest는 16,592 bytes/
 `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical하며
 QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff입니다. Current reference는
 15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
-14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates는
-통과했지만 exact-head hosted 결과는 아직 pending이므로 GDJ-0041 완료나 hosted `Verified`를 주장하지 않습니다.
+14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates와
+submitted head `e97a4e3...`의 [EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+run `32647746430` exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual이 통과했습니다.
+QRY-044..053은 hosted `Verified`, GDJ-0041은 completed입니다.
 
 ## 데이터 호환성
 

@@ -69,8 +69,10 @@ GDJ-0041 frozen source `7f2bb223...`는 두 compiler에 Integer/String literal r
 nullable LHS/RHS odd-`NOT` guard와 duplicate guard 제거, RHS source/kind/union fail-closed를 같은 규칙으로
 검증합니다. SQLite actual과 PostgreSQL compiler/backend-independent Article tests는 invalid request DB I/O 0과 성공
 projection+aggregate 정확히 두 query를 통과했습니다. QRY-034..053 SQLite actual 20/20과 신규 10/10도
-zero-diff입니다. 로컬 PostgreSQL URL은 미설정이었고 exact-head hosted service 결과도 아직 pending이므로 이
-GDJ-0041 증거를 PostgreSQL actual 또는 backend hosted `Verified`로 표시하지 않습니다.
+zero-diff입니다. 로컬 PostgreSQL URL은 미설정이었지만 submitted head `e97a4e3...`의
+[EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion)은 exact PostgreSQL
+17.10 required 12/12, normal/race/CGO-disabled, Article actual과 restart를 통과했습니다. 따라서 이 bounded
+GDJ-0041 backend 경계는 hosted `Verified`입니다.
 
 현재 SQLite 검증은 `AutoField`, `CharField`, `BooleanField`, nullable CharField의 제한된
 read/write, scalar `CreateModel`/nullable no-default `AddField`, normal loaded AutoField-target ForeignKey

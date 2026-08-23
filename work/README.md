@@ -64,12 +64,11 @@ proposed → ready → active → completed
 | [GDJ-0038](0038-postgresql-and-minimal-web-vertical-slices.md) | completed | PostgreSQL current backend와 최소 Web/Article HTTP 병렬 수직 단면 |
 | [GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | completed | Typed projection, scalar aggregate와 stable pagination Article 수직 단면 |
 | [GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md) | completed | Composable typed Boolean predicate와 Article 검색 수직 단면 |
-| [GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md) | active | Typed scalar comparison, field reference와 Article advanced filtering |
+| [GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md) | completed | Typed scalar comparison, field reference와 Article advanced filtering |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md)이고,
-[GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이 현재 active입니다.
+[GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이고, 현재 active/ready packet은 없습니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
@@ -87,13 +86,14 @@ Verified, GDJ-0038은 completed입니다. GDJ-0039 submitted head `253455d...`�
 completed됐습니다. GDJ-0040 corrected submitted head `136e825...`도
 [EVID-115](../docs/status/TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
 run `32642341459`에서 exact 27/27 jobs·341/341 steps와 네 플랫폼 950/950/0 inventory를 통과해
-QRY-034..043을 Verified하고 completed됐습니다. GDJ-0041은 그 hosted product baseline에서 active이며 ready는 0입니다.
-Current local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa` / tree
-`221467b95b712dfed199b12f5a14ed17d987a7ac`은 Accepted ADR-0041의 typed range와 sealed same-model field
-reference, SQLite/PostgreSQL compiler와 Article advanced filter를 구현했습니다. QRY-044..053 oracle-blind actual은
-10/10 zero-diff이고 current reference는 15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
-14/159=`154 passing + 5 deviation`입니다. Exact-head hosted PostgreSQL/matrix가 아직 남아 있으므로 이 packet은
-`Implemented`/local-final이지만 `Verified`/completed가 아닙니다.
+QRY-034..043을 Verified하고 completed됐습니다. GDJ-0041 source
+`7f2bb2232afa7d71bea56d8910a52a045ec11faa` / tree `221467b95b712dfed199b12f5a14ed17d987a7ac`은
+Accepted ADR-0041의 typed range와 sealed same-model field reference, SQLite/PostgreSQL compiler와 Article advanced
+filter를 구현했습니다. QRY-044..053 oracle-blind actual은 10/10 zero-diff이고 current reference는
+15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는 14/159=`154 passing + 5 deviation`입니다.
+Submitted head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+CI #115 run `32647746430`은 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart를
+통과해 QRY-044..053을 Verified하고 GDJ-0041을 completed로 닫았습니다.
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-24
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260823-117
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-118
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -10962,3 +10962,69 @@ GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -run '^$' ./...
 The final actual/source audit returned P0/P1/P2/P3=`0/0/0/0`. The remaining sequence is documentation commit,
 non-force push, Draft PR update, one unique exact submitted-head hosted matrix with PostgreSQL 17.10, and a docs-only
 terminal mirror. Any source/workflow/artifact correction invalidates these final gates and requires a new refreeze.
+
+## EVID-20260824-118 — GDJ-0041 Exact-head Hosted Completion
+
+- Date/time: 2026-08-24T00:10:59+09:00 through 2026-08-24T00:22:11+09:00
+- Work/contract IDs: GDJ-0041 completed; QRY-044..053 `Verified`; Q-011 remains `Partial`
+- Exact submitted documentation head/tree: `e97a4e319047bc156a78fac94e5c2d021e4dcdfe` /
+  `bcba40b731a5ed3e6554174e40cad62938e4b710`, subject `docs: record GDJ-0041 local verification`
+- Frozen product/conformance source head/tree: `7f2bb2232afa7d71bea56d8910a52a045ec11faa` /
+  `221467b95b712dfed199b12f5a14ed17d987a7ac`
+- Unique hosted run: [GitHub Actions run 32647746430](https://github.com/progresshans/godj/actions/runs/32647746430),
+  CI #115, event `pull_request`, attempt 1
+- Result: terminal `completed/success`; exact 27/27 jobs and 341/341 recorded steps were `success`; failure,
+  cancellation, skip, timeout, neutral, action-required and annotations were all 0.
+
+### Exact topology and cross-platform inventory
+
+All 27 check runs targeted exact head `e97a4e3...`; PR #1 remained OPEN/DRAFT/unmerged. The four relation-product
+coordinates independently emitted the same exact inventory:
+
+| Coordinate | Job | Runs/passes/skips | Bytes | SHA-256 |
+|---|---:|---:|---:|---|
+| Ubuntu 22.04 x64 | `97214510714` | 968/968/0 | 99,177 | `8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e` |
+| Ubuntu 24.04 arm64 | `97214510820` | 968/968/0 | 99,177 | `8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e` |
+| macOS 26 arm64 | `97214510711` | 968/968/0 | 99,177 | `8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e` |
+| macOS 15 Intel | `97214510810` | 968/968/0 | 99,177 | `8e1269d376aeafb98fed4b49196f1e4ef63cc0710ad4c4465b4bfa79264c002e` |
+
+Each coordinate also passed its normal, race, CGO-disabled, vet, artifact no-rewrite and clean-worktree gates. Across
+the whole run, all 25 `Require a clean worktree` steps, four relation-fixture no-rewrite steps, four relation-artifact
+no-rewrite steps, two reference no-rewrite steps and the stored-oracle checksum step succeeded.
+
+### Compatibility and query-expression proof
+
+- Python jobs `97214510642` (3.12.13), `97214510822` (3.13.15), `97214510887` (3.14.3) and `97214510838`
+  (3.14.7) each passed exact 239 tests with 21 intentional non-reference-profile skips and a clean worktree.
+- Each Python coordinate independently asserted exact 171 scenarios, 750,165 payload bytes and SHA-256
+  `489bca88ab3167a9011bc66dd5f2744a8fbfa668969d9d1b6a9f79af487e8500`.
+- Checked-artifact job `97214510548` passed portable Python 239/21, all fifteen oracle checksums, reference no-rewrite,
+  project-linked contracts and Linux/386 relation-product execution. Query expression reported
+  `GoDj observations match the locked reference oracle for 20 contracts`; QRY-044..053 is hosted 10/10 zero-diff.
+- Current reference remains 15 sets/171 scenarios/210 bindings=
+  `154 passing + 5 deviation + 12 oracle_locked`; product remains 14 adapters/159 contracts=
+  `154 passing + 5 deviation + 0 oracle_locked`. MIG-075..086 alone remain locked/unregistered.
+
+### PostgreSQL 17.10 actual and restart
+
+Job `97214510690` passed with `GODJ_REQUIRE_POSTGRES=1` against
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+Its exact service fingerprint was
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`.
+All 12 required sentinels passed with no skip, including the generated Article PostgreSQL migration/CRUD/HTTP test;
+normal, race, CGO-disabled, vet and clean-worktree gates succeeded for PostgreSQL, Article and the generated relation
+product. The durable service restart remained exact: `prepare` history/rows 1/1, `resume` 2/2, `verify` 2/2, all
+status `ok`, followed by successful cleanup.
+
+### Completion and non-claims
+
+The hosted run closes the bounded typed Integer/String comparisons, sealed same-model/same-kind field RHS, nullable
+odd-NOT complement, SQLite/PostgreSQL compiler and exactly-two-query Article advanced filter as Implemented/Verified.
+The independent hosted audit found P0/P1/P2/P3=`0/0/0/0`.
+
+GDJ-0041 is completed, but Q-011 and M4 remain incomplete. Arithmetic/function/relation/cross-model F, relation
+predicates under OR/NOT, annotation/grouping/having, subquery/window, bulk mutation, locking, transaction-bound
+QuerySet, request transactions, Form/Auth/Admin/API and production readiness remain out of scope. Draft PR #1 remains
+OPEN/DRAFT/unmerged; merge and release are not authorized. This terminal documentation append is a later docs-only
+descendant: it records the exact submitted run and is validated by link/frontmatter/status consistency and
+`git diff --check`, not by recursively repeating the product matrix.

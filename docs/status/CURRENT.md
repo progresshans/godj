@@ -3,10 +3,10 @@
 - 마지막 갱신: 2026-08-24
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 hosted-verified submitted head: `136e82572206eef7fd04931ae94dffb5ff0660e2`
-  (`docs: record hosted inventory correction`), tree `84f24feed0c1fde641aa196f6d4f581404820c42`,
-  [EVID-115](TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
-  CI run `32642341459` exact 27/27 jobs·341/341 steps·failure/cancel/skip 0
+- 현재 hosted-verified submitted head: `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`
+  (`docs: record GDJ-0041 local verification`), tree `bcba40b731a5ed3e6554174e40cad62938e4b710`,
+  [EVID-118](TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+  CI #115 run `32647746430` exact 27/27 jobs·341/341 steps·failure/cancel/skip/annotation 0
 - GDJ-0037 implementation commit: `9258a08402ebd7bd0077d17910a5e1f0621d6e78`
   (`feat: add recoverable project bundle publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`
 - GDJ-0038 activation baseline: `681b07132be5772286b0c960756719aed59a2079`
@@ -37,7 +37,7 @@
   `84f24feed0c1fde641aa196f6d4f581404820c42`; [EVID-115](TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
   CI #113 run `32642341459` exact 27/27 jobs·341/341 steps
 - GDJ-0041 activation baseline: hosted-verified GDJ-0040 submitted head `136e82572206eef7fd04931ae94dffb5ff0660e2`;
-  active [work packet](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md) /
+  completed [work packet](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md) /
   Accepted [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)
 - GDJ-0041 Phase A reference checkpoint: `609609711cb542d4532e5962d0d15ed5123ebca6`, tree
   `8ac61294b2d8358a47efe926a9f22f428e39e2e4`; [EVID-116](TEST_EVIDENCE.md#evid-20260823-116--gdj-0041-typed-comparison-and-field-reference-local-checkpoint)
@@ -45,7 +45,10 @@
   `0b390e957fb9d3c69df845926412847642cc9211`; nil-reference fix `8d6b3e9...`, diagnostic fix `8395169...`
 - GDJ-0041 local-final actual/source: `7f2bb2232afa7d71bea56d8910a52a045ec11faa`, tree
   `221467b95b712dfed199b12f5a14ed17d987a7ac`; [EVID-117](TEST_EVIDENCE.md#evid-20260823-117--gdj-0041-frozen-source-final-local-gates),
-  full/386/repository-external clean-copy와 audit 통과, exact-head hosted pending
+  full/386/repository-external clean-copy와 audit 통과
+- GDJ-0041 terminal submitted head: `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`, tree
+  `bcba40b731a5ed3e6554174e40cad62938e4b710`; [EVID-118](TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
+  CI #115 run `32647746430` exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -371,7 +374,7 @@
   [EVID-115](TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) / run
   `32642341459`은 exact 27/27 jobs·341/341 steps, annotations/failure/cancel/skip 0으로 통과해 QRY-034..043을
   hosted-Verified하고 GDJ-0040을 닫았습니다. 그 hosted product baseline에서
-  [GDJ-0041](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)을 active로 전환했고,
+  [GDJ-0041](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)을 구현했고,
   typed Integer/String range, same-model `orm.F` field RHS, nullable NOT과 Article advanced filter를 QRY-044..053으로
   한 수직 단면에서 검증합니다. Phase A exact Django 239/239, QRY-034..043 observation-prefix 동일성과 external
   compile/cross-model·kind fail proof를 근거로 [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)은
@@ -382,8 +385,10 @@
   `154 passing + 5 deviation + 12 oracle_locked`, product는 14 adapters/159=`154 passing + 5 deviation`입니다.
   [EVID-116](TEST_EVIDENCE.md#evid-20260823-116--gdj-0041-typed-comparison-and-field-reference-local-checkpoint)의
   affected 증거와 [EVID-117](TEST_EVIDENCE.md#evid-20260823-117--gdj-0041-frozen-source-final-local-gates)의 exact
-  full/386/source-clean-copy/audit가 통과했습니다. Hosted PostgreSQL/matrix가 아직 pending이므로 GDJ-0041은
-  active이고 QRY-044..053을 `Verified` 또는 completed로 닫지 않습니다.
+  full/386/source-clean-copy/audit가 통과했습니다. Submitted head `e97a4e3...`의
+  [EVID-118](TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run `32647746430`은
+  exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0, PostgreSQL 17.10 actual/restart를 통과해 QRY-044..053을
+  hosted-Verified하고 GDJ-0041을 completed로 닫았습니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -1490,7 +1495,8 @@ run `32626539049` exact 27/27 jobs·341/341 steps success로 bounded `Verified`/
 submitted head `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
 run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033을 `Verified`하고
 completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `32642341459` exact
-27/27 jobs·341/341 steps로 completed됐습니다. 현재 GDJ-0041 하나가 active이고 ready 0, 외부 blocker 0입니다. GDJ-0040 Phase A의
+27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0041도 submitted head `e97a4e3...`의 EVID-118/run
+`32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. 현재 active/ready는 0이고 외부 blocker도 0입니다. GDJ-0040 Phase A의
 QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐고, Phase B/C
 source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate를 통과했습니다.
 첫 hosted run의 stale 916-test inventory failure와 correction `73b912d...`의 exact 950-test lock 및 새
@@ -1498,10 +1504,9 @@ full/386/source-clean-copy는 EVID-114에 기록했습니다. Corrected run의 �
 PostgreSQL/Python/conformance proof는 EVID-115에 기록했습니다. Relation leaf under OR/NOT, F expression,
 bulk/locking/Form은 이 completed packet에서 명시적으로 제외합니다.
 GDJ-0041은 reference `6096097...`, product `0504227...`, fixes `8d6b3e9...`/`8395169...`, local-final actual
-`7f2bb22...`까지 구현됐습니다. EVID-116의 affected/determinism/audit와 EVID-117의 full/386/external archive가
-통과했고, QRY-044..053은 로컬 actual 10/10입니다. 로컬 PostgreSQL URL은 미설정이므로 실제 PostgreSQL DB 성공은
-새 exact submitted head의 hosted PostgreSQL 17.10 job에서만 판정합니다. 이는 외부 blocker가 아니라 아직 남은
-Phase D gate입니다.
+`7f2bb22...`까지 구현됐습니다. EVID-116의 affected/determinism/audit와 EVID-117의 full/386/external archive,
+EVID-118의 exact hosted PostgreSQL 17.10·QRY-044..053 10/10·전체 matrix가 통과했습니다. 로컬 PostgreSQL URL은
+미설정이었지만 hosted required actual 12/12와 restart가 성공했으므로 bounded PostgreSQL 완료 경계는 닫혔습니다.
 MIG-075..086은 계속 `oracle_locked`/unregistered이고 새 Field/Relation 종류와 general migration writer도 아직
 구현하지 않았습니다.
 
@@ -1568,12 +1573,11 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`는 affected/full/386/
-repository-external source-clean-copy와 독립 감사를 모두 통과했습니다. 다음 정확한 작업은 이 증거·상태 문서를
-커밋하고 remote `codex/revision-fenced-migration-lifecycle`에 non-force push한 뒤 Draft PR #1을 갱신하는 것입니다.
-그 submitted head의 고유 hosted 27-job matrix와 PostgreSQL 17.10 actual이 성공하면 terminal evidence mirror에서
-QRY-044..053을 `Verified`, GDJ-0041을 completed로 닫습니다. Source/workflow/artifact correction이 생기면 새 exact
-source에서 final local gate를 다시 실행합니다.
+GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
+`e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
+독립 감사와 exact hosted matrix를 모두 통과했습니다. QRY-044..053은 `Verified`, GDJ-0041은 completed입니다.
+다음 정확한 작업은 별도 GDJ-0042 work/ADR에서 public boundary를 짧게 고정한 뒤 다음 넓은 사용자 수직 단면을
+구현하는 것입니다. Terminal 문서 mirror 자체는 docs-only consistency gate만 사용합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
 release는 이 작업의 권한·범위가 아닙니다.

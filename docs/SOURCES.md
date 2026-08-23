@@ -411,4 +411,6 @@ Phase A manifest 16,652 bytes/`90adeee098285a3b6581a3d0029c22ee115351f21483f4d70
 `4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`와 ordered NI fixture 2,465 bytes/
 `7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`는 바뀌지 않았습니다. Product actual은
 expected artifact를 읽지 않고 QRY-034..053 20/20·신규 10/10 zero-diff를 냅니다. Frozen source
-`7f2bb223...`은 local-final까지만 통과했고 hosted는 pending입니다.
+`7f2bb223...`의 local-final과 submitted `e97a4e3...`의
+[EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion)이 통과해 이 provenance에
+묶인 bounded product는 hosted-verified됐습니다.

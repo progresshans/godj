@@ -92,5 +92,7 @@ Generated field를 `orm.F`로 감싸 model/value type을 보존하고, condition
 - Current product/actual은 QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff이며 manifest 16,592 bytes/
   `a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`, actual 87,592 bytes/
   `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 고정됐습니다.
-- Frozen source `7f2bb223...`의 local-final gates는 통과했고 exact-head hosted는 pending입니다. 따라서 decision은
-  Accepted이지만 GDJ-0041 work completion이나 hosted `Verified`는 아직 주장하지 않습니다.
+- Frozen source `7f2bb223...`의 local-final gates와 submitted `e97a4e3...`의
+  [EVID-118](../status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) exact 27-job matrix,
+  PostgreSQL 17.10 actual/restart가 통과했습니다. Decision은 Accepted이고 bounded GDJ-0041 product는
+  hosted `Verified`/completed입니다.

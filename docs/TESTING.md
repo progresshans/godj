@@ -1781,7 +1781,7 @@ full/386/repository-external source-clean-copy를 모두 다시 실행했습니�
 run `32642341459`은 exact 27/27 jobs·341/341 steps, 네 relation-product 좌표 950/950/0과
 PostgreSQL 17.10/QRY-034..043 actual을 통과해 terminal success를 고정했습니다.
 
-## GDJ-0041 typed comparison/F reference local verification
+## GDJ-0041 typed comparison/F reference local and hosted verification
 
 Phase A에서 QRY-044..053 신규 10개를 `oracle_locked`로 고정한 manifest는 16,652 bytes/
 `90adeee098285a3b6581a3d0029c22ee115351f21483f4d704101813bbe940e3`였습니다. Oracle/ordered NI fixture는
@@ -1803,5 +1803,7 @@ Frozen source HEAD `7f2bb2232afa7d71bea56d8910a52a045ec11faa`/tree
 `221467b95b712dfed199b12f5a14ed17d987a7ac`에서 affected normal/race/CGO-disabled/vet/generated drift,
 full `make ci`, 386, repository-external source-clean-copy와 independent frozen-byte audit가 통과했습니다.
 이 local-final은 typed literal/reference AST, SQLite/PostgreSQL identifier RHS와 nullable odd/even `NOT`, Article
-advanced invalid zero-I/O/success exactly-two-query 경계를 포함합니다. Exact-head hosted 결과는 아직 pending이므로
-이 절은 GDJ-0041 hosted `Verified`나 completed 상태의 증거가 아닙니다.
+advanced invalid zero-I/O/success exactly-two-query 경계를 포함합니다. Submitted head `e97a4e3...`의
+[EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run `32647746430`은
+exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0, Python 4좌표와 PostgreSQL 17.10 required 12/12·restart를
+통과했습니다. 따라서 QRY-044..053은 hosted `Verified`, GDJ-0041은 completed입니다.
