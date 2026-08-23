@@ -153,7 +153,7 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 - [x] Article site project-owned SQLite/PostgreSQL environment selection
 - [ ] hosted PostgreSQL 17 required runserver sentinel with skip 0 — digest-pinned local actual과 CI lock 완료, exact-head hosted pending
 - [ ] four-coordinate portable lifecycle/inventory lock — exact pass/no-skip wiring과 local protocol 통과, hosted coordinates pending
-- [ ] frozen milestone full/386/repository-external clean-copy and independent audit once
+- [x] frozen milestone full/386/repository-external clean-copy and independent audit once
 - [ ] exact-head hosted completion, ADR acceptance and terminal status mirror
 
 ## 완료 조건
@@ -164,7 +164,7 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 - [x] SQLite와 digest-pinned PostgreSQL 17.10 actual child가 같은 bounded Article response를 냅니다.
 - [x] SIGINT/unexpected exit/repeat에서 direct child reap, bounded group cleanup와 private temp residue 0을 검증합니다.
 - [x] Affected normal/race/CGO0/vet와 Phase A/B generated drift가 cadence에 맞게 통과합니다.
-- [ ] Final frozen full/386/external clean-copy가 한 번 통과합니다.
+- [x] Final frozen full/386/external clean-copy가 한 번 통과합니다.
 - [ ] ADR/status/matrix/evidence와 Draft PR이 같은 frozen bytes와 남은 비목표를 가리킵니다.
 
 ## 검증 cadence
@@ -180,7 +180,7 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 - [x] work/ADR/contract activation
 - [x] parser/preflight/process implementation
 - [x] SQLite/PostgreSQL 17.10 local actual child verification
-- [ ] hardening, final evidence와 인수인계
+- [ ] hosted hardening, terminal evidence와 인수인계
 
 ## 수정 파일
 
@@ -223,9 +223,12 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 ## 미결정/Blocker
 
 - External blocker는 없습니다.
-- ADR-0042는 Phase A/B/C local product proof가 통과했지만 final frozen/full/hosted proof 전까지 Proposed입니다.
-- Source checkpoint는 `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
-  `682b037e71040e7373d8da303cc618207abd4643`입니다. 다음 작업은 문서 mirror 뒤 final full/386/external
-  clean-copy와 exact-head hosted matrix 한 번입니다.
+- ADR-0042는 Phase A/B/C local product proof와 final frozen local gate가 통과했지만 exact-head hosted proof 전까지
+  Proposed입니다.
+- Product source는 `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
+  `682b037e71040e7373d8da303cc618207abd4643`이고 exact documentation checkpoint
+  `47b0eb8c1df68e7ff1cf72056280cdf2915a9dab`, tree `39b7d8962abc6c5c9b61059429244647ff96c2ab`에서
+  EVID-120의 full/386/803-file external archive와 세 독립 audit가 통과했습니다. 다음 작업은 docs-only evidence
+  descendant를 비강제 푸시하고 exact submitted-head hosted matrix를 한 번 완료하는 것입니다.
 - P3 비차단 제한은 reserved port release 뒤 외부 선점 가능성과 PostgreSQL `CREATE SCHEMA` 성공 직후 ambiguous
   disconnect에서 disposable schema residue 가능성입니다. 성공 증거를 false-green으로 만들지는 않습니다.

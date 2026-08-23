@@ -104,7 +104,8 @@ Source checkpoint `810149fd90ecf0b3a9cb7b4b98344476082ce769`은 optional descrip
   Article row/history reopen durability를 로컬에서 검증했습니다. 새 runserver test는 query-count
   instrumentation이나 PostgreSQL service/container stop/start를 실행하지 않으므로, 기존 query/restart
   gate와 별도 증거로 유지합니다.
-- 두 actual gate는 local pass이지만 GDJ-0042 exact-head hosted run은 pending입니다. 따라서 이
+- Exact documentation checkpoint `47b0eb8...`의 EVID-120에서 final full/386/803-file external archive와 audit가
+  통과했습니다. 두 actual gate와 local final은 pass이지만 GDJ-0042 exact-head hosted run은 pending입니다. 따라서 이
   단면을 hosted `Verified`로 표시하지 않습니다.
 
 Runserver는 current generated bundle을 read-only preflight하며 auto-generate, auto-migrate, reload를 수행하지

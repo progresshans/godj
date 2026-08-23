@@ -123,8 +123,9 @@ Active [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-
 [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)는 Q-010의 direct project command와
 Q-017의 generated runtime usability를 WEB-011..020으로 좁혀 진행합니다. Optional descriptor capability,
 current-bundle read-only preflight, loopback-only `godj runserver`, long-lived child lifecycle과 actual
-SQLite/PostgreSQL Article flow가 source `810149f...`에서 locally implemented/actual-passing입니다. Final
-full/386/external/hosted와 ADR acceptance가 pending이고 installed semver/upgrader/general raw-model UX를 결정하지
+SQLite/PostgreSQL Article flow가 source `810149f...`에서 locally implemented/actual-passing입니다. Documentation
+checkpoint `47b0eb8...`의 final full/386/803-file external archive/audit는 통과했고 exact-head hosted와 ADR
+acceptance가 pending입니다. Installed semver/upgrader/general raw-model UX를 결정하지
 않으므로 두 질문의 상태는 그대로입니다.
 
 ## Q-001 — Codegen bootstrap — Resolved

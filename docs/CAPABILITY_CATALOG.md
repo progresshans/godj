@@ -481,8 +481,9 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)가 전역 CLI에서 generated-aware Article
 development server를 실행하는 bounded 수직 단면을 소유합니다. Source checkpoint
 `810149fd90ecf0b3a9cb7b4b98344476082ce769`에서 제품 코드는 `Implemented`이고 SQLite와 PostgreSQL 17
-actual development-loop local gate를 통과했지만, exact-head hosted gate가 끝나기 전이므로 GDJ-0042
-전체를 `Verified`로 올리지 않습니다.
+actual development-loop local gate를 통과했습니다. Documentation checkpoint `47b0eb8...`의 EVID-120에서 final
+full/386/803-file repository-external archive와 세 independent audit도 통과했지만, exact-head hosted gate가
+끝나기 전이므로 GDJ-0042 전체를 `Verified`로 올리지 않습니다.
 
 - Descriptor format 1의 `runserver_package`는 declaration `package` 뒤의 optional strict field입니다. 없어도
   migration/generate descriptor는 유효하고 `runserver`만 `runserver_not_configured`로 닫힙니다.

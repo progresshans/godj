@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-24
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-118
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-120
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -11250,3 +11250,74 @@ Checkpoint audits found no blocking P0/P1 defect; their P2/P3 evidence-boundary 
 and this documentation mirror. Final frozen audit, full/386/
 external clean-copy and exact-head hosted proof remain the next gates; any source/workflow correction invalidates the
 pending final freeze.
+
+## EVID-20260824-120 — GDJ-0042 Frozen Local Final Gates
+
+- Date/time: 2026-08-24T03:06:21+09:00 through 2026-08-24T03:12:10+09:00
+- Work/contract IDs: GDJ-0042 active; WEB-011..020 bounded local `passing`; Q-010 remains `Partial`, Q-017 remains P1/open
+- Exact checked documentation checkpoint: `47b0eb8c1df68e7ff1cf72056280cdf2915a9dab`, tree
+  `39b7d8962abc6c5c9b61059429244647ff96c2ab`, subject `docs: record GDJ-0042 source checkpoint`
+- Product source parent: `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
+  `682b037e71040e7373d8da303cc618207abd4643`
+- Environment: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5 darwin/arm64; clean index/worktree at every
+  exact-check boundary
+- Result: final full local matrix, Linux/386 all-package compile-only, repository-external exact archive and three
+  independent frozen-byte audits passed without a source/workflow correction. Exact submitted-head hosted verification,
+  ADR acceptance, work completion, merge, release and production readiness are not claimed by this entry.
+
+### Final full local gate
+
+The exact clean checkpoint and tree were asserted before and after this command:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+```
+
+It exited 0 from 2026-08-24T03:06:21+09:00 through 2026-08-24T03:09:28+09:00. Deterministic checks retained
+Article exact 12/SHA-256 `0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675` and relation-delete
+exact 16/SHA-256 `2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`. All-package normal tests,
+`go vet ./...`, all-package race tests, the explicit CGO-disabled product set, 239 Python tests with 21 intentional
+exact-profile-only skips in the portable/non-exact run, contract checks and GoDj conformance checks passed. HEAD/tree
+and the clean worktree were unchanged.
+
+### Linux/386 compile-only gate
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The command exited 0 from 2026-08-24T03:11:02+09:00 through 2026-08-24T03:11:04+09:00 for every package.
+`/usr/bin/true` makes this compile-only cross-build evidence; it does not claim Linux/386 runtime execution on the
+Darwin arm64 host. The exact tree and clean worktree remained unchanged.
+
+### Repository-external exact archive gate
+
+A guarded temporary directory was populated only from `git archive 47b0eb8c1df68e7ff1cf72056280cdf2915a9dab`.
+The extracted source had no `.git`, and its 803 regular files matched the exact commit's 803 tracked files. Before any
+gate, the sorted per-file SHA-256 roster had combined SHA-256
+`3213e7f5e05a71a92a0b99567f21353c2fadd90ec1d2e07311e5a0a685a429b7`. The external copy then ran:
+
+```bash
+GOCACHE="$archive_cache" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off make generate-check
+GOCACHE="$archive_cache" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Both commands exited 0 from 2026-08-24T03:11:47+09:00 through 2026-08-24T03:12:10+09:00. Article and relation-delete
+reported the same exact snapshot hashes above. The after-state still contained 803 regular files with the same combined
+content-roster SHA-256; no retained regular-file inventory or content drift was observed. This does not claim that no
+transient write or directory/mode metadata change occurred. The guarded temporary root was moved recoverably to Trash;
+the repository checkpoint remained clean and byte-identical.
+
+### Independent frozen-byte audits and next boundary
+
+Three independent read-only reviewers observed exact HEAD `47b0eb8...`, tree `39b7d896...` and a clean index/worktree.
+The product/lifecycle/resource/secret/SQLite/PostgreSQL/CI audit, documentation/evidence/status audit and end-to-end
+developer-experience/contract audit each returned P0/P1/P2/P3=`0/0/0/0`. They ran no writer and requested no correction.
+
+The local final is therefore frozen. The next boundary is one non-force push of the documentation descendants, Draft
+PR #1 refresh and one unique exact submitted-head hosted matrix with all portable runserver sentinels plus the required
+PostgreSQL 17.10 pass/no-skip sentinel. Any source, workflow or checked-artifact correction invalidates this local final
+and requires a new freeze. This evidence/status append is documentation-only and receives consistency gates rather than
+a recursive product-matrix rerun.

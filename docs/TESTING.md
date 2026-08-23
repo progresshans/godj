@@ -1841,5 +1841,7 @@ test가 일반 `go build`로 만든 global/runtime child binary를 race-instrume
 
 이 gate는 auto-generate/migrate/reload가 없는 Darwin/Linux loopback development lifecycle에 한정합니다. Windows,
 non-loopback/TLS, production serving, parent fatal-exit scavenging과 independently daemonized descendant 보장은 범위
-밖입니다. Source checkpoint와 required workflow wiring은 final frozen full/386/repository-external clean-copy 및
-exact-head hosted completion을 대신하지 않으며, 그 결과는 GDJ-0042의 별도 evidence에 기록합니다.
+밖입니다. Exact documentation checkpoint `47b0eb8...`/tree `39b7d896...`는 EVID-120의 final full,
+Linux/386 all-package compile-only, 803-file repository-external source-clean-copy와 세 independent audit를
+통과했습니다. Required workflow wiring과 local final은 exact-head hosted completion을 대신하지 않으며, 그 결과는
+GDJ-0042의 다음 evidence에 기록합니다.

@@ -119,7 +119,7 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
 - [x] Actual global CLI + pre-migrated SQLite Article child HTTP and repeated port reuse
 - [x] Digest-pinned local PostgreSQL 17.10 Article child sentinel normal/race/CGO-disabled, pass 1/skip 0
 - [ ] Four-coordinate portable와 hosted PostgreSQL 17.10 exact-head required gates
-- [ ] Final full/Linux-386/repository-external clean-copy and independent final audit
+- [x] Final full/Linux-386/repository-external clean-copy and independent final audit
 
 ## 현재 구현 상태
 
@@ -134,11 +134,12 @@ Backend-close ownership correction `810149fd90ecf0b3a9cb7b4b98344476082ce769`은
 backend/listener close를 각각 정확히 한 번 계수합니다.
 
 SQLite와 digest-pinned PostgreSQL 17.10 local actual 및 current `810149f...` affected normal/race/CGO-disabled/vet가
-통과했습니다. Workflow lock과 focused Linux/386 compile-only는 earlier `6101140...` checkpoint에서 통과했고 final frozen
-all-package gates는 아직 pending입니다. PostgreSQL actual은 global CLI → generated runtime → advanced HTTP → clean SIGINT → backend
+통과했습니다. Exact documentation checkpoint `47b0eb8...`/tree `39b7d896...`의 EVID-120에서 final full,
+all-package Linux/386 compile-only, 803-file repository-external archive와 세 독립 audit가 통과했습니다.
+PostgreSQL actual은 global CLI → generated runtime → advanced HTTP → clean SIGINT → backend
 reopen 뒤 migration history 1건/9행 exact durability를 증명합니다. DB service restart, query count, 전체 failure taxonomy와 spawned
 child binary 자체의 race 계측은 각각 기존 PostgreSQL restart, Article handler, unit/process evidence 소유이며 이 black-box 하나의
 주장이 아닙니다.
 
-이 ADR은 구현 후보가 되었지만 final frozen full/386/external clean-copy와 exact-head hosted matrix가 끝날 때까지 Proposed입니다.
+이 ADR은 locally frozen 구현 후보가 되었지만 exact-head hosted matrix가 끝날 때까지 Proposed입니다.
 WEB-011..020 문서나 local actual만으로 hosted `Verified`, production readiness, Windows/non-loopback 지원을 주장하지 않습니다.
