@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/query"
@@ -131,6 +132,16 @@ func TestComparisonLookupAndFieldRHSValidation(t *testing.T) {
 				t.Fatalf("failed condition = %#v, want zero", condition)
 			}
 		})
+	}
+}
+
+func TestUnsupportedComparisonFieldKindKeepsItsDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	field := query.NewFieldRef("amount", "amount", query.FieldKind("decimal"), false)
+	_, err := query.NewExpression(query.NewCondition(field, query.LookupExact, query.String("1")))
+	if !invalidComparisonPlan(err) || !strings.Contains(err.Error(), "unsupported field kind") {
+		t.Fatalf("NewExpression(unsupported kind) error = %v, want unsupported field kind invalid_plan", err)
 	}
 }
 

@@ -347,16 +347,8 @@ func validateExpressionCondition(condition Condition) error {
 }
 
 func validExpressionField(field FieldRef) bool {
-	if field.name == "" || field.column == "" ||
-		strings.ContainsRune(field.name, '\x00') || strings.ContainsRune(field.column, '\x00') {
-		return false
-	}
-	switch field.kind {
-	case FieldInteger, FieldString, FieldBoolean:
-		return true
-	default:
-		return false
-	}
+	return field.name != "" && field.column != "" &&
+		!strings.ContainsRune(field.name, '\x00') && !strings.ContainsRune(field.column, '\x00')
 }
 
 func orderedComparisonLookup(lookup Lookup) bool {
