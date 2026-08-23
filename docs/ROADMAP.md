@@ -3,8 +3,8 @@
 - 상태: Accepted direction
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
-  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)도 completed됐으며 현재
-  active/ready는 0입니다. Phase A
+  [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)도 completed됐습니다. 현재
+  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이 active이고 ready는 0입니다. Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -597,6 +597,12 @@ correction `73b912d...`는 950/950/0과 full/386/source-clean-copy를 다시 통
 run `32642341459`은 exact 27/27 jobs·341/341 steps로 이 bounded slice를 completed/hosted-verified로 닫았습니다.
 Relation leaf under OR/NOT, F, bulk, locking, annotation/subquery/window와 related projection은 제외하므로
 M4 전체는 계속 완료되지 않았습니다.
+
+[GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)은 그 다음 넓은 read
+slice로 Integer/String range lookup, same-model typed field-reference RHS와 nullable negation을 기존 Boolean tree,
+projection/aggregate, SQLite/PostgreSQL과 Article exactly-two-query 흐름에 합류시킵니다. QRY-044..053 reference와
+external compile proof 전 [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)은 Proposed이며,
+arithmetic/annotation/relation F/bulk/locking/subquery/window는 계속 후속입니다.
 
 ## M5 — Web Core
 

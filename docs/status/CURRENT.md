@@ -36,6 +36,9 @@
 - GDJ-0040 terminal submitted head: `136e82572206eef7fd04931ae94dffb5ff0660e2`, tree
   `84f24feed0c1fde641aa196f6d4f581404820c42`; [EVID-115](TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
   CI #113 run `32642341459` exact 27/27 jobs·341/341 steps
+- GDJ-0041 activation baseline: hosted-verified GDJ-0040 submitted head `136e82572206eef7fd04931ae94dffb5ff0660e2`;
+  active [work packet](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md) /
+  Proposed [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -343,12 +346,12 @@
   (`test(conformance): characterize migration relation product`)
 - remote: `https://github.com/progresshans/godj.git`
 - Draft PR: [#1](https://github.com/progresshans/godj/pull/1)
-- 현재 단계: [GDJ-0039](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 submitted
+- 현재 완료 계보: [GDJ-0039](../../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 submitted
   head `253455d...`의
   [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
   run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033 bounded slice를
   `Verified`하고 completed됐습니다. 후속
-  [GDJ-0040](../../work/0040-composable-typed-boolean-predicates-and-article-search.md)도 completed됐으며 현재 active/ready는 0입니다.
+  [GDJ-0040](../../work/0040-composable-typed-boolean-predicates-and-article-search.md)도 completed됐습니다.
   Accepted [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
   독립 Django contract/oracle을 Phase A checkpoint `fe4996f...`에서 동결했습니다. Phase B/C product
   `86d6b169...`와 actual `0ec6f385...`는 immutable Boolean tree, SQLite/PostgreSQL compiler와 bounded Article
@@ -360,7 +363,11 @@
   full/386/source-clean-copy local gate를 새 bytes로 다시 통과했습니다. Corrected submitted head `136e825...`의
   [EVID-115](TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) / run
   `32642341459`은 exact 27/27 jobs·341/341 steps, annotations/failure/cancel/skip 0으로 통과해 QRY-034..043을
-  hosted-Verified하고 GDJ-0040을 닫았습니다.
+  hosted-Verified하고 GDJ-0040을 닫았습니다. 그 hosted product baseline에서
+  [GDJ-0041](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)을 active로 전환했고,
+  typed Integer/String range, same-model `orm.F` field RHS, nullable NOT과 Article advanced filter를 QRY-044..053으로
+  한 수직 단면에서 검증합니다. [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)은 Phase A
+  reference/external compile proof 전 Proposed입니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -489,7 +496,8 @@
   locked/unregistered입니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0040 Composable Typed Boolean Predicates and Article Search](../../work/0040-composable-typed-boolean-predicates-and-article-search.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0041 Typed Scalar Comparisons, Field References, and Article Filtering](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1466,7 +1474,7 @@ run `32626539049` exact 27/27 jobs·341/341 steps success로 bounded `Verified`/
 submitted head `253455d...`의 [EVID-110](TEST_EVIDENCE.md#evid-20260823-110--gdj-0039-exact-head-hosted-completion) /
 run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022..033을 `Verified`하고
 completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `32642341459` exact
-27/27 jobs·341/341 steps로 completed됐습니다. 현재 active/ready는 0이고 외부 blocker는 없습니다. Phase A의
+27/27 jobs·341/341 steps로 completed됐습니다. 현재 GDJ-0041 하나가 active이고 ready 0, 외부 blocker 0입니다. GDJ-0040 Phase A의
 QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐고, Phase B/C
 source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate를 통과했습니다.
 첫 hosted run의 stale 916-test inventory failure와 correction `73b912d...`의 exact 950-test lock 및 새
@@ -1539,11 +1547,10 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0040 terminal mirror를 문서 전용 gate로 commit한 뒤, M4의 다음 넓은 수직 단면을 GDJ-0041로 별도
-활성화합니다. 우선 후보는 typed scalar comparison/range와 same-model field-reference RHS를 기존 Boolean tree,
-SQLite/PostgreSQL compiler와 Article exactly-two-query 흐름에 연결하는 것입니다. 새 공개 F API와 AST RHS는
-하중 지지 경계이므로 짧은 Proposed ADR, 독립 Django QRY-044..053 reference, external compile gate를 먼저
-고정하고 product/backend/Web 작업을 넓게 병렬 구현합니다.
+GDJ-0041을 active로 전환했습니다. 먼저 QRY-044..053의 range/field-reference/nullable-NOT observable payload와
+external typed `orm.F` compile usability를 고정합니다. 그 proof로 ADR-0041을 Accepted 또는 Rejected 전환한 뒤,
+query/ORM core, SQLite/PostgreSQL compiler, Article exactly-two-query flow와 oracle-blind actual을 병렬 구현합니다.
+Subtask마다 full matrix를 반복하지 않고 affected gate 뒤 frozen source에서 full/386/source-clean-copy를 한 번 실행합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
 release는 이 작업의 권한·범위가 아닙니다.

@@ -55,5 +55,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0038](0038-minimal-web-core-request-lifetime-and-representation.md) | Accepted | Immutable Web Core, request lifetime와 explicit DTO representation |
 | [0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | Accepted | Source/result shape 분리, typed projection/scalar aggregate와 stable pagination |
 | [0040](0040-composable-typed-boolean-predicates-and-article-search.md) | Accepted | 하나의 typed Boolean predicate tree와 bounded Article 검색 |
+| [0041](0041-typed-scalar-comparisons-and-field-references.md) | Proposed | Typed scalar comparison과 same-model field reference RHS |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.
