@@ -2,6 +2,7 @@ package adminapp_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -65,6 +66,59 @@ func TestServicePublishesAuditOnlyForConfirmedSemanticWrites(t *testing.T) {
 		if history[index].Action != want || history[index].Sequence != uint64(index+1) || history[index].ActorID != "operator" {
 			t.Fatalf("History()[%d] = %#v, want action %s", index, history[index], want)
 		}
+	}
+	if len(history[0].ChangedFields) != 0 {
+		t.Fatalf("add changed fields = %v, want none", history[0].ChangedFields)
+	}
+}
+
+func TestNewServiceRejectsZeroAuditLogAtStartup(t *testing.T) {
+	ctx := context.Background()
+	backend, err := sqlite.OpenMemory(ctx, "article-admin-zero-audit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = backend.Close() })
+	if _, err := adminapp.NewService(backend, &admin.AuditLog{}); !adminapp.IsCode(err, adminapp.CodeInvalidInput) {
+		t.Fatalf("NewService(zero audit) error = %v, want invalid_input", err)
+	}
+}
+
+func TestDeleteAuditPreparationFailureRollsBackRow(t *testing.T) {
+	ctx := context.Background()
+	backend, err := sqlite.OpenMemory(ctx, "article-admin-delete-audit-rollback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = backend.Close() })
+	for _, statement := range []string{
+		`CREATE TABLE "godj_conformance_article" ("id" INTEGER PRIMARY KEY, "title" TEXT NOT NULL, "published" INTEGER NOT NULL, "summary" TEXT NULL)`,
+		`INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES (1, 'bad' || char(1) || 'label', 0, NULL)`,
+	} {
+		if _, err := backend.ExecContext(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	audit, err := admin.NewAuditLog(4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := adminapp.NewService(backend, audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Delete(ctx, "operator", 1); err == nil {
+		t.Fatal("Delete(invalid audit label) error = nil")
+	}
+	article, found, err := service.Get(ctx, 1)
+	if err != nil || !found || article.ID != 1 {
+		t.Fatalf("row after rejected delete = %#v, found=%t, error=%v", article, found, err)
+	}
+	if audit.Len() != 0 {
+		t.Fatalf("audit length = %d, want 0", audit.Len())
+	}
+	if _, err := service.Delete(ctx, "operator", 999); !errors.Is(err, admin.ErrObjectNotFound) {
+		t.Fatalf("Delete(missing) error = %v, want ErrObjectNotFound", err)
 	}
 }
 

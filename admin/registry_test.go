@@ -135,6 +135,18 @@ func TestRegisterModelRejectsInvalidStartupDefinitions(t *testing.T) {
 		{name: "non-char search field", mutate: func(config *ModelConfig[registryArticle]) { config.SearchFields = []string{"published"} }, code: "not_searchable"},
 		{name: "invalid permission", mutate: func(config *ModelConfig[registryArticle]) { config.Permissions.View = "UPPER.view" }, code: "invalid"},
 		{name: "missing callback", mutate: func(config *ModelConfig[registryArticle]) { config.Create = nil }, code: "missing"},
+		{name: "form fields exceed HTTP input bound", mutate: func(config *ModelConfig[registryArticle]) {
+			for editable := len(config.Model.Fields) - 1; editable < MaximumInputValues; editable++ {
+				index := editable + 1
+				config.Model.Fields = append(config.Model.Fields, ir.Field{
+					Name:      fmt.Sprintf("extra_%03d", index),
+					GoName:    fmt.Sprintf("Extra%03d", index),
+					Column:    fmt.Sprintf("extra_%03d", index),
+					Kind:      ir.FieldChar,
+					MaxLength: 10,
+				})
+			}
+		}, code: "limit_exceeded"},
 		{name: "duplicate action", mutate: func(config *ModelConfig[registryArticle]) { config.Actions = append(config.Actions, config.Actions[0]) }, code: "duplicate"},
 		{name: "nil action", mutate: func(config *ModelConfig[registryArticle]) { config.Actions[0].Run = nil }, code: "missing"},
 	}
@@ -147,6 +159,23 @@ func TestRegisterModelRejectsInvalidStartupDefinitions(t *testing.T) {
 				t.Fatalf("RegisterModel() error = %v, code %q, want %q", err, got, test.code)
 			}
 		})
+	}
+}
+
+func TestRegisterModelAcceptsMaximumHTTPBoundedFormFields(t *testing.T) {
+	config := validRegistryConfig(t)
+	for editable := len(config.Model.Fields) - 1; editable < MaximumInputValues-1; editable++ {
+		index := editable + 1
+		config.Model.Fields = append(config.Model.Fields, ir.Field{
+			Name:      fmt.Sprintf("boundary_%03d", index),
+			GoName:    fmt.Sprintf("Boundary%03d", index),
+			Column:    fmt.Sprintf("boundary_%03d", index),
+			Kind:      ir.FieldChar,
+			MaxLength: 10,
+		})
+	}
+	if err := RegisterModel(NewBuilder(mustApps(t)), config); err != nil {
+		t.Fatalf("RegisterModel(maximum bounded form) error = %v", err)
 	}
 }
 
@@ -402,7 +431,7 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 	}
 }
 
-func TestRegisteredListRejectsItemsBeyondReportedTotal(t *testing.T) {
+func TestRegisteredListAcceptsConcurrentCountRowDrift(t *testing.T) {
 	config := validRegistryConfig(t)
 	config.List = func(_ context.Context, request ListRequest) (Page[registryArticle], error) {
 		return Page[registryArticle]{
@@ -420,9 +449,54 @@ func TestRegisteredListRejectsItemsBeyondReportedTotal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build() error = %v", err)
 	}
-	_, err = registry.models[0].list(context.Background(), mustPrincipal(t), ListRequest{Offset: 1})
+	page, err := registry.models[0].list(context.Background(), mustPrincipal(t), ListRequest{Offset: 1})
+	if err != nil {
+		t.Fatalf("list concurrent count/rows drift error = %v", err)
+	}
+	if len(page.objects) != 1 || page.objects[0].id != 2 || page.total != 2 {
+		t.Fatalf("list concurrent count/rows drift page = %#v", page)
+	}
+}
+
+func TestRegisteredListRejectsItemsBeyondLimit(t *testing.T) {
+	config := validRegistryConfig(t)
+	config.List = func(_ context.Context, request ListRequest) (Page[registryArticle], error) {
+		return Page[registryArticle]{
+			Items: []registryArticle{
+				{id: 1, title: "First"},
+				{id: 2, title: "Second"},
+			},
+			Total:  2,
+			Offset: request.Offset,
+			Limit:  request.Limit,
+		}, nil
+	}
+	builder := NewBuilder(mustApps(t))
+	if err := RegisterModel(builder, config); err != nil {
+		t.Fatalf("RegisterModel() error = %v", err)
+	}
+	registry, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	_, err = registry.models[0].list(context.Background(), mustPrincipal(t), ListRequest{Limit: 1})
 	if got := errorCode(err); got != "invalid" {
-		t.Fatalf("list impossible page error = %v, code %q", err, got)
+		t.Fatalf("list over-limit page error = %v, code %q", err, got)
+	}
+}
+
+func TestRegisteredListRejectsOffsetBeyondResourceBound(t *testing.T) {
+	builder := NewBuilder(mustApps(t))
+	if err := RegisterModel(builder, validRegistryConfig(t)); err != nil {
+		t.Fatalf("RegisterModel() error = %v", err)
+	}
+	registry, err := builder.Build()
+	if err != nil {
+		t.Fatalf("Build() error = %v", err)
+	}
+	_, err = registry.models[0].list(context.Background(), mustPrincipal(t), ListRequest{Offset: MaximumListOffset + 1})
+	if got := errorCode(err); got != "invalid" {
+		t.Fatalf("list oversized offset error = %v, code %q", err, got)
 	}
 }
 
@@ -523,7 +597,7 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 		Delete: func(_ context.Context, _ auth.Principal, id int64) (registryArticle, error) {
 			return registryArticle{id: id, title: "Deleted"}, nil
 		},
-		History: func(context.Context, int64) ([]AuditEntry, error) { return nil, nil },
+		History: func(context.Context, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil },
 		Actions: []ActionConfig{{
 			Name:       "publish",
 			Label:      "Publish selected articles",

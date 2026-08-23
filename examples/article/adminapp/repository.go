@@ -12,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/db"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/orm"
@@ -69,6 +70,10 @@ func (e *Error) Unwrap() error {
 		return nil
 	}
 	return e.Cause
+}
+
+func (e *Error) Is(target error) bool {
+	return e != nil && e.Code == CodeNotFound && target == admin.ErrObjectNotFound
 }
 
 // Article is the explicit immutable Admin representation. Generated model
@@ -254,6 +259,10 @@ func (r Repository) Update(ctx context.Context, id int64, input Input) (Article,
 }
 
 func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
+	return r.deletePrepared(ctx, id, nil)
+}
+
+func (r Repository) deletePrepared(ctx context.Context, id int64, prepare func(Article) error) (Article, error) {
 	if err := validateContext(ctx); err != nil {
 		return Article{}, err
 	}
@@ -273,6 +282,11 @@ func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
 			return notFound(id)
 		}
 		deleted = current
+		if prepare != nil {
+			if err := prepare(snapshot(current)); err != nil {
+				return err
+			}
+		}
 		if _, err := articlemodels.ArticleObjects.Delete(ctx, session, &current); err != nil {
 			return err
 		}
@@ -367,6 +381,14 @@ func validateListOptions(options ListOptions) error {
 func validateText(field, value string, allowEmpty bool, maximumRunes int) error {
 	if !utf8.ValidString(value) || strings.ContainsRune(value, '\x00') {
 		return invalid(field, "value must be valid UTF-8 without NUL")
+	}
+	for _, character := range value {
+		if character == '\t' || character == '\n' || character == '\r' {
+			continue
+		}
+		if character < 0x20 || character == 0x7f {
+			return invalid(field, "value contains an unsupported control character")
+		}
 	}
 	if !allowEmpty && strings.TrimSpace(value) == "" {
 		return invalid(field, "value is required")

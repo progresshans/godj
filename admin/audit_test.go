@@ -2,6 +2,7 @@ package admin_test
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -44,11 +45,12 @@ func TestPrepareEventRejectsInvalidOrSecretShapedFields(t *testing.T) {
 	}{
 		{name: "empty actor", model: "app.article", id: 1, action: admin.ActionAdd},
 		{name: "control actor", actor: "user\nsecret", model: "app.article", id: 1, action: admin.ActionAdd},
+		{name: "invalid UTF-8 actor", actor: string([]byte{0xff}), model: "app.article", id: 1, action: admin.ActionAdd},
 		{name: "invalid model", actor: "user", model: "app/article", id: 1, action: admin.ActionAdd},
 		{name: "invalid id", actor: "user", model: "app.article", action: admin.ActionAdd},
 		{name: "invalid action", actor: "user", model: "app.article", id: 1, action: "unknown"},
 		{name: "duplicate field", actor: "user", model: "app.article", id: 1, action: admin.ActionChange, fields: []string{"title", "title"}},
-		{name: "invalid label", actor: "user", model: "app.article", id: 1, action: admin.ActionAdd, label: "bad\nlabel"},
+		{name: "invalid label", actor: "user", model: "app.article", id: 1, action: admin.ActionAdd, label: "bad\x01label"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -84,6 +86,25 @@ func TestPreparedEventTemplateAttachesConfirmedCreateKey(t *testing.T) {
 	entry, ok := log.Append(event)
 	if !ok || entry.ObjectID != 42 || entry.Action != admin.ActionAdd {
 		t.Fatalf("Append() = %#v, %v", entry, ok)
+	}
+}
+
+func TestPreparedEventAcceptsBoundedMultibyteDisplayLabels(t *testing.T) {
+	label := strings.Repeat("한", 200)
+	event, err := admin.PrepareEvent("actor", "articles.article", 1, admin.ActionAdd, nil, label)
+	if err != nil {
+		t.Fatalf("PrepareEvent() error = %v", err)
+	}
+	log, err := admin.NewAuditLog(1)
+	if err != nil {
+		t.Fatalf("NewAuditLog() error = %v", err)
+	}
+	entry, ok := log.Append(event)
+	if !ok || entry.DisplayLabel != label {
+		t.Fatalf("Append() = %#v, %v", entry, ok)
+	}
+	if _, err := admin.PrepareEvent("actor", "articles.article", 1, admin.ActionAdd, nil, strings.Repeat("😀", 257)); err == nil {
+		t.Fatal("oversized multibyte display label accepted")
 	}
 }
 

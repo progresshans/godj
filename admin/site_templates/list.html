@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ model_name }} administration</title></head>
+<body data-admin-view="list" data-result-count="{{ total }}" data-page="{{ page }}" data-page-count="{{ page_count }}">
+<header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
+<main><h1>{{ model_name }}</h1>{% if has_notice %}<p data-admin-message="{{ notice_tag }}" data-affected="{{ affected }}">{{ notice }}</p>{% endif %}{% if invalid_page %}<p data-query-error="invalid_page">Invalid page; showing page 1.</p>{% endif %}
+<form method="get" action="{{ list_path }}"><label>Search <input name="q" value="{{ search }}"></label><button type="submit">Search</button></form>
+{% if can_add %}<p><a href="{{ add_path }}">Add {{ model_name }}</a></p>{% endif %}
+<form method="post" action="">{% csrf_token %}
+<table><thead><tr><th>Select</th>{% for field in fields %}<th data-list-field="{{ field }}">{{ field }}</th>{% endfor %}<th>Operations</th></tr></thead>
+<tbody>{% for object in objects %}<tr data-object-id="{{ object.id }}"><td><input type="checkbox" name="selected" value="{{ object.id }}"></td>{% for cell in object.cells %}<td>{{ cell }}</td>{% endfor %}<td>{% if object.can_change %}<a href="{{ object.change_url }}">Change</a>{% endif %} {% if object.can_delete %}<a href="{{ object.delete_url }}">Delete</a>{% endif %} <a href="{{ object.history_url }}">History</a></td></tr>{% empty %}<tr><td>No results.</td></tr>{% endfor %}</tbody></table>
+{% if has_actions %}{% for action in actions %}<button type="submit" formaction="{{ action.path }}" data-action="{{ action.name }}">{{ action.label }}</button>{% endfor %}{% endif %}</form>
+<nav>{% if has_previous %}<a href="{{ previous_url }}">Previous</a>{% endif %} <span>Page {{ page }} of {{ page_count }}</span> {% if has_next %}<a href="{{ next_url }}">Next</a>{% endif %}</nav>
+</main></body></html>

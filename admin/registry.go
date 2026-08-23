@@ -2,7 +2,9 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -18,12 +20,22 @@ import (
 const (
 	DefaultListLimit      = 20
 	MaximumListLimit      = 100
+	MaximumListOffset     = 1_000_000
 	MaximumSearchBytes    = 256
 	MaximumSelectedIDs    = 100
-	MaximumDisplayBytes   = 512
 	MaximumActions        = 32
 	MaximumRegistryModels = 256
 )
+
+// ErrObjectNotFound is the adapter-neutral missing-row marker. Model callbacks
+// wrap it when a row disappears between an Admin read and its write so the HTTP
+// boundary can return 404 without importing an application package.
+var ErrObjectNotFound = errors.New("admin: object not found")
+
+// ErrReconciliationRequired marks a callback contract failure discovered only
+// after the callback reported success. The callback may already have committed;
+// callers must inspect durable state and must not retry automatically.
+var ErrReconciliationRequired = errors.New("admin: reconciliation required; do not retry automatically")
 
 // ConfigError reports an invalid Admin definition discovered before the
 // immutable registry is published.
@@ -66,8 +78,17 @@ type ListRequest struct {
 	Limit  int
 }
 
-// Page is the typed result returned by a model adapter. The registry converts
-// every item to a closed Object before an HTTP renderer can observe it.
+// HistoryRequest is the hard-bounded adapter input for one object's most
+// recent process-lifetime semantic events.
+type HistoryRequest struct {
+	Limit int
+}
+
+// Page is the typed result returned by a model adapter. Total is a best-effort
+// count and need not share a storage snapshot with Items; concurrent writes may
+// happen between the adapter's count and row reads. The registry converts every
+// item to a closed Object before an HTTP renderer can observe it and raises
+// Total to the observed Offset+len(Items) lower bound when necessary.
 type Page[M any] struct {
 	Items  []M
 	Total  int64
@@ -87,7 +108,7 @@ func NewObject(id int64, label string, values map[string]templates.Value) (Objec
 	if id <= 0 {
 		return Object{}, &ConfigError{Path: "object.id", Code: "invalid"}
 	}
-	if strings.TrimSpace(label) == "" || len(label) > MaximumDisplayBytes || !utf8.ValidString(label) || containsUnsafeControl(label) {
+	if strings.TrimSpace(label) == "" || len(label) > MaximumDisplayBytes || !utf8.ValidString(label) || containsUnsafeDisplayControl(label) {
 		return Object{}, &ConfigError{Path: "object.label", Code: "invalid"}
 	}
 	closed, err := templates.Object(values)
@@ -143,7 +164,7 @@ type ModelConfig[M any] struct {
 	Create   func(context.Context, auth.Principal, forms.Values) (M, error)
 	Update   func(context.Context, auth.Principal, int64, forms.Values) (M, []string, error)
 	Delete   func(context.Context, auth.Principal, int64) (M, error)
-	History  func(context.Context, int64) ([]AuditEntry, error)
+	History  func(context.Context, int64, HistoryRequest) ([]AuditEntry, error)
 	Actions  []ActionConfig
 }
 
@@ -344,8 +365,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	formFields := form.Fields()
+	// A complete model POST carries one scalar value per editable field plus
+	// the CSRF token. Reject definitions that cannot fit through the Site's
+	// global input-count bound instead of publishing an unusable registry.
+	if len(formFields)+1 > MaximumInputValues {
+		return registeredModel{}, &ConfigError{Path: "model.form", Code: "limit_exceeded"}
+	}
 	editable := make(map[string]struct{}, len(formFields))
 	for _, field := range formFields {
+		if field.Name() == "csrfmiddlewaretoken" {
+			return registeredModel{}, &ConfigError{Path: "model.form.csrfmiddlewaretoken", Code: "reserved"}
+		}
 		editable[field.Name()] = struct{}{}
 	}
 	snapshotFields := append([]ir.Field(nil), model.Fields...)
@@ -372,15 +402,8 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredPage{}, err
 		}
-		if page.Total < 0 || page.Offset != normalizedRequest.Offset || page.Limit != normalizedRequest.Limit ||
-			len(page.Items) > normalizedRequest.Limit || int64(len(page.Items)) > page.Total {
+		if page.Total < 0 || page.Offset != normalizedRequest.Offset || page.Limit != normalizedRequest.Limit || len(page.Items) > page.Limit {
 			return registeredPage{}, &ConfigError{Path: "list.result", Code: "invalid"}
-		}
-		if len(page.Items) > 0 {
-			offset := int64(page.Offset)
-			if offset >= page.Total || int64(len(page.Items)) > page.Total-offset {
-				return registeredPage{}, &ConfigError{Path: "list.result", Code: "invalid"}
-			}
 		}
 		objects := make([]Object, len(page.Items))
 		var previousID int64
@@ -398,7 +421,12 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			previousID = object.id
 			objects[index] = object
 		}
-		return registeredPage{objects: objects, total: page.Total, offset: page.Offset, limit: page.Limit}, nil
+		total := page.Total
+		observedEnd := int64(page.Offset) + int64(len(page.Items))
+		if observedEnd > total {
+			total = observedEnd
+		}
+		return registeredPage{objects: objects, total: total, offset: page.Offset, limit: page.Limit}, nil
 	}
 	// Change-form loading snapshots safe display values and typed form initial
 	// values together. Nothing mutable is stored back into the registry.
@@ -454,10 +482,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		object, err := config.Snapshot(item)
 		if err != nil {
-			return Object{}, err
+			return Object{}, reconciliationError("create", err)
 		}
 		if err := validateObject(object, snapshotFields); err != nil {
-			return Object{}, err
+			return Object{}, reconciliationError("create", err)
 		}
 		return object, nil
 	}
@@ -478,17 +506,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		object, err := config.Snapshot(item)
 		if err != nil {
-			return Object{}, nil, err
+			return Object{}, nil, reconciliationError("update", err)
 		}
 		if object.id != id {
-			return Object{}, nil, &ConfigError{Path: "update.result.id", Code: "mismatch"}
+			return Object{}, nil, reconciliationError("update", &ConfigError{Path: "update.result.id", Code: "mismatch"})
 		}
 		if err := validateObject(object, snapshotFields); err != nil {
-			return Object{}, nil, err
+			return Object{}, nil, reconciliationError("update", err)
 		}
 		changed, err = validateChangedFields(changed, editable)
 		if err != nil {
-			return Object{}, nil, err
+			return Object{}, nil, reconciliationError("update", err)
 		}
 		return object, changed, nil
 	}
@@ -505,13 +533,13 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		object, err := config.Snapshot(item)
 		if err != nil {
-			return Object{}, err
+			return Object{}, reconciliationError("delete", err)
 		}
 		if err := validateObject(object, snapshotFields); err != nil {
-			return Object{}, err
+			return Object{}, reconciliationError("delete", err)
 		}
 		if object.id != id {
-			return Object{}, &ConfigError{Path: "delete.result.id", Code: "mismatch"}
+			return Object{}, reconciliationError("delete", &ConfigError{Path: "delete.result.id", Code: "mismatch"})
 		}
 		return object, nil
 	}
@@ -522,16 +550,25 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err := validateOperation(ctx, id); err != nil {
 			return nil, err
 		}
-		entries, err := config.History(ctx, id)
+		entries, err := config.History(ctx, id, HistoryRequest{Limit: MaximumHistoryEntries})
 		if err != nil {
 			return nil, err
+		}
+		if len(entries) > MaximumHistoryEntries {
+			return nil, &ConfigError{Path: "history.result", Code: "limit_exceeded"}
 		}
 		identity := modelIdentity(config.AppLabel, model.Name)
 		var previous uint64
 		result := make([]AuditEntry, len(entries))
 		for index, entry := range entries {
-			if entry.Sequence == 0 || entry.Sequence <= previous || entry.Model != identity || entry.ObjectID != id {
+			if entry.Sequence == 0 || entry.Sequence > math.MaxInt64 || entry.Sequence <= previous || entry.Model != identity || entry.ObjectID != id {
 				return nil, &ConfigError{Path: "history.result", Code: "invalid"}
+			}
+			if _, err := PrepareEvent(entry.ActorID, entry.Model, entry.ObjectID, entry.Action, entry.ChangedFields, entry.DisplayLabel); err != nil {
+				return nil, &ConfigError{Path: fmt.Sprintf("history.result[%d]", index), Code: "invalid", Cause: err}
+			}
+			if _, err := validateChangedFields(entry.ChangedFields, editable); err != nil {
+				return nil, &ConfigError{Path: fmt.Sprintf("history.result[%d].changed_fields", index), Code: "invalid", Cause: err}
 			}
 			previous = entry.Sequence
 			result[index] = entry.Clone()
@@ -586,13 +623,17 @@ func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
 				}
 				matched, err := validateActionResult(outcome.MatchedIDs, canonical)
 				if err != nil {
-					return ActionResult{}, err
+					return ActionResult{}, reconciliationError("action "+action.Name, err)
 				}
 				return ActionResult{MatchedIDs: matched}, nil
 			},
 		}
 	}
 	return result, nil
+}
+
+func reconciliationError(operation string, cause error) error {
+	return fmt.Errorf("admin: %s callback returned an invalid result after success: %w: %w", operation, ErrReconciliationRequired, cause)
 }
 
 func (model registeredModel) descriptor() ModelDescriptor {
@@ -667,7 +708,7 @@ func normalizeListRequest(ctx context.Context, request ListRequest) (ListRequest
 	if err := ctx.Err(); err != nil {
 		return ListRequest{}, err
 	}
-	if request.Offset < 0 {
+	if request.Offset < 0 || request.Offset > MaximumListOffset {
 		return ListRequest{}, &ConfigError{Path: "list.offset", Code: "invalid"}
 	}
 	if request.Limit == 0 {
@@ -753,6 +794,23 @@ func validateBoundForm(submitted forms.Form, spec forms.Spec, fields []forms.Fie
 	return revalidated.Cleaned(), nil
 }
 
+func validInitialValue(value forms.Value, field forms.Field) bool {
+	switch field.Kind() {
+	case forms.FieldChar:
+		if value.IsNull() {
+			return field.Nullable()
+		}
+		text, ok := value.AsString()
+		return ok && utf8.ValidString(text) && !strings.ContainsRune(text, 0) &&
+			(field.MaxLength() == 0 || utf8.RuneCountInString(text) <= field.MaxLength())
+	case forms.FieldBoolean:
+		_, ok := value.AsBoolean()
+		return ok
+	default:
+		return false
+	}
+}
+
 func validateInitialValues(values forms.Values, fields []forms.Field, object Object) error {
 	entries := values.All()
 	if len(entries) != len(fields) {
@@ -763,7 +821,7 @@ func validateInitialValues(values forms.Values, fields []forms.Field, object Obj
 		if entry.Name() != field.Name() {
 			return &ConfigError{Path: fmt.Sprintf("get.result.initial[%d]", index), Code: "field_order_mismatch"}
 		}
-		if !validFormValue(entry.Value(), field) {
+		if !validInitialValue(entry.Value(), field) {
 			return &ConfigError{Path: "get.result.initial." + field.Name(), Code: "type_or_constraint_mismatch"}
 		}
 		snapshot, ok := object.Value(field.Name())

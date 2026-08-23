@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{{ title }}</title></head>
+<body data-admin-view="form"><header><a href="{{ index_path }}">Administration</a>{% include "logout.html" %}</header>
+<main><h1>{{ title }}</h1><form method="post" action="{{ action }}">{% csrf_token %}
+{% for error in non_field_errors %}<p data-error-field="__all__" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}
+{% for field in fields %}<div data-field-name="{{ field.name }}"><label>{{ field.label }}
+{% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
+{% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
+{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endfor %}
+<button type="submit">{{ submit_label }}</button></form><p><a href="{{ list_path }}">Back to list</a></p></main>
+</body></html>

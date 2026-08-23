@@ -1,6 +1,7 @@
 package sessionauth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -70,6 +71,30 @@ func (r *Runtime) Optional(handler AuthenticatedHandler) web.Handler {
 	}
 }
 
+// Authorized applies a conservative deny-overlay contract: the immutable
+// principal snapshot must contain permission and the configured Authorizer may
+// further deny it. An Authorizer cannot grant a permission absent from the
+// authenticated snapshot.
+func (r *Runtime) Authorized(ctx context.Context, principal auth.Principal, permission auth.Permission) (bool, error) {
+	if ctx == nil {
+		return false, &Error{Code: CodeInvalidRequest, Field: "context", Detail: "authorization context is nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if r == nil || r.authorizer == nil {
+		return false, &Error{Code: CodeInvalidConfig, Field: "authorizer", Detail: "session-auth runtime is nil or uninitialized"}
+	}
+	if !principal.Has(permission) {
+		return false, nil
+	}
+	allowed, err := r.authorizer.Allowed(ctx, principal, permission)
+	if err != nil {
+		return false, &Error{Code: CodeAuthorization, Detail: "permission evaluation failed", Cause: err}
+	}
+	return allowed, nil
+}
+
 // Require redirects an anonymous request to LoginPath and returns a stable 403
 // for an authenticated principal without permission. The typed principal is
 // passed explicitly and is never stored in context or web.Request.
@@ -89,9 +114,9 @@ func (r *Runtime) Require(permission auth.Permission, handler AuthenticatedHandl
 			}
 			return redirectResponse(r.loginPath + "?next=" + url.QueryEscape(next))
 		}
-		allowed, err := r.authorizer.Allowed(request.Context(), principal, permission)
+		allowed, err := r.Authorized(request.Context(), principal, permission)
 		if err != nil {
-			return web.Response{}, &Error{Code: CodeAuthorization, Detail: "permission evaluation failed", Cause: err}
+			return web.Response{}, err
 		}
 		if !allowed {
 			return forbiddenResponse()
@@ -116,6 +141,27 @@ func (LoginResult) GoString() string { return "sessionauth.LoginResult{redacted}
 // creates or rotates the server session and always rotates the independent CSRF
 // cookie secret. Callers verify the login POST's pre-login CSRF token first.
 func (r *Runtime) Login(request *web.Request, username, password string) (LoginResult, error) {
+	return r.login(request, username, password, "", false)
+}
+
+// LoginAuthorized performs the same fixation-safe login but publishes no
+// session or cookie state unless the authenticated principal also passes the
+// required permission. A denied principal uses the uniform credential failure
+// surface so an Admin login cannot become a permission oracle.
+func (r *Runtime) LoginAuthorized(
+	request *web.Request,
+	username, password string,
+	required auth.Permission,
+) (LoginResult, error) {
+	return r.login(request, username, password, required, true)
+}
+
+func (r *Runtime) login(
+	request *web.Request,
+	username, password string,
+	required auth.Permission,
+	requirePermission bool,
+) (LoginResult, error) {
 	httpRequest, err := r.request(request)
 	if err != nil {
 		return LoginResult{}, err
@@ -130,16 +176,25 @@ func (r *Runtime) Login(request *web.Request, username, password string) (LoginR
 	if !principal.Authenticated() {
 		return LoginResult{}, auth.ErrInvalidCredentials
 	}
+	if requirePermission {
+		allowed, err := r.Authorized(httpRequest.Context(), principal, required)
+		if err != nil {
+			return LoginResult{}, err
+		}
+		if !allowed {
+			return LoginResult{}, auth.ErrInvalidCredentials
+		}
+	}
 	csrfSecret, err := r.newCSRFSecret()
 	if err != nil {
 		return LoginResult{}, err
 	}
 	var record sessions.Record
 	encoded, cookieFound, cookieErr := r.namedCookie(httpRequest, r.sessionCookie.Name)
-	if cookieErr != nil {
-		return LoginResult{}, cookieErr
-	}
-	if cookieFound {
+	// A duplicated or otherwise malformed bearer cookie is not a session that
+	// can be rotated safely. Treat it as absent and create a fresh identifier;
+	// credential and CSRF verification have already succeeded independently.
+	if cookieErr == nil && cookieFound {
 		if id, parseErr := sessions.ParseID(encoded); parseErr == nil {
 			loaded, found, loadErr := r.sessions.Load(httpRequest.Context(), id)
 			if loadErr != nil {
@@ -178,10 +233,11 @@ func (r *Runtime) Logout(request *web.Request) (ResponseChange, error) {
 		return ResponseChange{}, err
 	}
 	encoded, found, cookieErr := r.namedCookie(httpRequest, r.sessionCookie.Name)
-	if cookieErr != nil {
-		return ResponseChange{}, cookieErr
-	}
-	if found {
+	// Cookie attributes are absent from the Cookie header, so an ambiguous
+	// duplicate cannot be selected safely for a server-side flush. Deleting
+	// both configured bearer cookies is still idempotent and gives the client a
+	// recovery path instead of turning malformed cookie state into a 500.
+	if cookieErr == nil && found {
 		if id, parseErr := sessions.ParseID(encoded); parseErr == nil {
 			if err := r.sessions.Flush(httpRequest.Context(), id); err != nil {
 				return ResponseChange{}, sessionFailure("session flush failed", err)

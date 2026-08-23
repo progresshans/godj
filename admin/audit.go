@@ -5,17 +5,21 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
 const (
-	DefaultAuditCapacity = 10_000
-	MaximumAuditCapacity = 1_000_000
-	MaximumActorIDBytes  = 128
-	MaximumModelBytes    = 128
-	MaximumChangedFields = 128
+	DefaultAuditCapacity  = 10_000
+	MaximumAuditCapacity  = 1_000_000
+	MaximumActorIDBytes   = 128
+	MaximumModelBytes     = 128
+	MaximumDisplayBytes   = 1024
+	MaximumChangedFields  = 128
+	MaximumHistoryEntries = 100
 )
 
 type Action string
@@ -91,7 +95,7 @@ func PrepareEventTemplate(actorID, model string, action Action, changedFields []
 		seen[field] = struct{}{}
 		changed[index] = field
 	}
-	if len(displayLabel) > MaximumModelBytes || containsUnsafeControl(displayLabel) {
+	if !utf8.ValidString(displayLabel) || len(displayLabel) > MaximumDisplayBytes || containsUnsafeDisplayControl(displayLabel) {
 		return PreparedEventTemplate{}, fmt.Errorf("admin audit: display label is invalid")
 	}
 	return PreparedEventTemplate{
@@ -141,6 +145,10 @@ func (entry AuditEntry) Clone() AuditEntry {
 // Append of a PreparedEvent cannot fail. Oldest entries are evicted when the
 // configured capacity is reached; sequence numbers are never reused.
 type AuditLog struct {
+	state *auditState
+}
+
+type auditState struct {
 	mu       sync.RWMutex
 	entries  []AuditEntry
 	start    int
@@ -156,23 +164,31 @@ func NewAuditLog(capacity int) (*AuditLog, error) {
 	if capacity < 0 || capacity > MaximumAuditCapacity {
 		return nil, fmt.Errorf("admin audit: capacity is outside the supported range")
 	}
-	return &AuditLog{
+	return &AuditLog{state: &auditState{
 		entries:  make([]AuditEntry, capacity),
 		capacity: capacity,
 		next:     1,
-	}, nil
+	}}, nil
+}
+
+// Valid reports whether log was constructed by NewAuditLog. The capacity and
+// backing slice are immutable after construction, so this check is safe during
+// concurrent appends and reads.
+func (log *AuditLog) Valid() bool {
+	return log != nil && log.state != nil && log.state.capacity > 0 && len(log.state.entries) == log.state.capacity
 }
 
 // Append publishes one prevalidated event. Callers invoke it only after a
 // confirmed database commit. Commit-outcome-unknown must not call Append.
 func (log *AuditLog) Append(event PreparedEvent) (AuditEntry, bool) {
-	if log == nil || log.capacity == 0 || event.actorID == "" || event.model == "" || event.objectID <= 0 {
+	if !log.Valid() || event.actorID == "" || event.model == "" || event.objectID <= 0 {
 		return AuditEntry{}, false
 	}
-	log.mu.Lock()
-	defer log.mu.Unlock()
+	state := log.state
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	entry := AuditEntry{
-		Sequence:      log.next,
+		Sequence:      state.next,
 		ActorID:       event.actorID,
 		Model:         event.model,
 		ObjectID:      event.objectID,
@@ -180,15 +196,15 @@ func (log *AuditLog) Append(event PreparedEvent) (AuditEntry, bool) {
 		ChangedFields: append([]string(nil), event.changed...),
 		DisplayLabel:  event.displayLabel,
 	}
-	log.next++
-	position := (log.start + log.length) % log.capacity
-	if log.length == log.capacity {
-		position = log.start
-		log.start = (log.start + 1) % log.capacity
+	state.next++
+	position := (state.start + state.length) % state.capacity
+	if state.length == state.capacity {
+		position = state.start
+		state.start = (state.start + 1) % state.capacity
 	} else {
-		log.length++
+		state.length++
 	}
-	log.entries[position] = entry
+	state.entries[position] = entry
 	return entry.Clone(), true
 }
 
@@ -204,29 +220,66 @@ func (log *AuditLog) ForObject(model string, objectID int64) []AuditEntry {
 }
 
 func (log *AuditLog) Len() int {
-	if log == nil {
+	if !log.Valid() {
 		return 0
 	}
-	log.mu.RLock()
-	defer log.mu.RUnlock()
-	return log.length
+	state := log.state
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	return state.length
 }
 
 func (log *AuditLog) selectEntries(model string, objectID int64) []AuditEntry {
-	if log == nil {
+	if !log.Valid() {
 		return nil
 	}
-	log.mu.RLock()
-	defer log.mu.RUnlock()
-	result := make([]AuditEntry, 0, log.length)
-	for offset := 0; offset < log.length; offset++ {
-		entry := log.entries[(log.start+offset)%log.capacity]
+	state := log.state
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	var result []AuditEntry
+	for offset := 0; offset < state.length; offset++ {
+		entry := state.entries[(state.start+offset)%state.capacity]
 		if model != "" && (entry.Model != model || entry.ObjectID != objectID) {
 			continue
 		}
 		result = append(result, entry.Clone())
 	}
 	return result
+}
+
+// ForObjectLimited returns at most the newest limit matching events in
+// ascending sequence order. It bounds result allocation and checks ctx while
+// scanning a large process-lifetime ring.
+func (log *AuditLog) ForObjectLimited(ctx context.Context, model string, objectID int64, limit int) ([]AuditEntry, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("admin audit: context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if !log.Valid() || !validDottedIdentifier(model, MaximumModelBytes) || objectID <= 0 || limit < 1 || limit > MaximumHistoryEntries {
+		return nil, fmt.Errorf("admin audit: limited object history request is invalid")
+	}
+	state := log.state
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+	result := make([]AuditEntry, 0, limit)
+	for offset := state.length - 1; offset >= 0 && len(result) < limit; offset-- {
+		if offset&255 == 0 {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+		}
+		entry := state.entries[(state.start+offset)%state.capacity]
+		if entry.Model != model || entry.ObjectID != objectID {
+			continue
+		}
+		result = append(result, entry.Clone())
+	}
+	for left, right := 0, len(result)-1; left < right; left, right = left+1, right-1 {
+		result[left], result[right] = result[right], result[left]
+	}
+	return result, nil
 }
 
 func validDottedIdentifier(value string, maximum int) bool {
@@ -256,11 +309,23 @@ func validIdentifier(value string, maximum int) bool {
 }
 
 func validBoundedText(value string, maximum int) bool {
-	return value != "" && len(value) <= maximum && !containsUnsafeControl(value)
+	return value != "" && len(value) <= maximum && utf8.ValidString(value) && !containsUnsafeControl(value)
 }
 
 func containsUnsafeControl(value string) bool {
 	for _, character := range value {
+		if character < 0x20 || character == 0x7f {
+			return true
+		}
+	}
+	return false
+}
+
+func containsUnsafeDisplayControl(value string) bool {
+	for _, character := range value {
+		if character == '\t' || character == '\n' || character == '\r' {
+			continue
+		}
 		if character < 0x20 || character == 0x7f {
 			return true
 		}

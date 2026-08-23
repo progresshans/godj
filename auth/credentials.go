@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"unicode/utf8"
 )
@@ -105,6 +106,10 @@ func (a *MemoryAuthenticator) Authenticate(ctx context.Context, username, passwo
 	}
 	verified, err := a.hasher.Verify(ctx, password, encoded)
 	if err != nil {
+		var authError *Error
+		if errors.As(err, &authError) && authError.Code == CodeInvalidInput && authError.Field == "password" {
+			return Principal{}, ErrInvalidCredentials
+		}
 		return Principal{}, passwordFailure(err)
 	}
 	if !found || !credential.principal.Active() || !verified || !validUsername(username) {

@@ -190,6 +190,38 @@ func TestMemoryAuthenticatorUniformUnknownInactiveAndWrongPassword(t *testing.T)
 	}
 }
 
+func TestMemoryAuthenticatorNormalizesOversizedPasswordToInvalidCredentials(t *testing.T) {
+	t.Parallel()
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{
+		Iterations:       10_000,
+		MaxPasswordBytes: 32,
+		Random:           bytes.NewReader(bytes.Repeat([]byte{3}, 32)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "operator", Active: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := hasher.Hash(context.Background(), "correct")
+	if err != nil {
+		t.Fatal(err)
+	}
+	credential, err := auth.NewCredential("admin", encoded, principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := authenticator.Authenticate(context.Background(), "admin", strings.Repeat("x", 33))
+	if !errors.Is(err, auth.ErrInvalidCredentials) || resolved.Authenticated() {
+		t.Fatalf("oversized password result = %v, %v", resolved, err)
+	}
+}
+
 func TestPrincipalAndAuthorizerAreImmutable(t *testing.T) {
 	t.Parallel()
 	view, err := auth.NewPermission("article.article.view")
@@ -220,6 +252,11 @@ func TestPrincipalAndAuthorizerAreImmutable(t *testing.T) {
 
 func TestPermissionAndCredentialConstructionBounds(t *testing.T) {
 	t.Parallel()
+	for _, value := range []string{"", " operator", "operator ", "op\x00erator", "op\x01erator", "op\tname", "op\nname", "op\x7fname", string([]byte{0xff}), strings.Repeat("a", 129)} {
+		if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: value, Active: true}); err == nil {
+			t.Fatalf("accepted invalid principal ID %q", value)
+		}
+	}
 	for _, value := range []string{"", "single", "Article.view", "article..view", "article.view!", strings.Repeat("a", 129)} {
 		if _, err := auth.NewPermission(value); err == nil {
 			t.Fatalf("accepted invalid permission %q", value)

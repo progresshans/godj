@@ -8,7 +8,9 @@ import (
 	"github.com/progresshans/godj/auth"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/validation"
 )
 
 const (
@@ -22,7 +24,7 @@ const (
 // persistence adapter into a startup Admin builder. Generated model values and
 // methods never cross into templates or generic form mutation.
 func RegisterArticle(builder *admin.Builder, service Service) error {
-	if service.audit == nil || interfaceNil(service.repository.backend) {
+	if !service.audit.Valid() || interfaceNil(service.repository.backend) {
 		return invalid("service", "service is zero or invalid")
 	}
 	permissions := admin.Permissions{
@@ -32,10 +34,14 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		Delete: ArticleDeletePermission,
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[Article]{
-		AppLabel:     "godj_conformance",
-		Slug:         "articles",
-		Model:        (articlemodels.ArticleDescriptor{}).Metadata(),
-		ListFields:   []string{"id", "title", "published"},
+		AppLabel: "godj_conformance",
+		Slug:     "articles",
+		Model:    (articlemodels.ArticleDescriptor{}).Metadata(),
+		FormOverrides: []formmodel.Override{
+			formmodel.OverrideField("title", formmodel.WithValidators(articleDisplayTextValidator("title"))),
+			formmodel.OverrideField("summary", formmodel.WithValidators(articleDisplayTextValidator("summary"))),
+		},
+		ListFields:   []string{"id", "title", "published", "summary"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
 		List: func(ctx context.Context, request admin.ListRequest) (admin.Page[Article], error) {
@@ -78,14 +84,8 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		Delete: func(ctx context.Context, principal auth.Principal, id int64) (Article, error) {
 			return service.Delete(ctx, principal.ID(), id)
 		},
-		History: func(ctx context.Context, id int64) ([]admin.AuditEntry, error) {
-			if ctx == nil {
-				return nil, invalid("context", "context is nil")
-			}
-			if err := ctx.Err(); err != nil {
-				return nil, err
-			}
-			return service.History(id), nil
+		History: func(ctx context.Context, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
+			return service.HistoryLimited(ctx, id, request.Limit)
 		},
 		Actions: []admin.ActionConfig{{
 			Name:       "publish",
@@ -99,6 +99,27 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 				return admin.ActionResult{MatchedIDs: append([]int64(nil), result.MatchedIDs...)}, nil
 			},
 		}},
+	})
+}
+
+func articleDisplayTextValidator(field validation.Field) forms.FieldValidator {
+	return forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
+		if value.IsNull() {
+			return validation.NewErrors()
+		}
+		text, ok := value.AsString()
+		if !ok {
+			return validation.NewErrors()
+		}
+		for _, character := range text {
+			if character == 0 || character == '\t' || character == '\n' || character == '\r' {
+				continue
+			}
+			if character < 0x20 || character == 0x7f {
+				return validation.NewErrors(validation.New(field, "invalid_control_character"))
+			}
+		}
+		return validation.NewErrors()
 	})
 }
 

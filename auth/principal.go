@@ -83,7 +83,16 @@ func (p Principal) Has(permission Permission) bool {
 
 func validIdentity(value string) bool {
 	return value != "" && len(value) <= maxPrincipalIDBytes && utf8.ValidString(value) &&
-		!strings.ContainsRune(value, '\x00') && strings.TrimSpace(value) == value
+		!containsASCIIControl(value) && strings.TrimSpace(value) == value
+}
+
+func containsASCIIControl(value string) bool {
+	for _, character := range value {
+		if character < 0x20 || character == 0x7f {
+			return true
+		}
+	}
+	return false
 }
 
 func validPermission(value string) bool {

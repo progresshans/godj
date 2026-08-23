@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/adminapp"
 )
@@ -93,6 +94,8 @@ func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
 	}
 	if _, err := repository.Delete(ctx, second.ID); !adminapp.IsCode(err, adminapp.CodeNotFound) {
 		t.Fatalf("Delete(missing) error = %v, want not_found", err)
+	} else if !errors.Is(err, admin.ErrObjectNotFound) {
+		t.Fatalf("Delete(missing) error = %v, want admin.ErrObjectNotFound", err)
 	}
 }
 

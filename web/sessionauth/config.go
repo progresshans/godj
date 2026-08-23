@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	pathpkg "path"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -27,12 +28,13 @@ const (
 	defaultMaxCookieValue    = 256
 	defaultMaxCSRFToken      = 256
 	defaultMaxNext           = 2048
-	defaultMaxAllowedPaths   = 128
-	hardMaxCookieHeader      = 64 * 1024
-	hardMaxCookieValue       = 4096
-	hardMaxCSRFToken         = 4096
-	hardMaxNext              = 8192
-	hardMaxAllowedPaths      = 1024
+	// One Admin registry can publish 1 + 5*256 protected GET paths.
+	defaultMaxAllowedPaths = 2048
+	hardMaxCookieHeader    = 64 * 1024
+	hardMaxCookieValue     = 4096
+	hardMaxCSRFToken       = 4096
+	hardMaxNext            = 8192
+	hardMaxAllowedPaths    = 4096
 )
 
 type CookieConfig struct {
@@ -98,6 +100,49 @@ type Runtime struct {
 
 func (*Runtime) String() string   { return "sessionauth.Runtime{redacted}" }
 func (*Runtime) GoString() string { return "sessionauth.Runtime{redacted}" }
+
+func (r *Runtime) LoginPath() string {
+	if r == nil {
+		return ""
+	}
+	return r.loginPath
+}
+
+func (r *Runtime) FallbackPath() string {
+	if r == nil {
+		return ""
+	}
+	return r.fallbackPath
+}
+
+// AllowsNext reports whether raw is a canonical bounded request URI accepted
+// by this runtime rather than merely returning the fallback chosen by SafeNext.
+func (r *Runtime) AllowsNext(raw string) bool {
+	return r != nil && validLocalRequestURI(raw, r.allowedNextPaths, r.limits.MaxNextBytes)
+}
+
+// AllowedNextPaths returns a detached, lexically sorted snapshot of the exact
+// local paths accepted by SafeNext. Query strings are never stored here.
+func (r *Runtime) AllowedNextPaths() []string {
+	if r == nil {
+		return nil
+	}
+	paths := make([]string, 0, len(r.allowedNextPaths))
+	for candidate := range r.allowedNextPaths {
+		paths = append(paths, candidate)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// CookiesApplyTo reports whether both bearer-cookie paths cover requestPath.
+// It exposes no cookie value or secret and lets a composed HTTP surface reject
+// a configuration whose login/logout paths cannot receive or delete a cookie.
+func (r *Runtime) CookiesApplyTo(requestPath string) bool {
+	return r != nil && validStaticPath(requestPath) &&
+		cookiePathMatches(r.sessionCookie.Path, requestPath) &&
+		cookiePathMatches(r.csrfCookie.Path, requestPath)
+}
 
 func New(config Config) (*Runtime, error) {
 	if config.Sessions == nil {
@@ -293,4 +338,14 @@ func validLocalRequestURI(raw string, allowed map[string]struct{}, maxBytes int)
 		}
 	}
 	return parsed.RequestURI() == raw
+}
+
+func cookiePathMatches(cookiePath, requestPath string) bool {
+	if cookiePath == requestPath {
+		return true
+	}
+	if !strings.HasPrefix(requestPath, cookiePath) {
+		return false
+	}
+	return strings.HasSuffix(cookiePath, "/") || len(requestPath) > len(cookiePath) && requestPath[len(cookiePath)] == '/'
 }

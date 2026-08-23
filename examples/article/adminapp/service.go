@@ -24,21 +24,21 @@ func NewService(backend Backend, audit *admin.AuditLog) (Service, error) {
 	if err != nil {
 		return Service{}, err
 	}
-	if audit == nil {
-		return Service{}, invalid("audit", "audit log is nil")
+	if !audit.Valid() {
+		return Service{}, invalid("audit", "audit log is zero or invalid")
 	}
 	return Service{repository: repository, audit: audit}, nil
 }
 
 func (s Service) List(ctx context.Context, options ListOptions) (Page, error) {
-	if s.audit == nil {
+	if !s.audit.Valid() {
 		return Page{}, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.List(ctx, options)
 }
 
 func (s Service) Get(ctx context.Context, id int64) (Article, bool, error) {
-	if s.audit == nil {
+	if !s.audit.Valid() {
 		return Article{}, false, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.Get(ctx, id)
@@ -49,7 +49,7 @@ func (s Service) Create(ctx context.Context, actorID string, input Input) (Artic
 		actorID,
 		articleModelIdentity,
 		admin.ActionAdd,
-		articleWritableFields,
+		nil,
 		input.Title,
 	)
 	if err != nil {
@@ -80,7 +80,7 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input Inp
 	mask := articleChangedMask(changed)
 	template, ok := templates[mask]
 	if !ok {
-		return Article{}, nil, fmt.Errorf("article admin: confirmed update returned an unknown changed-field set")
+		return Article{}, nil, fmt.Errorf("article admin: confirmed update returned an unknown changed-field set: %w", admin.ErrReconciliationRequired)
 	}
 	if err := s.appendConfirmed(template, updated.ID); err != nil {
 		return Article{}, nil, err
@@ -89,24 +89,21 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input Inp
 }
 
 func (s Service) Delete(ctx context.Context, actorID string, id int64) (Article, error) {
-	current, found, err := s.repository.Get(ctx, id)
-	if err != nil {
-		return Article{}, err
-	}
-	if !found {
-		return Article{}, notFound(id)
-	}
-	template, err := admin.PrepareEventTemplate(
-		actorID,
-		articleModelIdentity,
-		admin.ActionDelete,
-		nil,
-		current.Title,
-	)
-	if err != nil {
-		return Article{}, fmt.Errorf("article admin prepare delete audit: %w", err)
-	}
-	deleted, err := s.repository.Delete(ctx, id)
+	var template admin.PreparedEventTemplate
+	deleted, err := s.repository.deletePrepared(ctx, id, func(current Article) error {
+		prepared, err := admin.PrepareEventTemplate(
+			actorID,
+			articleModelIdentity,
+			admin.ActionDelete,
+			nil,
+			current.Title,
+		)
+		if err != nil {
+			return fmt.Errorf("article admin prepare delete audit: %w", err)
+		}
+		template = prepared
+		return nil
+	})
 	if err != nil {
 		return Article{}, err
 	}
@@ -140,22 +137,29 @@ func (s Service) Publish(ctx context.Context, actorID string, ids []int64) (Publ
 }
 
 func (s Service) History(id int64) []admin.AuditEntry {
-	if s.audit == nil {
+	if !s.audit.Valid() {
 		return nil
 	}
 	return s.audit.ForObject(articleModelIdentity, id)
 }
 
+func (s Service) HistoryLimited(ctx context.Context, id int64, limit int) ([]admin.AuditEntry, error) {
+	if !s.audit.Valid() {
+		return nil, invalid("service", "service is zero or invalid")
+	}
+	return s.audit.ForObjectLimited(ctx, articleModelIdentity, id, limit)
+}
+
 func (s Service) appendConfirmed(template admin.PreparedEventTemplate, objectID int64) error {
-	if s.audit == nil {
-		return fmt.Errorf("article admin: audit log is unavailable after confirmed commit")
+	if !s.audit.Valid() {
+		return fmt.Errorf("article admin: audit log is unavailable after confirmed commit: %w", admin.ErrReconciliationRequired)
 	}
 	event, ok := template.ForObject(objectID)
 	if !ok {
-		return fmt.Errorf("article admin: confirmed write returned an invalid object id")
+		return fmt.Errorf("article admin: confirmed write returned an invalid object id: %w", admin.ErrReconciliationRequired)
 	}
 	if _, ok := s.audit.Append(event); !ok {
-		return fmt.Errorf("article admin: audit append invariant failed after confirmed commit")
+		return fmt.Errorf("article admin: audit append invariant failed after confirmed commit: %w", admin.ErrReconciliationRequired)
 	}
 	return nil
 }
