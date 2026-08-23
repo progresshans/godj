@@ -331,8 +331,15 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64",
 	}
 	for name, block := range map[string]string{"project-check": project, "relation-binding": relationBinding, "relation-product": relationProduct, "product-project-check": product, "sqlite": sqlite} {
+		expectedTimeout := "timeout-minutes: 20"
+		if name == "product-project-check" {
+			expectedTimeout = "timeout-minutes: 30"
+		}
 		if strings.Count(block, "          - runs_on: ") != 4 {
 			t.Fatalf("%s matrix leg count is not 4", name)
+		}
+		if got := strings.Count(block, "timeout-minutes:"); got != 1 {
+			t.Fatalf("%s matrix timeout key count = %d, want 1", name, got)
 		}
 		for _, coordinate := range wantCoordinates {
 			if strings.Count(block, coordinate) != 1 {
@@ -341,7 +348,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		}
 		for _, required := range []string{
 			"runs-on: ${{ matrix.runs_on }}",
-			"timeout-minutes: 20",
+			expectedTimeout,
 			"fail-fast: false",
 			"go-version: \"1.26.5\"",
 			`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,

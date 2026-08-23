@@ -43,6 +43,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "./conformance/runserverproduct", 1)
 
 	portable := runserverWorkflowJob(t, jobs, "product-project-check-matrix", "python-compatibility-matrix")
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout-minutes: 30", 1)
 	portableNormal := runserverWorkflowStep(
 		t,
 		portable,

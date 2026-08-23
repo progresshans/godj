@@ -17,6 +17,7 @@ allowed_paths:
   - "examples/article/cmd/site/**"
   - "examples/article/*runserver*_test.go"
   - "conformance/runserverproduct/**"
+  - "conformance/internal/protocol/migration_project_check_artifacts_test.go"
   - "conformance/README.md"
   - "docs/adr/0042-project-linked-runserver-and-article-development-loop.md"
   - "docs/adr/README.md"

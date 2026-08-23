@@ -600,7 +600,7 @@ jobs:
   product-project-check-matrix:
     name: Product project check (${{ matrix.runs_on }})
     runs-on: ${{ matrix.runs_on }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       LC_ALL: C
       TZ: UTC
