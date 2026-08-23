@@ -223,6 +223,9 @@ func TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime(t *testing.T) {
 			mutate: func(t *testing.T, root string) {
 				t.Helper()
 				path := filepath.Join(root, ".godj", "transactions", "interrupted-sentinel")
+				if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+					t.Fatal(err)
+				}
 				if err := os.WriteFile(path, []byte("incomplete"), 0o600); err != nil {
 					t.Fatal(err)
 				}
