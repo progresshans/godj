@@ -477,14 +477,15 @@ Completed GDJ-0034는 기존 ADR-0029 경계 안에서 typed generated `select_r
 
 ## Current implementation mirror: project-linked runserver
 
-[GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)와 Proposed
+[GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)와 Accepted
 [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)가 전역 CLI에서 generated-aware Article
-development server를 실행하는 bounded 수직 단면을 소유합니다. Source checkpoint
+development server를 실행하는 completed bounded 수직 단면을 소유합니다. Source checkpoint
 `810149fd90ecf0b3a9cb7b4b98344476082ce769`에서 제품 코드는 `Implemented`이고 SQLite와 PostgreSQL 17
 actual development-loop local gate를 통과했습니다. Documentation checkpoint `47b0eb8...`의 EVID-120에서 final
 full/386/803-file repository-external archive와 세 independent audit도 통과했습니다. First submitted
-`46a57aa...` run은 26 success/1 timeout이었고 correction `2b49938...`의 EVID-121 local refreeze가 통과했지만,
-corrected exact-head hosted gate가 끝나기 전이므로 GDJ-0042 전체를 `Verified`로 올리지 않습니다.
+`46a57aa...` run은 26 success/1 timeout이었고 correction `2b49938...`의 EVID-121 local refreeze 뒤 submitted
+`2bfdbd5...`의 EVID-122/run `32659704239`가 exact 27/27 jobs·358/358 steps로 통과했습니다. 따라서
+WEB-011..020 bounded 단면은 hosted `Verified`입니다.
 
 - Descriptor format 1의 `runserver_package`는 declaration `package` 뒤의 optional strict field입니다. 없어도
   migration/generate descriptor는 유효하고 `runserver`만 `runserver_not_configured`로 닫힙니다.

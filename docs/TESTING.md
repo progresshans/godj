@@ -1844,5 +1844,10 @@ non-loopback/TLS, production serving, parent fatal-exit scavenging과 independen
 밖입니다. Initial documentation checkpoint `47b0eb8...`는 EVID-120 local final을 통과했지만 first submitted
 `46a57aa...` run은 macOS Intel product job의 20-minute cap에서 취소됐습니다. Correction `2b49938...`/tree
 `fd22754e...`는 product matrix만 30분으로 잠그고 EVID-121의 full, Linux/386 all-package compile-only,
-803-file repository-external source-clean-copy와 두 independent audit를 다시 통과했습니다. Corrected workflow
-wiring과 local final은 exact-head hosted completion을 대신하지 않으며, 그 결과는 다음 evidence에 기록합니다.
+803-file repository-external source-clean-copy와 두 independent audit를 다시 통과했습니다. Corrected submitted
+`2bfdbd5...`/tree `292b82a...`의
+[EVID-122](status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
+run `32659704239`는 four-coordinate portable required sentinel 12 pass·skip 0, PostgreSQL 17.10의 기존
+12+runserver required sentinel 13 pass·skip 0과 exact 27/27 jobs·358/358 steps를 통과했습니다. 같은 PostgreSQL
+job의 별도 restart step 재통과는 기존 restart gate의 증거이고 새 black-box runserver test의 query-count/restart
+주장으로 귀속하지 않습니다.

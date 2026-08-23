@@ -65,12 +65,12 @@ proposed → ready → active → completed
 | [GDJ-0039](0039-typed-projection-scalar-aggregate-and-stable-pagination.md) | completed | Typed projection, scalar aggregate와 stable pagination Article 수직 단면 |
 | [GDJ-0040](0040-composable-typed-boolean-predicates-and-article-search.md) | completed | Composable typed Boolean predicate와 Article 검색 수직 단면 |
 | [GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md) | completed | Typed scalar comparison, field reference와 Article advanced filtering |
-| [GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md) | active | Project-linked `runserver`와 Article 개발 루프 |
+| [GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md) | completed | Project-linked `runserver`와 Article 개발 루프 |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md)이고, 현재 active packet은
-[GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md), ready packet은 0입니다.
+[GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md)이고, 현재 active packet과 ready packet은
+각각 0입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
@@ -96,14 +96,16 @@ filter를 구현했습니다. QRY-044..053 oracle-blind actual은 10/10 zero-dif
 Submitted head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
 CI #115 run `32647746430`은 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart를
 통과해 QRY-044..053을 Verified하고 GDJ-0041을 completed로 닫았습니다.
-GDJ-0042는 terminal docs baseline `052de65...`에서 active로 전환했고 Proposed ADR-0042와 WEB-011..020을
+GDJ-0042는 terminal docs baseline `052de65...`에서 active로 전환했고 당시 Proposed ADR-0042와 WEB-011..020을
 고정했습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 backend-close ownership correction `810149f...`은 optional
 project-linked runtime package, read-only current-bundle preflight, loopback-only global `runserver`, long-lived child
 drain/reap와 SQLite/PostgreSQL Article actual을 locally implemented/passing으로 전환했습니다. Final
 full/386/803-file external archive와 세 audit는 documentation checkpoint `47b0eb8...`의 EVID-120에서 통과했고,
 first submitted `46a57aa...` run은 26 success/1 timeout이었습니다. Correction `2b49938...`의 EVID-121 local
-refreeze가 통과했고 corrected exact-head hosted와 ADR acceptance는 pending입니다.
+refreeze 뒤 submitted `2bfdbd5...`의 EVID-122/run `32659704239`가 exact 27/27 jobs·358/358 steps와
+failure/cancel/skip/annotation 0으로 통과했습니다. ADR-0042는 Accepted, WEB-011..020은 bounded hosted
+`Verified`, GDJ-0042는 completed입니다.
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

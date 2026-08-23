@@ -1,6 +1,6 @@
 ---
 id: GDJ-0042
-status: active
+status: completed
 updated: 2026-08-24
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "052de65cae20ea0b80dfa337629e6da198abc827"
@@ -138,7 +138,7 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 
 ### Phase A — contract and boundary
 
-- [x] active work/Proposed ADR-0042, exact WEB-011..020과 allowed paths
+- [x] activation-time active work/Proposed ADR-0042, exact WEB-011..020과 allowed paths
 - [x] descriptor/argv/address parser tests와 current-bundle loader helper 경계
 - [x] long-lived runtime process owner feasibility and failure taxonomy
 
@@ -152,10 +152,10 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 ### Phase C — PostgreSQL and hardening
 
 - [x] Article site project-owned SQLite/PostgreSQL environment selection
-- [ ] hosted PostgreSQL 17 required runserver sentinel with skip 0 — digest-pinned local actual과 CI lock 완료, exact-head hosted pending
-- [ ] four-coordinate portable lifecycle/inventory lock — exact pass/no-skip wiring과 local protocol 통과, hosted coordinates pending
+- [x] hosted PostgreSQL 17 required runserver sentinel with skip 0 — corrected submitted head에서 기존 12개와 새 runserver를 합친 required 13 pass·skip 0
+- [x] four-coordinate portable lifecycle/inventory lock — SQLite/stale/forced-cleanup required sentinel 합계 12 pass·skip 0
 - [x] frozen milestone full/386/repository-external clean-copy and independent audit once
-- [ ] exact-head hosted completion, ADR acceptance and terminal status mirror
+- [x] exact-head hosted completion, ADR acceptance and terminal status mirror
 
 ## 완료 조건
 
@@ -166,7 +166,7 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 - [x] SIGINT/unexpected exit/repeat에서 direct child reap, bounded group cleanup와 private temp residue 0을 검증합니다.
 - [x] Affected normal/race/CGO0/vet와 Phase A/B generated drift가 cadence에 맞게 통과합니다.
 - [x] Final frozen full/386/external clean-copy가 한 번 통과합니다.
-- [ ] ADR/status/matrix/evidence와 Draft PR이 같은 frozen bytes와 남은 비목표를 가리킵니다.
+- [x] ADR/status/matrix/evidence와 Draft PR이 같은 frozen bytes와 남은 비목표를 가리킵니다.
 
 ## 검증 cadence
 
@@ -181,7 +181,7 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 - [x] work/ADR/contract activation
 - [x] parser/preflight/process implementation
 - [x] SQLite/PostgreSQL 17.10 local actual child verification
-- [ ] hosted hardening, terminal evidence와 인수인계
+- [x] hosted hardening, terminal evidence와 인수인계
 
 ## 수정 파일
 
@@ -202,6 +202,8 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 - First-hosted timeout correction `2b4993854301e623e6d34fcb2a02c3dee76f5f15`:
   `.github/workflows/ci.yml`, `conformance/internal/protocol/migration_project_check_artifacts_test.go`,
   `conformance/runserverproduct/workflow_wiring_test.go` and this work packet's exact allowed path
+- Corrected submitted documentation head `2bfdbd50ade74c76713a3e1f08ce64ae7abe3dd9`, tree
+  `292b82a042afe4af205c5caa5d4b541309d53ee7`: EVID-122/run `32659704239` exact hosted completion
 - Source-checkpoint documentation mirror: `conformance/README.md`,
   `docs/{ARCHITECTURE.md,BACKEND_MATRIX.md,CAPABILITY_CATALOG.md,DEVELOPER_EXPERIENCE.md,OPEN_QUESTIONS.md,ROADMAP.md,TESTING.md}`,
   `docs/adr/0042-project-linked-runserver-and-article-development-loop.md`,
@@ -229,13 +231,13 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
 ## 미결정/Blocker
 
 - External blocker는 없습니다.
-- ADR-0042는 Phase A/B/C local product proof와 final frozen local gate가 통과했지만 exact-head hosted proof 전까지
-  Proposed입니다.
 - First submitted head `46a57aa...`의 run `32657774073`은 26 jobs success 뒤 macOS Intel product job의 exact 20분
-  cap에서 취소됐으므로 hosted success가 아닙니다. Product source는 `810149fd90ecf0b3a9cb7b4b98344476082ce769`,
-  tree `682b037e71040e7373d8da303cc618207abd4643`이고 current correction/frozen head는
-  `2b4993854301e623e6d34fcb2a02c3dee76f5f15`, tree `fd22754e7bc51057b1e0219c7e92f22f5ec37a7a`입니다.
-  EVID-121의 affected/full/386/803-file external archive와 두 final audit가 통과했습니다. 다음 작업은 docs-only
-  evidence descendant를 비강제 푸시하고 corrected exact submitted-head hosted matrix를 한 번 완료하는 것입니다.
+  cap에서 취소됐으므로 hosted success가 아니며 failure evidence로 보존합니다. Product source는
+  `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree `682b037e71040e7373d8da303cc618207abd4643`이고 timeout
+  correction은 `2b4993854301e623e6d34fcb2a02c3dee76f5f15`, tree
+  `fd22754e7bc51057b1e0219c7e92f22f5ec37a7a`입니다. EVID-121의 full/386/803-file archive/audit refreeze 뒤
+  corrected submitted head `2bfdbd50...`, tree `292b82a...`의 EVID-122/run `32659704239`가 exact
+  27/27 jobs·358/358 steps·failure/cancel/skip/annotation 0으로 통과했습니다. ADR-0042는 Accepted,
+  WEB-011..020은 bounded hosted `Verified`, 이 work는 completed입니다.
 - P3 비차단 제한은 reserved port release 뒤 외부 선점 가능성과 PostgreSQL `CREATE SCHEMA` 성공 직후 ambiguous
   disconnect에서 disposable schema residue 가능성입니다. 성공 증거를 false-green으로 만들지는 않습니다.

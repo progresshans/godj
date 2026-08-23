@@ -213,6 +213,12 @@ harness는 test-only 변수를 runtime environment에서 제거하고 example-ow
 `GODJ_ARTICLE_POSTGRES_URL`/`GODJ_ARTICLE_POSTGRES_SCHEMA` pair만 application에 전달합니다. 일반 portable 실행에서
 PostgreSQL URL이 없으면 이 한 test만 명시적으로 skip하고 SQLite/process/unit gate는 계속 실행합니다.
 
+Submitted `2bfdbd5...`의
+[EVID-122](../docs/status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
+run `32659704239`에서 네 portable product 좌표의 SQLite/stale/forced-cleanup required sentinel 합계
+12 pass·skip 0과 PostgreSQL 17.10의 기존 12+runserver required sentinel 13 pass·skip 0이 exact
+27/27 jobs·358/358 steps 안에서 통과했습니다. 일반 portable PostgreSQL skip 정책 자체는 그대로입니다.
+
 Black-box Article HTTP는 response와 durable state 증거이며 in-process exactly-two-query instrumentation이나 Django
 differential comparison을 수행하지 않습니다. `go test -race`도 harness/in-process lifecycle을 instrument할 뿐 test가 일반
 `go build`로 만든 global/runtime child까지 race-instrumented됐다는 뜻은 아닙니다. No-shell process-group streaming,

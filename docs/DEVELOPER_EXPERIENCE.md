@@ -1,9 +1,9 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법과 GDJ-0041 typed comparison/F 단면 hosted-Verified, GDJ-0042 runserver source implemented
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F와 GDJ-0042 bounded runserver 단면 hosted-Verified
 - 마지막 검토: 2026-08-24
 
-아래 `M1 verified` 단면과 §10의 GDJ-0042 current-source boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
+아래 `M1 verified` 단면과 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
 
 ## M1 verified 단면
@@ -533,6 +533,12 @@ pipe는 필요한 경우 group force-kill 뒤 bounded cleanup으로 닫습니다
 이 명령은 generated source를 생성·수정·repair하지 않고 migration, retry, watch/reload 또는 background task를
 암묵적으로 실행하지 않습니다. General custom-command dispatcher, persistent build cache, Windows, non-loopback/TLS와
 production server tuning은 아직 구현 범위가 아닙니다.
+
+이 bounded 개발 흐름은 submitted `2bfdbd5...`의
+[EVID-122](status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
+run `32659704239`에서 네 Darwin/Linux 좌표와 PostgreSQL 17.10 required gate를 포함한 exact
+27/27 jobs·358/358 steps로 hosted-verified됐습니다. 아래 production command 예시는 여전히 방향이며 그 구현 증거가
+아닙니다.
 
 Production에서는 한 project binary로 명령을 실행하는 방향입니다.
 

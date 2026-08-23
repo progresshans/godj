@@ -481,6 +481,12 @@ pipe/output delivery failure는 필요할 때 group SIGKILL을 보내고 bounded
 Windows process/path 의미와 non-loopback/TLS/production serving은 이 개발 단면의 범위 밖입니다. `version`,
 `startproject`, `startapp`, general custom-command dispatcher와 persistent build/reload cache도 아직 목표 책임입니다.
 
+Product source `810149f...`와 timeout correction `2b49938...` 뒤 submitted `2bfdbd5...`의
+[EVID-122](status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
+run `32659704239`가 네 Darwin/Linux product 좌표, PostgreSQL 17.10 required actual과 exact
+27/27 jobs·358/358 steps를 통과했습니다. 따라서 위 bounded WEB-011..020 architecture는 Accepted/hosted-Verified지만
+general project command, production serving 또는 excluded capability를 열지는 않습니다.
+
 프로젝트 설정·앱·모델·사용자 command가 필요한 작업은 프로젝트 코드를 포함한 바이너리에서 실행하는 방향입니다.
 
 ```text

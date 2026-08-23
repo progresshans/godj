@@ -1,12 +1,12 @@
 # ADR-0042: Project-linked Runserver and Generated-aware Development Loop
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-24
 - 관련 work/contract: [GDJ-0042](../../work/0042-project-linked-runserver-and-article-development-loop.md), WEB-011..020, Q-010, Q-017, M5
 - 선행 결정: [ADR-0004](0004-cli-and-project-binary.md), [ADR-0022](0022-project-runtime-and-global-migration-check.md),
   [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md),
   [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md)
-- 채택 시 부분 대체: [ADR-0021](0021-project-linked-migration-check.md)의 descriptor exact-three-semantic-line 조항
+- 부분 대체: [ADR-0021](0021-project-linked-migration-check.md)의 descriptor exact-three-semantic-line 조항
 
 ## 맥락
 
@@ -118,7 +118,7 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
 - [x] Long-lived streaming child의 clean SIGINT/SIGKILL 0, hung child conditional kill, direct reap/output failure/cleanup tests
 - [x] Actual global CLI + pre-migrated SQLite Article child HTTP and repeated port reuse
 - [x] Digest-pinned local PostgreSQL 17.10 Article child sentinel normal/race/CGO-disabled, pass 1/skip 0
-- [ ] Four-coordinate portable와 hosted PostgreSQL 17.10 exact-head required gates
+- [x] Four-coordinate portable와 hosted PostgreSQL 17.10 exact-head required gates
 - [x] Final full/Linux-386/repository-external clean-copy and independent final audit
 
 ## 현재 구현 상태
@@ -144,5 +144,12 @@ reopen 뒤 migration history 1건/9행 exact durability를 증명합니다. DB s
 child binary 자체의 race 계측은 각각 기존 PostgreSQL restart, Article handler, unit/process evidence 소유이며 이 black-box 하나의
 주장이 아닙니다.
 
-이 ADR은 corrected locally frozen 구현 후보가 되었지만 exact-head hosted matrix가 끝날 때까지 Proposed입니다.
-WEB-011..020 문서나 local actual만으로 hosted `Verified`, production readiness, Windows/non-loopback 지원을 주장하지 않습니다.
+Corrected submitted head `2bfdbd50ade74c76713a3e1f08ce64ae7abe3dd9`, tree
+`292b82a042afe4af205c5caa5d4b541309d53ee7`는
+[EVID-122](../status/TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
+[CI run 32659704239](https://github.com/progresshans/godj/actions/runs/32659704239)에서 exact
+27/27 jobs·358/358 steps와 failure/cancel/skip/annotation 0을 통과했습니다. Four-coordinate product matrix는
+SQLite/stale/forced-cleanup required sentinel 12 pass·skip 0, PostgreSQL 17.10 job은 기존 12개와 새 runserver를
+합친 13개 required sentinel pass·skip 0, normal/race/CGO-disabled/vet/clean과 restart를 모두 완료했습니다.
+따라서 이 ADR과 bounded WEB-011..020 단면은 Accepted/hosted `Verified`입니다. Production readiness,
+Windows/non-loopback 또는 위 비목표의 지원은 주장하지 않습니다.

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-24
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-121
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-122
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -11411,3 +11411,62 @@ Two independent read-only final reviewers observed exact `2b49938...`/`fd22754..
 workflow/topology/gate-strength/product audit and hosted-failure/evidence-boundary audit each returned
 P0/P1/P2/P3=`0/0/0/0`. The next boundary is a non-force push and one unique corrected exact-head hosted matrix. This
 documentation-only evidence descendant receives consistency gates rather than another recursive product-matrix rerun.
+
+## EVID-20260824-122 — GDJ-0042 Corrected Exact-head Hosted Completion
+
+- Date/time: 2026-08-24T03:57:45+09:00 through 2026-08-24T04:17:20+09:00
+- Work/contract IDs: GDJ-0042 completed; ADR-0042 Accepted; WEB-011..020 bounded hosted `Verified`; Q-010 remains
+  `Partial`, Q-017 remains P1/open
+- Exact submitted head: `2bfdbd50ade74c76713a3e1f08ce64ae7abe3dd9`, tree
+  `292b82a042afe4af205c5caa5d4b541309d53ee7`, subject `docs: record GDJ-0042 timeout refreeze`
+- Hosted checkout: synthetic merge `80501a289966dc9fefaeb70a0be2b10b697b8295`; its tree was exactly
+  `292b82a042afe4af205c5caa5d4b541309d53ee7` with zero files differing from the submitted head
+- Result: corrected exact-head CI completed 27/27 jobs and 358/358 steps successfully with job/step
+  failure/cancel/skip 0 and check-run annotation 0. This closes the hosted gate invalidated by EVID-121's first timeout;
+  it does not reclassify that earlier run as success or claim merge, release, production readiness, Windows/non-loopback,
+  implicit generate/migrate/reload or the other explicit non-goals.
+- Draft PR #1 state at collection: OPEN/DRAFT/unmerged with head `2bfdbd50...` and merge state `CLEAN`.
+
+### Four-coordinate required runserver product proof
+
+[GitHub Actions CI #124 run 32659704239](https://github.com/progresshans/godj/actions/runs/32659704239), attempt 1,
+targeted exact `2bfdbd50...`. All four `Product project check` jobs passed their asserted GOOS/GOARCH, normal project and
+runserver product tests, project/runserver race, project/runserver CGO-disabled, both vet steps and clean-worktree gate:
+
+- Ubuntu 22.04 linux/amd64 job `97243878390`: 8m31s
+- Ubuntu 24.04 ARM linux/arm64 job `97243878503`: 8m08s
+- macOS 26 darwin/arm64 job `97243878339`: 10m06s
+- macOS 15 Intel darwin/amd64 job `97243878460`: 15m51s
+
+Each normal inventory step required JSON `Action=pass` and rejected `Action=skip` for
+`TestGlobalRunserverArticleSQLiteDevelopmentLoop`, `TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime` and
+`TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup`. The result is exact 12 required pass and required
+skip 0 across four coordinates. The corrected 30-minute Intel budget finished with 14m09s remaining; the previously
+unfinished runserver CGO-disabled leg passed in 116.411s, race passed in 121.118s, and both vet and clean gates passed.
+
+### PostgreSQL 17.10 and whole-matrix proof
+
+PostgreSQL job `97243878327` completed in 4m16s against digest-pinned
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`. The
+exact 16-field service fingerprint was
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`. Its normal inventory required
+the existing 12 PostgreSQL product sentinels plus `TestGlobalRunserverArticlePostgresDevelopmentLoop`; all 13 passed and
+none skipped. The runserver sentinel also passed race in 33.806s and CGO-disabled in 32.342s, while backend/Article/
+relation product packages, vet and clean worktree passed. The separate service-restart gate reported exact ordered
+`prepare` history 1/rows 1, `resume` history 2/rows 2, `verify` history 2/rows 2 and successful cleanup.
+That restart is the existing PostgreSQL gate rerunning in the same job, not a new claim owned by the black-box runserver
+sentinel.
+
+The remaining exact-profile, SQLite, project-check, relation binding/product, four Python compatibility and checked-in
+artifact jobs also succeeded. The artifact job compiled `conformance/runserverproduct` for Linux/386 with
+`CGO_ENABLED=0`; portable Python retained 21 intentional exact-profile-only skips inside its non-exact test suite, but
+no GitHub Actions step or job was skipped. Those Python skips are not WEB-011..020 product skips.
+
+### Independent terminal audit and status boundary
+
+An independent read-only reviewer verified run metadata, submitted/synthetic tree identity, every job/step conclusion,
+all check-run annotations, the four-coordinate required sentinels and PostgreSQL profile/inventory/restart log. It
+returned P0/P1/P2/P3=`0/0/0/0` and made no change. With EVID-119..121's implementation, local final and preserved
+timeout evidence, this unique corrected run is sufficient to accept ADR-0042, mark WEB-011..020 bounded
+hosted-`Verified` and complete GDJ-0042. Terminal documentation is a docs-only descendant and receives link/frontmatter/
+status consistency plus `git diff --check`, not another recursive product matrix.

@@ -4,14 +4,16 @@
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과
-  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)도 completed됐습니다. 현재
-  [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)가 active이고 ready work는 0입니다.
-  Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)는 WEB-011..020의 optional
+  [GDJ-0041](../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)도 completed됐습니다.
+  [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)는
+  [Accepted ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)의 WEB-011..020 optional
   runtime package, read-only bundle preflight, loopback-only global `runserver`와 Article actual child 개발 루프를
   source `810149f...`에서 locally implemented했습니다. SQLite와 digest-pinned PostgreSQL 17.10 actual 및
   affected gates는 통과했습니다. Initial `47b0eb8...` local final 뒤 first submitted `46a57aa...` run은 26 success와
   macOS Intel 20-minute timeout 하나로 끝났습니다. Correction `2b49938...`의 EVID-121에서 30-minute budget/locks와
-  full/386/803-file archive/audit refreeze가 통과했습니다. Corrected exact-head hosted와 ADR acceptance는 pending입니다. GDJ-0040 Phase A
+  full/386/803-file archive/audit refreeze가 통과했고 submitted `2bfdbd5...`의 EVID-122/run `32659704239` exact
+  27/27 jobs·358/358 steps가 bounded WEB-011..020을 hosted-verify하고 work를 completed로 닫았습니다. 현재
+  active/ready work는 0/0입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -644,11 +646,11 @@ GDJ-0041은 같은 handler에 `min_id`/`max_id`/`title_matches_summary`를 추�
 projection+aggregate 두 query를 유지했고 EVID-118/run `32647746430`의 exact-head PostgreSQL 17.10 actual까지
 통과해 completed/hosted-verified됐습니다.
 
-[GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)는 M5의 다음 active 수직 단면입니다.
-Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)에 따라 declaration runner와
+[GDJ-0042](../work/0042-project-linked-runserver-and-article-development-loop.md)는 M5의 completed 수직 단면입니다.
+Accepted [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)에 따라 declaration runner와
 generated-aware runtime package를 분리한 채 current bundle을 read-only 확인하고 global `godj runserver`가
 loopback Article server를 build/start/drain/reap하도록 WEB-011..020을 구현했습니다. SQLite/PostgreSQL Article actual과
-portable/required pass-no-skip lock은 locally passing이고 exact-head hosted가 pending입니다. Auto-generate/migrate/reload,
+portable/required pass-no-skip lock은 EVID-122/run `32659704239`에서 exact hosted-verified됐습니다. Auto-generate/migrate/reload,
 public DB settings와 production server는 계속 제외합니다.
 
 - settings, app registry, system check

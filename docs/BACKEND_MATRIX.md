@@ -9,8 +9,8 @@
 
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
-| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver `Implemented`/local actual pass, exact-head hosted pending | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | DB-PG-001..010 bounded Implemented/Verified; GDJ-0042 PostgreSQL 17 runserver `Implemented`/local actual pass, exact-head hosted pending; broader support open | relation, locking, production-oriented semantics |
+| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver bounded `Implemented`/hosted `Verified` | read/write, transaction, 최소 migration conformance |
+| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 PostgreSQL 17 runserver bounded Implemented/Verified; broader support open | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -106,8 +106,10 @@ Source checkpoint `810149fd90ecf0b3a9cb7b4b98344476082ce769`은 optional descrip
   gate와 별도 증거로 유지합니다.
 - Initial `47b0eb8...` local final 뒤 first submitted run은 26 success와 macOS Intel 20-minute timeout 하나로
   끝났습니다. Correction `2b49938...`의 EVID-121에서 30-minute budget/lock과 final full/386/803-file archive/audit
-  refreeze가 통과했습니다. 두 actual gate와 corrected local final은 pass이지만 corrected exact-head hosted run은
-  pending입니다. 따라서 이 단면을 hosted `Verified`로 표시하지 않습니다.
+  refreeze가 통과했습니다. Submitted `2bfdbd5...`의 EVID-122/run `32659704239`는 네 portable 좌표의 required
+  SQLite/stale/forced-cleanup 12 pass·skip 0과 PostgreSQL 17.10의 기존 12+runserver required 13 pass·skip 0,
+  normal/race/CGO-disabled/vet/clean 및 별도 restart step을 포함해 exact 27/27 jobs·358/358 steps로 통과했습니다.
+  따라서 이 bounded runserver 단면은 hosted `Verified`입니다.
 
 Runserver는 current generated bundle을 read-only preflight하며 auto-generate, auto-migrate, reload를 수행하지
 않습니다. 현재 지원 주장은 IPv4 loopback development server와 SQLite/PostgreSQL 17로 한정되며
