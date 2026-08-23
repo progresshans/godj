@@ -87,6 +87,7 @@ cgo-zero-build:
 		./conformance/relationselectproduct/... \
 		./conformance/relationdeleteproduct/... \
 		./conformance/migrationrelationproduct \
+		./conformance/runserverproduct \
 		-count=1
 
 python-test:
