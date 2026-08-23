@@ -34,8 +34,12 @@ func TestAtomicCommitRollbackCancellationAndExpiredSession(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("Atomic(commit) error = %v", err)
 	}
-	if state.snapshot().commits != 1 || state.snapshot().rollbacks != 0 {
-		t.Fatalf("committed state = %#v", state.snapshot())
+	committed := state.snapshot()
+	if committed.commits != 1 || committed.rollbacks != 0 {
+		t.Fatalf("committed state = %#v", committed)
+	}
+	if committed.lastOptions.Isolation != driver.IsolationLevel(sql.LevelReadCommitted) || committed.lastOptions.ReadOnly {
+		t.Fatalf("Atomic transaction options = %#v, want READ COMMITTED READ WRITE", committed.lastOptions)
 	}
 	if _, err := retained.Delete(ctx, deletePlan); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("expired session error = %v", err)
@@ -145,10 +149,11 @@ func TestBackendCloseIsConcurrentAndIdempotent(t *testing.T) {
 }
 
 type transactionTestSnapshot struct {
-	begins    int
-	commits   int
-	rollbacks int
-	execs     int
+	begins      int
+	commits     int
+	rollbacks   int
+	execs       int
+	lastOptions driver.TxOptions
 }
 
 type transactionTestState struct {
@@ -159,6 +164,7 @@ type transactionTestState struct {
 	execs       int
 	commitErr   error
 	rollbackErr error
+	lastOptions driver.TxOptions
 }
 
 func (state *transactionTestState) snapshot() transactionTestSnapshot {
@@ -166,6 +172,7 @@ func (state *transactionTestState) snapshot() transactionTestSnapshot {
 	defer state.mu.Unlock()
 	return transactionTestSnapshot{
 		begins: state.begins, commits: state.commits, rollbacks: state.rollbacks, execs: state.execs,
+		lastOptions: state.lastOptions,
 	}
 }
 
@@ -211,9 +218,10 @@ func (*transactionTestConnection) Close() error { return nil }
 func (connection *transactionTestConnection) Begin() (driver.Tx, error) {
 	return connection.BeginTx(context.Background(), driver.TxOptions{})
 }
-func (connection *transactionTestConnection) BeginTx(context.Context, driver.TxOptions) (driver.Tx, error) {
+func (connection *transactionTestConnection) BeginTx(_ context.Context, options driver.TxOptions) (driver.Tx, error) {
 	connection.state.mu.Lock()
 	connection.state.begins++
+	connection.state.lastOptions = options
 	connection.state.mu.Unlock()
 	return &transactionTestTransaction{state: connection.state}, nil
 }

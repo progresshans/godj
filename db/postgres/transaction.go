@@ -32,7 +32,10 @@ func (b *Backend) Atomic(ctx context.Context, callback func(db.Session) error) e
 	if callback == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "atomic callback is nil"}
 	}
-	transaction, err := b.database.BeginTx(ctx, nil)
+	transaction, err := b.database.BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+		ReadOnly:  false,
+	})
 	if err != nil {
 		return classifyDatabaseError(ctx, "begin transaction", b.schema, "", err)
 	}

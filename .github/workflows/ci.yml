@@ -744,6 +744,137 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
+  postgresql-product:
+    name: PostgreSQL 17.10 actual product
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      LC_ALL: C
+      TZ: UTC
+    services:
+      postgres:
+        image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --locale-provider=libc"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+        ports:
+          - 5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert exact PostgreSQL service profile
+        env:
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          fingerprint="$(
+            docker exec -e PGCLIENTENCODING=UTF8 -e PGTZ=UTC "$POSTGRES_CONTAINER_ID" \
+              psql -X -U postgres -d postgres -At -F '|' -c \
+              "SELECT current_setting('server_version_num'), current_setting('server_encoding'), current_setting('client_encoding'), \"d\".\"datlocprovider\", COALESCE(\"d\".\"datlocale\", '<null>'), \"d\".\"datcollate\", \"d\".\"datctype\", current_setting('TimeZone'), current_setting('standard_conforming_strings'), current_setting('synchronous_commit'), current_setting('default_transaction_isolation'), current_setting('default_transaction_read_only'), current_setting('default_transaction_deferrable'), current_setting('fsync'), current_setting('full_page_writes'), current_setting('session_replication_role') FROM \"pg_catalog\".\"pg_database\" AS \"d\" WHERE \"d\".\"datname\" = current_database()"
+          )"
+          test "$fingerprint" = "170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin"
+
+      - name: Run and inventory PostgreSQL actual product tests
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_REQUIRE_POSTGRES: "1"
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/postgresql-product-tests.json"
+          status=0
+          go test -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... > "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 "$log"
+            exit "$status"
+          fi
+          required_passes=(
+            "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration"
+            "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration"
+            "github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP"
+            "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
+            "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
+          )
+          for sentinel in "${required_passes[@]}"; do
+            package="${sentinel%%|*}"
+            test_name="${sentinel#*|}"
+            pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""
+            skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""
+            if ! grep -Fq "$pass_fragment" "$log"; then
+              echo "required PostgreSQL test did not pass: $package $test_name" >&2
+              exit 1
+            fi
+            if grep -Fq "$skip_fragment" "$log"; then
+              echo "required PostgreSQL test was skipped: $package $test_name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Run PostgreSQL actual product race tests
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_REQUIRE_POSTGRES: "1"
+        run: go test -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...
+
+      - name: Run PostgreSQL actual product tests without CGO
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_REQUIRE_POSTGRES: "1"
+        run: CGO_ENABLED=0 go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...
+
+      - name: Verify PostgreSQL durable resume across service restart
+        env:
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_TEST_POSTGRES_SCHEMA: godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}
+          POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          go run ./conformance/postgresproduct/cmd/projectrunner prepare
+          docker restart "$POSTGRES_CONTAINER_ID" >/dev/null
+          ready=0
+          for attempt in $(seq 1 30); do
+            if docker exec "$POSTGRES_CONTAINER_ID" pg_isready -U postgres -d postgres >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" -eq 1
+          go run ./conformance/postgresproduct/cmd/projectrunner resume
+          go run ./conformance/postgresproduct/cmd/projectrunner verify
+          go run ./conformance/postgresproduct/cmd/projectrunner cleanup
+
+      - name: Vet PostgreSQL product packages
+        run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/...
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
   sqlite-matrix:
     name: SQLite (${{ matrix.runs_on }})
     runs-on: ${{ matrix.runs_on }}

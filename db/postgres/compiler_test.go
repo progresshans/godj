@@ -319,6 +319,25 @@ func TestSQLSTATEClassificationIsStructuredAndConservative(t *testing.T) {
 	}
 }
 
+func TestMigrationPrimaryKeyViolationClassificationUsesExplicitConstraint(t *testing.T) {
+	t.Parallel()
+
+	constraint, err := postgresPrimaryKeyConstraintName("article")
+	if err != nil {
+		t.Fatal(err)
+	}
+	postgresError := &pgconn.PgError{
+		Code:           sqlStateUniqueViolation,
+		SchemaName:     "godj_app",
+		TableName:      "article",
+		ConstraintName: constraint,
+	}
+	classified := classifyDatabaseError(context.Background(), "insert", "godj_app", "article", postgresError)
+	if !errors.Is(classified, &query.Error{Category: query.CategoryIntegrity, Code: query.CodeUniquePrimaryKey}) {
+		t.Fatalf("explicit migration primary-key error = %v", classified)
+	}
+}
+
 func TestConfigValidationAndConnectionErrorRedaction(t *testing.T) {
 	t.Parallel()
 
@@ -348,20 +367,44 @@ func TestCurrentConnectionConfigOverridesEveryRequiredRuntimeParameter(t *testin
 	t.Parallel()
 
 	connectionConfig, err := currentConnectionConfig(
-		"postgresql://localhost/database?client_encoding=LATIN1&search_path=public&standard_conforming_strings=off&timezone=Asia%2FSeoul",
+		"postgresql://localhost/database?application_name=godj-test&client_encoding=LATIN1&default_transaction_deferrable=on&default_transaction_isolation=serializable&default_transaction_read_only=on&search_path=public&standard_conforming_strings=off&synchronous_commit=off&timezone=Asia%2FSeoul",
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"client_encoding":             "UTF8",
-		"search_path":                 "pg_catalog",
-		"standard_conforming_strings": "on",
-		"timezone":                    "UTC",
+		"client_encoding":                "UTF8",
+		"default_transaction_deferrable": "off",
+		"default_transaction_isolation":  "read committed",
+		"default_transaction_read_only":  "off",
+		"search_path":                    "pg_catalog",
+		"standard_conforming_strings":    "on",
+		"synchronous_commit":             "on",
+		"timezone":                       "UTC",
 	}
 	for parameter, value := range want {
 		if got := connectionConfig.RuntimeParams[parameter]; got != value {
 			t.Fatalf("RuntimeParams[%q] = %q, want %q", parameter, got, value)
+		}
+	}
+	if _, exists := connectionConfig.RuntimeParams["session_replication_role"]; exists {
+		t.Fatal("current connection config sends privileged session_replication_role startup parameter")
+	}
+	if got := connectionConfig.RuntimeParams["application_name"]; got != "godj-test" {
+		t.Fatalf("RuntimeParams[application_name] = %q, want godj-test", got)
+	}
+}
+
+func TestCurrentConnectionConfigRejectsUnsupportedStartupOverrides(t *testing.T) {
+	t.Parallel()
+
+	for _, rawURL := range []string{
+		"postgresql://localhost/database?session_replication_role=replica",
+		"postgresql://localhost/database?options=-c%20session_replication_role%3Dreplica",
+		"postgresql://localhost/database?statement_timeout=1",
+	} {
+		if _, err := currentConnectionConfig(rawURL); err == nil {
+			t.Fatalf("currentConnectionConfig(%q) error = nil", rawURL)
 		}
 	}
 }
@@ -370,16 +413,23 @@ func TestCurrentServerProfileValidation(t *testing.T) {
 	t.Parallel()
 
 	current := serverProfile{
-		versionNumber:             170010,
-		timezone:                  "UTC",
-		searchPath:                "pg_catalog",
-		clientEncoding:            "UTF8",
-		serverEncoding:            "UTF8",
-		standardConformingStrings: "on",
-		databaseEncoding:          "UTF8",
-		databaseLocaleProvider:    "c",
-		databaseCollation:         "C",
-		databaseCType:             "C",
+		versionNumber:                170010,
+		timezone:                     "UTC",
+		searchPath:                   "pg_catalog",
+		clientEncoding:               "UTF8",
+		serverEncoding:               "UTF8",
+		standardConformingStrings:    "on",
+		synchronousCommit:            "on",
+		defaultTransactionLevel:      "read committed",
+		defaultTransactionReadOnly:   "off",
+		defaultTransactionDeferrable: "off",
+		fsync:                        "on",
+		fullPageWrites:               "on",
+		sessionReplicationRole:       "origin",
+		databaseEncoding:             "UTF8",
+		databaseLocaleProvider:       "c",
+		databaseCollation:            "C",
+		databaseCType:                "C",
 	}
 	if err := validateServerProfile(current, true, "godj_app"); err != nil {
 		t.Fatalf("current profile error = %v", err)
@@ -397,6 +447,13 @@ func TestCurrentServerProfileValidation(t *testing.T) {
 		{name: "client encoding", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.clientEncoding = "LATIN1" }},
 		{name: "server encoding", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.serverEncoding = "LATIN1" }},
 		{name: "standard conforming strings", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.standardConformingStrings = "off" }},
+		{name: "synchronous commit", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.synchronousCommit = "off" }},
+		{name: "default transaction isolation", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.defaultTransactionLevel = "serializable" }},
+		{name: "default transaction read only", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.defaultTransactionReadOnly = "on" }},
+		{name: "default transaction deferrable", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.defaultTransactionDeferrable = "on" }},
+		{name: "fsync", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.fsync = "off" }},
+		{name: "full page writes", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.fullPageWrites = "off" }},
+		{name: "session replication role", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.sessionReplicationRole = "replica" }},
 		{name: "database encoding", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.databaseEncoding = "LATIN1" }},
 		{name: "locale provider", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.databaseLocaleProvider = "i" }},
 		{name: "collation", exists: true, code: query.CodeInvalidPlan, mutate: func(profile *serverProfile) { profile.databaseCollation = "C.UTF-8" }},

@@ -254,7 +254,7 @@ func TestMigrationProjectCheckRemainsInTwelveAdapterProductTarget(t *testing.T) 
 	}
 }
 
-func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(t *testing.T) {
+func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecutions(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -270,7 +270,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 	jobsText := text[jobsStart+len("jobs:\n"):]
 	jobPattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):$`)
 	matches := jobPattern.FindAllStringSubmatch(jobsText, -1)
-	wantJobs := []string{"conformance-validation", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "python-compatibility-matrix", "sqlite-matrix"}
+	wantJobs := []string{"conformance-validation", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "python-compatibility-matrix", "postgresql-product", "sqlite-matrix"}
 	if len(matches) != len(wantJobs) {
 		t.Fatalf("workflow top-level job definitions = %d, want %d: %#v", len(matches), len(wantJobs), matches)
 	}
@@ -286,7 +286,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 	relationBinding := migrationProjectCheckWorkflowJob(t, jobsText, "relation-binding-matrix", "relation-product-matrix")
 	relationProduct := migrationProjectCheckWorkflowJob(t, jobsText, "relation-product-matrix", "product-project-check-matrix")
 	product := migrationProjectCheckWorkflowJob(t, jobsText, "product-project-check-matrix", "python-compatibility-matrix")
-	python := migrationProjectCheckWorkflowJob(t, jobsText, "python-compatibility-matrix", "sqlite-matrix")
+	python := migrationProjectCheckWorkflowJob(t, jobsText, "python-compatibility-matrix", "postgresql-product")
+	postgres := migrationProjectCheckWorkflowJob(t, jobsText, "postgresql-product", "sqlite-matrix")
 	sqlite := migrationProjectCheckWorkflowJob(t, jobsText, "sqlite-matrix", "")
 	for name, block := range map[string]string{"conformance-validation": conformance, "exact-darwin-validation": darwin} {
 		if got := strings.Count(block, "run: go test -count=1 ./conformance/projectcheck"); got != 1 {
@@ -566,23 +567,110 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySixRequiredExecutions(
 			t.Fatalf("SQLite matrix command %q count = %d, want 1", command, strings.Count(sqlite, command))
 		}
 	}
-	expandedExecutions := 2 + strings.Count(project, "          - runs_on: ") + strings.Count(relationBinding, "          - runs_on: ") + strings.Count(relationProduct, "          - runs_on: ") + strings.Count(product, "          - runs_on: ") + strings.Count(sqlite, "          - runs_on: ") + strings.Count(python, "          - ")
-	if expandedExecutions != 26 {
-		t.Fatalf("expanded workflow executions = %d, want 26", expandedExecutions)
+	for _, required := range []string{
+		"name: PostgreSQL 17.10 actual product",
+		"runs-on: ubuntu-24.04",
+		"timeout-minutes: 30",
+		"services:\n      postgres:\n",
+		"image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+		"POSTGRES_PASSWORD: postgres",
+		"POSTGRES_DB: postgres",
+		`POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --locale-provider=libc"`,
+		`--health-cmd "pg_isready -U postgres -d postgres"`,
+		"--health-interval 5s",
+		"--health-timeout 5s",
+		"--health-retries 12",
+		"- 5432",
+		`current_setting('session_replication_role')`,
+		`current_setting('synchronous_commit')`,
+		`current_setting('default_transaction_isolation')`,
+		`current_setting('default_transaction_read_only')`,
+		`current_setting('default_transaction_deferrable')`,
+		`current_setting('fsync')`,
+		`current_setting('full_page_writes')`,
+		`test "$fingerprint" = "170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin"`,
+		"name: Run and inventory PostgreSQL actual product tests",
+		`log="$RUNNER_TEMP/postgresql-product-tests.json"`,
+		"status=0",
+		`go test -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... > "$log" || status=$?`,
+		`if [ "$status" -ne 0 ]; then`,
+		`tail -c 60000 "$log"`,
+		`for sentinel in "${required_passes[@]}"; do`,
+		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
+		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
+		`if ! grep -Fq "$pass_fragment" "$log"; then`,
+		`if grep -Fq "$skip_fragment" "$log"; then`,
+		"run: go test -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...",
+		"run: CGO_ENABLED=0 go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...",
+		"GODJ_TEST_POSTGRES_SCHEMA: godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}",
+		"go run ./conformance/postgresproduct/cmd/projectrunner prepare",
+		`docker restart "$POSTGRES_CONTAINER_ID" >/dev/null`,
+		`docker exec "$POSTGRES_CONTAINER_ID" pg_isready -U postgres -d postgres`,
+		"go run ./conformance/postgresproduct/cmd/projectrunner resume",
+		"go run ./conformance/postgresproduct/cmd/projectrunner verify",
+		"go run ./conformance/postgresproduct/cmd/projectrunner cleanup",
+		"run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/...",
+		"git diff --exit-code",
+		`test -z "$(git status --porcelain=v1)"`,
+	} {
+		if strings.Count(postgres, required) != 1 {
+			t.Fatalf("PostgreSQL product job fragment %q count = %d, want 1", required, strings.Count(postgres, required))
+		}
+	}
+	for _, sentinel := range []string{
+		"github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFencedMigrationIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresRevisionFenceCrossProcessIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration",
+		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration",
+		"github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP",
+		"github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E",
+		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
+	} {
+		if strings.Count(postgres, sentinel) != 1 {
+			t.Fatalf("PostgreSQL required actual-test sentinel %q count = %d, want 1", sentinel, strings.Count(postgres, sentinel))
+		}
+	}
+	postgresURL := "GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable"
+	if got := strings.Count(postgres, postgresURL); got != 4 {
+		t.Fatalf("PostgreSQL product URL injection count = %d, want exact 4", got)
+	}
+	if got := strings.Count(postgres, `GODJ_REQUIRE_POSTGRES: "1"`); got != 3 {
+		t.Fatalf("PostgreSQL required-actual guard count = %d, want exact 3", got)
+	}
+	if got := strings.Count(postgres, "POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}"); got != 2 {
+		t.Fatalf("PostgreSQL service container identity count = %d, want exact 2", got)
+	}
+	if got := strings.Count(postgres, "go-version: \"1.26.5\""); got != 1 {
+		t.Fatalf("PostgreSQL product Go pin count = %d, want 1", got)
+	}
+	expandedExecutions := 3 + strings.Count(project, "          - runs_on: ") + strings.Count(relationBinding, "          - runs_on: ") + strings.Count(relationProduct, "          - runs_on: ") + strings.Count(product, "          - runs_on: ") + strings.Count(sqlite, "          - runs_on: ") + strings.Count(python, "          - ")
+	if expandedExecutions != 27 {
+		t.Fatalf("expanded workflow executions = %d, want 27", expandedExecutions)
 	}
 	if strings.Contains(text, "continue-on-error:") {
 		t.Fatal("required workflow must not contain continue-on-error")
 	}
-	for _, forbidden := range []string{"services:", "postgres:", "mysql:", "mariadb:", "windows-", "windows:"} {
+	if got := strings.Count(text, "    services:\n"); got != 1 {
+		t.Fatalf("workflow service-container block count = %d, want exact PostgreSQL product service", got)
+	}
+	if got := strings.Count(text, "      postgres:\n"); got != 1 {
+		t.Fatalf("workflow PostgreSQL service definition count = %d, want 1", got)
+	}
+	for _, forbidden := range []string{"mysql:", "mariadb:", "windows-", "windows:"} {
 		if strings.Contains(strings.ToLower(text), forbidden) {
-			t.Fatalf("workflow contains forbidden service-only backend fragment %q", forbidden)
+			t.Fatalf("workflow contains forbidden unsupported backend fragment %q", forbidden)
 		}
 	}
-	if got := strings.Count(text, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"); got != 8 {
-		t.Fatalf("pinned checkout action count = %d, want 8 job definitions", got)
+	if got := strings.Count(text, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"); got != 9 {
+		t.Fatalf("pinned checkout action count = %d, want 9 job definitions", got)
 	}
-	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 7 {
-		t.Fatalf("pinned setup-go action count = %d, want 7 job definitions", got)
+	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 8 {
+		t.Fatalf("pinned setup-go action count = %d, want 8 job definitions", got)
 	}
 	if got := strings.Count(text, "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"); got != 1 {
 		t.Fatalf("pinned setup-python action count = %d, want 1 job definition", got)

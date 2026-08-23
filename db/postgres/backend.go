@@ -9,11 +9,13 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"net/url"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -27,7 +29,8 @@ const (
 	// DriverVersion is the exact pgx version in the current backend profile.
 	DriverVersion = "v5.10.0"
 	// CurrentServerMajor is the only PostgreSQL major in the current profile.
-	CurrentServerMajor = 17
+	CurrentServerMajor                  = 17
+	postgresPhysicalSessionCloseTimeout = 5 * time.Second
 )
 
 // Config identifies one PostgreSQL database and one application schema.
@@ -38,17 +41,24 @@ type Config struct {
 }
 
 type serverProfile struct {
-	versionNumber             int
-	timezone                  string
-	searchPath                string
-	clientEncoding            string
-	serverEncoding            string
-	standardConformingStrings string
-	databaseEncoding          string
-	databaseLocaleProvider    string
-	databaseCollation         string
-	databaseCType             string
-	databaseLocale            sql.NullString
+	versionNumber                int
+	timezone                     string
+	searchPath                   string
+	clientEncoding               string
+	serverEncoding               string
+	standardConformingStrings    string
+	synchronousCommit            string
+	defaultTransactionLevel      string
+	defaultTransactionReadOnly   string
+	defaultTransactionDeferrable string
+	fsync                        string
+	fullPageWrites               string
+	sessionReplicationRole       string
+	databaseEncoding             string
+	databaseLocaleProvider       string
+	databaseCollation            string
+	databaseCType                string
+	databaseLocale               sql.NullString
 }
 
 type Backend struct {
@@ -80,7 +90,16 @@ func Open(ctx context.Context, config Config) (*Backend, error) {
 		// credentials. The stable diagnostic is intentionally secret-free.
 		return nil, backendInvalid("PostgreSQL URL is invalid")
 	}
-	database := stdlib.OpenDB(*connectionConfig)
+	database := stdlib.OpenDB(
+		*connectionConfig,
+		stdlib.OptionAfterConnect(validateAndCloseInvalidPostgresPhysicalSession),
+		stdlib.OptionResetSession(func(ctx context.Context, connection *pgx.Conn) error {
+			if err := validateCurrentPostgresPhysicalSession(ctx, connection); err != nil {
+				return errors.Join(driver.ErrBadConn, err)
+			}
+			return nil
+		}),
+	)
 	if err := database.PingContext(ctx); err != nil {
 		_ = database.Close()
 		if contextErr := ctx.Err(); contextErr != nil {
@@ -106,6 +125,21 @@ func Open(ctx context.Context, config Config) (*Backend, error) {
 	}, nil
 }
 
+func validateAndCloseInvalidPostgresPhysicalSession(ctx context.Context, connection *pgx.Conn) error {
+	err := validateCurrentPostgresPhysicalSession(ctx, connection)
+	if err == nil || connection == nil {
+		return err
+	}
+	closeCtx, cancel := context.WithTimeout(context.Background(), postgresPhysicalSessionCloseTimeout)
+	defer cancel()
+	if closeErr := connection.Close(closeCtx); closeErr != nil {
+		// The validation failure owns the public diagnostic. Do not retain an
+		// arbitrary close error from a connection the pool never published.
+		return errors.Join(err, errors.New("close invalid PostgreSQL physical session failed"))
+	}
+	return err
+}
+
 func currentConnectionConfig(rawURL string) (*pgx.ConnConfig, error) {
 	connectionConfig, err := pgx.ParseConfig(rawURL)
 	if err != nil {
@@ -114,14 +148,86 @@ func currentConnectionConfig(rawURL string) (*pgx.ConnConfig, error) {
 	if connectionConfig.RuntimeParams == nil {
 		connectionConfig.RuntimeParams = make(map[string]string)
 	}
+	// The current profile owns every behavioral startup parameter. In
+	// particular, session_replication_role can disable ForeignKey triggers and
+	// options can smuggle arbitrary `-c` assignments. Keep application_name as
+	// the sole caller-controlled observability label and reject every other
+	// non-profile runtime parameter instead of growing an implicit URL API.
+	allowedRuntimeParameters := map[string]struct{}{
+		"application_name":               {},
+		"client_encoding":                {},
+		"default_transaction_deferrable": {},
+		"default_transaction_isolation":  {},
+		"default_transaction_read_only":  {},
+		"search_path":                    {},
+		"standard_conforming_strings":    {},
+		"synchronous_commit":             {},
+		"timezone":                       {},
+	}
+	for parameter, value := range connectionConfig.RuntimeParams {
+		if _, allowed := allowedRuntimeParameters[parameter]; allowed {
+			continue
+		}
+		if strings.TrimSpace(value) != "" {
+			return nil, fmt.Errorf("unsupported PostgreSQL startup parameter %s", parameter)
+		}
+		delete(connectionConfig.RuntimeParams, parameter)
+	}
 	// These assignments deliberately override URL-provided startup values so
 	// every physical connection created by database/sql uses the exact current
 	// profile before it can execute application SQL.
 	connectionConfig.RuntimeParams["client_encoding"] = "UTF8"
+	connectionConfig.RuntimeParams["default_transaction_deferrable"] = "off"
+	connectionConfig.RuntimeParams["default_transaction_isolation"] = "read committed"
+	connectionConfig.RuntimeParams["default_transaction_read_only"] = "off"
 	connectionConfig.RuntimeParams["search_path"] = "pg_catalog"
 	connectionConfig.RuntimeParams["standard_conforming_strings"] = "on"
+	connectionConfig.RuntimeParams["synchronous_commit"] = "on"
 	connectionConfig.RuntimeParams["timezone"] = "UTC"
 	return connectionConfig, nil
+}
+
+func validateCurrentPostgresPhysicalSession(ctx context.Context, connection *pgx.Conn) error {
+	if ctx == nil {
+		return backendInvalid("PostgreSQL physical-session context is nil")
+	}
+	if connection == nil {
+		return backendInvalid("PostgreSQL physical session is nil")
+	}
+	var timezone, searchPath, clientEncoding, standardConformingStrings, synchronousCommit string
+	var defaultTransactionLevel, defaultTransactionReadOnly, defaultTransactionDeferrable string
+	var fsync, fullPageWrites, replicationRole string
+	if err := connection.QueryRow(
+		ctx,
+		`SELECT current_setting('TimeZone'), current_setting('search_path'), `+
+			`current_setting('client_encoding'), current_setting('standard_conforming_strings'), `+
+			`current_setting('synchronous_commit'), current_setting('default_transaction_isolation'), `+
+			`current_setting('default_transaction_read_only'), current_setting('default_transaction_deferrable'), `+
+			`current_setting('fsync'), current_setting('full_page_writes'), `+
+			`current_setting('session_replication_role')`,
+	).Scan(
+		&timezone,
+		&searchPath,
+		&clientEncoding,
+		&standardConformingStrings,
+		&synchronousCommit,
+		&defaultTransactionLevel,
+		&defaultTransactionReadOnly,
+		&defaultTransactionDeferrable,
+		&fsync,
+		&fullPageWrites,
+		&replicationRole,
+	); err != nil {
+		return fmt.Errorf("validate PostgreSQL physical session: %w", err)
+	}
+	if timezone != "UTC" || searchPath != "pg_catalog" || clientEncoding != "UTF8" ||
+		standardConformingStrings != "on" || synchronousCommit != "on" ||
+		defaultTransactionLevel != "read committed" || defaultTransactionReadOnly != "off" ||
+		defaultTransactionDeferrable != "off" || fsync != "on" || fullPageWrites != "on" ||
+		replicationRole != "origin" {
+		return backendInvalid("PostgreSQL physical session is outside the current runtime profile")
+	}
+	return nil
 }
 
 func validateConfig(config Config) error {
@@ -147,6 +253,13 @@ func readServerProfile(ctx context.Context, database *sql.DB, schema string) (se
 		current_setting('client_encoding'),
 		current_setting('server_encoding'),
 		current_setting('standard_conforming_strings'),
+		current_setting('synchronous_commit'),
+		current_setting('default_transaction_isolation'),
+		current_setting('default_transaction_read_only'),
+		current_setting('default_transaction_deferrable'),
+		current_setting('fsync'),
+		current_setting('full_page_writes'),
+		current_setting('session_replication_role'),
 		pg_catalog.pg_encoding_to_char(current_database_row.encoding),
 		current_database_row.datlocprovider,
 		current_database_row.datcollate,
@@ -164,6 +277,13 @@ func readServerProfile(ctx context.Context, database *sql.DB, schema string) (se
 		&profile.clientEncoding,
 		&profile.serverEncoding,
 		&profile.standardConformingStrings,
+		&profile.synchronousCommit,
+		&profile.defaultTransactionLevel,
+		&profile.defaultTransactionReadOnly,
+		&profile.defaultTransactionDeferrable,
+		&profile.fsync,
+		&profile.fullPageWrites,
+		&profile.sessionReplicationRole,
 		&profile.databaseEncoding,
 		&profile.databaseLocaleProvider,
 		&profile.databaseCollation,
@@ -196,6 +316,21 @@ func validateServerProfile(profile serverProfile, schemaExists bool, schema stri
 	}
 	if profile.standardConformingStrings != "on" {
 		return backendInvalid("PostgreSQL current profile requires standard_conforming_strings=on")
+	}
+	if profile.synchronousCommit != "on" {
+		return backendInvalid("PostgreSQL current profile requires synchronous_commit=on")
+	}
+	if profile.defaultTransactionLevel != "read committed" ||
+		profile.defaultTransactionReadOnly != "off" || profile.defaultTransactionDeferrable != "off" {
+		return backendInvalid(
+			"PostgreSQL current profile requires READ COMMITTED, READ WRITE, NOT DEFERRABLE transaction defaults",
+		)
+	}
+	if profile.fsync != "on" || profile.fullPageWrites != "on" {
+		return backendInvalid("PostgreSQL current profile requires fsync=on and full_page_writes=on")
+	}
+	if profile.sessionReplicationRole != "origin" {
+		return backendInvalid("PostgreSQL current profile requires session_replication_role=origin")
 	}
 	if profile.databaseLocaleProvider != "c" {
 		return backendInvalid("PostgreSQL current profile requires the libc database locale provider")

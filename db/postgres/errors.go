@@ -30,6 +30,9 @@ func classifyDatabaseError(ctx context.Context, operation, schema, table string,
 			return contextErr
 		}
 	}
+	if redacted, connectFailure := redactPostgresConnectFailure(err); connectFailure {
+		return fmt.Errorf("%s PostgreSQL: %w", operation, redacted)
+	}
 
 	var postgresError *pgconn.PgError
 	if !errors.As(err, &postgresError) {
@@ -103,6 +106,16 @@ func classifyDatabaseError(ctx context.Context, operation, schema, table string,
 	return fmt.Errorf("%s PostgreSQL SQLSTATE %s: %w", operation, postgresError.Code, err)
 }
 
+func redactPostgresConnectFailure(err error) (error, bool) {
+	var connectError *pgconn.ConnectError
+	if !errors.As(err, &connectError) {
+		return nil, false
+	}
+	// Never retain the original carrier: pgconn.ConnectError exposes the full
+	// parsed Config, including User, Database, and Password, through errors.As.
+	return redactConnectionError(err), true
+}
+
 func isPrimaryKeyViolation(postgresError *pgconn.PgError, schema, table string) bool {
 	if postgresError == nil || postgresError.Code != sqlStateUniqueViolation {
 		return false
@@ -113,7 +126,11 @@ func isPrimaryKeyViolation(postgresError *pgconn.PgError, schema, table string) 
 	if postgresError.TableName != "" && postgresError.TableName != table {
 		return false
 	}
-	return postgresError.ConstraintName == defaultPrimaryKeyConstraintName(table)
+	if postgresError.ConstraintName == defaultPrimaryKeyConstraintName(table) {
+		return true
+	}
+	migrationConstraint, err := postgresPrimaryKeyConstraintName(table)
+	return err == nil && postgresError.ConstraintName == migrationConstraint
 }
 
 func defaultPrimaryKeyConstraintName(table string) string {

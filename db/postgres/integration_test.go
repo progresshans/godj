@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -46,6 +48,213 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 	})
 
 	createPhase1Tables(t, ctx, admin, quotedSchema)
+	// A caller-supplied replica role would suppress ordinary ForeignKey
+	// triggers. It is outside the accepted URL surface and must fail before a
+	// backend is published.
+	forbiddenBackend, forbiddenErr := Open(ctx, Config{
+		URL:    postgresIntegrationURLWithParameter(t, databaseURL, "session_replication_role", "replica"),
+		Schema: schema,
+	})
+	if forbiddenBackend != nil {
+		_ = forbiddenBackend.Close()
+		t.Fatal("replica-role PostgreSQL URL published a backend")
+	}
+	if !errors.Is(forbiddenErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}) {
+		t.Fatalf("replica-role PostgreSQL URL error = %v, want backend invalid plan", forbiddenErr)
+	}
+
+	// Prove the current profile does not require SET permission on the SUSET
+	// replication-role GUC. This application role owns no schema and receives
+	// only ordinary runtime table/sequence privileges.
+	role := fmt.Sprintf("godj_pg_app_%d", time.Now().UnixNano())
+	quotedRole, err := quoteIdentifier(role)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const rolePassword = "godj_test_password_17"
+	if _, err := admin.Exec(
+		ctx,
+		"CREATE ROLE "+quotedRole+" LOGIN PASSWORD '"+rolePassword+"' "+
+			"NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION",
+	); err != nil {
+		t.Fatalf("create least-privilege PostgreSQL integration role: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cleanupCancel()
+		if _, err := admin.Exec(cleanupCtx, "DROP OWNED BY "+quotedRole); err != nil {
+			t.Errorf("drop least-privilege PostgreSQL integration grants: %v", err)
+		}
+		if _, err := admin.Exec(cleanupCtx, "DROP ROLE "+quotedRole); err != nil {
+			t.Errorf("drop least-privilege PostgreSQL integration role: %v", err)
+		}
+	})
+	for _, statement := range []string{
+		"GRANT USAGE ON SCHEMA " + quotedSchema + " TO " + quotedRole,
+		"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA " + quotedSchema + " TO " + quotedRole,
+		"GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA " + quotedSchema + " TO " + quotedRole,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("grant least-privilege PostgreSQL integration access: %v", err)
+		}
+	}
+	leastPrivilegeBackend, err := Open(ctx, Config{
+		URL:    postgresIntegrationURLWithUser(t, databaseURL, role, rolePassword),
+		Schema: schema,
+	})
+	if err != nil {
+		t.Fatalf("open least-privilege PostgreSQL backend: %v", err)
+	}
+	leastRows, err := leastPrivilegeBackend.Query(
+		ctx,
+		query.NewPlan("authors_author", []query.FieldRef{
+			query.NewFieldRef("id", "id", query.FieldInteger, false),
+			query.NewFieldRef("name", "name", query.FieldString, false),
+		}),
+	)
+	if err != nil {
+		_ = leastPrivilegeBackend.Close()
+		t.Fatalf("query through least-privilege PostgreSQL backend: %v", err)
+	}
+	leastNext := leastRows.Next()
+	leastErr := leastRows.Err()
+	if leastNext || leastErr != nil {
+		_ = leastRows.Close()
+		_ = leastPrivilegeBackend.Close()
+		t.Fatalf("least-privilege PostgreSQL empty query = next:%t error:%v", leastNext, leastErr)
+	}
+	if err := leastRows.Close(); err != nil {
+		_ = leastPrivilegeBackend.Close()
+		t.Fatalf("close least-privilege PostgreSQL rows: %v", err)
+	}
+	if err := leastPrivilegeBackend.Close(); err != nil {
+		t.Fatalf("close least-privilege PostgreSQL backend: %v", err)
+	}
+
+	// A server-side role default bypasses URL parsing and reaches AfterConnect.
+	// Repeated rejection must close each unpublished physical connection and
+	// must not expose the role URL or password through the returned error.
+	if _, err := admin.Exec(ctx, "ALTER ROLE "+quotedRole+" SET session_replication_role = replica"); err != nil {
+		t.Fatalf("set PostgreSQL integration role drift default: %v", err)
+	}
+	driftedRoleURL := postgresIntegrationURLWithUser(t, databaseURL, role, rolePassword)
+	for attempt := 0; attempt < 4; attempt++ {
+		driftedBackend, openErr := Open(ctx, Config{URL: driftedRoleURL, Schema: schema})
+		if driftedBackend != nil {
+			_ = driftedBackend.Close()
+			t.Fatalf("drifted role attempt %d published a backend", attempt)
+		}
+		if openErr == nil {
+			t.Fatalf("drifted role attempt %d error = nil", attempt)
+		}
+		for _, secret := range []string{role, rolePassword, driftedRoleURL} {
+			if strings.Contains(openErr.Error(), secret) {
+				t.Fatalf("drifted role attempt %d leaked credential material %q: %v", attempt, secret, openErr)
+			}
+		}
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		var activeConnections int
+		if err := admin.QueryRow(
+			ctx,
+			"SELECT count(*) FROM pg_catalog.pg_stat_activity WHERE usename = $1",
+			role,
+		).Scan(&activeConnections); err != nil {
+			t.Fatalf("count rejected PostgreSQL physical sessions: %v", err)
+		}
+		if activeConnections == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("rejected PostgreSQL physical sessions still active = %d", activeConnections)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if _, err := admin.Exec(ctx, "ALTER ROLE "+quotedRole+" RESET session_replication_role"); err != nil {
+		t.Fatalf("reset PostgreSQL integration role drift default: %v", err)
+	}
+
+	// Role/database defaults are applied by the server at login. The current
+	// profile owns durability and transaction defaults and must override weaker
+	// role defaults before the connection is published.
+	for _, setting := range []string{
+		"synchronous_commit = off",
+		"default_transaction_isolation = 'serializable'",
+		"default_transaction_read_only = on",
+		"default_transaction_deferrable = on",
+	} {
+		if _, err := admin.Exec(ctx, "ALTER ROLE "+quotedRole+" SET "+setting); err != nil {
+			t.Fatalf("set PostgreSQL integration role runtime default %q: %v", setting, err)
+		}
+	}
+	durableRoleBackend, err := Open(ctx, Config{URL: driftedRoleURL, Schema: schema})
+	if err != nil {
+		t.Fatalf("open role with weaker PostgreSQL durability default: %v", err)
+	}
+	var synchronousCommit, defaultTransactionLevel, defaultTransactionReadOnly, defaultTransactionDeferrable string
+	if err := durableRoleBackend.database.QueryRowContext(
+		ctx,
+		`SELECT current_setting('synchronous_commit'), current_setting('default_transaction_isolation'), `+
+			`current_setting('default_transaction_read_only'), current_setting('default_transaction_deferrable')`,
+	).Scan(
+		&synchronousCommit,
+		&defaultTransactionLevel,
+		&defaultTransactionReadOnly,
+		&defaultTransactionDeferrable,
+	); err != nil {
+		_ = durableRoleBackend.Close()
+		t.Fatalf("read PostgreSQL role runtime overrides: %v", err)
+	}
+	if synchronousCommit != "on" || defaultTransactionLevel != "read committed" ||
+		defaultTransactionReadOnly != "off" || defaultTransactionDeferrable != "off" {
+		_ = durableRoleBackend.Close()
+		t.Fatalf(
+			"PostgreSQL role runtime overrides = %q/%q/%q/%q, want on/read committed/off/off",
+			synchronousCommit,
+			defaultTransactionLevel,
+			defaultTransactionReadOnly,
+			defaultTransactionDeferrable,
+		)
+	}
+	if err := durableRoleBackend.Atomic(ctx, func(session db.Session) error {
+		transactionSession, ok := session.(*transactionSession)
+		if !ok {
+			return fmt.Errorf("Atomic session type = %T", session)
+		}
+		return transactionSession.transaction.QueryRowContext(
+			ctx,
+			`SELECT current_setting('transaction_isolation'), current_setting('transaction_read_only'), `+
+				`current_setting('transaction_deferrable')`,
+		).Scan(&defaultTransactionLevel, &defaultTransactionReadOnly, &defaultTransactionDeferrable)
+	}); err != nil {
+		_ = durableRoleBackend.Close()
+		t.Fatalf("run Atomic through weaker PostgreSQL role defaults: %v", err)
+	}
+	if defaultTransactionLevel != "read committed" || defaultTransactionReadOnly != "off" ||
+		defaultTransactionDeferrable != "off" {
+		_ = durableRoleBackend.Close()
+		t.Fatalf(
+			"PostgreSQL Atomic transaction profile = %q/%q/%q, want read committed/off/off",
+			defaultTransactionLevel,
+			defaultTransactionReadOnly,
+			defaultTransactionDeferrable,
+		)
+	}
+	if err := durableRoleBackend.Close(); err != nil {
+		t.Fatalf("close PostgreSQL role durability backend: %v", err)
+	}
+	for _, setting := range []string{
+		"synchronous_commit",
+		"default_transaction_isolation",
+		"default_transaction_read_only",
+		"default_transaction_deferrable",
+	} {
+		if _, err := admin.Exec(ctx, "ALTER ROLE "+quotedRole+" RESET "+setting); err != nil {
+			t.Fatalf("reset PostgreSQL integration role runtime default %q: %v", setting, err)
+		}
+	}
+
 	backend, err := Open(ctx, Config{URL: databaseURL, Schema: schema})
 	if err != nil {
 		t.Fatalf("Open() error = %v", err)
@@ -59,11 +268,82 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 		backend.profile.timezone != "UTC" || backend.profile.searchPath != "pg_catalog" ||
 		backend.profile.clientEncoding != "UTF8" || backend.profile.serverEncoding != "UTF8" ||
 		backend.profile.standardConformingStrings != "on" || backend.profile.databaseEncoding != "UTF8" ||
+		backend.profile.synchronousCommit != "on" || backend.profile.fsync != "on" ||
+		backend.profile.defaultTransactionLevel != "read committed" ||
+		backend.profile.defaultTransactionReadOnly != "off" ||
+		backend.profile.defaultTransactionDeferrable != "off" ||
+		backend.profile.fullPageWrites != "on" ||
+		backend.profile.sessionReplicationRole != "origin" ||
 		backend.profile.databaseLocaleProvider != "c" || backend.profile.databaseLocale.Valid ||
 		backend.profile.databaseCollation != "C" || backend.profile.databaseCType != "C" ||
 		backend.schema != schema {
 		t.Fatalf("profile = %#v schema=%q", backend.profile, backend.schema)
 	}
+
+	t.Run("pool reuse discards replication-role drift", func(t *testing.T) {
+		backend.database.SetMaxOpenConns(1)
+		backend.database.SetMaxIdleConns(1)
+		t.Cleanup(func() {
+			backend.database.SetMaxOpenConns(0)
+			backend.database.SetMaxIdleConns(2)
+		})
+		connection, err := backend.database.Conn(ctx)
+		if err != nil {
+			t.Fatalf("acquire PostgreSQL drift canary connection: %v", err)
+		}
+		if _, err := connection.ExecContext(ctx, "SET session_replication_role = replica"); err != nil {
+			_ = connection.Close()
+			t.Fatalf("set PostgreSQL drift canary replication role: %v", err)
+		}
+		if _, err := connection.ExecContext(ctx, "SET synchronous_commit = off"); err != nil {
+			_ = connection.Close()
+			t.Fatalf("set PostgreSQL drift canary synchronous commit: %v", err)
+		}
+		for _, statement := range []string{
+			"SET default_transaction_isolation = 'serializable'",
+			"SET default_transaction_read_only = on",
+			"SET default_transaction_deferrable = on",
+		} {
+			if _, err := connection.ExecContext(ctx, statement); err != nil {
+				_ = connection.Close()
+				t.Fatalf("set PostgreSQL drift canary transaction default with %q: %v", statement, err)
+			}
+		}
+		if err := connection.Close(); err != nil {
+			t.Fatalf("return PostgreSQL drift canary connection: %v", err)
+		}
+		var role, synchronousCommit string
+		var defaultTransactionLevel, defaultTransactionReadOnly, defaultTransactionDeferrable string
+		if err := backend.database.QueryRowContext(
+			ctx,
+			`SELECT current_setting('session_replication_role'), current_setting('synchronous_commit'), `+
+				`current_setting('default_transaction_isolation'), current_setting('default_transaction_read_only'), `+
+				`current_setting('default_transaction_deferrable')`,
+		).Scan(
+			&role,
+			&synchronousCommit,
+			&defaultTransactionLevel,
+			&defaultTransactionReadOnly,
+			&defaultTransactionDeferrable,
+		); err != nil {
+			t.Fatalf("replace PostgreSQL drifted pooled connection: %v", err)
+		}
+		if role != "origin" {
+			t.Fatalf("replacement PostgreSQL replication role = %q, want origin", role)
+		}
+		if synchronousCommit != "on" {
+			t.Fatalf("replacement PostgreSQL synchronous commit = %q, want on", synchronousCommit)
+		}
+		if defaultTransactionLevel != "read committed" || defaultTransactionReadOnly != "off" ||
+			defaultTransactionDeferrable != "off" {
+			t.Fatalf(
+				"replacement PostgreSQL transaction defaults = %q/%q/%q, want read committed/off/off",
+				defaultTransactionLevel,
+				defaultTransactionReadOnly,
+				defaultTransactionDeferrable,
+			)
+		}
+	})
 
 	fields := phase1Fields()
 	adaID := integrationInsert(t, ctx, backend, query.NewInsertPlanReturningKey(
@@ -317,6 +597,28 @@ func TestPostgreSQLPhase1Integration(t *testing.T) {
 			t.Fatalf("post-close query error = %v", err)
 		}
 	})
+}
+
+func postgresIntegrationURLWithParameter(t *testing.T, rawURL, name, value string) string {
+	t.Helper()
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse PostgreSQL integration URL: %v", redactConnectionError(err))
+	}
+	queryValues := parsed.Query()
+	queryValues.Set(name, value)
+	parsed.RawQuery = queryValues.Encode()
+	return parsed.String()
+}
+
+func postgresIntegrationURLWithUser(t *testing.T, rawURL, user, password string) string {
+	t.Helper()
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse PostgreSQL integration URL: %v", redactConnectionError(err))
+	}
+	parsed.User = url.UserPassword(user, password)
+	return parsed.String()
 }
 
 type integrationPhase1Fields struct {
