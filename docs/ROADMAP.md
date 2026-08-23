@@ -9,8 +9,9 @@
   Proposed [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)는 WEB-011..020의 optional
   runtime package, read-only bundle preflight, loopback-only global `runserver`와 Article actual child 개발 루프를
   source `810149f...`에서 locally implemented했습니다. SQLite와 digest-pinned PostgreSQL 17.10 actual 및
-  affected gates는 통과했고 docs checkpoint `47b0eb8...`의 EVID-120에서 final full/386/803-file external archive와
-  audit도 통과했습니다. Exact-head hosted와 ADR acceptance는 pending입니다. GDJ-0040 Phase A
+  affected gates는 통과했습니다. Initial `47b0eb8...` local final 뒤 first submitted `46a57aa...` run은 26 success와
+  macOS Intel 20-minute timeout 하나로 끝났습니다. Correction `2b49938...`의 EVID-121에서 30-minute budget/locks와
+  full/386/803-file archive/audit refreeze가 통과했습니다. Corrected exact-head hosted와 ADR acceptance는 pending입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는

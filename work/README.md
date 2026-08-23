@@ -102,7 +102,8 @@ clean-checkout fixture correction `2a61376...`과 backend-close ownership correc
 project-linked runtime package, read-only current-bundle preflight, loopback-only global `runserver`, long-lived child
 drain/reap와 SQLite/PostgreSQL Article actual을 locally implemented/passing으로 전환했습니다. Final
 full/386/803-file external archive와 세 audit는 documentation checkpoint `47b0eb8...`의 EVID-120에서 통과했고,
-exact-head hosted와 ADR acceptance는 pending입니다.
+first submitted `46a57aa...` run은 26 success/1 timeout이었습니다. Correction `2b49938...`의 EVID-121 local
+refreeze가 통과했고 corrected exact-head hosted와 ADR acceptance는 pending입니다.
 GDJ-0034 terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps과
 audit P0..P3=0을 통과했습니다. 그 당시 product는 `122 passing + 5 deviation + 0 oracle_locked`, relation
 12/12이며 Q-010/Q-012/Q-013은 Partial, Q-017/Q-019는 P1/open입니다. GDJ-0035는 MIG-075..086

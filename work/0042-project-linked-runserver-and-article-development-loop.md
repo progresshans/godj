@@ -199,6 +199,9 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
   `conformance/runserverproduct/product_unix_test.go`
 - Backend/listener close ownership correction `810149fd90ecf0b3a9cb7b4b98344476082ce769`:
   `examples/article/cmd/site/{main.go,main_test.go}`
+- First-hosted timeout correction `2b4993854301e623e6d34fcb2a02c3dee76f5f15`:
+  `.github/workflows/ci.yml`, `conformance/internal/protocol/migration_project_check_artifacts_test.go`,
+  `conformance/runserverproduct/workflow_wiring_test.go` and this work packet's exact allowed path
 - Source-checkpoint documentation mirror: `conformance/README.md`,
   `docs/{ARCHITECTURE.md,BACKEND_MATRIX.md,CAPABILITY_CATALOG.md,DEVELOPER_EXPERIENCE.md,OPEN_QUESTIONS.md,ROADMAP.md,TESTING.md}`,
   `docs/adr/0042-project-linked-runserver-and-article-development-loop.md`,
@@ -220,16 +223,19 @@ runtime server child를 뜻하며 arbitrary user `init()` side effect 0을 주�
   dependency를 조회하지 않습니다.
 - 2026-08-24: interrupted-publication fixture는 Git이 빈 디렉터리를 보존하지 않는 clean checkout에서도
   `.godj/transactions`를 스스로 만들고 sentinel을 기록합니다.
+- 2026-08-24: four-coordinate product-project job은 cold macOS Intel에서 20분을 넘으므로 30분 budget을 사용합니다.
+  다른 matrix timeout과 각 runserver `go test -timeout=15m`는 유지하고 central/runserver lock으로 exact 값을 고정합니다.
 
 ## 미결정/Blocker
 
 - External blocker는 없습니다.
 - ADR-0042는 Phase A/B/C local product proof와 final frozen local gate가 통과했지만 exact-head hosted proof 전까지
   Proposed입니다.
-- Product source는 `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
-  `682b037e71040e7373d8da303cc618207abd4643`이고 exact documentation checkpoint
-  `47b0eb8c1df68e7ff1cf72056280cdf2915a9dab`, tree `39b7d8962abc6c5c9b61059429244647ff96c2ab`에서
-  EVID-120의 full/386/803-file external archive와 세 독립 audit가 통과했습니다. 다음 작업은 docs-only evidence
-  descendant를 비강제 푸시하고 exact submitted-head hosted matrix를 한 번 완료하는 것입니다.
+- First submitted head `46a57aa...`의 run `32657774073`은 26 jobs success 뒤 macOS Intel product job의 exact 20분
+  cap에서 취소됐으므로 hosted success가 아닙니다. Product source는 `810149fd90ecf0b3a9cb7b4b98344476082ce769`,
+  tree `682b037e71040e7373d8da303cc618207abd4643`이고 current correction/frozen head는
+  `2b4993854301e623e6d34fcb2a02c3dee76f5f15`, tree `fd22754e7bc51057b1e0219c7e92f22f5ec37a7a`입니다.
+  EVID-121의 affected/full/386/803-file external archive와 두 final audit가 통과했습니다. 다음 작업은 docs-only
+  evidence descendant를 비강제 푸시하고 corrected exact submitted-head hosted matrix를 한 번 완료하는 것입니다.
 - P3 비차단 제한은 reserved port release 뒤 외부 선점 가능성과 PostgreSQL `CREATE SCHEMA` 성공 직후 ambiguous
   disconnect에서 disposable schema residue 가능성입니다. 성공 증거를 false-green으로 만들지는 않습니다.

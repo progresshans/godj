@@ -134,12 +134,15 @@ Backend-close ownership correction `810149fd90ecf0b3a9cb7b4b98344476082ce769`은
 backend/listener close를 각각 정확히 한 번 계수합니다.
 
 SQLite와 digest-pinned PostgreSQL 17.10 local actual 및 current `810149f...` affected normal/race/CGO-disabled/vet가
-통과했습니다. Exact documentation checkpoint `47b0eb8...`/tree `39b7d896...`의 EVID-120에서 final full,
-all-package Linux/386 compile-only, 803-file repository-external archive와 세 독립 audit가 통과했습니다.
+통과했습니다. Initial documentation checkpoint `47b0eb8...`의 EVID-120 local final 뒤 first submitted
+`46a57aa...` run `32657774073`은 26 jobs success와 macOS Intel product job의 exact 20분 timeout으로 끝났으므로
+hosted success가 아닙니다. Correction `2b49938...`은 그 matrix만 30분으로 늘리고 central/runserver lock으로
+exact 값을 고정했습니다. EVID-121에서 corrected full, all-package Linux/386 compile-only, 803-file
+repository-external archive와 두 독립 audit가 다시 통과했습니다.
 PostgreSQL actual은 global CLI → generated runtime → advanced HTTP → clean SIGINT → backend
 reopen 뒤 migration history 1건/9행 exact durability를 증명합니다. DB service restart, query count, 전체 failure taxonomy와 spawned
 child binary 자체의 race 계측은 각각 기존 PostgreSQL restart, Article handler, unit/process evidence 소유이며 이 black-box 하나의
 주장이 아닙니다.
 
-이 ADR은 locally frozen 구현 후보가 되었지만 exact-head hosted matrix가 끝날 때까지 Proposed입니다.
+이 ADR은 corrected locally frozen 구현 후보가 되었지만 exact-head hosted matrix가 끝날 때까지 Proposed입니다.
 WEB-011..020 문서나 local actual만으로 hosted `Verified`, production readiness, Windows/non-loopback 지원을 주장하지 않습니다.

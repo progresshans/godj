@@ -60,12 +60,17 @@
   `b9d2e4a1a2af08bb4a3e9fb8fbb119dc00a60503`
 - GDJ-0042 clean-checkout fixture correction: `2a61376cdc15cc7a2481210dbf6d3f105517c7a2`, tree
   `eb6a0d742f3edd155f25e88c6e9255252a9a9143`
-- GDJ-0042 frozen local checkpoint: product source `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
+- GDJ-0042 initial frozen local checkpoint: product source `810149fd90ecf0b3a9cb7b4b98344476082ce769`, tree
   `682b037e71040e7373d8da303cc618207abd4643`; documentation checkpoint
   `47b0eb8c1df68e7ff1cf72056280cdf2915a9dab`, tree `39b7d8962abc6c5c9b61059429244647ff96c2ab`;
   [source EVID-119](TEST_EVIDENCE.md#evid-20260824-119--gdj-0042-project-linked-runserver-source-checkpoint) /
   [final local EVID-120](TEST_EVIDENCE.md#evid-20260824-120--gdj-0042-frozen-local-final-gates), WEB-011..020 local
-  bounded product plus full/386/803-file external archive/audit complete, exact submitted-head hosted pending
+  bounded product plus initial full/386/803-file external archive/audit complete
+- GDJ-0042 first submitted timeout/corrected frozen head: `46a57aa9a13f54f0b9f6622bc4b7b5dba83e2956` run
+  `32657774073` was 26 success/1 macOS Intel 20-minute timeout; correction
+  `2b4993854301e623e6d34fcb2a02c3dee76f5f15`, tree `fd22754e7bc51057b1e0219c7e92f22f5ec37a7a`;
+  [corrected local EVID-121](TEST_EVIDENCE.md#evid-20260824-121--gdj-0042-first-exact-head-timeout-and-corrected-local-refreeze),
+  timeout/locks plus full/386/803-file archive/audits passing, corrected exact submitted-head hosted pending
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -413,9 +418,10 @@
   correction `6101140...`, clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은 optional runtime package, current-bundle read-only preflight, loopback-only global
   `runserver`, long-lived child drain/reap와 actual SQLite/PostgreSQL Article flow를 WEB-011..020으로 구현했습니다.
   Digest-pinned local PostgreSQL 17.10 normal/race/CGO-disabled actual과 portable/required pass-no-skip wiring이
-  통과했습니다. Documentation checkpoint `47b0eb8...`의 EVID-120에서 final full/386/803-file external archive와
-  세 독립 audit도 통과했습니다. Proposed ADR-0042의 acceptance와 hosted `Verified`는 exact-head hosted 증거 전까지
-  보류합니다.
+  통과했습니다. Initial `47b0eb8...` EVID-120 local final 뒤 first submitted `46a57aa...` run은 26 success와
+  macOS Intel 20-minute timeout 하나로 끝났습니다. Correction `2b49938...`의 EVID-121에서 product matrix budget/lock과
+  final full/386/803-file archive/audits를 다시 통과했습니다. Proposed ADR-0042의 acceptance와 hosted `Verified`는
+  corrected exact-head hosted 증거 전까지 보류합니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   D4d~D4f와 D4g Phase 0 증거를 보존한 채 superseded됐고 MIG-075..086 status/registry는 전환하지 않았습니다.
   [ADR-0035](../adr/0035-pre-release-current-only-format-and-generated-publication.md)가 이전 dual-format/additive
@@ -1525,9 +1531,9 @@ completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. 현재 GDJ-0042가 active, ready는 0이고 외부
 blocker도 0입니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
-WEB-011..020의 bounded implementation/local actual을 닫았습니다. Proposed ADR-0042와 hosted `Verified`/completion은
-documentation checkpoint `47b0eb8...`의 EVID-120 full/386/803-file external archive/audit가 통과한 뒤에도 exact
-submitted-head matrix 전까지 보류합니다. GDJ-0040 Phase A의
+WEB-011..020의 bounded implementation/local actual을 닫았습니다. First submitted `46a57aa...` run은 26 success 뒤
+20-minute timeout으로 끝났고, correction `2b49938...`의 EVID-121 local refreeze가 통과했습니다. Proposed ADR-0042와
+hosted `Verified`/completion은 corrected exact submitted-head matrix 전까지 보류합니다. GDJ-0040 Phase A의
 QRY-034..043 독립 Django scenario/oracle는 `fe4996f...`/EVID-111에서 reference-only로 동결됐고, Phase B/C
 source `86d6b169...`/actual `0ec6f385...`는 EVID-112의 affected/local PostgreSQL/audit gate를 통과했습니다.
 첫 hosted run의 stale 916-test inventory failure와 correction `73b912d...`의 exact 950-test lock 및 새
@@ -1607,10 +1613,11 @@ general generated upgrade는 계속 open입니다.
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
 독립 감사와 exact hosted matrix를 모두 통과했습니다. QRY-044..053은 `Verified`, GDJ-0041은 completed입니다.
-Active GDJ-0042의 product source `810149f...`와 documentation checkpoint `47b0eb8...`는 EVID-119/120의 affected,
-PostgreSQL 17.10 actual, final full/386/803-file repository-external archive와 세 independent audit를 통과했습니다.
-다음 정확한 작업은 docs-only local-final evidence descendant를 비강제 푸시하고 four-coordinate portable runserver와
-PostgreSQL 17.10 required sentinel을 포함한 exact submitted-head hosted matrix를 기다리는 것입니다. Hosted success 뒤
+Active GDJ-0042의 product source `810149f...`, initial local-final `47b0eb8...`와 timeout correction `2b49938...`은
+EVID-119..121의 affected/PostgreSQL 17.10 actual과 corrected full/386/803-file archive/audits를 통과했습니다. First
+submitted run `32657774073`은 26 success/1 timeout이므로 재사용하지 않습니다. 다음 정확한 작업은 docs-only corrected
+evidence descendant를 비강제 푸시하고 four-coordinate portable runserver와 PostgreSQL 17.10 required sentinel을 포함한
+corrected exact submitted-head hosted matrix를 기다리는 것입니다. Hosted success 뒤
 ADR-0042 acceptance, terminal evidence/status와 다음 work packet만 docs-only consistency gate로 닫습니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와

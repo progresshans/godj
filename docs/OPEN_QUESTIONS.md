@@ -124,7 +124,8 @@ Active [GDJ-0042](../work/0042-project-linked-runserver-and-article-development-
 Q-017의 generated runtime usability를 WEB-011..020으로 좁혀 진행합니다. Optional descriptor capability,
 current-bundle read-only preflight, loopback-only `godj runserver`, long-lived child lifecycle과 actual
 SQLite/PostgreSQL Article flow가 source `810149f...`에서 locally implemented/actual-passing입니다. Documentation
-checkpoint `47b0eb8...`의 final full/386/803-file external archive/audit는 통과했고 exact-head hosted와 ADR
+checkpoint `47b0eb8...`의 initial local final 뒤 first hosted run은 26 success/1 timeout이었습니다. Correction
+`2b49938...`의 EVID-121 full/386/803-file archive/audit refreeze는 통과했고 corrected exact-head hosted와 ADR
 acceptance가 pending입니다. Installed semver/upgrader/general raw-model UX를 결정하지
 않으므로 두 질문의 상태는 그대로입니다.
 

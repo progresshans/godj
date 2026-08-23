@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-24
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-120
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-121
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -11321,3 +11321,93 @@ PR #1 refresh and one unique exact submitted-head hosted matrix with all portabl
 PostgreSQL 17.10 pass/no-skip sentinel. Any source, workflow or checked-artifact correction invalidates this local final
 and requires a new freeze. This evidence/status append is documentation-only and receives consistency gates rather than
 a recursive product-matrix rerun.
+
+## EVID-20260824-121 — GDJ-0042 First Exact-head Timeout and Corrected Local Refreeze
+
+- Date/time: first hosted run 2026-08-24T03:21:26+09:00 through 2026-08-24T03:43:06+09:00; corrected local
+  refreeze completed through 2026-08-24T03:51:24+09:00
+- Work/contract IDs: GDJ-0042 active; WEB-011..020 bounded local `passing`; Q-010 remains `Partial`, Q-017 remains P1/open
+- First submitted head: `46a57aa9a13f54f0b9f6622bc4b7b5dba83e2956`, tree
+  `3619513cd99d6abdc25c9855427d5d273c59a007`, subject `docs: record GDJ-0042 frozen local gates`
+- Corrected frozen head: `2b4993854301e623e6d34fcb2a02c3dee76f5f15`, tree
+  `fd22754e7bc51057b1e0219c7e92f22f5ec37a7a`, subject `ci: extend runserver product matrix budget`
+- Result: the first exact submitted run proved 26 jobs but timed out one cold macOS Intel job, so it is failure evidence,
+  not hosted completion. The minimal timeout/lock correction and its new exact local full/386/external archive/audit
+  refreeze passed. A unique corrected-head hosted run, ADR acceptance, work completion, merge, release and production
+  readiness remain unclaimed.
+
+### Exact first-hosted timeout
+
+[GitHub Actions run 32657774073](https://github.com/progresshans/godj/actions/runs/32657774073), attempt 1, targeted
+exact `46a57aa...`. It ended with 26 successful jobs and one cancelled job, no job-level assertion failure. Job
+`97239146678`, `Product project check (macos-15-intel)`, started at 2026-08-24T03:22:48+09:00 and ended at
+2026-08-24T03:43:06+09:00. GitHub's exact annotation was `The job has exceeded the maximum execution time of 20m0s`;
+the checked workflow set `timeout-minutes: 20` for that matrix.
+
+Before the external job timeout, the cold Darwin/amd64 coordinate passed normal project-check in 267 seconds, normal
+runserver actual plus all three portable pass/no-skip sentinels in 166 seconds, project-check race in 233 seconds,
+runserver product race in 196 seconds and project-check CGO-disabled in 203 seconds. The runserver CGO-disabled command
+was cancelled after 134 seconds by the job cap. Both vet steps and the clean-worktree step were then skipped. The log
+contains no Go `FAIL`, panic, missing/skip sentinel diagnostic or product assertion; `The operation was canceled.` is
+the only test-step terminal diagnostic. Therefore this run proves neither that unfinished CGO-disabled leg nor the
+skipped vet/clean gates, and it is not reused as hosted `Verified` evidence.
+
+### Minimal correction and affected gates
+
+Correction `2b49938...` changes only `product-project-check-matrix.timeout-minutes` from 20 to 30, adds the exact
+central protocol test path to the active work boundary, and updates two workflow locks. The runserver-specific lock
+requires exact 30 once. The central 27-job lock requires product-project exact 30, the other four product matrices exact
+20, and exactly one timeout key per matrix block. Job topology, four coordinates, commands, normal/race/CGO-disabled/
+vet/clean steps and required pass/no-skip sentinels are unchanged.
+
+The exact affected test pair passed normal, race and CGO-disabled with no skip, and both packages passed vet:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -count=1 \
+  -run '^(TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecutions|TestRunserverProductWorkflowWiringIsLocked)$' \
+  ./conformance/internal/protocol ./conformance/runserverproduct
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -race -count=1 \
+  -run '^(TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecutions|TestRunserverProductWorkflowWiringIsLocked)$' \
+  ./conformance/internal/protocol ./conformance/runserverproduct
+CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -count=1 \
+  -run '^(TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecutions|TestRunserverProductWorkflowWiringIsLocked)$' \
+  ./conformance/internal/protocol ./conformance/runserverproduct
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go vet ./conformance/internal/protocol ./conformance/runserverproduct
+```
+
+Normal package legs completed in 0.803s/0.985s, race in 2.566s/2.463s and CGO-disabled in 1.110s/1.224s; vet exited 0.
+YAML parse, gofmt and `git diff --check` also passed.
+
+### Corrected exact-head local final rerun
+
+Because workflow and checked lock bytes changed, every local final gate was rerun on clean exact `2b49938...` rather
+than reusing EVID-120:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Full `make ci` exited 0 from 2026-08-24T03:48:13+09:00 through 2026-08-24T03:50:34+09:00. It retained Article exact
+12/SHA-256 `0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675`, relation-delete exact
+16/SHA-256 `2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`, all-package normal/race,
+the explicit CGO-disabled product set, vet, 239 portable Python tests with 21 intentional exact-profile-only skips,
+contract checks and GoDj conformance checks. Linux/386 all-package compile-only exited 0 from
+2026-08-24T03:51:02+09:00 through 2026-08-24T03:51:04+09:00. HEAD/tree and clean worktree were unchanged.
+
+A guarded `.git`-free archive of exact `2b49938...` contained the same 803 regular tracked files. From
+2026-08-24T03:51:02+09:00 through 2026-08-24T03:51:24+09:00 it passed `make generate-check` and all-package
+compile-only with a private `GOCACHE`. The before/after sorted content roster SHA-256 was exactly
+`f5bebaabcf0c0b3dad22d6f2f137966d892a4f3ee05620cda23f6a6932a16bed`; no retained regular-file inventory or
+content drift was observed. This does not exclude a transient write or directory/mode metadata change. The guarded
+temporary root was moved recoverably to Trash.
+
+Two independent read-only final reviewers observed exact `2b49938...`/`fd22754...` and a clean worktree. The
+workflow/topology/gate-strength/product audit and hosted-failure/evidence-boundary audit each returned
+P0/P1/P2/P3=`0/0/0/0`. The next boundary is a non-force push and one unique corrected exact-head hosted matrix. This
+documentation-only evidence descendant receives consistency gates rather than another recursive product-matrix rerun.
