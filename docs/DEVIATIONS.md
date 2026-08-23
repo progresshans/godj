@@ -225,7 +225,8 @@ ADR과 deviation으로 이 결정을 Superseded합니다. 단순히 comparator�
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj closed template value runtime
 - Related ADR/work/evidence:
   [ADR-0043](adr/0043-safe-template-and-model-form-validation.md),
-  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md),
+  [Local EVID-123](status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint)
 
 ### Django의 관찰 가능 동작
 
@@ -270,7 +271,7 @@ Backend 영향은 없습니다. Immutable Engine과 closed Value는 concurrent r
   selector만 허용
 - Exported template Value/Context 진입점에 function, raw `any`, empty interface 또는 reflection callable ingress가 없음을 source/API gate로 검증
 - Oracle-blind actual은 expected/oracle/fixture를 읽지 않고 public Engine/Value 경계에서 closed result를 생성
-- Affected normal/race/CGO-disabled/vet와 final frozen matrix가 통과해야 `Verified`로 승격
+- Local affected/full/386/external/audit는 EVID-123에서 통과; exact submitted-head hosted matrix 뒤에만 `Verified`로 승격
 
 ### 복귀 또는 supersede 조건
 
@@ -285,7 +286,8 @@ Context/error/cancellation과 I/O 권한을 명시적으로 표현하는 안전�
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj process-memory session store
 - Related ADR/work/evidence:
   [ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md),
-  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md),
+  [Local EVID-123](status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint)
 
 ### Django의 관찰 가능 동작
 
@@ -331,7 +333,7 @@ explicit persistence는 브라우저 재시작 경계를 넓힙니다. TLS/non-l
 - Sparse expectation과 code-owned policy는 위 네 selector만 exact order로 허용
 - Actual은 실제 `admin.Site` login/logout HTTP route, Runtime cookie change와 server Store row를 관찰하며 surrogate response를 합성하지 않음
 - Raw cookie/session/CSRF/password/hash 값은 actual, oracle, diagnostic에 직렬화하지 않음
-- Affected normal/race/CGO-disabled/vet와 final frozen matrix가 통과해야 `Verified`로 승격
+- Local affected/full/386/external/audit는 EVID-123에서 통과; exact submitted-head hosted matrix 뒤에만 `Verified`로 승격
 
 ### 복귀 또는 supersede 조건
 
@@ -346,7 +348,8 @@ Browser-session cookie 또는 logout confirmation view가 제품 요구가 되�
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3 Article Admin
 - Related ADR/work/evidence:
   [ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md),
-  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md),
+  [Local EVID-123](status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint)
 
 ### Django의 관찰 가능 동작
 
@@ -381,7 +384,7 @@ Publish는 selected ID cap과 `db.Atomic`을 사용하며 SQLite/PostgreSQL capa
 - Sparse expectation과 code-owned policy는 `result.actions`와 `metrics.registered_models` 두 selector만 허용
 - Oracle-blind actual은 실제 list HTML, immutable Registry descriptor, SQLite row state와 public Site request를 관찰
 - List/search/page와 selected publish의 나머지 result/db_state/metrics는 locked reference와 exact match
-- Affected normal/race/CGO-disabled/vet와 final frozen matrix가 통과해야 `Verified`로 승격
+- Local affected/full/386/external/audit는 EVID-123에서 통과; exact submitted-head hosted matrix 뒤에만 `Verified`로 승격
 
 ### 복귀 또는 supersede 조건
 

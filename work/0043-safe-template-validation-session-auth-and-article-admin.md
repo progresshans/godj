@@ -132,8 +132,10 @@ PostgreSQL 17에 실제로 저장되지만 첫 slice의 user/session/audit state
   `404a8903a1fdd0bad7f94aa895cec463dd1398a2`, session/auth/CSRF
   `a5ae33a4a91a51a454aa0e73973170acf3af3c20`, bounded Admin Site
   `b814e20b5e180d9e532edb4fa168522cf7747ba4`까지 순서대로 쌓였습니다.
-- 현재 conformance publication, deviation fixture, PostgreSQL user-flow와 CI inventory lock은 `b814e20...` 위 working-tree
-  integration candidate입니다. 아직 frozen commit이나 submitted head가 아니므로 local 결과를 hosted 증거로 재사용하지 않습니다.
+- Conformance publication, deviation fixture, PostgreSQL user-flow와 CI inventory lock은 frozen local source
+  `8bcfa21371ed5fd1b7cb3ee2fb8e0041968f8daa`, tree `3987668b302cc1b6e3cc18bd1b2f942de9d6f486`에 고정했습니다.
+  [EVID-123](../docs/status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint)의
+  local 결과를 아직 제출하지 않은 hosted 증거로 재사용하지 않습니다.
 
 ## Django Reference / Contract
 
@@ -247,8 +249,9 @@ examples/article/adminapp → admin + generated Article/project
 
 - [x] affected normal/race/CGO-disabled/vet and relevant generated drift at implementation checkpoints
 - [x] SQLite/PostgreSQL actual, security/error/restart boundaries and scoped 993/993/skip-0 inventory lock
-- [ ] final source-only full `make ci`, all-package Linux/386 and repository-external clean copy once
-- [ ] independent final audits and exact submitted-head hosted matrix once
+- [x] final source-only full `make ci`, all-package Linux/386 and repository-external clean copy once
+- [x] independent final audits on frozen local bytes
+- [ ] exact submitted-head hosted matrix once
 - [ ] ADR acceptance, bounded Verified/status/evidence/Draft PR mirror only after those gates
 
 ## 완료 조건
@@ -260,7 +263,7 @@ examples/article/adminapp → admin + generated Article/project
 - [x] Confirmed-success add/change/delete/publish가 expected Article row와 process-lifetime audit event만 변경하고,
   commit outcome unknown은 자동 재시도나 success audit 없이 reconciliation-required로 닫습니다.
 - [x] SQLite/PostgreSQL 17 actual이 동일한 bounded semantic flow를 통과합니다.
-- [ ] Affected/final frozen cadence와 independent audit가 통과합니다.
+- [x] Affected/final frozen cadence와 independent audit가 통과합니다.
 - [ ] CURRENT/work/matrix/evidence/ADR/PR이 같은 exact bytes와 비목표를 가리킵니다.
 
 ## 진행 기록
@@ -271,7 +274,8 @@ examples/article/adminapp → admin + generated Article/project
 - [x] Phase A reference/compile checkpoint
 - [x] Phase B/C product checkpoint
 - [x] Phase D SQLite/PostgreSQL actual checkpoint
-- [ ] Phase E frozen hardening and handoff
+- [x] Phase E frozen local hardening and documentation handoff
+- [ ] Exact submitted-head hosted completion
 
 ## 수정 파일
 
@@ -280,10 +284,10 @@ examples/article/adminapp → admin + generated Article/project
   `examples/article/adminapp/**`와 SQLite Admin integration test
 - Reference: exact three manifests/oracles/not-implemented fixtures, `conformance/templateform/**`,
   `conformance/authadmin/**`, Django auth/admin fixture/scenario/worker와 artifact locks
-- Current integration candidate: three `godj-*-deviation-expected.json` fixtures, three GDJ-0043 GoDj scenario/test pairs,
+- Frozen conformance source: three `godj-*-deviation-expected.json` fixtures, three GDJ-0043 GoDj scenario/test pairs,
   shared runner/registry, `godjcheck` deviation policy, Makefile wiring, PostgreSQL Admin integration test와 CI inventory/required lock
-- Documentation in this checkpoint: 이 work와 ADR-0043/0044. CURRENT/IMPLEMENTATION_MATRIX/TEST_EVIDENCE/DEVIATIONS는
-  integration owner가 frozen source/hosted 결과와 함께 별도로 동기화합니다.
+- Local-final documentation descendant: 이 work, ADR-0043/0044, CURRENT, IMPLEMENTATION_MATRIX, TEST_EVIDENCE와 DEVIATIONS.
+  Hosted result는 별도 exact submitted-head evidence에서만 동기화합니다.
 
 ## 결정된 사항
 
@@ -308,13 +312,12 @@ examples/article/adminapp → admin + generated Article/project
 - `WEB-022` closed lookup, `WEB-027` no-call, `AUT-004` redirect와 `AUT-005` cookie policy, `ADM-002` bounded action/model breadth는
   reviewed deviation으로 고정됐습니다. ADR-0043/0044는 구현됐더라도 final frozen/hosted gate 전까지 Proposed를 유지합니다.
 - Durable session/user/audit schema와 restart persistence는 current IR 확장 없이 구현하지 않으며 후속 packet입니다.
-- 남은 blocker가 아니라 required gate는 final source freeze, full `make ci`, Linux/386, repository-external clean copy,
-  independent audit와 exact submitted-head hosted matrix입니다.
+- 남은 blocker가 아니라 required gate는 documentation descendant push, Draft PR refresh와 exact submitted-head hosted matrix입니다.
 
 ## 테스트 증거
 
-- Checkout: `b814e20b5e180d9e532edb4fa168522cf7747ba4` 위 current working-tree integration candidate. 아직 frozen commit이
-  아니므로 TEST_EVIDENCE ID나 hosted evidence로 승격하지 않습니다.
+- Frozen source: `8bcfa21371ed5fd1b7cb3ee2fb8e0041968f8daa`, tree
+  `3987668b302cc1b6e3cc18bd1b2f942de9d6f486`; local [EVID-123](../docs/status/TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint).
 - Exact product comparison:
   `go run ./conformance/cmd/godjcheck -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json`
   을 각 template-form/auth-session/article-admin manifest·oracle·deviation fixture에 실행해 각각 12/`DEV-0003`,
@@ -339,30 +342,31 @@ examples/article/adminapp → admin + generated Article/project
 - DB actual: `TestArticleAdminSiteSQLiteUserFlow`가 PASS했고, 환경변수로 주입한 pinned PostgreSQL 17 URL에
   `GODJ_REQUIRE_POSTGRES=1 go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...`를 실행해
   `TestArticleAdminSitePostgresUserFlow`를 포함한 normal/race/CGO0/vet package set이 PASS했습니다.
-- Not run/complete for these bytes: final source-only full `make ci`, all-package Linux/386, repository-external clean copy,
-  exact committed/submitted-head hosted matrix. Hosted는 pending입니다.
+- Final local: pinned uv 0.10.12 full `make ci`, all-package Linux/386, 898-file repository-external archive,
+  independent final audit와 focused flaky-sentinel 20/20 rerun이 PASS했습니다.
+- Not run/complete: documentation descendant의 exact submitted-head hosted matrix. Hosted는 pending입니다.
 
 ## 위험과 rollback
 
-- Public API: Phase A external compile fixture 전에 exact generic registration/Value/Form API를 Accepted로 고정하지 않습니다.
+- Public API: external compile fixture는 통과했지만 ADR-0043/0044가 Proposed이고 hosted가 pending이므로 exact generic
+  registration/Value/Form API를 아직 Accepted로 고정하지 않습니다.
 - Import cycle: lower package가 `admin/auth/forms/templates`를 import하면 gate가 실패해야 합니다.
 - Security: raw secret serialization, callable exposure, unsafe redirect, CSRF bypass와 session fixation은 P0/P1 gate입니다.
 - Data: Article action은 `db.Atomic`을 사용하고 process audit의 restart 비내구성을 명시합니다. Commit outcome unknown은
   committed 여부를 추측하거나 audit로 success를 합성하지 않고 no-retry/reconciliation-required로 반환합니다.
 - Backend: runtime raw SQL/system table을 추가하지 않고 existing SQLite/PostgreSQL public backend boundary만 사용합니다.
-- Rollback: activation과 각 product checkpoint는 독립 commit입니다. Current integration candidate는 아직 committed/accepted/hosted
-  publication이 아니므로 관련 runner/wiring/deviation fixture checkpoint를 함께 revert할 수 있습니다.
+- Rollback: activation, 각 product checkpoint와 frozen conformance source `8bcfa213...`는 독립 commit입니다. 아직
+  accepted/hosted publication이 아니므로 관련 runner/wiring/deviation fixture commit을 함께 revert할 수 있습니다.
 
 ## 다음 정확한 작업
 
-Integration owner가 current candidate의 의도한 source/wiring/docs만 stage해 frozen local source commit을 만듭니다. 그 exact commit에서
-full `make ci`, all-package Linux/386, repository-external clean copy와 independent final audit를 한 번 실행합니다. 모두 통과하면 push해
-Draft PR #1을 갱신하고 exact submitted-head hosted matrix를 기다립니다. Hosted success 뒤에만 ADR-0043/0044를 Accepted로 바꾸고
+Integration owner가 EVID-123/CURRENT/matrix의 documentation-only descendant를 non-force push해 Draft PR #1을 갱신하고 exact
+submitted-head hosted matrix를 기다립니다. Hosted success 뒤에만 ADR-0043/0044를 Accepted로 바꾸고
 CURRENT/IMPLEMENTATION_MATRIX/TEST_EVIDENCE/DEVIATIONS/PR mirror를 같은 bytes와 evidence로 동기화합니다.
 
 ## 결과와 인수인계
 
 Product와 local integration은 구현됐고 exact 30 contracts는 25 passing/5 reviewed deviations로 관찰됐습니다. SQLite와 pinned
 PostgreSQL user flow, scoped 993/993/0 inventory와 affected normal/race/CGO0/vet도 통과했습니다. 그러나 current bytes는 아직
-frozen/submitted/hosted head가 아니며 ADR-0043/0044는 Proposed, GDJ-0043은 active입니다. Integration owner가 final source freeze,
-독립 audit와 hosted completion을 단독 소유합니다.
+submitted/hosted head가 아니며 ADR-0043/0044는 Proposed, GDJ-0043은 active입니다. Frozen local source는 `8bcfa213...`이고
+integration owner가 documentation push, Draft PR refresh와 hosted completion을 단독 소유합니다.

@@ -79,8 +79,14 @@
   `afdda323e1f83f5c67a6a6d87cd3215874d03a53`; active
   [work packet](../../work/0043-safe-template-validation-session-auth-and-article-admin.md) / Proposed
   [ADR-0043](../adr/0043-safe-template-and-model-form-validation.md) and
-  [ADR-0044](../adr/0044-session-auth-csrf-and-bounded-article-admin.md), exact WEB-021..027 + FRM-001..005 +
-  AUT-001..008 + ADM-001..010은 activation-only이며 아직 product passing/registration 0
+  [ADR-0044](../adr/0044-session-auth-csrf-and-bounded-article-admin.md)
+- GDJ-0043 frozen local source: `8bcfa21371ed5fd1b7cb3ee2fb8e0041968f8daa`, tree
+  `3987668b302cc1b6e3cc18bd1b2f942de9d6f486`; [EVID-123](TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint).
+  Exact 30-contract batch는 25 `passing` + 5 reviewed `deviation`이고, current global reference는
+  18 sets/201 contracts/306 ordered bindings=`179 passing + 10 deviation + 12 oracle_locked`, product는
+  17 sets/189=`179 passing + 10 deviation`입니다. SQLite와 digest-pinned PostgreSQL full Article Admin flow,
+  affected normal/race/CGO0/vet, scoped 993/993/skip-0 inventory, full `make ci`, Linux/386, 898-file external archive와
+  independent final audit가 통과했습니다. ADR-0043/0044는 Proposed, GDJ-0043은 active이며 hosted matrix는 pending입니다.
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -1142,6 +1148,13 @@
   Corrected submitted `136e825...`의 [EVID-115](TEST_EVIDENCE.md#evid-20260823-115--gdj-0040-corrected-exact-head-hosted-completion) /
   run `32642341459`은 exact 27/27 jobs·341/341 steps와 PostgreSQL 17.10/QRY-034..043 10/10 actual을 통과해
   work를 completed/hosted-verified로 닫았습니다.
+- GDJ-0043 frozen local source `8bcfa213...`는 safe closed template Value/Engine, IR-derived immutable Model Form,
+  hardened process-lifetime session/auth/CSRF와 immutable bounded Article Admin registry/site를 하나의 실제 흐름으로
+  연결합니다. SQLite와 digest-pinned PostgreSQL에서 login, list/search/page, add/change/delete, semantic history,
+  publish action과 logout을 같은 public `admin.Site` 경계로 통과했습니다. Exact 30 contracts는 25 passing과
+  WEB-022/027, AUT-004/005, ADM-002 다섯 reviewed deviations이며 [DEV-0003..0005](../DEVIATIONS.md)에 sparse selector를
+  고정했습니다. `make ci`, Linux/386, external archive와 independent audit는 EVID-123에서 local pass지만
+  ADR-0043/0044 acceptance, hosted `Verified`, durable user/session/audit와 M5/M6 completion은 아직 주장하지 않습니다.
 
 ### 오류와 durability 경계
 
@@ -1162,11 +1175,12 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 현재 15 ordered set, 161 unique contract/scenario와 210 ordered
-  cross-binding이 있습니다. Current product는 14개 set에 actual GoDj adapter를 가지며
-  149 contract 분류는 `144 passing + 5 deviation + 0 oracle_locked`입니다. QRY-022..033 actual은 12/12,
-  QRY-034..043 actual은 10/10 zero-diff이고 Relation set REL-001..012 actual도 모두 `passing`입니다.
-  Reference 분류는 `144 passing + 5 deviation + 12 oracle_locked`입니다. GDJ-0039 전 reference/product aggregate는
+- Protocol v2 reference에는 현재 18 ordered set, 201 unique contract/scenario와 306 ordered
+  cross-binding이 있습니다. Current product는 17개 set에 actual GoDj adapter를 가지며
+  189 contract 분류는 `179 passing + 10 deviation + 0 oracle_locked`입니다. Reference 분류는
+  `179 passing + 10 deviation + 12 oracle_locked`이고 MIG-075..086만 locked/unregistered입니다. GDJ-0043의 새
+  30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는 AUT-004/005,
+  DEV-0005는 ADM-002를 소유합니다. GDJ-0039 전 reference/product aggregate는
   13/139/156=`122+5+12 locked`, 12/127=`122+5`였습니다. 직전 relation hosted-accepted decision head는
   source 변경 전 `121 + 5 + 1`, relation 11/12였고
   [EVID-076](TEST_EVIDENCE.md#evid-20260812-076--gdj-0033-github-hosted-rel-002-implementation-head-exact-26-job-ci)이
@@ -1543,8 +1557,10 @@ completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0042도 submitted `2bfdbd5...`의
 EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재 active/ready는 1/0이고
 외부 blocker도 0입니다. Active는 [GDJ-0043](../../work/0043-safe-template-validation-session-auth-and-article-admin.md)이며
-Proposed ADR-0043/0044 아래 exact 30-contract template/form/auth/admin vertical batch를 시작했습니다. Activation 시점에는
-product code/passing registration/M5·M6 completion이 없습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+Proposed ADR-0043/0044 아래 exact 30-contract template/form/auth/admin vertical batch의 product와 conformance를
+`8bcfa213...`/EVID-123에서 local-final로 고정했습니다. 25 passing + 5 reviewed deviations, SQLite/digest-pinned
+PostgreSQL full flow, scoped 993/993/0, full/386/external archive/audit가 통과했고 exact submitted-head hosted matrix만
+pending입니다. Durable user/session/audit와 M5·M6 completion은 이 bounded packet에서 계속 제외합니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
 WEB-011..020의 bounded implementation/local actual을 닫았습니다. First submitted `46a57aa...` run은 26 success 뒤
 20-minute timeout으로 끝났고, correction `2b49938...`의 EVID-121 local refreeze 뒤 corrected run이 portable required
@@ -1634,10 +1650,10 @@ EVID-119..121의 affected/PostgreSQL 17.10 actual과 corrected full/386/803-file
 submitted run `32657774073`은 26 success/1 timeout이므로 재사용하지 않습니다. Corrected submitted `2bfdbd5...`의
 EVID-122/run `32659704239`는 exact 27/27 jobs·358/358 steps, failure/cancel/skip/annotation 0으로 통과했습니다.
 ADR-0042는 Accepted, WEB-011..020은 bounded hosted `Verified`, GDJ-0042는 completed입니다. GDJ-0043은
-terminal docs baseline `9099a53...`에서 시작한 current activation descendant에서 active로 전환했고 exact 12/8/10
-reference manifests와 separate deterministic Auth/Admin runner, payload-free not-implemented fixtures,
-dependency-direction compile prototype을 Phase A로 구현합니다. 그 뒤
-template/form과 session/auth를 파일 소유권이 겹치지 않는 lane에서 병렬 구현하고 integration owner가 Article Admin과 status를 합칩니다.
+terminal docs baseline `9099a53...`에서 시작해 frozen local source `8bcfa213...`/EVID-123까지 구현·통합·감사를 마쳤습니다.
+다음 경계는 documentation-only status descendant를 non-force push해 Draft PR #1을 갱신하고, 그 exact submitted tree의
+hosted 27-job matrix에서 portable 993 inventory와 PostgreSQL required 14 sentinels를 pass/no-skip으로 확인하는 것입니다.
+그 성공 전에는 ADR-0043/0044 Accepted, GDJ-0043 completed 또는 hosted `Verified`를 주장하지 않습니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 GDJ-0043/Proposed ADR에서 open, Q-017은 P1/open이며
 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와 release는 이 작업의 권한·범위가 아닙니다.

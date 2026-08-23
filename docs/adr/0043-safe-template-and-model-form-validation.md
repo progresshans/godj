@@ -105,7 +105,8 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
 - [x] IR projection clone/order/default/null/max-length and unsupported-field startup tests
 - [x] Bound/unbound/cleaned/changed/error determinism and invalid mutation I/O 0
 - [x] Local normal/race/CGO0/vet and SQLite/pinned PostgreSQL Article form/Admin actual
-- [ ] Final frozen full/386/external-copy audit and exact submitted-head hosted matrix
+- [x] Final frozen full/386/external-copy and independent local audit
+- [ ] Exact submitted-head hosted matrix
 
 ## 현재 구현 상태
 
@@ -113,6 +114,6 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
 WEB-023..026과 FRM-001..005는 passing, WEB-022/027은 reviewed `DEV-0003` deviation으로 exact 12-contract
 `godjcheck`를 통과했습니다. WEB-022 actual은 `Object`/`List`와 공개 `Value.Member`/`Items` 결과만 관찰하며 competing Go
 attribute fallback이나 application dictionary callback은 없음을 sparse deviation으로 명시합니다.
-Scoped 993/993/skip-0 inventory와 local normal/race/CGO0/vet, SQLite/pinned PostgreSQL full flow도 통과했습니다. 다만 이 bytes의
-final frozen full/386/external-copy audit와 exact submitted-head hosted matrix가 pending이므로 아직 Accepted 또는 bounded Verified로
-승격하지 않습니다.
+Frozen source `8bcfa213...`에서 scoped 993/993/skip-0 inventory, local normal/race/CGO0/vet, SQLite/pinned PostgreSQL
+full flow, full `make ci`, Linux/386, 898-file external archive와 independent audit가 통과했습니다. Exact submitted-head hosted
+matrix가 pending이므로 아직 Accepted 또는 bounded Verified로 승격하지 않습니다.

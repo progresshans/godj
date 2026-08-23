@@ -118,7 +118,8 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 - [x] Admin registration/config clone/duplicate/unknown capability tests
 - [x] Article add/change/delete/history/selected publish normal/failure/rollback/commit-unknown with stable event and no-retry ownership
 - [x] Actual Site SQLite/pinned PostgreSQL user flow and local normal/race/CGO0/vet
-- [ ] Final frozen full/386/external-copy audit and exact submitted-head hosted matrix
+- [x] Final frozen full/386/external-copy and independent local audit
+- [ ] Exact submitted-head hosted matrix
 
 ## 현재 구현 상태
 
@@ -126,6 +127,7 @@ Durability는 얻지만 Schema IR/migration/backend abstraction을 우회하고 
 working-tree candidate에서 AUT-001..008은 `DEV-0004`, ADM-001..010은 `DEV-0005` 아래 exact `godjcheck`를 통과했고,
 `AUT-004` logout redirect는 surrogate가 아니라 Site login/logout/cookie 경계에서 관찰했습니다. CSRF missing/wrong/form/header와
 pre-login replay도 actual add/change POST 및 SQLite before/after로 검증했습니다. SQLite와 pinned PostgreSQL 17 login-to-logout flow,
-scoped 993/993/skip-0 inventory와 local normal/race/CGO0/vet이 통과했습니다. Session/user/audit는 여전히 process-lifetime이며 durable
-auth/session 또는 M6 completion을 주장하지 않습니다. Final frozen full/386/external-copy audit와 exact submitted-head hosted matrix가
-pending이므로 아직 Accepted 또는 bounded Verified로 승격하지 않습니다.
+frozen source `8bcfa213...`에서 scoped 993/993/skip-0 inventory, local normal/race/CGO0/vet, full `make ci`, Linux/386,
+898-file external archive와 independent audit가 통과했습니다. Session/user/audit는 여전히 process-lifetime이며 durable auth/session
+또는 M6 completion을 주장하지 않습니다. Exact submitted-head hosted matrix가 pending이므로 아직 Accepted 또는 bounded Verified로
+승격하지 않습니다.

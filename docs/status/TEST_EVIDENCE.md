@@ -11470,3 +11470,117 @@ returned P0/P1/P2/P3=`0/0/0/0` and made no change. With EVID-119..121's implemen
 timeout evidence, this unique corrected run is sufficient to accept ADR-0042, mark WEB-011..020 bounded
 hosted-`Verified` and complete GDJ-0042. Terminal documentation is a docs-only descendant and receives link/frontmatter/
 status consistency plus `git diff --check`, not another recursive product matrix.
+
+## EVID-20260824-123 — GDJ-0043 Template/Form/Auth/Admin Frozen Local Checkpoint
+
+- Date/time: completed through 2026-08-24T07:49:19+09:00
+- Work/contract IDs: GDJ-0043 active; ADR-0043/0044 Proposed; WEB-021..027, FRM-001..005, AUT-001..008 and
+  ADM-001..010 implemented/local-final but not hosted-`Verified`
+- Frozen source/conformance head: `8bcfa21371ed5fd1b7cb3ee2fb8e0041968f8daa`, tree
+  `3987668b302cc1b6e3cc18bd1b2f942de9d6f486`, subject `test: publish template auth and admin contracts`
+- Result: the bounded template/form/session/auth/CSRF/Article Admin vertical flow, three independent actual adapters,
+  sparse DEV-0003/0004/0005 expectations, SQLite and digest-pinned PostgreSQL flow, final local matrix, external archive
+  and independent audit passed. Exact submitted-head hosted CI, ADR acceptance, work completion, merge, release,
+  production readiness, durable user/session/audit and M5/M6 completion remain unclaimed.
+
+### Product and contract publication
+
+The product implementation was accumulated in independently reviewable checkpoints through template/forms
+`477ab6028aeeda735c87811a80b073ec513374cc`, immutable Admin registry `404a8903a1fdd0bad7f94aa895cec463dd1398a2`,
+session/auth/CSRF `a5ae33a4a91a51a454aa0e73973170acf3af3c20` and bounded Admin Site
+`b814e20b5e180d9e532edb4fa168522cf7747ba4`. Frozen source `8bcfa213...` publishes the exact 12/8/10 manifests and
+oracle-blind GoDj runners without rewriting any reference oracle.
+
+The 30 new product contracts classify as exact `25 passing + 5 reviewed deviation`:
+
+- DEV-0003 owns WEB-022 `result.attribute_fallback_shadowed` and `metrics.object_dictionary_lookups`, plus WEB-027
+  `result.auto_called`, `result.rendered_return_category` and `metrics.callable_invocations`.
+- DEV-0004 owns AUT-004 `result.redirect` plus AUT-005 `result.delete.http_only`,
+  `result.login.expires_present` and `result.login.max_age`.
+- DEV-0005 owns ADM-002 `result.actions` and `metrics.registered_models`.
+
+The current aggregate is reference 18 sets/201 contracts/306 ordered cross-bindings=
+`179 passing + 10 deviation + 12 oracle_locked`, and product 17 sets/189 contracts=
+`179 passing + 10 deviation + 0 oracle_locked`. MIG-075..086 remain the only locked/unregistered contracts.
+
+An initial independent audit found that WEB-022 had reported Django attribute/dictionary precedence from a weaker
+closed-Object observation. The final bytes instead report the absent attribute fallback/application callback honestly as
+`false/0` and route exactly those two selectors through DEV-0003. The same audit found the protocol mirror omitted the
+required PostgreSQL runserver sentinel; the final mirror locks all 14 required sentinels. After both corrections, the
+independent scoped audit returned P0/P1/P2/P3=`0/0/0/0`.
+
+### Affected, reference and backend gates
+
+The following boundaries passed on the frozen source tree. Environment URLs are represented by variables here; no
+credential or session secret is retained in evidence artifacts.
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off make conformance-check godj-conformance
+PATH="$PINNED_UV_0_10_12_DIR:$PATH" GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make oracle-check
+
+affected_packages=(
+  ./validation ./forms/... ./templates ./sessions ./auth ./web/sessionauth ./admin
+  ./examples/article/adminapp ./examples/article
+  ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol ./internal/compiletest
+)
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -count=1 "${affected_packages[@]}"
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -race -count=1 "${affected_packages[@]}"
+CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -count=1 "${affected_packages[@]}"
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go vet "${affected_packages[@]}"
+
+GODJ_TEST_POSTGRES_URL="$PINNED_POSTGRES_URL" GODJ_REQUIRE_POSTGRES=1 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...
+GODJ_TEST_POSTGRES_URL="$PINNED_POSTGRES_URL" GODJ_REQUIRE_POSTGRES=1 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...
+GODJ_TEST_POSTGRES_URL="$PINNED_POSTGRES_URL" GODJ_REQUIRE_POSTGRES=1 \
+  CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/...
+GODJ_TEST_POSTGRES_URL="$PINNED_POSTGRES_URL" GODJ_REQUIRE_POSTGRES=1 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go vet ./db/postgres ./examples/article ./conformance/postgresproduct/...
+```
+
+The PostgreSQL service used exact image
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`
+with UTF8/C/UTC initialization. `TestArticleAdminSitePostgresUserFlow` used the same
+login→list/search/page→invalid/valid change/add/delete→history→publish→logout flow as SQLite. Required mode made a
+missing backend fail closed rather than skip. Normal, race, CGO-disabled and vet all exited 0.
+
+The exact scoped inventory command covered schema/query/codegen/ORM/SQLite/migrations, every relation product package,
+migration-relation product, GDJ-0043 runners/checker/protocol and compile tests. Its top-level JSON inventory was
+993 run/993 pass/0 skip, 101,957 payload bytes, SHA-256
+`feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f`. The same runner/checker/protocol set also passed
+`-count=3 -shuffle=on`, focused race, CGO-disabled and vet.
+
+### Final local and external archive gates
+
+With cached exact uv 0.10.12 selected ahead of the machine's unrelated uv 0.12.3, the byte-identical pre-commit tree ran:
+
+```bash
+PATH="$PINNED_UV_0_10_12_DIR:$PATH" \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Both exited 0. `make ci` retained Article exact 12/SHA-256 `0af11c64...`, relation-delete exact 16/SHA-256
+`2a28734c...`, all-package normal/race, explicit CGO-disabled products, vet, 245 portable Python tests with 21 intentional
+exact-profile-only skips, contract validation and all 17 GoDj adapters. Creating commit `8bcfa213...` changed metadata,
+not the tested tree bytes.
+
+A guarded `.git`-free `git archive 8bcfa213...` contained 898 regular files. It passed `make generate-check` and
+all-package Linux/386 compile-only. The before/after sorted per-file content roster SHA-256 remained exactly
+`729b5486b73847629ba7b5e38921c111855d8ea21c9ce6a1d971ca1ae96e54eb`; file count and content did not drift. The
+temporary archive was moved recoverably to Trash after verification.
+
+One independent parallel `go test -count=1 ./...` attempt observed a pre-existing timing failure in unchanged
+`conformance/projectcheck.TestRunnerResponseWriteMetricSurvivesCanceledRawDiscard`. The same reviewer immediately got
+5/5 isolated passes; the integration owner got 20/20 isolated passes, and the authoritative full `make ci` normal and
+race legs both passed. This transient signal is preserved here rather than hidden and is not attributed to GDJ-0043.
+
+The next boundary is a documentation-only descendant commit, non-force push, Draft PR #1 refresh and one unique exact
+submitted-tree hosted matrix. Any source/workflow/artifact correction invalidates this local final and requires a new
+freeze. Hosted success is required before ADR-0043/0044 acceptance, DEV-0003..0005 `Verified`, GDJ-0043 completion or
+bounded hosted support claims.
