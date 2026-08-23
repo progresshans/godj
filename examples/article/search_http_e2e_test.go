@@ -111,9 +111,70 @@ func TestArticleHTTPBooleanSearchProjectionReportAndBounds(t *testing.T) {
 	assertArticleListMetadata(t, exactCapBody, 0, "", 0, 20, 0)
 	assertArticleQueryCount(t, backend, wantQueries)
 
+	if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES
+  (8, 'Go Mirror', TRUE, 'Go Mirror'),
+  (9, 'Go Split', TRUE, 'Elsewhere')`); err != nil {
+		t.Fatal(err)
+	}
+	rangeOnly := getBody(t, client, articleSearchURL(server.URL, url.Values{
+		"min_id": {"8"},
+		"max_id": {"9"},
+	}), http.StatusOK)
+	wantQueries += 2
+	assertArticleIDs(t, rangeOnly, []string{"8", "9"}, []string{"7"})
+	assertArticleListMetadata(t, rangeOnly, 2, "9", 0, 20, 2)
+	assertArticleQueryCount(t, backend, wantQueries)
+
+	beforeMatches := len(captured.snapshotPlans())
+	matchesSummary := getBody(t, client, articleSearchURL(server.URL, url.Values{
+		"q":                     {"go"},
+		"min_id":                {"8"},
+		"max_id":                {"9"},
+		"title_matches_summary": {"true"},
+	}), http.StatusOK)
+	wantQueries += 2
+	assertArticleIDs(t, matchesSummary, []string{"8"}, []string{"7", "9"})
+	assertArticleListMetadata(t, matchesSummary, 1, "8", 0, 20, 1)
+	assertArticleAdvancedFilterPlans(t, captured.snapshotPlans()[beforeMatches:], "go", 8, 9, true)
+	assertArticleQueryCount(t, backend, wantQueries)
+
+	beforeMismatches := len(captured.snapshotPlans())
+	mismatchesSummary := getBody(t, client, articleSearchURL(server.URL, url.Values{
+		"min_id":                {"1"},
+		"max_id":                {"8"},
+		"title_matches_summary": {"false"},
+	}), http.StatusOK)
+	wantQueries += 2
+	assertArticleIDs(t, mismatchesSummary, []string{"1", "2", "3", "4", "5", "6", "7"}, []string{"8", "9"})
+	assertArticleListMetadata(t, mismatchesSummary, 7, "7", 0, 20, 7)
+	assertArticleAdvancedFilterPlans(t, captured.snapshotPlans()[beforeMismatches:], "", 1, 8, false)
+	assertArticleQueryCount(t, backend, wantQueries)
+
+	zeroBoundary := getBody(t, client, articleSearchURL(server.URL, url.Values{"max_id": {"0"}}), http.StatusOK)
+	wantQueries += 2
+	assertArticleListMetadata(t, zeroBoundary, 0, "", 0, 20, 0)
+	maximumBoundary := getBody(t, client, articleSearchURL(server.URL, url.Values{
+		"min_id": {"9223372036854775807"},
+	}), http.StatusOK)
+	wantQueries += 2
+	assertArticleListMetadata(t, maximumBoundary, 0, "", 0, 20, 0)
+	assertArticleQueryCount(t, backend, wantQueries)
+
 	invalidQueries := []string{
 		"q=go&q=rust",
 		"exclude_title=draft&exclude_title=old",
+		"min_id=1&min_id=2",
+		"max_id=1&max_id=2",
+		"title_matches_summary=true&title_matches_summary=false",
+		"min_id=",
+		"max_id=",
+		"min_id=-1",
+		"min_id=+1",
+		"max_id=9223372036854775808",
+		"min_id=9&max_id=8",
+		"title_matches_summary=1",
+		"title_matches_summary=True",
+		"title_matches_summary=",
 		"q=" + strings.Repeat("a", 257),
 		"exclude_title=" + strings.Repeat("b", 257),
 		"q=" + url.QueryEscape(strings.Repeat("한", 86)),
@@ -232,6 +293,117 @@ func assertArticleBooleanSearchPlans(t *testing.T, plans []query.Plan, search st
 		t.Fatalf("third where child = kind %d/%d children, want NOT/1", root[2].Kind(), len(notChildren))
 	}
 	assertArticleSearchLeaf(t, notChildren[0], "title", query.LookupIContains, exclude, false)
+}
+
+func assertArticleAdvancedFilterPlans(t *testing.T, plans []query.Plan, search string, minID, maxID int64, matches bool) {
+	t.Helper()
+	if len(plans) != 2 {
+		t.Fatalf("advanced-filter query plans = %d, want exactly 2", len(plans))
+	}
+	page, report := plans[0], plans[1]
+	if page.ResultShape().Kind() != query.ResultProjection || report.ResultShape().Kind() != query.ResultAggregate {
+		t.Fatalf("advanced-filter result shapes = %q/%q, want projection/aggregate", page.ResultShape().Kind(), report.ResultShape().Kind())
+	}
+	projection := page.ResultShape().Expressions()
+	wantProjection := []string{"id", "title", "published", "summary"}
+	if len(projection) != len(wantProjection) {
+		t.Fatalf("advanced-filter projection cells = %d, want %d", len(projection), len(wantProjection))
+	}
+	for index, expression := range projection {
+		field, ok := expression.Field()
+		if expression.Kind() != query.ResultField || !ok || field.Name() != wantProjection[index] {
+			t.Fatalf("advanced-filter projection cell %d = kind %q field %q/%t, want field/%q/true", index, expression.Kind(), field.Name(), ok, wantProjection[index])
+		}
+	}
+	aggregates := report.ResultShape().Expressions()
+	if len(aggregates) != 2 || aggregates[0].Kind() != query.ResultCountAll || aggregates[1].Kind() != query.ResultMax {
+		t.Fatalf("advanced-filter report expressions = %#v, want COUNT(*) then MAX(id)", aggregates)
+	}
+	maximumField, ok := aggregates[1].Field()
+	if !ok || maximumField.Name() != "id" {
+		t.Fatalf("advanced-filter MAX field = %q/%t, want id/true", maximumField.Name(), ok)
+	}
+	pageWhere, pagePresent := page.Where()
+	reportWhere, reportPresent := report.Where()
+	if !pagePresent || !reportPresent || !pageWhere.Equal(reportWhere) {
+		t.Fatal("advanced-filter page and report did not retain the same filtered source")
+	}
+	if !page.Distinct() || !report.Distinct() {
+		t.Fatal("advanced-filter page and report did not retain Distinct")
+	}
+	orderings := page.Orderings()
+	if len(orderings) != 1 || orderings[0].Field().Name() != "id" || orderings[0].Direction() != query.Ascending {
+		t.Fatalf("advanced-filter page orderings = %#v, want stable ascending ID", orderings)
+	}
+	if offset, ok := page.Offset(); !ok || offset != 0 {
+		t.Fatalf("advanced-filter page offset = %d/%t, want 0/true", offset, ok)
+	}
+	if limit, ok := page.Limit(); !ok || limit != 20 {
+		t.Fatalf("advanced-filter page limit = %d/%t, want 20/true", limit, ok)
+	}
+	if len(report.Orderings()) != 0 {
+		t.Fatalf("advanced-filter report unexpectedly retained page ordering: %#v", report.Orderings())
+	}
+	if _, ok := report.Offset(); ok {
+		t.Fatal("advanced-filter report unexpectedly retained page offset")
+	}
+	if _, ok := report.Limit(); ok {
+		t.Fatal("advanced-filter report unexpectedly retained page limit")
+	}
+
+	root := pageWhere.Children()
+	wantChildren := 3
+	firstRangeChild := 0
+	if search != "" {
+		wantChildren = 4
+		firstRangeChild = 1
+	}
+	if pageWhere.Kind() != query.ExpressionAnd || len(root) != wantChildren {
+		t.Fatalf("advanced-filter where root = kind %d/%d children, want ordered AND/%d", pageWhere.Kind(), len(root), wantChildren)
+	}
+	if search != "" {
+		orChildren := root[0].Children()
+		if root[0].Kind() != query.ExpressionOr || len(orChildren) != 2 {
+			t.Fatalf("advanced-filter first child = kind %d/%d children, want OR/2", root[0].Kind(), len(orChildren))
+		}
+		assertArticleSearchLeaf(t, orChildren[0], "title", query.LookupIContains, search, false)
+		assertArticleSearchLeaf(t, orChildren[1], "summary", query.LookupIContains, search, false)
+	}
+	assertArticleIntegerLeaf(t, root[firstRangeChild], query.LookupGreaterThanOrEqual, minID)
+	assertArticleIntegerLeaf(t, root[firstRangeChild+1], query.LookupLessThanOrEqual, maxID)
+	fieldExpression := root[firstRangeChild+2]
+	if !matches {
+		children := fieldExpression.Children()
+		if fieldExpression.Kind() != query.ExpressionNot || len(children) != 1 {
+			t.Fatalf("title mismatch expression = kind %d/%d children, want NOT/1", fieldExpression.Kind(), len(children))
+		}
+		fieldExpression = children[0]
+	}
+	assertArticleFieldLeaf(t, fieldExpression, "title", query.LookupExact, "summary")
+}
+
+func assertArticleIntegerLeaf(t *testing.T, expression query.Expression, lookup query.Lookup, want int64) {
+	t.Helper()
+	condition, ok := expression.Condition()
+	if expression.Kind() != query.ExpressionLeaf || !ok || condition.Field().Name() != "id" || condition.Lookup() != lookup {
+		t.Fatalf("integer leaf = kind %d field %q lookup %q, want leaf/id/%q", expression.Kind(), condition.Field().Name(), condition.Lookup(), lookup)
+	}
+	value, ok := condition.Value().Integer()
+	if !ok || value != want {
+		t.Fatalf("integer leaf value = %d/%t, want %d/true", value, ok, want)
+	}
+}
+
+func assertArticleFieldLeaf(t *testing.T, expression query.Expression, field string, lookup query.Lookup, right string) {
+	t.Helper()
+	condition, ok := expression.Condition()
+	if expression.Kind() != query.ExpressionLeaf || !ok || condition.Field().Name() != field || condition.Lookup() != lookup {
+		t.Fatalf("field leaf = kind %d field %q lookup %q, want leaf/%q/%q", expression.Kind(), condition.Field().Name(), condition.Lookup(), field, lookup)
+	}
+	rightField, ok := condition.RHSField()
+	if !ok || rightField.Name() != right {
+		t.Fatalf("field leaf RHS = %q/%t, want %q/true", rightField.Name(), ok, right)
+	}
 }
 
 func assertArticleSearchLeaf(t *testing.T, expression query.Expression, field string, lookup query.Lookup, text string, boolean bool) {

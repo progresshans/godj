@@ -1960,6 +1960,40 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			},
 		},
 		{
+			name:    "field reference model mismatch",
+			fixture: "field_reference_model_mismatch.go.txt",
+			wantFragments: []string{
+				"orm.F(otherTitle)",
+				"orm.FieldReference[models.Article, string]",
+			},
+		},
+		{
+			name:    "field reference kind mismatch",
+			fixture: "field_reference_kind_mismatch.go.txt",
+			wantFragments: []string{
+				"orm.F(models.ArticleFields.ID)",
+				"orm.FieldReference[models.Article, string]",
+			},
+		},
+		{
+			name:    "Boolean field reference is unsupported",
+			fixture: "field_reference_boolean_unsupported.go.txt",
+			wantFragments: []string{
+				"models.ArticleFields.Published",
+				"does not match orm.ReferenceField",
+				"cannot infer M and V",
+			},
+		},
+		{
+			name:    "relation field reference is unsupported",
+			fixture: "field_reference_relation_unsupported.go.txt",
+			wantFragments: []string{
+				"orm.RelatedStringField[Article]",
+				"does not match orm.ReferenceField",
+				"cannot infer M and V",
+			},
+		},
+		{
 			name:    "descriptor model mismatch",
 			fixture: "descriptor_model_mismatch.go.txt",
 			wantFragments: []string{

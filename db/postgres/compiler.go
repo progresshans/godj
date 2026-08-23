@@ -92,7 +92,7 @@ func compileScalarSelect(
 	}
 	statement.WriteString(table)
 
-	arguments, err := appendWhere(&statement, where, scalarWhereField)
+	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField)
 	if err != nil {
 		return "", nil, err
 	}
@@ -197,7 +197,7 @@ func compileDirectAggregate(
 	statement.WriteString(" FROM ")
 	statement.WriteString(table)
 
-	arguments, err := appendWhere(&statement, where, scalarWhereField)
+	arguments, err := appendWhere(&statement, where, scalarWhereField, scalarWhereRHSField)
 	if err != nil {
 		return "", nil, err
 	}
@@ -326,6 +326,9 @@ func (a *whereAnalyzer) analyzeLeaf(condition query.Condition, relationAtRootCon
 		if !containsField(a.sourceFields, condition.Field()) {
 			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
 		}
+		if right, ok := condition.RHSField(); ok && !containsField(a.sourceFields, right) {
+			return whereLeaf{}, invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
+		}
 		return whereLeaf{}, nil
 	}
 	if !relationAtRootConjunction {
@@ -391,11 +394,33 @@ func validateWhereCondition(condition query.Condition) error {
 	default:
 		return invalidPlan(fmt.Sprintf("condition field %q has unsupported kind %q", field.Name(), field.Kind()))
 	}
+	if right, ok := condition.RHSField(); ok {
+		if _, related := condition.RelationPath(); related {
+			return invalidPlan("PostgreSQL relation conditions cannot use a field right-hand side")
+		}
+		if err := validateIdentifier(right.Name()); err != nil {
+			return invalidPlan("condition right-hand-side field name " + err.Error())
+		}
+		if err := validateIdentifier(right.Column()); err != nil {
+			return invalidPlan("condition right-hand-side field column " + err.Error())
+		}
+		if right.Kind() != field.Kind() || (field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
+			return invalidPlan("PostgreSQL field comparison requires same-kind Integer or String fields")
+		}
+		if condition.Lookup() != query.LookupExact && !orderedComparisonLookup(condition.Lookup()) {
+			return unsupportedLookup(field, condition.Lookup())
+		}
+		return nil
+	}
 
 	switch condition.Lookup() {
 	case query.LookupExact:
 		if !valueMatchesField(condition.Value().Kind(), field.Kind()) {
 			return invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", condition.Value().Kind(), field.Name()))
+		}
+	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
+		if !orderedValueMatchesField(condition.Value().Kind(), field.Kind()) {
+			return unsupportedLookup(field, condition.Lookup())
 		}
 	case query.LookupIContains:
 		if _, ok := condition.Value().String(); field.Kind() != query.FieldString || !ok {
@@ -419,22 +444,28 @@ func validateWhereCondition(condition query.Condition) error {
 }
 
 type whereFieldResolver func(query.Condition) (string, error)
+type whereRHSFieldResolver func(query.FieldRef) (string, error)
 
 func scalarWhereField(condition query.Condition) (string, error) {
 	return quoteIdentifier(condition.Field().Column())
+}
+
+func scalarWhereRHSField(field query.FieldRef) (string, error) {
+	return quoteIdentifier(field.Column())
 }
 
 func appendWhere(
 	statement *strings.Builder,
 	where whereAnalysis,
 	resolveField whereFieldResolver,
+	resolveRHSField whereRHSFieldResolver,
 ) ([]any, error) {
 	arguments := make([]any, 0, len(where.leaves))
 	if !where.present {
 		return arguments, nil
 	}
 	statement.WriteString(" WHERE ")
-	if err := appendWhereExpression(statement, where.expression, resolveField, &arguments, false); err != nil {
+	if err := appendWhereExpression(statement, where.expression, resolveField, resolveRHSField, &arguments, false); err != nil {
 		return nil, err
 	}
 	return arguments, nil
@@ -444,6 +475,7 @@ func appendWhereExpression(
 	statement *strings.Builder,
 	expression query.Expression,
 	resolveField whereFieldResolver,
+	resolveRHSField whereRHSFieldResolver,
 	arguments *[]any,
 	negated bool,
 ) error {
@@ -458,17 +490,32 @@ func appendWhereExpression(
 		if err != nil {
 			return err
 		}
+		rightField, hasRightField := condition.RHSField()
+		right := ""
+		if hasRightField {
+			right, err = resolveRHSField(rightField)
+			if err != nil {
+				return err
+			}
+		}
 		statement.WriteString(field)
-		conditionArguments, err := compileCondition(statement, condition, len(*arguments)+1)
+		conditionArguments, err := compileCondition(statement, condition, right, len(*arguments)+1)
 		if err != nil {
 			return err
 		}
 		*arguments = append(*arguments, conditionArguments...)
 		_, related := condition.RelationPath()
-		if negated && !related && condition.Field().Nullable() && nullableNegationGuard(condition.Lookup()) {
-			statement.WriteString(" AND ")
-			statement.WriteString(field)
-			statement.WriteString(" IS NOT NULL")
+		if negated && !related && nullableNegationGuard(condition.Lookup()) {
+			if condition.Field().Nullable() {
+				statement.WriteString(" AND ")
+				statement.WriteString(field)
+				statement.WriteString(" IS NOT NULL")
+			}
+			if hasRightField && rightField.Nullable() && !rightField.Equal(condition.Field()) {
+				statement.WriteString(" AND ")
+				statement.WriteString(right)
+				statement.WriteString(" IS NOT NULL")
+			}
 		}
 	case query.ExpressionAnd, query.ExpressionOr:
 		children := expression.Children()
@@ -480,14 +527,14 @@ func appendWhereExpression(
 			if index > 0 {
 				statement.WriteString(operator)
 			}
-			if err := appendWhereExpression(statement, child, resolveField, arguments, negated); err != nil {
+			if err := appendWhereExpression(statement, child, resolveField, resolveRHSField, arguments, negated); err != nil {
 				return err
 			}
 		}
 	case query.ExpressionNot:
 		children := expression.Children()
 		statement.WriteString("NOT ")
-		if err := appendWhereExpression(statement, children[0], resolveField, arguments, !negated); err != nil {
+		if err := appendWhereExpression(statement, children[0], resolveField, resolveRHSField, arguments, !negated); err != nil {
 			return err
 		}
 	default:
@@ -499,7 +546,8 @@ func appendWhereExpression(
 
 func nullableNegationGuard(lookup query.Lookup) bool {
 	switch lookup {
-	case query.LookupExact, query.LookupIContains, query.LookupIn:
+	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
+		query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn:
 		return true
 	default:
 		return false
@@ -793,7 +841,10 @@ func compileRelation(
 		}
 		return quoteQualified(alias, condition.Field().Column())
 	}
-	arguments, err := appendWhere(&statement, where, resolveField)
+	resolveRHSField := func(field query.FieldRef) (string, error) {
+		return quoteQualified(rootAlias, field.Column())
+	}
+	arguments, err := appendWhere(&statement, where, resolveField, resolveRHSField)
 	if err != nil {
 		return "", nil, err
 	}
@@ -956,19 +1007,33 @@ func compareRelationJoinKey(left, right relationJoinKey) int {
 	return 0
 }
 
-func compileCondition(statement *strings.Builder, condition query.Condition, firstArgument int) ([]any, error) {
+func compileCondition(statement *strings.Builder, condition query.Condition, rightField string, firstArgument int) ([]any, error) {
 	field := condition.Field()
 	value := condition.Value()
 	switch condition.Lookup() {
-	case query.LookupExact:
-		if !valueMatchesField(value.Kind(), field.Kind()) {
-			return nil, invalidPlan(fmt.Sprintf("exact value kind %q does not match field %q", value.Kind(), field.Name()))
+	case query.LookupExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
+		query.LookupLessThan, query.LookupLessThanOrEqual:
+		operator := comparisonOperator(condition.Lookup())
+		if _, fieldRHS := condition.RHSField(); fieldRHS {
+			if rightField == "" {
+				return nil, invalidPlan("PostgreSQL field comparison binding is missing")
+			}
+			statement.WriteString(operator)
+			statement.WriteString(rightField)
+			return nil, nil
+		}
+		matches := valueMatchesField(value.Kind(), field.Kind())
+		if condition.Lookup() != query.LookupExact {
+			matches = orderedValueMatchesField(value.Kind(), field.Kind())
+		}
+		if !matches {
+			return nil, invalidPlan(fmt.Sprintf("comparison value kind %q does not match field %q", value.Kind(), field.Name()))
 		}
 		argument, err := value.DatabaseValue()
 		if err != nil {
 			return nil, err
 		}
-		statement.WriteString(" = ")
+		statement.WriteString(operator)
 		statement.WriteString(placeholder(firstArgument))
 		return []any{argument}, nil
 	case query.LookupIContains:
@@ -1013,6 +1078,37 @@ func compileCondition(statement *strings.Builder, condition query.Condition, fir
 		return arguments, nil
 	default:
 		return nil, unsupportedLookup(field, condition.Lookup())
+	}
+}
+
+func orderedComparisonLookup(lookup query.Lookup) bool {
+	switch lookup {
+	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
+		return true
+	default:
+		return false
+	}
+}
+
+func orderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
+	return value == query.ValueInteger && field == query.FieldInteger ||
+		value == query.ValueString && field == query.FieldString
+}
+
+func comparisonOperator(lookup query.Lookup) string {
+	switch lookup {
+	case query.LookupExact:
+		return " = "
+	case query.LookupGreaterThan:
+		return " > "
+	case query.LookupGreaterThanOrEqual:
+		return " >= "
+	case query.LookupLessThan:
+		return " < "
+	case query.LookupLessThanOrEqual:
+		return " <= "
+	default:
+		return ""
 	}
 }
 

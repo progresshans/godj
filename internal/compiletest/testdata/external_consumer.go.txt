@@ -19,8 +19,13 @@ func BuildArticleQuery(backend db.Queryer) (orm.QuerySet[models.Article], error)
 		models.ArticleFields.Published.Exact(true),
 		orm.Not(models.ArticleFields.Title.IContains("draft")),
 	)
+	advanced := orm.And(
+		models.ArticleFields.ID.GreaterThanOrEqual(1),
+		models.ArticleFields.ID.LessThanOrEqual(100),
+		models.ArticleFields.Title.ExactField(orm.F(models.ArticleFields.Summary)),
+	)
 	querySet := models.ArticleObjects.Using(backend).
-		Filter(search, visibility).
+		Filter(search, visibility, advanced).
 		OrderBy(models.ArticleFields.ID.Desc())
 	return querySet.Limit(2)
 }

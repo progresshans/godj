@@ -107,6 +107,21 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 			articlemodels.ArticleFields.Title.IContains(*options.ExcludeTitle),
 		))
 	}
+	if options.MinID != nil {
+		matching = matching.Filter(articlemodels.ArticleFields.ID.GreaterThanOrEqual(*options.MinID))
+	}
+	if options.MaxID != nil {
+		matching = matching.Filter(articlemodels.ArticleFields.ID.LessThanOrEqual(*options.MaxID))
+	}
+	if options.TitleMatchesSummary != nil {
+		matchesSummary := articlemodels.ArticleFields.Title.ExactField(
+			orm.F(articlemodels.ArticleFields.Summary),
+		)
+		if !*options.TitleMatchesSummary {
+			matchesSummary = orm.Not(matchesSummary)
+		}
+		matching = matching.Filter(matchesSummary)
+	}
 	matching = matching.Distinct()
 	pageQuery, err := matching.
 		OrderBy(articlemodels.ArticleFields.ID.Asc()).
@@ -169,11 +184,14 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 }
 
 type articleListOptions struct {
-	Query        *string
-	Published    *bool
-	ExcludeTitle *string
-	Offset       int
-	Limit        int
+	Query               *string
+	Published           *bool
+	ExcludeTitle        *string
+	MinID               *int64
+	MaxID               *int64
+	TitleMatchesSummary *bool
+	Offset              int
+	Limit               int
 }
 
 func parseArticleListOptions(request *web.Request) (articleListOptions, error) {
@@ -231,7 +249,46 @@ func parseArticleListOptions(request *web.Request) (articleListOptions, error) {
 		}
 		options.Limit = int(limit)
 	}
+	if id, present, err := articleListIDQueryValue(values, "min_id"); err != nil {
+		return articleListOptions{}, err
+	} else if present {
+		options.MinID = &id
+	}
+	if id, present, err := articleListIDQueryValue(values, "max_id"); err != nil {
+		return articleListOptions{}, err
+	} else if present {
+		options.MaxID = &id
+	}
+	if raw, present, err := articleListQueryValue(values, "title_matches_summary"); err != nil {
+		return articleListOptions{}, err
+	} else if present {
+		var titleMatchesSummary bool
+		switch raw {
+		case "true":
+			titleMatchesSummary = true
+		case "false":
+			titleMatchesSummary = false
+		default:
+			return articleListOptions{}, invalidArticleListQuery("title_matches_summary must be true or false")
+		}
+		options.TitleMatchesSummary = &titleMatchesSummary
+	}
+	if options.MinID != nil && options.MaxID != nil && *options.MinID > *options.MaxID {
+		return articleListOptions{}, invalidArticleListQuery("min_id must not exceed max_id")
+	}
 	return options, nil
+}
+
+func articleListIDQueryValue(values url.Values, name string) (int64, bool, error) {
+	raw, present, err := articleListQueryValue(values, name)
+	if err != nil || !present {
+		return 0, present, err
+	}
+	value, parseErr := parseArticleListUnsigned(raw)
+	if parseErr != nil || value > math.MaxInt64 {
+		return 0, false, invalidArticleListQuery(name + " is outside the supported range")
+	}
+	return int64(value), true, nil
 }
 
 func articleListBoundedTextQueryValue(values url.Values, name string) (string, bool, error) {

@@ -58,6 +58,22 @@ func (f IntegerField[M]) Exact(value int64) Predicate[M] {
 	return f.field.predicate(query.LookupExact, query.Integer(value))
 }
 
+func (f IntegerField[M]) GreaterThan(value int64) Predicate[M] {
+	return f.field.predicate(query.LookupGreaterThan, query.Integer(value))
+}
+
+func (f IntegerField[M]) GreaterThanOrEqual(value int64) Predicate[M] {
+	return f.field.predicate(query.LookupGreaterThanOrEqual, query.Integer(value))
+}
+
+func (f IntegerField[M]) LessThan(value int64) Predicate[M] {
+	return f.field.predicate(query.LookupLessThan, query.Integer(value))
+}
+
+func (f IntegerField[M]) LessThanOrEqual(value int64) Predicate[M] {
+	return f.field.predicate(query.LookupLessThanOrEqual, query.Integer(value))
+}
+
 func (f IntegerField[M]) IsNull(value bool) Predicate[M] {
 	return f.field.predicate(query.LookupIsNull, query.Boolean(value))
 }
@@ -67,6 +83,22 @@ func (f IntegerField[M]) Desc() Ordering[M] { return f.field.ordering(query.Desc
 
 func (f StringField[M]) Exact(value string) Predicate[M] {
 	return f.field.predicate(query.LookupExact, query.String(value))
+}
+
+func (f StringField[M]) GreaterThan(value string) Predicate[M] {
+	return f.field.predicate(query.LookupGreaterThan, query.String(value))
+}
+
+func (f StringField[M]) GreaterThanOrEqual(value string) Predicate[M] {
+	return f.field.predicate(query.LookupGreaterThanOrEqual, query.String(value))
+}
+
+func (f StringField[M]) LessThan(value string) Predicate[M] {
+	return f.field.predicate(query.LookupLessThan, query.String(value))
+}
+
+func (f StringField[M]) LessThanOrEqual(value string) Predicate[M] {
+	return f.field.predicate(query.LookupLessThanOrEqual, query.String(value))
 }
 
 func (f StringField[M]) IContains(value string) Predicate[M] {
@@ -82,6 +114,22 @@ func (f StringField[M]) Desc() Ordering[M] { return f.field.ordering(query.Desce
 
 func (f NullableStringField[M]) Exact(value string) Predicate[M] {
 	return f.field.predicate(query.LookupExact, query.String(value))
+}
+
+func (f NullableStringField[M]) GreaterThan(value string) Predicate[M] {
+	return f.field.predicate(query.LookupGreaterThan, query.String(value))
+}
+
+func (f NullableStringField[M]) GreaterThanOrEqual(value string) Predicate[M] {
+	return f.field.predicate(query.LookupGreaterThanOrEqual, query.String(value))
+}
+
+func (f NullableStringField[M]) LessThan(value string) Predicate[M] {
+	return f.field.predicate(query.LookupLessThan, query.String(value))
+}
+
+func (f NullableStringField[M]) LessThanOrEqual(value string) Predicate[M] {
+	return f.field.predicate(query.LookupLessThanOrEqual, query.String(value))
 }
 
 func (f NullableStringField[M]) IContains(value string) Predicate[M] {
@@ -138,6 +186,17 @@ func newField[M any](metadata ir.Field, kind query.FieldKind, expectedKind ir.Fi
 
 func (f field[M]) predicate(lookup query.Lookup, value query.Value) Predicate[M] {
 	return predicateFromCondition[M](query.NewCondition(f.reference, lookup, value), f.err)
+}
+
+func (f field[M]) fieldPredicate(lookup query.Lookup, right query.FieldRef, rightErr error) Predicate[M] {
+	if f.err != nil {
+		return Predicate[M]{err: f.err}
+	}
+	if rightErr != nil {
+		return Predicate[M]{err: rightErr}
+	}
+	condition, err := query.NewFieldCondition(f.reference, lookup, right)
+	return predicateFromCondition[M](condition, err)
 }
 
 func (f field[M]) ordering(direction query.Direction) Ordering[M] {

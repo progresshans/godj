@@ -304,7 +304,13 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 			if !containsField(columns, condition.Field()) {
 				return "", nil, invalidPlan(fmt.Sprintf("condition field %q is not selected model metadata", condition.Field().Name()))
 			}
+			if right, ok := condition.RHSField(); ok && !containsField(columns, right) {
+				return "", nil, invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
+			}
 			continue
+		}
+		if _, ok := condition.RHSField(); ok {
+			return "", nil, invalidPlan("SQLite relation conditions cannot use a field-reference right-hand side")
 		}
 		if condition.Lookup() == query.LookupIn {
 			return "", nil, invalidPlan("SQLite IN conditions cannot traverse a relation path")
@@ -505,6 +511,13 @@ func compileRelation(plan query.Plan, where *sqliteWhereAnalysis) (string, []any
 			return "", nil, err
 		}
 		leaf.fieldSQL = field
+		if right, ok := leaf.condition.RHSField(); ok {
+			rhsField, err := quoteQualified(rootAlias, right.Column())
+			if err != nil {
+				return "", nil, err
+			}
+			leaf.rhsFieldSQL = rhsField
+		}
 	}
 	arguments, err := appendWhere(&sql, where)
 	if err != nil {
@@ -699,8 +712,29 @@ func quoteQualified(alias, column string) (string, error) {
 	return quotedAlias + "." + quotedColumn, nil
 }
 
-func compileCondition(sql *strings.Builder, condition query.Condition) ([]any, error) {
+func compileCondition(sql *strings.Builder, condition query.Condition, rhsFieldSQL string) ([]any, error) {
 	field := condition.Field()
+	if right, ok := condition.RHSField(); ok {
+		if rhsFieldSQL == "" {
+			return nil, invalidPlan("SQLite field comparison is missing its right-hand-side binding")
+		}
+		if field.Kind() != right.Kind() ||
+			(field.Kind() != query.FieldInteger && field.Kind() != query.FieldString) {
+			return nil, invalidPlan("SQLite field comparison requires same-kind Integer or String fields")
+		}
+		operator, ok := comparisonOperator(condition.Lookup())
+		if !ok {
+			return nil, invalidPlan("SQLite field comparison requires exact or ordered comparison")
+		}
+		sql.WriteByte(' ')
+		sql.WriteString(operator)
+		sql.WriteByte(' ')
+		sql.WriteString(rhsFieldSQL)
+		return nil, nil
+	}
+	if rhsFieldSQL != "" {
+		return nil, invalidPlan("SQLite literal condition contains an unexpected right-hand-side field binding")
+	}
 	value := condition.Value()
 	switch condition.Lookup() {
 	case query.LookupExact:
@@ -712,6 +746,19 @@ func compileCondition(sql *strings.Builder, condition query.Condition) ([]any, e
 			return nil, err
 		}
 		sql.WriteString(" = ?")
+		return []any{argument}, nil
+	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
+		if !orderedValueMatchesField(value.Kind(), field.Kind()) {
+			return nil, invalidPlan(fmt.Sprintf("ordered value kind %q does not match field %q", value.Kind(), field.Name()))
+		}
+		argument, err := value.DatabaseValue()
+		if err != nil {
+			return nil, err
+		}
+		operator, _ := comparisonOperator(condition.Lookup())
+		sql.WriteByte(' ')
+		sql.WriteString(operator)
+		sql.WriteString(" ?")
 		return []any{argument}, nil
 	case query.LookupIContains:
 		text, ok := value.String()
@@ -753,6 +800,23 @@ func compileCondition(sql *strings.Builder, condition query.Condition) ([]any, e
 		return arguments, nil
 	default:
 		return nil, unsupportedLookup(field, condition.Lookup())
+	}
+}
+
+func comparisonOperator(lookup query.Lookup) (string, bool) {
+	switch lookup {
+	case query.LookupExact:
+		return "=", true
+	case query.LookupGreaterThan:
+		return ">", true
+	case query.LookupGreaterThanOrEqual:
+		return ">=", true
+	case query.LookupLessThan:
+		return "<", true
+	case query.LookupLessThanOrEqual:
+		return "<=", true
+	default:
+		return "", false
 	}
 }
 
@@ -816,6 +880,11 @@ func valueMatchesField(value query.ValueKind, field query.FieldKind) bool {
 	return (value == query.ValueInteger && field == query.FieldInteger) ||
 		(value == query.ValueString && field == query.FieldString) ||
 		(value == query.ValueBoolean && field == query.FieldBoolean)
+}
+
+func orderedValueMatchesField(value query.ValueKind, field query.FieldKind) bool {
+	return (value == query.ValueInteger && field == query.FieldInteger) ||
+		(value == query.ValueString && field == query.FieldString)
 }
 
 func invalidPlan(detail string) error {

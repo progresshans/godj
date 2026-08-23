@@ -1,6 +1,6 @@
 # ADR-0041: typed scalar comparison과 same-model field reference를 하나의 condition RHS로 표현한다
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-23
 - 관련 work/contract: GDJ-0041, QRY-044..053, Q-011, M4
 - 대체하는 ADR: 없음
@@ -41,14 +41,16 @@ promotion, NULL propagation, backend capability와 annotation ownership까지 �
 Generated field를 `orm.F`로 감싸 model/value type을 보존하고, condition은 literal/list/field reference 중 하나만
 소유합니다. Arithmetic/function capability를 열지 않은 채 exact/range lookup만 field RHS를 받을 수 있습니다.
 
-## 제안 결정
+## 결정
 
-선택지 C를 Phase A compile/differential proof의 대상으로 삼습니다.
+선택지 C를 채택합니다. Phase A의 pinned Django 6.1 reference와 외부 모듈 compile proof에서 아래 공개
+경계와 nullable complement가 확인됐습니다.
 
 - `orm.F(typedField)`는 immutable sealed `FieldReference[M, V]`를 만듭니다.
 - Integer/String literal에는 `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`을 추가합니다.
-- Same-model Integer/String reference는 별도 explicit comparison method로 받고 `exact`/`gt`/`gte`/`lt`/`lte`만
-  허용합니다. Boolean field reference는 이번 public/AST 범위에 넣지 않습니다.
+- Same-model Integer/String reference는 `ExactField`, `GreaterThanField`, `GreaterThanOrEqualField`,
+  `LessThanField`, `LessThanOrEqualField`로 받고 `exact`/`gt`/`gte`/`lt`/`lte`만 허용합니다. Boolean field
+  reference는 이번 public/AST 범위에 넣지 않습니다.
 - Dynamic lookup은 typed scalar literal `gt`/`gte`/`lt`/`lte`만 허용하며 dynamic field-reference parser는 만들지 않습니다.
 - Query condition은 literal scalar, list, field reference가 동시에 존재하지 못하는 private discriminated union으로
   검증합니다. Field RHS kind는 LHS와 같고 source field inventory에 포함되어야 합니다.
@@ -57,11 +59,11 @@ Generated field를 `orm.F`로 감싸 model/value type을 보존하고, condition
   source라고 식별하는 runtime claim은 하지 않습니다. Typed `orm.F`의 model parameter가 정상 public 호출의
   cross-model 혼합을 compile time에 거부합니다.
 - SQLite/PostgreSQL은 field RHS를 quote된 identifier로 출력하고 argument/placeholder를 소비하지 않습니다.
-- Nullable negation은 LHS와 RHS field의 nullability를 모두 고려하되 exact rule은 QRY-044..053 reference 결과로
-  acceptance 전에 고정합니다.
+- Nullable negation은 홀수 `NOT`에서 nullable LHS와 nullable field RHS에 각각 `IS NOT NULL` guard를 넣고,
+  같은 field가 양쪽 operand면 guard를 한 번만 냅니다. 짝수 `NOT`에는 guard를 넣지 않습니다. 이 규칙은
+  QRY-050/051의 Django observable complement를 보존합니다.
 
-정확한 public method spelling은 external consumer compile proof에서 결정합니다. 병렬 legacy alias나 reflection 기반
-general expression fallback은 만들지 않습니다.
+병렬 legacy alias나 reflection 기반 general expression fallback은 만들지 않습니다.
 
 ## 결과
 
@@ -85,4 +87,6 @@ general expression fallback은 만들지 않습니다.
 - SQLite/PostgreSQL unit/integration은 literal/reference mixed DFS, placeholder count, nullable odd/even NOT과 malformed
   union/source/relation rejection을 검증합니다.
 - Article advanced filter는 invalid input DB I/O 0, success request projection+aggregate 정확히 2 query를 검증합니다.
-- Phase A proof 뒤 이 ADR을 Accepted 또는 Rejected로 명시 전환하기 전에는 public source를 게시하지 않습니다.
+- Phase A proof는 exact Django 전체 239/239, QRY-034..043 observation-prefix 동일성, same-model/same-kind external
+  compile과 cross-model/kind/Boolean/relation compile-fail을 통과했습니다. 제품·actual·hosted 검증은 active work의
+  후속 phase에서 별도로 기록합니다.

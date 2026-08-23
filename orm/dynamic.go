@@ -97,6 +97,8 @@ func supportedLookup(field ir.Field, name string) (query.Lookup, bool) {
 	switch lookup {
 	case query.LookupExact:
 		return lookup, true
+	case query.LookupGreaterThan, query.LookupGreaterThanOrEqual, query.LookupLessThan, query.LookupLessThanOrEqual:
+		return lookup, field.Kind == ir.FieldAuto || field.Kind == ir.FieldChar
 	case query.LookupIsNull:
 		return lookup, true
 	case query.LookupIContains:

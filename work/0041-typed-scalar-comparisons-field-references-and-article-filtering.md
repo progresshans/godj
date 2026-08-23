@@ -98,7 +98,7 @@ GET /articles/?q=go&min_id=10&max_id=100&title_matches_summary=true
   `e390b025880e1c62c9f0dbea60b683487ebbdca6`
 - [ADR-0040](../docs/adr/0040-composable-typed-boolean-predicates-and-article-search.md)의 one-tree/nullable-NOT 경계와
   [ADR-0039](../docs/adr/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)의 source/result 경계를 보존합니다.
-- [ADR-0041](../docs/adr/0041-typed-scalar-comparisons-and-field-references.md)은 compile/reference proof 전 Proposed입니다.
+- [ADR-0041](../docs/adr/0041-typed-scalar-comparisons-and-field-references.md)은 Phase A compile/reference proof로 Accepted입니다.
 - Dirty 사용자 파일은 없고 Draft PR #1은 merge/release하지 않습니다.
 
 ## Django Reference / Contract
@@ -132,21 +132,21 @@ rows/context/cache lifetime과 Article pre-I/O 400/query count는 Go-native gate
 
 ### Phase A — reference and public boundary
 
-- [ ] QRY-044..053 independent Django scenarios/tests와 exact payload/provenance
-- [ ] manifest/oracle/static fixture/checksum과 no-artifact-read safety
-- [ ] typed literal/`orm.F` external compile usability와 ADR-0041 acceptance decision
+- [x] QRY-044..053 independent Django scenarios/tests와 exact payload/provenance
+- [x] manifest/oracle/static fixture/checksum과 no-artifact-read safety
+- [x] typed literal/`orm.F` external compile usability와 ADR-0041 acceptance decision
 
 ### Phase B — one typed AST/API
 
-- [ ] lookup/RHS union, validation, equality/clone/source binding
-- [ ] typed Integer/String literal comparisons, same-model F references와 dynamic literal lookup
-- [ ] invalid/cross-model/source-inventory/mismatched-kind/relation pre-I/O tests
+- [x] lookup/RHS union, validation, equality/clone/source binding
+- [x] typed Integer/String literal comparisons, same-model F references와 dynamic literal lookup
+- [x] invalid/cross-model/source-inventory/mismatched-kind/relation pre-I/O tests
 
 ### Phase C — parallel backend and user flow
 
-- [ ] SQLite identifier RHS compiler, nullable NOT and actual integration
-- [ ] PostgreSQL identifier RHS compiler, placeholder order and actual integration
-- [ ] Article bounded range/F filtering, pre-I/O 400, exactly-two-query rendered parity
+- [x] SQLite identifier RHS compiler, nullable NOT and actual integration
+- [x] PostgreSQL identifier RHS compiler, placeholder order and actual integration
+- [x] Article bounded range/F filtering, pre-I/O 400, exactly-two-query rendered parity
 - [ ] oracle-blind GoDj/SQLite QRY-044..053 actual adapter
 
 ### Phase D — hardening
@@ -175,9 +175,10 @@ rows/context/cache lifetime과 Article pre-I/O 400/query count는 Go-native gate
 
 ## 현재 체크포인트와 다음 정확한 작업
 
-Activation baseline과 Proposed ADR-0041을 고정했습니다. 먼저 QRY-044..053 Django scenario의 exact observable
-payload와 nullable field-reference negation을 독립 관찰하고, 동시에 proposed typed `orm.F` API가 external module에서
-compile되는지 확인합니다. 그 결과로 ADR-0041을 Accepted 전환한 뒤 query/ORM과 두 backend를 병렬 구현합니다.
+Phase A reference-only 계약과 Accepted ADR-0041을 고정했습니다. Exact Django 전체 239/239와 QRY-034..043
+observation-prefix 동일성을 확인했고, typed `orm.F` external compile 및 cross-model/kind/Boolean/relation compile-fail을
+통과했습니다. 다음은 이미 병렬 구현한 query/ORM·SQLite/PostgreSQL·Article source를 하나의 affected checkpoint로
+통합하고, oracle-blind GoDj/SQLite QRY-044..053 actual adapter를 붙이는 작업입니다.
 
 ## 위험과 rollback
 

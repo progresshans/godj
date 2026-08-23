@@ -22,10 +22,11 @@ type sqliteWhereAnalysis struct {
 }
 
 type sqliteWhereNode struct {
-	kind      query.ExpressionKind
-	condition query.Condition
-	children  []*sqliteWhereNode
-	fieldSQL  string
+	kind        query.ExpressionKind
+	condition   query.Condition
+	children    []*sqliteWhereNode
+	fieldSQL    string
+	rhsFieldSQL string
 }
 
 func analyzeWhere(plan query.Plan) (*sqliteWhereAnalysis, error) {
@@ -144,6 +145,16 @@ func bindScalarWhere(analysis *sqliteWhereAnalysis, sourceFields []query.FieldRe
 			return err
 		}
 		leaf.fieldSQL = field
+		if right, ok := condition.RHSField(); ok {
+			if !containsField(sourceFields, right) {
+				return invalidPlan(fmt.Sprintf("condition right-hand-side field %q is not selected model metadata", right.Name()))
+			}
+			rhsField, err := quoteIdentifier(right.Column())
+			if err != nil {
+				return err
+			}
+			leaf.rhsFieldSQL = rhsField
+		}
 	}
 	return nil
 }
@@ -155,6 +166,9 @@ func appendWhere(sql *strings.Builder, analysis *sqliteWhereAnalysis) ([]any, er
 	for _, leaf := range analysis.leaves {
 		if leaf.fieldSQL == "" {
 			return nil, invalidPlan("query expression field binding is missing")
+		}
+		if _, ok := leaf.condition.RHSField(); ok && leaf.rhsFieldSQL == "" {
+			return nil, invalidPlan("query expression right-hand-side field binding is missing")
 		}
 	}
 
@@ -175,26 +189,23 @@ func appendWhereNode(
 ) error {
 	switch node.kind {
 	case query.ExpressionLeaf:
-		guardNullable := oddNegation && node.condition.Field().Nullable() &&
-			(node.condition.Lookup() == query.LookupExact ||
-				node.condition.Lookup() == query.LookupIContains ||
-				node.condition.Lookup() == query.LookupIn)
-		if guardNullable && !alreadyGrouped {
+		guards := nullableNegationGuards(node, oddNegation)
+		if len(guards) > 0 && !alreadyGrouped {
 			sql.WriteByte('(')
 		}
 		sql.WriteString(node.fieldSQL)
-		conditionArguments, err := compileCondition(sql, node.condition)
+		conditionArguments, err := compileCondition(sql, node.condition, node.rhsFieldSQL)
 		if err != nil {
 			return err
 		}
 		*arguments = append(*arguments, conditionArguments...)
-		if guardNullable {
+		for _, guard := range guards {
 			sql.WriteString(" AND ")
-			sql.WriteString(node.fieldSQL)
+			sql.WriteString(guard)
 			sql.WriteString(" IS NOT NULL")
-			if !alreadyGrouped {
-				sql.WriteByte(')')
-			}
+		}
+		if len(guards) > 0 && !alreadyGrouped {
+			sql.WriteByte(')')
 		}
 		return nil
 	case query.ExpressionAnd, query.ExpressionOr:
@@ -232,5 +243,35 @@ func appendWhereNode(
 		return nil
 	default:
 		return invalidPlan("query expression is zero or malformed")
+	}
+}
+
+func nullableNegationGuards(node *sqliteWhereNode, oddNegation bool) []string {
+	if !oddNegation || !nullableNegationLookup(node.condition.Lookup()) {
+		return nil
+	}
+	guards := make([]string, 0, 2)
+	left := node.condition.Field()
+	if left.Nullable() {
+		guards = append(guards, node.fieldSQL)
+	}
+	if right, ok := node.condition.RHSField(); ok && right.Nullable() && !right.Equal(left) {
+		guards = append(guards, node.rhsFieldSQL)
+	}
+	return guards
+}
+
+func nullableNegationLookup(lookup query.Lookup) bool {
+	switch lookup {
+	case query.LookupExact,
+		query.LookupGreaterThan,
+		query.LookupGreaterThanOrEqual,
+		query.LookupLessThan,
+		query.LookupLessThanOrEqual,
+		query.LookupIContains,
+		query.LookupIn:
+		return true
+	default:
+		return false
 	}
 }

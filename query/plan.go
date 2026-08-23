@@ -36,26 +36,44 @@ func (f FieldRef) Equal(other FieldRef) bool { return f == other }
 type Lookup string
 
 const (
-	LookupExact     Lookup = "exact"
-	LookupIContains Lookup = "icontains"
-	LookupIsNull    Lookup = "isnull"
-	LookupIn        Lookup = "in"
+	LookupExact              Lookup = "exact"
+	LookupGreaterThan        Lookup = "gt"
+	LookupGreaterThanOrEqual Lookup = "gte"
+	LookupLessThan           Lookup = "lt"
+	LookupLessThanOrEqual    Lookup = "lte"
+	LookupIContains          Lookup = "icontains"
+	LookupIsNull             Lookup = "isnull"
+	LookupIn                 Lookup = "in"
 )
+
+type conditionRHSKind uint8
+
+const (
+	conditionRHSLiteral conditionRHSKind = iota + 1
+	conditionRHSList
+	conditionRHSField
+)
+
+type conditionRHS struct {
+	kind   conditionRHSKind
+	value  Value
+	values []Value
+	field  FieldRef
+}
 
 type Condition struct {
 	field        FieldRef
 	lookup       Lookup
-	value        Value
-	values       *conditionValues
+	rhs          *conditionRHS
 	relationPath *RelationPath
 }
 
-type conditionValues struct {
-	values []Value
-}
-
 func NewCondition(field FieldRef, lookup Lookup, value Value) Condition {
-	return Condition{field: field, lookup: lookup, value: value}
+	return Condition{
+		field:  field,
+		lookup: lookup,
+		rhs:    &conditionRHS{kind: conditionRHSLiteral, value: value},
+	}
 }
 
 // NewInCondition constructs one immutable scalar-list membership condition.
@@ -72,8 +90,24 @@ func NewInCondition(field FieldRef, values []Value) (Condition, error) {
 	return Condition{
 		field:  field,
 		lookup: LookupIn,
-		values: &conditionValues{values: append([]Value(nil), values...)},
+		rhs:    &conditionRHS{kind: conditionRHSList, values: append([]Value(nil), values...)},
 	}, nil
+}
+
+// NewFieldCondition constructs one scalar comparison whose right-hand side is
+// another field in the same eventual plan source. Source membership is
+// intentionally deferred to Plan.WithWhere and repeated by each backend;
+// this constructor validates the lookup, kinds, and scalar-only shape.
+func NewFieldCondition(field FieldRef, lookup Lookup, right FieldRef) (Condition, error) {
+	condition := Condition{
+		field:  field,
+		lookup: lookup,
+		rhs:    &conditionRHS{kind: conditionRHSField, field: right},
+	}
+	if err := validateExpressionCondition(condition); err != nil {
+		return Condition{}, err
+	}
+	return condition, nil
 }
 
 // NewRelatedCondition constructs a condition over the terminal field of a
@@ -84,7 +118,7 @@ func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Conditio
 	return Condition{
 		field:        cloned.Terminal(),
 		lookup:       lookup,
-		value:        value,
+		rhs:          &conditionRHS{kind: conditionRHSLiteral, value: value},
 		relationPath: &cloned,
 	}
 }
@@ -92,17 +126,26 @@ func NewRelatedCondition(path RelationPath, lookup Lookup, value Value) Conditio
 func (c Condition) Field() FieldRef { return c.field }
 func (c Condition) Lookup() Lookup  { return c.lookup }
 func (c Condition) Value() Value {
-	if c.lookup == LookupIn {
+	if c.lookup == LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSLiteral {
 		return Value{}
 	}
-	return c.value
+	return c.rhs.value
 }
 func (c Condition) Values() ([]Value, bool) {
-	if c.lookup != LookupIn || c.values == nil || c.relationPath != nil ||
-		!validInValues(c.field, c.values.values) {
+	if c.lookup != LookupIn || c.rhs == nil || c.rhs.kind != conditionRHSList ||
+		c.relationPath != nil || !validInValues(c.field, c.rhs.values) {
 		return nil, false
 	}
-	return append([]Value(nil), c.values.values...), true
+	return append([]Value(nil), c.rhs.values...), true
+}
+
+// RHSField returns the right-hand-side source field for a field-to-field
+// comparison. The returned value is detached and immutable.
+func (c Condition) RHSField() (FieldRef, bool) {
+	if c.rhs == nil || c.rhs.kind != conditionRHSField || c.relationPath != nil {
+		return FieldRef{}, false
+	}
+	return c.rhs.field, true
 }
 func (c Condition) RelationPath() (RelationPath, bool) {
 	if c.relationPath == nil {
@@ -111,16 +154,16 @@ func (c Condition) RelationPath() (RelationPath, bool) {
 	return c.relationPath.clone(), true
 }
 func (c Condition) Equal(other Condition) bool {
-	if c.field != other.field || c.lookup != other.lookup || c.value != other.value {
+	if c.field != other.field || c.lookup != other.lookup || (c.rhs == nil) != (other.rhs == nil) {
 		return false
 	}
-	if (c.values == nil) != (other.values == nil) {
-		return false
-	}
-	if c.values != nil && !slices.EqualFunc(c.values.values, other.values.values, func(left, right Value) bool {
-		return left.Equal(right)
-	}) {
-		return false
+	if c.rhs != nil {
+		if c.rhs.kind != other.rhs.kind || c.rhs.value != other.rhs.value || c.rhs.field != other.rhs.field ||
+			!slices.EqualFunc(c.rhs.values, other.rhs.values, func(left, right Value) bool {
+				return left.Equal(right)
+			}) {
+			return false
+		}
 	}
 	leftPath, leftOK := c.RelationPath()
 	rightPath, rightOK := other.RelationPath()
@@ -129,8 +172,10 @@ func (c Condition) Equal(other Condition) bool {
 
 func (c Condition) clone() Condition {
 	clone := c
-	if c.values != nil {
-		clone.values = &conditionValues{values: append([]Value(nil), c.values.values...)}
+	if c.rhs != nil {
+		rhs := *c.rhs
+		rhs.values = append([]Value(nil), c.rhs.values...)
+		clone.rhs = &rhs
 	}
 	if c.relationPath != nil {
 		path := c.relationPath.clone()
@@ -332,6 +377,9 @@ func (p Plan) validateWhereNode(node *expressionNode, relationAtRootConjunction 
 		if path == nil {
 			if !slices.Contains(p.sourceFields, condition.field) {
 				return invalidPlanError("query expression scalar field is not part of the plan source metadata")
+			}
+			if right, ok := condition.RHSField(); ok && !slices.Contains(p.sourceFields, right) {
+				return invalidPlanError("query expression right-hand-side field is not part of the plan source metadata")
 			}
 			return nil
 		}

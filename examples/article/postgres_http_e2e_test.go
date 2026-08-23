@@ -419,6 +419,18 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	for _, rawQuery := range []string{
 		"q=go&q=rust",
 		"exclude_title=draft&exclude_title=old",
+		"min_id=1&min_id=2",
+		"max_id=1&max_id=2",
+		"title_matches_summary=true&title_matches_summary=false",
+		"min_id=",
+		"max_id=",
+		"min_id=-1",
+		"min_id=+1",
+		"max_id=9223372036854775808",
+		"min_id=9&max_id=8",
+		"title_matches_summary=1",
+		"title_matches_summary=True",
+		"title_matches_summary=",
 		"q=" + strings.Repeat("a", 257),
 		"exclude_title=" + strings.Repeat("b", 257),
 		"q=" + url.QueryEscape(strings.Repeat("한", 86)),
@@ -438,6 +450,57 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 		if got := httpBackend.queries.Load(); got != wantHTTPQueries {
 			t.Fatalf("invalid PostgreSQL raw query %q performed DB I/O: got %d, want %d", rawQuery, got, wantHTTPQueries)
 		}
+	}
+
+	mirrorSummary := "Go Mirror"
+	splitSummary := "Elsewhere"
+	mirror := createSearchArticle("Go Mirror", true, &mirrorSummary)
+	split := createSearchArticle("Go Split", true, &splitSummary)
+	rangeOnly := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{
+		"min_id": {strconv.FormatInt(mirror.ID, 10)},
+		"max_id": {strconv.FormatInt(split.ID, 10)},
+	}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, rangeOnly, articlePostgresIDs(mirror, split), articlePostgresIDs(wildcard))
+	assertArticleListMetadata(t, rangeOnly, 2, strconv.FormatInt(split.ID, 10), 0, 20, 2)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL inclusive ID-range HTTP query count = %d, want %d", got, wantHTTPQueries)
+	}
+
+	matchesSummary := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{
+		"q":                     {"go"},
+		"min_id":                {strconv.FormatInt(mirror.ID, 10)},
+		"max_id":                {strconv.FormatInt(split.ID, 10)},
+		"title_matches_summary": {"true"},
+	}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, matchesSummary, articlePostgresIDs(mirror), articlePostgresIDs(split))
+	assertArticleListMetadata(t, matchesSummary, 1, strconv.FormatInt(mirror.ID, 10), 0, 20, 1)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL field-match HTTP query count = %d, want %d", got, wantHTTPQueries)
+	}
+
+	mismatchesSummary := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{
+		"max_id":                {strconv.FormatInt(goLaunch.ID, 10)},
+		"title_matches_summary": {"false"},
+	}))
+	wantHTTPQueries += 2
+	assertArticleIDs(t, mismatchesSummary, articlePostgresIDs(nullArticle, emptyArticle, goLaunch), articlePostgresIDs(summaryMatch, mirror))
+	assertArticleListMetadata(t, mismatchesSummary, 3, strconv.FormatInt(goLaunch.ID, 10), 0, 20, 3)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL field-mismatch HTTP query count = %d, want %d", got, wantHTTPQueries)
+	}
+
+	zeroBoundary := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{"max_id": {"0"}}))
+	wantHTTPQueries += 2
+	assertArticleListMetadata(t, zeroBoundary, 0, "", 0, 20, 0)
+	maximumBoundary := articlePostgresHTTPBody(t, client, articleSearchURL(server.URL, url.Values{
+		"min_id": {"9223372036854775807"},
+	}))
+	wantHTTPQueries += 2
+	assertArticleListMetadata(t, maximumBoundary, 0, "", 0, 20, 0)
+	if got := httpBackend.queries.Load(); got != wantHTTPQueries {
+		t.Fatalf("PostgreSQL ID-boundary HTTP query count = %d, want %d", got, wantHTTPQueries)
 	}
 }
 

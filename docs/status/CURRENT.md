@@ -38,7 +38,7 @@
   CI #113 run `32642341459` exact 27/27 jobs·341/341 steps
 - GDJ-0041 activation baseline: hosted-verified GDJ-0040 submitted head `136e82572206eef7fd04931ae94dffb5ff0660e2`;
   active [work packet](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md) /
-  Proposed [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)
+  Accepted [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -366,8 +366,9 @@
   hosted-Verified하고 GDJ-0040을 닫았습니다. 그 hosted product baseline에서
   [GDJ-0041](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)을 active로 전환했고,
   typed Integer/String range, same-model `orm.F` field RHS, nullable NOT과 Article advanced filter를 QRY-044..053으로
-  한 수직 단면에서 검증합니다. [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)은 Phase A
-  reference/external compile proof 전 Proposed입니다.
+  한 수직 단면에서 검증합니다. Phase A exact Django 239/239, QRY-034..043 observation-prefix 동일성과 external
+  compile/cross-model·kind fail proof를 근거로 [ADR-0041](../adr/0041-typed-scalar-comparisons-and-field-references.md)은
+  Accepted입니다. QRY-044..053 제품 actual과 hosted proof는 아직 후속 phase입니다.
   Q-010/Q-011/Q-012/Q-013은 `Partial`, raw-model/general
   upgrade를 포함한 Q-017 전체는 P1/open입니다.
   [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
@@ -1547,9 +1548,9 @@ general generated upgrade는 계속 open입니다.
 
 ## 다음 정확한 작업
 
-GDJ-0041을 active로 전환했습니다. 먼저 QRY-044..053의 range/field-reference/nullable-NOT observable payload와
-external typed `orm.F` compile usability를 고정합니다. 그 proof로 ADR-0041을 Accepted 또는 Rejected 전환한 뒤,
-query/ORM core, SQLite/PostgreSQL compiler, Article exactly-two-query flow와 oracle-blind actual을 병렬 구현합니다.
+GDJ-0041 Phase A에서 QRY-044..053 range/field-reference/nullable-NOT observable payload와 external typed `orm.F`
+compile usability를 고정하고 ADR-0041을 Accepted로 전환했습니다. 다음은 병렬 구현한 query/ORM core,
+SQLite/PostgreSQL compiler와 Article exactly-two-query flow를 affected gate로 통합하고 oracle-blind actual을 붙입니다.
 Subtask마다 full matrix를 반복하지 않고 affected gate 뒤 frozen source에서 full/386/source-clean-copy를 한 번 실행합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 P1/open이며 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와
