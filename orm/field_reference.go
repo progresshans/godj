@@ -21,6 +21,13 @@ type FieldReference[M, V any] struct {
 // It performs no database I/O and preserves constructor errors for terminal
 // preflight.
 func F[M, V any](field ReferenceField[M, V]) FieldReference[M, V] {
+	if interfaceIsNil(field) {
+		return FieldReference[M, V]{err: &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "field reference source is nil",
+		}}
+	}
 	var model M
 	var value V
 	reference, err := field.referenceField(model, value)

@@ -97,11 +97,15 @@ func TestInvalidFieldReferencesFailBeforeIO(t *testing.T) {
 	foreign := orm.NewStringField[models.Article](foreignMetadata)
 	wrong := orm.NewStringField[models.Article](metadata.Fields[2])
 	var zero orm.FieldReference[models.Article, string]
+	var nilField orm.ReferenceField[models.Article, string]
+	var typedNilField *orm.StringField[models.Article]
 
 	for name, predicate := range map[string]orm.Predicate[models.Article]{
 		"RHS absent from source":  models.ArticleFields.Title.ExactField(orm.F(foreign)),
 		"invalid RHS constructor": models.ArticleFields.Title.ExactField(orm.F(wrong)),
 		"zero field reference":    models.ArticleFields.Title.ExactField(zero),
+		"nil field interface":     models.ArticleFields.Title.ExactField(orm.F(nilField)),
+		"typed nil field pointer": models.ArticleFields.Title.ExactField(orm.F(typedNilField)),
 	} {
 		t.Run(name, func(t *testing.T) {
 			backend := &spyBackend{}
