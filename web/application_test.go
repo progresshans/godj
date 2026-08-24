@@ -284,7 +284,7 @@ func newTestApplication(t *testing.T, config web.Config) *web.Application {
 	return application
 }
 
-func testSettings(t *testing.T) settings.Settings {
+func testSettings(t testing.TB) settings.Settings {
 	t.Helper()
 	configured, err := settings.New(settings.Definition{
 		ProjectName: "test_project",

@@ -12,6 +12,7 @@ const (
 	CodeRouteNotFound       ErrorCode = "route_not_found"
 	CodeMethodNotAllowed    ErrorCode = "method_not_allowed"
 	CodeReverseNotFound     ErrorCode = "reverse_not_found"
+	CodeReverseArguments    ErrorCode = "reverse_arguments"
 	CodeInvalidRequest      ErrorCode = "invalid_request"
 	CodeInvalidResponse     ErrorCode = "invalid_response"
 	CodeResponseTooLarge    ErrorCode = "response_too_large"

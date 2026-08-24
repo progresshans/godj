@@ -20,7 +20,8 @@ var inactiveRequestContext = func() context.Context {
 type Request struct {
 	httpRequest *http.Request
 	settings    settings.Settings
-	reverse     func(string) (string, error)
+	reverse     func(string, []ReverseArgument) (string, error)
+	parameters  []routeParameterValue
 	active      atomic.Bool
 	nextCalls   []atomic.Uint32
 }
@@ -28,7 +29,7 @@ type Request struct {
 func newRequest(
 	request *http.Request,
 	configured settings.Settings,
-	reverse func(string) (string, error),
+	reverse func(string, []ReverseArgument) (string, error),
 	middlewareCount int,
 ) *Request {
 	result := &Request{
@@ -56,12 +57,37 @@ func (r *Request) Apps() apps.Registry {
 	return r.Settings().Apps()
 }
 
-// Reverse resolves a namespaced static route while the Request is active.
+// Reverse resolves a namespaced route that requires no arguments while the
+// Request is active. Parameterized routes return CodeReverseArguments.
 func (r *Request) Reverse(name string) (string, error) {
 	if r == nil || !r.active.Load() || r.reverse == nil {
 		return "", &Error{Code: CodeInvalidRequest, Field: "reverse", Detail: "request is outside its borrowed lifetime"}
 	}
-	return r.reverse(name)
+	return r.reverse(name, nil)
+}
+
+// ReverseWith resolves a namespaced route with closed typed arguments while
+// the Request is active.
+func (r *Request) ReverseWith(name string, arguments ...ReverseArgument) (string, error) {
+	if r == nil || !r.active.Load() || r.reverse == nil {
+		return "", &Error{Code: CodeInvalidRequest, Field: "reverse", Detail: "request is outside its borrowed lifetime"}
+	}
+	return r.reverse(name, arguments)
+}
+
+// Int64Parameter returns one matched integer path parameter while the Request
+// is active. It returns false for an absent parameter, another converter kind,
+// or a Request outside its borrowed lifetime.
+func (r *Request) Int64Parameter(name string) (int64, bool) {
+	if r == nil || !r.active.Load() {
+		return 0, false
+	}
+	for _, parameter := range r.parameters {
+		if parameter.kind == routeParameterInt64 && parameter.name == name {
+			return parameter.integerValue, true
+		}
+	}
+	return 0, false
 }
 
 // Context returns the underlying request context while the Request is active.
@@ -118,8 +144,16 @@ func (r *Request) middlewareViolated() bool {
 	return false
 }
 
+func (r *Request) setRouteParameters(parameters []routeParameterValue) {
+	if r == nil || !r.active.Load() {
+		return
+	}
+	r.parameters = append(r.parameters[:0], parameters...)
+}
+
 func (r *Request) release() {
 	if r != nil {
 		r.active.Store(false)
+		r.parameters = nil
 	}
 }

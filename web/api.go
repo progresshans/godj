@@ -22,13 +22,30 @@ type Handler func(*Request) (Response, error)
 // once per request.
 type Middleware func(Handler) Handler
 
-// Route binds one exact uppercase HTTP method and one clean static path to a
-// namespaced route name and handler.
+// Route binds one exact uppercase HTTP method and one clean path to a
+// namespaced route name and handler. Path may contain the closed
+// <int64:name> segment converter; all other path syntax is static.
 type Route struct {
 	Name    string
 	Method  string
 	Path    string
 	Handler Handler
+}
+
+// ReverseArgument is one closed, typed argument for parameterized route
+// reversal. Its representation is intentionally private so callers cannot
+// introduce converter kinds that the router did not validate at startup.
+type ReverseArgument struct {
+	name         string
+	kind         routeParameterKind
+	integerValue int64
+}
+
+// Int64Argument constructs a named signed 64-bit route argument. Negative
+// values and invalid names are rejected by ReverseWith with a structured
+// error, before any request I/O.
+func Int64Argument(name string, value int64) ReverseArgument {
+	return ReverseArgument{name: name, kind: routeParameterInt64, integerValue: value}
 }
 
 // Config is the immutable Application startup input.

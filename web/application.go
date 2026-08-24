@@ -32,6 +32,9 @@ func NewApplication(config Config) (*Application, error) {
 	if maxResponseBytes < 0 {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "max_response_bytes", Detail: "limit must be positive"}
 	}
+	if len(config.Routes) > maximumRoutes {
+		return nil, &Error{Code: CodeInvalidRoute, Field: "routes", Detail: "route count exceeds the application limit"}
+	}
 	routes := append([]Route(nil), config.Routes...)
 	configuredRouter, err := newRouter(config.Settings.Apps(), routes)
 	if err != nil {
@@ -55,12 +58,22 @@ func NewApplication(config Config) (*Application, error) {
 	return application, nil
 }
 
-// Reverse resolves a namespaced static route without request state.
+// Reverse resolves a namespaced route that requires no arguments without
+// request state. Parameterized routes return CodeReverseArguments.
 func (a *Application) Reverse(name string) (string, error) {
 	if a == nil {
 		return "", &Error{Code: CodeInvalidConfig, Detail: "application is nil"}
 	}
-	return a.router.reverse(name)
+	return a.router.reverse(name, nil)
+}
+
+// ReverseWith resolves a namespaced route with closed typed arguments without
+// request state.
+func (a *Application) ReverseWith(name string, arguments ...ReverseArgument) (string, error) {
+	if a == nil {
+		return "", &Error{Code: CodeInvalidConfig, Detail: "application is nil"}
+	}
+	return a.router.reverse(name, arguments)
 }
 
 // ServeHTTP executes one synchronous, fully buffered request. Errors are
@@ -70,7 +83,7 @@ func (a *Application) ServeHTTP(writer http.ResponseWriter, rawRequest *http.Req
 	if a == nil || writer == nil || rawRequest == nil {
 		return
 	}
-	request := newRequest(rawRequest, a.settings, a.Reverse, a.middlewareCount)
+	request := newRequest(rawRequest, a.settings, a.router.reverse, a.middlewareCount)
 	response, err := a.execute(request)
 	request.release()
 	if err == nil {
@@ -101,9 +114,10 @@ func (a *Application) dispatch(request *Request) (Response, error) {
 	if request == nil || request.HTTP() == nil {
 		return Response{}, &Error{Code: CodeInvalidRequest, Detail: "request is nil or outside its lifetime"}
 	}
-	match := a.router.match(request.Method(), request.Path())
+	match := a.router.match(request.Method(), request.HTTP())
 	switch match.code {
 	case "":
+		request.setRouteParameters(match.parameters)
 		return match.route.Handler(request)
 	case CodeRouteNotFound:
 		return plainText(http.StatusNotFound, "Not Found\n"), nil
