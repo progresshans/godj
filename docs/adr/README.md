@@ -59,7 +59,7 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0042](0042-project-linked-runserver-and-article-development-loop.md) | Accepted | Optional project-linked `runserver`와 generated-aware 개발 루프 |
 | [0043](0043-safe-template-and-model-form-validation.md) | Accepted | Closed-value safe template와 IR-derived Model Form validation 경계 |
 | [0044](0044-session-auth-csrf-and-bounded-article-admin.md) | Accepted | Process session/auth/CSRF와 bounded Article Admin 경계 |
-| [0045](0045-closed-parameterized-routing-and-reverse.md) | Proposed | Static API를 보존하는 closed integer parameter route/reverse 경계 |
-| [0046](0046-json-serializer-and-session-authenticated-article-api.md) | Proposed | Reflection-free JSON serializer와 session-authenticated Article API 경계 |
+| [0045](0045-closed-parameterized-routing-and-reverse.md) | Accepted | Static API를 보존하는 closed integer parameter route/reverse 경계 |
+| [0046](0046-json-serializer-and-session-authenticated-article-api.md) | Accepted | Reflection-free JSON serializer와 session-authenticated Article API 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

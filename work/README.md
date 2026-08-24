@@ -67,12 +67,15 @@ proposed → ready → active → completed
 | [GDJ-0041](0041-typed-scalar-comparisons-field-references-and-article-filtering.md) | completed | Typed scalar comparison, field reference와 Article advanced filtering |
 | [GDJ-0042](0042-project-linked-runserver-and-article-development-loop.md) | completed | Project-linked `runserver`와 Article 개발 루프 |
 | [GDJ-0043](0043-safe-template-validation-session-auth-and-article-admin.md) | completed | Safe template, validation, session/auth와 Article Admin 수직 단면 |
-| [GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) | active | Session-authenticated Article JSON API와 closed parameterized routing |
+| [GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) | completed | Session-authenticated Article JSON API와 closed parameterized routing |
 
 현재 활성 항목과 다음 ready 항목은
 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다. 최근 terminal completion은
-[GDJ-0043](0043-safe-template-validation-session-auth-and-article-admin.md)입니다. 현재 active packet은
-[GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) 하나이고 ready packet은 0입니다.
+[GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md)입니다. Terminal 상태의 active/ready
+packet은 0/0입니다. Exact source `d9c1971...`의 [EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
+[EVID-126](../docs/status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion) / CI #142 run
+`32684080231`은 18-contract batch=`13 passing + 5 deviation`, exact 27/27 jobs·359/359 steps, PostgreSQL required
+15/15·skip 0와 portable runserver required 16/16·skip 0을 증명합니다. Draft PR #1은 OPEN/DRAFT/unmerged입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
@@ -93,7 +96,7 @@ run `32642341459`에서 exact 27/27 jobs·341/341 steps와 네 플랫폼 950/950
 QRY-034..043을 Verified하고 completed됐습니다. GDJ-0041 source
 `7f2bb2232afa7d71bea56d8910a52a045ec11faa` / tree `221467b95b712dfed199b12f5a14ed17d987a7ac`은
 Accepted ADR-0041의 typed range와 sealed same-model field reference, SQLite/PostgreSQL compiler와 Article advanced
-filter를 구현했습니다. QRY-044..053 oracle-blind actual은 10/10 zero-diff이고 current reference는
+filter를 구현했습니다. QRY-044..053 oracle-blind actual은 10/10 zero-diff이고 GDJ-0041 completion checkpoint reference는
 15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는 14/159=`154 passing + 5 deviation`입니다.
 Submitted head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /
 CI #115 run `32647746430`은 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual/restart를

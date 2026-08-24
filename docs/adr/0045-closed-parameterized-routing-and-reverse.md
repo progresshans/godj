@@ -1,6 +1,6 @@
 # ADR-0045: Closed Parameterized Routing and Reverse
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-24
 - 관련 work/contract: [GDJ-0044](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md), WEB-028..035, Q-016, M7
 - 선행 결정: [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md),
@@ -14,7 +14,7 @@ query string으로 전달해 이 제약을 정직하게 유지했지만 conventi
 path가 필요합니다. Arbitrary regex나 callback converter를 직접 열면 route construction이 application code execution과
 unbounded matching surface를 갖고, parameter를 raw context/map에 저장하면 borrowed request의 type/lifetime 경계가 약해집니다.
 
-## Proposed 결정
+## 결정
 
 1. Existing static route 선언과 static reverse 호출은 source-compatible하게 유지합니다.
 2. First parameter grammar는 canonical absolute path segment와 named signed 64-bit non-negative decimal converter 하나뿐입니다.
@@ -33,8 +33,9 @@ unbounded matching surface를 갖고, parameter를 raw context/map에 저장하�
    `Allow`를 포함한 405입니다.
 8. Parameter 개수, pattern bytes, segment count와 input path bytes는 explicit cap으로 제한합니다.
 
-정확한 exported constructor/accessor/reverse 이름은 Phase A/B compile prototype에서 검증한 뒤 이 ADR을 Accepted로 전환할 때
-동결합니다.
+게시된 public 이름은 `web.Route.Path`의 `<int64:name>` 문법, `web.Int64Argument`,
+`Application.ReverseWith`/`Request.ReverseWith`와 `Request.Int64Parameter`입니다. `ReverseArgument`의 내부 표현과
+converter kind는 닫혀 있어 application이 임의 converter를 구성할 수 없습니다.
 
 ## 결과
 
@@ -51,8 +52,13 @@ unbounded matching surface를 갖고, parameter를 raw context/map에 저장하�
 
 ## 검증 계획
 
-- [ ] WEB-028..035 exact reference/decision artifact와 negative ambiguity corpus
-- [ ] Static precedence, typed accessor lifetime와 reverse canonicalization
-- [ ] 404/405/Allow/trailing slash/encoded separator 의미
-- [ ] Fuzz/resource caps, normal/race/CGO0/vet와 external compile gate
-- [ ] Existing static Web/Admin/runserver regression and exact hosted matrix
+- [x] WEB-028..035 exact reference/decision artifact와 negative ambiguity corpus
+- [x] Static precedence, typed accessor lifetime와 reverse canonicalization
+- [x] 404/405/Allow/trailing slash/encoded separator 의미
+- [x] Fuzz/resource caps, normal/race/CGO0/vet와 external compile gate
+- [x] Existing static Web/Admin/runserver regression and exact hosted matrix
+
+WEB-028/029는 [DEV-0006](../DEVIATIONS.md#dev-0006--closed-int64-route-type-and-stricter-numeric-grammar)의
+exact sparse selectors를 제외하고 reviewed product expectation과 일치합니다. WEB-030..035는 passing입니다.
+Final local/hosted evidence는 [EVID-125](../status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
+[EVID-126](../status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)입니다.

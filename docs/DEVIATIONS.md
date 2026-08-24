@@ -2,7 +2,7 @@
 
 - 상태: Active ledger
 - 마지막 갱신: 2026-08-24
-- 현재 구현된 deviation: DEV-0001..DEV-0005 다섯 건 / contract 열 개
+- 현재 구현된 deviation: DEV-0001..DEV-0007 일곱 건 / contract 열다섯 개
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
 
@@ -393,3 +393,126 @@ Publish는 selected ID cap과 `db.Atomic`을 사용하며 SQLite/PostgreSQL capa
 
 Generic confirmed bulk delete 또는 auth/group model registration이 별도 system-state 설계와 함께 제품 범위가 되면 새 contract/ADR로
 DEV-0005를 좁히거나 supersede합니다. DOM이나 action 이름 comparator를 완화해서 복귀하지 않습니다.
+
+## DEV-0006 — Closed int64 route type and stricter numeric grammar
+
+- Status: Verified
+- Date: 2026-08-24
+- Contracts: WEB-028, WEB-029
+- Reference profile/backend: DRF 3.18.0 + Django 6.1 / CPython 3.14.3 / SQLite 3.50.4 exact profile;
+  GoDj closed signed-64-bit route runtime
+- Related ADR/work/evidence:
+  [ADR-0045](adr/0045-closed-parameterized-routing-and-reverse.md),
+  [GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md),
+  [Local EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint),
+  [Hosted EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)
+
+### Django/DRF의 관찰 가능 동작
+
+Locked parameter-routing reference는 Python `int`를 route parameter type으로 보고합니다. `<int64>` converter 자체는
+`-1`, `01`, `9223372036854775808`, `x`를 거부하지만, 뒤의 `api/<path:_remaining>` JSON-404 fallback route가
+resolver match를 소유하므로 observation의 `matched`는 `true`입니다. HTTP 결과는 모두 404입니다. Valid `0`, `1`,
+`9223372036854775807`의 type은 모두 `int`입니다. 이 관찰은 DRF/Python 내부 객체 호환을 요구하지 않지만 exact
+reference bytes에는 남습니다.
+
+### GoDj에서 채택한 동작
+
+GoDj는 public converter를 `<int64:name>` 하나로 닫고 `0|[1-9][0-9]*`의 canonical non-negative signed-64-bit
+범위만 match합니다. 따라서 exact sparse policy는 다음 여덟 selector만 바꿉니다.
+
+- WEB-028 `result.parameter.pk_type`: `int` → `int64`
+- WEB-029 `result.invalid[0..3].matched`: 각각 `true` → `false` (`-1`, `01`, overflow, non-decimal)
+- WEB-029 `result.valid[0..2].type`: 각각 `int` → `int64`
+
+나머지 static precedence, reverse path, 404/405/Allow, ambiguity와 resource-cap 결과는 locked reference와 같아야 합니다.
+
+### 이유와 고려한 대안
+
+Go의 public type과 DB primary-key 경계는 signed 64-bit입니다. Reference의 JSON-404 catch-all fallback match를 제품
+route match로 보존하면 converter 성공과 fallback representation ownership이 섞입니다. `int` 이름을 모방하거나 raw string
+catch-all converter를 먼저 열 수도 있지만 type contract와 injection surface를 흐려 채택하지 않았습니다.
+
+### 사용자·데이터·migration 영향
+
+Resource ID URL은 leading zero, sign, overflow와 non-decimal segment를 404로 거부합니다. 정상 ID는 canonical decimal로
+reverse됩니다. Existing static Web/Admin route와 Article DB/schema/migration/generated ABI는 바뀌지 않습니다.
+
+### backend/concurrency/security 영향
+
+DB별 영향은 없고 router는 immutable construction 뒤 concurrent read만 수행합니다. Strict grammar는 ambiguous normalization과
+oversized integer가 application handler에 도달하는 경로를 닫습니다. Arbitrary regex/string/UUID/path converter를 승인하지 않습니다.
+
+### 구현과 검증 조건
+
+- WEB-028/029만 DEV-0006 `deviation`이고 각각 exact `decision=DEV-0006`, `derived=false` provenance를 가짐
+- Sparse expectation과 code-owned policy는 위 여덟 selector의 exact order/type/value만 허용
+- Oracle-blind actual은 expected/oracle/fixture를 읽지 않고 public `web.Route`, `ReverseWith`, `Int64Parameter`를 실행
+- Root-list comparison도 selector/type/count를 fail-closed하게 검증하고 unexpected difference는 0이어야 함
+- EVID-125 local full/386/external/audit와 EVID-126 exact submitted-head hosted matrix가 통과해 `Verified`
+
+### 복귀 또는 supersede 조건
+
+다른 typed converter나 arbitrary-precision ID가 실제 제품 요구가 되면 별도 ADR/contract로 converter algebra와 ambiguity를
+검증해 supersede할 수 있습니다. Comparator 완화나 Python type 이름 모방만으로 복귀하지 않습니다.
+
+## DEV-0007 — Article JSON API error taxonomy
+
+- Status: Verified
+- Date: 2026-08-24
+- Contracts: API-001, API-003, API-010
+- Reference profile/backend: DRF 3.18.0 + Django 6.1 / CPython 3.14.3 / SQLite 3.50.4 exact profile;
+  GoDj JSON-only API on SQLite and PostgreSQL 17.10
+- Related ADR/work/evidence:
+  [ADR-0046](adr/0046-json-serializer-and-session-authenticated-article-api.md),
+  [GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md),
+  [Local EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint),
+  [Hosted EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)
+
+### Django/DRF의 관찰 가능 동작
+
+Locked API-001 reference는 bounded probe의 oversized JSON body를 generic `parse_error`와 HTTP 400으로 분류합니다.
+API-003의 authenticated unsafe-method CSRF 실패 세 건과 API-010의 missing-CSRF delete는 generic
+`permission_denied` detail을 반환합니다.
+
+### GoDj에서 채택한 동작
+
+Body cap 초과는 transport/resource-limit 소유권을 보존해 `request_too_large`와 HTTP 413으로 반환합니다. Authenticated
+unsafe request가 session/permission을 통과했지만 CSRF에 실패하면 `csrf_rejected`로 구분합니다. Exact sparse policy는 다음
+여섯 selector만 바꿉니다.
+
+- API-001 ordered observation `[10].response.error_codes.detail`: `parse_error` → `request_too_large`;
+  `[10].response.status`: `400` → `413`
+- API-003 `result.unsafe_attempts[0..2].response.error_codes.detail`: 각각 `permission_denied` → `csrf_rejected`
+- API-010 `result.missing_csrf.error_codes.detail`: `permission_denied` → `csrf_rejected`
+
+Status 403, response shape, authentication/permission order, headers와 Article mutation 0은 reference expectation과 동일합니다.
+
+### 이유와 고려한 대안
+
+Oversized input은 malformed JSON과 달리 server-declared resource cap을 초과했으므로 413이 retry/diagnostic ownership을 더 정확히
+표현합니다. CSRF를 permission denial로 뭉개는 안도 가능하지만 GoDj의 stable machine-readable envelope에서는 실패 단계를
+구분하면서도 credential/session/token bytes나 internal cause를 노출하지 않는 편을 채택했습니다.
+
+### 사용자·데이터·migration 영향
+
+JSON client는 oversized body에서 413/`request_too_large`, CSRF 실패에서 403/`csrf_rejected`를 받습니다. Invalid/denied
+request의 Article row mutation은 0이고 schema/migration/generated ABI에는 영향이 없습니다.
+
+### backend/concurrency/security 영향
+
+SQLite/PostgreSQL 모두 handler persistence 전에 같은 parser/auth/CSRF 경계를 통과합니다. 구체적인 CSRF 실패 category는
+노출하지만 secret, expected token, cookie/session ID나 permission internals는 직렬화하지 않습니다. Durable/distributed session이나
+production proxy body-limit 정책을 승인하지 않습니다.
+
+### 구현과 검증 조건
+
+- API-001/003/010만 DEV-0007 `deviation`이고 각각 exact `decision=DEV-0007`, `derived=false` provenance를 가짐
+- Sparse expectation과 code-owned policy는 위 여섯 selector의 exact order/type/value만 허용
+- Oracle-blind actual은 expected/oracle/fixture를 읽지 않고 public JSON parser, API session wrapper와 Article adapter를 실행
+- Denial/oversize에서 Article DB mutation 0, raw secret/cause serialization 0과 unexpected differential 0을 검증
+- EVID-125 local full/386/external/audit와 EVID-126 exact submitted-head hosted matrix가 통과해 `Verified`
+
+### 복귀 또는 supersede 조건
+
+API-wide standardized problem details 또는 trusted proxy body-limit ownership이 별도 ADR로 채택되면 taxonomy를 재검토할 수
+있습니다. DRF prose/code를 모방하거나 comparator를 완화하는 것만으로 복귀하지 않습니다.

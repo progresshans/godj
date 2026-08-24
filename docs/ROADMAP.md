@@ -19,10 +19,13 @@
   [EVID-124](status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) / CI #134가 exact
   27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL required 14/14·skip 0을 통과했습니다.
   ADR-0043/0044는 Accepted, exact 30 contracts는 `25 passing + 5 Verified deviations`, work는 completed입니다.
-  Durable session/user/audit와 M5/M6 전체 완료는 계속 제외합니다. 현재 active/ready work는 1/0이며
-  [GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)가 DRF 3.18.0 isolated
-  reference, closed integer parameter route와 session-authenticated Article JSON CRUD exact 18-contract batch를
-  활성화했습니다. ADR-0045/0046과 모든 새 계약은 아직 Proposed/unimplemented입니다. GDJ-0040 Phase A
+  Durable session/user/audit와 M5/M6 전체 완료는 계속 제외합니다. 후속
+  [GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)는 DRF 3.18.0 isolated
+  reference, closed int64 route와 session-authenticated Article JSON CRUD를 구현했습니다. Exact source
+  `d9c1971...`의 EVID-125/126과 CI #142는 18 contracts=`13 passing + 5 deviation`, 27/27 jobs·359/359 steps,
+  네 relation coordinate 1,017/1,017/0, portable runserver required 16/16·skip 0와 PostgreSQL required
+  15/15·skip 0을 검증했습니다. ADR-0045/0046은 Accepted이고 GDJ-0044는 completed입니다. 이 terminal
+  경계의 active/ready work는 0/0입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -87,9 +90,9 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 제품 기준: 17 adapters/189 contracts의 `179 passing + 10 deviation + 0 oracle_locked`; relation
-  REL-001..012 12/12, query expression QRY-034..053 20/20과 GDJ-0043의 exact 30=`25 passing + 5 Verified
-  deviations`가 모두 exact-head hosted-verified됐습니다.
+- 현재 제품 기준: 19 adapters/207 contracts의 `192 passing + 15 deviation + 0 oracle_locked`; relation
+  REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
+  deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 모두 exact-head hosted-verified됐습니다.
 - 마지막 검토: 2026-08-24
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -670,13 +673,14 @@ process-lifetime session/auth/CSRF와 Article list/search/add/change/delete/hist
 30 contracts는 `25 passing + 5 Verified deviations`이고 EVID-124/CI #134에서 hosted-verified됐습니다. M5/M6
 completion, durable system state, production deployment와 broader Form/Admin breadth는 계속 주장하지 않습니다.
 
-[GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)는 M7의 첫 active wide
-vertical batch입니다. Proposed [ADR-0045](adr/0045-closed-parameterized-routing-and-reverse.md)와
+[GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)는 M7의 첫 completed wide
+vertical batch입니다. Accepted [ADR-0045](adr/0045-closed-parameterized-routing-and-reverse.md)와
 [ADR-0046](adr/0046-json-serializer-and-session-authenticated-article-api.md)은 existing static Web/Admin을 보존하면서
 closed integer parameter route/reverse, reflection-free JSON serializer와 session-authenticated Article
 list/create/detail/PUT/PATCH/delete를 연결합니다. Reference는 별도 DRF 3.18.0 + Django 6.1 + CPython 3.14.3
-profile/lock을 사용해 기존 Django-only oracle bytes를 보존합니다. WEB-028..035/API-001..010은 activation 시점에
-모두 unimplemented/unregistered이며 OpenAPI, browsable API, token auth, Channels와 M7/M8 completion을 주장하지 않습니다.
+profile/lock을 사용해 기존 Django-only oracle bytes를 보존합니다. WEB-028..035/API-001..010은 exact
+`13 passing + 5 deviation`으로 EVID-126/CI #142에서 hosted-verified됐습니다. OpenAPI, browsable API, token auth,
+Channels와 M7/M8 completion을 주장하지 않습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
@@ -692,9 +696,9 @@ profile/lock을 사용해 기존 Django-only oracle bytes를 보존합니다. WE
 
 ## M7 — API
 
-- API reference profile 확정 — GDJ-0044에서 DRF 3.18.0 exact isolated profile을 Proposed로 선택
-- serializer, JSON parser/renderer, session authentication/permission — GDJ-0044 active
-- bounded Article list/create/detail/PUT/PATCH/delete와 parameter Router, pagination/filter/order — GDJ-0044 active
+- API reference profile 확정 — GDJ-0044에서 DRF 3.18.0 exact isolated profile을 Accepted/Verified
+- serializer, JSON parser/renderer, session authentication/permission — GDJ-0044 bounded slice completed
+- bounded Article list/create/detail/PUT/PATCH/delete와 parameter Router, pagination/filter/order — GDJ-0044 completed
 - OpenAPI와 browsable API — 별도 후속 결정, 현재 제외
 
 ## M8 — Realtime

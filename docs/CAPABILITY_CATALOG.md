@@ -229,12 +229,14 @@ Form과 Serializer는 validation primitive를 공유할 수 있지만 공개 API
 - OpenAPI generation
 - browsable API
 
-GDJ-0044 activation은 API half의 exact reference를 DRF 3.18.0 + Django 6.1 + CPython 3.14.3으로 선택했습니다.
-Proposed ADR-0045/0046 아래 첫 bounded slice는 closed integer parameter route/reverse와 JSON-only Article
+Completed GDJ-0044는 API half의 exact reference를 DRF 3.18.0 + Django 6.1 + CPython 3.14.3으로 고정했습니다.
+Accepted ADR-0045/0046 아래 bounded slice는 closed `<int64:name>` route/reverse와 JSON-only Article
 list/create/retrieve/PUT/PATCH/delete, SessionAuthentication-style 403+CSRF, per-method permission, fixed PageNumber
-pagination과 bounded search/filter/order입니다. Phase A reference가 아직 생성되지 않았으므로 구현·지원 상태는
-[Implementation Matrix](status/IMPLEMENTATION_MATRIX.md)의 activation-only 행이 정본입니다. OpenAPI, browsable API,
-token auth, nested/bulk serializer와 M7 전체 완료는 포함하지 않습니다.
+pagination과 bounded search/filter/order를 구현했습니다. Exact 18 contracts는 `13 passing + 5 deviation`이며
+WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다. 구현·검증 상태는
+[Implementation Matrix](status/IMPLEMENTATION_MATRIX.md)와
+[EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)이 정본입니다.
+OpenAPI, browsable API, token auth, nested/bulk serializer와 M7 전체 완료는 포함하지 않습니다.
 
 ## Realtime
 
@@ -509,6 +511,25 @@ WEB-011..020 bounded 단면은 hosted `Verified`입니다.
 
 이 단면은 development-only loopback server입니다. MySQL, Windows process semantics, non-loopback/TLS,
 production readiness, general reload 오케스트레이션은 지원 주장에서 제외합니다.
+
+## Current implementation mirror: parameterized Article JSON API
+
+[GDJ-0044](../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)와 Accepted
+[ADR-0045](adr/0045-closed-parameterized-routing-and-reverse.md)/
+[ADR-0046](adr/0046-json-serializer-and-session-authenticated-article-api.md)이 첫 API 경계를 소유합니다.
+
+- `web.Route.Path`는 closed `<int64:name>` segment를 받고 `web.Int64Argument`,
+  `Application.ReverseWith`/`Request.ReverseWith`, `Request.Int64Parameter`가 typed route/reverse를 게시합니다.
+- `serializers`는 reflection-free declared-field validation, `api`는 bounded exactly-one JSON object와 stable
+  error/page envelope, `api/sessionauth`는 explicit principal/permission/CSRF 경계를 소유합니다.
+- Article adapter는 deterministic list/filter/page와 create/detail/PUT/PATCH/delete를 current SQLite/PostgreSQL
+  repository에 연결합니다. Invalid/auth/permission/CSRF failure의 Article mutation은 0입니다.
+- Opt-in global Article site는 기존 Admin login session으로 API safe GET에서 fresh masked CSRF token을 받고 unsafe
+  mutation을 수행합니다. Portable 네 좌표 required 16/16·skip 0과 PostgreSQL required 15/15·skip 0은
+  EVID-126/CI #142에서 검증됐습니다.
+
+Durable user/session/audit, arbitrary converter, generated ModelSerializer, OpenAPI/browsable API/token auth,
+Channels/Realtime와 production serving은 이 mirror의 capability가 아닙니다.
 
 ## Current implementation mirror: project generated bundle
 

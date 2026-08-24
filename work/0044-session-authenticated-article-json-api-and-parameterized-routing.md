@@ -1,6 +1,6 @@
 ---
 id: GDJ-0044
-status: active
+status: completed
 updated: 2026-08-24
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "f99c200a3c5e36b391aabf6634a94acd79bba69b"
@@ -106,7 +106,10 @@ route/reverse 의미를 비교합니다.
   request의 Article DB mutation은 0이어야 합니다. Authenticated session load가 기존 idle-expiry lifecycle에 따라 access time을
   touch하는 것은 이 측정에서 제외하며 AUT 계약을 그대로 보존합니다.
 
-정확한 exported 이름과 package placement는 Phase A reference와 Phase B compile prototype 뒤 ADR-0045/0046에 동결합니다.
+Accepted ADR-0045/0046은 구현된 public 경계를 동결합니다. Parameter route는 `web.Route.Path`의
+`<int64:name>` 문법, `web.Int64Argument`, `Application.ReverseWith`/`Request.ReverseWith`와
+`Request.Int64Parameter`로 게시됐습니다. JSON/serializer/session-auth core는 `api`, `serializers`,
+`api/sessionauth`에 남고 Article persistence/representation 조합은 app-owned adapter가 소유합니다.
 
 ## 비목표
 
@@ -207,13 +210,13 @@ examples/article/apiapp → api + api/sessionauth + articleapp
 ## 구현 단계
 
 - [x] Activation: work/ADR/status/reference provenance와 exact contract range 고정
-- [ ] Phase A: DRF 3.18.0 dependency/profile, independent reference scenarios, manifest/oracle/NI/checksum lock
-- [ ] Phase B: closed parameter router/reverse prototype와 affected Web tests
-- [ ] Phase C: serializer/JSON/session-auth API core와 negative/security tests
-- [ ] Phase D: Article API SQLite/PostgreSQL end-to-end, GoDj actual adapter와 zero-diff/deviation classification
-- [ ] Phase E: affected normal/race/CGO0/vet, generated drift와 backend canary
-- [ ] Final frozen milestone: full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
-- [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
+- [x] Phase A: DRF 3.18.0 dependency/profile, independent reference scenarios, manifest/oracle/NI/checksum lock
+- [x] Phase B: closed parameter router/reverse prototype와 affected Web tests
+- [x] Phase C: serializer/JSON/session-auth API core와 negative/security tests
+- [x] Phase D: Article API SQLite/PostgreSQL end-to-end, GoDj actual adapter와 zero-diff/deviation classification
+- [x] Phase E: affected normal/race/CGO0/vet, generated drift와 backend canary
+- [x] Final frozen milestone: full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
+- [x] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
 ## 검증 주기
 
@@ -226,18 +229,32 @@ examples/article/apiapp → api + api/sessionauth + articleapp
 
 ## 완료 조건
 
-- [ ] 두 set의 exact 18 contracts가 reference artifact에 독립 관찰되고 GoDj actual은 oracle-blind하게 생성됨
-- [ ] Passing/deviation/locked 합계와 global registry/inventory가 fail-closed하게 일치함
-- [ ] Existing static route/Admin/Web/runserver behavior와 generated source가 drift하지 않음
-- [ ] Anonymous/permission/CSRF/invalid JSON/validation failures의 Article DB mutation이 0임; valid session access touch는 기존 AUT lifecycle대로 허용
-- [ ] SQLite와 PostgreSQL 17에서 같은 list/create/detail/PUT/PATCH/delete 의미가 통과함
-- [ ] Public API에 raw `any`, reflection, arbitrary callable converter와 secret serialization ingress가 없음
-- [ ] Final frozen local/hosted gates와 independent audit가 통과함
-- [ ] CURRENT/work/matrix/evidence/ADR/PR이 같은 exact bytes와 명시된 비목표를 가리킴
+- [x] 두 set의 exact 18 contracts가 reference artifact에 독립 관찰되고 GoDj actual은 oracle-blind하게 생성됨
+- [x] Passing/deviation/locked 합계와 global registry/inventory가 fail-closed하게 일치함
+- [x] Existing static route/Admin/Web/runserver behavior와 generated source가 drift하지 않음
+- [x] Anonymous/permission/CSRF/invalid JSON/validation failures의 Article DB mutation이 0임; valid session access touch는 기존 AUT lifecycle대로 허용
+- [x] SQLite와 PostgreSQL 17에서 같은 list/create/detail/PUT/PATCH/delete 의미가 통과함
+- [x] Public API에 raw `any`, reflection, arbitrary callable converter와 secret serialization ingress가 없음
+- [x] Final frozen local/hosted gates와 independent audit가 통과함
+- [x] CURRENT/work/matrix/evidence/ADR/PR이 같은 frozen source head·contract facts와 명시된 비목표를 가리키며
+  tested source와 documentation-only descendant를 구분함
 
 ## 현재 상태와 다음 정확한 작업
 
-GDJ-0044가 유일한 active packet이고 ready packet은 0입니다. ADR-0045/0046은 Proposed이며 API/Web source 또는
-contract status는 아직 바꾸지 않았습니다. 다음 작업은 Phase A에서 기존 root lock을 보존한 isolated DRF 3.18.0 dependency와
-exact profile provenance를 lock하고 18개 independent reference scenario/manifest/not-implemented artifact를 생성하는 것입니다. 그 artifact를 먼저
-검증한 뒤 Phase B parameter router prototype을 병렬로 통합합니다.
+GDJ-0044는 exact source `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`, tree
+`2e5c52ff162dc74d6281c1927750be34be329c69`에서 completed됐습니다. WEB-028..035/API-001..010은 exact
+`13 passing + 5 deviation`이며 WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다.
+Global reference는 20 sets/219 contracts/380 ordered bindings=`192 passing + 15 deviation + 12 oracle_locked`,
+product는 19 sets/207 contracts=`192 passing + 15 deviation`입니다. MIG-075..086은 계속 locked/unregistered입니다.
+
+[EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)는
+final local `make ci`, Linux/386, repository-external archive와 independent audit를 기록합니다.
+[EVID-126](../docs/status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)의 CI #142/run
+`32684080231`은 submitted source head에서 exact 27/27 jobs·359/359 steps·annotation 0, 네 portable coordinate의
+required runserver 16/16·skip 0, PostgreSQL 17.10 required 15/15·skip 0와 service-restart resume, 네 relation
+coordinate의 1,017/1,017/0 inventory를 통과했습니다. Synthetic merge tree도 source tree와 동일했습니다.
+ADR-0045/0046은 Accepted이고 Draft PR #1은 OPEN/DRAFT/unmerged로 보존합니다.
+
+Durable user/session/audit state, OpenAPI/browsable API/token auth, Realtime/Channels, production deployment와 M7/M8
+completion은 이 packet의 결과가 아닙니다. Terminal 상태 직후 active/ready packet은 0/0이며 다음 별도 packet이
+durable single-runtime system state와 restart-preserving Article Admin/API 경계를 활성화합니다.

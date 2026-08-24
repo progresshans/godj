@@ -3,13 +3,15 @@
 - 마지막 갱신: 2026-08-24
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 hosted-verified submitted head: `5eda0a458302948a91d48292f666e2cd5eac350c`
-  (`docs: record GDJ-0043 frozen local gates`), tree `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`,
-  [EVID-124](TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) /
-  CI #134 run `32672326069` exact 27/27 jobs·358/358 steps·failure/cancel/skip/annotation 0
-- 현재 local activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
-  `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant이며
-  [GDJ-0044](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)의 기준점입니다.
+- 현재 hosted-verified source head: `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`
+  (`test: stabilize Article site race deadline`), tree `2e5c52ff162dc74d6281c1927750be34be329c69`,
+  [EVID-125](TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint) /
+  [EVID-126](TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion) /
+  CI #142 run `32684080231` exact 27/27 jobs·359/359 steps·failure/cancel/step-skip/annotation 0
+- GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
+  `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
+  Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree
+  `7d7705ac740e9f7d9cf63745e264ec47c3685121`입니다.
 - GDJ-0037 implementation commit: `9258a08402ebd7bd0077d17910a5e1f0621d6e78`
   (`feat: add recoverable project bundle publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`
 - GDJ-0038 activation baseline: `681b07132be5772286b0c960756719aed59a2079`
@@ -85,7 +87,7 @@
   [ADR-0044](../adr/0044-session-auth-csrf-and-bounded-article-admin.md)
 - GDJ-0043 frozen local source: `8bcfa21371ed5fd1b7cb3ee2fb8e0041968f8daa`, tree
   `3987668b302cc1b6e3cc18bd1b2f942de9d6f486`; [EVID-123](TEST_EVIDENCE.md#evid-20260824-123--gdj-0043-template-form-auth-admin-frozen-local-checkpoint).
-  Exact 30-contract batch는 25 `passing` + 5 reviewed `deviation`이고, current global reference는
+  Exact 30-contract batch는 25 `passing` + 5 reviewed `deviation`이고, 그 checkpoint의 global reference는
   18 sets/201 contracts/306 ordered bindings=`179 passing + 10 deviation + 12 oracle_locked`, product는
   17 sets/189=`179 passing + 10 deviation`입니다. SQLite와 digest-pinned PostgreSQL full Article Admin flow,
   affected normal/race/CGO0/vet, scoped 993/993/skip-0 inventory, full `make ci`, Linux/386, 898-file external archive와
@@ -94,6 +96,18 @@
   `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`; [EVID-124](TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) /
   CI #134 run `32672326069` exact 27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL 17.10 required
   14/14·skip 0. ADR-0043/0044는 Accepted, DEV-0003..0005는 Verified, GDJ-0043은 completed입니다.
+- GDJ-0044 source chain: closed route `5f3fb58c79d558cc7457bfcd97d80c4258061e8c`, reusable Article persistence
+  `e92b991fc574230a70461ec4d0410371dab2a3d6`, exact DRF reference `0f5b9cf82497a64209729aae6bc4aa9c5ef6d6c0`,
+  bounded JSON core `68455cf5dbedb241def9a7db03af42427311db06`, session-authenticated API
+  `f5f5afc19d6bdc50ddde57a20a2962e6f5bb6f42`, SQLite/PostgreSQL E2E
+  `5bf5bcfe761962e6552809a1ba8b9440e9536dc9`, opt-in site `7af2414461c99cadb9c6440016a093f8f42cf8d7`,
+  product conformance `5f415d63534e373e9d0fb85a488c95bd1782fd68`, final test-budget correction
+  `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`.
+- GDJ-0044 terminal source result: WEB-028..035/API-001..010 exact `13 passing + 5 deviation`; DEV-0006/0007
+  Verified; reference 20 sets/219 contracts/380 ordered bindings=`192 passing + 15 deviation + 12 oracle_locked`,
+  product 19/207=`192 passing + 15 deviation`. CI #142 passed exact 27/27 jobs·359/359 steps, portable runserver
+  required 16/16·skip 0, PostgreSQL 17.10 required 15/15·skip 0 and four-coordinate relation 1,017/1,017/0.
+  ADR-0045/0046 are Accepted and GDJ-0044 is completed. Draft PR #1 remains OPEN/DRAFT/unmerged.
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -410,7 +424,7 @@
   Accepted [ADR-0040](../adr/0040-composable-typed-boolean-predicates-and-article-search.md)에 따라 QRY-034..043의
   독립 Django contract/oracle을 Phase A checkpoint `fe4996f...`에서 동결했습니다. Phase B/C product
   `86d6b169...`와 actual `0ec6f385...`는 immutable Boolean tree, SQLite/PostgreSQL compiler와 bounded Article
-  search를 구현하고 QRY-034..043을 10/10 `passing`으로 전환했습니다. Current reference는
+  search를 구현하고 QRY-034..043을 10/10 `passing`으로 전환했습니다. GDJ-0040 completion checkpoint reference는
   15 sets/161 scenarios/210 bindings=`144 passing + 5 deviation + 12 oracle_locked`, product는
   14 adapters/149=`144 passing + 5 deviation`입니다. EVID-112 affected gate와 EVID-113 initial final local gate 뒤,
   first submitted run `32641160967`은 stale 916-test workflow lock 하나 때문에 23/27 jobs success·4 relation-product
@@ -426,7 +440,7 @@
   Accepted입니다. Product source `0504227...`와 두 hardening fix 뒤 actual/source-final `7f2bb22...`는 literal/list/
   field RHS union, typed range와 sealed same-model/same-kind `orm.F`, SQLite/PostgreSQL identifier RHS와 nullable
   odd-NOT guard, bounded Article advanced filter를 구현했습니다. QRY-044..053 oracle-blind SQLite actual은 10/10,
-  전체 query-expression은 20/20 zero-diff입니다. Current reference는 15 sets/171 scenarios/210 bindings=
+  전체 query-expression은 20/20 zero-diff입니다. GDJ-0041 completion checkpoint reference는 15 sets/171 scenarios/210 bindings=
   `154 passing + 5 deviation + 12 oracle_locked`, product는 14 adapters/159=`154 passing + 5 deviation`입니다.
   [EVID-116](TEST_EVIDENCE.md#evid-20260823-116--gdj-0041-typed-comparison-and-field-reference-local-checkpoint)의
   affected 증거와 [EVID-117](TEST_EVIDENCE.md#evid-20260823-117--gdj-0041-frozen-source-final-local-gates)의 exact
@@ -569,12 +583,11 @@
   0/12 contracts·0/30 dimensions는 12개 semantic product failure가 아니었습니다. GDJ-0036은 그 뒤
   MIG-075..079를 current ABI/format/digest/state/staged-preflight 진단 계약으로 재기준화하고 dependency 및
   public `*migrations.PlanningError` typed classification false-green을 닫았습니다. 그 GDJ-0036 시점 aggregate는
-  13/139/156이었고, same-ID 12개는 현재 전체 15/161/210 reference에도 포함되지만
+  13/139/156이었고, same-ID 12개는 현재 전체 20/219/380 reference에도 포함되지만
   locked/unregistered입니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0040 Composable Typed Boolean Predicates and Article Search](../../work/0040-composable-typed-boolean-predicates-and-article-search.md)
-- 활성 작업:
-  [GDJ-0041 Typed Scalar Comparisons, Field References, and Article Filtering](../../work/0041-typed-scalar-comparisons-field-references-and-article-filtering.md)
+  [GDJ-0044 Session-authenticated Article JSON API and Parameterized Routing](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)
+- 활성 작업: 없음
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1164,6 +1177,14 @@
   `5eda0a4...`의 EVID-124/CI #134도 exact 27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL required
   14/14·skip 0으로 통과했습니다. ADR-0043/0044는 Accepted이고 Q-014/Q-015는 Resolved입니다. Durable
   user/session/audit와 M5/M6 completion은 계속 주장하지 않습니다.
+- GDJ-0044 hosted-verified source `d9c1971...`는 existing static Web/Admin을 보존하면서 closed
+  `<int64:name>` route/reverse/typed request accessor, reflection-free serializer/JSON core, session/permission/CSRF와
+  Article list/create/detail/PUT/PATCH/delete를 SQLite/PostgreSQL에 연결합니다. Exact 18 contracts는
+  `13 passing + 5 deviation`; WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다.
+  EVID-125 local full/386/external/audit와 EVID-126/CI #142 exact 27/27 jobs·359/359 steps, 네 플랫폼
+  1,017/1,017/0, portable runserver required 16/16·skip 0, PostgreSQL required 15/15·skip 0을 통과했습니다.
+  ADR-0045/0046은 Accepted이고 Q-016은 broader API/Channels 범위 때문에 계속 Partial입니다. Durable system
+  state, OpenAPI/browsable API/token auth, Channels/Realtime와 M7/M8 completion은 주장하지 않습니다.
 
 ### 오류와 durability 경계
 
@@ -1184,12 +1205,13 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 현재 18 ordered set, 201 unique contract/scenario와 306 ordered
-  cross-binding이 있습니다. Current product는 17개 set에 actual GoDj adapter를 가지며
-  189 contract 분류는 `179 passing + 10 deviation + 0 oracle_locked`입니다. Reference 분류는
-  `179 passing + 10 deviation + 12 oracle_locked`이고 MIG-075..086만 locked/unregistered입니다. GDJ-0043의 새
-  30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는 AUT-004/005,
-  DEV-0005는 ADM-002를 소유합니다. GDJ-0039 전 reference/product aggregate는
+- Protocol v2 reference에는 현재 20 ordered set, 219 unique contract/scenario와 380 ordered
+  cross-binding이 있습니다. Current product는 19개 set에 actual GoDj adapter를 가지며
+  207 contract 분류는 `192 passing + 15 deviation + 0 oracle_locked`입니다. Reference 분류는
+  `192 passing + 15 deviation + 12 oracle_locked`이고 MIG-075..086만 locked/unregistered입니다. GDJ-0043의
+  checkpoint 30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는
+  AUT-004/005, DEV-0005는 ADM-002를 소유합니다. GDJ-0044의 18 contracts는 13 passing + 5 reviewed
+  deviations이며 DEV-0006은 WEB-028/029, DEV-0007은 API-001/003/010을 소유합니다. GDJ-0039 전 reference/product aggregate는
   13/139/156=`122+5+12 locked`, 12/127=`122+5`였습니다. 직전 relation hosted-accepted decision head는
   source 변경 전 `121 + 5 + 1`, relation 11/12였고
   [EVID-076](TEST_EVIDENCE.md#evid-20260812-076--gdj-0033-github-hosted-rel-002-implementation-head-exact-26-job-ci)이
@@ -1230,8 +1252,8 @@
   oracle-blind actual adapters로 exact 12 contract를 관찰해 성공합니다. EVID-076 당시 hosted aggregate는 reference
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
   MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
-  14/151/182였습니다. Current 전체 reference는 QRY-034..043 set을 더한 15/161/210이고 product는
-  registered query-expression adapter를 포함한 14/149입니다. Local relation
+  14/151/182였습니다. GDJ-0040 completion checkpoint는 QRY-034..043 set을 더한 15/161/210이고 product는
+  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 20/219/380 및 19/207입니다. Local relation
   transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
@@ -1565,14 +1587,13 @@ completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `
 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0041도 submitted head `e97a4e3...`의 EVID-118/run
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0042도 submitted `2bfdbd5...`의
 EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0043도 submitted
-`5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재
-active/ready는 1/0이고 외부 blocker도 0입니다. 유일한 active packet은 GDJ-0044입니다. Accepted ADR-0043/0044 아래 exact 30-contract
-template/form/auth/admin vertical batch는 25 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL full
-flow, 네 플랫폼 993/993/0, full/386/external archive/audit와 hosted required 14/14를 통과했습니다. Durable
-user/session/audit와 M5·M6 completion은 이 bounded packet에서 계속 제외합니다. GDJ-0044는 별도 DRF 3.18.0 +
-Django 6.1 + CPython 3.14.3 profile, closed integer parameter routing과 session-authenticated Article JSON API의
-exact 18-contract Phase A를 활성화했습니다. ADR-0045/0046은 Proposed이고 새 source/reference/product registration은
-아직 없습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+`5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0044도
+hosted-verified source `d9c1971...`의 EVID-125/126과 CI #142 exact 27/27 jobs·359/359 steps로 completed됐습니다.
+Terminal active/ready는 0/0이고 외부 blocker도 0입니다. Accepted ADR-0045/0046 아래 exact 18-contract Article
+API/parameter-route vertical batch는 13 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL flows,
+네 플랫폼 1,017/1,017/0, full/386/external archive/audit, hosted portable runserver required 16/16과 PostgreSQL
+required 15/15를 통과했습니다. Durable user/session/audit, OpenAPI/browsable API/token auth, Channels/Realtime와
+M7/M8 completion은 이 bounded packet에서 계속 제외합니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
 WEB-011..020의 bounded implementation/local actual을 닫았습니다. First submitted `46a57aa...` run은 26 success 뒤
 20-minute timeout으로 끝났고, correction `2b49938...`의 EVID-121 local refreeze 뒤 corrected run이 portable required
@@ -1666,18 +1687,18 @@ terminal docs baseline `9099a53...`, frozen local source `8bcfa213...`/EVID-123�
 EVID-124/run `32672326069`을 거쳐 exact 27/27 jobs·358/358 steps, portable 993/993/0과 PostgreSQL required
 14/14·skip 0으로 completed됐습니다. ADR-0043/0044는 Accepted이고 DEV-0003..0005는 Verified입니다.
 
-다음 정확한 구현 경계는 GDJ-0044 Phase A입니다. 기존 root `uv.lock`과 Django-only 18 oracle bytes를 보존한 채
-`conformance/reference/drf` isolated lock과 `drf-3.18.0-django-6.1-sqlite-darwin-arm64` profile을 만들고,
-WEB-028..035/API-001..010 두 set의 independent DRF/Django scenario, manifest, oracle, not-implemented baseline과
-checksum/protocol lock을 생성합니다. 이어서 existing static route를 보존하는 `<int64:name>` candidate와
-typed reverse/request accessor를 Phase B compile prototype으로 통합합니다.
+GDJ-0044는 source chain `5f3fb58...`→`e92b991...`→`0f5b9cf...`→`68455cf...`→`f5f5afc...`→
+`5bf5bcf...`→`7af2414...`→`5f415d6...`→`d9c1971...`을 거쳐 completed됐습니다. EVID-125 local final과
+EVID-126/CI #142 hosted result는 exact 18=`13 passing + 5 deviation`, 27/27 jobs·359/359 steps, portable
+runserver 16/16·skip 0, PostgreSQL 15/15·skip 0을 증명합니다. ADR-0045/0046은 Accepted이고 DEV-0006/0007은
+Verified입니다. Tested source head와 이 terminal documentation-only descendant를 구분합니다.
 
-Article API actual flow는 Admin login 뒤 rotated cookie를 받은 다음 authenticated safe list GET에서 fresh masked CSRF
-token을 response header로 얻고, 그 token으로 POST/PUT/PATCH/DELETE를 수행합니다. HttpOnly cookie secret 또는 pre-login
-token을 재사용하지 않습니다. Deprecated DRF built-in OpenAPI, Channels, durable session/user/audit, multipart/file,
-browsable API와 broader serializer breadth는 별도 후속으로 둡니다.
+다음 별도 activation 후보는 durable single-runtime system state와 restart-preserving Article Admin/API입니다.
+명시적 `godj_system.0001` migration, one-time admin bootstrap, digest-only session bearer, restart-preserving
+authentication/rotation/logout, Article mutation과 ordered bounded audit의 same-transaction ownership을 좁은 SYS 계약으로
+고정합니다. Auto-DDL, distributed/multi-process session, general field breadth와 production operation은 제외합니다.
 
-Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 API half 선택 뒤 `Partial`,
+Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 bounded API completion 뒤에도 `Partial`,
 Q-017은 P1/open이며
 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와 release는 이 작업의 권한·범위가 아닙니다.
 

@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-24
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-122
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-126
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -11641,3 +11641,165 @@ completion.
 This EVID-124 append and synchronized terminal status are a documentation-only descendant of the tested head. Per the
 repository verification cadence they receive link/frontmatter/status consistency and `git diff --check`, not an EVID-125
 or recursively repeated product matrix.
+
+## EVID-20260824-125 — GDJ-0044 Article API Frozen Local Checkpoint
+
+- Date/time: completed through 2026-08-24T11:54:53+09:00
+- Work/contract IDs: GDJ-0044 active; ADR-0045/0046 Proposed; WEB-028..035 and API-001..010 implemented/local-final,
+  but not yet hosted-`Verified`
+- Frozen source/conformance head: `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`, tree
+  `2e5c52ff162dc74d6281c1927750be34be329c69`, subject `test: stabilize Article site race deadline`
+- Result: the closed int64 router/reverse, reflection-free serializer/JSON core, session-authenticated Article CRUD,
+  SQLite user flow, PostgreSQL required-sentinel wiring, opt-in loopback development site, oracle-blind actual adapters
+  and one-time final local matrix passed. Actual PostgreSQL sentinel execution remained hosted-pending at this boundary.
+  Exact submitted-head hosted completion, ADR acceptance, deviation verification, work completion, merge, release and
+  production readiness are not claimed by this entry.
+
+### Product and conformance freeze
+
+The implementation chain is `5f3fb58` closed parameter routing, `e92b991` reusable Article persistence, `0f5b9cf`
+exact DRF reference, `68455cf` JSON API core, `f5f5afc` authenticated Article API, `5bf5bcf` SQLite/PostgreSQL E2E,
+`7af2414` opt-in site, `5f415d6` product conformance and `d9c1971` final test-budget correction. The 18-contract batch
+classifies as exact `13 passing + 5 deviation`: WEB-028/029 use DEV-0006, API-001/003/010 use DEV-0007, and the other
+13 contracts are passing. Global reference is 20 sets/219 contracts/380 ordered bindings=
+`192 passing + 15 deviation + 12 oracle_locked`; product is 19 sets/207 contracts=
+`192 passing + 15 deviation`. MIG-075..086 remain the only locked/unregistered contracts.
+
+The parameter manifest is 4,689 bytes/SHA-256
+`85365b3670df5fa5a0d51241dd958d25816d9a285a5070e416120423793a264e`; Article API manifest is 6,618
+bytes/SHA-256 `5047ca955ba5b2099f0d8bf2f6f0ed09944e2fcc705eb4ccd1c5bd6fa500a4e1`. DEV-0006 and DEV-0007 sparse
+expectations are respectively 2,174 bytes/SHA-256
+`f9d084d178cccdf5928830813810f4d28c930d4414c73091a06dcd825ed38f60` and 2,003 bytes/SHA-256
+`54758fdf850d4a61f65b764131a444c276ad7bb311a65d86b8b4a1780c979623`. Both actual comparisons passed
+8/8 and 10/10 with zero unexpected difference. The final exact relation-product inventory remained
+1,017 run/1,017 pass/0 skip, 104,782 payload bytes, SHA-256
+`38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9`.
+
+### Preserved first full-gate failure and minimal correction
+
+The first root `make ci` attempt on `5f415d6...` passed generation, all-package normal and vet, but full
+`go test -race ./...` observed one timeout in
+`examples/article/cmd/site.TestRunPublishesOptInAdminAndAPIAndCancelsCleanly`: application construction had not reached
+the injected listener within the fixed 10-second wait. The actual startup hashes a configured password with the accepted
+PBKDF2 600,000-iteration profile before publication; under full race package parallelism that work crossed the old test
+budget. No product assertion, persisted state, contract, artifact or workflow byte failed.
+
+Correction `d9c1971...` changes only that test file. Listener construction and HTTP operations now fail closed at 30
+seconds, while cancellation/shutdown retains the previous 10-second hang detector. Focused normal and race each passed
+three repetitions; package CGO-disabled, vet, Linux/386 compile-only and `git diff --check` also passed. An independent
+read-only audit confirmed that the correction changes no product/conformance/workflow byte and found P0/P1/P2/P3=
+`0/0/0/0` on the frozen head.
+
+### Final full, Linux/386 and repository-external gates
+
+With cached exact uv 0.10.12 selected and network dependency resolution disabled, the clean committed head ran:
+
+```bash
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Root `make ci` exited 0 in 238.62 seconds. It covered generation drift, all-package normal/vet/race, the configured
+CGO-disabled product matrix, portable Python 245 total tests including 21 intentional exact-profile-only skips, all contract checks
+and all 19 GoDj adapters. Generated Article and relation-delete snapshots stayed exact 12/SHA-256 `0af11c64...` and
+16/SHA-256 `2a28734c...`. The separate all-package Linux/386 command exited 0 in 3.99 seconds; `/usr/bin/true` makes this
+compile-only evidence, not Darwin-hosted Linux runtime support. HEAD/tree and the worktree remained clean.
+
+A guarded `.git`-free `git archive d9c1971...` contained exactly 959 regular tracked files. With a private `GOCACHE`,
+`make generate-check` exited 0 in 9.84 seconds and all-package Linux/386 compile-only exited 0 in 19.87 seconds. The
+before/after sorted per-file content roster remained SHA-256
+`5881e02db0ad7eb08d827365c0e374f7a49a2ee3e49134bba829c35520e7ff03`; regular-file count and content did not
+drift. The guarded temporary root was moved recoverably to Trash.
+
+No local PostgreSQL service URL was available, so the required PostgreSQL Article/API/runserver tests were not locally
+claimed; the digest-pinned hosted PostgreSQL job owns that fail-closed evidence. CI #141 on the prior head finished 24
+jobs before the corrective push automatically cancelled its remaining three jobs, so it is not final proof. The next
+boundary is CI #142 on exact `d9c1971...`, followed only by terminal documentation if every job, step, required sentinel
+and annotation passes.
+
+## EVID-20260824-126 — GDJ-0044 Exact-head Hosted Completion
+
+- Date/time: 2026-08-24T02:44:56Z–03:07:05Z; attempt 1
+- Work/contract IDs: GDJ-0044 completed; ADR-0045/0046 Accepted; WEB-028..035 and API-001..010 bounded
+  Implemented/Verified
+- Submitted source/conformance head: `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`, tree
+  `2e5c52ff162dc74d6281c1927750be34be329c69`
+- Workflow: CI #142, run
+  [32684080231](https://github.com/progresshans/godj/actions/runs/32684080231), event `pull_request`, attempt 1,
+  check suite `88547036831`
+- Result: exact 27/27 jobs and 359/359 recorded steps completed `success`; job failure/cancel/skip 0, check-run
+  annotation 0. This closes the source milestone, not merge, release, production readiness, M7/M8 completion or durable
+  system state.
+
+### Exact checkout, synthetic merge and PR state
+
+Run metadata reports `head_sha=d9c19712...`, status `completed`, conclusion `success`, and exactly 27 successful check
+runs. The pull-request synthetic merge was `43c2e1905ed2423de7bbef2b30256c818c487281` with ordered parents
+`[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92]` and tree
+`2e5c52ff162dc74d6281c1927750be34be329c69`, byte-identical to the submitted source tree. The merge commit was
+GitHub-verified.
+
+At collection time Draft PR #1 was `OPEN`, `isDraft=true`, head `codex/revision-fenced-migration-lifecycle@d9c19712...`,
+base `main`, `mergeStateStatus=CLEAN` and `mergeable=MERGEABLE`; it remained unmerged. All 27 rollup checks were
+`COMPLETED/SUCCESS`.
+
+### Contract, portable and artifact gates
+
+Artifact job [97305861505](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861505) passed in
+21m29s. Portable Python ran 245 total tests: 224 passed and 21 were intentionally skipped because they require the locked
+Darwin/arm64 reference profile. The separate exact Darwin job ran all 245 with skip 0. This was followed by contract/actual
+validation, Linux/386 migration/project/runserver compilation, Linux/386 relation products, stored Django/DRF checksum
+verification and no-rewrite checks. Parameter routing matched the reviewed DEV-0006 expectation for 8 contracts and
+Article API matched DEV-0007 for 10 contracts; their oracle-blind actual adapters produced no unexpected difference.
+
+The frozen classification is exact GDJ-0044 `13 passing + 5 deviation`: WEB-028/029 use Verified DEV-0006,
+API-001/003/010 use Verified DEV-0007, and the other 13 contracts are passing. Global reference is 20 sets/219
+contracts/380 ordered bindings=`192 passing + 15 deviation + 12 oracle_locked`; product is 19 sets/207
+contracts=`192 passing + 15 deviation`. MIG-075..086 remain the only locked/unregistered range.
+
+The four relation-product jobs passed the same fail-closed inventory:
+
+| Coordinate | Job | Inventory |
+|---|---:|---|
+| ubuntu-22.04 | [97305861520](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861520) | 1,017 run / 1,017 pass / 0 skip |
+| ubuntu-24.04-arm | [97305861565](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861565) | 1,017 / 1,017 / 0 |
+| macos-15-intel | [97305861656](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861656) | 1,017 / 1,017 / 0 |
+| macos-26 | [97305861502](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861502) | 1,017 / 1,017 / 0 |
+
+Every coordinate asserted exact 104,782 payload bytes and SHA-256
+`38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9`, then passed normal/race/CGO-disabled,
+vet, artifact no-rewrite and clean-worktree gates.
+
+### Required runserver and PostgreSQL actual sentinels
+
+Each portable product-project coordinate required the same four named runserver tests to appear as explicit JSON
+`pass` and rejected either a missing pass or any `skip`: SQLite development loop, authenticated Article Admin/API,
+stale copied-Article pre-runtime rejection and separate-descendant-group cleanup. All four jobs passed normal/race/
+CGO-disabled/vet/clean gates, yielding exact required 16/16 pass and skip 0:
+
+| Coordinate | Job |
+|---|---:|
+| ubuntu-22.04 | [97305861647](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861647) |
+| ubuntu-24.04-arm | [97305861574](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861574) |
+| macos-15-intel | [97305861637](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861637) |
+| macos-26 | [97305861577](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861577) |
+
+PostgreSQL job [97305861742](https://github.com/progresshans/godj/actions/runs/32684080231/job/97305861742) used
+exact `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`,
+fingerprint `170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin` and
+`GODJ_REQUIRE_POSTGRES=1`. Its fail-closed JSON inventory required exact 15/15 named passes and rejected
+every required skip. The set includes the Article migration/CRUD/Admin/API flows and
+`TestGlobalRunserverArticlePostgresDevelopmentLoop`, plus existing migration/relation/restart sentinels. Normal, race,
+CGO-disabled, vet and clean-worktree steps all passed. The separately built project runner recorded prepare
+`history=1, rows=1`, then after an actual service-container restart returned resume `history=2, rows=2`, verified the
+same 2/2 state and completed cleanup `ok`.
+
+### Audit and terminal ownership
+
+The independent frozen-source audit in EVID-125 found P0/P1/P2/P3=`0/0/0/0` and proved the 30-second test-budget
+correction changed no product, contract, artifact or workflow byte. A separate read-only hosted-terminal audit rechecked
+the run/check-suite/log/PR surfaces and found no P0–P3 defect. The terminal status/ADR/deviation/evidence edits that append
+this section are documentation-only descendants of the proved source tree. Per repository cadence they receive
+link/frontmatter/status consistency and `git diff --check`, not another recursive local product matrix. Draft PR #1 stays
+OPEN/DRAFT/unmerged; no merge, release or deployment was performed.

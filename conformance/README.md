@@ -146,6 +146,11 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/query-cache-manifest.json` | QuerySet evaluation/cache reference contract 11개 |
 | `contracts/query-breadth-manifest.json` | Typed projection/scalar aggregate/stable pagination reference contract QRY-022..033 |
 | `contracts/query-expression-manifest.json` | Boolean/range/field-reference query contract QRY-034..053; current 20개 모두 `passing` |
+| `contracts/template-form-manifest.json` | WEB-021..027/FRM-001..005 closed template/Form contract; 10 passing + 2 DEV-0003 |
+| `contracts/auth-session-manifest.json` | AUT-001..008 session/auth/CSRF contract; 6 passing + 2 DEV-0004 |
+| `contracts/article-admin-manifest.json` | ADM-001..010 bounded Article Admin contract; 9 passing + 1 DEV-0005 |
+| `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
+| `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -155,10 +160,12 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
-| `runners/django` | 명시적인 Django observation/GoDj decision-oracle scenario와 type-preserving normalizer |
+| `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
+| `reference/drf` | Root Django lock을 바꾸지 않는 DRF 3.18.0 isolated `uv.lock`과 provenance |
+| `runners/django` | 명시적인 Django/DRF observation과 GoDj decision-oracle scenario, type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..053 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 query expression까지 제품 package를 실행하는 열네 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 Article API까지 제품 package를 실행하는 열아홉 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -174,7 +181,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | Current format/load ownership과 opaque lifecycle authority를 검증하는 focused gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
-| `runserverproduct` | GDJ-0042 global `godj runserver` lifecycle, actual SQLite Article와 required PostgreSQL Article sentinel |
+| `runserverproduct` | Global `godj runserver` lifecycle, actual SQLite/PostgreSQL Article와 authenticated Admin/API required sentinels |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
 각 machine-readable manifest는 해당 contract set 실행 입력의 정본입니다. Profile ID,
@@ -219,11 +226,40 @@ run `32659704239`에서 네 portable product 좌표의 SQLite/stale/forced-clean
 12 pass·skip 0과 PostgreSQL 17.10의 기존 12+runserver required sentinel 13 pass·skip 0이 exact
 27/27 jobs·358/358 steps 안에서 통과했습니다. 일반 portable PostgreSQL skip 정책 자체는 그대로입니다.
 
+GDJ-0044는 같은 opt-in site에 authenticated Article Admin/API sentinel을 추가했습니다. Submitted source
+`d9c1971...`의 [EVID-126](../docs/status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion) /
+CI #142는 네 portable 좌표에서 기존 세 개와 authenticated Admin/API를 합친 required 16/16·skip 0,
+PostgreSQL 17.10 job에서 Article API와 global runserver를 포함한 required 15/15·skip 0을 통과했습니다. 일반 portable
+PostgreSQL skip 정책과 development-only/non-loopback exclusion은 바뀌지 않습니다.
+
 Black-box Article HTTP는 response와 durable state 증거이며 in-process exactly-two-query instrumentation이나 Django
 differential comparison을 수행하지 않습니다. `go test -race`도 harness/in-process lifecycle을 instrument할 뿐 test가 일반
 `go build`로 만든 global/runtime child까지 race-instrumented됐다는 뜻은 아닙니다. No-shell process-group streaming,
 SIGINT/bounded force/direct reap, output failure와 held pipe의 세부 fault injection은 `internal/projectcheck` unit/process test가
 소유합니다. Windows, production serving, non-loopback/TLS와 daemonized descendant 보장은 이 package의 claim이 아닙니다.
+
+## GDJ-0044 parameter routing and Article API gate
+
+별도 exact profile `drf-3.18.0-django-6.1-sqlite-darwin-arm64`은 DRF 3.18.0 tag
+`11875a38f483cea69d8ef2fd9ede6b96fb602ec4`, Django 6.1, CPython 3.14.3, SQLite 3.50.4와 isolated
+`reference/drf/uv.lock`을 고정합니다. Existing Django-only profile/oracle/root lock은 다시 쓰지 않습니다.
+
+`parameter-routing-manifest.json`의 WEB-028..035와 `article-api-manifest.json`의 API-001..010은 서로 독립적인
+reference scenario와 oracle-blind GoDj actual을 사용합니다. Product는 exact `13 passing + 5 deviation`입니다.
+WEB-028/029의 eight sparse selectors는 Verified DEV-0006, API-001/003/010의 six sparse selectors는 Verified
+DEV-0007만 허용하고 root-list comparator도 selector/type/count를 fail-closed하게 검증합니다. 두 actual comparison은
+각각 8/8과 10/10에서 unexpected difference 0입니다.
+
+Current global reference는 20 sets/219 contracts/380 ordered bindings=`192 passing + 15 deviation + 12
+oracle_locked`, product는 19 adapters/207 contracts=`192 passing + 15 deviation`입니다. MIG-075..086은 계속
+locked/unregistered입니다. Four-coordinate relation inventory는 1,017/1,017/0, 104,782 bytes, SHA-256
+`38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9`입니다.
+
+Final local `make ci`, Linux/386, external archive와 source audit는
+[EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint), exact
+27/27 jobs·359/359 steps hosted gate와 PostgreSQL/runserver sentinels는 EVID-126에 기록됩니다. OpenAPI,
+browsable API, token auth, nested/bulk serializer, durable system state, Channels/Realtime와 M7/M8 completion은 이
+gate가 증명하지 않습니다.
 
 ## Exact profile
 
@@ -251,6 +287,10 @@ GoDj SQLite backend는 Django reference와 별도 실행 환경입니다. 현재
 `modernc.org/sqlite v1.56.0`이고 내장 SQLite는 3.53.3입니다. Django reference의
 SQLite 3.50.4 fingerprint를 Go backend 정보로 덮어쓰지 않으며, 차등 비교는 계약된
 외부 동작을 비교합니다.
+
+API exact regeneration은 위 Django-only profile이 아니라 별도 DRF profile과 isolated lock을 요구합니다. Exact
+Darwin/arm64 job은 두 profile을 각각 strict fingerprint로 재생하고 parameter/article oracle checksum을 `--check`로
+검증합니다. Portable job은 checked-in artifact와 actual comparison만 검증하며 DRF oracle을 재생성했다고 주장하지 않습니다.
 
 ## 실행
 
@@ -656,14 +696,14 @@ uv run --frozen python -m conformance.queryexpression.reference
 ```
 
 GDJ-0040 Phase B/C는 위 Phase A reference bytes 중 oracle/static/checksum을 바꾸지 않고 manifest status만
-10/10 `passing`으로 전환하고 oracle-blind GoDj/SQLite actual adapter를 등록했습니다. Current manifest는
+10/10 `passing`으로 전환하고 oracle-blind GoDj/SQLite actual adapter를 등록했습니다. GDJ-0040 completion checkpoint manifest는
 8,075 bytes/SHA-256 `e4160851da2e0820dc4f9f2e8c9e9c2d4d372cde426622b4fea5def51739ea69`입니다.
 두 독립 actual은 각각 41,134 bytes/SHA-256
 `20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
 oracle과 protocol difference 0입니다. Scenario registry는 정확히 10개이며 expected artifact를 읽지 않고 실제
 ORM/SQLite plan, compiled SQL shape, DB state와 metrics를 관찰합니다.
 
-Current reference inventory는 exact 15 sets/161 unique contracts+scenarios/210 ordered cross-bindings의
+GDJ-0040 completion checkpoint reference inventory는 exact 15 sets/161 unique contracts+scenarios/210 ordered cross-bindings의
 `144 passing + 5 deviation + 12 oracle_locked`입니다. Product inventory는 14 adapters/149 contracts의
 `144 passing + 5 deviation`이며 QRY-034..043 actual은 10/10 zero-diff입니다. Source/conformance commit과
 affected local/audit 증거는
@@ -689,20 +729,20 @@ manifest/oracle/static fixture는 각각 16,652/87,852/2,465 bytes, SHA-256
 14 sets/159 contracts의 `144 passing + 5 deviation + 10 oracle_locked`입니다. 이 Phase A는 QRY-044..053
 GoDj actual이나 backend 제품 검증 증거가 아닙니다.
 
-GDJ-0041 Phase B/C current source는 private literal/list/field RHS union과 source inventory validation,
+GDJ-0041 Phase B/C completion checkpoint source는 private literal/list/field RHS union과 source inventory validation,
 Integer/String `gt`/`gte`/`lt`/`lte`, sealed same-model/same-kind `orm.F`, nullable RHS odd-`NOT` complement를
 하나의 immutable Boolean tree에 구현했습니다. SQLite/PostgreSQL은 field RHS를 bind parameter가 아닌 quote된
 identifier로 compile하며, bounded Article advanced filter는 invalid input DB I/O 0과 성공 시 projection+aggregate
 정확히 두 query를 유지합니다. Oracle-blind GoDj/SQLite actual은 QRY-034..053 20/20, 신규 QRY-044..053 10/10
 zero-diff입니다.
 
-Current manifest는 16,592 bytes/SHA-256
+GDJ-0041 completion checkpoint manifest는 16,592 bytes/SHA-256
 `a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`이고, Phase A oracle과 ordered NI fixture는
 각각 87,852/2,465 bytes와
 `4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f`/
 `7ab556ff1f6b77f5e1d4614d6d752cabd6f3428572558d39007e9cd15972f6c2`로 불변입니다. 두 독립 actual은
 87,592 bytes/SHA-256 `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical합니다.
-Current reference inventory는 15 sets/171 unique contracts+scenarios/210 ordered cross-bindings의
+GDJ-0041 completion checkpoint reference inventory는 15 sets/171 unique contracts+scenarios/210 ordered cross-bindings의
 `154 passing + 5 deviation + 12 oracle_locked`, product inventory는 14 adapters/159 contracts의
 `154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates와 submitted
 head `e97a4e3...`의 [EVID-118](../docs/status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /

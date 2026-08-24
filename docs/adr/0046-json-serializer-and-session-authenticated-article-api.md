@@ -1,6 +1,6 @@
 # ADR-0046: JSON Serializer and Session-authenticated Article API
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-24
 - 관련 work/contract: [GDJ-0044](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md), API-001..010, Q-016, M7
 - 선행 결정: [ADR-0043](0043-safe-template-and-model-form-validation.md),
@@ -19,7 +19,7 @@ Reflection 기반 generic serializer나 `map[string]any` public API는 generated
 number precision, null/omitted와 application I/O ownership을 숨깁니다. 첫 slice는 explicit Article typed adapter로 의미를 검증한
 뒤에만 generated ModelSerializer를 검토해야 합니다.
 
-## Proposed 결정
+## 결정
 
 1. `serializers`는 immutable field order, input presence/null/value, ordered stable validation errors와 full/partial mode를
    소유하며 common `validation` primitive를 재사용합니다. Form public API/lifecycle과는 분리합니다.
@@ -55,7 +55,10 @@ number precision, null/omitted와 application I/O ownership을 숨깁니다. 첫
     `get_success_headers`에서 created ID의 named detail reverse로 `Location`을 만들고 oracle은 origin을 제거한 canonical
     path/query를 보존합니다. GoDj는 raw Host를 반사하지 않는 같은 relative URI를 반환합니다.
 
-정확한 exported 이름과 error envelope는 Phase A reference/Phase C compile prototype 뒤 Accepted 전환 때 동결합니다.
+게시된 package 경계는 `serializers`의 immutable declared-field validation, `api`의 bounded JSON/parser/error/page
+representation, `api/sessionauth.Runtime.Require`의 typed principal/permission/CSRF adapter와 app-owned Article API
+adapter입니다. Stable error code에는 `request_too_large`, `csrf_rejected`, `permission_denied`, `not_authenticated`가
+포함되며 raw credential/session/CSRF/cookie/internal cause는 representation ingress가 아닙니다.
 
 ## 결과
 
@@ -73,9 +76,14 @@ number precision, null/omitted와 application I/O ownership을 숨깁니다. 첫
 
 ## 검증 계획
 
-- [ ] DRF 3.18.0 + Django 6.1 exact API-001..010 reference artifact
-- [ ] JSON parser/serializer full/partial/error determinism and resource caps
-- [ ] Anonymous/permission/CSRF denial JSON 403 and terminal Article DB mutation 0
-- [ ] SQLite/PostgreSQL Article list/create/detail/PUT/PATCH/delete actual flow
-- [ ] Oracle-blind GoDj adapter, sparse deviation policy and global inventory lock
-- [ ] normal/race/CGO0/vet, full/386/external-copy and exact hosted matrix
+- [x] DRF 3.18.0 + Django 6.1 exact API-001..010 reference artifact
+- [x] JSON parser/serializer full/partial/error determinism and resource caps
+- [x] Anonymous/permission/CSRF denial JSON 403 and terminal Article DB mutation 0
+- [x] SQLite/PostgreSQL Article list/create/detail/PUT/PATCH/delete actual flow
+- [x] Oracle-blind GoDj adapter, sparse deviation policy and global inventory lock
+- [x] normal/race/CGO0/vet, full/386/external-copy and exact hosted matrix
+
+API-001/003/010은 [DEV-0007](../DEVIATIONS.md#dev-0007--article-json-api-error-taxonomy)의 exact sparse
+selectors를 제외하고 reviewed product expectation과 일치합니다. API-002/004..009는 passing입니다. Final
+local/hosted evidence는 [EVID-125](../status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
+[EVID-126](../status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)입니다.

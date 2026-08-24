@@ -67,8 +67,9 @@ CPython 3.12.13/3.13.15/3.14.3/3.14.7과 같은 Django/asgiref/sqlparse dependen
 구성됐고 GDJ-0022 fix head run `31329294154`에서 네 leg 모두 통과했습니다. Historical exact darwin은
 계속 uv 0.10.12를 사용합니다.
 
-DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함됩니다. GDJ-0044 activation은
-API half에 한해 별도 exact profile `drf-3.18.0-django-6.1-sqlite-darwin-arm64`을 선택했습니다.
+DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함됩니다. Completed GDJ-0044는
+API half에 한해 별도 exact profile `drf-3.18.0-django-6.1-sqlite-darwin-arm64`을 선택하고 bounded first
+product slice까지 검증했습니다.
 
 - DRF 3.18.0 tag commit `11875a38f483cea69d8ef2fd9ede6b96fb602ec4`
 - Wheel `djangorestframework-3.18.0-py3-none-any.whl` SHA-256
@@ -80,7 +81,13 @@ API half에 한해 별도 exact profile `drf-3.18.0-django-6.1-sqlite-darwin-arm
   SessionAuthentication-style anonymous 403와 authenticated unsafe-method CSRF, per-method permission,
   fixed PageNumber pagination, SimpleRouter trailing slash와 list/create/retrieve/PUT/PATCH/delete
 
-이 선택은 Proposed ADR-0045/0046의 activation boundary이며 아직 reference artifact나 product support를 뜻하지 않습니다.
+Accepted ADR-0045/0046 아래 WEB-028..035/API-001..010은 exact `13 passing + 5 deviation`입니다. WEB-028/029는
+Verified DEV-0006, API-001/003/010은 Verified DEV-0007이고 나머지 13개는 passing입니다. Global reference는
+20 sets/219 contracts/380 ordered bindings=`192 passing + 15 deviation + 12 oracle_locked`, product는 19
+sets/207 contracts=`192 passing + 15 deviation`입니다. Exact source `d9c1971...`의 local/hosted 결과는
+[EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
+[EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
+
 OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
 Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 
@@ -813,7 +820,7 @@ SHA-256 `aa0d321264e0ad9eed1818d1530a51d18592c16d509c51417e4bdf598655b10e`입니
 oracle/static `contractcheck`도 통과했지만 QRY-034..043을 `passing`으로 올리려면 Phase B/C의 independent GoDj
 actual과 comparator evidence가 별도로 필요합니다.
 
-## GDJ-0040 Phase B/C current Boolean predicate product boundary
+## GDJ-0040 Phase B/C Boolean predicate product checkpoint
 
 Product source `86d6b169...`와 actual conformance `0ec6f385...`는 Phase A oracle/static bytes를 입력으로 읽지
 않는 GoDj handler를 연결하고 QRY-034..043을 10/10 `passing`으로 전환했습니다. Manifest는 status 10개만
@@ -824,7 +831,7 @@ Oracle 41,264 bytes/`8b087a39...`와 ordered not-implemented fixture 1,715 bytes
 두 독립 actual은 각각 41,134 bytes/SHA-256
 `20b5cf0a332d9d85394a2021fc0b1e8839f9e57994b9c278a7f8bcce8e5f918a`로 byte-identical하고 locked
 Django result/error/DB-state/metrics와 protocol difference 0입니다. Raw JSON field order와 byte equality는
-비교 계약이 아닙니다. Current reference aggregate는 15/161/210=
+비교 계약이 아닙니다. 그 checkpoint의 reference aggregate는 15/161/210=
 `144 passing + 5 deviation + 12 oracle_locked`, product는 14 adapters/149 contracts=
 `144 passing + 5 deviation`입니다.
 
@@ -851,18 +858,18 @@ manifest는 16,652 bytes/SHA-256
 15/171/210=`144 passing + 5 deviation + 22 oracle_locked`, product는 actual 등록 전
 14/159=`144 passing + 5 deviation + 10 oracle_locked`였습니다. 이 수치는 Phase A 역사 경계입니다.
 
-Current source는 Accepted [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)에 따라
+GDJ-0041 completion checkpoint source는 Accepted [ADR-0041](adr/0041-typed-scalar-comparisons-and-field-references.md)에 따라
 Integer/String literal range와 sealed same-model/same-kind `orm.F`를 private literal/list/field RHS union에
 구현합니다. Source inventory/kind/malformed union은 pre-I/O 검증하고, SQLite/PostgreSQL field RHS는 quote된
 identifier라 parameter를 소비하지 않습니다. Nullable LHS/RHS complement guard는 odd `NOT`에만 적용되며 같은
 field guard는 중복하지 않습니다. Bounded Article `min_id`/`max_id`/`title_matches_summary` flow는 invalid 입력
 DB I/O 0과 성공 projection+aggregate 두 query를 유지합니다.
 
-Current manifest는 16,592 bytes/
+GDJ-0041 completion checkpoint manifest는 16,592 bytes/
 `a32365e72bff2f96d576dc2a6322c703c6f0cf7c277776f6b326eda47cf9de17`이고 oracle/NI fixture는 Phase A bytes를
 유지합니다. 두 독립 oracle-blind actual은 87,592 bytes/
 `c8762a8a728440e8b7c42c705aad9635f902100041c0171cdb121880b3813a7c`로 byte-identical하며
-QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff입니다. Current reference는
+QRY-034..053 20/20, 신규 QRY-044..053 10/10 zero-diff입니다. GDJ-0041 completion checkpoint reference는
 15/171/210=`154 passing + 5 deviation + 12 oracle_locked`, product는
 14/159=`154 passing + 5 deviation + 0 oracle_locked`입니다. Frozen source `7f2bb223...`의 local-final gates와
 submitted head `e97a4e3...`의 [EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) /

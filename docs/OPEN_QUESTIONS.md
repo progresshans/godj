@@ -15,7 +15,7 @@
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
-| Q-016 | Partial | GDJ-0044 active / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/SimpleRouter bounded 범위를 Proposed로 고정; Channels/Realtime profile과 broader API는 open |
+| Q-016 | Partial | GDJ-0044 completed / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/closed Router bounded 18-contract slice를 Accepted/hosted-verified; Channels/Realtime profile과 broader API는 open |
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
@@ -37,8 +37,11 @@
 - Q-016 API half: DRF 3.18.0 tag `11875a38...`, Django 6.1과 CPython 3.14.3을 isolated exact reference로
   선택했습니다. 첫 범위는 JSON parser/renderer, SessionAuthentication-style 403+CSRF, per-method permission,
   fixed PageNumber pagination, SimpleRouter trailing slash와 Article list/create/detail/PUT/PATCH/delete입니다.
-- OpenAPI, browsable API, token auth, nested/bulk serializer와 Channels/Realtime reference는 이번 activation에서 결정하지
-  않았으므로 Q-016 전체는 `Partial`입니다.
+- Accepted ADR-0045/0046 아래 exact 18 contracts는 `13 passing + 5 deviation`으로
+  [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에서 hosted-verified됐습니다.
+  WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다.
+- OpenAPI, browsable API, token auth, nested/bulk serializer와 Channels/Realtime reference는 이번 completed packet에서
+  결정하지 않았으므로 Q-016 전체는 계속 `Partial`입니다.
 
 ## M0에서 해결한 질문
 
