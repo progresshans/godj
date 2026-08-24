@@ -108,6 +108,13 @@
   product 19/207=`192 passing + 15 deviation`. CI #142 passed exact 27/27 jobs·359/359 steps, portable runserver
   required 16/16·skip 0, PostgreSQL 17.10 required 15/15·skip 0 and four-coordinate relation 1,017/1,017/0.
   ADR-0045/0046 are Accepted and GDJ-0044 is completed. Draft PR #1 remains OPEN/DRAFT/unmerged.
+- GDJ-0045 activation baseline: GDJ-0044 terminal documentation head
+  `99014e1dbc8169b9ae9e0d5b6d592f808e4d8b07`, tree `fd416a0156d158fc518fbb1ad998f513ba079cdc`.
+  CI #143 run `32686885615`은 이 exact documentation head에서 27/27 jobs·359/359 steps, step skip 0으로
+  성공했습니다.
+  Active packet은 [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md), Proposed
+  [ADR-0047](../adr/0047-explicit-single-runtime-system-state.md)과 SYS-001..012입니다. Current product/contract
+  aggregate는 activation에서 바꾸지 않았고 system-state source/artifact/adapter는 아직 없습니다.
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -587,7 +594,8 @@
   locked/unregistered입니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0044 Session-authenticated Article JSON API and Parameterized Routing](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0045 Durable Single-Runtime System State and Article Restart](../../work/0045-durable-single-runtime-system-state-and-article-restart.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1589,7 +1597,8 @@ completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `
 EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0043도 submitted
 `5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0044도
 hosted-verified source `d9c1971...`의 EVID-125/126과 CI #142 exact 27/27 jobs·359/359 steps로 completed됐습니다.
-Terminal active/ready는 0/0이고 외부 blocker도 0입니다. Accepted ADR-0045/0046 아래 exact 18-contract Article
+GDJ-0044 terminal checkpoint의 active/ready는 0/0이었고 현재 GDJ-0045가 active이며 외부 blocker는 0입니다.
+Accepted ADR-0045/0046 아래 exact 18-contract Article
 API/parameter-route vertical batch는 13 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL flows,
 네 플랫폼 1,017/1,017/0, full/386/external archive/audit, hosted portable runserver required 16/16과 PostgreSQL
 required 15/15를 통과했습니다. Durable user/session/audit, OpenAPI/browsable API/token auth, Channels/Realtime와
@@ -1693,13 +1702,15 @@ EVID-126/CI #142 hosted result는 exact 18=`13 passing + 5 deviation`, 27/27 job
 runserver 16/16·skip 0, PostgreSQL 15/15·skip 0을 증명합니다. ADR-0045/0046은 Accepted이고 DEV-0006/0007은
 Verified입니다. Tested source head와 이 terminal documentation-only descendant를 구분합니다.
 
-다음 별도 activation 후보는 durable single-runtime system state와 restart-preserving Article Admin/API입니다.
-명시적 `godj_system.0001` migration, one-time admin bootstrap, digest-only session bearer, restart-preserving
-authentication/rotation/logout, Article mutation과 ordered bounded audit의 same-transaction ownership을 좁은 SYS 계약으로
-고정합니다. Auto-DDL, distributed/multi-process session, general field breadth와 production operation은 제외합니다.
+현재 active [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 durable
+single-runtime system state와 restart-preserving Article Admin/API를 SYS-001..012로 고정했습니다. Activation 문서는
+`99014e1...`을 baseline으로 하고 Proposed ADR-0047/DEV-0008, one-runtime/sequential-restart와 no-auto-DDL 경계를
+기록했습니다. 다음 구현은 Phase A exact contract/reference lock과 Phase B current-IR `godj_system.0001_initial`
+SQLite/PostgreSQL explicit migration을 파일 소유권을 나눠 병렬 진행하는 것입니다. Artifact와 adapter가 아직 없으므로
+current product/reference aggregate는 GDJ-0044 terminal 값에서 바꾸지 않았습니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 bounded API completion 뒤에도 `Partial`,
-Q-017은 P1/open이며
+Q-017과 Q-020은 P1/open이며
 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와 release는 이 작업의 권한·범위가 아닙니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)

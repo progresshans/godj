@@ -213,6 +213,14 @@ Form과 Serializer는 validation primitive를 공유할 수 있지만 공개 API
 - password reset/change, token
 - audit/security regression catalog
 
+Active [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 이 목록 전체가 아니라
+single-runtime system state의 첫 durable 단면입니다. Proposed
+[ADR-0047](adr/0047-explicit-single-runtime-system-state.md)에 따라 current migration으로 admin credential/session/audit 세
+table을 명시 적용하고 clean restart 뒤 Article Admin/API authentication, logout과 Admin audit history를 복구하는
+SYS-001..012를 검증합니다. DB/schema당 one live runtime, sequential restart, digest-only bearer storage와 Article/audit
+same-transaction만 범위이며 user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed session, persistent
+CSRF key와 production 운영은 아직 지원하지 않습니다.
+
 ## API
 
 - Request/Response abstraction

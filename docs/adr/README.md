@@ -61,5 +61,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0044](0044-session-auth-csrf-and-bounded-article-admin.md) | Accepted | Process session/auth/CSRF와 bounded Article Admin 경계 |
 | [0045](0045-closed-parameterized-routing-and-reverse.md) | Accepted | Static API를 보존하는 closed integer parameter route/reverse 경계 |
 | [0046](0046-json-serializer-and-session-authenticated-article-api.md) | Accepted | Reflection-free JSON serializer와 session-authenticated Article API 경계 |
+| [0047](0047-explicit-single-runtime-system-state.md) | Proposed | Current migration을 쓰는 explicit single-runtime auth/session/audit system state |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

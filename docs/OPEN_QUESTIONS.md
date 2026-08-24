@@ -19,6 +19,7 @@
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
+| Q-020 | P1 | GDJ-0045 active / multi-process 전 | Durable framework system state의 schema·migration·runtime topology를 어떻게 소유할 것인가; GDJ-0045는 one-runtime/sequential-restart 답만 검증 |
 
 ## GDJ-0043에서 해결한 질문
 
@@ -42,6 +43,17 @@
   WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다.
 - OpenAPI, browsable API, token auth, nested/bulk serializer와 Channels/Realtime reference는 이번 completed packet에서
   결정하지 않았으므로 Q-016 전체는 계속 `Partial`입니다.
+
+## GDJ-0045에서 검증할 질문
+
+- Q-020의 첫 답은 Proposed [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)입니다. Current
+  Auto/Char/Boolean IR의 explicit `godj_system.0001_initial`, DB/schema당 one live runtime, process mutex와 transaction의
+  0/1 cardinality 검사, raw bearer 대신 digest, current-only bounded codec과 Article/Admin-audit same-transaction을 검증합니다.
+- Restart는 이전 process의 listener/runtime/backend handle이 모두 종료된 sequential restart입니다. DB unique/index IR,
+  concurrent multi-process, distributed session, direct SQL writer, online repair와 production topology는 답하지 않으므로 Q-020은
+  이 packet이 완료돼도 broader scope에 대해 `Partial`로 남습니다.
+- SYS-001..012의 exact artifact와 SQLite/PostgreSQL distinct-process actual이 아직 없으므로 activation 시점에는 구현·검증을
+  주장하지 않습니다. SYS-009의 process-local CSRF-key 정책은 [Proposed DEV-0008](DEVIATIONS.md#dev-0008--restart-뒤-process-local-csrf-key로-stale-masked-token을-거부) 후보입니다.
 
 ## M0에서 해결한 질문
 

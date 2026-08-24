@@ -682,6 +682,13 @@ profile/lock을 사용해 기존 Django-only oracle bytes를 보존합니다. WE
 `13 passing + 5 deviation`으로 EVID-126/CI #142에서 hosted-verified됐습니다. OpenAPI, browsable API, token auth,
 Channels와 M7/M8 completion을 주장하지 않습니다.
 
+[GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 M6의 다음 active wide batch입니다.
+Proposed [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)은 current Auto/Char/Boolean migration으로
+`godj_system` credential/session/audit를 명시 적용하고, single runtime의 clean process restart에서 Article Admin/API session과
+Admin audit를 보존하는 SYS-001..012를 제안합니다. Phase A reference와 Phase B explicit migration을 병렬로 잠근 뒤 durable
+Store/bootstrap과 Article-audit same-transaction, distinct-process SQLite/PostgreSQL E2E를 연결합니다. Multi-process/distributed
+topology, DB unique IR, persistent CSRF key와 production readiness는 포함하지 않습니다.
+
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
 - view와 template 한 요청 수직 단면
@@ -693,6 +700,7 @@ Channels와 M7/M8 completion을 주장하지 않습니다.
 - Form, ModelForm, CSRF, session, auth, permission
 - 한 모델의 Admin list/search/edit/history/action 수직 단면
 - static/messages와 접근성·보안 gate
+- explicit single-runtime durable credential/session/audit와 restart-preserving Article flow — GDJ-0045 active
 
 ## M7 — API
 

@@ -3,6 +3,7 @@
 - 상태: Active ledger
 - 마지막 갱신: 2026-08-24
 - 현재 구현된 deviation: DEV-0001..DEV-0007 일곱 건 / contract 열다섯 개
+- Proposed이며 아직 aggregate에 포함하지 않는 후보: DEV-0008 한 건 / SYS-009 한 contract
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
 
@@ -516,3 +517,66 @@ production proxy body-limit 정책을 승인하지 않습니다.
 
 API-wide standardized problem details 또는 trusted proxy body-limit ownership이 별도 ADR로 채택되면 taxonomy를 재검토할 수
 있습니다. DRF prose/code를 모방하거나 comparator를 완화하는 것만으로 복귀하지 않습니다.
+
+## DEV-0008 — Restart 뒤 process-local CSRF key로 stale masked token을 거부
+
+- Status: Proposed
+- Date: 2026-08-24
+- Contracts: SYS-009
+- Reference profile/backend: Django 6.1 / CPython 3.14.3 / SQLite 3.50.4 exact profile;
+  GoDj SQLite and PostgreSQL 17.10 planned actual
+- Related ADR/work/evidence:
+  [ADR-0047](adr/0047-explicit-single-runtime-system-state.md),
+  [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md);
+  activation 시점에는 reference/product evidence 없음
+
+### Django의 관찰 가능 동작
+
+Django의 accepted CSRF token은 cookie secret과 masked token의 secret이 일치하는지 검증합니다. Process A에서 받은 같은 CSRF
+cookie와 masked token을 process B에 전달해도 secret이 유지되면 unsafe request가 수용됩니다. SYS-009 Phase A oracle이 이
+public behavior를 independent process와 file-backed DB에서 잠그기 전에는 contract status를 바꾸지 않습니다.
+
+### GoDj에서 제안한 동작
+
+Client가 보존한 독립 CSRF cookie secret은 restart 뒤에도 남지만 masked token은 process-local CSPRNG key로 서명됩니다. Restart 뒤
+process A의 token은 process B에서 403과 Article mutation 0으로 거부합니다. 같은 authenticated cookie로 safe GET을 수행해
+process B가 새로 만든 token은 unsafe mutation에 성공합니다.
+
+계획한 sparse selector는 SYS-009 stale-token lane의 다음 네 값뿐입니다.
+
+- `result.pre_restart.accepted`: `true` → `false`
+- `result.pre_restart.status`: success status → `403`
+- `db_state.pre_restart.article_delta`: `1` → `0`
+- `metrics.pre_restart_mutations`: `1` → `0`
+
+Fresh-token lane과 auth/session/permission/DB state의 나머지 값은 locked reference와 같아야 합니다. Phase A의 실제 oracle shape가
+다르면 selector를 추측으로 유지하지 않고 Proposed 기록과 artifact를 함께 교정합니다.
+
+### 이유와 고려한 대안
+
+Signing key까지 durable하게 저장하면 restart 전 masked token을 수용할 수 있지만 key rotation, multi-instance 배포와 secret
+storage lifecycle을 이번 packet에서 결정해야 합니다. 첫 single-runtime durable state에서는 restart가 기존 masked token의
+trust boundary를 끊고 safe request에서 remask하는 좁은 정책을 제안합니다.
+
+### 사용자·데이터·migration 영향
+
+Server restart 직후 열린 page가 이전 token으로 보낸 첫 unsafe request는 403이 될 수 있습니다. Session/cookie는 살아 있으므로
+safe refresh로 새 token을 받은 뒤 작업을 재시도할 수 있습니다. Rejected request의 Article/audit mutation은 0입니다.
+
+### backend/concurrency/security 영향
+
+SQLite/PostgreSQL 차이는 없고 raw CSRF cookie/token/key는 DB audit, observation, error와 log에 포함하지 않습니다. 이 제안은
+one-runtime sequential restart만 다루며 rolling multi-process deployment의 key coordination을 해결하지 않습니다.
+
+### 구현과 검증 조건
+
+- SYS-009 independent Django reference와 oracle-blind Go actual을 distinct OS process로 생성
+- Exact sparse policy가 stale-token 네 selector만 허용하고 fresh-token extra difference를 거부
+- Stale token은 403/Article·audit mutation 0, fresh token은 expected mutation 1
+- Raw cookie/token/key의 artifact, DB audit, stdout/stderr/temp leak 0
+- ADR-0047 Accepted, affected/final local gate와 exact hosted matrix 통과 뒤에만 `Verified` 전환
+
+### 복귀 또는 supersede 조건
+
+Persistent/rotating CSRF signing key 또는 coordinated multi-process topology를 별도 ADR로 채택하면 Django behavior로 복귀하거나 새
+deviation으로 supersede합니다. Comparator를 완화하거나 stale-token case를 삭제해서 통과시키지 않습니다.
