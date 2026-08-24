@@ -36,6 +36,8 @@ const (
 	articleSQLiteDatabaseEnv = "GODJ_ARTICLE_SQLITE_DATABASE"
 	articlePostgresURLEnv    = "GODJ_ARTICLE_POSTGRES_URL"
 	articlePostgresSchemaEnv = "GODJ_ARTICLE_POSTGRES_SCHEMA"
+	articleAdminUsernameEnv  = "GODJ_ARTICLE_ADMIN_USERNAME"
+	articleAdminPasswordEnv  = "GODJ_ARTICLE_ADMIN_PASSWORD"
 	articleReadinessPrefix   = "article site listening on http://"
 	articleListPath          = "/articles/"
 	runserverHarnessModeEnv  = "GODJ_RUNSERVERPRODUCT_HELPER_MODE"
@@ -447,6 +449,35 @@ func runGlobalArticleServerOnce(
 	environment []string,
 ) string {
 	t.Helper()
+	var body string
+	runGlobalArticleServer(
+		t,
+		globalBinary,
+		repository,
+		descriptor,
+		expectedAddress,
+		environment,
+		nil,
+		func(address string) error {
+			var err error
+			body, err = requestAdvancedArticlePage(address)
+			return err
+		},
+	)
+	return body
+}
+
+func runGlobalArticleServer(
+	t *testing.T,
+	globalBinary, repository, descriptor, expectedAddress string,
+	environment []string,
+	sensitiveValues *[]string,
+	exercise func(string) error,
+) {
+	t.Helper()
+	if exercise == nil {
+		t.Fatal("global runserver exercise is nil")
+	}
 	stdout := newReadinessOutput()
 	stderr := &synchronizedOutput{}
 	command := exec.Command(
@@ -481,6 +512,7 @@ func runGlobalArticleServerOnce(
 	defer readyTimer.Stop()
 	select {
 	case address = <-stdout.ready:
+		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
 		if err := validateArticleReadinessAddress(address); err != nil {
 			t.Fatalf("invalid Article readiness address %q: %v", address, err)
 		}
@@ -494,32 +526,52 @@ func runGlobalArticleServerOnce(
 		}
 	case waitErr := <-waited:
 		finished = true
-		t.Fatalf("global runserver exited before readiness: %v; stdout=%q stderr=%q", waitErr, stdout.String(), stderr.String())
+		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
+		t.Fatalf("global runserver exited before readiness: %v; stdout_bytes=%d stderr_bytes=%d", waitErr, len(stdout.String()), len(stderr.String()))
 	case <-readyTimer.C:
 		cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 		finished = true
-		t.Fatalf("global runserver readiness timed out: cleanup=%+v stdout=%q stderr=%q", cleanup, stdout.String(), stderr.String())
+		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
+		t.Fatalf("global runserver readiness timed out: cleanup=%+v stdout_bytes=%d stderr_bytes=%d", cleanup, len(stdout.String()), len(stderr.String()))
 	}
 
-	body, requestErr := requestAdvancedArticlePage(address)
-	if requestErr != nil {
+	exerciseErr := exercise(address)
+	if exerciseErr != nil {
 		cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 		finished = true
-		t.Fatalf("request global Article runtime: %v; cleanup=%+v stdout=%q stderr=%q", requestErr, cleanup, stdout.String(), stderr.String())
+		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
+		t.Fatalf("exercise global Article runtime: %v; cleanup=%+v stdout_bytes=%d stderr_bytes=%d", exerciseErr, cleanup, len(stdout.String()), len(stderr.String()))
 	}
 	cleanup := interruptAndWaitRunserver(command, waited, 20*time.Second, knownProcessGroups...)
 	finished = true
+	assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
 	if cleanup.failed() || len(cleanup.ProcessGroups) < 2 {
-		t.Fatalf("clean global runserver interrupt: cleanup=%+v stdout=%q stderr=%q", cleanup, stdout.String(), stderr.String())
+		t.Fatalf("clean global runserver interrupt: cleanup=%+v stdout_bytes=%d stderr_bytes=%d", cleanup, len(stdout.String()), len(stderr.String()))
 	}
 	if stderr.String() != "" {
-		t.Fatalf("global runserver stderr = %q, want empty", stderr.String())
+		t.Fatalf("global runserver stderr bytes = %d, want 0", len(stderr.String()))
 	}
 	readinessLine := articleReadinessPrefix + address + "\n"
 	if output := stdout.String(); strings.Count(output, readinessLine) != 1 || output != readinessLine {
-		t.Fatalf("global runserver stdout = %q, want exact %q", output, readinessLine)
+		t.Fatalf("global runserver stdout bytes = %d, want exact readiness bytes = %d", len(output), len(readinessLine))
 	}
-	return body
+}
+
+func assertRunserverOutputExcludesSensitiveValues(
+	t *testing.T,
+	stdout, stderr string,
+	sensitiveValues *[]string,
+) {
+	t.Helper()
+	if sensitiveValues == nil {
+		return
+	}
+	combined := stdout + stderr
+	for _, value := range *sensitiveValues {
+		if value != "" && strings.Contains(combined, value) {
+			t.Fatal("global runserver output exposed a sensitive value")
+		}
+	}
 }
 
 func reserveRunserverLoopbackAddress(t *testing.T, previous string) string {
@@ -951,6 +1003,8 @@ func runserverEnvironment(t *testing.T, databasePath, workspaceBase string) []st
 	values[articleSQLiteDatabaseEnv] = databasePath
 	delete(values, articlePostgresURLEnv)
 	delete(values, articlePostgresSchemaEnv)
+	delete(values, articleAdminUsernameEnv)
+	delete(values, articleAdminPasswordEnv)
 	values["TMPDIR"] = workspaceBase
 	values["GOWORK"] = "off"
 	values["GOTOOLCHAIN"] = "local"

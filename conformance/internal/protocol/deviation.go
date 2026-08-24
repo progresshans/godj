@@ -9,7 +9,10 @@ import (
 	"strings"
 )
 
-var deviationPathSegmentPattern = regexp.MustCompile(`^([a-z][a-z0-9_]*)(?:\[([0-9]+)\])?$`)
+var (
+	deviationPathSegmentPattern         = regexp.MustCompile(`^([a-z][a-z0-9_]*)(?:\[([0-9]+)\])?$`)
+	deviationRootListPathSegmentPattern = regexp.MustCompile(`^\[([0-9]+)\]$`)
+)
 
 // PrepareDeviationExpectation validates the locked reference with the original
 // manifest before deriving a product-only manifest and exact product expected
@@ -338,7 +341,25 @@ func locateDeviationValue(root *Value, path string) (deviationValueLocation, err
 	current := root
 	location := deviationValueLocation{value: root, index: -1}
 	segments := strings.Split(path, ".")
-	for segmentIndex, segment := range segments {
+	firstObjectSegment := 0
+	if matches := deviationRootListPathSegmentPattern.FindStringSubmatch(segments[0]); matches != nil {
+		if current.Type != ValueList {
+			return deviationValueLocation{}, fmt.Errorf("path %q root index requires a list, got %q", path, current.Type)
+		}
+		index, err := strconv.Atoi(matches[1])
+		if err != nil {
+			return deviationValueLocation{}, fmt.Errorf("path %q root index %q is invalid", path, matches[1])
+		}
+		if index < 0 || index >= len(current.Items) {
+			return deviationValueLocation{}, fmt.Errorf("path %q root index %d is outside %d items", path, index, len(current.Items))
+		}
+		list := current
+		current = &list.Items[index]
+		location = deviationValueLocation{value: current, list: list, index: index}
+		firstObjectSegment = 1
+	}
+	for segmentIndex := firstObjectSegment; segmentIndex < len(segments); segmentIndex++ {
+		segment := segments[segmentIndex]
 		matches := deviationPathSegmentPattern.FindStringSubmatch(segment)
 		if matches == nil {
 			return deviationValueLocation{}, fmt.Errorf("invalid path segment %q", segment)

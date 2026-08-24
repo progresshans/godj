@@ -62,9 +62,11 @@ DRF_PROFILE := conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.js
 PARAMETER_ROUTING_MANIFEST := conformance/contracts/parameter-routing-manifest.json
 PARAMETER_ROUTING_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json
 PARAMETER_ROUTING_NOT_IMPLEMENTED := conformance/fixtures/godj-parameter-routing-not-implemented.json
+PARAMETER_ROUTING_DEVIATION_EXPECTED := conformance/fixtures/godj-parameter-routing-deviation-expected.json
 ARTICLE_API_MANIFEST := conformance/contracts/article-api-manifest.json
 ARTICLE_API_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json
 ARTICLE_API_NOT_IMPLEMENTED := conformance/fixtures/godj-article-api-not-implemented.json
+ARTICLE_API_DEVIATION_EXPECTED := conformance/fixtures/godj-article-api-deviation-expected.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -255,6 +257,14 @@ godj-conformance:
 		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) \
 		-expected $(ARTICLE_ADMIN_ORACLE) \
 		-deviation-expected $(ARTICLE_ADMIN_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) \
+		-expected $(PARAMETER_ROUTING_ORACLE) \
+		-deviation-expected $(PARAMETER_ROUTING_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) \
+		-expected $(ARTICLE_API_ORACLE) \
+		-deviation-expected $(ARTICLE_API_DEVIATION_EXPECTED)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

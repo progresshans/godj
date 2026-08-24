@@ -15,7 +15,7 @@ var (
 	hex40Pattern         = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	hex64Pattern         = regexp.MustCompile(`^[0-9a-f]{64}$`)
 	decisionPattern      = regexp.MustCompile(`^DEV-[0-9]{4}$`)
-	deviationPathPattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\[[0-9]+\])?(\.[a-z][a-z0-9_]*(\[[0-9]+\])?)*$`)
+	deviationPathPattern = regexp.MustCompile(`^(?:\[[0-9]+\](?:\.[a-z][a-z0-9_]*(?:\[[0-9]+\])?)*|[a-z][a-z0-9_]*(?:\[[0-9]+\])?(?:\.[a-z][a-z0-9_]*(?:\[[0-9]+\])?)*)$`)
 )
 
 const queryExpressionScenarioPrefix = "django.query.expression."

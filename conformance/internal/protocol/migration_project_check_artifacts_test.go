@@ -224,7 +224,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsInCurrentSeventeenAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInCurrentNineteenAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentSeventeenAdapterProductTarget(t *t
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 17 {
-		t.Fatalf("product adapter count = %d, want 17", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
+		t.Fatalf("product adapter count = %d, want 19", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -441,9 +441,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 993`,
-		`assert len(payload) == 101957`,
-		`feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f`,
+		`assert len(runs) == 1017`,
+		`assert len(payload) == 104782`,
+		`38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,

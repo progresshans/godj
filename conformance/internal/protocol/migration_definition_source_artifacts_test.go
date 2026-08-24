@@ -445,8 +445,8 @@ func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets
 	if got := strings.Count(productTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance migration-definition-source manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 17 {
-		t.Fatalf("godj-conformance adapter count = %d, want 17", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
+		t.Fatalf("godj-conformance adapter count = %d, want 19", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-definition-source manifest count = %d, want 1", got)

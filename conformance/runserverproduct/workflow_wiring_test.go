@@ -69,6 +69,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	}
 	for _, sentinel := range []string{
 		"TestGlobalRunserverArticleSQLiteDevelopmentLoop",
+		"TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI",
 		"TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime",
 		"TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup",
 	} {

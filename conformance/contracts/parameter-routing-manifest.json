@@ -7,10 +7,11 @@
       "title": "Static and closed parameter routes coexist without changing named static reverse behavior",
       "scenario": "drf.parameter_routing.static_parameter_coexistence",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "deviation",
       "provenance": [
         {"kind": "documentation", "reference": "ADR-0045", "derived": false},
-        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/routers/#using-django-path-with-routers", "derived": false, "license": "BSD-3-Clause"}
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/routers/#using-django-path-with-routers", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0006", "derived": false}
       ],
       "comparison": ["result", "metrics"]
     },
@@ -19,10 +20,11 @@
       "title": "The closed non-negative int64 converter yields one typed borrowed path value",
       "scenario": "drf.parameter_routing.nonnegative_int64_parameter",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "deviation",
       "provenance": [
         {"kind": "documentation", "reference": "ADR-0045", "derived": false},
-        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/routers.py::SimpleRouter.get_lookup_regex", "derived": false, "license": "BSD-3-Clause"}
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/routers.py::SimpleRouter.get_lookup_regex", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "decision", "reference": "DEV-0006", "derived": false}
       ],
       "comparison": ["result", "metrics"]
     },
@@ -31,9 +33,9 @@
       "title": "Exact static routes win over parameter routes independent of declaration order",
       "scenario": "drf.parameter_routing.static_precedence_order_independent",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0045", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0045", "derived": false},
         {"kind": "documentation", "reference": "https://docs.djangoproject.com/en/6.1/topics/http/urls/#how-django-processes-a-request", "derived": false, "license": "BSD-3-Clause"}
       ],
       "comparison": ["result", "metrics"]
@@ -43,7 +45,7 @@
       "title": "Named reverse emits canonical decimal paths and rejects invalid argument sets before I/O",
       "scenario": "drf.parameter_routing.named_reverse_boundaries",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "documentation", "reference": "ADR-0045", "derived": false},
         {"kind": "documentation", "reference": "https://docs.djangoproject.com/en/6.1/ref/urlresolvers/#reverse", "derived": false, "license": "BSD-3-Clause"}
@@ -55,9 +57,9 @@
       "title": "Duplicate and language-equivalent parameter routes fail during construction",
       "scenario": "drf.parameter_routing.ambiguous_route_rejection",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0045", "derived": false}
+        {"kind": "documentation", "reference": "ADR-0045", "derived": false}
       ],
       "comparison": ["result", "metrics"]
     },
@@ -66,9 +68,9 @@
       "title": "Invalid parameter definitions and resource-limit breaches fail during construction",
       "scenario": "drf.parameter_routing.invalid_route_and_resource_caps",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
-        {"kind": "decision", "reference": "ADR-0045", "derived": false}
+        {"kind": "documentation", "reference": "ADR-0045", "derived": false}
       ],
       "comparison": ["result", "metrics"]
     },
@@ -77,7 +79,7 @@
       "title": "Trailing-slash invalid-integer and encoded-separator mismatches remain 404",
       "scenario": "drf.parameter_routing.trailing_slash_and_invalid_path_404",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "documentation", "reference": "ADR-0045", "derived": false},
         {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/routers/#simplerouter", "derived": false, "license": "BSD-3-Clause"}
@@ -89,7 +91,7 @@
       "title": "A matched parameter path with an unsupported method returns 405 and a stable Allow set",
       "scenario": "drf.parameter_routing.method_not_allowed_allow_header",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "documentation", "reference": "ADR-0045", "derived": false},
         {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/routers.py::SimpleRouter.routes", "derived": false, "license": "BSD-3-Clause"}

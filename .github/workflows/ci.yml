@@ -501,10 +501,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 993, sorted(runs)
-          assert len(payload) == 101957, len(payload)
+          assert len(runs) == 1017, sorted(runs)
+          assert len(payload) == 104782, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f"
+          assert payload_sha256 == "38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -669,6 +669,7 @@ jobs:
           package="github.com/progresshans/godj/conformance/runserverproduct"
           required_passes=(
             "TestGlobalRunserverArticleSQLiteDevelopmentLoop"
+            "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
             "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"
             "TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup"
           )

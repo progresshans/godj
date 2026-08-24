@@ -12,26 +12,32 @@ import (
 )
 
 type gdj0044ContractSet struct {
-	name        string
-	manifest    string
-	oracle      string
-	fixture     string
-	adr         string
-	ids         []string
-	scenarios   []string
-	phases      []Phase
-	comparisons [][]ComparisonDimension
+	name              string
+	manifest          string
+	oracle            string
+	fixture           string
+	adr               string
+	deviationFixture  string
+	deviationIDs      []string
+	deviationDecision string
+	ids               []string
+	scenarios         []string
+	phases            []Phase
+	comparisons       [][]ComparisonDimension
 }
 
 func gdj0044ContractSets() []gdj0044ContractSet {
 	return []gdj0044ContractSet{
 		{
-			name:     "parameter-routing",
-			manifest: "parameter-routing-manifest.json",
-			oracle:   "parameter-routing-oracle.json",
-			fixture:  "godj-parameter-routing-not-implemented.json",
-			adr:      "ADR-0045",
-			ids:      []string{"WEB-028", "WEB-029", "WEB-030", "WEB-031", "WEB-032", "WEB-033", "WEB-034", "WEB-035"},
+			name:              "parameter-routing",
+			manifest:          "parameter-routing-manifest.json",
+			oracle:            "parameter-routing-oracle.json",
+			fixture:           "godj-parameter-routing-not-implemented.json",
+			adr:               "ADR-0045",
+			deviationFixture:  "godj-parameter-routing-deviation-expected.json",
+			deviationIDs:      []string{"WEB-028", "WEB-029"},
+			deviationDecision: "DEV-0006",
+			ids:               []string{"WEB-028", "WEB-029", "WEB-030", "WEB-031", "WEB-032", "WEB-033", "WEB-034", "WEB-035"},
 			scenarios: []string{
 				"drf.parameter_routing.static_parameter_coexistence",
 				"drf.parameter_routing.nonnegative_int64_parameter",
@@ -51,12 +57,15 @@ func gdj0044ContractSets() []gdj0044ContractSet {
 			},
 		},
 		{
-			name:     "article-api",
-			manifest: "article-api-manifest.json",
-			oracle:   "article-api-oracle.json",
-			fixture:  "godj-article-api-not-implemented.json",
-			adr:      "ADR-0046",
-			ids:      []string{"API-001", "API-002", "API-003", "API-004", "API-005", "API-006", "API-007", "API-008", "API-009", "API-010"},
+			name:              "article-api",
+			manifest:          "article-api-manifest.json",
+			oracle:            "article-api-oracle.json",
+			fixture:           "godj-article-api-not-implemented.json",
+			adr:               "ADR-0046",
+			deviationFixture:  "godj-article-api-deviation-expected.json",
+			deviationIDs:      []string{"API-001", "API-003", "API-010"},
+			deviationDecision: "DEV-0007",
+			ids:               []string{"API-001", "API-002", "API-003", "API-004", "API-005", "API-006", "API-007", "API-008", "API-009", "API-010"},
 			scenarios: []string{
 				"drf.article_api.json_transport_boundary",
 				"drf.article_api.article_serializer_semantics",
@@ -96,8 +105,10 @@ func TestGDJ0044ArtifactBytesAndExistingDjangoReferenceAreLocked(t *testing.T) {
 		"conformance/reference/drf/pyproject.toml":                                                    {319, "46b3482056a64d2c9ac84320f047089c9c406d14d8bec7cf0e7a7b43f71be8b3"},
 		"conformance/reference/drf/uv.lock":                                                           {4199, "efc431a1585aaecd9099d40194980771b395bbe261370619f29b5ccf58728f8f"},
 		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                         {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},
-		"conformance/contracts/parameter-routing-manifest.json":                                       {4572, "7d5a2ddf311d444821c46cce73849969a31d3f6e9a2dfa6cd2cc42484d9fd330"},
-		"conformance/contracts/article-api-manifest.json":                                             {6453, "93130e58521a8e23e5087ac3aabf5dbcbbd9b8c67bf7d749358dab3e54a86273"},
+		"conformance/contracts/parameter-routing-manifest.json":                                       {4689, "85365b3670df5fa5a0d51241dd958d25816d9a285a5070e416120423793a264e"},
+		"conformance/contracts/article-api-manifest.json":                                             {6618, "5047ca955ba5b2099f0d8bf2f6f0ed09944e2fcc705eb4ccd1c5bd6fa500a4e1"},
+		"conformance/fixtures/godj-parameter-routing-deviation-expected.json":                         {2174, "f9d084d178cccdf5928830813810f4d28c930d4414c73091a06dcd825ed38f60"},
+		"conformance/fixtures/godj-article-api-deviation-expected.json":                               {2003, "54758fdf850d4a61f65b764131a444c276ad7bb311a65d86b8b4a1780c979623"},
 		"conformance/fixtures/godj-parameter-routing-not-implemented.json":                            {1608, "7a7e3f3c433f837fb3240f97a75ef66022cf8887c6322d960dc3291eb48776b1"},
 		"conformance/fixtures/godj-article-api-not-implemented.json":                                  {1736, "fdb05cf9ff8e257c60b210dff29ec012a834110f22b703664f943e6740c2a27d"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json": {12663, "4aded47e2a0db9524a18625174e8d8815b69911e5310323fbe17bad34899cc53"},
@@ -181,7 +192,7 @@ func TestGDJ0044ExactDRFProfileAndProvenance(t *testing.T) {
 	}
 }
 
-func TestGDJ0044ReferenceSuitesAndPayloadFreeBaselinesValidate(t *testing.T) {
+func TestGDJ0044ProductManifestsPreserveReferencesDeviationsAndPayloadFreeBaselines(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -194,6 +205,10 @@ func TestGDJ0044ReferenceSuitesAndPayloadFreeBaselinesValidate(t *testing.T) {
 		t.Run(set.name, func(t *testing.T) {
 			t.Parallel()
 			manifest, oracle, fixture := loadGDJ0044Set(t, root, set)
+			deviation, err := LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", set.deviationFixture))
+			if err != nil {
+				t.Fatal(err)
+			}
 			if err := ValidateSuiteAgainst(profile, manifest, oracle); err != nil {
 				t.Fatalf("oracle does not validate: %v", err)
 			}
@@ -206,10 +221,25 @@ func TestGDJ0044ReferenceSuitesAndPayloadFreeBaselinesValidate(t *testing.T) {
 			if len(manifest.Contracts) != len(set.ids) || len(oracle.Contracts) != len(set.ids) || len(fixture.Contracts) != len(set.ids) {
 				t.Fatalf("artifact lengths = %d/%d/%d, want %d", len(manifest.Contracts), len(oracle.Contracts), len(fixture.Contracts), len(set.ids))
 			}
+			if deviation.ProfileID != profile.ID || deviation.Decision != set.deviationDecision || len(deviation.Contracts) != len(set.deviationIDs) {
+				t.Fatalf("deviation envelope = %#v, want profile %s decision %s contracts %#v", deviation, profile.ID, set.deviationDecision, set.deviationIDs)
+			}
+			for index, contract := range deviation.Contracts {
+				if contract.ID != set.deviationIDs[index] {
+					t.Fatalf("deviation contract %d = %q, want %q", index, contract.ID, set.deviationIDs[index])
+				}
+			}
 			for index, contract := range manifest.Contracts {
-				if contract.ID != set.ids[index] || contract.Scenario != set.scenarios[index] || contract.Phase != set.phases[index] || contract.Status != ContractOracleLocked || !reflect.DeepEqual(contract.Comparison, set.comparisons[index]) {
+				wantStatus := ContractPassing
+				decision := ""
+				if gdj0044Contains(set.deviationIDs, contract.ID) {
+					wantStatus = ContractDeviation
+					decision = set.deviationDecision
+				}
+				if contract.ID != set.ids[index] || contract.Scenario != set.scenarios[index] || contract.Phase != set.phases[index] || contract.Status != wantStatus || !reflect.DeepEqual(contract.Comparison, set.comparisons[index]) {
 					t.Fatalf("contract %d = %#v", index, contract)
 				}
+				assertGDJ0044Provenance(t, contract, set.adr, decision)
 				observed := oracle.Contracts[index]
 				if observed.ID != contract.ID || observed.Status != StatusObserved || observed.Phase != contract.Phase {
 					t.Fatalf("oracle contract %d = %#v", index, observed)
@@ -312,6 +342,9 @@ func TestGDJ0044OraclesAreSecretFreeAndScenariosAreOracleBlind(t *testing.T) {
 		"conformance/runners/django/article_api_worker.py",
 		"conformance/runners/django/article_api_fixture/api.py",
 		"conformance/runners/django/article_api_fixture/urls.py",
+		"conformance/runners/godj/gdj0044_parameter_routing_scenarios.go",
+		"conformance/runners/godj/gdj0044_article_api_fixture.go",
+		"conformance/runners/godj/gdj0044_article_api_scenarios.go",
 	} {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
 		if err != nil {
@@ -326,7 +359,7 @@ func TestGDJ0044OraclesAreSecretFreeAndScenariosAreOracleBlind(t *testing.T) {
 	}
 }
 
-func TestGDJ0044ReferenceWiringDoesNotPublishProductAdapters(t *testing.T) {
+func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -351,8 +384,8 @@ func TestGDJ0044ReferenceWiringDoesNotPublishProductAdapters(t *testing.T) {
 		if got := strings.Count(referenceTarget, variable); got != 2 {
 			t.Fatalf("reference target %s count = %d, want oracle and baseline", variable, got)
 		}
-		if strings.Contains(productTarget, variable) {
-			t.Fatalf("reference-only manifest %s was added to godj-conformance", variable)
+		if got := strings.Count(productTarget, variable); got != 1 {
+			t.Fatalf("product target %s count = %d, want one product adapter", variable, got)
 		}
 		if got := strings.Count(oracleCheckTarget, variable); got != 1 {
 			t.Fatalf("oracle-check %s count = %d, want 1", variable, got)
@@ -361,8 +394,8 @@ func TestGDJ0044ReferenceWiringDoesNotPublishProductAdapters(t *testing.T) {
 			t.Fatalf("oracle-regenerate %s count = %d, want 1", variable, got)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 17 {
-		t.Fatalf("product adapter count = %d, want unchanged 17", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
+		t.Fatalf("product adapter count = %d, want 19", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "--project conformance/reference/drf --frozen"); got != 2 {
 		t.Fatalf("nested DRF oracle-check command count = %d, want 2", got)
@@ -471,7 +504,7 @@ func TestCurrentTwentyReferenceSetsHave219ContractsAndReject380OrderedCrossBindi
 			}
 		}
 	}
-	if len(sets) != 20 || total != 219 || len(ids) != 219 || len(scenarios) != 219 || passing != 179 || deviations != 10 || locked != 30 {
+	if len(sets) != 20 || total != 219 || len(ids) != 219 || len(scenarios) != 219 || passing != 192 || deviations != 15 || locked != 12 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 
@@ -507,6 +540,47 @@ func loadGDJ0044Set(t *testing.T, root string, set gdj0044ContractSet) (Manifest
 		t.Fatal(err)
 	}
 	return manifest, oracle, fixture
+}
+
+func assertGDJ0044Provenance(t *testing.T, contract Contract, adr, decision string) {
+	t.Helper()
+	adrCount := 0
+	decisionReferences := make([]string, 0, 1)
+	for _, provenance := range contract.Provenance {
+		if provenance.Derived == nil || *provenance.Derived {
+			t.Fatalf("contract %s does not preserve independent provenance: %#v", contract.ID, provenance)
+		}
+		if provenance.Reference == adr {
+			adrCount++
+			if provenance.Kind != "documentation" || provenance.License != "" {
+				t.Fatalf("contract %s ADR provenance = %#v, want unlicensed documentation", contract.ID, provenance)
+			}
+		}
+		if provenance.Kind == "decision" {
+			if provenance.License != "" {
+				t.Fatalf("contract %s decision provenance carries a license: %#v", contract.ID, provenance)
+			}
+			decisionReferences = append(decisionReferences, provenance.Reference)
+		}
+	}
+	if adrCount != 1 {
+		t.Fatalf("contract %s ADR provenance count = %d, want exactly one %s", contract.ID, adrCount, adr)
+	}
+	if decision == "" && len(decisionReferences) != 0 {
+		t.Fatalf("passing contract %s carries decision provenance %#v", contract.ID, decisionReferences)
+	}
+	if decision != "" && (len(decisionReferences) != 1 || decisionReferences[0] != decision) {
+		t.Fatalf("deviation contract %s decision provenance = %#v, want exactly %s", contract.ID, decisionReferences, decision)
+	}
+}
+
+func gdj0044Contains(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func assertGDJ0044DeclaredPayloads(t *testing.T, contract Contract, observation Observation) {

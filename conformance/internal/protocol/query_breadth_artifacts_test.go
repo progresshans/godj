@@ -198,7 +198,7 @@ func TestPreGDJ0044EighteenReferenceSetsHave201UniqueContractsAndReject306Ordere
 	}
 }
 
-func TestCurrentSeventeenProductSetsHave179PassingTenDeviationsAndNoOracleLocked(t *testing.T) {
+func TestCurrentNineteenProductSetsHave192PassingFifteenDeviationsAndNoOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -220,13 +220,16 @@ func TestCurrentSeventeenProductSetsHave179PassingTenDeviationsAndNoOracleLocked
 		"template-form-manifest.json",
 		"auth-session-manifest.json",
 		"article-admin-manifest.json",
+		"parameter-routing-manifest.json",
+		"article-api-manifest.json",
 	}
-	passing, deviations, oracleLocked := 0, 0, 0
+	passing, deviations, oracleLocked, total := 0, 0, 0, 0
 	for _, name := range manifestNames {
 		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", name))
 		if err != nil {
 			t.Fatal(err)
 		}
+		total += len(manifest.Contracts)
 		for _, contract := range manifest.Contracts {
 			switch contract.Status {
 			case ContractPassing:
@@ -240,12 +243,12 @@ func TestCurrentSeventeenProductSetsHave179PassingTenDeviationsAndNoOracleLocked
 			}
 		}
 	}
-	if passing != 179 || deviations != 10 || oracleLocked != 0 {
-		t.Fatalf("current product statuses = %d passing + %d deviation + %d oracle_locked, want 179 + 10 + 0", passing, deviations, oracleLocked)
+	if len(manifestNames) != 19 || total != 207 || passing != 192 || deviations != 15 || oracleLocked != 0 {
+		t.Fatalf("current product inventory = %d sets/%d contracts = %d passing + %d deviation + %d oracle_locked, want 19/207 = 192 + 15 + 0", len(manifestNames), total, passing, deviations, oracleLocked)
 	}
 }
 
-func TestQueryBreadthProductRemainsInCurrentSeventeenAdapterTarget(t *testing.T) {
+func TestQueryBreadthProductRemainsInCurrentNineteenAdapterTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -263,8 +266,8 @@ func TestQueryBreadthProductRemainsInCurrentSeventeenAdapterTarget(t *testing.T)
 	if !strings.Contains(target, "QUERY_BREADTH") {
 		t.Fatal("query-breadth product set is missing from godj-conformance")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 17 {
-		t.Fatalf("current product adapter count = %d, want 17", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 19 {
+		t.Fatalf("current product adapter count = %d, want 19", got)
 	}
 }
 

@@ -251,6 +251,8 @@ func runserverPostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBa
 	delete(values, articleSQLiteDatabaseEnv)
 	delete(values, runserverPostgresTestURLEnv)
 	delete(values, runserverPostgresRequiredEnv)
+	delete(values, articleAdminUsernameEnv)
+	delete(values, articleAdminPasswordEnv)
 	values[articlePostgresURLEnv] = databaseURL
 	values[articlePostgresSchemaEnv] = schema
 	values["TMPDIR"] = workspaceBase

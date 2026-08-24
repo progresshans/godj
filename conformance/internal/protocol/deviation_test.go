@@ -7,6 +7,202 @@ import (
 	"testing"
 )
 
+func TestRootListDeviationSelectorsBuildStrictProductExpectation(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, oracle, _ := loadMigrationLifecycleArtifacts(t)
+	contractIndex := -1
+	for index := range oracle.Contracts {
+		if oracle.Contracts[index].ID == "MIG-052" {
+			contractIndex = index
+			break
+		}
+	}
+	if contractIndex < 0 {
+		t.Fatal("MIG-052 is absent from the lifecycle oracle")
+	}
+	items := make([]Value, 11)
+	for index := range items {
+		items[index] = Object(map[string]Value{"case": String("unchanged")})
+	}
+	items[10] = Object(map[string]Value{
+		"case": String("oversize"),
+		"response": Object(map[string]Value{
+			"error_codes": Object(map[string]Value{"detail": String("parse_error")}),
+			"status":      Integer("400"),
+		}),
+	})
+	root := List(items...)
+	oracle.Contracts[contractIndex].Result = &root
+	manifestBefore := cloneManifest(t, manifest)
+	oracleBefore := cloneSuite(t, oracle)
+
+	changes := []DeviationChange{
+		{
+			Dimension: DeviationResult,
+			Path:      "[10].response.error_codes.detail",
+			Operation: DeviationReplace,
+			Reference: String("parse_error"),
+			Product:   String("request_too_large"),
+		},
+		{
+			Dimension: DeviationResult,
+			Path:      "[10].response.status",
+			Operation: DeviationReplace,
+			Reference: Integer("400"),
+			Product:   Integer("413"),
+		},
+	}
+	expectation := DeviationExpectation{
+		FormatVersion: FormatVersion,
+		ProfileID:     profile.ID,
+		Decision:      "DEV-0002",
+		Contracts: []DeviationContractExpectation{{
+			ID:      "MIG-052",
+			Changes: changes,
+		}},
+	}
+	policy := DeviationPolicy{
+		Decision: "DEV-0002",
+		Contracts: []DeviationContractPolicy{{
+			ID: "MIG-052",
+			Changes: []DeviationChangePolicy{
+				{Dimension: DeviationResult, Path: changes[0].Path, Operation: DeviationReplace},
+				{Dimension: DeviationResult, Path: changes[1].Path, Operation: DeviationReplace},
+			},
+		}},
+	}
+
+	effective, product, err := PrepareDeviationExpectation(profile, manifest, oracle, expectation, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(manifest, manifestBefore) {
+		t.Fatal("root-list preparation mutated the input manifest")
+	}
+	if !reflect.DeepEqual(oracle, oracleBefore) {
+		t.Fatal("root-list preparation mutated the locked observation")
+	}
+	if !reflect.DeepEqual(effective, manifest) {
+		t.Fatal("value-only root-list replacements unexpectedly changed the manifest")
+	}
+
+	assertValue := func(path string, want Value) {
+		t.Helper()
+		location, err := locateDeviationValue(product.Contracts[contractIndex].Result, path)
+		if err != nil {
+			t.Fatalf("locate %s: %v", path, err)
+		}
+		if !reflect.DeepEqual(*location.value, want) {
+			t.Fatalf("%s = %#v, want %#v", path, *location.value, want)
+		}
+	}
+	assertValue(changes[0].Path, changes[0].Product)
+	assertValue(changes[1].Path, changes[1].Product)
+	assertValue("[9].case", String("unchanged"))
+
+	differences, err := Compare(profile, effective, product, product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) != 0 {
+		t.Fatalf("root-list product expectation differs from itself: %#v", differences)
+	}
+	mutated := cloneSuite(t, product)
+	location, err := locateDeviationValue(mutated.Contracts[contractIndex].Result, "[10].case")
+	if err != nil {
+		t.Fatal(err)
+	}
+	*location.value = String("changed outside reviewed selectors")
+	differences, err = Compare(profile, effective, product, mutated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) == 0 {
+		t.Fatal("an unreviewed root-list payload mutation produced a false green")
+	}
+}
+
+func TestRootListDeviationSelectorsRejectMalformedAndInvalidTraversal(t *testing.T) {
+	t.Parallel()
+
+	for _, path := range []string{
+		"",
+		"[]",
+		"[-1]",
+		"[x]",
+		"[0]response",
+		"[0]..response",
+		"response.[0]",
+	} {
+		path := path
+		t.Run("malformed_"+strings.NewReplacer("[", "_", "]", "_", ".", "_").Replace(path), func(t *testing.T) {
+			change := DeviationChange{
+				Dimension: DeviationResult,
+				Path:      path,
+				Operation: DeviationReplace,
+				Reference: String("reference"),
+				Product:   String("product"),
+			}
+			if err := change.Validate(); err == nil || !strings.Contains(err.Error(), "must match") {
+				t.Fatalf("change path %q error = %v, want grammar rejection", path, err)
+			}
+			policy := DeviationPolicy{
+				Decision: "DEV-9001",
+				Contracts: []DeviationContractPolicy{{
+					ID: "API-001",
+					Changes: []DeviationChangePolicy{{
+						Dimension: DeviationResult,
+						Path:      path,
+						Operation: DeviationReplace,
+					}},
+				}},
+			}
+			if err := validateDeviationPolicy(policy); err == nil || !strings.Contains(err.Error(), "must match") {
+				t.Fatalf("policy path %q error = %v, want grammar rejection", path, err)
+			}
+		})
+	}
+
+	listWithObject := List(Object(map[string]Value{
+		"response": Object(map[string]Value{"status": Integer("400")}),
+	}))
+	objectRoot := Object(map[string]Value{
+		"items": List(Object(map[string]Value{"status": Integer("400")})),
+	})
+	listWithScalar := List(String("scalar"))
+	listWithNestedList := List(Object(map[string]Value{
+		"responses": List(Object(map[string]Value{"status": Integer("400")})),
+	}))
+	tests := []struct {
+		name      string
+		root      *Value
+		path      string
+		wantError string
+	}{
+		{name: "root index out of range", root: &listWithObject, path: "[1].response.status", wantError: "root index 1 is outside 1 items"},
+		{name: "root is not a list", root: &objectRoot, path: "[0].response.status", wantError: "root index requires a list"},
+		{name: "root item is not an object", root: &listWithScalar, path: "[0].response", wantError: "segment 1 requires an object"},
+		{name: "nested index out of range", root: &listWithNestedList, path: "[0].responses[1].status", wantError: "index 1 is outside 1 items"},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := locateDeviationValue(test.root, test.path); err == nil || !strings.Contains(err.Error(), test.wantError) {
+				t.Fatalf("locate %q error = %v, want substring %q", test.path, err, test.wantError)
+			}
+		})
+	}
+
+	location, err := locateDeviationValue(&objectRoot, "items[0].status")
+	if err != nil {
+		t.Fatalf("existing object-root traversal: %v", err)
+	}
+	if !reflect.DeepEqual(*location.value, Integer("400")) {
+		t.Fatalf("existing object-root traversal = %#v, want 400", *location.value)
+	}
+}
+
 func TestMigrationExecutionDeviationExpectationBuildsStrictProductExpectation(t *testing.T) {
 	t.Parallel()
 

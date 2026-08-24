@@ -18,6 +18,10 @@ func deviationPolicyForDecision(decision string) (protocol.DeviationPolicy, erro
 		return authSessionDeviationPolicy(), nil
 	case "DEV-0005":
 		return articleAdminDeviationPolicy(), nil
+	case "DEV-0006":
+		return parameterRoutingDeviationPolicy(), nil
+	case "DEV-0007":
+		return articleAPIDeviationPolicy(), nil
 	default:
 		return protocol.DeviationPolicy{}, fmt.Errorf("unsupported deviation decision %q", decision)
 	}
@@ -140,6 +144,61 @@ func articleAdminDeviationPolicy() protocol.DeviationPolicy {
 				Changes: []protocol.DeviationChangePolicy{
 					{Dimension: protocol.DeviationResult, Path: "actions", Operation: protocol.DeviationReplace},
 					{Dimension: protocol.DeviationMetrics, Path: "registered_models", Operation: protocol.DeviationReplace},
+				},
+			},
+		},
+	}
+}
+
+func parameterRoutingDeviationPolicy() protocol.DeviationPolicy {
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0006",
+		Contracts: []protocol.DeviationContractPolicy{
+			{
+				ID: "WEB-028",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "parameter.pk_type", Operation: protocol.DeviationReplace},
+				},
+			},
+			{
+				ID: "WEB-029",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "invalid[0].matched", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "invalid[1].matched", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "invalid[2].matched", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "invalid[3].matched", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "valid[0].type", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "valid[1].type", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "valid[2].type", Operation: protocol.DeviationReplace},
+				},
+			},
+		},
+	}
+}
+
+func articleAPIDeviationPolicy() protocol.DeviationPolicy {
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0007",
+		Contracts: []protocol.DeviationContractPolicy{
+			{
+				ID: "API-001",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "[10].response.error_codes.detail", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "[10].response.status", Operation: protocol.DeviationReplace},
+				},
+			},
+			{
+				ID: "API-003",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "unsafe_attempts[0].response.error_codes.detail", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "unsafe_attempts[1].response.error_codes.detail", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "unsafe_attempts[2].response.error_codes.detail", Operation: protocol.DeviationReplace},
+				},
+			},
+			{
+				ID: "API-010",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "missing_csrf.error_codes.detail", Operation: protocol.DeviationReplace},
 				},
 			},
 		},
