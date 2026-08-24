@@ -13,12 +13,24 @@
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
 | Q-012 | Partial | GDJ-0038 completed / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; public migrate/writer/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
-| Q-014 | P2 | GDJ-0043 active / ADR-0043 Proposed | DTL parser/runtime 호환 수준과 method exposure 정책은 무엇인가; closed value/no arbitrary callable 경계를 검증 중 |
-| Q-015 | P2 | GDJ-0043 active / ADR-0044 Proposed | Admin에서 보존할 흐름과 새로 설계할 UI/DOM/CSS 경계는 무엇인가; Article semantic flow를 검증 중 |
+| Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
+| Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
 | Q-016 | P2 | M7/M8 전 | DRF와 Channels의 정확한 reference version과 호환 범위는 무엇인가 |
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
+
+## GDJ-0043에서 해결한 질문
+
+- Q-014: Accepted ADR-0043은 immutable closed Value/Engine, bounded DTL subset과 context-aware escaping을 채택하고
+  arbitrary Go method/function, attribute fallback, reflection과 application dictionary callback을 기본 template 권한에서
+  제외합니다. Django lookup/callable 차이는 WEB-022/027의 Verified DEV-0003 selector에만 한정합니다.
+- Q-015: Accepted ADR-0044는 exact Django Admin DOM/CSS보다 login, permission, CSRF, list/search, validated CRUD,
+  history와 selected publish의 observable semantic flow를 보존합니다. User/session/audit는 process-lifetime, registry는 Article
+  한 모델이며 durable system state와 M6 전체 완료는 후속 범위입니다.
+- Exact submitted head `5eda0a4...`의
+  [EVID-124](status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) / CI #134가
+  27/27 jobs·358/358 steps로 이 bounded answer를 hosted-verify했습니다.
 
 ## M0에서 해결한 질문
 

@@ -12,8 +12,14 @@
   affected gates는 통과했습니다. Initial `47b0eb8...` local final 뒤 first submitted `46a57aa...` run은 26 success와
   macOS Intel 20-minute timeout 하나로 끝났습니다. Correction `2b49938...`의 EVID-121에서 30-minute budget/locks와
   full/386/803-file archive/audit refreeze가 통과했고 submitted `2bfdbd5...`의 EVID-122/run `32659704239` exact
-  27/27 jobs·358/358 steps가 bounded WEB-011..020을 hosted-verify하고 work를 completed로 닫았습니다. 현재
-  active/ready work는 0/0입니다. GDJ-0040 Phase A
+  27/27 jobs·358/358 steps가 bounded WEB-011..020을 hosted-verify하고 work를 completed로 닫았습니다.
+  [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)은 safe template/Form과
+  process-lifetime session/auth/CSRF/Article Admin을 한 wide vertical flow로 구현했고, frozen source
+  `8bcfa213...`의 EVID-123 local final 뒤 submitted `5eda0a4...`의
+  [EVID-124](status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) / CI #134가 exact
+  27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL required 14/14·skip 0을 통과했습니다.
+  ADR-0043/0044는 Accepted, exact 30 contracts는 `25 passing + 5 Verified deviations`, work는 completed입니다.
+  Durable session/user/audit와 M5/M6 전체 완료는 계속 제외하며 현재 active/ready work는 0/0입니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -78,9 +84,9 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 제품 기준: 14 adapters/159 contracts의 `154 passing + 5 deviation + 0 oracle_locked`; relation
-  REL-001..012 12/12와 query expression QRY-034..053 20/20 actual이 `passing`이며 모두
-  exact-head hosted-verified됐습니다.
+- 현재 제품 기준: 17 adapters/189 contracts의 `179 passing + 10 deviation + 0 oracle_locked`; relation
+  REL-001..012 12/12, query expression QRY-034..053 20/20과 GDJ-0043의 exact 30=`25 passing + 5 Verified
+  deviations`가 모두 exact-head hosted-verified됐습니다.
 - 마지막 검토: 2026-08-24
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -654,10 +660,12 @@ portable/required pass-no-skip lock은 EVID-122/run `32659704239`에서 exact ho
 public DB settings와 production server는 계속 제외합니다.
 
 [GDJ-0043](../work/0043-safe-template-validation-session-auth-and-article-admin.md)은 M5 template 요청과 M6의 첫
-Form/Auth/Admin을 하나의 active wide vertical batch로 연결합니다. Proposed [ADR-0043](adr/0043-safe-template-and-model-form-validation.md)과
-[ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md)는 closed-value DTL, IR-derived form, process-lifetime
-session/auth/CSRF와 Article list/search/add/change/delete/history/publish 흐름을 검증합니다. Activation 시점에는 30개 계약 모두
-미구현/미등록이고 M5/M6 completion 또는 durable system state를 주장하지 않습니다.
+Form/Auth/Admin을 하나의 completed wide vertical batch로 연결합니다. Accepted
+[ADR-0043](adr/0043-safe-template-and-model-form-validation.md)과
+[ADR-0044](adr/0044-session-auth-csrf-and-bounded-article-admin.md)는 closed-value DTL, IR-derived form,
+process-lifetime session/auth/CSRF와 Article list/search/add/change/delete/history/publish 흐름을 고정합니다. Exact
+30 contracts는 `25 passing + 5 Verified deviations`이고 EVID-124/CI #134에서 hosted-verified됐습니다. M5/M6
+completion, durable system state, production deployment와 broader Form/Admin breadth는 계속 주장하지 않습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling

@@ -1,6 +1,6 @@
 # ADR-0043: Safe Template Runtime and Shared Model Form Validation
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-24
 - 관련 work/contract: [GDJ-0043](../../work/0043-safe-template-validation-session-auth-and-article-admin.md), WEB-021..027, FRM-001..005, Q-014, M5/M6
 - 선행 결정: [ADR-0001](0001-schema-ir-as-canonical-source.md), [ADR-0002](0002-codegen-generics-runtime-metadata.md),
@@ -53,9 +53,9 @@ Static API는 강하지만 current generated ABI와 publication bundle을 넓히
 ### Closed value template와 IR-derived structural form
 
 Template resolver는 명시적 immutable value만 읽고, form은 normalized metadata로 구조를 만들며 app-owned typed closure가
-generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 않으므로 이 선택지를 prototype합니다.
+generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 않으므로 이 선택지를 bounded 결정으로 채택합니다.
 
-## Proposed 결정
+## 결정
 
 1. `templates` package는 startup에서 `fs.FS` source를 parse하고 immutable concurrent-safe `Engine`을 게시합니다. Unknown
    grammar/filter/tag, duplicate/unclosed inheritance block, invalid name/path와 cap 초과는 structured error로 fail-closed합니다.
@@ -106,14 +106,13 @@ generated mutation으로 변환합니다. 현재 lower-layer ABI를 바꾸지 �
 - [x] Bound/unbound/cleaned/changed/error determinism and invalid mutation I/O 0
 - [x] Local normal/race/CGO0/vet and SQLite/pinned PostgreSQL Article form/Admin actual
 - [x] Final frozen full/386/external-copy and independent local audit
-- [ ] Exact submitted-head hosted matrix
+- [x] Exact submitted-head hosted matrix
 
 ## 현재 구현 상태
 
-상태는 계속 Proposed입니다. Product source와 local integration은 구현됐고 current working-tree candidate에서 WEB-021,
-WEB-023..026과 FRM-001..005는 passing, WEB-022/027은 reviewed `DEV-0003` deviation으로 exact 12-contract
-`godjcheck`를 통과했습니다. WEB-022 actual은 `Object`/`List`와 공개 `Value.Member`/`Items` 결과만 관찰하며 competing Go
-attribute fallback이나 application dictionary callback은 없음을 sparse deviation으로 명시합니다.
-Frozen source `8bcfa213...`에서 scoped 993/993/skip-0 inventory, local normal/race/CGO0/vet, SQLite/pinned PostgreSQL
-full flow, full `make ci`, Linux/386, 898-file external archive와 independent audit가 통과했습니다. Exact submitted-head hosted
-matrix가 pending이므로 아직 Accepted 또는 bounded Verified로 승격하지 않습니다.
+Accepted 상태입니다. Frozen source `8bcfa213...`와 local EVID-123에서 product/local integration을 고정했고,
+submitted head `5eda0a4...`의 EVID-124/CI #134가 exact 27/27 jobs·358/358 steps, 네 좌표 993/993/skip-0과
+PostgreSQL 17.10 required 14/14·skip 0을 통과했습니다. WEB-021, WEB-023..026과 FRM-001..005는 hosted
+`passing`, WEB-022/027은 Verified `DEV-0003` deviation입니다. WEB-022 actual은 `Object`/`List`와 공개
+`Value.Member`/`Items` 결과만 관찰하며 competing Go attribute fallback이나 application dictionary callback은
+없음을 sparse deviation으로 명시합니다. Arbitrary callable/reflection과 M5 전체 완료는 계속 이 결정 밖입니다.

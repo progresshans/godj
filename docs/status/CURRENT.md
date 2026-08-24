@@ -3,10 +3,10 @@
 - 마지막 갱신: 2026-08-24
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 hosted-verified submitted head: `2bfdbd50ade74c76713a3e1f08ce64ae7abe3dd9`
-  (`docs: record GDJ-0042 timeout refreeze`), tree `292b82a042afe4af205c5caa5d4b541309d53ee7`,
-  [EVID-122](TEST_EVIDENCE.md#evid-20260824-122--gdj-0042-corrected-exact-head-hosted-completion) /
-  CI #124 run `32659704239` exact 27/27 jobs·358/358 steps·failure/cancel/skip/annotation 0
+- 현재 hosted-verified submitted head: `5eda0a458302948a91d48292f666e2cd5eac350c`
+  (`docs: record GDJ-0043 frozen local gates`), tree `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`,
+  [EVID-124](TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) /
+  CI #134 run `32672326069` exact 27/27 jobs·358/358 steps·failure/cancel/skip/annotation 0
 - GDJ-0037 implementation commit: `9258a08402ebd7bd0077d17910a5e1f0621d6e78`
   (`feat: add recoverable project bundle publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`
 - GDJ-0038 activation baseline: `681b07132be5772286b0c960756719aed59a2079`
@@ -76,8 +76,8 @@
   CI #124 run `32659704239` exact 27/27 jobs·358/358 steps, four-coordinate portable required 12 pass/skip 0과
   PostgreSQL 17.10 required 13 pass/skip 0
 - GDJ-0043 activation baseline: terminal docs head `9099a5306f805fe382bdbc4671262cbe87f4216a`, tree
-  `afdda323e1f83f5c67a6a6d87cd3215874d03a53`; active
-  [work packet](../../work/0043-safe-template-validation-session-auth-and-article-admin.md) / Proposed
+  `afdda323e1f83f5c67a6a6d87cd3215874d03a53`; completed
+  [work packet](../../work/0043-safe-template-validation-session-auth-and-article-admin.md) / Accepted
   [ADR-0043](../adr/0043-safe-template-and-model-form-validation.md) and
   [ADR-0044](../adr/0044-session-auth-csrf-and-bounded-article-admin.md)
 - GDJ-0043 frozen local source: `8bcfa21371ed5fd1b7cb3ee2fb8e0041968f8daa`, tree
@@ -86,7 +86,11 @@
   18 sets/201 contracts/306 ordered bindings=`179 passing + 10 deviation + 12 oracle_locked`, product는
   17 sets/189=`179 passing + 10 deviation`입니다. SQLite와 digest-pinned PostgreSQL full Article Admin flow,
   affected normal/race/CGO0/vet, scoped 993/993/skip-0 inventory, full `make ci`, Linux/386, 898-file external archive와
-  independent final audit가 통과했습니다. ADR-0043/0044는 Proposed, GDJ-0043은 active이며 hosted matrix는 pending입니다.
+  independent final audit가 통과했습니다.
+- GDJ-0043 terminal submitted head: `5eda0a458302948a91d48292f666e2cd5eac350c`, tree
+  `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`; [EVID-124](TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) /
+  CI #134 run `32672326069` exact 27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL 17.10 required
+  14/14·skip 0. ADR-0043/0044는 Accepted, DEV-0003..0005는 Verified, GDJ-0043은 completed입니다.
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
 - 선행 구현 commit: `f6f56ea3f8b8b6e7ade0c1bd73528405962c36ce`
@@ -1152,9 +1156,11 @@
   hardened process-lifetime session/auth/CSRF와 immutable bounded Article Admin registry/site를 하나의 실제 흐름으로
   연결합니다. SQLite와 digest-pinned PostgreSQL에서 login, list/search/page, add/change/delete, semantic history,
   publish action과 logout을 같은 public `admin.Site` 경계로 통과했습니다. Exact 30 contracts는 25 passing과
-  WEB-022/027, AUT-004/005, ADM-002 다섯 reviewed deviations이며 [DEV-0003..0005](../DEVIATIONS.md)에 sparse selector를
-  고정했습니다. `make ci`, Linux/386, external archive와 independent audit는 EVID-123에서 local pass지만
-  ADR-0043/0044 acceptance, hosted `Verified`, durable user/session/audit와 M5/M6 completion은 아직 주장하지 않습니다.
+  WEB-022/027, AUT-004/005, ADM-002 다섯 Verified deviations이며 [DEV-0003..0005](../DEVIATIONS.md)에 sparse selector를
+  고정했습니다. `make ci`, Linux/386, external archive와 independent audit는 EVID-123에서 local pass했고 submitted
+  `5eda0a4...`의 EVID-124/CI #134도 exact 27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL required
+  14/14·skip 0으로 통과했습니다. ADR-0043/0044는 Accepted이고 Q-014/Q-015는 Resolved입니다. Durable
+  user/session/audit와 M5/M6 completion은 계속 주장하지 않습니다.
 
 ### 오류와 durability 경계
 
@@ -1555,12 +1561,13 @@ run `32634741186` exact 27/27 jobs·341/341 steps·failure/skip 0으로 QRY-022.
 completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `32642341459` exact
 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0041도 submitted head `e97a4e3...`의 EVID-118/run
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0042도 submitted `2bfdbd5...`의
-EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재 active/ready는 1/0이고
-외부 blocker도 0입니다. Active는 [GDJ-0043](../../work/0043-safe-template-validation-session-auth-and-article-admin.md)이며
-Proposed ADR-0043/0044 아래 exact 30-contract template/form/auth/admin vertical batch의 product와 conformance를
-`8bcfa213...`/EVID-123에서 local-final로 고정했습니다. 25 passing + 5 reviewed deviations, SQLite/digest-pinned
-PostgreSQL full flow, scoped 993/993/0, full/386/external archive/audit가 통과했고 exact submitted-head hosted matrix만
-pending입니다. Durable user/session/audit와 M5·M6 completion은 이 bounded packet에서 계속 제외합니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0043도 submitted
+`5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재
+active/ready는 0/0이고 외부 blocker도 0입니다. Accepted ADR-0043/0044 아래 exact 30-contract
+template/form/auth/admin vertical batch는 25 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL full
+flow, 네 플랫폼 993/993/0, full/386/external archive/audit와 hosted required 14/14를 통과했습니다. Durable
+user/session/audit와 M5·M6 completion은 이 bounded packet에서 계속 제외합니다. 다음 후보는 DRF 3.18.0 exact
+reference를 사용하는 GDJ-0044 session-authenticated Article JSON API wide vertical packet입니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
 WEB-011..020의 bounded implementation/local actual을 닫았습니다. First submitted `46a57aa...` run은 26 success 뒤
 20-minute timeout으로 끝났고, correction `2b49938...`의 EVID-121 local refreeze 뒤 corrected run이 portable required
@@ -1650,12 +1657,17 @@ EVID-119..121의 affected/PostgreSQL 17.10 actual과 corrected full/386/803-file
 submitted run `32657774073`은 26 success/1 timeout이므로 재사용하지 않습니다. Corrected submitted `2bfdbd5...`의
 EVID-122/run `32659704239`는 exact 27/27 jobs·358/358 steps, failure/cancel/skip/annotation 0으로 통과했습니다.
 ADR-0042는 Accepted, WEB-011..020은 bounded hosted `Verified`, GDJ-0042는 completed입니다. GDJ-0043은
-terminal docs baseline `9099a53...`에서 시작해 frozen local source `8bcfa213...`/EVID-123까지 구현·통합·감사를 마쳤습니다.
-다음 경계는 documentation-only status descendant를 non-force push해 Draft PR #1을 갱신하고, 그 exact submitted tree의
-hosted 27-job matrix에서 portable 993 inventory와 PostgreSQL required 14 sentinels를 pass/no-skip으로 확인하는 것입니다.
-그 성공 전에는 ADR-0043/0044 Accepted, GDJ-0043 completed 또는 hosted `Verified`를 주장하지 않습니다.
+terminal docs baseline `9099a53...`, frozen local source `8bcfa213...`/EVID-123과 submitted `5eda0a4...`의
+EVID-124/run `32672326069`을 거쳐 exact 27/27 jobs·358/358 steps, portable 993/993/0과 PostgreSQL required
+14/14·skip 0으로 completed됐습니다. ADR-0043/0044는 Accepted이고 DEV-0003..0005는 Verified입니다.
 
-Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 GDJ-0043/Proposed ADR에서 open, Q-017은 P1/open이며
+다음 정확한 구현 경계는 GDJ-0044를 활성화해 closed parameterized routing과 session-authenticated Article JSON
+list/create/retrieve/PUT/PATCH/delete/pagination 흐름을 SQLite와 PostgreSQL 17에 연결하는 것입니다. API reference는
+DRF 3.18.0 + Django 6.1 + CPython 3.14.3으로 exact pin하고, deprecated DRF built-in OpenAPI, Channels, durable
+session/user/audit, multipart/file, browsable API와 broader serializer breadth는 별도 후속으로 둡니다.
+
+Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 API/Realtime umbrella로 계속 open,
+Q-017은 P1/open이며
 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와 release는 이 작업의 권한·범위가 아닙니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)

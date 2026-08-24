@@ -1,6 +1,6 @@
 ---
 id: GDJ-0043
-status: active
+status: completed
 updated: 2026-08-24
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "9099a5306f805fe382bdbc4671262cbe87f4216a"
@@ -251,8 +251,8 @@ examples/article/adminapp → admin + generated Article/project
 - [x] SQLite/PostgreSQL actual, security/error/restart boundaries and scoped 993/993/skip-0 inventory lock
 - [x] final source-only full `make ci`, all-package Linux/386 and repository-external clean copy once
 - [x] independent final audits on frozen local bytes
-- [ ] exact submitted-head hosted matrix once
-- [ ] ADR acceptance, bounded Verified/status/evidence/Draft PR mirror only after those gates
+- [x] exact submitted-head hosted matrix once
+- [x] ADR acceptance, bounded Verified/status/evidence/Draft PR mirror only after those gates
 
 ## 완료 조건
 
@@ -264,7 +264,7 @@ examples/article/adminapp → admin + generated Article/project
   commit outcome unknown은 자동 재시도나 success audit 없이 reconciliation-required로 닫습니다.
 - [x] SQLite/PostgreSQL 17 actual이 동일한 bounded semantic flow를 통과합니다.
 - [x] Affected/final frozen cadence와 independent audit가 통과합니다.
-- [ ] CURRENT/work/matrix/evidence/ADR/PR이 같은 exact bytes와 비목표를 가리킵니다.
+- [x] CURRENT/work/matrix/evidence/ADR/PR이 같은 exact bytes와 비목표를 가리킵니다.
 
 ## 진행 기록
 
@@ -275,7 +275,7 @@ examples/article/adminapp → admin + generated Article/project
 - [x] Phase B/C product checkpoint
 - [x] Phase D SQLite/PostgreSQL actual checkpoint
 - [x] Phase E frozen local hardening and documentation handoff
-- [ ] Exact submitted-head hosted completion
+- [x] Exact submitted-head hosted completion
 
 ## 수정 파일
 
@@ -295,7 +295,7 @@ examples/article/adminapp → admin + generated Article/project
 - 2026-08-24: existing static Web routes와 query `id`를 사용해 dynamic router API를 이번 slice에 추가하지 않습니다.
 - 2026-08-24: Schema IR/system migration 확장 대신 session/user/audit는 explicit process store, Article만 actual DB persistence를 사용합니다.
 - 2026-08-24: generated Create/Patch private state를 reflection으로 우회하지 않고 Article-owned typed conversion closure를 사용합니다.
-- 2026-08-24: arbitrary Go callable 자동 호출은 지원하지 않는 안전 경계를 ADR-0043의 Proposed decision으로 검증합니다.
+- 2026-08-24: arbitrary Go callable 자동 호출은 지원하지 않는 안전 경계를 ADR-0043의 Accepted decision으로 고정합니다.
 - 2026-08-24: `WEB-022`는 closed Object/List member 결과만 직접 비교합니다. Go struct attribute, property, method fallback이나
   application dictionary callback을 지원하지 않으므로 Django precedence probe의 result/metric 두 selector는 `DEV-0003`으로
   분류하고, exported template API의 function/`any`/empty-interface/reflection ingress를 fail-closed gate로 잠급니다.
@@ -310,9 +310,9 @@ examples/article/adminapp → admin + generated Article/project
 
 - External blocker는 없습니다.
 - `WEB-022` closed lookup, `WEB-027` no-call, `AUT-004` redirect와 `AUT-005` cookie policy, `ADM-002` bounded action/model breadth는
-  reviewed deviation으로 고정됐습니다. ADR-0043/0044는 구현됐더라도 final frozen/hosted gate 전까지 Proposed를 유지합니다.
+  EVID-124/CI #134에서 Verified deviation으로 고정됐고 ADR-0043/0044는 Accepted입니다.
 - Durable session/user/audit schema와 restart persistence는 current IR 확장 없이 구현하지 않으며 후속 packet입니다.
-- 남은 blocker가 아니라 required gate는 documentation descendant push, Draft PR refresh와 exact submitted-head hosted matrix입니다.
+- GDJ-0043의 required hosted gate는 완료됐습니다. Draft PR은 OPEN/DRAFT/unmerged이고 merge/release는 범위 밖입니다.
 
 ## 테스트 증거
 
@@ -344,29 +344,32 @@ examples/article/adminapp → admin + generated Article/project
   `TestArticleAdminSitePostgresUserFlow`를 포함한 normal/race/CGO0/vet package set이 PASS했습니다.
 - Final local: pinned uv 0.10.12 full `make ci`, all-package Linux/386, 898-file repository-external archive,
   independent final audit와 focused flaky-sentinel 20/20 rerun이 PASS했습니다.
-- Not run/complete: documentation descendant의 exact submitted-head hosted matrix. Hosted는 pending입니다.
+- Hosted: submitted head `5eda0a458302948a91d48292f666e2cd5eac350c`, tree
+  `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`의
+  [EVID-124](../docs/status/TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) / CI #134
+  run `32672326069`이 exact 27/27 jobs·358/358 steps, 네 플랫폼 993/993/0과 PostgreSQL required 14/14·skip 0으로
+  PASS했습니다.
 
 ## 위험과 rollback
 
-- Public API: external compile fixture는 통과했지만 ADR-0043/0044가 Proposed이고 hosted가 pending이므로 exact generic
-  registration/Value/Form API를 아직 Accepted로 고정하지 않습니다.
+- Public API: external compile fixture와 exact hosted matrix가 통과해 ADR-0043/0044의 bounded
+  registration/Value/Form API를 Accepted로 고정했습니다. Full DTL/Form/Admin breadth나 M5/M6 completion은 아닙니다.
 - Import cycle: lower package가 `admin/auth/forms/templates`를 import하면 gate가 실패해야 합니다.
 - Security: raw secret serialization, callable exposure, unsafe redirect, CSRF bypass와 session fixation은 P0/P1 gate입니다.
 - Data: Article action은 `db.Atomic`을 사용하고 process audit의 restart 비내구성을 명시합니다. Commit outcome unknown은
   committed 여부를 추측하거나 audit로 success를 합성하지 않고 no-retry/reconciliation-required로 반환합니다.
 - Backend: runtime raw SQL/system table을 추가하지 않고 existing SQLite/PostgreSQL public backend boundary만 사용합니다.
-- Rollback: activation, 각 product checkpoint와 frozen conformance source `8bcfa213...`는 독립 commit입니다. 아직
-  accepted/hosted publication이 아니므로 관련 runner/wiring/deviation fixture commit을 함께 revert할 수 있습니다.
+- Rollback: activation, 각 product checkpoint와 frozen conformance source `8bcfa213...`는 독립 commit입니다. Accepted
+  surface를 되돌리려면 ADR/deviation과 관련 runner/wiring/fixture를 함께 supersede 또는 revert해야 합니다.
 
 ## 다음 정확한 작업
 
-Integration owner가 EVID-123/CURRENT/matrix의 documentation-only descendant를 non-force push해 Draft PR #1을 갱신하고 exact
-submitted-head hosted matrix를 기다립니다. Hosted success 뒤에만 ADR-0043/0044를 Accepted로 바꾸고
-CURRENT/IMPLEMENTATION_MATRIX/TEST_EVIDENCE/DEVIATIONS/PR mirror를 같은 bytes와 evidence로 동기화합니다.
+GDJ-0044로 session-authenticated Article JSON CRUD, closed parameterized routing과 DRF 3.18.0 exact reference profile을
+하나의 다음 wide vertical packet으로 활성화합니다. Durable session/user/audit와 OpenAPI ownership은 별도 후속 결정으로 둡니다.
 
 ## 결과와 인수인계
 
-Product와 local integration은 구현됐고 exact 30 contracts는 25 passing/5 reviewed deviations로 관찰됐습니다. SQLite와 pinned
-PostgreSQL user flow, scoped 993/993/0 inventory와 affected normal/race/CGO0/vet도 통과했습니다. 그러나 current bytes는 아직
-submitted/hosted head가 아니며 ADR-0043/0044는 Proposed, GDJ-0043은 active입니다. Frozen local source는 `8bcfa213...`이고
-integration owner가 documentation push, Draft PR refresh와 hosted completion을 단독 소유합니다.
+Product와 integration은 exact 30 contracts=`25 passing + 5 Verified deviations`로 completed됐습니다. SQLite와 pinned
+PostgreSQL user flow, scoped 993/993/0, local full/386/external archive와 submitted head `5eda0a4...`의 exact
+27/27 jobs·358/358 steps hosted matrix가 통과했습니다. ADR-0043/0044는 Accepted이고 GDJ-0043은 completed입니다.
+Session/user/audit durability, M5/M6 전체 완료, merge, release와 production readiness는 계속 주장하지 않습니다.

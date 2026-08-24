@@ -11471,7 +11471,7 @@ timeout evidence, this unique corrected run is sufficient to accept ADR-0042, ma
 hosted-`Verified` and complete GDJ-0042. Terminal documentation is a docs-only descendant and receives link/frontmatter/
 status consistency plus `git diff --check`, not another recursive product matrix.
 
-## EVID-20260824-123 — GDJ-0043 Template/Form/Auth/Admin Frozen Local Checkpoint
+## EVID-20260824-123 — GDJ-0043 Template Form Auth Admin Frozen Local Checkpoint
 
 - Date/time: completed through 2026-08-24T07:49:19+09:00
 - Work/contract IDs: GDJ-0043 active; ADR-0043/0044 Proposed; WEB-021..027, FRM-001..005, AUT-001..008 and
@@ -11584,3 +11584,60 @@ The next boundary is a documentation-only descendant commit, non-force push, Dra
 submitted-tree hosted matrix. Any source/workflow/artifact correction invalidates this local final and requires a new
 freeze. Hosted success is required before ADR-0043/0044 acceptance, DEV-0003..0005 `Verified`, GDJ-0043 completion or
 bounded hosted support claims.
+
+## EVID-20260824-124 — GDJ-0043 Exact-head Hosted Completion
+
+- Date/time: 2026-08-24T08:00:40+09:00 through 2026-08-24T08:19:39+09:00
+- Work/contract IDs: GDJ-0043 completed; ADR-0043/0044 Accepted; WEB-021..027, FRM-001..005, AUT-001..008 and
+  ADM-001..010 bounded hosted `Verified`; Q-014/Q-015 Resolved
+- Exact submitted head: `5eda0a458302948a91d48292f666e2cd5eac350c`, tree
+  `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`, subject `docs: record GDJ-0043 frozen local gates`
+- Hosted checkout: synthetic merge `cc40795d79ca8aa5634ccd5ee395c5cffc81e45a`; its tree was exactly
+  `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`, identical to the submitted head tree
+- Result: [GitHub Actions CI #134 run 32672326069](https://github.com/progresshans/godj/actions/runs/32672326069),
+  attempt 1, completed exact 27/27 jobs and 358/358 recorded steps successfully. Job/step failure, cancellation and
+  skip were 0; all 27 PR checks succeeded and check-run annotations were 0.
+- Draft PR #1 at collection was OPEN/DRAFT/unmerged, head `5eda0a4...`, merge state `CLEAN`.
+
+### Four-coordinate inventory and PostgreSQL product proof
+
+All four `Relation product` coordinates asserted their requested GOOS/GOARCH and independently emitted the same exact
+inventory: 993 run/993 pass/0 skip, 101,957 payload bytes and SHA-256
+`feba89ca703d467af6969157ce2d5df46557df7bd4d44e823a3917c80ea5478f`.
+
+- Ubuntu 22.04 linux/amd64 job `97274907774`
+- Ubuntu 24.04 ARM linux/arm64 job `97274907842`
+- macOS 26 darwin/arm64 job `97274907778`
+- macOS 15 Intel darwin/amd64 job `97274907814`
+
+PostgreSQL job `97274907852` completed successfully against exact image
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+Its asserted service fingerprint was
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`. The normal inventory step's
+fail-closed required array contained exact 14 sentinels and completed successfully with required pass 14/14 and required
+skip 0. It included both `TestArticleAdminSitePostgresUserFlow` and
+`TestGlobalRunserverArticlePostgresDevelopmentLoop`. PostgreSQL normal, race, CGO-disabled, vet and clean-worktree gates
+all passed. The separate restart gate returned exact ordered `prepare` history 1/rows 1, `resume` history 2/rows 2,
+`verify` history 2/rows 2 and successful cleanup.
+
+The remaining exact-Darwin, SQLite, project-check, relation-binding, four Python compatibility and checked-in artifact
+jobs also succeeded. The artifact job reran portable conformance and Linux/386 compile/product gates. Portable Python's
+intentional exact-profile-only test skips are internal suite classifications, not GitHub Actions job/step skips and not
+GDJ-0043 product skips.
+
+### Accepted bounded result and terminal boundary
+
+The new 30-contract batch remains exact `25 passing + 5 deviation`: WEB-022/027 use Verified DEV-0003, AUT-004/005 use
+Verified DEV-0004 and ADM-002 uses Verified DEV-0005. Global reference remains 18 sets/201 contracts/306 ordered
+bindings=`179 passing + 10 deviation + 12 oracle_locked`; product remains 17 sets/189=
+`179 passing + 10 deviation`. MIG-075..086 remain the only locked/unregistered contracts.
+
+An independent read-only hosted audit re-queried the run, PR, jobs, steps, checks, trees, four inventories and
+PostgreSQL required/restart boundaries and returned P0/P1/P2/P3=`0/0/0/0`. Together with EVID-123's frozen local gates,
+this unique exact-head result accepts ADR-0043/0044, verifies DEV-0003..0005 and completes GDJ-0043. It does not claim
+merge, release, production readiness, durable user/session/audit, non-loopback/TLS/multi-process deployment or M5/M6
+completion.
+
+This EVID-124 append and synchronized terminal status are a documentation-only descendant of the tested head. Per the
+repository verification cadence they receive link/frontmatter/status consistency and `git diff --check`, not an EVID-125
+or recursively repeated product matrix.
