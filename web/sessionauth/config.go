@@ -115,6 +115,16 @@ func (r *Runtime) FallbackPath() string {
 	return r.fallbackPath
 }
 
+// CSRFHeader returns the configured request-header name. API adapters may
+// reuse this public name for a freshly masked response token without exposing
+// the independent HttpOnly cookie secret.
+func (r *Runtime) CSRFHeader() string {
+	if r == nil {
+		return ""
+	}
+	return r.csrfHeader
+}
+
 // AllowsNext reports whether raw is a canonical bounded request URI accepted
 // by this runtime rather than merely returning the fallback chosen by SafeNext.
 func (r *Runtime) AllowsNext(raw string) bool {
@@ -181,8 +191,8 @@ func New(config Config) (*Runtime, error) {
 	if config.CSRFHeader == "" {
 		config.CSRFHeader = DefaultCSRFHeader
 	}
-	if !validHTTPToken(config.CSRFHeader) {
-		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "CSRF header name is not an HTTP token"}
+	if !validCSRFHeaderName(config.CSRFHeader) {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "CSRF header name must be a non-proxy X- custom HTTP header"}
 	}
 	if config.LoginPath == "" {
 		config.LoginPath = defaultLoginPath
@@ -307,6 +317,16 @@ func validHTTPToken(value string) bool {
 		return false
 	}
 	return true
+}
+
+func validCSRFHeaderName(value string) bool {
+	if !validHTTPToken(value) {
+		return false
+	}
+	lower := strings.ToLower(value)
+	return strings.HasPrefix(lower, "x-") &&
+		!strings.HasPrefix(lower, "x-forwarded-") &&
+		lower != "x-real-ip"
 }
 
 func validStaticPath(value string) bool {

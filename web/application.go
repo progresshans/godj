@@ -120,7 +120,9 @@ func (a *Application) dispatch(request *Request) (Response, error) {
 		request.setRouteParameters(match.parameters)
 		return match.route.Handler(request)
 	case CodeRouteNotFound:
-		return plainText(http.StatusNotFound, "Not Found\n"), nil
+		response := plainText(http.StatusNotFound, "Not Found\n")
+		response.routingError = CodeRouteNotFound
+		return response, nil
 	case CodeMethodNotAllowed:
 		return methodNotAllowedResponse(match.allow), nil
 	default:

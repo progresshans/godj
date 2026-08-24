@@ -7,10 +7,11 @@ import (
 
 // Response is an immutable, fully buffered HTTP response.
 type Response struct {
-	status int
-	header http.Header
-	body   []byte
-	valid  bool
+	status       int
+	header       http.Header
+	body         []byte
+	valid        bool
+	routingError ErrorCode
 }
 
 // NewResponse validates and snapshots an HTTP response.
@@ -63,6 +64,19 @@ func (r Response) Header() http.Header {
 // Body returns an independent body copy.
 func (r Response) Body() []byte {
 	return append([]byte(nil), r.body...)
+}
+
+// RoutingError reports a response produced directly by the Web router before
+// an application handler ran. NewResponse cannot forge this origin marker;
+// higher representation layers may therefore convert only lower routing
+// failures without inspecting mutable-looking headers or body bytes.
+func RoutingError(response Response) (ErrorCode, bool) {
+	switch response.routingError {
+	case CodeRouteNotFound, CodeMethodNotAllowed:
+		return response.routingError, true
+	default:
+		return "", false
+	}
 }
 
 func (r Response) validate(maxBytes int64) error {

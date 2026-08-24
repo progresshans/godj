@@ -542,6 +542,7 @@ func sortedMethods(methods map[string]Route) []string {
 func methodNotAllowedResponse(allow []string) Response {
 	response := plainText(http.StatusMethodNotAllowed, "Method Not Allowed\n")
 	response.header.Set("Allow", strings.Join(allow, ", "))
+	response.routingError = CodeMethodNotAllowed
 	return response
 }
 

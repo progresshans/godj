@@ -96,3 +96,32 @@ func TestAllowedNextPathsReturnsSortedDetachedSnapshot(t *testing.T) {
 		t.Fatal("AllowedNextPaths() returned an aliased snapshot")
 	}
 }
+
+func TestRuntimeCSRFHeaderReportsConfiguredPublicName(t *testing.T) {
+	t.Parallel()
+	runtime := &Runtime{csrfHeader: "X-Project-CSRF"}
+	if got := runtime.CSRFHeader(); got != "X-Project-CSRF" {
+		t.Fatalf("CSRFHeader() = %q", got)
+	}
+	var nilRuntime *Runtime
+	if got := nilRuntime.CSRFHeader(); got != "" {
+		t.Fatalf("nil CSRFHeader() = %q", got)
+	}
+}
+
+func TestCSRFHeaderNameIsSafeForRequestAndResponseReuse(t *testing.T) {
+	t.Parallel()
+	for _, valid := range []string{DefaultCSRFHeader, "X-CSRFToken", "x-project-csrf"} {
+		if !validCSRFHeaderName(valid) {
+			t.Errorf("validCSRFHeaderName(%q) = false", valid)
+		}
+	}
+	for _, invalid := range []string{
+		"", "Content-Length", "Set-Cookie", "Host", "Authorization", "Origin",
+		"X-Forwarded-For", "X-Forwarded-CSRF", "X-Real-IP", "bad header",
+	} {
+		if validCSRFHeaderName(invalid) {
+			t.Errorf("validCSRFHeaderName(%q) = true", invalid)
+		}
+	}
+}
