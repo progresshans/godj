@@ -210,8 +210,8 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	if got := strings.Count(oracleCheckTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check query-expression manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(oracleCheckTarget, "python -m conformance.runners.django"); got != 18 {
-		t.Fatalf("oracle-check reference runner count = %d, want 18", got)
+	if got := strings.Count(oracleCheckTarget, "python -m conformance.runners.django"); got != 20 {
+		t.Fatalf("oracle-check reference runner count = %d, want 20", got)
 	}
 	if got := strings.Count(oracleRegenerateTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-regenerate query-expression manifest count = %d, want 1", got)

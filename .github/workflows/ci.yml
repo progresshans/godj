@@ -97,14 +97,21 @@ jobs:
         working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64
         run: sha256sum --check SHA256SUMS
 
+      - name: Verify stored DRF oracle checksum
+        working-directory: conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64
+        run: sha256sum --check SHA256SUMS
+
       - name: Ensure reference artifacts were not rewritten
         run: >
           git diff --exit-code --
           conformance/contracts
           conformance/fixtures/godj-query-breadth-not-implemented.json
           conformance/fixtures/godj-query-expression-not-implemented.json
+          conformance/fixtures/godj-parameter-routing-not-implemented.json
+          conformance/fixtures/godj-article-api-not-implemented.json
           conformance/profiles
           conformance/oracles
+          conformance/reference/drf
 
   exact-darwin-validation:
     name: Validate exact darwin/arm64 profile and SQLite lifecycle
@@ -136,7 +143,9 @@ jobs:
           enable-cache: false
 
       - name: Install locked Python dependencies
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          uv sync --project conformance/reference/drf --frozen
 
       - name: Print exact runner fingerprint
         run: |
@@ -166,8 +175,11 @@ jobs:
           conformance/contracts
           conformance/fixtures/godj-query-breadth-not-implemented.json
           conformance/fixtures/godj-query-expression-not-implemented.json
+          conformance/fixtures/godj-parameter-routing-not-implemented.json
+          conformance/fixtures/godj-article-api-not-implemented.json
           conformance/profiles
           conformance/oracles
+          conformance/reference/drf
 
   project-check-matrix:
     name: Project check (${{ matrix.runs_on }})
@@ -740,16 +752,18 @@ jobs:
         run: |
           uv --version | grep -Eq '^uv 0[.]12[.]3([[:space:]]|$)'
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
-            --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python - <<'PY'
           import platform
           import asgiref
           import django
+          import rest_framework
           import sqlparse
 
           expected = __import__("os").environ["EXPECTED_PYTHON"]
           assert platform.python_version() == expected, (platform.python_version(), expected)
           assert django.get_version() == "6.1", django.get_version()
+          assert rest_framework.VERSION == "3.18.0", rest_framework.VERSION
           assert asgiref.__version__ == "3.12.1", asgiref.__version__
           assert sqlparse.__version__ == "0.5.5", sqlparse.__version__
           PY
@@ -762,7 +776,7 @@ jobs:
           set -o pipefail
           log="$RUNNER_TEMP/python-compatibility-tests.txt"
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
-            --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
           test "$(grep -c '^test_' "$log")" -eq 245
           test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
@@ -775,7 +789,7 @@ jobs:
           EXPECTED_PYTHON: ${{ matrix.python_version }}
         run: |
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
-            --with Django==6.1 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
+            --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python - <<'PY'
           import hashlib
 
@@ -789,10 +803,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 201, len(SCENARIOS)
-          assert len(payload) == 787663, len(payload)
+          assert len(SCENARIOS) == 219, len(SCENARIOS)
+          assert len(payload) == 846764, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "b7432da73afa1fb1914ac0007f31fcd227c7d0612a82a3a0c36a445b59091d9e", digest
+          assert digest == "6561aff4fcb64ab1d348f8ac7d8d7642c87453febd81925fbcd769ee409cdb0f", digest
           PY
 
       - name: Require a clean worktree

@@ -1,0 +1,127 @@
+{
+  "format_version": 2,
+  "profile_id": "drf-3.18.0-django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "API-001",
+      "title": "JSON-only parsing rendering body cardinality and empty responses are deterministic",
+      "scenario": "drf.article_api.json_transport_boundary",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/settings/#api-policy-settings", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "API-002",
+      "title": "Article representation and full or partial validation preserve field presence null empty default and error order",
+      "scenario": "drf.article_api.article_serializer_semantics",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/serializers/#partial-updates", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "API-003",
+      "title": "Session permission and CSRF denials return JSON 403 without redirect challenge secret disclosure or Article mutation",
+      "scenario": "drf.article_api.session_permission_csrf_denial",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/authentication/#sessionauthentication", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/authentication.py::SessionAuthentication", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-004",
+      "title": "Article list applies bounded search published and primary-key ordering with invalid-query rejection",
+      "scenario": "drf.article_api.list_filter_order",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/filtering/", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-005",
+      "title": "Fixed PageNumber pagination returns canonical relative count next previous results and rejects invalid pages",
+      "scenario": "drf.article_api.page_number_pagination",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/pagination/#pagenumberpagination", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-006",
+      "title": "Valid JSON create returns 201 canonical relative Location representation and exactly one Article row",
+      "scenario": "drf.article_api.create_article",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/mixins.py::CreateModelMixin", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-007",
+      "title": "Detail GET returns the Article representation while invalid and missing identifiers return 404",
+      "scenario": "drf.article_api.retrieve_article",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/mixins.py::RetrieveModelMixin", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-008",
+      "title": "PUT full replacement publishes exact Article changes while invalid input mutates nothing",
+      "scenario": "drf.article_api.full_update",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/mixins.py::UpdateModelMixin", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-009",
+      "title": "PATCH changes supplied fields only while omitted default explicit null and empty values remain distinct",
+      "scenario": "drf.article_api.partial_update",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "documentation", "reference": "https://www.django-rest-framework.org/api-guide/serializers/#partial-updates", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "API-010",
+      "title": "DELETE returns empty 204 and one row delta while denied or repeated missing requests mutate nothing",
+      "scenario": "drf.article_api.delete_article",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0046", "derived": false},
+        {"kind": "source", "reference": "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:rest_framework/mixins.py::DestroyModelMixin", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

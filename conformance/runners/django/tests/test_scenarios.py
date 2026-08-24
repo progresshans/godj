@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import unittest
@@ -13,7 +14,9 @@ from django.db.migrations.recorder import MigrationRecorder
 from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
     DEFAULT_ARTICLE_ADMIN_MANIFEST,
+    DEFAULT_ARTICLE_API_MANIFEST,
     DEFAULT_AUTH_SESSION_MANIFEST,
+    DEFAULT_DRF_PROFILE,
     DEFAULT_MANIFEST,
     DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
     DEFAULT_MIGRATION_DEFINITION_SOURCE_ORACLE,
@@ -32,6 +35,7 @@ from conformance.runners.django.runner import (
     DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST,
     DEFAULT_MIGRATION_STATE_RECONSTRUCTION_ORACLE,
     DEFAULT_PROFILE,
+    DEFAULT_PARAMETER_ROUTING_MANIFEST,
     DEFAULT_QUERY_BREADTH_MANIFEST,
     DEFAULT_QUERY_BREADTH_ORACLE,
     DEFAULT_QUERY_EXPRESSION_MANIFEST,
@@ -97,6 +101,11 @@ from conformance.runners.django.auth_admin_proxy import (
     AUTH_SCENARIOS,
     SCENARIOS as AUTH_ADMIN_SCENARIOS,
 )
+from conformance.runners.django.article_api_proxy import (
+    ARTICLE_API_SCENARIOS,
+    PARAMETER_ROUTING_SCENARIOS,
+    SCENARIOS as DRF_SCENARIOS,
+)
 from conformance.runners.django.relation_scenarios import (
     SCENARIOS as RELATION_SCENARIOS,
 )
@@ -141,8 +150,11 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(tables, [], f"{scenario}: database tables leaked")
 
     def test_all_scenarios_are_byte_deterministic(self) -> None:
+        drf_available = importlib.util.find_spec("rest_framework") is not None
         for name, scenario in ALL_SCENARIOS.items():
             with self.subTest(scenario=name):
+                if name.startswith("drf.") and not drf_available:
+                    continue
                 contract_id = f"TEST-{name}"
                 first = canonical_json(scenario(contract_id))
                 self.assert_runner_baseline(f"{name} first run")
@@ -196,6 +208,8 @@ class ScenarioTests(unittest.TestCase):
             MIGRATION_PROJECT_CHECK_SCENARIOS,
             RELATION_SCENARIOS,
             MIGRATION_RELATION_SCENARIOS,
+            {name: DRF_SCENARIOS[name] for name in PARAMETER_ROUTING_SCENARIOS},
+            {name: DRF_SCENARIOS[name] for name in ARTICLE_API_SCENARIOS},
         ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
@@ -245,8 +259,16 @@ class ScenarioTests(unittest.TestCase):
                 DEFAULT_ARTICLE_ADMIN_MANIFEST,
                 {name: AUTH_ADMIN_SCENARIOS[name] for name in ADMIN_SCENARIOS},
             ),
+            (
+                DEFAULT_PARAMETER_ROUTING_MANIFEST,
+                {name: DRF_SCENARIOS[name] for name in PARAMETER_ROUTING_SCENARIOS},
+            ),
+            (
+                DEFAULT_ARTICLE_API_MANIFEST,
+                {name: DRF_SCENARIOS[name] for name in ARTICLE_API_SCENARIOS},
+            ),
         )
-        self.assertEqual(len(contract_sets), 18)
+        self.assertEqual(len(contract_sets), 20)
         selected_across_sets = []
         contract_ids_across_sets = []
         inventories = []
@@ -271,10 +293,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 201)
+        self.assertEqual(len(selected_across_sets), 219)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 201)
+        self.assertEqual(len(contract_ids_across_sets), 219)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -289,30 +311,32 @@ class ScenarioTests(unittest.TestCase):
                         source_contract_ids.isdisjoint(target_contract_ids)
                     )
                 cross_bindings += 1
-        self.assertEqual(cross_bindings, 306)
+        self.assertEqual(cross_bindings, 380)
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
-        profile = _load_json(DEFAULT_PROFILE)
-        for manifest_path in (
-            DEFAULT_MANIFEST,
-            DEFAULT_WRITE_MIGRATION_MANIFEST,
-            DEFAULT_SAVE_LIFECYCLE_MANIFEST,
-            DEFAULT_QUERY_CACHE_MANIFEST,
-            DEFAULT_QUERY_BREADTH_MANIFEST,
-            DEFAULT_QUERY_EXPRESSION_MANIFEST,
-            DEFAULT_MIGRATION_PLANNING_MANIFEST,
-            DEFAULT_MIGRATION_EXECUTION_MANIFEST,
-            DEFAULT_MIGRATION_RESTART_MANIFEST,
-            DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST,
-            DEFAULT_MIGRATION_LIFECYCLE_MANIFEST,
-            DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST,
-            DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
-            DEFAULT_RELATION_MANIFEST,
-            DEFAULT_MIGRATION_RELATION_MANIFEST,
-            DEFAULT_TEMPLATE_FORM_MANIFEST,
-            DEFAULT_AUTH_SESSION_MANIFEST,
-            DEFAULT_ARTICLE_ADMIN_MANIFEST,
+        for profile_path, manifest_path in (
+            (DEFAULT_PROFILE, DEFAULT_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_WRITE_MIGRATION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_SAVE_LIFECYCLE_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_QUERY_CACHE_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_QUERY_BREADTH_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_QUERY_EXPRESSION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_PLANNING_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_EXECUTION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_RESTART_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_STATE_RECONSTRUCTION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_LIFECYCLE_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_DEFINITION_SOURCE_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_RELATION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_RELATION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_TEMPLATE_FORM_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_AUTH_SESSION_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_ARTICLE_ADMIN_MANIFEST),
+            (DEFAULT_DRF_PROFILE, DEFAULT_PARAMETER_ROUTING_MANIFEST),
+            (DEFAULT_DRF_PROFILE, DEFAULT_ARTICLE_API_MANIFEST),
         ):
+            profile = _load_json(profile_path)
             manifest = _load_json(manifest_path)
             self.assertEqual(
                 len(_validate_manifest_basics(manifest, profile)),

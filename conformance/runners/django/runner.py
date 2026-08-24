@@ -73,6 +73,7 @@ from .template_form_scenarios import (  # noqa: E402
     SCENARIOS as TEMPLATE_FORM_SCENARIOS,
 )
 from .auth_admin_proxy import SCENARIOS as AUTH_ADMIN_SCENARIOS  # noqa: E402
+from .article_api_proxy import SCENARIOS as ARTICLE_API_SCENARIOS  # noqa: E402
 
 
 SCENARIO_REGISTRIES = (
@@ -93,6 +94,7 @@ SCENARIO_REGISTRIES = (
     MIGRATION_RELATION_SCENARIOS,
     TEMPLATE_FORM_SCENARIOS,
     AUTH_ADMIN_SCENARIOS,
+    ARTICLE_API_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -108,6 +110,11 @@ DJANGO_61_COMMIT = "fe0a859f537d4238cf49fca39073513206f83122"
 DJANGO_61_WHEEL_SHA256 = (
     "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe"
 )
+DRF_318_COMMIT = "11875a38f483cea69d8ef2fd9ede6b96fb602ec4"
+DRF_318_WHEEL_SHA256 = (
+    "381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb"
+)
+DRF_PROFILE_ID = "drf-3.18.0-django-6.1-sqlite-darwin-arm64"
 FORMAT_VERSION = 2
 ORACLE_READY_STATUSES = frozenset({"oracle_locked", "red", "passing", "deviation"})
 ALLOWED_PHASES = frozenset(
@@ -117,6 +124,10 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_PROFILE = (
     REPOSITORY_ROOT
     / "conformance/profiles/django-6.1-sqlite-darwin-arm64.json"
+)
+DEFAULT_DRF_PROFILE = (
+    REPOSITORY_ROOT
+    / "conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json"
 )
 DEFAULT_MANIFEST = REPOSITORY_ROOT / "conformance/contracts/manifest.json"
 DEFAULT_ORACLE = (
@@ -245,6 +256,20 @@ DEFAULT_ARTICLE_ADMIN_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json"
 )
+DEFAULT_PARAMETER_ROUTING_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/parameter-routing-manifest.json"
+)
+DEFAULT_PARAMETER_ROUTING_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json"
+)
+DEFAULT_ARTICLE_API_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/article-api-manifest.json"
+)
+DEFAULT_ARTICLE_API_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
@@ -270,6 +295,8 @@ KNOWN_MANIFEST_ORACLES = {
     DEFAULT_TEMPLATE_FORM_MANIFEST.resolve(): DEFAULT_TEMPLATE_FORM_ORACLE,
     DEFAULT_AUTH_SESSION_MANIFEST.resolve(): DEFAULT_AUTH_SESSION_ORACLE,
     DEFAULT_ARTICLE_ADMIN_MANIFEST.resolve(): DEFAULT_ARTICLE_ADMIN_ORACLE,
+    DEFAULT_PARAMETER_ROUTING_MANIFEST.resolve(): DEFAULT_PARAMETER_ROUTING_ORACLE,
+    DEFAULT_ARTICLE_API_MANIFEST.resolve(): DEFAULT_ARTICLE_API_ORACLE,
 }
 
 
@@ -373,6 +400,20 @@ def verify_profile(profile: dict[str, Any], root: Path = REPOSITORY_ROOT) -> Non
     wheel_marker = f"sha256:{DJANGO_61_WHEEL_SHA256}"
     if wheel_marker not in lock_text:
         raise ProfileMismatch("uv.lock does not contain the locked Django 6.1 wheel hash")
+    if profile.get("id") == DRF_PROFILE_ID:
+        try:
+            from rest_framework import VERSION as drf_version
+        except ImportError as error:
+            raise ProfileMismatch("the DRF profile requires djangorestframework") from error
+        if drf_version != "3.18.0":
+            raise ProfileMismatch(
+                f"DRF version mismatch: expected '3.18.0', got {drf_version!r}"
+            )
+        drf_wheel_marker = f"sha256:{DRF_318_WHEEL_SHA256}"
+        if drf_wheel_marker not in lock_text:
+            raise ProfileMismatch(
+                "uv.lock does not contain the locked DRF 3.18.0 wheel hash"
+            )
 
 
 def _validate_manifest_basics(

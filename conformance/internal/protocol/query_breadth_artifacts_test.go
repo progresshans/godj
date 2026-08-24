@@ -129,7 +129,7 @@ func TestQueryBreadthPassingManifestKeepsExplicitNotImplementedBaseline(t *testi
 	}
 }
 
-func TestCurrentEighteenReferenceSetsHave201UniqueContractsAndReject306OrderedCrossBindings(t *testing.T) {
+func TestPreGDJ0044EighteenReferenceSetsHave201UniqueContractsAndReject306OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -178,7 +178,7 @@ func TestCurrentEighteenReferenceSetsHave201UniqueContractsAndReject306OrderedCr
 		}
 	}
 	if totalContracts != 201 || len(contractIDs) != 201 || len(scenarios) != 201 {
-		t.Fatalf("current reference inventory = %d contracts/%d IDs/%d scenarios, want 201 each", totalContracts, len(contractIDs), len(scenarios))
+		t.Fatalf("pre-GDJ-0044 reference inventory = %d contracts/%d IDs/%d scenarios, want 201 each", totalContracts, len(contractIDs), len(scenarios))
 	}
 
 	crossBindings := 0

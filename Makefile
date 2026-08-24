@@ -58,6 +58,13 @@ ARTICLE_ADMIN_MANIFEST := conformance/contracts/article-admin-manifest.json
 ARTICLE_ADMIN_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json
 ARTICLE_ADMIN_NOT_IMPLEMENTED := conformance/fixtures/godj-article-admin-not-implemented.json
 ARTICLE_ADMIN_DEVIATION_EXPECTED := conformance/fixtures/godj-article-admin-deviation-expected.json
+DRF_PROFILE := conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json
+PARAMETER_ROUTING_MANIFEST := conformance/contracts/parameter-routing-manifest.json
+PARAMETER_ROUTING_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json
+PARAMETER_ROUTING_NOT_IMPLEMENTED := conformance/fixtures/godj-parameter-routing-not-implemented.json
+ARTICLE_API_MANIFEST := conformance/contracts/article-api-manifest.json
+ARTICLE_API_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json
+ARTICLE_API_NOT_IMPLEMENTED := conformance/fixtures/godj-article-api-not-implemented.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -183,6 +190,14 @@ conformance-check:
 		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) -suite $(ARTICLE_ADMIN_ORACLE)
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(ARTICLE_ADMIN_MANIFEST) -suite $(ARTICLE_ADMIN_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) -suite $(PARAMETER_ROUTING_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) -suite $(PARAMETER_ROUTING_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) -suite $(ARTICLE_API_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) -suite $(ARTICLE_API_NOT_IMPLEMENTED)
 
 godj-conformance:
 	go run ./conformance/cmd/godjcheck \
@@ -295,6 +310,12 @@ oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(ARTICLE_ADMIN_MANIFEST) \
 		--output $(ARTICLE_ADMIN_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
+		--profile $(DRF_PROFILE) --manifest $(PARAMETER_ROUTING_MANIFEST) \
+		--output $(PARAMETER_ROUTING_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
+		--profile $(DRF_PROFILE) --manifest $(ARTICLE_API_MANIFEST) \
+		--output $(ARTICLE_API_ORACLE) --check
 
 oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -350,6 +371,12 @@ oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(ARTICLE_ADMIN_MANIFEST) \
 		--output $(ARTICLE_ADMIN_ORACLE)
+	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
+		--profile $(DRF_PROFILE) --manifest $(PARAMETER_ROUTING_MANIFEST) \
+		--output $(PARAMETER_ROUTING_ORACLE)
+	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
+		--profile $(DRF_PROFILE) --manifest $(ARTICLE_API_MANIFEST) \
+		--output $(ARTICLE_API_ORACLE)
 
 ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance
 
