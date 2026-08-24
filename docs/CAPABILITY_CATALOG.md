@@ -229,7 +229,12 @@ Form과 Serializer는 validation primitive를 공유할 수 있지만 공개 API
 - OpenAPI generation
 - browsable API
 
-DRF의 정확한 reference profile은 Q-016에서 정합니다.
+GDJ-0044 activation은 API half의 exact reference를 DRF 3.18.0 + Django 6.1 + CPython 3.14.3으로 선택했습니다.
+Proposed ADR-0045/0046 아래 첫 bounded slice는 closed integer parameter route/reverse와 JSON-only Article
+list/create/retrieve/PUT/PATCH/delete, SessionAuthentication-style 403+CSRF, per-method permission, fixed PageNumber
+pagination과 bounded search/filter/order입니다. Phase A reference가 아직 생성되지 않았으므로 구현·지원 상태는
+[Implementation Matrix](status/IMPLEMENTATION_MATRIX.md)의 activation-only 행이 정본입니다. OpenAPI, browsable API,
+token auth, nested/bulk serializer와 M7 전체 완료는 포함하지 않습니다.
 
 ## Realtime
 

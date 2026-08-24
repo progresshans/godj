@@ -67,7 +67,22 @@ CPython 3.12.13/3.13.15/3.14.3/3.14.7과 같은 Django/asgiref/sqlparse dependen
 구성됐고 GDJ-0022 fix head run `31329294154`에서 네 leg 모두 통과했습니다. Historical exact darwin은
 계속 uv 0.10.12를 사용합니다.
 
-DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함되지만, 참조 프로젝트와 정확한 버전은 아직 정하지 않았습니다. Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
+DRF와 Channels에 해당하는 `api`, `realtime` 모듈은 장기 제품 범위에 포함됩니다. GDJ-0044 activation은
+API half에 한해 별도 exact profile `drf-3.18.0-django-6.1-sqlite-darwin-arm64`을 선택했습니다.
+
+- DRF 3.18.0 tag commit `11875a38f483cea69d8ef2fd9ede6b96fb602ec4`
+- Wheel `djangorestframework-3.18.0-py3-none-any.whl` SHA-256
+  `381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb`
+- Django 6.1 / CPython 3.14.3 / SQLite 3.50.4와 기존 UTC/C/en-us/Darwin arm64 fingerprint
+- 기존 root `uv.lock` 대신 isolated `conformance/reference/drf/uv.lock`; 기존 18개 Django-only oracle/profile bytes는
+  rewrite하지 않음
+- First compatibility surface: JSON parser/renderer, full/partial Article serializer,
+  SessionAuthentication-style anonymous 403와 authenticated unsafe-method CSRF, per-method permission,
+  fixed PageNumber pagination, SimpleRouter trailing slash와 list/create/retrieve/PUT/PATCH/delete
+
+이 선택은 Proposed ADR-0045/0046의 activation boundary이며 아직 reference artifact나 product support를 뜻하지 않습니다.
+OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
+Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 
 ## 호환성 차원
 

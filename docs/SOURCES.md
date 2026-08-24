@@ -1,7 +1,7 @@
 # 기준 출처와 검증 기록
 
-- 외부 source 마지막 확인: 2026-08-12 (Asia/Seoul)
-- current artifact/provenance 마지막 검토: 2026-08-23 (Asia/Seoul)
+- 외부 source 마지막 확인: 2026-08-24 (Asia/Seoul)
+- current artifact/provenance 마지막 검토: 2026-08-24 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -70,6 +70,35 @@ REL-001..012는 current product에서 모두 `passing`이고 current reset은 EV
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며
 `uv.lock`과 exact profile에 기록했습니다.
+
+## Django REST framework
+
+- [DRF 3.18.0 release notes](https://www.django-rest-framework.org/community/release-notes/#3180) — 2026-08-07
+  release와 Django 6.1 support의 공식 근거.
+- [DRF 3.18.0 source tag](https://github.com/encode/django-rest-framework/tree/3.18.0) — exact commit
+  `11875a38f483cea69d8ef2fd9ede6b96fb602ec4`.
+- [DRF 3.18.0 packaging metadata](https://github.com/encode/django-rest-framework/blob/3.18.0/pyproject.toml) —
+  Python >=3.10, Django >=5.2와 Django 6.1 classifier/test group 근거.
+- [PyPI djangorestframework 3.18.0](https://pypi.org/project/djangorestframework/3.18.0/) — exact wheel
+  `djangorestframework-3.18.0-py3-none-any.whl`, SHA-256
+  `381fc44d3249c9565c5f723850855b734e99030eb30957a49f506d3fe11d7dcb`.
+- [Authentication](https://www.django-rest-framework.org/api-guide/authentication/)과
+  [Permissions](https://www.django-rest-framework.org/api-guide/permissions/) — SessionAuthentication anonymous denial
+  403, authenticated unsafe-method CSRF와 explicit permission boundary.
+- [Serializers](https://www.django-rest-framework.org/api-guide/serializers/) — required full update와 supplied-field-only
+  partial update 의미.
+- [Routers](https://www.django-rest-framework.org/api-guide/routers/) — SimpleRouter list/create/retrieve/update/
+  partial_update/destroy와 default trailing slash.
+- [Pagination](https://www.django-rest-framework.org/api-guide/pagination/) — explicit PageNumberPagination/page size와
+  paginated response 의미.
+- [Settings](https://www.django-rest-framework.org/api-guide/settings/),
+  [Parsers](https://www.django-rest-framework.org/api-guide/parsers/)와
+  [Renderers](https://www.django-rest-framework.org/api-guide/renderers/) — JSON-only exact reference configuration.
+
+GDJ-0044는 기존 Django-only `uv.lock`과 18개 oracle을 재작성하지 않고
+`conformance/reference/drf/uv.lock`에 DRF dependency를 격리합니다. New exact profile은 기존 Django/Python/SQLite
+fingerprint를 보존하면서 별도 ID와 nested lock hash를 사용합니다. OpenAPI/browsable API/Channels는 이 source lock의
+지원 주장에 포함하지 않습니다.
 
 ## GDJ-0039 query-breadth source and provenance lock
 

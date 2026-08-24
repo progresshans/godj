@@ -7,6 +7,9 @@
   (`docs: record GDJ-0043 frozen local gates`), tree `127e937ae6a6ecc09cf0d2b50cc71fc04e0e3f4a`,
   [EVID-124](TEST_EVIDENCE.md#evid-20260824-124--gdj-0043-exact-head-hosted-completion) /
   CI #134 run `32672326069` exact 27/27 jobs·358/358 steps·failure/cancel/skip/annotation 0
+- 현재 local activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
+  `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant이며
+  [GDJ-0044](../../work/0044-session-authenticated-article-json-api-and-parameterized-routing.md)의 기준점입니다.
 - GDJ-0037 implementation commit: `9258a08402ebd7bd0077d17910a5e1f0621d6e78`
   (`feat: add recoverable project bundle publication`), tree `e60006dfa2d0e8ef817122904f01f84707b22109`
 - GDJ-0038 activation baseline: `681b07132be5772286b0c960756719aed59a2079`
@@ -1563,11 +1566,13 @@ completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `
 `32647746430` exact 27/27 jobs·341/341 steps로 completed됐습니다. GDJ-0042도 submitted `2bfdbd5...`의
 EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0043도 submitted
 `5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. 현재
-active/ready는 0/0이고 외부 blocker도 0입니다. Accepted ADR-0043/0044 아래 exact 30-contract
+active/ready는 1/0이고 외부 blocker도 0입니다. 유일한 active packet은 GDJ-0044입니다. Accepted ADR-0043/0044 아래 exact 30-contract
 template/form/auth/admin vertical batch는 25 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL full
 flow, 네 플랫폼 993/993/0, full/386/external archive/audit와 hosted required 14/14를 통과했습니다. Durable
-user/session/audit와 M5·M6 completion은 이 bounded packet에서 계속 제외합니다. 다음 후보는 DRF 3.18.0 exact
-reference를 사용하는 GDJ-0044 session-authenticated Article JSON API wide vertical packet입니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
+user/session/audit와 M5·M6 completion은 이 bounded packet에서 계속 제외합니다. GDJ-0044는 별도 DRF 3.18.0 +
+Django 6.1 + CPython 3.14.3 profile, closed integer parameter routing과 session-authenticated Article JSON API의
+exact 18-contract Phase A를 활성화했습니다. ADR-0045/0046은 Proposed이고 새 source/reference/product registration은
+아직 없습니다. Product `23b1936...`, PostgreSQL/CI `60da43b...`, clean-cache correction `6101140...`,
 clean-checkout fixture correction `2a61376...`과 close-ownership correction `810149f...`은
 WEB-011..020의 bounded implementation/local actual을 닫았습니다. First submitted `46a57aa...` run은 26 success 뒤
 20-minute timeout으로 끝났고, correction `2b49938...`의 EVID-121 local refreeze 뒤 corrected run이 portable required
@@ -1661,12 +1666,18 @@ terminal docs baseline `9099a53...`, frozen local source `8bcfa213...`/EVID-123�
 EVID-124/run `32672326069`을 거쳐 exact 27/27 jobs·358/358 steps, portable 993/993/0과 PostgreSQL required
 14/14·skip 0으로 completed됐습니다. ADR-0043/0044는 Accepted이고 DEV-0003..0005는 Verified입니다.
 
-다음 정확한 구현 경계는 GDJ-0044를 활성화해 closed parameterized routing과 session-authenticated Article JSON
-list/create/retrieve/PUT/PATCH/delete/pagination 흐름을 SQLite와 PostgreSQL 17에 연결하는 것입니다. API reference는
-DRF 3.18.0 + Django 6.1 + CPython 3.14.3으로 exact pin하고, deprecated DRF built-in OpenAPI, Channels, durable
-session/user/audit, multipart/file, browsable API와 broader serializer breadth는 별도 후속으로 둡니다.
+다음 정확한 구현 경계는 GDJ-0044 Phase A입니다. 기존 root `uv.lock`과 Django-only 18 oracle bytes를 보존한 채
+`conformance/reference/drf` isolated lock과 `drf-3.18.0-django-6.1-sqlite-darwin-arm64` profile을 만들고,
+WEB-028..035/API-001..010 두 set의 independent DRF/Django scenario, manifest, oracle, not-implemented baseline과
+checksum/protocol lock을 생성합니다. 이어서 existing static route를 보존하는 `<int64:name>` candidate와
+typed reverse/request accessor를 Phase B compile prototype으로 통합합니다.
 
-Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 API/Realtime umbrella로 계속 open,
+Article API actual flow는 Admin login 뒤 rotated cookie를 받은 다음 authenticated safe list GET에서 fresh masked CSRF
+token을 response header로 얻고, 그 token으로 POST/PUT/PATCH/DELETE를 수행합니다. HttpOnly cookie secret 또는 pre-login
+token을 재사용하지 않습니다. Deprecated DRF built-in OpenAPI, Channels, durable session/user/audit, multipart/file,
+browsable API와 broader serializer breadth는 별도 후속으로 둡니다.
+
+Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 API half 선택 뒤 `Partial`,
 Q-017은 P1/open이며
 Draft PR #1은 계속 OPEN/DRAFT/unmerged입니다. Merge와 release는 이 작업의 권한·범위가 아닙니다.
 
