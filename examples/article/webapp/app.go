@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	ArticleListRoute = "godj_conformance:article-list"
-	ArticleListPath  = "/articles/"
+	ArticleListRoute         = "godj_conformance:article-list"
+	ArticleListPath          = "/articles/"
+	composedArticleListRoute = "godj_conformance:web-article-list"
 
 	defaultArticleListLimit   = 20
 	maximumArticleListLimit   = 100
@@ -39,6 +40,39 @@ var templateFiles embed.FS
 // database I/O. The backend pool may live for the application lifetime, but a
 // fresh generated facade is created inside every request.
 func NewApplication(backend articleproject.Backend) (*web.Application, error) {
+	return newApplication(backend, ArticleListRoute, nil, nil)
+}
+
+// NewComposedApplication adds detached routes and middleware to the existing
+// public Article page. Its historical reverse identity is preserved unless an
+// additional route already owns that name; only that collision uses a private
+// Web identity while keeping the public path and representation unchanged.
+func NewComposedApplication(
+	backend articleproject.Backend,
+	additionalRoutes []web.Route,
+	middleware []web.Middleware,
+) (*web.Application, error) {
+	articleListRoute := ArticleListRoute
+	for _, route := range additionalRoutes {
+		if route.Name == ArticleListRoute {
+			articleListRoute = composedArticleListRoute
+			break
+		}
+	}
+	return newApplication(
+		backend,
+		articleListRoute,
+		additionalRoutes,
+		middleware,
+	)
+}
+
+func newApplication(
+	backend articleproject.Backend,
+	articleListRoute string,
+	additionalRoutes []web.Route,
+	middleware []web.Middleware,
+) (*web.Application, error) {
 	if _, err := articleproject.Using(backend); err != nil {
 		return nil, fmt.Errorf("article web application: bind backend: %w", err)
 	}
@@ -60,17 +94,22 @@ func NewApplication(backend articleproject.Backend) (*web.Application, error) {
 	}
 
 	handler := articleListHandler{
-		backend:  backend,
-		template: articleTemplate,
+		backend:   backend,
+		template:  articleTemplate,
+		routeName: articleListRoute,
 	}
+	routes := make([]web.Route, 0, len(additionalRoutes)+1)
+	routes = append(routes, web.Route{
+		Name:    articleListRoute,
+		Method:  http.MethodGet,
+		Path:    ArticleListPath,
+		Handler: handler.serve,
+	})
+	routes = append(routes, additionalRoutes...)
 	application, err := web.NewApplication(web.Config{
-		Settings: configured,
-		Routes: []web.Route{{
-			Name:    ArticleListRoute,
-			Method:  http.MethodGet,
-			Path:    ArticleListPath,
-			Handler: handler.serve,
-		}},
+		Settings:   configured,
+		Routes:     routes,
+		Middleware: middleware,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article web application: configure web runtime: %w", err)
@@ -79,8 +118,9 @@ func NewApplication(backend articleproject.Backend) (*web.Application, error) {
 }
 
 type articleListHandler struct {
-	backend  articleproject.Backend
-	template *template.Template
+	backend   articleproject.Backend
+	template  *template.Template
+	routeName string
 }
 
 func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
@@ -161,7 +201,7 @@ func (h articleListHandler) serve(request *web.Request) (web.Response, error) {
 	if err != nil {
 		return web.Response{}, fmt.Errorf("article list: aggregate report: %w", err)
 	}
-	selfURL, err := request.Reverse(ArticleListRoute)
+	selfURL, err := request.Reverse(h.routeName)
 	if err != nil {
 		return web.Response{}, fmt.Errorf("article list: reverse self: %w", err)
 	}
