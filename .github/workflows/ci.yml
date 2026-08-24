@@ -890,6 +890,7 @@ jobs:
             "github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration"
             "github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP"
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
+            "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
             "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
             "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
             "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"

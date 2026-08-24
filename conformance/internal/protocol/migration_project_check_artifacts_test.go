@@ -644,12 +644,13 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"github.com/progresshans/godj/db/postgres|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration",
 		"github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP",
 		"github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow",
+		"github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow",
 		"github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E",
 		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
 		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
 	}
-	if len(postgresRequiredSentinels) != 14 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 14", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 15 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 15", len(postgresRequiredSentinels))
 	}
 	for _, sentinel := range postgresRequiredSentinels {
 		if strings.Count(postgres, sentinel) != 1 {
