@@ -6,6 +6,7 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
@@ -14,17 +15,17 @@ import (
 )
 
 const (
-	ArticleViewPermission   auth.Permission = "godj_conformance.view_article"
-	ArticleAddPermission    auth.Permission = "godj_conformance.add_article"
-	ArticleChangePermission auth.Permission = "godj_conformance.change_article"
-	ArticleDeletePermission auth.Permission = "godj_conformance.delete_article"
+	ArticleViewPermission   = articleapp.ArticleViewPermission
+	ArticleAddPermission    = articleapp.ArticleAddPermission
+	ArticleChangePermission = articleapp.ArticleChangePermission
+	ArticleDeletePermission = articleapp.ArticleDeletePermission
 )
 
 // RegisterArticle installs the generated Article model and its explicit typed
 // persistence adapter into a startup Admin builder. Generated model values and
 // methods never cross into templates or generic form mutation.
 func RegisterArticle(builder *admin.Builder, service Service) error {
-	if !service.audit.Valid() || interfaceNil(service.repository.backend) {
+	if !service.audit.Valid() || !service.repository.validState() {
 		return invalid("service", "service is zero or invalid")
 	}
 	permissions := admin.Permissions{
@@ -177,13 +178,8 @@ func articleInput(values forms.Values) (Input, error) {
 		return Input{}, invalid("summary", "cleaned summary type is invalid")
 	}
 	input := Input{Title: title, Published: published, Summary: summary}
-	if err := validateText("title", input.Title, false, 200); err != nil {
+	if err := articleapp.ValidateInput(input); err != nil {
 		return Input{}, fmt.Errorf("article admin form conversion: %w", err)
-	}
-	if input.Summary != nil {
-		if err := validateText("summary", *input.Summary, true, 200); err != nil {
-			return Input{}, fmt.Errorf("article admin form conversion: %w", err)
-		}
 	}
 	return input, nil
 }
