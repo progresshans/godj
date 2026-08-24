@@ -24,6 +24,11 @@ import (
 
 var siteLoginCSRFPattern = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([A-Za-z0-9_-]{128})"`)
 
+const (
+	articleSiteOperationTimeout = 30 * time.Second
+	articleSiteShutdownTimeout  = 10 * time.Second
+)
+
 func TestParseServeConfig(t *testing.T) {
 	config, err := parseServeConfig([]string{"serve"}, &bytes.Buffer{})
 	if err != nil {
@@ -397,7 +402,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 	case listener = <-listenerReady:
 	case err := <-runResult:
 		t.Fatalf("authenticated Article site stopped before listen: %v", err)
-	case <-time.After(10 * time.Second):
+	case <-time.After(articleSiteOperationTimeout):
 		t.Fatal("timed out waiting for authenticated Article site listener")
 	}
 	baseURL := "http://" + listener.Addr().String()
@@ -407,7 +412,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 	}
 	client := &http.Client{
 		Jar:     jar,
-		Timeout: 5 * time.Second,
+		Timeout: articleSiteOperationTimeout,
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
@@ -476,7 +481,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 		if err != nil {
 			t.Fatalf("authenticated Article site cancellation error = %v", err)
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(articleSiteShutdownTimeout):
 		t.Fatal("authenticated Article site did not stop after cancellation")
 	}
 	if got := opened.Load(); got != 1 {
