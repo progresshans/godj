@@ -74,6 +74,18 @@ from .template_form_scenarios import (  # noqa: E402
 )
 from .auth_admin_proxy import SCENARIOS as AUTH_ADMIN_SCENARIOS  # noqa: E402
 from .article_api_proxy import SCENARIOS as ARTICLE_API_SCENARIOS  # noqa: E402
+from .system_state_decisions import (  # noqa: E402
+    SCENARIOS as SYSTEM_STATE_DECISION_SCENARIOS,
+)
+from .system_state_scenarios import (  # noqa: E402
+    SCENARIOS as SYSTEM_STATE_DJANGO_SCENARIOS,
+)
+
+
+SYSTEM_STATE_SCENARIOS = {
+    **SYSTEM_STATE_DECISION_SCENARIOS,
+    **SYSTEM_STATE_DJANGO_SCENARIOS,
+}
 
 
 SCENARIO_REGISTRIES = (
@@ -95,6 +107,7 @@ SCENARIO_REGISTRIES = (
     TEMPLATE_FORM_SCENARIOS,
     AUTH_ADMIN_SCENARIOS,
     ARTICLE_API_SCENARIOS,
+    SYSTEM_STATE_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
 if len(scenario_names) != len(set(scenario_names)):
@@ -270,6 +283,13 @@ DEFAULT_ARTICLE_API_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json"
 )
+DEFAULT_SYSTEM_STATE_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/system-state-manifest.json"
+)
+DEFAULT_SYSTEM_STATE_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json"
+)
 KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MANIFEST.resolve(): DEFAULT_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST.resolve(): DEFAULT_WRITE_MIGRATION_ORACLE,
@@ -297,6 +317,7 @@ KNOWN_MANIFEST_ORACLES = {
     DEFAULT_ARTICLE_ADMIN_MANIFEST.resolve(): DEFAULT_ARTICLE_ADMIN_ORACLE,
     DEFAULT_PARAMETER_ROUTING_MANIFEST.resolve(): DEFAULT_PARAMETER_ROUTING_ORACLE,
     DEFAULT_ARTICLE_API_MANIFEST.resolve(): DEFAULT_ARTICLE_API_ORACLE,
+    DEFAULT_SYSTEM_STATE_MANIFEST.resolve(): DEFAULT_SYSTEM_STATE_ORACLE,
 }
 
 

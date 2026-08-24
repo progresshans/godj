@@ -89,6 +89,30 @@ func TestPreparedEventTemplateAttachesConfirmedCreateKey(t *testing.T) {
 	}
 }
 
+func TestPreparedEventGettersExposeDetachedValidatedSemanticSnapshot(t *testing.T) {
+	changed := []string{"title", "summary"}
+	event, err := admin.PrepareEvent(
+		"operator",
+		"godj_conformance.article",
+		42,
+		admin.ActionChange,
+		changed,
+		"Article",
+	)
+	if err != nil {
+		t.Fatalf("PrepareEvent() error = %v", err)
+	}
+	changed[0] = "forged_input"
+	gotChanged := event.ChangedFields()
+	gotChanged[0] = "forged_output"
+	if event.ActorID() != "operator" || event.Model() != "godj_conformance.article" ||
+		event.ObjectID() != 42 || event.Action() != admin.ActionChange ||
+		fmt.Sprint(event.ChangedFields()) != "[title summary]" || event.DisplayLabel() != "Article" {
+		t.Fatalf("PreparedEvent getters = actor %q model %q object %d action %q changed %v label %q",
+			event.ActorID(), event.Model(), event.ObjectID(), event.Action(), event.ChangedFields(), event.DisplayLabel())
+	}
+}
+
 func TestPreparedEventAcceptsBoundedMultibyteDisplayLabels(t *testing.T) {
 	label := strings.Repeat("한", 200)
 	event, err := admin.PrepareEvent("actor", "articles.article", 1, admin.ActionAdd, nil, label)

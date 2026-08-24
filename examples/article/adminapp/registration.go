@@ -25,7 +25,7 @@ const (
 // persistence adapter into a startup Admin builder. Generated model values and
 // methods never cross into templates or generic form mutation.
 func RegisterArticle(builder *admin.Builder, service Service) error {
-	if !service.audit.Valid() || !service.repository.validState() {
+	if !service.validState() {
 		return invalid("service", "service is zero or invalid")
 	}
 	permissions := admin.Permissions{

@@ -1,0 +1,217 @@
+{
+  "format_version": 1,
+  "producer": {
+    "name": "godj-systemstate",
+    "version": "1"
+  },
+  "migration": {
+    "app": "godj_system",
+    "name": "0001_initial",
+    "dependencies": [],
+    "operations": [
+      {
+        "kind": "create_model",
+        "app_label": "godj_system",
+        "model": {
+          "name": "credential",
+          "go_name": "Credential",
+          "db_table": "godj_system_credential",
+          "fields": [
+            {
+              "name": "id",
+              "go_name": "ID",
+              "column": "id",
+              "kind": "auto",
+              "primary_key": true,
+              "nullable": false,
+              "max_length": 0,
+              "default": null
+            },
+            {
+              "name": "principal_id",
+              "go_name": "PrincipalID",
+              "column": "principal_id",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 128,
+              "default": null
+            },
+            {
+              "name": "username",
+              "go_name": "Username",
+              "column": "username",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 256,
+              "default": null
+            },
+            {
+              "name": "encoded_password",
+              "go_name": "EncodedPassword",
+              "column": "encoded_password",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 2048,
+              "default": null
+            },
+            {
+              "name": "active",
+              "go_name": "Active",
+              "column": "active",
+              "kind": "boolean",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 0,
+              "default": null
+            },
+            {
+              "name": "permissions",
+              "go_name": "Permissions",
+              "column": "permissions",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 65536,
+              "default": null
+            },
+            {
+              "name": "definition_digest",
+              "go_name": "DefinitionDigest",
+              "column": "definition_digest",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 71,
+              "default": null
+            }
+          ]
+        }
+      },
+      {
+        "kind": "create_model",
+        "app_label": "godj_system",
+        "model": {
+          "name": "session",
+          "go_name": "Session",
+          "db_table": "godj_system_session",
+          "fields": [
+            {
+              "name": "id",
+              "go_name": "ID",
+              "column": "id",
+              "kind": "auto",
+              "primary_key": true,
+              "nullable": false,
+              "max_length": 0,
+              "default": null
+            },
+            {
+              "name": "digest",
+              "go_name": "Digest",
+              "column": "digest",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 64,
+              "default": null
+            },
+            {
+              "name": "payload",
+              "go_name": "Payload",
+              "column": "payload",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 32768,
+              "default": null
+            }
+          ]
+        }
+      },
+      {
+        "kind": "create_model",
+        "app_label": "godj_system",
+        "model": {
+          "name": "audit",
+          "go_name": "Audit",
+          "db_table": "godj_system_audit",
+          "fields": [
+            {
+              "name": "id",
+              "go_name": "ID",
+              "column": "id",
+              "kind": "auto",
+              "primary_key": true,
+              "nullable": false,
+              "max_length": 0,
+              "default": null
+            },
+            {
+              "name": "actor_id",
+              "go_name": "ActorID",
+              "column": "actor_id",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 128,
+              "default": null
+            },
+            {
+              "name": "model",
+              "go_name": "Model",
+              "column": "model",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 128,
+              "default": null
+            },
+            {
+              "name": "object_id",
+              "go_name": "ObjectID",
+              "column": "object_id",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 64,
+              "default": null
+            },
+            {
+              "name": "action",
+              "go_name": "Action",
+              "column": "action",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 16,
+              "default": null
+            },
+            {
+              "name": "changed_fields",
+              "go_name": "ChangedFields",
+              "column": "changed_fields",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 32768,
+              "default": null
+            },
+            {
+              "name": "display_label",
+              "go_name": "DisplayLabel",
+              "column": "display_label",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 1024,
+              "default": null
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -106,9 +106,9 @@ func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
 	return article, adminRepositoryError(err)
 }
 
-func (r Repository) deletePrepared(ctx context.Context, id int64, prepare func(Article) error) (Article, error) {
-	article, err := r.core.DeletePrepared(ctx, id, prepare)
-	return article, adminRepositoryError(err)
+func (r Repository) withMutationHook(hook articleapp.MutationHook) Repository {
+	r.core = r.core.WithMutationHook(hook)
+	return r
 }
 
 func (r Repository) Publish(ctx context.Context, ids []int64) (PublishResult, error) {

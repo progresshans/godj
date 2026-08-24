@@ -47,6 +47,8 @@ from conformance.runners.django.runner import (
     DEFAULT_SAVE_LIFECYCLE_ORACLE,
     DEFAULT_TEMPLATE_FORM_MANIFEST,
     DEFAULT_TEMPLATE_FORM_ORACLE,
+    DEFAULT_SYSTEM_STATE_MANIFEST,
+    DEFAULT_SYSTEM_STATE_ORACLE,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     REPOSITORY_ROOT,
@@ -457,6 +459,24 @@ class RunnerSafetyTests(unittest.TestCase):
         self.assertEqual(status, 0)
         generate_suite.assert_called_once()
 
+    def test_system_state_manifest_without_output_uses_its_oracle(self) -> None:
+        expected = DEFAULT_SYSTEM_STATE_ORACLE.read_bytes()
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ) as generate_suite,
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=expected,
+            ),
+        ):
+            status = main(
+                ["--manifest", str(DEFAULT_SYSTEM_STATE_MANIFEST), "--check"]
+            )
+
+        self.assertEqual(status, 0)
+        generate_suite.assert_called_once()
+
     def test_query_cache_manifest_regeneration_targets_only_its_oracle(self) -> None:
         generated = b'{"query_cache":true}\n'
         with (
@@ -682,6 +702,23 @@ class RunnerSafetyTests(unittest.TestCase):
             DEFAULT_MIGRATION_RELATION_ORACLE,
             generated,
         )
+
+    def test_system_state_regeneration_targets_only_its_oracle(self) -> None:
+        generated = b'{"system_state":true}\n'
+        with (
+            patch(
+                "conformance.runners.django.runner.generate_suite", return_value={}
+            ),
+            patch(
+                "conformance.runners.django.runner.canonical_json",
+                return_value=generated,
+            ),
+            patch("conformance.runners.django.runner._write_atomic") as write_atomic,
+        ):
+            status = main(["--manifest", str(DEFAULT_SYSTEM_STATE_MANIFEST)])
+
+        self.assertEqual(status, 0)
+        write_atomic.assert_called_once_with(DEFAULT_SYSTEM_STATE_ORACLE, generated)
 
     def test_relation_fixture_uses_sqlite_foreign_keys_and_rejects_orphans(
         self,

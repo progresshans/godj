@@ -1,6 +1,6 @@
 // Package siteapp composes the Article development server's opt-in Admin and
-// JSON API surface. Its sessions, credentials, CSRF state, and audit log are
-// intentionally process-lifetime development state.
+// JSON API surface. Credentials, sessions, and Admin audit history live in the
+// explicitly migrated system schema; CSRF signing state remains process-local.
 package siteapp
 
 import (
@@ -19,6 +19,7 @@ import (
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -33,7 +34,7 @@ const (
 // Config is consumed during startup. The raw password is hashed before the
 // immutable application is returned and is never retained by the runtime.
 type Config struct {
-	Backend  articleapp.Backend
+	Backend  systemstate.Backend
 	Username string
 	Password string
 }
@@ -67,11 +68,30 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: settings: %w", err)
 	}
-	audit, err := admin.NewAuditLog(maximumAuditEntries)
+	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
-		return nil, fmt.Errorf("article site application: audit log: %w", err)
+		return nil, fmt.Errorf("article site application: password profile: %w", err)
 	}
-	adminService, err := adminapp.NewService(config.Backend, audit)
+	runtime, err := systemstate.Open(ctx, config.Backend, systemstate.BootstrapConfig{
+		Username:    config.Username,
+		Password:    config.Password,
+		PrincipalID: developmentAdminID,
+		Active:      true,
+		Permissions: []auth.Permission{
+			admin.DefaultAccessPermission,
+			articleapp.ArticleViewPermission,
+			articleapp.ArticleAddPermission,
+			articleapp.ArticleChangePermission,
+			articleapp.ArticleDeletePermission,
+		},
+		PasswordHasher: hasher,
+		MaxSessions:    maximumSessions,
+		AuditCapacity:  maximumAuditEntries,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("article site application: system state: %w", err)
+	}
+	adminService, err := adminapp.NewDurableService(runtime, runtime)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article Admin service: %w", err)
 	}
@@ -84,43 +104,9 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		return nil, fmt.Errorf("article site application: build Admin registry: %w", err)
 	}
 
-	store, err := sessions.NewMemoryStore(maximumSessions)
-	if err != nil {
-		return nil, fmt.Errorf("article site application: session store: %w", err)
-	}
-	manager, err := sessions.NewManager(store, sessions.Config{})
+	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: session manager: %w", err)
-	}
-	hasher, err := auth.NewDefaultPBKDF2()
-	if err != nil {
-		return nil, fmt.Errorf("article site application: password profile: %w", err)
-	}
-	encodedPassword, err := hasher.Hash(ctx, config.Password)
-	if err != nil {
-		return nil, fmt.Errorf("article site application: hash configured password: %w", err)
-	}
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:     developmentAdminID,
-		Active: true,
-		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
-			articleapp.ArticleViewPermission,
-			articleapp.ArticleAddPermission,
-			articleapp.ArticleChangePermission,
-			articleapp.ArticleDeletePermission,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("article site application: development principal: %w", err)
-	}
-	credential, err := auth.NewCredential(config.Username, encodedPassword, principal)
-	if err != nil {
-		return nil, fmt.Errorf("article site application: configured credential is invalid: %w", err)
-	}
-	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher)
-	if err != nil {
-		return nil, fmt.Errorf("article site application: authenticator: %w", err)
 	}
 	allowedNext, err := admin.SiteAllowedNextPaths(registry, adminBasePath)
 	if err != nil {
@@ -128,7 +114,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	}
 	webRuntime, err := websessionauth.New(websessionauth.Config{
 		Sessions:         manager,
-		Authenticator:    authenticator,
+		Authenticator:    runtime.Authenticator(),
 		Authorizer:       auth.PrincipalAuthorizer{},
 		SessionCookie:    websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
 		CSRFCookie:       websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
@@ -153,7 +139,9 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: API authentication: %w", err)
 	}
-	articleAPI, err := apiapp.New(config.Backend, apiRuntime)
+	// API writes deliberately use the durable runtime backend without the Admin
+	// mutation hook, so they persist Articles but do not synthesize Admin audit.
+	articleAPI, err := apiapp.New(runtime, apiRuntime)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article API: %w", err)
 	}
@@ -162,7 +150,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		return nil, fmt.Errorf("article site application: API middleware: %w", err)
 	}
 	routes := append(adminSite.Routes(), articleAPI.Routes()...)
-	application, err := webapp.NewComposedApplication(config.Backend, routes, middleware)
+	application, err := webapp.NewComposedApplication(runtime, routes, middleware)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: compose Web application: %w", err)
 	}

@@ -197,10 +197,62 @@ type PublishResult struct {
 
 func (r PublishResult) Matched() int { return len(r.MatchedIDs) }
 
+// MutationOperation is the closed set of Article write kernels. Presentation
+// layers may use it to translate one confirmed semantic mutation into
+// transaction-local side effects without duplicating Article CRUD.
+type MutationOperation string
+
+const (
+	MutationCreate  MutationOperation = "create"
+	MutationUpdate  MutationOperation = "update"
+	MutationPatch   MutationOperation = "patch"
+	MutationDelete  MutationOperation = "delete"
+	MutationPublish MutationOperation = "publish"
+)
+
+// MutationItem is a detached semantic Article mutation. ChangedFields uses
+// the app-declared field order and is empty only where the operation itself
+// carries the semantic action, such as create or delete.
+type MutationItem struct {
+	Article       Article
+	ChangedFields []string
+}
+
+func (item MutationItem) Clone() MutationItem {
+	item.Article = cloneArticle(item.Article)
+	item.ChangedFields = append([]string(nil), item.ChangedFields...)
+	return item
+}
+
+// MutationResult is detached from generated model state and the transaction
+// session. A hook may retain this value, but must not retain the borrowed
+// db.Session passed alongside it.
+type MutationResult struct {
+	Operation MutationOperation
+	Items     []MutationItem
+}
+
+func (result MutationResult) Clone() MutationResult {
+	cloned := MutationResult{
+		Operation: result.Operation,
+		Items:     make([]MutationItem, len(result.Items)),
+	}
+	for index := range result.Items {
+		cloned.Items[index] = result.Items[index].Clone()
+	}
+	return cloned
+}
+
+// MutationHook runs after all Article DML for one repository call and before
+// its commit. session is borrowed only for this callback. Returning an error
+// rolls back the Article DML and every side effect written through session.
+type MutationHook func(context.Context, db.Session, MutationResult) error
+
 // Repository is immutable after construction and safe for concurrent use
 // when its backend is safe for concurrent use.
 type Repository struct {
-	backend Backend
+	backend      Backend
+	mutationHook MutationHook
 }
 
 func NewRepository(backend Backend) (Repository, error) {
@@ -208,6 +260,14 @@ func NewRepository(backend Backend) (Repository, error) {
 		return Repository{}, invalid("backend", "backend is nil")
 	}
 	return Repository{backend: backend}, nil
+}
+
+// WithMutationHook returns an immutable repository view whose writes invoke
+// hook inside their existing transaction. A nil hook preserves the ordinary
+// repository API and creates no nested transaction boundary.
+func (r Repository) WithMutationHook(hook MutationHook) Repository {
+	r.mutationHook = hook
+	return r
 }
 
 func (r Repository) List(ctx context.Context, options ListOptions) (Page, error) {
@@ -293,7 +353,7 @@ func (r Repository) Create(ctx context.Context, input Input) (Article, error) {
 		return Article{}, err
 	}
 	var created articlemodels.Article
-	err := r.backend.Atomic(ctx, func(session db.Session) error {
+	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
 		create := articlemodels.NewArticleCreate(input.Title).WithPublished(input.Published)
 		if input.Summary == nil {
 			create = create.WithSummaryNull()
@@ -302,10 +362,10 @@ func (r Repository) Create(ctx context.Context, input Input) (Article, error) {
 		}
 		value, err := articlemodels.ArticleObjects.Create(ctx, session, create)
 		if err != nil {
-			return err
+			return MutationResult{}, err
 		}
 		created = value
-		return nil
+		return mutationResult(MutationCreate, snapshot(created), nil), nil
 	})
 	if err != nil {
 		return Article{}, fmt.Errorf("article admin create: %w", err)
@@ -322,18 +382,18 @@ func (r Repository) Update(ctx context.Context, id int64, input Input) (Article,
 	}
 	var updated articlemodels.Article
 	var changed []string
-	err := r.backend.Atomic(ctx, func(session db.Session) error {
+	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
 		current, found, err := getModel(ctx, session, id)
 		if err != nil {
-			return err
+			return MutationResult{}, err
 		}
 		if !found {
-			return notFound(id)
+			return MutationResult{}, notFound(id)
 		}
 		changed = changedFields(current, input)
 		if len(changed) == 0 {
 			updated = current
-			return nil
+			return MutationResult{Operation: MutationUpdate}, nil
 		}
 		patch := (articlemodels.ArticlePatch{}).
 			WithTitle(input.Title).
@@ -345,10 +405,10 @@ func (r Repository) Update(ctx context.Context, id int64, input Input) (Article,
 		}
 		value, err := articlemodels.ArticleObjects.Update(ctx, session, current, patch)
 		if err != nil {
-			return err
+			return MutationResult{}, err
 		}
 		updated = value
-		return nil
+		return mutationResult(MutationUpdate, snapshot(updated), changed), nil
 	})
 	if err != nil {
 		return Article{}, nil, fmt.Errorf("article admin update: %w", err)
@@ -375,18 +435,18 @@ func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, 
 
 	var updated articlemodels.Article
 	var changed []string
-	err := r.backend.Atomic(ctx, func(session db.Session) error {
+	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
 		current, found, err := getModel(ctx, session, id)
 		if err != nil {
-			return err
+			return MutationResult{}, err
 		}
 		if !found {
-			return notFound(id)
+			return MutationResult{}, notFound(id)
 		}
 		changed = patchChangedFields(current, patch)
 		if len(changed) == 0 {
 			updated = current
-			return nil
+			return MutationResult{Operation: MutationPatch}, nil
 		}
 
 		modelPatch := articlemodels.ArticlePatch{}
@@ -405,10 +465,10 @@ func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, 
 		}
 		value, err := articlemodels.ArticleObjects.Update(ctx, session, current, modelPatch)
 		if err != nil {
-			return err
+			return MutationResult{}, err
 		}
 		updated = value
-		return nil
+		return mutationResult(MutationPatch, snapshot(updated), changed), nil
 	})
 	if err != nil {
 		return Article{}, nil, fmt.Errorf("article admin patch: %w", err)
@@ -417,13 +477,6 @@ func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, 
 }
 
 func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
-	return r.DeletePrepared(ctx, id, nil)
-}
-
-// DeletePrepared runs prepare after loading the current row and before the
-// delete in the same transaction. A preparation failure rolls the delete back.
-// It exists for the Admin audit boundary; ordinary callers should use Delete.
-func (r Repository) DeletePrepared(ctx context.Context, id int64, prepare func(Article) error) (Article, error) {
 	if err := validateContext(ctx); err != nil {
 		return Article{}, err
 	}
@@ -434,24 +487,19 @@ func (r Repository) DeletePrepared(ctx context.Context, id int64, prepare func(A
 		return Article{}, invalid("id", "id must be positive")
 	}
 	var deleted articlemodels.Article
-	err := r.backend.Atomic(ctx, func(session db.Session) error {
+	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
 		current, found, err := getModel(ctx, session, id)
 		if err != nil {
-			return err
+			return MutationResult{}, err
 		}
 		if !found {
-			return notFound(id)
+			return MutationResult{}, notFound(id)
 		}
 		deleted = current
-		if prepare != nil {
-			if err := prepare(snapshot(current)); err != nil {
-				return err
-			}
-		}
 		if _, err := articlemodels.ArticleObjects.Delete(ctx, session, &current); err != nil {
-			return err
+			return MutationResult{}, err
 		}
-		return nil
+		return mutationResult(MutationDelete, snapshot(deleted), nil), nil
 	})
 	if err != nil {
 		return Article{}, fmt.Errorf("article admin delete: %w", err)
@@ -471,27 +519,58 @@ func (r Repository) Publish(ctx context.Context, ids []int64) (PublishResult, er
 		return PublishResult{}, err
 	}
 	matched := make([]int64, 0, len(canonical))
-	err = r.backend.Atomic(ctx, func(session db.Session) error {
+	err = r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
+		items := make([]MutationItem, 0, len(canonical))
 		for _, id := range canonical {
 			current, found, err := getModel(ctx, session, id)
 			if err != nil {
-				return err
+				return MutationResult{}, err
 			}
 			if !found {
 				continue
 			}
 			patch := (articlemodels.ArticlePatch{}).WithPublished(true)
-			if _, err := articlemodels.ArticleObjects.Update(ctx, session, current, patch); err != nil {
-				return err
+			updated, err := articlemodels.ArticleObjects.Update(ctx, session, current, patch)
+			if err != nil {
+				return MutationResult{}, err
 			}
 			matched = append(matched, id)
+			items = append(items, MutationItem{
+				Article:       snapshot(updated),
+				ChangedFields: []string{"published"},
+			})
 		}
-		return nil
+		return MutationResult{Operation: MutationPublish, Items: items}, nil
 	})
 	if err != nil {
 		return PublishResult{}, fmt.Errorf("article admin publish: %w", err)
 	}
 	return PublishResult{MatchedIDs: append([]int64(nil), matched...)}, nil
+}
+
+func (r Repository) atomicMutation(ctx context.Context, mutate func(db.Session) (MutationResult, error)) error {
+	return r.backend.Atomic(ctx, func(session db.Session) error {
+		result, err := mutate(session)
+		if err != nil {
+			return err
+		}
+		if r.mutationHook != nil && len(result.Items) > 0 {
+			if err := r.mutationHook(ctx, session, result.Clone()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func mutationResult(operation MutationOperation, article Article, changedFields []string) MutationResult {
+	return MutationResult{
+		Operation: operation,
+		Items: []MutationItem{{
+			Article:       cloneArticle(article),
+			ChangedFields: append([]string(nil), changedFields...),
+		}},
+	}
 }
 
 // ValidateInput applies the scalar validation used immediately before Article
@@ -674,6 +753,14 @@ func snapshot(value articlemodels.Article) Article {
 		result.Summary = &summary
 	}
 	return result
+}
+
+func cloneArticle(article Article) Article {
+	if article.Summary != nil {
+		summary := *article.Summary
+		article.Summary = &summary
+	}
+	return article
 }
 
 func invalid(field, detail string) error {

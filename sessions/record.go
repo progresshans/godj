@@ -103,6 +103,26 @@ type Record struct {
 	idleExpiresAt     time.Time
 }
 
+// RecordSnapshot is the detached current persistence representation of one
+// Record. It exists so Store adapters can encode and restore the immutable
+// session state without gaining mutable access to Record internals. Values is
+// copied on both publication and restore.
+//
+// RecordSnapshot is an in-process SPI, not a wire format. Durable stores must
+// define and strictly version their own bounded encoding rather than relying
+// on Go field names or a generic serializer.
+type RecordSnapshot struct {
+	ID                ID
+	Values            map[string]string
+	CreatedAt         time.Time
+	AccessedAt        time.Time
+	AbsoluteExpiresAt time.Time
+	IdleExpiresAt     time.Time
+}
+
+func (RecordSnapshot) String() string   { return "sessions.RecordSnapshot{redacted}" }
+func (RecordSnapshot) GoString() string { return "sessions.RecordSnapshot{redacted}" }
+
 func newRecord(id ID, values map[string]string, createdAt, accessedAt, absoluteExpiresAt, idleExpiresAt time.Time) Record {
 	return Record{
 		id:                id,
@@ -125,6 +145,61 @@ func (r Record) Value(key string) (string, bool) { value, ok := r.values[key]; r
 
 // Values returns a detached copy.
 func (r Record) Values() map[string]string { return cloneValues(r.values) }
+
+// Snapshot returns a detached current persistence snapshot. A zero or corrupt
+// Record produces a correspondingly invalid snapshot; RestoreRecord performs
+// the authoritative validation before a Store can publish it again.
+func (r Record) Snapshot() RecordSnapshot {
+	return RecordSnapshot{
+		ID:                r.id,
+		Values:            cloneValues(r.values),
+		CreatedAt:         canonicalTime(r.createdAt),
+		AccessedAt:        canonicalTime(r.accessedAt),
+		AbsoluteExpiresAt: canonicalTime(r.absoluteExpiresAt),
+		IdleExpiresAt:     canonicalTime(r.idleExpiresAt),
+	}
+}
+
+// RestoreRecord validates and reconstructs one immutable Record from a Store
+// adapter's decoded current snapshot. The same Limits used by Manager should
+// be supplied so corrupt or oversized persistent data is rejected before it
+// reaches Manager; Manager repeats validation at every Store boundary.
+func RestoreRecord(snapshot RecordSnapshot, limits Limits) (Record, error) {
+	normalized, err := normalizeLimits(limits)
+	if err != nil {
+		return Record{}, err
+	}
+	createdAt := canonicalTime(snapshot.CreatedAt)
+	accessedAt := canonicalTime(snapshot.AccessedAt)
+	absoluteExpiresAt := canonicalTime(snapshot.AbsoluteExpiresAt)
+	idleExpiresAt := canonicalTime(snapshot.IdleExpiresAt)
+	if !validRecordState(
+		snapshot.ID,
+		snapshot.Values,
+		createdAt,
+		accessedAt,
+		absoluteExpiresAt,
+		idleExpiresAt,
+		normalized,
+	) {
+		return Record{}, &Error{
+			Code:   CodeInvalidRecord,
+			Field:  "snapshot",
+			Detail: "persistent session snapshot is invalid",
+		}
+	}
+	// Validate the adapter-owned map before detaching it. Successful restore is
+	// the sole clone; malformed or oversized persistent input allocates no map
+	// proportional to attacker-controlled cardinality.
+	return newRecord(
+		snapshot.ID,
+		snapshot.Values,
+		createdAt,
+		accessedAt,
+		absoluteExpiresAt,
+		idleExpiresAt,
+	), nil
+}
 
 // WithValue derives a detached record. Manager repeats configured bounds before
 // the value reaches a Store.
@@ -162,13 +237,33 @@ func (r Record) expired(now time.Time) bool {
 }
 
 func (r Record) valid(limits Limits) bool {
-	if !r.id.Valid() || r.createdAt.IsZero() || r.accessedAt.IsZero() ||
-		r.absoluteExpiresAt.IsZero() || r.idleExpiresAt.IsZero() ||
-		r.accessedAt.Before(r.createdAt) || !r.absoluteExpiresAt.After(r.createdAt) ||
-		r.idleExpiresAt.After(r.absoluteExpiresAt) || !r.idleExpiresAt.After(r.accessedAt) {
+	return validRecordState(
+		r.id,
+		r.values,
+		r.createdAt,
+		r.accessedAt,
+		r.absoluteExpiresAt,
+		r.idleExpiresAt,
+		limits,
+	)
+}
+
+func validRecordState(
+	id ID,
+	values map[string]string,
+	createdAt time.Time,
+	accessedAt time.Time,
+	absoluteExpiresAt time.Time,
+	idleExpiresAt time.Time,
+	limits Limits,
+) bool {
+	if !id.Valid() || createdAt.IsZero() || accessedAt.IsZero() ||
+		absoluteExpiresAt.IsZero() || idleExpiresAt.IsZero() ||
+		accessedAt.Before(createdAt) || !absoluteExpiresAt.After(createdAt) ||
+		idleExpiresAt.After(absoluteExpiresAt) || !idleExpiresAt.After(accessedAt) {
 		return false
 	}
-	return validateValues(r.values, limits) == nil
+	return validateValues(values, limits) == nil
 }
 
 func validateValues(values map[string]string, limits Limits) error {

@@ -47,6 +47,7 @@ from conformance.runners.django.runner import (
     DEFAULT_SAVE_LIFECYCLE_MANIFEST,
     DEFAULT_SAVE_LIFECYCLE_ORACLE,
     DEFAULT_TEMPLATE_FORM_MANIFEST,
+    DEFAULT_SYSTEM_STATE_MANIFEST,
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     ProfileMismatch,
@@ -106,6 +107,7 @@ from conformance.runners.django.article_api_proxy import (
     PARAMETER_ROUTING_SCENARIOS,
     SCENARIOS as DRF_SCENARIOS,
 )
+from conformance.runners.django.runner import SYSTEM_STATE_SCENARIOS
 from conformance.runners.django.relation_scenarios import (
     SCENARIOS as RELATION_SCENARIOS,
 )
@@ -210,6 +212,7 @@ class ScenarioTests(unittest.TestCase):
             MIGRATION_RELATION_SCENARIOS,
             {name: DRF_SCENARIOS[name] for name in PARAMETER_ROUTING_SCENARIOS},
             {name: DRF_SCENARIOS[name] for name in ARTICLE_API_SCENARIOS},
+            SYSTEM_STATE_SCENARIOS,
         ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
@@ -267,8 +270,9 @@ class ScenarioTests(unittest.TestCase):
                 DEFAULT_ARTICLE_API_MANIFEST,
                 {name: DRF_SCENARIOS[name] for name in ARTICLE_API_SCENARIOS},
             ),
+            (DEFAULT_SYSTEM_STATE_MANIFEST, SYSTEM_STATE_SCENARIOS),
         )
-        self.assertEqual(len(contract_sets), 20)
+        self.assertEqual(len(contract_sets), 21)
         selected_across_sets = []
         contract_ids_across_sets = []
         inventories = []
@@ -293,10 +297,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 219)
+        self.assertEqual(len(selected_across_sets), 231)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 219)
+        self.assertEqual(len(contract_ids_across_sets), 231)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -311,7 +315,7 @@ class ScenarioTests(unittest.TestCase):
                         source_contract_ids.isdisjoint(target_contract_ids)
                     )
                 cross_bindings += 1
-        self.assertEqual(cross_bindings, 380)
+        self.assertEqual(cross_bindings, 420)
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
         for profile_path, manifest_path in (

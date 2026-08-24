@@ -198,7 +198,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		}
 		entries[fields[1]] = fields[0]
 	}
-	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "query-breadth-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json", "migration-definition-source-oracle.json", "migration-project-check-oracle.json", "relation-oracle.json", "migration-relation-oracle.json", "query-expression-oracle.json", "template-form-oracle.json", "auth-session-oracle.json", "article-admin-oracle.json"}
+	wantedPaths := []string{"migration-execution-oracle.json", "migration-lifecycle-oracle.json", "migration-planning-oracle.json", "migration-restart-oracle.json", "migration-state-reconstruction-oracle.json", "oracle.json", "query-cache-oracle.json", "query-breadth-oracle.json", "save-lifecycle-oracle.json", "write-migration-oracle.json", "migration-definition-source-oracle.json", "migration-project-check-oracle.json", "relation-oracle.json", "migration-relation-oracle.json", "query-expression-oracle.json", "template-form-oracle.json", "auth-session-oracle.json", "article-admin-oracle.json", "system-state.json"}
 	if len(entries) != len(wantedPaths) {
 		t.Fatalf("SHA256SUMS has %d entries, want %d: %#v", len(entries), len(wantedPaths), entries)
 	}
@@ -221,6 +221,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		"template-form-oracle.json":      "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa",
 		"auth-session-oracle.json":       "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc",
 		"article-admin-oracle.json":      "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378",
+		"system-state.json":              "933826b579aa3822d9e99f031a9a642797bfb7799eb81a274012867f9fdd1745",
 		"save-lifecycle-oracle.json":     "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
 		"write-migration-oracle.json":    "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
 	} {

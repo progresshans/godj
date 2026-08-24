@@ -43,6 +43,28 @@ type PreparedEvent struct {
 	displayLabel string
 }
 
+// ActorID returns the validated actor identity captured by this event.
+func (event PreparedEvent) ActorID() string { return event.actorID }
+
+// Model returns the validated dotted model identity captured by this event.
+func (event PreparedEvent) Model() string { return event.model }
+
+// ObjectID returns the confirmed positive object primary key.
+func (event PreparedEvent) ObjectID() int64 { return event.objectID }
+
+// Action returns the closed semantic action captured by this event.
+func (event PreparedEvent) Action() Action { return event.action }
+
+// ChangedFields returns a detached copy in the validated semantic order.
+func (event PreparedEvent) ChangedFields() []string {
+	return append([]string(nil), event.changed...)
+}
+
+// DisplayLabel returns the explicitly selected, bounded display-only object
+// label. Credentials, session IDs, tokens, and arbitrary field payloads have
+// no representation in a PreparedEvent and cannot be exposed by its getters.
+func (event PreparedEvent) DisplayLabel() string { return event.displayLabel }
+
 // PreparedEventTemplate validates every user-controlled event property before
 // a create transaction begins. A confirmed generated primary key can then be
 // attached without parsing or allocating user-controlled metadata.
@@ -54,7 +76,8 @@ type PreparedEventTemplate struct {
 	displayLabel string
 }
 
-// PrepareEvent validates and snapshots semantic audit data. Raw field values,
+// PrepareEvent validates and snapshots semantic audit data. Apart from the
+// explicitly selected bounded display label and field names, raw field values,
 // credentials, session IDs, and tokens have no representation in this type.
 func PrepareEvent(actorID, model string, objectID int64, action Action, changedFields []string, displayLabel string) (PreparedEvent, error) {
 	template, err := PrepareEventTemplate(actorID, model, action, changedFields, displayLabel)

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -19,6 +21,10 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/webapp"
+	"github.com/progresshans/godj/migrations"
+	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/systemstate"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -319,6 +325,271 @@ func TestApplicationForServePreservesPublicOnlyDefault(t *testing.T) {
 	}
 }
 
+func TestApplicationForServeRequiresExplicitSystemMigrationWithoutCreatingSchema(t *testing.T) {
+	ctx := context.Background()
+	backend := newArticleSiteTestBackend(t, "article-site-system-migration-gate")
+	t.Cleanup(func() { _ = backend.Close() })
+	const password = "missing-system-migration-secret"
+
+	application, err := applicationForServe(ctx, backend, publicationConfig{
+		authenticated: true,
+		username:      "admin",
+		password:      password,
+	})
+	if application != nil || !errors.Is(err, &systemstate.Error{
+		Code:  systemstate.CodeSchemaUnavailable,
+		Field: "migration_history",
+	}) {
+		t.Fatalf("applicationForServe(missing system migration) = (%v,%#v)", application, err)
+	}
+	if strings.Contains(err.Error(), password) {
+		t.Fatalf("missing-system-migration error exposed password: %v", err)
+	}
+	history, historyErr := backend.ReadAppliedMigrations(ctx)
+	if historyErr != nil || len(history) != 0 {
+		t.Fatalf("migration history after rejected startup = (%+v,%v)", history, historyErr)
+	}
+	rows, queryErr := backend.Query(ctx, query.NewPlan(
+		"godj_system_credential",
+		[]query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)},
+	))
+	if rows != nil {
+		_ = rows.Close()
+	}
+	if !errors.Is(queryErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeMissingTable}) {
+		t.Fatalf("credential table after rejected startup error = %#v", queryErr)
+	}
+}
+
+func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAndRotatesCSRFKey(t *testing.T) {
+	ctx := context.Background()
+	databasePath := filepath.Join(t.TempDir(), "article-site-restart.sqlite3")
+	dataSourceName := "file:" + filepath.ToSlash(databasePath) + "?mode=rwc"
+	const (
+		username = "restart-admin"
+		password = "restart-password-secret-marker"
+	)
+	publication := publicationConfig{authenticated: true, username: username, password: password}
+
+	firstBackend, err := sqlite.Open(ctx, dataSourceName)
+	if err != nil {
+		t.Fatalf("open first Article site backend: %v", err)
+	}
+	createArticleSiteArticleTable(t, firstBackend)
+	explicitlyMigrateArticleSiteSystemState(t, firstBackend)
+	firstApplication, err := applicationForServe(ctx, firstBackend, publication)
+	if err != nil {
+		_ = firstBackend.Close()
+		t.Fatalf("applicationForServe(first process): %v", err)
+	}
+	firstServer := httptest.NewServer(firstApplication)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		firstServer.Close()
+		_ = firstBackend.Close()
+		t.Fatal(err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: articleSiteOperationTimeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	login := articleSiteLogin(t, client, firstServer.URL, username, password)
+	firstSafe := articleSiteGET(t, client, firstServer.URL+"/api/articles/", api.JSONContentType)
+	if firstSafe.status != http.StatusOK || firstSafe.body != `{"count":0,"next":null,"previous":null,"results":[]}` {
+		t.Fatalf("first-process authenticated API = status %d body %q", firstSafe.status, firstSafe.body)
+	}
+	staleCSRF := firstSafe.header.Get(websessionauth.DefaultCSRFHeader)
+	if len(staleCSRF) != 128 {
+		t.Fatalf("first-process API CSRF token length = %d", len(staleCSRF))
+	}
+	created := articleSiteJSON(
+		t,
+		client,
+		http.MethodPost,
+		firstServer.URL+"/api/articles/",
+		`{"title":"Before restart","published":true}`,
+		staleCSRF,
+	)
+	if created.status != http.StatusCreated || created.body != `{"id":1,"title":"Before restart","published":true,"summary":null}` {
+		t.Fatalf("first-process API create = status %d body %q", created.status, created.body)
+	}
+	if got := articleSiteTableRowCount(t, ctx, firstBackend, "godj_system_audit"); got != 0 {
+		t.Fatalf("API write synthesized %d Admin audit rows", got)
+	}
+	firstServer.Close()
+	if err := firstBackend.Close(); err != nil {
+		t.Fatalf("close first Article site backend: %v", err)
+	}
+
+	secondBackend, err := sqlite.Open(ctx, dataSourceName)
+	if err != nil {
+		t.Fatalf("reopen Article site backend: %v", err)
+	}
+	t.Cleanup(func() { _ = secondBackend.Close() })
+	secondApplication, err := applicationForServe(ctx, secondBackend, publication)
+	if err != nil {
+		t.Fatalf("applicationForServe(reopened process): %v", err)
+	}
+	secondServer := httptest.NewServer(secondApplication)
+	t.Cleanup(secondServer.Close)
+	restartedSafe := articleSiteGET(t, client, secondServer.URL+"/api/articles/", api.JSONContentType)
+	if restartedSafe.status != http.StatusOK || restartedSafe.body != `{"count":1,"next":null,"previous":null,"results":[{"id":1,"title":"Before restart","published":true,"summary":null}]}` {
+		t.Fatalf("restarted authenticated API = status %d body %q", restartedSafe.status, restartedSafe.body)
+	}
+	if got := articleSiteCookieValue(t, jar, secondServer.URL, websessionauth.DefaultSessionCookieName); got != login.sessionCookie {
+		t.Fatalf("restarted session cookie changed: got length %d want length %d", len(got), len(login.sessionCookie))
+	}
+	freshCSRF := restartedSafe.header.Get(websessionauth.DefaultCSRFHeader)
+	if len(freshCSRF) != 128 || freshCSRF == staleCSRF {
+		t.Fatalf("restarted API CSRF token has unsafe shape: length=%d equal-stale=%t", len(freshCSRF), freshCSRF == staleCSRF)
+	}
+	staleAttempt := articleSiteJSON(
+		t,
+		client,
+		http.MethodPost,
+		secondServer.URL+"/api/articles/",
+		`{"title":"Must not persist"}`,
+		staleCSRF,
+	)
+	if staleAttempt.status != http.StatusForbidden || staleAttempt.body != `{"code":"csrf_rejected","errors":[]}` {
+		t.Fatalf("restarted stale-CSRF API write = status %d body %q", staleAttempt.status, staleAttempt.body)
+	}
+	freshAttempt := articleSiteJSON(
+		t,
+		client,
+		http.MethodPost,
+		secondServer.URL+"/api/articles/",
+		`{"title":"After restart"}`,
+		freshCSRF,
+	)
+	if freshAttempt.status != http.StatusCreated || freshAttempt.body != `{"id":2,"title":"After restart","published":false,"summary":null}` {
+		t.Fatalf("restarted fresh-CSRF API write = status %d body %q", freshAttempt.status, freshAttempt.body)
+	}
+	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_conformance_article"); got != 2 {
+		t.Fatalf("Article rows after rejected and accepted restart writes = %d, want 2", got)
+	}
+	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_system_audit"); got != 0 {
+		t.Fatalf("restarted API writes synthesized %d Admin audit rows", got)
+	}
+	addPage := articleSiteGET(t, client, secondServer.URL+"/admin/articles/add/", "")
+	addToken := siteLoginCSRFPattern.FindStringSubmatch(addPage.body)
+	if addPage.status != http.StatusOK || len(addToken) != 2 {
+		t.Fatalf("restarted Admin add page = status %d token-parts %d body %q", addPage.status, len(addToken), addPage.body)
+	}
+	addValues := url.Values{
+		"csrfmiddlewaretoken": {addToken[1]},
+		"title":               {"Admin audited"},
+		"summary":             {"durable history"},
+	}
+	addRequest, err := http.NewRequest(
+		http.MethodPost,
+		secondServer.URL+"/admin/articles/add/",
+		strings.NewReader(addValues.Encode()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	addResponse, err := client.Do(addRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	addBody := articleSiteReadBody(t, addResponse)
+	if addResponse.StatusCode != http.StatusFound || !strings.HasPrefix(addResponse.Header.Get("Location"), "/admin/articles/") {
+		t.Fatalf("restarted Admin add = status %d location %q body %q", addResponse.StatusCode, addResponse.Header.Get("Location"), addBody)
+	}
+	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_conformance_article"); got != 3 {
+		t.Fatalf("Article rows after durable Admin write = %d, want 3", got)
+	}
+	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_system_audit"); got != 1 {
+		t.Fatalf("durable Admin audit rows = %d, want 1", got)
+	}
+	logoutPage := articleSiteGET(t, client, secondServer.URL+"/admin/articles/", "")
+	logoutToken := siteLoginCSRFPattern.FindStringSubmatch(logoutPage.body)
+	if logoutPage.status != http.StatusOK || len(logoutToken) != 2 {
+		t.Fatalf("process-B logout page = status %d token-parts %d body %q", logoutPage.status, len(logoutToken), logoutPage.body)
+	}
+	copiedPreLogoutSession := login.sessionCookie
+	logoutValues := url.Values{"csrfmiddlewaretoken": {logoutToken[1]}}
+	logoutRequest, err := http.NewRequest(
+		http.MethodPost,
+		secondServer.URL+"/admin/logout/",
+		strings.NewReader(logoutValues.Encode()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logoutRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	logoutResponse, err := client.Do(logoutRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logoutBody := articleSiteReadBody(t, logoutResponse)
+	if logoutResponse.StatusCode != http.StatusFound || logoutResponse.Header.Get("Location") != "/admin/login/" || logoutBody != "Found\n" {
+		t.Fatalf("process-B logout = status %d location %q body %q", logoutResponse.StatusCode, logoutResponse.Header.Get("Location"), logoutBody)
+	}
+	if got := articleSiteCookieValue(t, jar, secondServer.URL, websessionauth.DefaultSessionCookieName); got != "" {
+		t.Fatalf("process-B logout retained browser session cookie of length %d", len(got))
+	}
+	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_system_session"); got != 0 {
+		t.Fatalf("durable session rows after process-B logout = %d, want 0", got)
+	}
+	secondServer.Close()
+	if err := secondBackend.Close(); err != nil {
+		t.Fatalf("close process-B Article site backend: %v", err)
+	}
+
+	thirdBackend, err := sqlite.Open(ctx, dataSourceName)
+	if err != nil {
+		t.Fatalf("open process-C Article site backend: %v", err)
+	}
+	t.Cleanup(func() { _ = thirdBackend.Close() })
+	thirdApplication, err := applicationForServe(ctx, thirdBackend, publication)
+	if err != nil {
+		t.Fatalf("applicationForServe(process C): %v", err)
+	}
+	thirdServer := httptest.NewServer(thirdApplication)
+	t.Cleanup(thirdServer.Close)
+	copiedJar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdURL, err := url.Parse(thirdServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	copiedJar.SetCookies(thirdURL, []*http.Cookie{{
+		Name:     websessionauth.DefaultSessionCookieName,
+		Value:    copiedPreLogoutSession,
+		Path:     "/",
+		HttpOnly: true,
+	}})
+	copiedClient := &http.Client{
+		Jar:     copiedJar,
+		Timeout: articleSiteOperationTimeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	adminAfterLogout := articleSiteGET(t, copiedClient, thirdServer.URL+"/admin/articles/", "")
+	if adminAfterLogout.status != http.StatusFound || !strings.HasPrefix(adminAfterLogout.header.Get("Location"), "/admin/login/?next=") {
+		t.Fatalf("process-C copied-cookie Admin = status %d location %q body %q", adminAfterLogout.status, adminAfterLogout.header.Get("Location"), adminAfterLogout.body)
+	}
+	apiAfterLogout := articleSiteGET(t, copiedClient, thirdServer.URL+"/api/articles/", api.JSONContentType)
+	if apiAfterLogout.status != http.StatusForbidden || apiAfterLogout.body != `{"code":"not_authenticated","errors":[]}` {
+		t.Fatalf("process-C copied-cookie API = status %d body %q", apiAfterLogout.status, apiAfterLogout.body)
+	}
+	if got := articleSiteTableRowCount(t, ctx, thirdBackend, "godj_system_session"); got != 0 {
+		t.Fatalf("process-C durable session rows = %d, want 0", got)
+	}
+	if got := articleSiteTableRowCount(t, ctx, thirdBackend, "godj_system_audit"); got != 1 {
+		t.Fatalf("process-C durable Admin audit rows = %d, want 1", got)
+	}
+}
+
 func TestRunRejectsAuthenticatedNonLoopbackBeforeBackendOrListener(t *testing.T) {
 	clearArticleDatabaseEnvironment(t)
 	const secret = "non-loopback-secret-marker"
@@ -369,6 +640,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 
 	backend := newArticleSiteTestBackend(t, "article-site-publication")
 	t.Cleanup(func() { _ = backend.Close() })
+	explicitlyMigrateArticleSiteSystemState(t, backend)
 	var opened atomic.Int32
 	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
 		opened.Add(1)
@@ -425,47 +697,10 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 	if anonymous.status != http.StatusForbidden || anonymous.contentType != api.JSONContentType || anonymous.body != `{"code":"not_authenticated","errors":[]}` {
 		t.Fatalf("anonymous API = status %d content-type %q body %q", anonymous.status, anonymous.contentType, anonymous.body)
 	}
-	loginPage := articleSiteGET(t, client, baseURL+"/admin/login/", "")
-	if loginPage.status != http.StatusOK || loginPage.contentType != "text/html; charset=utf-8" {
-		t.Fatalf("Admin login page = status %d content-type %q body %q", loginPage.status, loginPage.contentType, loginPage.body)
-	}
-	match := siteLoginCSRFPattern.FindStringSubmatch(loginPage.body)
-	if len(match) != 2 {
-		t.Fatal("Admin login CSRF token is missing")
-	}
-	preLoginToken := match[1]
-	values := url.Values{
-		"csrfmiddlewaretoken": {preLoginToken},
-		"username":            {username},
-		"password":            {password},
-		"next":                {"/admin/articles/"},
-	}
-	loginRequest, err := http.NewRequest(http.MethodPost, baseURL+"/admin/login/", strings.NewReader(values.Encode()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	loginRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	loginResponse, err := client.Do(loginRequest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	loginBody := articleSiteReadBody(t, loginResponse)
-	if loginResponse.StatusCode != http.StatusFound || loginResponse.Header.Get("Location") != "/admin/articles/" || loginBody != "Found\n" {
-		t.Fatalf("Admin login = status %d location %q body %q", loginResponse.StatusCode, loginResponse.Header.Get("Location"), loginBody)
-	}
-	var sessionSecret string
-	var csrfSecret string
-	for _, cookie := range loginResponse.Cookies() {
-		switch cookie.Name {
-		case websessionauth.DefaultSessionCookieName:
-			sessionSecret = cookie.Value
-		case websessionauth.DefaultCSRFCookieName:
-			csrfSecret = cookie.Value
-		}
-	}
-	if sessionSecret == "" || csrfSecret == "" || csrfSecret == preLoginToken {
-		t.Fatal("Admin login did not publish independent session and rotated CSRF cookies")
-	}
+	login := articleSiteLogin(t, client, baseURL, username, password)
+	preLoginToken := login.preLoginToken
+	sessionSecret := login.sessionCookie
+	csrfSecret := login.csrfCookie
 	authenticated := articleSiteGET(t, client, baseURL+"/api/articles/", api.JSONContentType)
 	if authenticated.status != http.StatusOK || authenticated.contentType != api.JSONContentType || authenticated.body != `{"count":0,"next":null,"previous":null,"results":[]}` {
 		t.Fatalf("authenticated API = status %d content-type %q body %q", authenticated.status, authenticated.contentType, authenticated.body)
@@ -501,6 +736,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 func TestApplicationForServeRedactsRejectedPassword(t *testing.T) {
 	backend := newArticleSiteTestBackend(t, "article-site-password-redaction")
 	t.Cleanup(func() { _ = backend.Close() })
+	explicitlyMigrateArticleSiteSystemState(t, backend)
 	const marker = "rejected-password-secret-marker"
 	_, err := applicationForServe(context.Background(), backend, publicationConfig{
 		authenticated: true,
@@ -596,16 +832,167 @@ func newArticleSiteTestBackend(t *testing.T, name string) *sqlite.Backend {
 	if err != nil {
 		t.Fatal(err)
 	}
+	createArticleSiteArticleTable(t, backend)
+	return backend
+}
+
+func createArticleSiteArticleTable(t *testing.T, backend *sqlite.Backend) {
+	t.Helper()
 	if _, err := backend.ExecContext(context.Background(), `CREATE TABLE "godj_conformance_article" (
   "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
   "summary" VARCHAR(200) NULL
 )`); err != nil {
-		_ = backend.Close()
 		t.Fatal(err)
 	}
-	return backend
+}
+
+func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backend) {
+	t.Helper()
+	ctx := context.Background()
+	loaded, _, err := migrationdefinition.Load(systemstate.InitialDefinitionSource())
+	if err != nil {
+		t.Fatalf("load Article site system definition: %v", err)
+	}
+	if _, err := (migrations.Executor{Backend: backend}).Migrate(
+		ctx,
+		loaded,
+		migrations.LatestLifecycleRequest(),
+	); err != nil {
+		t.Fatalf("explicitly migrate Article site system definition: %v", err)
+	}
+	history, err := backend.ReadAppliedMigrations(ctx)
+	want := systemstate.InitialMigrationKey()
+	if err != nil || len(history) != 1 || history[0].App != want.App || history[0].Name != want.Name {
+		t.Fatalf("Article site system migration history = (%+v,%v), want %s.%s", history, err, want.App, want.Name)
+	}
+}
+
+type articleSiteLoginState struct {
+	preLoginToken string
+	sessionCookie string
+	csrfCookie    string
+}
+
+func articleSiteLogin(
+	t *testing.T,
+	client *http.Client,
+	baseURL, username, password string,
+) articleSiteLoginState {
+	t.Helper()
+	loginPage := articleSiteGET(t, client, baseURL+"/admin/login/", "")
+	if loginPage.status != http.StatusOK || loginPage.contentType != "text/html; charset=utf-8" {
+		t.Fatalf("Admin login page = status %d content-type %q body %q", loginPage.status, loginPage.contentType, loginPage.body)
+	}
+	match := siteLoginCSRFPattern.FindStringSubmatch(loginPage.body)
+	if len(match) != 2 {
+		t.Fatal("Admin login CSRF token is missing")
+	}
+	preLoginToken := match[1]
+	values := url.Values{
+		"csrfmiddlewaretoken": {preLoginToken},
+		"username":            {username},
+		"password":            {password},
+		"next":                {"/admin/articles/"},
+	}
+	request, err := http.NewRequest(
+		http.MethodPost,
+		baseURL+"/admin/login/",
+		strings.NewReader(values.Encode()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := articleSiteReadBody(t, response)
+	if response.StatusCode != http.StatusFound || response.Header.Get("Location") != "/admin/articles/" || body != "Found\n" {
+		t.Fatalf("Admin login = status %d location %q body %q", response.StatusCode, response.Header.Get("Location"), body)
+	}
+	result := articleSiteLoginState{preLoginToken: preLoginToken}
+	for _, cookie := range response.Cookies() {
+		switch cookie.Name {
+		case websessionauth.DefaultSessionCookieName:
+			result.sessionCookie = cookie.Value
+		case websessionauth.DefaultCSRFCookieName:
+			result.csrfCookie = cookie.Value
+		}
+	}
+	if result.sessionCookie == "" || result.csrfCookie == "" || result.csrfCookie == preLoginToken {
+		t.Fatal("Admin login did not publish independent session and rotated CSRF cookies")
+	}
+	return result
+}
+
+func articleSiteJSON(
+	t *testing.T,
+	client *http.Client,
+	method, target, body, csrf string,
+) articleSiteHTTPResult {
+	t.Helper()
+	request, err := http.NewRequest(method, target, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header.Set("Accept", api.JSONContentType)
+	if body != "" {
+		request.Header.Set("Content-Type", api.JSONContentType)
+	}
+	if csrf != "" {
+		request.Header.Set(websessionauth.DefaultCSRFHeader, csrf)
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return articleSiteHTTPResult{
+		status:      response.StatusCode,
+		contentType: response.Header.Get("Content-Type"),
+		header:      response.Header.Clone(),
+		body:        articleSiteReadBody(t, response),
+	}
+}
+
+func articleSiteCookieValue(t *testing.T, jar http.CookieJar, target, name string) string {
+	t.Helper()
+	parsed, err := url.Parse(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, cookie := range jar.Cookies(parsed) {
+		if cookie.Name == name {
+			return cookie.Value
+		}
+	}
+	return ""
+}
+
+func articleSiteTableRowCount(t *testing.T, ctx context.Context, backend *sqlite.Backend, table string) int {
+	t.Helper()
+	identifier := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	rows, err := backend.Query(ctx, query.NewPlan(table, []query.FieldRef{identifier}))
+	if err != nil {
+		t.Fatalf("query Article site table %q: %v", table, err)
+	}
+	count := 0
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			t.Fatalf("scan Article site table %q row: %v", table, err)
+		}
+		count++
+	}
+	iterationErr := rows.Err()
+	closeErr := rows.Close()
+	if iterationErr != nil || closeErr != nil {
+		t.Fatalf("read Article site table %q rows: %v", table, errors.Join(iterationErr, closeErr))
+	}
+	return count
 }
 
 type articleSiteHTTPResult struct {

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/articleapp"
 )
@@ -312,5 +313,128 @@ func TestRepositoryPatchChangedFieldsUseDeclaredOrder(t *testing.T) {
 	if fmt.Sprint(changed) != "[title published summary]" || updated.Title != "After" ||
 		!updated.Published || updated.Summary == nil || *updated.Summary != "after" {
 		t.Fatalf("Patch() = %#v, changed=%v", updated, changed)
+	}
+}
+
+func TestRepositoryMutationHookReceivesDetachedDeterministicResultsAndSkipsNoOps(t *testing.T) {
+	ctx, _, repository := openArticleRepository(t, "article-app-mutation-hook")
+	var results []articleapp.MutationResult
+	hooked := repository.WithMutationHook(func(_ context.Context, _ db.Session, result articleapp.MutationResult) error {
+		results = append(results, result.Clone())
+		// The callback receives a detached value; attempts to alter it cannot
+		// rewrite the repository result or generated model state.
+		result.Items[0].Article.Title = "forged"
+		if result.Items[0].Article.Summary != nil {
+			*result.Items[0].Article.Summary = "forged"
+		}
+		if len(result.Items[0].ChangedFields) > 0 {
+			result.Items[0].ChangedFields[0] = "forged"
+		}
+		return nil
+	})
+
+	summary := "initial"
+	created, err := hooked.Create(ctx, articleapp.Input{Title: "First", Summary: &summary})
+	if err != nil || created.Title != "First" || created.Summary == nil || *created.Summary != "initial" {
+		t.Fatalf("Create() = %#v, %v", created, err)
+	}
+	updated, changed, err := hooked.Update(ctx, created.ID, articleapp.Input{Title: "Second", Summary: &summary})
+	if err != nil || fmt.Sprint(changed) != "[title]" || updated.Title != "Second" {
+		t.Fatalf("Update() = %#v, changed=%v, error=%v", updated, changed, err)
+	}
+	patched, changed, err := hooked.Patch(ctx, created.ID, (articleapp.Patch{}).WithSummary("patched"))
+	if err != nil || fmt.Sprint(changed) != "[summary]" || patched.Summary == nil || *patched.Summary != "patched" {
+		t.Fatalf("Patch() = %#v, changed=%v, error=%v", patched, changed, err)
+	}
+	if _, changed, err := hooked.Update(ctx, created.ID, articleapp.Input{Title: patched.Title, Published: patched.Published, Summary: patched.Summary}); err != nil || len(changed) != 0 {
+		t.Fatalf("Update(no-op) changed=%v, error=%v", changed, err)
+	}
+	if _, changed, err := hooked.Patch(ctx, created.ID, articleapp.Patch{}); err != nil || len(changed) != 0 {
+		t.Fatalf("Patch(no-op) changed=%v, error=%v", changed, err)
+	}
+
+	other, err := repository.Create(ctx, articleapp.Input{Title: "Other"})
+	if err != nil {
+		t.Fatalf("Create(other) error = %v", err)
+	}
+	published, err := hooked.Publish(ctx, []int64{other.ID, created.ID, other.ID})
+	if err != nil || fmt.Sprint(published.MatchedIDs) != fmt.Sprintf("[%d %d]", created.ID, other.ID) {
+		t.Fatalf("Publish() = %#v, %v", published, err)
+	}
+	deleted, err := hooked.Delete(ctx, created.ID)
+	if err != nil || deleted.ID != created.ID || deleted.Title != "Second" {
+		t.Fatalf("Delete() = %#v, %v", deleted, err)
+	}
+
+	wantOperations := []articleapp.MutationOperation{
+		articleapp.MutationCreate,
+		articleapp.MutationUpdate,
+		articleapp.MutationPatch,
+		articleapp.MutationPublish,
+		articleapp.MutationDelete,
+	}
+	if len(results) != len(wantOperations) {
+		t.Fatalf("hook calls = %d, want %d: %#v", len(results), len(wantOperations), results)
+	}
+	for index, want := range wantOperations {
+		if results[index].Operation != want {
+			t.Fatalf("result[%d].Operation = %q, want %q", index, results[index].Operation, want)
+		}
+	}
+	publishResult := results[3]
+	if len(publishResult.Items) != 2 || publishResult.Items[0].Article.ID != created.ID ||
+		publishResult.Items[1].Article.ID != other.ID ||
+		fmt.Sprint(publishResult.Items[0].ChangedFields) != "[published]" {
+		t.Fatalf("publish mutation result = %#v", publishResult)
+	}
+}
+
+func TestRepositoryMutationHookFailureRollsBackEveryArticleKernel(t *testing.T) {
+	ctx, _, repository := openArticleRepository(t, "article-app-mutation-hook-rollback")
+	first, err := repository.Create(ctx, articleapp.Input{Title: "First"})
+	if err != nil {
+		t.Fatalf("Create(first) error = %v", err)
+	}
+	second, err := repository.Create(ctx, articleapp.Input{Title: "Second"})
+	if err != nil {
+		t.Fatalf("Create(second) error = %v", err)
+	}
+	hookFailure := errors.New("forced mutation hook failure")
+	hookCalls := 0
+	rejected := repository.WithMutationHook(func(context.Context, db.Session, articleapp.MutationResult) error {
+		hookCalls++
+		return hookFailure
+	})
+
+	if _, err := rejected.Create(ctx, articleapp.Input{Title: "Never committed"}); !errors.Is(err, hookFailure) {
+		t.Fatalf("Create(hook failure) error = %v", err)
+	}
+	if _, _, err := rejected.Update(ctx, first.ID, articleapp.Input{Title: "Changed"}); !errors.Is(err, hookFailure) {
+		t.Fatalf("Update(hook failure) error = %v", err)
+	}
+	if _, _, err := rejected.Patch(ctx, first.ID, (articleapp.Patch{}).WithPublished(true)); !errors.Is(err, hookFailure) {
+		t.Fatalf("Patch(hook failure) error = %v", err)
+	}
+	if _, err := rejected.Delete(ctx, first.ID); !errors.Is(err, hookFailure) {
+		t.Fatalf("Delete(hook failure) error = %v", err)
+	}
+	if _, err := rejected.Publish(ctx, []int64{second.ID, first.ID}); !errors.Is(err, hookFailure) {
+		t.Fatalf("Publish(hook failure) error = %v", err)
+	}
+	if _, changed, err := rejected.Update(ctx, first.ID, articleapp.Input{Title: "First"}); err != nil || len(changed) != 0 {
+		t.Fatalf("Update(no-op with rejecting hook) changed=%v, error=%v", changed, err)
+	}
+	if hookCalls != 5 {
+		t.Fatalf("hook calls = %d, want 5 mutating kernels and no no-op call", hookCalls)
+	}
+
+	page, err := repository.List(ctx, articleapp.ListOptions{})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if page.Total != 2 || len(page.Articles) != 2 || page.Articles[0].ID != first.ID ||
+		page.Articles[0].Title != "First" || page.Articles[0].Published ||
+		page.Articles[1].ID != second.ID || page.Articles[1].Published {
+		t.Fatalf("rows after rejected hooks = %#v", page.Articles)
 	}
 }

@@ -101,7 +101,7 @@ func TestGDJ0044ArtifactBytesAndExistingDjangoReferenceAreLocked(t *testing.T) {
 		"pyproject.toml": {227, "3076234a966a3bdbb3a0d775576764709632e2e160594040b1fee65d8ad591bd"},
 		"uv.lock":        {3162, "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7"},
 		"conformance/profiles/django-6.1-sqlite-darwin-arm64.json":                                    {879, "8b557bf935575f5366f4ebdc07441a8f4a3e2097f8af4a42450eb0fde12a5041"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {1707, "ccb5779b936a873912595513d3efb5f9b3875e07d355390f676d4326f29f7a2e"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {1791, "59e4aba5aaf38aaafcb308600d557447194f030d3816116982a71b2c0af7cffd"},
 		"conformance/reference/drf/pyproject.toml":                                                    {319, "46b3482056a64d2c9ac84320f047089c9c406d14d8bec7cf0e7a7b43f71be8b3"},
 		"conformance/reference/drf/uv.lock":                                                           {4199, "efc431a1585aaecd9099d40194980771b395bbe261370619f29b5ccf58728f8f"},
 		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                         {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},
@@ -411,9 +411,9 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 		"working-directory: conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64",
 		"--with djangorestframework==3.18.0",
 		"rest_framework.VERSION == \"3.18.0\"",
-		"len(SCENARIOS) == 219",
-		"len(payload) == 846764",
-		"6561aff4fcb64ab1d348f8ac7d8d7642c87453febd81925fbcd769ee409cdb0f",
+		"len(SCENARIOS) == 231",
+		"len(payload) == 860151",
+		"b2671e3c39a1a4b98428f323e2331354cba1b744f2e9b38a477f8cb107df3232",
 	} {
 		if !strings.Contains(ciText, required) {
 			t.Fatalf("CI lacks GDJ-0044 reference fragment %q", required)
@@ -421,7 +421,7 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 	}
 }
 
-func TestCurrentTwentyReferenceSetsHave219ContractsAndReject380OrderedCrossBindings(t *testing.T) {
+func TestGDJ0044CheckpointTwentyReferenceSetsHave219ContractsAndReject380OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -505,7 +505,7 @@ func TestCurrentTwentyReferenceSetsHave219ContractsAndReject380OrderedCrossBindi
 		}
 	}
 	if len(sets) != 20 || total != 219 || len(ids) != 219 || len(scenarios) != 219 || passing != 192 || deviations != 15 || locked != 12 {
-		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
+		t.Fatalf("GDJ-0044 checkpoint inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 
 	crossBindings := 0

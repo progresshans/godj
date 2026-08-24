@@ -13,11 +13,11 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
 	"github.com/progresshans/godj/examples/article/webapp"
+	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 )
 
@@ -60,9 +60,7 @@ func (publicationConfig) String() string   { return "publicationConfig{redacted}
 func (publicationConfig) GoString() string { return "publicationConfig{redacted}" }
 
 type articleBackend interface {
-	db.Queryer
-	db.Mutator
-	db.Atomic
+	systemstate.Backend
 	Close() error
 }
 
