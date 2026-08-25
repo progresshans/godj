@@ -204,33 +204,45 @@ func (store *durableSessionStore) Touch(
 	return result, found, nil
 }
 
-func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID, replacement sessions.Record) (bool, error) {
+func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {
 	if err := store.validCall(ctx, oldID); err != nil {
-		return false, err
+		return sessions.Record{}, false, err
 	}
 	if !replacement.ID().Valid() || replacement.ID() == oldID {
-		return false, &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "replacement session identifier is invalid"}
+		return sessions.Record{}, false, &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "replacement session identifier is invalid"}
 	}
 	oldDigest, err := sessionDigest(oldID)
 	if err != nil {
-		return false, err
+		return sessions.Record{}, false, err
 	}
 	newDigest, err := sessionDigest(replacement.ID())
 	if err != nil {
-		return false, err
+		return sessions.Record{}, false, err
 	}
-	payload, err := encodeSessionPayload(replacement, store.limits)
-	if err != nil {
-		return false, err
-	}
+	var published sessions.Record
 	rotated := false
 	err = store.gate.withAtomic(ctx, func(session db.Session) error {
 		oldRow, present, err := loadSessionRow(ctx, session, oldDigest)
 		if err != nil || !present {
 			return err
 		}
-		if _, err := decodeSessionPayload(oldRow.payload, oldID, store.limits); err != nil {
+		current, err := decodeSessionPayload(oldRow.payload, oldID, store.limits)
+		if err != nil {
 			return err
+		}
+		if !replacement.CreatedAt().Equal(current.CreatedAt()) || !replacement.AbsoluteExpiresAt().Equal(current.AbsoluteExpiresAt()) {
+			return &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "rotation must preserve creation and absolute expiry"}
+		}
+		rotationAt := replacement.AccessedAt()
+		if !current.AbsoluteExpiresAt().After(rotationAt) || !current.IdleExpiresAt().After(rotationAt) {
+			affected, err := session.Delete(ctx, query.NewDeletePlan(sessionTableName, systemRowIDField, query.Integer(oldRow.id)))
+			if err != nil {
+				return persistenceFailure("delete expired rotated session", err)
+			}
+			if affected != 1 {
+				return cardinalityFailure("session", fmt.Sprintf("expired rotate delete affected %d rows, want 1", affected))
+			}
+			return nil
 		}
 		collision, exists, err := loadSessionRow(ctx, session, newDigest)
 		if err != nil {
@@ -241,6 +253,32 @@ func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID,
 				return err
 			}
 			return &sessions.Error{Code: sessions.CodeEntropy, Detail: "replacement session identifier collided"}
+		}
+		accessedAt := replacement.AccessedAt()
+		if accessedAt.Before(current.AccessedAt()) {
+			accessedAt = current.AccessedAt()
+		}
+		idleExpiresAt := replacement.IdleExpiresAt()
+		if idleExpiresAt.Before(current.IdleExpiresAt()) {
+			idleExpiresAt = current.IdleExpiresAt()
+		}
+		if idleExpiresAt.After(current.AbsoluteExpiresAt()) {
+			idleExpiresAt = current.AbsoluteExpiresAt()
+		}
+		published, err = sessions.RestoreRecord(sessions.RecordSnapshot{
+			ID:                replacement.ID(),
+			Values:            replacement.Values(),
+			CreatedAt:         current.CreatedAt(),
+			AccessedAt:        accessedAt,
+			AbsoluteExpiresAt: current.AbsoluteExpiresAt(),
+			IdleExpiresAt:     idleExpiresAt,
+		}, store.limits)
+		if err != nil {
+			return &sessions.Error{Code: sessions.CodeInvalidRecord, Field: "replacement", Detail: "rotated session timestamps are invalid", Cause: err}
+		}
+		payload, err := encodeSessionPayload(published, store.limits)
+		if err != nil {
+			return err
 		}
 		affected, err := session.Delete(ctx, query.NewDeletePlan(sessionTableName, systemRowIDField, query.Integer(oldRow.id)))
 		if err != nil {
@@ -256,9 +294,9 @@ func (store *durableSessionStore) Rotate(ctx context.Context, oldID sessions.ID,
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return sessions.Record{}, false, err
 	}
-	return rotated, nil
+	return published, rotated, nil
 }
 
 func (store *durableSessionStore) Delete(ctx context.Context, id sessions.ID) error {

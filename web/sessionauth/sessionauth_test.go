@@ -607,12 +607,12 @@ func (s *countingStore) Touch(ctx context.Context, id sessions.ID, accessedAt, i
 	return record, found, err
 }
 
-func (s *countingStore) Rotate(ctx context.Context, old sessions.ID, replacement sessions.Record) (bool, error) {
-	rotated, err := s.Store.Rotate(ctx, old, replacement)
+func (s *countingStore) Rotate(ctx context.Context, old sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {
+	published, rotated, err := s.Store.Rotate(ctx, old, replacement)
 	if err == nil && rotated {
 		s.writes.Add(1)
 	}
-	return rotated, err
+	return published, rotated, err
 }
 
 func (s *countingStore) Delete(ctx context.Context, id sessions.ID) error {

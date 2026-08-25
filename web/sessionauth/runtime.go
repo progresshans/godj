@@ -225,29 +225,61 @@ func (r *Runtime) login(
 	return LoginResult{principal: principal, change: change}, nil
 }
 
-// Logout flushes all server-side values for the presented session and deletes
-// both bearer cookies. It is idempotent for a missing or malformed cookie.
+// Logout flushes all server-side values for every bounded canonical session ID
+// presented under the configured cookie name and deletes both bearer cookies.
+// It is idempotent for missing, malformed and duplicated cookies.
 func (r *Runtime) Logout(request *web.Request) (ResponseChange, error) {
 	httpRequest, err := r.request(request)
 	if err != nil {
 		return ResponseChange{}, err
 	}
-	encoded, found, cookieErr := r.namedCookie(httpRequest, r.sessionCookie.Name)
-	// Cookie attributes are absent from the Cookie header, so an ambiguous
-	// duplicate cannot be selected safely for a server-side flush. Deleting
-	// both configured bearer cookies is still idempotent and gives the client a
-	// recovery path instead of turning malformed cookie state into a 500.
-	if cookieErr == nil && found {
-		if id, parseErr := sessions.ParseID(encoded); parseErr == nil {
-			if err := r.sessions.Flush(httpRequest.Context(), id); err != nil {
-				return ResponseChange{}, sessionFailure("session flush failed", err)
-			}
+	var flushErr error
+	for _, id := range r.logoutSessionIDs(httpRequest) {
+		if err := r.sessions.Flush(httpRequest.Context(), id); err != nil && flushErr == nil {
+			// Keep the public failure surface independent of the bearer value while
+			// still attempting every other bounded canonical ID in the header.
+			flushErr = err
 		}
+	}
+	if flushErr != nil {
+		return ResponseChange{}, sessionFailure("session flush failed", flushErr)
 	}
 	return ResponseChange{cookies: []http.Cookie{
 		r.deletionCookie(r.sessionCookie),
 		r.deletionCookie(r.csrfCookie),
 	}}, nil
+}
+
+func (r *Runtime) logoutSessionIDs(request *http.Request) []sessions.ID {
+	remaining := r.limits.MaxCookieHeaderBytes
+	for _, header := range request.Header.Values("Cookie") {
+		if len(header) > remaining {
+			// An over-limit header remains a malformed-cookie recovery case: do
+			// not parse attacker-controlled input further, but let Logout publish
+			// the configured deletion cookies.
+			return nil
+		}
+		remaining -= len(header)
+	}
+
+	cookies := request.CookiesNamed(r.sessionCookie.Name)
+	ids := make([]sessions.ID, 0, len(cookies))
+	seen := make(map[sessions.ID]struct{}, len(cookies))
+	for _, cookie := range cookies {
+		if cookie == nil || len(cookie.Value) > r.limits.MaxCookieValueBytes {
+			continue
+		}
+		id, err := sessions.ParseID(cookie.Value)
+		if err != nil {
+			continue
+		}
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 // SafeNext returns raw only when it is a bounded local URI whose exact path is

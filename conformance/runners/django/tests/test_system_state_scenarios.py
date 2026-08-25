@@ -57,6 +57,16 @@ class SystemStateScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "exact Django authority"):
             _validate_contract_authority(missing)
 
+        stale_adr = deepcopy(contracts)
+        stale_adr[0]["provenance"][0]["kind"] = "proposal"
+        with self.assertRaisesRegex(RuntimeError, "current ADR-0047 documentation"):
+            _validate_contract_authority(stale_adr)
+
+        stale_deviation = deepcopy(contracts)
+        stale_deviation[8]["provenance"][1]["kind"] = "proposal"
+        with self.assertRaisesRegex(RuntimeError, "DEV-0008 decision"):
+            _validate_contract_authority(stale_deviation)
+
     def test_decision_authority_is_byte_deterministic(self) -> None:
         decision_ids = ("SYS-001", "SYS-002", "SYS-005", "SYS-006", "SYS-007", "SYS-012")
         first = [
@@ -82,6 +92,16 @@ class SystemStateScenarioTests(unittest.TestCase):
         self.assertEqual(
             [contract["id"] for contract in suite["contracts"]],
             list(EXPECTED_IDS),
+        )
+        logout = suite["contracts"][7]
+        self.assertEqual(logout["id"], "SYS-008")
+        self.assertEqual(
+            next(
+                field["value"]["value"]
+                for field in logout["result"]["fields"]
+                if field["name"] == "api_status"
+            ),
+            "403",
         )
         serialized = first.decode("utf-8").lower()
         for forbidden in (

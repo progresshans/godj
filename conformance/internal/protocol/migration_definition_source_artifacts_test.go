@@ -57,7 +57,7 @@ func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	const gdj0043 = "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa  template-form-oracle.json\n" +
 		"9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc  auth-session-oracle.json\n" +
 		"869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378  article-admin-oracle.json\n"
-	const gdj0045 = "933826b579aa3822d9e99f031a9a642797bfb7799eb81a274012867f9fdd1745  system-state.json\n"
+	const gdj0045 = "4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb  system-state.json\n"
 	if string(contents) != previous+definitionSource+projectCheck+relation+migrationRelation+queryExpression+gdj0043+gdj0045 {
 		t.Fatal("SHA256SUMS does not match the current migration oracle catalog")
 	}
@@ -446,8 +446,8 @@ func TestRelationProductEntersTwelveAdapterTargetWithoutChangingReferenceTargets
 	if got := strings.Count(productTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance migration-definition-source manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
-		t.Fatalf("godj-conformance adapter count = %d, want 19", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 20 {
+		t.Fatalf("godj-conformance adapter count = %d, want 20", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_DEFINITION_SOURCE_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-definition-source manifest count = %d, want 1", got)

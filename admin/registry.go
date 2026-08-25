@@ -42,7 +42,7 @@ var ErrReconciliationRequired = errors.New("admin: reconciliation required; do n
 type ConfigError struct {
 	Path  string
 	Code  string
-	Cause error
+	Cause error `json:"-"`
 }
 
 func (e *ConfigError) Error() string {
@@ -54,6 +54,10 @@ func (e *ConfigError) Error() string {
 	}
 	return fmt.Sprintf("admin: %s: %s", e.Path, e.Code)
 }
+
+// GoString keeps diagnostic %#v formatting on the same framework-owned,
+// secret-free surface as Error while Unwrap retains Cause for errors.Is/As.
+func (e ConfigError) GoString() string { return (&e).Error() }
 
 func (e *ConfigError) Unwrap() error {
 	if e == nil {

@@ -89,8 +89,8 @@ func TestMigrationStateReconstructionRemainsInCurrentNineteenSetProductConforman
 	if !strings.Contains(target, "MIGRATION_STATE_RECONSTRUCTION") {
 		t.Fatal("migration-state-reconstruction product set is missing from the product conformance target")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 19 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 19", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 20 {
+		t.Fatalf("godj-conformance product adapter count = %d, want 20", got)
 	}
 }
 

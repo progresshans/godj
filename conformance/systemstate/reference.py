@@ -72,12 +72,14 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
             item
             for item in provenance
             if isinstance(item, dict)
-            and item.get("kind") == "proposal"
+            and item.get("kind") == "documentation"
             and item.get("reference") == "ADR-0047"
             and item.get("derived") is False
         ]
         if len(adr) != 1:
-            raise RuntimeError(f"{contract_id}: exact Proposed ADR-0047 authority is required")
+            raise RuntimeError(
+                f"{contract_id}: exact current ADR-0047 documentation authority is required"
+            )
         django = [
             item
             for item in provenance
@@ -106,6 +108,18 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
                 raise RuntimeError(f"{contract_id}: decision authority carries Django provenance")
         else:
             raise RuntimeError(f"unexpected system-state contract {contract_id!r}")
+        api_boundary = [
+            item
+            for item in provenance
+            if isinstance(item, dict) and item.get("reference") == "ADR-0046"
+        ]
+        if contract_id == "SYS-008":
+            if api_boundary != [
+                {"kind": "documentation", "reference": "ADR-0046", "derived": False}
+            ]:
+                raise RuntimeError("SYS-008 must carry the Accepted API denial authority")
+        elif api_boundary:
+            raise RuntimeError(f"{contract_id}: ADR-0046 scope escaped SYS-008")
         dev = [
             item
             for item in provenance
@@ -113,9 +127,9 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
         ]
         if contract_id == "SYS-009":
             if dev != [
-                {"kind": "proposal", "reference": "DEV-0008", "derived": False}
+                {"kind": "decision", "reference": "DEV-0008", "derived": False}
             ]:
-                raise RuntimeError("SYS-009 must carry exactly one Proposed DEV-0008")
+                raise RuntimeError("SYS-009 must carry exactly one DEV-0008 decision")
         elif dev:
             raise RuntimeError(f"{contract_id}: DEV-0008 scope escaped SYS-009")
 

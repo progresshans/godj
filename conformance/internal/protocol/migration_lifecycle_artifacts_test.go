@@ -93,8 +93,8 @@ func TestMigrationLifecycleEntersProductTargetAt92PassingAnd5ReviewedDeviations(
 	if !strings.Contains(productTarget, "MIGRATION_LIFECYCLE_DEVIATION_EXPECTED") {
 		t.Fatal("migration-lifecycle product adapter is missing its reviewed deviation expectation")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
-		t.Fatalf("godj-conformance product adapter count = %d, want 19", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 20 {
+		t.Fatalf("godj-conformance product adapter count = %d, want 20", got)
 	}
 
 	previousProductManifests := []string{

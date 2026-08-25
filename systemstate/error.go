@@ -39,7 +39,7 @@ func (e *Error) Error() string {
 // GoString keeps diagnostic %#v formatting on the same framework-owned,
 // secret-free surface as Error. Cause remains available through errors.Is/As
 // but is never recursively formatted by fmt.
-func (e *Error) GoString() string { return e.Error() }
+func (e Error) GoString() string { return (&e).Error() }
 
 func (e *Error) Unwrap() error {
 	if e == nil {

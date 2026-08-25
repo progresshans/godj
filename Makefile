@@ -266,6 +266,10 @@ godj-conformance:
 		-expected $(ARTICLE_ADMIN_ORACLE) \
 		-deviation-expected $(ARTICLE_ADMIN_DEVIATION_EXPECTED)
 	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) \
+		-expected $(SYSTEM_STATE_ORACLE) \
+		-deviation-expected $(SYSTEM_STATE_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
 		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) \
 		-expected $(PARAMETER_ROUTING_ORACLE) \
 		-deviation-expected $(PARAMETER_ROUTING_DEVIATION_EXPECTED)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -91,18 +92,43 @@ func TestPermissionCodecRejectsUnknownMalformedDuplicateAndSecretBearingInput(t 
 }
 
 func TestBootstrapConfigFormattingIsRedacted(t *testing.T) {
-	const marker = "bootstrap-password-secret-marker"
+	const (
+		passwordMarker = "bootstrap-password-secret-marker"
+		hasherMarker   = "bootstrap-password-hasher-secret-marker"
+	)
 	config := BootstrapConfig{
-		Username:    "admin",
-		Password:    marker,
-		PrincipalID: "operator",
-		Active:      true,
+		Username:       "admin",
+		Password:       passwordMarker,
+		PrincipalID:    "operator",
+		Active:         true,
+		PasswordHasher: bootstrapMarkerHasher{Pepper: hasherMarker},
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("json.Marshal(BootstrapConfig): %v", err)
 	}
 	for _, rendered := range []string{fmt.Sprint(config), fmt.Sprintf("%#v", config)} {
-		if rendered != "systemstate.BootstrapConfig{redacted}" || strings.Contains(rendered, marker) {
+		if rendered != "systemstate.BootstrapConfig{redacted}" ||
+			strings.Contains(rendered, passwordMarker) || strings.Contains(rendered, hasherMarker) {
 			t.Fatalf("BootstrapConfig formatting = %q", rendered)
 		}
 	}
+	if strings.Contains(string(encoded), passwordMarker) || strings.Contains(string(encoded), hasherMarker) ||
+		strings.Contains(string(encoded), `"Password"`) || strings.Contains(string(encoded), `"PasswordHasher"`) {
+		t.Fatalf("BootstrapConfig JSON publishes a secret-bearing field: %s", encoded)
+	}
+	var decoded BootstrapConfig
+	if err := json.Unmarshal([]byte(`{"Username":"admin","Password":"`+passwordMarker+`","PasswordHasher":{"Pepper":"`+hasherMarker+`"}}`), &decoded); err != nil {
+		t.Fatalf("json.Unmarshal(BootstrapConfig): %v", err)
+	}
+	if decoded.Password != "" || decoded.PasswordHasher != nil {
+		t.Fatal("BootstrapConfig JSON populated a secret-bearing field")
+	}
+}
+
+type bootstrapMarkerHasher struct {
+	auth.PasswordHasher
+	Pepper string
 }
 
 func mustPermission(t *testing.T, value string) auth.Permission {

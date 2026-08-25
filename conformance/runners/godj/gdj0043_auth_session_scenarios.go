@@ -1250,16 +1250,16 @@ func (store *authSessionCountingStore) Rotate(
 	ctx context.Context,
 	oldID sessions.ID,
 	replacement sessions.Record,
-) (bool, error) {
-	rotated, err := store.Store.Rotate(ctx, oldID, replacement)
+) (sessions.Record, bool, error) {
+	published, rotated, err := store.Store.Rotate(ctx, oldID, replacement)
 	if err == nil && rotated {
 		store.mu.Lock()
 		delete(store.rows, oldID)
-		store.rows[replacement.ID()] = struct{}{}
+		store.rows[published.ID()] = struct{}{}
 		store.mu.Unlock()
 		store.writes.Add(1)
 	}
-	return rotated, err
+	return published, rotated, err
 }
 
 func (store *authSessionCountingStore) Delete(ctx context.Context, id sessions.ID) error {

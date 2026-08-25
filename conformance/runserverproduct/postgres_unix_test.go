@@ -19,6 +19,7 @@ import (
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/systemstate"
 )
 
 const (
@@ -109,16 +110,19 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, report, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
-		Document: document,
-	})
+	loaded, report, err := migrationdefinition.Load(
+		migrationdefinition.Source{
+			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
+			Document: document,
+		},
+		systemstate.InitialDefinitionSource(),
+	)
 	if err != nil {
-		t.Fatalf("load Article PostgreSQL initial migration: %v", err)
+		t.Fatalf("load Article and system PostgreSQL initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 1 || report.HeadersValidated != 1 || report.OperationsDecoded != 1 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 1 || report.DefinitionSetsPublished != 1 {
-		t.Fatalf("Article PostgreSQL initial migration load report = %+v", report)
+	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("Article and system PostgreSQL initial migration load report = %+v", report)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -134,7 +138,7 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 		}
 	}()
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
-		t.Fatalf("migrate Article PostgreSQL database: %v", runserverPostgresSafeError(err))
+		t.Fatalf("migrate Article and system PostgreSQL database: %v", runserverPostgresSafeError(err))
 	}
 	for index, fixture := range runserverPostgresArticleFixtures() {
 		input := articlemodels.NewArticleCreate(fixture.title).WithPublished(fixture.published)
@@ -321,7 +325,10 @@ func verifyRunserverArticlePostgresDatabase(t *testing.T, databaseURL, schema st
 	if err := errors.Join(historyErr, articleErr, closeErr); err != nil {
 		t.Fatalf("inspect durable Article PostgreSQL database: %v", runserverPostgresSafeError(err))
 	}
-	if len(history) != 1 || history[0].App != "godj_conformance" || history[0].Name != "0001_initial" {
+	systemMigration := systemstate.InitialMigrationKey()
+	if len(history) != 2 ||
+		history[0].App != "godj_conformance" || history[0].Name != "0001_initial" ||
+		history[1].App != systemMigration.App || history[1].Name != systemMigration.Name {
 		t.Fatalf("durable Article PostgreSQL migration history = %+v", history)
 	}
 	expected := runserverPostgresArticleFixtures()

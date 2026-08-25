@@ -221,7 +221,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		"template-form-oracle.json":      "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa",
 		"auth-session-oracle.json":       "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc",
 		"article-admin-oracle.json":      "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378",
-		"system-state.json":              "933826b579aa3822d9e99f031a9a642797bfb7799eb81a274012867f9fdd1745",
+		"system-state.json":              "4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb",
 		"save-lifecycle-oracle.json":     "05cad687926b59fc036be398896313c8a1b46af79c1f320054698771085260cb",
 		"write-migration-oracle.json":    "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
 	} {

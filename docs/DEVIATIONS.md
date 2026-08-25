@@ -542,6 +542,10 @@ Client가 보존한 독립 CSRF cookie secret은 restart 뒤에도 남지만 mas
 process A의 token은 process B에서 403과 Article mutation 0으로 거부합니다. 같은 authenticated cookie로 safe GET을 수행해
 process B가 새로 만든 token은 unsafe mutation에 성공합니다.
 
+Actual은 stale POST 직전에 process B cookie jar의 CSRF cookie가 process A의 cookie와 byte-equal함을 증명하고, safe GET 뒤에도
+같은 cookie secret이 유지된 상태에서 masked token만 교체됐음을 확인해야 합니다. Cookie 누락·회전 또는 새 secret 발급으로 인한
+403은 이 deviation의 증거로 인정하지 않습니다.
+
 계획한 sparse selector는 SYS-009 stale-token lane의 다음 네 값뿐입니다.
 
 - `result.pre_restart.accepted`: `true` → `false`

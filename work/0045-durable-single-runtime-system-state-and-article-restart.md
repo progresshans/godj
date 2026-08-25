@@ -1,7 +1,7 @@
 ---
 id: GDJ-0045
 status: active
-updated: 2026-08-24
+updated: 2026-08-25
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "99014e1dbc8169b9ae9e0d5b6d592f808e4d8b07"
 depends_on: ["GDJ-0038", "GDJ-0043", "GDJ-0044"]
@@ -10,9 +10,23 @@ allowed_paths:
   - ".github/workflows/ci.yml"
   - "Makefile"
   - "systemstate/**"
+  - "auth/error.go"
+  - "auth/*_test.go"
+  - "sessions/error.go"
+  - "sessions/manager.go"
+  - "sessions/memory.go"
   - "sessions/record.go"
+  - "sessions/store.go"
   - "sessions/*_test.go"
+  - "web/sessionauth/error.go"
+  - "web/sessionauth/runtime.go"
+  - "web/sessionauth/*_test.go"
+  - "api/error.go"
+  - "api/*_test.go"
+  - "api/sessionauth/runtime.go"
+  - "api/sessionauth/*_test.go"
   - "admin/audit.go"
+  - "admin/registry.go"
   - "admin/*_test.go"
   - "examples/article/articleapp/**"
   - "examples/article/adminapp/**"
@@ -70,6 +84,7 @@ explicit Article + godj_system migrate
 
 Admin-originated Article mutation과 Admin audit append/prune은 같은 `db.Atomic` 안에서 commit 또는 rollback합니다. 이 packet은 DB/schema당
 동시에 살아 있는 `systemstate.Runtime` 하나와 완전히 종료된 process 사이의 순차 재시작만 지원합니다.
+One-runtime은 lease/fence로 강제되지 않는 operator topology precondition이며 두 번째 `Open`을 자동 차단한다는 의미가 아닙니다.
 
 ## 이번 packet에서 결정하는 경계
 
@@ -85,6 +100,8 @@ Admin-originated Article mutation과 Admin audit append/prune은 같은 `db.Atom
   0/1 결과만 허용합니다. Duplicate는 자동 선택·삭제하지 않고 fail-closed합니다.
 - 하나의 runtime mutex와 DB transaction이 bootstrap, session create/rotate/touch/delete/reap와 ordered audit append/prune writer를
   직렬화합니다. DB-enforced uniqueness나 non-cooperating direct SQL writer 방어는 이번 지원 범위가 아닙니다.
+- Mutex는 현재 supported topology의 cooperative check-then-act correctness를, DB transaction은 commit/rollback과 outcome-unknown
+  원자성을 소유합니다. Future multi-runtime correctness에는 DB constraint/lock/CAS와 shared capacity/prune coordination이 필요합니다.
 - `sessions.Manager`의 CSPRNG ID, absolute/idle expiry, monotonic touch, fixation-safe rotate, collision retry, capacity와 flush 의미를
   유지합니다. Durable adapter가 immutable `Record`를 복원할 수 있는 최소 current-only restore SPI만 추가합니다.
 - Auth는 startup에서 검증한 한 admin credential을 existing immutable authenticator로 materialize합니다. User/group 변경 UI,
@@ -119,8 +136,8 @@ Admin-originated Article mutation과 Admin audit append/prune은 같은 `db.Atom
   `fd416a0156d158fc518fbb1ad998f513ba079cdc`; GDJ-0044 terminal source `d9c1971...`의 documentation-only descendant
 - Hosted product source: `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`, tree
   `2e5c52ff162dc74d6281c1927750be34be329c69`; EVID-125/126와 CI #142 exact 27/27
-- Current product aggregate는 19 sets/207 contracts=`192 passing + 15 deviation`; reference-only MIG-075..086을 포함하면
-  20/219/380=`192 passing + 15 deviation + 12 oracle_locked`입니다.
+- Current source-local publication aggregate는 product 20 sets/219 contracts=`203 passing + 16 deviation`이고,
+  reference-only MIG-075..086을 포함하면 21/231/420=`203 passing + 16 deviation + 12 oracle_locked`입니다.
 - Existing site는 every-start password hash, `MemoryAuthenticator`, `MemoryStore`, process audit ring을 조합하므로 restart 뒤
   credential/session/history가 사라집니다.
 - Existing `sessions.Manager`, `web/sessionauth.Runtime`, `api/sessionauth.Runtime`, Article repository와 SQLite/PostgreSQL
@@ -139,19 +156,22 @@ operational decision을 같은 profile에 두되 provenance를 contract별로 �
 - `SYS-005` monotonic touch, idle/absolute expiry와 expired-row deletion
 - `SYS-006` capacity, bounded reap와 atomic session rotate fault rollback
 - `SYS-007` digest-only bearer storage, current-only bounded codecs와 secret-free observation
-- `SYS-008` logout 뒤 다음 process의 old-cookie denial과 resurrection 0
+- `SYS-008` logout 뒤 다음 process의 old-cookie denial과 resurrection 0; Admin은 Django browser redirect,
+  API는 Accepted ADR-0046의 JSON 403 boundary
 - `SYS-009` restart CSRF: stale token 거부와 fresh-token success
 - `SYS-010` Article DML 뒤 audit fault에서 same-transaction rollback
 - `SYS-011` durable newest-bounded audit history와 monotonic non-contiguous sequence
 - `SYS-012` commit outcome unknown의 no-retry/no-synthetic-success 경계
 
-SYS-003/004/008/009/010/011은 Django 6.1 public semantics를 관찰합니다. SYS-001/002/005/006/007/012는
+SYS-003/004/008/009/010/011은 Django 6.1 public semantics를 관찰합니다. SYS-008의 session deletion/restart는
+Django authority이고 API denial status는 기존 Accepted ADR-0046의 JSON 403 authority입니다. SYS-001/002/005/006/007/012는
 ADR-0047의 GoDj decision contract입니다. SYS-009의 stale token 한 lane만 Proposed DEV-0008이며 fresh-token lane과 나머지
 dimension은 zero-diff여야 합니다.
 
-Phase A 완료 전에는 이 12개를 global aggregate에 더하거나 passing/deviation으로 세지 않습니다. Manifest/oracle/NI/checksum과
-registry가 고정되면 예상 reference는 21 sets/231 contracts/420 ordered bindings=`192 passing + 15 deviation + 24 oracle_locked`,
-product는 기존 19/207 그대로입니다. Frozen registry 출력이 다르면 문서 숫자가 아니라 실행 결과를 권위로 삼습니다.
+Phase A observer-only 상태에서는 이 12개를 global aggregate에 더하지 않았습니다. Current source publication은 manifest,
+oracle, exact DEV-0008 policy, global registry와 Makefile adapter를 함께 열어 reference 21 sets/231 contracts/420 ordered
+bindings=`203 passing + 16 deviation + 12 oracle_locked`, product 20/219=`203 passing + 16 deviation`으로 고정합니다.
+MIG-075..086만 locked/unregistered이며 frozen registry 출력이 문서와 다르면 실행 결과를 권위로 삼습니다.
 
 ## 설계와 package 방향
 
@@ -173,12 +193,14 @@ siteapp → systemstate composition; no memory fallback and no auto-migrate
 ## 구현 단계
 
 - [x] Activation: bounded single-runtime scope, Proposed ADR/DEV, SYS-001..012와 owner paths 고정
-- [ ] Phase A — contract/reference: exact manifest, independent Django oracle, payload-free NI, checksum과 mixed-provenance protocol lock
-- [ ] Phase B — system migration: deterministic `godj_system.0001_initial`, explicit SQLite/PostgreSQL migrate/reopen/no-op와 missing-schema fail-closed
-- [ ] Phase C — durable bootstrap/session: strict codecs, restore bridge, digest Store, capacity/reap/expiry/rotate/logout와 restart authenticator
-- [ ] Phase D — transactional audit: Article mutation kernel/hook, Admin audit append/prune same transaction, rollback/unknown/no-op/multi-publish fault tests
-- [ ] Phase E — actual restart: distinct process A/B/C SQLite and pinned PostgreSQL Admin/API/session/CSRF/history/logout flow
-- [ ] Checkpoint gates: affected normal/race/CGO0/vet, related generated drift, required backend sentinels와 oracle-blind actual
+- [x] Phase A — contract/reference: exact manifest, independent Django oracle, payload-free NI, checksum과 mixed-provenance protocol lock
+- [x] Phase B — current explicit system migration, SQLite migrate/reopen/no-op와 missing-schema fail-closed implemented; PostgreSQL
+      compiler/integration source is wired and required live PostgreSQL execution remains a hosted Phase E gate
+- [x] Phase C — durable bootstrap/session plus Touch↔Rotate monotonicity, duplicate-cookie logout and secret-surface hardening implemented
+- [x] Phase D — transactional audit, bootstrap commit-unknown classification and oracle-blind Go actual implemented
+- [ ] Phase E — SQLite distinct-process A/B/C and local secret scans pass; pinned PostgreSQL child-process required lane is wired but not run locally
+- [ ] Checkpoint gates: affected normal/race/CGO0/vet, generated drift, exact Django oracle and local SQLite actual pass;
+      required PostgreSQL, final full/386/external and hosted gates remain
 - [ ] Final frozen milestone: full `make ci`, Linux/386, repository-external archive, independent audit와 exact hosted matrix once
 - [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
@@ -197,20 +219,30 @@ integration owner 한 명만 수정합니다.
 
 ## 완료 조건
 
-- [ ] SYS-001..012 exact artifact가 independent Django/decision authority와 oracle-blind Go actual에서 검증됨
-- [ ] Completion classification은 expected `11 passing + SYS-009 one deviation`이고 unexpected difference는 0임
-- [ ] Explicit system migration 없이는 listener/bootstrap/DDL이 0인 채 startup이 fail-closed함
-- [ ] Raw password/hash/session bearer/CSRF/DB URL이 artifact, DB lookup payload, log와 error에 노출되지 않음
-- [ ] Same cookie가 clean restart 뒤 Admin/API principal/permission을 복구하고 logout 뒤 다음 restart에서 부활하지 않음
-- [ ] Stale CSRF token은 Article mutation 0으로 거부되고 safe GET의 fresh token은 성공함
-- [ ] Article DML과 Admin audit가 같은 transaction에서 commit/rollback하며 unknown outcome을 retry하지 않음
-- [ ] SQLite/PostgreSQL에서 distinct-process restart sentinel이 skip 0으로 통과함
-- [ ] Schema IR/definition/digest/generated ABI와 existing AUT/ADM/API behavior가 drift하지 않음
+- [x] SYS-001..012 exact artifact가 independent Django/decision authority와 oracle-blind Go actual에서 검증됨
+- [x] Completion classification은 expected `11 passing + SYS-009 one deviation`이고 local unexpected difference는 0임
+- [x] Explicit system migration 없이는 listener/bootstrap/DDL이 0인 채 startup이 fail-closed함
+- [x] Raw password는 durable state/artifact/log/error에 없고 encoded password hash는 credential column 밖의 artifact/log/error에 노출되지 않음
+- [x] Raw session bearer/CSRF secret·token/process key와 DB URL이 durable payload/artifact/log/error에 노출되지 않음
+- [x] Exported bootstrap/site config와 auth/session/systemstate/API/Admin configuration error의 JSON/`%#v` 진단 표면이 raw secret을 직렬화하지 않음
+- [x] Same cookie가 clean restart 뒤 Admin/API principal/permission을 복구하고 logout 뒤 다음 restart에서 부활하지 않음
+- [x] Duplicate Cookie header에도 제시된 canonical session bearer가 server-side flush되고 copied bearer가 restart 뒤 거부됨
+- [x] Touch와 Rotate가 교차해도 replacement의 accessed/idle timestamp가 마지막 confirmed touch보다 뒤로 가지 않음
+- [x] 같은 CSRF cookie가 process 경계를 통과한 상태에서 stale token은 Article mutation 0으로 거부되고 safe GET의 fresh token은 성공함
+- [x] Article DML과 Admin audit가 같은 transaction에서 commit/rollback하며 unknown outcome을 retry하지 않음
+- [x] Bootstrap commit outcome unknown은 schema-missing으로 오분류하거나 자동 retry하지 않고 reconciliation-required marker를 보존함
+- [ ] SQLite/PostgreSQL에서 distinct-process restart sentinel이 skip 0으로 통과함 — SQLite local PASS, PostgreSQL hosted pending
+- [x] Go actual의 process/secret metric은 같은 PID reopen이나 상수가 아니라 실제 subprocess·scan 관찰값에서 산출됨
+- [x] Schema IR/definition/digest/generated ABI와 existing AUT/ADM/API behavior가 local affected gates에서 drift하지 않음
 - [ ] CURRENT/work/matrix/evidence/ADR/deviation/PR이 같은 frozen bytes와 비목표를 가리킴
 
 ## 현재 상태와 다음 정확한 작업
 
-GDJ-0045가 유일한 active packet이고 ready packet은 0입니다. ADR-0047과 DEV-0008은 Proposed이며 SYS artifact와 product
-adapter는 아직 없습니다. 다음 작업은 Phase A의 exact contract/reference lock과 Phase B의 current-IR system migration
-definition을 파일 소유권을 나눠 병렬 구현하는 것입니다. Phase A가 locked aggregate를 게시하고 Phase B가 SQLite/PostgreSQL
-explicit migrate/reopen/no-auto-DDL을 통과한 뒤 durable Store와 transactional audit를 통합합니다.
+GDJ-0045가 유일한 active packet이고 ready packet은 0입니다. ADR-0047과 DEV-0008은 Proposed입니다. Current source는
+SYS-001..012를 global registry/Makefile/`godjcheck`에 게시했고 local actual A/B는 각각 12,944 bytes/SHA-256
+`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. SQLite A/B/C
+distinct-process, affected normal/race/CGO0/vet, generated drift와 pinned uv 0.10.12 Django oracle no-rewrite가 통과했습니다.
+Relation-product inventory는 1,034 run/pass, skip 0, 106,767 bytes/SHA-256
+`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다. 다음 작업은 독립 source audit을
+닫고 frozen source commit에서 full `make ci`, all-package Linux/386 compile-only와 repository-external archive를 한 번 실행한 뒤,
+Draft PR을 non-force push하여 required PostgreSQL distinct-process와 exact hosted matrix를 검증하는 것입니다.

@@ -1,7 +1,7 @@
 # ADR-0047: Explicit Single-Runtime System State
 
 - 상태: Proposed
-- 날짜: 2026-08-24
+- 날짜: 2026-08-25
 - 관련 work/contract: [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md),
   SYS-001..012, Q-020, M6
 - 선행 결정: [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md),
@@ -57,7 +57,8 @@ multi-process/direct writer는 명시적 비목표로 남깁니다.
 2. System schema는 current Auto/Char/Boolean IR만 사용한 admin credential, session, audit 세 모델입니다. String payload는
    current-only version tag, canonical encoding과 명시적 byte/item cap을 가지며 unknown/malformed/oversize를 거부합니다.
 3. DB/schema당 동시에 살아 있는 `systemstate.Runtime`은 하나입니다. Clean restart는 이전 runtime/listener/backend handle이 모두
-   종료된 뒤 새 runtime이 같은 DB를 여는 경우입니다.
+   종료된 뒤 새 runtime이 같은 DB를 여는 경우입니다. 이 topology는 lease/fence로 강제되지 않는 operator precondition이며
+   `Open`이 같은 DB의 두 번째 runtime을 자동 감지하거나 차단하지 않습니다.
 4. Admin row와 session digest는 DB `UNIQUE`가 아닌 non-null Char입니다. Process mutex + transaction의 0/1 lookup이 cooperative
    writer를 직렬화하고 2+행은 선택·삭제·덮어쓰기 없이 fail-closed합니다.
 5. First auth scope는 정확히 한 admin입니다. Empty table에서만 one-time bootstrap하고, restart에서는 principal/username/active/
@@ -73,8 +74,18 @@ multi-process/direct writer는 명시적 비목표로 남깁니다.
 10. Startup readiness는 applied migration identity, required table/field query 가능성과 strict stored-row decode를 확인합니다. General
     physical drift/index/type introspection 또는 online repair를 지원한다고 주장하지 않습니다.
 
-정확한 exported `systemstate` constructor/config/store 이름과 Article transaction hook shape는 Phase B~D compile/race prototype 뒤
-이 ADR을 Accepted로 전환할 때 동결합니다.
+현재 authority는 다음처럼 나뉩니다.
+
+| 경계 | 현재 소유하는 의미 | 소유하지 않는 의미 |
+|---|---|---|
+| Runtime mutex | 한 runtime의 cooperative check-then-act writer ordering, cardinality와 bounded capacity | 다른 process/runtime 또는 direct SQL writer |
+| DB transaction | callback 1회의 atomic commit/rollback, commit outcome unknown | global singleton/unique, stale read 방지와 distributed capacity |
+| Future DB constraint/lock/CAS | multi-runtime singleton/digest uniqueness, monotonic update와 shared capacity/prune | GDJ-0045 범위가 아니며 별도 packet 필요 |
+
+Current checkout은 exported `systemstate` constructor/config/store와 Article transaction hook을 구현하고
+SYS-001..012 global adapter까지 source-local로 게시했습니다. Local actual A/B는 12,944 bytes/SHA-256
+`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. Required
+PostgreSQL distinct-process와 final hosted matrix 전에는 이 구현 shape를 terminal Accepted 결정으로 표현하지 않습니다.
 
 ## 결과
 
@@ -92,12 +103,17 @@ multi-process/direct writer는 명시적 비목표로 남깁니다.
 - API-specific audit policy, general system settings/autodiscovery와 M6 completion
 - Production server/cookie/proxy/TLS와 multi-DB routing
 
+Multi-runtime을 채택하는 후속 결정은 credential singleton, session digest uniqueness, row-lock/conditional monotonic touch,
+shared capacity/reap/audit-prune, Article read-modify-write coordination과 목적별 versioned CSRF/Admin notice key ring을 함께 다룹니다.
+General `IntegerField`, revision/CAS 또는 HMAC session digest는 미리 전제하지 않습니다.
+
 ## 검증
 
-- [ ] SYS-001..012 exact reference/decision contracts와 Proposed DEV-0008 sparse selector
-- [ ] Explicit SQLite/PostgreSQL system migrate/reopen/no-op; missing schema에서 DDL/bootstrap/listener 0
-- [ ] Bootstrap idempotency/mismatch/duplicate/corrupt and secret-free failure
-- [ ] Digest-only Store, expiry/touch/capacity/reap/rotate/logout normal/race/fault tests
-- [ ] Article/audit same-transaction commit/rollback/unknown tests
-- [ ] Distinct process A/B/C SQLite와 PostgreSQL restart E2E, raw secret/log/temp leak 0
-- [ ] Affected normal/race/CGO0/vet, final full/386/external/audit와 exact hosted matrix
+- [x] SYS-001..012 exact reference/decision contracts, 11 passing + SYS-009 deviation source publication과
+      Proposed DEV-0008 exact four-selector expectation
+- [x] Explicit SQLite/PostgreSQL system migrate/reopen/no-op code와 missing-schema DDL/bootstrap/listener 0 tests
+- [x] Bootstrap idempotency/mismatch/duplicate/corrupt, commit-unknown reconciliation과 secret-free failure tests
+- [x] Digest-only Store, expiry/touch/capacity/reap/rotate/logout normal/race/fault tests
+- [x] Article/audit same-transaction commit/rollback/unknown tests
+- [ ] Distinct-process restart E2E: SQLite와 raw secret/log/temp leak 0은 local 통과; required PostgreSQL hosted pending
+- [ ] Affected local checks와 actual A/B는 통과; final full/386/external/audit 및 exact hosted matrix pending

@@ -171,7 +171,10 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 	if now.IsZero() {
 		return Record{}, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
 	}
-	if current.expired(now) {
+	// Absolute expiry is immutable, so a detached snapshot can decide it safely.
+	// Idle expiry can have advanced through a concurrent Load/Touch after current
+	// was detached; Store.Rotate owns the authoritative atomic expiry decision.
+	if !current.absoluteExpiresAt.After(now) {
 		if err := m.store.Delete(ctx, current.id); err != nil {
 			return Record{}, storeFailure("delete expired", err)
 		}
@@ -193,7 +196,7 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 			current.absoluteExpiresAt,
 			minimumTime(now.Add(m.idleTimeout), current.absoluteExpiresAt),
 		)
-		rotated, err := m.store.Rotate(ctx, current.id, replacement)
+		published, rotated, err := m.store.Rotate(ctx, current.id, replacement)
 		if err != nil {
 			var classified *Error
 			if errors.As(err, &classified) && classified.Code == CodeEntropy {
@@ -204,7 +207,10 @@ func (m *Manager) Rotate(ctx context.Context, current Record) (Record, error) {
 		if !rotated {
 			return Record{}, &Error{Code: CodeNotFound, Detail: "session is missing or was already rotated"}
 		}
-		return replacement.clone(), nil
+		if !published.valid(m.limits) || published.id != replacement.id {
+			return Record{}, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid rotated session record"}
+		}
+		return published.clone(), nil
 	}
 	return Record{}, &Error{Code: CodeEntropy, Detail: "session rotation collision limit was reached"}
 }

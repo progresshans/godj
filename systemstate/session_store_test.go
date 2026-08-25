@@ -100,15 +100,28 @@ func TestDurableSessionStoreExplicitMigrationRestartAndBearerFreeRows(t *testing
 		touched.AbsoluteExpiresAt(),
 		touched.IdleExpiresAt().Add(time.Minute),
 	)
-	if rotated, err := secondStore.Rotate(ctx, oldID, replacement); err != nil || !rotated {
+	// The replacement was detached before a later confirmed access. Rotate must
+	// merge that stored touch atomically instead of publishing stale timestamps.
+	latest, found, err := secondStore.Touch(ctx, oldID, createdAt.Add(10*time.Minute), createdAt.Add(40*time.Minute))
+	if err != nil || !found {
 		_ = secondBackend.Close()
-		t.Fatalf("Rotate() = (%v,%v), want true/nil", rotated, err)
+		t.Fatalf("Touch(after detached replacement) = (%v,%v,%v)", latest, found, err)
+	}
+	published, rotated, err := secondStore.Rotate(ctx, oldID, replacement)
+	if err != nil || !rotated {
+		_ = secondBackend.Close()
+		t.Fatalf("Rotate() = (%v,%v,%v), want record/true/nil", published, rotated, err)
+	}
+	if !published.AccessedAt().Equal(latest.AccessedAt()) || !published.IdleExpiresAt().Equal(latest.IdleExpiresAt()) {
+		_ = secondBackend.Close()
+		t.Fatalf("Rotate() regressed latest touch: published=%v latest=%v", published, latest)
 	}
 	if _, found, err := secondStore.Load(ctx, oldID); err != nil || found {
 		_ = secondBackend.Close()
 		t.Fatalf("Load(old after rotate) = found %v/error %v", found, err)
 	}
-	if got, found, err := secondStore.Load(ctx, newID); err != nil || !found || got.ID() != newID {
+	if got, found, err := secondStore.Load(ctx, newID); err != nil || !found || got.ID() != newID ||
+		!got.AccessedAt().Equal(latest.AccessedAt()) || !got.IdleExpiresAt().Equal(latest.IdleExpiresAt()) {
 		_ = secondBackend.Close()
 		t.Fatalf("Load(new after rotate) = (%v,%v,%v)", got, found, err)
 	}
@@ -172,7 +185,16 @@ func TestDurableSessionStoreCapacityReapAndRotateRollback(t *testing.T) {
 
 	injectedFailure := errors.New("injected replacement insert failure")
 	gate.failNextInsert = injectedFailure
-	if rotated, err := store.Rotate(ctx, activeID, other); err == nil || rotated || !errors.Is(err, injectedFailure) {
+	rotation := mustSessionStoreRecord(
+		t,
+		otherID,
+		other.Values(),
+		active.CreatedAt(),
+		active.AccessedAt(),
+		active.AbsoluteExpiresAt(),
+		active.IdleExpiresAt(),
+	)
+	if _, rotated, err := store.Rotate(ctx, activeID, rotation); err == nil || rotated || !errors.Is(err, injectedFailure) {
 		t.Fatalf("Rotate(injected insert failure) = (%v,%v)", rotated, err)
 	}
 	if current, found, err := store.Load(ctx, activeID); err != nil || !found || current.ID() != activeID {

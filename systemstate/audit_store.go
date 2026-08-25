@@ -145,24 +145,68 @@ func (row persistedAuditRow) entry() (admin.AuditEntry, error) {
 }
 
 func inspectAuditTable(ctx context.Context, queryer db.Queryer, capacity int) (bool, error) {
-	rows, err := queryAuditRows(ctx, queryer, "", 0, capacity+1, query.Ascending)
+	plan := query.NewPlan(auditTableName, auditFieldRefs).
+		WithOrderings(query.NewOrdering(auditIDRef, query.Ascending))
+	plan, err := plan.WithLimit(capacity + 1)
 	if err != nil {
 		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
 	}
-	if len(rows) > capacity {
-		return false, cardinalityFailure("audit", "stored audit history exceeds configured capacity")
+	result, err := queryer.Query(ctx, plan)
+	if err != nil {
+		if result != nil {
+			_ = result.Close()
+		}
+		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
 	}
+	if result == nil {
+		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: errors.New("backend returned nil rows")}
+	}
+
+	count := 0
 	var previous int64
-	for _, row := range rows {
+	for result.Next() {
+		if err := ctx.Err(); err != nil {
+			_ = result.Close()
+			return false, err
+		}
+		var row persistedAuditRow
+		if err := result.Scan(
+			&row.id,
+			&row.actorID,
+			&row.model,
+			&row.objectID,
+			&row.action,
+			&row.changedFields,
+			&row.displayLabel,
+		); err != nil {
+			_ = result.Close()
+			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "stored audit row cannot be decoded", Cause: err}
+		}
+		count++
+		if count > capacity {
+			_ = result.Close()
+			return false, cardinalityFailure("audit", "stored audit history exceeds configured capacity")
+		}
 		if row.id <= previous {
+			_ = result.Close()
 			return false, cardinalityFailure("audit", "stored audit sequences are not strictly increasing")
 		}
 		if _, err := row.entry(); err != nil {
+			_ = result.Close()
 			return false, err
 		}
 		previous = row.id
 	}
-	return len(rows) != 0, nil
+	if err := ctx.Err(); err != nil {
+		_ = result.Close()
+		return false, err
+	}
+	iterationErr := result.Err()
+	closeErr := result.Close()
+	if iterationErr != nil || closeErr != nil {
+		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: errors.Join(iterationErr, closeErr)}
+	}
+	return count != 0, nil
 }
 
 func queryAuditRows(

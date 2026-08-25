@@ -110,27 +110,58 @@ func (s *MemoryStore) Touch(ctx context.Context, id ID, accessedAt, idleExpiresA
 	return record.clone(), true, nil
 }
 
-func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) (bool, error) {
+func (s *MemoryStore) Rotate(ctx context.Context, oldID ID, replacement Record) (Record, bool, error) {
 	if err := validStoreCall(ctx, s, oldID); err != nil {
-		return false, err
+		return Record{}, false, err
 	}
 	if !replacement.id.Valid() || replacement.id == oldID {
-		return false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "replacement session identifier is invalid"}
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "replacement session identifier is invalid"}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := ctx.Err(); err != nil {
-		return false, err
+		return Record{}, false, err
 	}
-	if _, exists := s.records[oldID]; !exists {
-		return false, nil
+	current, exists := s.records[oldID]
+	if !exists {
+		return Record{}, false, nil
+	}
+	if !replacement.createdAt.Equal(current.createdAt) || !replacement.absoluteExpiresAt.Equal(current.absoluteExpiresAt) {
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "rotation must preserve creation and absolute expiry"}
+	}
+	rotationAt := replacement.accessedAt
+	if current.expired(rotationAt) {
+		delete(s.records, oldID)
+		return Record{}, false, nil
 	}
 	if _, collision := s.records[replacement.id]; collision {
-		return false, &Error{Code: CodeEntropy, Detail: "replacement session identifier collided"}
+		return Record{}, false, &Error{Code: CodeEntropy, Detail: "replacement session identifier collided"}
 	}
+	accessedAt := replacement.accessedAt
+	if accessedAt.Before(current.accessedAt) {
+		accessedAt = current.accessedAt
+	}
+	idleExpiresAt := replacement.idleExpiresAt
+	if idleExpiresAt.Before(current.idleExpiresAt) {
+		idleExpiresAt = current.idleExpiresAt
+	}
+	if idleExpiresAt.After(current.absoluteExpiresAt) {
+		idleExpiresAt = current.absoluteExpiresAt
+	}
+	if !current.absoluteExpiresAt.After(accessedAt) || !idleExpiresAt.After(accessedAt) {
+		return Record{}, false, &Error{Code: CodeInvalidRecord, Field: "replacement", Detail: "rotated session timestamps are invalid"}
+	}
+	published := newRecord(
+		replacement.id,
+		replacement.values,
+		current.createdAt,
+		accessedAt,
+		current.absoluteExpiresAt,
+		idleExpiresAt,
+	)
 	delete(s.records, oldID)
-	s.records[replacement.id] = replacement.clone()
-	return true, nil
+	s.records[replacement.id] = published.clone()
+	return published.clone(), true, nil
 }
 
 func (s *MemoryStore) Delete(ctx context.Context, id ID) error {

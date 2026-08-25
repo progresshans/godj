@@ -22,6 +22,8 @@ func deviationPolicyForDecision(decision string) (protocol.DeviationPolicy, erro
 		return parameterRoutingDeviationPolicy(), nil
 	case "DEV-0007":
 		return articleAPIDeviationPolicy(), nil
+	case "DEV-0008":
+		return systemStateDeviationPolicy(), nil
 	default:
 		return protocol.DeviationPolicy{}, fmt.Errorf("unsupported deviation decision %q", decision)
 	}
@@ -199,6 +201,23 @@ func articleAPIDeviationPolicy() protocol.DeviationPolicy {
 				ID: "API-010",
 				Changes: []protocol.DeviationChangePolicy{
 					{Dimension: protocol.DeviationResult, Path: "missing_csrf.error_codes.detail", Operation: protocol.DeviationReplace},
+				},
+			},
+		},
+	}
+}
+
+func systemStateDeviationPolicy() protocol.DeviationPolicy {
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0008",
+		Contracts: []protocol.DeviationContractPolicy{
+			{
+				ID: "SYS-009",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "pre_restart.accepted", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "pre_restart.status", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationDBState, Path: "pre_restart.article_delta", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationMetrics, Path: "pre_restart_mutations", Operation: protocol.DeviationReplace},
 				},
 			},
 		},

@@ -352,6 +352,41 @@ func TestRuntimeRequiresExactMigrationAndNeverCreatesOrRepairsSchema(t *testing.
 	})
 }
 
+func TestRuntimeBootstrapCommitUnknownIsNotRetriedOrMisclassifiedAsSchemaMissing(t *testing.T) {
+	ctx := context.Background()
+	database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "bootstrap-unknown.sqlite3"))+"?mode=rwc")
+	t.Cleanup(func() { _ = database.Close() })
+	explicitlyMigrateSystemState(t, ctx, database)
+	backend := &bootstrapUnknownRuntimeBackend{Backend: database}
+	config := runtimeTestConfig(t, "bootstrap-unknown-password-secret-marker")
+
+	runtime, err := Open(ctx, backend, config)
+	if runtime != nil || err == nil {
+		t.Fatalf("Open(commit unknown) = (%v,%v), want nil/error", runtime, err)
+	}
+	if !errors.Is(err, &Error{Code: CodePersistence, Field: "credential"}) ||
+		errors.Is(err, &Error{Code: CodeSchemaUnavailable}) {
+		t.Fatalf("Open(commit unknown) classification = %#v", err)
+	}
+	var outcome *query.Error
+	if !errors.As(err, &outcome) || outcome.Code != query.CodeCommitOutcomeUnknown {
+		t.Fatalf("Open(commit unknown) lost reconciliation marker: %#v", err)
+	}
+	if got := backend.atomicCalls.Load(); got != 1 {
+		t.Fatalf("Atomic calls = %d, want exactly 1", got)
+	}
+	if got := backend.callbackCalls.Load(); got != 1 {
+		t.Fatalf("Atomic callback calls = %d, want exactly 1", got)
+	}
+	rows, readErr := readCredentialRows(ctx, database)
+	if readErr != nil || len(rows) != 1 {
+		t.Fatalf("physical rows after commit unknown = (%d,%v), want one reconciliation row", len(rows), readErr)
+	}
+	if reopened, reopenErr := Open(ctx, database, config); reopenErr != nil || reopened == nil {
+		t.Fatalf("Open(reconcile by restart) = (%v,%v)", reopened, reopenErr)
+	}
+}
+
 func TestRuntimeGateSerializesAtomicCallsAndValidatesBeforeBackend(t *testing.T) {
 	ctx := context.Background()
 	backend := &serialRuntimeBackend{}
@@ -450,6 +485,27 @@ type observedRuntimeBackend struct {
 	insertCalls atomic.Int64
 	updateCalls atomic.Int64
 	deleteCalls atomic.Int64
+}
+
+type bootstrapUnknownRuntimeBackend struct {
+	*sqlite.Backend
+	atomicCalls   atomic.Int64
+	callbackCalls atomic.Int64
+}
+
+func (backend *bootstrapUnknownRuntimeBackend) Atomic(ctx context.Context, callback func(db.Session) error) error {
+	backend.atomicCalls.Add(1)
+	if err := backend.Backend.Atomic(ctx, func(session db.Session) error {
+		backend.callbackCalls.Add(1)
+		return callback(session)
+	}); err != nil {
+		return err
+	}
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeCommitOutcomeUnknown,
+		Detail:   "injected bootstrap commit outcome unknown",
+	}
 }
 
 func (backend *observedRuntimeBackend) Atomic(ctx context.Context, callback func(db.Session) error) error {

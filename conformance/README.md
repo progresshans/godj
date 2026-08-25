@@ -151,6 +151,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/article-admin-manifest.json` | ADM-001..010 bounded Article Admin contract; 9 passing + 1 DEV-0005 |
 | `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
 | `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
+| `contracts/system-state-manifest.json` | SYS-001..012 durable single-runtime system-state contract; 11 passing + SYS-009 DEV-0008 deviation |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -250,16 +251,60 @@ WEB-028/029의 eight sparse selectors는 Verified DEV-0006, API-001/003/010의 s
 DEV-0007만 허용하고 root-list comparator도 selector/type/count를 fail-closed하게 검증합니다. 두 actual comparison은
 각각 8/8과 10/10에서 unexpected difference 0입니다.
 
-Current global reference는 20 sets/219 contracts/380 ordered bindings=`192 passing + 15 deviation + 12
-oracle_locked`, product는 19 adapters/207 contracts=`192 passing + 15 deviation`입니다. MIG-075..086은 계속
-locked/unregistered입니다. Four-coordinate relation inventory는 1,017/1,017/0, 104,782 bytes, SHA-256
-`38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9`입니다.
+Current checkout의 global reference는 21 sets/231 contracts/420 ordered bindings=`203 passing + 16 deviation + 12
+oracle_locked`, product는 20 adapters/219 contracts=`203 passing + 16 deviation`입니다. SYS-001..012 actual은
+global registry/Makefile에 게시됐고 MIG-075..086만 계속 locked/unregistered입니다. Four-coordinate relation
+inventory는 1,034/1,034/0, 106,767 bytes, SHA-256
+`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다.
 
 Final local `make ci`, Linux/386, external archive와 source audit는
 [EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint), exact
 27/27 jobs·359/359 steps hosted gate와 PostgreSQL/runserver sentinels는 EVID-126에 기록됩니다. OpenAPI,
 browsable API, token auth, nested/bulk serializer, durable system state, Channels/Realtime와 M7/M8 completion은 이
 gate가 증명하지 않습니다.
+
+## GDJ-0045 durable system-state reference gate
+
+`system-state-manifest.json`은 SYS-001..012를 mixed authority로 고정합니다. Django 6.1은 durable
+credential/session/logout/Admin audit 관찰을, Proposed ADR-0047은 GoDj 운영 경계를 소유합니다. SYS-008의 durable
+logout 의미는 Django authority이고 anonymous JSON API 403은 기존 Accepted ADR-0046 authority입니다. SYS-009의
+restart 전 masked token 네 selector만 Proposed DEV-0008 expected로 닫습니다. Current source manifest는
+SYS-001..008/010..012 `passing`과 SYS-009 `deviation`이고, Go actual은 global registry, Makefile과
+`godjcheck` fail-closed deviation policy에 게시됐습니다. 이는 source-local publication 상태이며 ADR-0047 acceptance,
+DEV-0008 Verified 또는 GDJ-0045 hosted completion을 뜻하지 않습니다.
+
+현재 manifest/oracle은 각각 7,730/13,099 bytes와 SHA-256
+`f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`/
+`4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb`입니다. Local global actual A/B는 각각
+12,944 bytes, SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical하고
+12 contracts가 DEV-0008 reviewed product expectation과 일치했습니다. Exact profile에서 oracle을
+재생성하거나 checked-in bytes를 검증하려면 historical uv 0.10.12를 명시해 다음을 사용합니다.
+
+```bash
+LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \
+  python -m conformance.systemstate.reference --write
+LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \
+  python -m conformance.systemstate.reference
+LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \
+  python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/system-state-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json --check
+go test ./conformance/internal/protocol ./conformance/runners/godj \
+  ./conformance/systemstate/restart -count=1
+tmpdir="$(mktemp -d)"
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/system-state-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json \
+  -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json \
+  -actual-output "$tmpdir/system-state-actual.json"
+```
+
+일반 uv 0.12.3은 portable test에는 사용할 수 있지만 embedded exact profile의 oracle regeneration은 version mismatch로
+fail-closed합니다. SQLite distinct-process restart actual은 로컬에서 통과했습니다. PostgreSQL sentinel은
+`GODJ_TEST_POSTGRES_URL` 및 required lane의 `GODJ_REQUIRE_POSTGRES=1`을 사용하며, current publication bytes의
+hosted PostgreSQL 실행과 final matrix는 아직 pending입니다.
 
 ## Exact profile
 

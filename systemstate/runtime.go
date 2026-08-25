@@ -343,7 +343,19 @@ func credentialCardinalityError() error {
 }
 
 func redactAtomicFailure(err error) error {
-	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	if err == nil {
+		return err
+	}
+	var outcome *query.Error
+	if errors.As(err, &outcome) && outcome.Code == query.CodeCommitOutcomeUnknown {
+		return &Error{
+			Code:   CodePersistence,
+			Field:  "credential",
+			Detail: "bootstrap credential transaction outcome is unknown; reconciliation is required",
+			Cause:  err,
+		}
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
 	var stateError *Error

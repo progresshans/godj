@@ -33,6 +33,7 @@ func TestErrorRenderingAndJSONNeverExposeCause(t *testing.T) {
 		fmt.Sprint(err),
 		fmt.Sprintf("%+v", err),
 		fmt.Sprintf("%#v", err),
+		fmt.Sprintf("%#v", *err),
 		string(encoded),
 	}
 	for _, value := range rendered {

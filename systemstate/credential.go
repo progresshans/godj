@@ -69,11 +69,11 @@ var (
 // by Runtime or rendered through String/GoString.
 type BootstrapConfig struct {
 	Username       string
-	Password       string
+	Password       string `json:"-"`
 	PrincipalID    string
 	Active         bool
 	Permissions    []auth.Permission
-	PasswordHasher auth.PasswordHasher
+	PasswordHasher auth.PasswordHasher `json:"-"`
 	SessionLimits  sessions.Limits
 	MaxSessions    int
 	AuditCapacity  int

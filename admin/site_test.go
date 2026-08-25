@@ -286,10 +286,14 @@ func TestSiteRecoversFromAmbiguousSessionCookiesOnLoginAndLogout(t *testing.T) {
 		}
 	})
 
-	t.Run("logout returns deletion cookies", func(t *testing.T) {
+	t.Run("logout flushes valid duplicate and returns deletion cookies", func(t *testing.T) {
 		harness := newSiteApplicationHarness(t, 2)
 		client := newSiteHTTPClient(harness.application)
 		client.login(t, "admin", "secret", "/admin/")
+		validID, err := sessions.ParseID(client.cookieValue(sessionauth.DefaultSessionCookieName))
+		if err != nil {
+			t.Fatal(err)
+		}
 		index := client.do(http.MethodGet, "/admin/", nil)
 		harness.store.resetCounts()
 		response := siteServeWithAdditionalCookies(
@@ -309,8 +313,11 @@ func TestSiteRecoversFromAmbiguousSessionCookiesOnLoginAndLogout(t *testing.T) {
 				t.Fatalf("ambiguous-cookie logout deletion %q = %#v", name, cookie)
 			}
 		}
-		if counts := harness.store.counts(); counts.deletes != 0 || counts.loads != 0 {
-			t.Fatalf("ambiguous-cookie logout selected a server session: %#v", counts)
+		if counts := harness.store.counts(); counts.deletes != 1 || counts.loads != 0 {
+			t.Fatalf("ambiguous-cookie logout store counts = %#v, want one delete and zero loads", counts)
+		}
+		if _, found, err := harness.store.Store.Load(context.Background(), validID); err != nil || found {
+			t.Fatalf("valid duplicate session survived logout: found=%v err=%v", found, err)
 		}
 	})
 }
@@ -653,7 +660,7 @@ func (store *siteCountingStore) Touch(ctx context.Context, id sessions.ID, acces
 	return store.Store.Touch(ctx, id, accessedAt, idleExpiresAt)
 }
 
-func (store *siteCountingStore) Rotate(ctx context.Context, id sessions.ID, replacement sessions.Record) (bool, error) {
+func (store *siteCountingStore) Rotate(ctx context.Context, id sessions.ID, replacement sessions.Record) (sessions.Record, bool, error) {
 	store.mu.Lock()
 	store.rotates++
 	store.mu.Unlock()

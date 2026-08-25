@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-24
+- 마지막 검토: 2026-08-25
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -216,10 +216,12 @@ Form과 Serializer는 validation primitive를 공유할 수 있지만 공개 API
 Active [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 이 목록 전체가 아니라
 single-runtime system state의 첫 durable 단면입니다. Proposed
 [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)에 따라 current migration으로 admin credential/session/audit 세
-table을 명시 적용하고 clean restart 뒤 Article Admin/API authentication, logout과 Admin audit history를 복구하는
-SYS-001..012를 검증합니다. DB/schema당 one live runtime, sequential restart, digest-only bearer storage와 Article/audit
-same-transaction만 범위이며 user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed session, persistent
-CSRF key와 production 운영은 아직 지원하지 않습니다.
+table을 명시 적용하고 clean restart 뒤 Article Admin/API authentication, logout과 Admin audit history를 복구하는 구현이
+source-local publication까지 도달했습니다. SYS-001..012 global adapter는 11 `passing` + SYS-009 Proposed DEV-0008
+`deviation`이고 SQLite distinct-process actual이 통과했지만 required PostgreSQL/hosted acceptance는 pending입니다.
+DB/schema당 one live runtime, sequential restart, digest-only bearer storage와 Article/audit same-transaction만 범위이며
+user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed session, persistent CSRF key와 production 운영은
+아직 지원하지 않습니다.
 
 ## API
 

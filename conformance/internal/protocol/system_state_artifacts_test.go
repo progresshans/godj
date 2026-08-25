@@ -46,11 +46,11 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
-		"conformance/contracts/system-state-manifest.json":                     {7657, "528a19b4a46a157a8a162ed1825b6430ef01edf5da605087c559e9a45c483506"},
+		"conformance/contracts/system-state-manifest.json":                     {7730, "f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44"},
 		"conformance/fixtures/godj-system-state-not-implemented.json":          {1838, "aa95b3551b576f74aa537eb52355ea550ff0fdc0b96e0afd2c155b332bf9dc6e"},
 		"conformance/fixtures/godj-system-state-deviation-expected.json":       {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {13099, "933826b579aa3822d9e99f031a9a642797bfb7799eb81a274012867f9fdd1745"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {1791, "59e4aba5aaf38aaafcb308600d557447194f030d3816116982a71b2c0af7cffd"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {13099, "4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {1791, "6c0a8332929a09579ca9b1cb45c2ae0f250bf9002370a72371c3cc1e6bc5753c"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -87,12 +87,20 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 		"SYS-003": true, "SYS-004": true, "SYS-008": true,
 		"SYS-009": true, "SYS-010": true, "SYS-011": true,
 	}
+	passing, deviations := 0, 0
 	for index, contract := range manifest.Contracts {
 		if contract.ID != systemStateIDs[index] || contract.Scenario != systemStateScenarios[index] || contract.Phase != systemStatePhases[index] {
 			t.Fatalf("system-state contract %d binding = %#v", index, contract)
 		}
-		if contract.Status != ContractOracleLocked {
-			t.Fatalf("contract %s status = %q, want oracle_locked", contract.ID, contract.Status)
+		wantStatus := ContractPassing
+		if contract.ID == "SYS-009" {
+			wantStatus = ContractDeviation
+			deviations++
+		} else {
+			passing++
+		}
+		if contract.Status != wantStatus {
+			t.Fatalf("contract %s status = %q, want %q", contract.ID, contract.Status, wantStatus)
 		}
 		wantComparisons := []ComparisonDimension{CompareResult, CompareDBState, CompareMetrics}
 		if !reflect.DeepEqual(contract.Comparison, wantComparisons) {
@@ -107,6 +115,9 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 		if locked.ID != contract.ID || locked.Status != StatusNotImplemented || locked.Phase != contract.Phase || locked.Result != nil || locked.Error != nil || locked.DBState != nil || locked.Metrics != nil {
 			t.Fatalf("system-state baseline contract %d is not payload-free: %#v", index, locked)
 		}
+	}
+	if passing != 11 || deviations != 1 {
+		t.Fatalf("system-state product classification = %d passing + %d deviation, want 11 + 1", passing, deviations)
 	}
 	differences, err := Compare(profile, manifest, oracle, baseline)
 	if err != nil {
@@ -125,7 +136,7 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	}
 }
 
-func TestSystemStateProposedDeviationHasExactlyFourOracleBoundSelectors(t *testing.T) {
+func TestSystemStateReviewedDeviationHasExactlyFourOracleBoundSelectors(t *testing.T) {
 	t.Parallel()
 
 	profile, manifest, oracle, _, deviation := loadSystemStateArtifacts(t)
@@ -167,7 +178,7 @@ func TestSystemStateProposedDeviationHasExactlyFourOracleBoundSelectors(t *testi
 		t.Fatal(err)
 	}
 	if len(differences) != 4 {
-		t.Fatalf("proposed SYS-009 candidate differences = %d, want 4: %#v", len(differences), differences)
+		t.Fatalf("reviewed SYS-009 product differences = %d, want 4: %#v", len(differences), differences)
 	}
 	fresh := objectField(t, actual.Contracts[contractIndex].Result, "fresh")
 	*objectField(t, fresh, "accepted") = Boolean(false)
@@ -177,6 +188,69 @@ func TestSystemStateProposedDeviationHasExactlyFourOracleBoundSelectors(t *testi
 	}
 	if len(differences) != 5 {
 		t.Fatalf("fresh-token scope escape differences = %d, want 5", len(differences))
+	}
+}
+
+func TestSystemStateDeviationExpectationBuildsClosedProductAndRejectsSelectorEscape(t *testing.T) {
+	t.Parallel()
+
+	profile, manifest, oracle, _, expectation := loadSystemStateArtifacts(t)
+	policy := DeviationPolicy{
+		Decision: "DEV-0008",
+		Contracts: []DeviationContractPolicy{{
+			ID: "SYS-009",
+			Changes: []DeviationChangePolicy{
+				{Dimension: DeviationResult, Path: "pre_restart.accepted", Operation: DeviationReplace},
+				{Dimension: DeviationResult, Path: "pre_restart.status", Operation: DeviationReplace},
+				{Dimension: DeviationDBState, Path: "pre_restart.article_delta", Operation: DeviationReplace},
+				{Dimension: DeviationMetrics, Path: "pre_restart_mutations", Operation: DeviationReplace},
+			},
+		}},
+	}
+	effective, product, err := PrepareDeviationExpectation(profile, manifest, oracle, expectation, policy)
+	if err != nil {
+		t.Fatalf("prepare DEV-0008 expectation: %v", err)
+	}
+	differences, err := Compare(profile, effective, oracle, product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) != 4 {
+		t.Fatalf("DEV-0008 prepared differences = %d, want 4: %#v", len(differences), differences)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*DeviationExpectation)
+	}{
+		{
+			name: "missing selector",
+			mutate: func(candidate *DeviationExpectation) {
+				candidate.Contracts[0].Changes = candidate.Contracts[0].Changes[:3]
+			},
+		},
+		{
+			name: "extra selector",
+			mutate: func(candidate *DeviationExpectation) {
+				candidate.Contracts[0].Changes = append(candidate.Contracts[0].Changes, candidate.Contracts[0].Changes[0])
+			},
+		},
+		{
+			name: "fresh lane escape",
+			mutate: func(candidate *DeviationExpectation) {
+				candidate.Contracts[0].Changes[0].Path = "fresh.accepted"
+			},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			candidate := cloneDeviationExpectation(t, expectation)
+			test.mutate(&candidate)
+			if _, _, err := PrepareDeviationExpectation(profile, manifest, oracle, candidate, policy); err == nil {
+				t.Fatal("invalid DEV-0008 selector set produced a false green")
+			}
+		})
 	}
 }
 
@@ -236,6 +310,13 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 		"conformance/runners/django/system_state_scenarios.py",
 		"conformance/runners/django/system_state_worker.py",
 		"conformance/runners/django/system_state_fixture/urls.py",
+		"conformance/runners/godj/gdj0045_system_state_scenarios.go",
+		"conformance/runners/godj/gdj0045_system_state_worker.go",
+		"conformance/systemstate/worker/protocol.go",
+		"conformance/systemstate/worker/worker.go",
+		"conformance/systemstate/worker/application.go",
+		"conformance/systemstate/worker/actions.go",
+		"conformance/systemstate/worker/cmd/main.go",
 	} {
 		source, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
 		if err != nil {
@@ -331,7 +412,7 @@ func TestCurrentTwentyOneReferenceSetsHave231ContractsAndReject420OrderedCrossBi
 			}
 		}
 	}
-	if len(sets) != 21 || total != 231 || len(ids) != 231 || len(scenarios) != 231 || passing != 192 || deviations != 15 || locked != 24 {
+	if len(sets) != 21 || total != 231 || len(ids) != 231 || len(scenarios) != 231 || passing != 203 || deviations != 16 || locked != 12 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 	crossBindings := 0
@@ -351,7 +432,7 @@ func TestCurrentTwentyOneReferenceSetsHave231ContractsAndReject420OrderedCrossBi
 	}
 }
 
-func TestSystemStateReferenceOnlyMakeAndWorkflowWiringIsExact(t *testing.T) {
+func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -392,18 +473,20 @@ func TestSystemStateReferenceOnlyMakeAndWorkflowWiringIsExact(t *testing.T) {
 	if got := strings.Count(referenceTarget, "$(SYSTEM_STATE_NOT_IMPLEMENTED)"); got != 1 {
 		t.Fatalf("reference system-state NI count = %d, want 1", got)
 	}
-	for _, variable := range []string{
-		"$(SYSTEM_STATE_MANIFEST)",
-		"$(SYSTEM_STATE_ORACLE)",
-		"$(SYSTEM_STATE_NOT_IMPLEMENTED)",
-		"$(SYSTEM_STATE_DEVIATION_EXPECTED)",
+	for variable, want := range map[string]int{
+		"$(SYSTEM_STATE_MANIFEST)":           1,
+		"$(SYSTEM_STATE_ORACLE)":             1,
+		"$(SYSTEM_STATE_DEVIATION_EXPECTED)": 1,
 	} {
-		if strings.Contains(productTarget, variable) {
-			t.Fatalf("reference-only system-state variable %s leaked into product target", variable)
+		if got := strings.Count(productTarget, variable); got != want {
+			t.Fatalf("product system-state variable %s count = %d, want %d", variable, got, want)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
-		t.Fatalf("product adapter count = %d, want frozen 19", got)
+	if strings.Contains(productTarget, "$(SYSTEM_STATE_NOT_IMPLEMENTED)") {
+		t.Fatal("product system-state adapter uses the not-implemented fixture")
+	}
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 20 {
+		t.Fatalf("product adapter count = %d, want 20", got)
 	}
 	for name, target := range map[string]string{
 		"oracle-check":      oracleCheckTarget,
@@ -483,13 +566,16 @@ func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite
 
 func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthority bool) {
 	t.Helper()
-	adrCount, djangoCount, devCount := 0, 0, 0
+	adrCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0
 	for _, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			t.Fatalf("contract %s provenance is not independent: %#v", contract.ID, provenance)
 		}
-		if provenance.Kind == "proposal" && provenance.Reference == "ADR-0047" && provenance.License == "" {
+		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0047" && provenance.License == "" {
 			adrCount++
+		}
+		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0046" && provenance.License == "" {
+			apiBoundaryCount++
 		}
 		if strings.HasPrefix(provenance.Reference, "django@fe0a859f537d4238cf49fca39073513206f83122:") {
 			djangoCount++
@@ -499,13 +585,22 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		}
 		if provenance.Reference == "DEV-0008" {
 			devCount++
-			if provenance.Kind != "proposal" || provenance.License != "" {
+			if provenance.Kind != "decision" || provenance.License != "" {
 				t.Fatalf("contract %s DEV-0008 provenance = %#v", contract.ID, provenance)
 			}
 		}
+		if provenance.Kind == "decision" && provenance.Reference != "DEV-0008" {
+			t.Fatalf("contract %s carries unrelated decision provenance: %#v", contract.ID, provenance)
+		}
 	}
 	if adrCount != 1 {
-		t.Fatalf("contract %s Proposed ADR-0047 count = %d, want 1", contract.ID, adrCount)
+		t.Fatalf("contract %s ADR-0047 documentation count = %d, want 1", contract.ID, adrCount)
+	}
+	if contract.ID == "SYS-008" && apiBoundaryCount != 1 {
+		t.Fatalf("SYS-008 Accepted ADR-0046 count = %d, want 1", apiBoundaryCount)
+	}
+	if contract.ID != "SYS-008" && apiBoundaryCount != 0 {
+		t.Fatalf("contract %s unexpectedly carries ADR-0046", contract.ID)
 	}
 	if djangoAuthority && djangoCount == 0 {
 		t.Fatalf("contract %s lacks exact Django authority", contract.ID)
@@ -514,7 +609,7 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		t.Fatalf("contract %s decision authority carries %d Django references", contract.ID, djangoCount)
 	}
 	if contract.ID == "SYS-009" && devCount != 1 {
-		t.Fatalf("SYS-009 Proposed DEV-0008 count = %d, want 1", devCount)
+		t.Fatalf("SYS-009 DEV-0008 decision count = %d, want 1", devCount)
 	}
 	if contract.ID != "SYS-009" && devCount != 0 {
 		t.Fatalf("contract %s unexpectedly carries DEV-0008", contract.ID)

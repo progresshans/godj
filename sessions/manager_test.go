@@ -259,6 +259,32 @@ func TestMemoryStoreTouchDoesNotRegressUnderOutOfOrderCalls(t *testing.T) {
 	if !touched.AccessedAt().Equal(laterAccess) || !touched.IdleExpiresAt().Equal(laterExpiry) {
 		t.Fatalf("touch regressed: accessed=%v idle=%v", touched.AccessedAt(), touched.IdleExpiresAt())
 	}
+	newID, err := sessions.ParseID(strings.Repeat("A", 43))
+	if err != nil || newID == record.ID() {
+		t.Fatalf("replacement ID = %v error %v", newID, err)
+	}
+	replacement, err := sessions.RestoreRecord(sessions.RecordSnapshot{
+		ID:                newID,
+		Values:            touched.Values(),
+		CreatedAt:         touched.CreatedAt(),
+		AccessedAt:        now.Add(5 * time.Minute),
+		AbsoluteExpiresAt: touched.AbsoluteExpiresAt(),
+		IdleExpiresAt:     now.Add(15 * time.Minute),
+	}, sessions.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	published, rotated, err := store.Rotate(context.Background(), record.ID(), replacement)
+	if err != nil || !rotated {
+		t.Fatalf("rotate stale replacement = (%v,%v,%v)", published, rotated, err)
+	}
+	if !published.AccessedAt().Equal(laterAccess) || !published.IdleExpiresAt().Equal(laterExpiry) {
+		t.Fatalf("rotate regressed latest touch: accessed=%v idle=%v", published.AccessedAt(), published.IdleExpiresAt())
+	}
+	stored, found, err := store.Load(context.Background(), newID)
+	if err != nil || !found || !stored.AccessedAt().Equal(laterAccess) || !stored.IdleExpiresAt().Equal(laterExpiry) {
+		t.Fatalf("stored rotation = (%v,%v,%v)", stored, found, err)
+	}
 }
 
 func TestMemoryStoreConcurrentLifecycle(t *testing.T) {

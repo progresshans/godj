@@ -30,6 +30,7 @@ import (
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/systemstate"
 )
 
 const (
@@ -382,15 +383,19 @@ func prepareRunserverArticleDatabase(t *testing.T, repository, databasePath stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, report, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
-		Document: document,
-	})
+	loaded, report, err := migrationdefinition.Load(
+		migrationdefinition.Source{
+			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
+			Document: document,
+		},
+		systemstate.InitialDefinitionSource(),
+	)
 	if err != nil {
-		t.Fatalf("load Article initial migration: %v", err)
+		t.Fatalf("load Article and system initial migrations: %v", err)
 	}
-	if report.DefinitionsPublished != 1 || report.DefinitionSetsPublished != 1 {
-		t.Fatalf("Article initial migration load report = %+v", report)
+	if report.DocumentsReceived != 2 || report.HeadersValidated != 2 || report.OperationsDecoded != 4 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 2 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("Article and system initial migration load report = %+v", report)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -405,7 +410,7 @@ func prepareRunserverArticleDatabase(t *testing.T, repository, databasePath stri
 		}
 	}()
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
-		t.Fatalf("migrate external Article SQLite database: %v", err)
+		t.Fatalf("migrate external Article and system SQLite database: %v", err)
 	}
 	if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_conformance_article" ("id", "title", "published", "summary") VALUES
   (1, 'Go Launch', TRUE, NULL),
@@ -667,7 +672,10 @@ func verifyRunserverArticleDatabase(t *testing.T, databasePath string) {
 	if err := errors.Join(historyErr, articleErr, closeErr); err != nil {
 		t.Fatalf("inspect durable Article SQLite database: %v", err)
 	}
-	if len(history) != 1 || history[0].App != "godj_conformance" || history[0].Name != "0001_initial" {
+	systemMigration := systemstate.InitialMigrationKey()
+	if len(history) != 2 ||
+		history[0].App != "godj_conformance" || history[0].Name != "0001_initial" ||
+		history[1].App != systemMigration.App || history[1].Name != systemMigration.Name {
 		t.Fatalf("durable Article migration history = %+v", history)
 	}
 	expected := []struct {

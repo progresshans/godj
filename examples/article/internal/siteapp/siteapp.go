@@ -34,9 +34,9 @@ const (
 // Config is consumed during startup. The raw password is hashed before the
 // immutable application is returned and is never retained by the runtime.
 type Config struct {
-	Backend  systemstate.Backend
+	Backend  systemstate.Backend `json:"-"`
 	Username string
-	Password string
+	Password string `json:"-"`
 }
 
 func (Config) String() string   { return "siteapp.Config{redacted}" }

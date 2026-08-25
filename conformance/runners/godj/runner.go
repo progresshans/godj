@@ -107,6 +107,9 @@ func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
 	if handler, ok := articleAdminScenarioHandler(scenario); ok {
 		return handler, true
 	}
+	if handler, ok := systemStateScenarioHandler(scenario); ok {
+		return handler, true
+	}
 	if handler, ok := parameterRoutingScenarioHandler(scenario); ok {
 		return handler, true
 	}

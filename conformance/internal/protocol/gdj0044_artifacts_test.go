@@ -101,7 +101,7 @@ func TestGDJ0044ArtifactBytesAndExistingDjangoReferenceAreLocked(t *testing.T) {
 		"pyproject.toml": {227, "3076234a966a3bdbb3a0d775576764709632e2e160594040b1fee65d8ad591bd"},
 		"uv.lock":        {3162, "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7"},
 		"conformance/profiles/django-6.1-sqlite-darwin-arm64.json":                                    {879, "8b557bf935575f5366f4ebdc07441a8f4a3e2097f8af4a42450eb0fde12a5041"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {1791, "59e4aba5aaf38aaafcb308600d557447194f030d3816116982a71b2c0af7cffd"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {1791, "6c0a8332929a09579ca9b1cb45c2ae0f250bf9002370a72371c3cc1e6bc5753c"},
 		"conformance/reference/drf/pyproject.toml":                                                    {319, "46b3482056a64d2c9ac84320f047089c9c406d14d8bec7cf0e7a7b43f71be8b3"},
 		"conformance/reference/drf/uv.lock":                                                           {4199, "efc431a1585aaecd9099d40194980771b395bbe261370619f29b5ccf58728f8f"},
 		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                         {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},
@@ -394,8 +394,8 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 			t.Fatalf("oracle-regenerate %s count = %d, want 1", variable, got)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 19 {
-		t.Fatalf("product adapter count = %d, want 19", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 20 {
+		t.Fatalf("product adapter count = %d, want 20", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "--project conformance/reference/drf --frozen"); got != 2 {
 		t.Fatalf("nested DRF oracle-check command count = %d, want 2", got)

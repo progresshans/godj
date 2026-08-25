@@ -23,7 +23,7 @@ type Error struct {
 	Code   ErrorCode
 	Field  string
 	Detail string
-	Cause  error
+	Cause  error `json:"-"`
 }
 
 func (e *Error) Error() string {
@@ -35,6 +35,10 @@ func (e *Error) Error() string {
 	}
 	return fmt.Sprintf("sessions: %s: %s: %s", e.Code, e.Field, e.Detail)
 }
+
+// GoString keeps diagnostic %#v formatting on the same framework-owned,
+// secret-free surface as Error while Unwrap retains Cause for errors.Is/As.
+func (e Error) GoString() string { return (&e).Error() }
 
 func (e *Error) Unwrap() error {
 	if e == nil {

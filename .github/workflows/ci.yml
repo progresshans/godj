@@ -505,10 +505,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 1017, sorted(runs)
-          assert len(payload) == 104782, len(payload)
+          assert len(runs) == 1034, sorted(runs)
+          assert len(payload) == 106767, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "38d84cadf3bccab06ca8afb545c21a25b769f76b270489dc0fa4eaa02350a9d9"
+          assert payload_sha256 == "39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -874,7 +874,7 @@ jobs:
           set -euo pipefail
           log="$RUNNER_TEMP/postgresql-product-tests.json"
           status=0
-          go test -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... > "$log" || status=$?
+          go test -timeout=15m -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart > "$log" || status=$?
           if [ "$status" -eq 0 ]; then
             go test -timeout=15m -json -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
               ./conformance/runserverproduct >> "$log" || status=$?
@@ -899,6 +899,7 @@ jobs:
             "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
             "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
             "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"
+            "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
           )
           for sentinel in "${required_passes[@]}"; do
             package="${sentinel%%|*}"
@@ -919,13 +920,13 @@ jobs:
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
-        run: go test -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... && go test -timeout=15m -race -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct
+        run: go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && go test -timeout=15m -race -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct
 
       - name: Run PostgreSQL actual product tests without CGO
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
-        run: CGO_ENABLED=0 go test -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... && CGO_ENABLED=0 go test -timeout=15m -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct
+        run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && CGO_ENABLED=0 go test -timeout=15m -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct
 
       - name: Verify PostgreSQL durable resume across service restart
         env:
@@ -969,7 +970,7 @@ jobs:
           "$project_runner" cleanup
 
       - name: Vet PostgreSQL product packages
-        run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... && go vet ./conformance/runserverproduct
+        run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && go vet ./conformance/runserverproduct
 
       - name: Require a clean worktree
         run: |
