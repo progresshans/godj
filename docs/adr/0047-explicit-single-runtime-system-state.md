@@ -1,6 +1,6 @@
 # ADR-0047: Explicit Single-Runtime System State
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-25
 - 관련 work/contract: [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md),
   SYS-001..012, Q-020, M6
@@ -50,7 +50,7 @@ Auto/Char/Boolean만으로 세 table을 만들고 DB/schema당 동시에 하나�
 안에서 lookup/write를 직렬화하고 0/1 cardinality를 매번 검증합니다. DB unique는 없으므로 duplicate를 복구하지 않고 fail-closed하며
 multi-process/direct writer는 명시적 비목표로 남깁니다.
 
-## Proposed 결정
+## 결정
 
 1. `godj_system.0001_initial`은 caller가 current migration definition/executor로 명시 적용합니다. `siteapp.New`와
    `systemstate.Open`은 migration, adoption 또는 repair를 실행하지 않습니다.
@@ -83,9 +83,11 @@ multi-process/direct writer는 명시적 비목표로 남깁니다.
 | Future DB constraint/lock/CAS | multi-runtime singleton/digest uniqueness, monotonic update와 shared capacity/prune | GDJ-0045 범위가 아니며 별도 packet 필요 |
 
 Current checkout은 exported `systemstate` constructor/config/store와 Article transaction hook을 구현하고
-SYS-001..012 global adapter까지 source-local로 게시했습니다. Local actual A/B는 12,944 bytes/SHA-256
-`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. Required
-PostgreSQL distinct-process와 final hosted matrix 전에는 이 구현 shape를 terminal Accepted 결정으로 표현하지 않습니다.
+SYS-001..012 global adapter까지 게시했습니다. Local actual A/B는 12,944 bytes/SHA-256
+`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. Exact submitted
+head `e673b3a...`의 [EVID-129](../status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) /
+CI #146은 필수 GitHub Actions 27/27 jobs·359/359 steps와 PostgreSQL 17.10 distinct-process required
+16/16·skip 0을 통과했으므로 이 bounded 구현 shape를 Accepted합니다.
 
 ## 결과
 
@@ -109,12 +111,12 @@ General `IntegerField`, revision/CAS 또는 HMAC session digest는 미리 전제
 
 ## 검증
 
-- [x] SYS-001..012 exact reference/decision contracts, 11 passing + SYS-009 deviation source publication과
-      Proposed DEV-0008 exact four-selector expectation
+- [x] SYS-001..012 exact reference/decision contracts, 11 passing + SYS-009 deviation publication과
+      Verified DEV-0008 exact four-selector expectation
 - [x] Explicit SQLite/PostgreSQL system migrate/reopen/no-op code와 missing-schema DDL/bootstrap/listener 0 tests
 - [x] Bootstrap idempotency/mismatch/duplicate/corrupt, commit-unknown reconciliation과 secret-free failure tests
 - [x] Digest-only Store, expiry/touch/capacity/reap/rotate/logout normal/race/fault tests
 - [x] Article/audit same-transaction commit/rollback/unknown tests
-- [ ] Distinct-process restart E2E: SQLite와 raw secret/log/temp leak 0은 local 통과; required PostgreSQL hosted pending
+- [x] Distinct-process restart E2E: SQLite와 raw secret/log/temp leak 0 local 통과; required PostgreSQL hosted 16/16·skip 0
 - [x] Corrected source `6243682...`의 affected/full/386/external/audit와 actual A/B 통과
-- [ ] Corrected exact submitted-head hosted matrix pending
+- [x] Corrected exact submitted-head hosted matrix: EVID-129/CI #146 27/27 jobs·359/359 steps, failure/cancel/step-skip 0

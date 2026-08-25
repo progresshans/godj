@@ -19,7 +19,7 @@
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
-| Q-020 | P1 | GDJ-0045 source-local publication / hosted acceptance·multi-process 전 | Durable framework system state의 schema·migration·runtime topology를 어떻게 소유할 것인가; current checkout은 one-runtime/sequential-restart 답을 구현했지만 required PostgreSQL/hosted와 broader multi-runtime 답은 남음 |
+| Q-020 | Partial | GDJ-0045 completed / broader multi-runtime 전 | Accepted ADR-0047의 explicit current migration과 one-runtime/sequential-restart 답은 hosted-verified; DB-enforced multi-runtime coordination과 shared key topology는 open |
 | Q-021 | P1 | Durable system state 이후 / public API auth 전 | First-party cookie, BFF와 Bearer API profile을 어떻게 분리하고 JWT/opaque access token, rotating refresh token, key rotation/revocation을 공통 Principal/Permission 경계에 연결할 것인가 |
 
 ## GDJ-0043에서 해결한 질문
@@ -45,9 +45,9 @@
 - OpenAPI, browsable API, token auth, nested/bulk serializer와 Channels/Realtime reference는 이번 completed packet에서
   결정하지 않았으므로 Q-016 전체는 계속 `Partial`입니다.
 
-## GDJ-0045에서 검증할 질문
+## GDJ-0045에서 부분 결정한 질문
 
-- Q-020의 첫 답은 Proposed [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)입니다. Current
+- Q-020의 첫 답은 Accepted [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)입니다. Current
   Auto/Char/Boolean IR의 explicit `godj_system.0001_initial`, DB/schema당 one live runtime, process mutex와 transaction의
   0/1 cardinality 검사, raw bearer 대신 digest, current-only bounded codec과 Article/Admin-audit same-transaction을 검증합니다.
 - Restart는 이전 process의 listener/runtime/backend handle이 모두 종료된 sequential restart입니다. DB unique/index IR,
@@ -56,13 +56,14 @@
 - One-runtime은 `Open`이 lease/fence로 강제하지 않는 operator precondition입니다. Future multi-runtime 답은 credential singleton,
   session digest uniqueness, row-lock/conditional monotonic touch, shared capacity/reap/audit-prune, Article read-modify-write와
   purpose-separated CSRF/Admin notice deployment key ring을 함께 다뤄야 합니다.
-- SYS-001..012 exact artifact와 global GoDj adapter는 source-local로 게시됐습니다. Current classification은
+- SYS-001..012 exact artifact와 global GoDj adapter는 게시되고 EVID-129에서 hosted-verified됐습니다. Current classification은
   SYS-001..008/010..012 `passing` + SYS-009 `deviation`, reference 21/231/420=`203+16+12 locked`, product
   20/219=`203+16`이며 MIG-075..086만 locked/unregistered입니다. Local actual A/B는 12,944 bytes/SHA-256
   `f30ac1a4...d41c3a6`로 byte-identical하고 SQLite distinct-process가 통과했습니다.
-- SYS-009의 process-local CSRF-key 정책은 계속 [Proposed DEV-0008](DEVIATIONS.md#dev-0008--restart-뒤-process-local-csrf-key로-stale-masked-token을-거부)입니다.
-  Required PostgreSQL distinct-process와 final hosted matrix 전에는 ADR Accepted, DEV Verified, GDJ-0045 completed 또는
-  Q-020 `Partial` terminal 전환을 주장하지 않습니다.
+- SYS-009의 process-local CSRF-key 정책은 [Verified DEV-0008](DEVIATIONS.md#dev-0008--restart-뒤-process-local-csrf-key로-stale-masked-token을-거부)입니다.
+  [EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146은
+  PostgreSQL required 16/16·skip 0과 exact 27/27 jobs·359/359 steps를 통과해 ADR Accepted, DEV Verified와
+  GDJ-0045 completed를 닫았습니다. Broader multi-runtime 답이 남으므로 Q-020은 `Partial`입니다.
 
 ## Public API authentication에서 검증할 질문
 
@@ -71,7 +72,7 @@
 - Refresh token을 채택하면 opaque CSPRNG bearer, digest-only storage, family/generation rotation, revocation/reuse detection과
   transaction ownership을 함께 결정합니다. Shared `auth.Principal`/Permission deny-overlay를 재사용하고 token 전용 permission
   체계를 만들지 않습니다.
-- 구현이나 ADR은 GDJ-0045 acceptance 뒤 별도 packet에서 결정합니다. 현재 `api` core와 `api/sessionauth`를 재작성하지 않습니다.
+- 구현이나 ADR은 GDJ-0045와 분리된 후속 packet에서 결정합니다. 현재 `api` core와 `api/sessionauth`를 재작성하지 않습니다.
 
 ## M0에서 해결한 질문
 

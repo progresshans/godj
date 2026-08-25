@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-25 (GDJ-0045 local source publication; hosted PostgreSQL pending)
+- 마지막 검증: 2026-08-25 (GDJ-0045 EVID-129 exact-head hosted completion)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -88,14 +88,17 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 [EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
 
-Current checkout은 GDJ-0045 system-state actual을 global registry/Makefile/`godjcheck`에 source-local로 게시해
+Current checkout은 GDJ-0045 system-state actual을 global registry/Makefile/`godjcheck`에 게시해
 reference 21 sets/231 contracts/420 ordered bindings=`203 passing + 16 deviation + 12 oracle_locked`, product 20
-sets/219 contracts=`203 passing + 16 deviation`입니다. SYS-001..008/010..012는 `passing`, SYS-009는 Proposed
+sets/219 contracts=`203 passing + 16 deviation`입니다. SYS-001..008/010..012는 `passing`, SYS-009는 Verified
 DEV-0008 expected의 네 selector만 허용하는 `deviation`이며 MIG-075..086만 locked/unregistered로 남습니다.
 Manifest는 7,730 bytes/SHA-256 `f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`, local
 actual A/B는 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로
-byte-identical합니다. 이 checkout 분류는 ADR-0047 Accepted, DEV-0008 Verified 또는 GDJ-0045 completed 주장이
-아니며 required PostgreSQL distinct-process와 final hosted matrix가 남아 있습니다.
+byte-identical합니다. Exact submitted head `e673b3a...`의
+[EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146은
+required PostgreSQL 17.10 16/16·skip 0과 필수 GitHub Actions 27/27 jobs·359/359 steps를 통과했습니다.
+따라서 ADR-0047은 Accepted, DEV-0008은 Verified이고 GDJ-0045는 completed입니다. 이 상태는 one-runtime/
+sequential-restart 경계이며 broader multi-runtime, shared deployment key와 production readiness는 뜻하지 않습니다.
 
 OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
 Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.

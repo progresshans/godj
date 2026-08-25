@@ -25,12 +25,13 @@
   `d9c1971...`의 EVID-125/126과 CI #142는 18 contracts=`13 passing + 5 deviation`, 27/27 jobs·359/359 steps,
   네 relation coordinate 1,017/1,017/0, portable runserver required 16/16·skip 0와 PostgreSQL required
   15/15·skip 0을 검증했습니다. ADR-0045/0046은 Accepted이고 GDJ-0044는 completed입니다. 이 terminal
-  경계 뒤 [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)가 active입니다.
+  경계 뒤 [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)가 completed됐습니다.
   Current source는 SYS-001..012를 global registry/Makefile/`godjcheck`에 게시했고 exact 11 `passing` + SYS-009
   DEV-0008 `deviation`, reference 21/231/420=`203+16+12 locked`, product 20/219=`203+16`입니다. Local actual
   A/B는 12,944 bytes/SHA-256 `f30ac1a4...d41c3a6`로 byte-identical하고 SQLite distinct-process restart가
-  통과했습니다. Required PostgreSQL distinct-process와 final hosted matrix가 남았으므로 ADR-0047/DEV-0008은
-  Proposed, work는 active를 유지합니다. GDJ-0040 Phase A
+  통과했습니다. Exact submitted `e673b3a...`의 EVID-129/CI #146은 PostgreSQL required 16/16·skip 0과
+  필수 GitHub Actions 27/27 jobs·359/359 steps를 통과해 ADR-0047 Accepted, DEV-0008 Verified와 work completion을
+  닫았습니다. GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
   bounded Article 검색을 구현했습니다. QRY-034..043은 10/10 `passing`; reference는
@@ -98,7 +99,7 @@
 - 현재 checkout 제품 기준: 20 adapters/219 contracts의 `203 passing + 16 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
-  GDJ-0045 exact 12=`11 passing + 1 deviation`은 source-local publication 상태로 hosted acceptance가 남았습니다.
+  GDJ-0045 exact 12=`11 passing + 1 Verified deviation`도 exact-head hosted-verified됐습니다.
 - 마지막 검토: 2026-08-25
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -688,13 +689,13 @@ profile/lock을 사용해 기존 Django-only oracle bytes를 보존합니다. WE
 `13 passing + 5 deviation`으로 EVID-126/CI #142에서 hosted-verified됐습니다. OpenAPI, browsable API, token auth,
 Channels와 M7/M8 completion을 주장하지 않습니다.
 
-[GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 M6의 active wide batch입니다.
-Proposed [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)의 current Auto/Char/Boolean
+[GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 M6의 completed wide batch입니다.
+Accepted [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)의 current Auto/Char/Boolean
 `godj_system` credential/session/audit migration, durable Store/bootstrap, Article-audit same-transaction과
-single-runtime clean restart 구현은 source-local publication까지 도달했습니다. SYS-001..012는 global product adapter에서
-11 `passing` + SYS-009 DEV-0008 `deviation`으로 비교되고 SQLite distinct-process actual도 통과했습니다. Required
-PostgreSQL distinct-process와 final hosted matrix 전에는 ADR/DEV/work의 terminal 상태를 올리지 않습니다. Multi-process/distributed
-topology, DB unique IR, persistent CSRF key와 production readiness는 계속 포함하지 않습니다.
+single-runtime clean restart 구현은 hosted-verified됐습니다. SYS-001..012는 global product adapter에서
+11 `passing` + SYS-009 Verified DEV-0008 `deviation`으로 비교되고 SQLite distinct-process actual과 EVID-129의
+PostgreSQL required 16/16·skip 0 및 exact 27/27 matrix가 통과했습니다. Multi-process/distributed topology,
+DB unique IR, persistent/shared CSRF key와 production readiness는 계속 포함하지 않습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
@@ -707,7 +708,7 @@ topology, DB unique IR, persistent CSRF key와 production readiness는 계속 �
 - Form, ModelForm, CSRF, session, auth, permission
 - 한 모델의 Admin list/search/edit/history/action 수직 단면
 - static/messages와 접근성·보안 gate
-- explicit single-runtime durable credential/session/audit와 restart-preserving Article flow — GDJ-0045 source-local publication, hosted acceptance pending
+- explicit single-runtime durable credential/session/audit와 restart-preserving Article flow — GDJ-0045 completed/hosted-verified
 
 ## M7 — API
 

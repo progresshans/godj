@@ -213,12 +213,12 @@ Form과 Serializer는 validation primitive를 공유할 수 있지만 공개 API
 - password reset/change, token
 - audit/security regression catalog
 
-Active [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 이 목록 전체가 아니라
-single-runtime system state의 첫 durable 단면입니다. Proposed
+Completed [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 이 목록 전체가 아니라
+single-runtime system state의 첫 durable 단면입니다. Accepted
 [ADR-0047](adr/0047-explicit-single-runtime-system-state.md)에 따라 current migration으로 admin credential/session/audit 세
 table을 명시 적용하고 clean restart 뒤 Article Admin/API authentication, logout과 Admin audit history를 복구하는 구현이
-source-local publication까지 도달했습니다. SYS-001..012 global adapter는 11 `passing` + SYS-009 Proposed DEV-0008
-`deviation`이고 SQLite distinct-process actual이 통과했지만 required PostgreSQL/hosted acceptance는 pending입니다.
+hosted-verified됐습니다. SYS-001..012 global adapter는 11 `passing` + SYS-009 Verified DEV-0008
+`deviation`이고 SQLite distinct-process actual과 EVID-129의 PostgreSQL 17.10 required 16/16·skip 0이 통과했습니다.
 DB/schema당 one live runtime, sequential restart, digest-only bearer storage와 Article/audit same-transaction만 범위이며
 user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed session, persistent CSRF key와 production 운영은
 아직 지원하지 않습니다.

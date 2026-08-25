@@ -266,12 +266,14 @@ gate가 증명하지 않습니다.
 ## GDJ-0045 durable system-state reference gate
 
 `system-state-manifest.json`은 SYS-001..012를 mixed authority로 고정합니다. Django 6.1은 durable
-credential/session/logout/Admin audit 관찰을, Proposed ADR-0047은 GoDj 운영 경계를 소유합니다. SYS-008의 durable
+credential/session/logout/Admin audit 관찰을, Accepted ADR-0047은 GoDj 운영 경계를 소유합니다. SYS-008의 durable
 logout 의미는 Django authority이고 anonymous JSON API 403은 기존 Accepted ADR-0046 authority입니다. SYS-009의
-restart 전 masked token 네 selector만 Proposed DEV-0008 expected로 닫습니다. Current source manifest는
+restart 전 masked token 네 selector만 Verified DEV-0008 expected로 닫습니다. Current source manifest는
 SYS-001..008/010..012 `passing`과 SYS-009 `deviation`이고, Go actual은 global registry, Makefile과
-`godjcheck` fail-closed deviation policy에 게시됐습니다. 이는 source-local publication 상태이며 ADR-0047 acceptance,
-DEV-0008 Verified 또는 GDJ-0045 hosted completion을 뜻하지 않습니다.
+`godjcheck` fail-closed deviation policy에 게시됐습니다. Exact submitted head `e673b3a...`의
+[EVID-129](../docs/status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) /
+CI #146이 필수 GitHub Actions 27/27 jobs·359/359 steps와 PostgreSQL required 16/16·skip 0을 통과해
+ADR-0047 Accepted, DEV-0008 Verified와 GDJ-0045 hosted completion을 닫았습니다.
 
 현재 manifest/oracle은 각각 7,730/13,099 bytes와 SHA-256
 `f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`/
@@ -303,8 +305,8 @@ go run ./conformance/cmd/godjcheck \
 
 일반 uv 0.12.3은 portable test에는 사용할 수 있지만 embedded exact profile의 oracle regeneration은 version mismatch로
 fail-closed합니다. SQLite distinct-process restart actual은 로컬에서 통과했습니다. PostgreSQL sentinel은
-`GODJ_TEST_POSTGRES_URL` 및 required lane의 `GODJ_REQUIRE_POSTGRES=1`을 사용하며, current publication bytes의
-hosted PostgreSQL 실행과 final matrix는 아직 pending입니다.
+`GODJ_TEST_POSTGRES_URL` 및 required lane의 `GODJ_REQUIRE_POSTGRES=1`을 사용하며, EVID-129의 exact 17.10 lane에서
+16/16·skip 0과 normal/race/CGO0/service-restart/vet/clean을 통과했습니다.
 
 ## Exact profile
 

@@ -1,6 +1,6 @@
 ---
 id: GDJ-0045
-status: active
+status: completed
 updated: 2026-08-25
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "99014e1dbc8169b9ae9e0d5b6d592f808e4d8b07"
@@ -140,9 +140,11 @@ One-runtime은 lease/fence로 강제되지 않는 operator topology precondition
   `98076ea6d469a6405851cc51f2b245806f4230da`; first submitted `8c80c64...` run `32830533384`의 PostgreSQL
   scan collision/Python stale digest lock을 분리한
   [EVID-128](../docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)의
-  corrected full/386/1,016-file repository-external archive와 독립 audit 통과, corrected required hosted
-  PostgreSQL pending
-- Current source-local publication aggregate는 product 20 sets/219 contracts=`203 passing + 16 deviation`이고,
+  corrected full/386/1,016-file repository-external archive와 독립 audit 통과
+- Hosted-tested submitted descendant: `e673b3a11d4d0d7e2f8a55fdb3c58d24b965ff35`, tree
+  `917d36f8ef4458740c377904f4f93597c7c906ec`; EVID-129/CI #146 exact 27/27 jobs·359/359 steps와
+  PostgreSQL 17.10 required 16/16·skip 0 통과
+- Current hosted-verified publication aggregate는 product 20 sets/219 contracts=`203 passing + 16 deviation`이고,
   reference-only MIG-075..086을 포함하면 21/231/420=`203 passing + 16 deviation + 12 oracle_locked`입니다.
 - Existing site는 every-start password hash, `MemoryAuthenticator`, `MemoryStore`, process audit ring을 조합하므로 restart 뒤
   credential/session/history가 사라집니다.
@@ -171,7 +173,7 @@ operational decision을 같은 profile에 두되 provenance를 contract별로 �
 
 SYS-003/004/008/009/010/011은 Django 6.1 public semantics를 관찰합니다. SYS-008의 session deletion/restart는
 Django authority이고 API denial status는 기존 Accepted ADR-0046의 JSON 403 authority입니다. SYS-001/002/005/006/007/012는
-ADR-0047의 GoDj decision contract입니다. SYS-009의 stale token 한 lane만 Proposed DEV-0008이며 fresh-token lane과 나머지
+ADR-0047의 GoDj decision contract입니다. SYS-009의 stale token 한 lane만 Verified DEV-0008이며 fresh-token lane과 나머지
 dimension은 zero-diff여야 합니다.
 
 Phase A observer-only 상태에서는 이 12개를 global aggregate에 더하지 않았습니다. Current source publication은 manifest,
@@ -201,15 +203,15 @@ siteapp → systemstate composition; no memory fallback and no auto-migrate
 - [x] Activation: bounded single-runtime scope, Proposed ADR/DEV, SYS-001..012와 owner paths 고정
 - [x] Phase A — contract/reference: exact manifest, independent Django oracle, payload-free NI, checksum과 mixed-provenance protocol lock
 - [x] Phase B — current explicit system migration, SQLite migrate/reopen/no-op와 missing-schema fail-closed implemented; PostgreSQL
-      compiler/integration source is wired and required live PostgreSQL execution remains a hosted Phase E gate
+      compiler/integration source wired and required live PostgreSQL execution passed in hosted Phase E
 - [x] Phase C — durable bootstrap/session plus Touch↔Rotate monotonicity, duplicate-cookie logout and secret-surface hardening implemented
 - [x] Phase D — transactional audit, bootstrap commit-unknown classification and oracle-blind Go actual implemented
-- [ ] Phase E — SQLite distinct-process A/B/C and local secret scans pass; pinned PostgreSQL child-process required lane is wired but not run locally
+- [x] Phase E — SQLite distinct-process A/B/C and local secret scans pass; pinned PostgreSQL child-process required lane passes hosted exact 16/16 with required skip 0
 - [x] Checkpoint local gates: affected normal/race/CGO0/vet, generated drift, exact Django oracle, local SQLite actual와
-      corrected full/386/external audit pass; required PostgreSQL와 hosted gate remain
+      corrected full/386/external audit pass; required PostgreSQL와 hosted gate pass in EVID-129
 - [x] Final frozen local milestone: corrected source `6243682...`에서 full `make ci`, Linux/386,
-      repository-external archive와 independent audit pass; exact submitted-head hosted matrix remains
-- [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
+      repository-external archive와 independent audit pass; exact submitted-head hosted matrix passes in EVID-129
+- [x] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
 Phase A/B와 Phase C/D는 file ownership을 나눠 병렬로 진행합니다. Public protocol, ADR, CURRENT와 integration wiring은
 integration owner 한 명만 수정합니다.
@@ -238,23 +240,22 @@ integration owner 한 명만 수정합니다.
 - [x] 같은 CSRF cookie가 process 경계를 통과한 상태에서 stale token은 Article mutation 0으로 거부되고 safe GET의 fresh token은 성공함
 - [x] Article DML과 Admin audit가 같은 transaction에서 commit/rollback하며 unknown outcome을 retry하지 않음
 - [x] Bootstrap commit outcome unknown은 schema-missing으로 오분류하거나 자동 retry하지 않고 reconciliation-required marker를 보존함
-- [ ] SQLite/PostgreSQL에서 distinct-process restart sentinel이 skip 0으로 통과함 — SQLite local PASS, PostgreSQL hosted pending
+- [x] SQLite/PostgreSQL에서 distinct-process restart sentinel이 skip 0으로 통과함 — SQLite local PASS, PostgreSQL hosted exact required 16/16·skip 0
 - [x] Go actual의 process/secret metric은 같은 PID reopen이나 상수가 아니라 실제 subprocess·scan 관찰값에서 산출됨
 - [x] Schema IR/definition/digest/generated ABI와 existing AUT/ADM/API behavior가 local affected gates에서 drift하지 않음
-- [ ] CURRENT/work/matrix/evidence/ADR/deviation/PR이 같은 frozen bytes와 비목표를 가리킴
+- [x] CURRENT/work/matrix/evidence/ADR/deviation/PR이 같은 frozen bytes와 비목표를 가리킴
 
 ## 현재 상태와 다음 정확한 작업
 
-GDJ-0045가 유일한 active packet이고 ready packet은 0입니다. ADR-0047과 DEV-0008은 Proposed입니다. Source
-`c2c0cc3...`는 SYS-001..012를 global registry/Makefile/`godjcheck`에 게시했고, corrected frozen source
-`6243682e8ec6c94913dda0162cce101b39af354d`, tree `98076ea6d469a6405851cc51f2b245806f4230da`는 첫
-submitted run `32830533384`가 드러낸 PostgreSQL scan collision과 네 Python stale digest lock만 바로잡았습니다.
-Local actual A/B는 각각 12,944 bytes/SHA-256
-`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. SQLite A/B/C
-distinct-process, affected normal/race/CGO0/vet, generated drift와 pinned uv 0.10.12 Django oracle no-rewrite가 통과했습니다.
-Relation-product inventory는 1,034 run/pass, skip 0, 106,767 bytes/SHA-256
-`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다. EVID-128의 corrected full
-`make ci`, all-package Linux/386 compile-only, 1,016-file repository-external archive와 independent audit
-P0/P1/P2/P3=`0/0/0/0`도 통과했습니다. 다음 작업은 documentation checkpoint를 Draft PR에 non-force push하고
-corrected required PostgreSQL distinct-process와 exact submitted-head hosted matrix를 검증하는 것입니다. 그 성공
-전에는 ADR/DEV/work를 terminal로 전환하지 않습니다.
+GDJ-0045는 completed이고 active/ready packet은 0/0입니다. Corrected frozen source
+`6243682e8ec6c94913dda0162cce101b39af354d`, tree `98076ea6d469a6405851cc51f2b245806f4230da`의 local final은
+[EVID-128](../docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)에,
+exact submitted head `e673b3a11d4d0d7e2f8a55fdb3c58d24b965ff35`, tree
+`917d36f8ef4458740c377904f4f93597c7c906ec`의 hosted result는
+[EVID-129](../docs/status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146
+run `32833586028`에 기록했습니다. 필수 GitHub Actions 27/27 jobs·359/359 steps, PostgreSQL 17.10 exact
+16/16·skip 0, 네 relation 좌표 1,034/1,034·skip 0와 네 Python semantic digest가 통과했습니다. ADR-0047은
+Accepted, DEV-0008은 Verified이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다. Multi-runtime,
+DB-enforced uniqueness/CAS, shared deployment key ring, JWT/OAuth와 production topology는 이 완료에 포함되지 않습니다.
+Draft PR #1은 OPEN/DRAFT/unmerged이며 merge/release/deployment는 수행하지 않았습니다. 다음 work packet은 이 terminal
+경계를 바꾸지 않는 별도 activation에서 선택합니다.

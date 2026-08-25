@@ -11969,3 +11969,93 @@ boundary is this documentation-only checkpoint, a non-force Draft PR push and on
 matrix. Its PostgreSQL job must pass all sixteen required sentinels with skip 0. Until that new run succeeds, ADR-0047
 and DEV-0008 remain Proposed and GDJ-0045 remains active. Draft PR #1 stays OPEN/DRAFT/unmerged; no merge, release or
 deployment was performed.
+
+## EVID-20260825-129 — GDJ-0045 Corrected Exact-Head Hosted Completion
+
+- Date/time: 2026-08-25T18:44:44+09:00 through 2026-08-25T19:07:17+09:00
+- Work/contract IDs: GDJ-0045 completed; ADR-0047 Accepted; DEV-0008 Verified; Q-020 Partial;
+  SYS-001..012 hosted-verified as exact `11 passing + SYS-009 deviation`
+- Exact submitted head: `e673b3a11d4d0d7e2f8a55fdb3c58d24b965ff35`, tree
+  `917d36f8ef4458740c377904f4f93597c7c906ec`, subject `docs: record GDJ-0045 hosted lock correction`
+- Synthetic PR merge: `a898deab9b76fd9472fe23646276360e232d7d55`, parents base
+  `f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and exact head `e673b3a...`; merge tree
+  `917d36f8ef4458740c377904f4f93597c7c906ec` is byte-identical to the submitted-head tree
+- Result: corrected CI #146 passed every required GitHub Actions job and recorded step. PostgreSQL 17.10
+  distinct-process restart, the four portable product coordinates, four exact Python compatibility versions and the
+  checked-in protocol/workflow locks all passed. No source, workflow or artifact correction followed this run.
+
+### Exact hosted topology and PR state
+
+[GitHub Actions CI #146 run 32833586028](https://github.com/progresshans/godj/actions/runs/32833586028), attempt 1,
+completed `success` with exact 27/27 jobs and 359/359 recorded steps. Failure, cancellation and step skip were all zero.
+The 27 GitHub Actions check runs were all `completed/success` with annotation total zero. Draft PR #1 remained
+OPEN/DRAFT/unmerged with `mergeStateStatus=CLEAN`, and its status rollup contained those same 27 successful check runs.
+
+Cloudflare and Vercel each exposed a queued external check suite containing zero check runs and zero annotations. They were
+not part of the PR status rollup. Therefore this evidence claims the required GitHub Actions CI and 27-check rollup, not
+that every externally created check suite completed. The failed CI #145/run `32830533384` targeted different head
+`8c80c64...` and is retained only as EVID-128 diagnosis; it was not reused as completion proof.
+
+### PostgreSQL 17.10 required execution
+
+PostgreSQL job [97757449895](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449895) used exact
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f` and asserted
+fingerprint `170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`. Its fail-closed JSON
+inventory required exactly sixteen named sentinels, including
+`TestSystemStatePostgresDistinctProcessRestartSentinel`; each required pass existed and no required skip existed, yielding
+16/16 pass and skip 0.
+
+Normal, race and CGO-disabled execution over the PostgreSQL, Article, project-runner, system-state/restart and runserver
+packages passed, followed by vet and a clean-worktree assertion. The separately built service-restart runner recorded
+prepare `history=1, rows=1`, performed an actual fast PostgreSQL container shutdown/restart, then recorded resume and verify
+`history=2, rows=2` before cleanup `ok`. The dedicated long canary credential removed the common-word binary collision
+without weakening the scanner: parsed DB credentials, full URL, dynamic Admin password, build output, site binary,
+child stdout/stderr, DB credential/session/audit columns and temporary state remained scanned.
+
+### Portable project, relation and Python inventories
+
+Each relation-product coordinate asserted exact 1,034 run / 1,034 pass / 0 skip, payload 106,767 bytes and SHA-256
+`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`, then passed normal, race,
+CGO-disabled and vet:
+
+| Coordinate | Job |
+|---|---:|
+| linux/amd64 | [97757449844](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449844) |
+| linux/arm64 | [97757449907](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449907) |
+| darwin/amd64 | [97757450067](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757450067) |
+| darwin/arm64 | [97757450030](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757450030) |
+
+The four portable product-project jobs each required four named runserver tests and rejected either a missing pass or a
+required skip. All four coordinates passed, giving exact required 16/16 and skip 0:
+
+| Coordinate | Job |
+|---|---:|
+| linux/amd64 | [97757449929](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449929) |
+| linux/arm64 | [97757449983](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449983) |
+| darwin/amd64 | [97757450069](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757450069) |
+| darwin/arm64 | [97757450075](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757450075) |
+
+The Python 3.12.13, 3.13.15, 3.14.3 and 3.14.7 jobs each completed an `OK` 250-test portable suite with 21 intentional
+exact-profile-only skips, then directly asserted the same semantic payload: 231 scenarios, 860,151 canonical bytes and
+SHA-256 `fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7`.
+
+| Python | Job |
+|---|---:|
+| 3.12.13 | [97757449851](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449851) |
+| 3.13.15 | [97757449992](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449992) |
+| 3.14.3 | [97757449955](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757449955) |
+| 3.14.7 | [97757450051](https://github.com/progresshans/godj/actions/runs/32833586028/job/97757450051) |
+
+### Independent audits and terminal ownership
+
+Three independent read-only hosted audits separated topology/PR identity, PostgreSQL/Python semantics and
+relation/portable inventories. PostgreSQL/Python and inventory audits returned GO with P0/P1/P2/P3=`0/0/0/0`.
+The topology audit returned GO with P0/P1/P2=`0/0/0` and one non-blocking P3 observation: the two empty external suites
+described above. No acceptance defect or required skip remained.
+
+This EVID-129 and the Accepted/Verified/completed status mirrors are documentation-only descendants of the tested exact
+head. Per repository cadence they receive diff/link/frontmatter/status checks and focused protocol lock tests, not a
+recursive full product matrix. They do not expand the verified product beyond one live runtime per DB/schema and clean
+sequential restart. Multi-runtime DB constraints/locks/CAS, shared deployment key rings, JWT/OAuth, production readiness,
+merge and release remain outside GDJ-0045. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge, release or deployment was
+performed.
