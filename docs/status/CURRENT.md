@@ -3,12 +3,13 @@
 - 마지막 갱신: 2026-08-25
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 GDJ-0045 frozen local source head: `c2c0cc3f7b98520ae9c86e1f3f47e4df06368d35`
-  (`feat: publish durable system state restart slice`), tree `f5aa56d4ea169836be103c36f1c45ecd403bb413`;
-  [EVID-127](TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint)의 full
-  `make ci`, Linux/386 compile-only, 1,016-file repository-external archive와 독립 source audit가 통과했습니다.
-  ADR-0047/DEV-0008과 GDJ-0045는 아직 Proposed/Proposed/active이고 required hosted PostgreSQL sentinel과 exact
-  submitted-head matrix는 pending입니다.
+- 현재 GDJ-0045 corrected frozen source head: `6243682e8ec6c94913dda0162cce101b39af354d`
+  (`ci: refresh GDJ-0045 hosted validation locks`), tree `98076ea6d469a6405851cc51f2b245806f4230da`;
+  [EVID-128](TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)의
+  corrected full `make ci`, Linux/386 compile-only, 1,016-file repository-external archive와 독립 correction audit가
+  통과했습니다. 첫 submitted `8c80c64...`의 CI #145/run `32830533384`는 PostgreSQL scan collision 1건과 stale
+  Python digest lock 4건을 드러낸 진단 실행이므로 hosted proof로 재사용하지 않습니다. ADR-0047/DEV-0008과
+  GDJ-0045는 아직 Proposed/Proposed/active이고 corrected exact-head PostgreSQL sentinel/matrix는 pending입니다.
 - 현재 hosted-verified source head: `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`
   (`test: stabilize Article site race deadline`), tree `2e5c52ff162dc74d6281c1927750be34be329c69`,
   [EVID-125](TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint) /
@@ -119,9 +120,10 @@
   CI #143 run `32686885615`은 이 exact documentation head에서 27/27 jobs·359/359 steps, step skip 0으로
   성공했습니다.
   Active packet은 [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md), Proposed
-  [ADR-0047](../adr/0047-explicit-single-runtime-system-state.md)과 SYS-001..012입니다. Frozen local source
-  `c2c0cc3...`/tree `f5aa56d...`는 durable system schema, actual distinct-process restart, global adapter와 exact
-  DEV-0008 policy를 게시했고 [EVID-127](TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint)의
+  [ADR-0047](../adr/0047-explicit-single-runtime-system-state.md)과 SYS-001..012입니다. Corrected frozen source
+  `6243682...`/tree `98076ea...`는 durable system schema, actual distinct-process restart, global adapter와 exact
+  DEV-0008 policy를 보존하면서 hosted Python/CI secret canary lock만 바로잡았고
+  [EVID-128](TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)의
   final local gates를 통과했습니다. Current reference는 21 sets/231 contracts/420 ordered bindings=
   `203 passing + 16 deviation + 12 oracle_locked`, product는 20/219=`203 passing + 16 deviation`입니다.
   Required PostgreSQL distinct-process sentinel과 exact submitted-head hosted matrix 전에는 terminal 상태를 주장하지 않습니다.
@@ -1608,10 +1610,13 @@ EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니
 `5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0044도
 hosted-verified source `d9c1971...`의 EVID-125/126과 CI #142 exact 27/27 jobs·359/359 steps로 completed됐습니다.
 GDJ-0044 terminal checkpoint의 active/ready는 0/0이었고 현재 GDJ-0045가 active이며 외부 blocker는 0입니다.
-GDJ-0045 source `c2c0cc3...`/tree `f5aa56d...`는 EVID-127의 affected/full/386/1,016-file external archive와
-독립 audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 로컬에는 `GODJ_TEST_POSTGRES_URL`이 없으므로 PostgreSQL
-distinct-process sentinel을 통과로 세지 않았습니다. 이는 source blocker가 아니라 hosted validation pending이며,
-digest-pinned PostgreSQL required lane과 그 exact submitted-head 전체 matrix가 terminal 전 남은 gate입니다.
+GDJ-0045 corrected source `6243682...`/tree `98076ea...`는 EVID-128의 corrected full/386/1,016-file external
+archive와 독립 correction audit P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 첫 submitted `8c80c64...` run
+`32830533384`의 PostgreSQL 공통 비밀번호 scan collision과 네 Python stale digest 실패는 최소 lock/canary
+보정으로 닫았지만 그 실패 run은 completion evidence가 아닙니다. 로컬에는 `GODJ_TEST_POSTGRES_URL`이 없으므로
+PostgreSQL distinct-process sentinel을 통과로 세지 않았습니다. 이는 source blocker가 아니라 corrected hosted
+validation pending이며, digest-pinned PostgreSQL required lane과 새 exact submitted-head 전체 matrix가 terminal 전
+남은 gate입니다.
 Accepted ADR-0045/0046 아래 exact 18-contract Article
 API/parameter-route vertical batch는 13 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL flows,
 네 플랫폼 1,017/1,017/0, full/386/external archive/audit, hosted portable runserver required 16/16과 PostgreSQL
@@ -1717,14 +1722,16 @@ runserver 16/16·skip 0, PostgreSQL 15/15·skip 0을 증명합니다. ADR-0045/0
 Verified입니다. Tested source head와 이 terminal documentation-only descendant를 구분합니다.
 
 현재 active [GDJ-0045](../../work/0045-durable-single-runtime-system-state-and-article-restart.md)는 source
-`c2c0cc3...`/tree `f5aa56d...`에서 durable single-runtime system state와 restart-preserving Article Admin/API를
-SYS-001..012로 구현·source-local publication했습니다. EVID-127은 exact `11 passing + SYS-009 deviation`, byte-identical
-actual A/B, SQLite distinct-process A/B/C, full `make ci`, Linux/386 compile-only, repository-external archive와 독립
-audit를 고정합니다. ADR-0047/DEV-0008은 Proposed이고 GDJ-0045는 active입니다. 다음 작업은 이 documentation-only
-checkpoint를 커밋해 Draft PR #1에 non-force push하고, 새 exact submitted head의 16번째 required PostgreSQL
-distinct-process sentinel과 전체 hosted matrix를 검증하는 것입니다. Source/workflow/artifact byte가 바뀌면 기존
-hosted 결과를 재사용하지 않고 새 frozen checkpoint를 만듭니다. 모든 hosted gate가 성공한 뒤에만 terminal evidence,
-ADR-0047 Accepted, DEV-0008 Verified, GDJ-0045 completed와 Q-020/status mirror를 한 번 동기화합니다.
+`c2c0cc3...`에서 durable single-runtime system state와 restart-preserving Article Admin/API를 SYS-001..012로
+구현·source-local publication했고, corrected source `6243682...`/tree `98076ea...`에서 hosted semantic digest와
+PostgreSQL secret canary lock을 바로잡았습니다. EVID-128은 첫 run `32830533384`를 진단 실패로 격리하고 exact
+`11 passing + SYS-009 deviation`, byte-identical actual A/B, SQLite distinct-process A/B/C, corrected full `make ci`,
+Linux/386 compile-only, repository-external archive와 독립 audit를 다시 고정합니다. ADR-0047/DEV-0008은 Proposed이고
+GDJ-0045는 active입니다. 다음 작업은 이 documentation-only checkpoint를 Draft PR #1에 non-force push하고,
+corrected exact submitted head의 16번째 required PostgreSQL distinct-process sentinel과 전체 hosted matrix를
+검증하는 것입니다. Source/workflow/artifact byte가 다시 바뀌면 기존 결과를 재사용하지 않고 새 frozen checkpoint를
+만듭니다. 모든 hosted gate가 성공한 뒤에만 terminal evidence, ADR-0047 Accepted, DEV-0008 Verified, GDJ-0045
+completed와 Q-020/status mirror를 한 번 동기화합니다.
 
 Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-014/Q-015는 `Resolved`, Q-016은 bounded API completion 뒤에도 `Partial`,
 Q-017과 Q-020은 P1/open이며

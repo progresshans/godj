@@ -116,4 +116,5 @@ General `IntegerField`, revision/CAS 또는 HMAC session digest는 미리 전제
 - [x] Digest-only Store, expiry/touch/capacity/reap/rotate/logout normal/race/fault tests
 - [x] Article/audit same-transaction commit/rollback/unknown tests
 - [ ] Distinct-process restart E2E: SQLite와 raw secret/log/temp leak 0은 local 통과; required PostgreSQL hosted pending
-- [ ] Affected local checks와 actual A/B는 통과; final full/386/external/audit 및 exact hosted matrix pending
+- [x] Corrected source `6243682...`의 affected/full/386/external/audit와 actual A/B 통과
+- [ ] Corrected exact submitted-head hosted matrix pending

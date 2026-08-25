@@ -11879,3 +11879,93 @@ matrix whose digest-pinned PostgreSQL job must explicitly pass the new sixteenth
 Any source/workflow/artifact correction invalidates that hosted boundary and requires a new frozen checkpoint. Until all
 hosted gates pass, ADR-0047 and DEV-0008 remain Proposed and GDJ-0045 remains active. Draft PR #1 remains
 OPEN/DRAFT/unmerged; no merge, release or deployment was performed.
+
+## EVID-20260825-128 — GDJ-0045 First Hosted Lock Failures and Corrected Local Refreeze
+
+- Date/time: first hosted run 2026-08-25T18:10:44+09:00 through 2026-08-25T18:33:46+09:00; corrected local
+  refreeze completed through 2026-08-25T18:32:13+09:00
+- Work/contract IDs: GDJ-0045 active; ADR-0047 and DEV-0008 Proposed; SYS-001..012 source-locally published but not
+  hosted-`Verified`
+- First submitted documentation head: `8c80c645157b7ffd95dda35f6135d7d63457e679`, tree
+  `b06549ba0d1da1a81785f7c63a8c63fed4cb00c9`, subject `docs: record GDJ-0045 frozen local evidence`
+- Corrected source/workflow head: `6243682e8ec6c94913dda0162cce101b39af354d`, tree
+  `98076ea6d469a6405851cc51f2b245806f4230da`, subject `ci: refresh GDJ-0045 hosted validation locks`
+- Result: the first exact submitted-head run exposed one PostgreSQL secret-scan false positive and four stale Python
+  semantic-digest locks. The minimal five-file correction is locally refrozen and independently audited. Its own exact
+  submitted-head hosted result, ADR/deviation/work terminal transitions, merge, release and production readiness remain
+  unclaimed.
+
+### Exact first-hosted failures
+
+[GitHub Actions CI #145 run 32830533384](https://github.com/progresshans/godj/actions/runs/32830533384), attempt 1,
+targeted exact PR head `8c80c64...` and completed `failure`. Exact topology was 27 jobs=
+`22 success + 5 failure` and 359 steps=`336 success + 5 failure + 18 skipped`. Five jobs deterministically failed, so
+this run is diagnosis evidence and is never reused as hosted completion.
+
+- PostgreSQL 17.10 job
+  [97747971050](https://github.com/progresshans/godj/actions/runs/32830533384/job/97747971050) passed service-profile
+  setup and reached `TestSystemStatePostgresDistinctProcessRestartSentinel`, then the existing byte-exact leak scanner
+  reported `site binary exposed a sensitive value`. The workflow used the common password literal `postgres`, while the
+  Article site binary legitimately contains that word through its `db/postgres` import. This was a deterministic scan
+  collision, not a PostgreSQL data/restart success or product failure; all later PostgreSQL race/CGO-disabled/service-
+  restart/vet/clean steps were skipped and are not claimed.
+- Python compatibility jobs
+  [3.12.13 / 97747971311](https://github.com/progresshans/godj/actions/runs/32830533384/job/97747971311),
+  [3.13.15 / 97747971123](https://github.com/progresshans/godj/actions/runs/32830533384/job/97747971123),
+  [3.14.3 / 97747971213](https://github.com/progresshans/godj/actions/runs/32830533384/job/97747971213) and
+  [3.14.7 / 97747970922](https://github.com/progresshans/godj/actions/runs/32830533384/job/97747970922) each passed
+  the exact portable suite, then produced the same 231-scenario/860,151-byte SHA-256
+  `fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7` against the stale expected
+  `b2671e3c...f3232`. Independent reconstruction proved that changing only SYS-008's intended unauthenticated API status
+  from current `403` back to historical `302` reproduces the old digest exactly. The checked scenario test requires
+  `403`, so product/reference behavior was not reverted.
+
+### Minimal correction and affected verification
+
+Commit `6243682...` changes exactly five paths, `+14/-14`: the workflow, three protocol locks and one runserver wiring
+lock. It replaces the semantic digest in exactly four lock sites and replaces the common PostgreSQL password at the
+service plus four fixed-port and one restart-port URL sites with one long CI-only canary. Scenario count, payload length,
+PostgreSQL required 16-sentinel list, normal/race/CGO-disabled/service-restart/vet/clean commands and the secret scanner
+itself are unchanged. No scan exception, shorter secret threshold, skip allowance or `continue-on-error` was added.
+
+Focused protocol/runserver/system-state normal tests and vet passed. Race passed. One CGO-disabled focused run launched
+concurrently with the normal and race runs observed an empty descendant PID signal in
+`TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup`; that run is not counted as a pass. The same focused
+CGO-disabled selector passed ten isolated repetitions and the full CGO-disabled runserver-product package passed. Exact
+uv 0.10.12/Python 3.14.3 independently reproduced 231/860,151/`fc318683...d54f7`. An Article site binary contained the
+legitimate backend name but did not contain the new canary; that temporary binary was moved recoverably to
+`/Users/hanhyeonjin/.Trash/godj-ci-canary-correction-20260825T181600`.
+
+### Corrected local final rerun
+
+Because workflow and checked locks changed, the final local gates were rerun on clean exact `6243682...` rather than
+reusing EVID-127:
+
+```bash
+PATH="$PINNED_UV_0_10_12_DIR:$PATH" \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Both exited 0. Full `make ci` covered generation drift, all-package normal/vet/race, configured CGO-disabled products,
+250 portable Python tests with 21 intentional exact-profile-only skips, contract checks and all twenty GoDj adapters.
+The separate Linux/386 command is compile-only because `/usr/bin/true` does not execute target binaries. The environment
+was macOS 26.6.2 build 25G83, Go 1.26.5 darwin/arm64, cached uv 0.10.12 and exact reference Python 3.14.3.
+
+A `.git`-free `git archive 6243682...` contained exactly 1,016 regular tracked files, all mode `100644`, and 103 Go
+packages. Every path, Git blob and mode matched. The raw `git ls-tree -r -z --full-tree` stream SHA-256 was
+`242c1992977e9c2bb5f77677f8cbf421b2208b67a7b47c48acf020c4978341da`. With a private `GOCACHE`, external
+`make generate-check` and all-package Linux/386 compile-only both passed; the framed sorted
+`path<NUL>sha256(file)<NUL>` roster stayed byte-identical before/after at SHA-256
+`e80c46b65cfcedae984bef9083d2284492e04f136a8a712a3112470e8ba0c34c`. The successful tree was moved
+recoverably to `/Users/hanhyeonjin/.Trash/godj-evid128-archive-20260825T183115`. A first harness attempt used unsupported
+BSD `sed -z`, exited before comparisons or product gates, and was separately moved to Trash; the NUL-safe Perl rerun is
+the evidence counted here.
+
+An independent read-only correction audit verified the two hosted root causes, four digest locks, six PostgreSQL canary
+sites, unchanged scanner and required topology, and focused checks. It returned P0/P1/P2/P3=`0/0/0/0` and GO. The next
+boundary is this documentation-only checkpoint, a non-force Draft PR push and one unique corrected exact submitted-head
+matrix. Its PostgreSQL job must pass all sixteen required sentinels with skip 0. Until that new run succeeds, ADR-0047
+and DEV-0008 remain Proposed and GDJ-0045 remains active. Draft PR #1 stays OPEN/DRAFT/unmerged; no merge, release or
+deployment was performed.

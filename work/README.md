@@ -77,12 +77,14 @@ completion은 [GDJ-0044](0044-session-authenticated-article-json-api-and-paramet
 `d9c1971...`의 [EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
 [EVID-126](../docs/status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion) / CI #142 run
 `32684080231`은 18-contract batch=`13 passing + 5 deviation`, exact 27/27 jobs·359/359 steps, PostgreSQL required
-15/15·skip 0와 portable runserver required 16/16·skip 0을 증명합니다. Current active GDJ-0045 frozen source
-`c2c0cc3...`/tree `f5aa56d...`의
-[Local EVID-127](../docs/status/TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint)은
-SYS-001..012=`11 passing + SYS-009 deviation`, full/386/1,016-file external archive와 audit를 통과했습니다.
-Required hosted PostgreSQL distinct-process와 exact submitted-head matrix는 pending이고 ADR-0047/DEV-0008/GDJ-0045는
-아직 Proposed/Proposed/active입니다. Draft PR #1은 OPEN/DRAFT/unmerged입니다.
+15/15·skip 0와 portable runserver required 16/16·skip 0을 증명합니다. Current active GDJ-0045 source
+`c2c0cc3...`가 SYS-001..012=`11 passing + SYS-009 deviation`을 게시했고, corrected frozen source
+`6243682...`/tree `98076ea...`의
+[EVID-128](../docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)은
+첫 submitted run `32830533384`의 PostgreSQL scan collision/Python stale digest lock을 분리한 뒤 corrected
+full/386/1,016-file external archive와 audit를 통과했습니다. Corrected required hosted PostgreSQL distinct-process와
+exact submitted-head matrix는 pending이고 ADR-0047/DEV-0008/GDJ-0045는 아직 Proposed/Proposed/active입니다.
+Draft PR #1은 OPEN/DRAFT/unmerged입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
