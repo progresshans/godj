@@ -136,6 +136,9 @@ One-runtime은 lease/fence로 강제되지 않는 operator topology precondition
   `fd416a0156d158fc518fbb1ad998f513ba079cdc`; GDJ-0044 terminal source `d9c1971...`의 documentation-only descendant
 - Hosted product source: `d9c19712cefde9bf4b2672ad1a0fc90a9dd02a92`, tree
   `2e5c52ff162dc74d6281c1927750be34be329c69`; EVID-125/126와 CI #142 exact 27/27
+- Frozen local GDJ-0045 source: `c2c0cc3f7b98520ae9c86e1f3f47e4df06368d35`, tree
+  `f5aa56d4ea169836be103c36f1c45ecd403bb413`; [EVID-127](../docs/status/TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint)의
+  full/386/1,016-file repository-external archive와 독립 audit 통과, required hosted PostgreSQL pending
 - Current source-local publication aggregate는 product 20 sets/219 contracts=`203 passing + 16 deviation`이고,
   reference-only MIG-075..086을 포함하면 21/231/420=`203 passing + 16 deviation + 12 oracle_locked`입니다.
 - Existing site는 every-start password hash, `MemoryAuthenticator`, `MemoryStore`, process audit ring을 조합하므로 restart 뒤
@@ -199,9 +202,10 @@ siteapp → systemstate composition; no memory fallback and no auto-migrate
 - [x] Phase C — durable bootstrap/session plus Touch↔Rotate monotonicity, duplicate-cookie logout and secret-surface hardening implemented
 - [x] Phase D — transactional audit, bootstrap commit-unknown classification and oracle-blind Go actual implemented
 - [ ] Phase E — SQLite distinct-process A/B/C and local secret scans pass; pinned PostgreSQL child-process required lane is wired but not run locally
-- [ ] Checkpoint gates: affected normal/race/CGO0/vet, generated drift, exact Django oracle and local SQLite actual pass;
-      required PostgreSQL, final full/386/external and hosted gates remain
-- [ ] Final frozen milestone: full `make ci`, Linux/386, repository-external archive, independent audit와 exact hosted matrix once
+- [ ] Checkpoint gates: affected normal/race/CGO0/vet, generated drift, exact Django oracle, local SQLite actual와
+      final full/386/external audit pass; required PostgreSQL와 hosted gate remain
+- [ ] Final frozen milestone: full `make ci`, Linux/386, repository-external archive와 independent audit pass;
+      exact submitted-head hosted matrix remains
 - [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
 Phase A/B와 Phase C/D는 file ownership을 나눠 병렬로 진행합니다. Public protocol, ADR, CURRENT와 integration wiring은
@@ -238,11 +242,13 @@ integration owner 한 명만 수정합니다.
 
 ## 현재 상태와 다음 정확한 작업
 
-GDJ-0045가 유일한 active packet이고 ready packet은 0입니다. ADR-0047과 DEV-0008은 Proposed입니다. Current source는
+GDJ-0045가 유일한 active packet이고 ready packet은 0입니다. ADR-0047과 DEV-0008은 Proposed입니다. Frozen local source
+`c2c0cc3f7b98520ae9c86e1f3f47e4df06368d35`, tree `f5aa56d4ea169836be103c36f1c45ecd403bb413`는
 SYS-001..012를 global registry/Makefile/`godjcheck`에 게시했고 local actual A/B는 각각 12,944 bytes/SHA-256
 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical합니다. SQLite A/B/C
 distinct-process, affected normal/race/CGO0/vet, generated drift와 pinned uv 0.10.12 Django oracle no-rewrite가 통과했습니다.
 Relation-product inventory는 1,034 run/pass, skip 0, 106,767 bytes/SHA-256
-`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다. 다음 작업은 독립 source audit을
-닫고 frozen source commit에서 full `make ci`, all-package Linux/386 compile-only와 repository-external archive를 한 번 실행한 뒤,
-Draft PR을 non-force push하여 required PostgreSQL distinct-process와 exact hosted matrix를 검증하는 것입니다.
+`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다. EVID-127의 full `make ci`, all-package
+Linux/386 compile-only, 1,016-file repository-external archive와 independent audit P0/P1/P2/P3=`0/0/0/0`도 통과했습니다.
+다음 작업은 documentation checkpoint를 Draft PR에 non-force push하고 required PostgreSQL distinct-process와 exact
+submitted-head hosted matrix를 검증하는 것입니다. 그 성공 전에는 ADR/DEV/work를 terminal로 전환하지 않습니다.

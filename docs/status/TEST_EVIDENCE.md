@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-24
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260824-126
+- 마지막 갱신: 2026-08-25
+- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260825-127
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -11802,4 +11802,80 @@ correction changed no product, contract, artifact or workflow byte. A separate r
 the run/check-suite/log/PR surfaces and found no P0–P3 defect. The terminal status/ADR/deviation/evidence edits that append
 this section are documentation-only descendants of the proved source tree. Per repository cadence they receive
 link/frontmatter/status consistency and `git diff --check`, not another recursive local product matrix. Draft PR #1 stays
+OPEN/DRAFT/unmerged; no merge, release or deployment was performed.
+
+## EVID-20260825-127 — GDJ-0045 Durable System-State Frozen Local Checkpoint
+
+- Date/time: completed through 2026-08-25T17:59:00+09:00
+- Work/contract IDs: GDJ-0045 active; ADR-0047 and DEV-0008 Proposed; SYS-001..012 implemented and source-locally
+  published, but not yet hosted-`Verified`
+- Frozen source/conformance head: `c2c0cc3f7b98520ae9c86e1f3f47e4df06368d35`, tree
+  `f5aa56d4ea169836be103c36f1c45ecd403bb413`, subject `feat: publish durable system state restart slice`
+- Result: the durable credential/session-digest/audit stores, explicit current system migration, bootstrap/readiness,
+  restart-preserving Article Admin/API, same-transaction audit, distinct-process actual protocol and global conformance
+  adapter passed the one-time frozen local gates. Required PostgreSQL execution, exact submitted-head hosted completion,
+  ADR/deviation/work terminal transitions, merge, release and production readiness are not claimed.
+
+### Product and conformance freeze
+
+The source chain is `93ad385...` for the durable single-runtime product and `c2c0cc3...` for restart publication and
+hardening. Session lookup persists only versioned domain-separated digest keys; rotate preserves the latest confirmed
+touch, duplicate-cookie logout flushes bounded canonical IDs, bootstrap/Article/audit unknown commits are not retried or
+synthesized as success, and structured diagnostics redact secrets. Registered restart scenarios use actual child PIDs,
+stdin/FD3 secret transport, process/binary/DB/temp scans and SQLite or PostgreSQL A/B/C runserver handoff rather than a
+same-process reopen constant.
+
+The system-state manifest is 7,730 bytes/SHA-256
+`f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`; its Django/decision oracle is 13,099
+bytes/SHA-256 `4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb`; the exact DEV-0008 sparse fixture is
+1,141 bytes/SHA-256 `a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869`. Oracle-blind actual A and B are
+byte-identical at 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6` and each reports all 12
+contracts under the exact four-selector DEV-0008 policy.
+
+The exact classification is `11 passing + SYS-009 deviation`. Global reference is 21 sets/231 contracts/420 ordered
+bindings=`203 passing + 16 deviation + 12 oracle_locked`; product is 20 sets/219 contracts=
+`203 passing + 16 deviation`. MIG-075..086 remain the only locked/unregistered contracts. The relation-product inventory
+is 1,034 run/1,034 pass/0 skip, 106,767 payload bytes and SHA-256
+`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`. Generated Article and relation-delete
+snapshots remained exact 12/SHA-256 `0af11c64...` and 16/SHA-256 `2a28734c...`.
+
+### Affected, full and portability gates
+
+Before the source commit, affected normal/race/CGO-disabled tests and vet, worker/runner/runserver/restart tests, the
+skip-free SQLite restart selector, generated drift, exact uv 0.10.12 Python system-state tests and oracle no-rewrite,
+`make conformance-check`, `make godj-conformance`, protocol/checker tests, actual A/B and relation inventory all exited 0.
+The committed clean source then ran:
+
+```bash
+PATH="$PINNED_UV_0_10_12_DIR:$PATH" \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Both exited 0. `make ci` covered generation drift, all-package normal/vet/race, configured CGO-disabled products,
+portable Python, contract validation and all 20 GoDj adapters. Portable Python ran 250 tests with 21 intentional
+exact-profile-only skips; these are suite classifications, not hosted job/step or product-contract skips. The separate
+Linux/386 command is compile-only because `/usr/bin/true` does not execute target binaries. The environment was Go
+1.26.5 darwin/arm64, exact reference Python 3.14.3 and cached uv 0.10.12 whose binary SHA-256 was
+`905d1df4acf3034441a54ceb6b4fbb16a415638f899c454194e8e81e48f1b900`.
+
+### Repository-external archive and audit
+
+A guarded `.git`-free `git archive c2c0cc3...` contained exactly 1,016 tracked regular files and 103 Go packages. Every
+Git blob and executable mode was verified. With a private `GOCACHE`, `make generate-check` and all-package Linux/386
+compile-only both exited 0. The before/after aggregate content roster stayed SHA-256
+`85a7424e036fa0d3105d0a287db0503943a52c535cb483095bd76f14364103ae`; file count, content and mode did not drift.
+The temporary archive was moved recoverably to
+`/Users/hanhyeonjin/.Trash/godj-gdj0045-external-20260825T175849` after verification.
+
+An independent read-only source audit reviewed digest derivation and raw-bearer handling, monotonic touch/rotate,
+duplicate-cookie logout, commit-outcome-unknown, actual child-process identity, A/B/C runserver behavior, manifest and
+DEV-0008 policy, plus the fail-closed required PostgreSQL workflow sentinel. It returned P0/P1/P2/P3=`0/0/0/0`.
+
+No local `GODJ_TEST_POSTGRES_URL` was available, so PostgreSQL distinct-process restart was not counted as a local pass.
+The next boundary is this documentation-only checkpoint, a non-force Draft PR push, and one exact submitted-head hosted
+matrix whose digest-pinned PostgreSQL job must explicitly pass the new sixteenth required sentinel with required skip 0.
+Any source/workflow/artifact correction invalidates that hosted boundary and requires a new frozen checkpoint. Until all
+hosted gates pass, ADR-0047 and DEV-0008 remain Proposed and GDJ-0045 remains active. Draft PR #1 remains
 OPEN/DRAFT/unmerged; no merge, release or deployment was performed.
