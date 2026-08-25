@@ -128,7 +128,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"Run PostgreSQL actual product race tests",
 	)
 	for _, fragment := range []string{
-		`GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable`,
+		`GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable`,
 		`GODJ_REQUIRE_POSTGRES: "1"`,
 		`log="$RUNNER_TEMP/postgresql-product-tests.json"`,
 		`go test -timeout=15m -json -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \`,

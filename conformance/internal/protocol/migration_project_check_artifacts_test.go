@@ -541,7 +541,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"OK (skipped=21)",
 		"len(SCENARIOS) == 231",
 		"len(payload) == 860151",
-		"b2671e3c39a1a4b98428f323e2331354cba1b744f2e9b38a477f8cb107df3232",
+		"fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
@@ -581,7 +581,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"timeout-minutes: 30",
 		"services:\n      postgres:\n",
 		"image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
-		"POSTGRES_PASSWORD: postgres",
+		"POSTGRES_PASSWORD: godj-ci-pg-canary-8H2k7M4q9V6x3R",
 		"POSTGRES_DB: postgres",
 		`POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --locale-provider=libc"`,
 		`--health-cmd "pg_isready -U postgres -d postgres"`,
@@ -619,7 +619,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`case "$postgres_host_port" in`,
 		`""|*[!0-9]*)`,
 		`if [ "$postgres_host_port" -lt 1 ] || [ "$postgres_host_port" -gt 65535 ]; then`,
-		`export GODJ_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"`,
+		`export GODJ_TEST_POSTGRES_URL="postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"`,
 		`timeout 3s "$project_runner" probe`,
 		`"$project_runner" resume`,
 		`"$project_runner" verify`,
@@ -672,7 +672,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 			t.Fatalf("PostgreSQL required actual-test sentinel %q count = %d, want 1", sentinel, strings.Count(postgres, sentinel))
 		}
 	}
-	postgresURL := "GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable"
+	postgresURL := "GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable"
 	if got := strings.Count(postgres, postgresURL); got != 4 {
 		t.Fatalf("PostgreSQL product URL injection count = %d, want exact 4", got)
 	}

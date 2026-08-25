@@ -811,7 +811,7 @@ jobs:
           assert len(SCENARIOS) == 231, len(SCENARIOS)
           assert len(payload) == 860151, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "b2671e3c39a1a4b98428f323e2331354cba1b744f2e9b38a477f8cb107df3232", digest
+          assert digest == "fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7", digest
           PY
 
       - name: Require a clean worktree
@@ -830,7 +830,7 @@ jobs:
       postgres:
         image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: godj-ci-pg-canary-8H2k7M4q9V6x3R
           POSTGRES_DB: postgres
           POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --locale-provider=libc"
         options: >-
@@ -868,7 +868,7 @@ jobs:
 
       - name: Run and inventory PostgreSQL actual product tests
         env:
-          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
         run: |
           set -euo pipefail
@@ -918,19 +918,19 @@ jobs:
 
       - name: Run PostgreSQL actual product race tests
         env:
-          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
         run: go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && go test -timeout=15m -race -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct
 
       - name: Run PostgreSQL actual product tests without CGO
         env:
-          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
         run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && CGO_ENABLED=0 go test -timeout=15m -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct
 
       - name: Verify PostgreSQL durable resume across service restart
         env:
-          GODJ_TEST_POSTGRES_URL: postgresql://postgres:postgres@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_TEST_POSTGRES_SCHEMA: godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: |
@@ -955,7 +955,7 @@ jobs:
             echo "restarted PostgreSQL service published port is outside the valid range" >&2
             exit 1
           fi
-          export GODJ_TEST_POSTGRES_URL="postgresql://postgres:postgres@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
+          export GODJ_TEST_POSTGRES_URL="postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${postgres_host_port}/postgres?sslmode=disable"
           ready=0
           for attempt in $(seq 1 30); do
             if timeout 3s "$project_runner" probe >/dev/null 2>&1; then

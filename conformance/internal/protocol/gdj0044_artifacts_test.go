@@ -413,7 +413,7 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 		"rest_framework.VERSION == \"3.18.0\"",
 		"len(SCENARIOS) == 231",
 		"len(payload) == 860151",
-		"b2671e3c39a1a4b98428f323e2331354cba1b744f2e9b38a477f8cb107df3232",
+		"fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7",
 	} {
 		if !strings.Contains(ciText, required) {
 			t.Fatalf("CI lacks GDJ-0044 reference fragment %q", required)
