@@ -15,7 +15,7 @@
   CI #146 run `32833586028` exact 필수 GitHub Actions 27/27 jobs·359/359 steps·failure/cancel/step-skip/annotation 0,
   PostgreSQL 17.10 required 16/16·skip 0와 네 relation 좌표 1,034/1,034·skip 0. ADR-0047은 Accepted,
   DEV-0008은 Verified, GDJ-0045는 completed이고 Q-020은 `Partial`입니다.
-- GDJ-0046 Phase A/B/C local checkpoint: activation commit
+- GDJ-0046 Phase A/B/C/D checkpoint: activation commit
   `6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`, tree `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`의 CI #148/run
   `32922718021`은 exact 27/27 jobs·failure/cancel/skip 0으로 통과했지만 activation-only baseline입니다. Phase A
   `61e59d5b86538c385ed4801f1e927a6a5a1da14a`, tree `eea194288e4865a680fc516200093576026896a6`은
@@ -29,8 +29,14 @@
   `systemstate.Runtime` startup/session/audit/Article writer를 DB fence에 합류시키고 같은 SQLite file의 두 Runtime에서
   bootstrap, global capacity/reap, monotonic touch, rotate/logout과 Article+audit/prune rollback을 선형화해
   [EVID-131](TEST_EVIDENCE.md#evid-20260826-131--gdj-0046-phase-c-multi-runtime-system-state-local-checkpoint)의
-  local gate를 통과했습니다. Shared CSRF key ring과 two-process SQLite/PostgreSQL product actual은 아직 남아 있으며 ADR-0048
-  Proposed, GDJ-0046 active, Q-020 `Partial`을 유지합니다.
+  local gate를 통과했습니다. Phase C documentation head `ab19545f8714ed3d824cff34e4d6b53ae94bc458`은 CI #150/run
+  `32928022190` exact 27/27 jobs·359/359 steps로 통과했습니다. Phase D
+  `d42027983863f471401d65ef24c83fb94df2d743`, tree `70b4c74f01bb46360a60ec508fb669d66d092ec0`은 opaque
+  active/validation `CSRFKeyRing`, staged rotation과 Article two-Runtime Admin/API token handoff를 구현해
+  [EVID-132](TEST_EVIDENCE.md#evid-20260826-132--gdj-0046-phase-c-hosted-and-phase-d-shared-csrf-local-checkpoint)의
+  affected local gate를 통과했습니다. 다음은 PostgreSQL 없는 portable runner가 success를 합성하지 않도록 SYS-020 live-attestation
+  결합 규약을 고정한 뒤 two-process SQLite/PostgreSQL product actual을 구현하는 Phase E입니다. ADR-0048 Proposed, GDJ-0046 active,
+  Q-020 `Partial`과 SYS-013..020 `oracle_locked`를 유지합니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
   Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree

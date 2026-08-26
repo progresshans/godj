@@ -90,6 +90,35 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
 - Session/capacity/audit policy 값도 DB authority가 아니라 deployment가 동일한 normalized profile로 주입해야 합니다. Persisted
   configuration negotiation은 이 ADR의 지원 범위가 아닙니다.
 
+## 구현 checkpoint
+
+Phase A~C는 reference decision, backend coordinated-atomic SPI와 `systemstate.Runtime`/Article writer의 DB fence 합류를 구현했습니다.
+Phase D commit `d42027983863f471401d65ef24c83fb94df2d743`은 이미 load된 exact 32-byte material만 받는 opaque immutable
+`CSRFKeyRing`을 추가했습니다. Active key 하나가 새 token에만 서명하고 최대 일곱 validation key를 포함한 configured key 전체를
+검증합니다. Caller slice는 복사되고 duplicate/over-limit/malformed ring은 fail-closed하며 zero config는 기존 process-local CSPRNG와
+DEV-0008을 유지합니다. Article site의 secret-bearing startup Config도 opaque private state로 좁혀 같은 explicit ring을 사용하는 두
+Runtime의 API/Admin token handoff를 실제 HTTP 경로에서 검증했습니다.
+
+Phase E publication에는 추가 fail-closed 규약이 필요합니다. Portable `make ci` 환경에는 PostgreSQL 17.10 service가 항상 없으므로
+SYS-020 handler가 PostgreSQL 성공을 상수로 합성하거나 service 부재를 conditional skip으로 통과시켜서는 안 됩니다. SYS-020을
+`passing`으로 승격하기 전에 required digest-pinned PostgreSQL lane이 같은 frozen behavioral source에서 생성한 secret-free live
+attestation을 portable product evidence에 결합하고 stale/missing/mismatched attestation을 거부하는 경계를 work packet에 고정합니다.
+그 규약과 실제 two-process sentinel이 모두 준비될 때까지 SYS-020은 `oracle_locked`를 유지합니다.
+
+구체적으로 checked evidence는
+`conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json`과 같은 디렉터리의 `SHA256SUMS`입니다. Evidence는
+expected/pass 판정이 아니라 exact PostgreSQL fingerprint, producer/harness version, source binding과 secret-free backend facts만
+strict canonical JSON으로 보존합니다. Source binding은 code-owned frozen scope의 sorted
+`path\0mode\0size\0content_sha256\n` inventory에서 file count, payload bytes와 SHA-256을 계산하며 attestation 자체와 docs/evidence만
+self-reference에서 제외합니다. Required PostgreSQL lane은 명시적
+`GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE=/absolute/temp/path`로 temporary canonical evidence를 다시 생성해 checked bytes와
+`cmp`하고 named pass 존재와 skip 부재를 요구합니다.
+
+Portable `godjcheck`는 명시적 `-system-state-postgres-attestation PATH`에서 strict loader가 canonical bytes, checksum, fingerprint와
+현재 source binding을 검증한 뒤 facts를 `GenerateWithInputs`에 주입합니다. Product runner는 oracle/fixture/contract/attestation path를
+직접 읽지 않고, portable report도 PostgreSQL을 live 실행했다고 주장하지 않습니다. Missing, duplicate/trailing/oversize,
+wrong-fingerprint, stale-source와 failure fact는 actual publication 전에 fail-closed하며 failure fact를 success로 바꾸지 않습니다.
+
 ## 의도적으로 결정하지 않은 것
 
 - Direct SQL/non-cooperative writer, DB UNIQUE/index와 general CAS/row-lock Query AST
@@ -99,6 +128,9 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
 - Persistent key DB, KMS/Vault integration, automatic distribution와 unlimited history
 - Cookie/JWT/OAuth/refresh/password-reset/Admin-notice key를 하나의 key type으로 통합
 - Production topology, multi-DB/router와 MySQL/MariaDB/Oracle
+- Existing opaque secret 값 전체에 arbitrary invalid fmt verb hardening을 소급 적용하는 repository-wide formatting 정책. 새 key ring과
+  Article internal startup Config는 이 방어까지 포함하지만 documented ordinary diagnostic과 실제 product callsite 밖의 기존 타입은
+  별도 defense-in-depth 후보입니다.
 
 ## 검증
 

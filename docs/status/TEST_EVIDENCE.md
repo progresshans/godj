@@ -12235,3 +12235,80 @@ Phase D shared CSRF key ring, Phase E distinct-process actual, PostgreSQL 17.10 
 Linux/386, repository-external clean copy and an exact Phase C+ submitted-head hosted matrix remain unrun. Product actual
 still exposes only SYS-001..012, so this evidence does not promote SYS-013..020 to `passing`, accept ADR-0048, complete
 GDJ-0046, merge the Draft PR, release or deploy anything.
+
+## EVID-20260826-132 — GDJ-0046 Phase C Hosted and Phase D Shared-CSRF Local Checkpoint
+
+- Date/time: completed through 2026-08-26T13:19:29+09:00
+- Work/contract IDs: GDJ-0046 active; ADR-0048 Proposed; Q-020 Partial; Phase D source for SYS-019;
+  SYS-013..020 remain reference-only `oracle_locked` and absent from product actual registration
+- Exact Phase D source commit: `d42027983863f471401d65ef24c83fb94df2d743`, tree
+  `70b4c74f01bb46360a60ec508fb669d66d092ec0`, subject `feat: share CSRF keys across runtimes`
+- Result: the Phase C documentation head passed the complete hosted matrix. Separately, Phase D added an opaque immutable
+  active/validation CSRF key ring and verified shared-key Article Admin/API composition across two live Runtime instances.
+  This is not Phase E two-process or SYS-013..020 product-actual evidence.
+
+### Phase C exact hosted checkpoint
+
+[GitHub Actions CI #150 run 32928022190](https://github.com/progresshans/godj/actions/runs/32928022190) targeted exact
+head `ab19545f8714ed3d824cff34e4d6b53ae94bc458`, tree `e306db7eeda3254fafb47e75684f363b9929d0bb`, and
+completed `success` with 27/27 jobs and 359/359 recorded steps. Failure, cancellation and step skip were all zero. This
+run includes Phase C source `48c167ffa83392a3f603866785811afae945a6b6`; it does not contain the later Phase D source.
+
+The PostgreSQL 17.10 job [98054706611](https://github.com/progresshans/godj/actions/runs/32928022190/job/98054706611)
+used exact `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+Its fail-closed inventory retained exactly sixteen named required passes, including the GDJ-0045 distinct-process restart
+sentinel, and rejected any required skip; the successful job therefore records 16/16 and skip 0. All four relation-product
+coordinates accepted the corrected Phase C lock 1,041 run/1,041 pass/0 skip, 107,467 bytes and SHA-256
+`acdcef1190843b7386be2d00e0250db68cf9a0714c1bf9c61c122e6bcc703a49`.
+
+### Phase D key and composition boundary
+
+`web/sessionauth.NewCSRFKeyRing` copies one exact 32-byte active key and at most seven exact 32-byte validation keys into
+private pointer-backed immutable state. Duplicate, malformed and over-limit input fails with secret-free
+`invalid_config`. The active key alone signs new masked tokens; verification computes HMAC and constant-time comparison
+for every configured key even after an early match. Caller slice mutation cannot alter the ring.
+
+The zero ring still consumes exactly 32 bytes from the configured CSPRNG during Runtime startup and preserves DEV-0008
+process-local stale-token rejection. An explicit ring consumes no startup key entropy. String, GoString, JSON, ordinary
+numeric formatting and Go's special `%p`/`%w` fallback paths do not expose raw/hex/base64/decimal key material. Article's
+internal startup Config now keeps backend, username, password and ring behind private opaque state and composes the ring
+through `NewConfig(...).WithCSRFKeyRing(...)`.
+
+Two independent Article site Runtime instances opened the same SQLite file and shared one cookie jar. With the same
+explicit ring, a login/session/CSRF token issued by Runtime A succeeded on Runtime B's unsafe Article JSON API create and
+Admin add paths. With zero ring configuration, the same cross-Runtime API request returned exact 403 with no Article
+write while the issuing Runtime accepted it. Token-bearing HTML failure diagnostics record only status, token-part count
+and body length.
+
+### Executed Phase D verification
+
+The following final commands exited 0 on bytes identical to the source commit:
+
+```bash
+go test -count=1 ./web/sessionauth ./examples/article/internal/siteapp ./examples/article/cmd/site \
+  ./admin ./api/sessionauth ./systemstate ./examples/article/adminapp
+go test -race -count=1 ./web/sessionauth ./examples/article/internal/siteapp ./examples/article/cmd/site \
+  ./admin ./api/sessionauth ./systemstate ./examples/article/adminapp
+CGO_ENABLED=0 go test -count=1 ./web/sessionauth ./examples/article/internal/siteapp ./examples/article/cmd/site \
+  ./admin ./api/sessionauth ./systemstate ./examples/article/adminapp
+go vet ./web/sessionauth ./examples/article/internal/siteapp ./examples/article/cmd/site \
+  ./admin ./api/sessionauth ./systemstate ./examples/article/adminapp
+go test -run '^$' ./...
+go test -count=20 -run '^TestCSRFKeyRing' ./web/sessionauth
+go test -count=5 -run '^Test(SharedCSRFKeyRingComposesAcrossTwoArticleSiteRuntimes|ZeroCSRFKeyRingKeepsArticleSiteKeysProcessLocal|ConfigDiagnosticsAndJSONNeverExposeSecrets|NewConfigPreservesStartupValidationOrder)$' \
+  ./examples/article/internal/siteapp
+go test -race -count=3 -run '^Test(SharedCSRFKeyRingComposesAcrossTwoArticleSiteRuntimes|ZeroCSRFKeyRingKeepsArticleSiteKeysProcessLocal|ConfigDiagnosticsAndJSONNeverExposeSecrets|NewConfigPreservesStartupValidationOrder)$' \
+  ./examples/article/internal/siteapp
+git diff --check
+```
+
+Independent final review additionally passed key-ring normal count 50/race count 20 and selected Article site normal
+count 10/race count 5, then repeated normal/race/CGO-disabled/vet. Two real findings were fixed before freeze: Stringer
+could be bypassed by numeric/`%p`/`%w` formatting to expose key arrays, and token-bearing HTML bodies appeared in failure
+diagnostics. Final review returned P0/P1/P2=`0/0/0`. One non-blocking P3 records that existing `sessions.ID`, `CSRFToken`
+and `BootstrapConfig` do not yet apply the new private-state defense to arbitrary invalid fmt verbs; no scoped product
+callsite uses such verbs, so this is a separate repository-wide defense-in-depth candidate rather than Phase D behavior.
+
+Phase E distinct two-process SQLite/PostgreSQL actual, SYS-013..020 registration, live-attestation binding, secret scan,
+full `make ci`, Linux/386 and repository-external clean copy remain unrun. Therefore this checkpoint does not promote a
+contract, accept ADR-0048, complete GDJ-0046, merge the Draft PR, release or deploy anything.

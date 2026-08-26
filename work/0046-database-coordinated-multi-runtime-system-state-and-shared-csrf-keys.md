@@ -203,13 +203,41 @@ web/sessionauth.Config
 - Key ring은 secret provider가 아니라 immutable already-loaded material입니다. Env/file/KMS loading은 composition owner가 담당하고
   framework error는 secret bytes나 caller carrier를 보존하지 않습니다.
 
+## Phase E PostgreSQL live-attestation publication protocol
+
+SYS-020은 portable SQLite actual과 required PostgreSQL 17.10 live evidence의 합성 계약입니다. PostgreSQL service가 없는 portable
+runner가 success를 상수로 만들거나 skip을 passing으로 바꾸는 방식은 false green이므로 금지합니다. 다음 fail-closed 경계를 사용합니다.
+
+- Checked product evidence는
+  `conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json`과 같은 디렉터리의 `SHA256SUMS`입니다.
+  Expected oracle 전체가 아니라 PostgreSQL backend facts만 담고 `format`, `kind`, `contract`, `scenario`, producer/harness version,
+  exact PostgreSQL fingerprint, behavioral-source binding과 normalized facts를 strict canonical JSON으로 저장합니다.
+- Facts는 concurrent writer process count 2, same schema, barrier linearization, restart preservation, divergence/loss/drift와 secret occurrence
+  count 같은 관찰값입니다. Expected/pass boolean, oracle/profile digest, wall clock, commit/run ID, DSN, dynamic schema와 secret material은
+  넣지 않습니다.
+- Source binding은 code-owned sorted scope에 대해 exact `path\0mode\0size\0content_sha256\n` inventory를 만들고 file count, payload
+  bytes와 SHA-256을 저장합니다. `conformance/systemstate/attestations/**`와 docs/evidence만 self-reference에서 제외하며 Makefile,
+  workflow, go.mod/go.sum, system-state manifest, 관련 runtime/product non-test source, runner/cmd/protocol source와 live restart harness를
+  포함합니다. Workflow/manifest/source가 고정된 뒤 attestation을 capture합니다.
+- Live PostgreSQL sentinel은 명시적
+  `GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE=/absolute/temp/path`에서만 canonical capture를 씁니다. Required digest-pinned
+  PostgreSQL 17.10 lane은 temporary capture를 checked bytes와 `cmp`하고 named pass 존재/skip 부재를 함께 요구합니다.
+- Portable `godjcheck`는 명시적 `-system-state-postgres-attestation PATH`에서 strict loader/source verifier로 evidence를 읽어
+  `GenerateWithInputs`에 주입합니다. Product runner 자체는 oracle/fixture/contract/attestation path I/O를 하지 않아 artifact-blind
+  source rule을 유지합니다. Portable report는 PostgreSQL을 live 실행했다고 주장하지 않습니다.
+- Missing, non-canonical, duplicate/trailing/oversize, wrong fingerprint, stale source binding과 failure facts는 actual publication 전에
+  실패합니다. Source add/remove/mutation, attestation self-exclusion과 failure-fact passthrough를 회귀 테스트로 고정합니다.
+
+이 protocol과 live capture가 구현·검증될 때까지 SYS-020은 `oracle_locked`입니다. PostgreSQL sentinel을 별도 증거로만 두면서 portable
+handler가 성공을 합성하는 약한 projection 방식은 채택하지 않습니다.
+
 ## 구현 단계
 
 - [x] Activation — baseline, SYS-013..020, Proposed ADR-0048, allowed paths와 비목표 고정
 - [x] Phase A — decision manifest/reference/NI/checksum과 protocol artifact invariants
 - [x] Phase B — coordinated-atomic SPI, SQLite/PostgreSQL implementation과 callback/fault/cancel unit tests
 - [x] Phase C — systemstate Open/session/audit/Article integration과 same-process two-Runtime barrier tests
-- [ ] Phase D — opaque CSRF key ring, site composition과 cross-Runtime/staged-rotation tests
+- [x] Phase D — opaque CSRF key ring, site composition과 cross-Runtime/staged-rotation tests
 - [ ] Phase E — distinct two-process SQLite actual과 required PostgreSQL 17.10 actual, secret scan과 no-skip sentinel
 - [ ] Checkpoint — affected normal/race/CGO0/vet, generated/artifact drift와 backend canary
 - [ ] Final frozen milestone — full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
@@ -230,6 +258,15 @@ database coordination domain에 합류시키고 같은 SQLite file의 두 Runtim
 이 local source checkpoint만 기록하며 shared CSRF key ring, two-process actual, required PostgreSQL 17.10 또는 hosted source proof를
 아직 주장하지 않습니다.
 
+Phase C documentation head `ab19545f8714ed3d824cff34e4d6b53ae94bc458`은 CI #150/run `32928022190`에서
+exact 27/27 jobs와 359/359 steps로 통과했습니다. Phase D commit
+`d42027983863f471401d65ef24c83fb94df2d743`, tree `70b4c74f01bb46360a60ec508fb669d66d092ec0`은
+exact 32-byte active key 하나와 최대 일곱 validation key를 복사해 보관하는 opaque immutable `CSRFKeyRing`, active-only signing,
+bounded all-key verification, zero-config DEV-0008 behavior와 Article two-Runtime Admin/API composition을 구현했습니다.
+[EVID-132](../docs/status/TEST_EVIDENCE.md#evid-20260826-132--gdj-0046-phase-c-hosted-and-phase-d-shared-csrf-local-checkpoint)은
+Phase C hosted checkpoint와 Phase D affected local gate를 구분해 기록합니다. SYS-013..020 product actual과 two-process backend
+proof는 아직 게시하지 않습니다.
+
 ## 완료 조건
 
 - [ ] SYS-013..020이 decision reference와 oracle-blind Go actual에서 예상 classification으로 검증됨
@@ -238,7 +275,7 @@ database coordination domain에 합류시키고 같은 SQLite file의 두 Runtim
   test로 검증됨
 - [x] Concurrent touch가 timestamp를 뒤로 돌리지 않고 rotate는 exactly-one replacement만 게시함
 - [x] Logout/rotate 결과가 명시된 linearization contract와 일치하고 old bearer가 다시 만들어지지 않음
-- [ ] Shared key ring의 cross-Runtime token, staged rotation과 removed-key rejection이 secret-free하게 통과함
+- [x] Shared key ring의 cross-Runtime token, staged rotation과 removed-key rejection이 secret-free하게 통과함
 - [ ] Raw bearer, CSRF key/cookie/token, password와 DB URL이 DB payload/artifact/log/error/diagnostic에 노출되지 않음
 - [ ] SQLite와 digest-pinned PostgreSQL 17.10에서 실제 두 process required sentinel이 skip 0으로 통과함
 - [ ] Schema IR/definition/state/digest/codegen/generated ABI와 sessions.Store/API public behavior가 drift하지 않음
@@ -253,14 +290,19 @@ database coordination domain에 합류시키고 같은 SQLite file의 두 Runtim
 - Fence를 잡은 채 password hashing, network call 또는 application callback 밖의 unbounded 작업을 하지 않습니다.
 - Callback/commit을 자동 retry하면 session rotate/Article audit가 중복될 수 있으므로 retry ownership을 추가하지 않습니다.
 - Key ring material은 직렬화/formatting API를 제공하지 않고 validation key count를 hard cap합니다.
+- 새 key ring과 Article startup Config는 private pointer-backed state로 `%p`/`%w` fallback까지 secret-free하게 만들었습니다.
+  기존 `sessions.ID`, `CSRFToken`, `BootstrapConfig`의 arbitrary invalid fmt verb 방어는 실제 product callsite가 없는 별도
+  defense-in-depth 후보이며, 이번 packet은 documented ordinary diagnostic과 실제 log/error/artifact leak 0보다 넓은
+  repository-wide formatter 계약을 소급 주장하지 않습니다.
 - 일반 IR이나 public Store signature가 필요해지면 발견 즉시 후속 phase를 멈추고 packet/ADR을 재검토합니다.
 - Runtime별 session/capacity/audit policy를 다르게 배포하면 global bound 의미를 보장하지 않습니다. Persisted config negotiation은
   비목표이고 identical normalized deployment profile을 operator precondition으로 유지합니다.
 
 ## 다음 정확한 작업
 
-1. `web/sessionauth`에 opaque immutable active/validation `CSRFKeyRing`과 hard validation-count cap을 추가하되 zero config의
-   process-local DEV-0008 behavior를 보존합니다.
-2. 같은 explicit ring을 쓰는 두 Runtime의 token handoff, staged rotation, removed/unrelated key rejection과 Article site composition을
-   Phase D에서 검증합니다.
-3. Phase E에서 distinct two-process SQLite/PostgreSQL actual, restart와 secret scan을 product actual로 게시합니다.
+1. Strict canonical PostgreSQL attestation loader/source inventory와 injection/capture tests를 먼저 구현하되 SYS-020은 계속
+   `oracle_locked`로 둡니다.
+2. Anonymous-pipe barrier를 쓰는 distinct two-process SQLite/PostgreSQL worker와 restart/secret scan/no-skip sentinel을 구현하고
+   digest-pinned PostgreSQL 17.10에서 canonical attestation을 capture합니다.
+3. Checked attestation byte comparison과 SYS-013..020 oracle-blind product actual/artifact locks를 게시한 뒤 final frozen source에서
+   full/386/external/hosted gate를 한 번 수행합니다.
