@@ -44,7 +44,7 @@ func (r *Runtime) request(request *web.Request) (*http.Request, error) {
 	if err := httpRequest.Context().Err(); err != nil {
 		return nil, err
 	}
-	if r == nil || r.sessions == nil || r.authenticator == nil || r.authorizer == nil || r.random == nil || r.clock == nil {
+	if r == nil || r.sessions == nil || r.authenticator == nil || r.authorizer == nil || r.random == nil || r.clock == nil || !r.csrfKeyRing.Valid() {
 		return nil, &Error{Code: CodeInvalidConfig, Detail: "session-auth runtime is nil or uninitialized"}
 	}
 	return httpRequest, nil

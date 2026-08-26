@@ -78,6 +78,7 @@ type Config struct {
 	Random           io.Reader
 	Clock            func() time.Time
 	Limits           Limits
+	CSRFKeyRing      CSRFKeyRing `json:"-"`
 }
 
 type Runtime struct {
@@ -95,7 +96,7 @@ type Runtime struct {
 	clock            func() time.Time
 	clockMu          sync.Mutex
 	limits           Limits
-	csrfKey          [csrfSecretBytes]byte
+	csrfKeyRing      CSRFKeyRing
 }
 
 func (*Runtime) String() string   { return "sessionauth.Runtime{redacted}" }
@@ -223,9 +224,18 @@ func New(config Config) (*Runtime, error) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "allowed_next_paths", Detail: "fallback path exceeds the configured allowed-path limit"}
 	}
 	allowed[config.FallbackPath] = struct{}{}
-	var csrfKey [csrfSecretBytes]byte
-	if _, err := io.ReadFull(config.Random, csrfKey[:]); err != nil {
-		return nil, &Error{Code: CodeEntropy, Detail: "CSRF runtime key source failed", Cause: err}
+	csrfKeyRing := config.CSRFKeyRing
+	if csrfKeyRing.isZero() {
+		var active [csrfSecretBytes]byte
+		if _, err := io.ReadFull(config.Random, active[:]); err != nil {
+			return nil, &Error{Code: CodeEntropy, Detail: "CSRF runtime key source failed", Cause: err}
+		}
+		csrfKeyRing, err = NewCSRFKeyRing(active[:])
+		if err != nil {
+			return nil, err
+		}
+	} else if !csrfKeyRing.Valid() {
+		return nil, invalidCSRFKeyRing("CSRF key ring is invalid")
 	}
 	return &Runtime{
 		sessions:         config.Sessions,
@@ -240,7 +250,7 @@ func New(config Config) (*Runtime, error) {
 		random:           config.Random,
 		clock:            config.Clock,
 		limits:           limits,
-		csrfKey:          csrfKey,
+		csrfKeyRing:      csrfKeyRing,
 	}, nil
 }
 

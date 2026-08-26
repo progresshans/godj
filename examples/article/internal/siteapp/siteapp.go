@@ -1,6 +1,7 @@
 // Package siteapp composes the Article development server's opt-in Admin and
 // JSON API surface. Credentials, sessions, and Admin audit history live in the
-// explicitly migrated system schema; CSRF signing state remains process-local.
+// explicitly migrated system schema. CSRF signing remains process-local unless
+// startup explicitly injects one deployment-shared key ring.
 package siteapp
 
 import (
@@ -31,16 +32,58 @@ const (
 	maximumAuditEntries = 1024
 )
 
-// Config is consumed during startup. The raw password is hashed before the
-// immutable application is returned and is never retained by the runtime.
+const configDiagnostic = "siteapp.Config{redacted}"
+
+// Config is an opaque immutable startup value. Secret-bearing backend,
+// password, and CSRF key state remains behind an unexported pointer so generic
+// formatting cannot recursively inspect it.
 type Config struct {
-	Backend  systemstate.Backend `json:"-"`
-	Username string
-	Password string `json:"-"`
+	state *configState
 }
 
-func (Config) String() string   { return "siteapp.Config{redacted}" }
-func (Config) GoString() string { return "siteapp.Config{redacted}" }
+type configState struct {
+	backend     systemstate.Backend
+	username    string
+	password    string
+	csrfKeyRing websessionauth.CSRFKeyRing
+}
+
+// NewConfig copies the required startup input into opaque immutable state.
+// Without WithCSRFKeyRing, web/sessionauth retains its process-local key
+// behavior.
+func NewConfig(backend systemstate.Backend, username, password string) Config {
+	return Config{state: &configState{
+		backend:  backend,
+		username: username,
+		password: password,
+	}}
+}
+
+// WithCSRFKeyRing returns an immutable copy configured with an already-loaded
+// deployment key ring. The ring remains opaque and has no material accessor.
+func (config Config) WithCSRFKeyRing(csrfKeyRing websessionauth.CSRFKeyRing) Config {
+	var configured configState
+	if config.state != nil {
+		configured = *config.state
+	}
+	configured.csrfKeyRing = csrfKeyRing
+	return Config{state: &configured}
+}
+
+func (Config) String() string   { return configDiagnostic }
+func (Config) GoString() string { return configDiagnostic }
+
+// Format makes ordinary fmt verbs, flags, widths, and precisions
+// secret-independent. Go reserves invalid/special %p and %w paths before this
+// hook; Config's pointer-backed opaque state keeps those fallbacks secret-free.
+func (Config) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte(configDiagnostic))
+}
+
+// MarshalJSON never publishes even the shape of secret-bearing startup state.
+func (Config) MarshalJSON() ([]byte, error) {
+	return []byte(`"siteapp.Config{redacted}"`), nil
+}
 
 // New builds one public Web + Admin + JSON API application. AllowInsecure is
 // explicit because cmd/site permits this mode only on a loopback listener.
@@ -51,10 +94,14 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(config.Username) == "" {
+	var configured configState
+	if config.state != nil {
+		configured = *config.state
+	}
+	if strings.TrimSpace(configured.username) == "" {
 		return nil, errors.New("article site application: configured username is empty")
 	}
-	if strings.TrimSpace(config.Password) == "" {
+	if strings.TrimSpace(configured.password) == "" {
 		return nil, errors.New("article site application: configured password is empty")
 	}
 
@@ -72,9 +119,9 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: password profile: %w", err)
 	}
-	runtime, err := systemstate.Open(ctx, config.Backend, systemstate.BootstrapConfig{
-		Username:    config.Username,
-		Password:    config.Password,
+	runtime, err := systemstate.Open(ctx, configured.backend, systemstate.BootstrapConfig{
+		Username:    configured.username,
+		Password:    configured.password,
 		PrincipalID: developmentAdminID,
 		Active:      true,
 		Permissions: []auth.Permission{
@@ -118,6 +165,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		Authorizer:       auth.PrincipalAuthorizer{},
 		SessionCookie:    websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
 		CSRFCookie:       websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		CSRFKeyRing:      configured.csrfKeyRing,
 		LoginPath:        adminBasePath + "/login/",
 		FallbackPath:     adminBasePath + "/",
 		AllowedNextPaths: allowedNext,

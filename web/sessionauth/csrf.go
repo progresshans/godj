@@ -1,8 +1,6 @@
 package sessionauth
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"io"
@@ -64,7 +62,8 @@ func (r *Runtime) CSRFToken(request *web.Request) (CSRFToken, error) {
 	// Bind the randomized prefix rather than the raw cookie secret so every
 	// rendered token remains fully masked while sibling-domain cookie injection
 	// still cannot manufacture a server-authenticated token.
-	copy(masked[2*csrfSecretBytes:], r.csrfMAC(masked[:2*csrfSecretBytes]))
+	mac := r.csrfKeyRing.sign(masked[:2*csrfSecretBytes])
+	copy(masked[2*csrfSecretBytes:], mac[:])
 	return CSRFToken{value: base64.RawURLEncoding.EncodeToString(masked), change: change}, nil
 }
 
@@ -117,9 +116,9 @@ func (r *Runtime) VerifyCSRF(request *web.Request, formTokens []string) error {
 		unmasked[index] = masked[index] ^ masked[csrfSecretBytes+index]
 	}
 	secretMatches := subtle.ConstantTimeCompare(unmasked, secret)
-	macMatches := subtle.ConstantTimeCompare(
+	macMatches := r.csrfKeyRing.verify(
+		masked[:2*csrfSecretBytes],
 		masked[2*csrfSecretBytes:],
-		r.csrfMAC(masked[:2*csrfSecretBytes]),
 	)
 	if secretMatches&macMatches != 1 {
 		return csrfRejected()
@@ -143,12 +142,6 @@ func (r *Runtime) readRandom(target []byte) error {
 		return &Error{Code: CodeEntropy, Detail: "CSRF entropy source failed", Cause: err}
 	}
 	return nil
-}
-
-func (r *Runtime) csrfMAC(secret []byte) []byte {
-	mac := hmac.New(sha256.New, r.csrfKey[:])
-	_, _ = mac.Write(secret)
-	return mac.Sum(nil)
 }
 
 func decodeCSRFSecret(encoded string) ([]byte, error) {

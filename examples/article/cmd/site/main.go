@@ -153,11 +153,11 @@ func applicationForServe(
 	if !publication.authenticated {
 		return webapp.NewApplication(backend)
 	}
-	return siteapp.New(ctx, siteapp.Config{
-		Backend:  backend,
-		Username: publication.username,
-		Password: publication.password,
-	})
+	return siteapp.New(ctx, siteapp.NewConfig(
+		backend,
+		publication.username,
+		publication.password,
+	))
 }
 
 type onceCloseListener struct {
