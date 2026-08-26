@@ -53,3 +53,21 @@ type Session interface {
 type Atomic interface {
 	Atomic(context.Context, func(Session) error) error
 }
+
+// CoordinatedAtomic executes callback in a transaction-bound Session after
+// acquiring the backend's database/schema coordination fence. An acquisition
+// error or cancellation before the fence is acquired invokes callback zero
+// times. Once the fence is acquired, callback is invoked exactly once, even if
+// the context becomes canceled at that boundary. Implementations execute
+// synchronously and never retry acquisition, callback, or commit on the
+// caller's behalf. Callers must not nest backend transactions or acquire a
+// different backend coordination domain from callback.
+//
+// Callback errors and cancellation observed after callback return roll back
+// when rollback can be confirmed. A literal COMMIT error has the same unknown
+// outcome and no-retry contract as Atomic: implementations return
+// query.CodeCommitOutcomeUnknown and callers reconcile before issuing the work
+// again.
+type CoordinatedAtomic interface {
+	CoordinatedAtomic(context.Context, func(Session) error) error
+}
