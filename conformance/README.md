@@ -151,7 +151,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/article-admin-manifest.json` | ADM-001..010 bounded Article Admin contract; 9 passing + 1 DEV-0005 |
 | `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
 | `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
-| `contracts/system-state-manifest.json` | SYS-001..020 system-state contract; legacy 11 passing + SYS-009 DEV-0008 deviation + 8 ADR-0048 proposal `oracle_locked` |
+| `contracts/system-state-manifest.json` | SYS-001..020 system-state contract; 19 passing + SYS-009 DEV-0008 deviation under Accepted ADR-0048 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -251,17 +251,18 @@ WEB-028/029의 eight sparse selectors는 Verified DEV-0006, API-001/003/010의 s
 DEV-0007만 허용하고 root-list comparator도 selector/type/count를 fail-closed하게 검증합니다. 두 actual comparison은
 각각 8/8과 10/10에서 unexpected difference 0입니다.
 
-Current checkout의 global reference는 21 sets/239 contracts/420 ordered bindings=`203 passing + 16 deviation + 20
-oracle_locked`, product는 20 adapters/219 eligible contracts=`203 passing + 16 deviation`입니다. SYS-001..012 actual은
-global registry/Makefile에 게시됐고 MIG-075..086과 SYS-013..020은 locked/unregistered입니다. Four-coordinate relation
-inventory는 GDJ-0046 Phase B의 일곱 SQLite coordinated-atomic top-level tests를 포함해 1,041/1,041/0,
-107,467 bytes, SHA-256 `acdcef1190843b7386be2d00e0250db68cf9a0714c1bf9c61c122e6bcc703a49`입니다.
+Current checkout의 global reference는 21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12
+oracle_locked`, product는 20 adapters/227 eligible contracts=`211 passing + 16 deviation`입니다. SYS-001..020 actual은
+global registry/Makefile에 게시됐고 locked/unregistered range는 MIG-075..086뿐입니다. Four-coordinate relation inventory는
+GDJ-0046 Phase E source를 포함해 1,054/1,054/0, 108,991 bytes, SHA-256
+`ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3`입니다.
 
-Final local `make ci`, Linux/386, external archive와 source audit는
-[EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint), exact
-27/27 jobs·359/359 steps hosted gate와 PostgreSQL/runserver sentinels는 EVID-126에 기록됩니다. OpenAPI,
-browsable API, token auth, nested/bulk serializer, durable system state, Channels/Realtime와 M7/M8 completion은 이
-gate가 증명하지 않습니다.
+Current Phase E final local `make ci`, Linux/386, 1,055-file external archive와 source audit는
+[EVID-133](../docs/status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final), exact
+hosted gate와 PostgreSQL/live-attestation sentinels는
+[EVID-134](../docs/status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)에 기록됩니다.
+OpenAPI, browsable API, token auth, nested/bulk serializer, non-cooperative writer, distributed coordination,
+Channels/Realtime와 production readiness는 이 gate가 증명하지 않습니다.
 
 ## GDJ-0045 durable system-state reference gate
 
@@ -284,11 +285,21 @@ Local global actual A/B는 각각
 12 contracts가 DEV-0008 reviewed product expectation과 일치했습니다. Exact profile에서 oracle을
 재생성하거나 checked-in bytes를 검증하려면 historical uv 0.10.12를 명시해 다음을 사용합니다.
 
-GDJ-0046 Phase A는 같은 set에 Proposed ADR-0048 authority의 SYS-013..020을 `oracle_locked`로 append했습니다.
-Current manifest/NI/oracle은 각각 11,151/2,417/21,338 bytes와 SHA-256 `2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a`/
+GDJ-0046 Phase A 당시에는 같은 set에 Proposed ADR-0048 authority의 SYS-013..020을 `oracle_locked`로 append했습니다.
+그 Phase A snapshot의 manifest/NI/oracle은 각각 11,151/2,417/21,338 bytes와 SHA-256 `2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a`/
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`/
-`6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c`입니다. Product actual registry는 legacy 12개만
-required로 유지하며 full 20-entry actual의 나머지 8개는 payload-free `not_implemented`입니다.
+`6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c`였습니다. 당시 product actual registry는 legacy
+12개만 required였고 full 20-entry actual의 나머지 8개는 payload-free `not_implemented`였습니다.
+
+Current Phase E publication은 Accepted ADR-0048 아래 SYS-013..020을 모두 product `passing`으로 전환했습니다. Current
+manifest/oracle/root `SHA256SUMS`는 각각 11,143/21,242/1,791 bytes와 SHA-256
+`b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`/
+`d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`/
+`e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. Checked PostgreSQL attestation은
+1,134 bytes/SHA-256 `52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`, sibling checksum file은
+103 bytes/SHA-256 `29d08917e71083bb1aedc99d70c91fa449541a89cf08e1b74cf3b72ecf7f518a`입니다. Attestation은 current
+behavioral source 250 files/2,855,113 payload bytes/SHA-256
+`b0356da11869a1bfaf8573ea0734913f56529d9acfe25dd68b4aeaadcb72abb8`에 fail-closed하게 묶입니다.
 
 ```bash
 LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \
@@ -308,13 +319,17 @@ go run ./conformance/cmd/godjcheck \
   -manifest conformance/contracts/system-state-manifest.json \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json \
   -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json \
+  -system-state-postgres-attestation \
+    conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json \
   -actual-output "$tmpdir/system-state-actual.json"
 ```
 
 일반 uv 0.12.3은 portable test에는 사용할 수 있지만 embedded exact profile의 oracle regeneration은 version mismatch로
-fail-closed합니다. SQLite distinct-process restart actual은 로컬에서 통과했습니다. PostgreSQL sentinel은
-`GODJ_TEST_POSTGRES_URL` 및 required lane의 `GODJ_REQUIRE_POSTGRES=1`을 사용하며, EVID-129의 exact 17.10 lane에서
-16/16·skip 0과 normal/race/CGO0/service-restart/vet/clean을 통과했습니다.
+fail-closed합니다. GDJ-0045의 single-runtime SQLite/PostgreSQL restart evidence는 EVID-129에 보존됩니다. GDJ-0046은
+anonymous-pipe barrier를 쓰는 실제 두 process SQLite actual과 checked live attestation을 결합한 PostgreSQL actual을 추가했습니다.
+Required PostgreSQL 17.10 lane은 `GODJ_TEST_POSTGRES_URL`, `GODJ_REQUIRE_POSTGRES=1`과 explicit capture path를 사용해
+17/17 named pass·skip 0, checked bytes `cmp`, normal/race/CGO0/service-restart/vet/clean을 통과했습니다. Portable actual은
+PostgreSQL을 live 실행했다고 주장하지 않고 strict attestation 검증 결과만 합성 입력으로 사용합니다.
 
 ## Exact profile
 

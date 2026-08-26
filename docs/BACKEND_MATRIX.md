@@ -1,6 +1,6 @@
 # Database Backend Matrix
 
-- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010 bounded slice Verified
+- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010 및 GDJ-0046 cooperative multi-runtime bounded slice Verified
 - 마지막 검토: 2026-08-26
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
@@ -9,8 +9,8 @@
 
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
-| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver bounded `Implemented`/hosted `Verified`; GDJ-0046 coordinated-atomic backend boundary local `Implemented`, system-state integration pending | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 PostgreSQL 17 runserver bounded Implemented/Verified; GDJ-0046 coordinated-atomic backend boundary local `Implemented`, PostgreSQL actual pending; broader support open | relation, locking, production-oriented semantics |
+| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver bounded `Implemented`/hosted `Verified`; GDJ-0046 coordinated transaction, two-Runtime/two-process system state `Implemented`/hosted `Verified` | read/write, transaction, 최소 migration conformance |
+| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 PostgreSQL 17 runserver bounded Implemented/Verified; GDJ-0046 coordinated transaction과 source-bound PostgreSQL 17.10 two-process actual `Implemented`/hosted `Verified`; broader support open | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -117,8 +117,9 @@ MySQL, Windows process semantics, non-loopback/TLS와 production readiness를 �
 
 ## GDJ-0046 coordinated-atomic backend boundary
 
-Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) Phase B는
-ordinary `db.Atomic`의 기존 의미를 바꾸지 않고 additive `db.CoordinatedAtomic`을 추가했습니다. 이 callback은 fence acquire
+Completed [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)는 Accepted
+[ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)에 따라 ordinary `db.Atomic`의 기존 의미를
+바꾸지 않고 additive `db.CoordinatedAtomic`을 추가했습니다. 이 callback은 fence acquire
 전 실패·취소 시 0회, acquire 뒤 정확히 1회 실행되며 framework가 acquire/callback/commit을 재시도하지 않습니다. Callback
 error 또는 commit 전 관찰된 cancellation은 rollback을 확인할 수 있을 때 rollback합니다. Transaction 종료를 확인하지 못하면
 outcome은 unknown이고, literal commit error는 `CodeCommitOutcomeUnknown`으로 반환합니다. Callback 안에서 backend transaction을
@@ -130,12 +131,20 @@ outcome은 unknown이고, literal commit error는 `CodeCommitOutcomeUnknown`으�
 - PostgreSQL은 기존 `Atomic` transaction 안에서 schema-scoped
   `SELECT "pg_catalog"."pg_advisory_xact_lock"($1)`을 먼저 실행합니다. Lock key는 versioned/domain-separated SHA-256의
   선두 8 bytes에서 파생하며 migration advisory-lock domain과 분리합니다.
-- [EVID-130](status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)은 affected backend
-  normal/race/CGO-disabled, vet와 SQLite two-Backend file contention/fault tests만 기록합니다. `systemstate.Runtime` integration,
-  same-process two-Runtime, distinct-process SQLite, required PostgreSQL 17.10 actual과 hosted source proof는 아직 실행하지 않았습니다.
+- Phase C actual은 같은 process의 두 Runtime에서 global session capacity/reap와 audit bound를 검증했고, Phase D는
+  `systemstate.Runtime`/Article writer의 shared coordination domain 및 explicit shared CSRF key ring HTTP handoff를 검증했습니다.
+  Phase E는 anonymous-pipe barrier를 쓰는 실제 두 process SQLite/PostgreSQL writer와 clean restart,
+  divergence/loss/drift/secret occurrence 0을 product actual로 게시했습니다.
+- PostgreSQL live evidence는 digest-pinned 17.10 exact 16-field fingerprint와 current behavioral source에 묶인 strict canonical
+  attestation입니다. Portable runner는 이 checked evidence를 검증할 뿐 live PostgreSQL 실행을 주장하지 않고, required hosted lane은
+  같은 source에서 다시 capture해 checked bytes와 `cmp`하며 17/17 named pass·skip 0을 요구합니다.
+- [EVID-130](status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)은 Phase B-only history이고,
+  [EVID-133](status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final) /
+  [EVID-134](status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)이 corrected source의
+  affected/full/386/external archive와 exact hosted proof를 소유합니다.
 
-따라서 이 SPI는 Phase C~E의 correctness primitive이지 multi-runtime system-state 또는 production database 지원 완료 주장이
-아닙니다. ADR-0048은 계속 Proposed입니다.
+이 검증은 같은 schema와 identical normalized policy를 사용하는 cooperative GoDj Runtime에 한정됩니다. Non-cooperative direct SQL
+writer, general constraint/CAS IR, distributed coordination, online migration/serving과 production database 운영 완료 주장이 아닙니다.
 
 ## 현재 migration backend ABI
 

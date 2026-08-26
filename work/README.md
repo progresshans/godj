@@ -69,27 +69,22 @@ proposed → ready → active → completed
 | [GDJ-0043](0043-safe-template-validation-session-auth-and-article-admin.md) | completed | Safe template, validation, session/auth와 Article Admin 수직 단면 |
 | [GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) | completed | Session-authenticated Article JSON API와 closed parameterized routing |
 | [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md) | completed | Durable single-runtime system state와 restart-preserving Article Admin/API |
-| [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | active | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
+| [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | completed | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0이고 유일한 active work는
-[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Activation commit
-`6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`/tree `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`의 CI #148/run
-`32922718021`은 27/27 success였지만 activation-only baseline입니다. Phase A `61e59d5...`/tree `eea1942...`는
-SYS-013..020을 reference-only `oracle_locked`로 게시했고, Phase B `1ea7b61...`/tree `a093ece...`는 additive
-SQLite/PostgreSQL coordinated-atomic backend boundary를 구현해
-[EVID-130](../docs/status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)의 affected local gate를
-통과했습니다. SYS-013..020 product actual은 아직 없으며 [ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은
-Proposed입니다. 다음 작업은 Phase C `systemstate.Runtime` integration입니다.
-최근 terminal completion은 [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md)입니다. Corrected frozen source
-`6243682...`/tree `98076ea...`의
-[EVID-128](../docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)은
-corrected full/386/1,016-file external archive와 audit를 통과했습니다. Exact submitted head `e673b3a...`/tree
-`917d36f...`의 [EVID-129](../docs/status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) /
-CI #146 run `32833586028`은 필수 GitHub Actions 27/27 jobs·359/359 steps, PostgreSQL 17.10 required
-16/16·skip 0, portable runserver required 16/16과 네 relation 좌표 1,034/1,034·skip 0을 통과했습니다.
-ADR-0047은 Accepted, DEV-0008은 Verified, Q-020은 `Partial`이고 GDJ-0045는 completed입니다. Multi-runtime,
-shared deployment key와 JWT/OAuth는 후속 범위입니다. Draft PR #1은 OPEN/DRAFT/unmerged입니다.
+현재 active/ready packet은 0/0이고 최근 terminal completion은
+[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Initial Phase E publication
+`de5cd505...` 뒤 setup-python v6의 known manifest-truncation path를 교정한 exact frozen source는
+`29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree `4f061289b240b4739ec43155b08b5909e95eddc0`입니다.
+[EVID-133](../docs/status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final)의
+affected/full/386/1,055-file external archive와 independent audit, 그리고
+[EVID-134](../docs/status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion) / CI #153 run
+`32938192672`의 exact 27/27 jobs·360/360 steps가 통과했습니다. Accepted
+[ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md) 아래 SYS-013..020은 모두
+product `passing`; current reference/product는 21/239/420=`211+16+12 locked`, 20/227=`211+16`입니다. Q-020은
+non-cooperative/distributed/production 범위 때문에 `Partial`, DEV-0008은 zero-config SYS-009에 대해 Verified입니다.
+다음 bounded packet은 Q-021의 first-party/BFF/Bearer authentication profile을 우선 검토합니다. Draft PR #1은
+OPEN/DRAFT/unmerged입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI

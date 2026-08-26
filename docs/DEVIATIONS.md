@@ -530,7 +530,11 @@ API-wide standardized problem details 또는 trusted proxy body-limit ownership�
   [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md),
   [Local EVID-127](status/TEST_EVIDENCE.md#evid-20260825-127--gdj-0045-durable-system-state-frozen-local-checkpoint),
   [Corrected refreeze EVID-128](status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze),
-  [Hosted EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion)
+  [Hosted EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion),
+  [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md),
+  [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md),
+  [Phase E EVID-133](status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final),
+  [Hosted EVID-134](status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -560,9 +564,10 @@ Fresh-token lane과 auth/session/permission/DB state의 나머지 값은 locked 
 
 ### 이유와 고려한 대안
 
-Signing key까지 durable하게 저장하면 restart 전 masked token을 수용할 수 있지만 key rotation, multi-instance 배포와 secret
-storage lifecycle을 이번 packet에서 결정해야 합니다. 첫 single-runtime durable state에서는 restart가 기존 masked token의
-trust boundary를 끊고 safe request에서 remask하는 좁은 정책을 채택합니다.
+Signing key까지 durable하게 저장하거나 deployment-shared ring을 주입하면 restart 전 masked token을 수용할 수 있지만 key rotation,
+multi-instance 배포와 secret lifecycle을 함께 결정해야 합니다. GDJ-0045의 첫 single-runtime durable state는 restart가 기존 masked
+token의 trust boundary를 끊고 safe request에서 remask하는 좁은 zero-config 정책을 채택했습니다. 이후 Accepted ADR-0048/GDJ-0046은
+explicit active/validation key ring을 별도 opt-in 경계로 구현했지만 zero-config 동작과 이 deviation을 제거하지 않았습니다.
 
 ### 사용자·데이터·migration 영향
 
@@ -571,8 +576,9 @@ safe refresh로 새 token을 받은 뒤 작업을 재시도할 수 있습니다.
 
 ### backend/concurrency/security 영향
 
-SQLite/PostgreSQL 차이는 없고 raw CSRF cookie/token/key는 DB audit, observation, error와 log에 포함하지 않습니다. 이 결정은
-one-runtime sequential restart만 다루며 rolling multi-process deployment의 key coordination을 해결하지 않습니다.
+SQLite/PostgreSQL 차이는 없고 raw CSRF cookie/token/key는 DB audit, observation, error와 log에 포함하지 않습니다. 이 decision
+자체는 zero-config one-runtime sequential restart만 다룹니다. Explicit shared ring을 구성한 cooperative multi-runtime deployment는
+SYS-019에서 cross-Runtime/staged-rotation을 검증하지만, 구성하지 않은 Runtime은 계속 이 DEV-0008 의미를 따릅니다.
 
 ### 구현과 검증 조건
 
@@ -584,5 +590,6 @@ one-runtime sequential restart만 다루며 rolling multi-process deployment의 
 
 ### 복귀 또는 supersede 조건
 
-Persistent/rotating CSRF signing key 또는 coordinated multi-process topology를 별도 ADR로 채택하면 Django behavior로 복귀하거나 새
-deviation으로 supersede합니다. Comparator를 완화하거나 stale-token case를 삭제해서 통과시키지 않습니다.
+Default configuration 자체를 persistent/shared key policy로 바꾸고 그 migration·rotation·secret-provider 경계를 별도 ADR에서
+채택할 때만 Django behavior로 복귀하거나 새 deviation으로 supersede합니다. ADR-0048의 explicit opt-in ring만으로는 zero-config
+SYS-009를 supersede하지 않습니다. Comparator를 완화하거나 stale-token case를 삭제해서 통과시키지 않습니다.

@@ -219,19 +219,20 @@ single-runtime system state의 첫 durable 단면입니다. Accepted
 table을 명시 적용하고 clean restart 뒤 Article Admin/API authentication, logout과 Admin audit history를 복구하는 구현이
 hosted-verified됐습니다. SYS-001..012 global adapter는 11 `passing` + SYS-009 Verified DEV-0008
 `deviation`이고 SQLite distinct-process actual과 EVID-129의 PostgreSQL 17.10 required 16/16·skip 0이 통과했습니다.
-DB/schema당 one live runtime, sequential restart, digest-only bearer storage와 Article/audit same-transaction만 범위이며
-user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed session, persistent CSRF key와 production 운영은
-아직 지원하지 않습니다.
+GDJ-0045 자체의 범위는 DB/schema당 one live runtime, sequential restart, digest-only bearer storage와 Article/audit
+same-transaction이었습니다. 이 historical boundary와 SYS-001..012/DEV-0008 evidence는 그대로 보존됩니다.
 
-Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)와 Proposed
-[ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 같은 DB/schema를 사용하는
-cooperative Runtime을 backend coordinated transaction으로 선형화하고 deployment-shared active/validation CSRF key ring을
-주입하는 후속 hardening입니다. Phase A는 SYS-013..020을 reference-only `oracle_locked`로 게시했고 Phase B는 ordinary
-transaction을 바꾸지 않는 additive `db.CoordinatedAtomic` SQLite/PostgreSQL backend boundary를 local unit/fault gate에서
-검증했습니다. 아직 product adapter에 등록되지 않았고 `systemstate.Runtime` integration, shared CSRF key ring,
-same-process/two-process actual, required PostgreSQL 17.10과 hosted source proof가 없으므로 multi-runtime/shared-key 제품
-capability로 지원·검증됐다고 주장하지 않습니다. General Unique/Integer/CAS IR, non-cooperative writer,
-session-family revocation, JWT/OAuth와 production deployment는 별도 후속입니다.
+Completed [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)와 Accepted
+[ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 같은 DB/schema를 사용하는 cooperative
+Runtime을 backend coordinated transaction으로 선형화하고 deployment-shared active/validation CSRF key ring을 주입하는 bounded
+hardening입니다. Ordinary transaction을 바꾸지 않는 additive `db.CoordinatedAtomic`, fenced `systemstate.Runtime`/Article writer,
+same-process two-Runtime HTTP handoff와 실제 two-process SQLite/PostgreSQL barrier/restart를 구현했습니다. SYS-013..020은
+product `passing`이며 current source에 묶인 checked PostgreSQL 17.10 live attestation, local full/386/external archive와 exact hosted
+matrix가 EVID-133/134에서 검증됐습니다. Zero config는 process-local key와 SYS-009/DEV-0008을 유지합니다.
+
+이것은 cooperative framework writer와 identical normalized deployment policy의 범위입니다. User/group/password lifecycle,
+general Unique/Integer/CAS IR, non-cooperative writer, distributed session/coordination, session-family revocation, automatic key
+distribution/provider, JWT/OAuth와 production deployment는 별도 후속입니다.
 
 ## API
 

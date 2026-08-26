@@ -12312,3 +12312,170 @@ callsite uses such verbs, so this is a separate repository-wide defense-in-depth
 Phase E distinct two-process SQLite/PostgreSQL actual, SYS-013..020 registration, live-attestation binding, secret scan,
 full `make ci`, Linux/386 and repository-external clean copy remain unrun. Therefore this checkpoint does not promote a
 contract, accept ADR-0048, complete GDJ-0046, merge the Draft PR, release or deploy anything.
+
+## EVID-20260826-133 — GDJ-0046 Phase E Frozen Source and Corrected Local Final
+
+- Date/time: completed through 2026-08-26T15:38:44+09:00
+- Work/contract IDs: GDJ-0046; Accepted ADR-0048; Q-020 Partial; SYS-013..020 product `passing`
+- Initial Phase E publication: `de5cd505b598bc6fea3f7869d57d9c6c724f394a`, tree
+  `7fb4feb3480dc85583727d47c9441e2bb77927e0`, subject `conformance: publish multi-runtime system-state evidence`
+- Corrected frozen source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree
+  `4f061289b240b4739ec43155b08b5909e95eddc0`, subject `ci: harden exact Python setup`
+- Result: actual two-process SQLite/PostgreSQL coordination and restart, strict source-bound PostgreSQL live attestation,
+  secret scan and SYS-013..020 product publication passed affected and final local gates. A known external setup action
+  defect was corrected without changing product semantics, and the PostgreSQL evidence was recaptured against the new exact source.
+
+### Phase E product and artifact boundary
+
+`de5cd505...` added a real anonymous-pipe barrier worker used by two independent OS processes. SQLite opens two independent
+backend handles on one file; PostgreSQL opens two processes on the same schema. The earlier Phase C same-process actual separately
+verifies global session capacity/reap and audit bounds. The Phase E product actual verifies writer count 2, same coordination
+domain, barrier linearization, clean stop/reopen preservation and zero divergence, loss, drift or raw-secret occurrence.
+SYS-013..019 are direct oracle-blind product observations. SYS-020 combines
+the portable real two-process SQLite observation with strict checked PostgreSQL backend facts; it does not synthesize a live
+PostgreSQL success constant.
+
+The current system-state publication is:
+
+- reference 21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12 oracle_locked`;
+- product 20 adapters/227 eligible contracts=`211 passing + 16 deviation`;
+- system-state exact 20=`19 passing + SYS-009 Verified DEV-0008 deviation`;
+- only MIG-075..086 remain `oracle_locked`/unregistered.
+
+Current artifact locks are:
+
+- system-state manifest 11,143 bytes/SHA-256
+  `b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`;
+- system-state oracle 21,242 bytes/SHA-256
+  `d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`;
+- root oracle `SHA256SUMS` 1,791 bytes/SHA-256
+  `e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`;
+- all-scenario semantic payload 239 scenarios/869,022 bytes/SHA-256
+  `6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae`;
+- four-coordinate relation inventory 1,054 run/1,054 pass/0 skip, 108,991 bytes/SHA-256
+  `ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3`.
+
+The corrected checked PostgreSQL evidence is
+`conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json`: 1,134 bytes/SHA-256
+`52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`. Its sibling checksum file is 103 bytes/SHA-256
+`29d08917e71083bb1aedc99d70c91fa449541a89cf08e1b74cf3b72ecf7f518a`. The attestation records exact PostgreSQL
+fingerprint `170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`, writer processes 2,
+same-schema/barrier/restart true and divergence/loss/drift/secret occurrences 0. It is bound to a code-owned inventory of
+250 files/2,855,113 payload bytes/SHA-256
+`b0356da11869a1bfaf8573ea0734913f56529d9acfe25dd68b4aeaadcb72abb8`.
+
+### Hosted setup diagnosis and source correction
+
+[CI #152 run 32936719913](https://github.com/progresshans/godj/actions/runs/32936719913) targeted exact initial publication
+`de5cd505...`. It ended 24 success/1 failure/2 canceled after a later push. The only failure was Python 3.12.13 job
+`98079210878`: `actions/setup-python` v6 spent approximately 30 seconds fetching a truncated manifest, returned success without
+installing Python or publishing `python-path`, and the repository's next exact-version assertion failed closed. This matches
+upstream setup-python issue 1318 and is not product or compatibility evidence.
+
+The minimal correction pins setup-python v7 exact SHA
+`5fda3b95a4ea91299a34e894583c3862153e4b97`, whose manifest path validates, retries and ultimately fails loud. Because the
+workflow is inside the behavioral source scope, the PostgreSQL live attestation was recaptured from digest-pinned
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+on `linux/amd64` against
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+The required named sentinel passed, no skip occurred and the capture was published only after exact fingerprint and secret-free
+facts were checked.
+
+### Executed verification on corrected frozen source
+
+The following focused gates exited 0 on `29d62469...`:
+
+```bash
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/system-state-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json \
+  -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json \
+  -system-state-postgres-attestation conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+go test -count=1 ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test -race -count=1 ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+CGO_ENABLED=0 go test -count=1 ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go vet ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+```
+
+Exact local `make ci` exited 0 with Go 1.26.5 and uv 0.10.12 where the exact profile requires it. It covered generated drift,
+normal/vet/race/configured CGO-disabled suites, all conformance tools and 250 Python tests with 21 expected skips. The Article
+and relation-delete generated snapshots remained exact `0af11c64...` and `2a28734c...`.
+
+The all-package 32-bit compile-only gate also exited 0 for 106 packages:
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+A fresh repository-external `git archive` contained 1,055 files/blob entries and no `.git`. Before/after exact path/mode/blob
+inventories matched; the source tree stream SHA-256 was
+`1c5cae1495030a152241f531ea6d50a4d7d598cd95e90f7f1e7fde1810118a22` and framed roster SHA-256 was
+`293580841f708062153c60245f8be62a2fae9ff490e0408cd0cf889cb964b45c`. With isolated external cache,
+`make generate-check` passed and the same Linux/386 command compiled 106 packages.
+
+Independent read-only implementation, source-binding and attestation audits found no P0/P1 acceptance defect. Non-blocking
+defense-in-depth observations are limited to descriptor-level no-follow/TOCTOU hardening under the trusted frozen CI source and
+an extreme scheduler window; neither weakens the checked source, product contract or required sentinel. This evidence does not
+claim non-cooperative direct SQL writers, general constraint/CAS IR, distributed coordination, family-wide revocation,
+JWT/OAuth, production readiness, merge, release or deployment.
+
+## EVID-20260826-134 — GDJ-0046 Corrected Exact-Head Hosted Completion
+
+- Date/time: 2026-08-26T06:26:55Z–06:52:02Z
+- Work/contract IDs: GDJ-0046 completed; ADR-0048 Accepted; Q-020 Partial; SYS-013..020 `passing`
+- Exact submitted source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree
+  `4f061289b240b4739ec43155b08b5909e95eddc0`
+- Hosted run: [GitHub Actions CI #153 run 32938192672](https://github.com/progresshans/godj/actions/runs/32938192672),
+  pull request event for Draft PR #1, attempt 1
+- Result: `success`; 27/27 required jobs and 360/360 recorded steps succeeded. Failure, cancellation, step skip and check-run
+  annotation counts were all zero.
+
+### Exact hosted acceptance
+
+The checked-artifact job `98083599111` verified the PostgreSQL attestation checksum before running full portable `make ci`.
+Portable conformance reported 250 Python tests/21 expected skips and exact system-state comparison:
+`GoDj observations match the reviewed product expectation for 20 contracts under DEV-0008`. It consumed the explicit
+`-system-state-postgres-attestation` input, passed current-source verification, project-check validation, Linux/386 compile gates,
+relation products on 386, both stored oracle checks and artifact drift/clean checks.
+
+The digest-pinned PostgreSQL 17.10 job
+[`98083599155`](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599155) passed the exact 16-field
+fingerprint and all seventeen required named sentinels with skip 0. These include both the GDJ-0045 distinct-process restart and
+GDJ-0046 two-process coordination/restart sentinels. The job recaptured
+`postgresql-17.10-two-process-v1.json`, compared it byte-for-byte with the checked artifact, verified `SHA256SUMS`, then passed
+normal, race, CGO-disabled, service-restart, vet and clean-worktree gates.
+
+All four relation-product jobs emitted the same inventory: 1,054 run/1,054 pass/0 skip, 108,991 payload bytes and SHA-256
+`ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3`.
+
+| Coordinate | Job |
+|---|---:|
+| Ubuntu 22.04 x64 | [98083599096](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599096) |
+| macOS 15 Intel | [98083599165](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599165) |
+| macOS 26 arm64 | [98083599179](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599179) |
+| Ubuntu 24.04 arm64 | [98083599581](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599581) |
+
+The four Python compatibility jobs all logged successful exact CPython setup under setup-python v7, passed 250 tests with
+21 expected skips and the asserted all-scenario inventory 239/869,022 bytes/SHA-256
+`6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae`.
+
+| Python | Job |
+|---|---:|
+| 3.12.13 | [98083599239](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599239) |
+| 3.13.15 | [98083599346](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599346) |
+| 3.14.3 | [98083599200](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599200) |
+| 3.14.7 | [98083599148](https://github.com/progresshans/godj/actions/runs/32938192672/job/98083599148) |
+
+This exact-source run closes GDJ-0046 hosted acceptance: ADR-0048 is Accepted, SYS-013..020 are product `passing`, and the
+work packet is completed. Q-020 remains Partial for non-cooperative writers, distributed coordination, deployment-policy
+negotiation and production topology. DEV-0008 remains Verified for zero-config process-local keys; explicit SYS-019 key rings do
+not supersede it. The terminal evidence/status documentation is a documentation-only descendant of this tested source and receives
+diff/link/status gates rather than recursively re-running the product matrix. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge,
+release or deployment was performed.

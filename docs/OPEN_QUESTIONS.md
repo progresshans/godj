@@ -19,7 +19,7 @@
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
-| Q-020 | Partial | GDJ-0046 active / cooperative multi-runtime acceptance 전 | Accepted ADR-0047의 one-runtime/sequential-restart는 hosted-verified; Proposed ADR-0048의 DB coordination과 shared key topology는 아직 구현·검증 전 |
+| Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
 | Q-021 | P1 | Durable system state 이후 / public API auth 전 | First-party cookie, BFF와 Bearer API profile을 어떻게 분리하고 JWT/opaque access token, rotating refresh token, key rotation/revocation을 공통 Principal/Permission 경계에 연결할 것인가 |
 
 ## GDJ-0043에서 해결한 질문
@@ -56,28 +56,35 @@
 - One-runtime은 `Open`이 lease/fence로 강제하지 않는 operator precondition입니다. Future multi-runtime 답은 credential singleton,
   session digest uniqueness, row-lock/conditional monotonic touch, shared capacity/reap/audit-prune, Article read-modify-write와
   purpose-separated CSRF/Admin notice deployment key ring을 함께 다뤄야 합니다.
-- SYS-001..012 exact artifact와 global GoDj adapter는 게시되고 EVID-129에서 hosted-verified됐습니다. 이 product classification은
-  SYS-001..008/010..012 `passing` + SYS-009 `deviation`, product 20/219=`203+16`입니다. GDJ-0046 Phase A가
-  SYS-013..020을 reference-only `oracle_locked`로 append해 current reference는 21/239/420=`203+16+20 locked`이고,
-  MIG-075..086과 SYS-013..020은 product actual registration에 포함되지 않습니다. Local SYS-001..012 actual A/B는 12,944 bytes/SHA-256
+- SYS-001..012 exact artifact와 global GoDj adapter는 게시되고 EVID-129에서 hosted-verified됐습니다. 그 GDJ-0045
+  product classification은 SYS-001..008/010..012 `passing` + SYS-009 `deviation`, product 20/219=`203+16`이었습니다.
+  GDJ-0046 Phase A 당시 SYS-013..020을 reference-only `oracle_locked`로 append한 snapshot은
+  21/239/420=`203+16+20 locked`였고 MIG-075..086과 SYS-013..020은 product actual registration에 포함되지 않았습니다.
+  Local SYS-001..012 actual A/B는 12,944 bytes/SHA-256
   `f30ac1a4...d41c3a6`로 byte-identical하고 SQLite distinct-process가 통과했습니다.
 - SYS-009의 process-local CSRF-key 정책은 [Verified DEV-0008](DEVIATIONS.md#dev-0008--restart-뒤-process-local-csrf-key로-stale-masked-token을-거부)입니다.
   [EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146은
   PostgreSQL required 16/16·skip 0과 exact 27/27 jobs·359/359 steps를 통과해 ADR Accepted, DEV Verified와
   GDJ-0045 completed를 닫았습니다. Broader multi-runtime 답이 남으므로 Q-020은 `Partial`입니다.
 
-## GDJ-0046에서 검증할 질문
+## GDJ-0046에서 부분 결정한 질문
 
-- Active GDJ-0046/Proposed ADR-0048은 같은 SQLite file 또는 PostgreSQL schema를 쓰는 cooperative Runtime의
-  credential/session/capacity/audit/Article writer를 하나의 database coordination domain으로 선형화할 수 있는지
-  검증합니다. Public Schema IR, migration format과 sessions.Store를 확장하지 않고 additive backend SPI로 충분한지가
-  핵심입니다. Phase A decision reference와 Phase B SQLite/PostgreSQL `db.CoordinatedAtomic` backend primitive는
-  EVID-130의 affected local gate를 통과했고, Phase C system-state integration과 Phase D/E key/two-process actual은 남았습니다.
+- Completed GDJ-0046/Accepted ADR-0048은 같은 SQLite file 또는 PostgreSQL schema를 쓰는 cooperative Runtime의
+  credential/session/capacity/audit/Article writer를 하나의 database coordination domain으로 선형화했습니다. Public Schema IR,
+  migration format과 sessions.Store를 확장하지 않고 additive `db.CoordinatedAtomic` backend SPI, fenced Runtime과 Article
+  transaction으로 bounded 답을 구현했습니다.
 - Shared CSRF key ring은 active key로 발급하고 bounded validation key set으로 rolling deployment 중 서로 검증하며,
   zero config의 process-local 정책과 SYS-009/DEV-0008 historical meaning을 조용히 재작성하지 않습니다.
+- SYS-013..020은 모두 oracle-blind product `passing`으로 게시됐습니다. Current reference는
+  21/239/420=`211 passing + 16 deviation + 12 oracle_locked`, product는 20/227=`211 passing + 16 deviation`이며 remaining
+  locked range는 MIG-075..086뿐입니다. Actual은 same-process two-Runtime HTTP handoff, 실제 two-process SQLite/PostgreSQL
+  barrier/restart와 current-source-bound checked PostgreSQL 17.10 attestation을 포함합니다.
 - Logout/rotate는 DB fence가 정한 순서로 선형화합니다. Rotate-first 뒤 old-ID logout이 replacement family까지
   폐기하는 강한 family-wide revocation은 generation/tombstone과 Store/schema 변경이 필요하므로 별도 후속 질문으로 남깁니다.
-- Q-020은 SYS-013..020의 actual two-process SQLite/PostgreSQL 및 exact hosted acceptance 전까지 `Partial`입니다.
+- [EVID-133](status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final)과
+  [EVID-134](status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)이 local/hosted
+  acceptance를 분리해 증명합니다. Q-020은 non-cooperative direct SQL writer, distributed coordination, deployment-policy
+  negotiation, online serving/migration과 production topology를 답하지 않았으므로 `Partial`로 남습니다.
 
 ## Public API authentication에서 검증할 질문
 

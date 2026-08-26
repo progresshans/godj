@@ -104,11 +104,11 @@ Phase D commit `d42027983863f471401d65ef24c83fb94df2d743`은 이미 load된 exac
 DEV-0008을 유지합니다. Article site의 secret-bearing startup Config도 opaque private state로 좁혀 같은 explicit ring을 사용하는 두
 Runtime의 API/Admin token handoff를 실제 HTTP 경로에서 검증했습니다.
 
-Phase E publication에는 추가 fail-closed 규약이 필요합니다. Portable `make ci` 환경에는 PostgreSQL 17.10 service가 항상 없으므로
-SYS-020 handler가 PostgreSQL 성공을 상수로 합성하거나 service 부재를 conditional skip으로 통과시켜서는 안 됩니다. SYS-020을
-`passing`으로 승격하기 전에 required digest-pinned PostgreSQL lane이 같은 frozen behavioral source에서 생성한 secret-free live
-attestation을 portable product evidence에 결합하고 stale/missing/mismatched attestation을 거부하는 경계를 work packet에 고정합니다.
-그 규약과 실제 two-process sentinel이 모두 준비될 때까지 SYS-020은 `oracle_locked`를 유지합니다.
+Phase E publication은 portable `make ci` 환경에 PostgreSQL 17.10 service가 항상 없다는 점을 false green 없이 해결했습니다.
+SYS-020 handler는 PostgreSQL 성공을 상수로 합성하거나 service 부재를 conditional skip으로 통과시키지 않습니다. Required
+digest-pinned PostgreSQL lane이 같은 frozen behavioral source에서 생성한 secret-free live attestation을 portable product evidence에
+결합하고 stale/missing/mismatched attestation을 거부합니다. 이 규약과 실제 two-process sentinel을 모두 게시한 뒤 SYS-020을
+`passing`으로 전환했습니다.
 
 구체적으로 checked evidence는
 `conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json`과 같은 디렉터리의 `SHA256SUMS`입니다. Evidence는
@@ -123,6 +123,15 @@ Portable `godjcheck`는 명시적 `-system-state-postgres-attestation PATH`에�
 현재 source binding을 검증한 뒤 facts를 `GenerateWithInputs`에 주입합니다. Product runner는 oracle/fixture/contract/attestation path를
 직접 읽지 않고, portable report도 PostgreSQL을 live 실행했다고 주장하지 않습니다. Missing, duplicate/trailing/oversize,
 wrong-fingerprint, stale-source와 failure fact는 actual publication 전에 fail-closed하며 failure fact를 success로 바꾸지 않습니다.
+
+Phase E initial publication commit `de5cd505b598bc6fea3f7869d57d9c6c724f394a` 뒤 known upstream
+`actions/setup-python` v6 manifest-truncation 경로를 v7 exact SHA로 교정한 frozen source는
+`29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree `4f061289b240b4739ec43155b08b5909e95eddc0`입니다. 이 source의
+behavioral binding은 250 files/2,855,113 payload bytes/SHA-256
+`b0356da11869a1bfaf8573ea0734913f56529d9acfe25dd68b4aeaadcb72abb8`이고, checked PostgreSQL 17.10 attestation은
+1,134 bytes/SHA-256 `52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`입니다. Reference는
+21/239/420=`211 passing + 16 deviation + 12 oracle_locked`, product는 20/227=`211 passing + 16 deviation`이며 남은
+locked range는 MIG-075..086뿐입니다.
 
 ## 의도적으로 결정하지 않은 것
 
@@ -139,10 +148,15 @@ wrong-fingerprint, stale-source와 failure fact는 actual publication 전에 fai
 
 ## 검증
 
-- SPI unit/fault tests: invalid backend/configuration, acquire-before-callback, callback once/zero, cancellation, rollback, commit unknown, physical connection cleanup
-- Phase C same-process test: identical normalized deployment profile과 같은 SQLite file을 쓰는 두 Runtime의 barrier
+- SPI unit/fault tests는 invalid backend/configuration, acquire-before-callback, callback once/zero, cancellation, rollback,
+  commit unknown과 physical connection cleanup을 통과했습니다.
+- Phase C same-process test는 identical normalized deployment profile과 같은 SQLite file을 쓰는 두 Runtime의 barrier
   bootstrap/Create/Touch/Rotate/Delete/capacity/audit/Article transaction
-- CSRF tests: A→B cross-runtime issue/verify, staged active/validation rotation, removed/unknown key rejection, bounded constant-time verification path
-- Distinct-process SQLite/PostgreSQL actual: same DB/schema의 audit writer barrier/restart, required sentinel skip 0와 raw
-  secret/log/temp scan 0. Shared CSRF key ring의 HTTP handoff는 same-process two-Runtime actual이 소유합니다.
-- Affected normal/race/CGO0/vet, final full/386/external clean-copy와 exact hosted matrix
+  을 검증했습니다.
+- CSRF tests는 A→B cross-runtime issue/verify, staged active/validation rotation, removed/unknown key rejection과 bounded
+  all-key constant-time comparison path를 통과했습니다.
+- Distinct-process SQLite/PostgreSQL actual은 같은 DB/schema의 audit writer barrier/restart, required sentinel skip 0와 raw
+  secret/log/temp scan 0을 검증했습니다. Shared CSRF key ring의 HTTP handoff는 same-process two-Runtime actual이 소유합니다.
+- Affected normal/race/CGO0/vet, final full/386/external clean-copy와 exact hosted matrix는
+  [EVID-133](../status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final)과
+  [EVID-134](../status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)에 기록합니다.

@@ -1,6 +1,6 @@
 ---
 id: GDJ-0046
-status: active
+status: completed
 updated: 2026-08-26
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "996c00a5fb4d634b5dc7bef4c5385f2353a89979"
@@ -157,8 +157,9 @@ explicit migrate
 
 ## Exact contract range
 
-SYS-013..020은 Django 내부 구조를 모사하지 않는 GoDj operational decision contract입니다. Phase A reference authority는 Proposed
-ADR-0048이고 Phase B~E의 oracle-blind database/process observation은 그 결정을 검증합니다. SYS-001..012의 observation semantics와
+SYS-013..020은 Django 내부 구조를 모사하지 않는 GoDj operational decision contract입니다. Phase A publication 당시 reference
+authority는 Proposed ADR-0048이었고, Phase B~E의 oracle-blind database/process observation을 거쳐 ADR-0048은 Accepted됐습니다.
+SYS-001..012의 observation semantics와
 canonical legacy subsuite bytes 및 DEV-0008을 조용히 재작성하지 않습니다.
 
 - `SYS-013` / `godj.system_state.coordinated_atomic_fence` / commit: 한 process의 두 독립 backend handle이 공유하는 coordinated
@@ -181,8 +182,9 @@ canonical legacy subsuite bytes 및 DEV-0008을 조용히 재작성하지 않습
   same-DB barrier 경쟁, clean stop/reopen과 secret leak 0
 
 Phase A publication은 이 ID를 같은 system-state reference set에 `oracle_locked`로만 append했고 product adapter/count는 바꾸지
-않았습니다. Reference artifact와 Go actual은 별도 생성 경로를 사용하고 exact bytes/checksum을 함께 게시하며 legacy SYS-001..012
-canonical subsuite hash를 별도로 잠급니다. `passing` 전환은 Phase C~E의 oracle-blind actual 전에는 허용하지 않습니다.
+않았습니다. Phase E publication은 reference artifact와 Go actual의 별도 생성 경로, exact bytes/checksum과 legacy SYS-001..012
+canonical subsuite hash를 보존한 채 SYS-013..020을 product actual에 등록하고 `passing`으로 전환했습니다. 남은
+`oracle_locked`는 MIG-075..086뿐입니다.
 
 ## 설계 가설과 package 방향
 
@@ -232,8 +234,10 @@ runner가 success를 상수로 만들거나 skip을 passing으로 바꾸는 방�
 - Missing, non-canonical, duplicate/trailing/oversize, wrong fingerprint, stale source binding과 failure facts는 actual publication 전에
   실패합니다. Source add/remove/mutation, attestation self-exclusion과 failure-fact passthrough를 회귀 테스트로 고정합니다.
 
-이 protocol과 live capture가 구현·검증될 때까지 SYS-020은 `oracle_locked`입니다. PostgreSQL sentinel을 별도 증거로만 두면서 portable
-handler가 성공을 합성하는 약한 projection 방식은 채택하지 않습니다.
+이 protocol과 live capture는 Phase E에서 구현됐습니다. Portable actual은 checked PostgreSQL 17.10 attestation의 canonical bytes,
+checksum, exact fingerprint와 current behavioral-source binding을 검증하고, required hosted lane은 같은 source에서 capture한 bytes를
+`cmp`하며 named pass와 skip 0을 요구합니다. 이 결합 뒤 SYS-020은 `passing`으로 전환됐습니다. PostgreSQL sentinel을 별도 증거로만
+두면서 portable handler가 성공을 합성하는 약한 projection 방식은 채택하지 않았습니다.
 
 ## 구현 단계
 
@@ -242,10 +246,10 @@ handler가 성공을 합성하는 약한 projection 방식은 채택하지 않�
 - [x] Phase B — coordinated-atomic SPI, SQLite/PostgreSQL implementation과 callback/fault/cancel unit tests
 - [x] Phase C — systemstate Open/session/audit/Article integration과 same-process two-Runtime barrier tests
 - [x] Phase D — opaque CSRF key ring, site composition과 cross-Runtime/staged-rotation tests
-- [ ] Phase E — distinct two-process SQLite actual과 required PostgreSQL 17.10 actual, secret scan과 no-skip sentinel
-- [ ] Checkpoint — affected normal/race/CGO0/vet, generated/artifact drift와 backend canary
-- [ ] Final frozen milestone — full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
-- [ ] Accepted/Verified/completed status와 Draft PR terminal mirror
+- [x] Phase E — distinct two-process SQLite actual과 required PostgreSQL 17.10 actual, secret scan과 no-skip sentinel
+- [x] Checkpoint — affected normal/race/CGO0/vet, generated/artifact drift와 backend canary
+- [x] Final frozen milestone — full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
+- [x] Accepted/Verified/completed status와 Draft PR terminal mirror
 
 Phase B의 SQLite/PostgreSQL 구현은 파일 소유권을 나눠 병렬화할 수 있습니다. Public SPI, conformance registry, ADR, CURRENT와
 integration wiring은 integration owner 한 명만 수정합니다.
@@ -271,19 +275,35 @@ bounded all-key verification, zero-config DEV-0008 behavior와 Article two-Runti
 Phase C hosted checkpoint와 Phase D affected local gate를 구분해 기록합니다. SYS-013..020 product actual과 two-process backend
 proof는 아직 게시하지 않습니다.
 
+Phase E source commit `de5cd505b598bc6fea3f7869d57d9c6c724f394a`, tree
+`7fb4feb3480dc85583727d47c9441e2bb77927e0`은 distinct two-process SQLite/PostgreSQL barrier·restart actual,
+strict source-bound PostgreSQL live attestation과 SYS-013..020 product publication을 구현했습니다. Known upstream
+`actions/setup-python` v6 manifest-truncation 결함으로 first hosted CI #152의 Python 3.12 setup이 install 없이 success를 반환한 것을
+제품 실패와 구분한 뒤, correction commit `29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree
+`4f061289b240b4739ec43155b08b5909e95eddc0`은 setup-python v7 exact SHA로 fail-loud/retry 경계를 갱신하고 같은 source scope에서
+PostgreSQL attestation을 다시 capture했습니다. Current source binding은 250 files/2,855,113 payload bytes/SHA-256
+`b0356da11869a1bfaf8573ea0734913f56529d9acfe25dd68b4aeaadcb72abb8`, checked attestation은 1,134 bytes/SHA-256
+`52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`입니다.
+
+[EVID-133](../docs/status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final)은
+affected normal/race/CGO0/vet, full `make ci`, Linux/386, 1,055-file repository-external archive와 독립 audit를 기록합니다.
+[EVID-134](../docs/status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)은
+correction source의 exact hosted acceptance를 기록합니다. Reference는 21/239/420=`211 passing + 16 deviation + 12
+oracle_locked`, product는 20/227=`211 passing + 16 deviation`이고 SYS-013..020은 모두 product `passing`입니다.
+
 ## 완료 조건
 
-- [ ] SYS-013..020이 decision reference와 oracle-blind Go actual에서 예상 classification으로 검증됨
+- [x] SYS-013..020이 decision reference와 oracle-blind Go actual에서 예상 classification으로 검증됨
 - [x] 같은 DB/schema의 두 Runtime이 credential/session/capacity/audit/Article check-then-act를 DB fence 아래 선형화함
 - [x] PostgreSQL과 SQLite backend boundary에서 callback once/zero, cancellation, rollback과 commit-unknown no-retry가 unit/fault
   test로 검증됨
 - [x] Concurrent touch가 timestamp를 뒤로 돌리지 않고 rotate는 exactly-one replacement만 게시함
 - [x] Logout/rotate 결과가 명시된 linearization contract와 일치하고 old bearer가 다시 만들어지지 않음
 - [x] Shared key ring의 cross-Runtime token, staged rotation과 removed-key rejection이 secret-free하게 통과함
-- [ ] Raw bearer, CSRF key/cookie/token, password와 DB URL이 DB payload/artifact/log/error/diagnostic에 노출되지 않음
-- [ ] SQLite와 digest-pinned PostgreSQL 17.10에서 실제 두 process required sentinel이 skip 0으로 통과함
-- [ ] Schema IR/definition/state/digest/codegen/generated ABI와 sessions.Store/API public behavior가 drift하지 않음
-- [ ] CURRENT/work/matrix/evidence/ADR/PR이 같은 frozen source와 명시적 한계를 가리킴
+- [x] Raw bearer, CSRF key/cookie/token, password와 DB URL이 DB payload/artifact/log/error/diagnostic에 노출되지 않음
+- [x] SQLite와 digest-pinned PostgreSQL 17.10에서 실제 두 process required sentinel이 skip 0으로 통과함
+- [x] Schema IR/definition/state/digest/codegen/generated ABI와 sessions.Store/API public behavior가 drift하지 않음
+- [x] CURRENT/work/matrix/evidence/ADR/PR이 같은 frozen source와 명시적 한계를 가리킴
 
 ## 위험과 rollback
 
@@ -304,9 +324,8 @@ proof는 아직 게시하지 않습니다.
 
 ## 다음 정확한 작업
 
-1. Strict canonical PostgreSQL attestation loader/source inventory와 injection/capture tests를 먼저 구현하되 SYS-020은 계속
-   `oracle_locked`로 둡니다.
-2. Anonymous-pipe barrier를 쓰는 distinct two-process SQLite/PostgreSQL worker와 restart/secret scan/no-skip sentinel을 구현하고
-   digest-pinned PostgreSQL 17.10에서 canonical attestation을 capture합니다.
-3. Checked attestation byte comparison과 SYS-013..020 oracle-blind product actual/artifact locks를 게시한 뒤 final frozen source에서
-   full/386/external/hosted gate를 한 번 수행합니다.
+1. EVID-133/134와 CURRENT/matrix/compatibility mirror를 terminal source에 맞춰 고정하고 Draft PR #1을 갱신합니다.
+2. 남은 exact `oracle_locked` 범위인 MIG-075..086과 current roadmap/open question을 근거로 다음 bounded vertical packet을
+   별도 work 문서에서 활성화합니다.
+3. General constraint/CAS, non-cooperative writer, family-wide revocation, JWT/OAuth와 production topology는 새 packet/ADR 없이
+   GDJ-0046의 지원 범위로 확장하지 않습니다.
