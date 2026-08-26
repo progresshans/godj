@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-25
+- 마지막 검토: 2026-08-26
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -226,7 +226,10 @@ user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed
 Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)와 Proposed
 [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 같은 DB/schema를 사용하는
 cooperative Runtime을 backend coordinated transaction으로 선형화하고 deployment-shared active/validation CSRF key ring을
-주입하는 후속 hardening입니다. SYS-013..020은 아직 global contract registry에 등록되지 않았고 제품
+주입하는 후속 hardening입니다. Phase A는 SYS-013..020을 reference-only `oracle_locked`로 게시했고 Phase B는 ordinary
+transaction을 바꾸지 않는 additive `db.CoordinatedAtomic` SQLite/PostgreSQL backend boundary를 local unit/fault gate에서
+검증했습니다. 아직 product adapter에 등록되지 않았고 `systemstate.Runtime` integration, shared CSRF key ring,
+same-process/two-process actual, required PostgreSQL 17.10과 hosted source proof가 없으므로 multi-runtime/shared-key 제품
 capability로 지원·검증됐다고 주장하지 않습니다. General Unique/Integer/CAS IR, non-cooperative writer,
 session-family revocation, JWT/OAuth와 production deployment는 별도 후속입니다.
 

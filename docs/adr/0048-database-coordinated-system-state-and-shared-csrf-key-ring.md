@@ -64,15 +64,18 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
    contention optimization으로 축소합니다.
 5. Final credential/readiness/bootstrap, session Create/Touch/Rotate/Delete/capacity/reap, audit history/append/prune와 Article mutation은
    하나의 database/schema coordination domain을 공유합니다.
-6. Existing digest-only storage와 sessions.Store signature는 유지합니다. General Unique/Integer/CAS IR은 SYS-013..020을 위해 추가하지
+6. 같은 DB/schema에 참여하는 cooperative Runtime은 normalized `SessionLimits`, `MaxSessions`, `AuditCapacity`, absolute/idle
+   lifetime policy와 compatible UTC clock basis가 동일한 deployment profile을 사용해야 합니다. 이 값은 DB에 persist되지 않으므로
+   동일성은 operator precondition이며 이번 schema/API가 서로 다른 값을 감지하거나 협상한다고 주장하지 않습니다.
+7. Existing digest-only storage와 sessions.Store signature는 유지합니다. General Unique/Integer/CAS IR은 SYS-013..020을 위해 추가하지
    않습니다.
-7. Concurrent operation은 DB fence acquisition order로 선형화합니다. Logout-first는 later rotate를 막지만 rotate-first 뒤 old-ID logout이
+8. Concurrent operation은 DB fence acquisition order로 선형화합니다. Logout-first는 later rotate를 막지만 rotate-first 뒤 old-ID logout이
    replacement family를 철회하지는 않습니다. Strong family revocation은 별도 state/contract입니다.
-8. `web/sessionauth`는 active key 하나와 bounded validation key set을 가진 opaque immutable CSRF key ring을 선택적으로 받습니다.
+9. `web/sessionauth`는 active key 하나와 bounded validation key set을 가진 opaque immutable CSRF key ring을 선택적으로 받습니다.
    Active key는 새 MAC만 만들고 verification은 모든 configured key를 bounded constant-time comparison합니다.
-9. Key ring이 없을 때의 process-local CSPRNG는 single-runtime/development behavior로 남습니다. Multi-runtime actual과 제품 composition은
+10. Key ring이 없을 때의 process-local CSPRNG는 single-runtime/development behavior로 남습니다. Multi-runtime actual과 제품 composition은
    같은 explicit ring을 주입합니다.
-10. Callback, transaction, acquire 또는 literal commit은 framework가 자동 retry하지 않습니다. Acquire failure는 새 public code 없이
+11. Callback, transaction, acquire 또는 literal commit은 framework가 자동 retry하지 않습니다. Acquire failure는 새 public code 없이
     context 또는 backend cause를 보존하고 rollback 불확실성은 기존 transaction-outcome-unknown, commit error는 기존
     commit-outcome-unknown과 reconciliation ownership을 유지합니다.
 
@@ -84,12 +87,15 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
   직렬화됩니다.
 - 모든 system-state/Article writer가 coarse fence를 공유하므로 첫 구현은 correctness 우선이며 throughput 최적화는 측정 뒤 분리합니다.
 - Shared key ring은 distribution/provider가 아니라 already-loaded material 경계이므로 deployment가 같은 bounded set을 주입해야 합니다.
+- Session/capacity/audit policy 값도 DB authority가 아니라 deployment가 동일한 normalized profile로 주입해야 합니다. Persisted
+  configuration negotiation은 이 ADR의 지원 범위가 아닙니다.
 
 ## 의도적으로 결정하지 않은 것
 
 - Direct SQL/non-cooperative writer, DB UNIQUE/index와 general CAS/row-lock Query AST
 - Live migration과 serving 동시 실행, leader election과 distributed cache/session backend
 - Session family/generation/tombstone과 rotate-first family-wide logout
+- Runtime별 session/capacity/audit policy persistence, mismatch detection과 online negotiation
 - Persistent key DB, KMS/Vault integration, automatic distribution와 unlimited history
 - Cookie/JWT/OAuth/refresh/password-reset/Admin-notice key를 하나의 key type으로 통합
 - Production topology, multi-DB/router와 MySQL/MariaDB/Oracle
@@ -97,7 +103,8 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
 ## 검증
 
 - SPI unit/fault tests: invalid backend/configuration, acquire-before-callback, callback once/zero, cancellation, rollback, commit unknown, physical connection cleanup
-- Same-process two-backend tests: barrier bootstrap/Create/Touch/Rotate/Delete/capacity/audit/Article transaction
+- Phase C same-process test: identical normalized deployment profile과 같은 SQLite file을 쓰는 두 Runtime의 barrier
+  bootstrap/Create/Touch/Rotate/Delete/capacity/audit/Article transaction
 - CSRF tests: A→B cross-runtime issue/verify, staged active/validation rotation, removed/unknown key rejection, bounded constant-time verification path
 - Distinct-process SQLite/PostgreSQL actual: same DB/schema, same key ring, required sentinel skip 0와 raw secret/log/temp scan 0
 - Affected normal/race/CGO0/vet, final full/386/external clean-copy와 exact hosted matrix

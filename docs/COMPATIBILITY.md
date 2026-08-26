@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-25 (GDJ-0045 EVID-129 exact-head hosted completion)
+- 마지막 검증: 2026-08-26 (GDJ-0046 Phase A/B EVID-130 local checkpoint; product hosted baseline은 EVID-129)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -88,13 +88,17 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 [EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
 
-Current checkout은 GDJ-0045 system-state actual을 global registry/Makefile/`godjcheck`에 게시해
-reference 21 sets/231 contracts/420 ordered bindings=`203 passing + 16 deviation + 12 oracle_locked`, product 20
+Current checkout은 GDJ-0045 system-state product actual과 GDJ-0046 Phase A decision reference를 함께 게시해
+reference 21 sets/239 contracts/420 ordered bindings=`203 passing + 16 deviation + 20 oracle_locked`, product 20
 sets/219 contracts=`203 passing + 16 deviation`입니다. SYS-001..008/010..012는 `passing`, SYS-009는 Verified
-DEV-0008 expected의 네 selector만 허용하는 `deviation`이며 MIG-075..086만 locked/unregistered로 남습니다.
-Manifest는 7,730 bytes/SHA-256 `f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`, local
-actual A/B는 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로
-byte-identical합니다. Exact submitted head `e673b3a...`의
+DEV-0008 expected의 네 selector만 허용하는 `deviation`입니다. MIG-075..086과 SYS-013..020은 reference-only
+`oracle_locked`이고 product/Go actual registry에는 등록되지 않았습니다. Current system-state manifest는
+11,151 bytes/SHA-256 `2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a`, decision oracle은
+21,338 bytes/SHA-256 `6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c`, payload-free
+not-implemented fixture는 2,417 bytes/SHA-256 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`입니다.
+Legacy SYS-001..012 Go actual은 12,944 bytes/SHA-256
+`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 보존됩니다. Exact submitted head
+`e673b3a...`의
 [EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146은
 required PostgreSQL 17.10 16/16·skip 0과 필수 GitHub Actions 27/27 jobs·359/359 steps를 통과했습니다.
 따라서 ADR-0047은 Accepted, DEV-0008은 Verified이고 GDJ-0045는 completed입니다. 이 상태는 one-runtime/
@@ -102,9 +106,13 @@ sequential-restart 경계이며 broader multi-runtime, shared deployment key와 
 
 Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)은 Proposed
 [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)의 cooperative multi-runtime와 shared
-CSRF key ring을 SYS-013..020으로 검증할 계획입니다. 이 ID는 activation 시점에 아직 unregistered/not implemented이며
-reference 21/231/420과 product 20/219 집계, SYS-001..012 bytes/classification과 DEV-0008을 바꾸지 않습니다.
-General Unique/Integer/CAS IR과 JWT/OAuth는 이 activation으로 지원되지 않습니다.
+CSRF key ring을 SYS-013..020으로 검증합니다. Phase A commit `61e59d5...`은 이 ID를 reference-only
+`oracle_locked`로 게시했고 Phase B commit `1ea7b61...`은 ordinary `db.Atomic` 의미를 바꾸지 않는 additive
+`db.CoordinatedAtomic` SQLite/PostgreSQL backend boundary를 구현했습니다. [EVID-130](status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)은
+affected artifact/backend local gate만 증명합니다. `systemstate.Runtime` integration, shared CSRF key ring,
+same-process/two-process actual, required PostgreSQL 17.10과 hosted source proof는 아직 없으므로 multi-runtime 또는 shared-key
+제품 지원을 주장하지 않습니다. SYS-001..012 bytes/classification과 DEV-0008도 바뀌지 않았습니다. General
+Unique/Integer/CAS IR과 JWT/OAuth는 이 작업으로 지원되지 않습니다.
 
 OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
 Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.

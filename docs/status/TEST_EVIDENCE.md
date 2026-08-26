@@ -1,7 +1,8 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-25
-- 현재 GoDj 코드·호환 계약 테스트 증거: EVID-20260825-127
+- 마지막 갱신: 2026-08-26
+- 현재 local source/contract checkpoint: EVID-20260826-130
+- latest hosted product proof: EVID-20260825-129
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -12059,3 +12060,102 @@ recursive full product matrix. They do not expand the verified product beyond on
 sequential restart. Multi-runtime DB constraints/locks/CAS, shared deployment key rings, JWT/OAuth, production readiness,
 merge and release remain outside GDJ-0045. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge, release or deployment was
 performed.
+
+## EVID-20260826-130 — GDJ-0046 Phase A/B Local Checkpoint
+
+- Date/time: completed through 2026-08-26T12:22:53+09:00
+- Work/contract IDs: GDJ-0046 active; ADR-0048 Proposed; Q-020 Partial; SYS-013..020 reference-only
+  `oracle_locked` and absent from product actual registration; no product classification change
+- Activation commit: `6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`, tree
+  `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`, subject `docs: activate multi-runtime system-state work`
+- Phase A commit: `61e59d5b86538c385ed4801f1e927a6a5a1da14a`, tree
+  `eea194288e4865a680fc516200093576026896a6`, subject `test: publish multi-runtime system-state decisions`
+- Phase B commit: `1ea7b61b6aeeb50150768a9e40f717f712330c2a`, tree
+  `a093ece1e7fdf6231e49a0e45a29c29500502b60`, subject `feat: add database-coordinated atomic transactions`
+- Result: Phase A exact decision artifacts and Phase B additive SQLite/PostgreSQL coordinated-atomic backend primitive
+  passed affected local conformance, normal/race/CGO-disabled and vet gates. System-state integration, shared CSRF keys,
+  SYS-013..020 product actual, required PostgreSQL 17.10 and hosted source verification remain pending.
+
+### Activation hosted baseline and Phase A publication
+
+[GitHub Actions CI #148 run 32922718021](https://github.com/progresshans/godj/actions/runs/32922718021) targeted exact
+activation head `6aca6ad...` and completed `success` with 27/27 required jobs and failure/cancellation/skip 0. It is an
+activation-only baseline and is not evidence for the later Phase A/B source commits.
+
+Phase A appended SYS-013..020 to the existing system-state reference set under exact provenance
+`{"kind":"proposal","reference":"ADR-0048","derived":false}`. All eight remain `oracle_locked`; their Go actual
+records are payload-free `not_implemented` and they are absent from the product adapter registry. The reference aggregate
+is now 21 sets/239 contracts/420 ordered bindings=`203 passing + 16 deviation + 20 oracle_locked`; product remains 20
+sets/219 contracts=`203 passing + 16 deviation`. SYS-001..012 classification, actual and DEV-0008 are unchanged.
+
+Current artifact locks are:
+
+- manifest 11,151 bytes/SHA-256
+  `2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a`
+- payload-free not-implemented fixture 2,417 bytes/SHA-256
+  `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`
+- decision oracle 21,338 bytes/SHA-256
+  `6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c`
+- `SHA256SUMS` 1,791 bytes/SHA-256
+  `1fc4c0c078cfa64388bba9d1112fe825ce312c23eaf04ecc29d30e8ca2659b5a`
+- all-scenario semantic payload 239 scenarios/869,118 bytes/SHA-256
+  `db9608d5f5a5dbe61586c163b8e470b1c10bc7bae2a3d9754e6316eb7a9196b5`
+
+The independently reconstructed legacy locks remain exact: canonical SYS-001..012 manifest wrapper 6,412 bytes/
+`40a91f1bb18bb5541f2d74270c8b64b416b9af0e63a0563988cdd7b1dd2b0bd7`, oracle 13,099 bytes/
+`4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb`, Go actual 12,944 bytes/
+`f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`, and DEV-0008 fixture 1,141 bytes/
+`a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869`.
+
+### Phase B database coordination boundary
+
+Phase B adds `db.CoordinatedAtomic` without changing ordinary `db.Atomic`. Acquire error/cancellation before the fence
+invokes callback zero times; after acquire it invokes callback exactly once. Implementations do not retry acquire,
+callback or commit. Callback error or cancellation observed before commit rolls back when rollback can be confirmed; if
+termination cannot be confirmed, the transaction outcome remains unknown. A literal commit error returns
+`query.CodeCommitOutcomeUnknown` for caller reconciliation. Callback sessions expire on return and callers must not nest
+backend transactions or acquire another coordination domain inside the callback.
+
+SQLite pins one physical connection and issues literal `BEGIN IMMEDIATE`. It exposes only narrow `db.Session`, uses the
+configured driver busy timeout rather than framework retry, discards confirmed terminal connections and retains an
+unconfirmed connection until safe cleanup. Real file-DB tests cover two Backend instances serializing, BUSY callback-zero,
+canceled/deadline acquisition followed by Backend reuse, and real mutation rollback before a competing Backend succeeds.
+
+PostgreSQL runs exact `SELECT "pg_catalog"."pg_advisory_xact_lock"($1)` inside the existing Atomic transaction. The
+schema-scoped key uses a versioned length-framed SHA-256 domain separate from migration locking; schema `godj_phase_d`
+locks to exact signed value `-4673781987282205094`. Driver/fault tests cover acquisition order, failure/cancellation,
+post-acquire boundary cancellation, rollback/commit-unknown/no-retry, expired session and secret redaction. No actual
+PostgreSQL service was used for this checkpoint.
+
+### Executed local verification
+
+The following final affected commands exited 0:
+
+```bash
+go test -count=1 ./conformance/internal/protocol ./conformance/cmd/contractcheck ./conformance/cmd/godjcheck ./conformance/runners/godj
+make conformance-check
+make godj-conformance
+GODJ_EXACT_PROFILE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 \
+  uvx --from uv==0.10.12 uv run --frozen python -m unittest \
+  conformance.runners.django.tests.test_system_state_scenarios -v
+LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \
+  python -m conformance.systemstate.reference
+go test -count=1 ./db/...
+go test -race -count=1 ./db/...
+CGO_ENABLED=0 go test -count=1 ./db/...
+go vet ./db/...
+make format-check
+git diff --check
+```
+
+The exact-profile Python suite passed 3/3. `make godj-conformance` explicitly reported that GoDj observations match the
+first 12 required system-state contracts and eight remain not implemented. Independent read-only reviews found two P2
+decision-contract omissions before Phase A publication—confirmed callback error/cancellation rollback in SYS-013 and
+both touch/rotate lanes in SYS-017—and one P3 public SPI comment omission around nested/cross-domain acquisition. All
+three were corrected before their respective commits. The final Phase B review returned P0/P1/P2=`0/0/0`; repeated
+backend stress included normal count 20 and focused race repetitions without failure.
+
+Full `make ci`, Linux/386, repository-external archive, actual PostgreSQL service, Phase C same-process two-Runtime,
+Phase D shared-key, Phase E distinct-process and an exact Phase A/B source hosted matrix were not run. Consequently this
+evidence does not claim cooperative multi-runtime system state, shared-key authentication, PostgreSQL 17.10 behavior,
+ADR-0048 acceptance, GDJ-0046 completion, merge, release or deployment. Draft PR #1 remains OPEN/DRAFT/unmerged.

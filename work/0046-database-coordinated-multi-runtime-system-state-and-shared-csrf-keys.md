@@ -104,6 +104,10 @@ explicit migrate
   BUSY/LOCKED acquisition을 자동 retry하지 않고 configured driver busy timeout만 기다리며, 실패하면 callback 0회로 원인을 보존합니다.
 - `systemstate.Backend`는 coordinated-atomic capability를 요구하고 `Runtime.withAtomic`은 local mutex 뒤 그 database fence를 사용합니다.
   Local mutex는 같은 Runtime의 contention 감소만 소유합니다.
+- 같은 DB/schema를 공유하는 cooperative Runtime은 normalized `SessionLimits`, `MaxSessions`, `AuditCapacity`, absolute/idle
+  lifetime policy와 compatible UTC clock basis가 동일한 deployment profile을 사용해야 합니다. 이 값은 DB에 persist되지 않으므로
+  동일성은 operator precondition이며 이번 schema/API가 mismatch를 감지하거나 협상한다고 주장하지 않습니다. Phase C actual은
+  같은 normalized config를 명시적으로 고정합니다.
 - `Open`의 final readiness/cardinality/bootstrap 판단도 같은 coordinated transaction에서 다시 수행합니다. Password hashing처럼
   transaction 밖에서 안전하게 계산할 수 있는 비밀 파생은 lock 보유 시간을 늘리지 않습니다.
 - Existing `sessions.Store`, `sessions.Manager`, Article repository/Admin/API public contract는 유지합니다. Session raw bearer는 계속
@@ -136,6 +140,9 @@ explicit migrate
   `ebf73aaca349dfd56fdaf2cba0806ab03054cd09`; GDJ-0045 terminal documentation-only descendant
 - Baseline CI #147/run `32837709461`은 exact `996c00a...`에서 27/27 jobs·359/359 steps와
   failure/cancel/skip 0으로 통과했습니다. 이는 activation ancestry 확인이며 새 product EVID나 SYS-013..020 proof가 아닙니다.
+- Activation commit `6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`, tree
+  `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`의 CI #148/run `32922718021`도 exact 27/27 jobs와
+  failure/cancel/skip 0으로 통과했습니다. 이 역시 activation-only proof이며 이후 Phase A/B source 증거가 아닙니다.
 - Hosted product proof: `e673b3a11d4d0d7e2f8a55fdb3c58d24b965ff35`, tree
   `917d36f8ef4458740c377904f4f93597c7c906ec`; EVID-129/CI #146 exact 27/27 jobs·359/359 steps,
   PostgreSQL required 16/16·skip 0
@@ -170,9 +177,9 @@ canonical legacy subsuite bytes 및 DEV-0008을 조용히 재작성하지 않습
 - `SYS-020` / `godj.system_state.two_process_backend_restart` / environment: 실제 두 process의 SQLite/PostgreSQL
   same-DB barrier 경쟁, clean stop/reopen과 secret leak 0
 
-Phase A publication 전에는 이 ID를 global aggregate에 등록하거나 `passing`으로 표현하지 않습니다. Phase A에서는 같은
-system-state reference set에 `oracle_locked`로만 append하고 product adapter/count는 바꾸지 않습니다. Reference artifact와 Go actual은
-별도 생성 경로를 사용하고 exact bytes/checksum을 함께 게시하며 legacy SYS-001..012 canonical subsuite hash를 별도로 잠급니다.
+Phase A publication은 이 ID를 같은 system-state reference set에 `oracle_locked`로만 append했고 product adapter/count는 바꾸지
+않았습니다. Reference artifact와 Go actual은 별도 생성 경로를 사용하고 exact bytes/checksum을 함께 게시하며 legacy SYS-001..012
+canonical subsuite hash를 별도로 잠급니다. `passing` 전환은 Phase C~E의 oracle-blind actual 전에는 허용하지 않습니다.
 
 ## 설계 가설과 package 방향
 
@@ -199,8 +206,8 @@ web/sessionauth.Config
 ## 구현 단계
 
 - [x] Activation — baseline, SYS-013..020, Proposed ADR-0048, allowed paths와 비목표 고정
-- [ ] Phase A — decision manifest/reference/NI/checksum과 protocol artifact invariants
-- [ ] Phase B — coordinated-atomic SPI, SQLite/PostgreSQL implementation과 callback/fault/cancel unit tests
+- [x] Phase A — decision manifest/reference/NI/checksum과 protocol artifact invariants
+- [x] Phase B — coordinated-atomic SPI, SQLite/PostgreSQL implementation과 callback/fault/cancel unit tests
 - [ ] Phase C — systemstate Open/session/audit/Article integration과 same-process two-Runtime barrier tests
 - [ ] Phase D — opaque CSRF key ring, site composition과 cross-Runtime/staged-rotation tests
 - [ ] Phase E — distinct two-process SQLite actual과 required PostgreSQL 17.10 actual, secret scan과 no-skip sentinel
@@ -211,11 +218,20 @@ web/sessionauth.Config
 Phase B의 SQLite/PostgreSQL 구현은 파일 소유권을 나눠 병렬화할 수 있습니다. Public SPI, conformance registry, ADR, CURRENT와
 integration wiring은 integration owner 한 명만 수정합니다.
 
+Phase A commit `61e59d5b86538c385ed4801f1e927a6a5a1da14a`, tree
+`eea194288e4865a680fc516200093576026896a6`은 SYS-013..020을 Proposed ADR-0048 authority의 exact
+`oracle_locked` reference로 게시했습니다. Phase B commit `1ea7b61b6aeeb50150768a9e40f717f712330c2a`, tree
+`a093ece1e7fdf6231e49a0e45a29c29500502b60`은 additive `db.CoordinatedAtomic`과 SQLite/PostgreSQL 구현을
+추가했습니다. [EVID-130](../docs/status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)은
+affected local gate만 기록하며 systemstate integration, shared CSRF key ring, two-process actual 또는 hosted source proof를 주장하지
+않습니다.
+
 ## 완료 조건
 
 - [ ] SYS-013..020이 decision reference와 oracle-blind Go actual에서 예상 classification으로 검증됨
 - [ ] 같은 DB/schema의 두 Runtime이 credential/session/capacity/audit/Article check-then-act를 DB fence 아래 선형화함
-- [ ] PostgreSQL과 SQLite에서 callback once/zero, cancellation, rollback과 commit-unknown no-retry가 검증됨
+- [x] PostgreSQL과 SQLite backend boundary에서 callback once/zero, cancellation, rollback과 commit-unknown no-retry가 unit/fault
+  test로 검증됨
 - [ ] Concurrent touch가 timestamp를 뒤로 돌리지 않고 rotate는 exactly-one replacement만 게시함
 - [ ] Logout/rotate 결과가 명시된 linearization contract와 일치하고 old bearer가 다시 만들어지지 않음
 - [ ] Shared key ring의 cross-Runtime token, staged rotation과 removed-key rejection이 secret-free하게 통과함
@@ -233,10 +249,15 @@ integration wiring은 integration owner 한 명만 수정합니다.
 - Fence를 잡은 채 password hashing, network call 또는 application callback 밖의 unbounded 작업을 하지 않습니다.
 - Callback/commit을 자동 retry하면 session rotate/Article audit가 중복될 수 있으므로 retry ownership을 추가하지 않습니다.
 - Key ring material은 직렬화/formatting API를 제공하지 않고 validation key count를 hard cap합니다.
-- 일반 IR이나 public Store signature가 필요해지면 Phase B 전에 작업을 멈추고 packet/ADR을 재검토합니다.
+- 일반 IR이나 public Store signature가 필요해지면 발견 즉시 후속 phase를 멈추고 packet/ADR을 재검토합니다.
+- Runtime별 session/capacity/audit policy를 다르게 배포하면 global bound 의미를 보장하지 않습니다. Persisted config negotiation은
+  비목표이고 identical normalized deployment profile을 operator precondition으로 유지합니다.
 
 ## 다음 정확한 작업
 
-1. SYS-013..020 decision manifest/reference/not-implemented/checksum과 legacy SYS-001..012 subsuite invariant를 Phase A로 게시합니다.
-2. `db/db.go`, `db/sqlite`, `db/postgres`에 additive SPI와 backend-specific fault tests를 구현합니다.
-3. Source checkpoint 전에 `systemstate.Runtime`을 새 SPI로 전환하지 않고 backend contract 자체를 normal/race로 검증합니다.
+1. `systemstate.Backend`가 `db.CoordinatedAtomic`을 요구하도록 좁히고 `Runtime.withAtomic`의 DB correctness owner를 새 fence로
+   전환합니다.
+2. `Open` final readiness/bootstrap과 session/audit writer를 같은 coordinated callback에서 다시 읽고 쓰도록 옮깁니다.
+3. 같은 normalized deployment profile과 SQLite file을 쓰는 두 Runtime barrier test로
+   bootstrap/capacity/touch/rotate/logout/audit linearization을 Phase C에서 검증하되 shared CSRF key ring과 distinct-process actual은
+   Phase D/E까지 분리합니다.

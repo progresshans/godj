@@ -15,15 +15,18 @@
   CI #146 run `32833586028` exact 필수 GitHub Actions 27/27 jobs·359/359 steps·failure/cancel/step-skip/annotation 0,
   PostgreSQL 17.10 required 16/16·skip 0와 네 relation 좌표 1,034/1,034·skip 0. ADR-0047은 Accepted,
   DEV-0008은 Verified, GDJ-0045는 completed이고 Q-020은 `Partial`입니다.
-- GDJ-0046 activation baseline: GDJ-0045 terminal documentation head
-  `996c00a5fb4d634b5dc7bef4c5385f2353a89979`, tree `ebf73aaca349dfd56fdaf2cba0806ab03054cd09`.
-  이 exact documentation-only head의 CI #147/run `32837709461`은 27/27 jobs·359/359 steps와
-  failure/cancel/skip 0으로 통과했지만 새 product EVID로 승격하지 않습니다.
-  Active [work packet](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)과
-  Proposed [ADR-0048](../adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 Schema IR·migration
-  format·sessions.Store를 넓히지 않고 backend coordinated-atomic SPI, cooperative multi-runtime system state와
-  shared CSRF key ring을 SYS-013..020으로 검증합니다. 이 contract는 아직 unregistered/not implemented이며
-  current aggregate를 바꾸지 않습니다.
+- GDJ-0046 Phase A/B local checkpoint: activation commit
+  `6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`, tree `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`의 CI #148/run
+  `32922718021`은 exact 27/27 jobs·failure/cancel/skip 0으로 통과했지만 activation-only baseline입니다. Phase A
+  `61e59d5b86538c385ed4801f1e927a6a5a1da14a`, tree `eea194288e4865a680fc516200093576026896a6`은
+  SYS-013..020을 Proposed ADR-0048 authority의 reference-only `oracle_locked`로 게시해 reference를
+  21 sets/239 contracts/420 ordered bindings=`203 passing + 16 deviation + 20 oracle_locked`로 확장했습니다. Product는
+  20/219=`203 passing + 16 deviation`으로 불변입니다. Phase B
+  `1ea7b61b6aeeb50150768a9e40f717f712330c2a`, tree `a093ece1e7fdf6231e49a0e45a29c29500502b60`은
+  additive `db.CoordinatedAtomic`과 SQLite/PostgreSQL backend 구현을 추가해
+  [EVID-130](TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)의 affected local gate를 통과했습니다.
+  `systemstate.Runtime` integration, shared CSRF key ring과 two-process actual은 아직 미구현이며 ADR-0048 Proposed,
+  GDJ-0046 active, Q-020 `Partial`을 유지합니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
   Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree
@@ -134,8 +137,9 @@
   DEV-0008 policy를 보존하면서 hosted Python/CI secret canary lock만 바로잡았고
   [EVID-128](TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)의
   final local gates를 통과했습니다. Exact submitted `e673b3a...`/tree `917d36f...`의 EVID-129/CI #146은
-  27/27 jobs·359/359 steps와 PostgreSQL required 16/16·skip 0을 통과했습니다. Current reference는
-  21 sets/231 contracts/420 ordered bindings=`203 passing + 16 deviation + 12 oracle_locked`, product는
+  27/27 jobs·359/359 steps와 PostgreSQL required 16/16·skip 0을 통과했습니다. EVID-129 당시 reference는
+  21 sets/231 contracts/420 ordered bindings=`203 passing + 16 deviation + 12 oracle_locked`였고, GDJ-0046 Phase A 뒤
+  current reference는 21/239/420=`203 passing + 16 deviation + 20 oracle_locked`입니다. Product는 계속
   20/219=`203 passing + 16 deviation`입니다. DEV-0008은 Verified이고 Q-020은 broader multi-runtime 때문에 Partial입니다.
 - 현재 local-verified cleanup commit: `bd31a77ba10c20717f761cca088678297b160a6c`
   (`refactor: finish current-only reset cleanup`)
@@ -612,11 +616,12 @@
   0/12 contracts·0/30 dimensions는 12개 semantic product failure가 아니었습니다. GDJ-0036은 그 뒤
   MIG-075..079를 current ABI/format/digest/state/staged-preflight 진단 계약으로 재기준화하고 dependency 및
   public `*migrations.PlanningError` typed classification false-green을 닫았습니다. 그 GDJ-0036 시점 aggregate는
-  13/139/156이었고, same-ID 12개는 현재 전체 21/231/420 reference에도 포함되지만
-  locked/unregistered입니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
+  13/139/156이었고, same-ID 12개는 현재 전체 21/239/420 reference에도 포함되지만 reference-only
+  `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0045 Durable Single-Runtime System State and Article Restart](../../work/0045-durable-single-runtime-system-state-and-article-restart.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0046 Database-Coordinated Multi-Runtime System State and Shared CSRF Keys](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1241,10 +1246,11 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 현재 21 ordered set, 231 unique contract/scenario와 420 ordered
+- Protocol v2 reference에는 현재 21 ordered set, 239 unique contract/scenario와 420 ordered
   cross-binding이 있습니다. Current product는 20개 set에 actual GoDj adapter를 가지며
   219 contract 분류는 `203 passing + 16 deviation + 0 oracle_locked`입니다. Reference 분류는
-  `203 passing + 16 deviation + 12 oracle_locked`이고 MIG-075..086만 locked/unregistered입니다. GDJ-0043의
+  `203 passing + 16 deviation + 20 oracle_locked`이고 MIG-075..086과 SYS-013..020은 reference-only
+  `oracle_locked`이며 product actual에는 등록되지 않습니다. GDJ-0043의
   checkpoint 30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는
   AUT-004/005, DEV-0005는 ADM-002를 소유합니다. GDJ-0044의 18 contracts는 13 passing + 5 reviewed
   deviations이며 DEV-0006은 WEB-028/029, DEV-0007은 API-001/003/010을 소유합니다. GDJ-0045의 12 contracts는
@@ -1290,7 +1296,7 @@
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
   MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
   14/151/182였습니다. GDJ-0040 completion checkpoint는 QRY-034..043 set을 더한 15/161/210이고 product는
-  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 21/231/420 및 20/219입니다. Local relation
+  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 21/239/420 및 20/219입니다. Local relation
   transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
@@ -1634,8 +1640,10 @@ P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 첫 submitted `8c80c64...` run `328
 scan collision과 네 Python stale digest 실패는 최소 lock/canary 보정으로 닫았고 그 실패 run은 completion evidence로
 재사용하지 않았습니다. 새 exact submitted `e673b3a...`/tree `917d36f...`의 EVID-129/CI #146은 필수 GitHub Actions
 27/27 jobs·359/359 steps, PostgreSQL 17.10 required 16/16·skip 0, portable runserver 16/16과 네 relation 좌표
-1,034/1,034·skip 0을 통과했습니다. 현재 남은 제한은 source blocker가 아니라 broader multi-runtime, DB-enforced
-constraint/lock/CAS, shared deployment key, JWT/OAuth와 production topology의 별도 후속 범위입니다.
+1,034/1,034·skip 0을 통과했습니다. GDJ-0046 Phase A/B는 EVID-130의 reference/backend local checkpoint까지 완료됐고
+외부 blocker는 없습니다. 다만 이 source는 아직 hosted matrix를 통과하지 않았으며 `systemstate.Runtime` integration, shared
+deployment key, two-process actual, non-cooperative writer, general constraint/CAS, JWT/OAuth와 production topology는 지원 주장이
+아닙니다.
 Accepted ADR-0045/0046 아래 exact 18-contract Article
 API/parameter-route vertical batch는 13 passing + 5 Verified deviations이며 SQLite/digest-pinned PostgreSQL flows,
 네 플랫폼 1,017/1,017/0, full/386/external archive/audit, hosted portable runserver required 16/16과 PostgreSQL
@@ -1746,13 +1754,12 @@ EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
 현재 active/ready packet은 1/0이고 유일한 active work는
-[GDJ-0046](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Activation
-baseline `996c00a...`/tree `ebf73aa...`에서 Proposed ADR-0048과 SYS-013..020을 고정했지만, 이 contract는 아직
-global registry/aggregate에 게시하지 않았고 implementation/verification을 주장하지 않습니다. 다음 정확한 작업은
-Phase A decision artifact를 게시한 뒤, Phase B에서 additive `db.CoordinatedAtomic` SPI와 SQLite `BEGIN IMMEDIATE` /
-PostgreSQL transaction advisory-lock implementation을 분리된 backend file 소유로 병렬 작성하는 것입니다. General
-`Unique`, `IntegerField`, revision/CAS, Schema IR/migration format과 sessions.Store public API는 이 packet에서 바꾸지
-않습니다.
+[GDJ-0046](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Phase A/B는
+`61e59d5...`→`1ea7b61...`과 EVID-130의 local checkpoint까지 완료됐습니다. 다음은 Phase C로,
+`systemstate.Backend`와 `Runtime.withAtomic`을 `db.CoordinatedAtomic`에 연결하고 Open/bootstrap/session/audit/Article writer를
+같은 fence 아래로 옮긴 뒤 same-process two-Runtime barrier tests를 수행합니다. Shared CSRF key ring과 distinct-process actual은
+각각 Phase D/E입니다. General `Unique`, `IntegerField`, revision/CAS, Schema IR/migration format과 sessions.Store public API는 이
+packet에서 바꾸지 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-021은 P1/open입니다.
 Cooperative multi-runtime과 shared CSRF key는 GDJ-0046 active 범위이고 JWT/OAuth, non-cooperative writer,

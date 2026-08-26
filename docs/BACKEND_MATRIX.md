@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
 - 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010 bounded slice Verified
-- 마지막 검토: 2026-08-24
+- 마지막 검토: 2026-08-26
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -9,8 +9,8 @@
 
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
-| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver bounded `Implemented`/hosted `Verified` | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 PostgreSQL 17 runserver bounded Implemented/Verified; broader support open | relation, locking, production-oriented semantics |
+| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver bounded `Implemented`/hosted `Verified`; GDJ-0046 coordinated-atomic backend boundary local `Implemented`, system-state integration pending | read/write, transaction, 최소 migration conformance |
+| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 PostgreSQL 17 runserver bounded Implemented/Verified; GDJ-0046 coordinated-atomic backend boundary local `Implemented`, PostgreSQL actual pending; broader support open | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -114,6 +114,28 @@ Source checkpoint `810149fd90ecf0b3a9cb7b4b98344476082ce769`은 optional descrip
 Runserver는 current generated bundle을 read-only preflight하며 auto-generate, auto-migrate, reload를 수행하지
 않습니다. 현재 지원 주장은 IPv4 loopback development server와 SQLite/PostgreSQL 17로 한정되며
 MySQL, Windows process semantics, non-loopback/TLS와 production readiness를 포함하지 않습니다.
+
+## GDJ-0046 coordinated-atomic backend boundary
+
+Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) Phase B는
+ordinary `db.Atomic`의 기존 의미를 바꾸지 않고 additive `db.CoordinatedAtomic`을 추가했습니다. 이 callback은 fence acquire
+전 실패·취소 시 0회, acquire 뒤 정확히 1회 실행되며 framework가 acquire/callback/commit을 재시도하지 않습니다. Callback
+error 또는 commit 전 관찰된 cancellation은 rollback을 확인할 수 있을 때 rollback합니다. Transaction 종료를 확인하지 못하면
+outcome은 unknown이고, literal commit error는 `CodeCommitOutcomeUnknown`으로 반환합니다. Callback 안에서 backend transaction을
+중첩하거나 다른 coordination domain을 획득하는 것은 계약 밖입니다.
+
+- SQLite는 하나의 physical connection을 pin하고 literal `BEGIN IMMEDIATE`로 writer fence를 획득합니다. BUSY는 configured
+  driver busy timeout 범위에서만 기다리며 framework retry를 추가하지 않고, callback에는 relation/migration private capability를
+  노출하지 않는 narrow `db.Session`만 전달합니다.
+- PostgreSQL은 기존 `Atomic` transaction 안에서 schema-scoped
+  `SELECT "pg_catalog"."pg_advisory_xact_lock"($1)`을 먼저 실행합니다. Lock key는 versioned/domain-separated SHA-256의
+  선두 8 bytes에서 파생하며 migration advisory-lock domain과 분리합니다.
+- [EVID-130](status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)은 affected backend
+  normal/race/CGO-disabled, vet와 SQLite two-Backend file contention/fault tests만 기록합니다. `systemstate.Runtime` integration,
+  same-process two-Runtime, distinct-process SQLite, required PostgreSQL 17.10 actual과 hosted source proof는 아직 실행하지 않았습니다.
+
+따라서 이 SPI는 Phase C~E의 correctness primitive이지 multi-runtime system-state 또는 production database 지원 완료 주장이
+아닙니다. ADR-0048은 계속 Proposed입니다.
 
 ## 현재 migration backend ABI
 

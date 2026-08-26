@@ -56,9 +56,10 @@
 - One-runtime은 `Open`이 lease/fence로 강제하지 않는 operator precondition입니다. Future multi-runtime 답은 credential singleton,
   session digest uniqueness, row-lock/conditional monotonic touch, shared capacity/reap/audit-prune, Article read-modify-write와
   purpose-separated CSRF/Admin notice deployment key ring을 함께 다뤄야 합니다.
-- SYS-001..012 exact artifact와 global GoDj adapter는 게시되고 EVID-129에서 hosted-verified됐습니다. Current classification은
-  SYS-001..008/010..012 `passing` + SYS-009 `deviation`, reference 21/231/420=`203+16+12 locked`, product
-  20/219=`203+16`이며 MIG-075..086만 locked/unregistered입니다. Local actual A/B는 12,944 bytes/SHA-256
+- SYS-001..012 exact artifact와 global GoDj adapter는 게시되고 EVID-129에서 hosted-verified됐습니다. 이 product classification은
+  SYS-001..008/010..012 `passing` + SYS-009 `deviation`, product 20/219=`203+16`입니다. GDJ-0046 Phase A가
+  SYS-013..020을 reference-only `oracle_locked`로 append해 current reference는 21/239/420=`203+16+20 locked`이고,
+  MIG-075..086과 SYS-013..020은 product actual registration에 포함되지 않습니다. Local SYS-001..012 actual A/B는 12,944 bytes/SHA-256
   `f30ac1a4...d41c3a6`로 byte-identical하고 SQLite distinct-process가 통과했습니다.
 - SYS-009의 process-local CSRF-key 정책은 [Verified DEV-0008](DEVIATIONS.md#dev-0008--restart-뒤-process-local-csrf-key로-stale-masked-token을-거부)입니다.
   [EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146은
@@ -70,7 +71,8 @@
 - Active GDJ-0046/Proposed ADR-0048은 같은 SQLite file 또는 PostgreSQL schema를 쓰는 cooperative Runtime의
   credential/session/capacity/audit/Article writer를 하나의 database coordination domain으로 선형화할 수 있는지
   검증합니다. Public Schema IR, migration format과 sessions.Store를 확장하지 않고 additive backend SPI로 충분한지가
-  핵심입니다.
+  핵심입니다. Phase A decision reference와 Phase B SQLite/PostgreSQL `db.CoordinatedAtomic` backend primitive는
+  EVID-130의 affected local gate를 통과했고, Phase C system-state integration과 Phase D/E key/two-process actual은 남았습니다.
 - Shared CSRF key ring은 active key로 발급하고 bounded validation key set으로 rolling deployment 중 서로 검증하며,
   zero config의 process-local 정책과 SYS-009/DEV-0008 historical meaning을 조용히 재작성하지 않습니다.
 - Logout/rotate는 DB fence가 정한 순서로 선형화합니다. Rotate-first 뒤 old-ID logout이 replacement family까지

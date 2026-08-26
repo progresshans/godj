@@ -73,10 +73,14 @@ proposed → ready → active → completed
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
 현재 active/ready packet은 1/0이고 유일한 active work는
-[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Activation baseline은
-`996c00a5fb4d634b5dc7bef4c5385f2353a89979`/tree `ebf73aaca349dfd56fdaf2cba0806ab03054cd09`이고,
-[ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 Proposed입니다.
-SYS-013..020은 아직 global aggregate에 등록되지 않았고 implementation/verification을 주장하지 않습니다.
+[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Activation commit
+`6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`/tree `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`의 CI #148/run
+`32922718021`은 27/27 success였지만 activation-only baseline입니다. Phase A `61e59d5...`/tree `eea1942...`는
+SYS-013..020을 reference-only `oracle_locked`로 게시했고, Phase B `1ea7b61...`/tree `a093ece...`는 additive
+SQLite/PostgreSQL coordinated-atomic backend boundary를 구현해
+[EVID-130](../docs/status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)의 affected local gate를
+통과했습니다. SYS-013..020 product actual은 아직 없으며 [ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은
+Proposed입니다. 다음 작업은 Phase C `systemstate.Runtime` integration입니다.
 최근 terminal completion은 [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md)입니다. Corrected frozen source
 `6243682...`/tree `98076ea...`의
 [EVID-128](../docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)은

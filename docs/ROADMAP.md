@@ -26,15 +26,17 @@
   네 relation coordinate 1,017/1,017/0, portable runserver required 16/16·skip 0와 PostgreSQL required
   15/15·skip 0을 검증했습니다. ADR-0045/0046은 Accepted이고 GDJ-0044는 completed입니다. 이 terminal
   경계 뒤 [GDJ-0045](../work/0045-durable-single-runtime-system-state-and-article-restart.md)가 completed됐습니다.
-  Current source는 SYS-001..012를 global registry/Makefile/`godjcheck`에 게시했고 exact 11 `passing` + SYS-009
-  DEV-0008 `deviation`, reference 21/231/420=`203+16+12 locked`, product 20/219=`203+16`입니다. Local actual
+  Current product는 SYS-001..012를 global registry/Makefile/`godjcheck`에 게시했고 exact 11 `passing` + SYS-009
+  DEV-0008 `deviation`, product 20/219=`203+16`입니다. Local actual
   A/B는 12,944 bytes/SHA-256 `f30ac1a4...d41c3a6`로 byte-identical하고 SQLite distinct-process restart가
   통과했습니다. Exact submitted `e673b3a...`의 EVID-129/CI #146은 PostgreSQL required 16/16·skip 0과
   필수 GitHub Actions 27/27 jobs·359/359 steps를 통과해 ADR-0047 Accepted, DEV-0008 Verified와 work completion을
   닫았습니다. 현재 [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)은
-  `996c00a...`/tree `ebf73aa...`를 activation baseline으로 Proposed
-  [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)의 backend coordinated-atomic SPI,
-  cooperative multi-runtime system state와 shared CSRF key ring을 SYS-013..020으로 검증하는 active wide batch입니다.
+  activation `6aca6ad...`/tree `b4dafaa...`의 CI #148 27/27 success 뒤 Proposed
+  [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)의 Phase A/B를 locally 완료했습니다.
+  SYS-013..020은 reference-only `oracle_locked`로 게시돼 reference가 21/239/420=`203+16+20 locked`로 늘었지만 product는
+  20/219로 불변입니다. Additive SQLite/PostgreSQL `db.CoordinatedAtomic` backend boundary는 구현됐고, 다음 Phase C의
+  system-state integration과 이후 shared CSRF key ring/two-process actual은 아직 미구현입니다.
   General Unique/Integer/CAS IR, session family revocation, JWT/OAuth와 production topology는 이 packet에 포함하지 않습니다.
   GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
@@ -706,8 +708,10 @@ DB unique IR, persistent/shared CSRF key와 production readiness는 계속 포�
 경계를 대체하지 않고 확장하는 active M6 hardening batch입니다. Proposed
 [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 SQLite `BEGIN IMMEDIATE`,
 PostgreSQL transaction advisory lock과 injected active/validation CSRF key ring으로 cooperative two-Runtime/two-process를
-검증합니다. SYS-013..020은 아직 unregistered/not implemented이며 기존 집계와 SYS-001..012 classification은
-변하지 않습니다.
+검증합니다. Phase A는 SYS-013..020을 reference-only `oracle_locked`로 게시해 reference를
+21/239/420=`203+16+20 locked`로 확장했고 product actual registration과 20/219=`203+16`, SYS-001..012 classification은
+바꾸지 않았습니다. Phase B additive backend coordination boundary는 local unit/fault gate를 통과했지만
+`systemstate.Runtime`, shared key ring과 same-/distinct-process actual은 아직 미구현입니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
