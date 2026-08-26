@@ -15,7 +15,7 @@
   CI #146 run `32833586028` exact 필수 GitHub Actions 27/27 jobs·359/359 steps·failure/cancel/step-skip/annotation 0,
   PostgreSQL 17.10 required 16/16·skip 0와 네 relation 좌표 1,034/1,034·skip 0. ADR-0047은 Accepted,
   DEV-0008은 Verified, GDJ-0045는 completed이고 Q-020은 `Partial`입니다.
-- GDJ-0046 Phase A/B local checkpoint: activation commit
+- GDJ-0046 Phase A/B/C local checkpoint: activation commit
   `6aca6adf54ec2fe1f74bcaf4ebcce7681994bb0f`, tree `b4dafaa90f78e8daa6ed5a9815a6e32977a694c1`의 CI #148/run
   `32922718021`은 exact 27/27 jobs·failure/cancel/skip 0으로 통과했지만 activation-only baseline입니다. Phase A
   `61e59d5b86538c385ed4801f1e927a6a5a1da14a`, tree `eea194288e4865a680fc516200093576026896a6`은
@@ -25,8 +25,12 @@
   `1ea7b61b6aeeb50150768a9e40f717f712330c2a`, tree `a093ece1e7fdf6231e49a0e45a29c29500502b60`은
   additive `db.CoordinatedAtomic`과 SQLite/PostgreSQL backend 구현을 추가해
   [EVID-130](TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)의 affected local gate를 통과했습니다.
-  `systemstate.Runtime` integration, shared CSRF key ring과 two-process actual은 아직 미구현이며 ADR-0048 Proposed,
-  GDJ-0046 active, Q-020 `Partial`을 유지합니다.
+  Phase C `48c167ffa83392a3f603866785811afae945a6b6`, tree `0a6083527fb4655ecd9a05323e20f0cee2d561e2`는
+  `systemstate.Runtime` startup/session/audit/Article writer를 DB fence에 합류시키고 같은 SQLite file의 두 Runtime에서
+  bootstrap, global capacity/reap, monotonic touch, rotate/logout과 Article+audit/prune rollback을 선형화해
+  [EVID-131](TEST_EVIDENCE.md#evid-20260826-131--gdj-0046-phase-c-multi-runtime-system-state-local-checkpoint)의
+  local gate를 통과했습니다. Shared CSRF key ring과 two-process SQLite/PostgreSQL product actual은 아직 남아 있으며 ADR-0048
+  Proposed, GDJ-0046 active, Q-020 `Partial`을 유지합니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
   Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree

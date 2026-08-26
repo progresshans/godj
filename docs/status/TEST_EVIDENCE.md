@@ -12159,3 +12159,79 @@ Full `make ci`, Linux/386, repository-external archive, actual PostgreSQL servic
 Phase D shared-key, Phase E distinct-process and an exact Phase A/B source hosted matrix were not run. Consequently this
 evidence does not claim cooperative multi-runtime system state, shared-key authentication, PostgreSQL 17.10 behavior,
 ADR-0048 acceptance, GDJ-0046 completion, merge, release or deployment. Draft PR #1 remains OPEN/DRAFT/unmerged.
+
+## EVID-20260826-131 — GDJ-0046 Phase C Multi-Runtime System-State Local Checkpoint
+
+- Date/time: completed through 2026-08-26T12:48:38+09:00
+- Work/contract IDs: GDJ-0046 active; ADR-0048 Proposed; Q-020 Partial; Phase C source for SYS-014..018;
+  SYS-013..020 remain reference-only `oracle_locked` and absent from product actual registration
+- Exact source commit: `48c167ffa83392a3f603866785811afae945a6b6`, tree
+  `0a6083527fb4655ecd9a05323e20f0cee2d561e2`, subject `feat: coordinate multi-runtime system state`
+- Result: `systemstate.Runtime` startup, durable session/audit operations and Article Admin DML+audit use the backend
+  database coordination fence. Same-file SQLite tests with two independent Backend/Runtime instances passed bootstrap,
+  capacity/reap, digest collision, touch, rotate/logout, global audit prune and same-transaction rollback lanes.
+
+### Implemented boundary and invariant coverage
+
+`systemstate.Backend` now requires `db.CoordinatedAtomic`; Runtime's mutex remains only a local contention optimization.
+`Open` performs migration/config validation and a non-authoritative credential read first, computes a candidate password
+hash only when needed outside the fence, then performs final session/audit/credential inspection and optional credential
+insert in one coordinated callback. Password verify and authenticator construction happen after commit. Generic acquire/
+transaction failures are classified as `persistence_failure`; both `commit_outcome_unknown` and
+`transaction_outcome_unknown` remain in the cause chain for reconciliation and are never retried.
+
+Two explicit regression tests prove that password Hash/Verify/Validate work never runs while coordination is active and
+that a credential disappearing between preliminary and final reads fails closed with `corrupt_state`, insert 0 and no
+replacement. All test/fault/conformance wrappers explicitly override `CoordinatedAtomic`, so DML instrumentation, audit
+faults and SYS-012 commit-unknown injection cannot be bypassed by embedded `Atomic` methods.
+
+The same-file barrier closes only after the holder has entered the real SQLite `BEGIN IMMEDIATE` callback. A contender
+records its underlying coordination attempt but cannot enter its callback before holder commit. Final DB state verifies:
+
+- identical concurrent bootstrap yields one credential; mismatched material fails closed;
+- global capacity/reap admits exactly one contender and same digest Create returns one true/one false publication;
+- stale Touch cannot reduce accessed/idle expiry;
+- double Rotate has one replacement, logout-first prevents resurrection, rotate-first preserves the replacement and
+  stale old-ID Touch is not found;
+- two real `adminapp.NewDurableService(runtime, runtime)` instances serialize Article Create and keep audit capacity 3 at
+  sequences `[2,3,4]`; an injected error after audit append+prune rolls back Article, audit insert and prune together.
+
+### Executed local verification
+
+The final affected normal and race commands exited 0:
+
+```bash
+go test -count=1 ./systemstate ./examples/article/adminapp ./examples/article/internal/siteapp \
+  ./web/sessionauth ./api/sessionauth ./conformance/systemstate/... ./conformance/runners/godj
+go test -race -count=1 ./systemstate ./examples/article/adminapp ./examples/article/internal/siteapp \
+  ./web/sessionauth ./api/sessionauth ./conformance/systemstate/... ./conformance/runners/godj
+go test -run '^$' ./...
+CGO_ENABLED=0 go test -count=1 ./systemstate ./conformance/systemstate/product \
+  ./conformance/systemstate/worker ./conformance/runners/godj ./examples/article/adminapp \
+  ./examples/article/internal/siteapp
+go vet ./systemstate ./conformance/systemstate/product ./conformance/systemstate/worker \
+  ./conformance/runners/godj ./examples/article/adminapp ./examples/article/internal/siteapp
+go test -count=1 ./conformance/internal/protocol \
+  -run 'TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution'
+git diff --check
+```
+
+The multi-Runtime system-state lanes additionally passed normal count 20 and race count 5; SYS-018 passed normal count
+20 and race count 5. The two startup-order regression tests passed normal count 20 and race count 5. The exact relation
+workflow inventory independently reproduced 1,041 run/1,041 pass/0 skip, payload 107,467 bytes and SHA-256
+`acdcef1190843b7386be2d00e0250db68cf9a0714c1bf9c61c122e6bcc703a49`. Independent final review found
+P0/P1/P3=`0/0/0`; its one P2 test-hardening recommendation was implemented and the focused repetitions above passed.
+
+### Hosted diagnostic and remaining boundary
+
+[GitHub Actions CI #149 run 32926280732](https://github.com/progresshans/godj/actions/runs/32926280732) targeted the
+earlier documentation head `5608889f8eb02b3f92409c76fd4ebe6984667dd0`, not this Phase C source. It completed 23
+success/4 failure across 27 jobs. All four failures were the same stale relation-product inventory assertion: Phase B had
+added seven SQLite top-level tests while the workflow still required 1,034. The logs produced the exact replacement lock
+1,041/107,467/`acdcef...`, which this source commit records and the local reproduction above confirms. CI #149 is diagnosis
+only and is not reused as Phase C hosted proof.
+
+Phase D shared CSRF key ring, Phase E distinct-process actual, PostgreSQL 17.10 required execution, full `make ci`,
+Linux/386, repository-external clean copy and an exact Phase C+ submitted-head hosted matrix remain unrun. Product actual
+still exposes only SYS-001..012, so this evidence does not promote SYS-013..020 to `passing`, accept ADR-0048, complete
+GDJ-0046, merge the Draft PR, release or deploy anything.

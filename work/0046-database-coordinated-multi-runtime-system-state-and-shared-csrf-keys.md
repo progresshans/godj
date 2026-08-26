@@ -208,7 +208,7 @@ web/sessionauth.Config
 - [x] Activation — baseline, SYS-013..020, Proposed ADR-0048, allowed paths와 비목표 고정
 - [x] Phase A — decision manifest/reference/NI/checksum과 protocol artifact invariants
 - [x] Phase B — coordinated-atomic SPI, SQLite/PostgreSQL implementation과 callback/fault/cancel unit tests
-- [ ] Phase C — systemstate Open/session/audit/Article integration과 same-process two-Runtime barrier tests
+- [x] Phase C — systemstate Open/session/audit/Article integration과 same-process two-Runtime barrier tests
 - [ ] Phase D — opaque CSRF key ring, site composition과 cross-Runtime/staged-rotation tests
 - [ ] Phase E — distinct two-process SQLite actual과 required PostgreSQL 17.10 actual, secret scan과 no-skip sentinel
 - [ ] Checkpoint — affected normal/race/CGO0/vet, generated/artifact drift와 backend canary
@@ -223,17 +223,21 @@ Phase A commit `61e59d5b86538c385ed4801f1e927a6a5a1da14a`, tree
 `oracle_locked` reference로 게시했습니다. Phase B commit `1ea7b61b6aeeb50150768a9e40f717f712330c2a`, tree
 `a093ece1e7fdf6231e49a0e45a29c29500502b60`은 additive `db.CoordinatedAtomic`과 SQLite/PostgreSQL 구현을
 추가했습니다. [EVID-130](../docs/status/TEST_EVIDENCE.md#evid-20260826-130--gdj-0046-phase-ab-local-checkpoint)은
-affected local gate만 기록하며 systemstate integration, shared CSRF key ring, two-process actual 또는 hosted source proof를 주장하지
-않습니다.
+affected local gate만 기록합니다. Phase C commit `48c167ffa83392a3f603866785811afae945a6b6`, tree
+`0a6083527fb4655ecd9a05323e20f0cee2d561e2`는 `systemstate.Runtime`의 startup/session/audit/Article writer를
+database coordination domain에 합류시키고 같은 SQLite file의 두 Runtime 경쟁을 검증했습니다.
+[EVID-131](../docs/status/TEST_EVIDENCE.md#evid-20260826-131--gdj-0046-phase-c-multi-runtime-system-state-local-checkpoint)은
+이 local source checkpoint만 기록하며 shared CSRF key ring, two-process actual, required PostgreSQL 17.10 또는 hosted source proof를
+아직 주장하지 않습니다.
 
 ## 완료 조건
 
 - [ ] SYS-013..020이 decision reference와 oracle-blind Go actual에서 예상 classification으로 검증됨
-- [ ] 같은 DB/schema의 두 Runtime이 credential/session/capacity/audit/Article check-then-act를 DB fence 아래 선형화함
+- [x] 같은 DB/schema의 두 Runtime이 credential/session/capacity/audit/Article check-then-act를 DB fence 아래 선형화함
 - [x] PostgreSQL과 SQLite backend boundary에서 callback once/zero, cancellation, rollback과 commit-unknown no-retry가 unit/fault
   test로 검증됨
-- [ ] Concurrent touch가 timestamp를 뒤로 돌리지 않고 rotate는 exactly-one replacement만 게시함
-- [ ] Logout/rotate 결과가 명시된 linearization contract와 일치하고 old bearer가 다시 만들어지지 않음
+- [x] Concurrent touch가 timestamp를 뒤로 돌리지 않고 rotate는 exactly-one replacement만 게시함
+- [x] Logout/rotate 결과가 명시된 linearization contract와 일치하고 old bearer가 다시 만들어지지 않음
 - [ ] Shared key ring의 cross-Runtime token, staged rotation과 removed-key rejection이 secret-free하게 통과함
 - [ ] Raw bearer, CSRF key/cookie/token, password와 DB URL이 DB payload/artifact/log/error/diagnostic에 노출되지 않음
 - [ ] SQLite와 digest-pinned PostgreSQL 17.10에서 실제 두 process required sentinel이 skip 0으로 통과함
@@ -255,9 +259,8 @@ affected local gate만 기록하며 systemstate integration, shared CSRF key rin
 
 ## 다음 정확한 작업
 
-1. `systemstate.Backend`가 `db.CoordinatedAtomic`을 요구하도록 좁히고 `Runtime.withAtomic`의 DB correctness owner를 새 fence로
-   전환합니다.
-2. `Open` final readiness/bootstrap과 session/audit writer를 같은 coordinated callback에서 다시 읽고 쓰도록 옮깁니다.
-3. 같은 normalized deployment profile과 SQLite file을 쓰는 두 Runtime barrier test로
-   bootstrap/capacity/touch/rotate/logout/audit linearization을 Phase C에서 검증하되 shared CSRF key ring과 distinct-process actual은
-   Phase D/E까지 분리합니다.
+1. `web/sessionauth`에 opaque immutable active/validation `CSRFKeyRing`과 hard validation-count cap을 추가하되 zero config의
+   process-local DEV-0008 behavior를 보존합니다.
+2. 같은 explicit ring을 쓰는 두 Runtime의 token handoff, staged rotation, removed/unrelated key rejection과 Article site composition을
+   Phase D에서 검증합니다.
+3. Phase E에서 distinct two-process SQLite/PostgreSQL actual, restart와 secret scan을 product actual로 게시합니다.
