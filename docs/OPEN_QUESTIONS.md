@@ -20,7 +20,7 @@
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
-| Q-021 | P1 | Durable system state 이후 / public API auth 전 | First-party cookie, BFF와 Bearer API profile을 어떻게 분리하고 JWT/opaque access token, rotating refresh token, key rotation/revocation을 공통 Principal/Permission 경계에 연결할 것인가 |
+| Q-021 | Partial | GDJ-0047 active / token lifecycle·OAuth 후속 | Proposed ADR-0049/GDJ-0047은 first-party session, BFF와 strict injected Bearer resource-server profile을 공통 Principal/Permission 아래 분리해 검증 중; JWT/opaque 발급, refresh family, key rotation/revocation과 OAuth/OIDC는 open |
 
 ## GDJ-0043에서 해결한 질문
 
@@ -86,14 +86,18 @@
   acceptance를 분리해 증명합니다. Q-020은 non-cooperative direct SQL writer, distributed coordination, deployment-policy
   negotiation, online serving/migration과 production topology를 답하지 않았으므로 `Partial`로 남습니다.
 
-## Public API authentication에서 검증할 질문
+## GDJ-0047에서 부분 결정하고 검증할 질문
 
-- Q-021은 Session을 JWT로 대체하지 않습니다. First-party Web은 HttpOnly durable session cookie+CSRF를 기본으로 두고, BFF는
-  browser token custody를 서버로 제한하며, 독립 client용 Bearer는 JWT 또는 opaque access token을 별도 adapter로 검토합니다.
+- Q-021은 Session을 JWT로 대체하지 않습니다. Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과
+  Proposed [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 First-party Web의 HttpOnly durable session
+  cookie+CSRF를 보존하고, BFF/독립 client용 `Authorization: Bearer`를 construction-time에 선택하는 별도 adapter로 검증합니다.
+- Lower `api`는 typed Principal/Permission handler 경계만 소유하고, `api/sessionauth`와 `api/bearerauth`가 서로 fallback하지 않는
+  profile을 구현하는 방향입니다. Bearer는 opaque redacted `Token`과 injected `Verifier`까지만 결정하며 JWT/opaque 형식은 고정하지 않습니다.
 - Refresh token을 채택하면 opaque CSPRNG bearer, digest-only storage, family/generation rotation, revocation/reuse detection과
   transaction ownership을 함께 결정합니다. Shared `auth.Principal`/Permission deny-overlay를 재사용하고 token 전용 permission
   체계를 만들지 않습니다.
-- 구현이나 ADR은 GDJ-0045와 분리된 후속 packet에서 결정합니다. 현재 `api` core와 `api/sessionauth`를 재작성하지 않습니다.
+- AUT-009..016/API-011..012는 아직 게시·구현되지 않았고 current aggregate도 변하지 않았습니다. JWT/opaque issuance,
+  refresh lifecycle, signing/validation key ring, OAuth/OIDC와 production BFF는 별도 후속이므로 Q-021은 `Partial`입니다.
 
 ## M0에서 해결한 질문
 

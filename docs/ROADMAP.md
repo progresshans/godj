@@ -733,6 +733,7 @@ SQLite/PostgreSQL barrier/restart와 source-bound live attestation은 EVID-133/1
 - API reference profile 확정 — GDJ-0044에서 DRF 3.18.0 exact isolated profile을 Accepted/Verified
 - serializer, JSON parser/renderer, session authentication/permission — GDJ-0044 bounded slice completed
 - bounded Article list/create/detail/PUT/PATCH/delete와 parameter Router, pagination/filter/order — GDJ-0044 completed
+- first-party session/BFF와 strict injected Bearer resource-server profile — GDJ-0047 active, ADR-0049 Proposed; JWT/refresh/OAuth 제외
 - OpenAPI와 browsable API — 별도 후속 결정, 현재 제외
 
 ## M8 — Realtime

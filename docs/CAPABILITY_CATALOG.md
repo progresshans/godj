@@ -259,6 +259,12 @@ WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다.
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)이 정본입니다.
 OpenAPI, browsable API, token auth, nested/bulk serializer와 M7 전체 완료는 포함하지 않습니다.
 
+Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
+[ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 기존 first-party session+CSRF profile을 보존하면서
+strict `Authorization: Bearer` resource-server adapter가 같은 `auth.Principal`/Permission과 Article handlers를 재사용하는 bounded
+수직 단면입니다. 현재는 activation 문서만 존재하고 AUT-009..016/API-011..012 reference/product 구현은 아직 없습니다. JWT/opaque
+token issuance, refresh family, OAuth/OIDC, signing key provider와 production BFF는 이 packet의 지원 주장이 아닙니다.
+
 ## Realtime
 
 - WebSocket와 SSE

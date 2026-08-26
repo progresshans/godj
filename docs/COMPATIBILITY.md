@@ -113,6 +113,12 @@ archive와 exact hosted proof는 [EVID-133](status/TEST_EVIDENCE.md#evid-2026082
 SYS-001..012 bytes/classification과 zero-config DEV-0008은 바뀌지 않았습니다. General Unique/Integer/CAS IR,
 non-cooperative writer, family-wide revocation, JWT/OAuth와 production readiness는 이 작업으로 지원되지 않습니다.
 
+Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
+[ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 first-party durable session+CSRF를 기본 profile로 보존하고,
+BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission core에 연결하는 다음 bounded slice입니다. Activation
+시점에는 AUT-009..016/API-011..012 artifact나 product code가 아직 없으므로 current 21/239/420 reference와 20/227 product
+aggregate는 바뀌지 않습니다. Bearer transport가 JWT support를 뜻하지 않으며 token issuance/refresh/OAuth/key lifecycle은 계속 open입니다.
+
 OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
 Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 

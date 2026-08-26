@@ -20,6 +20,11 @@
   20/227=`211 passing + 16 deviation`입니다. SYS-013..020은 모두 product `passing`, 남은 locked range는 MIG-075..086뿐입니다.
   ADR-0048은 Accepted, GDJ-0046은 completed, DEV-0008은 zero-config SYS-009에 대해 Verified이고 Q-020은 non-cooperative/
   distributed/production 범위 때문에 `Partial`입니다.
+- GDJ-0047 activation baseline은 terminal documentation commit `2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree
+  `dee452188c0219a9a5759fb694196dc48d008a2c`입니다. [GDJ-0047](../../work/0047-api-authentication-profiles-and-bearer-article-api.md)은
+  active, [ADR-0049](../adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed, Q-021은 `Partial`입니다. Activation
+  시점에는 product/contract artifact가 아직 없어 current reference/product aggregate는 위 21/239/420과 20/227 그대로입니다.
+  정확한 다음 작업은 AUT-009..016/API-011..012 exact 10-contract reference-only Phase A publication입니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
   Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree
@@ -614,7 +619,8 @@
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0046 Database-Coordinated Multi-Runtime System State and Shared CSRF Keys](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0047 API Authentication Profiles and Bearer Article API](../../work/0047-api-authentication-profiles-and-bearer-article-api.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1767,13 +1773,14 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 0/0입니다. GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
-matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. 다음 bounded packet은 Q-021의
-first-party cookie, BFF와 Bearer API profile을 분리하고 strict injected Bearer authenticator가 기존 `auth.Principal`/permission 및
-Article JSON API를 재사용하는 수직 단면입니다. Concrete JWT 발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema
-변경은 함께 넣지 않습니다.
+현재 active/ready packet은 1/0입니다. GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
+matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. Active GDJ-0047은 terminal docs
+baseline `2ffcc889...`에서 Proposed ADR-0049와 Q-021 `Partial`을 활성화했습니다. Product/reference bytes는 아직 바뀌지 않았고,
+정확한 다음 작업은 first-party session을 보존하면서 strict injected Bearer `Token`/`Verifier`가 같은
+`auth.Principal`/permission 및 Article JSON API를 재사용하는 AUT-009..016/API-011..012 exact 10-contract reference-only Phase
+A publication입니다. Concrete JWT 발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema 변경은 함께 넣지 않습니다.
 
-Q-010/Q-011/Q-012/Q-013/Q-016/Q-020은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-021은 P1/open입니다.
+Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 P1/open입니다.
 MIG-075..086은 remaining reference-only locked range이지만 diagnostic 관찰을 자동 product passing으로 승격하지 않습니다.
 Draft PR #1은 계속 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.
 

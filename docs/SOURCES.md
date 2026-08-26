@@ -1,6 +1,6 @@
 # 기준 출처와 검증 기록
 
-- 외부 source 마지막 확인: 2026-08-24 (Asia/Seoul)
+- 외부 source 마지막 확인: 2026-08-26 (Asia/Seoul)
 - current artifact/provenance 마지막 검토: 2026-08-24 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
@@ -99,6 +99,19 @@ GDJ-0044는 기존 Django-only `uv.lock`과 18개 oracle을 재작성하지 않�
 `conformance/reference/drf/uv.lock`에 DRF dependency를 격리합니다. New exact profile은 기존 Django/Python/SQLite
 fingerprint를 보존하면서 별도 ID와 nested lock hash를 사용합니다. OpenAPI/browsable API/Channels는 이 source lock의
 지원 주장에 포함하지 않습니다.
+
+## HTTP Bearer authentication
+
+- [RFC 6750](https://datatracker.ietf.org/doc/html/rfc6750) — `Authorization: Bearer`의 `1*SP`/`b64token` grammar,
+  challenge와 `invalid_request`/`invalid_token`/`insufficient_scope` status 의미의 normative authority.
+- [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html) — HTTP authentication framework와 401 response의
+  `WWW-Authenticate` requirement authority.
+- [RFC 9700](https://www.rfc-editor.org/rfc/rfc9700.html) — OAuth 2.0 deployment security의 future checklist. 이를 인용하는 것은
+  GDJ-0047이 OAuth authorization server, JWT, refresh token이나 key distribution을 지원한다는 뜻이 아닙니다.
+
+GDJ-0047 Phase A는 exact DRF 3.18.0 `TokenAuthentication`을 `Bearer` keyword로 관찰하되, raw duplicate header handling,
+fixed byte cap, secret redaction, Go interface ownership과 no-fallback profile composition은 Proposed ADR-0049의 GoDj decision
+provenance로 분리합니다. DRF 관찰과 normative RFC 결과가 다르면 같은 것으로 합성하지 않고 selector/deviation 후보로 게시합니다.
 
 ## GDJ-0039 query-breadth source and provenance lock
 

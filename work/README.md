@@ -70,9 +70,15 @@ proposed → ready → active → completed
 | [GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) | completed | Session-authenticated Article JSON API와 closed parameterized routing |
 | [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md) | completed | Durable single-runtime system state와 restart-preserving Article Admin/API |
 | [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | completed | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
+| [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | active | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0이고 최근 terminal completion은
+현재 active/ready packet은 1/0입니다. Active
+[GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 terminal documentation baseline
+`2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree `dee452188c0219a9a5759fb694196dc48d008a2c`에서 Proposed
+[ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)와 Q-021 `Partial`을 활성화했습니다. Product와
+contract aggregate는 아직 바뀌지 않았고 정확한 다음 작업은 AUT-009..016/API-011..012 exact 10-contract reference-only Phase
+A publication입니다. 최근 terminal completion은
 [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Initial Phase E publication
 `de5cd505...` 뒤 setup-python v6의 known manifest-truncation path를 교정한 exact frozen source는
 `29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree `4f061289b240b4739ec43155b08b5909e95eddc0`입니다.
@@ -83,8 +89,7 @@ affected/full/386/1,055-file external archive와 independent audit, 그리고
 [ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md) 아래 SYS-013..020은 모두
 product `passing`; current reference/product는 21/239/420=`211+16+12 locked`, 20/227=`211+16`입니다. Q-020은
 non-cooperative/distributed/production 범위 때문에 `Partial`, DEV-0008은 zero-config SYS-009에 대해 Verified입니다.
-다음 bounded packet은 Q-021의 first-party/BFF/Bearer authentication profile을 우선 검토합니다. Draft PR #1은
-OPEN/DRAFT/unmerged입니다.
+Draft PR #1은 OPEN/DRAFT/unmerged입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
