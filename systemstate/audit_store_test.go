@@ -250,6 +250,19 @@ func (backend *auditFaultBackend) Atomic(ctx context.Context, callback func(db.S
 	})
 }
 
+func (backend *auditFaultBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.mu.Lock()
+	failure := backend.nextDeleteFailure
+	backend.nextDeleteFailure = nil
+	backend.mu.Unlock()
+	return backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+		return callback(&auditFaultSession{Session: session, deleteFailure: failure})
+	})
+}
+
 type auditFaultSession struct {
 	db.Session
 	deleteFailure error

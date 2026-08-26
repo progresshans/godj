@@ -333,6 +333,24 @@ func (backend *systemStateObservedBackend) Atomic(ctx context.Context, callback 
 	})
 }
 
+func (backend *systemStateObservedBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.atomicCalls.Add(1)
+	depth := backend.atomicDepth.Add(1)
+	for {
+		maximum := backend.maximumAtomicDepth.Load()
+		if depth <= maximum || backend.maximumAtomicDepth.CompareAndSwap(maximum, depth) {
+			break
+		}
+	}
+	defer backend.atomicDepth.Add(-1)
+	return backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+		return callback(&systemStateObservedSession{Session: session, backend: backend})
+	})
+}
+
 func (backend *systemStateObservedBackend) resetDML() {
 	backend.inserts.Store(0)
 	backend.updates.Store(0)
@@ -2172,6 +2190,7 @@ type systemStateCommitUnknownBackend struct {
 	atomicCalls        atomic.Int64
 	postUnknownAtomics atomic.Int64
 	postUnknownQueries atomic.Int64
+	injectUnknown      atomic.Bool
 	returnedUnknown    atomic.Bool
 }
 
@@ -2185,6 +2204,31 @@ func (backend *systemStateCommitUnknownBackend) Atomic(
 	}
 	if err := backend.systemStateObservedBackend.Atomic(ctx, callback); err != nil {
 		return err
+	}
+	if !backend.injectUnknown.Load() {
+		return nil
+	}
+	backend.returnedUnknown.Store(true)
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeCommitOutcomeUnknown,
+		Detail:   "injected system-state commit outcome unknown",
+	}
+}
+
+func (backend *systemStateCommitUnknownBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.atomicCalls.Add(1)
+	if backend.returnedUnknown.Load() {
+		backend.postUnknownAtomics.Add(1)
+	}
+	if err := backend.systemStateObservedBackend.CoordinatedAtomic(ctx, callback); err != nil {
+		return err
+	}
+	if !backend.injectUnknown.Load() {
+		return nil
 	}
 	backend.returnedUnknown.Store(true)
 	return &query.Error{
@@ -2220,6 +2264,8 @@ func systemStateCommitOutcomeUnknown(
 	if err != nil {
 		return protocol.Observation{}, err
 	}
+	unknownBackend.atomicCalls.Store(0)
+	unknownBackend.injectUnknown.Store(true)
 	service, err := adminapp.NewDurableService(unknownRuntime, unknownRuntime)
 	if err != nil {
 		return protocol.Observation{}, err

@@ -69,12 +69,13 @@ var (
 type Backend interface {
 	db.Queryer
 	db.Mutator
-	db.Atomic
+	db.CoordinatedAtomic
 	migrationbackend.AppliedMigrationReader
 }
 
-// Runtime owns the cooperative single-runtime transaction gate and the
-// restart-verified immutable credential authenticator.
+// Runtime owns the process-local contention gate for one database-coordinated
+// system-state domain and the restart-verified immutable credential
+// authenticator.
 type Runtime struct {
 	mu            sync.Mutex
 	backend       Backend
@@ -120,61 +121,73 @@ func Open(ctx context.Context, backend Backend, config BootstrapConfig) (*Runtim
 	if err := requireInitialMigration(ctx, backend); err != nil {
 		return nil, err
 	}
-	sessionPresent, err := inspectSessionTable(
-		ctx,
-		backend,
-		sessionStore.limits,
-		sessionStore.maxRecords,
-	)
+	// Read only the credential cardinality needed to decide whether password
+	// hashing may be required. This observation is not authoritative: another
+	// cooperative Runtime may bootstrap before the coordinated transaction
+	// below acquires the database fence.
+	preliminaryCredentials, err := readCredentialRows(ctx, backend)
 	if err != nil {
 		return nil, err
 	}
-	auditPresent, err := inspectAuditTable(ctx, backend, auditCapacity)
-	if err != nil {
-		return nil, err
-	}
-	credentials, err := readCredentialRows(ctx, backend)
-	if err != nil {
-		return nil, err
-	}
-	if len(credentials) > 1 {
-		return nil, credentialCardinalityError()
-	}
-
-	var durable credentialRow
-	if len(credentials) == 1 {
-		durable = credentials[0]
-	} else {
-		if sessionPresent || auditPresent {
-			return nil, &Error{
-				Code:   CodeCorruptState,
-				Field:  "credential",
-				Detail: "dependent system rows exist without the sole credential",
-			}
-		}
-		candidate, err := material.encodedRow(ctx)
+	var candidate credentialRow
+	candidateReady := false
+	if len(preliminaryCredentials) == 0 {
+		candidate, err = material.encodedRow(ctx)
 		if err != nil {
 			return nil, err
 		}
-		err = runtime.withAtomic(ctx, func(session db.Session) error {
-			current, err := readCredentialRows(ctx, session)
-			if err != nil {
-				return err
-			}
-			switch len(current) {
-			case 0:
-				durable, err = insertCredential(ctx, session, candidate)
-				return err
-			case 1:
-				durable = current[0]
-				return nil
-			default:
-				return credentialCardinalityError()
-			}
-		})
+		candidateReady = true
+	}
+
+	var durable credentialRow
+	err = runtime.withAtomic(ctx, func(session db.Session) error {
+		// These are the final authoritative readiness and bootstrap reads. Keep
+		// them in one coordination domain so no cooperative writer can change a
+		// dependent table between cardinality checks and credential selection.
+		sessionPresent, err := inspectSessionTable(
+			ctx,
+			session,
+			sessionStore.limits,
+			sessionStore.maxRecords,
+		)
 		if err != nil {
-			return nil, redactAtomicFailure(err)
+			return err
 		}
+		auditPresent, err := inspectAuditTable(ctx, session, auditCapacity)
+		if err != nil {
+			return err
+		}
+		credentials, err := readCredentialRows(ctx, session)
+		if err != nil {
+			return err
+		}
+		switch len(credentials) {
+		case 0:
+			if sessionPresent || auditPresent {
+				return &Error{
+					Code:   CodeCorruptState,
+					Field:  "credential",
+					Detail: "dependent system rows exist without the sole credential",
+				}
+			}
+			if !candidateReady {
+				return &Error{
+					Code:   CodeCorruptState,
+					Field:  "credential",
+					Detail: "credential state changed before coordinated startup inspection",
+				}
+			}
+			durable, err = insertCredential(ctx, session, candidate)
+			return err
+		case 1:
+			durable = credentials[0]
+			return nil
+		default:
+			return credentialCardinalityError()
+		}
+	})
+	if err != nil {
+		return nil, redactAtomicFailure(err)
 	}
 
 	authenticator, err := verifyCredential(ctx, durable, material)
@@ -205,9 +218,9 @@ func (runtime *Runtime) SessionStore() sessions.Store {
 	return runtime.sessionStore
 }
 
-// Query validates and forwards a read-only plan. Reads do not acquire the
-// cooperative write mutex and therefore cannot accidentally nest a database
-// transaction owned by an Article or Admin operation.
+// Query validates and forwards a top-level read-only plan without acquiring
+// the coordination gate. Code already inside Atomic must instead use the
+// borrowed Session.Query so it stays on that transaction's pinned connection.
 func (runtime *Runtime) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	if err := runtime.validBackendCall(ctx); err != nil {
 		return nil, err
@@ -251,15 +264,18 @@ func (runtime *Runtime) Delete(ctx context.Context, plan query.DeletePlan) (int6
 	return affected, err
 }
 
-// Atomic runs the caller callback under the same single-runtime gate used by
-// session and audit state.
+// Atomic runs the caller callback under the same database coordination fence
+// used by session and audit state. Callbacks must use the borrowed Session and
+// must not invoke Runtime.Atomic, a Runtime session-store operation, or another
+// backend coordination domain recursively.
 func (runtime *Runtime) Atomic(ctx context.Context, callback func(db.Session) error) error {
 	return runtime.withAtomic(ctx, callback)
 }
 
-// withAtomic is the one cooperative write gate shared by the durable session
-// and audit adapters. It serializes the complete backend transaction and
-// invokes Backend.Atomic exactly once for every valid call.
+// withAtomic is the one cooperative gate shared by the durable session and
+// audit adapters. The mutex reduces contention within this Runtime; the
+// backend's database/schema fence owns correctness across Runtime instances.
+// Every valid call invokes Backend.CoordinatedAtomic exactly once.
 func (runtime *Runtime) withAtomic(ctx context.Context, callback func(db.Session) error) error {
 	if err := runtime.validBackendCall(ctx); err != nil {
 		return err
@@ -272,7 +288,7 @@ func (runtime *Runtime) withAtomic(ctx context.Context, callback func(db.Session
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return runtime.backend.Atomic(ctx, callback)
+	return runtime.backend.CoordinatedAtomic(ctx, callback)
 }
 
 func (runtime *Runtime) validBackendCall(ctx context.Context) error {
@@ -347,7 +363,8 @@ func redactAtomicFailure(err error) error {
 		return err
 	}
 	var outcome *query.Error
-	if errors.As(err, &outcome) && outcome.Code == query.CodeCommitOutcomeUnknown {
+	if errors.As(err, &outcome) && (outcome.Code == query.CodeCommitOutcomeUnknown ||
+		outcome.Code == query.CodeTransactionOutcomeUnknown) {
 		return &Error{
 			Code:   CodePersistence,
 			Field:  "credential",
@@ -363,7 +380,7 @@ func redactAtomicFailure(err error) error {
 		return &Error{Code: stateError.Code, Field: stateError.Field, Detail: stateError.Detail, Cause: err}
 	}
 	return &Error{
-		Code:   CodeSchemaUnavailable,
+		Code:   CodePersistence,
 		Field:  "credential",
 		Detail: "bootstrap credential transaction failed",
 		Cause:  err,

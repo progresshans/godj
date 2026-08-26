@@ -84,6 +84,15 @@ func (backend *observedBackend) Atomic(ctx context.Context, callback func(db.Ses
 	})
 }
 
+func (backend *observedBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	return backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+		return callback(&observedSession{Session: session, backend: backend})
+	})
+}
+
 func (backend *observedBackend) observeInsert(table string) {
 	backend.inserts.Add(1)
 	switch table {

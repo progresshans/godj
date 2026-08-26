@@ -25,8 +25,9 @@ var (
 )
 
 // atomicGate is implemented by Runtime. Every framework system-state adapter
-// receives the same gate, so its one process mutex and one database transaction
-// serialize cooperative writes for the supported single-runtime topology.
+// receives the same database-coordinated gate. Callbacks must not recursively
+// invoke another operation on the same gate or acquire a different backend
+// coordination domain.
 type atomicGate interface {
 	withAtomic(context.Context, func(db.Session) error) error
 }

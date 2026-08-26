@@ -254,8 +254,8 @@ DEV-0007만 허용하고 root-list comparator도 selector/type/count를 fail-clo
 Current checkout의 global reference는 21 sets/239 contracts/420 ordered bindings=`203 passing + 16 deviation + 20
 oracle_locked`, product는 20 adapters/219 eligible contracts=`203 passing + 16 deviation`입니다. SYS-001..012 actual은
 global registry/Makefile에 게시됐고 MIG-075..086과 SYS-013..020은 locked/unregistered입니다. Four-coordinate relation
-inventory는 1,034/1,034/0, 106,767 bytes, SHA-256
-`39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다.
+inventory는 GDJ-0046 Phase B의 일곱 SQLite coordinated-atomic top-level tests를 포함해 1,041/1,041/0,
+107,467 bytes, SHA-256 `acdcef1190843b7386be2d00e0250db68cf9a0714c1bf9c61c122e6bcc703a49`입니다.
 
 Final local `make ci`, Linux/386, external archive와 source audit는
 [EVID-125](../docs/status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint), exact

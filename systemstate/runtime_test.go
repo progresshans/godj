@@ -121,8 +121,8 @@ func TestRuntimeExplicitBootstrapRestartAndDatabaseInterfaces(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open(identical restart): %v", err)
 	}
-	if secondBackend.atomicCalls.Load() != 0 || secondBackend.insertCalls.Load() != 0 {
-		t.Fatalf("identical restart calls = atomic %d/insert %d, want zero", secondBackend.atomicCalls.Load(), secondBackend.insertCalls.Load())
+	if secondBackend.atomicCalls.Load() != 1 || secondBackend.insertCalls.Load() != 0 {
+		t.Fatalf("identical restart calls = atomic %d/insert %d, want 1/0", secondBackend.atomicCalls.Load(), secondBackend.insertCalls.Load())
 	}
 	secondCredentials, err := readCredentialRows(ctx, secondDatabase)
 	if err != nil || len(secondCredentials) != 1 || secondCredentials[0] != firstCredential {
@@ -134,6 +134,76 @@ func TestRuntimeExplicitBootstrapRestartAndDatabaseInterfaces(t *testing.T) {
 	}
 	if (*Runtime)(nil).Authenticator() != nil || (*Runtime)(nil).SessionStore() != nil {
 		t.Fatal("nil Runtime published an accessor value")
+	}
+}
+
+func TestRuntimePasswordWorkStaysOutsideDatabaseCoordinationFence(t *testing.T) {
+	ctx := context.Background()
+	database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "password-work.sqlite3"))+"?mode=rwc")
+	t.Cleanup(func() { _ = database.Close() })
+	explicitlyMigrateSystemState(t, ctx, database)
+	backend := &coordinationDepthRuntimeBackend{Backend: database}
+	config := runtimeTestConfig(t, "password-work-outside-fence-secret-marker")
+	hasher := &coordinationCheckingHasher{
+		PasswordHasher: config.PasswordHasher,
+		active:         &backend.active,
+	}
+	config.PasswordHasher = hasher
+
+	if runtime, err := Open(ctx, backend, config); err != nil || runtime == nil {
+		t.Fatalf("Open(first Runtime) = (%v, %v)", runtime, err)
+	}
+	if runtime, err := Open(ctx, backend, config); err != nil || runtime == nil {
+		t.Fatalf("Open(restarted Runtime) = (%v, %v)", runtime, err)
+	}
+	if got := backend.maximum.Load(); got != 1 {
+		t.Fatalf("maximum active coordination calls = %d, want 1", got)
+	}
+	if hasher.hashCalls.Load() == 0 || hasher.verifyCalls.Load() == 0 || hasher.validateCalls.Load() == 0 {
+		t.Fatalf(
+			"password hasher calls = hash %d/verify %d/validate %d, want every path observed",
+			hasher.hashCalls.Load(),
+			hasher.verifyCalls.Load(),
+			hasher.validateCalls.Load(),
+		)
+	}
+	if got := hasher.activeViolations.Load(); got != 0 {
+		t.Fatalf("password hasher calls while coordination was active = %d, want 0", got)
+	}
+}
+
+func TestRuntimePreliminaryCredentialDisappearanceFailsClosedWithoutReplacement(t *testing.T) {
+	ctx := context.Background()
+	database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "credential-disappears.sqlite3"))+"?mode=rwc")
+	t.Cleanup(func() { _ = database.Close() })
+	explicitlyMigrateSystemState(t, ctx, database)
+	config := runtimeTestConfig(t, "credential-disappearance-secret-marker")
+	if runtime, err := Open(ctx, database, config); err != nil || runtime == nil {
+		t.Fatalf("Open(bootstrap Runtime) = (%v, %v)", runtime, err)
+	}
+	credentials, err := readCredentialRows(ctx, database)
+	if err != nil || len(credentials) != 1 {
+		t.Fatalf("bootstrap credentials = (%+v, %v), want one row", credentials, err)
+	}
+	backend := &credentialRemovedBeforeCoordinationBackend{
+		Backend:      database,
+		credentialID: credentials[0].id,
+	}
+	restartConfig := runtimeTestConfig(t, config.Password)
+	runtime, err := Open(ctx, backend, restartConfig)
+	if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+		t.Fatalf("Open(after preliminary credential disappearance) = (%v, %#v)", runtime, err)
+	}
+	if backend.coordinatedCalls.Load() != 1 || backend.callbackCalls.Load() != 1 {
+		t.Fatalf(
+			"coordinated disappearance inspection calls = transaction %d/callback %d, want 1/1",
+			backend.coordinatedCalls.Load(),
+			backend.callbackCalls.Load(),
+		)
+	}
+	credentials, readErr := readCredentialRows(ctx, database)
+	if readErr != nil || len(credentials) != 0 {
+		t.Fatalf("credentials after fail-closed startup = (%+v, %v), want no replacement", credentials, readErr)
 	}
 }
 
@@ -175,8 +245,8 @@ func TestRuntimeIdenticalRestartRejectsEveryCredentialMismatchWithoutWriting(t *
 			if runtime != nil || !errors.Is(err, &Error{Code: CodeCredentialMismatch}) {
 				t.Fatalf("Open(mismatch) = (%v,%#v)", runtime, err)
 			}
-			if observed.atomicCalls.Load() != 0 || observed.insertCalls.Load() != 0 {
-				t.Fatalf("mismatch wrote state: atomic %d/insert %d", observed.atomicCalls.Load(), observed.insertCalls.Load())
+			if observed.atomicCalls.Load() != 1 || observed.insertCalls.Load() != 0 {
+				t.Fatalf("mismatch coordinated inspection calls = atomic %d/insert %d, want 1/0", observed.atomicCalls.Load(), observed.insertCalls.Load())
 			}
 			for _, secret := range []string{baseline.Password, config.Password} {
 				if strings.Contains(err.Error(), secret) {
@@ -192,8 +262,8 @@ func TestRuntimeIdenticalRestartRejectsEveryCredentialMismatchWithoutWriting(t *
 	if _, err := Open(ctx, finalObserved, runtimeTestConfig(t, baseline.Password)); err != nil {
 		t.Fatalf("Open(correct after mismatches): %v", err)
 	}
-	if finalObserved.atomicCalls.Load() != 0 {
-		t.Fatalf("correct final restart atomic calls = %d, want zero", finalObserved.atomicCalls.Load())
+	if finalObserved.atomicCalls.Load() != 1 {
+		t.Fatalf("correct final restart atomic calls = %d, want 1", finalObserved.atomicCalls.Load())
 	}
 }
 
@@ -272,8 +342,8 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeCardinality, Field: "credential"}) {
 			t.Fatalf("Open(duplicate credential) = (%v,%#v)", runtime, err)
 		}
-		if observed.atomicCalls.Load() != 0 {
-			t.Fatalf("duplicate credential invoked %d transactions", observed.atomicCalls.Load())
+		if observed.atomicCalls.Load() != 1 {
+			t.Fatalf("duplicate credential invoked %d coordinated inspections, want 1", observed.atomicCalls.Load())
 		}
 	})
 
@@ -289,8 +359,8 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
 			t.Fatalf("Open(orphan state) = (%v,%#v)", runtime, err)
 		}
-		if observed.atomicCalls.Load() != 0 {
-			t.Fatalf("orphan state invoked %d transactions", observed.atomicCalls.Load())
+		if observed.atomicCalls.Load() != 1 {
+			t.Fatalf("orphan state invoked %d coordinated inspections, want 1", observed.atomicCalls.Load())
 		}
 	})
 }
@@ -384,6 +454,65 @@ func TestRuntimeBootstrapCommitUnknownIsNotRetriedOrMisclassifiedAsSchemaMissing
 	}
 	if reopened, reopenErr := Open(ctx, database, config); reopenErr != nil || reopened == nil {
 		t.Fatalf("Open(reconcile by restart) = (%v,%v)", reopened, reopenErr)
+	}
+}
+
+func TestRedactAtomicFailurePreservesCoordinationOwnershipAndOutcomeMarkers(t *testing.T) {
+	tests := []struct {
+		name        string
+		cause       error
+		wantCode    ErrorCode
+		wantOutcome string
+	}{
+		{
+			name:     "coordination acquisition failure",
+			cause:    errors.New("backend coordination acquisition failed"),
+			wantCode: CodePersistence,
+		},
+		{
+			name: "commit outcome unknown",
+			cause: &query.Error{
+				Category: query.CategoryBackend,
+				Code:     query.CodeCommitOutcomeUnknown,
+			},
+			wantCode:    CodePersistence,
+			wantOutcome: query.CodeCommitOutcomeUnknown,
+		},
+		{
+			name: "transaction outcome unknown",
+			cause: &query.Error{
+				Category: query.CategoryBackend,
+				Code:     query.CodeTransactionOutcomeUnknown,
+			},
+			wantCode:    CodePersistence,
+			wantOutcome: query.CodeTransactionOutcomeUnknown,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := redactAtomicFailure(test.cause)
+			if !errors.Is(err, &Error{Code: test.wantCode, Field: "credential"}) ||
+				errors.Is(err, &Error{Code: CodeSchemaUnavailable}) ||
+				!errors.Is(err, test.cause) {
+				t.Fatalf("redactAtomicFailure() = %#v", err)
+			}
+			if test.wantOutcome != "" {
+				var outcome *query.Error
+				if !errors.As(err, &outcome) || outcome.Code != test.wantOutcome {
+					t.Fatalf("redactAtomicFailure() outcome = %#v, want %q", outcome, test.wantOutcome)
+				}
+			}
+		})
+	}
+
+	stateCause := &Error{Code: CodeCardinality, Field: "credential", Detail: "test-only state failure"}
+	if err := redactAtomicFailure(stateCause); !errors.Is(err, &Error{Code: CodeCardinality, Field: "credential"}) ||
+		!errors.Is(err, stateCause) {
+		t.Fatalf("redactAtomicFailure(state error) = %#v", err)
+	}
+	if err := redactAtomicFailure(context.Canceled); !errors.Is(err, context.Canceled) {
+		t.Fatalf("redactAtomicFailure(context canceled) = %#v", err)
 	}
 }
 
@@ -487,6 +616,99 @@ type observedRuntimeBackend struct {
 	deleteCalls atomic.Int64
 }
 
+type coordinationDepthRuntimeBackend struct {
+	*sqlite.Backend
+	active  atomic.Int64
+	maximum atomic.Int64
+}
+
+func (backend *coordinationDepthRuntimeBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	active := backend.active.Add(1)
+	for {
+		maximum := backend.maximum.Load()
+		if active <= maximum || backend.maximum.CompareAndSwap(maximum, active) {
+			break
+		}
+	}
+	defer backend.active.Add(-1)
+	return backend.Backend.CoordinatedAtomic(ctx, callback)
+}
+
+type coordinationCheckingHasher struct {
+	auth.PasswordHasher
+	active           *atomic.Int64
+	hashCalls        atomic.Int64
+	verifyCalls      atomic.Int64
+	validateCalls    atomic.Int64
+	activeViolations atomic.Int64
+}
+
+func (hasher *coordinationCheckingHasher) Hash(ctx context.Context, password string) (string, error) {
+	hasher.hashCalls.Add(1)
+	hasher.observeActiveCoordination()
+	return hasher.PasswordHasher.Hash(ctx, password)
+}
+
+func (hasher *coordinationCheckingHasher) Verify(ctx context.Context, password, encoded string) (bool, error) {
+	hasher.verifyCalls.Add(1)
+	hasher.observeActiveCoordination()
+	return hasher.PasswordHasher.Verify(ctx, password, encoded)
+}
+
+func (hasher *coordinationCheckingHasher) ValidateEncoded(encoded string) error {
+	hasher.validateCalls.Add(1)
+	hasher.observeActiveCoordination()
+	return hasher.PasswordHasher.ValidateEncoded(encoded)
+}
+
+func (hasher *coordinationCheckingHasher) observeActiveCoordination() {
+	if hasher.active != nil && hasher.active.Load() != 0 {
+		hasher.activeViolations.Add(1)
+	}
+}
+
+type credentialRemovedBeforeCoordinationBackend struct {
+	*sqlite.Backend
+	credentialID     int64
+	removeOnce       sync.Once
+	removeErr        error
+	coordinatedCalls atomic.Int64
+	callbackCalls    atomic.Int64
+}
+
+func (backend *credentialRemovedBeforeCoordinationBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.removeOnce.Do(func() {
+		backend.removeErr = backend.Backend.Atomic(ctx, func(session db.Session) error {
+			affected, err := session.Delete(ctx, query.NewDeletePlan(
+				credentialTableName,
+				credentialIDRef,
+				query.Integer(backend.credentialID),
+			))
+			if err != nil {
+				return err
+			}
+			if affected != 1 {
+				return fmt.Errorf("test credential removal affected %d rows, want 1", affected)
+			}
+			return nil
+		})
+	})
+	if backend.removeErr != nil {
+		return backend.removeErr
+	}
+	backend.coordinatedCalls.Add(1)
+	return backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+		backend.callbackCalls.Add(1)
+		return callback(session)
+	})
+}
+
 type bootstrapUnknownRuntimeBackend struct {
 	*sqlite.Backend
 	atomicCalls   atomic.Int64
@@ -508,9 +730,37 @@ func (backend *bootstrapUnknownRuntimeBackend) Atomic(ctx context.Context, callb
 	}
 }
 
+func (backend *bootstrapUnknownRuntimeBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.atomicCalls.Add(1)
+	if err := backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+		backend.callbackCalls.Add(1)
+		return callback(session)
+	}); err != nil {
+		return err
+	}
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeCommitOutcomeUnknown,
+		Detail:   "injected bootstrap commit outcome unknown",
+	}
+}
+
 func (backend *observedRuntimeBackend) Atomic(ctx context.Context, callback func(db.Session) error) error {
 	backend.atomicCalls.Add(1)
 	return backend.Backend.Atomic(ctx, func(session db.Session) error {
+		return callback(&observedRuntimeSession{Session: session, backend: backend})
+	})
+}
+
+func (backend *observedRuntimeBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.atomicCalls.Add(1)
+	return backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
 		return callback(&observedRuntimeSession{Session: session, backend: backend})
 	})
 }
@@ -560,6 +810,17 @@ func (*serialRuntimeBackend) ReadAppliedMigrations(context.Context) ([]migration
 }
 
 func (backend *serialRuntimeBackend) Atomic(ctx context.Context, callback func(db.Session) error) error {
+	return backend.runAtomic(ctx, callback)
+}
+
+func (backend *serialRuntimeBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	return backend.runAtomic(ctx, callback)
+}
+
+func (backend *serialRuntimeBackend) runAtomic(ctx context.Context, callback func(db.Session) error) error {
 	backend.atomicCalls.Add(1)
 	active := backend.active.Add(1)
 	for {

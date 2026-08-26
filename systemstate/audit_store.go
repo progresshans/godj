@@ -14,7 +14,9 @@ import (
 // AppendAudit writes one already-validated semantic event through the borrowed
 // Article transaction. It deliberately does not acquire Runtime's gate or open
 // a nested transaction: callers inject Runtime as the Article backend, so the
-// surrounding Runtime.Atomic already owns both until commit or rollback.
+// surrounding Runtime.Atomic already owns both until commit or rollback. The
+// callback must continue using this borrowed Session rather than recursively
+// invoking another Runtime or session-store transaction.
 func (runtime *Runtime) AppendAudit(ctx context.Context, session db.Session, event admin.PreparedEvent) error {
 	if err := runtime.validBackendCall(ctx); err != nil {
 		return err

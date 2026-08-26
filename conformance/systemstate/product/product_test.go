@@ -87,6 +87,7 @@ func TestSystemStatePostgresProductSentinel(t *testing.T) {
 
 type productBackend interface {
 	systemstate.Backend
+	db.Atomic
 	migrationbackend.RevisionFencedBackend
 	Close() error
 }
@@ -190,8 +191,8 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatalf("reopen system-state Runtime: %v", err)
 	}
-	if got := second.atomicCalls.Load(); got != 0 {
-		t.Fatalf("identical Runtime reopen atomic calls = %d, want 0", got)
+	if got := second.atomicCalls.Load(); got != 1 {
+		t.Fatalf("identical Runtime reopen atomic calls = %d, want 1 final inspection", got)
 	}
 	restartedPrincipal, err := secondRuntime.Authenticator().Authenticate(ctx, secondConfig.Username, secondConfig.Password)
 	if err != nil || restartedPrincipal.ID() != secondConfig.PrincipalID || !restartedPrincipal.Authenticated() {
@@ -390,6 +391,14 @@ func (backend *observedBackend) OpenRevisionFencedSession(
 func (backend *observedBackend) Atomic(ctx context.Context, callback func(db.Session) error) error {
 	backend.atomicCalls.Add(1)
 	return backend.productBackend.Atomic(ctx, callback)
+}
+
+func (backend *observedBackend) CoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+) error {
+	backend.atomicCalls.Add(1)
+	return backend.productBackend.CoordinatedAtomic(ctx, callback)
 }
 
 type observedMigrationSession struct {
