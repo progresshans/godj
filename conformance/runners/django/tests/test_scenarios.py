@@ -216,7 +216,10 @@ class ScenarioTests(unittest.TestCase):
         ):
             with self.subTest(scenarios=sorted(scenarios)):
                 self.assertGreaterEqual(len(scenarios), 8)
-                if scenarios is QUERY_EXPRESSION_SCENARIOS:
+                if (
+                    scenarios is QUERY_EXPRESSION_SCENARIOS
+                    or scenarios is SYSTEM_STATE_SCENARIOS
+                ):
                     self.assertEqual(len(scenarios), 20)
                 else:
                     self.assertLessEqual(len(scenarios), 12)
@@ -297,10 +300,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 231)
+        self.assertEqual(len(selected_across_sets), 239)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 231)
+        self.assertEqual(len(contract_ids_across_sets), 239)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )

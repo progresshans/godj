@@ -86,6 +86,28 @@ SYSTEM_STATE_SCENARIOS = {
     **SYSTEM_STATE_DECISION_SCENARIOS,
     **SYSTEM_STATE_DJANGO_SCENARIOS,
 }
+EXTENDED_SYSTEM_STATE_SCENARIOS = (
+    "godj.system_state.explicit_migration_gate",
+    "godj.system_state.admin_bootstrap_gate",
+    "django.system_state.credential_permission_restart",
+    "django.system_state.rotated_session_restart",
+    "godj.system_state.session_expiry_and_touch",
+    "godj.system_state.capacity_reap_and_rotate_rollback",
+    "godj.system_state.digest_only_current_codec",
+    "django.system_state.logout_restart_denial",
+    "django.system_state.csrf_restart",
+    "django.system_state.admin_audit_fault_rollback",
+    "django.system_state.audit_history_restart",
+    "godj.system_state.commit_outcome_unknown",
+    "godj.system_state.coordinated_atomic_fence",
+    "godj.system_state.concurrent_admin_bootstrap",
+    "godj.system_state.concurrent_session_capacity",
+    "godj.system_state.concurrent_touch_monotonicity",
+    "godj.system_state.concurrent_session_rotation",
+    "godj.system_state.concurrent_article_audit",
+    "godj.system_state.shared_csrf_key_ring",
+    "godj.system_state.two_process_backend_restart",
+)
 
 
 SCENARIO_REGISTRIES = (
@@ -454,10 +476,17 @@ def _validate_manifest_basics(
     extended_query_expression_set = scenario_order == list(
         QUERY_EXPRESSION_SCENARIOS
     )
-    if not 8 <= len(contracts) <= 12 and not extended_query_expression_set:
+    extended_system_state_set = scenario_order == list(
+        EXTENDED_SYSTEM_STATE_SCENARIOS
+    )
+    if (
+        not 8 <= len(contracts) <= 12
+        and not extended_query_expression_set
+        and not extended_system_state_set
+    ):
         raise RuntimeError(
             "manifest must contain between 8 and 12 contracts or the exact "
-            "query-expression registry"
+            "query-expression registry or exact system-state registry"
         )
 
     seen: set[str] = set()

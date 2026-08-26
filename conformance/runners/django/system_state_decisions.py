@@ -1,4 +1,4 @@
-"""Independent GoDj decision observations for the first durable system-state slice."""
+"""Independent GoDj decision observations for durable system-state contracts."""
 
 from __future__ import annotations
 
@@ -161,6 +161,213 @@ def commit_outcome_unknown(contract_id: str) -> dict[str, Any]:
     )
 
 
+def coordinated_atomic_fence(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "acquire_before_callback": True,
+            "automatic_retry": False,
+            "callback_invocations": {
+                "acquire_cancelled": 0,
+                "acquire_failed": 0,
+                "acquire_succeeded": 1,
+            },
+            "callback_cancellation": "rolled_back",
+            "commit_failure": "commit_outcome_unknown",
+            "confirmed_callback_error": "rolled_back",
+            "rollback_uncertainty": "transaction_outcome_unknown",
+        },
+        phase="commit",
+        db_state={
+            "coordination_scope": "backend_database_or_schema",
+            "cross_domain_nesting": "rejected",
+            "ordinary_atomic_semantics_changed": False,
+        },
+        metrics={
+            "callback_retries": 0,
+            "coordination_fences": 1,
+            "secret_values_serialized": 0,
+        },
+    )
+
+
+def concurrent_admin_bootstrap(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "concurrent_empty": "identical_material_success",
+            "duplicate_publications": 0,
+            "mismatched_material": "fail_closed",
+        },
+        phase="commit",
+        db_state={
+            "credential_rows": 1,
+            "mismatch_writes": 0,
+            "published_materials": 1,
+        },
+        metrics={
+            "bootstrap_winners": 1,
+            "coordination_retries": 0,
+            "secret_values_serialized": 0,
+        },
+    )
+
+
+def concurrent_session_capacity(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "capacity_overshoot": False,
+            "concurrent_create": "linearized",
+            "digest_collision": False,
+            "reap_scope": "global",
+        },
+        phase="commit",
+        db_state={
+            "capacity_bound_preserved": True,
+            "duplicate_digests": 0,
+            "unbounded_reap": False,
+        },
+        metrics={
+            "capacity_overshoots": 0,
+            "coordination_retries": 0,
+            "raw_bearers_observed": 0,
+        },
+    )
+
+
+def concurrent_touch_monotonicity(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "accessed_at_monotonic": True,
+            "idle_expiry_monotonic": True,
+            "out_of_order_touch": "newest_state_preserved",
+        },
+        phase="commit",
+        db_state={
+            "accessed_at_regressions": 0,
+            "idle_expiry_regressions": 0,
+            "live_rows": 1,
+        },
+        metrics={
+            "coordination_retries": 0,
+            "stale_overwrites": 0,
+            "touch_winners": 1,
+        },
+    )
+
+
+def concurrent_session_rotation(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "logout_first": "later_rotate_denied",
+            "old_bearer_resurrected": False,
+            "rotate_first_stale_old_id_touch": {
+                "old_bearer_resurrected": False,
+                "outcome": "not_found",
+            },
+            "rotate_first_old_id_logout": "replacement_preserved",
+            "rotation_publication": "exactly_one_winner",
+            "touch_first_then_rotate": {
+                "old_rows": 0,
+                "replacement_rows": 1,
+            },
+        },
+        phase="commit",
+        db_state={
+            "duplicate_replacements": 0,
+            "old_rows_after_rotation": 0,
+            "replacement_rows": 1,
+        },
+        metrics={
+            "automatic_retries": 0,
+            "rotation_winners": 1,
+            "resurrection_writes": 0,
+        },
+    )
+
+
+def concurrent_article_audit(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "article_and_audit_atomic": True,
+            "fault_outcome": "rolled_back",
+            "global_history_bound_preserved": True,
+        },
+        phase="rollback",
+        db_state={
+            "article_rows_after_fault": 0,
+            "audit_rows_after_fault": 0,
+            "orphan_audit_rows": 0,
+        },
+        metrics={
+            "automatic_retries": 0,
+            "partial_commits": 0,
+            "prune_bound_escapes": 0,
+        },
+    )
+
+
+def shared_csrf_key_ring(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "active_key_signs_new_values": True,
+            "cross_runtime_handoff": "accepted",
+            "removed_key": "rejected",
+            "staged_rotation": "old_and_new_accepted",
+            "unrelated_key": "rejected",
+        },
+        phase="evaluation",
+        db_state={
+            "key_material_persisted": False,
+            "provider_state_owned_by_framework": False,
+            "ring_mutable": False,
+        },
+        metrics={
+            "secret_values_serialized": 0,
+            "unbounded_verification_paths": 0,
+            "verification_key_set_bounded": True,
+        },
+    )
+
+
+def two_process_backend_restart(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "backend_cases": [
+                {
+                    "backend": "postgresql_17_10",
+                    "clean_restart_preserved": True,
+                    "same_schema": True,
+                },
+                {
+                    "backend": "sqlite",
+                    "clean_restart_preserved": True,
+                    "same_database": True,
+                },
+            ],
+            "barrier_race": "linearized",
+        },
+        phase="environment",
+        db_state={
+            "cross_process_state_divergence": 0,
+            "restart_state_loss": 0,
+            "schema_drift": False,
+        },
+        metrics={
+            "distinct_processes": 2,
+            "required_backend_cases": 2,
+            "secret_values_serialized": 0,
+            "skipped_required_cases": 0,
+        },
+    )
+
+
 SCENARIOS = {
     "godj.system_state.explicit_migration_gate": explicit_migration_gate,
     "godj.system_state.admin_bootstrap_gate": admin_bootstrap_gate,
@@ -168,4 +375,12 @@ SCENARIOS = {
     "godj.system_state.capacity_reap_and_rotate_rollback": capacity_reap_and_rotate_rollback,
     "godj.system_state.digest_only_current_codec": digest_only_current_codec,
     "godj.system_state.commit_outcome_unknown": commit_outcome_unknown,
+    "godj.system_state.coordinated_atomic_fence": coordinated_atomic_fence,
+    "godj.system_state.concurrent_admin_bootstrap": concurrent_admin_bootstrap,
+    "godj.system_state.concurrent_session_capacity": concurrent_session_capacity,
+    "godj.system_state.concurrent_touch_monotonicity": concurrent_touch_monotonicity,
+    "godj.system_state.concurrent_session_rotation": concurrent_session_rotation,
+    "godj.system_state.concurrent_article_audit": concurrent_article_audit,
+    "godj.system_state.shared_csrf_key_ring": shared_csrf_key_ring,
+    "godj.system_state.two_process_backend_restart": two_process_backend_restart,
 }

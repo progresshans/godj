@@ -148,6 +148,94 @@
         {"kind": "documentation", "reference": "ADR-0017", "derived": false}
       ],
       "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-013",
+      "title": "A backend coordination fence is acquired before a callback that runs once without framework retry",
+      "scenario": "godj.system_state.coordinated_atomic_fence",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-014",
+      "title": "Concurrent admin bootstrap publishes exactly one durable credential or fails a mismatch closed",
+      "scenario": "godj.system_state.concurrent_admin_bootstrap",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-015",
+      "title": "Concurrent session creation preserves digest uniqueness and the global capacity bound",
+      "scenario": "godj.system_state.concurrent_session_capacity",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-016",
+      "title": "Out-of-order concurrent touch never moves accessed or idle expiry state backwards",
+      "scenario": "godj.system_state.concurrent_touch_monotonicity",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-017",
+      "title": "Concurrent rotate touch and logout publish one linearized session outcome without bearer resurrection",
+      "scenario": "godj.system_state.concurrent_session_rotation",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-018",
+      "title": "Concurrent Article mutation and audit append or prune share one commit and rollback boundary",
+      "scenario": "godj.system_state.concurrent_article_audit",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-019",
+      "title": "A shared bounded CSRF key ring supports cross-runtime handoff and staged active-key rotation",
+      "scenario": "godj.system_state.shared_csrf_key_ring",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-020",
+      "title": "Two processes preserve coordinated system state across SQLite and PostgreSQL restart",
+      "scenario": "godj.system_state.two_process_backend_restart",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "ADR-0048", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
     }
   ]
 }

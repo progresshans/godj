@@ -55,22 +55,26 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
 
 1. `db`에 additive coordinated-atomic interface를 둡니다. Fence acquisition은 callback보다 먼저 완료되어야 하고, acquisition 전
    error/cancellation은 callback 0회, 성공 시 callback 정확히 1회입니다.
-2. PostgreSQL은 configured schema와 fixed versioned domain을 length-delimited hash로 묶어 blocking transaction advisory lock을
-   얻습니다. SQLite는 pinned physical connection에서 `BEGIN IMMEDIATE` 후 callback과 literal COMMIT/ROLLBACK을 실행합니다.
-3. Ordinary `db.Atomic` 의미는 바꾸지 않습니다. `systemstate.Backend`만 coordinated capability를 요구하고 Runtime mutex는 local
+2. PostgreSQL은 configured schema와 exact `godj/postgres/coordinated-atomic/v1` domain을 length-delimited hash로 묶어 blocking
+   transaction advisory lock을 얻습니다. Migration revision-lock domain과 key를 재사용하지 않고 한 transaction은 둘 중 하나만
+   얻습니다. Nested/cross-domain backend transaction은 caller contract에서 금지합니다.
+3. SQLite는 pinned physical connection에서 `BEGIN IMMEDIATE` 후 callback과 literal COMMIT/ROLLBACK을 실행합니다. Backend는
+   BUSY/LOCKED acquire를 자동 retry하지 않고 configured driver busy timeout만 기다리며 acquire 실패는 callback 0회입니다.
+4. Ordinary `db.Atomic` 의미는 바꾸지 않습니다. `systemstate.Backend`만 coordinated capability를 요구하고 Runtime mutex는 local
    contention optimization으로 축소합니다.
-4. Final credential/readiness/bootstrap, session Create/Touch/Rotate/Delete/capacity/reap, audit history/append/prune와 Article mutation은
+5. Final credential/readiness/bootstrap, session Create/Touch/Rotate/Delete/capacity/reap, audit history/append/prune와 Article mutation은
    하나의 database/schema coordination domain을 공유합니다.
-5. Existing digest-only storage와 sessions.Store signature는 유지합니다. General Unique/Integer/CAS IR은 SYS-013..020을 위해 추가하지
+6. Existing digest-only storage와 sessions.Store signature는 유지합니다. General Unique/Integer/CAS IR은 SYS-013..020을 위해 추가하지
    않습니다.
-6. Concurrent operation은 DB fence acquisition order로 선형화합니다. Logout-first는 later rotate를 막지만 rotate-first 뒤 old-ID logout이
+7. Concurrent operation은 DB fence acquisition order로 선형화합니다. Logout-first는 later rotate를 막지만 rotate-first 뒤 old-ID logout이
    replacement family를 철회하지는 않습니다. Strong family revocation은 별도 state/contract입니다.
-7. `web/sessionauth`는 active key 하나와 bounded validation key set을 가진 opaque immutable CSRF key ring을 선택적으로 받습니다.
+8. `web/sessionauth`는 active key 하나와 bounded validation key set을 가진 opaque immutable CSRF key ring을 선택적으로 받습니다.
    Active key는 새 MAC만 만들고 verification은 모든 configured key를 bounded constant-time comparison합니다.
-8. Key ring이 없을 때의 process-local CSPRNG는 single-runtime/development behavior로 남습니다. Multi-runtime actual과 제품 composition은
+9. Key ring이 없을 때의 process-local CSPRNG는 single-runtime/development behavior로 남습니다. Multi-runtime actual과 제품 composition은
    같은 explicit ring을 주입합니다.
-9. Callback, transaction 또는 literal commit은 자동 retry하지 않습니다. Commit error는 기존 outcome-unknown contract와 reconciliation
-   ownership을 유지합니다.
+10. Callback, transaction, acquire 또는 literal commit은 framework가 자동 retry하지 않습니다. Acquire failure는 새 public code 없이
+    context 또는 backend cause를 보존하고 rollback 불확실성은 기존 transaction-outcome-unknown, commit error는 기존
+    commit-outcome-unknown과 reconciliation ownership을 유지합니다.
 
 ## 결과
 

@@ -143,7 +143,7 @@ func TestGDJ0043ArtifactBytesAreLocked(t *testing.T) {
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/template-form-oracle.json": {12873, "968218e75b3244e8f72a9a106e967d4e9ab066db756913d8108b7371d4ecd6fa"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json":  {6916, "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json": {17645, "869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                {1791, "6c0a8332929a09579ca9b1cb45c2ae0f250bf9002370a72371c3cc1e6bc5753c"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                {1791, "1fc4c0c078cfa64388bba9d1112fe825ce312c23eaf04ecc29d30e8ca2659b5a"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))

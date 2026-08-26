@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -63,7 +64,7 @@ func TestGDJ0045DeviationFixtureMatchesClosedPolicySelectors(t *testing.T) {
 	}
 }
 
-func TestRunGDJ0045ReviewedProductExpectationWritesActualOutput(t *testing.T) {
+func TestRunGDJ0045MixedProductExpectationWritesActualOutput(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	actualPath := filepath.Join(t.TempDir(), "system-state-actual.json")
 	arguments := gdj0045RunArguments(
@@ -76,7 +77,7 @@ func TestRunGDJ0045ReviewedProductExpectationWritesActualOutput(t *testing.T) {
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	want := "match the reviewed product expectation for 12 contracts under DEV-0008"
+	want := "GoDj product observations match 12 required contracts; 8 remain not implemented"
 	if !strings.Contains(stdout.String(), want) {
 		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
@@ -88,13 +89,29 @@ func TestRunGDJ0045ReviewedProductExpectationWritesActualOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load actual output: %v", err)
 	}
-	if len(actual.Contracts) != 12 || actual.Contracts[0].ID != "SYS-001" || actual.Contracts[11].ID != "SYS-012" {
-		t.Fatalf("actual contracts = %#v, want 12 ordered from SYS-001 through SYS-012", actual.Contracts)
+	if len(actual.Contracts) != 20 || actual.Contracts[0].ID != "SYS-001" || actual.Contracts[19].ID != "SYS-020" {
+		t.Fatalf("actual contracts = %#v, want 20 ordered from SYS-001 through SYS-020", actual.Contracts)
 	}
-	for _, observation := range actual.Contracts {
-		if observation.Status != protocol.StatusObserved {
-			t.Fatalf("%s actual status = %q, want observed", observation.ID, observation.Status)
+	for index, observation := range actual.Contracts {
+		if index < 12 {
+			if observation.Status != protocol.StatusObserved {
+				t.Fatalf("%s actual status = %q, want observed", observation.ID, observation.Status)
+			}
+			continue
 		}
+		if observation.Status != protocol.StatusNotImplemented || observation.Result != nil || observation.Error != nil || observation.DBState != nil || observation.Metrics != nil {
+			t.Fatalf("%s actual = %#v, want payload-free not_implemented", observation.ID, observation)
+		}
+	}
+	legacyActual := actual
+	legacyActual.Contracts = append([]protocol.Observation(nil), actual.Contracts[:12]...)
+	legacyBytes, err := protocol.MarshalCanonical(legacyActual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const legacySHA256 = "f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6"
+	if len(legacyBytes) != 12944 || fmt.Sprintf("%x", sha256.Sum256(legacyBytes)) != legacySHA256 {
+		t.Fatalf("legacy SYS-001..012 actual bytes drifted: size=%d sha256=%x", len(legacyBytes), sha256.Sum256(legacyBytes))
 	}
 }
 

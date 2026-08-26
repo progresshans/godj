@@ -132,9 +132,16 @@ func PrepareDeviationExpectation(
 				return Manifest{}, ObservationSuite{}, fmt.Errorf("%s: deviation policy order does not follow manifest order", contract.ID)
 			}
 			lastPolicyIndex = index
+		case ContractOracleLocked:
+			if isRegistered {
+				return Manifest{}, ObservationSuite{}, fmt.Errorf(
+					"%s: registered deviation status oracle_locked is not approved for product expectation",
+					contract.ID,
+				)
+			}
 		default:
 			return Manifest{}, ObservationSuite{}, fmt.Errorf(
-				"%s: manifest status %q is not approved for product expectation; want passing or deviation",
+				"%s: manifest status %q is not approved for product expectation; want passing, deviation, or oracle_locked",
 				contract.ID,
 				contract.Status,
 			)

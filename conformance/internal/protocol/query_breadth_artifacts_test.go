@@ -198,7 +198,7 @@ func TestPreGDJ0044EighteenReferenceSetsHave201UniqueContractsAndReject306Ordere
 	}
 }
 
-func TestCurrentTwentyProductSetsHave203PassingSixteenDeviationsAndNoOracleLocked(t *testing.T) {
+func TestCurrentTwentyProductSetsHave219EligibleContractsAndExcludeEightOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -230,13 +230,14 @@ func TestCurrentTwentyProductSetsHave203PassingSixteenDeviationsAndNoOracleLocke
 		if err != nil {
 			t.Fatal(err)
 		}
-		total += len(manifest.Contracts)
 		for _, contract := range manifest.Contracts {
 			switch contract.Status {
 			case ContractPassing:
 				passing++
+				total++
 			case ContractDeviation:
 				deviations++
+				total++
 			case ContractOracleLocked:
 				oracleLocked++
 			default:
@@ -244,8 +245,8 @@ func TestCurrentTwentyProductSetsHave203PassingSixteenDeviationsAndNoOracleLocke
 			}
 		}
 	}
-	if len(manifestNames) != 20 || total != 219 || passing != 203 || deviations != 16 || oracleLocked != 0 {
-		t.Fatalf("current product inventory = %d sets/%d contracts = %d passing + %d deviation + %d oracle_locked, want 20/219 = 203 + 16 + 0", len(manifestNames), total, passing, deviations, oracleLocked)
+	if len(manifestNames) != 20 || total != 219 || passing != 203 || deviations != 16 || oracleLocked != 8 {
+		t.Fatalf("current product inventory = %d sets/%d eligible contracts = %d passing + %d deviation with %d oracle_locked excluded, want 20/219 = 203 + 16 with 8 excluded", len(manifestNames), total, passing, deviations, oracleLocked)
 	}
 }
 

@@ -151,7 +151,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/article-admin-manifest.json` | ADM-001..010 bounded Article Admin contract; 9 passing + 1 DEV-0005 |
 | `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
 | `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
-| `contracts/system-state-manifest.json` | SYS-001..012 durable single-runtime system-state contract; 11 passing + SYS-009 DEV-0008 deviation |
+| `contracts/system-state-manifest.json` | SYS-001..020 system-state contract; legacy 11 passing + SYS-009 DEV-0008 deviation + 8 ADR-0048 proposal `oracle_locked` |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
 | `contracts/migration-restart-manifest.json` | Recorder-backed restart planning reference contract 10개 |
@@ -166,7 +166,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `runners/django` | 명시적인 Django/DRF observation과 GoDj decision-oracle scenario, type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..053 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 Article API까지 제품 package를 실행하는 열아홉 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 Article API까지 제품 package를 실행하는 스무 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -251,9 +251,9 @@ WEB-028/029의 eight sparse selectors는 Verified DEV-0006, API-001/003/010의 s
 DEV-0007만 허용하고 root-list comparator도 selector/type/count를 fail-closed하게 검증합니다. 두 actual comparison은
 각각 8/8과 10/10에서 unexpected difference 0입니다.
 
-Current checkout의 global reference는 21 sets/231 contracts/420 ordered bindings=`203 passing + 16 deviation + 12
-oracle_locked`, product는 20 adapters/219 contracts=`203 passing + 16 deviation`입니다. SYS-001..012 actual은
-global registry/Makefile에 게시됐고 MIG-075..086만 계속 locked/unregistered입니다. Four-coordinate relation
+Current checkout의 global reference는 21 sets/239 contracts/420 ordered bindings=`203 passing + 16 deviation + 20
+oracle_locked`, product는 20 adapters/219 eligible contracts=`203 passing + 16 deviation`입니다. SYS-001..012 actual은
+global registry/Makefile에 게시됐고 MIG-075..086과 SYS-013..020은 locked/unregistered입니다. Four-coordinate relation
 inventory는 1,034/1,034/0, 106,767 bytes, SHA-256
 `39bd41f82d2a6abd047c411e8d0b8e1b1c15c72220ad881f18afa923ba890a13`입니다.
 
@@ -265,7 +265,7 @@ gate가 증명하지 않습니다.
 
 ## GDJ-0045 durable system-state reference gate
 
-`system-state-manifest.json`은 SYS-001..012를 mixed authority로 고정합니다. Django 6.1은 durable
+GDJ-0045가 게시한 `system-state-manifest.json`의 legacy SYS-001..012 range는 mixed authority로 고정됩니다. Django 6.1은 durable
 credential/session/logout/Admin audit 관찰을, Accepted ADR-0047은 GoDj 운영 경계를 소유합니다. SYS-008의 durable
 logout 의미는 Django authority이고 anonymous JSON API 403은 기존 Accepted ADR-0046 authority입니다. SYS-009의
 restart 전 masked token 네 selector만 Verified DEV-0008 expected로 닫습니다. Current source manifest는
@@ -275,12 +275,20 @@ SYS-001..008/010..012 `passing`과 SYS-009 `deviation`이고, Go actual은 globa
 CI #146이 필수 GitHub Actions 27/27 jobs·359/359 steps와 PostgreSQL required 16/16·skip 0을 통과해
 ADR-0047 Accepted, DEV-0008 Verified와 GDJ-0045 hosted completion을 닫았습니다.
 
-현재 manifest/oracle은 각각 7,730/13,099 bytes와 SHA-256
-`f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`/
-`4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb`입니다. Local global actual A/B는 각각
+GDJ-0045의 frozen SYS-001..012 canonical manifest subsuite/oracle은 각각 6,412/13,099 bytes와 SHA-256
+`40a91f1bb18bb5541f2d74270c8b64b416b9af0e63a0563988cdd7b1dd2b0bd7`/
+`4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb`입니다. 당시 pretty manifest 전체는
+7,730 bytes/SHA-256 `f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44`였습니다.
+Local global actual A/B는 각각
 12,944 bytes, SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`로 byte-identical하고
 12 contracts가 DEV-0008 reviewed product expectation과 일치했습니다. Exact profile에서 oracle을
 재생성하거나 checked-in bytes를 검증하려면 historical uv 0.10.12를 명시해 다음을 사용합니다.
+
+GDJ-0046 Phase A는 같은 set에 Proposed ADR-0048 authority의 SYS-013..020을 `oracle_locked`로 append했습니다.
+Current manifest/NI/oracle은 각각 11,151/2,417/21,338 bytes와 SHA-256 `2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a`/
+`92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`/
+`6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c`입니다. Product actual registry는 legacy 12개만
+required로 유지하며 full 20-entry actual의 나머지 8개는 payload-free `not_implemented`입니다.
 
 ```bash
 LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from uv==0.10.12 uv run --frozen \

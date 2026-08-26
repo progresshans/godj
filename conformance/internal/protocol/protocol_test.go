@@ -287,6 +287,10 @@ func TestManifestValidation(t *testing.T) {
 	if err := queryExpression.Validate(); err != nil {
 		t.Fatalf("exact 20-contract query-expression registry does not validate: %v", err)
 	}
+	systemState := manifestWithExactExtendedSystemStateRegistry(manifest)
+	if err := systemState.Validate(); err != nil {
+		t.Fatalf("exact 20-contract system-state registry does not validate: %v", err)
+	}
 	otherFamily := manifestWithContractCount(manifest, "django.query.breadth.", 13)
 	if err := otherFamily.Validate(); err == nil || !strings.Contains(err.Error(), "8 to 12") {
 		t.Fatalf("13-contract non-query-expression family error = %v, want 8-to-12 rejection", err)
@@ -308,6 +312,11 @@ func TestManifestValidation(t *testing.T) {
 	oversizedQueryExpression := manifestWithContractCount(manifest, queryExpressionScenarioPrefix, 21)
 	if err := oversizedQueryExpression.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
 		t.Fatalf("21-contract query-expression prefix error = %v, want exact-registry rejection", err)
+	}
+	systemStateNearMiss := manifestWithExactExtendedSystemStateRegistry(manifest)
+	systemStateNearMiss.Contracts[len(systemStateNearMiss.Contracts)-1].Scenario += "_near_miss"
+	if err := systemStateNearMiss.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
+		t.Fatalf("system-state near-miss error = %v, want exact-registry rejection", err)
 	}
 
 	tests := map[string]func(*Manifest){
@@ -366,6 +375,19 @@ func manifestWithExactExtendedQueryExpressionRegistry(base Manifest) Manifest {
 	for index, scenario := range scenarios {
 		contract := base.Contracts[index%len(base.Contracts)]
 		contract.ID = fmt.Sprintf("QRY-%03d", index+34)
+		contract.Scenario = scenario
+		contracts[index] = contract
+	}
+	base.Contracts = contracts
+	return base
+}
+
+func manifestWithExactExtendedSystemStateRegistry(base Manifest) Manifest {
+	scenarios := extendedSystemStateScenarioRegistry()
+	contracts := make([]Contract, len(scenarios))
+	for index, scenario := range scenarios {
+		contract := base.Contracts[index%len(base.Contracts)]
+		contract.ID = fmt.Sprintf("SYS-%03d", index+1)
 		contract.Scenario = scenario
 		contracts[index] = contract
 	}

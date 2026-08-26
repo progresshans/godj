@@ -35,6 +35,8 @@ allowed_paths:
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS"
   - "conformance/runners/django/system_state_decisions.py"
+  - "conformance/runners/django/runner.py"
+  - "conformance/runners/django/tests/test_scenarios.py"
   - "conformance/runners/django/tests/test_system_state_scenarios.py"
   - "conformance/runners/godj/**"
   - "conformance/cmd/godjcheck/**"
@@ -94,9 +96,12 @@ explicit migrate
 - `db`에는 additive coordinated-atomic SPI를 둡니다. Callback은 backend가 구성한 database/schema coordination domain의 fence를
   얻은 뒤 정확히 한 번 호출되고, fence 획득 전 cancellation/failure에서는 0회이며 framework가 callback을 자동 retry하지 않습니다.
 - PostgreSQL coordination은 ordinary query AST에 raw lock SQL을 노출하지 않고 backend 내부에서 transaction-scoped advisory lock을
-  얻습니다. Lock identity는 고정 versioned domain과 backend schema의 length-delimited digest에서 결정합니다.
+  얻습니다. Lock identity는 exact `godj/postgres/coordinated-atomic/v1` domain과 backend schema의 length-delimited digest에서
+  결정하며 migration revision-lock domain과 재사용하지 않습니다. 한 transaction은 두 domain 중 하나만 얻고 nested/cross-domain
+  backend transaction은 caller contract에서 금지합니다.
 - SQLite coordination은 ordinary `db.Atomic` 의미를 조용히 바꾸지 않고 별도 pinned-connection `BEGIN IMMEDIATE` 경계로 구현합니다.
-  SQLite database 전체 writer를 직렬화하는 더 강한 contention은 허용하지만 correctness를 약화하지 않습니다.
+  SQLite database 전체 writer를 직렬화하는 더 강한 contention은 허용하지만 correctness를 약화하지 않습니다. 첫 구현은 backend가
+  BUSY/LOCKED acquisition을 자동 retry하지 않고 configured driver busy timeout만 기다리며, 실패하면 callback 0회로 원인을 보존합니다.
 - `systemstate.Backend`는 coordinated-atomic capability를 요구하고 `Runtime.withAtomic`은 local mutex 뒤 그 database fence를 사용합니다.
   Local mutex는 같은 Runtime의 contention 감소만 소유합니다.
 - `Open`의 final readiness/cardinality/bootstrap 판단도 같은 coordinated transaction에서 다시 수행합니다. Password hashing처럼
@@ -111,7 +116,8 @@ explicit migrate
 - Zero key-ring config의 기존 process-local CSPRNG behavior는 개발/single-runtime 경계로 남길 수 있지만, multi-runtime Article
   composition과 conformance actual은 명시적으로 같은 injected ring을 사용합니다.
 - Commit literal error는 기존 `commit_outcome_unknown`이고 retry/synthetic success를 만들지 않습니다. Fence acquisition failure와
-  callback/rollback failure도 secret-free stable error ownership을 가져야 합니다.
+  callback/rollback failure도 secret-free stable error ownership을 가져야 합니다. Acquisition은 새 public error code를 만들지 않고
+  context cancellation 또는 backend cause를 보존하며 rollback 불확실성만 기존 `transaction_outcome_unknown`으로 승격합니다.
 
 ## 비목표
 
@@ -143,20 +149,30 @@ explicit migrate
 
 ## Exact contract range
 
-SYS-013..020은 Django 내부 구조를 모사하지 않는 GoDj operational decision contract입니다. ADR-0048과 actual database/process
-observation이 authority이며 SYS-001..012의 historical oracle bytes와 DEV-0008을 조용히 재작성하지 않습니다.
+SYS-013..020은 Django 내부 구조를 모사하지 않는 GoDj operational decision contract입니다. Phase A reference authority는 Proposed
+ADR-0048이고 Phase B~E의 oracle-blind database/process observation은 그 결정을 검증합니다. SYS-001..012의 observation semantics와
+canonical legacy subsuite bytes 및 DEV-0008을 조용히 재작성하지 않습니다.
 
-- `SYS-013`: cross-process coordinated transaction, fence-before-callback, callback once/zero, cancel/rollback/commit-unknown과 no retry
-- `SYS-014`: concurrent empty credential bootstrap의 exactly-one durable row와 identical material success/mismatch failure
-- `SYS-015`: concurrent session Create와 global capacity/reap의 digest uniqueness·bounded count
-- `SYS-016`: two-Runtime out-of-order Touch의 monotonic accessed/idle expiry와 stale overwrite 0
-- `SYS-017`: concurrent Rotate/Touch/Delete의 atomic publication, exactly-one winner와 명시적 logout linearization
-- `SYS-018`: concurrent Article Admin DML과 audit append/prune의 same-transaction commit/rollback 및 global bound
-- `SYS-019`: shared active/validation CSRF ring의 cross-Runtime handoff, staged rotation과 unrelated/removed key rejection
-- `SYS-020`: 실제 두 process의 SQLite/PostgreSQL same-DB barrier 경쟁, clean stop/reopen과 secret leak 0
+- `SYS-013` / `godj.system_state.coordinated_atomic_fence` / commit: cross-process coordinated transaction,
+  fence-before-callback, callback once/zero, cancel/rollback/commit-unknown과 no retry
+- `SYS-014` / `godj.system_state.concurrent_admin_bootstrap` / commit: concurrent empty credential bootstrap의 exactly-one
+  durable row와 identical material success/mismatch failure
+- `SYS-015` / `godj.system_state.concurrent_session_capacity` / commit: concurrent session Create와 global capacity/reap의
+  digest uniqueness·bounded count
+- `SYS-016` / `godj.system_state.concurrent_touch_monotonicity` / commit: two-Runtime out-of-order Touch의 monotonic
+  accessed/idle expiry와 stale overwrite 0
+- `SYS-017` / `godj.system_state.concurrent_session_rotation` / commit: concurrent Rotate/Touch/Delete의 atomic publication,
+  exactly-one winner와 명시적 logout linearization
+- `SYS-018` / `godj.system_state.concurrent_article_audit` / rollback: concurrent Article Admin DML과 audit append/prune의
+  same-transaction commit/rollback 및 global bound
+- `SYS-019` / `godj.system_state.shared_csrf_key_ring` / evaluation: shared active/validation CSRF ring의
+  cross-Runtime handoff, staged rotation과 unrelated/removed key rejection
+- `SYS-020` / `godj.system_state.two_process_backend_restart` / environment: 실제 두 process의 SQLite/PostgreSQL
+  same-DB barrier 경쟁, clean stop/reopen과 secret leak 0
 
-Phase A publication 전에는 이 ID를 global aggregate에 등록하거나 `passing`으로 표현하지 않습니다. Reference artifact와 Go actual은
-별도 생성 경로를 사용하고 exact bytes/checksum을 함께 게시합니다.
+Phase A publication 전에는 이 ID를 global aggregate에 등록하거나 `passing`으로 표현하지 않습니다. Phase A에서는 같은
+system-state reference set에 `oracle_locked`로만 append하고 product adapter/count는 바꾸지 않습니다. Reference artifact와 Go actual은
+별도 생성 경로를 사용하고 exact bytes/checksum을 함께 게시하며 legacy SYS-001..012 canonical subsuite hash를 별도로 잠급니다.
 
 ## 설계 가설과 package 방향
 
@@ -211,6 +227,8 @@ integration wiring은 integration owner 한 명만 수정합니다.
 ## 위험과 rollback
 
 - SQLite manual transaction cleanup이 불확실하면 physical connection을 pool에 돌려보내지 않습니다.
+- SQLite wait-success actual은 composition이 명시한 bounded busy timeout을 사용합니다. Timeout이 없는 BUSY/LOCKED는 callback 0회
+  acquisition failure이며 framework retry를 만들지 않습니다.
 - PostgreSQL advisory lock identity는 collision 시 false contention만 만들고 concurrent escape를 만들지 않아야 합니다.
 - Fence를 잡은 채 password hashing, network call 또는 application callback 밖의 unbounded 작업을 하지 않습니다.
 - Callback/commit을 자동 retry하면 session rotate/Article audit가 중복될 수 있으므로 retry ownership을 추가하지 않습니다.
@@ -219,6 +237,6 @@ integration wiring은 integration owner 한 명만 수정합니다.
 
 ## 다음 정확한 작업
 
-1. ADR-0048의 coordinated-atomic callback/commit semantics와 lock ordering을 unit-testable interface로 고정합니다.
+1. SYS-013..020 decision manifest/reference/not-implemented/checksum과 legacy SYS-001..012 subsuite invariant를 Phase A로 게시합니다.
 2. `db/db.go`, `db/sqlite`, `db/postgres`에 additive SPI와 backend-specific fault tests를 구현합니다.
 3. Source checkpoint 전에 `systemstate.Runtime`을 새 SPI로 전환하지 않고 backend contract 자체를 normal/race로 검증합니다.

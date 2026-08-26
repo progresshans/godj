@@ -14,6 +14,8 @@ import (
 var systemStateIDs = []string{
 	"SYS-001", "SYS-002", "SYS-003", "SYS-004", "SYS-005", "SYS-006",
 	"SYS-007", "SYS-008", "SYS-009", "SYS-010", "SYS-011", "SYS-012",
+	"SYS-013", "SYS-014", "SYS-015", "SYS-016", "SYS-017", "SYS-018",
+	"SYS-019", "SYS-020",
 }
 
 var systemStateScenarios = []string{
@@ -29,12 +31,22 @@ var systemStateScenarios = []string{
 	"django.system_state.admin_audit_fault_rollback",
 	"django.system_state.audit_history_restart",
 	"godj.system_state.commit_outcome_unknown",
+	"godj.system_state.coordinated_atomic_fence",
+	"godj.system_state.concurrent_admin_bootstrap",
+	"godj.system_state.concurrent_session_capacity",
+	"godj.system_state.concurrent_touch_monotonicity",
+	"godj.system_state.concurrent_session_rotation",
+	"godj.system_state.concurrent_article_audit",
+	"godj.system_state.shared_csrf_key_ring",
+	"godj.system_state.two_process_backend_restart",
 }
 
 var systemStatePhases = []Phase{
 	PhaseEnvironment, PhaseCommit, PhaseEvaluation, PhaseCommit,
 	PhaseCommit, PhaseRollback, PhaseEvaluation, PhaseCommit,
 	PhaseCommit, PhaseRollback, PhaseEvaluation, PhaseCommit,
+	PhaseCommit, PhaseCommit, PhaseCommit, PhaseCommit,
+	PhaseCommit, PhaseRollback, PhaseEvaluation, PhaseEnvironment,
 }
 
 func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
@@ -46,11 +58,11 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
-		"conformance/contracts/system-state-manifest.json":                     {7730, "f570cadb322ce7587a70fc4cbbf69bd7d9b1641b31719c42ed00509dc807af44"},
-		"conformance/fixtures/godj-system-state-not-implemented.json":          {1838, "aa95b3551b576f74aa537eb52355ea550ff0fdc0b96e0afd2c155b332bf9dc6e"},
+		"conformance/contracts/system-state-manifest.json":                     {11151, "2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a"},
+		"conformance/fixtures/godj-system-state-not-implemented.json":          {2417, "92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa"},
 		"conformance/fixtures/godj-system-state-deviation-expected.json":       {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {13099, "4b1cf9a63308c2f9ad9ac385c24e35ffec8f94546d80ed933dcf32edcb5a34bb"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {1791, "6c0a8332929a09579ca9b1cb45c2ae0f250bf9002370a72371c3cc1e6bc5753c"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {21338, "6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {1791, "1fc4c0c078cfa64388bba9d1112fe825ce312c23eaf04ecc29d30e8ca2659b5a"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -80,20 +92,23 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	if !reflect.DeepEqual(oracle.Profile, profile.Snapshot()) || !reflect.DeepEqual(baseline.Profile, profile.Snapshot()) {
 		t.Fatal("system-state suites do not bind the exact profile snapshot")
 	}
-	if len(manifest.Contracts) != 12 || len(oracle.Contracts) != 12 || len(baseline.Contracts) != 12 {
-		t.Fatalf("system-state lengths = %d/%d/%d, want 12", len(manifest.Contracts), len(oracle.Contracts), len(baseline.Contracts))
+	if len(manifest.Contracts) != 20 || len(oracle.Contracts) != 20 || len(baseline.Contracts) != 20 {
+		t.Fatalf("system-state lengths = %d/%d/%d, want 20", len(manifest.Contracts), len(oracle.Contracts), len(baseline.Contracts))
 	}
 	djangoIDs := map[string]bool{
 		"SYS-003": true, "SYS-004": true, "SYS-008": true,
 		"SYS-009": true, "SYS-010": true, "SYS-011": true,
 	}
-	passing, deviations := 0, 0
+	passing, deviations, lockedContracts := 0, 0, 0
 	for index, contract := range manifest.Contracts {
 		if contract.ID != systemStateIDs[index] || contract.Scenario != systemStateScenarios[index] || contract.Phase != systemStatePhases[index] {
 			t.Fatalf("system-state contract %d binding = %#v", index, contract)
 		}
 		wantStatus := ContractPassing
-		if contract.ID == "SYS-009" {
+		if index >= 12 {
+			wantStatus = ContractOracleLocked
+			lockedContracts++
+		} else if contract.ID == "SYS-009" {
 			wantStatus = ContractDeviation
 			deviations++
 		} else {
@@ -116,15 +131,33 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 			t.Fatalf("system-state baseline contract %d is not payload-free: %#v", index, locked)
 		}
 	}
-	if passing != 11 || deviations != 1 {
-		t.Fatalf("system-state product classification = %d passing + %d deviation, want 11 + 1", passing, deviations)
+	if passing != 11 || deviations != 1 || lockedContracts != 8 {
+		t.Fatalf("system-state classification = %d passing + %d deviation + %d oracle_locked, want 11 + 1 + 8", passing, deviations, lockedContracts)
+	}
+	for _, field := range []string{"callback_cancellation", "confirmed_callback_error"} {
+		if got := objectField(t, oracle.Contracts[12].Result, field); !reflect.DeepEqual(*got, String("rolled_back")) {
+			t.Fatalf("SYS-013 %s = %#v, want rolled_back", field, got)
+		}
+	}
+	rotation := oracle.Contracts[16].Result
+	if got := objectField(t, rotation, "touch_first_then_rotate"); !reflect.DeepEqual(*got, Object(map[string]Value{
+		"old_rows":         Integer("0"),
+		"replacement_rows": Integer("1"),
+	})) {
+		t.Fatalf("SYS-017 touch-first outcome = %#v", got)
+	}
+	if got := objectField(t, rotation, "rotate_first_stale_old_id_touch"); !reflect.DeepEqual(*got, Object(map[string]Value{
+		"old_bearer_resurrected": Boolean(false),
+		"outcome":                String("not_found"),
+	})) {
+		t.Fatalf("SYS-017 rotate-first stale-touch outcome = %#v", got)
 	}
 	differences, err := Compare(profile, manifest, oracle, baseline)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(differences) != 12 {
-		t.Fatalf("system-state oracle/baseline differences = %d, want 12", len(differences))
+	if len(differences) != 20 {
+		t.Fatalf("system-state oracle/baseline differences = %d, want 20", len(differences))
 	}
 	for index, difference := range differences {
 		if difference.ContractID != systemStateIDs[index] || difference.Path != "status" {
@@ -133,6 +166,15 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	}
 	if deviation.ProfileID != profile.ID || deviation.Decision != "DEV-0008" || len(deviation.Contracts) != 1 || deviation.Contracts[0].ID != "SYS-009" {
 		t.Fatalf("system-state deviation envelope = %#v", deviation)
+	}
+	legacyBaseline := baseline
+	legacyBaseline.Contracts = append([]Observation(nil), baseline.Contracts[:12]...)
+	legacyBaselineBytes, err := MarshalCanonical(legacyBaseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(legacyBaselineBytes) != 1527 || fmt.Sprintf("%x", sha256.Sum256(legacyBaselineBytes)) != "6b5549d00484c69ec8bf4186bf9a4b99ff5adf1b2040250159be49dc3f3f4533" {
+		t.Fatalf("legacy SYS-001..012 NI canonical bytes drifted: size=%d sha256=%x", len(legacyBaselineBytes), sha256.Sum256(legacyBaselineBytes))
 	}
 }
 
@@ -330,7 +372,7 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 	}
 }
 
-func TestCurrentTwentyOneReferenceSetsHave231ContractsAndReject420OrderedCrossBindings(t *testing.T) {
+func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -412,7 +454,7 @@ func TestCurrentTwentyOneReferenceSetsHave231ContractsAndReject420OrderedCrossBi
 			}
 		}
 	}
-	if len(sets) != 21 || total != 231 || len(ids) != 231 || len(scenarios) != 231 || passing != 203 || deviations != 16 || locked != 12 {
+	if len(sets) != 21 || total != 239 || len(ids) != 239 || len(scenarios) != 239 || passing != 203 || deviations != 16 || locked != 20 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 	crossBindings := 0
@@ -519,18 +561,16 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	for _, required := range []string{
 		"working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64",
 		"run: sha256sum --check SHA256SUMS",
-		"len(SCENARIOS) == 231",
-		"len(payload) == 860151",
-		"fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7",
+		"len(SCENARIOS) == 239",
+		"len(payload) == 869118",
+		"db9608d5f5a5dbe61586c163b8e470b1c10bc7bae2a3d9754e6316eb7a9196b5",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("system-state workflow lacks exact hash/payload fragment %q", required)
 		}
 	}
 	for _, obsolete := range []string{
-		"len(SCENARIOS) == 219",
-		"len(payload) == 846764",
-		"6561aff4fcb64ab1d348f8ac7d8d7642c87453febd81925fbcd769ee409cdb0f",
+		"len(SCENARIOS) == 231",
 	} {
 		if strings.Contains(workflow, obsolete) {
 			t.Fatalf("system-state workflow retains obsolete reference inventory fragment %q", obsolete)
@@ -566,13 +606,16 @@ func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite
 
 func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthority bool) {
 	t.Helper()
-	adrCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0
+	adrCount, proposalCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0, 0
 	for _, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			t.Fatalf("contract %s provenance is not independent: %#v", contract.ID, provenance)
 		}
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0047" && provenance.License == "" {
 			adrCount++
+		}
+		if provenance.Kind == "proposal" && provenance.Reference == "ADR-0048" && provenance.License == "" {
+			proposalCount++
 		}
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0046" && provenance.License == "" {
 			apiBoundaryCount++
@@ -593,8 +636,12 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 			t.Fatalf("contract %s carries unrelated decision provenance: %#v", contract.ID, provenance)
 		}
 	}
-	if adrCount != 1 {
-		t.Fatalf("contract %s ADR-0047 documentation count = %d, want 1", contract.ID, adrCount)
+	legacy := contract.ID <= "SYS-012"
+	if legacy && (adrCount != 1 || proposalCount != 0) {
+		t.Fatalf("legacy contract %s authority = %d ADR-0047 + %d ADR-0048 proposal, want 1 + 0", contract.ID, adrCount, proposalCount)
+	}
+	if !legacy && (len(contract.Provenance) != 1 || adrCount != 0 || proposalCount != 1) {
+		t.Fatalf("new contract %s authority = %#v, want exact Proposed ADR-0048", contract.ID, contract.Provenance)
 	}
 	if contract.ID == "SYS-008" && apiBoundaryCount != 1 {
 		t.Fatalf("SYS-008 Accepted ADR-0046 count = %d, want 1", apiBoundaryCount)

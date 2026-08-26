@@ -45,6 +45,31 @@ func extendedQueryExpressionScenarioRegistry() [20]string {
 	}
 }
 
+func extendedSystemStateScenarioRegistry() [20]string {
+	return [...]string{
+		"godj.system_state.explicit_migration_gate",
+		"godj.system_state.admin_bootstrap_gate",
+		"django.system_state.credential_permission_restart",
+		"django.system_state.rotated_session_restart",
+		"godj.system_state.session_expiry_and_touch",
+		"godj.system_state.capacity_reap_and_rotate_rollback",
+		"godj.system_state.digest_only_current_codec",
+		"django.system_state.logout_restart_denial",
+		"django.system_state.csrf_restart",
+		"django.system_state.admin_audit_fault_rollback",
+		"django.system_state.audit_history_restart",
+		"godj.system_state.commit_outcome_unknown",
+		"godj.system_state.coordinated_atomic_fence",
+		"godj.system_state.concurrent_admin_bootstrap",
+		"godj.system_state.concurrent_session_capacity",
+		"godj.system_state.concurrent_touch_monotonicity",
+		"godj.system_state.concurrent_session_rotation",
+		"godj.system_state.concurrent_article_audit",
+		"godj.system_state.shared_csrf_key_ring",
+		"godj.system_state.two_process_backend_restart",
+	}
+}
+
 func (p Profile) Validate() error {
 	if p.FormatVersion != FormatVersion {
 		return fmt.Errorf("format_version must be %d", FormatVersion)
@@ -137,8 +162,8 @@ func (m Manifest) Validate() error {
 		return fmt.Errorf("profile_id is required")
 	}
 	contractCount := len(m.Contracts)
-	if contractCount < 8 || (contractCount > 12 && !manifestHasExactExtendedQueryExpressionRegistry(m.Contracts)) {
-		return fmt.Errorf("contracts must contain 8 to 12 ordered entries or the exact 20-entry query-expression registry, got %d", contractCount)
+	if contractCount < 8 || (contractCount > 12 && !manifestHasExactExtendedQueryExpressionRegistry(m.Contracts) && !manifestHasExactExtendedSystemStateRegistry(m.Contracts)) {
+		return fmt.Errorf("contracts must contain 8 to 12 ordered entries, the exact 20-entry query-expression registry, or the exact 20-entry system-state registry, got %d", contractCount)
 	}
 	seen := make(map[string]struct{}, len(m.Contracts))
 	for index := range m.Contracts {
@@ -161,6 +186,19 @@ func manifestHasExactExtendedQueryExpressionRegistry(contracts []Contract) bool 
 	}
 	for index, scenario := range scenarios {
 		if contracts[index].ID != fmt.Sprintf("QRY-%03d", index+34) || contracts[index].Scenario != scenario {
+			return false
+		}
+	}
+	return true
+}
+
+func manifestHasExactExtendedSystemStateRegistry(contracts []Contract) bool {
+	scenarios := extendedSystemStateScenarioRegistry()
+	if len(contracts) != len(scenarios) {
+		return false
+	}
+	for index, scenario := range scenarios {
+		if contracts[index].ID != fmt.Sprintf("SYS-%03d", index+1) || contracts[index].Scenario != scenario {
 			return false
 		}
 	}

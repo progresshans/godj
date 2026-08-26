@@ -539,9 +539,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"-eq 21",
 		"Ran 250 tests",
 		"OK (skipped=21)",
-		"len(SCENARIOS) == 231",
-		"len(payload) == 860151",
-		"fc318683a365ad74a8912332ef449421afcf1cd0bc7dfcbb7c88b373e12d54f7",
+		"len(SCENARIOS) == 239",
+		"len(payload) == 869118",
+		"db9608d5f5a5dbe61586c163b8e470b1c10bc7bae2a3d9754e6316eb7a9196b5",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
