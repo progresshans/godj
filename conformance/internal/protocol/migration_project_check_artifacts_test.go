@@ -710,7 +710,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 	if got := strings.Count(text, "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e"); got != 8 {
 		t.Fatalf("pinned setup-go action count = %d, want 8 job definitions", got)
 	}
-	if got := strings.Count(text, "actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405"); got != 1 {
+	if got := strings.Count(text, "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97"); got != 1 {
 		t.Fatalf("pinned setup-python action count = %d, want 1 job definition", got)
 	}
 	if got := strings.Count(text, "astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9"); got != 3 {
