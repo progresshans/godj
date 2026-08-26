@@ -62,6 +62,7 @@ SYSTEM_STATE_MANIFEST := conformance/contracts/system-state-manifest.json
 SYSTEM_STATE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json
 SYSTEM_STATE_NOT_IMPLEMENTED := conformance/fixtures/godj-system-state-not-implemented.json
 SYSTEM_STATE_DEVIATION_EXPECTED := conformance/fixtures/godj-system-state-deviation-expected.json
+SYSTEM_STATE_POSTGRES_ATTESTATION := conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
 DRF_PROFILE := conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json
 PARAMETER_ROUTING_MANIFEST := conformance/contracts/parameter-routing-manifest.json
 PARAMETER_ROUTING_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json
@@ -268,7 +269,8 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) \
 		-expected $(SYSTEM_STATE_ORACLE) \
-		-deviation-expected $(SYSTEM_STATE_DEVIATION_EXPECTED)
+		-deviation-expected $(SYSTEM_STATE_DEVIATION_EXPECTED) \
+		-system-state-postgres-attestation $(SYSTEM_STATE_POSTGRES_ATTESTATION)
 	go run ./conformance/cmd/godjcheck \
 		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) \
 		-expected $(PARAMETER_ROUTING_ORACLE) \

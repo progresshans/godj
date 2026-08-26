@@ -15,6 +15,18 @@ import (
 // scenarios provision an independent SQLite database so one observation
 // cannot inherit state from another.
 func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.Manifest) (protocol.ObservationSuite, error) {
+	return GenerateWithInputs(ctx, profile, manifest, Inputs{})
+}
+
+// GenerateWithInputs executes every manifest scenario with pre-verified
+// external product facts. The runner itself remains unable to open oracle,
+// fixture, contract, or checked-attestation paths.
+func GenerateWithInputs(
+	ctx context.Context,
+	profile protocol.Profile,
+	manifest protocol.Manifest,
+	inputs Inputs,
+) (protocol.ObservationSuite, error) {
 	if ctx == nil {
 		return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observations: context is nil")
 	}
@@ -34,6 +46,7 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 	if _, err := RequiredObservedContractIDs(manifest); err != nil {
 		return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observations: handler registry: %w", err)
 	}
+	inputs = inputs.snapshot()
 
 	suite := protocol.ObservationSuite{
 		FormatVersion: protocol.FormatVersion,
@@ -44,7 +57,7 @@ func Generate(ctx context.Context, profile protocol.Profile, manifest protocol.M
 		if err := ctx.Err(); err != nil {
 			return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observations before %s: %w", contract.ID, err)
 		}
-		observation, err := runScenario(ctx, contract)
+		observation, err := runScenarioWithInputs(ctx, contract, inputs)
 		if err != nil {
 			return protocol.ObservationSuite{}, fmt.Errorf("generate GoDj observation %s: %w", contract.ID, err)
 		}
@@ -86,7 +99,11 @@ func RequiredObservedContractIDs(manifest protocol.Manifest) ([]string, error) {
 type scenarioHandler func(context.Context, protocol.Contract) (protocol.Observation, error)
 
 func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Observation, error) {
-	handler, ok := lookupScenarioHandler(contract.Scenario)
+	return runScenarioWithInputs(ctx, contract, Inputs{})
+}
+
+func runScenarioWithInputs(ctx context.Context, contract protocol.Contract, inputs Inputs) (protocol.Observation, error) {
+	handler, ok := lookupScenarioHandlerWithInputs(contract.Scenario, inputs)
 	if !ok {
 		return protocol.Observation{
 			ID:     contract.ID,
@@ -97,7 +114,19 @@ func runScenario(ctx context.Context, contract protocol.Contract) (protocol.Obse
 	return handler(ctx, contract)
 }
 
+func lookupScenarioHandlerWithInputs(scenario string, inputs Inputs) (scenarioHandler, bool) {
+	if scenario == systemStateTwoProcessScenario {
+		return systemStateTwoProcessScenarioHandler(inputs), true
+	}
+	return lookupScenarioHandler(scenario)
+}
+
 func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
+	if scenario == systemStateTwoProcessScenario {
+		// Registration is independent from the externally verified backend
+		// facts. Calling this zero-input handler still fails closed.
+		return systemStateTwoProcessScenarioHandler(Inputs{}), true
+	}
 	if handler, ok := templateFormScenarioHandler(scenario); ok {
 		return handler, true
 	}

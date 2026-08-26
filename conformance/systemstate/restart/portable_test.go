@@ -9,14 +9,16 @@ import (
 const (
 	sqliteDistinctProcessRestartSentinel   = "TestSystemStateSQLiteDistinctProcessRestartSentinel"
 	postgresDistinctProcessRestartSentinel = "TestSystemStatePostgresDistinctProcessRestartSentinel"
+	postgresTwoProcessCoordinationSentinel = "TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
 
-	articleSQLiteDatabaseEnv = "GODJ_ARTICLE_SQLITE_DATABASE"
-	articlePostgresURLEnv    = "GODJ_ARTICLE_POSTGRES_URL"
-	articlePostgresSchemaEnv = "GODJ_ARTICLE_POSTGRES_SCHEMA"
-	articleAdminUsernameEnv  = "GODJ_ARTICLE_ADMIN_USERNAME"
-	articleAdminPasswordEnv  = "GODJ_ARTICLE_ADMIN_PASSWORD"
-	postgresTestURLEnv       = "GODJ_TEST_POSTGRES_URL"
-	postgresRequiredEnv      = "GODJ_REQUIRE_POSTGRES"
+	articleSQLiteDatabaseEnv      = "GODJ_ARTICLE_SQLITE_DATABASE"
+	articlePostgresURLEnv         = "GODJ_ARTICLE_POSTGRES_URL"
+	articlePostgresSchemaEnv      = "GODJ_ARTICLE_POSTGRES_SCHEMA"
+	articleAdminUsernameEnv       = "GODJ_ARTICLE_ADMIN_USERNAME"
+	articleAdminPasswordEnv       = "GODJ_ARTICLE_ADMIN_PASSWORD"
+	postgresTestURLEnv            = "GODJ_TEST_POSTGRES_URL"
+	postgresRequiredEnv           = "GODJ_REQUIRE_POSTGRES"
+	postgresAttestationCaptureEnv = "GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
 )
 
 var articleSiteEnvironmentNames = []string{
@@ -27,6 +29,7 @@ var articleSiteEnvironmentNames = []string{
 	articleAdminPasswordEnv,
 	postgresTestURLEnv,
 	postgresRequiredEnv,
+	postgresAttestationCaptureEnv,
 }
 
 // TestSystemStateRestartHarnessPortableContracts is deliberately platform
@@ -35,11 +38,13 @@ var articleSiteEnvironmentNames = []string{
 // stable on every supported Go host.
 func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 	if sqliteDistinctProcessRestartSentinel != "TestSystemStateSQLiteDistinctProcessRestartSentinel" ||
-		postgresDistinctProcessRestartSentinel != "TestSystemStatePostgresDistinctProcessRestartSentinel" {
+		postgresDistinctProcessRestartSentinel != "TestSystemStatePostgresDistinctProcessRestartSentinel" ||
+		postgresTwoProcessCoordinationSentinel != "TestSystemStatePostgresTwoProcessCoordinationRestartSentinel" {
 		t.Fatalf(
-			"restart sentinel inventory changed: sqlite=%q postgres=%q",
+			"restart sentinel inventory changed: sqlite=%q postgres=%q coordination=%q",
 			sqliteDistinctProcessRestartSentinel,
 			postgresDistinctProcessRestartSentinel,
+			postgresTwoProcessCoordinationSentinel,
 		)
 	}
 
@@ -50,6 +55,7 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		articleAdminPasswordEnv + "=ambient-secret",
 		postgresTestURLEnv + "=postgresql://test-only.invalid/database",
 		postgresRequiredEnv + "=1",
+		postgresAttestationCaptureEnv + "=/ambient/capture.json",
 	}, map[string]string{
 		articleSQLiteDatabaseEnv: "file:portable.sqlite3?mode=rwc",
 		articleAdminUsernameEnv:  "portable-admin",
@@ -65,6 +71,7 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		articlePostgresSchemaEnv,
 		postgresTestURLEnv,
 		postgresRequiredEnv,
+		postgresAttestationCaptureEnv,
 	} {
 		if _, exists := values[name]; exists {
 			t.Fatalf("restart environment retained mutually exclusive %s", name)
@@ -79,6 +86,7 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		articleSQLiteDatabaseEnv + "=file:ambient.sqlite3?mode=rwc",
 		postgresTestURLEnv + "=postgresql://test-only.invalid/database",
 		postgresRequiredEnv + "=1",
+		postgresAttestationCaptureEnv + "=/ambient/capture.json",
 	}, map[string]string{
 		articlePostgresURLEnv:    "postgresql://article.invalid/database",
 		articlePostgresSchemaEnv: "portable_schema",
@@ -90,7 +98,7 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		postgresValues[articlePostgresSchemaEnv] != "portable_schema" {
 		t.Fatal("restart environment lost explicit PostgreSQL site configuration")
 	}
-	for _, name := range []string{articleSQLiteDatabaseEnv, postgresTestURLEnv, postgresRequiredEnv} {
+	for _, name := range []string{articleSQLiteDatabaseEnv, postgresTestURLEnv, postgresRequiredEnv, postgresAttestationCaptureEnv} {
 		if _, exists := postgresValues[name]; exists {
 			t.Fatalf("PostgreSQL restart environment retained test-only or SQLite %s", name)
 		}

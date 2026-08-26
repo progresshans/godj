@@ -441,9 +441,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 1041`,
-		`assert len(payload) == 107467`,
-		`acdcef1190843b7386be2d00e0250db68cf9a0714c1bf9c61c122e6bcc703a49`,
+		`assert len(runs) == 1054`,
+		`assert len(payload) == 108991`,
+		`ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
@@ -540,8 +540,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"Ran 250 tests",
 		"OK (skipped=21)",
 		"len(SCENARIOS) == 239",
-		"len(payload) == 869118",
-		"db9608d5f5a5dbe61586c163b8e470b1c10bc7bae2a3d9754e6316eb7a9196b5",
+		"len(payload) == 869022",
+		"6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
@@ -649,9 +649,10 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
 		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
+		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
 	}
-	if len(postgresRequiredSentinels) != 16 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 16", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 17 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 17", len(postgresRequiredSentinels))
 	}
 	requiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*for sentinel`)
 	requiredBlock := requiredBlockPattern.FindStringSubmatch(postgres)

@@ -63,11 +63,16 @@ func newSystemStateWorkerHarness(ctx context.Context) (*systemStateWorkerHarness
 	if err != nil {
 		return nil, fmt.Errorf("create system-state worker directory: %w", err)
 	}
+	repositoryRoot, err := systemStateRepositoryRoot()
+	if err != nil {
+		_ = os.RemoveAll(directory)
+		return nil, err
+	}
 	harness := &systemStateWorkerHarness{
 		directory:      directory,
 		binaryPath:     filepath.Join(directory, "system-state-worker"),
 		databasePath:   filepath.Join(directory, "system-state.sqlite3"),
-		repositoryRoot: systemStateRepositoryRoot(),
+		repositoryRoot: repositoryRoot,
 		username:       "system-state-admin",
 		pids:           make(map[int]struct{}),
 	}

@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,6 +70,13 @@ var (
 		"django.system_state.admin_audit_fault_rollback":      systemStateAdminAuditFaultRollbackDistinctProcess,
 		"django.system_state.audit_history_restart":           systemStateAuditHistoryRestartDistinctProcess,
 		"godj.system_state.commit_outcome_unknown":            systemStateCommitOutcomeUnknown,
+		"godj.system_state.coordinated_atomic_fence":          systemStateCoordinatedAtomicFence,
+		"godj.system_state.concurrent_admin_bootstrap":        systemStateConcurrentAdminBootstrap,
+		"godj.system_state.concurrent_session_capacity":       systemStateConcurrentSessionCapacity,
+		"godj.system_state.concurrent_touch_monotonicity":     systemStateConcurrentTouchMonotonicity,
+		"godj.system_state.concurrent_session_rotation":       systemStateConcurrentSessionRotation,
+		"godj.system_state.concurrent_article_audit":          systemStateConcurrentArticleAudit,
+		"godj.system_state.shared_csrf_key_ring":              systemStateSharedCSRFKeyRing,
 	}
 )
 
@@ -242,7 +250,11 @@ func systemStateMigrate(
 ) (migrations.ProjectState, error) {
 	sources := []migrationdefinition.Source{systemstate.InitialDefinitionSource()}
 	if withArticle {
-		document, err := os.ReadFile(filepath.Join(systemStateRepositoryRoot(), "examples", "article", "testdata", "postgres", "0001_initial.godj.json"))
+		repositoryRoot, err := systemStateRepositoryRoot()
+		if err != nil {
+			return migrations.ProjectState{}, err
+		}
+		document, err := os.ReadFile(filepath.Join(repositoryRoot, "examples", "article", "testdata", "postgres", "0001_initial.godj.json"))
 		if err != nil {
 			return migrations.ProjectState{}, fmt.Errorf("read Article definition: %w", err)
 		}
@@ -271,21 +283,21 @@ func systemStateMigrate(
 	return state, nil
 }
 
-func systemStateRepositoryRoot() string {
-	directory, err := os.Getwd()
+func systemStateRepositoryRoot() (string, error) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok || !filepath.IsAbs(sourceFile) {
+		return "", errors.New("resolve system-state repository from runner source")
+	}
+	directory := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
+	directory, err := filepath.EvalSymlinks(directory)
 	if err != nil {
-		return "."
+		return "", errors.New("resolve system-state repository source symlinks")
 	}
-	for {
-		if _, err := os.Stat(filepath.Join(directory, "go.mod")); err == nil {
-			return directory
-		}
-		parent := filepath.Dir(directory)
-		if parent == directory {
-			return "."
-		}
-		directory = parent
+	contents, err := os.ReadFile(filepath.Join(directory, "go.mod"))
+	if err != nil || !strings.HasPrefix(string(contents), "module github.com/progresshans/godj\n") {
+		return "", errors.New("runner source is not inside the GoDj repository")
 	}
+	return directory, nil
 }
 
 type systemStateObservedBackend struct {

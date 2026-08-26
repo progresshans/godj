@@ -51,6 +51,10 @@ jobs:
           uv run --frozen python -c 'import django, platform, sqlite3, sys; print(sys.version); print(django.get_version()); print(sqlite3.sqlite_version); print(platform.platform())'
           go version
 
+      - name: Verify checked PostgreSQL live attestation checksum
+        working-directory: conformance/systemstate/attestations
+        run: sha256sum --check SHA256SUMS
+
       - name: Run portable conformance validation
         run: make ci
 
@@ -111,6 +115,7 @@ jobs:
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
+          conformance/systemstate/attestations
           conformance/profiles
           conformance/oracles
           conformance/reference/drf
@@ -181,6 +186,7 @@ jobs:
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
+          conformance/systemstate/attestations
           conformance/profiles
           conformance/oracles
           conformance/reference/drf
@@ -505,10 +511,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 1041, sorted(runs)
-          assert len(payload) == 107467, len(payload)
+          assert len(runs) == 1054, sorted(runs)
+          assert len(payload) == 108991, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "acdcef1190843b7386be2d00e0250db68cf9a0714c1bf9c61c122e6bcc703a49"
+          assert payload_sha256 == "ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -809,9 +815,9 @@ jobs:
               for name in sorted(SCENARIOS)
           )
           assert len(SCENARIOS) == 239, len(SCENARIOS)
-          assert len(payload) == 869118, len(payload)
+          assert len(payload) == 869022, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "db9608d5f5a5dbe61586c163b8e470b1c10bc7bae2a3d9754e6316eb7a9196b5", digest
+          assert digest == "6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae", digest
           PY
 
       - name: Require a clean worktree
@@ -870,6 +876,7 @@ jobs:
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
+          GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
         run: |
           set -euo pipefail
           log="$RUNNER_TEMP/postgresql-product-tests.json"
@@ -900,6 +907,7 @@ jobs:
             "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
             "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
+            "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
           )
           for sentinel in "${required_passes[@]}"; do
             package="${sentinel%%|*}"
@@ -915,6 +923,13 @@ jobs:
               exit 1
             fi
           done
+          test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
+          cmp "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE" \
+            conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+          (
+            cd conformance/systemstate/attestations
+            sha256sum --check SHA256SUMS
+          )
 
       - name: Run PostgreSQL actual product race tests
         env:

@@ -119,7 +119,10 @@ type siteAppCSRFFixture struct {
 
 func newSiteAppCSRFFixture(t *testing.T, ring websessionauth.CSRFKeyRing) siteAppCSRFFixture {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	// A full repository race run schedules several CPU-intensive password
+	// profile tests at once. Keep this fixture bounded while allowing both
+	// Runtime startup verifications to finish under that instrumented load.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	t.Cleanup(cancel)
 	databasePath := filepath.Join(t.TempDir(), "siteapp-csrf.sqlite3")
 	dataSourceName := "file:" + filepath.ToSlash(databasePath) + "?mode=rwc&_busy_timeout=5000"

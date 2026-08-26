@@ -98,10 +98,10 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
                 raise RuntimeError(f"{contract_id}: ADR-0048 escaped the legacy range")
         elif contract_id in ADR_0048_IDS:
             if provenance != [
-                {"kind": "proposal", "reference": "ADR-0048", "derived": False}
+                {"kind": "documentation", "reference": "ADR-0048", "derived": False}
             ]:
                 raise RuntimeError(
-                    f"{contract_id}: exact Proposed ADR-0048 authority is required"
+                    f"{contract_id}: exact current ADR-0048 documentation authority is required"
                 )
         else:
             raise RuntimeError(f"unexpected system-state contract {contract_id!r}")
@@ -181,8 +181,6 @@ def generate_suite(
     expected_statuses = tuple(
         "deviation"
         if contract_id == "SYS-009"
-        else "oracle_locked"
-        if contract_id in ADR_0048_IDS
         else "passing"
         for contract_id in EXPECTED_IDS
     )

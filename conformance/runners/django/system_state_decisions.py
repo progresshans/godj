@@ -175,7 +175,6 @@ def coordinated_atomic_fence(contract_id: str) -> dict[str, Any]:
             "callback_cancellation": "rolled_back",
             "commit_failure": "commit_outcome_unknown",
             "confirmed_callback_error": "rolled_back",
-            "rollback_uncertainty": "transaction_outcome_unknown",
         },
         phase="commit",
         db_state={

@@ -58,11 +58,13 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
-		"conformance/contracts/system-state-manifest.json":                     {11151, "2dadfd5eeb66a591c1e305dfff65a10bee58ce3766b238d3ea96a968f27b427a"},
-		"conformance/fixtures/godj-system-state-not-implemented.json":          {2417, "92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa"},
-		"conformance/fixtures/godj-system-state-deviation-expected.json":       {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json": {21338, "6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":        {1791, "1fc4c0c078cfa64388bba9d1112fe825ce312c23eaf04ecc29d30e8ca2659b5a"},
+		"conformance/contracts/system-state-manifest.json":                          {11143, "b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09"},
+		"conformance/fixtures/godj-system-state-not-implemented.json":               {2417, "92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa"},
+		"conformance/fixtures/godj-system-state-deviation-expected.json":            {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":      {21242, "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {1791, "e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd"},
+		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": {1134, "d1f677d9eac832fd2b8fe91994d868ed7bd115eb845bc53f115ee3b28dff88f6"},
+		"conformance/systemstate/attestations/SHA256SUMS":                           {103, "72cb0cf12db8d9eb1bf61893064d7e84b406f25b10a48b203f4dacd19e54e92c"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
@@ -105,10 +107,7 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 			t.Fatalf("system-state contract %d binding = %#v", index, contract)
 		}
 		wantStatus := ContractPassing
-		if index >= 12 {
-			wantStatus = ContractOracleLocked
-			lockedContracts++
-		} else if contract.ID == "SYS-009" {
+		if contract.ID == "SYS-009" {
 			wantStatus = ContractDeviation
 			deviations++
 		} else {
@@ -131,8 +130,8 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 			t.Fatalf("system-state baseline contract %d is not payload-free: %#v", index, locked)
 		}
 	}
-	if passing != 11 || deviations != 1 || lockedContracts != 8 {
-		t.Fatalf("system-state classification = %d passing + %d deviation + %d oracle_locked, want 11 + 1 + 8", passing, deviations, lockedContracts)
+	if passing != 19 || deviations != 1 || lockedContracts != 0 {
+		t.Fatalf("system-state classification = %d passing + %d deviation + %d oracle_locked, want 19 + 1 + 0", passing, deviations, lockedContracts)
 	}
 	for _, field := range []string{"callback_cancellation", "confirmed_callback_error"} {
 		if got := objectField(t, oracle.Contracts[12].Result, field); !reflect.DeepEqual(*got, String("rolled_back")) {
@@ -354,6 +353,21 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 		"conformance/runners/django/system_state_fixture/urls.py",
 		"conformance/runners/godj/gdj0045_system_state_scenarios.go",
 		"conformance/runners/godj/gdj0045_system_state_worker.go",
+		"conformance/runners/godj/gdj0046_system_state_multi_runtime_scenarios.go",
+		"conformance/runners/godj/gdj0046_system_state_multi_runtime_scenarios_sessions.go",
+		"conformance/runners/godj/gdj0046_system_state_multi_runtime_scenarios_article.go",
+		"conformance/runners/godj/gdj0046_system_state_multi_runtime_scenarios_csrf.go",
+		"conformance/runners/godj/gdj0046_system_state_two_process_execution.go",
+		"conformance/runners/godj/gdj0046_system_state_two_process_scenario.go",
+		"conformance/runners/godj/inputs.go",
+		"conformance/runners/godj/runner.go",
+		"conformance/systemstate/restart/multiruntime_postgres_unix_test.go",
+		"conformance/systemstate/multiruntimeworker/cmd/main.go",
+		"conformance/systemstate/multiruntimeworker/inspection.go",
+		"conformance/systemstate/multiruntimeworker/protocol.go",
+		"conformance/systemstate/multiruntimeworker/scenario_other.go",
+		"conformance/systemstate/multiruntimeworker/scenario_unix.go",
+		"conformance/systemstate/multiruntimeworker/worker.go",
 		"conformance/systemstate/worker/protocol.go",
 		"conformance/systemstate/worker/worker.go",
 		"conformance/systemstate/worker/application.go",
@@ -364,7 +378,13 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, forbidden := range []string{"conformance/contracts", "conformance/oracles", "conformance/fixtures", "not-implemented"} {
+		for _, forbidden := range []string{
+			"conformance/contracts",
+			"conformance/oracles",
+			"conformance/fixtures",
+			"conformance/systemstate/attestations",
+			"not-implemented",
+		} {
 			if strings.Contains(string(source), forbidden) {
 				t.Fatalf("independent scenario source %s contains expected artifact marker %q", name, forbidden)
 			}
@@ -454,7 +474,7 @@ func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBi
 			}
 		}
 	}
-	if len(sets) != 21 || total != 239 || len(ids) != 239 || len(scenarios) != 239 || passing != 203 || deviations != 16 || locked != 20 {
+	if len(sets) != 21 || total != 239 || len(ids) != 239 || len(scenarios) != 239 || passing != 211 || deviations != 16 || locked != 12 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 	crossBindings := 0
@@ -484,10 +504,11 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	}
 	makeText := string(makeContents)
 	for variable, value := range map[string]string{
-		"SYSTEM_STATE_MANIFEST":           "conformance/contracts/system-state-manifest.json",
-		"SYSTEM_STATE_ORACLE":             "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json",
-		"SYSTEM_STATE_NOT_IMPLEMENTED":    "conformance/fixtures/godj-system-state-not-implemented.json",
-		"SYSTEM_STATE_DEVIATION_EXPECTED": "conformance/fixtures/godj-system-state-deviation-expected.json",
+		"SYSTEM_STATE_MANIFEST":             "conformance/contracts/system-state-manifest.json",
+		"SYSTEM_STATE_ORACLE":               "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json",
+		"SYSTEM_STATE_NOT_IMPLEMENTED":      "conformance/fixtures/godj-system-state-not-implemented.json",
+		"SYSTEM_STATE_DEVIATION_EXPECTED":   "conformance/fixtures/godj-system-state-deviation-expected.json",
+		"SYSTEM_STATE_POSTGRES_ATTESTATION": "conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json",
 	} {
 		definition := variable + " := " + value
 		if got := strings.Count(makeText, definition); got != 1 {
@@ -516,9 +537,10 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 		t.Fatalf("reference system-state NI count = %d, want 1", got)
 	}
 	for variable, want := range map[string]int{
-		"$(SYSTEM_STATE_MANIFEST)":           1,
-		"$(SYSTEM_STATE_ORACLE)":             1,
-		"$(SYSTEM_STATE_DEVIATION_EXPECTED)": 1,
+		"$(SYSTEM_STATE_MANIFEST)":             1,
+		"$(SYSTEM_STATE_ORACLE)":               1,
+		"$(SYSTEM_STATE_DEVIATION_EXPECTED)":   1,
+		"$(SYSTEM_STATE_POSTGRES_ATTESTATION)": 1,
 	} {
 		if got := strings.Count(productTarget, variable); got != want {
 			t.Fatalf("product system-state variable %s count = %d, want %d", variable, got, want)
@@ -562,8 +584,12 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 		"working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64",
 		"run: sha256sum --check SHA256SUMS",
 		"len(SCENARIOS) == 239",
-		"len(payload) == 869118",
-		"db9608d5f5a5dbe61586c163b8e470b1c10bc7bae2a3d9754e6316eb7a9196b5",
+		"len(payload) == 869022",
+		"6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae",
+		"working-directory: conformance/systemstate/attestations",
+		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE",
+		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
+		"cmp \"$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE\"",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("system-state workflow lacks exact hash/payload fragment %q", required)
@@ -575,6 +601,28 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 		if strings.Contains(workflow, obsolete) {
 			t.Fatalf("system-state workflow retains obsolete reference inventory fragment %q", obsolete)
 		}
+	}
+	postgresStart := strings.Index(workflow, "\n  postgresql-product:\n")
+	postgresEnd := strings.Index(workflow, "\n  sqlite-matrix:\n")
+	if postgresStart < 0 || postgresEnd <= postgresStart {
+		t.Fatal("cannot isolate PostgreSQL product workflow job")
+	}
+	postgresJob := workflow[postgresStart:postgresEnd]
+	previous := -1
+	for _, fragment := range []string{
+		"image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f",
+		"- name: Assert exact PostgreSQL service profile",
+		"- name: Run and inventory PostgreSQL actual product tests",
+		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE:",
+		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
+		"cmp \"$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE\"",
+		"sha256sum --check SHA256SUMS",
+	} {
+		current := strings.Index(postgresJob, fragment)
+		if current <= previous {
+			t.Fatalf("PostgreSQL attestation workflow fragment %q is missing or out of order", fragment)
+		}
+		previous = current
 	}
 }
 
@@ -606,7 +654,7 @@ func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite
 
 func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthority bool) {
 	t.Helper()
-	adrCount, proposalCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0, 0
+	adrCount, multiRuntimeADRCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0, 0
 	for _, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			t.Fatalf("contract %s provenance is not independent: %#v", contract.ID, provenance)
@@ -614,8 +662,8 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0047" && provenance.License == "" {
 			adrCount++
 		}
-		if provenance.Kind == "proposal" && provenance.Reference == "ADR-0048" && provenance.License == "" {
-			proposalCount++
+		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0048" && provenance.License == "" {
+			multiRuntimeADRCount++
 		}
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0046" && provenance.License == "" {
 			apiBoundaryCount++
@@ -637,11 +685,11 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		}
 	}
 	legacy := contract.ID <= "SYS-012"
-	if legacy && (adrCount != 1 || proposalCount != 0) {
-		t.Fatalf("legacy contract %s authority = %d ADR-0047 + %d ADR-0048 proposal, want 1 + 0", contract.ID, adrCount, proposalCount)
+	if legacy && (adrCount != 1 || multiRuntimeADRCount != 0) {
+		t.Fatalf("legacy contract %s authority = %d ADR-0047 + %d ADR-0048, want 1 + 0", contract.ID, adrCount, multiRuntimeADRCount)
 	}
-	if !legacy && (len(contract.Provenance) != 1 || adrCount != 0 || proposalCount != 1) {
-		t.Fatalf("new contract %s authority = %#v, want exact Proposed ADR-0048", contract.ID, contract.Provenance)
+	if !legacy && (len(contract.Provenance) != 1 || adrCount != 0 || multiRuntimeADRCount != 1) {
+		t.Fatalf("new contract %s authority = %#v, want exact Accepted ADR-0048", contract.ID, contract.Provenance)
 	}
 	if contract.ID == "SYS-008" && apiBoundaryCount != 1 {
 		t.Fatalf("SYS-008 Accepted ADR-0046 count = %d, want 1", apiBoundaryCount)

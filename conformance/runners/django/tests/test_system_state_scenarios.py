@@ -67,10 +67,10 @@ class SystemStateScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "current ADR-0047 documentation"):
             _validate_contract_authority(stale_adr)
 
-        stale_proposal = deepcopy(contracts)
-        stale_proposal[12]["provenance"][0]["kind"] = "documentation"
-        with self.assertRaisesRegex(RuntimeError, "exact Proposed ADR-0048"):
-            _validate_contract_authority(stale_proposal)
+        stale_adr = deepcopy(contracts)
+        stale_adr[12]["provenance"][0]["kind"] = "proposal"
+        with self.assertRaisesRegex(RuntimeError, "current ADR-0048 documentation"):
+            _validate_contract_authority(stale_adr)
 
         stale_deviation = deepcopy(contracts)
         stale_deviation[8]["provenance"][1]["kind"] = "proposal"

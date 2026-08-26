@@ -77,7 +77,7 @@ func TestRunGDJ0045MixedProductExpectationWritesActualOutput(t *testing.T) {
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	want := "GoDj product observations match 12 required contracts; 8 remain not implemented"
+	want := "GoDj observations match the reviewed product expectation for 20 contracts under DEV-0008"
 	if !strings.Contains(stdout.String(), want) {
 		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
@@ -92,15 +92,9 @@ func TestRunGDJ0045MixedProductExpectationWritesActualOutput(t *testing.T) {
 	if len(actual.Contracts) != 20 || actual.Contracts[0].ID != "SYS-001" || actual.Contracts[19].ID != "SYS-020" {
 		t.Fatalf("actual contracts = %#v, want 20 ordered from SYS-001 through SYS-020", actual.Contracts)
 	}
-	for index, observation := range actual.Contracts {
-		if index < 12 {
-			if observation.Status != protocol.StatusObserved {
-				t.Fatalf("%s actual status = %q, want observed", observation.ID, observation.Status)
-			}
-			continue
-		}
-		if observation.Status != protocol.StatusNotImplemented || observation.Result != nil || observation.Error != nil || observation.DBState != nil || observation.Metrics != nil {
-			t.Fatalf("%s actual = %#v, want payload-free not_implemented", observation.ID, observation)
+	for _, observation := range actual.Contracts {
+		if observation.Status != protocol.StatusObserved {
+			t.Fatalf("%s actual status = %q, want observed", observation.ID, observation.Status)
 		}
 	}
 	legacyActual := actual
@@ -204,6 +198,7 @@ func gdj0045RunArguments(root, deviation, actual string) []string {
 		"-profile", filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"),
 		"-manifest", filepath.Join(root, "conformance", "contracts", "system-state-manifest.json"),
 		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "system-state.json"),
+		"-system-state-postgres-attestation", filepath.Join(root, "conformance", "systemstate", "attestations", "postgresql-17.10-two-process-v1.json"),
 	}
 	if deviation != "" {
 		arguments = append(arguments, "-deviation-expected", deviation)

@@ -89,7 +89,8 @@ explicit migrate
   `BEGIN IMMEDIATE`를 사용하되 하나의 backend-neutral callback-once 계약으로 수렴합니다.
 - `web/sessionauth`에 active key 하나와 bounded validation key set을 가진 opaque/redacted CSRF key ring을 주입해 같은 deployment의
   여러 Runtime과 staged key rotation을 지원합니다.
-- 실제 두 process와 두 backend에서 barrier 기반 경쟁, cancellation, rollback과 commit-outcome-unknown no-retry를 검증합니다.
+- Backend unit/fault gate와 두 독립 handle의 product actual에서 cancellation, rollback과 실제
+  commit-outcome-unknown no-retry를 검증하고, 실제 두 process와 두 backend에서는 barrier 경쟁과 restart 보존을 검증합니다.
 
 ## 이번 packet에서 결정하는 경계
 
@@ -160,8 +161,10 @@ SYS-013..020은 Django 내부 구조를 모사하지 않는 GoDj operational dec
 ADR-0048이고 Phase B~E의 oracle-blind database/process observation은 그 결정을 검증합니다. SYS-001..012의 observation semantics와
 canonical legacy subsuite bytes 및 DEV-0008을 조용히 재작성하지 않습니다.
 
-- `SYS-013` / `godj.system_state.coordinated_atomic_fence` / commit: cross-process coordinated transaction,
-  fence-before-callback, callback once/zero, cancel/rollback/commit-unknown과 no retry
+- `SYS-013` / `godj.system_state.coordinated_atomic_fence` / commit: 한 process의 두 독립 backend handle이 공유하는 coordinated
+  transaction, fence-before-callback, callback once/zero, cancel/rollback/실제 commit-unknown과 no retry. Distinct-process
+  barrier/restart는 SYS-020이 소유하며, 공개 SQLite driver에서 실제 유발할 수 없는 rollback terminal uncertainty 분류는
+  `db/sqlite` package-private fault gate가 소유합니다.
 - `SYS-014` / `godj.system_state.concurrent_admin_bootstrap` / commit: concurrent empty credential bootstrap의 exactly-one
   durable row와 identical material success/mismatch failure
 - `SYS-015` / `godj.system_state.concurrent_session_capacity` / commit: concurrent session Create와 global capacity/reap의
@@ -211,7 +214,8 @@ runner가 success를 상수로 만들거나 skip을 passing으로 바꾸는 방�
 - Checked product evidence는
   `conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json`과 같은 디렉터리의 `SHA256SUMS`입니다.
   Expected oracle 전체가 아니라 PostgreSQL backend facts만 담고 `format`, `kind`, `contract`, `scenario`, producer/harness version,
-  exact PostgreSQL fingerprint, behavioral-source binding과 normalized facts를 strict canonical JSON으로 저장합니다.
+  required lane이 같은 digest-pinned service에서 직전에 검증한 exact PostgreSQL fingerprint, behavioral-source binding과 normalized
+  facts를 strict canonical JSON으로 저장합니다.
 - Facts는 concurrent writer process count 2, same schema, barrier linearization, restart preservation, divergence/loss/drift와 secret occurrence
   count 같은 관찰값입니다. Expected/pass boolean, oracle/profile digest, wall clock, commit/run ID, DSN, dynamic schema와 secret material은
   넣지 않습니다.

@@ -141,6 +141,14 @@ func TestSystemStateManifestIsGloballyPublishedInOrder(t *testing.T) {
 		"SYS-010",
 		"SYS-011",
 		"SYS-012",
+		"SYS-013",
+		"SYS-014",
+		"SYS-015",
+		"SYS-016",
+		"SYS-017",
+		"SYS-018",
+		"SYS-019",
+		"SYS-020",
 	}
 	root := filepath.Join("..", "..", "..")
 	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "system-state-manifest.json"))

@@ -4,14 +4,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	godjrunner "github.com/progresshans/godj/conformance/runners/godj"
+	"github.com/progresshans/godj/conformance/systemstate/attestation"
 )
 
 func main() {
@@ -26,8 +30,13 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	expectedPath := flags.String("expected", "", "path to the expected reference observation suite JSON")
 	deviationExpectedPath := flags.String("deviation-expected", "", "optional path to a reviewed product deviation expectation JSON")
 	actualOutputPath := flags.String("actual-output", "", "optional path for the generated GoDj observation suite JSON")
+	systemStatePostgreSQLAttestationPath := flags.String(
+		"system-state-postgres-attestation",
+		"",
+		"path to the checked source-bound PostgreSQL 17.10 SYS-020 evidence",
+	)
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-deviation-expected PRODUCT.json] [-actual-output ACTUAL.json]")
+		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-deviation-expected PRODUCT.json] [-system-state-postgres-attestation EVIDENCE.json] [-actual-output ACTUAL.json]")
 	}
 	if err := flags.Parse(arguments); err != nil {
 		return 2
@@ -90,11 +99,19 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		}
 		decision = deviationExpected.Decision
 	}
+	runnerInputs, err := loadRunnerInputs(
+		comparisonManifest,
+		*manifestPath,
+		*systemStatePostgreSQLAttestationPath,
+	)
+	if err != nil {
+		return reportFailure(stderr, err)
+	}
 	requiredObserved, err := godjrunner.RequiredObservedContractIDs(comparisonManifest)
 	if err != nil {
 		return reportFailure(stderr, fmt.Errorf("actual handler registry: %w", err))
 	}
-	actual, err := godjrunner.Generate(ctx, profile, comparisonManifest)
+	actual, err := godjrunner.GenerateWithInputs(ctx, profile, comparisonManifest, runnerInputs)
 	if err != nil {
 		return reportFailure(stderr, err)
 	}
@@ -165,6 +182,131 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 	}
 	fmt.Fprintf(stderr, "godjcheck: %d difference(s)\n", len(differences))
 	return 1
+}
+
+func loadRunnerInputs(
+	manifest protocol.Manifest,
+	manifestPath string,
+	systemStatePostgreSQLAttestationPath string,
+) (godjrunner.Inputs, error) {
+	required := false
+	for _, contract := range manifest.Contracts {
+		if contract.ID != attestation.Contract && contract.Scenario != attestation.Scenario {
+			continue
+		}
+		if contract.ID != attestation.Contract || contract.Scenario != attestation.Scenario {
+			return godjrunner.Inputs{}, fmt.Errorf("PostgreSQL live attestation contract/scenario binding is inconsistent")
+		}
+		required = contract.Status == protocol.ContractPassing
+		break
+	}
+	if !required {
+		if systemStatePostgreSQLAttestationPath != "" {
+			return godjrunner.Inputs{}, fmt.Errorf("-system-state-postgres-attestation is not used by this manifest")
+		}
+		return godjrunner.Inputs{}, nil
+	}
+	if systemStatePostgreSQLAttestationPath == "" {
+		return godjrunner.Inputs{}, fmt.Errorf("passing SYS-020 requires -system-state-postgres-attestation")
+	}
+	repositoryRoot, err := attestationRepositoryRoot(manifestPath, systemStatePostgreSQLAttestationPath)
+	if err != nil {
+		return godjrunner.Inputs{}, err
+	}
+	evidence, err := attestation.Load(repositoryRoot, systemStatePostgreSQLAttestationPath)
+	if err != nil {
+		return godjrunner.Inputs{}, fmt.Errorf("load PostgreSQL live attestation: %w", err)
+	}
+	observed := evidence.BackendFacts().Observed()
+	barrierRace := "not_linearized"
+	if observed.BarrierLinearized {
+		barrierRace = "linearized"
+	}
+	facts := godjrunner.SystemStateTwoProcessBackendFacts{
+		Backend:                     "postgresql_17_10",
+		WriterProcesses:             int(observed.WriterProcesses),
+		BarrierRace:                 barrierRace,
+		CleanRestartPreserved:       observed.RestartPreserved,
+		SameDatabaseOrSchema:        observed.SameSchema,
+		CrossProcessStateDivergence: int(observed.DivergenceCount),
+		RestartStateLoss:            int(observed.LossCount),
+		SchemaDrift:                 observed.DriftCount != 0,
+		SecretValuesSerialized:      int(observed.SecretOccurrences),
+	}
+	return godjrunner.Inputs{SystemStatePostgreSQLTwoProcess: &facts}, nil
+}
+
+func attestationRepositoryRoot(manifestPath, attestationPath string) (string, error) {
+	repositoryRoot, err := currentGoDjRepositoryRoot()
+	if err != nil {
+		return "", err
+	}
+	expectedManifest := filepath.Join(repositoryRoot, "conformance", "contracts", "system-state-manifest.json")
+	if err := requireExactResolvedPath(manifestPath, expectedManifest); err != nil {
+		return "", fmt.Errorf("system-state manifest must use the checked current repository path: %w", err)
+	}
+	expectedAttestation := filepath.Join(
+		repositoryRoot,
+		"conformance",
+		"systemstate",
+		"attestations",
+		attestation.FileName,
+	)
+	if err := requireExactResolvedPath(attestationPath, expectedAttestation); err != nil {
+		return "", fmt.Errorf("PostgreSQL live attestation must use the checked current repository path: %w", err)
+	}
+	return repositoryRoot, nil
+}
+
+func currentGoDjRepositoryRoot() (string, error) {
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok || !filepath.IsAbs(sourceFile) {
+		return "", errors.New("resolve current GoDj checkout from command source")
+	}
+	directory := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "..", "..", ".."))
+	directory, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return "", errors.New("resolve current GoDj checkout symlinks")
+	}
+	contents, err := os.ReadFile(filepath.Join(directory, "go.mod"))
+	if err != nil || !strings.HasPrefix(string(contents), "module github.com/progresshans/godj\n") {
+		return "", errors.New("command source is not inside the GoDj repository")
+	}
+	return directory, nil
+}
+
+func requireExactResolvedPath(given, expected string) error {
+	absolute, err := filepath.Abs(given)
+	if err != nil {
+		return errors.New("resolve path")
+	}
+	expectedAbsolute, err := filepath.Abs(expected)
+	if err != nil {
+		return errors.New("resolve checked path")
+	}
+	absolute = filepath.Clean(absolute)
+	expectedAbsolute = filepath.Clean(expectedAbsolute)
+	if absolute != expectedAbsolute {
+		return errors.New("path is not the exact checked path")
+	}
+	resolvedPath := absolute
+	for {
+		resolvedGiven, err := filepath.EvalSymlinks(resolvedPath)
+		if err == nil {
+			if filepath.Clean(resolvedGiven) != resolvedPath {
+				return errors.New("checked path contains a symbolic link")
+			}
+			return nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return errors.New("resolve path symlinks")
+		}
+		parent := filepath.Dir(resolvedPath)
+		if parent == resolvedPath {
+			return errors.New("resolve path symlinks")
+		}
+		resolvedPath = parent
+	}
 }
 
 func pluralSuffix(count int) string {

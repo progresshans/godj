@@ -1,6 +1,6 @@
 # ADR-0048: Database-Coordinated System State and Shared CSRF Key Ring
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-26
 - 관련 work/contract: [GDJ-0046](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md),
   SYS-013..020, Q-020
@@ -49,7 +49,7 @@ Opaque active/validation key ring은 browser-facing CSRF token을 deployment 사
 Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity overshoot와 cross-process CSRF rejection을 예방하지 못합니다.
 운영자에게 one-runtime을 계속 요구하므로 Q-020의 다음 답이 되지 않습니다.
 
-## Proposed 결정
+## 결정
 
 선택지 B를 bounded prototype 방향으로 채택합니다.
 
@@ -79,6 +79,11 @@ Duplicate/corrupt state를 fail-closed할 수는 있지만 lost update, capacity
     context 또는 backend cause를 보존하고 rollback 불확실성은 기존 transaction-outcome-unknown, commit error는 기존
     commit-outcome-unknown과 reconciliation ownership을 유지합니다.
 
+SYS-013 product actual은 두 독립 backend handle에서 획득 전 callback 0회, 획득 뒤 callback 1회, 실제 cancellation/rollback과
+SQLite deferred-constraint COMMIT failure를 관측합니다. 공개 SQLite driver 경계에서 실제로 유발할 수 없는 rollback terminal
+uncertainty를 conformance adapter가 성공 transaction 뒤 합성하지 않으며, 그 분류와 physical cleanup은 `db/sqlite`의
+package-private fault test가 소유합니다. 실제 distinct-process barrier와 restart는 SYS-020이 별도로 소유합니다.
+
 ## 결과
 
 - DB가 여러 cooperative Runtime의 correctness owner가 되고 process mutex는 유일한 fence가 아니게 됩니다.
@@ -107,7 +112,7 @@ attestation을 portable product evidence에 결합하고 stale/missing/mismatche
 
 구체적으로 checked evidence는
 `conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json`과 같은 디렉터리의 `SHA256SUMS`입니다. Evidence는
-expected/pass 판정이 아니라 exact PostgreSQL fingerprint, producer/harness version, source binding과 secret-free backend facts만
+expected/pass 판정이 아니라 required lane이 직전에 검증한 exact PostgreSQL fingerprint, producer/harness version, source binding과 secret-free backend facts만
 strict canonical JSON으로 보존합니다. Source binding은 code-owned frozen scope의 sorted
 `path\0mode\0size\0content_sha256\n` inventory에서 file count, payload bytes와 SHA-256을 계산하며 attestation 자체와 docs/evidence만
 self-reference에서 제외합니다. Required PostgreSQL lane은 명시적
@@ -138,5 +143,6 @@ wrong-fingerprint, stale-source와 failure fact는 actual publication 전에 fai
 - Phase C same-process test: identical normalized deployment profile과 같은 SQLite file을 쓰는 두 Runtime의 barrier
   bootstrap/Create/Touch/Rotate/Delete/capacity/audit/Article transaction
 - CSRF tests: A→B cross-runtime issue/verify, staged active/validation rotation, removed/unknown key rejection, bounded constant-time verification path
-- Distinct-process SQLite/PostgreSQL actual: same DB/schema, same key ring, required sentinel skip 0와 raw secret/log/temp scan 0
+- Distinct-process SQLite/PostgreSQL actual: same DB/schema의 audit writer barrier/restart, required sentinel skip 0와 raw
+  secret/log/temp scan 0. Shared CSRF key ring의 HTTP handoff는 same-process two-Runtime actual이 소유합니다.
 - Affected normal/race/CGO0/vet, final full/386/external clean-copy와 exact hosted matrix
