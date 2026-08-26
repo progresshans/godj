@@ -100,6 +100,12 @@ required PostgreSQL 17.10 16/16·skip 0과 필수 GitHub Actions 27/27 jobs·359
 따라서 ADR-0047은 Accepted, DEV-0008은 Verified이고 GDJ-0045는 completed입니다. 이 상태는 one-runtime/
 sequential-restart 경계이며 broader multi-runtime, shared deployment key와 production readiness는 뜻하지 않습니다.
 
+Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)은 Proposed
+[ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)의 cooperative multi-runtime와 shared
+CSRF key ring을 SYS-013..020으로 검증할 계획입니다. 이 ID는 activation 시점에 아직 unregistered/not implemented이며
+reference 21/231/420과 product 20/219 집계, SYS-001..012 bytes/classification과 DEV-0008을 바꾸지 않습니다.
+General Unique/Integer/CAS IR과 JWT/OAuth는 이 activation으로 지원되지 않습니다.
+
 OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
 Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 

@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-25
+- 마지막 갱신: 2026-08-26
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
 - 현재 GDJ-0045 corrected frozen product/workflow head: `6243682e8ec6c94913dda0162cce101b39af354d`
@@ -15,6 +15,15 @@
   CI #146 run `32833586028` exact 필수 GitHub Actions 27/27 jobs·359/359 steps·failure/cancel/step-skip/annotation 0,
   PostgreSQL 17.10 required 16/16·skip 0와 네 relation 좌표 1,034/1,034·skip 0. ADR-0047은 Accepted,
   DEV-0008은 Verified, GDJ-0045는 completed이고 Q-020은 `Partial`입니다.
+- GDJ-0046 activation baseline: GDJ-0045 terminal documentation head
+  `996c00a5fb4d634b5dc7bef4c5385f2353a89979`, tree `ebf73aaca349dfd56fdaf2cba0806ab03054cd09`.
+  이 exact documentation-only head의 CI #147/run `32837709461`은 27/27 jobs·359/359 steps와
+  failure/cancel/skip 0으로 통과했지만 새 product EVID로 승격하지 않습니다.
+  Active [work packet](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)과
+  Proposed [ADR-0048](../adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 Schema IR·migration
+  format·sessions.Store를 넓히지 않고 backend coordinated-atomic SPI, cooperative multi-runtime system state와
+  shared CSRF key ring을 SYS-013..020으로 검증합니다. 이 contract는 아직 unregistered/not implemented이며
+  current aggregate를 바꾸지 않습니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
   Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree
@@ -1617,7 +1626,9 @@ completed됐습니다. GDJ-0040도 submitted head `136e825...`의 EVID-115/run `
 EVID-122/run `32659704239` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0043도 submitted
 `5eda0a4...`의 EVID-124/run `32672326069` exact 27/27 jobs·358/358 steps로 completed됐습니다. GDJ-0044도
 hosted-verified source `d9c1971...`의 EVID-125/126과 CI #142 exact 27/27 jobs·359/359 steps로 completed됐습니다.
-GDJ-0045는 completed이고 현재 active/ready는 0/0이며 외부 blocker는 없습니다. Corrected source
+GDJ-0045는 completed이고 현재 active/ready는 1/0이며 외부 blocker는 없습니다. 유일한 active work는
+[GDJ-0046](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)이며 Proposed ADR-0048의
+database-coordinated transaction과 shared CSRF key ring을 bounded cooperative multi-runtime에서 검증합니다. Corrected source
 `6243682...`/tree `98076ea...`는 EVID-128의 corrected full/386/1,016-file external archive와 독립 correction audit
 P0/P1/P2/P3=`0/0/0/0`을 통과했습니다. 첫 submitted `8c80c64...` run `32830533384`의 PostgreSQL 공통 비밀번호
 scan collision과 네 Python stale digest 실패는 최소 lock/canary 보정으로 닫았고 그 실패 run은 completion evidence로
@@ -1733,12 +1744,19 @@ Verified입니다. Tested source head와 이 terminal documentation-only descend
 source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted `e673b3a...`/tree `917d36f...`의
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
-Active/ready packet은 0/0입니다. 다음 정확한 작업은 이 terminal documentation-only descendant를 검증·비강제 push하고
-Draft PR #1을 갱신한 뒤, current public/IR/transaction 경계를 바꾸지 않는 별도 commit에서 다음 wide packet을
-선정·활성화하는 것입니다. Terminal 문서 append 때문에 EVID-129 product matrix를 재귀적으로 다시 실행하지 않습니다.
+
+현재 active/ready packet은 1/0이고 유일한 active work는
+[GDJ-0046](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Activation
+baseline `996c00a...`/tree `ebf73aa...`에서 Proposed ADR-0048과 SYS-013..020을 고정했지만, 이 contract는 아직
+global registry/aggregate에 게시하지 않았고 implementation/verification을 주장하지 않습니다. 다음 정확한 작업은
+Phase A decision artifact를 게시한 뒤, Phase B에서 additive `db.CoordinatedAtomic` SPI와 SQLite `BEGIN IMMEDIATE` /
+PostgreSQL transaction advisory-lock implementation을 분리된 backend file 소유로 병렬 작성하는 것입니다. General
+`Unique`, `IntegerField`, revision/CAS, Schema IR/migration format과 sessions.Store public API는 이 packet에서 바꾸지
+않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-021은 P1/open입니다.
-Multi-runtime, shared keys, JWT/OAuth와 production readiness는 별도 후속입니다. Draft PR #1은 계속
+Cooperative multi-runtime과 shared CSRF key는 GDJ-0046 active 범위이고 JWT/OAuth, non-cooperative writer,
+family-wide revocation과 production readiness는 별도 후속입니다. Draft PR #1은 계속
 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)

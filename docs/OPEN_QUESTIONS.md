@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-25
+- 마지막 검토: 2026-08-26
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -19,7 +19,7 @@
 | Q-017 | P1 | GDJ-0038/GDJ-0042 completed / raw-model and general upgrade | Project publication, ADR-0038 Web-only explicit DTO representation과 generated-aware runserver usability WEB-011..020은 hosted-verified; general raw-model UX/capability/namespace와 reverse/general upgrade는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
-| Q-020 | Partial | GDJ-0045 completed / broader multi-runtime 전 | Accepted ADR-0047의 explicit current migration과 one-runtime/sequential-restart 답은 hosted-verified; DB-enforced multi-runtime coordination과 shared key topology는 open |
+| Q-020 | Partial | GDJ-0046 active / cooperative multi-runtime acceptance 전 | Accepted ADR-0047의 one-runtime/sequential-restart는 hosted-verified; Proposed ADR-0048의 DB coordination과 shared key topology는 아직 구현·검증 전 |
 | Q-021 | P1 | Durable system state 이후 / public API auth 전 | First-party cookie, BFF와 Bearer API profile을 어떻게 분리하고 JWT/opaque access token, rotating refresh token, key rotation/revocation을 공통 Principal/Permission 경계에 연결할 것인가 |
 
 ## GDJ-0043에서 해결한 질문
@@ -64,6 +64,18 @@
   [EVID-129](status/TEST_EVIDENCE.md#evid-20260825-129--gdj-0045-corrected-exact-head-hosted-completion) / CI #146은
   PostgreSQL required 16/16·skip 0과 exact 27/27 jobs·359/359 steps를 통과해 ADR Accepted, DEV Verified와
   GDJ-0045 completed를 닫았습니다. Broader multi-runtime 답이 남으므로 Q-020은 `Partial`입니다.
+
+## GDJ-0046에서 검증할 질문
+
+- Active GDJ-0046/Proposed ADR-0048은 같은 SQLite file 또는 PostgreSQL schema를 쓰는 cooperative Runtime의
+  credential/session/capacity/audit/Article writer를 하나의 database coordination domain으로 선형화할 수 있는지
+  검증합니다. Public Schema IR, migration format과 sessions.Store를 확장하지 않고 additive backend SPI로 충분한지가
+  핵심입니다.
+- Shared CSRF key ring은 active key로 발급하고 bounded validation key set으로 rolling deployment 중 서로 검증하며,
+  zero config의 process-local 정책과 SYS-009/DEV-0008 historical meaning을 조용히 재작성하지 않습니다.
+- Logout/rotate는 DB fence가 정한 순서로 선형화합니다. Rotate-first 뒤 old-ID logout이 replacement family까지
+  폐기하는 강한 family-wide revocation은 generation/tombstone과 Store/schema 변경이 필요하므로 별도 후속 질문으로 남깁니다.
+- Q-020은 SYS-013..020의 actual two-process SQLite/PostgreSQL 및 exact hosted acceptance 전까지 `Partial`입니다.
 
 ## Public API authentication에서 검증할 질문
 

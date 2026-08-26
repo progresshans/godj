@@ -69,10 +69,15 @@ proposed → ready → active → completed
 | [GDJ-0043](0043-safe-template-validation-session-auth-and-article-admin.md) | completed | Safe template, validation, session/auth와 Article Admin 수직 단면 |
 | [GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) | completed | Session-authenticated Article JSON API와 closed parameterized routing |
 | [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md) | completed | Durable single-runtime system state와 restart-preserving Article Admin/API |
+| [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | active | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0이고 최근 terminal completion은
-[GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md)입니다. Corrected frozen source
+현재 active/ready packet은 1/0이고 유일한 active work는
+[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Activation baseline은
+`996c00a5fb4d634b5dc7bef4c5385f2353a89979`/tree `ebf73aaca349dfd56fdaf2cba0806ab03054cd09`이고,
+[ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 Proposed입니다.
+SYS-013..020은 아직 global aggregate에 등록되지 않았고 implementation/verification을 주장하지 않습니다.
+최근 terminal completion은 [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md)입니다. Corrected frozen source
 `6243682...`/tree `98076ea...`의
 [EVID-128](../docs/status/TEST_EVIDENCE.md#evid-20260825-128--gdj-0045-first-hosted-lock-failures-and-corrected-local-refreeze)은
 corrected full/386/1,016-file external archive와 audit를 통과했습니다. Exact submitted head `e673b3a...`/tree

@@ -223,6 +223,13 @@ DB/schema당 one live runtime, sequential restart, digest-only bearer storage와
 user/group/password lifecycle, DB-enforced multi-process uniqueness, distributed session, persistent CSRF key와 production 운영은
 아직 지원하지 않습니다.
 
+Active [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)와 Proposed
+[ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 같은 DB/schema를 사용하는
+cooperative Runtime을 backend coordinated transaction으로 선형화하고 deployment-shared active/validation CSRF key ring을
+주입하는 후속 hardening입니다. SYS-013..020은 아직 global contract registry에 등록되지 않았고 제품
+capability로 지원·검증됐다고 주장하지 않습니다. General Unique/Integer/CAS IR, non-cooperative writer,
+session-family revocation, JWT/OAuth와 production deployment는 별도 후속입니다.
+
 ## API
 
 - Request/Response abstraction
