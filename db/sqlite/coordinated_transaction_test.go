@@ -507,6 +507,12 @@ func TestCoordinatedAtomicRealMutationErrorRollsBackBeforeOtherBackendAcquires(t
 
 	callbackErr := errors.New("rollback requested after mutation")
 	mutationRan := make(chan struct{})
+	allowCallbackReturn := make(chan struct{})
+	var allowCallbackReturnOnce sync.Once
+	releaseCallback := func() {
+		allowCallbackReturnOnce.Do(func() { close(allowCallbackReturn) })
+	}
+	defer releaseCallback()
 	firstResult := make(chan error, 1)
 	var firstCalls atomic.Int32
 	go func() {
@@ -516,6 +522,7 @@ func TestCoordinatedAtomicRealMutationErrorRollsBackBeforeOtherBackendAcquires(t
 				return err
 			}
 			close(mutationRan)
+			<-allowCallbackReturn
 			return callbackErr
 		})
 	}()
@@ -526,6 +533,7 @@ func TestCoordinatedAtomicRealMutationErrorRollsBackBeforeOtherBackendAcquires(t
 	case <-time.After(5 * time.Second):
 		t.Fatal("first coordinated mutation did not run")
 	}
+	releaseCallback()
 	if err := waitCoordinatedResult(t, firstResult); !errors.Is(err, callbackErr) {
 		t.Fatalf("first CoordinatedAtomic() error = %v, want callback error", err)
 	}
