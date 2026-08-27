@@ -598,6 +598,28 @@ Concrete JWT/opaque issuer/verifier implementation, refresh token, OAuth/OIDC, k
   26/26 jobs·326/326 steps에서 hosted-verified됐고 GDJ-0037은 completed입니다. 이 완료는 Q-010/Q-017의 남은
   semver·raw-model·general upgrade나 PostgreSQL/Web capability를 구현했다는 뜻이 아닙니다.
 
+## Active capability plan: canonical application model facade
+
+[GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Proposed
+[ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 Q-017의 application-facing current ABI를 구현 중입니다.
+
+- Current product는 facade v2의 private named raw `model`과 explicit `Unwrap`이며 이 상태는 이미 구현됐습니다.
+- Planned v3는 private raw-model alias embedding으로 scalar와 app-owned ordinary method를 promotion하고 existing
+  project-owned relation origin/object/cache/presence/self state를 유지합니다.
+- Existing `Save`, `With*`, `Clear*`, relation accessor와 deep-clone `Unwrap` signatures는 유지합니다. Direct FK mutation은
+  accessor/With*/Clear*/Unwrap/Save 전에 canonical snapshot/full rebuild/all-success publication으로 changed edge만 reconcile합니다.
+- Generated/promoted field와 handwritten production method namespace collision은 whole-candidate compile에만 맡기지 않고
+  target mutation 전 bounded AST audit로 fail-closed합니다.
+- Wrapper direct JSON marshal/unmarshal은 planned fail-closed이고, `Unwrap`은 DTO 구축용 raw deep-clone escape이며 supported
+  Web JSON/template representation은 app-owned DTO입니다. Exported promoted field를 `html/template`에서 type-level로 숨긴다고
+  주장하지 않으며 wrapper direct template use는 unsupported/noncontractual입니다.
+- Facade v3는 existing app 4/project 8/bundle-seal 1 role roster와 format-1 manifest를 재사용해 Article exact 12와
+  relationdelete exact 16을 whole bundle로 다시 게시할 계획입니다.
+
+이 단락은 `Planned only`입니다. Product source, generated fixture와 manifest가 아직 바뀌지 않았고 direct promotion이나 v3를
+implemented/verified로 주장하지 않습니다. Reverse/general manager, installed-version negotiation과 first-alpha 이후 upgrader도
+이번 active packet의 capability가 아닙니다.
+
 ### Historical GDJ-0035 design and evidence snapshot
 
 GDJ-0035 당시 relation-migration decision 상태는 `Accepted/Partially Implemented`였습니다. Existing migration 제품의

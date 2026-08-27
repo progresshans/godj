@@ -5,7 +5,8 @@
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-27 (GDJ-0047 corrected exact head EVID-138 / CI #155 run `33049861740`)
 - 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-137 Intel timeout correction/attestation recapture와
-  corrected full/386/archive 통과; EVID-138 terminal hosted 통과)
+  corrected full/386/archive 통과; EVID-138 terminal hosted 통과; GDJ-0048 baseline `3882902...`의 SQLite
+  test-select synchronization correction은 focused normal/race/CGO0와 full SQLite/vet 통과, hosted descendant pending)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -36,7 +37,10 @@ Current-only reset은 EVID-103의 hosted gate까지 완료됐습니다. GDJ-0037
 full/386/repository-external source-clean-copy local gates와 exact correction head `d4643068...`의
 [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
 26/26 jobs·326/326 steps를 통과해 project publication 하위 경계에서 completed/hosted-verified됐습니다. Q-010은
-`Partial`, Q-017은 P1/open이며 first-alpha 이후 일반 upgrader/semver 호환은 여전히 open입니다.
+`Partial`입니다. Q-017은 [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)에서
+active이고 Proposed [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 current facade v3의 raw scalar/
+app method promotion, namespace/reconciliation/copy/JSON 경계를 다룹니다. First-alpha 이후 일반 upgrader/semver 호환은
+여전히 open입니다.
 
 ## 프로필 범위
 

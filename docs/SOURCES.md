@@ -115,6 +115,23 @@ proposal provenance로 분리했습니다. DRF 관찰과 normative RFC 결과가
 selector/deviation 후보로 게시합니다. EVID-138의 later ADR-0049 acceptance는 Phase A manifest의 historical
 `kind=proposal`, `reference=GDJ-0047`, `derived=false` provenance를 소급 변경하지 않습니다.
 
+## GDJ-0048 Go embedding and representation authority
+
+GDJ-0048의 facade 선택은 Django 내부 model 객체를 복사한 호환 계약이 아니라 Go public API 결정입니다. Activation 시점의
+local toolchain은 `go1.26.5 darwin/arm64`, GOROOT `/opt/homebrew/Cellar/go/1.26.5/libexec`입니다.
+
+- Local `doc/go_spec.html`의 embedded field, promoted field/method와 selector/method-set 규칙을 private alias embedding 및
+  method shadowing compile prototype의 language authority로 사용합니다.
+- Local standard-library `encoding/json` package documentation의 anonymous-field flattening과 `Marshaler` method precedence를
+  wrapper direct JSON fail-closed 결정의 language/runtime 근거로 사용합니다.
+- [Go language specification](https://go.dev/ref/spec)과
+  [`encoding/json` package documentation](https://pkg.go.dev/encoding/json)은 위 local exact documentation의 공식 public
+  locator입니다. Product acceptance는 moving web page가 아니라 checked Go source/compile/runtime tests에 묶습니다.
+
+External compile comparison은 private alias embedding, explicit unwrap-only와 pointer-map sidecar를 GoDj-owned fixture로 비교했고,
+raw `Save()`가 generated outer `Save(context.Context)`에 compile error 없이 가려질 수 있음을 확인했습니다. 이는 upstream source를
+번역한 artifact가 아니라 ADR-0050의 planning evidence이며 product implementation/pass 주장이 아닙니다.
+
 ## GDJ-0039 query-breadth source and provenance lock
 
 QRY-022..033은 Django exact commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
