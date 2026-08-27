@@ -57,7 +57,8 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
 
 ## 제안 결정
 
-선택지 B를 GDJ-0047 prototype 방향으로 제안합니다. Phase A reference와 Phase B~E product evidence가 통과한 뒤 Accepted 여부를 결정합니다.
+선택지 B를 GDJ-0047 prototype 방향으로 제안합니다. Reference, local product publication과 digest-pinned PostgreSQL required
+evidence는 통과했지만 final full/386/archive/hosted evidence가 남아 있으므로 terminal evidence 뒤 Accepted 여부를 결정합니다.
 
 1. `api`는 다음 최소 public contract를 소유합니다.
 
@@ -104,8 +105,9 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
    - syntactically valid invalid/inactive credential: JSON 401 + fixed `Bearer error="invalid_token"`
    - permission 부족: JSON 403 + fixed `Bearer error="insufficient_scope"`
    Dynamic realm/scope/description/URI와 permission/token material은 반사하지 않습니다.
-8. Exact DRF 3.18 Bearer-keyword `TokenAuthentication` 결과도 독립 관찰합니다. DRF가 malformed request나 permission challenge에서
-   RFC-priority proposal과 다르면 이를 복사하거나 숨기지 않고 contract comparison과 sparse deviation 후보로 기록합니다.
+8. Exact DRF 3.18 Bearer-keyword `TokenAuthentication` 결과도 독립 관찰합니다. DRF의 invalid-token detail/challenge와 permission
+   challenge가 RFC-priority 제품 동작과 다른 AUT-012/013/015는 DEV-0009의 일곱 `result` replacement로만 기록하며 DB/token-table
+   selector를 추가하지 않습니다.
 9. Bearer profile은 모든 HTTP method에서 CSRF를 호출하지 않고 CSRF cookie/header도 발급하지 않습니다. Session profile은 기존 CSRF
    의미를 유지합니다.
 10. Authorization은 Principal snapshot permission을 먼저 확인하고 configured `auth.Authorizer`가 추가 deny만 할 수 있습니다.
@@ -123,8 +125,8 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
 - JWT/opaque verifier를 나중에 adapter 뒤에 추가할 수 있지만 lower API core와 Article app은 token format을 알지 않습니다.
 - Construction-time error 반환으로 existing API session wrapper call sites가 작게 변경됩니다. Pre-alpha current-only publication에서
   한 번 재기준화하고 compatibility shim을 남기지 않습니다.
-- DRF parity보다 RFC semantics를 우선하는 selector가 생길 수 있으므로 Phase A observer와 deviation publication이 acceptance 전
-  필수입니다.
+- DRF parity보다 RFC semantics를 우선하는 AUT-012/013/015의 일곱 selector는 DEV-0009로 구현됐습니다. Terminal evidence와
+  acceptance 전에는 이 deviation이나 ADR을 Verified/Accepted로 표현하지 않습니다.
 - Fixed 4,096-byte limit은 첫 bounded profile의 제품 계약입니다. 더 큰 token/profile은 silent widening이 아니라 후속 결정이 필요합니다.
 
 ## 의도적으로 결정하지 않은 것
@@ -147,3 +149,25 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
 - Secret tests는 all fmt verbs used by product, JSON/error wrapping, HTTP body/header와 conformance observation에서 marker occurrence 0을 요구합니다.
 - Article SQLite/PostgreSQL E2E는 valid Bearer CRUD 결과, permission별 403, invalid denial mutation 0과 existing session regression을 검증합니다.
 - Affected normal/race/CGO0/vet와 final full/386/external archive/exact hosted matrix를 work packet 주기에 따라 실행합니다.
+
+## 현재 product-publication checkpoint
+
+2026-08-27 local checkpoint에서 common `api.Authentication`, refactored Session profile, strict injected
+`api/bearerauth`와 profile-neutral Article API constructor가 구현됐습니다. Exact AUT-009..016/API-011..012 actual은
+oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
+
+- AUT-009/010/011/014/016/API-011/012: `passing` 일곱 개
+- AUT-012/013/015: Implemented DEV-0009 `deviation` 세 개, exact 일곱 `result` replacement
+- Global reference: 22 sets / 249 contracts / 462 ordered bindings =
+  `218 passing + 19 deviation + 12 oracle_locked`
+- Product: 21 adapters / 237 eligible contracts = `218 passing + 19 deviation`
+- SQLite Article Bearer user-flow E2E: local pass
+- Digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10: Article Bearer E2E normal/race/CGO0과
+  source-bound two-process attestation pass
+- Exact source: commit `5469f41b2bb278feaedfc08b35798de7f0fd796d`,
+  tree `21cb835366c10b64ace161ecd304139f694c7c0f`
+- Affected normal/race/CGO0/vet/generate와 `make godj-conformance`: pass
+
+따라서 이 섹션은 구현 publication과 required backend 기록이지 terminal acceptance가 아닙니다. Full `make ci`, Linux/386,
+external archive와 exact hosted matrix가 완료되기 전까지 ADR 상태는 `Proposed`, DEV-0009는
+`Implemented`로 유지합니다.

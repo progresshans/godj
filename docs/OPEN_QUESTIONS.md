@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-26
+- 마지막 검토: 2026-08-27
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -20,7 +20,7 @@
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
-| Q-021 | Partial | GDJ-0047 active / token lifecycle·OAuth 후속 | Proposed ADR-0049/GDJ-0047은 first-party session, BFF와 strict injected Bearer resource-server profile을 공통 Principal/Permission 아래 분리해 검증 중; JWT/opaque 발급, refresh family, key rotation/revocation과 OAuth/OIDC는 open |
+| Q-021 | Partial | GDJ-0047 active / terminal validation·token lifecycle·OAuth 후속 | Proposed ADR-0049/GDJ-0047의 first-party session과 strict injected Bearer resource-server profile은 SQLite/PostgreSQL required까지 통과; final full/386/archive/hosted와 JWT/opaque 발급, refresh family, key rotation/revocation, OAuth/OIDC·production BFF는 open |
 
 ## GDJ-0043에서 해결한 질문
 
@@ -75,7 +75,7 @@
   transaction으로 bounded 답을 구현했습니다.
 - Shared CSRF key ring은 active key로 발급하고 bounded validation key set으로 rolling deployment 중 서로 검증하며,
   zero config의 process-local 정책과 SYS-009/DEV-0008 historical meaning을 조용히 재작성하지 않습니다.
-- SYS-013..020은 모두 oracle-blind product `passing`으로 게시됐습니다. Current reference는
+- SYS-013..020은 모두 oracle-blind product `passing`으로 게시됐습니다. 그 completed checkpoint reference는
   21/239/420=`211 passing + 16 deviation + 12 oracle_locked`, product는 20/227=`211 passing + 16 deviation`이며 remaining
   locked range는 MIG-075..086뿐입니다. Actual은 same-process two-Runtime HTTP handoff, 실제 two-process SQLite/PostgreSQL
   barrier/restart와 current-source-bound checked PostgreSQL 17.10 attestation을 포함합니다.
@@ -92,12 +92,17 @@
   Proposed [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 First-party Web의 HttpOnly durable session
   cookie+CSRF를 보존하고, BFF/독립 client용 `Authorization: Bearer`를 construction-time에 선택하는 별도 adapter로 검증합니다.
 - Lower `api`는 typed Principal/Permission handler 경계만 소유하고, `api/sessionauth`와 `api/bearerauth`가 서로 fallback하지 않는
-  profile을 구현하는 방향입니다. Bearer는 opaque redacted `Token`과 injected `Verifier`까지만 결정하며 JWT/opaque 형식은 고정하지 않습니다.
+  profile로 구현됐습니다. Bearer는 opaque redacted `Token`과 injected `Verifier`까지만 소유하며 JWT/opaque 형식은 고정하지 않습니다.
 - Refresh token을 채택하면 opaque CSPRNG bearer, digest-only storage, family/generation rotation, revocation/reuse detection과
   transaction ownership을 함께 결정합니다. Shared `auth.Principal`/Permission deny-overlay를 재사용하고 token 전용 permission
   체계를 만들지 않습니다.
-- AUT-009..016/API-011..012는 아직 게시·구현되지 않았고 current aggregate도 변하지 않았습니다. JWT/opaque issuance,
-  refresh lifecycle, signing/validation key ring, OAuth/OIDC와 production BFF는 별도 후속이므로 Q-021은 `Partial`입니다.
+- AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 일곱 result replacement의 Implemented
+  DEV-0009 `deviation`으로 게시됐고 oracle-blind actual 10/10과 SQLite Article Bearer E2E가 통과했습니다. Current local
+  reference는 22/249/462=`218 passing + 19 deviation + 12 oracle_locked`, product는
+  21/237=`218 passing + 19 deviation`입니다. Exact source `5469f41b...`의 digest-pinned PostgreSQL 17.10 Article
+  Bearer E2E normal/race/CGO0과 two-process source-bound attestation도 통과했습니다. Final full `make ci`, Linux/386,
+  external archive와 hosted evidence가 남아 ADR-0049는 Proposed입니다. JWT/opaque issuance, refresh lifecycle,
+  signing/validation key ring, OAuth/OIDC와 production BFF도 별도 후속이므로 Q-021은 `Partial`입니다.
 
 ## M0에서 해결한 질문
 

@@ -1,7 +1,7 @@
 ---
 id: GDJ-0047
 status: active
-updated: 2026-08-26
+updated: 2026-08-27
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "2ffcc88961b41e7ca81f52a981322e3f5f9d01df"
 depends_on: ["GDJ-0044", "GDJ-0046"]
@@ -193,14 +193,29 @@ examples/article/apiapp → api + articleapp
 ## 구현 단계
 
 - [x] Activation: work/Proposed ADR/status, exact IDs, authority split와 allowed/excluded paths 고정
-- [ ] Phase A: independent DRF/RFC reference, exact 10-contract manifest/oracle/NI/checksum과 `oracle_locked` aggregate publication
-- [ ] Phase B: common API authentication contract, session adapter construction error 전환, Article interface/atomic route construction과 regression tests
-- [ ] Phase C: strict redacted `api/bearerauth` parser/verifier/authorizer와 adversarial unit tests
-- [ ] Phase D: SQLite full-flow/profile-isolation E2E와 oracle-blind Go actual
-- [ ] Phase E: digest-pinned PostgreSQL required E2E, product status classification와 global conformance publication
-- [ ] Source checkpoint: affected normal/race/CGO0/vet, generated drift, secret scan와 system-state source-bound attestation recapture
+- [x] Phase A: independent DRF/RFC reference, exact 10-contract manifest/oracle/NI/checksum과 `oracle_locked` aggregate publication
+- [x] Phase B: common API authentication contract, session adapter construction error 전환, Article interface/atomic route construction과 regression tests
+- [x] Phase C: strict redacted `api/bearerauth` parser/verifier/authorizer와 adversarial unit tests
+- [x] Phase D: SQLite full-flow/profile-isolation E2E와 oracle-blind Go actual
+- [x] Phase E: digest-pinned PostgreSQL required E2E, product status classification와 global conformance publication
+- [x] Source checkpoint: affected normal/race/CGO0/vet, generated drift, secret scan와 system-state source-bound attestation recapture
 - [ ] Final frozen milestone: full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
 - [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
+
+## Source checkpoint 결과
+
+- Exact source: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+  `21cb835366c10b64ace161ecd304139f694c7c0f`; detailed commands and hashes are in
+  [EVID-135](../docs/status/TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint).
+- Product files: common `api.Authentication`, `api/sessionauth`, `api/bearerauth`, profile-neutral Article API and
+  SQLite/PostgreSQL Bearer E2E; reference/publication files: exact ten-contract manifest/oracle/baseline, DEV-0009 sparse
+  expectation/policy, oracle-blind Go actual and global Make/CI/protocol registry locks.
+- Decision: RFC-priority invalid-token/insufficient-scope challenge differences are exact seven-selector DEV-0009;
+  ADR-0049 remains Proposed and DEV-0009 remains Implemented until exact hosted acceptance.
+- Verification: affected normal/race/CGO0/vet, generated drift, exact 21-adapter comparison, digest-pinned PostgreSQL
+  normal/race/CGO0 and source-bound attestation passed. Independent audit found and closed one credential-canary false-green,
+  then returned P0..P3=0.
+- Not yet run: final full `make ci`, Linux/386, repository-external archive and exact hosted matrix.
 
 ## 검증 주기
 
@@ -216,19 +231,30 @@ examples/article/apiapp → api + articleapp
 
 ## 완료 조건
 
-- [ ] Existing first-party session Article API의 status/header/CSRF/permission/persistence 의미와 call sites가 통과함
-- [ ] Common API authentication boundary가 typed-nil/nil handler/configuration을 request publication 전에 fail-closed함
-- [ ] Bearer parser가 exactly-one header, fixed cap/grammar와 no fallback을 verifier 호출 전에 보장함
-- [ ] Missing/malformed/invalid/permission denial의 status/challenge와 DRF/RFC 차이가 artifact/deviation에서 명시됨
-- [ ] Raw credential이 error/fmt/JSON/log/artifact/test diagnostic에 등장하지 않음
-- [ ] Unsafe Bearer mutation은 CSRF 없이 성공하지만 invalid/denied/fallback 요청의 handler와 DB mutation은 0임
-- [ ] SQLite/PostgreSQL에서 같은 Article route/service/representation을 session과 Bearer profile이 재사용함
-- [ ] JWT/opaque/refresh/OAuth 구현 없이 verifier injection만으로 수직 단면이 닫힘
-- [ ] Global manifest/registry/inventory와 source-bound PostgreSQL attestation이 exact current source에 맞음
+- [x] Existing first-party session Article API의 status/header/CSRF/permission/persistence 의미와 call sites가 통과함
+- [x] Common API authentication boundary가 typed-nil/nil handler/configuration을 request publication 전에 fail-closed함
+- [x] Bearer parser가 exactly-one header, fixed cap/grammar와 no fallback을 verifier 호출 전에 보장함
+- [x] Missing/malformed/invalid/permission denial의 status/challenge와 DRF/RFC 차이가 artifact/deviation에서 명시됨
+- [x] Raw credential이 error/fmt/JSON/log/artifact/test diagnostic에 등장하지 않음
+- [x] Unsafe Bearer mutation은 CSRF 없이 성공하지만 invalid/denied/fallback 요청의 handler와 DB mutation은 0임
+- [x] SQLite/PostgreSQL에서 같은 Article route/service/representation을 session과 Bearer profile이 재사용함
+- [x] JWT/opaque/refresh/OAuth 구현 없이 verifier injection만으로 수직 단면이 닫힘
+- [x] Global manifest/registry/inventory와 source-bound PostgreSQL attestation이 exact current source에 맞음
 - [ ] Final local/hosted gates와 independent audit가 통과하고 status/evidence/ADR/PR이 같은 frozen source를 가리킴
 
 ## 인수인계
 
-현재 정확한 다음 작업은 Phase A입니다. 새 product API를 먼저 구현하지 말고 exact DRF/RFC observation과 GoDj-only decision
-dimension을 분리한 10-contract reference-only artifact를 게시합니다. 이때 기존 auth-session/article-api artifact bytes를
-재기준화하지 않고, observed DRF와 normative RFC status/challenge 차이를 먼저 고정한 뒤 implementation classification을 결정합니다.
+현재 source checkpoint는 `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+`21cb835366c10b64ace161ecd304139f694c7c0f`입니다. Exact reference/product aggregate는
+22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`, product
+21 adapters/237 contracts=`218 passing + 19 deviation`이며 AUT-012/013/015만 Implemented DEV-0009입니다.
+
+Digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL 17.10에서 exact fingerprint, source-bound two-process sentinel과
+Article Bearer E2E normal/race/CGO-disabled가 통과했습니다. Checked attestation은 1,134 bytes/SHA-256
+`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`, source binding은
+256 files/2,940,052 bytes/SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`입니다.
+독립 감사의 credential-scanner finding을 수정한 뒤 최종 P0..P3는 0이었습니다.
+
+정확한 다음 작업은 이 source와 publication 문서를 한 checkpoint로 고정한 뒤 full `make ci`, Linux/386,
+repository-external clean archive와 final audit를 한 번 실행하는 것입니다. 그 exact head를 non-force push하고 Draft PR #1의
+hosted matrix까지 성공해야 ADR-0049 Accepted, DEV-0009 Verified와 work completed를 검토합니다. Merge/release/deploy는 계속 제외합니다.

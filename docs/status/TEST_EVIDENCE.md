@@ -12479,3 +12479,97 @@ negotiation and production topology. DEV-0008 remains Verified for zero-config p
 not supersede it. The terminal evidence/status documentation is a documentation-only descendant of this tested source and receives
 diff/link/status gates rather than recursively re-running the product matrix. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge,
 release or deployment was performed.
+
+## EVID-20260827-135 — GDJ-0047 Bearer Authentication Product and PostgreSQL Source Checkpoint
+
+- Date/time: completed through 2026-08-27 local time
+- Work/contract IDs: GDJ-0047 active; ADR-0049 Proposed; DEV-0009 Implemented; Q-021 Partial;
+  AUT-009..016/API-011..012 product published
+- Exact source checkpoint: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+  `21cb835366c10b64ace161ecd304139f694c7c0f`, subject `conformance: refresh PostgreSQL source attestation`
+- Result: independent DRF/RFC reference, common Session/Bearer authentication boundary, SQLite/PostgreSQL Article Bearer
+  E2E, oracle-blind actual, sparse deviation publication and current-source PostgreSQL attestation passed source-checkpoint
+  gates. Full `make ci`, Linux/386, repository-external archive and exact hosted matrix remain pending.
+
+### Product and compatibility publication
+
+The source chain after the GDJ-0046 terminal baseline is:
+
+- `0e10f41` — exact ten-contract API authentication reference, oracle, payload-free baseline and checksum lock;
+- `07bdc0d` — common `api.Authentication`, construction-safe Session adapter, strict opaque/redacted `api/bearerauth` and
+  profile-neutral Article API;
+- `c1d48c9` — SQLite/PostgreSQL Bearer Article user-flow E2E;
+- `adbaa60` — oracle-blind ten-contract Go actual, DEV-0009 sparse policy/fixture and 21st product adapter;
+- `193fc4b` — exact credential-canary scanner hardening after independent false-green review;
+- `5469f41` — current-source PostgreSQL live-attestation refresh.
+
+The current aggregate is reference 22 sets/249 contracts/462 ordered bindings=
+`218 passing + 19 deviation + 12 oracle_locked`, product 21 adapters/237 eligible contracts=
+`218 passing + 19 deviation`. AUT-009/010/011/014/016/API-011/012 are `passing`; AUT-012/013/015 are
+DEV-0009 `deviation`. DEV-0009 allows exactly seven ordered `result/replace` selectors: four under AUT-012, one under
+AUT-013 and two under AUT-015. It allows no DB-state or token-table selector.
+
+Exact API authentication locks are:
+
+- manifest 7,224 bytes/SHA-256 `038d5b694ae16d2464965d2b967830a2b0a4818055b6d906ae5320b5abe122d0`;
+- DRF oracle 23,698 bytes/SHA-256 `73262bd3dbc505a110c4b500920f8f1c4df61be34c29c695343323431dbacef3`;
+- historical payload-free baseline 1,746 bytes/SHA-256
+  `9562a10f8d729777d35abf0c852a0e90cc98607bfc375252ecec5933dc625434`;
+- DEV-0009 product expectation 2,291 bytes/SHA-256
+  `85a9a8b2261e7265b00a33c2cf5b63b9e5b5cd963b2ac7e894dd77988206fc4b`;
+- oracle-blind actual 23,601 bytes/SHA-256
+  `203f5d5455d5f230a7c440a0458ef403cb10c37b9e8de4b4004cf1e485975632`.
+
+The exact top-level relation-product inventory was recomputed after all new tests: 1,066 run/1,066 pass/0 skip,
+110,405 payload bytes and SHA-256 `72b08a582679e3f9b6921b49dd3bc46a355023f0fd97a8a24c109b7ce2b1d83b`.
+
+### PostgreSQL and source-bound evidence
+
+The required local producer used digest-pinned
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+on Linux/amd64 and
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+It asserted fingerprint
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`, then passed the
+two-process same-schema coordination/restart sentinel and `TestArticleAPIBearerPostgresUserFlow` under normal, race and
+CGO-disabled execution. Required mode was enabled, so a missing service or skipped PostgreSQL test could not pass.
+
+The checked attestation is 1,134 bytes/SHA-256
+`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`; its sibling checksum file is
+103 bytes/SHA-256 `22b02cd0409b8fa39765f153ce33b6e66031dfaa9227b6ddd1a999dad900d725`. It records writer processes 2,
+same schema/barrier/restart true and divergence/loss/drift/secret occurrence 0, and binds 256 behavioral-source files,
+2,940,052 payload bytes, SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`.
+The temporary capture matched the checked artifact byte-for-byte and the temporary PostgreSQL container/network were removed.
+
+The first Go-container command exited before product execution because a login shell replaced the image PATH and could not
+find `go`. No capture was written. The corrected command used the image's exact Go path/environment and all producer/product
+tests above passed; the pre-execution environment failure is not product evidence.
+
+### Executed source-checkpoint verification
+
+The following gates exited 0 on the exact product source and source-bound evidence:
+
+```bash
+make generate-check
+make godj-conformance
+go test -count=1 ./api/... ./examples/article/... ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/systemstate/attestation
+go test -race -count=1 ./api/... ./examples/article/... ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/systemstate/attestation
+CGO_ENABLED=0 go test -count=1 ./api/... ./examples/article/... ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/systemstate/attestation
+go vet ./api/... ./examples/article/... ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/systemstate/attestation
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+```
+
+Focused runner normal/race/CGO-disabled/vet and DEV-0009 godjcheck passed after credential-scanner hardening. The scanner
+directly rejects exact canaries in observation JSON, HTTP response artifacts and logs, rejects empty canaries, and never
+reflects a credential in its error. AUT-010/011 and API-012 use unique unsupported/malformed canaries; AUT-015/API-012 also
+scan the live session cookie on Bearer no-fallback paths. Independent review repeated the runner twenty times and found
+P0/P1/P2/P3=`0/0/0/0`; product actual bytes remained unchanged.
+
+The local Homebrew `uv 0.12.3` does not satisfy the exact profile pin `uv 0.10.12`; an intentional no-rewrite oracle command
+therefore failed closed before reference execution. Exact `uv 0.10.12` is available through the local uv tool cache and will
+be placed first on PATH for the final `make ci`. This checkpoint does not claim that final gate, Linux/386, external archive,
+hosted success, ADR acceptance, DEV verification, work completion, merge, release or deployment.

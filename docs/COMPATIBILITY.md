@@ -4,6 +4,7 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-26 (GDJ-0046 Phase E corrected frozen source EVID-133, exact hosted EVID-134)
+- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 Bearer SQLite/PostgreSQL 통과, full/386/archive/hosted 대기)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -88,10 +89,12 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 [EVID-125](status/TEST_EVIDENCE.md#evid-20260824-125--gdj-0044-article-api-frozen-local-checkpoint)와
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
 
-Current checkout은 GDJ-0045의 one-runtime restart 경계를 보존하면서 GDJ-0046 cooperative multi-runtime actual을 함께 게시합니다.
-Reference는 21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12 oracle_locked`, product는 20
-sets/227 contracts=`211 passing + 16 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified
-DEV-0008 expected의 네 selector만 허용하는 `deviation`이고, 남은 reference-only locked range는 MIG-075..086뿐입니다.
+Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative multi-runtime actual을 보존하면서 GDJ-0047
+Bearer authentication profile actual을 함께 게시합니다. Reference는 22 sets/249 contracts/462 ordered bindings=
+`218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 contracts=
+`218 passing + 19 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
+`deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Implemented DEV-0009
+`deviation`이고 남은 reference-only locked range는 MIG-075..086뿐입니다.
 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`는 historical lock으로 보존됩니다.
@@ -105,7 +108,7 @@ system-state manifest/oracle은 11,143/21,242 bytes와 SHA-256
 `b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`/
 `d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`입니다.
 
-Checked PostgreSQL 17.10 attestation은 current behavioral source 250 files/2,855,113 payload bytes/SHA-256
+GDJ-0046 terminal의 checked PostgreSQL 17.10 attestation은 당시 behavioral source 250 files/2,855,113 payload bytes/SHA-256
 `b0356da11869a1bfaf8573ea0734913f56529d9acfe25dd68b4aeaadcb72abb8`에 묶인 1,134 bytes/SHA-256
 `52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`입니다. Local full/386/1,055-file external
 archive와 exact hosted proof는 [EVID-133](status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final) /
@@ -115,11 +118,18 @@ non-cooperative writer, family-wide revocation, JWT/OAuth와 production readines
 
 Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
 [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 first-party durable session+CSRF를 기본 profile로 보존하고,
-BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission core에 연결하는 다음 bounded slice입니다. Activation
-시점에는 AUT-009..016/API-011..012 artifact나 product code가 아직 없으므로 current 21/239/420 reference와 20/227 product
-aggregate는 바뀌지 않습니다. Bearer transport가 JWT support를 뜻하지 않으며 token issuance/refresh/OAuth/key lifecycle은 계속 open입니다.
+BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission core에 연결하는 bounded slice입니다. Exact 열 계약의
+oracle-blind actual은 DEV-0009 sparse expectation과 10/10을 통과했습니다. SQLite E2E와 exact source
+`5469f41b2bb278feaedfc08b35798de7f0fd796d` / tree `21cb835366c10b64ace161ecd304139f694c7c0f`의
+digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0 및 two-process
+attestation도 통과했습니다. Current attestation은 source binding 256 files/2,940,052 bytes/
+`caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`, checked bytes 1,134/
+`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다. `make godj-conformance`와 affected
+normal/race/CGO0/vet/generate도 통과했습니다. Final full `make ci`, Linux/386, external archive와 hosted gate가 남아 있으므로
+ADR-0049는 Proposed, DEV-0009는 Implemented 상태입니다. Bearer transport/resource-server support가 JWT/opaque issuance를 뜻하지 않으며
+refresh/OAuth/OIDC/key lifecycle과 production BFF는 계속 open입니다.
 
-OpenAPI, browsable API, token auth와 Channels/Realtime exact version은 여전히 open이므로 Q-016은 `Partial`입니다.
+OpenAPI, browsable API, broader token lifecycle과 Channels/Realtime exact version은 여전히 open이므로 Q-016/Q-021은 `Partial`입니다.
 Django 6.1 호환이라고 해서 DRF/Channels 호환까지 자동으로 주장하지 않습니다.
 
 ## 호환성 차원

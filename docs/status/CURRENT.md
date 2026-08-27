@@ -1,9 +1,24 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-26
+- 마지막 갱신: 2026-08-27
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 GDJ-0046 corrected frozen source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`
+- 현재 GDJ-0047 source checkpoint: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+  `21cb835366c10b64ace161ecd304139f694c7c0f`. Common `api.Authentication`, Session adapter, strict
+  `api/bearerauth`, profile-neutral Article API, SQLite/PostgreSQL Bearer E2E와 AUT-009..016/API-011..012 oracle-blind
+  actual이 구현됐습니다. Reference는 22 sets/249 contracts/462 ordered bindings=
+  `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 contracts=
+  `218 passing + 19 deviation`입니다. AUT-012/013/015만 exact seven-result-selector DEV-0009 `deviation`이고
+  DEV-0009는 Implemented, ADR-0049는 Proposed, Q-021은 `Partial`입니다.
+- Digest-pinned Linux/amd64 Go 1.26.5/PostgreSQL 17.10 exact fingerprint에서 source-bound two-process sentinel과
+  `TestArticleAPIBearerPostgresUserFlow` normal/race/CGO-disabled가 통과했습니다. Current source binding은
+  256 files/2,940,052 bytes/SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`, checked
+  PostgreSQL attestation은 1,134 bytes/SHA-256 `1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다.
+  [EVID-135](TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint)의
+  affected normal/race/CGO0/vet, generated drift, full 21-adapter product comparison과 credential-scanner 독립 감사도
+  통과했습니다. 정확한 다음 작업은 documentation checkpoint 뒤 final full `make ci`, Linux/386, repository-external archive,
+  final audit, non-force push와 Draft PR exact-hosted matrix입니다. 아직 terminal acceptance가 아닙니다.
+- GDJ-0046 terminal corrected frozen source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`
   (`ci: harden exact Python setup`), tree `4f061289b240b4739ec43155b08b5909e95eddc0`. Initial Phase E publication
   `de5cd505b598bc6fea3f7869d57d9c6c724f394a`은 actual/product source를 게시했고, known upstream
   `actions/setup-python` v6 manifest-truncation을 드러낸 CI #152는 진단으로만 보존합니다. Correction head는 setup-python v7
@@ -22,9 +37,8 @@
   distributed/production 범위 때문에 `Partial`입니다.
 - GDJ-0047 activation baseline은 terminal documentation commit `2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree
   `dee452188c0219a9a5759fb694196dc48d008a2c`입니다. [GDJ-0047](../../work/0047-api-authentication-profiles-and-bearer-article-api.md)은
-  active, [ADR-0049](../adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed, Q-021은 `Partial`입니다. Activation
-  시점에는 product/contract artifact가 아직 없어 current reference/product aggregate는 위 21/239/420과 20/227 그대로입니다.
-  정확한 다음 작업은 AUT-009..016/API-011..012 exact 10-contract reference-only Phase A publication입니다.
+  active, [ADR-0049](../adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed, Q-021은 `Partial`입니다.
+  Activation 당시의 21/239/420 reference와 20/227 product aggregate는 위 current source checkpoint가 supersede했습니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
   Activation docs commit은 `5d6734883223faedacf94be133b71176abcb2a4c`, tree

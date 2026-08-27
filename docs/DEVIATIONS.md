@@ -1,8 +1,9 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-25
-- 현재 구현·검증된 deviation: DEV-0001..DEV-0008 여덟 건 / contract 열여섯 개
+- 마지막 갱신: 2026-08-27
+- 현재 검증된 deviation: DEV-0001..DEV-0008 여덟 건 / contract 열여섯 개
+- 현재 구현됐으나 terminal 검증 전인 deviation: DEV-0009 한 건 / contract 세 개
 - Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
@@ -593,3 +594,88 @@ SYS-019에서 cross-Runtime/staged-rotation을 검증하지만, 구성하지 않
 Default configuration 자체를 persistent/shared key policy로 바꾸고 그 migration·rotation·secret-provider 경계를 별도 ADR에서
 채택할 때만 Django behavior로 복귀하거나 새 deviation으로 supersede합니다. ADR-0048의 explicit opt-in ring만으로는 zero-config
 SYS-009를 supersede하지 않습니다. Comparator를 완화하거나 stale-token case를 삭제해서 통과시키지 않습니다.
+
+## DEV-0009 — Bearer 실패 challenge는 RFC 6750 error 의미를 명시
+
+- Status: Implemented
+- Date: 2026-08-27
+- Contracts: AUT-012, AUT-013, AUT-015
+- Reference profile/backend: DRF 3.18.0 / Django 6.1 / CPython 3.14.3 / SQLite 3.50.4 exact profile;
+  GoDj SQLite and digest-pinned PostgreSQL 17.10 actual
+- Related ADR/work/evidence:
+  [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md),
+  [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md),
+  terminal evidence pending
+
+### Django의 관찰 가능 동작
+
+DRF 3.18 `TokenAuthentication`의 Bearer-keyword exact observation은 syntactically valid unknown/inactive token을
+401로 거부하면서 response detail code를 `authentication_failed`, `WWW-Authenticate`를 parameter 없는 `Bearer`로
+반환합니다. Authenticated principal의 permission 거부는 403 `permission_denied`이며 challenge가 없습니다. Session
+cookie가 함께 있어도 invalid Bearer가 선택된 AUT-015 lane은 unknown token과 같은 401
+`authentication_failed` + `Bearer` 결과입니다.
+
+### GoDj에서 채택한 동작
+
+GoDj strict Bearer resource-server profile은 HTTP status와 mutation 의미를 유지하면서 RFC 6750 error category를 fixed
+challenge에 명시합니다. Unknown/inactive credential은 401 JSON `not_authenticated`와
+`Bearer error="invalid_token"`, authenticated principal의 permission 부족은 403과
+`Bearer error="insufficient_scope"`를 반환합니다. Session cookie가 있어도 invalid Bearer를 session profile로
+fallback하지 않습니다.
+
+Sparse expectation은 다음 일곱 `result` replacement만 허용합니다.
+
+- AUT-012 `[0].response.error_codes.detail`:
+  `authentication_failed` → `not_authenticated`
+- AUT-012 `[0].response.www_authenticate`:
+  `Bearer` → `Bearer error="invalid_token"`
+- AUT-012 `[1].response.error_codes.detail`:
+  `authentication_failed` → `not_authenticated`
+- AUT-012 `[1].response.www_authenticate`:
+  `Bearer` → `Bearer error="invalid_token"`
+- AUT-013 `www_authenticate`: `null` → `Bearer error="insufficient_scope"`
+- AUT-015 `[1].response.error_codes.detail`:
+  `authentication_failed` → `not_authenticated`
+- AUT-015 `[1].response.www_authenticate`:
+  `Bearer` → `Bearer error="invalid_token"`
+
+DB/token-table selector는 없으며 valid credential, missing/unsupported credential, Article mutation, verifier count와
+나머지 result/metrics는 locked reference와 같아야 합니다.
+
+### 이유와 고려한 대안
+
+DRF의 generic authentication failure vocabulary를 그대로 복제하는 안보다 RFC 6750의 resource-server error category를
+명시하면 client가 missing credential, invalid token과 insufficient scope를 status/challenge에서 구분할 수 있습니다. Dynamic
+realm/scope/description/URI를 반사하거나 verifier error text를 노출하는 안은 credential·permission leakage surface를 넓히므로
+채택하지 않았습니다. 한 endpoint에서 Session과 Bearer를 순서대로 시도하는 안도 invalid Bearer downgrade와 CSRF ownership을
+모호하게 하므로 채택하지 않았습니다.
+
+### 사용자·데이터·migration 영향
+
+Client가 보는 401/403 status와 성공/실패의 Article durable state는 reference와 같습니다. 차이는 invalid token과 permission
+denial response의 fixed JSON detail category/challenge입니다. Raw bearer, permission 이름과 verifier cause는 포함하지 않습니다.
+Schema, migration, session row와 token table을 추가하거나 변경하지 않습니다.
+
+### backend/concurrency/security 영향
+
+이 차이는 persistence backend와 무관한 request authentication 경계입니다. SQLite Article E2E와 digest-pinned Linux/amd64
+Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0 및 two-process attestation이 통과했습니다. Bearer adapter는
+cookie/query/body fallback과 CSRF를 사용하지 않고, redacted opaque token과 injected verifier만 소유합니다. JWT/opaque token
+발급, refresh family, OAuth/OIDC, key rotation/revocation과 production BFF는 이 deviation의 범위가 아닙니다.
+
+### 구현과 검증 조건
+
+- Manifest는 AUT-012/013/015만 `deviation`이고 각각 exact `decision=DEV-0009`, `derived=false` provenance를 가짐
+- `godj-api-authentication-deviation-expected.json`은 위 일곱 result replacement만 exact order/type/value로 소유
+- Code-owned DEV-0009 policy는 selector/status/provenance의 누락·추가·중복과 unknown decision을 actual 생성 전에 fail-closed
+- Oracle/expected/deviation fixture를 읽지 않는 GoDj actual이 exact 10/10, unexpected difference 0으로 로컬 통과
+- SQLite와 PostgreSQL Article Bearer user-flow E2E, PostgreSQL two-process attestation 및 affected
+  normal/race/CGO0/vet/generate와 `make godj-conformance` 통과
+- Final full `make ci`, Linux/386, external archive와 exact hosted matrix는 terminal acceptance 전에 별도 실행
+- ADR-0049가 Proposed인 현재는 `Implemented`이며, terminal evidence와 ADR acceptance 전에는 `Verified`로 올리지 않음
+
+### 복귀 또는 supersede 조건
+
+DRF generic challenge parity가 RFC 6750 error category보다 우선해야 한다는 제품 근거가 생기거나 더 넓은 standardized problem
+details/authentication profile이 채택되면 새 ADR/deviation으로 supersede합니다. Locked DRF oracle을 수정하거나 comparator에서
+challenge/detail을 무시해 복귀하지 않습니다.

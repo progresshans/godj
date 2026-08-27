@@ -151,6 +151,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/article-admin-manifest.json` | ADM-001..010 bounded Article Admin contract; 9 passing + 1 DEV-0005 |
 | `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
 | `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
+| `contracts/api-authentication-manifest.json` | DRF/RFC/GoDj AUT-009..016/API-011..012 authentication profile contract; 7 passing + 3 Implemented DEV-0009 |
 | `contracts/system-state-manifest.json` | SYS-001..020 system-state contract; 19 passing + SYS-009 DEV-0008 deviation under Accepted ADR-0048 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
@@ -166,7 +167,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `runners/django` | 명시적인 Django/DRF observation과 GoDj decision-oracle scenario, type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..053 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 Article API까지 제품 package를 실행하는 스무 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 Article Bearer API까지 제품 package를 실행하는 스물한 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -251,18 +252,46 @@ WEB-028/029의 eight sparse selectors는 Verified DEV-0006, API-001/003/010의 s
 DEV-0007만 허용하고 root-list comparator도 selector/type/count를 fail-closed하게 검증합니다. 두 actual comparison은
 각각 8/8과 10/10에서 unexpected difference 0입니다.
 
-Current checkout의 global reference는 21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12
-oracle_locked`, product는 20 adapters/227 eligible contracts=`211 passing + 16 deviation`입니다. SYS-001..020 actual은
-global registry/Makefile에 게시됐고 locked/unregistered range는 MIG-075..086뿐입니다. Four-coordinate relation inventory는
-GDJ-0046 Phase E source를 포함해 1,054/1,054/0, 108,991 bytes, SHA-256
+GDJ-0046 terminal checkout의 global reference는 21 sets/239 contracts/420 ordered bindings=
+`211 passing + 16 deviation + 12 oracle_locked`, product는 20 adapters/227 eligible contracts=
+`211 passing + 16 deviation`이었습니다. SYS-001..020 actual은 global registry/Makefile에 게시됐고
+locked/unregistered range는 MIG-075..086뿐이었습니다. 그 terminal four-coordinate relation inventory는
+1,054/1,054/0, 108,991 bytes, SHA-256
 `ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3`입니다.
 
 Current Phase E final local `make ci`, Linux/386, 1,055-file external archive와 source audit는
 [EVID-133](../docs/status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final), exact
 hosted gate와 PostgreSQL/live-attestation sentinels는
 [EVID-134](../docs/status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion)에 기록됩니다.
-OpenAPI, browsable API, token auth, nested/bulk serializer, non-cooperative writer, distributed coordination,
-Channels/Realtime와 production readiness는 이 gate가 증명하지 않습니다.
+OpenAPI, browsable API, Bearer/token auth, nested/bulk serializer, non-cooperative writer, distributed coordination,
+Channels/Realtime와 production readiness는 이 GDJ-0046 gate가 증명하지 않았습니다.
+
+## GDJ-0047 API authentication profile product-publication gate
+
+`api-authentication-manifest.json`은 exact DRF/RFC/GoDj authority를 분리한 AUT-009..016/API-011..012 열 계약을
+게시합니다. AUT-009/010/011/014/016/API-011/012 일곱 개는 `passing`이고 AUT-012/013/015 세 개는
+Implemented DEV-0009 `deviation`입니다. Sparse expectation은 invalid/inactive token detail/challenge 네 개,
+permission challenge 한 개와 invalid-Bearer-with-session detail/challenge 두 개, 모두 합쳐 exact 일곱
+`result` replacement만 허용합니다. DB/token-table selector는 없습니다.
+
+Oracle/expected/deviation fixture를 읽지 않는 스물한 번째 GoDj actual adapter는 열 계약 모두를 관찰하고 local exact
+comparison 10/10, unexpected difference 0을 통과했습니다. SQLite Article Bearer user-flow E2E도 통과했습니다.
+Exact source commit `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+`21cb835366c10b64ace161ecd304139f694c7c0f`의 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10
+fingerprint에서 같은 Article Bearer flow normal/race/CGO0과 two-process attestation도 통과했습니다.
+
+Checked attestation은 current behavioral source 256 files/2,940,052 payload bytes/SHA-256
+`caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`에 묶인 1,134 bytes/SHA-256
+`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다. Attestation checksum file은
+103 bytes/SHA-256 `22b02cd0409b8fa39765f153ce33b6e66031dfaa9227b6ddd1a999dad900d725`입니다.
+`make godj-conformance`와 affected normal/race/CGO0/vet/generate도 같은 source에서 통과했습니다.
+
+Current local reference는 22 sets/249 contracts/462 ordered bindings=
+`218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=
+`218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Proposed,
+DEV-0009는 Implemented이므로 full `make ci`, Linux/386, external archive와 exact hosted matrix 전에는 이 checkpoint를
+terminal acceptance나 Verified deviation으로 표현하지 않습니다. JWT/opaque token issuance,
+refresh family, OAuth/OIDC, signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
 ## GDJ-0045 durable system-state reference gate
 

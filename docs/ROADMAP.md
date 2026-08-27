@@ -36,9 +36,15 @@
   `db.CoordinatedAtomic`, fenced system-state/Article writers, explicit shared CSRF key ring과 two-process backend restart를
   구현했습니다. Corrected frozen source `29d62469...`의 EVID-133 local full/386/1,055-file external archive 뒤
   EVID-134/CI #153 exact hosted matrix가 terminal acceptance를 닫았습니다. SYS-013..020은 모두 product `passing`이고
-  current reference는 21/239/420=`211+16+12 locked`, product는 20/227=`211+16`이며 remaining locked range는
+  그 terminal reference는 21/239/420=`211+16+12 locked`, product는 20/227=`211+16`이며 remaining locked range는
   MIG-075..086뿐입니다. General Unique/Integer/CAS IR, non-cooperative writer, session-family revocation, JWT/OAuth와
   production topology는 이 packet에 포함하지 않습니다.
+  현재 active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 common
+  authentication boundary와 strict injected Bearer resource-server profile을 게시했습니다. AUT-009..016/API-011..012
+  actual 10/10, SQLite와 digest-pinned PostgreSQL 17.10 Article Bearer E2E 및 two-process attestation이 통과했고
+  분류는 일곱 `passing` + AUT-012/013/015 Implemented DEV-0009 `deviation` 세 개입니다. Current local reference는
+  22/249/462=`218+19+12 locked`, product는 21/237=`218+19`입니다. Final full/386/archive/hosted evidence 전이므로 ADR-0049는 Proposed이고
+  GDJ-0047은 completed/Verified가 아닙니다. JWT/opaque issuance, refresh, OAuth/OIDC와 production BFF도 제외합니다.
   GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
@@ -104,12 +110,13 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 20 adapters/227 contracts의 `211 passing + 16 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 21 adapters/237 contracts의 `218 passing + 19 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
-  exact-head hosted-verified됐습니다.
-- 마지막 검토: 2026-08-26
+  exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Implemented deviations`는 local product
+  publication과 SQLite/PostgreSQL required까지 통과했지만 final full/386/archive/hosted evidence 전입니다.
+- 마지막 검토: 2026-08-27
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -710,9 +717,19 @@ DB unique IR, persistent/shared CSRF key와 production readiness는 계속 포�
 경계를 대체하지 않고 확장한 completed M6 hardening batch입니다. Accepted
 [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)은 SQLite `BEGIN IMMEDIATE`,
 PostgreSQL transaction advisory lock과 injected active/validation CSRF key ring으로 cooperative two-Runtime/two-process를
-검증합니다. SYS-013..020은 모두 product `passing`으로 전환됐고 current reference는
+검증합니다. SYS-013..020은 모두 product `passing`으로 전환됐고 GDJ-0046 terminal reference는
 21/239/420=`211+16+12 locked`, product는 20/227=`211+16`입니다. Same-process HTTP handoff, distinct-process
 SQLite/PostgreSQL barrier/restart와 source-bound live attestation은 EVID-133/134의 local/hosted gates를 통과했습니다.
+
+[GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 M7의 active Bearer
+resource-server batch입니다. Proposed [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)의 common
+`api.Authentication`, Session/Bearer profile isolation, opaque redacted token/injected verifier와 profile-neutral Article handlers를
+구현했습니다. Exact AUT-009..016/API-011..012 actual 10/10과 SQLite E2E는 local 통과했고, 일곱 passing과
+AUT-012/013/015 Implemented DEV-0009 세 deviation으로 게시됐습니다. Exact source
+`5469f41b2bb278feaedfc08b35798de7f0fd796d` / tree `21cb835366c10b64ace161ecd304139f694c7c0f`의
+digest-pinned PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0과 two-process source-bound attestation도
+통과했습니다. Final full `make ci`, Linux/386, external archive와 hosted gate는 남아 있습니다. 따라서
+ADR/work/deviation을 terminal Accepted/completed/Verified로 올리지 않습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
@@ -733,7 +750,8 @@ SQLite/PostgreSQL barrier/restart와 source-bound live attestation은 EVID-133/1
 - API reference profile 확정 — GDJ-0044에서 DRF 3.18.0 exact isolated profile을 Accepted/Verified
 - serializer, JSON parser/renderer, session authentication/permission — GDJ-0044 bounded slice completed
 - bounded Article list/create/detail/PUT/PATCH/delete와 parameter Router, pagination/filter/order — GDJ-0044 completed
-- first-party session/BFF와 strict injected Bearer resource-server profile — GDJ-0047 active, ADR-0049 Proposed; JWT/refresh/OAuth 제외
+- first-party session/BFF와 strict injected Bearer resource-server profile — GDJ-0047 SQLite/PostgreSQL required 통과,
+  final full/386/archive/hosted 대기; ADR-0049 Proposed, JWT/opaque issuance·refresh·OAuth/OIDC·production BFF 제외
 - OpenAPI와 browsable API — 별도 후속 결정, 현재 제외
 
 ## M8 — Realtime

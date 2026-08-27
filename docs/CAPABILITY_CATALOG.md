@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-26
+- 마지막 검토: 2026-08-27
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -262,8 +262,13 @@ OpenAPI, browsable API, token auth, nested/bulk serializer와 M7 전체 완료�
 Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
 [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 기존 first-party session+CSRF profile을 보존하면서
 strict `Authorization: Bearer` resource-server adapter가 같은 `auth.Principal`/Permission과 Article handlers를 재사용하는 bounded
-수직 단면입니다. 현재는 activation 문서만 존재하고 AUT-009..016/API-011..012 reference/product 구현은 아직 없습니다. JWT/opaque
-token issuance, refresh family, OAuth/OIDC, signing key provider와 production BFF는 이 packet의 지원 주장이 아닙니다.
+수직 단면입니다. Common authentication boundary, Session adapter refactor, opaque redacted Bearer token/injected verifier와
+profile-neutral Article API가 local product publication에 도달했습니다. AUT-009/010/011/014/016/API-011/012 일곱 개는
+`passing`, AUT-012/013/015 세 개는 일곱 result selector의 Implemented DEV-0009 `deviation`이며 exact actual comparison
+10/10과 SQLite Article Bearer E2E가 통과했습니다. Exact source `5469f41b...`의 digest-pinned PostgreSQL 17.10
+Article Bearer E2E normal/race/CGO0 및 two-process source-bound attestation도 통과했습니다. Final full/386/archive/hosted
+evidence가 남아 있어 ADR은 Proposed이고 이 기능을 terminal Verified로 표현하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
+signing key provider와 production BFF는 이 packet의 지원 주장이 아닙니다.
 
 ## Realtime
 
@@ -557,6 +562,16 @@ production readiness, general reload 오케스트레이션은 지원 주장에�
 
 Durable user/session/audit, arbitrary converter, generated ModelSerializer, OpenAPI/browsable API/token auth,
 Channels/Realtime와 production serving은 이 mirror의 capability가 아닙니다.
+
+## Current local implementation mirror: Bearer Article API
+
+[GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)의 local product-publication checkpoint는
+common `api.Authentication`, updated Session adapter와 strict injected `api/bearerauth`를 같은 Article handlers에 연결합니다.
+Exactly-one bounded Authorization header, fixed 401/400/403 challenge, cookie/query/body no-fallback, Bearer CSRF bypass,
+deny-overlay permission과 secret-free diagnostics를 구현했습니다. Exact actual 10/10과 SQLite Article CRUD/denial E2E는
+통과했고 PostgreSQL 17.10 Article flow normal/race/CGO0과 checked two-process attestation도 통과했습니다. Terminal
+full `make ci`/Linux 386/external archive/hosted evidence 전이므로 이 mirror는 아직 Accepted/Verified capability가 아닙니다.
+Concrete JWT/opaque issuer/verifier implementation, refresh token, OAuth/OIDC, key lifecycle와 production BFF는 없습니다.
 
 ## Current implementation mirror: project generated bundle
 
