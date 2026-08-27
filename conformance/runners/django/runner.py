@@ -74,6 +74,9 @@ from .template_form_scenarios import (  # noqa: E402
 )
 from .auth_admin_proxy import SCENARIOS as AUTH_ADMIN_SCENARIOS  # noqa: E402
 from .article_api_proxy import SCENARIOS as ARTICLE_API_SCENARIOS  # noqa: E402
+from .api_authentication_decisions import (  # noqa: E402
+    SCENARIOS as API_AUTHENTICATION_DECISION_SCENARIOS,
+)
 from .system_state_decisions import (  # noqa: E402
     SCENARIOS as SYSTEM_STATE_DECISION_SCENARIOS,
 )
@@ -85,6 +88,19 @@ from .system_state_scenarios import (  # noqa: E402
 SYSTEM_STATE_SCENARIOS = {
     **SYSTEM_STATE_DECISION_SCENARIOS,
     **SYSTEM_STATE_DJANGO_SCENARIOS,
+}
+API_AUTHENTICATION_SCENARIOS = {
+    **API_AUTHENTICATION_DECISION_SCENARIOS,
+    **{
+        name: ARTICLE_API_SCENARIOS[name]
+        for name in (
+            "drf.api_authentication.missing_and_unsupported",
+            "drf.api_authentication.invalid_and_valid_token",
+            "drf.api_authentication.permission_denial",
+            "drf.api_authentication.unsafe_without_csrf",
+            "drf.api_authentication.profile_isolation",
+        )
+    },
 }
 EXTENDED_SYSTEM_STATE_SCENARIOS = (
     "godj.system_state.explicit_migration_gate",
@@ -129,6 +145,7 @@ SCENARIO_REGISTRIES = (
     TEMPLATE_FORM_SCENARIOS,
     AUTH_ADMIN_SCENARIOS,
     ARTICLE_API_SCENARIOS,
+    API_AUTHENTICATION_DECISION_SCENARIOS,
     SYSTEM_STATE_SCENARIOS,
 )
 scenario_names = [name for registry in SCENARIO_REGISTRIES for name in registry]
@@ -305,6 +322,13 @@ DEFAULT_ARTICLE_API_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json"
 )
+DEFAULT_API_AUTHENTICATION_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/api-authentication-manifest.json"
+)
+DEFAULT_API_AUTHENTICATION_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json"
+)
 DEFAULT_SYSTEM_STATE_MANIFEST = (
     REPOSITORY_ROOT / "conformance/contracts/system-state-manifest.json"
 )
@@ -339,6 +363,7 @@ KNOWN_MANIFEST_ORACLES = {
     DEFAULT_ARTICLE_ADMIN_MANIFEST.resolve(): DEFAULT_ARTICLE_ADMIN_ORACLE,
     DEFAULT_PARAMETER_ROUTING_MANIFEST.resolve(): DEFAULT_PARAMETER_ROUTING_ORACLE,
     DEFAULT_ARTICLE_API_MANIFEST.resolve(): DEFAULT_ARTICLE_API_ORACLE,
+    DEFAULT_API_AUTHENTICATION_MANIFEST.resolve(): DEFAULT_API_AUTHENTICATION_ORACLE,
     DEFAULT_SYSTEM_STATE_MANIFEST.resolve(): DEFAULT_SYSTEM_STATE_ORACLE,
 }
 

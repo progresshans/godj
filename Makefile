@@ -72,6 +72,9 @@ ARTICLE_API_MANIFEST := conformance/contracts/article-api-manifest.json
 ARTICLE_API_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json
 ARTICLE_API_NOT_IMPLEMENTED := conformance/fixtures/godj-article-api-not-implemented.json
 ARTICLE_API_DEVIATION_EXPECTED := conformance/fixtures/godj-article-api-deviation-expected.json
+API_AUTHENTICATION_MANIFEST := conformance/contracts/api-authentication-manifest.json
+API_AUTHENTICATION_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json
+API_AUTHENTICATION_NOT_IMPLEMENTED := conformance/fixtures/godj-api-authentication-not-implemented.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -209,6 +212,10 @@ conformance-check:
 		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) -suite $(ARTICLE_API_ORACLE)
 	go run ./conformance/cmd/contractcheck \
 		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) -suite $(ARTICLE_API_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) -suite $(API_AUTHENTICATION_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) -suite $(API_AUTHENTICATION_NOT_IMPLEMENTED)
 
 godj-conformance:
 	go run ./conformance/cmd/godjcheck \
@@ -343,6 +350,9 @@ oracle-check:
 	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
 		--profile $(DRF_PROFILE) --manifest $(ARTICLE_API_MANIFEST) \
 		--output $(ARTICLE_API_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
+		--profile $(DRF_PROFILE) --manifest $(API_AUTHENTICATION_MANIFEST) \
+		--output $(API_AUTHENTICATION_ORACLE) --check
 
 oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -407,6 +417,9 @@ oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
 		--profile $(DRF_PROFILE) --manifest $(ARTICLE_API_MANIFEST) \
 		--output $(ARTICLE_API_ORACLE)
+	LC_ALL=C TZ=UTC uv run --project conformance/reference/drf --frozen python -m conformance.runners.django \
+		--profile $(DRF_PROFILE) --manifest $(API_AUTHENTICATION_MANIFEST) \
+		--output $(API_AUTHENTICATION_ORACLE)
 
 ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance
 

@@ -110,7 +110,7 @@ fingerprint를 보존하면서 별도 ID와 nested lock hash를 사용합니다.
   GDJ-0047이 OAuth authorization server, JWT, refresh token이나 key distribution을 지원한다는 뜻이 아닙니다.
 
 GDJ-0047 Phase A는 exact DRF 3.18.0 `TokenAuthentication`을 `Bearer` keyword로 관찰하되, raw duplicate header handling,
-fixed byte cap, secret redaction, Go interface ownership과 no-fallback profile composition은 Proposed ADR-0049의 GoDj decision
+fixed byte cap, secret redaction, Go interface ownership과 no-fallback profile composition은 Proposed ADR-0049의 GoDj proposal
 provenance로 분리합니다. DRF 관찰과 normative RFC 결과가 다르면 같은 것으로 합성하지 않고 selector/deviation 후보로 게시합니다.
 
 ## GDJ-0039 query-breadth source and provenance lock

@@ -10,6 +10,7 @@ from rest_framework.routers import SimpleRouter
 from .api import (
     CSRF_HEADER,
     ArticleViewSet,
+    BearerArticleViewSet,
     EchoViewSet,
     NonNegativeInt64Converter,
 )
@@ -23,6 +24,9 @@ router.register("articles", ArticleViewSet, basename="article")
 
 reference_router = SimpleRouter(use_regex_path=False)
 reference_router.register("echo", EchoViewSet, basename="reference-echo")
+
+bearer_router = SimpleRouter(use_regex_path=False)
+bearer_router.register("articles", BearerArticleViewSet, basename="bearer-article")
 
 
 def health(_request):
@@ -45,6 +49,7 @@ urlpatterns = [
     path("health/", health, name="health"),
     path("__reference__/csrf/", csrf_seed, name="reference-csrf"),
     path("__reference__/", include(reference_router.urls)),
+    path("bearer/", include(bearer_router.urls)),
     path("api/", include(router.urls)),
     path("api/<path:_remaining>", api_not_found, name="api-not-found"),
 ]

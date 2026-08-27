@@ -15,6 +15,7 @@ from conformance.runners.django.normalizer import canonical_json
 from conformance.runners.django.runner import (
     DEFAULT_ARTICLE_ADMIN_MANIFEST,
     DEFAULT_ARTICLE_API_MANIFEST,
+    DEFAULT_API_AUTHENTICATION_MANIFEST,
     DEFAULT_AUTH_SESSION_MANIFEST,
     DEFAULT_DRF_PROFILE,
     DEFAULT_MANIFEST,
@@ -51,6 +52,7 @@ from conformance.runners.django.runner import (
     DEFAULT_WRITE_MIGRATION_MANIFEST,
     DEFAULT_WRITE_MIGRATION_ORACLE,
     ProfileMismatch,
+    API_AUTHENTICATION_SCENARIOS,
     SCENARIOS as ALL_SCENARIOS,
     _load_json,
     _run_contract,
@@ -212,6 +214,7 @@ class ScenarioTests(unittest.TestCase):
             MIGRATION_RELATION_SCENARIOS,
             {name: DRF_SCENARIOS[name] for name in PARAMETER_ROUTING_SCENARIOS},
             {name: DRF_SCENARIOS[name] for name in ARTICLE_API_SCENARIOS},
+            API_AUTHENTICATION_SCENARIOS,
             SYSTEM_STATE_SCENARIOS,
         ):
             with self.subTest(scenarios=sorted(scenarios)):
@@ -273,9 +276,10 @@ class ScenarioTests(unittest.TestCase):
                 DEFAULT_ARTICLE_API_MANIFEST,
                 {name: DRF_SCENARIOS[name] for name in ARTICLE_API_SCENARIOS},
             ),
+            (DEFAULT_API_AUTHENTICATION_MANIFEST, API_AUTHENTICATION_SCENARIOS),
             (DEFAULT_SYSTEM_STATE_MANIFEST, SYSTEM_STATE_SCENARIOS),
         )
-        self.assertEqual(len(contract_sets), 21)
+        self.assertEqual(len(contract_sets), 22)
         selected_across_sets = []
         contract_ids_across_sets = []
         inventories = []
@@ -300,10 +304,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 239)
+        self.assertEqual(len(selected_across_sets), 249)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 239)
+        self.assertEqual(len(contract_ids_across_sets), 249)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -318,7 +322,7 @@ class ScenarioTests(unittest.TestCase):
                         source_contract_ids.isdisjoint(target_contract_ids)
                     )
                 cross_bindings += 1
-        self.assertEqual(cross_bindings, 420)
+        self.assertEqual(cross_bindings, 462)
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
         for profile_path, manifest_path in (
@@ -342,6 +346,7 @@ class ScenarioTests(unittest.TestCase):
             (DEFAULT_PROFILE, DEFAULT_ARTICLE_ADMIN_MANIFEST),
             (DEFAULT_DRF_PROFILE, DEFAULT_PARAMETER_ROUTING_MANIFEST),
             (DEFAULT_DRF_PROFILE, DEFAULT_ARTICLE_API_MANIFEST),
+            (DEFAULT_DRF_PROFILE, DEFAULT_API_AUTHENTICATION_MANIFEST),
         ):
             profile = _load_json(profile_path)
             manifest = _load_json(manifest_path)

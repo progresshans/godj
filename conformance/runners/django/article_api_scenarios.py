@@ -11,14 +11,22 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.test import Client
 from django.urls import NoReverseMatch, Resolver404, resolve, reverse
+from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ErrorDetail
 
-from .article_api_fixture.api import ArticleSerializer, canonical_relative_uri
+from .article_api_fixture.api import (
+    ArticleSerializer,
+    BearerTokenAuthentication,
+    canonical_relative_uri,
+)
 from .article_api_fixture.models import Article
 from .normalizer import PrimaryKey, normalize
 
 
 _REFERENCE_PASSWORD = "reference-password"
+_RAW_BEARER_CANARY = "gdj-phase-a-raw-bearer-canary"
+_RAW_INACTIVE_BEARER = _RAW_BEARER_CANARY + "-inactive"
+_RAW_UNKNOWN_BEARER = "gdj-phase-a-unknown-bearer"
 _MAX_SIGNED_INT64 = (1 << 63) - 1
 
 
@@ -148,6 +156,26 @@ def _response(response: Any, *, include_data: bool = True) -> dict[str, Any]:
     return result
 
 
+def _authentication_response(response: Any) -> dict[str, Any]:
+    content_type = response.headers.get("Content-Type")
+    if content_type:
+        content_type = content_type.split(";", 1)[0]
+    principal = getattr(response.wsgi_request, "user", None)
+    data = getattr(response, "data", None)
+    return {
+        "authenticated": bool(
+            principal is not None and principal.is_authenticated
+        ),
+        "body_empty": len(response.content) == 0,
+        "content_type": content_type,
+        "csrf_header": "X-GoDj-CSRFToken" in response.headers,
+        "error_codes": _error_codes(data) if response.status_code >= 400 else None,
+        "response_cookies": len(response.cookies),
+        "status": response.status_code,
+        "www_authenticate": response.headers.get("WWW-Authenticate"),
+    }
+
+
 def _json_request(
     client: Client,
     method: str,
@@ -166,6 +194,39 @@ def _json_request(
         content_type="application/json",
         **headers,
     )
+
+
+def _bearer_request(
+    client: Client,
+    method: str,
+    target: str,
+    *,
+    bearer: str | None = None,
+    payload: str | bytes = b"{}",
+) -> Any:
+    headers = {"HTTP_ACCEPT": "application/json"}
+    if bearer is not None:
+        headers["HTTP_AUTHORIZATION"] = f"Bearer {bearer}"
+    request = getattr(client, method.lower())
+    if method.upper() in {"GET", "HEAD", "OPTIONS"}:
+        return request(target, **headers)
+    return request(target, data=payload, content_type="application/json", **headers)
+
+
+def _token_user(
+    name: str,
+    bearer: str,
+    *permission_names: str,
+    active: bool = True,
+) -> Any:
+    user = get_user_model().objects.create_user(
+        username=name,
+        password=_REFERENCE_PASSWORD,
+        is_active=active,
+    )
+    _grant(user, *permission_names)
+    Token.objects.create(key=bearer, user=user)
+    return user
 
 
 def _resolves(target: str) -> tuple[bool, dict[str, Any] | None]:
@@ -747,6 +808,184 @@ def delete_article(contract_id: str) -> dict[str, Any]:
     )
 
 
+def missing_and_unsupported_authentication(contract_id: str) -> dict[str, Any]:
+    BearerTokenAuthentication.reset_credential_verifications()
+    client = Client(enforce_csrf_checks=True)
+    cases = []
+    for name, authorization in (
+        ("missing", None),
+        ("unsupported_basic", "Basic abc"),
+        ("unsupported_token", "Token abc"),
+    ):
+        headers = {"HTTP_ACCEPT": "application/json"}
+        if authorization is not None:
+            headers["HTTP_AUTHORIZATION"] = authorization
+        response = client.get("/bearer/articles/", **headers)
+        cases.append(
+            {"case": name, "response": _authentication_response(response)}
+        )
+    return _observed(
+        contract_id,
+        cases,
+        metrics={
+            "credential_verifications": BearerTokenAuthentication.credential_verifications,
+            "redirects": 0,
+            "requests": len(cases),
+        },
+    )
+
+
+def invalid_and_valid_token(contract_id: str) -> dict[str, Any]:
+    BearerTokenAuthentication.reset_credential_verifications()
+    Article.objects.create(id=1, title="Visible", published=True, summary=None)
+    _token_user("active-token-user", _RAW_BEARER_CANARY, "view_article")
+    _token_user(
+        "inactive-token-user",
+        _RAW_INACTIVE_BEARER,
+        "view_article",
+        active=False,
+    )
+    client = Client(enforce_csrf_checks=True)
+    cases = []
+    for name, bearer in (
+        ("unknown", _RAW_UNKNOWN_BEARER),
+        ("inactive", _RAW_INACTIVE_BEARER),
+        ("valid", _RAW_BEARER_CANARY),
+    ):
+        response = _bearer_request(
+            client,
+            "GET",
+            "/bearer/articles/",
+            bearer=bearer,
+        )
+        cases.append(
+            {"case": name, "response": _authentication_response(response)}
+        )
+    return _observed(
+        contract_id,
+        cases,
+        metrics={
+            "credential_verifications": BearerTokenAuthentication.credential_verifications,
+            "requests": len(cases),
+            "successful_authentications": 1,
+        },
+    )
+
+
+def token_permission_denial(contract_id: str) -> dict[str, Any]:
+    Article.objects.create(id=1, title="Preserve", published=False, summary=None)
+    before = _article_state()
+    _token_user("permission-denied-user", _RAW_BEARER_CANARY)
+    client = Client(enforce_csrf_checks=True)
+    response = _bearer_request(
+        client,
+        "GET",
+        "/bearer/articles/",
+        bearer=_RAW_BEARER_CANARY,
+    )
+    after = _article_state()
+    return _observed(
+        contract_id,
+        _authentication_response(response),
+        db_state=after,
+        metrics={
+            "article_mutations": 0 if after == before else 1,
+            "authenticated_requests": 1,
+            "requests": 1,
+        },
+    )
+
+
+def token_unsafe_without_csrf(contract_id: str) -> dict[str, Any]:
+    _token_user(
+        "unsafe-token-user",
+        _RAW_BEARER_CANARY,
+        "add_article",
+        "view_article",
+    )
+    client = Client(enforce_csrf_checks=True)
+    before = Article.objects.count()
+    response = _bearer_request(
+        client,
+        "POST",
+        "/bearer/articles/",
+        bearer=_RAW_BEARER_CANARY,
+        payload=b'{"title":"Created without CSRF","published":true,"summary":null}',
+    )
+    after = Article.objects.count()
+    return _observed(
+        contract_id,
+        _authentication_response(response),
+        phase="commit",
+        db_state=_article_state(),
+        metrics={
+            "article_row_delta": after - before,
+            "csrf_credentials_supplied": 0,
+            "requests": 1,
+        },
+    )
+
+
+def token_profile_isolation(contract_id: str) -> dict[str, Any]:
+    Article.objects.create(id=1, title="Preserve", published=False, summary=None)
+    user = _token_user(
+        "profile-isolation-user",
+        _RAW_BEARER_CANARY,
+        "add_article",
+        "view_article",
+    )
+    client = Client(enforce_csrf_checks=True)
+    client.force_login(user)
+    session_cookie_present = settings.SESSION_COOKIE_NAME in client.cookies
+    before = _article_state()
+
+    missing = client.get(
+        "/bearer/articles/",
+        HTTP_ACCEPT="application/json",
+    )
+    invalid = _bearer_request(
+        client,
+        "GET",
+        "/bearer/articles/",
+        bearer=_RAW_UNKNOWN_BEARER,
+    )
+    query = client.get(
+        "/bearer/articles/",
+        {"access_token": _RAW_BEARER_CANARY},
+        HTTP_ACCEPT="application/json",
+    )
+    body = _bearer_request(
+        client,
+        "POST",
+        "/bearer/articles/",
+        payload=(
+            '{"access_token":"'
+            + _RAW_BEARER_CANARY
+            + '","title":"Must not create"}'
+        ),
+    )
+    cases = [
+        {"case": "session_cookie_only", "response": _authentication_response(missing)},
+        {"case": "invalid_bearer_with_session", "response": _authentication_response(invalid)},
+        {"case": "query_token_with_session", "response": _authentication_response(query)},
+        {"case": "body_token_with_session", "response": _authentication_response(body)},
+    ]
+    after = _article_state()
+    return _observed(
+        contract_id,
+        cases,
+        db_state=after,
+        metrics={
+            "article_mutations": 0 if after == before else 1,
+            "fallback_authentications": sum(
+                case["response"]["authenticated"] for case in cases
+            ),
+            "requests": len(cases),
+            "session_cookie_present": int(session_cookie_present),
+        },
+    )
+
+
 SCENARIOS = {
     "drf.parameter_routing.static_parameter_coexistence": static_parameter_coexistence,
     "drf.parameter_routing.nonnegative_int64_parameter": nonnegative_int64_parameter,
@@ -766,4 +1005,9 @@ SCENARIOS = {
     "drf.article_api.full_update": full_update,
     "drf.article_api.partial_update": partial_update,
     "drf.article_api.delete_article": delete_article,
+    "drf.api_authentication.missing_and_unsupported": missing_and_unsupported_authentication,
+    "drf.api_authentication.invalid_and_valid_token": invalid_and_valid_token,
+    "drf.api_authentication.permission_denial": token_permission_denial,
+    "drf.api_authentication.unsafe_without_csrf": token_unsafe_without_csrf,
+    "drf.api_authentication.profile_isolation": token_profile_isolation,
 }

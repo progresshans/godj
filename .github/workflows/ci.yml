@@ -113,6 +113,7 @@ jobs:
           conformance/fixtures/godj-query-expression-not-implemented.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
+          conformance/fixtures/godj-api-authentication-not-implemented.json
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
           conformance/systemstate/attestations
@@ -184,6 +185,7 @@ jobs:
           conformance/fixtures/godj-query-expression-not-implemented.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
+          conformance/fixtures/godj-api-authentication-not-implemented.json
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
           conformance/systemstate/attestations
@@ -511,10 +513,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 1054, sorted(runs)
-          assert len(payload) == 108991, len(payload)
+          assert len(runs) == 1056, sorted(runs)
+          assert len(payload) == 109218, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "ec137c064b8eb1f8b5db119e51d92a8034c12c0df1adf503f47efbd261081ce3"
+          assert payload_sha256 == "ba24dcea12d06a449e207e37ae273710d12dcb9aca4f80d9f55150fa6c2f6961"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -789,9 +791,9 @@ jobs:
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 250
+          test "$(grep -c '^test_' "$log")" -eq 255
           test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
-          grep -Fq 'Ran 250 tests' "$log"
+          grep -Fq 'Ran 255 tests' "$log"
           grep -Fq 'OK (skipped=21)' "$log"
 
       - name: Verify all-scenario semantic digest
@@ -814,10 +816,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 239, len(SCENARIOS)
-          assert len(payload) == 869022, len(payload)
+          assert len(SCENARIOS) == 249, len(SCENARIOS)
+          assert len(payload) == 892859, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae", digest
+          assert digest == "bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a", digest
           PY
 
       - name: Require a clean worktree

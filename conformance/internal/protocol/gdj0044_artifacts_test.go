@@ -113,7 +113,7 @@ func TestGDJ0044ArtifactBytesAndExistingDjangoReferenceAreLocked(t *testing.T) {
 		"conformance/fixtures/godj-article-api-not-implemented.json":                                  {1736, "fdb05cf9ff8e257c60b210dff29ec012a834110f22b703664f943e6740c2a27d"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json": {12663, "4aded47e2a0db9524a18625174e8d8815b69911e5310323fbe17bad34899cc53"},
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/article-api-oracle.json":       {46466, "f63f06ac26a1cedac0ea3e7fe9339b163b2571cdbc2a7fea87f8debef690ab56"},
-		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                    {186, "ec0d08b71151e68104c1e180fe5c4fd2c2d1e5fc80b2d428863a6bffa42b6fb2"},
+		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS":                    {283, "429b5f8a1c7ce554f5fa676b0e5c32fdf528cf4888128063a901f3c4d89cda8a"},
 	}
 	root := conformanceRepositoryRoot(t)
 	for name, want := range wanted {
@@ -397,8 +397,8 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 20 {
 		t.Fatalf("product adapter count = %d, want 20", got)
 	}
-	if got := strings.Count(oracleCheckTarget, "--project conformance/reference/drf --frozen"); got != 2 {
-		t.Fatalf("nested DRF oracle-check command count = %d, want 2", got)
+	if got := strings.Count(oracleCheckTarget, "--project conformance/reference/drf --frozen"); got != 3 {
+		t.Fatalf("nested DRF oracle-check command count = %d, want 3", got)
 	}
 
 	ci, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "ci.yml"))
@@ -411,9 +411,9 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 		"working-directory: conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64",
 		"--with djangorestframework==3.18.0",
 		"rest_framework.VERSION == \"3.18.0\"",
-		"len(SCENARIOS) == 239",
-		"len(payload) == 869022",
-		"6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae",
+		"len(SCENARIOS) == 249",
+		"len(payload) == 892859",
+		"bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a",
 	} {
 		if !strings.Contains(ciText, required) {
 			t.Fatalf("CI lacks GDJ-0044 reference fragment %q", required)

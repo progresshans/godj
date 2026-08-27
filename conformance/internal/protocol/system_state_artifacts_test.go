@@ -392,7 +392,7 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 	}
 }
 
-func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBindings(t *testing.T) {
+func TestCurrentTwentyTwoReferenceSetsHave249ContractsAndReject462OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -431,7 +431,7 @@ func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBi
 		{"article-admin", "article-admin-manifest.json", "article-admin-oracle.json"},
 		{"system-state", "system-state-manifest.json", "system-state.json"},
 	}
-	sets := make([]inventorySet, 0, 21)
+	sets := make([]inventorySet, 0, 22)
 	for _, source := range djangoSets {
 		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", source.manifest))
 		if err != nil {
@@ -447,6 +447,15 @@ func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBi
 		manifest, oracle, _ := loadGDJ0044Set(t, root, source)
 		sets = append(sets, inventorySet{source.name, drfProfile, manifest, oracle})
 	}
+	apiAuthenticationManifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "api-authentication-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	apiAuthenticationOracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "drf-3.18.0-django-6.1-sqlite-darwin-arm64", "api-authentication-oracle.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sets = append(sets, inventorySet{"api-authentication", drfProfile, apiAuthenticationManifest, apiAuthenticationOracle})
 	ids, scenarios := map[string]string{}, map[string]string{}
 	passing, deviations, locked, total := 0, 0, 0, 0
 	for _, set := range sets {
@@ -474,7 +483,7 @@ func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBi
 			}
 		}
 	}
-	if len(sets) != 21 || total != 239 || len(ids) != 239 || len(scenarios) != 239 || passing != 211 || deviations != 16 || locked != 12 {
+	if len(sets) != 22 || total != 249 || len(ids) != 249 || len(scenarios) != 249 || passing != 211 || deviations != 16 || locked != 22 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 	crossBindings := 0
@@ -489,8 +498,8 @@ func TestCurrentTwentyOneReferenceSetsHave239ContractsAndReject420OrderedCrossBi
 			}
 		}
 	}
-	if crossBindings != 420 {
-		t.Fatalf("ordered cross-bindings = %d, want 420", crossBindings)
+	if crossBindings != 462 {
+		t.Fatalf("ordered cross-bindings = %d, want 462", crossBindings)
 	}
 }
 
@@ -583,9 +592,9 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	for _, required := range []string{
 		"working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64",
 		"run: sha256sum --check SHA256SUMS",
-		"len(SCENARIOS) == 239",
-		"len(payload) == 869022",
-		"6f1f3b3cc5f0e3e79a1f9010aca35c006d061690270c9b0665553f888e5947ae",
+		"len(SCENARIOS) == 249",
+		"len(payload) == 892859",
+		"bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a",
 		"working-directory: conformance/systemstate/attestations",
 		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE",
 		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",

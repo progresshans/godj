@@ -38,6 +38,7 @@ settings.configure(
         "django.contrib.contenttypes",
         "django.contrib.sessions",
         "rest_framework",
+        "rest_framework.authtoken",
         "conformance.runners.django.article_api_fixture.apps.GoDjArticleAPIReferenceConfig",
     ],
     LANGUAGE_CODE="en-us",

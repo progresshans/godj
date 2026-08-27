@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 from django.middleware.csrf import get_token
 from django.urls import reverse
 from rest_framework import exceptions, permissions, serializers, status, viewsets
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import BaseParser
@@ -243,9 +244,40 @@ class ArticleViewSet(StrictObjectBodyMixin, viewsets.ModelViewSet):
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
         user = getattr(request, "user", None)
-        if request.method in permissions.SAFE_METHODS and user is not None and user.is_authenticated:
+        authenticator = getattr(request, "successful_authenticator", None)
+        if (
+            request.method in permissions.SAFE_METHODS
+            and user is not None
+            and user.is_authenticated
+            and isinstance(authenticator, SessionAuthentication)
+        ):
             response[CSRF_HEADER] = get_token(request._request)
         return response
+
+
+class BearerTokenAuthentication(TokenAuthentication):
+    """DRF TokenAuthentication observed with the RFC-style Bearer keyword."""
+
+    keyword = "Bearer"
+    credential_verifications = 0
+
+    @classmethod
+    def reset_credential_verifications(cls) -> None:
+        cls.credential_verifications = 0
+
+    def authenticate_credentials(self, key):
+        type(self).credential_verifications += 1
+        return super().authenticate_credentials(key)
+
+
+class BearerArticleViewSet(ArticleViewSet):
+    """Isolated token-authenticated copy of the existing Article routes."""
+
+    authentication_classes = (BearerTokenAuthentication,)
+
+    def get_success_headers(self, data):
+        location = reverse("bearer-article-detail", kwargs={"pk": data["id"]})
+        return {"Location": self.request.build_absolute_uri(location)}
 
 
 class EchoViewSet(StrictObjectBodyMixin, viewsets.ViewSet):

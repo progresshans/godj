@@ -81,7 +81,8 @@ Independent client 또는 BFF
   fallback하지 않습니다.
 - Bearer credential은 RFC 6750 `b64token` grammar와 fixed 4,096-byte cap을 통과한 뒤에만 injected verifier에 전달됩니다.
   Scheme은 ASCII case-insensitive이고 delimiter는 one-or-more ASCII SP입니다. Tab, comma-joined/multiple field, empty token,
-  noncanonical trailing `=`, control/non-ASCII와 over-limit input은 verifier 전에 거부합니다.
+  interior `=` 또는 padding 뒤의 character, control/non-ASCII와 over-limit input은 verifier 전에 거부합니다. RFC grammar가 허용하는
+  trailing `=` 개수는 Base64 decode/re-encode로 더 좁히지 않습니다.
 - Missing 또는 unsupported authentication method는 JSON 401 `not_authenticated`와 exact
   `WWW-Authenticate: Bearer`를 반환하며 token-specific error를 합성하지 않습니다.
 - Duplicate/malformed/over-limit Bearer request는 JSON 400 `not_authenticated`와 RFC 6750 `invalid_request` 의미의
@@ -151,7 +152,7 @@ Independent client 또는 BFF
 
 기존 `auth-session-manifest.json`과 `article-api-manifest.json` bytes/status는 바꾸지 않습니다. Phase A는 exact 10-contract
 `api-authentication-manifest.json` 하나에 AUT-009..016과 API-011..012를 게시해 protocol-v2 set당 8..12 invariant를 지킵니다.
-Reference artifact는 DRF-observable dimension과 GoDj/RFC decision dimension을 명시적으로 구분하고, product handler가 없는 동안
+Reference artifact는 DRF-observable dimension과 GoDj proposal/RFC authority dimension을 명시적으로 구분하고, product handler가 없는 동안
 10개 모두 `oracle_locked`와 payload-free `not_implemented` 상태여야 합니다.
 
 ## 계약

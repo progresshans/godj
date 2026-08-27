@@ -77,7 +77,7 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
 
    ```go
    type Token struct {
-       encoded string
+       state *tokenState
    }
 
    func (Token) Encoded() string
@@ -87,13 +87,15 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
    }
    ```
 
-   Verifier는 request context와 token을 받아 active `auth.Principal`, `auth.ErrInvalidCredentials` 또는 infrastructure error를
-   반환합니다.
+   Unexported pointer-backed state는 특수 format verb나 accidental structural formatting이 raw string field로 내려가는 경로를
+   없앱니다. Verifier는 request context와 token을 받아 active `auth.Principal`, `auth.ErrInvalidCredentials` 또는 infrastructure
+   error를 반환합니다.
 4. `Token`은 `Encoded` verification accessor 외에 material을 공개하지 않고 ordinary/Go formatting과 JSON을 fixed redacted form으로 만듭니다.
    Framework error/challenge/artifact는 raw value나 injected cause text를 포함하지 않습니다.
 5. Bearer adapter는 exactly one `Authorization` field만 읽고 case-insensitive `Bearer` + `1*SP` + RFC 6750 `b64token`을
-   fixed maximum 4,096 bytes 안에서 허용합니다. Duplicate/joined field, empty/control/non-ASCII, invalid alphabet/padding와 over-limit은
-   verifier 호출 전에 실패합니다.
+   fixed maximum 4,096 bytes 안에서 허용합니다. Duplicate/joined field, empty/control/non-ASCII, invalid alphabet, interior `=` 또는
+   padding 뒤 character와 over-limit은 verifier 호출 전에 실패합니다. RFC grammar가 허용하는 trailing `=` 개수는 Base64
+   decode/re-encode로 더 좁히지 않습니다.
 6. Cookie, session, query와 form/body access token은 대체 credential source가 아닙니다. 한 application은 constructor에서 session 또는
    Bearer profile 하나를 선택하며 invalid/missing Bearer를 다른 profile로 구제하지 않습니다.
 7. HTTP semantics의 우선 authority는 RFC 6750과 RFC 9110입니다.

@@ -1,4 +1,4 @@
-"""Generate or verify the pinned WEB-028..035 and API-001..010 oracles."""
+"""Generate or verify the pinned routing, Article, and API-auth oracles."""
 
 from __future__ import annotations
 
@@ -26,6 +26,10 @@ SETS = {
     "article-api": (
         ROOT / "conformance/contracts/article-api-manifest.json",
         ORACLE_DIRECTORY / "article-api-oracle.json",
+    ),
+    "api-authentication": (
+        ROOT / "conformance/contracts/api-authentication-manifest.json",
+        ORACLE_DIRECTORY / "api-authentication-oracle.json",
     ),
 }
 

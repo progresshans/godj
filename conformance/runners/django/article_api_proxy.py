@@ -33,6 +33,14 @@ ARTICLE_API_SCENARIOS = (
     "drf.article_api.delete_article",
 )
 
+API_AUTHENTICATION_DRF_SCENARIOS = (
+    "drf.api_authentication.missing_and_unsupported",
+    "drf.api_authentication.invalid_and_valid_token",
+    "drf.api_authentication.permission_denial",
+    "drf.api_authentication.unsafe_without_csrf",
+    "drf.api_authentication.profile_isolation",
+)
+
 
 def _proxy(scenario: str) -> Callable[[str], dict[str, Any]]:
     def run(contract_id: str) -> dict[str, Any]:
@@ -68,5 +76,9 @@ def _proxy(scenario: str) -> Callable[[str], dict[str, Any]]:
 
 SCENARIOS = {
     name: _proxy(name)
-    for name in (*PARAMETER_ROUTING_SCENARIOS, *ARTICLE_API_SCENARIOS)
+    for name in (
+        *PARAMETER_ROUTING_SCENARIOS,
+        *ARTICLE_API_SCENARIOS,
+        *API_AUTHENTICATION_DRF_SCENARIOS,
+    )
 }
