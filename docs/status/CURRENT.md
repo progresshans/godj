@@ -3,8 +3,8 @@
 - 마지막 갱신: 2026-08-27
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 GDJ-0047 behavioral source checkpoint: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
-  `21cb835366c10b64ace161ecd304139f694c7c0f`. Common `api.Authentication`, Session adapter, strict
+- 현재 GDJ-0047 corrected behavioral source: `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
+  `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`. Common `api.Authentication`, Session adapter, strict
   `api/bearerauth`, profile-neutral Article API, SQLite/PostgreSQL Bearer E2E와 AUT-009..016/API-011..012 oracle-blind
   actual이 구현됐습니다. Reference는 22 sets/249 contracts/462 ordered bindings=
   `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 contracts=
@@ -12,16 +12,19 @@
   DEV-0009는 Implemented, ADR-0049는 Proposed, Q-021은 `Partial`입니다.
 - Digest-pinned Linux/amd64 Go 1.26.5/PostgreSQL 17.10 exact fingerprint에서 source-bound two-process sentinel과
   `TestArticleAPIBearerPostgresUserFlow` normal/race/CGO-disabled가 통과했습니다. Current source binding은
-  256 files/2,940,052 bytes/SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`, checked
-  PostgreSQL attestation은 1,134 bytes/SHA-256 `1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다.
+  256 files/2,940,207 bytes/SHA-256 `7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`, checked
+  PostgreSQL attestation은 1,134 bytes/SHA-256 `19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`입니다.
   [EVID-135](TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint)의
   affected normal/race/CGO0/vet, generated drift, full 21-adapter product comparison과 credential-scanner 독립 감사가
-  통과했습니다. Documentation checkpoint `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`, tree
-  `f721caadbc9196505bac6b2a8cc57f89c28f4f2b`에서는
-  [EVID-136](TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)의 final full `make ci`,
-  107-package Linux/386 compile-only, 1,077-file repository-external archive와 final audit가 통과했습니다. 정확한 다음 작업은
-  이 documentation descendant의 non-force push, Draft PR #1 갱신과 exact submitted-head hosted matrix입니다. 아직 terminal
-  acceptance가 아닙니다.
+  통과했습니다. Initial submitted documentation head `a85196c951ff399b9792b6ad916323219dcacb3a`, tree
+  `a9890af0f767bf6040a19822b8c3f2a31111f6cf`의 CI run `33044776835`는 26 jobs success 뒤
+  `Product project check (macos-15-intel)`가 30분 외곽 제한에서 취소됐습니다. 완료된 steps와 수집된 로그의
+  제품 assertion/security failure 표식은 0입니다.
+  [EVID-137](TEST_EVIDENCE.md#evid-20260827-137--gdj-0047-first-exact-head-timeout-and-corrected-local-refreeze)의
+  Intel-only 45분 correction, exact source-bound attestation recapture, final full `make ci`, 107-package Linux/386,
+  1,077-file repository-external archive와 independent audit가 corrected source에서 통과했습니다. 정확한 다음 작업은 이
+  documentation descendant의 non-force push, Draft PR #1 갱신과 corrected exact submitted-head hosted matrix입니다. 아직
+  terminal acceptance가 아닙니다.
 - GDJ-0046 terminal corrected frozen source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`
   (`ci: harden exact Python setup`), tree `4f061289b240b4739ec43155b08b5909e95eddc0`. Initial Phase E publication
   `de5cd505b598bc6fea3f7869d57d9c6c724f394a`은 actual/product source를 게시했고, known upstream
@@ -1793,12 +1796,14 @@ EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
 현재 active/ready packet은 1/0입니다. GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
-matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. Active GDJ-0047은 exact source
-`5469f41b...`에서 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
+matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. Active GDJ-0047은 corrected source
+`14e47c9b...`에서 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
 AUT-009..016/API-011..012 actual 10/10을 게시했습니다. Current reference/product는
-22/249/462=`218+19+12 locked`, 21/237=`218+19`입니다. EVID-136의 final local full/386/1,077-file archive/audit도
-통과했고 정확한 다음 작업은 documentation descendant의 non-force push, Draft PR 갱신과 exact submitted-head hosted
-matrix입니다. Concrete JWT 발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema 변경은 함께 넣지 않습니다.
+22/249/462=`218+19+12 locked`, 21/237=`218+19`입니다. Initial run `33044776835`는 26 successful jobs 뒤 macOS Intel
+product job만 30분 제한에서 취소됐고 제품 assertion failure는 없었습니다. EVID-137의 30/30/45/30 timeout correction,
+source-bound attestation recapture와 corrected final full/386/1,077-file archive/audit가 통과했습니다. 정확한 다음 작업은
+documentation descendant의 non-force push, Draft PR 갱신과 corrected exact submitted-head hosted matrix입니다. Concrete JWT
+발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema 변경은 함께 넣지 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 P1/open입니다.
 MIG-075..086은 remaining reference-only locked range이지만 diagnostic 관찰을 자동 product passing으로 승격하지 않습니다.

@@ -35,6 +35,7 @@ allowed_paths:
   - "conformance/runners/godj/**"
   - "conformance/cmd/godjcheck/**"
   - "conformance/internal/protocol/**"
+  - "conformance/runserverproduct/workflow_wiring_test.go"
   - "conformance/systemstate/attestations/**"
   - "conformance/systemstate/source_binding.go"
   - "conformance/systemstate/source_binding_test.go"
@@ -207,7 +208,7 @@ examples/article/apiapp → api + articleapp
 - [x] Phase E: digest-pinned PostgreSQL required E2E, product status classification와 global conformance publication
 - [x] Source checkpoint: affected normal/race/CGO0/vet, generated drift, secret scan와 system-state source-bound attestation recapture
 - [x] Final frozen local milestone: full `make ci`, Linux/386, repository-external clean copy와 independent audit once
-- [ ] Exact submitted-head hosted matrix once
+- [ ] Corrected exact submitted-head hosted matrix after preserving the first-timeout evidence
 - [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
 ## Source checkpoint 결과
@@ -226,7 +227,34 @@ examples/article/apiapp → api + articleapp
 - Final local full `make ci`, Linux/386와 repository-external archive는 documentation checkpoint
   `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`에서 통과했습니다. Detailed exact commands, inventory와 harness
   exclusions는 [EVID-136](../docs/status/TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)에 있습니다.
-- Not yet run: exact submitted-head hosted matrix.
+- First exact submitted run `a85196c...` / run `33044776835` completed 26 jobs and timed out only the cold
+  macOS Intel product job at its 30-minute outer limit. The corrected exact submitted-head hosted matrix has not yet passed.
+
+## First hosted timeout and corrected local refreeze
+
+Initial submitted documentation head `a85196c951ff399b9792b6ad916323219dcacb3a`, tree
+`a9890af0f767bf6040a19822b8c3f2a31111f6cf`의 CI run `33044776835`는 27 jobs 중 26 success와
+`Product project check (macos-15-intel)` 한 건의 cancellation으로 끝났습니다. 360 steps는
+355 success/1 cancelled/4 skipped였고, 두 annotation은 exact 30-minute outer timeout과 cancellation뿐입니다.
+완료된 steps와 수집 로그의 제품 assertion/security failure 표식은 0이었지만 마지막 Intel runserver CGO-disabled leg와
+이후 vet/clean을 완료하지 못했으므로
+hosted acceptance로 재사용하지 않습니다.
+
+Correction `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
+`1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`는 product-project matrix를 exact
+Ubuntu amd64/Ubuntu arm64/macOS Intel/macOS arm64=`30/30/45/30`분으로 고정했습니다. Intel 좌표만 넓혔고 27-job
+topology, command, required sentinel와 command-internal `go test -timeout=15m`은 바꾸지 않았습니다. 두 workflow lock,
+current-source PostgreSQL attestation과 checksum을 함께 갱신했습니다.
+
+Checked attestation은 source binding 256 files/2,940,207 bytes/SHA-256
+`7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`에 묶인 1,134 bytes/SHA-256
+`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`이며 checksum file은
+103 bytes/SHA-256 `693087f484877563002292c0b3cdf93326b23511d61557b6410162f0faf0f5f7`입니다. Two captures가
+byte-identical했고 required Article Bearer PostgreSQL normal/race/CGO0과 two-process facts가 모두 통과했습니다.
+Correction exact source에서 full `make ci`, 107-package Linux/386, 1,077-file repository-external archive와 independent
+source/audit도 통과했습니다. 상세 수치와 제외 attempt는
+[EVID-137](../docs/status/TEST_EVIDENCE.md#evid-20260827-137--gdj-0047-first-exact-head-timeout-and-corrected-local-refreeze)에
+기록합니다.
 
 ## 검증 주기
 
@@ -237,7 +265,7 @@ examples/article/apiapp → api + articleapp
 - Publication checkpoint: new set actual/expected comparison, global aggregate/registry/inventory and secret scan
 - API/auth/examples/conformance source가 GDJ-0046 PostgreSQL attestation binding 범위에 들어가므로 final source에서 checked
   attestation과 sibling checksum을 다시 capture하고 required hosted lane이 byte-compare해야 함
-- Final source freeze에서만 full/386/external archive/hosted matrix를 한 번 실행
+- Source/workflow correction마다 full/386/external archive를 refreeze하고 corrected exact submitted head마다 고유 hosted run을 실행
 - 문서-only activation은 link/frontmatter/status consistency와 `git diff --check`; 전체 product matrix를 반복하지 않음
 
 ## 완료 조건
@@ -256,22 +284,23 @@ examples/article/apiapp → api + articleapp
 
 ## 인수인계
 
-현재 source checkpoint는 `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
-`21cb835366c10b64ace161ecd304139f694c7c0f`입니다. Exact reference/product aggregate는
+현재 corrected source는 `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
+`1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`입니다. Exact reference/product aggregate는
 22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`, product
 21 adapters/237 contracts=`218 passing + 19 deviation`이며 AUT-012/013/015만 Implemented DEV-0009입니다.
 
 Digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL 17.10에서 exact fingerprint, source-bound two-process sentinel과
 Article Bearer E2E normal/race/CGO-disabled가 통과했습니다. Checked attestation은 1,134 bytes/SHA-256
-`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`, source binding은
-256 files/2,940,052 bytes/SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`입니다.
+`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`, source binding은
+256 files/2,940,207 bytes/SHA-256 `7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`입니다.
 독립 감사의 credential-scanner finding을 수정한 뒤 최종 P0..P3는 0이었습니다.
 
-Documentation checkpoint `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`, tree
-`f721caadbc9196505bac6b2a8cc57f89c28f4f2b`에서 final full `make ci`, 107-package Linux/386 compile-only와
-1,077-file repository-external clean archive가 통과했습니다. 최종 감사가 찾은 allowed-path/current-summary 문서 불일치는
-EVID-136을 기록하는 documentation-only descendant에서 정정합니다.
+Initial submitted documentation head `a85196c951ff399b9792b6ad916323219dcacb3a`, tree
+`a9890af0f767bf6040a19822b8c3f2a31111f6cf`의 run `33044776835`는 26 jobs를 통과하고 macOS Intel product job
+하나만 30분 outer timeout으로 취소됐습니다. Correction은 해당 좌표만 45분으로 넓혔고 EVID-137의 corrected final
+full `make ci`, 107-package Linux/386 compile-only, 1,077-file repository-external clean archive와 independent audit가
+통과했습니다.
 
-정확한 다음 작업은 그 descendant를 non-force push하고 Draft PR #1을 갱신한 뒤 exact submitted-head hosted matrix를
-통과시키는 것입니다. 그때만 ADR-0049 Accepted, DEV-0009 Verified와 work completed를 검토합니다.
+정확한 다음 작업은 EVID-137 documentation descendant를 non-force push하고 Draft PR #1을 갱신한 뒤 corrected exact
+submitted-head hosted matrix를 통과시키는 것입니다. 그때만 ADR-0049 Accepted, DEV-0009 Verified와 work completed를 검토합니다.
 Merge/release/deploy는 계속 제외합니다.

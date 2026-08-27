@@ -265,9 +265,11 @@ strict `Authorization: Bearer` resource-server adapter가 같은 `auth.Principal
 수직 단면입니다. Common authentication boundary, Session adapter refactor, opaque redacted Bearer token/injected verifier와
 profile-neutral Article API가 local product publication에 도달했습니다. AUT-009/010/011/014/016/API-011/012 일곱 개는
 `passing`, AUT-012/013/015 세 개는 일곱 result selector의 Implemented DEV-0009 `deviation`이며 exact actual comparison
-10/10과 SQLite Article Bearer E2E가 통과했습니다. Exact source `5469f41b...`의 digest-pinned PostgreSQL 17.10
-Article Bearer E2E normal/race/CGO0 및 two-process source-bound attestation도 통과했습니다. EVID-136의 final local
-full/386/1,077-file archive도 통과했지만 exact hosted evidence가 남아 있어 ADR은 Proposed이고 이 기능을 terminal
+10/10과 SQLite Article Bearer E2E가 통과했습니다. Corrected source `14e47c9b...`의 digest-pinned PostgreSQL 17.10
+Article Bearer E2E normal/race/CGO0 및 two-process source-bound attestation도 통과했습니다. Initial hosted run
+`33044776835`는 26 jobs success 뒤 macOS Intel product job 하나가 30분 outer timeout으로 취소됐습니다. EVID-137의
+Intel-only correction과 corrected full/386/1,077-file archive refreeze도 통과했지만 corrected exact hosted evidence가
+남아 있어 ADR은 Proposed이고 이 기능을 terminal
 Verified로 표현하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing key provider와 production BFF는 이 packet의 지원 주장이 아닙니다.
 
@@ -570,9 +572,11 @@ Channels/Realtime와 production serving은 이 mirror의 capability가 아닙니
 common `api.Authentication`, updated Session adapter와 strict injected `api/bearerauth`를 같은 Article handlers에 연결합니다.
 Exactly-one bounded Authorization header, fixed 401/400/403 challenge, cookie/query/body no-fallback, Bearer CSRF bypass,
 deny-overlay permission과 secret-free diagnostics를 구현했습니다. Exact actual 10/10과 SQLite Article CRUD/denial E2E는
-통과했고 PostgreSQL 17.10 Article flow normal/race/CGO0과 checked two-process attestation도 통과했습니다. Final local
-full `make ci`/Linux 386/1,077-file external archive도 EVID-136에서 통과했지만 exact hosted evidence 전이므로 이 mirror는
-아직 Accepted/Verified capability가 아닙니다.
+통과했고 PostgreSQL 17.10 Article flow normal/race/CGO0과 checked two-process attestation도 통과했습니다. Initial
+hosted run `33044776835`는 macOS Intel product job의 30분 outer timeout으로 terminal proof가 되지 못했습니다.
+EVID-137의 Intel-only 45분 correction, source-bound attestation recapture와 corrected full `make ci`/Linux 386/
+1,077-file external archive는 통과했지만 corrected exact hosted evidence 전이므로 이 mirror는 아직
+Accepted/Verified capability가 아닙니다.
 Concrete JWT/opaque issuer/verifier implementation, refresh token, OAuth/OIDC, key lifecycle와 production BFF는 없습니다.
 
 ## Current implementation mirror: project generated bundle

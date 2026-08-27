@@ -4,7 +4,8 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-26 (GDJ-0046 Phase E corrected frozen source EVID-133, exact hosted EVID-134)
-- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 Bearer SQLite/PostgreSQL와 full/386/archive 통과, exact hosted 대기)
+- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-137 Intel timeout correction/attestation recapture와
+  corrected full/386/archive 통과, corrected exact hosted 대기)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -119,14 +120,17 @@ non-cooperative writer, family-wide revocation, JWT/OAuth와 production readines
 Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
 [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 first-party durable session+CSRF를 기본 profile로 보존하고,
 BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission core에 연결하는 bounded slice입니다. Exact 열 계약의
-oracle-blind actual은 DEV-0009 sparse expectation과 10/10을 통과했습니다. SQLite E2E와 exact source
-`5469f41b2bb278feaedfc08b35798de7f0fd796d` / tree `21cb835366c10b64ace161ecd304139f694c7c0f`의
+oracle-blind actual은 DEV-0009 sparse expectation과 10/10을 통과했습니다. SQLite E2E와 corrected current source
+`14e47c9ba18a698cae52f7167c53148cd552f175` / tree `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의
 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0 및 two-process
-attestation도 통과했습니다. Current attestation은 source binding 256 files/2,940,052 bytes/
-`caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`, checked bytes 1,134/
-`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다. `make godj-conformance`와 affected
-normal/race/CGO0/vet/generate, EVID-136의 final full `make ci`, Linux/386와 1,077-file external archive도
-통과했습니다. Exact hosted gate가 남아 있으므로 ADR-0049는 Proposed, DEV-0009는 Implemented 상태입니다.
+attestation도 통과했습니다. Current attestation은 source binding 256 files/2,940,207 bytes/
+`7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`, checked bytes 1,134/
+`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`입니다. `make godj-conformance`와 affected
+normal/race/CGO0/vet/generate가 통과했습니다. Initial exact submitted-head run `33044776835`는 26 successful jobs와
+macOS Intel product job 한 건의 30분 timeout/cancellation으로 끝났고 완료된 steps와 수집 로그의 제품 assertion failure
+표식은 0이었습니다. EVID-137의
+Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze도 통과했습니다.
+Corrected exact hosted gate가 남아 있으므로 ADR-0049는 Proposed, DEV-0009는 Implemented 상태입니다.
 Bearer transport/resource-server support가 JWT/opaque issuance를 뜻하지 않으며
 refresh/OAuth/OIDC/key lifecycle과 production BFF는 계속 open입니다.
 

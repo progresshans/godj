@@ -276,21 +276,23 @@ permission challenge 한 개와 invalid-Bearer-with-session detail/challenge 두
 
 Oracle/expected/deviation fixture를 읽지 않는 스물한 번째 GoDj actual adapter는 열 계약 모두를 관찰하고 local exact
 comparison 10/10, unexpected difference 0을 통과했습니다. SQLite Article Bearer user-flow E2E도 통과했습니다.
-Exact source commit `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
-`21cb835366c10b64ace161ecd304139f694c7c0f`의 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10
+Corrected current source commit `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
+`1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10
 fingerprint에서 같은 Article Bearer flow normal/race/CGO0과 two-process attestation도 통과했습니다.
 
-Checked attestation은 current behavioral source 256 files/2,940,052 payload bytes/SHA-256
-`caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`에 묶인 1,134 bytes/SHA-256
-`1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다. Attestation checksum file은
-103 bytes/SHA-256 `22b02cd0409b8fa39765f153ce33b6e66031dfaa9227b6ddd1a999dad900d725`입니다.
+Checked attestation은 current behavioral source 256 files/2,940,207 payload bytes/SHA-256
+`7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`에 묶인 1,134 bytes/SHA-256
+`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`입니다. Attestation checksum file은
+103 bytes/SHA-256 `693087f484877563002292c0b3cdf93326b23511d61557b6410162f0faf0f5f7`입니다.
 `make godj-conformance`와 affected normal/race/CGO0/vet/generate도 같은 source에서 통과했습니다.
 
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=
 `218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Proposed,
-DEV-0009는 Implemented입니다. EVID-136의 final local full `make ci`, Linux/386와 1,077-file external archive는
-통과했지만 exact hosted matrix 전에는 이 checkpoint를 terminal acceptance나 Verified deviation으로 표현하지 않습니다.
+DEV-0009는 Implemented입니다. Initial exact submitted-head run `33044776835`는 26 jobs success 뒤 macOS Intel
+product job 하나가 30분 외곽 제한에서 취소됐고 완료된 steps와 수집 로그의 제품 assertion failure 표식은 0이었습니다.
+EVID-137의 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze는 통과했지만 corrected exact
+hosted matrix 전에는 이 checkpoint를 terminal acceptance나 Verified deviation으로 표현하지 않습니다.
 JWT/opaque token issuance,
 refresh family, OAuth/OIDC, signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 

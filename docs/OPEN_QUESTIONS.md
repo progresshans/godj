@@ -20,7 +20,7 @@
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
-| Q-021 | Partial | GDJ-0047 active / hosted validation·token lifecycle·OAuth 후속 | Proposed ADR-0049/GDJ-0047의 first-party session과 strict injected Bearer resource-server profile은 SQLite/PostgreSQL required 및 final local full/386/archive까지 통과; exact hosted와 JWT/opaque 발급, refresh family, key rotation/revocation, OAuth/OIDC·production BFF는 open |
+| Q-021 | Partial | GDJ-0047 active / hosted validation·token lifecycle·OAuth 후속 | Proposed ADR-0049/GDJ-0047의 first-party session과 strict injected Bearer resource-server profile은 SQLite/PostgreSQL required 및 corrected final local full/386/archive까지 통과; initial hosted 26 jobs success/1 Intel timeout 뒤 corrected exact hosted와 JWT/opaque 발급, refresh family, key rotation/revocation, OAuth/OIDC·production BFF는 open |
 
 ## GDJ-0043에서 해결한 질문
 
@@ -99,9 +99,11 @@
 - AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 일곱 result replacement의 Implemented
   DEV-0009 `deviation`으로 게시됐고 oracle-blind actual 10/10과 SQLite Article Bearer E2E가 통과했습니다. Current local
   reference는 22/249/462=`218 passing + 19 deviation + 12 oracle_locked`, product는
-  21/237=`218 passing + 19 deviation`입니다. Exact source `5469f41b...`의 digest-pinned PostgreSQL 17.10 Article
-  Bearer E2E normal/race/CGO0과 two-process source-bound attestation도 통과했습니다. EVID-136의 final full `make ci`,
-  Linux/386와 1,077-file external archive까지 통과했지만 exact hosted evidence가 남아 ADR-0049는 Proposed입니다.
+  21/237=`218 passing + 19 deviation`입니다. Corrected source `14e47c9b...`의 digest-pinned PostgreSQL 17.10 Article
+  Bearer E2E normal/race/CGO0과 two-process source-bound attestation도 통과했습니다. Initial run `33044776835`는
+  26 jobs success 뒤 macOS Intel product job 한 건이 30분 outer timeout으로 취소됐습니다. EVID-137의 Intel-only
+  correction, attestation recapture와 corrected full `make ci`, Linux/386, 1,077-file external archive까지 통과했지만
+  corrected exact hosted evidence가 남아 ADR-0049는 Proposed입니다.
   JWT/opaque issuance, refresh lifecycle,
   signing/validation key ring, OAuth/OIDC와 production BFF도 별도 후속이므로 Q-021은 `Partial`입니다.
 

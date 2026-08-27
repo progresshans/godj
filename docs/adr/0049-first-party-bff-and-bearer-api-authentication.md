@@ -165,11 +165,18 @@ oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
 - SQLite Article Bearer user-flow E2E: local pass
 - Digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10: Article Bearer E2E normal/race/CGO0과
   source-bound two-process attestation pass
-- Exact source: commit `5469f41b2bb278feaedfc08b35798de7f0fd796d`,
-  tree `21cb835366c10b64ace161ecd304139f694c7c0f`
+- Corrected current source: commit `14e47c9ba18a698cae52f7167c53148cd552f175`,
+  tree `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`
+- Current source-bound attestation: 256 files/2,940,207 bytes/
+  `7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`; checked artifact 1,134 bytes/
+  `19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`
 - Affected normal/race/CGO0/vet/generate와 `make godj-conformance`: pass
-- Final local `make ci`, 107-package Linux/386 compile-only와 1,077-file external archive: pass in EVID-136
+- Initial exact submitted run `33044776835`: 26 jobs success + one macOS Intel product outer-timeout/cancellation;
+  product assertion/security failure marker 0, but unfinished/skipped gates are not acceptance evidence
+- Intel-only 45-minute correction, current attestation recapture, corrected full `make ci`, 107-package Linux/386와
+  1,077-file external archive: pass in EVID-137
 
-따라서 이 섹션은 구현 publication과 local final 기록이지 terminal acceptance가 아닙니다. Exact hosted matrix가 완료되기
+따라서 이 섹션은 구현 publication과 corrected local final 기록이지 terminal acceptance가 아닙니다. Corrected exact hosted
+matrix가 완료되기
 전까지 ADR 상태는 `Proposed`, DEV-0009는
 `Implemented`로 유지합니다.

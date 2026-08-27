@@ -12648,3 +12648,118 @@ harness errors do not replace or weaken the successful exact commands above.
 This local final evidence does not claim hosted success, JWT/opaque issuance, refresh-token lifecycle, OAuth/OIDC,
 production BFF/OpenAPI, merge, release or deployment. The next gate is a non-force push of the documentation descendant,
 Draft PR #1 refresh and the exact submitted-head hosted matrix.
+
+## EVID-20260827-137 — GDJ-0047 First Exact-head Timeout and Corrected Local Refreeze
+
+- Date/time: first hosted run 2026-08-27T15:07:57+09:00 through 2026-08-27T15:38:43+09:00; corrected local
+  refreeze completed through 2026-08-27T16:14:27+09:00
+- Work/contract IDs: GDJ-0047 active; ADR-0049 Proposed; DEV-0009 Implemented; Q-021 Partial;
+  AUT-009..016/API-011..012 product remains published
+- First submitted head: `a85196c951ff399b9792b6ad916323219dcacb3a`, tree
+  `a9890af0f767bf6040a19822b8c3f2a31111f6cf`, subject `docs: record API authentication local final`
+- Corrected frozen source: `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
+  `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`, subject `ci: bound Intel product matrix runtime`
+- Result: the first exact submitted run is cancellation/timeout evidence, not hosted completion. The minimal Intel-only
+  timeout/lock correction, current-source PostgreSQL attestation recapture and exact local full/386/external-archive/audit
+  refreeze passed. A corrected exact submitted-head hosted success, ADR acceptance, DEV verification and work completion
+  remain unclaimed.
+
+### Exact first-hosted timeout
+
+[GitHub Actions run 33044776835](https://github.com/progresshans/godj/actions/runs/33044776835), CI #154 attempt 1,
+targeted exact pull-request head `a85196c...` and checked out synthetic merge
+`66bb21c7fc881cfbe961a67b0c2abc4977790721`. It completed 27 jobs as 26 success/1 cancelled and 360 steps as
+355 success/1 cancelled/4 skipped. The unique cancelled job
+[`98426125478`](https://github.com/progresshans/godj/actions/runs/33044776835/job/98426125478),
+`Product project check (macos-15-intel)`, ran from 2026-08-27T15:08:18+09:00 through
+2026-08-27T15:38:42+09:00. Its two exact annotations were `The job has exceeded the maximum execution time of 30m0s`
+and `The operation was canceled.`
+
+That Intel coordinate passed normal product project-check, normal runserver inventory, project-check race, runserver race
+and product CGO-disabled. The final runserver CGO-disabled command started at 2026-08-27T15:36:05+09:00 and was cancelled
+at 2026-08-27T15:38:31+09:00 by the outer job cap after only 2m26s; the command's internal timeout remained 15 minutes.
+The following two vet steps, clean-worktree step and post-setup step were skipped. Strict log markers counted Go `FAIL`,
+test failure, panic/fatal, data race and process-exit failure as zero; the sole workflow error marker was cancellation.
+Therefore neither the unfinished command nor skipped gates are reused as passing or terminal hosted evidence.
+
+All other coordinates completed. Four portable Python jobs each passed 255 tests with 21 expected profile skips and
+produced the same 249-scenario canonical payload: 892,859 bytes/SHA-256
+`bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a`. The exact Darwin reference job passed
+255 tests with three profile-only skips plus oracle no-rewrite. Four relation-product jobs each reproduced
+1,066 run/1,066 pass/0 skip, 110,405 payload bytes/SHA-256
+`72b08a582679e3f9b6921b49dd3bc46a355023f0fd97a8a24c109b7ce2b1d83b`. The PostgreSQL job passed all 18 required
+named sentinels with skip rejection, including Bearer E2E, race, CGO-disabled, restart, vet and attestation byte comparison.
+These completed legs diagnose the timeout but do not convert the cancelled run into acceptance.
+
+### Minimal correction and source-bound attestation
+
+Correction `14e47c9...` changed six exact files: the workflow, two workflow locks, the system-state artifact byte lock,
+the PostgreSQL attestation and its checksum. Product-project `timeout-minutes` now reads the matrix value and the exact
+coordinates are Ubuntu 22.04 amd64=30, Ubuntu ARM64=30, macOS Intel=45 and macOS ARM64=30 minutes. Only the cold Intel
+coordinate changed. The 27-job topology, commands, required sentinels and command-internal `go test -timeout=15m` remain
+unchanged. Both workflow locks require the expression, all four coordinates and exact `30/30/45/30` values.
+
+Because `.github/workflows/ci.yml` is behavioral-source-bound, the attestation was recaptured twice from digest-pinned
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+and `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+The exact PostgreSQL fingerprint remained
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`.
+The two captures were byte-identical and required Article Bearer PostgreSQL normal/race/CGO-disabled plus the two-process
+same-schema/barrier/restart sentinel all passed without skip.
+
+Current exact locks are:
+
+- behavioral source: 256 files/2,940,207 payload bytes/SHA-256
+  `7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`;
+- checked attestation: 1,134 bytes/SHA-256
+  `19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`;
+- sibling checksum: 103 bytes/SHA-256
+  `693087f484877563002292c0b3cdf93326b23511d61557b6410162f0faf0f5f7`;
+- observed facts: two writer processes, same-schema/barrier/restart true and divergence/loss/drift/secret occurrence zero.
+
+The capture roots and containers/networks were cleaned. The successful temporary roots were moved recoverably to
+`/Users/hanhyeonjin/.Trash/godj-gdj0047-timeout-recapture.IDdifE` and
+`/Users/hanhyeonjin/.Trash/godj-gdj0047-timeout-final.YMMMNM`; their original temporary paths no longer exist.
+
+### Corrected exact local final
+
+The exact corrected commit was clean before and after the following full gate:
+
+```bash
+PATH=/Users/hanhyeonjin/.cache/uv/archive-v0/MsrMoQktpd-TFLXT/bin:$PATH \
+  LC_ALL=C TZ=UTC make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+Both commands exited 0. Full `make ci` retained Article generation exact 12 files/SHA-256
+`0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675`, relation-delete exact 16 files/SHA-256
+`2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`, all-package normal/vet/race, configured
+CGO-disabled products, 255 local portable Python tests with 24 exact-profile-only skips, all reference contract checks and
+all 21 GoDj product adapters. Linux/386 compile-only passed all 107 packages: 69 test-bearing and 38 no-test packages.
+
+A guarded `.git`-free archive of exact `14e47c9...` contained 1,077 regular files/15,055,235 bytes. All Git entries were
+blobs with mode `100644`; every extracted path, mode and Git blob matched before and after. The raw
+`git ls-tree -r -z --full-tree` stream SHA-256 was
+`9664105461952093092f09dcbd816d674e64628b34e7688c3ad80476fec6af54`. With a private external `GOCACHE`,
+`make generate-check` and the same 107-package Linux/386 compile-only command passed. The sorted framed
+`path<NUL>sha256(file)<NUL>mode<NUL>` roster remained byte-identical at 1,077 entries/SHA-256
+`0596402ad619d4f5f6a9846a1c6ff68dfc8eb74991695c9967e1fcb995ce71da`. The temporary archive/cache root was moved
+recoverably to `/Users/hanhyeonjin/.Trash/godj-gdj0047-timeout-archive.tY0Bay`; its original temporary path no longer
+exists.
+
+Independent audits found no P0/P1/P3 product, security, compatibility-reset or source-binding defect. One P2 current-doc
+mirror finding and one packet-scope omission are closed by this documentation descendant: current attestation mirrors now
+name the corrected bytes, and `conformance/runserverproduct/workflow_wiring_test.go` is explicitly allowed. From the
+GDJ-0047 activation baseline, the final scope is 64 changed paths covered by 47 allowed-path patterns; historical
+EVID-136's 63/46 snapshot is not rewritten.
+
+Two excluded local attempts are not evidence. A preliminary full run stopped on the second stale workflow lock before the
+final amendment; the amended exact correction then passed the full command above. The first archive wrapper misclassified
+38 successful `[no test files]` packages as failures; the unchanged archive reran the exact compile command with corrected
+accounting and passed. Neither harness issue changed product bytes or weakens the final exact gates.
+
+The next boundary is this documentation-only evidence descendant, a non-force push, Draft PR #1 refresh and one unique
+corrected exact submitted-head hosted run. Until that run completes, ADR-0049 remains Proposed, DEV-0009 remains
+Implemented, GDJ-0047 remains active and Q-021 remains Partial. Merge, release, deployment, JWT/opaque issuance, refresh
+token lifecycle, OAuth/OIDC, signing-key lifecycle, production BFF and OpenAPI remain unclaimed.
