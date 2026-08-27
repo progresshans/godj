@@ -3,6 +3,7 @@
 package projectmigrateproduct_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,9 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
 
-const fullConcurrencyBarrierEnv = "GODJ_MIGRATION_CONCURRENCY_BARRIER"
+const (
+	fullConcurrencyBarrierEnv         = "GODJ_MIGRATION_CONCURRENCY_BARRIER"
+	fullConcurrencyPrivateStderrProbe = "godj-private-stderr-fd2-probe-v1\n"
+)
 
 func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 	repository := repositoryRoot(t)
@@ -76,6 +82,37 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 			beginCount = len(expected.History)
 		}
 		fullConcurrencyAssertSingleAttempt(t, barrierDirectory, marker.PID, beginCount)
+		privateResponse := fullConcurrencyAssertPrivateWire(
+			t,
+			barrierDirectory,
+			marker.PID,
+			databasePath,
+			databaseDSN,
+			barrierDirectory,
+			descriptor,
+			filepath.Dir(descriptor),
+		)
+		if index == 0 {
+			want := migrateprotocol.Response{
+				OK: true,
+				Result: migrateprotocol.Result{
+					SourceCount:         expected.Command.SourceCount,
+					DefinitionCount:     expected.Command.DefinitionCount,
+					DefinitionSetDigest: expected.Command.DefinitionSetDigest,
+				},
+			}
+			if privateResponse != want {
+				t.Fatalf("winner private response = %+v, want exact successful migration result", privateResponse)
+			}
+			continue
+		}
+		want := migrateprotocol.Response{Failure: migrateprotocol.Failure{
+			Category: migrateprotocol.CategoryTransaction,
+			Code:     "history_revision_contended",
+		}}
+		if privateResponse != want {
+			t.Fatalf("contender private response = %+v, want exact closed revision contention", privateResponse)
+		}
 	}
 	winnerDocument := fullConcurrencyCoordinationMarker(t, barrierDirectory, "winner-lock")
 	contenderDocument := fullConcurrencyCoordinationMarker(t, barrierDirectory, "contender-observed")
@@ -185,11 +222,37 @@ func fullConcurrencyMarkers(t *testing.T, directory string) []fullConcurrencyMar
 		t.Fatal(err)
 	}
 	markers := make([]fullConcurrencyMarker, 0, len(entries))
+	artifacts := map[string]map[int]struct{}{
+		"attempts-":         {},
+		"private-request-":  {},
+		"private-response-": {},
+		"private-stderr-":   {},
+	}
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() {
 			t.Fatalf("unexpected snapshot barrier entry %q", entry.Name())
 		}
-		if entry.Name() == "winner-lock" || entry.Name() == "contender-observed" || strings.HasPrefix(entry.Name(), "attempts-") {
+		if entry.Name() == "winner-lock" || entry.Name() == "contender-observed" {
+			continue
+		}
+		artifact := false
+		for prefix, pids := range artifacts {
+			if !strings.HasPrefix(entry.Name(), prefix) {
+				continue
+			}
+			suffix := strings.TrimPrefix(entry.Name(), prefix)
+			pid, parseErr := strconv.Atoi(suffix)
+			if parseErr != nil || pid <= 0 || suffix != strconv.Itoa(pid) {
+				t.Fatalf("snapshot barrier artifact name %q did not contain a canonical positive PID", entry.Name())
+			}
+			if _, duplicate := pids[pid]; duplicate {
+				t.Fatalf("snapshot barrier artifact %q duplicated PID %d", prefix, pid)
+			}
+			pids[pid] = struct{}{}
+			artifact = true
+			break
+		}
+		if artifact {
 			continue
 		}
 		if !strings.HasPrefix(entry.Name(), "ready-") {
@@ -214,6 +277,20 @@ func fullConcurrencyMarkers(t *testing.T, directory string) []fullConcurrencyMar
 		markers = append(markers, marker)
 	}
 	sort.Slice(markers, func(left, right int) bool { return markers[left].PID < markers[right].PID })
+	markerPIDs := make(map[int]struct{}, len(markers))
+	for _, marker := range markers {
+		markerPIDs[marker.PID] = struct{}{}
+	}
+	for prefix, pids := range artifacts {
+		if len(pids) != len(markerPIDs) {
+			t.Fatalf("snapshot barrier artifact %q participant count = %d, want %d", prefix, len(pids), len(markerPIDs))
+		}
+		for pid := range pids {
+			if _, exists := markerPIDs[pid]; !exists {
+				t.Fatalf("snapshot barrier artifact %q retained unexpected child PID %d", prefix, pid)
+			}
+		}
+	}
 	return markers
 }
 
@@ -227,6 +304,53 @@ func fullConcurrencyAssertSingleAttempt(t *testing.T, directory string, pid, beg
 	if string(document) != want {
 		t.Fatalf("concurrency child %d lifecycle attempts = %q, want one session, one snapshot, and %d migration begins with no retry", pid, document, beginCount)
 	}
+}
+
+func fullConcurrencyAssertPrivateWire(
+	t *testing.T,
+	directory string,
+	pid int,
+	sensitive ...string,
+) migrateprotocol.Response {
+	t.Helper()
+	request := fullConcurrencyReadPrivateCapture(t, directory, "request", pid)
+	responseDocument := fullConcurrencyReadPrivateCapture(t, directory, "response", pid)
+	stderr := fullConcurrencyReadPrivateCapture(t, directory, "stderr", pid)
+	for sensitiveIndex, value := range sensitive {
+		if value == "" {
+			continue
+		}
+		for _, document := range [][]byte{request, responseDocument, stderr} {
+			if bytes.Contains(document, []byte(value)) {
+				t.Fatalf("private migration wire for child %d exposed sensitive value %d", pid, sensitiveIndex+1)
+			}
+		}
+	}
+	if !bytes.Equal(request, migrateprotocol.RequestDocument()) {
+		t.Fatalf("private migration request for child %d was not the exact canonical request", pid)
+	}
+	if !bytes.Equal(stderr, []byte(fullConcurrencyPrivateStderrProbe)) {
+		t.Fatalf("private migration stderr for child %d did not contain the exact direct-fd2 probe", pid)
+	}
+	response, failure, failed := migrateprotocol.ParseResponse(responseDocument, true)
+	if failed || failure != (migrateprotocol.Failure{}) {
+		t.Fatalf(
+			"private migration response for child %d failed strict parsing with category=%q code=%q",
+			pid,
+			failure.Category,
+			failure.Code,
+		)
+	}
+	return response
+}
+
+func fullConcurrencyReadPrivateCapture(t *testing.T, directory, kind string, pid int) []byte {
+	t.Helper()
+	document, err := os.ReadFile(filepath.Join(directory, "private-"+kind+"-"+strconv.Itoa(pid)))
+	if err != nil {
+		t.Fatalf("read private migration %s capture for child %d", kind, pid)
+	}
+	return document
 }
 
 func fullConcurrencyCoordinationMarker(t *testing.T, directory, name string) string {
@@ -257,6 +381,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -269,9 +394,11 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/systemstate"
+	"golang.org/x/sys/unix"
 )
 
 const barrierEnvironment = "GODJ_MIGRATION_CONCURRENCY_BARRIER"
+const privateStderrProbe = "godj-private-stderr-fd2-probe-v1\n"
 
 type barrierBackend struct {
 	godjproject.MigrationBackend
@@ -432,8 +559,164 @@ func waitForBarrierMarker(ctx context.Context, path string) error {
 	}
 }
 
-func main() {
-	err := godjproject.Run(
+type privateProtocolCapture struct {
+	request  *os.File
+	response *os.File
+	stderr   *os.File
+}
+
+type privateStderrMirror struct {
+	public  io.Writer
+	capture io.Writer
+	err     error
+}
+
+func (value *privateStderrMirror) Write(payload []byte) (int, error) {
+	publicWritten, publicErr := value.public.Write(payload)
+	if publicWritten != len(payload) && publicErr == nil {
+		publicErr = io.ErrShortWrite
+	}
+	captureWritten, captureErr := value.capture.Write(payload)
+	if captureWritten != len(payload) && captureErr == nil {
+		captureErr = io.ErrShortWrite
+	}
+	value.err = errors.Join(value.err, publicErr, captureErr)
+	// Always drain fd 2 completely. Individual destination failures are
+	// returned after the pipe reaches EOF so the child cannot deadlock while
+	// reporting an error.
+	return len(payload), nil
+}
+
+type privateStderrRedirect struct {
+	targetFD int
+	original *os.File
+	done     <-chan error
+}
+
+func startPrivateStderrRedirect(capture *os.File) (*privateStderrRedirect, error) {
+	if capture == nil {
+		return nil, nil
+	}
+	targetFD := int(os.Stderr.Fd())
+	originalFD, err := unix.Dup(targetFD)
+	if err != nil {
+		return nil, errors.New("duplicate private stderr")
+	}
+	original := os.NewFile(uintptr(originalFD), "private-stderr-original")
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		_ = original.Close()
+		return nil, errors.New("open private stderr pipe")
+	}
+	if err := unix.Dup2(int(writer.Fd()), targetFD); err != nil {
+		_ = reader.Close()
+		_ = writer.Close()
+		_ = original.Close()
+		return nil, errors.New("redirect private stderr")
+	}
+	if err := writer.Close(); err != nil {
+		restoreErr := unix.Dup2(int(original.Fd()), targetFD)
+		if restoreErr != nil {
+			restoreErr = errors.Join(restoreErr, unix.Close(targetFD))
+		}
+		_ = reader.Close()
+		_ = original.Close()
+		return nil, errors.Join(errors.New("close private stderr pipe writer"), restoreErr)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		mirror := &privateStderrMirror{public: original, capture: capture}
+		_, copyErr := io.Copy(mirror, reader)
+		done <- errors.Join(copyErr, mirror.err, reader.Close())
+	}()
+	return &privateStderrRedirect{targetFD: targetFD, original: original, done: done}, nil
+}
+
+func (value *privateStderrRedirect) stop() error {
+	if value == nil {
+		return nil
+	}
+	restoreErr := unix.Dup2(int(value.original.Fd()), value.targetFD)
+	if restoreErr != nil {
+		restoreErr = errors.Join(restoreErr, unix.Close(value.targetFD))
+	}
+	drainErr := <-value.done
+	return errors.Join(restoreErr, drainErr, value.original.Close())
+}
+
+func openPrivateProtocolCapture(directory string, pid int) (*privateProtocolCapture, error) {
+	if directory == "" || !filepath.IsAbs(directory) {
+		return nil, nil
+	}
+	capture := new(privateProtocolCapture)
+	open := func(kind string) (*os.File, error) {
+		path := filepath.Join(directory, fmt.Sprintf("private-%s-%d", kind, pid))
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			return nil, errors.New("open private protocol capture")
+		}
+		return file, nil
+	}
+	var err error
+	if capture.request, err = open("request"); err != nil {
+		return nil, err
+	}
+	if capture.response, err = open("response"); err != nil {
+		_ = capture.request.Close()
+		return nil, err
+	}
+	if capture.stderr, err = open("stderr"); err != nil {
+		_ = capture.request.Close()
+		_ = capture.response.Close()
+		return nil, err
+	}
+	return capture, nil
+}
+
+func (value *privateProtocolCapture) close() error {
+	if value == nil {
+		return nil
+	}
+	return errors.Join(value.request.Close(), value.response.Close(), value.stderr.Close())
+}
+
+func runMain() int {
+	directory := strings.TrimSpace(os.Getenv(barrierEnvironment))
+	capture, err := openPrivateProtocolCapture(directory, os.Getpid())
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "project runner failed")
+		return 1
+	}
+	var stderrCapture *os.File
+	if capture != nil {
+		stderrCapture = capture.stderr
+	}
+	stderrRedirect, err := startPrivateStderrRedirect(stderrCapture)
+	if err != nil {
+		_ = capture.close()
+		_, _ = fmt.Fprintln(os.Stderr, "project runner failed")
+		return 1
+	}
+	if capture != nil {
+		written, writeErr := unix.Write(int(os.Stderr.Fd()), []byte(privateStderrProbe))
+		if writeErr != nil || written != len(privateStderrProbe) {
+			_, _ = fmt.Fprintln(os.Stderr, "project runner failed")
+			stderrErr := stderrRedirect.stop()
+			closeErr := capture.close()
+			if errors.Join(writeErr, stderrErr, closeErr) != nil {
+				return 1
+			}
+			return 1
+		}
+	}
+	request := io.Reader(os.Stdin)
+	response := io.Writer(os.Stdout)
+	if capture != nil {
+		request = io.TeeReader(os.Stdin, capture.request)
+		response = io.MultiWriter(capture.response, os.Stdout)
+	}
+	err = godjproject.Run(
 		context.Background(),
 		godjproject.Config{
 			MigrationDefinitionRoots:   []string{"migrations"},
@@ -459,12 +742,23 @@ func main() {
 			},
 		},
 		os.Args[1:],
-		os.Stdin,
-		os.Stdout,
+		request,
+		response,
 	)
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "project runner failed")
-		os.Exit(1)
 	}
+	stderrErr := stderrRedirect.stop()
+	if closeErr := capture.close(); errors.Join(stderrErr, closeErr) != nil {
+		return 1
+	}
+	if err != nil {
+		return 1
+	}
+	return 0
+}
+
+func main() {
+	os.Exit(runMain())
 }
 `
