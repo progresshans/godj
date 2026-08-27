@@ -13382,3 +13382,207 @@ GDJ-0049 and ADR-0051 remain active/Proposed. MIG-087..098 remain `oracle_locked
 The deleted-CWD invalid-argv regression is implemented as an actual Linux test but intentionally skips on this Darwin local
 checkpoint. Full CI/hosted evidence is deferred to the final frozen milestone rather than recursively repeated for this
 intermediate source checkpoint. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge, release or deployment is claimed.
+
+## EVID-20260828-144 — GDJ-0049 Frozen Local Final and Source-bound PostgreSQL Publication
+
+- Date: 2026-08-28 KST
+- Work/contract IDs: GDJ-0049 active; ADR-0051 Proposed; MIG-087..098 registered `passing`; Q-010/Q-012 remain
+  `Partial`, Q-019 remains P1
+- Frozen behavioral publication commit: `c5af15ea7b712c839b9e0aca311895afd90f3065`, tree
+  `0d6d9e66e5a635c2e17f26652cd3518e5bf2afd6`
+- Source-bound attestation publication commit: `dc3861f4b9ddce1ace7a8c667d7a539efead731d`, tree
+  `3047c3b22fe14cb7bb258361fc6e50c344bbd8dd`
+
+### Product publication and aggregate
+
+The source chain after EVID-143 closes the SQLite lifecycle (`d160ea4...`), isolates nested product build gates
+(`8807f5d...` and `65f5fd7...`), hardens lifecycle evidence (`e5ca028...`), verifies PostgreSQL (`e3cee0d...`), publishes
+the migration-command product contracts (`c5af15e...`) and refreshes the checked source-bound attestation (`dc3861f...`).
+It implements middle-failure durable-prefix resume, actual child overlap/fence/reconciliation, authenticated Admin/API
+CRUD across distinct process restarts and the digest-pinned PostgreSQL 17.10 clean-schema flow.
+
+MIG-087..098 are now twelve registered `passing` contracts. Current reference inventory is 23 sets/261 contracts/506
+ordered bindings=`230 passing + 19 deviation + 12 oracle_locked`; product inventory is 22 adapters/249 eligible contracts=
+`230 passing + 19 deviation`. MIG-075..086 is the only remaining locked/unregistered diagnostic range. No deviation was
+added or changed.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/migration-command-manifest.json` | 6,166 | `d2846327e4d8cbf82a25568e41b198c67878bb7853958729969eb7077ca4c0e1` |
+| `conformance/fixtures/godj-migration-command-not-implemented.json` | 1,838 | `8680d5e8ce7cf11604af69da1e96a64f580f64074277a2a015af8ad250bb0016` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json` | 12,690 | `30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee` |
+| oracle `SHA256SUMS` | 1,887 | `cf7029cbc39627e57c1e3f991d5f28895781fba69b2353727e02f51cc14e3daa` |
+
+Two independent Go product actuals were byte-identical at 12,497 bytes/SHA-256
+`cde777ed2f00cfd3be91faccee760891d7e2caa9142df8a49aaf59d577ae75a1`. `godjcheck` reported exact semantic match for
+all twelve contracts and the focused artifact/central-wiring/aggregate locks passed. The actual is intentionally not
+byte-identical to the 12,690-byte oracle: Go canonical encoding omits nil `result`, `error` and `db_state` fields while the
+oracle spells them as JSON `null`. Loading both yields the same typed nil values, and strict protocol comparison reports
+zero differences. Determinism is therefore asserted between independent Go actuals, not between unlike encodings.
+
+### Commands executed and retained evidence
+
+All commands below ran on 2026-08-28 KST. The PostgreSQL capture ran against frozen behavioral HEAD `c5af15e...`; the
+migration-command, affected, relation, final-CI and archive gates ran against its attestation-publication descendant
+`dc3861f...`. PostgreSQL credentials are deliberately redacted. The temporary evidence roots are repository-external, and
+their dedicated database resources were removed after capture.
+
+Migration-command publication was captured independently under `/tmp/godj-gdj0049-migration-command.3O17Kg` and
+`/tmp/godj-gdj0049-migration-command-second.roYxRM` with:
+
+```bash
+for migration_evidence_root in \
+  /tmp/godj-gdj0049-migration-command.3O17Kg \
+  /tmp/godj-gdj0049-migration-command-second.roYxRM
+do
+  go run ./conformance/cmd/godjcheck \
+    -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+    -manifest conformance/contracts/migration-command-manifest.json \
+    -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json \
+    -actual-output "$migration_evidence_root/migration-command-actual.json"
+done
+go test -timeout=15m -count=1 ./conformance/internal/protocol \
+  -run '^(TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe|TestMigrationCommandPublishedCentralWiringIsExact|TestCurrentTwentyTwoProductSetsHave249EligibleContractsAndExcludeZeroOracleLocked|TestCurrentTwentyThreeReferenceSetsHave261ContractsAndReject506OrderedCrossBindings)$'
+```
+
+Affected-package gates were retained under `/tmp/godj-gdj0049-affected.VYNMUr`:
+
+```bash
+go test -timeout=15m -count=1 ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/runners/godj ./conformance/systemstate/attestation
+go test -timeout=15m -race -count=1 ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/runners/godj ./conformance/systemstate/attestation
+CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/runners/godj ./conformance/systemstate/attestation
+go vet ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/runners/godj ./conformance/systemstate/attestation
+make generate-check
+```
+
+The exact relation-product JSON capture was retained under `/tmp/godj-gdj0049-relation-inventory.M6NiTL` from:
+
+```bash
+relation_evidence_root=/tmp/godj-gdj0049-relation-inventory.M6NiTL
+LC_ALL=C TZ=UTC go test -json -count=1 \
+  ./schema/... ./query ./codegen ./orm ./db/sqlite ./migrations ./migrations/definition \
+  ./conformance/relationproduct/... ./conformance/relationqueryproduct/... \
+  ./conformance/relationobjectproduct/... ./conformance/relationreverseproduct/... \
+  ./conformance/relationprefetchproduct/... ./conformance/relationselectproduct/... \
+  ./conformance/relationdeleteproduct/... ./conformance/migrationrelationproduct \
+  ./conformance/internal/protocol ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./internal/compiletest \
+  > "$relation_evidence_root/relation-product-tests.json"
+```
+
+The exact PostgreSQL wrapper is retained as
+`/tmp/godj-gdj0049-pgexact-c5af15ea-retry2.tY2Zsz/run-scoped-pg-lane.sh`. It used digest-pinned
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd` and
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f` images, a fresh schema,
+three fresh redacted database URLs and a read-only source archive. The Go container fixed `LC_ALL=C`, `TZ=UTC`,
+`GOTOOLCHAIN=local` and `GOFLAGS=-buildvcs=false`, and mounted the evidence root at `/evidence`. The retained wrapper assigned
+`$normal_url`, `$race_url` and `$cgo0_url`, then executed this exact inner command set and required-test regex:
+
+```bash
+required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
+docker exec -e GODJ_TEST_POSTGRES_URL="$normal_url" -e GODJ_REQUIRE_POSTGRES=1 \
+  -e GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE=/evidence/postgresql-17.10-two-process-v1.scoped-normal.json \
+  "$go_container" go test -timeout=15m -json -count=1 -run "$required_regex" \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/... \
+  ./conformance/projectmigrateproduct ./conformance/systemstate/restart ./conformance/runserverproduct
+docker exec -e GODJ_TEST_POSTGRES_URL="$race_url" -e GODJ_REQUIRE_POSTGRES=1 \
+  -e GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE=/evidence/postgresql-17.10-two-process-v1.scoped-race.json \
+  "$go_container" go test -timeout=15m -race -json -count=1 -run "$required_regex" \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/... \
+  ./conformance/projectmigrateproduct ./conformance/systemstate/restart ./conformance/runserverproduct
+docker exec -e GODJ_TEST_POSTGRES_URL="$cgo0_url" -e GODJ_REQUIRE_POSTGRES=1 -e CGO_ENABLED=0 \
+  -e GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE=/evidence/postgresql-17.10-two-process-v1.scoped-cgo0.json \
+  "$go_container" go test -timeout=15m -json -count=1 -run "$required_regex" \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/... \
+  ./conformance/projectmigrateproduct ./conformance/systemstate/restart ./conformance/runserverproduct
+docker exec "$go_container" go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... \
+  ./conformance/projectmigrateproduct ./conformance/systemstate/restart ./conformance/runserverproduct
+```
+
+The regex names all 20 required tests; per-mode results are retained in the `scoped-*-sentinel-inventory.tsv` files. The
+restart lane built `./conformance/postgresproduct/cmd/projectrunner`, ran prepare, restarted the actual PostgreSQL service,
+then ran probe, resume, verify and cleanup. The broader emulation-only attempt ran:
+
+```bash
+go test -timeout=15m -json -count=1 \
+  ./db/postgres ./examples/article ./conformance/postgresproduct/... \
+  ./conformance/projectmigrateproduct ./conformance/systemstate/restart
+```
+
+It reached the outer 15-minute timeout before the separately planned runserver command. Its partial results are retained as
+`normal.json` and `whole15m-required-inventory.tsv`, and are not counted as a passing gate.
+
+The final root gate was retained under `/tmp/godj-gdj0049-final-ci.Snobjg`:
+
+```bash
+LC_ALL=C TZ=UTC make ci
+git diff --check
+git status --short
+```
+
+Repository-external publication verification was retained under `/tmp/godj-gdj0049-publication-audit.zBoZav`:
+
+```bash
+publication_evidence_root=/tmp/godj-gdj0049-publication-audit.zBoZav
+git ls-tree -rz --full-tree HEAD > "$publication_evidence_root/source-ls-tree-z.bin"
+git archive --format=tar --output "$publication_evidence_root/publication.tar" HEAD
+mkdir -p "$publication_evidence_root/archive"
+tar -xf "$publication_evidence_root/publication.tar" -C "$publication_evidence_root/archive"
+cd "$publication_evidence_root/archive"
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off make generate-check
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go list ./...
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOOS=linux GOARCH=386 CGO_ENABLED=0 \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The same root retains the source/archive roster, mode, byte-size and SHA-256 comparisons used for the mismatch counts below.
+
+### PostgreSQL 17.10 and checked attestation
+
+Digest-pinned Linux/amd64 Go 1.26.5 and PostgreSQL 17.10 fresh-schema lanes passed exact required 20/20, skip 0 in normal,
+race and CGO-disabled modes. The Article smoke, service restart prepare/resume/verify, vet, clean sentinel inventories and
+credential scanner also passed. The scanner covered 12 generated exact-PG artifacts across five marker classes with zero
+occurrences. Every temporary exact container, network and volume was removed after capture.
+
+The checked canonical attestation and two independent captures are byte-identical at 1,134 bytes/SHA-256
+`015952a2e520fbe626ee290f48856684585eef3d71d48713cf0806bdeec3f108`; its sibling checksum is 103 bytes/SHA-256
+`0cf3983caeb7f5b752e3717d6a41bc32b3a84208b73430cc2a08914cc7f9676e`. Source binding is exactly 262 files,
+3,101,926 payload bytes and SHA-256 `cb0ceb5050d58e28e33d53f95c5ecf11d2572bcf78027c9669d0f48f1deb58cf`.
+Both captures record two writers, same-schema/barrier/restart true and divergence/loss/drift/secret counts zero under the
+exact 16-field PostgreSQL fingerprint.
+
+One combined whole-suite command under local amd64-on-arm64 emulation reached its 15-minute Go test outer limit after
+305 test pass events, zero test-level fail events and one helper skip while a SQLite MIG-096 case was still active. This emulation-only
+timing is not reused as a green whole-suite result. The fresh-DB scoped PostgreSQL normal/race/CGO-disabled 20/20 lanes,
+restart and vet above are the local exact evidence; native exact submitted-head hosted execution remains pending.
+
+### Frozen local gates
+
+The following final gates passed from clean publication HEAD `dc3861f...` before this documentation append:
+
+- affected packages `conformance/cmd/godjcheck`, `conformance/internal/protocol`, `conformance/runners/godj` and
+  `conformance/systemstate/attestation`: normal 145 seconds, race 153 seconds, CGO-disabled 126 seconds;
+  vet plus deterministic Article/relationdelete generated drift 16 seconds, 440 seconds total;
+- exact relation-product JSON inventory: 1,091 run/1,091 pass/0 skip, 113,227 canonical payload bytes,
+  SHA-256 `e88d31d687b02539e881d6b8300e3f0d9aca3e3a046a582b40627360c427b10f`;
+- one final root `make ci`: exit 0 in 1,430 seconds, including normal/race/CGO-disabled Go product lanes, vet,
+  Python runner tests and all reference/deviation/product comparisons; log 96,001 bytes/SHA-256
+  `19661643737270acc13c450ef019255e64baabdd956d6f602353d5f50a286575`;
+- repository-external `git archive`: source/archive exact 1,126 blobs, all mode `100644`, 15,964,029 content bytes,
+  missing/additional/path/mode/size/SHA mismatch 0 and no `.git`; archive tar SHA-256
+  `28a76efdb738718c7be5eeefa83a3d7ffdc95621341afa8ba409db137dbdd82b`;
+- archive-local offline `make generate-check`, exact 111-package `go list` and Linux/386 CGO-disabled compile-only;
+- `git diff --check`, clean worktree and byte-identical pre/post status at every final gate.
+
+Independent publication audit found P0/P1/P2/P3=`0/0/0/0`: `c5af15e..dc3861f` contains exactly the four allowed
+publication paths, with no behavioral Go source, workflow or Makefile change. Attestation A/B/checked bytes, source binding
+and facts all agree. The reproducible exact-PostgreSQL scanner covered 12 selected artifacts across five marker classes with
+zero occurrences. The dedicated temporary local PostgreSQL containers, network and named data/build-cache volumes were
+removed after all DB evidence was collected. No source, generated or workflow file was changed by verification.
+
+### Remaining acceptance and non-claims
+
+GDJ-0049 remains `active` and ADR-0051 remains `Proposed` until one exact submitted-head hosted matrix passes. This local
+evidence does not claim hosted success for the later documentation descendant, general migration writer/autodetector,
+named/zero/reverse target, plan/fake, data/custom operation, adoption/repair, multi-DB, production provisioning or broader
+backend support. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge, release or deployment was performed.

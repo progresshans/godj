@@ -231,21 +231,21 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
   (partial MIG-096 observation이며 child-vs-child winner/fence 증명은 아님)
 - [x] explicit migrate 뒤 unauthenticated Article read와 두 fresh runserver process 사이 row persistence 검증
 - [x] runserver-before-migrate 500과 migration mutation 0을 보존
-- [ ] middle failure의 durable prefix와 fresh-process resume 검증
-- [ ] 실제 child-vs-child overlap/winner를 증명하는 full MIG-096 검증
-- [ ] explicit migrate 뒤 authenticated Admin/API CRUD와 distinct-process restart durability 검증
+- [x] middle failure의 durable prefix와 fresh-process resume 검증
+- [x] 실제 child-vs-child overlap/winner를 증명하는 full MIG-096 검증
+- [x] explicit migrate 뒤 authenticated Admin/API CRUD와 distinct-process restart durability 검증
 
 ### Phase D — PostgreSQL and product publication
 
-- [ ] digest-pinned PostgreSQL 17.10 clean-schema latest/no-op/contention/restart 검증
-- [ ] stdout/stderr/wire/artifact credential canary occurrence 0과 required skip 0 검증
-- [ ] MIG-087..098 product actual을 등록하고 exact `passing`으로 전환
+- [x] digest-pinned PostgreSQL 17.10 clean-schema latest/no-op/contention/restart 검증
+- [x] stdout/stderr/wire/artifact credential canary occurrence 0과 required skip 0 검증
+- [x] MIG-087..098 product actual을 등록하고 exact `passing`으로 전환
 
 ### Phase E — frozen milestone
 
-- [ ] affected normal/race/CGO0/vet와 generated drift를 checkpoint마다 통과
-- [ ] conformance-validation 25분 margin을 final source 전에 split 또는 budget 교정
-- [ ] frozen source에서 required PostgreSQL, full `make ci`, Linux/386, repository-external archive와 independent audit 한 번 수행
+- [x] affected normal/race/CGO0/vet와 generated drift를 checkpoint마다 통과
+- [x] nested product gate 격리와 conformance-validation 45분 budget 교정을 final source 전에 고정
+- [x] frozen source에서 required PostgreSQL, full `make ci`, Linux/386, repository-external archive와 independent audit 한 번 수행
 - [ ] exact submitted-head hosted matrix 뒤 ADR/status/evidence를 terminal bytes에 맞게 갱신
 
 ## 완료 조건
@@ -268,9 +268,15 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
   전체 범위와 실제 명령/non-claim은
   [EVID-143](../docs/status/TEST_EVIDENCE.md#evid-20260828-143--gdj-0049-activation-hosted-and-phase-ab-sqlite-source-checkpoint)에
   기록했습니다.
-- 현재 정확한 다음 작업: middle failure/durable-prefix fresh resume를 먼저 추가하고, 이어서 full child-vs-child MIG-096과
-  authenticated Admin/API distinct-process lifecycle을 닫습니다. 그 뒤 PostgreSQL 17.10과 product actual publication으로 갑니다.
-- Linux deleted-CWD actual regression은 구현됐지만 Darwin local checkpoint에서는 skip됐으므로 current-source hosted/Linux 증거 전에는
-  실행됐다고 주장하지 않습니다.
+- SQLite lifecycle source `d160ea4...`, PostgreSQL lifecycle source `e3cee0d...`, product publication source
+  `c5af15e...`와 source-bound attestation publication `dc3861f...`에서 Phase C/D 및 frozen local gate를 닫았습니다.
+  MIG-087..098은 registered product `passing`이고 current aggregate는 reference 23/261/506=
+  `230 passing + 19 deviation + 12 oracle_locked`, product 22/249=`230 passing + 19 deviation`입니다. 남은 locked
+  range는 diagnostic MIG-075..086뿐입니다.
+- [EVID-144](../docs/status/TEST_EVIDENCE.md#evid-20260828-144--gdj-0049-frozen-local-final-and-source-bound-postgresql-publication)는
+  required PostgreSQL 17.10, affected normal/race/CGO0/vet/generate, relation 1,091/1,091/0, full `make ci`,
+  Linux/386, 1,126-file repository-external archive와 independent source/security audit를 기록합니다.
+- 현재 정확한 다음 작업은 이 local-final 문서 descendant를 push하고 exact submitted-head hosted matrix를 통과시키는 것입니다.
+  그 전까지 ADR-0051은 Proposed, GDJ-0049는 active이고 terminal 승격이나 다음 packet 활성화를 하지 않습니다.
 - 같은 public `project.Config`, global CLI dispatch, contract manifest/registry와 CURRENT는 통합 담당 한 명만 수정합니다.
 - Full hosted/evidence cycle은 subtask마다 반복하지 않고 final frozen source에서 한 번 수행합니다.
