@@ -18,6 +18,7 @@ allowed_paths:
   - "examples/article/**"
   - "conformance/postgresproduct/**"
   - "conformance/README.md"
+  - "conformance/internal/protocol/migration_project_check_artifacts_test.go"
   - "conformance/internal/protocol/relation_artifacts_test.go"
   - "conformance/internal/protocol/system_state_artifacts_test.go"
   - "conformance/relationdeleteproduct/**"
