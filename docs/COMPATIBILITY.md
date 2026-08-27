@@ -4,9 +4,9 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-27 (GDJ-0047 corrected exact head EVID-138 / CI #155 run `33049861740`)
-- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-137 Intel timeout correction/attestation recapture와
-  corrected full/386/archive 통과; EVID-138 terminal hosted 통과; GDJ-0048 baseline `3882902...`의 SQLite
-  test-select synchronization correction은 focused normal/race/CGO0와 full SQLite/vet 통과, hosted descendant pending)
+- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
+  `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical focused gate 통과;
+  clean source-bound attestation과 final full/386/archive/hosted matrix pending)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.

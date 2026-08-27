@@ -1,0 +1,97 @@
+package consumer
+
+import (
+	"context"
+	"encoding/json"
+
+	"example.com/godj-project-bundle/authors"
+	"example.com/godj-project-bundle/blog"
+	"example.com/godj-project-bundle/project"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
+)
+
+type backend struct{}
+
+func (*backend) Query(context.Context, query.Plan) (db.Rows, error) {
+	return nil, nil
+}
+
+func (*backend) Insert(context.Context, query.InsertPlan) (int64, error) {
+	return 0, nil
+}
+
+func (*backend) Update(context.Context, query.UpdatePlan) (int64, error) {
+	return 0, nil
+}
+
+func (*backend) Delete(context.Context, query.DeletePlan) (int64, error) {
+	return 0, nil
+}
+
+var (
+	_ project.Backend = (*backend)(nil)
+
+	_ json.Marshaler   = project.BlogPost{}
+	_ json.Marshaler   = (*project.BlogPost)(nil)
+	_ json.Unmarshaler = (*project.BlogPost)(nil)
+
+	_ func(project.BlogPost) string          = project.BlogPost.DisplayTitle
+	_ func(*project.BlogPost)                = (*project.BlogPost).NormalizeTitle
+	_ func(project.BlogPost) ([]byte, error) = project.BlogPost.MarshalJSON
+	_ func(*project.BlogPost, []byte) error  = (*project.BlogPost).UnmarshalJSON
+)
+
+func compileCanonicalFacade(ctx context.Context, origin project.Backend) error {
+	models, err := project.Using(origin)
+	if err != nil {
+		return err
+	}
+	author, err := models.AuthorsAuthor.New(authors.Author{Name: "Ada"})
+	if err != nil {
+		return err
+	}
+	post, err := models.BlogPost.New(blog.Post{Title: "draft", AuthorID: 1})
+	if err != nil {
+		return err
+	}
+
+	post.Title = post.Title + "!"
+	var title string = post.DisplayTitle()
+	_ = title
+	post.NormalizeTitle()
+
+	post, err = post.WithAuthor(author)
+	if err != nil {
+		return err
+	}
+	post, err = post.WithAuthorID(1)
+	if err != nil {
+		return err
+	}
+	if _, err := post.Author(ctx); err != nil {
+		return err
+	}
+	if err := post.Save(ctx); err != nil {
+		return err
+	}
+	raw, err := post.Unwrap()
+	if err != nil {
+		return err
+	}
+	var rawPost blog.Post = raw
+	_ = rawPost
+
+	_, _ = json.Marshal(post)
+	_ = json.Unmarshal([]byte("{}"), post)
+
+	loaded, found, err := models.BlogPost.
+		Filter(blog.PostFields.Title.Exact("normalized:draft!")).
+		First(ctx)
+	if err != nil || !found {
+		return err
+	}
+	loaded.Title = "loaded"
+	loaded.NormalizeTitle()
+	return nil
+}

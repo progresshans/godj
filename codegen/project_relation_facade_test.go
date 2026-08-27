@@ -65,9 +65,25 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 	}
 
 	for _, fragment := range [][]byte{
-		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"`),
+		[]byte(`const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v3"`),
 		[]byte(`const GoDjProjectRelationFacadeInputSHA256 = "`),
 		[]byte("type Backend interface {\n\tdb.Queryer\n\tdb.Mutator\n}"),
+		[]byte("type authorsAuthorModel = authors.Author"),
+		[]byte("type blogPostModel = blog.Post"),
+		[]byte("type BlogPost struct {\n\tblogPostModel\n\tstate"),
+		[]byte("func (BlogPost) MarshalJSON() ([]byte, error)"),
+		[]byte("func (*BlogPost) UnmarshalJSON([]byte) error"),
+		[]byte("primaryKeySnapshot        int64"),
+		[]byte("primaryKeySnapshotPresent bool"),
+		[]byte("authorScalarSnapshot"),
+		[]byte("reviewerScalarPresent"),
+		[]byte("func relationFacadePrimaryKeyUpdate(_field string) error"),
+		[]byte("Category: query.CategoryModelState, Code: query.CodePrimaryKeyUpdateField"),
+		[]byte("func (_model *BlogPost) relationFacadeReconcile() error"),
+		[]byte("_authorChanged := _authorCurrentKey != _model.authorScalarSnapshot"),
+		[]byte("_reviewerChanged := _reviewerCurrentPresent != _model.reviewerScalarPresent"),
+		[]byte("PrimaryKey(_model.blogPostModel)"),
+		[]byte("&_model.blogPostModel"),
 		[]byte("type Models struct {\n\tAuthorsAuthor AuthorsAuthorQuery\n\tBlogPost      BlogPostQuery\n}"),
 		[]byte("func Using(_backend Backend) (Models, error)"),
 		[]byte("func (_query BlogPostQuery) Distinct() BlogPostQuery"),
@@ -89,6 +105,12 @@ func TestGenerateProjectRelationFacadeIsCanonicalAndByteLocked(t *testing.T) {
 		if !bytes.Contains(first, fragment) {
 			t.Fatalf("generated facade source does not contain %q:\n%s", fragment, first)
 		}
+	}
+	if bytes.Contains(first, []byte("\tmodel blog.Post")) || bytes.Contains(first, []byte("_model.model")) {
+		t.Fatalf("generated facade retained the named raw-model field:\n%s", first)
+	}
+	if bytes.Contains(first, []byte("\t\treturn _err\n\t\treturn _err")) {
+		t.Fatalf("generated facade contains a duplicated error return:\n%s", first)
 	}
 	for _, targetKeySnapshot := range [][]byte{
 		[]byte("_authorTarget.relationFacadePrimaryKey()"),
@@ -144,6 +166,12 @@ func TestGenerateProjectRelationFacadeRejectsInvalidInputsBeforeBytes(t *testing
 	saveCollision.Models[0].Fields[2].GoName = "SaveID"
 	derivedMethodCollision := blog.Clone()
 	derivedMethodCollision.Models[0].Fields[3].GoName = "WithAuthorID"
+	marshalFieldCollision := authors.Clone()
+	marshalFieldCollision.Models[0].Fields[1].GoName = "MarshalJSON"
+	unmarshalFieldCollision := authors.Clone()
+	unmarshalFieldCollision.Models[0].Fields[1].GoName = "UnmarshalJSON"
+	aliasCollision := relationFacadePackages("example.com/godj-relation-facade-alias", authors, blog)
+	aliasCollision[0].Alias = "blogPostModel"
 
 	for _, test := range []struct {
 		name     string
@@ -158,6 +186,9 @@ func TestGenerateProjectRelationFacadeRejectsInvalidInputsBeforeBytes(t *testing
 		{name: "wrapper Unwrap collision", pkg: "project", packages: relationFacadePackages("example.com/godj-relation-facade-unwrap", authors, unwrapCollision), contains: "Unwrap"},
 		{name: "wrapper Save collision", pkg: "project", packages: relationFacadePackages("example.com/godj-relation-facade-save", authors, saveCollision), contains: "Save"},
 		{name: "derived method collision", pkg: "project", packages: relationFacadePackages("example.com/godj-relation-facade-derived", authors, derivedMethodCollision), contains: "WithAuthor"},
+		{name: "MarshalJSON promoted field collision", pkg: "project", packages: relationFacadePackages("example.com/godj-relation-facade-marshal", marshalFieldCollision, blog), contains: "MarshalJSON"},
+		{name: "UnmarshalJSON promoted field collision", pkg: "project", packages: relationFacadePackages("example.com/godj-relation-facade-unmarshal", unmarshalFieldCollision, blog), contains: "UnmarshalJSON"},
+		{name: "private raw alias import collision", pkg: "project", packages: aliasCollision, contains: "blogPostModel"},
 		{name: "all-model surface collision", pkg: "project", packages: relationFacadeSurfaceCollisionPackages(), contains: "Models field ABC"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -253,6 +284,92 @@ func TestGeneratedProjectRelationFacadeBroadUniversesCompile(t *testing.T) {
 		}
 		compileGeneratedRelationFacadeUniverse(t, directory)
 	})
+}
+
+func TestGeneratedProjectRelationFacadePromotesApplicationSurfaceAndRejectsDirectJSON(t *testing.T) {
+	t.Parallel()
+
+	authors, blog := relationQueryGenerationSchemas()
+	const modulePath = "example.com/godj-relation-facade-promotion"
+	directory, _ := writeGeneratedRelationFacadeUniverse(
+		t,
+		modulePath,
+		relationFacadePackages(modulePath, authors, blog),
+		nil,
+		nil,
+	)
+	writeGeneratedTestFile(t, directory, "blog/model_methods.go", []byte(`package blog
+
+import "strings"
+
+func (_post Post) NormalizedTitle() string {
+	return strings.TrimSpace(_post.Title)
+}
+
+func (_post *Post) NormalizeTitle() {
+	_post.Title = strings.TrimSpace(_post.Title)
+}
+`))
+	writeGeneratedTestFile(t, directory, "project/relation_facade_promotion_external_test.go", []byte(fmt.Sprintf(`package project_test
+
+import (
+	"encoding/json"
+	"errors"
+	"strings"
+	"testing"
+
+	project %q
+	"github.com/progresshans/godj/query"
+)
+
+type normalizedTitle interface {
+	NormalizedTitle() string
+}
+
+type normalizeTitle interface {
+	NormalizeTitle()
+}
+
+var _ normalizedTitle = (*project.BlogPost)(nil)
+var _ normalizeTitle = (*project.BlogPost)(nil)
+
+func compilePromotedApplicationSurface(_post *project.BlogPost) {
+	_post.Title = " current "
+	_post.NormalizeTitle()
+	_ = _post.NormalizedTitle()
+}
+
+func TestDirectJSONIsFailClosed(t *testing.T) {
+	value := project.BlogPost{}
+	value.Title = "secret"
+	assertRejected := func(label string, data []byte, err error, detail string) {
+		t.Helper()
+		if len(data) != 0 || !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) ||
+			!strings.Contains(err.Error(), detail) {
+			t.Fatalf("%%s = (%%q, %%v), want deterministic query/invalid_plan", label, data, err)
+		}
+	}
+
+	data, err := json.Marshal(value)
+	assertRejected("value marshal", data, err, "direct JSON marshal")
+	data, err = json.Marshal(&value)
+	assertRejected("pointer marshal", data, err, "direct JSON marshal")
+
+	before := value.Title
+	err = json.Unmarshal([]byte("{\"Title\":\"mutated\"}"), &value)
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) ||
+		!strings.Contains(err.Error(), "direct JSON unmarshal") || value.Title != before {
+		t.Fatalf("pointer unmarshal = (%%v, %%q), want deterministic rejection and unchanged receiver", err, value.Title)
+	}
+
+	var nilPost *project.BlogPost
+	data, err = json.Marshal(nilPost)
+	if err != nil || string(data) != "null" {
+		t.Fatalf("nil pointer marshal = (%%q, %%v), want null/nil", data, err)
+	}
+}
+`, modulePath+"/project")))
+	compileGeneratedRelationFacadeUniverse(t, directory)
 }
 
 func TestGeneratedProjectRelationFacadeRejectsCrossModelTypedResultsAtCompileTime(t *testing.T) {
@@ -852,6 +969,11 @@ func TestProjectRelationFacadePendingNoPKLaterKeyAndManualKey(t *testing.T) {
 	if _, err := derived.Unwrap(); !errors.Is(err, &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject}) { t.Fatalf("pending Unwrap error = %%v", err) }
 	if err := derived.Save(ctx); !errors.Is(err, &query.Error{Category: query.CategoryModelState, Code: query.CodeUnsavedRelatedObject}) || backend.io() != beforePending { t.Fatalf("pending Save = %%v, io=%%d want %%d", err, backend.io(), beforePending) }
 	if err := author.Save(ctx); err != nil { t.Fatal(err) }
+	if !author.primaryKeySnapshotPresent || author.primaryKeySnapshot != author.ID {
+		t.Fatalf("successful target Save did not refresh primary snapshot: key=%%d present=%%v raw=%%d", author.primaryKeySnapshot, author.primaryKeySnapshotPresent, author.ID)
+	}
+	author.Name = "saved and mutable"
+	if err := author.Save(ctx); err != nil { t.Fatalf("ordinary scalar mutation after primary refresh = %%v", err) }
 	if err := derived.Save(ctx); err != nil { t.Fatal(err) }
 	raw, err := derived.Unwrap()
 	if err != nil || raw.ID == 0 || raw.AuthorID == 0 { t.Fatalf("reconciled source = %%#v, %%v", raw, err) }
@@ -910,20 +1032,179 @@ func TestProjectRelationFacadeSameChangedScalarAndUnrelatedCacheCOW(t *testing.T
 	if err != nil || clearedPendingRaw.ReviewerID != nil { t.Fatalf("cleared pending Unwrap = %%#v, %%v", clearedPendingRaw, err) }
 }
 
-func TestProjectRelationFacadeKeyPresentTargetMutationKeepsScalarAndInvalidates(t *testing.T) {
+func TestProjectRelationFacadeDirectForeignKeyMutationReconcilesAtEveryBoundary(t *testing.T) {
+	ctx := context.Background()
+	backend := newRelationFacadeBackend()
+	models, _ := Using(backend)
+	author, _ := models.AuthorsAuthor.New(authors.NewAuthorWithID(1))
+	reviewer, _ := models.AuthorsAuthor.New(authors.NewAuthorWithID(2))
+	base, _ := models.BlogPost.New(blog.Post{Title: "direct relation"})
+	base, _ = base.WithAuthor(author)
+	base, _ = base.WithReviewer(reviewer)
+	branch, _ := base.WithAuthorID(1)
+	baseAuthorCache := base.authorCache
+	baseReviewerCache := base.reviewerCache
+	branchReviewerCache := branch.reviewerCache
+
+	branch.AuthorID = 3
+	before := backend.queries
+	gotAuthor, err := branch.Author(ctx)
+	if err != nil || gotAuthor == author || backend.queries != before+1 {
+		t.Fatalf("direct required FK accessor = (%%p,%%v), queries=%%d want %%d", gotAuthor, err, backend.queries, before+1)
+	}
+	if branch.authorScalarSnapshot != 3 || !branch.authorScalarPresent || branch.authorCache == baseAuthorCache {
+		t.Fatalf("direct required FK snapshot/cache = (%%d,%%v,shared=%%v)", branch.authorScalarSnapshot, branch.authorScalarPresent, branch.authorCache == baseAuthorCache)
+	}
+	if branch.reviewerCache != branchReviewerCache {
+		t.Fatal("unchanged nullable edge cache cell was replaced")
+	}
+	before = backend.queries
+	gotReviewer, present, err := branch.Reviewer(ctx)
+	if err != nil || !present || gotReviewer != reviewer || backend.queries != before {
+		t.Fatalf("unchanged nullable edge = (%%p,%%v,%%v), queries=%%d want %%d", gotReviewer, present, err, backend.queries, before)
+	}
+	if base.AuthorID != 1 || base.authorCache != baseAuthorCache || base.reviewerCache != baseReviewerCache {
+		t.Fatal("direct mutation on derived wrapper changed the original wrapper")
+	}
+
+	directReviewer := int64(3)
+	branch.ReviewerID = &directReviewer
+	authorCacheBefore := branch.authorCache
+	before = backend.queries
+	gotReviewer, present, err = branch.Reviewer(ctx)
+	if err != nil || !present || gotReviewer == reviewer || backend.queries != before+1 {
+		t.Fatalf("direct nullable FK accessor = (%%p,%%v,%%v), queries=%%d want %%d", gotReviewer, present, err, backend.queries, before+1)
+	}
+	if branch.reviewerScalarSnapshot != 3 || !branch.reviewerScalarPresent || branch.authorCache != authorCacheBefore {
+		t.Fatalf("nullable snapshot/unchanged required cache = (%%d,%%v,same=%%v)", branch.reviewerScalarSnapshot, branch.reviewerScalarPresent, branch.authorCache == authorCacheBefore)
+	}
+	branch.ReviewerID = nil
+	before = backend.queries
+	gotReviewer, present, err = branch.Reviewer(ctx)
+	if err != nil || present || gotReviewer != nil || backend.queries != before || branch.reviewerScalarPresent {
+		t.Fatalf("direct nullable clear = (%%p,%%v,%%v), queries=%%d want %%d scalar=%%v", gotReviewer, present, err, backend.queries, before, branch.reviewerScalarPresent)
+	}
+
+	unset, _ := models.BlogPost.New(blog.Post{Title: "direct zero remains unset"})
+	unset.AuthorID = 0
+	before = backend.io()
+	if _, err := unset.Unwrap(); !errors.Is(err, &query.Error{Category: query.CategoryField, Code: query.CodeRequiredField, Field: "author"}) || backend.io() != before {
+		t.Fatalf("unchanged required raw zero = %%v, io=%%d want %%d", err, backend.io(), before)
+	}
+	unset.AuthorID = 3
+	raw, err := unset.Unwrap()
+	if err != nil || raw.AuthorID != 3 || !unset.authorScalarPresent || unset.authorScalarSnapshot != 3 {
+		t.Fatalf("direct required nonzero Unwrap = %%#v, %%v presence=%%v snapshot=%%d", raw, err, unset.authorScalarPresent, unset.authorScalarSnapshot)
+	}
+
+	withBoundary, _ := base.WithAuthorID(1)
+	withBoundary.AuthorID = 3
+	withResult, err := withBoundary.WithReviewerID(2)
+	if err != nil || withResult.AuthorID != 3 || withResult.authorScalarSnapshot != 3 {
+		t.Fatalf("With boundary reconciliation = (%%#v,%%v)", withResult, err)
+	}
+	withState, withTarget, withPending, _ := withResult.authorCache.snapshot()
+	if withState != relationFacadeRelationUnassigned || withTarget != nil || withPending {
+		t.Fatalf("With boundary retained stale author cache = (%%d,%%p,%%v)", withState, withTarget, withPending)
+	}
+	clearBoundary, _ := base.WithAuthorID(1)
+	clearBoundary.AuthorID = 3
+	clearResult, err := clearBoundary.ClearReviewer()
+	if err != nil || clearResult.AuthorID != 3 || clearResult.authorScalarSnapshot != 3 {
+		t.Fatalf("Clear boundary reconciliation = (%%#v,%%v)", clearResult, err)
+	}
+	saveBoundary, _ := models.BlogPost.New(blog.Post{Title: "direct save", AuthorID: 1})
+	saveBoundary.AuthorID = 3
+	saveReviewerID := int64(2)
+	saveBoundary.ReviewerID = &saveReviewerID
+	if err := saveBoundary.Save(ctx); err != nil || saveBoundary.authorScalarSnapshot != 3 || saveBoundary.reviewerScalarSnapshot != 2 || !saveBoundary.primaryKeySnapshotPresent || saveBoundary.primaryKeySnapshot != saveBoundary.ID {
+		t.Fatalf("Save boundary reconciliation/snapshot refresh = %%v wrapper=%%#v", err, saveBoundary)
+	}
+}
+
+func TestProjectRelationFacadeDirectScalarOverridesPendingTargets(t *testing.T) {
+	ctx := context.Background()
+	backend := newRelationFacadeBackend()
+	models, _ := Using(backend)
+	unsavedAuthor, _ := models.AuthorsAuthor.New(authors.Author{Name: "pending author"})
+	unsavedReviewer, _ := models.AuthorsAuthor.New(authors.Author{Name: "pending reviewer"})
+	base, _ := models.BlogPost.New(blog.Post{Title: "pending override"})
+	pending, _ := base.WithAuthor(unsavedAuthor)
+	pending, _ = pending.WithReviewer(unsavedReviewer)
+	reviewerID := int64(2)
+	pending.AuthorID = 3
+	pending.ReviewerID = &reviewerID
+	before := backend.io()
+	raw, err := pending.Unwrap()
+	if err != nil || raw.AuthorID != 3 || raw.ReviewerID == nil || *raw.ReviewerID != 2 || backend.io() != before {
+		t.Fatalf("direct pending override Unwrap = %%#v, %%v io=%%d want %%d", raw, err, backend.io(), before)
+	}
+	authorState, authorTarget, authorPending, _ := pending.authorCache.snapshot()
+	reviewerState, reviewerTarget, reviewerPending, _ := pending.reviewerCache.snapshot()
+	if authorState != relationFacadeRelationUnassigned || authorTarget != nil || authorPending ||
+		reviewerState != relationFacadeRelationUnassigned || reviewerTarget != nil || reviewerPending {
+		t.Fatalf("pending caches survived direct scalar override: author=(%%d,%%p,%%v) reviewer=(%%d,%%p,%%v)", authorState, authorTarget, authorPending, reviewerState, reviewerTarget, reviewerPending)
+	}
+	if err := pending.Save(ctx); err != nil { t.Fatalf("direct pending override Save = %%v", err) }
+}
+
+func TestProjectRelationFacadeMultiEdgeReconcileFailurePublishesNothing(t *testing.T) {
+	backend := newRelationFacadeBackend()
+	models, _ := Using(backend)
+	author, _ := models.AuthorsAuthor.New(authors.NewAuthorWithID(1))
+	reviewer, _ := models.AuthorsAuthor.New(authors.NewAuthorWithID(2))
+	candidate, _ := models.BlogPost.New(blog.Post{Title: "atomic direct reconcile"})
+	candidate, _ = candidate.WithAuthor(author)
+	candidate, _ = candidate.WithReviewer(reviewer)
+	objectBefore := candidate.object
+	authorCacheBefore := candidate.authorCache
+	reviewerCacheBefore := candidate.reviewerCache
+	authorSnapshotBefore := candidate.authorScalarSnapshot
+	reviewerSnapshotBefore := candidate.reviewerScalarSnapshot
+	reviewerPresentBefore := candidate.reviewerScalarPresent
+	candidate.AuthorID = 3
+	reviewerID := int64(3)
+	candidate.ReviewerID = &reviewerID
+	candidate.state.objects.BlogPost = BlogPostObjectFactory{}
+	before := backend.io()
+	_, err := candidate.Unwrap()
+	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || backend.io() != before {
+		t.Fatalf("multi-edge reconcile failure = %%v, io=%%d want %%d", err, backend.io(), before)
+	}
+	if candidate.AuthorID != 3 || candidate.ReviewerID == nil || *candidate.ReviewerID != 3 || candidate.object != objectBefore ||
+		candidate.authorCache != authorCacheBefore || candidate.reviewerCache != reviewerCacheBefore ||
+		candidate.authorScalarSnapshot != authorSnapshotBefore || candidate.reviewerScalarSnapshot != reviewerSnapshotBefore ||
+		candidate.reviewerScalarPresent != reviewerPresentBefore {
+		t.Fatal("failed multi-edge reconciliation partially published wrapper state")
+	}
+}
+
+func TestProjectRelationFacadeDirectPrimaryKeyMutationFailsBeforeIO(t *testing.T) {
 	ctx := context.Background()
 	backend := newRelationFacadeBackend()
 	models, _ := Using(backend)
 	target, _ := models.AuthorsAuthor.New(authors.NewAuthorWithID(1))
 	source, _ := models.BlogPost.New(blog.Post{Title: "pk mutation"})
 	derived, _ := source.WithAuthor(target)
-	(authors.AuthorDescriptor{}).SetPrimaryKey(&target.model, 3)
-	if err := derived.Save(ctx); err != nil { t.Fatal(err) }
-	raw, err := derived.Unwrap()
-	if err != nil || raw.AuthorID != 1 { t.Fatalf("source followed mutated target key: %%#v, %%v", raw, err) }
-	before := backend.queries
-	got, err := derived.Author(ctx)
-	if err != nil || backend.queries != before+1 || got == target { t.Fatalf("invalidated accessor = %%p, %%v queries=%%d", got, err, backend.queries) }
+	(authors.AuthorDescriptor{}).SetPrimaryKey(&target.authorsAuthorModel, 3)
+	before := backend.io()
+	want := &query.Error{Category: query.CategoryModelState, Code: query.CodePrimaryKeyUpdateField, Field: "id"}
+	if err := target.Save(ctx); !errors.Is(err, want) || backend.io() != before { t.Fatalf("target Save = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if _, err := target.Unwrap(); !errors.Is(err, want) || backend.io() != before { t.Fatalf("target Unwrap = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if err := derived.Save(ctx); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source Save through mutated target = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if _, err := derived.Author(ctx); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source accessor through mutated target = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if derived.blogPostModel.AuthorID != 1 { t.Fatalf("source scalar = %%d, want unchanged 1", derived.blogPostModel.AuthorID) }
+	loaded := blog.NewPostWithID(10)
+	loaded.Title = "source PK mutation"
+	loaded.AuthorID = 1
+	sourcePK, _ := models.BlogPost.New(loaded)
+	sourcePK.ID = 11
+	before = backend.io()
+	if err := sourcePK.Save(ctx); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source PK Save = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if _, err := sourcePK.Unwrap(); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source PK Unwrap = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if _, err := sourcePK.WithAuthorID(1); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source PK With = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if _, err := sourcePK.ClearReviewer(); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source PK Clear = %%v, io=%%d want %%d", err, backend.io(), before) }
+	if _, err := sourcePK.Author(ctx); !errors.Is(err, want) || backend.io() != before { t.Fatalf("source PK accessor = %%v, io=%%d want %%d", err, backend.io(), before) }
 }
 
 func TestProjectRelationFacadeCanonicalRelationPreflightOrder(t *testing.T) {
@@ -967,10 +1248,10 @@ func TestProjectRelationFacadeCanonicalRelationPreflightOrder(t *testing.T) {
 	}
 	authorStateAfter, authorTargetAfter, authorPendingAfter, _ := staged.authorCache.snapshot()
 	reviewerStateAfter, reviewerTargetAfter, reviewerPendingAfter, _ := staged.reviewerCache.snapshot()
-	if staged.model.AuthorID != 0 || staged.authorScalarPresent || staged.object != objectBefore ||
+	if staged.blogPostModel.AuthorID != 0 || staged.authorScalarPresent || staged.object != objectBefore ||
 		authorStateAfter != authorStateBefore || authorTargetAfter != authorTargetBefore || authorPendingAfter != authorPendingBefore ||
 		reviewerStateAfter != reviewerStateBefore || reviewerTargetAfter != reviewerTargetBefore || reviewerPendingAfter != reviewerPendingBefore {
-		t.Fatalf("failed preflight partially published author: raw=%%d scalar=%%v", staged.model.AuthorID, staged.authorScalarPresent)
+		t.Fatalf("failed preflight partially published author: raw=%%d scalar=%%v", staged.blogPostModel.AuthorID, staged.authorScalarPresent)
 	}
 }
 
@@ -984,7 +1265,7 @@ func TestProjectRelationFacadeAllCacheTuplesPrecedeUnsavedTargets(t *testing.T) 
 
 	assertStructuralFirst := func(label string, candidate *BlogPost) {
 		t.Helper()
-		modelBefore := (blog.PostDescriptor{}).CloneWriteModel(candidate.model)
+		modelBefore := (blog.PostDescriptor{}).CloneWriteModel(candidate.blogPostModel)
 		_, primaryBefore := (blog.PostDescriptor{}).PrimaryKey(modelBefore)
 		objectBefore := candidate.object
 		authorCacheBefore := candidate.authorCache
@@ -1001,11 +1282,11 @@ func TestProjectRelationFacadeAllCacheTuplesPrecedeUnsavedTargets(t *testing.T) 
 		if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || backend.io() != beforeIO {
 			t.Fatalf("%%s Save = %%v, io=%%d want structural invalid_plan/I/O %%d", label, err, backend.io(), beforeIO)
 		}
-		_, primaryAfter := (blog.PostDescriptor{}).PrimaryKey(candidate.model)
-		if candidate.model.ID != modelBefore.ID || candidate.model.Title != modelBefore.Title ||
-			candidate.model.AuthorID != modelBefore.AuthorID ||
-			(candidate.model.ReviewerID == nil) != (modelBefore.ReviewerID == nil) ||
-			(candidate.model.ReviewerID != nil && *candidate.model.ReviewerID != *modelBefore.ReviewerID) ||
+		_, primaryAfter := (blog.PostDescriptor{}).PrimaryKey(candidate.blogPostModel)
+		if candidate.blogPostModel.ID != modelBefore.ID || candidate.blogPostModel.Title != modelBefore.Title ||
+			candidate.blogPostModel.AuthorID != modelBefore.AuthorID ||
+			(candidate.blogPostModel.ReviewerID == nil) != (modelBefore.ReviewerID == nil) ||
+			(candidate.blogPostModel.ReviewerID != nil && *candidate.blogPostModel.ReviewerID != *modelBefore.ReviewerID) ||
 			primaryAfter != primaryBefore || candidate.authorScalarPresent != authorScalarBefore ||
 			candidate.object != objectBefore || candidate.authorCache != authorCacheBefore || candidate.reviewerCache != reviewerCacheBefore ||
 			candidate.authorCache.state != authorStateBefore || candidate.authorCache.target != authorTargetBefore || candidate.authorCache.pending != authorPendingBefore ||
@@ -1049,7 +1330,7 @@ func TestProjectRelationFacadeRebuildConstructionFailureDoesNotPublish(t *testin
 	author, _ := models.AuthorsAuthor.New(authors.Author{Name: "later key"})
 	staged, _ := source.WithAuthor(author)
 	if err := author.Save(ctx); err != nil { t.Fatal(err) }
-	modelBefore := (blog.PostDescriptor{}).CloneWriteModel(staged.model)
+	modelBefore := (blog.PostDescriptor{}).CloneWriteModel(staged.blogPostModel)
 	_, primaryBefore := (blog.PostDescriptor{}).PrimaryKey(modelBefore)
 	objectBefore := staged.object
 	cacheBefore := staged.authorCache
@@ -1062,8 +1343,8 @@ func TestProjectRelationFacadeRebuildConstructionFailureDoesNotPublish(t *testin
 		t.Fatalf("rebuild construction failure = %%v, io=%%d want %%d", err, backend.io(), beforeIO)
 	}
 	stateAfter, targetAfter, pendingAfter, _ := staged.authorCache.snapshot()
-	_, primaryAfter := (blog.PostDescriptor{}).PrimaryKey(staged.model)
-	if staged.model.ID != modelBefore.ID || staged.model.Title != modelBefore.Title || staged.model.AuthorID != modelBefore.AuthorID ||
+	_, primaryAfter := (blog.PostDescriptor{}).PrimaryKey(staged.blogPostModel)
+	if staged.blogPostModel.ID != modelBefore.ID || staged.blogPostModel.Title != modelBefore.Title || staged.blogPostModel.AuthorID != modelBefore.AuthorID ||
 		primaryAfter != primaryBefore || staged.object != objectBefore || staged.authorCache != cacheBefore ||
 		staged.authorScalarPresent != scalarBefore || stateAfter != stateBefore || targetAfter != targetBefore || pendingAfter != pendingBefore {
 		t.Fatalf("rebuild construction failure partially published source")
@@ -1079,7 +1360,7 @@ func TestProjectRelationFacadeCorruptCacheTuplesFailBeforeIO(t *testing.T) {
 	source, _ = source.WithAuthor(author)
 	assertCorrupt := func(label string, cache *relationFacadeRelationCache[AuthorsAuthor]) {
 		t.Helper()
-		candidate, _ := source.relationFacadeDerived(source.model)
+		candidate, _ := source.relationFacadeDerived(source.blogPostModel)
 		candidate.authorCache = cache
 		before := backend.io()
 		if _, err := candidate.Unwrap(); !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) || backend.io() != before {

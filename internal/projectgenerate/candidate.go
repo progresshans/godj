@@ -35,11 +35,12 @@ type candidateFile struct {
 }
 
 type goCandidateVerifier struct {
-	projectRoot  string
-	rootSeal     ProjectRoot
-	manifest     committedManifest
-	manifestData []byte
-	files        []candidateFile
+	projectRoot   string
+	rootSeal      ProjectRoot
+	manifest      committedManifest
+	manifestData  []byte
+	files         []candidateFile
+	namespacePlan sourceNamespacePlan
 }
 
 // NewGoCandidateVerifier snapshots one immutable bundle and returns a
@@ -53,6 +54,10 @@ func NewGoCandidateVerifier(projectRoot string, bundle codegen.GeneratedBundle) 
 // physical project identity.
 func NewGoCandidateVerifierRoot(projectRoot ProjectRoot, bundle codegen.GeneratedBundle) (CandidateVerifier, error) {
 	manifest, err := validateGeneratedBundle(bundle)
+	if err != nil {
+		return nil, err
+	}
+	namespacePlan, err := sourceNamespacePlanFromBundle(bundle, manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -71,11 +76,12 @@ func NewGoCandidateVerifierRoot(projectRoot ProjectRoot, bundle codegen.Generate
 		}
 	}
 	return &goCandidateVerifier{
-		projectRoot:  root.absolute,
-		rootSeal:     root,
-		manifest:     manifest,
-		manifestData: bundle.Manifest(),
-		files:        files,
+		projectRoot:   root.absolute,
+		rootSeal:      root,
+		manifest:      manifest,
+		manifestData:  bundle.Manifest(),
+		files:         files,
+		namespacePlan: namespacePlan,
 	}, nil
 }
 
@@ -98,6 +104,10 @@ func (verifier *goCandidateVerifier) Verify(ctx context.Context, candidateRoot s
 	}
 	if stageRoot == verifier.projectRoot {
 		return fmt.Errorf("%w: candidate root aliases project root", ErrCandidateVerification)
+	}
+	sourceSnapshot, err := captureSourceNamespaceSnapshot(ctx, verifier.projectRoot, verifier.manifest, verifier.namespacePlan)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrCandidateVerification, err)
 	}
 	if err := verifier.validateStage(ctx, stageRoot); err != nil {
 		return err
@@ -138,6 +148,11 @@ func (verifier *goCandidateVerifier) Verify(ctx context.Context, candidateRoot s
 		}
 	}
 	compileErr := verifier.compileOverlay(ctx, overlay)
+	if compileErr == nil {
+		if err := verifySourceNamespaceSnapshot(ctx, verifier.projectRoot, verifier.manifest, verifier.namespacePlan, sourceSnapshot); err != nil {
+			return fmt.Errorf("%w: %w", ErrCandidateVerification, err)
+		}
+	}
 	if err := verifyProjectRoot(verifier.rootSeal); err != nil {
 		return fmt.Errorf("%w: %w: selected project root changed", ErrCandidateVerification, ErrGeneratedConflict)
 	}

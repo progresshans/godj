@@ -2,6 +2,7 @@ package facadeconsumer
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/authors"
 	"github.com/progresshans/godj/conformance/relationdeleteproduct/blog"
@@ -29,9 +30,14 @@ func (*minimalBackend) Delete(context.Context, query.DeletePlan) (int64, error) 
 }
 
 var (
-	_ project.Backend = (*minimalBackend)(nil)
-	_ project.Backend = (db.Session)(nil)
-	_ project.Backend = (db.RelationSession)(nil)
+	_ project.Backend                        = (*minimalBackend)(nil)
+	_ project.Backend                        = (db.Session)(nil)
+	_ project.Backend                        = (db.RelationSession)(nil)
+	_ json.Marshaler                         = project.BlogPost{}
+	_ json.Marshaler                         = (*project.BlogPost)(nil)
+	_ json.Unmarshaler                       = (*project.BlogPost)(nil)
+	_ func(project.BlogPost) ([]byte, error) = project.BlogPost.MarshalJSON
+	_ func(*project.BlogPost, []byte) error  = (*project.BlogPost).UnmarshalJSON
 )
 
 func compileRelationFacade(ctx context.Context, backend project.Backend) error {
@@ -50,6 +56,9 @@ func compileRelationFacade(ctx context.Context, backend project.Backend) error {
 	if err != nil {
 		return err
 	}
+	newPost.Title = "direct title"
+	var directTitle string = newPost.Title
+	_ = directTitle
 	newPost, err = newPost.WithAuthor(newAuthor)
 	if err != nil {
 		return err

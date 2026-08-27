@@ -139,15 +139,38 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 		emptyArticle.Summary == nil || *emptyArticle.Summary != "" {
 		t.Fatalf("created Article values = null:%+v empty:%+v", nullArticle, emptyArticle)
 	}
-	emptyArticle.Title = "Saved Empty Summary"
-	emptyArticle.Published = true
-	if err := articlemodels.ArticleObjects.Save(ctx, backend, &emptyArticle); err != nil {
-		t.Fatalf("save updated Article through generated Manager: %v", err)
-	}
 
 	bound, err := articleproject.Using(backend)
 	if err != nil {
 		t.Fatalf("bind reopened PostgreSQL backend to generated Article project: %v", err)
+	}
+	emptyWrapper, found, err := bound.ModelsArticle.
+		Filter(articlemodels.ArticleFields.ID.Exact(emptyArticle.ID)).
+		OrderBy(articlemodels.ArticleFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found || emptyWrapper == nil {
+		t.Fatalf("load empty-summary Article through canonical project facade = (%#v, %t, %v)", emptyWrapper, found, err)
+	}
+	const canonicalSavedTitle = "Canonical Saved Empty Summary"
+	emptyWrapper.Title = "  " + canonicalSavedTitle + "  "
+	emptyWrapper.Published = true
+	emptyWrapper.NormalizeTitle()
+	if err := emptyWrapper.Save(ctx); err != nil {
+		t.Fatalf("save direct scalar mutation through canonical project facade: %v", err)
+	}
+	if emptyWrapper.Title != canonicalSavedTitle {
+		t.Fatalf("application-owned NormalizeTitle result = %q, want %q", emptyWrapper.Title, canonicalSavedTitle)
+	}
+	if err := backend.Close(); err != nil {
+		t.Fatalf("close Article PostgreSQL backend after canonical facade save: %v", err)
+	}
+	backend, err = postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
+	if err != nil {
+		t.Fatalf("reopen Article PostgreSQL backend after canonical facade save: %v", err)
+	}
+	bound, err = articleproject.Using(backend)
+	if err != nil {
+		t.Fatalf("rebind reopened PostgreSQL backend to generated Article project: %v", err)
 	}
 	ordered, err := bound.ModelsArticle.
 		OrderBy(articlemodels.ArticleFields.ID.Asc()).
@@ -168,7 +191,7 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	}
 	if first.ID != nullArticle.ID || second.ID != emptyArticle.ID || first.ID >= second.ID ||
 		first.Title != "<script>alert(1)</script>" || first.Summary != nil ||
-		second.Title != "Saved Empty Summary" || !second.Published || second.Summary == nil || *second.Summary != "" {
+		second.Title != canonicalSavedTitle || !second.Published || second.Summary == nil || *second.Summary != "" {
 		t.Fatalf("ordered Article values = first:%+v second:%+v", first, second)
 	}
 	nullableMaximum := orm.Aggregate2(
@@ -265,7 +288,7 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	}
 	emptyElement := articlePostgresElement(t, body, strconv.FormatInt(emptyArticle.ID, 10))
 	if !strings.Contains(emptyElement, `<p class="summary"></p>`) || strings.Contains(emptyElement, "summary-null") ||
-		!strings.Contains(emptyElement, "Saved Empty Summary") {
+		!strings.Contains(emptyElement, canonicalSavedTitle) {
 		t.Fatalf("PostgreSQL empty summary/save representation = %q", emptyElement)
 	}
 	if strings.Index(body, `data-article-id="`+strconv.FormatInt(nullArticle.ID, 10)+`"`) >

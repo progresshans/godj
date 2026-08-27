@@ -6,7 +6,8 @@
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
   project-owned relation state를 결합하고, direct FK reconciliation, fail-closed method namespace, pointer/copy safety와
   explicit raw `Unwrap`/DTO-only Web representation을 한 whole-bundle 배치로 검증합니다. Reverse/general manager와 post-alpha upgrader는
-  계속 open입니다. Activation baseline `3882902...`에는 CI #156 test-select flake 교정만 있고 facade product는 아직 v2입니다.
+  계속 open입니다. Activation head `1070ec3...`의 CI #157은 corrected baseline을 exact 27/27로 확인했고, 현재 checkout은
+  facade v3 product와 affected/vertical focused gate까지 구현·통과했으며 final source-bound/full/hosted 검증은 남았습니다.
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과

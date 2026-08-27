@@ -991,6 +991,159 @@ func TestProjectFacadeScalarDerivationsPreserveOnlyValidWarmCaches(t *testing.T)
 	}
 }
 
+func TestProjectFacadePromotedDirectMutationPersistsAndReconcilesSQLite(t *testing.T) {
+	t.Parallel()
+
+	ctx, product := openProvisionedFacadeFixture(t)
+	recorder := &recordingBackend{backend: product.backend}
+	models, err := project.Using(recorder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, found, err := models.BlogPost.
+		Filter(blog.PostFields.ID.Exact(10)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("load post 10 = (%p, %t, %v)", post, found, err)
+	}
+	originalAuthor, err := post.Author(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalReviewer, present, err := post.Reviewer(ctx)
+	if err != nil || !present {
+		t.Fatalf("warm post 10 Reviewer() = (%p, %t, %v), want present", originalReviewer, present, err)
+	}
+	if got := recorder.snapshot(); got.QueryCount != 3 || !reflect.DeepEqual(got.StatementKinds, []string{
+		OperationSelect,
+		OperationSelect,
+		OperationSelect,
+	}) {
+		t.Fatalf("load and warm metrics = %#v, want three SELECTs", got)
+	}
+
+	post.Title = "  Alpha promoted  "
+	post.NormalizeTitle()
+	post.AuthorID = 3
+	beforeAuthor := recorder.snapshot()
+	changedAuthor, err := post.Author(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedAuthorRaw, err := changedAuthor.Unwrap()
+	if err != nil || changedAuthorRaw.ID != 3 || changedAuthor == originalAuthor {
+		t.Fatalf("direct AuthorID Author() = (%p, %#v, %v), want a newly loaded author 3", changedAuthor, changedAuthorRaw, err)
+	}
+	afterAuthor := recorder.snapshot()
+	if afterAuthor.QueryCount-beforeAuthor.QueryCount != 1 || afterAuthor.InsertCount != beforeAuthor.InsertCount ||
+		afterAuthor.UpdateCount != beforeAuthor.UpdateCount || afterAuthor.DeleteCount != beforeAuthor.DeleteCount {
+		t.Fatalf("direct AuthorID operation delta before=%#v after=%#v, want one SELECT", beforeAuthor, afterAuthor)
+	}
+	if got, gotPresent, gotErr := post.Reviewer(ctx); gotErr != nil || !gotPresent || got != originalReviewer {
+		t.Fatalf("unchanged Reviewer() after direct AuthorID = (%p, %t, %v), want warm %p", got, gotPresent, gotErr, originalReviewer)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, afterAuthor) {
+		t.Fatalf("unchanged reviewer published backend I/O: before=%#v after=%#v", afterAuthor, got)
+	}
+
+	reviewerID := int64(1)
+	post.ReviewerID = &reviewerID
+	beforeReviewer := recorder.snapshot()
+	changedReviewer, present, err := post.Reviewer(ctx)
+	if err != nil || !present {
+		t.Fatalf("direct ReviewerID Reviewer() = (%p, %t, %v), want present", changedReviewer, present, err)
+	}
+	changedReviewerRaw, err := changedReviewer.Unwrap()
+	if err != nil || changedReviewerRaw.ID != 1 || changedReviewer == originalReviewer {
+		t.Fatalf("direct ReviewerID Reviewer().Unwrap() = (%p, %#v, %v), want a newly loaded author 1", changedReviewer, changedReviewerRaw, err)
+	}
+	afterReviewer := recorder.snapshot()
+	if afterReviewer.QueryCount-beforeReviewer.QueryCount != 1 || afterReviewer.InsertCount != beforeReviewer.InsertCount ||
+		afterReviewer.UpdateCount != beforeReviewer.UpdateCount || afterReviewer.DeleteCount != beforeReviewer.DeleteCount {
+		t.Fatalf("direct ReviewerID operation delta before=%#v after=%#v, want one SELECT", beforeReviewer, afterReviewer)
+	}
+	if got, gotErr := post.Author(ctx); gotErr != nil || got != changedAuthor {
+		t.Fatalf("unchanged Author() after direct ReviewerID = (%p, %v), want warm %p", got, gotErr, changedAuthor)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, afterReviewer) {
+		t.Fatalf("unchanged author published backend I/O: before=%#v after=%#v", afterReviewer, got)
+	}
+
+	if err := post.Save(ctx); err != nil {
+		t.Fatalf("directly mutated post Save() error = %v", err)
+	}
+	savedRaw, err := post.Unwrap()
+	if err != nil || savedRaw.ID != 10 || savedRaw.Title != "Alpha promoted" || savedRaw.AuthorID != 3 ||
+		savedRaw.ReviewerID == nil || *savedRaw.ReviewerID != 1 {
+		t.Fatalf("saved direct mutation Unwrap() = (%#v, %v), want post 10 normalized and related to authors 3/1", savedRaw, err)
+	}
+	afterSave := recorder.snapshot()
+	if afterSave.QueryCount != 5 || afterSave.UpdateCount != 1 || afterSave.InsertCount != 0 || afterSave.DeleteCount != 0 ||
+		!reflect.DeepEqual(afterSave.StatementKinds, []string{
+			OperationSelect,
+			OperationSelect,
+			OperationSelect,
+			OperationSelect,
+			OperationSelect,
+			OperationUpdate,
+		}) {
+		t.Fatalf("direct mutation Save() metrics = %#v, want five SELECTs then one UPDATE", afterSave)
+	}
+	if got, gotErr := post.Author(ctx); gotErr != nil || got != changedAuthor {
+		t.Fatalf("saved Author() = (%p, %v), want warm %p", got, gotErr, changedAuthor)
+	}
+	if got, gotPresent, gotErr := post.Reviewer(ctx); gotErr != nil || !gotPresent || got != changedReviewer {
+		t.Fatalf("saved Reviewer() = (%p, %t, %v), want warm %p", got, gotPresent, gotErr, changedReviewer)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, afterSave) {
+		t.Fatalf("post-save warm relation access published backend I/O: before=%#v after=%#v", afterSave, got)
+	}
+
+	post.ID = 99
+	beforePrimaryKeyFailure := recorder.snapshot()
+	err = post.Save(ctx)
+	if !errors.Is(err, &query.Error{
+		Category: query.CategoryModelState,
+		Code:     query.CodePrimaryKeyUpdateField,
+		Field:    "id",
+	}) {
+		t.Fatalf("direct persisted primary-key mutation Save() error = %v, want model_state_error/primary_key_update_field", err)
+	}
+	if got := recorder.snapshot(); !reflect.DeepEqual(got, beforePrimaryKeyFailure) {
+		t.Fatalf("direct primary-key mutation reached backend: before=%#v after=%#v", beforePrimaryKeyFailure, got)
+	}
+	post.ID = 10
+	restoredRaw, err := post.Unwrap()
+	if err != nil || restoredRaw.ID != 10 {
+		t.Fatalf("restored primary key Unwrap() = (%#v, %v), want ID 10", restoredRaw, err)
+	}
+
+	fresh, found, err := models.BlogPost.
+		Filter(blog.PostFields.ID.Exact(10)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found {
+		t.Fatalf("fresh reload post 10 = (%p, %t, %v)", fresh, found, err)
+	}
+	freshRaw, err := fresh.Unwrap()
+	if err != nil || freshRaw.ID != 10 || freshRaw.Title != "Alpha promoted" || freshRaw.AuthorID != 3 ||
+		freshRaw.ReviewerID == nil || *freshRaw.ReviewerID != 1 {
+		t.Fatalf("fresh reload Unwrap() = (%#v, %v), want persisted post 10 mutation", freshRaw, err)
+	}
+	if got := recorder.snapshot(); got.QueryCount != 6 || got.UpdateCount != 1 || !reflect.DeepEqual(got.StatementKinds, []string{
+		OperationSelect,
+		OperationSelect,
+		OperationSelect,
+		OperationSelect,
+		OperationSelect,
+		OperationUpdate,
+		OperationSelect,
+	}) {
+		t.Fatalf("complete direct mutation metrics = %#v, want six SELECTs and one UPDATE in exact order", got)
+	}
+}
+
 func TestProjectFacadeEagerUnrelatedCacheSurvivesWriteDerivationWithoutSharingPublication(t *testing.T) {
 	t.Parallel()
 

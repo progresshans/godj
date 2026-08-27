@@ -31,10 +31,10 @@ import (
 const modulePath = "github.com/progresshans/godj"
 
 const (
-	relationFacadePhysicalBytes   = 171929
-	relationFacadePhysicalDigest  = "c47cb33a2d426ce14122208e3498f6884ffb84ef96538af500f2b89bf7bfb1a0"
-	relationFacadeGeneratedBytes  = 79814
-	relationFacadeGeneratedDigest = "c7ddaf0f760987b71f743dab51dfc8b7af842031529999a8dd1d9d1cd246fd13"
+	relationFacadePhysicalBytes   = 185741
+	relationFacadePhysicalDigest  = "980f0e2bba09212c322f7612ca6e065a9bf314f9a73c021889db808cfd9065fb"
+	relationFacadeGeneratedBytes  = 86728
+	relationFacadeGeneratedDigest = "b54d0934ff2517029aa75a5c42e504f9cf1200b7176b5c527a520ef8a390f14f"
 )
 
 var relationFacadePhysicalFiles = []string{
@@ -43,6 +43,7 @@ var relationFacadePhysicalFiles = []string{
 	"authors/zz_godj_relation.go",
 	"authors/zz_godj_relation_object.go",
 	"authors/zz_godj_relation_projection.go",
+	"blog/post_methods.go",
 	"blog/zz_godj_generated.go",
 	"blog/zz_godj_relation.go",
 	"blog/zz_godj_relation_object.go",
@@ -97,6 +98,7 @@ var relationFacadeCommandViewFiles = []string{
 	"authors/zz_godj_relation.go",
 	"authors/zz_godj_relation_object.go",
 	"authors/zz_godj_relation_projection.go",
+	"blog/post_methods.go",
 	"blog/zz_godj_generated.go",
 	"blog/zz_godj_relation.go",
 	"blog/zz_godj_relation_object.go",
@@ -139,6 +141,26 @@ func TestExternalConsumerCompiles(t *testing.T) {
 	}
 
 	verifyRelationFacadeProduction(t)
+}
+
+func TestCurrentRelationFacadeRendererASTContract(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join(repositoryRoot(t), "codegen", "testdata", "relation_facade", "project.golden"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRelationFacadeProductSource(source); err != nil {
+		t.Fatalf("validate current relation facade renderer golden: %v", err)
+	}
+}
+
+func TestRelationFacadeExternalConsumerASTContract(t *testing.T) {
+	source, err := os.ReadFile(filepath.Join(repositoryRoot(t), "internal", "compiletest", "testdata", "relation_facade", "external_consumer.go.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRelationFacadeConsumerSource(source); err != nil {
+		t.Fatalf("validate current relation facade external consumer: %v", err)
+	}
 }
 
 func verifyRelationFacadeProduction(t *testing.T) {
@@ -279,6 +301,16 @@ func verifyRelationFacadeProduction(t *testing.T) {
 			label: "BlogPost.ClearReviewer",
 			old:   "func (_model *BlogPost) ClearReviewer() (*BlogPost, error)",
 			new:   "func (_model *BlogPost) ClearReviewer(_clear bool) (*BlogPost, error)",
+		},
+		{
+			label: "BlogPost.MarshalJSON",
+			old:   "func (BlogPost) MarshalJSON() ([]byte, error)",
+			new:   "func (BlogPost) MarshalJSON() ([]byte, int)",
+		},
+		{
+			label: "BlogPost.UnmarshalJSON",
+			old:   "func (*BlogPost) UnmarshalJSON([]byte) error",
+			new:   "func (BlogPost) UnmarshalJSON([]byte) error",
 		},
 		{
 			label: "AuthorsAuthorQuery.Distinct",
@@ -1074,6 +1106,7 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 		modulePath + "/conformance/relationdeleteproduct/blog": {
 			prefix: "blog",
 			goFiles: []string{
+				"post_methods.go",
 				"zz_godj_generated.go",
 				"zz_godj_relation.go",
 				"zz_godj_relation_object.go",
@@ -1182,8 +1215,12 @@ func validateRelationFacadeProductSource(source []byte) error {
 	}
 	wantFunctions := map[string]bool{
 		".Using":                      true,
+		"AuthorsAuthor.MarshalJSON":   true,
+		"AuthorsAuthor.UnmarshalJSON": true,
 		"AuthorsAuthor.Unwrap":        true,
 		"AuthorsAuthor.Save":          true,
+		"BlogPost.MarshalJSON":        true,
+		"BlogPost.UnmarshalJSON":      true,
 		"BlogPost.Unwrap":             true,
 		"BlogPost.Save":               true,
 		"BlogPost.WithAuthor":         true,
@@ -1224,7 +1261,11 @@ func validateRelationFacadeProductSource(source []byte) error {
 	wantABISignatures := map[string]string{
 		"AuthorsAuthorQuery.New":      "func(_value authors.Author) (*AuthorsAuthor, error)",
 		"BlogPostQuery.New":           "func(_value blog.Post) (*BlogPost, error)",
+		"AuthorsAuthor.MarshalJSON":   "func() ([]byte, error)",
+		"AuthorsAuthor.UnmarshalJSON": "func([]byte) error",
 		"AuthorsAuthor.Save":          "func(_ctx context.Context) error",
+		"BlogPost.MarshalJSON":        "func() ([]byte, error)",
+		"BlogPost.UnmarshalJSON":      "func([]byte) error",
 		"BlogPost.Save":               "func(_ctx context.Context) error",
 		"BlogPost.WithAuthor":         "func(_target *AuthorsAuthor) (*BlogPost, error)",
 		"BlogPost.WithAuthorID":       "func(_key int64) (*BlogPost, error)",
@@ -1238,6 +1279,16 @@ func validateRelationFacadeProductSource(source []byte) error {
 		"BlogPostQuery.Offset":        "func(_offset int) (BlogPostQuery, error)",
 		"BlogPostQuery.Count":         "func(_ctx context.Context) (int64, error)",
 	}
+	wantPointerReceivers := map[string]bool{
+		"AuthorsAuthor.MarshalJSON":   false,
+		"AuthorsAuthor.UnmarshalJSON": true,
+		"BlogPost.MarshalJSON":        false,
+		"BlogPost.UnmarshalJSON":      true,
+	}
+	wantEmbeddedAliases := map[string]string{
+		"authorsAuthorModel": "authors.Author",
+		"blogPostModel":      "blog.Post",
+	}
 	wantGenericABISignatures := map[string]string{
 		".SelectAuthorsAuthorInto":    "func(_ctx context.Context, _source AuthorsAuthorQuery, _projection orm.Projection[authors.Author, R]) ([]R, error)",
 		".AggregateAuthorsAuthorInto": "func(_ctx context.Context, _source AuthorsAuthorQuery, _aggregate orm.Aggregate[authors.Author, R]) (R, error)",
@@ -1249,6 +1300,7 @@ func validateRelationFacadeProductSource(source []byte) error {
 	seenFunctions := make(map[string]bool, len(wantFunctions))
 	seenABISignatures := make(map[string]bool, len(wantABISignatures))
 	seenGenericABISignatures := make(map[string]bool, len(wantGenericABISignatures))
+	seenEmbeddedAliases := make(map[string]bool, len(wantEmbeddedAliases))
 	for _, declaration := range file.Decls {
 		switch declaration := declaration.(type) {
 		case *ast.GenDecl:
@@ -1278,6 +1330,16 @@ func validateRelationFacadeProductSource(source []byte) error {
 						return fmt.Errorf("production relation facade type declaration contains %T", specification)
 					}
 					name := typeSpecification.Name.Name
+					if wantTarget, expected := wantEmbeddedAliases[name]; expected {
+						if seenEmbeddedAliases[name] || !typeSpecification.Assign.IsValid() || typeSpecification.TypeParams != nil {
+							return fmt.Errorf("production relation facade raw model alias %q is duplicate, non-alias, or generic", name)
+						}
+						if err := validateRelationFacadeExpressionSchema(typeSpecification.Type, wantTarget); err != nil {
+							return fmt.Errorf("production relation facade raw model alias %q: %w", name, err)
+						}
+						seenEmbeddedAliases[name] = true
+						continue
+					}
 					if !ast.IsExported(name) {
 						continue
 					}
@@ -1330,6 +1392,12 @@ func validateRelationFacadeProductSource(source []byte) error {
 				}
 				seenABISignatures[key] = true
 			}
+			if wantPointer, exact := wantPointerReceivers[key]; exact {
+				_, gotPointer := declaration.Recv.List[0].Type.(*ast.StarExpr)
+				if gotPointer != wantPointer {
+					return fmt.Errorf("production relation facade function %q signature receiver pointer = %t, want %t", key, gotPointer, wantPointer)
+				}
+			}
 			if wantSignature, exact := wantGenericABISignatures[key]; exact {
 				if err := validateRelationFacadeGenericFunctionSignature(declaration, wantSignature); err != nil {
 					return fmt.Errorf("production relation facade function %q signature: %w", key, err)
@@ -1342,11 +1410,14 @@ func validateRelationFacadeProductSource(source []byte) error {
 		}
 	}
 	if len(seenTypes) != len(wantTypes) || len(seenConstants) != len(wantConstants) || len(seenFunctions) != len(wantFunctions) ||
+		len(seenEmbeddedAliases) != len(wantEmbeddedAliases) ||
 		len(seenABISignatures) != len(wantABISignatures) || len(seenGenericABISignatures) != len(wantGenericABISignatures) {
 		return fmt.Errorf(
-			"production relation facade exported declaration set is incomplete: types=%d/%d constants=%d/%d functions=%d/%d ABI signatures=%d/%d generic ABI signatures=%d/%d",
+			"production relation facade declaration set is incomplete: types=%d/%d aliases=%d/%d constants=%d/%d functions=%d/%d ABI signatures=%d/%d generic ABI signatures=%d/%d",
 			len(seenTypes),
 			len(wantTypes),
+			len(seenEmbeddedAliases),
+			len(wantEmbeddedAliases),
 			len(seenConstants),
 			len(wantConstants),
 			len(seenFunctions),
@@ -1410,6 +1481,7 @@ func validateRelationFacadeProductType(name string, expression ast.Expr) error {
 		return fmt.Errorf("production relation facade type %q is %T, want struct", name, expression)
 	}
 	wantFields := map[string]string{}
+	wantAnonymous := ""
 	switch name {
 	case "Models":
 		wantFields = map[string]string{
@@ -1423,11 +1495,23 @@ func validateRelationFacadeProductType(name string, expression ast.Expr) error {
 			"Author":   "BlogPostRelationSelector",
 			"Reviewer": "BlogPostRelationSelector",
 		}
+	case "AuthorsAuthor":
+		wantAnonymous = "authorsAuthorModel"
+	case "BlogPost":
+		wantAnonymous = "blogPostModel"
 	}
 	seenFields := make(map[string]bool, len(wantFields))
+	seenAnonymous := false
 	for _, field := range structure.Fields.List {
 		if len(field.Names) == 0 {
-			return fmt.Errorf("production relation facade type %q contains anonymous embedded field", name)
+			if wantAnonymous == "" || seenAnonymous || field.Tag != nil {
+				return fmt.Errorf("production relation facade type %q contains forbidden or duplicate anonymous embedded field", name)
+			}
+			if err := validateRelationFacadeExpressionSchema(field.Type, wantAnonymous); err != nil {
+				return fmt.Errorf("production relation facade type %q anonymous raw model field: %w", name, err)
+			}
+			seenAnonymous = true
+			continue
 		}
 		for _, fieldName := range field.Names {
 			if !ast.IsExported(fieldName.Name) {
@@ -1446,7 +1530,51 @@ func validateRelationFacadeProductType(name string, expression ast.Expr) error {
 	if len(seenFields) != len(wantFields) {
 		return fmt.Errorf("production relation facade type %q exported fields = %d, want %d", name, len(seenFields), len(wantFields))
 	}
+	if (wantAnonymous != "") != seenAnonymous {
+		return fmt.Errorf("production relation facade type %q anonymous raw model field present = %t, want %t", name, seenAnonymous, wantAnonymous != "")
+	}
 	return nil
+}
+
+func TestValidateRelationFacadeProductTypeAnonymousEmbedding(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name      string
+		schema    string
+		wantError bool
+	}{
+		{name: "blog exact", schema: "struct { blogPostModel; state *relationFacadeState }"},
+		{name: "authors exact", schema: "struct { authorsAuthorModel; state *relationFacadeState }"},
+		{name: "missing", schema: "struct { state *relationFacadeState }", wantError: true},
+		{name: "wrong alias", schema: "struct { authorsAuthorModel; state *relationFacadeState }", wantError: true},
+		{name: "pointer alias", schema: "struct { *blogPostModel; state *relationFacadeState }", wantError: true},
+		{name: "extra anonymous", schema: "struct { blogPostModel; *relationFacadeState }", wantError: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			expression, err := parser.ParseExpr(test.schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+			name := "BlogPost"
+			if test.name == "authors exact" {
+				name = "AuthorsAuthor"
+			}
+			err = validateRelationFacadeProductType(name, expression)
+			if (err != nil) != test.wantError {
+				t.Fatalf("validateRelationFacadeProductType(%s, %s) error = %v, wantError=%t", name, test.schema, err, test.wantError)
+			}
+		})
+	}
+
+	models, err := parser.ParseExpr("struct { blogPostModel }")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateRelationFacadeProductType("Models", models); err == nil {
+		t.Fatal("non-wrapper Models accepted an anonymous raw-model alias")
+	}
 }
 
 func relationFacadeForbiddenObjectIdentifier(root ast.Node) string {
@@ -1474,6 +1602,10 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 	}
 	allowedImports := map[string]map[string]bool{
 		"context": {"Context": true},
+		"encoding/json": {
+			"Marshaler":   true,
+			"Unmarshaler": true,
+		},
 		modulePath + "/conformance/relationdeleteproduct/authors": {
 			"Author":       true,
 			"AuthorFields": true,
@@ -1517,7 +1649,7 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 	}
 	seenFunctions := make(map[string]bool, len(wantFunctions))
 	seenMinimalType := false
-	seenBackendAssertions := false
+	seenCompileAssertions := false
 	functions := make(map[string]*ast.FuncDecl, len(wantFunctions))
 	for _, declaration := range file.Decls {
 		switch declaration := declaration.(type) {
@@ -1538,13 +1670,13 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 				}
 				seenMinimalType = true
 			case token.VAR:
-				if seenBackendAssertions {
-					return fmt.Errorf("duplicate consumer backend assertions")
+				if seenCompileAssertions {
+					return fmt.Errorf("duplicate consumer compile assertions")
 				}
-				if err := validateRelationFacadeBackendAssertions(declaration); err != nil {
+				if err := validateRelationFacadeCompileAssertions(declaration); err != nil {
 					return err
 				}
-				seenBackendAssertions = true
+				seenCompileAssertions = true
 			default:
 				return fmt.Errorf("forbidden consumer declaration %s", declaration.Tok)
 			}
@@ -1566,11 +1698,11 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 			return fmt.Errorf("forbidden consumer declaration %T", declaration)
 		}
 	}
-	if !seenMinimalType || !seenBackendAssertions || len(seenFunctions) != len(wantFunctions) {
+	if !seenMinimalType || !seenCompileAssertions || len(seenFunctions) != len(wantFunctions) {
 		return fmt.Errorf(
 			"consumer declaration set is incomplete: minimal=%t assertions=%t functions=%d/%d",
 			seenMinimalType,
-			seenBackendAssertions,
+			seenCompileAssertions,
 			len(seenFunctions),
 			len(wantFunctions),
 		)
@@ -1609,6 +1741,7 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 		"IContains":      true,
 		"ID":             true,
 		"Limit":          true,
+		"MarshalJSON":    true,
 		"Name":           true,
 		"New":            true,
 		"OrderBy":        true,
@@ -1617,6 +1750,7 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 		"Save":           true,
 		"SelectRelated":  true,
 		"Title":          true,
+		"UnmarshalJSON":  true,
 		"Unwrap":         true,
 		"WithAuthor":     true,
 		"WithAuthorID":   true,
@@ -1638,6 +1772,7 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 	projectUsingCalls := 0
 	relatedAuthorTokens := 0
 	relatedReviewerTokens := 0
+	directTitleTokens := 0
 	var validationErr error
 	ast.Inspect(file, func(node ast.Node) bool {
 		if validationErr != nil {
@@ -1684,6 +1819,8 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 				relatedAuthorTokens++
 			case "models.BlogPost.Related.Reviewer":
 				relatedReviewerTokens++
+			case "newPost.Title":
+				directTitleTokens++
 			}
 		}
 		return true
@@ -1706,38 +1843,48 @@ func validateRelationFacadeConsumerSource(source []byte) error {
 			relatedReviewerTokens,
 		)
 	}
+	if directTitleTokens != 2 {
+		return fmt.Errorf("consumer direct promoted scalar tokens newPost.Title = %d, want exact 2", directTitleTokens)
+	}
 	if identifier := relationFacadeForbiddenObjectIdentifier(file); identifier != "" {
 		return fmt.Errorf("consumer exposes forbidden low-level %q", identifier)
 	}
 	return nil
 }
 
-func validateRelationFacadeBackendAssertions(declaration *ast.GenDecl) error {
+func validateRelationFacadeCompileAssertions(declaration *ast.GenDecl) error {
 	wantValues := map[string]bool{
-		"(*minimalBackend)(nil)":    true,
-		"(db.Session)(nil)":         true,
-		"(db.RelationSession)(nil)": true,
+		"project.Backend = (*minimalBackend)(nil)":                                  true,
+		"project.Backend = (db.Session)(nil)":                                       true,
+		"project.Backend = (db.RelationSession)(nil)":                               true,
+		"json.Marshaler = project.BlogPost{}":                                       true,
+		"json.Marshaler = (*project.BlogPost)(nil)":                                 true,
+		"json.Unmarshaler = (*project.BlogPost)(nil)":                               true,
+		"func(project.BlogPost) ([]byte, error) = project.BlogPost.MarshalJSON":     true,
+		"func(*project.BlogPost, []byte) error = (*project.BlogPost).UnmarshalJSON": true,
 	}
 	seenValues := make(map[string]bool, len(wantValues))
 	for _, specification := range declaration.Specs {
 		value, ok := specification.(*ast.ValueSpec)
-		if !ok || len(value.Names) != 1 || value.Names[0].Name != "_" || len(value.Values) != 1 {
-			return fmt.Errorf("consumer backend assertion has invalid shape")
+		if !ok || len(value.Names) != 1 || value.Names[0].Name != "_" || value.Type == nil || len(value.Values) != 1 {
+			return fmt.Errorf("consumer compile assertion has invalid shape")
 		}
-		if err := validateRelationFacadeExpressionSchema(value.Type, "project.Backend"); err != nil {
-			return fmt.Errorf("consumer backend assertion type: %w", err)
+		formattedType, err := formatRelationFacadeExpression(value.Type)
+		if err != nil {
+			return fmt.Errorf("consumer compile assertion type: %w", err)
 		}
-		formatted, err := formatRelationFacadeExpression(value.Values[0])
+		formattedValue, err := formatRelationFacadeExpression(value.Values[0])
 		if err != nil {
 			return err
 		}
+		formatted := formattedType + " = " + formattedValue
 		if !wantValues[formatted] || seenValues[formatted] {
-			return fmt.Errorf("forbidden or duplicate consumer backend assertion %q", formatted)
+			return fmt.Errorf("forbidden or duplicate consumer compile assertion %q", formatted)
 		}
 		seenValues[formatted] = true
 	}
 	if len(seenValues) != len(wantValues) {
-		return fmt.Errorf("consumer backend assertions = %d, want %d", len(seenValues), len(wantValues))
+		return fmt.Errorf("consumer compile assertions = %d, want %d", len(seenValues), len(wantValues))
 	}
 	return nil
 }

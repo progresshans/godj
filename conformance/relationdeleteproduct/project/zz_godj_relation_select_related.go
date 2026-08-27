@@ -194,4 +194,4 @@ func (_query BlogPostDynamicSelectRelatedQuery) All(_ctx context.Context) ([]*Bl
 	}
 }
 
-var _ goDjProjectSnapshot_2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b
+var _ goDjProjectSnapshot_81534d39046a39c9d515fe4106dfcb01dd2d1ade6b0c41f25dff92ac4c004533

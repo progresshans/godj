@@ -105,6 +105,10 @@ func publishRootWithHooks(
 	if err != nil {
 		return err
 	}
+	namespacePlan, err := sourceNamespacePlanFromBundle(bundleValue, bundle.manifestModel)
+	if err != nil {
+		return err
+	}
 	if verifier == nil {
 		return fmt.Errorf("%w: verifier is nil", ErrCandidateVerification)
 	}
@@ -133,6 +137,10 @@ func publishRootWithHooks(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	sourceSnapshot, err := captureSourceNamespaceSnapshot(ctx, root.absolute, bundle.manifestModel, namespacePlan)
+	if err != nil {
+		return fmt.Errorf("publish generated project: %w", err)
+	}
 
 	transactionID, err := newPublicationTransactionID()
 	if err != nil {
@@ -158,7 +166,13 @@ func publishRootWithHooks(
 		// The namespace scan deliberately skips the contents of allowed files.
 		// Repeat the exact manifest/directory/file CAS after that potentially long
 		// walk so an idempotent call cannot return stale success.
-		return verifyPublicationPriorCAS(root, parents, journal)
+		if err := verifyPublicationPriorCAS(root, parents, journal); err != nil {
+			return err
+		}
+		if err := verifySourceNamespaceSnapshot(ctx, root.absolute, bundle.manifestModel, namespacePlan, sourceSnapshot); err != nil {
+			return fmt.Errorf("publish generated project: %w", err)
+		}
+		return nil
 	}
 	parents, err := retainPublicationParents(root, journal)
 	if err != nil {
@@ -260,6 +274,9 @@ func publishRootWithHooks(
 	}
 	if err := hooks.fire(publicationStepPriorCASValid, "", -1); err != nil {
 		return failBeforeCommit(err)
+	}
+	if err := verifySourceNamespaceSnapshot(ctx, root.absolute, bundle.manifestModel, namespacePlan, sourceSnapshot); err != nil {
+		return failBeforeCommit(fmt.Errorf("publish generated project: %w", err))
 	}
 	for index, directory := range journal.Directories {
 		if directory.PriorPresent {

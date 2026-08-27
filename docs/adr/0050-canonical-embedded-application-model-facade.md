@@ -59,12 +59,15 @@ API를 새로 만들며 state lifetime을 GC와 분리합니다. 채택하지 �
    source audit은 declared app directory의 regular non-test `.go` source를 path lexical order로 bounded AST parse해 exact raw-model
    receiver method set과 framework reserved method를 비교합니다. Exact current/prior manifest-owned GoDj source는 제외하고 unowned
    `zz_godj_*.go`, symlink/non-regular/path escape는 existing project check와 함께 거부합니다. 모든 production build-tag variant를
-   보수적으로 검사하며 첫 구현 cap은 source 4,096개, file당 1 MiB, aggregate 64 MiB입니다. 감사 대상 raw-model 이름과 reserved
-   surface는 sealed candidate facade/schema plan에서 exact하게 유도하며 manifest만 보거나 app package의 모든 type declaration을
-   generated model로 추정하지 않습니다.
+   보수적으로 검사하되 Go toolchain이 무조건 제외하는 `.`/`_` prefix basename은 제외합니다. 첫 구현 cap은 directory entry
+   65,536개/path bytes 16 MiB, source 4,096개, file당 1 MiB, aggregate 64 MiB입니다. 감사 대상 raw-model 이름과 reserved surface는
+   sealed candidate facade/schema plan에서 exact하게 유도하며 manifest만 보거나 app package의 모든 type declaration을 generated
+   model로 추정하지 않습니다.
 6. `generate --check`와 write path 모두 manifest/byte clean 판정 전에 같은 sealed-root source audit을 실행해 handwritten method만
    바뀐 경우도 false-clean 없이 target mutation 전에 거부합니다. Write path는 candidate compile 뒤 첫 generated target mutation
-   직전에 같은 source fingerprint를 다시 검증합니다. Cancellation/resource/parser/source-change failure도 target mutation 0입니다.
+   직전에 같은 source fingerprint를 다시 검증합니다. 이전 interrupted publication의 mandatory recovery는 audit보다 먼저 prior 또는
+   committed-next exact state를 복원할 수 있습니다. 그 recovery가 끝난 뒤 cancellation/resource/parser/source-change failure는 새
+   candidate target mutation 0이며, recovery와 새 candidate publication은 서로 다른 소유 경계입니다.
 7. Project wrapper에 직접 선언한 duplicate receiver method와 package-level symbol collision은 whole-candidate compile이 소유합니다.
    Raw embedded receiver의 promotion shadowing은 Go에서 compile error가 아니므로 source audit이 소유합니다. 자동 rename/mangling,
    build result에 따른 플랫폼별 다른 surface와 compatibility shim은 만들지 않습니다.

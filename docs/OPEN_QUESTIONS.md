@@ -16,7 +16,7 @@
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
 | Q-016 | Partial | GDJ-0044 completed / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/closed Router bounded 18-contract slice를 Accepted/hosted-verified; Channels/Realtime profile과 broader API는 open |
-| Q-017 | P1 | GDJ-0048 active / canonical application facade | Project publication과 runserver는 hosted-verified; GDJ-0048/Proposed ADR-0050이 raw scalar/user method promotion, namespace, relation reconciliation, copy/JSON과 current facade ABI v3를 결정·구현 중이며 reverse/general upgrade와 first-alpha 이후 upgrader는 open |
+| Q-017 | P1 | GDJ-0048 active / canonical application facade | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON은 locally implemented되고 affected/vertical focused gate를 통과했으며 source-bound/final/hosted gate와 reverse/general upgrade, first-alpha 이후 upgrader는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
@@ -627,8 +627,8 @@ GDJ-0036의 corrected exact head hosted completion 뒤
 `d4643068...`의 [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) /
 CI #103에서 completed/hosted-verified됐고
 [ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)은 Accepted입니다. ProjectSpec/immutable
-bundle, manifest, whole-candidate compile, read-only check와 recoverable publication 하위 경계는 닫혔지만 raw-model
-embedding/unwrap/sidecar, capability/namespace와 broader facade/general upgrade UX는 계속 open입니다.
+  bundle, manifest, whole-candidate compile, read-only check와 recoverable publication 하위 경계는 닫혔지만 당시 raw-model
+  embedding/unwrap/sidecar, capability/namespace와 broader facade/general upgrade UX는 계속 open이었습니다.
 
 ### Historical pre-reset Gate 0와 additive publication evidence
 
@@ -682,13 +682,13 @@ coordinated generated upgrade, relation-capable migration 또는 non-SQLite supp
 `BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`을 이 bounded facade의 canonical Gate 0 surface로
 결정했습니다. 이 결정은 reverse/write manager나 전체 ORM naming policy를 확정하지 않습니다.
 
-### Current post-reset Q-017 open boundary
+### Post-reset Q-017 selection boundary
 
 Django에서 scalar field, user-defined model method와 relation access는 한 logical model 경험입니다. GoDj는 lazy I/O의
 explicit `context.Context`/`error`를 유지하지만, bounded Gate 0의 explicit `Unwrap`만을 전체 장기 model UX로 자동
-동결하지 않습니다. Broader reverse/general facade를 열기 전에 embedding/promotion, explicit unwrap, project sidecar를
-external compile prototype으로 비교해 raw fields/user methods, namespace collision, copy/JSON과 relation state가 함께
-유지되는 방식을 Q-017에서 결정합니다. 이는 Accepted Gate 0/ADR-0033 bounded write 경계를 재개방하지 않습니다.
+동결하지 않습니다. GDJ-0048은 embedding/promotion, explicit unwrap과 project sidecar를 external compile prototype으로
+비교한 뒤 private alias embedding + project-owned relation state를 bounded current-v3로 선택·구현했습니다. 이는 Accepted
+Gate 0/ADR-0033 bounded write 경계를 재개방하지 않으며 broader reverse/general facade와 upgrade policy는 계속 open입니다.
 
 Binder-first, original binder-error precedence, valid binding 뒤 nil/typed-nil backend의
 `backend_error/invalid_plan`과 I/O 0은 stable contract이고 detail message만 noncontractual입니다. Current generator는
@@ -698,8 +698,8 @@ broader generated upgrade 질문은 Q-017에 남습니다.
 
 GDJ-0033이 좁게 Accepted한 forward relation assignment/save의 observable behavior와 binder/cache ownership은
 유지합니다. 당시 existing exact 13 보존과 single project-facade companion publication rule은 ADR-0035 current main
-ABI reset으로 Superseded됐습니다. Project-wide current bundle publication은 GDJ-0037에 구현됐지만 broader capability
-split, namespace, raw-model UX와 general upgrade는 여전히 open입니다.
+ABI reset으로 Superseded됐습니다. Project-wide current bundle publication은 GDJ-0037에 구현됐고 GDJ-0048은 bounded
+namespace/raw-model UX를 current-v3로 좁혔습니다. Broader reverse/general capability split과 general upgrade는 여전히 open입니다.
 
 Current manifest는 normalized Schema/layout, 13-role generator ABI와 exact output digest 전체를 project snapshot 아래
 증명합니다. 남은 provenance/upgrade 질문은 installed library/runner/generator version negotiation, renderer
@@ -710,14 +710,15 @@ rename/deprecation과 first-alpha 이후 compatibility 기간입니다. Bounded 
 
 [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Proposed
 [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 external compile comparison을 근거로 private raw-model
-alias embedding과 existing project-owned relation state/cache의 결합을 선택 후보로 고정했습니다. Scalar field와 app-owned
+alias embedding과 existing project-owned relation state/cache의 결합을 current checkout에 구현했습니다. Scalar field와 app-owned
 method를 promotion하되 existing `Save`/`With*`/forward accessor/`Unwrap`을 유지하고, direct FK mutation은 operational
 boundary 전에 canonical snapshot/full rebuild/all-success publication으로 edge별 reconcile합니다. Whole-candidate compile만으로
 잡히지 않는 embedded method shadowing은 bounded AST namespace audit로 `generate --check`와 write 모두에서 거부합니다.
 Wrapper direct JSON marshal/unmarshal은 fail-closed하고 ADR-0038 Web JSON/template의 representation authority는 app DTO로
 유지합니다. Exported promoted field의 generic `html/template` 접근 자체를 type-level로 막는다고 주장하지 않습니다.
 
-이 active packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture를 검증합니다. Reverse
+이 active packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture의 affected/vertical focused
+gate까지 통과했고 source-bound/final/hosted 검증을 남겼습니다. Reverse
 assignment/general manager, installed-version negotiation, renderer rename/deprecation와 first-alpha 이후 semver/upgrader는 계속
 Q-017에 남으므로 packet 완료만으로 Q-017 전체를 `Resolved`로 만들지 않습니다.
 

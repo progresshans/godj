@@ -43,6 +43,10 @@ func CheckRoot(ctx context.Context, projectRoot ProjectRoot, bundle codegen.Gene
 	if err != nil {
 		return report, err
 	}
+	namespacePlan, err := sourceNamespacePlanFromBundle(bundle, expectedManifest)
+	if err != nil {
+		return report, err
+	}
 	report.ExpectedSnapshotSHA256 = expectedManifest.SnapshotSHA256
 	rootSeal, err := resolveProjectRoot(projectRoot)
 	if err != nil {
@@ -54,6 +58,10 @@ func CheckRoot(ctx context.Context, projectRoot ProjectRoot, bundle codegen.Gene
 			resultErr = fmt.Errorf("check generated project: %w: selected project root changed", ErrGeneratedConflict)
 		}
 	}()
+	_, namespaceErr := captureSourceNamespaceSnapshot(ctx, root, expectedManifest, namespacePlan)
+	if namespaceErr != nil && !errors.Is(namespaceErr, ErrGeneratedConflict) {
+		return report, fmt.Errorf("check generated project: %w", namespaceErr)
+	}
 
 	conflict := false
 	interrupted, interruptedDrifts, interruptedConflict, err := inspectInterruptedPublication(ctx, root)
@@ -182,15 +190,21 @@ func CheckRoot(ctx context.Context, projectRoot ProjectRoot, bundle codegen.Gene
 		}
 		return report.Drifts[left].Kind < report.Drifts[right].Kind
 	})
-	if report.Clean() {
+	if report.Clean() && namespaceErr == nil {
 		return report, nil
 	}
-	causes := []error{ErrGeneratedDrift}
+	var causes []error
+	if !report.Clean() {
+		causes = append(causes, ErrGeneratedDrift)
+	}
 	if report.Interrupted {
 		causes = append(causes, ErrPublicationInterrupted)
 	}
 	if conflict {
 		causes = append(causes, ErrGeneratedConflict)
+	}
+	if namespaceErr != nil {
+		causes = append(causes, namespaceErr)
 	}
 	return report, fmt.Errorf("check generated project: %w", errors.Join(causes...))
 }

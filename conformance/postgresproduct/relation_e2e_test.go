@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,12 +24,37 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
+const (
+	postgresRelationCanonicalAlphaTitle          = "Canonical Alpha"
+	postgresRelationRestartHelperEnv             = "GODJ_POSTGRES_RELATION_RESTART_HELPER"
+	postgresRelationRestartSchemaEnv             = "GODJ_POSTGRES_RELATION_RESTART_SCHEMA"
+	postgresRelationRestartPostIDEnv             = "GODJ_POSTGRES_RELATION_RESTART_POST_ID"
+	postgresRelationRestartAuthorIDEnv           = "GODJ_POSTGRES_RELATION_RESTART_AUTHOR_ID"
+	postgresRelationRestartSchemaPrefix          = "godj_pg_relation_"
+	postgresRelationRestartSuccessToken          = "godj-postgres-relation-restart-v1-ok"
+	postgresRelationRestartFailurePrefix         = "godj-postgres-relation-restart-v1-error:"
+	postgresRelationRestartMaximumOutput         = 16 << 10
+	postgresRelationRestartHelperTimeout         = 30 * time.Second
+	postgresRelationRestartSubprocessTimeout     = 45 * time.Second
+	postgresRelationRestartSubprocessTestTimeout = 40 * time.Second
+)
+
 var (
 	postgresRelationAuthorsKey = migrations.MigrationKey{App: "authors", Name: "0001_initial"}
 	postgresRelationBlogKey    = migrations.MigrationKey{App: "blog", Name: "0001_initial"}
 )
 
 func TestGeneratedRelationPostgresE2E(t *testing.T) {
+	if os.Getenv(postgresRelationRestartHelperEnv) == "1" {
+		if failureCode := postgresRelationVerifyRestartedState(); failureCode != "" {
+			t.Fatalf("%s%s", postgresRelationRestartFailurePrefix, failureCode)
+		}
+		if _, err := fmt.Fprintln(os.Stdout, postgresRelationRestartSuccessToken); err != nil {
+			t.Fatalf("%swrite_success", postgresRelationRestartFailurePrefix)
+		}
+		return
+	}
+
 	databaseURL := os.Getenv("GODJ_TEST_POSTGRES_URL")
 	if strings.TrimSpace(databaseURL) == "" {
 		if os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
@@ -43,7 +70,7 @@ func TestGeneratedRelationPostgresE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("connect generated relation PostgreSQL E2E database: %v", postgresRelationRedactedConnectionError(err))
 	}
-	schema := fmt.Sprintf("godj_pg_relation_%d", time.Now().UnixNano())
+	schema := fmt.Sprintf("%s%d", postgresRelationRestartSchemaPrefix, time.Now().UnixNano())
 	quotedSchema := pgx.Identifier{schema}.Sanitize()
 	if _, err := admin.Exec(ctx, "CREATE SCHEMA "+quotedSchema); err != nil {
 		_ = admin.Close(ctx)
@@ -201,6 +228,291 @@ func TestGeneratedRelationPostgresE2E(t *testing.T) {
 	postgresRelationAssertAuthor(t, reviewer, bob.ID, "Bob")
 	if reviewer, present, err := reviewerEager[1].Reviewer(ctx); err != nil || present || reviewer != nil {
 		t.Fatalf("generated PostgreSQL eager absent Reviewer = (%#v, %t, %v), want (nil, false, nil)", reviewer, present, err)
+	}
+
+	posts[0].Title = "  " + postgresRelationCanonicalAlphaTitle + "  "
+	posts[0].NormalizeTitle()
+	posts[0].AuthorID = bob.ID
+	posts[0].ReviewerID = nil
+	if err := posts[0].Save(ctx); err != nil {
+		t.Fatalf("save promoted scalar and relation mutations through generated PostgreSQL facade: %v", err)
+	}
+	if posts[0].Title != postgresRelationCanonicalAlphaTitle {
+		t.Fatalf(
+			"application-owned NormalizeTitle result = %q, want %q",
+			posts[0].Title,
+			postgresRelationCanonicalAlphaTitle,
+		)
+	}
+	if err := runtimeBackend.Close(); err != nil {
+		t.Fatalf("close generated relation PostgreSQL backend after canonical facade save: %v", err)
+	}
+	postgresRelationVerifyRestartInSubprocess(t, ctx, schema, alpha.ID, bob.ID)
+	runtimeBackend, err = postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
+	if err != nil {
+		t.Fatalf("reopen generated relation PostgreSQL backend after canonical facade save: %v", err)
+	}
+	freshModels, err := relationproject.Using(runtimeBackend)
+	if err != nil {
+		t.Fatalf("rebind reopened generated relation PostgreSQL backend: %v", err)
+	}
+	freshAlpha, found, err := freshModels.BlogPost.
+		Filter(blog.PostFields.ID.Exact(alpha.ID)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil || !found || freshAlpha == nil {
+		t.Fatalf("reload canonical Alpha through reopened PostgreSQL backend = (%#v, %t, %v)", freshAlpha, found, err)
+	}
+	postgresRelationAssertPost(t, freshAlpha, alpha.ID, postgresRelationCanonicalAlphaTitle, bob.ID, nil)
+	freshAuthor, err := freshAlpha.Author(ctx)
+	if err != nil {
+		t.Fatalf("load reconciled PostgreSQL Author after direct FK mutation: %v", err)
+	}
+	postgresRelationAssertAuthor(t, freshAuthor, bob.ID, "Bob")
+	if freshReviewer, present, err := freshAlpha.Reviewer(ctx); err != nil || present || freshReviewer != nil {
+		t.Fatalf("load reconciled absent PostgreSQL Reviewer = (%#v, %t, %v), want (nil, false, nil)", freshReviewer, present, err)
+	}
+}
+
+func postgresRelationVerifyRestartInSubprocess(
+	t *testing.T,
+	ctx context.Context,
+	schema string,
+	postID int64,
+	authorID int64,
+) {
+	t.Helper()
+	childContext, cancel := context.WithTimeout(ctx, postgresRelationRestartSubprocessTimeout)
+	defer cancel()
+
+	command := exec.CommandContext(
+		childContext,
+		os.Args[0],
+		"-test.run=^TestGeneratedRelationPostgresE2E$",
+		"-test.count=1",
+		"-test.timeout="+postgresRelationRestartSubprocessTestTimeout.String(),
+	)
+	command.Env = postgresRelationRestartEnvironment(schema, postID, authorID)
+	command.WaitDelay = 5 * time.Second
+	stdout := &postgresRelationBoundedOutput{limit: postgresRelationRestartMaximumOutput}
+	stderr := &postgresRelationBoundedOutput{limit: postgresRelationRestartMaximumOutput}
+	command.Stdout = stdout
+	command.Stderr = stderr
+
+	err := command.Run()
+	if err != nil {
+		t.Fatalf(
+			"separate-process PostgreSQL relation restart verification failed: status=%s diagnostic=%s stdout_truncated=%t stderr_truncated=%t",
+			postgresRelationRestartProcessStatus(childContext, err),
+			postgresRelationRestartDiagnostic(stdout.String(), stderr.String()),
+			stdout.truncated,
+			stderr.truncated,
+		)
+	}
+	if strings.Count(stdout.String(), postgresRelationRestartSuccessToken) != 1 ||
+		strings.Contains(stderr.String(), postgresRelationRestartFailurePrefix) {
+		t.Fatalf(
+			"separate-process PostgreSQL relation restart verification returned an invalid success protocol: diagnostic=%s stdout_truncated=%t stderr_truncated=%t",
+			postgresRelationRestartDiagnostic(stdout.String(), stderr.String()),
+			stdout.truncated,
+			stderr.truncated,
+		)
+	}
+}
+
+func postgresRelationVerifyRestartedState() (failureCode string) {
+	databaseURL := os.Getenv("GODJ_TEST_POSTGRES_URL")
+	if strings.TrimSpace(databaseURL) == "" {
+		return "invalid_environment"
+	}
+	schema := os.Getenv(postgresRelationRestartSchemaEnv)
+	if !postgresRelationRestartSchemaValid(schema) {
+		return "invalid_schema"
+	}
+	postID, err := strconv.ParseInt(os.Getenv(postgresRelationRestartPostIDEnv), 10, 64)
+	if err != nil || postID <= 0 {
+		return "invalid_post_id"
+	}
+	authorID, err := strconv.ParseInt(os.Getenv(postgresRelationRestartAuthorIDEnv), 10, 64)
+	if err != nil || authorID <= 0 {
+		return "invalid_author_id"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), postgresRelationRestartHelperTimeout)
+	defer cancel()
+	backend, err := postgres.Open(ctx, postgres.Config{URL: databaseURL, Schema: schema})
+	if err != nil {
+		return "open_backend"
+	}
+	defer func() {
+		if err := backend.Close(); err != nil && failureCode == "" {
+			failureCode = "close_backend"
+		}
+	}()
+
+	models, err := relationproject.Using(backend)
+	if err != nil {
+		return "bind_facade"
+	}
+	post, found, err := models.BlogPost.
+		Filter(blog.PostFields.ID.Exact(postID)).
+		OrderBy(blog.PostFields.ID.Asc()).
+		First(ctx)
+	if err != nil {
+		return "load_post"
+	}
+	if !found || post == nil {
+		return "post_missing"
+	}
+	rawPost, err := post.Unwrap()
+	if err != nil {
+		return "unwrap_post"
+	}
+	if rawPost.ID != postID || rawPost.Title != postgresRelationCanonicalAlphaTitle ||
+		rawPost.AuthorID != authorID || rawPost.ReviewerID != nil {
+		return "post_state_mismatch"
+	}
+
+	author, err := post.Author(ctx)
+	if err != nil || author == nil {
+		return "load_author"
+	}
+	rawAuthor, err := author.Unwrap()
+	if err != nil {
+		return "unwrap_author"
+	}
+	if rawAuthor.ID != authorID || rawAuthor.Name != "Bob" {
+		return "author_state_mismatch"
+	}
+	reviewer, present, err := post.Reviewer(ctx)
+	if err != nil {
+		return "load_reviewer"
+	}
+	if present || reviewer != nil {
+		return "reviewer_state_mismatch"
+	}
+	return ""
+}
+
+func postgresRelationRestartEnvironment(schema string, postID int64, authorID int64) []string {
+	privateNames := map[string]struct{}{
+		postgresRelationRestartHelperEnv:   {},
+		postgresRelationRestartSchemaEnv:   {},
+		postgresRelationRestartPostIDEnv:   {},
+		postgresRelationRestartAuthorIDEnv: {},
+	}
+	environment := make([]string, 0, len(os.Environ())+len(privateNames))
+	for _, entry := range os.Environ() {
+		name := entry
+		if separator := strings.IndexByte(entry, '='); separator >= 0 {
+			name = entry[:separator]
+		}
+		if _, private := privateNames[name]; private {
+			continue
+		}
+		environment = append(environment, entry)
+	}
+	return append(
+		environment,
+		postgresRelationRestartHelperEnv+"=1",
+		postgresRelationRestartSchemaEnv+"="+schema,
+		postgresRelationRestartPostIDEnv+"="+strconv.FormatInt(postID, 10),
+		postgresRelationRestartAuthorIDEnv+"="+strconv.FormatInt(authorID, 10),
+	)
+}
+
+func postgresRelationRestartSchemaValid(schema string) bool {
+	if len(schema) > 63 || !strings.HasPrefix(schema, postgresRelationRestartSchemaPrefix) {
+		return false
+	}
+	suffix := strings.TrimPrefix(schema, postgresRelationRestartSchemaPrefix)
+	if len(suffix) < 8 || len(suffix) > 20 {
+		return false
+	}
+	for _, character := range []byte(suffix) {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+type postgresRelationBoundedOutput struct {
+	contents  []byte
+	limit     int
+	truncated bool
+}
+
+func (output *postgresRelationBoundedOutput) Write(value []byte) (int, error) {
+	written := len(value)
+	remaining := output.limit - len(output.contents)
+	if remaining > 0 {
+		if remaining > len(value) {
+			remaining = len(value)
+		}
+		output.contents = append(output.contents, value[:remaining]...)
+	}
+	if remaining < len(value) {
+		output.truncated = true
+	}
+	return written, nil
+}
+
+func (output *postgresRelationBoundedOutput) String() string {
+	return string(output.contents)
+}
+
+func postgresRelationRestartProcessStatus(ctx context.Context, err error) string {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return "deadline_exceeded"
+	}
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return "canceled"
+	}
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
+		return "exit_" + strconv.Itoa(exitError.ExitCode())
+	}
+	return "start_failed"
+}
+
+func postgresRelationRestartDiagnostic(outputs ...string) string {
+	for _, output := range outputs {
+		position := strings.Index(output, postgresRelationRestartFailurePrefix)
+		if position < 0 {
+			continue
+		}
+		remainder := output[position+len(postgresRelationRestartFailurePrefix):]
+		fields := strings.Fields(remainder)
+		if len(fields) > 0 && postgresRelationRestartFailureCodeValid(fields[0]) {
+			return fields[0]
+		}
+	}
+	return "unstructured_child_output"
+}
+
+func postgresRelationRestartFailureCodeValid(code string) bool {
+	switch code {
+	case "invalid_environment",
+		"invalid_schema",
+		"invalid_post_id",
+		"invalid_author_id",
+		"open_backend",
+		"bind_facade",
+		"load_post",
+		"post_missing",
+		"unwrap_post",
+		"post_state_mismatch",
+		"load_author",
+		"unwrap_author",
+		"author_state_mismatch",
+		"load_reviewer",
+		"reviewer_state_mismatch",
+		"close_backend",
+		"write_success":
+		return true
+	default:
+		return false
 	}
 }
 

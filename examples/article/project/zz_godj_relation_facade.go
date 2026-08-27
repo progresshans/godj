@@ -11,8 +11,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v2"
-const GoDjProjectRelationFacadeInputSHA256 = "9cfc346be04ebf73f80f971f379eee6d71c4c65d42ac7d41b8d6757484eb20a0"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v3"
+const GoDjProjectRelationFacadeInputSHA256 = "a578dfa5c0117994baf5947697e8a8e7d18f846f4ee8326ba71a8d42d33950d5"
 
 type Backend interface {
 	db.Queryer
@@ -61,6 +61,10 @@ func relationFacadeContext(_ctx context.Context) error {
 		return relationFacadeQueryInvalid("context is nil")
 	}
 	return _ctx.Err()
+}
+
+func relationFacadePrimaryKeyUpdate(_field string) error {
+	return &query.Error{Category: query.CategoryModelState, Code: query.CodePrimaryKeyUpdateField, Field: _field, Detail: "promoted primary key changed after generated wrapper construction"}
 }
 
 type ModelsArticleQuery struct {
@@ -179,10 +183,14 @@ func (_query ModelsArticleQuery) All(_ctx context.Context) ([]*ModelsArticle, er
 	return _results, nil
 }
 
+type modelsArticleModel = models.Article
+
 type ModelsArticle struct {
-	state *relationFacadeState
-	model models.Article
-	_self *ModelsArticle
+	modelsArticleModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	_self                     *ModelsArticle
 }
 
 func (_state *relationFacadeState) wrapModelsArticle(_value models.Article) (*ModelsArticle, error) {
@@ -190,8 +198,11 @@ func (_state *relationFacadeState) wrapModelsArticle(_value models.Article) (*Mo
 		return nil, _err
 	}
 	_cloned := (models.ArticleDescriptor{}).CloneWriteModel(_value)
-	_result := &ModelsArticle{state: _state, model: _cloned}
+	_result := &ModelsArticle{state: _state, modelsArticleModel: _cloned}
 	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
 	return _result, nil
 }
 
@@ -200,8 +211,11 @@ func (_state *relationFacadeState) newModelsArticle(_value models.Article) (*Mod
 		return nil, _err
 	}
 	_cloned := (models.ArticleDescriptor{}).CloneWriteModel(_value)
-	_result := &ModelsArticle{state: _state, model: _cloned}
+	_result := &ModelsArticle{state: _state, modelsArticleModel: _cloned}
 	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
 	return _result, nil
 }
 
@@ -212,11 +226,16 @@ func (_model *ModelsArticle) validate() error {
 	return _model.state.validate()
 }
 
-func (_model *ModelsArticle) relationFacadePrimaryKey() (int64, bool, error) {
-	if _err := _model.validate(); _err != nil {
-		return 0, false, _err
-	}
-	_value, _present := (models.ArticleDescriptor{}).PrimaryKey(_model.model)
+func (ModelsArticle) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*ModelsArticle) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *ModelsArticle) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (models.ArticleDescriptor{}).PrimaryKey(_model.modelsArticleModel)
 	_key, _ok := _value.Integer()
 	if !_ok {
 		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
@@ -224,11 +243,38 @@ func (_model *ModelsArticle) relationFacadePrimaryKey() (int64, bool, error) {
 	return _key, _present, nil
 }
 
+func (_model *ModelsArticle) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *ModelsArticle) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	return nil
+}
+
 func (_model *ModelsArticle) Unwrap() (models.Article, error) {
 	if _err := _model.validate(); _err != nil {
 		return models.Article{}, _err
 	}
-	return (models.ArticleDescriptor{}).CloneModel(_model.model), nil
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return models.Article{}, _err
+	}
+	return (models.ArticleDescriptor{}).CloneModel(_model.modelsArticleModel), nil
 }
 
 func (_model *ModelsArticle) Save(_ctx context.Context) error {
@@ -238,7 +284,13 @@ func (_model *ModelsArticle) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
-	return models.ArticleObjects.Save(_ctx, _model.state.backend, &_model.model)
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _err := models.ArticleObjects.Save(_ctx, _model.state.backend, &_model.modelsArticleModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
 }
 
 type Models struct {
@@ -260,4 +312,4 @@ func Using(_backend Backend) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675
+var _ goDjProjectSnapshot_f0043e499ab316558cd0306ce82c428a5f266b0c178d656416380c3ba1722ac7

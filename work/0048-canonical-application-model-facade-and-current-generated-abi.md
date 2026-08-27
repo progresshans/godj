@@ -17,11 +17,12 @@ allowed_paths:
   - "internal/projectspec/**"
   - "examples/article/**"
   - "conformance/postgresproduct/**"
+  - "conformance/README.md"
+  - "conformance/internal/protocol/relation_artifacts_test.go"
+  - "conformance/internal/protocol/system_state_artifacts_test.go"
   - "conformance/relationdeleteproduct/**"
   - "conformance/runserverproduct/**"
   - "conformance/systemstate/attestations/**"
-  - "conformance/systemstate/source_binding.go"
-  - "conformance/systemstate/source_binding_test.go"
   - "docs/adr/0050-canonical-embedded-application-model-facade.md"
   - "docs/adr/README.md"
   - "docs/ARCHITECTURE.md"
@@ -137,7 +138,7 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
 - Lazy/eager/`With*`/`Clear*`의 canonical wrapper와 per-edge COW state
 - `Unwrap` deep clone과 nil/zero/shallow-copy receiver 경계
 - Wrapper direct JSON marshal/unmarshal fail-closed와 DTO-only supported Web representation
-- Schema/handwritten generated namespace audit, check/write target mutation 0
+- Schema/handwritten generated namespace audit, check target mutation 0와 mandatory recovery 뒤 write의 새 candidate target mutation 0
 - Deterministic facade renderer current-v3와 existing 13-role whole bundle
 - Stale v2 detection, v3 recoverable publication과 exact old-or-new recovery
 
@@ -149,7 +150,8 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
   result를 동시에 ready로 만든 test-only select race였습니다. 실제 rollback/product failure 증거가 아닙니다.
 - Baseline commit `3882902...`는 callback이 main barrier observation 전 반환하지 않도록 handshake를 추가했습니다. Focused normal
   count=2000, race count=1000, CGO0 count=500, full `./db/sqlite` normal/race/CGO0, vet와 current source-binding test가
-  통과했습니다. Corrected hosted descendant는 activation push 뒤 다시 확인합니다.
+  통과했습니다. Activation head `1070ec3...`의 CI #157/run `33063990270`은 exact 27/27 jobs·360/360 steps,
+  failure/cancel/skip/annotation 0으로 corrected descendant를 확인했습니다.
 - Worktree는 activation 시작 시 clean이고 Draft PR #1은 OPEN/DRAFT/unmerged입니다.
 
 ## 설계 및 구현 단계
@@ -158,36 +160,40 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
 
 - [x] embedding/explicit unwrap/sidecar를 repository-external compile prototype으로 비교
 - [x] raw `Save`가 outer generated `Save`에 조용히 가려지는 Go method-promotion negative를 확인
-- [ ] Proposed ADR-0050과 exact namespace/copy/JSON/reconciliation decision을 activation head에 고정
-- [ ] positive/negative external compile fixture와 target-write-zero namespace audit을 먼저 추가
+- [x] Proposed ADR-0050의 핵심 namespace/copy/JSON/reconciliation decision을 activation head `1070ec3...`에 고정하고,
+  구현 중 확인한 bounded source budget과 mandatory-recovery ordering clarification을 current checkpoint에 반영
+- [x] positive/negative external compile fixture와 target-write-zero namespace audit을 먼저 추가
 
 ### Phase B — facade renderer v3
 
-- [ ] private alias embedding과 promoted scalar/user method surface를 생성
-- [ ] raw clone `Unwrap`, pointer/self validation과 existing `Save`/`With*` signatures를 보존
-- [ ] non-nil wrapper value/pointer JSON marshal과 pointer unmarshal을 deterministic pre-I/O error로 닫고 nil-pointer `null`
+- [x] private alias embedding과 promoted scalar/user method surface를 생성
+- [x] raw clone `Unwrap`, pointer/self validation과 existing `Save`/`With*` signatures를 보존
+- [x] non-nil wrapper value/pointer JSON marshal과 pointer unmarshal을 deterministic pre-I/O error로 닫고 nil-pointer `null`
   special case/no-mutation을 exact 검증
-- [ ] Schema-derived 및 handwritten production method namespace collision을 generate/check/publication 전 거부
+- [x] Schema-derived 및 handwritten production method namespace collision을 generate/check/publication 전 거부
 
 ### Phase C — relation state reconciliation
 
-- [ ] direct required/nullable FK mutation을 canonical snapshot → full validation/rebuild → all-success publication 순서로
+- [x] direct required/nullable FK mutation을 canonical snapshot → full validation/rebuild → all-success publication 순서로
   accessor/With*/Clear*/Unwrap/Save 전에 edge별 reconcile; failure state unchanged/I/O 0
-- [ ] promoted PK direct mutation의 pre-I/O rejection과 manual-PK-before-New path를 검증
-- [ ] warm present/absent cache invalidation, pending-target scalar override와 unchanged-edge preservation 검증
-- [ ] explicit-zero/presence, per-edge COW, eager/lazy same-wrapper와 copy failure 회귀 검증
+- [x] promoted PK direct mutation의 pre-I/O rejection과 manual-PK-before-New path를 검증
+- [x] warm present/absent cache invalidation, pending-target scalar override와 unchanged-edge preservation 검증
+- [x] explicit-zero/presence, per-edge COW, eager/lazy same-wrapper와 copy failure 회귀 검증
 
 ### Phase D — whole-bundle product adoption
 
-- [ ] facade ABI v3와 existing 13-role snapshot preimage를 갱신
-- [ ] Article exact 12와 relation-delete exact 16 source/manifest를 current bundle로 재생성
-- [ ] generated drift, old/new hybrid compile-success 0, ordinary failure old exact, crash recovery old-or-new exact 검증
-- [ ] Article user method와 relation fixture namespace collision/rollback fixture를 실제 package에서 검증
+- [x] facade ABI v3와 existing 13-role snapshot preimage를 갱신
+- [x] Article exact 12와 relation-delete exact 16 source/manifest를 current bundle로 재생성
+- [x] current-v3 generated drift, ordinary failure old exact와 crash recovery old-or-new exact 검증
+- [x] checked-in v2 → v3 stale detection과 mixed-generation compile-success 0 검증
+- [x] Article user method와 relation fixture namespace collision/rollback fixture를 실제 package에서 검증
 
 ### Phase E — vertical integration and publication
 
-- [ ] SQLite/PostgreSQL에서 query → direct scalar/user method → relation access/assignment → Save → reload/restart 흐름 검증
-- [ ] affected normal/race/CGO0/vet, external compile, generate/check와 source-bound PostgreSQL canary 통과
+- [x] SQLite/PostgreSQL에서 query → direct scalar/user method → relation access/assignment → Save → fresh reload 및 별도 OS process
+  reopen 흐름 검증
+- [x] affected normal/race/CGO0/vet, external compile와 generate/check 통과
+- [ ] clean source checkpoint에서 독립 2회 source-bound PostgreSQL canary/attestation 통과
 - [ ] frozen source에서 full `make ci`, Linux/386, repository-external clean archive와 independent audit 한 번 수행
 - [ ] exact submitted head hosted matrix를 통과한 뒤 ADR/상태/증거를 terminal bytes에 맞게 갱신
 
@@ -195,15 +201,50 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
 
 - Direct scalar와 app-owned methods가 canonical wrapper에서 compile/runtime 동작하며 기존 relation/write API와 공존합니다.
 - Direct FK mutation 뒤 stale relation object/cache가 관찰되거나 잘못 저장되지 않습니다.
-- Generated/promoted namespace collision은 `generate --check`와 write 모두 target mutation/application DB I/O 전에
-  deterministic하게 실패합니다. Handwritten method change만으로 manifest bytes가 같아도 false-clean이 되지 않습니다.
+- Generated/promoted namespace collision은 `generate --check`에서 target mutation 0, write에서는 mandatory interrupted-publication
+  recovery 뒤 새 candidate target mutation/application DB I/O 0으로 deterministic하게 실패합니다. Handwritten method change만으로
+  manifest bytes가 같아도 false-clean이 되지 않습니다.
 - Wrapper direct JSON serialization은 implicit I/O/field leakage 없이 거부되고 `Unwrap` raw clone/DTO-only Web path는 기존
   의미를 보존합니다. Generic template access를 type-level로 거부한다고 주장하지 않습니다.
 - Article/relation bundles가 deterministic current ABI v3 exact set으로 게시되고 check/recovery gate를 통과합니다.
 - 완료 문서는 실제 실행 명령, checkout/tree/artifact identity, 실행하지 못한 gate와 남은 Q-017 범위를 정확히 기록합니다.
 
+## 실행 증거 — pre-freeze affected checkpoint
+
+2026-08-27 activation head `1070ec323f0d91b3ade54e1ec0cc6ac9e6d96175`의 descendant working snapshot에서 다음
+affected gate가 모두 exit 0으로 통과했습니다. 이 실행 뒤 변경은 current 상태 문서뿐이며 product/generated/test bytes의 clean
+source checkpoint identity와 정식 EVID는 커밋 뒤 별도로 고정합니다.
+
+```bash
+go test -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+go test -race -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+CGO_ENABLED=0 go test -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+go vet ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+make generate-check
+go test -count=100 ./examples/article/webapp
+git diff --check
+```
+
+Digest-pinned `golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+Linux/amd64와 `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`에서
+다음 focused command도 exit 0으로 통과해 별도 OS process reopen marker를 확인했습니다.
+
+```bash
+GODJ_TEST_POSTGRES_URL=<redacted> \
+  go test -count=1 -run '^TestGeneratedRelationPostgresE2E$' ./conformance/postgresproduct
+```
+
+Dirty shared source에서 만든
+두 preliminary attestation capture는 byte-identical이지만 정식 source-bound proof로 사용하지 않으며 clean checkpoint에서 서로
+독립된 PostgreSQL instance로 다시 수집합니다.
+
 ## 인수인계
 
-- 현재 정확한 다음 작업: ADR-0050 activation freeze 뒤 external compile/namespace negative test를 먼저 작성하고 renderer v3를 구현합니다.
+- 현재 정확한 다음 작업: source checkpoint를 clean commit으로 고정한 뒤 digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL
+  17.10에서 source-bound attestation을 독립 2회 재수집하고, required PostgreSQL/affected gate와 frozen final gate를 닫습니다.
 - 같은 공개 facade generator, ProjectSpec ABI와 CURRENT 문서는 통합 담당 한 명만 수정합니다.
 - Corrected descendant CI가 실행 중이면 로컬 구현은 계속하되 완료 전 추가 push로 run을 취소하지 않습니다.

@@ -23,7 +23,7 @@ func TestRelationArtifactBytesAreLocked(t *testing.T) {
 	wanted := map[string]artifactLock{
 		"conformance/relationdeleteproduct/.godj/generated-manifest.json": {
 			size:   4815,
-			sha256: "5da11251c6c238be46932edf0a6d970b94861bd9fe162b0ee38684c6a2c23937",
+			sha256: "43b73b459329f7ae8b1046658964e8e7857112b7febea2705d66ff9f676f6b8e",
 		},
 		"conformance/contracts/relation-manifest.json": {
 			size:   10770,
@@ -119,7 +119,7 @@ func TestGeneratedRelationProductBytesAreLocked(t *testing.T) {
 				"project/zz_godj_relation_reverse.go",
 				"project/zz_godj_relation_select_related.go",
 			},
-			digest: "c7ddaf0f760987b71f743dab51dfc8b7af842031529999a8dd1d9d1cd246fd13",
+			digest: "b54d0934ff2517029aa75a5c42e504f9cf1200b7176b5c527a520ef8a390f14f",
 		},
 	}
 	for _, test := range tests {

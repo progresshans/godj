@@ -75,11 +75,13 @@ proposed → ready → active → completed
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
 현재 active/ready packet은 1/0입니다. Active
-[GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 baseline `3882902...`에서
-Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁힙니다. Proposed
+[GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
+Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔고 current v3 product를 locally
+implemented했습니다. Proposed
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
 `Save`/`With*`/relation/`Unwrap`, direct FK reconciliation, fail-closed method namespace와 explicit DTO representation을
-결정 후보로 고정합니다. Schema IR/Migration/Backend와 JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
+결정 경계로 고정합니다. Source checkpoint/attestation/final/hosted gate는 남았고 Schema IR/Migration/Backend와
+JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree
 `1b2c9c74...`에서 common Session/Bearer authentication boundary, strict injected verifier, profile-neutral Article API,
 AUT-009..016/API-011..012와 SQLite/PostgreSQL required flow를 게시했습니다. Current reference는
@@ -96,7 +98,8 @@ Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
 최근 terminal completion은 GDJ-0047이고 현재 통합 작업은 GDJ-0048 하나입니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
-baseline `3882902...`에서 barrier handshake로 교정됐고 corrected descendant hosted 확인은 activation push 뒤 수행합니다.
+baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
+exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI
