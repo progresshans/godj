@@ -145,6 +145,9 @@ func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
 	if handler, ok := articleAPIScenarioHandler(scenario); ok {
 		return handler, true
 	}
+	if handler, ok := gdj0047APIScenarioHandler(scenario); ok {
+		return handler, true
+	}
 	if handler, ok := queryExpressionScenarioHandler(scenario); ok {
 		return handler, true
 	}

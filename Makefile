@@ -75,6 +75,7 @@ ARTICLE_API_DEVIATION_EXPECTED := conformance/fixtures/godj-article-api-deviatio
 API_AUTHENTICATION_MANIFEST := conformance/contracts/api-authentication-manifest.json
 API_AUTHENTICATION_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json
 API_AUTHENTICATION_NOT_IMPLEMENTED := conformance/fixtures/godj-api-authentication-not-implemented.json
+API_AUTHENTICATION_DEVIATION_EXPECTED := conformance/fixtures/godj-api-authentication-deviation-expected.json
 
 .PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -286,6 +287,10 @@ godj-conformance:
 		-profile $(DRF_PROFILE) -manifest $(ARTICLE_API_MANIFEST) \
 		-expected $(ARTICLE_API_ORACLE) \
 		-deviation-expected $(ARTICLE_API_DEVIATION_EXPECTED)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(DRF_PROFILE) -manifest $(API_AUTHENTICATION_MANIFEST) \
+		-expected $(API_AUTHENTICATION_ORACLE) \
+		-deviation-expected $(API_AUTHENTICATION_DEVIATION_EXPECTED)
 
 oracle-check:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \

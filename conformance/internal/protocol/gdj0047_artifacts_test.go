@@ -54,7 +54,20 @@ var gdj0047Comparisons = [][]ComparisonDimension{
 	{CompareResult, CompareDBState, CompareMetrics},
 }
 
-func TestGDJ0047ReferenceOnlyArtifactsAreExactAndPayloadSafe(t *testing.T) {
+var gdj0047Statuses = []ContractStatus{
+	ContractPassing,
+	ContractPassing,
+	ContractPassing,
+	ContractDeviation,
+	ContractDeviation,
+	ContractPassing,
+	ContractDeviation,
+	ContractPassing,
+	ContractPassing,
+	ContractPassing,
+}
+
+func TestGDJ0047PublishedArtifactsAreExactAndPayloadSafe(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -64,8 +77,8 @@ func TestGDJ0047ReferenceOnlyArtifactsAreExactAndPayloadSafe(t *testing.T) {
 	}
 	for name, want := range map[string]artifactLock{
 		"conformance/contracts/api-authentication-manifest.json": {
-			size:   7059,
-			sha256: "2d095ff0616aea61794b65af1c8bcaabfc9be0b071ba476e79cf4e70f5e32eda",
+			size:   7224,
+			sha256: "038d5b694ae16d2464965d2b967830a2b0a4818055b6d906ae5320b5abe122d0",
 		},
 		"conformance/fixtures/godj-api-authentication-not-implemented.json": {
 			size:   1746,
@@ -78,6 +91,10 @@ func TestGDJ0047ReferenceOnlyArtifactsAreExactAndPayloadSafe(t *testing.T) {
 		"conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS": {
 			size:   283,
 			sha256: "429b5f8a1c7ce554f5fa676b0e5c32fdf528cf4888128063a901f3c4d89cda8a",
+		},
+		"conformance/fixtures/godj-api-authentication-deviation-expected.json": {
+			size:   2291,
+			sha256: "85a9a8b2261e7265b00a33c2cf5b63b9e5b5cd963b2ac7e894dd77988206fc4b",
 		},
 	} {
 		contents := mustReadGDJ0047File(t, filepath.Join(root, filepath.FromSlash(name)))
@@ -144,7 +161,7 @@ func TestGDJ0047ReferenceOnlyArtifactsAreExactAndPayloadSafe(t *testing.T) {
 	}
 
 	for index, contract := range manifest.Contracts {
-		if contract.ID != gdj0047IDs[index] || contract.Scenario != gdj0047Scenarios[index] || contract.Phase != gdj0047Phases[index] || contract.Status != ContractOracleLocked || !reflect.DeepEqual(contract.Comparison, gdj0047Comparisons[index]) {
+		if contract.ID != gdj0047IDs[index] || contract.Scenario != gdj0047Scenarios[index] || contract.Phase != gdj0047Phases[index] || contract.Status != gdj0047Statuses[index] || !reflect.DeepEqual(contract.Comparison, gdj0047Comparisons[index]) {
 			t.Fatalf("API authentication contract %d = %#v", index, contract)
 		}
 		assertGDJ0047Authority(t, contract)
@@ -159,6 +176,39 @@ func TestGDJ0047ReferenceOnlyArtifactsAreExactAndPayloadSafe(t *testing.T) {
 		if locked.ID != contract.ID || locked.Status != StatusNotImplemented || locked.Phase != contract.Phase || locked.Result != nil || locked.Error != nil || locked.DBState != nil || locked.Metrics != nil {
 			t.Fatalf("API authentication baseline contract %d is not payload-free: %#v", index, locked)
 		}
+	}
+
+	deviation, err := LoadDeviationExpectation(filepath.Join(root, "conformance", "fixtures", "godj-api-authentication-deviation-expected.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := DeviationPolicy{
+		Decision: "DEV-0009",
+		Contracts: []DeviationContractPolicy{
+			{ID: "AUT-012", Changes: []DeviationChangePolicy{
+				{Dimension: DeviationResult, Path: "[0].response.error_codes.detail", Operation: DeviationReplace},
+				{Dimension: DeviationResult, Path: "[0].response.www_authenticate", Operation: DeviationReplace},
+				{Dimension: DeviationResult, Path: "[1].response.error_codes.detail", Operation: DeviationReplace},
+				{Dimension: DeviationResult, Path: "[1].response.www_authenticate", Operation: DeviationReplace},
+			}},
+			{ID: "AUT-013", Changes: []DeviationChangePolicy{
+				{Dimension: DeviationResult, Path: "www_authenticate", Operation: DeviationReplace},
+			}},
+			{ID: "AUT-015", Changes: []DeviationChangePolicy{
+				{Dimension: DeviationResult, Path: "[1].response.error_codes.detail", Operation: DeviationReplace},
+				{Dimension: DeviationResult, Path: "[1].response.www_authenticate", Operation: DeviationReplace},
+			}},
+		},
+	}
+	effective, expectedProduct, err := PrepareDeviationExpectation(profile, manifest, oracle, deviation, policy)
+	if err != nil {
+		t.Fatalf("prepare DEV-0009 product expectation: %v", err)
+	}
+	if len(effective.Contracts) != 10 || len(expectedProduct.Contracts) != 10 {
+		t.Fatalf("DEV-0009 effective/product lengths = %d/%d, want 10/10", len(effective.Contracts), len(expectedProduct.Contracts))
+	}
+	if differences, err := Compare(profile, effective, expectedProduct, expectedProduct); err != nil || len(differences) != 0 {
+		t.Fatalf("DEV-0009 expected product is not self-consistent: differences=%#v error=%v", differences, err)
 	}
 
 	differences, err := Compare(profile, manifest, oracle, baseline)
@@ -206,15 +256,16 @@ func TestGDJ0047ReferenceOnlyArtifactsAreExactAndPayloadSafe(t *testing.T) {
 	}
 }
 
-func TestGDJ0047ReferenceOnlyMakeAndWorkflowWiringIsExact(t *testing.T) {
+func TestGDJ0047PublishedMakeAndWorkflowWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
 	makeText := string(mustReadGDJ0047File(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
-		"API_AUTHENTICATION_MANIFEST":        "conformance/contracts/api-authentication-manifest.json",
-		"API_AUTHENTICATION_ORACLE":          "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json",
-		"API_AUTHENTICATION_NOT_IMPLEMENTED": "conformance/fixtures/godj-api-authentication-not-implemented.json",
+		"API_AUTHENTICATION_MANIFEST":           "conformance/contracts/api-authentication-manifest.json",
+		"API_AUTHENTICATION_ORACLE":             "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json",
+		"API_AUTHENTICATION_NOT_IMPLEMENTED":    "conformance/fixtures/godj-api-authentication-not-implemented.json",
+		"API_AUTHENTICATION_DEVIATION_EXPECTED": "conformance/fixtures/godj-api-authentication-deviation-expected.json",
 	} {
 		definition := variable + " := " + value
 		if got := strings.Count(makeText, definition); got != 1 {
@@ -234,11 +285,20 @@ func TestGDJ0047ReferenceOnlyMakeAndWorkflowWiringIsExact(t *testing.T) {
 	if got := strings.Count(referenceTarget, "$(API_AUTHENTICATION_NOT_IMPLEMENTED)"); got != 1 {
 		t.Fatalf("reference API authentication baseline count = %d, want 1", got)
 	}
-	if strings.Contains(productTarget, "$(API_AUTHENTICATION_MANIFEST)") || strings.Contains(productTarget, "$(API_AUTHENTICATION_ORACLE)") || strings.Contains(productTarget, "$(API_AUTHENTICATION_NOT_IMPLEMENTED)") {
-		t.Fatal("reference-only API authentication set entered the product target")
+	if got := strings.Count(productTarget, "$(API_AUTHENTICATION_MANIFEST)"); got != 1 {
+		t.Fatalf("product API authentication manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 20 {
-		t.Fatalf("product adapter count = %d, want unchanged 20", got)
+	if got := strings.Count(productTarget, "$(API_AUTHENTICATION_ORACLE)"); got != 1 {
+		t.Fatalf("product API authentication oracle count = %d, want 1", got)
+	}
+	if got := strings.Count(productTarget, "$(API_AUTHENTICATION_DEVIATION_EXPECTED)"); got != 1 {
+		t.Fatalf("product API authentication deviation count = %d, want 1", got)
+	}
+	if strings.Contains(productTarget, "$(API_AUTHENTICATION_NOT_IMPLEMENTED)") {
+		t.Fatal("historical API authentication not-implemented fixture entered the product target")
+	}
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 21 {
+		t.Fatalf("product adapter count = %d, want 21", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(API_AUTHENTICATION_MANIFEST)"); got != 1 {
@@ -256,13 +316,16 @@ func TestGDJ0047ReferenceOnlyMakeAndWorkflowWiringIsExact(t *testing.T) {
 	if got := strings.Count(workflow, "conformance/fixtures/godj-api-authentication-not-implemented.json"); got != 2 {
 		t.Fatalf("workflow API authentication baseline count = %d, want both reference gates", got)
 	}
+	if got := strings.Count(workflow, "conformance/fixtures/godj-api-authentication-deviation-expected.json"); got != 2 {
+		t.Fatalf("workflow API authentication deviation count = %d, want both artifact rewrite gates", got)
+	}
 }
 
 func assertGDJ0047Authority(t *testing.T, contract Contract) {
 	t.Helper()
 
 	proposalScenario := strings.HasPrefix(contract.Scenario, "godj.api_authentication.")
-	adrCount, proposalCount, drfAuthorityCount := 0, 0, 0
+	adrCount, proposalCount, drfAuthorityCount, deviationDecisionCount := 0, 0, 0, 0
 	for _, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			t.Fatalf("contract %s does not preserve independent provenance: %#v", contract.ID, provenance)
@@ -280,7 +343,10 @@ func assertGDJ0047Authority(t *testing.T, contract Contract) {
 			}
 		}
 		if provenance.Kind == "decision" {
-			t.Fatalf("contract %s publishes decision provenance while ADR-0049 is Proposed: %#v", contract.ID, provenance)
+			if provenance.Reference != "DEV-0009" || contract.Status != ContractDeviation {
+				t.Fatalf("contract %s has unapproved decision provenance: %#v", contract.ID, provenance)
+			}
+			deviationDecisionCount++
 		}
 		if strings.Contains(provenance.Reference, "django-rest-framework@11875a38f483cea69d8ef2fd9ede6b96fb602ec4:") || strings.HasPrefix(provenance.Reference, "https://www.django-rest-framework.org/") {
 			drfAuthorityCount++
@@ -306,6 +372,12 @@ func assertGDJ0047Authority(t *testing.T, contract Contract) {
 	}
 	if !proposalScenario && drfAuthorityCount == 0 {
 		t.Fatalf("DRF observation contract %s lacks exact DRF authority", contract.ID)
+	}
+	if contract.Status == ContractDeviation && deviationDecisionCount != 1 {
+		t.Fatalf("deviation contract %s DEV-0009 provenance count = %d, want 1", contract.ID, deviationDecisionCount)
+	}
+	if contract.Status == ContractPassing && deviationDecisionCount != 0 {
+		t.Fatalf("passing contract %s carries DEV-0009 provenance", contract.ID)
 	}
 }
 

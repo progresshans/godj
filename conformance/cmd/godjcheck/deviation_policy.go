@@ -24,6 +24,8 @@ func deviationPolicyForDecision(decision string) (protocol.DeviationPolicy, erro
 		return articleAPIDeviationPolicy(), nil
 	case "DEV-0008":
 		return systemStateDeviationPolicy(), nil
+	case "DEV-0009":
+		return apiAuthenticationDeviationPolicy(), nil
 	default:
 		return protocol.DeviationPolicy{}, fmt.Errorf("unsupported deviation decision %q", decision)
 	}
@@ -218,6 +220,36 @@ func systemStateDeviationPolicy() protocol.DeviationPolicy {
 					{Dimension: protocol.DeviationResult, Path: "pre_restart.status", Operation: protocol.DeviationReplace},
 					{Dimension: protocol.DeviationDBState, Path: "pre_restart.article_delta", Operation: protocol.DeviationReplace},
 					{Dimension: protocol.DeviationMetrics, Path: "pre_restart_mutations", Operation: protocol.DeviationReplace},
+				},
+			},
+		},
+	}
+}
+
+func apiAuthenticationDeviationPolicy() protocol.DeviationPolicy {
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0009",
+		Contracts: []protocol.DeviationContractPolicy{
+			{
+				ID: "AUT-012",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "[0].response.error_codes.detail", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "[0].response.www_authenticate", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "[1].response.error_codes.detail", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "[1].response.www_authenticate", Operation: protocol.DeviationReplace},
+				},
+			},
+			{
+				ID: "AUT-013",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "www_authenticate", Operation: protocol.DeviationReplace},
+				},
+			},
+			{
+				ID: "AUT-015",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "[1].response.error_codes.detail", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "[1].response.www_authenticate", Operation: protocol.DeviationReplace},
 				},
 			},
 		},

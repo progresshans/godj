@@ -114,6 +114,7 @@ jobs:
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-api-authentication-not-implemented.json
+          conformance/fixtures/godj-api-authentication-deviation-expected.json
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
           conformance/systemstate/attestations
@@ -186,6 +187,7 @@ jobs:
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-api-authentication-not-implemented.json
+          conformance/fixtures/godj-api-authentication-deviation-expected.json
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
           conformance/systemstate/attestations
@@ -513,10 +515,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 1056, sorted(runs)
-          assert len(payload) == 109218, len(payload)
+          assert len(runs) == 1065, sorted(runs)
+          assert len(payload) == 110282, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "ba24dcea12d06a449e207e37ae273710d12dcb9aca4f80d9f55150fa6c2f6961"
+          assert payload_sha256 == "f9e94a9e499908c325ef3ddddf8c01d7cb09d87a6c8710b8e6a5f39662e57963"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -905,6 +907,7 @@ jobs:
             "github.com/progresshans/godj/examples/article|TestArticlePostgresMigrationGeneratedCRUDAndHTTP"
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
+            "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"
             "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
             "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
             "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"
