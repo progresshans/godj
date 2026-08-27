@@ -1,4 +1,4 @@
-package runserverproduct_test
+package protocol
 
 import (
 	"os"
@@ -85,14 +85,15 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 
 	conformance := runserverWorkflowJob(t, jobs, "conformance-validation", "exact-darwin-validation")
 	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "timeout-minutes:", 1)
-	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "timeout-minutes: 45", 1)
+	runserverWorkflowRequireExactLine(t, "conformance-validation job", conformance, "    timeout-minutes: 45", 1)
 	portableValidation := runserverWorkflowStep(
 		t,
 		conformance,
 		"Run portable conformance validation",
 		"Validate project-linked migration check contracts",
 	)
-	runserverWorkflowRequireCount(t, "portable conformance validation step", portableValidation, "run: make ci", 1)
+	runserverWorkflowRequireCount(t, "portable conformance validation step", portableValidation, "run:", 1)
+	runserverWorkflowRequireExactLine(t, "portable conformance validation step", portableValidation, "        run: make ci", 1)
 	if strings.Contains(conformance, "continue-on-error:") || strings.Contains(conformance, "|| true") {
 		t.Fatal("portable conformance validation gates must remain required")
 	}
@@ -401,6 +402,20 @@ func runserverWorkflowRequireRecipeLine(t *testing.T, scope, target, recipe stri
 	}
 	if got != want {
 		t.Fatalf("%s recipe line %q count = %d, want %d", scope, recipe, got, want)
+	}
+}
+
+func runserverWorkflowRequireExactLine(t *testing.T, scope, text, line string, want int) {
+	t.Helper()
+
+	got := 0
+	for _, candidate := range strings.Split(text, "\n") {
+		if candidate == line {
+			got++
+		}
+	}
+	if got != want {
+		t.Fatalf("%s exact line %q count = %d, want %d", scope, line, got, want)
 	}
 }
 
