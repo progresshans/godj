@@ -98,7 +98,7 @@
   체계를 만들지 않습니다.
 - AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 일곱 result replacement의 Verified
   DEV-0009 `deviation`으로 게시됐고 oracle-blind actual 10/10과 SQLite Article Bearer E2E가 통과했습니다. Current
-  reference는 22/249/462=`218 passing + 19 deviation + 12 oracle_locked`, product는
+  reference는 23/261/506=`218 passing + 19 deviation + 24 oracle_locked`, product는
   21/237=`218 passing + 19 deviation`입니다. Corrected source `14e47c9b...`의 digest-pinned PostgreSQL 17.10 Article
   Bearer E2E normal/race/CGO0과 two-process source-bound attestation도 통과했습니다. Initial run `33044776835`는
   26 jobs success 뒤 macOS Intel product job 한 건이 30분 outer timeout으로 취소됐습니다. EVID-137의 Intel-only

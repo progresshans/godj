@@ -2,10 +2,12 @@
 
 - 상태: Accepted direction
 - 현재 active batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
-  current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결해 clean SQLite/PostgreSQL Article
-  database를 latest로 수렴시킵니다. Proposed [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
+  current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Proposed
+  [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
   ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
-  no-implicit-migrate를 고정합니다. MIG-087..098은 exact 12 `planned, not run`이며 contract artifact와 product code는 아직 없습니다.
+  no-implicit-migrate를 고정합니다. Phase A/B와 partial SQLite latest/no-op/contention/read-restart source checkpoint가
+  구현됐고 MIG-087..098은 exact 12 reference-only `oracle_locked`입니다. Middle failure/resume, full child-vs-child fence,
+  authenticated Admin/API restart, PostgreSQL 17.10과 product publication/final matrix는 남았습니다.
 - 최근 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
@@ -59,7 +61,7 @@
   authentication boundary와 strict injected Bearer resource-server profile을 게시했습니다. AUT-009..016/API-011..012
   actual 10/10, SQLite와 digest-pinned PostgreSQL 17.10 Article Bearer E2E 및 two-process attestation이 통과했고
   분류는 일곱 `passing` + AUT-012/013/015 Verified DEV-0009 `deviation` 세 개입니다. Current reference는
-  22/249/462=`218+19+12 locked`, product는 21/237=`218+19`입니다. Initial run `33044776835`는 26 jobs success 뒤
+  23/261/506=`218+19+24 locked`, product는 21/237=`218+19`입니다. Initial run `33044776835`는 26 jobs success 뒤
   macOS Intel product job 한 건이 30분 outer timeout으로 취소됐습니다. EVID-137의 Intel-only 45분 correction과 corrected
   full/386/archive refreeze 뒤 EVID-138/CI #155 run `33049861740`이 exact 27/27 jobs·360/360 steps success로
   통과했으므로 ADR-0049는 Accepted, GDJ-0047은 completed/Verified입니다. JWT/opaque issuance, refresh,

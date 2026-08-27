@@ -74,7 +74,8 @@ Generate/check/migrate/runserver를 명시적으로 조합하는 경계를 유�
     기다립니다. 남은 5초는 outer backend close와 response margin이며, grace를 넘긴 경우에만 process group force-kill을 시도하고
     항상 direct child를 reap합니다.
 11. Article project runner는 `examples/article/migrations` file source와 `systemstate.InitialDefinitionSource()`를 함께 제공합니다.
-    Site와 runner는 Article-internal DB config/opener를 공유하되 error에는 environment key만 포함합니다.
+    Site와 runner는 외부 import 가능한 Article-owned `examples/article/databaseconfig` package의 config/opener를 공유하되 error에는
+    environment key만 포함합니다.
 12. `runserver`는 current bundle preflight만 유지하고 implicit generate/migrate/retry를 하지 않습니다. PostgreSQL server/database/
     empty schema provisioning은 test/deployment owner의 책임입니다.
 13. MIG-087..098은 GoDj-specific oracle-blind decision/product contracts입니다. Phase A에서는 `oracle_locked`, actual adapter가 동일한

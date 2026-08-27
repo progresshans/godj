@@ -160,6 +160,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Current-format migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
+| `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; reference-only `oracle_locked`이며 product publication/status 입력 아님 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -183,6 +184,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | Current format/load ownership과 opaque lifecycle authority를 검증하는 focused gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
+| `projectmigrateproduct` | GDJ-0049 actual global SQLite source checkpoint; `runners/godj` adapter와 `godjcheck` status 입력은 아님 |
 | `runserverproduct` | Global `godj runserver` lifecycle, actual SQLite/PostgreSQL Article와 authenticated Admin/API required sentinels |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
@@ -291,14 +293,15 @@ local proof로 사용합니다. EVID-142/CI #159는 네 hosted relation 좌표�
 `be3344a3...9ee6`와 PostgreSQL required 18/18·required skip 0을 포함해 27/27 jobs·360/360 steps로 이 경계를
 hosted-verify했습니다.
 
-Active GDJ-0049의 MIG-087..098 project-linked migrate set은 activation 시점에 exact 12 `planned, not run`입니다.
-Independent oracle-blind decision artifact와 product adapter는 아직 없으므로 아래 current reference/product aggregate와
-remaining locked range에 세지 않습니다. Phase A publication 뒤에만 `oracle_locked`, actual observation이 일치한 뒤에만
-`passing`으로 전환하며 retired MIG-075..086 artifact/runner를 재사용하지 않습니다.
+Active GDJ-0049의 Phase A는 MIG-087..098 project-linked migrate exact 12를 independent oracle-blind decision manifest,
+oracle과 payload-free not-implemented fixture로 게시했습니다. 모두 reference-only `oracle_locked`이며
+`conformance/projectmigrateproduct`의 partial SQLite source checkpoint는 아직 `runners/godj` product adapter나 status 전환
+입력이 아닙니다. Actual observation이 일치한 뒤에만 `passing`으로 전환하며 retired MIG-075..086 artifact/runner를
+재사용하지 않습니다.
 
-Current local reference는 22 sets/249 contracts/462 ordered bindings=
-`218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=
-`218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Accepted,
+Current local reference는 23 sets/261 contracts/506 ordered bindings=
+`218 passing + 19 deviation + 24 oracle_locked`, product는 21 adapters/237 eligible contracts=
+`218 passing + 19 deviation`입니다. 남은 locked/unregistered ranges는 MIG-075..086과 MIG-087..098입니다. ADR-0049는 Accepted,
 DEV-0009는 Verified입니다. Initial exact submitted-head run `33044776835`는 26 jobs success 뒤 macOS Intel
 product job 하나가 30분 외곽 제한에서 취소됐고 완료된 steps와 수집 로그의 제품 assertion failure 표식은 0이었습니다.
 EVID-137의 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze 뒤

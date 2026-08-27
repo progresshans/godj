@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-28
-- 현재 local source/contract checkpoint: EVID-20260828-141
+- 현재 local source/contract checkpoint: EVID-20260828-143
 - latest hosted product proof: EVID-20260828-142
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
@@ -13256,3 +13256,129 @@ After completion, Draft PR #1 was re-queried as `OPEN`, draft, unmerged, `CLEAN`
 deployment, manual rerun or manual cancellation was performed. Run `33088586232` proves exact submitted predecessor
 `17966e2...`; it does not recursively prove this later terminal documentation-only descendant. The descendant uses
 documentation link/frontmatter/status/diff gates. No next work packet is selected by this terminal evidence itself.
+
+## EVID-20260828-143 — GDJ-0049 Activation Hosted and Phase A/B SQLite Source Checkpoint
+
+- Date: 2026-08-28 KST
+- Work/contract IDs: GDJ-0049 active; ADR-0051 Proposed; MIG-087..098 reference-only `oracle_locked`;
+  Q-010/Q-012/Q-019 remain open/partial at their existing scope
+- Activation head: `c98338112ced8d088ec880bdccb6ee8bb19ac1c8`, tree
+  `91aa6d0dbbbbb07b4503b5e64a50871912203036`
+- Phase A reference commit: `2248c982dfafbbd86d04ee2a901c77f4b3ac6d11`, tree
+  `8a86d18a87387a03f8a7747d00fb930e7aaab9b8`
+- Phase B/partial SQLite source commit: `d31a8b8ca0cc4503aed13616fe654c6c613e2441`, tree
+  `c2572a63100ebb91aa52a185cb7470e71d380f32`
+
+### Activation exact hosted result
+
+[GitHub Actions CI #160 run 33094196687](https://github.com/progresshans/godj/actions/runs/33094196687) ran from
+`2026-08-27T16:37:40Z` through `17:04:54Z` for the Draft PR pull-request event. It checked exact submitted head
+`c98338112ced8d088ec880bdccb6ee8bb19ac1c8` and passed 27/27 jobs and 360/360 recorded steps. Failure, cancellation and
+step skip counts were zero. This proves the activation documentation head only; it is not hosted evidence for the later
+Phase A/B source commits.
+
+### Phase A reference publication
+
+The independent GoDj migration-command decision set adds exact MIG-087..098 as twelve reference-only
+`oracle_locked` contracts. Current reference inventory is 23 sets/261 contracts/506 ordered cross-bindings=
+`218 passing + 19 deviation + 24 oracle_locked`; registered product inventory remains 21 adapters/237 contracts=
+`218 passing + 19 deviation`. The locked ranges are MIG-075..086 and MIG-087..098. No product adapter or compatibility
+status was promoted by this checkpoint.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/migration-command-manifest.json` | 6,238 | `e01efa14b6ad7361e79cc633763d50570015a2b33c98e92aa0d7b7fa580c9544` |
+| `conformance/fixtures/godj-migration-command-not-implemented.json` | 1,838 | `8680d5e8ce7cf11604af69da1e96a64f580f64074277a2a015af8ad250bb0016` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json` | 12,690 | `30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS` | 1,887 | `cf7029cbc39627e57c1e3f991d5f28895781fba69b2353727e02f51cc14e3daa` |
+
+The all-scenario semantic inventory is 261 scenarios, 906,009 canonical payload bytes and SHA-256
+`4c7d628245af5a9eab06a353e5498c869e784c001a358f8ecec4c59c823e3767`. Local `make python-test` passed 264 tests with
+24 exact-profile skips; the isolated portable Python matrix passed the same 264 tests with 21 platform/profile skips.
+The exact retired MIG-075..086 eleven-file lock remained unchanged. Review caught and corrected two false-green risks
+before publication: the new oracle was initially absent from the profile `SHA256SUMS`, and the migration-command scenario
+tuple was initially absent from the all-set contract-count invariant.
+
+### Phase B and partial SQLite product source
+
+The source checkpoint adds the two exact global migrate argv forms, additive public `project.MigrationBackend` and copied
+definition sources/lazy opener, a separate bounded v1 migrate protocol, definition load-before-open and exactly-one
+open/migrate/close orchestration. The parent owns a 15-second child-exit-aware cancellation grace, direct-child reap and
+conditional process-group kill. Completed child output wins a late context/interrupt only after Wait, both stream EOFs and
+process-group absence reconcile; a descendant that still owns streams/group remains cancellation-first. Error output stays
+in the closed migration taxonomy and raw configuration/definition/cause bytes are not published.
+
+Article now owns stable `examples/article/migrations/0001_initial.godj.json` and an externally importable shared
+`examples/article/databaseconfig` package used by both site and project runner. The stable migration is byte-identical to the
+former PostgreSQL testdata copy. The SQLite black-box source checkpoint passed fresh/latest, pre-applied prefix/tail,
+byte-identical second fresh-process no-op, runserver-before-migrate HTTP 500 with zero migration mutation, and explicit
+migrate followed by an unauthenticated public Article read preserving a row across two fresh runserver processes. Its
+partial MIG-096 observation holds an external SQLite write lock, sees two actual children fail closed with
+`history_revision_contended` and no mutation, then succeeds in a fresh reconciliation. It does not prove a child-vs-child
+winner or full fenced concurrency.
+
+Two actual CLI smoke invocations used one fresh temporary SQLite database and produced byte-identical success output:
+
+```bash
+checkpoint_dir=$(mktemp -d /tmp/godj-gdj0049-smoke.XXXXXX)
+GODJ_ARTICLE_SQLITE_DATABASE="$checkpoint_dir/article.sqlite" \
+  go run ./cmd/godj migrate --project ./examples/article/godj.toml
+GODJ_ARTICLE_SQLITE_DATABASE="$checkpoint_dir/article.sqlite" \
+  go run ./cmd/godj migrate --project ./examples/article/godj.toml
+```
+
+The observed temporary directory was `/tmp/godj-gdj0049-smoke.dkeihk`; it was outside the repository. Both invocations
+returned:
+
+```json
+{"source_count":2,"definition_count":2,"definition_set_digest":"sha256:41115ad85cedbd68419821c4b509b6691712ec10f835150c8a1b12eb1aa4f315"}
+```
+
+### Local verification
+
+The following gates passed on the source bytes, before this documentation-only append:
+
+```bash
+go test ./internal/projectcheck/... ./project ./cmd/godj ./internal/compiletest \
+  ./examples/article/... ./conformance/internal/protocol ./conformance/runserverproduct -count=1
+go test -race ./internal/projectcheck/... ./project ./cmd/godj ./examples/article/... \
+  ./conformance/internal/protocol -count=1
+CGO_ENABLED=0 go test ./internal/projectcheck/... ./project ./cmd/godj ./internal/compiletest \
+  ./examples/article/... ./conformance/internal/protocol ./conformance/runserverproduct -count=1
+go test ./conformance/projectmigrateproduct -count=1
+go test -race ./conformance/projectmigrateproduct -count=1
+CGO_ENABLED=0 go test ./conformance/projectmigrateproduct -count=1
+go test ./internal/projectcheck -run '^TestMigrateOwnedProcess' -count=10
+go test -race ./internal/projectcheck -run '^TestMigrateOwnedProcess' -count=3
+go vet ./internal/projectcheck/... ./project ./cmd/godj ./internal/compiletest ./examples/article/... \
+  ./conformance/internal/protocol ./conformance/projectmigrateproduct ./conformance/runserverproduct
+make python-test
+make generate-check
+make conformance-check
+shasum -a 256 -c conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS
+git diff --check
+cmp examples/article/migrations/0001_initial.godj.json \
+  examples/article/testdata/postgres/0001_initial.godj.json
+```
+
+The latest normal affected run included `cmd/godj` in 66.189 seconds and `conformance/runserverproduct` in 84.901 seconds.
+The three `projectmigrateproduct` modes passed in 206.460, 221.340 and 160.457 seconds respectively. Generated drift
+reproduced Article exact 12 files/snapshot `f0043e499...` and relationdelete exact 16 files/snapshot `81534d390...`.
+Independent integrated source/security review and registry review both reported P0/P1/P2/P3=`0/0/0/0` after correcting
+descendant-held pipe/group cleanup, a closed-drain hot spin, deterministic holder handshake, late-cancellation terminal
+arbitration, external-copy Article import ownership, checksum coverage and aggregate inventory binding.
+
+### Remaining acceptance and non-claims
+
+GDJ-0049 and ADR-0051 remain active/Proposed. MIG-087..098 remain `oracle_locked`. This checkpoint does not claim:
+
+- middle-step failure durable-prefix and fresh-process resume;
+- full child-vs-child overlap/winner/fence MIG-096;
+- authenticated Admin/API CRUD followed by distinct-process restart;
+- product actual registration or any `passing` transition;
+- digest-pinned PostgreSQL 17.10, full credential scanner or required-sentinel result;
+- current-source Linux deleted-CWD execution, Linux/386, repository-external archive, full `make ci` or hosted matrix.
+
+The deleted-CWD invalid-argv regression is implemented as an actual Linux test but intentionally skips on this Darwin local
+checkpoint. Full CI/hosted evidence is deferred to the final frozen milestone rather than recursively repeated for this
+intermediate source checkpoint. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge, release or deployment is claimed.

@@ -7,9 +7,10 @@
 - 현재 required checkpoint: 2026-08-28 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
   `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical/source-bound gate EVID-139 통과;
   first local final EVID-140 보존; CI #158 inventory-only failure 뒤 corrected source EVID-141 required PostgreSQL와
-  final inventory/full/386/archive/audit 통과; submitted `17966e2...`의 EVID-142/CI #159 exact 27/27·360/360 통과)
-- 현재 active design: GDJ-0049/Proposed ADR-0051. MIG-087..098은 exact 12 `planned, not run`이고 아직 reference/product
-  aggregate 또는 compatibility status에 포함되지 않음
+  final inventory/full/386/archive/audit 통과; submitted `17966e2...`의 EVID-142/CI #159 exact 27/27·360/360 통과;
+  GDJ-0049 activation `c983381...`의 CI #160 exact 27/27·360/360 통과; current Phase A/B source checkpoint는 local-only)
+- 현재 active design: GDJ-0049/Proposed ADR-0051. MIG-087..098은 exact 12 reference-only `oracle_locked`로 게시됐고
+  partial SQLite source checkpoint는 product status 입력이 아님
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -98,11 +99,11 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
 
 Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative multi-runtime actual을 보존하면서 GDJ-0047
-Bearer authentication profile actual을 함께 게시합니다. Reference는 22 sets/249 contracts/462 ordered bindings=
-`218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 contracts=
+Bearer authentication profile actual과 GDJ-0049 migration-command reference를 함께 게시합니다. Reference는
+23 sets/261 contracts/506 ordered bindings=`218 passing + 19 deviation + 24 oracle_locked`, product는 21 adapters/237 contracts=
 `218 passing + 19 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
 `deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
-`deviation`이고 남은 reference-only locked range는 MIG-075..086뿐입니다.
+`deviation`이고 남은 reference-only locked ranges는 MIG-075..086과 MIG-087..098입니다.
 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`는 historical lock으로 보존됩니다.

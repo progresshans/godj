@@ -85,7 +85,7 @@ godj migrate --project ./godj.toml
 
 ### Public project API
 
-후보 public shape는 다음처럼 additive합니다. Exact 이름과 compile surface는 Phase A의 public contract test로 동결합니다.
+Phase A에서 동결한 public shape는 다음처럼 additive합니다. Exact 이름과 compile surface는 public contract test가 고정합니다.
 
 ```go
 type MigrationBackend interface {
@@ -156,15 +156,15 @@ global argv validation
 
 - Stable project migration root는 `examples/article/migrations`입니다.
 - Article project runner는 file definition과 `systemstate.InitialDefinitionSource()`를 조합합니다.
-- SQLite/PostgreSQL environment parsing과 backend open은 site와 runner가 공유하는 Article-internal package가 소유하며 오류에는
-  environment key만 포함하고 값은 포함하지 않습니다.
+- SQLite/PostgreSQL environment parsing과 backend open은 site와 runner가 공유하는 외부 import 가능한 Article-owned
+  `examples/article/databaseconfig` package가 소유하며 오류에는 environment key만 포함하고 값은 포함하지 않습니다.
 - PostgreSQL의 clean database는 test harness가 준비한 empty application schema입니다. Server/database/schema provisioning과
   production credential distribution은 이 command의 책임이 아닙니다.
 
 ## 계약 계획
 
-Activation 시점의 MIG-087..098은 exact 12 `planned, not run`입니다. Phase A artifact publication 뒤 `oracle_locked`,
-실제 product adapter가 같은 observation을 만족한 뒤에만 `passing`으로 전환합니다. Expected deviation은 0입니다.
+Activation 시점의 MIG-087..098 exact 12 `planned, not run`은 Phase A artifact publication으로 모두 `oracle_locked`가
+됐습니다. 실제 product adapter가 같은 observation을 만족한 뒤에만 `passing`으로 전환합니다. Expected deviation은 0입니다.
 
 | ID | Scenario | Required observation |
 |---|---|---|
@@ -199,9 +199,9 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
 ### Phase A — decision contracts and public compile boundary
 
 - [x] Proposed ADR-0051과 exact public/private/error/cancellation 경계를 활성화
-- [ ] MIG-087..098 independent decision manifest/oracle/payload-free NI를 `oracle_locked`로 게시
-- [ ] Existing project-check protocol byte identity와 public Config compile contract를 추가
-- [ ] Retired `migration-relation` manifest, NI fixture, oracle와 Django/GoDj runner exact 11-file bytes가 바뀌지 않는 no-diff gate 추가:
+- [x] MIG-087..098 independent decision manifest/oracle/payload-free NI를 `oracle_locked`로 게시
+- [x] Existing project-check protocol byte identity와 public Config compile contract를 추가
+- [x] Retired `migration-relation` manifest, NI fixture, oracle와 Django/GoDj runner exact 11-file bytes가 바뀌지 않는 no-diff gate 추가:
   `conformance/contracts/migration-relation-manifest.json`,
   `conformance/fixtures/godj-migration-relation-not-implemented.json`,
   `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-relation-oracle.json`,
@@ -216,17 +216,22 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
 
 ### Phase B — linked migrate kernel and global owner
 
-- [ ] copied source discovery/load-before-open와 one-open/one-migrate/one-close kernel 구현
-- [ ] joined rollback/cleanup/unknown precedence와 bounded secret-free response 구현
-- [ ] exact argv, deleted-CWD pre-discovery rejection와 strict private protocol 구현
-- [ ] 15초 child-exit-aware interrupt grace, signal-to-context owner, direct reap와 conditional force-kill 구현
+- [x] copied source discovery/load-before-open와 one-open/one-migrate/one-close kernel 구현
+- [x] joined rollback/cleanup/unknown precedence와 bounded secret-free response 구현
+- [x] exact argv, deleted-CWD pre-discovery rejection와 strict private protocol 구현
+- [x] 15초 child-exit-aware interrupt grace, signal-to-context owner, direct reap와 conditional force-kill 구현
 
 ### Phase C — Article clean SQLite vertical
 
-- [ ] Article stable migration root와 shared internal DB config를 project runner/site에 연결
-- [ ] fresh → latest, second-run no-op, prefix failure/resume와 two-child fence 검증
-- [ ] migrate → runserver → authenticated Admin/API CRUD → distinct-process restart durability 검증
-- [ ] runserver-before-migrate failure와 implicit migration 0을 보존
+- [x] Article stable migration root와 shared externally importable `examples/article/databaseconfig`를 project runner/site에 연결
+- [x] fresh → latest, pre-applied prefix → tail과 second fresh-process byte-identical no-op 검증
+- [x] externally held SQLite write lock 아래 actual child 두 개의 closed contention과 fresh reconciliation 검증
+  (partial MIG-096 observation이며 child-vs-child winner/fence 증명은 아님)
+- [x] explicit migrate 뒤 unauthenticated Article read와 두 fresh runserver process 사이 row persistence 검증
+- [x] runserver-before-migrate 500과 migration mutation 0을 보존
+- [ ] middle failure의 durable prefix와 fresh-process resume 검증
+- [ ] 실제 child-vs-child overlap/winner를 증명하는 full MIG-096 검증
+- [ ] explicit migrate 뒤 authenticated Admin/API CRUD와 distinct-process restart durability 검증
 
 ### Phase D — PostgreSQL and product publication
 
@@ -253,6 +258,17 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
 
 ## 인수인계
 
-- 현재 정확한 다음 작업: activation documentation gate 뒤 Phase A의 public compile/private protocol contract를 먼저 추가합니다.
+- Phase A reference commit은 `2248c982dfafbbd86d04ee2a901c77f4b3ac6d11`, tree
+  `8a86d18a87387a03f8a7747d00fb930e7aaab9b8`이고 MIG-087..098을 reference-only `oracle_locked`로 게시했습니다.
+- Phase B와 partial SQLite source checkpoint는 `d31a8b8ca0cc4503aed13616fe654c6c613e2441`, tree
+  `c2572a63100ebb91aa52a185cb7470e71d380f32`입니다. Public/linked/global migrate, process cleanup arbitration,
+  Article stable root/shared config와 black-box latest/no-op/partial contention/read restart를 포함합니다.
+  전체 범위와 실제 명령/non-claim은
+  [EVID-143](../docs/status/TEST_EVIDENCE.md#evid-20260828-143--gdj-0049-activation-hosted-and-phase-ab-sqlite-source-checkpoint)에
+  기록했습니다.
+- 현재 정확한 다음 작업: middle failure/durable-prefix fresh resume를 먼저 추가하고, 이어서 full child-vs-child MIG-096과
+  authenticated Admin/API distinct-process lifecycle을 닫습니다. 그 뒤 PostgreSQL 17.10과 product actual publication으로 갑니다.
+- Linux deleted-CWD actual regression은 구현됐지만 Darwin local checkpoint에서는 skip됐으므로 current-source hosted/Linux 증거 전에는
+  실행됐다고 주장하지 않습니다.
 - 같은 public `project.Config`, global CLI dispatch, contract manifest/registry와 CURRENT는 통합 담당 한 명만 수정합니다.
 - Full hosted/evidence cycle은 subtask마다 반복하지 않고 final frozen source에서 한 번 수행합니다.

@@ -76,11 +76,16 @@ proposed → ready → active → completed
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
 현재 active/ready packet은 1/0입니다. Active
-[GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 terminal baseline `3fdb1c7...`에서
-existing current-only loader/executor와 project runner를 explicit `godj migrate`에 연결합니다. Proposed
+[GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 Phase A reference
+`2248c982...`와 Phase B/partial SQLite source `d31a8b8c...`에서 existing current-only loader/executor와 project runner를
+explicit `godj migrate`에 연결했습니다. Proposed
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
 load-before-open, latest-only/no-retry, rollback/unknown classification과 cleanup보다 긴 interrupt grace를 고정합니다.
-MIG-087..098은 exact 12 `planned, not run`이고 아직 manifest/product aggregate에 들어가지 않았습니다. Completed
+MIG-087..098은 exact 12 reference-only `oracle_locked`로 게시됐고 current reference는
+23 sets/261 contracts/506 ordered bindings=`218 passing + 19 deviation + 24 oracle_locked`입니다. Product는
+21 adapters/237 contracts=`218 passing + 19 deviation`으로 불변입니다. Global/linked migrate, Article stable root/shared
+database config, latest/no-op/partial contention/public-read restart checkpoint는 구현됐습니다. Middle failure/resume,
+full child-vs-child MIG-096, authenticated Admin/API restart, PostgreSQL과 product publication은 남았습니다. Completed
 [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
 Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔습니다. Accepted
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
@@ -97,7 +102,7 @@ JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree
 `1b2c9c74...`에서 common Session/Bearer authentication boundary, strict injected verifier, profile-neutral Article API,
 AUT-009..016/API-011..012와 SQLite/PostgreSQL required flow를 게시했습니다. Current reference는
-22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`, product는
+23 sets/261 contracts/506 ordered bindings=`218 passing + 19 deviation + 24 oracle_locked`, product는
 21 adapters/237 contracts=`218 passing + 19 deviation`입니다. AUT-012/013/015만 Verified DEV-0009이고
 [ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Accepted, Q-021은 `Partial`입니다.
 [EVID-135](../docs/status/TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint)의
