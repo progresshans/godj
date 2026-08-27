@@ -79,11 +79,37 @@ func TestRequireUsesJSON403CSRFPermissionAndSafeTokenHeader(t *testing.T) {
 }
 
 func TestNewRejectsNilOrUninitializedRuntime(t *testing.T) {
-	if _, err := apisessionauth.New(nil); !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig}) {
+	if _, err := apisessionauth.New(nil); !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig, Field: "runtime"}) {
 		t.Fatalf("nil runtime error = %v", err)
 	}
-	if _, err := apisessionauth.New(&websessionauth.Runtime{}); !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig}) {
+	if _, err := apisessionauth.New(&websessionauth.Runtime{}); !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig, Field: "csrf_header"}) {
 		t.Fatalf("zero runtime error = %v", err)
+	}
+}
+
+func TestRequireRejectsInvalidConstructionBeforePublication(t *testing.T) {
+	view, err := auth.NewPermission("articles.view")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := api.AuthenticatedHandler(func(*web.Request, auth.Principal) (web.Response, error) {
+		return web.Response{}, nil
+	})
+
+	var nilRuntime *apisessionauth.Runtime
+	if protected, err := nilRuntime.Require(view, handler); protected != nil || !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig, Field: "runtime"}) {
+		t.Fatalf("nil runtime Require = %#v, %v", protected, err)
+	}
+	if protected, err := (&apisessionauth.Runtime{}).Require(view, handler); protected != nil || !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig, Field: "runtime"}) {
+		t.Fatalf("zero runtime Require = %#v, %v", protected, err)
+	}
+
+	harness := newAPIAuthHarness(t)
+	if protected, err := harness.adapter.Require(auth.Permission("Articles.View"), handler); protected != nil || !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig, Field: "permission"}) {
+		t.Fatalf("invalid permission Require = %#v, %v", protected, err)
+	}
+	if protected, err := harness.adapter.Require(view, nil); protected != nil || !errors.Is(err, &apisessionauth.Error{Code: apisessionauth.CodeInvalidConfig, Field: "handler"}) {
+		t.Fatalf("nil handler Require = %#v, %v", protected, err)
 	}
 }
 
@@ -102,6 +128,7 @@ func TestRequireAddsSafeTokenToValidNilHeaderResponse(t *testing.T) {
 
 type apiAuthHarness struct {
 	application   *web.Application
+	adapter       *apisessionauth.Runtime
 	sessionCookie *http.Cookie
 	calls         atomic.Int64
 	mutations     atomic.Int64
@@ -170,20 +197,21 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 		t.Fatal(err)
 	}
 	harness := &apiAuthHarness{
+		adapter:       adapter,
 		sessionCookie: &http.Cookie{Name: websessionauth.DefaultSessionCookieName, Value: record.ID().Encoded(), Path: "/"},
 	}
 	articleObject, err := serializers.NewObject(serializers.MemberOf("ok", serializers.Boolean(true)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	allowedHandler := adapter.Require(view, func(_ *web.Request, resolved auth.Principal) (web.Response, error) {
+	allowedHandler := mustRequire(t, adapter, view, func(_ *web.Request, resolved auth.Principal) (web.Response, error) {
 		if resolved.ID() != principal.ID() {
 			return web.Response{}, errors.New("wrong principal")
 		}
 		harness.calls.Add(1)
 		return api.JSON(http.StatusOK, articleObject.Value())
 	})
-	mutatingHandler := adapter.Require(view, func(_ *web.Request, resolved auth.Principal) (web.Response, error) {
+	mutatingHandler := mustRequire(t, adapter, view, func(_ *web.Request, resolved auth.Principal) (web.Response, error) {
 		if resolved.ID() != principal.ID() {
 			return web.Response{}, errors.New("wrong principal")
 		}
@@ -191,12 +219,12 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 		harness.mutations.Add(1)
 		return api.JSON(http.StatusOK, articleObject.Value())
 	})
-	deniedHandler := adapter.Require(deletePermission, func(*web.Request, auth.Principal) (web.Response, error) {
+	deniedHandler := mustRequire(t, adapter, deletePermission, func(*web.Request, auth.Principal) (web.Response, error) {
 		harness.calls.Add(1)
 		harness.mutations.Add(1)
 		return api.JSON(http.StatusOK, articleObject.Value())
 	})
-	nilHeaderHandler := adapter.Require(view, func(*web.Request, auth.Principal) (web.Response, error) {
+	nilHeaderHandler := mustRequire(t, adapter, view, func(*web.Request, auth.Principal) (web.Response, error) {
 		return web.NewResponse(http.StatusOK, nil, nil)
 	})
 	harness.application, err = web.NewApplication(web.Config{
@@ -212,6 +240,18 @@ func newAPIAuthHarness(t *testing.T) *apiAuthHarness {
 		t.Fatal(err)
 	}
 	return harness
+}
+
+func mustRequire(t *testing.T, adapter *apisessionauth.Runtime, permission auth.Permission, handler api.AuthenticatedHandler) web.Handler {
+	t.Helper()
+	protected, err := adapter.Require(permission, handler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if protected == nil {
+		t.Fatal("Require returned a nil handler")
+	}
+	return protected
 }
 
 func (h *apiAuthHarness) request(t *testing.T, method, path string, authenticated bool, csrfCookie *http.Cookie, token string) *http.Response {

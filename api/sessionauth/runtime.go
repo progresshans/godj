@@ -58,17 +58,20 @@ func (e *Error) Is(target error) bool {
 		(want.Field == "" || e.Field == want.Field)
 }
 
-type AuthenticatedHandler func(*web.Request, auth.Principal) (web.Response, error)
-
 // Runtime is an immutable API policy adapter around the accepted Web session
 // runtime. Its zero value is invalid.
 type Runtime struct {
 	runtime *websessionauth.Runtime
 }
 
+var _ api.Authentication = (*Runtime)(nil)
+
 func New(runtime *websessionauth.Runtime) (*Runtime, error) {
-	if runtime == nil || runtime.CSRFHeader() == "" {
-		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "session-auth runtime is nil or invalid"}
+	if runtime == nil {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "session-auth runtime is nil"}
+	}
+	if runtime.CSRFHeader() == "" {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "session-auth runtime has no CSRF header"}
 	}
 	return &Runtime{runtime: runtime}, nil
 }
@@ -77,14 +80,22 @@ func New(runtime *websessionauth.Runtime) (*Runtime, error) {
 // applies one explicit permission, and only then invokes application parsing
 // or persistence. Expected denial responses are JSON 403 without redirects or
 // WWW-Authenticate.
-func (r *Runtime) Require(permission auth.Permission, handler AuthenticatedHandler) web.Handler {
+func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler) (web.Handler, error) {
+	if r == nil || r.runtime == nil {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "API session runtime is nil or uninitialized"}
+	}
+	if r.runtime.CSRFHeader() == "" {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "session-auth runtime has no CSRF header"}
+	}
+	canonical, err := auth.NewPermission(string(permission))
+	if err != nil || canonical != permission {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+	}
+	if handler == nil {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "handler", Detail: "authenticated API handler is nil"}
+	}
+
 	return func(request *web.Request) (web.Response, error) {
-		if r == nil || r.runtime == nil {
-			return web.Response{}, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "API session runtime is nil or invalid"}
-		}
-		if handler == nil {
-			return web.Response{}, &Error{Code: CodeInvalidConfig, Field: "handler", Detail: "authenticated API handler is nil"}
-		}
 		principal, err := r.runtime.Principal(request)
 		if err != nil {
 			return web.Response{}, err
@@ -129,7 +140,7 @@ func (r *Runtime) Require(permission auth.Permission, handler AuthenticatedHandl
 			return web.Response{}, &Error{Code: CodeResponse, Field: "csrf_cookie", Detail: "CSRF response cookie could not be applied", Cause: err}
 		}
 		return response, nil
-	}
+	}, nil
 }
 
 func safeMethod(method string) bool {

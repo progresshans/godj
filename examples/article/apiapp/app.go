@@ -1,14 +1,15 @@
-// Package apiapp publishes the bounded session-authenticated Article JSON API.
+// Package apiapp publishes the bounded authentication-profile-protected Article JSON API.
 // It owns explicit Article conversion and route composition while persistence,
-// generic JSON primitives, and session policy remain in their lower packages.
+// generic JSON primitives, and authentication policy remain in lower packages.
 package apiapp
 
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/progresshans/godj/api"
-	apisessionauth "github.com/progresshans/godj/api/sessionauth"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
@@ -35,20 +36,19 @@ const (
 // route declarations whose handlers share this read-only configuration.
 type Application struct {
 	repository articleapp.Repository
-	auth       *apisessionauth.Runtime
 	parser     api.Parser
 	spec       serializers.Spec
 	routes     []web.Route
 }
 
 // New validates every construction dependency before publishing any route.
-func New(backend articleapp.Backend, authentication *apisessionauth.Runtime) (*Application, error) {
+func New(backend articleapp.Backend, authentication api.Authentication) (*Application, error) {
 	repository, err := articleapp.NewRepository(backend)
 	if err != nil {
 		return nil, fmt.Errorf("article api repository: %w", err)
 	}
-	if authentication == nil {
-		return nil, fmt.Errorf("article api authentication: runtime is nil")
+	if nilAuthentication(authentication) {
+		return nil, fmt.Errorf("article api authentication: adapter is nil")
 	}
 	parser, err := api.NewParser(api.ParserConfig{
 		MaxBodyBytes: maximumJSONBodyBytes,
@@ -67,11 +67,14 @@ func New(backend articleapp.Backend, authentication *apisessionauth.Runtime) (*A
 	}
 	application := &Application{
 		repository: repository,
-		auth:       authentication,
 		parser:     parser,
 		spec:       spec,
 	}
-	application.routes = application.buildRoutes()
+	routes, err := application.buildRoutes(authentication)
+	if err != nil {
+		return nil, err
+	}
+	application.routes = routes
 	return application, nil
 }
 
@@ -84,18 +87,55 @@ func (a *Application) Routes() []web.Route {
 	return append([]web.Route(nil), a.routes...)
 }
 
-func (a *Application) buildRoutes() []web.Route {
-	return []web.Route{
-		{Name: ListRouteName, Method: http.MethodGet, Path: ListPath, Handler: a.auth.Require(articleapp.ArticleViewPermission, a.list)},
-		{Name: Namespace + ":article-list-head", Method: http.MethodHead, Path: ListPath, Handler: a.auth.Require(articleapp.ArticleViewPermission, a.listHead)},
-		{Name: Namespace + ":article-list-options", Method: http.MethodOptions, Path: ListPath, Handler: a.auth.Require(articleapp.ArticleViewPermission, a.listOptions)},
-		{Name: Namespace + ":article-create", Method: http.MethodPost, Path: ListPath, Handler: a.auth.Require(articleapp.ArticleAddPermission, a.create)},
-		{Name: DetailRouteName, Method: http.MethodGet, Path: DetailPath, Handler: a.auth.Require(articleapp.ArticleViewPermission, a.retrieve)},
-		{Name: Namespace + ":article-detail-head", Method: http.MethodHead, Path: DetailPath, Handler: a.auth.Require(articleapp.ArticleViewPermission, a.retrieveHead)},
-		{Name: Namespace + ":article-detail-options", Method: http.MethodOptions, Path: DetailPath, Handler: a.auth.Require(articleapp.ArticleViewPermission, a.detailOptions)},
-		{Name: Namespace + ":article-update", Method: http.MethodPut, Path: DetailPath, Handler: a.auth.Require(articleapp.ArticleChangePermission, a.update)},
-		{Name: Namespace + ":article-partial-update", Method: http.MethodPatch, Path: DetailPath, Handler: a.auth.Require(articleapp.ArticleChangePermission, a.patch)},
-		{Name: Namespace + ":article-delete", Method: http.MethodDelete, Path: DetailPath, Handler: a.auth.Require(articleapp.ArticleDeletePermission, a.delete)},
+func (a *Application) buildRoutes(authentication api.Authentication) ([]web.Route, error) {
+	declarations := []struct {
+		name       string
+		method     string
+		path       string
+		permission auth.Permission
+		handler    api.AuthenticatedHandler
+	}{
+		{name: ListRouteName, method: http.MethodGet, path: ListPath, permission: articleapp.ArticleViewPermission, handler: a.list},
+		{name: Namespace + ":article-list-head", method: http.MethodHead, path: ListPath, permission: articleapp.ArticleViewPermission, handler: a.listHead},
+		{name: Namespace + ":article-list-options", method: http.MethodOptions, path: ListPath, permission: articleapp.ArticleViewPermission, handler: a.listOptions},
+		{name: Namespace + ":article-create", method: http.MethodPost, path: ListPath, permission: articleapp.ArticleAddPermission, handler: a.create},
+		{name: DetailRouteName, method: http.MethodGet, path: DetailPath, permission: articleapp.ArticleViewPermission, handler: a.retrieve},
+		{name: Namespace + ":article-detail-head", method: http.MethodHead, path: DetailPath, permission: articleapp.ArticleViewPermission, handler: a.retrieveHead},
+		{name: Namespace + ":article-detail-options", method: http.MethodOptions, path: DetailPath, permission: articleapp.ArticleViewPermission, handler: a.detailOptions},
+		{name: Namespace + ":article-update", method: http.MethodPut, path: DetailPath, permission: articleapp.ArticleChangePermission, handler: a.update},
+		{name: Namespace + ":article-partial-update", method: http.MethodPatch, path: DetailPath, permission: articleapp.ArticleChangePermission, handler: a.patch},
+		{name: Namespace + ":article-delete", method: http.MethodDelete, path: DetailPath, permission: articleapp.ArticleDeletePermission, handler: a.delete},
+	}
+
+	routes := make([]web.Route, 0, len(declarations))
+	for _, declaration := range declarations {
+		handler, err := authentication.Require(declaration.permission, declaration.handler)
+		if err != nil {
+			return nil, fmt.Errorf("article api authentication route %q: %w", declaration.name, err)
+		}
+		if handler == nil {
+			return nil, fmt.Errorf("article api authentication route %q: handler is nil", declaration.name)
+		}
+		routes = append(routes, web.Route{
+			Name:    declaration.name,
+			Method:  declaration.method,
+			Path:    declaration.path,
+			Handler: handler,
+		})
+	}
+	return routes, nil
+}
+
+func nilAuthentication(authentication api.Authentication) bool {
+	if authentication == nil {
+		return true
+	}
+	value := reflect.ValueOf(authentication)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
 	}
 }
 

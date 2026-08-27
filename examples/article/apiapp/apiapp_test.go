@@ -3,6 +3,7 @@ package apiapp_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -44,8 +45,12 @@ func TestRoutesReverseNegotiationAndAllowAreClosedAndDeterministic(t *testing.T)
 	if _, err := apiapp.New(harness.backend, nil); err == nil {
 		t.Fatal("New accepted a nil authentication runtime")
 	}
+	var typedNilAuthentication *recordingAuthentication
+	if _, err := apiapp.New(harness.backend, typedNilAuthentication); err == nil {
+		t.Fatal("New accepted a typed-nil authentication adapter")
+	}
 	var nilBackend *sqlite.Backend
-	if _, err := apiapp.New(nilBackend, nil); err == nil {
+	if _, err := apiapp.New(nilBackend, &recordingAuthentication{}); err == nil {
 		t.Fatal("New accepted a typed-nil backend")
 	}
 	path, err := harness.application.ReverseWith(apiapp.DetailRouteName, web.Int64Argument("id", 42))
@@ -65,6 +70,70 @@ func TestRoutesReverseNegotiationAndAllowAreClosedAndDeterministic(t *testing.T)
 	assertResponse(t, unacceptable, http.StatusNotAcceptable, api.JSONContentType, `{"code":"not_acceptable","errors":[]}`)
 	nonAPI := harness.do(t, http.MethodGet, "/missing/", requestOptions{})
 	assertResponse(t, nonAPI, http.StatusNotFound, "text/plain; charset=utf-8", "Not Found\n")
+}
+
+func TestNewBuildsAuthenticationRoutesAtomically(t *testing.T) {
+	harness := newHarness(t)
+	expected := []struct {
+		name       string
+		method     string
+		path       string
+		permission auth.Permission
+	}{
+		{name: apiapp.ListRouteName, method: http.MethodGet, path: apiapp.ListPath, permission: articleapp.ArticleViewPermission},
+		{name: apiapp.Namespace + ":article-list-head", method: http.MethodHead, path: apiapp.ListPath, permission: articleapp.ArticleViewPermission},
+		{name: apiapp.Namespace + ":article-list-options", method: http.MethodOptions, path: apiapp.ListPath, permission: articleapp.ArticleViewPermission},
+		{name: apiapp.Namespace + ":article-create", method: http.MethodPost, path: apiapp.ListPath, permission: articleapp.ArticleAddPermission},
+		{name: apiapp.DetailRouteName, method: http.MethodGet, path: apiapp.DetailPath, permission: articleapp.ArticleViewPermission},
+		{name: apiapp.Namespace + ":article-detail-head", method: http.MethodHead, path: apiapp.DetailPath, permission: articleapp.ArticleViewPermission},
+		{name: apiapp.Namespace + ":article-detail-options", method: http.MethodOptions, path: apiapp.DetailPath, permission: articleapp.ArticleViewPermission},
+		{name: apiapp.Namespace + ":article-update", method: http.MethodPut, path: apiapp.DetailPath, permission: articleapp.ArticleChangePermission},
+		{name: apiapp.Namespace + ":article-partial-update", method: http.MethodPatch, path: apiapp.DetailPath, permission: articleapp.ArticleChangePermission},
+		{name: apiapp.Namespace + ":article-delete", method: http.MethodDelete, path: apiapp.DetailPath, permission: articleapp.ArticleDeletePermission},
+	}
+
+	authentication := &recordingAuthentication{}
+	application, err := apiapp.New(harness.backend, authentication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := application.Routes()
+	if len(routes) != len(expected) || len(authentication.calls) != len(expected) {
+		t.Fatalf("routes/calls = %d/%d, want %d/%d", len(routes), len(authentication.calls), len(expected), len(expected))
+	}
+	for index, want := range expected {
+		got := routes[index]
+		if got.Name != want.name || got.Method != want.method || got.Path != want.path || got.Handler == nil {
+			t.Fatalf("route %d = %#v, want name=%q method=%q path=%q with handler", index, got, want.name, want.method, want.path)
+		}
+		if authentication.calls[index].permission != want.permission || authentication.calls[index].handler == nil {
+			t.Fatalf("authentication call %d = %#v, want permission %q with handler", index, authentication.calls[index], want.permission)
+		}
+	}
+
+	for _, test := range []struct {
+		name   string
+		failAt int
+		nilAt  int
+	}{
+		{name: "Require error", failAt: 4},
+		{name: "nil protected handler", nilAt: 7},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			authentication := &recordingAuthentication{failAt: test.failAt, nilAt: test.nilAt}
+			application, err := apiapp.New(harness.backend, authentication)
+			if application != nil || err == nil {
+				t.Fatalf("New = %#v, %v", application, err)
+			}
+			wantCalls := test.failAt
+			if wantCalls == 0 {
+				wantCalls = test.nilAt
+			}
+			if len(authentication.calls) != wantCalls {
+				t.Fatalf("Require calls = %d, want %d", len(authentication.calls), wantCalls)
+			}
+		})
+	}
 }
 
 func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing.T) {
@@ -339,6 +408,31 @@ type harness struct {
 	allSession    *http.Cookie
 	viewSession   *http.Cookie
 	deniedSession *http.Cookie
+}
+
+type authenticationCall struct {
+	permission auth.Permission
+	handler    api.AuthenticatedHandler
+}
+
+type recordingAuthentication struct {
+	calls  []authenticationCall
+	failAt int
+	nilAt  int
+}
+
+func (a *recordingAuthentication) Require(permission auth.Permission, handler api.AuthenticatedHandler) (web.Handler, error) {
+	a.calls = append(a.calls, authenticationCall{permission: permission, handler: handler})
+	call := len(a.calls)
+	if call == a.failAt {
+		return nil, errors.New("injected authentication construction failure")
+	}
+	if call == a.nilAt {
+		return nil, nil
+	}
+	return func(request *web.Request) (web.Response, error) {
+		return handler(request, auth.Anonymous())
+	}, nil
 }
 
 func newHarness(t *testing.T) *harness {
