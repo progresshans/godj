@@ -280,10 +280,10 @@ Corrected current source commit `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
 `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10
 fingerprint에서 같은 Article Bearer flow normal/race/CGO0과 two-process attestation도 통과했습니다.
 
-Checked attestation은 current behavioral source 256 files/2,940,207 payload bytes/SHA-256
-`7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`에 묶인 1,134 bytes/SHA-256
-`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`입니다. Attestation checksum file은
-103 bytes/SHA-256 `693087f484877563002292c0b3cdf93326b23511d61557b6410162f0faf0f5f7`입니다.
+GDJ-0048 source checkpoint에서 갱신한 checked attestation은 current behavioral source 257 files/2,942,402 payload
+bytes/SHA-256 `07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29`에 묶인 1,134
+bytes/SHA-256 `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`입니다. Attestation checksum
+file은 103 bytes/SHA-256 `41ca18d7baa6e9d60e146db728eeaa811f65fd48077943cf75d567627a9c8615`입니다.
 `make godj-conformance`와 affected normal/race/CGO0/vet/generate도 같은 source에서 통과했습니다.
 
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
@@ -326,11 +326,11 @@ GDJ-0046 Phase A 당시에는 같은 set에 Proposed ADR-0048 authority의 SYS-0
 `6e5042b2003dc16840c63b08c708635eb08ccbaa6865c5fd8d89ad4d5542d83c`였습니다. 당시 product actual registry는 legacy
 12개만 required였고 full 20-entry actual의 나머지 8개는 payload-free `not_implemented`였습니다.
 
-Current Phase E publication은 Accepted ADR-0048 아래 SYS-013..020을 모두 product `passing`으로 전환했습니다. Current
+GDJ-0046 Phase E publication은 Accepted ADR-0048 아래 SYS-013..020을 모두 product `passing`으로 전환했습니다. 그
 manifest/oracle/root `SHA256SUMS`는 각각 11,143/21,242/1,791 bytes와 SHA-256
 `b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`/
 `d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`/
-`e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. Checked PostgreSQL attestation은
+`e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. 당시 checked PostgreSQL attestation은
 1,134 bytes/SHA-256 `52fc003389b9131cf11a1da0deb013be18c0571503a012eb11b6cd31e04cc1ca`, sibling checksum file은
 103 bytes/SHA-256 `29d08917e71083bb1aedc99d70c91fa449541a89cf08e1b74cf3b72ecf7f518a`입니다. Attestation은 current
 behavioral source 250 files/2,855,113 payload bytes/SHA-256
@@ -362,7 +362,7 @@ go run ./conformance/cmd/godjcheck \
 일반 uv 0.12.3은 portable test에는 사용할 수 있지만 embedded exact profile의 oracle regeneration은 version mismatch로
 fail-closed합니다. GDJ-0045의 single-runtime SQLite/PostgreSQL restart evidence는 EVID-129에 보존됩니다. GDJ-0046은
 anonymous-pipe barrier를 쓰는 실제 두 process SQLite actual과 checked live attestation을 결합한 PostgreSQL actual을 추가했습니다.
-Required PostgreSQL 17.10 lane은 `GODJ_TEST_POSTGRES_URL`, `GODJ_REQUIRE_POSTGRES=1`과 explicit capture path를 사용해
+그 GDJ-0046 required PostgreSQL 17.10 lane은 `GODJ_TEST_POSTGRES_URL`, `GODJ_REQUIRE_POSTGRES=1`과 explicit capture path를 사용해
 17/17 named pass·skip 0, checked bytes `cmp`, normal/race/CGO0/service-restart/vet/clean을 통과했습니다. Portable actual은
 PostgreSQL을 live 실행했다고 주장하지 않고 strict attestation 검증 결과만 합성 입력으로 사용합니다.
 

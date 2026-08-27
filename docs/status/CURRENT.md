@@ -7,9 +7,11 @@
   Proposed [ADR-0050](../adr/0050-canonical-embedded-application-model-facade.md)입니다. Activation head
   `1070ec323f0d91b3ade54e1ec0cc6ac9e6d96175`에서 시작한 현재 checkout에는 private raw-model alias embedding,
   promoted scalar/app method, direct FK/PK reconciliation, fail-closed source namespace audit, JSON/DTO 경계와 facade ABI v3
-  whole-bundle publication이 구현됐습니다. Affected normal/race/CGO0/vet, external compile, generated drift와 SQLite 및 focused
-  PostgreSQL 별도-process 흐름은 통과했고 clean source checkpoint의 독립 source-bound attestation, final frozen gate와 hosted
-  matrix는 아직 남았습니다. Active/ready는 1/0이며 Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이번 packet 범위가 아닙니다.
+  whole-bundle publication이 구현됐습니다. Affected normal/race/CGO0/vet, external compile, generated drift와 SQLite/focused
+  PostgreSQL 별도-process 흐름에 이어 clean source `e0d4b94...`의 독립 2회 source-bound PostgreSQL attestation도
+  [EVID-139](TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)에서
+  통과했습니다. Required PostgreSQL 전체 lane, final frozen gate와 hosted matrix는 아직 남았습니다. Active/ready는 1/0이며
+  Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이번 packet 범위가 아닙니다.
 - Terminal docs head `31fee59...`의 CI #156/run `33053749701`은 27 jobs 중 26 success, 1 test failure였습니다.
   유일한 실패는 SQLite coordinated rollback callback이 mutation barrier를 닫은 직후 expected error를 반환해 두 channel이
   동시에 ready가 되는 select false-negative였습니다. Baseline `3882902...`는 main barrier observation까지 callback return을
@@ -1814,8 +1816,10 @@ DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-
 현재 active/ready packet은 1/0입니다. Active GDJ-0048은 activation head `1070ec3...`와 Proposed ADR-0050에서 canonical
 embedded application-model facade/current ABI v3를 locally implemented했습니다. Article exact 12/snapshot `f0043e499...`,
 relationdelete exact 16/snapshot `81534d390...`이 재생성됐고 current-v3/v2-hybrid/actual-package namespace, SQLite direct
-mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. 다음 순서는 clean source checkpoint, 독립 2회
-source-bound PostgreSQL attestation, required PostgreSQL 및 final full/386/archive/audit, exact submitted hosted matrix입니다.
+mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. Behavioral source `e0d4b94...`/tree
+`e09c8d4...`의 독립 2회 attestation은 257 files/2,942,402 bytes/SHA-256 `07290ae1...f1f29`, checked 1,134
+bytes/SHA-256 `5b205544...004e`로 일치했습니다. 다음 순서는 required PostgreSQL 전체 lane, final
+full/386/archive/audit와 exact submitted hosted matrix입니다.
 GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
 matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. GDJ-0047 corrected
 source `14e47c9b...`은 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와

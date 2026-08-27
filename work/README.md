@@ -80,7 +80,8 @@ Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade 
 implemented했습니다. Proposed
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
 `Save`/`With*`/relation/`Unwrap`, direct FK reconciliation, fail-closed method namespace와 explicit DTO representation을
-결정 경계로 고정합니다. Source checkpoint/attestation/final/hosted gate는 남았고 Schema IR/Migration/Backend와
+결정 경계로 고정합니다. Source checkpoint/독립 attestation은 EVID-139에서 통과했고 required PostgreSQL/final/hosted gate는
+남았습니다. Schema IR/Migration/Backend와
 JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree
 `1b2c9c74...`에서 common Session/Bearer authentication boundary, strict injected verifier, profile-neutral Article API,

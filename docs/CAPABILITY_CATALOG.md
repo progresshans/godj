@@ -616,8 +616,8 @@ implemented했고 final verification을 진행 중입니다.
 - Facade v3는 existing app 4/project 8/bundle-seal 1 role roster와 format-1 manifest를 재사용해 Article exact 12/snapshot
   `f0043e499...`와 relationdelete exact 16/snapshot `81534d390...`을 whole bundle로 게시했습니다.
 
-이 구현은 affected normal/race/CGO0/vet, external compile, v2 hybrid rejection, actual-package namespace/recovery, SQLite와
-focused PostgreSQL 별도-process 흐름을 통과했습니다. 독립 source-bound PostgreSQL attestation, final full/386/archive/audit와
+이 구현은 affected normal/race/CGO0/vet, external compile, v2 hybrid rejection, actual-package namespace/recovery, SQLite,
+focused PostgreSQL 별도-process 흐름과 독립 2회 source-bound PostgreSQL attestation을 통과했습니다. Final full/386/archive/audit와
 exact hosted matrix 전이므로 terminal verified로는 아직 승격하지 않습니다. Reverse/general manager, installed-version negotiation과
 first-alpha 이후 upgrader도 이번 active packet의 capability가 아닙니다.
 

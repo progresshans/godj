@@ -193,7 +193,7 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
 - [x] SQLite/PostgreSQL에서 query → direct scalar/user method → relation access/assignment → Save → fresh reload 및 별도 OS process
   reopen 흐름 검증
 - [x] affected normal/race/CGO0/vet, external compile와 generate/check 통과
-- [ ] clean source checkpoint에서 독립 2회 source-bound PostgreSQL canary/attestation 통과
+- [x] clean source checkpoint에서 독립 2회 source-bound PostgreSQL canary/attestation 통과
 - [ ] frozen source에서 full `make ci`, Linux/386, repository-external clean archive와 independent audit 한 번 수행
 - [ ] exact submitted head hosted matrix를 통과한 뒤 ADR/상태/증거를 terminal bytes에 맞게 갱신
 
@@ -212,8 +212,8 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
 ## 실행 증거 — pre-freeze affected checkpoint
 
 2026-08-27 activation head `1070ec323f0d91b3ade54e1ec0cc6ac9e6d96175`의 descendant working snapshot에서 다음
-affected gate가 모두 exit 0으로 통과했습니다. 이 실행 뒤 변경은 current 상태 문서뿐이며 product/generated/test bytes의 clean
-source checkpoint identity와 정식 EVID는 커밋 뒤 별도로 고정합니다.
+affected gate가 모두 exit 0으로 통과했습니다. 이 실행 뒤 source product/generated/test bytes는 `e0d4b94...`에 고정했고
+정식 source/attestation identity는 아래와 EVID-139에 별도로 기록했습니다.
 
 ```bash
 go test -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
@@ -242,9 +242,19 @@ Dirty shared source에서 만든
 두 preliminary attestation capture는 byte-identical이지만 정식 source-bound proof로 사용하지 않으며 clean checkpoint에서 서로
 독립된 PostgreSQL instance로 다시 수집합니다.
 
+Clean behavioral source `e0d4b941927d3661a7907f46b50a569b736dc1f1`, tree
+`e09c8d4f043656665d3a817e521b7732eac978d1`에서 서로 다른 PostgreSQL container/network와 capture path를 사용한 두 정식
+capture는 각각 1,134 bytes/SHA-256 `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`로
+byte-identical했습니다. Source binding은 257 files/2,942,402 bytes/SHA-256
+`07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29`입니다. 두 instance 모두 SYS-020
+two-process와 relation separate-process sentinel pass/skip 0을 확인했고 첫 instance에서 Article Bearer normal/race/CGO0도
+통과했습니다. Evidence publication commit은 `ab80217bedcc486d302652a8aae1ce9e6b492ed0`, tree
+`0d83ead4c2c4ad91bd1edd8db7b7a7f39b64e40f`이며 [EVID-139](../docs/status/TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)에
+명령·제외된 시도와 checksum lock을 기록합니다.
+
 ## 인수인계
 
-- 현재 정확한 다음 작업: source checkpoint를 clean commit으로 고정한 뒤 digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL
-  17.10에서 source-bound attestation을 독립 2회 재수집하고, required PostgreSQL/affected gate와 frozen final gate를 닫습니다.
+- 현재 정확한 다음 작업: evidence descendant를 고정한 뒤 digest-pinned required PostgreSQL 18-sentinel normal/race/CGO0/
+  service-restart/vet/clean lane을 통과하고, frozen full/386/repository-external archive와 independent audit를 닫습니다.
 - 같은 공개 facade generator, ProjectSpec ABI와 CURRENT 문서는 통합 담당 한 명만 수정합니다.
 - Corrected descendant CI가 실행 중이면 로컬 구현은 계속하되 완료 전 추가 push로 run을 취소하지 않습니다.

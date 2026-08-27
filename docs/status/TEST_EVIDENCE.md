@@ -12835,3 +12835,91 @@ Draft PR #1 remained `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. No merge,
 cancellation was performed. Run `33049861740` proves exact submitted predecessor `5f97fa8...`; it does not recursively prove this later
 terminal documentation-only descendant. The descendant uses documentation link/frontmatter/status/diff gates. No next work
 packet is selected, and this evidence does not authorize one implicitly.
+
+## EVID-20260827-139 — GDJ-0048 Canonical Facade Source Checkpoint and PostgreSQL Attestation
+
+- Date/time: affected checkpoint completed 2026-08-27; independent captures completed
+  2026-08-27T21:08:11+09:00 through 2026-08-27T21:12:04+09:00
+- Work/contract IDs: GDJ-0048 active; ADR-0050 Proposed; GEN-M1-001/REL-002 locally implemented; Q-013 Partial/Q-017 P1
+- Exact behavioral source: `e0d4b941927d3661a7907f46b50a569b736dc1f1`, tree
+  `e09c8d4f043656665d3a817e521b7732eac978d1`, subject `feat: publish canonical application model facade`
+- Exact attestation publication: `ab80217bedcc486d302652a8aae1ce9e6b492ed0`, tree
+  `0d83ead4c2c4ad91bd1edd8db7b7a7f39b64e40f`, subject `conformance: refresh canonical facade source attestation`
+- Result: facade v3 affected gates, SQLite and focused PostgreSQL vertical flows, two independent source-bound PostgreSQL
+  captures, strict artifact publication and portable conformance passed. Required full PostgreSQL lane, final `make ci`,
+  Linux/386, repository-external archive/audit and exact submitted hosted matrix remain pending.
+
+### Canonical facade product checkpoint
+
+The source commit publishes private raw-model alias embedding, promoted scalar/app methods, direct PK/FK snapshot
+reconciliation, fail-closed direct JSON, bounded sealed-root method namespace audit and current-v3 whole-project publication.
+It includes checked-in v2 drift/hybrid rejection, mandatory-recovery-before-new-candidate coverage, actual Article/relation
+package namespace conflict tests, SQLite direct mutation/save/fresh reload and PostgreSQL separate-OS-process relation reload.
+
+Article remains exact 12 generated files/snapshot
+`f0043e499ab316558cd0306ce82c428a5f266b0c178d656416380c3ba1722ac7`; relationdelete remains exact 16/snapshot
+`81534d39046a39c9d515fe4106dfcb01dd2d1ade6b0c41f25dff92ac4c004533`. The relation format-1 manifest is 4,815
+bytes/SHA-256 `43b73b459329f7ae8b1046658964e8e7857112b7febea2705d66ff9f676f6b8e`; generated 16-file framed
+inventory is 86,728 bytes/SHA-256 `b54d0934ff2517029aa75a5c42e504f9cf1200b7176b5c527a520ef8a390f14f`.
+
+The exact affected commands below exited 0 on the product/generated/test bytes committed as `e0d4b94...`; only current
+status documents were adjusted between the command set and source commit.
+
+```bash
+go test -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+go test -race -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+CGO_ENABLED=0 go test -count=1 ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+go vet ./codegen ./internal/projectgenerate ./internal/compiletest ./examples/article/... \
+  ./conformance/relationdeleteproduct ./conformance/postgresproduct ./conformance/internal/protocol
+make generate-check
+go test -count=100 ./examples/article/webapp
+git diff --check
+```
+
+### Two independent exact PostgreSQL captures
+
+Both producer executions mounted the clean source read-only and used exact
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+on Linux/amd64. Each used a different network, container and fresh absolute capture path with exact
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+Both independently asserted fingerprint
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`, required mode and exact named
+pass/skip-absence for `TestSystemStatePostgresTwoProcessCoordinationRestartSentinel` and
+`TestGeneratedRelationPostgresE2E`. The first instance additionally passed
+`TestArticleAPIBearerPostgresUserFlow` under normal, race and CGO-disabled execution.
+
+The captures were byte-identical at 1,134 bytes/SHA-256
+`5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`. They bind exact system-state scope 257
+files/2,942,402 payload bytes/SHA-256 `07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29` and record
+writer processes 2, same schema/barrier/restart true, divergence/loss/drift/secret occurrence 0. The sibling checksum file is
+103 bytes/SHA-256 `41ca18d7baa6e9d60e146db728eeaa811f65fd48077943cf75d567627a9c8615`. Capture/log
+credential scanning was clean. Both PostgreSQL/Go containers and both networks were removed; the external evidence root
+`/tmp/godj-gdj0048-source-capture.AHEvTg` is retained until final evidence archival.
+
+The system-state binding deliberately does not claim to source-bind all `codegen/**`, relation fixture or
+`conformance/postgresproduct/**` bytes. Those are tied to `e0d4b94...` by the clean Git source identity, affected tests and the
+required relation sentinel. The attestation directly binds the code-owned system-state scope, including current Article non-test
+source, and is not broadened beyond that protocol.
+
+### Publication and excluded attempts
+
+The publication commit updated the canonical JSON, sibling checksum and protocol size/SHA locks. The following commands then
+exited 0:
+
+```bash
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+go test -count=1 ./conformance/systemstate/attestation \
+  ./conformance/systemstate/restart ./conformance/internal/protocol
+PATH=/Users/hanhyeonjin/.cache/uv/archive-v0/MsrMoQktpd-TFLXT/bin:$PATH \
+  LC_ALL=C TZ=UTC make godj-conformance
+git diff --check
+```
+
+Two non-evidence attempts are explicitly excluded. Earlier captures from the shared dirty implementation tree were diagnostic
+only even though their bytes happened to match. The first clean orchestration command failed during shell parsing before any
+container or product test started, wrote no capture and its exact empty temporary directory was removed. Neither is reused as
+acceptance proof. This checkpoint does not accept ADR-0050, complete GDJ-0048, resolve Q-017, claim a full PostgreSQL service
+restart lane, final local matrix, archive/audit, hosted success, merge, release or deployment.

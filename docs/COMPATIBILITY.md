@@ -5,8 +5,8 @@
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-27 (GDJ-0047 corrected exact head EVID-138 / CI #155 run `33049861740`)
 - 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
-  `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical focused gate 통과;
-  clean source-bound attestation과 final full/386/archive/hosted matrix pending)
+  `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical/source-bound gate EVID-139 통과;
+  required PostgreSQL와 final full/386/archive/hosted matrix pending)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -127,9 +127,9 @@ BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission c
 oracle-blind actual은 DEV-0009 sparse expectation과 10/10을 통과했습니다. SQLite E2E와 corrected current source
 `14e47c9ba18a698cae52f7167c53148cd552f175` / tree `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의
 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0 및 two-process
-attestation도 통과했습니다. Current attestation은 source binding 256 files/2,940,207 bytes/
-`7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`, checked bytes 1,134/
-`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b`입니다. `make godj-conformance`와 affected
+attestation도 통과했습니다. GDJ-0048 EVID-139에서 갱신한 current attestation은 source binding 257 files/2,942,402 bytes/
+`07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29`, checked bytes 1,134/
+`5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`입니다. `make godj-conformance`와 affected
 normal/race/CGO0/vet/generate가 통과했습니다. Initial exact submitted-head run `33044776835`는 26 successful jobs와
 macOS Intel product job 한 건의 30분 timeout/cancellation으로 끝났고 완료된 steps와 수집 로그의 제품 assertion failure
 표식은 0이었습니다. EVID-137의
