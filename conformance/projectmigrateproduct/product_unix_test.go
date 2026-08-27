@@ -384,7 +384,8 @@ func executeBounded(binary, directory string, environment []string, arguments ..
 		groups, discoveryErr := ownedProcessGroups(command.Process.Pid)
 		killErr := killProcessGroups(groups, command.Process.Pid)
 		waitErr = boundedWait(waited, 5*time.Second)
-		return commandResult{}, errors.Join(errors.New("command timed out"), discoveryErr, killErr, waitErr)
+		absenceErr := waitForProcessGroupsAbsent(groups, 2*time.Second)
+		return commandResult{}, errors.Join(errors.New("command timed out"), discoveryErr, killErr, waitErr, absenceErr)
 	}
 	result := commandResult{
 		Stdout: stdout.String(), Stderr: stderr.String(),

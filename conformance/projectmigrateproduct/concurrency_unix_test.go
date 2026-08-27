@@ -48,10 +48,15 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 	}
 	observed := make([]commandResult, len(executions))
 	for index, execution := range executions {
+		observed[index] = execution.result
+	}
+	for _, result := range observed {
+		assertOutputSanitized(t, result, databasePath, databaseDSN, barrierDirectory, descriptor, filepath.Dir(descriptor))
+	}
+	for index, execution := range executions {
 		if execution.err != nil {
 			t.Fatalf("concurrent global migrate %d: %v", index+1, execution.err)
 		}
-		observed[index] = execution.result
 	}
 	assertWorkspaceEmpty(t, workspaceBase)
 
@@ -62,10 +67,15 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 	if markers[0].PID == markers[1].PID || markers[0].ParentPID == markers[1].ParentPID {
 		t.Fatalf("snapshot barrier ownership = %+v, want two runner PIDs owned by two global command PIDs", markers)
 	}
-	for _, marker := range markers {
+	for index, marker := range markers {
 		if marker.PID <= 0 || marker.ParentPID <= 0 || marker.PID == marker.ParentPID || marker.Records != 0 {
 			t.Fatalf("snapshot barrier marker = %+v, want a distinct live child with the fresh empty history snapshot", marker)
 		}
+		beginCount := 1
+		if index == 0 {
+			beginCount = len(expected.History)
+		}
+		fullConcurrencyAssertSingleAttempt(t, barrierDirectory, marker.PID, beginCount)
 	}
 	winnerDocument := fullConcurrencyCoordinationMarker(t, barrierDirectory, "winner-lock")
 	contenderDocument := fullConcurrencyCoordinationMarker(t, barrierDirectory, "contender-observed")
@@ -77,7 +87,6 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 	winners := 0
 	fenced := 0
 	for index, result := range observed {
-		assertOutputSanitized(t, result, databasePath, databaseDSN, barrierDirectory)
 		switch {
 		case result.ExitCode == 0:
 			assertMigrateSuccess(t, result, expected, databasePath, databaseDSN, barrierDirectory)
@@ -180,7 +189,7 @@ func fullConcurrencyMarkers(t *testing.T, directory string) []fullConcurrencyMar
 		if !entry.Type().IsRegular() {
 			t.Fatalf("unexpected snapshot barrier entry %q", entry.Name())
 		}
-		if entry.Name() == "winner-lock" || entry.Name() == "contender-observed" {
+		if entry.Name() == "winner-lock" || entry.Name() == "contender-observed" || strings.HasPrefix(entry.Name(), "attempts-") {
 			continue
 		}
 		if !strings.HasPrefix(entry.Name(), "ready-") {
@@ -206,6 +215,18 @@ func fullConcurrencyMarkers(t *testing.T, directory string) []fullConcurrencyMar
 	}
 	sort.Slice(markers, func(left, right int) bool { return markers[left].PID < markers[right].PID })
 	return markers
+}
+
+func fullConcurrencyAssertSingleAttempt(t *testing.T, directory string, pid, beginCount int) {
+	t.Helper()
+	document, err := os.ReadFile(filepath.Join(directory, "attempts-"+strconv.Itoa(pid)))
+	if err != nil {
+		t.Fatal("read concurrency attempt marker")
+	}
+	want := "session\nsnapshot\n" + strings.Repeat("begin\n", beginCount)
+	if string(document) != want {
+		t.Fatalf("concurrency child %d lifecycle attempts = %q, want one session, one snapshot, and %d migration begins with no retry", pid, document, beginCount)
+	}
 }
 
 func fullConcurrencyCoordinationMarker(t *testing.T, directory, name string) string {
@@ -258,6 +279,9 @@ type barrierBackend struct {
 }
 
 func (value *barrierBackend) OpenRevisionFencedSession(ctx context.Context) (backend.RevisionFencedSession, error) {
+	if err := appendAttempt(value.directory, os.Getpid(), "session"); err != nil {
+		return nil, err
+	}
 	session, err := value.MigrationBackend.OpenRevisionFencedSession(ctx)
 	if err != nil || session == nil {
 		return session, err
@@ -273,6 +297,9 @@ type barrierSession struct {
 }
 
 func (value *barrierSession) ReadAppliedMigrations(ctx context.Context) ([]backend.AppliedMigration, error) {
+	if err := appendAttempt(value.directory, os.Getpid(), "snapshot"); err != nil {
+		return nil, err
+	}
 	records, err := value.RevisionFencedSession.ReadAppliedMigrations(ctx)
 	if err != nil {
 		return nil, err
@@ -329,6 +356,9 @@ func (value *barrierSession) BeginMigration(
 	transition backend.HistoryTransition,
 	intent backend.MigrationIntent,
 ) (backend.RevisionFencedTransaction, error) {
+	if err := appendAttempt(value.directory, os.Getpid(), "begin"); err != nil {
+		return nil, err
+	}
 	if value.pid <= 0 {
 		return nil, errors.New("concurrency snapshot barrier was not crossed")
 	}
@@ -364,6 +394,16 @@ func (value *barrierSession) BeginMigration(
 		return transaction, errors.New("contender did not observe a revision fence")
 	}
 	return transaction, err
+}
+
+func appendAttempt(directory string, pid int, stage string) error {
+	path := filepath.Join(directory, fmt.Sprintf("attempts-%d", pid))
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+	if err != nil {
+		return errors.New("open concurrency attempt marker")
+	}
+	_, writeErr := file.WriteString(stage + "\n")
+	return errors.Join(writeErr, file.Close())
 }
 
 func waitForBarrierMarker(ctx context.Context, path string) error {

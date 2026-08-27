@@ -342,12 +342,12 @@ func authenticatedRestartExercisePhaseA(
 
 	if err := authenticatedRestartRequireAPIDetail(client, baseURL, authenticatedRestartArticle{
 		ID: 1, Title: "API durable", Published: true, Summary: authenticatedRestartString("api-updated"),
-	}); err != nil {
+	}, sensitive); err != nil {
 		return authenticatedRestartPhaseAState{}, fmt.Errorf("phase A API durable detail: %w", err)
 	}
 	if err := authenticatedRestartRequireAPIDetail(client, baseURL, authenticatedRestartArticle{
 		ID: 3, Title: "Admin durable", Published: true, Summary: authenticatedRestartString("admin-updated"),
-	}); err != nil {
+	}, sensitive); err != nil {
 		return authenticatedRestartPhaseAState{}, fmt.Errorf("phase A Admin durable detail through API: %w", err)
 	}
 	listed, err := authenticatedRestartRequest(client, http.MethodGet, baseURL+"/api/articles/", api.JSONContentType, "", "", "")
@@ -483,7 +483,7 @@ func authenticatedRestartExercisePhaseB(
 		{ID: 3, Title: "Admin after restart", Published: true, Summary: authenticatedRestartString("admin-restarted")},
 		{ID: 5, Title: "API after restart", Summary: authenticatedRestartString("session survived")},
 	} {
-		if err := authenticatedRestartRequireAPIDetail(client, baseURL, want); err != nil {
+		if err := authenticatedRestartRequireAPIDetail(client, baseURL, want, sensitive); err != nil {
 			return fmt.Errorf("phase B API detail id=%d: %w", want.ID, err)
 		}
 	}
@@ -723,6 +723,7 @@ func authenticatedRestartRequireAPIDetail(
 	client *http.Client,
 	baseURL string,
 	want authenticatedRestartArticle,
+	sensitive *[]string,
 ) error {
 	response, err := authenticatedRestartRequest(
 		client,
@@ -736,6 +737,11 @@ func authenticatedRestartRequireAPIDetail(
 	if err != nil {
 		return err
 	}
+	csrf := response.Header.Get(websessionauth.DefaultCSRFHeader)
+	if !authenticatedRestartMaskedCSRFPattern.MatchString(csrf) {
+		return errors.New("Article API detail omitted a bounded masked CSRF token")
+	}
+	*sensitive = append(*sensitive, csrf)
 	return authenticatedRestartRequireArticle(response, http.StatusOK, want)
 }
 
@@ -910,7 +916,14 @@ func authenticatedRestartRunServer(
 	finished := false
 	defer func() {
 		if !finished {
-			_ = interruptAndWait(command, waited, 20*time.Second, result.ProcessGroups...)
+			cleanup := interruptAndWait(command, waited, 20*time.Second, result.ProcessGroups...)
+			if cleanup.failed() {
+				t.Errorf(
+					"authenticated global runserver deferred cleanup failed: forced=%t process_groups=%d",
+					cleanup.Forced,
+					len(cleanup.ProcessGroups),
+				)
+			}
 		}
 	}()
 
