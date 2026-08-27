@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-27
-- 현재 local source/contract checkpoint: EVID-20260827-137
+- 마지막 갱신: 2026-08-28
+- 현재 local source/contract checkpoint: EVID-20260828-141
 - latest hosted product proof: EVID-20260827-138
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
@@ -13053,3 +13053,138 @@ submission.
 The next boundary is that audit, a documentation-only commit, non-force push to Draft PR #1 and one unique exact submitted-head
 hosted matrix. Until that exact hosted run succeeds, ADR-0050 remains Proposed, GDJ-0048 remains active, Q-017 remains P1/open
 and no merge, release, deployment or broader reverse/general relation support is claimed.
+
+## EVID-20260828-141 — GDJ-0048 First Exact-Head Inventory-Lock Failure and Corrected Local Refreeze
+
+- Date/time: first hosted run 2026-08-27T23:38:01+09:00 through 2026-08-28T00:16:12+09:00; corrected local
+  refreeze completed through 2026-08-28T00:10:07+09:00
+- Work/contract IDs: GDJ-0048 active; ADR-0050 Proposed; GEN-M1-001/REL-002 locally implemented;
+  Q-013 Partial/Q-017 P1 open
+- First submitted documentation head: `632904bd88883f363c17a18f21529e7dad944033`, tree
+  `bc6f0fc41bdcdec7a37ebca7396673c3837342f5`, subject `docs: record canonical facade local final`
+- Inventory correction: `6db4236165f961461cee18bb02170baf7080dadf`, tree
+  `db34a438ce26f0c6abb0da77eaf4155e689d6769`, subject `ci: refresh canonical facade relation inventory`
+- Corrected attestation publication/frozen source: `a2c067cdc4674c6a2f0b7f265b6fa037385234d4`, tree
+  `1f9002067e8541d842926e926e3968d2e8ca1c46`, subject `conformance: refresh relation inventory source attestation`
+- Result: the first exact submitted run is stale inventory-lock diagnosis, not hosted completion. The workflow/protocol lock
+  correction changed the source-bound workflow, so the PostgreSQL attestation and all final local gates were regenerated on
+  the corrected source. A corrected exact submitted-head hosted success, ADR acceptance and work completion remain unclaimed.
+
+### Exact first-hosted inventory-only failure
+
+[GitHub Actions run 33083315278](https://github.com/progresshans/godj/actions/runs/33083315278), CI #158 attempt 1,
+targeted exact pull-request head `632904b...` and checked out synthetic merge
+`7925ca1329b5068734bbf081579b07cf71a3ae9c`. Its ordered parents were main
+`f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and submitted head `632904b...`; the merge tree was exactly the
+submitted tree `bc6f0fc41bdcdec7a37ebca7396673c3837342f5`.
+
+The run completed 27 jobs as 23 success/4 failure and 360 steps as 332 success/4 failure/24 skipped. The four failed jobs were:
+
+| Job | ID | Failed step |
+| --- | ---: | --- |
+| Relation product (macos-15-intel) | `98556108314` | `Run relation product and exact no-skip inventory` |
+| Relation product (ubuntu-24.04-arm) | `98556108415` | `Run relation product and exact no-skip inventory` |
+| Relation product (ubuntu-22.04) | `98556108531` | `Run relation product and exact no-skip inventory` |
+| Relation product (macos-26) | `98556108714` | `Run relation product and exact no-skip inventory` |
+
+In every coordinate, the underlying `go test -json` command exited 0 and all actual tests passed. The following Python
+inventory assertion still expected 1,066 top-level runs and failed before the race/CGO-disabled/vet/clean tail, accounting
+for exactly six skipped steps per failed job. Independent parsing of all four logs produced the same current inventory:
+1,073 run/1,073 pass/0 skip, 111,158 payload bytes/SHA-256
+`be3344a3a8f8560b86cd0acfcfa36d36764e459c316ea210907ea9fd74339ee6`. Each failed check had one generic
+`Process completed with exit code 1.` annotation and all other checks had zero annotations.
+
+All other jobs passed. In particular, the final macOS Intel product-project job completed normal/race/CGO-disabled,
+runserver inventory, vet and clean-worktree successfully, and the PostgreSQL 17.10 job passed all 18 required named
+sentinels with skip rejection. The 24 workflow skips are failure-tail steps, not product or contract skips. No part of this
+failed run is reused as terminal hosted acceptance.
+
+### Minimal inventory correction and current source binding
+
+Commit `6db4236...` changes only the exact relation count/size/hash in `.github/workflows/ci.yml`, its protocol mirror and
+the work packet's allowed-path list. The live lock is now 1,073/111,158/
+`be3344a3a8f8560b86cd0acfcfa36d36764e459c316ea210907ea9fd74339ee6`; no stale executable
+1,066/110,405/`72b08a...` lock remains. Product, generated source, public API and conformance status are unchanged.
+
+The workflow is included in the PostgreSQL source-binding scope. Consequently the behavioral binding changed even though
+its file count and payload size did not. Two independent fresh digest-pinned PostgreSQL instances reproduced a byte-identical
+capture, which `a2c067c...` publishes with matching protocol locks. Current exact values are:
+
+- behavioral source: 257 files/2,942,402 payload bytes/SHA-256
+  `e6798d648d1023c00375f61009428106e4a4274d502a51cbf46613a3d185ba71`;
+- checked attestation: 1,134 bytes/SHA-256
+  `ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108`;
+- sibling checksum: 103 bytes/SHA-256
+  `068274321f10e08a854085630505acc8415402bfa192417eeba48134b8acefae`;
+- facts: two writer processes, same-schema/barrier/restart true and divergence/loss/drift/secret occurrence zero.
+
+The two capture JSON files and the checked artifact were byte-identical. Both normal logs contained all required 18/18
+runs and passes, zero required skips and zero failures. Credential scans across both capture/log pairs, the relation inventory
+and final retained PostgreSQL logs found no DSN, known canary, password assignment, bearer credential or common token form.
+
+### Corrected required PostgreSQL lane
+
+The final required lane ran from clean `a2c067c...` using exact
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+and
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+It asserted fingerprint
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin` and passed exact
+18/18 named sentinels with skip 0, normal/race/CGO-disabled, checked-capture byte equality, actual service restart
+`prepare→probe→resume→verify→cleanup`, vet and credential scanning.
+
+The final retained files were:
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `postgresql-normal.jsonl` | 500,270 | `220bbb472fc5df07fc3951a66664ec7aaf16366e79e0a7056b590f0ae4e5f4fe` |
+| `postgresql-race.log` | 412 | `3eb16f7d21ec5dd34df2f9cfb1f761a71243dae4dbb9fbf75807646fd54059b1` |
+| `postgresql-cgo0.log` | 412 | `581621d9bb2d846dea096f1d30a69eca71356c0e56b535e4e1b27b5bb2a25be7` |
+| `postgresql-vet.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `required-capture.json` | 1,134 | `ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108` |
+
+The harness removed its containers, custom networks and named cache/module volumes. A read-only audit then found three
+unreferenced anonymous PostgreSQL data volumes created by the two focused captures and final lane. The integration owner
+verified exact creation events and zero container references, removed only those three IDs, and rechecked that no scoped
+container, network, named volume or identified anonymous volume remained.
+
+### Corrected exact local final
+
+The workflow-equivalent relation command was rerun on exact `a2c067c...`. Its 19,321-event JSONL was 4,855,550 bytes/
+SHA-256 `827ce3e9b243b3c3290c0ea35a281e45e800c35633d31c151599e9956ea82d02` and reproduced exact
+1,073 run/1,073 pass/0 skip, 111,158 payload bytes/SHA-256 `be3344a3...9ee6`. The protocol and attestation packages also
+passed an explicit CGO-disabled affected test.
+
+The clean corrected source then passed:
+
+```bash
+PATH=/Users/hanhyeonjin/.cache/uv/archive-v0/MsrMoQktpd-TFLXT/bin:$PATH \
+  LC_ALL=C TZ=UTC make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The full command ran on macOS 26.6.2 build 25G83 with Go 1.26.5 darwin/arm64, uv 0.10.12 and locked Python 3.14.3.
+It passed generated drift, all-package normal/vet/race, configured CGO-disabled coverage, the 255-test Python suite with
+24 expected exact-profile skips and all reference/product comparisons. The 771-line/92,418-byte log has SHA-256
+`cb2e71681d9855ebc610f66918699d0b8e29346fcf341e77ec51117e77a4dae1`. Linux/386 compile-only passed all
+107 packages; its 7,690-byte log has SHA-256
+`52c5efeb8bbaf4364a8c932edaa2770f51f39eb709d64c19f562403b6d04e2b8`. It is not Linux/386 runtime evidence.
+
+A separate exact `git archive` of `a2c067c...` contained no `.git` directory and was verified as 1,088 tracked regular
+files, all mode `100644`, with 15,300,817 payload bytes. Every path, mode and Git blob matched the source tree before and
+after verification. The raw `git ls-tree -r -z --full-tree` stream SHA-256 was
+`55bd3c5ad487b0086d2155ab95270e480c3e37abc8d2cfe9f67b562e78cd3734`; the framed roster was
+`0dcba06d1cad25083f96beb75bcc9badefe4797aefab57d4a7ad881284a38053`. With a private external `GOCACHE`,
+`make generate-check` and the same 107-package Linux/386 compile-only command passed, and the roster stayed byte-identical.
+The two logs were 405 bytes/SHA-256 `c4724870a8b7a94a89e81b0d9e8f47597190cada85c848e40c21cb0f3c7fb72a`
+and 7,690 bytes/SHA-256 `9dedadfcc270fa32c99f947589c78518e4a78890e8df35e82a90dfd290ef77ea`.
+
+Independent correction/source-binding review found P0/P2/P3=0 and one P1 stale current-document mirror. This
+documentation-only descendant closes that finding by preserving EVID-139/140 as historical checkpoints while repointing
+current mirrors to EVID-141 and the corrected bytes. It changes no product, generated, workflow, test or attestation byte and
+therefore receives link/frontmatter/status/diff gates rather than another recursive product matrix.
+
+The next boundary is a documentation audit, non-force push to Draft PR #1 and one unique corrected exact submitted-head hosted
+matrix. Until that run succeeds, ADR-0050 remains Proposed, GDJ-0048 remains active, Q-017 remains P1/open and no merge,
+release, deployment, reverse/general relation support or post-alpha upgrader is claimed.

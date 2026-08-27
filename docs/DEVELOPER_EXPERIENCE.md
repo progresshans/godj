@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F와 GDJ-0042 bounded runserver 단면 hosted-Verified
-- 마지막 검토: 2026-08-24
+- 마지막 검토: 2026-08-28
 
 아래 `M1 verified` 단면과 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -214,10 +214,13 @@ historical feasibility/product evidence입니다. 두 ADR의 byte-preservation/p
 Current app main generator는 scalar/FK model, descriptor와 write metadata를 함께 만들고 project generator는 cross-app
 binding/query/facade를 소유합니다. Facade-private write model과 app-local relation-query output은 없습니다. 이 current
 ABI의 publication 하부는 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
-기반하고, GDJ-0048은 [EVID-139](status/TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation) /
-[EVID-140](status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)에서
-facade v3의 affected/source-bound/final local gate를 통과했습니다. Exact submitted hosted `Verified`는 아직 아닙니다. 아래 이름은
-current facade에서 유지되지만 reverse/general generated upgrade나 전체 ORM surface의 영구 naming policy까지 결정하지 않습니다.
+기반합니다. GDJ-0048의 [EVID-139](status/TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)은
+source checkpoint이고, [EVID-140](status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)은
+첫 local final의 역사 증거입니다. CI #158 inventory-only failure 뒤 corrected source의 current
+[EVID-141](status/TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)에서
+facade v3의 source-bound PostgreSQL, relation inventory와 final local gate를 다시 통과했습니다. Corrected exact submitted
+hosted `Verified`는 아직 아닙니다. 아래 이름은 current facade에서 유지되지만 reverse/general generated upgrade나 전체 ORM
+surface의 영구 naming policy까지 결정하지 않습니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는

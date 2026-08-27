@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-27
+- 마지막 검토: 2026-08-28
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -718,9 +718,11 @@ Wrapper direct JSON marshal/unmarshal은 fail-closed하고 ADR-0038 Web JSON/tem
 유지합니다. Exported promoted field의 generic `html/template` 접근 자체를 type-level로 막는다고 주장하지 않습니다.
 
 이 active packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture의 affected/vertical,
-source-bound 및 EVID-140 required PostgreSQL/full/386/archive/audit gate까지 통과했고 exact submitted hosted 검증만 남겼습니다. Reverse
-assignment/general manager, installed-version negotiation, renderer rename/deprecation와 first-alpha 이후 semver/upgrader는 계속
-Q-017에 남으므로 packet 완료만으로 Q-017 전체를 `Resolved`로 만들지 않습니다.
+source-bound 및 EVID-140 first local-final gate를 통과했습니다. CI #158의 stale inventory-only failure 뒤 EVID-141
+corrected source에서 current 1,073/1,073/0 inventory, required PostgreSQL/full/386/archive/audit gate를 다시 통과했고
+corrected exact submitted hosted 검증만 남겼습니다. Reverse assignment/general manager, installed-version negotiation,
+renderer rename/deprecation와 first-alpha 이후 semver/upgrader는 계속 Q-017에 남으므로 packet 완료만으로 Q-017 전체를
+`Resolved`로 만들지 않습니다.
 
 ## Q-019 — SQLite unknown-outcome retained connection resource policy
 

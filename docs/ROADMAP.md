@@ -7,8 +7,10 @@
   project-owned relation state를 결합하고, direct FK reconciliation, fail-closed method namespace, pointer/copy safety와
   explicit raw `Unwrap`/DTO-only Web representation을 한 whole-bundle 배치로 검증합니다. Reverse/general manager와 post-alpha upgrader는
   계속 open입니다. Activation head `1070ec3...`의 CI #157은 corrected baseline을 exact 27/27로 확인했고, 현재 checkout은
-  facade v3 product와 source-bound PostgreSQL gate에 이어 EVID-140의 required PostgreSQL 18/18, full `make ci`, Linux/386,
-  1,088-file external archive/audit까지 통과했으며 exact submitted hosted 검증만 남았습니다.
+  facade v3 product와 source-bound PostgreSQL gate에 이어 EVID-140 첫 local final을 통과했습니다. CI #158의 네
+  relation-product failure는 stale inventory lock으로 한정됐고, EVID-141 corrected source에서 current 1,073/1,073/0,
+  required PostgreSQL 18/18, full `make ci`, Linux/386, 1,088-file external archive/audit를 다시 통과했으며 corrected
+  exact submitted hosted 검증만 남았습니다.
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과

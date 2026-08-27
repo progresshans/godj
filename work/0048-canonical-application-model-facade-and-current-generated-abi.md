@@ -1,7 +1,7 @@
 ---
 id: GDJ-0048
 status: active
-updated: 2026-08-27
+updated: 2026-08-28
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "38829025670581e2c759d8e2cf191e6049b7c1e0"
 depends_on: ["GDJ-0033", "GDJ-0036", "GDJ-0037", "GDJ-0047"]
@@ -263,7 +263,8 @@ Linux/386 compile-only, 1,088-file repository-external archive와 independent au
 [EVID-140](../docs/status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)은
 정확한 명령·환경·checksum과 excluded orchestration attempts를 기록합니다. `b2f6bc5...`는 ordinary PostgreSQL `_test.go`와
 work scope만 바꾼 test-only descendant이므로 source binding 257 files/2,942,402 bytes/SHA-256
-`07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29` 및 checked attestation은 unchanged/current입니다.
+`07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29` 및 checked attestation은 그 checkpoint에서
+EVID-139와 unchanged였습니다.
 
 Required PostgreSQL lane은 exact 18/18 named pass·skip 0, normal/race/CGO0, checked capture byte comparison,
 actual service restart `prepare→probe→resume→verify→cleanup`, vet와 credential-clean retained logs를 통과했습니다. Full local
@@ -273,9 +274,25 @@ Independent implementation/source/status audit의 blocker는 0이며 발견된 s
 documentation descendant에서 current-v3/local-final 상태로 교정합니다. Exact submitted-head hosted matrix 전에는 ADR-0050을
 Accepted로 올리거나 GDJ-0048을 completed로 닫지 않습니다.
 
+첫 submitted documentation head `632904bd88883f363c17a18f21529e7dad944033`의 CI #158/run
+`33083315278`은 27 jobs 중 23 success/4 relation-product failure로 끝났습니다. 네 underlying `go test`는 모두
+통과했고 뒤따른 inventory parser만 stale 1,066 lock 때문에 실패했습니다. Current inventory는 네 좌표와 로컬 exact
+재실행에서 1,073 run/1,073 pass/0 skip, 111,158 canonical payload bytes/SHA-256 `be3344a3...9ee6`로
+일치했습니다.
+
+Correction `6db4236165f961461cee18bb02170baf7080dadf`가 workflow/protocol lock을 갱신했습니다. Workflow가
+source-binding scope에 포함되므로 `a2c067cdc4674c6a2f0b7f265b6fa037385234d4`에서 attestation을 다시 게시하고 전체 local
+refreeze를 반복했습니다. Current source binding은 257 files/2,942,402 bytes/SHA-256 `e6798d648...ba71`, checked
+attestation은 1,134 bytes/SHA-256 `ef0e2e69...d108`, checksum file은 103 bytes/SHA-256 `06827432...fae`입니다.
+[EVID-141](../docs/status/TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)은
+독립 2회 capture, required PostgreSQL 18/18·skip 0, current relation inventory, full `make ci`, 107-package Linux/386,
+1,088-file external archive와 correction/source audit를 기록합니다. EVID-139/140은 당시 exact source의 역사 증거로
+보존하며 current byte pointer로 재사용하지 않습니다.
+
 ## 인수인계
 
-- 현재 정확한 다음 작업: local-final documentation descendant를 non-force push하고 Draft PR #1을 갱신한 뒤 exact submitted-head
-  hosted matrix 하나를 통과합니다. 성공한 exact head/run을 별도 terminal evidence에 기록한 뒤에만 ADR-0050/GDJ-0048 상태를 닫습니다.
+- 현재 정확한 다음 작업: EVID-141 corrected-refreeze documentation descendant를 non-force push하고 Draft PR #1을 갱신한 뒤
+  corrected exact submitted-head hosted matrix 하나를 통과합니다. 성공한 exact head/run을 별도 terminal evidence에 기록한
+  뒤에만 ADR-0050/GDJ-0048 상태를 닫습니다.
 - 같은 공개 facade generator, ProjectSpec ABI와 CURRENT 문서는 통합 담당 한 명만 수정합니다.
 - Corrected descendant CI가 실행 중이면 로컬 구현은 계속하되 완료 전 추가 push로 run을 취소하지 않습니다.

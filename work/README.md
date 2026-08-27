@@ -81,7 +81,11 @@ implemented했습니다. Proposed
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
 `Save`/`With*`/relation/`Unwrap`, direct FK reconciliation, fail-closed method namespace와 explicit DTO representation을
 결정 경계로 고정합니다. Source checkpoint/독립 attestation은 EVID-139, required PostgreSQL 18/18·full
-`make ci`·Linux/386·1,088-file archive/audit는 EVID-140에서 통과했고 exact submitted hosted gate만 남았습니다.
+`make ci`·Linux/386·1,088-file archive/audit의 첫 local final은 EVID-140에 보존합니다. Submitted `632904b...`의
+CI #158은 네 relation-product inventory lock만 stale해 실패했고 underlying tests와 나머지 23 jobs는 통과했습니다.
+Correction `6db4236...`/attestation publication `a2c067c...`의 EVID-141에서 current 1,073/1,073/0 inventory,
+source-bound PostgreSQL 18/18과 full/386/1,088-file archive/audit refreeze가 다시 통과했으며 corrected exact submitted
+hosted gate만 남았습니다.
 Schema IR/Migration/Backend와
 JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree

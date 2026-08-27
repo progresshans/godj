@@ -280,13 +280,14 @@ Corrected current source commit `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
 `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의 digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10
 fingerprint에서 같은 Article Bearer flow normal/race/CGO0과 two-process attestation도 통과했습니다.
 
-GDJ-0048 source checkpoint에서 갱신한 checked attestation은 current behavioral source 257 files/2,942,402 payload
-bytes/SHA-256 `07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29`에 묶인 1,134
-bytes/SHA-256 `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`입니다. Attestation checksum
-file은 103 bytes/SHA-256 `41ca18d7baa6e9d60e146db728eeaa811f65fd48077943cf75d567627a9c8615`입니다.
-`make godj-conformance`와 affected normal/race/CGO0/vet/generate도 같은 source에서 통과했습니다. Ordinary `_test.go`만
-교정한 `b2f6bc5...` descendant의 EVID-140은 source binding을 바꾸지 않은 채 required PostgreSQL 18/18·skip 0,
-normal/race/CGO0/service restart/vet/clean과 checked capture byte comparison을 다시 통과했습니다.
+GDJ-0048 correction source에서 갱신한 checked attestation은 current behavioral source 257 files/2,942,402 payload
+bytes/SHA-256 `e6798d648d1023c00375f61009428106e4a4274d502a51cbf46613a3d185ba71`에 묶인 1,134
+bytes/SHA-256 `ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108`입니다. Attestation checksum
+file은 103 bytes/SHA-256 `068274321f10e08a854085630505acc8415402bfa192417eeba48134b8acefae`입니다.
+`make godj-conformance`와 current relation inventory 1,073/1,073/0, affected normal/race/CGO0/vet/generate도 같은
+source에서 통과했습니다. Historical EVID-139/140은 이전 exact source에 대한 증거로 보존하고, EVID-141의 current
+required PostgreSQL 18/18·skip 0, normal/race/CGO0/service restart/vet/clean과 checked capture byte comparison을
+현재 proof로 사용합니다.
 
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=

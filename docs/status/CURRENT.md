@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-27
+- 마지막 갱신: 2026-08-28
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
 - 현재 active work는 [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md),
@@ -10,10 +10,14 @@
   whole-bundle publication이 구현됐습니다. Affected normal/race/CGO0/vet, external compile, generated drift와 SQLite/focused
   PostgreSQL 별도-process 흐름에 이어 clean source `e0d4b94...`의 독립 2회 source-bound PostgreSQL attestation도
   [EVID-139](TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)에서
-  통과했습니다. Test-only correction `b2f6bc5...`에서 required PostgreSQL exact 18/18·skip 0, full `make ci`, 107-package
-  Linux/386 compile-only, 1,088-file external archive와 independent audit도
-  [EVID-140](TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)에서
-  통과했습니다. Exact submitted-head hosted matrix만 남았습니다. Active/ready는 1/0이며
+  통과했습니다. Historical test-only correction `b2f6bc5...`의 first local final은
+  [EVID-140](TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)에
+  보존합니다. Submitted `632904b...`의 CI #158/run `33083315278`은 underlying relation tests가 아니라 stale 1,066
+  inventory lock에서만 네 좌표가 실패했습니다. Correction `6db4236...`과 attestation publication `a2c067c...`에서 current
+  inventory 1,073/1,073/0, source binding/attestation, required PostgreSQL 18/18, full `make ci`, 107-package Linux/386,
+  1,088-file external archive와 focused audit를
+  [EVID-141](TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)로
+  다시 통과했습니다. Corrected exact submitted-head hosted matrix만 남았습니다. Active/ready는 1/0이며
   Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이번 packet 범위가 아닙니다.
 - Terminal docs head `31fee59...`의 CI #156/run `33053749701`은 27 jobs 중 26 success, 1 test failure였습니다.
   유일한 실패는 SQLite coordinated rollback callback이 mutation barrier를 닫은 직후 expected error를 반환해 두 channel이
@@ -1819,13 +1823,17 @@ DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-
 현재 active/ready packet은 1/0입니다. Active GDJ-0048은 activation head `1070ec3...`와 Proposed ADR-0050에서 canonical
 embedded application-model facade/current ABI v3를 locally implemented했습니다. Article exact 12/snapshot `f0043e499...`,
 relationdelete exact 16/snapshot `81534d390...`이 재생성됐고 current-v3/v2-hybrid/actual-package namespace, SQLite direct
-mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. Behavioral source `e0d4b94...`/tree
-`e09c8d4...`의 독립 2회 attestation은 257 files/2,942,402 bytes/SHA-256 `07290ae1...f1f29`, checked 1,134
-bytes/SHA-256 `5b205544...004e`로 일치했습니다. 다음 순서는 required PostgreSQL 전체 lane, final
-full/386/archive/audit와 exact submitted hosted matrix였습니다. Test-only correction `b2f6bc5...` / tree
-`5b6eceb...`에서 PostgreSQL exact 18/18·skip 0 normal/race/CGO0/restart/vet, full `make ci`, 107-package
-Linux/386 compile-only, 1,088-file external archive와 independent audit가 EVID-140으로 모두 통과했습니다. 현재 남은
-유일한 acceptance gate는 local-final documentation descendant의 exact submitted hosted matrix입니다.
+mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. Historical behavioral source
+`e0d4b94...`/tree `e09c8d4...`의 EVID-139 attestation과 test-only `b2f6bc5...`의 EVID-140 local final은 해당 exact
+source의 증거로 보존합니다. Submitted `632904b...`의 CI #158은 네 relation-product 좌표에서 stale inventory lock만
+실패했고 나머지 23 jobs, PostgreSQL 18/18과 final macOS Intel product job은 통과했습니다. `6db4236...`이 lock을
+1,073/1,073/0·111,158 canonical payload bytes·`be3344...9ee6`로 교정했고, workflow source change를 반영한
+`a2c067c...`/tree
+`1f900206...`의 current binding은 257 files/2,942,402 bytes/SHA-256 `e6798d648...ba71`, checked attestation은
+1,134 bytes/SHA-256 `ef0e2e69...d108`입니다. EVID-141에서 독립 capture, PostgreSQL
+normal/race/CGO0/restart/vet, full `make ci`, 107-package Linux/386, 1,088-file external archive와 focused audit를 모두
+다시 통과했습니다. 현재 남은 유일한 acceptance gate는 corrected-refreeze documentation descendant의 exact submitted
+hosted matrix입니다.
 GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
 matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. GDJ-0047 corrected
 source `14e47c9b...`은 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와

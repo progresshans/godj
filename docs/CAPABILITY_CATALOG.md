@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-27
+- 마지막 검토: 2026-08-28
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
 
@@ -617,10 +617,11 @@ implemented했고 final verification을 진행 중입니다.
   `f0043e499...`와 relationdelete exact 16/snapshot `81534d390...`을 whole bundle로 게시했습니다.
 
 이 구현은 affected normal/race/CGO0/vet, external compile, v2 hybrid rejection, actual-package namespace/recovery, SQLite,
-focused PostgreSQL 별도-process 흐름과 독립 2회 source-bound PostgreSQL attestation을 통과했습니다. EVID-140에서 required
-PostgreSQL exact 18/18·skip 0, full `make ci`, Linux/386, 1,088-file external archive와 independent audit도 통과했습니다. Exact
-hosted matrix 전이므로 terminal verified로는 아직 승격하지 않습니다. Reverse/general manager, installed-version negotiation과
-first-alpha 이후 upgrader도 이번 active packet의 capability가 아닙니다.
+focused PostgreSQL 별도-process 흐름과 독립 2회 source-bound PostgreSQL attestation을 통과했습니다. EVID-140의 첫
+local final 뒤 CI #158이 stale relation inventory lock을 드러냈고, EVID-141 corrected source에서 current
+1,073/1,073/0 inventory, required PostgreSQL exact 18/18·skip 0, full `make ci`, Linux/386, 1,088-file external archive와
+independent audit가 다시 통과했습니다. Corrected exact hosted matrix 전이므로 terminal verified로는 아직 승격하지 않습니다.
+Reverse/general manager, installed-version negotiation과 first-alpha 이후 upgrader도 이번 active packet의 capability가 아닙니다.
 
 ### Historical GDJ-0035 design and evidence snapshot
 
