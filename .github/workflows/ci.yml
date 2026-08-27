@@ -111,6 +111,7 @@ jobs:
           conformance/contracts
           conformance/fixtures/godj-query-breadth-not-implemented.json
           conformance/fixtures/godj-query-expression-not-implemented.json
+          conformance/fixtures/godj-migration-command-not-implemented.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-api-authentication-not-implemented.json
@@ -184,6 +185,7 @@ jobs:
           conformance/contracts
           conformance/fixtures/godj-query-breadth-not-implemented.json
           conformance/fixtures/godj-query-expression-not-implemented.json
+          conformance/fixtures/godj-migration-command-not-implemented.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-api-authentication-not-implemented.json
@@ -797,9 +799,9 @@ jobs:
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 255
+          test "$(grep -c '^test_' "$log")" -eq 264
           test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
-          grep -Fq 'Ran 255 tests' "$log"
+          grep -Fq 'Ran 264 tests' "$log"
           grep -Fq 'OK (skipped=21)' "$log"
 
       - name: Verify all-scenario semantic digest
@@ -822,10 +824,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 249, len(SCENARIOS)
-          assert len(payload) == 892859, len(payload)
+          assert len(SCENARIOS) == 261, len(SCENARIOS)
+          assert len(payload) == 906009, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a", digest
+          assert digest == "4c7d628245af5a9eab06a353e5498c869e784c001a358f8ecec4c59c823e3767", digest
           PY
 
       - name: Require a clean worktree

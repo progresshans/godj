@@ -1,0 +1,150 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-087",
+      "title": "A fresh database converges to the exact latest schema history and loaded definition digest",
+      "scenario": "godj.migration.command.fresh_latest",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-088",
+      "title": "An applied durable prefix is preserved while only the remaining latest tail is executed",
+      "scenario": "godj.migration.command.applied_prefix_tail",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-089",
+      "title": "A fully applied database succeeds as a fresh-process no-op without schema or history writes",
+      "scenario": "godj.migration.command.fully_applied_fresh_noop",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-090",
+      "title": "Invalid or incompatible definitions fail atomically before the project backend opener is called",
+      "scenario": "godj.migration.command.definition_preflight_before_backend",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-091",
+      "title": "Inconsistent applied history fails before migration begin recorder write or schema mutation",
+      "scenario": "godj.migration.command.inconsistent_history_preflight",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-092",
+      "title": "Unsupported required capabilities fail before migration begin recorder write or schema mutation",
+      "scenario": "godj.migration.command.capability_preflight_before_begin",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-093",
+      "title": "A middle-step failure preserves earlier commits rolls back the current step and does not execute the tail",
+      "scenario": "godj.migration.command.middle_failure_durable_prefix",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-094",
+      "title": "A fresh invocation resumes from the failed migration without reapplying the durable prefix",
+      "scenario": "godj.migration.command.fresh_resume_after_failure",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-095",
+      "title": "An unknown commit outcome is terminal and publishes no rollback retry success or verified durability claim",
+      "scenario": "godj.migration.command.commit_outcome_unknown",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-096",
+      "title": "Two latest invocations are revision fenced without duplicate or corrupt history and permit fresh reconciliation",
+      "scenario": "godj.migration.command.concurrent_latest_fenced",
+      "phase": "commit",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-097",
+      "title": "Missing invalid or typed-nil backend configuration fails with a closed code and no secret publication",
+      "scenario": "godj.migration.command.backend_configuration_secret_boundary",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-098",
+      "title": "Interrupt cancellation completes rollback session and backend cleanup and directly reaps the child without residue",
+      "scenario": "godj.migration.command.interrupt_rollback_cleanup",
+      "phase": "rollback",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0049", "derived": false},
+        {"kind": "decision", "reference": "ADR-0051", "derived": false}
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    }
+  ]
+}

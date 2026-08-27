@@ -62,7 +62,7 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 		"conformance/fixtures/godj-system-state-not-implemented.json":               {2417, "92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa"},
 		"conformance/fixtures/godj-system-state-deviation-expected.json":            {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":      {21242, "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {1791, "e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {1887, "cf7029cbc39627e57c1e3f991d5f28895781fba69b2353727e02f51cc14e3daa"},
 		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": {1134, "ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108"},
 		"conformance/systemstate/attestations/SHA256SUMS":                           {103, "068274321f10e08a854085630505acc8415402bfa192417eeba48134b8acefae"},
 	}
@@ -392,7 +392,7 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 	}
 }
 
-func TestCurrentTwentyTwoReferenceSetsHave249ContractsAndReject462OrderedCrossBindings(t *testing.T) {
+func TestCurrentTwentyThreeReferenceSetsHave261ContractsAndReject506OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -422,6 +422,7 @@ func TestCurrentTwentyTwoReferenceSetsHave249ContractsAndReject462OrderedCrossBi
 		{"migration-lifecycle", "migration-lifecycle-manifest.json", "migration-lifecycle-oracle.json"},
 		{"migration-definition-source", "migration-definition-source-manifest.json", "migration-definition-source-oracle.json"},
 		{"migration-project-check", "migration-project-check-manifest.json", "migration-project-check-oracle.json"},
+		{"migration-command", "migration-command-manifest.json", "migration-command-oracle.json"},
 		{"relation", "relation-manifest.json", "relation-oracle.json"},
 		{"query-breadth", "query-breadth-manifest.json", "query-breadth-oracle.json"},
 		{"query-expression", "query-expression-manifest.json", "query-expression-oracle.json"},
@@ -431,7 +432,7 @@ func TestCurrentTwentyTwoReferenceSetsHave249ContractsAndReject462OrderedCrossBi
 		{"article-admin", "article-admin-manifest.json", "article-admin-oracle.json"},
 		{"system-state", "system-state-manifest.json", "system-state.json"},
 	}
-	sets := make([]inventorySet, 0, 22)
+	sets := make([]inventorySet, 0, 23)
 	for _, source := range djangoSets {
 		manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", source.manifest))
 		if err != nil {
@@ -483,7 +484,7 @@ func TestCurrentTwentyTwoReferenceSetsHave249ContractsAndReject462OrderedCrossBi
 			}
 		}
 	}
-	if len(sets) != 22 || total != 249 || len(ids) != 249 || len(scenarios) != 249 || passing != 218 || deviations != 19 || locked != 12 {
+	if len(sets) != 23 || total != 261 || len(ids) != 261 || len(scenarios) != 261 || passing != 218 || deviations != 19 || locked != 24 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 	crossBindings := 0
@@ -498,8 +499,8 @@ func TestCurrentTwentyTwoReferenceSetsHave249ContractsAndReject462OrderedCrossBi
 			}
 		}
 	}
-	if crossBindings != 462 {
-		t.Fatalf("ordered cross-bindings = %d, want 462", crossBindings)
+	if crossBindings != 506 {
+		t.Fatalf("ordered cross-bindings = %d, want 506", crossBindings)
 	}
 }
 
@@ -592,9 +593,9 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	for _, required := range []string{
 		"working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64",
 		"run: sha256sum --check SHA256SUMS",
-		"len(SCENARIOS) == 249",
-		"len(payload) == 892859",
-		"bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a",
+		"len(SCENARIOS) == 261",
+		"len(payload) == 906009",
+		"4c7d628245af5a9eab06a353e5498c869e784c001a358f8ecec4c59c823e3767",
 		"working-directory: conformance/systemstate/attestations",
 		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE",
 		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
