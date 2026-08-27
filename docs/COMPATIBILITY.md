@@ -4,7 +4,7 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 검증: 2026-08-26 (GDJ-0046 Phase E corrected frozen source EVID-133, exact hosted EVID-134)
-- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 Bearer SQLite/PostgreSQL 통과, full/386/archive/hosted 대기)
+- 현재 local required checkpoint: 2026-08-27 (GDJ-0047 Bearer SQLite/PostgreSQL와 full/386/archive 통과, exact hosted 대기)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -125,8 +125,9 @@ digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal
 attestation도 통과했습니다. Current attestation은 source binding 256 files/2,940,052 bytes/
 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`, checked bytes 1,134/
 `1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다. `make godj-conformance`와 affected
-normal/race/CGO0/vet/generate도 통과했습니다. Final full `make ci`, Linux/386, external archive와 hosted gate가 남아 있으므로
-ADR-0049는 Proposed, DEV-0009는 Implemented 상태입니다. Bearer transport/resource-server support가 JWT/opaque issuance를 뜻하지 않으며
+normal/race/CGO0/vet/generate, EVID-136의 final full `make ci`, Linux/386와 1,077-file external archive도
+통과했습니다. Exact hosted gate가 남아 있으므로 ADR-0049는 Proposed, DEV-0009는 Implemented 상태입니다.
+Bearer transport/resource-server support가 JWT/opaque issuance를 뜻하지 않으며
 refresh/OAuth/OIDC/key lifecycle과 production BFF는 계속 open입니다.
 
 OpenAPI, browsable API, broader token lifecycle과 Channels/Realtime exact version은 여전히 open이므로 Q-016/Q-021은 `Partial`입니다.

@@ -43,7 +43,8 @@
   authentication boundary와 strict injected Bearer resource-server profile을 게시했습니다. AUT-009..016/API-011..012
   actual 10/10, SQLite와 digest-pinned PostgreSQL 17.10 Article Bearer E2E 및 two-process attestation이 통과했고
   분류는 일곱 `passing` + AUT-012/013/015 Implemented DEV-0009 `deviation` 세 개입니다. Current local reference는
-  22/249/462=`218+19+12 locked`, product는 21/237=`218+19`입니다. Final full/386/archive/hosted evidence 전이므로 ADR-0049는 Proposed이고
+  22/249/462=`218+19+12 locked`, product는 21/237=`218+19`입니다. EVID-136의 final local full/386/archive는 통과했지만
+  exact hosted evidence 전이므로 ADR-0049는 Proposed이고
   GDJ-0047은 completed/Verified가 아닙니다. JWT/opaque issuance, refresh, OAuth/OIDC와 production BFF도 제외합니다.
   GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
@@ -115,7 +116,7 @@
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
   exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Implemented deviations`는 local product
-  publication과 SQLite/PostgreSQL required까지 통과했지만 final full/386/archive/hosted evidence 전입니다.
+  publication, SQLite/PostgreSQL required와 final local full/386/archive까지 통과했지만 exact hosted evidence 전입니다.
 - 마지막 검토: 2026-08-27
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -728,7 +729,8 @@ resource-server batch입니다. Proposed [ADR-0049](adr/0049-first-party-bff-and
 AUT-012/013/015 Implemented DEV-0009 세 deviation으로 게시됐습니다. Exact source
 `5469f41b2bb278feaedfc08b35798de7f0fd796d` / tree `21cb835366c10b64ace161ecd304139f694c7c0f`의
 digest-pinned PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0과 two-process source-bound attestation도
-통과했습니다. Final full `make ci`, Linux/386, external archive와 hosted gate는 남아 있습니다. 따라서
+통과했습니다. EVID-136에서 final full `make ci`, Linux/386와 1,077-file external archive도 통과했고 exact hosted gate만
+남아 있습니다. 따라서
 ADR/work/deviation을 terminal Accepted/completed/Verified로 올리지 않습니다.
 
 - settings, app registry, system check
@@ -750,8 +752,8 @@ ADR/work/deviation을 terminal Accepted/completed/Verified로 올리지 않습�
 - API reference profile 확정 — GDJ-0044에서 DRF 3.18.0 exact isolated profile을 Accepted/Verified
 - serializer, JSON parser/renderer, session authentication/permission — GDJ-0044 bounded slice completed
 - bounded Article list/create/detail/PUT/PATCH/delete와 parameter Router, pagination/filter/order — GDJ-0044 completed
-- first-party session/BFF와 strict injected Bearer resource-server profile — GDJ-0047 SQLite/PostgreSQL required 통과,
-  final full/386/archive/hosted 대기; ADR-0049 Proposed, JWT/opaque issuance·refresh·OAuth/OIDC·production BFF 제외
+- first-party session/BFF와 strict injected Bearer resource-server profile — GDJ-0047 SQLite/PostgreSQL required와
+  final local full/386/archive 통과, exact hosted 대기; ADR-0049 Proposed, JWT/opaque issuance·refresh·OAuth/OIDC·production BFF 제외
 - OpenAPI와 browsable API — 별도 후속 결정, 현재 제외
 
 ## M8 — Realtime

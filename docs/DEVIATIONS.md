@@ -671,7 +671,7 @@ cookie/query/body fallback과 CSRF를 사용하지 않고, redacted opaque token
 - Oracle/expected/deviation fixture를 읽지 않는 GoDj actual이 exact 10/10, unexpected difference 0으로 로컬 통과
 - SQLite와 PostgreSQL Article Bearer user-flow E2E, PostgreSQL two-process attestation 및 affected
   normal/race/CGO0/vet/generate와 `make godj-conformance` 통과
-- Final full `make ci`, Linux/386, external archive와 exact hosted matrix는 terminal acceptance 전에 별도 실행
+- EVID-136의 final full `make ci`, Linux/386와 1,077-file external archive 통과; exact hosted matrix는 terminal acceptance 전에 실행
 - ADR-0049가 Proposed인 현재는 `Implemented`이며, terminal evidence와 ADR acceptance 전에는 `Verified`로 올리지 않음
 
 ### 복귀 또는 supersede 조건

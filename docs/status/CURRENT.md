@@ -3,7 +3,7 @@
 - 마지막 갱신: 2026-08-27
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 GDJ-0047 source checkpoint: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+- 현재 GDJ-0047 behavioral source checkpoint: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
   `21cb835366c10b64ace161ecd304139f694c7c0f`. Common `api.Authentication`, Session adapter, strict
   `api/bearerauth`, profile-neutral Article API, SQLite/PostgreSQL Bearer E2E와 AUT-009..016/API-011..012 oracle-blind
   actual이 구현됐습니다. Reference는 22 sets/249 contracts/462 ordered bindings=
@@ -15,9 +15,13 @@
   256 files/2,940,052 bytes/SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`, checked
   PostgreSQL attestation은 1,134 bytes/SHA-256 `1504f07b83081cacbc35a213a54f681c82a7f1e740ed1802b1a276b734b32d1f`입니다.
   [EVID-135](TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint)의
-  affected normal/race/CGO0/vet, generated drift, full 21-adapter product comparison과 credential-scanner 독립 감사도
-  통과했습니다. 정확한 다음 작업은 documentation checkpoint 뒤 final full `make ci`, Linux/386, repository-external archive,
-  final audit, non-force push와 Draft PR exact-hosted matrix입니다. 아직 terminal acceptance가 아닙니다.
+  affected normal/race/CGO0/vet, generated drift, full 21-adapter product comparison과 credential-scanner 독립 감사가
+  통과했습니다. Documentation checkpoint `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`, tree
+  `f721caadbc9196505bac6b2a8cc57f89c28f4f2b`에서는
+  [EVID-136](TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)의 final full `make ci`,
+  107-package Linux/386 compile-only, 1,077-file repository-external archive와 final audit가 통과했습니다. 정확한 다음 작업은
+  이 documentation descendant의 non-force push, Draft PR #1 갱신과 exact submitted-head hosted matrix입니다. 아직 terminal
+  acceptance가 아닙니다.
 - GDJ-0046 terminal corrected frozen source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`
   (`ci: harden exact Python setup`), tree `4f061289b240b4739ec43155b08b5909e95eddc0`. Initial Phase E publication
   `de5cd505b598bc6fea3f7869d57d9c6c724f394a`은 actual/product source를 게시했고, known upstream
@@ -629,7 +633,7 @@
   0/12 contracts·0/30 dimensions는 12개 semantic product failure가 아니었습니다. GDJ-0036은 그 뒤
   MIG-075..079를 current ABI/format/digest/state/staged-preflight 진단 계약으로 재기준화하고 dependency 및
   public `*migrations.PlanningError` typed classification false-green을 닫았습니다. 그 GDJ-0036 시점 aggregate는
-  13/139/156이었고, same-ID 12개는 현재 전체 21/239/420 reference에도 포함되지만 reference-only
+  13/139/156이었고, same-ID 12개는 현재 전체 22/249/462 reference에도 포함되지만 reference-only
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0046 Database-Coordinated Multi-Runtime System State and Shared CSRF Keys](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)
@@ -1267,10 +1271,10 @@
 
 ### 호환 계약과 machine artifact
 
-- Protocol v2 reference에는 현재 21 ordered set, 239 unique contract/scenario와 420 ordered
-  cross-binding이 있습니다. Current product는 20개 set에 actual GoDj adapter를 가지며
-  227 contract 분류는 `211 passing + 16 deviation + 0 oracle_locked`입니다. Reference 분류는
-  `211 passing + 16 deviation + 12 oracle_locked`이고 MIG-075..086만 reference-only `oracle_locked`이며
+- Protocol v2 reference에는 현재 22 ordered set, 249 unique contract/scenario와 462 ordered
+  cross-binding이 있습니다. Current product는 21개 set에 actual GoDj adapter를 가지며
+  237 contract 분류는 `218 passing + 19 deviation + 0 oracle_locked`입니다. Reference 분류는
+  `218 passing + 19 deviation + 12 oracle_locked`이고 MIG-075..086만 reference-only `oracle_locked`이며
   product actual에는 등록되지 않습니다. SYS-013..020은 Accepted ADR-0048 아래 oracle-blind actual에 등록된
   `passing`입니다. GDJ-0043의
   checkpoint 30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는
@@ -1318,7 +1322,7 @@
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
   MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
   14/151/182였습니다. GDJ-0040 completion checkpoint는 QRY-034..043 set을 더한 15/161/210이고 product는
-  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 21/239/420 및 20/227입니다. Local relation
+  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 22/249/462 및 21/237입니다. Local relation
   transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
@@ -1674,8 +1678,9 @@ GDJ-0045와 GDJ-0046은 completed이고 외부 blocker는 없습니다. GDJ-0046
 `4f061289...`는 EVID-133의 affected/full/386/1,055-file external archive와 independent audit를 통과했고 EVID-134/CI #153의
 exact hosted matrix가 terminal acceptance를 닫았습니다. First Phase E CI #152의 Python 3.12 failure는 known upstream
 setup-python v6 manifest truncation이었고 제품/contract proof로 재사용하지 않았습니다. Correction은 v7 exact SHA와 recaptured
-source-bound PostgreSQL attestation을 사용합니다. Current reference/product는 21/239/420=`211+16+12 locked`,
-20/227=`211+16`이고 SYS-013..020은 모두 product `passing`입니다. 이 완료는 cooperative same-schema writer와 identical
+source-bound PostgreSQL attestation을 사용합니다. 그 GDJ-0046 terminal reference/product는
+21/239/420=`211+16+12 locked`, 20/227=`211+16`이고 SYS-013..020은 모두 product `passing`입니다. 이 완료는
+cooperative same-schema writer와 identical
 normalized deployment policy에 한정되며 non-cooperative writer, general constraint/CAS, distributed coordination, family-wide
 revocation, JWT/OAuth와 production topology는 지원 주장이 아닙니다.
 Accepted ADR-0045/0046 아래 exact 18-contract Article
@@ -1788,11 +1793,12 @@ EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
 현재 active/ready packet은 1/0입니다. GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
-matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. Active GDJ-0047은 terminal docs
-baseline `2ffcc889...`에서 Proposed ADR-0049와 Q-021 `Partial`을 활성화했습니다. Product/reference bytes는 아직 바뀌지 않았고,
-정확한 다음 작업은 first-party session을 보존하면서 strict injected Bearer `Token`/`Verifier`가 같은
-`auth.Principal`/permission 및 Article JSON API를 재사용하는 AUT-009..016/API-011..012 exact 10-contract reference-only Phase
-A publication입니다. Concrete JWT 발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema 변경은 함께 넣지 않습니다.
+matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. Active GDJ-0047은 exact source
+`5469f41b...`에서 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
+AUT-009..016/API-011..012 actual 10/10을 게시했습니다. Current reference/product는
+22/249/462=`218+19+12 locked`, 21/237=`218+19`입니다. EVID-136의 final local full/386/1,077-file archive/audit도
+통과했고 정확한 다음 작업은 documentation descendant의 non-force push, Draft PR 갱신과 exact submitted-head hosted
+matrix입니다. Concrete JWT 발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema 변경은 함께 넣지 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 P1/open입니다.
 MIG-075..086은 remaining reference-only locked range이지만 diagnostic 관찰을 자동 product passing으로 승격하지 않습니다.

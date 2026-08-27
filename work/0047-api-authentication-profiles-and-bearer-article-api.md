@@ -24,7 +24,14 @@ allowed_paths:
   - "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json"
   - "conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/SHA256SUMS"
   - "conformance/reference/drf/**"
+  - "conformance/runners/django/api_authentication_decisions.py"
   - "conformance/runners/django/article_api_fixture/**"
+  - "conformance/runners/django/article_api_proxy.py"
+  - "conformance/runners/django/article_api_scenarios.py"
+  - "conformance/runners/django/article_api_worker.py"
+  - "conformance/runners/django/runner.py"
+  - "conformance/runners/django/tests/test_api_authentication_scenarios.py"
+  - "conformance/runners/django/tests/test_scenarios.py"
   - "conformance/runners/godj/**"
   - "conformance/cmd/godjcheck/**"
   - "conformance/internal/protocol/**"
@@ -133,7 +140,7 @@ Independent client 또는 BFF
   `2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree `dee452188c0219a9a5759fb694196dc48d008a2c`
 - Product baseline: corrected GDJ-0046 frozen source `29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree
   `4f061289b240b4739ec43155b08b5909e95eddc0`; EVID-133 local final과 EVID-134/CI #153 exact 27/27·360/360 success
-- Current reference/product: 21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12 oracle_locked`;
+- Activation reference/product: 21 sets/239 contracts/420 ordered bindings=`211 passing + 16 deviation + 12 oracle_locked`;
   20 adapters/227 contracts=`211 passing + 16 deviation`
 - Existing `api` lower core는 session package를 import하지 않습니다. Concrete coupling은 Article API application의
   `*api/sessionauth.Runtime` field/constructor에 한정됩니다.
@@ -199,7 +206,8 @@ examples/article/apiapp → api + articleapp
 - [x] Phase D: SQLite full-flow/profile-isolation E2E와 oracle-blind Go actual
 - [x] Phase E: digest-pinned PostgreSQL required E2E, product status classification와 global conformance publication
 - [x] Source checkpoint: affected normal/race/CGO0/vet, generated drift, secret scan와 system-state source-bound attestation recapture
-- [ ] Final frozen milestone: full `make ci`, Linux/386, repository-external clean copy, independent audit와 exact hosted matrix once
+- [x] Final frozen local milestone: full `make ci`, Linux/386, repository-external clean copy와 independent audit once
+- [ ] Exact submitted-head hosted matrix once
 - [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
 ## Source checkpoint 결과
@@ -215,7 +223,10 @@ examples/article/apiapp → api + articleapp
 - Verification: affected normal/race/CGO0/vet, generated drift, exact 21-adapter comparison, digest-pinned PostgreSQL
   normal/race/CGO0 and source-bound attestation passed. Independent audit found and closed one credential-canary false-green,
   then returned P0..P3=0.
-- Not yet run: final full `make ci`, Linux/386, repository-external archive and exact hosted matrix.
+- Final local full `make ci`, Linux/386와 repository-external archive는 documentation checkpoint
+  `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`에서 통과했습니다. Detailed exact commands, inventory와 harness
+  exclusions는 [EVID-136](../docs/status/TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)에 있습니다.
+- Not yet run: exact submitted-head hosted matrix.
 
 ## 검증 주기
 
@@ -240,7 +251,8 @@ examples/article/apiapp → api + articleapp
 - [x] SQLite/PostgreSQL에서 같은 Article route/service/representation을 session과 Bearer profile이 재사용함
 - [x] JWT/opaque/refresh/OAuth 구현 없이 verifier injection만으로 수직 단면이 닫힘
 - [x] Global manifest/registry/inventory와 source-bound PostgreSQL attestation이 exact current source에 맞음
-- [ ] Final local/hosted gates와 independent audit가 통과하고 status/evidence/ADR/PR이 같은 frozen source를 가리킴
+- [x] Final local full/386/external archive와 independent audit가 통과함
+- [ ] Exact hosted gates가 통과하고 status/evidence/ADR/PR이 같은 submitted source를 가리킴
 
 ## 인수인계
 
@@ -255,6 +267,11 @@ Article Bearer E2E normal/race/CGO-disabled가 통과했습니다. Checked attes
 256 files/2,940,052 bytes/SHA-256 `caa773143c26f18efc6f9459593979781438ffe86f0cec1a4be7c4ab0c7ca67a`입니다.
 독립 감사의 credential-scanner finding을 수정한 뒤 최종 P0..P3는 0이었습니다.
 
-정확한 다음 작업은 이 source와 publication 문서를 한 checkpoint로 고정한 뒤 full `make ci`, Linux/386,
-repository-external clean archive와 final audit를 한 번 실행하는 것입니다. 그 exact head를 non-force push하고 Draft PR #1의
-hosted matrix까지 성공해야 ADR-0049 Accepted, DEV-0009 Verified와 work completed를 검토합니다. Merge/release/deploy는 계속 제외합니다.
+Documentation checkpoint `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`, tree
+`f721caadbc9196505bac6b2a8cc57f89c28f4f2b`에서 final full `make ci`, 107-package Linux/386 compile-only와
+1,077-file repository-external clean archive가 통과했습니다. 최종 감사가 찾은 allowed-path/current-summary 문서 불일치는
+EVID-136을 기록하는 documentation-only descendant에서 정정합니다.
+
+정확한 다음 작업은 그 descendant를 non-force push하고 Draft PR #1을 갱신한 뒤 exact submitted-head hosted matrix를
+통과시키는 것입니다. 그때만 ADR-0049 Accepted, DEV-0009 Verified와 work completed를 검토합니다.
+Merge/release/deploy는 계속 제외합니다.

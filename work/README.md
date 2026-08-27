@@ -74,22 +74,19 @@ proposed → ready → active → completed
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
 현재 active/ready packet은 1/0입니다. Active
-[GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 terminal documentation baseline
-`2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree `dee452188c0219a9a5759fb694196dc48d008a2c`에서 Proposed
-[ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)와 Q-021 `Partial`을 활성화했습니다. Product와
-contract aggregate는 아직 바뀌지 않았고 정확한 다음 작업은 AUT-009..016/API-011..012 exact 10-contract reference-only Phase
-A publication입니다. 최근 terminal completion은
-[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)입니다. Initial Phase E publication
-`de5cd505...` 뒤 setup-python v6의 known manifest-truncation path를 교정한 exact frozen source는
-`29d62469c9e6f5a6228d1578bf41b88e35eefef0`, tree `4f061289b240b4739ec43155b08b5909e95eddc0`입니다.
-[EVID-133](../docs/status/TEST_EVIDENCE.md#evid-20260826-133--gdj-0046-phase-e-frozen-source-and-corrected-local-final)의
-affected/full/386/1,055-file external archive와 independent audit, 그리고
-[EVID-134](../docs/status/TEST_EVIDENCE.md#evid-20260826-134--gdj-0046-corrected-exact-head-hosted-completion) / CI #153 run
-`32938192672`의 exact 27/27 jobs·360/360 steps가 통과했습니다. Accepted
-[ADR-0048](../docs/adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md) 아래 SYS-013..020은 모두
-product `passing`; current reference/product는 21/239/420=`211+16+12 locked`, 20/227=`211+16`입니다. Q-020은
-non-cooperative/distributed/production 범위 때문에 `Partial`, DEV-0008은 zero-config SYS-009에 대해 Verified입니다.
-Draft PR #1은 OPEN/DRAFT/unmerged입니다.
+[GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 exact behavioral source `5469f41b...`, tree
+`21cb8353...`에서 common Session/Bearer authentication boundary, strict injected verifier, profile-neutral Article API,
+AUT-009..016/API-011..012와 SQLite/PostgreSQL required flow를 게시했습니다. Current reference는
+22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`, product는
+21 adapters/237 contracts=`218 passing + 19 deviation`입니다. AUT-012/013/015만 Implemented DEV-0009이고
+[ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed, Q-021은 `Partial`입니다.
+[EVID-135](../docs/status/TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint)의
+source/backend checkpoint와
+[EVID-136](../docs/status/TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)의 full/386/1,077-file
+external archive/final audit가 통과했습니다. 정확한 다음 작업은 documentation descendant를 non-force push하고 Draft PR #1의
+exact hosted matrix를 통과시키는 것입니다. 최근 terminal completion은
+[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)이며 Draft PR #1은
+OPEN/DRAFT/unmerged입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
 `32347190714` exact 26/26 success로 completed됐습니다. GDJ-0037은 implementation head `9258a084...`의 첫 CI

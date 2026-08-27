@@ -57,8 +57,9 @@ Access claim policy, signing/validation key ring, issuer/audience, clock skew, d
 
 ## 제안 결정
 
-선택지 B를 GDJ-0047 prototype 방향으로 제안합니다. Reference, local product publication과 digest-pinned PostgreSQL required
-evidence는 통과했지만 final full/386/archive/hosted evidence가 남아 있으므로 terminal evidence 뒤 Accepted 여부를 결정합니다.
+선택지 B를 GDJ-0047 prototype 방향으로 제안합니다. Reference, local product publication, digest-pinned PostgreSQL required와
+final local full/386/archive evidence는 통과했지만 exact hosted evidence가 남아 있으므로 terminal evidence 뒤 Accepted 여부를
+결정합니다.
 
 1. `api`는 다음 최소 public contract를 소유합니다.
 
@@ -148,7 +149,7 @@ evidence는 통과했지만 final full/386/archive/hosted evidence가 남아 있
   CSRF 호출 0, cookie/query/body no-fallback과 fixed challenge를 검증합니다.
 - Secret tests는 all fmt verbs used by product, JSON/error wrapping, HTTP body/header와 conformance observation에서 marker occurrence 0을 요구합니다.
 - Article SQLite/PostgreSQL E2E는 valid Bearer CRUD 결과, permission별 403, invalid denial mutation 0과 existing session regression을 검증합니다.
-- Affected normal/race/CGO0/vet와 final full/386/external archive/exact hosted matrix를 work packet 주기에 따라 실행합니다.
+- Affected normal/race/CGO0/vet, final full/386/external archive와 exact hosted matrix를 work packet 주기에 따라 실행합니다.
 
 ## 현재 product-publication checkpoint
 
@@ -167,7 +168,8 @@ oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
 - Exact source: commit `5469f41b2bb278feaedfc08b35798de7f0fd796d`,
   tree `21cb835366c10b64ace161ecd304139f694c7c0f`
 - Affected normal/race/CGO0/vet/generate와 `make godj-conformance`: pass
+- Final local `make ci`, 107-package Linux/386 compile-only와 1,077-file external archive: pass in EVID-136
 
-따라서 이 섹션은 구현 publication과 required backend 기록이지 terminal acceptance가 아닙니다. Full `make ci`, Linux/386,
-external archive와 exact hosted matrix가 완료되기 전까지 ADR 상태는 `Proposed`, DEV-0009는
+따라서 이 섹션은 구현 publication과 local final 기록이지 terminal acceptance가 아닙니다. Exact hosted matrix가 완료되기
+전까지 ADR 상태는 `Proposed`, DEV-0009는
 `Implemented`로 유지합니다.

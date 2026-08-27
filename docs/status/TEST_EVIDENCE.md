@@ -12573,3 +12573,78 @@ The local Homebrew `uv 0.12.3` does not satisfy the exact profile pin `uv 0.10.1
 therefore failed closed before reference execution. Exact `uv 0.10.12` is available through the local uv tool cache and will
 be placed first on PATH for the final `make ci`. This checkpoint does not claim that final gate, Linux/386, external archive,
 hosted success, ADR acceptance, DEV verification, work completion, merge, release or deployment.
+
+## EVID-20260827-136 — GDJ-0047 Frozen Local Final Gates
+
+- Date/time: completed through 2026-08-27T14:51:08+09:00
+- Work/contract IDs: GDJ-0047 active; ADR-0049 Proposed; DEV-0009 Implemented; Q-021 Partial;
+  AUT-009..016/API-011..012 product published
+- Exact behavioral source: `5469f41b2bb278feaedfc08b35798de7f0fd796d`, tree
+  `21cb835366c10b64ace161ecd304139f694c7c0f`
+- Exact committed local-final input: `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`, tree
+  `f721caadbc9196505bac6b2a8cc57f89c28f4f2b`
+- Result: the final local full matrix, all-package Linux/386 compile-only gate and repository-external exact archive
+  passed. The exact hosted matrix remains pending, so this evidence does not accept ADR-0049, verify DEV-0009 or complete
+  GDJ-0047.
+
+### Full local matrix
+
+The committed checkpoint was clean before and after this exact command:
+
+```bash
+PATH=/Users/hanhyeonjin/.cache/uv/archive-v0/MsrMoQktpd-TFLXT/bin:$PATH \
+  LC_ALL=C TZ=UTC make ci
+```
+
+It exited 0 on macOS 26.6.2 build 25G83 with Go 1.26.5 darwin/arm64, exact uv 0.10.12 and exact reference
+Python 3.14.3. The matrix covered generated drift, all-package normal/vet/race, configured CGO-disabled products,
+255 Python tests with 24 intentional exact-profile-only skips, stored contract checks and all twenty-one GoDj product
+adapters. Article and relation-delete generation remained exact at 12 files/SHA-256
+`0af11c64ed9cdf6dc8be1ecb1c0768786fc61e54258fc13b4f3a9a4ad12fb675` and 16 files/SHA-256
+`2a28734ce38d729ef3e43566bd488a9cdb314d831a79f311d82359e2250d550b`. API authentication remained exact
+10/10 under the seven-selector DEV-0009 expectation, and the top-level product inventory remained
+1,066 run/1,066 pass/0 skip, 110,405 payload bytes, SHA-256
+`72b08a582679e3f9b6921b49dd3bc46a355023f0fd97a8a24c109b7ce2b1d83b`.
+
+### Linux/386 compile-only gate
+
+```bash
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The command exited 0 for all 107 packages. `/usr/bin/true` makes this cross-build compile-only evidence; it does not
+claim Linux/386 runtime execution on the darwin/arm64 host.
+
+### Repository-external exact archive
+
+A guarded `.git`-free `git archive 6301e08371ae7f3eb6294dca9c59b987a72e8c6c` contained exactly 1,077 tracked
+regular files and 107 Go packages. All Git entries were mode `100644`; every extracted path, mode and Git blob matched the
+committed tree. The raw `git ls-tree -r -z --full-tree` stream SHA-256 was
+`6e503a46f6d993bc258825ef9c991b2b4f05c2f9ac29906524526fe3d10dcdff`.
+
+With a private external `GOCACHE`, `make generate-check` and the same all-package Linux/386 compile-only command both
+exited 0. The sorted framed `path<NUL>sha256(file)<NUL>mode<NUL>` roster stayed byte-identical before and after at
+1,077 entries/SHA-256 `c9195a2a3a755ba399c8eb770afb624b231142f2372d5fd9c216c559e92cd6a4`.
+The successful archive and cache roots were moved recoverably to Trash after verification; their original temporary paths
+no longer exist.
+
+### Audit corrections and excluded attempts
+
+The final read-only review found no product or security defect. It did find documentation-scope inconsistencies: seven
+Django runner paths changed by GDJ-0047 were missing from the packet's `allowed_paths`, and `work/README.md`, historical
+sections of `CURRENT.md` and three implementation-matrix rows still described the GDJ-0046 aggregate or Phase A as
+current. The documentation-only descendant corrects those claims while preserving explicitly historical snapshots.
+The post-correction read-only re-audit returned P0/P1/P2/P3=`0/0/0/0`: all 63 GDJ-0047 changed paths matched the
+packet's 46 allowed-path patterns, current aggregate/next-step mirrors agreed, and relative targets, anchors, frontmatter,
+fences and status consistency had zero remaining error.
+
+One first archive harness attempt had a missing Perl statement separator and exited during file counting, before any
+product gate or comparison; its exact temporary roots were moved to Trash and it is not evidence. Two later read-only
+search commands accidentally started duplicate `make ci` processes through shell backtick substitution. Their exact
+process groups were terminated before completion, no result is counted, and the worktree remained clean. These operator
+harness errors do not replace or weaken the successful exact commands above.
+
+This local final evidence does not claim hosted success, JWT/opaque issuance, refresh-token lifecycle, OAuth/OIDC,
+production BFF/OpenAPI, merge, release or deployment. The next gate is a non-force push of the documentation descendant,
+Draft PR #1 refresh and the exact submitted-head hosted matrix.

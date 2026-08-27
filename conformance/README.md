@@ -289,8 +289,9 @@ Checked attestation은 current behavioral source 256 files/2,940,052 payload byt
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=
 `218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Proposed,
-DEV-0009는 Implemented이므로 full `make ci`, Linux/386, external archive와 exact hosted matrix 전에는 이 checkpoint를
-terminal acceptance나 Verified deviation으로 표현하지 않습니다. JWT/opaque token issuance,
+DEV-0009는 Implemented입니다. EVID-136의 final local full `make ci`, Linux/386와 1,077-file external archive는
+통과했지만 exact hosted matrix 전에는 이 checkpoint를 terminal acceptance나 Verified deviation으로 표현하지 않습니다.
+JWT/opaque token issuance,
 refresh family, OAuth/OIDC, signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
 ## GDJ-0045 durable system-state reference gate
