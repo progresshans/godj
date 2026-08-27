@@ -106,6 +106,15 @@ func gdj0047RawToken(label string) string {
 	return "gdj0047." + hex.EncodeToString(digest[:])
 }
 
+func gdj0047SizedToken(label string, size int) string {
+	if size <= 0 {
+		return ""
+	}
+	seed := gdj0047RawToken(label)
+	repeated := strings.Repeat(seed, (size+len(seed)-1)/len(seed))
+	return repeated[:size]
+}
+
 type gdj0047VerifierSnapshot struct {
 	calls   int64
 	success int64
@@ -630,16 +639,19 @@ func gdj0047AuthenticationResponse(response articleAPIHTTPResponse, authenticate
 
 func (fixture *gdj0047APIFixture) finalize(
 	observation protocol.Observation,
-	rawBearerLabels ...string,
+	exactCredentialCanaries ...string,
 ) (protocol.Observation, error) {
 	encoded, err := json.Marshal(observation)
 	if err != nil {
 		return protocol.Observation{}, err
 	}
 	visible := string(encoded) + fixture.artifacts.String() + fixture.logs.String()
-	for _, label := range rawBearerLabels {
-		if strings.Contains(visible, gdj0047RawToken(label)) {
-			return protocol.Observation{}, fmt.Errorf("GDJ-0047 raw bearer escaped from label %q", label)
+	for index, canary := range exactCredentialCanaries {
+		if canary == "" {
+			return protocol.Observation{}, fmt.Errorf("GDJ-0047 credential canary %d is empty", index)
+		}
+		if strings.Contains(visible, canary) {
+			return protocol.Observation{}, fmt.Errorf("GDJ-0047 credential canary %d escaped", index)
 		}
 	}
 	return observation, nil

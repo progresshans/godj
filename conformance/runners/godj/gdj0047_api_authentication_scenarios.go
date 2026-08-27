@@ -140,7 +140,7 @@ func gdj0047CommonAuthenticationBoundary(ctx context.Context, contract protocol.
 		"construction_cases":      parameterRoutingInt(len(cases.Items)),
 		"context_principal_slots": parameterRoutingInt(0),
 	}))
-	return fixture.finalize(observation, "construction")
+	return fixture.finalize(observation, gdj0047RawToken("construction"))
 }
 
 type gdj0047PartialAuthentication struct {
@@ -173,8 +173,15 @@ func gdj0047BoundedBearerHeader(ctx context.Context, contract protocol.Contract)
 	}
 	defer func() { err = errors.Join(err, fixture.close()) }()
 	acceptedRecord := gdj0047VerificationRecord{principal: principal}
-	maxToken := strings.Repeat("a", bearerauth.MaxTokenBytes)
-	for _, encoded := range []string{"abc", "a-Z_~+/9==", maxToken} {
+	unsupportedToken := gdj0047RawToken("grammar-unsupported")
+	simpleToken := gdj0047RawToken("grammar-simple")
+	rfcToken := gdj0047RawToken("grammar-rfc") + "-Z_~+/9=="
+	duplicateToken := gdj0047RawToken("grammar-duplicate")
+	interiorPaddingToken := gdj0047RawToken("grammar-interior-padding") + "=x"
+	nonASCIIToken := gdj0047RawToken("grammar-non-ascii") + "é"
+	maxToken := gdj0047SizedToken("grammar-max", bearerauth.MaxTokenBytes)
+	overLimitToken := maxToken + "a"
+	for _, encoded := range []string{simpleToken, rfcToken, maxToken} {
 		fixture.verifier.addEncoded(encoded, acceptedRecord)
 	}
 
@@ -183,18 +190,18 @@ func gdj0047BoundedBearerHeader(ctx context.Context, contract protocol.Contract)
 		header http.Header
 	}{
 		{name: "missing"},
-		{name: "unsupported_scheme", header: gdj0047Authorization("Basic abc")},
-		{name: "one_space", header: gdj0047Authorization("Bearer abc")},
-		{name: "multiple_spaces", header: gdj0047Authorization("bEaReR   abc")},
-		{name: "rfc_alphabet", header: gdj0047Authorization("Bearer a-Z_~+/9==")},
-		{name: "duplicate_fields", header: http.Header{"Authorization": {"Bearer abc", "Bearer def"}}},
-		{name: "joined_fields", header: gdj0047Authorization("Bearer abc, Bearer def")},
-		{name: "tab_separator", header: gdj0047Authorization("Bearer\tabc")},
+		{name: "unsupported_scheme", header: gdj0047Authorization("Basic " + unsupportedToken)},
+		{name: "one_space", header: gdj0047Authorization("Bearer " + simpleToken)},
+		{name: "multiple_spaces", header: gdj0047Authorization("bEaReR   " + simpleToken)},
+		{name: "rfc_alphabet", header: gdj0047Authorization("Bearer " + rfcToken)},
+		{name: "duplicate_fields", header: http.Header{"Authorization": {"Bearer " + simpleToken, "Bearer " + duplicateToken}}},
+		{name: "joined_fields", header: gdj0047Authorization("Bearer " + simpleToken + ", Bearer " + duplicateToken)},
+		{name: "tab_separator", header: gdj0047Authorization("Bearer\t" + simpleToken)},
 		{name: "empty", header: gdj0047Authorization("Bearer ")},
-		{name: "interior_padding", header: gdj0047Authorization("Bearer ab=c")},
-		{name: "non_ascii", header: gdj0047Authorization("Bearer café")},
+		{name: "interior_padding", header: gdj0047Authorization("Bearer " + interiorPaddingToken)},
+		{name: "non_ascii", header: gdj0047Authorization("Bearer " + nonASCIIToken)},
 		{name: "token_bytes_4096", header: gdj0047Authorization("Bearer " + maxToken)},
-		{name: "token_bytes_4097", header: gdj0047Authorization("Bearer " + maxToken + "a")},
+		{name: "token_bytes_4097", header: gdj0047Authorization("Bearer " + overLimitToken)},
 	}
 	client := fixture.bearerClient()
 	cases := make([]protocol.Value, 0, len(tests))
@@ -274,7 +281,11 @@ func gdj0047BoundedBearerHeader(ctx context.Context, contract protocol.Contract)
 		"cases":                   parameterRoutingInt(len(cases)),
 		"pre_verifier_rejections": parameterRoutingInt(preVerifierRejections),
 	}))
-	return fixture.finalize(observation, "alternate-transport")
+	return fixture.finalize(
+		observation,
+		unsupportedToken, simpleToken, rfcToken, duplicateToken, interiorPaddingToken,
+		nonASCIIToken, maxToken, overLimitToken, alternateRaw,
+	)
 }
 
 func gdj0047BearerOutcome(header http.Header, response articleAPIHTTPResponse, verifierCalls int) (string, error) {
@@ -303,13 +314,15 @@ func gdj0047MissingAndUnsupported(ctx context.Context, contract protocol.Contrac
 		return protocol.Observation{}, err
 	}
 	defer func() { err = errors.Join(err, fixture.close()) }()
+	unsupportedBasic := gdj0047RawToken("unsupported-basic")
+	unsupportedToken := gdj0047RawToken("unsupported-token")
 	inputs := []struct {
 		name   string
 		header http.Header
 	}{
 		{name: "missing"},
-		{name: "unsupported_basic", header: gdj0047Authorization("Basic abc")},
-		{name: "unsupported_token", header: gdj0047Authorization("Token abc")},
+		{name: "unsupported_basic", header: gdj0047Authorization("Basic " + unsupportedBasic)},
+		{name: "unsupported_token", header: gdj0047Authorization("Token " + unsupportedToken)},
 	}
 	client := fixture.bearerClient()
 	cases := make([]protocol.Value, 0, len(inputs))
@@ -333,7 +346,7 @@ func gdj0047MissingAndUnsupported(ctx context.Context, contract protocol.Contrac
 		"redirects":                parameterRoutingInt(redirects),
 		"requests":                 parameterRoutingInt(len(cases)),
 	}))
-	return fixture.finalize(observation)
+	return fixture.finalize(observation, unsupportedBasic, unsupportedToken)
 }
 
 func gdj0047InvalidAndValidToken(ctx context.Context, contract protocol.Contract) (observation protocol.Observation, err error) {
@@ -387,7 +400,10 @@ func gdj0047InvalidAndValidToken(ctx context.Context, contract protocol.Contract
 		"requests":                   parameterRoutingInt(len(cases)),
 		"successful_authentications": parameterRoutingInt(successful),
 	}))
-	return fixture.finalize(observation, "unknown", "inactive", "active")
+	return fixture.finalize(
+		observation,
+		gdj0047RawToken("unknown"), gdj0047RawToken("inactive"), gdj0047RawToken("active"),
+	)
 }
 
 func gdj0047PermissionDenial(ctx context.Context, contract protocol.Contract) (observation protocol.Observation, err error) {
@@ -433,7 +449,7 @@ func gdj0047PermissionDenial(ctx context.Context, contract protocol.Contract) (o
 		"authenticated_requests": parameterRoutingInt64(fixture.verifier.snapshot().success),
 		"requests":               parameterRoutingInt(1),
 	}))
-	return fixture.finalize(observation, "permission-denied")
+	return fixture.finalize(observation, gdj0047RawToken("permission-denied"))
 }
 
 func gdj0047UnsafeWithoutCSRF(ctx context.Context, contract protocol.Contract) (observation protocol.Observation, err error) {
@@ -478,7 +494,7 @@ func gdj0047UnsafeWithoutCSRF(ctx context.Context, contract protocol.Contract) (
 		"csrf_credentials_supplied": parameterRoutingInt(0),
 		"requests":                  parameterRoutingInt(1),
 	}))
-	return fixture.finalize(observation, "unsafe")
+	return fixture.finalize(observation, gdj0047RawToken("unsafe"))
 }
 
 func gdj0047ProfileIsolation(ctx context.Context, contract protocol.Contract) (observation protocol.Observation, err error) {
@@ -559,7 +575,10 @@ func gdj0047ProfileIsolation(ctx context.Context, contract protocol.Contract) (o
 		"requests":                 parameterRoutingInt(len(cases)),
 		"session_cookie_present":   parameterRoutingInt(1),
 	}))
-	return fixture.finalize(observation, "profile-valid", "profile-unknown")
+	return fixture.finalize(
+		observation,
+		gdj0047RawToken("profile-valid"), gdj0047RawToken("profile-unknown"), fixture.sessionCookie.Value,
+	)
 }
 
 func gdj0047SecretAndFailureBoundary(ctx context.Context, contract protocol.Contract) (observation protocol.Observation, err error) {
@@ -716,8 +735,10 @@ func gdj0047SecretAndFailureBoundary(ctx context.Context, contract protocol.Cont
 	}))
 	return fixture.finalize(
 		observation,
-		"format", "invalid", "infra", "verifier-cancel", "verifier-deadline",
-		"authorizer", "authorizer-cancel", "authorizer-deadline",
+		gdj0047RawToken("format"), gdj0047RawToken("invalid"), gdj0047RawToken("infra"),
+		gdj0047RawToken("verifier-cancel"), gdj0047RawToken("verifier-deadline"),
+		gdj0047RawToken("authorizer"), gdj0047RawToken("authorizer-cancel"),
+		gdj0047RawToken("authorizer-deadline"),
 	)
 }
 
@@ -864,7 +885,7 @@ func gdj0047ArticleRouteReuse(ctx context.Context, contract protocol.Contract) (
 		"profile_count":               parameterRoutingInt(2),
 		"shared_routes":               parameterRoutingInt(len(bearerRoutes)),
 	}))
-	return fixture.finalize(observation, "route-reuse")
+	return fixture.finalize(observation, gdj0047RawToken("route-reuse"))
 }
 
 func gdj0047CRUDRoutes(routes []web.Route) []string {
@@ -902,13 +923,14 @@ func gdj0047DenialMutationBoundary(ctx context.Context, contract protocol.Contra
 	invocationBefore := fixture.bearerAuthentication.snapshot()
 	atomicBefore := fixture.bearerBackend.atomicCalls.Load()
 	payload := `{"title":"Must not create","published":true,"summary":null}`
+	malformedRaw := gdj0047RawToken("malformed-denial") + "=x"
 	inputs := []struct {
 		name   string
 		header http.Header
 		cookie *http.Cookie
 	}{
 		{name: "missing"},
-		{name: "malformed", header: gdj0047Authorization("Bearer ab=c")},
+		{name: "malformed", header: gdj0047Authorization("Bearer " + malformedRaw)},
 		{name: "invalid", header: gdj0047Bearer("invalid-denial")},
 		{name: "permission_denied", header: gdj0047Bearer("denied")},
 		{name: "session_cookie_fallback", cookie: fixture.sessionCookie},
@@ -958,7 +980,10 @@ func gdj0047DenialMutationBoundary(ctx context.Context, contract protocol.Contra
 		"attempts": parameterRoutingInt(len(cases)), "raw_bearer_occurrences": parameterRoutingInt(0),
 		"total_mutations": parameterRoutingInt(totalMutations),
 	}))
-	return fixture.finalize(observation, "invalid-denial", "denied")
+	return fixture.finalize(
+		observation,
+		malformedRaw, gdj0047RawToken("invalid-denial"), gdj0047RawToken("denied"), fixture.sessionCookie.Value,
+	)
 }
 
 func gdj0047Observation(contract protocol.Contract, result protocol.Value, state *protocol.Value, metrics protocol.Value) protocol.Observation {

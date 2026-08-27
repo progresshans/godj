@@ -136,6 +136,61 @@ func TestGDJ0047ActualArtifactsAndDiagnosticsContainNoRawBearer(t *testing.T) {
 	}
 }
 
+func TestGDJ0047FinalizeRejectsExactCredentialCanaryOnEveryVisibleSurface(t *testing.T) {
+	credential := gdj0047RawToken("exact-scanner")
+	baseResult := protocol.String("clean")
+	base := protocol.Observation{
+		ID: "AUT-999", Status: protocol.StatusObserved, Phase: protocol.PhaseEvaluation,
+		Result: &baseResult,
+	}
+	tests := []struct {
+		name    string
+		prepare func(*gdj0047APIFixture) protocol.Observation
+	}{
+		{
+			name: "observation",
+			prepare: func(*gdj0047APIFixture) protocol.Observation {
+				observation := base
+				result := protocol.String(credential)
+				observation.Result = &result
+				return observation
+			},
+		},
+		{
+			name: "response_artifact",
+			prepare: func(fixture *gdj0047APIFixture) protocol.Observation {
+				_, _ = fixture.artifacts.Write([]byte(credential))
+				return base
+			},
+		},
+		{
+			name: "log",
+			prepare: func(fixture *gdj0047APIFixture) protocol.Observation {
+				_, _ = fixture.logs.Write([]byte(credential))
+				return base
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := &gdj0047APIFixture{artifacts: &gdj0047LockedBuffer{}, logs: &gdj0047LockedBuffer{}}
+			if _, err := fixture.finalize(test.prepare(fixture), credential); err == nil {
+				t.Fatal("exact credential canary escaped without failing the observation")
+			} else if strings.Contains(err.Error(), credential) {
+				t.Fatal("credential scanner error reflected the credential canary")
+			}
+		})
+	}
+
+	fixture := &gdj0047APIFixture{artifacts: &gdj0047LockedBuffer{}, logs: &gdj0047LockedBuffer{}}
+	if _, err := fixture.finalize(base, ""); err == nil {
+		t.Fatal("credential scanner accepted an empty canary")
+	}
+	if _, err := fixture.finalize(base, credential); err != nil {
+		t.Fatalf("credential scanner rejected a clean observation: %v", err)
+	}
+}
+
 func TestGDJ0047RegistrationRejectsWrongIdentityAndUnknownScenario(t *testing.T) {
 	handler, ok := gdj0047APIScenarioHandler(gdj0047ExpectedRegistrations[0].scenario)
 	if !ok {
