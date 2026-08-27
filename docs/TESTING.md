@@ -527,7 +527,7 @@ Status-only manifest는 4,520 bytes/
 | 변경 | 최소 검증 |
 |---|---|
 | Schema/IR | validation, normalization, round-trip, deterministic hash, fuzz |
-| Codegen | ProjectSpec/bundle determinism과 deep snapshot, canonical manifest/ABI/`4n+8` roster, snapshot seal compile, whole-candidate positive/negative compile, read-only drift, target-zero candidate failure, sealed-root/CAS/no-replace conflict, publication rollback/crash/recovery와 outer cleanup outcome |
+| Codegen | ProjectSpec/bundle determinism과 deep snapshot, canonical manifest/ABI/`4n+8` roster, snapshot seal compile, whole-candidate positive/negative compile, read-only drift, target-zero candidate failure, bounded non-test Go source AST namespace audit, first-mutation 직전 source-fingerprint revalidation, sealed-root/CAS/no-replace conflict, publication rollback/crash/recovery와 outer cleanup outcome |
 | Typed query API | compile-positive/negative, AST invariant, differential result |
 | Dynamic lookup | validation/coercion, allowlist, injection/error, typed AST equivalence |
 | Query execution | integration, cancellation, resource close, backend contract |
@@ -1042,6 +1042,13 @@ surface입니다. Implicit English pluralization을 사용하지 않고 existing
 deterministic collision과 exact candidate-union compile을 검증했습니다. 이는 reverse/write/general generated
 upgrade 이름이나 동작을 확정하지 않습니다. EVID-069는 implementation head만 증명하며 later completion-documentation
 tree proof로 재사용하지 않습니다.
+
+GDJ-0048 current-v3 gate는 이 historical surface를 유지하면서 private raw alias field/method promotion, framework-reserved
+source namespace collision, direct PK/FK reconciliation, wrapper JSON rejection, v2→v3 stale/hybrid rejection과 recovery를
+추가합니다. Source wrapper의 accessor/With*/Clear*/Unwrap/Save가 current edge scalar snapshot을 reconcile하며, raw-source-only
+`Unwrap`은 unrelated cached target object의 내부 mutation을 transitive하게 검증하는 API가 아닙니다. Exact Article/relation
+bundle drift, SQLite direct mutation/reload, PostgreSQL separate-process/source-bound/required lanes와 final full/386/external
+archive를 분리해 검증하고, exact submitted hosted 전에는 ADR-0050/GDJ-0048을 terminal로 승격하지 않습니다.
 
 ### GDJ-0033 REL-002 assignment/save/cache implementation gate
 

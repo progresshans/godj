@@ -16,7 +16,7 @@
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
 | Q-016 | Partial | GDJ-0044 completed / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/closed Router bounded 18-contract slice를 Accepted/hosted-verified; Channels/Realtime profile과 broader API는 open |
-| Q-017 | P1 | GDJ-0048 active / canonical application facade | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON은 locally implemented되고 affected/vertical/source-bound gate를 통과했으며 required final/hosted gate와 reverse/general upgrade, first-alpha 이후 upgrader는 open |
+| Q-017 | P1 | GDJ-0048 active / canonical application facade | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON은 locally implemented되고 affected/vertical/source-bound 및 required PostgreSQL/full/386/archive/audit gate를 통과했으며 exact submitted hosted gate와 reverse/general upgrade, first-alpha 이후 upgrader는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
@@ -717,8 +717,8 @@ boundary 전에 canonical snapshot/full rebuild/all-success publication으로 ed
 Wrapper direct JSON marshal/unmarshal은 fail-closed하고 ADR-0038 Web JSON/template의 representation authority는 app DTO로
 유지합니다. Exported promoted field의 generic `html/template` 접근 자체를 type-level로 막는다고 주장하지 않습니다.
 
-이 active packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture의 affected/vertical focused
-gate까지 통과했고 source-bound/final/hosted 검증을 남겼습니다. Reverse
+이 active packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture의 affected/vertical,
+source-bound 및 EVID-140 required PostgreSQL/full/386/archive/audit gate까지 통과했고 exact submitted hosted 검증만 남겼습니다. Reverse
 assignment/general manager, installed-version negotiation, renderer rename/deprecation와 first-alpha 이후 semver/upgrader는 계속
 Q-017에 남으므로 packet 완료만으로 Q-017 전체를 `Resolved`로 만들지 않습니다.
 

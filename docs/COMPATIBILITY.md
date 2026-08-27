@@ -6,7 +6,7 @@
 - 마지막 검증: 2026-08-27 (GDJ-0047 corrected exact head EVID-138 / CI #155 run `33049861740`)
 - 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
   `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical/source-bound gate EVID-139 통과;
-  required PostgreSQL와 final full/386/archive/hosted matrix pending)
+  required PostgreSQL와 final full/386/archive/audit EVID-140 통과; exact submitted hosted matrix pending)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -39,8 +39,8 @@ full/386/repository-external source-clean-copy local gates와 exact correction h
 26/26 jobs·326/326 steps를 통과해 project publication 하위 경계에서 completed/hosted-verified됐습니다. Q-010은
 `Partial`입니다. Q-017은 [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)에서
 active이고 Proposed [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 current facade v3의 raw scalar/
-app method promotion, namespace/reconciliation/copy/JSON 경계를 다룹니다. First-alpha 이후 일반 upgrader/semver 호환은
-여전히 open입니다.
+app method promotion, namespace/reconciliation/copy/JSON 경계를 locally final까지 검증했습니다. Exact submitted hosted
+matrix와 first-alpha 이후 일반 upgrader/semver 호환은 여전히 open입니다.
 
 ## 프로필 범위
 
@@ -130,7 +130,9 @@ digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 Article Bearer E2E normal
 attestation도 통과했습니다. GDJ-0048 EVID-139에서 갱신한 current attestation은 source binding 257 files/2,942,402 bytes/
 `07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29`, checked bytes 1,134/
 `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`입니다. `make godj-conformance`와 affected
-normal/race/CGO0/vet/generate가 통과했습니다. Initial exact submitted-head run `33044776835`는 26 successful jobs와
+normal/race/CGO0/vet/generate가 통과했습니다. Test-only descendant `b2f6bc5...`의 EVID-140에서는 current required
+PostgreSQL 18/18·skip 0와 full `make ci`/Linux 386/external archive/audit도 통과했고 exact hosted만 남았습니다.
+Initial exact submitted-head run `33044776835`는 26 successful jobs와
 macOS Intel product job 한 건의 30분 timeout/cancellation으로 끝났고 완료된 steps와 수집 로그의 제품 assertion failure
 표식은 0이었습니다. EVID-137의
 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze도 통과했습니다.

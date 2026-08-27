@@ -76,7 +76,8 @@ raw, err := post.Unwrap() // detached deep-cloned raw-model escape hatch
 
 - App raw model을 private alias로 project wrapper에 embed해 exported scalar field와 app-owned method를 promotion합니다.
 - 기존 canonical `Save`, `With*`, `Clear*`, forward accessor와 `Unwrap` signature를 유지합니다.
-- 직접 scalar/FK mutation과 project-owned object/cache/pending state를 모든 operational boundary 전에 일관되게 reconcile합니다.
+- Source wrapper의 직접 scalar/FK mutation과 그 edge의 project-owned object/cache/pending state를 관련 operational
+  boundary 전에 일관되게 reconcile합니다.
 - Required zero의 unset/explicit-zero 구분과 nullable `(present, value)` 의미를 보존합니다.
 - Generated framework method와 promoted field/handwritten method 충돌을 target mutation 전에 fail-closed합니다.
 - Wrapper direct JSON marshal/unmarshal을 fail-closed합니다. `Unwrap`은 DTO 구축용 raw typed/deep-clone escape이고
@@ -96,7 +97,7 @@ raw, err := post.Unwrap() // detached deep-cloned raw-model escape hatch
   audit을 `generate --check`와 write candidate verification의 일부로 둡니다. Pure generator는 schema-known collision,
   sealed-root audit은 raw receiver promotion, whole-candidate compile은 outer receiver/package symbol collision을 소유합니다. 자동
   rename/mangling이나 compatibility shim은 만들지 않습니다.
-- Direct FK scalar mutation은 selected edge만 cold로 만들고 object/source snapshot을 current scalar에서 다시 구성합니다.
+- Direct FK scalar mutation은 source wrapper의 selected edge만 cold로 만들고 object/source snapshot을 current scalar에서 다시 구성합니다.
   Relation accessor, `With*`/`Clear*`, `Unwrap`과 `Save`가 모두 이 reconciliation을 먼저 수행합니다. Unchanged edge cache는
   유지하며 pending target 뒤 scalar mutation은 scalar가 이깁니다.
 - Required new raw zero는 계속 unset입니다. `WithAuthorID(0)`와 loaded zero만 explicit presence를 가지므로 value-only heuristic으로
@@ -195,7 +196,7 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
   reopen 흐름 검증
 - [x] affected normal/race/CGO0/vet, external compile와 generate/check 통과
 - [x] clean source checkpoint에서 독립 2회 source-bound PostgreSQL canary/attestation 통과
-- [ ] frozen source에서 full `make ci`, Linux/386, repository-external clean archive와 independent audit 한 번 수행
+- [x] frozen source에서 full `make ci`, Linux/386, repository-external clean archive와 independent audit 한 번 수행
 - [ ] exact submitted head hosted matrix를 통과한 뒤 ADR/상태/증거를 terminal bytes에 맞게 갱신
 
 ## 완료 조건
@@ -240,8 +241,8 @@ GODJ_TEST_POSTGRES_URL=<redacted> \
 ```
 
 Dirty shared source에서 만든
-두 preliminary attestation capture는 byte-identical이지만 정식 source-bound proof로 사용하지 않으며 clean checkpoint에서 서로
-독립된 PostgreSQL instance로 다시 수집합니다.
+두 preliminary attestation capture는 byte-identical이지만 정식 source-bound proof로 사용하지 않았고, clean checkpoint의 서로
+독립된 PostgreSQL instance에서 아래 정식 proof로 다시 수집해 대체했습니다.
 
 Clean behavioral source `e0d4b941927d3661a7907f46b50a569b736dc1f1`, tree
 `e09c8d4f043656665d3a817e521b7732eac978d1`에서 서로 다른 PostgreSQL container/network와 capture path를 사용한 두 정식
@@ -253,9 +254,27 @@ two-process와 relation separate-process sentinel pass/skip 0을 확인했고 �
 `0d83ead4c2c4ad91bd1edd8db7b7a7f39b64e40f`이며 [EVID-139](../docs/status/TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)에
 명령·제외된 시도와 checksum lock을 기록합니다.
 
+## 실행 증거 — frozen local final
+
+Test-only correction commit `b2f6bc50ea25cd433f75c156abb36b9f3e8054a4`, tree
+`5b6eceb7f90a05b31cc69990d46c069278c2be28`에서 required PostgreSQL 17.10 lane, full `make ci`, 107-package
+Linux/386 compile-only, 1,088-file repository-external archive와 independent audit가 모두 통과했습니다.
+[EVID-140](../docs/status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)은
+정확한 명령·환경·checksum과 excluded orchestration attempts를 기록합니다. `b2f6bc5...`는 ordinary PostgreSQL `_test.go`와
+work scope만 바꾼 test-only descendant이므로 source binding 257 files/2,942,402 bytes/SHA-256
+`07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29` 및 checked attestation은 unchanged/current입니다.
+
+Required PostgreSQL lane은 exact 18/18 named pass·skip 0, normal/race/CGO0, checked capture byte comparison,
+actual service restart `prepare→probe→resume→verify→cleanup`, vet와 credential-clean retained logs를 통과했습니다. Full local
+matrix와 외부 archive의 Article/relation bundle은 각각 exact 12/SHA-256 `f0043e499...`와 16/SHA-256 `81534d390...`로
+clean했고, archive 전후 exact path/mode/blob roster는 1,088 entries/SHA-256 `f3a502811...160ab`로 같았습니다.
+Independent implementation/source/status audit의 blocker는 0이며 발견된 stale Gate-0/future-tense 문서만 이
+documentation descendant에서 current-v3/local-final 상태로 교정합니다. Exact submitted-head hosted matrix 전에는 ADR-0050을
+Accepted로 올리거나 GDJ-0048을 completed로 닫지 않습니다.
+
 ## 인수인계
 
-- 현재 정확한 다음 작업: evidence descendant를 고정한 뒤 digest-pinned required PostgreSQL 18-sentinel normal/race/CGO0/
-  service-restart/vet/clean lane을 통과하고, frozen full/386/repository-external archive와 independent audit를 닫습니다.
+- 현재 정확한 다음 작업: local-final documentation descendant를 non-force push하고 Draft PR #1을 갱신한 뒤 exact submitted-head
+  hosted matrix 하나를 통과합니다. 성공한 exact head/run을 별도 terminal evidence에 기록한 뒤에만 ADR-0050/GDJ-0048 상태를 닫습니다.
 - 같은 공개 facade generator, ProjectSpec ABI와 CURRENT 문서는 통합 담당 한 명만 수정합니다.
 - Corrected descendant CI가 실행 중이면 로컬 구현은 계속하되 완료 전 추가 push로 run을 취소하지 않습니다.

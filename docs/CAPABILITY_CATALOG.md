@@ -617,8 +617,9 @@ implemented했고 final verification을 진행 중입니다.
   `f0043e499...`와 relationdelete exact 16/snapshot `81534d390...`을 whole bundle로 게시했습니다.
 
 이 구현은 affected normal/race/CGO0/vet, external compile, v2 hybrid rejection, actual-package namespace/recovery, SQLite,
-focused PostgreSQL 별도-process 흐름과 독립 2회 source-bound PostgreSQL attestation을 통과했습니다. Final full/386/archive/audit와
-exact hosted matrix 전이므로 terminal verified로는 아직 승격하지 않습니다. Reverse/general manager, installed-version negotiation과
+focused PostgreSQL 별도-process 흐름과 독립 2회 source-bound PostgreSQL attestation을 통과했습니다. EVID-140에서 required
+PostgreSQL exact 18/18·skip 0, full `make ci`, Linux/386, 1,088-file external archive와 independent audit도 통과했습니다. Exact
+hosted matrix 전이므로 terminal verified로는 아직 승격하지 않습니다. Reverse/general manager, installed-version negotiation과
 first-alpha 이후 upgrader도 이번 active packet의 capability가 아닙니다.
 
 ### Historical GDJ-0035 design and evidence snapshot

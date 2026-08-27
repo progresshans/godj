@@ -202,7 +202,7 @@ posts, err := PostObjects.Using(backend).
 
 `All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
 
-### 관계를 포함한 project facade — current generated ABI local implementation
+### 관계를 포함한 project facade — current-v3 local-final implementation
 
 관계가 있는 일반 application code는 backend/session을 project에 한 번 연결한 뒤 같은 model manager와
 relation-aware pointer를 사용하는 경험을 목표로 합니다. [GDJ-0031](../work/0031-relation-aware-project-facade-and-generated-upgrade-compile-usability.md)과
@@ -213,9 +213,11 @@ historical feasibility/product evidence입니다. 두 ADR의 byte-preservation/p
 [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)에 의해 Superseded됐습니다.
 Current app main generator는 scalar/FK model, descriptor와 write metadata를 함께 만들고 project generator는 cross-app
 binding/query/facade를 소유합니다. Facade-private write model과 app-local relation-query output은 없습니다. 이 current
-ABI는 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)의
-exact local implementation evidence를 통과했지만 final hosted `Verified`는 아닙니다. 아래 이름은 bounded Gate 0
-surface에서 유지되지만 general generated upgrade나 전체 ORM surface의 영구 naming policy까지 결정하지 않습니다.
+ABI의 publication 하부는 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-100--gdj-0036-pre-release-current-only-compatibility-reset-local-integration-verification)에
+기반하고, GDJ-0048은 [EVID-139](status/TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation) /
+[EVID-140](status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)에서
+facade v3의 affected/source-bound/final local gate를 통과했습니다. Exact submitted hosted `Verified`는 아직 아닙니다. 아래 이름은
+current facade에서 유지되지만 reverse/general generated upgrade나 전체 ORM surface의 영구 naming policy까지 결정하지 않습니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는
 제안이 아니라 project에 결합된 model manager 모음을 가리키는 local variable입니다. App model package는
@@ -237,14 +239,28 @@ if !found {
     // handle not found
 }
 
+post.Title = "current title"
+post.NormalizeTitle() // app-owned ordinary method
+
+author, err := post.Author(ctx)
+if err != nil {
+    return err
+}
+post, err = post.WithReviewerID(7)
+if err != nil {
+    return err
+}
+if err := post.Save(ctx); err != nil {
+    return err
+}
+
 raw, err := post.Unwrap()
 if err != nil {
     return err
 }
-_ = raw.ID
-_ = raw.AuthorID
-
-author, err := post.Author(ctx)
+dto := struct{ Title string }{Title: raw.Title}
+_ = author
+_ = dto
 ```
 
 `select_related`는 다른 eager-only model type이나 accessor를 만들지 않고 같은 relation-aware result의 cache를
@@ -282,24 +298,27 @@ author, err = posts[0].Author(ctx) // 같은 accessor, 추가 SQL 0회
   아닙니다.
 - Reverse one-to-many는 `[]Post` field가 아니라 filter/order 가능한 manager/query를 목표로 합니다. Prefetch는
   같은 accessor의 정확히 지원된 cache만 미리 채웁니다.
-- JSON marshal이나 단순 field read는 DB I/O를 일으키지 않습니다. Lazy I/O는 `context.Context`와 `error`가
-  드러나는 method에서만 실행합니다.
+- 단순 promoted field read/write와 app-owned ordinary method는 DB I/O를 일으키지 않습니다. Wrapper direct JSON
+  marshal/unmarshal은 hidden relation state를 우회하지 못하도록 fail-closed하고 app-owned DTO만 supported Web representation입니다.
+  Lazy I/O는 `context.Context`와 `error`가 드러나는 method에서만 실행합니다.
 
 현재 `BindObjects`/factory `From`, reverse/prefetch binders와 GDJ-0029의 bounded eager query는 facade가 위임하는
 low-level kernel입니다. 일반 사용자가 관계마다 이들을 직접 조립하는 표면을 최종 API로 동결하지 않습니다.
-Gate 0는 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` roots와 wrappers,
-`BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`을 이 bounded facade의 exact 이름으로 고정했습니다.
+Historical Gate 0가 고정한 `Backend`, `Using`, `Models`, singular `AuthorsAuthor`/`BlogPost` roots와 wrappers,
+`BlogPostRelationSelector(s)`, `BlogPostEagerQuery`, `Unwrap`은 current v3에서도 유지됩니다. Current wrapper는 private raw alias를
+anonymous embed해 scalar와 app-owned method를 promotion하며 `Save`/`With*`/`Clear*`/relation accessor가 outer state를 소유합니다.
 Common Author/Reviewer selector와 선택된 eager evaluation state는 Filter/OrderBy/Limit 전후에도 유지되고,
 복사·반복한 같은 eager query는 한 evaluation을 공유하지만 derived chain은 독립입니다. Source relation cache는
 source wrapper-scoped입니다. Bounded forward FK mutation/cache invalidation은 아래 GDJ-0033 경계에 구현됐고,
-Wrapper JSON/custom method, reverse manager, stable target pointer identity/downstream cache와 general generated upgrade는
-계속 후속입니다.
+GDJ-0048은 direct FK/PK reconciliation, app method promotion, wrapper JSON rejection과 source namespace audit를 current v3에
+통합했습니다. Reverse manager, stable target pointer identity/downstream cache와 general generated upgrade는 계속 후속입니다.
 
 Django가 주는 장기 목표는 scalar field, user-defined model method와 relation accessor가 한 logical model처럼 보이는
 경험입니다. Go에서는 lazy I/O의 `context.Context`/`error`를 숨기지 않되, Gate 0의 canonical `Unwrap`을 전체 model
-surface의 유일한 영구 답으로 확대하지 않습니다. Reverse/general facade 전 Q-017 compile gate에서
-embedding/promotion, explicit unwrap, project sidecar를 비교해 field/method promotion, collision, copy/JSON과 relation
-state 보존을 결정합니다. 현재 bounded Gate 0와 GDJ-0033의 project wrapper는 그대로 유지합니다.
+surface의 유일한 영구 답으로 확대하지 않습니다. Q-017 compile comparison은 embedding/promotion, explicit unwrap,
+project sidecar를 비교했고 private alias embedding + outer project-owned relation state를 current v3로 채택했습니다. Bounded
+source AST namespace audit, source-fingerprint revalidation, direct JSON rejection과 operational-boundary reconciliation이
+promotion의 collision/copy/representation 위험을 닫습니다. Reverse/general facade와 post-alpha upgrader는 계속 open입니다.
 
 ### Forward relation assignment와 Save — GDJ-0033 completed
 

@@ -284,7 +284,9 @@ GDJ-0048 source checkpoint에서 갱신한 checked attestation은 current behavi
 bytes/SHA-256 `07290ae1efd74782a4cc97ab50f4688933bd896c2031bfa1f7523f24a97f1f29`에 묶인 1,134
 bytes/SHA-256 `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`입니다. Attestation checksum
 file은 103 bytes/SHA-256 `41ca18d7baa6e9d60e146db728eeaa811f65fd48077943cf75d567627a9c8615`입니다.
-`make godj-conformance`와 affected normal/race/CGO0/vet/generate도 같은 source에서 통과했습니다.
+`make godj-conformance`와 affected normal/race/CGO0/vet/generate도 같은 source에서 통과했습니다. Ordinary `_test.go`만
+교정한 `b2f6bc5...` descendant의 EVID-140은 source binding을 바꾸지 않은 채 required PostgreSQL 18/18·skip 0,
+normal/race/CGO0/service restart/vet/clean과 checked capture byte comparison을 다시 통과했습니다.
 
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=

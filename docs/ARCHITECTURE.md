@@ -540,6 +540,13 @@ rename/delete/stale fixture는 [ADR-0006](adr/0006-codegen-input-package-boundar
 bundle을 전체 candidate로 compile한 뒤 recoverable publisher에 넘깁니다. 선택한 project root의 device/inode
 identity는 check, candidate compile과 publication이 끝날 때까지 seal합니다. Manifest·renderer ABI·snapshot
 handshake는 [ADR-0036](adr/0036-project-schema-generated-bundle-and-recoverable-publication.md)이 소유합니다.
+GDJ-0048 current facade v3는 app raw model의 private alias를 outer project wrapper에 embed해 scalar/app method를 promotion하고,
+origin/relation object·cache·presence/copy sentinel은 outer wrapper가 계속 소유합니다. Generated/reserved method shadowing은
+whole-candidate compile에만 맡기지 않고 bounded non-test Go source AST namespace audit로 `--check`와 write 모두에서
+target mutation 전에 거부합니다. Write candidate는 first generated mutation 직전에 sealed source fingerprint를 다시 확인하고,
+direct FK/PK mutation은 source wrapper의 related operational boundary에서 all-success staging 뒤 게시합니다. Wrapper direct
+JSON은 거부하며 `Unwrap` deep clone과 app-owned DTO가 explicit representation 경계를 유지합니다. 이 current-v3 결정은
+[ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)에 기록하고 exact hosted acceptance 전에는 Proposed입니다.
 Generator/library semver와 first-alpha 이후 upgrade policy는 Q-010에 남습니다.
 
 ## 목표 저장소 구조

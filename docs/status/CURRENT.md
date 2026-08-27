@@ -10,7 +10,10 @@
   whole-bundle publication이 구현됐습니다. Affected normal/race/CGO0/vet, external compile, generated drift와 SQLite/focused
   PostgreSQL 별도-process 흐름에 이어 clean source `e0d4b94...`의 독립 2회 source-bound PostgreSQL attestation도
   [EVID-139](TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)에서
-  통과했습니다. Required PostgreSQL 전체 lane, final frozen gate와 hosted matrix는 아직 남았습니다. Active/ready는 1/0이며
+  통과했습니다. Test-only correction `b2f6bc5...`에서 required PostgreSQL exact 18/18·skip 0, full `make ci`, 107-package
+  Linux/386 compile-only, 1,088-file external archive와 independent audit도
+  [EVID-140](TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)에서
+  통과했습니다. Exact submitted-head hosted matrix만 남았습니다. Active/ready는 1/0이며
   Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이번 packet 범위가 아닙니다.
 - Terminal docs head `31fee59...`의 CI #156/run `33053749701`은 27 jobs 중 26 success, 1 test failure였습니다.
   유일한 실패는 SQLite coordinated rollback callback이 mutation barrier를 닫은 직후 expected error를 반환해 두 channel이
@@ -1819,7 +1822,10 @@ relationdelete exact 16/snapshot `81534d390...`이 재생성됐고 current-v3/v2
 mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. Behavioral source `e0d4b94...`/tree
 `e09c8d4...`의 독립 2회 attestation은 257 files/2,942,402 bytes/SHA-256 `07290ae1...f1f29`, checked 1,134
 bytes/SHA-256 `5b205544...004e`로 일치했습니다. 다음 순서는 required PostgreSQL 전체 lane, final
-full/386/archive/audit와 exact submitted hosted matrix입니다.
+full/386/archive/audit와 exact submitted hosted matrix였습니다. Test-only correction `b2f6bc5...` / tree
+`5b6eceb...`에서 PostgreSQL exact 18/18·skip 0 normal/race/CGO0/restart/vet, full `make ci`, 107-package
+Linux/386 compile-only, 1,088-file external archive와 independent audit가 EVID-140으로 모두 통과했습니다. 현재 남은
+유일한 acceptance gate는 local-final documentation descendant의 exact submitted hosted matrix입니다.
 GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
 matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. GDJ-0047 corrected
 source `14e47c9b...`은 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
@@ -1835,7 +1841,8 @@ OAuth/OIDC와 system-state schema 변경은 현재 완료 주장에 포함되지
 Conformance-validation artifact job은 CI #155에서 24분 07초로 25분 ceiling의 53초 margin만 남겼으며,
 같은 job은 CI #153/#154에서도 각각 24분 45초/24분 16초로 성공했습니다. 이는 GDJ-0047 acceptance를 무효화하는
 제품 결함이나 현재 blocker가 아니라 비차단 운영 margin 관찰 항목입니다. GDJ-0048 final milestone 전 workflow budget을
-다시 평가하되 subtask마다 full hosted/evidence cycle을 만들지 않습니다.
+별도 변경하지 않았고, exact submitted matrix에서 실제 current runtime을 확인합니다. Subtask마다 full hosted/evidence cycle을
+만들지 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 active입니다.
 MIG-075..086은 remaining reference-only locked range이지만 diagnostic 관찰을 자동 product passing으로 승격하지 않습니다.

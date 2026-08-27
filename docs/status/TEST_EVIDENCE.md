@@ -12923,3 +12923,133 @@ only even though their bytes happened to match. The first clean orchestration co
 container or product test started, wrote no capture and its exact empty temporary directory was removed. Neither is reused as
 acceptance proof. This checkpoint does not accept ADR-0050, complete GDJ-0048, resolve Q-017, claim a full PostgreSQL service
 restart lane, final local matrix, archive/audit, hosted success, merge, release or deployment.
+
+## EVID-20260827-140 — GDJ-0048 Frozen Local Final Gates and PostgreSQL Test Correction
+
+- Date/time: 2026-08-27, local final gates completed through `2026-08-27T23:09:06+09:00`
+- Work/contract IDs: GDJ-0048 active; ADR-0050 Proposed; GEN-M1-001/REL-002 locally implemented; Q-013 Partial/Q-017 P1
+- Frozen local-final source: `b2f6bc50ea25cd433f75c156abb36b9f3e8054a4`, tree
+  `5b6eceb7f90a05b31cc69990d46c069278c2be28`, subject `test: allow PostgreSQL cancellation rollback scheduling`
+- Behavioral source and checked attestation remain those recorded in EVID-139: `e0d4b941927d3661a7907f46b50a569b736dc1f1`
+  and the byte-identical 1,134-byte capture/SHA-256
+  `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e`
+- Result: the corrected PostgreSQL lane, full local matrix, Linux/386 compile-only gate and repository-external immutable
+  archive audit passed. Exact submitted-head hosted CI remains pending, so this evidence does not accept ADR-0050 or complete
+  GDJ-0048.
+
+### PostgreSQL cancellation-test correction
+
+The clean `651dba5...` required PostgreSQL lane exposed one intermittent assertion in
+`TestPostgresCoordinatedAtomicInvokesCallbackAfterAcquireBoundaryCancellation`: the observed trace was
+`begin, acquire, rollback, callback` rather than the test's sole accepted
+`begin, acquire, callback, rollback`. The production implementation had not retried, had invoked the callback exactly once and
+had rolled back. Inspection showed that `database/sql`'s `BeginTx` context watcher can schedule rollback concurrently after the
+acquire hook cancels the parent context. The public contract owns successful acquisition, one callback, rollback and no retry;
+it does not own scheduler ordering between callback entry and the rollback tail.
+
+Commit `b2f6bc5...` therefore changes only `db/postgres/coordinated_transaction_test.go` plus the work packet's explicit
+allowed-path record. The test accepts the two exact legal traces while independently preserving the acquisition prefix,
+callback-count, rollback and no-retry assertions. No production implementation, generated output, workflow, compatibility
+contract or checked attestation byte changed. The attestation source-binding protocol explicitly excludes ordinary `_test.go`
+files; its load/protocol tests confirmed that this test-only correction does not require a new source capture.
+
+The correction passed these focused stress gates:
+
+```bash
+go test -count=10000 ./db/postgres -run '^TestPostgresCoordinatedAtomicInvokesCallbackAfterAcquireBoundaryCancellation$'
+go test -race -count=1000 ./db/postgres -run '^TestPostgresCoordinatedAtomicInvokesCallbackAfterAcquireBoundaryCancellation$'
+CGO_ENABLED=0 go test -count=1000 ./db/postgres -run '^TestPostgresCoordinatedAtomicInvokesCallbackAfterAcquireBoundaryCancellation$'
+go test -count=500 ./db/postgres
+go test -race -count=100 ./db/postgres
+CGO_ENABLED=0 go test -count=500 ./db/postgres
+go vet ./db/postgres
+```
+
+Before documentation submission, exact `go test -list` selection confirmed one matching test and the corrected focused
+normal/race/CGO-disabled commands above were replayed successfully on the documentation-only descendant. The earlier executions
+and immutable archive run had used this same real function name; the initial EVID-140 draft alone had transcribed a nonexistent
+summary name, which this pre-commit audit corrected rather than preserving as false-green replay guidance.
+
+An immutable `git archive` of `b2f6bc5...` also passed the focused test 10,000 times on Linux/amd64. One earlier live bind-mount
+stress run is deliberately not attributed because the worktree source changed while it was running; the immutable archive run
+is the authoritative cross-platform proof.
+
+### Fresh required PostgreSQL lane
+
+The successful lane used exact
+`golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+on Linux/amd64 and
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+It asserted exact fingerprint
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin` and used schema
+`godj_postgresproduct_gdj0048b2f6bc5`.
+
+The normal lane reported all 18 required named sentinels as run/pass with skip 0 and reproduced the checked capture
+byte-for-byte. The race and CGO-disabled lanes passed, as did `go vet`. A real PostgreSQL container restart exercised the
+external project runner through `prepare` (history 1/rows 1), `probe` (1/1), `resume` (2/2), `verify` (2/2) and cleanup.
+Credential scanning of the captured output and logs found no secret occurrence. All lane containers, networks and volumes were
+removed.
+
+The retained evidence files were:
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `postgresql-normal.jsonl` | 500,246 | `a5237f5455ec0cd842e502483a70b4bc15f3bfb6cddd795f32d742f2c6d2c6d6` |
+| `postgresql-race.log` | 412 | `e6db496dc04696c9e9616aca312f0f8d59d25534a4cb1366b2f44f6f408ef159` |
+| `postgresql-cgo0.log` | 412 | `916e9effd9f232a94cf1a32462f875dc55954eebd7fc174be6e0b6a72b913a23` |
+| `postgresql-vet.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `required-capture.json` | 1,134 | `5b2055445b787acdd018771a4f8c1395b19e96ae7ce3efce8d9efe85b02c004e` |
+
+After final audit, the required PostgreSQL root, repository-external archive root and EVID-139 source-capture root were moved
+recoverably to `/Users/hanhyeonjin/.Trash/godj-gdj0048-required-postgres3.FynG8v`,
+`/Users/hanhyeonjin/.Trash/godj-gdj0048-external-archive.kWZyKP` and
+`/Users/hanhyeonjin/.Trash/godj-gdj0048-source-capture.AHEvTg`; their original `/tmp` paths no longer exist.
+
+### Full local and portable final gates
+
+The frozen source then passed:
+
+```bash
+PATH=/Users/hanhyeonjin/.cache/uv/archive-v0/MsrMoQktpd-TFLXT/bin:$PATH \
+  LC_ALL=C TZ=UTC make ci
+GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The full command ran on macOS 26.6.2 build 25G83 with Go 1.26.5 darwin/arm64, uv 0.10.12 and Python 3.14.3. It passed
+deterministic generated drift, all-package normal/vet/race, configured CGO-disabled coverage, the 255-test Python reference
+suite with 24 expected skips, and all stored contract/product comparisons including the 21 registered product adapters. The
+771-line/92,317-byte log has SHA-256
+`36df81f2470b3d649fa6dcaf8bea88d70d7ed70f3642afcf33c1f8d2457875c9`.
+
+The Linux/386 command was compile-only: all 107 packages compiled successfully with the explicit no-execution adapter. It is
+not Linux/386 runtime evidence.
+
+A separate exact `git archive` of `b2f6bc5...` contained no `.git` directory and was verified as 1,088 tracked regular files,
+all mode `100644`, with 15,284,610 payload bytes. Every archive path, blob and mode matched the source tree. The raw
+`git ls-tree -r -z --full-tree` bytes had SHA-256
+`3a8d8b5002a6f4e36f69a7c52436c60d68cb02d0a52048f6e38faca4b55eb906`; the framed roster had SHA-256
+`f3a502811616541624805b435c326b7168c2588c79ec6e45af7a93d148e160ab`. With a private external Go build cache,
+`make generate-check` and the same 107-package Linux/386 compile-only command passed, and the before/after roster remained
+byte-identical. The archive logs were 405 bytes/SHA-256
+`c4724870a8b7a94a89e81b0d9e8f47597190cada85c848e40c21cb0f3c7fb72a` and 7,690 bytes/SHA-256
+`ad3f226b0216ebf0d377d597170bee70afa8c9a8aa46284535695e1ffecf7a22` respectively.
+
+### Excluded attempts and acceptance boundary
+
+Four PostgreSQL preparations are not acceptance evidence. The first pre-correction attempt passed normal execution but the race
+leg inherited capture-output configuration and correctly rejected replacement of an existing capture. The second reached the
+intermittent scheduler-order assertion described above. A post-correction attempt passed normal/race/CGO-disabled but its
+temporary restart schema did not use the required `godj_postgresproduct_` prefix. Another fresh attempt observed a transient
+PostgreSQL bootstrap socket disappearance after `pg_isready` and before product tests; the successful lane retried the exact
+fingerprint robustly. These are respectively orchestration, test-contract, input and bootstrap-transient exclusions, not
+product success evidence.
+
+Independent final code review found no P0/P1 blocker. Its documentation observations are closed by the documentation-only
+descendant that records the current-v3 namespace/fingerprint boundary, distinguishes historical 12/127 from current 21/237
+inventory, and removes stale future-tense facade/source-binding claims. The final documentation audit is still required before
+submission.
+
+The next boundary is that audit, a documentation-only commit, non-force push to Draft PR #1 and one unique exact submitted-head
+hosted matrix. Until that exact hosted run succeeds, ADR-0050 remains Proposed, GDJ-0048 remains active, Q-017 remains P1/open
+and no merge, release, deployment or broader reverse/general relation support is claimed.
