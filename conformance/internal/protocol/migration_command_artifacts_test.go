@@ -66,8 +66,8 @@ func TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T)
 	}
 	for name, want := range map[string]artifactLock{
 		"conformance/contracts/migration-command-manifest.json": {
-			size:   6238,
-			sha256: "e01efa14b6ad7361e79cc633763d50570015a2b33c98e92aa0d7b7fa580c9544",
+			size:   6166,
+			sha256: "d2846327e4d8cbf82a25568e41b198c67878bb7853958729969eb7077ca4c0e1",
 		},
 		"conformance/fixtures/godj-migration-command-not-implemented.json": {
 			size:   1838,
@@ -100,7 +100,7 @@ func TestMigrationCommandArtifactsAreLockedValidatedAndPayloadSafe(t *testing.T)
 
 	for index, contract := range manifest.Contracts {
 		wantID := fmt.Sprintf("MIG-%03d", index+87)
-		if contract.ID != wantID || contract.Scenario != migrationCommandScenarios[index] || contract.Phase != migrationCommandPhases[index] || contract.Status != ContractOracleLocked || !reflect.DeepEqual(contract.Comparison, migrationCommandComparisons[index]) {
+		if contract.ID != wantID || contract.Scenario != migrationCommandScenarios[index] || contract.Phase != migrationCommandPhases[index] || contract.Status != ContractPassing || !reflect.DeepEqual(contract.Comparison, migrationCommandComparisons[index]) {
 			t.Fatalf("migration-command contract %d = %#v", index, contract)
 		}
 		if len(contract.Provenance) != 2 {
@@ -205,7 +205,7 @@ func TestMigrationCommandDeclaredDimensionsCannotFalseGreen(t *testing.T) {
 	}
 }
 
-func TestMigrationCommandReferenceOnlyCentralWiringIsExact(t *testing.T) {
+func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -257,11 +257,17 @@ func TestMigrationCommandReferenceOnlyCentralWiringIsExact(t *testing.T) {
 	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 46 {
 		t.Fatalf("reference contractcheck count = %d, want 46", got)
 	}
-	if strings.Contains(productTarget, "MIGRATION_COMMAND") {
-		t.Fatal("product conformance target prematurely registers migration-command")
+	if got := strings.Count(productTarget, "$(MIGRATION_COMMAND_MANIFEST)"); got != 1 {
+		t.Fatalf("product migration-command manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 21 {
-		t.Fatalf("product adapter count = %d, want unchanged 21", got)
+	if got := strings.Count(productTarget, "$(MIGRATION_COMMAND_ORACLE)"); got != 1 {
+		t.Fatalf("product migration-command oracle count = %d, want 1", got)
+	}
+	if strings.Contains(productTarget, "MIGRATION_COMMAND_NOT_IMPLEMENTED") {
+		t.Fatal("product migration-command target reads the payload-free reference baseline")
+	}
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 22 {
+		t.Fatalf("product adapter count = %d, want 22", got)
 	}
 	for name, target := range map[string]string{
 		"oracle-check":      oracleCheckTarget,

@@ -224,7 +224,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsInCurrentTwentyOneAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInCurrentTwentyTwoAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentTwentyOneAdapterProductTarget(t *t
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 21 {
-		t.Fatalf("product adapter count = %d, want 21", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 22 {
+		t.Fatalf("product adapter count = %d, want 22", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -455,9 +455,9 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 1073`,
-		`assert len(payload) == 111158`,
-		`be3344a3a8f8560b86cd0acfcfa36d36764e459c316ea210907ea9fd74339ee6`,
+		`assert len(runs) == 1091`,
+		`assert len(payload) == 113227`,
+		`e88d31d687b02539e881d6b8300e3f0d9aca3e3a046a582b40627360c427b10f`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
@@ -614,7 +614,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"name: Run and inventory PostgreSQL actual product tests",
 		`log="$RUNNER_TEMP/postgresql-product-tests.json"`,
 		"status=0",
-		`go test -timeout=15m -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart > "$log" || status=$?`,
+		`go test -timeout=15m -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart > "$log" || status=$?`,
 		`if [ "$status" -ne 0 ]; then`,
 		`tail -c 60000 "$log"`,
 		`for sentinel in "${required_passes[@]}"; do`,
@@ -622,8 +622,8 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
 		`if ! grep -Fq "$pass_fragment" "$log"; then`,
 		`if grep -Fq "$skip_fragment" "$log"; then`,
-		"run: go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart",
-		"run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart",
+		"run: go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart",
+		"run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart",
 		"GODJ_TEST_POSTGRES_SCHEMA: godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}",
 		`project_runner="$RUNNER_TEMP/postgres-projectrunner"`,
 		`go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner`,
@@ -638,7 +638,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		`"$project_runner" resume`,
 		`"$project_runner" verify`,
 		`"$project_runner" cleanup`,
-		"run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && go vet ./conformance/runserverproduct",
+		"run: go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart && go vet ./conformance/runserverproduct",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
@@ -663,11 +663,13 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 		"github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E",
 		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
 		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct",
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
 	}
-	if len(postgresRequiredSentinels) != 18 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 18", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 20 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 20", len(postgresRequiredSentinels))
 	}
 	requiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*for sentinel`)
 	requiredBlock := requiredBlockPattern.FindStringSubmatch(postgres)

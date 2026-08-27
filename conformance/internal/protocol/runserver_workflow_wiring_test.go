@@ -213,7 +213,9 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		`go test -timeout=15m -json -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \`,
 		`./conformance/runserverproduct >> "$log" || status=$?`,
 		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
-		`go test -timeout=15m -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart > "$log" || status=$?`,
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct",
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
+		`go test -timeout=15m -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart > "$log" || status=$?`,
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
 		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
 		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
@@ -231,7 +233,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	)
 	for _, fragment := range []string{
 		`GODJ_REQUIRE_POSTGRES: "1"`,
-		`go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart`,
+		`go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart`,
 		`go test -timeout=15m -race -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct`,
 	} {
 		runserverWorkflowRequireCount(t, "PostgreSQL runserver race step", postgresRace, fragment, 1)
@@ -244,7 +246,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	)
 	for _, fragment := range []string{
 		`GODJ_REQUIRE_POSTGRES: "1"`,
-		`CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart`,
+		`CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart`,
 		`CGO_ENABLED=0 go test -timeout=15m -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct`,
 	} {
 		runserverWorkflowRequireCount(t, "PostgreSQL runserver CGO-disabled step", postgresCGOZero, fragment, 1)
@@ -259,11 +261,12 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		t,
 		"PostgreSQL runserver vet step",
 		postgresVet,
-		"go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/systemstate/restart && go vet ./conformance/runserverproduct",
+		"go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart && go vet ./conformance/runserverproduct",
 		1,
 	)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, `GODJ_REQUIRE_POSTGRES: "1"`, 3)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 4)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 4)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 4)
 	runserverWorkflowRequireCount(
 		t,
@@ -277,6 +280,13 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"postgresql-product job",
 		postgres,
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
+		1,
+	)
+	runserverWorkflowRequireCount(
+		t,
+		"postgresql-product job",
+		postgres,
+		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
 		1,
 	)
 	runserverWorkflowRequireCount(

@@ -296,6 +296,9 @@ godj-conformance:
 		-profile $(PROFILE) -manifest $(MIGRATION_PROJECT_CHECK_MANIFEST) \
 		-expected $(MIGRATION_PROJECT_CHECK_ORACLE)
 	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_COMMAND_MANIFEST) \
+		-expected $(MIGRATION_COMMAND_ORACLE)
+	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
 		-expected $(RELATION_ORACLE)
 	go run ./conformance/cmd/godjcheck \

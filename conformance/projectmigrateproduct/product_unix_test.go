@@ -115,8 +115,9 @@ func TestGlobalMigrateArticleSQLiteProduct(t *testing.T) {
 		// child can reconcile. It cannot prove that the two child transactions
 		// overlap one another or select exactly one child winner, because the
 		// product exposes no runner-entry handshake and this package must not
-		// add a test hook to that product boundary. MIG-096 therefore remains
-		// oracle-locked pending the Phase D product harness.
+		// add a test hook to that product boundary. The published MIG-096
+		// winner/fence proof is owned by the separate GoDj conformance runner's
+		// actual-process fixture; this case remains a narrower product canary.
 		databasePath := filepath.Join(t.TempDir(), "concurrent.sqlite3")
 		databaseDSN := "file:" + filepath.ToSlash(databasePath) + "?mode=rwc&_busy_timeout=5000"
 		workspaceBase := newWorkspaceBase(t)

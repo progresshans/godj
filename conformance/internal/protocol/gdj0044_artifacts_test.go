@@ -394,8 +394,8 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 			t.Fatalf("oracle-regenerate %s count = %d, want 1", variable, got)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 21 {
-		t.Fatalf("product adapter count = %d, want 21", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 22 {
+		t.Fatalf("product adapter count = %d, want 22", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "--project conformance/reference/drf --frozen"); got != 3 {
 		t.Fatalf("nested DRF oracle-check command count = %d, want 3", got)
