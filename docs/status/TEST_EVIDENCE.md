@@ -2,7 +2,7 @@
 
 - 마지막 갱신: 2026-08-28
 - 현재 local source/contract checkpoint: EVID-20260828-141
-- latest hosted product proof: EVID-20260827-138
+- latest hosted product proof: EVID-20260828-142
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -13188,3 +13188,71 @@ therefore receives link/frontmatter/status/diff gates rather than another recurs
 The next boundary is a documentation audit, non-force push to Draft PR #1 and one unique corrected exact submitted-head hosted
 matrix. Until that run succeeds, ADR-0050 remains Proposed, GDJ-0048 remains active, Q-017 remains P1/open and no merge,
 release, deployment, reverse/general relation support or post-alpha upgrader is claimed.
+
+## EVID-20260828-142 — GDJ-0048 Corrected Exact-Head Hosted Completion
+
+- Date/time: 2026-08-27T15:34:52Z through 2026-08-27T15:59:44Z
+  (`2026-08-28T00:34:52+09:00` through `2026-08-28T00:59:44+09:00`)
+- Work/contract IDs: GDJ-0048 completed; ADR-0050 Accepted; GEN-M1-001/REL-002 hosted-verified;
+  Q-013 Partial/Q-017 P1 open
+- Corrected behavioral source: `a2c067cdc4674c6a2f0b7f265b6fa037385234d4`, tree
+  `1f9002067e8541d842926e926e3968d2e8ca1c46`
+- Exact submitted documentation descendant: `17966e2740c7a5cbd9182a9504fd2613d6dff360`, tree
+  `90c46d799f2b38333a28a90a16cd72f1563ea73d`, subject
+  `docs: record GDJ-0048 inventory correction refreeze`
+- Hosted run: [GitHub Actions CI #159 run 33088586232](https://github.com/progresshans/godj/actions/runs/33088586232),
+  pull request event for Draft PR #1, attempt 1
+- Result: exact 27/27 jobs, 360/360 recorded steps and 27/27 check runs succeeded. Failure, cancellation, step skip and
+  check-run annotation counts were all zero.
+
+### Exact hosted identity
+
+Hosted checkout traces and the pull-request merge ref selected synthetic merge
+`c8458bf9fd2a1c4787985fecc35d84491c9d2177`. Its ordered parents were
+`[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 17966e2740c7a5cbd9182a9504fd2613d6dff360]` and its tree was exact
+`90c46d799f2b38333a28a90a16cd72f1563ea73d`, equal to the submitted-head tree. CI #158/run `33083315278`
+remains an inventory-lock diagnosis only; CI #159 is the unique corrected exact submitted-head acceptance run.
+
+The final macOS Intel product-project job
+[`98574925710`](https://github.com/progresshans/godj/actions/runs/33088586232/job/98574925710) ran from
+`2026-08-27T15:35:05Z` through `15:54:35Z` and passed all 16 recorded steps, including normal/race/CGO-disabled,
+runserver inventory, both vet gates and clean-worktree. No timeout correction or rerun was needed.
+
+### Product, relation and backend proof
+
+All four relation-product coordinates passed 13/13 steps and independently reproduced exact 1,073 run/1,073 pass/0 skip,
+111,158 canonical payload bytes and SHA-256
+`be3344a3a8f8560b86cd0acfcfa36d36764e459c316ea210907ea9fd74339ee6`. This verifies the corrected workflow/protocol
+inventory lock without changing the existing REL-001..012 product classification or the 22-set/249-contract reference and
+21-adapter/237-contract product aggregates.
+
+The digest-pinned PostgreSQL 17.10 job
+[`98574925501`](https://github.com/progresshans/godj/actions/runs/33088586232/job/98574925501) ran from
+`2026-08-27T15:34:56Z` through `15:39:56Z` and passed all 15 steps. It verified the exact sixteen-field profile, all 18
+required named sentinels with required-sentinel skip 0, normal/race/CGO-disabled, durable service restart, checked
+attestation byte comparison/checksum, vet and clean-worktree. The current checked evidence remains source binding
+257 files/2,942,402 bytes/SHA-256
+`e6798d648d1023c00375f61009428106e4a4274d502a51cbf46613a3d185ba71`, attestation 1,134 bytes/SHA-256
+`ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108` and checksum 103 bytes/SHA-256
+`068274321f10e08a854085630505acc8415402bfa192417eeba48134b8acefae`. The skip claim applies to the required sentinel
+set, not every helper event in arbitrary local logs.
+
+The checked-artifact job passed its portable conformance, project-linked migration-check, Linux/386 compile and relation,
+checksum and no-rewrite gates. Together with the remaining platform jobs, the run had no residual lock, infrastructure,
+product or assertion failure. It ran for 24 minutes 46 seconds inside its 25-minute outer budget, leaving only 14 seconds.
+This does not weaken the successful acceptance, but it is a non-blocking workflow-margin observation to address before the
+next source milestone.
+
+### Terminal status and non-claims
+
+This exact hosted success accepts ADR-0050 and completes GDJ-0048 for the bounded current facade v3: private raw-model alias
+embedding, promoted scalar/app methods, atomic direct FK/PK reconciliation, fail-closed source namespace audit, direct JSON
+rejection, DTO-only supported Web representation and recoverable whole-bundle publication. Q-017 remains P1/open for
+reverse/general relation capability, installed-version negotiation and first-alpha/post-alpha upgrade policy; Q-013 remains
+Partial. Schema IR, Migration Definition/State, backend lifecycle, JWT/OpenAPI/Realtime and production deployment were not
+widened.
+
+After completion, Draft PR #1 was re-queried as `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. No merge, release,
+deployment, manual rerun or manual cancellation was performed. Run `33088586232` proves exact submitted predecessor
+`17966e2...`; it does not recursively prove this later terminal documentation-only descendant. The descendant uses
+documentation link/frontmatter/status/diff gates. No next work packet is selected by this terminal evidence itself.

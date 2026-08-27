@@ -287,7 +287,9 @@ file은 103 bytes/SHA-256 `068274321f10e08a854085630505acc8415402bfa192417eeba48
 `make godj-conformance`와 current relation inventory 1,073/1,073/0, affected normal/race/CGO0/vet/generate도 같은
 source에서 통과했습니다. Historical EVID-139/140은 이전 exact source에 대한 증거로 보존하고, EVID-141의 current
 required PostgreSQL 18/18·skip 0, normal/race/CGO0/service restart/vet/clean과 checked capture byte comparison을
-현재 proof로 사용합니다.
+local proof로 사용합니다. EVID-142/CI #159는 네 hosted relation 좌표의 exact 1,073/1,073/0·111,158 bytes·
+`be3344a3...9ee6`와 PostgreSQL required 18/18·required skip 0을 포함해 27/27 jobs·360/360 steps로 이 경계를
+hosted-verify했습니다.
 
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=

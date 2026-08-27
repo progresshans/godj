@@ -1048,7 +1048,8 @@ source namespace collision, direct PK/FK reconciliation, wrapper JSON rejection,
 추가합니다. Source wrapper의 accessor/With*/Clear*/Unwrap/Save가 current edge scalar snapshot을 reconcile하며, raw-source-only
 `Unwrap`은 unrelated cached target object의 내부 mutation을 transitive하게 검증하는 API가 아닙니다. Exact Article/relation
 bundle drift, SQLite direct mutation/reload, PostgreSQL separate-process/source-bound/required lanes와 final full/386/external
-archive를 분리해 검증하고, exact submitted hosted 전에는 ADR-0050/GDJ-0048을 terminal로 승격하지 않습니다.
+archive를 분리해 검증했습니다. EVID-142/CI #159의 exact 27/27 jobs·360/360 steps 뒤에만 ADR-0050을 Accepted,
+GDJ-0048을 completed로 terminal 승격했습니다.
 
 ### GDJ-0033 REL-002 assignment/save/cache implementation gate
 

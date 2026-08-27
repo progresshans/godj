@@ -1,6 +1,6 @@
 ---
 id: GDJ-0048
-status: active
+status: completed
 updated: 2026-08-28
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "38829025670581e2c759d8e2cf191e6049b7c1e0"
@@ -198,7 +198,7 @@ Go compile/runtime/publication tests와 work evidence에서 관리합니다.
 - [x] affected normal/race/CGO0/vet, external compile와 generate/check 통과
 - [x] clean source checkpoint에서 독립 2회 source-bound PostgreSQL canary/attestation 통과
 - [x] frozen source에서 full `make ci`, Linux/386, repository-external clean archive와 independent audit 한 번 수행
-- [ ] exact submitted head hosted matrix를 통과한 뒤 ADR/상태/증거를 terminal bytes에 맞게 갱신
+- [x] exact submitted head hosted matrix를 통과한 뒤 ADR/상태/증거를 terminal bytes에 맞게 갱신
 
 ## 완료 조건
 
@@ -289,10 +289,24 @@ attestation은 1,134 bytes/SHA-256 `ef0e2e69...d108`, checksum file은 103 bytes
 1,088-file external archive와 correction/source audit를 기록합니다. EVID-139/140은 당시 exact source의 역사 증거로
 보존하며 current byte pointer로 재사용하지 않습니다.
 
+## 실행 증거 — corrected exact hosted completion
+
+Submitted documentation descendant `17966e2740c7a5cbd9182a9504fd2613d6dff360`, tree
+`90c46d799f2b38333a28a90a16cd72f1563ea73d`의
+[EVID-142](../docs/status/TEST_EVIDENCE.md#evid-20260828-142--gdj-0048-corrected-exact-head-hosted-completion) / CI #159
+run `33088586232`는 exact 27/27 jobs·360/360 steps와 27/27 check runs를 모두 성공했고 failure/cancel/skip/annotation은
+0이었습니다. 네 relation product 좌표는 모두 1,073/1,073/0, canonical payload 111,158 bytes/SHA-256
+`be3344a3...9ee6`를 재현했습니다. PostgreSQL 17.10 job은 required 18/18·required skip 0, normal/race/CGO0,
+service restart, checked attestation comparison/checksum, vet와 clean-worktree를 통과했습니다.
+
+이 exact success로 ADR-0050을 bounded facade v3에 대해 Accepted로 전환하고 GDJ-0048을 completed로 닫습니다. Q-017은
+reverse/general relation capability와 installed-version/first-alpha 이후 upgrader 때문에 P1/open, Q-013은 Partial로
+유지합니다. Run `33088586232`는 predecessor `17966e2...`를 증명하며 이 terminal documentation-only descendant를
+재귀적으로 증명하지 않습니다.
+
 ## 인수인계
 
-- 현재 정확한 다음 작업: EVID-141 corrected-refreeze documentation descendant를 non-force push하고 Draft PR #1을 갱신한 뒤
-  corrected exact submitted-head hosted matrix 하나를 통과합니다. 성공한 exact head/run을 별도 terminal evidence에 기록한
-  뒤에만 ADR-0050/GDJ-0048 상태를 닫습니다.
+- GDJ-0048은 completed이고 이 terminal head에는 active/ready packet이 없습니다. 다음 packet 선택은 별도 activation
+  documentation boundary에서 수행합니다.
 - 같은 공개 facade generator, ProjectSpec ABI와 CURRENT 문서는 통합 담당 한 명만 수정합니다.
-- Corrected descendant CI가 실행 중이면 로컬 구현은 계속하되 완료 전 추가 push로 run을 취소하지 않습니다.
+- Draft PR #1은 OPEN/DRAFT/unmerged이며 merge, release, deployment는 수행하지 않았습니다.

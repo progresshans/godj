@@ -1,6 +1,6 @@
 # ADR-0050: Canonical Embedded Application Model Facade
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-27
 - 관련 work/contract: [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md), GEN-M1-001, REL-002, Q-013, Q-017
 - 선행 결정: [ADR-0033](0033-forward-foreign-key-assignment-save-and-cache-ownership.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md), [ADR-0038](0038-minimal-web-core-request-lifetime-and-representation.md)

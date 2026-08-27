@@ -218,8 +218,10 @@ ABI의 publication 하부는 [EVID-100](status/TEST_EVIDENCE.md#evid-20260820-10
 source checkpoint이고, [EVID-140](status/TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)은
 첫 local final의 역사 증거입니다. CI #158 inventory-only failure 뒤 corrected source의 current
 [EVID-141](status/TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)에서
-facade v3의 source-bound PostgreSQL, relation inventory와 final local gate를 다시 통과했습니다. Corrected exact submitted
-hosted `Verified`는 아직 아닙니다. 아래 이름은 current facade에서 유지되지만 reverse/general generated upgrade나 전체 ORM
+facade v3의 source-bound PostgreSQL, relation inventory와 final local gate를 다시 통과했습니다.
+[EVID-142](status/TEST_EVIDENCE.md#evid-20260828-142--gdj-0048-corrected-exact-head-hosted-completion) / CI #159는
+exact 27/27 jobs·360/360 steps로 이 bounded current-v3 surface를 hosted-verified했습니다. 아래 이름은 current facade에서
+유지되지만 reverse/general generated upgrade나 전체 ORM
 surface의 영구 naming policy까지 결정하지 않습니다.
 
 공통 실행 engine package 이름은 익숙하고 간결한 `orm`을 유지합니다. 아래 `models`는 package 이름을 바꾸는

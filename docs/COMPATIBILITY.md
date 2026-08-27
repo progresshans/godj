@@ -3,11 +3,11 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-28 (GDJ-0047 corrected exact head EVID-138 / CI #155 run `33049861740`)
-- 현재 local required checkpoint: 2026-08-28 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
+- 마지막 검증: 2026-08-28 (GDJ-0048 corrected exact head EVID-142 / CI #159 run `33088586232`)
+- 현재 required checkpoint: 2026-08-28 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
   `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical/source-bound gate EVID-139 통과;
   first local final EVID-140 보존; CI #158 inventory-only failure 뒤 corrected source EVID-141 required PostgreSQL와
-  final inventory/full/386/archive/audit 통과; corrected exact submitted hosted matrix pending)
+  final inventory/full/386/archive/audit 통과; submitted `17966e2...`의 EVID-142/CI #159 exact 27/27·360/360 통과)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -38,10 +38,10 @@ Current-only reset은 EVID-103의 hosted gate까지 완료됐습니다. GDJ-0037
 full/386/repository-external source-clean-copy local gates와 exact correction head `d4643068...`의
 [EVID-105](status/TEST_EVIDENCE.md#evid-20260821-105--gdj-0037-exact-head-hosted-completion) / CI #103
 26/26 jobs·326/326 steps를 통과해 project publication 하위 경계에서 completed/hosted-verified됐습니다. Q-010은
-`Partial`입니다. Q-017은 [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)에서
-active이고 Proposed [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 current facade v3의 raw scalar/
-app method promotion, namespace/reconciliation/copy/JSON 경계를 locally final까지 검증했습니다. Exact submitted hosted
-matrix와 first-alpha 이후 일반 upgrader/semver 호환은 여전히 open입니다.
+`Partial`입니다. Completed [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과
+Accepted [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 current facade v3의 raw scalar/app method
+promotion, namespace/reconciliation/copy/JSON 경계를 EVID-142/CI #159에서 hosted-verified했습니다. Q-017은
+reverse/general facade와 first-alpha 이후 일반 upgrader/semver 호환 때문에 P1/open입니다.
 
 ## 프로필 범위
 
@@ -132,8 +132,9 @@ attestation도 통과했습니다. GDJ-0048 correction `a2c067c...`에서 갱신
 257 files/2,942,402 bytes/`e6798d648d1023c00375f61009428106e4a4274d502a51cbf46613a3d185ba71`, checked
 bytes 1,134/`ef0e2e69ec4b79e44d85d455544164deec85b924a3ad1f872534ff1bd919d108`입니다. EVID-141에서
 current relation inventory 1,073/1,073/0, `make godj-conformance`, affected normal/race/CGO0/vet/generate, required
-PostgreSQL 18/18·skip 0와 full `make ci`/Linux 386/external archive/audit가 다시 통과했고 corrected exact hosted만
-남았습니다. EVID-139/140은 각 이전 exact source의 역사 증거로 보존합니다.
+PostgreSQL 18/18·skip 0와 full `make ci`/Linux 386/external archive/audit가 다시 통과했습니다. EVID-142/CI #159는
+exact 27/27 jobs·360/360 steps로 같은 corrected bytes를 hosted-verify했습니다. EVID-139/140은 각 이전 exact source의
+역사 증거로 보존합니다.
 Initial exact submitted-head run `33044776835`는 26 successful jobs와
 macOS Intel product job 한 건의 30분 timeout/cancellation으로 끝났고 완료된 steps와 수집 로그의 제품 assertion failure
 표식은 0이었습니다. EVID-137의

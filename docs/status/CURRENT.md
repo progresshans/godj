@@ -3,22 +3,20 @@
 - 마지막 갱신: 2026-08-28
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active work는 [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md),
-  Proposed [ADR-0050](../adr/0050-canonical-embedded-application-model-facade.md)입니다. Activation head
-  `1070ec323f0d91b3ade54e1ec0cc6ac9e6d96175`에서 시작한 현재 checkout에는 private raw-model alias embedding,
-  promoted scalar/app method, direct FK/PK reconciliation, fail-closed source namespace audit, JSON/DTO 경계와 facade ABI v3
-  whole-bundle publication이 구현됐습니다. Affected normal/race/CGO0/vet, external compile, generated drift와 SQLite/focused
-  PostgreSQL 별도-process 흐름에 이어 clean source `e0d4b94...`의 독립 2회 source-bound PostgreSQL attestation도
-  [EVID-139](TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation)에서
-  통과했습니다. Historical test-only correction `b2f6bc5...`의 first local final은
-  [EVID-140](TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction)에
-  보존합니다. Submitted `632904b...`의 CI #158/run `33083315278`은 underlying relation tests가 아니라 stale 1,066
-  inventory lock에서만 네 좌표가 실패했습니다. Correction `6db4236...`과 attestation publication `a2c067c...`에서 current
-  inventory 1,073/1,073/0, source binding/attestation, required PostgreSQL 18/18, full `make ci`, 107-package Linux/386,
-  1,088-file external archive와 focused audit를
-  [EVID-141](TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)로
-  다시 통과했습니다. Corrected exact submitted-head hosted matrix만 남았습니다. Active/ready는 1/0이며
-  Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이번 packet 범위가 아닙니다.
+- 현재 active/ready work는 0/0입니다. Completed
+  [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Accepted
+  [ADR-0050](../adr/0050-canonical-embedded-application-model-facade.md)은 private raw-model alias embedding, promoted
+  scalar/app method, direct FK/PK reconciliation, fail-closed source namespace audit, JSON/DTO 경계와 facade ABI v3
+  whole-bundle publication을 bounded current product로 고정했습니다. Source/first-local-final/corrected refreeze는
+  [EVID-139](TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation),
+  [EVID-140](TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction),
+  [EVID-141](TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)에
+  보존합니다. Submitted head `17966e2740c7a5cbd9182a9504fd2613d6dff360`, tree
+  `90c46d799f2b38333a28a90a16cd72f1563ea73d`의
+  [EVID-142](TEST_EVIDENCE.md#evid-20260828-142--gdj-0048-corrected-exact-head-hosted-completion) / CI #159 run
+  `33088586232`은 exact 27/27 jobs·360/360 steps, failure/cancel/skip/annotation 0으로 corrected hosted acceptance를
+  닫았습니다. Q-017은 reverse/general capability와 first-alpha 이후 upgrader 때문에 P1/open이고
+  Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이 완료 범위가 아닙니다.
 - Terminal docs head `31fee59...`의 CI #156/run `33053749701`은 27 jobs 중 26 success, 1 test failure였습니다.
   유일한 실패는 SQLite coordinated rollback callback이 mutation barrier를 닫은 직후 expected error를 반환해 두 channel이
   동시에 ready가 되는 select false-negative였습니다. Baseline `3882902...`는 main barrier observation까지 callback return을
@@ -1820,8 +1818,8 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 1/0입니다. Active GDJ-0048은 activation head `1070ec3...`와 Proposed ADR-0050에서 canonical
-embedded application-model facade/current ABI v3를 locally implemented했습니다. Article exact 12/snapshot `f0043e499...`,
+현재 active/ready packet은 0/0입니다. Completed GDJ-0048은 activation head `1070ec3...`에서 시작해 Accepted ADR-0050의 canonical
+embedded application-model facade/current ABI v3를 hosted-verified했습니다. Article exact 12/snapshot `f0043e499...`,
 relationdelete exact 16/snapshot `81534d390...`이 재생성됐고 current-v3/v2-hybrid/actual-package namespace, SQLite direct
 mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. Historical behavioral source
 `e0d4b94...`/tree `e09c8d4...`의 EVID-139 attestation과 test-only `b2f6bc5...`의 EVID-140 local final은 해당 exact
@@ -1832,8 +1830,9 @@ source의 증거로 보존합니다. Submitted `632904b...`의 CI #158은 네 re
 `1f900206...`의 current binding은 257 files/2,942,402 bytes/SHA-256 `e6798d648...ba71`, checked attestation은
 1,134 bytes/SHA-256 `ef0e2e69...d108`입니다. EVID-141에서 독립 capture, PostgreSQL
 normal/race/CGO0/restart/vet, full `make ci`, 107-package Linux/386, 1,088-file external archive와 focused audit를 모두
-다시 통과했습니다. 현재 남은 유일한 acceptance gate는 corrected-refreeze documentation descendant의 exact submitted
-hosted matrix입니다.
+다시 통과했습니다. Submitted `17966e2...`/tree `90c46d7...`의 EVID-142/CI #159는 exact 27/27 jobs·360/360 steps,
+failure/cancel/skip/annotation 0, 네 relation 좌표 1,073/1,073/0과 PostgreSQL required 18/18·required skip 0으로
+terminal acceptance를 닫았습니다.
 GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
 matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. GDJ-0047 corrected
 source `14e47c9b...`은 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
@@ -1846,13 +1845,12 @@ failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. A
 GDJ-0047은 completed입니다. Concrete JWT 발급/키 관리, refresh-token family,
 OAuth/OIDC와 system-state schema 변경은 현재 완료 주장에 포함되지 않습니다.
 
-Conformance-validation artifact job은 CI #155에서 24분 07초로 25분 ceiling의 53초 margin만 남겼으며,
-같은 job은 CI #153/#154에서도 각각 24분 45초/24분 16초로 성공했습니다. 이는 GDJ-0047 acceptance를 무효화하는
-제품 결함이나 현재 blocker가 아니라 비차단 운영 margin 관찰 항목입니다. GDJ-0048 final milestone 전 workflow budget을
-별도 변경하지 않았고, exact submitted matrix에서 실제 current runtime을 확인합니다. Subtask마다 full hosted/evidence cycle을
-만들지 않습니다.
+Conformance-validation artifact job은 CI #159에서 24분 46초로 25분 ceiling의 14초 margin만 남겼습니다. CI #153/#154/#155도
+각각 24분 45초/24분 16초/24분 07초였습니다. 이는 GDJ-0048 acceptance를 무효화하는 제품 결함이나 blocker가 아니지만,
+다음 source milestone 전에 job 분할 또는 budget 교정이 필요한 비차단 운영 관찰입니다. Subtask마다 full
+hosted/evidence cycle을 만들지는 않습니다.
 
-Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 active입니다.
+Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 P1/open입니다.
 MIG-075..086은 remaining reference-only locked range이지만 diagnostic 관찰을 자동 product passing으로 승격하지 않습니다.
 Draft PR #1은 계속 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.
 

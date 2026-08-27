@@ -64,6 +64,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0047](0047-explicit-single-runtime-system-state.md) | Accepted | Current migration 기반 single-runtime auth/session/audit와 clean sequential restart 경계 |
 | [0048](0048-database-coordinated-system-state-and-shared-csrf-key-ring.md) | Accepted | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
 | [0049](0049-first-party-bff-and-bearer-api-authentication.md) | Accepted | First-party session, BFF와 strict injected Bearer API authentication profile; corrected exact hosted acceptance 완료 |
-| [0050](0050-canonical-embedded-application-model-facade.md) | Proposed | Embedded raw scalar/user method와 project-owned relation state를 결합하는 current application model facade |
+| [0050](0050-canonical-embedded-application-model-facade.md) | Accepted | Embedded raw scalar/user method와 project-owned relation state를 결합하는 hosted-verified current application model facade |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

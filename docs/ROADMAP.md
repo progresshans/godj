@@ -1,16 +1,17 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 active batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
-  Q-017의 application-facing generated model을 current ABI v3로 재기준화합니다. Proposed
+- 최근 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
+  Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
   project-owned relation state를 결합하고, direct FK reconciliation, fail-closed method namespace, pointer/copy safety와
   explicit raw `Unwrap`/DTO-only Web representation을 한 whole-bundle 배치로 검증합니다. Reverse/general manager와 post-alpha upgrader는
   계속 open입니다. Activation head `1070ec3...`의 CI #157은 corrected baseline을 exact 27/27로 확인했고, 현재 checkout은
   facade v3 product와 source-bound PostgreSQL gate에 이어 EVID-140 첫 local final을 통과했습니다. CI #158의 네
   relation-product failure는 stale inventory lock으로 한정됐고, EVID-141 corrected source에서 current 1,073/1,073/0,
-  required PostgreSQL 18/18, full `make ci`, Linux/386, 1,088-file external archive/audit를 다시 통과했으며 corrected
-  exact submitted hosted 검증만 남았습니다.
+  required PostgreSQL 18/18, full `make ci`, Linux/386, 1,088-file external archive/audit를 다시 통과했습니다.
+  Submitted `17966e2...`의 EVID-142/CI #159는 exact 27/27 jobs·360/360 steps로 completed/hosted-verified 상태를
+  닫았습니다. 현재 active/ready는 0/0이며 다음 packet은 별도 activation boundary에서 선택합니다.
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과
@@ -75,7 +76,7 @@
   [EVID-118](status/TEST_EVIDENCE.md#evid-20260824-118--gdj-0041-exact-head-hosted-completion) / run
   `32647746430`의 exact 27/27 jobs·341/341 steps, 네 플랫폼 968/968/0과 PostgreSQL 17.10 actual을
   통과해 GDJ-0041을 completed/hosted-verified로 닫았습니다.
-  Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 GDJ-0048에서 active입니다.
+  Q-010/Q-011/Q-012/Q-013은 `Partial`, Q-017은 GDJ-0048 bounded completion 뒤에도 P1/open입니다.
 - 직전 GDJ-0035 evidence snapshot: [GDJ-0035](../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는
   당시 유일한 active contract-first packet이었습니다. Completed [GDJ-0034](../work/0034-typed-generated-select-related-cause-preservation.md)의
   terminal head `0bb8c969...`는 EVID-083/run `31613170021`의 고유 exact 26/26 jobs·326/326 steps와 audit

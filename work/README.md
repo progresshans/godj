@@ -71,21 +71,21 @@ proposed → ready → active → completed
 | [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md) | completed | Durable single-runtime system state와 restart-preserving Article Admin/API |
 | [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | completed | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
 | [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | completed | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
-| [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | active | Canonical embedded application model facade와 current generated ABI v3 |
+| [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | completed | Canonical embedded application model facade와 current generated ABI v3 |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active
+현재 active/ready packet은 0/0입니다. Completed
 [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
-Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔고 current v3 product를 locally
-implemented했습니다. Proposed
+Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔습니다. Accepted
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
 `Save`/`With*`/relation/`Unwrap`, direct FK reconciliation, fail-closed method namespace와 explicit DTO representation을
 결정 경계로 고정합니다. Source checkpoint/독립 attestation은 EVID-139, required PostgreSQL 18/18·full
 `make ci`·Linux/386·1,088-file archive/audit의 첫 local final은 EVID-140에 보존합니다. Submitted `632904b...`의
 CI #158은 네 relation-product inventory lock만 stale해 실패했고 underlying tests와 나머지 23 jobs는 통과했습니다.
 Correction `6db4236...`/attestation publication `a2c067c...`의 EVID-141에서 current 1,073/1,073/0 inventory,
-source-bound PostgreSQL 18/18과 full/386/1,088-file archive/audit refreeze가 다시 통과했으며 corrected exact submitted
-hosted gate만 남았습니다.
+source-bound PostgreSQL 18/18과 full/386/1,088-file archive/audit refreeze가 다시 통과했습니다. Submitted
+`17966e2...`, tree `90c46d7...`의 EVID-142/CI #159는 exact 27/27 jobs·360/360 steps, failure/cancel/skip/annotation
+0으로 corrected hosted acceptance를 닫았습니다.
 Schema IR/Migration/Backend와
 JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree
@@ -102,7 +102,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0047이고 현재 통합 작업은 GDJ-0048 하나입니다. Draft PR #1은
+최근 terminal completion은 GDJ-0048이며 다음 packet은 아직 선택하지 않았습니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

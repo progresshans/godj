@@ -16,7 +16,7 @@
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
 | Q-016 | Partial | GDJ-0044 completed / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/closed Router bounded 18-contract slice를 Accepted/hosted-verified; Channels/Realtime profile과 broader API는 open |
-| Q-017 | P1 | GDJ-0048 active / canonical application facade | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON은 locally implemented되고 affected/vertical/source-bound 및 required PostgreSQL/full/386/archive/audit gate를 통과했으며 exact submitted hosted gate와 reverse/general upgrade, first-alpha 이후 upgrader는 open |
+| Q-017 | P1 | GDJ-0048 completed / reverse-general-upgrade follow-up | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON도 EVID-142에서 hosted-verified. Reverse/general upgrade와 first-alpha 이후 upgrader는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
@@ -706,9 +706,9 @@ Current manifest는 normalized Schema/layout, 13-role generator ABI와 exact out
 rename/deprecation과 first-alpha 이후 compatibility 기간입니다. Bounded REL-002 behavior의 무조건적 선행 blocker로
 과장하지 않습니다.
 
-### GDJ-0048 active decision boundary
+### GDJ-0048 completed bounded decision
 
-[GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Proposed
+[GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Accepted
 [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 external compile comparison을 근거로 private raw-model
 alias embedding과 existing project-owned relation state/cache의 결합을 current checkout에 구현했습니다. Scalar field와 app-owned
 method를 promotion하되 existing `Save`/`With*`/forward accessor/`Unwrap`을 유지하고, direct FK mutation은 operational
@@ -717,10 +717,11 @@ boundary 전에 canonical snapshot/full rebuild/all-success publication으로 ed
 Wrapper direct JSON marshal/unmarshal은 fail-closed하고 ADR-0038 Web JSON/template의 representation authority는 app DTO로
 유지합니다. Exported promoted field의 generic `html/template` 접근 자체를 type-level로 막는다고 주장하지 않습니다.
 
-이 active packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture의 affected/vertical,
+이 completed packet은 current facade renderer v3와 existing 13-role whole bundle, Article/relation fixture의 affected/vertical,
 source-bound 및 EVID-140 first local-final gate를 통과했습니다. CI #158의 stale inventory-only failure 뒤 EVID-141
-corrected source에서 current 1,073/1,073/0 inventory, required PostgreSQL/full/386/archive/audit gate를 다시 통과했고
-corrected exact submitted hosted 검증만 남겼습니다. Reverse assignment/general manager, installed-version negotiation,
+corrected source에서 current 1,073/1,073/0 inventory, required PostgreSQL/full/386/archive/audit gate를 다시 통과했고,
+EVID-142/CI #159 exact 27/27 jobs·360/360 steps가 hosted acceptance를 닫았습니다. Reverse assignment/general manager,
+installed-version negotiation,
 renderer rename/deprecation와 first-alpha 이후 semver/upgrader는 계속 Q-017에 남으므로 packet 완료만으로 Q-017 전체를
 `Resolved`로 만들지 않습니다.
 

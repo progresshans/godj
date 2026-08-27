@@ -598,11 +598,11 @@ Concrete JWT/opaque issuer/verifier implementation, refresh token, OAuth/OIDC, k
   26/26 jobs·326/326 steps에서 hosted-verified됐고 GDJ-0037은 completed입니다. 이 완료는 Q-010/Q-017의 남은
   semver·raw-model·general upgrade나 PostgreSQL/Web capability를 구현했다는 뜻이 아닙니다.
 
-## Active capability: canonical application model facade
+## Bounded hosted capability: canonical application model facade
 
-[GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Proposed
-[ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 Q-017의 application-facing current ABI를 locally
-implemented했고 final verification을 진행 중입니다.
+Completed [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Accepted
+[ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 Q-017의 application-facing current ABI를 bounded
+hosted-verified product로 고정했습니다.
 
 - Current checkout은 facade v3의 private raw-model alias embedding으로 scalar와 app-owned ordinary method를 promotion하고 existing
   project-owned relation origin/object/cache/presence/self state를 유지합니다.
@@ -620,8 +620,9 @@ implemented했고 final verification을 진행 중입니다.
 focused PostgreSQL 별도-process 흐름과 독립 2회 source-bound PostgreSQL attestation을 통과했습니다. EVID-140의 첫
 local final 뒤 CI #158이 stale relation inventory lock을 드러냈고, EVID-141 corrected source에서 current
 1,073/1,073/0 inventory, required PostgreSQL exact 18/18·skip 0, full `make ci`, Linux/386, 1,088-file external archive와
-independent audit가 다시 통과했습니다. Corrected exact hosted matrix 전이므로 terminal verified로는 아직 승격하지 않습니다.
-Reverse/general manager, installed-version negotiation과 first-alpha 이후 upgrader도 이번 active packet의 capability가 아닙니다.
+independent audit가 다시 통과했습니다. EVID-142/CI #159는 exact 27/27 jobs·360/360 steps,
+failure/cancel/skip/annotation 0으로 corrected submitted head를 hosted-verify했습니다. Reverse/general manager,
+installed-version negotiation과 first-alpha 이후 upgrader는 이 bounded capability가 아닙니다.
 
 ### Historical GDJ-0035 design and evidence snapshot
 

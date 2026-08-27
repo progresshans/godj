@@ -546,7 +546,8 @@ whole-candidate compile에만 맡기지 않고 bounded non-test Go source AST na
 target mutation 전에 거부합니다. Write candidate는 first generated mutation 직전에 sealed source fingerprint를 다시 확인하고,
 direct FK/PK mutation은 source wrapper의 related operational boundary에서 all-success staging 뒤 게시합니다. Wrapper direct
 JSON은 거부하며 `Unwrap` deep clone과 app-owned DTO가 explicit representation 경계를 유지합니다. 이 current-v3 결정은
-[ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)에 기록하고 exact hosted acceptance 전에는 Proposed입니다.
+[ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)에 기록하며 EVID-142/CI #159 exact hosted acceptance로
+Accepted입니다.
 Generator/library semver와 first-alpha 이후 upgrade policy는 Q-010에 남습니다.
 
 ## 목표 저장소 구조
