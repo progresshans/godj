@@ -43,7 +43,16 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "./conformance/runserverproduct", 1)
 
 	portable := runserverWorkflowJob(t, jobs, "product-project-check-matrix", "python-compatibility-matrix")
-	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout-minutes: 30", 1)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout-minutes: ${{ matrix.timeout_minutes }}", 1)
+	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout_minutes:", 4)
+	for _, coordinate := range []string{
+		"- runs_on: ubuntu-22.04\n            expected_goos: linux\n            expected_goarch: amd64\n            timeout_minutes: 30",
+		"- runs_on: ubuntu-24.04-arm\n            expected_goos: linux\n            expected_goarch: arm64\n            timeout_minutes: 30",
+		"- runs_on: macos-15-intel\n            expected_goos: darwin\n            expected_goarch: amd64\n            timeout_minutes: 45",
+		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64\n            timeout_minutes: 30",
+	} {
+		runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, coordinate, 1)
+	}
 	portableNormal := runserverWorkflowStep(
 		t,
 		portable,

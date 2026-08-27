@@ -333,7 +333,7 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 	for name, block := range map[string]string{"project-check": project, "relation-binding": relationBinding, "relation-product": relationProduct, "product-project-check": product, "sqlite": sqlite} {
 		expectedTimeout := "timeout-minutes: 20"
 		if name == "product-project-check" {
-			expectedTimeout = "timeout-minutes: 30"
+			expectedTimeout = "timeout-minutes: ${{ matrix.timeout_minutes }}"
 		}
 		if strings.Count(block, "          - runs_on: ") != 4 {
 			t.Fatalf("%s matrix leg count is not 4", name)
@@ -359,6 +359,20 @@ func TestMigrationProjectCheckWorkflowExpandsToExactTwentySevenRequiredExecution
 			if strings.Count(block, required) != 1 {
 				t.Fatalf("%s matrix required fragment %q count = %d, want 1", name, required, strings.Count(block, required))
 			}
+		}
+	}
+	productTimeoutCoordinates := []string{
+		"- runs_on: ubuntu-22.04\n            expected_goos: linux\n            expected_goarch: amd64\n            timeout_minutes: 30",
+		"- runs_on: ubuntu-24.04-arm\n            expected_goos: linux\n            expected_goarch: arm64\n            timeout_minutes: 30",
+		"- runs_on: macos-15-intel\n            expected_goos: darwin\n            expected_goarch: amd64\n            timeout_minutes: 45",
+		"- runs_on: macos-26\n            expected_goos: darwin\n            expected_goarch: arm64\n            timeout_minutes: 30",
+	}
+	if got := strings.Count(product, "timeout_minutes:"); got != len(productTimeoutCoordinates) {
+		t.Fatalf("product-project-check coordinate timeout count = %d, want %d", got, len(productTimeoutCoordinates))
+	}
+	for _, coordinate := range productTimeoutCoordinates {
+		if strings.Count(product, coordinate) != 1 {
+			t.Fatalf("product-project-check timeout coordinate %q is not pinned exactly once", coordinate)
 		}
 	}
 	for _, command := range []string{
