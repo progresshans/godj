@@ -48,7 +48,7 @@ func TestArticleAdminSitePostgresUserFlow(t *testing.T) {
 	})
 
 	loaded, _, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "testdata/postgres/0001_initial.godj.json",
+		SourceID: "migrations/0001_initial.godj.json",
 		Document: append([]byte(nil), articlePostgresInitialDefinition...),
 	})
 	if err != nil {

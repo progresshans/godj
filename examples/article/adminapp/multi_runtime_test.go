@@ -341,8 +341,7 @@ func migrateArticleSystemState(t *testing.T, ctx context.Context, backend *sqlit
 		repository,
 		"examples",
 		"article",
-		"testdata",
-		"postgres",
+		"migrations",
 		"0001_initial.godj.json",
 	))
 	if err != nil {
@@ -350,7 +349,7 @@ func migrateArticleSystemState(t *testing.T, ctx context.Context, backend *sqlit
 	}
 	loaded, _, err := migrationdefinition.Load(
 		migrationdefinition.Source{
-			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
+			SourceID: "examples/article/migrations/0001_initial.godj.json",
 			Document: document,
 		},
 		systemstate.InitialDefinitionSource(),

@@ -54,9 +54,26 @@ func TestOwnedProcessHelper(t *testing.T) {
 		for {
 			time.Sleep(time.Second)
 		}
+	case "graceful":
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, os.Interrupt)
+		defer signal.Stop(signals)
+		if err := publishHelperReady(strconv.Itoa(os.Getpid())); err != nil {
+			os.Exit(96)
+		}
+		<-signals
+		delay, _ := time.ParseDuration(os.Getenv("GODJ_HELPER_EXIT_DELAY"))
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+		os.Exit(0)
 	case "spawn-holder":
 		environment := environmentValues(os.Environ())
 		environment["GODJ_OWNED_PROCESS_HELPER"] = "hold"
+		if holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY"); holderReady != "" {
+			environment["GODJ_HELPER_READY"] = holderReady
+			environment["GODJ_HELPER_HOLDER_HANDSHAKE"] = "1"
+		}
 		child := exec.Command(os.Args[0], "-test.run=^TestOwnedProcessHelper$")
 		child.Env = sortedEnvironment(environment)
 		child.Stdout = os.Stdout
@@ -71,8 +88,32 @@ func TestOwnedProcessHelper(t *testing.T) {
 			}
 		}
 		os.Exit(0)
+	case "spawn-quiet-holder":
+		environment := environmentValues(os.Environ())
+		environment["GODJ_OWNED_PROCESS_HELPER"] = "hold"
+		if holderReady := os.Getenv("GODJ_HELPER_HOLDER_READY"); holderReady != "" {
+			environment["GODJ_HELPER_READY"] = holderReady
+			environment["GODJ_HELPER_HOLDER_HANDSHAKE"] = "1"
+		}
+		child := exec.Command(os.Args[0], "-test.run=^TestOwnedProcessHelper$")
+		child.Env = sortedEnvironment(environment)
+		if err := child.Start(); err != nil {
+			os.Exit(97)
+		}
+		if ready := os.Getenv("GODJ_HELPER_READY"); ready != "" {
+			payload := strconv.Itoa(os.Getpid()) + "," + strconv.Itoa(child.Process.Pid)
+			if err := publishHelperReady(payload); err != nil {
+				os.Exit(96)
+			}
+		}
+		os.Exit(0)
 	case "hold":
 		signal.Ignore(os.Interrupt)
+		if os.Getenv("GODJ_HELPER_HOLDER_HANDSHAKE") == "1" {
+			if err := publishHelperReady(strconv.Itoa(os.Getpid())); err != nil {
+				os.Exit(96)
+			}
+		}
 		for {
 			time.Sleep(time.Second)
 		}

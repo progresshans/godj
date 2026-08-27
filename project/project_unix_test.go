@@ -19,8 +19,10 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
+	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -77,6 +79,7 @@ func TestPublicFacadeMatchesLinkedEntrypointAndOwnsInputs(t *testing.T) {
 func TestPublicFacadeSeparatesMigrationAndGenerationLoaders(t *testing.T) {
 	enterProjectRoot(t)
 	loaderCalls := 0
+	openerCalls := 0
 	config := Config{
 		MigrationDefinitionRoots: []string{"migrations"},
 		LoadProjectSpec: func(context.Context) (codegen.ProjectSpec, error) {
@@ -96,6 +99,10 @@ func TestPublicFacadeSeparatesMigrationAndGenerationLoaders(t *testing.T) {
 				}},
 			}, nil
 		},
+		OpenMigrationBackend: func(context.Context) (MigrationBackend, error) {
+			openerCalls++
+			return nil, errors.New("must not open outside explicit migrate")
+		},
 	}
 
 	var migrationOutput bytes.Buffer
@@ -108,8 +115,8 @@ func TestPublicFacadeSeparatesMigrationAndGenerationLoaders(t *testing.T) {
 	); err != nil {
 		t.Fatalf("migration request: %v", err)
 	}
-	if loaderCalls != 0 {
-		t.Fatalf("migration request loader calls = %d, want 0", loaderCalls)
+	if loaderCalls != 0 || openerCalls != 0 {
+		t.Fatalf("check request calls = loader %d, opener %d, want 0/0", loaderCalls, openerCalls)
 	}
 
 	var generationOutput bytes.Buffer
@@ -122,8 +129,8 @@ func TestPublicFacadeSeparatesMigrationAndGenerationLoaders(t *testing.T) {
 	); err != nil {
 		t.Fatalf("generation request: %v", err)
 	}
-	if loaderCalls != 1 {
-		t.Fatalf("generation request loader calls = %d, want 1", loaderCalls)
+	if loaderCalls != 1 || openerCalls != 0 {
+		t.Fatalf("generation request calls = loader %d, opener %d, want 1/0", loaderCalls, openerCalls)
 	}
 	response, failure, failed := projectgenerateprotocol.ParseResponse(generationOutput.Bytes(), true)
 	if failed || failure != (projectgenerateprotocol.Failure{}) || !response.OK || len(response.ProjectSpec.Apps) != 1 {
@@ -144,6 +151,64 @@ func TestPublicFacadeSeparatesMigrationAndGenerationLoaders(t *testing.T) {
 	second, failure, failed := projectgenerateprotocol.ParseResponse(secondOutput.Bytes(), true)
 	if failed || failure != (projectgenerateprotocol.Failure{}) || !second.OK || second.ProjectSpec.Apps[0].Schema.Models[0].Name != "article" {
 		t.Fatalf("second generation response = %+v failure=%+v failed=%v", second, failure, failed)
+	}
+	if openerCalls != 0 {
+		t.Fatalf("generation invoked migration opener %d times", openerCalls)
+	}
+}
+
+func TestPublicMigrateOwnsSourcesAndSignalContext(t *testing.T) {
+	enterProjectRoot(t)
+	sources := []definition.Source{{
+		SourceID: "framework/system-state.godj.json",
+		Document: []byte(`{"format_version":1,"producer":{"name":"project-test","version":"1"},"migration":{"app":"system","name":"0001_initial","dependencies":[],"operations":[]}}`),
+	}}
+	argv := []string{migrateprotocol.PrivateArgument}
+	reader := newBlockingReader(migrateprotocol.RequestDocument())
+	openerStarted := make(chan struct{})
+	var ownedCancel context.CancelFunc
+	ownerCalls := 0
+	stopCalls := 0
+	config := Config{
+		MigrationDefinitionSources: sources,
+		OpenMigrationBackend: func(ctx context.Context) (MigrationBackend, error) {
+			close(openerStarted)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() {
+		done <- run(context.Background(), config, argv, reader, &output, func(parent context.Context) (context.Context, context.CancelFunc) {
+			ownerCalls++
+			owned, cancel := context.WithCancel(parent)
+			ownedCancel = cancel
+			return owned, func() {
+				stopCalls++
+				cancel()
+			}
+		})
+	}()
+	<-reader.started
+	sources[0].SourceID = "mutated"
+	sources[0].Document[0] = 'x'
+	argv[0] = "mutated"
+	close(reader.release)
+	<-openerStarted
+	ownedCancel()
+	if err := <-done; err != nil {
+		t.Fatalf("migrate dispatch = %v", err)
+	}
+	response, failure, failed := migrateprotocol.ParseResponse(output.Bytes(), true)
+	if failed || failure != (migrateprotocol.Failure{}) || response.Failure != (migrateprotocol.Failure{
+		Category: migrateprotocol.CategoryBackend,
+		Code:     migrateprotocol.CodeBackendOpenFailed,
+	}) {
+		t.Fatalf("migrate cancellation response = %+v, %+v, %v", response, failure, failed)
+	}
+	if ownerCalls != 1 || stopCalls != 1 {
+		t.Fatalf("signal owner calls = owner %d, stop %d", ownerCalls, stopCalls)
 	}
 }
 
@@ -267,6 +332,7 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	}
 	exports := make([]string, 0)
 	linkedCalls := 0
+	linkedMigrateCalls := 0
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch value := node.(type) {
 		case *ast.TypeSpec:
@@ -279,22 +345,28 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 			}
 		case *ast.CallExpr:
 			selector, ok := value.Fun.(*ast.SelectorExpr)
-			if !ok || selector.Sel.Name != "Run" {
+			if !ok {
 				break
 			}
 			identifier, ok := selector.X.(*ast.Ident)
-			if ok && identifier.Name == "linked" {
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "Run" {
 				linkedCalls++
+			}
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunMigrate" {
+				linkedMigrateCalls++
 			}
 		}
 		return true
 	})
 	sort.Strings(exports)
-	if !reflect.DeepEqual(exports, []string{"Config", "Run"}) {
+	if !reflect.DeepEqual(exports, []string{"Config", "MigrationBackend", "Run"}) {
 		t.Fatalf("project exports = %v", exports)
 	}
 	if linkedCalls != 1 {
 		t.Fatalf("linked.Run callsites in public facade = %d, want 1", linkedCalls)
+	}
+	if linkedMigrateCalls != 1 {
+		t.Fatalf("linked.RunMigrate callsites in public facade = %d, want 1", linkedMigrateCalls)
 	}
 	source, err := os.ReadFile("project_unix.go")
 	if err != nil {

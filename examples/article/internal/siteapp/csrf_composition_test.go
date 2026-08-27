@@ -302,8 +302,7 @@ func migrateSiteAppCSRFSchema(t *testing.T, ctx context.Context, backend *sqlite
 		repository,
 		"examples",
 		"article",
-		"testdata",
-		"postgres",
+		"migrations",
 		"0001_initial.godj.json",
 	))
 	if err != nil {
@@ -311,7 +310,7 @@ func migrateSiteAppCSRFSchema(t *testing.T, ctx context.Context, backend *sqlite
 	}
 	loaded, _, err := migrationdefinition.Load(
 		migrationdefinition.Source{
-			SourceID: "examples/article/testdata/postgres/0001_initial.godj.json",
+			SourceID: "examples/article/migrations/0001_initial.godj.json",
 			Document: document,
 		},
 		systemstate.InitialDefinitionSource(),

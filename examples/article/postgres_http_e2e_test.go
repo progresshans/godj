@@ -30,7 +30,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-//go:embed testdata/postgres/0001_initial.godj.json
+//go:embed migrations/0001_initial.godj.json
 var articlePostgresInitialDefinition []byte
 
 func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
@@ -66,7 +66,7 @@ func TestArticlePostgresMigrationGeneratedCRUDAndHTTP(t *testing.T) {
 	})
 
 	loaded, report, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "testdata/postgres/0001_initial.godj.json",
+		SourceID: "migrations/0001_initial.godj.json",
 		Document: append([]byte(nil), articlePostgresInitialDefinition...),
 	})
 	if err != nil {

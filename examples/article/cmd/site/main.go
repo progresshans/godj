@@ -13,19 +13,17 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/progresshans/godj/db/postgres"
-	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
 	"github.com/progresshans/godj/examples/article/webapp"
-	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 )
 
 const (
 	defaultListenAddress     = "127.0.0.1:8000"
-	articleSQLiteDatabaseEnv = "GODJ_ARTICLE_SQLITE_DATABASE"
-	articlePostgresURLEnv    = "GODJ_ARTICLE_POSTGRES_URL"
-	articlePostgresSchemaEnv = "GODJ_ARTICLE_POSTGRES_SCHEMA"
+	articleSQLiteDatabaseEnv = databaseconfig.SQLiteDatabaseEnv
+	articlePostgresURLEnv    = databaseconfig.PostgresURLEnv
+	articlePostgresSchemaEnv = databaseconfig.PostgresSchemaEnv
 	articleAdminUsernameEnv  = "GODJ_ARTICLE_ADMIN_USERNAME"
 	articleAdminPasswordEnv  = "GODJ_ARTICLE_ADMIN_PASSWORD"
 )
@@ -59,12 +57,9 @@ type publicationConfig struct {
 func (publicationConfig) String() string   { return "publicationConfig{redacted}" }
 func (publicationConfig) GoString() string { return "publicationConfig{redacted}" }
 
-type articleBackend interface {
-	systemstate.Backend
-	Close() error
-}
+type articleBackend = databaseconfig.Backend
 
-type lookupEnvFunc func(string) (string, bool)
+type lookupEnvFunc = databaseconfig.LookupEnvFunc
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -205,52 +200,22 @@ func parseServeConfig(arguments []string, stderr io.Writer) (serveConfig, error)
 }
 
 func databaseConfigForServe(config serveConfig, lookup lookupEnvFunc) (databaseConfig, error) {
-	if lookup == nil {
-		return databaseConfig{}, errors.New("article site: environment lookup is nil")
-	}
-	sqliteDatabase, sqliteConfigured, err := requiredEnvironmentValue(lookup, articleSQLiteDatabaseEnv)
+	shared, err := databaseconfig.ForServe(config.database, config.databaseSpecified, lookup)
 	if err != nil {
 		return databaseConfig{}, err
 	}
-	postgresURL, postgresURLConfigured, err := requiredEnvironmentValue(lookup, articlePostgresURLEnv)
-	if err != nil {
-		return databaseConfig{}, err
-	}
-	postgresSchema, postgresSchemaConfigured, err := requiredEnvironmentValue(lookup, articlePostgresSchemaEnv)
-	if err != nil {
-		return databaseConfig{}, err
-	}
-	if sqliteConfigured && (postgresURLConfigured || postgresSchemaConfigured) {
-		return databaseConfig{}, errors.New("article site: SQLite and PostgreSQL environment are mutually exclusive")
-	}
-	if config.databaseSpecified && (sqliteConfigured || postgresURLConfigured || postgresSchemaConfigured) {
-		return databaseConfig{}, errors.New("article site: --database and database environment are mutually exclusive")
-	}
-	if config.databaseSpecified {
-		return databaseConfig{kind: databaseKindSQLite, sqliteDatabase: config.database}, nil
-	}
-	if sqliteConfigured {
-		return databaseConfig{kind: databaseKindSQLite, sqliteDatabase: sqliteDatabase}, nil
-	}
-	if postgresURLConfigured != postgresSchemaConfigured {
-		if !postgresURLConfigured {
-			return databaseConfig{}, fmt.Errorf("article site: %s is required with %s", articlePostgresURLEnv, articlePostgresSchemaEnv)
-		}
-		return databaseConfig{}, fmt.Errorf("article site: %s is required with %s", articlePostgresSchemaEnv, articlePostgresURLEnv)
-	}
-	if postgresURLConfigured {
+	switch shared.Kind() {
+	case databaseconfig.KindSQLite:
+		return databaseConfig{kind: databaseKindSQLite, sqliteDatabase: shared.SQLiteDatabase()}, nil
+	case databaseconfig.KindPostgres:
 		return databaseConfig{
 			kind:           databaseKindPostgres,
-			postgresURL:    postgresURL,
-			postgresSchema: postgresSchema,
+			postgresURL:    shared.PostgresURL(),
+			postgresSchema: shared.PostgresSchema(),
 		}, nil
+	default:
+		return databaseConfig{}, errors.New("article site: database configuration is invalid")
 	}
-	return databaseConfig{}, fmt.Errorf(
-		"article site: configure %s or both %s and %s",
-		articleSQLiteDatabaseEnv,
-		articlePostgresURLEnv,
-		articlePostgresSchemaEnv,
-	)
 }
 
 func publicationConfigForServe(config serveConfig, lookup lookupEnvFunc) (publicationConfig, error) {
@@ -295,33 +260,19 @@ func loopbackListenAddress(address string) bool {
 	return parsed != nil && parsed.IsLoopback()
 }
 
-func requiredEnvironmentValue(lookup lookupEnvFunc, name string) (string, bool, error) {
-	value, configured := lookup(name)
-	if !configured {
-		return "", false, nil
-	}
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "", false, fmt.Errorf("article site: %s is empty", name)
-	}
-	return value, true, nil
-}
-
 func openArticleBackend(ctx context.Context, config databaseConfig) (articleBackend, error) {
+	var shared databaseconfig.Config
+	var err error
 	switch config.kind {
 	case databaseKindSQLite:
-		backend, err := sqlite.Open(ctx, config.sqliteDatabase)
-		if err != nil {
-			return nil, fmt.Errorf("article site: open SQLite database: %w", err)
-		}
-		return backend, nil
+		shared, err = databaseconfig.SQLite(config.sqliteDatabase)
 	case databaseKindPostgres:
-		backend, err := postgres.Open(ctx, postgres.Config{URL: config.postgresURL, Schema: config.postgresSchema})
-		if err != nil {
-			return nil, fmt.Errorf("article site: open PostgreSQL database: %w", err)
-		}
-		return backend, nil
+		shared, err = databaseconfig.PostgreSQL(config.postgresURL, config.postgresSchema)
 	default:
 		return nil, errors.New("article site: database configuration is invalid")
 	}
+	if err != nil {
+		return nil, err
+	}
+	return databaseconfig.Open(ctx, shared)
 }

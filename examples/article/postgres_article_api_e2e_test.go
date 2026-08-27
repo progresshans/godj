@@ -53,7 +53,7 @@ func TestArticleAPIAdminSessionPostgresUserFlow(t *testing.T) {
 		t.Fatalf("Article API PostgreSQL migration fixture SHA-256 = %s, want %s", got, articleAPIPostgresDefinitionSHA256)
 	}
 	loaded, report, err := migrationdefinition.Load(migrationdefinition.Source{
-		SourceID: "testdata/postgres/0001_initial.godj.json",
+		SourceID: "migrations/0001_initial.godj.json",
 		Document: append([]byte(nil), articlePostgresInitialDefinition...),
 	})
 	if err != nil {

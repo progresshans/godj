@@ -463,7 +463,8 @@ func TestLinkedProductionDependencyAndLoaderGates(t *testing.T) {
 		t.Fatal(err)
 	}
 	loadCalls := 0
-	forbidden := []string{"conformance", "/db/", "Executor.Migrate", "NewPlanner"}
+	migrateCalls := 0
+	forbidden := []string{"conformance", "/db/", "NewPlanner"}
 	for _, entry := range directory {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
@@ -487,12 +488,17 @@ func TestLinkedProductionDependencyAndLoaderGates(t *testing.T) {
 				return true
 			}
 			selector, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok || selector.Sel.Name != "Load" {
+			if !ok {
 				return true
 			}
-			identifier, ok := selector.X.(*ast.Ident)
-			if ok && identifier.Name == "definition" {
-				loadCalls++
+			if selector.Sel.Name == "Load" {
+				identifier, ok := selector.X.(*ast.Ident)
+				if ok && identifier.Name == "definition" {
+					loadCalls++
+				}
+			}
+			if selector.Sel.Name == "Migrate" && isMigrationsExecutorExpression(selector.X) {
+				migrateCalls++
 			}
 			return true
 		})
@@ -500,6 +506,26 @@ func TestLinkedProductionDependencyAndLoaderGates(t *testing.T) {
 	if loadCalls != 1 {
 		t.Fatalf("production definition.Load callsites = %d, want 1", loadCalls)
 	}
+	if migrateCalls != 1 {
+		t.Fatalf("production migrations.Executor.Migrate callsites = %d, want 1", migrateCalls)
+	}
+}
+
+func isMigrationsExecutorExpression(expression ast.Expr) bool {
+	parenthesized, ok := expression.(*ast.ParenExpr)
+	if !ok {
+		return false
+	}
+	composite, ok := parenthesized.X.(*ast.CompositeLit)
+	if !ok {
+		return false
+	}
+	selector, ok := composite.Type.(*ast.SelectorExpr)
+	if !ok || selector.Sel.Name != "Executor" {
+		return false
+	}
+	identifier, ok := selector.X.(*ast.Ident)
+	return ok && identifier.Name == "migrations"
 }
 
 func invoke(t *testing.T, root string, roots []string, request []byte, dependencies any) (protocol.Response, Report, error) {

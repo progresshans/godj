@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	"golang.org/x/sys/unix"
@@ -23,6 +24,9 @@ const ownedProcessGrace = 2 * time.Second
 type processBackend struct{}
 
 func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+	if stage == MigrateRunnerStage {
+		return executeOwnedMigrateProcess(ctx, interrupt, cloneCommand(command), migrateprotocol.MaxResponseBytes, maxDiagnosticBytes, migrateOwnedProcessGrace)
+	}
 	stdoutMaximum := maxDiagnosticBytes
 	retainStdout := false
 	if stage == RunnerStage {

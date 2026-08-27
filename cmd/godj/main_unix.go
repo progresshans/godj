@@ -7,13 +7,14 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/progresshans/godj/internal/projectcheck"
 )
 
 func main() {
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 	interrupt := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
@@ -44,6 +45,18 @@ func execute(ctx context.Context, cwd string, args, environment []string, stdout
 	}
 	if len(args) != 0 && args[0] == "generate" {
 		report := projectcheck.RunGenerate(projectcheck.GenerationInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
+	if len(args) != 0 && args[0] == "migrate" {
+		report := projectcheck.RunMigrate(projectcheck.MigrateInvocation{
 			Context:     ctx,
 			CWD:         cwd,
 			Args:        args,
