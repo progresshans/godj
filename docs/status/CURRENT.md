@@ -3,7 +3,14 @@
 - 마지막 갱신: 2026-08-28
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 0/0입니다. Completed
+- 현재 active/ready work는 1/0입니다. Active
+  [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Proposed
+  [ADR-0051](../adr/0051-project-linked-explicit-migrate.md)은 terminal baseline
+  `3fdb1c774b1c04d7db800f35ce9a7d714b1d973f`, tree `41fa887e3066a30635c10d4558d5b5192a008917`에서
+  existing current-only loader/executor와 project runner를 exact `godj migrate [--project <godj.toml>]`에 연결합니다.
+  Project-owned backend opener/secret boundary, definition load-before-open, latest-only/no-retry, rollback/unknown error
+  precedence와 core 5초 cleanup보다 긴 child interrupt grace가 acceptance blocker입니다. MIG-087..098은 exact 12
+  `planned, not run`이고 아직 conformance artifact/product aggregate에 등록되지 않았습니다. Recent completed
   [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Accepted
   [ADR-0050](../adr/0050-canonical-embedded-application-model-facade.md)은 private raw-model alias embedding, promoted
   scalar/app method, direct FK/PK reconciliation, fail-closed source namespace audit, JSON/DTO 경계와 facade ABI v3
@@ -1818,7 +1825,13 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 0/0입니다. Completed GDJ-0048은 activation head `1070ec3...`에서 시작해 Accepted ADR-0050의 canonical
+현재 active/ready packet은 1/0입니다. Active GDJ-0049는 terminal baseline `3fdb1c7...`에서 exact latest-only
+`godj migrate`와 clean-database Article SQLite/PostgreSQL lifecycle을 시작했습니다. Proposed ADR-0051은 existing
+declaration package, copied static/file definitions, lazy project-owned backend opener, separate strict private protocol,
+load-before-open/one-open/one-migrate/one-close와 no-retry/secret/interrupt cleanup 경계를 고정합니다. MIG-087..098은
+exact 12 `planned, not run`이고 Phase A artifact publication 전에는 `oracle_locked`로도 세지지 않습니다.
+
+Completed GDJ-0048은 activation head `1070ec3...`에서 시작해 Accepted ADR-0050의 canonical
 embedded application-model facade/current ABI v3를 hosted-verified했습니다. Article exact 12/snapshot `f0043e499...`,
 relationdelete exact 16/snapshot `81534d390...`이 재생성됐고 current-v3/v2-hybrid/actual-package namespace, SQLite direct
 mutation/reload와 focused PostgreSQL 별도-process restart gate가 통과했습니다. Historical behavioral source

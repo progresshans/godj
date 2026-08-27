@@ -1,6 +1,11 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
+- 현재 active batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
+  current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결해 clean SQLite/PostgreSQL Article
+  database를 latest로 수렴시킵니다. Proposed [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
+  ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
+  no-implicit-migrate를 고정합니다. MIG-087..098은 exact 12 `planned, not run`이며 contract artifact와 product code는 아직 없습니다.
 - 최근 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
@@ -11,7 +16,7 @@
   relation-product failure는 stale inventory lock으로 한정됐고, EVID-141 corrected source에서 current 1,073/1,073/0,
   required PostgreSQL 18/18, full `make ci`, Linux/386, 1,088-file external archive/audit를 다시 통과했습니다.
   Submitted `17966e2...`의 EVID-142/CI #159는 exact 27/27 jobs·360/360 steps로 completed/hosted-verified 상태를
-  닫았습니다. 현재 active/ready는 0/0이며 다음 packet은 별도 activation boundary에서 선택합니다.
+  닫았습니다. 그 terminal head의 active/ready는 0/0이었고 현재는 GDJ-0049 하나가 active입니다.
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과

@@ -473,6 +473,11 @@ godj generate --project ./godj.toml
 godj generate --check --project ./godj.toml
 ```
 
+Active GDJ-0049가 제안한 `godj migrate`와 `godj migrate --project ./godj.toml`은 아직 이 current 지원 목록에
+포함되지 않습니다. 구현되면 existing declaration package가 DB config/backend를 소유하고 global CLI core는 전달되는 ambient
+environment의 DSN/secret 값을 파싱하거나 출력하지 않습니다. `migrations check`는 계속 DB-free이고 `runserver`는 implicit
+migrate를 하지 않습니다.
+
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
 보고합니다. `project.Config`의 migration source loader와 `LoadProjectSpec(context.Context)`는 각 private command에서만

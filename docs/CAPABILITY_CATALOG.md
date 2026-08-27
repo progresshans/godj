@@ -624,6 +624,20 @@ independent audit가 다시 통과했습니다. EVID-142/CI #159는 exact 27/27 
 failure/cancel/skip/annotation 0으로 corrected submitted head를 hosted-verify했습니다. Reverse/general manager,
 installed-version negotiation과 first-alpha 이후 upgrader는 이 bounded capability가 아닙니다.
 
+## Active capability: project-linked explicit migrate
+
+Active [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Proposed
+[ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 existing current-only lifecycle을 global
+`godj migrate [--project <godj.toml>]`에 연결할 계획입니다. Activation 시점에는 코드와 contract artifact가 없고
+MIG-087..098은 exact 12 `planned, not run`입니다.
+
+결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
+project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.
+Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 migration core의 순차 rollback/session-close 10초 상한에
+outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
+cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
+writer/autodetector와 target/reverse/plan/fake는 범위 밖입니다.
+
 ### Historical GDJ-0035 design and evidence snapshot
 
 GDJ-0035 당시 relation-migration decision 상태는 `Accepted/Partially Implemented`였습니다. Existing migration 제품의

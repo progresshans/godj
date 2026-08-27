@@ -72,9 +72,15 @@ proposed → ready → active → completed
 | [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | completed | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
 | [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | completed | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
 | [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | completed | Canonical embedded application model facade와 current generated ABI v3 |
+| [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | active | Project-linked explicit `migrate`와 clean-database Article lifecycle |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0입니다. Completed
+현재 active/ready packet은 1/0입니다. Active
+[GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 terminal baseline `3fdb1c7...`에서
+existing current-only loader/executor와 project runner를 explicit `godj migrate`에 연결합니다. Proposed
+[ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
+load-before-open, latest-only/no-retry, rollback/unknown classification과 cleanup보다 긴 interrupt grace를 고정합니다.
+MIG-087..098은 exact 12 `planned, not run`이고 아직 manifest/product aggregate에 들어가지 않았습니다. Completed
 [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
 Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔습니다. Accepted
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
@@ -102,7 +108,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0048이며 다음 packet은 아직 선택하지 않았습니다. Draft PR #1은
+최근 terminal completion은 GDJ-0048이고 현재 통합 작업은 GDJ-0049 하나입니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

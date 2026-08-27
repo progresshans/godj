@@ -1051,6 +1051,19 @@ bundle drift, SQLite direct mutation/reload, PostgreSQL separate-process/source-
 archive를 분리해 검증했습니다. EVID-142/CI #159의 exact 27/27 jobs·360/360 steps 뒤에만 ADR-0050을 Accepted,
 GDJ-0048을 completed로 terminal 승격했습니다.
 
+### GDJ-0049 project-linked migrate planned gate
+
+Activation 시점의 MIG-087..098은 exact 12 `planned, not run`이고 artifact/product status가 아닙니다. Phase A는 old
+project-check protocol byte identity, public Config compile과 strict migrate protocol을 먼저 고정합니다. Product gate는
+definition load-before-open, one-open/one-migrate/one-close, rollback/cleanup/commit-unknown precedence, secret redaction과
+15초 child-exit-aware interrupt cleanup, migrate private signal-to-context ownership을 단위/fault test로 검증합니다. 이 grace는
+core의 순차 rollback/session-close 10초 상한과 outer backend close/response 5초 margin을 포함합니다.
+
+SQLite는 clean latest, fresh no-op, prefix failure/resume, two-child fence와 migrate→runserver→restart를 서로 다른 process로
+검증합니다. PostgreSQL은 digest-pinned 17.10 empty schema에서 latest/no-op/contention/restart와 credential scanner를 required
+skip 0으로 검증합니다. `runserver`의 implicit migrate는 0이어야 합니다. Subtask마다 full matrix를 반복하지 않고 final
+frozen source에서 full/race/CGO0/386/external archive/hosted matrix를 한 번 수행합니다.
+
 ### GDJ-0033 REL-002 assignment/save/cache implementation gate
 
 GDJ-0033 activation head `a4a627a...`는 EVID-072/run `31566524953`, decision-documentation head `9d728610...`은

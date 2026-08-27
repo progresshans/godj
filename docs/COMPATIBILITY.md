@@ -8,6 +8,8 @@
   `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical/source-bound gate EVID-139 통과;
   first local final EVID-140 보존; CI #158 inventory-only failure 뒤 corrected source EVID-141 required PostgreSQL와
   final inventory/full/386/archive/audit 통과; submitted `17966e2...`의 EVID-142/CI #159 exact 27/27·360/360 통과)
+- 현재 active design: GDJ-0049/Proposed ADR-0051. MIG-087..098은 exact 12 `planned, not run`이고 아직 reference/product
+  aggregate 또는 compatibility status에 포함되지 않음
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.

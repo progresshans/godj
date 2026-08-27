@@ -291,6 +291,11 @@ local proof로 사용합니다. EVID-142/CI #159는 네 hosted relation 좌표�
 `be3344a3...9ee6`와 PostgreSQL required 18/18·required skip 0을 포함해 27/27 jobs·360/360 steps로 이 경계를
 hosted-verify했습니다.
 
+Active GDJ-0049의 MIG-087..098 project-linked migrate set은 activation 시점에 exact 12 `planned, not run`입니다.
+Independent oracle-blind decision artifact와 product adapter는 아직 없으므로 아래 current reference/product aggregate와
+remaining locked range에 세지 않습니다. Phase A publication 뒤에만 `oracle_locked`, actual observation이 일치한 뒤에만
+`passing`으로 전환하며 retired MIG-075..086 artifact/runner를 재사용하지 않습니다.
+
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=
 `218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Accepted,
