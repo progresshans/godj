@@ -151,7 +151,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/article-admin-manifest.json` | ADM-001..010 bounded Article Admin contract; 9 passing + 1 DEV-0005 |
 | `contracts/parameter-routing-manifest.json` | DRF-profile WEB-028..035 closed parameter route/reverse contract; 6 passing + 2 DEV-0006 |
 | `contracts/article-api-manifest.json` | DRF-profile API-001..010 Article JSON API contract; 7 passing + 3 DEV-0007 |
-| `contracts/api-authentication-manifest.json` | DRF/RFC/GoDj AUT-009..016/API-011..012 authentication profile contract; 7 passing + 3 Implemented DEV-0009 |
+| `contracts/api-authentication-manifest.json` | DRF/RFC/GoDj AUT-009..016/API-011..012 authentication profile contract; 7 passing + 3 Verified DEV-0009 |
 | `contracts/system-state-manifest.json` | SYS-001..020 system-state contract; 19 passing + SYS-009 DEV-0008 deviation under Accepted ADR-0048 |
 | `contracts/migration-planning-manifest.json` | Migration planning reference contract 12개 |
 | `contracts/migration-execution-manifest.json` | Migration plan execution reference contract 10개 |
@@ -270,7 +270,7 @@ Channels/Realtime와 production readiness는 이 GDJ-0046 gate가 증명하지 �
 
 `api-authentication-manifest.json`은 exact DRF/RFC/GoDj authority를 분리한 AUT-009..016/API-011..012 열 계약을
 게시합니다. AUT-009/010/011/014/016/API-011/012 일곱 개는 `passing`이고 AUT-012/013/015 세 개는
-Implemented DEV-0009 `deviation`입니다. Sparse expectation은 invalid/inactive token detail/challenge 네 개,
+Verified DEV-0009 `deviation`입니다. Sparse expectation은 invalid/inactive token detail/challenge 네 개,
 permission challenge 한 개와 invalid-Bearer-with-session detail/challenge 두 개, 모두 합쳐 exact 일곱
 `result` replacement만 허용합니다. DB/token-table selector는 없습니다.
 
@@ -288,11 +288,14 @@ Checked attestation은 current behavioral source 256 files/2,940,207 payload byt
 
 Current local reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 eligible contracts=
-`218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Proposed,
-DEV-0009는 Implemented입니다. Initial exact submitted-head run `33044776835`는 26 jobs success 뒤 macOS Intel
+`218 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. ADR-0049는 Accepted,
+DEV-0009는 Verified입니다. Initial exact submitted-head run `33044776835`는 26 jobs success 뒤 macOS Intel
 product job 하나가 30분 외곽 제한에서 취소됐고 완료된 steps와 수집 로그의 제품 assertion failure 표식은 0이었습니다.
-EVID-137의 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze는 통과했지만 corrected exact
-hosted matrix 전에는 이 checkpoint를 terminal acceptance나 Verified deviation으로 표현하지 않습니다.
+EVID-137의 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze 뒤
+corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `33049861740`이 exact
+27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. Phase A에
+고정한 GoDj-owned manifest provenance `kind=proposal`, `reference=GDJ-0047`, `derived=false`는 historical bytes이며
+later acceptance로 소급 변경하지 않습니다.
 JWT/opaque token issuance,
 refresh family, OAuth/OIDC, signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 

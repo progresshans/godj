@@ -259,18 +259,19 @@ WEB-028/029는 Verified DEV-0006, API-001/003/010은 Verified DEV-0007입니다.
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)이 정본입니다.
 OpenAPI, browsable API, token auth, nested/bulk serializer와 M7 전체 완료는 포함하지 않습니다.
 
-Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
+Completed [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Accepted
 [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 기존 first-party session+CSRF profile을 보존하면서
 strict `Authorization: Bearer` resource-server adapter가 같은 `auth.Principal`/Permission과 Article handlers를 재사용하는 bounded
 수직 단면입니다. Common authentication boundary, Session adapter refactor, opaque redacted Bearer token/injected verifier와
 profile-neutral Article API가 local product publication에 도달했습니다. AUT-009/010/011/014/016/API-011/012 일곱 개는
-`passing`, AUT-012/013/015 세 개는 일곱 result selector의 Implemented DEV-0009 `deviation`이며 exact actual comparison
+`passing`, AUT-012/013/015 세 개는 일곱 result selector의 Verified DEV-0009 `deviation`이며 exact actual comparison
 10/10과 SQLite Article Bearer E2E가 통과했습니다. Corrected source `14e47c9b...`의 digest-pinned PostgreSQL 17.10
 Article Bearer E2E normal/race/CGO0 및 two-process source-bound attestation도 통과했습니다. Initial hosted run
 `33044776835`는 26 jobs success 뒤 macOS Intel product job 하나가 30분 outer timeout으로 취소됐습니다. EVID-137의
-Intel-only correction과 corrected full/386/1,077-file archive refreeze도 통과했지만 corrected exact hosted evidence가
-남아 있어 ADR은 Proposed이고 이 기능을 terminal
-Verified로 표현하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
+Intel-only correction과 corrected full/386/1,077-file archive refreeze도 통과했습니다. Corrected head `5f97fa8...` / tree
+`2b53c031...`의 [EVID-138](status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) /
+CI #155 run `33049861740`은 27/27 jobs·360/360 steps success로 이 bounded capability를 terminal Verified했습니다.
+JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing key provider와 production BFF는 이 packet의 지원 주장이 아닙니다.
 
 ## Realtime
@@ -566,7 +567,7 @@ production readiness, general reload 오케스트레이션은 지원 주장에�
 Durable user/session/audit, arbitrary converter, generated ModelSerializer, OpenAPI/browsable API/token auth,
 Channels/Realtime와 production serving은 이 mirror의 capability가 아닙니다.
 
-## Current local implementation mirror: Bearer Article API
+## Current implementation mirror: Bearer Article API
 
 [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)의 local product-publication checkpoint는
 common `api.Authentication`, updated Session adapter와 strict injected `api/bearerauth`를 같은 Article handlers에 연결합니다.
@@ -575,8 +576,8 @@ deny-overlay permission과 secret-free diagnostics를 구현했습니다. Exact 
 통과했고 PostgreSQL 17.10 Article flow normal/race/CGO0과 checked two-process attestation도 통과했습니다. Initial
 hosted run `33044776835`는 macOS Intel product job의 30분 outer timeout으로 terminal proof가 되지 못했습니다.
 EVID-137의 Intel-only 45분 correction, source-bound attestation recapture와 corrected full `make ci`/Linux 386/
-1,077-file external archive는 통과했지만 corrected exact hosted evidence 전이므로 이 mirror는 아직
-Accepted/Verified capability가 아닙니다.
+1,077-file external archive 뒤 EVID-138/CI #155 run `33049861740`의 exact 27/27 jobs·360/360 steps가 통과했으므로
+이 bounded mirror는 Accepted/Verified입니다.
 Concrete JWT/opaque issuer/verifier implementation, refresh token, OAuth/OIDC, key lifecycle와 production BFF는 없습니다.
 
 ## Current implementation mirror: project generated bundle

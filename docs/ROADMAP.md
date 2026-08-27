@@ -39,14 +39,15 @@
   그 terminal reference는 21/239/420=`211+16+12 locked`, product는 20/227=`211+16`이며 remaining locked range는
   MIG-075..086뿐입니다. General Unique/Integer/CAS IR, non-cooperative writer, session-family revocation, JWT/OAuth와
   production topology는 이 packet에 포함하지 않습니다.
-  현재 active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 common
+  Completed [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 common
   authentication boundary와 strict injected Bearer resource-server profile을 게시했습니다. AUT-009..016/API-011..012
   actual 10/10, SQLite와 digest-pinned PostgreSQL 17.10 Article Bearer E2E 및 two-process attestation이 통과했고
-  분류는 일곱 `passing` + AUT-012/013/015 Implemented DEV-0009 `deviation` 세 개입니다. Current local reference는
+  분류는 일곱 `passing` + AUT-012/013/015 Verified DEV-0009 `deviation` 세 개입니다. Current reference는
   22/249/462=`218+19+12 locked`, product는 21/237=`218+19`입니다. Initial run `33044776835`는 26 jobs success 뒤
   macOS Intel product job 한 건이 30분 outer timeout으로 취소됐습니다. EVID-137의 Intel-only 45분 correction과 corrected
-  full/386/archive refreeze는 통과했지만 corrected exact hosted evidence 전이므로 ADR-0049는 Proposed이고
-  GDJ-0047은 completed/Verified가 아닙니다. JWT/opaque issuance, refresh, OAuth/OIDC와 production BFF도 제외합니다.
+  full/386/archive refreeze 뒤 EVID-138/CI #155 run `33049861740`이 exact 27/27 jobs·360/360 steps success로
+  통과했으므로 ADR-0049는 Accepted, GDJ-0047은 completed/Verified입니다. JWT/opaque issuance, refresh,
+  OAuth/OIDC와 production BFF도 제외합니다.
   GDJ-0040 Phase A
   `fe4996f...`/EVID-111은 독립 Django QRY-034..043 reference를 고정했고, Phase B/C product
   `86d6b169...`/actual `0ec6f385...`는 immutable typed Boolean tree, SQLite/PostgreSQL recursive compiler와
@@ -116,9 +117,9 @@
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
-  exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Implemented deviations`는 local product
-  publication, SQLite/PostgreSQL required와 corrected final local full/386/archive까지 통과했습니다. Initial hosted는
-  26 jobs success/1 Intel timeout이었고 corrected exact hosted evidence 전입니다.
+  exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Verified deviations`는 product publication,
+  SQLite/PostgreSQL required와 corrected final local full/386/archive 뒤 EVID-138/CI #155 exact hosted
+  27/27 jobs·360/360 steps를 통과했습니다.
 - 마지막 검토: 2026-08-27
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -724,17 +725,18 @@ PostgreSQL transaction advisory lock과 injected active/validation CSRF key ring
 21/239/420=`211+16+12 locked`, product는 20/227=`211+16`입니다. Same-process HTTP handoff, distinct-process
 SQLite/PostgreSQL barrier/restart와 source-bound live attestation은 EVID-133/134의 local/hosted gates를 통과했습니다.
 
-[GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 M7의 active Bearer
-resource-server batch입니다. Proposed [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)의 common
+[GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 M7의 completed Bearer
+resource-server batch입니다. Accepted [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)의 common
 `api.Authentication`, Session/Bearer profile isolation, opaque redacted token/injected verifier와 profile-neutral Article handlers를
 구현했습니다. Exact AUT-009..016/API-011..012 actual 10/10과 SQLite E2E는 local 통과했고, 일곱 passing과
-AUT-012/013/015 Implemented DEV-0009 세 deviation으로 게시됐습니다. Corrected current source
+AUT-012/013/015 Verified DEV-0009 세 deviation으로 게시됐습니다. Corrected current source
 `14e47c9ba18a698cae52f7167c53148cd552f175` / tree `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`의
 digest-pinned PostgreSQL 17.10 Article Bearer E2E normal/race/CGO0과 two-process source-bound attestation도
 통과했습니다. Initial exact submitted run `33044776835`는 26 jobs success와 macOS Intel product job 한 건의 30분
 timeout/cancellation으로 끝났습니다. EVID-137에서 해당 좌표만 45분으로 교정하고 current attestation을 recapture한 뒤
-final full `make ci`, Linux/386와 1,077-file external archive를 다시 통과했으며 corrected exact hosted gate만 남아 있습니다. 따라서
-ADR/work/deviation을 terminal Accepted/completed/Verified로 올리지 않습니다.
+final full `make ci`, Linux/386와 1,077-file external archive를 다시 통과했습니다. Corrected head `5f97fa8...` /
+tree `2b53c031...`의 EVID-138/CI #155 run `33049861740`은 exact 27/27 jobs·360/360 steps success로
+ADR/work/deviation을 terminal Accepted/completed/Verified로 닫았습니다.
 
 - settings, app registry, system check
 - routing/reverse, middleware, request/response, error handling
@@ -756,7 +758,7 @@ ADR/work/deviation을 terminal Accepted/completed/Verified로 올리지 않습�
 - serializer, JSON parser/renderer, session authentication/permission — GDJ-0044 bounded slice completed
 - bounded Article list/create/detail/PUT/PATCH/delete와 parameter Router, pagination/filter/order — GDJ-0044 completed
 - first-party session/BFF와 strict injected Bearer resource-server profile — GDJ-0047 SQLite/PostgreSQL required와
-  corrected final local full/386/archive 통과, initial hosted Intel timeout 뒤 corrected exact hosted 대기; ADR-0049 Proposed,
+  corrected final local full/386/archive, EVID-138 exact hosted 통과; ADR-0049 Accepted,
   JWT/opaque issuance·refresh·OAuth/OIDC·production BFF 제외
 - OpenAPI와 browsable API — 별도 후속 결정, 현재 제외
 

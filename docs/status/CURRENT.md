@@ -9,7 +9,7 @@
   actual이 구현됐습니다. Reference는 22 sets/249 contracts/462 ordered bindings=
   `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 contracts=
   `218 passing + 19 deviation`입니다. AUT-012/013/015만 exact seven-result-selector DEV-0009 `deviation`이고
-  DEV-0009는 Implemented, ADR-0049는 Proposed, Q-021은 `Partial`입니다.
+  DEV-0009는 Verified, ADR-0049는 Accepted, GDJ-0047은 completed, Q-021은 `Partial`입니다.
 - Digest-pinned Linux/amd64 Go 1.26.5/PostgreSQL 17.10 exact fingerprint에서 source-bound two-process sentinel과
   `TestArticleAPIBearerPostgresUserFlow` normal/race/CGO-disabled가 통과했습니다. Current source binding은
   256 files/2,940,207 bytes/SHA-256 `7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`, checked
@@ -22,9 +22,12 @@
   제품 assertion/security failure 표식은 0입니다.
   [EVID-137](TEST_EVIDENCE.md#evid-20260827-137--gdj-0047-first-exact-head-timeout-and-corrected-local-refreeze)의
   Intel-only 45분 correction, exact source-bound attestation recapture, final full `make ci`, 107-package Linux/386,
-  1,077-file repository-external archive와 independent audit가 corrected source에서 통과했습니다. 정확한 다음 작업은 이
-  documentation descendant의 non-force push, Draft PR #1 갱신과 corrected exact submitted-head hosted matrix입니다. 아직
-  terminal acceptance가 아닙니다.
+  1,077-file repository-external archive와 independent audit가 corrected source에서 통과했습니다. Corrected submitted
+  documentation head `5f97fa8ad5ea05f2e207328332afcb0ee7755063`, tree
+  `2b53c0315f9dd425d72313c7aea4c6ed110a5909`의
+  [EVID-138](TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
+  `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 terminal acceptance를
+  닫았습니다.
 - GDJ-0046 terminal corrected frozen source: `29d62469c9e6f5a6228d1578bf41b88e35eefef0`
   (`ci: harden exact Python setup`), tree `4f061289b240b4739ec43155b08b5909e95eddc0`. Initial Phase E publication
   `de5cd505b598bc6fea3f7869d57d9c6c724f394a`은 actual/product source를 게시했고, known upstream
@@ -44,7 +47,8 @@
   distributed/production 범위 때문에 `Partial`입니다.
 - GDJ-0047 activation baseline은 terminal documentation commit `2ffcc88961b41e7ca81f52a981322e3f5f9d01df`, tree
   `dee452188c0219a9a5759fb694196dc48d008a2c`입니다. [GDJ-0047](../../work/0047-api-authentication-profiles-and-bearer-article-api.md)은
-  active, [ADR-0049](../adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed, Q-021은 `Partial`입니다.
+  activation 당시 active, [ADR-0049](../adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed였습니다. Current terminal
+  상태는 completed/Accepted이고 Q-021은 `Partial`입니다.
   Activation 당시의 21/239/420 reference와 20/227 product aggregate는 위 current source checkpoint가 supersede했습니다.
 - GDJ-0044 pre-activation baseline: `f99c200a3c5e36b391aabf6634a94acd79bba69b`, tree
   `9a6509fc08923972c60ffde3f52482240dcdf9be`; GDJ-0043 terminal status를 기록한 documentation-only descendant입니다.
@@ -639,9 +643,8 @@
   13/139/156이었고, same-ID 12개는 현재 전체 22/249/462 reference에도 포함되지만 reference-only
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0046 Database-Coordinated Multi-Runtime System State and Shared CSRF Keys](../../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)
-- 활성 작업:
   [GDJ-0047 API Authentication Profiles and Bearer Article API](../../work/0047-api-authentication-profiles-and-bearer-article-api.md)
+- 활성 작업: 없음
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1795,15 +1798,22 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 1/0입니다. GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
-matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. Active GDJ-0047은 corrected source
-`14e47c9b...`에서 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
+현재 active/ready packet은 0/0입니다. GDJ-0046 corrected source `29d62469...`는 EVID-133/134의 local final과 exact hosted
+matrix를 통과했고 Accepted ADR-0048/SYS-013..020 passing/completed 상태로 닫혔습니다. GDJ-0047 corrected
+source `14e47c9b...`은 common Session/Bearer boundary, strict opaque verifier, profile-neutral Article API와
 AUT-009..016/API-011..012 actual 10/10을 게시했습니다. Current reference/product는
 22/249/462=`218+19+12 locked`, 21/237=`218+19`입니다. Initial run `33044776835`는 26 successful jobs 뒤 macOS Intel
 product job만 30분 제한에서 취소됐고 제품 assertion failure는 없었습니다. EVID-137의 30/30/45/30 timeout correction,
-source-bound attestation recapture와 corrected final full/386/1,077-file archive/audit가 통과했습니다. 정확한 다음 작업은
-documentation descendant의 non-force push, Draft PR 갱신과 corrected exact submitted-head hosted matrix입니다. Concrete JWT
-발급/키 관리, refresh-token family, OAuth/OIDC와 system-state schema 변경은 함께 넣지 않습니다.
+source-bound attestation recapture와 corrected final full/386/1,077-file archive/audit 뒤 exact submitted head `5f97fa8...` / tree
+`2b53c031...`의 EVID-138/CI #155 run `33049861740`이 27/27 jobs·360/360 steps success,
+failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0049는 Accepted, DEV-0009는 Verified,
+GDJ-0047은 completed이며 다음 packet은 선정하지 않았습니다. Concrete JWT 발급/키 관리, refresh-token family,
+OAuth/OIDC와 system-state schema 변경은 현재 완료 주장에 포함되지 않습니다.
+
+Conformance-validation artifact job은 CI #155에서 24분 07초로 25분 ceiling의 53초 margin만 남겼으며,
+같은 job은 CI #153/#154에서도 각각 24분 45초/24분 16초로 성공했습니다. 이는 GDJ-0047 acceptance를 무효화하는
+제품 결함이나 현재 blocker가 아니라 비차단 운영 margin 관찰 항목입니다. Workflow 변경은 source-attestation
+cascade를 일으키므로 이 terminal documentation patch에서는 수정하지 않으며, 새 work packet도 선점하지 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017은 P1/open입니다.
 MIG-075..086은 remaining reference-only locked range이지만 diagnostic 관찰을 자동 product passing으로 승격하지 않습니다.
@@ -1817,7 +1827,7 @@ GDJ-0034 exact terminal head `0bb8c969...`, tree `341deb1d...`는
 steps와 audit P0..P3=0을 통과했습니다. GDJ-0034는 terminally closed이고 completion run을 terminal proof로
 재사용하지 않았습니다.
 
-현재 유일한 active work는
+이 historical snapshot 당시 유일한 active work는
 [GDJ-0035](../../work/0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)이고 ready는 0입니다.
 MIG-075..086 exact 12 reference-only contracts와
 [Accepted ADR-0034](../adr/0034-relation-capable-migration-format-state-and-sqlite-foreign-key-ddl.md)의 bounded

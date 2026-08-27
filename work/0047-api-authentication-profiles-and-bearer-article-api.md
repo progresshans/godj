@@ -1,6 +1,6 @@
 ---
 id: GDJ-0047
-status: active
+status: completed
 updated: 2026-08-27
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "2ffcc88961b41e7ca81f52a981322e3f5f9d01df"
@@ -156,7 +156,7 @@ Independent client 또는 BFF
 - OAuth deployment hardening의 future checklist: RFC 9700; 이번 resource-server adapter가 OAuth server support를 뜻하지 않음
 - Framework comparison: exact DRF 3.18.0 + Django 6.1 profile의 `TokenAuthentication`을 Bearer keyword로 고정
 - GoDj-only authority: common Go interface/package ownership, duplicate raw header handling, byte cap, redaction, no fallback와
-  injected verifier error ownership은 Proposed ADR-0049
+  injected verifier error ownership은 Accepted ADR-0049
 
 기존 `auth-session-manifest.json`과 `article-api-manifest.json` bytes/status는 바꾸지 않습니다. Phase A는 exact 10-contract
 `api-authentication-manifest.json` 하나에 AUT-009..016과 API-011..012를 게시해 protocol-v2 set당 8..12 invariant를 지킵니다.
@@ -208,8 +208,8 @@ examples/article/apiapp → api + articleapp
 - [x] Phase E: digest-pinned PostgreSQL required E2E, product status classification와 global conformance publication
 - [x] Source checkpoint: affected normal/race/CGO0/vet, generated drift, secret scan와 system-state source-bound attestation recapture
 - [x] Final frozen local milestone: full `make ci`, Linux/386, repository-external clean copy와 independent audit once
-- [ ] Corrected exact submitted-head hosted matrix after preserving the first-timeout evidence
-- [ ] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
+- [x] Corrected exact submitted-head hosted matrix after preserving the first-timeout evidence
+- [x] Accepted/Verified/completed status and Draft PR terminal mirror after exact hosted success
 
 ## Source checkpoint 결과
 
@@ -219,8 +219,8 @@ examples/article/apiapp → api + articleapp
 - Product files: common `api.Authentication`, `api/sessionauth`, `api/bearerauth`, profile-neutral Article API and
   SQLite/PostgreSQL Bearer E2E; reference/publication files: exact ten-contract manifest/oracle/baseline, DEV-0009 sparse
   expectation/policy, oracle-blind Go actual and global Make/CI/protocol registry locks.
-- Decision: RFC-priority invalid-token/insufficient-scope challenge differences are exact seven-selector DEV-0009;
-  ADR-0049 remains Proposed and DEV-0009 remains Implemented until exact hosted acceptance.
+- Decision: RFC-priority invalid-token/insufficient-scope challenge differences are exact seven-selector DEV-0009. At this
+  source checkpoint ADR-0049 remained Proposed and DEV-0009 remained Implemented; EVID-138 later closed exact hosted acceptance.
 - Verification: affected normal/race/CGO0/vet, generated drift, exact 21-adapter comparison, digest-pinned PostgreSQL
   normal/race/CGO0 and source-bound attestation passed. Independent audit found and closed one credential-canary false-green,
   then returned P0..P3=0.
@@ -228,7 +228,8 @@ examples/article/apiapp → api + articleapp
   `6301e08371ae7f3eb6294dca9c59b987a72e8c6c`에서 통과했습니다. Detailed exact commands, inventory와 harness
   exclusions는 [EVID-136](../docs/status/TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)에 있습니다.
 - First exact submitted run `a85196c...` / run `33044776835` completed 26 jobs and timed out only the cold
-  macOS Intel product job at its 30-minute outer limit. The corrected exact submitted-head hosted matrix has not yet passed.
+  macOS Intel product job at its 30-minute outer limit. At this checkpoint the corrected exact submitted-head hosted matrix
+  had not yet passed; the terminal result is recorded below.
 
 ## First hosted timeout and corrected local refreeze
 
@@ -256,6 +257,20 @@ source/audit도 통과했습니다. 상세 수치와 제외 attempt는
 [EVID-137](../docs/status/TEST_EVIDENCE.md#evid-20260827-137--gdj-0047-first-exact-head-timeout-and-corrected-local-refreeze)에
 기록합니다.
 
+## Corrected exact hosted completion
+
+Submitted documentation descendant `5f97fa8ad5ea05f2e207328332afcb0ee7755063`, tree
+`2b53c0315f9dd425d72313c7aea4c6ed110a5909`의 CI #155/run `33049861740`은 exact 27/27 jobs와
+360/360 steps를 모두 성공했고 failure/cancel/skip/annotation은 0이었습니다. Synthetic merge
+`93b8ba6cc6a6e9c1bb5be62b863a74288648b742`의 tree도 submitted-head tree와 같았습니다.
+
+Corrected macOS Intel product job `98442445333`은 15분 48초 안에 normal/inventory/race/CGO0/vet/clean을 모두
+완료했고, 네 Python coordinate, 네 relation-product coordinate와 PostgreSQL required 18/18·skip 0도 기존 exact lock을
+재현했습니다. 상세 hosted identity, inventories와 recursive-proof 경계는
+[EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)에
+기록합니다. 이 결과로 ADR-0049는 Accepted, DEV-0009는 Verified, GDJ-0047은 completed입니다. Q-021은 broader token
+lifecycle/OAuth/production BFF가 남아 `Partial`입니다.
+
 ## 검증 주기
 
 - 매 source checkpoint: `gofmt`, affected compile/test, `go vet`와 focused redaction/adversarial repetition
@@ -280,14 +295,14 @@ source/audit도 통과했습니다. 상세 수치와 제외 attempt는
 - [x] JWT/opaque/refresh/OAuth 구현 없이 verifier injection만으로 수직 단면이 닫힘
 - [x] Global manifest/registry/inventory와 source-bound PostgreSQL attestation이 exact current source에 맞음
 - [x] Final local full/386/external archive와 independent audit가 통과함
-- [ ] Exact hosted gates가 통과하고 status/evidence/ADR/PR이 같은 submitted source를 가리킴
+- [x] Exact hosted gates가 source-proving submitted predecessor를 통과하고 status/evidence/ADR/PR이 그 source를 동일하게 가리킴
 
 ## 인수인계
 
 현재 corrected source는 `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
 `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`입니다. Exact reference/product aggregate는
 22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`, product
-21 adapters/237 contracts=`218 passing + 19 deviation`이며 AUT-012/013/015만 Implemented DEV-0009입니다.
+21 adapters/237 contracts=`218 passing + 19 deviation`이며 AUT-012/013/015만 Verified DEV-0009입니다.
 
 Digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL 17.10에서 exact fingerprint, source-bound two-process sentinel과
 Article Bearer E2E normal/race/CGO-disabled가 통과했습니다. Checked attestation은 1,134 bytes/SHA-256
@@ -301,6 +316,11 @@ Initial submitted documentation head `a85196c951ff399b9792b6ad916323219dcacb3a`,
 full `make ci`, 107-package Linux/386 compile-only, 1,077-file repository-external clean archive와 independent audit가
 통과했습니다.
 
-정확한 다음 작업은 EVID-137 documentation descendant를 non-force push하고 Draft PR #1을 갱신한 뒤 corrected exact
-submitted-head hosted matrix를 통과시키는 것입니다. 그때만 ADR-0049 Accepted, DEV-0009 Verified와 work completed를 검토합니다.
-Merge/release/deploy는 계속 제외합니다.
+EVID-138/CI #155가 corrected exact submitted-head hosted matrix를 통과시켜 ADR-0049 Accepted, DEV-0009 Verified와
+work completed를 닫았습니다. 현재 active/ready packet은 0/0이며 다음 제품 packet은 선택하지 않았습니다. 정확한 운영 인수인계는
+이 terminal documentation-only descendant를 non-force push하고 Draft PR #1을 갱신하는 것뿐입니다. Merge/release/deploy는 계속
+제외합니다.
+
+Terminal documentation descendant에서 `git diff --check`, exact 15-document scope, local link/fence/table/frontmatter/status
+consistency, non-doc/workflow/artifact no-diff와 EVID-135..137 historical byte-prefix 보존을 검증했습니다. 제품
+source/workflow를 바꾸지 않았으므로 full product matrix를 재귀적으로 반복하지 않았습니다.

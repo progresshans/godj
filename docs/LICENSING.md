@@ -138,15 +138,18 @@ tests 역시 GoDj-owned independent implementation이며 upstream source, fixtur
 복사·번역하지 않았습니다. General/arbitrary remake와 actual adapter는 여전히 미지원입니다.
 
 GDJ-0047의 AUT-009..016/API-011..012도 GoDj 고유 request, principal, token label, Article value와 assertion으로
-독립 작성했습니다. AUT-009/010/016과 API-011/012의 GoDj boundary는 Proposed ADR-0049/GDJ-0047을
-`kind=proposal`, `derived=false`로 기록하며 terminal evidence 전 이를 Accepted decision으로 소급 표현하지 않습니다.
+독립 작성했습니다. AUT-009/010/016과 API-011/012의 GoDj boundary는 Phase A 당시 GDJ-0047을
+`kind=proposal`, `reference=GDJ-0047`, `derived=false`로, ADR-0049를 별도 documentation provenance로 기록했습니다.
+EVID-138의 later acceptance는 이 historical
+manifest provenance를 소급 변경하지 않으며 license 분류도 바꾸지 않습니다.
 AUT-011..015의 pinned DRF 3.18 documentation/source provenance와 `BSD-3-Clause` 표시는 challenge/status/permission
 동작의 관찰 근거입니다. Scenario, fixture, payload와 assertion 구조를 upstream에서 복사·번역하지 않았으므로 모든 entry는
 `derived=false`입니다. AUT-012/013/015의 `decision=DEV-0009` provenance는 RFC-priority GoDj product difference를
 추적하며 DRF-derived implementation이나 ADR-0049 acceptance를 뜻하지 않습니다. Raw Bearer credential, token table/DB row와
 verifier cause는 reference/product artifact에 포함하지 않습니다. JWT/opaque issuance, refresh/OAuth/OIDC와 production BFF
-구현도 이 provenance 분류의 범위가 아닙니다. Exact source `5469f41b...`에서 실행한 digest-pinned PostgreSQL 17.10
-Article Bearer E2E와 source-bound attestation은 독립 구현의 backend 증거이며 이 provenance/license 분류를 바꾸지 않습니다.
+구현도 이 provenance 분류의 범위가 아닙니다. EVID-135의 exact source `5469f41b...`에서 실행한
+digest-pinned PostgreSQL 17.10 Article Bearer E2E와 source-bound attestation, EVID-138의 corrected exact hosted
+completion은 독립 구현의 backend/실행 증거이며 이 provenance/license 분류를 바꾸지 않습니다.
 
 Django의 고지 전문은 향후 경계가 흐려지는 것을 막기 위한 보수적 정책으로 저장소에
 포함합니다.

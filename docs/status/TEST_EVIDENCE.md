@@ -1,8 +1,8 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-26
-- 현재 local source/contract checkpoint: EVID-20260826-130
-- latest hosted product proof: EVID-20260825-129
+- 마지막 갱신: 2026-08-27
+- 현재 local source/contract checkpoint: EVID-20260827-137
+- latest hosted product proof: EVID-20260827-138
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -12763,3 +12763,75 @@ The next boundary is this documentation-only evidence descendant, a non-force pu
 corrected exact submitted-head hosted run. Until that run completes, ADR-0049 remains Proposed, DEV-0009 remains
 Implemented, GDJ-0047 remains active and Q-021 remains Partial. Merge, release, deployment, JWT/opaque issuance, refresh
 token lifecycle, OAuth/OIDC, signing-key lifecycle, production BFF and OpenAPI remain unclaimed.
+
+## EVID-20260827-138 — GDJ-0047 Corrected Exact-Head Hosted Completion
+
+- Date/time: 2026-08-27T07:28:28Z through 2026-08-27T07:52:38Z
+  (`2026-08-27T16:28:28+09:00` through `2026-08-27T16:52:38+09:00`)
+- Work/contract IDs: GDJ-0047 completed; ADR-0049 Accepted; DEV-0009 Verified; Q-021 Partial;
+  AUT-009..016/API-011..012 remain exact `7 passing + 3 deviation`
+- Corrected behavioral source: `14e47c9ba18a698cae52f7167c53148cd552f175`, tree
+  `1b2c9c742bf66cc65e105e961a3dcfc02fa2c404`
+- Exact submitted documentation descendant: `5f97fa8ad5ea05f2e207328332afcb0ee7755063`, tree
+  `2b53c0315f9dd425d72313c7aea4c6ed110a5909`, subject `docs: record API authentication timeout refreeze`
+- Hosted run: [GitHub Actions CI #155 run 33049861740](https://github.com/progresshans/godj/actions/runs/33049861740),
+  pull request event for Draft PR #1, attempt 1
+- Result: exact 27/27 jobs, 360/360 recorded steps and 27/27 check runs succeeded. Failure, cancellation, step skip and
+  check-run annotation counts were all zero.
+
+### Exact hosted identity and timeout-correction proof
+
+All hosted checkout traces selected synthetic merge `93b8ba6cc6a6e9c1bb5be62b863a74288648b742`, whose ordered parents were
+`[f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821, 5f97fa8ad5ea05f2e207328332afcb0ee7755063]`. Its tree was exact
+`2b53c0315f9dd425d72313c7aea4c6ed110a5909`, equal to the submitted-head tree. The run was the exact CI #155 attempt-1
+pull-request execution for `5f97fa8...`; the cancelled CI #154/run `33044776835` remains diagnostic timeout evidence only.
+
+The corrected macOS Intel product job
+[`98442445333`](https://github.com/progresshans/godj/actions/runs/33049861740/job/98442445333) ran from
+2026-08-27T07:31:18Z through `07:47:06Z`, 15 minutes 48 seconds. All sixteen recorded steps succeeded, including normal
+project-check, required runserver inventory, both race legs, both CGO-disabled legs, both vet gates and clean-worktree. In
+particular the runserver CGO-disabled leg that CI #154 could not finish passed from `07:44:50Z` through `07:46:52Z`, then both
+vet steps and clean-worktree completed. This validates the bounded Intel-only 45-minute correction without changing the
+command-internal 15-minute test limit or the other three 30-minute coordinates.
+
+### Compatibility, product and backend proof
+
+The exact Darwin reference job passed 255 tests with three exact-profile skips and all stored oracle/no-rewrite gates. Each
+of the four portable Python jobs passed 255 tests with 21 intentional exact-profile-only skips and reproduced the same
+249-scenario canonical payload: 892,859 bytes/SHA-256
+`bfba673203d7bef8590ed250ddfba6d7dd0abb30875123c49fbad79ac08eb14a`.
+
+The checked-artifact job consumed the current PostgreSQL attestation, passed full portable conformance and reported
+`GoDj observations match the reviewed product expectation for 10 contracts under DEV-0009`. Reference remains
+22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`; product remains
+21 adapters/237 eligible contracts=`218 passing + 19 deviation`. AUT-009/010/011/014/016/API-011/012 remain `passing`,
+AUT-012/013/015 remain the exact seven-selector DEV-0009 `deviation`, and MIG-075..086 remain the only
+`oracle_locked`/unregistered range.
+
+All four relation-product coordinates reproduced exact 1,066 run/1,066 pass/0 skip, 110,405 payload bytes and SHA-256
+`72b08a582679e3f9b6921b49dd3bc46a355023f0fd97a8a24c109b7ce2b1d83b`. The digest-pinned PostgreSQL 17.10 job
+[`98442445013`](https://github.com/progresshans/godj/actions/runs/33049861740/job/98442445013) passed the exact sixteen-field
+fingerprint and all eighteen required named sentinels with skip 0. It included Article Bearer E2E, normal/race/CGO-disabled,
+both system-state restart sentinels, durable service restart, attestation byte comparison/checksum, vet and clean-worktree.
+The current checked evidence remains source binding 256 files/2,940,207 bytes/SHA-256
+`7b1246fe1f6186ed4b1978c433ad1a16d1aac3d5e38a2e6627b2ebd1b9a33faa`, attestation 1,134 bytes/SHA-256
+`19bd9a41cd543c24cbe6ab0fb3475b651fa0f86cd746f09cf31dfae5628bdb5b` and checksum 103 bytes/SHA-256
+`693087f484877563002292c0b3cdf93326b23511d61557b6410162f0faf0f5f7`.
+
+### Terminal status, residual observation and non-claims
+
+This exact hosted success accepts ADR-0049 for the bounded first-party/BFF/Bearer resource-server profile, verifies
+DEV-0009 and completes GDJ-0047. Q-021 remains Partial because JWT/opaque issuance, refresh family, signing/validation key
+lifecycle, OAuth/OIDC, production BFF and broader revocation remain open. The historical Phase A manifest provenance stays
+`kind=proposal`, `derived=false`; later acceptance does not rewrite that observation-time classification.
+
+One non-blocking P2 operational observation remains. The `Validate checked-in conformance artifacts` job
+`98442445036` used 24 minutes 7 seconds of its 25-minute outer budget, leaving 53 seconds. The same job used 24 minutes
+45 seconds in successful CI #153 and 24 minutes 16 seconds in CI #154. This does not invalidate CI #155 or identify a
+product/assertion failure, but the repeatedly narrow hosted margin should be reviewed before a later source milestone. This terminal
+documentation does not change the workflow because doing so would require a new behavioral-source attestation/refreeze cycle.
+
+Draft PR #1 remained `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. No merge, release, deployment, manual rerun or manual
+cancellation was performed. Run `33049861740` proves exact submitted predecessor `5f97fa8...`; it does not recursively prove this later
+terminal documentation-only descendant. The descendant uses documentation link/frontmatter/status/diff gates. No next work
+packet is selected, and this evidence does not authorize one implicitly.

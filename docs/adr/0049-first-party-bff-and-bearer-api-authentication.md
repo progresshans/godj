@@ -1,6 +1,6 @@
 # ADR-0049: First-Party, BFF and Bearer API Authentication Profiles
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-26
 - 관련 work/contract: [GDJ-0047](../../work/0047-api-authentication-profiles-and-bearer-article-api.md),
   AUT-009..016, API-011..012, Q-021
@@ -55,11 +55,11 @@ challenge owner와 logging surface가 복잡해집니다. Credential conflict가
 Access claim policy, signing/validation key ring, issuer/audience, clock skew, durable refresh family와 reuse detection까지 즉시 결정할 수 있습니다.
 반면 system schema/migration/key provider와 revocation policy를 동시에 넓혀 resource-server adapter 검증을 지연시킵니다.
 
-## 제안 결정
+## 결정
 
-선택지 B를 GDJ-0047 prototype 방향으로 제안합니다. Reference, local product publication, digest-pinned PostgreSQL required와
-final local full/386/archive evidence는 통과했지만 exact hosted evidence가 남아 있으므로 terminal evidence 뒤 Accepted 여부를
-결정합니다.
+선택지 B를 GDJ-0047의 bounded 제품 방향으로 채택합니다. Independent reference, product publication,
+digest-pinned PostgreSQL required, final local full/386/archive와 exact hosted evidence는 EVID-135..138에서 분리해
+통과했습니다.
 
 1. `api`는 다음 최소 public contract를 소유합니다.
 
@@ -126,8 +126,8 @@ final local full/386/archive evidence는 통과했지만 exact hosted evidence�
 - JWT/opaque verifier를 나중에 adapter 뒤에 추가할 수 있지만 lower API core와 Article app은 token format을 알지 않습니다.
 - Construction-time error 반환으로 existing API session wrapper call sites가 작게 변경됩니다. Pre-alpha current-only publication에서
   한 번 재기준화하고 compatibility shim을 남기지 않습니다.
-- DRF parity보다 RFC semantics를 우선하는 AUT-012/013/015의 일곱 selector는 DEV-0009로 구현됐습니다. Terminal evidence와
-  acceptance 전에는 이 deviation이나 ADR을 Verified/Accepted로 표현하지 않습니다.
+- DRF parity보다 RFC semantics를 우선하는 AUT-012/013/015의 일곱 selector는 DEV-0009로 구현됐고 EVID-138의 exact
+  hosted acceptance에서 Verified됐습니다.
 - Fixed 4,096-byte limit은 첫 bounded profile의 제품 계약입니다. 더 큰 token/profile은 silent widening이 아니라 후속 결정이 필요합니다.
 
 ## 의도적으로 결정하지 않은 것
@@ -151,14 +151,14 @@ final local full/386/archive evidence는 통과했지만 exact hosted evidence�
 - Article SQLite/PostgreSQL E2E는 valid Bearer CRUD 결과, permission별 403, invalid denial mutation 0과 existing session regression을 검증합니다.
 - Affected normal/race/CGO0/vet, final full/386/external archive와 exact hosted matrix를 work packet 주기에 따라 실행합니다.
 
-## 현재 product-publication checkpoint
+## 최종 product-publication 결과
 
 2026-08-27 local checkpoint에서 common `api.Authentication`, refactored Session profile, strict injected
 `api/bearerauth`와 profile-neutral Article API constructor가 구현됐습니다. Exact AUT-009..016/API-011..012 actual은
 oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
 
 - AUT-009/010/011/014/016/API-011/012: `passing` 일곱 개
-- AUT-012/013/015: Implemented DEV-0009 `deviation` 세 개, exact 일곱 `result` replacement
+- AUT-012/013/015: Verified DEV-0009 `deviation` 세 개, exact 일곱 `result` replacement
 - Global reference: 22 sets / 249 contracts / 462 ordered bindings =
   `218 passing + 19 deviation + 12 oracle_locked`
 - Product: 21 adapters / 237 eligible contracts = `218 passing + 19 deviation`
@@ -175,8 +175,11 @@ oracle/expected/deviation fixture를 읽지 않고 10/10을 통과했습니다.
   product assertion/security failure marker 0, but unfinished/skipped gates are not acceptance evidence
 - Intel-only 45-minute correction, current attestation recapture, corrected full `make ci`, 107-package Linux/386와
   1,077-file external archive: pass in EVID-137
+- Corrected exact submitted documentation descendant `5f97fa8...`, tree `2b53c031...`: CI #155/run `33049861740`
+  exact 27/27 jobs, 360/360 steps, failure/cancel/skip/annotation 0 in
+  [EVID-138](../status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)
 
-따라서 이 섹션은 구현 publication과 corrected local final 기록이지 terminal acceptance가 아닙니다. Corrected exact hosted
-matrix가 완료되기
-전까지 ADR 상태는 `Proposed`, DEV-0009는
-`Implemented`로 유지합니다.
+따라서 이 bounded first-party/BFF/Bearer resource-server 경계는 Accepted입니다. DEV-0009는 Verified이고 GDJ-0047은
+completed입니다. Q-021은 concrete JWT/opaque issuance, refresh/revocation, key lifecycle, OAuth/OIDC와 production BFF가
+남아 있어 `Partial`입니다. Phase A manifest의 existing `kind=proposal`, `derived=false` provenance는 observation-time
+역사이므로 이 acceptance로 소급 변경하지 않습니다.

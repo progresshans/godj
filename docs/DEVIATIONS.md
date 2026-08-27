@@ -2,8 +2,8 @@
 
 - 상태: Active ledger
 - 마지막 갱신: 2026-08-27
-- 현재 검증된 deviation: DEV-0001..DEV-0008 여덟 건 / contract 열여섯 개
-- 현재 구현됐으나 terminal 검증 전인 deviation: DEV-0009 한 건 / contract 세 개
+- 현재 검증된 deviation: DEV-0001..DEV-0009 아홉 건 / contract 열아홉 개
+- 현재 구현됐으나 terminal 검증 전인 deviation: 없음
 - Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
@@ -597,7 +597,7 @@ SYS-009를 supersede하지 않습니다. Comparator를 완화하거나 stale-tok
 
 ## DEV-0009 — Bearer 실패 challenge는 RFC 6750 error 의미를 명시
 
-- Status: Implemented
+- Status: Verified
 - Date: 2026-08-27
 - Contracts: AUT-012, AUT-013, AUT-015
 - Reference profile/backend: DRF 3.18.0 / Django 6.1 / CPython 3.14.3 / SQLite 3.50.4 exact profile;
@@ -605,7 +605,7 @@ SYS-009를 supersede하지 않습니다. Comparator를 완화하거나 stale-tok
 - Related ADR/work/evidence:
   [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md),
   [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md),
-  terminal evidence pending
+  [EVID-138](status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -673,8 +673,10 @@ cookie/query/body fallback과 CSRF를 사용하지 않고, redacted opaque token
   normal/race/CGO0/vet/generate와 `make godj-conformance` 통과
 - EVID-136 initial local final 뒤 first hosted run `33044776835`가 26 jobs success/1 macOS Intel outer-timeout으로 종료됨
 - EVID-137의 Intel-only 45-minute correction, attestation recapture와 corrected full `make ci`, Linux/386,
-  1,077-file external archive 통과; corrected exact hosted matrix는 terminal acceptance 전에 실행
-- ADR-0049가 Proposed인 현재는 `Implemented`이며, terminal evidence와 ADR acceptance 전에는 `Verified`로 올리지 않음
+  1,077-file external archive 통과
+- Corrected submitted head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `33049861740`이 exact
+  27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과
+- ADR-0049 Accepted와 terminal evidence를 근거로 `Verified`
 
 ### 복귀 또는 supersede 조건
 

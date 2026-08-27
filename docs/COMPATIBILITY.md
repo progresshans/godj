@@ -3,9 +3,9 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-26 (GDJ-0046 Phase E corrected frozen source EVID-133, exact hosted EVID-134)
+- 마지막 검증: 2026-08-27 (GDJ-0047 corrected exact head EVID-138 / CI #155 run `33049861740`)
 - 현재 local required checkpoint: 2026-08-27 (GDJ-0047 EVID-137 Intel timeout correction/attestation recapture와
-  corrected full/386/archive 통과, corrected exact hosted 대기)
+  corrected full/386/archive 통과; EVID-138 terminal hosted 통과)
 - 현재 형식 mirror 검토: 2026-08-21
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -94,7 +94,7 @@ Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative mult
 Bearer authentication profile actual을 함께 게시합니다. Reference는 22 sets/249 contracts/462 ordered bindings=
 `218 passing + 19 deviation + 12 oracle_locked`, product는 21 adapters/237 contracts=
 `218 passing + 19 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
-`deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Implemented DEV-0009
+`deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
 `deviation`이고 남은 reference-only locked range는 MIG-075..086뿐입니다.
 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
@@ -117,7 +117,7 @@ archive와 exact hosted proof는 [EVID-133](status/TEST_EVIDENCE.md#evid-2026082
 SYS-001..012 bytes/classification과 zero-config DEV-0008은 바뀌지 않았습니다. General Unique/Integer/CAS IR,
 non-cooperative writer, family-wide revocation, JWT/OAuth와 production readiness는 이 작업으로 지원되지 않습니다.
 
-Active [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Proposed
+Completed [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)과 Accepted
 [ADR-0049](adr/0049-first-party-bff-and-bearer-api-authentication.md)은 first-party durable session+CSRF를 기본 profile로 보존하고,
 BFF/independent client용 strict Bearer adapter를 같은 Principal/Permission core에 연결하는 bounded slice입니다. Exact 열 계약의
 oracle-blind actual은 DEV-0009 sparse expectation과 10/10을 통과했습니다. SQLite E2E와 corrected current source
@@ -130,7 +130,9 @@ normal/race/CGO0/vet/generate가 통과했습니다. Initial exact submitted-hea
 macOS Intel product job 한 건의 30분 timeout/cancellation으로 끝났고 완료된 steps와 수집 로그의 제품 assertion failure
 표식은 0이었습니다. EVID-137의
 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze도 통과했습니다.
-Corrected exact hosted gate가 남아 있으므로 ADR-0049는 Proposed, DEV-0009는 Implemented 상태입니다.
+Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
+[EVID-138](status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
+`33049861740`이 exact 27/27 jobs·360/360 steps success로 통과해 ADR-0049는 Accepted, DEV-0009는 Verified입니다.
 Bearer transport/resource-server support가 JWT/opaque issuance를 뜻하지 않으며
 refresh/OAuth/OIDC/key lifecycle과 production BFF는 계속 open입니다.
 

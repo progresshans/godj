@@ -70,24 +70,25 @@ proposed → ready → active → completed
 | [GDJ-0044](0044-session-authenticated-article-json-api-and-parameterized-routing.md) | completed | Session-authenticated Article JSON API와 closed parameterized routing |
 | [GDJ-0045](0045-durable-single-runtime-system-state-and-article-restart.md) | completed | Durable single-runtime system state와 restart-preserving Article Admin/API |
 | [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | completed | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
-| [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | active | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
+| [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | completed | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active
+현재 active/ready packet은 0/0입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree
 `1b2c9c74...`에서 common Session/Bearer authentication boundary, strict injected verifier, profile-neutral Article API,
 AUT-009..016/API-011..012와 SQLite/PostgreSQL required flow를 게시했습니다. Current reference는
 22 sets/249 contracts/462 ordered bindings=`218 passing + 19 deviation + 12 oracle_locked`, product는
-21 adapters/237 contracts=`218 passing + 19 deviation`입니다. AUT-012/013/015만 Implemented DEV-0009이고
-[ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Proposed, Q-021은 `Partial`입니다.
+21 adapters/237 contracts=`218 passing + 19 deviation`입니다. AUT-012/013/015만 Verified DEV-0009이고
+[ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Accepted, Q-021은 `Partial`입니다.
 [EVID-135](../docs/status/TEST_EVIDENCE.md#evid-20260827-135--gdj-0047-bearer-authentication-product-and-postgresql-source-checkpoint)의
 source/backend checkpoint와 initial [EVID-136](../docs/status/TEST_EVIDENCE.md#evid-20260827-136--gdj-0047-frozen-local-final-gates)의
 full/386/archive가 통과했습니다. First hosted run `33044776835`는 26 jobs success 뒤 macOS Intel product job 한 건이
 30분 outer timeout으로 취소됐습니다. [EVID-137](../docs/status/TEST_EVIDENCE.md#evid-20260827-137--gdj-0047-first-exact-head-timeout-and-corrected-local-refreeze)의
 Intel-only correction, attestation recapture와 corrected full/386/1,077-file external archive/final audit가 통과했습니다.
-정확한 다음 작업은 documentation descendant를 non-force push하고 Draft PR #1의 corrected exact hosted matrix를
-통과시키는 것입니다. 최근 terminal completion은
-[GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)이며 Draft PR #1은
+Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
+[EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
+`33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
+최근 terminal completion은 GDJ-0047이며 다음 active/ready packet은 선정하지 않았습니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다.
 [GDJ-0035](0035-relation-capable-migration-definition-state-and-sqlite-lifecycle.md)는 D4d~D4f/D4g Phase 0
 증거를 보존한 채 superseded됐습니다. GDJ-0036은 corrected exact head `57ddff3...`의 CI #101/run
