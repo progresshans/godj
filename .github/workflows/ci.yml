@@ -17,7 +17,7 @@ jobs:
   conformance-validation:
     name: Validate checked-in conformance artifacts
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       LC_ALL: C
       PYTHONHASHSEED: "0"

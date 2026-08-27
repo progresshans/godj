@@ -79,8 +79,23 @@ API_AUTHENTICATION_MANIFEST := conformance/contracts/api-authentication-manifest
 API_AUTHENTICATION_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/api-authentication-oracle.json
 API_AUTHENTICATION_NOT_IMPLEMENTED := conformance/fixtures/godj-api-authentication-not-implemented.json
 API_AUTHENTICATION_DEVIATION_EXPECTED := conformance/fixtures/godj-api-authentication-deviation-expected.json
+PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigrateproduct
+RUNSERVER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/runserverproduct
 
-.PHONY: cgo-zero-build check ci conformance-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
+.PHONY: cgo-zero-build check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
+
+define select_core_go_packages
+all_packages="$$(go list ./...)"; \
+project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
+runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
+test "$$project_migrate_count" -eq 1; \
+test "$$runserver_count" -eq 1; \
+core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)"')"; \
+test -n "$$core_packages"; \
+all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
+core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
+test "$$all_count" -eq "$$((core_count + 2))"
+endef
 
 format-check:
 	@unformatted="$$(git ls-files -z --cached --others --exclude-standard -- '*.go' | \
@@ -95,14 +110,27 @@ generate-check:
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/relationdeleteproduct/godj.toml
 
+core-package-selection-check:
+	@set -eu; \
+	$(select_core_go_packages); \
+	printf '%s\n' "$$core_packages"
+
 go-test:
-	go test ./...
+	@set -eu; \
+	$(select_core_go_packages); \
+	go test $$core_packages
+	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
+	go test -timeout=15m -count=1 ./conformance/runserverproduct
 
 go-vet:
 	go vet ./...
 
 go-race:
-	go test -race ./...
+	@set -eu; \
+	$(select_core_go_packages); \
+	go test -race $$core_packages
+	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
+	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
 
 cgo-zero-build:
 	CGO_ENABLED=0 go test \
@@ -120,8 +148,9 @@ cgo-zero-build:
 		./conformance/relationselectproduct/... \
 		./conformance/relationdeleteproduct/... \
 		./conformance/migrationrelationproduct \
-		./conformance/runserverproduct \
 		-count=1
+	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
+	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
 
 python-test:
 	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover \

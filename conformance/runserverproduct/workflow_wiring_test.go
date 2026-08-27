@@ -12,10 +12,69 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 
 	root := runserverWorkflowRepositoryRoot(t)
 	makefile := runserverWorkflowReadFile(t, filepath.Join(root, "Makefile"))
+	for _, fragment := range []string{
+		"PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigrateproduct",
+		"RUNSERVER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/runserverproduct",
+		"ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance",
+	} {
+		runserverWorkflowRequireCount(t, "Makefile", makefile, fragment, 1)
+	}
+	selector := runserverWorkflowMakeDefinition(t, makefile, "select_core_go_packages")
+	for _, fragment := range []string{
+		`all_packages="$$(go list ./...)"`,
+		`project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"`,
+		`runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"`,
+		`test "$$project_migrate_count" -eq 1`,
+		`test "$$runserver_count" -eq 1`,
+		`core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)"')"`,
+		`test -n "$$core_packages"`,
+		`all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"`,
+		`core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"`,
+		`test "$$all_count" -eq "$$((core_count + 2))"`,
+	} {
+		runserverWorkflowRequireCount(t, "Makefile core package selector", selector, fragment, 1)
+	}
+	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(PROJECT_MIGRATE_PRODUCT_IMPORT)", 2)
+	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(RUNSERVER_PRODUCT_IMPORT)", 2)
+
+	selectionCheck := runserverWorkflowMakeTarget(t, makefile, "core-package-selection-check", "go-test")
+	runserverWorkflowRequireRecipeLine(t, "Makefile core package selection check", selectionCheck, `$(select_core_go_packages); \`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile core package selection check", selectionCheck, `printf '%s\n' "$$core_packages"`, 1)
+
+	normal := runserverWorkflowMakeTarget(t, makefile, "go-test", "go-vet")
+	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normal, `$(select_core_go_packages); \`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normal, `go test $$core_packages`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile normal project-migrate gate", normal, "go test -timeout=15m -count=1 ./conformance/projectmigrateproduct", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile normal runserver gate", normal, "go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/projectmigrateproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/runserverproduct", 1)
+	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
+
+	race := runserverWorkflowMakeTarget(t, makefile, "go-race", "cgo-zero-build")
+	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", race, `$(select_core_go_packages); \`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", race, `go test -race $$core_packages`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile race project-migrate gate", race, "go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile race runserver gate", race, "go test -timeout=15m -race -count=1 ./conformance/runserverproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/projectmigrateproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/runserverproduct", 1)
+	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
+
 	cgoZero := runserverWorkflowMakeTarget(t, makefile, "cgo-zero-build", "python-test")
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "CGO_ENABLED=0 go test \\\n", 1)
-	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "\t\t./conformance/runserverproduct \\\n", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled project-migrate gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled runserver gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/projectmigrateproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/runserverproduct", 1)
+	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
+	for scope, target := range map[string]string{
+		"normal":       normal,
+		"race":         race,
+		"CGO-disabled": cgoZero,
+	} {
+		if strings.Contains(target, "|| true") || strings.Contains(target, "continue-on-error:") {
+			t.Fatalf("Makefile %s product gates must remain required", scope)
+		}
+	}
 
 	workflow := runserverWorkflowReadFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
 	jobsMarker := "jobs:\n"
@@ -26,7 +85,17 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 
 	conformance := runserverWorkflowJob(t, jobs, "conformance-validation", "exact-darwin-validation")
 	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "timeout-minutes:", 1)
-	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "timeout-minutes: 25", 1)
+	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "timeout-minutes: 45", 1)
+	portableValidation := runserverWorkflowStep(
+		t,
+		conformance,
+		"Run portable conformance validation",
+		"Validate project-linked migration check contracts",
+	)
+	runserverWorkflowRequireCount(t, "portable conformance validation step", portableValidation, "run: make ci", 1)
+	if strings.Contains(conformance, "continue-on-error:") || strings.Contains(conformance, "|| true") {
+		t.Fatal("portable conformance validation gates must remain required")
+	}
 	compile386 := runserverWorkflowStep(
 		t,
 		conformance,
@@ -265,6 +334,22 @@ func runserverWorkflowMakeTarget(t *testing.T, makefile, target, nextTarget stri
 	return makefile[start : start+len(startMarker)+end]
 }
 
+func runserverWorkflowMakeDefinition(t *testing.T, makefile, definition string) string {
+	t.Helper()
+
+	startMarker := "define " + definition + "\n"
+	endMarker := "\nendef\n"
+	if strings.Count(makefile, startMarker) != 1 {
+		t.Fatalf("Makefile definition %q count = %d, want 1", definition, strings.Count(makefile, startMarker))
+	}
+	start := strings.Index(makefile, startMarker)
+	end := strings.Index(makefile[start+len(startMarker):], endMarker)
+	if end < 0 {
+		t.Fatalf("Makefile definition %q has no endef", definition)
+	}
+	return makefile[start : start+len(startMarker)+end]
+}
+
 func runserverWorkflowJob(t *testing.T, jobs, job, nextJob string) string {
 	t.Helper()
 
@@ -302,5 +387,29 @@ func runserverWorkflowRequireCount(t *testing.T, scope, text, fragment string, w
 
 	if got := strings.Count(text, fragment); got != want {
 		t.Fatalf("%s fragment %q count = %d, want %d", scope, fragment, got, want)
+	}
+}
+
+func runserverWorkflowRequireRecipeLine(t *testing.T, scope, target, recipe string, want int) {
+	t.Helper()
+
+	got := 0
+	for _, line := range strings.Split(target, "\n") {
+		if line == "\t"+recipe {
+			got++
+		}
+	}
+	if got != want {
+		t.Fatalf("%s recipe line %q count = %d, want %d", scope, recipe, got, want)
+	}
+}
+
+func runserverWorkflowRequireSerialOrder(t *testing.T, scope, text, first, second string) {
+	t.Helper()
+
+	firstIndex := strings.Index(text, first)
+	secondIndex := strings.Index(text, second)
+	if firstIndex < 0 || secondIndex < 0 || firstIndex >= secondIndex {
+		t.Fatalf("%s order invalid: first_index=%d second_index=%d", scope, firstIndex, secondIndex)
 	}
 }
