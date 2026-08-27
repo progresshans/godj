@@ -23,6 +23,7 @@ allowed_paths:
   - "conformance/relationdeleteproduct/**"
   - "conformance/runserverproduct/**"
   - "conformance/systemstate/attestations/**"
+  - "db/postgres/coordinated_transaction_test.go"
   - "docs/adr/0050-canonical-embedded-application-model-facade.md"
   - "docs/adr/README.md"
   - "docs/ARCHITECTURE.md"

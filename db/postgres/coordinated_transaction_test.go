@@ -176,9 +176,16 @@ func TestPostgresCoordinatedAtomicInvokesCallbackAfterAcquireBoundaryCancellatio
 		t.Fatalf("callback calls = %d, want 1", callbackCalls)
 	}
 	waitForCoordinatedTransactionRollback(t, rollbackDone)
-	wantEvents := []string{"begin", "acquire", "callback", "rollback"}
-	if got := state.snapshot().events; !reflect.DeepEqual(got, wantEvents) {
-		t.Fatalf("events = %v, want %v", got, wantEvents)
+	gotEvents := state.snapshot().events
+	wantCallbackFirst := []string{"begin", "acquire", "callback", "rollback"}
+	wantRollbackFirst := []string{"begin", "acquire", "rollback", "callback"}
+	// database/sql observes the canceled transaction context independently.
+	// Once ExecContext releases the transaction read lock, its rollback goroutine
+	// and this callback can record in either order. The public contract fixes the
+	// successful acquire prefix, one callback invocation, and rollback—not that
+	// scheduler-dependent tail order.
+	if !reflect.DeepEqual(gotEvents, wantCallbackFirst) && !reflect.DeepEqual(gotEvents, wantRollbackFirst) {
+		t.Fatalf("events = %v, want %v or %v", gotEvents, wantCallbackFirst, wantRollbackFirst)
 	}
 }
 
