@@ -63,8 +63,8 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 		"conformance/fixtures/godj-system-state-deviation-expected.json":            {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":      {21242, "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {1982, "de1e924b10c828db95ee945ff1fa414e9ad2802fce667cffd8bbf82b16d906e5"},
-		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": {1134, "58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e"},
-		"conformance/systemstate/attestations/SHA256SUMS":                           {103, "e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3"},
+		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": {1134, "8d8bdd0da8a78edb39a7d409a06825892f7585cf3bb159573d6ea3ef6f0d94c6"},
+		"conformance/systemstate/attestations/SHA256SUMS":                           {103, "800c46bc6e453dfb8f45e25144fe917e0d7d41f0db26c19e64b2ffff44b5600b"},
 	}
 	for name, want := range wanted {
 		contents, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
