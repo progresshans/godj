@@ -26,6 +26,8 @@ func deviationPolicyForDecision(decision string) (protocol.DeviationPolicy, erro
 		return systemStateDeviationPolicy(), nil
 	case "DEV-0009":
 		return apiAuthenticationDeviationPolicy(), nil
+	case "DEV-0010":
+		return migrationWriterDeviationPolicy(), nil
 	default:
 		return protocol.DeviationPolicy{}, fmt.Errorf("unsupported deviation decision %q", decision)
 	}
@@ -250,6 +252,60 @@ func apiAuthenticationDeviationPolicy() protocol.DeviationPolicy {
 				Changes: []protocol.DeviationChangePolicy{
 					{Dimension: protocol.DeviationResult, Path: "[1].response.error_codes.detail", Operation: protocol.DeviationReplace},
 					{Dimension: protocol.DeviationResult, Path: "[1].response.www_authenticate", Operation: protocol.DeviationReplace},
+				},
+			},
+		},
+	}
+}
+
+func migrationWriterDeviationPolicy() protocol.DeviationPolicy {
+	replace := protocol.DeviationReplace
+	result := protocol.DeviationResult
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0010",
+		Contracts: []protocol.DeviationContractPolicy{
+			{
+				ID: "MIG-103",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: result, Path: "cases[0].migrations[0].operations[1].fields[3].on_delete", Operation: replace},
+					{Dimension: result, Path: "cases[1].migrations[1].operations[0].fields[3].on_delete", Operation: replace},
+				},
+			},
+			{
+				ID: "MIG-104",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: result, Path: "migrations[0].name", Operation: replace},
+				},
+			},
+			{
+				ID: "MIG-105",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: result, Path: "files_before", Operation: replace},
+					{Dimension: result, Path: "files_after", Operation: replace},
+					{Dimension: result, Path: "output", Operation: replace},
+				},
+			},
+			{
+				ID: "MIG-106",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: result, Path: "cases[0].files_before", Operation: replace},
+					{Dimension: result, Path: "cases[0].files_after", Operation: replace},
+					{Dimension: result, Path: "cases[0].output", Operation: replace},
+					{Dimension: result, Path: "cases[1].files_before", Operation: replace},
+					{Dimension: result, Path: "cases[1].files_after", Operation: replace},
+					{Dimension: result, Path: "cases[1].output", Operation: replace},
+				},
+			},
+			{
+				ID: "MIG-107",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: result, Path: "cases[0].code", Operation: replace},
+					{Dimension: result, Path: "cases[1].code", Operation: replace},
+					{Dimension: result, Path: "cases[2].code", Operation: replace},
+					{Dimension: result, Path: "cases[3].code", Operation: replace},
+					{Dimension: result, Path: "cases[4].code", Operation: replace},
+					{Dimension: result, Path: "cases[5].code", Operation: replace},
+					{Dimension: result, Path: "cases[6].code", Operation: replace},
 				},
 			},
 		},

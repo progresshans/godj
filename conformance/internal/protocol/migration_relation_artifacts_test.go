@@ -213,8 +213,8 @@ func TestMigrationRelationReferenceAndProductWiringIsLocked(t *testing.T) {
 	if got := strings.Count(productTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 0 {
 		t.Fatalf("product conformance migration-relation manifest count = %d, want 0", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 22 {
-		t.Fatalf("godj-conformance adapter count = %d, want 22 with migration-relation still excluded", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
+		t.Fatalf("godj-conformance adapter count = %d, want 23 with migration-relation still excluded", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_RELATION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check migration-relation manifest count = %d, want 1", got)

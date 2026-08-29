@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentTwentyTwoAdapterProductTarget(t *t
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 22 {
-		t.Fatalf("product adapter count = %d, want 22", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
+		t.Fatalf("product adapter count = %d, want 23", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -544,9 +544,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 1091`,
-		`assert len(payload) == 113222`,
-		`90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`,
+		`assert len(runs) == 1111`,
+		`assert len(payload) == 115370`,
+		`483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
@@ -712,7 +712,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`required="$RUNNER_TEMP/postgresql-required-tests.txt"`,
 		`printf '%s\n' "${required_passes[@]}" > "$required"`,
 		`python3 - "$required" "$log" "$mode" <<'PY'`,
-		`assert len(expected) == 20, sorted(expected)`,
+		`assert len(expected) == 21, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
@@ -765,6 +765,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow",
 		"github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow",
 		"github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow",
+		"github.com/progresshans/godj/cmd/godj|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart",
 		"github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E",
 		"github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle",
 		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
@@ -773,8 +774,8 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
 	}
-	if len(postgresRequiredSentinels) != 20 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 20", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 21 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 21", len(postgresRequiredSentinels))
 	}
 	requiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*required=`)
 	requiredBlock := requiredBlockPattern.FindStringSubmatch(postgres)
@@ -821,6 +822,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		t.Fatalf("PostgreSQL product Go pin count = %d, want 1", got)
 	}
 	for _, packagePattern := range []string{
+		"./cmd/godj",
 		"./db/postgres",
 		"./examples/article",
 		"./conformance/postgresproduct/...",

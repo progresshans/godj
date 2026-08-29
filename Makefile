@@ -46,6 +46,7 @@ MIGRATION_COMMAND_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-command
 MIGRATION_WRITER_MANIFEST := conformance/contracts/migration-writer-manifest.json
 MIGRATION_WRITER_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json
 MIGRATION_WRITER_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-writer-not-implemented.json
+MIGRATION_WRITER_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-writer-deviation-expected.json
 RELATION_MANIFEST := conformance/contracts/relation-manifest.json
 RELATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
 RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-relation-not-implemented.json
@@ -84,6 +85,7 @@ API_AUTHENTICATION_NOT_IMPLEMENTED := conformance/fixtures/godj-api-authenticati
 API_AUTHENTICATION_DEVIATION_EXPECTED := conformance/fixtures/godj-api-authentication-deviation-expected.json
 PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigrateproduct
 RUNSERVER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/runserverproduct
+MIGRATION_WRITER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/migrationwriterproduct
 
 .PHONY: cgo-zero-build check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
 
@@ -91,13 +93,15 @@ define select_core_go_packages
 all_packages="$$(go list ./...)"; \
 project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
+migration_writer_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MIGRATION_WRITER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 test "$$project_migrate_count" -eq 1; \
 test "$$runserver_count" -eq 1; \
-core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)"')"; \
+test "$$migration_writer_count" -eq 1; \
+core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)"')"; \
 test -n "$$core_packages"; \
 all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
 core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
-test "$$all_count" -eq "$$((core_count + 2))"
+test "$$all_count" -eq "$$((core_count + 3))"
 endef
 
 format-check:
@@ -124,6 +128,7 @@ go-test:
 	go test $$core_packages
 	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	go test -timeout=15m -count=1 ./conformance/runserverproduct
+	go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
 
 go-vet:
 	go vet ./...
@@ -134,6 +139,7 @@ go-race:
 	go test -race $$core_packages
 	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
 	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
+	go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct
 
 cgo-zero-build:
 	CGO_ENABLED=0 go test \
@@ -158,6 +164,7 @@ cgo-zero-build:
 		-count=1
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
+	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
 
 python-test:
 	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover \
@@ -309,6 +316,10 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_COMMAND_MANIFEST) \
 		-expected $(MIGRATION_COMMAND_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_WRITER_MANIFEST) \
+		-expected $(MIGRATION_WRITER_ORACLE) \
+		-deviation-expected $(MIGRATION_WRITER_DEVIATION_EXPECTED)
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
 		-expected $(RELATION_ORACLE)

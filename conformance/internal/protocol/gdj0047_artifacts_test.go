@@ -297,8 +297,8 @@ func TestGDJ0047PublishedMakeAndWorkflowWiringIsExact(t *testing.T) {
 	if strings.Contains(productTarget, "$(API_AUTHENTICATION_NOT_IMPLEMENTED)") {
 		t.Fatal("historical API authentication not-implemented fixture entered the product target")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 22 {
-		t.Fatalf("product adapter count = %d, want 22", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
+		t.Fatalf("product adapter count = %d, want 23", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(API_AUTHENTICATION_MANIFEST)"); got != 1 {

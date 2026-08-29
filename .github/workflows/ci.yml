@@ -113,6 +113,7 @@ jobs:
           conformance/fixtures/godj-query-expression-not-implemented.json
           conformance/fixtures/godj-migration-command-not-implemented.json
           conformance/fixtures/godj-migration-writer-not-implemented.json
+          conformance/fixtures/godj-migration-writer-deviation-expected.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-api-authentication-not-implemented.json
@@ -236,6 +237,7 @@ jobs:
           conformance/fixtures/godj-query-expression-not-implemented.json
           conformance/fixtures/godj-migration-command-not-implemented.json
           conformance/fixtures/godj-migration-writer-not-implemented.json
+          conformance/fixtures/godj-migration-writer-deviation-expected.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
           conformance/fixtures/godj-api-authentication-not-implemented.json
@@ -663,10 +665,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 1091, sorted(runs)
-          assert len(payload) == 113222, len(payload)
+          assert len(runs) == 1111, sorted(runs)
+          assert len(payload) == 115370, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75"
+          assert payload_sha256 == "483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
@@ -995,7 +997,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
+          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
           test_flags=(-timeout=15m -json -count=1 -run "$required_regex")
           case "$mode" in
             normal)
@@ -1014,6 +1016,7 @@ jobs:
           log="$RUNNER_TEMP/postgresql-product-tests.json"
           status=0
           go test "${test_flags[@]}" \
+            ./cmd/godj \
             ./db/postgres \
             ./examples/article \
             ./conformance/postgresproduct/... \
@@ -1038,6 +1041,7 @@ jobs:
             "github.com/progresshans/godj/examples/article|TestArticleAdminSitePostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIAdminSessionPostgresUserFlow"
             "github.com/progresshans/godj/examples/article|TestArticleAPIBearerPostgresUserFlow"
+            "github.com/progresshans/godj/cmd/godj|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart"
             "github.com/progresshans/godj/conformance/postgresproduct|TestGeneratedRelationPostgresE2E"
             "github.com/progresshans/godj/conformance/postgresproduct/cmd/projectrunner|TestProjectRunnerSameServerLifecycle"
             "github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop"
@@ -1071,7 +1075,7 @@ jobs:
               for event in events
               if event.get("Action") == "skip" and "Test" in event
           ]
-          assert len(expected) == 20, sorted(expected)
+          assert len(expected) == 21, sorted(expected)
           assert runs == expected, (sorted(runs), sorted(expected))
           assert passes == expected, (sorted(passes), sorted(expected))
           assert skips == [], skips
@@ -1129,6 +1133,7 @@ jobs:
           "$project_runner" verify
           "$project_runner" cleanup
           go vet \
+            ./cmd/godj \
             ./db/postgres \
             ./examples/article \
             ./conformance/postgresproduct/... \
