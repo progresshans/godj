@@ -91,7 +91,18 @@ MIG-099..110 reference artifacts는 manifest 8,864 bytes/SHA-256
 `b27563a864fe417df53a20092c44f169829e9798cb2e40348c8dbbdcf4715502`, oracle 25,980 bytes/
 `9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41`입니다. 이 추가 뒤 shared 21-line
 `SHA256SUMS`는 1,982 bytes/SHA-256 `de1e924b10c828db95ee945ff1fa414e9ad2802fce667cffd8bbf82b16d906e5`입니다.
-Reference는 `oracle_locked`; public CLI/private protocol/publication product actual은 Phase A에 포함되지 않습니다.
+이는 Phase A historical lock입니다. 당시 reference는 `oracle_locked`였고 public CLI/private protocol/publication product actual은
+포함되지 않았습니다. Later status 전환으로 이 세 artifact와 shared checksum의 historical bytes를 소급 rewrite하지 않습니다.
+
+Phase D current product manifest는 9,227 bytes/SHA-256
+`90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72`, reviewed DEV-0010 sparse expectation은
+7,242 bytes/SHA-256 `74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e`입니다. Exact 열아홉
+result replacement는 MIG-103의 `PROTECT`, MIG-104의 digest-derived name, MIG-105/106의 flat JSON roster/output와
+MIG-107의 stable GoDj error taxonomy에만 한정됩니다. MIG-107의 Phase-A source는 Django가 아니라 GoDj-owned decision
+oracle이므로 DEV-0010은 그 historical taxonomy를 production code로 위장하지 않고 명시적으로 supersede합니다. Current product
+분류는 MIG-099/100/101/102/108/109/110 `passing`과 MIG-103..107 Implemented DEV-0010 `deviation`입니다. PostgreSQL
+17.10 normal/race/CGO-disabled actual과 repository-external public module은 locally 통과했지만 full `make ci`, Linux/386/archive,
+source-bound attestation recapture와 exact-head Hosted는 Phase E 전까지 terminal evidence가 아닙니다.
 
 ## Django REST framework
 

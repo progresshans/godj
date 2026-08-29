@@ -1,9 +1,9 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-27
+- 마지막 갱신: 2026-08-30
 - 현재 검증된 deviation: DEV-0001..DEV-0009 아홉 건 / contract 열아홉 개
-- 현재 구현됐으나 terminal 검증 전인 deviation: 없음
+- 현재 구현됐으나 terminal 검증 전인 deviation: DEV-0010 한 건 / contract 다섯 개
 - Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
@@ -683,3 +683,83 @@ cookie/query/body fallback과 CSRF를 사용하지 않고, redacted opaque token
 DRF generic challenge parity가 RFC 6750 error category보다 우선해야 한다는 제품 근거가 생기거나 더 넓은 standardized problem
 details/authentication profile이 채택되면 새 ADR/deviation으로 supersede합니다. Locked DRF oracle을 수정하거나 comparator에서
 challenge/detail을 무시해 복귀하지 않습니다.
+
+## DEV-0010 — GoDj migration writer의 current format과 안정 오류 taxonomy
+
+- Status: Implemented
+- Date: 2026-08-30
+- Contracts: MIG-103, MIG-104, MIG-105, MIG-106, MIG-107
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile의 MIG-103..106;
+  GDJ-0050 Phase-A GoDj decision oracle의 MIG-107; GoDj SQLite와 PostgreSQL 17.10 actual
+- Related ADR/work/evidence:
+  [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md),
+  [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md),
+  [EVID-150](status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)
+
+### Django 또는 Phase-A decision oracle의 관찰 가능 동작
+
+Django MIG-103은 관찰한 새 `ForeignKey`의 `on_delete`를 `CASCADE`로 기록합니다. MIG-104는 operation 이름을 이어 붙인
+`0002_category_article_summary_article_category`를 사용합니다. MIG-105/106은 app-local Python migration directory의
+`__init__.py`, `0001_initial.py` roster와 사람이 읽는 다중 행 command output을 관찰합니다.
+
+MIG-107은 Django parity 계약이 아닙니다. Phase A에서 GoDj-owned fail-closed decision oracle이 unsupported scalar/remove/required
+field를 `unsupported_delta`, relation cycle을 `relation_cycle`, noncanonical applied leaf를 `noncanonical_leaf`로 분류했습니다.
+현재 제품 비교는 이 historical decision oracle을 입력으로 보존하되, production error taxonomy와 다른 값을 의도적으로
+supersede합니다.
+
+### GoDj에서 채택한 동작
+
+GoDj current writer는 지원하는 relation policy를 명시적으로 `PROTECT`로 기록하고, semantic input digest에서
+`0002_auto_7fb2bf122b7c` 같은 결정적 successor 이름을 만듭니다. Migration file은 project-owned flat root의
+`<app>_<name>.godj.json`이고 read-only/clean 결과와 candidate roster는 bounded canonical JSON 한 줄로 출력합니다. Python
+package marker나 `.py` source를 만들지 않습니다.
+
+MIG-107 actual은 production API가 소유하는 안정된 code만 노출합니다. 다섯 unsupported delta와 noncanonical leaf는
+`unsupported_change`, relation cycle은 `invalid_relation`입니다. Raw cause, path 또는 secret을 error code로 반사하지 않습니다.
+
+Sparse expectation은 result dimension의 exact 열아홉 replacement만 허용합니다.
+
+- MIG-103: 두 `on_delete` selector의 `CASCADE` → `PROTECT`
+- MIG-104: migration name 한 selector의 semantic Django name → digest-derived GoDj name
+- MIG-105: dry-run의 before/after flat roster와 canonical JSON output 세 selector
+- MIG-106: clean/check 두 case의 before/after flat roster와 canonical JSON output 여섯 selector
+- MIG-107: 일곱 case의 Phase-A decision-oracle code → stable production error code
+
+Exit status, candidate/write/DB-open count, no-mutation, dependency/operation payload, interruption/resume와 나머지 result/metrics는
+locked reference와 같아야 합니다.
+
+### 이유와 고려한 대안
+
+GoDj가 지원하지 않는 `CASCADE`를 generated definition에 적거나 Django Python file ABI를 복제하면 current Schema IR,
+strict data-only Definition과 project-wide flat publication 경계를 거짓으로 표현하게 됩니다. Human-readable stdout을 별도 기본
+format으로 추가하면 automation contract가 이중화됩니다. Phase-A 전용 세분 taxonomy를 public error로 유지하는 안도 internal
+detector 구조를 외부 ABI로 고정하므로 채택하지 않았습니다.
+
+### 사용자·데이터·migration 영향
+
+Generated relation 삭제 의미는 Django default와 달리 `PROTECT`입니다. 이름과 file roster/output도 Django project와 byte-compatible하지
+않지만 같은 desired state에서는 결정적이고 repeat clean입니다. 기존 migration을 rewrite하지 않으며 이번 bounded writer는
+CreateModel/AddField만 지원합니다. Remove/alter/rename/custom/data operation은 stable `unsupported_change`로 fail-closed합니다.
+
+### backend/concurrency/security 영향
+
+Writer planning/publication은 DB-free이고 supported local filesystem의 retained root, directory-inode lock, fresh plan/CAS와
+recoverable no-replace publication을 사용합니다. SQLite와 PostgreSQL 17.10 generated migrate/no-op/restart actual, PostgreSQL
+normal/race/CGO-disabled, repository-external public module flow가 Phase D에서 통과했습니다. DSN/password, raw build input과
+temporary protocol은 stdout/stderr/artifact에 남기지 않습니다.
+
+### 구현과 검증 조건
+
+- Manifest는 MIG-103..107만 `deviation`이고 각각 exact `decision=DEV-0010`, `derived=false` provenance를 가짐
+- `godj-migration-writer-deviation-expected.json`은 위 열아홉 result replacement만 exact order/type/value로 소유
+- Code-owned DEV-0010 policy가 selector/status/provenance의 누락·추가·중복과 unknown decision을 actual 전에 fail-closed
+- Oracle/expected/deviation fixture를 읽지 않는 GoDj actual이 MIG-099..110 exact 12/12, unexpected difference 0으로 통과
+- MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 이 Implemented deviation으로 product aggregate에 포함
+- PostgreSQL 17.10 normal/race/CGO-disabled actual과 repository-external public API/project runner flow 통과
+- Full `make ci`, Linux/386/archive, source-bound attestation recapture와 exact-head Hosted는 Phase E terminal gate에서 별도 검증
+
+### 복귀 또는 supersede 조건
+
+GoDj가 `CASCADE`와 Django-style Python migration ABI/output을 current public format으로 채택하거나, migration name/error taxonomy를
+새 versioned public policy로 바꿀 때 새 ADR/deviation으로 supersede합니다. MIG-107의 Phase-A decision oracle을 Django 관찰로
+재분류하거나 comparator에서 file/output/error selector를 무시해 복귀하지 않습니다.

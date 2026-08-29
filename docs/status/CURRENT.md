@@ -23,8 +23,19 @@
   affected normal/race/CGO0/vet/count-10, SIGKILL fault points와 actual two-app cross-app publish -> SQLite
   migrate/no-op/fresh-process restart가 통과했습니다. Current plan은 64 pending candidates hard ceiling이며 recovery 뒤
   writer-directory headroom은 65,536 entries입니다. Publication은 cooperative GoDj writer와 directory `flock`, file/directory
-  `fsync`, kernel no-replace rename을 제공하는 Darwin/Linux local filesystem에 한정합니다. Phase D PostgreSQL/product
-  adapter와 Phase E full/Hosted는 시작하지 않았습니다. Makefile/workflow reference wiring이
+  `fsync`, kernel no-replace rename을 제공하는 Darwin/Linux local filesystem에 한정합니다. Phase D implementation
+  `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree `976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`은
+  PostgreSQL 17.10 generated migrate/no-op/distinct-process restart와 DB-zero/secret/process-group boundary, oracle-blind
+  MIG-099..110 actual, DEV-0010 exact 19 sparse replacements와 repository-external public-module SQLite lifecycle을
+  구현했습니다. Affected normal/vet/generated drift와 focused runner/external/PostgreSQL race/CGO0, 여러 independent
+  audit pass에서 P0/P1=0입니다. 감사 중
+  bounded process-group reap, PostgreSQL second-noop revision/schema fingerprint, oracle-blind forbidden fixture, failure-output
+  redaction과 MIG-110 fault-prefix seal을 보강하고 재검증했습니다.
+  [EVID-150](TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)이
+  exact commands와 non-claims를 기록합니다. Current reference는 24/273/552=
+  `237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`이고 MIG-075..086만
+  locked/unregistered입니다. Phase E full/Linux/386/current source-bound attestation/exact-head Hosted는 남아 있으므로
+  ADR-0052/GDJ-0050은 Proposed/active입니다. Makefile/workflow product wiring이
   source-bound PostgreSQL attestation scope를 바꿨으므로 EVID-146은 predecessor product proof로만 보존하고 current exact-source
   attestation/Hosted proof로 재사용하지 않습니다. Phase A exact head `9b487d0...`의 CI #166/run `33260407753`은
   24 success/17 failure/0 cancellation이며 failed logs의 stale-attestation 표식 15회 외에 portable race 10분 timeout과
@@ -35,10 +46,9 @@
   `godj migrate [--project <godj.toml>]`, copied definition load-before-open, project-owned lazy backend,
   one-open/one-migrate/one-close, no-retry/error/secret/15초 cleanup 경계와 clean SQLite/PostgreSQL latest/no-op,
   durable-prefix resume, actual child fence/reconciliation, authenticated Admin/API distinct-process restart가 구현됐습니다.
-  MIG-087..098은 12 product `passing`이고 current reference는 24/273/552=
-  `230 passing + 19 deviation + 24 oracle_locked`, product는 22/249=`230 passing + 19 deviation`입니다. Current
-  reference-only locked range는 MIG-075..086과 MIG-099..110입니다. Required PostgreSQL 17.10, affected normal/race/CGO0/vet/generate, relation
-  1,091/1,091/0, full `make ci`, Linux/386, 1,126-file external archive와 independent audit는
+  MIG-087..098은 12 product `passing`이고 current aggregate는 위 GDJ-0050 Phase D 값입니다. Current reference-only locked
+  range는 MIG-075..086입니다. GDJ-0049 completion 당시 required PostgreSQL 17.10, affected normal/race/CGO0/vet/generate,
+  relation 1,091/1,091/0, full `make ci`, Linux/386, 1,126-file external archive와 independent audit는
   [EVID-144](TEST_EVIDENCE.md#evid-20260828-144--gdj-0049-frozen-local-final-and-source-bound-postgresql-publication)에
   기록했습니다. 첫 exact submitted-head `8841319...` / CI run `33124180742`는 27 executions 중
   23 success, 1 package-timeout failure, 3 job-timeout cancellation으로 끝났습니다. PostgreSQL exact selector,
@@ -1334,22 +1344,24 @@
 ### 호환 계약과 machine artifact
 
 - Protocol v2 reference에는 현재 24 ordered set, 273 unique contract/scenario와 552 ordered
-  cross-binding이 있습니다. Current product는 22개 set에 actual GoDj adapter를 가지며
-  249 contract 분류는 `230 passing + 19 deviation + 0 oracle_locked`입니다. Reference 분류는
-  `230 passing + 19 deviation + 24 oracle_locked`이고 MIG-075..086과 MIG-099..110은 reference-only
-  `oracle_locked`이며 product actual에는 등록되지 않습니다. Migration-command manifest/NI/oracle은 각각
+  cross-binding이 있습니다. Current product는 23개 set에 actual GoDj adapter를 가지며
+  261 contract 분류는 `237 passing + 24 deviation + 0 oracle_locked`입니다. Reference 분류는
+  `237 passing + 24 deviation + 12 oracle_locked`이고 MIG-075..086만 reference-only `oracle_locked`이며 product actual에는
+  등록되지 않습니다. Migration-command manifest/NI/oracle은 각각
   6,166 bytes/`d2846327e4d8cbf82a25568e41b198c67878bb7853958729969eb7077ca4c0e1`,
   1,838 bytes/`8680d5e8ce7cf11604af69da1e96a64f580f64074277a2a015af8ad250bb0016`,
   12,690 bytes/`30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee`이고 root checksum은
   1,887 bytes/`cf7029cbc39627e57c1e3f991d5f28895781fba69b2353727e02f51cc14e3daa`입니다. Two independent Go actuals are
   byte-identical at 12,497 bytes/`cde777ed2f00cfd3be91faccee760891d7e2caa9142df8a49aaf59d577ae75a1` and match all
-  twelve typed observations. Current 24-set semantic payload는 932,413 bytes/SHA-256
-  `f5bfe7756008225452e5d9bbc86381a12b1e5de2e32eafd8f1afcd40d866fcd2`입니다. MIG-099..110 migration-writer
-  manifest/NI/oracle은 8,864/1,876/25,980 bytes와 SHA-256
+  twelve typed observations. Reference 24-set semantic payload는 932,413 bytes/SHA-256
+  `f5bfe7756008225452e5d9bbc86381a12b1e5de2e32eafd8f1afcd40d866fcd2`입니다. MIG-099..110 Phase A
+  manifest/NI/oracle snapshot은 8,864/1,876/25,980 bytes와 SHA-256
   `75b3f485d392dceb5800b68efe267e6cb7010d873f845ecc0fa7c459b00f5d1e`/
   `b27563a864fe417df53a20092c44f169829e9798cb2e40348c8dbbdcf4715502`/
   `9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41`이며 shared 21-line checksum은
-  1,982 bytes/`de1e924b10c828db95ee945ff1fa414e9ad2802fce667cffd8bbf82b16d906e5`입니다.
+  1,982 bytes/`de1e924b10c828db95ee945ff1fa414e9ad2802fce667cffd8bbf82b16d906e5`입니다. Phase D current manifest는
+  9,227 bytes/SHA-256 `90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72`, DEV-0010 sparse expectation은
+  7,242 bytes/SHA-256 `74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e`입니다.
   SYS-013..020은 Accepted ADR-0048 아래 oracle-blind actual에 등록된
   `passing`입니다. GDJ-0043의
   checkpoint 30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는
@@ -1397,7 +1409,7 @@
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
   MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
   14/151/182였습니다. GDJ-0040 completion checkpoint는 QRY-034..043 set을 더한 15/161/210이고 product는
-  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 24/273/552 및 22/249입니다. Local relation
+  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 24/273/552 및 23/261입니다. Local relation
   transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
@@ -1418,19 +1430,22 @@
 - Fifteenth QRY-034..043 query-expression reference는 manifest/oracle/static fixture
   8,075/41,264/1,715 bytes와 SHA-256 `e4160851...`/`8b087a39...`/`0df90735...`이며 10개 모두
   `passing`/registered입니다. Oracle-blind actual 두 개는 각각 41,134 bytes/SHA-256 `20b5cf0a...`로
-  byte-identical하고 locked oracle과 protocol difference 0입니다. Current shared 15-line `SHA256SUMS`는
+  byte-identical하고 locked oracle과 protocol difference 0입니다. GDJ-0040-era shared 15-line `SHA256SUMS` snapshot은
   1,432 bytes/SHA-256 `24949f4eb6099d4c9a8b501cefe257b134a23bc3717799c32276c3f8a083a13c`로 불변입니다.
 - Current system-state manifest/oracle/root checksum은 11,143/21,242/1,791 bytes와 SHA-256
   `b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09`/
   `d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`/
-  `e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. Checked PostgreSQL 17.10
+  `e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. EVID-146 predecessor의 checked PostgreSQL 17.10
   attestation/checksum file은 1,134/103 bytes와 SHA-256
   `58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e`/
-  `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`이고, current source binding은
+  `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`이고, 그 predecessor source binding은
   262 files/3,108,132 payload bytes/SHA-256 `6e949613e23d2b098c3e7cdfb8460afba5ab129b545ff96821ee53d57a229f23`입니다.
-- Current normal relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,222 bytes/SHA-256
-  `90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`입니다. Four-coordinate normal과
-  전체 twelve coordinate/mode Hosted jobs는 EVID-146에서 통과했습니다.
+  Current Phase D source에는 stale이므로 Phase E에서 재캡처합니다.
+- EVID-146 predecessor relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,222 bytes/SHA-256
+  `90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`였고 four-coordinate normal과
+  전체 twelve coordinate/mode Hosted jobs가 통과했습니다. Current Phase D selector/list lock은 1,111 tests,
+  115,370 bytes/SHA-256 `483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a`이며 full workload 실행은
+  Phase E 전까지 주장하지 않습니다.
 
 ### 검증 증거
 
@@ -1874,9 +1889,11 @@ DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-
 strict separate v1 wire, opaque project-owned snapshot, deterministic read-only modes와 build-input/catalog CAS를 구현했습니다.
 Phase C implementation `d42358f...`/tree `25c3351...`는 directory-inode lock 아래 fresh plan과 every-rename CAS,
 no-replace dependency-valid durable-prefix publication, complete/incomplete owned-temp recovery와 actual cross-app SQLite
-migrate/no-op/fresh-process restart를 구현하고 EVID-149의 affected local gates를 통과했습니다. Current reference/product
-aggregate는 24/273/552=`230+19+24 locked`, 22/249=`230+19`로 불변이며 MIG-099..110 product adapter와 PostgreSQL
-writer E2E는 Phase D, full/source-bound attestation/Hosted는 Phase E에 남습니다. Current 64-candidate ceiling은 batching이
+migrate/no-op/fresh-process restart를 구현하고 EVID-149의 affected local gates를 통과했습니다. Phase D implementation
+`21d88c99...`/tree `976671ce...`는 PostgreSQL 17.10 writer-to-migrate lifecycle, 12-contract oracle-blind product adapter,
+DEV-0010 exact 19 sparse replacements와 repository-external public-module lifecycle를 구현하고 EVID-150 affected gates와
+독립 감사를 통과했습니다. Current reference/product aggregate는 24/273/552=`237+24+12 locked`, 23/261=`237+24`이며
+MIG-075..086만 locked입니다. Full/Linux/386/current source-bound attestation/Hosted는 Phase E에 남습니다. Current 64-candidate ceiling은 batching이
 아닌 hard support limit이고 publication filesystem은 cooperative writer가 사용하는 supported Darwin/Linux local filesystem으로
 한정합니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
 24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. Stale PostgreSQL attestation 외에 portable
@@ -1938,8 +1955,8 @@ CI job/execution 개수 자체는 제품 계약이 아니며, 필수 platform/mo
 full hosted/evidence cycle을 만들지는 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019는 P1/open입니다.
-MIG-075..086과 MIG-099..110이 current reference-only locked range입니다. MIG-087..098은 registered actual과 strict comparison을
-통과한 product `passing`입니다.
+MIG-075..086만 current reference-only locked range입니다. MIG-087..102와 MIG-108..110은 registered actual `passing`,
+MIG-103..107은 exact 19-selector DEV-0010 `deviation`입니다.
 Draft PR #1은 계속 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)

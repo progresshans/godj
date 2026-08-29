@@ -19,9 +19,11 @@
   MIG-099..110 reference-only lock을 Phase A에서 완료했습니다. Phase B는 strict private v1 protocol, exact public read-only
   `makemigrations` modes와 retained build-input/catalog CAS를 local-scoped verified했습니다. Phase C는 supported local
   filesystem의 directory-inode lock, fresh plan/CAS, recoverable no-replace durable-prefix publication과 actual cross-app
-  SQLite migrate/no-op/restart를 locally implemented/verified했습니다. Current reference는 24/273/552=
-  `230 passing + 19 deviation + 24 oracle_locked`, product는 22/249=`230 passing + 19 deviation`으로 불변이며 Phase D
-  PostgreSQL/product adapter가 다음 단계입니다. Phase E full/Hosted는 frozen milestone까지 미룹니다.
+  SQLite migrate/no-op/restart를 locally implemented/verified했습니다. Phase D는 MIG-099..110 actual adapter,
+  PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public module을 통과했습니다. Current reference는
+  24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`입니다.
+  MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`이며 남은 locked
+  range는 MIG-075..086뿐입니다. Phase E full/386/archive/attestation/Hosted는 frozen milestone까지 미룹니다.
 - 직전 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
@@ -146,15 +148,16 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 22 adapters/249 contracts의 `230 passing + 19 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 23 adapters/261 contracts의 `237 passing + 24 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
   exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Verified deviations`는 product publication,
   SQLite/PostgreSQL required와 corrected final local full/386/archive 뒤 EVID-138/CI #155 exact hosted
   27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 hosted-verified product `passing`입니다.
-  GDJ-0050 Phase A가 MIG-099..110 reference-only set을 추가했으므로 현재 reference-only locked range는
-  MIG-075..086과 MIG-099..110입니다.
+  GDJ-0050 Phase D는 MIG-099..110 actual을 게시해 7 `passing` + Implemented DEV-0010 `deviation` 5개로
+  전환했습니다. PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public module은 locally 통과했고
+  Phase E terminal gate는 남았습니다. 현재 reference-only locked range는 MIG-075..086뿐입니다.
 - 마지막 검토: 2026-08-30
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -226,8 +229,9 @@ MOD-001..007과 MIG-001..004를 통과했습니다.
 상태: M2 전체는 아직 완료되지 않았습니다. Active
 [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 이미 hosted-verified된 current-only
 Definition/ProjectState와 explicit `migrate` 위에서 `CreateModel`/`AddField` additive schema autodetection,
-deterministic writer와 DB-free recoverable `makemigrations`를 진행합니다. 삭제·alter·rename·custom/data operation은
-이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Mutable instance `Save()`,
+deterministic writer와 DB-free recoverable `makemigrations`를 진행합니다. Phase D의 product adapter, PostgreSQL 17.10
+normal/race/CGO-disabled와 repository-external public module은 locally 통과했고 full/386/archive/attestation/Hosted는 Phase E에
+남습니다. 삭제·alter·rename·custom/data operation은 이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,

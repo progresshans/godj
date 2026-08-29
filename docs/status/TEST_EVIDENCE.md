@@ -14020,3 +14020,117 @@ Linux/386 runtime, repository-external archive, current source-bound PostgreSQL 
 matrix were not run. This entry records the exact implementation commit/tree above; the following documentation-only
 descendant is not recursively claimed as a separately product-tested source. Draft PR #1 remains open/draft/unmerged, and
 no merge, release or deployment is performed by this checkpoint. Phase D was not started.
+
+## EVID-20260830-150 — GDJ-0050 Phase D PostgreSQL Product Publication and External Consumer Checkpoint
+
+- Date: 2026-08-30 KST
+- Platform: Darwin 25.6.0 arm64, macOS 26.6.2, Go 1.26.5 darwin/arm64
+- Work/contract IDs: GDJ-0050 active; ADR-0052 Proposed; DEV-0010 Implemented; MIG-099..110 product actual registered;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Exact implementation commit: `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree
+  `976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`
+
+### Product publication and exact classification
+
+The GoDj migration-writer runner now observes all twelve contracts through the actual additive detector, current encoder,
+strict private protocol and global writer rather than reading the oracle or product expectation. MIG-099/100/101/102/108/109/110
+are `passing`. MIG-103..107 are the exact five DEV-0010 `deviation` contracts with nineteen sparse `result` replacements:
+current PROTECT semantics, timestamp-free digest naming, flat JSON source roster/output and closed GoDj failure codes. The
+strict policy rejects any extra contract, dimension, path or operation.
+
+The current migration-writer manifest is 9,227 bytes/SHA-256
+`90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72`; the DEV-0010 expectation is 7,242
+bytes/SHA-256 `74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e`. Reference inventory is now exact
+24 sets/273 contracts/552 ordered bindings=`237 passing + 24 deviation + 12 oracle_locked`; product inventory is exact
+23 adapters/261 contracts=`237 passing + 24 deviation`. MIG-075..086 alone remain reference-only locked/unregistered.
+
+The relation-product list lock was refreshed to 1,111 selected top-level tests, 115,370 canonical bytes and SHA-256
+`483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a`. This checkpoint validates the selector/list lock;
+it does not claim that the complete relation workload was executed. PostgreSQL required coverage is now exact 21 selected
+tests and includes the new `cmd/godj` writer lifecycle sentinel. The repository-external migration-writer package is isolated
+from the core package list and receives its own normal/race/CGO-disabled 15-minute lanes.
+
+### Actual PostgreSQL and external consumer lifecycles
+
+The PostgreSQL test used the digest-pinned local image
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+The secret-bearing connection URL was supplied only through `GODJ_TEST_POSTGRES_URL` and is intentionally not recorded.
+Normal, race-harness and CGO-disabled invocations of
+`TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart` each passed. The test proves backend/schema/database state
+zero before migrate, 0600 strict candidates and dependency order, repeat byte/inode no-op, clean PostgreSQL migrate/history/
+cross-app row, second-migrate revision and schema fingerprint no-op, distinct-process restart and secret redaction. Every
+child command uses a bounded three-minute process group and is killed/reaped on timeout. The temporary PostgreSQL container
+was stopped and auto-removed after the three successful runs.
+
+`conformance/migrationwriterproduct` builds a repository-external temporary Go module and imports only allowlisted public
+GoDj packages. It executes the actual global `makemigrations`, proves backend marker and SQLite database absence before
+migrate, preserves repeat bytes, applies/no-ops the generated definitions and reads history plus cross-app data from a fresh
+PID. Normal, race-harness and CGO-disabled package runs all passed after the final failure-output redaction correction. As in
+the PostgreSQL test, `go test -race` instruments the harness; ordinary `go build` child binaries are not claimed to be
+race-instrumented.
+
+### Scoped commands and results
+
+```bash
+go test -timeout=15m -count=1 \
+  ./cmd/godj ./project ./internal/projectcheck/... \
+  ./conformance/runners/godj ./conformance/internal/protocol \
+  ./conformance/migrationwriterproduct
+
+go test -race -timeout=15m -count=1 \
+  ./conformance/runners/godj -run '^TestMigrationWriter'
+CGO_ENABLED=0 go test -timeout=15m -count=1 \
+  ./conformance/runners/godj -run '^TestMigrationWriter'
+go test -timeout=15m -count=10 ./conformance/runners/godj \
+  -run '^TestMigrationWriterScenariosExecuteActualBoundaries/(MIG-109|MIG-110)$'
+
+go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+go test -race -timeout=15m -count=1 ./conformance/migrationwriterproduct
+CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+
+GODJ_REQUIRE_POSTGRES=1 go test -timeout=15m -count=1 \
+  -run '^TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart$' ./cmd/godj
+GODJ_REQUIRE_POSTGRES=1 go test -timeout=15m -race -count=1 \
+  -run '^TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart$' ./cmd/godj
+GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -timeout=15m -count=1 \
+  -run '^TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart$' ./cmd/godj
+
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-writer-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json \
+  -deviation-expected conformance/fixtures/godj-migration-writer-deviation-expected.json
+
+go test -count=1 ./conformance/cmd/godjcheck -run 'GDJ0050|MigrationWriter'
+go test -count=1 ./conformance/internal/protocol \
+  -run 'MigrationWriter|CurrentTwenty(ThreeProduct|FourReference)|RunserverProductWorkflowWiring|MigrationProjectCheck.*Workflow|SystemStatePublishedProductMakeAndWorkflowWiring|QueryBreadthProductRemains'
+make format-check generate-check
+go vet ./cmd/godj ./project ./internal/projectcheck/... \
+  ./conformance/runners/godj ./conformance/internal/protocol \
+  ./conformance/cmd/godjcheck ./conformance/migrationwriterproduct
+git diff --check
+```
+
+All commands above passed. The strict comparison emitted twelve actual observations and reported that all twelve contracts
+match the reviewed product expectation under DEV-0010. The final generated drift snapshots remained Article 12 files at
+`f0043e499ab316558cd0306ce82c428a5f266b0c178d656416380c3ba1722ac7` and relation-delete 16 files at
+`81534d39046a39c9d515fe4106dfcb01dd2d1ade6b0c41f25dff92ac4c004533`.
+
+One exploratory full `go test ./conformance/cmd/godjcheck` invocation failed only because the checked-in PostgreSQL live
+attestation source binding is stale after the current Makefile/workflow/product source changes. This is not converted into
+a pass and is not treated as product assertion evidence. Phase E must recapture the source-bound attestation on frozen bytes
+before the full and Hosted terminal gates.
+
+### Independent audit and non-claims
+
+Multiple independent read-only audit passes found no remaining P0/P1 or immediate P2 blocker. Corrections made during those
+passes include bounded child process-group reap, PostgreSQL second-noop revision/schema fingerprints, the deviation fixture in
+the oracle-blind forbidden list, failure-output redaction before any detail is logged, and a non-vacuous MIG-110 fault-created
+durable-prefix seal by SourceID, exact bytes and inode across fresh resume. Focused normal/race and the external normal/race/
+CGO-disabled lifecycle passed after the final corrections.
+
+This is a Phase D local checkpoint, not a terminal milestone. Full `make ci`, all-package Linux/386 runtime, expanded
+repository-external archive, current source-bound PostgreSQL attestation and exact submitted-head Hosted matrix were not run.
+ADR-0052 remains Proposed, GDJ-0050 remains active and DEV-0010 remains Implemented rather than terminal Verified. Draft PR
+#1 remains open/draft/unmerged; no merge, release or deployment is performed by this checkpoint. The following documentation-only
+descendant is not recursively claimed as a separately product-tested source.

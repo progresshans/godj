@@ -1,6 +1,6 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified; GDJ-0050 Phase A-C additive writer/publication boundary active·locally verified
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified; GDJ-0050 Phase D additive writer/product/PostgreSQL/external-module boundary active·locally verified
 - 마지막 검토: 2026-08-30
 
 아래 `M1 verified` 단면, §8의 GDJ-0049 explicit migrate 경계와 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
@@ -429,7 +429,7 @@ Go generic method는 새 result type parameter를 선언할 수 없으므로 `Qu
 ## 8. Migration
 
 장기 사용자 명령 목표는 다음과 같습니다. `migrate`는 completed GDJ-0049에서 public product command가 됐고,
-`makemigrations`는 active GDJ-0050에서 bounded additive-only product로 구현 중입니다.
+`makemigrations`는 active GDJ-0050에서 bounded additive-only public product command로 구현됐습니다.
 
 ```bash
 godj makemigrations
@@ -476,6 +476,12 @@ godj generate --project ./godj.toml
 godj generate --check --project ./godj.toml
 godj migrate
 godj migrate --project ./godj.toml
+godj makemigrations
+godj makemigrations --dry-run
+godj makemigrations --check
+godj makemigrations --project ./godj.toml
+godj makemigrations --dry-run --project ./godj.toml
+godj makemigrations --check --project ./godj.toml
 ```
 
 Completed GDJ-0049의 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current argv로
@@ -487,6 +493,16 @@ Submitted head `8841319...`의 first local-final hosted run `33124180742`는 23/
 relation/conformance outer timeout으로 닫히지 않았습니다. 사용자 표면은 바꾸지 않고 selector/workload와 macOS Intel
 race outer budget만 교정했으며, submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
 41/41 jobs·464/464 steps와 PostgreSQL mode별 required 20/20·skip 0을 통과했습니다. ADR-0051은 Accepted입니다.
+
+Active GDJ-0050의 `makemigrations`는 DB를 열지 않고 한 request의 schema/catalog snapshot에서 current
+CreateModel/AddField candidate를 계산합니다. Supported local filesystem의 exact one writer root에서는 directory-inode lock,
+fresh plan/CAS와 recoverable no-replace publication을 사용하며 dry-run/check는 같은 plan을 파일 mutation 없이 보고합니다.
+Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public
+module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
+`PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Implemented DEV-0010
+`deviation`입니다. Product aggregate는 23 adapters/261 contracts=`237 passing + 24 deviation`이고, MIG-075..086만
+reference-only locked입니다. Full `make ci`, Linux/386/archive, source-bound attestation recapture와 exact-head Hosted는
+Phase E terminal gate 전까지 검증됐다고 표현하지 않습니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

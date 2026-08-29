@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 Phase C EVID-149 local publication/SQLite lifecycle; latest exact-head Hosted product는
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 Phase D local product/PostgreSQL/external-module gate; latest exact-head Hosted product는
   GDJ-0049 EVID-146 / CI #164 run `33247166995`)
 - 현재 required checkpoint: EVID-144 local-final은 clean SQLite/PostgreSQL 17.10과 MIG-087..098 product 12
   `passing`을 검증했습니다. 첫 submitted run `33124180742`의 timeout을 selector/workload 분리와 macOS Intel race 전용
@@ -11,10 +11,10 @@
   `b82bb5b...`의 EVID-146/CI #164 run `33247166995`는 41/41 jobs·464/464 steps와 PostgreSQL mode별
   required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
 - 현재 design: GDJ-0049/Accepted ADR-0051 completed, GDJ-0050/Proposed ADR-0052 active. Reference
-  24/273/552=`230 passing + 19 deviation + 24 oracle_locked`, product 22/249=`230 passing + 19 deviation`;
-  MIG-087..098은 hosted-verified product `passing`, MIG-075..086과 MIG-099..110은 reference-only
-  `oracle_locked`. GDJ-0050 Phase C public CLI/recoverable publication은 locally implemented/verified됐지만 product adapter와
-  PostgreSQL/Hosted는 아직 없으며, 현재 active/ready work는 1/0임
+  24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product 23/261=`237 passing + 24 deviation`;
+  MIG-087..102/108..110은 product `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`, 남은 reference-only
+  locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase D product adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
+  repository-external public module은 locally 통과했지만 full/attestation/Hosted Phase E는 아직 없으며, 현재 active/ready work는 1/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -105,17 +105,23 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
 
 Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative multi-runtime actual을 보존하면서 GDJ-0047
-Bearer authentication profile actual, GDJ-0049 migration-command product actual과 GDJ-0050 Phase A-C migration-writer
-reference/pure/publication boundary를 함께 게시합니다. Reference는
-24 sets/273 contracts/552 ordered bindings=`230 passing + 19 deviation + 24 oracle_locked`, product는 22 adapters/249 contracts=
-`230 passing + 19 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
+Bearer authentication profile actual, GDJ-0049 migration-command actual과 GDJ-0050 Phase D migration-writer product publication을
+함께 게시합니다. Reference는 24 sets/273 contracts/552 ordered bindings=
+`237 passing + 24 deviation + 12 oracle_locked`, product는 23 adapters/261 contracts=
+`237 passing + 24 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
 `deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
-`deviation`이고 MIG-087..098은 product `passing`, reference-only locked range는 MIG-075..086과 MIG-099..110입니다.
-MIG-099..110은 public product adapter 없이 `oracle_locked`입니다. Phase C의 public CLI, recoverable local-filesystem publication과
-cross-app SQLite lifecycle을 구현했어도 PostgreSQL/product comparison 전에는 contract `passing`으로 과장하지 않습니다.
-Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
+`deviation`이고 MIG-087..102/108..110은 product `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`입니다.
+남은 reference-only locked range는 MIG-075..086뿐입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
+MIG-107의 stable GoDj error taxonomy는 exact 열아홉 sparse result replacement로 제한됩니다. MIG-107의 reference는 Django
+관찰이 아니라 Phase-A GoDj decision oracle taxonomy이며 DEV-0010이 이를 명시적으로 supersede합니다. PostgreSQL 17.10
+normal/race/CGO-disabled actual과 repository-external public module은 통과했지만 terminal Phase E는 아직 실행하지 않았습니다.
+GDJ-0046 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`는 historical lock으로 보존됩니다.
+GDJ-0050 Phase A historical manifest/NI/oracle 8,864/1,876/25,980 bytes와 SHA-256
+`75b3f485...5d1e`/`b27563a8...5502`/`9068d0e6...fd41`도 소급 rewrite하지 않습니다. Phase D current manifest는
+9,227 bytes/SHA-256 `90bce609...f1c72`, DEV-0010 sparse expectation은 7,242 bytes/SHA-256
+`74617f20...4718e`입니다.
 
 Accepted [ADR-0048](adr/0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)과 completed
 [GDJ-0046](../work/0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md)은 ordinary `db.Atomic`을

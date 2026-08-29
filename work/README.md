@@ -89,9 +89,13 @@ build-input/catalog CAS가 local-scoped verified됐습니다. Phase C는 directo
 first/every-rename CAS, kernel no-replace dependency-valid durable-prefix publication, complete/incomplete owned-temp recovery와
 actual two-app cross-app publish -> SQLite migrate/no-op/fresh-process restart를 locally implemented/verified했습니다. Current
 64-candidate ceiling은 batching이 아닌 hard support limit이고 supported cooperative Darwin/Linux local filesystem만
-publication 범위입니다. Phase D PostgreSQL/product adapter와 Phase E full/Hosted는 아직 시작하지 않았습니다. Current
-reference/product aggregate는
-24/273/552=`230+19+24 locked`, 22/249=`230+19`입니다. Completed
+publication 범위입니다. Phase D implementation `21d88c99...`, tree `976671ce...`는 PostgreSQL 17.10
+generated migrate/no-op/distinct-process restart, oracle-blind MIG-099..110 actual과 DEV-0010 exact 19 sparse replacements,
+repository-external public-module SQLite lifecycle를 구현하고 affected normal/vet/generated drift, focused
+runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. Current reference/product aggregate는
+24/273/552=`237+24+12 locked`, 23/261=`237+24`이고
+MIG-075..086만 locked/unregistered입니다. Phase E full/Linux/386/source-bound attestation/exact-head Hosted는 아직 남아
+ADR-0052/GDJ-0050을 Proposed/active로 유지합니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
 project runner를 explicit `godj migrate`에 연결했습니다. Accepted
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
@@ -111,7 +115,7 @@ test-only capture acknowledgment 교정 뒤 focused normal/race 반복은 통과
 Intel race 전용 bounded timeout correction과 source-bound attestation refresh 뒤 submitted `a909692...`, tree
 `b82bb5b...`의 [EVID-146](../docs/status/TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion) /
 CI #164 run `33247166995`가 exact 41/41 jobs·464/464 steps와 PostgreSQL mode별 20/20·skip 0으로 terminal
-acceptance를 닫았습니다. 다음 packet은 아직 활성화하지 않았습니다. Completed
+acceptance를 닫았습니다. 그 뒤 GDJ-0050이 활성화됐습니다. Completed
 [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
 Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔습니다. Accepted
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing

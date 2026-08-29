@@ -128,12 +128,13 @@ exact latest-only `godj migrate`까지입니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
-Active GDJ-0050/Proposed ADR-0052 Phase A는 current CreateModel/AddField pure detector/current encoder를 구현했고
-MIG-099..110을 reference-only `oracle_locked`로 게시했습니다. Phase B는 bounded public `godj makemigrations` read-only planning
-command, strict private v1 protocol과 source/catalog CAS를 local-scoped verified했습니다. Phase C는 exactly-one retained writer
-root에서 directory-inode lock, fresh plan/every-rename CAS, recoverable kernel no-replace publication과 actual cross-app SQLite
-migrate/no-op/restart를 locally implemented/verified했습니다. MIG-099..110 product adapter, PostgreSQL writer E2E와 general
-upgrade는 아직 포함하지 않습니다. 아래 library-level loaded execution은 별도 제품 경계입니다.
+Active GDJ-0050/Proposed ADR-0052는 current CreateModel/AddField pure detector/current encoder, bounded public
+`godj makemigrations`, strict private v1 protocol과 supported local-filesystem publication을 구현했습니다. Phase C의
+directory-inode lock, fresh plan/every-rename CAS, recoverable kernel no-replace publication과 actual cross-app SQLite
+migrate/no-op/restart에 이어 Phase D에서 MIG-099..110 actual adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
+repository-external public module flow가 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
+Implemented DEV-0010 `deviation`입니다. General upgrade와 destructive/rename/custom/data operation은 아직 포함하지 않습니다.
+아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
 DB-aware entry는 `Executor.Migrate(ctx, loaded, request)` 하나입니다. Historical reconstruction은 scalar와
@@ -637,8 +638,10 @@ Completed [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-arti
 `godj migrate [--project <godj.toml>]`에 연결했습니다. Hosted-verified product는 latest/prefix-tail/no-op,
 middle failure/resume, actual child fence/reconciliation, pre-migrate no-mutation, authenticated Admin/API distinct-process
 restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`입니다.
-GDJ-0050 Phase A reference 추가 뒤 current reference는 24/273/552=`230 passing + 19 deviation + 24 oracle_locked`,
-product는 22/249=`230 passing + 19 deviation`입니다. MIG-099..110은 product actual 없이 reference-only입니다.
+GDJ-0050 Phase D product publication 뒤 current reference는 24/273/552=
+`237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`입니다.
+MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은 exact 열아홉 result replacement의
+Implemented DEV-0010 `deviation`이며 남은 locked range는 MIG-075..086뿐입니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.
@@ -646,9 +649,10 @@ Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 
 outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
 cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
 GDJ-0049의 writer/autodetector와 target/reverse/plan/fake는 범위 밖이었습니다. Active GDJ-0050은 additive-only
-writer/autodetector와 public CLI/private protocol을 Phase A+B에서 구현했고 Phase C에서 cooperative supported local filesystem의
-recoverable normal publication과 cross-app SQLite lifecycle까지 locally implemented/verified했습니다. Current plan의 64-candidate
-ceiling은 automatic batching이 아닌 hard support limit입니다. Product adapter와 PostgreSQL writer E2E는 Phase D에 남습니다. 첫
+writer/autodetector와 public CLI/private protocol, cooperative supported local filesystem의 recoverable publication과
+cross-app SQLite lifecycle을 구현했습니다. Phase D의 actual product adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
+repository-external public module도 통과했습니다. Current plan의 64-candidate ceiling은 automatic batching이 아닌 hard support
+limit입니다. Full `make ci`, Linux/386/archive, source-bound attestation recapture와 exact-head Hosted는 Phase E에 남습니다. 첫
 submitted head `8841319...`의 run
 `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로
 terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 macOS Intel race 전용 bounded

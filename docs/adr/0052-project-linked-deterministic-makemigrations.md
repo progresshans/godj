@@ -180,6 +180,17 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
     실제 `godj migrate`로 SQLite/PostgreSQL clean database에 적용하는 것은 product E2E 검증이지만 autodetection 입력은 아닙니다.
 13. MIG-099..110은 Django-observable과 GoDj decision authority를 분리한 새 mixed-authority set입니다. Python source byte parity가
     아니라 semantic candidate와 public behavior를 비교하고 deterministic bytes/publication safety는 GoDj-only contract로 둡니다.
+14. Phase D actual comparison은 MIG-099/100/101/102/108/109/110을 `passing`으로, MIG-103..107을
+    [DEV-0010](../DEVIATIONS.md#dev-0010--godj-migration-writer의-current-format과-안정-오류-taxonomy)의
+    exact 19-result-selector `deviation`으로 게시합니다. Relation `on_delete`의 current IR 의미, timestamp-free digest name,
+    JSON definition roster/output와 closed GoDj failure taxonomy가 Django의 Python writer surface와 다른 부분만 sparse replacement로
+    허용합니다. Reference aggregate는 24 sets/273 contracts/552 bindings=`237 passing + 24 deviation + 12 oracle_locked`, product는
+    23 adapters/261 contracts=`237 passing + 24 deviation`이며 MIG-075..086만 reference-only locked로 남습니다.
+15. Product E2E는 writer command의 backend open/database mutation 0을 먼저 증명한 뒤 생성된 exact definitions를 기존 public
+    `godj migrate`에 전달합니다. PostgreSQL 17.10에서는 first migrate, recorder/revision/schema fingerprint가 불변인 second no-op와
+    distinct-process restart를, repository-external public-import-only module에서는 SQLite publish/migrate/no-op/data restart를
+    검증합니다. 테스트 command는 bounded process group을 종료·reap하고 raw database URL/secret을 failure log에 출력하지 않습니다.
+    `go test -race`는 harness만 계측하며 일반 `go build` child binary까지 계측했다고 주장하지 않습니다.
 
 ## 결과
 
@@ -221,3 +232,14 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
 - Publication fault injection, concurrent writer serialized replan, source CAS mutation, cancellation/crash와 valid-prefix/residue scan
 - External project: generated definitions -> SQLite/PostgreSQL `godj migrate` -> second no-op -> restart read
 - Affected normal/race/CGO-disabled/vet/generated drift와 final frozen milestone의 hosted matrix 한 번
+
+Phase D implementation `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree
+`976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`은 PostgreSQL 17.10 normal/race/CGO-disabled actual, external module
+normal/race/CGO-disabled, MIG-099..110 strict product comparison과 affected normal/vet/generated drift를 통과했습니다. Current manifest는
+9,227 bytes/SHA-256 `90bce609ffb4f771007379495629a31efbf00594dca16f9efe875005e97f1c72`, DEV-0010 fixture는
+7,242 bytes/SHA-256 `74617f20f72ecd5b26284ae8cffb7a1c408cdef03e0933d457beeb82f9f4718e`입니다. 여러 독립 감사에서
+P0/P1은 없었습니다. Bounded process-group reap, PostgreSQL second-noop revision/schema fingerprint, oracle-blind forbidden fixture,
+failure output redaction과 MIG-110 durable-prefix seal을 보강하고 재검증했습니다.
+
+이 문서는 Phase E의 full `make ci`, Linux/386, current source-bound PostgreSQL attestation과 exact submitted-head Hosted matrix가
+끝날 때까지 `Proposed`입니다. 위 local checkpoint만으로 terminal `Accepted` 또는 GDJ-0050 completion을 주장하지 않습니다.

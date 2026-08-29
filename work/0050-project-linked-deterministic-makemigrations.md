@@ -5,7 +5,7 @@ updated: 2026-08-30
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "162b03d65b2392c2ef0647dd7157e686e57de5b3"
 depends_on: ["GDJ-0016", "GDJ-0019", "GDJ-0022", "GDJ-0036", "GDJ-0037", "GDJ-0049"]
-contracts: ["MIG-099..MIG-110", "Q-010", "Q-012"]
+contracts: ["MIG-099..MIG-110", "DEV-0010", "Q-010", "Q-012"]
 allowed_paths:
   - "cmd/godj/**"
   - "project/**"
@@ -21,6 +21,7 @@ allowed_paths:
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/**"
   - "conformance/runners/django/**"
   - "conformance/runners/godj/**"
+  - "conformance/cmd/godjcheck/**"
   - "conformance/internal/protocol/**"
   - "conformance/migrationwriterproduct/**"
   - "conformance/postgresproduct/**"
@@ -32,6 +33,7 @@ allowed_paths:
   - "docs/adr/README.md"
   - "docs/CAPABILITY_CATALOG.md"
   - "docs/COMPATIBILITY.md"
+  - "docs/DEVIATIONS.md"
   - "docs/DEVELOPER_EXPERIENCE.md"
   - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
@@ -114,8 +116,9 @@ godj runserver
 ### Phase A MIG-099..110 reference
 
 Phase A에서 exact 12개 manifest/NI/oracle을 별도 set으로 byte-lock해 `oracle_locked`로 게시했습니다. 당시에는 public CLI/private
-protocol/publication adapter가 모두 없었습니다. Current Phase C에는 CLI/private protocol과 recoverable publication이 존재하지만
-MIG-099..110 product adapter는 없으므로 actual product가 같은 observation을 만족한 뒤에만 `passing`으로 전환합니다.
+protocol/publication adapter가 모두 없었습니다. Phase C checkpoint에는 CLI/private protocol과 recoverable publication이
+존재했지만 product adapter는 아직 없었습니다. Phase D actual comparison은 아래 observation을 실행한 뒤
+MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviation`으로 전환했습니다.
 
 | ID | Scenario | Required observation |
 |---|---|---|
@@ -195,9 +198,9 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 
 ### Phase D — PostgreSQL and product publication
 
-- [ ] Clean PostgreSQL 17.10 generated candidate -> migrate/no-op/restart와 secret/DB-zero boundary 검증
-- [ ] MIG-099..110 actual adapter/strict comparison을 등록하고 passing/deviation을 증거대로 전환
-- [ ] External module/archive가 public API와 project runner만 사용함을 검증
+- [x] Clean PostgreSQL 17.10 generated candidate -> migrate/no-op/restart와 secret/DB-zero boundary 검증
+- [x] MIG-099..110 actual adapter/strict comparison을 등록하고 passing/deviation을 증거대로 전환
+- [x] External module이 public API와 project runner만 사용함을 검증
 
 ### Phase E — frozen milestone
 
@@ -208,14 +211,14 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 
 ## 완료 조건
 
-- [ ] 사용자는 supported additive schema를 `godj makemigrations`로 strict current definition에 게시할 수 있음
-- [ ] no-change/repeat/dry-run/check는 exact mutation/exit 계약을 만족함
-- [ ] unsupported/ambiguous delta와 source race는 partial/stale candidate 없이 fail-closed함
-- [ ] candidate bytes는 deterministic하고 strict load/latest reconstruction이 desired managed state와 같음
-- [ ] same/cross-app ForeignKey와 structurally different second model을 실제 generate/migrate/restart로 검증함
-- [ ] concurrent/fault/cancel publication은 complete dependency prefix와 no-overwrite/fresh resume를 만족함
+- [x] 사용자는 supported additive schema를 `godj makemigrations`로 strict current definition에 게시할 수 있음
+- [x] no-change/repeat/dry-run/check는 exact mutation/exit 계약을 만족함
+- [x] unsupported/ambiguous delta와 source race는 partial/stale candidate 없이 fail-closed함
+- [x] candidate bytes는 deterministic하고 strict load/latest reconstruction이 desired managed state와 같음
+- [x] same/cross-app ForeignKey와 structurally different second model을 실제 generate/migrate/restart로 검증함
+- [x] concurrent/fault/cancel publication은 complete dependency prefix와 no-overwrite/fresh resume를 만족함
 - [ ] SQLite/PostgreSQL/external consumer와 affected/final hosted gate를 실제 실행 증거로 기록함
-- [ ] ADR-0052, Q-010/Q-012, matrix/CURRENT/work/evidence가 실제 상태와 일치함
+- [x] ADR-0052, Q-010/Q-012, matrix/CURRENT/work/evidence가 현재 Phase D 상태와 일치함
 
 ## 진행 기록
 
@@ -224,7 +227,7 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 - [x] Phase A 구현 — pure detector/current encoder와 reference-only artifact scaffold
 - [x] Phase B 구현 — project-owned one-request snapshot, strict private v1 wire와 global read-only CLI/CAS
 - [x] Phase C recoverable publication/SQLite vertical 구현
-- [ ] Phase D PostgreSQL/product adapter 구현
+- [x] Phase D PostgreSQL/product adapter/external consumer 구현
 - [x] Phase A 테스트 — affected normal/race/CGO0/vet/386, Python/reference contract와 deterministic artifact
 - [x] Phase A 문서와 인수인계
 - [x] Phase B 테스트 — affected normal/race/CGO0/vet/count-10, actual clean CLI/generate drift와 네 차례 독립 감사
@@ -232,24 +235,34 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 - [x] Phase C 테스트 — affected normal/race/CGO0/vet/count-10, SIGKILL fault points, Linux/amd64 compile-only와 actual
       cross-app SQLite lifecycle
 - [x] Phase C 문서와 인수인계
+- [x] Phase D 테스트 — PostgreSQL 17.10 normal/race/CGO0, MIG-099..110 strict actual, external module normal/race/CGO0,
+      affected normal/vet/generate drift와 여러 독립 감사 pass
+- [x] Phase D 문서와 인수인계
 
 ## 수정 파일
 
 - `internal/migrationautodetect/**`: pure additive diff, deterministic naming/dependency/topology와 deep-copy/error tests
 - `migrations/definition/{definition.go,external_test.go,encode*.go}`: public current deterministic encoder와 bounded round-trip tests
 - `conformance/contracts/migration-writer-manifest.json`, `conformance/fixtures/godj-migration-writer-not-implemented.json`,
-  `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json`: MIG-099..110 reference lock
-- `conformance/runners/django/migration_writer_*`, `conformance/internal/protocol/migration_writer_artifacts_test.go`: mixed authority runner/tests와 lock
-- `Makefile`, `.github/workflows/ci.yml`, aggregate protocol locks: new reference set inventory wiring; product job/adapter count 불변
+  `conformance/fixtures/godj-migration-writer-deviation-expected.json`,
+  `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json`: MIG-099..110 reference/product lock과 DEV-0010
+- `conformance/runners/{django,godj}/migration_writer_*`, `conformance/cmd/godjcheck/**`,
+  `conformance/internal/protocol/migration_writer_artifacts_test.go`: mixed-authority runner, oracle-blind actual, strict sparse deviation와 lock
+- `Makefile`, `.github/workflows/ci.yml`, aggregate protocol locks: 23번째 product adapter, isolated external package,
+  PostgreSQL 21-test selector와 relation 1,111-test inventory wiring
 - `internal/projectmigration/**`: immutable project schema/catalog snapshot, deterministic candidates와 separate bounded v1 wire
 - `internal/projectcheck/{makemigrations_*,linked/makemigrations_*}`: exact global modes, retained source/catalog/root CAS,
   directory-inode lock, no-replace durable-prefix publication, complete/incomplete temp recovery와 closed failure/process/cleanup contract
 - `cmd/godj/{main_unix.go,makemigrations_unix_test.go,makemigrations_publish_unix_test.go}`,
   `project/{project_unix.go,project_unix_test.go}`: public dispatch, opaque bounded config ownership, external-project DB-zero proof와
   actual cross-app publish -> SQLite migrate/no-op/fresh-process restart
+- `cmd/godj/makemigrations_postgres_unix_test.go`: PostgreSQL generated migrate/no-op/restart, revision/schema no-op fingerprint와
+  DB-zero/secret/process-group boundary
+- `conformance/migrationwriterproduct/**`: repository-external public-import-only module의 actual publish -> SQLite migrate/no-op/restart
+- `internal/projectcheck/makemigrations_conformance_unix.go`: arbitrary public callback을 노출하지 않는 closed internal fault selector
 - `docs/adr/0052-project-linked-deterministic-makemigrations.md`, `work/0050-project-linked-deterministic-makemigrations.md`:
   Proposed decision와 active execution packet
-- compatibility/source/status/capability/roadmap mirrors: 실제 Phase A-C checkpoint 상태와 provenance
+- compatibility/source/status/capability/roadmap mirrors: 실제 Phase A-D checkpoint 상태와 provenance
 
 ## 결정된 사항
 
@@ -258,8 +271,8 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 - 2026-08-29: Product 1.0 전체 scope를 선행 동결하지 않고 current supported operation을 end-to-end로 닫는 wide bounded packet을
   채택합니다.
 - 2026-08-29: Django observable contract와 GoDj deterministic/publication strengthening을 같은 결과 set에서 authority별로 구분합니다.
-- 2026-08-30: MIG-099..110은 reference-only `oracle_locked`입니다. Phase B public read-only CLI/private protocol은 그 상태를
-  승격하지 않았고 Phase C publication 뒤에도 product adapter는 별도 Phase D로 남깁니다.
+- 2026-08-30 (Phase A-C checkpoint): MIG-099..110은 reference-only `oracle_locked`였습니다. Phase B public read-only CLI/private
+  protocol은 그 상태를 승격하지 않았고 Phase C publication 뒤에도 product adapter는 별도 Phase D로 남겼습니다.
 - 2026-08-30: Clean no-op은 noncanonical leaf라도 successor naming이 필요 없으므로 성공합니다. Delta가 생겨 successor가 필요한
   noncanonical leaf만 structured unsupported로 닫습니다.
 - 2026-08-30: Composite name은 exact versioned digest domain, Definition producer는 `godj-makemigrations`/`1`로 고정합니다.
@@ -279,21 +292,27 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 - 2026-08-30: Phase C publisher는 Darwin/Linux local filesystem의 directory lock/fsync와 kernel no-replace rename을 요구합니다.
   Unsupported syscall/filesystem에는 overwrite fallback하지 않으며 successful `fsync`를 literal hardware power-loss 증명으로
   과장하지 않습니다.
+- 2026-08-30: Phase D actual은 MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 exact 19-result-selector
+  DEV-0010 `deviation`으로 게시합니다. Current reference는 24/273/552=`237 passing + 24 deviation + 12 oracle_locked`,
+  product는 23/261=`237 passing + 24 deviation`이며 MIG-075..086만 locked/unregistered로 남습니다.
+- 2026-08-30: `go test -race`는 harness를 계측하지만 테스트가 일반 `go build`로 만든 child CLI까지 race 계측하지 않습니다.
+  증거는 실제 subprocess 의미가 race harness 아래 실행됐다고만 표현하고 child binary 계측을 과장하지 않습니다.
 
 ## 미결정/Blocker
 
-- No current blocker for Phase D start. Multiple writable roots, 65+ pending candidate batching, destructive operation과 self/cyclic relation
-  splitting은 명시적 후속 범위입니다. Phase D는 이 checkpoint에서 시작하지 않았습니다.
+- No current blocker for Phase E start. Multiple writable roots, 65+ pending candidate batching, destructive operation과 self/cyclic relation
+  splitting은 명시적 후속 범위입니다. Current source-bound PostgreSQL attestation은 workflow/source change로 stale이며 Phase E에서
+  current frozen bytes로 재캡처해야 합니다.
 
 ## 테스트 증거
 
-- Evidence IDs: EVID-147, EVID-148, EVID-149
-- Result: Phase A pure/reference, Phase B strict private protocol/read-only CLI/CAS와 Phase C recoverable normal publication/SQLite lifecycle
-  scoped gate가 통과했습니다. Exact command와 implementation commit/tree는
-  [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#evid-20260830-149--gdj-0050-phase-c-recoverable-publication-and-sqlite-lifecycle-checkpoint)에 기록합니다.
-- Not run: Phase D PostgreSQL generated-writer E2E, MIG-099..110 product adapter/strict comparison, full `make ci`, all-package Linux/386
-  runtime, repository-external archive, current source-bound PostgreSQL attestation recapture와 exact-head Hosted final. Linux publisher는
-  compile-only로만 검증했습니다.
+- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150
+- Result: Phase A pure/reference, Phase B strict private protocol/read-only CLI/CAS, Phase C recoverable normal publication/SQLite lifecycle와
+  Phase D PostgreSQL/product adapter/external module scoped gate가 통과했습니다. Phase D exact implementation commit은
+  `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree `976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`이며 command/result는
+  [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)에 기록합니다.
+- Not run: Phase E full `make ci`, all-package Linux/386 runtime, repository-external archive expansion, current source-bound PostgreSQL
+  attestation recapture와 exact-head Hosted final. Linux publisher는 기존 Phase C compile-only이며 Phase D local runtime은 Darwin입니다.
 
 ## 위험과 rollback
 
@@ -306,17 +325,18 @@ MIG-099..110 product adapter는 없으므로 actual product가 같은 observatio
 
 ## 다음 정확한 작업
 
-Phase D는 아직 시작하지 않았습니다. 다음 재개 시 정확한 순서는 다음입니다.
+Phase D는 local checkpoint로 완료됐습니다. 다음 재개 시 Phase E의 정확한 순서는 다음입니다.
 
-1. Clean PostgreSQL 17.10 generated candidate -> migrate/no-op/restart와 DB-zero/secret boundary 구현
-2. MIG-099..110 actual adapter와 strict product comparison 등록
-3. Repository-external module/archive를 public API와 project runner만으로 검증
+1. Current frozen source에서 affected aggregate, full `make ci`, Linux/386과 repository-external archive gate 실행
+2. Source-bound PostgreSQL attestation을 current source에서 두 번 독립 캡처하고 exact artifact/checksum 게시
+3. 새 exact submitted head의 Hosted matrix를 실행하고 failure/cancellation을 분류
+4. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
 
 ## 결과와 인수인계
 
-GDJ-0049 terminal product protocol bytes는 보존됩니다. GDJ-0050 Phase A/B 위에 Phase C exact normal publication을 연결했습니다.
-Normal은 retained physical root의 directory inode lock 아래 fresh plan을 얻고, complete/partial owned temp recovery, kernel no-replace
-append와 per-file directory-fsync commit으로 dependency-valid durable prefix를 게시합니다. Actual public CLI는 authors -> blog cross-app
-definitions를 0600으로 게시하고 repeat byte/inode 불변, SQLite migrate/no-op와 fresh-process history/data restart를 통과했습니다.
-MIG-099..110 product adapter와 PostgreSQL/Hosted는 아직 없고 aggregate/status는 변하지 않습니다. Source-bound PostgreSQL attestation은
-workflow change 뒤 stale이므로 Phase E frozen milestone에서만 재캡처합니다.
+GDJ-0049 terminal product protocol bytes는 보존됩니다. Phase D는 기존 Phase A-C writer 위에 oracle-blind MIG-099..110 actual,
+DEV-0010 strict sparse policy, PostgreSQL 17.10 generated migrate/no-op/restart와 repository-external public-module SQLite lifecycle을
+연결했습니다. Fault 뒤 durable prefix는 fresh resume 전후 SourceID, bytes와 inode가 불변임을 검증하고, external failure harness는
+secret scan 전에 output을 로그로 재노출하지 않습니다. Product aggregate는 23/261=`237 passing + 24 deviation`으로 전환됐고
+MIG-075..086만 reference-only locked입니다. ADR-0052/GDJ-0050은 Phase E full/source-bound attestation/exact-head Hosted 전까지
+Proposed/active로 유지합니다.

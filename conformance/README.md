@@ -161,7 +161,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-definition-source-manifest.json` | Current-format migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
-| `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority Phase A reference; `oracle_locked`이며 product adapter/status 입력 아님 |
+| `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Implemented DEV-0010 deviation product publication |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -169,7 +169,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `runners/django` | 명시적인 Django/DRF observation과 GoDj decision-oracle scenario, type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..053 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 Article Bearer API와 explicit migrate까지 제품 package를 실행하는 스물두 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 Article Bearer API, explicit migrate와 migration writer까지 제품 package를 실행하는 스물세 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -186,6 +186,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `definitionload` | Current format/load ownership과 opaque lifecycle authority를 검증하는 focused gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
 | `projectmigrateproduct` | GDJ-0049 actual global SQLite/PostgreSQL black-box E2E root; product status 입력은 별도 `runners/godj` migration-command adapter가 소유 |
+| `migrationwriterproduct` | Repository-external temp Go module에서 public project runner/API만 사용하는 SQLite generate/migrate/no-op/restart actual root; product status 입력은 별도 `runners/godj` migration-writer adapter가 소유 |
 | `runserverproduct` | Global `godj runserver` lifecycle, actual SQLite/PostgreSQL Article와 authenticated Admin/API required sentinels |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
@@ -312,8 +313,8 @@ later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
 Current reference는 24 sets/273 contracts/552 ordered bindings=
-`230 passing + 19 deviation + 24 oracle_locked`, product는 22 adapters/249 eligible contracts=
-`230 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086과 MIG-099..110입니다. Accepted ADR-0051과
+`237 passing + 24 deviation + 12 oracle_locked`, product는 23 adapters/261 eligible contracts=
+`237 passing + 24 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086뿐입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
 GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
@@ -324,8 +325,17 @@ Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authorit
 MIG-102/107/108/109/110은 GoDj deterministic current-document, fail-closed delta, private snapshot protocol,
 atomic publication과 interruption recovery 결정을 authority로 삼습니다. Manifest/NI/oracle은 각각
 8,864/1,876/25,980 bytes와 SHA-256 `75b3f485...5d1e`/`b27563a8...5502`/`9068d0e6...fd41`로 고정됩니다.
-이 set은 reference `oracle_locked`이며 `godj-conformance` product adapter, MIG-075..098 상태 또는 기존 제품
-22 adapters/249 contracts를 변경하지 않습니다.
+이 Phase A historical set은 reference `oracle_locked`였고 `godj-conformance` product adapter, MIG-075..098 상태 또는 당시
+제품 22 adapters/249 contracts를 변경하지 않았습니다. Historical manifest/NI/oracle bytes는 current status publication으로
+소급 rewrite하지 않습니다.
+
+GDJ-0050 Phase D current manifest는 9,227 bytes/SHA-256 `90bce609...f1c72`, DEV-0010 sparse expectation은
+7,242 bytes/SHA-256 `74617f20...4718e`입니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
+Implemented DEV-0010 `deviation`입니다. Exact 열아홉 result replacement는 `PROTECT` vs `CASCADE`, digest-derived name,
+flat `.godj.json` roster/canonical JSON output와 stable GoDj error taxonomy만 소유합니다. MIG-107은 Django parity가 아니라
+Phase-A GoDj decision-oracle taxonomy를 production `unsupported_change`/`invalid_relation` taxonomy로 supersede한 명시적
+deviation입니다. PostgreSQL 17.10 normal/race/CGO-disabled actual과 repository-external public module은 locally 통과했습니다.
+Full `make ci`, Linux/386/archive, source-bound attestation recapture와 exact-head Hosted는 Phase E terminal gate에 남습니다.
 
 ## GDJ-0045 durable system-state reference gate
 
