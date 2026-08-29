@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-28
+- 마지막 검토: 2026-08-29
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,14 +9,14 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0049 active / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication과 optional runserver는 hosted-verified; GDJ-0049가 existing declaration runner의 explicit migrate를 좁게 검증. Installed runner/library/generator semver와 general upgrader/repair UX는 open |
+| Q-010 | Partial | GDJ-0049 active / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication과 optional runserver는 hosted-verified; GDJ-0049 explicit migrate는 MIG-087..098 exact 12 product `passing`과 SQLite/PostgreSQL 17.10 local-final에 도달했고 first local-final hosted run `33124180742`의 timeout correction/attestation recapture 및 test-only synchronization correction도 구현됨. Corrected exact-head Hosted acceptance가 pending이며 installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
-| Q-012 | Partial | GDJ-0049 active / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; GDJ-0049가 latest-only explicit public migrate를 진행. Writer/autodetector/target/reverse/upgrade/custom operation/general crash recovery는 open |
+| Q-012 | Partial | GDJ-0049 active / broader migration 후속 | Current loaded lifecycle/unified ABI와 bounded PostgreSQL schema/recorder/revision/restart는 hosted-verified; GDJ-0049 latest-only explicit public migrate는 failure/resume, child fence, authenticated restart와 clean SQLite/PostgreSQL local-final을 통과했고 corrected exact-head hosted acceptance만 pending. Writer/autodetector/target/reverse/upgrade/custom operation/general crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
 | Q-016 | Partial | GDJ-0044 completed / M8 전 | API는 DRF 3.18.0 + Django 6.1 + CPython 3.14.3 exact profile과 JSON/SessionAuthentication/PageNumber/closed Router bounded 18-contract slice를 Accepted/hosted-verified; Channels/Realtime profile과 broader API는 open |
-| Q-017 | P1 | GDJ-0048 completed / reverse-general-upgrade follow-up | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON도 EVID-142에서 hosted-verified. Reverse/general upgrade와 first-alpha 이후 upgrader는 open |
+| Q-017 | P1 | GDJ-0048 completed / reverse-general-upgrade follow-up | Project publication과 runserver는 hosted-verified; current-v3 raw scalar/user method promotion, namespace, relation reconciliation와 copy/JSON도 EVID-142에서 hosted-verified. Reverse/general upgrade와 첫 외부 지원 릴리스 이후 upgrader는 open |
 | Q-018 | P2 | 공개 배포 전 | Django trademark와 비공식 프로젝트임을 어떤 이름·고지 정책으로 다루는가 |
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
@@ -97,7 +97,7 @@
   transaction ownership을 함께 결정합니다. Shared `auth.Principal`/Permission deny-overlay를 재사용하고 token 전용 permission
   체계를 만들지 않습니다.
 - AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 일곱 result replacement의 Verified
-  DEV-0009 `deviation`으로 게시됐고 oracle-blind actual 10/10과 SQLite Article Bearer E2E가 통과했습니다. Current
+  DEV-0009 `deviation`으로 게시됐고 oracle-blind actual 10/10과 SQLite Article Bearer E2E가 통과했습니다. GDJ-0047 completion
   reference는 23/261/506=`218 passing + 19 deviation + 24 oracle_locked`, product는
   21/237=`218 passing + 19 deviation`입니다. Corrected source `14e47c9b...`의 digest-pinned PostgreSQL 17.10 Article
   Bearer E2E normal/race/CGO0과 two-process source-bound attestation도 통과했습니다. Initial run `33044776835`는
@@ -145,7 +145,7 @@ Accepted [ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publi
   relation-query file과 facade-private write model은 current ABI에서 제거됐고 project-owned cross-app
   binding/query/facade는 유지됩니다.
 - Q-017: ProjectSpec, manifest, whole-project candidate compile과 recoverable publish는 GDJ-0037 exact correction
-  head에서 hosted-verified됐습니다. 물리 companion roster를 first-alpha 이후 장기 public ABI로 보장하는 기간,
+  head에서 hosted-verified됐습니다. 물리 companion roster를 첫 외부 지원 릴리스 이후 장기 public ABI로 보장하는 기간,
   general upgrader/repair와 raw-model/facade UX는 여전히 open입니다.
 
 GDJ-0035 Phase-B의 legacy tuple/profile/promotion product publication sequence는 retire됐습니다. 그 옛
@@ -619,7 +619,7 @@ generated upgrade를 닫지 않습니다. Relation-capable migration은 계속 �
 ## Q-017 — 공개 API와 generated upgrade
 
 GDJ-0036 current ABI는 relation main descriptor/write generation을 통합하고 facade-private write model과
-app-local relation-query file을 제거했습니다. Project-owned cross-app surface는 유지합니다. 이 reset은 첫 alpha
+app-local relation-query file을 제거했습니다. Project-owned cross-app surface는 유지합니다. 이 reset은 첫 외부 지원 릴리스
 전 재기준화이며 project-wide coordinated publication/repair나 final raw-model UX를 닫지 않습니다.
 
 GDJ-0036의 corrected exact head hosted completion 뒤
@@ -703,7 +703,7 @@ namespace/raw-model UX를 current-v3로 좁혔습니다. Broader reverse/general
 
 Current manifest는 normalized Schema/layout, 13-role generator ABI와 exact output digest 전체를 project snapshot 아래
 증명합니다. 남은 provenance/upgrade 질문은 installed library/runner/generator version negotiation, renderer
-rename/deprecation과 first-alpha 이후 compatibility 기간입니다. Bounded REL-002 behavior의 무조건적 선행 blocker로
+rename/deprecation과 첫 외부 지원 릴리스 이후 compatibility 기간입니다. Bounded REL-002 behavior의 무조건적 선행 blocker로
 과장하지 않습니다.
 
 ### GDJ-0048 completed bounded decision
@@ -722,7 +722,7 @@ source-bound 및 EVID-140 first local-final gate를 통과했습니다. CI #158�
 corrected source에서 current 1,073/1,073/0 inventory, required PostgreSQL/full/386/archive/audit gate를 다시 통과했고,
 EVID-142/CI #159 exact 27/27 jobs·360/360 steps가 hosted acceptance를 닫았습니다. Reverse assignment/general manager,
 installed-version negotiation,
-renderer rename/deprecation와 first-alpha 이후 semver/upgrader는 계속 Q-017에 남으므로 packet 완료만으로 Q-017 전체를
+renderer rename/deprecation와 첫 외부 지원 릴리스 이후 semver/upgrader는 계속 Q-017에 남으므로 packet 완료만으로 Q-017 전체를
 `Resolved`로 만들지 않습니다.
 
 ## Q-019 — SQLite unknown-outcome retained connection resource policy

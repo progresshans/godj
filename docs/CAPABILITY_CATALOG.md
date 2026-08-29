@@ -1,9 +1,9 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-28
+- 마지막 검토: 2026-08-29
 
-이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다.
+이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다. “지원”은 model, relation depth, backend, process/deployment policy 중 해당 기능에 관련되는 차원을 포함한 기록된 bounded profile을 뜻하며, 하나의 Article flow를 자동으로 범용 능력으로 확대해석하지 않습니다.
 
 ## Core와 앱 시스템
 
@@ -622,24 +622,27 @@ local final 뒤 CI #158이 stale relation inventory lock을 드러냈고, EVID-1
 1,073/1,073/0 inventory, required PostgreSQL exact 18/18·skip 0, full `make ci`, Linux/386, 1,088-file external archive와
 independent audit가 다시 통과했습니다. EVID-142/CI #159는 exact 27/27 jobs·360/360 steps,
 failure/cancel/skip/annotation 0으로 corrected submitted head를 hosted-verify했습니다. Reverse/general manager,
-installed-version negotiation과 first-alpha 이후 upgrader는 이 bounded capability가 아닙니다.
+installed-version negotiation과 첫 외부 지원 릴리스 이후 upgrader는 이 bounded capability가 아닙니다.
 
 ## Active capability: project-linked explicit migrate
 
 Active [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Proposed
 [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 existing current-only lifecycle을 global
-`godj migrate [--project <godj.toml>]`에 연결했습니다. Phase A는 MIG-087..098 exact 12를 reference-only
-`oracle_locked` artifact로 게시했고, Phase B는 public/linked/global migrate kernel과 process cleanup owner를 구현했습니다.
-Partial SQLite source checkpoint는 latest/prefix-tail/no-op, external-lock contention/reconciliation, pre-migrate no-mutation과
-unauthenticated read restart를 검증하지만 product adapter/status 전환 입력은 아닙니다.
+`godj migrate [--project <godj.toml>]`에 연결했습니다. Local-final은 latest/prefix-tail/no-op,
+middle failure/resume, actual child fence/reconciliation, pre-migrate no-mutation, authenticated Admin/API distinct-process
+restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`이고
+current reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`, product는
+22/249=`230 passing + 19 deviation`입니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.
 Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 migration core의 순차 rollback/session-close 10초 상한에
 outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
 cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
-writer/autodetector와 target/reverse/plan/fake는 범위 밖입니다. Middle failure/resume, full child-vs-child MIG-096,
-authenticated Admin/API restart, PostgreSQL 17.10과 final product publication은 아직 남았습니다.
+writer/autodetector와 target/reverse/plan/fake는 범위 밖입니다. Submitted head `8841319...`의 run
+`33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로
+terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 per-mode budget,
+source-bound attestation/lock recapture를 반영한 corrected hosted matrix만 남았으며 그전까지 active/Proposed입니다.
 
 ### Historical GDJ-0035 design and evidence snapshot
 

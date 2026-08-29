@@ -5,15 +5,21 @@
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Proposed
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
   ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
-  no-implicit-migrate를 고정합니다. Phase A/B와 partial SQLite latest/no-op/contention/read-restart source checkpoint가
-  구현됐고 MIG-087..098은 exact 12 reference-only `oracle_locked`입니다. Middle failure/resume, full child-vs-child fence,
-  authenticated Admin/API restart, PostgreSQL 17.10과 product publication/final matrix는 남았습니다.
+  no-implicit-migrate를 고정합니다. Current local-final은 middle failure/resume, full child-vs-child fence,
+  authenticated Admin/API distinct-process restart, clean SQLite/PostgreSQL 17.10과 MIG-087..098 exact 12 product
+  `passing`을 구현했습니다. Reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`,
+  product는 22/249=`230 passing + 19 deviation`입니다. Local-final submitted head `8841319...`의 run
+  `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout 한 건과 relation-product 두 건,
+  conformance-validation 한 건의 outer-timeout cancellation으로 종료됐습니다. Exact required PostgreSQL
+  selector, relation/conformance의 mode/workload 분리와 per-mode budget, source-bound attestation/lock recapture를 거친 corrected
+  hosted matrix가 유일한 남은 acceptance입니다. 그전까지 work/ADR은 active/Proposed입니다.
 - 최근 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
   project-owned relation state를 결합하고, direct FK reconciliation, fail-closed method namespace, pointer/copy safety와
-  explicit raw `Unwrap`/DTO-only Web representation을 한 whole-bundle 배치로 검증합니다. Reverse/general manager와 post-alpha upgrader는
-  계속 open입니다. Activation head `1070ec3...`의 CI #157은 corrected baseline을 exact 27/27로 확인했고, 현재 checkout은
+  explicit raw `Unwrap`/DTO-only Web representation을 한 whole-bundle 배치로 검증합니다. Reverse/general manager와
+  첫 외부 지원 릴리스 이후 upgrader는 계속 open입니다. Activation head `1070ec3...`의 CI #157은 corrected baseline을
+  exact 27/27로 확인했고, 현재 checkout은
   facade v3 product와 source-bound PostgreSQL gate에 이어 EVID-140 첫 local final을 통과했습니다. CI #158의 네
   relation-product failure는 stale inventory lock으로 한정됐고, EVID-141 corrected source에서 current 1,073/1,073/0,
   required PostgreSQL 18/18, full `make ci`, Linux/386, 1,088-file external archive/audit를 다시 통과했습니다.
@@ -60,7 +66,7 @@
   Completed [GDJ-0047](../work/0047-api-authentication-profiles-and-bearer-article-api.md)은 common
   authentication boundary와 strict injected Bearer resource-server profile을 게시했습니다. AUT-009..016/API-011..012
   actual 10/10, SQLite와 digest-pinned PostgreSQL 17.10 Article Bearer E2E 및 two-process attestation이 통과했고
-  분류는 일곱 `passing` + AUT-012/013/015 Verified DEV-0009 `deviation` 세 개입니다. Current reference는
+  분류는 일곱 `passing` + AUT-012/013/015 Verified DEV-0009 `deviation` 세 개입니다. GDJ-0047 completion reference는
   23/261/506=`218+19+24 locked`, product는 21/237=`218+19`입니다. Initial run `33044776835`는 26 jobs success 뒤
   macOS Intel product job 한 건이 30분 outer timeout으로 취소됐습니다. EVID-137의 Intel-only 45분 correction과 corrected
   full/386/archive refreeze 뒤 EVID-138/CI #155 run `33049861740`이 exact 27/27 jobs·360/360 steps success로
@@ -131,14 +137,15 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 21 adapters/237 contracts의 `218 passing + 19 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 22 adapters/249 contracts의 `230 passing + 19 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
   exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Verified deviations`는 product publication,
   SQLite/PostgreSQL required와 corrected final local full/386/archive 뒤 EVID-138/CI #155 exact hosted
-  27/27 jobs·360/360 steps를 통과했습니다.
-- 마지막 검토: 2026-08-27
+  27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 local-final product `passing`이며
+  현재 reference-only locked range는 MIG-075..086뿐입니다.
+- 마지막 검토: 2026-08-29
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -150,6 +157,10 @@
   모두 `passing` 또는 승인된 `deviation`
 - 미지원 기능을 조용히 무시하는 경로가 없음
 - external consumer 관점의 compile test가 통과함
+- Form/Admin/API/Relation을 범용 기능으로 승격할 때는 구조가 다른 두 번째 model로 검증하고,
+  relation·ownership 의미가 있으면 가능한 범위에서 cross-app flow를 포함함. 한 model만 다루는 bounded
+  packet은 그 한계를 명시하면 되며 이 원칙을 기존 completed slice에 소급 적용하지 않음. 범용 승격 여부와
+  선택한 두 번째 model/cross-app shape는 해당 work item의 목표·비목표에 기록함
 - 오류와 실패/rollback 경로가 검증됨
 - 실제 명령과 checkout이 test evidence에 기록됨
 - CURRENT, work 문서, implementation matrix가 같은 상태를 가리킴

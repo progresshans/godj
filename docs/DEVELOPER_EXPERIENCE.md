@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F와 GDJ-0042 bounded runserver 단면 hosted-Verified
-- 마지막 검토: 2026-08-28
+- 마지막 검토: 2026-08-29
 
 아래 `M1 verified` 단면과 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -323,7 +323,8 @@ Django가 주는 장기 목표는 scalar field, user-defined model method와 rel
 surface의 유일한 영구 답으로 확대하지 않습니다. Q-017 compile comparison은 embedding/promotion, explicit unwrap,
 project sidecar를 비교했고 private alias embedding + outer project-owned relation state를 current v3로 채택했습니다. Bounded
 source AST namespace audit, source-fingerprint revalidation, direct JSON rejection과 operational-boundary reconciliation이
-promotion의 collision/copy/representation 위험을 닫습니다. Reverse/general facade와 post-alpha upgrader는 계속 open입니다.
+promotion의 collision/copy/representation 위험을 닫습니다. Reverse/general facade와 첫 외부 지원 릴리스 이후
+upgrader는 계속 open입니다.
 
 ### Forward relation assignment와 Save — GDJ-0033 completed
 
@@ -475,11 +476,14 @@ godj migrate
 godj migrate --project ./godj.toml
 ```
 
-Active GDJ-0049의 local source checkpoint에서 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current
-argv로 구현됐습니다. Existing declaration package가 DB config/backend를 소유하고 global CLI core는 전달되는 ambient
+Active GDJ-0049의 local-final에서 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current argv로
+구현됐습니다. Existing declaration package가 DB config/backend를 소유하고 global CLI core는 전달되는 ambient
 environment의 DSN/secret 값을 파싱하거나 출력하지 않습니다. `migrations check`는 계속 DB-free이고 `runserver`는 implicit
-migrate를 하지 않습니다. MIG-087..098은 아직 product `passing`이 아니라 reference-only `oracle_locked`이며 PostgreSQL/final
-hosted publication은 남았습니다.
+migrate를 하지 않습니다. Clean SQLite/PostgreSQL 17.10, durable-prefix resume, actual child fence,
+authenticated Admin/API distinct-process restart를 포함한 MIG-087..098 exact 12는 local-final product `passing`입니다.
+Submitted head `8841319...`의 first local-final hosted run `33124180742`는 23/27 success 후 broad PostgreSQL과
+relation/conformance outer timeout으로 닫히지 않았습니다. 사용자 표면은 바뀌지 않으며 corrected
+source-bound hosted matrix 전까지 work/ADR은 active/Proposed입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

@@ -76,16 +76,23 @@ proposed → ready → active → completed
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
 현재 active/ready packet은 1/0입니다. Active
-[GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 Phase A reference
-`2248c982...`와 Phase B/partial SQLite source `d31a8b8c...`에서 existing current-only loader/executor와 project runner를
-explicit `godj migrate`에 연결했습니다. Proposed
+[GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
+project runner를 explicit `godj migrate`에 연결했습니다. Proposed
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
 load-before-open, latest-only/no-retry, rollback/unknown classification과 cleanup보다 긴 interrupt grace를 고정합니다.
-MIG-087..098은 exact 12 reference-only `oracle_locked`로 게시됐고 current reference는
-23 sets/261 contracts/506 ordered bindings=`218 passing + 19 deviation + 24 oracle_locked`입니다. Product는
-21 adapters/237 contracts=`218 passing + 19 deviation`으로 불변입니다. Global/linked migrate, Article stable root/shared
-database config, latest/no-op/partial contention/public-read restart checkpoint는 구현됐습니다. Middle failure/resume,
-full child-vs-child MIG-096, authenticated Admin/API restart, PostgreSQL과 product publication은 남았습니다. Completed
+Behavioral publication `c5af15e...`, source-bound attestation `dc3861f...`와 local-final documentation head
+`8841319...`에서 middle failure/resume, full child-vs-child MIG-096, authenticated Admin/API distinct-process restart,
+clean SQLite/PostgreSQL 17.10과 product publication을 닫았습니다. MIG-087..098은 exact 12 registered `passing`이고
+current reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`, product는
+22/249=`230 passing + 19 deviation`입니다. First local-final submitted-head run `33124180742`는 exact 27 checks 중
+23 success, broad PostgreSQL package 15분 timeout 1 failure, relation-product 20분 ceiling 두 건과
+conformance-validation 45분 ceiling 한 건의 cancellation으로 종료됐습니다. 수집된 로그의 assertion/panic 실패 표식은
+0이지만 중단 lane은 미검증입니다. Exact required PostgreSQL selector, relation/conformance mode/workload 분리,
+per-mode budget과 source-bound attestation/lock recapture를 적용한 corrected exact-head hosted matrix가 남았습니다.
+Local refreeze의 첫 `make ci`는 canceled runner metric test의 child-ready/parent-capture 경쟁에서 실패했으며,
+test-only capture acknowledgment 교정 뒤 focused normal/race 반복은 통과했습니다. 전체 root gate 재실행은 하지
+않았고 이 non-claim은 EVID-145에 남깁니다.
+Hosted success 전까지 GDJ-0049/ADR-0051은 active/Proposed를 유지합니다. Completed
 [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
 Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔습니다. Accepted
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
@@ -101,7 +108,7 @@ Schema IR/Migration/Backend와
 JWT/OpenAPI/Realtime은 범위 밖입니다. Completed
 [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md)은 corrected behavioral source `14e47c9b...`, tree
 `1b2c9c74...`에서 common Session/Bearer authentication boundary, strict injected verifier, profile-neutral Article API,
-AUT-009..016/API-011..012와 SQLite/PostgreSQL required flow를 게시했습니다. Current reference는
+AUT-009..016/API-011..012와 SQLite/PostgreSQL required flow를 게시했습니다. GDJ-0047 completion reference는
 23 sets/261 contracts/506 ordered bindings=`218 passing + 19 deviation + 24 oracle_locked`, product는
 21 adapters/237 contracts=`218 passing + 19 deviation`입니다. AUT-012/013/015만 Verified DEV-0009이고
 [ADR-0049](../docs/adr/0049-first-party-bff-and-bearer-api-authentication.md)는 Accepted, Q-021은 `Partial`입니다.

@@ -1,7 +1,7 @@
 # 테스트 전략
 
 - 상태: Accepted
-- 마지막 검토: 2026-08-24
+- 마지막 검토: 2026-08-29
 
 GoDj에서 테스트는 구현 뒤에 붙이는 검사가 아니라 **Django에서 가져올 의미와 Go에서 새로 지킬 불변 조건을 먼저 고정하는 설계 도구**입니다.
 
@@ -554,6 +554,17 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 
 구현이 생기면 빠른 gate부터 실행합니다.
 
+CI job/step 개수는 제품 계약이 아닙니다. 수치를 일정하게 유지하는 것보다 named contract,
+backend/platform coordinate, normal/race/CGO-disabled, required no-skip과 failure semantics를 빈틈없이 검증하는
+coverage가 제품 acceptance를 소유합니다. Job 분할·병합·timeout 교정은 이 coverage와 exact-head evidence를
+약화하지 않는 범위에서 할 수 있습니다.
+
+Hosted failure/cancellation이 발견됐다고 모든 개발을 멈추고 CI 자체를 완벽하게 만드는 별도 프로젝트로 확장하지
+않습니다. 먼저 product assertion, test synchronization, selector, runner capacity와 timeout을 구분합니다. 현재 work의
+terminal acceptance가 명시적으로 요구하는 lane은 통과 전까지 green으로 주장하지 않지만, infrastructure/test-harness
+문제와 중단된 범위는 exact evidence와 후속 조건을 남긴 뒤 관련 없는 제품 설계를 재작성하거나 matrix를 무한히
+세분화하지 않습니다.
+
 1. format/static checks와 manifest validation
 2. unit/compile/golden tests
 3. SQLite integration과 differential subset
@@ -561,17 +572,27 @@ checkout이 바뀌면 이전 결과는 역사적 증거이며 현재 통과를 �
 5. backend matrix와 긴 conformance suite
 6. release 전 security/performance/migration matrix
 
-현재 GitHub Actions는 기존 `ubuntu-24.04` x64 full `conformance-validation`과 `macos-15` arm64
-exact `exact-darwin-validation`을 보존합니다. 별도 `project-check-matrix`, actual product
-`product-project-check-matrix`와 actual-backend `sqlite-matrix`는 각각 exact
-`ubuntu-22.04` linux/amd64, `ubuntu-24.04-arm` linux/arm64, `macos-15-intel` darwin/amd64,
-`macos-26` darwin/arm64의 네 leg를 가집니다. 각 leg는 Go 1.26.5 coordinate assertion,
-normal/race/CGO-disabled/vet, 20분 timeout, `fail-fast: false`, no `continue-on-error`와 final clean
-worktree를 요구합니다. Ubuntu `python-compatibility-matrix`는 exact
-3.12.13/3.13.15/3.14.3/3.14.7 네 leg에서 Django 6.1/asgiref 3.12.1/sqlparse 0.5.5, portable
-216/19 expected skips와 139-scenario payload를 검증합니다. Existing topology 18은 full/exact 2 +
-project-check proof 4 + SQLite 4 + product 4 + Python 4입니다. Routine
-Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
+현재 GitHub Actions는 11개 job definition이 coverage를 병렬로 소유합니다. 현재 matrix expansion은 41
+executions이지만 이 수치는 lock이 아닙니다.
+
+- `conformance-validation`: format/generated drift, Python baseline, contract/product comparison, checked artifact,
+  project-check와 Linux/386 compile을 검증합니다. 직렬 full `make ci`는 Hosted에서 실행하지 않습니다.
+- `portable-go-matrix`: Ubuntu x64에서 normal+vet, race, CGO-disabled를 세 execution으로 분리합니다.
+- `exact-darwin-validation`: macOS arm64 exact Django/SQLite profile을 보존합니다.
+- `project-check-matrix`, `relation-binding-matrix`, `product-project-check-matrix`, `sqlite-matrix`: Linux/macOS의
+  x64/arm64 네 좌표를 각각 검증합니다.
+- `relation-product-matrix`: 같은 네 좌표에서 normal/race/CGO-disabled를 분리한 4×3 execution입니다. 각 `go test`는
+  15분, job은 20분으로 제한하고 normal만 exact inventory, vet와 artifact no-rewrite를 추가 수행합니다.
+- `postgresql-product`: digest-pinned PostgreSQL 17.10에서 exact required 20 tests를 normal/race/CGO-disabled 세
+  execution으로 분리하고 run/pass 집합 일치와 skip 0을 요구합니다. Normal은 checked attestation 비교,
+  실제 service restart와 vet도 소유합니다.
+- `python-compatibility-matrix`: exact CPython 3.12.13/3.13.15/3.14.3/3.14.7을 검증합니다.
+- `required-ci`: 위 모든 top-level job을 `needs`로 모아 failure/skip/cancel 어느 것도 stable required check를
+  통과하지 못하게 합니다. Protocol test는 발견한 job 집합과 aggregate dependency/runtime expected 집합의 동등성을
+  검증하되 전역 job 수는 고정하지 않습니다.
+
+Routine Ubuntu/compatibility는 uv 0.12.3, embedded profile을 재현하는 exact darwin job만 uv 0.10.12입니다.
+Historical GDJ-0022 topology 18은 full/exact 2 + project-check proof 4 + SQLite 4 + product 4 + Python 4였습니다.
 GDJ-0023은 이 exact 18을 유지하면서 test-only
 `conformance/relationbinding` package를 같은 Linux/macOS x64/arm64 네 좌표에서 normal/race/
 CGO-disabled/vet/clean으로 독립 실행하는 `relation-binding-matrix`를 추가해 exact 22 required
@@ -1051,7 +1072,7 @@ bundle drift, SQLite direct mutation/reload, PostgreSQL separate-process/source-
 archive를 분리해 검증했습니다. EVID-142/CI #159의 exact 27/27 jobs·360/360 steps 뒤에만 ADR-0050을 Accepted,
 GDJ-0048을 completed로 terminal 승격했습니다.
 
-### GDJ-0049 project-linked migrate active source gate
+### GDJ-0049 project-linked migrate local-final and hosted correction gate
 
 Phase A는 MIG-087..098 exact 12를 reference-only `oracle_locked`로 게시하고 old project-check protocol byte identity,
 public Config compile, strict migrate protocol과 retired MIG-075..086 exact 11-file no-diff를 고정했습니다. Phase B는
@@ -1061,13 +1082,21 @@ core의 순차 rollback/session-close 10초 상한과 outer backend close/respon
 response는 Wait/두 stream EOF/process-group absence를 확인한 뒤 late cancellation보다 우선하고, live descendant가 stream/group을
 소유하면 cancellation이 계속 우선합니다.
 
-현재 SQLite source checkpoint는 clean latest, pre-applied prefix/tail, fresh no-op, externally held lock 아래 두 child의
-closed contention과 fresh reconciliation, pre-migrate 500/no mutation, explicit migrate 뒤 unauthenticated read와 두 fresh
-runserver process의 persistence를 통과했습니다. 이는 full child-vs-child winner/fence MIG-096이나 authenticated Admin/API
-restart가 아닙니다. Middle failure durable prefix/fresh resume도 남았습니다. PostgreSQL은 digest-pinned 17.10 empty schema에서
-latest/no-op/contention/restart와 credential scanner를 required skip 0으로 검증해야 합니다. `runserver`의 implicit migrate는
-계속 0이어야 합니다. Subtask마다 full matrix를 반복하지 않고 final frozen source에서 full/race/CGO0/386/external
-archive/hosted matrix를 한 번 수행합니다.
+EVID-144 local-final은 clean SQLite latest, pre-applied prefix/tail, fresh no-op, middle failure durable prefix/fresh
+resume, actual child-vs-child winner/fence/reconciliation, pre-migrate 500/no mutation, authenticated Admin/API CRUD와
+distinct-process restart를 통과했습니다. Digest-pinned PostgreSQL 17.10 empty schema에서도 exact required
+20/20·skip 0을 normal/race/CGO-disabled로 검증했고 credential scanner, service restart, vet, full local `make ci`,
+Linux/386과 repository-external archive를 닫았습니다. MIG-087..098 exact 12는 local-final product `passing`이며
+`runserver`의 implicit migrate는 계속 0입니다.
+
+First local-final submitted head `8841319...`의 hosted run `33124180742`는 27 executions 중 23 success,
+broad PostgreSQL package 15분 timeout 1 failure, relation-product 20분 ceiling 두 건과 conformance-validation
+45분 ceiling 한 건의 cancellation으로 종료됐습니다. 수집된 log의 assertion/panic 실패 표식은 0이지만 중단 lane은
+미검증입니다. PostgreSQL normal/race/CGO0 exact required 20-test selector와 no-skip inventory,
+relation/conformance mode/workload 분리 및 coverage-based aggregate를 구현했고 workflow-bound PostgreSQL attestation,
+checksum, source binding과 lock tests도 새 source에서 두 번 동일하게 재캡처했습니다. EVID-145는 local root-gate에서
+발견한 test-harness synchronization flake와 focused correction을 기록하며 full local pass를 주장하지 않습니다.
+Corrected exact-head hosted matrix가 전부 통과하기 전에는 ADR acceptance/work completion을 게시하지 않습니다.
 
 ### GDJ-0033 REL-002 assignment/save/cache implementation gate
 

@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-28
+- 마지막 갱신: 2026-08-29
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
 - 현재 active/ready work는 1/0입니다. Active
@@ -15,7 +15,10 @@
   range는 MIG-075..086뿐입니다. Required PostgreSQL 17.10, affected normal/race/CGO0/vet/generate, relation
   1,091/1,091/0, full `make ci`, Linux/386, 1,126-file external archive와 independent audit는
   [EVID-144](TEST_EVIDENCE.md#evid-20260828-144--gdj-0049-frozen-local-final-and-source-bound-postgresql-publication)에
-  기록했습니다. Exact submitted-head hosted matrix 전까지 work/ADR은 active/Proposed를 유지합니다. Recent completed
+  기록했습니다. 첫 exact submitted-head `8841319...` / CI run `33124180742`는 27 executions 중
+  23 success, 1 package-timeout failure, 3 job-timeout cancellation으로 끝났습니다. PostgreSQL exact selector,
+  conformance/portable-Go/relation/PostgreSQL mode 분리, coverage-based `required-ci`와 새 source-bound attestation
+  재캡처를 구현했습니다. Corrected exact-head hosted matrix 전까지 work/ADR은 active/Proposed를 유지합니다. Recent completed
   [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Accepted
   [ADR-0050](../adr/0050-canonical-embedded-application-model-facade.md)은 private raw-model alias embedding, promoted
   scalar/app method, direct FK/PK reconciliation, fail-closed source namespace audit, JSON/DTO 경계와 facade ABI v3
@@ -27,7 +30,7 @@
   `90c46d799f2b38333a28a90a16cd72f1563ea73d`의
   [EVID-142](TEST_EVIDENCE.md#evid-20260828-142--gdj-0048-corrected-exact-head-hosted-completion) / CI #159 run
   `33088586232`은 exact 27/27 jobs·360/360 steps, failure/cancel/skip/annotation 0으로 corrected hosted acceptance를
-  닫았습니다. Q-017은 reverse/general capability와 first-alpha 이후 upgrader 때문에 P1/open이고
+  닫았습니다. Q-017은 reverse/general capability와 첫 외부 지원 릴리스 이후 upgrader 때문에 P1/open이고
   Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이 완료 범위가 아닙니다.
 - Terminal docs head `31fee59...`의 CI #156/run `33053749701`은 27 jobs 중 26 success, 1 test failure였습니다.
   유일한 실패는 SQLite coordinated rollback callback이 mutation barrier를 닫은 직후 expected error를 반환해 두 channel이
@@ -1853,8 +1856,19 @@ Article stable root/shared database config가 구현됐습니다. Clean SQLite/P
 resume, actual child-vs-child fence/reconciliation, pre-migrate no mutation 및 authenticated Admin/API distinct-process restart가
 통과했습니다. MIG-087..098은 12 product `passing`이고 reference/product aggregate는 23/261/506=
 `230+19+12 locked`, 22/249=`230+19`입니다. EVID-144의 required PostgreSQL, affected/full/386/1,126-file
-archive/audit local-final도 통과했습니다. 다음 정확한 작업은 local-final documentation head를 push하고 exact submitted-head
-hosted matrix를 한 번 수행하는 것입니다. 그 전까지 ADR-0051은 Proposed, GDJ-0049는 active로 유지합니다.
+archive/audit local-final도 통과했습니다. 첫 exact submitted-head `8841319...` / CI run `33124180742`는
+23 success, 1 failure, 3 cancelled였습니다. PostgreSQL job은 exact required selector 없이 전체
+`projectmigrateproduct`를 실행해 SQLite scenario에서 900.016초 package timeout에 도달했고, relation Ubuntu x64/macOS
+Intel은 20분 job cap, conformance는 직렬 `make ci` 도중 45분 job cap에서 취소됐습니다. 수집된 로그의
+assertion/panic 실패 표식은 0이지만 중단된 lane은 미검증이며 green으로 재사용하지 않습니다. PostgreSQL exact selector,
+conformance/portable-Go/relation/PostgreSQL mode별 parallel execution과 필수 coverage 기반 workflow lock을 구현했고,
+source-bound attestation 두 독립 캡처도 일치했습니다. 현재 정확한 작업은 corrected exact head를 제출하는 것입니다.
+첫 local refreeze `make ci`는 기존 canceled runner metric test의 child-ready/parent-capture
+경쟁 한 건에서 실패했고, test-only capture acknowledgment 교정 뒤 focused normal 100회/race 20회를 통과했습니다.
+전체 root gate는 다시 실행하지 않았으므로 current head의 full local pass를 주장하지 않습니다. 상세는
+[EVID-145](TEST_EVIDENCE.md#evid-20260829-145--gdj-0049-hosted-timeout-correction-and-local-test-synchronization)에
+기록합니다. 그 전까지 ADR-0051은 Proposed,
+GDJ-0049는 active로 유지합니다.
 
 Completed GDJ-0048은 activation head `1070ec3...`에서 시작해 Accepted ADR-0050의 canonical
 embedded application-model facade/current ABI v3를 hosted-verified했습니다. Article exact 12/snapshot `f0043e499...`,
@@ -1884,8 +1898,10 @@ GDJ-0047은 completed입니다. Concrete JWT 발급/키 관리, refresh-token fa
 OAuth/OIDC와 system-state schema 변경은 현재 완료 주장에 포함되지 않습니다.
 
 Conformance-validation artifact job은 CI #159에서 24분 46초로 당시 25분 ceiling의 14초 margin만 남겼습니다.
-GDJ-0049 source는 nested product build gate를 격리하고 해당 job budget을 45분으로 교정했습니다. Publication HEAD의
-final local `make ci`는 23분 50초에 통과했으며 native exact submitted-head hosted timing은 pending입니다. Subtask마다
+GDJ-0049 source는 nested product build gate를 격리하고 해당 job budget을 45분으로 교정했지만, run `33124180742`에서는
+Hosted cold runner가 44분 48초 동안 직렬 `make ci`를 실행한 뒤 project-migrate race 단계에서 취소됐습니다. Local frozen
+gate의 단일 `make ci`는 유지하되 Hosted는 normal+vet/race/CGO0/artifact-contract-386을 병렬 execution으로 분리했습니다.
+CI job/execution 개수 자체는 제품 계약이 아니며, 필수 platform/mode/test coverage와 skip 0이 검증 계약입니다. Subtask마다
 full hosted/evidence cycle을 만들지는 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019는 P1/open입니다.

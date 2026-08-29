@@ -13586,3 +13586,74 @@ GDJ-0049 remains `active` and ADR-0051 remains `Proposed` until one exact submit
 evidence does not claim hosted success for the later documentation descendant, general migration writer/autodetector,
 named/zero/reverse target, plan/fake, data/custom operation, adoption/repair, multi-DB, production provisioning or broader
 backend support. Draft PR #1 remains OPEN/DRAFT/unmerged; no merge, release or deployment was performed.
+
+## EVID-20260829-145 — GDJ-0049 Hosted Timeout Correction and Local Test Synchronization
+
+- Date: 2026-08-29 KST
+- Work/contract IDs: GDJ-0049 active; ADR-0051 Proposed; MIG-087..098 local-final product `passing`
+- Hosted timeout correction commit: `3bff0097b8708445d38b85659c3a34ad681f2078`, tree
+  `cf13698952705b05bf63341698506102c720273e`
+- Test-only synchronization correction commit: `caecf5115b0902d37dd3c525902d26edcc82b69c`, tree
+  `8cf8584b1f62effba07bceab4ceb7aedbe16d5d9`
+
+### First submitted-head audit and bounded correction
+
+Exact submitted head `8841319d551a7b44b2de990ae26b3d69aed2908a` / GitHub Actions run `33124180742`
+finished with 23 successful, one failed and three cancelled executions. The PostgreSQL execution selected the whole
+`conformance/projectmigrateproduct` package and reached its 900.016-second package timeout while running a SQLite-only
+scenario. Relation Ubuntu x64 and macOS Intel reached their 20-minute job ceilings, and the serial
+`conformance-validation` reached its 45-minute ceiling during the project-migrate race workload. Collected logs contained
+zero assertion/panic failure markers, but interrupted tests remain unverified and are not reused as green evidence.
+
+The correction keeps the local frozen-milestone `make ci` target while splitting Hosted portable normal+vet, race and
+CGO-disabled workloads. Relation product now runs four platform coordinates by three modes with a 15-minute Go test and
+20-minute job bound. PostgreSQL normal/race/CGO-disabled executions use the exact EVID-144 required 20-test selector,
+require exact run/pass equality and zero skips, and have a 25-minute job bound. A stable `required-ci` aggregate covers all
+discovered top-level jobs without treating an exact job count as a product contract. `make cgo-zero-build` retains the
+PostgreSQL/example/product/restart compile coverage that the narrower live selector no longer supplies.
+
+Two independent digest-pinned Linux/amd64 Go 1.26.5 + PostgreSQL 17.10 attestation captures were byte-identical at 1,134
+bytes/SHA-256 `4cfcb251af960355d62f4617550aa0d82f28121e34b769b2f1ebfc5209484d01`. The checked source binding is
+262 files/3,108,132 bytes/SHA-256 `f4625f697a960976f508837a9327125de729b226e9004aaf072905b162840990`;
+both captures record two writers, same-schema/barrier/restart true and divergence/loss/drift/secret counts zero. Relation
+inventory remained exact 1,091 run/1,091 pass/0 skip, 113,222 canonical bytes/SHA-256
+`90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`.
+
+Affected normal/race/CGO-disabled package tests and vet passed for `conformance/cmd/godjcheck`,
+`conformance/internal/protocol`, `conformance/runners/godj` and `conformance/systemstate/attestation`; focused added
+CGO-disabled compile scopes, YAML parsing, all workflow shell-block syntax checks, protocol locks and `git diff --check`
+also passed. These checks validate the bounded workflow/source correction but do not replace a new exact-head Hosted run.
+
+### Local root-gate attempt and classified test flake
+
+One post-correction local root attempt ran:
+
+```bash
+LC_ALL=C TZ=UTC make ci
+```
+
+It stopped in the first Go test phase at
+`TestRunnerResponseWriteMetricSurvivesCanceledRawDiscard`. The retained log is
+`/tmp/godj-gdj0049-ci-split-final.BJn7L4/make-ci.log`, 9,408 bytes/SHA-256
+`ceed532ccbcd11ab0f8690a97268afcc6184694e89e58a407ff05ae7f43e4e16`. The child correctly reported
+`project_canceled` with one process-group SIGINT and SIGKILL, but `RunnerResponseWrites` was zero.
+
+The test helper wrote `wire` to the pipe and then created a ready file. That file proved only the child write, not that the
+parent drainer had completed `cappedCapture.Write`; cancellation could close the read side first under load. The product
+process contract and implementation were not changed. Commit `caecf51...` replaces this insufficient ready-file premise
+with a test-only callback that acknowledges the parent's first successful capture write before cancellation.
+
+The exact focused correction passed:
+
+```bash
+go test ./conformance/projectcheck \
+  -run '^TestRunnerResponseWriteMetricSurvivesCanceledRawDiscard$' -count=100
+go test -race ./conformance/projectcheck \
+  -run '^TestRunnerResponseWriteMetricSurvivesCanceledRawDiscard$' -count=20
+```
+
+Results were 100/100 normal in 5.08 seconds and 20/20 race in 3.17 seconds. Independent stress also observed no failure in
+543 runs, including package normal/race and parallel/GOMAXPROCS=1 variants. A second full local `make ci` was deliberately
+not run merely to perfect CI before resuming planned development. Therefore this evidence does not claim current-head full
+local or Hosted success. GDJ-0049/ADR-0051 remain active/Proposed until the corrected exact-head Hosted acceptance is
+observed; no later product packet is activated by this evidence.

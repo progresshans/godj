@@ -1,7 +1,7 @@
 ---
 id: GDJ-0049
 status: active
-updated: 2026-08-28
+updated: 2026-08-29
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "3fdb1c774b1c04d7db800f35ce9a7d714b1d973f"
 depends_on: ["GDJ-0036", "GDJ-0038", "GDJ-0042", "GDJ-0045", "GDJ-0046", "GDJ-0048"]
@@ -18,6 +18,7 @@ allowed_paths:
   - "conformance/cmd/godjcheck/**"
   - "conformance/fixtures/**"
   - "conformance/oracles/django-6.1-sqlite-darwin-arm64/**"
+  - "conformance/projectcheck/**"
   - "conformance/runners/django/**"
   - "conformance/runners/godj/**"
   - "conformance/internal/protocol/**"
@@ -26,6 +27,7 @@ allowed_paths:
   - "conformance/runserverproduct/**"
   - "conformance/systemstate/attestations/**"
   - "conformance/README.md"
+  - "docs/adr/0035-pre-release-current-only-format-and-generated-publication.md"
   - "docs/adr/0051-project-linked-explicit-migrate.md"
   - "docs/adr/README.md"
   - "docs/ARCHITECTURE.md"
@@ -246,7 +248,13 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
 - [x] affected normal/race/CGO0/vet와 generated drift를 checkpoint마다 통과
 - [x] nested product gate 격리와 conformance-validation 45분 budget 교정을 final source 전에 고정
 - [x] frozen source에서 required PostgreSQL, full `make ci`, Linux/386, repository-external archive와 independent audit 한 번 수행
-- [ ] exact submitted-head hosted matrix 뒤 ADR/status/evidence를 terminal bytes에 맞게 갱신
+- [x] 첫 exact submitted-head `8841319...` / CI run `33124180742`의 23 success, 1 package-timeout failure,
+  3 job-timeout cancellation을 제품 assertion 실패와 구분해 감사
+- [x] Hosted correction source에서 PostgreSQL exact required selector, conformance normal/race/CGO0/artifact 분리,
+  relation 좌표별 mode 분리와 coverage 기반 workflow lock을 구현하고 source-bound PostgreSQL attestation을 재캡처
+- [x] Local refreeze에서 드러난 canceled runner metric test의 child-ready/parent-capture 경쟁을 test-only capture
+  acknowledgment로 교정하고 focused normal/race 반복을 통과
+- [ ] corrected exact submitted-head hosted matrix 뒤 ADR/status/evidence를 terminal bytes에 맞게 갱신
 
 ## 완료 조건
 
@@ -276,7 +284,21 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
 - [EVID-144](../docs/status/TEST_EVIDENCE.md#evid-20260828-144--gdj-0049-frozen-local-final-and-source-bound-postgresql-publication)는
   required PostgreSQL 17.10, affected normal/race/CGO0/vet/generate, relation 1,091/1,091/0, full `make ci`,
   Linux/386, 1,126-file repository-external archive와 independent source/security audit를 기록합니다.
-- 현재 정확한 다음 작업은 이 local-final 문서 descendant를 push하고 exact submitted-head hosted matrix를 통과시키는 것입니다.
+- 첫 exact submitted-head `8841319...`의 CI run `33124180742`는 27 executions 중 23 success, 1 failure,
+  3 cancelled로 끝났습니다. PostgreSQL failure는 전체 `projectmigrateproduct` package를 잘못 선택해 SQLite product까지
+  실행한 900.016초 package timeout이고, 두 relation-product cancellation은 20분 job cap, conformance cancellation은
+  직렬 `make ci`의 45분 job cap입니다. 수집된 로그의 assertion/panic 실패 표식은 0이지만 중단된 test는 미검증이며
+  green으로 재사용하지 않습니다.
+- PostgreSQL normal/race/CGO0는 exact required 20-test selector와 exact run/pass/no-skip inventory로 분리했고,
+  Hosted `make ci`는 artifact-contract-386과 portable normal+vet/race/CGO0로, relation은 네 좌표×세 mode로
+  분리했습니다. Relation test 15분/job 20분, PostgreSQL 세 mode job 25분을 적용하며 exact job count 대신 모든
+  top-level job의 `required-ci` dependency coverage를 protocol lock으로 검증합니다. Corrected workflow/Makefile source의
+  PostgreSQL attestation은 digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL 17.10에서 두 번 byte-identical하게
+  재캡처했습니다. CI correction은 `3bff0097b8708445d38b85659c3a34ad681f2078`, canceled runner test-only
+  synchronization correction은 `caecf5115b0902d37dd3c525902d26edcc82b69c`입니다. 첫 local refreeze `make ci`는
+  기존 test ready 신호가 parent capture를 보장하지 않아 한 번 실패했고, 해당 race 교정 뒤 focused normal 100회와
+  race 20회를 통과했습니다. 전체 `make ci`를 CI 완벽화 목적으로 반복하지 않았으며 [EVID-145](../docs/status/TEST_EVIDENCE.md#evid-20260829-145--gdj-0049-hosted-timeout-correction-and-local-test-synchronization)에
+  실패와 non-claim을 남겼습니다. 현재 정확한 다음 작업은 corrected exact head를 제출하는 것입니다.
   그 전까지 ADR-0051은 Proposed, GDJ-0049는 active이고 terminal 승격이나 다음 packet 활성화를 하지 않습니다.
 - 같은 public `project.Config`, global CLI dispatch, contract manifest/registry와 CURRENT는 통합 담당 한 명만 수정합니다.
 - Full hosted/evidence cycle은 subtask마다 반복하지 않고 final frozen source에서 한 번 수행합니다.

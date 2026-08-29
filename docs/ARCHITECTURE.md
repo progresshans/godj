@@ -1,7 +1,7 @@
 # GoDj 아키텍처
 
 - 상태: 핵심 방향 Accepted, 세부 API Proposed
-- 마지막 검토: 2026-08-24
+- 마지막 검토: 2026-08-29
 
 이 문서는 안정적인 계층과 책임을 정의합니다. 코드 예시가 있더라도 개별 공개 API는 compile prototype, contract test, Accepted ADR 없이 확정된 것이 아닙니다.
 
@@ -28,7 +28,7 @@ SQLite / PostgreSQL / MySQL / MariaDB / Oracle
 ## 현재 pre-release 구현 경계
 
 [GDJ-0036](../work/0036-pre-release-compatibility-reset.md)과
-[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)는 첫 외부 alpha 전의
+[ADR-0035](adr/0035-pre-release-current-only-format-and-generated-publication.md)는 첫 외부 지원 릴리스 전의
 개발 중 ABI를 지원 대상으로 보지 않습니다. 현재 제품 경계는 다음 하나의 흐름입니다.
 
 ```text
@@ -548,7 +548,7 @@ direct FK/PK mutation은 source wrapper의 related operational boundary에서 al
 JSON은 거부하며 `Unwrap` deep clone과 app-owned DTO가 explicit representation 경계를 유지합니다. 이 current-v3 결정은
 [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)에 기록하며 EVID-142/CI #159 exact hosted acceptance로
 Accepted입니다.
-Generator/library semver와 first-alpha 이후 upgrade policy는 Q-010에 남습니다.
+Generator/library semver와 첫 외부 지원 릴리스 이후 upgrade policy는 Q-010에 남습니다.
 
 ## 목표 저장소 구조
 
