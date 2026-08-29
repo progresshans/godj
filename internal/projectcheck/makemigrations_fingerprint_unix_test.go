@@ -37,7 +37,7 @@ func TestMakemigrationsBuildInputFingerprintCanonicalRoster(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first != second {
+	if !equalMakemigrationsBuildInputFingerprint(first, second) {
 		t.Fatalf("go-list ordering changed fingerprint: first=%+v second=%+v", first, second)
 	}
 	if first.memberCount != 20 {
@@ -57,7 +57,7 @@ func TestMakemigrationsBuildInputFingerprintCanonicalRoster(t *testing.T) {
 	}
 
 	third, err := computeMakemigrationsBuildInputFingerprint(fixture.project, forward)
-	if err != nil || third != first {
+	if err != nil || !equalMakemigrationsBuildInputFingerprint(third, first) {
 		t.Fatalf("repeat fingerprint = %+v err=%v, want %+v", third, err, first)
 	}
 
@@ -70,7 +70,7 @@ func TestMakemigrationsBuildInputFingerprintCanonicalRoster(t *testing.T) {
 		fixture.project,
 		encodeMakemigrationsGoList(t, relocated),
 	)
-	if err != nil || relocatedFingerprint != first {
+	if err != nil || !equalMakemigrationsBuildInputFingerprint(relocatedFingerprint, first) {
 		t.Fatalf("absolute dependency cache path affected canonical graph: got=%+v err=%v want=%+v", relocatedFingerprint, err, first)
 	}
 }
@@ -141,7 +141,7 @@ func TestMakemigrationsBuildInputFingerprintTracksExactBytesPresenceAndMode(t *t
 		t.Fatal(err)
 	}
 	restored, err := computeMakemigrationsBuildInputFingerprint(fixture.project, document)
-	if err != nil || restored != baseline {
+	if err != nil || !equalMakemigrationsBuildInputFingerprint(restored, baseline) {
 		t.Fatalf("restored absence fingerprint = %+v err=%v, want %+v", restored, err, baseline)
 	}
 

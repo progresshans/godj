@@ -53,6 +53,7 @@ const (
 	CodeInvalidCatalog           ErrorCode = "invalid_catalog"
 	CodeUnsupportedChange        ErrorCode = "unsupported_change"
 	CodeInvalidPlan              ErrorCode = "invalid_plan"
+	CodeCandidateResourceLimit   ErrorCode = "candidate_resource_limit_exceeded"
 	CodeCandidateEncodingFailed  ErrorCode = "candidate_encoding_failed"
 	CodeInvalidCandidateCatalog  ErrorCode = "invalid_candidate_catalog"
 	CodeFinalStateMismatch       ErrorCode = "final_state_mismatch"
@@ -229,6 +230,13 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 	}
 
 	migrationsPlan := plan.Migrations()
+	if len(migrationsPlan) > protocol.MaxCandidates {
+		return Snapshot{}, snapshotError(
+			CategoryCandidate,
+			CodeCandidateResourceLimit,
+			errors.New("candidate count exceeds the current per-invocation publication bound"),
+		)
+	}
 	if len(migrationsPlan) > definition.MaxSources-len(combined) {
 		return Snapshot{}, snapshotError(
 			CategoryCandidate,
@@ -489,7 +497,10 @@ func managedApps(
 }
 
 func candidateSourceID(root string, candidate Candidate) (string, error) {
-	basename := candidate.app + "_" + candidate.name + ".godj.json"
+	basename, err := protocol.CandidateTargetBasename(candidate.app, candidate.name)
+	if err != nil {
+		return "", errors.New("candidate target basename exceeds current bounds")
+	}
 	identifier := basename
 	if root != "." {
 		identifier = root + "/" + basename

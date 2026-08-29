@@ -19,7 +19,12 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const projectSpecDigestDomain = "godj/makemigrations-project-spec/v1\x00"
+const (
+	projectSpecDigestDomain = "godj/makemigrations-project-spec/v1\x00"
+	// MaxWriterBasenameBytes is the common Darwin/Linux flat-file contract
+	// shared by strict transport validation and the parent publisher.
+	MaxWriterBasenameBytes = 255
+)
 
 // NormalizeProjectSpec returns the exact declaration snapshot carried by a
 // success response. It mirrors codegen normalization: schemas are normalized
@@ -276,7 +281,10 @@ func validateCandidates(
 		}
 		total = updated
 
-		basename := candidate.App + "_" + candidate.Name + ".godj.json"
+		basename, basenameErr := CandidateTargetBasename(candidate.App, candidate.Name)
+		if basenameErr != nil {
+			return fmt.Errorf("candidates[%d] derived target basename: %w", index, basenameErr)
+		}
 		sourceID := basename
 		if writerRoot != "." {
 			sourceID = writerRoot + "/" + basename
@@ -303,6 +311,20 @@ func validateCandidateIdentity(index int, app, name string) error {
 		return fmt.Errorf("candidates[%d] identity exceeds %d bytes", index, projectspec.MaxSchemaStringBytes)
 	}
 	return nil
+}
+
+// CandidateTargetBasename derives the only supported flat writer filename.
+// It is shared by the pure snapshot, strict wire and parent publication so a
+// candidate cannot validate under one spelling and publish under another.
+func CandidateTargetBasename(app, name string) (string, error) {
+	if !validAppIdentity(app) || !validMigrationName(name) {
+		return "", errors.New("candidate identity is not safe and normalized")
+	}
+	basename := app + "_" + name + ".godj.json"
+	if len([]byte(basename)) > MaxWriterBasenameBytes {
+		return "", fmt.Errorf("candidate target basename exceeds %d bytes", MaxWriterBasenameBytes)
+	}
+	return basename, nil
 }
 
 func validAppIdentity(value string) bool {

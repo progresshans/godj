@@ -19,10 +19,11 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 )
 
-// RunMakemigrations executes the global, DB-free Phase B migration-writer
-// preflight. The project child supplies one declaration/catalog snapshot, but
-// the global owner independently fingerprints build inputs, re-reads the
-// filesystem catalog, and rebuilds every candidate before publishing a result.
+// RunMakemigrations executes the global, DB-free migration writer. The project
+// child supplies immutable declaration/catalog snapshots; the global owner
+// independently fingerprints build inputs, re-reads the filesystem catalog,
+// serializes normal writers, freshly replans under the lock, and publishes a
+// dependency-valid durable prefix with no-replace appends.
 func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 	input.Args = append([]string(nil), input.Args...)
 	arguments, validArguments := parseMakemigrationsArguments(input.Args)
@@ -155,7 +156,7 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 		chooseMakemigrationsFailure(&report, *primary)
 		return finish()
 	}
-	if baseline != postBuild {
+	if !equalMakemigrationsBuildInputFingerprint(baseline, postBuild) {
 		chooseMakemigrationsFailure(&report, makemigrationsSourceConflict())
 		return finish()
 	}
@@ -164,20 +165,79 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 		chooseMakemigrationsFailure(&report, makemigrationsSourceConflict())
 		return finish()
 	}
-	if terminal := makemigrationsBarrier(input, nil); terminal != nil {
-		chooseMakemigrationsFailure(&report, *terminal)
-		return finish()
-	}
 	runnerCommand := Command{
 		Dir:   selected.rootPath,
 		Argv:  []string{filepath.Join(workspace.root, "godj-project-runner"), writerprotocol.PrivateArgument},
 		Env:   workspace.environment,
 		Stdin: writerprotocol.RequestDocument(),
 	}
+	response, primary := executeMakemigrationsRunner(input, runnerCommand, &report)
+	if primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
+		return finish()
+	}
+
+	independent, primary := independentlyVerifyMakemigrationsResponse(input, selected, response, &report)
+	clearMakemigrationsProtocolResult(&response)
+	if primary = makemigrationsBarrier(input, primary); primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
+		return finish()
+	}
+
+	finalBuildInput, primary := captureMakemigrationsBuildInput(input, selected, workspace.environment, &report)
+	primary = normalizeMakemigrationsCASFailure(makemigrationsBarrier(input, primary))
+	if primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
+		return finish()
+	}
+	if !equalMakemigrationsBuildInputFingerprint(baseline, finalBuildInput) {
+		chooseMakemigrationsFailure(&report, makemigrationsSourceConflict())
+		return finish()
+	}
+	if primary := verifyFinalMakemigrationsFilesystemCatalog(input, selected, independent, &report); primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
+		return finish()
+	}
+	if arguments.mode != makemigrationsModeNormal {
+		if primary := diagnoseMakemigrationsRecovery(input, selected, independent); primary != nil {
+			chooseMakemigrationsFailure(&report, *primary)
+			return finish()
+		}
+		if primary := preflightMakemigrationsPhysicalPublication(input, selected, baseline, independent, &report); primary != nil {
+			chooseMakemigrationsFailure(&report, *primary)
+			return finish()
+		}
+		chooseMakemigrationsResult(&report, makeMakemigrationsResult(independent))
+		return finish()
+	}
+
+	fresh, primary := publishMakemigrationsNormal(
+		input, selected, workspace.environment, runnerCommand, baseline, independent, &report,
+	)
+	if primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
+		return finish()
+	}
+	result := makeMakemigrationsResult(fresh)
+	if result.CandidateCount != 0 {
+		result.Status = "generated"
+	}
+	chooseMakemigrationsResult(&report, result)
+	return finish()
+}
+
+func executeMakemigrationsRunner(
+	input MakemigrationsInvocation,
+	command Command,
+	report *MakemigrationsReport,
+) (writerprotocol.Result, *MakemigrationsFailure) {
+	if terminal := makemigrationsBarrier(input, nil); terminal != nil {
+		return writerprotocol.Result{}, terminal
+	}
 	report.RunnerCalls++
-	runner := input.Backend.Execute(input.Context, input.Interrupt, MakemigrationsRunnerStage, cloneCommand(runnerCommand))
-	recordMakemigrationsProcess(&report, MakemigrationsRunnerStage, runner)
-	primary = makemigrationsProcessFailure(MakemigrationsRunnerStage, runner)
+	runner := input.Backend.Execute(input.Context, input.Interrupt, MakemigrationsRunnerStage, cloneCommand(command))
+	recordMakemigrationsProcess(report, MakemigrationsRunnerStage, runner)
+	primary := makemigrationsProcessFailure(MakemigrationsRunnerStage, runner)
 	primary = combineMakemigrationsCleanup(primary, runner.CleanupFailed)
 	var response writerprotocol.Response
 	if primary == nil {
@@ -198,46 +258,14 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 	runner.Stdout = nil
 	primary = makemigrationsBarrier(input, primary)
 	if primary != nil {
-		chooseMakemigrationsFailure(&report, *primary)
-		return finish()
+		clearMakemigrationsProtocolResult(&response.Result)
+		return writerprotocol.Result{}, primary
 	}
 	if !response.OK {
-		chooseMakemigrationsFailure(&report, MakemigrationsFailure{Category: response.Failure.Category, Code: response.Failure.Code})
-		return finish()
+		candidate := MakemigrationsFailure{Category: response.Failure.Category, Code: response.Failure.Code}
+		return writerprotocol.Result{}, &candidate
 	}
-
-	independent, primary := independentlyVerifyMakemigrationsResponse(input, selected, response.Result, &report)
-	clearMakemigrationsProtocolResult(&response.Result)
-	if primary = makemigrationsBarrier(input, primary); primary != nil {
-		chooseMakemigrationsFailure(&report, *primary)
-		return finish()
-	}
-
-	finalBuildInput, primary := captureMakemigrationsBuildInput(input, selected, workspace.environment, &report)
-	primary = normalizeMakemigrationsCASFailure(makemigrationsBarrier(input, primary))
-	if primary != nil {
-		chooseMakemigrationsFailure(&report, *primary)
-		return finish()
-	}
-	if baseline != finalBuildInput {
-		chooseMakemigrationsFailure(&report, makemigrationsSourceConflict())
-		return finish()
-	}
-	if primary := verifyFinalMakemigrationsFilesystemCatalog(input, selected, independent, &report); primary != nil {
-		chooseMakemigrationsFailure(&report, *primary)
-		return finish()
-	}
-
-	result := makeMakemigrationsResult(independent)
-	if len(result.Candidates) != 0 && arguments.mode == makemigrationsModeNormal {
-		chooseMakemigrationsFailure(&report, MakemigrationsFailure{
-			Category: MakemigrationsCategoryPublication,
-			Code:     MakemigrationsCodePublicationUnavailable,
-		})
-		return finish()
-	}
-	chooseMakemigrationsResult(&report, result)
-	return finish()
+	return response.Result, nil
 }
 
 func verifyFinalMakemigrationsFilesystemCatalog(
@@ -420,7 +448,10 @@ func makeMakemigrationsResult(snapshot projectmigration.Snapshot) Makemigrations
 		result.Status = "pending"
 	}
 	for index := range candidates {
-		basename := candidates[index].App() + "_" + candidates[index].Name() + ".godj.json"
+		basename, err := writerprotocol.CandidateTargetBasename(candidates[index].App(), candidates[index].Name())
+		if err != nil {
+			return MakemigrationsResult{}
+		}
 		relative := basename
 		if snapshot.WriterRoot() != "." {
 			relative = path.Join(snapshot.WriterRoot(), basename)
@@ -570,6 +601,11 @@ func normalizeMakemigrationsCASFailure(primary *MakemigrationsFailure) *Makemigr
 }
 
 func applyMakemigrationsFinalBarrier(input MakemigrationsInvocation, report *MakemigrationsReport) {
+	// A successful per-file directory fsync is the migration publication commit
+	// point. A late cancellation cannot reclassify that durable outcome.
+	if report.PublishedCandidates != 0 {
+		return
+	}
 	if report.HasMakemigrationsFailure && !makemigrationsCanceledOrInterrupted(report.MakemigrationsFailure) {
 		return
 	}
@@ -635,7 +671,14 @@ func makemigrationsExitCode(failure MakemigrationsFailure) (int, bool) {
 			return 0, false
 		}
 	case MakemigrationsCategoryPublication:
-		return exactMakemigrationsCode(failure.Code, 1, MakemigrationsCodePublicationUnavailable)
+		switch failure.Code {
+		case MakemigrationsCodePublicationUnavailable:
+			return 1, true
+		case MakemigrationsCodePublicationFailed, MakemigrationsCodePublicationRecoveryRequired:
+			return 3, true
+		default:
+			return 0, false
+		}
 	case writerprotocol.CategoryProtocol:
 		return exactMakemigrationsCode(failure.Code, 3,
 			writerprotocol.CodeInvalidRequest, writerprotocol.CodeProtocolIncompatible,

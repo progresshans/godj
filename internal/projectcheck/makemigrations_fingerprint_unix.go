@@ -39,6 +39,12 @@ type makemigrationsBuildInputFingerprint struct {
 	digest        [sha256.Size]byte
 	memberCount   uint64
 	documentBytes uint64
+	embedPatterns []makemigrationsEmbedPattern
+}
+
+type makemigrationsEmbedPattern struct {
+	packageDirectory string
+	pattern          string
 }
 
 type makemigrationsBuildInputLimits struct {
@@ -74,26 +80,27 @@ type makemigrationsGoListModule struct {
 }
 
 type makemigrationsGoListPackage struct {
-	Dir          string                      `json:"Dir"`
-	ImportPath   string                      `json:"ImportPath"`
-	Name         string                      `json:"Name"`
-	Goroot       bool                        `json:"Goroot"`
-	Standard     bool                        `json:"Standard"`
-	Incomplete   bool                        `json:"Incomplete"`
-	Error        json.RawMessage             `json:"Error"`
-	Module       *makemigrationsGoListModule `json:"Module"`
-	GoFiles      []string                    `json:"GoFiles"`
-	CgoFiles     []string                    `json:"CgoFiles"`
-	CFiles       []string                    `json:"CFiles"`
-	CXXFiles     []string                    `json:"CXXFiles"`
-	MFiles       []string                    `json:"MFiles"`
-	HFiles       []string                    `json:"HFiles"`
-	FFiles       []string                    `json:"FFiles"`
-	SFiles       []string                    `json:"SFiles"`
-	SwigFiles    []string                    `json:"SwigFiles"`
-	SwigCXXFiles []string                    `json:"SwigCXXFiles"`
-	SysoFiles    []string                    `json:"SysoFiles"`
-	EmbedFiles   []string                    `json:"EmbedFiles"`
+	Dir           string                      `json:"Dir"`
+	ImportPath    string                      `json:"ImportPath"`
+	Name          string                      `json:"Name"`
+	Goroot        bool                        `json:"Goroot"`
+	Standard      bool                        `json:"Standard"`
+	Incomplete    bool                        `json:"Incomplete"`
+	Error         json.RawMessage             `json:"Error"`
+	Module        *makemigrationsGoListModule `json:"Module"`
+	GoFiles       []string                    `json:"GoFiles"`
+	CgoFiles      []string                    `json:"CgoFiles"`
+	CFiles        []string                    `json:"CFiles"`
+	CXXFiles      []string                    `json:"CXXFiles"`
+	MFiles        []string                    `json:"MFiles"`
+	HFiles        []string                    `json:"HFiles"`
+	FFiles        []string                    `json:"FFiles"`
+	SFiles        []string                    `json:"SFiles"`
+	SwigFiles     []string                    `json:"SwigFiles"`
+	SwigCXXFiles  []string                    `json:"SwigCXXFiles"`
+	SysoFiles     []string                    `json:"SysoFiles"`
+	EmbedFiles    []string                    `json:"EmbedFiles"`
+	EmbedPatterns []string                    `json:"EmbedPatterns"`
 }
 
 type makemigrationsDependencyGraphModule struct {
@@ -173,6 +180,8 @@ func computeMakemigrationsBuildInputFingerprintWithLimits(
 	seenPackageDirectories := make(map[string]struct{}, len(packages))
 	seenRetainedDirectories := make(map[string]struct{}, len(packages))
 	retainedDirectories := make([]makemigrationsRetainedDirectory, 0, len(packages))
+	embedPatterns := make([]makemigrationsEmbedPattern, 0)
+	embedPatternBytes := 0
 	selectedDirectory := strings.TrimPrefix(project.descriptor.packagePath, "./")
 	selectedSeen := false
 	var rosterBytes uint64
@@ -210,6 +219,17 @@ func computeMakemigrationsBuildInputFingerprintWithLimits(
 		}
 		retainedDirectories = append(retainedDirectories, makemigrationsRetainedDirectory{path: relativeDirectory, info: directoryInfo})
 		seenRetainedDirectories[relativeDirectory] = struct{}{}
+		for _, pattern := range listed.EmbedPatterns {
+			if !validMakemigrationsEmbedPattern(pattern, limits) || len(embedPatterns) == limits.memberCount ||
+				embedPatternBytes > int(limits.totalRosterBytes)-len(pattern) {
+				return makemigrationsBuildInputFingerprint{}, fmt.Errorf("makemigrations build input: invalid embed pattern")
+			}
+			embedPatternBytes += len(pattern)
+			embedPatterns = append(embedPatterns, makemigrationsEmbedPattern{
+				packageDirectory: relativeDirectory,
+				pattern:          pattern,
+			})
+		}
 
 		for _, filename := range makemigrationsPackageFiles(listed) {
 			memberPath, pathErr := makemigrationsPackageMemberPath(relativeDirectory, filename, limits)
@@ -366,11 +386,49 @@ func computeMakemigrationsBuildInputFingerprintWithLimits(
 	}
 	var digest [sha256.Size]byte
 	copy(digest[:], hash.Sum(nil))
+	sort.Slice(embedPatterns, func(left, right int) bool {
+		if embedPatterns[left].packageDirectory != embedPatterns[right].packageDirectory {
+			return embedPatterns[left].packageDirectory < embedPatterns[right].packageDirectory
+		}
+		return embedPatterns[left].pattern < embedPatterns[right].pattern
+	})
 	return makemigrationsBuildInputFingerprint{
 		digest:        digest,
 		memberCount:   uint64(len(members)),
 		documentBytes: documentBytes,
+		embedPatterns: embedPatterns,
 	}, nil
+}
+
+func equalMakemigrationsBuildInputFingerprint(left, right makemigrationsBuildInputFingerprint) bool {
+	if left.digest != right.digest || left.memberCount != right.memberCount ||
+		left.documentBytes != right.documentBytes || len(left.embedPatterns) != len(right.embedPatterns) {
+		return false
+	}
+	for index := range left.embedPatterns {
+		if left.embedPatterns[index] != right.embedPatterns[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func validMakemigrationsEmbedPattern(value string, limits makemigrationsBuildInputLimits) bool {
+	if value == "" || !utf8.ValidString(value) || len(value) > limits.pathBytes ||
+		strings.ContainsAny(value, "\\\x00") {
+		return false
+	}
+	pattern := strings.TrimPrefix(value, "all:")
+	if pattern == "" || path.IsAbs(pattern) {
+		return false
+	}
+	for _, component := range strings.Split(pattern, "/") {
+		if component == "" || component == "." || component == ".." {
+			return false
+		}
+	}
+	_, err := path.Match(pattern, pattern)
+	return err == nil
 }
 
 func validateMakemigrationsBuildInputLimits(limits makemigrationsBuildInputLimits) error {

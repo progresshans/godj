@@ -19,12 +19,13 @@ import (
 )
 
 type makemigrationsRunBackend struct {
-	t          *testing.T
-	inventory  []byte
-	runnerWire []byte
-	onStage    func(ProcessStage)
-	stages     []ProcessStage
-	commands   []Command
+	t              *testing.T
+	inventory      []byte
+	runnerWire     []byte
+	runnerTemplate []byte
+	onStage        func(ProcessStage)
+	stages         []ProcessStage
+	commands       []Command
 }
 
 func (backend *makemigrationsRunBackend) Execute(
@@ -49,9 +50,14 @@ func (backend *makemigrationsRunBackend) Execute(
 	case BuildStage:
 		return ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
 	case MakemigrationsRunnerStage:
+		if backend.runnerTemplate == nil {
+			backend.runnerTemplate = append([]byte(nil), backend.runnerWire...)
+		}
+		document := append([]byte(nil), backend.runnerTemplate...)
+		clear(backend.runnerWire)
 		return ProcessResult{
-			Started: true, ExitCode: 0, DirectReaps: 1, Stdout: backend.runnerWire,
-			StdoutScalar: StreamScalar{RetainedBytes: len(backend.runnerWire)},
+			Started: true, ExitCode: 0, DirectReaps: 1, Stdout: document,
+			StdoutScalar: StreamScalar{RetainedBytes: len(document)},
 		}
 	default:
 		backend.t.Fatalf("unexpected makemigrations stage %d", stage)
@@ -87,12 +93,8 @@ func TestRunMakemigrationsModesAndExactProcessContract(t *testing.T) {
 			wantExit: 1, wantResult: true, wantStatus: "pending",
 		},
 		{
-			name: "normal pending is not silently published", arguments: []string{"makemigrations"},
-			wantExit: 1,
-			wantFailure: MakemigrationsFailure{
-				Category: MakemigrationsCategoryPublication,
-				Code:     MakemigrationsCodePublicationUnavailable,
-			},
+			name: "normal pending publishes the locked plan", arguments: []string{"makemigrations"},
+			wantExit: 0, wantResult: true, wantStatus: "generated",
 		},
 		{
 			name: "normal clean succeeds", arguments: []string{"makemigrations"}, clean: true,
@@ -114,17 +116,26 @@ func TestRunMakemigrationsModesAndExactProcessContract(t *testing.T) {
 			})
 
 			if report.ExitCode != test.wantExit || report.HasMakemigrationsResult != test.wantResult ||
-				report.InventoryCalls != 3 || report.BuildCalls != 1 || report.RunnerCalls != 1 ||
-				report.IndependentCatalogSnapshots != 3 || report.DirectChildReaps != 5 ||
-				report.RunnerResponseWrites != 1 || report.TempCreated != 1 ||
+				report.BuildCalls != 1 || report.TempCreated != 1 ||
 				report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
 				t.Fatalf("report = %+v", report)
+			}
+			if test.arguments[0] == "makemigrations" && len(test.arguments) == 1 {
+				if report.RunnerCalls != 2 || report.RunnerResponseWrites != 2 ||
+					report.WriterLockAcquisitions != 1 || report.PublicationDirectorySyncs < 1 {
+					t.Fatalf("normal publication lifecycle = %+v", report)
+				}
+			} else if report.InventoryCalls != 3 || report.RunnerCalls != 1 ||
+				report.IndependentCatalogSnapshots != 3 || report.DirectChildReaps != 5 ||
+				report.RunnerResponseWrites != 1 || report.WriterLockAcquisitions != 0 ||
+				report.PublicationRenames != 0 || report.PublicationDirectorySyncs != 0 {
+				t.Fatalf("read-only lifecycle = %+v", report)
 			}
 			if test.wantResult {
 				if report.HasMakemigrationsFailure || report.MakemigrationsResult.Status != test.wantStatus {
 					t.Fatalf("result = %+v failure=%+v", report.MakemigrationsResult, report.MakemigrationsFailure)
 				}
-				if (test.wantStatus == "pending" && report.MakemigrationsResult.CandidateCount == 0) ||
+				if ((test.wantStatus == "pending" || test.wantStatus == "generated") && report.MakemigrationsResult.CandidateCount == 0) ||
 					(test.wantStatus == "clean" && report.MakemigrationsResult.CandidateCount != 0) {
 					t.Fatalf("candidate result = %+v", report.MakemigrationsResult)
 				}
@@ -137,12 +148,29 @@ func TestRunMakemigrationsModesAndExactProcessContract(t *testing.T) {
 			}
 			assertZeroBytes(t, "raw runner response", wire)
 
-			if test.name == "dry-run pending is read-only and successful" {
+			if test.wantStatus == "pending" || test.wantStatus == "clean" {
 				after := generationTreeSnapshot(t, fixture.root)
 				if !reflect.DeepEqual(before, after) {
-					t.Fatalf("dry-run mutated project\nbefore=%v\nafter=%v", before, after)
+					t.Fatalf("read-only/clean invocation mutated project\nbefore=%v\nafter=%v", before, after)
 				}
+			}
+			if test.name == "dry-run pending is read-only and successful" {
 				assertMakemigrationsProcessContract(t, fixture, backend)
+			}
+			if test.wantStatus == "generated" {
+				if report.PublicationRenames != 1 || report.PublishedCandidates != 1 {
+					t.Fatalf("publication counters = %+v", report)
+				}
+				candidate := fixture.snapshot.Candidates()[0]
+				path := filepath.Join(fixture.root, "migrations", candidate.App()+"_"+candidate.Name()+".godj.json")
+				document, err := os.ReadFile(path)
+				if err != nil || !bytes.Equal(document, candidate.Document()) {
+					t.Fatalf("published candidate path=%s err=%v", path, err)
+				}
+				info, err := os.Lstat(path)
+				if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 {
+					t.Fatalf("published candidate mode=%v err=%v", info, err)
+				}
 			}
 		})
 	}
@@ -390,7 +418,7 @@ func TestRunMakemigrationsZeroizesResponsesAndHonorsCleanupPrecedence(t *testing
 		want := makemigrationsCleanupFailure()
 		if report.ExitCode != 3 || !report.HasMakemigrationsFailure || report.MakemigrationsFailure != want ||
 			report.HasMakemigrationsResult || !reflect.DeepEqual(report.MakemigrationsResult, MakemigrationsResult{}) ||
-			report.CleanupFailed != 1 || report.InventoryCalls != 3 || report.IndependentCatalogSnapshots != 3 ||
+			report.CleanupFailed != 1 || report.RunnerCalls != 2 || report.WriterLockAcquisitions != 1 ||
 			stdout != "" || stderr != want.Category+"/"+want.Code+"\n" {
 			t.Fatalf("report=%+v stdout=%q stderr=%q", report, stdout, stderr)
 		}

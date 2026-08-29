@@ -223,6 +223,10 @@ func TestClassifyMakemigrationsSnapshotFallbacksAreClosed(t *testing.T) {
 			want: writerprotocol.Failure{Category: writerprotocol.CategoryCandidate, Code: writerprotocol.CodeCandidateResourceLimitExceeded},
 		},
 		{
+			code: projectmigration.CodeCandidateResourceLimit,
+			want: writerprotocol.Failure{Category: writerprotocol.CategoryCandidate, Code: writerprotocol.CodeCandidateResourceLimitExceeded},
+		},
+		{
 			code: projectmigration.CodeInvalidCatalog,
 			want: writerprotocol.Failure{Category: writerprotocol.CategoryCandidate, Code: writerprotocol.CodeCandidateValidationFailed},
 		},

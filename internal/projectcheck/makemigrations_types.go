@@ -36,6 +36,8 @@ const (
 	MakemigrationsCodeSourceFingerprintFailed       = "source_fingerprint_failed"
 	MakemigrationsCodeSourceConflict                = "source_conflict"
 	MakemigrationsCodePublicationUnavailable        = "publication_unavailable"
+	MakemigrationsCodePublicationFailed             = "publication_failed"
+	MakemigrationsCodePublicationRecoveryRequired   = "publication_recovery_required"
 	MakemigrationsCodeProjectCanceled               = "project_canceled"
 	MakemigrationsCodeProjectInterrupted            = "project_interrupted"
 	MakemigrationsCodeProjectCleanupFailed          = "project_cleanup_failed"
@@ -53,7 +55,9 @@ type MakemigrationsCandidate struct {
 	SHA256   string
 }
 
-// MakemigrationsResult is the deterministic read-only command result.
+// MakemigrationsResult is the deterministic public command result. Normal
+// publication reports generated candidates; dry-run/check report pending or
+// clean candidates without exposing raw documents.
 type MakemigrationsResult struct {
 	Status         string
 	CandidateCount int
@@ -67,6 +71,11 @@ type MakemigrationsReport struct {
 	Report
 	InventoryCalls              int
 	IndependentCatalogSnapshots int
+	WriterLockAcquisitions      int
+	OwnedTempRecoveries         int
+	PublicationRenames          int
+	PublicationDirectorySyncs   int
+	PublishedCandidates         int
 	HasMakemigrationsResult     bool
 	MakemigrationsResult        MakemigrationsResult
 	HasMakemigrationsFailure    bool
@@ -84,6 +93,7 @@ type MakemigrationsInvocation struct {
 	Interrupt   <-chan struct{}
 	Backend     Backend
 	workspace   workspaceHooks
+	publication makemigrationsPublicationHooks
 
 	afterFinalCatalogSnapshot func()
 }

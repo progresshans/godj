@@ -20,14 +20,18 @@ import (
 )
 
 const (
-	Version                uint64 = 1
-	PrivateArgument               = "__godj_project_makemigrations_runner_v1"
-	MaxRequestBytes               = 64 << 10
-	MaxResponseBytes              = 96 << 20
-	MaxProjectApps                = 8_192
-	MaxJSONDepth                  = 64
-	MaxCandidates                 = definition.MaxSources
-	MaxProgrammaticSources        = definition.MaxSources
+	Version          uint64 = 1
+	PrivateArgument         = "__godj_project_makemigrations_runner_v1"
+	MaxRequestBytes         = 64 << 10
+	MaxResponseBytes        = 96 << 20
+	MaxProjectApps          = 8_192
+	MaxJSONDepth            = 64
+	// MaxCandidates bounds one writer invocation independently of the larger
+	// historical catalog bound. Publication performs a full source/catalog CAS
+	// before every append, so accepting the entire 2,048-source catalog as one
+	// batch would make an otherwise bounded request operationally unbounded.
+	MaxCandidates          = 64
+	MaxProgrammaticSources = definition.MaxSources
 )
 
 const (

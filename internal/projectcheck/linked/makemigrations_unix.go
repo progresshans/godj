@@ -286,7 +286,7 @@ func classifyMakemigrationsSnapshotFailure(err error) (writerprotocol.Failure, b
 		return writerprotocol.Failure{Category: writerprotocol.CategoryDiscovery, Code: writerprotocol.CodeInvalidProjectSourceConfig}, true
 	case projectmigration.CodeInvalidProjectSpec, projectmigration.CodeInvalidGeneratorIdentity:
 		return writerprotocol.Failure{Category: writerprotocol.CategoryDeclaration, Code: writerprotocol.CodeProjectSpecLoadFailed}, true
-	case projectmigration.CodeCatalogResourceLimit:
+	case projectmigration.CodeCatalogResourceLimit, projectmigration.CodeCandidateResourceLimit:
 		return writerprotocol.Failure{Category: writerprotocol.CategoryCandidate, Code: writerprotocol.CodeCandidateResourceLimitExceeded}, true
 	case projectmigration.CodeInvalidCatalog:
 		return writerprotocol.Failure{Category: writerprotocol.CategoryCandidate, Code: writerprotocol.CodeCandidateValidationFailed}, true

@@ -193,24 +193,6 @@ func verifyMakemigrationsLogicalRoot(project *os.File, logical string, expected 
 }
 
 func readMakemigrationsCatalogMember(root *os.File, name string, batchBytes int) ([]byte, error) {
-	var initial unix.Stat_t
-	if err := unix.Fstatat(int(root.Fd()), name, &initial, unix.AT_SYMLINK_NOFOLLOW); err != nil || initial.Mode&unix.S_IFMT != unix.S_IFREG {
-		return nil, errors.New("makemigrations catalog: unsafe source entry")
-	}
-	fd, err := unix.Openat(int(root.Fd()), name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil, errors.New("makemigrations catalog: open source entry")
-	}
-	file := os.NewFile(uintptr(fd), name)
-	if file == nil {
-		_ = unix.Close(fd)
-		return nil, errors.New("makemigrations catalog: retain source entry")
-	}
-	var opened unix.Stat_t
-	if err := unix.Fstat(fd, &opened); err != nil || opened.Mode&unix.S_IFMT != unix.S_IFREG || !sameIdentity(initial, opened) {
-		_ = file.Close()
-		return nil, errors.New("makemigrations catalog: source entry changed")
-	}
 	remainingBatch := definition.MaxBatchBytes - batchBytes
 	if remainingBatch < 0 {
 		remainingBatch = 0
@@ -219,19 +201,10 @@ func readMakemigrationsCatalogMember(root *os.File, name string, batchBytes int)
 	if remainingBatch < maximum {
 		maximum = remainingBatch
 	}
-	document, readErr := io.ReadAll(io.LimitReader(file, int64(maximum)+1))
-	closeErr := file.Close()
-	var current unix.Stat_t
-	postErr := unix.Fstatat(int(root.Fd()), name, &current, unix.AT_SYMLINK_NOFOLLOW)
-	if readErr != nil || closeErr != nil || postErr != nil {
-		return nil, errors.New("makemigrations catalog: read source entry")
-	}
-	if current.Mode&unix.S_IFMT != unix.S_IFREG || !sameIdentity(initial, current) {
-		return nil, errors.New("makemigrations catalog: source entry changed")
-	}
-	if len(document) > maximum {
+	document, _, present, err := readMakemigrationsRegularAt(root, name, maximum)
+	if err != nil || !present {
 		clear(document)
-		return nil, errors.New("makemigrations catalog: source resource limit exceeded")
+		return nil, errors.New("makemigrations catalog: source read failed")
 	}
 	return document, nil
 }

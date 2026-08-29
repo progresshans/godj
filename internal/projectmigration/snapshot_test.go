@@ -3,11 +3,13 @@ package projectmigration
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/projectmigration/protocol"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
@@ -367,6 +369,25 @@ func TestBuildSnapshotWriterRootLimitBoundaryForNoop(t *testing.T) {
 		WriterRoot:  strings.Repeat("a", definition.MaxSourceIDBytes+1),
 	})
 	assertSnapshotError(t, err, CategoryRequest, CodeInvalidWriterRoot)
+}
+
+func TestBuildSnapshotCandidateCountBoundary(t *testing.T) {
+	schemas := make([]ir.Schema, protocol.MaxCandidates+1)
+	for index := range schemas {
+		app := fmt.Sprintf("app%03d", index)
+		schemas[index] = testSchema(app, testModel("entry", testChar("value", false)))
+	}
+	if snapshot, err := BuildSnapshot(Request{
+		ProjectSpec: testProjectSpec(schemas[:protocol.MaxCandidates]...),
+		WriterRoot:  "migrations",
+	}); err != nil || len(snapshot.Candidates()) != protocol.MaxCandidates {
+		t.Fatalf("candidate maximum rejected: candidates=%d err=%v", len(snapshot.Candidates()), err)
+	}
+	_, err := BuildSnapshot(Request{
+		ProjectSpec: testProjectSpec(schemas...),
+		WriterRoot:  "migrations",
+	})
+	assertSnapshotError(t, err, CategoryCandidate, CodeCandidateResourceLimit)
 }
 
 func testProjectSpec(schemas ...ir.Schema) codegen.ProjectSpec {
