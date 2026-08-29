@@ -78,6 +78,8 @@ const (
 	RunnerStage
 	GenerationRunnerStage
 	MigrateRunnerStage
+	MakemigrationsInventoryStage
+	MakemigrationsRunnerStage
 )
 
 // Command is a fully separated argv invocation. It is never interpreted by a

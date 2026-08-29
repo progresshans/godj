@@ -17,6 +17,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	projectgeneratelinked "github.com/progresshans/godj/internal/projectgenerate/linked"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
+	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 )
@@ -31,8 +32,9 @@ type MigrationBackend interface {
 // Config declares project-owned migration definition sources, a lazy backend
 // opener, and the optional declaration-only whole-project generation input.
 // LoadProjectSpec must not import generated app or project packages; it is
-// called only for the private generation request. OpenMigrationBackend is
-// called only for the private explicit-migrate request.
+// called only for the private generation or makemigrations snapshot request.
+// It must be a pure declaration snapshot and must not open a database.
+// OpenMigrationBackend is called only for the private explicit-migrate request.
 type Config struct {
 	MigrationDefinitionRoots   []string
 	MigrationDefinitionSources []definition.Source
@@ -61,13 +63,30 @@ func run(
 	stdout io.Writer,
 	ownSignalContext signalContextOwner,
 ) error {
+	arguments := append([]string(nil), argv...)
+	loadProjectSpec := config.LoadProjectSpec
+	openMigrationBackend := config.OpenMigrationBackend
+	if len(arguments) == 1 && arguments[0] == projectmigrationprotocol.PrivateArgument {
+		makemigrationsConfig := linked.SnapshotMakemigrationsConfig(linked.MakemigrationsConfig{
+			MigrationDefinitionRoots:   config.MigrationDefinitionRoots,
+			MigrationDefinitionSources: config.MigrationDefinitionSources,
+			LoadProjectSpec:            linked.ProjectSpecLoader(loadProjectSpec),
+		})
+		_, err := linked.RunSnapshottedMakemigrations(
+			ctx,
+			makemigrationsConfig,
+			arguments,
+			stdin,
+			stdout,
+		)
+		return err
+	}
 	roots := append([]string(nil), config.MigrationDefinitionRoots...)
 	sources := cloneDefinitionSources(config.MigrationDefinitionSources)
-	arguments := append([]string(nil), argv...)
 	if len(arguments) == 1 && arguments[0] == projectgenerateprotocol.PrivateArgument {
 		_, err := projectgeneratelinked.Run(
 			ctx,
-			projectgeneratelinked.Loader(config.LoadProjectSpec),
+			projectgeneratelinked.Loader(loadProjectSpec),
 			arguments,
 			stdin,
 			stdout,
@@ -88,9 +107,9 @@ func run(
 		defer stop()
 
 		var opener func(context.Context) (linked.MigrationBackend, error)
-		if config.OpenMigrationBackend != nil {
+		if openMigrationBackend != nil {
 			opener = func(openContext context.Context) (linked.MigrationBackend, error) {
-				return config.OpenMigrationBackend(openContext)
+				return openMigrationBackend(openContext)
 			}
 		}
 		_, err := linked.RunMigrate(

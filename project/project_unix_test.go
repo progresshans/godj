@@ -22,6 +22,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
+	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -212,6 +213,89 @@ func TestPublicMigrateOwnsSourcesAndSignalContext(t *testing.T) {
 	}
 }
 
+func TestPublicMakemigrationsOwnsInputsAndNeverOpensBackend(t *testing.T) {
+	enterProjectRoot(t)
+	roots := []string{"migrations"}
+	sources := []definition.Source{{
+		SourceID: "embedded/system-state.godj.json",
+		Document: []byte(`{"format_version":1,"producer":{"name":"project-test","version":"1"},"migration":{"app":"system","name":"0001_initial","dependencies":[],"operations":[]}}`),
+	}}
+	argv := []string{projectmigrationprotocol.PrivateArgument}
+	reader := newBlockingReader(projectmigrationprotocol.RequestDocument())
+	loaderCalls := 0
+	openerCalls := 0
+	config := Config{
+		MigrationDefinitionRoots:   roots,
+		MigrationDefinitionSources: sources,
+		LoadProjectSpec: func(context.Context) (codegen.ProjectSpec, error) {
+			loaderCalls++
+			return codegen.ProjectSpec{
+				Project: codegen.PackageSpec{PackageName: "project", ImportPath: "example.com/site/project", Directory: "project"},
+				Apps: []codegen.AppSpec{{
+					Alias: "content", Package: codegen.PackageSpec{PackageName: "content", ImportPath: "example.com/site/content", Directory: "content"},
+					Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "content", Models: []ir.Model{{
+						Name: "article", GoName: "Article", Fields: []ir.Field{{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200}},
+					}}},
+				}},
+			}, nil
+		},
+		OpenMigrationBackend: func(context.Context) (MigrationBackend, error) {
+			openerCalls++
+			return nil, errors.New("makemigrations must not open backend")
+		},
+	}
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() { done <- Run(context.Background(), config, argv, reader, &output) }()
+	<-reader.started
+	roots[0] = "mutated"
+	sources[0].SourceID = "mutated"
+	sources[0].Document[0] ^= 0xff
+	argv[0] = "mutated"
+	close(reader.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	response, failure, failed := projectmigrationprotocol.ParseResponse(output.Bytes(), true)
+	if failed || failure != (projectmigrationprotocol.Failure{}) || !response.OK || len(response.Result.Candidates) != 1 ||
+		response.Result.ProgrammaticCatalog.SourceCount != 1 || response.Result.ProgrammaticCatalog.Sources[0].SourceID != "embedded/system-state.godj.json" {
+		t.Fatalf("response=%+v failure=%+v failed=%v", response, failure, failed)
+	}
+	if loaderCalls != 1 || openerCalls != 0 {
+		t.Fatalf("calls loader=%d opener=%d, want 1/0", loaderCalls, openerCalls)
+	}
+}
+
+func TestPublicMakemigrationsBoundsProgrammaticCatalogWithoutOpeningBackend(t *testing.T) {
+	enterProjectRoot(t)
+	loaderCalls := 0
+	openerCalls := 0
+	var output bytes.Buffer
+	err := Run(context.Background(), Config{
+		MigrationDefinitionRoots:   []string{"migrations"},
+		MigrationDefinitionSources: make([]definition.Source, definition.MaxSources+1),
+		LoadProjectSpec: func(context.Context) (codegen.ProjectSpec, error) {
+			loaderCalls++
+			return codegen.ProjectSpec{}, nil
+		},
+		OpenMigrationBackend: func(context.Context) (MigrationBackend, error) {
+			openerCalls++
+			return nil, errors.New("makemigrations must not open backend")
+		},
+	}, []string{projectmigrationprotocol.PrivateArgument}, bytes.NewReader(projectmigrationprotocol.RequestDocument()), &output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, failure, failed := projectmigrationprotocol.ParseResponse(output.Bytes(), true)
+	want := projectmigrationprotocol.Failure{
+		Category: projectmigrationprotocol.CategoryCandidate,
+		Code:     projectmigrationprotocol.CodeCandidateResourceLimitExceeded,
+	}
+	if failed || failure != (projectmigrationprotocol.Failure{}) || response.Failure != want || loaderCalls != 0 || openerCalls != 0 {
+		t.Fatalf("response=%+v failure=%+v failed=%v loader=%d opener=%d", response, failure, failed, loaderCalls, openerCalls)
+	}
+}
+
 func TestPublicFacadePropagatesWriterCancellationAndPrivateArgErrors(t *testing.T) {
 	enterProjectRoot(t)
 	sentinel := errors.New("writer failed")
@@ -333,6 +417,8 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	exports := make([]string, 0)
 	linkedCalls := 0
 	linkedMigrateCalls := 0
+	linkedMakemigrationsCalls := 0
+	linkedRawMakemigrationsCalls := 0
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch value := node.(type) {
 		case *ast.TypeSpec:
@@ -355,6 +441,12 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunMigrate" {
 				linkedMigrateCalls++
 			}
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunSnapshottedMakemigrations" {
+				linkedMakemigrationsCalls++
+			}
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunMakemigrations" {
+				linkedRawMakemigrationsCalls++
+			}
 		}
 		return true
 	})
@@ -367,6 +459,12 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	}
 	if linkedMigrateCalls != 1 {
 		t.Fatalf("linked.RunMigrate callsites in public facade = %d, want 1", linkedMigrateCalls)
+	}
+	if linkedMakemigrationsCalls != 1 {
+		t.Fatalf("linked.RunSnapshottedMakemigrations callsites in public facade = %d, want 1", linkedMakemigrationsCalls)
+	}
+	if linkedRawMakemigrationsCalls != 0 {
+		t.Fatalf("linked.RunMakemigrations raw callsites in public facade = %d, want 0", linkedRawMakemigrationsCalls)
 	}
 	source, err := os.ReadFile("project_unix.go")
 	if err != nil {

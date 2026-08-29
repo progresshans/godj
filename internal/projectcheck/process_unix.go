@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
+	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"golang.org/x/sys/unix"
 )
 
@@ -34,6 +35,12 @@ func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, st
 		retainStdout = true
 	} else if stage == GenerationRunnerStage {
 		stdoutMaximum = projectgenerateprotocol.MaxResponseBytes
+		retainStdout = true
+	} else if stage == MakemigrationsInventoryStage {
+		stdoutMaximum = int(defaultMakemigrationsBuildInputLimits().goListBytes)
+		retainStdout = true
+	} else if stage == MakemigrationsRunnerStage {
+		stdoutMaximum = projectmigrationprotocol.MaxResponseBytes
 		retainStdout = true
 	}
 	return executeOwnedProcess(ctx, interrupt, cloneCommand(command), stdoutMaximum, maxDiagnosticBytes, retainStdout)
