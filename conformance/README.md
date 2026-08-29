@@ -160,7 +160,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-lifecycle-manifest.json` | End-to-end migration lifecycle reference contract 10개 |
 | `contracts/migration-definition-source-manifest.json` | Current-format migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
-| `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; reference-only `oracle_locked`이며 product publication/status 입력 아님 |
+| `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -168,7 +168,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `runners/django` | 명시적인 Django/DRF observation과 GoDj decision-oracle scenario, type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..053 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 Article Bearer API까지 제품 package를 실행하는 스물한 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 Article Bearer API와 explicit migrate까지 제품 package를 실행하는 스물두 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -184,7 +184,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `lifecyclefence` | GDJ-0017 revision-fence test-only SQLite feasibility와 current-gap characterization |
 | `definitionload` | Current format/load ownership과 opaque lifecycle authority를 검증하는 focused gate |
 | `projectcheck` | GDJ-0021 descriptor/discovery/process/protocol test-only feasibility gate; product package가 아님 |
-| `projectmigrateproduct` | GDJ-0049 actual global SQLite source checkpoint; `runners/godj` adapter와 `godjcheck` status 입력은 아님 |
+| `projectmigrateproduct` | GDJ-0049 actual global SQLite/PostgreSQL black-box E2E root; product status 입력은 별도 `runners/godj` migration-command adapter가 소유 |
 | `runserverproduct` | Global `godj runserver` lifecycle, actual SQLite/PostgreSQL Article와 authenticated Admin/API required sentinels |
 | `cmd/godjcheck` | GoDj observation을 생성해 provenance-locked expected reference와 비교 |
 
@@ -293,24 +293,30 @@ local proof로 사용합니다. EVID-142/CI #159는 네 hosted relation 좌표�
 `be3344a3...9ee6`와 PostgreSQL required 18/18·required skip 0을 포함해 27/27 jobs·360/360 steps로 이 경계를
 hosted-verify했습니다.
 
-Active GDJ-0049의 Phase A는 MIG-087..098 project-linked migrate exact 12를 independent oracle-blind decision manifest,
-oracle과 payload-free not-implemented fixture로 게시했습니다. 모두 reference-only `oracle_locked`이며
-`conformance/projectmigrateproduct`의 partial SQLite source checkpoint는 아직 `runners/godj` product adapter나 status 전환
-입력이 아닙니다. Actual observation이 일치한 뒤에만 `passing`으로 전환하며 retired MIG-075..086 artifact/runner를
-재사용하지 않습니다.
+GDJ-0049 Phase A는 MIG-087..098 project-linked migrate exact 12를 independent oracle-blind decision manifest,
+oracle과 payload-free not-implemented fixture로 처음 게시했습니다. 당시 bytes는 reference-only `oracle_locked`였고
+`conformance/projectmigrateproduct`의 partial SQLite checkpoint도 product status 입력이 아니었습니다. 이 historical
+characterization은 보존하되, completed Phase B-E에서 separate migration-command adapter의 actual observation이 일치해
+MIG-087..098은 current product `passing`으로 전환됐습니다. Retired MIG-075..086 artifact/runner는 재사용하지 않았습니다.
 
-Current local reference는 23 sets/261 contracts/506 ordered bindings=
+별도의 GDJ-0047 completion snapshot에서 reference는 23 sets/261 contracts/506 ordered bindings=
 `218 passing + 19 deviation + 24 oracle_locked`, product는 21 adapters/237 eligible contracts=
-`218 passing + 19 deviation`입니다. 남은 locked/unregistered ranges는 MIG-075..086과 MIG-087..098입니다. ADR-0049는 Accepted,
-DEV-0009는 Verified입니다. Initial exact submitted-head run `33044776835`는 26 jobs success 뒤 macOS Intel
+`218 passing + 19 deviation`이었습니다. Initial exact submitted-head run `33044776835`는 26 jobs success 뒤 macOS Intel
 product job 하나가 30분 외곽 제한에서 취소됐고 완료된 steps와 수집 로그의 제품 assertion failure 표식은 0이었습니다.
 EVID-137의 Intel-only 45분 correction과 corrected full `make ci`, Linux/386, 1,077-file external archive refreeze 뒤
 corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `33049861740`이 exact
-27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. Phase A에
+27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. GDJ-0047이
 고정한 GoDj-owned manifest provenance `kind=proposal`, `reference=GDJ-0047`, `derived=false`는 historical bytes이며
-later acceptance로 소급 변경하지 않습니다.
-JWT/opaque token issuance,
-refresh family, OAuth/OIDC, signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
+later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
+signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
+
+Current reference는 23 sets/261 contracts/506 ordered bindings=
+`230 passing + 19 deviation + 12 oracle_locked`, product는 22 adapters/249 eligible contracts=
+`230 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086뿐입니다. Accepted ADR-0051과
+completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
+PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
+Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
+target/reverse/custom operation과 general upgrade/repair는 이 bounded acceptance에 포함되지 않습니다.
 
 ## GDJ-0045 durable system-state reference gate
 

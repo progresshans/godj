@@ -624,11 +624,11 @@ independent audit가 다시 통과했습니다. EVID-142/CI #159는 exact 27/27 
 failure/cancel/skip/annotation 0으로 corrected submitted head를 hosted-verify했습니다. Reverse/general manager,
 installed-version negotiation과 첫 외부 지원 릴리스 이후 upgrader는 이 bounded capability가 아닙니다.
 
-## Active capability: project-linked explicit migrate
+## Completed capability: project-linked explicit migrate
 
-Active [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Proposed
+Completed [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Accepted
 [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 existing current-only lifecycle을 global
-`godj migrate [--project <godj.toml>]`에 연결했습니다. Local-final은 latest/prefix-tail/no-op,
+`godj migrate [--project <godj.toml>]`에 연결했습니다. Hosted-verified product는 latest/prefix-tail/no-op,
 middle failure/resume, actual child fence/reconciliation, pre-migrate no-mutation, authenticated Admin/API distinct-process
 restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`이고
 current reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`, product는
@@ -639,10 +639,12 @@ project-owned backend opener, 별도 strict private protocol, latest-only/no-ret
 Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 migration core의 순차 rollback/session-close 10초 상한에
 outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
 cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
-writer/autodetector와 target/reverse/plan/fake는 범위 밖입니다. Submitted head `8841319...`의 run
+writer/autodetector와 target/reverse/plan/fake는 범위 밖입니다. 첫 submitted head `8841319...`의 run
 `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로
-terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 per-mode budget,
-source-bound attestation/lock recapture를 반영한 corrected hosted matrix만 남았으며 그전까지 active/Proposed입니다.
+terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 macOS Intel race 전용 bounded
+budget, source-bound attestation/lock recapture를 반영한 submitted tree `b82bb5b...`는
+[EVID-146](status/TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion) / CI #164 run
+`33247166995`의 41/41 jobs·464/464 steps와 PostgreSQL 세 mode의 required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
 
 ### Historical GDJ-0035 design and evidence snapshot
 

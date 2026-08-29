@@ -3,18 +3,15 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 검증: 2026-08-28 (GDJ-0048 corrected exact head EVID-142 / CI #159 run `33088586232`)
-- 현재 required checkpoint: 2026-08-29 (GDJ-0047 EVID-138 terminal hosted 통과; GDJ-0048 activation head
-  `1070ec3...`의 CI #157 exact 27/27 통과; current facade v3 affected/vertical/source-bound gate EVID-139 통과;
-  first local final EVID-140 보존; CI #158 inventory-only failure 뒤 corrected source EVID-141 required PostgreSQL와
-  final inventory/full/386/archive/audit 통과; submitted `17966e2...`의 EVID-142/CI #159 exact 27/27·360/360 통과;
-  GDJ-0049 activation `c983381...`의 CI #160 exact 27/27·360/360 통과; EVID-144 local-final은
-  clean SQLite/PostgreSQL 17.10과 MIG-087..098 product 12 `passing`을 검증; submitted `8841319...`의 run
-  `33124180742`는 23 success, PostgreSQL timeout 1 failure, relation/conformance outer-timeout 3 cancellation이므로
-  corrected source-bound hosted acceptance는 pending)
-- 현재 active design: GDJ-0049/Proposed ADR-0051. Reference 23/261/506=`230 passing + 19 deviation + 12
-  oracle_locked`, product 22/249=`230 passing + 19 deviation`; MIG-087..098은 local-final product `passing`이고
-  MIG-075..086만 diagnostic/reference-only `oracle_locked`. Exact corrected hosted matrix 전까지 terminal 승격하지 않음
+- 마지막 검증: 2026-08-29 (GDJ-0049 corrected exact head EVID-146 / CI #164 run `33247166995`)
+- 현재 required checkpoint: EVID-144 local-final은 clean SQLite/PostgreSQL 17.10과 MIG-087..098 product 12
+  `passing`을 검증했습니다. 첫 submitted run `33124180742`의 timeout을 selector/workload 분리와 macOS Intel race 전용
+  bounded budget으로 교정하고 source-bound attestation을 재캡처했습니다. Submitted head `a909692...`, tree
+  `b82bb5b...`의 EVID-146/CI #164 run `33247166995`는 41/41 jobs·464/464 steps와 PostgreSQL mode별
+  required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
+- 현재 completed design: GDJ-0049/Accepted ADR-0051. Reference 23/261/506=`230 passing + 19 deviation + 12
+  oracle_locked`, product 22/249=`230 passing + 19 deviation`; MIG-087..098은 hosted-verified product `passing`이고
+  MIG-075..086만 diagnostic/reference-only `oracle_locked`. 현재 active/ready work는 0/0임
 - 현재 형식 mirror 검토: 2026-08-29
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.

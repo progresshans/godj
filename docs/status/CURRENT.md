@@ -3,10 +3,9 @@
 - 마지막 갱신: 2026-08-29
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 1/0입니다. Active
-  [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Proposed
-  [ADR-0051](../adr/0051-project-linked-explicit-migrate.md)은 behavioral publication `c5af15e...`, tree
-  `0d6d9e6...`와 source-bound attestation publication `dc3861f...`, tree `3047c3b...`까지 진행됐습니다. Exact
+- 현재 active/ready work는 0/0입니다. Completed
+  [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Accepted
+  [ADR-0051](../adr/0051-project-linked-explicit-migrate.md)은 exact
   `godj migrate [--project <godj.toml>]`, copied definition load-before-open, project-owned lazy backend,
   one-open/one-migrate/one-close, no-retry/error/secret/15초 cleanup 경계와 clean SQLite/PostgreSQL latest/no-op,
   durable-prefix resume, actual child fence/reconciliation, authenticated Admin/API distinct-process restart가 구현됐습니다.
@@ -17,21 +16,13 @@
   [EVID-144](TEST_EVIDENCE.md#evid-20260828-144--gdj-0049-frozen-local-final-and-source-bound-postgresql-publication)에
   기록했습니다. 첫 exact submitted-head `8841319...` / CI run `33124180742`는 27 executions 중
   23 success, 1 package-timeout failure, 3 job-timeout cancellation으로 끝났습니다. PostgreSQL exact selector,
-  conformance/portable-Go/relation/PostgreSQL mode 분리, coverage-based `required-ci`와 새 source-bound attestation
-  재캡처를 구현했습니다. Corrected exact-head hosted matrix 전까지 work/ADR은 active/Proposed를 유지합니다. Recent completed
-  [GDJ-0048](../../work/0048-canonical-application-model-facade-and-current-generated-abi.md)과 Accepted
-  [ADR-0050](../adr/0050-canonical-embedded-application-model-facade.md)은 private raw-model alias embedding, promoted
-  scalar/app method, direct FK/PK reconciliation, fail-closed source namespace audit, JSON/DTO 경계와 facade ABI v3
-  whole-bundle publication을 bounded current product로 고정했습니다. Source/first-local-final/corrected refreeze는
-  [EVID-139](TEST_EVIDENCE.md#evid-20260827-139--gdj-0048-canonical-facade-source-checkpoint-and-postgresql-attestation),
-  [EVID-140](TEST_EVIDENCE.md#evid-20260827-140--gdj-0048-frozen-local-final-gates-and-postgresql-test-correction),
-  [EVID-141](TEST_EVIDENCE.md#evid-20260828-141--gdj-0048-first-exact-head-inventory-lock-failure-and-corrected-local-refreeze)에
-  보존합니다. Submitted head `17966e2740c7a5cbd9182a9504fd2613d6dff360`, tree
-  `90c46d799f2b38333a28a90a16cd72f1563ea73d`의
-  [EVID-142](TEST_EVIDENCE.md#evid-20260828-142--gdj-0048-corrected-exact-head-hosted-completion) / CI #159 run
-  `33088586232`은 exact 27/27 jobs·360/360 steps, failure/cancel/skip/annotation 0으로 corrected hosted acceptance를
-  닫았습니다. Q-017은 reverse/general capability와 첫 외부 지원 릴리스 이후 upgrader 때문에 P1/open이고
-  Schema IR/Migration/Backend, JWT/OpenAPI/Realtime은 이 완료 범위가 아닙니다.
+  conformance/portable-Go/relation/PostgreSQL mode 분리, coverage-based `required-ci`와 새 source-bound attestation을
+  재캡처했습니다. Submitted head `a9096923856d1b1b2ee7d31001cb4c12d067caa6`, tree
+  `b82bb5b3cb3312d155dc031507c859e5b4272a7f`의
+  [EVID-146](TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion) / CI #164 run
+  `33247166995`는 exact 41/41 jobs·464/464 steps, failure/cancel/skip/annotation 0과 PostgreSQL mode별
+  20 run/20 pass/0 skip으로 terminal acceptance를 닫았습니다. Q-010/Q-012는 `Partial`, Q-019는 P1/open이고
+  다음 packet은 아직 활성화하지 않았습니다.
 - Terminal docs head `31fee59...`의 CI #156/run `33053749701`은 27 jobs 중 26 success, 1 test failure였습니다.
   유일한 실패는 SQLite coordinated rollback callback이 mutation barrier를 닫은 직후 expected error를 반환해 두 channel이
   동시에 ready가 되는 select false-negative였습니다. Baseline `3882902...`는 main barrier observation까지 callback return을
@@ -1403,12 +1394,12 @@
   `d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4`/
   `e69c745711babce2f54db98bf32e2ecf6340b4419c693ea6a2642ec7cb3ebddd`입니다. Checked PostgreSQL 17.10
   attestation/checksum file은 1,134/103 bytes와 SHA-256
-  `015952a2e520fbe626ee290f48856684585eef3d71d48713cf0806bdeec3f108`/
-  `0cf3983caeb7f5b752e3717d6a41bc32b3a84208b73430cc2a08914cc7f9676e`이고, current source binding은
-  262 files/3,101,926 payload bytes/SHA-256 `cb0ceb5050d58e28e33d53f95c5ecf11d2572bcf78027c9669d0f48f1deb58cf`입니다.
-- Current local normal relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,227 bytes/SHA-256
-  `e88d31d687b02539e881d6b8300e3f0d9aca3e3a046a582b40627360c427b10f`입니다. Four-coordinate exact hosted
-  confirmation은 GDJ-0049 submitted head에서 pending입니다.
+  `58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e`/
+  `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`이고, current source binding은
+  262 files/3,108,132 payload bytes/SHA-256 `6e949613e23d2b098c3e7cdfb8460afba5ab129b545ff96821ee53d57a229f23`입니다.
+- Current normal relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,222 bytes/SHA-256
+  `90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`입니다. Four-coordinate normal과
+  전체 twelve coordinate/mode Hosted jobs는 EVID-146에서 통과했습니다.
 
 ### 검증 증거
 
@@ -1846,11 +1837,8 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 1/0입니다. Active GDJ-0049의 activation head `c98338112ced8d088ec880bdccb6ee8bb19ac1c8`,
-tree `91aa6d0dbbbbb07b4503b5e64a50871912203036`은 CI #160/run `33094196687`의 exact 27/27 jobs·360/360 steps를
-통과했습니다. Phase A reference `2248c982...`는 MIG-087..098 exact 12를 모두 `oracle_locked`로 게시했고,
-Phase B source `d31a8b8c...` 뒤 SQLite lifecycle `d160ea4...`, PostgreSQL lifecycle `e3cee0d...`, product publication
-`c5af15e...`와 source-bound attestation publication `dc3861f...`까지 진행됐습니다. Exact latest-only `godj migrate`, copied
+현재 active/ready packet은 0/0입니다. Completed GDJ-0049는 activation head `c983381...`에서 시작해 Phase A reference
+`2248c982...`, Phase B `d31a8b8c...`, SQLite/PostgreSQL lifecycle과 product publication을 거쳤습니다. Exact latest-only `godj migrate`, copied
 load-before-open, lazy project-owned backend opener, one-open/one-migrate/one-close, no-retry/error/secret/interrupt cleanup과
 Article stable root/shared database config가 구현됐습니다. Clean SQLite/PostgreSQL latest/no-op, middle failure durable-prefix
 resume, actual child-vs-child fence/reconciliation, pre-migrate no mutation 및 authenticated Admin/API distinct-process restart가
@@ -1862,13 +1850,15 @@ archive/audit local-final도 통과했습니다. 첫 exact submitted-head `88413
 Intel은 20분 job cap, conformance는 직렬 `make ci` 도중 45분 job cap에서 취소됐습니다. 수집된 로그의
 assertion/panic 실패 표식은 0이지만 중단된 lane은 미검증이며 green으로 재사용하지 않습니다. PostgreSQL exact selector,
 conformance/portable-Go/relation/PostgreSQL mode별 parallel execution과 필수 coverage 기반 workflow lock을 구현했고,
-source-bound attestation 두 독립 캡처도 일치했습니다. 현재 정확한 작업은 corrected exact head를 제출하는 것입니다.
+source-bound attestation 두 독립 캡처도 일치했습니다.
 첫 local refreeze `make ci`는 기존 canceled runner metric test의 child-ready/parent-capture
 경쟁 한 건에서 실패했고, test-only capture acknowledgment 교정 뒤 focused normal 100회/race 20회를 통과했습니다.
 전체 root gate는 다시 실행하지 않았으므로 current head의 full local pass를 주장하지 않습니다. 상세는
 [EVID-145](TEST_EVIDENCE.md#evid-20260829-145--gdj-0049-hosted-timeout-correction-and-local-test-synchronization)에
-기록합니다. 그 전까지 ADR-0051은 Proposed,
-GDJ-0049는 active로 유지합니다.
+기록합니다. Intel race 전용 correction `2def884...`과 attestation publication `a909692...` 뒤 exact submitted tree
+`b82bb5b...`의 [EVID-146](TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion) /
+CI #164 run `33247166995`가 41/41 jobs·464/464 steps, failure/cancel/skip/annotation 0으로 통과했습니다.
+ADR-0051은 Accepted, GDJ-0049는 completed이며 다음 packet은 별도 activation에서 선택합니다.
 
 Completed GDJ-0048은 activation head `1070ec3...`에서 시작해 Accepted ADR-0050의 canonical
 embedded application-model facade/current ABI v3를 hosted-verified했습니다. Article exact 12/snapshot `f0043e499...`,

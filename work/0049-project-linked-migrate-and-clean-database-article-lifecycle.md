@@ -1,6 +1,6 @@
 ---
 id: GDJ-0049
-status: active
+status: completed
 updated: 2026-08-29
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "3fdb1c774b1c04d7db800f35ce9a7d714b1d973f"
@@ -254,7 +254,7 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
   relation 좌표별 mode 분리와 coverage 기반 workflow lock을 구현하고 source-bound PostgreSQL attestation을 재캡처
 - [x] Local refreeze에서 드러난 canceled runner metric test의 child-ready/parent-capture 경쟁을 test-only capture
   acknowledgment로 교정하고 focused normal/race 반복을 통과
-- [ ] corrected exact submitted-head hosted matrix 뒤 ADR/status/evidence를 terminal bytes에 맞게 갱신
+- [x] corrected exact submitted-head hosted matrix 뒤 ADR/status/evidence를 terminal bytes에 맞게 갱신
 
 ## 완료 조건
 
@@ -291,14 +291,20 @@ oracle-blind decision artifact를 사용합니다. Retired MIG-075..086 profile/
   green으로 재사용하지 않습니다.
 - PostgreSQL normal/race/CGO0는 exact required 20-test selector와 exact run/pass/no-skip inventory로 분리했고,
   Hosted `make ci`는 artifact-contract-386과 portable normal+vet/race/CGO0로, relation은 네 좌표×세 mode로
-  분리했습니다. Relation test 15분/job 20분, PostgreSQL 세 mode job 25분을 적용하며 exact job count 대신 모든
+  분리했습니다. Relation test 15분, job 20분(단 macOS Intel race만 30분), PostgreSQL 세 mode job 25분을 적용하며 exact job count 대신 모든
   top-level job의 `required-ci` dependency coverage를 protocol lock으로 검증합니다. Corrected workflow/Makefile source의
   PostgreSQL attestation은 digest-pinned Linux/amd64 Go 1.26.5와 PostgreSQL 17.10에서 두 번 byte-identical하게
   재캡처했습니다. CI correction은 `3bff0097b8708445d38b85659c3a34ad681f2078`, canceled runner test-only
   synchronization correction은 `caecf5115b0902d37dd3c525902d26edcc82b69c`입니다. 첫 local refreeze `make ci`는
   기존 test ready 신호가 parent capture를 보장하지 않아 한 번 실패했고, 해당 race 교정 뒤 focused normal 100회와
   race 20회를 통과했습니다. 전체 `make ci`를 CI 완벽화 목적으로 반복하지 않았으며 [EVID-145](../docs/status/TEST_EVIDENCE.md#evid-20260829-145--gdj-0049-hosted-timeout-correction-and-local-test-synchronization)에
-  실패와 non-claim을 남겼습니다. 현재 정확한 다음 작업은 corrected exact head를 제출하는 것입니다.
-  그 전까지 ADR-0051은 Proposed, GDJ-0049는 active이고 terminal 승격이나 다음 packet 활성화를 하지 않습니다.
+  실패와 non-claim을 남겼습니다.
+- Intel race 전용 30분 outer budget correction `2def884...`과 source-bound attestation publication `a909692...`
+  뒤 exact submitted-head tree `b82bb5b...`의 CI #164/run `33247166995`가 41/41 jobs·464/464 steps,
+  failure/cancel/skip/annotation 0으로 통과했습니다. PostgreSQL normal/race/CGO-disabled는 각각 required
+  20 run/20 pass/0 skip이고, 이전에 취소된 macOS Intel relation race도 test step 12분 56초에 완주했습니다.
+  [EVID-146](../docs/status/TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion)은
+  exact merge-tree identity, 두 독립 attestation 캡처와 terminal non-claim을 기록합니다. ADR-0051은 Accepted,
+  GDJ-0049는 completed이며 다음 packet은 별도 activation에서 선택합니다.
 - 같은 public `project.Config`, global CLI dispatch, contract manifest/registry와 CURRENT는 통합 담당 한 명만 수정합니다.
 - Full hosted/evidence cycle은 subtask마다 반복하지 않고 final frozen source에서 한 번 수행합니다.

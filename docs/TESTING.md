@@ -1072,7 +1072,7 @@ bundle drift, SQLite direct mutation/reload, PostgreSQL separate-process/source-
 archive를 분리해 검증했습니다. EVID-142/CI #159의 exact 27/27 jobs·360/360 steps 뒤에만 ADR-0050을 Accepted,
 GDJ-0048을 completed로 terminal 승격했습니다.
 
-### GDJ-0049 project-linked migrate local-final and hosted correction gate
+### GDJ-0049 project-linked migrate corrected hosted completion gate
 
 Phase A는 MIG-087..098 exact 12를 reference-only `oracle_locked`로 게시하고 old project-check protocol byte identity,
 public Config compile, strict migrate protocol과 retired MIG-075..086 exact 11-file no-diff를 고정했습니다. Phase B는
@@ -1096,7 +1096,12 @@ broad PostgreSQL package 15분 timeout 1 failure, relation-product 20분 ceiling
 relation/conformance mode/workload 분리 및 coverage-based aggregate를 구현했고 workflow-bound PostgreSQL attestation,
 checksum, source binding과 lock tests도 새 source에서 두 번 동일하게 재캡처했습니다. EVID-145는 local root-gate에서
 발견한 test-harness synchronization flake와 focused correction을 기록하며 full local pass를 주장하지 않습니다.
-Corrected exact-head hosted matrix가 전부 통과하기 전에는 ADR acceptance/work completion을 게시하지 않습니다.
+macOS Intel race job의 outer budget만 20분에서 30분으로 늘리고 internal 15분 test timeout과 다른 eleven relation
+lane은 유지했습니다. 새 workflow source의 PostgreSQL attestation을 두 번 독립 재캡처한 뒤 submitted head
+`a909692...`, tree `b82bb5b...`의 EVID-146/CI #164 run `33247166995`가 41/41 jobs·464/464 steps와 failure/cancel/
+recorded-step skip/annotation 0으로 통과했습니다. PostgreSQL normal/race/CGO-disabled는 각각 같은 required
+20/20·skip 0을 통과했습니다. 이 결과로 ADR-0051은 Accepted, GDJ-0049는 completed입니다. EVID-145의 failed local
+root attempt는 classified non-green으로 남고 current head의 full local `make ci` 재실행은 주장하지 않습니다.
 
 ### GDJ-0033 REL-002 assignment/save/cache implementation gate
 

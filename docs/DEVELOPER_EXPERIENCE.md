@@ -1,9 +1,9 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F와 GDJ-0042 bounded runserver 단면 hosted-Verified
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified
 - 마지막 검토: 2026-08-29
 
-아래 `M1 verified` 단면과 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
+아래 `M1 verified` 단면, §8의 GDJ-0049 explicit migrate 경계와 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
 
 ## M1 verified 단면
@@ -476,14 +476,15 @@ godj migrate
 godj migrate --project ./godj.toml
 ```
 
-Active GDJ-0049의 local-final에서 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current argv로
+Completed GDJ-0049의 `godj migrate`와 `godj migrate --project ./godj.toml`은 exact current argv로
 구현됐습니다. Existing declaration package가 DB config/backend를 소유하고 global CLI core는 전달되는 ambient
 environment의 DSN/secret 값을 파싱하거나 출력하지 않습니다. `migrations check`는 계속 DB-free이고 `runserver`는 implicit
 migrate를 하지 않습니다. Clean SQLite/PostgreSQL 17.10, durable-prefix resume, actual child fence,
-authenticated Admin/API distinct-process restart를 포함한 MIG-087..098 exact 12는 local-final product `passing`입니다.
+authenticated Admin/API distinct-process restart를 포함한 MIG-087..098 exact 12는 hosted-verified product `passing`입니다.
 Submitted head `8841319...`의 first local-final hosted run `33124180742`는 23/27 success 후 broad PostgreSQL과
-relation/conformance outer timeout으로 닫히지 않았습니다. 사용자 표면은 바뀌지 않으며 corrected
-source-bound hosted matrix 전까지 work/ADR은 active/Proposed입니다.
+relation/conformance outer timeout으로 닫히지 않았습니다. 사용자 표면은 바꾸지 않고 selector/workload와 macOS Intel
+race outer budget만 교정했으며, submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
+41/41 jobs·464/464 steps와 PostgreSQL mode별 required 20/20·skip 0을 통과했습니다. ADR-0051은 Accepted입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

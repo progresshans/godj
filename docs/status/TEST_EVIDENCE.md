@@ -1,8 +1,8 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-28
-- 현재 local source/contract checkpoint: EVID-20260828-143
-- latest hosted product proof: EVID-20260828-142
+- 마지막 갱신: 2026-08-29
+- 현재 local source/contract checkpoint: EVID-20260829-146
+- latest hosted product proof: EVID-20260829-146
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -13657,3 +13657,77 @@ Results were 100/100 normal in 5.08 seconds and 20/20 race in 3.17 seconds. Inde
 not run merely to perfect CI before resuming planned development. Therefore this evidence does not claim current-head full
 local or Hosted success. GDJ-0049/ADR-0051 remain active/Proposed until the corrected exact-head Hosted acceptance is
 observed; no later product packet is activated by this evidence.
+
+## EVID-20260829-146 — GDJ-0049 Corrected Exact-Head Hosted Completion
+
+- Date: 2026-08-29 KST
+- Work/contract IDs: GDJ-0049 completed; ADR-0051 Accepted; MIG-087..098 registered `passing`;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Intel race timeout correction commit: `2def8843526d625f08b93044e985641bbbd5f32f`, tree
+  `c35928f70c98011058199236914bba29606d8ac8`
+- Source-bound attestation publication and submitted head: `a9096923856d1b1b2ee7d31001cb4c12d067caa6`, tree
+  `b82bb5b3cb3312d155dc031507c859e5b4272a7f`
+
+### First corrected run and final bounded correction
+
+[GitHub Actions CI #163 run 33245279261](https://github.com/progresshans/godj/actions/runs/33245279261) ran from
+`2026-08-29T09:20:59Z` through `09:52:35Z` for submitted head `0b0be1e84406c8a9a753e55844a49cf4c82b0e16`.
+Its synthetic merge `a6c83c364689b0d1533194c6d29a083cbdc509c0` had parents `f8a5e20...` and `0b0be1e...` and
+the same tree `22ddf6da1d146cd2e1803584a7dfe12ef2c19d35` as the submitted head. Of 41 jobs, 39 succeeded,
+the `macos-15-intel` relation race job was cancelled at its exact 20-minute outer ceiling and `Required CI` correctly
+failed. The 464 recorded steps were 460 success, one cancelled, one failed and two skipped.
+
+The cancelled relation step had passed schema, query, codegen, ORM, SQLite, migration, relation products,
+`conformance/internal/protocol` and `conformance/runners/godj` before cancellation during the remaining tail. Its log had
+no assertion, panic, package `FAIL` or data-race marker, but that tail remained unverified and was not reused as green
+evidence. PostgreSQL normal/race/CGO-disabled had already passed their exact required 20 run/20 pass/0 skip inventories.
+
+Commit `2def884...` changes only that `macos-15-intel` race job's outer budget from 20 to 30 minutes and updates the
+workflow structure lock. The internal `go test -timeout=15m` remains unchanged, and the other eleven relation
+coordinate/mode legs remain at 20 minutes. This is a coordinate-specific scheduling correction, not a broader product or
+test timeout relaxation.
+
+Because `.github/workflows/ci.yml` belongs to the PostgreSQL live-attestation source scope, the correction was followed by
+two independent captures from the clean `2def884...` source archive. Each used a distinct Linux/amd64 Go 1.26.5 producer,
+PostgreSQL 17.10 container, network, schema and external capture path. Both asserted the exact sixteen-field PostgreSQL
+profile and passed `TestSystemStatePostgresTwoProcessCoordinationRestartSentinel`. The captures are byte-identical at
+1,134 bytes/SHA-256 `58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e`; the sibling checksum is
+103 bytes/SHA-256 `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`. Source binding is exactly
+262 files/3,108,132 payload bytes/SHA-256 `6e949613e23d2b098c3e7cdfb8460afba5ab129b545ff96821ee53d57a229f23`.
+Both record two writers, same-schema/barrier/restart true and divergence/loss/drift/secret counts zero; the dedicated
+credential canary occurs zero times in the capture bytes. Publication commit `a909692...` updates only the canonical JSON,
+checksum and their protocol locks. Checksum verification, focused attestation/restart/protocol tests,
+`make godj-conformance` and `git diff --check` passed. EVID-145's failed local root attempt remains a classified non-green
+attempt; a current-head full local `make ci` was not rerun or claimed.
+
+### Corrected exact submitted-head result
+
+[GitHub Actions CI #164 run 33247166995](https://github.com/progresshans/godj/actions/runs/33247166995), attempt 1, ran
+from `2026-08-29T10:09:45Z` through `10:42:43Z`. GitHub checked synthetic merge
+`47e3d3a02ac8fad283cbf189057ed6d05f2ba01f`, whose parents are `f8a5e20...` and submitted head `a909692...` and whose
+tree is exactly the submitted-head tree `b82bb5b3cb3312d155dc031507c859e5b4272a7f`. This is exact submitted-tree proof;
+it does not claim that the merge commit object itself is the submitted commit.
+
+All 41 jobs, all 464 recorded steps and all 41 check runs succeeded. Failure, cancellation, recorded-step skip and
+annotation counts were all zero, and the dependency-coverage `Required CI` gate succeeded. These counts describe this run;
+they are not a fixed product contract for future workflow topology.
+
+PostgreSQL normal, race and CGO-disabled jobs independently passed the same exact required set at 20 run/20 pass/0 skip.
+Their job durations were 6 minutes, 8 minutes 29 seconds and 7 minutes 38 seconds respectively; normal also compared its
+live capture byte-for-byte with the checked attestation and exercised service restart. All twelve relation coordinate/mode
+jobs succeeded. The corrected `Relation product (macos-15-intel, race)` job
+[`99086534734`](https://github.com/progresshans/godj/actions/runs/33247166995/job/99086534734) completed in 13 minutes
+48 seconds; its relation step completed in 12 minutes 56 seconds and reached successful `godjcheck`, `compiletest` and
+clean-worktree completion under the bounded 30-minute outer budget.
+
+### Terminal status and non-claims
+
+This exact hosted result accepts ADR-0051 and completes GDJ-0049 for the bounded current latest-only explicit migrate
+surface, project-owned backend/secret boundary, durable-prefix resume, child fence/reconciliation and clean
+SQLite/PostgreSQL Article lifecycle. Q-010/Q-012 remain `Partial` for installed-version negotiation, writer/autodetector,
+target/reverse/custom operations and general upgrade/repair; Q-019 remains P1/open for retained unknown-outcome resources.
+No general migration writer, multi-DB router, production deployment, merge or release is claimed.
+
+After the run, Draft PR #1 was re-queried as `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. Run `33247166995` proves
+submitted predecessor head `a909692...` at exact tree `b82bb5b...`; it does not recursively prove this later terminal
+documentation-only descendant. No next work packet is activated by this evidence itself.

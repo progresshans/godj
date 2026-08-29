@@ -1,7 +1,7 @@
 # Database Backend Matrix
 
-- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010 및 GDJ-0046 cooperative multi-runtime bounded slice Verified
-- 마지막 검토: 2026-08-26
+- 상태: 장기 목표 Accepted, SQLite 제한 단면 Verified, PostgreSQL DB-PG-001..010·GDJ-0046 cooperative multi-runtime·GDJ-0049 explicit migrate bounded slice Verified
+- 마지막 검토: 2026-08-29
 
 이 표는 지원 주장표가 아니라 **계획과 검증 범위**입니다. `Planned`는 동작한다는 뜻이 아닙니다.
 
@@ -9,8 +9,8 @@
 
 | Backend | 도입 단계 | 현재 상태 | 초기 역할 |
 |---|---|---|---|
-| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver bounded `Implemented`/hosted `Verified`; GDJ-0046 coordinated transaction, two-Runtime/two-process system state `Implemented`/hosted `Verified` | read/write, transaction, 최소 migration conformance |
-| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 PostgreSQL 17 runserver bounded Implemented/Verified; GDJ-0046 coordinated transaction과 source-bound PostgreSQL 17.10 two-process actual `Implemented`/hosted `Verified`; broader support open | relation, locking, production-oriented semantics |
+| SQLite | M0 reference / M1-M2 GoDj | 제한 단면 Verified; GDJ-0042 runserver, GDJ-0046 coordinated transaction/two-Runtime/two-process system state와 GDJ-0049 clean-schema/latest-only explicit migrate `Implemented`/hosted `Verified` | read/write, transaction, 최소 migration conformance |
+| PostgreSQL | M3 | DB-PG-001..010 및 GDJ-0042 runserver, GDJ-0046 coordinated transaction/source-bound two-process actual과 GDJ-0049 clean-schema/latest-only explicit migrate/restart가 PostgreSQL 17.10에서 `Implemented`/hosted `Verified`; broader support open | relation, locking, production-oriented semantics |
 | MySQL | M9 | Not started | backend conformance |
 | MariaDB | M9 | Not started | MySQL과 차이를 별도 capability로 검증 |
 | Oracle | M9 | Not started | 별도 driver/CI/licensing 운영 검토 필요 |
@@ -18,6 +18,12 @@
 | SpatiaLite | M10 | Not started | SQLite spatial conformance 후보 |
 | MySQL Spatial | M10 | Not started | 지원 범위 capability 기반 |
 | Oracle Spatial | M10 | Not started | optional official module 가능성 검토 |
+
+GDJ-0049의 corrected submitted tree `b82bb5b...`는
+[EVID-146](status/TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion) / CI #164 run
+`33247166995`에서 clean SQLite/PostgreSQL latest-only migrate, restart와 authenticated Article lifecycle을
+hosted-verify했습니다. PostgreSQL normal/race/CGO-disabled는 각각 같은 required 20/20·skip 0을 통과했습니다.
+이는 production readiness, multi-DB routing이나 general writer/autodetector 지원을 추가하지 않습니다.
 
 ## Capability 축
 

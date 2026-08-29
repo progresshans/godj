@@ -1,19 +1,21 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 active batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
-  current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Proposed
+- 최근 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
+  current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
   ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
-  no-implicit-migrate를 고정합니다. Current local-final은 middle failure/resume, full child-vs-child fence,
+  no-implicit-migrate를 고정합니다. Local-final 단계는 middle failure/resume, full child-vs-child fence,
   authenticated Admin/API distinct-process restart, clean SQLite/PostgreSQL 17.10과 MIG-087..098 exact 12 product
   `passing`을 구현했습니다. Reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`,
   product는 22/249=`230 passing + 19 deviation`입니다. Local-final submitted head `8841319...`의 run
   `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout 한 건과 relation-product 두 건,
   conformance-validation 한 건의 outer-timeout cancellation으로 종료됐습니다. Exact required PostgreSQL
-  selector, relation/conformance의 mode/workload 분리와 per-mode budget, source-bound attestation/lock recapture를 거친 corrected
-  hosted matrix가 유일한 남은 acceptance입니다. 그전까지 work/ADR은 active/Proposed입니다.
-- 최근 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
+  selector, relation/conformance의 mode/workload 분리와 macOS Intel race 전용 bounded budget, source-bound
+  attestation/lock recapture를 거친 submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
+  41/41 jobs·464/464 steps와 PostgreSQL 세 mode required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
+  현재 active/ready는 0/0이며 다음 packet은 아직 선택하지 않았습니다.
+- 직전 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
   project-owned relation state를 결합하고, direct FK reconciliation, fail-closed method namespace, pointer/copy safety와
@@ -24,7 +26,7 @@
   relation-product failure는 stale inventory lock으로 한정됐고, EVID-141 corrected source에서 current 1,073/1,073/0,
   required PostgreSQL 18/18, full `make ci`, Linux/386, 1,088-file external archive/audit를 다시 통과했습니다.
   Submitted `17966e2...`의 EVID-142/CI #159는 exact 27/27 jobs·360/360 steps로 completed/hosted-verified 상태를
-  닫았습니다. 그 terminal head의 active/ready는 0/0이었고 현재는 GDJ-0049 하나가 active입니다.
+  닫았습니다. 그 terminal head의 active/ready는 0/0이었습니다.
 - 현재 단계: [GDJ-0039](../work/0039-typed-projection-scalar-aggregate-and-stable-pagination.md)은 EVID-110에서
   QRY-022..033을 hosted-verified하고 completed됐습니다. 후속
   [GDJ-0040](../work/0040-composable-typed-boolean-predicates-and-article-search.md)과
@@ -143,7 +145,7 @@
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
   exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Verified deviations`는 product publication,
   SQLite/PostgreSQL required와 corrected final local full/386/archive 뒤 EVID-138/CI #155 exact hosted
-  27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 local-final product `passing`이며
+  27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 hosted-verified product `passing`이며
   현재 reference-only locked range는 MIG-075..086뿐입니다.
 - 마지막 검토: 2026-08-29
 

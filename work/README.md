@@ -72,12 +72,12 @@ proposed → ready → active → completed
 | [GDJ-0046](0046-database-coordinated-multi-runtime-system-state-and-shared-csrf-keys.md) | completed | Database-coordinated cooperative multi-runtime system state와 shared CSRF key ring |
 | [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | completed | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
 | [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | completed | Canonical embedded application model facade와 current generated ABI v3 |
-| [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | active | Project-linked explicit `migrate`와 clean-database Article lifecycle |
+| [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | completed | Project-linked explicit `migrate`와 clean-database Article lifecycle |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active
+현재 active/ready packet은 0/0입니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
-project runner를 explicit `godj migrate`에 연결했습니다. Proposed
+project runner를 explicit `godj migrate`에 연결했습니다. Accepted
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
 load-before-open, latest-only/no-retry, rollback/unknown classification과 cleanup보다 긴 interrupt grace를 고정합니다.
 Behavioral publication `c5af15e...`, source-bound attestation `dc3861f...`와 local-final documentation head
@@ -88,11 +88,14 @@ current reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`,
 23 success, broad PostgreSQL package 15분 timeout 1 failure, relation-product 20분 ceiling 두 건과
 conformance-validation 45분 ceiling 한 건의 cancellation으로 종료됐습니다. 수집된 로그의 assertion/panic 실패 표식은
 0이지만 중단 lane은 미검증입니다. Exact required PostgreSQL selector, relation/conformance mode/workload 분리,
-per-mode budget과 source-bound attestation/lock recapture를 적용한 corrected exact-head hosted matrix가 남았습니다.
+per-mode budget과 source-bound attestation/lock recapture를 적용한 corrected exact-head hosted matrix를 준비했습니다.
 Local refreeze의 첫 `make ci`는 canceled runner metric test의 child-ready/parent-capture 경쟁에서 실패했으며,
 test-only capture acknowledgment 교정 뒤 focused normal/race 반복은 통과했습니다. 전체 root gate 재실행은 하지
 않았고 이 non-claim은 EVID-145에 남깁니다.
-Hosted success 전까지 GDJ-0049/ADR-0051은 active/Proposed를 유지합니다. Completed
+Intel race 전용 bounded timeout correction과 source-bound attestation refresh 뒤 submitted `a909692...`, tree
+`b82bb5b...`의 [EVID-146](../docs/status/TEST_EVIDENCE.md#evid-20260829-146--gdj-0049-corrected-exact-head-hosted-completion) /
+CI #164 run `33247166995`가 exact 41/41 jobs·464/464 steps와 PostgreSQL mode별 20/20·skip 0으로 terminal
+acceptance를 닫았습니다. 다음 packet은 아직 활성화하지 않았습니다. Completed
 [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md)은 activation head `1070ec3...`에서
 Q-017의 raw-model UX/namespace/relation-state 경계를 current project facade ABI로 좁혔습니다. Accepted
 [ADR-0050](../docs/adr/0050-canonical-embedded-application-model-facade.md)은 private alias embedding, existing
@@ -120,7 +123,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0048이고 현재 통합 작업은 GDJ-0049 하나입니다. Draft PR #1은
+최근 terminal completion은 GDJ-0049이고 현재 활성 통합 작업은 없습니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

@@ -1,6 +1,6 @@
 # ADR-0051: Project-linked Explicit Migrate
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-28
 - 관련 work/contract: [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md), MIG-087..098, Q-010, Q-012, Q-019
 - 선행 결정: [ADR-0021](0021-project-linked-migration-check.md), [ADR-0022](0022-project-runtime-and-global-migration-check.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0037](0037-postgresql-current-contract-backend.md), [ADR-0042](0042-project-linked-runserver-and-article-development-loop.md), [ADR-0048](0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)
