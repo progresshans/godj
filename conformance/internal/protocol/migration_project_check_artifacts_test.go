@@ -428,14 +428,21 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 			t.Fatalf("relation-product coordinate %q count = %d, want one per mode", coordinate, got)
 		}
 		for _, mode := range []string{"normal", "race", "cgo0"} {
-			entry := coordinate + "\n            mode: " + mode + "\n            timeout_minutes: 20"
+			timeoutMinutes := 20
+			if strings.Contains(coordinate, "runs_on: macos-15-intel") && mode == "race" {
+				timeoutMinutes = 30
+			}
+			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 			if got := strings.Count(relationProduct, entry); got != 1 {
 				t.Fatalf("relation-product coordinate/mode entry %q count = %d, want 1", entry, got)
 			}
 		}
 	}
-	if got := strings.Count(relationProduct, "timeout_minutes: 20"); got != 12 {
-		t.Fatalf("relation-product per-mode timeout count = %d, want 12", got)
+	if got := strings.Count(relationProduct, "timeout_minutes: 20"); got != 11 {
+		t.Fatalf("relation-product 20-minute mode timeout count = %d, want 11", got)
+	}
+	if got := strings.Count(relationProduct, "timeout_minutes: 30"); got != 1 {
+		t.Fatalf("relation-product Intel race timeout count = %d, want 1", got)
 	}
 	productTimeoutCoordinates := []string{
 		"- runs_on: ubuntu-22.04\n            expected_goos: linux\n            expected_goarch: amd64\n            timeout_minutes: 30",

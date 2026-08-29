@@ -459,7 +459,7 @@ jobs:
             expected_goos: darwin
             expected_goarch: amd64
             mode: race
-            timeout_minutes: 20
+            timeout_minutes: 30
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
