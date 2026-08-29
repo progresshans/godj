@@ -42,8 +42,20 @@
   [CI run 33272363862](https://github.com/progresshans/godj/actions/runs/33272363862)는 41 jobs 중
   16 success/25 failure/0 cancellation이었고 stale source-bound attestation, direct-import lock drift, cold-cache setup과
   runner-pressure diagnostic으로 보존합니다. Correction/local-final source는 아직 새 exact submitted-head Hosted를 통과하지
-  않았으므로 ADR-0052/GDJ-0050은 Proposed/active입니다. EVID-146과 이전 attestation은 predecessor proof로만 보존하며
-  current exact-source 또는 Hosted proof로 재사용하지 않습니다. Completed
+  않았습니다. EVID-151 documentation head `88a0fd445ef1b24bbd01f3a9e4abac0a56aecbd1`의
+  [CI run 33277821862](https://github.com/progresshans/godj/actions/runs/33277821862)는 41 jobs 중
+  26 success/15 failure/0 cancellation이었습니다. Twelve relation coordinates는 cold-cache `go list -json` stderr를
+  JSON stdout에 합친 동일 test-helper 결함, PostgreSQL race는 test-only 2분 readiness, macOS Intel project-check는
+  기본 10분 package watchdog에 닿았고 나머지 하나는 required-CI 파생 실패였습니다. 수집된 실패는 Article response/DB-data
+  meaning mismatch가 아니었고 추가 미분류 실패는 없었습니다. `7ecd6dac30bb89f77bd45da126cd29d6fd8a4cba`는 JSON stdout/stderr 분리,
+  explicit 15분 package limit과 3분 test-only readiness로 bounded correction했고, workflow source binding 변경 뒤
+  independent A/B attestation을 다시 캡처해 byte-identical 1,134-byte/SHA-256 `3465aef4...`, source binding
+  265 files/3,200,417 bytes/`50b20ade...`를 `202a42a1b1eb3902c014cf60fe63e030f52fb09d`에 게시했습니다.
+  Focused normal/race/CGO0/vet, exact PostgreSQL profile, checksum과 20-contract comparison은 통과했고 자세한 경계는
+  [EVID-152](TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)에
+  기록합니다. EVID-151의 full/386/relation/archive는 predecessor frozen-source proof로 보존하며 새 descendant에서
+  재실행했다고 주장하지 않습니다. 새 exact submitted-head Hosted 성공 전까지 ADR-0052/GDJ-0050은 Proposed/active입니다.
+  EVID-146과 이전 attestation은 predecessor proof로만 보존하며 current exact-source 또는 Hosted proof로 재사용하지 않습니다. Completed
   [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Accepted
   [ADR-0051](../adr/0051-project-linked-explicit-migrate.md)은 exact
   `godj migrate [--project <godj.toml>]`, copied definition load-before-open, project-owned lazy backend,
@@ -1443,11 +1455,13 @@
   `58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e`/
   `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`이고, 그 predecessor source binding은
   262 files/3,108,132 payload bytes/SHA-256 `6e949613e23d2b098c3e7cdfb8460afba5ab129b545ff96821ee53d57a229f23`입니다.
-  EVID-151 current checked attestation/checksum은 1,134/103 bytes와 SHA-256 `8d8bdd0d...d94c6`/`800c46bc...600b`,
-  source binding은 265 files/3,200,378 payload bytes/SHA-256 `dde3b635...fb4c`입니다.
+  EVID-151 predecessor checked attestation/checksum은 1,134/103 bytes와 SHA-256 `8d8bdd0d...d94c6`/`800c46bc...600b`,
+  source binding은 265 files/3,200,378 payload bytes/SHA-256 `dde3b635...fb4c`입니다. Workflow correction 뒤 EVID-152
+  current checked attestation/checksum은 1,134/103 bytes와 SHA-256 `3465aef4...6306`/`7e3ff905...53d9`, source binding은
+  265 files/3,200,417 payload bytes/SHA-256 `50b20ade...62a4`입니다.
 - EVID-146 predecessor relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,222 bytes/SHA-256
   `90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`였고 four-coordinate normal과
-  전체 twelve coordinate/mode Hosted jobs가 통과했습니다. Current EVID-151 relation ownership selector/list lock은
+  전체 twelve coordinate/mode Hosted jobs가 통과했습니다. EVID-151 relation ownership selector/list lock은
   929 run/929 pass/0 skip, 94,689 bytes/SHA-256
   `e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`이며 local full workload가 통과했습니다.
 
@@ -1897,10 +1911,11 @@ migrate/no-op/fresh-process restart를 구현하고 EVID-149의 affected local g
 `21d88c99...`/tree `976671ce...`는 PostgreSQL 17.10 writer-to-migrate lifecycle, 12-contract oracle-blind product adapter,
 DEV-0010 exact 19 sparse replacements와 repository-external public-module lifecycle를 구현하고 EVID-150 affected gates와
   독립 감사를 통과했습니다. Current reference/product aggregate는 24/273/552=`237+24+12 locked`, 23/261=`237+24`이며
-  MIG-075..086만 locked입니다. Phase E source freeze `ed2e049...`와 attestation publication `af3aad4...`에서 current
+  MIG-075..086만 locked입니다. Phase E source freeze `ed2e049...`와 attestation publication `af3aad4...`에서 당시
   source-bound PostgreSQL 17.10 attestation A/B byte identity, full `make ci`, 115-package Linux/386 compile-only, 929 relation
-  inventory와 1,181-file repository-external archive가 EVID-151로 통과했습니다. Corrected exact submitted-head Hosted만
-  남습니다. Current 64-candidate ceiling은 batching이
+  inventory와 1,181-file repository-external archive가 EVID-151로 통과했습니다. Workflow correction `7ecd6da...` 뒤
+  current attestation publication `202a42a...`와 focused refreeze가 EVID-152로 통과했고 새 corrected exact submitted-head
+  Hosted만 남습니다. Current 64-candidate ceiling은 batching이
   아닌 hard support limit이고 publication filesystem은 cooperative writer가 사용하는 supported Darwin/Linux local filesystem으로
   한정합니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
   24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. First Phase D documentation head

@@ -695,7 +695,8 @@ challenge/detail을 무시해 복귀하지 않습니다.
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md),
   [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md),
   [EVID-150](status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint),
-  [EVID-151](status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)
+  [EVID-151](status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final),
+  [EVID-152](status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)
 
 ### Django 또는 Phase-A decision oracle의 관찰 가능 동작
 
@@ -757,8 +758,8 @@ temporary protocol은 stdout/stderr/artifact에 남기지 않습니다.
 - Oracle/expected/deviation fixture를 읽지 않는 GoDj actual이 MIG-099..110 exact 12/12, unexpected difference 0으로 통과
 - MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 이 Implemented deviation으로 product aggregate에 포함
 - PostgreSQL 17.10 normal/race/CGO-disabled actual과 repository-external public API/project runner flow 통과
-- Full `make ci`, Linux/386 compile-only/relation/archive와 source-bound attestation recapture는 EVID-151에서 통과;
-  corrected exact-head Hosted는 Phase E terminal gate에서 별도 검증
+- Predecessor full `make ci`, Linux/386 compile-only/relation/archive는 EVID-151에서, workflow correction 뒤 current
+  source-bound attestation/focused refreeze는 EVID-152에서 통과; 새 corrected exact-head Hosted는 Phase E terminal gate에서 별도 검증
 
 ### 복귀 또는 supersede 조건
 

@@ -1,8 +1,8 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-29
-- 현재 local source/contract checkpoint: EVID-20260829-146
-- latest hosted product proof: EVID-20260829-146
+- 마지막 갱신: 2026-08-30
+- 현재 local source/contract checkpoint: EVID-20260830-152
+- latest successful hosted product proof: EVID-20260829-146
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -14274,3 +14274,180 @@ Hosted success claim. ADR-0052 remains Proposed, GDJ-0050 remains active and DEV
 terminal Verified. Draft PR #1 remains open/draft/unmerged; no merge, release or deployment is performed. The following
 status/evidence commit is a documentation-only descendant of tested source `af3aad4...`; per repository cadence it receives
 documentation/protocol consistency gates rather than recursively repeating the full product matrix.
+
+## EVID-20260830-152 — GDJ-0050 Corrected-head Hosted Failure and Test-harness Refreeze
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; Hosted GitHub Actions pull-request runners
+- Work/contract IDs: GDJ-0050 active; ADR-0052 Proposed; DEV-0010 Implemented; MIG-099..110 product actual registered;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Failed submitted head: `88a0fd445ef1b24bbd01f3a9e4abac0a56aecbd1`, tree
+  `6d45c8382e7c5dc9f34698f9beee80224bde494d`
+- Test-harness correction: `7ecd6dac30bb89f77bd45da126cd29d6fd8a4cba`, tree
+  `6aacfeee25540d3c11921fbbdae05eec18b8d467`
+- Refreshed attestation publication: `202a42a1b1eb3902c014cf60fe63e030f52fb09d`, tree
+  `0fa58711ea9b393a21812334ecac1ff325f351c2`
+
+### Exact-head Hosted failure classification
+
+[GitHub Actions CI run 33277821862](https://github.com/progresshans/godj/actions/runs/33277821862) targeted exact
+`88a0fd445ef1b24bbd01f3a9e4abac0a56aecbd1`. It completed all 41 jobs as 26 success, 15 failure and zero cancellation;
+its 464 recorded steps were 414 success, 15 failure, 35 skipped and zero cancellation. Fourteen primary failures were
+exhaustively classified, and the fifteenth was the derivative `Required CI` aggregator:
+
+- All twelve relation coordinate/mode jobs reached `internal/compiletest.TestDirectPackageDependencyBoundaries` after
+  their preceding product packages passed. Successful cold-cache `go list -json` invocations wrote module-download
+  diagnostics to stderr, while three test helpers used `CombinedOutput`; the merged stream therefore began with `go:`
+  rather than JSON and failed with `decode go list output: invalid character 'g'`.
+- PostgreSQL race job `99167560108` reached the runserver harness's two-minute readiness timer. Its exact 21-test
+  inventory passed in normal and CGO-disabled modes, cleanup was non-forced, and the only stderr bytes were the expected
+  post-SIGINT `project_runserver_process_error/project_interrupted` pair. The delayed cold-build stage was not separately
+  observed, so no more specific cause is claimed.
+- macOS Intel product-project-check job `99167560128` reached Go's default ten-minute package watchdog while a test was
+  waiting on a child command. Every other package in the job passed, and no Article response or DB-data meaning mismatch
+  was reported.
+- Job `99171338499` failed only because those required matrix coordinates failed.
+
+No job was cancelled, and the job/step/annotation/log audit found no additional unclassified failure or product data-
+meaning assertion. This run remains failure evidence and is not converted into a pass.
+
+### Bounded correction
+
+Commit `7ecd6da...` keeps every test inventory and product runtime/transaction deadline intact; only test-only package and
+readiness budgets change. It separates stdout and stderr for all three JSON-decoding `go list` helpers and binds the two
+package-graph commands to the test context. It adds an explicit 15-minute Go package limit to the existing
+normal/race/CGO-disabled product-project-check commands while retaining the job's outer limit. The PostgreSQL runserver
+test-only readiness budget changes from two to three minutes; its DB wait, cleanup budget and product behavior are unchanged.
+The matching workflow command locks and GDJ-0050 allowed path were updated. Independent code and artifact reviews found
+P0/P1/P2=`0/0/0`.
+
+Focused compile-boundary tests passed in normal and CGO-disabled runs, including a standalone binary against an initially
+empty module cache. The corrected runserver selector, one member of the exact PostgreSQL 17.10 21-test Hosted inventory,
+then passed three times under race and once each under normal and CGO-disabled modes. The dedicated PostgreSQL container was
+removed and the exact resource audit was zero. Two earlier exploratory containers
+stopped before product execution because the local harness omitted the required C locale; they are setup failures, not
+product evidence. An orphaned temporary runserver from a separately interrupted predecessor process was terminated by exact
+PID, after which the matching local process residue was zero.
+
+The secret-redacted focused command boundary was:
+
+```bash
+go test -timeout=15m -count=3 \
+  -run '^(TestDirectPackageDependencyBoundaries|TestProjectCheckDirectImportGraph)$' \
+  ./internal/compiletest
+CGO_ENABLED=0 go test -timeout=15m -count=3 \
+  -run '^(TestDirectPackageDependencyBoundaries|TestProjectCheckDirectImportGraph)$' \
+  ./internal/compiletest
+
+task_tmp_root="$(mktemp -d /tmp/godj-gdj0050-cold-go-list.XXXXXX)"
+task_go_bin="$(command -v go)"
+task_mod_cache="$task_tmp_root/modcache"
+task_binary="$task_tmp_root/compiletest.test"
+"$task_go_bin" test -c -o "$task_binary" ./internal/compiletest
+for task_case in \
+  TestDirectPackageDependencyBoundaries \
+  TestProjectCheckDirectImportGraph \
+  TestRelationFacadeExternalConsumerASTContract
+do
+  env CGO_ENABLED=0 GOMODCACHE="$task_mod_cache" \
+    GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org \
+    "$task_binary" -test.v -test.run "^${task_case}$" -test.count=1
+done
+# The executed wrapper then cleaned this exact temporary binary/cache/root.
+
+# LOCAL_CANARY_DSN is the redacted command-scoped DSN for the digest-pinned
+# PostgreSQL 17.10 container initialized with encoding UTF8 and C/libc locale.
+GODJ_TEST_POSTGRES_URL="$LOCAL_CANARY_DSN" GODJ_REQUIRE_POSTGRES=1 \
+  go test -timeout=15m -race -count=3 \
+  -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct
+GODJ_TEST_POSTGRES_URL="$LOCAL_CANARY_DSN" GODJ_REQUIRE_POSTGRES=1 \
+  go test -timeout=15m -count=1 \
+  -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct
+GODJ_TEST_POSTGRES_URL="$LOCAL_CANARY_DSN" GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 \
+  go test -timeout=15m -count=1 \
+  -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \
+  ./conformance/runserverproduct
+
+test -z "$(docker ps -aq --filter name=^/godj-gdj0050-readiness-verify$)"
+```
+
+### Refreshed source-bound PostgreSQL publication
+
+The workflow is part of the PostgreSQL source-binding scope, so the previous EVID-151 artifact was correctly rejected after
+the correction. A new clean capture used producer root `/tmp/godj-gdj0050-attest-7ecd6da.4PE92I` and an audited
+12,057-byte wrapper with SHA-256 `54d73d48e814a7077bd098679edb401a7d5211289c37b1f25fd4a66ccf09671c`.
+The source, pre-check and post-check archives were byte-identical at 17,971,200 bytes/SHA-256
+`deeb759ba26e38ae03d457a417911c3fa085166b141fac417efdf4809c696705`. Independent A/B PostgreSQL containers produced
+byte-identical 1,134-byte JSON with SHA-256
+`3465aef41601ac3828aff99e616a92e6179b403cb647c3fe37562e3f789d6306`. Its source binding is 265 files,
+3,200,417 payload bytes and SHA-256 `50b20ade70b4e4f8ef679809c1bbc39cb61d7bcf5027a69f69206e65b8c862a4`.
+The facts remain two writers, same schema/barrier/restart true and divergence/loss/drift/secret occurrences all zero.
+All exact capture resources were absent after cleanup.
+
+The capture and audit command boundary was:
+
+```bash
+bash -n /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/run-two-captures.sh
+/tmp/godj-gdj0050-attest-7ecd6da.4PE92I/run-two-captures.sh
+cmp \
+  /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/evidence-a/capture-a.json \
+  /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/evidence-b/capture-b.json
+shasum -a 256 \
+  /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/run-two-captures.sh \
+  /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/source.tar \
+  /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/head-check-pre.tar \
+  /tmp/godj-gdj0050-attest-7ecd6da.4PE92I/head-check-post.tar
+```
+
+Publication `202a42a...` updates only the checked JSON, sibling checksum and protocol byte locks. The checked JSON hash and
+size match capture A/B; `SHA256SUMS` is 103 bytes/SHA-256
+`7e3ff9054ac561c5cb721b094e5b70b460cb645824e2d396c7a3a40e226153d9`.
+
+### Post-publication local gates
+
+The following source-sensitive gates ran after the three publication files were written and all exited 0:
+
+```bash
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/system-state-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json \
+  -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json \
+  -system-state-postgres-attestation \
+  conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+
+go test -timeout=20m -count=1 \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test -timeout=20m -race -count=1 \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+CGO_ENABLED=0 go test -timeout=20m -count=1 \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+
+go vet \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+git diff --check
+```
+
+The system-state comparison reported all 20 reviewed product contracts matching. EVID-151 remains the predecessor frozen-
+source proof for full `make ci`, 115-package Linux/386 compile-only, exact 929 relation inventory and the 1,181-file
+repository-external archive; those heavyweight gates were not recursively rerun or re-claimed on this test-only/workflow
+descendant.
+
+### Current boundary
+
+The correction and refreshed attestation are locally committed, but the following evidence/status documentation descendant
+has not yet been pushed as a new exact submitted head. A new Hosted matrix is therefore still required. ADR-0052 remains
+Proposed, GDJ-0050 remains active and DEV-0010 remains Implemented. Draft PR #1 remains open/draft/unmerged; no merge,
+release or deployment is performed.

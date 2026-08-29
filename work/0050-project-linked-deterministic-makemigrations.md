@@ -316,22 +316,36 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
   `8d8bdd0d...`를 게시했습니다. Publication head `af3aad4f133d13bdf65ba8afa43e518d17bf34cc`에서 focused
   normal/race/CGO0/vet, full `make ci`, 115-package Linux/386 compile-only, exact 929 relation inventory와 1,181-file
   repository-external archive gate가 모두 통과했습니다. Exact submitted-head Hosted와 성공 뒤 terminal 상태 동기화만 남습니다.
+- 2026-08-30: EVID-151 documentation head `88a0fd445ef1b24bbd01f3a9e4abac0a56aecbd1`의 exact Hosted run
+  `33277821862`는 41 jobs 중 26 success/15 failure/0 cancellation이었습니다. Twelve relation coordinates는 cold-cache
+  `go list -json` stderr를 `CombinedOutput`으로 JSON stdout과 합친 test-helper 오류 하나로 실패했고, PostgreSQL race는
+  test-only 2분 readiness budget, macOS Intel project-check는 Go 기본 10분 package watchdog에 닿았습니다. 나머지 한 실패는
+  required-CI 파생 결과였으며 수집된 실패는 Article response/DB-data meaning mismatch가 아니었고 추가 미분류 실패는 없었습니다.
+  `7ecd6dac...`는 세 JSON consumer의
+  stdout/stderr를 분리하고 project-check package limit을 explicit 15분으로, PostgreSQL test-only readiness를 3분으로
+  제한해 교정했습니다. Workflow source binding 변경 때문에 independent A/B attestation을 다시 캡처해 byte-identical
+  1,134-byte/SHA-256 `3465aef4...`, source binding 265 files/3,200,417 bytes/`50b20ade...`를 `202a42a...`에 게시했습니다.
+  Focused normal/race/CGO0/vet, exact PostgreSQL profile, checksum과 20-contract comparison이 통과했습니다. EVID-151의
+  heavyweight full/386/relation/archive proof는 predecessor proof로 보존하며 이 descendant에서 재실행했다고 주장하지 않습니다.
 
 ## 미결정/Blocker
 
-- No current blocker for the exact submitted-head Hosted gate. Multiple writable roots, 65+ pending candidate batching,
-  destructive operation과 self/cyclic relation splitting은 명시적 후속 범위입니다. Current source-bound PostgreSQL attestation과
-  local frozen milestone은 완료됐지만 Hosted 성공 전에는 terminal acceptance를 주장하지 않습니다.
+- No current blocker for the corrected exact submitted-head Hosted gate. Multiple writable roots, 65+ pending candidate batching,
+  destructive operation과 self/cyclic relation splitting은 명시적 후속 범위입니다. Corrected workflow source-bound PostgreSQL
+  attestation과 focused local refreeze는 완료됐지만 Hosted 성공 전에는 terminal acceptance를 주장하지 않습니다.
 
 ## 테스트 증거
 
-- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150, EVID-151
+- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150, EVID-151, EVID-152
 - Result: Phase A pure/reference, Phase B strict private protocol/read-only CLI/CAS, Phase C recoverable normal publication/SQLite lifecycle와
   Phase D PostgreSQL/product adapter/external module scoped gate가 통과했습니다. Phase E source freeze, independent A/B PostgreSQL
   attestation, artifact publication, full/386/relation/archive local final은
   [EVID-151](../docs/status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)에
+  기록합니다. 그 documentation head의 Hosted failure 분류와 bounded test-harness correction, current attestation recapture와 focused
+  refreeze는 [EVID-152](../docs/status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)에
   기록합니다.
-- Not run: corrected exact submitted-head Hosted final. Linux publisher runtime은 실행하지 않았고 Linux/386은 compile-only입니다.
+- Not run: second corrected exact submitted-head Hosted final. EVID-152 descendant에서 full `make ci`, Linux/386,
+  relation/archive를 재귀적으로 반복하지 않았습니다. Linux publisher runtime은 실행하지 않았고 Linux/386은 compile-only입니다.
 
 ## 위험과 rollback
 
@@ -346,8 +360,8 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 
 Phase E local frozen milestone은 완료됐습니다. 다음 정확한 순서는 다음입니다.
 
-1. EVID-151 local-final documentation descendant를 exact submitted head로 push
-2. 그 head의 Hosted matrix를 실행하고 모든 failure/cancellation/required skip을 분류
+1. `7ecd6da...` correction, `202a42a...` attestation과 EVID-152 status descendant를 exact submitted head로 push
+2. 그 새 head의 Hosted matrix를 실행하고 모든 failure/cancellation/required skip을 분류
 3. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
 
 ## 결과와 인수인계
@@ -357,4 +371,5 @@ DEV-0010 strict sparse policy, PostgreSQL 17.10 generated migrate/no-op/restart�
 연결했습니다. Fault 뒤 durable prefix는 fresh resume 전후 SourceID, bytes와 inode가 불변임을 검증하고, external failure harness는
 secret scan 전에 output을 로그로 재노출하지 않습니다. Product aggregate는 23/261=`237 passing + 24 deviation`으로 전환됐고
 MIG-075..086만 reference-only locked입니다. Current source-bound attestation과 local final은 끝났지만
-ADR-0052/GDJ-0050은 exact submitted-head Hosted 성공 전까지 Proposed/active로 유지합니다.
+첫 correction documentation head의 Hosted failure는 test-harness 세 범주로 닫았고 current attestation을 다시 게시했습니다.
+ADR-0052/GDJ-0050은 새 exact submitted-head Hosted 성공 전까지 Proposed/active로 유지합니다.

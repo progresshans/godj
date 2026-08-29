@@ -132,9 +132,10 @@ Active GDJ-0050/Proposed ADR-0052는 current CreateModel/AddField pure detector/
 `godj makemigrations`, strict private v1 protocol과 supported local-filesystem publication을 구현했습니다. Phase C의
 directory-inode lock, fresh plan/every-rename CAS, recoverable kernel no-replace publication과 actual cross-app SQLite
 migrate/no-op/restart에 이어 Phase D에서 MIG-099..110 actual adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
-repository-external public module flow가 통과했습니다. Phase E local final은 current source-bound PostgreSQL attestation,
-full `make ci`, Linux/386 compile-only, exact relation inventory와 1,181-file repository-external archive를 통과했고 exact
-submitted-head Hosted만 남았습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 Implemented DEV-0010
+repository-external public module flow가 통과했습니다. Phase E predecessor local final은 source-bound PostgreSQL attestation,
+full `make ci`, Linux/386 compile-only, exact relation inventory와 1,181-file repository-external archive를 predecessor
+source에서 통과했습니다. Workflow correction 뒤 current attestation/focused refreeze도 통과했고 새 exact submitted-head
+Hosted만 남았습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 Implemented DEV-0010
 `deviation`입니다. General upgrade와 destructive/rename/custom/data operation은 아직 포함하지 않습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
@@ -654,7 +655,8 @@ GDJ-0049의 writer/autodetector와 target/reverse/plan/fake는 범위 밖이었�
 writer/autodetector와 public CLI/private protocol, cooperative supported local filesystem의 recoverable publication과
 cross-app SQLite lifecycle을 구현했습니다. Phase D의 actual product adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
 repository-external public module도 통과했습니다. Current plan의 64-candidate ceiling은 automatic batching이 아닌 hard support
-limit입니다. Phase E local full/Linux/386/archive와 source-bound attestation recapture는 EVID-151에서 통과했고 exact-head
+limit입니다. Phase E predecessor source의 local full/Linux/386/archive와 attestation은 EVID-151에서 통과했고,
+workflow test-harness correction 뒤 current attestation/focused refreeze는 EVID-152에서 통과했습니다. 새 exact-head
 Hosted만 남습니다. 첫
 submitted head `8841319...`의 run
 `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로

@@ -501,8 +501,9 @@ Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/C
 module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
 `PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Implemented DEV-0010
 `deviation`입니다. Product aggregate는 23 adapters/261 contracts=`237 passing + 24 deviation`이고, MIG-075..086만
-reference-only locked입니다. Full `make ci`, Linux/386/relation/archive와 source-bound attestation recapture는 EVID-151에서
-통과했고 exact submitted-head Hosted는 아직 검증됐다고 표현하지 않습니다.
+reference-only locked입니다. Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
+test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. 새 exact
+submitted-head Hosted는 아직 검증됐다고 표현하지 않습니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

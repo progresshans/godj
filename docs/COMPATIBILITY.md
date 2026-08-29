@@ -3,7 +3,8 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 EVID-151 Phase E frozen local final; latest exact-head Hosted product는
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 EVID-152 test-harness correction/current attestation refreeze;
+  predecessor heavyweight local final은 EVID-151; latest successful exact-head Hosted product는
   GDJ-0049 EVID-146 / CI #164 run `33247166995`)
 - 현재 required checkpoint: EVID-144 local-final은 clean SQLite/PostgreSQL 17.10과 MIG-087..098 product 12
   `passing`을 검증했습니다. 첫 submitted run `33124180742`의 timeout을 selector/workload 분리와 macOS Intel race 전용
@@ -13,8 +14,9 @@
 - 현재 design: GDJ-0049/Accepted ADR-0051 completed, GDJ-0050/Proposed ADR-0052 active. Reference
   24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product 23/261=`237 passing + 24 deviation`;
   MIG-087..102/108..110은 product `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`, 남은 reference-only
-  locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase E local full/Linux/386 compile-only/relation/archive와 current
-  source-bound PostgreSQL attestation은 통과했지만 corrected exact submitted-head Hosted는 아직 없으며, 현재 active/ready work는 1/0임
+  locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase E predecessor local full/Linux/386 compile-only/relation/archive는
+  EVID-151에서, current source-bound PostgreSQL attestation/focused refreeze는 EVID-152에서 통과했지만 새 corrected exact
+  submitted-head Hosted는 아직 없으며, 현재 active/ready work는 1/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.

@@ -242,8 +242,12 @@ P0/P1은 없었습니다. Bounded process-group reap, PostgreSQL second-noop rev
 failure output redaction과 MIG-110 durable-prefix seal을 보강하고 재검증했습니다.
 
 Phase E behavioral source `ed2e049e2a53eadd6f2e77ffcec002c5da2d21eb`와 attestation publication
-`af3aad4f133d13bdf65ba8afa43e518d17bf34cc`는 current source-bound PostgreSQL attestation, full `make ci`,
+`af3aad4f133d13bdf65ba8afa43e518d17bf34cc`는 당시 source-bound PostgreSQL attestation, full `make ci`,
 Linux/386 compile-only, relation inventory와 repository-external archive를
 [EVID-151](../status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)에서
-통과했습니다. 이 문서는 corrected exact submitted-head Hosted matrix가 끝날 때까지 `Proposed`입니다. Local final만으로
-terminal `Accepted` 또는 GDJ-0050 completion을 주장하지 않습니다.
+통과했습니다. 이후 workflow test-harness correction은 source binding을 바꿨으므로 current attestation을 다시 캡처했고,
+correction/current-attestation focused refreeze는
+[EVID-152](../status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)에
+기록합니다. EVID-151의 heavyweight gates는 predecessor proof이며 current descendant에서 재실행했다고 주장하지 않습니다.
+이 문서는 새 corrected exact submitted-head Hosted matrix가 끝날 때까지 `Proposed`입니다. Local final만으로 terminal
+`Accepted` 또는 GDJ-0050 completion을 주장하지 않습니다.
