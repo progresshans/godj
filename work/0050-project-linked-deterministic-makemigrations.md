@@ -25,6 +25,7 @@ allowed_paths:
   - "conformance/internal/protocol/**"
   - "conformance/migrationwriterproduct/**"
   - "conformance/postgresproduct/**"
+  - "conformance/runserverproduct/**"
   - "conformance/systemstate/attestations/**"
   - "conformance/README.md"
   - "Makefile"

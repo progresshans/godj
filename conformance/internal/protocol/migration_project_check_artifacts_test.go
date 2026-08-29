@@ -688,9 +688,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		t.Fatalf("Python compatibility isolated invocation count = %d, want 3", strings.Count(python, "--no-project --isolated --python \"$COMPAT_PYTHON\""))
 	}
 	for _, command := range []string{
-		"run: go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
-		"run: go test -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
-		"run: CGO_ENABLED=0 go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+		"run: go test -timeout=15m -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+		"run: go test -timeout=15m -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
+		"run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
 		"run: go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj",
 	} {
 		if strings.Count(product, command) != 1 {

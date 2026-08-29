@@ -1080,9 +1080,11 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 	)
 	command.Dir = root
 	command.Env = commandEnvironment()
-	output, err := command.CombinedOutput()
+	var standardError bytes.Buffer
+	command.Stderr = &standardError
+	output, err := command.Output()
 	if err != nil {
-		t.Fatalf("go list production relation facade package closure: %v\n%s", err, output)
+		t.Fatalf("go list production relation facade package closure: %v\n%s", err, standardError.Bytes())
 	}
 	type packageFiles struct {
 		prefix    string
@@ -1151,7 +1153,7 @@ func verifyRelationFacadeProductionGoList(t *testing.T, root string) {
 		if err := decoder.Decode(&listed); err == io.EOF {
 			break
 		} else if err != nil {
-			t.Fatalf("decode production relation facade go list: %v", err)
+			t.Fatalf("decode production relation facade go list: %v\nstderr:\n%s", err, standardError.Bytes())
 		}
 		want, expected := wantPackages[listed.ImportPath]
 		if !expected {
@@ -2365,12 +2367,14 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 
 	root := repositoryRoot(t)
 	arguments := append([]string{"list", "-json"}, packages...)
-	command := exec.Command("go", arguments...)
+	command := exec.CommandContext(t.Context(), "go", arguments...)
 	command.Dir = root
 	command.Env = commandEnvironment()
-	output, err := command.CombinedOutput()
+	var standardError bytes.Buffer
+	command.Stderr = &standardError
+	output, err := command.Output()
 	if err != nil {
-		t.Fatalf("load direct package imports: %v\n%s", err, output)
+		t.Fatalf("load direct package imports: %v\n%s", err, standardError.Bytes())
 	}
 
 	directImports := make(map[string][]string, len(packages))
@@ -2385,7 +2389,7 @@ func TestDirectPackageDependencyBoundaries(t *testing.T) {
 			break
 		}
 		if err != nil {
-			t.Fatalf("decode go list output: %v", err)
+			t.Fatalf("decode go list output: %v\nstderr:\n%s", err, standardError.Bytes())
 		}
 		directImports[listed.ImportPath] = listed.Imports
 	}
@@ -2459,12 +2463,14 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 		packages = append(packages, packagePath)
 	}
 	slices.Sort(packages)
-	command := exec.Command("go", append([]string{"list", "-json"}, packages...)...)
+	command := exec.CommandContext(t.Context(), "go", append([]string{"list", "-json"}, packages...)...)
 	command.Dir = repositoryRoot(t)
 	command.Env = commandEnvironment()
-	output, err := command.CombinedOutput()
+	var standardError bytes.Buffer
+	command.Stderr = &standardError
+	output, err := command.Output()
 	if err != nil {
-		t.Fatalf("load project-check imports: %v\n%s", err, output)
+		t.Fatalf("load project-check imports: %v\n%s", err, standardError.Bytes())
 	}
 
 	seen := make(map[string]bool, len(want))
@@ -2479,7 +2485,7 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 			break
 		}
 		if err != nil {
-			t.Fatalf("decode project-check package: %v", err)
+			t.Fatalf("decode project-check package: %v\nstderr:\n%s", err, standardError.Bytes())
 		}
 		required, expected := want[listed.ImportPath]
 		if !expected {

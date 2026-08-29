@@ -199,7 +199,9 @@ func runGlobalPostgresArticleServerOnce(
 	}()
 
 	var address string
-	readyTimer := time.NewTimer(2 * time.Minute)
+	// The race harness still launches two ordinary cold child builds. This is a
+	// harness budget for constrained CI runners, not a product startup SLA.
+	readyTimer := time.NewTimer(3 * time.Minute)
 	defer readyTimer.Stop()
 	select {
 	case address = <-stdout.ready:

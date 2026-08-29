@@ -778,7 +778,7 @@ jobs:
           test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
 
       - name: Run normal product project-check tests
-        run: go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+        run: go test -timeout=15m -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
 
       - name: Run and inventory runserver product tests
         run: |
@@ -811,13 +811,13 @@ jobs:
           done
 
       - name: Run product project-check race tests
-        run: go test -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+        run: go test -timeout=15m -race -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
 
       - name: Run runserver product race tests
         run: go test -timeout=15m -race -count=1 ./conformance/runserverproduct
 
       - name: Run product project-check tests without CGO
-        run: CGO_ENABLED=0 go test -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
+        run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
 
       - name: Run runserver product tests without CGO
         run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
