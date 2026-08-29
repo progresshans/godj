@@ -3,6 +3,7 @@ package protocol
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -65,6 +66,14 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled runserver gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/projectmigrateproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/runserverproduct", 1)
+	for _, packagePattern := range []string{
+		"./db/postgres",
+		"./examples/article",
+		"./conformance/postgresproduct/...",
+		"./conformance/systemstate/restart",
+	} {
+		runserverWorkflowRequireCount(t, "Makefile PostgreSQL CGO-disabled coverage", cgoZero, packagePattern, 1)
+	}
 	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
 	for scope, target := range map[string]string{
 		"normal":       normal,
@@ -83,17 +92,17 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	}
 	jobs := workflow[strings.Index(workflow, jobsMarker)+len(jobsMarker):]
 
-	conformance := runserverWorkflowJob(t, jobs, "conformance-validation", "exact-darwin-validation")
+	conformance := runserverWorkflowJob(t, jobs, "conformance-validation")
 	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "timeout-minutes:", 1)
-	runserverWorkflowRequireExactLine(t, "conformance-validation job", conformance, "    timeout-minutes: 45", 1)
+	runserverWorkflowRequireExactLine(t, "conformance-validation job", conformance, "    timeout-minutes: 30", 1)
 	portableValidation := runserverWorkflowStep(
 		t,
 		conformance,
-		"Run portable conformance validation",
+		"Run portable artifact and contract validation",
 		"Validate project-linked migration check contracts",
 	)
 	runserverWorkflowRequireCount(t, "portable conformance validation step", portableValidation, "run:", 1)
-	runserverWorkflowRequireExactLine(t, "portable conformance validation step", portableValidation, "        run: make ci", 1)
+	runserverWorkflowRequireExactLine(t, "portable conformance validation step", portableValidation, "        run: make format-check generate-check python-test conformance-check godj-conformance", 1)
 	if strings.Contains(conformance, "continue-on-error:") || strings.Contains(conformance, "|| true") {
 		t.Fatal("portable conformance validation gates must remain required")
 	}
@@ -111,8 +120,23 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		runserverWorkflowRequireCount(t, "runserver 386 compile step", compile386, fragment, 1)
 	}
 	runserverWorkflowRequireCount(t, "conformance-validation job", conformance, "./conformance/runserverproduct", 1)
+	portableGo := runserverWorkflowJob(t, jobs, "portable-go-matrix")
+	for _, fragment := range []string{
+		"name: Portable Go (${{ matrix.mode }})",
+		"timeout-minutes: ${{ matrix.timeout_minutes }}",
+		"fail-fast: false",
+		"- mode: normal-vet\n            make_targets: \"go-test go-vet\"\n            timeout_minutes: 40",
+		"- mode: race\n            make_targets: \"go-race\"\n            timeout_minutes: 40",
+		"- mode: cgo0\n            make_targets: \"cgo-zero-build\"\n            timeout_minutes: 40",
+		"run: make ${{ matrix.make_targets }}",
+	} {
+		runserverWorkflowRequireCount(t, "portable-go-matrix job", portableGo, fragment, 1)
+	}
+	if strings.Contains(portableGo, "continue-on-error:") || strings.Contains(portableGo, "|| true") {
+		t.Fatal("portable Go matrix gates must remain required")
+	}
 
-	portable := runserverWorkflowJob(t, jobs, "product-project-check-matrix", "python-compatibility-matrix")
+	portable := runserverWorkflowJob(t, jobs, "product-project-check-matrix")
 	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout-minutes: ${{ matrix.timeout_minutes }}", 1)
 	runserverWorkflowRequireCount(t, "product-project-check-matrix job", portable, "timeout_minutes:", 4)
 	for _, coordinate := range []string{
@@ -199,75 +223,31 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		t.Fatal("portable runserver product gates must remain required")
 	}
 
-	postgres := runserverWorkflowJob(t, jobs, "postgresql-product", "sqlite-matrix")
-	postgresNormal := runserverWorkflowStep(
-		t,
-		postgres,
-		"Run and inventory PostgreSQL actual product tests",
-		"Run PostgreSQL actual product race tests",
-	)
+	postgres := runserverWorkflowJob(t, jobs, "postgresql-product")
 	for _, fragment := range []string{
+		"name: PostgreSQL 17.10 actual product (${{ matrix.mode }})",
+		"timeout-minutes: ${{ matrix.timeout_minutes }}",
+		"fail-fast: false",
+		"- mode: normal\n            timeout_minutes: 25",
+		"- mode: race\n            timeout_minutes: 25",
+		"- mode: cgo0\n            timeout_minutes: 25",
 		`GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable`,
 		`GODJ_REQUIRE_POSTGRES: "1"`,
-		`log="$RUNNER_TEMP/postgresql-product-tests.json"`,
-		`go test -timeout=15m -json -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' \`,
-		`./conformance/runserverproduct >> "$log" || status=$?`,
-		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
-		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct",
-		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
-		`go test -timeout=15m -json -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart > "$log" || status=$?`,
-		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
-		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
-		`skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
-		`if ! grep -Fq "$pass_fragment" "$log"; then`,
-		`if grep -Fq "$skip_fragment" "$log"; then`,
+		`mode="${{ matrix.mode }}"`,
+		`test_flags=(-timeout=15m -json -count=1 -run "$required_regex")`,
+		`test_flags+=(-race)`,
+		`export CGO_ENABLED=0`,
+		`go test "${test_flags[@]}" \`,
+		`./conformance/runserverproduct > "$log" || status=$?`,
+		`assert len(expected) == 20, sorted(expected)`,
+		`assert runs == expected, (sorted(runs), sorted(expected))`,
+		`assert passes == expected, (sorted(passes), sorted(expected))`,
+		`assert skips == [], skips`,
+		`if [ "$mode" != "normal" ]; then`,
+		"go vet \\",
 	} {
-		runserverWorkflowRequireCount(t, "PostgreSQL runserver inventory step", postgresNormal, fragment, 1)
+		runserverWorkflowRequireCount(t, "PostgreSQL runserver matrix job", postgres, fragment, 1)
 	}
-
-	postgresRace := runserverWorkflowStep(
-		t,
-		postgres,
-		"Run PostgreSQL actual product race tests",
-		"Run PostgreSQL actual product tests without CGO",
-	)
-	for _, fragment := range []string{
-		`GODJ_REQUIRE_POSTGRES: "1"`,
-		`go test -timeout=15m -race -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart`,
-		`go test -timeout=15m -race -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct`,
-	} {
-		runserverWorkflowRequireCount(t, "PostgreSQL runserver race step", postgresRace, fragment, 1)
-	}
-	postgresCGOZero := runserverWorkflowStep(
-		t,
-		postgres,
-		"Run PostgreSQL actual product tests without CGO",
-		"Verify PostgreSQL durable resume across service restart",
-	)
-	for _, fragment := range []string{
-		`GODJ_REQUIRE_POSTGRES: "1"`,
-		`CGO_ENABLED=0 go test -timeout=15m -count=1 ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart`,
-		`CGO_ENABLED=0 go test -timeout=15m -count=1 -run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$' ./conformance/runserverproduct`,
-	} {
-		runserverWorkflowRequireCount(t, "PostgreSQL runserver CGO-disabled step", postgresCGOZero, fragment, 1)
-	}
-	postgresVet := runserverWorkflowStep(
-		t,
-		postgres,
-		"Vet PostgreSQL product packages",
-		"Require a clean worktree",
-	)
-	runserverWorkflowRequireCount(
-		t,
-		"PostgreSQL runserver vet step",
-		postgresVet,
-		"go vet ./db/postgres ./examples/article ./conformance/postgresproduct/... ./conformance/projectmigrateproduct ./conformance/systemstate/restart && go vet ./conformance/runserverproduct",
-		1,
-	)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, `GODJ_REQUIRE_POSTGRES: "1"`, 3)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 4)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 4)
-	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 4)
 	runserverWorkflowRequireCount(
 		t,
 		"postgresql-product job",
@@ -289,13 +269,11 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
 		1,
 	)
-	runserverWorkflowRequireCount(
-		t,
-		"postgresql-product job",
-		postgres,
-		"-run '^TestGlobalRunserverArticlePostgresDevelopmentLoop$'",
-		3,
-	)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, `GODJ_REQUIRE_POSTGRES: "1"`, 1)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalRunserverArticlePostgresDevelopmentLoop", 2)
 	if strings.Contains(postgres, "continue-on-error:") || strings.Contains(postgres, "|| true") {
 		t.Fatal("PostgreSQL runserver product gates must remain required")
 	}
@@ -361,20 +339,20 @@ func runserverWorkflowMakeDefinition(t *testing.T, makefile, definition string) 
 	return makefile[start : start+len(startMarker)+end]
 }
 
-func runserverWorkflowJob(t *testing.T, jobs, job, nextJob string) string {
+func runserverWorkflowJob(t *testing.T, jobs, job string) string {
 	t.Helper()
 
 	startMarker := "  " + job + ":\n"
-	endMarker := "  " + nextJob + ":\n"
-	if strings.Count(jobs, startMarker) != 1 || strings.Count(jobs, endMarker) != 1 {
-		t.Fatalf("cannot isolate workflow job %q before %q", job, nextJob)
+	if strings.Count(jobs, startMarker) != 1 {
+		t.Fatalf("cannot isolate workflow job %q", job)
 	}
 	start := strings.Index(jobs, startMarker)
-	end := strings.Index(jobs[start+len(startMarker):], endMarker)
-	if end < 0 {
-		t.Fatalf("workflow job %q has no following %q job", job, nextJob)
+	remainder := jobs[start+len(startMarker):]
+	end := regexp.MustCompile(`(?m)^  [a-z0-9-]+:$`).FindStringIndex(remainder)
+	if end == nil {
+		return jobs[start:]
 	}
-	return jobs[start : start+len(startMarker)+end]
+	return jobs[start : start+len(startMarker)+end[0]]
 }
 
 func runserverWorkflowStep(t *testing.T, job, step, nextStep string) string {

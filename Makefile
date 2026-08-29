@@ -135,11 +135,14 @@ go-race:
 cgo-zero-build:
 	CGO_ENABLED=0 go test \
 		./db/sqlite \
+		./db/postgres \
 		./cmd/godj \
+		./examples/article \
 		./project \
 		./query \
 		./internal/projectcheck/... \
 		./conformance/runners/godj \
+		./conformance/postgresproduct/... \
 		./conformance/relationproduct/... \
 		./conformance/relationqueryproduct/... \
 		./conformance/relationobjectproduct/... \
@@ -148,6 +151,7 @@ cgo-zero-build:
 		./conformance/relationselectproduct/... \
 		./conformance/relationdeleteproduct/... \
 		./conformance/migrationrelationproduct \
+		./conformance/systemstate/restart \
 		-count=1
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
