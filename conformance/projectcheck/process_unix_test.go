@@ -206,8 +206,23 @@ type ownedProcessInput struct {
 	RetainStdout  bool
 	Grace         time.Duration
 	afterWait     func()
+	afterStdout   func()
 	signalGroup   func(int, unix.Signal) error
 	closeRead     func(*os.File) error
+}
+
+type firstWriteObserver struct {
+	target  io.Writer
+	once    sync.Once
+	observe func()
+}
+
+func (writer *firstWriteObserver) Write(payload []byte) (int, error) {
+	written, err := writer.target.Write(payload)
+	if written > 0 && writer.observe != nil {
+		writer.once.Do(writer.observe)
+	}
+	return written, err
 }
 
 type ownedProcessObservation struct {
@@ -280,7 +295,11 @@ func runOwnedProcess(input ownedProcessInput) ownedProcessObservation {
 	drainGroup.Add(2)
 	go func() {
 		defer drainGroup.Done()
-		drainErrors <- drainInto(drainContext, stdout, stdoutCapture)
+		destination := io.Writer(stdoutCapture)
+		if input.afterStdout != nil {
+			destination = &firstWriteObserver{target: stdoutCapture, observe: input.afterStdout}
+		}
+		drainErrors <- drainInto(drainContext, stdout, destination)
 	}()
 	go func() {
 		defer drainGroup.Done()
@@ -510,11 +529,12 @@ func helperSpec(mode string, extra map[string]string) commandSpec {
 }
 
 type concreteExecBackend struct {
-	Limits     limits
-	Interrupt  <-chan struct{}
-	Grace      time.Duration
-	LastBuild  commandSpec
-	LastRunner commandSpec
+	Limits            limits
+	Interrupt         <-chan struct{}
+	Grace             time.Duration
+	LastBuild         commandSpec
+	LastRunner        commandSpec
+	afterRunnerStdout func()
 }
 
 func (backend *concreteExecBackend) Run(ctx context.Context, stage string, spec commandSpec, observed *observation) childResult {
@@ -533,6 +553,7 @@ func (backend *concreteExecBackend) Run(ctx context.Context, stage string, spec 
 		backend.LastRunner = cloneCommandSpec(spec)
 		input.StdoutMaximum = backend.Limits.responseBytes
 		input.RetainStdout = true
+		input.afterStdout = backend.afterRunnerStdout
 	default:
 		return childResult{Exit: 1}
 	}
@@ -982,15 +1003,25 @@ func TestProcessFinalizationFailureOverridesCancelButNotOrdinaryPrimary(t *testi
 
 func TestRunnerResponseWriteMetricSurvivesCanceledRawDiscard(t *testing.T) {
 	t.Parallel()
-	ready := filepath.Join(t.TempDir(), "ready")
 	ctx, cancel := context.WithCancel(context.Background())
-	backend := &concreteExecBackend{Limits: contractLimits(), Grace: 40 * time.Millisecond}
+	stdoutObserved := make(chan struct{})
+	backend := &concreteExecBackend{
+		Limits:            contractLimits(),
+		Grace:             40 * time.Millisecond,
+		afterRunnerStdout: func() { close(stdoutObserved) },
+	}
 	observed := &observation{Feasibility: feasibilityMetrics{Diagnostics: map[string]diagnosticScalar{}}}
 	result := make(chan childResult, 1)
 	go func() {
-		result <- backend.Run(ctx, "runner", helperSpec("ignore", map[string]string{"GODJ_HELPER_READY": ready, "GODJ_HELPER_PREFIX": "wire"}), observed)
+		result <- backend.Run(ctx, "runner", helperSpec("ignore", map[string]string{"GODJ_HELPER_PREFIX": "wire"}), observed)
 	}()
-	waitForFile(t, ready)
+	select {
+	case <-stdoutObserved:
+	case <-time.After(10 * time.Second):
+		cancel()
+		child := <-result
+		t.Fatalf("runner stdout was not captured before cancellation: child=%+v", child)
+	}
 	cancel()
 	child := <-result
 	if child.Failure == nil || child.Failure.Code != "project_canceled" || child.Stdout != nil || observed.Metrics.RunnerResponseWrites != 1 || observed.Feasibility.Diagnostics["runner_stderr"].RetainedBytes != 0 {
