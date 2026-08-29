@@ -13731,3 +13731,80 @@ No general migration writer, multi-DB router, production deployment, merge or re
 After the run, Draft PR #1 was re-queried as `OPEN`, draft, unmerged, `CLEAN` and `MERGEABLE`. Run `33247166995` proves
 submitted predecessor head `a909692...` at exact tree `b82bb5b...`; it does not recursively prove this later terminal
 documentation-only descendant. No next work packet is activated by this evidence itself.
+
+## EVID-20260830-147 — GDJ-0050 Phase A Reference and Pure Boundary Checkpoint
+
+- Date: 2026-08-30 KST
+- Work/contract IDs: GDJ-0050 active; ADR-0052 Proposed; MIG-099..110 reference-only `oracle_locked`;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Baseline: `162b03d65b2392c2ef0647dd7157e686e57de5b3`
+- Phase A implementation commit: `243d789685074bb4d176ee1b9c1db6edb53c3119`, tree
+  `089a11c1fd37c46902f2cae37dba1bb42017d241`
+
+### Implemented and locked boundary
+
+The implementation adds a deterministic current Definition format-1 encoder in `migrations/definition` and a pure
+additive `CreateModel`/nullable-no-default `AddField` detector in `internal/migrationautodetect`. It also locks the exact
+MIG-099..110 mixed-authority manifest, Django/GoDj decision oracle and explicit not-implemented fixture. Public
+`godj makemigrations`, its private project protocol, filesystem publication and the product adapter are not present and
+therefore are not reported as product support.
+
+The current reference aggregate is 24 sets/273 contracts/552 ordered bindings: 230 `passing`, 19 `deviation` and 24
+`oracle_locked`. Product remains unchanged at 22 adapters/249 contracts: 230 `passing` and 19 `deviation`. The new artifact
+bytes are:
+
+- manifest: 8,864 bytes, SHA-256 `75b3f485d392dceb5800b68efe267e6cb7010d873f845ecc0fa7c459b00f5d1e`;
+- explicit not-implemented fixture: 1,876 bytes, SHA-256
+  `b27563a864fe417df53a20092c44f169829e9798cb2e40348c8dbbdcf4715502`;
+- oracle: 25,980 bytes, SHA-256 `9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41`;
+- 21-entry shared checksum: 1,982 bytes, SHA-256
+  `de1e924b10c828db95ee945ff1fa414e9ad2802fce667cffd8bbf82b16d906e5`;
+- workflow semantic payload: 932,413 bytes, SHA-256
+  `f5bfe7756008225452e5d9bbc86381a12b1e5de2e32eafd8f1afcd40d866fcd2`.
+
+### Scoped verification
+
+The following gates passed on the Phase A source:
+
+```bash
+go test -count=1 ./migrations/definition ./internal/migrationautodetect ./conformance/internal/protocol
+go test -count=1 ./migrations/...
+go test -race -count=1 ./migrations/definition ./internal/migrationautodetect
+CGO_ENABLED=0 go test -count=1 ./migrations/definition ./internal/migrationautodetect
+go test -count=25 ./migrations/definition ./internal/migrationautodetect
+go vet ./migrations/definition ./internal/migrationautodetect
+GOOS=linux GOARCH=386 CGO_ENABLED=0 go test -run '^$' -count=1 -exec=/usr/bin/true \
+  ./migrations/definition ./internal/migrationautodetect
+make python-test
+make conformance-check
+LC_ALL=C TZ=UTC PYTHONDONTWRITEBYTECODE=1 uvx --from 'uv==0.10.12' uv run --frozen \
+  python -m conformance.runners.django \
+  --profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  --manifest conformance/contracts/migration-writer-manifest.json \
+  --output conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json --check
+(cd conformance/oracles/django-6.1-sqlite-darwin-arm64 && shasum -a 256 -c SHA256SUMS)
+git diff --check
+```
+
+The full Python discovery ran 276 tests in 70.663 seconds with 24 profile/dependency skips and no failures. All 48
+manifest/oracle-or-fixture contract comparisons, all 21 checked oracle digests, strict JSON parsing and the focused exact
+oracle regeneration check passed. Definition encoder tests cover exact one-MiB empty/non-empty document boundaries,
+strict round-trip, deterministic bytes, deep-copy isolation and resource rejection. Detector tests cover no-op, fresh and
+tail changes, same/cross-app topology, unsupported changes, deterministic versioned names and input isolation.
+
+Three failed invocations are retained as harness corrections rather than greens: an initial Linux/386 command omitted
+`-exec=/usr/bin/true` and attempted to execute the foreign binary; an initial checksum command used the repository root
+instead of the checksum file's directory; and an unpinned `uv run` selected uv 0.12.3 while the profile requires 0.10.12.
+The corrected commands above passed. None changed product or artifact bytes.
+
+Two independent read-only reviews found no Phase A correctness, security or determinism blocker. One ambiguity in the
+Proposed ADR's reserved-temp digest framing was corrected before the implementation commit by fixing the exact uint64
+big-endian length-framed preimage. No public/product support status was advanced by the reference-only result.
+
+### Non-claims and next gate
+
+This checkpoint does not claim public CLI/private protocol behavior, filesystem publication or recovery, SQLite/PostgreSQL
+writer E2E, full `make ci`, all-package Linux/386, current source-bound PostgreSQL attestation, or exact-head Hosted success.
+The checked PostgreSQL attestation predates the Makefile/workflow source change and is intentionally stale; it will be
+recaptured only at the Phase E frozen milestone. EVID-146 remains exact proof for its predecessor tree and is not reused for
+this Phase A tree. Draft PR #1 remains open/draft/unmerged, and Phase B was not started by this checkpoint.
