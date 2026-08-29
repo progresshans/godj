@@ -14016,7 +14016,7 @@ The reference/product aggregates remain exactly 24 sets/273 contracts/552 ordere
 MIG-099..110 product adapter and does not accept ADR-0052 or complete GDJ-0050.
 
 Phase D PostgreSQL generated-writer E2E, MIG-099..110 product adapter/strict comparison, full `make ci`, all-package
-Linux/386 runtime, repository-external archive, current source-bound PostgreSQL attestation recapture and exact-head Hosted
+Linux/386 compile-only, repository-external archive, current source-bound PostgreSQL attestation recapture and exact-head Hosted
 matrix were not run. This entry records the exact implementation commit/tree above; the following documentation-only
 descendant is not recursively claimed as a separately product-tested source. Draft PR #1 remains open/draft/unmerged, and
 no merge, release or deployment is performed by this checkpoint. Phase D was not started.
@@ -14129,7 +14129,7 @@ the oracle-blind forbidden list, failure-output redaction before any detail is l
 durable-prefix seal by SourceID, exact bytes and inode across fresh resume. Focused normal/race and the external normal/race/
 CGO-disabled lifecycle passed after the final corrections.
 
-This is a Phase D local checkpoint, not a terminal milestone. Full `make ci`, all-package Linux/386 runtime, expanded
+This is a Phase D local checkpoint, not a terminal milestone. Full `make ci`, all-package Linux/386 compile-only, expanded
 repository-external archive, current source-bound PostgreSQL attestation and exact submitted-head Hosted matrix were not run.
 ADR-0052 remains Proposed, GDJ-0050 remains active and DEV-0010 remains Implemented rather than terminal Verified. Draft PR
 #1 remains open/draft/unmerged; no merge, release or deployment is performed by this checkpoint. The following documentation-only

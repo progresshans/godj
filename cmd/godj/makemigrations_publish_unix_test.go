@@ -370,7 +370,12 @@ func tidyActualE2EProject(t *testing.T, fixture processFixture) {
 	t.Helper()
 	command := exec.Command("go", "mod", "tidy")
 	command.Dir = fixture.project
-	command.Env = fixture.environment(map[string]string{"GOPROXY": "off"})
+	// Dependency resolution prepares the fixture; it is not a GoDj product
+	// command. The actual makemigrations and migrate invocations below still
+	// force GOPROXY=off. Keeping setup on the ambient configured proxy avoids
+	// making a cold runner's incidental module-cache contents part of the
+	// product contract.
+	command.Env = fixture.environment(nil)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("tidy SQLite e2e project: %v\n%s", err, output)
 	}

@@ -583,8 +583,8 @@ executions이지만 이 수치는 lock이 아닙니다.
   x64/arm64 네 좌표를 각각 검증합니다.
 - `relation-product-matrix`: 같은 네 좌표에서 normal/race/CGO-disabled를 분리한 4×3 execution입니다. 각 `go test`는
   15분, job은 20분으로 제한하고 normal만 exact inventory, vet와 artifact no-rewrite를 추가 수행합니다.
-- `postgresql-product`: digest-pinned PostgreSQL 17.10에서 exact required 20 tests를 normal/race/CGO-disabled 세
-  execution으로 분리하고 run/pass 집합 일치와 skip 0을 요구합니다. Normal은 checked attestation 비교,
+- `postgresql-product`: digest-pinned PostgreSQL 17.10에서 migration-writer sentinel을 포함한 exact required 21 tests를
+  normal/race/CGO-disabled 세 execution으로 분리하고 run/pass 집합 일치와 skip 0을 요구합니다. Normal은 checked attestation 비교,
   실제 service restart와 vet도 소유합니다.
 - `python-compatibility-matrix`: exact CPython 3.12.13/3.13.15/3.14.3/3.14.7을 검증합니다.
 - `required-ci`: 위 모든 top-level job을 `needs`로 모아 failure/skip/cancel 어느 것도 stable required check를

@@ -113,28 +113,44 @@ replace github.com/progresshans/godj => %s
 	moduleCacheCommand := exec.Command("go", "env", "GOMODCACHE")
 	moduleCacheDocument, err := moduleCacheCommand.Output()
 	if err != nil {
-		t.Fatalf("locate ambient read-only module cache: %v", err)
+		t.Fatalf("locate ambient module cache: %v", err)
 	}
 	moduleCache := strings.TrimSpace(string(moduleCacheDocument))
-	if info, err := os.Stat(moduleCache); err != nil || !info.IsDir() {
-		t.Fatalf("ambient module cache %q is unavailable: %v", moduleCache, err)
+	if moduleCache == "" || !filepath.IsAbs(moduleCache) {
+		t.Fatalf("ambient module cache path %q is not absolute", moduleCache)
+	}
+	if info, statErr := os.Stat(moduleCache); statErr == nil {
+		if !info.IsDir() {
+			t.Fatalf("ambient module cache %q is not a directory", moduleCache)
+		}
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	baseEnvironment := externalEnvironment(os.Environ(), map[string]string{
-		"HOME":                    filepath.Join(universe, "home"),
-		"XDG_CONFIG_HOME":         filepath.Join(universe, "home"),
-		"XDG_CACHE_HOME":          filepath.Join(universe, "cache"),
-		"TMPDIR":                  filepath.Join(universe, "scratch"),
-		"GOCACHE":                 filepath.Join(universe, "cache", "go-build"),
-		"GOMODCACHE":              moduleCache,
-		"GOWORK":                  "off",
-		"GOTOOLCHAIN":             "local",
+	setupEnvironment := externalEnvironment(os.Environ(), map[string]string{
+		"HOME":            filepath.Join(universe, "home"),
+		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
+		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
+		"TMPDIR":          filepath.Join(universe, "scratch"),
+		"GOCACHE":         filepath.Join(universe, "cache", "go-build"),
+		"GOMODCACHE":      moduleCache,
+		"GOWORK":          "off",
+		"GOTOOLCHAIN":     "local",
+		"GOFLAGS":         "",
+	})
+	// Module resolution is fixture setup, not part of the product assertion.
+	// Use the ambient configured proxy so a cold runner does not need an
+	// accidentally prewarmed dependency-test cache. Every built product command
+	// below still executes with the network-disabled environment.
+	externalRunSuccess(t, projectRoot, setupEnvironment, "go", "mod", "tidy")
+	if info, err := os.Stat(moduleCache); err != nil || !info.IsDir() {
+		t.Fatalf("prepared ambient module cache %q is unavailable: %v", moduleCache, err)
+	}
+	baseEnvironment := externalEnvironment(setupEnvironment, map[string]string{
 		"GOPROXY":                 "off",
 		"GOSUMDB":                 "off",
-		"GOFLAGS":                 "",
 		externalSecretEnvironment: "external-secret-canary-6e9b2ac73d18",
 	})
-	externalRunSuccess(t, projectRoot, baseEnvironment, "go", "mod", "tidy")
 
 	globalBinary := filepath.Join(universe, "godj")
 	externalRunSuccess(t, repository, baseEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")

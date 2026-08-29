@@ -34,7 +34,7 @@
   [EVID-150](TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)이
   exact commands와 non-claims를 기록합니다. Current reference는 24/273/552=
   `237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`이고 MIG-075..086만
-  locked/unregistered입니다. Phase E full/Linux/386/current source-bound attestation/exact-head Hosted는 남아 있으므로
+  locked/unregistered입니다. Phase E full/Linux/386 compile-only/current source-bound attestation/exact-head Hosted는 남아 있으므로
   ADR-0052/GDJ-0050은 Proposed/active입니다. Makefile/workflow product wiring이
   source-bound PostgreSQL attestation scope를 바꿨으므로 EVID-146은 predecessor product proof로만 보존하고 current exact-source
   attestation/Hosted proof로 재사용하지 않습니다. Phase A exact head `9b487d0...`의 CI #166/run `33260407753`은
@@ -1893,7 +1893,7 @@ migrate/no-op/fresh-process restart를 구현하고 EVID-149의 affected local g
 `21d88c99...`/tree `976671ce...`는 PostgreSQL 17.10 writer-to-migrate lifecycle, 12-contract oracle-blind product adapter,
 DEV-0010 exact 19 sparse replacements와 repository-external public-module lifecycle를 구현하고 EVID-150 affected gates와
 독립 감사를 통과했습니다. Current reference/product aggregate는 24/273/552=`237+24+12 locked`, 23/261=`237+24`이며
-MIG-075..086만 locked입니다. Full/Linux/386/current source-bound attestation/Hosted는 Phase E에 남습니다. Current 64-candidate ceiling은 batching이
+MIG-075..086만 locked입니다. Full/Linux/386 compile-only/current source-bound attestation/Hosted는 Phase E에 남습니다. Current 64-candidate ceiling은 batching이
 아닌 hard support limit이고 publication filesystem은 cooperative writer가 사용하는 supported Darwin/Linux local filesystem으로
 한정합니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
 24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. Stale PostgreSQL attestation 외에 portable

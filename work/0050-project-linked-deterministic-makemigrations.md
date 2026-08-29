@@ -38,6 +38,7 @@ allowed_paths:
   - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
   - "docs/SOURCES.md"
+  - "docs/TESTING.md"
   - "docs/status/CURRENT.md"
   - "docs/status/IMPLEMENTATION_MATRIX.md"
   - "docs/status/TEST_EVIDENCE.md"
@@ -205,8 +206,9 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 ### Phase E — frozen milestone
 
 - [ ] Affected normal/race/CGO0/vet/generated drift와 scoped inventory 통과
-- [ ] Full `make ci`, Linux/386, repository-external archive와 independent audit를 frozen source에서 한 번 실행
-- [ ] Source-bound PostgreSQL attestation이 바뀌면 current source에서 재캡처
+- [ ] Frozen behavioral source에서 source-bound PostgreSQL attestation을 두 번 독립 재캡처하고 exact artifact 게시
+- [ ] Full `make ci`, all-package Linux/386 compile-only, repository-external archive와 independent audit를 attestation publication
+      descendant에서 한 번 실행
 - [ ] Exact submitted-head Hosted matrix 뒤 ADR/status/evidence terminal 동기화
 
 ## 완료 조건
@@ -311,7 +313,7 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
   Phase D PostgreSQL/product adapter/external module scoped gate가 통과했습니다. Phase D exact implementation commit은
   `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree `976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`이며 command/result는
   [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)에 기록합니다.
-- Not run: Phase E full `make ci`, all-package Linux/386 runtime, repository-external archive expansion, current source-bound PostgreSQL
+- Not run: Phase E full `make ci`, all-package Linux/386 compile-only, repository-external archive expansion, current source-bound PostgreSQL
   attestation recapture와 exact-head Hosted final. Linux publisher는 기존 Phase C compile-only이며 Phase D local runtime은 Darwin입니다.
 
 ## 위험과 rollback
@@ -327,10 +329,11 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 
 Phase D는 local checkpoint로 완료됐습니다. 다음 재개 시 Phase E의 정확한 순서는 다음입니다.
 
-1. Current frozen source에서 affected aggregate, full `make ci`, Linux/386과 repository-external archive gate 실행
-2. Source-bound PostgreSQL attestation을 current source에서 두 번 독립 캡처하고 exact artifact/checksum 게시
-3. 새 exact submitted head의 Hosted matrix를 실행하고 failure/cancellation을 분류
-4. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
+1. Current behavioral source에서 affected precheck를 통과하고 source scope를 freeze
+2. Source-bound PostgreSQL attestation을 frozen source archive에서 두 번 독립 캡처하고 exact artifact/checksum 게시
+3. Attestation publication descendant에서 full `make ci`, Linux/386 compile-only, relation inventory와 repository-external archive gate 실행
+4. 새 exact submitted head의 Hosted matrix를 실행하고 failure/cancellation을 분류
+5. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
 
 ## 결과와 인수인계
 
