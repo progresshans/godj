@@ -18,7 +18,7 @@ func TestRunGDJ0049MigrationCommandWritesTwelveActuals(t *testing.T) {
 	arguments := gdj0049MigrationCommandArguments(root, filepath.Join(root, "conformance", "contracts", "migration-command-manifest.json"), actualPath)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	if code := run(ctx, arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d; stdout=%q stderr=%q", code, stdout.String(), stderr.String())

@@ -509,6 +509,8 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
+          relation_godj_runner='^(TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle|TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation|TestRelationAdapterDoesNotImportDBOrReferenceArtifacts|TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle|TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift|TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity|TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut)$'
+          relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
           if [ "$mode" = "race" ]; then
             go test -timeout=15m -race -count=1 \
               ./schema/... \
@@ -527,9 +529,11 @@ jobs:
               ./conformance/relationdeleteproduct/... \
               ./conformance/migrationrelationproduct \
               ./conformance/internal/protocol \
-              ./conformance/runners/godj \
-              ./conformance/cmd/godjcheck \
               ./internal/compiletest
+            go test -timeout=20m -p=1 -race -count=1 -run "$relation_godj_runner" \
+              ./conformance/runners/godj
+            go test -timeout=20m -p=1 -race -count=1 -run "$relation_godjcheck" \
+              ./conformance/cmd/godjcheck
             exit 0
           fi
           if [ "$mode" = "cgo0" ]; then
@@ -550,9 +554,11 @@ jobs:
               ./conformance/relationdeleteproduct/... \
               ./conformance/migrationrelationproduct \
               ./conformance/internal/protocol \
-              ./conformance/runners/godj \
-              ./conformance/cmd/godjcheck \
               ./internal/compiletest
+            CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 -run "$relation_godj_runner" \
+              ./conformance/runners/godj
+            CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 -run "$relation_godjcheck" \
+              ./conformance/cmd/godjcheck
             exit 0
           fi
           test "$mode" = "normal"
@@ -575,9 +581,11 @@ jobs:
             ./conformance/relationdeleteproduct/... \
             ./conformance/migrationrelationproduct \
             ./conformance/internal/protocol \
-            ./conformance/runners/godj \
-            ./conformance/cmd/godjcheck \
             ./internal/compiletest > "$log" || status=$?
+          go test -timeout=20m -p=1 -json -count=1 -run "$relation_godj_runner" \
+            ./conformance/runners/godj >> "$log" || status=$?
+          go test -timeout=20m -p=1 -json -count=1 -run "$relation_godjcheck" \
+            ./conformance/cmd/godjcheck >> "$log" || status=$?
           if [ "$status" -ne 0 ]; then
             formatter_status=0
             diagnostic_log="$RUNNER_TEMP/relation-product-failure.txt"
@@ -665,10 +673,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 1111, sorted(runs)
-          assert len(payload) == 115370, len(payload)
+          assert len(runs) == 929, sorted(runs)
+          assert len(payload) == 94689, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a"
+          assert payload_sha256 == "e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):

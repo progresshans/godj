@@ -525,6 +525,11 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"./conformance/cmd/godjcheck",
 		"./internal/compiletest",
 		`./internal/compiletest > "$log" || status=$?`,
+		`relation_godj_runner='^(`,
+		`relation_godjcheck='^(`,
+		"go test -timeout=20m -p=1 -json -count=1 -run \"$relation_godj_runner\" \\",
+		"go test -timeout=20m -p=1 -json -count=1 -run \"$relation_godjcheck\" \\",
+		`./conformance/cmd/godjcheck >> "$log" || status=$?`,
 		`if [ "$status" -ne 0 ]; then`,
 		`formatter_status=0`,
 		`diagnostic_log="$RUNNER_TEMP/relation-product-failure.txt"`,
@@ -544,16 +549,18 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 1111`,
-		`assert len(payload) == 115370`,
-		`483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a`,
+		`assert len(runs) == 929`,
+		`assert len(payload) == 94689`,
+		`e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,
 		`"relation_product_inventory": {`,
 		`"payload_sha256": payload_sha256`,
 		"go test -timeout=15m -race -count=1",
+		"go test -timeout=20m -p=1 -race -count=1",
 		"CGO_ENABLED=0 go test -timeout=15m -count=1",
+		"CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1",
 		"go vet",
 		"conformance/fixtures/godj-relation-not-implemented.json",
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json",
@@ -572,6 +579,31 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	}
 	if strings.Contains(relationProduct, `| tee "$log"`) {
 		t.Fatal("relation-product inventory must not stream verbose JSON through tee")
+	}
+	if got := strings.Count(relationProduct, `-run "$relation_godj_runner"`); got != 3 {
+		t.Fatalf("relation-product GoDj runner selector count = %d, want normal/race/CGO0", got)
+	}
+	if got := strings.Count(relationProduct, `-run "$relation_godjcheck"`); got != 3 {
+		t.Fatalf("relation-product godjcheck selector count = %d, want normal/race/CGO0", got)
+	}
+	for _, testName := range []string{
+		"TestRelationProductGeneratesTwelveObservedContractsMatchingLockedOracle",
+		"TestRelationMetadataObservationChangesForEveryOwnedEdgeMutation",
+		"TestRelationAdapterDoesNotImportDBOrReferenceArtifacts",
+		"TestMigrationRelationDiagnosticCharacterizationRemainsLockedUnregisteredDeterministicAndDoesNotCompareOracle",
+		"TestMigrationRelationCharacterizationRejectsStatusPhaseAndDimensionDrift",
+		"TestMigrationRelationCharacterizationUsesScenarioNotContractIdentity",
+		"TestMigrationRelationCharacterizationSourceHasNoExpectedArtifactShortcut",
+		"TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput",
+		"TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers",
+		"TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput",
+		"TestRunDoesNotPublishRelationActualBeforePayloadComparison",
+		"TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput",
+		"TestRunRejectsUnknownRelationStatusBeforeActualOutput",
+	} {
+		if got := strings.Count(relationProduct, testName); got != 1 {
+			t.Fatalf("relation-product exact selector test %q count = %d, want 1", testName, got)
+		}
 	}
 	for _, exact := range []string{
 		"import hashlib",
@@ -606,7 +638,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"./conformance/cmd/godjcheck",
 		"./internal/compiletest",
 	} {
-		linePattern := regexp.MustCompile(`(?m)^[ \t]+` + regexp.QuoteMeta(packagePattern) + `(?: \\| > "\$log" \|\| status=\$\?)?$`)
+		linePattern := regexp.MustCompile(`(?m)^[ \t]+` + regexp.QuoteMeta(packagePattern) + `(?: \\| > "\$log" \|\| status=\$\?| >> "\$log" \|\| status=\$\?)?$`)
 		if count := len(linePattern.FindAllString(relationProduct, -1)); count != 4 {
 			t.Fatalf("relation-product package %q gate count = %d, want normal/race/CGO0/vet", packagePattern, count)
 		}

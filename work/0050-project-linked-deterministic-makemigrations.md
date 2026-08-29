@@ -299,6 +299,16 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
   product는 23/261=`237 passing + 24 deviation`이며 MIG-075..086만 locked/unregistered로 남습니다.
 - 2026-08-30: `go test -race`는 harness를 계측하지만 테스트가 일반 `go build`로 만든 child CLI까지 race 계측하지 않습니다.
   증거는 실제 subprocess 의미가 race harness 아래 실행됐다고만 표현하고 child binary 계측을 과장하지 않습니다.
+- 2026-08-30: 첫 exact-head Hosted 진단에서 제품 assertion과 무관한 source-bound attestation stale, direct-import lock drift,
+  cold-cache setup proxy 차단을 확인해 국소 교정했습니다. 같은 실행의 macOS Intel relation 및 portable race에서는 broad package
+  병렬 실행이 child build를 압박해 conformance 전용 90초/10분 경계에 닿았습니다. 테스트 범위는 유지하되 무거운 GoDj runner,
+  `godjcheck`, multi-runtime worker 패키지를 portable core와 분리해 `-p=1`로 실행하고 relation lane은 relation을 소유하는 정확한
+  GoDj runner 7-test와 `godjcheck` 6-test selector만 직렬화합니다. 전체 집계 패키지는 portable gate에서 계속 실행하고 relation
+  lane이 우연히 소유하던 full `godjcheck` CGO-disabled coverage도 portable CGO-disabled gate 한 곳으로 이전합니다. Multi-runtime
+  worker의 CGO-disabled 범위는 새로 넓히지 않습니다. Migration command의 90초 subprocess 경계는 유지하고 aggregate policy
+  test와 package 경계만 각각 15분/20분으로 두되 Hosted job 자체의 상한도 유지합니다. 이는 제품 transaction deadline 변경이
+  아니라 false timeout을 줄이는 검증 harness 교정입니다. 새 normal selector inventory는 두 독립 실행에서 모두
+  929 run/929 pass/0 skip, 94,689 payload bytes, SHA-256 `e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`였습니다.
 
 ## 미결정/Blocker
 

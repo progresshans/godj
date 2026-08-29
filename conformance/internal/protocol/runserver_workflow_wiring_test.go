@@ -17,6 +17,11 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigrateproduct",
 		"RUNSERVER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/runserverproduct",
 		"MIGRATION_WRITER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/migrationwriterproduct",
+		"GODJ_RUNNER_IMPORT := github.com/progresshans/godj/conformance/runners/godj",
+		"GODJCHECK_IMPORT := github.com/progresshans/godj/conformance/cmd/godjcheck",
+		"MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemstate/multiruntimeworker",
+		"PORTABLE_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/systemstate/multiruntimeworker",
+		"PORTABLE_CGO0_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck",
 		"ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance",
 	} {
 		runserverWorkflowRequireCount(t, "Makefile", makefile, fragment, 1)
@@ -27,20 +32,29 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		`project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"`,
 		`runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"`,
 		`migration_writer_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MIGRATION_WRITER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"`,
+		`godj_runner_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(GODJ_RUNNER_IMPORT)" { count++ } END { print count + 0 }')"`,
+		`godjcheck_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(GODJCHECK_IMPORT)" { count++ } END { print count + 0 }')"`,
+		`multiruntime_worker_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MULTIRUNTIME_WORKER_IMPORT)" { count++ } END { print count + 0 }')"`,
 		`test "$$project_migrate_count" -eq 1`,
 		`test "$$runserver_count" -eq 1`,
 		`test "$$migration_writer_count" -eq 1`,
-		`core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)"')"`,
+		`test "$$godj_runner_count" -eq 1`,
+		`test "$$godjcheck_count" -eq 1`,
+		`test "$$multiruntime_worker_count" -eq 1`,
+		`core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)" && $$0 != "$(GODJ_RUNNER_IMPORT)" && $$0 != "$(GODJCHECK_IMPORT)" && $$0 != "$(MULTIRUNTIME_WORKER_IMPORT)"')"`,
 		`test -n "$$core_packages"`,
 		`all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"`,
 		`core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"`,
-		`test "$$all_count" -eq "$$((core_count + 3))"`,
+		`test "$$all_count" -eq "$$((core_count + 6))"`,
 	} {
 		runserverWorkflowRequireCount(t, "Makefile core package selector", selector, fragment, 1)
 	}
 	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(PROJECT_MIGRATE_PRODUCT_IMPORT)", 2)
 	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(RUNSERVER_PRODUCT_IMPORT)", 2)
 	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(MIGRATION_WRITER_PRODUCT_IMPORT)", 2)
+	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(GODJ_RUNNER_IMPORT)", 2)
+	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(GODJCHECK_IMPORT)", 2)
+	runserverWorkflowRequireCount(t, "Makefile core package selector", selector, "$(MULTIRUNTIME_WORKER_IMPORT)", 2)
 
 	selectionCheck := runserverWorkflowMakeTarget(t, makefile, "core-package-selection-check", "go-test")
 	runserverWorkflowRequireRecipeLine(t, "Makefile core package selection check", selectionCheck, `$(select_core_go_packages); \`, 1)
@@ -49,6 +63,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	normal := runserverWorkflowMakeTarget(t, makefile, "go-test", "go-vet")
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normal, `$(select_core_go_packages); \`, 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normal, `go test $$core_packages`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile normal isolated conformance gate", normal, "go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal project-migrate gate", normal, "go test -timeout=15m -count=1 ./conformance/projectmigrateproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal runserver gate", normal, "go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal migration-writer gate", normal, "go test -timeout=15m -count=1 ./conformance/migrationwriterproduct", 1)
@@ -57,10 +72,12 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/migrationwriterproduct", 1)
 	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/runserverproduct", "./conformance/migrationwriterproduct")
+	runserverWorkflowRequireSerialOrder(t, "Makefile normal isolated conformance gate", normal, "$(PORTABLE_HEAVY_PACKAGES)", "./conformance/projectmigrateproduct")
 
 	race := runserverWorkflowMakeTarget(t, makefile, "go-race", "cgo-zero-build")
 	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", race, `$(select_core_go_packages); \`, 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", race, `go test -race $$core_packages`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile race isolated conformance gate", race, "go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race project-migrate gate", race, "go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race runserver gate", race, "go test -timeout=15m -race -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race migration-writer gate", race, "go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct", 1)
@@ -69,9 +86,11 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/migrationwriterproduct", 1)
 	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/runserverproduct", "./conformance/migrationwriterproduct")
+	runserverWorkflowRequireSerialOrder(t, "Makefile race isolated conformance gate", race, "$(PORTABLE_HEAVY_PACKAGES)", "./conformance/projectmigrateproduct")
 
 	cgoZero := runserverWorkflowMakeTarget(t, makefile, "cgo-zero-build", "python-test")
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "CGO_ENABLED=0 go test \\\n", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled isolated conformance gate", cgoZero, "CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled project-migrate gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled runserver gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled migration-writer gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct", 1)
@@ -88,6 +107,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	}
 	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectmigrateproduct", "./conformance/runserverproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/runserverproduct", "./conformance/migrationwriterproduct")
+	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled isolated conformance gate", cgoZero, "$(PORTABLE_CGO0_HEAVY_PACKAGES)", "./conformance/projectmigrateproduct")
 	for scope, target := range map[string]string{
 		"normal":       normal,
 		"race":         race,
