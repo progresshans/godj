@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-29
+- 마지막 검토: 2026-08-30
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다. “지원”은 model, relation depth, backend, process/deployment policy 중 해당 기능에 관련되는 차원을 포함한 기록된 bounded profile을 뜻하며, 하나의 Article flow를 자동으로 범용 능력으로 확대해석하지 않습니다.
 
@@ -122,12 +122,15 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 - forward/backward와 fake/plan/show commands
 - data migration과 현재 model type 사용 금지
 
-현재 제품 단면은 caller가 explicit source bytes를 `migrations/definition`에 전달하는 loader와,
-completed GDJ-0022/Accepted ADR-0022의 exact `godj migrations check`까지입니다.
+현재 제품 단면은 caller가 explicit source bytes를 `migrations/definition`에 전달하는 loader,
+completed GDJ-0022/Accepted ADR-0022의 exact `godj migrations check`와 completed GDJ-0049/Accepted ADR-0051의
+exact latest-only `godj migrate`까지입니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
-Writer/upgrade와 public migrate CLI는 포함하지 않습니다. 아래 library-level loaded execution은 별도 제품 경계입니다.
+Public writer CLI/product adapter와 upgrade는 아직 포함하지 않습니다. Active GDJ-0050/Proposed ADR-0052 Phase A는 current
+CreateModel/AddField pure detector/current encoder를 구현했고 MIG-099..110을 reference-only `oracle_locked`로 게시했습니다. 아래
+library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
 DB-aware entry는 `Executor.Migrate(ctx, loaded, request)` 하나입니다. Historical reconstruction은 scalar와
@@ -630,16 +633,17 @@ Completed [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-arti
 [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 existing current-only lifecycle을 global
 `godj migrate [--project <godj.toml>]`에 연결했습니다. Hosted-verified product는 latest/prefix-tail/no-op,
 middle failure/resume, actual child fence/reconciliation, pre-migrate no-mutation, authenticated Admin/API distinct-process
-restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`이고
-current reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`, product는
-22/249=`230 passing + 19 deviation`입니다.
+restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`입니다.
+GDJ-0050 Phase A reference 추가 뒤 current reference는 24/273/552=`230 passing + 19 deviation + 24 oracle_locked`,
+product는 22/249=`230 passing + 19 deviation`입니다. MIG-099..110은 product actual 없이 reference-only입니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.
 Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 migration core의 순차 rollback/session-close 10초 상한에
 outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
 cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
-writer/autodetector와 target/reverse/plan/fake는 범위 밖입니다. 첫 submitted head `8841319...`의 run
+GDJ-0049의 writer/autodetector와 target/reverse/plan/fake는 범위 밖이었습니다. Active GDJ-0050은 additive-only
+writer/autodetector를 별도 packet으로 진행하지만 public CLI/private protocol/publication은 아직 구현하지 않았습니다. 첫 submitted head `8841319...`의 run
 `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로
 terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 macOS Intel race 전용 bounded
 budget, source-bound attestation/lock recapture를 반영한 submitted tree `b82bb5b...`는

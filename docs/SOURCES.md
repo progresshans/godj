@@ -1,7 +1,7 @@
 # 기준 출처와 검증 기록
 
 - 외부 source 마지막 확인: 2026-08-26 (Asia/Seoul)
-- current artifact/provenance 마지막 검토: 2026-08-24 (Asia/Seoul)
+- current artifact/provenance 마지막 검토: 2026-08-30 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -70,6 +70,28 @@ REL-001..012는 current product에서 모두 `passing`이고 current reset은 EV
 PyPI Django 6.1 wheel SHA-256은
 `6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe`이며
 `uv.lock`과 exact profile에 기록했습니다.
+
+### GDJ-0050 migration-writer authority와 artifact lock
+
+GDJ-0050 Phase A는 같은 pinned Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`에서 다음 exact
+objects를 감사했습니다. Django authority는 semantic autodetection/name/dependency와 `--dry-run`/`--check` 결과이고 Python module
+source byte, timestamp header/name, internal class/questioner는 GoDj parity 대상이 아닙니다.
+
+| Exact object | Blob | Bytes | Audited meaning |
+|---|---|---:|---|
+| `django/db/migrations/autodetector.py` | `0c2e215fcd5a349ce561e08b7cb9ddfe20829bc7` | 90,088 | no-change, CreateModel/AddField, dependency/topology |
+| `django/db/migrations/migration.py` | `2041a28780bc8f0d4e3556688fa414051dee7244` | 9,765 | leaf successor와 suggested semantic name |
+| `django/db/migrations/writer.py` | `c1101b5bb012cd9a474eec54eff0793b65337d0c` | 11,933 | writer path/document boundary 관찰 |
+| `django/core/management/commands/makemigrations.py` | `7f711ed7aec4ef86361fac1bb2eed7b1bceab99c` | 22,559 | dry-run/check exit와 no-write behavior |
+| `tests/migrations/test_autodetector.py` | `7a66e500cb8951f0abcfed4a26c6b7e19e6af1da` | 211,969 | translated detector scenario source |
+| `tests/migrations/test_commands.py` | `61336f55332844bfd372b97aa6a7b1fad6cca027` | 153,217 | translated command scenario source |
+
+MIG-099..110 reference artifacts는 manifest 8,864 bytes/SHA-256
+`75b3f485d392dceb5800b68efe267e6cb7010d873f845ecc0fa7c459b00f5d1e`, not-implemented fixture 1,876 bytes/
+`b27563a864fe417df53a20092c44f169829e9798cb2e40348c8dbbdcf4715502`, oracle 25,980 bytes/
+`9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41`입니다. 이 추가 뒤 shared 21-line
+`SHA256SUMS`는 1,982 bytes/SHA-256 `de1e924b10c828db95ee945ff1fa414e9ad2802fce667cffd8bbf82b16d906e5`입니다.
+Reference는 `oracle_locked`; public CLI/private protocol/publication product actual은 Phase A에 포함되지 않습니다.
 
 ## Django REST framework
 

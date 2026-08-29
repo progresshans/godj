@@ -1,7 +1,7 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified
-- 마지막 검토: 2026-08-29
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified; GDJ-0050 Phase A pure writer boundary active
+- 마지막 검토: 2026-08-30
 
 아래 `M1 verified` 단면, §8의 GDJ-0049 explicit migrate 경계와 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
@@ -428,7 +428,8 @@ Go generic method는 새 result type parameter를 선언할 수 없으므로 `Qu
 
 ## 8. Migration
 
-장기 사용자 명령 목표는 다음과 같습니다. 두 명령은 아직 public product command가 아닙니다.
+장기 사용자 명령 목표는 다음과 같습니다. `migrate`는 completed GDJ-0049에서 public product command가 됐고,
+`makemigrations`는 active GDJ-0050에서 bounded additive-only product로 구현 중입니다.
 
 ```bash
 godj makemigrations
@@ -439,7 +440,8 @@ godj migrate
 
 현재 persisted Migration Definition은 strict data-only `format_version=1` 하나를 사용합니다. Scalar와 ForeignKey가
 같은 current Schema IR/ProjectState를 사용하며 unknown format, unsupported/custom/data operation은 fail-closed합니다.
-Executable Go callback ABI와 public writer/autodetector는 아직 정하지 않았습니다.
+Executable Go callback ABI와 destructive/rename/custom writer는 아직 정하지 않았습니다. Proposed ADR-0052는 current
+CreateModel/AddField만 생성하는 deterministic writer/autodetector와 unsupported delta fail-closed 경계를 제안합니다.
 
 Library lifecycle의 current shape는 다음과 같습니다.
 

@@ -66,5 +66,6 @@ Accepted ADR을 바꿀 때는 원문을 결과에 맞춰 조용히 다시 쓰지
 | [0049](0049-first-party-bff-and-bearer-api-authentication.md) | Accepted | First-party session, BFF와 strict injected Bearer API authentication profile; corrected exact hosted acceptance 완료 |
 | [0050](0050-canonical-embedded-application-model-facade.md) | Accepted | Embedded raw scalar/user method와 project-owned relation state를 결합하는 hosted-verified current application model facade |
 | [0051](0051-project-linked-explicit-migrate.md) | Accepted | Project-owned backend opener와 strict global `migrate` orchestration 경계 |
+| [0052](0052-project-linked-deterministic-makemigrations.md) | Proposed | Additive-only schema autodetection, deterministic current definition과 recoverable global `makemigrations` publication 경계 |
 
 새 ADR은 [TEMPLATE.md](TEMPLATE.md)를 복사하고 4자리 일련번호를 사용합니다.

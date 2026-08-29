@@ -254,8 +254,8 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 	if got := strings.Count(referenceTarget, "$(MIGRATION_COMMAND_NOT_IMPLEMENTED)"); got != 1 {
 		t.Fatalf("reference migration-command NI count = %d, want 1", got)
 	}
-	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 46 {
-		t.Fatalf("reference contractcheck count = %d, want 46", got)
+	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 48 {
+		t.Fatalf("reference contractcheck count = %d, want 48", got)
 	}
 	if got := strings.Count(productTarget, "$(MIGRATION_COMMAND_MANIFEST)"); got != 1 {
 		t.Fatalf("product migration-command manifest count = %d, want 1", got)
@@ -284,19 +284,19 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 		"oracle-check":      oracleCheckTarget,
 		"oracle-regenerate": oracleRegenerateTarget,
 	} {
-		if got := strings.Count(target, "python -m conformance.runners.django"); got != 23 {
-			t.Fatalf("%s reference runner count = %d, want 23", name, got)
+		if got := strings.Count(target, "python -m conformance.runners.django"); got != 24 {
+			t.Fatalf("%s reference runner count = %d, want 24", name, got)
 		}
 	}
 
 	workflow := string(mustReadMigrationCommandFile(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	for fragment, want := range map[string]int{
 		"conformance/fixtures/godj-migration-command-not-implemented.json": 2,
-		"test \"$(grep -c '^test_' \"$log\")\" -eq 264":                    1,
-		"grep -Fq 'Ran 264 tests' \"$log\"":                                1,
-		"assert len(SCENARIOS) == 261":                                     1,
-		"assert len(payload) == 906009":                                    1,
-		"4c7d628245af5a9eab06a353e5498c869e784c001a358f8ecec4c59c823e3767": 1,
+		"test \"$(grep -c '^test_' \"$log\")\" -eq 276":                    1,
+		"grep -Fq 'Ran 276 tests' \"$log\"":                                1,
+		"assert len(SCENARIOS) == 273":                                     1,
+		"assert len(payload) == 932413":                                    1,
+		"f5bfe7756008225452e5d9bbc86381a12b1e5de2e32eafd8f1afcd40d866fcd2": 1,
 	} {
 		if got := strings.Count(workflow, fragment); got != want {
 			t.Fatalf("workflow fragment %q count = %d, want %d", fragment, got, want)

@@ -161,6 +161,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-definition-source-manifest.json` | Current-format migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
+| `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority Phase A reference; `oracle_locked`이며 product adapter/status 입력 아님 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -310,13 +311,21 @@ corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `3304986
 later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
-Current reference는 23 sets/261 contracts/506 ordered bindings=
-`230 passing + 19 deviation + 12 oracle_locked`, product는 22 adapters/249 eligible contracts=
-`230 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086뿐입니다. Accepted ADR-0051과
+Current reference는 24 sets/273 contracts/552 ordered bindings=
+`230 passing + 19 deviation + 24 oracle_locked`, product는 22 adapters/249 eligible contracts=
+`230 passing + 19 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086과 MIG-099..110입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
-Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
+GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
 target/reverse/custom operation과 general upgrade/repair는 이 bounded acceptance에 포함되지 않습니다.
+
+GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
+Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,
+MIG-102/107/108/109/110은 GoDj deterministic current-document, fail-closed delta, private snapshot protocol,
+atomic publication과 interruption recovery 결정을 authority로 삼습니다. Manifest/NI/oracle은 각각
+8,864/1,876/25,980 bytes와 SHA-256 `75b3f485...5d1e`/`b27563a8...5502`/`9068d0e6...fd41`로 고정됩니다.
+이 set은 reference `oracle_locked`이며 `godj-conformance` product adapter, MIG-075..098 상태 또는 기존 제품
+22 adapters/249 contracts를 변경하지 않습니다.
 
 ## GDJ-0045 durable system-state reference gate
 

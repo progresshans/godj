@@ -52,6 +52,7 @@ func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 	const definitionSource = "61401746ce6b01caac002e7043e0818c1eaec417e31a54a8a16450d860104410  migration-definition-source-oracle.json\n"
 	const projectCheck = "8bbf10c02950181a8753a11a40a6a81e816be33d1825a8a2469655d9f65bc0aa  migration-project-check-oracle.json\n"
 	const migrationCommand = "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee  migration-command-oracle.json\n"
+	const migrationWriter = "9068d0e603d631ac8a4da5c564b1aa1037c0854a0935342e3518812bf452fd41  migration-writer-oracle.json\n"
 	const relation = "6b7d138d5b0ec60da13e142117e5c9154be2864491c6e9ec63734f9b7dd08290  relation-oracle.json\n"
 	const migrationRelation = "5beadac7a80d0903d552e0bf9d5fae85b139ce0754d9163184d907fcf0da5968  migration-relation-oracle.json\n"
 	const queryExpression = "4efa5c26f5f17c77e7ef65a0bbdb00cff72835c9a98642726bd61f5524e1ec6f  query-expression-oracle.json\n"
@@ -59,7 +60,7 @@ func TestReferenceOracleChecksumCatalogMatchesCurrentArtifacts(t *testing.T) {
 		"9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc  auth-session-oracle.json\n" +
 		"869f871fe826b07442810892197bec2d59e0202e413d327154f6d166b7803378  article-admin-oracle.json\n"
 	const systemState = "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4  system-state.json\n"
-	if string(contents) != previous+definitionSource+projectCheck+migrationCommand+relation+migrationRelation+queryExpression+gdj0043+systemState {
+	if string(contents) != previous+definitionSource+projectCheck+migrationCommand+migrationWriter+relation+migrationRelation+queryExpression+gdj0043+systemState {
 		t.Fatal("SHA256SUMS does not match the current migration oracle catalog")
 	}
 }

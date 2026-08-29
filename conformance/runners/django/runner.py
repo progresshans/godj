@@ -68,6 +68,12 @@ from .migration_project_check_scenarios import (  # noqa: E402
 from .migration_command_decisions import (  # noqa: E402
     SCENARIOS as MIGRATION_COMMAND_DECISION_SCENARIOS,
 )
+from .migration_writer_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_WRITER_DECISION_SCENARIOS,
+)
+from .migration_writer_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_WRITER_DJANGO_SCENARIOS,
+)
 from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
 from .migration_relation_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_RELATION_SCENARIOS,
@@ -127,6 +133,26 @@ EXTENDED_SYSTEM_STATE_SCENARIOS = (
     "godj.system_state.shared_csrf_key_ring",
     "godj.system_state.two_process_backend_restart",
 )
+MIGRATION_WRITER_SCENARIOS = {
+    name: (
+        MIGRATION_WRITER_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_WRITER_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "django.migration.writer.no_changes_clean",
+        "django.migration.writer.fresh_initial",
+        "django.migration.writer.repeat_after_initial_noop",
+        "godj.migration.writer.deterministic_candidate",
+        "django.migration.writer.relation_dependency_topology",
+        "django.migration.writer.additive_model_and_field_tail",
+        "django.migration.writer.dry_run_no_mutation",
+        "django.migration.writer.check_clean_and_drift",
+        "godj.migration.writer.unsupported_delta_fail_closed",
+        "godj.migration.writer.snapshot_and_protocol_boundary",
+        "godj.migration.writer.atomic_concurrent_publication",
+        "godj.migration.writer.interruption_recovery_and_roundtrip",
+    )
+}
 
 
 SCENARIO_REGISTRIES = (
@@ -144,6 +170,7 @@ SCENARIO_REGISTRIES = (
     MIGRATION_DEFINITION_SOURCE_SCENARIOS,
     MIGRATION_PROJECT_CHECK_SCENARIOS,
     MIGRATION_COMMAND_DECISION_SCENARIOS,
+    MIGRATION_WRITER_SCENARIOS,
     RELATION_SCENARIOS,
     MIGRATION_RELATION_SCENARIOS,
     TEMPLATE_FORM_SCENARIOS,
@@ -284,6 +311,13 @@ DEFAULT_MIGRATION_COMMAND_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json"
 )
+DEFAULT_MIGRATION_WRITER_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-writer-manifest.json"
+)
+DEFAULT_MIGRATION_WRITER_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json"
+)
 DEFAULT_RELATION_MANIFEST = (
     REPOSITORY_ROOT / "conformance/contracts/relation-manifest.json"
 )
@@ -368,6 +402,7 @@ KNOWN_MANIFEST_ORACLES = {
         DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE
     ),
     DEFAULT_MIGRATION_COMMAND_MANIFEST.resolve(): DEFAULT_MIGRATION_COMMAND_ORACLE,
+    DEFAULT_MIGRATION_WRITER_MANIFEST.resolve(): DEFAULT_MIGRATION_WRITER_ORACLE,
     DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
     DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
     DEFAULT_TEMPLATE_FORM_MANIFEST.resolve(): DEFAULT_TEMPLATE_FORM_ORACLE,

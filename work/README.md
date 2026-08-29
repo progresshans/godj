@@ -73,9 +73,19 @@ proposed → ready → active → completed
 | [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | completed | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
 | [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | completed | Canonical embedded application model facade와 current generated ABI v3 |
 | [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | completed | Project-linked explicit `migrate`와 clean-database Article lifecycle |
+| [GDJ-0050](0050-project-linked-deterministic-makemigrations.md) | active | Project-linked deterministic `makemigrations`와 additive schema autodetection |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0입니다. Completed
+현재 active/ready packet은 1/0입니다. Active
+[GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
+`ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
+DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을
+연결합니다. Proposed
+[ADR-0052](../docs/adr/0052-project-linked-deterministic-makemigrations.md)는 managed filesystem app과 read-only
+programmatic app을 구분하고, exactly-one writer root, app-prefixed flat roster, source CAS/no-overwrite와
+dependency-valid durable prefix/fresh resume recovery를 검증 경계로 둡니다. Phase A pure detector/current encoder는
+implemented이고 MIG-099..110은 reference-only `oracle_locked`; CLI/private protocol/publication/product adapter는 아직
+미구현입니다. Current reference/product aggregate는 24/273/552=`230+19+24 locked`, 22/249=`230+19`입니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
 project runner를 explicit `godj migrate`에 연결했습니다. Accepted
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
@@ -83,8 +93,8 @@ load-before-open, latest-only/no-retry, rollback/unknown classification과 clean
 Behavioral publication `c5af15e...`, source-bound attestation `dc3861f...`와 local-final documentation head
 `8841319...`에서 middle failure/resume, full child-vs-child MIG-096, authenticated Admin/API distinct-process restart,
 clean SQLite/PostgreSQL 17.10과 product publication을 닫았습니다. MIG-087..098은 exact 12 registered `passing`이고
-current reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`, product는
-22/249=`230 passing + 19 deviation`입니다. First local-final submitted-head run `33124180742`는 exact 27 checks 중
+GDJ-0049 completion 시점 reference/product는 23/261/506=`230+19+12 locked`, 22/249=`230+19`였습니다. First
+local-final submitted-head run `33124180742`는 exact 27 checks 중
 23 success, broad PostgreSQL package 15분 timeout 1 failure, relation-product 20분 ceiling 두 건과
 conformance-validation 45분 ceiling 한 건의 cancellation으로 종료됐습니다. 수집된 로그의 assertion/panic 실패 표식은
 0이지만 중단 lane은 미검증입니다. Exact required PostgreSQL selector, relation/conformance mode/workload 분리,
@@ -123,7 +133,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0049이고 현재 활성 통합 작업은 없습니다. Draft PR #1은
+최근 terminal completion은 GDJ-0049이고 현재 활성 통합 작업은 GDJ-0050입니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

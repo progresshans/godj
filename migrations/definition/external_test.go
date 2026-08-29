@@ -36,6 +36,41 @@ func TestCurrentDefinitionPublicBoundary(t *testing.T) {
 	}
 }
 
+func TestExternalConsumerCanEncodeCurrentDefinition(t *testing.T) {
+	document, err := definition.Encode(
+		definition.Producer{Name: "external-test", Version: "1"},
+		migrations.Migration{
+			App:  "alpha",
+			Name: "0001_initial",
+			Operations: []migrations.Operation{migrations.CreateModel{
+				AppLabel: "alpha",
+				Model: ir.Model{
+					Name:    "entry",
+					GoName:  "Entry",
+					DBTable: "alpha_entry",
+					Fields: []ir.Field{{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					}},
+				},
+			}},
+		},
+	)
+	if err != nil {
+		t.Fatalf("definition.Encode(current): %v", err)
+	}
+	loaded, report, err := definition.Load(definition.Source{SourceID: "external-encoded", Document: document})
+	if err != nil {
+		t.Fatalf("definition.Load(encoded): %v", err)
+	}
+	if len(loaded.Definitions()) != 1 || report.DefinitionsPublished != 1 {
+		t.Fatalf("encoded publication = definitions:%#v report:%+v", loaded.Definitions(), report)
+	}
+}
+
 func TestUnknownDefinitionFormatAndZeroLoadedSetFailClosed(t *testing.T) {
 	_, report, err := definition.Load(definition.Source{
 		SourceID: "unknown-format",

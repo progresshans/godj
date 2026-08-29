@@ -1,6 +1,7 @@
-// Package definition loads caller-provided migration definition documents into
-// bounded, immutable-by-contract migration snapshots. It performs no I/O and
-// deliberately leaves source discovery to the caller.
+// Package definition encodes and loads current migration definition documents.
+// Loading produces bounded, immutable-by-contract migration snapshots. The
+// package performs no I/O and deliberately leaves source discovery and
+// publication to the caller.
 package definition
 
 import (

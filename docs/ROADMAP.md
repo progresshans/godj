@@ -7,14 +7,18 @@
   ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
   no-implicit-migrate를 고정합니다. Local-final 단계는 middle failure/resume, full child-vs-child fence,
   authenticated Admin/API distinct-process restart, clean SQLite/PostgreSQL 17.10과 MIG-087..098 exact 12 product
-  `passing`을 구현했습니다. Reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`,
+  `passing`을 구현했습니다. 그 completion 시점 reference는 23/261/506=`230 passing + 19 deviation + 12 oracle_locked`,
   product는 22/249=`230 passing + 19 deviation`입니다. Local-final submitted head `8841319...`의 run
   `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout 한 건과 relation-product 두 건,
   conformance-validation 한 건의 outer-timeout cancellation으로 종료됐습니다. Exact required PostgreSQL
   selector, relation/conformance의 mode/workload 분리와 macOS Intel race 전용 bounded budget, source-bound
   attestation/lock recapture를 거친 submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
   41/41 jobs·464/464 steps와 PostgreSQL 세 mode required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
-  현재 active/ready는 0/0이며 다음 packet은 아직 선택하지 않았습니다.
+  현재 active/ready는 1/0입니다. [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Proposed
+  [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 pure additive detector/current encoder와
+  MIG-099..110 reference-only lock을 Phase A에서 완료했습니다. Current reference는 24/273/552=
+  `230 passing + 19 deviation + 24 oracle_locked`, product는 22/249=`230 passing + 19 deviation`으로 불변이며 public
+  `makemigrations` CLI/private protocol/publication/product adapter는 아직 미구현입니다.
 - 직전 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
@@ -145,9 +149,10 @@
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
   exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Verified deviations`는 product publication,
   SQLite/PostgreSQL required와 corrected final local full/386/archive 뒤 EVID-138/CI #155 exact hosted
-  27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 hosted-verified product `passing`이며
-  현재 reference-only locked range는 MIG-075..086뿐입니다.
-- 마지막 검토: 2026-08-29
+  27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 hosted-verified product `passing`입니다.
+  GDJ-0050 Phase A가 MIG-099..110 reference-only set을 추가했으므로 현재 reference-only locked range는
+  MIG-075..086과 MIG-099..110입니다.
+- 마지막 검토: 2026-08-30
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -215,7 +220,11 @@ GDJ-0003은 write/schema/transaction reference 계약을 별도 set으로 잠갔
 SQLite transaction과 최소 ProjectState/Executor/editor/recorder 제품 단면으로
 MOD-001..007과 MIG-001..004를 통과했습니다.
 
-상태: M2 전체는 아직 완료되지 않았습니다. Mutable instance `Save()`,
+상태: M2 전체는 아직 완료되지 않았습니다. Active
+[GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 이미 hosted-verified된 current-only
+Definition/ProjectState와 explicit `migrate` 위에서 `CreateModel`/`AddField` additive schema autodetection,
+deterministic writer와 DB-free recoverable `makemigrations`를 진행합니다. 삭제·alter·rename·custom/data operation은
+이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,
@@ -807,6 +816,9 @@ ADR/work/deviation을 terminal Accepted/completed/Verified로 닫았습니다.
 - capability-driven conformance와 explicit unsupported paths
 
 ## M10 — Advanced + 1.0
+
+이 절은 장기 backlog와 출시 전 hardening 축을 모은 것이며 현재 시점의 고정된 Product 1.0 기능 범위나 개발 선행 gate가
+아닙니다. 각 항목은 현재 active work를 막지 않고 별도 bounded packet과 실제 제품 증거가 생길 때 구체화합니다.
 
 - GIS, i18n, FormSet, advanced Admin, contrib
 - security audit, performance baseline, migration stability

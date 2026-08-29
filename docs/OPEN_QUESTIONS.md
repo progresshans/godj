@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-29
+- 마지막 검토: 2026-08-30
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0049 completed / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, optional runserver와 GDJ-0049 explicit migrate는 hosted-verified; MIG-087..098 exact 12 product `passing`과 SQLite/PostgreSQL 17.10 corrected exact-head acceptance는 EVID-146/run `33247166995`에서 완료됨. Installed runner/library/generator semver와 general upgrader/repair UX는 open |
+| Q-010 | Partial | GDJ-0050 active / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver와 GDJ-0049 explicit migrate는 hosted-verified. GDJ-0050은 one-request schema/catalog snapshot과 deterministic current writer를 bounded하게 진행하며, installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
-| Q-012 | Partial | GDJ-0049 completed / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart와 GDJ-0049 latest-only explicit public migrate는 hosted-verified; failure/resume, child fence, authenticated restart와 clean SQLite/PostgreSQL corrected exact-head acceptance는 EVID-146/run `33247166995`에서 완료됨. Writer/autodetector/target/reverse/upgrade/custom operation/general crash recovery는 open |
+| Q-012 | Partial | GDJ-0050 active / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart와 GDJ-0049 latest-only explicit public migrate는 hosted-verified. GDJ-0050은 CreateModel/AddField additive writer/autodetector와 recoverable file publication만 진행하며 target/reverse/destructive/rename/upgrade/custom operation과 broader crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
@@ -390,10 +390,11 @@ Applied adapter는 real SQLite recorder snapshot을 쓰지만 reconstructor core
 없는 pure replay 경계입니다.
 
 Explicit data-only source encoding과 bounded loader는 GDJ-0019/0020에서 결정·구현했습니다.
-Source discovery/listing, writer/upgrade, data/custom/raw-SQL operation ABI, graph merge/squash/
-optimizer, multi-process lock와 crash recovery는 여전히 결정하지 않았으며 public CLI 전에 별도
-ADR과 contract가 필요합니다. Recorder read/planning, historical-state와 explicit-source loader
-제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
+이 GDJ-0020 completion snapshot에서는 source discovery/listing, writer/upgrade, data/custom/raw-SQL operation ABI,
+graph merge/squash/optimizer, multi-process lock와 crash recovery가 미결정이었습니다. Current checkout은 그 뒤 discovery/check,
+explicit migrate를 완료했고 GDJ-0050/Proposed ADR-0052 Phase A에서 additive-only pure detector/current encoder와 MIG-099..110
+reference lock을 추가했습니다. Public writer CLI/private protocol/publication, upgrade와 broader operations는 계속 open이므로
+historical-state와 explicit-source loader 제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은
