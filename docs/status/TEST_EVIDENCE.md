@@ -14134,3 +14134,143 @@ repository-external archive, current source-bound PostgreSQL attestation and exa
 ADR-0052 remains Proposed, GDJ-0050 remains active and DEV-0010 remains Implemented rather than terminal Verified. Draft PR
 #1 remains open/draft/unmerged; no merge, release or deployment is performed by this checkpoint. The following documentation-only
 descendant is not recursively claimed as a separately product-tested source.
+
+## EVID-20260830-151 — GDJ-0050 First Hosted Diagnostic and Frozen Local Final
+
+- Date: 2026-08-30 KST
+- Platform: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; local `uv` 0.12.3
+- Work/contract IDs: GDJ-0050 active; ADR-0052 Proposed; DEV-0010 Implemented; MIG-099..110 product actual registered;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- First submitted diagnostic head: `d41459452646252cf8e368cd0aa6b431c498d905`, tree
+  `b6aa2276ff490cd89324a10dea3ca1b541a458ec`
+- Final behavioral source freeze: `ed2e049e2a53eadd6f2e77ffcec002c5da2d21eb`, tree
+  `c6b35a72f50ce13ea5d16b84d3e07a8cb50171ac`
+- Attestation publication/local-final head: `af3aad4f133d13bdf65ba8afa43e518d17bf34cc`, tree
+  `894231ebbffdcc3156ff1ac7a422a81263c7000e`
+
+### First exact submitted-head diagnostic
+
+[GitHub Actions CI run 33272363862](https://github.com/progresshans/godj/actions/runs/33272363862) targeted exact
+`d41459452646252cf8e368cd0aa6b431c498d905` and completed 41 jobs as 16 success, 25 failure and zero cancellation. Its 464
+recorded steps were 353 success, 25 failure and 86 skipped. It is diagnostic evidence only and is not reused as a green
+Phase E result.
+
+Twenty-four primary failing jobs were exhaustively classified into four overlapping causes; the twenty-fifth failure was the
+derivative required-CI aggregator. Fifteen primary jobs rejected the stale source-bound PostgreSQL attestation, fifteen
+observed exact repository architecture direct-import lock drift, and ten cold-cache setup paths attempted nested `go mod
+tidy` after the outer harness had disabled the proxy. Three primary jobs additionally exposed runner pressure: two macOS
+Intel relation mode jobs could not finish the MIG-089 child build within its existing 90-second subprocess boundary, while
+portable race reached the broad `godjcheck` package's ten-minute timeout and also recorded the multi-runtime worker build
+killed inside its 45-second aggregate context. No job was cancelled by an outer job timeout, and the classification found no
+separate product semantic assertion failure.
+
+Commit `1393712df5c6e83eab897282c43870c2b5e428c9`, tree
+`ceee1bdf07c2d661c75665c7d5db45dc486249ef`, corrected the import/setup locks without relaxing the product boundary.
+Commit `ed2e049e2a53eadd6f2e77ffcec002c5da2d21eb` isolated the three heavy portable packages under `-p=1` and a 20-minute
+package limit, retained the actual 90-second migration child boundary, and made relation coordinates run their exact
+seven-runner/six-checker ownership selectors. All three heavy packages retain portable normal/race coverage; the existing
+runner/checker CGO-disabled coverage remains, while worker CGO-disabled coverage was not expanded. The relation matrix no
+longer repeats unrelated package-wide work. Two independent normal inventory executions both reported 929 top-level
+tests run/929 pass/0 skip, 94,689 canonical bytes and SHA-256
+`e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`.
+
+### Independent source-bound PostgreSQL publication
+
+The final producer root is `/tmp/godj-gdj0050-attest-ed2e049-retry.39uFIl`. Its audited wrapper is 12,055 bytes/SHA-256
+`67f66d0746aad2abf7b6c1a883c5251b80eabc986df4c18b95a08987f268ffd1`. It used digest-pinned linux/amd64 images:
+
+- `golang:1.26.5-bookworm@sha256:53eeac89074db483fdf0ab3be1df32bf6e47562263d2d0d6baa7f26acb4957dd`
+- `postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`
+
+The frozen `git archive` and independent pre/post archives were each 17,950,720 bytes/SHA-256
+`f6ac22e3d3d455175ce49d56a8b880d936cb04db0555318f61411d676470b927`. Capture A and B used distinct PostgreSQL
+containers/clusters, named volumes, networks, Go containers and read-only source mounts. Each required exact fingerprint
+`170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin`. Normal successful-path cleanup and the final
+residue audit proved that no exact container, network or named-volume resource remained. EXIT/INT/TERM traps and their
+cleanup path were statically audited; no injected abnormal or signal-cleanup execution is claimed.
+
+Both captures are byte-identical 1,134-byte JSON with SHA-256
+`8d8bdd0da8a78edb39a7d409a06825892f7585cf3bb159573d6ea3ef6f0d94c6`. Their source binding is exactly 265 files,
+3,200,378 payload bytes and SHA-256 `dde3b6352acbbf42ff6967c2a3fbaa2675b96c021afe60ced20d1984a64ffb4c`.
+The facts record two writers, same schema/barrier/restart true and divergence/loss/drift/secret occurrences all zero.
+The producer scanned command output and PostgreSQL logs before any failure detail and found no command-scoped credential.
+
+Publication commit `af3aad4...` updates only the captured JSON, its checksum and the protocol byte lock. The checked JSON
+is 1,134 bytes/SHA-256 `8d8bdd0d...`; sibling `SHA256SUMS` is 103 bytes/SHA-256
+`800c46bc6e453dfb8f45e25144fe917e0d7d41f0db26c19e64b2ffff44b5600b`. A separate read-only audit confirmed A/B/published
+byte identity, source-scope exclusion, checksum/lock agreement, source archive preservation and zero retained resources with
+no P0/P1/P2 finding.
+
+### Publication-head local final
+
+The following exact gates ran from clean `af3aad4...` after artifact publication and all exited 0:
+
+```bash
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/system-state-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json \
+  -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json \
+  -system-state-postgres-attestation \
+  conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+
+go test -count=1 \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test -race -count=1 \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+CGO_ENABLED=0 go test -count=1 \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go vet \
+  ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker \
+  ./conformance/systemstate/restart ./conformance/runners/godj \
+  ./conformance/cmd/godjcheck ./conformance/internal/protocol
+
+LC_ALL=C TZ=UTC make ci
+
+GOOS=linux GOARCH=386 CGO_ENABLED=0 \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The full `make ci` included normal/race/CGO-disabled Go product lanes, isolated external project migration writer, vet,
+Python runner tests and all locked reference/deviation/product comparisons. A total duration or retained full-log hash was
+not captured and is not claimed. The separate Linux/386 command compiled all 115 packages; `/usr/bin/true` makes it
+compile-only and does not claim execution on Linux/386.
+
+The retained final relation capture is `/tmp/godj-gdj0050-relation-final.vQnaD5`. It contains 929 top-level tests run/929 pass/0 skip,
+94,689 canonical payload bytes/SHA-256 `e7314f9c...`; the raw 4,536,898-byte JSON log has SHA-256
+`2ecac0a4aa865e9479d5d1f938a594467aaf49ba692317f7da11b8dee43c3386`.
+
+The successful repository-external proof is `/tmp/godj-gdj0050-archive-final.XGo9KH`. The `.git`-free archive contained
+exactly 1,181 regular tracked blobs, all Git/archive mode `100644`, with 16,918,934 content bytes. Its pre/post canonical
+path/type/mode/size/SHA roster remained byte-identical at 152,891 bytes/SHA-256
+`ccaaa55e1b3df8022b98bc21d903cbae344bf9e575651f065e73b6d8c02541e2`. The 17,950,720-byte tar is SHA-256
+`0c474158731dbee238edd22ebaa2d898eb287547035fd8f014d1d8294d690a2f`; its raw 118,342-byte Git tree stream is
+SHA-256 `ac6cb564813c029628bccae6374a20a63bf0b79959e09e2918f5e0a4c8b773ea`. With an outside private Go build cache,
+archive-local `make generate-check`, 115-package `go list`, all-package Linux/386 compile-only and the actual repository-
+external `conformance/migrationwriterproduct` normal lifecycle all passed; the latter completed in 43.716 seconds. The exact
+115-line package list is 6,573 bytes/SHA-256
+`aeb5ddbc99bfcc7465a019c9bfd5552db75010938f17c552e87a68b8278d4b87`.
+
+An earlier archive harness root `/tmp/godj-gdj0050-archive-final.V50OcK` stopped before product gates because the harness
+incorrectly required a macOS working-copy file's full POSIX permissions to equal Git's logical non-executable mode. During
+that failed harness, one tracked oracle was locally `0600` while Git correctly recorded and archived it as `100644`. The corrected proof compares
+working-copy bytes but treats Git tree/archive mode as authority. The failed harness made no repository mutation and is not
+converted into product evidence.
+
+### Current boundary
+
+The frozen local milestone is complete and the worktree remained clean at `af3aad4...`. The first Hosted run is retained as
+failure diagnosis. The correction/publication has not yet been pushed as a new exact submitted head and therefore has no
+Hosted success claim. ADR-0052 remains Proposed, GDJ-0050 remains active and DEV-0010 remains Implemented rather than
+terminal Verified. Draft PR #1 remains open/draft/unmerged; no merge, release or deployment is performed. The following
+status/evidence commit is a documentation-only descendant of tested source `af3aad4...`; per repository cadence it receives
+documentation/protocol consistency gates rather than recursively repeating the full product matrix.

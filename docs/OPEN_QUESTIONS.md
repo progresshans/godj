@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0050 active / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver와 GDJ-0049 explicit migrate는 hosted-verified. GDJ-0050 Phase D는 one-request schema/catalog snapshot, deterministic current writer, public product adapter, PostgreSQL 17.10과 external public module까지 locally 통과; installed runner/library/generator semver, general upgrader/repair UX와 Phase E terminal gate는 open |
+| Q-010 | Partial | GDJ-0050 active / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver와 GDJ-0049 explicit migrate는 hosted-verified. GDJ-0050 additive writer는 Phase E local full/source-bound attestation/archive까지 통과; exact submitted-head Hosted와 installed runner/library/generator semver, general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
-| Q-012 | Partial | GDJ-0050 active / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart와 GDJ-0049 latest-only explicit public migrate는 hosted-verified. GDJ-0050 Phase D는 CreateModel/AddField additive writer/autodetector, recoverable publication, SQLite/PostgreSQL generated lifecycle와 MIG-099..110 product comparison까지 locally 통과; target/reverse/destructive/rename/upgrade/custom operation, broader crash recovery와 Phase E terminal gate는 open |
+| Q-012 | Partial | GDJ-0050 active / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart와 GDJ-0049 latest-only explicit public migrate는 hosted-verified. GDJ-0050 additive writer/autodetector와 Phase E local final은 통과; exact submitted-head Hosted와 target/reverse/destructive/rename/upgrade/custom operation, broader crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
@@ -398,7 +398,7 @@ cross-app SQLite lifecycle을 locally 구현·검증했습니다. Phase D는 MIG
 normal/race/CGO-disabled와 repository-external public module을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`,
 MIG-103..107은 exact 열아홉 result replacement를 가진 Implemented DEV-0010 `deviation`입니다. MIG-107은 Django parity가 아니라
 Phase-A GoDj decision-oracle taxonomy를 stable production error taxonomy로 supersede합니다. Upgrade, target/reverse/destructive/
-rename/custom/data operation과 broader crash recovery는 계속 open이고 full/attestation/Hosted Phase E도 남았으므로
+rename/custom/data operation과 broader crash recovery는 계속 open이고 local full/attestation은 끝났지만 exact Hosted가 남았으므로
 historical-state와 explicit-source loader 제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
 완료된

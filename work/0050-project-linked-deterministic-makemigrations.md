@@ -205,9 +205,9 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 
 ### Phase E — frozen milestone
 
-- [ ] Affected normal/race/CGO0/vet/generated drift와 scoped inventory 통과
-- [ ] Frozen behavioral source에서 source-bound PostgreSQL attestation을 두 번 독립 재캡처하고 exact artifact 게시
-- [ ] Full `make ci`, all-package Linux/386 compile-only, repository-external archive와 independent audit를 attestation publication
+- [x] Affected normal/race/CGO0/vet/generated drift와 scoped inventory 통과
+- [x] Frozen behavioral source에서 source-bound PostgreSQL attestation을 두 번 독립 재캡처하고 exact artifact 게시
+- [x] Full `make ci`, all-package Linux/386 compile-only, repository-external archive와 independent audit를 attestation publication
       descendant에서 한 번 실행
 - [ ] Exact submitted-head Hosted matrix 뒤 ADR/status/evidence terminal 동기화
 
@@ -219,8 +219,9 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 - [x] candidate bytes는 deterministic하고 strict load/latest reconstruction이 desired managed state와 같음
 - [x] same/cross-app ForeignKey와 structurally different second model을 실제 generate/migrate/restart로 검증함
 - [x] concurrent/fault/cancel publication은 complete dependency prefix와 no-overwrite/fresh resume를 만족함
-- [ ] SQLite/PostgreSQL/external consumer와 affected/final hosted gate를 실제 실행 증거로 기록함
-- [x] ADR-0052, Q-010/Q-012, matrix/CURRENT/work/evidence가 현재 Phase D 상태와 일치함
+- [x] SQLite/PostgreSQL/external consumer와 affected/final local gate를 실제 실행 증거로 기록함
+- [ ] Exact submitted-head Hosted gate를 실제 실행 증거로 기록함
+- [x] ADR-0052, Q-010/Q-012, matrix/CURRENT/work/evidence가 현재 Phase E local-final 상태와 일치함
 
 ## 진행 기록
 
@@ -251,7 +252,7 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 - `conformance/runners/{django,godj}/migration_writer_*`, `conformance/cmd/godjcheck/**`,
   `conformance/internal/protocol/migration_writer_artifacts_test.go`: mixed-authority runner, oracle-blind actual, strict sparse deviation와 lock
 - `Makefile`, `.github/workflows/ci.yml`, aggregate protocol locks: 23번째 product adapter, isolated external package,
-  PostgreSQL 21-test selector와 relation 1,111-test inventory wiring
+  PostgreSQL 21-test selector와 relation 929-test ownership inventory wiring
 - `internal/projectmigration/**`: immutable project schema/catalog snapshot, deterministic candidates와 separate bounded v1 wire
 - `internal/projectcheck/{makemigrations_*,linked/makemigrations_*}`: exact global modes, retained source/catalog/root CAS,
   directory-inode lock, no-replace durable-prefix publication, complete/incomplete temp recovery와 closed failure/process/cleanup contract
@@ -264,7 +265,7 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 - `internal/projectcheck/makemigrations_conformance_unix.go`: arbitrary public callback을 노출하지 않는 closed internal fault selector
 - `docs/adr/0052-project-linked-deterministic-makemigrations.md`, `work/0050-project-linked-deterministic-makemigrations.md`:
   Proposed decision와 active execution packet
-- compatibility/source/status/capability/roadmap mirrors: 실제 Phase A-D checkpoint 상태와 provenance
+- compatibility/source/status/capability/roadmap mirrors: 실제 Phase A-E local-final 상태와 provenance
 
 ## 결정된 사항
 
@@ -309,22 +310,27 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
   test와 package 경계만 각각 15분/20분으로 두되 Hosted job 자체의 상한도 유지합니다. 이는 제품 transaction deadline 변경이
   아니라 false timeout을 줄이는 검증 harness 교정입니다. 새 normal selector inventory는 두 독립 실행에서 모두
   929 run/929 pass/0 skip, 94,689 payload bytes, SHA-256 `e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`였습니다.
+- 2026-08-30: Frozen source `ed2e049e2a53eadd6f2e77ffcec002c5da2d21eb`에서 PostgreSQL 17.10 source-bound
+  attestation을 서로 다른 container/cluster/volume/network로 두 번 독립 캡처해 byte-identical 1,134-byte artifact
+  `8d8bdd0d...`를 게시했습니다. Publication head `af3aad4f133d13bdf65ba8afa43e518d17bf34cc`에서 focused
+  normal/race/CGO0/vet, full `make ci`, 115-package Linux/386 compile-only, exact 929 relation inventory와 1,181-file
+  repository-external archive gate가 모두 통과했습니다. Exact submitted-head Hosted와 성공 뒤 terminal 상태 동기화만 남습니다.
 
 ## 미결정/Blocker
 
-- No current blocker for Phase E start. Multiple writable roots, 65+ pending candidate batching, destructive operation과 self/cyclic relation
-  splitting은 명시적 후속 범위입니다. Current source-bound PostgreSQL attestation은 workflow/source change로 stale이며 Phase E에서
-  current frozen bytes로 재캡처해야 합니다.
+- No current blocker for the exact submitted-head Hosted gate. Multiple writable roots, 65+ pending candidate batching,
+  destructive operation과 self/cyclic relation splitting은 명시적 후속 범위입니다. Current source-bound PostgreSQL attestation과
+  local frozen milestone은 완료됐지만 Hosted 성공 전에는 terminal acceptance를 주장하지 않습니다.
 
 ## 테스트 증거
 
-- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150
+- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150, EVID-151
 - Result: Phase A pure/reference, Phase B strict private protocol/read-only CLI/CAS, Phase C recoverable normal publication/SQLite lifecycle와
-  Phase D PostgreSQL/product adapter/external module scoped gate가 통과했습니다. Phase D exact implementation commit은
-  `21d88c99b2d9733736fa68b34a7c0827a781ee70`, tree `976671ce53d9a5f6ae39d3fa2aea3546db5e4bc9`이며 command/result는
-  [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)에 기록합니다.
-- Not run: Phase E full `make ci`, all-package Linux/386 compile-only, repository-external archive expansion, current source-bound PostgreSQL
-  attestation recapture와 exact-head Hosted final. Linux publisher는 기존 Phase C compile-only이며 Phase D local runtime은 Darwin입니다.
+  Phase D PostgreSQL/product adapter/external module scoped gate가 통과했습니다. Phase E source freeze, independent A/B PostgreSQL
+  attestation, artifact publication, full/386/relation/archive local final은
+  [EVID-151](../docs/status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)에
+  기록합니다.
+- Not run: corrected exact submitted-head Hosted final. Linux publisher runtime은 실행하지 않았고 Linux/386은 compile-only입니다.
 
 ## 위험과 rollback
 
@@ -337,13 +343,11 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 
 ## 다음 정확한 작업
 
-Phase D는 local checkpoint로 완료됐습니다. 다음 재개 시 Phase E의 정확한 순서는 다음입니다.
+Phase E local frozen milestone은 완료됐습니다. 다음 정확한 순서는 다음입니다.
 
-1. Current behavioral source에서 affected precheck를 통과하고 source scope를 freeze
-2. Source-bound PostgreSQL attestation을 frozen source archive에서 두 번 독립 캡처하고 exact artifact/checksum 게시
-3. Attestation publication descendant에서 full `make ci`, Linux/386 compile-only, relation inventory와 repository-external archive gate 실행
-4. 새 exact submitted head의 Hosted matrix를 실행하고 failure/cancellation을 분류
-5. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
+1. EVID-151 local-final documentation descendant를 exact submitted head로 push
+2. 그 head의 Hosted matrix를 실행하고 모든 failure/cancellation/required skip을 분류
+3. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
 
 ## 결과와 인수인계
 
@@ -351,5 +355,5 @@ GDJ-0049 terminal product protocol bytes는 보존됩니다. Phase D는 기존 P
 DEV-0010 strict sparse policy, PostgreSQL 17.10 generated migrate/no-op/restart와 repository-external public-module SQLite lifecycle을
 연결했습니다. Fault 뒤 durable prefix는 fresh resume 전후 SourceID, bytes와 inode가 불변임을 검증하고, external failure harness는
 secret scan 전에 output을 로그로 재노출하지 않습니다. Product aggregate는 23/261=`237 passing + 24 deviation`으로 전환됐고
-MIG-075..086만 reference-only locked입니다. ADR-0052/GDJ-0050은 Phase E full/source-bound attestation/exact-head Hosted 전까지
-Proposed/active로 유지합니다.
+MIG-075..086만 reference-only locked입니다. Current source-bound attestation과 local final은 끝났지만
+ADR-0052/GDJ-0050은 exact submitted-head Hosted 성공 전까지 Proposed/active로 유지합니다.

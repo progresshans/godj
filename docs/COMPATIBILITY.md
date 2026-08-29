@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 Phase D local product/PostgreSQL/external-module gate; latest exact-head Hosted product는
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 EVID-151 Phase E frozen local final; latest exact-head Hosted product는
   GDJ-0049 EVID-146 / CI #164 run `33247166995`)
 - 현재 required checkpoint: EVID-144 local-final은 clean SQLite/PostgreSQL 17.10과 MIG-087..098 product 12
   `passing`을 검증했습니다. 첫 submitted run `33124180742`의 timeout을 selector/workload 분리와 macOS Intel race 전용
@@ -13,8 +13,8 @@
 - 현재 design: GDJ-0049/Accepted ADR-0051 completed, GDJ-0050/Proposed ADR-0052 active. Reference
   24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product 23/261=`237 passing + 24 deviation`;
   MIG-087..102/108..110은 product `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`, 남은 reference-only
-  locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase D product adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
-  repository-external public module은 locally 통과했지만 full/attestation/Hosted Phase E는 아직 없으며, 현재 active/ready work는 1/0임
+  locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase E local full/Linux/386 compile-only/relation/archive와 current
+  source-bound PostgreSQL attestation은 통과했지만 corrected exact submitted-head Hosted는 아직 없으며, 현재 active/ready work는 1/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -114,7 +114,8 @@ Bearer authentication profile actual, GDJ-0049 migration-command actual과 GDJ-0
 남은 reference-only locked range는 MIG-075..086뿐입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
 MIG-107의 stable GoDj error taxonomy는 exact 열아홉 sparse result replacement로 제한됩니다. MIG-107의 reference는 Django
 관찰이 아니라 Phase-A GoDj decision oracle taxonomy이며 DEV-0010이 이를 명시적으로 supersede합니다. PostgreSQL 17.10
-normal/race/CGO-disabled actual과 repository-external public module은 통과했지만 terminal Phase E는 아직 실행하지 않았습니다.
+normal/race/CGO-disabled actual, repository-external public module과 Phase E local final은 통과했지만 corrected exact-head
+Hosted terminal gate는 아직 실행하지 않았습니다.
 GDJ-0046 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`는 historical lock으로 보존됩니다.

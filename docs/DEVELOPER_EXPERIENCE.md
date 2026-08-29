@@ -1,6 +1,6 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified; GDJ-0050 Phase D additive writer/product/PostgreSQL/external-module boundary active·locally verified
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified; GDJ-0050 additive writer는 Phase E local-final 완료·exact Hosted 대기
 - 마지막 검토: 2026-08-30
 
 아래 `M1 verified` 단면, §8의 GDJ-0049 explicit migrate 경계와 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
@@ -501,8 +501,8 @@ Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/C
 module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
 `PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Implemented DEV-0010
 `deviation`입니다. Product aggregate는 23 adapters/261 contracts=`237 passing + 24 deviation`이고, MIG-075..086만
-reference-only locked입니다. Full `make ci`, Linux/386/archive, source-bound attestation recapture와 exact-head Hosted는
-Phase E terminal gate 전까지 검증됐다고 표현하지 않습니다.
+reference-only locked입니다. Full `make ci`, Linux/386/relation/archive와 source-bound attestation recapture는 EVID-151에서
+통과했고 exact submitted-head Hosted는 아직 검증됐다고 표현하지 않습니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

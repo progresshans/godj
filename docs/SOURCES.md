@@ -101,8 +101,9 @@ result replacement는 MIG-103의 `PROTECT`, MIG-104의 digest-derived name, MIG-
 MIG-107의 stable GoDj error taxonomy에만 한정됩니다. MIG-107의 Phase-A source는 Django가 아니라 GoDj-owned decision
 oracle이므로 DEV-0010은 그 historical taxonomy를 production code로 위장하지 않고 명시적으로 supersede합니다. Current product
 분류는 MIG-099/100/101/102/108/109/110 `passing`과 MIG-103..107 Implemented DEV-0010 `deviation`입니다. PostgreSQL
-17.10 normal/race/CGO-disabled actual과 repository-external public module은 locally 통과했지만 full `make ci`, Linux/386/archive,
-source-bound attestation recapture와 exact-head Hosted는 Phase E 전까지 terminal evidence가 아닙니다.
+17.10 normal/race/CGO-disabled actual과 repository-external public module에 이어 Phase E local full `make ci`, Linux/386
+compile-only, relation/archive와 current source-bound attestation recapture도 통과했습니다. Corrected exact-head Hosted만
+terminal evidence로 남습니다.
 
 ## Django REST framework
 

@@ -94,7 +94,8 @@ generated migrate/no-op/distinct-process restart, oracle-blind MIG-099..110 actu
 repository-external public-module SQLite lifecycle를 구현하고 affected normal/vet/generated drift, focused
 runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. Current reference/product aggregate는
 24/273/552=`237+24+12 locked`, 23/261=`237+24`이고
-MIG-075..086만 locked/unregistered입니다. Phase E full/Linux/386/source-bound attestation/exact-head Hosted는 아직 남아
+MIG-075..086만 locked/unregistered입니다. Phase E current source-bound attestation과 local
+full/Linux/386/relation/archive는 EVID-151에서 통과했고 exact submitted-head Hosted만 남아
 ADR-0052/GDJ-0050을 Proposed/active로 유지합니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
 project runner를 explicit `godj migrate`에 연결했습니다. Accepted

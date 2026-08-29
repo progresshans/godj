@@ -34,13 +34,16 @@
   [EVID-150](TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint)이
   exact commands와 non-claims를 기록합니다. Current reference는 24/273/552=
   `237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`이고 MIG-075..086만
-  locked/unregistered입니다. Phase E full/Linux/386 compile-only/current source-bound attestation/exact-head Hosted는 남아 있으므로
-  ADR-0052/GDJ-0050은 Proposed/active입니다. Makefile/workflow product wiring이
-  source-bound PostgreSQL attestation scope를 바꿨으므로 EVID-146은 predecessor product proof로만 보존하고 current exact-source
-  attestation/Hosted proof로 재사용하지 않습니다. Phase A exact head `9b487d0...`의 CI #166/run `33260407753`은
-  24 success/17 failure/0 cancellation이며 failed logs의 stale-attestation 표식 15회 외에 portable race 10분 timeout과
-  multi-runtime worker kill도 별도로 있어 green이 아니고 Phase B 증거로 재사용하지 않습니다. 재캡처와 exact-head Hosted는 Phase E
-  frozen milestone에서 한 번 수행합니다. Completed
+  locked/unregistered입니다. Phase E source freeze `ed2e049...`에서 PostgreSQL 17.10 attestation A/B를 독립 재캡처했고
+  byte-identical 1,134-byte artifact를 publication head `af3aad4...`, tree `894231e...`에 게시했습니다.
+  [EVID-151](TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)의 focused
+  normal/race/CGO0/vet, full `make ci`, 115-package Linux/386 compile-only, exact 929 relation inventory와 1,181-file
+  repository-external archive가 모두 통과했습니다. First exact Phase D documentation head `d414594...`의
+  [CI run 33272363862](https://github.com/progresshans/godj/actions/runs/33272363862)는 41 jobs 중
+  16 success/25 failure/0 cancellation이었고 stale source-bound attestation, direct-import lock drift, cold-cache setup과
+  runner-pressure diagnostic으로 보존합니다. Correction/local-final source는 아직 새 exact submitted-head Hosted를 통과하지
+  않았으므로 ADR-0052/GDJ-0050은 Proposed/active입니다. EVID-146과 이전 attestation은 predecessor proof로만 보존하며
+  current exact-source 또는 Hosted proof로 재사용하지 않습니다. Completed
   [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Accepted
   [ADR-0051](../adr/0051-project-linked-explicit-migrate.md)은 exact
   `godj migrate [--project <godj.toml>]`, copied definition load-before-open, project-owned lazy backend,
@@ -1440,12 +1443,13 @@
   `58df6dd46e1e50de8b29509c0082c050c12ea3a82c96b62f47be88c7252e606e`/
   `e646c927985585a7adf1289af44f273885bc12cb84d7ea210ab8d86703c092a3`이고, 그 predecessor source binding은
   262 files/3,108,132 payload bytes/SHA-256 `6e949613e23d2b098c3e7cdfb8460afba5ab129b545ff96821ee53d57a229f23`입니다.
-  Current Phase D source에는 stale이므로 Phase E에서 재캡처합니다.
+  EVID-151 current checked attestation/checksum은 1,134/103 bytes와 SHA-256 `8d8bdd0d...d94c6`/`800c46bc...600b`,
+  source binding은 265 files/3,200,378 payload bytes/SHA-256 `dde3b635...fb4c`입니다.
 - EVID-146 predecessor relation-product inventory는 1,091 run/1,091 pass/0 skip, 113,222 bytes/SHA-256
   `90a0f8a223168ca4d091fae42b61be9161cd8fc5c15db32cccf42af55a16db75`였고 four-coordinate normal과
-  전체 twelve coordinate/mode Hosted jobs가 통과했습니다. Current Phase D selector/list lock은 1,111 tests,
-  115,370 bytes/SHA-256 `483021d213b451815843edd7d0fb43e95ae0aa174b42a5a7d450758a83f7770a`이며 full workload 실행은
-  Phase E 전까지 주장하지 않습니다.
+  전체 twelve coordinate/mode Hosted jobs가 통과했습니다. Current EVID-151 relation ownership selector/list lock은
+  929 run/929 pass/0 skip, 94,689 bytes/SHA-256
+  `e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`이며 local full workload가 통과했습니다.
 
 ### 검증 증거
 
@@ -1892,12 +1896,17 @@ no-replace dependency-valid durable-prefix publication, complete/incomplete owne
 migrate/no-op/fresh-process restart를 구현하고 EVID-149의 affected local gates를 통과했습니다. Phase D implementation
 `21d88c99...`/tree `976671ce...`는 PostgreSQL 17.10 writer-to-migrate lifecycle, 12-contract oracle-blind product adapter,
 DEV-0010 exact 19 sparse replacements와 repository-external public-module lifecycle를 구현하고 EVID-150 affected gates와
-독립 감사를 통과했습니다. Current reference/product aggregate는 24/273/552=`237+24+12 locked`, 23/261=`237+24`이며
-MIG-075..086만 locked입니다. Full/Linux/386 compile-only/current source-bound attestation/Hosted는 Phase E에 남습니다. Current 64-candidate ceiling은 batching이
-아닌 hard support limit이고 publication filesystem은 cooperative writer가 사용하는 supported Darwin/Linux local filesystem으로
-한정합니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
-24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. Stale PostgreSQL attestation 외에 portable
-race 10분 timeout과 multi-runtime worker kill도 함께 관찰됐고 current Phase B proof로 사용하지 않습니다. Completed GDJ-0049는 activation head `c983381...`에서 시작해 Phase A reference
+  독립 감사를 통과했습니다. Current reference/product aggregate는 24/273/552=`237+24+12 locked`, 23/261=`237+24`이며
+  MIG-075..086만 locked입니다. Phase E source freeze `ed2e049...`와 attestation publication `af3aad4...`에서 current
+  source-bound PostgreSQL 17.10 attestation A/B byte identity, full `make ci`, 115-package Linux/386 compile-only, 929 relation
+  inventory와 1,181-file repository-external archive가 EVID-151로 통과했습니다. Corrected exact submitted-head Hosted만
+  남습니다. Current 64-candidate ceiling은 batching이
+  아닌 hard support limit이고 publication filesystem은 cooperative writer가 사용하는 supported Darwin/Linux local filesystem으로
+  한정합니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
+  24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. First Phase D documentation head
+  `d414594...`/tree `b6aa227...`의 run `33272363862`는 16/41 success, 25 failure, cancellation 0이었고 24 primary failure의
+  stale attestation/direct-import architecture lock/cold-cache setup/runner-pressure 원인과 derivative required-CI failure로
+  분류됐습니다. 두 run 모두 current corrected proof로 사용하지 않습니다. Completed GDJ-0049는 activation head `c983381...`에서 시작해 Phase A reference
 `2248c982...`, Phase B `d31a8b8c...`, SQLite/PostgreSQL lifecycle과 product publication을 거쳤습니다. Exact latest-only `godj migrate`, copied
 load-before-open, lazy project-owned backend opener, one-open/one-migrate/one-close, no-retry/error/secret/interrupt cleanup과
 Article stable root/shared database config가 구현됐습니다. Clean SQLite/PostgreSQL latest/no-op, middle failure durable-prefix
