@@ -112,8 +112,9 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    project-root authority로 selected descriptor와 bounded declaration/build-input source namespace의 independent fingerprint를
    캡처합니다. 최소 inventory는 exact `godj.toml`, selected runner와 project-owned local package의 Go/build/embed input,
    `go.mod`/`go.sum` 및 in-scope workspace metadata와 committed generated manifest/source의 canonical path/mode/bytes입니다.
-   Physical catalog CAS는 `godj/makemigrations-source-catalog/v1\x00` domain에서 canonical source-ID order의
-   source ID length/bytes와 exact document length/bytes를 hash하고 semantic `LoadedDefinitionSet.Digest()`와 구분합니다. Candidate
+   Physical catalog CAS는 `godj/makemigrations-source-catalog/v1\x00` domain에서 `uint64-be(source-count)` 뒤 canonical source-ID
+   order의 source ID length/bytes와 exact document length/bytes를 hash하고 semantic `LoadedDefinitionSet.Digest()`와 구분합니다.
+   Programmatic catalog는 같은 framing과 exact `godj/makemigrations-programmatic-source-catalog/v1\x00` domain을 사용합니다. Candidate
    CAS는 source fingerprint, normalized `ProjectSpec` digest, generated-bundle/schema identity와 physical/semantic catalog digest를
    함께 결속합니다. Stale child가 자체 보고한 token만 서로 비교하는 것은 CAS가 아닙니다. First rename 직전에 global owner가
    retained authority에서 independent source fingerprint와 descriptor/root identity를 다시 검증하고, 하나라도 달라지면 candidate
@@ -121,6 +122,12 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    binary를 실행하지 않습니다. Programmatic source snapshot digest는 filesystem catalog token과 분리하고, compiled declaration
    source fingerprint와 child response의 semantic catalog digest를 함께 검증합니다. Existing check/generate/migrate protocol bytes는
    바꾸지 않습니다.
+   여기서 one-request snapshot은 OS 전체의 원자 snapshot이 아니라 copied `project.Config`, exactly-once declaration loader와 한 번의
+   filesystem catalog capture가 한 child request 안에서 동일 plan authority를 만든다는 뜻입니다. Physical filesystem catalog,
+   programmatic source catalog, semantic `LoadedDefinitionSet`과 normalized `ProjectSpec`은 서로 다른 versioned digest domain을 사용하고,
+   `GeneratedBundle.SnapshotSHA256()`는 generator ABI까지 포함한 별도 generated identity로 유지합니다. Phase B read-only 경계는 build
+   전 fingerprint capture, build 뒤 child 실행 전 재검증과 child response 공개 전 재검증까지 소유합니다. 같은 inode의 in-place byte
+   변경도 conflict여야 하며 existing project-generate source namespace token은 이 CAS authority로 재사용하지 않습니다.
 10. Normal mode global owner는 retained project root와 dedicated writer lock 아래 current schema/catalog를 다시 snapshot하고
     plan합니다. Candidate 전체와 각 dependency prefix를 기존 source에 합쳐 strict-load/latest reconstruct하며 final managed state
     exact equality를 검증합니다. Publication 직전 source/catalog CAS와 no-overwrite를 재검증합니다. Normal, `--dry-run`, `--check`는
@@ -148,6 +155,12 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
     namespace member가 target과 일치하지 않으면 아무것도 지우지 않습니다. 그 뒤에만 remaining delta를 fresh replan하고, ambiguous
     state는
     recovery-required로 fail-closed합니다. Whole-batch manifest/journal은 만들지 않습니다.
+    Writer root는 compiled project declaration이 소유하므로 normal mode는 initial read-only child snapshot으로 exact root를 확인한 뒤
+    lock을 획득하고, 같은 built runner에 fresh second private request를 보내 lock 아래 schema/catalog를 다시 plan합니다. 두 request는
+    각각 one-request snapshot 계약을 만족하며 initial result를 그대로 게시 authority로 재사용하지 않습니다. First/every rename 직전
+    source/catalog/root CAS는 이 Phase C publication 경계가 소유합니다. Publisher가 아직 연결되지 않은 intermediate Phase B에서
+    candidate가 있는 bare normal command는 read-only plan을 게시 성공으로 가장하지 않고 detail-free
+    publication-unavailable failure로 닫습니다. Clean bare normal command는 write 없이 성공합니다.
 12. 이 command는 `OpenMigrationBackend`를 호출하지 않고 DB/introspection/applied-recorder를 읽지 않습니다. Generated definition을
     실제 `godj migrate`로 SQLite/PostgreSQL clean database에 적용하는 것은 product E2E 검증이지만 autodetection 입력은 아닙니다.
 13. MIG-099..110은 Django-observable과 GoDj decision authority를 분리한 새 mixed-authority set입니다. Python source byte parity가

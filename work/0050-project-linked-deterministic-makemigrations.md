@@ -113,8 +113,9 @@ godj runserver
 
 ### Phase A MIG-099..110 reference
 
-Phase A에서 exact 12개 manifest/NI/oracle을 별도 set으로 byte-lock해 `oracle_locked`로 게시했습니다. Product CLI/private
-protocol/publication adapter는 아직 없으므로 actual product가 같은 observation을 만족한 뒤에만 `passing`으로 전환합니다.
+Phase A에서 exact 12개 manifest/NI/oracle을 별도 set으로 byte-lock해 `oracle_locked`로 게시했습니다. 당시에는 public CLI/private
+protocol/publication adapter가 모두 없었습니다. Current Phase B에는 read-only CLI/private protocol만 존재하며 publication/product
+adapter는 없으므로 actual product가 같은 observation을 만족한 뒤에만 `passing`으로 전환합니다.
 
 | ID | Scenario | Required observation |
 |---|---|---|
@@ -167,20 +168,23 @@ protocol/publication adapter는 아직 없으므로 actual product가 같은 obs
 
 ### Phase B — project-linked snapshot and public read-only modes
 
-- [ ] `project.Config` snapshot owner와 separate strict makemigrations private protocol 구현
-- [ ] Exact global argv, project selection/build/cleanup와 schema+catalog one-request planning 구현
-- [ ] `--dry-run` and `--check`의 deterministic result/exit/file-zero/DB-zero 구현
-- [ ] Normal/dry-run/check가 exact producer, filename/project-relative path, source ID, roster와 resource limit을 같은 pure preflight로
+- [x] `project.Config` snapshot owner와 separate strict makemigrations private protocol 구현
+- [x] Exact global argv, project selection/build/cleanup와 schema+catalog one-request planning 구현
+- [x] `--dry-run` and `--check`의 deterministic result/exit/file-zero/DB-zero 구현
+- [x] Normal/dry-run/check가 exact producer, filename/project-relative path, source ID, roster와 resource limit을 같은 pure preflight로
       검증하고 host-independent report를 반환
-- [ ] 모든 semantic candidate를 먼저 Encode하고 existing catalog와 strict Load/reconstruct한 뒤에만 result를 반환하며,
+- [x] 모든 semantic candidate를 먼저 Encode하고 existing catalog와 strict Load/reconstruct한 뒤에만 result를 반환하며,
       escaped NUL 등 raw state보다 wire가 커지는 document-limit failure를 publication 전 0-candidate로 닫기
-- [ ] Runner build 전 declaration/build-input source fingerprint와 response ProjectSpec/catalog digest를 결속하고 first rename 전
-      retained project-root authority에서 independent source/catalog CAS를 재검증
-- [ ] Existing check/generate/migrate protocol bytes와 opener-zero invariant 보존
+- [x] Runner build 전 declaration/build-input source fingerprint를 캡처하고 build 뒤 child 실행 전과 child response를 공개하기 전에
+      retained project-root authority에서 independent source/catalog CAS를 재검증. Phase B의 read-only 결과는 같은 inode의 in-place
+      descriptor/build-input 변경도 stale로 닫음
+- [x] Existing check/generate/migrate protocol bytes와 opener-zero invariant 보존
 
 ### Phase C — recoverable write and multi-app vertical
 
 - [ ] Pre-existing retained physical root, exactly-one writer root, app-prefixed roster와 dedicated lock/CAS 구현
+- [ ] Normal mode는 initial read-only snapshot으로 writer root를 확인한 뒤 lock 아래 fresh second private request로 다시 plan하고,
+      first/every rename 직전 source/catalog/root identity CAS를 재검증. 각 private request 내부는 schema+catalog one-snapshot 계약을 유지
 - [ ] Atomic no-overwrite append, fault/cancel dependency-prefix resume와 concurrent serialized replan 구현
 - [ ] Reserved owned-temp namespace와 rename-after/directory-fsync unknown outcome의 structured recovery-required/fresh-invocation
       recovery를 구현하고 unknown file/symlink/non-regular/path rebound를 mutation 전 거부
@@ -216,9 +220,12 @@ protocol/publication adapter는 아직 없으므로 actual product가 같은 obs
 - [x] 조사 — current architecture/status, numbering과 Django 6.1 source/test authority 병렬 감사
 - [x] 설계/ADR — additive-only managed-app diff와 global publication owner를 Proposed로 활성화
 - [x] Phase A 구현 — pure detector/current encoder와 reference-only artifact scaffold
-- [ ] Phase B-D 제품 구현
+- [x] Phase B 구현 — project-owned one-request snapshot, strict private v1 wire와 global read-only CLI/CAS
+- [ ] Phase C-D publication/product 구현
 - [x] Phase A 테스트 — affected normal/race/CGO0/vet/386, Python/reference contract와 deterministic artifact
 - [x] Phase A 문서와 인수인계
+- [x] Phase B 테스트 — affected normal/race/CGO0/vet/count-10, actual clean CLI/generate drift와 네 차례 독립 감사
+- [x] Phase B 문서와 인수인계
 
 ## 수정 파일
 
@@ -228,9 +235,14 @@ protocol/publication adapter는 아직 없으므로 actual product가 같은 obs
   `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json`: MIG-099..110 reference lock
 - `conformance/runners/django/migration_writer_*`, `conformance/internal/protocol/migration_writer_artifacts_test.go`: mixed authority runner/tests와 lock
 - `Makefile`, `.github/workflows/ci.yml`, aggregate protocol locks: new reference set inventory wiring; product job/adapter count 불변
+- `internal/projectmigration/**`: immutable project schema/catalog snapshot, deterministic candidates와 separate bounded v1 wire
+- `internal/projectcheck/{makemigrations_*,linked/makemigrations_*}`: exact global read-only modes, retained source/catalog CAS,
+  project child snapshot과 closed failure/process/cleanup contract
+- `cmd/godj/{main_unix.go,makemigrations_unix_test.go}`, `project/{project_unix.go,project_unix_test.go}`:
+  public dispatch, opaque bounded config ownership와 actual external-project DB-zero/read-only proof
 - `docs/adr/0052-project-linked-deterministic-makemigrations.md`, `work/0050-project-linked-deterministic-makemigrations.md`:
   Proposed decision와 active execution packet
-- compatibility/source/status/capability/roadmap mirrors: 실제 Phase A reference/code 상태와 provenance
+- compatibility/source/status/capability/roadmap mirrors: 실제 Phase A+B checkpoint 상태와 provenance
 
 ## 결정된 사항
 
@@ -239,43 +251,52 @@ protocol/publication adapter는 아직 없으므로 actual product가 같은 obs
 - 2026-08-29: Product 1.0 전체 scope를 선행 동결하지 않고 current supported operation을 end-to-end로 닫는 wide bounded packet을
   채택합니다.
 - 2026-08-29: Django observable contract와 GoDj deterministic/publication strengthening을 같은 결과 set에서 authority별로 구분합니다.
-- 2026-08-30: MIG-099..110은 reference-only `oracle_locked`; product adapter/CLI/publication은 아직 미구현으로 분리합니다.
+- 2026-08-30: MIG-099..110은 reference-only `oracle_locked`입니다. Phase B public read-only CLI/private protocol은 그 상태를
+  승격하지 않으며 product adapter/publication은 아직 미구현으로 분리합니다.
 - 2026-08-30: Clean no-op은 noncanonical leaf라도 successor naming이 필요 없으므로 성공합니다. Delta가 생겨 successor가 필요한
   noncanonical leaf만 structured unsupported로 닫습니다.
 - 2026-08-30: Composite name은 exact versioned digest domain, Definition producer는 `godj-makemigrations`/`1`로 고정합니다.
 - 2026-08-30: Source CAS는 catalog token만으로 충분하지 않으며 retained physical source fingerprint와 semantic ProjectSpec/catalog
   digest를 결속합니다. Rename 뒤 directory durability unknown은 recovery-required로 분류하고 자동 retry/rollback을 금지합니다.
+- 2026-08-30: Phase B는 build 전/후와 child response 전의 read-only descriptor/build-input/catalog CAS까지 소유하고, lock 아래 fresh
+  replan과 first/every rename 직전 CAS는 Phase C publication 책임으로 분리합니다. Phase C 전 pending normal command는 read-only plan을
+  게시 성공으로 가장하지 않고 structured publication-unavailable로 닫고, clean normal command는 write 없이 성공합니다.
+- 2026-08-30: `GeneratedBundle.SnapshotSHA256()`는 generator ABI를 포함한 generated identity이며 normalized `ProjectSpec` semantic
+  digest나 physical/programmatic catalog digest와 동일시하지 않습니다. 세 authority는 별도 versioned domain으로 검증합니다.
 
 ## 미결정/Blocker
 
-- None for Phase A. Multiple writable roots, destructive operation과 self/cyclic relation splitting은 명시적 후속 범위입니다.
+- No current blocker for Phase C start. Multiple writable roots, destructive operation과 self/cyclic relation splitting은 명시적 후속 범위입니다.
 
 ## 테스트 증거
 
-- Evidence ID: EVID-147
-- Result: Phase A pure/reference scoped gate passed; exact command와 artifact hash는
-  [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#evid-20260830-147--gdj-0050-phase-a-reference-and-pure-boundary-checkpoint)에 기록
-- Not run: product adapter/CLI/private protocol, publication fault tests, SQLite/PostgreSQL E2E, full `make ci`, source-bound
-  PostgreSQL attestation recapture와 exact-head Hosted final
+- Evidence IDs: EVID-147, EVID-148
+- Result: Phase A pure/reference gate와 Phase B strict private protocol/global read-only CLI/CAS scoped gate가 통과했습니다. Exact command,
+  implementation commit/tree와 CI #166 predecessor diagnostic은
+  [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md#evid-20260830-148--gdj-0050-phase-b-project-linked-read-only-makemigrations-checkpoint)에 기록합니다.
+- Not run: Phase C publication/concurrency/recovery fault tests, SQLite/PostgreSQL generated-writer E2E, MIG-099..110 product adapter,
+  full `make ci`, source-bound PostgreSQL attestation recapture와 current exact-head Hosted final
 
 ## 위험과 rollback
 
 - Public CLI 이름이 broad support로 오해될 수 있으므로 result/error와 capability docs에 additive-only 범위를 반복해 명시합니다.
 - Diagnostic definition clones를 실행 authority로 재사용하지 않고 candidate 전체를 strict load/reconstruct해 다시 seal합니다.
-- Writer는 기존 migration bytes를 수정하지 않습니다. Phase A는 revert 가능하고 아직 product publication path가 없습니다.
+- Phase B command는 기존 migration bytes나 DB를 수정하지 않는 read-only 경계입니다. Publication path는 아직 없고 구현 커밋은
+  독립적으로 revert 가능합니다.
 - Multi-app dependency/cycle 처리를 잘못하면 historical state가 달라지므로 strict round-trip equality가 mandatory pre-publication gate입니다.
 - Workflow/attestation source를 바꾸면 기존 source-bound evidence를 새 head에 재사용하지 않습니다.
 
 ## 다음 정확한 작업
 
-1. Phase B에서 separate strict makemigrations private request/response와 project-owned snapshot을 구현
-2. Global exact argv와 DB-zero dry-run/check를 same candidate preflight에 연결
-3. Source/catalog CAS와 physical writer-root publication을 시작하기 전 fault model tests를 먼저 고정
+1. Phase C fault model에서 retained physical writer root, dedicated lock과 fresh second private replan을 먼저 고정
+2. First/every rename CAS, atomic no-replace dependency-prefix publication과 recovery-required outcome을 구현
+3. Two-app cross-app FK fixture에서 generated candidate -> SQLite migrate/restart 수직 단면을 검증
 
 ## 결과와 인수인계
 
-GDJ-0049 terminal product protocol bytes는 보존됩니다. GDJ-0050 Phase A는 pure detector/current encoder를 구현하고
-MIG-099..110 reference-only artifact를 `oracle_locked`로 게시했지만 public `makemigrations`, private product protocol,
-filesystem publication과 product adapter는 아직 없습니다. Workflow/Makefile은 reference inventory/count lock만 갱신했으며 새 job은
-추가하지 않았습니다. Source-bound PostgreSQL attestation은 이 source/workflow change 뒤 stale이므로 Phase E frozen milestone에서만
-재캡처합니다.
+GDJ-0049 terminal product protocol bytes는 보존됩니다. GDJ-0050 Phase A의 pure detector/current encoder와 reference-only
+MIG-099..110 lock 위에 Phase B exact public `makemigrations` argv, separate strict private protocol, opaque project config snapshot,
+deterministic dry-run/check/clean-normal과 retained build-input/catalog CAS를 연결했습니다. Pending normal은 Phase C 전
+`publication_unavailable`로 닫고 command 전체는 file/DB mutation 0입니다. Filesystem lock/publication/recovery, product adapter와
+SQLite/PostgreSQL writer E2E는 아직 없습니다. Source-bound PostgreSQL attestation은 workflow change 뒤 stale이므로 Phase E frozen
+milestone에서만 재캡처합니다.

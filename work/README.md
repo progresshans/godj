@@ -83,9 +83,11 @@ DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog sn
 연결합니다. Proposed
 [ADR-0052](../docs/adr/0052-project-linked-deterministic-makemigrations.md)는 managed filesystem app과 read-only
 programmatic app을 구분하고, exactly-one writer root, app-prefixed flat roster, source CAS/no-overwrite와
-dependency-valid durable prefix/fresh resume recovery를 검증 경계로 둡니다. Phase A pure detector/current encoder는
-implemented이고 MIG-099..110은 reference-only `oracle_locked`; CLI/private protocol/publication/product adapter는 아직
-미구현입니다. Current reference/product aggregate는 24/273/552=`230+19+24 locked`, 22/249=`230+19`입니다. Completed
+dependency-valid durable prefix/fresh resume recovery를 검증 경계로 둡니다. Phase A pure detector/current encoder와
+reference-only MIG-099..110 lock에 이어 Phase B strict private v1 protocol, exact public read-only modes와 independent
+build-input/catalog CAS가 local-scoped verified됐습니다. Pending normal은 Phase C 전 `publication_unavailable`; filesystem
+publication/recovery와 product adapter는 미구현입니다. Current reference/product aggregate는
+24/273/552=`230+19+24 locked`, 22/249=`230+19`입니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
 project runner를 explicit `godj migrate`에 연결했습니다. Accepted
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,

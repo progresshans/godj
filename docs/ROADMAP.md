@@ -16,9 +16,10 @@
   41/41 jobs·464/464 steps와 PostgreSQL 세 mode required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
   현재 active/ready는 1/0입니다. [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Proposed
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 pure additive detector/current encoder와
-  MIG-099..110 reference-only lock을 Phase A에서 완료했습니다. Current reference는 24/273/552=
-  `230 passing + 19 deviation + 24 oracle_locked`, product는 22/249=`230 passing + 19 deviation`으로 불변이며 public
-  `makemigrations` CLI/private protocol/publication/product adapter는 아직 미구현입니다.
+  MIG-099..110 reference-only lock을 Phase A에서 완료했습니다. Phase B는 strict private v1 protocol, exact public read-only
+  `makemigrations` modes와 retained build-input/catalog CAS를 local-scoped verified했습니다. Current reference는 24/273/552=
+  `230 passing + 19 deviation + 24 oracle_locked`, product는 22/249=`230 passing + 19 deviation`으로 불변이며 Phase C
+  filesystem publication/recovery와 product adapter가 다음 단계입니다.
 - 직전 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing

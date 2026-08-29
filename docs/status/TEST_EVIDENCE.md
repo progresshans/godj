@@ -13808,3 +13808,95 @@ writer E2E, full `make ci`, all-package Linux/386, current source-bound PostgreS
 The checked PostgreSQL attestation predates the Makefile/workflow source change and is intentionally stale; it will be
 recaptured only at the Phase E frozen milestone. EVID-146 remains exact proof for its predecessor tree and is not reused for
 this Phase A tree. Draft PR #1 remains open/draft/unmerged, and Phase B was not started by this checkpoint.
+
+## EVID-20260830-148 — GDJ-0050 Phase B Project-Linked Read-Only Makemigrations Checkpoint
+
+- Date: 2026-08-30 KST
+- Work/contract IDs: GDJ-0050 active; ADR-0052 Proposed; MIG-099..110 remain reference-only `oracle_locked`;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Phase B implementation commit: `352f17e1d801638dadb4cdecdf0d481d015fcb70`, tree
+  `458f275ef80d537acddd6f52b11ce8fb14d1bb57`
+
+### Implemented boundary
+
+The implementation adds the exact public `godj makemigrations [--dry-run|--check] [--project <path>]` argv surface,
+a separate strict bounded private project protocol v1, an opaque project-owned configuration snapshot and a pure
+schema/catalog preflight. The linked child receives exactly one request, loads declarations once, discovers existing
+definitions once and opens no database. All modes share canonical candidate encoding, strict load/reconstruction and
+final-state equality before returning a result.
+
+The global parent captures declaration/build inputs and the physical or programmatic migration catalog independently,
+builds and runs one private child, and closes source, project-spec and catalog changes with retained-authority CAS before
+exposing the response. Clean dry-run, check and normal modes return success without mutation. Pending dry-run reports the
+deterministic candidates, pending check exits 1, and pending normal exits 1 with structured `publication_unavailable`
+until Phase C supplies the write path. Phase B creates, changes or removes no migration file and opens no database.
+
+Existing project check/generate/migrate private protocol bytes and their opener boundaries remain unchanged. The new
+protocol maps invalid catalog and invalid plan failures explicitly, enforces the same exact writer-root resource limit at
+both project and protocol layers, bounds programmatic sources before cloning and exposes only deep-cloned candidate bytes.
+Post-baseline path disappearance, symlink replacement, root rebound and in-place source/build-input mutation close as
+`source_conflict`; process/internal failures and a previously selected non-cancellation primary failure retain ownership.
+
+Four independent read-only audits covered the private protocol/resource limits, pure snapshot/catalog identity, global
+CLI/process/CAS boundary and final integrated implementation. After the reported corrections, they found no remaining
+correctness, security or determinism blocker; the final integrated review explicitly reported P0/P1/P2=`0/0/0`.
+No filesystem publication or product-contract status was advanced by those reviews.
+
+### Current implementation scoped verification
+
+The following gates passed against implementation commit `352f17e...`:
+
+```bash
+go test -count=1 \
+  ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectmigration/... ./project
+go test -count=1 ./cmd/godj
+go test -race -count=1 \
+  ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectmigration/... ./project
+go test -race -count=1 -run 'Makemigrations' ./cmd/godj
+CGO_ENABLED=0 go test -count=1 \
+  ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectmigration/... ./project ./cmd/godj
+go test -count=10 -run 'Makemigrations' \
+  ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectmigration/... ./project
+go vet \
+  ./internal/projectcheck ./internal/projectcheck/linked ./internal/projectmigration/... ./project ./cmd/godj
+go run ./cmd/godj makemigrations --dry-run --project examples/article/godj.toml
+go run ./cmd/godj makemigrations --check --project examples/article/godj.toml
+go run ./cmd/godj makemigrations --project examples/article/godj.toml
+go run ./cmd/godj generate --check --project examples/article/godj.toml
+git diff --check
+```
+
+The three actual Article commands each returned a clean zero-candidate result; dry-run emitted
+`{"status":"clean","candidate_count":0,"candidates":[]}`, and check and normal also exited 0 without file or database
+mutation. Generated drift remained clean at snapshot
+`f0043e...` across the existing twelve-file Article bundle. The `cmd/godj` package additionally exercises an actual
+repository-external pending dry-run through the public command and verifies deterministic candidate output, unchanged
+migration bytes and a zero-call project database opener.
+
+Focused normal and race reruns after the final cleanup/interrupt-barrier correction also passed. Scoped `gofmt -l`
+returned no path, and the implementation staged diff passed `git diff --check`. These are affected-package checkpoint
+gates under the repository verification policy; they are not a full frozen-milestone matrix.
+
+### Predecessor Hosted diagnostic, not Phase B proof
+
+[GitHub Actions CI #166 run 33260407753](https://github.com/progresshans/godj/actions/runs/33260407753) tested exact
+submitted predecessor Phase A head `9b487d07f56f83c8d8b923cfb0e77eead102d3ad`, not this Phase B implementation. It
+completed with 41 jobs: 24 successful, 17 failed and none cancelled. Fifteen collected failure logs explicitly reported
+that the PostgreSQL live-attestation source binding was stale after the already documented Makefile/workflow source
+change. The portable race lane separately reported the same stale-attestation failure and then a ten-minute
+`conformance/cmd/godjcheck` timeout while the SQLite distinct-process worker build ended with `signal: killed`; the
+dependency aggregate consequently failed.
+
+This run is retained as a diagnostic rather than converted into a green or attributed solely to the stale attestation.
+It contains no proof for Phase B bytes. Attestation recapture and a new exact-head Hosted matrix remain deferred to the
+Phase E frozen milestone so checkpoint development does not recursively regenerate source-bound evidence.
+
+### Non-claims and next gate
+
+This checkpoint does not claim filesystem locking/publication/recovery, generated SQLite/PostgreSQL migration-writer E2E,
+MIG-099..110 product adapter registration, full `make ci`, all-package Linux/386, current source-bound PostgreSQL
+attestation or current exact-head Hosted success. It also does not claim destructive/rename/custom operations,
+multiple writable roots or general schema autodetection. The next implementation gate is Phase C's retained physical
+writer root, dedicated lock, fresh second private replan, first/every-rename CAS, atomic dependency-prefix publication and
+structured recovery-required handling. Draft PR #1 remains open/draft/unmerged; no merge, release or deployment is
+performed by this checkpoint.

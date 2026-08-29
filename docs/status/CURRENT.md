@@ -12,9 +12,16 @@
   filesystem root와 app-prefixed flat roster를 사용하고 programmatic definition app은 read-only historical state로
   보존합니다. Existing model AddField는 populated SQLite에도 DB-free로 안전한 nullable/no-default Char/FK suffix만 허용합니다.
   Phase A는 pure detector/current encoder를 구현했고 MIG-099..110 reference-only artifact를 `oracle_locked`로 게시했습니다.
-  Public CLI/private protocol/filesystem publication/product adapter는 아직 미구현입니다. Makefile/workflow reference wiring이
+  Phase B는 exact six-form public argv, separate strict private v1 protocol, opaque bounded `project.Config` snapshot,
+  deterministic dry-run/check/clean-normal과 retained build-input/catalog CAS를 구현해
+  [EVID-148](TEST_EVIDENCE.md#evid-20260830-148--gdj-0050-phase-b-project-linked-read-only-makemigrations-checkpoint)의
+  affected normal/race/CGO0/vet/count-10와 actual Article clean command를 통과했습니다. Pending normal은 Phase C 전
+  `publication_unavailable`; filesystem publication/recovery와 product adapter는 아직 미구현입니다. Makefile/workflow reference wiring이
   source-bound PostgreSQL attestation scope를 바꿨으므로 EVID-146은 predecessor product proof로만 보존하고 current exact-source
-  attestation/Hosted proof로 재사용하지 않습니다. 재캡처와 exact-head Hosted는 Phase E frozen milestone에서 한 번 수행합니다. Completed
+  attestation/Hosted proof로 재사용하지 않습니다. Phase A exact head `9b487d0...`의 CI #166/run `33260407753`은
+  24 success/17 failure/0 cancellation이며 failed logs의 stale-attestation 표식 15회 외에 portable race 10분 timeout과
+  multi-runtime worker kill도 별도로 있어 green이 아니고 Phase B 증거로 재사용하지 않습니다. 재캡처와 exact-head Hosted는 Phase E
+  frozen milestone에서 한 번 수행합니다. Completed
   [GDJ-0049](../../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)과 Accepted
   [ADR-0051](../adr/0051-project-linked-explicit-migrate.md)은 exact
   `godj migrate [--project <godj.toml>]`, copied definition load-before-open, project-owned lazy backend,
@@ -1855,8 +1862,12 @@ DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-
 
 현재 active/ready packet은 1/0입니다. Active GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
-`oracle_locked` set으로 게시했습니다. Current reference/product aggregate는 24/273/552=`230+19+24 locked`,
-22/249=`230+19`이며 public CLI/private protocol/publication/product adapter는 아직 없습니다. Completed GDJ-0049는 activation head `c983381...`에서 시작해 Phase A reference
+`oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
+strict separate v1 wire, opaque project-owned snapshot, deterministic read-only modes와 build-input/catalog CAS를 구현했습니다.
+Current reference/product aggregate는 24/273/552=`230+19+24 locked`, 22/249=`230+19`이며 Phase C filesystem
+publication/recovery와 product adapter는 아직 없습니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
+24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. Stale PostgreSQL attestation 외에 portable
+race 10분 timeout과 multi-runtime worker kill도 함께 관찰됐고 current Phase B proof로 사용하지 않습니다. Completed GDJ-0049는 activation head `c983381...`에서 시작해 Phase A reference
 `2248c982...`, Phase B `d31a8b8c...`, SQLite/PostgreSQL lifecycle과 product publication을 거쳤습니다. Exact latest-only `godj migrate`, copied
 load-before-open, lazy project-owned backend opener, one-open/one-migrate/one-close, no-retry/error/secret/interrupt cleanup과
 Article stable root/shared database config가 구현됐습니다. Clean SQLite/PostgreSQL latest/no-op, middle failure durable-prefix

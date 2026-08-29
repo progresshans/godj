@@ -128,9 +128,10 @@ exact latest-only `godj migrate`까지입니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
-Public writer CLI/product adapter와 upgrade는 아직 포함하지 않습니다. Active GDJ-0050/Proposed ADR-0052 Phase A는 current
-CreateModel/AddField pure detector/current encoder를 구현했고 MIG-099..110을 reference-only `oracle_locked`로 게시했습니다. 아래
-library-level loaded execution은 별도 제품 경계입니다.
+Active GDJ-0050/Proposed ADR-0052 Phase A는 current CreateModel/AddField pure detector/current encoder를 구현했고
+MIG-099..110을 reference-only `oracle_locked`로 게시했습니다. Phase B는 bounded public `godj makemigrations` read-only planning
+command, strict private v1 protocol과 source/catalog CAS를 local-scoped verified했지만 pending normal publication과 product adapter,
+upgrade는 아직 포함하지 않습니다. 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
 DB-aware entry는 `Executor.Migrate(ctx, loaded, request)` 하나입니다. Historical reconstruction은 scalar와
@@ -643,7 +644,8 @@ Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 
 outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
 cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
 GDJ-0049의 writer/autodetector와 target/reverse/plan/fake는 범위 밖이었습니다. Active GDJ-0050은 additive-only
-writer/autodetector를 별도 packet으로 진행하지만 public CLI/private protocol/publication은 아직 구현하지 않았습니다. 첫 submitted head `8841319...`의 run
+writer/autodetector와 public read-only CLI/private protocol을 Phase A+B에서 구현했지만 filesystem publication/recovery와 product
+adapter는 아직 구현하지 않았습니다. 첫 submitted head `8841319...`의 run
 `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로
 terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 macOS Intel race 전용 bounded
 budget, source-bound attestation/lock recapture를 반영한 submitted tree `b82bb5b...`는
