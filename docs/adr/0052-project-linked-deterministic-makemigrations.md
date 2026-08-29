@@ -129,11 +129,18 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    전 fingerprint capture, build 뒤 child 실행 전 재검증과 child response 공개 전 재검증까지 소유합니다. 같은 inode의 in-place byte
    변경도 conflict여야 하며 existing project-generate source namespace token은 이 CAS authority로 재사용하지 않습니다.
 10. Normal mode global owner는 retained project root와 dedicated writer lock 아래 current schema/catalog를 다시 snapshot하고
-    plan합니다. Candidate 전체와 각 dependency prefix를 기존 source에 합쳐 strict-load/latest reconstruct하며 final managed state
-    exact equality를 검증합니다. Publication 직전 source/catalog CAS와 no-overwrite를 재검증합니다. Normal, `--dry-run`, `--check`는
+    plan합니다. Dedicated lock은 별도 control file이 아니라 retained writer-directory inode 자체의 duplicated fd에 건 `flock`이며,
+    publisher는 그 fd와 device/inode identity를 publication 완료까지 재검증합니다. Candidate 전체와 각 dependency prefix를 기존
+    source에 합쳐 strict-load/latest reconstruct하며 final managed state exact equality를 검증합니다. Publication 직전
+    source/catalog CAS와 no-overwrite를 재검증합니다. Normal, `--dry-run`, `--check`는
     같은 bounded producer, filename/project-relative path, source ID, roster, definition Encode/strict combined Load/reconstruct와 모든
     resource-limit preflight를 공유합니다. `--dry-run`/`--check`는 project tree에 lock/temp/control file을 만들지 않고 recovery-required
     상태도 read-only로 진단하며 정리하지 않습니다.
+    Current private protocol/snapshot은 한 plan의 candidate를 최대 64개로 제한합니다. 이는 historical catalog 최대 2,048 source와
+    별도인 hard support ceiling이며 app filter나 automatic batching이 없으므로 65개 이상 pending candidate는 재실행으로 전진하지
+    않고 structured resource-limit failure로 닫습니다. Recovery 뒤 writer directory의 existing entry와 candidate 합은 최대
+    65,536개입니다. 모든 mode가 target/temp component의 실제 부재를 probe해 filesystem `NAME_MAX`와 case-fold collision도 normal
+    rename 전에 같은 결과로 닫습니다.
 11. Multi-file publication은 topological candidate order의 atomic no-replace append를 사용합니다. Reserved temp basename은
     `.godj-makemigrations-tmp-v1-<64-lowercase-hex>`이며 hex는
     `SHA-256("godj/migration-temp/v1\x00" || uint64-be(len(target-basename)) || target-basename ||
@@ -149,18 +156,26 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
     dependency prefix를 보존합니다. Source/catalog CAS는 각 candidate rename 전, root/path/lock identity는 first rename, 각 rename
     뒤와 success 반환 전에 다시 확인합니다. 이미 durable prefix가 생긴 뒤 source drift나 path rebind를 발견하면 prefix를 보존하고
     recovery/rerun-required로 반환합니다. 다음
-    normal invocation은 같은 lock 아래 bounded owned-temp namespace와 visible catalog를 먼저 재검증합니다. Target이 없고 valid owned
-    temp만 있으면 definite-unrenamed temp를 제거·directory fsync합니다. Exact valid target만 보이면 target directory를 fsync해
-    catalog에 채택합니다. Target과 temp가 동시에 있거나 ownership 또는 exact visible/durability state를 증명할 수 없거나 reserved
-    namespace member가 target과 일치하지 않으면 아무것도 지우지 않습니다. 그 뒤에만 remaining delta를 fresh replan하고, ambiguous
-    state는
-    recovery-required로 fail-closed합니다. Whole-batch manifest/journal은 만들지 않습니다.
+    normal invocation은 같은 lock 아래 fresh second snapshot을 얻고 bounded owned-temp namespace와 visible catalog를 재검증합니다.
+    Complete temp는 strict current-format definition bytes/producer/temp digest로 self-authenticate하며, incomplete temp는 fresh candidate의 deterministic
+    target/document 이름과 exact byte prefix에 유일하게 결속될 때만 두 번의 동일 inode/mode/size/catalog-seal scan과 source/catalog
+    CAS 뒤에 제거·directory fsync합니다. Exact valid target만 보이면 target directory를 fsync해 catalog에 채택합니다. Recovery 뒤
+    catalog가 fresh snapshot과 그대로 일치하는지 다시 seal/CAS하므로 그 plan을 publication authority로 유지할 수 있습니다. Target과
+    temp가 동시에 있거나 ownership 또는 exact visible/durability state를 증명할 수 없거나 reserved namespace member가 candidate와
+    일치하지 않으면 아무것도 지우지 않고 recovery-required로 fail-closed합니다. Whole-batch manifest/journal은 만들지 않습니다.
     Writer root는 compiled project declaration이 소유하므로 normal mode는 initial read-only child snapshot으로 exact root를 확인한 뒤
     lock을 획득하고, 같은 built runner에 fresh second private request를 보내 lock 아래 schema/catalog를 다시 plan합니다. 두 request는
     각각 one-request snapshot 계약을 만족하며 initial result를 그대로 게시 authority로 재사용하지 않습니다. First/every rename 직전
     source/catalog/root CAS는 이 Phase C publication 경계가 소유합니다. Publisher가 아직 연결되지 않은 intermediate Phase B에서
     candidate가 있는 bare normal command는 read-only plan을 게시 성공으로 가장하지 않고 detail-free
-    publication-unavailable failure로 닫습니다. Clean bare normal command는 write 없이 성공합니다.
+    publication-unavailable failure로 닫습니다. Clean bare normal command는 write 없이 성공합니다. Phase C normal success는
+    `generated`, ordinary publication failure와 recovery-required는 exit 3입니다.
+    지원 filesystem은 Darwin/Linux local filesystem 중 directory `flock`, regular-file/directory `fsync`와 kernel atomic
+    no-replace rename을 제공하는 범위입니다. `ENOSYS`/`EINVAL`/`EOPNOTSUPP`에서 overwrite 가능한 fallback은 사용하지 않습니다.
+    성공한 file/directory `fsync` syscall이 durability contract 경계이며 Darwin `F_FULLFSYNC`나 임의 hardware power-loss까지
+    증명한다고 주장하지 않습니다. Reserved temp namespace는 cooperative GoDj writer 전용입니다. POSIX에는 inode-conditioned
+    unlink가 없으므로 같은 namespace에서 경쟁하는 non-cooperative local actor와 distributed/network filesystem 안전성은
+    비범위입니다.
 12. 이 command는 `OpenMigrationBackend`를 호출하지 않고 DB/introspection/applied-recorder를 읽지 않습니다. Generated definition을
     실제 `godj migrate`로 SQLite/PostgreSQL clean database에 적용하는 것은 product E2E 검증이지만 autodetection 입력은 아닙니다.
 13. MIG-099..110은 Django-observable과 GoDj decision authority를 분리한 새 mixed-authority set입니다. Python source byte parity가
@@ -180,6 +195,8 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
   `LoadProjectSpec`은 이 보장에 포함되지 않으며 declaration loader는 copied project-owned source의 pure snapshot이어야 합니다.
 - 여러 app candidate의 중간 실패는 all-or-nothing이 아니라 dependency-valid durable prefix입니다. 이는 existing `migrate`의
   durable-prefix/resume 의미와 일치하며 append-only source에 whole-batch replacement framework를 도입하지 않습니다.
+- 한 command에서 65개 이상 pending candidate를 자동 분할하지 않습니다. Current 64-candidate ceiling은 성능 권고가 아니라
+  fail-closed support limit이며 app filter/batching을 별도 결정하기 전까지 그대로 유지합니다.
 
 ## 의도적으로 결정하지 않은 것
 

@@ -85,8 +85,12 @@ DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog sn
 programmatic app을 구분하고, exactly-one writer root, app-prefixed flat roster, source CAS/no-overwrite와
 dependency-valid durable prefix/fresh resume recovery를 검증 경계로 둡니다. Phase A pure detector/current encoder와
 reference-only MIG-099..110 lock에 이어 Phase B strict private v1 protocol, exact public read-only modes와 independent
-build-input/catalog CAS가 local-scoped verified됐습니다. Pending normal은 Phase C 전 `publication_unavailable`; filesystem
-publication/recovery와 product adapter는 미구현입니다. Current reference/product aggregate는
+build-input/catalog CAS가 local-scoped verified됐습니다. Phase C는 directory-inode lock 아래 fresh second plan,
+first/every-rename CAS, kernel no-replace dependency-valid durable-prefix publication, complete/incomplete owned-temp recovery와
+actual two-app cross-app publish -> SQLite migrate/no-op/fresh-process restart를 locally implemented/verified했습니다. Current
+64-candidate ceiling은 batching이 아닌 hard support limit이고 supported cooperative Darwin/Linux local filesystem만
+publication 범위입니다. Phase D PostgreSQL/product adapter와 Phase E full/Hosted는 아직 시작하지 않았습니다. Current
+reference/product aggregate는
 24/273/552=`230+19+24 locked`, 22/249=`230+19`입니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
 project runner를 explicit `godj migrate`에 연결했습니다. Accepted

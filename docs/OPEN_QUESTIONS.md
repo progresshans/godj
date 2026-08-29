@@ -393,8 +393,9 @@ Explicit data-only source encoding과 bounded loader는 GDJ-0019/0020에서 결�
 이 GDJ-0020 completion snapshot에서는 source discovery/listing, writer/upgrade, data/custom/raw-SQL operation ABI,
 graph merge/squash/optimizer, multi-process lock와 crash recovery가 미결정이었습니다. Current checkout은 그 뒤 discovery/check,
 explicit migrate를 완료했고 GDJ-0050/Proposed ADR-0052 Phase A에서 additive-only pure detector/current encoder와 MIG-099..110
-reference lock을 추가했습니다. Public writer CLI/private protocol/publication, upgrade와 broader operations는 계속 open이므로
-historical-state와 explicit-source loader 제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
+reference lock을 추가했습니다. Phase B/C에서 public writer CLI/private protocol과 cooperative supported local-filesystem publication,
+cross-app SQLite lifecycle을 locally 구현·검증했습니다. MIG-099..110 product adapter, PostgreSQL writer E2E, upgrade와 broader
+operations는 계속 open이므로 historical-state와 explicit-source loader 제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은

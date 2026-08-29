@@ -15,8 +15,16 @@
   Phase B는 exact six-form public argv, separate strict private v1 protocol, opaque bounded `project.Config` snapshot,
   deterministic dry-run/check/clean-normal과 retained build-input/catalog CAS를 구현해
   [EVID-148](TEST_EVIDENCE.md#evid-20260830-148--gdj-0050-phase-b-project-linked-read-only-makemigrations-checkpoint)의
-  affected normal/race/CGO0/vet/count-10와 actual Article clean command를 통과했습니다. Pending normal은 Phase C 전
-  `publication_unavailable`; filesystem publication/recovery와 product adapter는 아직 미구현입니다. Makefile/workflow reference wiring이
+  affected normal/race/CGO0/vet/count-10와 actual Article clean command를 통과했습니다. Phase C implementation
+  `d42358fb8033454082bb32df9114e3bbcc4ca940`, tree `25c33512828f5a6ad77c02c3e5747b0bef69f314`은 retained
+  physical writer root, directory-inode lock 아래 fresh second plan, first/every-rename source/catalog/root CAS, kernel
+  no-replace append, per-file directory-fsync commit과 complete/incomplete owned-temp recovery를 구현했습니다.
+  [EVID-149](TEST_EVIDENCE.md#evid-20260830-149--gdj-0050-phase-c-recoverable-publication-and-sqlite-lifecycle-checkpoint)의
+  affected normal/race/CGO0/vet/count-10, SIGKILL fault points와 actual two-app cross-app publish -> SQLite
+  migrate/no-op/fresh-process restart가 통과했습니다. Current plan은 64 pending candidates hard ceiling이며 recovery 뒤
+  writer-directory headroom은 65,536 entries입니다. Publication은 cooperative GoDj writer와 directory `flock`, file/directory
+  `fsync`, kernel no-replace rename을 제공하는 Darwin/Linux local filesystem에 한정합니다. Phase D PostgreSQL/product
+  adapter와 Phase E full/Hosted는 시작하지 않았습니다. Makefile/workflow reference wiring이
   source-bound PostgreSQL attestation scope를 바꿨으므로 EVID-146은 predecessor product proof로만 보존하고 current exact-source
   attestation/Hosted proof로 재사용하지 않습니다. Phase A exact head `9b487d0...`의 CI #166/run `33260407753`은
   24 success/17 failure/0 cancellation이며 failed logs의 stale-attestation 표식 15회 외에 portable race 10분 timeout과
@@ -1864,8 +1872,13 @@ DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
 strict separate v1 wire, opaque project-owned snapshot, deterministic read-only modes와 build-input/catalog CAS를 구현했습니다.
-Current reference/product aggregate는 24/273/552=`230+19+24 locked`, 22/249=`230+19`이며 Phase C filesystem
-publication/recovery와 product adapter는 아직 없습니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
+Phase C implementation `d42358f...`/tree `25c3351...`는 directory-inode lock 아래 fresh plan과 every-rename CAS,
+no-replace dependency-valid durable-prefix publication, complete/incomplete owned-temp recovery와 actual cross-app SQLite
+migrate/no-op/fresh-process restart를 구현하고 EVID-149의 affected local gates를 통과했습니다. Current reference/product
+aggregate는 24/273/552=`230+19+24 locked`, 22/249=`230+19`로 불변이며 MIG-099..110 product adapter와 PostgreSQL
+writer E2E는 Phase D, full/source-bound attestation/Hosted는 Phase E에 남습니다. Current 64-candidate ceiling은 batching이
+아닌 hard support limit이고 publication filesystem은 cooperative writer가 사용하는 supported Darwin/Linux local filesystem으로
+한정합니다. Phase A head `9b487d0...`의 CI #166/run `33260407753`은
 24/41 success, 17 failure, cancellation 0의 non-green predecessor diagnostic입니다. Stale PostgreSQL attestation 외에 portable
 race 10분 timeout과 multi-runtime worker kill도 함께 관찰됐고 current Phase B proof로 사용하지 않습니다. Completed GDJ-0049는 activation head `c983381...`에서 시작해 Phase A reference
 `2248c982...`, Phase B `d31a8b8c...`, SQLite/PostgreSQL lifecycle과 product publication을 거쳤습니다. Exact latest-only `godj migrate`, copied

@@ -13900,3 +13900,123 @@ multiple writable roots or general schema autodetection. The next implementation
 writer root, dedicated lock, fresh second private replan, first/every-rename CAS, atomic dependency-prefix publication and
 structured recovery-required handling. Draft PR #1 remains open/draft/unmerged; no merge, release or deployment is
 performed by this checkpoint.
+
+## EVID-20260830-149 — GDJ-0050 Phase C Recoverable Publication and SQLite Lifecycle Checkpoint
+
+- Date: 2026-08-30 KST
+- Platform: Darwin 25.6.0 arm64, macOS 26.6.2, Go 1.26.5 darwin/arm64
+- Work/contract IDs: GDJ-0050 active; ADR-0052 Proposed; MIG-099..110 remain reference-only `oracle_locked` and
+  unregistered; Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Phase C implementation commit: `d42358fb8033454082bb32df9114e3bbcc4ca940`, tree
+  `25c33512828f5a6ad77c02c3e5747b0bef69f314`
+
+### Implemented publication and recovery boundary
+
+Normal mode now retains the one pre-existing physical writer root, locks the writer-directory inode with `flock`, obtains
+a fresh second child plan under that lock and keeps the duplicated lock fd plus root device/inode authority through
+publication. It revalidates source, catalog and root identity before the first and every later rename and before final
+success. Each candidate is written to a deterministic reserved 0600 temp file, fully written and file-fsynced, then
+published in topological order with the kernel's atomic no-replace rename and committed by directory `fsync`. A middle
+failure therefore preserves a dependency-valid durable prefix rather than pretending whole-batch atomicity.
+
+Fresh normal invocations reconcile exact visible targets and owned temporary files before publishing the remaining fresh
+plan. Complete temps self-authenticate through the exact definition/producer/digest. Empty or mid-write temps are removed
+only when their deterministic name and exact byte prefix bind uniquely to the fresh candidate, two scans retain identical
+inode/mode/size/catalog seals, source/catalog/root CAS still holds and the target is absent; removal is followed by
+directory `fsync`. Wrong prefixes, unknown names, non-regular members, target/temp ambiguity, source or catalog races and
+path rebound remain untouched and return recovery-required. Cancellation after a durable rename does not relabel the
+committed prefix as absent, and commit-unknown states are not automatically retried inside the invocation.
+
+The current private protocol and snapshot accept at most 64 pending candidates in one plan. This is a hard support ceiling,
+not automatic batching, and is separate from the 2,048-source historical catalog bound. After recovery, existing writer
+entries plus candidates are bounded at 65,536. All public modes share runtime target/temp absence probes so filesystem
+`NAME_MAX` and case-fold collisions close consistently before normal rename. Successful normal publication reports
+`generated`; ordinary publication and recovery-required failures use public exit 3.
+
+The implemented publisher is limited to cooperative GoDj writers on Darwin/Linux local filesystems that provide directory
+`flock`, regular-file and directory `fsync`, and kernel atomic no-replace rename (`RENAME_EXCL` on Darwin,
+`RENAME_NOREPLACE` on Linux). Unsupported primitives do not fall back to overwrite-capable rename. Successful `fsync`
+syscalls are the durability contract boundary; this checkpoint does not claim Darwin `F_FULLFSYNC`, literal arbitrary
+hardware power-loss persistence, non-cooperative reserved-namespace actors or distributed/network filesystems.
+
+### Actual public lifecycle
+
+The actual CLI test builds a repository-external project with `authors` and `blog`, publishes two app-prefixed cross-app
+definition files through `godj makemigrations`, and proves the project-owned database opener was called zero times during
+the writer command. Both files are regular mode 0600 and their reported SHA-256 values match the bytes. A repeat command is
+clean and preserves both bytes and inode identities.
+
+The same generated definitions are then consumed by the actual public SQLite `godj migrate` path. The first migrate
+records both definitions, the second is a no-op that preserves inserted cross-app data, and a fresh subprocess opens the
+same database and reads both migration history and the cross-app row. This proves the local Phase C publish -> existing
+migrate -> no-op -> distinct-process restart vertical without making the migration writer database-aware.
+
+### Audit correction
+
+An independent final review found one P1 crash gap: SIGKILL immediately after temp creation or during the write could leave
+an incomplete owned temp that the prior complete-document-only recovery could not classify. The fresh-candidate prefix
+binding and two-scan recovery rule above were added, together with real subprocess `temp_created` and `temp_mid_write`
+SIGKILL points and catalog-race regressions. A follow-up independent review found the original P1 closed and no new P0/P1;
+the 64-candidate wording was also corrected to a hard unsupported ceiling rather than a retryable batch.
+
+### Scoped verification
+
+The following affected-package gates passed against implementation commit `d42358f...`:
+
+```bash
+go test -count=1 \
+  ./internal/projectmigration/protocol ./internal/projectmigration \
+  ./internal/projectcheck/linked ./internal/projectcheck
+
+go test -count=1 ./cmd/godj \
+  -run '^TestActualGodjMakemigrations(NormalPublishesCrossAppAndMigrateRestartsNoop|SQLiteRestartHelper)$' \
+  -timeout=120s -v
+
+go test -race -count=1 \
+  ./internal/projectmigration/... ./internal/projectcheck/linked ./internal/projectcheck
+go test -count=1 ./cmd/godj
+go test -race -count=1 -run 'Makemigrations' ./cmd/godj
+
+CGO_ENABLED=0 go test -count=1 \
+  ./internal/projectmigration/protocol ./internal/projectmigration \
+  ./internal/projectcheck/linked ./internal/projectcheck
+CGO_ENABLED=0 go test -count=1 -run 'Makemigrations' ./cmd/godj
+
+go vet \
+  ./internal/projectmigration/... ./internal/projectcheck/linked ./internal/projectcheck ./cmd/godj
+
+phasec_tmp_dir=$(mktemp -d)
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c \
+  -o "$phasec_tmp_dir/projectcheck.test" ./internal/projectcheck
+test -s "$phasec_tmp_dir/projectcheck.test"
+
+go test -count=10 ./internal/projectcheck \
+  -run '^(TestRunMakemigrationsNormalPublishesCrossAppDependencyPrefixAndRepeat|TestRunMakemigrationsConcurrentWritersUseLockedSecondSnapshot|TestMakemigrationsInterruptWhileWaitingForWriterLockDoesNotMutate|TestMakemigrationsIncompleteTempRecoveryRequiresFreshCandidatePrefix)$' \
+  -timeout=180s
+
+go test ./internal/projectcheck \
+  -run 'TestMakemigrations(SIGKILLLeavesRecoverableStrictPrefix|CrashHelper)$' \
+  -count=1 -timeout=90s -v
+
+git show --name-only --format= d42358fb8033454082bb32df9114e3bbcc4ca940 -- '*.go' \
+  | xargs gofmt -l
+git diff --check
+```
+
+The actual public lifecycle command passed in 26.643 seconds; its helper skips in the parent and runs in the fresh
+subprocess as designed. Full `./cmd/godj` passed in 76.543 seconds, focused race passed in 32.187 seconds, focused
+CGO-disabled passed in 32.647 seconds and the internal race gate passed with `internal/projectcheck` completing in 52.250
+seconds. The count-10 concurrency/recovery set, focused SIGKILL recovery tests, scoped vet, formatting and diff checks all
+passed. Linux/amd64 was compile-only; no Linux publisher binary was executed by this checkpoint.
+
+### Status and non-claims
+
+The reference/product aggregates remain exactly 24 sets/273 contracts/552 ordered bindings = 230 `passing`, 19
+`deviation`, 24 `oracle_locked`, and 22 adapters/249 contracts = 230 `passing`, 19 `deviation`. Phase C does not register a
+MIG-099..110 product adapter and does not accept ADR-0052 or complete GDJ-0050.
+
+Phase D PostgreSQL generated-writer E2E, MIG-099..110 product adapter/strict comparison, full `make ci`, all-package
+Linux/386 runtime, repository-external archive, current source-bound PostgreSQL attestation recapture and exact-head Hosted
+matrix were not run. This entry records the exact implementation commit/tree above; the following documentation-only
+descendant is not recursively claimed as a separately product-tested source. Draft PR #1 remains open/draft/unmerged, and
+no merge, release or deployment is performed by this checkpoint. Phase D was not started.
