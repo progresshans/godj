@@ -2,8 +2,8 @@
 
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
   explicit migrate, GDJ-0050 additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는
-  hosted-Verified; GDJ-0054 exact forward `sqlmigrate`는 active이고 Phase A reference lock·Phase B library/renderers 완료,
-  product command 미구현
+  hosted-Verified; GDJ-0054 exact forward `sqlmigrate`는 active이고 Phase A reference lock·Phase B library/renderers·Phase C
+  command/external SQLite 완료, product actual 미등록
 - 마지막 검토: 2026-08-31
 
 아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0052 경계를 제외한 코드는
@@ -575,8 +575,10 @@ renderer가 current `CreateModel`/`AddField` compiler projection을 database/his
 검토합니다. 이 명령은 live database 상태·실제 실행 가능성·atomicity를 확인하거나 fully offline/custom-renderer no-I/O를
 보장하지 않습니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
 `oracle_locked`로 고정했습니다. Phase B source `f51ab733...`, tree `ab71e8a...`는 pure materializer, built-in renderers와
-direct project config를 구현해 EVID-174의 affected gate를 통과했습니다. Product adapter와 위 command는 아직 구현됐다고
-표현하지 않으며 다음 단계는 Phase C입니다.
+direct project config를 구현해 EVID-174의 affected gate를 통과했습니다. Phase B 증거는 product adapter와 command를
+구현됐다고 표현하지 않습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 exact command, strict private wire, canonical one-write
+owner와 external SQLite no-DB flow를 구현해 EVID-175의 affected gate를 통과했습니다. Product actual은 아직 미등록이며 다음
+단계는 Phase D PostgreSQL/current-profile publication입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

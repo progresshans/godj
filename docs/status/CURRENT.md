@@ -27,8 +27,17 @@
   않습니다. Root는 typed-nil, cancellation, cardinality, 2,048 statement/16 MiB caps, canonical body와 raw cause/partial SQL
   redaction을 fail-closed합니다. Affected normal/race/CGO-disabled/vet, all-package compile-only, repeat와 external compile gate가
   통과했고 상세 non-claim은 [EVID-174](TEST_EVIDENCE.md#evid-20260831-174--gdj-0054-phase-b-pure-sql-projection-core-and-built-in-renderer-checkpoint)이
-  소유합니다. ADR-0055는 Proposed이고 global/private command와 product adapter는 미구현입니다. 다음 정확한 작업은 Phase C
-  strict wire/global CLI, one-write ownership과 repository-external SQLite no-DB product flow입니다.
+  소유합니다. Phase C source `a304a73d80b0512b6594d512938874e2456d1292`, tree
+  `f8df2d405152eade4f5748c2f36398ca2e87b75a`는 strict private v1 wire, exact two-form global CLI, one final terminal
+  publication, one-frozen-selection Article configuration과 repository-external SQLite public-only product flow를 구현했습니다.
+  Invalid argv는 project/build/init 전에 닫히고 complete catalog/exact lookup은 renderer보다 먼저이며 built-in success/failure/
+  cancellation에서 opener/history/recorder/transaction/schema mutation은 zero입니다. Repeat/parallel fresh process bytes, process reap,
+  scratch/source immutability와 partial SQL·secret·path redaction을 검증했고 affected normal/race/CGO-disabled/vet, all-package
+  compile-only, Linux/386 cross-compile proxy, protocol repeat, generated drift와 independent audit가 통과했습니다.
+  [EVID-175](TEST_EVIDENCE.md#evid-20260831-175--gdj-0054-phase-c-project-linked-sqlmigrate-and-external-sqlite-checkpoint)이
+  exact proof와 non-claim을 소유합니다. ADR-0055는 Proposed이고 MIG-129..138은 여전히 unregistered `oracle_locked`이며 aggregate는
+  불변입니다. 다음 정확한 작업은 Phase D PostgreSQL current profile, actual child cancellation, oracle-blind actual/policy publication과
+  source-freeze attestation A/B입니다.
   Activation evidence는 [EVID-172](TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. Completed
   [GDJ-0053](../../work/0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와
   함께 unrelated scalar-only 또는 otherwise-unused nullable-only target model이 있는 valid project의 generated
@@ -2099,8 +2108,9 @@ failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. A
 활성화됐습니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
 `oracle_locked`로 게시했고 pinned/isolated Python, semantic/protocol/conformance/checksum과 independent audit를 통과했습니다.
 Phase B source `f51ab733...`, tree `ab71e8a...`는 pure `RenderMigrationSQL`, renderer port, SQLite/PostgreSQL
-compiler-backed renderer와 direct project config를 구현했습니다. Product adapter와 command는 아직 미구현이며 다음 정확한 작업은
-Phase C strict private/global wire와 repository-external SQLite no-DB product flow입니다. GDJ-0053 sparse-model generated compile
+compiler-backed renderer와 direct project config를 구현했습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 strict
+private/global command, canonical one-write owner와 repository-external SQLite no-DB flow를 구현했습니다. MIG-129..138 actual은
+아직 미등록이며 다음 정확한 작업은 Phase D PostgreSQL/current-profile publication입니다. GDJ-0053 sparse-model generated compile
 availability는 exact submitted-head Hosted까지 통과해 completed입니다. 최근 completed GDJ-0052 exact target/plan/bounded reverse의 baseline
 `1d37272...`에서 시작해 Phase B source `cd499462...`/tree `580ae7a...`가 public strict v2 wire,
 `KnownAppZeroTarget`, shared preparation과 no-mutation plan을 구현했습니다. Phase A source `db8fc418...`/tree

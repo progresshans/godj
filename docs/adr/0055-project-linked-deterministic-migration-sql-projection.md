@@ -106,6 +106,19 @@ repository-external product actual과 PostgreSQL live/product publication은 각
 MIG-129..138 `passing`, product aggregate 변경이나 Accepted 결정을 주장하지 않습니다. Exact local evidence는 EVID-174가
 소유합니다.
 
+## Phase C 구현 checkpoint
+
+Source `a304a73d80b0512b6594d512938874e2456d1292`, tree `f8df2d405152eade4f5748c2f36398ca2e87b75a`는 strict
+private v1 response union, exact two-form global CLI, bounded child/process ownership과 one final terminal publication을 구현했습니다.
+Article project runner는 한 번 frozen한 database selection에서 opener와 renderer를 파생하지만 SQL child에는 renderer만 전달합니다.
+Repository-external public-only SQLite project는 implicit/explicit selection, exact target와 literal `zero`, invalid/pre-I/O rejection,
+complete-catalog precedence, deterministic repeat/parallel fresh process, opener/DB/history/mutation zero와 redaction/cleanup을 검증합니다.
+
+이 checkpoint도 Proposed 상태를 바꾸지 않습니다. MIG-129..138 actual과 product adapter는 게시하지 않았고 reference/product
+aggregate는 그대로입니다. External product의 actual OS child cancellation은 Phase D publication 전에 추가하며, PostgreSQL current
+profile, oracle-blind actual/policy, source-bound attestation과 full/Hosted acceptance도 Phase D/E가 소유합니다. Exact local evidence는
+EVID-175가 소유합니다.
+
 ## 결과
 
 - SQL review가 live applied history나 database credential 없이 exact definition bytes에서 결정됩니다.

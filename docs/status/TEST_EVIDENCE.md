@@ -16085,3 +16085,90 @@ The documentation-only checkpoint descendant passed tracked Markdown parsing wit
 link/H1/heading, frontmatter/work-index/active-ready/evidence-order, exact allowed-path and trailing-whitespace validation for all
 142 tracked Markdown files and all 31 Phase B changed paths. `make format-check` and `git diff --check` also exited zero. These
 documentation checks do not recursively replace or expand the source verification listed above.
+
+## EVID-20260831-175 — GDJ-0054 Phase C Project-linked sqlmigrate and External SQLite Checkpoint
+
+- Date: 2026-08-31 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5
+- Work/contract IDs: GDJ-0054 active; ADR-0055 Proposed; MIG-129..138 remain reference-only `oracle_locked`;
+  Q-010/Q-012 remain Partial
+- Product source: `a304a73d80b0512b6594d512938874e2456d1292`, tree
+  `f8df2d405152eade4f5748c2f36398ca2e87b75a`
+- Result: strict private/global project-linked `sqlmigrate`, canonical terminal ownership, Article frozen database selection and a
+  repository-external public-only SQLite no-DB product flow are implemented and affected-local-verified. MIG-129..138 actual is not
+  registered, so reference/product classification remains unchanged.
+
+### Implemented ownership and observations
+
+The global command accepts only `sqlmigrate APP NAME` and `sqlmigrate APP NAME --project PATH`. It snapshots argv before I/O,
+rejects invalid/permuted/latest/reverse/leading-dash forms before project selection/build/init, builds one private runner in an owned
+workspace, sends one strict v1 request, reaps the child, validates the complete bounded response, cleans retained project/workspace
+state and attempts one final stdout or stderr publication. Successful statement bodies receive exactly one `;\n`; a successful empty
+literal `zero` migration writes zero bytes. A short/error terminal write is never retried and may expose a physical prefix.
+
+The private child loads and validates the complete catalog before exact target lookup and renderer use. Its response is a closed,
+detail-free success/failure union bounded by request/response, identity, statement-count and aggregate SQL limits. Malformed framing,
+duplicate/unknown keys, unpaired surrogates, excessive nesting/value count and worst-case JSON escaping fail closed. Raw causes,
+partial SQL, child stderr, project/database paths and secrets are not republished.
+
+`project.Config` carries the renderer directly. The Article runner calls environment selection once and derives opener and renderer
+from that frozen result, but the SQL child receives no opener. The repository-external fixture imports only public packages and runs
+explicit selection from an unrelated directory plus implicit selection from a nested project directory. It proves exact CreateModel/
+AddField order, prefix miss, literal `zero`, malformed unrelated-source precedence, nil/failing renderer redaction, poison-opener and
+DB/journal/WAL/SHM absence, three fresh-process repeats, four-way parallel byte determinism with distinct/reaped PIDs, unchanged source
+roster/hash and empty scratch state. No core path branches on Article fixture identity.
+
+Phase B added context checkpoints that made an older call-count-based relation cancellation fixture brittle. The source checkpoint
+replaced only that test seam with event-based cancellation after the actual revision-session open call returned; the product lifecycle
+and cleanup contract did not change. The exact test passed 20 repetitions and the full definition package.
+
+Makefile owns the external package once in each normal/race/CGO-disabled lane and excludes it from the broad selector. The existing
+Linux/386 compile step includes it without adding a workflow job. Protocol tests lock the exact twelve job definitions, all existing
+matrix legs and the resulting 53-job topology. MIG-129..138 remain exact ten `oracle_locked`, the GoDj runner remains unregistered with
+payload-free `not_implemented`, and the product aggregate remains 25 adapters/279 contracts=`254 passing + 25 deviation`.
+
+### Executed gates
+
+The following commands exited zero against the source above unless explicitly described as a local cross-coordinate proxy:
+
+```text
+go test -timeout=15m ./conformance/projectsqlmigrateproduct -count=1
+go test ./internal/projectcheck/... ./project ./cmd/godj ./examples/article/... ./migrations/... ./db/sqlite ./db/postgres -count=1
+make core-package-selection-check
+go test -race ./internal/projectcheck/... ./project ./cmd/godj ./examples/article/databaseconfig ./examples/article/cmd/projectrunner ./migrations/... ./db/sqlite ./db/postgres ./conformance/internal/protocol ./conformance/runners/godj -count=1
+CGO_ENABLED=0 go test -timeout=15m ./conformance/projectsqlmigrateproduct -count=1
+CGO_ENABLED=0 go test ./internal/projectcheck/... ./project ./cmd/godj ./examples/article/databaseconfig ./examples/article/cmd/projectrunner ./migrations/... ./db/sqlite ./db/postgres ./conformance/internal/protocol ./conformance/runners/godj -count=1
+go test -timeout=15m -race ./conformance/projectsqlmigrateproduct -count=1
+go vet ./internal/projectcheck/... ./project ./cmd/godj ./examples/article/databaseconfig ./examples/article/cmd/projectrunner ./migrations/... ./db/sqlite ./db/postgres ./conformance/projectsqlmigrateproduct ./conformance/internal/protocol ./conformance/runners/godj
+go test ./... -run '^$' -count=1
+go test ./internal/projectcheck/sqlmigrateprotocol -count=10
+go test ./conformance/internal/protocol ./conformance/runners/godj -count=1
+CGO_ENABLED=0 GOOS=linux GOARCH=386 go test -run '^$' -count=1 -exec=/usr/bin/true ./migrations/definition ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj ./conformance/projectmigratetargetproduct ./conformance/projectshowmigrationsproduct ./conformance/projectsqlmigrateproduct
+make format-check generate-check
+git diff --check
+```
+
+The external product elapsed 153.097s normal, 158.401s race and 206.821s CGO-disabled. The final full affected normal, race and
+CGO-disabled commands passed, as did all-package compile-only, vet, protocol count-10, generated drift and the two complete registry
+packages. `make core-package-selection-check` reported the expected package inventory.
+
+The first local 386 attempt inherited `darwin` and was rejected as unsupported `darwin/386`. A second explicit `linux/386` command
+without an execution wrapper compiled the binaries but the Darwin host rejected them with `exec format error`. The final command above
+uses `/usr/bin/true` only as a cross-compile proxy and passed; it is not evidence that tests executed on Linux/386. Exact Linux/386
+execution remains a Hosted Phase E requirement.
+
+Two independent read-only audits found P0/P1/P2=`0/0/0`. They verified explicit selection cannot false-green through implicit
+discovery, invalid argv cannot build the poison descriptor, literal `zero` reaches the renderer, opener/DB sidecars remain absent,
+parallel checks are joined before shared assertions, response caps include worst-case JSON escaping, output is buffered before one
+write and the runner/product registry remains unpublished. One non-blocking Phase D requirement remains: add an actual OS child
+cancellation observation before MIG-135/MIG-137 are promoted. The relation cancellation fixture wording is test-only and does not alter
+product meaning.
+
+### Non-claims and next boundary
+
+This checkpoint does not publish MIG-129..138 actual, change the 27/301/702 reference or 25/279 product aggregate, accept ADR-0055 or
+complete GDJ-0054. It does not claim a live PostgreSQL server/current-profile product run, actual external child cancellation,
+source-bound attestation recapture, full `make ci`, native Linux/386 execution, `.git`-free archive or exact-head Hosted success. The
+Makefile/workflow change intentionally leaves the checked PostgreSQL attestation stale until the Phase D source freeze. Draft PR #1
+remains open/draft/unmerged; no PR comment, merge, release or deployment was performed. The next exact boundary is Phase D PostgreSQL
+current-profile validation, actual child cancellation, oracle-blind MIG-129..138 publication and independent attestation A/B.

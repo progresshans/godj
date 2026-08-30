@@ -6,8 +6,9 @@
   state에서 결정적으로 materialize하는 bounded packet입니다. Proposed
   [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md) 아래 Phase A source `c3de0d35...`, tree
   `1af05572...`가 MIG-129..138 reference-only artifact lock을 완료했고 Phase B source `f51ab733...`, tree `ab71e8a...`는
-  pure materializer, SQLite/PostgreSQL compiler-backed renderer와 direct project config를 구현했습니다. Product/command는
-  미구현이고 다음 단계는 Phase C strict wire/global CLI와 external SQLite flow입니다. Built-in renderer는 DB/session/history/
+  pure materializer, SQLite/PostgreSQL compiler-backed renderer와 direct project config를 구현했습니다. Phase C source
+  `a304a73...`, tree `f8df2d4...`는 strict wire/global CLI, one-write owner와 external SQLite no-DB flow를 구현했습니다.
+  Product actual은 미등록이고 다음 단계는 Phase D PostgreSQL/current-profile publication입니다. Built-in renderer는 DB/session/history/
   transaction/editor와 credential을 사용하지 않되 live executability, custom-renderer I/O와 terminal write 원자성을 주장하지
   않습니다. Active/ready는 1/0입니다.
 - 최근 completed batch: [GDJ-0053](../work/0053-project-relation-query-sparse-model-compile-availability.md)은 sparse valid

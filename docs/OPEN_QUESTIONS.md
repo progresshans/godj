@@ -329,8 +329,9 @@ repository-external keyed/unkeyed literal 영향은 Proposed
 [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md)에서 결정하고, global mutable registration이나
 installed runner cache/semver/upgrade를 추가하지 않습니다. Phase A source `c3de0d35...`, tree `1af05572...`는
 MIG-129..138을 reference-only `oracle_locked`로 고정했고 Phase B source `f51ab733...`, tree `ab71e8a...`는 public renderer
-API와 direct config field를 구현했습니다. Command/product adapter는 여전히 미구현입니다. 따라서 Q-010은 계속 `Partial`이고
-다음 경계는 Phase C입니다.
+API와 direct config field를 구현했습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 exact two-form command,
+strict private wire, canonical terminal owner와 repository-external SQLite no-DB flow를 구현했습니다. Product actual/adapter와
+PostgreSQL current-profile publication은 아직 없으므로 Q-010은 계속 `Partial`이고 다음 경계는 Phase D입니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
@@ -419,7 +420,8 @@ projection하되 `Executor.Plan`, execution `MigrationCapabilities`, backend ope
 `SchemaEditor`를 재사용하지 않습니다. Built-in DB-free 결과는 live schema/data/profile, applied state, execution success나
 atomicity 증거가 아니며 reverse/prefix/custom/data/destructive/multi-DB는 계속 open입니다. 따라서 완료 뒤에도 Q-012는
 `Partial`입니다. Phase A는 MIG-129..138 reference-only artifact를 고정했고 Phase B는 pure materializer와 built-in SQL
-renderer를 구현했습니다. Product adapter와 command는 추가하지 않았으며 EVID-174 뒤의 다음 구현 경계는 Phase C입니다.
+renderer를 구현했습니다. Phase C는 command와 external SQLite flow를 구현했지만 product actual은 게시하지 않았습니다.
+EVID-175 뒤의 다음 구현 경계는 Phase D PostgreSQL/current-profile actual과 policy publication입니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은

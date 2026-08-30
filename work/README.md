@@ -89,7 +89,12 @@ MIG-129..138은 Phase A source `c3de0d35...`, tree `1af05572...`에서 reference
 Phase B source `f51ab733...`, tree `ab71e8a...`는 pure `RenderMigrationSQL`, identity-bearing renderer port,
 SQLite/PostgreSQL compiler-backed renderer와 direct project config를 구현했고 affected normal/race/CGO0/vet, compile-only,
 repeat/external compile gate를 통과했습니다. [EVID-174](../docs/status/TEST_EVIDENCE.md#evid-20260831-174--gdj-0054-phase-b-pure-sql-projection-core-and-built-in-renderer-checkpoint)이
-구현과 non-claim을 소유합니다. Product adapter/command는 미구현이며 다음 단계는 Phase C입니다. Phase A와 activation 근거는
+구현과 non-claim을 소유합니다. Phase C source `a304a73...`, tree `f8df2d4...`는 strict private/global command, canonical
+one-write owner, one-frozen-selection Article config와 repository-external SQLite no-DB product flow를 구현했고 normal/race/CGO0,
+vet, compile, repeat, generated drift와 independent audit를 통과했습니다.
+[EVID-175](../docs/status/TEST_EVIDENCE.md#evid-20260831-175--gdj-0054-phase-c-project-linked-sqlmigrate-and-external-sqlite-checkpoint)이
+이를 소유합니다. MIG-129..138 actual/product publication은 아직 없으며 다음 단계는 Phase D PostgreSQL/current-profile
+publication입니다. Phase A와 activation 근거는
 [EVID-173](../docs/status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)과
 [EVID-172](../docs/status/TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. Completed
 [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와 함께

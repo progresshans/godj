@@ -374,8 +374,9 @@ Active GDJ-0054 Phase A source `c3de0d35...`, tree `1af05572...`는 후속 MIG-1
 8,010/1,727/46,941 bytes, shared checksum은 24 lines/2,279 bytes이고 exact hash·A/B·Python/protocol 증거는
 [EVID-173](../docs/status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)이
 소유합니다. MIG-131/132만 pinned Django result-derived이고 나머지는 GoDj decision입니다. Product adapter, deviation fixture와
-`passing` 전환은 없으며 ADR-0055는 Proposed, command는 미구현입니다. 다음 단계는 pure materializer와
-identity-bearing SQLite/PostgreSQL renderer를 구현하는 Phase B입니다.
+`passing` 전환은 없으며 ADR-0055는 Proposed입니다. Phase B source `f51ab733...`는 pure materializer/renderers를, Phase C
+source `a304a73...`는 strict command와 repository-external SQLite no-DB flow를 구현했습니다. EVID-174/175가 각 local proof를
+소유하며 다음 단계는 Phase D PostgreSQL/current-profile actual publication입니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,
