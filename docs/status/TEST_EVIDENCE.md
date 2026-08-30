@@ -15654,3 +15654,40 @@ This completion does not add prefix/app-only/multiple target, `sqlmigrate`, fake
 multi-DB or general upgrade compatibility. Q-010/Q-012 therefore remain `Partial` and Q-019 remains P1/open. Draft PR #1
 remains open/draft/unmerged; no PR comment, merge, release or deployment was performed, and no next feature packet is
 activated by this evidence.
+
+## EVID-20260831-168 — GDJ-0053 Sparse-model Compile Availability Activation
+
+- Date: 2026-08-31 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; DB/backend execution 없음
+- Work/contract IDs: GDJ-0053 active; GEN-M1-001 and Q-017 unchanged; conformance aggregate unchanged
+- Clean baseline: `2273df6d8f0d7c41a24dc65ba49b42e1be0885b8`, tree
+  `941c546731da69c05ac404779c7536247fdbda10`
+- Result: one bounded generator-availability packet is active with exact product/test/status paths. No public API, generated
+  ABI/version/role roster, golden, Schema IR, Query AST, migration/backend, contract/deviation or product status changes.
+
+### Source audit and selected boundary
+
+`GenerateProjectRelationQuery` returns the no-source path before declaring model locals, but when at least one required relation
+source exists `renderBindRelations` binds every canonical project model. Its later `BindForward` and return assembly reference only
+required relation sources and targets. A valid mixed project can therefore generate an unused `_modelN` local for an unrelated
+scalar-only model or a target reached only by a nullable relation, and whole-candidate Go compile rejects the candidate. Recoverable
+publication prevents replacement of last-known-good bytes, so this is an availability defect rather than corrupt publication.
+
+The selected fix preserves every `BindModel` call and error check in canonical order, computes the exact required source/target used
+set, and emits `_ = _modelN` only after a successful unused binding. `renderBindObjects` already uses the same
+validation-preserving pattern. Filtering models, skipping validation, expanding nullable typed query support or changing generated
+API/ABI/version is excluded. Existing all-used golden bytes must remain identical or the change is rejected and redesigned.
+
+Regression scope is scalar-only preservation plus required relation with an unrelated scalar model and an otherwise-unused
+nullable-only target. Direct external-module and full `GenerateProject` union compile are required. Existing test bodies and the
+existing full-union subtest roster absorb the shapes without a new top-level/subtest identity, conformance contract or inventory-lock
+rewrite.
+
+### Activation gates and non-claims
+
+The activation descendant changes exactly the new GDJ-0053 work packet, work index, CURRENT and this evidence file. Tracked
+Markdown parsing, local links/headings/frontmatter/fences, work/index/status consistency, exact path scope, `make format-check` and
+`git diff --check` passed. No codegen regression, generated compile, normal/race/CGO-disabled/vet, `generate-check`, full `make ci`,
+Linux/386, repository-external archive or Hosted run is claimed at activation. The current local source checkpoint remains EVID-166
+and the latest successful Hosted product proof remains EVID-167. Draft PR #1 remains open/draft/unmerged; no PR comment, merge,
+release or deployment was performed.

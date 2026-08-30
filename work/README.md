@@ -76,9 +76,17 @@ proposed → ready → active → completed
 | [GDJ-0050](0050-project-linked-deterministic-makemigrations.md) | completed | Project-linked deterministic `makemigrations`와 additive schema autodetection |
 | [GDJ-0051](0051-project-linked-showmigrations.md) | completed | Project-linked read-only `showmigrations`와 deterministic applied-status listing |
 | [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md) | completed | Project-linked exact target, non-authoritative plan과 bounded reverse migration |
+| [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md) | active | Project relation-query sparse-model compile availability |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0입니다. Completed
+현재 active/ready packet은 1/0입니다. Active
+[GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와 함께
+unrelated scalar-only 또는 nullable-only target model이 있는 valid project에서 generated unused `_modelN` 때문에
+whole-candidate compile이 막히는 availability 결함을 다룹니다. 모든 model의 `BindModel`과 error order를 유지하고 successful
+unused binding만 blank-consume하며 public API, generator version, role/file ABI, existing golden과 conformance aggregate는
+바꾸지 않습니다. Clean baseline은 GDJ-0052 terminal `2273df6...`, tree `941c546...`이고 activation 근거는
+[EVID-168](../docs/status/TEST_EVIDENCE.md#evid-20260831-168--gdj-0053-sparse-model-compile-availability-activation)입니다.
+Completed
 [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact 여덟 public argv로 latest/named/app-zero
 execute와 plan을 연결합니다. `Executor.Plan`과 execute는 revision-fenced history, graph/history check, historical state,
 whole-plan dry/capability preflight를 공유하지만 execute는 preview를 authority로 재사용하지 않고 fresh snapshot에서 다시
@@ -208,7 +216,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0052이고 현재 활성 통합 작업은 없습니다. Draft PR #1은
+최근 terminal completion은 GDJ-0052이고 현재 활성 통합 작업은 GDJ-0053입니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.
