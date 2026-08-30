@@ -83,8 +83,10 @@ history snapshot, deterministic known/unknown status와 database mutation 0을 �
 `sqlmigrate`와 destructive writer는 이 packet에 섞지 않습니다. Phase B implementation `294e7e2...`, tree
 `3a834f4...`는 core listing, strict private wire, exact global/project dispatch, bounded revision-session/process ownership과
 identity escaping을 구현하고 [EVID-154](../docs/status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)의
-affected local gates와 final P0..P3=`0` audit를 통과했습니다. MIG-111..118은 아직 `planned, not run`이며 Phase A
-reference artifacts와 product actual은 남아 있습니다. Completed
+affected local gates와 final P0..P3=`0` audit를 통과했습니다. Phase A는 MIG-111..118을 reference-only
+`oracle_locked` artifact로 고정했고 [EVID-155](../docs/status/TEST_EVIDENCE.md#evid-20260830-155--gdj-0051-phase-a-reference-only-artifact-lock)의
+Python/protocol/conformance/oracle/checksum gate를 통과했습니다. Product actual은 등록하지 않았고 다음 exact 작업은 Phase C
+SQLite/repository-external no-mutation/fresh-process proof입니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을
@@ -101,8 +103,8 @@ publication 범위입니다. Phase D implementation `21d88c99...`, tree `976671c
 generated migrate/no-op/distinct-process restart, oracle-blind MIG-099..110 actual과 DEV-0010 exact 19 sparse replacements,
 repository-external public-module SQLite lifecycle를 구현하고 affected normal/vet/generated drift, focused
 runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. Current reference/product aggregate는
-24/273/552=`237+24+12 locked`, 23/261=`237+24`이고
-MIG-075..086만 locked/unregistered입니다. Phase E predecessor local full/Linux/386/relation/archive는 EVID-151에서,
+25/281/600=`237+24+20 locked`, 23/261=`237+24`이고
+MIG-075..086과 MIG-111..118이 locked/unregistered입니다. Phase E predecessor local full/Linux/386/relation/archive는 EVID-151에서,
 workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted head
 `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의 pre-test dependency-setup 실패를
 보존한 뒤 source 변경 없는 two-job failed-job rerun으로 effective 41/41 jobs·464/464 steps,

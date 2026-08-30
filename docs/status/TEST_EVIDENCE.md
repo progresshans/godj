@@ -14603,3 +14603,72 @@ MIG-111..118 reference artifacts, SQLite/PostgreSQL actual product flows, reposi
 full/386/relation/archive, source-bound attestation and an exact current-head Hosted run were not executed or claimed here.
 ADR-0053 remains Proposed, GDJ-0051 remains active and MIG-111..118 remain unregistered `planned, not run`. Draft PR #1 remains
 open/draft/unmerged; no merge, release or deployment was performed.
+
+## EVID-20260830-155 — GDJ-0051 Phase A Reference-only Artifact Lock
+
+- Date: 2026-08-30
+- Work/contract IDs: GDJ-0051 active; ADR-0053 Proposed; MIG-111..118 reference-only `oracle_locked`;
+  Q-010/Q-012 remain `Partial`
+- Phase A reference commit: `47715622f27dba7035844d04b4f83816db52a236`, tree
+  `69883163307e5f98d928df5cb8b6cba45ee8721c`
+- Preceding import-lock correction: `7eedbd31d847`; this local correction is not a successful current-source Hosted proof
+- Result: Phase A mixed Django/GoDj authority, deterministic manifest/oracle/payload-free NI fixture, protocol/Make/workflow
+  registration and global inventory locks passed the local reference gates. No GoDj migration-status product adapter was
+  registered and no product status changed.
+
+### Exact artifacts and comparison boundary
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/migration-status-manifest.json` | 5,311 | `3b1c8693359cb465879a90a931f3bc778c141dafcee9fdb64b4a890e29f5e6fc` |
+| `conformance/fixtures/godj-migration-status-not-implemented.json` | 1,566 | `0dd4dd08b13b9497ea541b7de4a85448cf6e0358b899c095c6eaafaf290f6cc6` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json` | 39,478 | `5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS` | 2,077 | `a6b29f8b947c9150ddc09c3cad261f423503cf3aa232cb3e2d2007d0161bd762` |
+
+- MIG-111 and MIG-116/MIG-118 compare `result + db_state + metrics`; MIG-112..115 compare portable `result` only;
+  MIG-117 compares `error + db_state + metrics`. MIG-112..115 therefore keep oracle `db_state`/`metrics` null rather
+  than presenting Django in-memory counters as durable database/process proof.
+- MIG-112/113 retain pinned upstream test provenance. MIG-114/115 use pinned source provenance only. GoDj decision
+  observations include exact `application_mutations: 0` where the contract owns that meaning.
+- Reference inventory is exact 25 sets/281 unique contracts and scenarios/600 ordered bindings=
+  `237 passing + 24 deviation + 20 oracle_locked`. Product inventory is unchanged at 23 adapters/261 contracts=
+  `237 passing + 24 deviation`. The locked/unregistered ranges are MIG-075..086 and MIG-111..118.
+- The all-scenario canonical semantic payload is exact 281 scenarios/971,815 bytes/SHA-256
+  `7c76a6cf1894b9877e80998a0d6731fbe4ee8df1b7813b762da22b3fc61f1784`.
+
+### Local gates actually executed
+
+- Exact Python suite passed 291 tests with 21 exact-profile skips:
+  `GODJ_EXACT_PROFILE=1 PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover -s conformance/runners/django/tests -v`.
+- `go test -count=1 ./conformance/internal/protocol` passed, including the 25/281/600 reference lock, unchanged
+  23/261 product inventory, artifact hashes, Make/workflow wiring and false-green checks.
+- `make conformance-check` passed all 50 manifest/suite validations. The migration-status oracle and NI fixture each
+  passed strict `contractcheck` validation.
+- The exact uv 0.10.12 migration-status oracle command with `--check` passed. Running SHA-256 verification from the
+  oracle directory passed all 22 `SHA256SUMS` entries.
+- The workflow-equivalent semantic inventory check passed exact 281/971,815 and the digest above.
+
+### Expected fail-closed and Hosted boundary
+
+- Full `make godj-conformance` was run and did **not** pass. It failed closed at the checked PostgreSQL live-attestation
+  boundary with `PostgreSQL live attestation source binding is stale`. Phase A changes `.github/workflows/ci.yml` and
+  `Makefile`, both of which are source-bound. Re-capturing after every intermediate phase would immediately stale the
+  artifact again when Phase C/D product source changes, so the work intentionally schedules one current-source recapture
+  after product source freeze in Phase E. This expected failure is not a product assertion failure, but it also means the
+  current checkout does not have a green full product comparison or current PostgreSQL source proof.
+- Predecessor Hosted run [33286203096](https://github.com/progresshans/godj/actions/runs/33286203096) ended at exact
+  41 jobs = 22 success / 19 failure / 0 cancelled. Fifteen jobs failed the same direct source-import architecture lock;
+  three additional jobs exposed the intentionally stale source-bound attestation through the CGO0 regression test,
+  artifact validation and PostgreSQL capture comparison; `Required CI` was the derivative nineteenth failure. Local commit
+  `7eedbd31d847` corrected the import lock, and the Phase A reference commit is its descendant, but the attestation remains
+  intentionally stale until Phase E and no successful current-source Hosted run has replaced the failed predecessor. The
+  run is diagnostic only and is not reused as Phase A or current-source proof.
+
+### Current boundary and next exact work
+
+Phase A reference publication is complete, but GDJ-0051 remains active and ADR-0053 remains Proposed. This evidence does
+not claim SQLite/PostgreSQL migration-status actuals, repository-external public-project execution, database/process
+no-mutation proof, product adapter registration, full `make ci`, Linux/386, relation/archive, source-bound attestation
+recapture or exact-head Hosted success. The next exact work is Phase C: repository-external public project plus real
+SQLite/OS-process MIG-111..118 no-mutation and fresh-process product evidence. Draft PR #1 remains open/draft/unmerged;
+no merge, release or deployment was performed.

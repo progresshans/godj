@@ -143,8 +143,11 @@ Active GDJ-0051 Phase B checkpoint `294e7e2...`는 exact list-only
 `godj showmigrations [--project <godj.toml>]`, loader-authorized status API, separate strict private v1 wire와 one
 revision-fenced session/read/close를 로컬 구현했습니다. Known applied/unapplied와 unknown recorder identity를 각각
 `[X]`/`[ ]`/`[?]`로 표시하되 terminal identity를 reversible escape하고 database mutation이나 migration transaction을
-시작하지 않습니다. EVID-154의 affected local gates는 통과했지만 MIG-111..118 reference/product artifacts와
-SQLite/PostgreSQL no-mutation actual은 아직 `planned, not run`이므로 completed capability로 분류하지 않습니다.
+시작하지 않습니다. EVID-154의 affected local gates에 이어 Phase A reference commit `4771562...`는
+MIG-111..118 manifest/NI/oracle을 reference-only `oracle_locked`로 고정했습니다. EVID-155의 exact Python,
+protocol/conformance/oracle/checksum gate는 통과했고 current reference는 25/281/600=
+`237 passing + 24 deviation + 20 oracle_locked`입니다. Product는 23/261=`237 passing + 24 deviation`으로
+불변이며 SQLite/PostgreSQL no-mutation actual은 Phase C/D 작업이므로 completed capability로 분류하지 않습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
@@ -650,10 +653,10 @@ Completed [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-arti
 `godj migrate [--project <godj.toml>]`에 연결했습니다. Hosted-verified product는 latest/prefix-tail/no-op,
 middle failure/resume, actual child fence/reconciliation, pre-migrate no-mutation, authenticated Admin/API distinct-process
 restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`입니다.
-GDJ-0050 Phase D product publication 뒤 current reference는 24/273/552=
-`237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`입니다.
+GDJ-0051 Phase A reference publication 뒤 current reference는 25/281/600=
+`237 passing + 24 deviation + 20 oracle_locked`, product는 23/261=`237 passing + 24 deviation`입니다.
 MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은 exact 열아홉 result replacement의
-Verified DEV-0010 `deviation`이며 남은 locked range는 MIG-075..086뿐입니다.
+Verified DEV-0010 `deviation`이며 남은 locked range는 MIG-075..086과 MIG-111..118입니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.

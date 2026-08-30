@@ -162,6 +162,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
 | `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Verified DEV-0010 deviation product publication |
+| `contracts/migration-status-manifest.json` | MIG-111..118 bounded read-only migration-status mixed-authority contract; current Phase A reference-only `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -312,13 +313,24 @@ corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `3304986
 later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
-Current reference는 24 sets/273 contracts/552 ordered bindings=
-`237 passing + 24 deviation + 12 oracle_locked`, product는 23 adapters/261 eligible contracts=
-`237 passing + 24 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086뿐입니다. Accepted ADR-0051과
+Current reference는 25 sets/281 contracts/600 ordered bindings=
+`237 passing + 24 deviation + 20 oracle_locked`, product는 23 adapters/261 eligible contracts=
+`237 passing + 24 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086과 MIG-111..118입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
 GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
 target/reverse/custom operation과 general upgrade/repair는 이 bounded acceptance에 포함되지 않습니다.
+
+GDJ-0051 Phase A는 MIG-111..118을 별도 migration-status set으로 추가했습니다. MIG-112..115의 portable
+comparison은 Django result만 소유하고 durable DB/process no-mutation을 reference runner 내부 counter로 위조하지
+않습니다. Manifest/NI/oracle은 5,311/1,566/39,478 bytes와 SHA-256
+`3b1c8693359cb465879a90a931f3bc778c141dafcee9fdb64b4a890e29f5e6fc`/
+`0dd4dd08b13b9497ea541b7de4a85448cf6e0358b899c095c6eaafaf290f6cc6`/
+`5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f`로 고정됐습니다. Shared 22-entry
+`SHA256SUMS`는 2,077 bytes/SHA-256 `a6b29f8b947c9150ddc09c3cad261f423503cf3aa232cb3e2d2007d0161bd762`
+이고 all-scenario semantic payload는 281 scenarios/971,815 bytes/SHA-256
+`7c76a6cf1894b9877e80998a0d6731fbe4ee8df1b7813b762da22b3fc61f1784`입니다. 이 Phase A는 product adapter를
+등록하지 않으며 SQLite/repository-external actual은 Phase C의 다음 검증 경계입니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,

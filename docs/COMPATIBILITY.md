@@ -3,18 +3,17 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 EVID-153 / CI #171 run `33280434425` corrected exact-head Hosted
-  completion; predecessor heavyweight local final은 EVID-151, current source-bound attestation/focused refreeze는 EVID-152)
-- 현재 required checkpoint: exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run
-  `33280434425` attempt 1은 pre-test macOS Intel dependency-setup과 required-CI derivative 두 failure를 보존합니다.
-  Source 변경 없이 두 failed job만 재실행한 attempt 2의 effective aggregate는 41/41 jobs·464/464 steps,
-  failure/cancel/skip/annotation 0이고 PostgreSQL 세 mode 각각 required 21/21·skip 0입니다.
-- 현재 design: GDJ-0049/Accepted ADR-0051과 GDJ-0050/Accepted ADR-0052 completed. Reference
-  24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product 23/261=`237 passing + 24 deviation`;
-  MIG-087..102/108..110은 product `passing`, MIG-103..107은 Verified DEV-0010 `deviation`, 남은 reference-only
-  locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase E predecessor local full/Linux/386 compile-only/relation/archive는
-  EVID-151에서, current source-bound PostgreSQL attestation/focused refreeze는 EVID-152에서, corrected exact-head Hosted는
-  EVID-153에서 통과했으며 현재 active/ready work는 0/0임
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0051 Phase A reference-only EVID-155; 마지막 product
+  exact-head Hosted는 GDJ-0050 EVID-153 / CI #171 run `33280434425`)
+- 현재 required checkpoint: Phase A reference commit `4771562...`, tree `6988316...`에서 MIG-111..118 artifact lock이
+  완료됐고 다음 exact 작업은 Phase C SQLite/repository-external no-mutation/fresh-process actual입니다.
+  Workflow/Makefile을 포함한 current source는 checked PostgreSQL attestation을 의도대로 stale하게 만들었으며
+  product source freeze 뒤 Phase E에서 재캡처하므로 current exact-source/Hosted proof는 아직 없습니다.
+- 현재 design: GDJ-0049/Accepted ADR-0051과 GDJ-0050/Accepted ADR-0052 completed, GDJ-0051/Proposed
+  ADR-0053 active. Reference 25/281/600=`237 passing + 24 deviation + 20 oracle_locked`, product
+  23/261=`237 passing + 24 deviation`; MIG-087..102/108..110은 product `passing`, MIG-103..107은 Verified
+  DEV-0010 `deviation`, reference-only locked range는 MIG-075..086과 MIG-111..118입니다. 현재 active/ready
+  work는 1/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -105,13 +104,14 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 [EVID-126](status/TEST_EVIDENCE.md#evid-20260824-126--gdj-0044-exact-head-hosted-completion)에 있습니다.
 
 Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative multi-runtime actual을 보존하면서 GDJ-0047
-Bearer authentication profile actual, GDJ-0049 migration-command actual과 GDJ-0050 Phase D migration-writer product publication을
-함께 게시합니다. Reference는 24 sets/273 contracts/552 ordered bindings=
-`237 passing + 24 deviation + 12 oracle_locked`, product는 23 adapters/261 contracts=
+Bearer authentication profile actual, GDJ-0049 migration-command actual, GDJ-0050 Phase D migration-writer product publication과
+GDJ-0051 Phase A migration-status reference-only set을 함께 게시합니다. Reference는
+25 sets/281 contracts/600 ordered bindings=`237 passing + 24 deviation + 20 oracle_locked`, product는
+23 adapters/261 contracts=
 `237 passing + 24 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
 `deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
 `deviation`이고 MIG-087..102/108..110은 product `passing`, MIG-103..107은 Verified DEV-0010 `deviation`입니다.
-남은 reference-only locked range는 MIG-075..086뿐입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
+남은 reference-only locked range는 MIG-075..086과 MIG-111..118입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
 MIG-107의 stable GoDj error taxonomy는 exact 열아홉 sparse result replacement로 제한됩니다. MIG-107의 reference는 Django
 관찰이 아니라 Phase-A GoDj decision oracle taxonomy이며 DEV-0010이 이를 명시적으로 supersede합니다. PostgreSQL 17.10
 normal/race/CGO-disabled actual, repository-external public module과 Phase E local final을 통과했습니다. Exact submitted
