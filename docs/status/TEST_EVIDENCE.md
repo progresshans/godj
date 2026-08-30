@@ -1,8 +1,8 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-152
-- latest successful hosted product proof: EVID-20260829-146
+- 현재 local source/contract checkpoint: EVID-20260830-153
+- latest successful hosted product proof: EVID-20260830-153
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -14451,3 +14451,80 @@ The correction and refreshed attestation are locally committed, but the followin
 has not yet been pushed as a new exact submitted head. A new Hosted matrix is therefore still required. ADR-0052 remains
 Proposed, GDJ-0050 remains active and DEV-0010 remains Implemented. Draft PR #1 remains open/draft/unmerged; no merge,
 release or deployment is performed.
+
+## EVID-20260830-153 — GDJ-0050 Corrected Exact-head Hosted Completion
+
+- Date: 2026-08-30 KST
+- Platform: GitHub Actions pull-request runners; Ubuntu 22.04 x64, Ubuntu 24.04 arm64, macOS 15 Intel,
+  macOS 26 arm64, CPython 3.12.13/3.13.15/3.14.3/3.14.7 and digest-pinned PostgreSQL 17.10
+- Work/contract IDs: GDJ-0050 completed; ADR-0052 Accepted; DEV-0010 Verified; MIG-099..110 product actual registered;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Exact submitted head: `a6a79c0c68d9e7054763c56a0c6c28d98ea63bc5`, tree
+  `48994a0762c92ce4d4ac663f03a5dcd443996dd6`
+- Pull-request merge ref: `931954390f253295d75d8e7b71b4fa2e0634efde`, the same exact tree
+  `48994a0762c92ce4d4ac663f03a5dcd443996dd6`
+- Hosted run: [CI #171 / run 33280434425 attempt 2](https://github.com/progresshans/godj/actions/runs/33280434425/attempts/2),
+  final run attempt 2
+
+### Attempt 1 infrastructure failure
+
+Run attempt 1 targeted exact submitted head `a6a79c0...` and completed all 41 jobs as 39 success and 2 failure, with zero
+cancellation. Its 464 recorded steps were 460 success, 2 failure and 2 skipped. The two annotations belonged exactly to the
+two failed jobs. No other annotation or unclassified job existed.
+
+The primary failure was `Relation product (macos-15-intel, normal)` job `99174579556`. It never emitted a test
+`Action=run` event. Twelve packages terminated at setup with `Elapsed=0`: nine reported `FailedBuild=modernc.org/sqlite`,
+two `FailedBuild=golang.org/x/sys/unix` and one `FailedBuild=modernc.org/libc`. The log showed repeated delayed module
+downloads, but the relation formatter intentionally retained only top-level package failures and did not capture the lower
+dependency compiler/download diagnostic. The exact lower mechanism is therefore not claimed. This is classified as a
+pre-test dependency build/setup infrastructure failure, not a product semantic assertion. `Required CI` job `99178576692`
+was the only derivative failure.
+
+All other 39 jobs completed successfully before rerun, including the same platform's relation race and CGO-disabled modes,
+all four product-project-check coordinates, portable normal/race/CGO-disabled gates and all three PostgreSQL modes. The
+failed setup did not justify another source, workflow, timeout or attestation change.
+
+### Same-head failed-job rerun and terminal result
+
+After attempt 1 completed, `gh run rerun 33280434425 --failed` reran only the failed primary lane and its required-CI
+derivative without changing source bytes. Attempt 2 retained exact `head_sha=a6a79c0...` and completed as success. It did not
+execute all 41 jobs again: two jobs/12 steps were newly executed, while the 39 successful attempt-1 jobs were retained. The
+effective attempt-2 jobs endpoint reports exact 41/41 jobs success and 464/464 recorded steps success; failure,
+cancellation, skip and check-run annotation counts are all zero. `Relation product (macos-15-intel, normal)` rerun job
+`99178638615` completed its product mode and clean-worktree gate; workflow-level `Required CI` aggregate job `99179022731`
+then accepted all ten logical dependency groups. This evidence does not claim that the aggregate is enforced by repository
+branch protection.
+
+The pull-request workflow checked out merge ref `9319543...`, whose parents are base `f8a5e20...` and submitted head
+`a6a79c0...`. GitHub's commit API reports that merge ref and submitted head have the identical tree `48994a0...`; the Hosted
+result therefore exercised the exact submitted content despite the pull-request merge commit wrapper.
+
+### Hosted coverage and non-claims
+
+All twelve relation coordinate/mode jobs passed: normal, race and CGO-disabled on Ubuntu 22.04 x64, Ubuntu 24.04 arm64,
+macOS 15 Intel and macOS 26 arm64. Each of the four normal jobs emitted the locked inventory 929 runs/929 passes/0 skips,
+94,689 canonical payload bytes and SHA-256
+`e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`. Race and CGO-disabled jobs passed their exact
+package/selector commands; they do not emit the normal-mode inventory summary and are not represented as separate 929-event
+captures.
+
+The PostgreSQL 17.10 normal, race and CGO-disabled jobs each emitted exact 21 runs/21 passes/0 skips. The checked source-bound
+attestation, artifact locks, portable lanes, four SQLite coordinates, four project-check coordinates, four product-project-
+check coordinates, four Python profiles and final `Required CI` all passed. No raw DSN, bearer or other command-scoped secret
+is recorded in this evidence.
+
+EVID-151 remains the predecessor frozen-source proof for full local `make ci`, 115-package Linux/386 compile-only, exact
+relation inventory and the 1,181-file repository-external archive. EVID-152 remains the current workflow/attestation focused
+refreeze. Those heavyweight local gates were not recursively rerun or re-claimed for this Hosted/status descendant. The
+terminal descendant changes documentation/status mirrors only; product, workflow and source bytes remain unchanged. It
+receives documentation/protocol consistency gates under the repository cadence.
+
+The terminal mirror descendant passed tracked-Markdown parsing for 135 files with `markdown-it-py 4.0.0`, local
+link/heading/frontmatter/table/status locks, exact 15-document scope and `git diff --check`. `make format-check`,
+`go test -count=1 ./conformance/internal/protocol`, `make conformance-check` and the checked PostgreSQL attestation
+`SHA256SUMS` also exited zero. No full product matrix was recursively rerun for this documentation-only descendant.
+
+ADR-0052 is Accepted, GDJ-0050 is completed and DEV-0010 is Verified for this bounded additive writer profile. This does not
+add destructive/rename/custom/data operations, multiple writable roots, 65+ candidate batching, distributed publication or
+general upgrade compatibility. Q-010/Q-012 therefore remain `Partial` and Q-019 remains P1/open. Draft PR #1 remains
+open/draft/unmerged; no merge, release or deployment was performed, and no next feature packet is activated by this evidence.

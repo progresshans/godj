@@ -161,7 +161,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-definition-source-manifest.json` | Current-format migration definition source reference contract 8개 |
 | `contracts/migration-project-check-manifest.json` | Project-linked migration catalog check decision contract 10개 |
 | `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
-| `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Implemented DEV-0010 deviation product publication |
+| `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Verified DEV-0010 deviation product publication |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -331,12 +331,13 @@ atomic publication과 interruption recovery 결정을 authority로 삼습니다.
 
 GDJ-0050 Phase D current manifest는 9,227 bytes/SHA-256 `90bce609...f1c72`, DEV-0010 sparse expectation은
 7,242 bytes/SHA-256 `74617f20...4718e`입니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
-Implemented DEV-0010 `deviation`입니다. Exact 열아홉 result replacement는 `PROTECT` vs `CASCADE`, digest-derived name,
+Verified DEV-0010 `deviation`입니다. Exact 열아홉 result replacement는 `PROTECT` vs `CASCADE`, digest-derived name,
 flat `.godj.json` roster/canonical JSON output와 stable GoDj error taxonomy만 소유합니다. MIG-107은 Django parity가 아니라
 Phase-A GoDj decision-oracle taxonomy를 production `unsupported_change`/`invalid_relation` taxonomy로 supersede한 명시적
 deviation입니다. PostgreSQL 17.10 normal/race/CGO-disabled actual과 repository-external public module에 이어 Phase E
-full `make ci`, Linux/386 compile-only, relation/archive와 source-bound attestation recapture도 locally 통과했습니다. Corrected
-exact-head Hosted terminal gate만 남습니다.
+full `make ci`, Linux/386 compile-only, relation/archive와 source-bound attestation recapture도 locally 통과했습니다. Exact
+submitted tree `48994a0...`는 EVID-153/CI #171 run `33280434425`의 same-head failed-job rerun 뒤 effective
+41/41 jobs·464/464 steps로 corrected exact-head Hosted terminal gate를 통과했습니다.
 
 ## GDJ-0045 durable system-state reference gate
 

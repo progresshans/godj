@@ -73,14 +73,14 @@ proposed → ready → active → completed
 | [GDJ-0047](0047-api-authentication-profiles-and-bearer-article-api.md) | completed | First-party/BFF/Bearer API authentication profile과 strict injected verifier |
 | [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | completed | Canonical embedded application model facade와 current generated ABI v3 |
 | [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | completed | Project-linked explicit `migrate`와 clean-database Article lifecycle |
-| [GDJ-0050](0050-project-linked-deterministic-makemigrations.md) | active | Project-linked deterministic `makemigrations`와 additive schema autodetection |
+| [GDJ-0050](0050-project-linked-deterministic-makemigrations.md) | completed | Project-linked deterministic `makemigrations`와 additive schema autodetection |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active
+현재 active/ready packet은 0/0이며 다음 packet은 아직 선택하지 않았습니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을
-연결합니다. Proposed
+연결했습니다. Accepted
 [ADR-0052](../docs/adr/0052-project-linked-deterministic-makemigrations.md)는 managed filesystem app과 read-only
 programmatic app을 구분하고, exactly-one writer root, app-prefixed flat roster, source CAS/no-overwrite와
 dependency-valid durable prefix/fresh resume recovery를 검증 경계로 둡니다. Phase A pure detector/current encoder와
@@ -95,8 +95,11 @@ repository-external public-module SQLite lifecycle를 구현하고 affected norm
 runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. Current reference/product aggregate는
 24/273/552=`237+24+12 locked`, 23/261=`237+24`이고
 MIG-075..086만 locked/unregistered입니다. Phase E predecessor local full/Linux/386/relation/archive는 EVID-151에서,
-workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했고 새 exact submitted-head Hosted만 남아
-ADR-0052/GDJ-0050을 Proposed/active로 유지합니다. Completed
+workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted head
+`a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의 pre-test dependency-setup 실패를
+보존한 뒤 source 변경 없는 two-job failed-job rerun으로 effective 41/41 jobs·464/464 steps,
+failure/cancel/skip/annotation 0을
+통과했습니다. ADR-0052/GDJ-0050/DEV-0010은 Accepted/completed/Verified입니다. Completed
 [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은 existing current-only loader/executor와
 project runner를 explicit `godj migrate`에 연결했습니다. Accepted
 [ADR-0051](../docs/adr/0051-project-linked-explicit-migrate.md)은 project-owned backend opener/secret boundary,
@@ -144,7 +147,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0049이고 현재 활성 통합 작업은 GDJ-0050입니다. Draft PR #1은
+최근 terminal completion은 GDJ-0050이고 현재 활성 통합 작업은 없습니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

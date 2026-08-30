@@ -128,15 +128,17 @@ exact latest-only `godj migrate`까지입니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
-Active GDJ-0050/Proposed ADR-0052는 current CreateModel/AddField pure detector/current encoder, bounded public
+Completed GDJ-0050/Accepted ADR-0052는 current CreateModel/AddField pure detector/current encoder, bounded public
 `godj makemigrations`, strict private v1 protocol과 supported local-filesystem publication을 구현했습니다. Phase C의
 directory-inode lock, fresh plan/every-rename CAS, recoverable kernel no-replace publication과 actual cross-app SQLite
 migrate/no-op/restart에 이어 Phase D에서 MIG-099..110 actual adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
 repository-external public module flow가 통과했습니다. Phase E predecessor local final은 source-bound PostgreSQL attestation,
 full `make ci`, Linux/386 compile-only, exact relation inventory와 1,181-file repository-external archive를 predecessor
 source에서 통과했습니다. Workflow correction 뒤 current attestation/focused refreeze도 통과했고 새 exact submitted-head
-Hosted만 남았습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 Implemented DEV-0010
-`deviation`입니다. General upgrade와 destructive/rename/custom/data operation은 아직 포함하지 않습니다.
+Hosted는 EVID-153/CI #171 run `33280434425`의 source 변경 없는 failed-job rerun 뒤 effective 41/41 jobs·464/464
+steps, failure/cancel/skip/annotation 0으로 완료됐습니다. MIG-099/100/101/102/108/109/110은 `passing`,
+MIG-103..107은 Verified DEV-0010 `deviation`입니다. General upgrade와 destructive/rename/custom/data operation은 아직
+포함하지 않습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
@@ -644,20 +646,21 @@ restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exa
 GDJ-0050 Phase D product publication 뒤 current reference는 24/273/552=
 `237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`입니다.
 MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은 exact 열아홉 result replacement의
-Implemented DEV-0010 `deviation`이며 남은 locked range는 MIG-075..086뿐입니다.
+Verified DEV-0010 `deviation`이며 남은 locked range는 MIG-075..086뿐입니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.
 Write-capable child owner는 current 2초 force-kill을 그대로 쓰지 않고 migration core의 순차 rollback/session-close 10초 상한에
 outer close/response margin을 더한 15초 exit-aware grace를 가져야 합니다. Migrate private `project.Run`이 SIGINT/SIGTERM을
 cancellation context로 변환하고, `runserver`는 implicit generate/migrate를 하지 않습니다. Migration core/IR/format,
-GDJ-0049의 writer/autodetector와 target/reverse/plan/fake는 범위 밖이었습니다. Active GDJ-0050은 additive-only
+GDJ-0049의 writer/autodetector와 target/reverse/plan/fake는 범위 밖이었습니다. Completed GDJ-0050은 additive-only
 writer/autodetector와 public CLI/private protocol, cooperative supported local filesystem의 recoverable publication과
 cross-app SQLite lifecycle을 구현했습니다. Phase D의 actual product adapter, PostgreSQL 17.10 normal/race/CGO-disabled와
 repository-external public module도 통과했습니다. Current plan의 64-candidate ceiling은 automatic batching이 아닌 hard support
 limit입니다. Phase E predecessor source의 local full/Linux/386/archive와 attestation은 EVID-151에서 통과했고,
-workflow test-harness correction 뒤 current attestation/focused refreeze는 EVID-152에서 통과했습니다. 새 exact-head
-Hosted만 남습니다. 첫
+workflow test-harness correction 뒤 current attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted tree
+`48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 failed-job rerun 뒤 effective 41/41
+jobs·464/464 steps, failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. 첫
 submitted head `8841319...`의 run
 `33124180742`는 23/27 success 후 broad PostgreSQL 15분 timeout과 relation/conformance outer-timeout cancellation으로
 terminal acceptance를 닫지 못했습니다. Exact required selector, mode/workload 분리와 macOS Intel race 전용 bounded

@@ -3,20 +3,18 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 EVID-152 test-harness correction/current attestation refreeze;
-  predecessor heavyweight local final은 EVID-151; latest successful exact-head Hosted product는
-  GDJ-0049 EVID-146 / CI #164 run `33247166995`)
-- 현재 required checkpoint: EVID-144 local-final은 clean SQLite/PostgreSQL 17.10과 MIG-087..098 product 12
-  `passing`을 검증했습니다. 첫 submitted run `33124180742`의 timeout을 selector/workload 분리와 macOS Intel race 전용
-  bounded budget으로 교정하고 source-bound attestation을 재캡처했습니다. Submitted head `a909692...`, tree
-  `b82bb5b...`의 EVID-146/CI #164 run `33247166995`는 41/41 jobs·464/464 steps와 PostgreSQL mode별
-  required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
-- 현재 design: GDJ-0049/Accepted ADR-0051 completed, GDJ-0050/Proposed ADR-0052 active. Reference
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0050 EVID-153 / CI #171 run `33280434425` corrected exact-head Hosted
+  completion; predecessor heavyweight local final은 EVID-151, current source-bound attestation/focused refreeze는 EVID-152)
+- 현재 required checkpoint: exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run
+  `33280434425` attempt 1은 pre-test macOS Intel dependency-setup과 required-CI derivative 두 failure를 보존합니다.
+  Source 변경 없이 두 failed job만 재실행한 attempt 2의 effective aggregate는 41/41 jobs·464/464 steps,
+  failure/cancel/skip/annotation 0이고 PostgreSQL 세 mode 각각 required 21/21·skip 0입니다.
+- 현재 design: GDJ-0049/Accepted ADR-0051과 GDJ-0050/Accepted ADR-0052 completed. Reference
   24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product 23/261=`237 passing + 24 deviation`;
-  MIG-087..102/108..110은 product `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`, 남은 reference-only
+  MIG-087..102/108..110은 product `passing`, MIG-103..107은 Verified DEV-0010 `deviation`, 남은 reference-only
   locked range는 MIG-075..086뿐입니다. GDJ-0050 Phase E predecessor local full/Linux/386 compile-only/relation/archive는
-  EVID-151에서, current source-bound PostgreSQL attestation/focused refreeze는 EVID-152에서 통과했지만 새 corrected exact
-  submitted-head Hosted는 아직 없으며, 현재 active/ready work는 1/0임
+  EVID-151에서, current source-bound PostgreSQL attestation/focused refreeze는 EVID-152에서, corrected exact-head Hosted는
+  EVID-153에서 통과했으며 현재 active/ready work는 0/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -112,12 +110,13 @@ Bearer authentication profile actual, GDJ-0049 migration-command actual과 GDJ-0
 `237 passing + 24 deviation + 12 oracle_locked`, product는 23 adapters/261 contracts=
 `237 passing + 24 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
 `deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
-`deviation`이고 MIG-087..102/108..110은 product `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`입니다.
+`deviation`이고 MIG-087..102/108..110은 product `passing`, MIG-103..107은 Verified DEV-0010 `deviation`입니다.
 남은 reference-only locked range는 MIG-075..086뿐입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
 MIG-107의 stable GoDj error taxonomy는 exact 열아홉 sparse result replacement로 제한됩니다. MIG-107의 reference는 Django
 관찰이 아니라 Phase-A GoDj decision oracle taxonomy이며 DEV-0010이 이를 명시적으로 supersede합니다. PostgreSQL 17.10
-normal/race/CGO-disabled actual, repository-external public module과 Phase E local final은 통과했지만 corrected exact-head
-Hosted terminal gate는 아직 실행하지 않았습니다.
+normal/race/CGO-disabled actual, repository-external public module과 Phase E local final을 통과했습니다. Exact submitted
+tree `48994a0...`는 EVID-153/CI #171 run `33280434425`의 same-head failed-job rerun 뒤 effective
+41/41 jobs·464/464 steps로 corrected exact-head Hosted terminal gate도 통과했습니다.
 GDJ-0046 Phase A 당시 payload-free not-implemented fixture 2,417 bytes/SHA-256
 `92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa`와 legacy SYS-001..012 Go actual
 12,944 bytes/SHA-256 `f30ac1a42b43b037067865b37a902bc2f07de187c0bf512712bc9c058d41c3a6`는 historical lock으로 보존됩니다.

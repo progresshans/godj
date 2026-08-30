@@ -1,6 +1,6 @@
 # ADR-0052: Project-linked Deterministic Makemigrations
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-30
 - 관련 work/contract: [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md), MIG-099..110, Q-010, Q-012
 - 선행 결정: [ADR-0016](0016-historical-project-state-reconstruction.md), [ADR-0019](0019-versioned-migration-definition-source.md), [ADR-0021](0021-project-linked-migration-check.md), [ADR-0035](0035-pre-release-current-only-format-and-generated-publication.md), [ADR-0036](0036-project-schema-generated-bundle-and-recoverable-publication.md), [ADR-0051](0051-project-linked-explicit-migrate.md)
@@ -249,5 +249,9 @@ Linux/386 compile-only, relation inventory와 repository-external archive를
 correction/current-attestation focused refreeze는
 [EVID-152](../status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)에
 기록합니다. EVID-151의 heavyweight gates는 predecessor proof이며 current descendant에서 재실행했다고 주장하지 않습니다.
-이 문서는 새 corrected exact submitted-head Hosted matrix가 끝날 때까지 `Proposed`입니다. Local final만으로 terminal
-`Accepted` 또는 GDJ-0050 completion을 주장하지 않습니다.
+[EVID-153](../status/TEST_EVIDENCE.md#evid-20260830-153--gdj-0050-corrected-exact-head-hosted-completion)의 exact submitted
+head `a6a79c0...`, tree `48994a0...`는 CI #171/run `33280434425` attempt 2의 effective aggregate에서 41/41 jobs와
+464/464 steps를 failure/cancellation/skip/annotation 0으로 통과했습니다. Attempt 1의 macOS Intel normal relation
+dependency-setup 실패와 required-CI 파생 실패는 별도로 보존하며, source 변경 없는 two-job failed-job rerun에서 같은 tree가
+통과했습니다. 따라서 이 bounded
+additive writer/publication 결정을 `Accepted`로 전환하고 GDJ-0050 completion을 허용합니다.

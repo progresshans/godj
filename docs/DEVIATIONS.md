@@ -2,8 +2,8 @@
 
 - 상태: Active ledger
 - 마지막 갱신: 2026-08-30
-- 현재 검증된 deviation: DEV-0001..DEV-0009 아홉 건 / contract 열아홉 개
-- 현재 구현됐으나 terminal 검증 전인 deviation: DEV-0010 한 건 / contract 다섯 개
+- 현재 검증된 deviation: DEV-0001..DEV-0010 열 건 / contract 스물네 개
+- 현재 구현됐으나 terminal 검증 전인 deviation: 없음
 - Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
 
 이 문서는 Django reference contract와 다른 GoDj 동작을 의도적으로 수용한 경우의 정본입니다. 단순 mismatch, 미구현, bug, 환경 drift를 deviation으로 바꾸어 테스트를 녹색으로 만들면 안 됩니다.
@@ -686,7 +686,7 @@ challenge/detail을 무시해 복귀하지 않습니다.
 
 ## DEV-0010 — GoDj migration writer의 current format과 안정 오류 taxonomy
 
-- Status: Implemented
+- Status: Verified
 - Date: 2026-08-30
 - Contracts: MIG-103, MIG-104, MIG-105, MIG-106, MIG-107
 - Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile의 MIG-103..106;
@@ -696,7 +696,8 @@ challenge/detail을 무시해 복귀하지 않습니다.
   [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md),
   [EVID-150](status/TEST_EVIDENCE.md#evid-20260830-150--gdj-0050-phase-d-postgresql-product-publication-and-external-consumer-checkpoint),
   [EVID-151](status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final),
-  [EVID-152](status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)
+  [EVID-152](status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze),
+  [EVID-153](status/TEST_EVIDENCE.md#evid-20260830-153--gdj-0050-corrected-exact-head-hosted-completion)
 
 ### Django 또는 Phase-A decision oracle의 관찰 가능 동작
 
@@ -756,10 +757,12 @@ temporary protocol은 stdout/stderr/artifact에 남기지 않습니다.
 - `godj-migration-writer-deviation-expected.json`은 위 열아홉 result replacement만 exact order/type/value로 소유
 - Code-owned DEV-0010 policy가 selector/status/provenance의 누락·추가·중복과 unknown decision을 actual 전에 fail-closed
 - Oracle/expected/deviation fixture를 읽지 않는 GoDj actual이 MIG-099..110 exact 12/12, unexpected difference 0으로 통과
-- MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 이 Implemented deviation으로 product aggregate에 포함
+- MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 이 Verified deviation으로 product aggregate에 포함
 - PostgreSQL 17.10 normal/race/CGO-disabled actual과 repository-external public API/project runner flow 통과
 - Predecessor full `make ci`, Linux/386 compile-only/relation/archive는 EVID-151에서, workflow correction 뒤 current
-  source-bound attestation/focused refreeze는 EVID-152에서 통과; 새 corrected exact-head Hosted는 Phase E terminal gate에서 별도 검증
+  source-bound attestation/focused refreeze는 EVID-152에서 통과
+- Exact submitted tree `48994a0...`는 EVID-153/CI #171 run `33280434425`의 source 변경 없는 failed-job rerun 뒤
+  effective 41/41 jobs·464/464 steps, failure/cancel/skip/annotation 0과 PostgreSQL 각 21/21/0으로 terminal 검증
 
 ### 복귀 또는 supersede 조건
 

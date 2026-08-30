@@ -1,6 +1,6 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver와 GDJ-0049 bounded explicit migrate 단면 hosted-Verified; GDJ-0050 additive writer는 Phase E local-final 완료·exact Hosted 대기
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded explicit migrate와 GDJ-0050 additive writer 단면 hosted-Verified
 - 마지막 검토: 2026-08-30
 
 아래 `M1 verified` 단면, §8의 GDJ-0049 explicit migrate 경계와 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
@@ -429,7 +429,7 @@ Go generic method는 새 result type parameter를 선언할 수 없으므로 `Qu
 ## 8. Migration
 
 장기 사용자 명령 목표는 다음과 같습니다. `migrate`는 completed GDJ-0049에서 public product command가 됐고,
-`makemigrations`는 active GDJ-0050에서 bounded additive-only public product command로 구현됐습니다.
+`makemigrations`는 completed GDJ-0050에서 bounded additive-only public product command로 구현·검증됐습니다.
 
 ```bash
 godj makemigrations
@@ -440,8 +440,8 @@ godj migrate
 
 현재 persisted Migration Definition은 strict data-only `format_version=1` 하나를 사용합니다. Scalar와 ForeignKey가
 같은 current Schema IR/ProjectState를 사용하며 unknown format, unsupported/custom/data operation은 fail-closed합니다.
-Executable Go callback ABI와 destructive/rename/custom writer는 아직 정하지 않았습니다. Proposed ADR-0052는 current
-CreateModel/AddField만 생성하는 deterministic writer/autodetector와 unsupported delta fail-closed 경계를 제안합니다.
+Executable Go callback ABI와 destructive/rename/custom writer는 아직 정하지 않았습니다. Accepted ADR-0052는 current
+CreateModel/AddField만 생성하는 deterministic writer/autodetector와 unsupported delta fail-closed 경계를 고정합니다.
 
 Library lifecycle의 current shape는 다음과 같습니다.
 
@@ -494,16 +494,18 @@ relation/conformance outer timeout으로 닫히지 않았습니다. 사용자 �
 race outer budget만 교정했으며, submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
 41/41 jobs·464/464 steps와 PostgreSQL mode별 required 20/20·skip 0을 통과했습니다. ADR-0051은 Accepted입니다.
 
-Active GDJ-0050의 `makemigrations`는 DB를 열지 않고 한 request의 schema/catalog snapshot에서 current
+Completed GDJ-0050의 `makemigrations`는 DB를 열지 않고 한 request의 schema/catalog snapshot에서 current
 CreateModel/AddField candidate를 계산합니다. Supported local filesystem의 exact one writer root에서는 directory-inode lock,
 fresh plan/CAS와 recoverable no-replace publication을 사용하며 dry-run/check는 같은 plan을 파일 mutation 없이 보고합니다.
 Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public
 module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
-`PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Implemented DEV-0010
+`PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Verified DEV-0010
 `deviation`입니다. Product aggregate는 23 adapters/261 contracts=`237 passing + 24 deviation`이고, MIG-075..086만
 reference-only locked입니다. Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
-test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. 새 exact
-submitted-head Hosted는 아직 검증됐다고 표현하지 않습니다.
+test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted
+tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 failed-job rerun 뒤 effective
+41/41 jobs·464/464 steps와 PostgreSQL 각 21/21/0을 통과했습니다. ADR-0052/GDJ-0050/DEV-0010은
+Accepted/completed/Verified입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

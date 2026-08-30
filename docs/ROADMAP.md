@@ -1,7 +1,16 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 최근 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
+- 최근 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted
+  [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 current CreateModel/AddField additive detector,
+  deterministic Definition format 1과 DB-free recoverable `godj makemigrations`를 완료했습니다. Phase E predecessor
+  local full/386/relation/archive는 EVID-151, current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다.
+  Exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의
+  pre-test dependency-setup 실패를 보존한 뒤 source 변경 없는 two-job rerun으로 effective 41/41 jobs·464/464 steps,
+  failure/cancel/skip/annotation 0을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
+  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 0/0이며
+  다음 packet은 아직 선택하지 않았습니다.
+- 직전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
   ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
@@ -14,19 +23,8 @@
   selector, relation/conformance의 mode/workload 분리와 macOS Intel race 전용 bounded budget, source-bound
   attestation/lock recapture를 거친 submitted tree `b82bb5b...`는 EVID-146/CI #164 run `33247166995`의
   41/41 jobs·464/464 steps와 PostgreSQL 세 mode required 20/20·skip 0으로 terminal acceptance를 닫았습니다.
-  현재 active/ready는 1/0입니다. [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Proposed
-  [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 pure additive detector/current encoder와
-  MIG-099..110 reference-only lock을 Phase A에서 완료했습니다. Phase B는 strict private v1 protocol, exact public read-only
-  `makemigrations` modes와 retained build-input/catalog CAS를 local-scoped verified했습니다. Phase C는 supported local
-  filesystem의 directory-inode lock, fresh plan/CAS, recoverable no-replace durable-prefix publication과 actual cross-app
-  SQLite migrate/no-op/restart를 locally implemented/verified했습니다. Phase D는 MIG-099..110 actual adapter,
-  PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public module을 통과했습니다. Current reference는
-  24/273/552=`237 passing + 24 deviation + 12 oracle_locked`, product는 23/261=`237 passing + 24 deviation`입니다.
-  MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은 Implemented DEV-0010 `deviation`이며 남은 locked
-  range는 MIG-075..086뿐입니다. Phase E predecessor local full/386/relation/archive는 EVID-151에서 완료됐고,
-  workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. 새 corrected
-  exact submitted-head Hosted와 terminal 동기화만 남았습니다.
-- 직전 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
+  그 뒤 활성화된 GDJ-0050의 current terminal 상태는 위 최근 completed batch에 기록합니다.
+- 그 이전 completed batch: [GDJ-0048](../work/0048-canonical-application-model-facade-and-current-generated-abi.md)은
   Q-017의 application-facing generated model을 current ABI v3로 재기준화했습니다. Accepted
   [ADR-0050](adr/0050-canonical-embedded-application-model-facade.md)은 raw scalar/app method promotion과 existing
   project-owned relation state를 결합하고, direct FK reconciliation, fail-closed method namespace, pointer/copy safety와
@@ -157,10 +155,10 @@
   exact-head hosted-verified됐습니다. GDJ-0047 exact 10=`7 passing + 3 Verified deviations`는 product publication,
   SQLite/PostgreSQL required와 corrected final local full/386/archive 뒤 EVID-138/CI #155 exact hosted
   27/27 jobs·360/360 steps를 통과했습니다. GDJ-0049 MIG-087..098 exact 12도 hosted-verified product `passing`입니다.
-  GDJ-0050 Phase D는 MIG-099..110 actual을 게시해 7 `passing` + Implemented DEV-0010 `deviation` 5개로
+  GDJ-0050 Phase D는 MIG-099..110 actual을 게시해 7 `passing` + Verified DEV-0010 `deviation` 5개로
   전환했습니다. PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public module은 locally 통과했고
   Phase E predecessor local final은 EVID-151에서, current attestation/focused refreeze는 EVID-152에서 통과했습니다.
-  새 exact submitted-head Hosted terminal gate만 남았고 현재
+  EVID-153/CI #171 run `33280434425`의 corrected exact-head Hosted terminal gate도 통과했고 현재
   reference-only locked range는 MIG-075..086뿐입니다.
 - 마지막 검토: 2026-08-30
 
@@ -230,12 +228,12 @@ GDJ-0003은 write/schema/transaction reference 계약을 별도 set으로 잠갔
 SQLite transaction과 최소 ProjectState/Executor/editor/recorder 제품 단면으로
 MOD-001..007과 MIG-001..004를 통과했습니다.
 
-상태: M2 전체는 아직 완료되지 않았습니다. Active
+상태: M2 전체는 아직 완료되지 않았습니다. Completed
 [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 이미 hosted-verified된 current-only
 Definition/ProjectState와 explicit `migrate` 위에서 `CreateModel`/`AddField` additive schema autodetection,
-deterministic writer와 DB-free recoverable `makemigrations`를 진행합니다. Phase D의 product adapter, PostgreSQL 17.10
-normal/race/CGO-disabled와 repository-external public module에 이어 Phase E predecessor local full/386/relation/archive와
-current source-bound attestation/focused refreeze도 각각 통과했습니다. 새 corrected exact submitted-head Hosted만 남습니다.
+deterministic writer와 DB-free recoverable `makemigrations`를 제공합니다. Phase D의 product adapter, PostgreSQL 17.10
+normal/race/CGO-disabled와 repository-external public module에 이어 Phase E predecessor local full/386/relation/archive,
+current source-bound attestation/focused refreeze와 EVID-153 corrected exact-head Hosted를 모두 통과했습니다.
 삭제·alter·rename·custom/data
 operation은 이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는

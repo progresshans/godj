@@ -1,6 +1,6 @@
 ---
 id: GDJ-0050
-status: active
+status: completed
 updated: 2026-08-30
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "162b03d65b2392c2ef0647dd7157e686e57de5b3"
@@ -210,7 +210,7 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 - [x] Frozen behavioral source에서 source-bound PostgreSQL attestation을 두 번 독립 재캡처하고 exact artifact 게시
 - [x] Full `make ci`, all-package Linux/386 compile-only, repository-external archive와 independent audit를 attestation publication
       descendant에서 한 번 실행
-- [ ] Exact submitted-head Hosted matrix 뒤 ADR/status/evidence terminal 동기화
+- [x] Exact submitted-head Hosted matrix 뒤 ADR/status/evidence terminal 동기화
 
 ## 완료 조건
 
@@ -221,8 +221,8 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 - [x] same/cross-app ForeignKey와 structurally different second model을 실제 generate/migrate/restart로 검증함
 - [x] concurrent/fault/cancel publication은 complete dependency prefix와 no-overwrite/fresh resume를 만족함
 - [x] SQLite/PostgreSQL/external consumer와 affected/final local gate를 실제 실행 증거로 기록함
-- [ ] Exact submitted-head Hosted gate를 실제 실행 증거로 기록함
-- [x] ADR-0052, Q-010/Q-012, matrix/CURRENT/work/evidence가 현재 Phase E local-final 상태와 일치함
+- [x] Exact submitted-head Hosted gate를 실제 실행 증거로 기록함
+- [x] ADR-0052, Q-010/Q-012, matrix/CURRENT/work/evidence가 terminal 상태와 일치함
 
 ## 진행 기록
 
@@ -242,6 +242,7 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 - [x] Phase D 테스트 — PostgreSQL 17.10 normal/race/CGO0, MIG-099..110 strict actual, external module normal/race/CGO0,
       affected normal/vet/generate drift와 여러 독립 감사 pass
 - [x] Phase D 문서와 인수인계
+- [x] Phase E local frozen milestone, corrected exact-head Hosted와 terminal 문서/인수인계
 
 ## 수정 파일
 
@@ -327,25 +328,36 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
   1,134-byte/SHA-256 `3465aef4...`, source binding 265 files/3,200,417 bytes/`50b20ade...`를 `202a42a...`에 게시했습니다.
   Focused normal/race/CGO0/vet, exact PostgreSQL profile, checksum과 20-contract comparison이 통과했습니다. EVID-151의
   heavyweight full/386/relation/archive proof는 predecessor proof로 보존하며 이 descendant에서 재실행했다고 주장하지 않습니다.
+- 2026-08-30: Exact submitted head `a6a79c0c68d9e7054763c56a0c6c28d98ea63bc5`, tree
+  `48994a0762c92ce4d4ac663f03a5dcd443996dd6`의 CI #171/run `33280434425` attempt 1은 39 success/2 failure/0
+  cancellation이었습니다. 유일한 primary failure는 테스트 실행 전 macOS Intel relation dependency build/setup이었고 다른 하나는
+  required-CI 파생 실패였습니다. Source 변경 없이 failed jobs 두 개만 재실행한 attempt 2의 effective aggregate는 exact
+  41/41 jobs·464/464 steps와 failure/cancellation/skip/annotation 0으로 통과했습니다. Relation 12 coordinate/mode와
+  PostgreSQL normal/race/CGO0 각각
+  required 21/21·skip 0을 닫았으므로 ADR-0052/GDJ-0050/DEV-0010을 Accepted/completed/Verified로 전환합니다.
 
 ## 미결정/Blocker
 
-- No current blocker for the corrected exact submitted-head Hosted gate. Multiple writable roots, 65+ pending candidate batching,
-  destructive operation과 self/cyclic relation splitting은 명시적 후속 범위입니다. Corrected workflow source-bound PostgreSQL
-  attestation과 focused local refreeze는 완료됐지만 Hosted 성공 전에는 terminal acceptance를 주장하지 않습니다.
+- No current blocker; GDJ-0050은 terminal acceptance를 완료했습니다. Multiple writable roots, 65+ pending candidate batching,
+  destructive operation과 self/cyclic relation splitting은 명시적 후속 범위이며 이 completion에 포함하지 않습니다.
 
 ## 테스트 증거
 
-- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150, EVID-151, EVID-152
+- Evidence IDs: EVID-147, EVID-148, EVID-149, EVID-150, EVID-151, EVID-152, EVID-153
 - Result: Phase A pure/reference, Phase B strict private protocol/read-only CLI/CAS, Phase C recoverable normal publication/SQLite lifecycle와
   Phase D PostgreSQL/product adapter/external module scoped gate가 통과했습니다. Phase E source freeze, independent A/B PostgreSQL
   attestation, artifact publication, full/386/relation/archive local final은
   [EVID-151](../docs/status/TEST_EVIDENCE.md#evid-20260830-151--gdj-0050-first-hosted-diagnostic-and-frozen-local-final)에
   기록합니다. 그 documentation head의 Hosted failure 분류와 bounded test-harness correction, current attestation recapture와 focused
   refreeze는 [EVID-152](../docs/status/TEST_EVIDENCE.md#evid-20260830-152--gdj-0050-corrected-head-hosted-failure-and-test-harness-refreeze)에
+  기록합니다. Corrected exact-head Hosted completion은
+  [EVID-153](../docs/status/TEST_EVIDENCE.md#evid-20260830-153--gdj-0050-corrected-exact-head-hosted-completion)에
   기록합니다.
-- Not run: second corrected exact submitted-head Hosted final. EVID-152 descendant에서 full `make ci`, Linux/386,
-  relation/archive를 재귀적으로 반복하지 않았습니다. Linux publisher runtime은 실행하지 않았고 Linux/386은 compile-only입니다.
+- Terminal documentation gate: tracked Markdown 135 files parse/local-link/heading, GDJ-0050 frontmatter,
+  implementation-matrix table/status locks, exact 15-document scope와 `git diff --check`; `make format-check`,
+  `go test -count=1 ./conformance/internal/protocol`, `make conformance-check`, PostgreSQL attestation `SHA256SUMS` 모두 통과
+- Not run: terminal status/evidence-only descendant에서 full `make ci`, Linux/386, relation/archive를 재귀적으로 반복하지
+  않았습니다. Linux publisher runtime은 실행하지 않았고 Linux/386은 compile-only입니다.
 
 ## 위험과 rollback
 
@@ -358,11 +370,8 @@ MIG-099/100/101/102/108/109/110을 `passing`, MIG-103..107을 DEV-0010 `deviatio
 
 ## 다음 정확한 작업
 
-Phase E local frozen milestone은 완료됐습니다. 다음 정확한 순서는 다음입니다.
-
-1. `7ecd6da...` correction, `202a42a...` attestation과 EVID-152 status descendant를 exact submitted head로 push
-2. 그 새 head의 Hosted matrix를 실행하고 모든 failure/cancellation/required skip을 분류
-3. Green exact head에서 ADR-0052 Accepted, GDJ-0050 completed와 terminal status/evidence를 동기화
+GDJ-0050의 Phase E와 terminal 동기화까지 완료됐습니다. 사용자의 지시에 따라 다음 개발 packet은 자동으로 활성화하지
+않습니다. 현재 active/ready는 0/0으로 두고 이 checkpoint를 보고한 뒤 멈춥니다.
 
 ## 결과와 인수인계
 
@@ -370,6 +379,7 @@ GDJ-0049 terminal product protocol bytes는 보존됩니다. Phase D는 기존 P
 DEV-0010 strict sparse policy, PostgreSQL 17.10 generated migrate/no-op/restart와 repository-external public-module SQLite lifecycle을
 연결했습니다. Fault 뒤 durable prefix는 fresh resume 전후 SourceID, bytes와 inode가 불변임을 검증하고, external failure harness는
 secret scan 전에 output을 로그로 재노출하지 않습니다. Product aggregate는 23/261=`237 passing + 24 deviation`으로 전환됐고
-MIG-075..086만 reference-only locked입니다. Current source-bound attestation과 local final은 끝났지만
-첫 correction documentation head의 Hosted failure는 test-harness 세 범주로 닫았고 current attestation을 다시 게시했습니다.
-ADR-0052/GDJ-0050은 새 exact submitted-head Hosted 성공 전까지 Proposed/active로 유지합니다.
+MIG-075..086만 reference-only locked입니다. Current source-bound attestation과 local final을 보존한 exact submitted tree는
+CI #171/run `33280434425` attempt 2에서 41/41 jobs·464/464 steps로 통과했습니다. Attempt 1의 pre-test dependency-setup
+failure도 숨기지 않고 EVID-153에 보존했습니다. ADR-0052/GDJ-0050/DEV-0010은 Accepted/completed/Verified이며 다음 packet은
+활성화하지 않았습니다.
