@@ -2,7 +2,7 @@
 
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
   explicit migrate, GDJ-0050 additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는
-  hosted-Verified
+  hosted-Verified; GDJ-0054 exact forward `sqlmigrate`는 active/planned
 - 마지막 검토: 2026-08-31
 
 아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0052 경계를 제외한 코드는
@@ -560,6 +560,19 @@ Accepted/completed입니다. 근거는
 [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
 [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)와
 [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
+
+Active GDJ-0054의 proposed user surface는 다음 exact 두 형태입니다.
+
+```bash
+godj sqlmigrate blog 0001_article
+godj sqlmigrate blog 0001_article --project ./godj.toml
+```
+
+`zero`도 literal exact name이고 reverse/latest/prefix/app-only/option permutation은 지원하지 않습니다. Proposed ADR-0055는
+complete loaded catalog와 target-before historical state에서 exactly-one forward request를 만들고 SQLite/PostgreSQL built-in
+renderer가 current `CreateModel`/`AddField` compiler projection을 database/history/transaction 없이 반환하는 경계를
+검토합니다. 이 명령은 live database 상태·실제 실행 가능성·atomicity를 확인하거나 fully offline/custom-renderer no-I/O를
+보장하지 않습니다. MIG-129..138은 activation에서 planned/not run이며 위 command는 아직 구현됐다고 표현하지 않습니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

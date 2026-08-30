@@ -181,6 +181,11 @@ Accepted/completed입니다. 근거는
 [EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
 [EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)과
 [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
+Active GDJ-0054/Proposed ADR-0055는 exact-name forward-only `sqlmigrate`를 별도 pure materializer와 identity-bearing
+SQLite/PostgreSQL renderer로 검토합니다. Activation의 MIG-129..138은 planned/not run이며 manifest, oracle, product adapter와
+aggregate 변화가 없습니다. Built-in profile은 current `CreateModel`/`AddField` compiler projection만 대상으로 하고
+database opener/session/history/recorder/transaction/editor를 호출하지 않습니다. 이는 fully offline/custom-renderer no-I/O,
+live schema/data/profile 확인, actual execution success/atomicity 또는 terminal write OS-atomicity를 뜻하지 않습니다.
 Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 

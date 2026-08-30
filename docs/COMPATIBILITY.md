@@ -3,7 +3,7 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-31 (GDJ-0052 corrected exact-head Hosted completion)
+- 마지막 scoped 검증: 2026-08-31 (GDJ-0053 exact-head Hosted completion; compatibility aggregate unchanged)
 - 현재 required checkpoint: GDJ-0052 Phase A source `db8fc418...`, tree `639a712...`가 MIG-119..128의
   reference-only artifact lock을 완료했고 Phase B core source `cd499462...`와 Phase C external SQLite source
   `5b8d48f...`, tree `7df990a...`도 구현·검증됐습니다. Phase D source
@@ -12,10 +12,12 @@
   corrected-source focused refreeze 뒤 exact head `5c20c9b...`, tree `bf50d413...`의 CI #189가 53/53 jobs·572/572
   steps를 통과해 Phase E를 닫았습니다.
 - 현재 design: GDJ-0049/Accepted ADR-0051, GDJ-0050/Accepted ADR-0052와 GDJ-0051/Accepted ADR-0053 completed;
-  GDJ-0052/Accepted ADR-0054 completed.
+  GDJ-0052/Accepted ADR-0054와 ABI/contract-neutral GDJ-0053 completed. GDJ-0054/Proposed ADR-0055는 exact forward-only
+  DB-free `sqlmigrate` 경계를 active로 검토합니다.
   Reference 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product
   25/279=`254 passing + 25 deviation`; MIG-119..121/123..128은 product `passing`, MIG-122는 Verified
-  DEV-0002 `deviation`, reference-only locked range는 MIG-075..086뿐입니다. 현재 active/ready work는 0/0입니다.
+  DEV-0002 `deviation`, reference-only locked range는 MIG-075..086뿐입니다. MIG-129..138은 아직 manifest에도 없는
+  planned/not-run 계약이고 aggregate를 바꾸지 않습니다. 현재 active/ready work는 1/0입니다.
   Phase A/Phase C/Phase D 근거는
   [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
   [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),

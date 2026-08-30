@@ -323,6 +323,13 @@ protocol/report는 만들지 않았습니다. Exact 18 hosted acceptance는 완�
 semver, stale repair와 installed runner lifecycle은 계속 open이므로 Q-010은 이 work 뒤에도
 Partial입니다.
 
+Active [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 Q-010 중 exact two-form global
+`sqlmigrate`와 direct project-owned renderer configuration만 bounded하게 검토합니다. Exported `project.Config` field와
+repository-external keyed/unkeyed literal 영향은 Proposed
+[ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md)에서 결정하고, global mutable registration이나
+installed runner cache/semver/upgrade를 추가하지 않습니다. Activation의 MIG-129..138은 planned/not run이므로 Q-010은
+계속 `Partial`입니다.
+
 ## Q-012 — Migration format과 실행 수명주기
 
 현재 complete lifecycle entry는 `Executor.Migrate(ctx, LoadedDefinitionSet, request)`이며 raw scalar
@@ -403,6 +410,13 @@ exact-head Hosted까지 통과했습니다.
 Prefix/app-only resolution, multi-target, SQL rendering, fake/repair, upgrade/destructive/rename/custom/data operation과
 broader crash recovery는 계속 open입니다. EVID-167 corrected exact-head Hosted까지 끝났지만 이 broader 범위가 남았으므로
 historical-state와 explicit-source loader 제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
+
+Active GDJ-0054/Proposed ADR-0055는 위 open 범위 중 exact-name forward SQL projection만 분리합니다. Complete catalog와
+target-before historical state에서 pure intent를 만들고 identity-bearing renderer가 current `CreateModel`/`AddField` SQL을
+projection하되 `Executor.Plan`, execution `MigrationCapabilities`, backend opener/session/history/transaction과 mutation
+`SchemaEditor`를 재사용하지 않습니다. Built-in DB-free 결과는 live schema/data/profile, applied state, execution success나
+atomicity 증거가 아니며 reverse/prefix/custom/data/destructive/multi-DB는 계속 open입니다. 따라서 완료 뒤에도 Q-012는
+`Partial`입니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은

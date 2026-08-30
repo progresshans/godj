@@ -3,7 +3,19 @@
 - 마지막 갱신: 2026-08-31
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 0/0입니다. Completed
+- 현재 active/ready work는 1/0입니다. Active
+  [GDJ-0054](../../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
+  `godj sqlmigrate APP EXACT_NAME`과 optional trailing `--project PATH`를 대상으로 합니다. Complete catalog와 exact
+  target-before historical state에서 exactly-one forward intent를 materialize하고 identity-bearing SQLite/PostgreSQL
+  renderer가 current `CreateModel`/`AddField` SQL을 projection합니다. Built-in path는 database opener/session/history/
+  recorder/transaction/schema editor와 credential/handle을 사용하지 않습니다. Proposed
+  [ADR-0055](../adr/0055-project-linked-deterministic-migration-sql-projection.md)는 execution capability/Plan/SchemaEditor
+  재사용 금지, typed-nil·resource·canonical output·raw-cause redaction과 one-write/short-write non-atomic boundary를 검토합니다.
+  MIG-129..138은 아직 manifest/runner/product adapter가 없는 `planned, not run`이고 aggregate는 불변입니다. Clean baseline은
+  GDJ-0053 terminal `1fbffa3b5ba8248dc5aa141212a7dad563827a7b`, tree
+  `3ace0273520f9cc7ed6fc2ad43e05e89a9af093b`이며 activation evidence는
+  [EVID-172](TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. 다음 정확한 작업은
+  pinned Django 6.1 source/runtime authority와 reference-only artifact를 고정하는 Phase A입니다. Completed
   [GDJ-0053](../../work/0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와
   함께 unrelated scalar-only 또는 otherwise-unused nullable-only target model이 있는 valid project의 generated
   whole-candidate compile availability를 복구합니다. 모든 project model의 `BindModel`과 error order는 유지하고 required
@@ -26,7 +38,7 @@
   `dc8425f76dbcea0beed0e6d15fc204d78fcfed5f`의
   [EVID-171](TEST_EVIDENCE.md#evid-20260831-171--gdj-0053-exact-head-hosted-completion) / CI #191 run
   `33327042828` attempt 1은 exact 53/53 jobs·572/572 steps, failure/cancel/skip/annotation 0으로 terminal
-  acceptance를 닫았습니다. GDJ-0053은 completed이고 별도 active/ready packet은 없습니다. Completed
+  acceptance를 닫았습니다. GDJ-0053 terminal 시점의 active/ready packet은 0/0이었고 이후 GDJ-0054가 활성화됐습니다. Completed
   [GDJ-0052](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)와 Accepted
   [ADR-0054](../adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md)는 exact latest/named/app-zero
   execute/plan 여덟 argv를 고정합니다. Preview와 execute는 definition/history/graph/historical-state/dry/capability
@@ -845,7 +857,8 @@
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0053 Project Relation-query Sparse-model Compile Availability](../../work/0053-project-relation-query-sparse-model-compile-availability.md)
-- 활성 작업: 없음
+- 활성 작업:
+  [GDJ-0054 Project-linked Deterministic sqlmigrate](../../work/0054-project-linked-deterministic-sqlmigrate.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -2060,8 +2073,9 @@ cancelled이며 15개 direct-import lock failure, 3개 stale-attestation failure
 full/Linux-386/relation/archive local-final ownership을 정확히 닫았습니다. Exact submitted head `bebb690...`, tree
 `e0dac4e...`의 EVID-159/CI #177 run `33295130785` attempt 1은 41/41 jobs·464/464 steps,
 failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0053/GDJ-0051은 Accepted/completed입니다.
-현재 active/ready packet은 0/0이며 GDJ-0053 sparse-model generated compile availability는 exact submitted-head
-Hosted까지 통과해 completed입니다. 최근 completed GDJ-0052 exact target/plan/bounded reverse의 baseline
+현재 active/ready packet은 1/0이며 GDJ-0054 exact forward deterministic `sqlmigrate`가 Proposed ADR-0055와 함께
+활성화됐습니다. MIG-129..138은 planned/not run이고 aggregate는 불변입니다. GDJ-0053 sparse-model generated compile
+availability는 exact submitted-head Hosted까지 통과해 completed입니다. 최근 completed GDJ-0052 exact target/plan/bounded reverse의 baseline
 `1d37272...`에서 시작해 Phase B source `cd499462...`/tree `580ae7a...`가 public strict v2 wire,
 `KnownAppZeroTarget`, shared preparation과 no-mutation plan을 구현했습니다. Phase A source `db8fc418...`/tree
 `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로 게시했고 EVID-162의 exact Python/semantic/

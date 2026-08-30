@@ -77,9 +77,16 @@ proposed → ready → active → completed
 | [GDJ-0051](0051-project-linked-showmigrations.md) | completed | Project-linked read-only `showmigrations`와 deterministic applied-status listing |
 | [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md) | completed | Project-linked exact target, non-authoritative plan과 bounded reverse migration |
 | [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md) | completed | Project relation-query sparse-model compile availability |
+| [GDJ-0054](0054-project-linked-deterministic-sqlmigrate.md) | active | Project-linked deterministic DB-free `sqlmigrate` |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 0/0입니다. Completed
+현재 active/ready packet은 1/0입니다. Active
+[GDJ-0054](0054-project-linked-deterministic-sqlmigrate.md)는 exact
+`godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete loaded catalog와 target-before
+historical state에서 결정적으로 materialize하는 bounded packet입니다. Built-in SQLite/PostgreSQL renderer는 execution
+compiler meaning을 공유하지만 backend opener/session/history/transaction/editor를 호출하지 않습니다. ADR-0055와
+MIG-129..138은 activation에서 Proposed/planned이고 product/reference aggregate는 불변입니다. Activation 근거는
+[EVID-172](../docs/status/TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. Completed
 [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와 함께
 unrelated scalar-only 또는 nullable-only target model이 있는 valid project에서 generated unused `_modelN` 때문에
 whole-candidate compile이 막히는 availability 결함을 다룹니다. 모든 model의 `BindModel`과 error order를 유지하고 successful
@@ -94,7 +101,8 @@ Linux/386와 `.git`-free public-only sparse ProjectSpec proof를 통과했고
 local final을 기록합니다. Submitted head `21a8d67...`, tree `dc8425f...`의
 [EVID-171](../docs/status/TEST_EVIDENCE.md#evid-20260831-171--gdj-0053-exact-head-hosted-completion) / CI #191 run
 `33327042828` attempt 1은 exact 53/53 jobs·572/572 steps, failure/cancel/skip/annotation 0으로 terminal acceptance를
-닫았습니다. Public/ABI/version/contract/Q-017/matrix status는 바뀌지 않았고 별도 active/ready packet은 없습니다.
+닫았습니다. Public/ABI/version/contract/Q-017/matrix status는 바뀌지 않았고 GDJ-0053 terminal 시점의 active/ready는
+0/0이었습니다.
 Completed
 [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact 여덟 public argv로 latest/named/app-zero
 execute와 plan을 연결합니다. `Executor.Plan`과 execute는 revision-fenced history, graph/history check, historical state,

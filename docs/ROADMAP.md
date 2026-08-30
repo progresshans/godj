@@ -1,15 +1,24 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 최근 completed batch: [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact
+- 현재 active batch: [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
+  `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete catalog와 target-before historical
+  state에서 결정적으로 materialize하는 bounded packet입니다. Proposed
+  [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md)와 MIG-129..138은 아직 planned/not run이고
+  reference/product aggregate는 불변입니다. Built-in renderer는 DB/session/history/transaction/editor와 credential을 사용하지
+  않되 live executability, custom-renderer I/O와 terminal write 원자성을 주장하지 않습니다. Active/ready는 1/0입니다.
+- 최근 completed batch: [GDJ-0053](../work/0053-project-relation-query-sparse-model-compile-availability.md)은 sparse valid
+  project의 generated unused model binding compile availability를 error-order/ABI/contract drift 없이 복구했습니다. Local
+  final EVID-170과 submitted head `21a8d67...`, tree `dc8425f...`의 EVID-171/CI #191 exact 53/53 jobs·572/572 steps가
+  terminal acceptance를 닫았고 current terminal documentation baseline은 `1fbffa3...`, tree `3ace027...`입니다.
+- 직전 completed batch: [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact
   named/app-zero execute, non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를
   MIG-119..128로 게시했습니다. MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`이고
   product는 25/279=`254+25`입니다. Phase B/reference/SQLite/PostgreSQL publication은 EVID-161..164, predecessor
   full-local/386/relation/archive는 EVID-165, corrected-source refreeze는 EVID-166이 소유합니다. Exact submitted head
   `5c20c9b...`, tree `bf50d413...`의 EVID-167/CI #189는 53/53 jobs·572/572 steps와
-  failure/cancel/skip/annotation 0을 통과해 ADR-0054/GDJ-0052를 Accepted/completed로 닫았습니다. 현재
-  active/ready는 0/0이며 이 terminal publication은 다음 packet을 자동 활성화하지 않습니다.
-- 직전 completed batch: [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 loaded catalog와 read-only applied
+  failure/cancel/skip/annotation 0을 통과해 ADR-0054/GDJ-0052를 Accepted/completed로 닫았습니다.
+- 그 이전 completed batch: [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 loaded catalog와 read-only applied
   history를 exact `godj showmigrations`로 게시하고 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
   통과했습니다.
 - 그 이전 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted

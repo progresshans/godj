@@ -368,6 +368,12 @@ exact-head Hosted는
 [EVID-167](../docs/status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)이
 각각 소유하며 ADR-0054/GDJ-0052는 Accepted/completed입니다.
 
+Active GDJ-0054는 후속 MIG-129..138 `migration-sql-rendering` set을 계획합니다. Activation에서는 manifest,
+not-implemented fixture, oracle, runner와 product adapter가 아직 없고 contract/status aggregate도 바꾸지 않습니다. Phase A는
+pinned Django 6.1의 overlapping public `sqlmigrate` observation과 GoDj exact-name/forward-only/built-in DB-free decision을
+구분해 reference-only `oracle_locked` artifact로 고정합니다. Prefix/backward/transaction wrapper를 현재 product 지원처럼
+등록하거나 deviation을 선승인하지 않으며, actual artifact bytes/hash/count는 생성·독립 A/B 검증 뒤에만 기록합니다.
+
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,
 MIG-102/107/108/109/110은 GoDj deterministic current-document, fail-closed delta, private snapshot protocol,
