@@ -501,8 +501,8 @@ Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/C
 module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
 `PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Verified DEV-0010
 `deviation`입니다. Current product aggregate는 GDJ-0051 Phase D publication까지 포함해 24 adapters/269 contracts=
-`245 passing + 24 deviation`이고, MIG-075..086만
-reference-only locked입니다. Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
+`245 passing + 24 deviation`이고, current reference-only locked range는 MIG-075..086과 MIG-119..128입니다.
+Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
 test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted
 tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 failed-job rerun 뒤 effective
 41/41 jobs·464/464 steps와 PostgreSQL 각 21/21/0을 통과했습니다. ADR-0052/GDJ-0050/DEV-0010은
@@ -540,8 +540,14 @@ godj migrate blog zero
 전체 public grammar는 latest/named/app-zero 각각 execute/plan과 optional trailing `--project PATH` 조합의 여덟
 형태뿐입니다. Plan은 current history에서 dry/capability preflight한 semantic steps를 JSON으로 표시하지만 실행 token이
 아니며, execute는 항상 fresh revision-fenced snapshot에서 다시 계획합니다. Prefix/app-only/option permutation,
-`sqlmigrate`, fake/repair와 destructive writer 확대는 비범위입니다. MIG-119..128과 Proposed ADR-0054는 activation 시점에
-`planned, not run`입니다.
+`sqlmigrate`, fake/repair와 destructive writer 확대는 비범위입니다. Phase B core source `cd499462...`는 이 grammar의
+target/plan/reverse 경계를 구현했고 Phase A source `db8fc418...`, tree `639a712...`는 MIG-119..128을 reference-only
+`oracle_locked`로 고정했습니다. Manifest/NI/oracle은 6,781/1,707/43,516 bytes
+(`d76a42f2...`/`dfefb6fd...`/`dc688e27...`), checksum은 23 lines/2,177 bytes/`00bd4d0d...`, semantic aggregate는
+291 scenarios/1,015,687 bytes/`b3918c...`입니다. Current reference는 26/291/650=
+`245 passing + 24 deviation + 22 oracle_locked`, product는 변함없이 24/269=`245 passing + 24 deviation`이며 Proposed
+ADR-0054도 승격하지 않았습니다. 다음 gate는 Phase C repository-external SQLite입니다. 근거는
+[EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

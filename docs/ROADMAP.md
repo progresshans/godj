@@ -12,7 +12,9 @@
   [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
   통과해 completed입니다. Active
   [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact named/app-zero execute,
-  non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다.
+  non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다. Phase B
+  core source `cd499462...`는 public/private target-plan 경계를 구현했고 Phase A source `db8fc418...`는 10개 contract를
+  reference-only `oracle_locked`로 게시했습니다. Product 24/269는 불변이며 다음 gate는 Phase C external SQLite입니다.
 - 직전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
@@ -249,8 +251,8 @@ whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 �
 `dc7a455...`와 EVID-157은 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product registration과 MIG-118 exact
 16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E EVID-158 local final과 EVID-159
 exact-head Hosted도 통과했습니다.
-Target/reverse와 `--plan`은 active GDJ-0052에서 exact-one target/current-only v2 경계로 진행하며 `sqlmigrate`는 별도
-후속입니다. Mutable instance `Save()`,
+Target/reverse와 `--plan`은 active GDJ-0052에서 exact-one target/current-only v2 core와 reference-only lock을 완료했고,
+Phase C external SQLite product flow로 진행합니다. `sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,

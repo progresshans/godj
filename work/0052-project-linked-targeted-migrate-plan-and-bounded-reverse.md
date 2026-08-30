@@ -217,13 +217,14 @@ Request examples:
 | MIG-127 | `reverse_commit_outcomes` | unknown no-retry, rolled-back retryable state, committed cleanup preserves committed history |
 | MIG-128 | `project_protocol_and_ownership` | v2 strict wire, load-before-open, one-open/one-mode/one-close, cancel/partial output/redaction/resource bounds |
 
-Activation에서는 MIG-119..128 모두 `planned, not run`입니다. Phase A reference artifact를 먼저 `oracle_locked`로 고정하고
-actual adapter가 같은 observation을 통과하기 전에는 `passing`으로 올리지 않습니다. Q-010/Q-012/Q-019는 이 packet이
+Activation에서는 MIG-119..128 모두 `planned, not run`이었고, Phase A source `db8fc418f4627fbe364360ae05ec5e015ad25ed4`에서
+reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 같은 observation을 통과하기 전에는 `passing`으로
+올리지 않습니다. Q-010/Q-012/Q-019는 이 packet이
 완료돼도 general upgrade/repair/destructive operation과 retained-resource policy 때문에 `Partial`/open을 유지합니다.
 
 ## 단계
 
-- [ ] Phase A — Django/GoDj authority audit와 MIG-119..128 reference-only artifact lock
+- [x] Phase A — Django/GoDj authority audit와 MIG-119..128 reference-only artifact lock
 - [x] Phase B — known-app target, shared lifecycle preparation, public Plan과 strict private v2/global argv
 - [ ] Phase C — repository-external SQLite named/zero/plan/reverse failure-resume product flow
 - [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, oracle-blind product registration과 independent audit
@@ -244,6 +245,18 @@ actual adapter가 같은 observation을 통과하기 전에는 `passing`으로 �
   all-package compile-only gate가 통과했습니다. 독립 감사에서 찾은 unpaired surrogate identity collapse와 response-cap
   test false-green 가능성은 같은 source checkpoint 안에서 fail-closed scanner와 production stage-policy seam으로 교정했습니다.
   자세한 증거는 EVID-161에 있습니다.
-- Phase A reference lock은 아직 실행하지 않았고 MIG-119..128은 계속 unregistered `planned, not run`입니다. 다음 작업은
-  Django/GoDj authority를 분리한 reference-only artifact를 먼저 고정한 뒤 repository-external SQLite product flow로
-  진행합니다.
+- Phase A source checkpoint `db8fc418f4627fbe364360ae05ec5e015ad25ed4`, tree
+  `639a7127022f3897ddc62ab24739c34e7fe4eb56`은 MIG-119..128 manifest/NI/oracle을 reference-only
+  `oracle_locked`로 고정했습니다. Manifest/NI/oracle은 6,781/1,707/43,516 bytes와 SHA-256
+  `d76a42f2a0fb4daa190d03f18d18707192c8b42881b94a1462b701a9d481947b`/
+  `dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44`/
+  `dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`입니다. Shared 23-line
+  `SHA256SUMS`는 2,177 bytes/SHA-256
+  `00bd4d0d865ace8620bc577d84fd4198b5724360727117fd4998f0772460f331`, all-scenario semantic payload는
+  291 scenarios/1,015,687 bytes/SHA-256
+  `b3918c9d471cacd79ad9da0774618b0df085b6db71784a884c668703807790de`입니다. Reference는
+  26 sets/291 contracts/650 ordered bindings=`245 passing + 24 deviation + 22 oracle_locked`로 늘었지만 product는
+  24 adapters/269 contracts=`245 passing + 24 deviation`으로 불변입니다. Exact Python 305, portable Python 305,
+  four-version semantic identity, protocol/conformance/oracle/checksum과 final P0..P3=`0` audit는
+  [EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에
+  기록합니다. 다음 정확한 작업은 Phase C repository-external SQLite named/zero/plan/reverse failure-resume product flow입니다.

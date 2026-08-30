@@ -85,9 +85,15 @@ whole-plan dry/capability preflight를 공유하지만 execute는 preview를 aut
 계획합니다. Existing unknown-app `ZeroTarget` empty 계약은 보존하고 public zero만 `KnownAppZeroTarget`으로 오타를
 fail-closed합니다. Phase B source `cd49946...`은 known-app target, shared Plan/Migrate preparation, strict private v2,
 exact global argv/public plan과 project-linked read-only plan을 구현하고 affected normal/race/CGO0/vet/count-10 및
-all-package compile-only gate를 통과했습니다. MIG-119..128은 Phase A reference lock 전까지 unregistered
-`planned, not run`, ADR-0054는 Proposed이며 target prefix/app-only, SQL rendering, fake/repair, destructive writer 확장과
-multi-DB는 비범위입니다. Completed
+all-package compile-only gate를 통과했습니다. Phase A source
+`db8fc418f4627fbe364360ae05ec5e015ad25ed4`, tree `639a7127022f3897ddc62ab24739c34e7fe4eb56`은
+MIG-119..128 manifest/NI/oracle을 reference-only `oracle_locked`로 고정했습니다. Manifest/NI/oracle은
+6,781/1,707/43,516 bytes이고 shared `SHA256SUMS`는 23 lines/2,177 bytes이며, exact hash와 291-scenario semantic
+payload 증거는 [EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에
+기록합니다. Current reference는 26 sets/291 contracts/650 ordered bindings=
+`245 passing + 24 deviation + 22 oracle_locked`, product는 24/269=`245+24`로 불변입니다. 다음 작업은 Phase C
+repository-external SQLite named/zero/plan/reverse failure-resume product flow입니다. ADR-0054는 Proposed이며 prefix
+resolution/app-only, SQL rendering, fake/repair, destructive writer 확장과 multi-DB는 비범위입니다. Completed
 [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
 `godj showmigrations [--project <godj.toml>]` list-only 단면으로 definition load-before-open, one read-only
 history snapshot, deterministic known/unknown status와 database mutation 0을 고정합니다. Target/reverse, `--plan`,
@@ -103,8 +109,8 @@ normal/race/CGO0/vet·Linux compile-only·독립 감사를 통과했습니다. P
 `744300e...`는 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 oracle-blind 24번째 adapter와 MIG-118 exact
 16-case cleanup/private-response/publication trace를 게시했고
 [EVID-157](../docs/status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)의
-focused gates와 final audit P0..P3=`0`을 통과했습니다. Current reference/product는
-25/281/600=`245+24+12 locked`, 24/269=`245+24`입니다. Phase E는 first publication `6d55a51...`의 full local,
+focused gates와 final audit P0..P3=`0`을 통과했습니다. GDJ-0051 completion 당시 reference/product는
+25/281/600=`245+24+12 locked`, 24/269=`245+24`였습니다. Phase E는 first publication `6d55a51...`의 full local,
 current 942/942/0 relation lock correction `dc61f168...`, source-bound A/B publication `b17345c4...`와
 1,208-blob/117-package external archive까지 [EVID-158](../docs/status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)에서
 통과했습니다. Exact submitted head `bebb690...`, tree `e0dac4e...`의
@@ -127,9 +133,9 @@ actual two-app cross-app publish -> SQLite migrate/no-op/fresh-process restart�
 publication 범위입니다. Phase D implementation `21d88c99...`, tree `976671ce...`는 PostgreSQL 17.10
 generated migrate/no-op/distinct-process restart, oracle-blind MIG-099..110 actual과 DEV-0010 exact 19 sparse replacements,
 repository-external public-module SQLite lifecycle를 구현하고 affected normal/vet/generated drift, focused
-runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. Current reference/product aggregate는
-25/281/600=`245+24+12 locked`, 24/269=`245+24`이고
-MIG-075..086이 locked/unregistered입니다. Phase E predecessor local full/Linux/386/relation/archive는 EVID-151에서,
+runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. GDJ-0050 completion 당시 reference/product aggregate는
+25/281/600=`245+24+12 locked`, 24/269=`245+24`이고 MIG-075..086이 locked/unregistered였습니다. Phase E predecessor
+local full/Linux/386/relation/archive는 EVID-151에서,
 workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted head
 `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의 pre-test dependency-setup 실패를
 보존한 뒤 source 변경 없는 two-job failed-job rerun으로 effective 41/41 jobs·464/464 steps,

@@ -163,6 +163,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
 | `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Verified DEV-0010 deviation product publication |
 | `contracts/migration-status-manifest.json` | MIG-111..118 bounded read-only migration-status mixed-authority contract; Phase A historical은 `oracle_locked`, current는 8 passing product publication/status 입력 |
+| `contracts/migration-target-plan-manifest.json` | MIG-119..128 exact target/plan/reverse mixed-authority contract; current Phase A는 reference-only `oracle_locked`이며 product publication/status 입력 아님 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -313,9 +314,9 @@ corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `3304986
 later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
-Current reference는 25 sets/281 contracts/600 ordered bindings=
-`245 passing + 24 deviation + 12 oracle_locked`, product는 24 adapters/269 eligible contracts=
-`245 passing + 24 deviation`입니다. 남은 locked/unregistered range는 MIG-075..086입니다. Accepted ADR-0051과
+Current reference는 26 sets/291 contracts/650 ordered bindings=
+`245 passing + 24 deviation + 22 oracle_locked`, product는 24 adapters/269 eligible contracts=
+`245 passing + 24 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086과 MIG-119..128입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
 GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
@@ -336,10 +337,18 @@ MIG-111..118은 24번째 oracle-blind adapter에서 모두 `passing`입니다. P
 EVID-157에서, current source-bound attestation/local final은 EVID-158에서, exact-head Hosted 41/41 jobs·464/464 steps는
 EVID-159에서 통과했습니다.
 
-GDJ-0052 activation은 MIG-119..128 exact target/plan/reverse set을 예약하지만 아직 manifest/oracle/static fixture나 product
-adapter를 추가하지 않습니다. 따라서 current 25 reference sets/281 contracts/600 bindings와 24 product adapters/269
-contracts aggregate는 변하지 않으며 MIG-119..128은 `planned, not run`입니다. Phase A에서 pinned Django/GoDj authority를
-감사한 뒤 reference-only `oracle_locked` artifact로 먼저 게시합니다.
+GDJ-0052 Phase A source `db8fc418f4627fbe364360ae05ec5e015ad25ed4`, tree
+`639a7127022f3897ddc62ab24739c34e7fe4eb56`은 MIG-119..128 exact target/plan/reverse set을 reference-only
+`oracle_locked`로 게시했습니다. Manifest/NI/oracle은 6,781/1,707/43,516 bytes와 SHA-256
+`d76a42f2a0fb4daa190d03f18d18707192c8b42881b94a1462b701a9d481947b`/
+`dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44`/
+`dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`입니다. Shared 23-line `SHA256SUMS`는
+2,177 bytes/SHA-256 `00bd4d0d865ace8620bc577d84fd4198b5724360727117fd4998f0772460f331`, all-scenario semantic
+payload는 291 scenarios/1,015,687 bytes/SHA-256
+`b3918c9d471cacd79ad9da0774618b0df085b6db71784a884c668703807790de`입니다. 이 단계는 product adapter를 등록하지
+않았으므로 product 24/269=`245 passing + 24 deviation`은 불변이며, 다음 검증 경계는 Phase C repository-external
+SQLite named/zero/plan/reverse failure-resume flow입니다. 자세한 증거는
+[EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에 연결합니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,

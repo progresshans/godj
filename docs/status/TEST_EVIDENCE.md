@@ -15098,3 +15098,76 @@ Linux/386 compile, Hosted run, ADR acceptance or contract-state transition is cl
 `planned, not run`. The next exact step is Phase A: freeze the mixed Django/GoDj authority as reference-only
 `oracle_locked` artifacts before Phase C publishes any actual product observation. Draft PR #1 remains open/draft/unmerged;
 the source checkpoint was pushed, and no PR comment, merge, release or deployment was performed.
+
+## EVID-20260830-162 — GDJ-0052 Phase A Reference-only Artifact Lock
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5
+- Work/contract IDs: GDJ-0052 active; ADR-0054 Proposed; MIG-119..128 reference-only `oracle_locked`;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Source checkpoint: `db8fc418f4627fbe364360ae05ec5e015ad25ed4`, tree
+  `639a7127022f3897ddc62ab24739c34e7fe4eb56`
+- Result: the mixed Django/GoDj authority is frozen as a new reference set without registering a product adapter or changing
+  any product classification.
+
+### Exact artifact and aggregate identity
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `conformance/contracts/migration-target-plan-manifest.json` | 6,781 | `d76a42f2a0fb4daa190d03f18d18707192c8b42881b94a1462b701a9d481947b` |
+| `conformance/fixtures/godj-migration-target-plan-not-implemented.json` | 1,707 | `dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json` | 43,516 | `dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f` |
+| `conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS` | 2,177, 23 lines | `00bd4d0d865ace8620bc577d84fd4198b5724360727117fd4998f0772460f331` |
+
+The current reference inventory is 26 sets/291 unique contracts or scenarios/650 ordered cross-bindings, classified as
+`245 passing + 24 deviation + 22 oracle_locked`. The product inventory remains 24 adapters/269 contracts=
+`245 passing + 24 deviation`: MIG-119..128 have no product actual. The canonical all-scenario semantic payload is
+291 scenarios/1,015,687 bytes/SHA-256
+`b3918c9d471cacd79ad9da0774618b0df085b6db71784a884c668703807790de`.
+
+### Authority and audit corrections
+
+MIG-120..122 observe the pinned Django 6.1 `MigrationExecutor.migration_plan()` ordering. MIG-119 and MIG-123..128 are
+GoDj-owned product decisions; Proposed ADR-0054 is documentation provenance, not a decision authority. Django app-zero
+observes `B1,A3,A2,A1`, while the future GoDj product actual remains subject to the existing DEV-0002 sparse canonical
+order `A3,A2,B1,A1`. MIG-121 uses cross-app `C1 -> A3`, so dependency forces `C1,A3,A2` in both references and no new
+deviation is needed.
+
+The final source audit also locked these boundaries:
+
+- a syntactically valid prefix-looking `0001` reaches catalog lookup and is an exact miss against `0001_initial`; discovery,
+  build, open and history happen once, migration `Begin` remains zero, and the result is `plan/target_not_found`;
+- reverse middle failure uses three steps: 0004 commits, 0003 rolls back, 0002 never starts; a fresh process resumes 0003 and
+  0002 and leaves only 0001 applied, with exactly three reverse commits and one rollback across both runs;
+- the v2 private protocol rejects duplicate/unknown/trailing/noncanonical/invalid-UTF-8/surrogate and retired-mode shapes,
+  enforces five resource ceilings, unique ordered plan rows and one direction, reaps cancelled process groups, discards
+  partial or short output, and redacts bounded failure detail.
+
+### Executed gates
+
+The following completed with exit 0 on the source checkpoint or its byte-identical pre-commit worktree:
+
+- focused Python target-plan suite: 12/12;
+- exact oracle capture A/B: byte-identical;
+- `make python-test-exact`: 305 tests with 3 intentional skips;
+- portable Python 3.14.3 full suite: 305 tests with 21 intentional skips;
+- all-scenario semantic digest identity on Python 3.12.13, 3.13.15, 3.14.3 and 3.14.7;
+- `make conformance-check`;
+- `uvx uv@0.10.12 run --no-project -- make oracle-check` against the exact locked tool profile;
+- all 23 checked `SHA256SUMS` entries;
+- `go test ./conformance/internal/protocol`;
+- `go test -count=10 ./conformance/internal/protocol`;
+- `go test -race ./conformance/internal/protocol`;
+- `make format-check` and `git diff --check`.
+
+`make diff-check` was attempted but the repository defines no such target; `git diff --check` is the applicable whitespace
+gate and passed. A final independent source/artifact audit and a separate generated-observation comparison both reported
+P0/P1/P2/P3=`0/0/0/0`.
+
+### Non-claims and next exact step
+
+This checkpoint does not claim a Phase C repository-external SQLite actual, reverse failure/resume product observation,
+Phase D PostgreSQL run or product adapter, DEV-0002 ledger update, source-bound attestation, full `make ci`, Linux/386,
+Hosted validation, ADR acceptance or product status transition. The next exact step is Phase C external SQLite
+named/zero/plan/reverse failure-resume. Draft PR #1 remains open/draft/unmerged; the source checkpoint was pushed, and no
+PR comment, merge, release or deployment was performed.

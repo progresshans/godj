@@ -150,13 +150,20 @@ protocol/conformance/oracle/checksum gate는 통과했고 Phase A 당시 referen
 project와 actual global process/SQLite에서 MIG-111..117 및 MIG-118 boundary subset의 no-mutation/fresh-process 증거를
 EVID-156으로 고정했습니다. Phase D checkpoint `dc7a455...`는 digest-pinned PostgreSQL 17.10 normal/race/CGO0,
 oracle-blind MIG-111..118 product actual과 exact 16-case MIG-118 cleanup/private-response/publication ordering을 게시했습니다.
-Current reference는 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`, product는
-24/269=`245 passing + 24 deviation`이며 MIG-075..086만 locked입니다. EVID-157의 focused gates와 independent final audit는
+GDJ-0051 completion 당시 reference는 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`, product는
+24/269=`245 passing + 24 deviation`이며 당시 MIG-075..086만 locked였습니다. EVID-157의 focused gates와 independent final audit는
 P0..P3=`0`입니다. EVID-158 source-bound attestation/local final과 EVID-159/CI #177 exact-head Hosted 41/41
 jobs·464/464 steps도 통과했으므로 GDJ-0051/ADR-0053은 completed/Accepted입니다.
 Active GDJ-0052는 existing library-level targeted executor를 exact-one public target, no-mutation plan과 bounded reverse로
-연결합니다. Proposed `Executor.Plan`, `KnownAppZeroTarget`과 private migrate protocol v2는 아직 구현되지 않았고
-MIG-119..128은 `planned, not run`입니다. Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.
+연결합니다. Phase B core source `cd499462...`는 `Executor.Plan`, `KnownAppZeroTarget`과 private migrate protocol v2를
+구현했고 Phase A source `db8fc418...`, tree `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로
+고정했습니다. Manifest/NI/oracle은 각각 6,781/1,707/43,516 bytes이며 SHA-256은
+`d76a42f2...`/`dfefb6fd...`/`dc688e27...`입니다. Checksum은 23 lines/2,177 bytes/`00bd4d0d...`, semantic
+aggregate는 291 scenarios/1,015,687 bytes/`b3918c...`이고 current reference는 26/291/650=
+`245 passing + 24 deviation + 22 oracle_locked`입니다. Product는 24/269=`245 passing + 24 deviation`으로
+변하지 않았으며 Proposed ADR-0054도 승격하지 않았습니다. 다음 gate는 Phase C repository-external SQLite입니다.
+근거는 [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)입니다.
+Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
@@ -662,10 +669,11 @@ Completed [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-arti
 `godj migrate [--project <godj.toml>]`에 연결했습니다. Hosted-verified product는 latest/prefix-tail/no-op,
 middle failure/resume, actual child fence/reconciliation, pre-migrate no-mutation, authenticated Admin/API distinct-process
 restart와 clean SQLite/PostgreSQL 17.10을 검증했습니다. MIG-087..098 exact 12는 registered product `passing`입니다.
-GDJ-0051 Phase D product publication 뒤 current reference는 25/281/600=
+GDJ-0051 Phase D product publication 당시 reference는 25/281/600=
 `245 passing + 24 deviation + 12 oracle_locked`, product는 24/269=`245 passing + 24 deviation`입니다.
 MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은 exact 열아홉 result replacement의
-Verified DEV-0010 `deviation`이며 남은 locked range는 MIG-075..086입니다.
+Verified DEV-0010 `deviation`이며 당시 남은 locked range는 MIG-075..086이었습니다. Current aggregate와 locked range는
+위 active GDJ-0052 section을 따릅니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.
