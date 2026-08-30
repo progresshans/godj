@@ -8,8 +8,9 @@
   Exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의
   pre-test dependency-setup 실패를 보존한 뒤 source 변경 없는 two-job rerun으로 effective 41/41 jobs·464/464 steps,
   failure/cancel/skip/annotation 0을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
-  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 0/0이며
-  다음 packet은 아직 선택하지 않았습니다.
+  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 1/0이며
+  [GDJ-0051](../work/0051-project-linked-showmigrations.md)이 Phase D product publication을 마치고 Phase E
+  source-bound attestation/full/Hosted를 진행 중입니다.
 - 직전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
@@ -148,7 +149,7 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 23 adapters/261 contracts의 `237 passing + 24 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 24 adapters/269 contracts의 `245 passing + 24 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
@@ -158,6 +159,8 @@
   GDJ-0050 Phase D는 MIG-099..110 actual을 게시해 7 `passing` + Verified DEV-0010 `deviation` 5개로
   전환했습니다. PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public module은 locally 통과했고
   Phase E predecessor local final은 EVID-151에서, current attestation/focused refreeze는 EVID-152에서 통과했습니다.
+  GDJ-0051 Phase D는 MIG-111..118을 product `passing`으로 게시했고 PostgreSQL 17.10과 exact 16-case
+  project boundary를 EVID-157로 검증했습니다. Reference-only locked range는 MIG-075..086입니다.
   EVID-153/CI #171 run `33280434425`의 corrected exact-head Hosted terminal gate도 통과했고 현재
   reference-only locked range는 MIG-075..086뿐입니다.
 - 마지막 검토: 2026-08-30
@@ -240,8 +243,10 @@ operation은 이 bounded packet의 완료로 지원됐다고 표현하지 않습
 `showmigrations`로 loaded catalog와 read-only applied-history snapshot을 deterministic하게 관측하는 사용자 단면을
 추가합니다. Phase B checkpoint `294e7e2...`는 core/strict wire/global-project read-only 경계를 EVID-154의 affected
 local gates로 고정했고 Phase A reference-only artifact는 EVID-155, Phase C repository-external SQLite status/restart/
-whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 고정했습니다. PostgreSQL actual,
-MIG-111..118 product registration과 MIG-118 exact 16-case boundary는 Phase D에 남아 있습니다. Target/reverse, `--plan`과
+whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 고정했습니다. Phase D checkpoint
+`dc7a455...`와 EVID-157은 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product registration과 MIG-118 exact
+16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E attestation/full/Hosted가 남아 있습니다.
+Target/reverse, `--plan`과
 `sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의

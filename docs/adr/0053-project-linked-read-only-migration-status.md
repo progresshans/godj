@@ -73,8 +73,9 @@ GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only 
     증명해야 하며 fixture metric을 재현해 통과할 수 없습니다.
 
 Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling은 검증됐습니다. Phase A는
-pinned MIG-111..118 reference artifact를 `oracle_locked`로 고정했습니다. 이 ADR은 Phase C/D의
-SQLite/PostgreSQL no-mutation product evidence와 actual publication까지 고정한 뒤 Accepted로 전환합니다.
+pinned MIG-111..118 reference artifact를 `oracle_locked`로 고정했고 Phase C/D는 SQLite/PostgreSQL no-mutation product
+evidence와 actual publication을 로컬에서 고정했습니다. 이 ADR은 Phase E의 current source-bound attestation, full milestone
+gate와 exact submitted-head Hosted까지 통과한 뒤 Accepted로 전환합니다.
 
 ## 결과
 

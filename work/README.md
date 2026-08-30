@@ -88,8 +88,12 @@ affected local gates와 final P0..P3=`0` audit를 통과했습니다. Phase A는
 Python/protocol/conformance/oracle/checksum gate를 통과했습니다. Phase C checkpoint `22e5c01...`은 repository-external public
 project와 actual global process/SQLite에서 MIG-111..117 status, restart와 whole-database no-mutation을 검증했고
 [EVID-156](../docs/status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint)의
-normal/race/CGO0/vet·Linux compile-only·독립 감사를 통과했습니다. Product actual은 아직 등록하지 않았고 다음 exact 작업은
-Phase D PostgreSQL 17.10, MIG-111..118 oracle-blind adapter와 MIG-118 exact 16-case boundary입니다. Completed
+normal/race/CGO0/vet·Linux compile-only·독립 감사를 통과했습니다. Phase D checkpoint `dc7a455...`, tree
+`744300e...`는 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 oracle-blind 24번째 adapter와 MIG-118 exact
+16-case cleanup/private-response/publication trace를 게시했고
+[EVID-157](../docs/status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)의
+focused gates와 final audit P0..P3=`0`을 통과했습니다. Current reference/product는
+25/281/600=`245+24+12 locked`, 24/269=`245+24`이고 다음 exact 작업은 Phase E attestation/full/Hosted입니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을
@@ -106,8 +110,8 @@ publication 범위입니다. Phase D implementation `21d88c99...`, tree `976671c
 generated migrate/no-op/distinct-process restart, oracle-blind MIG-099..110 actual과 DEV-0010 exact 19 sparse replacements,
 repository-external public-module SQLite lifecycle를 구현하고 affected normal/vet/generated drift, focused
 runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. Current reference/product aggregate는
-25/281/600=`237+24+20 locked`, 23/261=`237+24`이고
-MIG-075..086과 MIG-111..118이 locked/unregistered입니다. Phase E predecessor local full/Linux/386/relation/archive는 EVID-151에서,
+25/281/600=`245+24+12 locked`, 24/269=`245+24`이고
+MIG-075..086이 locked/unregistered입니다. Phase E predecessor local full/Linux/386/relation/archive는 EVID-151에서,
 workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted head
 `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의 pre-test dependency-setup 실패를
 보존한 뒤 source 변경 없는 two-job failed-job rerun으로 effective 41/41 jobs·464/464 steps,

@@ -192,7 +192,7 @@ semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partia
 - [x] Phase A — Django/GoDj authority audit와 MIG-111..118 reference-only artifact lock
 - [x] Phase B — strict private protocol, linked read-only runner와 global command unit/race/CGO0
 - [x] Phase C — SQLite actual fresh/prefix/full/unknown/inconsistent/no-mutation와 external project process flow
-- [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, product actual registration과 independent audit
+- [x] Phase D — PostgreSQL 17.10 normal/race/CGO0, product actual registration과 independent audit
 - [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
 
 ## 현재 checkpoint
@@ -212,9 +212,9 @@ semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partia
 - Phase A는 MIG-111..118 manifest/NI/oracle을 각각 5,311/1,566/39,478 bytes와 SHA-256
   `3b1c8693...e6fc`/`0dd4dd08...6cc6`/`5a7a7827...355f`로 고정했습니다. MIG-112..115는 portable result만 Django
   reference와 비교하고, durable no-mutation/fresh-process는 product black-box proof가 소유합니다.
-- Reference aggregate는 25 sets/281 contracts/600 ordered bindings=`237 passing + 24 deviation + 20 oracle_locked`이고
-  product는 23 adapters/261 contracts=`237 passing + 24 deviation`으로 불변입니다. MIG-075..086과 MIG-111..118만
-  reference-only locked/unregistered입니다.
+- Phase A 당시 reference aggregate는 25 sets/281 contracts/600 ordered bindings=
+  `237 passing + 24 deviation + 20 oracle_locked`였고 product는 23 adapters/261 contracts=
+  `237 passing + 24 deviation`이었습니다. 당시 MIG-075..086과 MIG-111..118만 reference-only locked/unregistered였습니다.
 - Exact Python suite 291 tests/21 skips, semantic inventory 281/971,815 bytes/SHA-256
   `7c76a6cf...1784`, Go protocol, 50개 conformance check, oracle regeneration/checksum과 독립 P0/P1=`0` 감사를
   통과했습니다. Workflow/Makefile source 변경으로 기존 PostgreSQL source-bound attestation은 의도대로 stale하며 Phase E에서
@@ -223,11 +223,24 @@ semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partia
   `e6fbf3154e2d6e20f13d4a7f37812fffa90c0aa0`은 repository-external public Go module에서 actual global binary,
   fresh project-runner OS process와 SQLite를 연결해 MIG-111..117의 empty/fresh/prefix/restart/cross-app/unknown/inconsistent
   결과와 database byte/schema/table/history/revision no-mutation을 검증했습니다. MIG-118 external black-box는 invalid argv,
-  invalid definition과 success ownership을 직접 검증했으며, 나머지 13 fault case는 Phase D actual adapter 등록 전에 existing
-  Phase B fault harness에 oracle-blind하게 연결해야 합니다.
+  invalid definition과 success ownership을 직접 검증했고, 당시 남아 있던 13 fault case는 이후 Phase D에서 existing
+  Phase B fault harness와 oracle-blind product adapter에 연결했습니다.
 - [EVID-156](../docs/status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint)은
   Phase C normal/race/CGO0/vet, Linux amd64/386 compile-only, selector/protocol/gofmt/diff gate와 독립 semantic/CI 감사를
   기록합니다. Portable race outer timeout은 이전 Hosted 31분 44초와 새 package race 2분 38초를 근거로 40분에서 45분으로만
   보강했습니다. Separate job 증설이나 검증 축소는 하지 않았습니다.
-- 다음 exact 작업은 Phase D PostgreSQL 17.10 actual, MIG-111..118 oracle-blind product adapter와 exact 16-case MIG-118
-  boundary publication입니다. Phase A reference lock이나 Phase C partial boundary를 product passing으로 오해하지 않습니다.
+- Phase D source checkpoint `dc7a4553e47a1b1693878ee15b6c74eeb6df38a0`, tree
+  `744300e5126ad6eed92181eba7f9d14ef511c2f7`은 digest-pinned PostgreSQL 17.10에서 fresh/prefix/restart/unknown/
+  inconsistent status의 current bounded schema/control/application/sequence snapshot 불변과 server-enforced read-only
+  transaction을 normal/race/CGO0로 검증했습니다. MIG-111..118은 oracle-blind 24번째 product adapter로 등록돼
+  product 24/269=`245 passing + 24 deviation`, reference 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`가
+  됐으며 남은 locked range는 MIG-075..086입니다.
+- MIG-118은 exact ordered 16 cases에서 argument/load/open/session/read/fence/cleanup/cancel/terminal writer를 실제
+  global/linked boundary로 실행합니다. Shared trace가 session close → backend close → private structured response → public
+  stdout/stderr 순서와 logical failure stderr exactly once를 강제하고, independent final audit는 P0..P3=`0`을 보고했습니다.
+  Filesystem redaction scan은 command-owned project root/empty private workspace와 bounded regular files를 소유하며 arbitrary
+  HOME/cache forensic scan을 주장하지 않습니다. Race gate는 harness를 계측하고 external child 자체의 `-race` build는
+  주장하지 않습니다.
+- 다음 exact 작업은 Phase E source-bound PostgreSQL attestation A/B 재캡처, affected/full milestone gates,
+  repository-external archive와 exact submitted-head Hosted입니다. Current checked attestation은 Phase D의
+  Make/workflow/non-test runner source 변경 때문에 의도대로 stale하며 새 bytes의 통과 증거로 재사용하지 않습니다.

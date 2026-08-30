@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-154
+- 현재 local source/contract checkpoint: EVID-20260830-157
 - latest successful hosted product proof: EVID-20260830-153
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
@@ -14729,3 +14729,72 @@ source-bound attestation stale until the Phase E single recapture after Phase D 
 exact submitted-head Hosted success were not run or claimed here. The next exact work is Phase D PostgreSQL normal/race/
 CGO-disabled product proof plus MIG-111..118 registration with exact MIG-118 boundary counters. Draft PR #1 remains
 open/draft/unmerged; no PR comment, merge, release or deployment was performed.
+
+## EVID-20260830-157 — GDJ-0051 Phase D PostgreSQL and Product Publication Checkpoint
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; digest-pinned Linux/amd64 PostgreSQL 17.10 container
+- Work/contract IDs: GDJ-0051 active; ADR-0053 Proposed; MIG-111..118 product `passing`; Q-010/Q-012 remain `Partial`
+- Phase D source commit: `dc7a4553e47a1b1693878ee15b6c74eeb6df38a0`, tree
+  `744300e5126ad6eed92181eba7f9d14ef511c2f7`
+- Result: PostgreSQL actual, oracle-blind adapter registration and exact MIG-118 16-case boundary passed the affected local
+  gates. Reference is 25 sets/281 contracts/600 ordered bindings=`245 passing + 24 deviation + 12 oracle_locked`; product is
+  24 adapters/269 contracts=`245 passing + 24 deviation`. The remaining locked range is MIG-075..086.
+
+### PostgreSQL 17.10 product proof
+
+The exact image was
+`postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f`.
+`TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart` passed normal in 110.498 seconds, race-mode harness in
+111.711 seconds and CGO-disabled in 110.154 seconds. Each run used fresh explicit schemas and actual global/project-runner
+processes for empty, fresh, applied prefix, distinct-process all-applied restart, unknown recorder rows and inconsistent known
+history. URL/password/schema/canary output scans, exact seven-event open/read/close markers and process-group reap passed.
+
+Before/after comparison covers the current GoDj-owned bounded PostgreSQL schema surface: namespace, table/relation, column,
+constraint, index, sequence configuration/state, every table count, recorder/revision rows and Article/Author sentinel rows.
+The product reader also uses the server-enforced `REPEATABLE READ READ ONLY` transaction. This is not represented as an
+exhaustive forensic comparison of arbitrary trigger/policy/rule or HOME/cache artifacts. The race command instruments the Go
+test harness; it does not claim that the separately built external child binary itself used `-race`.
+
+The exact PostgreSQL container was removed and its absence verified after the run. One initial harness-only readiness command
+used zsh's readonly `status` parameter and exited before any product test; the corrected command used `pg_isready`, and only
+the corrected three successful runs are evidence.
+
+### Product publication and false-green hardening
+
+MIG-111..118 are registered in the 24th GoDj adapter without reading the manifest, oracle, historical NI fixture or Django
+runner. The final canonical actual is 39,249 bytes/SHA-256
+`06643e16f66472538a9b028f31308116398915204728cf892a790bdf644071de` and strict comparison reported all eight contracts
+matching the locked oracle. The manifest is 5,263 bytes/SHA-256
+`dcb86295e683ea083cc57dca155284f9b26018d5d5a30c9606141bee8946fcc6`; the 1,566-byte historical NI and 39,478-byte oracle
+remain byte-identical to EVID-155.
+
+MIG-118 executes the exact ordered 16 cases through the actual global and linked showmigrations boundaries. Review found and
+fixed two initial P1 evidence gaps: stderr zero and one both produced zero republications, and cleanup/response precedence was
+published without a shared event trace. The final implementation now records revision-session close, backend close, private
+structured response and public stdout/stderr in one trace. Logical failures require stdout zero/stderr exactly one, terminal
+writer failures require one stdout/no stderr, the private response occurs once after cleanup and before public output, and the
+published precedence is derived from the successful trace. Cancellation callback execution and the mutation-capable
+`BeginMigration` canary are also non-vacuous. The final independent actual/aggregate audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+### Local gates actually executed
+
+- Final affected normal: `go test -count=1 ./conformance/runners/godj` passed in 21.073 seconds and the exact two new
+  `godjcheck` policy tests passed in 0.607 seconds.
+- Final affected race: the same packages passed in 36.176 and 1.854 seconds.
+- Final affected CGO-disabled: the same packages passed in 27.025 and 0.574 seconds.
+- `go test -count=1 ./conformance/internal/protocol`, scoped `go vet`, `make conformance-check` (all 50),
+  `make core-package-selection-check`, Linux amd64/386 CGO-disabled compile-only, `gofmt -l` and `git diff --check` passed.
+- The workflow PostgreSQL lane now requires exact 22 run/pass pairs with zero skip in each normal/race/CGO-disabled mode and
+  adds only the new product package/sentinel; no PostgreSQL job split or timeout increase was needed.
+- Running the entire `conformance/cmd/godjcheck` package before source publication failed only at the intentionally stale
+  PostgreSQL source-binding test. No new migration-status assertion failed. This is not counted as a pass.
+
+### Current boundary and next exact work
+
+Phase D is locally complete, but `.github/workflows/ci.yml`, `Makefile` and non-test runner source are attestation-owned.
+The checked PostgreSQL live attestation therefore correctly remains stale and is not reused. Full `make ci`, all-package
+Linux/386, final relation/archive proof and exact submitted-head Hosted success are not claimed here. Phase E must first create
+two byte-identical independent captures from a clean archive of the frozen source, publish only the canonical attestation,
+checksum and protocol byte locks, and then run the milestone gates. ADR-0053 remains Proposed and GDJ-0051 remains active.
+Draft PR #1 remains open/draft/unmerged; no PR comment, merge, release or deployment was performed.
