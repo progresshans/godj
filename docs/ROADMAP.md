@@ -1,21 +1,24 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 최근 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted
+- 최근 completed batch: [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 loaded catalog와 read-only applied
+  history를 exact `godj showmigrations`로 게시하고 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
+  통과했습니다. 현재 active/ready는 1/0이며 Active
+  [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact named/app-zero execute,
+  non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다. Phase B
+  core source `cd499462...`는 public/private target-plan 경계를 구현했고 Phase A source `db8fc418...`는 10개 contract를
+  reference-only `oracle_locked`로 게시했습니다. Phase C source `5b8d48f...`, tree `7df990a...`는 external public-only
+  module/global child/SQLite product-flow observation을 local-verify했습니다. Product 24/269와 contract status는 불변이며
+  다음 gate는 Phase D PostgreSQL 17.10/product publication입니다.
+- 직전 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 current CreateModel/AddField additive detector,
   deterministic Definition format 1과 DB-free recoverable `godj makemigrations`를 완료했습니다. Phase E predecessor
   local full/386/relation/archive는 EVID-151, current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다.
   Exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의
   pre-test dependency-setup 실패를 보존한 뒤 source 변경 없는 two-job rerun으로 effective 41/41 jobs·464/464 steps,
   failure/cancel/skip/annotation 0을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
-  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 1/0이며
-  [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
-  통과해 completed입니다. Active
-  [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact named/app-zero execute,
-  non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다. Phase B
-  core source `cd499462...`는 public/private target-plan 경계를 구현했고 Phase A source `db8fc418...`는 10개 contract를
-  reference-only `oracle_locked`로 게시했습니다. Product 24/269는 불변이며 다음 gate는 Phase C external SQLite입니다.
-- 직전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
+  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다.
+- 이전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
   ambient DB secret을 파싱·게시하지 않게 하고 load-before-open, latest-only/no-retry, cleanup-aware interrupt와 runserver의
@@ -252,7 +255,8 @@ whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 �
 16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E EVID-158 local final과 EVID-159
 exact-head Hosted도 통과했습니다.
 Target/reverse와 `--plan`은 active GDJ-0052에서 exact-one target/current-only v2 core와 reference-only lock을 완료했고,
-Phase C external SQLite product flow로 진행합니다. `sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
+Phase C external SQLite product flow까지 local-verify했습니다. 다음 단계는 Phase D PostgreSQL/product adapter이며
+`sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,

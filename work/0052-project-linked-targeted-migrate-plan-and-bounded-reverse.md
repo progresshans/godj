@@ -226,7 +226,7 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
 
 - [x] Phase A — Django/GoDj authority audit와 MIG-119..128 reference-only artifact lock
 - [x] Phase B — known-app target, shared lifecycle preparation, public Plan과 strict private v2/global argv
-- [ ] Phase C — repository-external SQLite named/zero/plan/reverse failure-resume product flow
+- [x] Phase C — repository-external SQLite named/zero/plan/reverse failure-resume product flow
 - [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, oracle-blind product registration과 independent audit
 - [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
 
@@ -259,4 +259,16 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
   24 adapters/269 contracts=`245 passing + 24 deviation`으로 불변입니다. Exact Python 305, portable Python 305,
   four-version semantic identity, protocol/conformance/oracle/checksum과 final P0..P3=`0` audit는
   [EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에
-  기록합니다. 다음 정확한 작업은 Phase C repository-external SQLite named/zero/plan/reverse failure-resume product flow입니다.
+  기록합니다.
+- Phase C source checkpoint `5b8d48fb93151f4fb4d24323f59ace259f4bffd8`, tree
+  `7df990a25ad5a3daeed9589dd33f960238fdb624`는 저장소 밖 public-only Go module에서 actual global `godj`, fresh
+  linked child와 real SQLite를 사용해 exact 여덟 public argv, named forward/reverse, app-zero DEV-0002 product order,
+  no-op/known-zero unknown, read-only exact plan, preview 뒤 fresh-history replan, middle reverse failure와 fresh-process
+  resume를 검증했습니다. MIG-128은 load-before-open, outer-close suppression, backend-open redaction과 process cleanup의
+  bounded Phase-C subset만 관찰합니다. MIG-127과 strict wire/resource/cancel/partial/short-write 전체는 Phase D 비주장입니다.
+  Current-byte normal/race/CGO-disabled, vet, protocol, full compile-only, Linux/386 compile-only, workflow/YAML/selector와
+  final independent P0..P3=`0` audit는
+  [EVID-163](../docs/status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)에
+  기록합니다. MIG-119..128은 계속 reference-only `oracle_locked`/unregistered이고 aggregate와 Proposed ADR-0054는
+  불변입니다. 다음 정확한 작업은 Phase D PostgreSQL 17.10, oracle-blind adapter, MIG-127/full MIG-128과 DEV-0002
+  sparse publication입니다.

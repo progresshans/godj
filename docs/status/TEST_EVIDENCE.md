@@ -15171,3 +15171,76 @@ Phase D PostgreSQL run or product adapter, DEV-0002 ledger update, source-bound 
 Hosted validation, ADR acceptance or product status transition. The next exact step is Phase C external SQLite
 named/zero/plan/reverse failure-resume. Draft PR #1 remains open/draft/unmerged; the source checkpoint was pushed, and no
 PR comment, merge, release or deployment was performed.
+
+## EVID-20260830-163 — GDJ-0052 Phase C External SQLite Targeted-migrate Checkpoint
+
+- Date: 2026-08-30 KST
+- Platform: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5
+- Work/contract IDs: GDJ-0052 active; ADR-0054 Proposed; MIG-119..128 remain reference-only `oracle_locked` and
+  unregistered; Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Phase C source commit: `5b8d48fb93151f4fb4d24323f59ace259f4bffd8`, tree
+  `7df990a25ad5a3daeed9589dd33f960238fdb624`
+- Result: the repository-external SQLite product-flow observation and its split CI wiring passed the affected local gates.
+  Reference remains 26 sets/291 contracts/650 ordered bindings=`245 passing + 24 deviation + 22 oracle_locked`; product
+  remains 24 adapters/269 contracts=`245 passing + 24 deviation`.
+
+### External SQLite product observation
+
+`conformance/projectmigratetargetproduct` creates a public-only Go module outside the repository, rejects internal,
+conformance, example and repository-absolute application-source imports and builds the actual global `godj` command. Valid
+selected product-flow invocations launch and reap a fresh linked project child and use a real SQLite database; pre-I/O,
+load-before-open and backend-open failure cases instead prove that the corresponding child/database access is absent or
+stops at its declared boundary. Every observed marker child PID is reaped and every root command process group is absent
+after return; private scratch state is empty, the consumer source/module roster is unchanged and bounded output, state and
+consumer artifacts do not contain the database path, marker path or secret canary.
+
+The product flow covers the exact eight accepted argv families and seven invalid pre-I/O forms, an exact prefix-looking
+name miss, named forward closure, named reverse descendants with retained direct cross-app state, app-zero with the existing
+DEV-0002 product order and unrelated branch preservation, applied no-op and public known-zero unknown rejection. It also
+checks nonempty and empty plans as exact read-only whole-state snapshots, then mutates history after a preview and proves
+that execute derives a fresh plan while preserving exact history, tables, sentinel rows and operation markers.
+
+The reverse failure case commits the tail step, rolls the middle step back, never starts the remaining step, and then uses a
+distinct fresh process to resume from durable history. Exact recorder rows, tables, revision fingerprint, nonzero stable
+epoch, survivor sentinel and begin/commit/rollback roster are checked after failure and after resume. The Phase-C MIG-128
+subset proves invalid-definition load-before-open, plan suppression on outer close failure, detail-free backend-open
+redaction, exact process-group reap and one outer session ownership. It does not claim MIG-127 or the full strict
+wire/resource/cancellation/partial-output/short-write boundary.
+
+### CI correction and final-byte gates
+
+The new heavy product package is excluded from the portable core selector and run serially in local aggregate Make gates.
+Hosted wiring adds one required 12-leg matrix: Ubuntu amd64/arm64 and macOS amd64/arm64, each in normal, race and
+CGO-disabled mode, with exact JSON pass inventory, package-skip zero and normal-mode vet. The existing product-project job
+is unchanged. Portable outer budgets are adjusted for the additional isolated package, while the dedicated job keeps its
+own 20-minute test limit and 25-minute bounds except macOS Intel at 30 minutes. Protocol tests lock the exact coordinate/mode,
+mode-switch, failure propagation, skip rejection, required-CI dependency and Make selector topology. This records configured
+coverage only; no Hosted pass or job/step total is claimed at this checkpoint.
+
+The following final-byte commands exited zero:
+
+- `go test -timeout=20m -count=1 ./conformance/projectmigratetargetproduct`: package 410.655 seconds, real 411.24 seconds;
+- `go test -timeout=20m -race -count=1 ./conformance/projectmigratetargetproduct`: package 331.405 seconds, real 332.15
+  seconds;
+- `CGO_ENABLED=0 go test -timeout=20m -count=1 ./conformance/projectmigratetargetproduct`: package 417.070 seconds,
+  real 417.69 seconds. CGO-disabled mode is propagated to child builds; the race command instruments the Go test harness
+  and does not claim a separately race-instrumented external child;
+- focused MIG-125 regression, package `go vet`, all-package `go test -run '^$' -count=1 ./...`, and CGO-disabled
+  Linux/386 compile-only for the new package;
+- `go test -count=1 ./conformance/internal/protocol`, `make core-package-selection-check`, workflow YAML parse,
+  `make format-check`, `git diff --check` and exact `allowed_paths` audit.
+
+Independent reviews found and the final source corrected false-green risks in MIG-124 seeded-plan direction, MIG-125
+fresh-state validation, invalid-argv descriptor access, output/consumer/state redaction, observed marker-process cleanup and
+revision epoch validation. The final current-byte audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+### Non-claims and next exact step
+
+MIG-119..128 are still reference-only and no oracle-blind adapter, DEV-0002 ledger change or product classification is
+published. PostgreSQL 17.10, MIG-127 commit outcomes, the full MIG-128 protocol/ownership matrix, `make ci`, full relation and
+archive gates, source-bound attestation and exact submitted-head Hosted validation were not run or claimed. Because the
+workflow and Make source changed, the checked PostgreSQL attestation is intentionally stale and must be regenerated once
+from frozen Phase-E source rather than reused or repeatedly recaptured during Phase D. The next exact work is Phase D
+PostgreSQL 17.10, manifest-aware DEV-0002 sparse policy, oracle-blind MIG-119..128 product registration and independent
+audit. Draft PR #1 remains open/draft/unmerged; the source checkpoint was pushed, and no PR comment, merge, release or
+deployment was performed.

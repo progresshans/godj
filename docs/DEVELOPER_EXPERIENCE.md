@@ -1,9 +1,12 @@
 # 목표 개발 경험
 
-- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded explicit migrate와 GDJ-0050 additive writer 단면 hosted-Verified
+- 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
+  explicit migrate, GDJ-0050 additive writer와 GDJ-0051 read-only status는 hosted-Verified; GDJ-0052 targeted migrate는
+  Phase C external SQLite까지 local-Verified
 - 마지막 검토: 2026-08-30
 
-아래 `M1 verified` 단면, §8의 GDJ-0049 explicit migrate 경계와 §10의 GDJ-0042 bounded verified boundary를 제외한 코드는 **illustrative sketch**입니다. M1 API도
+아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0052 경계를 제외한 코드는
+**illustrative sketch**입니다. M1 API도
 pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
 
 ## M1 verified 단면
@@ -546,8 +549,11 @@ target/plan/reverse 경계를 구현했고 Phase A source `db8fc418...`, tree `6
 (`d76a42f2...`/`dfefb6fd...`/`dc688e27...`), checksum은 23 lines/2,177 bytes/`00bd4d0d...`, semantic aggregate는
 291 scenarios/1,015,687 bytes/`b3918c...`입니다. Current reference는 26/291/650=
 `245 passing + 24 deviation + 22 oracle_locked`, product는 변함없이 24/269=`245 passing + 24 deviation`이며 Proposed
-ADR-0054도 승격하지 않았습니다. 다음 gate는 Phase C repository-external SQLite입니다. 근거는
-[EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)입니다.
+ADR-0054도 승격하지 않았습니다. Phase C source `5b8d48f...`, tree `7df990a...`는 저장소 밖 public-only project에서
+실제 global/linked child와 SQLite로 exact target/plan/reverse failure-resume를 local-verify했습니다. MIG-127/full MIG-128,
+PostgreSQL과 product status는 아직 pending이며 다음 gate는 Phase D입니다. 근거는
+[EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
+[EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

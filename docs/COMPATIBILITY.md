@@ -3,17 +3,18 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0052 Phase A reference-only artifact lock EVID-162)
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0052 Phase C external SQLite checkpoint EVID-163)
 - 현재 required checkpoint: GDJ-0052 Phase A source `db8fc418...`, tree `639a712...`가 MIG-119..128의
-  reference-only artifact lock을 완료했고 Phase B core source `cd499462...`도 구현됐습니다. 다음 gate는 Phase C
-  repository-external SQLite 검증입니다.
+  reference-only artifact lock을 완료했고 Phase B core source `cd499462...`와 Phase C external SQLite source
+  `5b8d48f...`, tree `7df990a...`도 구현·검증됐습니다. 다음 gate는 Phase D PostgreSQL/product publication입니다.
 - 현재 design: GDJ-0049/Accepted ADR-0051, GDJ-0050/Accepted ADR-0052와 GDJ-0051/Accepted ADR-0053 completed;
   GDJ-0052/Proposed ADR-0054 active.
   Reference 26/291/650=`245 passing + 24 deviation + 22 oracle_locked`, product
   24/269=`245 passing + 24 deviation`; MIG-087..102/108..118은 product `passing`, MIG-103..107은 Verified
   DEV-0010 `deviation`, reference-only locked range는 MIG-075..086과 MIG-119..128입니다. MIG-119..128은 아직
-  product status를 올리지 않았고 현재 active/ready work는 1/0임. Phase A 근거는
-  [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)입니다.
+  product status를 올리지 않았고 현재 active/ready work는 1/0임. Phase A/Phase C 근거는
+  [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
+  [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)입니다.
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.
@@ -105,12 +106,14 @@ oracle_locked`, product는 19 sets/207 contracts=`192 passing + 15 deviation`이
 
 Current checkout은 GDJ-0045의 one-runtime restart와 GDJ-0046 cooperative multi-runtime actual을 보존하면서 GDJ-0047
 Bearer authentication profile actual, GDJ-0049 migration-command actual, GDJ-0050 migration-writer, GDJ-0051
-migration-status product publication과 GDJ-0052 Phase A target-plan reference를 함께 게시합니다. Reference는
+migration-status product publication과 GDJ-0052 Phase A target-plan reference/Phase C external SQLite observation을 함께 게시합니다. Reference는
 26 sets/291 contracts/650 ordered bindings=`245 passing + 24 deviation + 22 oracle_locked`, product는
 24 adapters/269 contracts=`245 passing + 24 deviation`입니다. SYS-001..008/010..020은 `passing`, SYS-009는 Verified DEV-0008
 `deviation`입니다. AUT-009/010/011/014/016/API-011/012는 `passing`, AUT-012/013/015는 Verified DEV-0009
 `deviation`이고 MIG-087..102/108..118은 product `passing`, MIG-103..107은 Verified DEV-0010 `deviation`입니다.
-남은 reference-only locked range는 MIG-075..086과 MIG-119..128입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
+남은 reference-only locked range는 MIG-075..086과 MIG-119..128입니다. Phase C는 actual adapter나 status transition 없이
+external public-only module의 SQLite named/zero/plan/reverse failure-resume만 local-verify했고 Phase D PostgreSQL/product
+publication은 pending입니다. MIG-103..106의 `PROTECT`, digest-derived name, flat JSON roster/output과
 MIG-107의 stable GoDj error taxonomy는 exact 열아홉 sparse result replacement로 제한됩니다. MIG-107의 reference는 Django
 관찰이 아니라 Phase-A GoDj decision oracle taxonomy이며 DEV-0010이 이를 명시적으로 supersede합니다. GDJ-0050은
 PostgreSQL 17.10 normal/race/CGO-disabled actual, repository-external public module과 당시 Phase E local final을 통과했습니다. Exact submitted

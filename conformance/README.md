@@ -346,9 +346,12 @@ GDJ-0052 Phase A source `db8fc418f4627fbe364360ae05ec5e015ad25ed4`, tree
 2,177 bytes/SHA-256 `00bd4d0d865ace8620bc577d84fd4198b5724360727117fd4998f0772460f331`, all-scenario semantic
 payload는 291 scenarios/1,015,687 bytes/SHA-256
 `b3918c9d471cacd79ad9da0774618b0df085b6db71784a884c668703807790de`입니다. 이 단계는 product adapter를 등록하지
-않았으므로 product 24/269=`245 passing + 24 deviation`은 불변이며, 다음 검증 경계는 Phase C repository-external
-SQLite named/zero/plan/reverse failure-resume flow입니다. 자세한 증거는
-[EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에 연결합니다.
+않았으므로 product 24/269=`245 passing + 24 deviation`은 불변입니다. Phase C source `5b8d48f...`, tree
+`7df990a...`는 `conformance/projectmigratetargetproduct`의 repository-external public-only module/global child/real SQLite
+named/zero/plan/reverse failure-resume observation을 local-verify했습니다. MIG-127/full MIG-128과 oracle-blind adapter는
+Phase D 비주장이므로 MIG-119..128은 계속 `oracle_locked`/unregistered입니다. 자세한 증거는
+[EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
+[EVID-163](../docs/status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)에 연결합니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,

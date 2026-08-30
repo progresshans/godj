@@ -24,8 +24,14 @@
   four-version semantic identity, protocol/conformance/oracle/checksum gates와 final P0..P3=`0` audit는
   [EVID-162](TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에 기록합니다. Current
   reference는 26 sets/291 contracts/650 ordered bindings=`245 passing + 24 deviation + 22 oracle_locked`이고 product는
-  24 adapters/269 contracts=`245 passing + 24 deviation`으로 불변입니다. 다음 작업은 Phase C repository-external
-  SQLite named/zero/plan/reverse failure-resume입니다. Baseline은 clean GDJ-0051 terminal
+  24 adapters/269 contracts=`245 passing + 24 deviation`으로 불변입니다. Phase C source
+  `5b8d48fb93151f4fb4d24323f59ace259f4bffd8`, tree `7df990a25ad5a3daeed9589dd33f960238fdb624`는
+  repository-external public-only module, actual global/linked child와 real SQLite에서 named/zero/plan/reverse
+  failure-resume product flow를 통과했습니다. MIG-127/full MIG-128, adapter와 status transition은 아직 비주장이고
+  [EVID-163](TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)이
+  final-byte normal/race/CGO-disabled/compile/protocol/CI-wiring과 P0..P3=`0` 감사를 기록합니다. 다음 작업은 Phase D
+  PostgreSQL 17.10, manifest-aware DEV-0002 sparse policy, oracle-blind MIG-119..128 adapter와 full ownership 검증입니다.
+  Baseline은 clean GDJ-0051 terminal
   `1d37272f4062365416536d4459a5294df4b06d03`, tree
   `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
   [GDJ-0051](../../work/0051-project-linked-showmigrations.md)과 Accepted
@@ -2000,9 +2006,12 @@ failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. A
 `1d37272...`에서 시작해 Phase B source `cd499462...`/tree `580ae7a...`가 public strict v2 wire,
 `KnownAppZeroTarget`, shared preparation과 no-mutation plan을 구현했습니다. Phase A source `db8fc418...`/tree
 `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로 게시했고 EVID-162의 exact Python/semantic/
-protocol/conformance/oracle/checksum과 independent audit를 통과했습니다. Current reference는
-26/291/650=`245+24+22 locked`, product는 24/269=`245+24`로 불변이며 ADR-0054는 Proposed입니다. 다음 정확한 작업은
-Phase C repository-external SQLite named/zero/plan/reverse failure-resume product flow입니다.
+protocol/conformance/oracle/checksum과 independent audit를 통과했습니다. Phase C source `5b8d48f...`/tree
+`7df990a...`와 EVID-163은 external public-only module/global child/SQLite에서 named/zero/plan/reverse
+failure-resume를 통과했고 split 12-leg CI topology를 잠갔습니다. MIG-119..128은 계속 unregistered
+`oracle_locked`, current reference 26/291/650=`245+24+22 locked`, product 24/269=`245+24`, ADR-0054 Proposed는
+불변입니다. 다음 정확한 작업은 Phase D PostgreSQL 17.10, oracle-blind adapter, MIG-127/full MIG-128과 DEV-0002
+sparse publication입니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
