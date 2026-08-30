@@ -80,7 +80,11 @@ proposed → ready → active → completed
 현재 active/ready packet은 1/0입니다. Active [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
 `godj showmigrations [--project <godj.toml>]` list-only 단면으로 definition load-before-open, one read-only
 history snapshot, deterministic known/unknown status와 database mutation 0을 고정합니다. Target/reverse, `--plan`,
-`sqlmigrate`와 destructive writer는 이 packet에 섞지 않습니다. Completed
+`sqlmigrate`와 destructive writer는 이 packet에 섞지 않습니다. Phase B implementation `294e7e2...`, tree
+`3a834f4...`는 core listing, strict private wire, exact global/project dispatch, bounded revision-session/process ownership과
+identity escaping을 구현하고 [EVID-154](../docs/status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)의
+affected local gates와 final P0..P3=`0` audit를 통과했습니다. MIG-111..118은 아직 `planned, not run`이며 Phase A
+reference artifacts와 product actual은 남아 있습니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을

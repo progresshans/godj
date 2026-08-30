@@ -63,7 +63,9 @@ GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only 
 11. 논리적 실패는 public stdout write를 시도하지 않고 closed `category/code` stderr를 한 번 시도합니다. Final stdout writer가
     partial/error를 반환하면 기록된 prefix를 회수하거나 결과를 재게시하지 않고 internal nonzero로 끝냅니다.
 
-Phase A prototype에서 exact core API 이름과 response byte ceiling을 검증한 뒤 이 ADR을 Accepted로 전환합니다.
+Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling은 검증됐습니다. 이 ADR은
+Phase A의 pinned reference artifact와 Phase C/D의 SQLite/PostgreSQL no-mutation product evidence까지 고정한 뒤
+Accepted로 전환합니다.
 
 ## 결과
 

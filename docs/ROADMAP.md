@@ -238,7 +238,9 @@ current source-bound attestation/focused refreeze와 EVID-153 corrected exact-he
 operation은 이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Active
 [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 이 write 경계를 넓히기 전에 exact list-only
 `showmigrations`로 loaded catalog와 read-only applied-history snapshot을 deterministic하게 관측하는 사용자 단면을
-추가합니다. Target/reverse, `--plan`과 `sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
+추가합니다. Phase B checkpoint `294e7e2...`는 core/strict wire/global-project read-only 경계를 EVID-154의 affected
+local gates로 고정했지만 MIG-111..118 reference/product publication은 아직 남아 있습니다. Target/reverse, `--plan`과
+`sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,

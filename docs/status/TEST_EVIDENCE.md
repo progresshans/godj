@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-153
+- 현재 local source/contract checkpoint: EVID-20260830-154
 - latest successful hosted product proof: EVID-20260830-153
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
@@ -14528,3 +14528,78 @@ ADR-0052 is Accepted, GDJ-0050 is completed and DEV-0010 is Verified for this bo
 add destructive/rename/custom/data operations, multiple writable roots, 65+ candidate batching, distributed publication or
 general upgrade compatibility. Q-010/Q-012 therefore remain `Partial` and Q-019 remains P1/open. Draft PR #1 remains
 open/draft/unmerged; no merge, release or deployment was performed, and no next feature packet is activated by this evidence.
+
+## EVID-20260830-154 — GDJ-0051 Activation and Phase B Read-only Core Checkpoint
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; predecessor GitHub Actions pull-request runners
+- Work/contract IDs: GDJ-0051 active; ADR-0053 Proposed; MIG-111..118 `planned, not run`; Q-010/Q-012 remain `Partial`
+- Activation baseline submitted head: `39a5ce5f319c690508cd258f80082bd5f5a31216`, tree
+  `334edde7c1ad1955cc7f2e0e6ac6fbed254cf14f`
+- Local implementation checkpoint: `294e7e26b6f92f18d5bd8edad7e0a51e03243ad0`, tree
+  `3a834f477f007e5820ab4a31423690965a1b560b`
+- Predecessor Hosted run: [CI #172 / run 33283133663](https://github.com/progresshans/godj/actions/runs/33283133663),
+  attempt 1
+
+### Predecessor exact-head Hosted completion
+
+CI #172 targeted exact activation baseline `39a5ce5...` and completed 41/41 jobs and 464/464 recorded steps successfully.
+Failure, cancellation, skip and incomplete job counts were zero. This resolves the earlier question about long cancelled lanes for
+the corrected GDJ-0050 terminal topology: the exact successor run did not time out or cancel. It remains predecessor proof only;
+it does not exercise the later `showmigrations` source at `294e7e2...`.
+
+### Implemented checkpoint
+
+The local checkpoint adds the exact public argv `godj showmigrations [--project <godj.toml>]`, a separate strict private
+`migrations.show` protocol v1, and a linked read-only path with complete definition load before backend open. It reuses the
+existing public `project.MigrationBackend` revision-fenced session boundary without widening that interface. One successful
+invocation owns one outer backend, one revision session, one applied-history read, zero migration transactions and exact
+session/outer cleanup.
+
+Core `Planner.Statuses` and loader-authorized `LoadedDefinitionSet.Statuses` validate known history before returning fresh
+app-grouped applied/unapplied/definition-missing rows. Unknown recorder identities remain visible as `[?]`. The private wire
+enforces closed taxonomy, UTF-8, 4,096 rows and 16 MiB; the linked reader separately caps history at 2,048 records, one MiB per
+identity and 16 MiB aggregate. SQLite's revision-fenced snapshot now rejects record 2,049 before retaining partial state or
+mutating durable history, matching the existing PostgreSQL bound.
+
+Revision adoption-required, stale, contended and integrity failures retain their capability/conflict/transaction/history
+meanings. Invalid session plus outer-close failure remains a representable primary-plus-cleanup response. Final plain text uses
+reversible Go-style identity escaping, emits no raw control/format/ANSI characters and force-escapes a leading Unicode whitespace
+app rune so a heading cannot masquerade as a status row. The runner owns a 16 MiB response pipe and two-second bounded post-exit
+process group, including descendant-held pipe cleanup. Pre-acquisition cancellation opens nothing; a fully closed point-in-time
+snapshot is not erased by a later cancellation.
+
+### Local validation
+
+The full affected set passed normal, race and CGO-disabled modes before the final renderer/cancellation-only hardening. The final
+two changed packages were then rerun in all three modes, so every source change in checkpoint `294e7e2...` is covered by a
+post-change package gate. Vet was rerun for the final changed packages and `git diff --check` passed.
+
+```bash
+go test -count=1 \
+  ./migrations/... ./db/sqlite ./internal/projectcheck/... ./project ./cmd/godj
+go test -race -count=1 \
+  ./migrations/... ./db/sqlite ./internal/projectcheck/... ./project ./cmd/godj
+CGO_ENABLED=0 go test -count=1 \
+  ./migrations/... ./db/sqlite ./internal/projectcheck/... ./project ./cmd/godj
+go vet \
+  ./migrations/... ./db/sqlite ./internal/projectcheck/... ./project ./cmd/godj
+
+go test -count=1 ./internal/projectcheck ./internal/projectcheck/linked
+go test -race -count=1 ./internal/projectcheck ./internal/projectcheck/linked
+CGO_ENABLED=0 go test -count=1 ./internal/projectcheck ./internal/projectcheck/linked
+go vet ./internal/projectcheck ./internal/projectcheck/linked
+git diff --check
+```
+
+Three independent agents performed four focused audit passes over the core ordering/API, strict wire, linked/backend ownership
+and integrated global path. Findings discovered during review were fixed and retested; the final live-tree audit reported
+P0/P1/P2/P3=`0/0/0/0`.
+
+### Current boundary
+
+Phase B code and local gates are complete, but GDJ-0051 is not a product completion. Phase A's pinned Django/GoDj
+MIG-111..118 reference artifacts, SQLite/PostgreSQL actual product flows, repository-external consumer, product registration,
+full/386/relation/archive, source-bound attestation and an exact current-head Hosted run were not executed or claimed here.
+ADR-0053 remains Proposed, GDJ-0051 remains active and MIG-111..118 remain unregistered `planned, not run`. Draft PR #1 remains
+open/draft/unmerged; no merge, release or deployment was performed.

@@ -95,8 +95,9 @@ blog
 
 ### Core inspection
 
-- `AppliedState`의 정렬된 fresh-copy 조회와 `Planner`의 latest full-forward ordering을 작은 read-only API로 게시할지,
-  또는 하나의 immutable listing value로 결합할지 Phase A에서 결정합니다.
+- Phase B에서 raw `AppliedState` 조회를 새로 게시하지 않고, `Planner.Statuses`가 actual applied snapshot을 받아 fresh
+  `[]MigrationStatusEntry`를 반환하며 loader-authorized `LoadedDefinitionSet.Statuses`가 이를 감싸는 경계로 결정·구현했습니다.
+  Phase A의 남은 authority/reference lock은 이 API의 관찰 의미를 검증하며 API 형태를 다시 결정하는 단계가 아닙니다.
 - Listing은 actual applied snapshot에 대해 `Planner.CheckHistory`를 먼저 실행합니다. Known child가 applied이고 known parent가
   빠진 history는 stdout 0으로 fail-closed합니다.
 - Graph에 없는 valid applied identity는 existing lifecycle처럼 history 자체를 invalid로 만들지 않지만, 출력에서 숨기지 않습니다.
@@ -177,8 +178,8 @@ destructive/custom/data 범위 때문에 `Partial`로 유지합니다.
 
 ## 단계
 
-- [ ] Phase A — Django/GoDj authority audit, core listing API와 MIG-111..118 reference-only artifact lock
-- [ ] Phase B — strict private protocol, linked read-only runner와 global command unit/race/CGO0
+- [ ] Phase A — Django/GoDj authority audit와 MIG-111..118 reference-only artifact lock
+- [x] Phase B — strict private protocol, linked read-only runner와 global command unit/race/CGO0
 - [ ] Phase C — SQLite actual fresh/prefix/full/unknown/inconsistent/no-mutation와 external project process flow
 - [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, product actual registration과 independent audit
 - [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
@@ -190,4 +191,12 @@ destructive/custom/data 범위 때문에 `Partial`로 유지합니다.
 - Activation audit에서 core Article/blog identity special-case는 발견되지 않았습니다.
 - `showmigrations`에 필요한 definition clone, planner/history validation과 SQLite/PostgreSQL read-only reader는 이미 존재합니다.
 - `sqlmigrate`는 pure compile-without-execute port가 없어 이번 packet에서 분리했습니다.
-- 다음 exact 작업은 ADR-0053과 core listing API test를 먼저 고정하는 것입니다.
+- Implementation checkpoint `294e7e26b6f92f18d5bd8edad7e0a51e03243ad0`, tree
+  `3a834f477f007e5820ab4a31423690965a1b560b`은 loader-authorized core status API, strict private v1 wire,
+  exact global/project dispatch, one revision-session/read/close ownership, bounded SQLite snapshot, closed revision taxonomy,
+  injective terminal identity escape와 bounded descendant process-group cleanup을 구현했습니다.
+- [EVID-154](../docs/status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)는
+  affected normal/race/CGO0/vet와 최종 changed-package refreeze, 독립 에이전트 3개가 수행한 4개 집중 감사 패스의 최종
+  P0..P3=`0`을 기록합니다.
+- MIG-111..118 reference/product artifact는 아직 없고 `planned, not run`입니다. 다음 exact 작업은 Phase A의 pinned
+  Django/GoDj reference-only artifact lock이며, 이를 product passing으로 오해하지 않습니다.

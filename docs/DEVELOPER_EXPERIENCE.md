@@ -514,9 +514,13 @@ godj showmigrations
 godj showmigrations --project ./godj.toml
 ```
 
-이는 아직 구현·검증된 명령이 아닙니다. Proposed ADR-0053은 definition load-before-open, exact-one revision-fenced history snapshot,
-known `[X]`/`[ ]`, unknown recorded identity `[?]`와 database mutation 0을 제안합니다. App filter, `--plan`, target/reverse와
-`sqlmigrate`는 이번 active packet의 비범위입니다.
+Implementation checkpoint `294e7e2...`에서 exact argv, strict private wire, definition load-before-open, exact-one
+revision-fenced history snapshot과 known `[X]`/`[ ]`, unknown recorded identity `[?]`의 deterministic renderer가 로컬
+Phase B gate를 통과했습니다. Control/format identity는 reversible escape하고 leading Unicode whitespace app heading은
+status row처럼 보이지 않게 강제 hex escape합니다. 이는 아직 MIG-111..118 reference/product publication이나
+SQLite/PostgreSQL no-mutation product 검증을 통과한 명령이라는 뜻이 아닙니다. Proposed ADR-0053과 active GDJ-0051을 유지하며
+app filter, `--plan`, target/reverse와 `sqlmigrate`는 비범위입니다. 근거는
+[EVID-154](status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

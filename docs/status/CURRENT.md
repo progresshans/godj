@@ -9,8 +9,13 @@
   `godj showmigrations [--project <godj.toml>]` list-only 단면을 고정합니다. Complete definition load는 backend open보다
   먼저 일어나고, project-owned backend의 existing revision-fenced read-only session을 한 번 사용해 known `[X]`/`[ ]`와
   definition이 없는 recorded identity `[?]`를 canonical하게 렌더링합니다. 이 결과는 point-in-time read-only snapshot이며
-  schema/recorder/revision mutation이나 이후 writer까지의 lock authority가 아닙니다. MIG-111..118은 activation 시점
-  `planned, not run`이고 target/reverse, `--plan`, `sqlmigrate`, destructive writer와 multi-DB는 비범위입니다. Completed
+  schema/recorder/revision mutation이나 이후 writer까지의 lock authority가 아닙니다. Phase B implementation
+  `294e7e26b6f92f18d5bd8edad7e0a51e03243ad0`, tree `3a834f477f007e5820ab4a31423690965a1b560b`은 core listing,
+  strict private v1 wire, exact global/project dispatch, one revision-session/read/close, bounded history/process ownership과
+  injective identity rendering을 구현하고
+  [EVID-154](TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)의 affected
+  normal/race/CGO0/vet와 final P0..P3=`0` audit를 통과했습니다. MIG-111..118은 여전히 `planned, not run`이고
+  target/reverse, `--plan`, `sqlmigrate`, destructive writer와 multi-DB는 비범위입니다. Completed
   [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md)과 Accepted
   [ADR-0052](../adr/0052-project-linked-deterministic-makemigrations.md)는 normalized `ProjectSpec`과 latest historical
   `ProjectState`의 managed app을 current `CreateModel`/`AddField` 범위에서 diff해 deterministic Definition format 1을
@@ -1284,6 +1289,9 @@
   DB/recorder/lifecycle을 열지 않고 actual `definition.Load`를 정확히 한 번 호출하며 generation declaration runner는
   generated app/project target을 import하지 않습니다. Migrate만 별도 strict v1 protocol에서 catalog를 한 번 load한 뒤
   backend를 한 번 열어 latest lifecycle을 한 번 실행하고 획득한 backend를 한 번 닫습니다.
+  Active GDJ-0051의 local Phase B checkpoint는 같은 public facade를 넓히지 않고 showmigrations 두 argv와 별도
+  `migrations.show` private wire를 추가했습니다. 이는 아직 MIG-111..118 product registration이나 SQLite/PostgreSQL
+  no-mutation acceptance를 통과했다는 뜻이 아닙니다.
 - PostgreSQL current backend bounded product는 exact explicit schema 아래에서 scalar와 current one-hop relation
   query/write/Atomic, generated returned-key CRUD, schema-qualified model/scalar/FK DDL과 closed catalog 검증을
   구현합니다. Recorder/revision bootstrap, pinned advisory-lock session, one fenced transaction, apply/unapply/reapply,
@@ -1913,7 +1921,15 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 1/0이며 GDJ-0051 read-only `showmigrations`가 활성화됐습니다. Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
+현재 active/ready packet은 1/0이며 GDJ-0051 read-only `showmigrations`가 활성화됐습니다. Phase B checkpoint
+`294e7e2...`/tree `3a834f4...`는 core/loader status API, strict private wire, project/global read-only ownership,
+bounded SQLite history, revision taxonomy, identity escape, descendant cleanup과 cancellation precedence를 구현했습니다.
+Affected normal/race/CGO0/vet와 final changed-package refreeze, 독립 에이전트 3개가 수행한 4개 집중 감사 패스의 최종
+P0..P3=`0`은 EVID-154에 기록합니다. Activation baseline `39a5ce5...`의 CI #172/run `33283133663`은 41/41
+jobs·464/464 steps success와
+failure/cancel/skip 0으로 끝났지만 current showmigrations source proof로 재사용하지 않습니다. 다음 exact 작업은 Phase A
+pinned reference-only artifact lock이며, 이후 Phase C/D actual/product와 Phase E exact Hosted가 남아 있습니다.
+MIG-111..118은 `planned, not run`입니다. Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
 strict separate v1 wire, opaque project-owned snapshot, deterministic read-only modes와 build-input/catalog CAS를 구현했습니다.

@@ -139,6 +139,12 @@ Hosted는 EVID-153/CI #171 run `33280434425`의 source 변경 없는 failed-job 
 steps, failure/cancel/skip/annotation 0으로 완료됐습니다. MIG-099/100/101/102/108/109/110은 `passing`,
 MIG-103..107은 Verified DEV-0010 `deviation`입니다. General upgrade와 destructive/rename/custom/data operation은 아직
 포함하지 않습니다.
+Active GDJ-0051 Phase B checkpoint `294e7e2...`는 exact list-only
+`godj showmigrations [--project <godj.toml>]`, loader-authorized status API, separate strict private v1 wire와 one
+revision-fenced session/read/close를 로컬 구현했습니다. Known applied/unapplied와 unknown recorder identity를 각각
+`[X]`/`[ ]`/`[?]`로 표시하되 terminal identity를 reversible escape하고 database mutation이나 migration transaction을
+시작하지 않습니다. EVID-154의 affected local gates는 통과했지만 MIG-111..118 reference/product artifacts와
+SQLite/PostgreSQL no-mutation actual은 아직 `planned, not run`이므로 completed capability로 분류하지 않습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public
@@ -354,6 +360,7 @@ godj generate
 godj generate --check
 godj makemigrations
 godj migrate
+godj showmigrations
 godj runserver
 godj createsuperuser
 godj test
