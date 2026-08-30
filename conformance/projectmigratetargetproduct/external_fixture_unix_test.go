@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,6 +33,7 @@ const (
 )
 
 var targetAllowedGoDjImports = map[string]struct{}{
+	"github.com/progresshans/godj/db/postgres":           {},
 	"github.com/progresshans/godj/db/sqlite":             {},
 	"github.com/progresshans/godj/migrations":            {},
 	"github.com/progresshans/godj/migrations/backend":    {},
@@ -139,7 +141,7 @@ replace github.com/progresshans/godj => %s
 		t.Fatalf("inspect ambient module cache %q: %v", moduleCache, statErr)
 	}
 
-	setupEnv := targetEnvironment(os.Environ(), map[string]string{
+	setupEnv := targetRemoveEnvironment(targetEnvironment(os.Environ(), map[string]string{
 		"HOME":            filepath.Join(universe, "home"),
 		"XDG_CONFIG_HOME": filepath.Join(universe, "home"),
 		"XDG_CACHE_HOME":  filepath.Join(universe, "cache"),
@@ -151,7 +153,16 @@ replace github.com/progresshans/godj => %s
 		"GOENV":           "off",
 		"GOFLAGS":         "",
 		"GOCACHEPROG":     "",
-	})
+	}),
+		targetPostgresTestURLEnvironment,
+		targetPostgresRequiredEnvironment,
+		targetBackendEnvironment,
+		targetDatabaseEnvironment,
+		targetPostgresURLEnvironment,
+		targetPostgresSchemaEnvironment,
+		targetCatalogEnvironment,
+		targetMarkerEnvironment,
+	)
 	// Dependency resolution is fixture setup. Every product invocation after
 	// this point runs with both the proxy and checksum database disabled.
 	targetRunSuccess(t, root, setupEnv, "go", "mod", "tidy")
@@ -201,7 +212,10 @@ func (project *targetExternalProject) environment(database, marker, catalog stri
 
 func (project *targetExternalProject) environmentWith(database, marker, catalog string, overrides map[string]string) []string {
 	values := map[string]string{
+		targetBackendEnvironment:          targetBackendSQLite,
 		targetDatabaseEnvironment:         database,
+		targetPostgresURLEnvironment:      "",
+		targetPostgresSchemaEnvironment:   "",
 		targetMarkerEnvironment:           marker,
 		targetCatalogEnvironment:          catalog,
 		targetFailDeleteTableEnvironment:  "",
@@ -214,6 +228,63 @@ func (project *targetExternalProject) environmentWith(database, marker, catalog 
 	return targetEnvironment(project.baseEnv, values)
 }
 
+func (project *targetExternalProject) postgresEnvironment(
+	t *testing.T,
+	databaseURL,
+	schema,
+	marker,
+	catalog string,
+) []string {
+	return project.postgresEnvironmentWith(t, databaseURL, schema, marker, catalog, nil)
+}
+
+func (project *targetExternalProject) postgresEnvironmentWith(
+	t *testing.T,
+	databaseURL,
+	schema,
+	marker,
+	catalog string,
+	overrides map[string]string,
+) []string {
+	t.Helper()
+	base := targetRemoveEnvironment(
+		project.baseEnv,
+		targetPostgresTestURLEnvironment,
+		targetPostgresRequiredEnvironment,
+		targetDatabaseEnvironment,
+	)
+	values := map[string]string{
+		targetBackendEnvironment:          targetBackendPostgres,
+		targetPostgresURLEnvironment:      databaseURL,
+		targetPostgresSchemaEnvironment:   schema,
+		targetMarkerEnvironment:           marker,
+		targetCatalogEnvironment:          catalog,
+		targetFailDeleteTableEnvironment:  "",
+		targetFailBackendOpenEnvironment:  "",
+		targetFailBackendCloseEnvironment: "",
+	}
+	for key, value := range overrides {
+		values[key] = value
+	}
+	environment := targetEnvironment(base, values)
+	actual := targetEnvironmentMap(environment)
+	if _, exists := actual[targetPostgresTestURLEnvironment]; exists {
+		t.Fatal("PostgreSQL target project environment retained test-only database URL")
+	}
+	if _, exists := actual[targetPostgresRequiredEnvironment]; exists {
+		t.Fatal("PostgreSQL target project environment retained test-only required sentinel")
+	}
+	if _, exists := actual[targetDatabaseEnvironment]; exists {
+		t.Fatal("PostgreSQL target project environment retained SQLite database configuration")
+	}
+	if actual[targetBackendEnvironment] != targetBackendPostgres ||
+		actual[targetPostgresURLEnvironment] != databaseURL ||
+		actual[targetPostgresSchemaEnvironment] != schema {
+		t.Fatal("PostgreSQL target project environment did not retain exact project-owned database configuration")
+	}
+	return environment
+}
+
 func (project *targetExternalProject) run(t *testing.T, environment []string, arguments ...string) targetCommandResult {
 	t.Helper()
 	return project.runAt(t, project.nested, environment, arguments...)
@@ -224,8 +295,13 @@ func (project *targetExternalProject) runAt(t *testing.T, directory string, envi
 	project.recordPublicFamily(arguments)
 	result := targetRun(t, directory, environment, project.globalBinary, arguments...)
 	database := targetEnvironmentValue(environment, targetDatabaseEnvironment)
+	databaseURL := targetEnvironmentValue(environment, targetPostgresURLEnvironment)
+	schema := targetEnvironmentValue(environment, targetPostgresSchemaEnvironment)
 	marker := targetEnvironmentValue(environment, targetMarkerEnvironment)
-	sensitive := project.sensitive(database, marker, filepath.ToSlash(marker), filepath.Base(marker))
+	sensitive := project.sensitive(database, databaseURL, schema, marker, filepath.ToSlash(marker), filepath.Base(marker))
+	if password := targetURLPassword(databaseURL); len(password) >= 4 {
+		sensitive = append(sensitive, password)
+	}
 	targetAssertRedacted(t, result, sensitive...)
 	targetAssertMarkerProcessesReaped(t, marker)
 	project.assertWorkspaceEmpty(t)
@@ -236,7 +312,10 @@ func (project *targetExternalProject) runAt(t *testing.T, directory string, envi
 }
 
 func (project *targetExternalProject) sensitive(database string, extras ...string) []string {
-	values := []string{database, filepath.ToSlash(database), filepath.Base(database), project.secret}
+	values := []string{project.secret}
+	if database != "" {
+		values = append(values, database, filepath.ToSlash(database), filepath.Base(database))
+	}
 	return append(values, extras...)
 }
 
@@ -817,6 +896,37 @@ func targetEnvironment(base []string, overrides map[string]string) []string {
 		result[index] = key + "=" + values[key]
 	}
 	return result
+}
+
+func targetEnvironmentMap(environment []string) map[string]string {
+	values := make(map[string]string, len(environment))
+	for _, entry := range environment {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[key] = value
+		}
+	}
+	return values
+}
+
+func targetRemoveEnvironment(environment []string, keys ...string) []string {
+	values := targetEnvironmentMap(environment)
+	for _, key := range keys {
+		delete(values, key)
+	}
+	return targetEnvironment(nil, values)
+}
+
+func targetURLPassword(databaseURL string) string {
+	if databaseURL == "" {
+		return ""
+	}
+	parsed, err := url.Parse(databaseURL)
+	if err != nil || parsed.User == nil {
+		return ""
+	}
+	password, _ := parsed.User.Password()
+	return password
 }
 
 func targetEnvironmentValue(environment []string, wanted string) string {

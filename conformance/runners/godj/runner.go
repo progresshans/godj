@@ -166,6 +166,9 @@ func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
 	if handler, ok := migrationStatusScenarioHandler(scenario); ok {
 		return handler, true
 	}
+	if handler, ok := migrationTargetPlanScenarioHandler(scenario); ok {
+		return handler, true
+	}
 	if _, ok := migrationProjectCheckFixtures[scenario]; ok {
 		return migrationProjectCheckScenario, true
 	}

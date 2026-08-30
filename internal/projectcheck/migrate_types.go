@@ -21,12 +21,14 @@ type MigratePlanRow = migrateprotocol.PlanRow
 // selection, and cleanup observations.
 type MigrateReport struct {
 	Report
-	HasMigrateResult  bool
-	MigrateResult     MigrateResult
-	HasMigratePlan    bool
-	MigratePlan       []MigratePlanRow
-	HasMigrateFailure bool
-	MigrateFailure    MigrateFailure
+	HasMigrateResult          bool
+	MigrateResult             MigrateResult
+	HasMigratePlan            bool
+	MigratePlan               []MigratePlanRow
+	HasMigrateFailure         bool
+	MigrateFailure            MigrateFailure
+	RunnerStdoutRetainedBytes int
+	RunnerStdoutTruncated     bool
 }
 
 // MigrateInvocation is snapshotted before project selection or child launch.

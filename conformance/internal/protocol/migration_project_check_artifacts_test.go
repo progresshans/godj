@@ -224,7 +224,7 @@ func TestMigrationProjectCheckStaticFixtureExitsOneWithTenOrderedMismatches(t *t
 	}
 }
 
-func TestMigrationProjectCheckRemainsInCurrentTwentyTwoAdapterProductTarget(t *testing.T) {
+func TestMigrationProjectCheckRemainsInCurrentTwentyFiveAdapterProductTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentTwentyTwoAdapterProductTarget(t *t
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
-		t.Fatalf("product adapter count = %d, want 24", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
+		t.Fatalf("product adapter count = %d, want 25", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -495,7 +495,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
 		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
 		`mode="${{ matrix.mode }}"`,
-		"test_flags=(-timeout=20m -json -count=1)",
+		"test_flags=(-timeout=20m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
@@ -567,6 +567,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	}
 	if !reflect.DeepEqual(actualTargetRequiredSentinels, targetRequiredSentinels) {
 		t.Fatalf("targeted-migrate required inventory sentinels = %q, want exact ordered %q", actualTargetRequiredSentinels, targetRequiredSentinels)
+	}
+	if strings.Contains(targetedMigrate, "TestGlobalTargetedMigratePostgresLifecycle") {
+		t.Fatal("portable targeted-migrate matrix must not select the PostgreSQL-only lifecycle")
 	}
 	if strings.Contains(targetedMigrate, "continue-on-error:") || strings.Contains(targetedMigrate, "|| true") {
 		t.Fatal("targeted-migrate matrix modes must remain required")
@@ -857,7 +860,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`required="$RUNNER_TEMP/postgresql-required-tests.txt"`,
 		`printf '%s\n' "${required_passes[@]}" > "$required"`,
 		`python3 - "$required" "$log" "$mode" <<'PY'`,
-		`assert len(expected) == 22, sorted(expected)`,
+		`assert len(expected) == 23, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
@@ -917,11 +920,12 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct",
 		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
 		"github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart",
+		"github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
 	}
-	if len(postgresRequiredSentinels) != 22 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 22", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 23 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 23", len(postgresRequiredSentinels))
 	}
 	requiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*required=`)
 	requiredBlock := requiredBlockPattern.FindStringSubmatch(postgres)
@@ -973,6 +977,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"./examples/article",
 		"./conformance/postgresproduct/...",
 		"./conformance/projectmigrateproduct",
+		"./conformance/projectmigratetargetproduct",
 		"./conformance/projectshowmigrationsproduct",
 		"./conformance/systemstate/restart",
 		"./conformance/runserverproduct",

@@ -141,6 +141,8 @@ func RunMigrate(input MigrateInvocation) MigrateReport {
 	report.RunnerCalls++
 	runner := input.Backend.Execute(input.Context, input.Interrupt, MigrateRunnerStage, cloneCommand(runnerCommand))
 	recordProcess(&report.Report, MigrateRunnerStage, runner)
+	report.RunnerStdoutRetainedBytes = runner.StdoutScalar.RetainedBytes
+	report.RunnerStdoutTruncated = runner.StdoutScalar.Truncated
 	primary = migrateProcessFailure(MigrateRunnerStage, runner)
 	primary = combineMigrateCleanup(primary, runner.CleanupFailed)
 	var response migrateprotocol.Response

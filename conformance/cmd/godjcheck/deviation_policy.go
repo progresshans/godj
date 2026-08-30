@@ -33,6 +33,76 @@ func deviationPolicyForDecision(decision string) (protocol.DeviationPolicy, erro
 	}
 }
 
+// deviationPolicyForProduct keeps decision-only dispatch stable while
+// disambiguating decisions that intentionally own more than one product
+// manifest. DEV-0002 is reused for two independently reviewed app-zero
+// surfaces, so accepting either sparse policy without the exact manifest
+// contract set would let one fixture authorize selectors owned by the other.
+func deviationPolicyForProduct(decision string, manifest protocol.Manifest) (protocol.DeviationPolicy, error) {
+	if decision != "DEV-0002" {
+		return deviationPolicyForDecision(decision)
+	}
+
+	hasLifecycle := manifestHasContractID(manifest, "MIG-052")
+	hasTargetPlan := manifestHasContractID(manifest, "MIG-122")
+	switch {
+	case hasLifecycle && hasTargetPlan:
+		return protocol.DeviationPolicy{}, fmt.Errorf("DEV-0002 manifest is ambiguous: contains both MIG-052 and MIG-122")
+	case !hasLifecycle && !hasTargetPlan:
+		return protocol.DeviationPolicy{}, fmt.Errorf("DEV-0002 manifest contains neither MIG-052 nor MIG-122")
+	case hasLifecycle:
+		if !manifestHasExactContractSet(manifest, migrationLifecycleDEV0002ContractIDs()) {
+			return protocol.DeviationPolicy{}, fmt.Errorf("DEV-0002 manifest does not match the exact MIG-047..MIG-056 contract set")
+		}
+		return migrationLifecycleDeviationPolicy(), nil
+	default:
+		if !manifestHasExactContractSet(manifest, migrationTargetPlanDEV0002ContractIDs()) {
+			return protocol.DeviationPolicy{}, fmt.Errorf("DEV-0002 manifest does not match the exact MIG-119..MIG-128 contract set")
+		}
+		return migrationTargetPlanDeviationPolicy(), nil
+	}
+}
+
+func migrationLifecycleDEV0002ContractIDs() []string {
+	return []string{
+		"MIG-047", "MIG-048", "MIG-049", "MIG-050", "MIG-051",
+		"MIG-052", "MIG-053", "MIG-054", "MIG-055", "MIG-056",
+	}
+}
+
+func migrationTargetPlanDEV0002ContractIDs() []string {
+	return []string{
+		"MIG-119", "MIG-120", "MIG-121", "MIG-122", "MIG-123",
+		"MIG-124", "MIG-125", "MIG-126", "MIG-127", "MIG-128",
+	}
+}
+
+func manifestHasContractID(manifest protocol.Manifest, id string) bool {
+	for _, contract := range manifest.Contracts {
+		if contract.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func manifestHasExactContractSet(manifest protocol.Manifest, ids []string) bool {
+	if len(manifest.Contracts) != len(ids) {
+		return false
+	}
+	want := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		want[id] = struct{}{}
+	}
+	for _, contract := range manifest.Contracts {
+		if _, exists := want[contract.ID]; !exists {
+			return false
+		}
+		delete(want, contract.ID)
+	}
+	return len(want) == 0
+}
+
 func migrationExecutionDeviationPolicy() protocol.DeviationPolicy {
 	replace := protocol.DeviationReplace
 	metrics := protocol.DeviationMetrics
@@ -90,6 +160,23 @@ func migrationLifecycleDeviationPolicy() protocol.DeviationPolicy {
 					{Dimension: protocol.DeviationMetrics, Path: "steps[0]", Operation: replace},
 					{Dimension: protocol.DeviationMetrics, Path: "steps[1]", Operation: replace},
 					{Dimension: protocol.DeviationMetrics, Path: "steps[2]", Operation: replace},
+				},
+			},
+		},
+	}
+}
+
+func migrationTargetPlanDeviationPolicy() protocol.DeviationPolicy {
+	replace := protocol.DeviationReplace
+	return protocol.DeviationPolicy{
+		Decision: "DEV-0002",
+		Contracts: []protocol.DeviationContractPolicy{
+			{
+				ID: "MIG-122",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "plan[0]", Operation: replace},
+					{Dimension: protocol.DeviationResult, Path: "plan[1]", Operation: replace},
+					{Dimension: protocol.DeviationResult, Path: "plan[2]", Operation: replace},
 				},
 			},
 		},

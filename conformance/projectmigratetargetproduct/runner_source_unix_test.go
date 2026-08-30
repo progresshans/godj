@@ -5,13 +5,21 @@ package projectmigratetargetproduct_test
 import "fmt"
 
 const (
+	targetBackendEnvironment          = "GODJ_TARGET_MIGRATE_BACKEND"
 	targetDatabaseEnvironment         = "GODJ_TARGET_MIGRATE_SQLITE_DATABASE"
+	targetPostgresURLEnvironment      = "GODJ_TARGET_MIGRATE_POSTGRES_URL"
+	targetPostgresSchemaEnvironment   = "GODJ_TARGET_MIGRATE_POSTGRES_SCHEMA"
 	targetCatalogEnvironment          = "GODJ_TARGET_MIGRATE_CATALOG"
 	targetMarkerEnvironment           = "GODJ_TARGET_MIGRATE_MARKER"
 	targetSecretEnvironment           = "GODJ_TARGET_MIGRATE_SECRET_CANARY"
 	targetFailDeleteTableEnvironment  = "GODJ_TARGET_MIGRATE_FAIL_DELETE_TABLE"
 	targetFailBackendOpenEnvironment  = "GODJ_TARGET_MIGRATE_FAIL_BACKEND_OPEN"
 	targetFailBackendCloseEnvironment = "GODJ_TARGET_MIGRATE_FAIL_BACKEND_CLOSE"
+	targetPostgresTestURLEnvironment  = "GODJ_TEST_POSTGRES_URL"
+	targetPostgresRequiredEnvironment = "GODJ_REQUIRE_POSTGRES"
+
+	targetBackendSQLite   = "sqlite"
+	targetBackendPostgres = "postgres"
 
 	targetCatalogBranch         = "branch"
 	targetCatalogZero           = "zero"
@@ -98,6 +106,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
@@ -107,7 +116,10 @@ import (
 )
 
 const (
+	backendEnvironment = "GODJ_TARGET_MIGRATE_BACKEND"
 	databaseEnvironment = "GODJ_TARGET_MIGRATE_SQLITE_DATABASE"
+	postgresURLEnvironment = "GODJ_TARGET_MIGRATE_POSTGRES_URL"
+	postgresSchemaEnvironment = "GODJ_TARGET_MIGRATE_POSTGRES_SCHEMA"
 	catalogEnvironment = "GODJ_TARGET_MIGRATE_CATALOG"
 	markerEnvironment = "GODJ_TARGET_MIGRATE_MARKER"
 	secretEnvironment = "GODJ_TARGET_MIGRATE_SECRET_CANARY"
@@ -135,9 +147,21 @@ func openObservedBackend(ctx context.Context) (project.MigrationBackend, error) 
 		return nil, err
 	}
 	if os.Getenv(failBackendOpenEnvironment) == "1" {
-		return nil, fmt.Errorf("injected backend open failure: %s %s", os.Getenv(secretEnvironment), os.Getenv(databaseEnvironment))
+		return nil, fmt.Errorf("injected backend open failure: %s %s", os.Getenv(secretEnvironment), backendLocation())
 	}
-	opened, err := sqlite.Open(ctx, os.Getenv(databaseEnvironment))
+	var opened project.MigrationBackend
+	var err error
+	switch os.Getenv(backendEnvironment) {
+	case "sqlite":
+		opened, err = sqlite.Open(ctx, os.Getenv(databaseEnvironment))
+	case "postgres":
+		opened, err = postgres.Open(ctx, postgres.Config{
+			URL: os.Getenv(postgresURLEnvironment),
+			Schema: os.Getenv(postgresSchemaEnvironment),
+		})
+	default:
+		return nil, errors.New("unsupported external migration backend")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +187,7 @@ func (observed *observedBackend) Close() error {
 	markerErr := appendMarker("backend_close")
 	closeErr := observed.MigrationBackend.Close()
 	if os.Getenv(failBackendCloseEnvironment) == "1" {
-		closeErr = errors.Join(closeErr, fmt.Errorf("injected backend close failure: %s %s", os.Getenv(secretEnvironment), os.Getenv(databaseEnvironment)))
+		closeErr = errors.Join(closeErr, fmt.Errorf("injected backend close failure: %s %s", os.Getenv(secretEnvironment), backendLocation()))
 	}
 	return errors.Join(closeErr, markerErr)
 }
@@ -219,7 +243,7 @@ func (observed *observedTransaction) DeleteModel(ctx context.Context, model ir.M
 		return err
 	}
 	if os.Getenv(failDeleteTableEnvironment) == model.DBTable {
-		return fmt.Errorf("injected delete failure: %s %s", os.Getenv(secretEnvironment), os.Getenv(databaseEnvironment))
+		return fmt.Errorf("injected delete failure: %s %s", os.Getenv(secretEnvironment), backendLocation())
 	}
 	return observed.RevisionFencedTransaction.DeleteModel(ctx, model)
 }
@@ -261,6 +285,13 @@ func transitionDirection(kind backend.HistoryTransitionKind) string {
 	default:
 		return "invalid"
 	}
+}
+
+func backendLocation() string {
+	if os.Getenv(backendEnvironment) == "postgres" {
+		return os.Getenv(postgresURLEnvironment) + " " + os.Getenv(postgresSchemaEnvironment)
+	}
+	return os.Getenv(databaseEnvironment)
 }
 
 func appendMarker(event string) error {

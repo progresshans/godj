@@ -369,7 +369,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	for _, fragment := range []string{
 		"set -euo pipefail",
 		`mode="${{ matrix.mode }}"`,
-		"test_flags=(-timeout=20m -json -count=1)",
+		"test_flags=(-timeout=20m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
@@ -409,6 +409,9 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	} {
 		runserverWorkflowRequireCount(t, "targeted migrate product inventory", targetedMode, sentinel, 1)
 	}
+	if strings.Contains(targetedMode, "TestGlobalTargetedMigratePostgresLifecycle") {
+		t.Fatal("portable targeted-migrate mode step must exclude the PostgreSQL-only lifecycle")
+	}
 	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "./conformance/projectmigratetargetproduct", 2)
 	if strings.Contains(targetedMigrate, "continue-on-error:") || strings.Contains(targetedMigrate, "|| true") {
 		t.Fatal("targeted migrate product matrix gates must remain required")
@@ -430,7 +433,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		`export CGO_ENABLED=0`,
 		`go test "${test_flags[@]}" \`,
 		`./conformance/runserverproduct > "$log" || status=$?`,
-		`assert len(expected) == 22, sorted(expected)`,
+		`assert len(expected) == 23, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
@@ -474,10 +477,18 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart",
 		1,
 	)
+	runserverWorkflowRequireCount(
+		t,
+		"postgresql-product job",
+		postgres,
+		"github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle",
+		1,
+	)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, `GODJ_REQUIRE_POSTGRES: "1"`, 1)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/runserverproduct", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./cmd/godj", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigratetargetproduct", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectshowmigrationsproduct", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalRunserverArticlePostgresDevelopmentLoop", 2)

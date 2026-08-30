@@ -53,6 +53,7 @@ MIGRATION_STATUS_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-status-n
 MIGRATION_TARGET_PLAN_MANIFEST := conformance/contracts/migration-target-plan-manifest.json
 MIGRATION_TARGET_PLAN_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json
 MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-target-plan-not-implemented.json
+MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-target-plan-deviation-expected.json
 RELATION_MANIFEST := conformance/contracts/relation-manifest.json
 RELATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
 RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-relation-not-implemented.json
@@ -362,6 +363,10 @@ godj-conformance:
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) \
 		-expected $(MIGRATION_STATUS_ORACLE)
+	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_TARGET_PLAN_MANIFEST) \
+		-expected $(MIGRATION_TARGET_PLAN_ORACLE) \
+		-deviation-expected $(MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED)
 	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
 		-expected $(RELATION_ORACLE)

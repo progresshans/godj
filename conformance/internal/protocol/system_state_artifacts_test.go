@@ -487,7 +487,7 @@ func TestCurrentTwentySixReferenceSetsHave291ContractsAndReject650OrderedCrossBi
 			}
 		}
 	}
-	if len(sets) != 26 || total != 291 || len(ids) != 291 || len(scenarios) != 291 || passing != 245 || deviations != 24 || locked != 22 {
+	if len(sets) != 26 || total != 291 || len(ids) != 291 || len(scenarios) != 291 || passing != 254 || deviations != 25 || locked != 12 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
 	crossBindings := 0
@@ -562,8 +562,8 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	if strings.Contains(productTarget, "$(SYSTEM_STATE_NOT_IMPLEMENTED)") {
 		t.Fatal("product system-state adapter uses the not-implemented fixture")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
-		t.Fatalf("product adapter count = %d, want 24", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
+		t.Fatalf("product adapter count = %d, want 25", got)
 	}
 	for name, target := range map[string]string{
 		"oracle-check":      oracleCheckTarget,

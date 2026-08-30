@@ -83,7 +83,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		if err != nil {
 			return reportFailure(stderr, err)
 		}
-		deviationPolicy, err := deviationPolicyForDecision(deviationExpected.Decision)
+		deviationPolicy, err := deviationPolicyForProduct(deviationExpected.Decision, manifest)
 		if err != nil {
 			return reportFailure(stderr, err)
 		}

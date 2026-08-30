@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	migrationTargetPlanManifestArtifact = "conformance/contracts/migration-target-plan-manifest.json"
-	migrationTargetPlanBaselineArtifact = "conformance/fixtures/godj-migration-target-plan-not-implemented.json"
-	migrationTargetPlanOracleArtifact   = "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json"
+	migrationTargetPlanManifestArtifact  = "conformance/contracts/migration-target-plan-manifest.json"
+	migrationTargetPlanBaselineArtifact  = "conformance/fixtures/godj-migration-target-plan-not-implemented.json"
+	migrationTargetPlanDeviationArtifact = "conformance/fixtures/godj-migration-target-plan-deviation-expected.json"
+	migrationTargetPlanOracleArtifact    = "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json"
 )
 
 type migrationTargetPlanArtifactLock struct {
@@ -28,14 +29,18 @@ type migrationTargetPlanProvenanceLock struct {
 	license   string
 }
 
-var migrationTargetPlanPhaseAArtifactLocks = map[string]migrationTargetPlanArtifactLock{
+var migrationTargetPlanArtifactLocks = map[string]migrationTargetPlanArtifactLock{
 	migrationTargetPlanManifestArtifact: {
-		size:   6781,
-		sha256: "d76a42f2a0fb4daa190d03f18d18707192c8b42881b94a1462b701a9d481947b",
+		size:   6796,
+		sha256: "0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496",
 	},
 	migrationTargetPlanBaselineArtifact: {
 		size:   1707,
 		sha256: "dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44",
+	},
+	migrationTargetPlanDeviationArtifact: {
+		size:   2673,
+		sha256: "7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317",
 	},
 	migrationTargetPlanOracleArtifact: {
 		size:   43516,
@@ -82,11 +87,11 @@ var migrationTargetPlanComparisons = [][]ComparisonDimension{
 	{CompareResult, CompareDBState, CompareMetrics},
 }
 
-func TestMigrationTargetPlanPhaseAStaticArtifactsAreLockedAndPayloadFree(t *testing.T) {
+func TestMigrationTargetPlanPublishedArtifactsAreLockedAndBaselineRemainsPayloadFree(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
-	for name, want := range migrationTargetPlanPhaseAArtifactLocks {
+	for name, want := range migrationTargetPlanArtifactLocks {
 		assertMigrationTargetPlanArtifactLock(t, root, name, want)
 	}
 
@@ -108,10 +113,14 @@ func TestMigrationTargetPlanPhaseAStaticArtifactsAreLockedAndPayloadFree(t *test
 
 	for index, contract := range manifest.Contracts {
 		wantID := fmt.Sprintf("MIG-%03d", index+119)
+		wantStatus := ContractPassing
+		if wantID == "MIG-122" {
+			wantStatus = ContractDeviation
+		}
 		if contract.ID != wantID ||
 			contract.Scenario != migrationTargetPlanScenarios[index] ||
 			contract.Phase != migrationTargetPlanPhases[index] ||
-			contract.Status != ContractOracleLocked ||
+			contract.Status != wantStatus ||
 			!reflect.DeepEqual(contract.Comparison, migrationTargetPlanComparisons[index]) {
 			t.Fatalf("migration-target-plan contract %d = %#v", index, contract)
 		}
@@ -138,9 +147,9 @@ func TestMigrationTargetPlanOracleIsLockedValidatedAndCannotFalseGreen(t *testin
 
 	root := conformanceRepositoryRoot(t)
 	oracleContents := mustReadMigrationTargetPlanFile(t, filepath.Join(root, filepath.FromSlash(migrationTargetPlanOracleArtifact)))
-	wantLock, locked := migrationTargetPlanPhaseAArtifactLocks[migrationTargetPlanOracleArtifact]
+	wantLock, locked := migrationTargetPlanArtifactLocks[migrationTargetPlanOracleArtifact]
 	if !locked {
-		t.Fatalf("generated migration-target-plan oracle has no exact size/SHA-256 lock in migrationTargetPlanPhaseAArtifactLocks")
+		t.Fatalf("generated migration-target-plan oracle has no exact size/SHA-256 lock in migrationTargetPlanArtifactLocks")
 	}
 	assertMigrationTargetPlanArtifactContents(t, migrationTargetPlanOracleArtifact, oracleContents, wantLock)
 
@@ -289,7 +298,7 @@ func TestMigrationTargetPlanDjangoOrderHazardMustRemainExplicit(t *testing.T) {
 	}
 }
 
-func TestMigrationTargetPlanPublishedReferenceWiringIsExact(t *testing.T) {
+func TestMigrationTargetPlanPublishedReferenceAndProductWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -311,9 +320,10 @@ func TestMigrationTargetPlanPublishedReferenceWiringIsExact(t *testing.T) {
 
 	makeText := string(mustReadMigrationTargetPlanFile(t, filepath.Join(root, "Makefile")))
 	for variable, value := range map[string]string{
-		"MIGRATION_TARGET_PLAN_MANIFEST":        migrationTargetPlanManifestArtifact,
-		"MIGRATION_TARGET_PLAN_ORACLE":          migrationTargetPlanOracleArtifact,
-		"MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED": migrationTargetPlanBaselineArtifact,
+		"MIGRATION_TARGET_PLAN_MANIFEST":           migrationTargetPlanManifestArtifact,
+		"MIGRATION_TARGET_PLAN_ORACLE":             migrationTargetPlanOracleArtifact,
+		"MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED":    migrationTargetPlanBaselineArtifact,
+		"MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED": migrationTargetPlanDeviationArtifact,
 	} {
 		definition := variable + " := " + value
 		if got := strings.Count(makeText, definition); got != 1 {
@@ -343,13 +353,17 @@ func TestMigrationTargetPlanPublishedReferenceWiringIsExact(t *testing.T) {
 		}
 	}
 	for variable, want := range map[string]int{
-		"$(MIGRATION_TARGET_PLAN_MANIFEST)":        0,
-		"$(MIGRATION_TARGET_PLAN_ORACLE)":          0,
-		"$(MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED)": 0,
+		"$(MIGRATION_TARGET_PLAN_MANIFEST)":           1,
+		"$(MIGRATION_TARGET_PLAN_ORACLE)":             1,
+		"$(MIGRATION_TARGET_PLAN_NOT_IMPLEMENTED)":    0,
+		"$(MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED)": 1,
 	} {
 		if got := strings.Count(productTarget, variable); got != want {
 			t.Fatalf("product target variable %s count = %d, want %d", variable, got, want)
 		}
+	}
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
+		t.Fatalf("product adapter count = %d, want 25", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(MIGRATION_TARGET_PLAN_MANIFEST)"); got != 1 {
@@ -363,6 +377,9 @@ func TestMigrationTargetPlanPublishedReferenceWiringIsExact(t *testing.T) {
 	workflow := string(mustReadMigrationTargetPlanFile(t, filepath.Join(root, ".github", "workflows", "ci.yml")))
 	if got := strings.Count(workflow, migrationTargetPlanBaselineArtifact); got != 2 {
 		t.Fatalf("workflow migration-target-plan NI lock count = %d, want 2", got)
+	}
+	if got := strings.Count(workflow, migrationTargetPlanDeviationArtifact); got != 2 {
+		t.Fatalf("workflow migration-target-plan deviation lock count = %d, want 2", got)
 	}
 }
 
@@ -390,6 +407,7 @@ func assertMigrationTargetPlanProvenance(t *testing.T, contract Contract) {
 		want = append(want,
 			migrationTargetPlanProvenanceLock{"source", djangoRevision + "django/db/migrations/executor.py::MigrationExecutor.migration_plan", "BSD-3-Clause"},
 			migrationTargetPlanProvenanceLock{"test", djangoRevision + "tests/migrations/test_executor.py::ExecutorTests.test_run", "BSD-3-Clause"},
+			migrationTargetPlanProvenanceLock{"decision", "DEV-0002", ""},
 		)
 	}
 	if len(contract.Provenance) != len(want) {

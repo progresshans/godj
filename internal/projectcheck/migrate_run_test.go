@@ -85,7 +85,7 @@ func TestRunMigrateSuccessUsesSeparateProtocolAndSingleRunner(t *testing.T) {
 		Context: context.Background(), CWD: fixture.cwd, Args: []string{"migrate"}, Environment: fixture.environment,
 		Stdout: &stdout, Stderr: &stderr, Backend: backend,
 	})
-	if report.ExitCode != 0 || report.HasMigrateFailure || !report.HasMigrateResult || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 || report.DirectChildReaps != 2 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
+	if report.ExitCode != 0 || report.HasMigrateFailure || !report.HasMigrateResult || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 || report.RunnerStdoutRetainedBytes != len(wire) || report.RunnerStdoutTruncated || report.DirectChildReaps != 2 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
 		t.Fatalf("migrate success report = %+v", report)
 	}
 	wantOutput := `{"source_count":0,"definition_count":0,"definition_set_digest":"` + migrateprotocol.EmptySetDigest + `"}` + "\n"
@@ -424,7 +424,7 @@ func TestRunMigrateTransportAndCleanupPrecedeResponseBytes(t *testing.T) {
 				Context: context.Background(), CWD: fixture.project, Args: []string{"migrate"}, Environment: fixture.environment,
 				Stdout: &stdout, Stderr: &stderr, Backend: backend,
 			})
-			if report.ExitCode != 3 || !report.HasMigrateFailure || report.MigrateFailure.Code != test.wantCode || report.CleanupFailed != test.wantCleanup || report.RunnerCalls != 1 || stdout.Len() != 0 {
+			if report.ExitCode != 3 || !report.HasMigrateFailure || report.MigrateFailure.Code != test.wantCode || report.CleanupFailed != test.wantCleanup || report.RunnerCalls != 1 || report.RunnerStdoutRetainedBytes != test.runner.StdoutScalar.RetainedBytes || report.RunnerStdoutTruncated != test.runner.StdoutScalar.Truncated || stdout.Len() != 0 {
 				t.Fatalf("%s = %+v stdout=%q stderr=%q", test.name, report, stdout.String(), stderr.String())
 			}
 			if !bytes.Equal(backing, make([]byte, len(backing))) {

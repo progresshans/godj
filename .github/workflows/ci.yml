@@ -117,6 +117,7 @@ jobs:
           conformance/fixtures/godj-migration-writer-not-implemented.json
           conformance/fixtures/godj-migration-status-not-implemented.json
           conformance/fixtures/godj-migration-target-plan-not-implemented.json
+          conformance/fixtures/godj-migration-target-plan-deviation-expected.json
           conformance/fixtures/godj-migration-writer-deviation-expected.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
@@ -243,6 +244,7 @@ jobs:
           conformance/fixtures/godj-migration-writer-not-implemented.json
           conformance/fixtures/godj-migration-status-not-implemented.json
           conformance/fixtures/godj-migration-target-plan-not-implemented.json
+          conformance/fixtures/godj-migration-target-plan-deviation-expected.json
           conformance/fixtures/godj-migration-writer-deviation-expected.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
@@ -935,7 +937,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout=20m -json -count=1)
+          test_flags=(-timeout=20m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
           case "$mode" in
             normal)
               ;;
@@ -1164,7 +1166,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
+          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
           test_flags=(-timeout=15m -json -count=1 -run "$required_regex")
           case "$mode" in
             normal)
@@ -1188,6 +1190,7 @@ jobs:
             ./examples/article \
             ./conformance/postgresproduct/... \
             ./conformance/projectmigrateproduct \
+            ./conformance/projectmigratetargetproduct \
             ./conformance/projectshowmigrationsproduct \
             ./conformance/systemstate/restart \
             ./conformance/runserverproduct > "$log" || status=$?
@@ -1216,6 +1219,7 @@ jobs:
             "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct"
             "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability"
             "github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart"
+            "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
           )
@@ -1244,7 +1248,7 @@ jobs:
               for event in events
               if event.get("Action") == "skip" and "Test" in event
           ]
-          assert len(expected) == 22, sorted(expected)
+          assert len(expected) == 23, sorted(expected)
           assert runs == expected, (sorted(runs), sorted(expected))
           assert passes == expected, (sorted(passes), sorted(expected))
           assert skips == [], skips
@@ -1307,6 +1311,7 @@ jobs:
             ./examples/article \
             ./conformance/postgresproduct/... \
             ./conformance/projectmigrateproduct \
+            ./conformance/projectmigratetargetproduct \
             ./conformance/projectshowmigrationsproduct \
             ./conformance/systemstate/restart \
             ./conformance/runserverproduct

@@ -271,8 +271,8 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 	if strings.Contains(productTarget, "MIGRATION_WRITER_NOT_IMPLEMENTED") {
 		t.Fatal("Phase D product adapter uses the migration-writer not-implemented fixture")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
-		t.Fatalf("product adapter count = %d, want 24", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
+		t.Fatalf("product adapter count = %d, want 25", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(MIGRATION_WRITER_MANIFEST)"); got != 1 {
