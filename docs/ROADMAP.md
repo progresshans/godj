@@ -8,8 +8,11 @@
   non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다. Phase B
   core source `cd499462...`는 public/private target-plan 경계를 구현했고 Phase A source `db8fc418...`는 10개 contract를
   reference-only `oracle_locked`로 게시했습니다. Phase C source `5b8d48f...`, tree `7df990a...`는 external public-only
-  module/global child/SQLite product-flow observation을 local-verify했습니다. Product 24/269와 contract status는 불변이며
-  다음 gate는 Phase D PostgreSQL 17.10/product publication입니다.
+  module/global child/SQLite product-flow observation을 local-verify했습니다. Phase D source `a92efb5...`, tree
+  `06f90a9...`는 PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product publication을 완료했습니다.
+  MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`이고 product는 25/279=`254+25`입니다.
+  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)이
+  이 local checkpoint를 고정하며 다음 gate는 Phase E source-bound attestation/full/exact submitted-head Hosted입니다.
 - 직전 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 current CreateModel/AddField additive detector,
   deterministic Definition format 1과 DB-free recoverable `godj makemigrations`를 완료했습니다. Phase E predecessor
@@ -156,7 +159,7 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 24 adapters/269 contracts의 `245 passing + 24 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 25 adapters/279 contracts의 `254 passing + 25 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
@@ -167,9 +170,9 @@
   전환했습니다. PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public module은 locally 통과했고
   Phase E predecessor local final은 EVID-151에서, current attestation/focused refreeze는 EVID-152에서 통과했습니다.
   GDJ-0051 Phase D는 MIG-111..118을 product `passing`으로 게시했고 PostgreSQL 17.10과 exact 16-case
-  project boundary를 EVID-157로 검증했습니다. Reference-only locked range는 MIG-075..086입니다.
-  EVID-153/CI #171 run `33280434425`의 corrected exact-head Hosted terminal gate도 통과했고 현재
-  reference-only locked range는 MIG-075..086뿐입니다.
+  project boundary를 EVID-157로 검증했습니다. 그 completion 당시 locked range는 MIG-075..086이었습니다.
+  GDJ-0052 Phase D는 MIG-119..121/123..128 `passing`, MIG-122 Verified DEV-0002 `deviation`을 게시했고 현재
+  reference-only locked range는 MIG-075..086뿐입니다. Phase E는 pending입니다.
 - 마지막 검토: 2026-08-30
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -255,8 +258,9 @@ whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 �
 16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E EVID-158 local final과 EVID-159
 exact-head Hosted도 통과했습니다.
 Target/reverse와 `--plan`은 active GDJ-0052에서 exact-one target/current-only v2 core와 reference-only lock을 완료했고,
-Phase C external SQLite product flow까지 local-verify했습니다. 다음 단계는 Phase D PostgreSQL/product adapter이며
-`sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
+Phase C external SQLite product flow에 이어 Phase D PostgreSQL 17.10 normal/race/CGO0, oracle-blind adapter와
+MIG-127/full MIG-128을 local-verify했습니다. Phase E attestation/full/Hosted는 pending이며 `sqlmigrate`는 별도
+후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,
@@ -369,6 +373,9 @@ Accepted ADR-0013의 canonical ascending planner policy도 유지했습니다. L
 expectation으로 검증해 GDJ-0018 완료 당시 9 product set은
 `92 passing + 5 deviation`이었습니다. 기존 DEV-0001과 locked lifecycle
 oracle/static/SHA256SUMS, completed `conformance/lifecyclefence/**`는 변경하지 않았습니다.
+Current GDJ-0052 product는 같은 DEV-0002 decision을 별도 manifest-aware policy로 재사용하되 MIG-122의
+`result.plan[0..2]` 세 path만 별도 sparse expectation으로 소유합니다. Lifecycle의 기존 여섯 selector와
+fixture/hash는 변경하지 않습니다.
 Default-bearing SQLite `AddField`는 empty table에서 logical default를 보존하고 physical
 persistent default 없이 적용하며 nonempty table은 계속 unsupported입니다.
 

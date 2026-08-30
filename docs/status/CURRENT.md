@@ -22,15 +22,25 @@
   `oracle_locked`로 게시했습니다. Manifest/NI/oracle은 6,781/1,707/43,516 bytes이고 shared 23-line checksum은
   2,177 bytes, semantic payload는 291 scenarios/1,015,687 bytes입니다. Exact hash, Python 305-test profiles,
   four-version semantic identity, protocol/conformance/oracle/checksum gates와 final P0..P3=`0` audit는
-  [EVID-162](TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에 기록합니다. Current
+  [EVID-162](TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에 기록합니다. 당시
   reference는 26 sets/291 contracts/650 ordered bindings=`245 passing + 24 deviation + 22 oracle_locked`이고 product는
-  24 adapters/269 contracts=`245 passing + 24 deviation`으로 불변입니다. Phase C source
+  24 adapters/269 contracts=`245 passing + 24 deviation`이었습니다. Phase C source
   `5b8d48fb93151f4fb4d24323f59ace259f4bffd8`, tree `7df990a25ad5a3daeed9589dd33f960238fdb624`는
   repository-external public-only module, actual global/linked child와 real SQLite에서 named/zero/plan/reverse
-  failure-resume product flow를 통과했습니다. MIG-127/full MIG-128, adapter와 status transition은 아직 비주장이고
+  failure-resume product flow를 통과했습니다. 당시 MIG-127/full MIG-128, adapter와 status transition은 비주장이었고
   [EVID-163](TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)이
-  final-byte normal/race/CGO-disabled/compile/protocol/CI-wiring과 P0..P3=`0` 감사를 기록합니다. 다음 작업은 Phase D
-  PostgreSQL 17.10, manifest-aware DEV-0002 sparse policy, oracle-blind MIG-119..128 adapter와 full ownership 검증입니다.
+  final-byte normal/race/CGO-disabled/compile/protocol/CI-wiring과 P0..P3=`0` 감사를 기록합니다. Phase D source
+  `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree `06f90a90eb61de13c234dfc2356b6b4ed085f087`은
+  digest-pinned PostgreSQL 17.10 target/plan/reverse lifecycle, oracle-blind MIG-119..128 actual과 manifest-aware
+  DEV-0002 policy를 게시했습니다. MIG-122만 `result.plan[0..2]`의 reviewed deviation이고 나머지 9개는 `passing`입니다.
+  MIG-126은 실제 durable snapshot/transaction identity에서 resume를 계산하고, MIG-128은 cooperative/forced actual child,
+  process-group absence, 101 MiB response cap, stderr redaction과 artifact non-leak를 관찰합니다. Current reference는
+  26 sets/291 contracts/650 ordered bindings=`254 passing + 25 deviation + 12 oracle_locked`, product는
+  25 adapters/279 contracts=`254 passing + 25 deviation`이며 locked range는 MIG-075..086뿐입니다.
+  [EVID-164](TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)이
+  exact gates와 최종 독립 감사 P0..P3=`0`을 기록합니다. Workflow 변경으로 source-bound PostgreSQL attestation은
+  의도대로 stale이며 Phase E에서 frozen source에 대해 한 번 재캡처합니다. 다음 작업은 Phase E
+  attestation/full/Linux-386/archive/exact submitted-head Hosted와 terminal publication입니다.
   Baseline은 clean GDJ-0051 terminal
   `1d37272f4062365416536d4459a5294df4b06d03`, tree
   `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
@@ -132,8 +142,8 @@
   `godj migrate [--project <godj.toml>]`, copied definition load-before-open, project-owned lazy backend,
   one-open/one-migrate/one-close, no-retry/error/secret/15초 cleanup 경계와 clean SQLite/PostgreSQL latest/no-op,
   durable-prefix resume, actual child fence/reconciliation, authenticated Admin/API distinct-process restart가 구현됐습니다.
-  MIG-087..098은 12 product `passing`이고 current aggregate는 26/291/650=`245+24+22 locked`, 24/269=`245+24`입니다.
-  Current reference-only locked range는 MIG-075..086과 MIG-119..128입니다. GDJ-0049 completion 당시 required PostgreSQL
+  MIG-087..098은 12 product `passing`이고 current aggregate는 26/291/650=`254+25+12 locked`, 25/279=`254+25`입니다.
+  Current reference-only locked range는 MIG-075..086입니다. GDJ-0049 completion 당시 required PostgreSQL
   17.10, affected normal/race/CGO0/vet/generate,
   relation 1,091/1,091/0, full `make ci`, Linux/386, 1,126-file external archive와 independent audit는
   [EVID-144](TEST_EVIDENCE.md#evid-20260828-144--gdj-0049-frozen-local-final-and-source-bound-postgresql-publication)에
@@ -1434,9 +1444,9 @@
 ### 호환 계약과 machine artifact
 
 - Protocol v2 reference에는 현재 26 ordered set, 291 unique contract/scenario와 650 ordered
-  cross-binding이 있습니다. Current product는 24개 set에 actual GoDj adapter를 가지며
-  269 contract 분류는 `245 passing + 24 deviation + 0 oracle_locked`입니다. Reference 분류는
-  `245 passing + 24 deviation + 22 oracle_locked`이고 MIG-075..086과 MIG-119..128이 reference-only
+  cross-binding이 있습니다. Current product는 25개 set에 actual GoDj adapter를 가지며
+  279 contract 분류는 `254 passing + 25 deviation + 0 oracle_locked`입니다. Reference 분류는
+  `254 passing + 25 deviation + 12 oracle_locked`이고 MIG-075..086만 reference-only
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Migration-command manifest/NI/oracle은 각각
   6,166 bytes/`d2846327e4d8cbf82a25568e41b198c67878bb7853958729969eb7077ca4c0e1`,
   1,838 bytes/`8680d5e8ce7cf11604af69da1e96a64f580f64074277a2a015af8ad250bb0016`,
@@ -1459,7 +1469,10 @@
   MIG-119..128 Phase A manifest/NI/oracle snapshot은 6,781/1,707/43,516 bytes와 SHA-256
   `d76a42f2a0fb4daa190d03f18d18707192c8b42881b94a1462b701a9d481947b`/
   `dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44`/
-  `dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`이며 아직 product actual은 없습니다.
+  `dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`입니다. Phase D current manifest는
+  6,796 bytes/SHA-256 `0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496`,
+  DEV-0002 MIG-122 sparse expectation은 2,673 bytes/SHA-256
+  `7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`입니다.
   SYS-013..020은 Accepted ADR-0048 아래 oracle-blind actual에 등록된
   `passing`입니다. GDJ-0043의
   checkpoint 30 contracts는 25 passing + 5 reviewed deviations이며 DEV-0003은 WEB-022/027, DEV-0004는
@@ -1507,7 +1520,7 @@
   12/127/132와 product 12/127=`122 passing + 5 deviation + 0 oracle_locked`를 분리했습니다. GDJ-0036의
   MIG-075..086 diagnostic 추가 뒤 aggregate는 13/139/156이었고, GDJ-0039 완료 시점은 QRY-022..033까지 포함한
   14/151/182였습니다. GDJ-0040 completion checkpoint는 QRY-034..043 set을 더한 15/161/210이고 product는
-  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 26/291/650 및 24/269입니다. Local relation
+  registered query-expression adapter를 포함한 14/149였습니다. Current aggregate는 위 26/291/650 및 25/279입니다. Local relation
   transition은 EVID-075, exact implementation-head hosted acceptance는 EVID-076이
   각각 증명합니다.
 - MIG-057..064와 MIG-065..074 actual product comparison은 각각 current locked reference oracle과
@@ -2008,10 +2021,12 @@ failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. A
 `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로 게시했고 EVID-162의 exact Python/semantic/
 protocol/conformance/oracle/checksum과 independent audit를 통과했습니다. Phase C source `5b8d48f...`/tree
 `7df990a...`와 EVID-163은 external public-only module/global child/SQLite에서 named/zero/plan/reverse
-failure-resume를 통과했고 split 12-leg CI topology를 잠갔습니다. MIG-119..128은 계속 unregistered
-`oracle_locked`, current reference 26/291/650=`245+24+22 locked`, product 24/269=`245+24`, ADR-0054 Proposed는
-불변입니다. 다음 정확한 작업은 Phase D PostgreSQL 17.10, oracle-blind adapter, MIG-127/full MIG-128과 DEV-0002
-sparse publication입니다.
+failure-resume를 통과했고 split 12-leg CI topology를 잠갔습니다. Phase D source `a92efb5...`/tree
+`06f90a9...`와 EVID-164는 PostgreSQL 17.10 normal/race/CGO0, 25번째 oracle-blind adapter, MIG-127/full
+MIG-128 ownership과 DEV-0002 MIG-122 sparse publication을 통과했습니다. Current reference 26/291/650=
+`254+25+12 locked`, product 25/279=`254+25`이며 MIG-075..086만 locked입니다. ADR-0054 Proposed와
+GDJ-0052 active는 불변입니다. 다음 정확한 작업은 Phase E frozen-source attestation, full/386/archive,
+exact submitted-head Hosted와 terminal publication입니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
@@ -2093,8 +2108,8 @@ CI job/execution 개수 자체는 제품 계약이 아니며, 필수 platform/mo
 full hosted/evidence cycle을 만들지는 않습니다.
 
 Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019는 P1/open입니다.
-MIG-075..086과 MIG-119..128이 current reference-only locked range입니다. MIG-087..102와 MIG-108..118은 registered
-actual `passing`, MIG-103..107은 exact 19-selector DEV-0010 `deviation`입니다.
+MIG-075..086이 current reference-only locked range입니다. MIG-087..102, MIG-108..121과 MIG-123..128은 registered
+actual `passing`; MIG-103..107은 exact 19-selector DEV-0010, MIG-122는 exact three-selector DEV-0002 `deviation`입니다.
 Draft PR #1은 계속 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.
 
 ### Historical GDJ-0035 handoff (superseded by GDJ-0036)

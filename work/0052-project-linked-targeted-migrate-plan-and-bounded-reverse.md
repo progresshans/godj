@@ -227,7 +227,7 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
 - [x] Phase A — Django/GoDj authority audit와 MIG-119..128 reference-only artifact lock
 - [x] Phase B — known-app target, shared lifecycle preparation, public Plan과 strict private v2/global argv
 - [x] Phase C — repository-external SQLite named/zero/plan/reverse failure-resume product flow
-- [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, oracle-blind product registration과 independent audit
+- [x] Phase D — PostgreSQL 17.10 normal/race/CGO0, oracle-blind product registration과 independent audit
 - [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
 
 ## 현재 checkpoint
@@ -272,3 +272,49 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
   기록합니다. MIG-119..128은 계속 reference-only `oracle_locked`/unregistered이고 aggregate와 Proposed ADR-0054는
   불변입니다. 다음 정확한 작업은 Phase D PostgreSQL 17.10, oracle-blind adapter, MIG-127/full MIG-128과 DEV-0002
   sparse publication입니다.
+- Phase D source checkpoint `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
+  `06f90a90eb61de13c234dfc2356b6b4ed085f087`은 MIG-119..128 열 개 계약을 production API와 실제
+  process/transaction seam에서만 관찰하는 oracle-blind GoDj adapter로 등록했습니다. Adapter source는 oracle, manifest,
+  not-implemented/deviation fixture와 Django bytes를 읽지 않으며, MIG-119..121/MIG-123..128은 passing, MIG-122의
+  incomparable reverse sibling order만 DEV-0002 sparse deviation으로 게시합니다. Reference aggregate는 26 sets/291
+  contracts=`254 passing + 25 deviation + 12 oracle_locked`, product aggregate는 25 adapters/279 contracts=
+  `254 passing + 25 deviation`입니다.
+  - MIG-127은 commit outcome unknown을 retry/rollback/success로 추측하지 않고, confirmed rollback과 committed cleanup
+    failure를 포함한 세 실제 transaction outcome에서 history, retry, rollback과 publication을 결정적으로 관찰합니다.
+    MIG-128은 strict private v2의 six ownership, 17 wire rejection, five resource-limit cases와 plan invariants를 실제
+    production owner/parser bound에서 관찰하며 raw cause, runner stderr와 secret value를 public result에 게시하지 않습니다.
+  - 초기 독립 감사는 P2 두 건과 P3 한 건을 찾았습니다. MIG-126 fresh resume와 published step identity를 첫 process의
+    실제 durable record/begin/commit/rollback 관찰로 바꾸고, MIG-128 cancellation/partial-output/redaction/resource 증거를
+    실제 child와 process-group lifecycle에서 수집하도록 교정했습니다. Default owner의 capped stdout을 raw bytes 없이
+    증명하기 위해 internal `MigrateReport`에 retained-byte/truncated safe scalar만 추가했으며, exact-limit success와
+    one-byte overflow rejection을 함께 관찰합니다. Cooperative cancellation 외에 SIGINT를 무시하는 실제 runner도 default
+    grace 뒤 SIGKILL/direct reap/process-group absence까지 실행해 attempt maxima를 report에서 계산합니다. Target deviation
+    fixture는 CI의 두 reference-artifact non-rewrite allowlist에도 명시해 intended DEV-0002 update만 허용했습니다. 후속
+    source/behavior 재감사는 이 보강 뒤 P0..P3=`0`이었습니다.
+  - Repository-external SQLite final-byte proof인
+    `go test -run '^TestProjectLinkedTargetedMigrateSQLite$' -count=1 ./conformance/projectmigratetargetproduct`는 PASS
+    (`526.760s`)였고 final focused SQLite run도 PASS (`24.092s`)였습니다. Local pinned PostgreSQL 17.10/UTF8/UTC에서는
+    secret-free 환경 표기로 다음 exact selector를 normal/race/CGO-disabled에서 각각 통과했습니다. Normal
+    `GODJ_TEST_POSTGRES_URL='<redacted>' GODJ_REQUIRE_POSTGRES=1 go test -run '^TestGlobalTargetedMigratePostgresLifecycle$' -count=1 ./conformance/projectmigratetargetproduct`
+    은 PASS (`398.553s`), race
+    `GODJ_TEST_POSTGRES_URL='<redacted>' GODJ_REQUIRE_POSTGRES=1 go test -race -run '^TestGlobalTargetedMigratePostgresLifecycle$' -count=1 ./conformance/projectmigratetargetproduct`
+    는 PASS (`399.569s`), CGO-disabled
+    `GODJ_TEST_POSTGRES_URL='<redacted>' GODJ_REQUIRE_POSTGRES=1 CGO_ENABLED=0 go test -run '^TestGlobalTargetedMigratePostgresLifecycle$' -count=1 ./conformance/projectmigratetargetproduct`
+    는 PASS (`397.906s`)였습니다. Workflow는 이 최소 selector를 사용하면서 기존 PostgreSQL 좌표와 합친 exact 23
+    top-level sentinel inventory, required-run/no-skip와 PostgreSQL 17.10 fingerprint를 잠급니다. 이 23개는 Phase D
+    local 실행 수가 아니라 Phase E Hosted용 inventory lock입니다.
+  - Exact product comparison command인
+    `go run ./conformance/cmd/godjcheck -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json -manifest conformance/contracts/migration-target-plan-manifest.json -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json -deviation-expected conformance/fixtures/godj-migration-target-plan-deviation-expected.json`
+    은 `26.607s`에
+    `GoDj observations match the reviewed product expectation for 10 contracts under DEV-0002`로 통과했습니다.
+    `go test ./conformance/runners/godj -count=1` (`45.732s`), MIG-128 actual-boundary normal (`24.940s`), MIG-126/128
+    actual-boundary race (`26.609s`), `go test ./internal/projectcheck -count=1` (`11.031s`), focused owner race
+    (`1.456s`), source/transaction-identity guards (`0.459s`)와 두 affected package의 `go vet`도 PASS였습니다.
+  - `make godj-conformance`는 새 target-plan publication까지 green이었고, 이후 source bytes가 바뀌어 stale해진 기존
+    system-state source-bound attestation에서 의도대로 fail-closed했습니다. 이는 Phase D product failure가 아니며 Phase E의
+    exact-source attestation recapture가 pending입니다. 또한 macOS에서 `GOOS=linux GOARCH=386` test binary를 `-exec`
+    없이 잘못 실행한 시도는 `exec format error`였고 이를 제품 실패로 세지 않았습니다. Corrected Linux/386 compile-only는
+    `-exec=/usr/bin/true`를 사용해 PASS했으며, corrected command form과 affected-package 결과는 EVID-164에 기록합니다.
+  - Phase E의 affected/full frozen milestone, system-state attestation recapture, exact submitted-head Hosted와 terminal status
+    documentation은 아직 시작하지 않았습니다. 따라서 GDJ-0052는 계속 active, Phase E는 unchecked이며 ADR-0054도
+    Proposed를 유지합니다.

@@ -134,14 +134,19 @@ Django와의 exact backward transaction 호환이 schema/history 원자성보다
 
 - Status: Verified
 - Date: 2026-08-09
-- Contracts: MIG-052
-- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3
+- Extended: 2026-08-30 (MIG-122 target-plan product publication)
+- Contracts: MIG-052, MIG-122
+- Reference profile/backend: Django 6.1 / SQLite 3.50.4 exact profile; GoDj SQLite 3.53.3 and bounded
+  PostgreSQL 17.10 target-plan actual
 - Related ADR/work/evidence:
   [ADR-0013](adr/0013-immutable-migration-planner.md),
   [ADR-0018](adr/0018-revision-fenced-migration-lifecycle-product-shape.md),
   [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md),
   [GDJ-0018](../work/0018-revision-fenced-migration-lifecycle-product-slice.md),
-  [EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice)
+  [EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice),
+  [ADR-0054](adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md),
+  [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md),
+  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)
 
 ### Django의 관찰 가능 동작
 
@@ -149,18 +154,22 @@ MIG-052는 A1/A2/A3과 unrelated B1이 applied인 상태에서 alpha app을 zero
 내립니다. Django public orchestration의 plan과 committed step 순서는
 `B1←A3←A2←A1`입니다. B1과 A3은 서로 dependency가 없는 incomparable reverse sibling이지만
 Django의 private traversal에서는 B1이 먼저 선택됩니다.
+MIG-122는 같은 app-zero graph의 public target-plan 결과를 별도 contract로 관찰하며 locked Django plan도
+`B1←A3←A2←A1`입니다.
 
 ### GoDj에서 채택한 동작
 
 Accepted ADR-0013의 canonical ascending planner policy를 그대로 사용해
-`A3←A2←B1←A1`로 실행합니다. Deviation scope는 locked Django lifecycle observation을 복사한
+`A3←A2←B1←A1`로 실행합니다. MIG-052 deviation scope는 locked Django lifecycle observation을 복사한
 product expectation에서 다음 여섯 selector의 value를 replace하는 것으로 제한합니다.
 
 - `result.plan[0]`, `result.plan[1]`, `result.plan[2]`
 - `metrics.steps[0]`, `metrics.steps[1]`, `metrics.steps[2]`
 
-그 밖의 `result`, resulting logical state, managed DB schema, recorder history, phase와 metrics는
-Django reference와 동일해야 합니다. MIG-052의 phase는 두 구현 모두 `commit`입니다.
+MIG-122는 별도 target-plan expectation에서 `result.plan[0]`, `result.plan[1]`, `result.plan[2]` 세 selector만
+replace합니다. 두 fixture와 code-owned policy는 manifest contract set으로 분리되며 한 surface의 selector가 다른
+surface를 승인하지 않습니다. 그 밖의 `result`, resulting logical state, managed DB schema, recorder history,
+phase와 metrics는 이 deviation으로 바꿀 수 없습니다. MIG-052의 phase는 두 구현 모두 `commit`입니다.
 
 ### 이유와 고려한 대안
 
@@ -186,18 +195,23 @@ deviation의 현재 범위에 자동 포함되지 않으며 새 contract/결정�
 
 두 순서 모두 migration별 fenced transaction과 revision successor를 사용합니다. Stale,
 contention, integrity, rollback/unknown durability와 last-durable state 의미는 달라지지 않습니다.
-이 결정은 SQLite lock 순서, retry, privilege 또는 security boundary를 완화하지 않으며
-non-SQLite backend 동작을 승인하지 않습니다.
+이 결정은 SQLite/PostgreSQL lock 순서, retry, privilege 또는 security boundary를 완화하지 않습니다.
+MIG-122의 PostgreSQL 17.10 actual은 이 bounded target-plan surface만 검증하며 다른 backend나
+non-cooperative writer를 승인하지 않습니다.
 
 ### 구현과 검증 조건
 
 - Lifecycle manifest에서 MIG-052만 `deviation`, 나머지 MIG-047..051/053..056은 `passing`
-- MIG-052 provenance는 정확히 하나의 `kind=decision`, `reference=DEV-0002`, `derived=false`
+- Target-plan manifest에서 MIG-122만 `deviation`, MIG-119..121/123..128은 `passing`
+- MIG-052와 MIG-122 provenance는 각각 정확히 하나의 `kind=decision`, `reference=DEV-0002`, `derived=false`
 - `godj-migration-lifecycle-deviation-expected.json`은 위 여섯 replace selector만 소유
-- Code-owned DEV-0002 policy는 selector/status/provenance의 누락·추가·중복과 unknown decision을
-  actual 생성 전에 fail-closed
-- Live adapter는 public `Executor.Migrate`와 SQLite DB를 사용하고 contract ID/oracle/static
-  dispatch를 하지 않음
+- `godj-migration-target-plan-deviation-expected.json`은 MIG-122의 세 plan replace selector만 소유
+- Code-owned DEV-0002 policy는 exact MIG-047..056/MIG-119..128 manifest set을 구분하고 ambiguous/neither/partial/
+  duplicate manifest, selector/status/provenance의 누락·추가·중복과 unknown decision을 actual 생성 전에 fail-closed
+- Lifecycle adapter는 public `Executor.Migrate`와 live SQLite DB를 사용하며, target-plan adapter는 public
+  `Executor.Plan`/`Executor.Migrate`와 실제 project process ownership 경계를 oracle-blind backend로 관찰함
+- 두 adapter 모두 contract ID/oracle/static dispatch를 하지 않으며 별도 external product flow가 실제
+  SQLite/PostgreSQL 17.10을 검증
 - Target/definition/history/fault propagation, source guard와 semantic mutation gate 통과
 - 두 독립 actual이 byte-identical하고 reviewed expectation과 10 contract/0-diff
 - Locked lifecycle oracle, not-implemented static fixture, `SHA256SUMS`와
@@ -211,6 +225,15 @@ Lifecycle manifest는 13,735 bytes, SHA-256
 `a32e768323dae33a312267d5f8041818570d55f1fd887b29580cf8d4c5b3064b`로 byte-identical했고,
 9 exact + DEV-0002 expectation에서 10/0-diff였습니다. Aggregate 제품 분류는
 `92 passing + 5 deviation`입니다.
+
+위 값은 MIG-052 lifecycle publication의 역사적 fixture/hash와 당시 aggregate이며 소급 변경하지 않습니다.
+GDJ-0052 Phase D source `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
+`06f90a90eb61de13c234dfc2356b6b4ed085f087`은 별도 target-plan manifest 6,796 bytes/SHA-256
+`0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496`와 MIG-122 sparse expectation
+2,673 bytes/SHA-256 `7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`을 게시했습니다.
+PostgreSQL 17.10 normal/race/CGO0와 SQLite external product flow가 통과했고 current aggregate는 reference
+26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product 25/279=`254 passing + 25 deviation`입니다.
+Phase E attestation/full/Hosted는 pending입니다.
 
 ### 복귀 또는 supersede 조건
 

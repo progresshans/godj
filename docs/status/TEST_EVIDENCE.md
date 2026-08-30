@@ -1,8 +1,8 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-158
-- latest successful hosted product proof: EVID-20260830-153
+- 현재 local source/contract checkpoint: EVID-20260830-164
+- latest successful hosted product proof: EVID-20260830-159
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -15244,3 +15244,103 @@ from frozen Phase-E source rather than reused or repeatedly recaptured during Ph
 PostgreSQL 17.10, manifest-aware DEV-0002 sparse policy, oracle-blind MIG-119..128 product registration and independent
 audit. Draft PR #1 remains open/draft/unmerged; the source checkpoint was pushed, and no PR comment, merge, release or
 deployment was performed.
+
+## EVID-20260830-164 — GDJ-0052 Phase D PostgreSQL Product Publication and Ownership Hardening
+
+- Date: 2026-08-30 KST
+- Platform: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; digest-pinned PostgreSQL 17.10, UTF8, UTC
+- Work/contract IDs: GDJ-0052 active; ADR-0054 Proposed; MIG-119..121/123..128 `passing`; MIG-122 reviewed
+  DEV-0002 `deviation`; Q-010/Q-012 `Partial`; Q-019 P1/open
+- Source commit: `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`
+- Source tree: `06f90a90eb61de13c234dfc2356b6b4ed085f087`
+- Result: Phase D PostgreSQL/product publication and affected local gates passed. Reference is 26 sets/291 contracts/650
+  ordered bindings=`254 passing + 25 deviation + 12 oracle_locked`; product is 25 adapters/279 contracts=
+  `254 passing + 25 deviation`. MIG-075..086 are the only remaining locked range.
+
+### Product publication and exact artifact ownership
+
+The new oracle-blind adapter observes MIG-119..128 through production API, process and transaction seams without reading
+the reference oracle, manifest, not-implemented/deviation fixture or Django bytes. MIG-122 replaces exactly
+`result.plan[0]`, `result.plan[1]` and `result.plan[2]` under DEV-0002 and remains `derived=false`; the policy distinguishes
+that three-selector target-plan set from MIG-052's six-selector lifecycle set and rejects both, neither, partial and
+duplicate selection. The resulting artifacts are:
+
+- manifest: 6,796 bytes, SHA-256
+  `0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496`;
+- deviation fixture: 2,673 bytes, SHA-256
+  `7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`;
+- historical not-implemented fixture, unchanged: 1,707 bytes, SHA-256
+  `dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44`;
+- oracle, unchanged: 43,516 bytes, SHA-256
+  `dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`.
+
+MIG-126 calculates fresh-process resume and published step identity from the first process's observed durable snapshot and
+actual begin/commit/rollback records. MIG-127 observes confirmed rollback, commit-outcome-unknown and committed cleanup
+failure without guessing success, retry or rollback. MIG-128 exercises the real cooperative and forced child paths,
+process-group absence, the actual 15-second SIGKILL grace, exact-limit and 101 MiB+1 output behavior, retained/truncated
+safe scalars, positive-control secret stderr bytes/digest, and zero raw-secret leakage in public output or artifacts. The
+only production shape added for this proof is internal `MigrateReport.RunnerStdoutRetainedBytes` and
+`RunnerStdoutTruncated`; raw output, public CLI/wire and backend interfaces are unchanged.
+
+The initial independent audit reported P2=2 and P3=1. The source was hardened around actual durable identity, real process
+and cap/redaction observation, forced SIGKILL/reap and both reference-artifact allowlists. The final independent source and
+behavior audits reported P0/P1/P2/P3=`0/0/0/0`.
+
+### Executed local gates
+
+The following commands or exact modes exited zero on the source checkpoint or its byte-identical pre-commit worktree:
+
+- repository-external SQLite full product flow
+  `go test -run '^TestProjectLinkedTargetedMigrateSQLite$' -count=1 ./conformance/projectmigratetargetproduct`:
+  526.760 seconds; final focused SQLite run: 24.092 seconds;
+- PostgreSQL normal
+  `GODJ_TEST_POSTGRES_URL='<redacted>' GODJ_REQUIRE_POSTGRES=1 go test -run '^TestGlobalTargetedMigratePostgresLifecycle$' -count=1 ./conformance/projectmigratetargetproduct`:
+  398.553 seconds;
+- PostgreSQL race with the same exact selector and `go test -race`: 399.569 seconds;
+- PostgreSQL CGO-disabled with the same exact selector and `CGO_ENABLED=0`: 397.906 seconds;
+- exact ten-contract product comparison: PASS in 26.607 seconds with
+  `GoDj observations match the reviewed product expectation for 10 contracts under DEV-0002`;
+- `go test -count=1 ./conformance/runners/godj`: PASS in 45.732 seconds;
+- focused MIG-128 normal: PASS in 24.940 seconds; focused MIG-126/128 race: PASS in 26.609 seconds;
+- `go test -count=1 ./internal/projectcheck`: PASS in 11.752 seconds on the primary final-byte refresh and 11.031
+  seconds on the independent rerun; focused internal owner race: PASS in 1.456 seconds; source/transaction guards: PASS
+  in 0.459 seconds;
+- `go test -count=1 ./conformance/internal/protocol`: PASS in 2.097 seconds;
+- `go test -count=1 -run '^TestGDJ0052' ./conformance/cmd/godjcheck`: PASS in 0.562 seconds;
+- `CGO_ENABLED=0 go test -count=1 ./conformance/runners/godj`: PASS in 45.031 seconds;
+- all-package native compile-only `go test -run '^$' ./...`: PASS in 5.46 seconds;
+- exact affected-package Linux/386 CGO-disabled compile-only
+  `GOOS=linux GOARCH=386 CGO_ENABLED=0 go test -exec=/usr/bin/true -run '^$' -count=1 ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/projectmigratetargetproduct ./conformance/runners/godj ./internal/projectcheck`:
+  PASS, publication-byte rerun real 1.33 seconds;
+- exact affected-package
+  `go vet ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/projectmigratetargetproduct ./conformance/runners/godj ./internal/projectcheck`:
+  PASS, publication-byte rerun real 0.23 seconds;
+- `make conformance-check`: PASS in 2.39 seconds;
+- workflow YAML parse, `gofmt` diff, `git diff --check`, exact selector/count locks and both reference-artifact
+  non-rewrite allowlists: PASS.
+
+The local macOS cross-build was first invoked without `-exec=/usr/bin/true`, so `go test` tried to execute Linux/386
+binaries and returned `exec format error`. This was a command-shape error, not a product assertion failure; the corrected
+compile-only invocation above passed.
+
+`make godj-conformance` ran through the newly published target-plan adapter successfully, then exited 2 at the existing
+PostgreSQL system-state source-bound attestation after the workflow/source bytes changed. This is the intended stale-proof
+fail-closed behavior and not a target-plan product failure. The attestation is deliberately not recaptured during Phase D;
+one frozen-source A/B recapture belongs to Phase E.
+
+### CI topology and non-claims
+
+The workflow does not add another broad job. It gives targeted migration its own exact 12 portable coordinate/mode lanes,
+keeps the heavy package out of portable core selection, and extends each existing PostgreSQL mode with the focused target
+sentinel. Protocol locks check exact 23 PostgreSQL top-level sentinels, required execution, zero required skips, profile
+fingerprint and failure propagation. This is configured coverage, not a Hosted pass claim.
+
+The Phase D publication bytes additionally passed `make format-check`, `make conformance-check`, focused GDJ-0052
+godjcheck tests, `go test -count=1 ./conformance/internal/protocol`, `git diff --check`, and a read-only check of all 99
+Markdown links added by this publication, including relative targets and heading anchors.
+
+No source-bound attestation recapture, full `make ci`, full relation inventory, repository-external archive, exact submitted-
+head Hosted run, ADR acceptance or GDJ completion is claimed here. The next exact step is Phase E frozen-source attestation,
+full/Linux-386/relation/archive validation, exact-head Hosted submission and terminal publication. Draft PR #1 remains
+open/draft/unmerged; the Phase D source checkpoint was pushed, and no PR comment, merge, release or deployment was
+performed.

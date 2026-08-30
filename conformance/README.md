@@ -163,7 +163,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-command-manifest.json` | Project-linked explicit migrate decision contract MIG-087..098; current `passing` product publication/status 입력 |
 | `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Verified DEV-0010 deviation product publication |
 | `contracts/migration-status-manifest.json` | MIG-111..118 bounded read-only migration-status mixed-authority contract; Phase A historical은 `oracle_locked`, current는 8 passing product publication/status 입력 |
-| `contracts/migration-target-plan-manifest.json` | MIG-119..128 exact target/plan/reverse mixed-authority contract; current Phase A는 reference-only `oracle_locked`이며 product publication/status 입력 아님 |
+| `contracts/migration-target-plan-manifest.json` | MIG-119..128 exact target/plan/reverse mixed-authority contract; Phase A historical은 `oracle_locked`, current는 9 passing + MIG-122 Verified DEV-0002 deviation product publication |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -171,7 +171,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `runners/django` | 명시적인 Django/DRF observation과 GoDj decision-oracle scenario, type-preserving normalizer |
 | `querybreadth` | QRY-022..033 전용 deterministic reference check/regeneration entrypoint |
 | `queryexpression` | QRY-034..053 전용 deterministic reference check/regeneration entrypoint |
-| `runners/godj` | M1 read부터 Article Bearer API, explicit migrate, migration writer와 read-only migration status까지 제품 package를 실행하는 스물네 GoDj observation adapter와 immutable actual-handler registry |
+| `runners/godj` | M1 read부터 Article Bearer API, explicit/targeted migrate, migration writer와 read-only migration status까지 제품 package를 실행하는 스물다섯 GoDj observation adapter와 immutable actual-handler registry |
 | `relationproduct` | checked-in generated cross-app fixture, generated project bridge와 REL-001 actual observation root |
 | `relationqueryproduct` | current app main/metadata와 project-owned relation-query fixture의 REL-004 actual SQLite observation root |
 | `relationobjectproduct` | checked-in generated relation-object fixture와 REL-003/006 actual SQLite observation root |
@@ -315,8 +315,8 @@ later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
 Current reference는 26 sets/291 contracts/650 ordered bindings=
-`245 passing + 24 deviation + 22 oracle_locked`, product는 24 adapters/269 eligible contracts=
-`245 passing + 24 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086과 MIG-119..128입니다. Accepted ADR-0051과
+`254 passing + 25 deviation + 12 oracle_locked`, product는 25 adapters/279 eligible contracts=
+`254 passing + 25 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086뿐입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
 GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
@@ -349,9 +349,18 @@ payload는 291 scenarios/1,015,687 bytes/SHA-256
 않았으므로 product 24/269=`245 passing + 24 deviation`은 불변입니다. Phase C source `5b8d48f...`, tree
 `7df990a...`는 `conformance/projectmigratetargetproduct`의 repository-external public-only module/global child/real SQLite
 named/zero/plan/reverse failure-resume observation을 local-verify했습니다. MIG-127/full MIG-128과 oracle-blind adapter는
-Phase D 비주장이므로 MIG-119..128은 계속 `oracle_locked`/unregistered입니다. 자세한 증거는
+Phase D 비주장이므로 당시 MIG-119..128은 계속 `oracle_locked`/unregistered였습니다. 자세한 증거는
 [EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
 [EVID-163](../docs/status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)에 연결합니다.
+
+GDJ-0052 Phase D source `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
+`06f90a90eb61de13c234dfc2356b6b4ed085f087`은 MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와
+25번째 oracle-blind adapter를 게시했습니다. MIG-119..121/123..128은 `passing`, MIG-122만 manifest-aware DEV-0002
+`deviation`이며 별도 2,673-byte sparse expectation은 `result.plan[0..2]` 세 selector만 소유합니다. Current target-plan
+manifest/expectation SHA-256은 `0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496`/
+`7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`입니다. Phase E
+source-bound attestation/full/Hosted는 pending이고 ADR-0054/GDJ-0052는 Proposed/active입니다. Phase D 근거는
+[EVID-164](../docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,
@@ -712,7 +721,8 @@ go run ./conformance/cmd/observationcmp \
 
 Revision-fenced migration lifecycle 제품 adapter는 public `Executor.Migrate`와 live SQLite
 database로 MIG-047..056을 실행합니다. MIG-052의 canonical sibling order는 locked oracle을
-바꾸지 않고 DEV-0002 sparse expectation으로만 대체합니다.
+바꾸지 않고 DEV-0002 lifecycle sparse expectation으로만 대체합니다. Target-plan adapter가 같은 decision을
+사용하더라도 이 기존 여섯-selector fixture/hash는 바꾸지 않으며 manifest-aware policy가 두 surface를 분리합니다.
 
 ```bash
 go run ./conformance/cmd/godjcheck \
@@ -720,6 +730,17 @@ go run ./conformance/cmd/godjcheck \
   -manifest conformance/contracts/migration-lifecycle-manifest.json \
   -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-lifecycle-oracle.json \
   -deviation-expected conformance/fixtures/godj-migration-lifecycle-deviation-expected.json
+```
+
+Target-plan 제품 adapter는 MIG-119..128을 실행하고 MIG-122의 canonical app-zero order만 별도
+`result.plan[0..2]` 세-selector expectation으로 대체합니다.
+
+```bash
+go run ./conformance/cmd/godjcheck \
+  -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json \
+  -manifest conformance/contracts/migration-target-plan-manifest.json \
+  -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json \
+  -deviation-expected conformance/fixtures/godj-migration-target-plan-deviation-expected.json
 ```
 
 Migration definition source 제품 adapter는 public `migrations/definition.Load`와 opaque

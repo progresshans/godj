@@ -125,8 +125,9 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 현재 migration 제품 단면은 caller가 explicit source bytes를 `migrations/definition`에 전달하는 loader,
 completed GDJ-0022/Accepted ADR-0022의 exact `godj migrations check`, completed GDJ-0049/Accepted ADR-0051의
 exact latest-only `godj migrate`, completed GDJ-0050 `makemigrations`와 GDJ-0051 `showmigrations`를 포함합니다.
-Active GDJ-0052의 target/plan/reverse는 Phase C external SQLite observation까지 local-verified됐지만 product publication은
-pending입니다.
+Active GDJ-0052의 exact-one target/non-authoritative plan/bounded reverse는 Phase D PostgreSQL 17.10
+normal/race/CGO0와 oracle-blind product publication까지 local-verified됐습니다. Phase E source-bound attestation,
+full milestone과 exact submitted-head Hosted는 pending입니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
@@ -161,14 +162,19 @@ Active GDJ-0052는 existing library-level targeted executor를 exact-one public 
 구현했고 Phase A source `db8fc418...`, tree `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로
 고정했습니다. Manifest/NI/oracle은 각각 6,781/1,707/43,516 bytes이며 SHA-256은
 `d76a42f2...`/`dfefb6fd...`/`dc688e27...`입니다. Checksum은 23 lines/2,177 bytes/`00bd4d0d...`, semantic
-aggregate는 291 scenarios/1,015,687 bytes/`b3918c...`이고 current reference는 26/291/650=
-`245 passing + 24 deviation + 22 oracle_locked`입니다. Product는 24/269=`245 passing + 24 deviation`으로
-변하지 않았으며 Proposed ADR-0054도 승격하지 않았습니다. Phase C source `5b8d48f...`, tree `7df990a...`는
-repository-external public-only module/global child/real SQLite의 named/zero/plan/reverse failure-resume를 local-verify했지만
-MIG-127/full MIG-128과 product registration은 주장하지 않습니다. 다음 gate는 Phase D PostgreSQL 17.10/product
-publication입니다. 근거는
+aggregate는 291 scenarios/1,015,687 bytes/`b3918c...`이고 Phase A 당시 reference는 26/291/650=
+`245 passing + 24 deviation + 22 oracle_locked`, product는 24/269=`245 passing + 24 deviation`이었습니다.
+Phase C source `5b8d48f...`, tree `7df990a...`는 repository-external public-only module/global child/real SQLite의
+named/zero/plan/reverse failure-resume를 local-verify했습니다. Phase D source
+`a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree `06f90a90eb61de13c234dfc2356b6b4ed085f087`은
+MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 25번째 oracle-blind adapter를 게시했습니다.
+MIG-119..121/123..128은 `passing`, MIG-122만 세 `result.plan[0..2]` selector의 Verified DEV-0002
+`deviation`입니다. Current reference는 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product는
+25/279=`254 passing + 25 deviation`이고 locked range는 MIG-075..086뿐입니다. Proposed ADR-0054와 active
+GDJ-0052는 Phase E 전에는 승격하지 않습니다. 근거는
 [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
-[EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)입니다.
+[EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
+[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
 Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 

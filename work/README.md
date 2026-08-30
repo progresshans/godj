@@ -90,11 +90,17 @@ all-package compile-only gate를 통과했습니다. Phase A source
 MIG-119..128 manifest/NI/oracle을 reference-only `oracle_locked`로 고정했습니다. Manifest/NI/oracle은
 6,781/1,707/43,516 bytes이고 shared `SHA256SUMS`는 23 lines/2,177 bytes이며, exact hash와 291-scenario semantic
 payload 증거는 [EVID-162](../docs/status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)에
-기록합니다. Current reference는 26 sets/291 contracts/650 ordered bindings=
-`245 passing + 24 deviation + 22 oracle_locked`, product는 24/269=`245+24`로 불변입니다. Phase C source
+기록합니다. Phase A 당시 reference는 26 sets/291 contracts/650 ordered bindings=
+`245 passing + 24 deviation + 22 oracle_locked`, product는 24/269=`245+24`였습니다. Phase C source
 `5b8d48f...`, tree `7df990a...`는 repository-external public-only module/global child/SQLite의
-named/zero/plan/reverse failure-resume observation을 EVID-163에서 local-verify했습니다. MIG-127/full MIG-128과 product
-registration은 Phase D pending이고 다음 작업은 PostgreSQL 17.10/product publication입니다. ADR-0054는 Proposed이며 prefix
+named/zero/plan/reverse failure-resume observation을 EVID-163에서 local-verify했습니다. Phase D source
+`a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree `06f90a90eb61de13c234dfc2356b6b4ed085f087`은
+MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product registration을 완료했습니다.
+MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`; current reference는
+26/291/650=`254+25+12 locked`, product는 25/279=`254+25`이고 locked range는 MIG-075..086뿐입니다. 다음 작업은
+Phase E attestation/full/Hosted입니다. Phase D 근거는
+[EVID-164](../docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
+ADR-0054는 Proposed이며 prefix
 resolution/app-only, SQL rendering, fake/repair, destructive writer 확장과 multi-DB는 비범위입니다. Completed
 [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
 `godj showmigrations [--project <godj.toml>]` list-only 단면으로 definition load-before-open, one read-only

@@ -2,7 +2,7 @@
 
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
   explicit migrate, GDJ-0050 additive writer와 GDJ-0051 read-only status는 hosted-Verified; GDJ-0052 targeted migrate는
-  Phase C external SQLite까지 local-Verified
+  Phase D PostgreSQL 17.10/product publication까지 local-Verified, Phase E pending
 - 마지막 검토: 2026-08-30
 
 아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0052 경계를 제외한 코드는
@@ -503,8 +503,8 @@ fresh plan/CAS와 recoverable no-replace publication을 사용하며 dry-run/che
 Cross-app SQLite generated migrate/no-op/restart, PostgreSQL 17.10 normal/race/CGO-disabled와 repository-external public
 module flow가 Phase D에서 통과했습니다. MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은
 `PROTECT`, digest-derived name, flat JSON roster/output와 stable GoDj error taxonomy를 명시한 Verified DEV-0010
-`deviation`입니다. Current product aggregate는 GDJ-0051 Phase D publication까지 포함해 24 adapters/269 contracts=
-`245 passing + 24 deviation`이고, current reference-only locked range는 MIG-075..086과 MIG-119..128입니다.
+`deviation`입니다. Current product aggregate는 GDJ-0052 Phase D publication까지 포함해 25 adapters/279 contracts=
+`254 passing + 25 deviation`이고, current reference-only locked range는 MIG-075..086뿐입니다.
 Predecessor full `make ci`, Linux/386/relation/archive는 EVID-151에서 통과했고 workflow
 test-harness correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted
 tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 failed-job rerun 뒤 effective
@@ -524,7 +524,7 @@ Phase B gate를 통과했습니다. Control/format identity는 reversible escape
 status row처럼 보이지 않게 강제 hex escape합니다. Phase C `22e5c01...`은 repository-external SQLite status/restart와
 database no-mutation을 검증했고, Phase D `dc7a455...`는 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product actual과
 MIG-118 exact 16-case cleanup/private-response/publication ordering을 게시했습니다. EVID-157의 final audit는 P0..P3=`0`이며
-current product는 24/269=`245 passing + 24 deviation`입니다. EVID-158 local final과 EVID-159/CI #177 exact-head
+GDJ-0051 Phase D 당시 product는 24/269=`245 passing + 24 deviation`이었습니다. EVID-158 local final과 EVID-159/CI #177 exact-head
 Hosted도 통과해 ADR-0053/GDJ-0051은 Accepted/completed입니다. App filter, `--plan`, target/reverse와 `sqlmigrate`는
 비범위입니다.
 근거는 [EVID-154](status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint),
@@ -547,13 +547,18 @@ godj migrate blog zero
 target/plan/reverse 경계를 구현했고 Phase A source `db8fc418...`, tree `639a712...`는 MIG-119..128을 reference-only
 `oracle_locked`로 고정했습니다. Manifest/NI/oracle은 6,781/1,707/43,516 bytes
 (`d76a42f2...`/`dfefb6fd...`/`dc688e27...`), checksum은 23 lines/2,177 bytes/`00bd4d0d...`, semantic aggregate는
-291 scenarios/1,015,687 bytes/`b3918c...`입니다. Current reference는 26/291/650=
-`245 passing + 24 deviation + 22 oracle_locked`, product는 변함없이 24/269=`245 passing + 24 deviation`이며 Proposed
-ADR-0054도 승격하지 않았습니다. Phase C source `5b8d48f...`, tree `7df990a...`는 저장소 밖 public-only project에서
-실제 global/linked child와 SQLite로 exact target/plan/reverse failure-resume를 local-verify했습니다. MIG-127/full MIG-128,
-PostgreSQL과 product status는 아직 pending이며 다음 gate는 Phase D입니다. 근거는
+291 scenarios/1,015,687 bytes/`b3918c...`입니다. Phase A 당시 reference는 26/291/650=
+`245 passing + 24 deviation + 22 oracle_locked`, product는 24/269=`245 passing + 24 deviation`이었습니다.
+Phase C source `5b8d48f...`, tree `7df990a...`는 저장소 밖 public-only project에서 실제 global/linked child와 SQLite로
+exact target/plan/reverse failure-resume를 local-verify했습니다. Phase D source `a92efb5...`, tree `06f90a9...`는
+MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product registration을 완료했습니다.
+MIG-119..121/123..128은 `passing`, MIG-122만 lifecycle MIG-052와 분리된 DEV-0002 세 plan selector의
+`deviation`입니다. Current reference는 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product는
+25/279=`254 passing + 25 deviation`이며 locked range는 MIG-075..086뿐입니다. Proposed ADR-0054/GDJ-0052는
+Phase E source-bound attestation/full/Hosted 전에는 승격하지 않습니다. 근거는
 [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
-[EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint)입니다.
+[EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
+[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
