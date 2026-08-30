@@ -270,7 +270,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	jobsText := text[jobsStart+len("jobs:\n"):]
 	jobPattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):$`)
 	matches := jobPattern.FindAllStringSubmatch(jobsText, -1)
-	wantJobs := []string{"conformance-validation", "portable-go-matrix", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "python-compatibility-matrix", "postgresql-product", "sqlite-matrix", "required-ci"}
+	wantJobs := []string{"conformance-validation", "portable-go-matrix", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "targeted-migrate-product-matrix", "python-compatibility-matrix", "postgresql-product", "sqlite-matrix", "required-ci"}
 	jobCounts := make(map[string]int, len(matches))
 	for _, match := range matches {
 		jobCounts[match[1]]++
@@ -288,6 +288,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	relationBinding := migrationProjectCheckWorkflowJob(t, jobsText, "relation-binding-matrix")
 	relationProduct := migrationProjectCheckWorkflowJob(t, jobsText, "relation-product-matrix")
 	product := migrationProjectCheckWorkflowJob(t, jobsText, "product-project-check-matrix")
+	targetedMigrate := migrationProjectCheckWorkflowJob(t, jobsText, "targeted-migrate-product-matrix")
 	python := migrationProjectCheckWorkflowJob(t, jobsText, "python-compatibility-matrix")
 	postgres := migrationProjectCheckWorkflowJob(t, jobsText, "postgresql-product")
 	sqlite := migrationProjectCheckWorkflowJob(t, jobsText, "sqlite-matrix")
@@ -336,6 +337,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	if !strings.Contains(conformance, "run: make format-check generate-check python-test conformance-check godj-conformance") || !strings.Contains(conformance, "GOARCH: \"386\"") ||
 		!strings.Contains(conformance, "./cmd/godj") || !strings.Contains(conformance, "./project") ||
 		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") ||
+		!strings.Contains(conformance, "./conformance/projectmigratetargetproduct") ||
 		!strings.Contains(conformance, "./conformance/projectshowmigrationsproduct") ||
 		!strings.Contains(conformance, "Run relation products on 32-bit Linux") ||
 		!strings.Contains(conformance, "./conformance/relationproduct/...") ||
@@ -353,8 +355,8 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
 		"- mode: normal-vet\n            make_targets: \"go-test go-vet\"\n            timeout_minutes: 40",
-		"- mode: race\n            make_targets: \"go-race\"\n            timeout_minutes: 45",
-		"- mode: cgo0\n            make_targets: \"cgo-zero-build\"\n            timeout_minutes: 40",
+		"- mode: race\n            make_targets: \"go-race\"\n            timeout_minutes: 55",
+		"- mode: cgo0\n            make_targets: \"cgo-zero-build\"\n            timeout_minutes: 50",
 		"run: make ${{ matrix.make_targets }}",
 		`test "$(go env GOOS)" = "linux"`,
 		`test "$(go env GOARCH)" = "amd64"`,
@@ -424,6 +426,31 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 			t.Fatalf("relation-product matrix required fragment %q count = %d, want 1", required, strings.Count(relationProduct, required))
 		}
 	}
+	for label, block := range map[string]string{
+		"mode switch": `          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported targeted migrate product mode: $mode" >&2
+              exit 1
+              ;;
+          esac`,
+		"skip failure": `          package_skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\""
+          if grep -Fq "$package_skip_fragment" "$log"; then
+            echo "targeted migrate product $mode inventory contains a skipped test" >&2
+            exit 1
+          fi`,
+	} {
+		if got := strings.Count(targetedMigrate, block); got != 1 {
+			t.Fatalf("targeted-migrate %s block count = %d, want 1", label, got)
+		}
+	}
 	for _, coordinate := range wantCoordinates {
 		if got := strings.Count(relationProduct, coordinate); got != 3 {
 			t.Fatalf("relation-product coordinate %q count = %d, want one per mode", coordinate, got)
@@ -458,6 +485,91 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		if strings.Count(product, coordinate) != 1 {
 			t.Fatalf("product-project-check timeout coordinate %q is not pinned exactly once", coordinate)
 		}
+	}
+	for _, required := range []string{
+		"name: Targeted migrate product (${{ matrix.runs_on }}, ${{ matrix.mode }})",
+		"runs-on: ${{ matrix.runs_on }}",
+		"timeout-minutes: ${{ matrix.timeout_minutes }}",
+		"fail-fast: false",
+		"go-version: \"1.26.5\"",
+		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
+		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
+		`mode="${{ matrix.mode }}"`,
+		"test_flags=(-timeout=20m -json -count=1)",
+		`case "$mode" in`,
+		"test_flags+=(-race)",
+		"export CGO_ENABLED=0",
+		`log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"`,
+		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" || status=$?`,
+		`package="github.com/progresshans/godj/conformance/projectmigratetargetproduct"`,
+		`for test_name in "${required_passes[@]}"; do`,
+		`pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""`,
+		`package_skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\""`,
+		`if [ "$mode" = "normal" ]; then`,
+		"go vet ./conformance/projectmigratetargetproduct",
+		"git diff --exit-code",
+		`test -z "$(git status --porcelain=v1)"`,
+	} {
+		if strings.Count(targetedMigrate, required) != 1 {
+			t.Fatalf("targeted-migrate product matrix fragment %q count = %d, want 1", required, strings.Count(targetedMigrate, required))
+		}
+	}
+	for _, coordinate := range wantCoordinates {
+		for _, mode := range []string{"normal", "race", "cgo0"} {
+			timeoutMinutes := 25
+			if strings.Contains(coordinate, "runs_on: macos-15-intel") {
+				timeoutMinutes = 30
+			}
+			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
+			if strings.Count(targetedMigrate, entry) != 1 {
+				t.Fatalf("targeted-migrate coordinate/mode entry %q is not pinned exactly once", entry)
+			}
+		}
+	}
+	if got := strings.Count(targetedMigrate, "          - runs_on: "); got != 12 {
+		t.Fatalf("targeted-migrate matrix leg count = %d, want 4 coordinates x 3 modes", got)
+	}
+	if got := strings.Count(targetedMigrate, "timeout_minutes:"); got != 12 {
+		t.Fatalf("targeted-migrate coordinate timeout count = %d, want 12", got)
+	}
+	if got := strings.Count(targetedMigrate, "timeout_minutes: 25"); got != 9 {
+		t.Fatalf("targeted-migrate 25-minute timeout count = %d, want 9", got)
+	}
+	if got := strings.Count(targetedMigrate, "timeout_minutes: 30"); got != 3 {
+		t.Fatalf("targeted-migrate Intel timeout count = %d, want 3", got)
+	}
+	if got := strings.Count(targetedMigrate, "./conformance/projectmigratetargetproduct"); got != 2 {
+		t.Fatalf("targeted-migrate package gate count = %d, want test plus normal-mode vet", got)
+	}
+	targetRequiredSentinels := []string{
+		"TestProjectLinkedTargetedMigrateSQLite",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-119_exact_argv_and_exact_name_miss",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-120_named_forward_closure",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-121_named_reverse_descendants",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-122_app_zero_DEV-0002_order",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-123_noop_and_known_zero_unknown",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-124_plan_is_exact_and_read_only",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-125_preview_drift_fresh_execute",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-126_reverse_middle_failure_fresh_resume",
+		"TestProjectLinkedTargetedMigrateSQLite/MIG-128_phase_C_public_ownership_subset",
+		"TestProjectLinkedTargetedMigrateSQLite/exact_public_family_coverage",
+	}
+	targetRequiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*for test_name`)
+	targetRequiredBlock := targetRequiredBlockPattern.FindStringSubmatch(targetedMigrate)
+	if len(targetRequiredBlock) != 2 {
+		t.Fatal("targeted-migrate required inventory block is missing or malformed")
+	}
+	targetRequiredLinePattern := regexp.MustCompile(`(?m)^\s*"([^"]+)"\s*$`)
+	targetRequiredLines := targetRequiredLinePattern.FindAllStringSubmatch(targetRequiredBlock[1], -1)
+	actualTargetRequiredSentinels := make([]string, len(targetRequiredLines))
+	for index, line := range targetRequiredLines {
+		actualTargetRequiredSentinels[index] = line[1]
+	}
+	if !reflect.DeepEqual(actualTargetRequiredSentinels, targetRequiredSentinels) {
+		t.Fatalf("targeted-migrate required inventory sentinels = %q, want exact ordered %q", actualTargetRequiredSentinels, targetRequiredSentinels)
+	}
+	if strings.Contains(targetedMigrate, "continue-on-error:") || strings.Contains(targetedMigrate, "|| true") {
+		t.Fatal("targeted-migrate matrix modes must remain required")
 	}
 	for _, command := range []string{
 		"run: go test -count=1 ./conformance/projectcheck",

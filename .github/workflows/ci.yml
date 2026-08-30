@@ -72,6 +72,7 @@ jobs:
           ./project
           ./internal/projectcheck/...
           ./conformance/runners/godj
+          ./conformance/projectmigratetargetproduct
           ./conformance/projectshowmigrationsproduct
 
       - name: Compile runserver product on 32-bit Linux
@@ -144,10 +145,10 @@ jobs:
             timeout_minutes: 40
           - mode: race
             make_targets: "go-race"
-            timeout_minutes: 45
+            timeout_minutes: 55
           - mode: cgo0
             make_targets: "cgo-zero-build"
-            timeout_minutes: 40
+            timeout_minutes: 50
 
     steps:
       - name: Checkout
@@ -838,6 +839,159 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
+  targeted-migrate-product-matrix:
+    name: Targeted migrate product (${{ matrix.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: normal
+            timeout_minutes: 25
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: race
+            timeout_minutes: 25
+          - runs_on: ubuntu-22.04
+            expected_goos: linux
+            expected_goarch: amd64
+            mode: cgo0
+            timeout_minutes: 25
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: normal
+            timeout_minutes: 25
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: race
+            timeout_minutes: 25
+          - runs_on: ubuntu-24.04-arm
+            expected_goos: linux
+            expected_goarch: arm64
+            mode: cgo0
+            timeout_minutes: 25
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: normal
+            timeout_minutes: 30
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: race
+            timeout_minutes: 30
+          - runs_on: macos-15-intel
+            expected_goos: darwin
+            expected_goarch: amd64
+            mode: cgo0
+            timeout_minutes: 30
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: normal
+            timeout_minutes: 25
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: race
+            timeout_minutes: 25
+          - runs_on: macos-26
+            expected_goos: darwin
+            expected_goarch: arm64
+            mode: cgo0
+            timeout_minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: false
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"
+
+      - name: Run and inventory targeted migrate product mode
+        run: |
+          set -euo pipefail
+          mode="${{ matrix.mode }}"
+          test_flags=(-timeout=20m -json -count=1)
+          case "$mode" in
+            normal)
+              ;;
+            race)
+              test_flags+=(-race)
+              ;;
+            cgo0)
+              export CGO_ENABLED=0
+              ;;
+            *)
+              echo "unsupported targeted migrate product mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+          log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"
+          status=0
+          go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            tail -c 60000 "$log"
+            exit "$status"
+          fi
+          package="github.com/progresshans/godj/conformance/projectmigratetargetproduct"
+          required_passes=(
+            "TestProjectLinkedTargetedMigrateSQLite"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-119_exact_argv_and_exact_name_miss"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-120_named_forward_closure"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-121_named_reverse_descendants"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-122_app_zero_DEV-0002_order"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-123_noop_and_known_zero_unknown"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-124_plan_is_exact_and_read_only"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-125_preview_drift_fresh_execute"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-126_reverse_middle_failure_fresh_resume"
+            "TestProjectLinkedTargetedMigrateSQLite/MIG-128_phase_C_public_ownership_subset"
+            "TestProjectLinkedTargetedMigrateSQLite/exact_public_family_coverage"
+          )
+          for test_name in "${required_passes[@]}"; do
+            pass_fragment="\"Action\":\"pass\",\"Package\":\"$package\",\"Test\":\"$test_name\""
+            if ! grep -Fq "$pass_fragment" "$log"; then
+              echo "required targeted migrate product test did not pass in $mode: $test_name" >&2
+              exit 1
+            fi
+          done
+          package_skip_fragment="\"Action\":\"skip\",\"Package\":\"$package\""
+          if grep -Fq "$package_skip_fragment" "$log"; then
+            echo "targeted migrate product $mode inventory contains a skipped test" >&2
+            exit 1
+          fi
+          if [ "$mode" = "normal" ]; then
+            go vet ./conformance/projectmigratetargetproduct
+          fi
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
   python-compatibility-matrix:
     name: Python compatibility (${{ matrix.python_version }})
     runs-on: ubuntu-24.04
@@ -1234,6 +1388,7 @@ jobs:
       - relation-binding-matrix
       - relation-product-matrix
       - product-project-check-matrix
+      - targeted-migrate-product-matrix
       - python-compatibility-matrix
       - postgresql-product
       - sqlite-matrix
@@ -1257,6 +1412,7 @@ jobs:
               "relation-binding-matrix",
               "relation-product-matrix",
               "product-project-check-matrix",
+              "targeted-migrate-product-matrix",
               "python-compatibility-matrix",
               "postgresql-product",
               "sqlite-matrix",
