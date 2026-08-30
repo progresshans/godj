@@ -123,6 +123,22 @@ func compilePostgresMigrationAddField(
 	return statement + ", ADD " + constraint, nil
 }
 
+func postgresMigrationAddFieldTarget(
+	operation migrationbackend.MigrationOperation,
+	field ir.Field,
+) (*migrationbackend.MigrationTarget, error) {
+	if field.Kind != ir.FieldForeignKey {
+		return nil, nil
+	}
+	for index := range operation.Targets {
+		if migrationFieldsEqual(operation.Targets[index].SourceField, field) {
+			target := operation.Targets[index]
+			return &target, nil
+		}
+	}
+	return nil, postgresMigrationIntentIntegrity("sealed PostgreSQL ForeignKey AddField target is missing", nil)
+}
+
 func compilePostgresMigrationRemoveField(
 	namespace string,
 	model ir.Model,

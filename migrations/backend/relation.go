@@ -12,7 +12,8 @@ type MigrationCapabilities struct {
 }
 
 // MigrationOperationKind identifies one operation in the complete
-// migration-step intent supplied to a relation-aware backend.
+// migration-step intent supplied to a relation-aware backend or pure SQL
+// renderer.
 type MigrationOperationKind uint8
 
 const (
@@ -23,7 +24,8 @@ const (
 )
 
 // MigrationIntent carries a complete, ordered migration step. Scalar
-// operations use the same shape with an empty Targets slice.
+// operations use the same shape with an empty Targets slice. Mutation
+// backends and pure SQL renderers consume detached copies of the same intent.
 type MigrationIntent struct {
 	Operations []MigrationOperation
 }

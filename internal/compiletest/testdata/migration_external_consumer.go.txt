@@ -90,16 +90,31 @@ func ApplyDirect(ctx context.Context, before migrations.ProjectState, migration 
 	return (migrations.DirectExecutor{Backend: &externalDirectPort{}}).Apply(ctx, before, migration)
 }
 
+func RenderLoadedSQL(ctx context.Context, definitions migrations.LoadedDefinitionSet, target migrations.MigrationKey) ([]string, error) {
+	return migrations.RenderMigrationSQL(ctx, definitions, target, externalMigrationSQLRenderer{})
+}
+
 var (
 	_ backend.RevisionFencedBackend     = (*externalLifecyclePort)(nil)
 	_ backend.AtomicBackend             = (*externalDirectPort)(nil)
 	_ backend.RevisionFencedSession     = (*externalLifecycleSession)(nil)
 	_ backend.Transaction               = (*externalLifecycleTransaction)(nil)
 	_ backend.RevisionFencedTransaction = (*externalLifecycleTransaction)(nil)
+	_ backend.MigrationSQLRenderer      = externalMigrationSQLRenderer{}
 	_ error                             = &backend.RevisionFenceError{Kind: backend.RevisionFenceFailureIntegrity}
 	_ migrations.ErrorCategory          = migrations.CategoryConflict
 	_ migrations.ErrorCode              = migrations.CodeCommitOutcomeUnknown
+	_ error                             = &migrations.MigrationSQLError{
+		Category: migrations.CategorySQLRender,
+		Code:     migrations.CodeRendererUnavailable,
+	}
 )
+
+type externalMigrationSQLRenderer struct{}
+
+func (externalMigrationSQLRenderer) RenderForwardMigrationSQL(context.Context, backend.ForwardMigrationSQLRequest) ([]string, error) {
+	return []string{"SELECT 1"}, nil
+}
 
 type externalLifecyclePort struct{}
 

@@ -143,7 +143,7 @@ func (e Executor) prepareLoadedLifecycle(
 	if err := ctx.Err(); err != nil {
 		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
-	reconstructor, err := newLoadedStateReconstructor(definitionSnapshot)
+	reconstructor, err := newLoadedStateReconstructorContext(ctx, definitionSnapshot)
 	if err != nil {
 		return prepared, resultState, err
 	}

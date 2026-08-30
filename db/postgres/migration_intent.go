@@ -49,6 +49,13 @@ type postgresMigrationBoundary struct {
 	targets map[string][]migrationbackend.MigrationTarget
 }
 
+type preparedPostgresMigrationIntent struct {
+	intent  migrationbackend.MigrationIntent
+	digest  [sha256.Size]byte
+	initial postgresMigrationBoundary
+	final   postgresMigrationBoundary
+}
+
 type postgresMigrationSealPayload struct {
 	Transition migrationbackend.HistoryTransition `json:"transition"`
 	Intent     migrationbackend.MigrationIntent   `json:"intent"`
@@ -78,37 +85,57 @@ func newPostgresMigrationSchema(
 	if err := validatePostgresMigrationRecorderIdentity(transition.Migration); err != nil {
 		return nil, err
 	}
+	prepared, err := preparePostgresMigrationIntent(transition, intent)
+	if err != nil {
+		return nil, err
+	}
+	return &postgresMigrationSchema{
+		transition: transition,
+		intent:     prepared.intent,
+		digest:     prepared.digest,
+		initial:    prepared.initial,
+		final:      prepared.final,
+	}, nil
+}
+
+// preparePostgresMigrationIntent owns the immutable, database-free intent
+// validation shared by execution and SQL projection. Recorder-specific
+// identity limits stay with newPostgresMigrationSchema; a renderer follows the
+// loader-owned definition identity bounds instead.
+func preparePostgresMigrationIntent(
+	transition migrationbackend.HistoryTransition,
+	intent migrationbackend.MigrationIntent,
+) (preparedPostgresMigrationIntent, error) {
 	if transition.Kind != migrationbackend.HistoryTransitionApply &&
 		transition.Kind != migrationbackend.HistoryTransitionUnapply {
-		return nil, postgresMigrationIntentIntegrity(fmt.Sprintf("history transition kind %d is invalid", transition.Kind), nil)
+		return preparedPostgresMigrationIntent{}, postgresMigrationIntentIntegrity(fmt.Sprintf("history transition kind %d is invalid", transition.Kind), nil)
 	}
 	if intent.Operations == nil {
-		return nil, postgresMigrationIntentIntegrity("migration intent operations are missing", nil)
+		return preparedPostgresMigrationIntent{}, postgresMigrationIntentIntegrity("migration intent operations are missing", nil)
 	}
 	if err := scanPostgresMigrationResources(transition, intent); err != nil {
-		return nil, err
+		return preparedPostgresMigrationIntent{}, err
 	}
 	cloned := clonePostgresMigrationIntent(intent)
 	initial, final, err := validatePostgresMigrationIntent(transition, &cloned)
 	if err != nil {
-		return nil, err
+		return preparedPostgresMigrationIntent{}, err
 	}
 	if err := scanPostgresMigrationResources(transition, cloned); err != nil {
-		return nil, err
+		return preparedPostgresMigrationIntent{}, err
 	}
 	if err := validatePostgresConstraintNames(cloned); err != nil {
-		return nil, err
+		return preparedPostgresMigrationIntent{}, err
 	}
 	digest, err := hashPostgresMigrationIntent(transition, cloned)
 	if err != nil {
-		return nil, postgresMigrationIntentIntegrity("seal PostgreSQL migration intent", err)
+		return preparedPostgresMigrationIntent{}, postgresMigrationIntentIntegrity("seal PostgreSQL migration intent", err)
 	}
-	return &postgresMigrationSchema{
-		transition: transition,
-		intent:     cloned,
-		digest:     digest,
-		initial:    initial,
-		final:      final,
+	return preparedPostgresMigrationIntent{
+		intent:  cloned,
+		digest:  digest,
+		initial: initial,
+		final:   final,
 	}, nil
 }
 

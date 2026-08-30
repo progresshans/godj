@@ -2084,6 +2084,13 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 		wantFragments []string
 	}{
 		{
+			name:    "pre-renderer unkeyed project config source impact",
+			fixture: "project_unkeyed_pre_renderer.go.txt",
+			wantFragments: []string{
+				"too few values in struct literal of type project.Config",
+			},
+		},
+		{
 			name:    "predicate model mismatch",
 			fixture: "predicate_model_mismatch.go.txt",
 			wantFragments: []string{

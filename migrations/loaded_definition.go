@@ -26,9 +26,9 @@ type loadedDefinitionPublication = loadeddefinition.Set[
 ]
 
 // LoadedDefinitionSet is the only public definition input to a complete
-// migration lifecycle or its read-only plan. Its fields and constructor remain
-// private to the migrations module; definition.Load is the public way to
-// obtain an initialized value.
+// migration lifecycle, its read-only plan/status views, or pure migration SQL
+// projection. Its fields and constructor remain private to the migrations
+// module; definition.Load is the public way to obtain an initialized value.
 type LoadedDefinitionSet loadedDefinitionPublication
 
 // Digest returns the canonical semantic definition-set fingerprint.

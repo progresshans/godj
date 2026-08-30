@@ -226,18 +226,9 @@ func (schema *postgresMigrationSchema) AddField(
 	if !reflect.DeepEqual(model, operation.Before) || !migrationFieldsEqual(field, changed) {
 		return postgresMigrationIntentIntegrity("AddField arguments differ from the sealed migration operation", nil)
 	}
-	var target *migrationbackend.MigrationTarget
-	if field.Kind == ir.FieldForeignKey {
-		for index := range operation.Targets {
-			if migrationFieldsEqual(operation.Targets[index].SourceField, field) {
-				candidate := operation.Targets[index]
-				target = &candidate
-				break
-			}
-		}
-		if target == nil {
-			return postgresMigrationIntentIntegrity("sealed PostgreSQL ForeignKey AddField target is missing", nil)
-		}
+	target, err := postgresMigrationAddFieldTarget(operation, field)
+	if err != nil {
+		return err
 	}
 	statement, err := compilePostgresMigrationAddField(schema.namespace, operation.Before, field, target)
 	if err != nil {

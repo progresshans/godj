@@ -31,18 +31,23 @@ type MigrationBackend interface {
 }
 
 // Config declares project-owned migration definition sources, a lazy backend
-// opener, and the optional declaration-only whole-project generation input.
+// opener, an immutable database-free migration SQL renderer, and the optional
+// declaration-only whole-project generation input.
 // LoadProjectSpec must not import generated app or project packages; it is
 // called only for the private generation or makemigrations snapshot request.
 // It must be a pure declaration snapshot and must not open a database.
 // OpenMigrationBackend is called only for private database-backed migration
 // commands. Read-only status uses the same revision-fenced session boundary as
 // migration execution without beginning a migration transaction.
+// MigrationSQLRenderer is called only by the private database-free SQL
+// projection command after complete definition loading and exact materialization;
+// it must be immutable and must not retain credentials or a database handle.
 type Config struct {
 	MigrationDefinitionRoots   []string
 	MigrationDefinitionSources []definition.Source
 	LoadProjectSpec            func(context.Context) (codegen.ProjectSpec, error)
 	OpenMigrationBackend       func(context.Context) (MigrationBackend, error)
+	MigrationSQLRenderer       backend.MigrationSQLRenderer
 }
 
 // Run serves the private project-runner protocol for one invocation.

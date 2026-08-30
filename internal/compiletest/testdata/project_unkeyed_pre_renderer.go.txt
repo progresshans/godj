@@ -1,0 +1,14 @@
+package consumer
+
+import "github.com/progresshans/godj/project"
+
+// This is the exact four-field positional shape that compiled before
+// MigrationSQLRenderer became a direct project.Config field. The current-only
+// pre-release source change is intentional and must remain observable rather
+// than silently binding positions to a different contract.
+var _ = project.Config{
+	nil,
+	nil,
+	nil,
+	nil,
+}

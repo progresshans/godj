@@ -507,17 +507,39 @@ func (builder *loadedStateBuilder) empty() bool {
 func newLoadedStateReconstructor(
 	definitions []Migration,
 ) (loadedStateReconstructor, error) {
+	return newLoadedStateReconstructorContext(context.Background(), definitions)
+}
+
+func newLoadedStateReconstructorContext(
+	ctx context.Context,
+	definitions []Migration,
+) (loadedStateReconstructor, error) {
+	if ctx == nil {
+		return loadedStateReconstructor{}, executionContextError(PlanStep{}, errors.New("context is nil"))
+	}
+	if err := ctx.Err(); err != nil {
+		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
+	}
 	if err := validateLoadedDefinitionResources(definitions); err != nil {
 		return loadedStateReconstructor{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
 	}
 	planner, err := NewPlanner(definitions...)
 	if err != nil {
 		return loadedStateReconstructor{}, err
 	}
+	if err := ctx.Err(); err != nil {
+		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
+	}
 
 	cloned, err := cloneLoadedReconstructorDefinitions(planner.graph, definitions)
 	if err != nil {
 		return loadedStateReconstructor{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
 	}
 
 	reconstructor := loadedStateReconstructor{planner: planner, definitions: cloned}
@@ -526,7 +548,10 @@ func newLoadedStateReconstructor(
 	if err := reconstructor.validateChronology(); err != nil {
 		return loadedStateReconstructor{}, err
 	}
-	if err := reconstructor.validateReadiness(); err != nil {
+	if err := ctx.Err(); err != nil {
+		return loadedStateReconstructor{}, executionContextError(PlanStep{}, err)
+	}
+	if err := reconstructor.validateReadiness(ctx); err != nil {
 		return loadedStateReconstructor{}, err
 	}
 	return reconstructor, nil
@@ -859,13 +884,35 @@ func (r loadedStateReconstructor) applyLoadedMigration(
 	migration Migration,
 	direction Direction,
 ) error {
+	return r.applyLoadedMigrationContext(context.Background(), builder, migration, direction)
+}
+
+func (r loadedStateReconstructor) applyLoadedMigrationContext(
+	ctx context.Context,
+	builder *loadedStateBuilder,
+	migration Migration,
+	direction Direction,
+) error {
+	step := PlanStep{Key: migration.Key(), Direction: direction}
+	if ctx == nil {
+		return executionContextError(step, errors.New("context is nil"))
+	}
+	if err := ctx.Err(); err != nil {
+		return executionContextError(step, err)
+	}
 	if err := r.beginLoadedMigration(builder, migration, direction); err != nil {
 		return err
 	}
 	for _, index := range operationIndices(len(migration.Operations), direction) {
+		if err := ctx.Err(); err != nil {
+			return executionContextError(step, err)
+		}
 		if err := r.applyLoadedOperation(builder, migration, index, direction); err != nil {
 			return err
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return executionContextError(step, err)
 	}
 	return nil
 }
@@ -1182,14 +1229,14 @@ func (builder *loadedStateBuilder) removeRelation(source loadedModelIdentity, fi
 	return nil
 }
 
-func (r loadedStateReconstructor) validateReadiness() error {
+func (r loadedStateReconstructor) validateReadiness(ctx context.Context) error {
 	steps, err := r.fullForwardProjection()
 	if err != nil {
 		return err
 	}
 	builder := newLoadedStateBuilder()
 	for _, step := range steps {
-		if err := r.applyLoadedMigration(builder, r.definitions[step.Key], DirectionForward); err != nil {
+		if err := r.applyLoadedMigrationContext(ctx, builder, r.definitions[step.Key], DirectionForward); err != nil {
 			return err
 		}
 	}
@@ -1197,7 +1244,7 @@ func (r loadedStateReconstructor) validateReadiness() error {
 		return invalidLoadedState(Migration{}, NoOperation, "", err)
 	}
 	for index := len(steps) - 1; index >= 0; index-- {
-		if err := r.applyLoadedMigration(builder, r.definitions[steps[index].Key], DirectionBackward); err != nil {
+		if err := r.applyLoadedMigrationContext(ctx, builder, r.definitions[steps[index].Key], DirectionBackward); err != nil {
 			return err
 		}
 	}
