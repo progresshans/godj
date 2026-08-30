@@ -8,6 +8,7 @@ import (
 
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -338,6 +339,85 @@ func TestExternalConsumerZeroPlannerAndAppliedStateAreValid(t *testing.T) {
 	}
 	if len(plan) != 0 {
 		t.Fatalf("zero Planner.Plan() = %v, want empty", plan)
+	}
+}
+
+func TestExternalConsumerCanInspectMigrationStatusesWithoutMutableAliases(t *testing.T) {
+	t.Parallel()
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	second := migrations.MigrationKey{App: "news", Name: "0002_second"}
+	missing := migrations.MigrationKey{App: "news", Name: "0000_removed"}
+	planner, err := migrations.NewPlanner(
+		migrations.Migration{App: second.App, Name: second.Name, Dependencies: []migrations.MigrationKey{initial}},
+		migrations.Migration{App: initial.App, Name: initial.Name},
+	)
+	if err != nil {
+		t.Fatalf("NewPlanner() error = %v", err)
+	}
+	applied, err := migrations.NewAppliedState(initial, missing)
+	if err != nil {
+		t.Fatalf("NewAppliedState() error = %v", err)
+	}
+	want := []migrations.MigrationStatusEntry{
+		{Key: initial, Status: migrations.MigrationStatusApplied},
+		{Key: second, Status: migrations.MigrationStatusUnapplied},
+		{Key: missing, Status: migrations.MigrationStatusDefinitionMissing},
+	}
+	got, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() error = %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Statuses() = %v, want %v", got, want)
+	}
+	if string(migrations.MigrationStatusApplied) != "applied" ||
+		string(migrations.MigrationStatusUnapplied) != "unapplied" ||
+		string(migrations.MigrationStatusDefinitionMissing) != "definition-missing" {
+		t.Fatalf("migration status vocabulary changed")
+	}
+
+	got[0] = migrations.MigrationStatusEntry{
+		Key:    migrations.MigrationKey{App: "mutated", Name: "mutated"},
+		Status: migrations.MigrationStatusUnapplied,
+	}
+	again, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() after mutation error = %v", err)
+	}
+	if !reflect.DeepEqual(again, want) {
+		t.Fatalf("Statuses() after caller mutation = %v, want %v", again, want)
+	}
+}
+
+func TestExternalConsumerDistinguishesZeroAndLoadedEmptyDefinitionStatusAuthority(t *testing.T) {
+	t.Parallel()
+
+	var zero migrations.LoadedDefinitionSet
+	statuses, err := zero.Statuses(migrations.AppliedState{})
+	if statuses != nil {
+		t.Fatalf("zero LoadedDefinitionSet.Statuses() = %v, want nil", statuses)
+	}
+	var migrationError *migrations.Error
+	if !errors.As(err, &migrationError) ||
+		migrationError.Category != migrations.CategoryState ||
+		migrationError.Code != migrations.CodeInvalidState {
+		t.Fatalf("zero LoadedDefinitionSet.Statuses() error = %#v, want state/invalid_state", err)
+	}
+
+	loaded, report, err := definition.Load()
+	if err != nil {
+		t.Fatalf("definition.Load(empty) error = %v", err)
+	}
+	if report.DefinitionSetsPublished != 1 {
+		t.Fatalf("definition.Load(empty) report = %+v, want one published set", report)
+	}
+	statuses, err = loaded.Statuses(migrations.AppliedState{})
+	if err != nil {
+		t.Fatalf("loaded empty Statuses() error = %v", err)
+	}
+	if len(statuses) != 0 {
+		t.Fatalf("loaded empty Statuses() = %v, want empty", statuses)
 	}
 }
 

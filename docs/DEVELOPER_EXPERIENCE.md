@@ -507,6 +507,17 @@ tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 
 41/41 jobs·464/464 steps와 PostgreSQL 각 21/21/0을 통과했습니다. ADR-0052/GDJ-0050/DEV-0010은
 Accepted/completed/Verified입니다.
 
+Active GDJ-0051의 다음 bounded user surface는 read-only migration status입니다.
+
+```bash
+godj showmigrations
+godj showmigrations --project ./godj.toml
+```
+
+이는 아직 구현·검증된 명령이 아닙니다. Proposed ADR-0053은 definition load-before-open, exact-one revision-fenced history snapshot,
+known `[X]`/`[ ]`, unknown recorded identity `[?]`와 database mutation 0을 제안합니다. App filter, `--plan`, target/reverse와
+`sqlmigrate`는 이번 active packet의 비범위입니다.
+
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
 보고합니다. `project.Config`의 copied migration sources, `LoadProjectSpec(context.Context)`와 lazy

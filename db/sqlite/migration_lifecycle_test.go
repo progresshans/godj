@@ -1009,6 +1009,147 @@ func TestSQLiteRevisionRecorderCorruptionFailsClosed(t *testing.T) {
 	}
 }
 
+func TestSQLiteRevisionFencedHistoryRecordLimit(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("exact_limit_is_accepted", func(t *testing.T) {
+		backend := openMigrationTestBackend(t)
+		want := installSQLiteRevisionHistoryFixture(t, backend, migrationRevisionHistoryLimit)
+		session := openLifecycleSession(t, backend)
+
+		records, err := session.ReadAppliedMigrations(ctx)
+		if err != nil {
+			t.Fatalf("ReadAppliedMigrations(): %v", err)
+		}
+		if !reflect.DeepEqual(records, want) {
+			t.Fatalf("ReadAppliedMigrations() returned %d records, want %d", len(records), len(want))
+		}
+		if err := session.Close(ctx); err != nil {
+			t.Fatalf("Close(): %v", err)
+		}
+	})
+
+	t.Run("one_over_limit_is_rejected_without_mutation", func(t *testing.T) {
+		backend := openMigrationTestBackend(t)
+		want := installSQLiteRevisionHistoryFixture(t, backend, migrationRevisionHistoryLimit+1)
+		beforeCount, beforeRevision, beforeFingerprint := readSQLiteRevisionHistoryFixtureState(t, backend)
+		session := openLifecycleSession(t, backend)
+
+		records, err := session.ReadAppliedMigrations(ctx)
+		if records != nil {
+			t.Fatalf("ReadAppliedMigrations() records = %v, want nil", records)
+		}
+		assertRevisionFenceKind(t, err, migrationbackend.RevisionFenceFailureIntegrity)
+		if !strings.Contains(err.Error(), "history limit") {
+			t.Fatalf("ReadAppliedMigrations() error = %v, want bounded-history detail", err)
+		}
+		concrete := session.(*sqliteRevisionFencedSession)
+		concrete.mu.Lock()
+		state, cachedRecords := concrete.state, len(concrete.records)
+		concrete.mu.Unlock()
+		if state != revisionSessionPoisoned || cachedRecords != 0 {
+			t.Fatalf("over-limit session state = (%d, %d cached records), want poisoned with no partial snapshot", state, cachedRecords)
+		}
+
+		afterCount, afterRevision, afterFingerprint := readSQLiteRevisionHistoryFixtureState(t, backend)
+		if beforeCount != len(want) || afterCount != beforeCount || afterRevision != beforeRevision ||
+			!bytes.Equal(afterFingerprint, beforeFingerprint) {
+			t.Fatalf(
+				"over-limit snapshot mutated durable state: before=(count=%d revision=%d fingerprint=%x) after=(count=%d revision=%d fingerprint=%x)",
+				beforeCount,
+				beforeRevision,
+				beforeFingerprint,
+				afterCount,
+				afterRevision,
+				afterFingerprint,
+			)
+		}
+		if err := session.Close(ctx); err != nil {
+			t.Fatalf("Close(): %v", err)
+		}
+		if stats := backend.database.Stats(); stats.InUse != 0 {
+			t.Fatalf("database in-use connections = %d, want 0", stats.InUse)
+		}
+	})
+}
+
+func installSQLiteRevisionHistoryFixture(
+	t *testing.T,
+	backend *Backend,
+	count int,
+) []migrationbackend.AppliedMigration {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := backend.ExecContext(ctx, createMigrationRecorderTableSQL); err != nil {
+		t.Fatalf("create migration recorder: %v", err)
+	}
+	if _, err := backend.ExecContext(ctx, createMigrationRevisionTableSQL); err != nil {
+		t.Fatalf("create migration revision metadata: %v", err)
+	}
+	records := make([]migrationbackend.AppliedMigration, count)
+	transaction, err := backend.database.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin history fixture transaction: %v", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = transaction.Rollback()
+		}
+	}()
+	statement, err := transaction.PrepareContext(
+		ctx,
+		`INSERT INTO "godj_migrations" ("app", "name") VALUES (?, ?)`,
+	)
+	if err != nil {
+		t.Fatalf("prepare history fixture insert: %v", err)
+	}
+	defer statement.Close()
+	for index := range records {
+		record := migrationbackend.AppliedMigration{
+			App:  "bounded",
+			Name: fmt.Sprintf("%04d", index+1),
+		}
+		if _, err := statement.ExecContext(ctx, record.App, record.Name); err != nil {
+			t.Fatalf("insert history fixture record %d: %v", index, err)
+		}
+		records[index] = record
+	}
+	fingerprint := fingerprintMigrationHistory(records)
+	if _, err := transaction.ExecContext(
+		ctx,
+		`INSERT INTO "godj_migration_revision" VALUES (1, 1, ?, ?, ?)`,
+		make([]byte, migrationRevisionEpochSize),
+		int64(count),
+		fingerprint[:],
+	); err != nil {
+		t.Fatalf("insert history fixture metadata: %v", err)
+	}
+	if err := transaction.Commit(); err != nil {
+		t.Fatalf("commit history fixture: %v", err)
+	}
+	committed = true
+	return records
+}
+
+func readSQLiteRevisionHistoryFixtureState(t *testing.T, backend *Backend) (int, int64, []byte) {
+	t.Helper()
+	ctx := context.Background()
+	var count int
+	if err := backend.database.QueryRowContext(ctx, `SELECT COUNT(*) FROM "godj_migrations"`).Scan(&count); err != nil {
+		t.Fatalf("read history fixture count: %v", err)
+	}
+	var revision int64
+	var fingerprint []byte
+	if err := backend.database.QueryRowContext(
+		ctx,
+		`SELECT "revision", "history_fingerprint" FROM "godj_migration_revision" WHERE "singleton" = 1`,
+	).Scan(&revision, &fingerprint); err != nil {
+		t.Fatalf("read history fixture metadata: %v", err)
+	}
+	return count, revision, append([]byte(nil), fingerprint...)
+}
+
 func TestSQLiteRevisionFenceRejectsOverflowBeforeMutation(t *testing.T) {
 	ctx := context.Background()
 	backend := openMigrationTestBackend(t)

@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
 	"golang.org/x/sys/unix"
 )
 
@@ -26,6 +27,18 @@ func TestMigrateOwnedProcessUsesProtocolResponseBound(t *testing.T) {
 	result := processBackend{}.Execute(context.Background(), nil, MigrateRunnerStage, command)
 	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != migrateprotocol.MaxResponseBytes || !result.StdoutScalar.Truncated || len(result.Stdout) != migrateprotocol.MaxResponseBytes {
 		t.Fatalf("bounded migrate process = %+v stdout=%d", result, len(result.Stdout))
+	}
+}
+
+func TestShowMigrationsOwnedProcessUsesProtocolResponseBound(t *testing.T) {
+	command := helperCommand("emit", map[string]string{
+		"GODJ_HELPER_STDOUT_BYTES": strconv.Itoa(showmigrationsprotocol.MaxResponseBytes + 1),
+		"GODJ_HELPER_STDERR_BYTES": "0",
+		"GODJ_HELPER_EXIT":         "0",
+	})
+	result := processBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
+	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != showmigrationsprotocol.MaxResponseBytes || !result.StdoutScalar.Truncated || len(result.Stdout) != showmigrationsprotocol.MaxResponseBytes {
+		t.Fatalf("bounded showmigrations process = %+v stdout=%d", result, len(result.Stdout))
 	}
 }
 
@@ -190,6 +203,43 @@ func TestMigrateOwnedProcessBoundsDescendantHeldPipesAfterDirectExit(t *testing.
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("descendant-held migrate pipes exceeded bounded cleanup")
+	}
+}
+
+func TestShowMigrationsOwnedProcessBoundsDescendantHeldPipesAfterDirectExit(t *testing.T) {
+	ready := filepath.Join(t.TempDir(), "descendant")
+	holderReady := filepath.Join(t.TempDir(), "holder-ready")
+	command := helperCommand("spawn-holder", map[string]string{
+		"GODJ_HELPER_READY":        ready,
+		"GODJ_HELPER_HOLDER_READY": holderReady,
+	})
+	done := make(chan ProcessResult, 1)
+	started := time.Now()
+	go func() {
+		done <- processBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
+	}()
+	groupPID, descendantPID := migrateHelperProcessPair(t, ready)
+	waitForFile(t, holderReady)
+	t.Cleanup(func() {
+		if runserverProcessGroupExists(groupPID) {
+			_ = unix.Kill(-groupPID, unix.SIGKILL)
+		}
+		_ = unix.Kill(descendantPID, unix.SIGKILL)
+	})
+
+	select {
+	case result := <-done:
+		if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.Failure != nil || result.SIGINTAttempts != 0 || result.SIGKILLAttempts != 1 || result.CleanupFailed {
+			t.Fatalf("descendant-held showmigrations pipes = %+v", result)
+		}
+		if elapsed := time.Since(started); elapsed < ownedProcessGrace || elapsed > 5*time.Second {
+			t.Fatalf("showmigrations descendant cleanup duration = %s", elapsed)
+		}
+		if runserverProcessGroupExists(groupPID) {
+			t.Fatalf("showmigrations process group %d remains after bounded cleanup", groupPID)
+		}
+	case <-time.After(7 * time.Second):
+		t.Fatal("descendant-held showmigrations pipes exceeded bounded cleanup")
 	}
 }
 

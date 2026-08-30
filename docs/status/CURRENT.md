@@ -3,7 +3,14 @@
 - 마지막 갱신: 2026-08-30
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 0/0이며 다음 packet은 아직 선택하지 않았습니다. Completed
+- 현재 active/ready work는 1/0입니다. Active
+  [GDJ-0051](../../work/0051-project-linked-showmigrations.md)과 Proposed
+  [ADR-0053](../adr/0053-project-linked-read-only-migration-status.md)은 exact
+  `godj showmigrations [--project <godj.toml>]` list-only 단면을 고정합니다. Complete definition load는 backend open보다
+  먼저 일어나고, project-owned backend의 existing revision-fenced read-only session을 한 번 사용해 known `[X]`/`[ ]`와
+  definition이 없는 recorded identity `[?]`를 canonical하게 렌더링합니다. 이 결과는 point-in-time read-only snapshot이며
+  schema/recorder/revision mutation이나 이후 writer까지의 lock authority가 아닙니다. MIG-111..118은 activation 시점
+  `planned, not run`이고 target/reverse, `--plan`, `sqlmigrate`, destructive writer와 multi-DB는 비범위입니다. Completed
   [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md)과 Accepted
   [ADR-0052](../adr/0052-project-linked-deterministic-makemigrations.md)는 normalized `ProjectSpec`과 latest historical
   `ProjectState`의 managed app을 current `CreateModel`/`AddField` 범위에서 diff해 deterministic Definition format 1을
@@ -1906,7 +1913,7 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 0/0이며 다음 packet은 선택하지 않았습니다. Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
+현재 active/ready packet은 1/0이며 GDJ-0051 read-only `showmigrations`가 활성화됐습니다. Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
 strict separate v1 wire, opaque project-owned snapshot, deterministic read-only modes와 build-input/catalog CAS를 구현했습니다.

@@ -21,8 +21,10 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/linked"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
+	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -210,6 +212,56 @@ func TestPublicMigrateOwnsSourcesAndSignalContext(t *testing.T) {
 	}
 	if ownerCalls != 1 || stopCalls != 1 {
 		t.Fatalf("signal owner calls = owner %d, stop %d", ownerCalls, stopCalls)
+	}
+}
+
+func TestPublicShowMigrationsOwnsSourcesAndUsesReadOnlySignalSession(t *testing.T) {
+	enterProjectRoot(t)
+	sources := []definition.Source{{
+		SourceID: "framework/alpha-0001.godj.json",
+		Document: []byte(`{"format_version":1,"producer":{"name":"project-test","version":"1"},"migration":{"app":"alpha","name":"0001","dependencies":[],"operations":[]}}`),
+	}}
+	argv := []string{showmigrationsprotocol.PrivateArgument}
+	reader := newBlockingReader(showmigrationsprotocol.RequestDocument())
+	database := &publicShowMigrationsBackend{session: &publicShowMigrationsSession{
+		records: []backend.AppliedMigration{{App: "alpha", Name: "0001"}},
+	}}
+	ownerCalls := 0
+	stopCalls := 0
+	config := Config{
+		MigrationDefinitionSources: sources,
+		OpenMigrationBackend: func(context.Context) (MigrationBackend, error) {
+			return database, nil
+		},
+	}
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() {
+		done <- run(context.Background(), config, argv, reader, &output, func(parent context.Context) (context.Context, context.CancelFunc) {
+			ownerCalls++
+			owned, cancel := context.WithCancel(parent)
+			return owned, func() {
+				stopCalls++
+				cancel()
+			}
+		})
+	}()
+	<-reader.started
+	sources[0].SourceID = "mutated"
+	sources[0].Document[0] = 'x'
+	argv[0] = "mutated"
+	close(reader.release)
+	if err := <-done; err != nil {
+		t.Fatalf("showmigrations dispatch = %v", err)
+	}
+	response, failure, failed := showmigrationsprotocol.ParseResponse(output.Bytes(), true)
+	want := []showmigrationsprotocol.Row{{App: "alpha", Name: "0001", Status: showmigrationsprotocol.StatusApplied}}
+	if failed || failure != (showmigrationsprotocol.Failure{}) || !response.OK || !reflect.DeepEqual(response.Result.Rows, want) {
+		t.Fatalf("showmigrations response = %+v, %+v, %v", response, failure, failed)
+	}
+	if ownerCalls != 1 || stopCalls != 1 || database.openCalls != 1 || database.session.readCalls != 1 ||
+		database.session.beginCalls != 0 || database.session.closeCalls != 1 || database.closeCalls != 1 {
+		t.Fatalf("showmigrations ownership = owner:%d stop:%d backend:%+v", ownerCalls, stopCalls, database)
 	}
 }
 
@@ -417,6 +469,7 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	exports := make([]string, 0)
 	linkedCalls := 0
 	linkedMigrateCalls := 0
+	linkedShowMigrationsCalls := 0
 	linkedMakemigrationsCalls := 0
 	linkedRawMakemigrationsCalls := 0
 	ast.Inspect(file, func(node ast.Node) bool {
@@ -441,6 +494,9 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunMigrate" {
 				linkedMigrateCalls++
 			}
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunShowMigrations" {
+				linkedShowMigrationsCalls++
+			}
 			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunSnapshottedMakemigrations" {
 				linkedMakemigrationsCalls++
 			}
@@ -460,6 +516,9 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	if linkedMigrateCalls != 1 {
 		t.Fatalf("linked.RunMigrate callsites in public facade = %d, want 1", linkedMigrateCalls)
 	}
+	if linkedShowMigrationsCalls != 1 {
+		t.Fatalf("linked.RunShowMigrations callsites in public facade = %d, want 1", linkedShowMigrationsCalls)
+	}
 	if linkedMakemigrationsCalls != 1 {
 		t.Fatalf("linked.RunSnapshottedMakemigrations callsites in public facade = %d, want 1", linkedMakemigrationsCalls)
 	}
@@ -476,6 +535,51 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 		}
 	}
 }
+
+type publicShowMigrationsBackend struct {
+	session    *publicShowMigrationsSession
+	openCalls  int
+	closeCalls int
+}
+
+func (*publicShowMigrationsBackend) MigrationCapabilities() backend.MigrationCapabilities {
+	return backend.MigrationCapabilities{}
+}
+
+func (value *publicShowMigrationsBackend) OpenRevisionFencedSession(context.Context) (backend.RevisionFencedSession, error) {
+	value.openCalls++
+	return value.session, nil
+}
+
+func (value *publicShowMigrationsBackend) Close() error {
+	value.closeCalls++
+	return nil
+}
+
+type publicShowMigrationsSession struct {
+	records    []backend.AppliedMigration
+	readCalls  int
+	beginCalls int
+	closeCalls int
+}
+
+func (value *publicShowMigrationsSession) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
+	value.readCalls++
+	return append([]backend.AppliedMigration(nil), value.records...), nil
+}
+
+func (value *publicShowMigrationsSession) BeginMigration(context.Context, backend.HistoryTransition, backend.MigrationIntent) (backend.RevisionFencedTransaction, error) {
+	value.beginCalls++
+	return nil, errors.New("showmigrations must not begin a transaction")
+}
+
+func (value *publicShowMigrationsSession) Close(context.Context) error {
+	value.closeCalls++
+	return nil
+}
+
+var _ MigrationBackend = (*publicShowMigrationsBackend)(nil)
+var _ backend.RevisionFencedSession = (*publicShowMigrationsSession)(nil)
 
 func enterProjectRoot(t *testing.T) string {
 	t.Helper()

@@ -1,6 +1,10 @@
 package migrations
 
-import "github.com/progresshans/godj/migrations/internal/loadeddefinition"
+import (
+	"errors"
+
+	"github.com/progresshans/godj/migrations/internal/loadeddefinition"
+)
 
 // DefinitionProducer records non-semantic generator provenance from one
 // loaded definition source.
@@ -52,6 +56,22 @@ func (s LoadedDefinitionSet) Sources() []DefinitionSourceInfo {
 		return nil
 	}
 	return snapshot.Sources
+}
+
+// Statuses validates and lists one applied-history snapshot against this
+// loader-owned complete definition set. It is the read-only inspection
+// counterpart to Executor.Migrate: callers cannot substitute a partial raw
+// definition slice for the loader publication authority.
+func (s LoadedDefinitionSet) Statuses(applied AppliedState) ([]MigrationStatusEntry, error) {
+	snapshot, ok := s.snapshot()
+	if !ok {
+		return nil, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is invalid"))
+	}
+	planner, err := NewPlanner(snapshot.Values...)
+	if err != nil {
+		return nil, err
+	}
+	return planner.Statuses(applied)
 }
 
 func (s LoadedDefinitionSet) snapshot() (loadeddefinition.Snapshot[Migration, DefinitionSourceInfo], bool) {

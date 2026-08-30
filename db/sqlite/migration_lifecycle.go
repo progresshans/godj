@@ -21,6 +21,7 @@ const (
 	migrationRevisionTable         = "godj_migration_revision"
 	migrationRevisionFormatVersion = int64(1)
 	migrationRevisionEpochSize     = 16
+	migrationRevisionHistoryLimit  = 2_048
 	migrationCleanupTimeout        = 5 * time.Second
 )
 
@@ -898,6 +899,15 @@ func readRevisionRecorderHistory(ctx context.Context, executor migrationSQLExecu
 		}
 	}()
 	for rows.Next() {
+		if len(records) == migrationRevisionHistoryLimit {
+			return nil, newRevisionFenceError(
+				migrationbackend.RevisionFenceFailureIntegrity,
+				fmt.Errorf(
+					"SQLite migration recorder exceeds the revision-fenced history limit of %d records",
+					migrationRevisionHistoryLimit,
+				),
+			)
+		}
 		var record migrationbackend.AppliedMigration
 		if err := rows.Scan(&record.App, &record.Name); err != nil {
 			return nil, classifyRevisionIntegrityIO("scan revision-fenced migration recorder", err)

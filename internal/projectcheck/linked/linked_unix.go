@@ -47,6 +47,9 @@ type Report struct {
 	RevisionLifecycleCalls  int
 	BackendOpenCalls        int
 	BackendCloseCalls       int
+	RevisionSessionOpens    int
+	AppliedHistoryReads     int
+	RevisionSessionCloses   int
 	CommandDispatches       int
 	RootsOpened             int
 	DirectoryEntriesSeen    int

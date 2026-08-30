@@ -338,6 +338,172 @@ func TestPlannerCheckHistoryRepeatedAndConcurrentCallsAreImmutable(t *testing.T)
 	}
 }
 
+func TestPlannerStatusesAreAppGroupedDependencyOrderedAndShowMissingDefinitions(t *testing.T) {
+	t.Parallel()
+
+	zetaRoot := MigrationKey{App: "zeta", Name: "0001_root"}
+	alphaParent := MigrationKey{App: "alpha", Name: "0099_parent"}
+	alphaChild := MigrationKey{App: "alpha", Name: "0001_child"}
+	alphaBranch := MigrationKey{App: "alpha", Name: "0002_branch"}
+	alphaTail := MigrationKey{App: "alpha", Name: "0000_tail"}
+	betaRoot := MigrationKey{App: "beta", Name: "0001_root"}
+	alphaMissingFirst := MigrationKey{App: "alpha", Name: "0000_missing"}
+	alphaMissingLast := MigrationKey{App: "alpha", Name: "9999_missing"}
+	aardvarkMissing := MigrationKey{App: "aardvark", Name: "0007_removed"}
+	zetaMissing := MigrationKey{App: "zeta", Name: "0000_removed"}
+
+	definitions := []Migration{
+		migration(alphaTail, alphaBranch, alphaChild),
+		migration(betaRoot, alphaBranch),
+		migration(alphaChild, alphaParent),
+		migration(zetaRoot),
+		migration(alphaParent, zetaRoot),
+		migration(alphaBranch, alphaParent),
+	}
+	applied := mustApplied(t,
+		zetaRoot,
+		alphaParent,
+		alphaChild,
+		alphaMissingLast,
+		alphaMissingFirst,
+		aardvarkMissing,
+		zetaMissing,
+	)
+	want := []MigrationStatusEntry{
+		{Key: aardvarkMissing, Status: MigrationStatusDefinitionMissing},
+		{Key: alphaParent, Status: MigrationStatusApplied},
+		{Key: alphaChild, Status: MigrationStatusApplied},
+		{Key: alphaBranch, Status: MigrationStatusUnapplied},
+		{Key: alphaTail, Status: MigrationStatusUnapplied},
+		{Key: alphaMissingFirst, Status: MigrationStatusDefinitionMissing},
+		{Key: alphaMissingLast, Status: MigrationStatusDefinitionMissing},
+		{Key: betaRoot, Status: MigrationStatusUnapplied},
+		{Key: zetaRoot, Status: MigrationStatusApplied},
+		{Key: zetaMissing, Status: MigrationStatusDefinitionMissing},
+	}
+
+	random := rand.New(rand.NewSource(20260830))
+	for iteration := 0; iteration < 100; iteration++ {
+		input := cloneMigrations(definitions)
+		random.Shuffle(len(input), func(left, right int) {
+			input[left], input[right] = input[right], input[left]
+		})
+		for index := range input {
+			random.Shuffle(len(input[index].Dependencies), func(left, right int) {
+				input[index].Dependencies[left], input[index].Dependencies[right] =
+					input[index].Dependencies[right], input[index].Dependencies[left]
+			})
+		}
+
+		planner := mustPlanner(t, input...)
+		got, err := planner.Statuses(applied)
+		if err != nil {
+			t.Fatalf("iteration %d Statuses() error = %v", iteration, err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("iteration %d Statuses() = %v, want %v", iteration, got, want)
+		}
+	}
+}
+
+func TestPlannerStatusesChecksHistoryBeforeReturningRows(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1), migration(beta1))
+	missing := MigrationKey{App: "legacy", Name: "0009_removed"}
+	got, err := planner.Statuses(mustApplied(t, alpha2, missing))
+	if got != nil {
+		t.Fatalf("Statuses(inconsistent) = %v, want nil", got)
+	}
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+}
+
+func TestPlannerStatusesSupportsZeroValuesAndMissingOnlyHistory(t *testing.T) {
+	t.Parallel()
+
+	var planner Planner
+	var applied AppliedState
+	got, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("zero Planner.Statuses() error = %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("zero Planner.Statuses() = %v, want empty", got)
+	}
+
+	missingZ := MigrationKey{App: "legacy", Name: "0009_removed"}
+	missingA := MigrationKey{App: "legacy", Name: "0001_removed"}
+	got, err = planner.Statuses(mustApplied(t, missingZ, missingA))
+	if err != nil {
+		t.Fatalf("zero Planner.Statuses(missing) error = %v", err)
+	}
+	want := []MigrationStatusEntry{
+		{Key: missingA, Status: MigrationStatusDefinitionMissing},
+		{Key: missingZ, Status: MigrationStatusDefinitionMissing},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("zero Planner.Statuses(missing) = %v, want %v", got, want)
+	}
+}
+
+func TestPlannerStatusesReturnsFreshValuesAndIsConcurrentSafe(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t,
+		migration(shared),
+		migration(alpha1, shared),
+		migration(beta1, shared),
+		migration(alpha2, alpha1, beta1),
+	)
+	missing := MigrationKey{App: "alpha", Name: "0000_removed"}
+	applied := mustApplied(t, shared, alpha1, missing)
+	want, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() error = %v", err)
+	}
+	mutated, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() mutation probe error = %v", err)
+	}
+	mutated[0] = MigrationStatusEntry{
+		Key:    MigrationKey{App: "mutated", Name: "mutated"},
+		Status: MigrationStatusUnapplied,
+	}
+	got, err := planner.Statuses(applied)
+	if err != nil {
+		t.Fatalf("Statuses() after mutation error = %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Statuses() after caller mutation = %v, want %v", got, want)
+	}
+
+	const workers = 64
+	var wait sync.WaitGroup
+	errorsChannel := make(chan error, workers)
+	for worker := 0; worker < workers; worker++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for iteration := 0; iteration < 100; iteration++ {
+				got, err := planner.Statuses(applied)
+				if err != nil {
+					errorsChannel <- err
+					return
+				}
+				if !reflect.DeepEqual(got, want) {
+					errorsChannel <- errors.New("concurrent statuses differed")
+					return
+				}
+			}
+		}()
+	}
+	wait.Wait()
+	close(errorsChannel)
+	for err := range errorsChannel {
+		t.Fatal(err)
+	}
+}
+
 func TestPlannerHistoryDiagnosticsChooseLexicographicChildParentAcrossPermutations(t *testing.T) {
 	t.Parallel()
 

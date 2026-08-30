@@ -15,6 +15,7 @@ import (
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
+	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
 	projectgeneratelinked "github.com/progresshans/godj/internal/projectgenerate/linked"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
@@ -34,7 +35,9 @@ type MigrationBackend interface {
 // LoadProjectSpec must not import generated app or project packages; it is
 // called only for the private generation or makemigrations snapshot request.
 // It must be a pure declaration snapshot and must not open a database.
-// OpenMigrationBackend is called only for the private explicit-migrate request.
+// OpenMigrationBackend is called only for private database-backed migration
+// commands. Read-only status uses the same revision-fenced session boundary as
+// migration execution without beginning a migration transaction.
 type Config struct {
 	MigrationDefinitionRoots   []string
 	MigrationDefinitionSources []definition.Source
@@ -115,6 +118,38 @@ func run(
 		_, err := linked.RunMigrate(
 			migrationContext,
 			linked.MigrateConfig{
+				MigrationDefinitionRoots:   roots,
+				MigrationDefinitionSources: sources,
+				OpenMigrationBackend:       opener,
+			},
+			arguments,
+			stdin,
+			stdout,
+		)
+		return err
+	}
+	if len(arguments) == 1 && arguments[0] == showmigrationsprotocol.PrivateArgument {
+		if ctx == nil {
+			return errors.New("project: nil context")
+		}
+		if ownSignalContext == nil {
+			return errors.New("project: nil migration status signal owner")
+		}
+		statusContext, stop := ownSignalContext(ctx)
+		if statusContext == nil || stop == nil {
+			return errors.New("project: invalid migration status signal owner")
+		}
+		defer stop()
+
+		var opener func(context.Context) (linked.MigrationBackend, error)
+		if openMigrationBackend != nil {
+			opener = func(openContext context.Context) (linked.MigrationBackend, error) {
+				return openMigrationBackend(openContext)
+			}
+		}
+		_, err := linked.RunShowMigrations(
+			statusContext,
+			linked.ShowMigrationsConfig{
 				MigrationDefinitionRoots:   roots,
 				MigrationDefinitionSources: sources,
 				OpenMigrationBackend:       opener,

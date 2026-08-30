@@ -15,6 +15,7 @@ import (
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"golang.org/x/sys/unix"
@@ -27,6 +28,12 @@ type processBackend struct{}
 func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 	if stage == MigrateRunnerStage {
 		return executeOwnedMigrateProcess(ctx, interrupt, cloneCommand(command), migrateprotocol.MaxResponseBytes, maxDiagnosticBytes, migrateOwnedProcessGrace)
+	}
+	if stage == ShowMigrationsRunnerStage {
+		// The status child is read-only, but it still owns a strict response pipe.
+		// Reuse the bounded post-exit process-group owner so a descendant cannot
+		// retain that pipe indefinitely after the direct child has exited.
+		return executeOwnedMigrateProcess(ctx, interrupt, cloneCommand(command), showmigrationsprotocol.MaxResponseBytes, maxDiagnosticBytes, ownedProcessGrace)
 	}
 	stdoutMaximum := maxDiagnosticBytes
 	retainStdout := false

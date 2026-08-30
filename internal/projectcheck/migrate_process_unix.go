@@ -18,9 +18,12 @@ import (
 
 const migrateOwnedProcessGrace = 15 * time.Second
 
-// executeOwnedMigrateProcess owns the write-capable project child. Unlike the
-// short check/generate owner, it observes a cooperative exit throughout the
-// grace window and rechecks a queued Wait result before force-killing.
+// executeOwnedMigrateProcess owns a project child whose protocol requires
+// bounded post-exit process-group cleanup. It was introduced for write-capable
+// migrate; read-only migration status reuses it with the shorter general grace.
+// Unlike the short check/generate owner, it observes a cooperative exit
+// throughout the grace window and rechecks a queued Wait result before
+// force-killing.
 func executeOwnedMigrateProcess(ctx context.Context, interrupt <-chan struct{}, command Command, stdoutMaximum, stderrMaximum int, grace time.Duration) ProcessResult {
 	return executeOwnedMigrateProcessWithHooks(ctx, interrupt, command, stdoutMaximum, stderrMaximum, grace, migrateOwnedProcessHooks{})
 }
