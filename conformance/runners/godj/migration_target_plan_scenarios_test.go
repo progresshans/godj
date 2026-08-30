@@ -36,6 +36,36 @@ var migrationTargetPlanExpectedRegistrations = []struct {
 	{id: "MIG-128", scenario: "godj.migration.target_plan.project_protocol_and_ownership", phase: protocol.PhaseEnvironment},
 }
 
+func migrationTargetPlanContractTimeout(contractID string) time.Duration {
+	switch contractID {
+	case "MIG-128":
+		// MIG-128 runs four independently built external-project process-owner
+		// probes. Each probe retains its own bounded phase timeout; this outer
+		// budget only covers their sequential aggregate on slower hosted runners.
+		return 10 * time.Minute
+	default:
+		return 90 * time.Second
+	}
+}
+
+func TestMigrationTargetPlanContractTimeoutIsNarrow(t *testing.T) {
+	for _, test := range []struct {
+		contractID string
+		want       time.Duration
+	}{
+		{contractID: "MIG-119", want: 90 * time.Second},
+		{contractID: "MIG-127", want: 90 * time.Second},
+		{contractID: "MIG-128", want: 10 * time.Minute},
+		{contractID: "MIG-999", want: 90 * time.Second},
+	} {
+		t.Run(test.contractID, func(t *testing.T) {
+			if got := migrationTargetPlanContractTimeout(test.contractID); got != test.want {
+				t.Fatalf("migration-target-plan contract timeout = %s, want %s", got, test.want)
+			}
+		})
+	}
+}
+
 func TestMigrationTargetPlanRegistryIsExactAndFailsClosed(t *testing.T) {
 	if len(migrationTargetPlanScenarioRegistry) != len(migrationTargetPlanExpectedRegistrations) {
 		t.Fatalf("migration-target-plan registry size = %d, want %d", len(migrationTargetPlanScenarioRegistry), len(migrationTargetPlanExpectedRegistrations))
@@ -262,7 +292,7 @@ func TestMigrationTargetPlanScenariosExecuteActualBoundaries(t *testing.T) {
 	for _, expected := range migrationTargetPlanExpectedRegistrations {
 		expected := expected
 		t.Run(expected.id, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), migrationTargetPlanContractTimeout(expected.id))
 			defer cancel()
 			handler, ok := migrationTargetPlanScenarioHandler(expected.scenario)
 			if !ok {
