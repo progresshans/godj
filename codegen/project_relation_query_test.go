@@ -191,7 +191,7 @@ replace github.com/progresshans/godj => %s
 }
 
 func TestGeneratedRelationQueryProjectCompilesBindsAndHasNoAppEdges(t *testing.T) {
-	authors, blog := relationQueryGenerationSchemas()
+	authors, blog := sparseRelationQueryGenerationSchemas()
 	authorsMain, err := codegen.Generate("authors", authors)
 	if err != nil {
 		t.Fatalf("generate authors main: %v", err)
@@ -306,6 +306,26 @@ func TestGeneratedRelationQueryProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generated relation query project did not compile and bind: %v\n%s", err, output)
 	}
+	if got, want := bytes.Count(projectQuery, []byte("orm.BindModel(")), 4; got != want {
+		t.Fatalf("generated relation query BindModel count = %d, want %d:\n%s", got, want, projectQuery)
+	}
+	for _, fragment := range [][]byte{
+		[]byte("\t_ = _model1\n"),
+		[]byte("\t_ = _model2\n"),
+		[]byte(`orm.BindForward(_model3, "author", _model0)`),
+	} {
+		if !bytes.Contains(projectQuery, fragment) {
+			t.Fatalf("sparse relation query source does not contain %q:\n%s", fragment, projectQuery)
+		}
+	}
+	for _, forbidden := range [][]byte{
+		[]byte("\t_ = _model0\n"),
+		[]byte("\t_ = _model3\n"),
+	} {
+		if bytes.Contains(projectQuery, forbidden) {
+			t.Fatalf("sparse relation query source consumes used binding %q:\n%s", forbidden, projectQuery)
+		}
+	}
 }
 
 func TestGeneratedProjectRelationQueryAdversarialAliasesCompile(t *testing.T) {
@@ -407,6 +427,36 @@ func relationQueryGenerationPackages(authors, blog ir.Schema) []codegen.Relation
 		{Alias: "authors", ImportPath: "example.com/godj-relation-query-project/authors", Schema: authors},
 		{Alias: "blog", ImportPath: "example.com/godj-relation-query-project/blog", Schema: blog},
 	}
+}
+
+func sparseRelationQueryGenerationSchemas() (ir.Schema, ir.Schema) {
+	authors, blog := relationQueryGenerationSchemas()
+	authors.Models = append(authors.Models,
+		ir.Model{
+			Name: "category", GoName: "Category",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+				{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 80},
+			},
+		},
+		ir.Model{
+			Name: "profile", GoName: "Profile",
+			Fields: []ir.Field{
+				{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+				{Name: "label", GoName: "Label", Kind: ir.FieldChar, MaxLength: 80},
+			},
+		},
+	)
+	blog.Models[0].Fields = append(blog.Models[0].Fields, ir.Field{
+		Name: "category", GoName: "CategoryID", Kind: ir.FieldForeignKey, Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "category"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Name: "categorized_posts"},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	})
+	return authors, blog
 }
 
 func relationQueryPackagesWithFieldGoName(authors, blog ir.Schema, goName string) []codegen.RelationQueryPackage {

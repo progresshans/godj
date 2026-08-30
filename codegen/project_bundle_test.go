@@ -139,7 +139,7 @@ func TestGenerateProjectSupportsEmptyAppUniverse(t *testing.T) {
 }
 
 func TestGenerateProjectFullUnionCompilesAndMixedSnapshotFails(t *testing.T) {
-	baseline, err := GenerateProject(projectBundleTestSpec())
+	baseline, err := GenerateProject(sparseProjectBundleTestSpec())
 	if err != nil {
 		t.Fatalf("GenerateProject() error = %v", err)
 	}
@@ -148,7 +148,7 @@ func TestGenerateProjectFullUnionCompilesAndMixedSnapshotFails(t *testing.T) {
 		t.Fatalf("full generated union does not compile: %v\n%s", err, output)
 	}
 
-	changedSpec := projectBundleTestSpec()
+	changedSpec := sparseProjectBundleTestSpec()
 	changedSpec.Apps[1].Schema.Models[0].Fields[0].MaxLength++
 	changed, err := GenerateProject(changedSpec)
 	if err != nil {
@@ -285,6 +285,42 @@ func projectBundleTestSpec() ProjectSpec {
 			{Alias: "authors", Package: PackageSpec{PackageName: "authors", ImportPath: "example.com/godj-project-bundle/authors", Directory: "authors"}, Schema: authors},
 		},
 	}
+}
+
+func sparseProjectBundleTestSpec() ProjectSpec {
+	spec := projectBundleTestSpec()
+	for index := range spec.Apps {
+		switch spec.Apps[index].Alias {
+		case "authors":
+			spec.Apps[index].Schema.Models = append(spec.Apps[index].Schema.Models,
+				ir.Model{
+					Name: "category", GoName: "Category",
+					Fields: []ir.Field{
+						{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+						{Name: "name", GoName: "Name", Kind: ir.FieldChar, MaxLength: 80},
+					},
+				},
+				ir.Model{
+					Name: "profile", GoName: "Profile",
+					Fields: []ir.Field{
+						{Name: "id", GoName: "ID", Kind: ir.FieldAuto, PrimaryKey: true},
+						{Name: "label", GoName: "Label", Kind: ir.FieldChar, MaxLength: 80},
+					},
+				},
+			)
+		case "blog":
+			spec.Apps[index].Schema.Models[0].Fields = append(spec.Apps[index].Schema.Models[0].Fields, ir.Field{
+				Name: "category", GoName: "CategoryID", Kind: ir.FieldForeignKey, Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "authors", ModelName: "category"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Name: "categorized_posts"},
+					OnDelete:    ir.DeleteSetNull,
+				},
+			})
+		}
+	}
+	return spec
 }
 
 func projectBundleFile(t *testing.T, bundle GeneratedBundle, name string) GeneratedFile {
