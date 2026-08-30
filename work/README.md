@@ -75,10 +75,10 @@ proposed → ready → active → completed
 | [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | completed | Project-linked explicit `migrate`와 clean-database Article lifecycle |
 | [GDJ-0050](0050-project-linked-deterministic-makemigrations.md) | completed | Project-linked deterministic `makemigrations`와 additive schema autodetection |
 | [GDJ-0051](0051-project-linked-showmigrations.md) | completed | Project-linked read-only `showmigrations`와 deterministic applied-status listing |
-| [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md) | active | Project-linked exact target, non-authoritative plan과 bounded reverse migration |
+| [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md) | completed | Project-linked exact target, non-authoritative plan과 bounded reverse migration |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active
+현재 active/ready packet은 0/0입니다. Completed
 [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact 여덟 public argv로 latest/named/app-zero
 execute와 plan을 연결합니다. `Executor.Plan`과 execute는 revision-fenced history, graph/history check, historical state,
 whole-plan dry/capability preflight를 공유하지만 execute는 preview를 authority로 재사용하지 않고 fresh snapshot에서 다시
@@ -98,17 +98,21 @@ named/zero/plan/reverse failure-resume observation을 EVID-163에서 local-verif
 MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product registration을 완료했습니다.
 MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`; current reference는
 26/291/650=`254+25+12 locked`, product는 25/279=`254+25`이고 locked range는 MIG-075..086뿐입니다. Phase E local-final
-`8837144...`, tree `d29b09b...`은 current-source PostgreSQL A/B/checked attestation, full `make ci`, 118-package
+`8837144...`, tree `d29b09b...`은 predecessor-source PostgreSQL A/B/checked attestation, full `make ci`, 118-package
 Linux/386 compile-only, workflow-exact relation 955/955/0과 1,230-file `.git`-free archive를 통과했습니다. 첫 Hosted
 diagnostic의 stale proof/inventory와 bounded timeout 원인 및 correction은
 [EVID-165](../docs/status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)에
 기록합니다. Second Hosted `33314164696`의 five primary timeout/guard failure는 duplicate portable coverage 제거,
-MIG-128 전용 10분 guard와 Intel 45/55분 budget으로 bounded correction했고, publication `7d047ae...`의 current-source
+MIG-128 전용 10분 guard와 Intel 45/55분 budget으로 bounded correction했고, publication `7d047ae...`의 corrected-current-source
 PostgreSQL A/B/focused refreeze를
 [EVID-166](../docs/status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)에
-기록합니다. 이 corrected descendant의 exact-head Hosted와 terminal publication이 다음 작업입니다. Phase D 근거는
+기록합니다. Exact submitted head `5c20c9b...`, tree `bf50d413...`의
+[EVID-167](../docs/status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)/
+[CI #189](https://github.com/progresshans/godj/actions/runs/33318081534)는 53/53 jobs·572/572 steps와
+failure/cancel/skip/annotation 0을 통과했습니다. Targeted 12 coordinate/mode, relation normal 네 좌표 955/955/0과
+PostgreSQL normal/race/CGO0 23/23/0이 닫혀 ADR-0054/GDJ-0052는 Accepted/completed입니다. Phase D 근거는
 [EVID-164](../docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
-ADR-0054는 Proposed이며 prefix
+ADR-0054는 Accepted이며 prefix
 resolution/app-only, SQL rendering, fake/repair, destructive writer 확장과 multi-DB는 비범위입니다. Completed
 [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
 `godj showmigrations [--project <godj.toml>]` list-only 단면으로 definition load-before-open, one read-only
@@ -204,7 +208,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0051이고 현재 활성 통합 작업은 GDJ-0052입니다. Draft PR #1은
+최근 terminal completion은 GDJ-0052이고 현재 활성 통합 작업은 없습니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

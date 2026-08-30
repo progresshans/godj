@@ -1,7 +1,7 @@
 # 핵심 미결정 사항
 
 - 상태: Active register
-- 마지막 검토: 2026-08-30
+- 마지막 검토: 2026-08-31
 
 이 문서의 항목은 초안 예시를 확정 API로 오해하지 않도록 관리합니다. 결정이 나면 개별 ADR로 옮기고 여기에는 결과 링크만 남깁니다.
 
@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0052 active / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver, GDJ-0049 explicit migrate, GDJ-0050 bounded additive writer와 GDJ-0051 read-only status는 hosted-verified. GDJ-0052는 Phase D PostgreSQL/product publication까지 완료했고 Phase E attestation/full/Hosted가 pending; installed runner/library/generator semver와 general upgrader/repair UX는 open |
+| Q-010 | Partial | GDJ-0052 completed / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver, GDJ-0049 explicit migrate, GDJ-0050 bounded additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는 hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
-| Q-012 | Partial | GDJ-0052 active / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart, GDJ-0049 latest-only explicit public migrate, GDJ-0050 bounded additive writer/autodetector와 GDJ-0051 read-only status는 hosted-verified. GDJ-0052 exact-one target/non-authoritative plan/bounded reverse는 Phase D PostgreSQL/product actual까지 완료했고 Phase E가 pending; destructive/rename/upgrade/custom operation과 broader crash recovery는 open |
+| Q-012 | Partial | GDJ-0052 completed / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart, GDJ-0049 latest-only explicit public migrate, GDJ-0050 bounded additive writer/autodetector, GDJ-0051 read-only status와 GDJ-0052 exact-one target/non-authoritative plan/bounded reverse는 hosted-verified; destructive/rename/upgrade/custom operation과 broader crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
@@ -397,10 +397,11 @@ reference lock을 추가했습니다. Phase B/C에서 public writer CLI/private 
 cross-app SQLite lifecycle을 locally 구현·검증했습니다. Phase D는 MIG-099..110 actual adapter, PostgreSQL 17.10
 normal/race/CGO-disabled와 repository-external public module을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`,
 MIG-103..107은 exact 열아홉 result replacement를 가진 Verified DEV-0010 `deviation`입니다. MIG-107은 Django parity가 아니라
-Phase-A GoDj decision-oracle taxonomy를 stable production error taxonomy로 supersede합니다. Active GDJ-0052 Phase D는
-exact-one named/app-zero target, non-authoritative plan과 bounded reverse를 SQLite/PostgreSQL product로 게시했습니다.
+Phase-A GoDj decision-oracle taxonomy를 stable production error taxonomy로 supersede합니다. Completed GDJ-0052는
+exact-one named/app-zero target, non-authoritative plan과 bounded reverse를 SQLite/PostgreSQL product로 게시하고
+exact-head Hosted까지 통과했습니다.
 Prefix/app-only resolution, multi-target, SQL rendering, fake/repair, upgrade/destructive/rename/custom/data operation과
-broader crash recovery는 계속 open입니다. EVID-153 corrected exact-head Hosted까지 끝났지만 이 broader 범위가 남았으므로
+broader crash recovery는 계속 open입니다. EVID-167 corrected exact-head Hosted까지 끝났지만 이 broader 범위가 남았으므로
 historical-state와 explicit-source loader 제품 subset을 완료해도 Q-012 전체 해결을 뜻하지 않습니다.
 
 완료된

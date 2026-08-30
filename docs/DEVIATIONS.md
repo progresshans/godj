@@ -1,8 +1,8 @@
 # 의도적 호환 차이 원장
 
 - 상태: Active ledger
-- 마지막 갱신: 2026-08-30
-- 현재 검증된 deviation: DEV-0001..DEV-0010 열 건 / contract 스물네 개
+- 마지막 갱신: 2026-08-31
+- 현재 검증된 deviation: DEV-0001..DEV-0010 열 건 / contract 스물다섯 개
 - 현재 구현됐으나 terminal 검증 전인 deviation: 없음
 - Proposed이며 아직 aggregate에 포함하지 않는 후보: 없음
 
@@ -146,7 +146,10 @@ Django와의 exact backward transaction 호환이 schema/history 원자성보다
   [EVID-20260809-017](status/TEST_EVIDENCE.md#evid-20260809-017--gdj-0018-revision-fenced-migration-lifecycle-product-slice),
   [ADR-0054](adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md),
   [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md),
-  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)
+  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening),
+  [EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
+  [EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze),
+  [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)
 
 ### Django의 관찰 가능 동작
 
@@ -233,7 +236,8 @@ GDJ-0052 Phase D source `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
 2,673 bytes/SHA-256 `7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`을 게시했습니다.
 PostgreSQL 17.10 normal/race/CGO0와 SQLite external product flow가 통과했고 current aggregate는 reference
 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product 25/279=`254 passing + 25 deviation`입니다.
-Phase E attestation/full/Hosted는 pending입니다.
+Phase E predecessor full-local, corrected-source refreeze와 exact-head Hosted는 위 EVID-165/166/167이 각각 소유하며
+ADR-0054/GDJ-0052는 Accepted/completed입니다.
 
 ### 복귀 또는 supersede 조건
 

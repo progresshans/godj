@@ -1,10 +1,10 @@
 # 현재 상태
 
-- 마지막 갱신: 2026-08-30
+- 마지막 갱신: 2026-08-31
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 1/0입니다. Active
-  [GDJ-0052](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)와 Proposed
+- 현재 active/ready work는 0/0입니다. Completed
+  [GDJ-0052](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)와 Accepted
   [ADR-0054](../adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md)는 exact latest/named/app-zero
   execute/plan 여덟 argv를 고정합니다. Preview와 execute는 definition/history/graph/historical-state/dry/capability
   preparation을 공유하지만 preview output을 execution authority로 사용하지 않습니다. Execute는 항상 새 revision-fenced
@@ -54,8 +54,12 @@
   `21c0bd1...`에서 1,134 bytes/SHA-256 `ac46d9ba...e893`, binding 267 files/3,388,510 bytes/`d041e1f4...a482f`로
   다시 게시했고 focused normal/race/CGO-disabled/vet/conformance/generated gates가 통과했습니다.
   [EVID-166](TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)이
-  exact 분류, correction, A/B와 current non-claim을 기록합니다. 다음 작업은 이 corrected descendant의 exact submitted-head
-  Hosted와 terminal publication이며, 그 전까지 work는 active, ADR은 Proposed, Phase E는 unchecked입니다.
+  exact 분류, correction, A/B와 current non-claim을 기록합니다. Exact submitted head `5c20c9b...`, tree
+  `bf50d413...`의 [EVID-167](TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)/
+  [CI #189](https://github.com/progresshans/godj/actions/runs/33318081534)는 exact 53/53 jobs·572/572 steps와
+  failure/cancel/skip/annotation 0을 통과했습니다. Targeted migrate 12 coordinate/mode lane, relation normal 네 좌표
+  955/955/0과 PostgreSQL normal/race/CGO0 23/23/0이 닫혀 work는 completed, ADR은 Accepted, Phase E는 checked입니다.
+  이 terminal publication은 다음 packet을 활성화하지 않으며 Q-010/Q-012는 `Partial`, Q-019는 P1/open입니다.
   Baseline은 clean GDJ-0051 terminal
   `1d37272f4062365416536d4459a5294df4b06d03`, tree
   `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
@@ -817,8 +821,8 @@
   13/139/156이었고, same-ID 12개는 현재 전체 26/291/650 reference에도 포함되지만 reference-only
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0051 Project-linked Showmigrations](../../work/0051-project-linked-showmigrations.md)
-- 활성 작업: [GDJ-0052 Project-linked Targeted Migrate, Plan and Bounded Reverse](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)
+  [GDJ-0052 Project-linked Targeted Migrate, Plan and Bounded Reverse](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)
+- 활성 작업: 없음
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1361,13 +1365,16 @@
   `sqlite_sequence`를 검증하지 않았습니다. 별도 D4f bounded remake는 source/target sequence preservation을
   검증했지만, 두 proof 모두 raw-file equality나 general restart를 주장하지 않습니다. Opaque loaded authority 없는
   `DirectExecutor` relation execution은 semantic scan에서 fail-closed합니다.
-- Global `cmd/godj`는 migration check 두 argv, generation 네 argv와 migrate 두 argv
-  (`godj migrate`, `godj migrate --project <exact-godj.toml>`)를 exact 지원합니다. Public three-export
+- Global `cmd/godj`는 migration check 두 argv, generation 네 argv, bounded additive makemigrations 여섯 argv,
+  read-only showmigrations 두 argv와 migrate 여덟 argv를 exact 지원합니다. Migrate는 latest/named/app-zero 각각의
+  execute/plan과 optional trailing `--project <exact-godj.toml>`만 수용합니다. Public three-export
   `project.Config`/`project.MigrationBackend`/`project.Run`에서 copied static/file migration sources,
   `LoadProjectSpec`와 lazy `OpenMigrationBackend`는 서로 분리된 private command가 호출합니다. Migration check는
   DB/recorder/lifecycle을 열지 않고 actual `definition.Load`를 정확히 한 번 호출하며 generation declaration runner는
-  generated app/project target을 import하지 않습니다. Migrate만 별도 strict v1 protocol에서 catalog를 한 번 load한 뒤
-  backend를 한 번 열어 latest lifecycle을 한 번 실행하고 획득한 backend를 한 번 닫습니다.
+  generated app/project target을 import하지 않습니다. Migrate는 current-only strict v2 protocol에서 catalog를 한 번
+  load한 뒤 backend를 한 번 열어 지정된 mode/target lifecycle을 한 번 실행하고 획득한 backend를 한 번
+  닫습니다. Plan은 같은 history/graph/dry/capability preparation을 사용하지만 transaction을 시작하지 않으며 execute는
+  preview를 authority로 재사용하지 않고 fresh snapshot에서 다시 계획합니다.
   Completed GDJ-0051은 같은 public facade를 넓히지 않고 showmigrations 두 argv와 별도 `migrations.show` private wire를
   추가했습니다. Phase C SQLite external proof와 Phase D PostgreSQL 17.10/product actual을 거쳐 MIG-111..118은
   `passing`으로 등록됐습니다. EVID-158 local final과 EVID-159 exact-head Hosted까지 통과해 work/ADR은
@@ -2030,7 +2037,7 @@ cancelled이며 15개 direct-import lock failure, 3개 stale-attestation failure
 full/Linux-386/relation/archive local-final ownership을 정확히 닫았습니다. Exact submitted head `bebb690...`, tree
 `e0dac4e...`의 EVID-159/CI #177 run `33295130785` attempt 1은 41/41 jobs·464/464 steps,
 failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0053/GDJ-0051은 Accepted/completed입니다.
-현재 active/ready packet은 1/0이며 GDJ-0052 exact target/plan/bounded reverse가 활성화됐습니다. Baseline
+현재 active/ready packet은 0/0이며 GDJ-0052 exact target/plan/bounded reverse는 completed입니다. Baseline
 `1d37272...`에서 시작해 Phase B source `cd499462...`/tree `580ae7a...`가 public strict v2 wire,
 `KnownAppZeroTarget`, shared preparation과 no-mutation plan을 구현했습니다. Phase A source `db8fc418...`/tree
 `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로 게시했고 EVID-162의 exact Python/semantic/
@@ -2039,13 +2046,14 @@ protocol/conformance/oracle/checksum과 independent audit를 통과했습니다.
 failure-resume를 통과했고 split 12-leg CI topology를 잠갔습니다. Phase D source `a92efb5...`/tree
 `06f90a9...`와 EVID-164는 PostgreSQL 17.10 normal/race/CGO0, 25번째 oracle-blind adapter, MIG-127/full
 MIG-128 ownership과 DEV-0002 MIG-122 sparse publication을 통과했습니다. Current reference 26/291/650=
-`254+25+12 locked`, product 25/279=`254+25`이며 MIG-075..086만 locked입니다. ADR-0054 Proposed와
-GDJ-0052 active는 불변입니다. Phase E local-final `8837144...`/tree `d29b09b...`은 current-source A/B attestation,
+`254+25+12 locked`, product 25/279=`254+25`이며 MIG-075..086만 locked입니다. ADR-0054/GDJ-0052는
+Accepted/completed입니다. Phase E local-final `8837144...`/tree `d29b09b...`은 predecessor-source A/B attestation,
 full `make ci`, 118-package Linux/386 compile-only, relation 955/955/0과 1,230-file `.git`-free archive를 EVID-165에서
 통과했습니다. Second Hosted `33314164696`은 47/53 jobs success, cancellation 0이며 five primary timeout/guard failures와
 Required CI derivative로 분류됐습니다. `538102f...`/`7859bd7...`의 bounded guard·duplicate-coverage·Intel budget correction과
-`7d047ae...`의 current source-bound A/B publication은 EVID-166의 focused refreeze를 통과했습니다. 다음 정확한 작업은 이
-corrected descendant의 exact submitted-head Hosted와 terminal publication입니다.
+`7d047ae...`의 corrected-current source-bound A/B publication은 EVID-166의 focused refreeze를 통과했습니다. Exact submitted
+head `5c20c9b...`, tree `bf50d413...`의 EVID-167/CI #189는 53/53 jobs·572/572 steps와
+failure/cancel/skip/annotation 0을 통과해 terminal publication을 닫았습니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,

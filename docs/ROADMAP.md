@@ -1,19 +1,18 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 최근 completed batch: [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 loaded catalog와 read-only applied
+- 최근 completed batch: [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact
+  named/app-zero execute, non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를
+  MIG-119..128로 게시했습니다. MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`이고
+  product는 25/279=`254+25`입니다. Phase B/reference/SQLite/PostgreSQL publication은 EVID-161..164, predecessor
+  full-local/386/relation/archive는 EVID-165, corrected-source refreeze는 EVID-166이 소유합니다. Exact submitted head
+  `5c20c9b...`, tree `bf50d413...`의 EVID-167/CI #189는 53/53 jobs·572/572 steps와
+  failure/cancel/skip/annotation 0을 통과해 ADR-0054/GDJ-0052를 Accepted/completed로 닫았습니다. 현재
+  active/ready는 0/0이며 이 terminal publication은 다음 packet을 자동 활성화하지 않습니다.
+- 직전 completed batch: [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 loaded catalog와 read-only applied
   history를 exact `godj showmigrations`로 게시하고 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
-  통과했습니다. 현재 active/ready는 1/0이며 Active
-  [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact named/app-zero execute,
-  non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다. Phase B
-  core source `cd499462...`는 public/private target-plan 경계를 구현했고 Phase A source `db8fc418...`는 10개 contract를
-  reference-only `oracle_locked`로 게시했습니다. Phase C source `5b8d48f...`, tree `7df990a...`는 external public-only
-  module/global child/SQLite product-flow observation을 local-verify했습니다. Phase D source `a92efb5...`, tree
-  `06f90a9...`는 PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product publication을 완료했습니다.
-  MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`이고 product는 25/279=`254+25`입니다.
-  [EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)이
-  이 local checkpoint를 고정하며 다음 gate는 Phase E source-bound attestation/full/exact submitted-head Hosted입니다.
-- 직전 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted
+  통과했습니다.
+- 그 이전 completed batch: [GDJ-0050](../work/0050-project-linked-deterministic-makemigrations.md)은 Accepted
   [ADR-0052](adr/0052-project-linked-deterministic-makemigrations.md) 아래 current CreateModel/AddField additive detector,
   deterministic Definition format 1과 DB-free recoverable `godj makemigrations`를 완료했습니다. Phase E predecessor
   local full/386/relation/archive는 EVID-151, current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다.
@@ -172,8 +171,9 @@
   GDJ-0051 Phase D는 MIG-111..118을 product `passing`으로 게시했고 PostgreSQL 17.10과 exact 16-case
   project boundary를 EVID-157로 검증했습니다. 그 completion 당시 locked range는 MIG-075..086이었습니다.
   GDJ-0052 Phase D는 MIG-119..121/123..128 `passing`, MIG-122 Verified DEV-0002 `deviation`을 게시했고 현재
-  reference-only locked range는 MIG-075..086뿐입니다. Phase E는 pending입니다.
-- 마지막 검토: 2026-08-30
+  reference-only locked range는 MIG-075..086뿐입니다. EVID-167/CI #189 exact-head Hosted까지 통과해 Phase E와
+  ADR-0054/GDJ-0052 acceptance를 닫았습니다.
+- 마지막 검토: 2026-08-31
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
 
@@ -257,9 +257,10 @@ whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 �
 `dc7a455...`와 EVID-157은 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product registration과 MIG-118 exact
 16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E EVID-158 local final과 EVID-159
 exact-head Hosted도 통과했습니다.
-Target/reverse와 `--plan`은 active GDJ-0052에서 exact-one target/current-only v2 core와 reference-only lock을 완료했고,
+Target/reverse와 `--plan`은 completed GDJ-0052에서 exact-one target/current-only v2 core와 reference-only lock을 완료했고,
 Phase C external SQLite product flow에 이어 Phase D PostgreSQL 17.10 normal/race/CGO0, oracle-blind adapter와
-MIG-127/full MIG-128을 local-verify했습니다. Phase E attestation/full/Hosted는 pending이며 `sqlmigrate`는 별도
+MIG-127/full MIG-128을 local-verify했습니다. Phase E predecessor full-local/current-source refreeze와 exact-head Hosted도
+EVID-165..167에서 통과했으며 `sqlmigrate`는 별도
 후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의

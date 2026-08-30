@@ -1,7 +1,7 @@
 # 장기 기능 카탈로그
 
 - 상태: 제품 범위 Accepted, 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md) 기준
-- 마지막 검토: 2026-08-30
+- 마지막 검토: 2026-08-31
 
 이 문서는 큰 프로젝트에서 기능 범위를 잃지 않기 위한 카탈로그입니다. 목록에 있다는 사실은 구현, 지원, API 안정성을 뜻하지 않습니다. 각 영역은 해당 milestone에서 contract와 work item으로 더 작게 분해합니다. “지원”은 model, relation depth, backend, process/deployment policy 중 해당 기능에 관련되는 차원을 포함한 기록된 bounded profile을 뜻하며, 하나의 Article flow를 자동으로 범용 능력으로 확대해석하지 않습니다.
 
@@ -125,9 +125,12 @@ Compatibility manifest를 만들 때 [Django 6.1 release notes](https://docs.dja
 현재 migration 제품 단면은 caller가 explicit source bytes를 `migrations/definition`에 전달하는 loader,
 completed GDJ-0022/Accepted ADR-0022의 exact `godj migrations check`, completed GDJ-0049/Accepted ADR-0051의
 exact latest-only `godj migrate`, completed GDJ-0050 `makemigrations`와 GDJ-0051 `showmigrations`를 포함합니다.
-Active GDJ-0052의 exact-one target/non-authoritative plan/bounded reverse는 Phase D PostgreSQL 17.10
-normal/race/CGO0와 oracle-blind product publication까지 local-verified됐습니다. Phase E source-bound attestation,
-full milestone과 exact submitted-head Hosted는 pending입니다.
+Completed GDJ-0052의 exact-one target/non-authoritative plan/bounded reverse는 PostgreSQL 17.10
+normal/race/CGO0와 oracle-blind product publication, predecessor full-local/corrected-source refreeze 및 exact-head Hosted까지
+verified됐습니다. Phase E evidence ownership은 각각
+[EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
+[EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze),
+[EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)에 분리돼 있습니다.
 Global CLI는 exact
 `godj.toml`을 선택해 private project runner를 build/run하고 linked code가 명시한 flat roots를 no-follow로
 읽어 actual loader에 exactly once 넘깁니다. MIG-065..074는 actual adapter에서 10 `passing`입니다.
@@ -157,7 +160,7 @@ GDJ-0051 completion 당시 reference는 25/281/600=`245 passing + 24 deviation +
 24/269=`245 passing + 24 deviation`이며 당시 MIG-075..086만 locked였습니다. EVID-157의 focused gates와 independent final audit는
 P0..P3=`0`입니다. EVID-158 source-bound attestation/local final과 EVID-159/CI #177 exact-head Hosted 41/41
 jobs·464/464 steps도 통과했으므로 GDJ-0051/ADR-0053은 completed/Accepted입니다.
-Active GDJ-0052는 existing library-level targeted executor를 exact-one public target, no-mutation plan과 bounded reverse로
+Completed GDJ-0052는 existing library-level targeted executor를 exact-one public target, no-mutation plan과 bounded reverse로
 연결합니다. Phase B core source `cd499462...`는 `Executor.Plan`, `KnownAppZeroTarget`과 private migrate protocol v2를
 구현했고 Phase A source `db8fc418...`, tree `639a712...`는 MIG-119..128을 reference-only `oracle_locked`로
 고정했습니다. Manifest/NI/oracle은 각각 6,781/1,707/43,516 bytes이며 SHA-256은
@@ -170,11 +173,14 @@ named/zero/plan/reverse failure-resume를 local-verify했습니다. Phase D sour
 MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 25번째 oracle-blind adapter를 게시했습니다.
 MIG-119..121/123..128은 `passing`, MIG-122만 세 `result.plan[0..2]` selector의 Verified DEV-0002
 `deviation`입니다. Current reference는 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product는
-25/279=`254 passing + 25 deviation`이고 locked range는 MIG-075..086뿐입니다. Proposed ADR-0054와 active
-GDJ-0052는 Phase E 전에는 승격하지 않습니다. 근거는
+25/279=`254 passing + 25 deviation`이고 locked range는 MIG-075..086뿐입니다. ADR-0054/GDJ-0052는
+Accepted/completed입니다. 근거는
 [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
 [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
-[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
+[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening),
+[EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
+[EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)과
+[EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
 Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
@@ -685,7 +691,7 @@ GDJ-0051 Phase D product publication 당시 reference는 25/281/600=
 `245 passing + 24 deviation + 12 oracle_locked`, product는 24/269=`245 passing + 24 deviation`입니다.
 MIG-099/100/101/102/108/109/110은 product `passing`, MIG-103..107은 exact 열아홉 result replacement의
 Verified DEV-0010 `deviation`이며 당시 남은 locked range는 MIG-075..086이었습니다. Current aggregate와 locked range는
-위 active GDJ-0052 section을 따릅니다.
+위 completed GDJ-0052 section을 따릅니다.
 
 결정 경계는 existing declaration package 재사용, copied static/file definition source, load-before-open, lazy
 project-owned backend opener, 별도 strict private protocol, latest-only/no-retry와 secret-free bounded response입니다.

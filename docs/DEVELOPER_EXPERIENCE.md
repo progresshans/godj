@@ -1,9 +1,9 @@
 # 목표 개발 경험
 
 - 상태: M1 Article/GDJ-0040 Boolean 문법, GDJ-0041 typed comparison/F, GDJ-0042 bounded runserver, GDJ-0049 bounded
-  explicit migrate, GDJ-0050 additive writer와 GDJ-0051 read-only status는 hosted-Verified; GDJ-0052 targeted migrate는
-  Phase D PostgreSQL 17.10/product publication까지 local-Verified, Phase E pending
-- 마지막 검토: 2026-08-30
+  explicit migrate, GDJ-0050 additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는
+  hosted-Verified
+- 마지막 검토: 2026-08-31
 
 아래 `M1 verified` 단면과 명시적으로 Implemented/Verified된 GDJ-0042/0049..0052 경계를 제외한 코드는
 **illustrative sketch**입니다. M1 API도
@@ -531,7 +531,7 @@ Hosted도 통과해 ADR-0053/GDJ-0051은 Accepted/completed입니다. App filter
 [EVID-156](status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint),
 [EVID-157](status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)입니다.
 
-Active GDJ-0052는 다음 exact forms를 별도 bounded packet으로 추가합니다.
+Completed GDJ-0052는 다음 exact forms를 bounded product surface로 추가했습니다.
 
 ```bash
 godj migrate --plan
@@ -554,11 +554,12 @@ exact target/plan/reverse failure-resume를 local-verify했습니다. Phase D so
 MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product registration을 완료했습니다.
 MIG-119..121/123..128은 `passing`, MIG-122만 lifecycle MIG-052와 분리된 DEV-0002 세 plan selector의
 `deviation`입니다. Current reference는 26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product는
-25/279=`254 passing + 25 deviation`이며 locked range는 MIG-075..086뿐입니다. Proposed ADR-0054/GDJ-0052는
-Phase E source-bound attestation/full/Hosted 전에는 승격하지 않습니다. 근거는
+25/279=`254 passing + 25 deviation`이며 locked range는 MIG-075..086뿐입니다. ADR-0054/GDJ-0052는
+Accepted/completed입니다. 근거는
 [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
 [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),
-[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
+[EVID-164](status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)와
+[EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
 
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를

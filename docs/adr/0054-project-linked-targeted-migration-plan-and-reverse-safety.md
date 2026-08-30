@@ -1,6 +1,6 @@
 # ADR-0054: Project-linked Targeted Migration Plan and Reverse Safety
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-30
 - 관련 work/contract: GDJ-0052, MIG-119..MIG-128, Q-010, Q-012, Q-019
 - 대체하는 ADR: 없음

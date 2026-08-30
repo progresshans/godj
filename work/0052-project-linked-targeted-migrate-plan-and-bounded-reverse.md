@@ -1,7 +1,7 @@
 ---
 id: GDJ-0052
-status: active
-updated: 2026-08-30
+status: completed
+updated: 2026-08-31
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "1d37272f4062365416536d4459a5294df4b06d03"
 depends_on: ["GDJ-0014", "GDJ-0018", "GDJ-0036", "GDJ-0049", "GDJ-0050", "GDJ-0051"]
@@ -228,7 +228,7 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
 - [x] Phase B — known-app target, shared lifecycle preparation, public Plan과 strict private v2/global argv
 - [x] Phase C — repository-external SQLite named/zero/plan/reverse failure-resume product flow
 - [x] Phase D — PostgreSQL 17.10 normal/race/CGO0, oracle-blind product registration과 independent audit
-- [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
+- [x] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
 
 ## 현재 checkpoint
 
@@ -343,3 +343,13 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
     Hosted는 아직 재실행하지 않았으므로 Phase E/ADR/work 상태는 그대로입니다. 자세한 증거는
     [EVID-166](../docs/status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)에
     기록합니다.
+  - Exact submitted head `5c20c9b609f531919a15d2fe748b6d60a0ded317`, tree
+    `bf50d413d6db2ba9198e8f79e851b16be189d3c3`의
+    [CI #189/run 33318081534](https://github.com/progresshans/godj/actions/runs/33318081534)는 53/53 jobs와
+    572/572 steps를 failure/cancel/skip/annotation 0으로 통과했습니다. Pull-request merge ref
+    `2c6e361a5ca99af1558c8da7aa46c150ac275776`도 submitted head와 동일한 tree를 가졌습니다. Targeted migrate
+    12 coordinate/mode lane은 각각 exact 11 required sentinel과 zero-skip guard를 통과했고, 네 relation normal
+    coordinate는 각각 exact 955/955/0, PostgreSQL 17.10 normal/race/CGO-disabled는 각각 23/23/0을 게시했습니다.
+    [EVID-167](../docs/status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)이
+    exact terminal Hosted와 documentation gate를 기록합니다. ADR-0054는 Accepted, GDJ-0052는 completed이며
+    Q-010/Q-012는 broader generation/upgrade/destructive 범위 때문에 `Partial`, Q-019는 P1/open을 유지합니다.

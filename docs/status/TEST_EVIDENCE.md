@@ -1,8 +1,8 @@
 # 테스트·검증 증거
 
-- 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-165
-- latest successful hosted product proof: EVID-20260830-159
+- 마지막 갱신: 2026-08-31
+- 현재 local source/contract checkpoint: EVID-20260830-166
+- latest successful hosted product proof: EVID-20260831-167
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
 
@@ -15575,3 +15575,82 @@ The new standalone `make targeted-migrate-product` aggregate was inspected but n
 underlying modes and the dedicated Hosted matrix own the pending exact revalidation. Exact submitted-head Hosted is still
 required. Until it succeeds, ADR-0054 remains Proposed, GDJ-0052 remains active and Phase E remains unchecked. Draft PR #1
 remains open/draft/unmerged; no PR comment, merge, release or deployment was performed.
+
+## EVID-20260831-167 — GDJ-0052 Corrected Exact-head Hosted Completion
+
+- Date: 2026-08-31 KST
+- Platform: GitHub Actions pull-request runners; Ubuntu 22.04 x64, Ubuntu 24.04 arm64, macOS 15 Intel,
+  macOS 26 arm64, CPython 3.12.13/3.13.15/3.14.3/3.14.7 and digest-pinned PostgreSQL 17.10
+- Work/contract IDs: GDJ-0052 completed; ADR-0054 Accepted; MIG-119..121/123..128 product `passing`, MIG-122
+  Verified DEV-0002 `deviation`; Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Exact submitted head: `5c20c9b609f531919a15d2fe748b6d60a0ded317`, tree
+  `bf50d413d6db2ba9198e8f79e851b16be189d3c3`
+- Pull-request merge ref: `2c6e361a5ca99af1558c8da7aa46c150ac275776`, the same exact tree
+  `bf50d413d6db2ba9198e8f79e851b16be189d3c3`
+- Hosted run: [CI #189 / run 33318081534 attempt 1](https://github.com/progresshans/godj/actions/runs/33318081534),
+  completed/success
+
+### Exact submitted content and topology
+
+The pull-request workflow checked out synthetic merge ref `2c6e361...`, whose ordered parents are base
+`f8a5e20c0211a81ee7d3ef002f2f34bcbbb6c821` and submitted head `5c20c9b...`. GitHub's commit API reports that the merge
+ref and submitted head have the identical tree `bf50d413...`; the run therefore exercised the exact submitted content
+despite the pull-request merge wrapper.
+
+The run/jobs endpoints, all 53 individual job endpoints and check suite `90285561180` agree on exact 53/53 jobs and
+572/572 steps completed successfully. There were zero failed, cancelled, skipped or unclassified jobs/steps, all 53 check
+runs completed successfully, and the aggregate output-annotation count was zero. The exact topology was one
+artifact-validation lane, three portable Go modes, one exact Darwin lane, four project-check coordinates, four
+relation-binding coordinates, twelve relation-product coordinate/mode jobs, four product-project-check coordinates,
+twelve targeted-migrate coordinate/mode jobs, four Python profiles, three PostgreSQL modes, four SQLite coordinates and
+one `Required CI` aggregate. Expected and actual job names were an exact set; there were no missing, unexpected or
+duplicate names.
+
+`Required CI` job/check `99282657509` completed all three steps. Its aggregate step required the exact eleven logical
+dependency groups for artifact, portable, Darwin, project-check, relation-binding, relation-product,
+product-project-check, targeted-migrate, Python, PostgreSQL and SQLite and observed `success` for every group. This is
+workflow-aggregate evidence and does not claim that repository branch protection independently requires the check.
+
+### Hosted product identities
+
+All twelve targeted-migrate jobs completed their exact 11-sentinel required-pass loop, package-wide zero-skip check and
+clean-worktree gate in normal, race or CGO-disabled mode on all four OS/architecture coordinates. The successful inventory
+step proves the locked selector set and no-skip assertion; it does not claim that slash-named subtests are separate
+top-level inventory rows.
+
+All twelve relation-product jobs passed. Each normal job on Ubuntu 22.04 x64, Ubuntu 24.04 arm64, macOS 15 Intel and
+macOS 26 arm64 emitted the locked inventory 955 runs/955 passes/0 skips, 97,485 canonical payload bytes and SHA-256
+`530ce8c3e5e99b8c78474920574e0042d5ddb6fdf86dc080c805f4a4044ec4b4`. Race and CGO-disabled coordinate jobs passed
+their exact selectors; they do not publish a second normal-mode payload inventory.
+
+PostgreSQL 17.10 normal, race and CGO-disabled jobs each emitted exact 23 runs/23 passes/0 skips. Normal compared the
+freshly captured source-bound system-state attestation byte-for-byte with the checked artifact, verified its checksum and
+completed the separate distinct-process PostgreSQL restart prepare/restart/resume/verify/cleanup flow. Race and
+CGO-disabled ended after their exact required inventories. Artifact validation, all other required lanes and 50/50 named
+clean-worktree gates passed. Intentional dependency/profile skips in other tools are not reclassified as
+product-inventory skips.
+
+The final read-only audit cross-checked run/job/step/check endpoints, the merge-ref tree and required/relation/PostgreSQL
+logs and found no P0/P1/P2/P3 terminal finding. Portable normal-vet completed within its 40-minute budget but with less
+headroom than the other portable modes; this is a future timing observation, not a failed or skipped acceptance gate.
+
+### Evidence ownership and terminal boundary
+
+[EVID-165](#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final) remains the exact
+predecessor proof for full local `make ci`, 118-package Linux/386 compile-only, workflow-exact relation inventory and the
+1,230-file repository-external archive. [EVID-166](#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)
+owns the corrected-source focused normal/race/CGO-disabled/vet/conformance gates and independent PostgreSQL A/B refreeze.
+Neither is relabeled as a full-local rerun on `5c20c9b...`; CI #189 owns the corrected exact submitted-head Hosted proof.
+
+The terminal descendant changes only the fourteen bounded status/evidence documents listed by GDJ-0052. Product source,
+workflow, Make targets, contract artifacts, generated bytes and source-bound attestation bytes are unchanged. It passed
+tracked-Markdown parsing, local link/heading/frontmatter/status consistency, terminal-document scope and
+`git diff --check`. `make format-check`, `go test -count=1 ./conformance/internal/protocol`, `make conformance-check` and
+the checked PostgreSQL attestation `SHA256SUMS` also exited zero. Full `make ci`, Linux/386 and repository-external
+relation/archive gates were not recursively rerun for this documentation-only descendant.
+
+ADR-0054 is Accepted and GDJ-0052 is completed for the bounded exact target, non-authoritative plan and reverse profile.
+This completion does not add prefix/app-only/multiple target, `sqlmigrate`, fake/repair/adoption, destructive writer,
+multi-DB or general upgrade compatibility. Q-010/Q-012 therefore remain `Partial` and Q-019 remains P1/open. Draft PR #1
+remains open/draft/unmerged; no PR comment, merge, release or deployment was performed, and no next feature packet is
+activated by this evidence.

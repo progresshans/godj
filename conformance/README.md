@@ -358,9 +358,15 @@ GDJ-0052 Phase D source `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
 25번째 oracle-blind adapter를 게시했습니다. MIG-119..121/123..128은 `passing`, MIG-122만 manifest-aware DEV-0002
 `deviation`이며 별도 2,673-byte sparse expectation은 `result.plan[0..2]` 세 selector만 소유합니다. Current target-plan
 manifest/expectation SHA-256은 `0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496`/
-`7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`입니다. Phase E
-source-bound attestation/full/Hosted는 pending이고 ADR-0054/GDJ-0052는 Proposed/active입니다. Phase D 근거는
-[EVID-164](../docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
+`7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`입니다. Phase D는
+[EVID-164](../docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening),
+predecessor full-local/386/relation/archive는
+[EVID-165](../docs/status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
+corrected-source focused/A/B refreeze는
+[EVID-166](../docs/status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze),
+exact-head Hosted는
+[EVID-167](../docs/status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)이
+각각 소유하며 ADR-0054/GDJ-0052는 Accepted/completed입니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,
