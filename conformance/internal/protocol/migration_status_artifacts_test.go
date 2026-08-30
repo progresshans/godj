@@ -306,8 +306,8 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 	if got := strings.Count(referenceTarget, "$(MIGRATION_STATUS_NOT_IMPLEMENTED)"); got != 1 {
 		t.Fatalf("reference migration-status NI count = %d, want 1", got)
 	}
-	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 52 {
-		t.Fatalf("reference contractcheck count = %d, want 52", got)
+	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 54 {
+		t.Fatalf("reference contractcheck count = %d, want 54", got)
 	}
 	for variable, want := range map[string]int{
 		"$(MIGRATION_STATUS_MANIFEST)":        1,
@@ -328,8 +328,8 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 		if got := strings.Count(target, "$(MIGRATION_STATUS_ORACLE)"); got != 1 {
 			t.Fatalf("%s migration-status oracle count = %d, want 1", name, got)
 		}
-		if got := strings.Count(target, "python -m conformance.runners.django"); got != 26 {
-			t.Fatalf("%s reference runner count = %d, want 26", name, got)
+		if got := strings.Count(target, "python -m conformance.runners.django"); got != 27 {
+			t.Fatalf("%s reference runner count = %d, want 27", name, got)
 		}
 	}
 

@@ -1,0 +1,139 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-129",
+      "title": "The public command accepts exactly two exact-name forms and rejects invalid permutations before project I/O",
+      "scenario": "godj.migration.sql_rendering.argv_and_pre_io_rejection",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-130",
+      "title": "Complete catalog validation and exact lookup produce one identity-bearing detached forward request",
+      "scenario": "godj.migration.sql_rendering.complete_load_exact_lookup_and_request",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-131",
+      "title": "Forward SQL uses the target-before historical state and exactly one target migration in definition order",
+      "scenario": "django.migration.sql_rendering.forward_before_state_order",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/sqlmigrate.py::Command.handle", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.project_state", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.collect_sql", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.apply", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py::MigrateTests.test_sqlmigrate_forwards", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "MIG-132",
+      "title": "SQLite CreateModel and AddField preserve normalized forward meaning and operation order",
+      "scenario": "django.migration.sql_rendering.sqlite_create_add_semantics",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/loader.py::MigrationLoader.collect_sql", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/migration.py::Migration.apply", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/operations/models.py::CreateModel.database_forwards", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/migrations/operations/fields.py::AddField.database_forwards", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/base/schema.py::BaseDatabaseSchemaEditor.create_model", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/base/schema.py::BaseDatabaseSchemaEditor.add_field", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/db/backends/sqlite3/schema.py::DatabaseSchemaEditor.add_field", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py::MigrateTests.test_sqlmigrate_forwards", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "MIG-133",
+      "title": "PostgreSQL current projection is schema-qualified from schema-only immutable configuration without database access",
+      "scenario": "godj.migration.sql_rendering.postgres_current_projection",
+      "phase": "construction",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-134",
+      "title": "Canonical statement output is cardinality-bound and deterministic across repeat parallel and fresh-process observations",
+      "scenario": "godj.migration.sql_rendering.canonical_deterministic_output",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-135",
+      "title": "Success failure and cancellation keep database history transaction recorder and schema mutation calls at zero",
+      "scenario": "godj.migration.sql_rendering.database_and_history_zero_calls",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-136",
+      "title": "Typed-nil unsupported custom data and malformed renderer cases fail closed before logical SQL publication",
+      "scenario": "godj.migration.sql_rendering.renderer_and_operation_fail_closed",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-137",
+      "title": "Resource cleanup redaction and one final write attempt are bounded without an atomic terminal-write claim",
+      "scenario": "godj.migration.sql_rendering.resource_cleanup_redaction_and_write",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "metrics"]
+    },
+    {
+      "id": "MIG-138",
+      "title": "Repository-external projects configure built-in renderers through public constructors without database access",
+      "scenario": "godj.migration.sql_rendering.external_project_configuration",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0055", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

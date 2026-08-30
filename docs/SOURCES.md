@@ -1,7 +1,7 @@
 # 기준 출처와 검증 기록
 
 - 외부 source 마지막 확인: 2026-08-26 (Asia/Seoul)
-- current artifact/provenance 마지막 검토: 2026-08-30 (Asia/Seoul)
+- current artifact/provenance 마지막 검토: 2026-08-31 (Asia/Seoul)
 - 외부 사실은 가능하면 공식 1차 출처를 사용합니다.
 
 ## Django
@@ -155,6 +155,41 @@ Phase A exact manifest/not-implemented/oracle은 각각 6,781/1,707/43,516 bytes
 `dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`입니다. 이 추가 뒤 shared 23-line
 `SHA256SUMS`는 2,177 bytes/SHA-256 `00bd4d0d865ace8620bc577d84fd4198b5724360727117fd4998f0772460f331`입니다.
 MIG-119..128은 이 checkpoint에서 모두 `oracle_locked`이며 product actual이나 지원 주장을 포함하지 않습니다.
+
+### GDJ-0054 migration SQL projection authority
+
+GDJ-0054 Phase A는 같은 pinned Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`에서 실제
+`Command.handle → MigrationLoader.collect_sql → Migration.apply → operation.database_forwards → collect-SQL schema editor`
+경로를 감사했습니다. `MigrationExecutor`는 이 경로에 포함되지 않습니다. Django result authority는 MIG-131의
+target-before state와 exactly-one forward operation order, MIG-132의 normalized SQLite CreateModel/AddField 의미에만
+한정합니다. Exact argv, identity-bearing request, PostgreSQL projection, canonical raw bytes, DB-free lifecycle, error/resource/
+cleanup/publication과 external project configuration은 GoDj-owned decision입니다.
+
+| Exact object | Blob | Bytes | Audited range and meaning |
+|---|---|---:|---|
+| `django/core/management/base.py` | `8f2447905064bf3838a16ecee25f8e31a5feb472` | 25,059 | `BaseCommand.execute` L441–476; excluded terminal transaction wrapper owner |
+| `django/core/management/commands/sqlmigrate.py` | `3c2e25eeeaff217e7bf001b5d6d45a882908d3eb` | 3,310 | `Command.execute` L34–38, `Command.handle` L40–83 |
+| `django/db/migrations/loader.py` | `af2d521d893f1a657d6a8edda72ae590831a60ee` | 18,744 | `project_state` L402–411, `collect_sql` L413–433 |
+| `django/db/migrations/migration.py` | `2041a28780bc8f0d4e3556688fa414051dee7244` | 9,765 | `Migration.apply` L94–137 |
+| `django/db/migrations/operations/models.py` | `1b241230df922b9bc2350858da3604c9d1b01eef` | 45,901 | `CreateModel.database_forwards` L97–111 |
+| `django/db/migrations/operations/fields.py` | `72b54382ef4902d599d7b62900cd677aac208f0c` | 12,787 | `AddField.database_forwards` L111–123 |
+| `django/db/backends/base/schema.py` | `9857eea57107c37a8c45d4aa0276ca775e70d162` | 85,400 | `create_model` L516–549, `add_field` L760–847 |
+| `django/db/backends/sqlite3/schema.py` | `47edec8f1ccc5b8c9309a41aabac9414a4e9e079` | 20,358 | SQLite `add_field` L302–331 and base delegation |
+| `tests/migrations/test_commands.py` | `61336f55332844bfd372b97aa6a7b1fad6cca027` | 153,217 | `MigrateTests.test_sqlmigrate_forwards` L908–964 |
+
+Installed Django package 파일 8개는 exact bytes/SHA-256/Git blob과 runtime method range를 함께 검증합니다. Wheel에 없는
+`test_commands.py`는 checkout blob, SHA-256
+`15b8ca276a4aca3237cbadb062947c1b052fa095c6425d02b4dd7dffb455bcca`와 method range로 별도 잠급니다. Raw SQL,
+comments와 BEGIN/COMMIT wrapper는 reference comparison에서 제외하며 clean database와 recorder zero를 독립 확인합니다.
+
+Phase A exact manifest/not-implemented/oracle은 각각 8,010/1,727/46,941 bytes이고 SHA-256은
+`7074d37ffc5889d86374a14c528a6eeca0007c9a7789b1fc7ffbacbb2a776703`,
+`217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144`,
+`fa015cb0414709d0fc66d20d34776821fc2612ddac7702f8854141deb89abc99`입니다. 이 추가 뒤 shared 24-line
+`SHA256SUMS`는 2,279 bytes/SHA-256 `9d2180400e5ffd339593d11feb95fdaf9b1532eaa14fdee8cfdc2d9c88f6e71d`입니다.
+MIG-129..138은 모두 reference-only `oracle_locked`이며 product adapter, deviation fixture와 support publication을 포함하지
+않습니다.
 
 ## Django REST framework
 

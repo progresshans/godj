@@ -86,6 +86,12 @@ from .migration_target_plan_decisions import (  # noqa: E402
 from .migration_target_plan_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_TARGET_PLAN_DJANGO_SCENARIOS,
 )
+from .migration_sql_rendering_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_SQL_RENDERING_DECISION_SCENARIOS,
+)
+from .migration_sql_rendering_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_SQL_RENDERING_DJANGO_SCENARIOS,
+)
 from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
 from .migration_relation_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_RELATION_SCENARIOS,
@@ -199,6 +205,24 @@ MIGRATION_TARGET_PLAN_SCENARIOS = {
         "godj.migration.target_plan.project_protocol_and_ownership",
     )
 }
+MIGRATION_SQL_RENDERING_SCENARIOS = {
+    name: (
+        MIGRATION_SQL_RENDERING_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_SQL_RENDERING_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "godj.migration.sql_rendering.argv_and_pre_io_rejection",
+        "godj.migration.sql_rendering.complete_load_exact_lookup_and_request",
+        "django.migration.sql_rendering.forward_before_state_order",
+        "django.migration.sql_rendering.sqlite_create_add_semantics",
+        "godj.migration.sql_rendering.postgres_current_projection",
+        "godj.migration.sql_rendering.canonical_deterministic_output",
+        "godj.migration.sql_rendering.database_and_history_zero_calls",
+        "godj.migration.sql_rendering.renderer_and_operation_fail_closed",
+        "godj.migration.sql_rendering.resource_cleanup_redaction_and_write",
+        "godj.migration.sql_rendering.external_project_configuration",
+    )
+}
 
 
 SCENARIO_REGISTRIES = (
@@ -219,6 +243,7 @@ SCENARIO_REGISTRIES = (
     MIGRATION_WRITER_SCENARIOS,
     MIGRATION_STATUS_SCENARIOS,
     MIGRATION_TARGET_PLAN_SCENARIOS,
+    MIGRATION_SQL_RENDERING_SCENARIOS,
     RELATION_SCENARIOS,
     MIGRATION_RELATION_SCENARIOS,
     TEMPLATE_FORM_SCENARIOS,
@@ -380,6 +405,13 @@ DEFAULT_MIGRATION_TARGET_PLAN_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json"
 )
+DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-sql-rendering-manifest.json"
+)
+DEFAULT_MIGRATION_SQL_RENDERING_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-sql-rendering-oracle.json"
+)
 DEFAULT_RELATION_MANIFEST = (
     REPOSITORY_ROOT / "conformance/contracts/relation-manifest.json"
 )
@@ -468,6 +500,9 @@ KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MIGRATION_STATUS_MANIFEST.resolve(): DEFAULT_MIGRATION_STATUS_ORACLE,
     DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST.resolve(): (
         DEFAULT_MIGRATION_TARGET_PLAN_ORACLE
+    ),
+    DEFAULT_MIGRATION_SQL_RENDERING_MANIFEST.resolve(): (
+        DEFAULT_MIGRATION_SQL_RENDERING_ORACLE
     ),
     DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
     DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
