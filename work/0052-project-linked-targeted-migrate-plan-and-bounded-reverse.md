@@ -315,6 +315,12 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
     exact-source attestation recapture가 pending입니다. 또한 macOS에서 `GOOS=linux GOARCH=386` test binary를 `-exec`
     없이 잘못 실행한 시도는 `exec format error`였고 이를 제품 실패로 세지 않았습니다. Corrected Linux/386 compile-only는
     `-exec=/usr/bin/true`를 사용해 PASS했으며, corrected command form과 affected-package 결과는 EVID-164에 기록합니다.
-  - Phase E의 affected/full frozen milestone, system-state attestation recapture, exact submitted-head Hosted와 terminal status
-    documentation은 아직 시작하지 않았습니다. 따라서 GDJ-0052는 계속 active, Phase E는 unchecked이며 ADR-0054도
-    Proposed를 유지합니다.
+  - Phase E local-final publication `88371448e88c2b22f8d4b7acd6e67635b9b49e71`, tree
+    `d29b09b5a9c0a33365a3a0f8275c805aed749659`은 첫 Hosted diagnostic의 stale attestation/relation lock과
+    PostgreSQL/targeted timeout 구조를 bounded하게 교정했습니다. Source freeze `554102e...`의 independent PostgreSQL A/B는
+    exact 1,134 bytes/SHA-256 `abd409ec...2b89`, binding 267 files/3,388,048 bytes/`3af400bf...573d9`로 같았고
+    checked publication과 byte-identical합니다. Full `make ci`, current 118-package Linux/386 compile-only, workflow-exact
+    relation 955/955/0 inventory와 1,230-file `.git`-free archive의 targeted/show/writer public flows가 통과했습니다.
+    [EVID-165](../docs/status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)이
+    exact command, hash, timeout 분류와 non-claim을 기록합니다. Corrected exact submitted-head Hosted와 terminal status
+    documentation은 아직 pending이므로 GDJ-0052는 계속 active, Phase E는 unchecked이며 ADR-0054도 Proposed를 유지합니다.

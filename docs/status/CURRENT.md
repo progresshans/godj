@@ -38,9 +38,14 @@
   26 sets/291 contracts/650 ordered bindings=`254 passing + 25 deviation + 12 oracle_locked`, product는
   25 adapters/279 contracts=`254 passing + 25 deviation`이며 locked range는 MIG-075..086뿐입니다.
   [EVID-164](TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)이
-  exact gates와 최종 독립 감사 P0..P3=`0`을 기록합니다. Workflow 변경으로 source-bound PostgreSQL attestation은
-  의도대로 stale이며 Phase E에서 frozen source에 대해 한 번 재캡처합니다. 다음 작업은 Phase E
-  attestation/full/Linux-386/archive/exact submitted-head Hosted와 terminal publication입니다.
+  exact gates와 최종 독립 감사 P0..P3=`0`을 기록합니다. Phase E local-final `8837144...`, tree `d29b09b...`은
+  first Hosted diagnostic의 stale source-bound attestation/relation inventory와 PostgreSQL/targeted timeout 구조를 교정하고,
+  source freeze `554102e...`의 independent PostgreSQL A/B를 1,134 bytes/SHA-256 `abd409ec...2b89`, binding
+  267 files/3,388,048 bytes/`3af400bf...573d9`로 게시했습니다. Full `make ci`, all-package 118-package Linux/386
+  compile-only, workflow-exact relation 955/955/0과 1,230-file `.git`-free archive의 targeted/show/writer public flows가
+  통과했습니다. [EVID-165](TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)이
+  exact diagnostic, correction, hash와 non-claim을 기록합니다. 다음 작업은 corrected exact submitted-head Hosted와
+  terminal publication이며, 그 전까지 work는 active, ADR은 Proposed, Phase E는 unchecked입니다.
   Baseline은 clean GDJ-0051 terminal
   `1d37272f4062365416536d4459a5294df4b06d03`, tree
   `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
@@ -2025,8 +2030,9 @@ failure-resume를 통과했고 split 12-leg CI topology를 잠갔습니다. Phas
 `06f90a9...`와 EVID-164는 PostgreSQL 17.10 normal/race/CGO0, 25번째 oracle-blind adapter, MIG-127/full
 MIG-128 ownership과 DEV-0002 MIG-122 sparse publication을 통과했습니다. Current reference 26/291/650=
 `254+25+12 locked`, product 25/279=`254+25`이며 MIG-075..086만 locked입니다. ADR-0054 Proposed와
-GDJ-0052 active는 불변입니다. 다음 정확한 작업은 Phase E frozen-source attestation, full/386/archive,
-exact submitted-head Hosted와 terminal publication입니다.
+GDJ-0052 active는 불변입니다. Phase E local-final `8837144...`/tree `d29b09b...`은 current-source A/B attestation,
+full `make ci`, 118-package Linux/386 compile-only, relation 955/955/0과 1,230-file `.git`-free archive를 EVID-165에서
+통과했습니다. 다음 정확한 작업은 corrected exact submitted-head Hosted와 terminal publication입니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,

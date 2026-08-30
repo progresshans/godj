@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-164
+- 현재 local source/contract checkpoint: EVID-20260830-165
 - latest successful hosted product proof: EVID-20260830-159
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
@@ -15344,3 +15344,120 @@ head Hosted run, ADR acceptance or GDJ completion is claimed here. The next exac
 full/Linux-386/relation/archive validation, exact-head Hosted submission and terminal publication. Draft PR #1 remains
 open/draft/unmerged; the Phase D source checkpoint was pushed, and no PR comment, merge, release or deployment was
 performed.
+
+## EVID-20260830-165 — GDJ-0052 First Hosted Diagnostic, CI Isolation and Frozen Local Final
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; independent digest-pinned Linux/amd64
+  Go 1.26.5 and PostgreSQL 17.10 containers; GitHub Actions diagnostic runners
+- Work/contract IDs: GDJ-0052 active; ADR-0054 Proposed; MIG-119..121/123..128 product `passing`, MIG-122
+  Verified DEV-0002 `deviation`; Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Relation lock correction: `e6836026c4ad917cb03a059e2d82fdbeeeda8f94`, tree
+  `2b30b0e8132cf0ea7b11f0487f7df042a27309fd`
+- CI isolation correction: `542144abdba45cb75c07e5ef77067b68c1cf2140`, tree
+  `30acc5f99bd2853fd9c938edd842b0e0e62d41e5`
+- Project-check headroom correction: `554102e8aa95e3172fab23e89de1ede7fdb49726`, tree
+  `7aaf00bfaf096effe1f5ecd8fbc5a9685a9f1ec4`
+- Current attestation/local-final publication: `88371448e88c2b22f8d4b7acd6e67635b9b49e71`, tree
+  `d29b09b5a9c0a33365a3a0f8275c805aed749659`
+- Result: the first 53-job Hosted execution exposed four bounded evidence/runtime-budget problems and no observed product
+  assertion or database-meaning mismatch. The corrected frozen source then passed independent PostgreSQL A/B capture,
+  focused source-sensitive gates, one full local milestone, all-package Linux/386 compile-only, workflow-equivalent relation
+  inventory and an exact `.git`-free archive. Exact submitted-head Hosted success remains pending, so this evidence does not
+  accept ADR-0054, check Phase E or complete GDJ-0052.
+
+### First Hosted diagnostic and bounded correction
+
+[CI #187 / run 33308178378 attempt 1](https://github.com/progresshans/godj/actions/runs/33308178378) exercised submitted
+head `0178a28e5a7d96b8e6cab814d06dd982500deac4`, tree
+`e131b6495974cad30e7892d710a25dae229dcd9e`. It completed with 53 jobs=`37 success + 16 failure + 0 cancelled` and
+572 steps=`519 success + 16 failure + 37 skipped`. The sixteen job failures partition exactly as follows:
+
+- four stale source-bound attestation failures: artifact validation and portable normal/race/CGO-disabled;
+- four stale normal relation-inventory locks, one on each OS/architecture coordinate;
+- three PostgreSQL mode jobs whose old combined package command reached the 15-minute package watchdog;
+- four targeted-migrate jobs whose old command reached the 20-minute package watchdog: Ubuntu x64 normal and macOS Intel
+  normal/race/CGO-disabled;
+- one derivative `Required CI` failure.
+
+The timed-out lanes are incomplete and are not represented as passing. Their retained logs contained no additional product
+assertion, database-state, transaction or cleanup failure. The last macOS Intel product-project-check completed every
+normal/race/CGO-disabled/runserver/vet/clean gate in 31 minutes 52 seconds under its existing 45-minute budget. Ubuntu x64
+completed in 1,786 seconds, only about fourteen seconds below its old 30-minute outer limit, so its outer budget was raised
+to 45 minutes without changing a command or assertion.
+
+The corrected workflow keeps the same 53-job topology. Relation normal now locks the independently reproduced exact
+955/955/0 inventory. Each PostgreSQL mode runs the existing 22-sentinel package group and the long targeted package
+sequentially, appends both JSONL streams and requires the combined exact 23/23/0 inventory; each command preserves its own
+nonzero exit. Targeted migration keeps all twelve coordinate/mode lanes and the same sentinel, with a 30-minute package and
+40/45-minute outer budget. PostgreSQL has an 18-minute per-command and 45/50-minute outer budget. Workflow YAML, extracted
+Bash syntax, protocol locks, independent sentinel discovery and failure propagation were audited with final
+P0/P1/P2/P3=`0/0/0/0`.
+
+### Frozen-source PostgreSQL A/B and publication
+
+The retained evidence root is `/tmp/godj-gdj0052-attest-554102e.Cvbgcf`. Clean source freeze `554102e...` produced
+source/pre/post tar streams that are each 19,148,800 bytes/SHA-256
+`1b6896adb2a259d66b8ad2bfee0672e3f807394fe056c793a9ced230710bb751` with 1,230 regular files. The 12,049-byte
+wrapper has SHA-256 `56c5cd62be18bb87cc3ad7f3030bc57b2e7c37333bc72be6dc0ca869dca64402`.
+
+Captures A and B used independent PostgreSQL containers/clusters/volumes/networks and source extractions. They are
+byte-identical at 1,134 bytes/SHA-256 `abd409ec1bf9bba535194f84801a0ac2812a4a8e3d0d4afe10ac87ea526e2b89`.
+Both report exact Go 1.26.5/Linux amd64, PostgreSQL 17.10 UTF8/C/UTC, two writers, same-schema/barrier/restart true,
+divergence/loss/drift/secret counts zero and source binding 267 files/3,388,048 payload bytes/SHA-256
+`3af400bf1dd08e875dabf7dff1b68281f06422b7489abde0473ab1a96de573d9`. Exact Docker resources were absent after both
+captures. Publication `8837144...` changes only the checked JSON, its 103-byte checksum file and protocol byte lock relative
+to the source freeze. Checked JSON is byte-identical to A/B; the checksum file itself is SHA-256
+`38f88500f504419a6ca1aed1bd917709c80d08da541876bb0d41cc1b100fdc56`.
+
+Post-publication checksum, exact 20-contract SYS comparison, focused attestation/restart/GoDj runner/checker/protocol
+normal/race/CGO-disabled and vet, `make godj-conformance`, format/generate and diff checks all exited zero. Two independent
+audits agreed on the source binding, byte identity, secret/resource absence and publication scope with final
+P0/P1/P2/P3=`0/0/0/0`.
+
+### Full local, Linux/386 and relation inventory
+
+`LC_ALL=C TZ=UTC make ci` exited zero on clean publication head `8837144...`. It covered all-package normal/race Go tests,
+serial long-running product packages, bounded CGO-disabled gates, vet, 305 Python tests with 24 exact-profile-only skips,
+all reference/deviation/product comparisons and generated drift. The long migration product package durations provide the
+direct timeout-budget evidence:
+
+| Mode | project migrate | targeted migrate | showmigrations | runserver | writer |
+|---|---:|---:|---:|---:|---:|
+| normal | 208.117s | 374.142s | 139.308s | 66.919s | 43.972s |
+| race | 209.477s | 372.859s | 139.217s | 69.260s | 45.258s |
+| CGO-disabled | 207.220s | 370.086s | 139.114s | 67.883s | 44.242s |
+
+All-package
+`LC_ALL=C TZ=UTC GOOS=linux GOARCH=386 CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -run '^$' -count=1 -exec=/usr/bin/true ./...`
+exited zero for the current 118-package tree. It is compile-only and is not Linux/386 runtime-support evidence.
+
+The relation normal gate executed the exact workflow step extracted from `.github/workflows/ci.yml`, including its three
+JSONL test commands, vet and artifact-drift check. It observed exact 955 runs/955 passes/0 skips, canonical payload 97,485
+bytes/SHA-256 `530ce8c3e5e99b8c78474920574e0042d5ddb6fdf86dc080c805f4a4044ec4b4`. No relation test, package or mode was
+removed to obtain this result.
+
+### Exact repository-external archive
+
+The retained archive root is `/tmp/godj-gdj0052-archive-final.rOMOIB`. Its `.git`-free `git archive` of `8837144...` was
+compared with raw Git blobs before execution and again afterward:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| raw `git ls-tree -rz --full-tree` | 123,974 | `b317c0852cb8adc5de60ef8b13cd1677f91559730150243cb0a5e9f6e0424b15` |
+| deterministic tar | 19,148,800 | `22c2b11424a5da25ce52a86d8db1cd24b8a657890ce61a9ffeecc286bd1d5b5f` |
+| canonical source/pre/post roster, each | 159,978 | `8b89cbabf2b91352072fcc901bdea19479fdfc3051ed3d3967afb6dfebce00b1` |
+| 118-line package list | 6,786 | `83ad590abe1987e10cba3e47aa62c837e62ed0fc79bf2a9e80fa82e0a6b47052` |
+
+The archive contains exact 1,230 regular blobs, all Git logical mode `100644`, totaling 18,072,190 payload bytes. Missing,
+additional, symlink, nonregular, executable-class, size and SHA mismatch counts are zero. With an external private Go build
+cache, archive-local `make generate-check`, 118-package Linux/386 compile-only, public-only
+`TestProjectLinkedTargetedMigrateSQLite` (443.800 seconds), predecessor
+`TestGlobalShowMigrationsExternalProjectSQLiteProduct` (163.747 seconds) and
+`TestMigrationWriterExternalProjectSQLitePublicSurface` (49.748 seconds) all exited zero. Exact targeted/show/writer external
+temp roots were absent both before and after. PostgreSQL is not rerun in this SQLite archive gate; the independent A/B and
+Hosted PostgreSQL no-skip lanes own that evidence.
+
+Exact submitted-head Hosted verification is still required for the corrected bytes. Until it succeeds, ADR-0054 remains
+Proposed, GDJ-0052 remains active and Phase E remains unchecked. Draft PR #1 remains open/draft/unmerged; no PR comment,
+merge, release or deployment was performed.
