@@ -113,6 +113,7 @@ jobs:
           conformance/fixtures/godj-query-expression-not-implemented.json
           conformance/fixtures/godj-migration-command-not-implemented.json
           conformance/fixtures/godj-migration-writer-not-implemented.json
+          conformance/fixtures/godj-migration-status-not-implemented.json
           conformance/fixtures/godj-migration-writer-deviation-expected.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
@@ -237,6 +238,7 @@ jobs:
           conformance/fixtures/godj-query-expression-not-implemented.json
           conformance/fixtures/godj-migration-command-not-implemented.json
           conformance/fixtures/godj-migration-writer-not-implemented.json
+          conformance/fixtures/godj-migration-status-not-implemented.json
           conformance/fixtures/godj-migration-writer-deviation-expected.json
           conformance/fixtures/godj-parameter-routing-not-implemented.json
           conformance/fixtures/godj-article-api-not-implemented.json
@@ -903,9 +905,9 @@ jobs:
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m unittest discover -s conformance/runners/django/tests -v 2>&1 | tee "$log"
-          test "$(grep -c '^test_' "$log")" -eq 276
+          test "$(grep -c '^test_' "$log")" -eq 291
           test "$(grep -c ' \.\.\. skipped ' "$log")" -eq 21
-          grep -Fq 'Ran 276 tests' "$log"
+          grep -Fq 'Ran 291 tests' "$log"
           grep -Fq 'OK (skipped=21)' "$log"
 
       - name: Verify all-scenario semantic digest
@@ -928,10 +930,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 273, len(SCENARIOS)
-          assert len(payload) == 932413, len(payload)
+          assert len(SCENARIOS) == 281, len(SCENARIOS)
+          assert len(payload) == 971815, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "f5bfe7756008225452e5d9bbc86381a12b1e5de2e32eafd8f1afcd40d866fcd2", digest
+          assert digest == "7c76a6cf1894b9877e80998a0d6731fbe4ee8df1b7813b762da22b3fc61f1784", digest
           PY
 
       - name: Require a clean worktree

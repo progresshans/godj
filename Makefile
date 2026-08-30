@@ -47,6 +47,9 @@ MIGRATION_WRITER_MANIFEST := conformance/contracts/migration-writer-manifest.jso
 MIGRATION_WRITER_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json
 MIGRATION_WRITER_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-writer-not-implemented.json
 MIGRATION_WRITER_DEVIATION_EXPECTED := conformance/fixtures/godj-migration-writer-deviation-expected.json
+MIGRATION_STATUS_MANIFEST := conformance/contracts/migration-status-manifest.json
+MIGRATION_STATUS_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json
+MIGRATION_STATUS_NOT_IMPLEMENTED := conformance/fixtures/godj-migration-status-not-implemented.json
 RELATION_MANIFEST := conformance/contracts/relation-manifest.json
 RELATION_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/relation-oracle.json
 RELATION_NOT_IMPLEMENTED := conformance/fixtures/godj-relation-not-implemented.json
@@ -249,6 +252,10 @@ conformance-check:
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(MIGRATION_WRITER_MANIFEST) -suite $(MIGRATION_WRITER_NOT_IMPLEMENTED)
 	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) -suite $(MIGRATION_STATUS_ORACLE)
+	go run ./conformance/cmd/contractcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) -suite $(MIGRATION_STATUS_NOT_IMPLEMENTED)
+	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) -suite $(RELATION_ORACLE)
 	go run ./conformance/cmd/contractcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) -suite $(RELATION_NOT_IMPLEMENTED)
@@ -412,6 +419,9 @@ oracle-check:
 		--profile $(PROFILE) --manifest $(MIGRATION_WRITER_MANIFEST) \
 		--output $(MIGRATION_WRITER_ORACLE) --check
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(MIGRATION_STATUS_MANIFEST) \
+		--output $(MIGRATION_STATUS_ORACLE) --check
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(RELATION_MANIFEST) \
 		--output $(RELATION_ORACLE) --check
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
@@ -484,6 +494,9 @@ oracle-regenerate:
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(MIGRATION_WRITER_MANIFEST) \
 		--output $(MIGRATION_WRITER_ORACLE)
+	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
+		--profile $(PROFILE) --manifest $(MIGRATION_STATUS_MANIFEST) \
+		--output $(MIGRATION_STATUS_ORACLE)
 	LC_ALL=C TZ=UTC uv run --frozen python -m conformance.runners.django \
 		--profile $(PROFILE) --manifest $(RELATION_MANIFEST) \
 		--output $(RELATION_ORACLE)

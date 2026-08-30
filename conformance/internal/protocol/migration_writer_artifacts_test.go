@@ -260,8 +260,8 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 	if got := strings.Count(referenceTarget, "$(MIGRATION_WRITER_MANIFEST)"); got != 2 {
 		t.Fatalf("reference migration-writer manifest count = %d, want oracle and NI", got)
 	}
-	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 48 {
-		t.Fatalf("reference contractcheck count = %d, want 48", got)
+	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 50 {
+		t.Fatalf("reference contractcheck count = %d, want 50", got)
 	}
 	for _, fragment := range []string{"MIGRATION_WRITER_MANIFEST", "MIGRATION_WRITER_ORACLE", "MIGRATION_WRITER_DEVIATION_EXPECTED"} {
 		if !strings.Contains(productTarget, fragment) {
@@ -278,8 +278,8 @@ func TestMigrationWriterAuthorityAndCentralWiringRemainSeparated(t *testing.T) {
 		if got := strings.Count(target, "$(MIGRATION_WRITER_MANIFEST)"); got != 1 {
 			t.Fatalf("%s migration-writer manifest count = %d, want 1", name, got)
 		}
-		if got := strings.Count(target, "python -m conformance.runners.django"); got != 24 {
-			t.Fatalf("%s reference runner count = %d, want 24", name, got)
+		if got := strings.Count(target, "python -m conformance.runners.django"); got != 25 {
+			t.Fatalf("%s reference runner count = %d, want 25", name, got)
 		}
 	}
 

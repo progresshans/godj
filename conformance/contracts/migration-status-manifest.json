@@ -1,0 +1,108 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "contracts": [
+    {
+      "id": "MIG-111",
+      "title": "An empty catalog produces one explicit no-migrations line through one read-only session without durable mutation",
+      "scenario": "godj.migration.status.empty_catalog",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-112",
+      "title": "A fresh catalog lists every known migration as unapplied in canonical app and dependency order",
+      "scenario": "django.migration.status.fresh_unapplied",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/showmigrations.py::Command.show_list", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py::MigrateTests.test_showmigrations_list", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "MIG-113",
+      "title": "An applied dependency prefix is marked applied while its known tail remains unapplied",
+      "scenario": "django.migration.status.applied_prefix",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/showmigrations.py::Command.show_list", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "test", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:tests/migrations/test_commands.py::MigrateTests.test_showmigrations_list", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "MIG-114",
+      "title": "A fully applied catalog renders the same all-applied status across independent observations",
+      "scenario": "django.migration.status.fully_applied_restart",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/showmigrations.py::Command.show_list", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "MIG-115",
+      "title": "Application groups are label sorted while each application keeps dependency-valid migration order",
+      "scenario": "django.migration.status.cross_app_branch_order",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/core/management/commands/showmigrations.py::Command.show_list", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result"]
+    },
+    {
+      "id": "MIG-116",
+      "title": "Unknown recorded identities remain visible after known rows including unknown-only applications",
+      "scenario": "godj.migration.status.unknown_record_visible",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-117",
+      "title": "Inconsistent known history fails closed before output or durable mutation",
+      "scenario": "godj.migration.status.inconsistent_known_history",
+      "phase": "evaluation",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false}
+      ],
+      "comparison": ["error", "db_state", "metrics"]
+    },
+    {
+      "id": "MIG-118",
+      "title": "The project boundary owns one bounded read session with exact cleanup and secret-free failures",
+      "scenario": "godj.migration.status.project_boundary",
+      "phase": "environment",
+      "status": "oracle_locked",
+      "provenance": [
+        {"kind": "proposal", "reference": "GDJ-0051", "derived": false},
+        {"kind": "documentation", "reference": "ADR-0053", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    }
+  ]
+}

@@ -83,6 +83,7 @@ blog
 ## 비목표
 
 - app filter, `--list`, `--plan`, verbosity와 applied timestamp
+- replacement/squash title, transitional `[-]` recorder state와 zero-migration app별 `(no migrations)` heading
 - `sqlmigrate`, SQL rendering/capture와 backend dry-run compiler
 - named/zero target, reverse 실행, `--fake`, `--check`와 repair/adoption
 - multi-DB alias/router, distributed snapshot 또는 status 이후 writer까지 유지되는 lock
@@ -143,7 +144,8 @@ global argv validation
 - Existing check/migrate/makemigrations protocol bytes는 바꾸지 않고 별도 showmigrations protocol v1을 추가합니다.
 - Response row는 raw UTF-8 app/name/status만 포함하며 status는 `applied`, `unapplied`, `unknown`의 closed enum입니다.
 - Definition과 history는 각각 current 2,048-record bound를 지키고, combined row/UTF-8/response byte 상한을 protocol에서 다시
-  검증합니다. Truncated, duplicate, non-canonical order, duplicate/unknown JSON key와 trailing bytes는 거부합니다.
+  검증합니다. Protocol은 app grouping, duplicate와 unknown-tail order를 검증하고, linked core가 known dependency order를
+  소유합니다. Truncated, duplicate/unknown JSON key와 trailing bytes는 거부합니다.
 - Global CLI는 child가 미리 만든 terminal text를 신뢰하지 않고 validated rows를 canonical text로 한 번 렌더링합니다. 모든
   app/name은 Go graphic escape body로 injective하게 표시하고, app heading의 첫 rune가 Unicode whitespace이면 강제 hex escape해
   row prefix와 시각적으로 혼동되지 않게 합니다. Common ASCII/Unicode identifier는 그대로 보입니다.
@@ -156,9 +158,18 @@ global argv validation
 - Exact authority: Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`,
   `django/core/management/commands/showmigrations.py::Command.show_list`.
 - Django에서 가져오는 의미: app label별 grouping, `[X]`/`[ ]`와 app 내부 root-to-leaf list semantics.
+- MIG-112..115는 portable `result`만 reference comparison 대상으로 둡니다. Django in-memory loader/recorder의
+  fresh-instance counter는 Python authority test와 source audit에만 보존하고 oracle `db_state`/`metrics`로 게시하지 않으므로
+  actual product가 그 구현 세부를 흉내 내어 통과할 수 없습니다.
+  Durable no-mutation과 fresh-process proof는 SQLite/PostgreSQL product test가 실제 database/process snapshot으로 별도 강제합니다.
 - GoDj-owned 의미: global empty `(no migrations)`, deterministic incomparable tie-break, strict project selection/private protocol,
   unknown/unknown-only app `[?]`, known inconsistent history fail-closed, point-in-time revision snapshot ownership과
   resource/redaction limits.
+- Django `show_list`는 unknown recorder row를 숨기며 `check_consistent_history`를 호출하지 않습니다. 또한 Django recorder의
+  반복 read는 snapshot authority가 아니므로 `[?]`, fail-closed history와 exact one revision-fenced read는 GoDj decision으로
+  분리합니다.
+- Django replacement/squash의 `[-]` 상태와 migrated app별 empty heading은 current Definition/catalog가 해당 identity를
+  표현하지 않으므로 비범위입니다. Incomparable sibling의 exact 순서도 Django parity가 아니라 GoDj canonical tie-break입니다.
 - SQL 문자열, ANSI style, verbosity timestamp와 Django internal loader 객체 identity는 비교하지 않습니다.
 
 | ID | Scenario | Required observation |
@@ -172,13 +183,13 @@ global argv validation
 | MIG-117 | `inconsistent_known_history` | stdout 0, structured history failure, schema/recorder/revision mutation 0 |
 | MIG-118 | `project_boundary` | invalid argv/load는 open 0; success는 outer/session open 1, read 1, session/outer close 1; partial acquire/read/close/cancel도 exact cleanup/redaction |
 
-Activation에서는 위 계약이 `planned, not run`입니다. Reference artifact가 잠겨도 product adapter가 같은 observation을
-통과하기 전에는 `passing`으로 올리지 않습니다. Q-010/Q-012는 이 packet이 완료돼도 semver/upgrade, target/reverse,
-destructive/custom/data 범위 때문에 `Partial`로 유지합니다.
+Activation에서는 위 계약이 `planned, not run`이었습니다. Phase A는 reference artifact만 `oracle_locked`로 고정했으며
+product adapter가 같은 observation을 통과하기 전에는 `passing`으로 올리지 않습니다. Q-010/Q-012는 이 packet이 완료돼도
+semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partial`로 유지합니다.
 
 ## 단계
 
-- [ ] Phase A — Django/GoDj authority audit와 MIG-111..118 reference-only artifact lock
+- [x] Phase A — Django/GoDj authority audit와 MIG-111..118 reference-only artifact lock
 - [x] Phase B — strict private protocol, linked read-only runner와 global command unit/race/CGO0
 - [ ] Phase C — SQLite actual fresh/prefix/full/unknown/inconsistent/no-mutation와 external project process flow
 - [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, product actual registration과 independent audit
@@ -198,5 +209,15 @@ destructive/custom/data 범위 때문에 `Partial`로 유지합니다.
 - [EVID-154](../docs/status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)는
   affected normal/race/CGO0/vet와 최종 changed-package refreeze, 독립 에이전트 3개가 수행한 4개 집중 감사 패스의 최종
   P0..P3=`0`을 기록합니다.
-- MIG-111..118 reference/product artifact는 아직 없고 `planned, not run`입니다. 다음 exact 작업은 Phase A의 pinned
-  Django/GoDj reference-only artifact lock이며, 이를 product passing으로 오해하지 않습니다.
+- Phase A는 MIG-111..118 manifest/NI/oracle을 각각 5,311/1,566/39,478 bytes와 SHA-256
+  `3b1c8693...e6fc`/`0dd4dd08...6cc6`/`5a7a7827...355f`로 고정했습니다. MIG-112..115는 portable result만 Django
+  reference와 비교하고, durable no-mutation/fresh-process는 product black-box proof가 소유합니다.
+- Reference aggregate는 25 sets/281 contracts/600 ordered bindings=`237 passing + 24 deviation + 20 oracle_locked`이고
+  product는 23 adapters/261 contracts=`237 passing + 24 deviation`으로 불변입니다. MIG-075..086과 MIG-111..118만
+  reference-only locked/unregistered입니다.
+- Exact Python suite 291 tests/21 skips, semantic inventory 281/971,815 bytes/SHA-256
+  `7c76a6cf...1784`, Go protocol, 50개 conformance check, oracle regeneration/checksum과 독립 P0/P1=`0` 감사를
+  통과했습니다. Workflow/Makefile source 변경으로 기존 PostgreSQL source-bound attestation은 의도대로 stale하며 Phase E에서
+  product source가 얼어붙은 뒤 한 번 재캡처합니다.
+- 다음 exact 작업은 Phase C의 repository-external public project와 실제 SQLite/OS-process MIG-111..118 no-mutation/fresh-process
+  제품 증거입니다. Phase A reference lock을 product passing으로 오해하지 않습니다.

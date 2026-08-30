@@ -106,6 +106,32 @@ compile-only, relation/archive와 current source-bound attestation recapture도 
 `48994a0...`는 EVID-153/CI #171 run `33280434425`의 same-head failed-job rerun 뒤 effective 41/41 jobs·464/464 steps로
 corrected exact-head Hosted terminal gate를 통과했습니다.
 
+### GDJ-0051 migration-status authority
+
+GDJ-0051 Phase A는 같은 pinned Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`에서 다음 exact objects를 감사했습니다. Django authority는 app label grouping,
+app 내부 root-to-leaf list traversal과 recorded known row의 `[X]`/`[ ]` 표시에 한정합니다. Global empty output, unknown
+row `[?]`, inconsistent known history rejection, revision-fenced one-read snapshot과 project cleanup/redaction은 GoDj-owned
+decision입니다.
+
+| Exact object | Blob | Bytes | Audited meaning |
+|---|---|---:|---|
+| `django/core/management/commands/showmigrations.py` | `e88f83f273aae8fb07253b37df650d01976a86fa` | 6,847 | app grouping, list traversal와 known applied marker |
+| `django/db/migrations/loader.py` | `af2d521d893f1a657d6a8edda72ae590831a60ee` | 18,744 | graph/applied loading과 unknown row 비노출 |
+| `django/db/migrations/graph.py` | `cc06dde11f61d5a0d905c2fc4f0c79220d429bcb` | 13,149 | sorted leaves와 forward plan traversal |
+| `django/db/migrations/recorder.py` | `77ad80ba62751adee2fdadd27a1ef37cb886f6a9` | 3,826 | recorder 부재 시 mutation 없는 empty read |
+| `tests/migrations/test_commands.py` | `61336f55332844bfd372b97aa6a7b1fad6cca027` | 153,217 | `test_showmigrations_list`와 Django-only display states |
+| `tests/migrations/test_loader.py` | `ba10e7ce935a89f6a214f1c18f33a47fcc21a8c8` | 29,443 | consistency validation이 `show_list`와 별도임을 확인 |
+
+MIG-112..115만 pinned Django source observation을 사용합니다. Upstream `test_showmigrations_list`의 exact test provenance는
+그 테스트가 직접 다루는 MIG-112/113에만 붙고, repeated observation과 cross-app fixture인 MIG-114/115에는 과장해 붙이지
+않습니다. MIG-111/116/117/118은 independent GoDj decision이며 Django
+deviation으로 모델링하지 않습니다. Replacement/squash의 transitional `[-]`, zero-migration app heading과 incomparable
+sibling의 exact Django 순서는 current contract가 아닙니다. MIG-112..115의 reference comparison은 portable result에
+한정하며 in-memory loader/recorder counter는 Python source/test evidence에만 남기고 oracle payload로 게시하지 않습니다.
+Durable no-mutation과 fresh-process는
+SQLite/PostgreSQL product black-box proof가 별도로 소유합니다.
+
 ## Django REST framework
 
 - [DRF 3.18.0 release notes](https://www.django-rest-framework.org/community/release-notes/#3180) — 2026-08-07

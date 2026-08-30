@@ -24,6 +24,8 @@ from conformance.runners.django.runner import (
     DEFAULT_MIGRATION_COMMAND_MANIFEST,
     DEFAULT_MIGRATION_WRITER_MANIFEST,
     DEFAULT_MIGRATION_WRITER_ORACLE,
+    DEFAULT_MIGRATION_STATUS_MANIFEST,
+    DEFAULT_MIGRATION_STATUS_ORACLE,
     DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST,
     DEFAULT_MIGRATION_PROJECT_CHECK_ORACLE,
     DEFAULT_MIGRATION_RELATION_MANIFEST,
@@ -57,6 +59,7 @@ from conformance.runners.django.runner import (
     ProfileMismatch,
     API_AUTHENTICATION_SCENARIOS,
     MIGRATION_WRITER_SCENARIOS,
+    MIGRATION_STATUS_SCENARIOS,
     SCENARIOS as ALL_SCENARIOS,
     _load_json,
     _run_contract,
@@ -219,6 +222,7 @@ class ScenarioTests(unittest.TestCase):
             MIGRATION_PROJECT_CHECK_SCENARIOS,
             MIGRATION_COMMAND_DECISION_SCENARIOS,
             MIGRATION_WRITER_SCENARIOS,
+            MIGRATION_STATUS_SCENARIOS,
             RELATION_SCENARIOS,
             MIGRATION_RELATION_SCENARIOS,
             {name: DRF_SCENARIOS[name] for name in PARAMETER_ROUTING_SCENARIOS},
@@ -268,6 +272,7 @@ class ScenarioTests(unittest.TestCase):
                 MIGRATION_COMMAND_DECISION_SCENARIOS,
             ),
             (DEFAULT_MIGRATION_WRITER_MANIFEST, MIGRATION_WRITER_SCENARIOS),
+            (DEFAULT_MIGRATION_STATUS_MANIFEST, MIGRATION_STATUS_SCENARIOS),
             (DEFAULT_RELATION_MANIFEST, RELATION_SCENARIOS),
             (
                 DEFAULT_MIGRATION_RELATION_MANIFEST,
@@ -293,7 +298,7 @@ class ScenarioTests(unittest.TestCase):
             (DEFAULT_API_AUTHENTICATION_MANIFEST, API_AUTHENTICATION_SCENARIOS),
             (DEFAULT_SYSTEM_STATE_MANIFEST, SYSTEM_STATE_SCENARIOS),
         )
-        self.assertEqual(len(contract_sets), 24)
+        self.assertEqual(len(contract_sets), 25)
         selected_across_sets = []
         contract_ids_across_sets = []
         inventories = []
@@ -318,10 +323,10 @@ class ScenarioTests(unittest.TestCase):
                         frozenset(contract_ids),
                     )
                 )
-        self.assertEqual(len(selected_across_sets), 273)
+        self.assertEqual(len(selected_across_sets), 281)
         self.assertEqual(len(selected_across_sets), len(set(selected_across_sets)))
         self.assertEqual(set(selected_across_sets), set(ALL_SCENARIOS))
-        self.assertEqual(len(contract_ids_across_sets), 273)
+        self.assertEqual(len(contract_ids_across_sets), 281)
         self.assertEqual(
             len(contract_ids_across_sets), len(set(contract_ids_across_sets))
         )
@@ -336,7 +341,7 @@ class ScenarioTests(unittest.TestCase):
                         source_contract_ids.isdisjoint(target_contract_ids)
                     )
                 cross_bindings += 1
-        self.assertEqual(cross_bindings, 552)
+        self.assertEqual(cross_bindings, 600)
 
     def test_one_manifest_does_not_require_other_set_scenarios(self) -> None:
         for profile_path, manifest_path in (
@@ -355,6 +360,7 @@ class ScenarioTests(unittest.TestCase):
             (DEFAULT_PROFILE, DEFAULT_MIGRATION_PROJECT_CHECK_MANIFEST),
             (DEFAULT_PROFILE, DEFAULT_MIGRATION_COMMAND_MANIFEST),
             (DEFAULT_PROFILE, DEFAULT_MIGRATION_WRITER_MANIFEST),
+            (DEFAULT_PROFILE, DEFAULT_MIGRATION_STATUS_MANIFEST),
             (DEFAULT_PROFILE, DEFAULT_RELATION_MANIFEST),
             (DEFAULT_PROFILE, DEFAULT_MIGRATION_RELATION_MANIFEST),
             (DEFAULT_PROFILE, DEFAULT_TEMPLATE_FORM_MANIFEST),

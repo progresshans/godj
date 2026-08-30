@@ -74,6 +74,12 @@ from .migration_writer_decisions import (  # noqa: E402
 from .migration_writer_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_WRITER_DJANGO_SCENARIOS,
 )
+from .migration_status_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_STATUS_DECISION_SCENARIOS,
+)
+from .migration_status_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_STATUS_DJANGO_SCENARIOS,
+)
 from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
 from .migration_relation_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_RELATION_SCENARIOS,
@@ -153,6 +159,22 @@ MIGRATION_WRITER_SCENARIOS = {
         "godj.migration.writer.interruption_recovery_and_roundtrip",
     )
 }
+MIGRATION_STATUS_SCENARIOS = {
+    name: (
+        MIGRATION_STATUS_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_STATUS_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "godj.migration.status.empty_catalog",
+        "django.migration.status.fresh_unapplied",
+        "django.migration.status.applied_prefix",
+        "django.migration.status.fully_applied_restart",
+        "django.migration.status.cross_app_branch_order",
+        "godj.migration.status.unknown_record_visible",
+        "godj.migration.status.inconsistent_known_history",
+        "godj.migration.status.project_boundary",
+    )
+}
 
 
 SCENARIO_REGISTRIES = (
@@ -171,6 +193,7 @@ SCENARIO_REGISTRIES = (
     MIGRATION_PROJECT_CHECK_SCENARIOS,
     MIGRATION_COMMAND_DECISION_SCENARIOS,
     MIGRATION_WRITER_SCENARIOS,
+    MIGRATION_STATUS_SCENARIOS,
     RELATION_SCENARIOS,
     MIGRATION_RELATION_SCENARIOS,
     TEMPLATE_FORM_SCENARIOS,
@@ -318,6 +341,13 @@ DEFAULT_MIGRATION_WRITER_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json"
 )
+DEFAULT_MIGRATION_STATUS_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-status-manifest.json"
+)
+DEFAULT_MIGRATION_STATUS_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json"
+)
 DEFAULT_RELATION_MANIFEST = (
     REPOSITORY_ROOT / "conformance/contracts/relation-manifest.json"
 )
@@ -403,6 +433,7 @@ KNOWN_MANIFEST_ORACLES = {
     ),
     DEFAULT_MIGRATION_COMMAND_MANIFEST.resolve(): DEFAULT_MIGRATION_COMMAND_ORACLE,
     DEFAULT_MIGRATION_WRITER_MANIFEST.resolve(): DEFAULT_MIGRATION_WRITER_ORACLE,
+    DEFAULT_MIGRATION_STATUS_MANIFEST.resolve(): DEFAULT_MIGRATION_STATUS_ORACLE,
     DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
     DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
     DEFAULT_TEMPLATE_FORM_MANIFEST.resolve(): DEFAULT_TEMPLATE_FORM_ORACLE,

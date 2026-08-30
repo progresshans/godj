@@ -62,10 +62,19 @@ GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only 
     않습니다.
 11. 논리적 실패는 public stdout write를 시도하지 않고 closed `category/code` stderr를 한 번 시도합니다. Final stdout writer가
     partial/error를 반환하면 기록된 prefix를 회수하거나 결과를 재게시하지 않고 internal nonzero로 끝냅니다.
+12. Django authority는 app label grouping, app 내부 root-to-leaf traversal과 `[X]`/`[ ]`에 한정합니다. Django `show_list`가
+    숨기는 unknown row와 별도로 검증하지 않는 inconsistent known history는 GoDj-owned `[?]`/fail-closed decision입니다.
+13. Replacement/squash의 `[-]` 상태, zero-migration app별 empty heading과 incomparable sibling의 exact Django 순서는 current
+    범위가 아닙니다. One revision-fenced read와 snapshot ownership도 Django recorder read에서 유도하지 않습니다.
+14. Django-derived MIG-112..115는 portable rendered result만 reference comparison으로 사용합니다. In-memory authority
+    fixture의 loader/recorder fresh-instance counter는 Python source/test evidence일 뿐 oracle payload나 product expected
+    value가 아닙니다. SQLite/PostgreSQL
+    actual은 별도 black-box snapshot으로 schema/recorder/revision/application mutation 0과 MIG-114 fresh-process identity를
+    증명해야 하며 fixture metric을 재현해 통과할 수 없습니다.
 
-Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling은 검증됐습니다. 이 ADR은
-Phase A의 pinned reference artifact와 Phase C/D의 SQLite/PostgreSQL no-mutation product evidence까지 고정한 뒤
-Accepted로 전환합니다.
+Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling은 검증됐습니다. Phase A는
+pinned MIG-111..118 reference artifact를 `oracle_locked`로 고정했습니다. 이 ADR은 Phase C/D의
+SQLite/PostgreSQL no-mutation product evidence와 actual publication까지 고정한 뒤 Accepted로 전환합니다.
 
 ## 결과
 
@@ -80,6 +89,7 @@ Accepted로 전환합니다.
 ## 의도적으로 결정하지 않은 것
 
 - app filter, `--plan`, applied timestamp와 ANSI style
+- replacement/squash `[-]` 상태와 zero-migration app별 empty heading
 - target/reverse/fake/repair/adoption
 - `sqlmigrate`와 backend dry-run compiler
 - multi-DB alias/router와 distributed snapshot
