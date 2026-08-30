@@ -177,8 +177,8 @@ Request examples:
 ```
 
 - Private argv는 `__godj_project_migrate_runner_v2` 하나뿐입니다.
-- Request/response는 duplicate/unknown keys, trailing bytes, noncanonical numbers, invalid UTF-8, invalid enum과 mode/result mismatch를
-  거부합니다.
+- Request/response는 duplicate/unknown keys, trailing bytes, noncanonical numbers, invalid UTF-8, unpaired UTF-16 surrogate
+  escape, invalid enum과 mode/result mismatch를 거부합니다. Wire identity를 replacement rune으로 조용히 정규화하지 않습니다.
 - Execute success result의 inner summary는 existing source/definition/digest shape를 보존합니다.
 - Plan success는 최대 2,048 unique rows이며 각 row는 `{app,name,direction}` exact keys와 forward/backward closed enum을 씁니다.
 - Request hard cap은 16 MiB입니다. Response/public plan hard cap은 minimal JSON escaping의 최악 6배 expansion과
@@ -218,7 +218,7 @@ actual adapter가 같은 observation을 통과하기 전에는 `passing`으로 �
 ## 단계
 
 - [ ] Phase A — Django/GoDj authority audit와 MIG-119..128 reference-only artifact lock
-- [ ] Phase B — known-app target, shared lifecycle preparation, public Plan과 strict private v2/global argv
+- [x] Phase B — known-app target, shared lifecycle preparation, public Plan과 strict private v2/global argv
 - [ ] Phase C — repository-external SQLite named/zero/plan/reverse failure-resume product flow
 - [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, oracle-blind product registration과 independent audit
 - [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
@@ -231,5 +231,13 @@ actual adapter가 같은 observation을 통과하기 전에는 `passing`으로 �
 - Existing Planner and loaded Executor already implement library-level caller-ordered multi-target named/zero execution, reverse dependency closure,
   dry validation, per-step fenced transaction, rollback and commit-unknown semantics. This packet publishes a narrower exact-one-target CLI
   and refactors shared preparation without changing backend schema or transaction interfaces.
-- Phase A reference lock and Phase B product implementation are not yet executed. No migration protocol v2 or public `--plan` support exists
-  at activation.
+- Phase B source checkpoint `cd499462c794c4e136e94bb5abc2121b98fb722d`, tree
+  `580ae7a8186e3d668c5aab670f46398bb320b721`은 `KnownAppZeroTarget`, shared loaded lifecycle preparation,
+  `Executor.Plan`, strict private migrate protocol v2, exact global argv/public plan, linked project ownership과 Article read-only
+  plan smoke를 구현했습니다. 기존 project-migrate product suite와 affected normal/race/CGO-disabled/vet/count-10 및
+  all-package compile-only gate가 통과했습니다. 독립 감사에서 찾은 unpaired surrogate identity collapse와 response-cap
+  test false-green 가능성은 같은 source checkpoint 안에서 fail-closed scanner와 production stage-policy seam으로 교정했습니다.
+  자세한 증거는 EVID-161에 있습니다.
+- Phase A reference lock은 아직 실행하지 않았고 MIG-119..128은 계속 unregistered `planned, not run`입니다. 다음 작업은
+  Django/GoDj authority를 분리한 reference-only artifact를 먼저 고정한 뒤 repository-external SQLite product flow로
+  진행합니다.

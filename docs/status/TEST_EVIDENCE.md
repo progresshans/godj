@@ -15030,3 +15030,71 @@ actual, race/CGO-disabled product flow, product adapter, attestation recapture o
 unregistered `planned, not run`; Phase A must first lock mixed Django/GoDj reference artifacts and Phase B must implement the
 core/private/global boundary. Draft PR #1 remains open/draft/unmerged; no PR comment, merge, release or deployment was
 performed.
+
+## EVID-20260830-161 — GDJ-0052 Phase B Targeted-plan Core Checkpoint
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5
+- Work/contract IDs: GDJ-0052 active; ADR-0054 Proposed; MIG-119..128 unregistered `planned, not run`
+- Product source: `cd499462c794c4e136e94bb5abc2121b98fb722d`, tree
+  `580ae7a8186e3d668c5aab670f46398bb320b721`
+- Result: Phase B implements the bounded core/private/global/project-linked target and plan path. It does not publish a
+  reference artifact or product adapter and therefore does not change the conformance aggregate.
+
+### Implemented boundary
+
+`KnownAppZeroTarget` adds command-facing unknown-app rejection without changing the accepted unknown-app empty plan of
+plain `ZeroTarget`. `Executor.Plan` and `Executor.Migrate` share loaded snapshot/resource validation, immutable definition
+cloning, one revision-fenced session/history read, history checking, target resolution, historical-state reconstruction,
+whole-plan dry materialization and capability preflight. Only execute rematerializes and calls `BeginMigration`; plan returns
+a detached slice, starts zero migration transactions and discards its result on session-close failure. Migrate's previous
+state/error/session-close precedence remains covered by the existing lifecycle tests.
+
+Private migrate protocol v2 carries a closed execute/plan mode and latest/named/zero target union. It rejects v1, unknown or
+duplicate members, trailing values, noncanonical numbers, invalid UTF-8, unpaired UTF-16 surrogate escapes, ambiguous result
+arms, invalid directions, duplicate rows and bounded-resource violations. The raw-surrogate check prevents Go's JSON decoder
+from collapsing malformed `\\ud800` and a valid U+FFFD identity onto the same target. Paired surrogate escapes, literal or
+escaped U+FFFD and escaped backslash text remain distinct and accepted. Request is capped at 16 MiB; plan identities retain
+the 1 MiB per-string/16 MiB aggregate and 2,048-row limits; the derived worst-case minimally escaped private/public plan is
+below the 101 MiB response cap.
+
+The global command accepts only the eight latest/named execute/plan forms with optional trailing `--project`, with exact
+lowercase `zero` selecting app-zero. Invalid/permuted/flag-like/oversized inputs fail before project selection or process I/O.
+Existing execute public JSON bytes are unchanged; plan publishes one canonical `{\"plan\":[...]}` line, including an exact
+empty array. Request/response mode mismatch, truncated child output, public short write and cleanup-after-success all discard
+the candidate result. The project-linked runner maps one decoded target to one fresh lifecycle call, preserves load-before-open
+and one outer open/close, and Article's actual runner proves an applied latest plan is empty while recorder history remains
+unchanged. The migrate response policy is now a production-used pure stage seam, so its 101 MiB binding is verified without
+allocating a 101 MiB test payload.
+
+### Executed gates
+
+The following completed with exit 0 on the source checkpoint or its byte-identical pre-commit worktree:
+
+- normal: `go test -count=1 ./migrations/...`, `./internal/projectcheck/migrateprotocol`,
+  `./internal/projectcheck/linked`, `./internal/projectcheck`, `./project`, `./cmd/godj`,
+  `./examples/article/cmd/projectrunner`, `./conformance/runners/godj` and
+  `./conformance/projectmigrateproduct`; the last exercised the existing actual child/SQLite product suite in 245.840 seconds
+- compile-only: `go test -run '^$' ./...` over all repository packages
+- race: `go test -race -count=1 ./migrations/... ./internal/projectcheck/... ./project ./cmd/godj
+  ./examples/article/cmd/projectrunner`; the final post-audit rerun covered the same affected core except the already-passed
+  unchanged `cmd/godj` package
+- CGO-disabled: `CGO_ENABLED=0 go test -count=1` over the same affected package set, with the final post-audit rerun covering
+  migrations, projectcheck, project and Article runner
+- vet: `go vet` over the affected migrations/projectcheck/project/cmd/Article runner set
+- repeat: `go test -count=10 ./migrations ./internal/projectcheck/migrateprotocol
+  ./internal/projectcheck/linked`, followed by a second protocol count-10 after the surrogate correction
+- format/integrity: `gofmt` on every changed Go file and `git diff --check`
+
+Three independent read-only audits initially reported no backend/schema or P0/P1 flaw. A later adversarial wire audit found
+one P2 unpaired-surrogate identity collapse and one P3 response-cap test false-green risk. Both were corrected locally, then
+normal/race/CGO-disabled/vet/repeat gates were rerun; final P0/P1/P2/P3 is `0/0/0/0` for this Phase B boundary.
+
+### Non-claims and next exact step
+
+No Django reference observation, reference-only manifest/NI/oracle/checksum, repository-external targeted SQLite lifecycle,
+middle reverse failure/resume, PostgreSQL target/reverse run, product adapter, source-bound attestation, full `make ci`,
+Linux/386 compile, Hosted run, ADR acceptance or contract-state transition is claimed. MIG-119..128 remain unregistered
+`planned, not run`. The next exact step is Phase A: freeze the mixed Django/GoDj authority as reference-only
+`oracle_locked` artifacts before Phase C publishes any actual product observation. Draft PR #1 remains open/draft/unmerged;
+the source checkpoint was pushed, and no PR comment, merge, release or deployment was performed.

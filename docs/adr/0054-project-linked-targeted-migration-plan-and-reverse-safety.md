@@ -61,7 +61,8 @@ surface로 만들면 distributed authorization과 retention 정책까지 이번 
     commit outcome unknown은 자동 retry하지 않습니다.
 11. Request는 16 MiB, response/public plan은 minimal JSON 최악 expansion을 포함한 101 MiB, plan은 2,048 rows,
     identity는 string당 1 MiB와 aggregate 16 MiB로 제한합니다. Protocol은 duplicate/mixed
-    mode-result/order/identity를 fail-closed합니다.
+    mode-result/order/identity와 unpaired UTF-16 surrogate escape를 fail-closed하며 replacement rune으로 identity를
+    정규화하지 않습니다.
 12. `--plan`은 SQL rendering, transaction-local physical schema/cardinality preflight나 실행 중 lock 유지가 아닙니다.
     같은 순간의 semantic dry/capability plan일 뿐 실제 실행 성공을 보장하지 않습니다.
 

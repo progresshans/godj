@@ -10,9 +10,16 @@
   preparation을 공유하지만 preview output을 execution authority로 사용하지 않습니다. Execute는 항상 새 revision-fenced
   history snapshot에서 fresh plan을 계산합니다. Existing `ZeroTarget("unknown")` empty-plan library 계약은 보존하고 public
   app-zero만 `KnownAppZeroTarget`으로 unknown app을 fail-closed합니다. Current-only private migrate protocol v2는 mode와
-  target union, bounded plan rows를 전달하며 v1 dual reader를 남기지 않습니다. MIG-119..128은 `planned, not run`이고
-  Phase A reference lock 및 Phase B core/protocol 구현은 아직 실행하지 않았습니다. Baseline은 clean GDJ-0051 terminal
-  `1d37272f4062365416536d4459a5294df4b06d03`, tree `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
+  target union, bounded plan rows를 전달하며 v1 dual reader를 남기지 않습니다. Phase B source
+  `cd499462c794c4e136e94bb5abc2121b98fb722d`, tree `580ae7a8186e3d668c5aab670f46398bb320b721`은
+  `KnownAppZeroTarget`, shared loaded lifecycle preparation, public `Executor.Plan`, exact global argv/public plan과 linked
+  project ownership을 구현했습니다. Existing execute JSON과 migration product suite를 보존했고 affected
+  normal/race/CGO-disabled/vet/count-10, all-package compile-only와 세 독립 감사를 통과했습니다. 감사에서 확인한
+  unpaired UTF-16 surrogate identity collapse와 101 MiB process-bound test false-green은 fail-closed scanner와 production
+  stage-policy seam으로 교정했습니다. [EVID-161](TEST_EVIDENCE.md#evid-20260830-161--gdj-0052-phase-b-targeted-plan-core-checkpoint)이
+  실행 증거와 non-claim을 기록합니다. MIG-119..128은 여전히 unregistered `planned, not run`이며 Phase A reference-only
+  lock이 다음 작업입니다. Baseline은 clean GDJ-0051 terminal `1d37272f4062365416536d4459a5294df4b06d03`, tree
+  `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
   [GDJ-0051](../../work/0051-project-linked-showmigrations.md)과 Accepted
   [ADR-0053](../adr/0053-project-linked-read-only-migration-status.md)은 exact
   `godj showmigrations [--project <godj.toml>]` list-only 단면을 고정합니다. Complete definition load는 backend open보다

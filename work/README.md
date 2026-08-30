@@ -83,8 +83,11 @@ proposed → ready → active → completed
 execute와 plan을 연결합니다. `Executor.Plan`과 execute는 revision-fenced history, graph/history check, historical state,
 whole-plan dry/capability preflight를 공유하지만 execute는 preview를 authority로 재사용하지 않고 fresh snapshot에서 다시
 계획합니다. Existing unknown-app `ZeroTarget` empty 계약은 보존하고 public zero만 `KnownAppZeroTarget`으로 오타를
-fail-closed합니다. MIG-119..128은 activation에서 `planned, not run`, ADR-0054는 Proposed이며 target prefix/app-only,
-SQL rendering, fake/repair, destructive writer 확장과 multi-DB는 비범위입니다. Completed
+fail-closed합니다. Phase B source `cd49946...`은 known-app target, shared Plan/Migrate preparation, strict private v2,
+exact global argv/public plan과 project-linked read-only plan을 구현하고 affected normal/race/CGO0/vet/count-10 및
+all-package compile-only gate를 통과했습니다. MIG-119..128은 Phase A reference lock 전까지 unregistered
+`planned, not run`, ADR-0054는 Proposed이며 target prefix/app-only, SQL rendering, fake/repair, destructive writer 확장과
+multi-DB는 비범위입니다. Completed
 [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
 `godj showmigrations [--project <godj.toml>]` list-only 단면으로 definition load-before-open, one read-only
 history snapshot, deterministic known/unknown status와 database mutation 0을 고정합니다. Target/reverse, `--plan`,
