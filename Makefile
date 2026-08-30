@@ -96,6 +96,7 @@ API_AUTHENTICATION_DEVIATION_EXPECTED := conformance/fixtures/godj-api-authentic
 PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigrateproduct
 PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigratetargetproduct
 PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectshowmigrationsproduct
+PROJECT_SQLMIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectsqlmigrateproduct
 RUNSERVER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/runserverproduct
 MIGRATION_WRITER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/migrationwriterproduct
 GODJ_RUNNER_IMPORT := github.com/progresshans/godj/conformance/runners/godj
@@ -111,6 +112,7 @@ all_packages="$$(go list ./...)"; \
 project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 project_migrate_target_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 project_showmigrations_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
+project_sqlmigrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 migration_writer_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MIGRATION_WRITER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 godj_runner_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(GODJ_RUNNER_IMPORT)" { count++ } END { print count + 0 }')"; \
@@ -119,16 +121,17 @@ multiruntime_worker_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MU
 test "$$project_migrate_count" -eq 1; \
 test "$$project_migrate_target_count" -eq 1; \
 test "$$project_showmigrations_count" -eq 1; \
+test "$$project_sqlmigrate_count" -eq 1; \
 test "$$runserver_count" -eq 1; \
 test "$$migration_writer_count" -eq 1; \
 test "$$godj_runner_count" -eq 1; \
 test "$$godjcheck_count" -eq 1; \
 test "$$multiruntime_worker_count" -eq 1; \
-core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)" && $$0 != "$(GODJ_RUNNER_IMPORT)" && $$0 != "$(GODJCHECK_IMPORT)" && $$0 != "$(MULTIRUNTIME_WORKER_IMPORT)"')"; \
+core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)" && $$0 != "$(GODJ_RUNNER_IMPORT)" && $$0 != "$(GODJCHECK_IMPORT)" && $$0 != "$(MULTIRUNTIME_WORKER_IMPORT)"')"; \
 test -n "$$core_packages"; \
 all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
 core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
-test "$$all_count" -eq "$$((core_count + 8))"
+test "$$all_count" -eq "$$((core_count + 9))"
 endef
 
 format-check:
@@ -156,6 +159,7 @@ go-test:
 	go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)
 	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
+	go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
 	go test -timeout=15m -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
 
@@ -169,6 +173,7 @@ go-race:
 	go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)
 	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
 	go test -timeout=15m -race -count=1 ./conformance/projectshowmigrationsproduct
+	go test -timeout=15m -race -count=1 ./conformance/projectsqlmigrateproduct
 	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct
 
@@ -195,6 +200,7 @@ cgo-zero-build:
 	CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
+	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
 

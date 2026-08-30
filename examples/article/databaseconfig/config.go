@@ -55,6 +55,23 @@ func (config Config) PostgresURL() string { return config.postgresURL }
 // PostgresSchema returns the configured PostgreSQL schema.
 func (config Config) PostgresSchema() string { return config.postgresSchema }
 
+// MigrationSQLRenderer derives the immutable, credential-free SQL projection
+// profile from this exact frozen database selection. A zero/failed selection
+// returns nil so complete migration loading and target materialization retain
+// precedence over renderer availability.
+func (config Config) MigrationSQLRenderer() migrationbackend.MigrationSQLRenderer {
+	switch config.kind {
+	case KindSQLite:
+		return sqlite.NewMigrationSQLRenderer()
+	case KindPostgres:
+		return postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{
+			Schema: config.postgresSchema,
+		})
+	default:
+		return nil
+	}
+}
+
 // LookupEnvFunc is the narrow environment lookup dependency used by parsing
 // tests and by the project-owned runner.
 type LookupEnvFunc func(string) (string, bool)

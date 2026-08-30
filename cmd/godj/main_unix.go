@@ -91,6 +91,18 @@ func execute(ctx context.Context, cwd string, args, environment []string, stdout
 		})
 		return report.ExitCode
 	}
+	if len(args) != 0 && args[0] == "sqlmigrate" {
+		report := projectcheck.RunSQLMigrate(projectcheck.SQLMigrateInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
 	report := projectcheck.Run(projectcheck.Invocation{
 		Context:     ctx,
 		CWD:         cwd,

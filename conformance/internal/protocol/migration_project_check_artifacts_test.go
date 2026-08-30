@@ -271,6 +271,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	jobPattern := regexp.MustCompile(`(?m)^  ([a-z0-9-]+):$`)
 	matches := jobPattern.FindAllStringSubmatch(jobsText, -1)
 	wantJobs := []string{"conformance-validation", "portable-go-matrix", "exact-darwin-validation", "project-check-matrix", "relation-binding-matrix", "relation-product-matrix", "product-project-check-matrix", "targeted-migrate-product-matrix", "python-compatibility-matrix", "postgresql-product", "sqlite-matrix", "required-ci"}
+	if len(matches) != len(wantJobs) {
+		t.Fatalf("workflow job definition count = %d, want exact %d", len(matches), len(wantJobs))
+	}
 	jobCounts := make(map[string]int, len(matches))
 	for _, match := range matches {
 		jobCounts[match[1]]++
@@ -339,6 +342,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") ||
 		!strings.Contains(conformance, "./conformance/projectmigratetargetproduct") ||
 		!strings.Contains(conformance, "./conformance/projectshowmigrationsproduct") ||
+		!strings.Contains(conformance, "./conformance/projectsqlmigrateproduct") ||
 		!strings.Contains(conformance, "Run relation products on 32-bit Linux") ||
 		!strings.Contains(conformance, "./conformance/relationproduct/...") ||
 		!strings.Contains(conformance, "./conformance/relationqueryproduct/...") ||

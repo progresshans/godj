@@ -27,16 +27,17 @@ func main() {
 }
 
 func articleProjectConfig(lookup databaseconfig.LookupEnvFunc) godjproject.Config {
+	selected, selectionErr := databaseconfig.FromEnvironment(lookup)
 	return godjproject.Config{
 		MigrationDefinitionRoots:   []string{"migrations"},
 		MigrationDefinitionSources: []definition.Source{systemstate.InitialDefinitionSource()},
 		LoadProjectSpec:            modeldef.ProjectSpec,
 		OpenMigrationBackend: func(ctx context.Context) (godjproject.MigrationBackend, error) {
-			config, err := databaseconfig.FromEnvironment(lookup)
-			if err != nil {
-				return nil, err
+			if selectionErr != nil {
+				return nil, selectionErr
 			}
-			return databaseconfig.Open(ctx, config)
+			return databaseconfig.Open(ctx, selected)
 		},
+		MigrationSQLRenderer: selected.MigrationSQLRenderer(),
 	}
 }

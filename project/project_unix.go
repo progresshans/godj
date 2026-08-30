@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/linked"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
+	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	projectgeneratelinked "github.com/progresshans/godj/internal/projectgenerate/linked"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
@@ -74,6 +75,7 @@ func run(
 	arguments := append([]string(nil), argv...)
 	loadProjectSpec := config.LoadProjectSpec
 	openMigrationBackend := config.OpenMigrationBackend
+	migrationSQLRenderer := config.MigrationSQLRenderer
 	if len(arguments) == 1 && arguments[0] == projectmigrationprotocol.PrivateArgument {
 		makemigrationsConfig := linked.SnapshotMakemigrationsConfig(linked.MakemigrationsConfig{
 			MigrationDefinitionRoots:   config.MigrationDefinitionRoots,
@@ -158,6 +160,32 @@ func run(
 				MigrationDefinitionRoots:   roots,
 				MigrationDefinitionSources: sources,
 				OpenMigrationBackend:       opener,
+			},
+			arguments,
+			stdin,
+			stdout,
+		)
+		return err
+	}
+	if len(arguments) == 1 && arguments[0] == sqlmigrateprotocol.PrivateArgument {
+		if ctx == nil {
+			return errors.New("project: nil context")
+		}
+		if ownSignalContext == nil {
+			return errors.New("project: nil sqlmigrate signal owner")
+		}
+		sqlContext, stop := ownSignalContext(ctx)
+		if sqlContext == nil || stop == nil {
+			return errors.New("project: invalid sqlmigrate signal owner")
+		}
+		defer stop()
+
+		_, err := linked.RunSQLMigrate(
+			sqlContext,
+			linked.SQLMigrateConfig{
+				MigrationDefinitionRoots:   roots,
+				MigrationDefinitionSources: sources,
+				MigrationSQLRenderer:       migrationSQLRenderer,
 			},
 			arguments,
 			stdin,

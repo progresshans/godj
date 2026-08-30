@@ -1,9 +1,9 @@
 //go:build darwin || linux
 
 // Package linked implements the project-owned side of the private migration
-// check and explicit-migrate boundaries. Both paths share flat source
-// discovery and one pure definition load; only RunMigrate may open a database
-// and execute a migration lifecycle.
+// check, explicit-migrate, status, and SQL-projection boundaries. The paths
+// share flat source discovery and one pure definition load; only database-backed
+// migrate/status commands may open a backend.
 package linked
 
 import (

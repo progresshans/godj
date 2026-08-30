@@ -22,6 +22,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
+	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"github.com/progresshans/godj/migrations/backend"
@@ -329,6 +330,59 @@ func TestPublicShowMigrationsOwnsSourcesAndUsesReadOnlySignalSession(t *testing.
 	}
 }
 
+func TestPublicSQLMigrateUsesRendererSignalContextAndNeverOpensBackend(t *testing.T) {
+	enterProjectRoot(t)
+	sources := []definition.Source{{
+		SourceID: "framework/alpha-zero.godj.json",
+		Document: []byte(`{"format_version":1,"producer":{"name":"project-test","version":"1"},"migration":{"app":"alpha","name":"zero","dependencies":[],"operations":[]}}`),
+	}}
+	request, err := sqlmigrateprotocol.EncodeRequest(sqlmigrateprotocol.Request{App: "alpha", Name: "zero"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	type contextKey struct{}
+	marker := new(int)
+	renderer := &publicSQLRenderer{contextKey: contextKey{}, marker: marker}
+	openerCalls := 0
+	ownerCalls := 0
+	stopCalls := 0
+	config := Config{
+		MigrationDefinitionSources: sources,
+		OpenMigrationBackend: func(context.Context) (MigrationBackend, error) {
+			openerCalls++
+			return nil, errors.New("SQL projection must not open a backend")
+		},
+		MigrationSQLRenderer: renderer,
+	}
+	var output bytes.Buffer
+	err = run(
+		context.Background(),
+		config,
+		[]string{sqlmigrateprotocol.PrivateArgument},
+		bytes.NewReader(request),
+		&output,
+		func(parent context.Context) (context.Context, context.CancelFunc) {
+			ownerCalls++
+			owned, cancel := context.WithCancel(context.WithValue(parent, contextKey{}, marker))
+			return owned, func() {
+				stopCalls++
+				cancel()
+			}
+		},
+	)
+	if err != nil {
+		t.Fatalf("sqlmigrate dispatch = %v", err)
+	}
+	response, failure, failed := sqlmigrateprotocol.ParseResponse(output.Bytes(), true)
+	if failed || failure != (sqlmigrateprotocol.Failure{}) || !response.OK ||
+		response.Result.Statements == nil || len(response.Result.Statements) != 0 {
+		t.Fatalf("sqlmigrate response = %+v, %+v, %v", response, failure, failed)
+	}
+	if ownerCalls != 1 || stopCalls != 1 || openerCalls != 0 || renderer.calls != 1 || !renderer.sawOwnedContext {
+		t.Fatalf("sqlmigrate ownership = owner:%d stop:%d opener:%d renderer:%+v", ownerCalls, stopCalls, openerCalls, renderer)
+	}
+}
+
 func TestPublicMakemigrationsOwnsInputsAndNeverOpensBackend(t *testing.T) {
 	enterProjectRoot(t)
 	roots := []string{"migrations"}
@@ -534,6 +588,7 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	linkedCalls := 0
 	linkedMigrateCalls := 0
 	linkedShowMigrationsCalls := 0
+	linkedSQLMigrateCalls := 0
 	linkedMakemigrationsCalls := 0
 	linkedRawMakemigrationsCalls := 0
 	ast.Inspect(file, func(node ast.Node) bool {
@@ -561,6 +616,9 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunShowMigrations" {
 				linkedShowMigrationsCalls++
 			}
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunSQLMigrate" {
+				linkedSQLMigrateCalls++
+			}
 			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunSnapshottedMakemigrations" {
 				linkedMakemigrationsCalls++
 			}
@@ -582,6 +640,9 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	}
 	if linkedShowMigrationsCalls != 1 {
 		t.Fatalf("linked.RunShowMigrations callsites in public facade = %d, want 1", linkedShowMigrationsCalls)
+	}
+	if linkedSQLMigrateCalls != 1 {
+		t.Fatalf("linked.RunSQLMigrate callsites in public facade = %d, want 1", linkedSQLMigrateCalls)
 	}
 	if linkedMakemigrationsCalls != 1 {
 		t.Fatalf("linked.RunSnapshottedMakemigrations callsites in public facade = %d, want 1", linkedMakemigrationsCalls)
@@ -644,6 +705,22 @@ func (value *publicShowMigrationsSession) Close(context.Context) error {
 
 var _ MigrationBackend = (*publicShowMigrationsBackend)(nil)
 var _ backend.RevisionFencedSession = (*publicShowMigrationsSession)(nil)
+
+type publicSQLRenderer struct {
+	contextKey      any
+	marker          any
+	calls           int
+	sawOwnedContext bool
+}
+
+func (renderer *publicSQLRenderer) RenderForwardMigrationSQL(
+	ctx context.Context,
+	_ backend.ForwardMigrationSQLRequest,
+) ([]string, error) {
+	renderer.calls++
+	renderer.sawOwnedContext = ctx.Value(renderer.contextKey) == renderer.marker
+	return []string{}, nil
+}
 
 func enterProjectRoot(t *testing.T) string {
 	t.Helper()

@@ -15,6 +15,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
+	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	"golang.org/x/sys/unix"
 )
 
@@ -46,6 +47,20 @@ func TestShowMigrationsOwnedProcessUsesProtocolResponseBound(t *testing.T) {
 	result := processBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
 	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != showmigrationsprotocol.MaxResponseBytes || !result.StdoutScalar.Truncated || len(result.Stdout) != showmigrationsprotocol.MaxResponseBytes {
 		t.Fatalf("bounded showmigrations process = %+v stdout=%d", result, len(result.Stdout))
+	}
+}
+
+func TestSQLMigrateOwnedProcessUsesExactProtocolResponseBound(t *testing.T) {
+	command := helperCommand("emit", map[string]string{
+		"GODJ_HELPER_STDOUT_BYTES": strconv.Itoa(sqlmigrateprotocol.MaxResponseBytes + 1),
+		"GODJ_HELPER_STDERR_BYTES": "0",
+		"GODJ_HELPER_EXIT":         "0",
+	})
+	result := processBackend{}.Execute(context.Background(), nil, SQLMigrateRunnerStage, command)
+	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 ||
+		result.StdoutScalar.RetainedBytes != sqlmigrateprotocol.MaxResponseBytes ||
+		!result.StdoutScalar.Truncated || len(result.Stdout) != sqlmigrateprotocol.MaxResponseBytes {
+		t.Fatalf("bounded sqlmigrate process = %+v stdout=%d", result, len(result.Stdout))
 	}
 }
 

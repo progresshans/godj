@@ -74,6 +74,7 @@ jobs:
           ./conformance/runners/godj
           ./conformance/projectmigratetargetproduct
           ./conformance/projectshowmigrationsproduct
+          ./conformance/projectsqlmigrateproduct
 
       - name: Compile runserver product on 32-bit Linux
         env:

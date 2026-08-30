@@ -332,10 +332,11 @@ func TestMigrationSQLRenderingReferenceOnlyWiringIsExact(t *testing.T) {
 		t.Fatalf("workflow migration-sql-rendering NI lock count = %d, want 2", got)
 	}
 	if strings.Contains(makeText, "MIGRATION_SQL_RENDERING_DEVIATION_EXPECTED") {
-		t.Fatal("Phase A unexpectedly wires a migration-sql-rendering deviation fixture")
+		t.Fatal("reference-only migration-sql-rendering checkpoint unexpectedly wires a deviation fixture")
 	}
-	if _, err := os.Stat(filepath.Join(root, "conformance", "projectsqlmigrateproduct")); !os.IsNotExist(err) {
-		t.Fatalf("Phase A product adapter exists or cannot be classified: %v", err)
+	productInfo, err := os.Stat(filepath.Join(root, "conformance", "projectsqlmigrateproduct"))
+	if err != nil || !productInfo.IsDir() {
+		t.Fatalf("Phase C external product-flow package is absent or invalid: info=%v error=%v", productInfo, err)
 	}
 }
 

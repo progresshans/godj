@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestFromEnvironmentSelectsOneRedactedBackend(t *testing.T) {
@@ -78,5 +81,64 @@ func TestOpenSQLiteAndRejectInvalidConfiguration(t *testing.T) {
 	}
 	if err := backend.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestMigrationSQLRendererDerivesCredentialFreeFrozenProfile(t *testing.T) {
+	t.Parallel()
+	if renderer := (Config{}).MigrationSQLRenderer(); renderer != nil {
+		t.Fatalf("zero config renderer = %T, want nil", renderer)
+	}
+
+	sqliteConfig, err := SQLite("file:frozen.sqlite3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty, err := sqliteConfig.MigrationSQLRenderer().RenderForwardMigrationSQL(
+		context.Background(),
+		migrationbackend.ForwardMigrationSQLRequest{
+			App: "blog", Name: "zero",
+			Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{}},
+		},
+	)
+	if err != nil || empty == nil || len(empty) != 0 {
+		t.Fatalf("SQLite renderer empty result = %#v, %v", empty, err)
+	}
+
+	const urlSecret = "article-renderer-url-secret"
+	postgresConfig, err := PostgreSQL(
+		"postgres://article:"+urlSecret+"@localhost/article",
+		"frozen_schema",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := migrationbackend.ForwardMigrationSQLRequest{
+		App: "blog", Name: "0001_article",
+		Intent: migrationbackend.MigrationIntent{Operations: []migrationbackend.MigrationOperation{{
+			OperationIndex: 0,
+			Kind:           migrationbackend.MigrationCreateModel,
+			After: ir.Model{
+				Name: "article", GoName: "Article", DBTable: "blog_article",
+				Fields: []ir.Field{{
+					Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true,
+				}},
+			},
+		}}},
+	}
+	statements, err := postgresConfig.MigrationSQLRenderer().RenderForwardMigrationSQL(context.Background(), request)
+	if err != nil || len(statements) != 1 || !strings.Contains(statements[0], `"frozen_schema".`) ||
+		strings.Contains(statements[0], urlSecret) {
+		t.Fatalf("PostgreSQL renderer = %#v, %v", statements, err)
+	}
+
+	const invalidSchemaSecret = "invalid-schema-secret!"
+	invalidConfig, err := PostgreSQL("postgres://article:"+urlSecret+"@localhost/article", invalidSchemaSecret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statements, err = invalidConfig.MigrationSQLRenderer().RenderForwardMigrationSQL(context.Background(), request)
+	if err == nil || statements != nil || strings.Contains(err.Error(), invalidSchemaSecret) || strings.Contains(err.Error(), urlSecret) {
+		t.Fatalf("invalid PostgreSQL renderer = %#v, %v", statements, err)
 	}
 }

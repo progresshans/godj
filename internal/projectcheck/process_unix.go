@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
+	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"golang.org/x/sys/unix"
@@ -42,6 +43,12 @@ func ownedResponseProcessPolicyForStage(stage ProcessStage) (ownedResponseProces
 	case ShowMigrationsRunnerStage:
 		return ownedResponseProcessPolicy{
 			stdoutMaximum: showmigrationsprotocol.MaxResponseBytes,
+			stderrMaximum: maxDiagnosticBytes,
+			grace:         ownedProcessGrace,
+		}, true
+	case SQLMigrateRunnerStage:
+		return ownedResponseProcessPolicy{
+			stdoutMaximum: sqlmigrateprotocol.MaxResponseBytes,
 			stderrMaximum: maxDiagnosticBytes,
 			grace:         ownedProcessGrace,
 		}, true

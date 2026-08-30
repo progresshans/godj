@@ -252,10 +252,17 @@ func TestLoadedRelationSetValidatesOpaqueAuthorityAndEntersLifecycle(t *testing.
 	if backendSpy.openCalls != 2 {
 		t.Fatalf("post-static cancellation changed backend opens to %d", backendSpy.openCalls)
 	}
-	postOpen := &stagedRelationCancellationContext{Context: context.Background(), cancelAt: 5}
-	_, err = (migrations.Executor{Backend: backendSpy}).Migrate(postOpen, loaded, migrations.LatestLifecycleRequest())
+	opened := &atomic.Bool{}
+	postOpen := &postOpenRelationCancellationContext{
+		Context: context.Background(),
+		opened:  opened,
+	}
+	_, err = (migrations.Executor{Backend: &postOpenRelationCancellationBackend{
+		delegate: backendSpy,
+		opened:   opened,
+	}}).Migrate(postOpen, loaded, migrations.LatestLifecycleRequest())
 	capabilityError = nil
-	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || postOpen.calls.Load() < postOpen.cancelAt {
+	if !errors.Is(err, context.Canceled) || errors.As(err, &capabilityError) || postOpen.canceledChecks.Load() == 0 {
 		t.Fatalf("post-session-open cancellation = error:%v capability:%#v calls:%d", err, capabilityError, postOpen.calls.Load())
 	}
 	if backendSpy.openCalls != 3 {
@@ -1488,4 +1495,37 @@ func (value *stagedRelationCancellationContext) Err() error {
 		return context.Canceled
 	}
 	return nil
+}
+
+type postOpenRelationCancellationContext struct {
+	context.Context
+	opened         *atomic.Bool
+	calls          atomic.Int32
+	canceledChecks atomic.Int32
+}
+
+func (value *postOpenRelationCancellationContext) Err() error {
+	value.calls.Add(1)
+	if value.opened != nil && value.opened.Load() {
+		value.canceledChecks.Add(1)
+		return context.Canceled
+	}
+	return nil
+}
+
+type postOpenRelationCancellationBackend struct {
+	delegate *definitionLifecycleFailureBackend
+	opened   *atomic.Bool
+}
+
+func (value *postOpenRelationCancellationBackend) OpenRevisionFencedSession(
+	ctx context.Context,
+) (backend.RevisionFencedSession, error) {
+	session, err := value.delegate.OpenRevisionFencedSession(ctx)
+	value.opened.Store(true)
+	return session, err
+}
+
+func (value *postOpenRelationCancellationBackend) MigrationCapabilities() backend.MigrationCapabilities {
+	return value.delegate.MigrationCapabilities()
 }
