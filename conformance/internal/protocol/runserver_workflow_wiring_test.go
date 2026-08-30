@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,7 +25,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemstate/multiruntimeworker",
 		"PORTABLE_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/systemstate/multiruntimeworker",
 		"PORTABLE_CGO0_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck",
-		"ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance",
+		"ci: format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance",
 	} {
 		runserverWorkflowRequireCount(t, "Makefile", makefile, fragment, 1)
 	}
@@ -73,17 +74,15 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normal, `go test $$core_packages`, 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal isolated conformance gate", normal, "go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal project-migrate gate", normal, "go test -timeout=15m -count=1 ./conformance/projectmigrateproduct", 1)
-	runserverWorkflowRequireRecipeLine(t, "Makefile normal targeted-migrate gate", normal, "go test -timeout=15m -count=1 ./conformance/projectmigratetargetproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal project-showmigrations gate", normal, "go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal runserver gate", normal, "go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal migration-writer gate", normal, "go test -timeout=15m -count=1 ./conformance/migrationwriterproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/projectmigrateproduct", 1)
-	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/projectmigratetargetproduct", 0)
 	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/projectshowmigrationsproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/runserverproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile normal gate", normal, "./conformance/migrationwriterproduct", 1)
-	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/projectmigrateproduct", "./conformance/projectmigratetargetproduct")
-	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/projectmigratetargetproduct", "./conformance/projectshowmigrationsproduct")
+	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/projectmigrateproduct", "./conformance/projectshowmigrationsproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/projectshowmigrationsproduct", "./conformance/runserverproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile normal heavy product gates", normal, "./conformance/runserverproduct", "./conformance/migrationwriterproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile normal isolated conformance gate", normal, "$(PORTABLE_HEAVY_PACKAGES)", "./conformance/projectmigrateproduct")
@@ -93,31 +92,28 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", race, `go test -race $$core_packages`, 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race isolated conformance gate", race, "go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race project-migrate gate", race, "go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct", 1)
-	runserverWorkflowRequireRecipeLine(t, "Makefile race targeted-migrate gate", race, "go test -timeout=15m -race -count=1 ./conformance/projectmigratetargetproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race project-showmigrations gate", race, "go test -timeout=15m -race -count=1 ./conformance/projectshowmigrationsproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race runserver gate", race, "go test -timeout=15m -race -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race migration-writer gate", race, "go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/projectmigrateproduct", 1)
-	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/projectmigratetargetproduct", 0)
 	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/projectshowmigrationsproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/runserverproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile race gate", race, "./conformance/migrationwriterproduct", 1)
-	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/projectmigrateproduct", "./conformance/projectmigratetargetproduct")
-	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/projectmigratetargetproduct", "./conformance/projectshowmigrationsproduct")
+	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/projectmigrateproduct", "./conformance/projectshowmigrationsproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/projectshowmigrationsproduct", "./conformance/runserverproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile race heavy product gates", race, "./conformance/runserverproduct", "./conformance/migrationwriterproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile race isolated conformance gate", race, "$(PORTABLE_HEAVY_PACKAGES)", "./conformance/projectmigrateproduct")
 
-	cgoZero := runserverWorkflowMakeTarget(t, makefile, "cgo-zero-build", "python-test")
+	cgoZero := runserverWorkflowMakeTarget(t, makefile, "cgo-zero-build", "targeted-migrate-product")
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "CGO_ENABLED=0 go test \\\n", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled isolated conformance gate", cgoZero, "CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled project-migrate gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct", 1)
-	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled targeted-migrate gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigratetargetproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled project-showmigrations gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled runserver gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled migration-writer gate", cgoZero, "CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/projectmigrateproduct", 1)
-	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/projectmigratetargetproduct", 0)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/projectshowmigrationsproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/runserverproduct", 1)
 	runserverWorkflowRequireCount(t, "Makefile cgo-zero-build", cgoZero, "./conformance/migrationwriterproduct", 1)
@@ -129,15 +125,22 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	} {
 		runserverWorkflowRequireCount(t, "Makefile PostgreSQL CGO-disabled coverage", cgoZero, packagePattern, 1)
 	}
-	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectmigrateproduct", "./conformance/projectmigratetargetproduct")
-	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectmigratetargetproduct", "./conformance/projectshowmigrationsproduct")
+	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectmigrateproduct", "./conformance/projectshowmigrationsproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/projectshowmigrationsproduct", "./conformance/runserverproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled heavy product gates", cgoZero, "./conformance/runserverproduct", "./conformance/migrationwriterproduct")
 	runserverWorkflowRequireSerialOrder(t, "Makefile CGO-disabled isolated conformance gate", cgoZero, "$(PORTABLE_CGO0_HEAVY_PACKAGES)", "./conformance/projectmigrateproduct")
+	targetedMigrateMake := runserverWorkflowMakeTarget(t, makefile, "targeted-migrate-product", "python-test")
+	runserverWorkflowRequireRecipeLine(t, "Makefile targeted-migrate normal gate", targetedMigrateMake, "go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile targeted-migrate race gate", targetedMigrateMake, "go test -timeout=30m -race -count=1 ./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile targeted-migrate CGO-disabled gate", targetedMigrateMake, "CGO_ENABLED=0 go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct", 1)
+	runserverWorkflowRequireCount(t, "Makefile targeted-migrate gate", targetedMigrateMake, "./conformance/projectmigratetargetproduct", 3)
+	runserverWorkflowRequireSerialOrder(t, "Makefile targeted-migrate modes", targetedMigrateMake, "go test -timeout=30m -count=1", "go test -timeout=30m -race -count=1")
+	runserverWorkflowRequireSerialOrder(t, "Makefile targeted-migrate modes", targetedMigrateMake, "go test -timeout=30m -race -count=1", "CGO_ENABLED=0 go test -timeout=30m -count=1")
 	for scope, target := range map[string]string{
 		"normal":       normal,
 		"race":         race,
 		"CGO-disabled": cgoZero,
+		"targeted":     targetedMigrateMake,
 	} {
 		if strings.Contains(target, "|| true") || strings.Contains(target, "continue-on-error:") {
 			t.Fatalf("Makefile %s product gates must remain required", scope)
@@ -321,22 +324,24 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	for _, coordinate := range coordinates {
 		for _, mode := range []string{"normal", "race", "cgo0"} {
 			timeoutMinutes := 40
+			testTimeout := "30m"
 			if strings.Contains(coordinate, "runs_on: macos-15-intel") {
-				timeoutMinutes = 45
+				testTimeout = "45m"
+				timeoutMinutes = 55
 			}
-			entry := coordinate + "\n            mode: " + mode
-			if timeoutMinutes == 40 {
-				entry += "\n            timeout_minutes: 40"
-			} else {
-				entry += "\n            timeout_minutes: 45"
-			}
+			entry := coordinate + "\n            mode: " + mode +
+				"\n            test_timeout: " + testTimeout +
+				fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 			runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix coordinate/mode", targetedMigrate, entry, 1)
 		}
 	}
 	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "          - runs_on: ", 12)
+	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "test_timeout:", 12)
+	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "test_timeout: 30m", 9)
+	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "test_timeout: 45m", 3)
 	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes:", 12)
 	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 40", 9)
-	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 45", 3)
+	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 55", 3)
 	targetedMode := runserverWorkflowStep(
 		t,
 		targetedMigrate,
@@ -369,7 +374,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	for _, fragment := range []string{
 		"set -euo pipefail",
 		`mode="${{ matrix.mode }}"`,
-		"test_flags=(-timeout=30m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
+		`test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')`,
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",

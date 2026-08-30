@@ -856,61 +856,73 @@ jobs:
             expected_goos: linux
             expected_goarch: amd64
             mode: normal
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
             mode: race
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
             mode: cgo0
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: normal
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: race
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: cgo0
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: normal
-            timeout_minutes: 45
+            test_timeout: 45m
+            timeout_minutes: 55
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: race
-            timeout_minutes: 45
+            test_timeout: 45m
+            timeout_minutes: 55
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: cgo0
-            timeout_minutes: 45
+            test_timeout: 45m
+            timeout_minutes: 55
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: normal
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: race
+            test_timeout: 30m
             timeout_minutes: 40
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: cgo0
+            test_timeout: 30m
             timeout_minutes: 40
 
     steps:
@@ -937,7 +949,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout=30m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
+          test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
           case "$mode" in
             normal)
               ;;

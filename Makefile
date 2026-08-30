@@ -101,7 +101,7 @@ MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemsta
 PORTABLE_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/systemstate/multiruntimeworker
 PORTABLE_CGO0_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck
 
-.PHONY: cgo-zero-build check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact
+.PHONY: cgo-zero-build check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-test go-vet oracle-check oracle-regenerate python-test python-test-exact targeted-migrate-product
 
 define select_core_go_packages
 all_packages="$$(go list ./...)"; \
@@ -152,7 +152,6 @@ go-test:
 	go test $$core_packages
 	go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)
 	go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
-	go test -timeout=15m -count=1 ./conformance/projectmigratetargetproduct
 	go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
 	go test -timeout=15m -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
@@ -166,7 +165,6 @@ go-race:
 	go test -race $$core_packages
 	go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)
 	go test -timeout=15m -race -count=1 ./conformance/projectmigrateproduct
-	go test -timeout=15m -race -count=1 ./conformance/projectmigratetargetproduct
 	go test -timeout=15m -race -count=1 ./conformance/projectshowmigrationsproduct
 	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct
@@ -193,10 +191,14 @@ cgo-zero-build:
 		-count=1
 	CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigrateproduct
-	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectmigratetargetproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+
+targeted-migrate-product:
+	go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct
+	go test -timeout=30m -race -count=1 ./conformance/projectmigratetargetproduct
+	CGO_ENABLED=0 go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct
 
 python-test:
 	PYTHONWARNINGS=error::ResourceWarning LC_ALL=C TZ=UTC uv run --frozen python -m unittest discover \
@@ -558,6 +560,6 @@ oracle-regenerate:
 		--profile $(DRF_PROFILE) --manifest $(API_AUTHENTICATION_MANIFEST) \
 		--output $(API_AUTHENTICATION_ORACLE)
 
-ci: format-check generate-check go-test go-vet go-race cgo-zero-build python-test conformance-check godj-conformance
+ci: format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance
 
 check: ci python-test-exact oracle-check

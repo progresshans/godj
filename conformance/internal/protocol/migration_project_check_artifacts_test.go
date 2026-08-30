@@ -495,7 +495,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
 		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
 		`mode="${{ matrix.mode }}"`,
-		"test_flags=(-timeout=30m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
+		`test_flags=(-timeout="${{ matrix.test_timeout }}" -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')`,
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
@@ -517,10 +517,14 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	for _, coordinate := range wantCoordinates {
 		for _, mode := range []string{"normal", "race", "cgo0"} {
 			timeoutMinutes := 40
+			testTimeout := "30m"
 			if strings.Contains(coordinate, "runs_on: macos-15-intel") {
-				timeoutMinutes = 45
+				testTimeout = "45m"
+				timeoutMinutes = 55
 			}
-			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
+			entry := coordinate + "\n            mode: " + mode +
+				"\n            test_timeout: " + testTimeout +
+				fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 			if strings.Count(targetedMigrate, entry) != 1 {
 				t.Fatalf("targeted-migrate coordinate/mode entry %q is not pinned exactly once", entry)
 			}
@@ -529,14 +533,23 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	if got := strings.Count(targetedMigrate, "          - runs_on: "); got != 12 {
 		t.Fatalf("targeted-migrate matrix leg count = %d, want 4 coordinates x 3 modes", got)
 	}
+	if got := strings.Count(targetedMigrate, "test_timeout:"); got != 12 {
+		t.Fatalf("targeted-migrate package timeout count = %d, want 12", got)
+	}
+	if got := strings.Count(targetedMigrate, "test_timeout: 30m"); got != 9 {
+		t.Fatalf("targeted-migrate 30-minute package timeout count = %d, want 9", got)
+	}
+	if got := strings.Count(targetedMigrate, "test_timeout: 45m"); got != 3 {
+		t.Fatalf("targeted-migrate Intel package timeout count = %d, want 3", got)
+	}
 	if got := strings.Count(targetedMigrate, "timeout_minutes:"); got != 12 {
 		t.Fatalf("targeted-migrate coordinate timeout count = %d, want 12", got)
 	}
 	if got := strings.Count(targetedMigrate, "timeout_minutes: 40"); got != 9 {
 		t.Fatalf("targeted-migrate 40-minute timeout count = %d, want 9", got)
 	}
-	if got := strings.Count(targetedMigrate, "timeout_minutes: 45"); got != 3 {
-		t.Fatalf("targeted-migrate Intel timeout count = %d, want 3", got)
+	if got := strings.Count(targetedMigrate, "timeout_minutes: 55"); got != 3 {
+		t.Fatalf("targeted-migrate Intel job timeout count = %d, want 3", got)
 	}
 	if got := strings.Count(targetedMigrate, "./conformance/projectmigratetargetproduct"); got != 2 {
 		t.Fatalf("targeted-migrate package gate count = %d, want test plus normal-mode vet", got)
