@@ -25,9 +25,10 @@ type loadedDefinitionPublication = loadeddefinition.Set[
 	DefinitionSourceInfo,
 ]
 
-// LoadedDefinitionSet is the only public input to a complete migration
-// lifecycle. Its fields and constructor remain private to the migrations
-// module; definition.Load is the public way to obtain an initialized value.
+// LoadedDefinitionSet is the only public definition input to a complete
+// migration lifecycle or its read-only plan. Its fields and constructor remain
+// private to the migrations module; definition.Load is the public way to
+// obtain an initialized value.
 type LoadedDefinitionSet loadedDefinitionPublication
 
 // Digest returns the canonical semantic definition-set fingerprint.
@@ -40,7 +41,8 @@ func (s LoadedDefinitionSet) Digest() string {
 }
 
 // Definitions returns a fresh deep copy for diagnostics and inspection. The
-// returned slice is not accepted as loaded Migrate lifecycle authority.
+// returned slice is not accepted as loaded Migrate or Plan lifecycle
+// authority.
 func (s LoadedDefinitionSet) Definitions() []Migration {
 	snapshot, ok := s.snapshot()
 	if !ok {
@@ -60,8 +62,8 @@ func (s LoadedDefinitionSet) Sources() []DefinitionSourceInfo {
 
 // Statuses validates and lists one applied-history snapshot against this
 // loader-owned complete definition set. It is the read-only inspection
-// counterpart to Executor.Migrate: callers cannot substitute a partial raw
-// definition slice for the loader publication authority.
+// counterpart to Executor.Migrate and Executor.Plan: callers cannot substitute
+// a partial raw definition slice for the loader publication authority.
 func (s LoadedDefinitionSet) Statuses(applied AppliedState) ([]MigrationStatusEntry, error) {
 	snapshot, ok := s.snapshot()
 	if !ok {

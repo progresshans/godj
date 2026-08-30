@@ -1217,7 +1217,7 @@ func migrationWriterProtocolBoundary(ctx context.Context, contract protocol.Cont
 		return protocol.Observation{}, fmt.Errorf("migration-writer protocol accepted unknown member: failure=%+v failed=%t err=%v", unknownFailure, unknownFailed, unknownErr)
 	}
 	existingProtocolsStable := bytes.Equal(checkprotocol.RequestDocument(), []byte(`{"protocol_version":1,"command":"migrations.check"}`)) &&
-		bytes.Equal(migrateprotocol.RequestDocument(), []byte(`{"protocol_version":1,"command":"migrations.migrate"}`)) &&
+		bytes.Equal(migrateprotocol.RequestDocument(), []byte(`{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`)) &&
 		bytes.Equal(generateprotocol.RequestDocument(), []byte(`{"protocol_version":1,"command":"generate.project_spec"}`))
 	linkedReport := reports[0]
 	oneSnapshot := runnerCalls == 1 && linkedReport.ProjectSpecLoaderCalls == 1 && linkedReport.BuildSnapshotCalls == 1 && linkedReport.RootsOpened == 1

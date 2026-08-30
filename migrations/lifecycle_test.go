@@ -131,6 +131,214 @@ func TestExecutorMigrateRejectsZeroLoadedDefinitionSetBeforeBackendOrRecorderIO(
 	}
 }
 
+func TestExecutorPlanUsesSharedPreparationWithoutBeginningMigration(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleLoadedRelationCreateDefinitions()
+	session := newLifecycleTestSession(nil, nil)
+	fake := newLifecycleTestBackend(session)
+	fake.capabilities = lifecycleAllRelationCapabilities()
+
+	plan, err := (Executor{Backend: fake}).Plan(
+		context.Background(),
+		testLoadedDefinitionSet(definitions),
+		LatestLifecycleRequest(),
+	)
+	if err != nil {
+		t.Fatalf("Plan() error = %v", err)
+	}
+	want := []PlanStep{
+		{Key: MigrationKey{App: "authors", Name: "0001_author"}, Direction: DirectionForward},
+		{Key: MigrationKey{App: "blog", Name: "0001_post"}, Direction: DirectionForward},
+		{Key: MigrationKey{App: "zeta", Name: "0001_note"}, Direction: DirectionForward},
+	}
+	if !reflect.DeepEqual(plan, want) {
+		t.Fatalf("Plan() = %v, want %v", plan, want)
+	}
+	if fake.openCount != 1 || session.readCount != 1 || fake.capabilityCount != 1 ||
+		session.beginCount != 0 || session.closeCount != 1 || len(session.transitions) != 0 ||
+		len(session.intents) != 0 {
+		t.Fatalf(
+			"Plan() calls = open:%d read:%d capability:%d begin:%d close:%d transitions:%v intents:%v",
+			fake.openCount,
+			session.readCount,
+			fake.capabilityCount,
+			session.beginCount,
+			session.closeCount,
+			session.transitions,
+			session.intents,
+		)
+	}
+}
+
+func TestExecutorPlanNoopStillReadsAndCloses(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleTestDefinitions()
+	session := newLifecycleTestSession(
+		lifecycleRecords(lifecycleAlpha1, lifecycleAlpha2, lifecycleAlpha3, lifecycleBeta1),
+		nil,
+	)
+	fake := newLifecycleTestBackend(session)
+	plan, err := (Executor{Backend: fake}).Plan(
+		context.Background(),
+		testLoadedDefinitionSet(definitions),
+		LatestLifecycleRequest(),
+	)
+	if err != nil || plan == nil || len(plan) != 0 {
+		t.Fatalf("Plan(no-op) = (%#v, %v), want detached empty slice", plan, err)
+	}
+	if fake.openCount != 1 || session.readCount != 1 || session.closeCount != 1 ||
+		fake.capabilityCount != 0 || session.beginCount != 0 {
+		t.Fatalf(
+			"Plan(no-op) calls = open:%d read:%d close:%d capability:%d begin:%d",
+			fake.openCount,
+			session.readCount,
+			session.closeCount,
+			fake.capabilityCount,
+			session.beginCount,
+		)
+	}
+}
+
+func TestExecutorPlanReturnsDetachedIndependentSnapshots(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleTestDefinitions()
+	session := newLifecycleTestSession(nil, nil)
+	fake := newLifecycleTestBackend(session)
+	executor := Executor{Backend: fake}
+	request := TargetedLifecycleRequest(NamedTarget(lifecycleAlpha2), NamedTarget(lifecycleBeta1))
+
+	first, err := executor.Plan(context.Background(), testLoadedDefinitionSet(definitions), request)
+	if err != nil {
+		t.Fatalf("first Plan() error = %v", err)
+	}
+	want := []PlanStep{
+		{Key: lifecycleAlpha1, Direction: DirectionForward},
+		{Key: lifecycleAlpha2, Direction: DirectionForward},
+		{Key: lifecycleBeta1, Direction: DirectionForward},
+	}
+	if !reflect.DeepEqual(first, want) {
+		t.Fatalf("first Plan() = %v, want %v", first, want)
+	}
+	first[0] = PlanStep{Key: MigrationKey{App: "mutated", Name: "caller"}, Direction: DirectionBackward}
+
+	second, err := executor.Plan(context.Background(), testLoadedDefinitionSet(definitions), request)
+	if err != nil {
+		t.Fatalf("second Plan() error = %v", err)
+	}
+	if !reflect.DeepEqual(second, want) {
+		t.Fatalf("second Plan() retained caller mutation: got %v, want %v", second, want)
+	}
+
+	session.records = lifecycleRecords(lifecycleAlpha1, lifecycleAlpha2, lifecycleBeta1)
+	third, err := executor.Plan(context.Background(), testLoadedDefinitionSet(definitions), request)
+	if err != nil || third == nil || len(third) != 0 {
+		t.Fatalf("third Plan(current history) = (%#v, %v), want fresh empty snapshot", third, err)
+	}
+	if fake.openCount != 3 || session.readCount != 3 || session.closeCount != 3 || session.beginCount != 0 {
+		t.Fatalf(
+			"independent Plan calls = open:%d read:%d close:%d begin:%d, want 3/3/3/0",
+			fake.openCount,
+			session.readCount,
+			session.closeCount,
+			session.beginCount,
+		)
+	}
+}
+
+func TestExecutorPlanCloseFailureDiscardsCalculatedPlan(t *testing.T) {
+	t.Parallel()
+
+	closeCause := errors.New("plan close sentinel")
+	definitions := lifecycleTestDefinitions()[:1]
+	session := newLifecycleTestSession(nil, nil)
+	session.closeErr = closeCause
+	plan, err := (Executor{Backend: newLifecycleTestBackend(session)}).Plan(
+		context.Background(),
+		testLoadedDefinitionSet(definitions),
+		LatestLifecycleRequest(),
+	)
+	assertMigrationError(t, err, CategoryTransaction, CodeSessionCloseFailed, NoOperation, "")
+	if plan != nil || !errors.Is(err, closeCause) || session.readCount != 1 ||
+		session.beginCount != 0 || session.closeCount != 1 {
+		t.Fatalf(
+			"Plan(close failure) = plan:%#v err:%v read:%d begin:%d close:%d",
+			plan,
+			err,
+			session.readCount,
+			session.beginCount,
+			session.closeCount,
+		)
+	}
+}
+
+func TestExecutorPlanPreparationFailurePrecedesAndJoinsSessionClose(t *testing.T) {
+	t.Parallel()
+
+	readCause := errors.New("plan read sentinel")
+	closeCause := errors.New("plan close sentinel")
+	session := newLifecycleTestSession(nil, nil)
+	session.readErr = readCause
+	session.closeErr = closeCause
+	plan, err := (Executor{Backend: newLifecycleTestBackend(session)}).Plan(
+		context.Background(),
+		testLoadedDefinitionSet(lifecycleTestDefinitions()[:1]),
+		LatestLifecycleRequest(),
+	)
+	var recorder *RecorderError
+	if plan != nil || !errors.As(err, &recorder) || recorder.Category != CategoryRecorder || recorder.Code != CodeReadFailed ||
+		!errors.Is(err, readCause) || !errors.Is(err, closeCause) || session.readCount != 1 ||
+		session.beginCount != 0 || session.closeCount != 1 {
+		t.Fatalf(
+			"Plan(read+close failure) = plan:%#v err:%v recorder:%#v read:%d begin:%d close:%d",
+			plan,
+			err,
+			recorder,
+			session.readCount,
+			session.beginCount,
+			session.closeCount,
+		)
+	}
+}
+
+func TestExecutorPlanKnownAppZeroUsesStrictTargetThroughLoadedLifecycle(t *testing.T) {
+	t.Parallel()
+
+	definitions := lifecycleTestDefinitions()
+	fullyApplied := lifecycleRecords(lifecycleAlpha1, lifecycleAlpha2, lifecycleAlpha3, lifecycleBeta1)
+	session := newLifecycleTestSession(fullyApplied, nil)
+	plan, err := (Executor{Backend: newLifecycleTestBackend(session)}).Plan(
+		context.Background(),
+		testLoadedDefinitionSet(definitions),
+		TargetedLifecycleRequest(KnownAppZeroTarget("alpha")),
+	)
+	if err != nil {
+		t.Fatalf("Plan(strict zero) error = %v", err)
+	}
+	want := []PlanStep{
+		{Key: lifecycleAlpha3, Direction: DirectionBackward},
+		{Key: lifecycleAlpha2, Direction: DirectionBackward},
+		{Key: lifecycleBeta1, Direction: DirectionBackward},
+		{Key: lifecycleAlpha1, Direction: DirectionBackward},
+	}
+	if !reflect.DeepEqual(plan, want) || session.readCount != 1 || session.beginCount != 0 || session.closeCount != 1 {
+		t.Fatalf("Plan(strict zero) = %v, want %v; read=%d begin=%d close=%d", plan, want, session.readCount, session.beginCount, session.closeCount)
+	}
+
+	unknownSession := newLifecycleTestSession(fullyApplied, nil)
+	unknown, err := (Executor{Backend: newLifecycleTestBackend(unknownSession)}).Plan(
+		context.Background(),
+		testLoadedDefinitionSet(definitions),
+		TargetedLifecycleRequest(KnownAppZeroTarget("unknown")),
+	)
+	assertPlanningError(t, err, CategoryPlan, CodeTargetNotFound, MigrationKey{App: "unknown"}, MigrationKey{})
+	if unknown != nil || unknownSession.readCount != 1 || unknownSession.beginCount != 0 || unknownSession.closeCount != 1 {
+		t.Fatalf("Plan(unknown strict zero) = %#v; read=%d begin=%d close=%d", unknown, unknownSession.readCount, unknownSession.beginCount, unknownSession.closeCount)
+	}
+}
+
 func TestExecutorMigrateLoadedRelationRoutesByActualHistory(t *testing.T) {
 	t.Parallel()
 

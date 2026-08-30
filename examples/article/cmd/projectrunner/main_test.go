@@ -6,12 +6,14 @@ import (
 	"bytes"
 	"context"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	godjproject "github.com/progresshans/godj/project"
 )
 
@@ -44,41 +46,81 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 		if failed || !response.OK {
 			t.Fatalf("project migrate invocation %d response=%+v failure=%+v", invocation+1, response, failure)
 		}
-		if response.Result.SourceCount != 2 || response.Result.DefinitionCount != 2 {
+		if response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil ||
+			response.Result.Execute.SourceCount != 2 || response.Result.Execute.DefinitionCount != 2 {
 			t.Fatalf("project migrate invocation %d result=%+v", invocation+1, response.Result)
 		}
 		if invocation == 0 {
-			firstDigest = response.Result.DefinitionSetDigest
-		} else if response.Result.DefinitionSetDigest != firstDigest {
-			t.Fatalf("second invocation digest=%q, want %q", response.Result.DefinitionSetDigest, firstDigest)
+			firstDigest = response.Result.Execute.DefinitionSetDigest
+		} else if response.Result.Execute.DefinitionSetDigest != firstDigest {
+			t.Fatalf("second invocation digest=%q, want %q", response.Result.Execute.DefinitionSetDigest, firstDigest)
 		}
 	}
 
+	historyBeforePlan := readArticleMigrationHistory(t, databasePath)
+	requestDocument, err := migrateprotocol.EncodeRequest(migrateprotocol.Request{
+		Mode:   migrateprotocol.ModePlan,
+		Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var planOutput bytes.Buffer
+	err = godjproject.Run(
+		context.Background(),
+		config,
+		[]string{migrateprotocol.PrivateArgument},
+		bytes.NewReader(requestDocument),
+		&planOutput,
+	)
+	if err != nil {
+		t.Fatalf("project migration plan: %v", err)
+	}
+	const wantPlanResponse = `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[]}}`
+	if got := planOutput.String(); got != wantPlanResponse {
+		t.Fatalf("project migration plan response=%q, want canonical %q", got, wantPlanResponse)
+	}
+	planResponse, failure, failed := migrateprotocol.ParseResponse(planOutput.Bytes(), true)
+	if failed || !planResponse.OK || planResponse.Result.Mode != migrateprotocol.ModePlan ||
+		planResponse.Result.Plan == nil || len(planResponse.Result.Plan) != 0 ||
+		planResponse.Result.Execute != (migrateprotocol.ExecuteResult{}) {
+		t.Fatalf("project migration plan response=%+v failure=%+v failed=%t", planResponse, failure, failed)
+	}
+	historyAfterPlan := readArticleMigrationHistory(t, databasePath)
+	if !reflect.DeepEqual(historyAfterPlan, historyBeforePlan) {
+		t.Fatalf("project migration plan changed history: before=%+v after=%+v", historyBeforePlan, historyAfterPlan)
+	}
+	if len(historyAfterPlan) != 2 ||
+		historyAfterPlan[0].App != "godj_conformance" || historyAfterPlan[0].Name != "0001_initial" ||
+		historyAfterPlan[1].App != "godj_system" || historyAfterPlan[1].Name != "0001_initial" {
+		t.Fatalf("second invocation history=%+v", historyAfterPlan)
+	}
+}
+
+func readArticleMigrationHistory(t *testing.T, databasePath string) []migrationbackend.AppliedMigration {
+	t.Helper()
 	backend, err := sqlite.Open(context.Background(), databasePath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := backend.Close(); err != nil {
-			t.Errorf("close migrated Article backend: %v", err)
-		}
-	}()
 	session, err := backend.OpenRevisionFencedSession(context.Background())
 	if err != nil {
+		_ = backend.Close()
 		t.Fatal(err)
 	}
 	records, readErr := session.ReadAppliedMigrations(context.Background())
-	closeErr := session.Close(context.Background())
+	sessionCloseErr := session.Close(context.Background())
+	backendCloseErr := backend.Close()
 	if readErr != nil {
 		t.Fatal(readErr)
 	}
-	if closeErr != nil {
-		t.Fatal(closeErr)
+	if sessionCloseErr != nil {
+		t.Fatal(sessionCloseErr)
 	}
-	if len(records) != 2 || records[0].App != "godj_conformance" || records[0].Name != "0001_initial" ||
-		records[1].App != "godj_system" || records[1].Name != "0001_initial" {
-		t.Fatalf("second invocation history=%+v", records)
+	if backendCloseErr != nil {
+		t.Fatal(backendCloseErr)
 	}
+	return records
 }
 
 func TestArticleProjectRunnerClosesConfigurationFailureWithoutSecret(t *testing.T) {

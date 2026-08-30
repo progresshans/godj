@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -96,12 +97,15 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 			want := migrateprotocol.Response{
 				OK: true,
 				Result: migrateprotocol.Result{
-					SourceCount:         expected.Command.SourceCount,
-					DefinitionCount:     expected.Command.DefinitionCount,
-					DefinitionSetDigest: expected.Command.DefinitionSetDigest,
+					Mode: migrateprotocol.ModeExecute,
+					Execute: migrateprotocol.ExecuteResult{
+						SourceCount:         expected.Command.SourceCount,
+						DefinitionCount:     expected.Command.DefinitionCount,
+						DefinitionSetDigest: expected.Command.DefinitionSetDigest,
+					},
 				},
 			}
-			if privateResponse != want {
+			if !reflect.DeepEqual(privateResponse, want) {
 				t.Fatalf("winner private response = %+v, want exact successful migration result", privateResponse)
 			}
 			continue
@@ -110,7 +114,7 @@ func TestGlobalMigrateArticleSQLiteFullMIG096Concurrency(t *testing.T) {
 			Category: migrateprotocol.CategoryTransaction,
 			Code:     "history_revision_contended",
 		}}
-		if privateResponse != want {
+		if !reflect.DeepEqual(privateResponse, want) {
 			t.Fatalf("contender private response = %+v, want exact closed revision contention", privateResponse)
 		}
 	}

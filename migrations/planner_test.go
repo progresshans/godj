@@ -268,6 +268,88 @@ func TestPlannerTargetAndHistoryPrecedence(t *testing.T) {
 	assertPlanningError(t, err, CategoryPlan, CodeTargetNotFound, missing, MigrationKey{})
 }
 
+func TestPlannerKnownAppZeroPreservesLegacyZeroContract(t *testing.T) {
+	t.Parallel()
+
+	alphaRoot := MigrationKey{App: "alpha", Name: "0001_root"}
+	betaOnly := MigrationKey{App: "beta", Name: "0001_cross_app_dependent"}
+	planner := mustPlanner(t,
+		migration(alphaRoot),
+		migration(betaOnly, alphaRoot),
+	)
+	fullyApplied := mustApplied(t, alphaRoot, betaOnly)
+
+	legacyPlan, err := planner.Plan(fullyApplied, ZeroTarget("beta"))
+	if err != nil {
+		t.Fatalf("Plan(legacy known zero) error = %v", err)
+	}
+	strictPlan, err := planner.Plan(fullyApplied, KnownAppZeroTarget("beta"))
+	if err != nil {
+		t.Fatalf("Plan(strict known zero) error = %v", err)
+	}
+	if !reflect.DeepEqual(strictPlan, legacyPlan) {
+		t.Fatalf("strict known zero plan = %v, legacy plan = %v", strictPlan, legacyPlan)
+	}
+	assertPlan(t, strictPlan, backward(betaOnly))
+
+	legacyPlan, err = planner.Plan(fullyApplied, ZeroTarget("alpha"))
+	if err != nil {
+		t.Fatalf("Plan(legacy cross-app zero) error = %v", err)
+	}
+	strictPlan, err = planner.Plan(fullyApplied, KnownAppZeroTarget("alpha"))
+	if err != nil {
+		t.Fatalf("Plan(strict cross-app zero) error = %v", err)
+	}
+	if !reflect.DeepEqual(strictPlan, legacyPlan) {
+		t.Fatalf("strict cross-app zero plan = %v, legacy plan = %v", strictPlan, legacyPlan)
+	}
+	assertPlan(t, strictPlan, backward(betaOnly), backward(alphaRoot))
+
+	assertPlan(t, plan(t, planner, mustApplied(t), KnownAppZeroTarget("beta")))
+	assertPlan(t, plan(t, planner, mustApplied(t), ZeroTarget("unknown")))
+	_, err = planner.Plan(mustApplied(t), KnownAppZeroTarget("unknown"))
+	assertPlanningError(
+		t,
+		err,
+		CategoryPlan,
+		CodeTargetNotFound,
+		MigrationKey{App: "unknown"},
+		MigrationKey{},
+	)
+
+	legacyOnly := MigrationKey{App: "legacy", Name: "0099_removed"}
+	assertPlan(t, plan(t, planner, mustApplied(t, legacyOnly), ZeroTarget("legacy")))
+	_, err = planner.Plan(mustApplied(t, legacyOnly), KnownAppZeroTarget("legacy"))
+	assertPlanningError(
+		t,
+		err,
+		CategoryPlan,
+		CodeTargetNotFound,
+		MigrationKey{App: "legacy"},
+		MigrationKey{},
+	)
+}
+
+func TestPlannerKnownAppZeroHistoryPrecedence(t *testing.T) {
+	t.Parallel()
+
+	planner := mustPlanner(t, migration(alpha1), migration(alpha2, alpha1))
+	inconsistent := mustApplied(t, alpha2)
+
+	_, err := planner.Plan(inconsistent, KnownAppZeroTarget("unknown"))
+	assertPlanningError(t, err, CategoryHistory, CodeInconsistentAppliedHistory, alpha2, alpha1)
+
+	_, err = planner.Plan(mustApplied(t), KnownAppZeroTarget("unknown"))
+	assertPlanningError(
+		t,
+		err,
+		CategoryPlan,
+		CodeTargetNotFound,
+		MigrationKey{App: "unknown"},
+		MigrationKey{},
+	)
+}
+
 func TestPlannerCheckHistoryIsExplicitAndPreservesPlanValidation(t *testing.T) {
 	t.Parallel()
 
@@ -540,8 +622,10 @@ func TestPlannerRejectsInvalidTargetRepresentationsInCallerOrder(t *testing.T) {
 		{name: "empty named app", target: NamedTarget(MigrationKey{Name: "0001"}), node: MigrationKey{Name: "0001"}},
 		{name: "empty named name", target: NamedTarget(MigrationKey{App: "alpha"}), node: MigrationKey{App: "alpha"}},
 		{name: "empty zero app", target: ZeroTarget("")},
+		{name: "empty known-app zero app", target: KnownAppZeroTarget("")},
 		{name: "corrupt named tag", target: Target{kind: targetNamed, key: alpha1, app: "alpha"}, node: alpha1},
 		{name: "corrupt zero tag", target: Target{kind: targetZero, key: alpha1, app: "alpha"}},
+		{name: "corrupt known-app zero tag", target: Target{kind: targetKnownAppZero, key: alpha1, app: "alpha"}},
 	}
 	for _, test := range tests {
 		test := test
@@ -928,6 +1012,8 @@ func TestPlannerHeapSelectionMatchesCanonicalScanExhaustively(t *testing.T) {
 		NamedTarget(keys[3]),
 		ZeroTarget("alpha"),
 		ZeroTarget("beta"),
+		KnownAppZeroTarget("alpha"),
+		KnownAppZeroTarget("beta"),
 	}
 	targetSequences := make([][]Target, 0, len(targetChoices)+len(targetChoices)*len(targetChoices))
 	for _, first := range targetChoices {
@@ -1050,7 +1136,8 @@ func TestPlannerHeapSelectionHandlesDenseResourceValidGraphs(t *testing.T) {
 		appliedKeys := append([]MigrationKey{root}, early...)
 		appliedKeys = append(appliedKeys, chain...)
 		appliedKeys = append(appliedKeys, extraKeys...)
-		steps := plan(t, planner, mustApplied(t, appliedKeys...), ZeroTarget(root.App))
+		applied := mustApplied(t, appliedKeys...)
+		steps := plan(t, planner, applied, ZeroTarget(root.App))
 		if got, want := len(steps), denseNodes; got != want {
 			t.Fatalf("dense backward plan length = %d, want %d", got, want)
 		}
@@ -1058,6 +1145,11 @@ func TestPlannerHeapSelectionHandlesDenseResourceValidGraphs(t *testing.T) {
 			if step.Direction != DirectionBackward {
 				t.Fatalf("dense backward step %d direction = %v", index, step.Direction)
 			}
+		}
+
+		strictSteps := plan(t, planner, applied, KnownAppZeroTarget(root.App))
+		if !reflect.DeepEqual(strictSteps, steps) {
+			t.Fatalf("dense strict-zero plan differs from legacy zero")
 		}
 	})
 }
@@ -1098,7 +1190,16 @@ func referencePlannerPlan(graph *plannerGraph, applied AppliedState, targets ...
 				}
 				result = append(result, steps...)
 			}
-		case targetZero:
+		case targetZero, targetKnownAppZero:
+			if target.kind == targetKnownAppZero && !graph.containsApp(target.app) {
+				return nil, newPlanningError(
+					CategoryPlan,
+					CodeTargetNotFound,
+					MigrationKey{App: target.app},
+					MigrationKey{},
+					nil,
+				)
+			}
 			for _, root := range graph.appRoots(target.app) {
 				steps, err := referencePlanBackward(graph, root, working)
 				if err != nil {

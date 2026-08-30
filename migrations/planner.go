@@ -46,10 +46,12 @@ type targetKind uint8
 const (
 	targetNamed targetKind = iota + 1
 	targetZero
+	targetKnownAppZero
 )
 
 // Target is an immutable tagged migration planning target. Construct targets
-// with NamedTarget or ZeroTarget; the zero value is deliberately invalid.
+// with NamedTarget, ZeroTarget, or KnownAppZeroTarget; the zero value is
+// deliberately invalid.
 type Target struct {
 	kind targetKind
 	key  MigrationKey
@@ -67,6 +69,14 @@ func NamedTarget(key MigrationKey) Target {
 // dependents. A syntactically valid app with no graph nodes is an empty plan.
 func ZeroTarget(app string) Target {
 	return Target{kind: targetZero, app: app}
+}
+
+// KnownAppZeroTarget removes the same applied closure as ZeroTarget, but
+// requires app to have at least one node in the Planner graph. It provides a
+// strict command-facing spelling without changing ZeroTarget's accepted
+// unknown-app empty-plan contract.
+func KnownAppZeroTarget(app string) Target {
+	return Target{kind: targetKnownAppZero, app: app}
 }
 
 // PlanStep describes one migration identity and the direction in which it
@@ -274,7 +284,16 @@ func (p Planner) Plan(applied AppliedState, targets ...Target) ([]PlanStep, erro
 				}
 				plan = append(plan, steps...)
 			}
-		case targetZero:
+		case targetZero, targetKnownAppZero:
+			if target.kind == targetKnownAppZero && !graph.containsApp(target.app) {
+				return nil, newPlanningError(
+					CategoryPlan,
+					CodeTargetNotFound,
+					MigrationKey{App: target.app},
+					MigrationKey{},
+					nil,
+				)
+			}
 			for _, root := range graph.appRoots(target.app) {
 				steps, err := graph.planBackward(root, working)
 				if err != nil {
@@ -294,7 +313,7 @@ func validateTarget(target Target) error {
 			return nil
 		}
 		return newPlanningError(CategoryPlan, CodeInvalidTarget, target.key, MigrationKey{}, nil)
-	case targetZero:
+	case targetZero, targetKnownAppZero:
 		if target.app != "" && target.key == (MigrationKey{}) {
 			return nil
 		}

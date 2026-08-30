@@ -22,6 +22,7 @@ allowed_paths:
   - "conformance/runners/godj/**"
   - "conformance/cmd/godjcheck/**"
   - "conformance/internal/protocol/**"
+  - "conformance/projectmigrateproduct/**"
   - "conformance/projectmigratetargetproduct/**"
   - "conformance/postgresproduct/**"
   - "conformance/systemstate/attestations/**"

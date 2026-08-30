@@ -134,12 +134,15 @@ func TestGlobalMigrateArticlePostgresProduct(t *testing.T) {
 				want := migrateprotocol.Response{
 					OK: true,
 					Result: migrateprotocol.Result{
-						SourceCount:         expected.Command.SourceCount,
-						DefinitionCount:     expected.Command.DefinitionCount,
-						DefinitionSetDigest: expected.Command.DefinitionSetDigest,
+						Mode: migrateprotocol.ModeExecute,
+						Execute: migrateprotocol.ExecuteResult{
+							SourceCount:         expected.Command.SourceCount,
+							DefinitionCount:     expected.Command.DefinitionCount,
+							DefinitionSetDigest: expected.Command.DefinitionSetDigest,
+						},
 					},
 				}
-				if privateResponse != want {
+				if !reflect.DeepEqual(privateResponse, want) {
 					t.Fatal("PostgreSQL winner private response did not match the exact successful migration result")
 				}
 				continue
@@ -148,7 +151,7 @@ func TestGlobalMigrateArticlePostgresProduct(t *testing.T) {
 				Category: migrateprotocol.CategoryTransaction,
 				Code:     "history_revision_contended",
 			}}
-			if privateResponse != want {
+			if !reflect.DeepEqual(privateResponse, want) {
 				t.Fatal("PostgreSQL contender private response did not match the exact closed revision contention")
 			}
 		}

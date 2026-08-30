@@ -5,6 +5,8 @@ package projectcheck
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -12,6 +14,36 @@ import (
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
+
+func TestParseMigrateArgumentsExactV2Forms(t *testing.T) {
+	t.Parallel()
+	descriptor := "./godj.toml"
+	tests := []struct {
+		argv       []string
+		descriptor string
+		request    migrateprotocol.Request
+	}{
+		{argv: []string{"migrate"}, request: migrateprotocol.Request{Mode: migrateprotocol.ModeExecute, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest}}},
+		{argv: []string{"migrate", "--project", descriptor}, descriptor: descriptor, request: migrateprotocol.Request{Mode: migrateprotocol.ModeExecute, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest}}},
+		{argv: []string{"migrate", "--plan"}, request: migrateprotocol.Request{Mode: migrateprotocol.ModePlan, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest}}},
+		{argv: []string{"migrate", "--plan", "--project", descriptor}, descriptor: descriptor, request: migrateprotocol.Request{Mode: migrateprotocol.ModePlan, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest}}},
+		{argv: []string{"migrate", "blog", "0002_editor"}, request: migrateprotocol.Request{Mode: migrateprotocol.ModeExecute, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetNamed, App: "blog", Name: "0002_editor"}}},
+		{argv: []string{"migrate", "blog", "0002_editor", "--project", descriptor}, descriptor: descriptor, request: migrateprotocol.Request{Mode: migrateprotocol.ModeExecute, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetNamed, App: "blog", Name: "0002_editor"}}},
+		{argv: []string{"migrate", "blog", "0002_editor", "--plan"}, request: migrateprotocol.Request{Mode: migrateprotocol.ModePlan, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetNamed, App: "blog", Name: "0002_editor"}}},
+		{argv: []string{"migrate", "blog", "0002_editor", "--plan", "--project", descriptor}, descriptor: descriptor, request: migrateprotocol.Request{Mode: migrateprotocol.ModePlan, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetNamed, App: "blog", Name: "0002_editor"}}},
+		{argv: []string{"migrate", "blog", "zero"}, request: migrateprotocol.Request{Mode: migrateprotocol.ModeExecute, Target: migrateprotocol.Target{Kind: migrateprotocol.TargetZero, App: "blog"}}},
+	}
+	for _, test := range tests {
+		arguments, failure := parseMigrateArguments(test.argv)
+		if failure != nil || arguments.explicitDescriptor != test.descriptor || arguments.request != test.request {
+			t.Fatalf("parseMigrateArguments(%q) = %+v, %+v", test.argv, arguments, failure)
+		}
+		request, parseFailure, failed, err := migrateprotocol.ReadRequest(bytes.NewReader(arguments.requestDocument))
+		if err != nil || failed || parseFailure != (migrateprotocol.Failure{}) || request != test.request {
+			t.Fatalf("encoded request for %q = %+v, %+v, %v, %v", test.argv, request, parseFailure, failed, err)
+		}
+	}
+}
 
 type migrateScriptedBackend struct {
 	stages   []ProcessStage
@@ -33,7 +65,10 @@ func TestRunMigrateSuccessUsesSeparateProtocolAndSingleRunner(t *testing.T) {
 	t.Parallel()
 	fixture := newGlobalFixture(t, 2)
 	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
-		DefinitionSetDigest: migrateprotocol.EmptySetDigest,
+		Mode: migrateprotocol.ModeExecute,
+		Execute: migrateprotocol.ExecuteResult{
+			DefinitionSetDigest: migrateprotocol.EmptySetDigest,
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -75,15 +110,28 @@ func TestRunMigrateSuccessUsesSeparateProtocolAndSingleRunner(t *testing.T) {
 
 func TestRunMigrateExactArgumentsPrecedeProjectSelection(t *testing.T) {
 	t.Parallel()
-	for _, arguments := range [][]string{
+	for index, arguments := range [][]string{
 		{},
 		{"migrate", "--project"},
 		{"migrate", "--project", ""},
+		{"migrate", "--project", "--plan"},
+		{"migrate", "--plan", "--project", "--project"},
 		{"migrate", "--project", "godj.toml", "extra"},
 		{"migrate", "--check"},
+		{"migrate", "blog"},
+		{"migrate", "--project", "godj.toml", "--plan"},
+		{"migrate", "--plan", "blog", "0001"},
+		{"migrate", "blog", "0001", "--project", "godj.toml", "--plan"},
+		{"migrate", "blog", "0001", "--project", "--plan"},
+		{"migrate", "--unknown", "0001"},
+		{"migrate", "-x", "0001"},
+		{"migrate", "blog", "--unknown"},
+		{"migrate", "blog", "-x"},
+		{"migrate", string([]byte{0xff}), "0001"},
+		{"migrate", "blog", strings.Repeat("x", migrateprotocol.MaxIdentityBytes+1)},
 	} {
 		arguments := append([]string(nil), arguments...)
-		t.Run(strings.Join(arguments, "_"), func(t *testing.T) {
+		t.Run(fmt.Sprintf("case_%02d", index), func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			report := RunMigrate(MigrateInvocation{
 				Context: context.Background(), CWD: filepath.Join(t.TempDir(), "absent"), Args: arguments,
@@ -97,6 +145,181 @@ func TestRunMigrateExactArgumentsPrecedeProjectSelection(t *testing.T) {
 				t.Fatalf("invalid migrate arguments %q = %+v stdout=%q stderr=%q", arguments, report, stdout.String(), stderr.String())
 			}
 		})
+	}
+}
+
+func TestRunMigratePlanPublishesCanonicalRowsAndExactRequest(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	rows := []migrateprotocol.PlanRow{
+		{App: "authors", Name: "0001_author", Direction: migrateprotocol.DirectionForward},
+		{App: "blog", Name: "0002_\u003cscript\u003e", Direction: migrateprotocol.DirectionForward},
+	}
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode: migrateprotocol.ModePlan,
+		Plan: rows,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &migrateScriptedBackend{
+		build: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+		runner: ProcessResult{
+			Started: true, ExitCode: 0, DirectReaps: 1, Stdout: append([]byte(nil), wire...),
+			StdoutScalar: StreamScalar{RetainedBytes: len(wire)},
+		},
+	}
+	var stdout, stderr bytes.Buffer
+	report := RunMigrate(MigrateInvocation{
+		Context: context.Background(), CWD: fixture.project,
+		Args: []string{"migrate", "blog", "0002_editor", "--plan"}, Environment: fixture.environment,
+		Stdout: &stdout, Stderr: &stderr, Backend: backend,
+	})
+	if report.ExitCode != 0 || !report.HasMigratePlan || report.HasMigrateResult || report.HasMigrateFailure ||
+		!reflect.DeepEqual(report.MigratePlan, rows) || report.BuildCalls != 1 || report.RunnerCalls != 1 ||
+		report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || stderr.Len() != 0 {
+		t.Fatalf("plan report = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+	}
+	wantOutput, err := migrateprotocol.EncodePublicPlan(rows)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(stdout.Bytes(), wantOutput) || bytes.Contains(stdout.Bytes(), []byte(`\u003c`)) {
+		t.Fatalf("plan output = %q, want %q", stdout.Bytes(), wantOutput)
+	}
+	wantRequest, err := migrateprotocol.EncodeRequest(migrateprotocol.Request{
+		Mode:   migrateprotocol.ModePlan,
+		Target: migrateprotocol.Target{Kind: migrateprotocol.TargetNamed, App: "blog", Name: "0002_editor"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backend.commands) != 2 || !bytes.Equal(backend.commands[1].Stdin, wantRequest) {
+		t.Fatalf("private plan request = %q, want %q", backend.commands[1].Stdin, wantRequest)
+	}
+	rows[0].App = "mutated"
+	if report.MigratePlan[0].App != "authors" {
+		t.Fatal("report retained response plan alias")
+	}
+}
+
+func TestRunMigrateRejectsSuccessModeMismatch(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode: migrateprotocol.ModePlan,
+		Plan: []migrateprotocol.PlanRow{},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &migrateScriptedBackend{
+		build:  ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+		runner: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: wire, StdoutScalar: StreamScalar{RetainedBytes: len(wire)}},
+	}
+	var stdout, stderr bytes.Buffer
+	report := RunMigrate(MigrateInvocation{
+		Context: context.Background(), CWD: fixture.project, Args: []string{"migrate"}, Environment: fixture.environment,
+		Stdout: &stdout, Stderr: &stderr, Backend: backend,
+	})
+	if report.ExitCode != 3 || !report.HasMigrateFailure || report.HasMigrateResult || report.HasMigratePlan ||
+		report.MigrateFailure != (migrateprotocol.Failure{Category: migrateprotocol.CategoryProtocol, Code: migrateprotocol.CodeInvalidResponse}) ||
+		stdout.Len() != 0 || stderr.String() != migrateprotocol.CategoryProtocol+"/"+migrateprotocol.CodeInvalidResponse+"\n" {
+		t.Fatalf("mode mismatch = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+	}
+}
+
+func TestRunMigrateRejectsExecuteSuccessForPlanRequest(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode: migrateprotocol.ModeExecute,
+		Execute: migrateprotocol.ExecuteResult{
+			DefinitionSetDigest: migrateprotocol.EmptySetDigest,
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &migrateScriptedBackend{
+		build:  ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+		runner: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: wire, StdoutScalar: StreamScalar{RetainedBytes: len(wire)}},
+	}
+	var stdout, stderr bytes.Buffer
+	report := RunMigrate(MigrateInvocation{
+		Context: context.Background(), CWD: fixture.project, Args: []string{"migrate", "--plan"}, Environment: fixture.environment,
+		Stdout: &stdout, Stderr: &stderr, Backend: backend,
+	})
+	if report.ExitCode != 3 || !report.HasMigrateFailure || report.HasMigrateResult || report.HasMigratePlan ||
+		report.MigrateFailure != (migrateprotocol.Failure{Category: migrateprotocol.CategoryProtocol, Code: migrateprotocol.CodeInvalidResponse}) ||
+		stdout.Len() != 0 || stderr.String() != migrateprotocol.CategoryProtocol+"/"+migrateprotocol.CodeInvalidResponse+"\n" {
+		t.Fatalf("reverse mode mismatch = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+	}
+}
+
+func TestRunMigrateEmptyPlanAndShortPublication(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode: migrateprotocol.ModePlan,
+		Plan: []migrateprotocol.PlanRow{},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newBackend := func() *migrateScriptedBackend {
+		return &migrateScriptedBackend{
+			build:  ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+			runner: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: append([]byte(nil), wire...), StdoutScalar: StreamScalar{RetainedBytes: len(wire)}},
+		}
+	}
+
+	var stdout, stderr bytes.Buffer
+	report := RunMigrate(MigrateInvocation{
+		Context: context.Background(), CWD: fixture.project, Args: []string{"migrate", "--plan"}, Environment: fixture.environment,
+		Stdout: &stdout, Stderr: &stderr, Backend: newBackend(),
+	})
+	if report.ExitCode != 0 || !report.HasMigratePlan || report.MigratePlan == nil || len(report.MigratePlan) != 0 ||
+		report.HasMigrateResult || report.HasMigrateFailure || stdout.String() != "{\"plan\":[]}\n" || stderr.Len() != 0 {
+		t.Fatalf("empty plan = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
+	}
+
+	short := &shortWriter{}
+	shortReport := RunMigrate(MigrateInvocation{
+		Context: context.Background(), CWD: fixture.project, Args: []string{"migrate", "--plan"}, Environment: fixture.environment,
+		Stdout: short, Stderr: &bytes.Buffer{}, Backend: newBackend(),
+	})
+	if shortReport.ExitCode != 3 || !shortReport.HasMigrateFailure || shortReport.HasMigratePlan || shortReport.MigratePlan != nil ||
+		shortReport.HasMigrateResult || shortReport.MigrateFailure != migrateInternalFailure() ||
+		shortReport.UserStdoutWrites != 1 || shortReport.PartialStdoutWrites != 1 {
+		t.Fatalf("short plan publication = %+v", shortReport)
+	}
+}
+
+func TestRunMigratePlanCleanupFailureDiscardsPlan(t *testing.T) {
+	t.Parallel()
+	fixture := newGlobalFixture(t, 0)
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode: migrateprotocol.ModePlan,
+		Plan: []migrateprotocol.PlanRow{},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &migrateScriptedBackend{
+		build:  ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1},
+		runner: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: wire, StdoutScalar: StreamScalar{RetainedBytes: len(wire)}},
+	}
+	var stdout, stderr bytes.Buffer
+	report := RunMigrate(MigrateInvocation{
+		Context: context.Background(), CWD: fixture.project, Args: []string{"migrate", "--plan"}, Environment: fixture.environment,
+		Stdout: &stdout, Stderr: &stderr, Backend: backend,
+		workspace: workspaceHooks{afterRootCreated: func(_ string, base *os.File) { _ = base.Close() }},
+	})
+	if report.ExitCode != 3 || !report.HasMigrateFailure || report.HasMigrateResult || report.HasMigratePlan || report.MigratePlan != nil ||
+		report.MigrateFailure != migrateCleanupFailure() || report.CleanupFailed != 1 || stdout.Len() != 0 ||
+		stderr.String() != migrateprotocol.CategoryProcess+"/"+migrateprotocol.CodeProjectCleanupFailed+"\n" {
+		t.Fatalf("plan cleanup failure = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
 	}
 }
 
@@ -163,7 +386,10 @@ func TestRunMigrateCompletedCommitUnknownPrecedesLateCancellation(t *testing.T) 
 func TestRunMigrateTransportAndCleanupPrecedeResponseBytes(t *testing.T) {
 	t.Parallel()
 	fixture := newGlobalFixture(t, 0)
-	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{DefinitionSetDigest: migrateprotocol.EmptySetDigest}})
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode:    migrateprotocol.ModeExecute,
+		Execute: migrateprotocol.ExecuteResult{DefinitionSetDigest: migrateprotocol.EmptySetDigest},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +437,10 @@ func TestRunMigrateTransportAndCleanupPrecedeResponseBytes(t *testing.T) {
 func TestRunMigrateShortPublicationFailsClosed(t *testing.T) {
 	t.Parallel()
 	fixture := newGlobalFixture(t, 0)
-	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{DefinitionSetDigest: migrateprotocol.EmptySetDigest}})
+	wire, err := migrateprotocol.EncodeResponse(migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
+		Mode:    migrateprotocol.ModeExecute,
+		Execute: migrateprotocol.ExecuteResult{DefinitionSetDigest: migrateprotocol.EmptySetDigest},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}

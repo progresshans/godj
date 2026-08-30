@@ -128,6 +128,15 @@ func (g *plannerGraph) contains(key MigrationKey) bool {
 	return exists
 }
 
+func (g *plannerGraph) containsApp(app string) bool {
+	for _, key := range g.nodes {
+		if key.App == app {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *plannerGraph) validateAppliedHistory(applied map[MigrationKey]struct{}) error {
 	for _, child := range g.nodes {
 		if _, exists := applied[child]; !exists {

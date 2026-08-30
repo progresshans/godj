@@ -20,35 +20,50 @@ import (
 func TestActualGodjMigrateProcessUsesSeparatePrivateRunner(t *testing.T) {
 	fixture := newProcessFixture(t)
 	before := snapshotProject(t, fixture.project)
-	result := fixture.run(t, fixture.nested, nil, "migrate")
 	wantFailure := migrateprotocol.CategoryBackend + "/" + migrateprotocol.CodeInvalidBackend + "\n"
-	if result.exit != 3 || result.stdout != "" || result.stderr != wantFailure {
-		t.Fatalf("implicit migrate = %+v", result)
+	tests := []struct {
+		name string
+		cwd  string
+		args []string
+	}{
+		{name: "implicit execute latest", cwd: fixture.nested, args: []string{"migrate"}},
+		{name: "explicit execute latest", cwd: filepath.Dir(fixture.project), args: []string{"migrate", "--project", filepath.Join(fixture.project, "godj.toml")}},
+		{name: "implicit plan latest", cwd: fixture.nested, args: []string{"migrate", "--plan"}},
+		{name: "explicit plan named", cwd: filepath.Dir(fixture.project), args: []string{"migrate", "content", "0001_initial", "--plan", "--project", filepath.Join(fixture.project, "godj.toml")}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := fixture.run(t, test.cwd, nil, test.args...)
+			if result.exit != 3 || result.stdout != "" || result.stderr != wantFailure {
+				t.Fatalf("migrate = %+v", result)
+			}
+		})
 	}
 	after := snapshotProject(t, fixture.project)
 	if !reflect.DeepEqual(before, after) {
-		t.Fatalf("failed migrate rewrote project tree\nbefore=%v\nafter=%v", before, after)
-	}
-
-	result = fixture.run(t, filepath.Dir(fixture.project), nil, "migrate", "--project", filepath.Join(fixture.project, "godj.toml"))
-	if result.exit != 3 || result.stdout != "" || result.stderr != wantFailure {
-		t.Fatalf("explicit migrate = %+v", result)
+		t.Fatalf("failed migrate variants rewrote project tree\nbefore=%v\nafter=%v", before, after)
 	}
 }
 
 func TestExecuteDispatchesMigrateBeforeProjectSelection(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	exit := execute(
-		context.Background(),
-		filepath.Join(t.TempDir(), "missing"),
-		[]string{"migrate", "--project"},
-		os.Environ(),
-		&stdout,
-		&stderr,
-		nil,
-	)
-	if exit != 2 || stdout.Len() != 0 || stderr.String() != migrateprotocol.CategoryCommand+"/"+migrateprotocol.CodeInvalidArguments+"\n" {
-		t.Fatalf("migrate dispatch exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
+	for _, arguments := range [][]string{
+		{"migrate", "--project"},
+		{"migrate", "--project", "godj.toml", "--plan"},
+		{"migrate", "--plan", "content", "0001_initial"},
+	} {
+		var stdout, stderr bytes.Buffer
+		exit := execute(
+			context.Background(),
+			filepath.Join(t.TempDir(), "missing"),
+			arguments,
+			os.Environ(),
+			&stdout,
+			&stderr,
+			nil,
+		)
+		if exit != 2 || stdout.Len() != 0 || stderr.String() != migrateprotocol.CategoryCommand+"/"+migrateprotocol.CodeInvalidArguments+"\n" {
+			t.Fatalf("migrate dispatch args=%q exit=%d stdout=%q stderr=%q", arguments, exit, stdout.String(), stderr.String())
+		}
 	}
 }
 
@@ -64,7 +79,7 @@ func TestActualGodjMigrateInvalidArgumentsPrecedeDeletedCWD(t *testing.T) {
 	command := exec.Command(
 		"/bin/sh",
 		"-c",
-		`cd "$1" && rmdir "$1" && exec "$2" migrate --project`,
+		`cd "$1" && rmdir "$1" && exec "$2" migrate --project godj.toml --plan`,
 		"godj-deleted-cwd",
 		deleted,
 		fixture.godj,

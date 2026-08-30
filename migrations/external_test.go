@@ -340,6 +340,36 @@ func TestExternalConsumerZeroPlannerAndAppliedStateAreValid(t *testing.T) {
 	if len(plan) != 0 {
 		t.Fatalf("zero Planner.Plan() = %v, want empty", plan)
 	}
+
+	_, err = planner.Plan(applied, migrations.KnownAppZeroTarget("unknown"))
+	var planningError *migrations.PlanningError
+	if !errors.As(err, &planningError) ||
+		planningError.Category != migrations.CategoryPlan ||
+		planningError.Code != migrations.CodeTargetNotFound ||
+		planningError.Node != (migrations.MigrationKey{App: "unknown"}) {
+		t.Fatalf("strict zero Planner.Plan() error = %#v", err)
+	}
+
+	initial := migrations.MigrationKey{App: "news", Name: "0001_initial"}
+	knownPlanner, err := migrations.NewPlanner(migrations.Migration{App: initial.App, Name: initial.Name})
+	if err != nil {
+		t.Fatalf("NewPlanner(known app) error = %v", err)
+	}
+	knownApplied, err := migrations.NewAppliedState(initial)
+	if err != nil {
+		t.Fatalf("NewAppliedState(known app) error = %v", err)
+	}
+	legacyPlan, err := knownPlanner.Plan(knownApplied, migrations.ZeroTarget(initial.App))
+	if err != nil {
+		t.Fatalf("legacy known zero error = %v", err)
+	}
+	strictPlan, err := knownPlanner.Plan(knownApplied, migrations.KnownAppZeroTarget(initial.App))
+	if err != nil {
+		t.Fatalf("strict known zero error = %v", err)
+	}
+	if !reflect.DeepEqual(strictPlan, legacyPlan) {
+		t.Fatalf("strict known zero plan = %v, legacy plan = %v", strictPlan, legacyPlan)
+	}
 }
 
 func TestExternalConsumerCanInspectMigrationStatusesWithoutMutableAliases(t *testing.T) {

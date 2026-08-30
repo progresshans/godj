@@ -25,15 +25,44 @@ const ownedProcessGrace = 2 * time.Second
 
 type processBackend struct{}
 
-func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
-	if stage == MigrateRunnerStage {
-		return executeOwnedMigrateProcess(ctx, interrupt, cloneCommand(command), migrateprotocol.MaxResponseBytes, maxDiagnosticBytes, migrateOwnedProcessGrace)
+type ownedResponseProcessPolicy struct {
+	stdoutMaximum int
+	stderrMaximum int
+	grace         time.Duration
+}
+
+func ownedResponseProcessPolicyForStage(stage ProcessStage) (ownedResponseProcessPolicy, bool) {
+	switch stage {
+	case MigrateRunnerStage:
+		return ownedResponseProcessPolicy{
+			stdoutMaximum: migrateprotocol.MaxResponseBytes,
+			stderrMaximum: maxDiagnosticBytes,
+			grace:         migrateOwnedProcessGrace,
+		}, true
+	case ShowMigrationsRunnerStage:
+		return ownedResponseProcessPolicy{
+			stdoutMaximum: showmigrationsprotocol.MaxResponseBytes,
+			stderrMaximum: maxDiagnosticBytes,
+			grace:         ownedProcessGrace,
+		}, true
+	default:
+		return ownedResponseProcessPolicy{}, false
 	}
-	if stage == ShowMigrationsRunnerStage {
-		// The status child is read-only, but it still owns a strict response pipe.
+}
+
+func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+	if policy, ok := ownedResponseProcessPolicyForStage(stage); ok {
+		// Migrate and the read-only status child each own a strict response pipe.
 		// Reuse the bounded post-exit process-group owner so a descendant cannot
 		// retain that pipe indefinitely after the direct child has exited.
-		return executeOwnedMigrateProcess(ctx, interrupt, cloneCommand(command), showmigrationsprotocol.MaxResponseBytes, maxDiagnosticBytes, ownedProcessGrace)
+		return executeOwnedMigrateProcess(
+			ctx,
+			interrupt,
+			cloneCommand(command),
+			policy.stdoutMaximum,
+			policy.stderrMaximum,
+			policy.grace,
+		)
 	}
 	stdoutMaximum := maxDiagnosticBytes
 	retainStdout := false

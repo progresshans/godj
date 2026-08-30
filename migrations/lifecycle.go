@@ -51,21 +51,74 @@ func (e Executor) Migrate(
 	loaded LoadedDefinitionSet,
 	request LifecycleRequest,
 ) (resultState ProjectState, resultErr error) {
+	prepared, resultState, resultErr := e.prepareLoadedLifecycle(ctx, loaded, request)
+	if !isNilInterface(prepared.session) {
+		defer func() {
+			resultErr = closeLoadedLifecycleSession(ctx, prepared.session, resultErr)
+		}()
+	}
+	if resultErr != nil {
+		return resultState, resultErr
+	}
+	return e.executePreparedLifecycle(ctx, prepared)
+}
+
+// Plan reads and validates the same revision-bound history snapshot as
+// Migrate, but never opens a migration transaction. The returned steps are a
+// detached observation, not execution authority; a later Migrate call always
+// opens a fresh session and replans from current durable history.
+func (e Executor) Plan(
+	ctx context.Context,
+	loaded LoadedDefinitionSet,
+	request LifecycleRequest,
+) (resultPlan []PlanStep, resultErr error) {
+	prepared, _, resultErr := e.prepareLoadedLifecycle(ctx, loaded, request)
+	if !isNilInterface(prepared.session) {
+		defer func() {
+			resultErr = closeLoadedLifecycleSession(ctx, prepared.session, resultErr)
+			if resultErr != nil {
+				resultPlan = nil
+			}
+		}()
+	}
+	if resultErr != nil {
+		return nil, resultErr
+	}
+	resultPlan = make([]PlanStep, len(prepared.steps))
+	for index := range prepared.steps {
+		resultPlan[index] = prepared.steps[index].step
+	}
+	return resultPlan, nil
+}
+
+type preparedLoadedLifecycle struct {
+	session        backend.RevisionFencedSession
+	reconstructor  loadedStateReconstructor
+	executionState *loadedStateBuilder
+	before         ProjectState
+	steps          []loadedPlanStep
+}
+
+func (e Executor) prepareLoadedLifecycle(
+	ctx context.Context,
+	loaded LoadedDefinitionSet,
+	request LifecycleRequest,
+) (prepared preparedLoadedLifecycle, resultState ProjectState, resultErr error) {
 	resultState = EmptyProjectState()
 	if ctx == nil {
-		return resultState, executionContextError(PlanStep{}, errors.New("context is nil"))
+		return prepared, resultState, executionContextError(PlanStep{}, errors.New("context is nil"))
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 
 	requestKind, requestTargetView, err := inspectLifecycleRequest(request)
 	if err != nil {
-		return resultState, err
+		return prepared, resultState, err
 	}
 	snapshot, ok := loaded.snapshot()
 	if !ok {
-		return resultState, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is not initialized"))
+		return prepared, resultState, invalidLoadedState(Migration{}, NoOperation, "", errors.New("loaded definition set is not initialized"))
 	}
 	definitions := snapshot.Values
 
@@ -73,13 +126,13 @@ func (e Executor) Migrate(
 	// backend. The private publication replaces the former hidden context
 	// authority while preserving a second trust-boundary resource scan.
 	if err := validateLoadedDefinitionResources(definitions); err != nil {
-		return resultState, err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 	if err := validateLoadedLifecycleTargets(definitions, requestTargetView); err != nil {
-		return resultState, err
+		return prepared, resultState, err
 	}
 	requestTargets := append([]Target(nil), requestTargetView...)
 
@@ -88,56 +141,31 @@ func (e Executor) Migrate(
 	// operation so neither planning nor execution retains caller aliases.
 	definitionSnapshot := cloneMigrationDefinitions(definitions)
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 	reconstructor, err := newLoadedStateReconstructor(definitionSnapshot)
 	if err != nil {
-		return resultState, err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 
 	if isNilInterface(e.Backend) {
-		return resultState, revisionFenceUnsupportedError(errors.New("backend is nil"))
+		return prepared, resultState, revisionFenceUnsupportedError(errors.New("backend is nil"))
 	}
 	fencedBackend := e.Backend
 
-	cleanupBase := context.WithoutCancel(ctx)
 	session, openErr := fencedBackend.OpenRevisionFencedSession(ctx)
-	if !isNilInterface(session) {
-		defer func() {
-			cleanupCtx, cancel := context.WithTimeout(cleanupBase, lifecycleCleanupTimeout)
-			defer cancel()
-			if closeErr := session.Close(cleanupCtx); closeErr != nil {
-				secondary := migrationError(
-					CategoryTransaction,
-					CodeSessionCloseFailed,
-					"",
-					Migration{},
-					NoOperation,
-					"",
-					closeErr,
-				)
-				if resultErr == nil {
-					resultErr = secondary
-				} else {
-					// Keep the lifecycle failure first. errors.Join preserves both
-					// causes without mislabeling terminal session cleanup as a
-					// transaction rollback failure.
-					resultErr = errors.Join(resultErr, secondary)
-				}
-			}
-		}()
-	}
+	prepared.session = session
 	if openErr != nil {
-		return resultState, classifyLifecycleError(openErr, CategoryTransaction, CodeBeginFailed, PlanStep{})
+		return prepared, resultState, classifyLifecycleError(openErr, CategoryTransaction, CodeBeginFailed, PlanStep{})
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 	if isNilInterface(session) {
-		return resultState, migrationError(
+		return prepared, resultState, migrationError(
 			CategoryTransaction,
 			CodeBeginFailed,
 			"",
@@ -151,22 +179,22 @@ func (e Executor) Migrate(
 	records, err := session.ReadAppliedMigrations(ctx)
 	if err != nil {
 		if category, code, ok := backendErrorClass(err); ok {
-			return resultState, migrationError(category, code, "", Migration{}, NoOperation, "", err)
+			return prepared, resultState, migrationError(category, code, "", Migration{}, NoOperation, "", err)
 		}
-		return resultState, newRecorderReadError(err)
+		return prepared, resultState, newRecorderReadError(err)
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 	historyTargetCount := len(requestTargets)
 	if requestKind == lifecycleRequestLatest {
 		historyTargetCount = len(reconstructor.planner.graph.appLeaves())
 	}
 	if err := validateLoadedHistoryPlanResources(definitionSnapshot, historyTargetCount, records); err != nil {
-		return resultState, err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 	keys := make([]MigrationKey, len(records))
 	for index, record := range records {
@@ -174,44 +202,25 @@ func (e Executor) Migrate(
 	}
 	applied, err := NewAppliedState(keys...)
 	if err != nil {
-		return resultState, err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return resultState, executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
-	return e.migrateLoadedPlan(
-		ctx,
-		session,
-		reconstructor,
-		definitionSnapshot,
-		applied,
-		requestKind,
-		requestTargets,
-	)
-}
 
-func (e Executor) migrateLoadedPlan(
-	ctx context.Context,
-	session backend.RevisionFencedSession,
-	reconstructor loadedStateReconstructor,
-	definitions []Migration,
-	applied AppliedState,
-	requestKind lifecycleRequestKind,
-	requestTargets []Target,
-) (ProjectState, error) {
 	// The planner used for the actual request is deliberately rebuilt only
 	// after the exact fenced history snapshot exists. Static readiness proves
 	// that this immutable graph is safe to rebuild; it does not guess which
 	// migrations the snapshot will make current.
-	planner, err := NewPlanner(definitions...)
+	planner, err := NewPlanner(definitionSnapshot...)
 	if err != nil {
-		return EmptyProjectState(), err
+		return prepared, resultState, err
 	}
 	if err := planner.CheckHistory(applied); err != nil {
-		return EmptyProjectState(), err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return EmptyProjectState(), executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 
 	var targets []Target
@@ -227,22 +236,23 @@ func (e Executor) migrateLoadedPlan(
 	}
 	plan, err := planner.Plan(applied, targets...)
 	if err != nil {
-		return EmptyProjectState(), err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return EmptyProjectState(), executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 
 	initialBuilder, err := reconstructor.builderForApplied(ctx, planner, applied)
 	if err != nil {
-		return EmptyProjectState(), err
+		return prepared, resultState, err
 	}
 	before, err := initialBuilder.projectState()
 	if err != nil {
-		return EmptyProjectState(), invalidLoadedState(Migration{}, NoOperation, "", err)
+		return prepared, resultState, invalidLoadedState(Migration{}, NoOperation, "", err)
 	}
+	resultState = before.Clone()
 	if err := ctx.Err(); err != nil {
-		return before.Clone(), executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
 
 	// Validate every actual step against one mutable historical builder before
@@ -250,33 +260,44 @@ func (e Executor) migrateLoadedPlan(
 	// Retain only capability requirements and a semantic seal for each step;
 	// operation snapshots are regenerated one step at a time after selection.
 	dryBuilder := initialBuilder.clone()
-	prepared, err := reconstructor.dryLoadedPlan(ctx, dryBuilder, plan)
+	steps, err := reconstructor.dryLoadedPlan(ctx, dryBuilder, plan)
 	if err != nil {
-		return before.Clone(), err
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return before.Clone(), executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
-	if err := validateLoadedMigrationCapabilities(ctx, e.Backend, reconstructor, prepared); err != nil {
-		return before.Clone(), err
+	if err := validateLoadedMigrationCapabilities(ctx, e.Backend, reconstructor, steps); err != nil {
+		return prepared, resultState, err
 	}
 	if err := ctx.Err(); err != nil {
-		return before.Clone(), executionContextError(PlanStep{}, err)
+		return prepared, resultState, executionContextError(PlanStep{}, err)
 	}
+	prepared.reconstructor = reconstructor
+	prepared.executionState = initialBuilder
+	prepared.before = resultState.Clone()
+	prepared.steps = steps
+	return prepared, resultState, nil
+}
 
-	working := before.Clone()
-	executionBuilder := initialBuilder
-	for _, expected := range prepared {
+func (e Executor) executePreparedLifecycle(
+	ctx context.Context,
+	prepared preparedLoadedLifecycle,
+) (ProjectState, error) {
+	working := prepared.before.Clone()
+	executionBuilder := prepared.executionState
+	var err error
+	for _, expected := range prepared.steps {
 		if err := ctx.Err(); err != nil {
 			return working.Clone(), executionContextError(expected.step, err)
 		}
-		materialized, materializeErr := reconstructor.materializeLoadedStep(ctx, executionBuilder, expected.step, true)
+		materialized, materializeErr := prepared.reconstructor.materializeLoadedStep(ctx, executionBuilder, expected.step, true)
 		if materializeErr != nil {
 			return working.Clone(), materializeErr
 		}
 		if materialized.requirements != expected.requirements ||
 			materialized.seal != expected.seal {
-			migration := reconstructor.definitions[expected.step.Key]
+			migration := prepared.reconstructor.definitions[expected.step.Key]
 			return working.Clone(), migrationError(
 				CategoryState,
 				CodeInvalidState,
@@ -289,7 +310,7 @@ func (e Executor) migrateLoadedPlan(
 		}
 		working, err = executeLoadedFencedMigration(
 			ctx,
-			session,
+			prepared.session,
 			working,
 			materialized,
 		)
@@ -298,6 +319,33 @@ func (e Executor) migrateLoadedPlan(
 		}
 	}
 	return working.Clone(), nil
+}
+
+func closeLoadedLifecycleSession(
+	ctx context.Context,
+	session backend.RevisionFencedSession,
+	primary error,
+) error {
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), lifecycleCleanupTimeout)
+	defer cancel()
+	if closeErr := session.Close(cleanupCtx); closeErr != nil {
+		secondary := migrationError(
+			CategoryTransaction,
+			CodeSessionCloseFailed,
+			"",
+			Migration{},
+			NoOperation,
+			"",
+			closeErr,
+		)
+		if primary == nil {
+			return secondary
+		}
+		// Keep the lifecycle failure first. errors.Join preserves both causes
+		// without mislabeling terminal session cleanup as rollback failure.
+		return errors.Join(primary, secondary)
+	}
+	return primary
 }
 
 func validateLoadedMigrationCapabilities(
@@ -986,7 +1034,7 @@ func (budget *loadedLifecycleIdentityBudget) consumeTarget(index int, target Tar
 			return err
 		}
 		return budget.consumeString(prefix+".name", target.key.Name)
-	case targetZero:
+	case targetZero, targetKnownAppZero:
 		return budget.consumeString(prefix+".app", target.app)
 	default:
 		// Planner owns target-shape errors. Resource validation only bounds

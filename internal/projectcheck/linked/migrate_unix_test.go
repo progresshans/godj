@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
@@ -48,11 +49,12 @@ func TestRunMigrateAndCheckLoadTheIdenticalStaticAndFileCatalog(t *testing.T) {
 	if err != nil || !migrateResponse.OK {
 		t.Fatalf("migrate catalog = %+v, %+v, %q, %v", migrateResponse, migrateReport, output, err)
 	}
-	if migrateResponse.Result != (migrateprotocol.Result{
+	wantExecute := migrateprotocol.ExecuteResult{
 		SourceCount:         checkResponse.Result.SourceCount,
 		DefinitionCount:     checkResponse.Result.DefinitionCount,
 		DefinitionSetDigest: checkResponse.Result.DefinitionSetDigest,
-	}) {
+	}
+	if migrateResponse.Result.Mode != migrateprotocol.ModeExecute || migrateResponse.Result.Execute != wantExecute || migrateResponse.Result.Plan != nil {
 		t.Fatalf("check/migrate catalog mismatch: check=%+v migrate=%+v", checkResponse.Result, migrateResponse.Result)
 	}
 	if migrateReport.LoadCalls != 1 || migrateReport.SourceReads != 1 || migrateReport.DocumentsReceived != 2 ||
@@ -63,6 +65,221 @@ func TestRunMigrateAndCheckLoadTheIdenticalStaticAndFileCatalog(t *testing.T) {
 	}
 	if got := database.session.transitions; len(got) != 2 || got[0].Migration.App != "alpha" || got[0].Migration.Name != "0001_initial" || got[1].Migration.Name != "0002_article" {
 		t.Fatalf("latest transitions = %+v", got)
+	}
+}
+
+func TestRunMigrateV2MapsNamedExecuteTarget(t *testing.T) {
+	t.Parallel()
+	root := newProjectRoot(t)
+	sources := []definition.Source{
+		{SourceID: "alpha/0001.godj.json", Document: migrationDocument("alpha", "0001", nil)},
+		{SourceID: "alpha/0002.godj.json", Document: migrationDocument("alpha", "0002", [][2]string{{"alpha", "0001"}})},
+	}
+	database := newMigrationBackend()
+	request := mustMigrateRequest(t, migrateprotocol.Request{
+		Mode: migrateprotocol.ModeExecute,
+		Target: migrateprotocol.Target{
+			Kind: migrateprotocol.TargetNamed,
+			App:  "alpha",
+			Name: "0001",
+		},
+	})
+
+	response, report, _, err := invokeMigrate(
+		root,
+		nil,
+		sources,
+		func(context.Context) (MigrationBackend, error) { return database, nil },
+		request,
+		new(bytes.Buffer),
+	)
+	if err != nil || !response.OK || response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil {
+		t.Fatalf("named execute response = %+v, report=%+v, err=%v", response, report, err)
+	}
+	if got := database.session.transitions; len(got) != 1 || got[0] != (backend.HistoryTransition{
+		Migration: backend.AppliedMigration{App: "alpha", Name: "0001"},
+		Kind:      backend.HistoryTransitionApply,
+	}) {
+		t.Fatalf("named execute transitions = %+v", got)
+	}
+	if report.RevisionLifecycleCalls != 1 || report.BackendOpenCalls != 1 || report.BackendCloseCalls != 1 ||
+		database.openSessionCalls != 1 || database.session.readCalls != 1 || database.session.beginCalls != 1 ||
+		database.session.closeCalls != 1 || database.closeCalls != 1 {
+		t.Fatalf("named execute ownership = report %+v backend %+v", report, database)
+	}
+}
+
+func TestRunMigrateV2PlansLatestNamedAndZeroWithoutBeginning(t *testing.T) {
+	t.Parallel()
+	root := newProjectRoot(t)
+	sources := []definition.Source{
+		{SourceID: "alpha/0001.godj.json", Document: migrationDocument("alpha", "0001", nil)},
+		{SourceID: "alpha/0002.godj.json", Document: migrationDocument("alpha", "0002", [][2]string{{"alpha", "0001"}})},
+		{SourceID: "beta/0001.godj.json", Document: migrationDocument("beta", "0001", [][2]string{{"alpha", "0002"}})},
+	}
+	allApplied := []backend.AppliedMigration{
+		{App: "alpha", Name: "0001"},
+		{App: "alpha", Name: "0002"},
+		{App: "beta", Name: "0001"},
+	}
+	tests := []struct {
+		name    string
+		target  migrateprotocol.Target
+		applied []backend.AppliedMigration
+		want    []migrateprotocol.PlanRow
+	}{
+		{
+			name:   "latest",
+			target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest},
+			want: []migrateprotocol.PlanRow{
+				{App: "alpha", Name: "0001", Direction: migrateprotocol.DirectionForward},
+				{App: "alpha", Name: "0002", Direction: migrateprotocol.DirectionForward},
+				{App: "beta", Name: "0001", Direction: migrateprotocol.DirectionForward},
+			},
+		},
+		{
+			name:    "named retains target",
+			target:  migrateprotocol.Target{Kind: migrateprotocol.TargetNamed, App: "alpha", Name: "0001"},
+			applied: allApplied,
+			want: []migrateprotocol.PlanRow{
+				{App: "beta", Name: "0001", Direction: migrateprotocol.DirectionBackward},
+				{App: "alpha", Name: "0002", Direction: migrateprotocol.DirectionBackward},
+			},
+		},
+		{
+			name:    "known app zero",
+			target:  migrateprotocol.Target{Kind: migrateprotocol.TargetZero, App: "alpha"},
+			applied: allApplied,
+			want: []migrateprotocol.PlanRow{
+				{App: "beta", Name: "0001", Direction: migrateprotocol.DirectionBackward},
+				{App: "alpha", Name: "0002", Direction: migrateprotocol.DirectionBackward},
+				{App: "alpha", Name: "0001", Direction: migrateprotocol.DirectionBackward},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			database := newMigrationBackend()
+			database.session.records = append([]backend.AppliedMigration(nil), test.applied...)
+			request := mustMigrateRequest(t, migrateprotocol.Request{Mode: migrateprotocol.ModePlan, Target: test.target})
+
+			response, report, _, err := invokeMigrate(
+				root,
+				nil,
+				sources,
+				func(context.Context) (MigrationBackend, error) { return database, nil },
+				request,
+				new(bytes.Buffer),
+			)
+			if err != nil || !response.OK || response.Result.Mode != migrateprotocol.ModePlan ||
+				response.Result.Execute != (migrateprotocol.ExecuteResult{}) || !reflect.DeepEqual(response.Result.Plan, test.want) {
+				t.Fatalf("plan response = %+v, want %+v, report=%+v, err=%v", response, test.want, report, err)
+			}
+			if report.RevisionLifecycleCalls != 1 || report.BackendOpenCalls != 1 || report.BackendCloseCalls != 1 ||
+				database.openSessionCalls != 1 || database.session.readCalls != 1 || database.session.beginCalls != 0 ||
+				database.session.closeCalls != 1 || database.closeCalls != 1 || len(database.session.transitions) != 0 {
+				t.Fatalf("plan ownership = report %+v backend %+v", report, database)
+			}
+		})
+	}
+}
+
+func TestRunMigrateV2KnownAppZeroRejectsUnknownApp(t *testing.T) {
+	t.Parallel()
+	database := newMigrationBackend()
+	request := mustMigrateRequest(t, migrateprotocol.Request{
+		Mode:   migrateprotocol.ModePlan,
+		Target: migrateprotocol.Target{Kind: migrateprotocol.TargetZero, App: "unknown"},
+	})
+	response, report, _, err := invokeMigrate(
+		newProjectRoot(t),
+		nil,
+		[]definition.Source{{SourceID: "alpha/0001.godj.json", Document: migrationDocument("alpha", "0001", nil)}},
+		func(context.Context) (MigrationBackend, error) { return database, nil },
+		request,
+		new(bytes.Buffer),
+	)
+	if err != nil || response.OK || response.Failure != (migrateprotocol.Failure{
+		Category: migrateprotocol.CategoryPlan,
+		Code:     string(migrations.CodeTargetNotFound),
+	}) || response.Result.Mode != "" || response.Result.Plan != nil || response.Result.Execute != (migrateprotocol.ExecuteResult{}) {
+		t.Fatalf("unknown zero response = %+v, report=%+v, err=%v", response, report, err)
+	}
+	if report.RevisionLifecycleCalls != 1 || report.BackendOpenCalls != 1 || report.BackendCloseCalls != 1 ||
+		database.openSessionCalls != 1 || database.session.readCalls != 1 || database.session.beginCalls != 0 ||
+		database.session.closeCalls != 1 || database.closeCalls != 1 {
+		t.Fatalf("unknown zero ownership = report %+v backend %+v", report, database)
+	}
+}
+
+func TestRunMigrateV2PlanCloseFailuresDiscardResult(t *testing.T) {
+	t.Parallel()
+	sessionClose := errors.New("session close secret")
+	outerClose := errors.New("outer close secret")
+	tests := []struct {
+		name            string
+		sessionCloseErr error
+		outerCloseErr   error
+		want            migrateprotocol.Failure
+	}{
+		{
+			name:            "session close",
+			sessionCloseErr: sessionClose,
+			want: migrateprotocol.Failure{
+				Category: migrateprotocol.CategoryTransaction,
+				Code:     string(migrations.CodeSessionCloseFailed),
+			},
+		},
+		{
+			name:          "outer close",
+			outerCloseErr: outerClose,
+			want: migrateprotocol.Failure{
+				Category:      migrateprotocol.CategoryBackend,
+				Code:          migrateprotocol.CodeBackendCloseFailed,
+				CleanupFailed: true,
+			},
+		},
+		{
+			name:            "session and outer close",
+			sessionCloseErr: sessionClose,
+			outerCloseErr:   outerClose,
+			want: migrateprotocol.Failure{
+				Category:      migrateprotocol.CategoryTransaction,
+				Code:          string(migrations.CodeSessionCloseFailed),
+				CleanupFailed: true,
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			database := newMigrationBackend()
+			database.session.closeErr = test.sessionCloseErr
+			database.closeErr = test.outerCloseErr
+			request := mustMigrateRequest(t, migrateprotocol.Request{
+				Mode:   migrateprotocol.ModePlan,
+				Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest},
+			})
+			response, report, output, err := invokeMigrate(
+				newProjectRoot(t),
+				nil,
+				[]definition.Source{{SourceID: "alpha/0001.godj.json", Document: migrationDocument("alpha", "0001", nil)}},
+				func(context.Context) (MigrationBackend, error) { return database, nil },
+				request,
+				new(bytes.Buffer),
+			)
+			if err != nil || response.OK || response.Failure != test.want || response.Result.Mode != "" ||
+				response.Result.Plan != nil || response.Result.Execute != (migrateprotocol.ExecuteResult{}) {
+				t.Fatalf("plan close response = %+v, want %+v, report=%+v, err=%v", response, test.want, report, err)
+			}
+			if report.RevisionLifecycleCalls != 1 || report.BackendOpenCalls != 1 || report.BackendCloseCalls != 1 ||
+				database.openSessionCalls != 1 || database.session.readCalls != 1 || database.session.beginCalls != 0 ||
+				database.session.closeCalls != 1 || database.closeCalls != 1 {
+				t.Fatalf("plan close ownership = report %+v backend %+v", report, database)
+			}
+			if bytes.Contains(output, []byte("secret")) {
+				t.Fatalf("plan close cause leaked in %q", output)
+			}
+		})
 	}
 }
 
@@ -100,7 +317,7 @@ func TestRunMigrateRequestFailurePrecedesCatalogAndBackend(t *testing.T) {
 			openCalls++
 			return newMigrationBackend(), nil
 		},
-		[]byte(`{"protocol_version":2,"command":"migrations.migrate"}`),
+		[]byte(`{"protocol_version":1,"command":"migrations.migrate"}`),
 		new(bytes.Buffer),
 	)
 	if err != nil || response.Failure != (migrateprotocol.Failure{
@@ -338,7 +555,7 @@ func TestRunMigrateOwnsInputsAndRejectsTransportEdges(t *testing.T) {
 	close(reader.release)
 	<-done
 	response, parseFailure, parseFailed := migrateprotocol.ParseResponse(output.Bytes(), true)
-	if runErr != nil || parseFailed || parseFailure != (migrateprotocol.Failure{}) || !response.OK || response.Result.SourceCount != 1 || report.LoadCalls != 1 {
+	if runErr != nil || parseFailed || parseFailure != (migrateprotocol.Failure{}) || !response.OK || response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Execute.SourceCount != 1 || report.LoadCalls != 1 {
 		t.Fatalf("owned inputs = %+v, %+v, %+v, %v", response, parseFailure, report, runErr)
 	}
 
@@ -441,6 +658,15 @@ func invokeMigrate(
 	return response, report, document, nil
 }
 
+func mustMigrateRequest(t *testing.T, request migrateprotocol.Request) []byte {
+	t.Helper()
+	document, err := migrateprotocol.EncodeRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return document
+}
+
 func mustLoadDigest(t *testing.T, sources []definition.Source) string {
 	t.Helper()
 	set, _, err := definition.Load(sources...)
@@ -482,6 +708,7 @@ type migrationTestSession struct {
 	closeCalls  int
 	readErr     error
 	closeErr    error
+	records     []backend.AppliedMigration
 	transitions []backend.HistoryTransition
 }
 
@@ -489,7 +716,7 @@ func newMigrationSession() *migrationTestSession { return new(migrationTestSessi
 
 func (value *migrationTestSession) ReadAppliedMigrations(context.Context) ([]backend.AppliedMigration, error) {
 	value.readCalls++
-	return nil, value.readErr
+	return append([]backend.AppliedMigration(nil), value.records...), value.readErr
 }
 
 func (value *migrationTestSession) BeginMigration(

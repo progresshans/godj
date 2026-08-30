@@ -19,13 +19,20 @@ import (
 )
 
 func TestMigrateOwnedProcessUsesProtocolResponseBound(t *testing.T) {
+	policy, ok := ownedResponseProcessPolicyForStage(MigrateRunnerStage)
+	if !ok || policy.stdoutMaximum != migrateprotocol.MaxResponseBytes ||
+		policy.stderrMaximum != maxDiagnosticBytes || policy.grace != migrateOwnedProcessGrace {
+		t.Fatalf("migrate process policy = (%+v, %t)", policy, ok)
+	}
+
+	const runtimeProbeLimit = 4 << 10
 	command := helperCommand("emit", map[string]string{
-		"GODJ_HELPER_STDOUT_BYTES": strconv.Itoa(migrateprotocol.MaxResponseBytes + 1),
+		"GODJ_HELPER_STDOUT_BYTES": strconv.Itoa(runtimeProbeLimit + 1),
 		"GODJ_HELPER_STDERR_BYTES": "0",
 		"GODJ_HELPER_EXIT":         "0",
 	})
-	result := processBackend{}.Execute(context.Background(), nil, MigrateRunnerStage, command)
-	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != migrateprotocol.MaxResponseBytes || !result.StdoutScalar.Truncated || len(result.Stdout) != migrateprotocol.MaxResponseBytes {
+	result := executeOwnedMigrateProcess(context.Background(), nil, command, runtimeProbeLimit, maxDiagnosticBytes, time.Second)
+	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != runtimeProbeLimit || !result.StdoutScalar.Truncated || len(result.Stdout) != runtimeProbeLimit {
 		t.Fatalf("bounded migrate process = %+v stdout=%d", result, len(result.Stdout))
 	}
 }

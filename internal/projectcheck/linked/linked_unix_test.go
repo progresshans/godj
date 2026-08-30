@@ -464,6 +464,7 @@ func TestLinkedProductionDependencyAndLoaderGates(t *testing.T) {
 	}
 	loadCalls := 0
 	migrateCalls := 0
+	planCalls := 0
 	forbidden := []string{"conformance", "/db/", "NewPlanner"}
 	for _, entry := range directory {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
@@ -497,8 +498,11 @@ func TestLinkedProductionDependencyAndLoaderGates(t *testing.T) {
 					loadCalls++
 				}
 			}
-			if selector.Sel.Name == "Migrate" && isMigrationsExecutorExpression(selector.X) {
+			if selector.Sel.Name == "Migrate" && isMigrationsExecutorCallReceiver(selector.X) {
 				migrateCalls++
+			}
+			if selector.Sel.Name == "Plan" && isMigrationsExecutorCallReceiver(selector.X) {
+				planCalls++
 			}
 			return true
 		})
@@ -509,9 +513,15 @@ func TestLinkedProductionDependencyAndLoaderGates(t *testing.T) {
 	if migrateCalls != 1 {
 		t.Fatalf("production migrations.Executor.Migrate callsites = %d, want 1", migrateCalls)
 	}
+	if planCalls != 1 {
+		t.Fatalf("production migrations.Executor.Plan callsites = %d, want 1", planCalls)
+	}
 }
 
-func isMigrationsExecutorExpression(expression ast.Expr) bool {
+func isMigrationsExecutorCallReceiver(expression ast.Expr) bool {
+	if identifier, ok := expression.(*ast.Ident); ok {
+		return identifier.Name == "executor"
+	}
 	parenthesized, ok := expression.(*ast.ParenExpr)
 	if !ok {
 		return false

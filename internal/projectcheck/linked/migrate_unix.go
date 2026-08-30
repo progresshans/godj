@@ -33,10 +33,10 @@ type MigrateConfig struct {
 	OpenMigrationBackend       func(context.Context) (MigrationBackend, error)
 }
 
-// RunMigrate executes the one private explicit-migrate command. Completed
-// product failures are written as closed, detail-free responses and return a
-// nil Go error. Caller-owned I/O, cancellation before resource acquisition,
-// and internal invariant failures remain Go errors.
+// RunMigrate executes one private explicit-migrate execute or plan command.
+// Completed product failures are written as closed, detail-free responses and
+// return a nil Go error. Caller-owned I/O, cancellation before resource
+// acquisition, and internal invariant failures remain Go errors.
 func RunMigrate(
 	ctx context.Context,
 	config MigrateConfig,
@@ -81,12 +81,16 @@ func runMigrate(
 		return report, err
 	}
 
-	requestFailure, requestFailed, err := migrateprotocol.ReadRequest(stdin)
+	request, requestFailure, requestFailed, err := migrateprotocol.ReadRequest(stdin)
 	if err != nil {
 		return report, err
 	}
 	if requestFailed {
 		return completeMigrateResponse(ctx, dependencies, stdout, report, migrateprotocol.Response{Failure: requestFailure}, true)
+	}
+	lifecycleRequest, ok := migrateLifecycleRequest(request.Target)
+	if !ok {
+		return report, errors.New("project linked migrate: invalid decoded target")
 	}
 	report.CommandDispatches = 1
 	if err := ctx.Err(); err != nil {
@@ -147,25 +151,58 @@ func runMigrate(
 
 	report.RevisionLifecycleCalls++
 	report.GoDjDBCalls++
-	_, migrateErr := (migrations.Executor{Backend: opened}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
+	executor := migrations.Executor{Backend: opened}
+	var lifecycleErr error
+	var success migrateprotocol.Result
+	switch request.Mode {
+	case migrateprotocol.ModeExecute:
+		_, lifecycleErr = executor.Migrate(ctx, loaded, lifecycleRequest)
+		success = migrateprotocol.Result{
+			Mode: migrateprotocol.ModeExecute,
+			Execute: migrateprotocol.ExecuteResult{
+				SourceCount:         summary.sourceCount,
+				DefinitionCount:     summary.definitionCount,
+				DefinitionSetDigest: summary.digest,
+			},
+		}
+	case migrateprotocol.ModePlan:
+		var plan []migrations.PlanStep
+		plan, lifecycleErr = executor.Plan(ctx, loaded, lifecycleRequest)
+		if lifecycleErr == nil {
+			rows := make([]migrateprotocol.PlanRow, len(plan))
+			for index, step := range plan {
+				direction, ok := migratePlanDirection(step.Direction)
+				if !ok {
+					lifecycleErr = errors.New("project linked migrate: invalid core plan direction")
+					break
+				}
+				rows[index] = migrateprotocol.PlanRow{
+					App:       step.Key.App,
+					Name:      step.Key.Name,
+					Direction: direction,
+				}
+			}
+			if lifecycleErr == nil {
+				success = migrateprotocol.Result{Mode: migrateprotocol.ModePlan, Plan: rows}
+			}
+		}
+	default:
+		return report, errors.New("project linked migrate: invalid decoded mode")
+	}
 	report.BackendCloseCalls++
 	closeErr := opened.Close()
 
-	if migrateErr == nil && closeErr == nil {
-		return completeMigrateResponse(ctx, dependencies, stdout, report, migrateprotocol.Response{OK: true, Result: migrateprotocol.Result{
-			SourceCount:         summary.sourceCount,
-			DefinitionCount:     summary.definitionCount,
-			DefinitionSetDigest: summary.digest,
-		}}, false)
+	if lifecycleErr == nil && closeErr == nil {
+		return completeMigrateResponse(ctx, dependencies, stdout, report, migrateprotocol.Response{OK: true, Result: success}, false)
 	}
-	if migrateErr == nil {
+	if lifecycleErr == nil {
 		return completeMigrateResponse(ctx, dependencies, stdout, report, migrateprotocol.Response{Failure: migrateprotocol.Failure{
 			Category:      migrateprotocol.CategoryBackend,
 			Code:          migrateprotocol.CodeBackendCloseFailed,
 			CleanupFailed: true,
 		}}, false)
 	}
-	failure := classifyMigrationFailure(migrateErr)
+	failure := classifyMigrationFailure(lifecycleErr)
 	if closeErr != nil {
 		failure.CleanupFailed = true
 	}
@@ -173,6 +210,33 @@ func runMigrate(
 		return report, fmt.Errorf("project linked migrate: invalid classified migration failure")
 	}
 	return completeMigrateResponse(ctx, dependencies, stdout, report, migrateprotocol.Response{Failure: failure}, false)
+}
+
+func migrateLifecycleRequest(target migrateprotocol.Target) (migrations.LifecycleRequest, bool) {
+	switch target.Kind {
+	case migrateprotocol.TargetLatest:
+		return migrations.LatestLifecycleRequest(), true
+	case migrateprotocol.TargetNamed:
+		return migrations.TargetedLifecycleRequest(migrations.NamedTarget(migrations.MigrationKey{
+			App:  target.App,
+			Name: target.Name,
+		})), true
+	case migrateprotocol.TargetZero:
+		return migrations.TargetedLifecycleRequest(migrations.KnownAppZeroTarget(target.App)), true
+	default:
+		return migrations.LifecycleRequest{}, false
+	}
+}
+
+func migratePlanDirection(direction migrations.Direction) (migrateprotocol.Direction, bool) {
+	switch direction {
+	case migrations.DirectionForward:
+		return migrateprotocol.DirectionForward, true
+	case migrations.DirectionBackward:
+		return migrateprotocol.DirectionBackward, true
+	default:
+		return "", false
+	}
 }
 
 func completeMigrateResponse(

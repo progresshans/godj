@@ -14,12 +14,30 @@ import (
 )
 
 const (
-	Version          uint64 = 1
-	PrivateArgument         = "__godj_project_migrate_runner_v1"
-	MaxRequestBytes         = 64 << 10
-	MaxResponseBytes        = 64 << 10
-	MaxCount                = 2_048
-	maxJSONDepth            = 16
+	Version         uint64 = 2
+	PrivateArgument        = "__godj_project_migrate_runner_v2"
+
+	MaxRequestBytes           = 16 << 20
+	MaxResponseBytes          = 101 << 20
+	MaxCount                  = 2_048
+	MaxPlanRows               = 2_048
+	MaxIdentityBytes          = 1 << 20
+	MaxIdentityAggregateBytes = 16 << 20
+
+	maxJSONDepth       = 16
+	maxWireValues      = MaxPlanRows*4 + 64
+	maxWireArrayValues = MaxPlanRows
+
+	// A valid identity byte can require at most six JSON bytes (for example,
+	// U+0000 becomes \u0000). The private plan framing is at most 44 bytes per
+	// row plus 70 bytes outside non-empty row arrays. The public framing is
+	// smaller. Keep the derivation executable in tests instead of relying on a
+	// sample payload that cannot exercise the worst-case escaping expansion.
+	maxEscapedPlanIdentityBytes = 6 * MaxIdentityAggregateBytes
+	maxPrivatePlanFramingBytes  = 70 + 44*MaxPlanRows
+	maxPrivatePlanDocumentBytes = maxEscapedPlanIdentityBytes + maxPrivatePlanFramingBytes
+	maxPublicPlanFramingBytes   = 11 + 44*MaxPlanRows // includes the terminal LF
+	maxPublicPlanDocumentBytes  = maxEscapedPlanIdentityBytes + maxPublicPlanFramingBytes
 
 	EmptySetDigest = "sha256:1412c48d7da2299b6f2be7a614c5bb9ce510027328f6baed72ae05cbecc9b494"
 )
@@ -75,6 +93,37 @@ const (
 	CodeProjectInternalError          = "project_internal_error"
 )
 
+// Mode is the closed migrate operation selected by one request and success.
+type Mode string
+
+const (
+	ModeExecute Mode = "execute"
+	ModePlan    Mode = "plan"
+)
+
+// TargetKind is the closed target representation carried by protocol v2.
+type TargetKind string
+
+const (
+	TargetLatest TargetKind = "latest"
+	TargetNamed  TargetKind = "named"
+	TargetZero   TargetKind = "zero"
+)
+
+// Target is an immutable-by-value wire target. Latest uses only Kind, named
+// uses App and Name, and zero uses App. Its zero value is invalid.
+type Target struct {
+	Kind TargetKind
+	App  string
+	Name string
+}
+
+// Request is one strict operation/target pair. Its zero value is invalid.
+type Request struct {
+	Mode   Mode
+	Target Target
+}
+
 // Failure is the closed, detail-free failure carried over the private wire.
 // CleanupFailed records a secondary outer backend close failure without
 // publishing its cause or replacing the primary category/code.
@@ -84,12 +133,35 @@ type Failure struct {
 	CleanupFailed bool
 }
 
-// Result is the bounded summary of one successful latest migration command.
-// It deliberately does not guess how many migrations were applied.
-type Result struct {
+// ExecuteResult is the existing bounded execution summary. It deliberately
+// does not guess how many migrations were applied.
+type ExecuteResult struct {
 	SourceCount         int
 	DefinitionCount     int
 	DefinitionSetDigest string
+}
+
+// Direction is the closed plan-step direction carried by protocol v2.
+type Direction string
+
+const (
+	DirectionForward  Direction = "forward"
+	DirectionBackward Direction = "backward"
+)
+
+// PlanRow is one detached migration identity in linked-core plan order.
+type PlanRow struct {
+	App       string
+	Name      string
+	Direction Direction
+}
+
+// Result is a strict success union. Execute mode requires Execute and a nil
+// Plan. Plan mode requires a non-nil Plan and a zero Execute value.
+type Result struct {
+	Mode    Mode
+	Execute ExecuteResult
+	Plan    []PlanRow
 }
 
 // Response is one closed private outcome. OK selects Result; otherwise
@@ -100,25 +172,56 @@ type Response struct {
 	Failure Failure
 }
 
-// RequestDocument returns a fresh copy of the sole supported request.
+// RequestDocument returns a fresh canonical v2 execute/latest default for
+// existing execute/latest probes. Callers selecting a mode or target use
+// EncodeRequest.
 func RequestDocument() []byte {
-	return []byte(`{"protocol_version":1,"command":"migrations.migrate"}`)
+	return []byte(`{"protocol_version":2,"command":"migrations.migrate","mode":"execute","target":{"kind":"latest"}}`)
+}
+
+// EncodeRequest returns the canonical, bounded v2 request document.
+func EncodeRequest(request Request) ([]byte, error) {
+	if !validRequest(request) {
+		return nil, errors.New("project migration protocol: invalid request")
+	}
+	document := make([]byte, 0, 256)
+	document = append(document, `{"protocol_version":2,"command":"migrations.migrate","mode":`...)
+	document = appendJSONString(document, string(request.Mode))
+	document = append(document, `,"target":{"kind":`...)
+	document = appendJSONString(document, string(request.Target.Kind))
+	switch request.Target.Kind {
+	case TargetLatest:
+	case TargetNamed:
+		document = append(document, `,"app":`...)
+		document = appendJSONString(document, request.Target.App)
+		document = append(document, `,"name":`...)
+		document = appendJSONString(document, request.Target.Name)
+	case TargetZero:
+		document = append(document, `,"app":`...)
+		document = appendJSONString(document, request.Target.App)
+	}
+	document = append(document, '}', '}')
+	if len(document) > MaxRequestBytes {
+		return nil, errors.New("project migration protocol: request exceeds resource limit")
+	}
+	return document, nil
 }
 
 // ReadRequest reads one bounded request through EOF. Completed malformed input
 // is a logical protocol failure; a Reader failure remains a Go transport error.
-func ReadRequest(reader io.Reader) (Failure, bool, error) {
+func ReadRequest(reader io.Reader) (Request, Failure, bool, error) {
 	if reader == nil {
-		return Failure{}, false, errors.New("project migration protocol: nil request reader")
+		return Request{}, Failure{}, false, errors.New("project migration protocol: nil request reader")
 	}
 	document, err := readAtMost(reader, MaxRequestBytes)
 	if err != nil {
-		return Failure{}, false, fmt.Errorf("project migration protocol: read request: %w", err)
+		return Request{}, Failure{}, false, fmt.Errorf("project migration protocol: read request: %w", err)
 	}
-	if failure, failed := parseRequest(document); failed {
-		return failure, true, nil
+	request, failure, failed := parseRequest(document)
+	if failed {
+		return Request{}, failure, true, nil
 	}
-	return Failure{}, false, nil
+	return request, Failure{}, false, nil
 }
 
 // ParseResponse validates completed response bytes. A failed transport has
@@ -153,21 +256,21 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 			return invalidResponse()
 		}
 		resultObject, ok := object["result"].(map[string]wireValue)
-		if !ok || !hasExactKeys(resultObject, "source_count", "definition_count", "definition_set_digest") {
+		if !ok {
 			return invalidResponse()
 		}
-		sourceCount, sourceOK := canonicalUint(resultObject["source_count"], MaxCount)
-		definitionCount, definitionOK := canonicalUint(resultObject["definition_count"], MaxCount)
-		digest, digestOK := resultObject["definition_set_digest"].(string)
-		result := Result{
-			SourceCount:         int(sourceCount),
-			DefinitionCount:     int(definitionCount),
-			DefinitionSetDigest: digest,
-		}
-		if !sourceOK || !definitionOK || !digestOK || !validResult(result) {
+		mode, ok := resultObject["mode"].(string)
+		if !ok {
 			return invalidResponse()
 		}
-		return Response{OK: true, Result: result}, Failure{}, false
+		switch Mode(mode) {
+		case ModeExecute:
+			return parseExecuteResponse(resultObject)
+		case ModePlan:
+			return parsePlanResponse(resultObject)
+		default:
+			return invalidResponse()
+		}
 	case "error":
 		if !hasExactKeys(object, "protocol_version", "status", "error") {
 			return invalidResponse()
@@ -189,6 +292,56 @@ func ParseResponse(document []byte, transportOK bool) (Response, Failure, bool) 
 	}
 }
 
+func parseExecuteResponse(resultObject map[string]wireValue) (Response, Failure, bool) {
+	if !hasExactKeys(resultObject, "mode", "execute") {
+		return invalidResponse()
+	}
+	executeObject, ok := resultObject["execute"].(map[string]wireValue)
+	if !ok || !hasExactKeys(executeObject, "source_count", "definition_count", "definition_set_digest") {
+		return invalidResponse()
+	}
+	sourceCount, sourceOK := canonicalUint(executeObject["source_count"], MaxCount)
+	definitionCount, definitionOK := canonicalUint(executeObject["definition_count"], MaxCount)
+	digest, digestOK := executeObject["definition_set_digest"].(string)
+	execute := ExecuteResult{
+		SourceCount:         int(sourceCount),
+		DefinitionCount:     int(definitionCount),
+		DefinitionSetDigest: digest,
+	}
+	if !sourceOK || !definitionOK || !digestOK || !validExecuteResult(execute) {
+		return invalidResponse()
+	}
+	return Response{OK: true, Result: Result{Mode: ModeExecute, Execute: execute}}, Failure{}, false
+}
+
+func parsePlanResponse(resultObject map[string]wireValue) (Response, Failure, bool) {
+	if !hasExactKeys(resultObject, "mode", "plan") {
+		return invalidResponse()
+	}
+	wireRows, ok := resultObject["plan"].([]wireValue)
+	if !ok || len(wireRows) > MaxPlanRows {
+		return invalidResponse()
+	}
+	rows := make([]PlanRow, len(wireRows))
+	for index, value := range wireRows {
+		rowObject, ok := value.(map[string]wireValue)
+		if !ok || !hasExactKeys(rowObject, "app", "name", "direction") {
+			return invalidResponse()
+		}
+		app, appOK := rowObject["app"].(string)
+		name, nameOK := rowObject["name"].(string)
+		direction, directionOK := rowObject["direction"].(string)
+		if !appOK || !nameOK || !directionOK {
+			return invalidResponse()
+		}
+		rows[index] = PlanRow{App: app, Name: name, Direction: Direction(direction)}
+	}
+	if !validPlanRows(rows) {
+		return invalidResponse()
+	}
+	return Response{OK: true, Result: Result{Mode: ModePlan, Plan: rows}}, Failure{}, false
+}
+
 // EncodeResponse returns canonical, bounded response bytes.
 func EncodeResponse(response Response) ([]byte, error) {
 	var document []byte
@@ -196,25 +349,51 @@ func EncodeResponse(response Response) ([]byte, error) {
 		if response.Failure != (Failure{}) || !validResult(response.Result) {
 			return nil, errors.New("project migration protocol: invalid success response")
 		}
-		document = []byte(fmt.Sprintf(
-			`{"protocol_version":1,"status":"ok","result":{"source_count":%d,"definition_count":%d,"definition_set_digest":%q}}`,
-			response.Result.SourceCount,
-			response.Result.DefinitionCount,
-			response.Result.DefinitionSetDigest,
-		))
+		switch response.Result.Mode {
+		case ModeExecute:
+			document = append(document, `{"protocol_version":2,"status":"ok","result":{"mode":"execute","execute":{"source_count":`...)
+			document = strconv.AppendInt(document, int64(response.Result.Execute.SourceCount), 10)
+			document = append(document, `,"definition_count":`...)
+			document = strconv.AppendInt(document, int64(response.Result.Execute.DefinitionCount), 10)
+			document = append(document, `,"definition_set_digest":`...)
+			document = appendJSONString(document, response.Result.Execute.DefinitionSetDigest)
+			document = append(document, '}', '}', '}')
+		case ModePlan:
+			document = make([]byte, 0, encodedPrivatePlanLength(response.Result.Plan))
+			document = append(document, `{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":`...)
+			document = appendPlanRows(document, response.Result.Plan)
+			document = append(document, '}', '}')
+		}
 	} else {
-		if response.Result != (Result{}) || !IsLinkedFailure(response.Failure) {
+		if !zeroResult(response.Result) || !IsLinkedFailure(response.Failure) {
 			return nil, errors.New("project migration protocol: invalid error response")
 		}
-		document = []byte(fmt.Sprintf(
-			`{"protocol_version":1,"status":"error","error":{"category":%q,"code":%q,"cleanup_failed":%s}}`,
-			response.Failure.Category,
-			response.Failure.Code,
-			strconv.FormatBool(response.Failure.CleanupFailed),
-		))
+		document = append(document, `{"protocol_version":2,"status":"error","error":{"category":`...)
+		document = appendJSONString(document, response.Failure.Category)
+		document = append(document, `,"code":`...)
+		document = appendJSONString(document, response.Failure.Code)
+		document = append(document, `,"cleanup_failed":`...)
+		document = strconv.AppendBool(document, response.Failure.CleanupFailed)
+		document = append(document, '}', '}')
 	}
 	if len(document) > MaxResponseBytes {
 		return nil, errors.New("project migration protocol: response exceeds resource limit")
+	}
+	return document, nil
+}
+
+// EncodePublicPlan returns one canonical public JSON line using the same row,
+// identity, escaping, and byte bounds as the private plan arm.
+func EncodePublicPlan(rows []PlanRow) ([]byte, error) {
+	if !validPlanRows(rows) {
+		return nil, errors.New("project migration protocol: invalid public plan")
+	}
+	document := make([]byte, 0, encodedPublicPlanLength(rows))
+	document = append(document, `{"plan":`...)
+	document = appendPlanRows(document, rows)
+	document = append(document, '}', '\n')
+	if len(document) > MaxResponseBytes {
+		return nil, errors.New("project migration protocol: public plan exceeds resource limit")
 	}
 	return document, nil
 }
@@ -344,30 +523,262 @@ func IsLinkedFailure(failure Failure) bool {
 	}
 }
 
-func parseRequest(document []byte) (Failure, bool) {
+func parseRequest(document []byte) (Request, Failure, bool) {
 	object, err := decodeObject(document, MaxRequestBytes)
 	if err != nil {
-		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
+		return invalidRequest()
 	}
 	versionValue, exists := object["protocol_version"]
 	if !exists {
-		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
+		return invalidRequest()
 	}
 	version, valid := canonicalUint(versionValue, 65_535)
 	if !valid {
-		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
+		return invalidRequest()
 	}
 	if version != Version {
-		return Failure{Category: CategoryProtocol, Code: CodeProtocolIncompatible}, true
+		return Request{}, Failure{Category: CategoryProtocol, Code: CodeProtocolIncompatible}, true
 	}
-	if !hasExactKeys(object, "protocol_version", "command") || object["command"] != "migrations.migrate" {
-		return Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
+	if !hasExactKeys(object, "protocol_version", "command", "mode", "target") || object["command"] != "migrations.migrate" {
+		return invalidRequest()
 	}
-	return Failure{}, false
+	mode, ok := object["mode"].(string)
+	if !ok {
+		return invalidRequest()
+	}
+	targetObject, ok := object["target"].(map[string]wireValue)
+	if !ok {
+		return invalidRequest()
+	}
+	kind, ok := targetObject["kind"].(string)
+	if !ok {
+		return invalidRequest()
+	}
+	target := Target{Kind: TargetKind(kind)}
+	switch target.Kind {
+	case TargetLatest:
+		if !hasExactKeys(targetObject, "kind") {
+			return invalidRequest()
+		}
+	case TargetNamed:
+		if !hasExactKeys(targetObject, "kind", "app", "name") {
+			return invalidRequest()
+		}
+		app, appOK := targetObject["app"].(string)
+		name, nameOK := targetObject["name"].(string)
+		if !appOK || !nameOK {
+			return invalidRequest()
+		}
+		target.App = app
+		target.Name = name
+	case TargetZero:
+		if !hasExactKeys(targetObject, "kind", "app") {
+			return invalidRequest()
+		}
+		app, appOK := targetObject["app"].(string)
+		if !appOK {
+			return invalidRequest()
+		}
+		target.App = app
+	default:
+		return invalidRequest()
+	}
+	request := Request{Mode: Mode(mode), Target: target}
+	if !validRequest(request) {
+		return invalidRequest()
+	}
+	return request, Failure{}, false
+}
+
+func validRequest(request Request) bool {
+	if request.Mode != ModeExecute && request.Mode != ModePlan {
+		return false
+	}
+	switch request.Target.Kind {
+	case TargetLatest:
+		return request.Target.App == "" && request.Target.Name == ""
+	case TargetNamed:
+		return request.Target.Name != "zero" && validIdentity(request.Target.App) && validIdentity(request.Target.Name) &&
+			len(request.Target.App)+len(request.Target.Name) <= MaxIdentityAggregateBytes
+	case TargetZero:
+		return validIdentity(request.Target.App) && request.Target.Name == ""
+	default:
+		return false
+	}
+}
+
+func validResult(result Result) bool {
+	switch result.Mode {
+	case ModeExecute:
+		return result.Plan == nil && validExecuteResult(result.Execute)
+	case ModePlan:
+		return result.Execute == (ExecuteResult{}) && result.Plan != nil && validPlanRows(result.Plan)
+	default:
+		return false
+	}
+}
+
+func zeroResult(result Result) bool {
+	return result.Mode == "" && result.Execute == (ExecuteResult{}) && result.Plan == nil
+}
+
+func validExecuteResult(result ExecuteResult) bool {
+	if result.SourceCount < 0 || result.SourceCount > MaxCount || result.DefinitionCount < 0 || result.DefinitionCount > MaxCount {
+		return false
+	}
+	if (result.SourceCount == 0) != (result.DefinitionCount == 0) || !validDigest(result.DefinitionSetDigest) {
+		return false
+	}
+	if result.DefinitionCount == 0 {
+		return result.DefinitionSetDigest == EmptySetDigest
+	}
+	return result.DefinitionSetDigest != EmptySetDigest
+}
+
+func validPlanRows(rows []PlanRow) bool {
+	if len(rows) > MaxPlanRows {
+		return false
+	}
+	type identity struct{ app, name string }
+	seen := make(map[identity]struct{}, len(rows))
+	total := 0
+	var direction Direction
+	for _, row := range rows {
+		if !validIdentity(row.App) || !validIdentity(row.Name) {
+			return false
+		}
+		if len(row.App) > MaxIdentityAggregateBytes-total {
+			return false
+		}
+		total += len(row.App)
+		if len(row.Name) > MaxIdentityAggregateBytes-total {
+			return false
+		}
+		total += len(row.Name)
+		if row.Direction != DirectionForward && row.Direction != DirectionBackward {
+			return false
+		}
+		if direction == "" {
+			direction = row.Direction
+		} else if row.Direction != direction {
+			return false
+		}
+		key := identity{app: row.App, name: row.Name}
+		if _, exists := seen[key]; exists {
+			return false
+		}
+		seen[key] = struct{}{}
+	}
+	return true
+}
+
+func validIdentity(value string) bool {
+	return value != "" && len(value) <= MaxIdentityBytes && utf8.ValidString(value)
+}
+
+func validDigest(value string) bool {
+	if len(value) != len("sha256:")+64 || !strings.HasPrefix(value, "sha256:") {
+		return false
+	}
+	for _, character := range value[len("sha256:"):] {
+		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func appendPlanRows(document []byte, rows []PlanRow) []byte {
+	document = append(document, '[')
+	for index, row := range rows {
+		if index != 0 {
+			document = append(document, ',')
+		}
+		document = append(document, `{"app":`...)
+		document = appendJSONString(document, row.App)
+		document = append(document, `,"name":`...)
+		document = appendJSONString(document, row.Name)
+		document = append(document, `,"direction":`...)
+		document = appendJSONString(document, string(row.Direction))
+		document = append(document, '}')
+	}
+	return append(document, ']')
+}
+
+func encodedPrivatePlanLength(rows []PlanRow) int {
+	return len(`{"protocol_version":2,"status":"ok","result":{"mode":"plan","plan":[]}}`) - 2 + encodedPlanRowsLength(rows)
+}
+
+func encodedPublicPlanLength(rows []PlanRow) int {
+	return len(`{"plan":[]}`) - 2 + encodedPlanRowsLength(rows) + 1
+}
+
+func encodedPlanRowsLength(rows []PlanRow) int {
+	length := 2
+	for index, row := range rows {
+		if index != 0 {
+			length++
+		}
+		length += len(`{"app":,"name":,"direction":}`)
+		length += encodedJSONStringLength(row.App)
+		length += encodedJSONStringLength(row.Name)
+		length += encodedJSONStringLength(string(row.Direction))
+	}
+	return length
+}
+
+func appendJSONString(document []byte, value string) []byte {
+	const hexadecimal = "0123456789abcdef"
+	document = append(document, '"')
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		switch character {
+		case '"', '\\':
+			document = append(document, '\\', character)
+		case '\b':
+			document = append(document, '\\', 'b')
+		case '\f':
+			document = append(document, '\\', 'f')
+		case '\n':
+			document = append(document, '\\', 'n')
+		case '\r':
+			document = append(document, '\\', 'r')
+		case '\t':
+			document = append(document, '\\', 't')
+		default:
+			if character < 0x20 {
+				document = append(document, '\\', 'u', '0', '0', hexadecimal[character>>4], hexadecimal[character&0x0f])
+			} else {
+				document = append(document, character)
+			}
+		}
+	}
+	return append(document, '"')
+}
+
+func encodedJSONStringLength(value string) int {
+	length := 2
+	for index := 0; index < len(value); index++ {
+		switch value[index] {
+		case '"', '\\', '\b', '\f', '\n', '\r', '\t':
+			length += 2
+		default:
+			if value[index] < 0x20 {
+				length += 6
+			} else {
+				length++
+			}
+		}
+	}
+	return length
 }
 
 func readAtMost(reader io.Reader, maximum int) ([]byte, error) {
-	retained := make([]byte, 0, maximum+1)
+	initialCapacity := maximum + 1
+	if initialCapacity > 32<<10 {
+		initialCapacity = 32 << 10
+	}
+	retained := make([]byte, 0, initialCapacity)
 	buffer := make([]byte, 32<<10)
 	emptyReads := 0
 	for {
@@ -399,31 +810,6 @@ func readAtMost(reader io.Reader, maximum int) ([]byte, error) {
 	}
 }
 
-func validResult(result Result) bool {
-	if result.SourceCount < 0 || result.SourceCount > MaxCount || result.DefinitionCount < 0 || result.DefinitionCount > MaxCount {
-		return false
-	}
-	if (result.SourceCount == 0) != (result.DefinitionCount == 0) || !validDigest(result.DefinitionSetDigest) {
-		return false
-	}
-	if result.DefinitionCount == 0 {
-		return result.DefinitionSetDigest == EmptySetDigest
-	}
-	return result.DefinitionSetDigest != EmptySetDigest
-}
-
-func validDigest(value string) bool {
-	if len(value) != len("sha256:")+64 || !strings.HasPrefix(value, "sha256:") {
-		return false
-	}
-	for _, character := range value[len("sha256:"):] {
-		if (character < '0' || character > '9') && (character < 'a' || character > 'f') {
-			return false
-		}
-	}
-	return true
-}
-
 func canonicalUint(value wireValue, maximum uint64) (uint64, bool) {
 	number, ok := value.(json.Number)
 	if !ok {
@@ -451,19 +837,28 @@ func exactCode(code string, exit int, allowed ...string) (int, bool) {
 	return 0, false
 }
 
+func invalidRequest() (Request, Failure, bool) {
+	return Request{}, Failure{Category: CategoryProtocol, Code: CodeInvalidRequest}, true
+}
+
 func invalidResponse() (Response, Failure, bool) {
 	return Response{}, Failure{Category: CategoryProtocol, Code: CodeInvalidResponse}, true
 }
 
 type wireValue any
 
+type decodeBudget struct {
+	values int
+}
+
 func decodeObject(document []byte, maximum int) (map[string]wireValue, error) {
-	if len(document) > maximum || !utf8.Valid(document) {
+	if len(document) > maximum || !utf8.Valid(document) || !validJSONSurrogateEscapes(document) {
 		return nil, errors.New("invalid wire framing")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(document))
 	decoder.UseNumber()
-	value, err := decodeValue(decoder, 0)
+	budget := decodeBudget{}
+	value, err := decodeValue(decoder, 0, &budget)
 	if err != nil {
 		return nil, err
 	}
@@ -480,9 +875,77 @@ func decodeObject(document []byte, maximum int) (map[string]wireValue, error) {
 	return object, nil
 }
 
-func decodeValue(decoder *json.Decoder, depth int) (wireValue, error) {
+// validJSONSurrogateEscapes rejects only unpaired UTF-16 surrogate escapes in
+// JSON strings. encoding/json deliberately replaces those escapes with U+FFFD,
+// which would make distinct migration identity bytes decode to the same Go
+// string. All other JSON syntax remains the decoder's authority.
+func validJSONSurrogateEscapes(document []byte) bool {
+	inString := false
+	for index := 0; index < len(document); index++ {
+		switch document[index] {
+		case '"':
+			inString = !inString
+		case '\\':
+			if !inString || index+1 >= len(document) {
+				continue
+			}
+			if document[index+1] != 'u' {
+				index++
+				continue
+			}
+			unit, ok := jsonHexCodeUnit(document, index+2)
+			if !ok {
+				// The JSON decoder will reject an incomplete or non-hex escape.
+				return true
+			}
+			switch {
+			case unit >= 0xd800 && unit <= 0xdbff:
+				if index+7 >= len(document) || document[index+6] != '\\' || document[index+7] != 'u' {
+					return false
+				}
+				low, paired := jsonHexCodeUnit(document, index+8)
+				if !paired || low < 0xdc00 || low > 0xdfff {
+					return false
+				}
+				index += 11
+			case unit >= 0xdc00 && unit <= 0xdfff:
+				return false
+			default:
+				index += 5
+			}
+		}
+	}
+	return true
+}
+
+func jsonHexCodeUnit(document []byte, offset int) (uint16, bool) {
+	if offset < 0 || offset+4 > len(document) {
+		return 0, false
+	}
+	var value uint16
+	for _, character := range document[offset : offset+4] {
+		value <<= 4
+		switch {
+		case character >= '0' && character <= '9':
+			value |= uint16(character - '0')
+		case character >= 'a' && character <= 'f':
+			value |= uint16(character-'a') + 10
+		case character >= 'A' && character <= 'F':
+			value |= uint16(character-'A') + 10
+		default:
+			return 0, false
+		}
+	}
+	return value, true
+}
+
+func decodeValue(decoder *json.Decoder, depth int, budget *decodeBudget) (wireValue, error) {
 	if depth > maxJSONDepth {
 		return nil, errors.New("wire nesting limit exceeded")
+	}
+	budget.values++
+	if budget.values > maxWireValues {
+		return nil, errors.New("wire value limit exceeded")
 	}
 	token, err := decoder.Token()
 	if err != nil {
@@ -507,7 +970,7 @@ func decodeValue(decoder *json.Decoder, depth int) (wireValue, error) {
 			if _, exists := object[key]; exists {
 				return nil, errors.New("duplicate wire object key")
 			}
-			child, err := decodeValue(decoder, depth+1)
+			child, err := decodeValue(decoder, depth+1, budget)
 			if err != nil {
 				return nil, err
 			}
@@ -521,7 +984,10 @@ func decodeValue(decoder *json.Decoder, depth int) (wireValue, error) {
 	case '[':
 		array := make([]wireValue, 0)
 		for decoder.More() {
-			child, err := decodeValue(decoder, depth+1)
+			if len(array) >= maxWireArrayValues {
+				return nil, errors.New("wire array limit exceeded")
+			}
+			child, err := decodeValue(decoder, depth+1, budget)
 			if err != nil {
 				return nil, err
 			}

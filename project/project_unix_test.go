@@ -215,6 +215,70 @@ func TestPublicMigrateOwnsSourcesAndSignalContext(t *testing.T) {
 	}
 }
 
+func TestPublicMigratePlanUsesSignalContextAndNeverBeginsTransaction(t *testing.T) {
+	enterProjectRoot(t)
+	sources := []definition.Source{{
+		SourceID: "framework/alpha-0001.godj.json",
+		Document: []byte(`{"format_version":1,"producer":{"name":"project-test","version":"1"},"migration":{"app":"alpha","name":"0001","dependencies":[],"operations":[]}}`),
+	}}
+	request, err := migrateprotocol.EncodeRequest(migrateprotocol.Request{
+		Mode:   migrateprotocol.ModePlan,
+		Target: migrateprotocol.Target{Kind: migrateprotocol.TargetLatest},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	database := &publicShowMigrationsBackend{session: &publicShowMigrationsSession{}}
+	type contextKey struct{}
+	marker := new(int)
+	ownerCalls := 0
+	stopCalls := 0
+	config := Config{
+		MigrationDefinitionSources: sources,
+		OpenMigrationBackend: func(ctx context.Context) (MigrationBackend, error) {
+			if ctx.Value(contextKey{}) != marker {
+				t.Fatal("plan backend opener did not receive the signal-owned context")
+			}
+			return database, nil
+		},
+	}
+	var output bytes.Buffer
+	err = run(
+		context.Background(),
+		config,
+		[]string{migrateprotocol.PrivateArgument},
+		bytes.NewReader(request),
+		&output,
+		func(parent context.Context) (context.Context, context.CancelFunc) {
+			ownerCalls++
+			owned, cancel := context.WithCancel(context.WithValue(parent, contextKey{}, marker))
+			return owned, func() {
+				stopCalls++
+				cancel()
+			}
+		},
+	)
+	if err != nil {
+		t.Fatalf("plan dispatch = %v", err)
+	}
+	response, failure, failed := migrateprotocol.ParseResponse(output.Bytes(), true)
+	want := []migrateprotocol.PlanRow{{
+		App:       "alpha",
+		Name:      "0001",
+		Direction: migrateprotocol.DirectionForward,
+	}}
+	if failed || failure != (migrateprotocol.Failure{}) || !response.OK ||
+		response.Result.Mode != migrateprotocol.ModePlan ||
+		response.Result.Execute != (migrateprotocol.ExecuteResult{}) ||
+		!reflect.DeepEqual(response.Result.Plan, want) {
+		t.Fatalf("plan response = %+v, %+v, %v", response, failure, failed)
+	}
+	if ownerCalls != 1 || stopCalls != 1 || database.openCalls != 1 || database.session.readCalls != 1 ||
+		database.session.beginCalls != 0 || database.session.closeCalls != 1 || database.closeCalls != 1 {
+		t.Fatalf("plan ownership = owner:%d stop:%d backend:%+v", ownerCalls, stopCalls, database)
+	}
+}
+
 func TestPublicShowMigrationsOwnsSourcesAndUsesReadOnlySignalSession(t *testing.T) {
 	enterProjectRoot(t)
 	sources := []definition.Source{{
