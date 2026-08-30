@@ -528,6 +528,21 @@ Hosted도 통과해 ADR-0053/GDJ-0051은 Accepted/completed입니다. App filter
 [EVID-156](status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint),
 [EVID-157](status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)입니다.
 
+Active GDJ-0052는 다음 exact forms를 별도 bounded packet으로 추가합니다.
+
+```bash
+godj migrate --plan
+godj migrate blog 0001_article
+godj migrate blog 0001_article --plan --project ./godj.toml
+godj migrate blog zero
+```
+
+전체 public grammar는 latest/named/app-zero 각각 execute/plan과 optional trailing `--project PATH` 조합의 여덟
+형태뿐입니다. Plan은 current history에서 dry/capability preflight한 semantic steps를 JSON으로 표시하지만 실행 token이
+아니며, execute는 항상 fresh revision-fenced snapshot에서 다시 계획합니다. Prefix/app-only/option permutation,
+`sqlmigrate`, fake/repair와 destructive writer 확대는 비범위입니다. MIG-119..128과 Proposed ADR-0054는 activation 시점에
+`planned, not run`입니다.
+
 `--project` 값은 directory나 package가 아니라 exact basename `godj.toml` descriptor file입니다.
 Migration check 성공 시 DB를 열거나 migration을 실행하지 않고 source/definition count와 canonical digest를
 보고합니다. `project.Config`의 copied migration sources, `LoadProjectSpec(context.Context)`와 lazy

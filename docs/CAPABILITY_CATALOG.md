@@ -154,6 +154,9 @@ Current reference는 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`,
 24/269=`245 passing + 24 deviation`이며 MIG-075..086만 locked입니다. EVID-157의 focused gates와 independent final audit는
 P0..P3=`0`입니다. EVID-158 source-bound attestation/local final과 EVID-159/CI #177 exact-head Hosted 41/41
 jobs·464/464 steps도 통과했으므로 GDJ-0051/ADR-0053은 completed/Accepted입니다.
+Active GDJ-0052는 existing library-level targeted executor를 exact-one public target, no-mutation plan과 bounded reverse로
+연결합니다. Proposed `Executor.Plan`, `KnownAppZeroTarget`과 private migrate protocol v2는 아직 구현되지 않았고
+MIG-119..128은 `planned, not run`입니다. Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public

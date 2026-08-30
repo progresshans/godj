@@ -4,13 +4,15 @@
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
 - 마지막 scoped 검증: 2026-08-30 (GDJ-0051 exact-head Hosted EVID-159 / CI #177 run `33295130785`)
-- 현재 required checkpoint: submitted head `bebb690...`, tree `e0dac4e...`에서 Phase E source-bound attestation/local
-  final과 exact-head Hosted 41/41 jobs·464/464 steps를 완료했습니다. Relation normal 네 좌표는 각각 942/942/0,
-  PostgreSQL 17.10 normal/race/CGO0는 각각 22/22/0입니다.
-- 현재 design: GDJ-0049/Accepted ADR-0051, GDJ-0050/Accepted ADR-0052와 GDJ-0051/Accepted ADR-0053 completed.
+- 현재 required checkpoint: GDJ-0051 submitted head `bebb690...`, tree `e0dac4e...`의 Phase E source-bound
+  attestation/local final과 exact-head Hosted 41/41 jobs·464/464 steps가 terminal baseline입니다. Active GDJ-0052는
+  MIG-119..128 Phase A reference lock과 Phase B target/plan/reverse source를 아직 구현·검증하지 않았습니다.
+- 현재 design: GDJ-0049/Accepted ADR-0051, GDJ-0050/Accepted ADR-0052와 GDJ-0051/Accepted ADR-0053 completed;
+  GDJ-0052/Proposed ADR-0054 active.
   Reference 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`, product
   24/269=`245 passing + 24 deviation`; MIG-087..102/108..118은 product `passing`, MIG-103..107은 Verified
-  DEV-0010 `deviation`, reference-only locked range는 MIG-075..086입니다. 현재 active/ready work는 0/0임
+  DEV-0010 `deviation`, reference-only locked range는 MIG-075..086입니다. MIG-119..128은 `planned, not run`이고 현재
+  active/ready work는 1/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.

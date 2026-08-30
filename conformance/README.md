@@ -336,6 +336,11 @@ MIG-111..118은 24번째 oracle-blind adapter에서 모두 `passing`입니다. P
 EVID-157에서, current source-bound attestation/local final은 EVID-158에서, exact-head Hosted 41/41 jobs·464/464 steps는
 EVID-159에서 통과했습니다.
 
+GDJ-0052 activation은 MIG-119..128 exact target/plan/reverse set을 예약하지만 아직 manifest/oracle/static fixture나 product
+adapter를 추가하지 않습니다. 따라서 current 25 reference sets/281 contracts/600 bindings와 24 product adapters/269
+contracts aggregate는 변하지 않으며 MIG-119..128은 `planned, not run`입니다. Phase A에서 pinned Django/GoDj authority를
+감사한 뒤 reference-only `oracle_locked` artifact로 먼저 게시합니다.
+
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,
 MIG-102/107/108/109/110은 GoDj deterministic current-document, fail-closed delta, private snapshot protocol,

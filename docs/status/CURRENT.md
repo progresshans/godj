@@ -3,7 +3,16 @@
 - 마지막 갱신: 2026-08-30
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 0/0입니다. Completed
+- 현재 active/ready work는 1/0입니다. Active
+  [GDJ-0052](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)와 Proposed
+  [ADR-0054](../adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md)는 exact latest/named/app-zero
+  execute/plan 여덟 argv를 고정합니다. Preview와 execute는 definition/history/graph/historical-state/dry/capability
+  preparation을 공유하지만 preview output을 execution authority로 사용하지 않습니다. Execute는 항상 새 revision-fenced
+  history snapshot에서 fresh plan을 계산합니다. Existing `ZeroTarget("unknown")` empty-plan library 계약은 보존하고 public
+  app-zero만 `KnownAppZeroTarget`으로 unknown app을 fail-closed합니다. Current-only private migrate protocol v2는 mode와
+  target union, bounded plan rows를 전달하며 v1 dual reader를 남기지 않습니다. MIG-119..128은 `planned, not run`이고
+  Phase A reference lock 및 Phase B core/protocol 구현은 아직 실행하지 않았습니다. Baseline은 clean GDJ-0051 terminal
+  `1d37272f4062365416536d4459a5294df4b06d03`, tree `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
   [GDJ-0051](../../work/0051-project-linked-showmigrations.md)과 Accepted
   [ADR-0053](../adr/0053-project-linked-read-only-migration-status.md)은 exact
   `godj showmigrations [--project <godj.toml>]` list-only 단면을 고정합니다. Complete definition load는 backend open보다
@@ -762,7 +771,7 @@
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0051 Project-linked Showmigrations](../../work/0051-project-linked-showmigrations.md)
-- 활성 작업: 없음
+- 활성 작업: [GDJ-0052 Project-linked Targeted Migrate, Plan and Bounded Reverse](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1949,7 +1958,7 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 0/0이며 GDJ-0051 read-only `showmigrations`는 completed입니다. Phase B checkpoint
+GDJ-0051 read-only `showmigrations`는 completed입니다. Phase B checkpoint
 `294e7e2...`/tree `3a834f4...`는 core/loader status API, strict private wire, project/global read-only ownership,
 bounded SQLite history, revision taxonomy, identity escape, descendant cleanup과 cancellation precedence를 구현했습니다.
 Affected normal/race/CGO0/vet와 final changed-package refreeze, 독립 에이전트 3개가 수행한 4개 집중 감사 패스의 최종
@@ -1967,6 +1976,10 @@ cancelled이며 15개 direct-import lock failure, 3개 stale-attestation failure
 full/Linux-386/relation/archive local-final ownership을 정확히 닫았습니다. Exact submitted head `bebb690...`, tree
 `e0dac4e...`의 EVID-159/CI #177 run `33295130785` attempt 1은 41/41 jobs·464/464 steps,
 failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0053/GDJ-0051은 Accepted/completed입니다.
+현재 active/ready packet은 1/0이며 GDJ-0052 exact target/plan/bounded reverse가 활성화됐습니다. Baseline
+`1d37272...`에서 MIG-119..128은 `planned, not run`, ADR-0054는 Proposed입니다. Existing targeted planner/executor와
+transaction 의미는 재사용하되 public strict v2 wire, `KnownAppZeroTarget`, shared preparation과 no-mutation plan은 아직
+구현·검증되지 않았습니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,

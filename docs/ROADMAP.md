@@ -8,9 +8,11 @@
   Exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의
   pre-test dependency-setup 실패를 보존한 뒤 source 변경 없는 two-job rerun으로 effective 41/41 jobs·464/464 steps,
   failure/cancel/skip/annotation 0을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
-  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 0/0이며
+  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 1/0이며
   [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
-  통과해 completed입니다.
+  통과해 completed입니다. Active
+  [GDJ-0052](../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact named/app-zero execute,
+  non-authoritative `--plan`, fresh-snapshot replan과 bounded reverse failure/resume를 MIG-119..128로 분리합니다.
 - 직전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
@@ -247,8 +249,8 @@ whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 �
 `dc7a455...`와 EVID-157은 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product registration과 MIG-118 exact
 16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E EVID-158 local final과 EVID-159
 exact-head Hosted도 통과했습니다.
-Target/reverse, `--plan`과
-`sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
+Target/reverse와 `--plan`은 active GDJ-0052에서 exact-one target/current-only v2 경계로 진행하며 `sqlmigrate`는 별도
+후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,
