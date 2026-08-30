@@ -131,8 +131,8 @@ func RenderMigrationSQL(
 ) ([]string, error)
 ```
 
-- Exact exported 이름과 package 위치는 Phase B 전에 ADR-0055에서 확정합니다. 이 sketch는 activation에서 구현됐다는 주장이
-  아닙니다.
+- Exact exported 이름과 package 위치는 Phase B source `f51ab733...`에서 이 형태로 고정했습니다. Activation 당시의 sketch가
+  구현됐다는 주장은 아니며 실제 source/evidence가 현재 authority입니다.
 - Request는 zero-invalid이며 exact target identity, forward-only direction과 deep-cloned ordered intent를 함께 소유합니다.
 - `MigrationIntent`만 전달하면 SQLite/PostgreSQL static validators가 필요로 하는 migration identity와 direction을 잃으므로
   금지합니다.
@@ -195,8 +195,9 @@ func RenderMigrationSQL(
 ### Error, cancellation과 DB-free의 정확한 의미
 
 - Stable SQL-specific category/code 후보는 renderer unavailable, render failed, invalid rendered SQL과 rendered SQL resource limit입니다.
-- Public exit mapping은 existing command family와 일치하도록 invalid argv/identity `2`, renderer unavailable/render failed/invalid
-  rendered SQL `3`, capability unsupported/resource limit `1`을 제안합니다. Phase B source 전에 protocol taxonomy test로 닫습니다.
+- Root SQL error taxonomy는 Phase B에서 stable category/code와 no-unwrap shape로 고정했습니다. Public exit mapping은 existing
+  command family와 일치하도록 invalid argv/identity `2`, renderer unavailable/render failed/invalid rendered SQL `3`,
+  capability unsupported/resource limit `1`을 제안하며 Phase C private/global protocol publication 전에 exact test로 닫습니다.
 - Raw renderer error, partial statement, definition/source, URL/credential와 child stderr는 public error, `Unwrap`, protocol,
   log/artifact에 넣지 않습니다. Existing `migrations.Error`가 cause를 노출한다면 safe sentinel로 새로 매핑합니다.
 - Root/built-in은 entry, operation 사이, renderer return과 output scan에서 context cancellation을 확인합니다. Custom renderer를
@@ -259,7 +260,7 @@ deviation fixture, GoDj product adapter와 `passing` 전환을 만들지 않습�
 ## 단계
 
 - [x] Phase A — pinned Django source/runtime authority audit와 MIG-129..138 reference-only artifact lock
-- [ ] Phase B — pure forward materializer, identity-bearing renderer port, shared compiler, config/error/output boundary
+- [x] Phase B — pure forward materializer, identity-bearing renderer port, shared compiler, config/error/output boundary
 - [ ] Phase C — strict private/global protocol과 repository-external SQLite exact CLI/no-DB/redaction product flow
 - [ ] Phase D — PostgreSQL current profile, oracle-blind actual/policy와 source-bound attestation publication
 - [ ] Phase E — affected/full milestone, Linux/386, external archive, exact submitted-head Hosted와 terminal docs
@@ -272,19 +273,24 @@ independent A/B로 한 번 재캡처합니다. Phase A에서는 그 exact stale-
 
 ## 현재 checkpoint
 
-- Phase A source는 `c3de0d35b3dce4fd0a5c0dde4cc16b85923a14a0`, tree
-  `1af05572ed3a5f50219fe48b810262a37ca7f46f`입니다. Manifest/NI/oracle SHA-256은 각각
-  `7074d37f...6703`/`217e9065...0144`/`fa015cb0...abc99`, shared checksum은 `9d218040...6e71d`입니다.
-- Pinned exact Python은 325 tests/3 skips와 27 oracle check를, Hosted-style isolated profile은 325/21을 통과했습니다.
-  Live semantic aggregate는 301 scenarios/1,063,090 bytes/SHA-256 `67b7ea55...7c441`입니다.
-- Focused Python 18/18, runner safety 41/41, oracle independent A/B/canonical equality, checksum 24/24, protocol
-  normal/count-10/race/CGO-disabled/vet와 54 reference validation이 통과했습니다. 독립 재감사는 P0..P3=`0`입니다.
-- Makefile/workflow가 source binding 대상이므로 checked PostgreSQL attestation은 예상대로 stale입니다. 직접 빌드한
-  `godjcheck`는 exit 2, stdout 0 bytes와 exact one-line stale diagnostic을 냈고 final source freeze에서만 재캡처합니다.
-- ADR-0055는 계속 Proposed이고 command/product adapter는 미구현입니다. Full product/backend/Linux-386/Hosted도 Phase A
-  증거로 주장하지 않습니다.
-- 다음 정확한 작업은 Phase B의 pure forward materializer, identity-bearing renderer port, shared compiler와
-  config/error/output boundary 구현입니다.
+- Phase A source `c3de0d35b3dce4fd0a5c0dde4cc16b85923a14a0`, tree
+  `1af05572ed3a5f50219fe48b810262a37ca7f46f`의 exact artifact와 reference aggregate는 EVID-173이 소유합니다.
+- Phase B source는 `f51ab7339753508ed070a8ba6da1c917cb3ce392`, tree
+  `ab71e8a09cbddb01c4d0054d955ad722af9db6d9`입니다. Public `RenderMigrationSQL`은 complete loaded catalog와 exact target의
+  dependency-before state에서 detached exactly-one forward intent를 만들고 identity-bearing renderer를 정확히 한 번 호출합니다.
+- SQLite/PostgreSQL immutable built-in renderer는 execution compiler와 static validation을 공유하되 opener/session/history/
+  recorder/transaction/schema editor와 URL/credential/handle을 소유하지 않습니다. PostgreSQL config는 schema-only이고 invalid
+  configuration은 complete-load/lookup/materialization 뒤 redacted failure로 닫힙니다.
+- Root는 nil/typed-nil, context, exact statement cardinality, 2,048 statement/16 MiB aggregate cap, UTF-8/canonical body와 raw
+  cause/partial SQL redaction을 검증합니다. External compile contract는 built-in/custom keyed `project.Config` assignment와 이전
+  four-field unkeyed literal의 의도된 source break를 함께 고정합니다.
+- Affected normal/race/CGO-disabled/vet, all-package compile-only, repeated determinism과 focused external compile이 통과했습니다.
+  독립 감사에서 blocking P0/P1/P2는 없었고 loader identity, context checkpoint, sealed FK target/compiler 공유와 recorder-only
+  identity limit 분리를 source/tests로 보강했습니다. Exact 명령과 non-claim은 EVID-174가 소유합니다.
+- ADR-0055는 계속 Proposed이고 global/private command, canonical terminal publication과 product adapter는 아직 미구현입니다.
+  Full product/backend/Linux-386/archive/Hosted 및 source-bound attestation recapture도 Phase B 증거로 주장하지 않습니다.
+- 다음 정확한 작업은 Phase C strict private/global protocol, one-write/short-write ownership, Article one-frozen-selection과
+  repository-external SQLite exact CLI/no-DB/redaction product flow입니다.
 
 ## 완료 조건
 

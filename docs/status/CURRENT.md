@@ -18,8 +18,17 @@
   8,010/1,727/46,941 bytes, shared checksum은 24 lines/2,279 bytes, semantic payload는
   301 scenarios/1,063,090 bytes/SHA-256 `67b7ea55...7c441`입니다.
   [EVID-173](TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)은 exact hash,
-  Django/GoDj authority, Python/protocol/conformance/A-B와 expected stale-attestation diagnostic을 기록합니다. ADR-0055는
-  Proposed이고 product command/adapter는 미구현이며 다음 정확한 작업은 Phase B pure materializer와 renderer port입니다.
+  Django/GoDj authority, Python/protocol/conformance/A-B와 expected stale-attestation diagnostic을 기록합니다. Phase B source
+  `f51ab7339753508ed070a8ba6da1c917cb3ce392`, tree `ab71e8a09cbddb01c4d0054d955ad722af9db6d9`는 public
+  `RenderMigrationSQL`, identity-bearing renderer port, SQLite/PostgreSQL immutable DB-free renderer, schema-only PostgreSQL config와
+  direct `project.Config` field를 구현했습니다. Complete catalog/graph/chronology/exact lookup/materialization은 renderer
+  availability/configuration보다 먼저이고 request/result는 detached됩니다. Built-in renderers는 sealed/static validation과 existing
+  execution compiler를 공유하지만 opener/session/history/recorder/transaction/schema editor 또는 credential/handle을 사용하지
+  않습니다. Root는 typed-nil, cancellation, cardinality, 2,048 statement/16 MiB caps, canonical body와 raw cause/partial SQL
+  redaction을 fail-closed합니다. Affected normal/race/CGO-disabled/vet, all-package compile-only, repeat와 external compile gate가
+  통과했고 상세 non-claim은 [EVID-174](TEST_EVIDENCE.md#evid-20260831-174--gdj-0054-phase-b-pure-sql-projection-core-and-built-in-renderer-checkpoint)이
+  소유합니다. ADR-0055는 Proposed이고 global/private command와 product adapter는 미구현입니다. 다음 정확한 작업은 Phase C
+  strict wire/global CLI, one-write ownership과 repository-external SQLite no-DB product flow입니다.
   Activation evidence는 [EVID-172](TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. Completed
   [GDJ-0053](../../work/0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와
   함께 unrelated scalar-only 또는 otherwise-unused nullable-only target model이 있는 valid project의 generated
@@ -2089,8 +2098,9 @@ failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. A
 현재 active/ready packet은 1/0이며 GDJ-0054 exact forward deterministic `sqlmigrate`가 Proposed ADR-0055와 함께
 활성화됐습니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
 `oracle_locked`로 게시했고 pinned/isolated Python, semantic/protocol/conformance/checksum과 independent audit를 통과했습니다.
-Product adapter와 command는 아직 미구현이며 다음 정확한 작업은 Phase B pure forward materializer와 renderer/config/error/output
-boundary입니다. GDJ-0053 sparse-model generated compile
+Phase B source `f51ab733...`, tree `ab71e8a...`는 pure `RenderMigrationSQL`, renderer port, SQLite/PostgreSQL
+compiler-backed renderer와 direct project config를 구현했습니다. Product adapter와 command는 아직 미구현이며 다음 정확한 작업은
+Phase C strict private/global wire와 repository-external SQLite no-DB product flow입니다. GDJ-0053 sparse-model generated compile
 availability는 exact submitted-head Hosted까지 통과해 completed입니다. 최근 completed GDJ-0052 exact target/plan/bounded reverse의 baseline
 `1d37272...`에서 시작해 Phase B source `cd499462...`/tree `580ae7a...`가 public strict v2 wire,
 `KnownAppZeroTarget`, shared preparation과 no-mutation plan을 구현했습니다. Phase A source `db8fc418...`/tree

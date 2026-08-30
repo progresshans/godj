@@ -85,9 +85,12 @@ proposed → ready → active → completed
 `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete loaded catalog와 target-before
 historical state에서 결정적으로 materialize하는 bounded packet입니다. Built-in SQLite/PostgreSQL renderer는 execution
 compiler meaning을 공유하지만 backend opener/session/history/transaction/editor를 호출하지 않습니다. ADR-0055와
-MIG-129..138은 Phase A source `c3de0d35...`, tree `1af05572...`에서 reference-only `oracle_locked`로 고정됐고
-product adapter/command는 미구현입니다. [EVID-173](../docs/status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)이
-local reference gate를 소유하며 다음 단계는 Phase B입니다. Activation 근거는
+MIG-129..138은 Phase A source `c3de0d35...`, tree `1af05572...`에서 reference-only `oracle_locked`로 고정됐습니다.
+Phase B source `f51ab733...`, tree `ab71e8a...`는 pure `RenderMigrationSQL`, identity-bearing renderer port,
+SQLite/PostgreSQL compiler-backed renderer와 direct project config를 구현했고 affected normal/race/CGO0/vet, compile-only,
+repeat/external compile gate를 통과했습니다. [EVID-174](../docs/status/TEST_EVIDENCE.md#evid-20260831-174--gdj-0054-phase-b-pure-sql-projection-core-and-built-in-renderer-checkpoint)이
+구현과 non-claim을 소유합니다. Product adapter/command는 미구현이며 다음 단계는 Phase C입니다. Phase A와 activation 근거는
+[EVID-173](../docs/status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)과
 [EVID-172](../docs/status/TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. Completed
 [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와 함께
 unrelated scalar-only 또는 nullable-only target model이 있는 valid project에서 generated unused `_modelN` 때문에

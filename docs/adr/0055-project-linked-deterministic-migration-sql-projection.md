@@ -87,9 +87,24 @@ support와 shared compiler를 통해 statement body만 반환합니다. Global o
     projection해도 live table-empty/cardinality preflight나 적용 가능성을 주장하지 않으며 실제 execute가 fresh live preflight를
     계속 소유합니다. Physical catalog에서 remake plan을 만들어야 하는 SQLite ForeignKey RemoveField는 stable capability failure와
     SQL zero bytes로 닫습니다.
-16. Private wire의 JSON worst-case escape를 포함한 response hard cap 후보는 101 MiB입니다. Public exit 후보는 invalid
-    argv/identity `2`, renderer unavailable/render failed/invalid rendered SQL `3`, capability/resource limit `1`이며 Phase B 전에
-    closed taxonomy test로 확정합니다.
+16. Private wire의 JSON worst-case escape를 포함한 response hard cap 후보는 101 MiB입니다. Phase B는 root SQL
+    category/code와 no-unwrap shape를 고정했습니다. Public exit 후보는 invalid argv/identity `2`, renderer unavailable/render
+    failed/invalid rendered SQL `3`, capability/resource limit `1`이며 Phase C private/global publication 전에 exact test로
+    확정합니다.
+
+## Phase B 구현 checkpoint
+
+Source `f51ab7339753508ed070a8ba6da1c917cb3ce392`, tree `ab71e8a09cbddb01c4d0054d955ad722af9db6d9`는 위 선택지 C의
+library/backend/config 경계를 구현했습니다. Public names는 `backend.ForwardMigrationSQLRequest`,
+`backend.MigrationSQLRenderer`, `migrations.RenderMigrationSQL`, SQLite zero-config constructor와 PostgreSQL schema-only
+constructor로 고정했습니다. Root가 complete load/graph/chronology/exact lookup/materialization 뒤 renderer를 한 번 호출하고
+cardinality/resource/canonical body/redaction을 검증합니다. Built-in renderer는 static validator와 execution compiler를
+공유하지만 DB/history/transaction/editor를 호출하지 않습니다.
+
+이 checkpoint는 Proposed 상태를 바꾸지 않습니다. Strict private protocol, global CLI, terminal `;\n` publication,
+repository-external product actual과 PostgreSQL live/product publication은 각각 Phase C/D에 남아 있습니다. 따라서 public command,
+MIG-129..138 `passing`, product aggregate 변경이나 Accepted 결정을 주장하지 않습니다. Exact local evidence는 EVID-174가
+소유합니다.
 
 ## 결과
 

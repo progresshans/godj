@@ -183,8 +183,10 @@ Accepted/completed입니다. 근거는
 [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
 Active GDJ-0054/Proposed ADR-0055는 exact-name forward-only `sqlmigrate`를 별도 pure materializer와 identity-bearing
 SQLite/PostgreSQL renderer로 검토합니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138 manifest/NI/oracle을
-reference-only `oracle_locked`로 고정했고 EVID-173의 local reference gate를 통과했습니다. Product adapter와 command는 아직
-미구현이며 다음 단계는 Phase B입니다. Built-in profile은 current `CreateModel`/`AddField` compiler projection만 대상으로 하고
+reference-only `oracle_locked`로 고정했고 EVID-173의 local reference gate를 통과했습니다. Phase B source `f51ab733...`, tree
+`ab71e8a...`는 pure `RenderMigrationSQL`, detached renderer port, SQLite/PostgreSQL compiler-backed renderer와 direct
+`project.Config` field를 구현해 EVID-174의 affected gate를 통과했습니다. Product adapter와 command는 아직 미구현이며 다음
+단계는 Phase C입니다. Built-in profile은 current `CreateModel`/`AddField` compiler projection만 대상으로 하고
 database opener/session/history/recorder/transaction/editor를 호출하지 않습니다. 이는 fully offline/custom-renderer no-I/O,
 live schema/data/profile 확인, actual execution success/atomicity 또는 terminal write OS-atomicity를 뜻하지 않습니다.
 Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.

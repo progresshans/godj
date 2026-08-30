@@ -16004,3 +16004,84 @@ frontmatter/index/status/evidence-order, exact-path-scope and trailing-whitespac
 `git diff --check` also exited zero. Draft PR #1 remains open/draft/unmerged; no PR comment, merge, release or deployment was
 performed. The next exact implementation boundary is Phase B's pure forward materializer, identity-bearing renderer port and
 shared compiler/config/error/output path.
+
+## EVID-20260831-174 — GDJ-0054 Phase B Pure SQL Projection Core and Built-in Renderer Checkpoint
+
+- Date: 2026-08-31 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5
+- Work/contract IDs: GDJ-0054 active; ADR-0055 Proposed; MIG-129..138 remain reference-only `oracle_locked`;
+  Q-010/Q-012 remain Partial
+- Product source: `f51ab7339753508ed070a8ba6da1c917cb3ce392`, tree
+  `ab71e8a09cbddb01c4d0054d955ad722af9db6d9`
+- Result: the pure exact-target forward materializer, identity-bearing renderer port, immutable SQLite/PostgreSQL built-in
+  renderers and direct project configuration boundary are implemented and affected-local-verified. The global/private command,
+  terminal output owner and product adapter are not implemented, so reference/product classification remains unchanged.
+
+### Implemented ownership and precedence
+
+`migrations.RenderMigrationSQL` snapshots and validates the complete `LoadedDefinitionSet`, reconstructs the full graph and
+chronology with context-aware operation replay, resolves one exact target, reconstructs only its dependency-before historical
+state and materializes exactly that target's detached forward intent. Only after those steps does it reject nil/typed-nil renderer
+configuration and invoke `backend.MigrationSQLRenderer` exactly once with detached `{App, Name, Intent}` identity. It does not use
+`Executor.Plan`, applied history, backend/session/recorder/revision fence, transaction or mutation `SchemaEditor`.
+
+The root boundary maps raw renderer failures to cause-free stable category/code values, discards partial statements, checks
+context at bounded checkpoints and validates resource limits before semantic body shape. It enforces exact one statement body per
+operation, a maximum 2,048 bodies and 16 MiB aggregate body bytes, valid UTF-8, nonempty semicolon-free bodies, no leading/trailing
+ASCII whitespace and no control rune except internal LF. Results and requests are deeply detached; an explicit empty migration
+returns a non-nil empty slice.
+
+SQLite and PostgreSQL renderers are immutable private non-pointer values returned through the public port. SQLite seals the same
+relation intent used by execution before sharing CreateModel/AddField compiler helpers. PostgreSQL separates recorder-owned
+identity limits from pure intent preparation, shares exact target selection and compiler helpers, and accepts only an immutable
+schema-only `MigrationSQLConfig`; no URL, credential, database handle or constructor error can invert load-before-render
+precedence. Both built-ins explicitly capability-fail DeleteModel, RemoveField and unknown operations without partial SQL. Required
+AddField remains a static projection and does not claim live table/cardinality applicability.
+
+`project.Config` now has a direct renderer field. Repository-external compile fixtures lock the exact SQLite/PostgreSQL constructor
+signatures, built-in and custom keyed assignments, root API/error use and the intentional pre-release source break for the old
+four-field unkeyed literal. All repository-owned config literals remain keyed.
+
+### Executed gates
+
+The following commands exited zero against the source above:
+
+```text
+go test ./migrations/backend ./migrations ./db/sqlite ./db/postgres ./project ./internal/compiletest -count=1
+go test -race ./migrations/backend ./migrations ./db/sqlite ./db/postgres ./project ./internal/compiletest -count=1
+CGO_ENABLED=0 go test ./migrations/backend ./migrations ./db/sqlite ./db/postgres ./project ./internal/compiletest -count=1
+go vet ./migrations/backend ./migrations ./db/sqlite ./db/postgres ./project ./internal/compiletest
+go test ./... -run '^$' -count=1
+go test ./migrations -run 'TestRenderMigrationSQL|TestValidateRenderedMigrationSQL|TestLoadedStateReconstructorChecksCancellation' -count=10
+go test ./db/sqlite -run MigrationSQLRenderer -count=10
+go test ./db/postgres -run MigrationSQLRenderer -count=10
+go test ./internal/compiletest -run 'TestExternalConsumerCompiles|TestTypedAPIMisuseDoesNotCompile' -count=1
+git diff --check
+```
+
+Focused tests cover exact dependency-before and cross-app operation ordering, one detached request, complete-load and exact-miss
+precedence, nil/typed-nil, entry/replay/renderer/output-scan cancellation, exact resource boundaries, malformed bodies, redaction,
+empty intent, repeat and parallel determinism. Backend tests lock compiler-byte parity, sealed changed-only ForeignKey expansion,
+schema qualification, loader-versus-recorder identity authority, invalid config redaction, destructive/unknown capability failure
+and request/result immutability.
+
+Independent core/backend/project-contract audits found no remaining blocking P0/P1/P2 issue after loader identity authority,
+post-preparation/final cancellation, sealed SQLite ForeignKey target use, shared PostgreSQL target selection and recorder-only limit
+separation were corrected and covered. A suggested combined PostgreSQL-invalid-config plus invalid-catalog P3 test was not added:
+the root invalid-catalog-before-renderer test and direct invalid-config renderer test independently lock the same ownership boundary;
+this is not a product acceptance claim.
+
+### Non-claims and next boundary
+
+This checkpoint does not implement or verify public argv parsing, project discovery/build, private child protocol, `;\n` terminal
+formatting, one-write/short-write behavior, Article one-frozen-selection, repository-external SQLite process flow, oracle-blind
+actual/product registration, PostgreSQL live integration or source-bound attestation recapture. It does not claim full `make ci`,
+Linux/386, `.git`-free archive or exact-head Hosted success. ADR-0055 remains Proposed; GDJ-0054 remains active; MIG-129..138 remain
+`oracle_locked`; reference 27/301/702=`254 passing + 25 deviation + 22 oracle_locked` and product 25/279=
+`254 passing + 25 deviation` are unchanged. Phase C next owns the strict private/global wire, canonical publication and
+repository-external SQLite DB/history-zero product observation.
+
+The documentation-only checkpoint descendant passed tracked Markdown parsing with `markdown-it-py 4.0.0`, local
+link/H1/heading, frontmatter/work-index/active-ready/evidence-order, exact allowed-path and trailing-whitespace validation for all
+142 tracked Markdown files and all 31 Phase B changed paths. `make format-check` and `git diff --check` also exited zero. These
+documentation checks do not recursively replace or expand the source verification listed above.
