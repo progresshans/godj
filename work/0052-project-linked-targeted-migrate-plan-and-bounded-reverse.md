@@ -324,3 +324,22 @@ reference artifact를 `oracle_locked`로 고정했습니다. Actual adapter가 �
     [EVID-165](../docs/status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)이
     exact command, hash, timeout 분류와 non-claim을 기록합니다. Corrected exact submitted-head Hosted와 terminal status
     documentation은 아직 pending이므로 GDJ-0052는 계속 active, Phase E는 unchecked이며 ADR-0054도 Proposed를 유지합니다.
+  - Submitted local-final `fbde4f777af62468003291cb9480339592a9219c`의 second Hosted
+    [CI #188](https://github.com/progresshans/godj/actions/runs/33314164696)은 53 jobs=`47 success + 6 failure`, 572
+    steps=`549 success + 6 failure + 17 post-failure skips`, cancellation 0으로 완료됐습니다. Five primary failures는
+    portable normal/race의 duplicated targeted package 15분 timeout, macOS Intel targeted normal/CGO-disabled의 30분
+    package timeout과 MIG-128의 test-local 90초 guard였으며 assertion/DB/transaction/cleanup mismatch는 없었습니다.
+    `538102f895043b1dc73373c0367e8d724f164ff4`는 MIG-128에만 10분 scenario guard를 적용하고,
+    source freeze `7859bd79fe89c7be4b3b5a4addc376d2e8aa9527`, tree
+    `e7b7ec782e510c53872df4f06843923197971577`은 Hosted portable duplication을 제거하면서 full local `make ci`가
+    별도 `targeted-migrate-product` normal/race/CGO-disabled를 계속 소유하게 합니다. Dedicated 12-lane은 non-Intel
+    package/job 30/40분, Intel 45/55분을 사용하며 이번 correction에는 shard를 추가하지 않았습니다.
+  - Publication `7d047aef6fdf04ed576ec5628003960d4c3360ae`, tree
+    `21c0bd1565194f33a296c310fc3bfd707c805fef`은 freeze의 independent PostgreSQL A/B를 exact 1,134 bytes/SHA-256
+    `ac46d9ba46ef30df3420ecff6a308110fe51aeb7dcfa90000d647f22eac9e893`, binding 267 files/3,388,510 bytes/
+    `d041e1f4a16dfe46c5b1a1c7f378e56cd069a0e90ba20459c8551829bb3a482f`로 다시 게시했습니다. A/B/published,
+    pre/post archive와 resource/secret checks가 일치했고 focused normal/race/CGO-disabled/vet, conformance/product comparison,
+    format/generate/diff gates가 통과했습니다. Corrected full local `make ci`, Linux/386, relation/archive와 exact submitted-head
+    Hosted는 아직 재실행하지 않았으므로 Phase E/ADR/work 상태는 그대로입니다. 자세한 증거는
+    [EVID-166](../docs/status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)에
+    기록합니다.

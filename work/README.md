@@ -102,7 +102,11 @@ MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`; cu
 Linux/386 compile-only, workflow-exact relation 955/955/0과 1,230-file `.git`-free archive를 통과했습니다. 첫 Hosted
 diagnostic의 stale proof/inventory와 bounded timeout 원인 및 correction은
 [EVID-165](../docs/status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)에
-기록합니다. Corrected exact-head Hosted와 terminal publication이 다음 작업입니다. Phase D 근거는
+기록합니다. Second Hosted `33314164696`의 five primary timeout/guard failure는 duplicate portable coverage 제거,
+MIG-128 전용 10분 guard와 Intel 45/55분 budget으로 bounded correction했고, publication `7d047ae...`의 current-source
+PostgreSQL A/B/focused refreeze를
+[EVID-166](../docs/status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)에
+기록합니다. 이 corrected descendant의 exact-head Hosted와 terminal publication이 다음 작업입니다. Phase D 근거는
 [EVID-164](../docs/status/TEST_EVIDENCE.md#evid-20260830-164--gdj-0052-phase-d-postgresql-product-publication-and-ownership-hardening)입니다.
 ADR-0054는 Proposed이며 prefix
 resolution/app-only, SQL rendering, fake/repair, destructive writer 확장과 multi-DB는 비범위입니다. Completed

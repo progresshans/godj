@@ -15461,3 +15461,117 @@ Hosted PostgreSQL no-skip lanes own that evidence.
 Exact submitted-head Hosted verification is still required for the corrected bytes. Until it succeeds, ADR-0054 remains
 Proposed, GDJ-0052 remains active and Phase E remains unchecked. Draft PR #1 remains open/draft/unmerged; no PR comment,
 merge, release or deployment was performed.
+
+## EVID-20260830-166 — GDJ-0052 Second Hosted Timing Diagnostic and Corrected Source Refreeze
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; independent digest-pinned Linux/amd64 Go 1.26.5
+  and PostgreSQL 17.10 containers; GitHub Actions diagnostic runners
+- Work/contract IDs: GDJ-0052 active; ADR-0054 Proposed; MIG-119..121/123..128 product `passing`, MIG-122
+  Verified DEV-0002 `deviation`; Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- MIG-128 bounded guard correction: `538102f895043b1dc73373c0367e8d724f164ff4`, tree
+  `3fed10ffe5fec9d7e3f9cfa4debe5f5a7bfac540`
+- CI source freeze: `7859bd79fe89c7be4b3b5a4addc376d2e8aa9527`, tree
+  `e7b7ec782e510c53872df4f06843923197971577`
+- Current attestation publication: `7d047aef6fdf04ed576ec5628003960d4c3360ae`, tree
+  `21c0bd1565194f33a296c310fc3bfd707c805fef`
+- Result: the second Hosted run found five primary timeout/guard failures and one derivative failure, with no cancellation
+  and no observed assertion, database-state, transaction or cleanup mismatch. The bounded correction and current-source A/B
+  publication passed focused local gates. A new exact submitted-head Hosted run remains pending, so this evidence does not
+  accept ADR-0054, check Phase E or complete GDJ-0052.
+
+### Exact second Hosted diagnostic
+
+[CI #188 / run 33314164696 attempt 1](https://github.com/progresshans/godj/actions/runs/33314164696) exercised API head
+`fbde4f777af62468003291cb9480339592a9219c`. Actions checked out synthetic merge `046690e...`; its source parent and API head
+had the same tree `3a8f90ada5c9f6e74241e2cc185d3b2aca1356ee`, so the executed bytes match the submitted head tree. Exact workflow
+topology was expected/actual/unique 53/53/53, with no missing, duplicate or unexpected job.
+
+The run completed 53 jobs=`47 success + 6 failure + 0 cancelled/skipped` and 572 recorded steps=`549 success + 6 failure +
+17 post-failure skipped`. Five jobs were primary failures and `Required CI` was derivative:
+
+1. Product project check macOS Intel reached MIG-128's own 90-second context at 92.11 seconds. Other packages passed; this
+   was neither its package nor job watchdog.
+2. Portable normal and race each ran the dedicated targeted package again after their earlier product gates passed. The
+   duplicate package reached its 15-minute watchdog while MIG-125 was running.
+3. Dedicated macOS Intel targeted normal and CGO-disabled each passed MIG-119..125, then reached the 30-minute package
+   watchdog during MIG-126. The first seven top-level scenarios already consumed about 27.3/27.2 minutes.
+4. `Required CI` failed only because the three owning matrix groups above were non-green.
+
+All 17 skipped steps followed a primary job failure. The check suite had exact six failure annotations, one for each failed
+step, and no warning/notice or hidden additional annotation. Relation normal passed on all four coordinates with exact
+955 runs/955 passes/0 skips, 97,485 canonical bytes/SHA-256
+`530ce8c3e5e99b8c78474920574e0042d5ddb6fdf86dc080c805f4a4044ec4b4`. PostgreSQL normal/race/CGO-disabled each passed
+23/23 required top-level sentinels with zero skips, including byte-equal checked attestation validation. Ten of twelve
+dedicated targeted coordinates passed their full eleven-sentinel inventory with zero skip. Therefore the interrupted lanes
+remain incomplete, but the retained evidence supports a CI time/duplication diagnosis rather than a product-meaning failure.
+
+### Bounded correction and coverage ownership
+
+MIG-128 now receives a contract-specific 10-minute context while every other scenario retains the 90-second default. Focused
+helper, MIG-128 normal/race/CGO-disabled and whole runner-package tests passed before commit. The workflow/Make correction
+does not shard or add jobs:
+
+- standalone `make go-test`, `make go-race` and `make cgo-zero-build` exclude the exceptionally long targeted product package;
+- full local `make ci` invokes a dedicated `targeted-migrate-product` target that runs normal/race/CGO-disabled exactly once;
+- the complete Hosted gate continues to require the existing twelve coordinate/mode targeted lanes;
+- nine non-Intel lanes retain package/job 30/40-minute limits; three macOS Intel lanes use 45/55 minutes;
+- workflow portable normal/race no longer duplicate the package, and CGO-disabled is separated consistently even though its
+  second run had completed within its outer budget.
+
+This preserves full `make ci` and complete Hosted coverage but intentionally narrows the three standalone mode targets. The
+split is locked by exact Makefile/workflow protocol tests. Sharding remains deferred: the ten successful dedicated lanes do
+not justify new inventory-union complexity, and Intel can be split later only if the 45-minute package budget still lacks
+repeatable headroom.
+
+Focused source-freeze validation passed `make core-package-selection-check`, full
+`go test -count=1 ./conformance/internal/protocol`, focused source-binding tests, vet for protocol/runner packages,
+workflow YAML parse, `make -n` ownership inspection and `git diff --check`. Three independent read-only audits found no
+remaining stale protocol assertion or P0/P2 finding. Their only acceptance blocker was the expected stale checked
+attestation; one P3 note is the documented standalone target split.
+
+### Corrected-source PostgreSQL A/B and publication
+
+The retained evidence root is `/tmp/godj-gdj0052-attest-7859bd7.QVxBeP`. Clean source freeze `7859bd7...` produced
+source/pre/post tar streams that are each 19,159,040 bytes/SHA-256
+`2ac1c09fd7257a49496bfe713b9fa3189406502b425031b9c115e241f8e49b54`. The 12,049-byte audited wrapper has SHA-256
+`e3962687b5d46d02b426593f59f70d0258b752416ff689f88d1c9374fd1a51c5`.
+
+Captures A and B used independent source extractions, PostgreSQL containers/clusters/named volumes/networks and Go producer
+containers. They are byte-identical at 1,134 bytes/SHA-256
+`ac46d9ba46ef30df3420ecff6a308110fe51aeb7dcfa90000d647f22eac9e893`. Both report exact Go 1.26.5/Linux amd64,
+PostgreSQL 17.10 UTF8/C/UTC, two writers, same-schema/barrier/restart true, divergence/loss/drift/secret counts zero and
+source binding 267 files/3,388,510 payload bytes/SHA-256
+`d041e1f4a16dfe46c5b1a1c7f378e56cd069a0e90ba20459c8551829bb3a482f`. The wrapper compared pre/post archives and
+source trees, scanned the ephemeral credential marker before any failure-log publication and confirmed exact Docker resource
+absence. A separate retained-evidence scan found no connection URL or credential carrier.
+
+Publication `7d047ae...` changes only the checked JSON, its 103-byte checksum file and the protocol byte lock relative to
+the freeze. Checked JSON is byte-identical to A/B; `SHA256SUMS` itself has SHA-256
+`ee414159c8f7819859a762927e399ea0d4683494e6285e001c78d91a95d9f970`.
+
+The following current-publication gates exited zero:
+
+```text
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+go run ./conformance/cmd/godjcheck -profile conformance/profiles/django-6.1-sqlite-darwin-arm64.json -manifest conformance/contracts/system-state-manifest.json -expected conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json -deviation-expected conformance/fixtures/godj-system-state-deviation-expected.json -system-state-postgres-attestation conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+go test -timeout=20m -count=1 ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test -timeout=20m -race -count=1 ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+CGO_ENABLED=0 go test -timeout=20m -count=1 ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go vet ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+make conformance-check
+make godj-conformance
+make format-check generate-check
+git diff --check
+```
+
+The six packages are system-state attestation/multiruntime/restart, GoDj runner, product checker and protocol. Normal,
+race and CGO-disabled all passed; the exact SYS comparison reported 20 reviewed contracts under DEV-0008 and target-plan
+comparison reported ten reviewed contracts under DEV-0002.
+
+The corrected descendant did not rerun full local `make ci`, all-package Linux/386 compile-only, relation inventory or the
+repository-external archive. EVID-165 remains the exact predecessor proof for those gates and is not relabeled as current.
+The new standalone `make targeted-migrate-product` aggregate was inspected but not executed as one command; its three
+underlying modes and the dedicated Hosted matrix own the pending exact revalidation. Exact submitted-head Hosted is still
+required. Until it succeeds, ADR-0054 remains Proposed, GDJ-0052 remains active and Phase E remains unchecked. Draft PR #1
+remains open/draft/unmerged; no PR comment, merge, release or deployment was performed.

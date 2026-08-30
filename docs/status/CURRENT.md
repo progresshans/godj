@@ -44,8 +44,18 @@
   267 files/3,388,048 bytes/`3af400bf...573d9`로 게시했습니다. Full `make ci`, all-package 118-package Linux/386
   compile-only, workflow-exact relation 955/955/0과 1,230-file `.git`-free archive의 targeted/show/writer public flows가
   통과했습니다. [EVID-165](TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final)이
-  exact diagnostic, correction, hash와 non-claim을 기록합니다. 다음 작업은 corrected exact submitted-head Hosted와
-  terminal publication이며, 그 전까지 work는 active, ADR은 Proposed, Phase E는 unchecked입니다.
+  exact diagnostic, correction, hash와 non-claim을 기록합니다. Submitted `fbde4f7...`의 second Hosted diagnostic
+  [CI #188](https://github.com/progresshans/godj/actions/runs/33314164696)은 53 jobs=`47 success + 6 failure`, cancellation 0으로
+  끝났습니다. 다섯 primary failure는 portable normal/race의 targeted package 중복 15분 watchdog, macOS Intel targeted
+  normal/CGO0의 30분 package watchdog, MIG-128의 test-local 90초 guard였고 나머지 하나는 Required CI 파생 실패였습니다.
+  Assertion/DB/transaction/cleanup mismatch는 관찰되지 않았습니다. `538102f...`/`7859bd7...`은 MIG-128만 10분 guard를
+  사용하고 targeted package를 full local `make ci`와 dedicated Hosted 12-lane이 한 번씩 소유하도록 분리했으며 Intel만
+  package/job 45/55분을 사용합니다. Source freeze `7859bd7...`의 independent A/B를 publication `7d047ae...`, tree
+  `21c0bd1...`에서 1,134 bytes/SHA-256 `ac46d9ba...e893`, binding 267 files/3,388,510 bytes/`d041e1f4...a482f`로
+  다시 게시했고 focused normal/race/CGO-disabled/vet/conformance/generated gates가 통과했습니다.
+  [EVID-166](TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)이
+  exact 분류, correction, A/B와 current non-claim을 기록합니다. 다음 작업은 이 corrected descendant의 exact submitted-head
+  Hosted와 terminal publication이며, 그 전까지 work는 active, ADR은 Proposed, Phase E는 unchecked입니다.
   Baseline은 clean GDJ-0051 terminal
   `1d37272f4062365416536d4459a5294df4b06d03`, tree
   `97e091d1b3f2d4fee82c285d60fea25de0f3c41d`입니다. Completed
@@ -2032,7 +2042,10 @@ MIG-128 ownership과 DEV-0002 MIG-122 sparse publication을 통과했습니다. 
 `254+25+12 locked`, product 25/279=`254+25`이며 MIG-075..086만 locked입니다. ADR-0054 Proposed와
 GDJ-0052 active는 불변입니다. Phase E local-final `8837144...`/tree `d29b09b...`은 current-source A/B attestation,
 full `make ci`, 118-package Linux/386 compile-only, relation 955/955/0과 1,230-file `.git`-free archive를 EVID-165에서
-통과했습니다. 다음 정확한 작업은 corrected exact submitted-head Hosted와 terminal publication입니다.
+통과했습니다. Second Hosted `33314164696`은 47/53 jobs success, cancellation 0이며 five primary timeout/guard failures와
+Required CI derivative로 분류됐습니다. `538102f...`/`7859bd7...`의 bounded guard·duplicate-coverage·Intel budget correction과
+`7d047ae...`의 current source-bound A/B publication은 EVID-166의 focused refreeze를 통과했습니다. 다음 정확한 작업은 이
+corrected descendant의 exact submitted-head Hosted와 terminal publication입니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,
