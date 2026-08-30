@@ -333,7 +333,8 @@ comparison은 Django result만 소유하고 durable DB/process no-mutation을 re
 adapter를 등록하지 않았고 SQLite/repository-external actual은 당시 Phase C의 다음 검증 경계였습니다. Current Phase D
 manifest는 5,263 bytes/SHA-256 `dcb86295e683ea083cc57dca155284f9b26018d5d5a30c9606141bee8946fcc6`이며
 MIG-111..118은 24번째 oracle-blind adapter에서 모두 `passing`입니다. PostgreSQL 17.10과 exact MIG-118 16-case까지
-EVID-157에서 통과했고, current source-bound attestation/full/Hosted는 Phase E에 남아 있습니다.
+EVID-157에서, current source-bound attestation/local final은 EVID-158에서, exact-head Hosted 41/41 jobs·464/464 steps는
+EVID-159에서 통과했습니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,

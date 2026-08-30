@@ -3,17 +3,14 @@
 - 상태: Accepted
 - 초기 프로필: `django-6.1`
 - 기준 태그: Django `6.1`, commit `fe0a859f537d4238cf49fca39073513206f83122`
-- 마지막 scoped 검증: 2026-08-30 (GDJ-0051 Phase D PostgreSQL/product EVID-157; 마지막 product
-  exact-head Hosted는 GDJ-0050 EVID-153 / CI #171 run `33280434425`)
-- 현재 required checkpoint: Phase D source commit `dc7a455...`, tree `744300e...`에서 MIG-111..118 product publication과
-  PostgreSQL 17.10/exact 16-case boundary가 완료됐고 다음 exact 작업은 Phase E attestation/full/Hosted입니다.
-  Workflow/Makefile을 포함한 current source는 checked PostgreSQL attestation을 의도대로 stale하게 만들었으며
-  product source freeze 뒤 Phase E에서 재캡처하므로 current exact-source/Hosted proof는 아직 없습니다.
-- 현재 design: GDJ-0049/Accepted ADR-0051과 GDJ-0050/Accepted ADR-0052 completed, GDJ-0051/Proposed
-  ADR-0053 active. Reference 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`, product
+- 마지막 scoped 검증: 2026-08-30 (GDJ-0051 exact-head Hosted EVID-159 / CI #177 run `33295130785`)
+- 현재 required checkpoint: submitted head `bebb690...`, tree `e0dac4e...`에서 Phase E source-bound attestation/local
+  final과 exact-head Hosted 41/41 jobs·464/464 steps를 완료했습니다. Relation normal 네 좌표는 각각 942/942/0,
+  PostgreSQL 17.10 normal/race/CGO0는 각각 22/22/0입니다.
+- 현재 design: GDJ-0049/Accepted ADR-0051, GDJ-0050/Accepted ADR-0052와 GDJ-0051/Accepted ADR-0053 completed.
+  Reference 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`, product
   24/269=`245 passing + 24 deviation`; MIG-087..102/108..118은 product `passing`, MIG-103..107은 Verified
-  DEV-0010 `deviation`, reference-only locked range는 MIG-075..086입니다. 현재 active/ready
-  work는 1/0임
+  DEV-0010 `deviation`, reference-only locked range는 MIG-075..086입니다. 현재 active/ready work는 0/0임
 - 현재 형식 mirror 검토: 2026-08-30
 
 GoDj의 호환성은 Python 코드를 실행하는 능력이 아니라 **사용자가 관찰할 수 있는 개념, 결과, 부작용, 오류, transaction 의미**를 Go API에서 재현하는 정도입니다.

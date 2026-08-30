@@ -3,8 +3,8 @@
 - 마지막 갱신: 2026-08-30
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 1/0입니다. Active
-  [GDJ-0051](../../work/0051-project-linked-showmigrations.md)과 Proposed
+- 현재 active/ready work는 0/0입니다. Completed
+  [GDJ-0051](../../work/0051-project-linked-showmigrations.md)과 Accepted
   [ADR-0053](../adr/0053-project-linked-read-only-migration-status.md)은 exact
   `godj showmigrations [--project <godj.toml>]` list-only 단면을 고정합니다. Complete definition load는 backend open보다
   먼저 일어나고, project-owned backend의 existing revision-fenced read-only session을 한 번 사용해 known `[X]`/`[ ]`와
@@ -34,8 +34,10 @@
   `b0df2164...`까지 진행됐습니다. Current relation inventory는 exact 942/942/0, 96,114 bytes/SHA-256
   `420471e8...c910`; attestation A/B는 1,134 bytes/SHA-256 `18585ff3...071d`; final archive는 1,208 blobs/117 packages와
   pre/post byte identity를 통과했습니다. [EVID-158](TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)이
-  predecessor full과 current focused/archive 증거를 구분합니다. 다음 exact 작업은 documentation descendant push와 exact
-  submitted-head Hosted입니다. Target/reverse,
+  predecessor full과 current focused/archive 증거를 구분합니다. Exact submitted head `bebb690...`, tree `e0dac4e...`의
+  [EVID-159](TEST_EVIDENCE.md#evid-20260830-159--gdj-0051-exact-head-hosted-completion)/CI #177 run `33295130785`
+  attempt 1은 41/41 jobs·464/464 steps와 failure/cancel/skip/annotation 0을 통과했습니다. Relation normal 네 좌표는
+  각각 942/942/0, PostgreSQL 17.10 normal/race/CGO0는 각각 22/22/0이었습니다. Target/reverse,
   `--plan`, `sqlmigrate`, destructive writer와 multi-DB는 비범위입니다. Completed
   [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md)과 Accepted
   [ADR-0052](../adr/0052-project-linked-deterministic-makemigrations.md)는 normalized `ProjectSpec`과 latest historical
@@ -759,8 +761,8 @@
   13/139/156이었고, same-ID 12개는 현재 전체 25/281/600 reference에도 포함되지만 reference-only
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
-  [GDJ-0050 Project-linked Deterministic Makemigrations](../../work/0050-project-linked-deterministic-makemigrations.md)
-- 활성 작업: [GDJ-0051 Project-linked Showmigrations](../../work/0051-project-linked-showmigrations.md)
+  [GDJ-0051 Project-linked Showmigrations](../../work/0051-project-linked-showmigrations.md)
+- 활성 작업: 없음
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -1310,9 +1312,10 @@
   DB/recorder/lifecycle을 열지 않고 actual `definition.Load`를 정확히 한 번 호출하며 generation declaration runner는
   generated app/project target을 import하지 않습니다. Migrate만 별도 strict v1 protocol에서 catalog를 한 번 load한 뒤
   backend를 한 번 열어 latest lifecycle을 한 번 실행하고 획득한 backend를 한 번 닫습니다.
-  Active GDJ-0051은 같은 public facade를 넓히지 않고 showmigrations 두 argv와 별도 `migrations.show` private wire를
+  Completed GDJ-0051은 같은 public facade를 넓히지 않고 showmigrations 두 argv와 별도 `migrations.show` private wire를
   추가했습니다. Phase C SQLite external proof와 Phase D PostgreSQL 17.10/product actual을 거쳐 MIG-111..118은
-  `passing`으로 등록됐습니다. Phase E attestation/full/Hosted가 남아 있으므로 work/ADR completion은 아직 아닙니다.
+  `passing`으로 등록됐습니다. EVID-158 local final과 EVID-159 exact-head Hosted까지 통과해 work/ADR은
+  completed/Accepted입니다.
 - PostgreSQL current backend bounded product는 exact explicit schema 아래에서 scalar와 current one-hop relation
   query/write/Atomic, generated returned-key CRUD, schema-qualified model/scalar/FK DDL과 closed catalog 검증을
   구현합니다. Recorder/revision bootstrap, pinned advisory-lock session, one fenced transaction, apply/unapply/reapply,
@@ -1946,7 +1949,7 @@ source `6243682...`/tree `98076ea...`의 EVID-128 local final과 exact submitted
 EVID-129/CI #146 hosted result를 거쳐 completed됐습니다. SYS-001..012는 exact `11 passing + SYS-009 Verified
 DEV-0008 deviation`, ADR-0047은 Accepted이고 Q-020은 one-runtime/sequential-restart 답만 `Partial`입니다.
 
-현재 active/ready packet은 1/0이며 GDJ-0051 read-only `showmigrations`가 활성화됐습니다. Phase B checkpoint
+현재 active/ready packet은 0/0이며 GDJ-0051 read-only `showmigrations`는 completed입니다. Phase B checkpoint
 `294e7e2...`/tree `3a834f4...`는 core/loader status API, strict private wire, project/global read-only ownership,
 bounded SQLite history, revision taxonomy, identity escape, descendant cleanup과 cancellation precedence를 구현했습니다.
 Affected normal/race/CGO0/vet와 final changed-package refreeze, 독립 에이전트 3개가 수행한 4개 집중 감사 패스의 최종
@@ -1960,9 +1963,10 @@ EVID-155의 exact Python 291/21, semantic 281/971,815, protocol/conformance/orac
 25/281/600=`245+24+12 locked`이며 final independent audit P0..P3=`0`입니다. Predecessor Hosted run
 `33286203096`은 exact 41 jobs 중 22 success/19 failure/0
 cancelled이며 15개 direct-import lock failure, 3개 stale-attestation failure와 derivative Required CI failure를
-보존합니다. Local `7eedbd3...`은 import lock을 교정했지만 attestation은 Phase E까지 의도적으로 stale하며 이 run을 current
-exact-source/Hosted proof로 재사용하지 않습니다. 다음 exact 작업은 frozen Phase D source의 Phase E attestation A/B
-재캡처, full/Linux-386/relation/archive와 exact submitted-head Hosted입니다.
+보존합니다. Local `7eedbd3...`은 import lock을 교정했고 EVID-158은 이후 current-source A/B attestation,
+full/Linux-386/relation/archive local-final ownership을 정확히 닫았습니다. Exact submitted head `bebb690...`, tree
+`e0dac4e...`의 EVID-159/CI #177 run `33295130785` attempt 1은 41/41 jobs·464/464 steps,
+failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0053/GDJ-0051은 Accepted/completed입니다.
 Completed GDJ-0050은 baseline `162b03d...`에서 Phase A pure
 `internal/migrationautodetect`와 `migrations/definition.Encode`를 구현하고 MIG-099..110을 별도 reference-only
 `oracle_locked` set으로 게시했습니다. Phase B implementation `352f17e...`/tree `458f275...`는 exact public argv,

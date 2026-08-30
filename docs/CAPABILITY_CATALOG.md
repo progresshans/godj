@@ -139,7 +139,7 @@ Hosted는 EVID-153/CI #171 run `33280434425`의 source 변경 없는 failed-job 
 steps, failure/cancel/skip/annotation 0으로 완료됐습니다. MIG-099/100/101/102/108/109/110은 `passing`,
 MIG-103..107은 Verified DEV-0010 `deviation`입니다. General upgrade와 destructive/rename/custom/data operation은 아직
 포함하지 않습니다.
-Active GDJ-0051 Phase B checkpoint `294e7e2...`는 exact list-only
+Completed GDJ-0051 Phase B checkpoint `294e7e2...`는 exact list-only
 `godj showmigrations [--project <godj.toml>]`, loader-authorized status API, separate strict private v1 wire와 one
 revision-fenced session/read/close를 로컬 구현했습니다. Known applied/unapplied와 unknown recorder identity를 각각
 `[X]`/`[ ]`/`[?]`로 표시하되 terminal identity를 reversible escape하고 database mutation이나 migration transaction을
@@ -152,7 +152,8 @@ EVID-156으로 고정했습니다. Phase D checkpoint `dc7a455...`는 digest-pin
 oracle-blind MIG-111..118 product actual과 exact 16-case MIG-118 cleanup/private-response/publication ordering을 게시했습니다.
 Current reference는 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`, product는
 24/269=`245 passing + 24 deviation`이며 MIG-075..086만 locked입니다. EVID-157의 focused gates와 independent final audit는
-P0..P3=`0`이고, source-bound attestation/full/Hosted가 남아 있으므로 GDJ-0051 자체는 아직 completed가 아닙니다.
+P0..P3=`0`입니다. EVID-158 source-bound attestation/local final과 EVID-159/CI #177 exact-head Hosted 41/41
+jobs·464/464 steps도 통과했으므로 GDJ-0051/ADR-0053은 completed/Accepted입니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public

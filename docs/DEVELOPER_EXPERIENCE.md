@@ -508,7 +508,7 @@ tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 source 변경 없는 
 41/41 jobs·464/464 steps와 PostgreSQL 각 21/21/0을 통과했습니다. ADR-0052/GDJ-0050/DEV-0010은
 Accepted/completed/Verified입니다.
 
-Active GDJ-0051의 다음 bounded user surface는 read-only migration status입니다.
+Completed GDJ-0051의 다음 bounded user surface는 read-only migration status입니다.
 
 ```bash
 godj showmigrations
@@ -521,8 +521,9 @@ Phase B gate를 통과했습니다. Control/format identity는 reversible escape
 status row처럼 보이지 않게 강제 hex escape합니다. Phase C `22e5c01...`은 repository-external SQLite status/restart와
 database no-mutation을 검증했고, Phase D `dc7a455...`는 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product actual과
 MIG-118 exact 16-case cleanup/private-response/publication ordering을 게시했습니다. EVID-157의 final audit는 P0..P3=`0`이며
-current product는 24/269=`245 passing + 24 deviation`입니다. Proposed ADR-0053과 active GDJ-0051은 Phase E
-attestation/full/Hosted가 끝날 때까지 유지합니다. App filter, `--plan`, target/reverse와 `sqlmigrate`는 비범위입니다.
+current product는 24/269=`245 passing + 24 deviation`입니다. EVID-158 local final과 EVID-159/CI #177 exact-head
+Hosted도 통과해 ADR-0053/GDJ-0051은 Accepted/completed입니다. App filter, `--plan`, target/reverse와 `sqlmigrate`는
+비범위입니다.
 근거는 [EVID-154](status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint),
 [EVID-156](status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint),
 [EVID-157](status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)입니다.

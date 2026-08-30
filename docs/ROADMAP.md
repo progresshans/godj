@@ -8,9 +8,9 @@
   Exact submitted head `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의
   pre-test dependency-setup 실패를 보존한 뒤 source 변경 없는 two-job rerun으로 effective 41/41 jobs·464/464 steps,
   failure/cancel/skip/annotation 0을 통과했습니다. MIG-099/100/101/102/108/109/110은 `passing`, MIG-103..107은
-  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 1/0이며
-  [GDJ-0051](../work/0051-project-linked-showmigrations.md)이 Phase D product publication을 마치고 Phase E
-  source-bound attestation/full/Hosted를 진행 중입니다.
+  Verified DEV-0010 `deviation`이고 Q-010/Q-012는 broader scope 때문에 `Partial`입니다. 현재 active/ready는 0/0이며
+  [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 EVID-158 local final과 EVID-159/CI #177 exact-head Hosted까지
+  통과해 completed입니다.
 - 직전 completed batch: [GDJ-0049](../work/0049-project-linked-migrate-and-clean-database-article-lifecycle.md)은
   current-only loader/executor를 project-owned runner와 explicit `godj migrate`에 연결했습니다. Accepted
   [ADR-0051](adr/0051-project-linked-explicit-migrate.md)은 global CLI core가
@@ -238,14 +238,15 @@ deterministic writer와 DB-free recoverable `makemigrations`를 제공합니다.
 normal/race/CGO-disabled와 repository-external public module에 이어 Phase E predecessor local full/386/relation/archive,
 current source-bound attestation/focused refreeze와 EVID-153 corrected exact-head Hosted를 모두 통과했습니다.
 삭제·alter·rename·custom/data
-operation은 이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Active
+operation은 이 bounded packet의 완료로 지원됐다고 표현하지 않습니다. Completed
 [GDJ-0051](../work/0051-project-linked-showmigrations.md)은 이 write 경계를 넓히기 전에 exact list-only
 `showmigrations`로 loaded catalog와 read-only applied-history snapshot을 deterministic하게 관측하는 사용자 단면을
 추가합니다. Phase B checkpoint `294e7e2...`는 core/strict wire/global-project read-only 경계를 EVID-154의 affected
 local gates로 고정했고 Phase A reference-only artifact는 EVID-155, Phase C repository-external SQLite status/restart/
 whole-database no-mutation actual은 checkpoint `22e5c01...`과 EVID-156으로 고정했습니다. Phase D checkpoint
 `dc7a455...`와 EVID-157은 PostgreSQL 17.10 normal/race/CGO0, MIG-111..118 product registration과 MIG-118 exact
-16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E attestation/full/Hosted가 남아 있습니다.
+16-case cleanup/private-response/publication boundary를 고정했습니다. Phase E EVID-158 local final과 EVID-159
+exact-head Hosted도 통과했습니다.
 Target/reverse, `--plan`과
 `sqlmigrate`는 별도 후속입니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는

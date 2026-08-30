@@ -74,10 +74,10 @@ proposed → ready → active → completed
 | [GDJ-0048](0048-canonical-application-model-facade-and-current-generated-abi.md) | completed | Canonical embedded application model facade와 current generated ABI v3 |
 | [GDJ-0049](0049-project-linked-migrate-and-clean-database-article-lifecycle.md) | completed | Project-linked explicit `migrate`와 clean-database Article lifecycle |
 | [GDJ-0050](0050-project-linked-deterministic-makemigrations.md) | completed | Project-linked deterministic `makemigrations`와 additive schema autodetection |
-| [GDJ-0051](0051-project-linked-showmigrations.md) | active | Project-linked read-only `showmigrations`와 deterministic applied-status listing |
+| [GDJ-0051](0051-project-linked-showmigrations.md) | completed | Project-linked read-only `showmigrations`와 deterministic applied-status listing |
 
 현재 활성 항목과 다음 ready 항목은 [docs/status/CURRENT.md](../docs/status/CURRENT.md)와 일치해야 합니다.
-현재 active/ready packet은 1/0입니다. Active [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
+현재 active/ready packet은 0/0입니다. Completed [GDJ-0051](0051-project-linked-showmigrations.md)은 exact
 `godj showmigrations [--project <godj.toml>]` list-only 단면으로 definition load-before-open, one read-only
 history snapshot, deterministic known/unknown status와 database mutation 0을 고정합니다. Target/reverse, `--plan`,
 `sqlmigrate`와 destructive writer는 이 packet에 섞지 않습니다. Phase B implementation `294e7e2...`, tree
@@ -96,7 +96,11 @@ focused gates와 final audit P0..P3=`0`을 통과했습니다. Current reference
 25/281/600=`245+24+12 locked`, 24/269=`245+24`입니다. Phase E는 first publication `6d55a51...`의 full local,
 current 942/942/0 relation lock correction `dc61f168...`, source-bound A/B publication `b17345c4...`와
 1,208-blob/117-package external archive까지 [EVID-158](../docs/status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)에서
-통과했고, 다음 exact 작업은 documentation descendant의 exact submitted-head Hosted입니다. Completed
+통과했습니다. Exact submitted head `bebb690...`, tree `e0dac4e...`의
+[EVID-159](../docs/status/TEST_EVIDENCE.md#evid-20260830-159--gdj-0051-exact-head-hosted-completion)/CI #177 run
+`33295130785` attempt 1은 41/41 jobs·464/464 steps와 failure/cancel/skip/annotation 0을 통과했습니다. Relation normal
+네 좌표는 각각 942/942/0, PostgreSQL 17.10 normal/race/CGO0는 각각 22/22/0이었으므로 ADR-0053/GDJ-0051을
+Accepted/completed로 전환합니다. Target/reverse, `--plan`, `sqlmigrate`와 destructive writer는 후속 범위입니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을
@@ -167,7 +171,7 @@ Intel-only correction, attestation recapture와 corrected full/386/1,077-file ex
 Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
-최근 terminal completion은 GDJ-0050이고 현재 활성 통합 작업은 GDJ-0051입니다. Draft PR #1은
+최근 terminal completion은 GDJ-0051이고 현재 활성 통합 작업은 없습니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

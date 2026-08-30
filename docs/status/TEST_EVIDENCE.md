@@ -14902,3 +14902,72 @@ The next exact step is to push the current documentation descendant and require 
 current 41-job coverage, relation normal 942/942/0 on all four coordinates and PostgreSQL normal/race/CGO0 exact 22/22/0.
 Until that succeeds, ADR-0053 remains Proposed, GDJ-0051 remains active, Phase E remains unchecked and no merge/release/
 deployment is claimed. Draft PR #1 remains open; no PR comment was posted.
+
+## EVID-20260830-159 — GDJ-0051 Exact-head Hosted Completion
+
+- Date: 2026-08-30 KST
+- Platform: GitHub Actions pull-request runners; Ubuntu 22.04 x64, Ubuntu 24.04 arm64, macOS 15 Intel,
+  macOS 26 arm64, CPython 3.12.13/3.13.15/3.14.3/3.14.7 and digest-pinned PostgreSQL 17.10
+- Work/contract IDs: GDJ-0051 completed; ADR-0053 Accepted; MIG-111..118 product `passing`;
+  Q-010/Q-012 remain `Partial`, Q-019 remains P1/open
+- Exact submitted head: `bebb690e85161b322c9326fa99fc5d6e7d3fe59e`, tree
+  `e0dac4eeb43237a3f8b2bb619240f860f2e607b3`
+- Pull-request merge ref: `d9433878dc1c5377b706af0f15cb7d83d5623f1d`, the same exact tree
+  `e0dac4eeb43237a3f8b2bb619240f860f2e607b3`
+- Hosted run: [CI #177 / run 33295130785 attempt 1](https://github.com/progresshans/godj/actions/runs/33295130785),
+  completed/success
+
+### Exact submitted content and topology
+
+The pull-request workflow fetched and checked out merge ref `d9433878...`, whose ordered parents are base `f8a5e20...` and
+submitted head `bebb690...`. GitHub's commit API reports that the merge ref and submitted head have the identical tree
+`e0dac4...`; the run therefore exercised the exact submitted content despite the pull-request merge wrapper.
+
+The jobs endpoint, all 41 individual job endpoints and check suite `90227454839` agree on exact 41/41 jobs and
+464/464 steps completed successfully. There were zero failed, cancelled, skipped or unclassified jobs/steps, all 41 check
+runs completed successfully, and the annotation total was zero. The exact topology was one artifact-validation lane,
+three portable Go modes, one exact Darwin lane, four project-check coordinates, four relation-binding coordinates,
+twelve relation-product coordinate/mode jobs, four product-project-check coordinates, four Python profiles, three
+PostgreSQL modes, four SQLite coordinates and one `Required CI` aggregate. Expected and actual job names were an exact set;
+there were no missing, unexpected or duplicate names.
+
+`Required CI` job/check `99217077394` completed all 3 steps. Its aggregate step required the ten logical dependency groups
+for artifact, portable, Darwin, project-check, relation-binding, relation-product, product-project-check, Python,
+PostgreSQL and SQLite and observed `success` for every group. This evidence reports the workflow aggregate but does not
+claim that repository branch protection independently requires it.
+
+### Hosted product identities
+
+All twelve relation-product jobs passed. Each normal job on Ubuntu 22.04 x64, Ubuntu 24.04 arm64, macOS 15 Intel and
+macOS 26 arm64 emitted the locked inventory 942 runs/942 passes/0 skips, 96,114 canonical payload bytes and SHA-256
+`420471e8972361fb1bcea29074fbb6ccacced4cdeeb7a3c35d5a8f273a66c910`. Race and CGO-disabled coordinate jobs passed
+their exact selectors; they do not publish an additional normal-mode inventory capture.
+
+PostgreSQL 17.10 normal, race and CGO-disabled jobs emitted exact 22 runs/22 passes/0 skips in every mode. Artifact
+validation reported `postgresql-17.10-two-process-v1.json: OK` and passed the portable contract/artifact validation.
+All other required lanes and the clean-worktree gates passed. Three independent read-only audits of the run topology,
+job/step/check endpoints, merge-ref tree and relation/PostgreSQL logs reported no blocking P0/P1/P2/P3 finding. One audit
+also retained three evidence-boundary notes: attestation byte recapture/checksum comparison belongs to PostgreSQL normal,
+the 0-skip claim belongs to relation/PostgreSQL product inventories rather than intentional dependency/profile skips in
+other tools, and `secret_occurrences=0` covers generated child transport/durable state rather than every runner setup byte.
+The fixed checked-in non-production PostgreSQL canary appears during service initialization; credential-bearing URLs were
+masked and no generated command-scoped secret marker was found in the eight audited product logs.
+
+### Evidence ownership and terminal boundary
+
+[EVID-158](#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze) remains the
+predecessor proof for full local `make ci`, 117-package Linux/386 compile-only, independent PostgreSQL A/B capture and the
+1,208-blob repository-external archive. Those heavyweight gates were not recursively rerun for this documentation-only
+terminal descendant. The terminal mirror changes product, workflow and attestation source bytes by zero and receive only
+the repository's documentation/protocol consistency gates.
+
+The terminal descendant passed tracked-Markdown parsing, local link/heading/frontmatter/status locks, terminal-document
+scope and `git diff --check`. `make format-check`, `go test -count=1 ./conformance/internal/protocol`,
+`make conformance-check` and the checked PostgreSQL attestation `SHA256SUMS` also exited zero. No full product matrix was
+recursively rerun for the documentation-only descendant.
+
+ADR-0053 is Accepted and GDJ-0051 is completed for the bounded list-only migration-status profile. This completion does not
+add app filtering, named/zero target, reverse execution, `--plan`, `sqlmigrate`, fake/repair/adoption, destructive writer,
+multi-DB or general upgrade compatibility. Q-010/Q-012 therefore remain `Partial` and Q-019 remains P1/open. Draft PR #1
+remains open/draft/unmerged; no PR comment, merge, release or deployment was performed, and no next feature packet is
+activated by this evidence.

@@ -1,6 +1,6 @@
 # ADR-0053: Project-linked Read-only Migration Status
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-30
 - 관련 work/contract: GDJ-0051, MIG-111..MIG-118, Q-010, Q-012
 - 대체하는 ADR: 없음
@@ -40,7 +40,7 @@ Current SQLite/PostgreSQL SQL compiler와 relation/remake materialization은 bac
 열어 rollback하며 SQL을 수집하면 DB 접근과 lock side effect가 생기므로 올바른 read-only 구현이 아닙니다. 별도
 compile-without-execute port가 필요합니다.
 
-## 제안 결정
+## 결정
 
 GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only command를 구현합니다.
 
@@ -72,10 +72,13 @@ GDJ-0051에서는 exact `godj showmigrations [--project <godj.toml>]` list-only 
     actual은 별도 black-box snapshot으로 schema/recorder/revision/application mutation 0과 MIG-114 fresh-process identity를
     증명해야 하며 fixture metric을 재현해 통과할 수 없습니다.
 
-Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling은 검증됐습니다. Phase A는
+Phase B local implementation checkpoint `294e7e2...`에서 exact core API와 response byte ceiling을 검증했습니다. Phase A는
 pinned MIG-111..118 reference artifact를 `oracle_locked`로 고정했고 Phase C/D는 SQLite/PostgreSQL no-mutation product
-evidence와 actual publication을 로컬에서 고정했습니다. 이 ADR은 Phase E의 current source-bound attestation, full milestone
-gate와 exact submitted-head Hosted까지 통과한 뒤 Accepted로 전환합니다.
+evidence와 actual publication을 로컬에서 고정했습니다. Phase E는 current source-bound attestation과 local milestone을
+[EVID-158](../status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)로,
+exact submitted-head Hosted를
+[EVID-159](../status/TEST_EVIDENCE.md#evid-20260830-159--gdj-0051-exact-head-hosted-completion)로 닫았으므로 이 결정을
+Accepted로 전환합니다.
 
 ## 결과
 
