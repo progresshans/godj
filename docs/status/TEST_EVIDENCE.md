@@ -15752,3 +15752,76 @@ This checkpoint does not claim full `make ci`, all-package Linux/386 compile-onl
 sparse bundle, exact submitted-head Hosted success or GDJ-0053 completion. It does not recapture PostgreSQL attestation: neither
 `codegen/**` nor these work/status documents are assumed to be in that source binding, but the exact binding will be rechecked before
 terminal publication. Draft PR #1 remains open/draft/unmerged; no PR comment, merge, release or deployment was performed.
+
+## EVID-20260831-170 — GDJ-0053 Frozen Local and External Public-project Final
+
+- Date: 2026-08-31 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; Linux/386 cross-compile only; DB/backend service
+  execution is owned by the full local suite, not a new PostgreSQL capture
+- Work/contract IDs: GDJ-0053 active; GEN-M1-001 and Q-017 unchanged; conformance aggregate unchanged
+- Product source: `c7b3e6fb1dd8d9f50e0ddc63300c7c7f76d24001`, tree
+  `e78692ca10813307d84e558ee24df6d464324ac8`
+- Frozen checkpoint: `236b9cbf5bd88d4871f67ca76a5f10e86e98958e`, tree
+  `9e7efd70037ea528b120210240fd9dee62974b28`
+- Result: one exact full local milestone, `.git`-free archive-local generated drift, all-package Linux/386 compile-only and
+  repository-external public-only sparse `ProjectSpec` generation/publication/compile passed. Independent final-gate audit found
+  P0/P1/P2/P3=`0/0/0/0`. Exact submitted-head Hosted remains pending, so GDJ-0053 stays active.
+
+### Full local frozen milestone
+
+`LC_ALL=C TZ=UTC make ci` exited zero on clean checkpoint `236b9cb...`; HEAD/tree and a zero-byte porcelain/diff were verified both
+before and after the run. It covered generated drift, all-package normal/race, vet, bounded CGO-disabled products, long external
+process/database lifecycles, 305 Python tests with 24 expected locked-profile skips, all contract/oracle/deviation comparisons and
+GoDj conformance. The long product timings were:
+
+| Mode | project migrate | targeted migrate | showmigrations | runserver | writer |
+|---|---:|---:|---:|---:|---:|
+| normal | 219.888s | 364.093s | 144.985s | 70.132s | 45.476s |
+| race | 206.645s | 365.079s | 137.676s | 67.726s | 44.576s |
+| CGO-disabled | 208.043s | 364.052s | 137.564s | 66.344s | 43.479s |
+
+No test, platform mode, timeout, selector or assertion was removed to obtain this result. This is the single full local milestone for
+GDJ-0053; affected normal/race/CGO-disabled/vet/golden gates remain separately owned by EVID-169.
+
+### Exact archive, Linux/386 and public-only sparse project
+
+The retained root is `/tmp/godj-gdj0053-final.RGetFJ`. `git archive` of `236b9cb...` produced a 19,210,240-byte tar with
+SHA-256 `c7486f087420f642fd298beaf6c766a509af79fcbc7330777237353bd2425310`. Independent archive and pristine extractions each
+contain exact 1,231 regular files, 18,132,171 payload bytes, zero symlinks/nonregular entries and canonical framed roster SHA-256
+`9e4f776894c17e9896d1f78dd088486e29b78f771f6e0f8d3da315b493cf1ea4`. Their final recursive diff is empty.
+
+With one private archive-local build cache, `make generate-check` remained clean and exact 118-package
+
+```text
+LC_ALL=C TZ=UTC GOOS=linux GOARCH=386 CGO_ENABLED=0 GOWORK=off GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+exited zero. `/usr/bin/true` makes this compile-only cross-build evidence; it does not claim Linux/386 runtime execution.
+
+A one-off repository-external proof source, SHA-256
+`83fe244e48add03541789fc39a1ad2d89ecb00d41c9384e30184b0d42c47a172`, imports only public `codegen` and `schema/ir` product
+packages. It calls `codegen.GenerateProject` with canonical `Author=0`, nullable-only `Category=1`, unrelated scalar `Profile=2`
+and required source `Post=3`; verifies exact 16 generated files and their public mode/source SHA, four model binds, blank consumption
+of only `_model1/_model2`, required `BindForward(_model3, "author", _model0)` and absence of a nullable category query binder; then
+publishes `Files()` plus `Manifest()` into a second external candidate module.
+
+The candidate contains 19 regular files/122,776 bytes and compiles all generated author/blog/project packages. Its public test calls
+`project.BindRelations()` and composes typed `BlogPost.Author.Name/ID` predicates successfully. The proof emitted
+`sparse_public_project_ok files=16 binds=4 unused=2`, candidate `go test -mod=mod -count=1 ./...` exited zero, and archive/pristine
+bytes remained unchanged.
+
+### Attestation, inventory and remaining boundary
+
+PostgreSQL attestation recapture is not needed. `codegen/**`, ordinary tests, `docs/**` and `work/**` are outside the explicit source
+binding while workflow/Makefile and bound product/conformance paths are unchanged. Independent current-tree recomputation exactly
+matched the checked 267 files/3,388,510 bytes/SHA-256
+`d041e1f4a16dfe46c5b1a1c7f378e56cd069a0e90ba20459c8551829bb3a482f`; the 1,134-byte checked JSON remains SHA-256
+`ac46d9ba46ef30df3420ecff6a308110fe51aeb7dcfa90000d647f22eac9e893`.
+
+No `func Test` or `t.Run` identity changed. The exact relation lock therefore remains 955 top-level tests, 97,485 payload bytes and
+SHA-256 `530ce8c3e5e99b8c78474920574e0042d5ddb6fdf86dc080c805f4a4044ec4b4`; the sparse project retains the existing 16 generated
+file-path child roster. Hosted owns the final workflow-exact inventory observation rather than duplicating it locally.
+
+This local-final evidence does not claim exact submitted-head Hosted success or GDJ-0053 completion. The next descendant changes
+only allowed work/status/evidence documents, receives documentation gates rather than recursively repeating product tests, and is
+pushed to Draft PR #1 without a PR comment. No merge, release or deployment was performed.

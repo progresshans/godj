@@ -101,7 +101,7 @@ binding입니다. 이를 required selector로 승격하지 않고 blank-consume�
 - [x] 모든 model의 BindModel/error observation과 canonical order 보존
 - [x] existing all-used golden/current generated bundle byte identity와 generator version 보존
 - [x] `codegen` normal/race/CGO-disabled/vet, project generation/compile tests와 `generate-check` 통과
-- [ ] full frozen milestone, Linux/386 compile-only와 repository-external public-only mixed bundle 통과
+- [x] full frozen milestone, Linux/386 compile-only와 repository-external public-only mixed bundle 통과
 - [ ] exact submitted-head Hosted와 독립 P0..P3 audit 통과
 - [ ] work/CURRENT/evidence terminal 동기화; capability/Q-017/matrix status non-change 확인
 
@@ -110,7 +110,7 @@ binding입니다. 이를 required selector로 승격하지 않고 blank-consume�
 - [x] 조사 — all-model bind와 required-edge-only use의 불일치를 확인
 - [x] 설계 — validation-preserving used-set/blank-consume로 범위를 제한
 - [x] 구현 — source `c7b3e6f...`, tree `e78692c...`
-- [ ] 테스트 — affected checkpoint 통과; final frozen/Hosted pending
+- [ ] 테스트 — affected/frozen local final 통과; exact-head Hosted pending
 - [ ] 문서와 인수인계
 
 ## 수정 파일
@@ -134,11 +134,12 @@ binding입니다. 이를 required selector로 승격하지 않고 blank-consume�
 
 ## 테스트 증거
 
-- Evidence IDs: EVID-20260831-168 activation; EVID-20260831-169 regression-first/affected checkpoint
-- Command: exact red tests, focused/full `codegen` normal/race/CGO-disabled/vet, projectgenerate/compiletest, canonical count-10,
-  `generate-check`, format/diff gates
-- Result: fix 전 `_model1`/`_model2` unused compiler failure 재현; source `c7b3e6f...`에서 모든 affected gates 통과
-- Not run: full `make ci`, Linux/386 all-package compile-only, frozen repository-external proof, exact-head Hosted
+- Evidence IDs: EVID-20260831-168 activation; EVID-20260831-169 regression-first/affected checkpoint; EVID-20260831-170
+  frozen local/external final
+- Command: exact red tests, affected gates, full `make ci`, `.git`-free archive-local `generate-check`, 118-package Linux/386
+  compile-only, public-only external `ProjectSpec` sparse candidate generate/publish/compile
+- Result: source `c7b3e6f...`; clean checkpoint `236b9cb...`, tree `9e7efd7...`에서 모든 local final gate 통과
+- Not run: exact submitted-head Hosted matrix
 
 ## 위험과 rollback
 
@@ -152,12 +153,14 @@ binding입니다. 이를 required selector로 승격하지 않고 blank-consume�
 
 ## 다음 정확한 작업
 
-Checkpoint 문서를 커밋한 뒤 source `c7b3e6f...`를 바꾸지 않고 full `make ci`, Linux/386 all-package compile-only와
-repository-external public-only sparse bundle을 한 번 실행합니다. 통과한 frozen descendant를 push해 exact-head Hosted를 확인합니다.
+EVID-170 local-final 문서-only descendant를 commit/push하고 PR head와 새 Hosted run head SHA를 대조합니다. Exact 53-job
+Hosted의 Required CI, relation 955 lock, PostgreSQL 23/23/0과 annotation zero를 확인한 뒤에만 terminal 상태를 게시합니다.
 
 ## 결과와 인수인계
 
 Source `c7b3e6f...`는 required source/target used set을 generation time에 계산하고 successful unused model local만 error check 뒤
 blank-consume합니다. Existing direct external/full-union test identity를 sparse combined fixture로 확장했으며 기존 all-used golden,
 current generated examples, public API, generator version, role/file ABI와 conformance aggregate는 바뀌지 않았습니다. 독립 code
-audit의 P0/P1/P2는 0건이었고 combined-shape 표현 P3 한 건은 교정했습니다. Final frozen/Hosted acceptance는 아직 pending입니다.
+audit의 P0/P1/P2는 0건이었고 combined-shape 표현 P3 한 건은 교정했습니다. Exact Hosted acceptance는 아직 pending입니다.
+Clean checkpoint `236b9cb...`, tree `9e7efd7...`는 full local, archive-local Linux/386와 public-only sparse bundle을 통과했고
+final-gate 독립 감사 P0/P1/P2/P3도 0건입니다. Product source/workflow/attestation은 그대로이며 exact-head Hosted만 pending입니다.

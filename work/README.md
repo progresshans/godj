@@ -88,7 +88,10 @@ unused binding만 blank-consume하며 public API, generator version, role/file A
 [EVID-168](../docs/status/TEST_EVIDENCE.md#evid-20260831-168--gdj-0053-sparse-model-compile-availability-activation)입니다. Source
 `c7b3e6f...`, tree `e78692c...`는 same-identity regression과 최소 fix를 구현해 affected checkpoint를 통과했으며
 [EVID-169](../docs/status/TEST_EVIDENCE.md#evid-20260831-169--gdj-0053-regression-first-sparse-bind-checkpoint)이 red/green과
-남은 frozen/Hosted gate를 구분합니다.
+남은 frozen/Hosted gate를 구분합니다. Clean checkpoint `236b9cb...`, tree `9e7efd7...`는 full local, 118-package
+Linux/386와 `.git`-free public-only sparse ProjectSpec proof를 통과했고
+[EVID-170](../docs/status/TEST_EVIDENCE.md#evid-20260831-170--gdj-0053-frozen-local-and-external-public-project-final)이
+Hosted-only remaining blocker를 기록합니다.
 Completed
 [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact 여덟 public argv로 latest/named/app-zero
 execute와 plan을 연결합니다. `Executor.Plan`과 execute는 revision-fenced history, graph/history check, historical state,

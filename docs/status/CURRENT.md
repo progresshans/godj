@@ -17,7 +17,12 @@
   binding/error order를 보존한 used-set/blank-consume fix와 같은 existing test identity의 sparse fixture를 구현했고 affected
   normal/race/CGO-disabled/vet, external compile, full-union, generated drift를 통과했습니다.
   [EVID-169](TEST_EVIDENCE.md#evid-20260831-169--gdj-0053-regression-first-sparse-bind-checkpoint)이 exact red/green과
-  final-gate non-claim을 기록하며 full/386/repository-external frozen gate와 exact-head Hosted는 아직 pending입니다. Completed
+  final-gate non-claim을 기록합니다. Clean checkpoint
+  `236b9cbf5bd88d4871f67ca76a5f10e86e98958e`, tree `9e7efd70037ea528b120210240fd9dee62974b28`는 full
+  `make ci`, 118-package Linux/386 compile-only와 `.git`-free archive의 public-only `ProjectSpec` sparse bundle
+  generate/publish/compile proof를 통과했습니다.
+  [EVID-170](TEST_EVIDENCE.md#evid-20260831-170--gdj-0053-frozen-local-and-external-public-project-final)이 exact local-final,
+  attestation non-recapture와 Hosted-only remaining blocker를 기록합니다. Exact-head Hosted는 아직 pending입니다. Completed
   [GDJ-0052](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)와 Accepted
   [ADR-0054](../adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md)는 exact latest/named/app-zero
   execute/plan 여덟 argv를 고정합니다. Preview와 execute는 definition/history/graph/historical-state/dry/capability
