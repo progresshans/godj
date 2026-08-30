@@ -336,6 +336,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	if !strings.Contains(conformance, "run: make format-check generate-check python-test conformance-check godj-conformance") || !strings.Contains(conformance, "GOARCH: \"386\"") ||
 		!strings.Contains(conformance, "./cmd/godj") || !strings.Contains(conformance, "./project") ||
 		!strings.Contains(conformance, "./internal/projectcheck/...") || !strings.Contains(conformance, "./conformance/runners/godj") ||
+		!strings.Contains(conformance, "./conformance/projectshowmigrationsproduct") ||
 		!strings.Contains(conformance, "Run relation products on 32-bit Linux") ||
 		!strings.Contains(conformance, "./conformance/relationproduct/...") ||
 		!strings.Contains(conformance, "./conformance/relationqueryproduct/...") ||
@@ -352,7 +353,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
 		"- mode: normal-vet\n            make_targets: \"go-test go-vet\"\n            timeout_minutes: 40",
-		"- mode: race\n            make_targets: \"go-race\"\n            timeout_minutes: 40",
+		"- mode: race\n            make_targets: \"go-race\"\n            timeout_minutes: 45",
 		"- mode: cgo0\n            make_targets: \"cgo-zero-build\"\n            timeout_minutes: 40",
 		"run: make ${{ matrix.make_targets }}",
 		`test "$(go env GOOS)" = "linux"`,
@@ -549,9 +550,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`if event.get("Action") == "pass"`,
 		`if event.get("Action") == "skip" and "Test" in event`,
 		`payload = b"".join(`,
-		`assert len(runs) == 929`,
-		`assert len(payload) == 94689`,
-		`e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a`,
+		`assert len(runs) == 942`,
+		`assert len(payload) == 96124`,
+		`451b04dbdfd9caa3be7299a38f31958f33fedf8903c7710d619d3ddf2a61b2eb`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,

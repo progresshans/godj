@@ -72,6 +72,7 @@ jobs:
           ./project
           ./internal/projectcheck/...
           ./conformance/runners/godj
+          ./conformance/projectshowmigrationsproduct
 
       - name: Compile runserver product on 32-bit Linux
         env:
@@ -142,7 +143,7 @@ jobs:
             timeout_minutes: 40
           - mode: race
             make_targets: "go-race"
-            timeout_minutes: 40
+            timeout_minutes: 45
           - mode: cgo0
             make_targets: "cgo-zero-build"
             timeout_minutes: 40
@@ -675,10 +676,10 @@ jobs:
               + b"\n"
               for package, test in sorted(runs)
           )
-          assert len(runs) == 929, sorted(runs)
-          assert len(payload) == 94689, len(payload)
+          assert len(runs) == 942, sorted(runs)
+          assert len(payload) == 96124, len(payload)
           payload_sha256 = hashlib.sha256(payload).hexdigest()
-          assert payload_sha256 == "e7314f9c6ccfef3c469c7df6f90114fd98a91e094f347c9240829ceff05fad9a"
+          assert payload_sha256 == "451b04dbdfd9caa3be7299a38f31958f33fedf8903c7710d619d3ddf2a61b2eb"
           assert passes == runs, (sorted(runs), sorted(passes))
           assert skipped == [], skipped
           for package, test in sorted(list(runs)):
