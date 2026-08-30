@@ -11,7 +11,13 @@
   version, role/file ABI, existing golden과 conformance aggregate는 바꾸지 않습니다. Clean baseline은 GDJ-0052 terminal
   `2273df6d8f0d7c41a24dc65ba49b42e1be0885b8`, tree `941c546731da69c05ac404779c7536247fdbda10`이며
   [EVID-168](TEST_EVIDENCE.md#evid-20260831-168--gdj-0053-sparse-model-compile-availability-activation)이 source audit,
-  exact allowed paths와 activation non-claim을 기록합니다. Completed
+  exact allowed paths와 activation non-claim을 기록합니다. Regression-first는 fix 전 direct external compile과 full
+  `GenerateProject` union 모두에서 exact unused `_model1`/`_model2` compiler failure를 관찰했습니다. Source
+  `c7b3e6fb1dd8d9f50e0ddc63300c7c7f76d24001`, tree `e78692ca10813307d84e558ee24df6d464324ac8`는 모든
+  binding/error order를 보존한 used-set/blank-consume fix와 같은 existing test identity의 sparse fixture를 구현했고 affected
+  normal/race/CGO-disabled/vet, external compile, full-union, generated drift를 통과했습니다.
+  [EVID-169](TEST_EVIDENCE.md#evid-20260831-169--gdj-0053-regression-first-sparse-bind-checkpoint)이 exact red/green과
+  final-gate non-claim을 기록하며 full/386/repository-external frozen gate와 exact-head Hosted는 아직 pending입니다. Completed
   [GDJ-0052](../../work/0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)와 Accepted
   [ADR-0054](../adr/0054-project-linked-targeted-migration-plan-and-reverse-safety.md)는 exact latest/named/app-zero
   execute/plan 여덟 argv를 고정합니다. Preview와 execute는 definition/history/graph/historical-state/dry/capability

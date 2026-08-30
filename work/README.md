@@ -85,7 +85,10 @@ unrelated scalar-only 또는 nullable-only target model이 있는 valid project�
 whole-candidate compile이 막히는 availability 결함을 다룹니다. 모든 model의 `BindModel`과 error order를 유지하고 successful
 unused binding만 blank-consume하며 public API, generator version, role/file ABI, existing golden과 conformance aggregate는
 바꾸지 않습니다. Clean baseline은 GDJ-0052 terminal `2273df6...`, tree `941c546...`이고 activation 근거는
-[EVID-168](../docs/status/TEST_EVIDENCE.md#evid-20260831-168--gdj-0053-sparse-model-compile-availability-activation)입니다.
+[EVID-168](../docs/status/TEST_EVIDENCE.md#evid-20260831-168--gdj-0053-sparse-model-compile-availability-activation)입니다. Source
+`c7b3e6f...`, tree `e78692c...`는 same-identity regression과 최소 fix를 구현해 affected checkpoint를 통과했으며
+[EVID-169](../docs/status/TEST_EVIDENCE.md#evid-20260831-169--gdj-0053-regression-first-sparse-bind-checkpoint)이 red/green과
+남은 frozen/Hosted gate를 구분합니다.
 Completed
 [GDJ-0052](0052-project-linked-targeted-migrate-plan-and-bounded-reverse.md)는 exact 여덟 public argv로 latest/named/app-zero
 execute와 plan을 연결합니다. `Executor.Plan`과 execute는 revision-fenced history, graph/history check, historical state,
