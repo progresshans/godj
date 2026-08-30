@@ -198,7 +198,7 @@ func TestPreGDJ0044EighteenReferenceSetsHave201UniqueContractsAndReject306Ordere
 	}
 }
 
-func TestCurrentTwentyThreeProductSetsHave261EligibleContractsAndExcludeZeroOracleLocked(t *testing.T) {
+func TestCurrentTwentyFourProductSetsHave269EligibleContractsAndExcludeZeroOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -216,6 +216,7 @@ func TestCurrentTwentyThreeProductSetsHave261EligibleContractsAndExcludeZeroOrac
 		"migration-project-check-manifest.json",
 		"migration-command-manifest.json",
 		"migration-writer-manifest.json",
+		"migration-status-manifest.json",
 		"relation-manifest.json",
 		"query-breadth-manifest.json",
 		"query-expression-manifest.json",
@@ -248,12 +249,12 @@ func TestCurrentTwentyThreeProductSetsHave261EligibleContractsAndExcludeZeroOrac
 			}
 		}
 	}
-	if len(manifestNames) != 23 || total != 261 || passing != 237 || deviations != 24 || oracleLocked != 0 {
-		t.Fatalf("current product inventory = %d sets/%d eligible contracts = %d passing + %d deviation with %d oracle_locked excluded, want 23/261 = 237 + 24 with 0 excluded", len(manifestNames), total, passing, deviations, oracleLocked)
+	if len(manifestNames) != 24 || total != 269 || passing != 245 || deviations != 24 || oracleLocked != 0 {
+		t.Fatalf("current product inventory = %d sets/%d eligible contracts = %d passing + %d deviation with %d oracle_locked excluded, want 24/269 = 245 + 24 with 0 excluded", len(manifestNames), total, passing, deviations, oracleLocked)
 	}
 }
 
-func TestQueryBreadthProductRemainsInCurrentTwentyThreeAdapterTarget(t *testing.T) {
+func TestQueryBreadthProductRemainsInCurrentTwentyFourAdapterTarget(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -271,8 +272,8 @@ func TestQueryBreadthProductRemainsInCurrentTwentyThreeAdapterTarget(t *testing.
 	if !strings.Contains(target, "QUERY_BREADTH") {
 		t.Fatal("query-breadth product set is missing from godj-conformance")
 	}
-	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 23 {
-		t.Fatalf("current product adapter count = %d, want 23", got)
+	if got := strings.Count(target, "go run ./conformance/cmd/godjcheck"); got != 24 {
+		t.Fatalf("current product adapter count = %d, want 24", got)
 	}
 }
 

@@ -266,8 +266,8 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 	if strings.Contains(productTarget, "MIGRATION_COMMAND_NOT_IMPLEMENTED") {
 		t.Fatal("product migration-command target reads the payload-free reference baseline")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
-		t.Fatalf("product adapter count = %d, want 23", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
+		t.Fatalf("product adapter count = %d, want 24", got)
 	}
 	for name, target := range map[string]string{
 		"oracle-check":      oracleCheckTarget,

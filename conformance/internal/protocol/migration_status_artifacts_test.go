@@ -54,8 +54,8 @@ func TestMigrationStatusReferenceArtifactsAreLockedValidatedAndPayloadSafe(t *te
 	}
 	for name, want := range map[string]artifactLock{
 		"conformance/contracts/migration-status-manifest.json": {
-			size:   5311,
-			sha256: "3b1c8693359cb465879a90a931f3bc778c141dafcee9fdb64b4a890e29f5e6fc",
+			size:   5263,
+			sha256: "dcb86295e683ea083cc57dca155284f9b26018d5d5a30c9606141bee8946fcc6",
 		},
 		"conformance/fixtures/godj-migration-status-not-implemented.json": {
 			size:   1566,
@@ -88,7 +88,7 @@ func TestMigrationStatusReferenceArtifactsAreLockedValidatedAndPayloadSafe(t *te
 
 	for index, contract := range manifest.Contracts {
 		wantID := fmt.Sprintf("MIG-%03d", index+111)
-		if contract.ID != wantID || contract.Scenario != migrationStatusScenarios[index] || contract.Phase != migrationStatusPhases[index] || contract.Status != ContractOracleLocked || !reflect.DeepEqual(contract.Comparison, migrationStatusComparisons[index]) {
+		if contract.ID != wantID || contract.Scenario != migrationStatusScenarios[index] || contract.Phase != migrationStatusPhases[index] || contract.Status != ContractPassing || !reflect.DeepEqual(contract.Comparison, migrationStatusComparisons[index]) {
 			t.Fatalf("migration-status contract %d = %#v", index, contract)
 		}
 		wantProvenance := 2
@@ -255,7 +255,7 @@ func TestMigrationStatusAuthoritySourcesAreIndependentAndArtifactBlind(t *testin
 	}
 }
 
-func TestMigrationStatusPublishedReferenceWiringIsExactAndProductExcluded(t *testing.T) {
+func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -309,13 +309,17 @@ func TestMigrationStatusPublishedReferenceWiringIsExactAndProductExcluded(t *tes
 	if got := strings.Count(referenceTarget, "go run ./conformance/cmd/contractcheck"); got != 50 {
 		t.Fatalf("reference contractcheck count = %d, want 50", got)
 	}
-	for _, fragment := range []string{"MIGRATION_STATUS_MANIFEST", "MIGRATION_STATUS_ORACLE", "MIGRATION_STATUS_NOT_IMPLEMENTED"} {
-		if strings.Contains(productTarget, fragment) {
-			t.Fatalf("reference-only migration status leaked into product target through %s", fragment)
+	for variable, want := range map[string]int{
+		"$(MIGRATION_STATUS_MANIFEST)":        1,
+		"$(MIGRATION_STATUS_ORACLE)":          1,
+		"$(MIGRATION_STATUS_NOT_IMPLEMENTED)": 0,
+	} {
+		if got := strings.Count(productTarget, variable); got != want {
+			t.Fatalf("product migration-status variable %s count = %d, want %d", variable, got, want)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
-		t.Fatalf("product adapter count = %d, want unchanged 23", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
+		t.Fatalf("product adapter count = %d, want 24", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(MIGRATION_STATUS_MANIFEST)"); got != 1 {

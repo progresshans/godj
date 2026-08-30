@@ -347,6 +347,9 @@ godj-conformance:
 		-expected $(MIGRATION_WRITER_ORACLE) \
 		-deviation-expected $(MIGRATION_WRITER_DEVIATION_EXPECTED)
 	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_STATUS_MANIFEST) \
+		-expected $(MIGRATION_STATUS_ORACLE)
+	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
 		-expected $(RELATION_ORACLE)
 	go run ./conformance/cmd/godjcheck \

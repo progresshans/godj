@@ -243,8 +243,8 @@ func TestMigrationProjectCheckRemainsInCurrentTwentyTwoAdapterProductTarget(t *t
 	if got := strings.Count(productTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("product target project-check manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
-		t.Fatalf("product adapter count = %d, want 23", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
+		t.Fatalf("product adapter count = %d, want 24", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(MIGRATION_PROJECT_CHECK_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check project-check manifest count = %d, want 1", got)
@@ -745,7 +745,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`required="$RUNNER_TEMP/postgresql-required-tests.txt"`,
 		`printf '%s\n' "${required_passes[@]}" > "$required"`,
 		`python3 - "$required" "$log" "$mode" <<'PY'`,
-		`assert len(expected) == 21, sorted(expected)`,
+		`assert len(expected) == 22, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
@@ -804,11 +804,12 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"github.com/progresshans/godj/conformance/runserverproduct|TestGlobalRunserverArticlePostgresDevelopmentLoop",
 		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct",
 		"github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability",
+		"github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
 	}
-	if len(postgresRequiredSentinels) != 21 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 21", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 22 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 22", len(postgresRequiredSentinels))
 	}
 	requiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*required=`)
 	requiredBlock := requiredBlockPattern.FindStringSubmatch(postgres)
@@ -860,6 +861,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"./examples/article",
 		"./conformance/postgresproduct/...",
 		"./conformance/projectmigrateproduct",
+		"./conformance/projectshowmigrationsproduct",
 		"./conformance/systemstate/restart",
 		"./conformance/runserverproduct",
 	} {

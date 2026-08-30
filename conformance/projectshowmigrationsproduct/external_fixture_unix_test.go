@@ -23,15 +23,19 @@ import (
 )
 
 const (
-	externalStatusDatabaseEnvironment = "GODJ_SHOWMIGRATIONS_SQLITE_DATABASE"
-	externalStatusMarkerEnvironment   = "GODJ_SHOWMIGRATIONS_BACKEND_MARKER"
-	externalStatusCatalogEnvironment  = "GODJ_SHOWMIGRATIONS_CATALOG"
-	externalStatusSecretEnvironment   = "GODJ_SHOWMIGRATIONS_SECRET_CANARY"
-	externalStatusCommandTimeout      = 4 * time.Minute
-	externalStatusMaximumOutput       = 64 << 10
+	externalStatusDatabaseEnvironment       = "GODJ_SHOWMIGRATIONS_SQLITE_DATABASE"
+	externalStatusBackendEnvironment        = "GODJ_SHOWMIGRATIONS_BACKEND"
+	externalStatusPostgresURLEnvironment    = "GODJ_SHOWMIGRATIONS_POSTGRES_URL"
+	externalStatusPostgresSchemaEnvironment = "GODJ_SHOWMIGRATIONS_POSTGRES_SCHEMA"
+	externalStatusMarkerEnvironment         = "GODJ_SHOWMIGRATIONS_BACKEND_MARKER"
+	externalStatusCatalogEnvironment        = "GODJ_SHOWMIGRATIONS_CATALOG"
+	externalStatusSecretEnvironment         = "GODJ_SHOWMIGRATIONS_SECRET_CANARY"
+	externalStatusCommandTimeout            = 4 * time.Minute
+	externalStatusMaximumOutput             = 64 << 10
 )
 
 var externalStatusAllowedImports = map[string]struct{}{
+	"github.com/progresshans/godj/db/postgres":           {},
 	"github.com/progresshans/godj/db/sqlite":             {},
 	"github.com/progresshans/godj/migrations":            {},
 	"github.com/progresshans/godj/migrations/backend":    {},
@@ -170,10 +174,50 @@ func (project *externalStatusProject) paths(t *testing.T, name string) (string, 
 
 func (project *externalStatusProject) environment(database, marker, catalog string) []string {
 	return externalStatusEnvironment(project.baseEnv, map[string]string{
+		externalStatusBackendEnvironment:  "sqlite",
 		externalStatusDatabaseEnvironment: database,
 		externalStatusMarkerEnvironment:   marker,
 		externalStatusCatalogEnvironment:  catalog,
 	})
+}
+
+func (project *externalStatusProject) postgresEnvironment(t *testing.T, databaseURL, schema, marker, catalog string) []string {
+	t.Helper()
+	base := externalStatusRemoveEnvironment(
+		project.baseEnv,
+		externalStatusPostgresTestURLEnvironment,
+		externalStatusPostgresRequiredEnvironment,
+		externalStatusDatabaseEnvironment,
+	)
+	environment := externalStatusEnvironment(base, map[string]string{
+		externalStatusBackendEnvironment:        "postgres",
+		externalStatusPostgresURLEnvironment:    databaseURL,
+		externalStatusPostgresSchemaEnvironment: schema,
+		externalStatusMarkerEnvironment:         marker,
+		externalStatusCatalogEnvironment:        catalog,
+	})
+	values := make(map[string]string, len(environment))
+	for _, entry := range environment {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[key] = value
+		}
+	}
+	if _, exists := values[externalStatusPostgresTestURLEnvironment]; exists {
+		t.Fatal("PostgreSQL project environment retained test-only database URL")
+	}
+	if _, exists := values[externalStatusPostgresRequiredEnvironment]; exists {
+		t.Fatal("PostgreSQL project environment retained test-only required sentinel")
+	}
+	if _, exists := values[externalStatusDatabaseEnvironment]; exists {
+		t.Fatal("PostgreSQL project environment retained SQLite database configuration")
+	}
+	if values[externalStatusBackendEnvironment] != "postgres" ||
+		values[externalStatusPostgresURLEnvironment] != databaseURL ||
+		values[externalStatusPostgresSchemaEnvironment] != schema {
+		t.Fatal("PostgreSQL project environment did not retain exact project-owned database configuration")
+	}
+	return environment
 }
 
 func (project *externalStatusProject) run(t *testing.T, environment []string, arguments ...string) externalStatusResult {
@@ -602,6 +646,22 @@ func externalStatusEnvironment(base []string, overrides map[string]string) []str
 	return result
 }
 
+func externalStatusRemoveEnvironment(base []string, keys ...string) []string {
+	removed := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		removed[key] = struct{}{}
+	}
+	result := make([]string, 0, len(base))
+	for _, entry := range base {
+		key, _, ok := strings.Cut(entry, "=")
+		if _, excluded := removed[key]; ok && excluded {
+			continue
+		}
+		result = append(result, entry)
+	}
+	return result
+}
+
 func externalStatusEntryNames(entries []os.DirEntry) []string {
 	result := make([]string, len(entries))
 	for index := range entries {
@@ -649,6 +709,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
@@ -659,6 +720,9 @@ import (
 
 const (
 	databaseEnvironment = "GODJ_SHOWMIGRATIONS_SQLITE_DATABASE"
+	backendEnvironment = "GODJ_SHOWMIGRATIONS_BACKEND"
+	postgresURLEnvironment = "GODJ_SHOWMIGRATIONS_POSTGRES_URL"
+	postgresSchemaEnvironment = "GODJ_SHOWMIGRATIONS_POSTGRES_SCHEMA"
 	markerEnvironment = "GODJ_SHOWMIGRATIONS_BACKEND_MARKER"
 	catalogEnvironment = "GODJ_SHOWMIGRATIONS_CATALOG"
 )
@@ -681,7 +745,19 @@ func openObservedBackend(ctx context.Context) (project.MigrationBackend, error) 
 	if err := appendMarker("backend_open_call"); err != nil {
 		return nil, err
 	}
-	opened, err := sqlite.Open(ctx, os.Getenv(databaseEnvironment))
+	var opened project.MigrationBackend
+	var err error
+	switch os.Getenv(backendEnvironment) {
+	case "sqlite":
+		opened, err = sqlite.Open(ctx, os.Getenv(databaseEnvironment))
+	case "postgres":
+		opened, err = postgres.Open(ctx, postgres.Config{
+			URL: os.Getenv(postgresURLEnvironment),
+			Schema: os.Getenv(postgresSchemaEnvironment),
+		})
+	default:
+		return nil, errors.New("unsupported external backend")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -692,7 +768,7 @@ func openObservedBackend(ctx context.Context) (project.MigrationBackend, error) 
 }
 
 type observedBackend struct {
-	delegate *sqlite.Backend
+	delegate project.MigrationBackend
 }
 
 func (observed *observedBackend) MigrationCapabilities() backend.MigrationCapabilities {

@@ -204,8 +204,8 @@ func TestQueryExpressionReferenceAndProductWiringIsLocked(t *testing.T) {
 	if got := strings.Count(productTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("product conformance query-expression manifest count = %d, want 1", got)
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 23 {
-		t.Fatalf("godj-conformance adapter count = %d, want 23 with query-expression included", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 24 {
+		t.Fatalf("godj-conformance adapter count = %d, want 24 with query-expression included", got)
 	}
 	if got := strings.Count(oracleCheckTarget, "$(QUERY_EXPRESSION_MANIFEST)"); got != 1 {
 		t.Fatalf("oracle-check query-expression manifest count = %d, want 1", got)
