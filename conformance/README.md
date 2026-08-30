@@ -164,6 +164,7 @@ CI #95/run `32294983953`에서 bounded ForeignKey reverse/unapply table remake�
 | `contracts/migration-writer-manifest.json` | MIG-099..110 bounded migration-writer mixed-authority contract; Phase A historical은 `oracle_locked`, current는 7 passing + 5 Verified DEV-0010 deviation product publication |
 | `contracts/migration-status-manifest.json` | MIG-111..118 bounded read-only migration-status mixed-authority contract; Phase A historical은 `oracle_locked`, current는 8 passing product publication/status 입력 |
 | `contracts/migration-target-plan-manifest.json` | MIG-119..128 exact target/plan/reverse mixed-authority contract; Phase A historical은 `oracle_locked`, current는 9 passing + MIG-122 Verified DEV-0002 deviation product publication |
+| `contracts/migration-sql-rendering-manifest.json` | MIG-129..138 exact forward SQL projection mixed-authority contract; current Phase A reference-only `oracle_locked`, product adapter/status 입력 없음 |
 | `contracts/relation-manifest.json` | ForeignKey relation reference contract 12개; 현재 12개 모두 product-required |
 | `contracts/migration-relation-manifest.json` | ADR-0035 current-only MIG-075..086 diagnostic reference; `oracle_locked`/unregistered이며 product publication/status 입력 아님 |
 | `profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json` | API half의 isolated exact DRF/Django/Python/SQLite runtime과 dependency lock fingerprint |
@@ -314,9 +315,9 @@ corrected head `5f97fa8...`, tree `2b53c031...`의 EVID-138/CI #155 run `3304986
 later acceptance로 소급 변경하지 않습니다. JWT/opaque token issuance, refresh family, OAuth/OIDC,
 signing/validation key lifecycle, production BFF, OpenAPI와 browsable API는 포함하지 않습니다.
 
-Current reference는 26 sets/291 contracts/650 ordered bindings=
-`254 passing + 25 deviation + 12 oracle_locked`, product는 25 adapters/279 eligible contracts=
-`254 passing + 25 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086뿐입니다. Accepted ADR-0051과
+Current reference는 27 sets/301 contracts/702 ordered bindings=
+`254 passing + 25 deviation + 22 oracle_locked`, product는 25 adapters/279 eligible contracts=
+`254 passing + 25 deviation`입니다. Reference-only locked/unregistered range는 MIG-075..086과 MIG-129..138입니다. Accepted ADR-0051과
 completed GDJ-0049는 EVID-146/CI #164 run `33247166995`에서 submitted tree `b82bb5b...`의 41/41 jobs·464/464 steps,
 PostgreSQL normal/race/CGO-disabled 각각 required 20/20·skip 0과 전체 relation coordinate/mode job을 통과했습니다.
 GDJ-0049 Phase A의 reference-only 상태는 historical snapshot이며 현재 status로 읽지 않습니다. Writer/autodetector,
@@ -368,11 +369,13 @@ exact-head Hosted는
 [EVID-167](../docs/status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)이
 각각 소유하며 ADR-0054/GDJ-0052는 Accepted/completed입니다.
 
-Active GDJ-0054는 후속 MIG-129..138 `migration-sql-rendering` set을 계획합니다. Activation에서는 manifest,
-not-implemented fixture, oracle, runner와 product adapter가 아직 없고 contract/status aggregate도 바꾸지 않습니다. Phase A는
-pinned Django 6.1의 overlapping public `sqlmigrate` observation과 GoDj exact-name/forward-only/built-in DB-free decision을
-구분해 reference-only `oracle_locked` artifact로 고정합니다. Prefix/backward/transaction wrapper를 현재 product 지원처럼
-등록하거나 deviation을 선승인하지 않으며, actual artifact bytes/hash/count는 생성·독립 A/B 검증 뒤에만 기록합니다.
+Active GDJ-0054 Phase A source `c3de0d35...`, tree `1af05572...`는 후속 MIG-129..138
+`migration-sql-rendering` set을 reference-only `oracle_locked`로 고정했습니다. Manifest/NI/oracle은
+8,010/1,727/46,941 bytes, shared checksum은 24 lines/2,279 bytes이고 exact hash·A/B·Python/protocol 증거는
+[EVID-173](../docs/status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)이
+소유합니다. MIG-131/132만 pinned Django result-derived이고 나머지는 GoDj decision입니다. Product adapter, deviation fixture와
+`passing` 전환은 없으며 ADR-0055는 Proposed, command는 미구현입니다. 다음 단계는 pure materializer와
+identity-bearing SQLite/PostgreSQL renderer를 구현하는 Phase B입니다.
 
 GDJ-0050 Phase A는 MIG-099..110을 별도 migration-writer set으로 추가합니다. MIG-099/100/101/103/104/105/106은
 Django 6.1 autodetector와 `makemigrations --dry-run/--check` 관찰을 authority로 삼고,

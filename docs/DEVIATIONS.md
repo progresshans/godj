@@ -235,7 +235,8 @@ GDJ-0052 Phase D source `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree
 `0636eb512d7de824b79d44d17373b3db4c2a6e6f7c712cc9e803480b33ce0496`와 MIG-122 sparse expectation
 2,673 bytes/SHA-256 `7e0c04e21237da15ab979d9b4bfec41cf81063c37e7ba5dd753c2dc0bfceb317`을 게시했습니다.
 PostgreSQL 17.10 normal/race/CGO0와 SQLite external product flow가 통과했고 current aggregate는 reference
-26/291/650=`254 passing + 25 deviation + 12 oracle_locked`, product 25/279=`254 passing + 25 deviation`입니다.
+27/301/702=`254 passing + 25 deviation + 22 oracle_locked`, product 25/279=`254 passing + 25 deviation`입니다.
+MIG-129..138은 deviation을 추가하지 않은 reference-only `oracle_locked` range입니다.
 Phase E predecessor full-local, corrected-source refreeze와 exact-head Hosted는 위 EVID-165/166/167이 각각 소유하며
 ADR-0054/GDJ-0052는 Accepted/completed입니다.
 

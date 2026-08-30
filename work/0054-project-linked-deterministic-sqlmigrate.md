@@ -36,6 +36,7 @@ allowed_paths:
   - "docs/COMPATIBILITY.md"
   - "docs/CONCURRENCY.md"
   - "docs/DEVELOPER_EXPERIENCE.md"
+  - "docs/DEVIATIONS.md"
   - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
   - "docs/SOURCES.md"
@@ -217,7 +218,8 @@ func RenderMigrationSQL(
 - MIG-131의 target-before state/forward operation order와 MIG-132의 portable SQLite Create/Add result semantics만 Django
   result-derived observation으로 둡니다. Identity-bearing request shape, raw SQL bytes, comments, transaction wrapper, exact-only argv,
   no-DB/output/error/resource/process boundary는 `godj.migration.sql_rendering.*` decision namespace로 분리합니다.
-- Phase A가 실제 overlapping mismatch를 발견할 때만 `docs/DEVIATIONS.md` 변경을 제안합니다. Activation은 deviation을
+- Phase A가 실제 overlapping mismatch를 발견할 때만 새 deviation record/classification을 제안합니다. Existing
+  `docs/DEVIATIONS.md`의 live aggregate mirror는 reference publication과 동기화할 수 있지만 activation은 deviation을
   선등록하지 않습니다.
 
 | ID | Scenario | Required observation |
@@ -237,6 +239,14 @@ Activation에서는 MIG-129..138 모두 `planned, not run`이며 manifest/oracle
 aggregate와 MIG-075..086 locked range는 바꾸지 않습니다. Q-010/Q-012는 이 bounded command가 완료돼도 broader
 semver/upgrade/repair/destructive/custom/multi-DB 범위 때문에 `Partial`을 유지합니다.
 
+Phase A source `c3de0d35b3dce4fd0a5c0dde4cc16b85923a14a0`, tree
+`1af05572ed3a5f50219fe48b810262a37ca7f46f`은 MIG-129..138을 reference-only `oracle_locked`로 게시했습니다.
+MIG-131/132만 pinned Django result authority이고 나머지 여덟 계약은 GoDj decision authority입니다. Manifest/NI/oracle은
+각각 8,010/1,727/46,941 bytes, shared 24-line checksum은 2,279 bytes입니다. Reference는
+27 sets/301 contracts/702 ordered cross-bindings=`254 passing + 25 deviation + 22 oracle_locked`, product는
+25 adapters/279=`254 passing + 25 deviation`로 불변입니다. MIG-075..086과 MIG-129..138만 locked/unregistered이고
+product adapter, deviation fixture 또는 `passing` 전환은 없습니다. Exact hash와 검증 증거는 EVID-173이 소유합니다.
+
 Phase A artifact slug는 `migration-sql-rendering`이고 proposed roster는 manifest, ordered not-implemented fixture, pinned Django
 oracle, independent scenario/decision runners와 protocol lock입니다. 모든 MIG-129..138을 reference-only `oracle_locked`로
 추가하면 reference inventory는 산술상 27 sets/301 contracts/702 ordered cross-bindings=
@@ -248,7 +258,7 @@ deviation fixture, GoDj product adapter와 `passing` 전환을 만들지 않습�
 
 ## 단계
 
-- [ ] Phase A — pinned Django source/runtime authority audit와 MIG-129..138 reference-only artifact lock
+- [x] Phase A — pinned Django source/runtime authority audit와 MIG-129..138 reference-only artifact lock
 - [ ] Phase B — pure forward materializer, identity-bearing renderer port, shared compiler, config/error/output boundary
 - [ ] Phase C — strict private/global protocol과 repository-external SQLite exact CLI/no-DB/redaction product flow
 - [ ] Phase D — PostgreSQL current profile, oracle-blind actual/policy와 source-bound attestation publication
@@ -262,16 +272,19 @@ independent A/B로 한 번 재캡처합니다. Phase A에서는 그 exact stale-
 
 ## 현재 checkpoint
 
-- Clean baseline은 completed GDJ-0053 terminal documentation head
-  `1fbffa3b5ba8248dc5aa141212a7dad563827a7b`, tree `3ace0273520f9cc7ed6fc2ad43e05e89a9af093b`입니다.
-- GDJ-0053의 product source/workflow/contract aggregate는 그대로이며 latest local/Hosted proof는 EVID-170/EVID-171입니다.
-- ADR-0055는 Proposed이고 MIG-129..138은 manifest에도 아직 등록되지 않은 planned contract입니다.
-- Activation은 work/ADR/status mirror만 바꾸며 product source, public API, workflow, Make target, contract artifact와
-  source-bound PostgreSQL attestation을 바꾸거나 검증하지 않습니다.
-- 별도 research checkout `80ea5997...`은 참고 자료일 뿐 stale numbering, bare intent/capability reuse와 output atomicity 과장이
-  있어 cherry-pick하지 않습니다. 현재 source에서 재검증해 필요한 결정만 옮깁니다.
-- 다음 정확한 작업은 Phase A입니다. Pinned Django 6.1 exact source range와 runtime observation을 독립적으로 고정한 뒤에만
-  renderer public API와 implementation을 시작합니다.
+- Phase A source는 `c3de0d35b3dce4fd0a5c0dde4cc16b85923a14a0`, tree
+  `1af05572ed3a5f50219fe48b810262a37ca7f46f`입니다. Manifest/NI/oracle SHA-256은 각각
+  `7074d37f...6703`/`217e9065...0144`/`fa015cb0...abc99`, shared checksum은 `9d218040...6e71d`입니다.
+- Pinned exact Python은 325 tests/3 skips와 27 oracle check를, Hosted-style isolated profile은 325/21을 통과했습니다.
+  Live semantic aggregate는 301 scenarios/1,063,090 bytes/SHA-256 `67b7ea55...7c441`입니다.
+- Focused Python 18/18, runner safety 41/41, oracle independent A/B/canonical equality, checksum 24/24, protocol
+  normal/count-10/race/CGO-disabled/vet와 54 reference validation이 통과했습니다. 독립 재감사는 P0..P3=`0`입니다.
+- Makefile/workflow가 source binding 대상이므로 checked PostgreSQL attestation은 예상대로 stale입니다. 직접 빌드한
+  `godjcheck`는 exit 2, stdout 0 bytes와 exact one-line stale diagnostic을 냈고 final source freeze에서만 재캡처합니다.
+- ADR-0055는 계속 Proposed이고 command/product adapter는 미구현입니다. Full product/backend/Linux-386/Hosted도 Phase A
+  증거로 주장하지 않습니다.
+- 다음 정확한 작업은 Phase B의 pure forward materializer, identity-bearing renderer port, shared compiler와
+  config/error/output boundary 구현입니다.
 
 ## 완료 조건
 

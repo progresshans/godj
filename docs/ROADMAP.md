@@ -4,8 +4,9 @@
 - 현재 active batch: [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
   `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete catalog와 target-before historical
   state에서 결정적으로 materialize하는 bounded packet입니다. Proposed
-  [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md)와 MIG-129..138은 아직 planned/not run이고
-  reference/product aggregate는 불변입니다. Built-in renderer는 DB/session/history/transaction/editor와 credential을 사용하지
+  [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md) 아래 Phase A source `c3de0d35...`, tree
+  `1af05572...`가 MIG-129..138 reference-only artifact lock을 완료했습니다. Product/command는 미구현이고 다음 단계는
+  Phase B pure materializer/renderer입니다. Built-in renderer는 DB/session/history/transaction/editor와 credential을 사용하지
   않되 live executability, custom-renderer I/O와 terminal write 원자성을 주장하지 않습니다. Active/ready는 1/0입니다.
 - 최근 completed batch: [GDJ-0053](../work/0053-project-relation-query-sparse-model-compile-availability.md)은 sparse valid
   project의 generated unused model binding compile availability를 error-order/ABI/contract drift 없이 복구했습니다. Local
@@ -180,7 +181,7 @@
   GDJ-0051 Phase D는 MIG-111..118을 product `passing`으로 게시했고 PostgreSQL 17.10과 exact 16-case
   project boundary를 EVID-157로 검증했습니다. 그 completion 당시 locked range는 MIG-075..086이었습니다.
   GDJ-0052 Phase D는 MIG-119..121/123..128 `passing`, MIG-122 Verified DEV-0002 `deviation`을 게시했고 현재
-  reference-only locked range는 MIG-075..086뿐입니다. EVID-167/CI #189 exact-head Hosted까지 통과해 Phase E와
+  current reference-only locked ranges는 MIG-075..086과 MIG-129..138입니다. EVID-167/CI #189 exact-head Hosted까지 통과해 Phase E와
   ADR-0054/GDJ-0052 acceptance를 닫았습니다.
 - 마지막 검토: 2026-08-31
 

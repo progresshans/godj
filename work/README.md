@@ -85,7 +85,9 @@ proposed → ready → active → completed
 `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete loaded catalog와 target-before
 historical state에서 결정적으로 materialize하는 bounded packet입니다. Built-in SQLite/PostgreSQL renderer는 execution
 compiler meaning을 공유하지만 backend opener/session/history/transaction/editor를 호출하지 않습니다. ADR-0055와
-MIG-129..138은 activation에서 Proposed/planned이고 product/reference aggregate는 불변입니다. Activation 근거는
+MIG-129..138은 Phase A source `c3de0d35...`, tree `1af05572...`에서 reference-only `oracle_locked`로 고정됐고
+product adapter/command는 미구현입니다. [EVID-173](../docs/status/TEST_EVIDENCE.md#evid-20260831-173--gdj-0054-phase-a-reference-only-artifact-lock)이
+local reference gate를 소유하며 다음 단계는 Phase B입니다. Activation 근거는
 [EVID-172](../docs/status/TEST_EVIDENCE.md#evid-20260831-172--gdj-0054-deterministic-sqlmigrate-activation)입니다. Completed
 [GDJ-0053](0053-project-relation-query-sparse-model-compile-availability.md)은 required relation-query source와 함께
 unrelated scalar-only 또는 nullable-only target model이 있는 valid project에서 generated unused `_modelN` 때문에
@@ -122,7 +124,7 @@ named/zero/plan/reverse failure-resume observation을 EVID-163에서 local-verif
 `a92efb5f09eb4dcf3094fddf84a21ff65fa604f3`, tree `06f90a90eb61de13c234dfc2356b6b4ed085f087`은
 MIG-127/full MIG-128, PostgreSQL 17.10 normal/race/CGO0와 oracle-blind product registration을 완료했습니다.
 MIG-119..121/123..128은 `passing`, MIG-122는 Verified DEV-0002 `deviation`; current reference는
-26/291/650=`254+25+12 locked`, product는 25/279=`254+25`이고 locked range는 MIG-075..086뿐입니다. Phase E local-final
+27/301/702=`254+25+22 locked`, product는 25/279=`254+25`이고 current locked ranges는 MIG-075..086과 MIG-129..138입니다. Phase E local-final
 `8837144...`, tree `d29b09b...`은 predecessor-source PostgreSQL A/B/checked attestation, full `make ci`, 118-package
 Linux/386 compile-only, workflow-exact relation 955/955/0과 1,230-file `.git`-free archive를 통과했습니다. 첫 Hosted
 diagnostic의 stale proof/inventory와 bounded timeout 원인 및 correction은
@@ -179,7 +181,7 @@ publication 범위입니다. Phase D implementation `21d88c99...`, tree `976671c
 generated migrate/no-op/distinct-process restart, oracle-blind MIG-099..110 actual과 DEV-0010 exact 19 sparse replacements,
 repository-external public-module SQLite lifecycle를 구현하고 affected normal/vet/generated drift, focused
 runner/external/PostgreSQL race/CGO0와 독립 감사를 통과했습니다. GDJ-0050 completion 당시 reference/product aggregate는
-25/281/600=`245+24+12 locked`, 24/269=`245+24`이고 MIG-075..086이 locked/unregistered였습니다. Phase E predecessor
+24/273/552=`237+24+12 locked`, 23/261=`237+24`이고 MIG-075..086이 locked/unregistered였습니다. Phase E predecessor
 local full/Linux/386/relation/archive는 EVID-151에서,
 workflow correction 뒤 current source-bound attestation/focused refreeze는 EVID-152에서 통과했습니다. Exact submitted head
 `a6a79c0...`, tree `48994a0...`의 EVID-153/CI #171 run `33280434425`는 attempt 1의 pre-test dependency-setup 실패를

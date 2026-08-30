@@ -327,8 +327,9 @@ Active [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 Q-
 `sqlmigrate`와 direct project-owned renderer configuration만 bounded하게 검토합니다. Exported `project.Config` field와
 repository-external keyed/unkeyed literal 영향은 Proposed
 [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md)에서 결정하고, global mutable registration이나
-installed runner cache/semver/upgrade를 추가하지 않습니다. Activation의 MIG-129..138은 planned/not run이므로 Q-010은
-계속 `Partial`입니다.
+installed runner cache/semver/upgrade를 추가하지 않습니다. Phase A source `c3de0d35...`, tree `1af05572...`는
+MIG-129..138을 reference-only `oracle_locked`로 고정했지만 public config/API와 command는 아직 Proposed/미구현입니다.
+따라서 Q-010은 계속 `Partial`이고 다음 경계는 Phase B입니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
@@ -416,7 +417,8 @@ target-before historical state에서 pure intent를 만들고 identity-bearing r
 projection하되 `Executor.Plan`, execution `MigrationCapabilities`, backend opener/session/history/transaction과 mutation
 `SchemaEditor`를 재사용하지 않습니다. Built-in DB-free 결과는 live schema/data/profile, applied state, execution success나
 atomicity 증거가 아니며 reverse/prefix/custom/data/destructive/multi-DB는 계속 open입니다. 따라서 완료 뒤에도 Q-012는
-`Partial`입니다.
+`Partial`입니다. Phase A는 MIG-129..138 reference-only artifact만 고정했으며 product adapter와 SQL rendering code는
+추가하지 않았습니다. EVID-173 뒤의 다음 구현 경계는 Phase B입니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은

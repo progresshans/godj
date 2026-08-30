@@ -15918,3 +15918,89 @@ consistency, evidence ordering/uniqueness, exact path scope, `make format-check`
 No Go/Python/backend/conformance/generated/full/386/external/Hosted test is claimed. EVID-170 remains the current local
 source/contract checkpoint and EVID-171 remains the latest successful Hosted product proof. Draft PR #1 remains open/draft/unmerged;
 no PR comment, merge, release or deployment is performed by activation.
+
+## EVID-20260831-173 — GDJ-0054 Phase A Reference-only Artifact Lock
+
+- Date: 2026-08-31 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; pinned Django 6.1/Python 3.14.3/
+  SQLite 3.50.4 reference and an isolated hosted-style Python profile
+- Work/contract IDs: GDJ-0054 active; ADR-0055 Proposed; MIG-129..138 reference-only `oracle_locked`;
+  Q-010/Q-012 remain Partial
+- Product source: `c3de0d35b3dce4fd0a5c0dde4cc16b85923a14a0`, tree
+  `1af05572ed3a5f50219fe48b810262a37ca7f46f`
+- Result: the ten exact forward SQL-rendering contracts, independent Django/GoDj authorities and reference-only artifact wiring are
+  byte-locked. Product remains 25 adapters/279 contracts=`254 passing + 25 deviation`; no command, renderer adapter, deviation
+  fixture or support transition is claimed. Independent final source audit found P0/P1/P2/P3=`0/0/0/0` after one P1 oracle-gap
+  correction was made and the complete gate was rerun.
+
+### Authority, artifacts and aggregate
+
+Pinned Django commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee` owns only MIG-131 target-before/exactly-one forward ordering and MIG-132
+normalized SQLite CreateModel/AddField result meaning. The audited runtime path is `Command.handle →
+MigrationLoader.collect_sql → Migration.apply → operation.database_forwards → collect-SQL schema editor`; `MigrationExecutor`,
+raw SQL/comments and BEGIN/COMMIT wrapper bytes are not reference authority. MIG-129/130 and MIG-133..138 are explicit GoDj
+decisions for argv, lookup/request identity, PostgreSQL projection, determinism, DB/history zero calls, fail-closed rendering,
+resource/redaction/publication and external configuration.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `migration-sql-rendering-manifest.json` | 8,010 | `7074d37ffc5889d86374a14c528a6eeca0007c9a7789b1fc7ffbacbb2a776703` |
+| `godj-migration-sql-rendering-not-implemented.json` | 1,727 | `217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144` |
+| `migration-sql-rendering-oracle.json` | 46,941 | `fa015cb0414709d0fc66d20d34776821fc2612ddac7702f8854141deb89abc99` |
+| shared 24-line `SHA256SUMS` | 2,279 | `9d2180400e5ffd339593d11feb95fdaf9b1532eaa14fdee8cfdc2d9c88f6e71d` |
+
+The live semantic reference is exact 27 sets/301 scenarios/1,063,090 canonical bytes/SHA-256
+`67b7ea553c689cf3e1839e7f8fbf65f6cb758e70a623f8c7f0471eb4ac87c441` with 702 ordered cross-bindings. Reference
+classification is `254 passing + 25 deviation + 22 oracle_locked`; MIG-075..086 and MIG-129..138 are the only locked,
+unregistered ranges. The product aggregate and every existing adapter classification are unchanged.
+
+### Executed gates
+
+The focused Python modules ran 18/18 tests; the complete runner-safety module ran 41/41. Independent A and B generation and the
+canonical check produced identical oracle bytes. `make python-test-exact` ran 325 tests with three expected skips; every one of the
+27 oracle checks passed. The hosted-style isolated Django/DRF dependency profile ran the same 325 tests with 21 expected
+compatibility skips and independently reproduced the 301-scenario semantic size/digest above.
+
+The following Go and artifact commands exited zero:
+
+```text
+go test -count=1 ./conformance/internal/protocol -run '^TestMigrationSQLRendering'
+go test -count=10 ./conformance/internal/protocol -run '^TestMigrationSQLRenderingPublishedArtifactsAreLockedAndReferenceOnly$'
+go test -race -count=1 ./conformance/internal/protocol -run '^TestMigrationSQLRendering'
+CGO_ENABLED=0 go test -count=1 ./conformance/internal/protocol -run '^TestMigrationSQLRendering'
+go vet ./conformance/internal/protocol
+go test -count=1 ./conformance/internal/protocol
+make conformance-check
+make format-check
+git diff --check
+```
+
+The focused protocol package preserved all four exact migration-SQL-rendering tests and the full package passed. The 54 reference
+suite validations and all 24 checksum entries passed. Ruff format checking of the four new/changed Python source-test files also
+passed. No generated product byte or registered product adapter changed.
+
+### Fail-closed correction, audit and stale-attestation boundary
+
+The first independent audit found one P1 gap: MIG-136 did not explicitly observe a renderer-returned error, invalid UTF-8,
+leading/trailing ASCII whitespace or a control rune. Before this evidence was published, the oracle was extended to an exact
+12-case ordered failure inventory. A secret-bearing raw cause and partial renderer SQL are observed internally but never published,
+retained or exposed through an unwrap chain; public `render_failed` remains stable. All byte locks, independent A/B generation,
+Python, protocol, checksum and semantic gates were then rerun. The final audit reported P0/P1/P2/P3=`0/0/0/0`.
+
+Phase A intentionally changes the Makefile/workflow reference wiring, which is part of the PostgreSQL source binding. The currently
+checked attestation therefore fails closed as expected. A directly built `godjcheck` returned exit 2, zero stdout bytes and exact
+stderr:
+
+```text
+godjcheck: load PostgreSQL live attestation: PostgreSQL live attestation source binding is stale
+```
+
+That diagnostic is expected evidence, not a product assertion failure. Attestation is not recaptured until the final source freeze;
+CI topology remains exact 53 jobs. Phase A does not claim full product/backend execution, full `make ci`, Linux/386, external
+archive, PostgreSQL live validation, Hosted success, ADR acceptance or GDJ-0054 completion. The publication descendant changes
+exactly 12 allowed documentation/status files; all 142 tracked Markdown files passed `markdown-it-py 4.0.0`, local-link/H1/heading,
+frontmatter/index/status/evidence-order, exact-path-scope and trailing-whitespace checks. `make format-check` and
+`git diff --check` also exited zero. Draft PR #1 remains open/draft/unmerged; no PR comment, merge, release or deployment was
+performed. The next exact implementation boundary is Phase B's pure forward materializer, identity-bearing renderer port and
+shared compiler/config/error/output path.
