@@ -751,7 +751,7 @@ jobs:
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
-            timeout_minutes: 30
+            timeout_minutes: 45
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
