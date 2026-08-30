@@ -1,7 +1,7 @@
 # 테스트·검증 증거
 
 - 마지막 갱신: 2026-08-30
-- 현재 local source/contract checkpoint: EVID-20260830-157
+- 현재 local source/contract checkpoint: EVID-20260830-158
 - latest successful hosted product proof: EVID-20260830-153
 
 이 파일은 실제로 실행한 검증만 기록합니다. 계획된 명령이나 다른 checkout의 결과를 현재 통과처럼 기록하지 않습니다.
@@ -14798,3 +14798,107 @@ Linux/386, final relation/archive proof and exact submitted-head Hosted success 
 two byte-identical independent captures from a clean archive of the frozen source, publish only the canonical attestation,
 checksum and protocol byte locks, and then run the milestone gates. ADR-0053 remains Proposed and GDJ-0051 remains active.
 Draft PR #1 remains open/draft/unmerged; no PR comment, merge, release or deployment was performed.
+
+## EVID-20260830-158 — GDJ-0051 Frozen Local Final, Relation-lock Correction and Attestation Refreeze
+
+- Date: 2026-08-30 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; independent digest-pinned
+  Linux/amd64 Go 1.26.5 and PostgreSQL 17.10 containers
+- Work/contract IDs: GDJ-0051 active; ADR-0053 Proposed; MIG-111..118 product `passing`;
+  Q-010/Q-012 remain `Partial`
+- First local-final publication: `6d55a51ab0363a5e42da39a1ecfe099c995d5bbf`, tree
+  `6d1ea38765ef524f02ee5154832a85711480fb18`
+- Relation lock correction: `dc61f168bea0bc22c5d9bc0af1554ecf399635aa`, tree
+  `388ada83c58439ba6349237035a06eebd8fbc5d6`
+- Current attestation/archive publication: `b17345c4d399872710f785ae8443f75a1f28c847`, tree
+  `b0df21644aa6d3f9c8a68b34442106a6a0b214d8`
+- Result: the final product source passed one full local milestone. A current relation identity drift found immediately
+  afterward was corrected without changing test coverage, which correctly required a second source-bound PostgreSQL
+  capture. The corrected publication then passed focused source-sensitive gates and an exact repository-external archive.
+  Exact submitted-head Hosted success remains pending, so this evidence does not accept ADR-0053 or complete GDJ-0051.
+
+### Full local predecessor and relation identity correction
+
+`LC_ALL=C TZ=UTC make ci` completed with exit 0 on clean first-publication head `6d55a51...`. It covered all-package
+normal/race Go tests, bounded CGO-disabled package/product gates, vet, serial long-running product packages, 291 Python
+tests with 24 exact-profile-only skips,
+all reference/deviation/product comparisons and generated drift. A separate all-package
+`GOOS=linux GOARCH=386 CGO_ENABLED=0 ... go test -run '^$' -exec=/usr/bin/true ./...` passed 117 packages. The latter is
+compile-only and is not Linux/386 runtime support evidence. No retained full-log duration/hash exists and none is claimed.
+
+The subsequent workflow-equivalent relation capture ran every selected test successfully but rejected the Phase C byte
+lock: actual was exact 942 run/942 pass/0 skip, 96,114 canonical payload bytes/SHA-256
+`420471e8972361fb1bcea29074fbb6ccacced4cdeeb7a3c35d5a8f273a66c910`, while the workflow still expected
+96,124/`451b04db...b2eb`. A second independent execution reproduced the actual bytes exactly. Static source-list comparison
+against exact Phase C source confirmed that the 10-byte change comes from these three Phase D protocol identity replacements,
+not removed coverage:
+
+- `TwentyThree` → `TwentyFour` product-set aggregate test
+- migration-status `ReferenceWiring...ProductExcluded` → `ReferenceAndProductWiring...`
+- query-breadth `TwentyThreeAdapterTarget` → `TwentyFourAdapterTarget`
+
+Therefore EVID-156's 942/96,124 Phase C inventory remains the historical Phase C identity, while `dc61f168...` changes only
+the current workflow byte/hash assertion and its protocol mirror to current 942/96,114. Focused protocol,
+core-package-selection and `git diff --check` passed. No relation mode, OS/architecture coordinate, timeout or test was
+removed or skipped.
+
+### Corrected-source PostgreSQL A/B and publication
+
+Because `.github/workflows/ci.yml` is inside the attestation source scope, the relation-lock correction intentionally made
+the first `6d55a51...` attestation stale. The retained final evidence root is
+`/tmp/godj-gdj0051-attest-dc61f16-final`. It froze clean `dc61f168...` into source/pre/post tar streams that were each
+18,483,200 bytes/SHA-256 `8752d338ed2d1c860a30bc2c140d786e07b5f0902d438f70db40b72534691c1e` and byte-identical.
+The 12,049-byte wrapper has SHA-256 `80c5b4ef2ebb592869a38f93d3aaeca53daa7f258f567f45051421b75cc1d97f`.
+
+Captures A and B used independent PostgreSQL containers/clusters/volumes/networks and source extractions. They are
+byte-identical at 1,134 bytes/SHA-256 `18585ff3371822b8a1477969a0724f007f46b3539755c00fea69cf56b8c6071d`.
+Both report exact Go 1.26.5/Linux amd64, PostgreSQL 17.10 UTF8/C/UTC fingerprint, two writers, same-schema/barrier/restart
+true, divergence/loss/drift/secret counts zero and source binding 266 files/3,263,384 payload bytes/SHA-256
+`19a20e02b0a8fe6bc99f7e73e0caac2d8614e1f4583596bc23ab3ab58ab43a60`. Six independent source/pre/post extracted trees
+had the same 1,420-entry full roster. All exact Docker resources were absent after success. Independent audit reported
+P0/P1/P2/P3=`0/0/0/0`; the random credential value is intentionally not retained, so later audit verifies the wrapper's
+fail-closed exact-marker scan design and independently scans retained JSON/Go/PostgreSQL logs for generic credential
+carriers rather than re-searching an unavailable secret.
+
+Publication head `b17345c4...` changes only the canonical JSON, its 103-byte checksum and protocol byte lock relative to
+`dc61f168...`. The checked JSON is byte-identical to A/B; checksum-file SHA-256 is
+`94938ccdf334980e55a52bb7a3a9ce4471e6a5cc787cca4103fac4bf6a852744`. Post-publication checksum, exact 20-contract
+system-state comparison, focused normal/race/CGO-disabled tests over attestation/restart/GoDj runner/product checker/protocol,
+scoped vet, all 50 `make conformance-check` validations, core-package-selection, format and diff checks passed. These
+focused descendant gates are not misreported as a second full `make ci` execution.
+
+### Exact repository-external archive
+
+The retained final archive root is `/tmp/godj-gdj0051-archive-final.kogQP9`. Its `.git`-free `git archive` of
+`b17345c4...` was compared to raw Git objects before execution and again afterward:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| raw `git ls-tree -rz --full-tree` | 121,333 | `92ee1f46facf9e20d021287c185f385f2b8a04a9fa8f74ec6bfd9db1fb6f5fe8` |
+| deterministic tar | 18,483,200 | `c40685d7be9b17329a0d95137ea5d18b1ee0b76445a15b34cf1b2550d385ea04` |
+| canonical pre/post roster, each | 156,679 | `64fb367e8b0437050931f2924be035b906841e39f06ed84e88058a46e64c1b7e` |
+| 117-line package list | 6,717 | `7bed870d6d4b384fc430463462ca493cb647a2614d3c0a5ecf5bc6171f68ca75` |
+
+The archive contains exact 1,208 regular blobs, all Git logical mode `100644`, totaling 17,426,279 payload bytes. Git's
+default tar umask represents them as non-executable raw header `0664`, and extraction is `0644`; executable-class,
+missing/additional/symlink/nonregular/blob mismatches are zero. With a private external `GOCACHE`, archive-local
+`make generate-check`, 117-package Linux/386 compile-only, actual public-import-only
+`TestGlobalShowMigrationsExternalProjectSQLiteProduct` (146.602 seconds) and predecessor
+`TestMigrationWriterExternalProjectSQLitePublicSurface` (45.251 seconds) all returned exit 0. The exact PostgreSQL external
+sentinel is not rerun in this SQLite archive gate; independent A/B and Hosted's required PostgreSQL no-skip lanes own it.
+The wrapper retained structural manifests and cache but not separate command stdout logs, so independent archive audit owns
+path/mode/blob/pre-post/static evidence while the terminal execution transcript owns the two exit-zero results. The final
+independent archive audit found no residual external-test temp roots and reported P0/P1/P2/P3=`0/0/0/0` within this boundary.
+
+### Hosted diagnostic and remaining boundary
+
+Predecessor submitted head `1497146735319d87024da321b4446a8c81d3ac2b`, tree
+`5d549acae73fbd02f1c3bd25f6f50ebca598e4dc`, retained [run 33289432764](https://github.com/progresshans/godj/actions/runs/33289432764)
+as diagnostic only: 35 jobs succeeded and six failed, with five primary stale source-binding/live-attestation failures plus
+the derivative `Required CI` failure. It did not expose a migration-status product assertion failure and is not retried or
+reused for the corrected source.
+
+The next exact step is to push the current documentation descendant and require one exact-head Hosted endpoint with the
+current 41-job coverage, relation normal 942/942/0 on all four coordinates and PostgreSQL normal/race/CGO0 exact 22/22/0.
+Until that succeeds, ADR-0053 remains Proposed, GDJ-0051 remains active, Phase E remains unchecked and no merge/release/
+deployment is claimed. Draft PR #1 remains open; no PR comment was posted.

@@ -93,7 +93,10 @@ normal/race/CGO0/vet·Linux compile-only·독립 감사를 통과했습니다. P
 16-case cleanup/private-response/publication trace를 게시했고
 [EVID-157](../docs/status/TEST_EVIDENCE.md#evid-20260830-157--gdj-0051-phase-d-postgresql-and-product-publication-checkpoint)의
 focused gates와 final audit P0..P3=`0`을 통과했습니다. Current reference/product는
-25/281/600=`245+24+12 locked`, 24/269=`245+24`이고 다음 exact 작업은 Phase E attestation/full/Hosted입니다. Completed
+25/281/600=`245+24+12 locked`, 24/269=`245+24`입니다. Phase E는 first publication `6d55a51...`의 full local,
+current 942/942/0 relation lock correction `dc61f168...`, source-bound A/B publication `b17345c4...`와
+1,208-blob/117-package external archive까지 [EVID-158](../docs/status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)에서
+통과했고, 다음 exact 작업은 documentation descendant의 exact submitted-head Hosted입니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을

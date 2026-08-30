@@ -29,7 +29,12 @@
   cleanup → private response → public output 순서, logical stderr exactly once, cancellation과 mutation-capable entry를
   shared runtime trace/counter로 검증했고 최종 독립 감사 P0..P3=`0`입니다. Current product는 24/269=
   `245 passing + 24 deviation`, reference는 25/281/600=`245 passing + 24 deviation + 12 oracle_locked`이며 locked range는
-  MIG-075..086만 남습니다. 다음 exact 작업은 Phase E attestation A/B 재캡처, full/Linux-386/relation/archive와 exact
+  MIG-075..086만 남습니다. Phase E local final은 first publication `6d55a51...`의 full `make ci`와 Linux/386,
+  actual relation identity drift를 교정한 `dc61f168...`, current-source A/B를 게시한 `b17345c4...`, tree
+  `b0df2164...`까지 진행됐습니다. Current relation inventory는 exact 942/942/0, 96,114 bytes/SHA-256
+  `420471e8...c910`; attestation A/B는 1,134 bytes/SHA-256 `18585ff3...071d`; final archive는 1,208 blobs/117 packages와
+  pre/post byte identity를 통과했습니다. [EVID-158](TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)이
+  predecessor full과 current focused/archive 증거를 구분합니다. 다음 exact 작업은 documentation descendant push와 exact
   submitted-head Hosted입니다. Target/reverse,
   `--plan`, `sqlmigrate`, destructive writer와 multi-DB는 비범위입니다. Completed
   [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md)과 Accepted

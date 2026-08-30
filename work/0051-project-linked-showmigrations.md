@@ -241,6 +241,21 @@ semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partia
   Filesystem redaction scan은 command-owned project root/empty private workspace와 bounded regular files를 소유하며 arbitrary
   HOME/cache forensic scan을 주장하지 않습니다. Race gate는 harness를 계측하고 external child 자체의 `-race` build는
   주장하지 않습니다.
-- 다음 exact 작업은 Phase E source-bound PostgreSQL attestation A/B 재캡처, affected/full milestone gates,
-  repository-external archive와 exact submitted-head Hosted입니다. Current checked attestation은 Phase D의
-  Make/workflow/non-test runner source 변경 때문에 의도대로 stale하며 새 bytes의 통과 증거로 재사용하지 않습니다.
+- Phase E의 first publication head `6d55a51...`에서 full `make ci`와 117-package Linux/386 compile-only가
+  통과했습니다. Workflow-equivalent relation inventory는 테스트 실행 자체는 942/942·skip 0이었지만 Phase D에서
+  product publication protocol test 세 이름이 바뀐 뒤 Phase C byte lock만 남아 96,124-byte lock과 실제
+  96,114 bytes가 불일치했습니다. `dc61f168...`은 테스트 수나 검증 축을 바꾸지 않고 workflow와 이를 감시하는
+  protocol lock을 actual 942/96,114/SHA-256 `420471e8...c910`으로만 교정했습니다.
+- Workflow도 source-bound이므로 `dc61f168...`, tree `388ada83...`의 clean archive에서 PostgreSQL 17.10 A/B를
+  다시 독립 캡처했습니다. A/B는 각각 1,134 bytes/SHA-256 `18585ff3...071d`로 byte-identical하고 source binding은
+  266 files/3,263,384 bytes/SHA-256 `19a20e02...3a60`, secret/resource residue는 0입니다. Publication head
+  `b17345c4d399872710f785ae8443f75a1f28c847`, tree `b0df21644aa6d3f9c8a68b34442106a6a0b214d8`에서
+  checksum/protocol lock, focused normal/race/CGO0/vet와 50개 conformance gate가 통과했습니다.
+- 같은 publication head의 `.git` 없는 repository-external archive는 exact 1,208 blobs/117 packages를
+  Git path/mode/blob과 대조하고 generate drift, Linux/386 compile-only, actual showmigrations SQLite MIG-111..118과
+  predecessor migration-writer SQLite flow를 통과했습니다. Pre/post 156,679-byte roster는 byte-identical했습니다.
+  [EVID-158](../docs/status/TEST_EVIDENCE.md#evid-20260830-158--gdj-0051-frozen-local-final-relation-lock-correction-and-attestation-refreeze)이
+  full predecessor와 current focused/archive 증거의 정확한 소유권을 기록합니다.
+- 다음 exact 작업은 이 documentation descendant를 push한 뒤 exact submitted-head Hosted 41-job topology를
+  failure/cancel/skip 없이 완료하고 terminal 상태 문서를 동기화하는 것입니다. ADR-0053/GDJ-0051은 그 전까지
+  Proposed/active이며 Phase E checkbox도 열어 둡니다.
