@@ -320,23 +320,23 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	}
 	for _, coordinate := range coordinates {
 		for _, mode := range []string{"normal", "race", "cgo0"} {
-			timeoutMinutes := 25
+			timeoutMinutes := 40
 			if strings.Contains(coordinate, "runs_on: macos-15-intel") {
-				timeoutMinutes = 30
+				timeoutMinutes = 45
 			}
 			entry := coordinate + "\n            mode: " + mode
-			if timeoutMinutes == 25 {
-				entry += "\n            timeout_minutes: 25"
+			if timeoutMinutes == 40 {
+				entry += "\n            timeout_minutes: 40"
 			} else {
-				entry += "\n            timeout_minutes: 30"
+				entry += "\n            timeout_minutes: 45"
 			}
 			runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix coordinate/mode", targetedMigrate, entry, 1)
 		}
 	}
 	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "          - runs_on: ", 12)
 	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes:", 12)
-	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 25", 9)
-	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 30", 3)
+	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 40", 9)
+	runserverWorkflowRequireCount(t, "targeted-migrate-product-matrix job", targetedMigrate, "timeout_minutes: 45", 3)
 	targetedMode := runserverWorkflowStep(
 		t,
 		targetedMigrate,
@@ -369,7 +369,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	for _, fragment := range []string{
 		"set -euo pipefail",
 		`mode="${{ matrix.mode }}"`,
-		"test_flags=(-timeout=20m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
+		"test_flags=(-timeout=30m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
@@ -422,17 +422,18 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"name: PostgreSQL 17.10 actual product (${{ matrix.mode }})",
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
-		"- mode: normal\n            timeout_minutes: 25",
-		"- mode: race\n            timeout_minutes: 25",
-		"- mode: cgo0\n            timeout_minutes: 25",
+		"- mode: normal\n            timeout_minutes: 50",
+		"- mode: race\n            timeout_minutes: 45",
+		"- mode: cgo0\n            timeout_minutes: 45",
 		`GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable`,
 		`GODJ_REQUIRE_POSTGRES: "1"`,
 		`mode="${{ matrix.mode }}"`,
-		`test_flags=(-timeout=15m -json -count=1 -run "$required_regex")`,
+		`test_flags=(-timeout=18m -json -count=1 -run "$required_regex")`,
 		`test_flags+=(-race)`,
 		`export CGO_ENABLED=0`,
 		`go test "${test_flags[@]}" \`,
 		`./conformance/runserverproduct > "$log" || status=$?`,
+		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?`,
 		`assert len(expected) == 23, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,

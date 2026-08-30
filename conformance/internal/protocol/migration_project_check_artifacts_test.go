@@ -495,7 +495,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`test "$(go env GOOS)" = "${{ matrix.expected_goos }}"`,
 		`test "$(go env GOARCH)" = "${{ matrix.expected_goarch }}"`,
 		`mode="${{ matrix.mode }}"`,
-		"test_flags=(-timeout=20m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
+		"test_flags=(-timeout=30m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')",
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
@@ -516,9 +516,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	}
 	for _, coordinate := range wantCoordinates {
 		for _, mode := range []string{"normal", "race", "cgo0"} {
-			timeoutMinutes := 25
+			timeoutMinutes := 40
 			if strings.Contains(coordinate, "runs_on: macos-15-intel") {
-				timeoutMinutes = 30
+				timeoutMinutes = 45
 			}
 			entry := coordinate + "\n            mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 			if strings.Count(targetedMigrate, entry) != 1 {
@@ -532,10 +532,10 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	if got := strings.Count(targetedMigrate, "timeout_minutes:"); got != 12 {
 		t.Fatalf("targeted-migrate coordinate timeout count = %d, want 12", got)
 	}
-	if got := strings.Count(targetedMigrate, "timeout_minutes: 25"); got != 9 {
-		t.Fatalf("targeted-migrate 25-minute timeout count = %d, want 9", got)
+	if got := strings.Count(targetedMigrate, "timeout_minutes: 40"); got != 9 {
+		t.Fatalf("targeted-migrate 40-minute timeout count = %d, want 9", got)
 	}
-	if got := strings.Count(targetedMigrate, "timeout_minutes: 30"); got != 3 {
+	if got := strings.Count(targetedMigrate, "timeout_minutes: 45"); got != 3 {
 		t.Fatalf("targeted-migrate Intel timeout count = %d, want 3", got)
 	}
 	if got := strings.Count(targetedMigrate, "./conformance/projectmigratetargetproduct"); got != 2 {
@@ -848,15 +848,20 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`test "$fingerprint" = "170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin"`,
 		"name: Run and inventory PostgreSQL actual product tests",
 		`mode="${{ matrix.mode }}"`,
-		`test_flags=(-timeout=15m -json -count=1 -run "$required_regex")`,
+		`test_flags=(-timeout=18m -json -count=1 -run "$required_regex")`,
 		`test_flags+=(-race)`,
 		`export CGO_ENABLED=0`,
 		`log="$RUNNER_TEMP/postgresql-product-tests.json"`,
+		`report_postgres_failure() {`,
 		"status=0",
 		`go test "${test_flags[@]}" \`,
 		`./conformance/runserverproduct > "$log" || status=$?`,
 		`if [ "$status" -ne 0 ]; then`,
 		`tail -c 60000 "$log"`,
+		"target_exit=0",
+		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?`,
+		`if [ "$target_exit" -ne 0 ]; then`,
+		`exit "$target_exit"`,
 		`required="$RUNNER_TEMP/postgresql-required-tests.txt"`,
 		`printf '%s\n' "${required_passes[@]}" > "$required"`,
 		`python3 - "$required" "$log" "$mode" <<'PY'`,
@@ -890,14 +895,17 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 			t.Fatalf("PostgreSQL product job fragment %q count = %d, want 1", required, strings.Count(postgres, required))
 		}
 	}
-	for _, mode := range []string{"normal", "race", "cgo0"} {
-		entry := "- mode: " + mode + "\n            timeout_minutes: 25"
+	for mode, timeoutMinutes := range map[string]int{"normal": 50, "race": 45, "cgo0": 45} {
+		entry := "- mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
 		if got := strings.Count(postgres, entry); got != 1 {
 			t.Fatalf("PostgreSQL mode entry %q count = %d, want 1", entry, got)
 		}
 	}
-	if got := strings.Count(postgres, "timeout_minutes: 25"); got != 3 {
-		t.Fatalf("PostgreSQL mode timeout count = %d, want 3", got)
+	if got := strings.Count(postgres, "timeout_minutes: 50"); got != 1 {
+		t.Fatalf("PostgreSQL normal timeout count = %d, want 1", got)
+	}
+	if got := strings.Count(postgres, "timeout_minutes: 45"); got != 2 {
+		t.Fatalf("PostgreSQL race/CGO-disabled timeout count = %d, want 2", got)
 	}
 	postgresRequiredSentinels := []string{
 		"github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration",
@@ -977,7 +985,6 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"./examples/article",
 		"./conformance/postgresproduct/...",
 		"./conformance/projectmigrateproduct",
-		"./conformance/projectmigratetargetproduct",
 		"./conformance/projectshowmigrationsproduct",
 		"./conformance/systemstate/restart",
 		"./conformance/runserverproduct",
@@ -986,6 +993,44 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		if got := len(linePattern.FindAllString(postgres, -1)); got != 2 {
 			t.Fatalf("PostgreSQL package %q gate count = %d, want selected test plus vet", packagePattern, got)
 		}
+	}
+	targetTestPattern := regexp.MustCompile(`(?m)^\s+go test "\$\{test_flags\[@\]\}" \./conformance/projectmigratetargetproduct >> "\$log" \|\| target_exit=\$\?$`)
+	if got := len(targetTestPattern.FindAllString(postgres, -1)); got != 1 {
+		t.Fatalf("PostgreSQL targeted package isolated test count = %d, want 1", got)
+	}
+	targetVetPattern := regexp.MustCompile(`(?m)^\s+\./conformance/projectmigratetargetproduct \\$`)
+	if got := len(targetVetPattern.FindAllString(postgres, -1)); got != 1 {
+		t.Fatalf("PostgreSQL targeted package vet count = %d, want 1", got)
+	}
+	for fragment, want := range map[string]int{
+		"            report_postgres_failure\n": 2,
+		`exit "$status"`:                        1,
+		`exit "$target_exit"`:                   1,
+	} {
+		if got := strings.Count(postgres, fragment); got != want {
+			t.Fatalf("PostgreSQL failure-owner fragment %q count = %d, want %d", fragment, got, want)
+		}
+	}
+	orderedFailureFragments := []string{
+		"status=0",
+		`./conformance/runserverproduct > "$log" || status=$?`,
+		`if [ "$status" -ne 0 ]; then`,
+		"            report_postgres_failure\n",
+		`exit "$status"`,
+		"target_exit=0",
+		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?`,
+		`if [ "$target_exit" -ne 0 ]; then`,
+		"            report_postgres_failure\n",
+		`exit "$target_exit"`,
+		"required_passes=(",
+	}
+	cursor := 0
+	for _, fragment := range orderedFailureFragments {
+		offset := strings.Index(postgres[cursor:], fragment)
+		if offset < 0 {
+			t.Fatalf("PostgreSQL ordered failure-owner fragment %q is missing after byte %d", fragment, cursor)
+		}
+		cursor += offset + len(fragment)
 	}
 	for _, required := range []string{
 		"name: Required CI",

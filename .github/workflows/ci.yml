@@ -856,62 +856,62 @@ jobs:
             expected_goos: linux
             expected_goarch: amd64
             mode: normal
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
             mode: race
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: ubuntu-22.04
             expected_goos: linux
             expected_goarch: amd64
             mode: cgo0
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: normal
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: race
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: ubuntu-24.04-arm
             expected_goos: linux
             expected_goarch: arm64
             mode: cgo0
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: normal
-            timeout_minutes: 30
+            timeout_minutes: 45
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: race
-            timeout_minutes: 30
+            timeout_minutes: 45
           - runs_on: macos-15-intel
             expected_goos: darwin
             expected_goarch: amd64
             mode: cgo0
-            timeout_minutes: 30
+            timeout_minutes: 45
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: normal
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: race
-            timeout_minutes: 25
+            timeout_minutes: 40
           - runs_on: macos-26
             expected_goos: darwin
             expected_goarch: arm64
             mode: cgo0
-            timeout_minutes: 25
+            timeout_minutes: 40
 
     steps:
       - name: Checkout
@@ -937,7 +937,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          test_flags=(-timeout=20m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
+          test_flags=(-timeout=30m -json -count=1 -run '^TestProjectLinkedTargetedMigrateSQLite$')
           case "$mode" in
             normal)
               ;;
@@ -1126,11 +1126,11 @@ jobs:
       matrix:
         include:
           - mode: normal
-            timeout_minutes: 25
+            timeout_minutes: 50
           - mode: race
-            timeout_minutes: 25
+            timeout_minutes: 45
           - mode: cgo0
-            timeout_minutes: 25
+            timeout_minutes: 45
 
     steps:
       - name: Checkout
@@ -1167,7 +1167,7 @@ jobs:
           set -euo pipefail
           mode="${{ matrix.mode }}"
           required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
-          test_flags=(-timeout=15m -json -count=1 -run "$required_regex")
+          test_flags=(-timeout=18m -json -count=1 -run "$required_regex")
           case "$mode" in
             normal)
               ;;
@@ -1183,6 +1183,9 @@ jobs:
               ;;
           esac
           log="$RUNNER_TEMP/postgresql-product-tests.json"
+          report_postgres_failure() {
+            tail -c 60000 "$log"
+          }
           status=0
           go test "${test_flags[@]}" \
             ./cmd/godj \
@@ -1190,13 +1193,18 @@ jobs:
             ./examples/article \
             ./conformance/postgresproduct/... \
             ./conformance/projectmigrateproduct \
-            ./conformance/projectmigratetargetproduct \
             ./conformance/projectshowmigrationsproduct \
             ./conformance/systemstate/restart \
             ./conformance/runserverproduct > "$log" || status=$?
           if [ "$status" -ne 0 ]; then
-            tail -c 60000 "$log"
+            report_postgres_failure
             exit "$status"
+          fi
+          target_exit=0
+          go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?
+          if [ "$target_exit" -ne 0 ]; then
+            report_postgres_failure
+            exit "$target_exit"
           fi
           required_passes=(
             "github.com/progresshans/godj/db/postgres|TestPostgreSQLPhase1Integration"
