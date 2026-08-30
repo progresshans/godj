@@ -80,6 +80,12 @@ from .migration_status_decisions import (  # noqa: E402
 from .migration_status_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_STATUS_DJANGO_SCENARIOS,
 )
+from .migration_target_plan_decisions import (  # noqa: E402
+    SCENARIOS as MIGRATION_TARGET_PLAN_DECISION_SCENARIOS,
+)
+from .migration_target_plan_scenarios import (  # noqa: E402
+    SCENARIOS as MIGRATION_TARGET_PLAN_DJANGO_SCENARIOS,
+)
 from .relation_scenarios import SCENARIOS as RELATION_SCENARIOS  # noqa: E402
 from .migration_relation_scenarios import (  # noqa: E402
     SCENARIOS as MIGRATION_RELATION_SCENARIOS,
@@ -175,6 +181,24 @@ MIGRATION_STATUS_SCENARIOS = {
         "godj.migration.status.project_boundary",
     )
 }
+MIGRATION_TARGET_PLAN_SCENARIOS = {
+    name: (
+        MIGRATION_TARGET_PLAN_DJANGO_SCENARIOS.get(name)
+        or MIGRATION_TARGET_PLAN_DECISION_SCENARIOS[name]
+    )
+    for name in (
+        "godj.migration.target_plan.target_argv_and_pre_io_rejection",
+        "django.migration.target_plan.named_forward_closure",
+        "django.migration.target_plan.named_reverse_descendants",
+        "django.migration.target_plan.app_zero_cross_app_dependents",
+        "godj.migration.target_plan.target_noop_and_legacy_zero",
+        "godj.migration.target_plan.plan_exact_and_no_mutation",
+        "godj.migration.target_plan.preview_drift_fresh_execute",
+        "godj.migration.target_plan.reverse_middle_failure_resume",
+        "godj.migration.target_plan.reverse_commit_outcomes",
+        "godj.migration.target_plan.project_protocol_and_ownership",
+    )
+}
 
 
 SCENARIO_REGISTRIES = (
@@ -194,6 +218,7 @@ SCENARIO_REGISTRIES = (
     MIGRATION_COMMAND_DECISION_SCENARIOS,
     MIGRATION_WRITER_SCENARIOS,
     MIGRATION_STATUS_SCENARIOS,
+    MIGRATION_TARGET_PLAN_SCENARIOS,
     RELATION_SCENARIOS,
     MIGRATION_RELATION_SCENARIOS,
     TEMPLATE_FORM_SCENARIOS,
@@ -348,6 +373,13 @@ DEFAULT_MIGRATION_STATUS_ORACLE = (
     REPOSITORY_ROOT
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json"
 )
+DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST = (
+    REPOSITORY_ROOT / "conformance/contracts/migration-target-plan-manifest.json"
+)
+DEFAULT_MIGRATION_TARGET_PLAN_ORACLE = (
+    REPOSITORY_ROOT
+    / "conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-target-plan-oracle.json"
+)
 DEFAULT_RELATION_MANIFEST = (
     REPOSITORY_ROOT / "conformance/contracts/relation-manifest.json"
 )
@@ -434,6 +466,9 @@ KNOWN_MANIFEST_ORACLES = {
     DEFAULT_MIGRATION_COMMAND_MANIFEST.resolve(): DEFAULT_MIGRATION_COMMAND_ORACLE,
     DEFAULT_MIGRATION_WRITER_MANIFEST.resolve(): DEFAULT_MIGRATION_WRITER_ORACLE,
     DEFAULT_MIGRATION_STATUS_MANIFEST.resolve(): DEFAULT_MIGRATION_STATUS_ORACLE,
+    DEFAULT_MIGRATION_TARGET_PLAN_MANIFEST.resolve(): (
+        DEFAULT_MIGRATION_TARGET_PLAN_ORACLE
+    ),
     DEFAULT_RELATION_MANIFEST.resolve(): DEFAULT_RELATION_ORACLE,
     DEFAULT_MIGRATION_RELATION_MANIFEST.resolve(): DEFAULT_MIGRATION_RELATION_ORACLE,
     DEFAULT_TEMPLATE_FORM_MANIFEST.resolve(): DEFAULT_TEMPLATE_FORM_ORACLE,

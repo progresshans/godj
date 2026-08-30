@@ -35,6 +35,7 @@ allowed_paths:
   - "docs/CAPABILITY_CATALOG.md"
   - "docs/COMPATIBILITY.md"
   - "docs/DEVELOPER_EXPERIENCE.md"
+  - "docs/DEVIATIONS.md"
   - "docs/OPEN_QUESTIONS.md"
   - "docs/ROADMAP.md"
   - "docs/SOURCES.md"
@@ -79,8 +80,9 @@ Plan mode는 canonical JSON 한 줄만 출력합니다.
 
 ## 목표
 
-- Exact 여덟 public argv family만 수용하고 invalid/permuted/app-only/prefix target은 project discovery와 backend I/O 전에
-  거부합니다.
+- Exact 여덟 public argv family만 수용하고 invalid/permuted/app-only 형태는 project discovery와 backend I/O 전에
+  거부합니다. 문법상 유효한 prefix-looking 이름은 catalog를 읽기 전에는 prefix인지 알 수 없으므로 exact name으로만 조회하고,
+  exact identity가 없으면 `plan/target_not_found`로 실패합니다.
 - Existing `LifecycleRequest`, immutable graph, history check, revision-fenced session과 step별 transaction을 재사용해 named
   forward/reverse와 known-app zero를 public CLI에 연결합니다.
 - `Executor.Plan(ctx, LoadedDefinitionSet, LifecycleRequest) ([]PlanStep, error)`를 추가해 execute와 같은 current history
@@ -192,18 +194,22 @@ Request examples:
 
 ## Django reference와 contract 계획
 
-- Exact authority: Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, migrate command/loader/executor graph
-  semantics. Django에서 exact named target, zero target, plan presentation과 reverse dependency 의미를 관찰합니다.
+- Exact authority: Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`의 real
+  `MigrationExecutor.migration_plan()` ordered plan semantics를 MIG-120..122에서만 관찰합니다.
 - GoDj-owned: exact argv grammar, current-only private protocol, structured JSON plan, known-app zero target, one fenced history snapshot,
   preview-not-authority, commit-unknown/no-retry, close/publication/resource/redaction 경계.
 - SQL 문자열과 Django human-readable operation description은 비교하지 않습니다.
+- Django의 app-zero reference graph에서 `beta.0001`과 `alpha.0003`은 비교 불가능(incomparable)한 reverse sibling이며 exact
+  관찰 순서는 `B1, A3, A2, A1`입니다. Existing DEV-0002 GoDj canonical order `A3, A2, B1, A1`과 membership 및
+  dependency-safety는 같지만 byte order는 다릅니다. Reference artifact는 Django 순서를 그대로 보존하고, actual product
+  publication에서는 MIG-122를 DEV-0002의 bounded sparse deviation으로 명시해 이 차이를 정렬로 숨기지 않습니다.
 
 | ID | Scenario | Required observation |
 |---|---|---|
-| MIG-119 | `target_argv_and_pre_io_rejection` | exact 여덟 argv, invalid/permuted/app-only/prefix는 discovery/build/open 0 |
+| MIG-119 | `target_argv_and_pre_io_rejection` | exact 여덟 argv, invalid/permuted/app-only는 discovery/build/open 0; valid prefix-looking token은 exact-only lookup |
 | MIG-120 | `named_forward_closure` | target과 missing ancestors만 canonical forward, unrelated branch 보존 |
 | MIG-121 | `named_reverse_descendants` | target/direct cross-app child retained, same-app descendants와 그 descendants의 cross-app dependents reverse |
-| MIG-122 | `app_zero_cross_app_dependents` | known app roots와 cross-app dependent reverse, unrelated applied branch 보존; DEV-0002 order 재사용 |
+| MIG-122 | `app_zero_cross_app_dependents` | known app roots와 cross-app dependent reverse, unrelated applied branch 보존; Django exact `B1, A3, A2, A1`, product DEV-0002 sparse order deviation |
 | MIG-123 | `target_noop_and_legacy_zero` | applied leaf/no-op, plain unknown `ZeroTarget` empty 보존, public known-zero unknown은 target-not-found, Begin 0 |
 | MIG-124 | `plan_exact_and_no_mutation` | exact rows/empty JSON, Begin 0, schema/recorder/revision/application mutation 0 |
 | MIG-125 | `preview_drift_fresh_execute` | preview 뒤 history drift, execute가 fresh snapshot/replan하며 preview token을 받지 않음 |

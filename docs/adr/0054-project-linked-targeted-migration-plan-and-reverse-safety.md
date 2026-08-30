@@ -45,7 +45,9 @@ surface로 만들면 distributed authorization과 retention 정책까지 이번 
 1. Exact public CLI grammar는 latest/named/app-zero 각 execute/plan과 optional trailing `--project PATH` 조합의 여덟
    형태입니다. Existing library `TargetedLifecycleRequest(first, rest...)`의 caller-ordered multi-target/mixed-plan 계약은
    Plan/Migrate에서 그대로 보존합니다.
-2. Exact lowercase `zero`만 app-zero이며 app-only, prefix lookup, option permutation과 multiple target은 거부합니다.
+2. Exact lowercase `zero`만 app-zero이며 app-only, option permutation과 multiple target은 거부합니다. 문법상 유효한
+   prefix-looking token은 별도 prefix resolution을 하지 않고 exact identity로 조회하며, exact match가 없으면
+   `target_not_found`입니다.
 3. `Executor.Plan`은 `Executor.Migrate`와 동일한 loaded snapshot validation, revision-fenced history read, history check,
    historical state reconstruction, whole-plan dry validation과 backend capability preflight를 공유합니다.
 4. Plan mode는 `BeginMigration`을 호출하지 않고 detached `[]PlanStep`만 반환합니다. Session close failure면 plan을 폐기합니다.
@@ -65,6 +67,10 @@ surface로 만들면 distributed authorization과 retention 정책까지 이번 
     정규화하지 않습니다.
 12. `--plan`은 SQL rendering, transaction-local physical schema/cardinality preflight나 실행 중 lock 유지가 아닙니다.
     같은 순간의 semantic dry/capability plan일 뿐 실제 실행 성공을 보장하지 않습니다.
+13. Django app-zero reference의 비교 불가능(incomparable)한 reverse sibling은 exact `B1, A3, A2, A1` 순서이지만,
+    existing DEV-0002 GoDj canonical plan은 `A3, A2, B1, A1`입니다. 두 plan은 같은 membership과 dependency-safe
+    partial order를 만족합니다. Reference bytes는 Django 순서를 고정하고 product comparison은 MIG-122에만 bounded sparse
+    deviation을 적용해 기존 GoDj deterministic order를 보존합니다.
 
 ## 결과
 

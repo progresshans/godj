@@ -132,6 +132,30 @@ sibling의 exact Django 순서는 current contract가 아닙니다. MIG-112..115
 Durable no-mutation과 fresh-process는
 SQLite/PostgreSQL product black-box proof가 별도로 소유합니다.
 
+### GDJ-0052 targeted migration plan authority
+
+GDJ-0052 Phase A는 같은 pinned Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`, tree
+`7f258820eaf4450018b5d59c3b51f5a98cbeb4ee`의 real `MigrationExecutor.migration_plan()`만 MIG-120..122의
+ordered plan authority로 사용합니다. Exact public argv, structured JSON, known-app zero, preview freshness, revision fence,
+commit outcome, cleanup, private protocol과 resource/redaction은 Django CLI parity가 아니라 GoDj-owned decision입니다.
+
+| Exact object | Blob | Bytes | Audited meaning |
+|---|---|---:|---|
+| `django/db/migrations/executor.py` | `074d7b2d285fbd05a357c6789a4094ff684b8945` | 19,029 | named forward/reverse와 app-zero `migration_plan()` traversal |
+| `tests/migrations/test_executor.py` | `10cf505d039d8c453ab6c6688555e444dafa2d19` | 39,663 | `test_run`, `test_minimize_rollbacks_branchy`, unrelated applied migration 경계 |
+
+MIG-122 reference graph의 `B1`과 `A3`은 비교 불가능한 reverse sibling입니다. Django exact order
+`B1, A3, A2, A1`을 정렬하지 않고 보존하며, existing DEV-0002 GoDj canonical order `A3, A2, B1, A1`은 같은
+membership/dependency-safe partial order를 가진 별도 bounded deviation으로 product publication에서 처리합니다. App-only,
+prefix resolution, human-readable plan, SQL rendering과 upstream command presentation은 reference 범위가 아닙니다.
+
+Phase A exact manifest/not-implemented/oracle은 각각 6,781/1,707/43,516 bytes이고 SHA-256은
+`d76a42f2a0fb4daa190d03f18d18707192c8b42881b94a1462b701a9d481947b`,
+`dfefb6fd6ca27e5e70dffea002fd07d801792ba7c6a83142dab18b969617bd44`,
+`dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f`입니다. 이 추가 뒤 shared 23-line
+`SHA256SUMS`는 2,177 bytes/SHA-256 `00bd4d0d865ace8620bc577d84fd4198b5724360727117fd4998f0772460f331`입니다.
+MIG-119..128은 이 checkpoint에서 모두 `oracle_locked`이며 product actual이나 지원 주장을 포함하지 않습니다.
+
 ## Django REST framework
 
 - [DRF 3.18.0 release notes](https://www.django-rest-framework.org/community/release-notes/#3180) — 2026-08-07
