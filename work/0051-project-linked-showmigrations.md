@@ -191,7 +191,7 @@ semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partia
 
 - [x] Phase A — Django/GoDj authority audit와 MIG-111..118 reference-only artifact lock
 - [x] Phase B — strict private protocol, linked read-only runner와 global command unit/race/CGO0
-- [ ] Phase C — SQLite actual fresh/prefix/full/unknown/inconsistent/no-mutation와 external project process flow
+- [x] Phase C — SQLite actual fresh/prefix/full/unknown/inconsistent/no-mutation와 external project process flow
 - [ ] Phase D — PostgreSQL 17.10 normal/race/CGO0, product actual registration과 independent audit
 - [ ] Phase E — affected/full milestone gates, source-bound attestation, exact submitted-head Hosted와 terminal docs
 
@@ -219,5 +219,15 @@ semver/upgrade, target/reverse, destructive/custom/data 범위 때문에 `Partia
   `7c76a6cf...1784`, Go protocol, 50개 conformance check, oracle regeneration/checksum과 독립 P0/P1=`0` 감사를
   통과했습니다. Workflow/Makefile source 변경으로 기존 PostgreSQL source-bound attestation은 의도대로 stale하며 Phase E에서
   product source가 얼어붙은 뒤 한 번 재캡처합니다.
-- 다음 exact 작업은 Phase C의 repository-external public project와 실제 SQLite/OS-process MIG-111..118 no-mutation/fresh-process
-  제품 증거입니다. Phase A reference lock을 product passing으로 오해하지 않습니다.
+- Phase C checkpoint `22e5c01715ed9129d975b34a81f19b5b5f211962`, tree
+  `e6fbf3154e2d6e20f13d4a7f37812fffa90c0aa0`은 repository-external public Go module에서 actual global binary,
+  fresh project-runner OS process와 SQLite를 연결해 MIG-111..117의 empty/fresh/prefix/restart/cross-app/unknown/inconsistent
+  결과와 database byte/schema/table/history/revision no-mutation을 검증했습니다. MIG-118 external black-box는 invalid argv,
+  invalid definition과 success ownership을 직접 검증했으며, 나머지 13 fault case는 Phase D actual adapter 등록 전에 existing
+  Phase B fault harness에 oracle-blind하게 연결해야 합니다.
+- [EVID-156](../docs/status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint)은
+  Phase C normal/race/CGO0/vet, Linux amd64/386 compile-only, selector/protocol/gofmt/diff gate와 독립 semantic/CI 감사를
+  기록합니다. Portable race outer timeout은 이전 Hosted 31분 44초와 새 package race 2분 38초를 근거로 40분에서 45분으로만
+  보강했습니다. Separate job 증설이나 검증 축소는 하지 않았습니다.
+- 다음 exact 작업은 Phase D PostgreSQL 17.10 actual, MIG-111..118 oracle-blind product adapter와 exact 16-case MIG-118
+  boundary publication입니다. Phase A reference lock이나 Phase C partial boundary를 product passing으로 오해하지 않습니다.

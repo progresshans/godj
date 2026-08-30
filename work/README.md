@@ -85,8 +85,11 @@ history snapshot, deterministic known/unknown status와 database mutation 0을 �
 identity escaping을 구현하고 [EVID-154](../docs/status/TEST_EVIDENCE.md#evid-20260830-154--gdj-0051-activation-and-phase-b-read-only-core-checkpoint)의
 affected local gates와 final P0..P3=`0` audit를 통과했습니다. Phase A는 MIG-111..118을 reference-only
 `oracle_locked` artifact로 고정했고 [EVID-155](../docs/status/TEST_EVIDENCE.md#evid-20260830-155--gdj-0051-phase-a-reference-only-artifact-lock)의
-Python/protocol/conformance/oracle/checksum gate를 통과했습니다. Product actual은 등록하지 않았고 다음 exact 작업은 Phase C
-SQLite/repository-external no-mutation/fresh-process proof입니다. Completed
+Python/protocol/conformance/oracle/checksum gate를 통과했습니다. Phase C checkpoint `22e5c01...`은 repository-external public
+project와 actual global process/SQLite에서 MIG-111..117 status, restart와 whole-database no-mutation을 검증했고
+[EVID-156](../docs/status/TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint)의
+normal/race/CGO0/vet·Linux compile-only·독립 감사를 통과했습니다. Product actual은 아직 등록하지 않았고 다음 exact 작업은
+Phase D PostgreSQL 17.10, MIG-111..118 oracle-blind adapter와 MIG-118 exact 16-case boundary입니다. Completed
 [GDJ-0050](0050-project-linked-deterministic-makemigrations.md)은 normalized `ProjectSpec`과 latest historical
 `ProjectState`를 current `CreateModel`/`AddField` 범위에서 diff하고 deterministic Definition format 1,
 DB-free `godj makemigrations [--dry-run|--check]`, one-request schema/catalog snapshot과 recoverable publication을

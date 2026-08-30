@@ -146,8 +146,10 @@ revision-fenced session/read/close를 로컬 구현했습니다. Known applied/u
 시작하지 않습니다. EVID-154의 affected local gates에 이어 Phase A reference commit `4771562...`는
 MIG-111..118 manifest/NI/oracle을 reference-only `oracle_locked`로 고정했습니다. EVID-155의 exact Python,
 protocol/conformance/oracle/checksum gate는 통과했고 current reference는 25/281/600=
-`237 passing + 24 deviation + 20 oracle_locked`입니다. Product는 23/261=`237 passing + 24 deviation`으로
-불변이며 SQLite/PostgreSQL no-mutation actual은 Phase C/D 작업이므로 completed capability로 분류하지 않습니다.
+`237 passing + 24 deviation + 20 oracle_locked`입니다. Phase C checkpoint `22e5c01...`은 repository-external public
+project와 actual global process/SQLite에서 MIG-111..117 및 MIG-118 boundary subset의 no-mutation/fresh-process 증거를
+EVID-156으로 고정했습니다. Product는 23/261=`237 passing + 24 deviation`으로 불변이며 PostgreSQL actual, oracle-blind
+registration과 MIG-118 exact 16-case 연결은 Phase D 작업이므로 completed capability로 분류하지 않습니다.
 아래 library-level loaded execution은 별도 제품 경계입니다.
 
 GDJ-0036 current lifecycle에서 `definition.Load`의 결과는 opaque `migrations.LoadedDefinitionSet`이며 public

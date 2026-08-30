@@ -14672,3 +14672,60 @@ no-mutation proof, product adapter registration, full `make ci`, Linux/386, rela
 recapture or exact-head Hosted success. The next exact work is Phase C: repository-external public project plus real
 SQLite/OS-process MIG-111..118 no-mutation and fresh-process product evidence. Draft PR #1 remains open/draft/unmerged;
 no merge, release or deployment was performed.
+
+## EVID-20260830-156 — GDJ-0051 Phase C External SQLite Lifecycle Checkpoint
+
+- Date: 2026-08-30 KST
+- Work/contract IDs: GDJ-0051 active; ADR-0053 Proposed; MIG-111..118 remain reference-only `oracle_locked` and
+  unregistered; Q-010/Q-012 remain `Partial`
+- Phase C implementation commit: `22e5c01715ed9129d975b34a81f19b5b5f211962`, tree
+  `e6fbf3154e2d6e20f13d4a7f37812fffa90c0aa0`
+- Result: repository-external public-module SQLite product proof passed its affected local gates. Product manifest status
+  remains unchanged at 23 adapters/261 contracts; this checkpoint does not publish MIG-111..118 as `passing`.
+
+### Implemented product proof
+
+The new `conformance/projectshowmigrationsproduct` package builds a temporary Go module outside the repository and rejects
+internal, conformance, example and repository-absolute imports. It invokes the actual global `godj` binary, which launches a
+fresh external project-runner process and opens a real SQLite database through public GoDj packages.
+
+MIG-111..117 cover empty catalog, fresh unapplied, applied prefix, two-process fully-applied restart, cross-app branch
+ordering, known plus unknown/unknown-only recorder rows and inconsistent known history. Before/after snapshots compare the
+whole database file digest, schema, every table row count, migration recorder rows, revision generation and the production
+count/length-framed revision fingerprint. Successful reads require the exact seven-event backend/session open-read-close
+roster, zero migration-begin event, distinct child PIDs across restart, byte-identical output, process-group reap and empty
+scratch state.
+
+The Phase C MIG-118 black-box subset directly proves invalid argv and invalid definition open zero backends and that success
+owns one outer backend, one revision session, one history read and exact cleanup. It does not yet claim all 16 locked
+boundary cases. Phase D must connect partial acquisition/read, four revision-fence failures, close failures, cancellation
+and terminal publication failures through an oracle-blind actual adapter before MIG-118 can become `passing`. Its actual
+adapter must also count artifact secret occurrences independently rather than treating the Phase C bounded project-root
+scanner as exhaustive.
+
+### Local gates actually executed
+
+- `go test -timeout=15m -count=1 ./conformance/projectshowmigrationsproduct` passed in 134.618 seconds.
+- `go test -race -timeout=20m -count=1 ./conformance/projectshowmigrationsproduct` passed in 157.747 seconds.
+- `CGO_ENABLED=0 go test -timeout=20m -count=1 ./conformance/projectshowmigrationsproduct` passed in 121.891 seconds.
+- `go vet ./conformance/projectshowmigrationsproduct`, `go test -count=1 ./conformance/internal/protocol`,
+  `make core-package-selection-check`, `gofmt -l` and `git diff --check` passed.
+- Linux amd64 and Linux/386 CGO-disabled compile-only checks passed with `go test -run '^$' -exec=/usr/bin/true`; no Linux
+  runtime execution is claimed. An initial amd64 cross-build command omitted `-exec=/usr/bin/true`, attempted to execute the
+  Linux binary on Darwin and failed with the expected `exec format error`; the corrected compile-only command passed.
+
+Two independent read-only audits reported no Phase C commit-blocking P0/P1. The semantic audit retained two P2 publication
+preconditions: exact 16-case MIG-118 actual coverage and independent actual artifact-redaction accounting. The CI audit
+verified the source inventory as exact 942 tests/96,124 bytes/SHA-256
+`451b04dbdfd9caa3be7299a38f31958f33fedf8903c7710d619d3ddf2a61b2eb`. Based on the previous Hosted portable race duration
+31:44 plus this package's 2:38 race duration, only that lane's outer limit was raised from 40 to 45 minutes; normal/CGO0
+remain 40 minutes and no required job or mode was removed.
+
+### Current boundary and next exact work
+
+Phase C is complete locally, but the workflow and Make source change intentionally leaves the checked PostgreSQL
+source-bound attestation stale until the Phase E single recapture after Phase D source freeze. Full `make ci`, PostgreSQL
+17.10 migration-status actuals, oracle-blind adapter registration, full semantic product comparison, relation/archive and
+exact submitted-head Hosted success were not run or claimed here. The next exact work is Phase D PostgreSQL normal/race/
+CGO-disabled product proof plus MIG-111..118 registration with exact MIG-118 boundary counters. Draft PR #1 remains
+open/draft/unmerged; no PR comment, merge, release or deployment was performed.

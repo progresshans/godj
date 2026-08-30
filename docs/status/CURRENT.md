@@ -18,8 +18,14 @@
   `47715622f27dba7035844d04b4f83816db52a236`, tree `69883163307e5f98d928df5cb8b6cba45ee8721c`은
   MIG-111..118 manifest/NI/oracle을 reference-only `oracle_locked`로 고정했고
   [EVID-155](TEST_EVIDENCE.md#evid-20260830-155--gdj-0051-phase-a-reference-only-artifact-lock)의 exact Python,
-  semantic inventory, protocol/conformance/oracle/checksum gate를 통과했습니다. Product는 여전히 23/261이며
-  다음 exact 작업은 Phase C SQLite/repository-external no-mutation/fresh-process actual입니다. Target/reverse,
+  semantic inventory, protocol/conformance/oracle/checksum gate를 통과했습니다. Phase C checkpoint
+  `22e5c01715ed9129d975b34a81f19b5b5f211962`, tree `e6fbf3154e2d6e20f13d4a7f37812fffa90c0aa0`은 actual global
+  CLI에서 repository-external public project process와 SQLite를 연결해 MIG-111..117의 deterministic status,
+  fresh-process restart와 database whole-state no-mutation을 통과했고 MIG-118의 invalid argv/definition/success ownership을
+  black-box로 검증했습니다. [EVID-156](TEST_EVIDENCE.md#evid-20260830-156--gdj-0051-phase-c-external-sqlite-lifecycle-checkpoint)은
+  normal/race/CGO0/vet, Linux compile-only, workflow/selector/protocol과 독립 감사를 기록합니다. Product는 여전히 23/261이며
+  다음 exact 작업은 Phase D PostgreSQL 17.10, oracle-blind MIG-111..118 product registration과 MIG-118 exact 16-case
+  boundary 연결입니다. Target/reverse,
   `--plan`, `sqlmigrate`, destructive writer와 multi-DB는 비범위입니다. Completed
   [GDJ-0050](../../work/0050-project-linked-deterministic-makemigrations.md)과 Accepted
   [ADR-0052](../adr/0052-project-linked-deterministic-makemigrations.md)는 normalized `ProjectSpec`과 latest historical
