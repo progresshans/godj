@@ -16172,3 +16172,112 @@ source-bound attestation recapture, full `make ci`, native Linux/386 execution, 
 Makefile/workflow change intentionally leaves the checked PostgreSQL attestation stale until the Phase D source freeze. Draft PR #1
 remains open/draft/unmerged; no PR comment, merge, release or deployment was performed. The next exact boundary is Phase D PostgreSQL
 current-profile validation, actual child cancellation, oracle-blind MIG-129..138 publication and independent attestation A/B.
+
+## EVID-20260831-176 — GDJ-0054 Phase D PostgreSQL Product Publication and Source-bound Attestation
+
+- Date: 2026-08-31 KST
+- Platform: local macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5; pinned Django 6.1/Python 3.14.3/
+  SQLite 3.50.4 reference; Docker 29.4.0 Linux arm64 host with digest-pinned Go 1.26.5/Linux amd64 and PostgreSQL 17.10
+- Work/contract IDs: GDJ-0054 active; ADR-0055 Proposed; MIG-129..138 registered `passing`; Q-010/Q-012 remain Partial
+- Product source: `a85ade1ee6a183fee504a21505798914abf6fa43`, tree
+  `211e1ad86067be8d1d1fc119b592e3e87407c064`
+- Attestation publication descendant: `9603cc6568f9f41046e3a32909b3e4e7316a2914`, tree
+  `d6fa714a04f11e02fc6e5ff5a5405d37f972227b`
+- Result: the PostgreSQL schema-only current-profile projection, actual external child cancellation/reap, exact GoDj actual/policy,
+  false-green mutation calibration and source-bound PostgreSQL A/B attestation are locally verified and published. Phase E full,
+  native Linux/386, external archive and exact-head Hosted acceptance remain unclaimed.
+
+### Product publication and current aggregate
+
+The exact ten-contract GoDj runner now observes MIG-129..138 without a deviation envelope. PostgreSQL rendering receives only immutable
+schema configuration, stays free of opener/session/history/recorder/transaction/schema-editor calls and shares execution compiler
+projection. The external child probe exercises a real process boundary and verifies cancellation, bounded reap and no late loopback
+connection after the listener goroutine is joined. The product policy requires the exact ten IDs, one actual adapter, no deviation
+fixture and no source/artifact/secret retention.
+
+The current frozen artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `migration-sql-rendering-manifest.json` | 7,950 | `fb737465cabf955fced0e04f52d5d2a89b6c00a2646b3a4e339eae37d6f084b9` |
+| historical `godj-migration-sql-rendering-not-implemented.json` | 1,727 | `217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144` |
+| `migration-sql-rendering-oracle.json` | 47,337 | `0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df` |
+| shared 24-line oracle `SHA256SUMS` | 2,279 | `7aadb1328fdfccb6bcd1e817f054e60f442c79cb55ad37aec20d24d001ce1138` |
+
+Reference is exact 27 sets/301 contracts/702 ordered cross-bindings=
+`264 passing + 25 deviation + 12 oracle_locked`. Product is 26 adapters/289 contracts=
+`264 passing + 25 deviation`. MIG-075..086 is the only remaining locked/unregistered range. The Phase A manifest/oracle hashes in
+EVID-173 remain historical evidence and are not rewritten as current bytes.
+
+### Oracle, actual and false-green gates
+
+The 18 focused migration-SQL Python tests passed. Oracle check initially rejected the ambient `uv 0.12.3` before running reference
+code because the exact tool lock requires `uv 0.10.12`; the pinned executable at
+`/Users/hanhyeonjin/.cache/uv/archive-v0/WIqDM24DQEQp4hFl/uv-0.10.12.data/scripts/uv`, SHA-256
+`905d1df4acf3034441a54ceb6b4fbb16a415638f899c454194e8e81e48f1b900`, then passed every one of the 24 oracle checks.
+The actual comparator reported `GoDj observations match the locked Django oracle for 10 contracts`.
+
+The final Phase D selector was exact and did not use the earlier malformed selector that produced `[no tests to run]`:
+
+```text
+selector='^(TestMigrationSQLRendering.*|TestRunGDJ0054.*|TestGDJ0054.*|TestGlobalSQLMigrateExternalPhaseDProduct)$'
+go test ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/projectsqlmigrateproduct -run "$selector" -count=1
+go test -race ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/projectsqlmigrateproduct -run "$selector" -count=1
+CGO_ENABLED=0 go test ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/projectsqlmigrateproduct -run "$selector" -count=1
+go vet ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol ./conformance/projectsqlmigrateproduct
+```
+
+All four commands passed. Normal elapsed times were 32.748/30.918/0.336/40.595 seconds, race
+38.930/34.466/2.574/41.814 seconds and CGO-disabled 33.017/30.879/0.495/40.903 seconds for runner, policy,
+protocol and external product respectively. `make conformance-check`, `make format-check generate-check`, the full protocol package,
+all-package compile-only and `git diff --check` also passed on the product source.
+
+The external-runner AST/dataflow policy rejects compile-valid mutations that discard or reassign source selection, detach encoded
+documents, discard the backend delegate, substitute hard-coded SQL or decouple SQLite/PostgreSQL constructor returns. The loopback
+poison calibration requires exactly one real non-barrier connection, resets it to zero, joins the listener and rejects any late
+attempt without preserving a secret endpoint. Independent final source review found P0/P1/P2=`0/0/0`.
+
+### Independent source-bound PostgreSQL A/B
+
+An exact clean `git archive` of product source `a85ade1...` was captured at
+`/tmp/godj-gdj0054-attest-a85ade1.TpSltR/source.tar`: 19,957,760 bytes, SHA-256
+`103b48b69f7cb6c1455f8560507d5984a89be8cc68d17de50a004224be8b0ec2`. The audited two-capture wrapper was 12,138 bytes,
+SHA-256 `1ceffb35e180a55db9e1a0cd8670344c7988635ae4813bd3d053f8eb1a25fe75`, passed `bash -n`, and used separate
+network/volume/PostgreSQL/Go container resources for A and B.
+
+Both captures were exactly 1,134 bytes and SHA-256
+`ac17dbf2ac348ec11e7f28d7f2f98d424bf6313b7a6411d2cc752de085cf6cb7`; byte comparison passed. The exact source binding is
+scope `godj.system-state.postgresql-two-process-source/v1`, 274 files, 3,557,167 payload bytes, SHA-256
+`5cb50f0c3b833d09a6a42edb0180fc6b6bc8800a8d6eec2596702ba38afc9dc8`. Both runs verified the 16-field PostgreSQL 17.10
+fingerprint, two writers, same schema, barrier linearization, restart preservation, zero divergence/loss/drift/secret occurrences,
+credential-marker absence, pre/post archive and tree identity and zero container/network/volume residue.
+
+Capture A was byte-for-byte published as the checked JSON. Its one-line checksum file is 103 bytes and SHA-256
+`da6a080d446fbcc979768eead8707332895e065b05497daa0a9a5d44a7c0827b`. The protocol size/hash lock matches both files.
+An independent reviewer recomputed the source binding directly from commit `a85ade1...`, confirmed that the three publication files
+are excluded from the binding and found P0/P1/P2=`0/0/0` with High confidence.
+
+The following publication gates then exited zero:
+
+```text
+(cd conformance/systemstate/attestations && shasum -a 256 -c SHA256SUMS)
+go test ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol -count=1 -timeout=30m
+go test -race ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol -count=1 -timeout=35m
+CGO_ENABLED=0 go test ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol -count=1 -timeout=30m
+go vet ./conformance/systemstate/attestation ./conformance/systemstate/multiruntimeworker ./conformance/systemstate/restart ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/internal/protocol
+go test ./conformance/cmd/godjcheck -run '^TestRunGDJ0045MixedProductExpectationWritesActualOutput$' -count=1 -timeout=15m
+make godj-conformance
+git diff --check
+```
+
+Normal, race and CGO-disabled passed the complete six-package boundary; `make godj-conformance` matched all existing and new product
+expectations, including migration SQL rendering and source-bound system-state evidence. The publication commit differs from product
+source by exactly the checked JSON, its checksum and the protocol byte lock.
+
+### Phase E non-claims
+
+This evidence does not claim full `make ci`, native Linux/386 execution, relation inventory, `.git`-free repository-external archive,
+exact submitted-head Hosted success, ADR-0055 acceptance or GDJ-0054 completion. The 53-job topology is unchanged. ADR-0055 remains
+Proposed and work remains active. If Phase E changes behavioral source, workflow or source-bound lock bytes, this capture becomes
+stale and must be repeated; documentation-only descendants do not change the binding. Draft PR #1 remains open/draft/unmerged and
+no PR comment, merge, release or deployment was performed.

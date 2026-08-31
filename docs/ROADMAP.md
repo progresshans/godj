@@ -8,9 +8,13 @@
   `1af05572...`가 MIG-129..138 reference-only artifact lock을 완료했고 Phase B source `f51ab733...`, tree `ab71e8a...`는
   pure materializer, SQLite/PostgreSQL compiler-backed renderer와 direct project config를 구현했습니다. Phase C source
   `a304a73...`, tree `f8df2d4...`는 strict wire/global CLI, one-write owner와 external SQLite no-DB flow를 구현했습니다.
-  Product actual은 미등록이고 다음 단계는 Phase D PostgreSQL/current-profile publication입니다. Built-in renderer는 DB/session/history/
-  transaction/editor와 credential을 사용하지 않되 live executability, custom-renderer I/O와 terminal write 원자성을 주장하지
-  않습니다. Active/ready는 1/0입니다.
+  Phase D source `a85ade1...`, tree `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는
+  PostgreSQL schema-only current-profile, actual child cancellation/reap, oracle-blind MIG-129..138 actual/policy와 source-bound
+  A/B를 local-verify했습니다. Current product는 26/289=`264 passing + 25 deviation`이고 current reference-only locked
+  range는 MIG-075..086입니다.
+  다음 단계는 full/386/archive/exact-head Hosted Phase E입니다. Built-in renderer는 DB/session/history/transaction/editor와
+  credential을 사용하지 않되 live executability, custom-renderer I/O와 terminal write 원자성을 주장하지 않습니다.
+  Active/ready는 1/0입니다.
 - 최근 completed batch: [GDJ-0053](../work/0053-project-relation-query-sparse-model-compile-availability.md)은 sparse valid
   project의 generated unused model binding compile availability를 error-order/ABI/contract drift 없이 복구했습니다. Local
   final EVID-170과 submitted head `21a8d67...`, tree `dc8425f...`의 EVID-171/CI #191 exact 53/53 jobs·572/572 steps가
@@ -171,7 +175,7 @@
   CI #95/run `32294983953`의 고유 exact 26/26·342/342와 audit P0..P3=0에서 bounded ForeignKey
   Remove-by-remake를 검증했습니다. 그 기준점의 다음 단계는 D4g observer-only characterization이었으나
   GDJ-0036 activation에서 publication 순서를 중단했습니다.
-- 현재 checkout 제품 기준: 25 adapters/279 contracts의 `254 passing + 25 deviation + 0 oracle_locked`; relation
+- 현재 checkout 제품 기준: 26 adapters/289 contracts의 `264 passing + 25 deviation + 0 oracle_locked`; relation
   REL-001..012 12/12, query expression QRY-034..053 20/20, GDJ-0043 exact 30=`25 passing + 5 Verified
   deviations`와 GDJ-0044 exact 18=`13 passing + 5 Verified deviations`가 exact-head hosted-verified됐고,
   GDJ-0045 exact 12=`11 passing + 1 Verified deviation`과 GDJ-0046 SYS-013..020 exact 8 passing도
@@ -183,9 +187,11 @@
   Phase E predecessor local final은 EVID-151에서, current attestation/focused refreeze는 EVID-152에서 통과했습니다.
   GDJ-0051 Phase D는 MIG-111..118을 product `passing`으로 게시했고 PostgreSQL 17.10과 exact 16-case
   project boundary를 EVID-157로 검증했습니다. 그 completion 당시 locked range는 MIG-075..086이었습니다.
-  GDJ-0052 Phase D는 MIG-119..121/123..128 `passing`, MIG-122 Verified DEV-0002 `deviation`을 게시했고 현재
-  current reference-only locked ranges는 MIG-075..086과 MIG-129..138입니다. EVID-167/CI #189 exact-head Hosted까지 통과해 Phase E와
-  ADR-0054/GDJ-0052 acceptance를 닫았습니다.
+  GDJ-0052 Phase D는 MIG-119..121/123..128 `passing`, MIG-122 Verified DEV-0002 `deviation`을 게시했고
+  EVID-167/CI #189 exact-head Hosted까지 통과해 Phase E와 ADR-0054/GDJ-0052 acceptance를 닫았습니다. GDJ-0054
+  Phase D는 MIG-129..138 exact 10 `passing`, PostgreSQL schema-only current-profile actual과 source-bound A/B를 EVID-176에서
+  local-verify했습니다. Current reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`이고
+  reference-only locked range는 MIG-075..086입니다. GDJ-0054 Phase E/ADR acceptance는 아직 미완료입니다.
 - 마지막 검토: 2026-08-31
 
 로드맵은 계층별 골격을 오래 만든 뒤 마지막에 연결하는 방식이 아니라, **호환 계약을 통과하는 수직 단면**을 넓혀 갑니다.
@@ -273,8 +279,8 @@ exact-head Hosted도 통과했습니다.
 Target/reverse와 `--plan`은 completed GDJ-0052에서 exact-one target/current-only v2 core와 reference-only lock을 완료했고,
 Phase C external SQLite product flow에 이어 Phase D PostgreSQL 17.10 normal/race/CGO0, oracle-blind adapter와
 MIG-127/full MIG-128을 local-verify했습니다. Phase E predecessor full-local/current-source refreeze와 exact-head Hosted도
-EVID-165..167에서 통과했으며 `sqlmigrate`는 별도
-후속입니다. Mutable instance `Save()`,
+EVID-165..167에서 통과했습니다. `sqlmigrate`는 active GDJ-0054에서 Phase A-C와 Phase D product/source-bound A/B까지
+완료했고 full/386/archive/Hosted Phase E가 남아 있습니다. Mutable instance `Save()`,
 loaded/new/force/explicit PK와 rollback의 외부 의미는
 [GDJ-0005](../work/0005-save-lifecycle-compatibility-contracts.md)에서 MOD-008..019의
 12개 reference 계약으로 고정했고,

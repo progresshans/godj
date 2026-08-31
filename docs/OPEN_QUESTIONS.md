@@ -9,9 +9,9 @@
 |---|---|---|---|
 | Q-006 | Resolved | GDJ-0006 | ADR-0011의 Manager Save, concrete typed option/field mask와 generated explicit-key helper로 MOD-008..019 Verified |
 | Q-007 | Resolved | GDJ-0008 | ADR-0012 ownership/API와 QRY-011..021 제품 adapter가 Verified; 총 45개 contract passing |
-| Q-010 | Partial | GDJ-0052 completed / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver, GDJ-0049 explicit migrate, GDJ-0050 bounded additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는 hosted-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
+| Q-010 | Partial | GDJ-0052 completed, GDJ-0054 Phase D / broader generation handshake | Current definition/loaded lifecycle, ProjectSpec, global generate/check, project-wide publication, runserver, GDJ-0049 explicit migrate, GDJ-0050 bounded additive writer, GDJ-0051 read-only status와 GDJ-0052 exact target/plan/reverse는 hosted-verified; GDJ-0054 exact SQL projection은 Phase D local-verified; installed runner/library/generator semver와 general upgrader/repair UX는 open |
 | Q-011 | Partial | GDJ-0039..GDJ-0041 completed / M4-M5+ | Hosted-verified cache/projection/Boolean baseline, typed Integer/String range, sealed same-model/same-kind F, bounded Article advanced filter와 QRY-034..053 20/20 passing까지 완료; transaction/async/background ownership은 open |
-| Q-012 | Partial | GDJ-0052 completed / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart, GDJ-0049 latest-only explicit public migrate, GDJ-0050 bounded additive writer/autodetector, GDJ-0051 read-only status와 GDJ-0052 exact-one target/non-authoritative plan/bounded reverse는 hosted-verified; destructive/rename/upgrade/custom operation과 broader crash recovery는 open |
+| Q-012 | Partial | GDJ-0052 completed, GDJ-0054 Phase D / broader migration 후속 | Current loaded lifecycle/unified ABI, bounded PostgreSQL schema/recorder/revision/restart, GDJ-0049 latest-only explicit public migrate, GDJ-0050 bounded additive writer/autodetector, GDJ-0051 read-only status와 GDJ-0052 exact-one target/non-authoritative plan/bounded reverse는 hosted-verified; GDJ-0054 exact forward SQL projection은 Phase D local-verified; destructive/rename/upgrade/custom operation과 broader crash recovery는 open |
 | Q-013 | Partial | GDJ-0038 completed / broader relation·backend 후속 | Bounded SQLite FK와 generated PostgreSQL required/nullable relation flow는 hosted-verified; broader relation/backend와 PostgreSQL REL-007/008 delete는 open |
 | Q-014 | Resolved | GDJ-0043 / ADR-0043 Accepted | Closed value DTL subset만 읽고 arbitrary Go attribute/callable/reflection은 노출하지 않음; WEB-022/027 차이는 Verified DEV-0003 |
 | Q-015 | Resolved | GDJ-0043 / ADR-0044 Accepted | Admin DOM byte parity 대신 Article semantic flow를 보존하고 process-lifetime system state와 one-model breadth를 명시 |
@@ -324,14 +324,16 @@ semver, stale repair와 installed runner lifecycle은 계속 open이므로 Q-010
 Partial입니다.
 
 Active [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 Q-010 중 exact two-form global
-`sqlmigrate`와 direct project-owned renderer configuration만 bounded하게 검토합니다. Exported `project.Config` field와
+`sqlmigrate`와 direct project-owned renderer configuration만 bounded하게 구현합니다. Exported `project.Config` field와
 repository-external keyed/unkeyed literal 영향은 Proposed
 [ADR-0055](adr/0055-project-linked-deterministic-migration-sql-projection.md)에서 결정하고, global mutable registration이나
 installed runner cache/semver/upgrade를 추가하지 않습니다. Phase A source `c3de0d35...`, tree `1af05572...`는
 MIG-129..138을 reference-only `oracle_locked`로 고정했고 Phase B source `f51ab733...`, tree `ab71e8a...`는 public renderer
 API와 direct config field를 구현했습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 exact two-form command,
-strict private wire, canonical terminal owner와 repository-external SQLite no-DB flow를 구현했습니다. Product actual/adapter와
-PostgreSQL current-profile publication은 아직 없으므로 Q-010은 계속 `Partial`이고 다음 경계는 Phase D입니다.
+strict private wire, canonical terminal owner와 repository-external SQLite no-DB flow를 구현했습니다. Phase D source
+`a85ade1...`, tree `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는 PostgreSQL schema-only
+current-profile, actual child cancellation/reap, MIG-129..138 actual/policy와 source-bound A/B를 EVID-176에서 local-verify했습니다.
+Full/386/archive/Hosted와 broader semver/repair가 남으므로 Q-010은 계속 `Partial`이고 다음 경계는 Phase E입니다.
 
 ## Q-012 — Migration format과 실행 수명주기
 
@@ -420,8 +422,9 @@ projection하되 `Executor.Plan`, execution `MigrationCapabilities`, backend ope
 `SchemaEditor`를 재사용하지 않습니다. Built-in DB-free 결과는 live schema/data/profile, applied state, execution success나
 atomicity 증거가 아니며 reverse/prefix/custom/data/destructive/multi-DB는 계속 open입니다. 따라서 완료 뒤에도 Q-012는
 `Partial`입니다. Phase A는 MIG-129..138 reference-only artifact를 고정했고 Phase B는 pure materializer와 built-in SQL
-renderer를 구현했습니다. Phase C는 command와 external SQLite flow를 구현했지만 product actual은 게시하지 않았습니다.
-EVID-175 뒤의 다음 구현 경계는 Phase D PostgreSQL/current-profile actual과 policy publication입니다.
+renderer를 구현했습니다. Phase C는 command와 external SQLite flow를 구현했으며 Phase D는 PostgreSQL schema-only
+current-profile, actual child cancellation/reap, exact ten actual/policy와 source-bound A/B를 EVID-176에서 게시했습니다.
+다음 구현 경계는 Phase E full/386/archive/Hosted acceptance입니다.
 
 완료된
 [GDJ-0017](../work/0017-migration-lifecycle-compatibility-contracts-and-revision-fence-spike.md)은

@@ -262,13 +262,14 @@ deviation fixture, GoDj product adapter와 `passing` 전환을 만들지 않습�
 - [x] Phase A — pinned Django source/runtime authority audit와 MIG-129..138 reference-only artifact lock
 - [x] Phase B — pure forward materializer, identity-bearing renderer port, shared compiler, config/error/output boundary
 - [x] Phase C — strict private/global protocol과 repository-external SQLite exact CLI/no-DB/redaction product flow
-- [ ] Phase D — PostgreSQL current profile, oracle-blind actual/policy와 source-bound attestation publication
+- [x] Phase D — PostgreSQL current profile, oracle-blind actual/policy와 source-bound attestation publication
 - [ ] Phase E — affected/full milestone, Linux/386, external archive, exact submitted-head Hosted와 terminal docs
 
 Phase A는 focused Django/decision/runner/protocol/artifact gates만 수행하고 full product/Hosted acceptance로 과장하지 않습니다.
-Makefile/workflow lock을 바꾸면 current PostgreSQL source-bound attestation이 의도적으로 stale해지므로 final source freeze에서
-independent A/B로 한 번 재캡처합니다. Phase A에서는 그 exact stale-attestation failure를 별도 expected diagnostic으로 기록하고
-다른 assertion failure와 혼동하지 않습니다. CI #191의 exact 53-job topology는 이 packet에서 유지합니다. 장시간 child build의 중복을
+Makefile/workflow lock을 바꾼 뒤 Phase D source freeze에서 PostgreSQL source-bound attestation을 independent A/B로 재캡처했습니다.
+Phase E에서 behavioral source, workflow 또는 lock byte가 다시 바뀌면 그 capture를 재사용하지 않고 새 freeze에서 재캡처합니다.
+Phase A의 exact stale-attestation failure는 expected diagnostic으로 보존하며 다른 assertion failure와 혼동하지 않습니다.
+CI #191의 exact 53-job topology는 이 packet에서 유지합니다. 장시간 child build의 중복을
 측정·계층화하는 CI 최적화는 별도 bounded packet 후보이며 GDJ-0054 semantics나 activation에 섞지 않습니다.
 
 ## 현재 checkpoint
@@ -296,11 +297,22 @@ independent A/B로 한 번 재캡처합니다. Phase A에서는 그 exact stale-
   deterministic repeat/parallel fresh process, partial SQL·secret·path redaction, process reap와 scratch/source immutability를 검증합니다.
   Affected normal/race/CGO-disabled/vet, all-package compile-only, Linux/386 cross-compile proxy, protocol count-10, generated drift와
   independent audit가 통과했고 exact 명령과 non-claim은 EVID-175가 소유합니다.
-- ADR-0055는 계속 Proposed이고 MIG-129..138은 product registry에 없는 `oracle_locked`입니다. Product aggregate는
-  25/279=`254 passing + 25 deviation`으로 불변입니다. PostgreSQL live/current-profile actual, actual child cancellation의 final
-  product observation, oracle-blind publication, source-bound attestation A/B, full/archive/Hosted는 아직 주장하지 않습니다.
-- 다음 정확한 작업은 Phase D PostgreSQL current profile과 MIG-129..138 actual/policy publication입니다. Existing 53-job topology는
-  유지하고 source freeze 뒤 attestation을 한 번 재캡처합니다.
+- Phase D product source는 `a85ade1ee6a183fee504a21505798914abf6fa43`, tree
+  `211e1ad86067be8d1d1fc119b592e3e87407c064`이고 checked attestation publication descendant는
+  `9603cc6568f9f41046e3a32909b3e4e7316a2914`, tree `d6fa714a04f11e02fc6e5ff5a5405d37f972227b`입니다. PostgreSQL
+  schema-only current-profile projection, actual external child cancellation/reap, oracle-blind actual/policy와 compile-valid
+  false-green mutations을 게시했습니다.
+- MIG-129..138은 모두 registered `passing`입니다. Reference는 27 sets/301 contracts/702 ordered cross-bindings=
+  `264 passing + 25 deviation + 12 oracle_locked`, product는 26 adapters/289 contracts=`264 passing + 25 deviation`이며
+  MIG-075..086만 reference-only locked입니다. 새 deviation fixture는 없습니다.
+- Source-bound PostgreSQL attestation A/B는 각각 1,134 bytes/SHA-256
+  `ac17dbf2ac348ec11e7f28d7f2f98d424bf6313b7a6411d2cc752de085cf6cb7`로 동일했고 source binding은
+  274 files/3,557,167 payload bytes/SHA-256 `5cb50f0c3b833d09a6a42edb0180fc6b6bc8800a8d6eec2596702ba38afc9dc8`입니다.
+  Affected normal/race/CGO-disabled/vet, actual comparator, checksum, protocol과 independent publication/source-binding audit가
+  통과했습니다. Exact 명령과 non-claim은 EVID-176이 소유합니다.
+- ADR-0055는 계속 Proposed이고 GDJ-0054는 active입니다. Full `make ci`, native Linux/386, `.git`-free external archive와 exact
+  submitted-head Hosted는 아직 주장하지 않습니다. 다음 정확한 작업은 existing 53-job topology를 유지한 Phase E frozen
+  local/external/Hosted acceptance입니다.
 
 ## 완료 조건
 
@@ -310,4 +322,5 @@ independent A/B로 한 번 재캡처합니다. Phase A에서는 그 exact stale-
   통과합니다.
 - Affected normal/race/CGO-disabled/vet, full frozen local milestone, Linux/386 compile-only, `.git`-free external archive,
   source-bound attestation A/B와 exact-head Hosted가 실제 current bytes에서 통과합니다.
-- ADR-0055와 work/implementation/reference/product status는 실제 증거 뒤에만 Accepted/completed/passing으로 전환합니다.
+- MIG-129..138 product `passing`은 Phase D actual 증거 뒤에만 전환합니다. ADR-0055 Accepted, work completed와 Phase E
+  terminal 상태는 exact-head Hosted 증거 뒤에만 전환합니다.

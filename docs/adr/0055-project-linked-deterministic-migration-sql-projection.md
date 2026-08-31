@@ -119,6 +119,25 @@ aggregate는 그대로입니다. External product의 actual OS child cancellatio
 profile, oracle-blind actual/policy, source-bound attestation과 full/Hosted acceptance도 Phase D/E가 소유합니다. Exact local evidence는
 EVID-175가 소유합니다.
 
+## Phase D 구현 checkpoint
+
+Product source `a85ade1ee6a183fee504a21505798914abf6fa43`, tree
+`211e1ad86067be8d1d1fc119b592e3e87407c064`는 PostgreSQL schema-only current-profile projection, actual external child
+cancellation/reap와 oracle-blind MIG-129..138 actual/policy를 게시했습니다. External-runner AST/dataflow lock은 source selection,
+definition encoding, backend constructor/delegate와 returned SQL의 실제 결합을 compile-valid false-green mutations로 검증합니다.
+Loopback poison calibration은 real non-barrier connection, zero reset, listener join과 late-attempt rejection을 고정합니다.
+
+Checked source-bound attestation publication descendant는 `9603cc6568f9f41046e3a32909b3e4e7316a2914`, tree
+`d6fa714a04f11e02fc6e5ff5a5405d37f972227b`입니다. Independent A/B는 각각 1,134 bytes/SHA-256
+`ac17dbf2ac348ec11e7f28d7f2f98d424bf6313b7a6411d2cc752de085cf6cb7`로 동일하고 source binding은
+274 files/3,557,167 payload bytes/SHA-256 `5cb50f0c3b833d09a6a42edb0180fc6b6bc8800a8d6eec2596702ba38afc9dc8`입니다.
+
+MIG-129..138은 exact ten `passing`/registered이며 deviation fixture가 없습니다. Current reference는 27/301/702=
+`264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=`264 passing + 25 deviation`이고 MIG-075..086만
+locked입니다. Exact local gates와 independent audit는 EVID-176이 소유합니다. 이 checkpoint도 ADR status를 Accepted로
+바꾸지 않습니다. Full `make ci`, native Linux/386, `.git`-free archive와 exact submitted-head Hosted는 Phase E에 남아 있으며
+그 증거 뒤에만 Accepted로 전환합니다.
+
 ## 결과
 
 - SQL review가 live applied history나 database credential 없이 exact definition bytes에서 결정됩니다.

@@ -183,13 +183,16 @@ Installed Django package 파일 8개는 exact bytes/SHA-256/Git blob과 runtime 
 `15b8ca276a4aca3237cbadb062947c1b052fa095c6425d02b4dd7dffb455bcca`와 method range로 별도 잠급니다. Raw SQL,
 comments와 BEGIN/COMMIT wrapper는 reference comparison에서 제외하며 clean database와 recorder zero를 독립 확인합니다.
 
-Phase A exact manifest/not-implemented/oracle은 각각 8,010/1,727/46,941 bytes이고 SHA-256은
+Phase A historical manifest/not-implemented/oracle은 각각 8,010/1,727/46,941 bytes이고 SHA-256은
 `7074d37ffc5889d86374a14c528a6eeca0007c9a7789b1fc7ffbacbb2a776703`,
 `217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144`,
 `fa015cb0414709d0fc66d20d34776821fc2612ddac7702f8854141deb89abc99`입니다. 이 추가 뒤 shared 24-line
-`SHA256SUMS`는 2,279 bytes/SHA-256 `9d2180400e5ffd339593d11feb95fdaf9b1532eaa14fdee8cfdc2d9c88f6e71d`입니다.
-MIG-129..138은 모두 reference-only `oracle_locked`이며 product adapter, deviation fixture와 support publication을 포함하지
-않습니다.
+`SHA256SUMS`는 2,279 bytes/SHA-256 `9d2180400e5ffd339593d11feb95fdaf9b1532eaa14fdee8cfdc2d9c88f6e71d`였습니다.
+Phase D current manifest/oracle은 7,950/47,337 bytes와 SHA-256
+`fb737465cabf955fced0e04f52d5d2a89b6c00a2646b3a4e339eae37d6f084b9`/
+`0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df`, shared checksum은
+2,279 bytes/SHA-256 `7aadb1328fdfccb6bcd1e817f054e60f442c79cb55ad37aec20d24d001ce1138`입니다. MIG-129..138은
+deviation fixture 없이 exact ten product `passing`이며 EVID-176이 current publication 증거를 소유합니다.
 
 ## Django REST framework
 
