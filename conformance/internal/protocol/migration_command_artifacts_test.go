@@ -295,8 +295,8 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 		"test \"$(grep -c '^test_' \"$log\")\" -eq 325":                    1,
 		"grep -Fq 'Ran 325 tests' \"$log\"":                                1,
 		"assert len(SCENARIOS) == 301":                                     1,
-		"assert len(payload) == 1063090":                                   1,
-		"67b7ea553c689cf3e1839e7f8fbf65f6cb758e70a623f8c7f0471eb4ac87c441": 1,
+		"assert len(payload) == 1063486":                                   1,
+		"df78c110fb7452c3d82ce3f525b7e6bc895f3b6e2261fddfeda016b30b3c519e": 1,
 	} {
 		if got := strings.Count(workflow, fragment); got != want {
 			t.Fatalf("workflow fragment %q count = %d, want %d", fragment, got, want)
