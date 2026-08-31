@@ -21,6 +21,7 @@
 | Q-019 | P1 | GDJ-0035는 no-retry 보존 / retained-resource 정책은 별도 후속 | Unknown-outcome retained connection을 Backend.Close 전까지 무제한 보유할 것인가, bounded quarantine/reconciliation을 도입할 것인가 |
 | Q-020 | Partial | GDJ-0046 completed / non-cooperative·distributed·production 후속 | Accepted ADR-0047의 one-runtime/sequential-restart와 Accepted ADR-0048의 cooperative multi-runtime DB coordination/shared key ring은 hosted-verified; non-cooperative writer, distributed coordination, policy negotiation과 production topology는 open |
 | Q-021 | Partial | GDJ-0047 completed / token lifecycle·OAuth 후속 | Accepted ADR-0049/GDJ-0047의 first-party session과 strict injected Bearer resource-server profile은 SQLite/PostgreSQL required, corrected final local full/386/archive와 EVID-138 exact hosted까지 통과; JWT/opaque 발급, refresh family, key rotation/revocation, OAuth/OIDC·production BFF는 open |
+| Q-022 | P1 | GDJ-0055 active / terminal evidence 뒤 bounded answer 분류 | Migrated clean singleton operator의 explicit TTY provision-once와 raw-password-free open을 어떤 public/system-state 경계로 둘 것인가; multi-user, noninteractive provider, password lifecycle와 session-family revocation은 후속인가 |
 
 ## GDJ-0043에서 해결한 질문
 
@@ -106,6 +107,19 @@
   run `33049861740`의 exact 27/27 jobs·360/360 steps가 통과했고 ADR-0049는 Accepted입니다.
   JWT/opaque issuance, refresh lifecycle,
   signing/validation key ring, OAuth/OIDC와 production BFF도 별도 후속이므로 Q-021은 `Partial`입니다.
+
+## GDJ-0055에서 부분 결정 중인 질문
+
+- Q-022의 proposed first bounded answer는 active [GDJ-0055](../work/0055-project-linked-explicit-operator-provisioning.md)와 Proposed
+  [ADR-0056](adr/0056-explicit-operator-provisioning-and-open-existing.md)입니다. Exact system migration이 적용되고
+  credential/session/audit가 모두 빈 state에서만 `godj createsuperuser [--project PATH]`가 project-owned immutable policy로
+  credential 한 행을 생성합니다. Username/password는 TTY에서만 받고 argv/environment/file/generic cloned stdin에 넣지 않습니다.
+- Runtime startup은 stored username/encoded password와 project principal/hash policy를 strict하게 검증하되 raw password를 받거나
+  DB에 쓰지 않습니다. Article은 migrated clean `credential_absent`만 public-only로 낮추며 schema/history/cardinality/corruption/
+  policy/persistence 오류는 fail-closed입니다.
+- 이 packet은 singleton operator 생성과 restart만 답합니다. Multiple user, noninteractive secret provider, password
+  change/reset/delete, permission mutation, account disable과 session-family revocation은 schema/API/security policy를 함께 정할 별도
+  work가 필요합니다. Q-022는 현재 P1/open이며 GDJ-0055 terminal acceptance 뒤에만 bounded answer를 `Partial`로 분류합니다.
 
 ## M0에서 해결한 질문
 

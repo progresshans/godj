@@ -37,7 +37,7 @@
   Reference 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product
   26/289=`264 passing + 25 deviation`; MIG-119..121/123..138은 product `passing`, MIG-122는 Verified
   DEV-0002 `deviation`, reference-only locked range는 MIG-075..086입니다. MIG-129..138은 exact ten `passing` actual을 가지며
-  현재 active/ready work는 0/0입니다.
+  active/ready work 상태는 [CURRENT](status/CURRENT.md)를 단일 정본으로 사용합니다.
   GDJ-0052 Phase A/Phase C/Phase D 근거는
   [EVID-162](status/TEST_EVIDENCE.md#evid-20260830-162--gdj-0052-phase-a-reference-only-artifact-lock)와
   [EVID-163](status/TEST_EVIDENCE.md#evid-20260830-163--gdj-0052-phase-c-external-sqlite-targeted-migrate-checkpoint),

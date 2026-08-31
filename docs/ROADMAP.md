@@ -1,7 +1,9 @@
 # GoDj 로드맵
 
 - 상태: Accepted direction
-- 현재 active/ready batch는 0/0입니다.
+- 현재 active/ready batch는 1/0입니다. Active
+  [GDJ-0055](../work/0055-project-linked-explicit-operator-provisioning.md)는 migrated clean singleton operator의 explicit
+  `createsuperuser` provision-once와 raw-password-free authenticated restart를 Proposed ADR-0056/SYS-021..030으로 검증합니다.
 - 최근 completed batch: [GDJ-0054](../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
   `godj sqlmigrate APP EXACT_NAME [--project PATH]`의 current forward SQL을 complete catalog와 target-before historical
   state에서 결정적으로 materialize하는 bounded packet입니다. Accepted
@@ -852,6 +854,9 @@ ADR/work/deviation을 terminal Accepted/completed/Verified로 닫았습니다.
 - static/messages와 접근성·보안 gate
 - explicit single-runtime durable credential/session/audit와 restart-preserving Article flow — GDJ-0045 completed/hosted-verified
 - cooperative multi-runtime system-state coordination과 shared CSRF key ring — GDJ-0046 completed/hosted-verified
+- explicit `createsuperuser` provision-once와 raw-password-free authenticated restart — GDJ-0055 active, Proposed ADR-0056,
+  SYS-021..030 planned/not run
+- multiple users, noninteractive secret provider, password change/reset/delete와 session-family revocation — Q-022 후속
 
 ## M7 — API
 

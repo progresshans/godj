@@ -3,7 +3,15 @@
 - 마지막 갱신: 2026-08-31
 - 저장소: `/Users/hanhyeonjin/Documents/godj`
 - 브랜치: `feature/pre-release-compatibility-reset`
-- 현재 active/ready work는 0/0입니다. 최근 completed
+- 현재 active/ready work는 1/0입니다. Active
+  [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 migrated clean system state에 durable operator를
+  exactly once 생성하는 `godj createsuperuser [--project PATH]`와 raw-password-free authenticated restart를 구현합니다.
+  Proposed [ADR-0056](../adr/0056-explicit-operator-provisioning-and-open-existing.md)은 implicit `systemstate.Open` bootstrap을
+  `ProvisionOperator`/`OpenExisting`으로 current-only 분리하고, project-owned immutable credential policy, actual TTY no-echo
+  input, bounded one-shot binary secret pipe와 cooperative database fence를 선택합니다. SYS-021..030은 planned/not run이며
+  source/API/workflow/contract aggregate와 checked PostgreSQL attestation은 clean baseline
+  `72e5445616e68ff60ba542345684644d0730c5b3`, tree `c9cb738cad1a616d2646b83f93e9cf9da19df449`에서 아직 바뀌지
+  않았습니다. Q-019 terminal backend quarantine는 별도 후속이고 GDJ-0055의 선행 blocker가 아닙니다. 최근 completed
   [GDJ-0054](../../work/0054-project-linked-deterministic-sqlmigrate.md)는 exact
   `godj sqlmigrate APP EXACT_NAME`과 optional trailing `--project PATH`를 대상으로 합니다. Complete catalog와 exact
   target-before historical state에서 exactly-one forward intent를 materialize하고 identity-bearing SQLite/PostgreSQL
@@ -892,7 +900,7 @@
   `oracle_locked`이며 product actual에는 등록되지 않습니다. Reset 전 passing/`DEV-0003` 후보 순서는 superseded됐고 status flip도 없습니다.
 - 최근 완료 작업:
   [GDJ-0054 Project-linked Deterministic sqlmigrate](../../work/0054-project-linked-deterministic-sqlmigrate.md)
-- 활성 작업: 없음
+- 활성 작업: [GDJ-0055 Project-linked Explicit Operator Provisioning](../../work/0055-project-linked-explicit-operator-provisioning.md)
 - ready 작업: 없음
 - completion 상태: GDJ-0021 local/reference/independent review는
   [EVID-20260810-024](TEST_EVIDENCE.md#evid-20260810-024--gdj-0021-project-linked-migration-check-compatibility-contracts),
@@ -2087,8 +2095,9 @@ general generated upgrade는 계속 open입니다.
 
 GDJ-0054 exact product source `cc42c4f2...`, tree `0bfd830b...`는 current source-bound A/B, full `make ci`,
 Linux/386 compile-only, relation inventory, `.git`-free external archive와 exact submitted-head Hosted를 EVID-177에서
-통과했습니다. ADR-0055/GDJ-0054는 Accepted/completed이고 현재 active/ready packet은 0/0입니다. 다음 bounded packet은
-현재 roadmap과 dependency를 검토해 별도로 활성화합니다.
+통과했습니다. ADR-0055/GDJ-0054는 Accepted/completed입니다. 그 clean terminal baseline에서 GDJ-0055를 활성화했고 current
+active/ready packet은 1/0입니다. 다음 정확한 작업은 Proposed ADR-0056/SYS-021..030 Phase A artifact lock과 regression-first
+systemstate provision/open split이며 아직 product/source/API 구현을 주장하지 않습니다.
 
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,
@@ -2131,8 +2140,9 @@ cancelled이며 15개 direct-import lock failure, 3개 stale-attestation failure
 full/Linux-386/relation/archive local-final ownership을 정확히 닫았습니다. Exact submitted head `bebb690...`, tree
 `e0dac4e...`의 EVID-159/CI #177 run `33295130785` attempt 1은 41/41 jobs·464/464 steps,
 failure/cancel/skip/annotation 0으로 terminal acceptance를 닫았습니다. ADR-0053/GDJ-0051은 Accepted/completed입니다.
-현재 active/ready packet은 0/0이며 GDJ-0054 exact forward deterministic `sqlmigrate`는 Accepted ADR-0055와 함께
-completed됐습니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
+GDJ-0054 exact forward deterministic `sqlmigrate`는 Accepted ADR-0055와 함께 completed됐습니다. 그 terminal 시점의
+active/ready는 0/0이었고 이후 GDJ-0055가 활성화되어 current active/ready는 1/0입니다. Phase A source
+`c3de0d35...`, tree `1af05572...`는 MIG-129..138을 reference-only
 `oracle_locked`로 게시했고 pinned/isolated Python, semantic/protocol/conformance/checksum과 independent audit를 통과했습니다.
 Phase B source `f51ab733...`, tree `ab71e8a...`는 pure `RenderMigrationSQL`, renderer port, SQLite/PostgreSQL
 compiler-backed renderer와 direct project config를 구현했습니다. Phase C source `a304a73...`, tree `f8df2d4...`는 strict
@@ -2239,7 +2249,7 @@ gate의 단일 `make ci`는 유지하되 Hosted는 normal+vet/race/CGO0/artifact
 CI job/execution 개수 자체는 제품 계약이 아니며, 필수 platform/mode/test coverage와 skip 0이 검증 계약입니다. Subtask마다
 full hosted/evidence cycle을 만들지는 않습니다.
 
-Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019는 P1/open입니다.
+Q-010/Q-011/Q-012/Q-013/Q-016/Q-020/Q-021은 `Partial`, Q-014/Q-015는 `Resolved`, Q-017/Q-019/Q-022는 P1/open입니다.
 MIG-075..086만 current reference-only locked range입니다. MIG-087..102, MIG-108..121과 MIG-123..138은 registered
 actual `passing`; MIG-103..107은 exact 19-selector DEV-0010, MIG-122는 exact three-selector DEV-0002 `deviation`입니다.
 Draft PR #1은 계속 OPEN/DRAFT/unmerged이고 merge/release/deployment는 이 작업의 권한·범위가 아닙니다.
