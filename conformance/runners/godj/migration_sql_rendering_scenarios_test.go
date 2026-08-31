@@ -407,6 +407,18 @@ func migrationSQLRenderingAssertEmbeddedActualRunner(t *testing.T) {
 	if strings.Contains(source, "GODJ_SQLMIGRATE_PRIVATE") {
 		t.Error("embedded migration-SQL-rendering runner hard-codes the private protocol argument")
 	}
+	for _, required := range []string{
+		`pending := filepath.Join(directory, ".godj-marker-"+name+".pending")`,
+		`os.WriteFile(pending, []byte(value), 0o600)`,
+		`os.Rename(pending, path)`,
+	} {
+		if !strings.Contains(source, required) {
+			t.Errorf("embedded migration-SQL-rendering runner lacks atomic marker publication fragment %q", required)
+		}
+	}
+	if strings.Contains(source, `os.WriteFile(path, []byte(value), 0o600)`) {
+		t.Error("embedded migration-SQL-rendering runner publishes marker contents directly to the observable path")
+	}
 }
 
 func migrationSQLRenderingParseEmbeddedActualRunner(t *testing.T) (*ast.File, string) {

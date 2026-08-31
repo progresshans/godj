@@ -1383,8 +1383,15 @@ func blockForCancellation() {
 }
 
 func writeMarker(prefix, value string) {
-	path := filepath.Join(os.Getenv(traceEnvironment), prefix+"-"+strconv.Itoa(os.Getpid()))
-	if err := os.WriteFile(path, []byte(value), 0o600); err != nil {
+	directory := os.Getenv(traceEnvironment)
+	name := prefix + "-" + strconv.Itoa(os.Getpid())
+	path := filepath.Join(directory, name)
+	pending := filepath.Join(directory, ".godj-marker-"+name+".pending")
+	if err := os.WriteFile(pending, []byte(value), 0o600); err != nil {
+		os.Exit(7)
+	}
+	if err := os.Rename(pending, path); err != nil {
+		_ = os.Remove(pending)
 		os.Exit(7)
 	}
 }

@@ -183,6 +183,18 @@ func TestMigrationTargetPlanActualSourceIsOracleBlind(t *testing.T) {
 	if targetIndex < 0 || fixtureIndex < 0 || targetIndex > fixtureIndex {
 		t.Fatalf("migration-target-plan handler is not registered before generic fixture fallback: target=%d fixture=%d", targetIndex, fixtureIndex)
 	}
+	for _, required := range []string{
+		`pending := filepath.Join(directory, ".godj-marker-"+name+".pending")`,
+		`os.WriteFile(pending, []byte(value), 0o600)`,
+		`os.Rename(pending, path)`,
+	} {
+		if !strings.Contains(migrationTargetPlanActualRunnerSource, required) {
+			t.Errorf("embedded migration-target-plan runner lacks atomic marker publication fragment %q", required)
+		}
+	}
+	if strings.Contains(migrationTargetPlanActualRunnerSource, `os.WriteFile(path, []byte(value), 0o600)`) {
+		t.Error("embedded migration-target-plan runner publishes marker contents directly to the observable path")
+	}
 }
 
 func TestMigrationTargetPlanExecutionObservationUsesActualTransactionIdentity(t *testing.T) {
