@@ -7,7 +7,7 @@
       "title": "The public command accepts exactly two exact-name forms and rejects invalid permutations before project I/O",
       "scenario": "godj.migration.sql_rendering.argv_and_pre_io_rejection",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -19,7 +19,7 @@
       "title": "Complete catalog validation and exact lookup produce one identity-bearing detached forward request",
       "scenario": "godj.migration.sql_rendering.complete_load_exact_lookup_and_request",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -31,7 +31,7 @@
       "title": "Forward SQL uses the target-before historical state and exactly one target migration in definition order",
       "scenario": "django.migration.sql_rendering.forward_before_state_order",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false},
@@ -48,7 +48,7 @@
       "title": "SQLite CreateModel and AddField preserve normalized forward meaning and operation order",
       "scenario": "django.migration.sql_rendering.sqlite_create_add_semantics",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false},
@@ -68,7 +68,7 @@
       "title": "PostgreSQL current projection is schema-qualified from schema-only immutable configuration without database access",
       "scenario": "godj.migration.sql_rendering.postgres_current_projection",
       "phase": "construction",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -80,7 +80,7 @@
       "title": "Canonical statement output is cardinality-bound and deterministic across repeat parallel and fresh-process observations",
       "scenario": "godj.migration.sql_rendering.canonical_deterministic_output",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -92,7 +92,7 @@
       "title": "Success failure and cancellation keep database history transaction recorder and schema mutation calls at zero",
       "scenario": "godj.migration.sql_rendering.database_and_history_zero_calls",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -104,7 +104,7 @@
       "title": "Typed-nil unsupported custom data and malformed renderer cases fail closed before logical SQL publication",
       "scenario": "godj.migration.sql_rendering.renderer_and_operation_fail_closed",
       "phase": "evaluation",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -116,7 +116,7 @@
       "title": "Resource cleanup redaction and one final write attempt are bounded without an atomic terminal-write claim",
       "scenario": "godj.migration.sql_rendering.resource_cleanup_redaction_and_write",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}
@@ -128,7 +128,7 @@
       "title": "Repository-external projects configure built-in renderers through public constructors without database access",
       "scenario": "godj.migration.sql_rendering.external_project_configuration",
       "phase": "environment",
-      "status": "oracle_locked",
+      "status": "passing",
       "provenance": [
         {"kind": "proposal", "reference": "GDJ-0054", "derived": false},
         {"kind": "documentation", "reference": "ADR-0055", "derived": false}

@@ -226,7 +226,7 @@ func TestCheckedInOracleChecksumsMatchArtifacts(t *testing.T) {
 		"write-migration-oracle.json":         "35ae758f44d5385d093931dba08c33d63964286eab273332407fae11c14a42ac",
 		"migration-status-oracle.json":        "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f",
 		"migration-target-plan-oracle.json":   "dc688e27a727270594b32291e8cff83e1bd929af0a0fcd6fcf9b1f706dba9a7f",
-		"migration-sql-rendering-oracle.json": "fa015cb0414709d0fc66d20d34776821fc2612ddac7702f8854141deb89abc99",
+		"migration-sql-rendering-oracle.json": "0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df",
 	} {
 		if entries[name] != want {
 			t.Fatalf("locked %s checksum changed to %q, want %q", name, entries[name], want)

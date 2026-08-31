@@ -383,6 +383,9 @@ godj-conformance:
 		-expected $(MIGRATION_TARGET_PLAN_ORACLE) \
 		-deviation-expected $(MIGRATION_TARGET_PLAN_DEVIATION_EXPECTED)
 	go run ./conformance/cmd/godjcheck \
+		-profile $(PROFILE) -manifest $(MIGRATION_SQL_RENDERING_MANIFEST) \
+		-expected $(MIGRATION_SQL_RENDERING_ORACLE)
+	go run ./conformance/cmd/godjcheck \
 		-profile $(PROFILE) -manifest $(RELATION_MANIFEST) \
 		-expected $(RELATION_ORACLE)
 	go run ./conformance/cmd/godjcheck \

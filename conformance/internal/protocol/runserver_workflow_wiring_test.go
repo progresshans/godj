@@ -454,7 +454,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		`go test "${test_flags[@]}" \`,
 		`./conformance/runserverproduct > "$log" || status=$?`,
 		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct >> "$log" || target_exit=$?`,
-		`assert len(expected) == 23, sorted(expected)`,
+		`assert len(expected) == 24, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
@@ -502,6 +502,13 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		t,
 		"postgresql-product job",
 		postgres,
+		"github.com/progresshans/godj/conformance/projectsqlmigrateproduct|TestGlobalSQLMigrateExternalPhaseDProduct",
+		1,
+	)
+	runserverWorkflowRequireCount(
+		t,
+		"postgresql-product job",
+		postgres,
 		"github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle",
 		1,
 	)
@@ -511,6 +518,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigrateproduct", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectmigratetargetproduct", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectshowmigrationsproduct", 2)
+	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/projectsqlmigrateproduct", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "./conformance/systemstate/restart", 2)
 	runserverWorkflowRequireCount(t, "postgresql-product job", postgres, "TestGlobalRunserverArticlePostgresDevelopmentLoop", 2)
 	if strings.Contains(postgres, "continue-on-error:") || strings.Contains(postgres, "|| true") {

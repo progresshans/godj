@@ -10,13 +10,18 @@ const (
 	sqlProductOpenerMarkerEnvironment   = "GODJ_SQLMIGRATE_PRODUCT_OPENER_MARKER"
 	sqlProductDatabaseEnvironment       = "GODJ_SQLMIGRATE_PRODUCT_DATABASE"
 	sqlProductSecretEnvironment         = "GODJ_SQLMIGRATE_PRODUCT_SECRET"
+	sqlProductPostgresSchemaEnvironment = "GODJ_SQLMIGRATE_PRODUCT_POSTGRES_SCHEMA"
+	sqlProductPostgresPoisonEnvironment = "GODJ_SQLMIGRATE_PRODUCT_POSTGRES_POISON_SCHEMA"
+	sqlProductPostgresURLEnvironment    = "GODJ_SQLMIGRATE_PRODUCT_POSTGRES_URL"
 
 	sqlProductCatalogFull    = "full"
 	sqlProductCatalogInvalid = "invalid"
 
-	sqlProductRendererSQLite = "sqlite"
-	sqlProductRendererFail   = "fail"
-	sqlProductRendererNil    = "nil"
+	sqlProductRendererSQLite     = "sqlite"
+	sqlProductRendererPostgres   = "postgres"
+	sqlProductRendererFail       = "fail"
+	sqlProductRendererNil        = "nil"
+	sqlProductRendererWaitCancel = "wait_cancel"
 
 	sqlProductPartialCanary = "PARTIAL_SQL_MUST_NOT_BE_PUBLISHED_1f9da742"
 )
@@ -29,6 +34,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/backend"
@@ -45,6 +51,9 @@ const (
 	openerMarkerEnvironment = "GODJ_SQLMIGRATE_PRODUCT_OPENER_MARKER"
 	databaseEnvironment = "GODJ_SQLMIGRATE_PRODUCT_DATABASE"
 	secretEnvironment = "GODJ_SQLMIGRATE_PRODUCT_SECRET"
+	postgresSchemaEnvironment = "GODJ_SQLMIGRATE_PRODUCT_POSTGRES_SCHEMA"
+	postgresPoisonEnvironment = "GODJ_SQLMIGRATE_PRODUCT_POSTGRES_POISON_SCHEMA"
+	postgresPoisonDatabase = "sqlmigrate_db_path_canary_529d"
 	partialSQLCanary = "PARTIAL_SQL_" + "MUST_NOT_BE_PUBLISHED_1f9da742"
 )
 
@@ -86,13 +95,40 @@ func rendererForMode(mode string) backend.MigrationSQLRenderer {
 	switch mode {
 	case "sqlite":
 		return observedRenderer{delegate: sqlite.NewMigrationSQLRenderer()}
+	case "postgres":
+		if !postgresEnvironmentIsPoisoned() {
+			return failingRenderer{}
+		}
+		delegate := postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{
+			Schema: os.Getenv(postgresSchemaEnvironment),
+		})
+		if err := os.Setenv(postgresSchemaEnvironment, os.Getenv(postgresPoisonEnvironment)); err != nil {
+			return failingRenderer{}
+		}
+		return observedRenderer{delegate: delegate}
 	case "fail":
 		return failingRenderer{}
 	case "nil":
 		return nil
+	case "wait_cancel":
+		return waitCancellationRenderer{}
 	default:
 		return failingRenderer{}
 	}
+}
+
+func postgresEnvironmentIsPoisoned() bool {
+	databaseURL := os.Getenv("DATABASE_URL")
+	return databaseURL != "" &&
+		os.Getenv("GODJ_TEST_POSTGRES_URL") == databaseURL &&
+		os.Getenv("POSTGRESQL_URL") == databaseURL &&
+		os.Getenv("POSTGRES_URL") == databaseURL &&
+		os.Getenv("PGHOST") == "127.0.0.1" &&
+		os.Getenv("PGPORT") != "" &&
+		os.Getenv("PGDATABASE") == postgresPoisonDatabase &&
+		os.Getenv("PGUSER") == "sqlmigrate_user" &&
+		os.Getenv("PGPASSWORD") == os.Getenv(secretEnvironment) &&
+		os.Getenv("PGSSLMODE") == "disable"
 }
 
 type observedRenderer struct {
@@ -120,6 +156,22 @@ func (failingRenderer) RenderForwardMigrationSQL(
 	}
 	partial := partialSQLCanary + " " + os.Getenv(secretEnvironment) + " " + os.Getenv(databaseEnvironment)
 	return []string{partial}, fmt.Errorf("injected renderer failure: %s %s", os.Getenv(secretEnvironment), os.Getenv(databaseEnvironment))
+}
+
+type waitCancellationRenderer struct{}
+
+func (waitCancellationRenderer) RenderForwardMigrationSQL(
+	ctx context.Context,
+	_ backend.ForwardMigrationSQLRequest,
+) ([]string, error) {
+	if ctx == nil {
+		return nil, errors.New("wait cancellation renderer context is nil")
+	}
+	if err := appendMarker(os.Getenv(rendererMarkerEnvironment), "render_wait"); err != nil {
+		return nil, err
+	}
+	<-ctx.Done()
+	return nil, ctx.Err()
 }
 
 func sourcesForCatalog(catalog string) ([]definition.Source, error) {

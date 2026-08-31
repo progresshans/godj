@@ -62,7 +62,7 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 		"conformance/fixtures/godj-system-state-not-implemented.json":               {2417, "92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa"},
 		"conformance/fixtures/godj-system-state-deviation-expected.json":            {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":      {21242, "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {2279, "9d2180400e5ffd339593d11feb95fdaf9b1532eaa14fdee8cfdc2d9c88f6e71d"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {2279, "7aadb1328fdfccb6bcd1e817f054e60f442c79cb55ad37aec20d24d001ce1138"},
 		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": {1134, "ac46d9ba46ef30df3420ecff6a308110fe51aeb7dcfa90000d647f22eac9e893"},
 		"conformance/systemstate/attestations/SHA256SUMS":                           {103, "ee414159c8f7819859a762927e399ea0d4683494e6285e001c78d91a95d9f970"},
 	}
@@ -462,6 +462,7 @@ func TestCurrentTwentySevenReferenceSetsHave301ContractsAndReject702OrderedCross
 	}
 	sets = append(sets, inventorySet{"api-authentication", drfProfile, apiAuthenticationManifest, apiAuthenticationOracle})
 	ids, scenarios := map[string]string{}, map[string]string{}
+	lockedIDs := make([]string, 0, 12)
 	passing, deviations, locked, total := 0, 0, 0, 0
 	for _, set := range sets {
 		if err := ValidateSuiteAgainst(set.profile, set.manifest, set.oracle); err != nil {
@@ -483,13 +484,17 @@ func TestCurrentTwentySevenReferenceSetsHave301ContractsAndReject702OrderedCross
 				deviations++
 			case ContractOracleLocked:
 				locked++
+				lockedIDs = append(lockedIDs, contract.ID)
 			default:
 				t.Fatalf("contract %s unexpected status %q", contract.ID, contract.Status)
 			}
 		}
 	}
-	if len(sets) != 27 || total != 301 || len(ids) != 301 || len(scenarios) != 301 || passing != 254 || deviations != 25 || locked != 22 {
+	if len(sets) != 27 || total != 301 || len(ids) != 301 || len(scenarios) != 301 || passing != 264 || deviations != 25 || locked != 12 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
+	}
+	if want := []string{"MIG-075", "MIG-076", "MIG-077", "MIG-078", "MIG-079", "MIG-080", "MIG-081", "MIG-082", "MIG-083", "MIG-084", "MIG-085", "MIG-086"}; !reflect.DeepEqual(lockedIDs, want) {
+		t.Fatalf("remaining oracle_locked contracts = %v, want %v", lockedIDs, want)
 	}
 	crossBindings := 0
 	for manifestIndex, manifestSet := range sets {
@@ -563,8 +568,8 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	if strings.Contains(productTarget, "$(SYSTEM_STATE_NOT_IMPLEMENTED)") {
 		t.Fatal("product system-state adapter uses the not-implemented fixture")
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
-		t.Fatalf("product adapter count = %d, want 25", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
+		t.Fatalf("product adapter count = %d, want 26", got)
 	}
 	for name, target := range map[string]string{
 		"oracle-check":      oracleCheckTarget,

@@ -1181,7 +1181,7 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
+          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalSQLMigrateExternalPhaseDProduct|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
           test_flags=(-timeout=18m -json -count=1 -run "$required_regex")
           case "$mode" in
             normal)
@@ -1209,6 +1209,7 @@ jobs:
             ./conformance/postgresproduct/... \
             ./conformance/projectmigrateproduct \
             ./conformance/projectshowmigrationsproduct \
+            ./conformance/projectsqlmigrateproduct \
             ./conformance/systemstate/restart \
             ./conformance/runserverproduct > "$log" || status=$?
           if [ "$status" -ne 0 ]; then
@@ -1242,6 +1243,7 @@ jobs:
             "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateArticlePostgresProduct"
             "github.com/progresshans/godj/conformance/projectmigrateproduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability"
             "github.com/progresshans/godj/conformance/projectshowmigrationsproduct|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart"
+            "github.com/progresshans/godj/conformance/projectsqlmigrateproduct|TestGlobalSQLMigrateExternalPhaseDProduct"
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
@@ -1271,7 +1273,7 @@ jobs:
               for event in events
               if event.get("Action") == "skip" and "Test" in event
           ]
-          assert len(expected) == 23, sorted(expected)
+          assert len(expected) == 24, sorted(expected)
           assert runs == expected, (sorted(runs), sorted(expected))
           assert passes == expected, (sorted(passes), sorted(expected))
           assert skips == [], skips
@@ -1336,6 +1338,7 @@ jobs:
             ./conformance/projectmigrateproduct \
             ./conformance/projectmigratetargetproduct \
             ./conformance/projectshowmigrationsproduct \
+            ./conformance/projectsqlmigrateproduct \
             ./conformance/systemstate/restart \
             ./conformance/runserverproduct
 

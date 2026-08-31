@@ -23,16 +23,16 @@ type migrationSQLRenderingArtifactLock struct {
 
 var migrationSQLRenderingArtifactLocks = map[string]migrationSQLRenderingArtifactLock{
 	migrationSQLRenderingManifestArtifact: {
-		size:   8010,
-		sha256: "7074d37ffc5889d86374a14c528a6eeca0007c9a7789b1fc7ffbacbb2a776703",
+		size:   7950,
+		sha256: "fb737465cabf955fced0e04f52d5d2a89b6c00a2646b3a4e339eae37d6f084b9",
 	},
 	migrationSQLRenderingBaselineArtifact: {
 		size:   1727,
 		sha256: "217e906548e57dab1020d6fcefcfb02700e6184001bc6aed204c557236f30144",
 	},
 	migrationSQLRenderingOracleArtifact: {
-		size:   46941,
-		sha256: "fa015cb0414709d0fc66d20d34776821fc2612ddac7702f8854141deb89abc99",
+		size:   47337,
+		sha256: "0d51318daf8c26aa58d8f10b49234f032fcc90c147743a41ca6e0d053c2921df",
 	},
 }
 
@@ -75,7 +75,7 @@ var migrationSQLRenderingComparisons = [][]ComparisonDimension{
 	{CompareResult, CompareDBState, CompareMetrics},
 }
 
-func TestMigrationSQLRenderingPublishedArtifactsAreLockedAndReferenceOnly(t *testing.T) {
+func TestMigrationSQLRenderingPublishedArtifactsAreLockedAndProductEligible(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -113,7 +113,7 @@ func TestMigrationSQLRenderingPublishedArtifactsAreLockedAndReferenceOnly(t *tes
 		if contract.ID != wantID ||
 			contract.Scenario != migrationSQLRenderingScenarios[index] ||
 			contract.Phase != migrationSQLRenderingPhases[index] ||
-			contract.Status != ContractOracleLocked ||
+			contract.Status != ContractPassing ||
 			!reflect.DeepEqual(contract.Comparison, migrationSQLRenderingComparisons[index]) {
 			t.Fatalf("migration-sql-rendering contract %d = %#v", index, contract)
 		}
@@ -251,7 +251,7 @@ func TestMigrationSQLRenderingAuthoritySourcesAreIndependentAndArtifactBlind(t *
 	}
 }
 
-func TestMigrationSQLRenderingReferenceOnlyWiringIsExact(t *testing.T) {
+func TestMigrationSQLRenderingPublishedReferenceAndProductWiringIsExact(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -307,16 +307,22 @@ func TestMigrationSQLRenderingReferenceOnlyWiringIsExact(t *testing.T) {
 		t.Fatalf("reference contractcheck count = %d, want 54", got)
 	}
 	for variable, want := range map[string]int{
-		"$(MIGRATION_SQL_RENDERING_MANIFEST)":        0,
-		"$(MIGRATION_SQL_RENDERING_ORACLE)":          0,
+		"$(MIGRATION_SQL_RENDERING_MANIFEST)":        1,
+		"$(MIGRATION_SQL_RENDERING_ORACLE)":          1,
 		"$(MIGRATION_SQL_RENDERING_NOT_IMPLEMENTED)": 0,
 	} {
 		if got := strings.Count(productTarget, variable); got != want {
 			t.Fatalf("product migration-sql-rendering variable %s count = %d, want %d", variable, got, want)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
-		t.Fatalf("product adapter count = %d, want 25 with migration-sql-rendering reference-only", got)
+	exactProductAdapter := "go run ./conformance/cmd/godjcheck \\\n" +
+		"\t\t-profile $(PROFILE) -manifest $(MIGRATION_SQL_RENDERING_MANIFEST) \\\n" +
+		"\t\t-expected $(MIGRATION_SQL_RENDERING_ORACLE)"
+	if got := strings.Count(productTarget, exactProductAdapter); got != 1 {
+		t.Fatalf("exact migration-sql-rendering product adapter count = %d, want 1", got)
+	}
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
+		t.Fatalf("product adapter count = %d, want 26 with migration-sql-rendering published", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(MIGRATION_SQL_RENDERING_MANIFEST)"); got != 1 {

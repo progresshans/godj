@@ -255,8 +255,8 @@ def postgres_current_projection(contract_id: str) -> dict[str, Any]:
 
 def canonical_deterministic_output(contract_id: str) -> dict[str, Any]:
     bodies = [
-        'CREATE TABLE "blog_category" ("id" integer)',
-        'ALTER TABLE "blog_article" ADD COLUMN "summary" varchar(120) NULL',
+        'CREATE TABLE "blog_category" ("id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "name" VARCHAR(80) NOT NULL)',
+        'ALTER TABLE "blog_article" ADD COLUMN "summary" VARCHAR(120) NULL',
     ]
     output = "".join(f"{body};\n" for body in bodies)
     observations = [

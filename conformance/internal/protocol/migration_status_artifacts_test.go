@@ -318,8 +318,8 @@ func TestMigrationStatusPublishedReferenceAndProductWiringIsExact(t *testing.T) 
 			t.Fatalf("product migration-status variable %s count = %d, want %d", variable, got, want)
 		}
 	}
-	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 25 {
-		t.Fatalf("product adapter count = %d, want 25", got)
+	if got := strings.Count(productTarget, "go run ./conformance/cmd/godjcheck"); got != 26 {
+		t.Fatalf("product adapter count = %d, want 26", got)
 	}
 	for name, target := range map[string]string{"oracle-check": oracleCheckTarget, "oracle-regenerate": oracleRegenerateTarget} {
 		if got := strings.Count(target, "$(MIGRATION_STATUS_MANIFEST)"); got != 1 {
