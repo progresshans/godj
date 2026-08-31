@@ -181,7 +181,7 @@ Accepted/completed입니다. 근거는
 [EVID-165](status/TEST_EVIDENCE.md#evid-20260830-165--gdj-0052-first-hosted-diagnostic-ci-isolation-and-frozen-local-final),
 [EVID-166](status/TEST_EVIDENCE.md#evid-20260830-166--gdj-0052-second-hosted-timing-diagnostic-and-corrected-source-refreeze)과
 [EVID-167](status/TEST_EVIDENCE.md#evid-20260831-167--gdj-0052-corrected-exact-head-hosted-completion)입니다.
-Active GDJ-0054/Proposed ADR-0055는 exact-name forward-only `sqlmigrate`를 별도 pure materializer와 identity-bearing
+Completed GDJ-0054/Accepted ADR-0055는 exact-name forward-only `sqlmigrate`를 별도 pure materializer와 identity-bearing
 SQLite/PostgreSQL renderer로 구현합니다. Phase A source `c3de0d35...`, tree `1af05572...`는 MIG-129..138 manifest/NI/oracle을
 reference-only `oracle_locked`로 고정했고 EVID-173의 local reference gate를 통과했습니다. Phase B source `f51ab733...`, tree
 `ab71e8a...`는 pure `RenderMigrationSQL`, detached renderer port, SQLite/PostgreSQL compiler-backed renderer와 direct
@@ -191,8 +191,9 @@ EVID-175의 normal/race/CGO0/vet/compile/repeat/audit gate를 통과했습니다
 `211e1ad...`와 attestation publication `9603cc6...`, tree `d6fa714...`는 PostgreSQL schema-only current-profile,
 actual child cancellation/reap와 oracle-blind actual/policy를 게시했습니다. MIG-129..138은 exact 10 `passing`/registered이고
 current reference는 27/301/702=`264 passing + 25 deviation + 12 oracle_locked`, product는 26/289=
-`264 passing + 25 deviation`이며 MIG-075..086만 locked입니다. EVID-176이 source-bound A/B와 local Phase D를 소유하고
-full/386/archive/Hosted는 Phase E에 남습니다. Built-in profile은 current `CreateModel`/`AddField` compiler projection만 대상으로 하고
+`264 passing + 25 deviation`이며 MIG-075..086만 locked입니다. EVID-176이 Phase D source-bound A/B와 product publication을,
+EVID-177이 exact `cc42c4f...`의 corrected A/B, full/386/relation/archive/Hosted terminal acceptance를 소유합니다. Built-in
+profile은 current `CreateModel`/`AddField` compiler projection만 대상으로 하고
 database opener/session/history/recorder/transaction/editor를 호출하지 않습니다. 이는 fully offline/custom-renderer no-I/O,
 live schema/data/profile 확인, actual execution success/atomicity 또는 terminal write OS-atomicity를 뜻하지 않습니다.
 Preview는 execute authority가 아니며 execute는 fresh history를 다시 읽습니다.

@@ -1,6 +1,6 @@
 ---
 id: GDJ-0054
-status: active
+status: completed
 updated: 2026-08-31
 baseline_branch: "feature/pre-release-compatibility-reset"
 baseline_commit: "1fbffa3b5ba8248dc5aa141212a7dad563827a7b"
@@ -263,11 +263,13 @@ deviation fixture, GoDj product adapter와 `passing` 전환을 만들지 않습�
 - [x] Phase B — pure forward materializer, identity-bearing renderer port, shared compiler, config/error/output boundary
 - [x] Phase C — strict private/global protocol과 repository-external SQLite exact CLI/no-DB/redaction product flow
 - [x] Phase D — PostgreSQL current profile, oracle-blind actual/policy와 source-bound attestation publication
-- [ ] Phase E — affected/full milestone, Linux/386, external archive, exact submitted-head Hosted와 terminal docs
+- [x] Phase E — affected/full milestone, Linux/386, external archive, exact submitted-head Hosted와 terminal docs
 
 Phase A는 focused Django/decision/runner/protocol/artifact gates만 수행하고 full product/Hosted acceptance로 과장하지 않습니다.
 Makefile/workflow lock을 바꾼 뒤 Phase D source freeze에서 PostgreSQL source-bound attestation을 independent A/B로 재캡처했습니다.
-Phase E에서 behavioral source, workflow 또는 lock byte가 다시 바뀌면 그 capture를 재사용하지 않고 새 freeze에서 재캡처합니다.
+Phase E에서 workflow/inventory lock과 actual-runner marker publication이 바뀌어 기존 capture를 재사용하지 않았습니다.
+Corrected behavioral source `0b3bdb8219b5f2942c0d91a327ed405c8b9dd7d4`에서 independent A/B를 다시 캡처하고
+publication descendant `cc42c4f2d9902c3a0d7f1964eb52f68eb52a40ae`에서 current checked bytes를 고정했습니다.
 Phase A의 exact stale-attestation failure는 expected diagnostic으로 보존하며 다른 assertion failure와 혼동하지 않습니다.
 CI #191의 exact 53-job topology는 이 packet에서 유지합니다. 장시간 child build의 중복을
 측정·계층화하는 CI 최적화는 별도 bounded packet 후보이며 GDJ-0054 semantics나 activation에 섞지 않습니다.
@@ -310,9 +312,14 @@ CI #191의 exact 53-job topology는 이 packet에서 유지합니다. 장시간 
   274 files/3,557,167 payload bytes/SHA-256 `5cb50f0c3b833d09a6a42edb0180fc6b6bc8800a8d6eec2596702ba38afc9dc8`입니다.
   Affected normal/race/CGO-disabled/vet, actual comparator, checksum, protocol과 independent publication/source-binding audit가
   통과했습니다. Exact 명령과 non-claim은 EVID-176이 소유합니다.
-- ADR-0055는 계속 Proposed이고 GDJ-0054는 active입니다. Full `make ci`, native Linux/386, `.git`-free external archive와 exact
-  submitted-head Hosted는 아직 주장하지 않습니다. 다음 정확한 작업은 existing 53-job topology를 유지한 Phase E frozen
-  local/external/Hosted acceptance입니다.
+- Phase E exact product source는 `cc42c4f2d9902c3a0d7f1964eb52f68eb52a40ae`, tree
+  `0bfd830b3b4385be260094f2ce3cfae0b8d5c961`입니다. Full `make ci`, 120-package Linux/386 compile-only,
+  workflow-equivalent relation `978/978/0`, 1,269-file `.git`-free archive의 SQLite/PostgreSQL external flow와 exact-head
+  Hosted run `33355685927`의 53/53 jobs·572/572 steps가 통과했습니다. Current attestation은 1,134 bytes/SHA-256
+  `f682d655e7e953aec4c3f0ce3ff74121dc59027913c85c315f276e86948aa777`, binding은
+  274 files/3,557,580 bytes/SHA-256 `daa0077619947d1c4c0726b0578a0b1c42cb3dc646f9671df2f22da6a817435d`입니다.
+  Exact terminal 증거는 EVID-177이 소유합니다. ADR-0055는 Accepted이고 GDJ-0054는 completed이며 terminal 시점의
+  active/ready packet은 0/0입니다.
 
 ## 완료 조건
 

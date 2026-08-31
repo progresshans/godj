@@ -1,6 +1,6 @@
 # ADR-0055: Project-linked Deterministic Migration SQL Projection
 
-- 상태: Proposed
+- 상태: Accepted
 - 날짜: 2026-08-31
 - 관련 work/contract: GDJ-0054, MIG-129..MIG-138, Q-010, Q-012
 - 대체하는 ADR: 없음
@@ -45,9 +45,9 @@ Root가 loaded catalog와 historical before-state에서 exactly-one forward requ
 support와 shared compiler를 통해 statement body만 반환합니다. Global owner가 결과를 재검증하고 canonical bytes를 한 번
 게시합니다.
 
-## 제안 결정
+## 결정
 
-선택지 C를 제안합니다.
+선택지 C를 채택합니다.
 
 1. Public command는 exact `godj sqlmigrate APP EXACT_NAME`과 optional trailing `--project PATH` 두 형태뿐입니다.
    `zero`는 literal name이며 prefix/latest/reverse/app-zero 의미가 없습니다.
@@ -138,6 +138,15 @@ locked입니다. Exact local gates와 independent audit는 EVID-176이 소유합
 바꾸지 않습니다. Full `make ci`, native Linux/386, `.git`-free archive와 exact submitted-head Hosted는 Phase E에 남아 있으며
 그 증거 뒤에만 Accepted로 전환합니다.
 
+## Phase E acceptance
+
+Exact product source `cc42c4f2d9902c3a0d7f1964eb52f68eb52a40ae`, tree
+`0bfd830b3b4385be260094f2ce3cfae0b8d5c961`에서 full local milestone, Linux/386 compile-only, relation exact inventory,
+current source-bound PostgreSQL A/B, `.git`-free external SQLite/PostgreSQL product flow와 exact submitted-head Hosted를
+통과했습니다. Hosted run `33355685927`은 53/53 jobs·572/572 steps와 failure/cancel/skip/annotation 0으로 끝났습니다.
+Marker publication의 관찰 가능 final-path race는 sibling pending file과 same-directory rename으로 교정했고 corrected source에서
+full milestone과 source binding을 다시 검증했습니다. EVID-177이 failure diagnostic, correction과 terminal evidence를 소유합니다.
+
 ## 결과
 
 - SQL review가 live applied history나 database credential 없이 exact definition bytes에서 결정됩니다.
@@ -146,7 +155,10 @@ locked입니다. Exact local gates와 independent audit는 EVID-176이 소유합
 - Output publication은 logical all-or-nothing이지만 terminal write failure의 physical prefix는 복구할 수 없습니다.
 - PostgreSQL schema configuration은 command construction에 필요하지만 server/catalog 존재 여부는 확인하지 않습니다.
 
-## Accepted 전 확인할 것
+## Acceptance 확인 결과
+
+아래 항목은 EVID-173..177의 reference, affected, external, source-bound, full local과 exact-head Hosted 증거에서 모두
+확인했습니다.
 
 - Pinned Django 6.1 source/runtime에서 exact overlapping observation과 intentional difference를 고정했는가
 - Exported type/package/function 이름과 zero-invalid request construction이 external module에서 자연스러운가

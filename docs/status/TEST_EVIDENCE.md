@@ -16281,3 +16281,115 @@ exact submitted-head Hosted success, ADR-0055 acceptance or GDJ-0054 completion.
 Proposed and work remains active. If Phase E changes behavioral source, workflow or source-bound lock bytes, this capture becomes
 stale and must be repeated; documentation-only descendants do not change the binding. Draft PR #1 remains open/draft/unmerged and
 no PR comment, merge, release or deployment was performed.
+
+## EVID-20260831-177 — GDJ-0054 Corrected Phase E Local, Archive and Exact-head Hosted Completion
+
+- Date: 2026-08-31 KST
+- Local platform: macOS 26.6.2 build 25G83, Darwin arm64, Go 1.26.5
+- Work/contract IDs: GDJ-0054 completed; ADR-0055 Accepted; MIG-129..138 registered `passing`;
+  Q-010/Q-012 remain Partial
+- Exact product/submitted source: `cc42c4f2d9902c3a0d7f1964eb52f68eb52a40ae`, tree
+  `0bfd830b3b4385be260094f2ce3cfae0b8d5c961`
+- Result: the corrected source-bound A/B, full local milestone, Linux/386 compile-only, exact relation inventory,
+  `.git`-free repository-external SQLite/PostgreSQL product flow and exact submitted-head Hosted matrix all passed. This closes
+  ADR-0055/GDJ-0054 without changing the Phase D product aggregate.
+
+### First Hosted diagnostic and corrected source freeze
+
+The first Phase E submitted source `e783a7d247996f69ae51242b0906faf705cd3349` produced run
+`33348738976`: 32 of 53 jobs succeeded and 21 failed. The primary failures were stale exact relation inventory,
+all-scenario semantic digest and direct-import policy locks after publishing the new SQL-rendering product surface; `Required CI`
+was derivative. That run is preserved as a fail-closed diagnostic and is not reused as completion evidence.
+
+Source `0af9da8dea6a4b80460aae747a49c6175610cf75` updated only the measured workflow/protocol/import inventories. The resulting
+source binding was then independently recaptured at `8a0127f...`. Its first full local `make ci` exposed a CGO-disabled MIG-134
+failure, `migration SQL cancellation marker shape is invalid`. Three independent reviews traced this to a conformance harness race:
+the observer could see a newly created final marker path before `os.WriteFile` had finished publishing its complete payload. It was
+not accepted as a product failure or ignored as a flake.
+
+Source `0b3bdb8219b5f2942c0d91a327ed405c8b9dd7d4`, tree
+`2c64102b3cc686f0e626742b109ee52f9e8da554`, now writes the complete marker to a hidden sibling pending file and uses
+same-directory `os.Rename` to publish the final path. Both embedded actual runners have source-policy tests that require the atomic
+fragments and forbid direct final-path `WriteFile`. Focused MIG-134 normal/race/CGO-disabled, five separate CGO-disabled processes,
+MIG-128 ownership normal/race/CGO-disabled, external cancellation normal/race/CGO-disabled, full runner/protocol packages and vet
+all passed. Independent patch review found no P0/P1/P2 issue.
+
+### Current source-bound PostgreSQL attestation
+
+An exact clean archive of corrected behavioral source `0b3bdb8...` was captured under
+`/tmp/godj-gdj0054-attest-0b3bdb8.W2lMTw`: 19,978,240 bytes, SHA-256
+`3df717e82e88a58d7d5e175eed9a109883e8f07f92189525b46f03f0cf2df45f`. The audited A/B wrapper SHA-256 was
+`6e1e9120148ed8c2fb61389ff52ed1f8d9b5f8d6678736b9ef58cc3078eba41d` and used pinned Go 1.26.5 and
+PostgreSQL 17.10 resources independently for each capture.
+
+Both captures were exactly 1,134 bytes and SHA-256
+`f682d655e7e953aec4c3f0ce3ff74121dc59027913c85c315f276e86948aa777`; byte comparison passed. The current source binding is
+scope `godj.system-state.postgresql-two-process-source/v1`, 274 files, 3,557,580 payload bytes, SHA-256
+`daa0077619947d1c4c0726b0578a0b1c42cb3dc646f9671df2f22da6a817435d`. Publication descendant `cc42c4f...` carries that
+checked JSON and a 103-byte checksum file whose SHA-256 is
+`65ccc7b722234a2e193afa6c38276fdea088c18923bc65ec76041dfe04d55750`. Checksum, six-package
+normal/race/CGO-disabled/vet, mixed-product expectation, `make godj-conformance`, source binding and independent publication audits
+all passed. The three publication artifacts remain excluded from their own source binding.
+
+### Exact local and external archive gates
+
+Against clean exact `cc42c4f...`, the following terminal gates exited zero:
+
+```text
+LC_ALL=C TZ=UTC make ci
+LC_ALL=C TZ=UTC GOOS=linux GOARCH=386 CGO_ENABLED=0 GOWORK=off \
+  GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off \
+  go test -run '^$' -count=1 -exec=/usr/bin/true ./...
+```
+
+The first command passed generated drift, normal/race/CGO-disabled package and serial product lanes, vet, SQLite/PostgreSQL
+canaries, Python/reference, contract and comparator gates. The second compiled the exact 120-package inventory only; it is not local
+Linux/386 runtime evidence.
+
+The workflow-equivalent local relation normal inventory passed 978 runs/978 passes/0 skips, payload 99,969 bytes, SHA-256
+`66b1099b159b50834915dbb05c3f2b2034f163c143aa60547e609c1dc13a6aed`. The retained JSONL was 4,572,929 bytes,
+SHA-256 `dec684fc74da1c1221d9ae72b54f497730cd3aa6becd030c04ae61ace5f519c2`; vet passed. One initial wrapper attempt stopped
+before tests because zsh reserves the variable name `status`; the same commands were rerun under `/bin/bash`. That pre-test harness
+failure is not counted as product evidence.
+
+The exact `.git`-free archive is retained at `/tmp/godj-gdj0054-archive-final.BWVjNX`. Its source tar is 19,978,240 bytes,
+SHA-256 `32f1bff912a2da166101e5d9f633d7faf28c330b875213931baeaf356525dc1c`. Raw Git mode/blob verification found exactly
+1,269 regular files, 18,870,888 payload bytes and canonical roster SHA-256
+`dc6ea72ae67135a2eb92ce2021d053cd68e7f3ceac267f6d2eff5010dc022932`, with no `.git`, symlink or non-regular entry.
+Using private cache/temp directories and offline module settings, archive-local `make generate-check`, exact 120-package Linux/386
+compile-only, `TestGlobalSQLMigrateExternalPhaseDProduct` and `TestGlobalSQLMigrateExternalSQLiteProduct` passed; the two external
+flows took 86.113s and 310.471s. The latter covers both exact CLI forms, literal `zero`, prefix miss, complete-catalog precedence,
+repeat/parallel determinism, redaction and cleanup. Before/after archive and pristine source rosters were identical, a fresh final
+`git archive` was byte-identical to the original tar, and the primary checkout remained clean at the exact source/tree.
+
+### Exact submitted-head Hosted acceptance
+
+Draft PR #1 head and Hosted run `33355685927` both resolve to exact source `cc42c4f...`. The run completed successfully with:
+
+- 53/53 jobs and 572/572 recorded steps successful
+- failure/cancel/skip/annotation 0; duplicate job names 0
+- all 12 targeted-migrate coordinate/mode jobs and all 12 relation coordinate/mode jobs successful
+- relation normal on macOS arm64/Intel and Ubuntu amd64/arm64 each exactly 978/978/0 with the same 99,969-byte payload and SHA
+- PostgreSQL normal/race/CGO-disabled each exactly 24 runs/24 passes/0 skips
+- Python 3.12.13, 3.13.15, 3.14.3 and 3.14.7 jobs successful
+- native Ubuntu Linux/386 migration/project-check compile, runserver compile and relation runtime steps successful
+- `Required CI` successful after all exact eleven required workflow dependencies succeeded
+
+Independent GitHub API queries confirmed the run status/head, job and step totals, every check-run annotation count, exact inventory
+lines and PR head. No PR comment, merge, release or deployment was performed.
+
+An independent final source/evidence audit recomputed the source binding, inspected the retained archive and queried the exact
+Hosted run. It found P0/P1/P2=`0/0/0` and no missing blocking gate. Its sole P3 documentation finding was a stale `Proposed` word
+beside the now-Accepted ADR in CURRENT; that word was removed before this terminal documentation commit.
+
+### Status transition and non-claims
+
+MIG-129..138 remain exact ten registered `passing` contracts with no deviation fixture. Reference remains
+27 sets/301 contracts/702 ordered cross-bindings=`264 passing + 25 deviation + 12 oracle_locked`; product remains
+26 adapters/289 contracts=`264 passing + 25 deviation`; MIG-075..086 is the only reference-only locked range. ADR-0055 is Accepted
+and GDJ-0054 is completed.
+
+This evidence does not claim live SQL executability, applied-state awareness, custom-renderer no-I/O/coherence, OS-atomic stdout,
+reverse/prefix/app-only/multi-target SQL, destructive/custom/data operations, multi-DB, MySQL/Windows or broader Q-010/Q-012
+resolution. The terminal documentation descendant changes no product source, workflow, lock or source-bound artifact and therefore
+uses the documentation-only status/link/format gates instead of recursively rerunning the product matrix.
