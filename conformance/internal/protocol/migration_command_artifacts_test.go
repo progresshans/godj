@@ -294,9 +294,9 @@ func TestMigrationCommandPublishedCentralWiringIsExact(t *testing.T) {
 		"conformance/fixtures/godj-migration-command-not-implemented.json": 2,
 		"test \"$(grep -c '^test_' \"$log\")\" -eq 325":                    1,
 		"grep -Fq 'Ran 325 tests' \"$log\"":                                1,
-		"assert len(SCENARIOS) == 301":                                     1,
-		"assert len(payload) == 1063486":                                   1,
-		"df78c110fb7452c3d82ce3f525b7e6bc895f3b6e2261fddfeda016b30b3c519e": 1,
+		"assert len(SCENARIOS) == 311":                                     1,
+		"assert len(payload) == 1081058":                                   1,
+		"b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5": 1,
 	} {
 		if got := strings.Count(workflow, fragment); got != want {
 			t.Fatalf("workflow fragment %q count = %d, want %d", fragment, got, want)

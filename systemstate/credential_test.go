@@ -2,6 +2,7 @@ package systemstate
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -12,6 +13,9 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/sessions"
 )
 
 func TestPermissionCodecIsDeterministicBoundedAndCurrentOnly(t *testing.T) {
@@ -91,44 +95,254 @@ func TestPermissionCodecRejectsUnknownMalformedDuplicateAndSecretBearingInput(t 
 	}
 }
 
-func TestBootstrapConfigFormattingIsRedacted(t *testing.T) {
+func TestProvisionOperatorConfigJSONCannotPopulateSecretFields(t *testing.T) {
 	const (
-		passwordMarker = "bootstrap-password-secret-marker"
-		hasherMarker   = "bootstrap-password-hasher-secret-marker"
+		passwordMarker = "operator-password-secret-marker"
+		hasherMarker   = "operator-password-hasher-secret-marker"
 	)
-	config := BootstrapConfig{
-		Username:       "admin",
-		Password:       passwordMarker,
-		PrincipalID:    "operator",
-		Active:         true,
-		PasswordHasher: bootstrapMarkerHasher{Pepper: hasherMarker},
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "operator", Active: true})
+	if err != nil {
+		t.Fatalf("auth.NewPrincipal(): %v", err)
+	}
+	config := ProvisionOperatorConfig{
+		Username: "admin",
+		Password: passwordMarker,
+		CredentialPolicy: CredentialPolicy{
+			Principal:      principal,
+			PasswordHasher: bootstrapMarkerHasher{Pepper: hasherMarker},
+		},
 	}
 	encoded, err := json.Marshal(config)
 	if err != nil {
-		t.Fatalf("json.Marshal(BootstrapConfig): %v", err)
+		t.Fatalf("json.Marshal(ProvisionOperatorConfig): %v", err)
 	}
 	for _, rendered := range []string{fmt.Sprint(config), fmt.Sprintf("%#v", config)} {
-		if rendered != "systemstate.BootstrapConfig{redacted}" ||
+		if rendered != "systemstate.ProvisionOperatorConfig{redacted}" ||
 			strings.Contains(rendered, passwordMarker) || strings.Contains(rendered, hasherMarker) {
-			t.Fatalf("BootstrapConfig formatting = %q", rendered)
+			t.Fatalf("ProvisionOperatorConfig formatting = %q", rendered)
 		}
 	}
 	if strings.Contains(string(encoded), passwordMarker) || strings.Contains(string(encoded), hasherMarker) ||
 		strings.Contains(string(encoded), `"Password"`) || strings.Contains(string(encoded), `"PasswordHasher"`) {
-		t.Fatalf("BootstrapConfig JSON publishes a secret-bearing field: %s", encoded)
+		t.Fatalf("ProvisionOperatorConfig JSON publishes a secret-bearing field: %s", encoded)
 	}
-	var decoded BootstrapConfig
-	if err := json.Unmarshal([]byte(`{"Username":"admin","Password":"`+passwordMarker+`","PasswordHasher":{"Pepper":"`+hasherMarker+`"}}`), &decoded); err != nil {
-		t.Fatalf("json.Unmarshal(BootstrapConfig): %v", err)
+	var decoded ProvisionOperatorConfig
+	if err := json.Unmarshal([]byte(`{"Username":"admin","Password":"`+passwordMarker+`","CredentialPolicy":{"PasswordHasher":{"Pepper":"`+hasherMarker+`"}}}`), &decoded); err != nil {
+		t.Fatalf("json.Unmarshal(ProvisionOperatorConfig): %v", err)
 	}
-	if decoded.Password != "" || decoded.PasswordHasher != nil {
-		t.Fatal("BootstrapConfig JSON populated a secret-bearing field")
+	if decoded.Password != "" || decoded.CredentialPolicy.PasswordHasher != nil {
+		t.Fatal("ProvisionOperatorConfig JSON populated a secret-bearing field")
+	}
+}
+
+func TestReadCredentialRowsClosesRowsReturnedWithPrimaryError(t *testing.T) {
+	primary := errors.New("credential query primary failure")
+	rows := &credentialFaultRows{closeErr: errors.New("credential rows close failure")}
+	result, err := readCredentialRows(context.Background(), credentialFaultQueryer{rows: rows, err: primary})
+	if result != nil || !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: credentialTableName}) ||
+		!errors.Is(err, primary) {
+		t.Fatalf("readCredentialRows(rows+error) = (%v, %#v)", result, err)
+	}
+	if rows.closeCalls != 1 || rows.nextCalls != 0 || rows.scanCalls != 0 || rows.errCalls != 0 {
+		t.Fatalf(
+			"rows+error calls = close %d/next %d/scan %d/err %d, want 1/0/0/0",
+			rows.closeCalls, rows.nextCalls, rows.scanCalls, rows.errCalls,
+		)
+	}
+}
+
+func TestReadCredentialRowsRejectsTypedNilRowsWithoutMethodCalls(t *testing.T) {
+	primary := errors.New("credential typed-nil primary failure")
+	for _, test := range []struct {
+		name string
+		err  error
+	}{
+		{name: "nil error"},
+		{name: "primary error", err: primary},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var rows *credentialFaultRows
+			result, err := readCredentialRows(context.Background(), credentialFaultQueryer{rows: rows, err: test.err})
+			if result != nil || !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: credentialTableName}) {
+				t.Fatalf("readCredentialRows(typed nil) = (%v, %#v)", result, err)
+			}
+			if test.err != nil && !errors.Is(err, test.err) {
+				t.Fatalf("readCredentialRows(typed nil) lost primary error: %#v", err)
+			}
+		})
+	}
+}
+
+func TestSystemStateQueryAcquisitionRejectsTypedNilRowsAndClosesRowsWithError(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(context.Context, credentialFaultQueryer) error
+	}{
+		{
+			name: "provision session inspection",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := inspectProvisionSessionTable(ctx, queryer)
+				return err
+			},
+		},
+		{
+			name: "provision audit inspection",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := inspectProvisionAuditTable(ctx, queryer)
+				return err
+			},
+		},
+		{
+			name: "session inventory",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := scanSessionInventory(ctx, queryer, 1)
+				return err
+			},
+		},
+		{
+			name: "session payloads",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := scanSessionPayloads(ctx, queryer, sessions.Limits{}, 1, nil)
+				return err
+			},
+		},
+		{
+			name: "session rows",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := readSessionRows(ctx, queryer, query.NewPlan(sessionTableName, []query.FieldRef{
+					systemRowIDField,
+					sessionDigestField,
+					sessionPayloadField,
+				}), 1)
+				return err
+			},
+		},
+		{
+			name: "audit inspection",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := inspectAuditTable(ctx, queryer, 1)
+				return err
+			},
+		},
+		{
+			name: "audit rows",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				_, err := queryAuditRows(ctx, queryer, "", 0, 1, query.Ascending)
+				return err
+			},
+		},
+		{
+			name: "audit prune",
+			run: func(ctx context.Context, queryer credentialFaultQueryer) error {
+				return pruneAuditRows(ctx, credentialFaultSession{credentialFaultQueryer: queryer}, 1)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Run("typed nil success", func(t *testing.T) {
+				var rows *credentialFaultRows
+				if err := test.run(context.Background(), credentialFaultQueryer{rows: rows}); err == nil {
+					t.Fatal("typed-nil rows with nil error were accepted")
+				}
+			})
+
+			t.Run("typed nil primary error", func(t *testing.T) {
+				primary := errors.New("typed-nil query primary failure")
+				var rows *credentialFaultRows
+				err := test.run(context.Background(), credentialFaultQueryer{rows: rows, err: primary})
+				if err == nil || !errors.Is(err, primary) {
+					t.Fatalf("typed-nil rows lost primary error: %#v", err)
+				}
+			})
+
+			t.Run("rows plus primary error", func(t *testing.T) {
+				primary := errors.New("rows query primary failure")
+				rows := &credentialFaultRows{closeErr: errors.New("rows close failure")}
+				err := test.run(context.Background(), credentialFaultQueryer{rows: rows, err: primary})
+				if err == nil || !errors.Is(err, primary) {
+					t.Fatalf("rows+error lost primary error: %#v", err)
+				}
+				if rows.closeCalls != 1 || rows.nextCalls != 0 || rows.scanCalls != 0 || rows.errCalls != 0 {
+					t.Fatalf(
+						"rows+error calls = close %d/next %d/scan %d/err %d, want 1/0/0/0",
+						rows.closeCalls, rows.nextCalls, rows.scanCalls, rows.errCalls,
+					)
+				}
+			})
+		})
 	}
 }
 
 type bootstrapMarkerHasher struct {
 	auth.PasswordHasher
 	Pepper string
+}
+
+type credentialFaultQueryer struct {
+	rows db.Rows
+	err  error
+}
+
+type credentialFaultSession struct {
+	credentialFaultQueryer
+}
+
+func (credentialFaultSession) Insert(context.Context, query.InsertPlan) (int64, error) {
+	panic("typed-nil query acquisition must not insert")
+}
+
+func (credentialFaultSession) Update(context.Context, query.UpdatePlan) (int64, error) {
+	panic("typed-nil query acquisition must not update")
+}
+
+func (credentialFaultSession) Delete(context.Context, query.DeletePlan) (int64, error) {
+	panic("typed-nil query acquisition must not delete")
+}
+
+func (queryer credentialFaultQueryer) Query(context.Context, query.Plan) (db.Rows, error) {
+	return queryer.rows, queryer.err
+}
+
+type credentialFaultRows struct {
+	closeErr   error
+	closeCalls int
+	nextCalls  int
+	scanCalls  int
+	errCalls   int
+}
+
+func (rows *credentialFaultRows) Next() bool {
+	if rows == nil {
+		panic("typed-nil credential rows Next must not be called")
+	}
+	rows.nextCalls++
+	return false
+}
+
+func (rows *credentialFaultRows) Scan(...any) error {
+	if rows == nil {
+		panic("typed-nil credential rows Scan must not be called")
+	}
+	rows.scanCalls++
+	return nil
+}
+
+func (rows *credentialFaultRows) Err() error {
+	if rows == nil {
+		panic("typed-nil credential rows Err must not be called")
+	}
+	rows.errCalls++
+	return nil
+}
+
+func (rows *credentialFaultRows) Close() error {
+	if rows == nil {
+		panic("typed-nil credential rows Close must not be called")
+	}
+	rows.closeCalls++
+	return rows.closeErr
 }
 
 func mustPermission(t *testing.T, value string) auth.Permission {

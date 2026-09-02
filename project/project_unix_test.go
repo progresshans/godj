@@ -14,10 +14,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
@@ -213,6 +215,74 @@ func TestPublicMigrateOwnsSourcesAndSignalContext(t *testing.T) {
 	}
 	if ownerCalls != 1 || stopCalls != 1 {
 		t.Fatalf("signal owner calls = owner %d, stop %d", ownerCalls, stopCalls)
+	}
+}
+
+func TestPublicCreatesuperuserOwnsRequestConfigAndSignalContext(t *testing.T) {
+	enterProjectRoot(t)
+	request, err := createsuperuserprotocol.EncodeRequest(createsuperuserprotocol.Request{
+		Username: []byte("operator-marker"),
+		Password: []byte("password-marker"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := newBlockingReader(request)
+	clear(request)
+
+	type contextKey struct{}
+	marker := new(int)
+	ownerCalls := 0
+	stopCalls := 0
+	openCalls := 0
+	config := Config{
+		OpenSystemStateBackend: func(ctx context.Context) (SystemStateBackend, error) {
+			openCalls++
+			if ctx.Value(contextKey{}) != marker {
+				t.Fatal("createsuperuser opener did not receive the owned signal context")
+			}
+			return nil, nil
+		},
+	}
+	var output bytes.Buffer
+	done := make(chan error, 1)
+	go func() {
+		done <- run(
+			context.Background(),
+			config,
+			[]string{createsuperuserprotocol.PrivateArgument},
+			reader,
+			&output,
+			func(parent context.Context) (context.Context, context.CancelFunc) {
+				ownerCalls++
+				owned, cancel := context.WithCancel(context.WithValue(parent, contextKey{}, marker))
+				return owned, func() {
+					stopCalls++
+					cancel()
+				}
+			},
+		)
+	}()
+	<-reader.started
+	config.OpenSystemStateBackend = func(context.Context) (SystemStateBackend, error) {
+		panic("public Run retained mutable caller config")
+	}
+	close(reader.release)
+	if err := <-done; err != nil {
+		t.Fatalf("createsuperuser dispatch = %v", err)
+	}
+	response, failure, failed := createsuperuserprotocol.ParseResponse(output.Bytes(), true)
+	if failed || failure != (createsuperuserprotocol.Failure{}) || response.Failure != (createsuperuserprotocol.Failure{
+		Category: createsuperuserprotocol.CategoryBackend,
+		Code:     createsuperuserprotocol.CodeInvalidBackend,
+	}) {
+		t.Fatalf("createsuperuser response = %+v, %+v, %v", response, failure, failed)
+	}
+	if openCalls != 1 || ownerCalls != 1 || stopCalls != 1 {
+		t.Fatalf("createsuperuser calls = open %d, owner %d, stop %d; want 1/1/1", openCalls, ownerCalls, stopCalls)
+	}
+	if bytes.Contains(output.Bytes(), []byte("operator-marker")) || bytes.Contains(output.Bytes(), []byte("password-marker")) {
+		t.Fatalf("createsuperuser response leaked request material: %q", output.Bytes())
 	}
 }
 
@@ -591,6 +661,7 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	linkedSQLMigrateCalls := 0
 	linkedMakemigrationsCalls := 0
 	linkedRawMakemigrationsCalls := 0
+	linkedCreatesuperuserCalls := 0
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch value := node.(type) {
 		case *ast.TypeSpec:
@@ -625,11 +696,14 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunMakemigrations" {
 				linkedRawMakemigrationsCalls++
 			}
+			if ok && identifier.Name == "linked" && selector.Sel.Name == "RunCreatesuperuser" {
+				linkedCreatesuperuserCalls++
+			}
 		}
 		return true
 	})
 	sort.Strings(exports)
-	if !reflect.DeepEqual(exports, []string{"Config", "MigrationBackend", "Run"}) {
+	if !reflect.DeepEqual(exports, []string{"Config", "MigrationBackend", "Run", "RunnerExitCode", "SystemStateBackend"}) {
 		t.Fatalf("project exports = %v", exports)
 	}
 	if linkedCalls != 1 {
@@ -650,6 +724,9 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 	if linkedRawMakemigrationsCalls != 0 {
 		t.Fatalf("linked.RunMakemigrations raw callsites in public facade = %d, want 0", linkedRawMakemigrationsCalls)
 	}
+	if linkedCreatesuperuserCalls != 1 {
+		t.Fatalf("linked.RunCreatesuperuser callsites in public facade = %d, want 1", linkedCreatesuperuserCalls)
+	}
 	source, err := os.ReadFile("project_unix.go")
 	if err != nil {
 		t.Fatal(err)
@@ -658,6 +735,59 @@ func TestPublicSurfaceAndDelegationAreExact(t *testing.T) {
 		if bytes.Contains(source, forbidden) {
 			t.Errorf("public facade contains forbidden fragment %q", forbidden)
 		}
+	}
+}
+
+func TestRunnerExitCodeKeepsKnownCreatedPrivatePublicationDistinct(t *testing.T) {
+	t.Parallel()
+
+	if got := RunnerExitCode(nil); got != 0 {
+		t.Fatalf("nil runner exit = %d, want 0", got)
+	}
+	if got := RunnerExitCode(errors.New("ordinary project runner failure")); got != 1 {
+		t.Fatalf("ordinary runner exit = %d, want 1", got)
+	}
+	for _, code := range []int{
+		createsuperuserprotocol.KnownCreatedResponseFailureExitCode,
+		createsuperuserprotocol.KnownCreatedBackendCleanupResponseFailureExitCode,
+	} {
+		known := projectRunnerError{code: code}
+		if got := RunnerExitCode(known); got != code {
+			t.Fatalf("known-created runner exit = %d, want %d", got, code)
+		}
+		if got := RunnerExitCode(&known); got != 1 {
+			t.Fatalf("noncanonical wrapped-shaped runner exit = %d, want 1", got)
+		}
+	}
+
+	raw := errors.New("private-output-secret-marker")
+	for _, test := range []struct {
+		name   string
+		report linked.CreatesuperuserReport
+		code   int
+	}{
+		{
+			name:   "output only",
+			report: linked.CreatesuperuserReport{KnownCreated: true},
+			code:   createsuperuserprotocol.KnownCreatedResponseFailureExitCode,
+		},
+		{
+			name: "backend cleanup precedes output",
+			report: linked.CreatesuperuserReport{
+				KnownCreated:           true,
+				BackendCleanupFailures: 1,
+			},
+			code: createsuperuserprotocol.KnownCreatedBackendCleanupResponseFailureExitCode,
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			mapped := createsuperuserRunError(test.report, raw)
+			if RunnerExitCode(mapped) != test.code || errors.Is(mapped, raw) ||
+				strings.Contains(mapped.Error(), "secret-marker") {
+				t.Fatalf("mapped private runner error = %T/%v exit=%d", mapped, mapped, RunnerExitCode(mapped))
+			}
+		})
 	}
 }
 

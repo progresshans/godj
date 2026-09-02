@@ -464,12 +464,12 @@ func scanSessionInventory(ctx context.Context, queryer db.Queryer, limit int) (i
 	)
 	result, err := queryer.Query(ctx, plan)
 	if err != nil {
-		if result != nil {
+		if !isNilInterface(result) {
 			_ = result.Close()
 		}
 		return 0, persistenceFailure("query session inventory", err)
 	}
-	if result == nil {
+	if isNilInterface(result) {
 		return 0, persistenceFailure("query session inventory", errors.New("backend returned nil rows"))
 	}
 
@@ -543,12 +543,12 @@ func scanSessionPayloads(
 	plan = plan.WithOrderings(query.NewOrdering(systemRowIDField, query.Ascending))
 	result, err := queryer.Query(ctx, plan)
 	if err != nil {
-		if result != nil {
+		if !isNilInterface(result) {
 			_ = result.Close()
 		}
 		return 0, persistenceFailure("query session payloads", err)
 	}
-	if result == nil {
+	if isNilInterface(result) {
 		return 0, persistenceFailure("query session payloads", errors.New("backend returned nil rows"))
 	}
 
@@ -640,12 +640,12 @@ func readSessionRows(ctx context.Context, queryer db.Queryer, plan query.Plan, l
 	}
 	result, err := queryer.Query(ctx, plan)
 	if err != nil {
-		if result != nil {
+		if !isNilInterface(result) {
 			_ = result.Close()
 		}
 		return nil, persistenceFailure("query sessions", err)
 	}
-	if result == nil {
+	if isNilInterface(result) {
 		return nil, persistenceFailure("query sessions", errors.New("backend returned nil rows"))
 	}
 	rows := make([]persistedSessionRow, 0, limit)

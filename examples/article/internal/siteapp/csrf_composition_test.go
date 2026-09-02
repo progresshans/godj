@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/systemstate"
@@ -134,8 +135,19 @@ func newSiteAppCSRFFixture(t *testing.T, ring websessionauth.CSRFKeyRing) siteAp
 		username = "csrf-composition-admin"
 		password = "csrf-composition-password-marker"
 	)
-	firstConfig := NewConfig(firstBackend, username, password)
-	secondConfig := NewConfig(secondBackend, username, password)
+	policy, err := operatorconfig.CredentialPolicy()
+	if err != nil {
+		t.Fatalf("Article operator policy: %v", err)
+	}
+	if err := systemstate.ProvisionOperator(ctx, firstBackend, systemstate.ProvisionOperatorConfig{
+		Username:         username,
+		Password:         password,
+		CredentialPolicy: policy,
+	}); err != nil {
+		t.Fatalf("ProvisionOperator(): %v", err)
+	}
+	firstConfig := NewConfig(firstBackend).WithLoopbackAuthentication()
+	secondConfig := NewConfig(secondBackend).WithLoopbackAuthentication()
 	if ring.Valid() {
 		firstConfig = firstConfig.WithCSRFKeyRing(ring)
 		secondConfig = secondConfig.WithCSRFKeyRing(ring)

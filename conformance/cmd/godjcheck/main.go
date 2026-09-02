@@ -14,8 +14,9 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	operatorattestation "github.com/progresshans/godj/conformance/projectoperatorproduct/attestation"
 	godjrunner "github.com/progresshans/godj/conformance/runners/godj"
-	"github.com/progresshans/godj/conformance/systemstate/attestation"
+	systemstateattestation "github.com/progresshans/godj/conformance/systemstate/attestation"
 )
 
 func main() {
@@ -35,8 +36,13 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		"",
 		"path to the checked source-bound PostgreSQL 17.10 SYS-020 evidence",
 	)
+	projectOperatorPostgreSQLAttestationPath := flags.String(
+		"project-operator-postgres-attestation",
+		"",
+		"path to the checked source-bound PostgreSQL 17.10 and SQLite SYS-029 evidence",
+	)
 	flags.Usage = func() {
-		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-deviation-expected PRODUCT.json] [-system-state-postgres-attestation EVIDENCE.json] [-actual-output ACTUAL.json]")
+		fmt.Fprintln(stderr, "usage: godjcheck -profile PROFILE.json -manifest MANIFEST.json -expected ORACLE.json [-deviation-expected PRODUCT.json] [-system-state-postgres-attestation EVIDENCE.json] [-project-operator-postgres-attestation EVIDENCE.json] [-actual-output ACTUAL.json]")
 	}
 	if err := flags.Parse(arguments); err != nil {
 		return 2
@@ -103,6 +109,7 @@ func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int 
 		comparisonManifest,
 		*manifestPath,
 		*systemStatePostgreSQLAttestationPath,
+		*projectOperatorPostgreSQLAttestationPath,
 	)
 	if err != nil {
 		return reportFailure(stderr, err)
@@ -188,55 +195,277 @@ func loadRunnerInputs(
 	manifest protocol.Manifest,
 	manifestPath string,
 	systemStatePostgreSQLAttestationPath string,
+	projectOperatorPostgreSQLAttestationPath string,
 ) (godjrunner.Inputs, error) {
-	required := false
-	for _, contract := range manifest.Contracts {
-		if contract.ID != attestation.Contract && contract.Scenario != attestation.Scenario {
-			continue
-		}
-		if contract.ID != attestation.Contract || contract.Scenario != attestation.Scenario {
-			return godjrunner.Inputs{}, fmt.Errorf("PostgreSQL live attestation contract/scenario binding is inconsistent")
-		}
-		required = contract.Status == protocol.ContractPassing
-		break
+	return loadRunnerInputsWithEvidenceLoader(
+		manifest,
+		manifestPath,
+		systemStatePostgreSQLAttestationPath,
+		projectOperatorPostgreSQLAttestationPath,
+		checkedRunnerInputEvidenceLoader(),
+	)
+}
+
+type runnerInputEvidenceLoader struct {
+	loadSystemState     func(repositoryRoot, path string) (systemstateattestation.ObservedFacts, error)
+	loadProjectOperator func(
+		repositoryRoot, path string,
+	) (operatorattestation.ObservedFacts, operatorattestation.ObservedFacts, error)
+}
+
+func checkedRunnerInputEvidenceLoader() runnerInputEvidenceLoader {
+	return runnerInputEvidenceLoader{
+		loadSystemState: func(repositoryRoot, path string) (systemstateattestation.ObservedFacts, error) {
+			evidence, err := systemstateattestation.Load(repositoryRoot, path)
+			if err != nil {
+				return systemstateattestation.ObservedFacts{}, err
+			}
+			return evidence.BackendFacts().Observed(), nil
+		},
+		loadProjectOperator: func(repositoryRoot, path string) (operatorattestation.ObservedFacts, operatorattestation.ObservedFacts, error) {
+			evidence, err := operatorattestation.Load(repositoryRoot, path)
+			if err != nil {
+				return operatorattestation.ObservedFacts{}, operatorattestation.ObservedFacts{}, err
+			}
+			return evidence.PostgreSQLFacts().Observed(), evidence.SQLiteFacts().Observed(), nil
+		},
 	}
-	if !required {
-		if systemStatePostgreSQLAttestationPath != "" {
-			return godjrunner.Inputs{}, fmt.Errorf("-system-state-postgres-attestation is not used by this manifest")
-		}
-		return godjrunner.Inputs{}, nil
-	}
-	if systemStatePostgreSQLAttestationPath == "" {
-		return godjrunner.Inputs{}, fmt.Errorf("passing SYS-020 requires -system-state-postgres-attestation")
-	}
-	repositoryRoot, err := attestationRepositoryRoot(manifestPath, systemStatePostgreSQLAttestationPath)
+}
+
+func loadRunnerInputsWithEvidenceLoader(
+	manifest protocol.Manifest,
+	manifestPath string,
+	systemStatePostgreSQLAttestationPath string,
+	projectOperatorPostgreSQLAttestationPath string,
+	loader runnerInputEvidenceLoader,
+) (godjrunner.Inputs, error) {
+	systemStateRequired, err := manifestAttestationRequired(
+		manifest,
+		systemstateattestation.Contract,
+		systemstateattestation.Scenario,
+		"PostgreSQL live attestation",
+	)
 	if err != nil {
 		return godjrunner.Inputs{}, err
 	}
-	evidence, err := attestation.Load(repositoryRoot, systemStatePostgreSQLAttestationPath)
+	projectOperatorRequired, err := manifestAttestationRequired(
+		manifest,
+		operatorattestation.Contract,
+		operatorattestation.Scenario,
+		"external project operator attestation",
+	)
 	if err != nil {
-		return godjrunner.Inputs{}, fmt.Errorf("load PostgreSQL live attestation: %w", err)
+		return godjrunner.Inputs{}, err
 	}
-	observed := evidence.BackendFacts().Observed()
+	if !systemStateRequired && systemStatePostgreSQLAttestationPath != "" {
+		return godjrunner.Inputs{}, errors.New("-system-state-postgres-attestation is not used by this manifest")
+	}
+	if !projectOperatorRequired && projectOperatorPostgreSQLAttestationPath != "" {
+		return godjrunner.Inputs{}, errors.New("-project-operator-postgres-attestation is not used by this manifest")
+	}
+	if systemStateRequired && systemStatePostgreSQLAttestationPath == "" {
+		return godjrunner.Inputs{}, errors.New("published SYS-020 requires -system-state-postgres-attestation")
+	}
+	if projectOperatorRequired && projectOperatorPostgreSQLAttestationPath == "" {
+		return godjrunner.Inputs{}, errors.New("published SYS-029 requires -project-operator-postgres-attestation")
+	}
+	if !systemStateRequired && !projectOperatorRequired {
+		return godjrunner.Inputs{}, nil
+	}
+
+	repositoryRoot, err := attestationRepositoryRoot(manifestPath)
+	if err != nil {
+		return godjrunner.Inputs{}, err
+	}
+	if systemStateRequired {
+		if err := requireSystemStateAttestationPath(repositoryRoot, systemStatePostgreSQLAttestationPath); err != nil {
+			return godjrunner.Inputs{}, err
+		}
+	}
+	if projectOperatorRequired {
+		if err := requireProjectOperatorAttestationPath(repositoryRoot, projectOperatorPostgreSQLAttestationPath); err != nil {
+			return godjrunner.Inputs{}, err
+		}
+	}
+
+	var inputs godjrunner.Inputs
+	if systemStateRequired {
+		if loader.loadSystemState == nil {
+			return godjrunner.Inputs{}, errors.New("PostgreSQL live attestation loader is unavailable")
+		}
+		observed, err := loader.loadSystemState(repositoryRoot, systemStatePostgreSQLAttestationPath)
+		if err != nil {
+			return godjrunner.Inputs{}, fmt.Errorf("load PostgreSQL live attestation: %w", err)
+		}
+		facts, err := systemStateRunnerFacts(observed)
+		if err != nil {
+			return godjrunner.Inputs{}, fmt.Errorf("convert PostgreSQL live attestation: %w", err)
+		}
+		inputs.SystemStatePostgreSQLTwoProcess = &facts
+	}
+	if projectOperatorRequired {
+		if loader.loadProjectOperator == nil {
+			return godjrunner.Inputs{}, errors.New("external project operator attestation loader is unavailable")
+		}
+		postgresObserved, sqliteObserved, err := loader.loadProjectOperator(repositoryRoot, projectOperatorPostgreSQLAttestationPath)
+		if err != nil {
+			return godjrunner.Inputs{}, fmt.Errorf("load external project operator attestation: %w", err)
+		}
+		postgresFacts, err := projectOperatorRunnerFacts(postgresObserved, operatorattestation.BackendPostgreSQL)
+		if err != nil {
+			return godjrunner.Inputs{}, fmt.Errorf("convert external project operator PostgreSQL evidence: %w", err)
+		}
+		sqliteFacts, err := projectOperatorRunnerFacts(sqliteObserved, operatorattestation.BackendSQLite)
+		if err != nil {
+			return godjrunner.Inputs{}, fmt.Errorf("convert external project operator SQLite evidence: %w", err)
+		}
+		inputs.ProjectOperatorPostgreSQL = &postgresFacts
+		inputs.ProjectOperatorSQLite = &sqliteFacts
+	}
+	return inputs, nil
+}
+
+func manifestAttestationRequired(
+	manifest protocol.Manifest,
+	contractID, scenario, label string,
+) (bool, error) {
+	found := false
+	required := false
+	for _, contract := range manifest.Contracts {
+		if contract.ID != contractID && contract.Scenario != scenario {
+			continue
+		}
+		if contract.ID != contractID || contract.Scenario != scenario {
+			return false, fmt.Errorf("%s contract/scenario binding is inconsistent", label)
+		}
+		if found {
+			return false, fmt.Errorf("%s contract/scenario binding appears more than once", label)
+		}
+		found = true
+		switch contract.Status {
+		case protocol.ContractPassing, protocol.ContractDeviation:
+			required = true
+		case protocol.ContractOracleLocked:
+			required = false
+		default:
+			return false, fmt.Errorf("%s contract has unsupported status %q", label, contract.Status)
+		}
+	}
+	return required, nil
+}
+
+func systemStateRunnerFacts(observed systemstateattestation.ObservedFacts) (godjrunner.SystemStateTwoProcessBackendFacts, error) {
+	validated, err := systemstateattestation.NewBackendFacts(observed)
+	if err != nil {
+		return godjrunner.SystemStateTwoProcessBackendFacts{}, err
+	}
+	observed = validated.Observed()
+	writerProcesses, err := checkedRunnerFactInt(observed.WriterProcesses, "writer processes")
+	if err != nil {
+		return godjrunner.SystemStateTwoProcessBackendFacts{}, err
+	}
+	divergenceCount, err := checkedRunnerFactInt(observed.DivergenceCount, "cross-process state divergence")
+	if err != nil {
+		return godjrunner.SystemStateTwoProcessBackendFacts{}, err
+	}
+	lossCount, err := checkedRunnerFactInt(observed.LossCount, "restart state loss")
+	if err != nil {
+		return godjrunner.SystemStateTwoProcessBackendFacts{}, err
+	}
+	secretOccurrences, err := checkedRunnerFactInt(observed.SecretOccurrences, "secret occurrences")
+	if err != nil {
+		return godjrunner.SystemStateTwoProcessBackendFacts{}, err
+	}
 	barrierRace := "not_linearized"
 	if observed.BarrierLinearized {
 		barrierRace = "linearized"
 	}
-	facts := godjrunner.SystemStateTwoProcessBackendFacts{
+	return godjrunner.SystemStateTwoProcessBackendFacts{
 		Backend:                     "postgresql_17_10",
-		WriterProcesses:             int(observed.WriterProcesses),
+		WriterProcesses:             writerProcesses,
 		BarrierRace:                 barrierRace,
 		CleanRestartPreserved:       observed.RestartPreserved,
 		SameDatabaseOrSchema:        observed.SameSchema,
-		CrossProcessStateDivergence: int(observed.DivergenceCount),
-		RestartStateLoss:            int(observed.LossCount),
+		CrossProcessStateDivergence: divergenceCount,
+		RestartStateLoss:            lossCount,
 		SchemaDrift:                 observed.DriftCount != 0,
-		SecretValuesSerialized:      int(observed.SecretOccurrences),
-	}
-	return godjrunner.Inputs{SystemStatePostgreSQLTwoProcess: &facts}, nil
+		SecretValuesSerialized:      secretOccurrences,
+	}, nil
 }
 
-func attestationRepositoryRoot(manifestPath, attestationPath string) (string, error) {
+func projectOperatorRunnerFacts(
+	observed operatorattestation.ObservedFacts,
+	expectedBackend string,
+) (godjrunner.GDJ0055OperatorBackendFacts, error) {
+	validated, err := operatorattestation.NewProductFacts(observed)
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	observed = validated.Observed()
+	if observed.Backend != expectedBackend {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, errors.New("external project operator backend identity does not match its required case")
+	}
+	provisionProcesses, err := checkedRunnerFactInt(observed.ProvisionProcesses, "provision processes")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	runtimeProcesses, err := checkedRunnerFactInt(observed.RuntimeProcesses, "runtime processes")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	distinctProcesses, err := checkedRunnerFactInt(observed.DistinctProcesses, "distinct processes")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	provisionCalls, err := checkedRunnerFactInt(observed.ProvisionCalls, "provision calls")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	credentialRows, err := checkedRunnerFactInt(observed.CredentialRows, "credential rows")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	restartStateLoss, err := checkedRunnerFactInt(observed.RestartStateLoss, "restart state loss")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	rawSecretOccurrences, err := checkedRunnerFactInt(observed.RawSecretOccurrences, "raw secret occurrences")
+	if err != nil {
+		return godjrunner.GDJ0055OperatorBackendFacts{}, err
+	}
+	return godjrunner.GDJ0055OperatorBackendFacts{
+		Backend:                             observed.Backend,
+		ProvisionProcesses:                  provisionProcesses,
+		RuntimeProcesses:                    runtimeProcesses,
+		DistinctProcesses:                   distinctProcesses,
+		ProvisionCalls:                      provisionCalls,
+		CredentialRows:                      credentialRows,
+		Provisioned:                         observed.Provisioned,
+		AdminAuthenticated:                  observed.AdminAuthenticated,
+		APIAuthenticated:                    observed.APIAuthenticated,
+		DistinctProcessRestart:              observed.DistinctProcessRestart,
+		ProvisionProcessDistinctFromRuntime: observed.ProvisionProcessDistinctFromRuntime,
+		RestartRawSecretInput:               observed.RestartRawSecretInput,
+		RestartStateLoss:                    restartStateLoss,
+		SchemaDrift:                         observed.SchemaDrift,
+		RawSecretOccurrences:                rawSecretOccurrences,
+	}, nil
+}
+
+const maxPortableRunnerFact = int64(^uint32(0) >> 1)
+
+func checkedRunnerFactInt(value int64, field string) (int, error) {
+	if value < 0 || value > maxPortableRunnerFact {
+		return 0, fmt.Errorf("%s is outside the portable runner integer range", field)
+	}
+	converted := int(value)
+	if int64(converted) != value {
+		return 0, fmt.Errorf("%s does not fit the runner integer type", field)
+	}
+	return converted, nil
+}
+
+func attestationRepositoryRoot(manifestPath string) (string, error) {
 	repositoryRoot, err := currentGoDjRepositoryRoot()
 	if err != nil {
 		return "", err
@@ -245,17 +474,35 @@ func attestationRepositoryRoot(manifestPath, attestationPath string) (string, er
 	if err := requireExactResolvedPath(manifestPath, expectedManifest); err != nil {
 		return "", fmt.Errorf("system-state manifest must use the checked current repository path: %w", err)
 	}
+	return repositoryRoot, nil
+}
+
+func requireSystemStateAttestationPath(repositoryRoot, attestationPath string) error {
 	expectedAttestation := filepath.Join(
 		repositoryRoot,
 		"conformance",
 		"systemstate",
 		"attestations",
-		attestation.FileName,
+		systemstateattestation.FileName,
 	)
 	if err := requireExactResolvedPath(attestationPath, expectedAttestation); err != nil {
-		return "", fmt.Errorf("PostgreSQL live attestation must use the checked current repository path: %w", err)
+		return fmt.Errorf("PostgreSQL live attestation must use the checked current repository path: %w", err)
 	}
-	return repositoryRoot, nil
+	return nil
+}
+
+func requireProjectOperatorAttestationPath(repositoryRoot, attestationPath string) error {
+	expectedAttestation := filepath.Join(
+		repositoryRoot,
+		"conformance",
+		"projectoperatorproduct",
+		"attestations",
+		operatorattestation.FileName,
+	)
+	if err := requireExactResolvedPath(attestationPath, expectedAttestation); err != nil {
+		return fmt.Errorf("external project operator attestation must use the checked current repository path: %w", err)
+	}
+	return nil
 }
 
 func currentGoDjRepositoryRoot() (string, error) {

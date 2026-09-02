@@ -201,21 +201,28 @@ func composeWorkerSite(
 	if err != nil {
 		return nil, fail(errorApplication)
 	}
-	runtime, err := systemstate.Open(ctx, backend, systemstate.BootstrapConfig{
-		Username:    username,
-		Password:    password,
-		PrincipalID: workerPrincipalID,
-		Active:      true,
-		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
-			articleapp.ArticleViewPermission,
-			articleapp.ArticleAddPermission,
-			articleapp.ArticleChangePermission,
-			articleapp.ArticleDeletePermission,
-		},
-		PasswordHasher: hasher,
-		MaxSessions:    workerMaximumSessions,
-		AuditCapacity:  workerAuditCapacity,
+	policy, err := workerCredentialPolicy(hasher, []auth.Permission{
+		admin.DefaultAccessPermission,
+		articleapp.ArticleViewPermission,
+		articleapp.ArticleAddPermission,
+		articleapp.ArticleChangePermission,
+		articleapp.ArticleDeletePermission,
+	})
+	if err != nil {
+		return nil, fail(errorApplication)
+	}
+	provisionErr := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
+		Username:         username,
+		Password:         password,
+		CredentialPolicy: policy,
+	})
+	if provisionErr != nil && !errors.Is(provisionErr, &systemstate.Error{Code: systemstate.CodeCredentialAlreadyExists}) {
+		return nil, fail(errorApplication)
+	}
+	runtime, err := systemstate.OpenExisting(ctx, backend, systemstate.RuntimeConfig{
+		CredentialPolicy: policy,
+		MaxSessions:      workerMaximumSessions,
+		AuditCapacity:    workerAuditCapacity,
 	})
 	if err != nil {
 		return nil, fail(errorApplication)
@@ -287,6 +294,24 @@ func composeWorkerSite(
 		return nil, fail(errorApplication)
 	}
 	return &workerSite{backend: backend, runtime: runtime, webAuth: webAuth, app: application}, nil
+}
+
+func workerCredentialPolicy(
+	hasher auth.PasswordHasher,
+	permissions []auth.Permission,
+) (systemstate.CredentialPolicy, error) {
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:          workerPrincipalID,
+		Active:      true,
+		Permissions: append([]auth.Permission(nil), permissions...),
+	})
+	if err != nil {
+		return systemstate.CredentialPolicy{}, err
+	}
+	return systemstate.CredentialPolicy{
+		Principal:      principal,
+		PasswordHasher: hasher,
+	}, nil
 }
 
 type principalProbe struct {

@@ -63,9 +63,10 @@ var (
 	}
 )
 
-// Backend is the complete current boundary needed to verify and operate one
-// explicitly migrated framework system schema. Open never invokes migration
-// or schema-editor APIs through this interface.
+// Backend is the complete current boundary needed to provision, verify, and
+// operate one explicitly migrated framework system schema. ProvisionOperator
+// and OpenExisting never invoke migration or schema-editor APIs through this
+// interface.
 type Backend interface {
 	db.Queryer
 	db.Mutator
@@ -91,21 +92,121 @@ var _ db.Atomic = (*Runtime)(nil)
 func (*Runtime) String() string   { return "systemstate.Runtime{redacted}" }
 func (*Runtime) GoString() string { return "systemstate.Runtime{redacted}" }
 
-// Open verifies the exact applied system migration and all required table
-// query surfaces, then bootstraps only an empty credential table or validates
-// the existing durable credential. It never creates, adopts, or repairs a
-// schema.
-func Open(ctx context.Context, backend Backend, config BootstrapConfig) (*Runtime, error) {
-	if ctx == nil {
-		return nil, &Error{Code: CodeInvalidInput, Field: "context", Detail: "context is nil"}
+// ProvisionOperator creates the sole durable operator only from an exact,
+// explicitly migrated, clean system state. Password hashing happens at most
+// once after a preliminary empty observation and before the one authoritative
+// coordinated transaction. Existing state is never verified with the supplied
+// password, mutated, retried, adopted, or repaired.
+func ProvisionOperator(ctx context.Context, backend Backend, config ProvisionOperatorConfig) (resultErr error) {
+	defer func() {
+		resultErr = redactOperatorFailure(resultErr)
+	}()
+
+	if err := validateSystemStateCall(ctx, backend); err != nil {
+		return err
 	}
-	if err := ctx.Err(); err != nil {
+	material, err := validateProvisionOperatorConfig(config)
+	if err != nil {
+		return err
+	}
+	if err := requireInitialMigration(ctx, backend); err != nil {
+		return err
+	}
+
+	// This read only decides whether hashing may be necessary. The coordinated
+	// callback below owns the authoritative readiness/cardinality decision.
+	preliminaryCredentials, err := readCredentialRows(ctx, backend)
+	if err != nil {
+		return err
+	}
+	var candidate credentialRow
+	candidateReady := false
+	if len(preliminaryCredentials) == 0 {
+		candidate, err = material.encodedRow(ctx)
+		if err != nil {
+			return err
+		}
+		candidateReady = true
+	}
+
+	var durable credentialRow
+	inserted := false
+	var callbackFailure error
+	var callbackState operatorErrorSnapshot
+	err = backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+		callbackFailure = func() error {
+			sessionPresent, err := inspectProvisionSessionTable(ctx, session)
+			if err != nil {
+				return err
+			}
+			auditPresent, err := inspectProvisionAuditTable(ctx, session)
+			if err != nil {
+				return err
+			}
+			credentials, err := readCredentialRows(ctx, session)
+			if err != nil {
+				return err
+			}
+			switch len(credentials) {
+			case 0:
+				if sessionPresent || auditPresent {
+					return &Error{
+						Code:   CodeCorruptState,
+						Field:  "credential",
+						Detail: "dependent system rows exist without the sole credential",
+					}
+				}
+				if !candidateReady {
+					return &Error{
+						Code:   CodeCorruptState,
+						Field:  "credential",
+						Detail: "credential state changed before coordinated provisioning",
+					}
+				}
+				durable, err = insertCredential(ctx, session, candidate)
+				inserted = err == nil
+				return err
+			case 1:
+				durable = credentials[0]
+				return nil
+			default:
+				return credentialCardinalityError()
+			}
+		}()
+		callbackState = snapshotOperatorError(callbackFailure)
+		return callbackFailure
+	})
+	if err != nil {
+		return redactOperatorAtomicFailure(err, callbackState)
+	}
+	if inserted {
+		return nil
+	}
+	if _, err := validateStoredCredential(durable, material.policy); err != nil {
+		return err
+	}
+	return &Error{
+		Code:   CodeCredentialAlreadyExists,
+		Field:  "credential",
+		Detail: "the durable operator credential already exists",
+	}
+}
+
+// OpenExisting opens an already-provisioned runtime after one coordinated,
+// read-only inspection of the exact migrated schema and durable state. It
+// never inserts, updates, deletes, or verifies a raw password.
+func OpenExisting(ctx context.Context, backend Backend, config RuntimeConfig) (result *Runtime, resultErr error) {
+	defer func() {
+		resultErr = redactOperatorFailure(resultErr)
+		if resultErr != nil {
+			result = nil
+		}
+	}()
+
+	if err := validateSystemStateCall(ctx, backend); err != nil {
 		return nil, err
 	}
-	if isNilInterface(backend) {
-		return nil, &Error{Code: CodeInvalidConfig, Field: "backend", Detail: "backend is nil"}
-	}
-	material, err := validateBootstrapConfig(config)
+	policy, err := validateCredentialPolicy(config.CredentialPolicy)
 	if err != nil {
 		return nil, err
 	}
@@ -121,83 +222,187 @@ func Open(ctx context.Context, backend Backend, config BootstrapConfig) (*Runtim
 	if err := requireInitialMigration(ctx, backend); err != nil {
 		return nil, err
 	}
-	// Read only the credential cardinality needed to decide whether password
-	// hashing may be required. This observation is not authoritative: another
-	// cooperative Runtime may bootstrap before the coordinated transaction
-	// below acquires the database fence.
-	preliminaryCredentials, err := readCredentialRows(ctx, backend)
-	if err != nil {
-		return nil, err
-	}
-	var candidate credentialRow
-	candidateReady := false
-	if len(preliminaryCredentials) == 0 {
-		candidate, err = material.encodedRow(ctx)
-		if err != nil {
-			return nil, err
-		}
-		candidateReady = true
-	}
 
 	var durable credentialRow
+	absent := false
+	var callbackFailure error
+	var callbackState operatorErrorSnapshot
 	err = runtime.withAtomic(ctx, func(session db.Session) error {
-		// These are the final authoritative readiness and bootstrap reads. Keep
-		// them in one coordination domain so no cooperative writer can change a
-		// dependent table between cardinality checks and credential selection.
-		sessionPresent, err := inspectSessionTable(
-			ctx,
-			session,
-			sessionStore.limits,
-			sessionStore.maxRecords,
-		)
-		if err != nil {
-			return err
-		}
-		auditPresent, err := inspectAuditTable(ctx, session, auditCapacity)
-		if err != nil {
-			return err
-		}
-		credentials, err := readCredentialRows(ctx, session)
-		if err != nil {
-			return err
-		}
-		switch len(credentials) {
-		case 0:
-			if sessionPresent || auditPresent {
-				return &Error{
-					Code:   CodeCorruptState,
-					Field:  "credential",
-					Detail: "dependent system rows exist without the sole credential",
-				}
+		callbackFailure = func() error {
+			sessionPresent, err := inspectSessionTable(
+				ctx,
+				session,
+				sessionStore.limits,
+				sessionStore.maxRecords,
+			)
+			if err != nil {
+				return err
 			}
-			if !candidateReady {
-				return &Error{
-					Code:   CodeCorruptState,
-					Field:  "credential",
-					Detail: "credential state changed before coordinated startup inspection",
-				}
+			auditPresent, err := inspectAuditTable(ctx, session, auditCapacity)
+			if err != nil {
+				return err
 			}
-			durable, err = insertCredential(ctx, session, candidate)
-			return err
-		case 1:
-			durable = credentials[0]
-			return nil
-		default:
-			return credentialCardinalityError()
-		}
+			credentials, err := readCredentialRows(ctx, session)
+			if err != nil {
+				return err
+			}
+			switch len(credentials) {
+			case 0:
+				if sessionPresent || auditPresent {
+					return &Error{
+						Code:   CodeCorruptState,
+						Field:  "credential",
+						Detail: "dependent system rows exist without the sole credential",
+					}
+				}
+				absent = true
+				return nil
+			case 1:
+				durable = credentials[0]
+				return nil
+			default:
+				return credentialCardinalityError()
+			}
+		}()
+		callbackState = snapshotOperatorError(callbackFailure)
+		return callbackFailure
 	})
 	if err != nil {
-		return nil, redactAtomicFailure(err)
+		return nil, redactOperatorAtomicFailure(err, callbackState)
 	}
-
-	authenticator, err := verifyCredential(ctx, durable, material)
+	if absent {
+		return nil, &Error{
+			Code:   CodeCredentialAbsent,
+			Field:  "credential",
+			Detail: "the migrated system state has no operator credential",
+		}
+	}
+	credential, err := validateStoredCredential(durable, policy)
 	if err != nil {
 		return nil, err
+	}
+	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, policy.passwordHasher)
+	if err != nil {
+		return nil, &Error{
+			Code:   CodeInvalidConfig,
+			Field:  "password_hasher",
+			Detail: "credential authenticator could not be initialized",
+			Cause:  err,
+		}
 	}
 	runtime.authenticator = authenticator
 	runtime.sessionStore = sessionStore
 	runtime.auditCapacity = auditCapacity
 	return runtime, nil
+}
+
+func validateSystemStateCall(ctx context.Context, backend Backend) error {
+	if ctx == nil {
+		return &Error{Code: CodeInvalidInput, Field: "context", Detail: "context is nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if isNilInterface(backend) {
+		return &Error{Code: CodeInvalidConfig, Field: "backend", Detail: "backend is nil"}
+	}
+	return nil
+}
+
+// Provisioning does not own the runtime session/audit deployment limits, but
+// it still requires both exact table query surfaces and must distinguish a
+// clean empty state from dependent rows without a credential.
+func inspectProvisionSessionTable(ctx context.Context, queryer db.Queryer) (bool, error) {
+	plan, err := query.NewPlan(
+		sessionTableName,
+		[]query.FieldRef{systemRowIDField, sessionDigestField, sessionPayloadField},
+	).WithLimit(1)
+	if err != nil {
+		return false, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName, Detail: "required session table is unavailable", Cause: err}
+	}
+	result, err := queryer.Query(ctx, plan)
+	if err != nil {
+		if !isNilInterface(result) {
+			_ = result.Close()
+		}
+		return false, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName, Detail: "required session table is unavailable", Cause: err}
+	}
+	if isNilInterface(result) {
+		return false, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName, Detail: "required session table is unavailable"}
+	}
+	present := result.Next()
+	if present {
+		var identifier int64
+		var digest, payload string
+		if err := result.Scan(&identifier, &digest, &payload); err != nil {
+			_ = result.Close()
+			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row cannot be decoded", Cause: err}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		_ = result.Close()
+		return false, err
+	}
+	iterationErr := result.Err()
+	closeErr := result.Close()
+	if iterationErr != nil || closeErr != nil {
+		return false, &Error{
+			Code:   CodeSchemaUnavailable,
+			Field:  sessionTableName,
+			Detail: "required session table is unavailable",
+			Cause:  errors.Join(iterationErr, closeErr),
+		}
+	}
+	return present, nil
+}
+
+func inspectProvisionAuditTable(ctx context.Context, queryer db.Queryer) (bool, error) {
+	plan, err := query.NewPlan(auditTableName, auditFieldRefs).WithLimit(1)
+	if err != nil {
+		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
+	}
+	result, err := queryer.Query(ctx, plan)
+	if err != nil {
+		if !isNilInterface(result) {
+			_ = result.Close()
+		}
+		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
+	}
+	if isNilInterface(result) {
+		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable"}
+	}
+	present := result.Next()
+	if present {
+		var identifier int64
+		var actorID, model, objectID, action, changedFields, displayLabel string
+		if err := result.Scan(
+			&identifier,
+			&actorID,
+			&model,
+			&objectID,
+			&action,
+			&changedFields,
+			&displayLabel,
+		); err != nil {
+			_ = result.Close()
+			return false, &Error{Code: CodeCorruptState, Field: "audit_row", Detail: "stored audit row cannot be decoded", Cause: err}
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		_ = result.Close()
+		return false, err
+	}
+	iterationErr := result.Err()
+	closeErr := result.Close()
+	if iterationErr != nil || closeErr != nil {
+		return false, &Error{
+			Code:   CodeSchemaUnavailable,
+			Field:  auditTableName,
+			Detail: "required audit table is unavailable",
+			Cause:  errors.Join(iterationErr, closeErr),
+		}
+	}
+	return present, nil
 }
 
 // Authenticator returns the restart-verified immutable credential boundary.
@@ -359,32 +564,153 @@ func credentialCardinalityError() error {
 }
 
 func redactAtomicFailure(err error) error {
-	if err == nil {
-		return err
+	return redactOperatorFailureWithDetail(err, "operator credential transaction failed", false)
+}
+
+type operatorErrorSnapshot struct {
+	source *Error
+	code   ErrorCode
+	field  string
+	detail string
+}
+
+func snapshotOperatorError(err error) operatorErrorSnapshot {
+	stateError, ok := err.(*Error)
+	if !ok || stateError == nil {
+		return operatorErrorSnapshot{}
 	}
-	var outcome *query.Error
-	if errors.As(err, &outcome) && (outcome.Code == query.CodeCommitOutcomeUnknown ||
-		outcome.Code == query.CodeTransactionOutcomeUnknown) {
+	return operatorErrorSnapshot{
+		source: stateError,
+		code:   stateError.Code,
+		field:  stateError.Field,
+		detail: stateError.Detail,
+	}
+}
+
+func redactOperatorAtomicFailure(err error, callbackState operatorErrorSnapshot) error {
+	if err == nil {
+		return nil
+	}
+	if isNilInterface(err) {
 		return &Error{
 			Code:   CodePersistence,
 			Field:  "credential",
-			Detail: "bootstrap credential transaction outcome is unknown; reconciliation is required",
-			Cause:  err,
+			Detail: "operator credential transaction failed",
 		}
 	}
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return err
+	if outcomeCode := operatorOutcomeUnknownCode(err); outcomeCode != "" {
+		return operatorOutcomeUnknownError(outcomeCode)
 	}
-	var stateError *Error
-	if errors.As(err, &stateError) {
-		return &Error{Code: stateError.Code, Field: stateError.Field, Detail: stateError.Detail, Cause: err}
+	if safeOperatorErrorIs(err, context.Canceled) {
+		return context.Canceled
+	}
+	if safeOperatorErrorIs(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	if callbackState.source != nil && operatorErrorChainContainsState(err, callbackState.source) {
+		return &Error{Code: callbackState.code, Field: callbackState.field, Detail: callbackState.detail}
 	}
 	return &Error{
 		Code:   CodePersistence,
 		Field:  "credential",
-		Detail: "bootstrap credential transaction failed",
-		Cause:  err,
+		Detail: "operator credential transaction failed",
 	}
+}
+
+func redactOperatorFailure(err error) error {
+	return redactOperatorFailureWithDetail(err, "operator system-state operation failed", true)
+}
+
+func redactOperatorFailureWithDetail(err error, fallbackDetail string, preserveStateIdentity bool) error {
+	if err == nil {
+		return nil
+	}
+	if isNilInterface(err) {
+		return &Error{
+			Code:   CodePersistence,
+			Field:  "credential",
+			Detail: fallbackDetail,
+		}
+	}
+	if outcomeCode := operatorOutcomeUnknownCode(err); outcomeCode != "" {
+		return operatorOutcomeUnknownError(outcomeCode)
+	}
+	if safeOperatorErrorIs(err, context.Canceled) {
+		return context.Canceled
+	}
+	if safeOperatorErrorIs(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	if stateError, ok := err.(*Error); preserveStateIdentity && ok && stateError != nil {
+		return &Error{Code: stateError.Code, Field: stateError.Field, Detail: stateError.Detail}
+	}
+	return &Error{
+		Code:   CodePersistence,
+		Field:  "credential",
+		Detail: fallbackDetail,
+	}
+}
+
+func operatorOutcomeUnknownError(code string) error {
+	return &Error{
+		Code:   CodePersistence,
+		Field:  "credential",
+		Detail: "operator credential transaction outcome is unknown; reconciliation is required",
+		Cause: &query.Error{
+			Category: query.CategoryBackend,
+			Code:     code,
+		},
+	}
+}
+
+func operatorOutcomeUnknownCode(err error) string {
+	for _, code := range []string{
+		query.CodeCommitOutcomeUnknown,
+		query.CodeTransactionOutcomeUnknown,
+	} {
+		if safeOperatorErrorIs(err, &query.Error{Code: code}) {
+			return code
+		}
+	}
+	return ""
+}
+
+func safeOperatorErrorIs(err, target error) (matched bool) {
+	if isNilInterface(err) {
+		return false
+	}
+	defer func() {
+		if recover() != nil {
+			matched = false
+		}
+	}()
+	return errors.Is(err, target)
+}
+
+func operatorErrorChainContainsState(err error, target *Error) (found bool) {
+	defer func() {
+		if recover() != nil {
+			found = false
+		}
+	}()
+	pending := []error{err}
+	for inspected := 0; len(pending) > 0 && inspected < 64; inspected++ {
+		current := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if isNilInterface(current) {
+			continue
+		}
+		if stateError, ok := current.(*Error); ok && stateError == target {
+			return true
+		}
+		switch wrapped := current.(type) {
+		case interface{ Unwrap() []error }:
+			pending = append(pending, wrapped.Unwrap()...)
+		case interface{ Unwrap() error }:
+			pending = append(pending, wrapped.Unwrap())
+		}
+	}
+	return false
 }
 
 func isNilInterface(value any) bool {

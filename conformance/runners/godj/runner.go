@@ -118,6 +118,12 @@ func lookupScenarioHandlerWithInputs(scenario string, inputs Inputs) (scenarioHa
 	if scenario == systemStateTwoProcessScenario {
 		return systemStateTwoProcessScenarioHandler(inputs), true
 	}
+	if handler, ok := gdj0055SystemStateScenarioHandler(scenario, GDJ0055Inputs{
+		PostgreSQLOperatorBackend: inputs.ProjectOperatorPostgreSQL,
+		SQLiteOperatorBackend:     inputs.ProjectOperatorSQLite,
+	}); ok {
+		return handler, true
+	}
 	return lookupScenarioHandler(scenario)
 }
 
@@ -126,6 +132,11 @@ func lookupScenarioHandler(scenario string) (scenarioHandler, bool) {
 		// Registration is independent from the externally verified backend
 		// facts. Calling this zero-input handler still fails closed.
 		return systemStateTwoProcessScenarioHandler(Inputs{}), true
+	}
+	if handler, ok := gdj0055SystemStateScenarioHandler(scenario, GDJ0055Inputs{}); ok {
+		// Registration is independent from the two checked backend facts.
+		// Calling this zero-input SYS-029 handler still fails closed.
+		return handler, true
 	}
 	if handler, ok := templateFormScenarioHandler(scenario); ok {
 		return handler, true

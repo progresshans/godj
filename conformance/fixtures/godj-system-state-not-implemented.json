@@ -45,6 +45,16 @@
     {"id": "SYS-017", "status": "not_implemented", "phase": "commit"},
     {"id": "SYS-018", "status": "not_implemented", "phase": "rollback"},
     {"id": "SYS-019", "status": "not_implemented", "phase": "evaluation"},
-    {"id": "SYS-020", "status": "not_implemented", "phase": "environment"}
+    {"id": "SYS-020", "status": "not_implemented", "phase": "environment"},
+    {"id": "SYS-021", "status": "not_implemented", "phase": "construction"},
+    {"id": "SYS-022", "status": "not_implemented", "phase": "environment"},
+    {"id": "SYS-023", "status": "not_implemented", "phase": "environment"},
+    {"id": "SYS-024", "status": "not_implemented", "phase": "environment"},
+    {"id": "SYS-025", "status": "not_implemented", "phase": "commit"},
+    {"id": "SYS-026", "status": "not_implemented", "phase": "commit"},
+    {"id": "SYS-027", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "SYS-028", "status": "not_implemented", "phase": "environment"},
+    {"id": "SYS-029", "status": "not_implemented", "phase": "environment"},
+    {"id": "SYS-030", "status": "not_implemented", "phase": "environment"}
   ]
 }

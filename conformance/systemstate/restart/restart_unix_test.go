@@ -24,10 +24,13 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/article/articleapp"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -124,14 +127,21 @@ func runSystemStateDistinctProcessRestartSentinel(t *testing.T, profile restartD
 	sensitive := append([]string{password}, profile.sensitive...)
 	assertBytesExcludeSensitive(t, "site build output", buildOutput, sensitive)
 	assertFileExcludesSensitive(t, "site binary", binaryPath, sensitive)
+	explicitlyProvisionRestartOperator(t, ctx, profile.open, username, password)
+	assertRestartDatabaseState(t, "explicit provision", inspectRestartDatabase(t, ctx, profile.open), 0, 0, 0)
+	profile.assertArtifacts(t, ctx, sensitive)
 
-	explicitEnvironment := make(map[string]string, len(profile.siteEnvironment)+2)
+	explicitEnvironment := make(map[string]string, len(profile.siteEnvironment))
 	for name, value := range profile.siteEnvironment {
 		explicitEnvironment[name] = value
 	}
-	explicitEnvironment[articleAdminUsernameEnv] = username
-	explicitEnvironment[articleAdminPasswordEnv] = password
 	environment := restartEnvironment(os.Environ(), explicitEnvironment)
+	assertRestartEnvironmentOmitsRetiredCredentials(t, restartEnvironmentMap(environment))
+	for _, entry := range environment {
+		if strings.Contains(entry, password) {
+			t.Fatal("raw operator password reached Article runtime environment")
+		}
+	}
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		t.Fatal("create A/B browser cookie jar")
@@ -874,6 +884,57 @@ func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, reposit
 	assertRestartMigrationHistory(t, ctx, backend)
 	if err := backend.Close(); err != nil {
 		t.Fatalf("close restart migration database: %v", err)
+	}
+	open = false
+}
+
+func explicitlyProvisionRestartOperator(
+	t *testing.T,
+	ctx context.Context,
+	openBackend restartBackendFactory,
+	username, password string,
+) {
+	t.Helper()
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:     "article-development-admin",
+		Active: true,
+		Permissions: []auth.Permission{
+			admin.DefaultAccessPermission,
+			articleapp.ArticleViewPermission,
+			articleapp.ArticleAddPermission,
+			articleapp.ArticleChangePermission,
+			articleapp.ArticleDeletePermission,
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct Article operator principal: %v", err)
+	}
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		t.Fatalf("construct Article operator password hasher: %v", err)
+	}
+	backend, err := openBackend(ctx)
+	if err != nil {
+		t.Fatalf("open explicit operator provision backend: %v", err)
+	}
+	open := true
+	defer func() {
+		if open {
+			_ = backend.Close()
+		}
+	}()
+	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
+		CredentialPolicy: systemstate.CredentialPolicy{
+			Principal:      principal,
+			PasswordHasher: hasher,
+		},
+		Username: username,
+		Password: password,
+	}); err != nil {
+		t.Fatalf("explicitly provision Article operator: %v", err)
+	}
+	if err := backend.Close(); err != nil {
+		t.Fatalf("close explicit operator provision backend: %v", err)
 	}
 	open = false
 }

@@ -20,7 +20,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func TestRuntimeExplicitBootstrapRestartAndDatabaseInterfaces(t *testing.T) {
+func TestRuntimeExplicitProvisionRestartAndDatabaseInterfaces(t *testing.T) {
 	ctx := context.Background()
 	databasePath := filepath.Join(t.TempDir(), "runtime.sqlite3")
 	dataSourceName := "file:" + filepath.ToSlash(databasePath) + "?mode=rwc"
@@ -29,14 +29,23 @@ func TestRuntimeExplicitBootstrapRestartAndDatabaseInterfaces(t *testing.T) {
 	firstBackend := &observedRuntimeBackend{Backend: firstDatabase}
 	config := runtimeTestConfig(t, "bootstrap-password-secret-marker")
 
-	firstRuntime, err := Open(ctx, firstBackend, config)
-	if err != nil {
+	if err := ProvisionOperator(ctx, firstBackend, config.provisionConfig(t)); err != nil {
 		_ = firstDatabase.Close()
-		t.Fatalf("Open(first bootstrap): %v", err)
+		t.Fatalf("ProvisionOperator(first): %v", err)
 	}
 	if firstBackend.atomicCalls.Load() != 1 || firstBackend.insertCalls.Load() != 1 {
 		_ = firstDatabase.Close()
-		t.Fatalf("bootstrap calls = atomic %d/insert %d, want 1/1", firstBackend.atomicCalls.Load(), firstBackend.insertCalls.Load())
+		t.Fatalf("provision calls = atomic %d/insert %d, want 1/1", firstBackend.atomicCalls.Load(), firstBackend.insertCalls.Load())
+	}
+	firstBackend.resetObservation()
+	firstRuntime, err := OpenExisting(ctx, firstBackend, config.runtimeConfig(t))
+	if err != nil {
+		_ = firstDatabase.Close()
+		t.Fatalf("OpenExisting(first): %v", err)
+	}
+	if firstBackend.atomicCalls.Load() != 1 || firstBackend.insertCalls.Load() != 0 {
+		_ = firstDatabase.Close()
+		t.Fatalf("open-existing calls = atomic %d/insert %d, want 1/0", firstBackend.atomicCalls.Load(), firstBackend.insertCalls.Load())
 	}
 	if firstRuntime.Authenticator() == nil || firstRuntime.SessionStore() == nil {
 		_ = firstDatabase.Close()
@@ -116,10 +125,10 @@ func TestRuntimeExplicitBootstrapRestartAndDatabaseInterfaces(t *testing.T) {
 	secondDatabase := openSessionStoreBackend(t, ctx, dataSourceName)
 	t.Cleanup(func() { _ = secondDatabase.Close() })
 	secondBackend := &observedRuntimeBackend{Backend: secondDatabase}
-	secondConfig := runtimeTestConfig(t, config.Password)
-	secondRuntime, err := Open(ctx, secondBackend, secondConfig)
+	secondConfig := runtimeTestConfig(t, "unused-restart-password-marker")
+	secondRuntime, err := OpenExisting(ctx, secondBackend, secondConfig.runtimeConfig(t))
 	if err != nil {
-		t.Fatalf("Open(identical restart): %v", err)
+		t.Fatalf("OpenExisting(restart): %v", err)
 	}
 	if secondBackend.atomicCalls.Load() != 1 || secondBackend.insertCalls.Load() != 0 {
 		t.Fatalf("identical restart calls = atomic %d/insert %d, want 1/0", secondBackend.atomicCalls.Load(), secondBackend.insertCalls.Load())
@@ -150,18 +159,21 @@ func TestRuntimePasswordWorkStaysOutsideDatabaseCoordinationFence(t *testing.T) 
 	}
 	config.PasswordHasher = hasher
 
-	if runtime, err := Open(ctx, backend, config); err != nil || runtime == nil {
-		t.Fatalf("Open(first Runtime) = (%v, %v)", runtime, err)
+	if err := ProvisionOperator(ctx, backend, config.provisionConfig(t)); err != nil {
+		t.Fatalf("ProvisionOperator(first Runtime) = %v", err)
 	}
-	if runtime, err := Open(ctx, backend, config); err != nil || runtime == nil {
-		t.Fatalf("Open(restarted Runtime) = (%v, %v)", runtime, err)
+	if runtime, err := OpenExisting(ctx, backend, config.runtimeConfig(t)); err != nil || runtime == nil {
+		t.Fatalf("OpenExisting(first Runtime) = (%v, %v)", runtime, err)
+	}
+	if runtime, err := OpenExisting(ctx, backend, config.runtimeConfig(t)); err != nil || runtime == nil {
+		t.Fatalf("OpenExisting(restarted Runtime) = (%v, %v)", runtime, err)
 	}
 	if got := backend.maximum.Load(); got != 1 {
 		t.Fatalf("maximum active coordination calls = %d, want 1", got)
 	}
-	if hasher.hashCalls.Load() == 0 || hasher.verifyCalls.Load() == 0 || hasher.validateCalls.Load() == 0 {
+	if hasher.hashCalls.Load() == 0 || hasher.verifyCalls.Load() != 0 || hasher.validateCalls.Load() == 0 {
 		t.Fatalf(
-			"password hasher calls = hash %d/verify %d/validate %d, want every path observed",
+			"password hasher calls = hash %d/verify %d/validate %d, want hash+validate and zero startup Verify",
 			hasher.hashCalls.Load(),
 			hasher.verifyCalls.Load(),
 			hasher.validateCalls.Load(),
@@ -178,8 +190,8 @@ func TestRuntimePreliminaryCredentialDisappearanceFailsClosedWithoutReplacement(
 	t.Cleanup(func() { _ = database.Close() })
 	explicitlyMigrateSystemState(t, ctx, database)
 	config := runtimeTestConfig(t, "credential-disappearance-secret-marker")
-	if runtime, err := Open(ctx, database, config); err != nil || runtime == nil {
-		t.Fatalf("Open(bootstrap Runtime) = (%v, %v)", runtime, err)
+	if err := ProvisionOperator(ctx, database, config.provisionConfig(t)); err != nil {
+		t.Fatalf("ProvisionOperator(setup) = %v", err)
 	}
 	credentials, err := readCredentialRows(ctx, database)
 	if err != nil || len(credentials) != 1 {
@@ -190,9 +202,9 @@ func TestRuntimePreliminaryCredentialDisappearanceFailsClosedWithoutReplacement(
 		credentialID: credentials[0].id,
 	}
 	restartConfig := runtimeTestConfig(t, config.Password)
-	runtime, err := Open(ctx, backend, restartConfig)
-	if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
-		t.Fatalf("Open(after preliminary credential disappearance) = (%v, %#v)", runtime, err)
+	err = ProvisionOperator(ctx, backend, restartConfig.provisionConfig(t))
+	if !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+		t.Fatalf("ProvisionOperator(after preliminary credential disappearance) = %#v", err)
 	}
 	if backend.coordinatedCalls.Load() != 1 || backend.callbackCalls.Load() != 1 {
 		t.Fatalf(
@@ -207,63 +219,106 @@ func TestRuntimePreliminaryCredentialDisappearanceFailsClosedWithoutReplacement(
 	}
 }
 
-func TestRuntimeIdenticalRestartRejectsEveryCredentialMismatchWithoutWriting(t *testing.T) {
+func TestOpenExistingRejectsStoredPasswordProfileMismatchWithoutWriting(t *testing.T) {
 	ctx := context.Background()
-	databasePath := filepath.Join(t.TempDir(), "mismatch.sqlite3")
-	dataSourceName := "file:" + filepath.ToSlash(databasePath) + "?mode=rwc"
-	setup := openSessionStoreBackend(t, ctx, dataSourceName)
-	explicitlyMigrateSystemState(t, ctx, setup)
+	database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "profile-mismatch.sqlite3"))+"?mode=rwc")
+	t.Cleanup(func() { _ = database.Close() })
+	explicitlyMigrateSystemState(t, ctx, database)
 	baseline := runtimeTestConfig(t, "correct-password-secret-marker")
-	if _, err := Open(ctx, setup, baseline); err != nil {
-		_ = setup.Close()
-		t.Fatalf("Open(setup): %v", err)
+	if err := ProvisionOperator(ctx, database, baseline.provisionConfig(t)); err != nil {
+		t.Fatalf("ProvisionOperator(setup): %v", err)
 	}
-	if err := setup.Close(); err != nil {
-		t.Fatalf("close mismatch setup: %v", err)
+	credentials, err := readCredentialRows(ctx, database)
+	if err != nil || len(credentials) != 1 {
+		t.Fatalf("read setup credential = (%+v, %v)", credentials, err)
 	}
+	otherHasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 20_000})
+	if err != nil {
+		t.Fatalf("auth.NewPBKDF2(other profile): %v", err)
+	}
+	const storedSecret = "stored-profile-secret-marker"
+	encoded, err := otherHasher.Hash(ctx, storedSecret)
+	if err != nil {
+		t.Fatalf("Hash(other profile): %v", err)
+	}
+	affected, err := database.Update(ctx, query.NewUpdatePlan(
+		credentialTableName,
+		[]query.Assignment{query.NewAssignment(credentialEncodedPasswordRef, query.String(encoded))},
+		credentialIDRef,
+		query.Integer(credentials[0].id),
+	))
+	if err != nil || affected != 1 {
+		t.Fatalf("replace stored profile = affected %d/error %v", affected, err)
+	}
+	observed := &observedRuntimeBackend{Backend: database}
+	if err := ProvisionOperator(ctx, observed, baseline.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+		t.Fatalf("ProvisionOperator(profile mismatch) = %#v", err)
+	}
+	observed.resetObservation()
+	runtime, err := OpenExisting(ctx, observed, baseline.runtimeConfig(t))
+	if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+		t.Fatalf("OpenExisting(profile mismatch) = (%v, %#v)", runtime, err)
+	}
+	if observed.atomicCalls.Load() != 1 || observed.insertCalls.Load() != 0 ||
+		observed.updateCalls.Load() != 0 || observed.deleteCalls.Load() != 0 {
+		t.Fatalf(
+			"profile mismatch calls = atomic %d/insert %d/update %d/delete %d, want 1/0/0/0",
+			observed.atomicCalls.Load(), observed.insertCalls.Load(), observed.updateCalls.Load(), observed.deleteCalls.Load(),
+		)
+	}
+	if strings.Contains(err.Error(), storedSecret) || strings.Contains(err.Error(), encoded) {
+		t.Fatalf("profile mismatch error leaked stored material: %v", err)
+	}
+}
 
-	tests := []struct {
-		name string
-		edit func(*BootstrapConfig)
-	}{
-		{name: "username", edit: func(config *BootstrapConfig) { config.Username = "other-admin" }},
-		{name: "password", edit: func(config *BootstrapConfig) { config.Password = "wrong-password-secret-marker" }},
-		{name: "principal", edit: func(config *BootstrapConfig) { config.PrincipalID = "other-principal" }},
-		{name: "active", edit: func(config *BootstrapConfig) { config.Active = false }},
-		{name: "permission order", edit: func(config *BootstrapConfig) {
-			config.Permissions[0], config.Permissions[1] = config.Permissions[1], config.Permissions[0]
-		}},
+func TestProvisionOperatorAndOpenExistingRejectStoredDefinitionDigestMismatchWithoutWriting(t *testing.T) {
+	ctx := context.Background()
+	database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "definition-mismatch.sqlite3"))+"?mode=rwc")
+	t.Cleanup(func() { _ = database.Close() })
+	explicitlyMigrateSystemState(t, ctx, database)
+	config := runtimeTestConfig(t, "definition-password-secret-marker")
+	if err := ProvisionOperator(ctx, database, config.provisionConfig(t)); err != nil {
+		t.Fatalf("ProvisionOperator(setup): %v", err)
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			database := openSessionStoreBackend(t, ctx, dataSourceName)
-			defer func() { _ = database.Close() }()
-			observed := &observedRuntimeBackend{Backend: database}
-			config := runtimeTestConfig(t, baseline.Password)
-			test.edit(&config)
-			runtime, err := Open(ctx, observed, config)
-			if runtime != nil || !errors.Is(err, &Error{Code: CodeCredentialMismatch}) {
-				t.Fatalf("Open(mismatch) = (%v,%#v)", runtime, err)
-			}
-			if observed.atomicCalls.Load() != 1 || observed.insertCalls.Load() != 0 {
-				t.Fatalf("mismatch coordinated inspection calls = atomic %d/insert %d, want 1/0", observed.atomicCalls.Load(), observed.insertCalls.Load())
-			}
-			for _, secret := range []string{baseline.Password, config.Password} {
-				if strings.Contains(err.Error(), secret) {
-					t.Fatalf("mismatch error leaked secret: %v", err)
-				}
-			}
-		})
+	credentials, err := readCredentialRows(ctx, database)
+	if err != nil || len(credentials) != 1 {
+		t.Fatalf("read setup credential = (%+v, %v)", credentials, err)
 	}
-
-	finalDatabase := openSessionStoreBackend(t, ctx, dataSourceName)
-	t.Cleanup(func() { _ = finalDatabase.Close() })
-	finalObserved := &observedRuntimeBackend{Backend: finalDatabase}
-	if _, err := Open(ctx, finalObserved, runtimeTestConfig(t, baseline.Password)); err != nil {
-		t.Fatalf("Open(correct after mismatches): %v", err)
+	const storedMarker = "wrong-definition-digest-marker"
+	affected, err := database.Update(ctx, query.NewUpdatePlan(
+		credentialTableName,
+		[]query.Assignment{query.NewAssignment(credentialDefinitionDigestRef, query.String(storedMarker))},
+		credentialIDRef,
+		query.Integer(credentials[0].id),
+	))
+	if err != nil || affected != 1 {
+		t.Fatalf("replace stored definition digest = affected %d/error %v", affected, err)
 	}
-	if finalObserved.atomicCalls.Load() != 1 {
-		t.Fatalf("correct final restart atomic calls = %d, want 1", finalObserved.atomicCalls.Load())
+	observed := &observedRuntimeBackend{Backend: database}
+	if err := ProvisionOperator(ctx, observed, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+		t.Fatalf("ProvisionOperator(definition mismatch) = %#v", err)
+	}
+	if observed.atomicCalls.Load() != 1 || observed.insertCalls.Load() != 0 ||
+		observed.updateCalls.Load() != 0 || observed.deleteCalls.Load() != 0 {
+		t.Fatalf(
+			"definition-mismatched provision calls = atomic %d/insert %d/update %d/delete %d, want 1/0/0/0",
+			observed.atomicCalls.Load(), observed.insertCalls.Load(), observed.updateCalls.Load(), observed.deleteCalls.Load(),
+		)
+	}
+	observed.resetObservation()
+	runtime, err := OpenExisting(ctx, observed, config.runtimeConfig(t))
+	if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+		t.Fatalf("OpenExisting(definition mismatch) = (%v, %#v)", runtime, err)
+	}
+	if observed.atomicCalls.Load() != 1 || observed.insertCalls.Load() != 0 ||
+		observed.updateCalls.Load() != 0 || observed.deleteCalls.Load() != 0 {
+		t.Fatalf(
+			"definition-mismatched open calls = atomic %d/insert %d/update %d/delete %d, want 1/0/0/0",
+			observed.atomicCalls.Load(), observed.insertCalls.Load(), observed.updateCalls.Load(), observed.deleteCalls.Load(),
+		)
+	}
+	if strings.Contains(err.Error(), storedMarker) {
+		t.Fatalf("definition mismatch error leaked stored digest: %v", err)
 	}
 }
 
@@ -276,10 +331,7 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 		database := openSessionStoreBackend(t, ctx, dataSourceName)
 		explicitlyMigrateSystemState(t, ctx, database)
 		config := runtimeTestConfig(t, "corrupt-password-secret-marker")
-		if _, err := Open(ctx, database, config); err != nil {
-			_ = database.Close()
-			t.Fatalf("Open(corrupt setup): %v", err)
-		}
+		_ = provisionAndOpenTestRuntime(t, ctx, database, config)
 		credentials, err := readCredentialRows(ctx, database)
 		if err != nil || len(credentials) != 1 {
 			_ = database.Close()
@@ -301,9 +353,18 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 		}
 		reopened := openSessionStoreBackend(t, ctx, dataSourceName)
 		defer func() { _ = reopened.Close() }()
-		runtime, err := Open(ctx, &observedRuntimeBackend{Backend: reopened}, runtimeTestConfig(t, config.Password))
+		observed := &observedRuntimeBackend{Backend: reopened}
+		if err := ProvisionOperator(ctx, observed, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeCorruptState}) {
+			t.Fatalf("ProvisionOperator(corrupt permission) = %#v", err)
+		}
+		observed.resetObservation()
+		runtime, err := OpenExisting(
+			ctx,
+			observed,
+			runtimeTestConfig(t, "unused-restart-password").runtimeConfig(t),
+		)
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState}) {
-			t.Fatalf("Open(corrupt permission) = (%v,%#v)", runtime, err)
+			t.Fatalf("OpenExisting(corrupt permission) = (%v,%#v)", runtime, err)
 		}
 		if strings.Contains(err.Error(), storedMarker) || strings.Contains(err.Error(), config.Password) {
 			t.Fatalf("corrupt credential error leaked stored/configured material: %v", err)
@@ -316,10 +377,7 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 		database := openSessionStoreBackend(t, ctx, dataSourceName)
 		explicitlyMigrateSystemState(t, ctx, database)
 		config := runtimeTestConfig(t, "duplicate-password-secret-marker")
-		if _, err := Open(ctx, database, config); err != nil {
-			_ = database.Close()
-			t.Fatalf("Open(duplicate setup): %v", err)
-		}
+		_ = provisionAndOpenTestRuntime(t, ctx, database, config)
 		credentials, err := readCredentialRows(ctx, database)
 		if err != nil || len(credentials) != 1 {
 			_ = database.Close()
@@ -338,9 +396,13 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 		reopened := openSessionStoreBackend(t, ctx, dataSourceName)
 		defer func() { _ = reopened.Close() }()
 		observed := &observedRuntimeBackend{Backend: reopened}
-		runtime, err := Open(ctx, observed, runtimeTestConfig(t, config.Password))
+		if err := ProvisionOperator(ctx, observed, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeCardinality, Field: "credential"}) {
+			t.Fatalf("ProvisionOperator(duplicate credential) = %#v", err)
+		}
+		observed.resetObservation()
+		runtime, err := OpenExisting(ctx, observed, runtimeTestConfig(t, "unused-restart-password").runtimeConfig(t))
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeCardinality, Field: "credential"}) {
-			t.Fatalf("Open(duplicate credential) = (%v,%#v)", runtime, err)
+			t.Fatalf("OpenExisting(duplicate credential) = (%v,%#v)", runtime, err)
 		}
 		if observed.atomicCalls.Load() != 1 {
 			t.Fatalf("duplicate credential invoked %d coordinated inspections, want 1", observed.atomicCalls.Load())
@@ -355,12 +417,58 @@ func TestRuntimeFailsClosedOnCorruptDuplicateAndOrphanCredentialState(t *testing
 			t.Fatalf("insert orphan audit row: %v", err)
 		}
 		observed := &observedRuntimeBackend{Backend: database}
-		runtime, err := Open(ctx, observed, runtimeTestConfig(t, "orphan-password-secret-marker"))
+		config := runtimeTestConfig(t, "orphan-password-secret-marker")
+		if err := ProvisionOperator(ctx, observed, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+			t.Fatalf("ProvisionOperator(orphan audit state) = %#v", err)
+		}
+		observed.resetObservation()
+		runtime, err := OpenExisting(ctx, observed, config.runtimeConfig(t))
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
-			t.Fatalf("Open(orphan state) = (%v,%#v)", runtime, err)
+			t.Fatalf("OpenExisting(orphan state) = (%v,%#v)", runtime, err)
 		}
 		if observed.atomicCalls.Load() != 1 {
 			t.Fatalf("orphan state invoked %d coordinated inspections, want 1", observed.atomicCalls.Load())
+		}
+	})
+
+	t.Run("dependent session row without credential", func(t *testing.T) {
+		database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "orphan-session.sqlite3"))+"?mode=rwc")
+		defer func() { _ = database.Close() }()
+		explicitlyMigrateSystemState(t, ctx, database)
+		config := runtimeTestConfig(t, "orphan-session-password-secret-marker")
+		runtime := provisionAndOpenTestRuntime(t, ctx, database, config)
+		base := time.Date(2026, time.August, 31, 12, 0, 0, 0, time.UTC)
+		record := multiRuntimeSessionRecord(t, "Z", base, base, base.Add(time.Hour), base.Add(30*time.Minute))
+		if created, err := runtime.SessionStore().Create(ctx, record); err != nil || !created {
+			t.Fatalf("Create(orphan session fixture) = (%v, %v)", created, err)
+		}
+		credentials, err := readCredentialRows(ctx, database)
+		if err != nil || len(credentials) != 1 {
+			t.Fatalf("read credential before orphaning session = (%+v, %v)", credentials, err)
+		}
+		affected, err := database.Delete(ctx, query.NewDeletePlan(
+			credentialTableName,
+			credentialIDRef,
+			query.Integer(credentials[0].id),
+		))
+		if err != nil || affected != 1 {
+			t.Fatalf("delete sole credential = affected %d/error %v", affected, err)
+		}
+		observed := &observedRuntimeBackend{Backend: database}
+		if err := ProvisionOperator(ctx, observed, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+			t.Fatalf("ProvisionOperator(orphan session state) = %#v", err)
+		}
+		observed.resetObservation()
+		opened, err := OpenExisting(ctx, observed, config.runtimeConfig(t))
+		if opened != nil || !errors.Is(err, &Error{Code: CodeCorruptState, Field: "credential"}) {
+			t.Fatalf("OpenExisting(orphan session state) = (%v, %#v)", opened, err)
+		}
+		if observed.atomicCalls.Load() != 1 || observed.insertCalls.Load() != 0 ||
+			observed.updateCalls.Load() != 0 || observed.deleteCalls.Load() != 0 {
+			t.Fatalf(
+				"orphan session open calls = atomic %d/insert %d/update %d/delete %d, want 1/0/0/0",
+				observed.atomicCalls.Load(), observed.insertCalls.Load(), observed.updateCalls.Load(), observed.deleteCalls.Load(),
+			)
 		}
 	})
 }
@@ -372,13 +480,16 @@ func TestRuntimeRequiresExactMigrationAndNeverCreatesOrRepairsSchema(t *testing.
 	t.Run("unmigrated", func(t *testing.T) {
 		backend := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "unmigrated.sqlite3"))+"?mode=rwc")
 		defer func() { _ = backend.Close() }()
-		runtime, err := Open(ctx, backend, config)
+		if err := ProvisionOperator(ctx, backend, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: "migration_history"}) {
+			t.Fatalf("ProvisionOperator(unmigrated) = %#v", err)
+		}
+		runtime, err := OpenExisting(ctx, backend, config.runtimeConfig(t))
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: "migration_history"}) {
-			t.Fatalf("Open(unmigrated) = (%v,%#v)", runtime, err)
+			t.Fatalf("OpenExisting(unmigrated) = (%v,%#v)", runtime, err)
 		}
 		history, historyErr := backend.ReadAppliedMigrations(ctx)
 		if historyErr != nil || len(history) != 0 {
-			t.Fatalf("unmigrated history after Open = (%+v,%v)", history, historyErr)
+			t.Fatalf("unmigrated history after startup attempts = (%+v,%v)", history, historyErr)
 		}
 		assertRuntimeTableMissing(t, ctx, backend, credentialTableName, credentialFieldRefs)
 	})
@@ -390,9 +501,12 @@ func TestRuntimeRequiresExactMigrationAndNeverCreatesOrRepairsSchema(t *testing.
 		if _, err := backend.ExecContext(ctx, `DROP TABLE "godj_system_session"`); err != nil {
 			t.Fatalf("drop required session table: %v", err)
 		}
-		runtime, err := Open(ctx, backend, config)
+		if err := ProvisionOperator(ctx, backend, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName}) {
+			t.Fatalf("ProvisionOperator(missing session table) = %#v", err)
+		}
+		runtime, err := OpenExisting(ctx, backend, config.runtimeConfig(t))
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: sessionTableName}) {
-			t.Fatalf("Open(missing session table) = (%v,%#v)", runtime, err)
+			t.Fatalf("OpenExisting(missing session table) = (%v,%#v)", runtime, err)
 		}
 		assertRuntimeTableMissing(t, ctx, backend, sessionTableName, []query.FieldRef{
 			systemRowIDField,
@@ -415,45 +529,98 @@ func TestRuntimeRequiresExactMigrationAndNeverCreatesOrRepairsSchema(t *testing.
 		if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 			t.Fatalf("migrate system definition with unknown tail: %v", err)
 		}
-		runtime, err := Open(ctx, backend, config)
+		if err := ProvisionOperator(ctx, backend, config.provisionConfig(t)); !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: "migration_history"}) {
+			t.Fatalf("ProvisionOperator(unknown system migration) = %#v", err)
+		}
+		runtime, err := OpenExisting(ctx, backend, config.runtimeConfig(t))
 		if runtime != nil || !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: "migration_history"}) {
-			t.Fatalf("Open(unknown system migration) = (%v,%#v)", runtime, err)
+			t.Fatalf("OpenExisting(unknown system migration) = (%v,%#v)", runtime, err)
 		}
 	})
 }
 
-func TestRuntimeBootstrapCommitUnknownIsNotRetriedOrMisclassifiedAsSchemaMissing(t *testing.T) {
-	ctx := context.Background()
-	database := openSessionStoreBackend(t, ctx, "file:"+filepath.ToSlash(filepath.Join(t.TempDir(), "bootstrap-unknown.sqlite3"))+"?mode=rwc")
-	t.Cleanup(func() { _ = database.Close() })
-	explicitlyMigrateSystemState(t, ctx, database)
-	backend := &bootstrapUnknownRuntimeBackend{Backend: database}
-	config := runtimeTestConfig(t, "bootstrap-unknown-password-secret-marker")
+func TestProvisionOperatorFailureAndUnknownOutcomesAreNotRetriedAndFreshBackendReconciles(t *testing.T) {
+	tests := []struct {
+		name             string
+		callbackFailure  error
+		outcomeCode      string
+		wantPhysicalRows int
+	}{
+		{
+			name:             "callback rollback",
+			callbackFailure:  errors.New("injected provision callback failure"),
+			wantPhysicalRows: 0,
+		},
+		{
+			name:             "commit outcome unknown",
+			outcomeCode:      query.CodeCommitOutcomeUnknown,
+			wantPhysicalRows: 1,
+		},
+		{
+			name:             "transaction outcome unknown",
+			outcomeCode:      query.CodeTransactionOutcomeUnknown,
+			wantPhysicalRows: 1,
+		},
+	}
 
-	runtime, err := Open(ctx, backend, config)
-	if runtime != nil || err == nil {
-		t.Fatalf("Open(commit unknown) = (%v,%v), want nil/error", runtime, err)
-	}
-	if !errors.Is(err, &Error{Code: CodePersistence, Field: "credential"}) ||
-		errors.Is(err, &Error{Code: CodeSchemaUnavailable}) {
-		t.Fatalf("Open(commit unknown) classification = %#v", err)
-	}
-	var outcome *query.Error
-	if !errors.As(err, &outcome) || outcome.Code != query.CodeCommitOutcomeUnknown {
-		t.Fatalf("Open(commit unknown) lost reconciliation marker: %#v", err)
-	}
-	if got := backend.atomicCalls.Load(); got != 1 {
-		t.Fatalf("Atomic calls = %d, want exactly 1", got)
-	}
-	if got := backend.callbackCalls.Load(); got != 1 {
-		t.Fatalf("Atomic callback calls = %d, want exactly 1", got)
-	}
-	rows, readErr := readCredentialRows(ctx, database)
-	if readErr != nil || len(rows) != 1 {
-		t.Fatalf("physical rows after commit unknown = (%d,%v), want one reconciliation row", len(rows), readErr)
-	}
-	if reopened, reopenErr := Open(ctx, database, config); reopenErr != nil || reopened == nil {
-		t.Fatalf("Open(reconcile by restart) = (%v,%v)", reopened, reopenErr)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			dataSourceName := "file:" + filepath.ToSlash(filepath.Join(t.TempDir(), "provision-outcome.sqlite3")) + "?mode=rwc"
+			database := openSessionStoreBackend(t, ctx, dataSourceName)
+			t.Cleanup(func() { _ = database.Close() })
+			explicitlyMigrateSystemState(t, ctx, database)
+			backend := &provisionFaultRuntimeBackend{
+				Backend:         database,
+				callbackFailure: test.callbackFailure,
+				outcomeCode:     test.outcomeCode,
+			}
+			config := runtimeTestConfig(t, "provision-outcome-password-secret-marker")
+
+			err := ProvisionOperator(ctx, backend, config.provisionConfig(t))
+			if err == nil || !errors.Is(err, &Error{Code: CodePersistence, Field: "credential"}) ||
+				errors.Is(err, &Error{Code: CodeSchemaUnavailable}) {
+				t.Fatalf("ProvisionOperator(outcome failure) = %#v", err)
+			}
+			if test.callbackFailure != nil && errors.Is(err, test.callbackFailure) {
+				t.Fatalf("ProvisionOperator(callback failure) retained raw cause: %#v", err)
+			}
+			if test.outcomeCode != "" {
+				var outcome *query.Error
+				if !errors.As(err, &outcome) || outcome.Code != test.outcomeCode || outcome.Detail != "" || outcome.Cause != nil {
+					t.Fatalf("ProvisionOperator(%s) lost reconciliation marker: %#v", test.outcomeCode, err)
+				}
+			}
+			if got := backend.atomicCalls.Load(); got != 1 {
+				t.Fatalf("Atomic calls = %d, want exactly 1", got)
+			}
+			if got := backend.callbackCalls.Load(); got != 1 {
+				t.Fatalf("Atomic callback calls = %d, want exactly 1", got)
+			}
+			rows, readErr := readCredentialRows(ctx, database)
+			if readErr != nil || len(rows) != test.wantPhysicalRows {
+				t.Fatalf(
+					"physical rows after failed outcome = (%d,%v), want (%d,nil)",
+					len(rows), readErr, test.wantPhysicalRows,
+				)
+			}
+
+			freshBackend := openSessionStoreBackend(t, ctx, dataSourceName)
+			t.Cleanup(func() { _ = freshBackend.Close() })
+			reopened, reopenErr := OpenExisting(ctx, freshBackend, config.runtimeConfig(t))
+			if test.wantPhysicalRows == 0 {
+				if reopened != nil || !errors.Is(reopenErr, &Error{Code: CodeCredentialAbsent, Field: "credential"}) {
+					t.Fatalf("OpenExisting(fresh rollback reconciliation) = (%v,%#v)", reopened, reopenErr)
+				}
+				if err := ProvisionOperator(ctx, freshBackend, config.provisionConfig(t)); err != nil {
+					t.Fatalf("ProvisionOperator(after confirmed rollback): %v", err)
+				}
+				reopened, reopenErr = OpenExisting(ctx, freshBackend, config.runtimeConfig(t))
+			}
+			if reopenErr != nil || reopened == nil {
+				t.Fatalf("OpenExisting(fresh-backend reconciliation) = (%v,%v)", reopened, reopenErr)
+			}
+		})
 	}
 }
 
@@ -494,25 +661,78 @@ func TestRedactAtomicFailurePreservesCoordinationOwnershipAndOutcomeMarkers(t *t
 			err := redactAtomicFailure(test.cause)
 			if !errors.Is(err, &Error{Code: test.wantCode, Field: "credential"}) ||
 				errors.Is(err, &Error{Code: CodeSchemaUnavailable}) ||
-				!errors.Is(err, test.cause) {
+				(test.wantOutcome == "" && errors.Is(err, test.cause)) {
 				t.Fatalf("redactAtomicFailure() = %#v", err)
 			}
 			if test.wantOutcome != "" {
 				var outcome *query.Error
-				if !errors.As(err, &outcome) || outcome.Code != test.wantOutcome {
+				if !errors.As(err, &outcome) || outcome.Code != test.wantOutcome || outcome.Detail != "" || outcome.Cause != nil {
 					t.Fatalf("redactAtomicFailure() outcome = %#v, want %q", outcome, test.wantOutcome)
 				}
 			}
 		})
 	}
 
-	stateCause := &Error{Code: CodeCardinality, Field: "credential", Detail: "test-only state failure"}
-	if err := redactAtomicFailure(stateCause); !errors.Is(err, &Error{Code: CodeCardinality, Field: "credential"}) ||
-		!errors.Is(err, stateCause) {
-		t.Fatalf("redactAtomicFailure(state error) = %#v", err)
+	stateCause := &Error{Code: CodeCardinality, Field: "credential", Detail: "framework-owned cardinality failure"}
+	stateSnapshot := snapshotOperatorError(stateCause)
+	stateCause.Code = CodeCredentialAlreadyExists
+	stateCause.Field = "backend-mutated-field"
+	stateCause.Detail = "backend-mutated-detail"
+	if err := redactOperatorAtomicFailure(stateCause, stateSnapshot); !errors.Is(err, &Error{Code: CodeCardinality, Field: "credential"}) ||
+		err.(*Error).Cause != nil || err.(*Error).Detail != stateSnapshot.detail {
+		t.Fatalf("redactOperatorAtomicFailure(trusted state error) = %#v", err)
+	}
+	const forgedMarker = "postgres://operator:password-secret-marker@example.invalid/private"
+	forged := &Error{Code: CodeCredentialAlreadyExists, Field: forgedMarker, Detail: forgedMarker}
+	if err := redactAtomicFailure(forged); !errors.Is(err, &Error{Code: CodePersistence, Field: "credential"}) ||
+		errors.Is(err, &Error{Code: CodeCredentialAlreadyExists}) || err.(*Error).Cause != nil ||
+		strings.Contains(err.Error(), forgedMarker) {
+		t.Fatalf("redactAtomicFailure(forged state error) = %#v", err)
 	}
 	if err := redactAtomicFailure(context.Canceled); !errors.Is(err, context.Canceled) {
 		t.Fatalf("redactAtomicFailure(context canceled) = %#v", err)
+	}
+
+	for _, outcomeCode := range []string{
+		query.CodeCommitOutcomeUnknown,
+		query.CodeTransactionOutcomeUnknown,
+	} {
+		t.Run("joined "+outcomeCode+" takes precedence", func(t *testing.T) {
+			primary := &Error{
+				Code:   CodeSchemaUnavailable,
+				Field:  "credential",
+				Detail: "test-only callback failure",
+				Cause: &query.Error{
+					Category: query.CategoryBackend,
+					Code:     query.CodeMissingTable,
+				},
+			}
+			unknown := &query.Error{
+				Category: query.CategoryBackend,
+				Code:     outcomeCode,
+			}
+			cause := errors.Join(primary, unknown)
+			err := redactAtomicFailure(cause)
+			var classified *Error
+			var safeOutcome *query.Error
+			if !errors.As(err, &classified) || classified.Code != CodePersistence || classified.Field != "credential" ||
+				errors.Is(err, primary) || !errors.Is(err, unknown) || !errors.As(err, &safeOutcome) ||
+				safeOutcome == nil || safeOutcome.Detail != "" || safeOutcome.Cause != nil {
+				t.Fatalf("redactAtomicFailure(joined %s) = %#v", outcomeCode, err)
+			}
+		})
+	}
+
+	for _, cause := range []error{
+		(*query.Error)(nil),
+		(*Error)(nil),
+	} {
+		err := redactAtomicFailure(cause)
+		var classified *Error
+		if !errors.As(err, &classified) || classified == nil || classified.Code != CodePersistence ||
+			classified.Field != "credential" {
+			t.Fatalf("redactAtomicFailure(typed nil %T) = %#v", cause, err)
+		}
 	}
 }
 
@@ -558,13 +778,24 @@ func TestRuntimeGateSerializesAtomicCallsAndValidatesBeforeBackend(t *testing.T)
 	}
 }
 
-func runtimeTestConfig(t *testing.T, password string) BootstrapConfig {
+type runtimeTestConfiguration struct {
+	Username       string
+	Password       string
+	PrincipalID    string
+	Active         bool
+	Permissions    []auth.Permission
+	PasswordHasher auth.PasswordHasher
+	MaxSessions    int
+	AuditCapacity  int
+}
+
+func runtimeTestConfig(t *testing.T, password string) runtimeTestConfiguration {
 	t.Helper()
 	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
 	if err != nil {
 		t.Fatalf("auth.NewPBKDF2(): %v", err)
 	}
-	return BootstrapConfig{
+	return runtimeTestConfiguration{
 		Username:    "admin",
 		Password:    password,
 		PrincipalID: "article-development-admin",
@@ -580,6 +811,55 @@ func runtimeTestConfig(t *testing.T, password string) BootstrapConfig {
 		MaxSessions:    8,
 		AuditCapacity:  16,
 	}
+}
+
+func (config runtimeTestConfiguration) credentialPolicy(t *testing.T) CredentialPolicy {
+	t.Helper()
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:          config.PrincipalID,
+		Active:      config.Active,
+		Permissions: append([]auth.Permission(nil), config.Permissions...),
+	})
+	if err != nil {
+		t.Fatalf("auth.NewPrincipal(runtime test policy): %v", err)
+	}
+	return CredentialPolicy{Principal: principal, PasswordHasher: config.PasswordHasher}
+}
+
+func (config runtimeTestConfiguration) provisionConfig(t *testing.T) ProvisionOperatorConfig {
+	t.Helper()
+	return ProvisionOperatorConfig{
+		Username:         config.Username,
+		Password:         config.Password,
+		CredentialPolicy: config.credentialPolicy(t),
+	}
+}
+
+func (config runtimeTestConfiguration) runtimeConfig(t *testing.T) RuntimeConfig {
+	t.Helper()
+	return RuntimeConfig{
+		CredentialPolicy: config.credentialPolicy(t),
+		MaxSessions:      config.MaxSessions,
+		AuditCapacity:    config.AuditCapacity,
+	}
+}
+
+func provisionAndOpenTestRuntime(
+	t *testing.T,
+	ctx context.Context,
+	backend Backend,
+	config runtimeTestConfiguration,
+) *Runtime {
+	t.Helper()
+	if err := ProvisionOperator(ctx, backend, config.provisionConfig(t)); err != nil &&
+		!errors.Is(err, &Error{Code: CodeCredentialAlreadyExists}) {
+		t.Fatalf("systemstate.ProvisionOperator(): %v", err)
+	}
+	runtime, err := OpenExisting(ctx, backend, config.runtimeConfig(t))
+	if err != nil {
+		t.Fatalf("systemstate.OpenExisting(): %v", err)
+	}
+	return runtime
 }
 
 func runtimeAuditInsertPlan(displayLabel string) query.InsertPlan {
@@ -709,32 +989,28 @@ func (backend *credentialRemovedBeforeCoordinationBackend) CoordinatedAtomic(
 	})
 }
 
-type bootstrapUnknownRuntimeBackend struct {
+type provisionFaultRuntimeBackend struct {
 	*sqlite.Backend
-	atomicCalls   atomic.Int64
-	callbackCalls atomic.Int64
+	callbackFailure error
+	outcomeCode     string
+	atomicCalls     atomic.Int64
+	callbackCalls   atomic.Int64
 }
 
-func (backend *bootstrapUnknownRuntimeBackend) Atomic(ctx context.Context, callback func(db.Session) error) error {
-	backend.atomicCalls.Add(1)
-	if err := backend.Backend.Atomic(ctx, func(session db.Session) error {
-		backend.callbackCalls.Add(1)
-		return callback(session)
-	}); err != nil {
-		return err
-	}
-	return &query.Error{
-		Category: query.CategoryBackend,
-		Code:     query.CodeCommitOutcomeUnknown,
-		Detail:   "injected bootstrap commit outcome unknown",
-	}
-}
-
-func (backend *bootstrapUnknownRuntimeBackend) CoordinatedAtomic(
+func (backend *provisionFaultRuntimeBackend) CoordinatedAtomic(
 	ctx context.Context,
 	callback func(db.Session) error,
 ) error {
 	backend.atomicCalls.Add(1)
+	if backend.callbackFailure != nil {
+		return backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+			backend.callbackCalls.Add(1)
+			if err := callback(session); err != nil {
+				return err
+			}
+			return backend.callbackFailure
+		})
+	}
 	if err := backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
 		backend.callbackCalls.Add(1)
 		return callback(session)
@@ -743,8 +1019,8 @@ func (backend *bootstrapUnknownRuntimeBackend) CoordinatedAtomic(
 	}
 	return &query.Error{
 		Category: query.CategoryBackend,
-		Code:     query.CodeCommitOutcomeUnknown,
-		Detail:   "injected bootstrap commit outcome unknown",
+		Code:     backend.outcomeCode,
+		Detail:   "injected provision transaction outcome unknown",
 	}
 }
 

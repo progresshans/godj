@@ -236,6 +236,120 @@
         {"kind": "documentation", "reference": "ADR-0048", "derived": false}
       ],
       "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-021",
+      "title": "Current-only system state separates explicit operator provision from raw-secret-free open-existing",
+      "scenario": "godj.system_state.explicit_operator_provisioning",
+      "phase": "construction",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-022",
+      "title": "Createsuperuser accepts exactly two argv forms and rejects secret-bearing or noncanonical input before I/O",
+      "scenario": "godj.system_state.createsuperuser_argv_and_pre_io",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-023",
+      "title": "TTY-only bounded no-echo input confirms and restores before one-shot binary secret transport",
+      "scenario": "godj.system_state.tty_secret_transport",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-024",
+      "title": "Validated requests use project-owned one-open one-provision one-close behind exact migration readiness",
+      "scenario": "godj.system_state.project_provision_ownership",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-025",
+      "title": "Empty state provisions one operator while concurrent already-one cardinality and corruption paths fail without mutation",
+      "scenario": "godj.system_state.operator_provision_cardinality",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-026",
+      "title": "Rollback and unknown commit outcomes are not retried while known-created cleanup or output failure preserves creation",
+      "scenario": "godj.system_state.provision_outcome_ownership",
+      "phase": "commit",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-027",
+      "title": "Open-existing validates stored encoded credential profile and policy before raw-secret-free authenticator startup",
+      "scenario": "godj.system_state.open_existing_authenticator",
+      "phase": "evaluation",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-028",
+      "title": "Only migrated clean credential-absent state selects public-only mode and no schema corruption or policy failure downgrades",
+      "scenario": "godj.system_state.credential_absent_public_only",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-029",
+      "title": "Distinct-process SQLite and PostgreSQL provision login and restart preserve Admin and API authentication without raw secrets",
+      "scenario": "godj.system_state.operator_backend_login_restart",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#authentication-in-web-requests", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::authenticate", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "documentation", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#using-sessions-in-views", "derived": false, "license": "BSD-3-Clause"},
+        {"kind": "source", "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::login", "derived": false, "license": "BSD-3-Clause"}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
+    },
+    {
+      "id": "SYS-030",
+      "title": "Sensitive child cancellation bounds and redacts responses while cleaning its process group and reaping the direct child",
+      "scenario": "godj.system_state.sensitive_child_cleanup",
+      "phase": "environment",
+      "status": "passing",
+      "provenance": [
+        {"kind": "documentation", "reference": "ADR-0056", "derived": false}
+      ],
+      "comparison": ["result", "db_state", "metrics"]
     }
   ]
 }

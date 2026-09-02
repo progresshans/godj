@@ -91,6 +91,7 @@ func TestMakemigrationsDispatchRejectsInvalidArgumentsBeforeCWD(t *testing.T) {
 		filepath.Join(t.TempDir(), "missing"),
 		[]string{"makemigrations", "--project"},
 		nil,
+		nil,
 		&stdout,
 		&stderr,
 		nil,

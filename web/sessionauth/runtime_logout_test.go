@@ -51,17 +51,31 @@ func TestLogoutFlushesEveryCanonicalSessionFromAmbiguousCookieHeader(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	bootstrap := systemstate.BootstrapConfig{
-		Username:       "logout-admin",
-		Password:       "logout-password-marker",
-		PrincipalID:    "logout-principal",
-		Active:         true,
-		PasswordHasher: hasher,
-		SessionLimits:  sessions.DefaultLimits(),
-		MaxSessions:    8,
-		AuditCapacity:  8,
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:     "logout-principal",
+		Active: true,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	durable, err := systemstate.Open(ctx, backend, bootstrap)
+	policy := systemstate.CredentialPolicy{
+		Principal:      principal,
+		PasswordHasher: hasher,
+	}
+	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
+		Username:         "logout-admin",
+		Password:         "logout-password-marker",
+		CredentialPolicy: policy,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runtimeConfig := systemstate.RuntimeConfig{
+		CredentialPolicy: policy,
+		SessionLimits:    sessions.DefaultLimits(),
+		MaxSessions:      8,
+		AuditCapacity:    8,
+	}
+	durable, err := systemstate.OpenExisting(ctx, backend, runtimeConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +83,7 @@ func TestLogoutFlushesEveryCanonicalSessionFromAmbiguousCookieHeader(t *testing.
 	manager, err := sessions.NewManager(durable.SessionStore(), sessions.Config{
 		AbsoluteLifetime: 2 * time.Hour,
 		IdleTimeout:      30 * time.Minute,
-		Limits:           bootstrap.SessionLimits,
+		Limits:           runtimeConfig.SessionLimits,
 		Clock:            func() time.Time { return now },
 	})
 	if err != nil {
@@ -187,7 +201,7 @@ func TestLogoutFlushesEveryCanonicalSessionFromAmbiguousCookieHeader(t *testing.
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = reopened.Close() })
-	restarted, err := systemstate.Open(ctx, reopened, bootstrap)
+	restarted, err := systemstate.OpenExisting(ctx, reopened, runtimeConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

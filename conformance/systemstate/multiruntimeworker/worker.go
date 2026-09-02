@@ -79,7 +79,11 @@ func executeWorker(
 		}
 	}()
 
-	runtime, err := systemstate.Open(ctx, backend, bootstrapConfig(config))
+	runtimeConfig, err := openExistingConfig(config)
+	if err != nil {
+		return response, newError(CodeRuntime)
+	}
+	runtime, err := systemstate.OpenExisting(ctx, backend, runtimeConfig)
 	if err != nil {
 		return response, newError(CodeRuntime)
 	}
@@ -279,7 +283,11 @@ func prepareScenarioDatabase(ctx context.Context, config wireConfig) error {
 	); err != nil {
 		return newError(CodeMigration)
 	}
-	if _, err := systemstate.Open(ctx, backend, bootstrapConfig(config)); err != nil {
+	provision, err := provisionOperatorConfig(config)
+	if err != nil {
+		return newError(CodeRuntime)
+	}
+	if err := systemstate.ProvisionOperator(ctx, backend, provision); err != nil {
 		return newError(CodeRuntime)
 	}
 	if err := backend.Close(); err != nil {
@@ -289,20 +297,42 @@ func prepareScenarioDatabase(ctx context.Context, config wireConfig) error {
 	return nil
 }
 
-func bootstrapConfig(config wireConfig) systemstate.BootstrapConfig {
+func credentialPolicy(config wireConfig) (systemstate.CredentialPolicy, error) {
 	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
 	if err != nil {
-		// The literal profile above is compile-time bounded; preserving nil here
-		// lets systemstate.Open fail closed if that invariant ever changes.
-		hasher = nil
+		return systemstate.CredentialPolicy{}, err
 	}
-	return systemstate.BootstrapConfig{
-		Username:       config.Username,
-		Password:       config.Password,
-		PrincipalID:    config.Principal,
-		Active:         true,
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:     config.Principal,
+		Active: true,
+	})
+	if err != nil {
+		return systemstate.CredentialPolicy{}, err
+	}
+	return systemstate.CredentialPolicy{
+		Principal:      principal,
 		PasswordHasher: hasher,
+	}, nil
+}
+
+func provisionOperatorConfig(config wireConfig) (systemstate.ProvisionOperatorConfig, error) {
+	policy, err := credentialPolicy(config)
+	if err != nil {
+		return systemstate.ProvisionOperatorConfig{}, err
 	}
+	return systemstate.ProvisionOperatorConfig{
+		Username:         config.Username,
+		Password:         config.Password,
+		CredentialPolicy: policy,
+	}, nil
+}
+
+func openExistingConfig(config wireConfig) (systemstate.RuntimeConfig, error) {
+	policy, err := credentialPolicy(config)
+	if err != nil {
+		return systemstate.RuntimeConfig{}, err
+	}
+	return systemstate.RuntimeConfig{CredentialPolicy: policy}, nil
 }
 
 func errorCode(err error) ErrorCode {

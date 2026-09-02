@@ -308,6 +308,8 @@ func prepareCopiedRunserverArticleProject(t *testing.T, repository string) strin
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "article-base")
 	copyRunserverTree(t, filepath.Join(repository, "examples", "article"), root)
+	const copiedModule = "example.com/godj-runserver-fixture"
+	rewriteCopiedRunserverInternalImports(t, root, copiedModule)
 	rootModule, err := os.ReadFile(filepath.Join(repository, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
@@ -316,7 +318,7 @@ func prepareCopiedRunserverArticleProject(t *testing.T, repository string) strin
 	if !strings.HasPrefix(string(rootModule), moduleDeclaration) || strings.Count(string(rootModule), moduleDeclaration) != 1 {
 		t.Fatal("repository go.mod has an unexpected module declaration")
 	}
-	document := strings.Replace(string(rootModule), moduleDeclaration, "module example.com/godj-runserver-fixture\n", 1)
+	document := strings.Replace(string(rootModule), moduleDeclaration, "module "+copiedModule+"\n", 1)
 	document += fmt.Sprintf(`
 require github.com/progresshans/godj v0.0.0
 
@@ -333,6 +335,45 @@ replace github.com/progresshans/godj => %s
 		t.Fatal(err)
 	}
 	return root
+}
+
+func rewriteCopiedRunserverInternalImports(t *testing.T, root, module string) {
+	t.Helper()
+	const sourcePrefix = "github.com/progresshans/godj/examples/article/internal/"
+	targetPrefix := module + "/internal/"
+	replacements := 0
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".go" {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		count := bytes.Count(contents, []byte(sourcePrefix))
+		if count == 0 {
+			return nil
+		}
+		replacements += count
+		contents = bytes.ReplaceAll(contents, []byte(sourcePrefix), []byte(targetPrefix))
+		return os.WriteFile(path, contents, info.Mode().Perm())
+	})
+	if err != nil {
+		t.Fatalf("rebase copied Article internal imports: %v", err)
+	}
+	if replacements == 0 {
+		t.Fatal("copied Article fixture had no internal imports to rebase")
+	}
 }
 
 func copyRunserverTree(t *testing.T, source, destination string) {

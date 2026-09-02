@@ -55,6 +55,10 @@ jobs:
         working-directory: conformance/systemstate/attestations
         run: sha256sum --check SHA256SUMS
 
+      - name: Verify checked project operator live attestation checksum
+        working-directory: conformance/projectoperatorproduct/attestations
+        run: sha256sum --check SHA256SUMS
+
       - name: Run portable artifact and contract validation
         run: make format-check generate-check python-test conformance-check godj-conformance
 
@@ -75,6 +79,7 @@ jobs:
           ./conformance/projectmigratetargetproduct
           ./conformance/projectshowmigrationsproduct
           ./conformance/projectsqlmigrateproduct
+          ./conformance/projectoperatorproduct
 
       - name: Compile runserver product on 32-bit Linux
         env:
@@ -128,6 +133,7 @@ jobs:
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
           conformance/systemstate/attestations
+          conformance/projectoperatorproduct/attestations
           conformance/profiles
           conformance/oracles
           conformance/reference/drf
@@ -256,6 +262,7 @@ jobs:
           conformance/fixtures/godj-system-state-not-implemented.json
           conformance/fixtures/godj-system-state-deviation-expected.json
           conformance/systemstate/attestations
+          conformance/projectoperatorproduct/attestations
           conformance/profiles
           conformance/oracles
           conformance/reference/drf
@@ -833,11 +840,77 @@ jobs:
       - name: Run runserver product tests without CGO
         run: CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
 
+      - name: Run and inventory external SQLite operator product modes
+        run: |
+          set -euo pipefail
+          package="github.com/progresshans/godj/conformance/projectoperatorproduct"
+          required_tests=(
+            "TestOperatorSanitizeEnvironmentDropsHostOnlyControls"
+            "TestGlobalCreatesuperuserExternalSQLiteProduct"
+            "TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity"
+            "TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation"
+            "TestOperatorCountRawSecretOccurrencesDetectsAuditMarker"
+          )
+          required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
+          required="$RUNNER_TEMP/project-operator-sqlite-required-tests.txt"
+          printf '%s\n' "${required_tests[@]}" > "$required"
+          for mode in normal race cgo0; do
+            log="$RUNNER_TEMP/project-operator-sqlite-${mode}.json"
+            flags=(-timeout=15m -json -count=1 -run "$required_regex")
+            status=0
+            case "$mode" in
+              normal)
+                go test "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?
+                ;;
+              race)
+                go test -race "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?
+                ;;
+              cgo0)
+                CGO_ENABLED=0 go test "${flags[@]}" ./conformance/projectoperatorproduct > "$log" || status=$?
+                ;;
+              *)
+                exit 1
+                ;;
+            esac
+            if [ "$status" -ne 0 ]; then
+              tail -c 60000 "$log"
+              exit "$status"
+            fi
+            python3 - "$required" "$log" "$package" "$mode" <<'PY'
+            import json
+            import sys
+
+            with open(sys.argv[1], encoding="utf-8") as stream:
+                expected = {(sys.argv[3], line.rstrip("\n")) for line in stream if line.strip()}
+            with open(sys.argv[2], encoding="utf-8") as stream:
+                events = [json.loads(line) for line in stream if line.strip()]
+            runs = {
+                (event.get("Package"), event["Test"])
+                for event in events
+                if event.get("Action") == "run" and "Test" in event and "/" not in event["Test"]
+            }
+            passes = {
+                (event.get("Package"), event["Test"])
+                for event in events
+                if event.get("Action") == "pass" and "Test" in event and "/" not in event["Test"]
+            }
+            skips = [
+                (event.get("Package"), event["Test"])
+                for event in events
+                if event.get("Action") == "skip" and "Test" in event
+            ]
+            assert len(expected) == 5, sorted(expected)
+            assert runs == expected, (sys.argv[4], sorted(runs), sorted(expected))
+            assert passes == expected, (sys.argv[4], sorted(passes), sorted(expected))
+            assert skips == [], (sys.argv[4], skips)
+            PY
+          done
+
       - name: Vet product project-check packages
         run: go vet ./cmd/godj ./project ./internal/projectcheck/... ./conformance/runners/godj
 
       - name: Vet runserver product package
-        run: go vet ./conformance/runserverproduct
+        run: go vet ./conformance/runserverproduct ./conformance/projectoperatorproduct
 
       - name: Require a clean worktree
         run: |
@@ -1104,10 +1177,10 @@ jobs:
               + b"\0"
               for name in sorted(SCENARIOS)
           )
-          assert len(SCENARIOS) == 301, len(SCENARIOS)
-          assert len(payload) == 1063486, len(payload)
+          assert len(SCENARIOS) == 311, len(SCENARIOS)
+          assert len(payload) == 1081058, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "df78c110fb7452c3d82ce3f525b7e6bc895f3b6e2261fddfeda016b30b3c519e", digest
+          assert digest == "b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5", digest
           PY
 
       - name: Require a clean worktree
@@ -1177,11 +1250,12 @@ jobs:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports[5432] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
           GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-two-process-v1.json
+          GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE: ${{ runner.temp }}/postgresql-17.10-sqlite-external-operator-v1.json
           POSTGRES_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalSQLMigrateExternalPhaseDProduct|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel)$'
+          required_regex='^(TestPostgreSQLPhase1Integration|TestPostgresRevisionFencedMigrationIntegration|TestPostgresRevisionFenceCrossProcessIntegration|TestPostgresMigrationCreateThenAddInOneDefinitionIntegration|TestPostgresMigrationRejectsNullableDefaultAddOnPopulatedTableIntegration|TestPostgresMigrationRecorderFailureRollsBackSchemaHistoryAndRevisionIntegration|TestPostgresMigrationRejectsAddAfterDroppedAttributeSlotsAreExhaustedIntegration|TestPostgresMigrationRejectsInitializedRevisionZeroIntegration|TestPostgresMigrationRejectsInboundControlForeignKeyIntegration|TestArticlePostgresMigrationGeneratedCRUDAndHTTP|TestArticleAdminSitePostgresUserFlow|TestArticleAPIAdminSessionPostgresUserFlow|TestArticleAPIBearerPostgresUserFlow|TestActualGodjMakemigrationsPostgresGeneratedMigrateNoopRestart|TestGeneratedRelationPostgresE2E|TestProjectRunnerSameServerLifecycle|TestGlobalRunserverArticlePostgresDevelopmentLoop|TestGlobalMigrateArticlePostgresProduct|TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability|TestGlobalShowMigrationsPostgresReadOnlyFreshPrefixRestart|TestGlobalSQLMigrateExternalPhaseDProduct|TestGlobalTargetedMigratePostgresLifecycle|TestSystemStatePostgresDistinctProcessRestartSentinel|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct)$'
           test_flags=(-timeout=18m -json -count=1 -run "$required_regex")
           case "$mode" in
             normal)
@@ -1211,7 +1285,8 @@ jobs:
             ./conformance/projectshowmigrationsproduct \
             ./conformance/projectsqlmigrateproduct \
             ./conformance/systemstate/restart \
-            ./conformance/runserverproduct > "$log" || status=$?
+            ./conformance/runserverproduct \
+            ./conformance/projectoperatorproduct > "$log" || status=$?
           if [ "$status" -ne 0 ]; then
             report_postgres_failure
             exit "$status"
@@ -1247,6 +1322,8 @@ jobs:
             "github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel"
             "github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
+            "github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation"
+            "github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct"
           )
           required="$RUNNER_TEMP/postgresql-required-tests.txt"
           printf '%s\n' "${required_passes[@]}" > "$required"
@@ -1273,7 +1350,7 @@ jobs:
               for event in events
               if event.get("Action") == "skip" and "Test" in event
           ]
-          assert len(expected) == 24, sorted(expected)
+          assert len(expected) == 26, sorted(expected)
           assert runs == expected, (sorted(runs), sorted(expected))
           assert passes == expected, (sorted(passes), sorted(expected))
           assert skips == [], skips
@@ -1294,6 +1371,13 @@ jobs:
             conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
           (
             cd conformance/systemstate/attestations
+            sha256sum --check SHA256SUMS
+          )
+          test -f "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE"
+          cmp "$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE" \
+            conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json
+          (
+            cd conformance/projectoperatorproduct/attestations
             sha256sum --check SHA256SUMS
           )
           export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"
@@ -1340,7 +1424,8 @@ jobs:
             ./conformance/projectshowmigrationsproduct \
             ./conformance/projectsqlmigrateproduct \
             ./conformance/systemstate/restart \
-            ./conformance/runserverproduct
+            ./conformance/runserverproduct \
+            ./conformance/projectoperatorproduct
 
       - name: Require a clean worktree
         run: |

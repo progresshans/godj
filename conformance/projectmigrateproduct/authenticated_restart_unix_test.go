@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/progresshans/godj/api"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -48,9 +49,8 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	const username = "authenticated-restart-admin"
 	password := fmt.Sprintf("authenticated-restart-password-%d-%d-7Vq", os.Getpid(), time.Now().UnixNano())
 	values := environmentMap(articleEnvironment(t, databasePath, workspaceBase))
-	values[articleAdminUsernameEnv] = username
-	values[articleAdminPasswordEnv] = password
 	environment := sortedEnvironment(values)
+	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
 	sensitive := []string{password}
 	outputCanaries := []string{username, databasePath}
 
@@ -59,6 +59,20 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	assertWorkspaceEmpty(t, workspaceBase)
 	assertLatestDatabase(t, databasePath, expectedCatalog, "")
 	authenticatedRestartAssertMigratedSystemStateEmpty(t, authenticatedRestartInspectDatabase(t, databasePath))
+	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
+
+	provision := authenticatedRestartProvisionOperator(
+		t,
+		globalBinary,
+		repository,
+		descriptor,
+		environment,
+		username,
+		password,
+	)
+	assertWorkspaceEmpty(t, workspaceBase)
+	provisionedSnapshot := authenticatedRestartInspectDatabase(t, databasePath)
+	authenticatedRestartAssertProvisionedState(t, provisionedSnapshot, username, password)
 	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
 
 	jar, err := cookiejar.New(nil)
@@ -94,6 +108,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	assertWorkspaceEmpty(t, workspaceBase)
 	phaseASnapshot := authenticatedRestartInspectDatabase(t, databasePath)
 	authenticatedRestartAssertPhaseAState(t, phaseASnapshot, username, password, phaseAState, sensitive)
+	authenticatedRestartAssertCredentialUnchanged(t, provisionedSnapshot.Credential, phaseASnapshot.Credential)
 	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
 
 	phaseB := authenticatedRestartRunServer(
@@ -110,8 +125,16 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 		},
 	)
 	assertWorkspaceEmpty(t, workspaceBase)
-	if phaseA.PID == phaseB.PID || phaseA.PID == os.Getpid() || phaseB.PID == os.Getpid() {
-		t.Fatalf("authenticated restart did not use two distinct global children: phase_a=%d phase_b=%d test=%d", phaseA.PID, phaseB.PID, os.Getpid())
+	if provision.PID <= 0 || phaseA.PID <= 0 || phaseB.PID <= 0 ||
+		provision.PID == phaseA.PID || provision.PID == phaseB.PID || phaseA.PID == phaseB.PID ||
+		provision.PID == os.Getpid() || phaseA.PID == os.Getpid() || phaseB.PID == os.Getpid() {
+		t.Fatalf(
+			"authenticated restart did not use distinct provision/runtime children: provision=%d phase_a=%d phase_b=%d test=%d",
+			provision.PID,
+			phaseA.PID,
+			phaseB.PID,
+			os.Getpid(),
+		)
 	}
 	phaseBSnapshot := authenticatedRestartInspectDatabase(t, databasePath)
 	authenticatedRestartAssertCredentialUnchanged(t, phaseASnapshot.Credential, phaseBSnapshot.Credential)
@@ -133,6 +156,175 @@ type authenticatedRestartLoginState struct {
 type authenticatedRestartPhaseResult struct {
 	PID           int
 	ProcessGroups []int
+}
+
+func authenticatedRestartProvisionOperator(
+	t *testing.T,
+	globalBinary, repository, descriptor string,
+	environment []string,
+	username, password string,
+) authenticatedRestartPhaseResult {
+	t.Helper()
+	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
+
+	master, slave, err := pty.Open()
+	if err != nil {
+		t.Fatalf("open explicit operator provision PTY: %v", err)
+	}
+	defer func() { _ = master.Close() }()
+
+	command := exec.Command(globalBinary, "createsuperuser", "--project", descriptor)
+	command.Dir = repository
+	command.Env = append([]string(nil), environment...)
+	command.Stdin = slave
+	command.Stdout = slave
+	command.Stderr = slave
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.WaitDelay = 2 * time.Second
+	if err := command.Start(); err != nil {
+		_ = slave.Close()
+		t.Fatalf("start explicit operator provision: %v", err)
+	}
+	if err := slave.Close(); err != nil {
+		_ = command.Process.Kill()
+		_ = command.Wait()
+		t.Fatalf("close parent provision PTY slave: %v", err)
+	}
+
+	output := &boundedOutput{maximum: maximumCommandOutput}
+	drained := make(chan error, 1)
+	go func() {
+		_, copyErr := io.Copy(output, master)
+		drained <- copyErr
+	}()
+	waited := make(chan struct{})
+	var waitErr error
+	go func() {
+		waitErr = command.Wait()
+		close(waited)
+	}()
+
+	finished := false
+	defer func() {
+		if finished {
+			return
+		}
+		groups, _ := ownedProcessGroups(command.Process.Pid)
+		_ = killProcessGroups(groups, command.Process.Pid)
+		select {
+		case <-waited:
+		case <-time.After(5 * time.Second):
+		}
+		_ = master.Close()
+		select {
+		case <-drained:
+		case <-time.After(2 * time.Second):
+		}
+	}()
+
+	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, "Username: ")
+	authenticatedRestartWritePTYLine(t, master, username)
+	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, "Password: ")
+	authenticatedRestartWritePTYLine(t, master, password)
+	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, "Password (again): ")
+	authenticatedRestartWritePTYLine(t, master, password)
+
+	timer := time.NewTimer(commandTimeout)
+	select {
+	case <-waited:
+		timer.Stop()
+	case <-timer.C:
+		t.Fatal("explicit operator provision timed out")
+	}
+	finished = true
+	select {
+	case <-drained:
+	case <-time.After(3 * time.Second):
+		_ = master.Close()
+		select {
+		case <-drained:
+		case <-time.After(time.Second):
+			t.Fatal("explicit operator provision PTY did not drain")
+		}
+	}
+	transcript := output.String()
+	if waitErr != nil || output.Truncated() ||
+		!strings.Contains(transcript, "Username: ") ||
+		!strings.Contains(transcript, "Password: ") ||
+		!strings.Contains(transcript, "Password (again): ") ||
+		!strings.Contains(transcript, `{"status":"created"}`) {
+		t.Fatalf(
+			"explicit operator provision shape = exit-ok:%t prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
+			waitErr == nil,
+			strings.Contains(transcript, "Username: "),
+			strings.Contains(transcript, "Password: "),
+			strings.Contains(transcript, "Password (again): "),
+			strings.Contains(transcript, `{"status":"created"}`),
+			len(transcript),
+			output.Truncated(),
+		)
+	}
+	if strings.Contains(transcript, password) {
+		t.Fatal("explicit operator provision PTY exposed raw password")
+	}
+	if err := waitForProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
+		t.Fatalf("explicit operator provision process group remained: %v", err)
+	}
+	return authenticatedRestartPhaseResult{PID: command.Process.Pid}
+}
+
+func authenticatedRestartAwaitProvisionPrompt(
+	t *testing.T,
+	output *boundedOutput,
+	waited <-chan struct{},
+	waitErr *error,
+	marker string,
+) {
+	t.Helper()
+	deadline := time.Now().Add(commandTimeout)
+	for {
+		if strings.Contains(output.String(), marker) {
+			return
+		}
+		if output.Truncated() {
+			t.Fatalf("explicit operator provision output truncated before %q", marker)
+		}
+		select {
+		case <-waited:
+			t.Fatalf("explicit operator provision exited before %q: error=%t bytes=%d", marker, *waitErr != nil, len(output.String()))
+		case <-time.After(10 * time.Millisecond):
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("explicit operator provision did not publish %q", marker)
+		}
+	}
+}
+
+func authenticatedRestartWritePTYLine(t *testing.T, terminal *os.File, value string) {
+	t.Helper()
+	payload := []byte(value + "\n")
+	for len(payload) != 0 {
+		written, err := terminal.Write(payload)
+		if err != nil || written <= 0 || written > len(payload) {
+			t.Fatalf("write explicit operator provision terminal input: bytes=%d error=%t", written, err != nil)
+		}
+		payload = payload[written:]
+	}
+}
+
+func authenticatedRestartAssertRuntimeEnvironment(t *testing.T, environment []string, rawPassword string) {
+	t.Helper()
+	values := environmentMap(environment)
+	for _, name := range []string{articleAdminUsernameEnv, articleAdminPasswordEnv} {
+		if _, exists := values[name]; exists {
+			t.Fatalf("Article runtime environment retained retired startup credential %s", name)
+		}
+	}
+	for _, entry := range environment {
+		if rawPassword != "" && strings.Contains(entry, rawPassword) {
+			t.Fatal("Article runtime environment exposed the raw operator password")
+		}
+	}
 }
 
 type authenticatedRestartHTTPResult struct {
@@ -1137,6 +1329,23 @@ func authenticatedRestartAssertMigratedSystemStateEmpty(
 			len(snapshot.Credential),
 		)
 	}
+}
+
+func authenticatedRestartAssertProvisionedState(
+	t *testing.T,
+	snapshot authenticatedRestartDatabaseSnapshot,
+	username, password string,
+) {
+	t.Helper()
+	if len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 {
+		t.Fatalf(
+			"explicit operator provision changed non-credential state: articles=%d sessions=%d audits=%d",
+			len(snapshot.Articles),
+			len(snapshot.Sessions),
+			len(snapshot.Audits),
+		)
+	}
+	authenticatedRestartAssertCredential(t, snapshot.Credential, username, password)
 }
 
 func authenticatedRestartAssertCredentialUnchanged(

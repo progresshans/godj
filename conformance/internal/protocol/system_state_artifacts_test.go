@@ -15,7 +15,8 @@ var systemStateIDs = []string{
 	"SYS-001", "SYS-002", "SYS-003", "SYS-004", "SYS-005", "SYS-006",
 	"SYS-007", "SYS-008", "SYS-009", "SYS-010", "SYS-011", "SYS-012",
 	"SYS-013", "SYS-014", "SYS-015", "SYS-016", "SYS-017", "SYS-018",
-	"SYS-019", "SYS-020",
+	"SYS-019", "SYS-020", "SYS-021", "SYS-022", "SYS-023", "SYS-024",
+	"SYS-025", "SYS-026", "SYS-027", "SYS-028", "SYS-029", "SYS-030",
 }
 
 var systemStateScenarios = []string{
@@ -39,6 +40,16 @@ var systemStateScenarios = []string{
 	"godj.system_state.concurrent_article_audit",
 	"godj.system_state.shared_csrf_key_ring",
 	"godj.system_state.two_process_backend_restart",
+	"godj.system_state.explicit_operator_provisioning",
+	"godj.system_state.createsuperuser_argv_and_pre_io",
+	"godj.system_state.tty_secret_transport",
+	"godj.system_state.project_provision_ownership",
+	"godj.system_state.operator_provision_cardinality",
+	"godj.system_state.provision_outcome_ownership",
+	"godj.system_state.open_existing_authenticator",
+	"godj.system_state.credential_absent_public_only",
+	"godj.system_state.operator_backend_login_restart",
+	"godj.system_state.sensitive_child_cleanup",
 }
 
 var systemStatePhases = []Phase{
@@ -47,6 +58,9 @@ var systemStatePhases = []Phase{
 	PhaseCommit, PhaseRollback, PhaseEvaluation, PhaseCommit,
 	PhaseCommit, PhaseCommit, PhaseCommit, PhaseCommit,
 	PhaseCommit, PhaseRollback, PhaseEvaluation, PhaseEnvironment,
+	PhaseConstruction, PhaseEnvironment, PhaseEnvironment, PhaseEnvironment,
+	PhaseCommit, PhaseCommit, PhaseEvaluation, PhaseEnvironment,
+	PhaseEnvironment, PhaseEnvironment,
 }
 
 func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
@@ -58,11 +72,11 @@ func TestSystemStateArtifactBytesAreLocked(t *testing.T) {
 	}
 	root := conformanceRepositoryRoot(t)
 	wanted := map[string]artifactLock{
-		"conformance/contracts/system-state-manifest.json":                          {11143, "b326cc3379f5792d67425005652e113c4e548c3bd0302b945659c573d336af09"},
-		"conformance/fixtures/godj-system-state-not-implemented.json":               {2417, "92b05690265f6ffaa56dcc2a4e309d308c65e9b318d2557ed769c1daf89682fa"},
+		"conformance/contracts/system-state-manifest.json":                          {16420, "ddae48e95770eacf2e3b761c7c4931b53dbcb65020cc375f624413ac71e0996c"},
+		"conformance/fixtures/godj-system-state-not-implemented.json":               {3167, "eff126dff0e7e9375a09722d054a2f663150cea1440241875b82f60650d9aa53"},
 		"conformance/fixtures/godj-system-state-deviation-expected.json":            {1141, "a2877ae785b937b2b1c9ee3b567a7631403a5b5ca91485d2a6c942066c744869"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":      {21242, "d83bf0c987f246a605253fea050cc82218f7b9cf744b94e150033393099c05b4"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {2279, "7aadb1328fdfccb6bcd1e817f054e60f442c79cb55ad37aec20d24d001ce1138"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json":      {37866, "2251157e801295b084a51a7879e496fab528d7360fcb8c55bdd7b0b368862913"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":             {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
 		"conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json": {1134, "f682d655e7e953aec4c3f0ce3ff74121dc59027913c85c315f276e86948aa777"},
 		"conformance/systemstate/attestations/SHA256SUMS":                           {103, "65ccc7b722234a2e193afa6c38276fdea088c18923bc65ec76041dfe04d55750"},
 	}
@@ -94,12 +108,13 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	if !reflect.DeepEqual(oracle.Profile, profile.Snapshot()) || !reflect.DeepEqual(baseline.Profile, profile.Snapshot()) {
 		t.Fatal("system-state suites do not bind the exact profile snapshot")
 	}
-	if len(manifest.Contracts) != 20 || len(oracle.Contracts) != 20 || len(baseline.Contracts) != 20 {
-		t.Fatalf("system-state lengths = %d/%d/%d, want 20", len(manifest.Contracts), len(oracle.Contracts), len(baseline.Contracts))
+	if len(manifest.Contracts) != 30 || len(oracle.Contracts) != 30 || len(baseline.Contracts) != 30 {
+		t.Fatalf("system-state lengths = %d/%d/%d, want 30", len(manifest.Contracts), len(oracle.Contracts), len(baseline.Contracts))
 	}
 	djangoIDs := map[string]bool{
 		"SYS-003": true, "SYS-004": true, "SYS-008": true,
 		"SYS-009": true, "SYS-010": true, "SYS-011": true,
+		"SYS-029": true,
 	}
 	passing, deviations, lockedContracts := 0, 0, 0
 	for index, contract := range manifest.Contracts {
@@ -130,8 +145,8 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 			t.Fatalf("system-state baseline contract %d is not payload-free: %#v", index, locked)
 		}
 	}
-	if passing != 19 || deviations != 1 || lockedContracts != 0 {
-		t.Fatalf("system-state classification = %d passing + %d deviation + %d oracle_locked, want 19 + 1 + 0", passing, deviations, lockedContracts)
+	if passing != 29 || deviations != 1 || lockedContracts != 0 {
+		t.Fatalf("system-state classification = %d passing + %d deviation + %d oracle_locked, want 29 + 1 + 0", passing, deviations, lockedContracts)
 	}
 	for _, field := range []string{"callback_cancellation", "confirmed_callback_error"} {
 		if got := objectField(t, oracle.Contracts[12].Result, field); !reflect.DeepEqual(*got, String("rolled_back")) {
@@ -151,12 +166,133 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	})) {
 		t.Fatalf("SYS-017 rotate-first stale-touch outcome = %#v", got)
 	}
+	for _, field := range []string{"child_starts_on_rejection", "project_builds_on_rejection", "project_discoveries_on_rejection", "terminal_reads_on_rejection"} {
+		if got := objectField(t, oracle.Contracts[21].Metrics, field); !reflect.DeepEqual(*got, Integer("0")) {
+			t.Fatalf("SYS-022 %s = %#v, want 0", field, got)
+		}
+	}
+	for _, field := range []string{"backend_opens_on_rejection", "project_reads_on_rejection", "writes_on_rejection"} {
+		if got := objectField(t, oracle.Contracts[21].DBState, field); !reflect.DeepEqual(*got, Integer("0")) {
+			t.Fatalf("SYS-022 %s = %#v, want 0", field, got)
+		}
+	}
+	for _, field := range []string{"terminal_reads_before_project_build", "terminal_reads_before_project_selection"} {
+		if got := objectField(t, oracle.Contracts[22].Metrics, field); !reflect.DeepEqual(*got, Integer("0")) {
+			t.Fatalf("SYS-023 %s = %#v, want 0", field, got)
+		}
+	}
+	cardinalityCases := objectField(t, oracle.Contracts[24].Result, "cases")
+	if cardinalityCases.Type != ValueList || len(cardinalityCases.Items) != 6 {
+		t.Fatalf("SYS-025 cases = %#v, want exact six-case decision", cardinalityCases)
+	}
+	if got := objectField(t, &cardinalityCases.Items[1], "loser_outcome"); !reflect.DeepEqual(*got, String("credential_already_exists")) {
+		t.Fatalf("SYS-025 concurrent loser outcome = %#v, want credential_already_exists", got)
+	}
+	if got := objectField(t, &cardinalityCases.Items[3], "outcome"); !reflect.DeepEqual(*got, String("invalid_cardinality")) {
+		t.Fatalf("SYS-025 two-or-more outcome = %#v, want invalid_cardinality", got)
+	}
+	if got := objectField(t, &cardinalityCases.Items[4], "outcome"); !reflect.DeepEqual(*got, String("corrupt_state")) {
+		t.Fatalf("SYS-025 malformed/profile outcome = %#v, want corrupt_state", got)
+	}
+	if got := objectField(t, &cardinalityCases.Items[5], "outcome"); !reflect.DeepEqual(*got, String("credential_policy_mismatch")) {
+		t.Fatalf("SYS-025 policy outcome = %#v, want credential_policy_mismatch", got)
+	}
+	ownershipCases := objectField(t, oracle.Contracts[25].Result, "cases")
+	wantOwnershipCases := []string{
+		"confirmed_rollback",
+		"commit_outcome_unknown",
+		"known_created_backend_close_failure",
+		"known_created_workspace_cleanup_failure",
+		"known_created_output_failure",
+	}
+	if ownershipCases.Type != ValueList || len(ownershipCases.Items) != len(wantOwnershipCases) {
+		t.Fatalf("SYS-026 cases = %#v, want exact rollback/unknown/backend/workspace/output decision", ownershipCases)
+	}
+	for index, wantCase := range wantOwnershipCases {
+		if got := objectField(t, &ownershipCases.Items[index], "case"); !reflect.DeepEqual(*got, String(wantCase)) {
+			t.Fatalf("SYS-026 case %d = %#v, want %q", index, got, wantCase)
+		}
+		if got := objectField(t, &ownershipCases.Items[index], "retry"); !reflect.DeepEqual(*got, Boolean(false)) {
+			t.Fatalf("SYS-026 case %q retry = %#v, want false", wantCase, got)
+		}
+	}
+	for index := 2; index < len(ownershipCases.Items); index++ {
+		if got := objectField(t, &ownershipCases.Items[index], "creation"); !reflect.DeepEqual(*got, String("preserved")) {
+			t.Fatalf("SYS-026 known-created case %d creation = %#v, want preserved", index, got)
+		}
+		if got := objectField(t, &ownershipCases.Items[index], "known_created"); !reflect.DeepEqual(*got, Boolean(true)) {
+			t.Fatalf("SYS-026 known-created case %d marker = %#v, want true", index, got)
+		}
+	}
+	validationCases := objectField(t, oracle.Contracts[26].Result, "validation_cases")
+	wantValidationOutcomes := []string{"authenticator_ready", "corrupt_state", "credential_policy_mismatch"}
+	if validationCases.Type != ValueList || len(validationCases.Items) != len(wantValidationOutcomes) {
+		t.Fatalf("SYS-027 validation cases = %#v, want exact valid/profile/policy decision", validationCases)
+	}
+	for index, wantOutcome := range wantValidationOutcomes {
+		if got := objectField(t, &validationCases.Items[index], "outcome"); !reflect.DeepEqual(*got, String(wantOutcome)) {
+			t.Fatalf("SYS-027 validation case %d outcome = %#v, want %q", index, got, wantOutcome)
+		}
+	}
+	if got := objectField(t, oracle.Contracts[26].Metrics, "credential_mismatch_code_occurrences"); !reflect.DeepEqual(*got, Integer("0")) {
+		t.Fatalf("SYS-027 retired credential_mismatch occurrences = %#v, want 0", got)
+	}
+	publicOnlyCases := objectField(t, oracle.Contracts[27].Result, "cases")
+	wantPublicOnlyOutcomes := []string{
+		"credential_absent",
+		"schema_unavailable",
+		"startup_failure",
+		"startup_failure",
+		"corrupt_state",
+		"credential_policy_mismatch",
+	}
+	if publicOnlyCases.Type != ValueList || len(publicOnlyCases.Items) != len(wantPublicOnlyOutcomes) {
+		t.Fatalf("SYS-028 cases = %#v, want exact clean/schema/table/dependent/corrupt/policy decision", publicOnlyCases)
+	}
+	for index, wantOutcome := range wantPublicOnlyOutcomes {
+		if got := objectField(t, &publicOnlyCases.Items[index], "outcome"); !reflect.DeepEqual(*got, String(wantOutcome)) {
+			t.Fatalf("SYS-028 case %d outcome = %#v, want %q", index, got, wantOutcome)
+		}
+		wantPublicOnly := index == 0
+		if got := objectField(t, &publicOnlyCases.Items[index], "public_only"); !reflect.DeepEqual(*got, Boolean(wantPublicOnly)) {
+			t.Fatalf("SYS-028 case %d public-only = %#v, want %t", index, got, wantPublicOnly)
+		}
+	}
+	backendCases := objectField(t, oracle.Contracts[28].Result, "backend_cases")
+	wantBackends := []string{"postgresql_17_10", "sqlite"}
+	if backendCases.Type != ValueList || len(backendCases.Items) != len(wantBackends) {
+		t.Fatalf("SYS-029 backend cases = %#v, want exact PostgreSQL/SQLite decision", backendCases)
+	}
+	for index, wantBackend := range wantBackends {
+		backendCase := &backendCases.Items[index]
+		if got := objectField(t, backendCase, "backend"); !reflect.DeepEqual(*got, String(wantBackend)) {
+			t.Fatalf("SYS-029 backend case %d = %#v, want %q", index, got, wantBackend)
+		}
+		for _, field := range []string{"admin_authenticated", "api_authenticated", "distinct_process_restart", "provisioned", "provision_process_distinct_from_runtime"} {
+			if got := objectField(t, backendCase, field); !reflect.DeepEqual(*got, Boolean(true)) {
+				t.Fatalf("SYS-029 backend %q %s = %#v, want true", wantBackend, field, got)
+			}
+		}
+	}
+	loginMetrics := oracle.Contracts[28].Metrics
+	if got := objectField(t, loginMetrics, "distinct_processes_per_backend"); !reflect.DeepEqual(*got, Integer("3")) {
+		t.Fatalf("SYS-029 distinct processes per backend = %#v, want 3", got)
+	}
+	if got := objectField(t, loginMetrics, "provision_calls_per_backend"); !reflect.DeepEqual(*got, Integer("1")) {
+		t.Fatalf("SYS-029 provision calls per backend = %#v, want 1", got)
+	}
+	if got := objectField(t, loginMetrics, "provision_processes_per_backend"); !reflect.DeepEqual(*got, Integer("1")) {
+		t.Fatalf("SYS-029 provision processes per backend = %#v, want 1", got)
+	}
+	if got := objectField(t, loginMetrics, "runtime_processes_per_backend"); !reflect.DeepEqual(*got, Integer("2")) {
+		t.Fatalf("SYS-029 runtime processes per backend = %#v, want 2", got)
+	}
 	differences, err := Compare(profile, manifest, oracle, baseline)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(differences) != 20 {
-		t.Fatalf("system-state oracle/baseline differences = %d, want 20", len(differences))
+	if len(differences) != 30 {
+		t.Fatalf("system-state oracle/baseline differences = %d, want 30", len(differences))
 	}
 	for index, difference := range differences {
 		if difference.ContractID != systemStateIDs[index] || difference.Path != "status" {
@@ -174,6 +310,15 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	}
 	if len(legacyBaselineBytes) != 1527 || fmt.Sprintf("%x", sha256.Sum256(legacyBaselineBytes)) != "6b5549d00484c69ec8bf4186bf9a4b99ff5adf1b2040250159be49dc3f3f4533" {
 		t.Fatalf("legacy SYS-001..012 NI canonical bytes drifted: size=%d sha256=%x", len(legacyBaselineBytes), sha256.Sum256(legacyBaselineBytes))
+	}
+	preGDJ0055Baseline := baseline
+	preGDJ0055Baseline.Contracts = append([]Observation(nil), baseline.Contracts[:20]...)
+	preGDJ0055BaselineBytes, err := MarshalCanonical(preGDJ0055Baseline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preGDJ0055BaselineBytes) != 2026 || fmt.Sprintf("%x", sha256.Sum256(preGDJ0055BaselineBytes)) != "3a486bb24eddf660c9b10207031ed9d491f833fb2d18a02127b5260163ad7321" {
+		t.Fatalf("pre-GDJ-0055 SYS-001..020 NI canonical bytes drifted: size=%d sha256=%x", len(preGDJ0055BaselineBytes), sha256.Sum256(preGDJ0055BaselineBytes))
 	}
 }
 
@@ -359,8 +504,13 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 		"conformance/runners/godj/gdj0046_system_state_multi_runtime_scenarios_csrf.go",
 		"conformance/runners/godj/gdj0046_system_state_two_process_execution.go",
 		"conformance/runners/godj/gdj0046_system_state_two_process_scenario.go",
+		"conformance/runners/godj/gdj0055_operator_backend_scenario.go",
+		"conformance/runners/godj/gdj0055_operator_process_scenarios.go",
+		"conformance/runners/godj/gdj0055_operator_runtime_scenarios.go",
+		"conformance/runners/godj/gdj0055_operator_scenarios.go",
 		"conformance/runners/godj/inputs.go",
 		"conformance/runners/godj/runner.go",
+		"examples/article/siteappconformance/composition.go",
 		"conformance/systemstate/restart/multiruntime_postgres_unix_test.go",
 		"conformance/systemstate/multiruntimeworker/cmd/main.go",
 		"conformance/systemstate/multiruntimeworker/inspection.go",
@@ -383,6 +533,7 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 			"conformance/oracles",
 			"conformance/fixtures",
 			"conformance/systemstate/attestations",
+			"conformance/projectoperatorproduct/attestations",
 			"not-implemented",
 		} {
 			if strings.Contains(string(source), forbidden) {
@@ -392,7 +543,7 @@ func TestSystemStateReferenceIsSecretFreeAndScenarioSourcesAreArtifactBlind(t *t
 	}
 }
 
-func TestCurrentTwentySevenReferenceSetsHave301ContractsAndReject702OrderedCrossBindings(t *testing.T) {
+func TestCurrentTwentySevenReferenceSetsHave311ContractsAndReject702OrderedCrossBindings(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -490,10 +641,13 @@ func TestCurrentTwentySevenReferenceSetsHave301ContractsAndReject702OrderedCross
 			}
 		}
 	}
-	if len(sets) != 27 || total != 301 || len(ids) != 301 || len(scenarios) != 301 || passing != 264 || deviations != 25 || locked != 12 {
+	if len(sets) != 27 || total != 311 || len(ids) != 311 || len(scenarios) != 311 || passing != 274 || deviations != 25 || locked != 12 {
 		t.Fatalf("reference inventory = %d sets/%d contracts/%d IDs/%d scenarios = %d passing + %d deviation + %d oracle_locked", len(sets), total, len(ids), len(scenarios), passing, deviations, locked)
 	}
-	if want := []string{"MIG-075", "MIG-076", "MIG-077", "MIG-078", "MIG-079", "MIG-080", "MIG-081", "MIG-082", "MIG-083", "MIG-084", "MIG-085", "MIG-086"}; !reflect.DeepEqual(lockedIDs, want) {
+	if want := []string{
+		"MIG-075", "MIG-076", "MIG-077", "MIG-078", "MIG-079", "MIG-080",
+		"MIG-081", "MIG-082", "MIG-083", "MIG-084", "MIG-085", "MIG-086",
+	}; !reflect.DeepEqual(lockedIDs, want) {
 		t.Fatalf("remaining oracle_locked contracts = %v, want %v", lockedIDs, want)
 	}
 	crossBindings := 0
@@ -523,11 +677,12 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	}
 	makeText := string(makeContents)
 	for variable, value := range map[string]string{
-		"SYSTEM_STATE_MANIFEST":             "conformance/contracts/system-state-manifest.json",
-		"SYSTEM_STATE_ORACLE":               "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json",
-		"SYSTEM_STATE_NOT_IMPLEMENTED":      "conformance/fixtures/godj-system-state-not-implemented.json",
-		"SYSTEM_STATE_DEVIATION_EXPECTED":   "conformance/fixtures/godj-system-state-deviation-expected.json",
-		"SYSTEM_STATE_POSTGRES_ATTESTATION": "conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json",
+		"SYSTEM_STATE_MANIFEST":                 "conformance/contracts/system-state-manifest.json",
+		"SYSTEM_STATE_ORACLE":                   "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json",
+		"SYSTEM_STATE_NOT_IMPLEMENTED":          "conformance/fixtures/godj-system-state-not-implemented.json",
+		"SYSTEM_STATE_DEVIATION_EXPECTED":       "conformance/fixtures/godj-system-state-deviation-expected.json",
+		"SYSTEM_STATE_POSTGRES_ATTESTATION":     "conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json",
+		"PROJECT_OPERATOR_POSTGRES_ATTESTATION": "conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json",
 	} {
 		definition := variable + " := " + value
 		if got := strings.Count(makeText, definition); got != 1 {
@@ -556,10 +711,11 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 		t.Fatalf("reference system-state NI count = %d, want 1", got)
 	}
 	for variable, want := range map[string]int{
-		"$(SYSTEM_STATE_MANIFEST)":             1,
-		"$(SYSTEM_STATE_ORACLE)":               1,
-		"$(SYSTEM_STATE_DEVIATION_EXPECTED)":   1,
-		"$(SYSTEM_STATE_POSTGRES_ATTESTATION)": 1,
+		"$(SYSTEM_STATE_MANIFEST)":                 1,
+		"$(SYSTEM_STATE_ORACLE)":                   1,
+		"$(SYSTEM_STATE_DEVIATION_EXPECTED)":       1,
+		"$(SYSTEM_STATE_POSTGRES_ATTESTATION)":     1,
+		"$(PROJECT_OPERATOR_POSTGRES_ATTESTATION)": 1,
 	} {
 		if got := strings.Count(productTarget, variable); got != want {
 			t.Fatalf("product system-state variable %s count = %d, want %d", variable, got, want)
@@ -602,13 +758,18 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 	for _, required := range []string{
 		"working-directory: conformance/oracles/django-6.1-sqlite-darwin-arm64",
 		"run: sha256sum --check SHA256SUMS",
-		"len(SCENARIOS) == 301",
-		"len(payload) == 1063486",
-		"df78c110fb7452c3d82ce3f525b7e6bc895f3b6e2261fddfeda016b30b3c519e",
+		"len(SCENARIOS) == 311",
+		"len(payload) == 1081058",
+		"b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5",
 		"working-directory: conformance/systemstate/attestations",
+		"working-directory: conformance/projectoperatorproduct/attestations",
 		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE",
+		"GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE",
 		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
+		"TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation",
+		"TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
 		"cmp \"$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE\"",
+		"cmp \"$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE\"",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("system-state workflow lacks exact hash/payload fragment %q", required)
@@ -633,9 +794,13 @@ func TestSystemStatePublishedProductMakeAndWorkflowWiringIsExact(t *testing.T) {
 		"- name: Assert exact PostgreSQL service profile",
 		"- name: Run and inventory PostgreSQL actual product tests",
 		"GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE:",
+		"GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE:",
 		"TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
+		"TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation",
+		"TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
 		"cmp \"$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE\"",
-		"sha256sum --check SHA256SUMS",
+		"cmp \"$GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE\"",
+		"cd conformance/projectoperatorproduct/attestations",
 	} {
 		current := strings.Index(postgresJob, fragment)
 		if current <= previous {
@@ -673,7 +838,7 @@ func loadSystemStateArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite
 
 func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthority bool) {
 	t.Helper()
-	adrCount, multiRuntimeADRCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0, 0
+	adrCount, multiRuntimeADRCount, operatorADRCount, apiBoundaryCount, djangoCount, devCount := 0, 0, 0, 0, 0, 0
 	for _, provenance := range contract.Provenance {
 		if provenance.Derived == nil || *provenance.Derived {
 			t.Fatalf("contract %s provenance is not independent: %#v", contract.ID, provenance)
@@ -684,6 +849,9 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0048" && provenance.License == "" {
 			multiRuntimeADRCount++
 		}
+		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0056" && provenance.License == "" {
+			operatorADRCount++
+		}
 		if provenance.Kind == "documentation" && provenance.Reference == "ADR-0046" && provenance.License == "" {
 			apiBoundaryCount++
 		}
@@ -691,6 +859,9 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 			djangoCount++
 			if provenance.License != "BSD-3-Clause" {
 				t.Fatalf("contract %s Django provenance lacks BSD license: %#v", contract.ID, provenance)
+			}
+			if strings.Contains(provenance.Reference, "createsuperuser") || strings.Contains(provenance.Reference, "management/commands") {
+				t.Fatalf("contract %s fabricates Django management-command authority: %#v", contract.ID, provenance)
 			}
 		}
 		if provenance.Reference == "DEV-0008" {
@@ -702,13 +873,29 @@ func assertSystemStateProvenance(t *testing.T, contract Contract, djangoAuthorit
 		if provenance.Kind == "decision" && provenance.Reference != "DEV-0008" {
 			t.Fatalf("contract %s carries unrelated decision provenance: %#v", contract.ID, provenance)
 		}
+		if provenance.Kind == "proposal" {
+			t.Fatalf("contract %s carries unrelated proposal provenance: %#v", contract.ID, provenance)
+		}
 	}
 	legacy := contract.ID <= "SYS-012"
-	if legacy && (adrCount != 1 || multiRuntimeADRCount != 0) {
+	multiRuntime := contract.ID >= "SYS-013" && contract.ID <= "SYS-020"
+	operator := contract.ID >= "SYS-021" && contract.ID <= "SYS-030"
+	if legacy && (adrCount != 1 || multiRuntimeADRCount != 0 || operatorADRCount != 0) {
 		t.Fatalf("legacy contract %s authority = %d ADR-0047 + %d ADR-0048, want 1 + 0", contract.ID, adrCount, multiRuntimeADRCount)
 	}
-	if !legacy && (len(contract.Provenance) != 1 || adrCount != 0 || multiRuntimeADRCount != 1) {
-		t.Fatalf("new contract %s authority = %#v, want exact Accepted ADR-0048", contract.ID, contract.Provenance)
+	if multiRuntime && (len(contract.Provenance) != 1 || adrCount != 0 || multiRuntimeADRCount != 1 || operatorADRCount != 0) {
+		t.Fatalf("multi-runtime contract %s authority = %#v, want exact Accepted ADR-0048", contract.ID, contract.Provenance)
+	}
+	if operator {
+		wantProvenance := 1
+		wantDjango := 0
+		if contract.ID == "SYS-029" {
+			wantProvenance = 5
+			wantDjango = 4
+		}
+		if len(contract.Provenance) != wantProvenance || adrCount != 0 || multiRuntimeADRCount != 0 || operatorADRCount != 1 || djangoCount != wantDjango {
+			t.Fatalf("operator contract %s authority = %#v, want ADR-0056 documentation with %d pinned Django login references", contract.ID, contract.Provenance, wantDjango)
+		}
 	}
 	if contract.ID == "SYS-008" && apiBoundaryCount != 1 {
 		t.Fatalf("SYS-008 Accepted ADR-0046 count = %d, want 1", apiBoundaryCount)

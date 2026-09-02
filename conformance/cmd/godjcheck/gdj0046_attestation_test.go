@@ -7,24 +7,26 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
-	"github.com/progresshans/godj/conformance/systemstate/attestation"
+	systemstateattestation "github.com/progresshans/godj/conformance/systemstate/attestation"
 )
 
-func TestLoadRunnerInputsRequiresEvidenceOnlyForPassingSYS020(t *testing.T) {
+func TestLoadRunnerInputsRequiresEvidenceOnlyForPublishedSYS020(t *testing.T) {
 	t.Parallel()
 
 	locked := gdj0046AttestationManifest(protocol.ContractOracleLocked)
-	inputs, err := loadRunnerInputs(locked, "", "")
+	inputs, err := loadRunnerInputs(locked, "", "", "")
 	if err != nil || inputs.SystemStatePostgreSQLTwoProcess != nil {
 		t.Fatalf("locked SYS-020 inputs = (%#v, %v), want zero/nil", inputs, err)
 	}
-	if _, err := loadRunnerInputs(locked, "", "unused.json"); err == nil || !strings.Contains(err.Error(), "not used") {
+	if _, err := loadRunnerInputs(locked, "", "unused.json", ""); err == nil || !strings.Contains(err.Error(), "not used") {
 		t.Fatalf("locked SYS-020 explicit evidence error = %v", err)
 	}
 
-	passing := gdj0046AttestationManifest(protocol.ContractPassing)
-	if _, err := loadRunnerInputs(passing, "", ""); err == nil || !strings.Contains(err.Error(), "passing SYS-020 requires") {
-		t.Fatalf("passing SYS-020 missing evidence error = %v", err)
+	for _, status := range []protocol.ContractStatus{protocol.ContractPassing, protocol.ContractDeviation} {
+		published := gdj0046AttestationManifest(status)
+		if _, err := loadRunnerInputs(published, "", "", ""); err == nil || !strings.Contains(err.Error(), "SYS-020 requires") {
+			t.Fatalf("%s SYS-020 missing evidence error = %v", status, err)
+		}
 	}
 }
 
@@ -33,13 +35,13 @@ func TestLoadRunnerInputsRejectsInconsistentSYS020Binding(t *testing.T) {
 
 	manifest := gdj0046AttestationManifest(protocol.ContractPassing)
 	manifest.Contracts[0].Scenario = "godj.system_state.not_sys020"
-	if _, err := loadRunnerInputs(manifest, "", "evidence.json"); err == nil || !strings.Contains(err.Error(), "binding is inconsistent") {
+	if _, err := loadRunnerInputs(manifest, "", "evidence.json", ""); err == nil || !strings.Contains(err.Error(), "binding is inconsistent") {
 		t.Fatalf("inconsistent SYS-020 error = %v", err)
 	}
 
 	manifest = gdj0046AttestationManifest(protocol.ContractPassing)
 	manifest.Contracts[0].ID = "SYS-999"
-	if _, err := loadRunnerInputs(manifest, "", "evidence.json"); err == nil || !strings.Contains(err.Error(), "binding is inconsistent") {
+	if _, err := loadRunnerInputs(manifest, "", "evidence.json", ""); err == nil || !strings.Contains(err.Error(), "binding is inconsistent") {
 		t.Fatalf("inconsistent scenario error = %v", err)
 	}
 }
@@ -53,11 +55,14 @@ func TestAttestationRepositoryRootRequiresExactCheckedPath(t *testing.T) {
 		"conformance",
 		"systemstate",
 		"attestations",
-		attestation.FileName,
+		systemstateattestation.FileName,
 	)
 	manifest := filepath.Join(root, "conformance", "contracts", "system-state-manifest.json")
-	got, err := attestationRepositoryRoot(manifest, checked)
+	got, err := attestationRepositoryRoot(manifest)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := requireSystemStateAttestationPath(got, checked); err != nil {
 		t.Fatal(err)
 	}
 	want, err := filepath.Abs(root)
@@ -68,13 +73,13 @@ func TestAttestationRepositoryRootRequiresExactCheckedPath(t *testing.T) {
 		t.Fatalf("attestation root = %q, want %q", got, want)
 	}
 
-	wrong := filepath.Join(root, "conformance", "systemstate", attestation.FileName)
-	if _, err := attestationRepositoryRoot(manifest, wrong); err == nil || !strings.Contains(err.Error(), "checked current repository path") {
+	wrong := filepath.Join(root, "conformance", "systemstate", systemstateattestation.FileName)
+	if err := requireSystemStateAttestationPath(got, wrong); err == nil || !strings.Contains(err.Error(), "checked current repository path") {
 		t.Fatalf("wrong checked path error = %v", err)
 	}
 
 	wrongManifest := filepath.Join(root, "conformance", "contracts", "manifest.json")
-	if _, err := attestationRepositoryRoot(wrongManifest, checked); err == nil || !strings.Contains(err.Error(), "system-state manifest") {
+	if _, err := attestationRepositoryRoot(wrongManifest); err == nil || !strings.Contains(err.Error(), "system-state manifest") {
 		t.Fatalf("wrong system-state manifest path error = %v", err)
 	}
 }
@@ -109,8 +114,8 @@ func TestRequireExactResolvedPathRejectsParentDirectorySymlink(t *testing.T) {
 
 func gdj0046AttestationManifest(status protocol.ContractStatus) protocol.Manifest {
 	return protocol.Manifest{Contracts: []protocol.Contract{{
-		ID:       attestation.Contract,
-		Scenario: attestation.Scenario,
+		ID:       systemstateattestation.Contract,
+		Scenario: systemstateattestation.Scenario,
 		Status:   status,
 	}}}
 }

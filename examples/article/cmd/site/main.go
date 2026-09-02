@@ -15,7 +15,6 @@ import (
 
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
-	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/web"
 )
 
@@ -24,8 +23,6 @@ const (
 	articleSQLiteDatabaseEnv = databaseconfig.SQLiteDatabaseEnv
 	articlePostgresURLEnv    = databaseconfig.PostgresURLEnv
 	articlePostgresSchemaEnv = databaseconfig.PostgresSchemaEnv
-	articleAdminUsernameEnv  = "GODJ_ARTICLE_ADMIN_USERNAME"
-	articleAdminPasswordEnv  = "GODJ_ARTICLE_ADMIN_PASSWORD"
 )
 
 type serveConfig struct {
@@ -47,15 +44,6 @@ type databaseConfig struct {
 	postgresURL    string
 	postgresSchema string
 }
-
-type publicationConfig struct {
-	authenticated bool
-	username      string
-	password      string
-}
-
-func (publicationConfig) String() string   { return "publicationConfig{redacted}" }
-func (publicationConfig) GoString() string { return "publicationConfig{redacted}" }
 
 type articleBackend = databaseconfig.Backend
 
@@ -101,10 +89,6 @@ func runWithListener(
 	if err != nil {
 		return err
 	}
-	publication, err := publicationConfigForServe(config, os.LookupEnv)
-	if err != nil {
-		return err
-	}
 	backend, err := openBackend(ctx, database)
 	if err != nil {
 		return err
@@ -112,7 +96,7 @@ func runWithListener(
 	defer func() {
 		resultErr = errors.Join(resultErr, backend.Close())
 	}()
-	application, err := applicationForServe(ctx, backend, publication)
+	application, err := applicationForServe(ctx, backend, loopbackListenAddress(config.listenAddress))
 	if err != nil {
 		return err
 	}
@@ -143,16 +127,13 @@ func runWithListener(
 func applicationForServe(
 	ctx context.Context,
 	backend articleBackend,
-	publication publicationConfig,
+	allowLoopbackAuthentication bool,
 ) (*web.Application, error) {
-	if !publication.authenticated {
-		return webapp.NewApplication(backend)
+	config := siteapp.NewConfig(backend)
+	if allowLoopbackAuthentication {
+		config = config.WithLoopbackAuthentication()
 	}
-	return siteapp.New(ctx, siteapp.NewConfig(
-		backend,
-		publication.username,
-		publication.password,
-	))
+	return siteapp.New(ctx, config)
 }
 
 type onceCloseListener struct {
@@ -216,39 +197,6 @@ func databaseConfigForServe(config serveConfig, lookup lookupEnvFunc) (databaseC
 	default:
 		return databaseConfig{}, errors.New("article site: database configuration is invalid")
 	}
-}
-
-func publicationConfigForServe(config serveConfig, lookup lookupEnvFunc) (publicationConfig, error) {
-	if lookup == nil {
-		return publicationConfig{}, errors.New("article site: environment lookup is nil")
-	}
-	username, usernameConfigured := lookup(articleAdminUsernameEnv)
-	password, passwordConfigured := lookup(articleAdminPasswordEnv)
-	if !usernameConfigured && !passwordConfigured {
-		return publicationConfig{}, nil
-	}
-	if usernameConfigured != passwordConfigured {
-		return publicationConfig{}, fmt.Errorf(
-			"article site: %s and %s must be configured together",
-			articleAdminUsernameEnv,
-			articleAdminPasswordEnv,
-		)
-	}
-	username = strings.TrimSpace(username)
-	if username == "" {
-		return publicationConfig{}, fmt.Errorf("article site: %s is empty", articleAdminUsernameEnv)
-	}
-	if strings.TrimSpace(password) == "" {
-		return publicationConfig{}, fmt.Errorf("article site: %s is empty", articleAdminPasswordEnv)
-	}
-	if !loopbackListenAddress(config.listenAddress) {
-		return publicationConfig{}, errors.New("article site: authenticated Admin/API mode requires a loopback listen address")
-	}
-	return publicationConfig{
-		authenticated: true,
-		username:      username,
-		password:      password,
-	}, nil
 }
 
 func loopbackListenAddress(address string) bool {

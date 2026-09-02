@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -65,30 +66,56 @@ var (
 	}
 )
 
-// BootstrapConfig is consumed during Open. The raw password is never retained
-// by Runtime or rendered through String/GoString.
-type BootstrapConfig struct {
-	Username       string
-	Password       string `json:"-"`
-	PrincipalID    string
-	Active         bool
-	Permissions    []auth.Permission
+// CredentialPolicy is the project-owned immutable identity, authorization,
+// and encoded-password profile expected for the sole durable operator. Stored
+// username and encoded password values remain database-owned credential data.
+type CredentialPolicy struct {
+	Principal      auth.Principal
 	PasswordHasher auth.PasswordHasher `json:"-"`
-	SessionLimits  sessions.Limits
-	MaxSessions    int
-	AuditCapacity  int
 }
 
-func (BootstrapConfig) String() string   { return "systemstate.BootstrapConfig{redacted}" }
-func (BootstrapConfig) GoString() string { return "systemstate.BootstrapConfig{redacted}" }
+func (CredentialPolicy) String() string   { return "systemstate.CredentialPolicy{redacted}" }
+func (CredentialPolicy) GoString() string { return "systemstate.CredentialPolicy{redacted}" }
 
-type bootstrapMaterial struct {
-	username         string
-	password         string
+// RuntimeConfig combines the immutable credential policy with the bounded
+// durable session and audit deployment profile. It contains no raw password.
+type RuntimeConfig struct {
+	CredentialPolicy CredentialPolicy
+	SessionLimits    sessions.Limits
+	MaxSessions      int
+	AuditCapacity    int
+}
+
+func (RuntimeConfig) String() string   { return "systemstate.RuntimeConfig{redacted}" }
+func (RuntimeConfig) GoString() string { return "systemstate.RuntimeConfig{redacted}" }
+
+// ProvisionOperatorConfig supplies the one-shot username/password material
+// used only when the migrated durable credential state is empty.
+type ProvisionOperatorConfig struct {
+	Username         string
+	Password         string `json:"-"`
+	CredentialPolicy CredentialPolicy
+}
+
+func (ProvisionOperatorConfig) String() string {
+	return "systemstate.ProvisionOperatorConfig{redacted}"
+}
+
+func (ProvisionOperatorConfig) GoString() string {
+	return "systemstate.ProvisionOperatorConfig{redacted}"
+}
+
+type credentialPolicyMaterial struct {
 	principal        auth.Principal
 	permissions      string
 	passwordHasher   auth.PasswordHasher
 	definitionDigest string
+}
+
+type provisionOperatorMaterial struct {
+	username string
+	password string
+	policy   credentialPolicyMaterial
 }
 
 type credentialRow struct {
@@ -101,64 +128,81 @@ type credentialRow struct {
 	definitionDigest string
 }
 
-func validateBootstrapConfig(config BootstrapConfig) (bootstrapMaterial, error) {
-	if isNilInterface(config.PasswordHasher) {
-		return bootstrapMaterial{}, &Error{
+func validateCredentialPolicy(policy CredentialPolicy) (credentialPolicyMaterial, error) {
+	if isNilInterface(policy.PasswordHasher) {
+		return credentialPolicyMaterial{}, &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "password_hasher",
 			Detail: "password hasher is nil",
 		}
 	}
-	if strings.TrimSpace(config.Password) == "" {
-		return bootstrapMaterial{}, &Error{
-			Code:   CodeInvalidConfig,
-			Field:  "password",
-			Detail: "bootstrap password is empty",
-		}
-	}
-	permissions := append([]auth.Permission(nil), config.Permissions...)
+	permissions := policy.Principal.Permissions()
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:          config.PrincipalID,
-		Active:      config.Active,
+		ID:          policy.Principal.ID(),
+		Active:      policy.Principal.Active(),
 		Permissions: permissions,
 	})
 	if err != nil {
-		return bootstrapMaterial{}, &Error{
+		return credentialPolicyMaterial{}, &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "principal",
-			Detail: "bootstrap principal is invalid",
-			Cause:  err,
-		}
-	}
-	if _, err := auth.NewCredential(config.Username, "systemstate-bootstrap-validation", principal); err != nil {
-		return bootstrapMaterial{}, &Error{
-			Code:   CodeInvalidConfig,
-			Field:  "username",
-			Detail: "bootstrap username is invalid",
+			Detail: "credential policy principal is invalid",
 			Cause:  err,
 		}
 	}
 	payload, err := encodePermissions(permissions)
 	if err != nil {
-		return bootstrapMaterial{}, err
+		return credentialPolicyMaterial{}, err
 	}
-	return bootstrapMaterial{
-		username:         config.Username,
-		password:         config.Password,
+	return credentialPolicyMaterial{
 		principal:        principal,
 		permissions:      payload,
-		passwordHasher:   config.PasswordHasher,
+		passwordHasher:   policy.PasswordHasher,
 		definitionDigest: initialDefinitionDigest,
 	}, nil
 }
 
-func (material bootstrapMaterial) encodedRow(ctx context.Context) (credentialRow, error) {
-	encoded, err := material.passwordHasher.Hash(ctx, material.password)
+func validateProvisionOperatorConfig(config ProvisionOperatorConfig) (provisionOperatorMaterial, error) {
+	policy, err := validateCredentialPolicy(config.CredentialPolicy)
+	if err != nil {
+		return provisionOperatorMaterial{}, err
+	}
+	if strings.TrimSpace(config.Password) == "" {
+		return provisionOperatorMaterial{}, &Error{
+			Code:   CodeInvalidConfig,
+			Field:  "password",
+			Detail: "operator password is empty",
+		}
+	}
+	if !validOperatorUsername(config.Username) {
+		return provisionOperatorMaterial{}, &Error{
+			Code:   CodeInvalidConfig,
+			Field:  "username",
+			Detail: "operator username is invalid",
+		}
+	}
+	if _, err := auth.NewCredential(config.Username, "systemstate-provision-validation", policy.principal); err != nil {
+		return provisionOperatorMaterial{}, &Error{
+			Code:   CodeInvalidConfig,
+			Field:  "username",
+			Detail: "operator username is invalid",
+			Cause:  err,
+		}
+	}
+	return provisionOperatorMaterial{
+		username: config.Username,
+		password: config.Password,
+		policy:   policy,
+	}, nil
+}
+
+func (material provisionOperatorMaterial) encodedRow(ctx context.Context) (credentialRow, error) {
+	encoded, err := material.policy.passwordHasher.Hash(ctx, material.password)
 	if err != nil {
 		return credentialRow{}, &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "password_hasher",
-			Detail: "bootstrap password could not be hashed",
+			Detail: "operator password could not be hashed",
 			Cause:  err,
 		}
 	}
@@ -166,24 +210,32 @@ func (material bootstrapMaterial) encodedRow(ctx context.Context) (credentialRow
 		return credentialRow{}, &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "password_hasher",
-			Detail: "encoded bootstrap password exceeds the current schema bound",
+			Detail: "encoded operator password exceeds the current schema bound",
 		}
 	}
-	if err := material.passwordHasher.ValidateEncoded(encoded); err != nil {
+	if err := material.policy.passwordHasher.ValidateEncoded(encoded); err != nil {
 		return credentialRow{}, &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "password_hasher",
-			Detail: "bootstrap password hash is outside the current work profile",
+			Detail: "operator password hash is outside the current work profile",
+			Cause:  err,
+		}
+	}
+	if _, err := auth.NewCredential(material.username, encoded, material.policy.principal); err != nil {
+		return credentialRow{}, &Error{
+			Code:   CodeInvalidConfig,
+			Field:  "password_hasher",
+			Detail: "operator password hash is outside the current credential profile",
 			Cause:  err,
 		}
 	}
 	return credentialRow{
-		principalID:      material.principal.ID(),
+		principalID:      material.policy.principal.ID(),
 		username:         material.username,
 		encodedPassword:  encoded,
-		active:           material.principal.Active(),
-		permissions:      material.permissions,
-		definitionDigest: material.definitionDigest,
+		active:           material.policy.principal.Active(),
+		permissions:      material.policy.permissions,
+		definitionDigest: material.policy.definitionDigest,
 	}, nil
 }
 
@@ -196,6 +248,9 @@ func readCredentialRows(ctx context.Context, queryer db.Queryer) (result []crede
 	}
 	rows, err := queryer.Query(ctx, plan)
 	if err != nil {
+		if !isNilInterface(rows) {
+			_ = rows.Close()
+		}
 		return nil, &Error{
 			Code:   CodeSchemaUnavailable,
 			Field:  credentialTableName,
@@ -203,7 +258,7 @@ func readCredentialRows(ctx context.Context, queryer db.Queryer) (result []crede
 			Cause:  err,
 		}
 	}
-	if rows == nil {
+	if isNilInterface(rows) {
 		return nil, &Error{
 			Code:   CodeSchemaUnavailable,
 			Field:  credentialTableName,
@@ -269,9 +324,9 @@ func insertCredential(ctx context.Context, session db.Session, row credentialRow
 	))
 	if err != nil {
 		return credentialRow{}, &Error{
-			Code:   CodeSchemaUnavailable,
-			Field:  credentialTableName,
-			Detail: "bootstrap credential could not be stored",
+			Code:   CodePersistence,
+			Field:  "credential",
+			Detail: "operator credential could not be stored",
 			Cause:  err,
 		}
 	}
@@ -286,25 +341,28 @@ func insertCredential(ctx context.Context, session db.Session, row credentialRow
 	return row, nil
 }
 
-func verifyCredential(
-	ctx context.Context,
-	row credentialRow,
-	material bootstrapMaterial,
-) (*auth.MemoryAuthenticator, error) {
+func validateStoredCredential(row credentialRow, policy credentialPolicyMaterial) (auth.Credential, error) {
 	if row.id <= 0 || len(row.principalID) > credentialPrincipalIDMaxLength ||
 		len(row.username) > credentialUsernameMaxLength ||
 		len(row.encodedPassword) > credentialEncodedPasswordMaxLength ||
 		len(row.permissions) > credentialPermissionsMaxLength ||
 		len(row.definitionDigest) > credentialDefinitionDigestMaxLength {
-		return nil, &Error{
+		return auth.Credential{}, &Error{
 			Code:   CodeCorruptState,
 			Field:  "credential",
 			Detail: "stored credential row exceeds the current schema profile",
 		}
 	}
+	if !validOperatorUsername(row.username) {
+		return auth.Credential{}, &Error{
+			Code:   CodeCorruptState,
+			Field:  "credential",
+			Detail: "stored credential username is invalid",
+		}
+	}
 	permissions, err := decodePermissions(row.permissions)
 	if err != nil {
-		return nil, err
+		return auth.Credential{}, err
 	}
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
 		ID:          row.principalID,
@@ -312,58 +370,59 @@ func verifyCredential(
 		Permissions: permissions,
 	})
 	if err != nil {
-		return nil, &Error{
+		return auth.Credential{}, &Error{
 			Code:   CodeCorruptState,
 			Field:  "credential",
 			Detail: "stored credential principal is invalid",
 			Cause:  err,
 		}
 	}
-	if err := material.passwordHasher.ValidateEncoded(row.encodedPassword); err != nil {
-		return nil, &Error{
+	if err := policy.passwordHasher.ValidateEncoded(row.encodedPassword); err != nil {
+		return auth.Credential{}, &Error{
 			Code:   CodeCorruptState,
 			Field:  "credential",
 			Detail: "stored credential password profile is invalid",
 			Cause:  err,
 		}
 	}
-	verified, err := material.passwordHasher.Verify(ctx, material.password, row.encodedPassword)
-	if err != nil {
-		return nil, &Error{
+	if row.definitionDigest != policy.definitionDigest {
+		return auth.Credential{}, &Error{
 			Code:   CodeCorruptState,
 			Field:  "credential",
-			Detail: "stored credential password could not be verified",
-			Cause:  err,
-		}
-	}
-	if row.principalID != material.principal.ID() || row.username != material.username ||
-		row.active != material.principal.Active() || row.permissions != material.permissions ||
-		row.definitionDigest != material.definitionDigest || !verified {
-		return nil, &Error{
-			Code:   CodeCredentialMismatch,
-			Field:  "bootstrap",
-			Detail: "configured bootstrap material does not match durable credential state",
+			Detail: "stored credential definition digest is incompatible",
 		}
 	}
 	credential, err := auth.NewCredential(row.username, row.encodedPassword, principal)
 	if err != nil {
-		return nil, &Error{
+		return auth.Credential{}, &Error{
 			Code:   CodeCorruptState,
 			Field:  "credential",
 			Detail: "stored credential is invalid",
 			Cause:  err,
 		}
 	}
-	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, material.passwordHasher)
-	if err != nil {
-		return nil, &Error{
-			Code:   CodeInvalidConfig,
-			Field:  "password_hasher",
-			Detail: "credential authenticator could not be initialized",
-			Cause:  err,
+	if row.principalID != policy.principal.ID() || row.active != policy.principal.Active() ||
+		row.permissions != policy.permissions {
+		return auth.Credential{}, &Error{
+			Code:   CodeCredentialPolicyMismatch,
+			Field:  "credential_policy",
+			Detail: "stored credential does not match the project credential policy",
 		}
 	}
-	return authenticator, nil
+	return credential, nil
+}
+
+func validOperatorUsername(username string) bool {
+	if username == "" || len(username) > credentialUsernameMaxLength || !utf8.ValidString(username) ||
+		strings.TrimSpace(username) != username {
+		return false
+	}
+	for _, character := range username {
+		if character < 0x20 || character == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func encodePermissions(permissions []auth.Permission) (string, error) {
@@ -376,7 +435,7 @@ func encodePermissions(permissions []auth.Permission) (string, error) {
 		return "", &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "permissions",
-			Detail: "bootstrap permissions are invalid",
+			Detail: "credential policy permissions are invalid",
 			Cause:  err,
 		}
 	}
@@ -393,7 +452,7 @@ func encodePermissions(permissions []auth.Permission) (string, error) {
 		return "", &Error{
 			Code:   CodeInvalidConfig,
 			Field:  "permissions",
-			Detail: "bootstrap permissions exceed the current storage bound",
+			Detail: "credential policy permissions exceed the current storage bound",
 		}
 	}
 	return payload, nil

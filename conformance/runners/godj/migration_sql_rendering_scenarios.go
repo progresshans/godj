@@ -2229,7 +2229,7 @@ func migrationSQLRenderingExternalConfig(ctx context.Context, contract protocol.
 		}),
 		protocol.Object(map[string]protocol.Value{
 			"case":                                protocol.String("unkeyed_project_config_source_impact"),
-			"current_only_source_change_observed": protocol.Boolean(configType.NumField() == 5),
+			"current_only_source_change_observed": protocol.Boolean(configType.NumField() == 7),
 			"repository_external":                 protocol.Boolean(true),
 		}),
 	}

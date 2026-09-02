@@ -74,14 +74,26 @@ no-echo input을 받고, 전용 bounded binary pipe로 project child에 한 번 
 9. Public command는 exact `createsuperuser`와 trailing `--project PATH` 두 형태만 지원합니다. Username/password 관련 flags, positional
    identity와 non-TTY fallback은 지원하지 않습니다.
 10. Project selection/build 성공 뒤에만 TTY input을 읽습니다. `golang.org/x/term`으로 password/confirmation echo를 끄고 모든 prompt/error
-    경로의 terminal restoration을 PTY actual로 검증합니다.
+    경로의 terminal restoration을 PTY actual로 검증합니다. Darwin/Linux private profile은 `ISIG`/VINTR를 유지하면서
+    noncanonical `VMIN=0`, `VTIME=1` bounded read를 사용합니다. `poll` 뒤 VINTR input flush가 일어나도 zero-byte timeout에서
+    interrupt barrier를 다시 검사하며 kernel terminal signal 의미를 manual byte 처리로 대체하지 않습니다.
 11. Confirmation은 parent에서만 비교합니다. Child에는 magic/version, bounded lengths, username/password와 exact EOF를 가진 one-shot
     binary frame 하나만 전달합니다. Response는 secret-free strict JSON union입니다.
 12. Sensitive process owner는 generic cloned stdin command와 분리합니다. No shell/argv/env/file secret, one pipe write/close, best-effort
-    mutable-buffer clear, bounded stdout/stderr drain, process-group interrupt/kill와 direct reap를 소유합니다.
+    mutable-buffer clear, bounded stdout/stderr drain, process-group interrupt/kill와 direct reap를 소유합니다. Private fd 1 response와
+    global public fd 1/fd 2의 broken pipe는 각 createsuperuser invocation에 한정한 buffered SIGPIPE receiver로 EPIPE를 돌려받으며
+    operator context를 취소하지 않습니다.
 13. Successful insert 뒤 backend/workspace/output cleanup failure는 generic failure로 creation fact를 지우지 않습니다. Stable
-    known-created failure code가 retry 금지와 reconciliation ownership을 보존합니다.
-14. Success stdout은 canonical one-write JSON line입니다. Logical failure는 stdout zero와 framework-owned category/code만 게시합니다.
+    known-created failure code가 retry 금지와 reconciliation ownership을 보존합니다. Canonical project-runner main은 cause-free
+    `project.RunnerExitCode`로 output-only와 preceding backend-cleanup을 normal reserved exit 86/87에 구분해 싣고, global command는 이를
+    public failure/exit 3으로 변환합니다. Complete request 뒤 trusted response나 reserved normal exit가 없으면 생성 여부를 추측하지 않고
+    `operator_provision_outcome_unknown`으로 fresh-backend reconciliation을 요구합니다. Actual external project는 exit 86/87,
+    post-commit abort와 empty/malformed/over-limit response 각각을 fresh `OpenExisting`과 password authentication으로 reconcile하고 종료 뒤
+    exact one runner attempt를 검증합니다.
+14. Success stdout은 canonical one-write JSON line입니다. 성공 게시 전의 logical failure는 stdout zero와 framework-owned
+    category/code만 게시합니다.
+    Success stdout publication이 실패하면 stderr에 known-created output code를 한 번 시도하고 exit 3으로 닫으며, stderr까지 닫혀
+    있어도 Unix SIGPIPE 141로 downgrade하지 않습니다.
 15. Stable system-state taxonomy에 `credential_absent`, `credential_already_exists`, `credential_policy_mismatch`를 추가하고 raw
     password/bootstrap identity를 합쳐 표현하던 `credential_mismatch`를 제거합니다. Transaction/commit unknown marker는 outer
     `persistence_failure` cause chain에서 계속 관찰할 수 있어야 합니다.
@@ -112,7 +124,8 @@ no-echo input을 받고, 전용 bounded binary pipe로 project child에 한 번 
 - Exact argv/pre-I/O, TTY/no-echo/confirmation/restore/SIGINT와 non-TTY failure actual
 - Binary protocol exact-limit/one-over/truncation/trailing/version/fuzz와 malformed-before-open
 - Empty/already/concurrent/cardinality/corrupt/policy/commit-unknown systemstate unit/race/fault tests
-- Known-created backend/workspace/output failure, no retry와 fresh-backend reconciliation
+- Known-created backend/workspace/output failure, fd 1 SIGPIPE→reserved normal exit, complete-request outcome-unknown no retry와
+  fresh-backend reconciliation
 - Sensitive child pipe/output cap/cancellation/process-group/reap/held-descendant tests
 - Raw marker scan over argv, environment, project/temp files, response/error/report and Article restart process
 - SQLite/PostgreSQL distinct-process provision, authenticated Admin/API login and raw-password-free restart

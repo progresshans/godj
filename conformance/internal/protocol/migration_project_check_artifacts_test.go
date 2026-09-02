@@ -804,9 +804,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"-eq 21",
 		"Ran 325 tests",
 		"OK (skipped=21)",
-		"len(SCENARIOS) == 301",
-		"len(payload) == 1063486",
-		"df78c110fb7452c3d82ce3f525b7e6bc895f3b6e2261fddfeda016b30b3c519e",
+		"len(SCENARIOS) == 311",
+		"len(payload) == 1081058",
+		"b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5",
 		"git diff --exit-code",
 		`test -z "$(git status --porcelain=v1)"`,
 	} {
@@ -872,7 +872,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`report_postgres_failure() {`,
 		"status=0",
 		`go test "${test_flags[@]}" \`,
-		`./conformance/runserverproduct > "$log" || status=$?`,
+		`./conformance/projectoperatorproduct > "$log" || status=$?`,
 		`if [ "$status" -ne 0 ]; then`,
 		`tail -c 60000 "$log"`,
 		"target_exit=0",
@@ -882,14 +882,13 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`required="$RUNNER_TEMP/postgresql-required-tests.txt"`,
 		`printf '%s\n' "${required_passes[@]}" > "$required"`,
 		`python3 - "$required" "$log" "$mode" <<'PY'`,
-		`assert len(expected) == 24, sorted(expected)`,
+		`assert len(expected) == 26, sorted(expected)`,
 		`assert runs == expected, (sorted(runs), sorted(expected))`,
 		`assert passes == expected, (sorted(passes), sorted(expected))`,
 		`assert skips == [], skips`,
 		`"mode": sys.argv[3]`,
 		`if [ "$mode" != "normal" ]; then`,
 		`test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"`,
-		`sha256sum --check SHA256SUMS`,
 		`export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"`,
 		`project_runner="$RUNNER_TEMP/postgres-projectrunner"`,
 		`go build -o "$project_runner" ./conformance/postgresproduct/cmd/projectrunner`,
@@ -911,6 +910,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		if strings.Count(postgres, required) != 1 {
 			t.Fatalf("PostgreSQL product job fragment %q count = %d, want 1", required, strings.Count(postgres, required))
 		}
+	}
+	if got := strings.Count(postgres, `sha256sum --check SHA256SUMS`); got != 2 {
+		t.Fatalf("PostgreSQL checked attestation checksum gates = %d, want exact 2", got)
 	}
 	for mode, timeoutMinutes := range map[string]int{"normal": 50, "race": 45, "cgo0": 45} {
 		entry := "- mode: " + mode + fmt.Sprintf("\n            timeout_minutes: %d", timeoutMinutes)
@@ -949,9 +951,11 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"github.com/progresshans/godj/conformance/projectmigratetargetproduct|TestGlobalTargetedMigratePostgresLifecycle",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresDistinctProcessRestartSentinel",
 		"github.com/progresshans/godj/conformance/systemstate/restart|TestSystemStatePostgresTwoProcessCoordinationRestartSentinel",
+		"github.com/progresshans/godj/conformance/projectoperatorproduct|TestOperatorPostgresSchemaSnapshotDetectsTriggerMutation",
+		"github.com/progresshans/godj/conformance/projectoperatorproduct|TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct",
 	}
-	if len(postgresRequiredSentinels) != 24 {
-		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 24", len(postgresRequiredSentinels))
+	if len(postgresRequiredSentinels) != 26 {
+		t.Fatalf("PostgreSQL required actual-test sentinel count = %d, want exact 26", len(postgresRequiredSentinels))
 	}
 	requiredBlockPattern := regexp.MustCompile(`(?ms)required_passes=\(\n(.*?)\n\s*\)\n\s*required=`)
 	requiredBlock := requiredBlockPattern.FindStringSubmatch(postgres)
@@ -1007,6 +1011,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		"./conformance/projectsqlmigrateproduct",
 		"./conformance/systemstate/restart",
 		"./conformance/runserverproduct",
+		"./conformance/projectoperatorproduct",
 	} {
 		linePattern := regexp.MustCompile(`(?m)^\s+` + regexp.QuoteMeta(packagePattern) + `(?: \\| > "\$log" \|\| status=\$\?)?$`)
 		if got := len(linePattern.FindAllString(postgres, -1)); got != 2 {
@@ -1032,7 +1037,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 	}
 	orderedFailureFragments := []string{
 		"status=0",
-		`./conformance/runserverproduct > "$log" || status=$?`,
+		`./conformance/projectoperatorproduct > "$log" || status=$?`,
 		`if [ "$status" -ne 0 ]; then`,
 		"            report_postgres_failure\n",
 		`exit "$status"`,

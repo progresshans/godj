@@ -6,14 +6,25 @@ package godj
 // evidence path itself.
 type Inputs struct {
 	SystemStatePostgreSQLTwoProcess *SystemStateTwoProcessBackendFacts
+	ProjectOperatorPostgreSQL       *GDJ0055OperatorBackendFacts
+	ProjectOperatorSQLite           *GDJ0055OperatorBackendFacts
 }
 
 func (inputs Inputs) snapshot() Inputs {
-	if inputs.SystemStatePostgreSQLTwoProcess == nil {
-		return Inputs{}
+	var snapshot Inputs
+	if inputs.SystemStatePostgreSQLTwoProcess != nil {
+		postgresql := *inputs.SystemStatePostgreSQLTwoProcess
+		snapshot.SystemStatePostgreSQLTwoProcess = &postgresql
 	}
-	postgresql := *inputs.SystemStatePostgreSQLTwoProcess
-	return Inputs{SystemStatePostgreSQLTwoProcess: &postgresql}
+	if inputs.ProjectOperatorPostgreSQL != nil {
+		operator := *inputs.ProjectOperatorPostgreSQL
+		snapshot.ProjectOperatorPostgreSQL = &operator
+	}
+	if inputs.ProjectOperatorSQLite != nil {
+		operator := *inputs.ProjectOperatorSQLite
+		snapshot.ProjectOperatorSQLite = &operator
+	}
+	return snapshot
 }
 
 // SystemStateTwoProcessBackendFacts is the oracle-independent subset of a

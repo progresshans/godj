@@ -17,20 +17,18 @@ import (
 	"github.com/progresshans/godj/sessions"
 )
 
-func TestTwoRuntimeSQLiteConcurrentBootstrapUsesDatabaseFence(t *testing.T) {
+func TestTwoRuntimeSQLiteConcurrentProvisionPublishesExactlyOneOperator(t *testing.T) {
 	tests := []struct {
 		name              string
 		contenderPassword string
-		wantContenderCode ErrorCode
 	}{
 		{
-			name:              "identical material succeeds without a duplicate publication",
+			name:              "identical supplied material",
 			contenderPassword: "multi-runtime-bootstrap-password",
 		},
 		{
-			name:              "mismatched material fails closed after one publication",
+			name:              "different supplied password",
 			contenderPassword: "multi-runtime-bootstrap-mismatch",
-			wantContenderCode: CodeCredentialMismatch,
 		},
 	}
 
@@ -41,23 +39,23 @@ func TestTwoRuntimeSQLiteConcurrentBootstrapUsesDatabaseFence(t *testing.T) {
 			explicitlyMigrateSystemState(t, ctx, holder.Backend)
 			barrier := armMultiRuntimeBarrier(t, holder, contender)
 
-			type openResult struct {
-				runtime *Runtime
-				err     error
-			}
 			holderConfig := runtimeTestConfig(t, "multi-runtime-bootstrap-password")
 			contenderConfig := runtimeTestConfig(t, test.contenderPassword)
-			holderResult := make(chan openResult, 1)
-			contenderResult := make(chan openResult, 1)
+			holderHasher := newOperatorHasherSpy(t, 10_000)
+			contenderHasher := newOperatorHasherSpy(t, 10_000)
+			holderConfig.PasswordHasher = holderHasher
+			contenderConfig.PasswordHasher = contenderHasher
+			holderProvision := holderConfig.provisionConfig(t)
+			contenderProvision := contenderConfig.provisionConfig(t)
+			holderResult := make(chan error, 1)
+			contenderResult := make(chan error, 1)
 			go func() {
-				runtime, err := Open(ctx, holder, holderConfig)
-				holderResult <- openResult{runtime: runtime, err: err}
+				holderResult <- ProvisionOperator(ctx, holder, holderProvision)
 			}()
 
 			barrier.waitHolderEntered(t)
 			go func() {
-				runtime, err := Open(ctx, contender, contenderConfig)
-				contenderResult <- openResult{runtime: runtime, err: err}
+				contenderResult <- ProvisionOperator(ctx, contender, contenderProvision)
 			}()
 			barrier.assertContenderCallbackBlocked(t)
 			barrier.release()
@@ -67,17 +65,19 @@ func TestTwoRuntimeSQLiteConcurrentBootstrapUsesDatabaseFence(t *testing.T) {
 			disarmMultiRuntimeBarrier(holder, contender)
 			barrier.assertCallbackCounts(t, 1, 1)
 
-			if gotHolder.err != nil || gotHolder.runtime == nil {
-				t.Fatalf("holder Open() = (%v, %v), want Runtime/nil", gotHolder.runtime, gotHolder.err)
+			if gotHolder != nil {
+				t.Fatalf("holder ProvisionOperator() = %v, want nil", gotHolder)
 			}
-			if test.wantContenderCode == "" {
-				if gotContender.err != nil || gotContender.runtime == nil {
-					t.Fatalf("identical contender Open() = (%v, %v), want Runtime/nil", gotContender.runtime, gotContender.err)
-				}
-			} else {
-				if gotContender.runtime != nil || !errors.Is(gotContender.err, &Error{Code: test.wantContenderCode}) {
-					t.Fatalf("mismatched contender Open() = (%v, %#v), want nil/%s", gotContender.runtime, gotContender.err, test.wantContenderCode)
-				}
+			if !errors.Is(gotContender, &Error{Code: CodeCredentialAlreadyExists, Field: "credential"}) {
+				t.Fatalf("contender ProvisionOperator() = %#v, want credential_already_exists", gotContender)
+			}
+			if holderHasher.hashCalls.Load() != 1 || contenderHasher.hashCalls.Load() != 1 ||
+				holderHasher.verifyCalls.Load() != 0 || contenderHasher.verifyCalls.Load() != 0 {
+				t.Fatalf(
+					"concurrent provision hasher calls = holder %d/%d contender %d/%d, want hash 1/verify 0 each",
+					holderHasher.hashCalls.Load(), holderHasher.verifyCalls.Load(),
+					contenderHasher.hashCalls.Load(), contenderHasher.verifyCalls.Load(),
+				)
 			}
 
 			credentials, err := readCredentialRows(ctx, holder.Backend)
@@ -594,15 +594,18 @@ func openTwoSystemStateRuntimes(
 	explicitlyMigrateSystemState(t, ctx, holder.Backend)
 	config := runtimeTestConfig(t, "multi-runtime-system-state-password")
 	config.MaxSessions = maxSessions
-	holderRuntime, err := Open(ctx, holder, config)
-	if err != nil {
-		t.Fatalf("Open(holder Runtime): %v", err)
+	if err := ProvisionOperator(ctx, holder, config.provisionConfig(t)); err != nil {
+		t.Fatalf("ProvisionOperator(holder Runtime): %v", err)
 	}
-	contenderConfig := runtimeTestConfig(t, config.Password)
-	contenderConfig.MaxSessions = maxSessions
-	contenderRuntime, err := Open(ctx, contender, contenderConfig)
+	holderRuntime, err := OpenExisting(ctx, holder, config.runtimeConfig(t))
 	if err != nil {
-		t.Fatalf("Open(contender Runtime): %v", err)
+		t.Fatalf("OpenExisting(holder Runtime): %v", err)
+	}
+	contenderConfig := runtimeTestConfig(t, "unused-contender-password")
+	contenderConfig.MaxSessions = maxSessions
+	contenderRuntime, err := OpenExisting(ctx, contender, contenderConfig.runtimeConfig(t))
+	if err != nil {
+		t.Fatalf("OpenExisting(contender Runtime): %v", err)
 	}
 	return holderRuntime, contenderRuntime, holder, contender
 }

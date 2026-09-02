@@ -12,6 +12,19 @@ type secretValueCause struct{ Secret string }
 
 func (cause secretValueCause) Error() string { return cause.Secret }
 
+func TestCredentialErrorCodesAreStable(t *testing.T) {
+	tests := map[ErrorCode]string{
+		CodeCredentialAbsent:         "credential_absent",
+		CodeCredentialAlreadyExists:  "credential_already_exists",
+		CodeCredentialPolicyMismatch: "credential_policy_mismatch",
+	}
+	for code, want := range tests {
+		if string(code) != want {
+			t.Fatalf("credential ErrorCode = %q, want %q", code, want)
+		}
+	}
+}
+
 func TestErrorRenderingAndJSONNeverExposeCause(t *testing.T) {
 	t.Parallel()
 

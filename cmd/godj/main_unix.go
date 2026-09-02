@@ -24,13 +24,40 @@ func main() {
 		case <-done:
 		}
 	}()
-	exit := execute(context.Background(), "", os.Args[1:], os.Environ(), os.Stdout, os.Stderr, interrupt)
+	exit := execute(context.Background(), "", os.Args[1:], os.Environ(), os.Stdin, os.Stdout, os.Stderr, interrupt)
 	close(done)
 	signal.Stop(signals)
 	os.Exit(exit)
 }
 
-func execute(ctx context.Context, cwd string, args, environment []string, stdout, stderr io.Writer, interrupt <-chan struct{}) int {
+func execute(
+	ctx context.Context,
+	cwd string,
+	args, environment []string,
+	stdin *os.File,
+	stdout, stderr io.Writer,
+	interrupt <-chan struct{},
+) int {
+	if len(args) != 0 && args[0] == "createsuperuser" {
+		// The public result is written to process fd 1 or fd 2. Keep Unix's
+		// default SIGPIPE action from terminating the global owner before a
+		// failed write can become the stable no-retry exit. This receiver is
+		// scoped to createsuperuser and never participates in cancellation.
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		report := projectcheck.RunCreatesuperuser(projectcheck.CreatesuperuserInvocation{
+			Context:     ctx,
+			CWD:         cwd,
+			Args:        args,
+			Environment: environment,
+			Stdin:       stdin,
+			Stdout:      stdout,
+			Stderr:      stderr,
+			Interrupt:   interrupt,
+		})
+		return report.ExitCode
+	}
 	if len(args) != 0 && args[0] == "runserver" {
 		report := projectcheck.RunServer(projectcheck.RunServerInvocation{
 			Context:     ctx,

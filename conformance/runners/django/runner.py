@@ -150,6 +150,16 @@ EXTENDED_SYSTEM_STATE_SCENARIOS = (
     "godj.system_state.concurrent_article_audit",
     "godj.system_state.shared_csrf_key_ring",
     "godj.system_state.two_process_backend_restart",
+    "godj.system_state.explicit_operator_provisioning",
+    "godj.system_state.createsuperuser_argv_and_pre_io",
+    "godj.system_state.tty_secret_transport",
+    "godj.system_state.project_provision_ownership",
+    "godj.system_state.operator_provision_cardinality",
+    "godj.system_state.provision_outcome_ownership",
+    "godj.system_state.open_existing_authenticator",
+    "godj.system_state.credential_absent_public_only",
+    "godj.system_state.operator_backend_login_restart",
+    "godj.system_state.sensitive_child_cleanup",
 )
 MIGRATION_WRITER_SCENARIOS = {
     name: (
@@ -659,7 +669,7 @@ def _validate_manifest_basics(
     ):
         raise RuntimeError(
             "manifest must contain between 8 and 12 contracts or the exact "
-            "query-expression registry or exact system-state registry"
+            "query-expression registry or exact 30-entry system-state registry"
         )
 
     seen: set[str] = set()

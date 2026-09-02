@@ -19,6 +19,7 @@ func TestExecuteDispatchesRunserverBeforeProjectSelection(t *testing.T) {
 		filepath.Join(t.TempDir(), "missing"),
 		[]string{"runserver", "--project"},
 		nil,
+		nil,
 		&stdout,
 		&stderr,
 		nil,

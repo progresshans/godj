@@ -1,4 +1,4 @@
-"""Generate or verify the mixed-authority SYS-001..020 reference suite."""
+"""Generate or verify the mixed-authority SYS-001..030 reference suite."""
 
 from __future__ import annotations
 
@@ -29,11 +29,14 @@ ORACLE = (
     / "conformance/oracles/django-6.1-sqlite-darwin-arm64/system-state.json"
 )
 LEGACY_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 13))
-EXPECTED_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 21))
+PRE_GDJ_0055_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 21))
+EXPECTED_IDS = tuple(f"SYS-{number:03d}" for number in range(1, 31))
 DJANGO_IDS = frozenset(
     {"SYS-003", "SYS-004", "SYS-008", "SYS-009", "SYS-010", "SYS-011"}
 )
-ADR_0048_IDS = frozenset(EXPECTED_IDS[len(LEGACY_IDS) :])
+DJANGO_LOGIN_SEMANTICS_IDS = frozenset({"SYS-029"})
+ADR_0048_IDS = frozenset(PRE_GDJ_0055_IDS[len(LEGACY_IDS) :])
+ADR_0056_IDS = frozenset(EXPECTED_IDS[len(PRE_GDJ_0055_IDS) :])
 DECISION_IDS = frozenset(EXPECTED_IDS) - DJANGO_IDS
 EXPECTED_SCENARIOS = (
     "godj.system_state.explicit_migration_gate",
@@ -56,9 +59,19 @@ EXPECTED_SCENARIOS = (
     "godj.system_state.concurrent_article_audit",
     "godj.system_state.shared_csrf_key_ring",
     "godj.system_state.two_process_backend_restart",
+    "godj.system_state.explicit_operator_provisioning",
+    "godj.system_state.createsuperuser_argv_and_pre_io",
+    "godj.system_state.tty_secret_transport",
+    "godj.system_state.project_provision_ownership",
+    "godj.system_state.operator_provision_cardinality",
+    "godj.system_state.provision_outcome_ownership",
+    "godj.system_state.open_existing_authenticator",
+    "godj.system_state.credential_absent_public_only",
+    "godj.system_state.operator_backend_login_restart",
+    "godj.system_state.sensitive_child_cleanup",
 )
 SCENARIOS = {**DECISION_SCENARIOS, **DJANGO_SCENARIOS}
-ORACLE_READY_STATUSES = frozenset({"oracle_locked", "passing", "deviation"})
+ORACLE_READY_STATUSES = frozenset({"passing", "deviation"})
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -103,6 +116,43 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
                 raise RuntimeError(
                     f"{contract_id}: exact current ADR-0048 documentation authority is required"
                 )
+        elif contract_id in ADR_0056_IDS:
+            expected_provenance = [
+                {"kind": "documentation", "reference": "ADR-0056", "derived": False}
+            ]
+            if contract_id in DJANGO_LOGIN_SEMANTICS_IDS:
+                expected_provenance.extend(
+                    [
+                        {
+                            "kind": "documentation",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/auth/default.txt#authentication-in-web-requests",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                        {
+                            "kind": "source",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::authenticate",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                        {
+                            "kind": "documentation",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:docs/topics/http/sessions.txt#using-sessions-in-views",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                        {
+                            "kind": "source",
+                            "reference": "django@fe0a859f537d4238cf49fca39073513206f83122:django/contrib/auth/__init__.py::login",
+                            "derived": False,
+                            "license": "BSD-3-Clause",
+                        },
+                    ]
+                )
+            if provenance != expected_provenance:
+                raise RuntimeError(
+                    f"{contract_id}: exact current ADR-0056 documentation authority is required"
+                )
         else:
             raise RuntimeError(f"unexpected system-state contract {contract_id!r}")
         django = [
@@ -121,16 +171,20 @@ def _validate_contract_authority(contracts: list[dict[str, Any]]) -> None:
                 raise RuntimeError(f"{contract_id}: Django authority scenario mismatch")
             if not django:
                 raise RuntimeError(f"{contract_id}: exact Django authority is required")
-            for item in django:
-                if item.get("derived") is not False or item.get("license") != "BSD-3-Clause":
-                    raise RuntimeError(f"{contract_id}: invalid Django provenance")
         elif contract_id in DECISION_IDS:
             if not isinstance(scenario, str) or not scenario.startswith(
                 "godj.system_state."
             ):
                 raise RuntimeError(f"{contract_id}: GoDj authority scenario mismatch")
-            if django:
+            if django and contract_id not in DJANGO_LOGIN_SEMANTICS_IDS:
                 raise RuntimeError(f"{contract_id}: decision authority carries Django provenance")
+        for item in django:
+            if item.get("derived") is not False or item.get("license") != "BSD-3-Clause":
+                raise RuntimeError(f"{contract_id}: invalid Django provenance")
+            if "createsuperuser" in str(item.get("reference", "")):
+                raise RuntimeError(
+                    f"{contract_id}: Django createsuperuser internals are not authority"
+                )
         api_boundary = [
             item
             for item in provenance
@@ -169,7 +223,7 @@ def generate_suite(
         raise RuntimeError("system-state manifest profile_id mismatch")
     contracts = manifest.get("contracts")
     if not isinstance(contracts, list) or len(contracts) != len(EXPECTED_IDS):
-        raise RuntimeError("system-state manifest must contain exactly 20 contracts")
+        raise RuntimeError("system-state manifest must contain exactly 30 contracts")
     if tuple(contract.get("id") for contract in contracts) != EXPECTED_IDS:
         raise RuntimeError("system-state manifest contract order mismatch")
     if tuple(contract.get("scenario") for contract in contracts) != EXPECTED_SCENARIOS:
@@ -177,7 +231,7 @@ def generate_suite(
     if any(
         contract.get("status") not in ORACLE_READY_STATUSES for contract in contracts
     ):
-        raise RuntimeError("system-state oracle requires oracle_locked or reviewed status")
+        raise RuntimeError("system-state oracle requires passing or deviation status")
     expected_statuses = tuple(
         "deviation"
         if contract_id == "SYS-009"

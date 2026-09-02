@@ -20,6 +20,7 @@ import (
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
@@ -168,131 +169,23 @@ func TestDatabaseConfigForServeSelectsStrictEnvironment(t *testing.T) {
 	}
 }
 
-func TestPublicationConfigForServeIsExplicitPairedAndLoopbackOnly(t *testing.T) {
-	const password = "publication-secret-marker"
+func TestLoopbackListenAddressIsIPLiteralOnly(t *testing.T) {
 	tests := []struct {
-		name        string
-		listen      string
-		environment map[string]string
-		wantEnabled bool
-		wantUser    string
-		wantPass    string
-		wantError   string
+		address string
+		want    bool
 	}{
-		{
-			name:   "credentials absent preserves non-loopback public mode",
-			listen: "0.0.0.0:8000",
-		},
-		{
-			name:   "IPv4 loopback",
-			listen: "127.0.0.1:0",
-			environment: map[string]string{
-				articleAdminUsernameEnv: " admin ",
-				articleAdminPasswordEnv: password,
-			},
-			wantEnabled: true,
-			wantUser:    "admin",
-			wantPass:    password,
-		},
-		{
-			name:   "IPv6 loopback",
-			listen: "[::1]:8000",
-			environment: map[string]string{
-				articleAdminUsernameEnv: "admin",
-				articleAdminPasswordEnv: "  password with intentional edges  ",
-			},
-			wantEnabled: true,
-			wantUser:    "admin",
-			wantPass:    "  password with intentional edges  ",
-		},
-		{
-			name:   "username only",
-			listen: defaultListenAddress,
-			environment: map[string]string{
-				articleAdminUsernameEnv: "admin",
-			},
-			wantError: "must be configured together",
-		},
-		{
-			name:   "password only",
-			listen: defaultListenAddress,
-			environment: map[string]string{
-				articleAdminPasswordEnv: password,
-			},
-			wantError: "must be configured together",
-		},
-		{
-			name:   "blank username",
-			listen: defaultListenAddress,
-			environment: map[string]string{
-				articleAdminUsernameEnv: " ",
-				articleAdminPasswordEnv: password,
-			},
-			wantError: articleAdminUsernameEnv + " is empty",
-		},
-		{
-			name:   "blank password",
-			listen: defaultListenAddress,
-			environment: map[string]string{
-				articleAdminUsernameEnv: "admin",
-				articleAdminPasswordEnv: "\t",
-			},
-			wantError: articleAdminPasswordEnv + " is empty",
-		},
-		{
-			name:   "wildcard",
-			listen: "0.0.0.0:8000",
-			environment: map[string]string{
-				articleAdminUsernameEnv: "admin",
-				articleAdminPasswordEnv: password,
-			},
-			wantError: "requires a loopback listen address",
-		},
-		{
-			name:   "non-loopback IP",
-			listen: "192.0.2.10:8000",
-			environment: map[string]string{
-				articleAdminUsernameEnv: "admin",
-				articleAdminPasswordEnv: password,
-			},
-			wantError: "requires a loopback listen address",
-		},
-		{
-			name:   "arbitrary hostname",
-			listen: "localhost:8000",
-			environment: map[string]string{
-				articleAdminUsernameEnv: "admin",
-				articleAdminPasswordEnv: password,
-			},
-			wantError: "requires a loopback listen address",
-		},
+		{address: "127.0.0.1:0", want: true},
+		{address: "[::1]:8000", want: true},
+		{address: "0.0.0.0:8000"},
+		{address: "192.0.2.10:8000"},
+		{address: "localhost:8000"},
+		{address: ":8000"},
+		{address: "not-an-address"},
 	}
 	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			lookup := func(name string) (string, bool) {
-				value, configured := test.environment[name]
-				return value, configured
-			}
-			got, err := publicationConfigForServe(serveConfig{listenAddress: test.listen}, lookup)
-			if test.wantError != "" {
-				if err == nil || !strings.Contains(err.Error(), test.wantError) {
-					t.Fatalf("publicationConfigForServe() error = %v, want containing %q", err, test.wantError)
-				}
-				if strings.Contains(err.Error(), password) {
-					t.Fatalf("publicationConfigForServe() exposed password: %v", err)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got.authenticated != test.wantEnabled || got.username != test.wantUser || got.password != test.wantPass {
-				t.Fatalf("publication config = %#v", got)
-			}
-		})
-	}
-	if _, err := publicationConfigForServe(serveConfig{}, nil); err == nil {
-		t.Fatal("publicationConfigForServe(nil lookup) error = nil")
+		if got := loopbackListenAddress(test.address); got != test.want {
+			t.Errorf("loopbackListenAddress(%q) = %t, want %t", test.address, got, test.want)
+		}
 	}
 }
 
@@ -303,7 +196,8 @@ func TestApplicationForServePreservesPublicOnlyDefault(t *testing.T) {
 			t.Errorf("close default Article site backend: %v", err)
 		}
 	})
-	application, err := applicationForServe(context.Background(), backend, publicationConfig{})
+	explicitlyMigrateArticleSiteSystemState(t, backend)
+	application, err := applicationForServe(context.Background(), backend, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,21 +223,12 @@ func TestApplicationForServeRequiresExplicitSystemMigrationWithoutCreatingSchema
 	ctx := context.Background()
 	backend := newArticleSiteTestBackend(t, "article-site-system-migration-gate")
 	t.Cleanup(func() { _ = backend.Close() })
-	const password = "missing-system-migration-secret"
-
-	application, err := applicationForServe(ctx, backend, publicationConfig{
-		authenticated: true,
-		username:      "admin",
-		password:      password,
-	})
+	application, err := applicationForServe(ctx, backend, true)
 	if application != nil || !errors.Is(err, &systemstate.Error{
 		Code:  systemstate.CodeSchemaUnavailable,
 		Field: "migration_history",
 	}) {
 		t.Fatalf("applicationForServe(missing system migration) = (%v,%#v)", application, err)
-	}
-	if strings.Contains(err.Error(), password) {
-		t.Fatalf("missing-system-migration error exposed password: %v", err)
 	}
 	history, historyErr := backend.ReadAppliedMigrations(ctx)
 	if historyErr != nil || len(history) != 0 {
@@ -369,15 +254,14 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 		username = "restart-admin"
 		password = "restart-password-secret-marker"
 	)
-	publication := publicationConfig{authenticated: true, username: username, password: password}
-
 	firstBackend, err := sqlite.Open(ctx, dataSourceName)
 	if err != nil {
 		t.Fatalf("open first Article site backend: %v", err)
 	}
 	createArticleSiteArticleTable(t, firstBackend)
 	explicitlyMigrateArticleSiteSystemState(t, firstBackend)
-	firstApplication, err := applicationForServe(ctx, firstBackend, publication)
+	provisionArticleSiteOperator(t, ctx, firstBackend, username, password)
+	firstApplication, err := applicationForServe(ctx, firstBackend, true)
 	if err != nil {
 		_ = firstBackend.Close()
 		t.Fatalf("applicationForServe(first process): %v", err)
@@ -429,7 +313,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 		t.Fatalf("reopen Article site backend: %v", err)
 	}
 	t.Cleanup(func() { _ = secondBackend.Close() })
-	secondApplication, err := applicationForServe(ctx, secondBackend, publication)
+	secondApplication, err := applicationForServe(ctx, secondBackend, true)
 	if err != nil {
 		t.Fatalf("applicationForServe(reopened process): %v", err)
 	}
@@ -547,7 +431,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 		t.Fatalf("open process-C Article site backend: %v", err)
 	}
 	t.Cleanup(func() { _ = thirdBackend.Close() })
-	thirdApplication, err := applicationForServe(ctx, thirdBackend, publication)
+	thirdApplication, err := applicationForServe(ctx, thirdBackend, true)
 	if err != nil {
 		t.Fatalf("applicationForServe(process C): %v", err)
 	}
@@ -590,17 +474,17 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	}
 }
 
-func TestRunRejectsAuthenticatedNonLoopbackBeforeBackendOrListener(t *testing.T) {
+func TestRunRejectsProvisionedAuthenticatedNonLoopbackBeforeListener(t *testing.T) {
 	clearArticleDatabaseEnvironment(t)
-	const secret = "non-loopback-secret-marker"
-	t.Setenv(articleSQLiteDatabaseEnv, "file:never-opened.sqlite3")
-	t.Setenv(articleAdminUsernameEnv, "admin")
-	t.Setenv(articleAdminPasswordEnv, secret)
+	t.Setenv(articleSQLiteDatabaseEnv, "file:opened-by-test-adapter.sqlite3")
+	backend := newArticleSiteTestBackend(t, "article-site-non-loopback")
+	explicitlyMigrateArticleSiteSystemState(t, backend)
+	provisionArticleSiteOperator(t, context.Background(), backend, "admin", "non-loopback-secret-marker")
 	var backendCalls atomic.Int32
 	var listenCalls atomic.Int32
 	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
 		backendCalls.Add(1)
-		return nil, nil
+		return backend, nil
 	}
 	listen := func(string, string) (net.Listener, error) {
 		listenCalls.Add(1)
@@ -619,12 +503,8 @@ func TestRunRejectsAuthenticatedNonLoopbackBeforeBackendOrListener(t *testing.T)
 	if err == nil || !strings.Contains(err.Error(), "loopback") {
 		t.Fatalf("non-loopback authenticated startup error = %v", err)
 	}
-	if backendCalls.Load() != 0 || listenCalls.Load() != 0 {
+	if backendCalls.Load() != 1 || listenCalls.Load() != 0 {
 		t.Fatalf("non-loopback startup side effects = backend %d listener %d", backendCalls.Load(), listenCalls.Load())
-	}
-	combined := err.Error() + stdout.String() + stderr.String()
-	if strings.Contains(combined, secret) {
-		t.Fatalf("non-loopback startup exposed password in %q", combined)
 	}
 }
 
@@ -635,12 +515,11 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 		password = "publication-smoke-secret"
 	)
 	t.Setenv(articleSQLiteDatabaseEnv, "file:ignored-by-test-opener")
-	t.Setenv(articleAdminUsernameEnv, username)
-	t.Setenv(articleAdminPasswordEnv, password)
 
 	backend := newArticleSiteTestBackend(t, "article-site-publication")
 	t.Cleanup(func() { _ = backend.Close() })
 	explicitlyMigrateArticleSiteSystemState(t, backend)
+	provisionArticleSiteOperator(t, context.Background(), backend, username, password)
 	var opened atomic.Int32
 	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
 		opened.Add(1)
@@ -733,21 +612,19 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 	}
 }
 
-func TestApplicationForServeRedactsRejectedPassword(t *testing.T) {
-	backend := newArticleSiteTestBackend(t, "article-site-password-redaction")
-	t.Cleanup(func() { _ = backend.Close() })
-	explicitlyMigrateArticleSiteSystemState(t, backend)
-	const marker = "rejected-password-secret-marker"
-	_, err := applicationForServe(context.Background(), backend, publicationConfig{
-		authenticated: true,
-		username:      "admin",
-		password:      marker + strings.Repeat("x", 1100),
-	})
-	if err == nil {
-		t.Fatal("oversized configured password error = nil")
+func TestArticleSiteProductionSourceHasNoRawOperatorCredentialEnvironment(t *testing.T) {
+	source, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if strings.Contains(err.Error(), marker) {
-		t.Fatalf("applicationForServe() exposed rejected password: %v", err)
+	for _, forbidden := range []string{
+		"GODJ_ARTICLE_ADMIN_USERNAME",
+		"GODJ_ARTICLE_ADMIN_PASSWORD",
+		"publicationConfig",
+	} {
+		if bytes.Contains(source, []byte(forbidden)) {
+			t.Fatalf("Article site production source retains forbidden raw-credential environment surface %q", forbidden)
+		}
 	}
 }
 
@@ -782,11 +659,9 @@ func TestRunClosesBackendAndListenerOnceWhenContextCancelsBeforeServeOwnership(t
 	t.Setenv(articleSQLiteDatabaseEnv, "file:site-cancel-window?mode=memory&cache=shared")
 	ctx, cancel := context.WithCancel(context.Background())
 	var backendCloses atomic.Int32
-	openBackend := func(ctx context.Context, config databaseConfig) (articleBackend, error) {
-		backend, err := openArticleBackend(ctx, config)
-		if err != nil {
-			return nil, err
-		}
+	backend := newArticleSiteTestBackend(t, "site-cancel-window")
+	explicitlyMigrateArticleSiteSystemState(t, backend)
+	openBackend := func(context.Context, databaseConfig) (articleBackend, error) {
 		return &countingArticleBackend{articleBackend: backend, closes: &backendCloses}, nil
 	}
 	var listener *countingListener
@@ -866,6 +741,26 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 	want := systemstate.InitialMigrationKey()
 	if err != nil || len(history) != 1 || history[0].App != want.App || history[0].Name != want.Name {
 		t.Fatalf("Article site system migration history = (%+v,%v), want %s.%s", history, err, want.App, want.Name)
+	}
+}
+
+func provisionArticleSiteOperator(
+	t *testing.T,
+	ctx context.Context,
+	backend systemstate.Backend,
+	username, password string,
+) {
+	t.Helper()
+	policy, err := operatorconfig.CredentialPolicy()
+	if err != nil {
+		t.Fatalf("Article operator policy: %v", err)
+	}
+	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
+		Username:         username,
+		Password:         password,
+		CredentialPolicy: policy,
+	}); err != nil {
+		t.Fatalf("ProvisionOperator(): %v", err)
 	}
 }
 
@@ -1044,8 +939,6 @@ func clearArticleDatabaseEnvironment(t *testing.T) {
 		articleSQLiteDatabaseEnv,
 		articlePostgresURLEnv,
 		articlePostgresSchemaEnv,
-		articleAdminUsernameEnv,
-		articleAdminPasswordEnv,
 	} {
 		value, configured := os.LookupEnv(name)
 		if err := os.Unsetenv(name); err != nil {

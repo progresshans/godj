@@ -200,10 +200,15 @@ func TestGlobalMigrateArticleSQLiteProduct(t *testing.T) {
 		environment := articleEnvironment(t, databasePath, workspaceBase)
 
 		address := reserveLoopbackAddress(t, "")
-		status, body := runGlobalArticleServerOnce(t, globalBinary, repository, descriptor, address, environment)
-		if status != http.StatusInternalServerError || body != "Internal Server Error\n" {
-			t.Fatalf("pre-migrate Article response = %d/%q, want explicit missing-schema failure", status, body)
-		}
+		assertGlobalArticleServerRejectsUnmigratedState(
+			t,
+			globalBinary,
+			repository,
+			descriptor,
+			address,
+			environment,
+			databasePath,
+		)
 		assertWorkspaceEmpty(t, workspaceBase)
 		assertNoMigrationMutation(t, databasePath)
 
@@ -214,7 +219,7 @@ func TestGlobalMigrateArticleSQLiteProduct(t *testing.T) {
 		assertLatestDatabase(t, databasePath, expected, sentinel)
 
 		for attempt := 1; attempt <= 2; attempt++ {
-			status, body = runGlobalArticleServerOnce(t, globalBinary, repository, descriptor, address, environment)
+			status, body := runGlobalArticleServerOnce(t, globalBinary, repository, descriptor, address, environment)
 			if status != http.StatusOK || !strings.Contains(body, sentinel) {
 				t.Fatalf("post-migrate runserver attempt %d response = %d/%q", attempt, status, body)
 			}
@@ -223,6 +228,39 @@ func TestGlobalMigrateArticleSQLiteProduct(t *testing.T) {
 			address = reserveLoopbackAddress(t, address)
 		}
 	})
+}
+
+func assertGlobalArticleServerRejectsUnmigratedState(
+	t *testing.T,
+	globalBinary, repository, descriptor, address string,
+	environment []string,
+	databasePath string,
+) {
+	t.Helper()
+	result, err := executeBounded(
+		globalBinary,
+		repository,
+		environment,
+		"runserver", "--project", descriptor, "--addr", address,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertOutputSanitized(t, result, databasePath)
+	const wantStderr = "article site failed: article site application: system state: systemstate: schema_unavailable: migration_history: exact initial system migration is not applied\n" +
+		"project_runserver_runtime_error/project_runtime_exited\n"
+	if result.ExitCode != 3 || result.Stdout != "" || result.Stderr != wantStderr ||
+		result.StdoutTruncated || result.StderrTruncated {
+		t.Fatalf(
+			"unmigrated runserver result = exit:%d stdout:%q stderr:%q truncated:%v/%v, want 3/empty/%q",
+			result.ExitCode,
+			result.Stdout,
+			result.Stderr,
+			result.StdoutTruncated,
+			result.StderrTruncated,
+			wantStderr,
+		)
+	}
 }
 
 func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpectation {

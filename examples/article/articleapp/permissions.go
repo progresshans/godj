@@ -1,10 +1,10 @@
 package articleapp
 
-import "github.com/progresshans/godj/auth"
+import "github.com/progresshans/godj/examples/article/internal/articlepermissions"
 
 const (
-	ArticleViewPermission   auth.Permission = "godj_conformance.view_article"
-	ArticleAddPermission    auth.Permission = "godj_conformance.add_article"
-	ArticleChangePermission auth.Permission = "godj_conformance.change_article"
-	ArticleDeletePermission auth.Permission = "godj_conformance.delete_article"
+	ArticleViewPermission   = articlepermissions.ArticleViewPermission
+	ArticleAddPermission    = articlepermissions.ArticleAddPermission
+	ArticleChangePermission = articlepermissions.ArticleChangePermission
+	ArticleDeletePermission = articlepermissions.ArticleDeletePermission
 )

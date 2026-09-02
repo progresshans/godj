@@ -26,6 +26,7 @@ func TestExecuteDispatchesSQLMigrateBeforeProjectSelection(t *testing.T) {
 			filepath.Join(t.TempDir(), "missing"),
 			arguments,
 			os.Environ(),
+			nil,
 			&stdout,
 			&stderr,
 			nil,

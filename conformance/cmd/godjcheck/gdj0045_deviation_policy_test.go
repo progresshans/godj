@@ -64,7 +64,7 @@ func TestGDJ0045DeviationFixtureMatchesClosedPolicySelectors(t *testing.T) {
 	}
 }
 
-func TestRunGDJ0045MixedProductExpectationWritesActualOutput(t *testing.T) {
+func TestRunGDJ0045PublishedProductExpectationWritesActualOutput(t *testing.T) {
 	root := filepath.Join("..", "..", "..")
 	actualPath := filepath.Join(t.TempDir(), "system-state-actual.json")
 	arguments := gdj0045RunArguments(
@@ -77,7 +77,7 @@ func TestRunGDJ0045MixedProductExpectationWritesActualOutput(t *testing.T) {
 	if code := run(context.Background(), arguments, &stdout, &stderr); code != 0 {
 		t.Fatalf("run() code = %d; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
-	want := "GoDj observations match the reviewed product expectation for 20 contracts under DEV-0008"
+	want := "GoDj observations match the reviewed product expectation for 30 contracts under DEV-0008"
 	if !strings.Contains(stdout.String(), want) {
 		t.Fatalf("stdout = %q, want %q", stdout.String(), want)
 	}
@@ -89,8 +89,8 @@ func TestRunGDJ0045MixedProductExpectationWritesActualOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load actual output: %v", err)
 	}
-	if len(actual.Contracts) != 20 || actual.Contracts[0].ID != "SYS-001" || actual.Contracts[19].ID != "SYS-020" {
-		t.Fatalf("actual contracts = %#v, want 20 ordered from SYS-001 through SYS-020", actual.Contracts)
+	if len(actual.Contracts) != 30 || actual.Contracts[0].ID != "SYS-001" || actual.Contracts[29].ID != "SYS-030" {
+		t.Fatalf("actual contracts = %#v, want 30 ordered from SYS-001 through SYS-030", actual.Contracts)
 	}
 	for _, observation := range actual.Contracts {
 		if observation.Status != protocol.StatusObserved {
@@ -199,6 +199,7 @@ func gdj0045RunArguments(root, deviation, actual string) []string {
 		"-manifest", filepath.Join(root, "conformance", "contracts", "system-state-manifest.json"),
 		"-expected", filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "system-state.json"),
 		"-system-state-postgres-attestation", filepath.Join(root, "conformance", "systemstate", "attestations", "postgresql-17.10-two-process-v1.json"),
+		"-project-operator-postgres-attestation", filepath.Join(root, "conformance", "projectoperatorproduct", "attestations", "postgresql-17.10-sqlite-external-operator-v1.json"),
 	}
 	if deviation != "" {
 		arguments = append(arguments, "-deviation-expected", deviation)

@@ -198,7 +198,7 @@ func TestPreGDJ0044EighteenReferenceSetsHave201UniqueContractsAndReject306Ordere
 	}
 }
 
-func TestCurrentTwentySixProductSetsHave289EligibleContractsAndExcludeZeroOracleLocked(t *testing.T) {
+func TestCurrentTwentySixProductSetsHave299EligibleContractsAndExcludeZeroOracleLocked(t *testing.T) {
 	t.Parallel()
 
 	root := conformanceRepositoryRoot(t)
@@ -251,8 +251,8 @@ func TestCurrentTwentySixProductSetsHave289EligibleContractsAndExcludeZeroOracle
 			}
 		}
 	}
-	if len(manifestNames) != 26 || total != 289 || passing != 264 || deviations != 25 || oracleLocked != 0 {
-		t.Fatalf("current product inventory = %d sets/%d eligible contracts = %d passing + %d deviation with %d oracle_locked excluded, want 26/289 = 264 + 25 with 0 excluded", len(manifestNames), total, passing, deviations, oracleLocked)
+	if len(manifestNames) != 26 || total != 299 || passing != 274 || deviations != 25 || oracleLocked != 0 {
+		t.Fatalf("current product inventory = %d sets/%d eligible contracts = %d passing + %d deviation with %d oracle_locked excluded, want 26/299 = 274 + 25 with 0 excluded", len(manifestNames), total, passing, deviations, oracleLocked)
 	}
 }
 

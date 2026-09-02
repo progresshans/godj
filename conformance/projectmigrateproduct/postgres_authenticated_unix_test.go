@@ -27,10 +27,9 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 	const username = "authenticated-postgres-restart-admin"
 	password := fmt.Sprintf("authenticated-postgres-restart-password-%d-%d-9Xq", os.Getpid(), time.Now().UnixNano())
 	values := environmentMap(projectMigratePostgresEnvironment(t, databaseURL, schema, workspaceBase))
-	values[articleAdminUsernameEnv] = username
-	values[articleAdminPasswordEnv] = password
 	environment := sortedEnvironment(values)
 	projectMigratePostgresAssertEnvironment(t, environment, databaseURL, schema)
+	authenticatedRestartAssertRuntimeEnvironment(t, environment, password)
 
 	sensitive := append(append([]string(nil), databaseSecrets...), schema, password)
 	outputCanaries := []string{username}
@@ -50,6 +49,21 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 		t,
 		authenticatedRestartInspectPostgres(t, databaseURL, schema),
 	)
+	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
+	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
+
+	provision := authenticatedRestartProvisionOperator(
+		t,
+		globalBinary,
+		repository,
+		descriptor,
+		environment,
+		username,
+		password,
+	)
+	assertWorkspaceEmpty(t, workspaceBase)
+	provisionedSnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)
+	authenticatedRestartAssertProvisionedState(t, provisionedSnapshot, username, password)
 	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
 	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
 
@@ -86,6 +100,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 	assertWorkspaceEmpty(t, workspaceBase)
 	phaseASnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)
 	authenticatedRestartAssertPhaseAState(t, phaseASnapshot, username, password, phaseAState, sensitive)
+	authenticatedRestartAssertCredentialUnchanged(t, provisionedSnapshot.Credential, phaseASnapshot.Credential)
 	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
 	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
 
@@ -103,14 +118,16 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 		},
 	)
 	assertWorkspaceEmpty(t, workspaceBase)
-	if phaseA.PID <= 0 || phaseB.PID <= 0 || phaseA.PID == phaseB.PID ||
-		phaseA.PID == os.Getpid() || phaseB.PID == os.Getpid() {
+	if provision.PID <= 0 || phaseA.PID <= 0 || phaseB.PID <= 0 ||
+		provision.PID == phaseA.PID || provision.PID == phaseB.PID || phaseA.PID == phaseB.PID ||
+		provision.PID == os.Getpid() || phaseA.PID == os.Getpid() || phaseB.PID == os.Getpid() {
 		t.Fatalf(
-			"authenticated PostgreSQL restart process identity = phase-a-valid:%t phase-b-valid:%t distinct:%t external:%t",
+			"authenticated PostgreSQL restart process identity = provision-valid:%t phase-a-valid:%t phase-b-valid:%t distinct:%t external:%t",
+			provision.PID > 0,
 			phaseA.PID > 0,
 			phaseB.PID > 0,
-			phaseA.PID != phaseB.PID,
-			phaseA.PID != os.Getpid() && phaseB.PID != os.Getpid(),
+			provision.PID != phaseA.PID && provision.PID != phaseB.PID && phaseA.PID != phaseB.PID,
+			provision.PID != os.Getpid() && phaseA.PID != os.Getpid() && phaseB.PID != os.Getpid(),
 		)
 	}
 	phaseBSnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)

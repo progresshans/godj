@@ -101,7 +101,7 @@ func TestGDJ0044ArtifactBytesAndExistingDjangoReferenceAreLocked(t *testing.T) {
 		"pyproject.toml": {227, "3076234a966a3bdbb3a0d775576764709632e2e160594040b1fee65d8ad591bd"},
 		"uv.lock":        {3162, "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7"},
 		"conformance/profiles/django-6.1-sqlite-darwin-arm64.json":                                    {879, "8b557bf935575f5366f4ebdc07441a8f4a3e2097f8af4a42450eb0fde12a5041"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {2279, "7aadb1328fdfccb6bcd1e817f054e60f442c79cb55ad37aec20d24d001ce1138"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                               {2279, "ad256f0bf1b0322c6480b285c701648954b41bf06ecc6c203d4ba8c6b6c6bf87"},
 		"conformance/reference/drf/pyproject.toml":                                                    {319, "46b3482056a64d2c9ac84320f047089c9c406d14d8bec7cf0e7a7b43f71be8b3"},
 		"conformance/reference/drf/uv.lock":                                                           {4199, "efc431a1585aaecd9099d40194980771b395bbe261370619f29b5ccf58728f8f"},
 		"conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json":                         {916, "6c0243b8ad398cca45e1ae1edfd99c321bd75e5ef6d0763cef76a5193c99ef1f"},
@@ -411,9 +411,9 @@ func TestGDJ0044ReferenceAndProductWiringPublishExactAdapters(t *testing.T) {
 		"working-directory: conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64",
 		"--with djangorestframework==3.18.0",
 		"rest_framework.VERSION == \"3.18.0\"",
-		"len(SCENARIOS) == 301",
-		"len(payload) == 1063486",
-		"df78c110fb7452c3d82ce3f525b7e6bc895f3b6e2261fddfeda016b30b3c519e",
+		"len(SCENARIOS) == 311",
+		"len(payload) == 1081058",
+		"b8d53e874169009fcd4650c79f2a007e18307d2fddd07a07d970f28bce2ed3f5",
 	} {
 		if !strings.Contains(ciText, required) {
 			t.Fatalf("CI lacks GDJ-0044 reference fragment %q", required)

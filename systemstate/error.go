@@ -9,13 +9,15 @@ import "fmt"
 type ErrorCode string
 
 const (
-	CodeInvalidConfig      ErrorCode = "invalid_config"
-	CodeInvalidInput       ErrorCode = "invalid_input"
-	CodeSchemaUnavailable  ErrorCode = "schema_unavailable"
-	CodeCardinality        ErrorCode = "invalid_cardinality"
-	CodeCorruptState       ErrorCode = "corrupt_state"
-	CodePersistence        ErrorCode = "persistence_failure"
-	CodeCredentialMismatch ErrorCode = "credential_mismatch"
+	CodeInvalidConfig            ErrorCode = "invalid_config"
+	CodeInvalidInput             ErrorCode = "invalid_input"
+	CodeSchemaUnavailable        ErrorCode = "schema_unavailable"
+	CodeCardinality              ErrorCode = "invalid_cardinality"
+	CodeCorruptState             ErrorCode = "corrupt_state"
+	CodePersistence              ErrorCode = "persistence_failure"
+	CodeCredentialAbsent         ErrorCode = "credential_absent"
+	CodeCredentialAlreadyExists  ErrorCode = "credential_already_exists"
+	CodeCredentialPolicyMismatch ErrorCode = "credential_policy_mismatch"
 )
 
 // Error reports a secret-free system-state failure.

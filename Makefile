@@ -80,6 +80,7 @@ SYSTEM_STATE_ORACLE := conformance/oracles/django-6.1-sqlite-darwin-arm64/system
 SYSTEM_STATE_NOT_IMPLEMENTED := conformance/fixtures/godj-system-state-not-implemented.json
 SYSTEM_STATE_DEVIATION_EXPECTED := conformance/fixtures/godj-system-state-deviation-expected.json
 SYSTEM_STATE_POSTGRES_ATTESTATION := conformance/systemstate/attestations/postgresql-17.10-two-process-v1.json
+PROJECT_OPERATOR_POSTGRES_ATTESTATION := conformance/projectoperatorproduct/attestations/postgresql-17.10-sqlite-external-operator-v1.json
 DRF_PROFILE := conformance/profiles/drf-3.18.0-django-6.1-sqlite-darwin-arm64.json
 PARAMETER_ROUTING_MANIFEST := conformance/contracts/parameter-routing-manifest.json
 PARAMETER_ROUTING_ORACLE := conformance/oracles/drf-3.18.0-django-6.1-sqlite-darwin-arm64/parameter-routing-oracle.json
@@ -97,6 +98,8 @@ PROJECT_MIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/proje
 PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectmigratetargetproduct
 PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectshowmigrationsproduct
 PROJECT_SQLMIGRATE_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectsqlmigrateproduct
+PROJECT_OPERATOR_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/projectoperatorproduct
+PROJECT_OPERATOR_PORTABLE_TEST_REGEX := ^(TestOperatorSanitizeEnvironmentDropsHostOnlyControls|TestGlobalCreatesuperuserExternalSQLiteProduct|TestOperatorCanonicalSchemaRowsSortsAndFramesWithoutAmbiguity|TestOperatorSQLiteSchemaSnapshotDetectsCatalogMutation|TestOperatorCountRawSecretOccurrencesDetectsAuditMarker)$$
 RUNSERVER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/runserverproduct
 MIGRATION_WRITER_PRODUCT_IMPORT := github.com/progresshans/godj/conformance/migrationwriterproduct
 GODJ_RUNNER_IMPORT := github.com/progresshans/godj/conformance/runners/godj
@@ -113,6 +116,7 @@ project_migrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJEC
 project_migrate_target_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 project_showmigrations_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 project_sqlmigrate_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
+project_operator_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(PROJECT_OPERATOR_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 runserver_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(RUNSERVER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 migration_writer_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(MIGRATION_WRITER_PRODUCT_IMPORT)" { count++ } END { print count + 0 }')"; \
 godj_runner_count="$$(printf '%s\n' "$$all_packages" | awk '$$0 == "$(GODJ_RUNNER_IMPORT)" { count++ } END { print count + 0 }')"; \
@@ -122,16 +126,17 @@ test "$$project_migrate_count" -eq 1; \
 test "$$project_migrate_target_count" -eq 1; \
 test "$$project_showmigrations_count" -eq 1; \
 test "$$project_sqlmigrate_count" -eq 1; \
+test "$$project_operator_count" -eq 1; \
 test "$$runserver_count" -eq 1; \
 test "$$migration_writer_count" -eq 1; \
 test "$$godj_runner_count" -eq 1; \
 test "$$godjcheck_count" -eq 1; \
 test "$$multiruntime_worker_count" -eq 1; \
-core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)" && $$0 != "$(GODJ_RUNNER_IMPORT)" && $$0 != "$(GODJCHECK_IMPORT)" && $$0 != "$(MULTIRUNTIME_WORKER_IMPORT)"')"; \
+core_packages="$$(printf '%s\n' "$$all_packages" | awk '$$0 != "$(PROJECT_MIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_MIGRATE_TARGET_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SHOWMIGRATIONS_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_SQLMIGRATE_PRODUCT_IMPORT)" && $$0 != "$(PROJECT_OPERATOR_PRODUCT_IMPORT)" && $$0 != "$(RUNSERVER_PRODUCT_IMPORT)" && $$0 != "$(MIGRATION_WRITER_PRODUCT_IMPORT)" && $$0 != "$(GODJ_RUNNER_IMPORT)" && $$0 != "$(GODJCHECK_IMPORT)" && $$0 != "$(MULTIRUNTIME_WORKER_IMPORT)"')"; \
 test -n "$$core_packages"; \
 all_count="$$(printf '%s\n' "$$all_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
 core_count="$$(printf '%s\n' "$$core_packages" | awk 'NF { count++ } END { print count + 0 }')"; \
-test "$$all_count" -eq "$$((core_count + 9))"
+test "$$all_count" -eq "$$((core_count + 10))"
 endef
 
 format-check:
@@ -162,6 +167,7 @@ go-test:
 	go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
 	go test -timeout=15m -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+	go test -timeout=15m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
 go-vet:
 	go vet ./...
@@ -176,6 +182,7 @@ go-race:
 	go test -timeout=15m -race -count=1 ./conformance/projectsqlmigrateproduct
 	go test -timeout=15m -race -count=1 ./conformance/runserverproduct
 	go test -timeout=15m -race -count=1 ./conformance/migrationwriterproduct
+	go test -timeout=15m -race -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
 cgo-zero-build:
 	CGO_ENABLED=0 go test \
@@ -203,6 +210,7 @@ cgo-zero-build:
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/projectsqlmigrateproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/runserverproduct
 	CGO_ENABLED=0 go test -timeout=15m -count=1 ./conformance/migrationwriterproduct
+	CGO_ENABLED=0 go test -timeout=15m -count=1 -run '$(PROJECT_OPERATOR_PORTABLE_TEST_REGEX)' ./conformance/projectoperatorproduct
 
 targeted-migrate-product:
 	go test -timeout=30m -count=1 ./conformance/projectmigratetargetproduct
@@ -404,7 +412,8 @@ godj-conformance:
 		-profile $(PROFILE) -manifest $(SYSTEM_STATE_MANIFEST) \
 		-expected $(SYSTEM_STATE_ORACLE) \
 		-deviation-expected $(SYSTEM_STATE_DEVIATION_EXPECTED) \
-		-system-state-postgres-attestation $(SYSTEM_STATE_POSTGRES_ATTESTATION)
+		-system-state-postgres-attestation $(SYSTEM_STATE_POSTGRES_ATTESTATION) \
+		-project-operator-postgres-attestation $(PROJECT_OPERATOR_POSTGRES_ATTESTATION)
 	go run ./conformance/cmd/godjcheck \
 		-profile $(DRF_PROFILE) -manifest $(PARAMETER_ROUTING_MANIFEST) \
 		-expected $(PARAMETER_ROUTING_ORACLE) \

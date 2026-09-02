@@ -155,12 +155,12 @@ func inspectAuditTable(ctx context.Context, queryer db.Queryer, capacity int) (b
 	}
 	result, err := queryer.Query(ctx, plan)
 	if err != nil {
-		if result != nil {
+		if !isNilInterface(result) {
 			_ = result.Close()
 		}
 		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: err}
 	}
-	if result == nil {
+	if isNilInterface(result) {
 		return false, &Error{Code: CodeSchemaUnavailable, Field: auditTableName, Detail: "required audit table is unavailable", Cause: errors.New("backend returned nil rows")}
 	}
 
@@ -234,12 +234,12 @@ func queryAuditRows(
 	}
 	result, err := queryer.Query(ctx, plan)
 	if err != nil {
-		if result != nil {
+		if !isNilInterface(result) {
 			_ = result.Close()
 		}
 		return nil, persistenceFailure("query audit", err)
 	}
-	if result == nil {
+	if isNilInterface(result) {
 		return nil, persistenceFailure("query audit", errors.New("backend returned nil rows"))
 	}
 	rows := make([]persistedAuditRow, 0, limit)
@@ -280,12 +280,12 @@ func pruneAuditRows(ctx context.Context, session db.Session, capacity int) error
 	}
 	rows, err := session.Query(ctx, plan)
 	if err != nil {
-		if rows != nil {
+		if !isNilInterface(rows) {
 			_ = rows.Close()
 		}
 		return persistenceFailure("query audit prune", err)
 	}
-	if rows == nil {
+	if isNilInterface(rows) {
 		return persistenceFailure("query audit prune", errors.New("backend returned nil rows"))
 	}
 	identifiers := make([]int64, 0, capacity+1)

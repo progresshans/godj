@@ -150,17 +150,17 @@ func TestRuntimeOpenRejectsCorruptAndOverCapacityAuditWithoutMutation(t *testing
 		if err != nil {
 			t.Fatalf("inspect corrupt seeds: %v", err)
 		}
-		opened, err := Open(ctx, backend, auditBootstrapConfig(t, 4))
+		opened, err := OpenExisting(ctx, backend, auditBootstrapConfig(t, 4).runtimeConfig(t))
 		if err == nil || opened != nil {
-			t.Fatalf("Open(corrupt audit) = (%v,%v), want nil/error", opened, err)
+			t.Fatalf("OpenExisting(corrupt audit) = (%v,%v), want nil/error", opened, err)
 		}
 		var classified *Error
 		if !errors.As(err, &classified) || classified.Code != CodeCorruptState || strings.Contains(err.Error(), "corrupt-marker") {
-			t.Fatalf("Open(corrupt audit) error = %#v", err)
+			t.Fatalf("OpenExisting(corrupt audit) error = %#v", err)
 		}
 		after, inspectErr := inspectAllAuditRows(ctx, backend, 5)
 		if inspectErr != nil || !reflect.DeepEqual(before, after) {
-			t.Fatalf("Open(corrupt audit) mutated rows: before=%#v after=%#v err=%v", before, after, inspectErr)
+			t.Fatalf("OpenExisting(corrupt audit) mutated rows: before=%#v after=%#v err=%v", before, after, inspectErr)
 		}
 	})
 
@@ -190,13 +190,13 @@ func TestRuntimeOpenRejectsCorruptAndOverCapacityAuditWithoutMutation(t *testing
 		)); err != nil {
 			t.Fatalf("insert over-capacity seed: %v", err)
 		}
-		opened, err := Open(ctx, backend, auditBootstrapConfig(t, 3))
+		opened, err := OpenExisting(ctx, backend, auditBootstrapConfig(t, 3).runtimeConfig(t))
 		if err == nil || opened != nil {
-			t.Fatalf("Open(over-capacity) = (%v,%v), want nil/error", opened, err)
+			t.Fatalf("OpenExisting(over-capacity) = (%v,%v), want nil/error", opened, err)
 		}
 		var classified *Error
 		if !errors.As(err, &classified) || classified.Code != CodeCardinality {
-			t.Fatalf("Open(over-capacity) error = %#v", err)
+			t.Fatalf("OpenExisting(over-capacity) error = %#v", err)
 		}
 	})
 }
@@ -279,14 +279,10 @@ func (session *auditFaultSession) Delete(ctx context.Context, plan query.DeleteP
 
 func mustAuditRuntime(t *testing.T, ctx context.Context, backend Backend, capacity int) *Runtime {
 	t.Helper()
-	runtime, err := Open(ctx, backend, auditBootstrapConfig(t, capacity))
-	if err != nil {
-		t.Fatalf("systemstate.Open(): %v", err)
-	}
-	return runtime
+	return provisionAndOpenTestRuntime(t, ctx, backend, auditBootstrapConfig(t, capacity))
 }
 
-func auditBootstrapConfig(t *testing.T, capacity int) BootstrapConfig {
+func auditBootstrapConfig(t *testing.T, capacity int) runtimeTestConfiguration {
 	t.Helper()
 	permission, err := auth.NewPermission("admin.site.access")
 	if err != nil {
@@ -299,7 +295,7 @@ func auditBootstrapConfig(t *testing.T, capacity int) BootstrapConfig {
 	if err != nil {
 		t.Fatalf("auth.NewPBKDF2(): %v", err)
 	}
-	return BootstrapConfig{
+	return runtimeTestConfiguration{
 		Username:       "admin",
 		Password:       "restart-secret-password",
 		PrincipalID:    "admin-principal",

@@ -367,6 +367,385 @@ def two_process_backend_restart(contract_id: str) -> dict[str, Any]:
     )
 
 
+def explicit_operator_provisioning(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "current_api": ["OpenExisting", "ProvisionOperator"],
+            "current_only": True,
+            "implicit_bootstrap_open": "removed",
+            "open_existing_raw_secret_input": False,
+            "provision_intent": "explicit",
+        },
+        phase="construction",
+        db_state={
+            "open_existing_writes": 0,
+            "schema_or_migration_bytes_changed": False,
+            "startup_credential_inserts": 0,
+        },
+        metrics={
+            "compatibility_shims": 0,
+            "provision_entrypoints": 1,
+            "raw_secret_inputs_to_open_existing": 0,
+        },
+    )
+
+
+def createsuperuser_argv_and_pre_io(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "accepted_argv": [
+                ["createsuperuser"],
+                ["createsuperuser", "--project", "PATH"],
+            ],
+            "invalid_forms": "rejected_before_io",
+            "rejected_classes": [
+                "identity_or_secret_flag",
+                "noncanonical_permutation",
+                "positional_identity",
+            ],
+        },
+        phase="environment",
+        db_state={
+            "backend_opens_on_rejection": 0,
+            "project_reads_on_rejection": 0,
+            "writes_on_rejection": 0,
+        },
+        metrics={
+            "accepted_forms": 2,
+            "child_starts_on_rejection": 0,
+            "project_builds_on_rejection": 0,
+            "project_discoveries_on_rejection": 0,
+            "secret_bearing_forms_accepted": 0,
+            "terminal_reads_on_rejection": 0,
+        },
+    )
+
+
+def tty_secret_transport(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "confirmation": "required_and_parent_verified",
+            "echo_disabled_for_secret_input": True,
+            "input_mode": "actual_terminal_only",
+            "terminal_restore": ["success", "error", "interrupt"],
+            "transport": {
+                "confirmation_forwarded": False,
+                "encoding": "big_endian_bounded_binary",
+                "magic": "GODJCSU1",
+                "one_shot": True,
+            },
+        },
+        phase="environment",
+        db_state={
+            "argv_secret_occurrences": 0,
+            "environment_secret_occurrences": 0,
+            "filesystem_secret_occurrences": 0,
+        },
+        metrics={
+            "frame_max_bytes": 1292,
+            "pipe_writes": 1,
+            "secret_max_bytes": 1024,
+            "terminal_reads_before_project_build": 0,
+            "terminal_reads_before_project_selection": 0,
+            "username_max_bytes": 256,
+        },
+    )
+
+
+def project_provision_ownership(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "gates": ["exact_system_migration", "system_state_readiness"],
+            "ordering": [
+                "request_validation",
+                "project_selection",
+                "backend_open",
+                "provision",
+                "backend_close",
+                "response_publication",
+            ],
+            "project_owns_backend_and_policy": True,
+        },
+        phase="environment",
+        db_state={
+            "mutation_without_exact_migration": 0,
+            "open_before_validation": 0,
+            "provision_before_readiness": 0,
+        },
+        metrics={
+            "backend_closes": 1,
+            "backend_opens": 1,
+            "provision_calls": 1,
+        },
+    )
+
+
+def operator_provision_cardinality(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "cases": [
+                {"case": "empty", "outcome": "created", "writes": 1},
+                {
+                    "case": "concurrent_empty",
+                    "loser_outcome": "credential_already_exists",
+                    "outcome": "exactly_one_winner",
+                    "writes": 1,
+                },
+                {
+                    "case": "already_one",
+                    "outcome": "credential_already_exists",
+                    "writes": 0,
+                },
+                {
+                    "case": "cardinality_two_or_more",
+                    "outcome": "invalid_cardinality",
+                    "writes": 0,
+                },
+                {
+                    "case": "malformed_or_profile_invalid",
+                    "outcome": "corrupt_state",
+                    "writes": 0,
+                },
+                {
+                    "case": "policy_mismatch",
+                    "outcome": "credential_policy_mismatch",
+                    "writes": 0,
+                },
+            ],
+            "existing_secret_compared": False,
+        },
+        phase="commit",
+        db_state={
+            "credential_rows_after_winner": 1,
+            "existing_rows_deleted": 0,
+            "existing_rows_updated": 0,
+        },
+        metrics={
+            "automatic_retries": 0,
+            "concurrent_winners": 1,
+            "loser_mutations": 0,
+        },
+    )
+
+
+def provision_outcome_ownership(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "cases": [
+                {
+                    "case": "confirmed_rollback",
+                    "creation": "not_committed",
+                    "retry": False,
+                },
+                {
+                    "case": "commit_outcome_unknown",
+                    "creation": "unknown",
+                    "reconciliation": "fresh_open_existing_or_login",
+                    "retry": False,
+                },
+                {
+                    "case": "known_created_backend_close_failure",
+                    "creation": "preserved",
+                    "known_created": True,
+                    "retry": False,
+                },
+                {
+                    "case": "known_created_workspace_cleanup_failure",
+                    "creation": "preserved",
+                    "known_created": True,
+                    "retry": False,
+                },
+                {
+                    "case": "known_created_output_failure",
+                    "creation": "preserved",
+                    "known_created": True,
+                    "retry": False,
+                },
+            ],
+            "synthetic_success": False,
+        },
+        phase="commit",
+        db_state={
+            "commit_unknown_rows": "unknown",
+            "confirmed_rollback_rows": 0,
+            "known_created_rows": 1,
+        },
+        metrics={
+            "automatic_retries": 0,
+            "creation_attempts": 1,
+            "synthetic_successes": 0,
+        },
+    )
+
+
+def open_existing_authenticator(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "raw_secret_required": False,
+            "startup": "authenticator_ready_from_stored_state",
+            "validation_cases": [
+                {"case": "valid_stored_state", "outcome": "authenticator_ready"},
+                {
+                    "case": "malformed_or_profile_invalid",
+                    "outcome": "corrupt_state",
+                },
+                {
+                    "case": "policy_mismatch",
+                    "outcome": "credential_policy_mismatch",
+                },
+            ],
+            "validated_fields": [
+                "username",
+                "encoded_credential",
+                "hash_profile",
+                "principal",
+                "active",
+                "permissions",
+                "definition_digest",
+            ],
+        },
+        phase="evaluation",
+        db_state={
+            "credential_rows": 1,
+            "open_existing_writes": 0,
+            "stored_encoded_credential_preserved": True,
+        },
+        metrics={
+            "authenticator_constructions": 1,
+            "credential_mismatch_code_occurrences": 0,
+            "raw_secret_reads": 0,
+            "startup_writes": 0,
+        },
+    )
+
+
+def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "cases": [
+                {
+                    "case": "exact_migration_and_all_system_state_empty",
+                    "outcome": "credential_absent",
+                    "public_only": True,
+                },
+                {
+                    "case": "missing_or_wrong_migration",
+                    "outcome": "schema_unavailable",
+                    "public_only": False,
+                },
+                {
+                    "case": "unavailable_table",
+                    "outcome": "startup_failure",
+                    "public_only": False,
+                },
+                {
+                    "case": "dependent_rows_without_credential",
+                    "outcome": "startup_failure",
+                    "public_only": False,
+                },
+                {
+                    "case": "corrupt_state",
+                    "outcome": "corrupt_state",
+                    "public_only": False,
+                },
+                {
+                    "case": "policy_mismatch",
+                    "outcome": "credential_policy_mismatch",
+                    "public_only": False,
+                },
+            ],
+            "failure_downgrade": False,
+        },
+        phase="environment",
+        db_state={
+            "downgraded_failure_cases": 0,
+            "public_only_mutations": 0,
+            "required_empty_stores": ["credential", "session", "audit"],
+        },
+        metrics={
+            "credential_absent_branches": 1,
+            "failure_downgrades": 0,
+            "startup_writes": 0,
+        },
+    )
+
+
+def operator_backend_login_restart(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "backend_cases": [
+                {
+                    "admin_authenticated": True,
+                    "api_authenticated": True,
+                    "backend": "postgresql_17_10",
+                    "distinct_process_restart": True,
+                    "provisioned": True,
+                    "provision_process_distinct_from_runtime": True,
+                },
+                {
+                    "admin_authenticated": True,
+                    "api_authenticated": True,
+                    "backend": "sqlite",
+                    "distinct_process_restart": True,
+                    "provisioned": True,
+                    "provision_process_distinct_from_runtime": True,
+                },
+            ],
+            "django_login_semantics_reused": True,
+            "restart_raw_secret_input": False,
+        },
+        phase="environment",
+        db_state={
+            "credential_rows_per_backend": 1,
+            "restart_state_loss": 0,
+            "schema_drift": False,
+        },
+        metrics={
+            "distinct_processes_per_backend": 3,
+            "provision_calls_per_backend": 1,
+            "provision_processes_per_backend": 1,
+            "raw_secret_occurrences": 0,
+            "required_backend_cases": 2,
+            "runtime_processes_per_backend": 2,
+            "skipped_required_cases": 0,
+        },
+    )
+
+
+def sensitive_child_cleanup(contract_id: str) -> dict[str, Any]:
+    return _observed(
+        contract_id,
+        {
+            "bounded_response": True,
+            "cancellation": "process_group_interrupt_then_kill",
+            "direct_child_reaped": True,
+            "held_pipe_descendant_cleaned": True,
+            "public_diagnostics_redacted": True,
+        },
+        phase="environment",
+        db_state={
+            "child_processes_after_cleanup": 0,
+            "partial_private_response_published": False,
+            "secret_artifacts": 0,
+        },
+        metrics={
+            "direct_child_reaps": 1,
+            "private_response_max_bytes": 4096,
+            "raw_child_stderr_publications": 0,
+            "secret_occurrences": 0,
+        },
+    )
+
+
 SCENARIOS = {
     "godj.system_state.explicit_migration_gate": explicit_migration_gate,
     "godj.system_state.admin_bootstrap_gate": admin_bootstrap_gate,
@@ -382,4 +761,14 @@ SCENARIOS = {
     "godj.system_state.concurrent_article_audit": concurrent_article_audit,
     "godj.system_state.shared_csrf_key_ring": shared_csrf_key_ring,
     "godj.system_state.two_process_backend_restart": two_process_backend_restart,
+    "godj.system_state.explicit_operator_provisioning": explicit_operator_provisioning,
+    "godj.system_state.createsuperuser_argv_and_pre_io": createsuperuser_argv_and_pre_io,
+    "godj.system_state.tty_secret_transport": tty_secret_transport,
+    "godj.system_state.project_provision_ownership": project_provision_ownership,
+    "godj.system_state.operator_provision_cardinality": operator_provision_cardinality,
+    "godj.system_state.provision_outcome_ownership": provision_outcome_ownership,
+    "godj.system_state.open_existing_authenticator": open_existing_authenticator,
+    "godj.system_state.credential_absent_public_only": credential_absent_public_only,
+    "godj.system_state.operator_backend_login_restart": operator_backend_login_restart,
+    "godj.system_state.sensitive_child_cleanup": sensitive_child_cleanup,
 }

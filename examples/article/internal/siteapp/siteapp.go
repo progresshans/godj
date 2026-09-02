@@ -1,14 +1,13 @@
-// Package siteapp composes the Article development server's opt-in Admin and
-// JSON API surface. Credentials, sessions, and Admin audit history live in the
-// explicitly migrated system schema. CSRF signing remains process-local unless
-// startup explicitly injects one deployment-shared key ring.
+// Package siteapp composes the Article development server's public surface and
+// its explicitly provisioned Admin/JSON API surface. Credentials, sessions,
+// and Admin audit history live in the explicitly migrated system schema. CSRF
+// signing remains process-local unless startup injects a shared key ring.
 package siteapp
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/progresshans/godj/admin"
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
@@ -16,7 +15,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/adminapp"
 	"github.com/progresshans/godj/examples/article/apiapp"
-	"github.com/progresshans/godj/examples/article/articleapp"
+	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
@@ -26,37 +25,30 @@ import (
 )
 
 const (
-	adminBasePath       = "/admin"
-	developmentAdminID  = "article-development-admin"
-	maximumSessions     = 256
-	maximumAuditEntries = 1024
+	adminBasePath = "/admin"
 )
 
 const configDiagnostic = "siteapp.Config{redacted}"
 
-// Config is an opaque immutable startup value. Secret-bearing backend,
-// password, and CSRF key state remains behind an unexported pointer so generic
-// formatting cannot recursively inspect it.
+// Config is an opaque immutable startup value. The backend and CSRF key state
+// remain behind an unexported pointer so generic formatting cannot recursively
+// inspect them. Config never contains an operator username or raw password.
 type Config struct {
 	state *configState
 }
 
 type configState struct {
-	backend     systemstate.Backend
-	username    string
-	password    string
-	csrfKeyRing websessionauth.CSRFKeyRing
+	backend                     systemstate.Backend
+	csrfKeyRing                 websessionauth.CSRFKeyRing
+	allowLoopbackAuthentication bool
 }
 
-// NewConfig copies the required startup input into opaque immutable state.
-// Without WithCSRFKeyRing, web/sessionauth retains its process-local key
-// behavior.
-func NewConfig(backend systemstate.Backend, username, password string) Config {
-	return Config{state: &configState{
-		backend:  backend,
-		username: username,
-		password: password,
-	}}
+// NewConfig copies the raw-password-free startup input into opaque immutable
+// state. Without WithCSRFKeyRing, web/sessionauth retains its process-local key
+// behavior. Authenticated publication remains disabled until the caller has
+// proven that its listener is loopback-only.
+func NewConfig(backend systemstate.Backend) Config {
+	return Config{state: &configState{backend: backend}}
 }
 
 // WithCSRFKeyRing returns an immutable copy configured with an already-loaded
@@ -67,6 +59,19 @@ func (config Config) WithCSRFKeyRing(csrfKeyRing websessionauth.CSRFKeyRing) Con
 		configured = *config.state
 	}
 	configured.csrfKeyRing = csrfKeyRing
+	return Config{state: &configured}
+}
+
+// WithLoopbackAuthentication returns an immutable copy whose caller has
+// established that authenticated Admin/API routes will be published only on a
+// loopback listener. A migrated clean credential-absent state remains
+// public-only regardless of this flag.
+func (config Config) WithLoopbackAuthentication() Config {
+	var configured configState
+	if config.state != nil {
+		configured = *config.state
+	}
+	configured.allowLoopbackAuthentication = true
 	return Config{state: &configured}
 }
 
@@ -85,8 +90,10 @@ func (Config) MarshalJSON() ([]byte, error) {
 	return []byte(`"siteapp.Config{redacted}"`), nil
 }
 
-// New builds one public Web + Admin + JSON API application. AllowInsecure is
-// explicit because cmd/site permits this mode only on a loopback listener.
+// New first verifies the exact migrated system state without a raw password.
+// A clean credential-absent state produces the public Article application;
+// an existing credential produces the composed public + Admin + JSON API
+// application only when the caller asserted loopback publication.
 func New(ctx context.Context, config Config) (*web.Application, error) {
 	if ctx == nil {
 		return nil, errors.New("article site application: context is nil")
@@ -98,13 +105,24 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if config.state != nil {
 		configured = *config.state
 	}
-	if strings.TrimSpace(configured.username) == "" {
-		return nil, errors.New("article site application: configured username is empty")
+	runtimeConfig, err := operatorconfig.RuntimeConfig()
+	if err != nil {
+		return nil, fmt.Errorf("article site application: operator policy: %w", err)
 	}
-	if strings.TrimSpace(configured.password) == "" {
-		return nil, errors.New("article site application: configured password is empty")
+	runtime, err := systemstate.OpenExisting(ctx, configured.backend, runtimeConfig)
+	if err != nil {
+		if exactCredentialAbsent(err) {
+			application, publicErr := webapp.NewApplication(configured.backend)
+			if publicErr != nil {
+				return nil, fmt.Errorf("article site application: public-only composition: %w", publicErr)
+			}
+			return application, nil
+		}
+		return nil, fmt.Errorf("article site application: system state: %w", err)
 	}
-
+	if !configured.allowLoopbackAuthentication {
+		return nil, errors.New("article site application: authenticated Admin/API mode requires a loopback listener")
+	}
 	projectSettings, err := settings.New(settings.Definition{
 		ProjectName: "article_example",
 		InstalledApps: []apps.Config{{
@@ -114,29 +132,6 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: settings: %w", err)
-	}
-	hasher, err := auth.NewDefaultPBKDF2()
-	if err != nil {
-		return nil, fmt.Errorf("article site application: password profile: %w", err)
-	}
-	runtime, err := systemstate.Open(ctx, configured.backend, systemstate.BootstrapConfig{
-		Username:    configured.username,
-		Password:    configured.password,
-		PrincipalID: developmentAdminID,
-		Active:      true,
-		Permissions: []auth.Permission{
-			admin.DefaultAccessPermission,
-			articleapp.ArticleViewPermission,
-			articleapp.ArticleAddPermission,
-			articleapp.ArticleChangePermission,
-			articleapp.ArticleDeletePermission,
-		},
-		PasswordHasher: hasher,
-		MaxSessions:    maximumSessions,
-		AuditCapacity:  maximumAuditEntries,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("article site application: system state: %w", err)
 	}
 	adminService, err := adminapp.NewDurableService(runtime, runtime)
 	if err != nil {
@@ -203,4 +198,10 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		return nil, fmt.Errorf("article site application: compose Web application: %w", err)
 	}
 	return application, nil
+}
+
+func exactCredentialAbsent(err error) bool {
+	var stateError *systemstate.Error
+	return errors.As(err, &stateError) && stateError != nil &&
+		stateError.Code == systemstate.CodeCredentialAbsent && stateError.Field == "credential"
 }

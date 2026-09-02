@@ -706,15 +706,21 @@ func nonContiguousAuditProbe(ctx context.Context, request Request) (bool, error)
 	if err != nil {
 		return false, fail(errorApplication)
 	}
-	runtime, err := systemstate.Open(ctx, backend, systemstate.BootstrapConfig{
-		Username:       request.Username,
-		Password:       request.Password,
-		PrincipalID:    workerPrincipalID,
-		Active:         true,
-		Permissions:    []auth.Permission{articleapp.ArticleViewPermission},
-		PasswordHasher: hasher,
-		MaxSessions:    8,
-		AuditCapacity:  16,
+	policy, err := workerCredentialPolicy(hasher, []auth.Permission{articleapp.ArticleViewPermission})
+	if err != nil {
+		return false, fail(errorApplication)
+	}
+	if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
+		Username:         request.Username,
+		Password:         request.Password,
+		CredentialPolicy: policy,
+	}); err != nil {
+		return false, fail(errorApplication)
+	}
+	runtime, err := systemstate.OpenExisting(ctx, backend, systemstate.RuntimeConfig{
+		CredentialPolicy: policy,
+		MaxSessions:      8,
+		AuditCapacity:    16,
 	})
 	if err != nil {
 		return false, fail(errorApplication)

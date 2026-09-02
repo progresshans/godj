@@ -36,14 +36,18 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 
 	holderBackend := &articleMultiRuntimeBackend{Backend: holderRaw, holder: true}
 	contenderBackend := &articleMultiRuntimeBackend{Backend: contenderRaw}
-	config := articleMultiRuntimeConfig(t, 3)
-	holderRuntime, err := systemstate.Open(ctx, holderBackend, config)
-	if err != nil {
-		t.Fatalf("Open(holder Runtime): %v", err)
+	provisionConfig, runtimeConfig := articleMultiRuntimeConfig(t, 3)
+	principalID := runtimeConfig.CredentialPolicy.Principal.ID()
+	if err := systemstate.ProvisionOperator(ctx, holderBackend, provisionConfig); err != nil {
+		t.Fatalf("ProvisionOperator(holder Runtime): %v", err)
 	}
-	contenderRuntime, err := systemstate.Open(ctx, contenderBackend, config)
+	holderRuntime, err := systemstate.OpenExisting(ctx, holderBackend, runtimeConfig)
 	if err != nil {
-		t.Fatalf("Open(contender Runtime): %v", err)
+		t.Fatalf("OpenExisting(holder Runtime): %v", err)
+	}
+	contenderRuntime, err := systemstate.OpenExisting(ctx, contenderBackend, runtimeConfig)
+	if err != nil {
+		t.Fatalf("OpenExisting(contender Runtime): %v", err)
 	}
 	holderService, err := adminapp.NewDurableService(holderRuntime, holderRuntime)
 	if err != nil {
@@ -54,11 +58,11 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 		t.Fatalf("NewDurableService(contender): %v", err)
 	}
 
-	first, err := holderService.Create(ctx, config.PrincipalID, adminapp.Input{Title: "Seed one"})
+	first, err := holderService.Create(ctx, principalID, adminapp.Input{Title: "Seed one"})
 	if err != nil {
 		t.Fatalf("Create(first seed): %v", err)
 	}
-	second, err := holderService.Create(ctx, config.PrincipalID, adminapp.Input{Title: "Seed two"})
+	second, err := holderService.Create(ctx, principalID, adminapp.Input{Title: "Seed two"})
 	if err != nil {
 		t.Fatalf("Create(second seed): %v", err)
 	}
@@ -71,12 +75,12 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	holderResult := make(chan articleCreateResult, 1)
 	contenderResult := make(chan articleCreateResult, 1)
 	go func() {
-		article, err := holderService.Create(ctx, config.PrincipalID, adminapp.Input{Title: "Holder"})
+		article, err := holderService.Create(ctx, principalID, adminapp.Input{Title: "Holder"})
 		holderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.holderEntered, "holder coordinated callback")
 	go func() {
-		article, err := contenderService.Create(ctx, config.PrincipalID, adminapp.Input{Title: "Contender"})
+		article, err := contenderService.Create(ctx, principalID, adminapp.Input{Title: "Contender"})
 		contenderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.contenderAttempted, "contender coordinated attempt")
@@ -124,7 +128,7 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	if err != nil {
 		t.Fatalf("NewDurableService(failing audit): %v", err)
 	}
-	if _, err := failingService.Create(ctx, config.PrincipalID, adminapp.Input{Title: "Rolled back"}); !errors.Is(err, rollbackFailure) {
+	if _, err := failingService.Create(ctx, principalID, adminapp.Input{Title: "Rolled back"}); !errors.Is(err, rollbackFailure) {
 		t.Fatalf("Create(audit callback failure) error = %v, want injected failure", err)
 	}
 	if failingAudit.calls != 1 {
@@ -384,7 +388,7 @@ func articleMultiRuntimeRepositoryRoot(t *testing.T) string {
 	}
 }
 
-func articleMultiRuntimeConfig(t *testing.T, auditCapacity int) systemstate.BootstrapConfig {
+func articleMultiRuntimeConfig(t *testing.T, auditCapacity int) (systemstate.ProvisionOperatorConfig, systemstate.RuntimeConfig) {
 	t.Helper()
 	permission, err := auth.NewPermission("article.manage")
 	if err != nil {
@@ -397,15 +401,23 @@ func articleMultiRuntimeConfig(t *testing.T, auditCapacity int) systemstate.Boot
 	if err != nil {
 		t.Fatal(err)
 	}
-	return systemstate.BootstrapConfig{
-		Username:       "article-multi-runtime-admin",
-		Password:       "article-multi-runtime-password-marker",
-		PrincipalID:    "article-multi-runtime-principal",
-		Active:         true,
-		Permissions:    []auth.Permission{permission},
-		PasswordHasher: hasher,
-		SessionLimits:  sessions.DefaultLimits(),
-		MaxSessions:    8,
-		AuditCapacity:  auditCapacity,
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:          "article-multi-runtime-principal",
+		Active:      true,
+		Permissions: []auth.Permission{permission},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
+	policy := systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}
+	return systemstate.ProvisionOperatorConfig{
+			Username:         "article-multi-runtime-admin",
+			Password:         "article-multi-runtime-password-marker",
+			CredentialPolicy: policy,
+		}, systemstate.RuntimeConfig{
+			CredentialPolicy: policy,
+			SessionLimits:    sessions.DefaultLimits(),
+			MaxSessions:      8,
+			AuditCapacity:    auditCapacity,
+		}
 }

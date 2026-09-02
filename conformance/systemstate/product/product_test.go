@@ -122,13 +122,20 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	assertProductState(t, firstState)
 	assertProductHistory(t, ctx, first)
 
-	firstConfig := productBootstrapConfig(t)
-	firstRuntime, err := systemstate.Open(ctx, first, firstConfig)
-	if err != nil {
-		t.Fatalf("bootstrap first system-state Runtime: %v", err)
+	firstConfig := productFixtureConfig(t)
+	if err := systemstate.ProvisionOperator(ctx, first, firstConfig.provisionConfig()); err != nil {
+		t.Fatalf("provision first system-state operator: %v", err)
 	}
 	if got := first.atomicCalls.Load(); got != 1 {
-		t.Fatalf("first Runtime bootstrap atomic calls = %d, want 1", got)
+		t.Fatalf("first operator provisioning atomic calls = %d, want 1", got)
+	}
+	first.atomicCalls.Store(0)
+	firstRuntime, err := systemstate.OpenExisting(ctx, first, firstConfig.runtimeConfig())
+	if err != nil {
+		t.Fatalf("open first provisioned system-state Runtime: %v", err)
+	}
+	if got := first.atomicCalls.Load(); got != 1 {
+		t.Fatalf("first Runtime open-existing atomic calls = %d, want 1", got)
 	}
 	principal, err := firstRuntime.Authenticator().Authenticate(ctx, firstConfig.Username, firstConfig.Password)
 	if err != nil || principal.ID() != firstConfig.PrincipalID || !principal.Authenticated() {
@@ -186,8 +193,8 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	assertProductState(t, secondState)
 	assertProductHistory(t, ctx, second)
 
-	secondConfig := productBootstrapConfig(t)
-	secondRuntime, err := systemstate.Open(ctx, second, secondConfig)
+	secondConfig := productFixtureConfig(t)
+	secondRuntime, err := systemstate.OpenExisting(ctx, second, secondConfig.runtimeConfig())
 	if err != nil {
 		t.Fatalf("reopen system-state Runtime: %v", err)
 	}
@@ -309,7 +316,37 @@ func productRepositoryRoot(t *testing.T) string {
 	}
 }
 
-func productBootstrapConfig(t *testing.T) systemstate.BootstrapConfig {
+type productSystemStateConfig struct {
+	Username      string
+	Password      string `json:"-"`
+	PrincipalID   string
+	Policy        systemstate.CredentialPolicy
+	SessionLimits sessions.Limits
+	MaxSessions   int
+	AuditCapacity int
+}
+
+func (productSystemStateConfig) String() string   { return "productSystemStateConfig{redacted}" }
+func (productSystemStateConfig) GoString() string { return "productSystemStateConfig{redacted}" }
+
+func (config productSystemStateConfig) provisionConfig() systemstate.ProvisionOperatorConfig {
+	return systemstate.ProvisionOperatorConfig{
+		Username:         config.Username,
+		Password:         config.Password,
+		CredentialPolicy: config.Policy,
+	}
+}
+
+func (config productSystemStateConfig) runtimeConfig() systemstate.RuntimeConfig {
+	return systemstate.RuntimeConfig{
+		CredentialPolicy: config.Policy,
+		SessionLimits:    config.SessionLimits,
+		MaxSessions:      config.MaxSessions,
+		AuditCapacity:    config.AuditCapacity,
+	}
+}
+
+func productFixtureConfig(t *testing.T) productSystemStateConfig {
 	t.Helper()
 	permission, err := auth.NewPermission("article.manage")
 	if err != nil {
@@ -322,16 +359,25 @@ func productBootstrapConfig(t *testing.T) systemstate.BootstrapConfig {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return systemstate.BootstrapConfig{
-		Username:       "system-product-admin",
-		Password:       "system-product-password-marker",
-		PrincipalID:    "system-product-principal",
-		Active:         true,
-		Permissions:    []auth.Permission{permission},
-		PasswordHasher: hasher,
-		SessionLimits:  sessions.DefaultLimits(),
-		MaxSessions:    8,
-		AuditCapacity:  16,
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:          "system-product-principal",
+		Active:      true,
+		Permissions: []auth.Permission{permission},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return productSystemStateConfig{
+		Username:    "system-product-admin",
+		Password:    "system-product-password-marker",
+		PrincipalID: "system-product-principal",
+		Policy: systemstate.CredentialPolicy{
+			Principal:      principal,
+			PasswordHasher: hasher,
+		},
+		SessionLimits: sessions.DefaultLimits(),
+		MaxSessions:   8,
+		AuditCapacity: 16,
 	}
 }
 

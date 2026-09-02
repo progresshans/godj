@@ -127,13 +127,96 @@ type systemStateFixture struct {
 	raw       *sqlite.Backend
 	observed  *systemStateObservedBackend
 	runtime   *systemstate.Runtime
-	config    systemstate.BootstrapConfig
+	config    systemStateConfig
+}
+
+// systemStateConfig preserves the stable test-fixture inputs used by
+// SYS-001..020 while adapting them to the current-only split between explicit
+// operator provisioning and raw-password-free runtime opening. It is not a
+// product compatibility shim: no public GoDj API accepts this shape.
+type systemStateConfig struct {
+	Username       string
+	Password       string `json:"-"`
+	PrincipalID    string
+	Active         bool
+	Permissions    []auth.Permission
+	PasswordHasher auth.PasswordHasher `json:"-"`
+	SessionLimits  sessions.Limits
+	MaxSessions    int
+	AuditCapacity  int
+}
+
+func (systemStateConfig) String() string   { return "godj.systemStateConfig{redacted}" }
+func (systemStateConfig) GoString() string { return "godj.systemStateConfig{redacted}" }
+
+func (config systemStateConfig) credentialPolicy() (systemstate.CredentialPolicy, error) {
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
+		ID:          config.PrincipalID,
+		Active:      config.Active,
+		Permissions: append([]auth.Permission(nil), config.Permissions...),
+	})
+	if err != nil {
+		return systemstate.CredentialPolicy{}, err
+	}
+	return systemstate.CredentialPolicy{
+		Principal:      principal,
+		PasswordHasher: config.PasswordHasher,
+	}, nil
+}
+
+func (config systemStateConfig) provisionConfig() (systemstate.ProvisionOperatorConfig, error) {
+	policy, err := config.credentialPolicy()
+	if err != nil {
+		return systemstate.ProvisionOperatorConfig{}, err
+	}
+	return systemstate.ProvisionOperatorConfig{
+		Username:         config.Username,
+		Password:         config.Password,
+		CredentialPolicy: policy,
+	}, nil
+}
+
+func (config systemStateConfig) runtimeConfig() (systemstate.RuntimeConfig, error) {
+	policy, err := config.credentialPolicy()
+	if err != nil {
+		return systemstate.RuntimeConfig{}, err
+	}
+	return systemstate.RuntimeConfig{
+		CredentialPolicy: policy,
+		SessionLimits:    config.SessionLimits,
+		MaxSessions:      config.MaxSessions,
+		AuditCapacity:    config.AuditCapacity,
+	}, nil
+}
+
+func systemStateProvisionOperator(
+	ctx context.Context,
+	backend systemstate.Backend,
+	config systemStateConfig,
+) error {
+	provision, err := config.provisionConfig()
+	if err != nil {
+		return err
+	}
+	return systemstate.ProvisionOperator(ctx, backend, provision)
+}
+
+func systemStateOpenExisting(
+	ctx context.Context,
+	backend systemstate.Backend,
+	config systemStateConfig,
+) (*systemstate.Runtime, error) {
+	runtimeConfig, err := config.runtimeConfig()
+	if err != nil {
+		return nil, err
+	}
+	return systemstate.OpenExisting(ctx, backend, runtimeConfig)
 }
 
 func newSystemStateFixture(
 	ctx context.Context,
 	withArticle bool,
-	configure func(*systemstate.BootstrapConfig),
+	configure func(*systemStateConfig),
 ) (*systemStateFixture, error) {
 	directory, err := os.MkdirTemp("", "godj-system-state-actual-")
 	if err != nil {
@@ -142,7 +225,7 @@ func newSystemStateFixture(
 	fixture := &systemStateFixture{
 		directory: directory,
 		dsn:       "file:" + filepath.ToSlash(filepath.Join(directory, "system-state.sqlite3")) + "?mode=rwc",
-		config:    systemStateBootstrapConfig(0x41),
+		config:    systemStateFixtureConfig(0x41),
 	}
 	if configure != nil {
 		configure(&fixture.config)
@@ -156,7 +239,12 @@ func newSystemStateFixture(
 		fixture.remove()
 		return nil, err
 	}
-	fixture.runtime, err = systemstate.Open(ctx, fixture.observed, fixture.config)
+	if err := systemStateProvisionOperator(ctx, fixture.observed, fixture.config); err != nil {
+		fixture.close()
+		fixture.remove()
+		return nil, fmt.Errorf("provision explicitly migrated system-state operator: %w", err)
+	}
+	fixture.runtime, err = systemStateOpenExisting(ctx, fixture.observed, fixture.config)
 	if err != nil {
 		fixture.close()
 		fixture.remove()
@@ -182,7 +270,7 @@ func (fixture *systemStateFixture) reopen(ctx context.Context, entropy byte) err
 func (fixture *systemStateFixture) reopenConfigured(
 	ctx context.Context,
 	entropy byte,
-	configure func(*systemstate.BootstrapConfig),
+	configure func(*systemStateConfig),
 ) error {
 	if err := fixture.close(); err != nil {
 		return err
@@ -190,11 +278,11 @@ func (fixture *systemStateFixture) reopenConfigured(
 	if err := fixture.open(ctx); err != nil {
 		return err
 	}
-	fixture.config = systemStateBootstrapConfig(entropy)
+	fixture.config = systemStateFixtureConfig(entropy)
 	if configure != nil {
 		configure(&fixture.config)
 	}
-	runtime, err := systemstate.Open(ctx, fixture.observed, fixture.config)
+	runtime, err := systemStateOpenExisting(ctx, fixture.observed, fixture.config)
 	if err != nil {
 		return fmt.Errorf("reopen system-state Runtime: %w", err)
 	}
@@ -224,13 +312,13 @@ func (fixture *systemStateFixture) cleanup() {
 	fixture.remove()
 }
 
-func systemStateBootstrapConfig(entropy byte) systemstate.BootstrapConfig {
+func systemStateFixtureConfig(entropy byte) systemStateConfig {
 	permission, _ := auth.NewPermission("article.manage")
 	hasher, _ := auth.NewPBKDF2(auth.PBKDF2Config{
 		Iterations: 10_000,
 		Random:     bytes.NewReader(bytes.Repeat([]byte{entropy}, 64)),
 	})
-	return systemstate.BootstrapConfig{
+	return systemStateConfig{
 		Username:       "system-state-admin",
 		Password:       "system-state-product-credential",
 		PrincipalID:    "system-state-principal",
@@ -527,7 +615,7 @@ func systemStateExplicitMigrationGate(
 		return protocol.Observation{}, err
 	}
 	observedMissing := &systemStateObservedBackend{Backend: missing}
-	runtime, startupErr := systemstate.Open(ctx, observedMissing, systemStateBootstrapConfig(0x42))
+	runtime, startupErr := systemStateOpenExisting(ctx, observedMissing, systemStateFixtureConfig(0x42))
 	missingTables, countErr := systemStateTableCount(ctx, missing)
 	if closeErr := missing.Close(); closeErr != nil {
 		return protocol.Observation{}, closeErr
@@ -552,7 +640,11 @@ func systemStateExplicitMigrationGate(
 	if _, err := systemStateMigrate(ctx, observedMigrated, false); err != nil {
 		return protocol.Observation{}, err
 	}
-	ready, err := systemstate.Open(ctx, observedMigrated, systemStateBootstrapConfig(0x42))
+	config := systemStateFixtureConfig(0x42)
+	if err := systemStateProvisionOperator(ctx, observedMigrated, config); err != nil {
+		return protocol.Observation{}, fmt.Errorf("provision after explicit migration: %w", err)
+	}
+	ready, err := systemStateOpenExisting(ctx, observedMigrated, config)
 	if err != nil || ready == nil {
 		return protocol.Observation{}, fmt.Errorf("open after explicit migration: %w", err)
 	}
@@ -612,10 +704,13 @@ func systemStateAdminBootstrapGate(
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	mismatched := systemStateBootstrapConfig(0x41)
-	mismatched.Username = "other-system-state-admin"
-	mismatchRuntime, mismatchErr := systemstate.Open(ctx, baseline.observed, mismatched)
-	if mismatchRuntime != nil || !errors.Is(mismatchErr, &systemstate.Error{Code: systemstate.CodeCredentialMismatch}) {
+	mismatched := systemStateFixtureConfig(0x41)
+	// The current-only runtime no longer receives raw username/password input.
+	// Exercise the same fail-closed stored-credential mismatch observation via
+	// the immutable project-owned principal policy instead.
+	mismatched.PrincipalID = "other-system-state-principal"
+	mismatchRuntime, mismatchErr := systemStateOpenExisting(ctx, baseline.observed, mismatched)
+	if mismatchRuntime != nil || !errors.Is(mismatchErr, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch}) {
 		return protocol.Observation{}, fmt.Errorf("credential mismatch did not fail closed: %v", mismatchErr)
 	}
 
@@ -627,7 +722,7 @@ func systemStateAdminBootstrapGate(
 	if _, err := corrupt.raw.ExecContext(ctx, `UPDATE "godj_system_credential" SET "permissions" = 'v9.invalid' WHERE "id" = 1`); err != nil {
 		return protocol.Observation{}, err
 	}
-	corruptRuntime, corruptErr := systemstate.Open(ctx, corrupt.observed, corrupt.config)
+	corruptRuntime, corruptErr := systemStateOpenExisting(ctx, corrupt.observed, corrupt.config)
 	if corruptRuntime != nil || !errors.Is(corruptErr, &systemstate.Error{Code: systemstate.CodeCorruptState}) {
 		return protocol.Observation{}, fmt.Errorf("corrupt credential did not fail closed: %v", corruptErr)
 	}
@@ -645,7 +740,7 @@ func systemStateAdminBootstrapGate(
 		return protocol.Observation{}, err
 	}
 	duplicate.observed.resetDML()
-	duplicateRuntime, duplicateErr := systemstate.Open(ctx, duplicate.observed, duplicate.config)
+	duplicateRuntime, duplicateErr := systemStateOpenExisting(ctx, duplicate.observed, duplicate.config)
 	if duplicateRuntime != nil || !errors.Is(duplicateErr, &systemstate.Error{Code: systemstate.CodeCardinality}) {
 		return protocol.Observation{}, fmt.Errorf("duplicate credential did not fail closed: %v", duplicateErr)
 	}
@@ -851,7 +946,7 @@ func systemStateCapacityReapAndRotateRollback(
 	ctx context.Context,
 	contract protocol.Contract,
 ) (protocol.Observation, error) {
-	capacity, err := newSystemStateFixture(ctx, false, func(config *systemstate.BootstrapConfig) {
+	capacity, err := newSystemStateFixture(ctx, false, func(config *systemStateConfig) {
 		config.MaxSessions = 2
 	})
 	if err != nil {
@@ -902,7 +997,7 @@ func systemStateCapacityReapAndRotateRollback(
 		return protocol.Observation{}, fmt.Errorf("active capacity error=%v, want store_full", capacityErr)
 	}
 
-	rotation, err := newSystemStateFixture(ctx, false, func(config *systemstate.BootstrapConfig) {
+	rotation, err := newSystemStateFixture(ctx, false, func(config *systemStateConfig) {
 		config.MaxSessions = 2
 	})
 	if err != nil {
@@ -1359,7 +1454,7 @@ func (process *systemStateWebProcess) do(
 	return response.StatusCode, string(body), errors.Join(readErr, closeErr)
 }
 
-func (process *systemStateWebProcess) login(ctx context.Context, config systemstate.BootstrapConfig) (int, error) {
+func (process *systemStateWebProcess) login(ctx context.Context, config systemStateConfig) (int, error) {
 	status, token, err := process.do(ctx, http.MethodGet, systemStateLoginPath, nil)
 	if err != nil || status != http.StatusOK {
 		return status, fmt.Errorf("issue login CSRF: status=%d: %w", status, err)
@@ -1422,7 +1517,7 @@ type systemStateAdminProcess struct {
 	client *http.Client
 }
 
-func systemStateConfigureArticleAdmin(config *systemstate.BootstrapConfig) {
+func systemStateConfigureArticleAdmin(config *systemStateConfig) {
 	config.Permissions = []auth.Permission{
 		admin.DefaultAccessPermission,
 		adminapp.ArticleViewPermission,
@@ -1542,7 +1637,7 @@ func (process *systemStateAdminProcess) request(
 
 func (process *systemStateAdminProcess) login(
 	ctx context.Context,
-	config systemstate.BootstrapConfig,
+	config systemStateConfig,
 ) (int, error) {
 	status, _, body, err := process.request(ctx, http.MethodGet, "/admin/login/?next=/admin/articles/", nil)
 	if err != nil || status != http.StatusOK {
@@ -2272,7 +2367,7 @@ func systemStateCommitOutcomeUnknown(
 	unknownBackend := &systemStateCommitUnknownBackend{
 		systemStateObservedBackend: fixture.observed,
 	}
-	unknownRuntime, err := systemstate.Open(ctx, unknownBackend, fixture.config)
+	unknownRuntime, err := systemStateOpenExisting(ctx, unknownBackend, fixture.config)
 	if err != nil {
 		return protocol.Observation{}, err
 	}

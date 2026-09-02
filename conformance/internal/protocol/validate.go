@@ -45,7 +45,7 @@ func extendedQueryExpressionScenarioRegistry() [20]string {
 	}
 }
 
-func extendedSystemStateScenarioRegistry() [20]string {
+func extendedSystemStateScenarioRegistry() [30]string {
 	return [...]string{
 		"godj.system_state.explicit_migration_gate",
 		"godj.system_state.admin_bootstrap_gate",
@@ -67,6 +67,16 @@ func extendedSystemStateScenarioRegistry() [20]string {
 		"godj.system_state.concurrent_article_audit",
 		"godj.system_state.shared_csrf_key_ring",
 		"godj.system_state.two_process_backend_restart",
+		"godj.system_state.explicit_operator_provisioning",
+		"godj.system_state.createsuperuser_argv_and_pre_io",
+		"godj.system_state.tty_secret_transport",
+		"godj.system_state.project_provision_ownership",
+		"godj.system_state.operator_provision_cardinality",
+		"godj.system_state.provision_outcome_ownership",
+		"godj.system_state.open_existing_authenticator",
+		"godj.system_state.credential_absent_public_only",
+		"godj.system_state.operator_backend_login_restart",
+		"godj.system_state.sensitive_child_cleanup",
 	}
 }
 
@@ -163,7 +173,7 @@ func (m Manifest) Validate() error {
 	}
 	contractCount := len(m.Contracts)
 	if contractCount < 8 || (contractCount > 12 && !manifestHasExactExtendedQueryExpressionRegistry(m.Contracts) && !manifestHasExactExtendedSystemStateRegistry(m.Contracts)) {
-		return fmt.Errorf("contracts must contain 8 to 12 ordered entries, the exact 20-entry query-expression registry, or the exact 20-entry system-state registry, got %d", contractCount)
+		return fmt.Errorf("contracts must contain 8 to 12 ordered entries, the exact 20-entry query-expression registry, or the exact 30-entry system-state registry, got %d", contractCount)
 	}
 	seen := make(map[string]struct{}, len(m.Contracts))
 	for index := range m.Contracts {

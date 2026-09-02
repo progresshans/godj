@@ -1,6 +1,8 @@
 package godj
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -8,6 +10,119 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 )
+
+func TestSystemStateAcceptedActualMatchesLockedProductBytes(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	profile, err := protocol.LoadProfile(filepath.Join(
+		root,
+		"conformance",
+		"profiles",
+		"django-6.1-sqlite-darwin-arm64.json",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := protocol.LoadManifest(filepath.Join(
+		root,
+		"conformance",
+		"contracts",
+		"system-state-manifest.json",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reference, err := protocol.LoadObservationSuite(filepath.Join(
+		root,
+		"conformance",
+		"oracles",
+		"django-6.1-sqlite-darwin-arm64",
+		"system-state.json",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deviation, err := protocol.LoadDeviationExpectation(filepath.Join(
+		root,
+		"conformance",
+		"fixtures",
+		"godj-system-state-deviation-expected.json",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	effective, expectedProduct, err := protocol.PrepareDeviationExpectation(
+		profile,
+		manifest,
+		reference,
+		deviation,
+		protocol.DeviationPolicy{
+			Decision: "DEV-0008",
+			Contracts: []protocol.DeviationContractPolicy{{
+				ID: "SYS-009",
+				Changes: []protocol.DeviationChangePolicy{
+					{Dimension: protocol.DeviationResult, Path: "pre_restart.accepted", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationResult, Path: "pre_restart.status", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationDBState, Path: "pre_restart.article_delta", Operation: protocol.DeviationReplace},
+					{Dimension: protocol.DeviationMetrics, Path: "pre_restart_mutations", Operation: protocol.DeviationReplace},
+				},
+			}},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(effective.Contracts) < 20 || len(expectedProduct.Contracts) < 20 {
+		t.Fatalf("system-state contract counts = manifest %d expected %d, want at least 20", len(effective.Contracts), len(expectedProduct.Contracts))
+	}
+	postgres := systemStateTestTwoProcessFacts("postgresql_17_10")
+	operatorPostgres := gdj0055PassingBackendFacts("postgresql_17_10")
+	operatorSQLite := gdj0055PassingBackendFacts("sqlite")
+	actual, err := GenerateWithInputs(
+		t.Context(),
+		profile,
+		effective,
+		Inputs{
+			SystemStatePostgreSQLTwoProcess: &postgres,
+			ProjectOperatorPostgreSQL:       &operatorPostgres,
+			ProjectOperatorSQLite:           &operatorSQLite,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	required, err := RequiredObservedContractIDs(effective)
+	if err != nil {
+		t.Fatal(err)
+	}
+	differences, err := protocol.CompareProduct(profile, effective, expectedProduct, actual, required)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(differences) != 0 {
+		t.Fatalf("system-state product differences = %#v", differences)
+	}
+	actual.Contracts = append([]protocol.Observation(nil), actual.Contracts[:20]...)
+	preGDJ0055Expected := expectedProduct
+	preGDJ0055Expected.Contracts = append([]protocol.Observation(nil), expectedProduct.Contracts[:20]...)
+	actualBytes, err := protocol.MarshalCanonical(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedBytes, err := protocol.MarshalCanonical(preGDJ0055Expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(actualBytes, expectedBytes) {
+		t.Fatalf(
+			"SYS-001..020 canonical product bytes drifted: actual=%d/%x expected=%d/%x",
+			len(actualBytes),
+			sha256.Sum256(actualBytes),
+			len(expectedBytes),
+			sha256.Sum256(expectedBytes),
+		)
+	}
+	t.Logf("SYS-001..020 canonical product bytes=%d sha256=%x", len(actualBytes), sha256.Sum256(actualBytes))
+}
 
 func TestSystemStateExpectedSessionDigestLocksDomain(t *testing.T) {
 	const want = "4159c5d401af09c2a95c8c36a664299a4eae8676e8c406cdfb44fc5511bc2b4d"
@@ -149,6 +264,16 @@ func TestSystemStateManifestIsGloballyPublishedInOrder(t *testing.T) {
 		"SYS-018",
 		"SYS-019",
 		"SYS-020",
+		"SYS-021",
+		"SYS-022",
+		"SYS-023",
+		"SYS-024",
+		"SYS-025",
+		"SYS-026",
+		"SYS-027",
+		"SYS-028",
+		"SYS-029",
+		"SYS-030",
 	}
 	root := filepath.Join("..", "..", "..")
 	manifest, err := protocol.LoadManifest(filepath.Join(root, "conformance", "contracts", "system-state-manifest.json"))

@@ -219,7 +219,7 @@ type gdj0046RuntimePair struct {
 	backends  *gdj0046BackendPair
 	holder    *systemstate.Runtime
 	contender *systemstate.Runtime
-	config    systemstate.BootstrapConfig
+	config    systemStateConfig
 }
 
 func newGDJ0046RuntimePair(
@@ -232,16 +232,20 @@ func newGDJ0046RuntimePair(
 	if err != nil {
 		return nil, err
 	}
-	config := systemStateBootstrapConfig(0xd1)
+	config := systemStateFixtureConfig(0xd1)
 	config.Password = "gdj0046-multi-runtime-password"
 	config.MaxSessions = maxSessions
 	config.AuditCapacity = auditCapacity
-	holder, err := systemstate.Open(ctx, backends.holder, config)
+	if err := systemStateProvisionOperator(ctx, backends.holder, config); err != nil {
+		backends.cleanup()
+		return nil, fmt.Errorf("provision multi-runtime operator: %w", err)
+	}
+	holder, err := systemStateOpenExisting(ctx, backends.holder, config)
 	if err != nil {
 		backends.cleanup()
 		return nil, fmt.Errorf("open holder system-state Runtime: %w", err)
 	}
-	contender, err := systemstate.Open(ctx, backends.contender, config)
+	contender, err := systemStateOpenExisting(ctx, backends.contender, config)
 	if err != nil {
 		backends.cleanup()
 		return nil, fmt.Errorf("open contender system-state Runtime: %w", err)
@@ -743,27 +747,28 @@ func gdj0046RunConcurrentBootstrap(ctx context.Context, mismatch bool) (gdj0046B
 	}
 	defer pair.cleanup()
 
-	holderConfig := systemStateBootstrapConfig(0xe1)
+	holderConfig := systemStateFixtureConfig(0xe1)
 	holderConfig.Password = "gdj0046-bootstrap-password"
-	contenderConfig := systemStateBootstrapConfig(0xe1)
+	contenderConfig := systemStateFixtureConfig(0xe1)
 	contenderConfig.Password = holderConfig.Password
 	if mismatch {
 		contenderConfig.Password = "gdj0046-bootstrap-mismatch"
+		contenderConfig.PrincipalID = "gdj0046-bootstrap-mismatch-principal"
 	}
 	barrier := pair.arm()
 	holderResult := make(chan gdj0046OpenResult, 1)
 	contenderResult := make(chan gdj0046OpenResult, 1)
 	go func() {
-		runtime, err := systemstate.Open(ctx, pair.holder, holderConfig)
-		holderResult <- gdj0046OpenResult{runtime: runtime, err: err}
+		err := systemStateProvisionOperator(ctx, pair.holder, holderConfig)
+		holderResult <- gdj0046OpenResult{err: err}
 	}()
 	if err := gdj0046WaitSignal(ctx, barrier.holderEntered, "bootstrap holder callback"); err != nil {
 		barrier.release()
 		return gdj0046BootstrapFacts{}, err
 	}
 	go func() {
-		runtime, err := systemstate.Open(ctx, pair.contender, contenderConfig)
-		contenderResult <- gdj0046OpenResult{runtime: runtime, err: err}
+		err := systemStateProvisionOperator(ctx, pair.contender, contenderConfig)
+		contenderResult <- gdj0046OpenResult{err: err}
 	}()
 	if err := gdj0046AssertBlocked(ctx, pair, barrier); err != nil {
 		barrier.release()
@@ -779,22 +784,32 @@ func gdj0046RunConcurrentBootstrap(ctx context.Context, mismatch bool) (gdj0046B
 		return gdj0046BootstrapFacts{}, err
 	}
 	pair.disarm()
-	if holder.err != nil || holder.runtime == nil {
-		return gdj0046BootstrapFacts{}, fmt.Errorf("holder bootstrap = (%v, %v)", holder.runtime, holder.err)
+	if holder.err != nil {
+		return gdj0046BootstrapFacts{}, fmt.Errorf("holder provisioning = %v", holder.err)
 	}
-	contenderMismatch := errors.Is(contender.err, &systemstate.Error{Code: systemstate.CodeCredentialMismatch})
+	contenderMismatch := errors.Is(contender.err, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch})
 	if mismatch {
-		if contender.runtime != nil || !contenderMismatch {
-			return gdj0046BootstrapFacts{}, fmt.Errorf("mismatched bootstrap = (%v, %v)", contender.runtime, contender.err)
+		if !contenderMismatch {
+			return gdj0046BootstrapFacts{}, fmt.Errorf("mismatched provisioning = %v", contender.err)
 		}
-	} else if contender.err != nil || contender.runtime == nil {
-		return gdj0046BootstrapFacts{}, fmt.Errorf("identical bootstrap = (%v, %v)", contender.runtime, contender.err)
+	} else if !errors.Is(contender.err, &systemstate.Error{Code: systemstate.CodeCredentialAlreadyExists}) {
+		return gdj0046BootstrapFacts{}, fmt.Errorf("identical contender provisioning = %v", contender.err)
+	}
+	holder.runtime, err = systemStateOpenExisting(ctx, pair.holder, holderConfig)
+	if err != nil || holder.runtime == nil {
+		return gdj0046BootstrapFacts{}, fmt.Errorf("open holder after provisioning = (%v, %v)", holder.runtime, err)
+	}
+	if !mismatch {
+		contender.runtime, err = systemStateOpenExisting(ctx, pair.contender, holderConfig)
+		if err != nil || contender.runtime == nil {
+			return gdj0046BootstrapFacts{}, fmt.Errorf("open identical contender after provisioning = (%v, %v)", contender.runtime, err)
+		}
 	}
 	winnerSnapshot, rows, err := gdj0046ReadCredentialSnapshot(ctx, pair.holder)
 	if err != nil {
 		return gdj0046BootstrapFacts{}, err
 	}
-	winnerReopen, winnerReopenErr := systemstate.Open(ctx, pair.holder, holderConfig)
+	winnerReopen, winnerReopenErr := systemStateOpenExisting(ctx, pair.holder, holderConfig)
 	winnerPasswordValid := false
 	if winnerReopenErr == nil && winnerReopen != nil {
 		principal, authenticateErr := winnerReopen.Authenticator().Authenticate(
@@ -810,9 +825,10 @@ func gdj0046RunConcurrentBootstrap(ctx context.Context, mismatch bool) (gdj0046B
 	}
 	reopenMismatchConfig := holderConfig
 	reopenMismatchConfig.Password = "gdj0046-bootstrap-reopen-mismatch"
-	mismatchRuntime, mismatchReopenErr := systemstate.Open(ctx, pair.contender, reopenMismatchConfig)
+	reopenMismatchConfig.PrincipalID = "gdj0046-bootstrap-reopen-mismatch-principal"
+	mismatchRuntime, mismatchReopenErr := systemStateOpenExisting(ctx, pair.contender, reopenMismatchConfig)
 	mismatchReopen := mismatchRuntime == nil &&
-		errors.Is(mismatchReopenErr, &systemstate.Error{Code: systemstate.CodeCredentialMismatch})
+		errors.Is(mismatchReopenErr, &systemstate.Error{Code: systemstate.CodeCredentialPolicyMismatch})
 	afterMismatchReopen, mismatchReopenRows, err := gdj0046ReadCredentialSnapshot(ctx, pair.holder)
 	if err != nil {
 		return gdj0046BootstrapFacts{}, err

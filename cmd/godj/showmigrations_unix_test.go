@@ -44,6 +44,7 @@ func TestExecuteDispatchesShowMigrationsBeforeProjectSelection(t *testing.T) {
 		filepath.Join(t.TempDir(), "missing"),
 		[]string{"showmigrations", "--project"},
 		os.Environ(),
+		nil,
 		&stdout,
 		&stderr,
 		nil,

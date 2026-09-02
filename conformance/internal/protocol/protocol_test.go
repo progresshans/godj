@@ -289,7 +289,7 @@ func TestManifestValidation(t *testing.T) {
 	}
 	systemState := manifestWithExactExtendedSystemStateRegistry(manifest)
 	if err := systemState.Validate(); err != nil {
-		t.Fatalf("exact 20-contract system-state registry does not validate: %v", err)
+		t.Fatalf("exact 30-contract system-state registry does not validate: %v", err)
 	}
 	otherFamily := manifestWithContractCount(manifest, "django.query.breadth.", 13)
 	if err := otherFamily.Validate(); err == nil || !strings.Contains(err.Error(), "8 to 12") {
@@ -315,7 +315,7 @@ func TestManifestValidation(t *testing.T) {
 	}
 	systemStateNearMiss := manifestWithExactExtendedSystemStateRegistry(manifest)
 	systemStateNearMiss.Contracts[len(systemStateNearMiss.Contracts)-1].Scenario += "_near_miss"
-	if err := systemStateNearMiss.Validate(); err == nil || !strings.Contains(err.Error(), "exact 20-entry") {
+	if err := systemStateNearMiss.Validate(); err == nil || !strings.Contains(err.Error(), "exact 30-entry") {
 		t.Fatalf("system-state near-miss error = %v, want exact-registry rejection", err)
 	}
 

@@ -12,12 +12,16 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/progresshans/godj/api"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -71,10 +75,12 @@ func TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	values := environmentMap(runserverEnvironment(t, databasePath, workspaceBase))
-	values[articleAdminUsernameEnv] = username
-	values[articleAdminPasswordEnv] = password
-	environment, goAuditLog := runserverGoAuditEnvironment(t, sortedRunserverEnvironment(values))
+	environment := sortedRunserverEnvironment(values)
+	assertRunserverOperatorEnvironment(t, environment, password)
 	before := snapshotRunserverProjectTree(t, articleRoot)
+	provisionRunserverOperator(t, globalBinary, repository, descriptor, environment, username, password)
+	assertRunserverWorkspaceEmpty(t, workspaceBase)
+	environment, goAuditLog := runserverGoAuditEnvironment(t, environment)
 	address := reserveRunserverLoopbackAddress(t, "")
 	sensitiveValues := []string{username, password}
 
@@ -103,6 +109,204 @@ func TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI(t *testing.T) {
 		t.Fatal("authenticated global runserver changed the Article project tree")
 	}
 	assertRunserverGoBuildAudit(t, goAuditLog, []string{"./cmd/projectrunner", "./cmd/site"})
+}
+
+const maximumRunserverProvisionOutput = 16 << 10
+
+type runserverProvisionOutput struct {
+	mutex     sync.Mutex
+	buffer    bytes.Buffer
+	truncated bool
+}
+
+func (output *runserverProvisionOutput) Write(payload []byte) (int, error) {
+	output.mutex.Lock()
+	defer output.mutex.Unlock()
+	remaining := maximumRunserverProvisionOutput - output.buffer.Len()
+	if remaining > 0 {
+		kept := payload
+		if len(kept) > remaining {
+			kept = kept[:remaining]
+		}
+		_, _ = output.buffer.Write(kept)
+	}
+	if len(payload) > remaining {
+		output.truncated = true
+	}
+	return len(payload), nil
+}
+
+func (output *runserverProvisionOutput) snapshot() (string, bool) {
+	output.mutex.Lock()
+	defer output.mutex.Unlock()
+	return output.buffer.String(), output.truncated
+}
+
+func provisionRunserverOperator(
+	t *testing.T,
+	globalBinary, repository, descriptor string,
+	environment []string,
+	username, password string,
+) {
+	t.Helper()
+	assertRunserverOperatorEnvironment(t, environment, password)
+
+	master, slave, err := pty.Open()
+	if err != nil {
+		t.Fatalf("open createsuperuser PTY: %v", err)
+	}
+	defer func() { _ = master.Close() }()
+
+	command := exec.Command(globalBinary, "createsuperuser", "--project", descriptor)
+	command.Dir = repository
+	command.Env = append([]string(nil), environment...)
+	command.Stdin = slave
+	command.Stdout = slave
+	command.Stderr = slave
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.WaitDelay = 2 * time.Second
+	if err := command.Start(); err != nil {
+		_ = slave.Close()
+		t.Fatalf("start createsuperuser: %v", err)
+	}
+	if err := slave.Close(); err != nil {
+		_ = command.Process.Kill()
+		_ = command.Wait()
+		t.Fatalf("close parent createsuperuser PTY slave: %v", err)
+	}
+
+	output := &runserverProvisionOutput{}
+	drained := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(output, master)
+		close(drained)
+	}()
+	waited := make(chan error, 1)
+	exited := make(chan struct{})
+	var terminalWaitErr error
+	go func() {
+		terminalWaitErr = command.Wait()
+		waited <- terminalWaitErr
+		close(exited)
+	}()
+	finished := false
+	defer func() {
+		if finished {
+			return
+		}
+		groups, _ := runserverOwnedProcessGroups(command.Process.Pid)
+		_ = interruptAndWaitRunserver(command, waited, 5*time.Second, groups...)
+		_ = master.Close()
+		select {
+		case <-drained:
+		case <-time.After(2 * time.Second):
+		}
+	}()
+
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Username: ")
+	writeRunserverProvisionLine(t, master, username)
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ")
+	writeRunserverProvisionLine(t, master, password)
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ")
+	writeRunserverProvisionLine(t, master, password)
+
+	select {
+	case <-exited:
+		waitErr := <-waited
+		if waitErr != nil {
+			t.Fatalf("createsuperuser exited unsuccessfully: %v", waitErr)
+		}
+		finished = true
+	case <-time.After(2 * time.Minute):
+		t.Fatal("createsuperuser timed out")
+	}
+	select {
+	case <-drained:
+	case <-time.After(3 * time.Second):
+		_ = master.Close()
+		select {
+		case <-drained:
+		case <-time.After(time.Second):
+			t.Fatal("createsuperuser PTY did not drain")
+		}
+	}
+	transcript, truncated := output.snapshot()
+	if truncated || !strings.Contains(transcript, "Username: ") ||
+		!strings.Contains(transcript, "Password: ") ||
+		!strings.Contains(transcript, "Password (again): ") ||
+		!strings.Contains(transcript, `{"status":"created"}`) {
+		t.Fatalf("createsuperuser transcript shape = prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
+			strings.Contains(transcript, "Username: "),
+			strings.Contains(transcript, "Password: "),
+			strings.Contains(transcript, "Password (again): "),
+			strings.Contains(transcript, `{"status":"created"}`),
+			len(transcript),
+			truncated,
+		)
+	}
+	if strings.Contains(transcript, password) {
+		t.Fatal("createsuperuser PTY exposed the raw password")
+	}
+	if err := waitForRunserverProcessGroupsAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
+		t.Fatalf("createsuperuser process group remained: %v", err)
+	}
+}
+
+func awaitRunserverProvisionPrompt(
+	t *testing.T,
+	output *runserverProvisionOutput,
+	exited <-chan struct{},
+	waitErr *error,
+	marker string,
+) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		transcript, truncated := output.snapshot()
+		if strings.Contains(transcript, marker) {
+			return
+		}
+		if truncated {
+			t.Fatalf("createsuperuser output exceeded its bound before %q", marker)
+		}
+		select {
+		case <-exited:
+			t.Fatalf("createsuperuser exited before %q: %v", marker, *waitErr)
+		case <-time.After(10 * time.Millisecond):
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("createsuperuser did not publish %q", marker)
+		}
+	}
+}
+
+func writeRunserverProvisionLine(t *testing.T, terminal *os.File, value string) {
+	t.Helper()
+	payload := []byte(value + "\n")
+	owned := payload
+	defer clear(owned)
+	for len(payload) != 0 {
+		written, err := terminal.Write(payload)
+		if err != nil || written <= 0 || written > len(payload) {
+			t.Fatalf("write createsuperuser terminal input: bytes=%d error=%t", written, err != nil)
+		}
+		payload = payload[written:]
+	}
+}
+
+func assertRunserverOperatorEnvironment(t *testing.T, environment []string, password string) {
+	t.Helper()
+	values := environmentMap(environment)
+	for _, name := range []string{articleAdminUsernameEnv, articleAdminPasswordEnv} {
+		if _, exists := values[name]; exists {
+			t.Fatalf("runserver environment retained retired startup credential %s", name)
+		}
+	}
+	for _, entry := range environment {
+		if password != "" && strings.Contains(entry, password) {
+			t.Fatal("runserver environment exposed the raw operator password")
+		}
+	}
 }
 
 func exerciseAuthenticatedRunserverArticle(

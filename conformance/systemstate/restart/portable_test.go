@@ -11,25 +11,30 @@ const (
 	postgresDistinctProcessRestartSentinel = "TestSystemStatePostgresDistinctProcessRestartSentinel"
 	postgresTwoProcessCoordinationSentinel = "TestSystemStatePostgresTwoProcessCoordinationRestartSentinel"
 
-	articleSQLiteDatabaseEnv      = "GODJ_ARTICLE_SQLITE_DATABASE"
-	articlePostgresURLEnv         = "GODJ_ARTICLE_POSTGRES_URL"
-	articlePostgresSchemaEnv      = "GODJ_ARTICLE_POSTGRES_SCHEMA"
-	articleAdminUsernameEnv       = "GODJ_ARTICLE_ADMIN_USERNAME"
-	articleAdminPasswordEnv       = "GODJ_ARTICLE_ADMIN_PASSWORD"
-	postgresTestURLEnv            = "GODJ_TEST_POSTGRES_URL"
-	postgresRequiredEnv           = "GODJ_REQUIRE_POSTGRES"
-	postgresAttestationCaptureEnv = "GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
+	articleSQLiteDatabaseEnv             = "GODJ_ARTICLE_SQLITE_DATABASE"
+	articlePostgresURLEnv                = "GODJ_ARTICLE_POSTGRES_URL"
+	articlePostgresSchemaEnv             = "GODJ_ARTICLE_POSTGRES_SCHEMA"
+	articleAdminUsernameEnv              = "GODJ_ARTICLE_ADMIN_USERNAME"
+	articleAdminPasswordEnv              = "GODJ_ARTICLE_ADMIN_PASSWORD"
+	postgresTestURLEnv                   = "GODJ_TEST_POSTGRES_URL"
+	postgresRequiredEnv                  = "GODJ_REQUIRE_POSTGRES"
+	postgresAttestationCaptureEnv        = "GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
+	projectOperatorAttestationCaptureEnv = "GODJ_PROJECT_OPERATOR_POSTGRES_ATTESTATION_CAPTURE"
 )
 
 var articleSiteEnvironmentNames = []string{
 	articleSQLiteDatabaseEnv,
 	articlePostgresURLEnv,
 	articlePostgresSchemaEnv,
-	articleAdminUsernameEnv,
-	articleAdminPasswordEnv,
 	postgresTestURLEnv,
 	postgresRequiredEnv,
 	postgresAttestationCaptureEnv,
+	projectOperatorAttestationCaptureEnv,
+}
+
+var retiredArticleCredentialEnvironmentNames = []string{
+	articleAdminUsernameEnv,
+	articleAdminPasswordEnv,
 }
 
 // TestSystemStateRestartHarnessPortableContracts is deliberately platform
@@ -52,26 +57,31 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		"KEEP=value",
 		articlePostgresURLEnv + "=postgresql://ambient.invalid/database",
 		articlePostgresSchemaEnv + "=ambient_schema",
+		articleAdminUsernameEnv + "=ambient-admin",
 		articleAdminPasswordEnv + "=ambient-secret",
 		postgresTestURLEnv + "=postgresql://test-only.invalid/database",
 		postgresRequiredEnv + "=1",
 		postgresAttestationCaptureEnv + "=/ambient/capture.json",
+		projectOperatorAttestationCaptureEnv + "=/ambient/operator-capture.json",
 	}, map[string]string{
 		articleSQLiteDatabaseEnv: "file:portable.sqlite3?mode=rwc",
-		articleAdminUsernameEnv:  "portable-admin",
-		articleAdminPasswordEnv:  "portable-password",
+		// Retired startup credentials are deliberately supplied here to prove
+		// that even an explicit test-harness map cannot reintroduce them.
+		articleAdminUsernameEnv: "portable-admin",
+		articleAdminPasswordEnv: "portable-password",
 	})
 	values := restartEnvironmentMap(environment)
-	if values["KEEP"] != "value" || values[articleSQLiteDatabaseEnv] != "file:portable.sqlite3?mode=rwc" ||
-		values[articleAdminUsernameEnv] != "portable-admin" || values[articleAdminPasswordEnv] != "portable-password" {
+	if values["KEEP"] != "value" || values[articleSQLiteDatabaseEnv] != "file:portable.sqlite3?mode=rwc" {
 		t.Fatalf("restart environment lost explicit values: %#v", values)
 	}
+	assertRestartEnvironmentOmitsRetiredCredentials(t, values)
 	for _, name := range []string{
 		articlePostgresURLEnv,
 		articlePostgresSchemaEnv,
 		postgresTestURLEnv,
 		postgresRequiredEnv,
 		postgresAttestationCaptureEnv,
+		projectOperatorAttestationCaptureEnv,
 	} {
 		if _, exists := values[name]; exists {
 			t.Fatalf("restart environment retained mutually exclusive %s", name)
@@ -87,6 +97,7 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		postgresTestURLEnv + "=postgresql://test-only.invalid/database",
 		postgresRequiredEnv + "=1",
 		postgresAttestationCaptureEnv + "=/ambient/capture.json",
+		projectOperatorAttestationCaptureEnv + "=/ambient/operator-capture.json",
 	}, map[string]string{
 		articlePostgresURLEnv:    "postgresql://article.invalid/database",
 		articlePostgresSchemaEnv: "portable_schema",
@@ -98,7 +109,8 @@ func TestSystemStateRestartHarnessPortableContracts(t *testing.T) {
 		postgresValues[articlePostgresSchemaEnv] != "portable_schema" {
 		t.Fatal("restart environment lost explicit PostgreSQL site configuration")
 	}
-	for _, name := range []string{articleSQLiteDatabaseEnv, postgresTestURLEnv, postgresRequiredEnv, postgresAttestationCaptureEnv} {
+	assertRestartEnvironmentOmitsRetiredCredentials(t, postgresValues)
+	for _, name := range []string{articleSQLiteDatabaseEnv, postgresTestURLEnv, postgresRequiredEnv, postgresAttestationCaptureEnv, projectOperatorAttestationCaptureEnv} {
 		if _, exists := postgresValues[name]; exists {
 			t.Fatalf("PostgreSQL restart environment retained test-only or SQLite %s", name)
 		}
@@ -113,8 +125,17 @@ func restartEnvironment(base []string, explicit map[string]string) []string {
 	for _, name := range articleSiteEnvironmentNames {
 		delete(values, name)
 	}
+	for _, name := range retiredArticleCredentialEnvironmentNames {
+		delete(values, name)
+	}
 	for name, value := range explicit {
 		values[name] = value
+	}
+	// Raw operator credentials were retired from Article startup. Scrub them
+	// after explicit values as well as ambient values so no test helper can
+	// accidentally reconstruct the removed bootstrap surface.
+	for _, name := range retiredArticleCredentialEnvironmentNames {
+		delete(values, name)
 	}
 	environment := make([]string, 0, len(values))
 	for name, value := range values {
@@ -122,6 +143,20 @@ func restartEnvironment(base []string, explicit map[string]string) []string {
 	}
 	sort.Strings(environment)
 	return environment
+}
+
+func assertRestartEnvironmentOmitsRetiredCredentials(t *testing.T, values map[string]string) {
+	t.Helper()
+	for _, retired := range retiredArticleCredentialEnvironmentNames {
+		if _, exists := values[retired]; exists {
+			t.Fatalf("restart environment retained retired startup credential %s", retired)
+		}
+		for _, active := range articleSiteEnvironmentNames {
+			if active == retired {
+				t.Fatalf("active Article environment inventory retained retired startup credential %s", retired)
+			}
+		}
+	}
 }
 
 func restartEnvironmentMap(environment []string) map[string]string {
