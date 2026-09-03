@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/project"
+	"github.com/progresshans/godj/systemstate"
 )
 
 type migrationBackend struct{}
@@ -28,6 +29,8 @@ func (*migrationBackend) OpenRevisionFencedSession(context.Context) (backend.Rev
 func (*migrationBackend) Close() error { return nil }
 
 var _ project.MigrationBackend = (*migrationBackend)(nil)
+var _ project.SystemStateBackend = (*sqlite.Backend)(nil)
+var _ project.SystemStateBackend = (*postgres.Backend)(nil)
 var _ backend.MigrationSQLRenderer = migrationSQLRenderer{}
 var _ func() backend.MigrationSQLRenderer = sqlite.NewMigrationSQLRenderer
 var _ func(postgres.MigrationSQLConfig) backend.MigrationSQLRenderer = postgres.NewMigrationSQLRenderer
@@ -55,6 +58,10 @@ func checkProjectRuntime() error {
 				return new(migrationBackend), nil
 			},
 			MigrationSQLRenderer: migrationSQLRenderer{},
+			OpenSystemStateBackend: func(context.Context) (project.SystemStateBackend, error) {
+				return (*sqlite.Backend)(nil), nil
+			},
+			SystemOperatorPolicy: systemstate.CredentialPolicy{},
 		},
 		[]string{"__godj_project_runner_v1"},
 		bytes.NewBufferString(`{"protocol_version":1,"command":"migrations.check"}`),

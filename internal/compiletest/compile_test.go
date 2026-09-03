@@ -2091,6 +2091,13 @@ func TestTypedAPIMisuseDoesNotCompile(t *testing.T) {
 			},
 		},
 		{
+			name:    "pre-operator unkeyed project config source impact",
+			fixture: "project_unkeyed_pre_operator.go.txt",
+			wantFragments: []string{
+				"too few values in struct literal of type project.Config",
+			},
+		},
+		{
 			name:    "predicate model mismatch",
 			fixture: "predicate_model_mismatch.go.txt",
 			wantFragments: []string{
@@ -2417,6 +2424,7 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 	want := map[string][]string{
 		modulePath + "/project": {
 			modulePath + "/codegen",
+			modulePath + "/internal/projectcheck/createsuperuserprotocol",
 			modulePath + "/internal/projectcheck/linked",
 			modulePath + "/internal/projectcheck/migrateprotocol",
 			modulePath + "/internal/projectcheck/showmigrationsprotocol",
@@ -2426,9 +2434,11 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 			modulePath + "/internal/projectmigration/protocol",
 			modulePath + "/migrations/backend",
 			modulePath + "/migrations/definition",
+			modulePath + "/systemstate",
 		},
 		modulePath + "/internal/projectcheck": {
 			modulePath + "/codegen",
+			modulePath + "/internal/projectcheck/createsuperuserprotocol",
 			modulePath + "/internal/projectcheck/migrateprotocol",
 			modulePath + "/internal/projectcheck/protocol",
 			modulePath + "/internal/projectcheck/showmigrationsprotocol",
@@ -2442,6 +2452,7 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 		modulePath + "/internal/projectcheck/linked": {
 			modulePath + "/codegen",
 			modulePath + "/internal/migrationautodetect",
+			modulePath + "/internal/projectcheck/createsuperuserprotocol",
 			modulePath + "/internal/projectcheck/migrateprotocol",
 			modulePath + "/internal/projectcheck/protocol",
 			modulePath + "/internal/projectcheck/showmigrationsprotocol",
@@ -2451,11 +2462,14 @@ func TestProjectCheckDirectImportGraph(t *testing.T) {
 			modulePath + "/migrations",
 			modulePath + "/migrations/backend",
 			modulePath + "/migrations/definition",
+			modulePath + "/query",
+			modulePath + "/systemstate",
 		},
-		modulePath + "/internal/projectcheck/migrateprotocol":        nil,
-		modulePath + "/internal/projectcheck/protocol":               nil,
-		modulePath + "/internal/projectcheck/showmigrationsprotocol": nil,
-		modulePath + "/internal/projectcheck/sqlmigrateprotocol":     nil,
+		modulePath + "/internal/projectcheck/createsuperuserprotocol": nil,
+		modulePath + "/internal/projectcheck/migrateprotocol":         nil,
+		modulePath + "/internal/projectcheck/protocol":                nil,
+		modulePath + "/internal/projectcheck/showmigrationsprotocol":  nil,
+		modulePath + "/internal/projectcheck/sqlmigrateprotocol":      nil,
 		modulePath + "/internal/projectgenerate": {
 			modulePath + "/codegen",
 		},
