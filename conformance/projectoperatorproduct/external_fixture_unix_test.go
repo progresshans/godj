@@ -149,7 +149,7 @@ replace github.com/progresshans/godj => %s
 		"GOSUMDB": "off",
 	})
 	globalBinary := filepath.Join(universe, "godj")
-	operatorRunSetup(t, repository, baseEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
+	operatorRunSetup(t, repository, setupEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
 
 	generateEnvironment := operatorEnvironment(baseEnvironment, map[string]string{
 		operatorSQLiteDatabaseEnvironment: filepath.Join(state, "generate-unused.sqlite3"),
