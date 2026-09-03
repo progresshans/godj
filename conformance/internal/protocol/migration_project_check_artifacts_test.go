@@ -684,7 +684,7 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		`payload = b"".join(`,
 		`assert len(runs) == 978`,
 		`assert len(payload) == 99969`,
-		`66b1099b159b50834915dbb05c3f2b2034f163c143aa60547e609c1dc13a6aed`,
+		`bc1975eb21fbec424c72538c28772b08878b7e472340f232e8505f166dbdb856`,
 		`assert passes == runs`,
 		`assert skipped == [], skipped`,
 		`"relation_product_run": [package, test]`,

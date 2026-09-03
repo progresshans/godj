@@ -445,6 +445,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		`case "$mode" in`,
 		"test_flags+=(-race)",
 		"export CGO_ENABLED=0",
+		"go list -deps -mod=readonly ./cmd/godj > /dev/null",
 		`log="$RUNNER_TEMP/project-migrate-target-product-${mode}.json"`,
 		"status=0",
 		`go test "${test_flags[@]}" ./conformance/projectmigratetargetproduct > "$log" || status=$?`,
