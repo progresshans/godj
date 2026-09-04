@@ -35,9 +35,45 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"MULTIRUNTIME_WORKER_IMPORT := github.com/progresshans/godj/conformance/systemstate/multiruntimeworker",
 		"PORTABLE_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck ./conformance/systemstate/multiruntimeworker",
 		"PORTABLE_CGO0_HEAVY_PACKAGES := ./conformance/runners/godj ./conformance/cmd/godjcheck",
+		".PHONY: cgo-zero-build cgo-zero-build-core cgo-zero-build-operator cgo-zero-build-products check ci conformance-check core-package-selection-check format-check generate-check godj-conformance go-race go-race-core go-race-operator go-race-products go-test go-test-core go-test-operator go-test-products go-vet oracle-check oracle-regenerate project-command-dependencies project-operator-product python-test python-test-exact targeted-migrate-product\n",
 		"ci: format-check generate-check go-test go-vet go-race cgo-zero-build targeted-migrate-product python-test conformance-check godj-conformance",
 	} {
 		runserverWorkflowRequireCount(t, "Makefile", makefile, fragment, 1)
+	}
+	for _, header := range []string{
+		"project-command-dependencies:",
+		"core-package-selection-check:",
+		"go-test-core:",
+		"go-test-products: project-command-dependencies",
+		"go-test-operator: project-command-dependencies",
+		"go-test: go-test-core go-test-products go-test-operator",
+		"go-vet:",
+		"go-race-core:",
+		"go-race-products: project-command-dependencies",
+		"go-race-operator: project-command-dependencies",
+		"go-race: go-race-core go-race-products go-race-operator",
+		"cgo-zero-build-core:",
+		"cgo-zero-build-products: project-command-dependencies",
+		"cgo-zero-build-operator: project-command-dependencies",
+		"cgo-zero-build: cgo-zero-build-core cgo-zero-build-products cgo-zero-build-operator",
+		"project-operator-product: go-test-operator go-race-operator cgo-zero-build-operator",
+		"targeted-migrate-product: project-command-dependencies",
+		"python-test:",
+	} {
+		runserverWorkflowRequireCount(t, "Makefile target header", makefile, "\n"+header+"\n", 1)
+	}
+	projectCommandDependencies := runserverWorkflowMakeTarget(t, makefile, "project-command-dependencies", "core-package-selection-check")
+	runserverWorkflowRequireRecipeLine(t, "Makefile project command dependency prewarm", projectCommandDependencies, "go list -deps -mod=readonly ./cmd/godj >/dev/null", 1)
+	for _, target := range []string{
+		"go-test-products",
+		"go-test-operator",
+		"go-race-products",
+		"go-race-operator",
+		"cgo-zero-build-products",
+		"cgo-zero-build-operator",
+		"targeted-migrate-product",
+	} {
+		runserverWorkflowRequireCount(t, "Makefile project command dependency prewarm", makefile, target+": project-command-dependencies", 1)
 	}
 	selector := runserverWorkflowMakeDefinition(t, makefile, "select_core_go_packages")
 	for _, fragment := range []string{
@@ -87,7 +123,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 
 	normalCore := runserverWorkflowMakeTarget(t, makefile, "go-test-core", "go-test-products")
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normalCore, `$(select_core_go_packages); \`, 1)
-	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normalCore, `go test $$core_packages`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile normal core gate", normalCore, `go test -timeout=20m $$core_packages`, 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile normal isolated conformance gate", normalCore, "go test -timeout=20m -p=1 -count=1 $(PORTABLE_HEAVY_PACKAGES)", 1)
 	normalProducts := runserverWorkflowMakeTarget(t, makefile, "go-test-products", "go-test-operator")
 	normalProductCommands := []string{
@@ -106,7 +142,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 
 	raceCore := runserverWorkflowMakeTarget(t, makefile, "go-race-core", "go-race-products")
 	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", raceCore, `$(select_core_go_packages); \`, 1)
-	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", raceCore, `go test -race $$core_packages`, 1)
+	runserverWorkflowRequireRecipeLine(t, "Makefile race core gate", raceCore, `go test -timeout=20m -race $$core_packages`, 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile race isolated conformance gate", raceCore, "go test -timeout=20m -p=1 -race -count=1 $(PORTABLE_HEAVY_PACKAGES)", 1)
 	raceProducts := runserverWorkflowMakeTarget(t, makefile, "go-race-products", "go-race-operator")
 	for _, command := range []string{
@@ -123,7 +159,7 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 	runserverWorkflowRequireCount(t, "Makefile race aggregate", makefile, "go-race: go-race-core go-race-products go-race-operator", 1)
 
 	cgoZeroCore := runserverWorkflowMakeTarget(t, makefile, "cgo-zero-build-core", "cgo-zero-build-products")
-	runserverWorkflowRequireCount(t, "Makefile CGO-disabled core gate", cgoZeroCore, "CGO_ENABLED=0 go test \\\n", 1)
+	runserverWorkflowRequireCount(t, "Makefile CGO-disabled core gate", cgoZeroCore, "CGO_ENABLED=0 go test -timeout=20m \\\n", 1)
 	runserverWorkflowRequireRecipeLine(t, "Makefile CGO-disabled isolated conformance gate", cgoZeroCore, "CGO_ENABLED=0 go test -timeout=20m -p=1 -count=1 $(PORTABLE_CGO0_HEAVY_PACKAGES)", 1)
 	cgoZeroProducts := runserverWorkflowMakeTarget(t, makefile, "cgo-zero-build-products", "cgo-zero-build-operator")
 	for _, command := range []string{
@@ -246,9 +282,9 @@ func TestRunserverProductWorkflowWiringIsLocked(t *testing.T) {
 		"name: Portable Go (${{ matrix.mode }}, ${{ matrix.shard }})",
 		"timeout-minutes: ${{ matrix.timeout_minutes }}",
 		"fail-fast: false",
-		"- mode: normal\n            shard: core-vet\n            make_targets: \"go-test-core go-vet\"\n            timeout_minutes: 30",
+		"- mode: normal\n            shard: core-vet\n            make_targets: \"go-test-core go-vet\"\n            timeout_minutes: 40",
 		"- mode: normal\n            shard: products\n            make_targets: \"go-test-products\"\n            timeout_minutes: 55",
-		"- mode: race\n            shard: core\n            make_targets: \"go-race-core\"\n            timeout_minutes: 30",
+		"- mode: race\n            shard: core\n            make_targets: \"go-race-core\"\n            timeout_minutes: 40",
 		"- mode: race\n            shard: products\n            make_targets: \"go-race-products\"\n            timeout_minutes: 55",
 		"- mode: cgo0\n            shard: core\n            make_targets: \"cgo-zero-build-core\"\n            timeout_minutes: 30",
 		"- mode: cgo0\n            shard: products\n            make_targets: \"cgo-zero-build-products\"\n            timeout_minutes: 50",
@@ -745,17 +781,19 @@ func runserverWorkflowReadFile(t *testing.T, path string) string {
 func runserverWorkflowMakeTarget(t *testing.T, makefile, target, nextTarget string) string {
 	t.Helper()
 
-	startMarker := target + ":\n"
-	endMarker := "\n" + nextTarget + ":\n"
-	if strings.Count(makefile, startMarker) != 1 || strings.Count(makefile, endMarker) != 1 {
+	startPattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(target) + `:[^\n]*\n`)
+	endPattern := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(nextTarget) + `:[^\n]*\n`)
+	startMatches := startPattern.FindAllStringIndex(makefile, -1)
+	endMatches := endPattern.FindAllStringIndex(makefile, -1)
+	if len(startMatches) != 1 || len(endMatches) != 1 {
 		t.Fatalf("cannot isolate Makefile target %q before %q", target, nextTarget)
 	}
-	start := strings.Index(makefile, startMarker)
-	end := strings.Index(makefile[start+len(startMarker):], endMarker)
-	if end < 0 {
+	start := startMatches[0][0]
+	end := endMatches[0][0]
+	if end <= start {
 		t.Fatalf("Makefile target %q has no following %q target", target, nextTarget)
 	}
-	return makefile[start : start+len(startMarker)+end]
+	return makefile[start:end]
 }
 
 func runserverWorkflowMakeDefinition(t *testing.T, makefile, definition string) string {

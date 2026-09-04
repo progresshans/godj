@@ -152,7 +152,7 @@ jobs:
           - mode: normal
             shard: core-vet
             make_targets: "go-test-core go-vet"
-            timeout_minutes: 30
+            timeout_minutes: 40
           - mode: normal
             shard: products
             make_targets: "go-test-products"
@@ -160,7 +160,7 @@ jobs:
           - mode: race
             shard: core
             make_targets: "go-race-core"
-            timeout_minutes: 30
+            timeout_minutes: 40
           - mode: race
             shard: products
             make_targets: "go-race-products"

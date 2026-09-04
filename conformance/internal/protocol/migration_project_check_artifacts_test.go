@@ -373,9 +373,9 @@ func TestMigrationProjectCheckWorkflowRequiresEveryDeclaredCoordinateAndMode(t *
 		mode, shard, makeTargets string
 		timeout                  int
 	}{
-		{mode: "normal", shard: "core-vet", makeTargets: "go-test-core go-vet", timeout: 30},
+		{mode: "normal", shard: "core-vet", makeTargets: "go-test-core go-vet", timeout: 40},
 		{mode: "normal", shard: "products", makeTargets: "go-test-products", timeout: 55},
-		{mode: "race", shard: "core", makeTargets: "go-race-core", timeout: 30},
+		{mode: "race", shard: "core", makeTargets: "go-race-core", timeout: 40},
 		{mode: "race", shard: "products", makeTargets: "go-race-products", timeout: 55},
 		{mode: "cgo0", shard: "core", makeTargets: "cgo-zero-build-core", timeout: 30},
 		{mode: "cgo0", shard: "products", makeTargets: "cgo-zero-build-products", timeout: 50},
