@@ -22,7 +22,9 @@ type RelationSession interface {
 // RelationAtomic executes one relation-delete callback on a transaction-bound
 // RelationSession. A precondition or begin failure invokes callback zero times;
 // otherwise implementations invoke it exactly once synchronously and preserve
-// callback errors without committing.
+// callback errors without committing. Callers must not nest backend
+// transactions from callback; use a bounded context when invoking backend work
+// that may contend for the same transaction domain.
 type RelationAtomic interface {
 	AtomicRelation(context.Context, func(RelationSession) error) error
 }

@@ -611,7 +611,7 @@ func openMigrationHistoryFaultBackend(t *testing.T, fault historyFault) *Backend
 	if err != nil {
 		t.Fatalf("open history fault database: %v", err)
 	}
-	backend := &Backend{database: database}
+	backend := &Backend{database: database, relationRetention: newRelationRetentionState()}
 	t.Cleanup(func() {
 		migrationHistoryFaults.Delete(dsn)
 		if err := backend.Close(); err != nil {

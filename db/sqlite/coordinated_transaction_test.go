@@ -230,7 +230,8 @@ func TestExecuteCoordinatedAtomicRetainsUncertainConnections(t *testing.T) {
 			return nil
 		}, connection, retention, nil)
 		if !errors.Is(err, beginErr) || errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) ||
-			errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
+			errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) ||
+			!errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeBackendRecoveryRequired}) {
 			t.Fatalf("acquire error = %v", err)
 		}
 		if calls != 0 || connection.closeCalls.Load() != 0 || retainedConnectionCount(retention) != 1 {
@@ -263,7 +264,8 @@ func TestExecuteCoordinatedAtomicRetainsUncertainConnections(t *testing.T) {
 			return callbackErr
 		}, connection, retention, nil)
 		if !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeTransactionOutcomeUnknown}) ||
-			!errors.Is(err, callbackErr) || !errors.Is(err, rollbackErr) {
+			!errors.Is(err, callbackErr) || !errors.Is(err, rollbackErr) ||
+			!errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeBackendRecoveryRequired}) {
 			t.Fatalf("rollback uncertainty error = %v", err)
 		}
 		if calls != 1 || connection.closeCalls.Load() != 0 || retainedConnectionCount(retention) != 1 {
@@ -297,7 +299,8 @@ func TestExecuteCoordinatedAtomicRetainsUncertainConnections(t *testing.T) {
 		}, connection, retention, nil)
 		if !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}) ||
 			!errors.Is(err, commitErr) || !errors.Is(err, rollbackErr) || !errors.Is(err, discardErr) ||
-			errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
+			errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) ||
+			!errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeBackendRecoveryRequired}) {
 			t.Fatalf("commit uncertainty error = %v", err)
 		}
 		if calls != 1 || connection.closeCalls.Load() != 0 || retainedConnectionCount(retention) != 1 {
@@ -334,6 +337,9 @@ func TestExecuteCoordinatedAtomicRetainsUncertainConnections(t *testing.T) {
 		}()
 		if connection.closeCalls.Load() != 0 || retainedConnectionCount(retention) != 1 {
 			t.Fatalf("panic close/retained = %d/%d", connection.closeCalls.Load(), retainedConnectionCount(retention))
+		}
+		if err := retention.availabilityError(); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeBackendRecoveryRequired}) {
+			t.Fatalf("availability after panic cleanup = %v, want backend recovery required", err)
 		}
 		_ = retention.sealAndDrain()
 	})

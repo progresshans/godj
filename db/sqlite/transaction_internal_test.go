@@ -19,7 +19,7 @@ func TestAtomicLiteralCommitErrorIsUnknownAndIsNotRetried(t *testing.T) {
 	state := &atomicCommitFaultState{commitErr: commitErr}
 	database := sql.OpenDB(atomicCommitFaultConnector{state: state})
 	database.SetMaxOpenConns(1)
-	backend := &Backend{database: database}
+	backend := &Backend{database: database, relationRetention: newRelationRetentionState()}
 	t.Cleanup(func() { _ = backend.Close() })
 
 	var callbackCalls atomic.Int32
@@ -36,6 +36,9 @@ func TestAtomicLiteralCommitErrorIsUnknownAndIsNotRetried(t *testing.T) {
 	}
 	if callbackCalls.Load() != 1 || state.commitCalls.Load() != 1 {
 		t.Fatalf("callback/COMMIT calls = %d/%d, want 1/1", callbackCalls.Load(), state.commitCalls.Load())
+	}
+	if err := backend.relationRetention.availabilityError(); err != nil {
+		t.Fatalf("generic Atomic commit-unknown availability = %v, want healthy retention state", err)
 	}
 }
 

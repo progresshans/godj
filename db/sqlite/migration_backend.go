@@ -45,6 +45,9 @@ func (b *Backend) BeginMigration(ctx context.Context) (migrationbackend.Transact
 	if ctx == nil {
 		return nil, errors.New("begin SQLite migration: context is nil")
 	}
+	if err := b.relationRetention.availabilityError(); err != nil {
+		return nil, fmt.Errorf("begin SQLite migration: %w", err)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("begin SQLite migration: %w", err)
 	}

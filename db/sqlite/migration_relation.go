@@ -282,7 +282,14 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	if ctx == nil {
 		return nil, errors.New("begin SQLite relation revision-fenced migration: context is nil")
 	}
-	if err := ctx.Err(); err != nil {
+	if err := session.backend.validateBackendContext(ctx); err != nil {
+		if shouldPoisonRevisionSessionForBackendEntryError(err) {
+			session.mu.Lock()
+			if session.state == revisionSessionReady {
+				session.state = revisionSessionPoisoned
+			}
+			session.mu.Unlock()
+		}
 		return nil, fmt.Errorf("begin SQLite relation revision-fenced migration: %w", err)
 	}
 	if transition.Migration.App == "" || transition.Migration.Name == "" {
@@ -302,14 +309,17 @@ func (session *sqliteRevisionFencedSession) BeginMigration(
 	if err != nil {
 		return nil, err
 	}
-	if err := ctx.Err(); err != nil {
-		return nil, fmt.Errorf("begin SQLite relation revision-fenced migration: %w", err)
-	}
 
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	if session.state != revisionSessionReady {
 		return nil, fmt.Errorf("begin SQLite relation revision-fenced migration: session state %d is not ready", session.state)
+	}
+	if err := session.backend.validateBackendContext(ctx); err != nil {
+		if shouldPoisonRevisionSessionForBackendEntryError(err) {
+			session.state = revisionSessionPoisoned
+		}
+		return nil, fmt.Errorf("begin SQLite relation revision-fenced migration: %w", err)
 	}
 
 	successorRecords, err := migrationHistorySuccessor(session.records, transition)

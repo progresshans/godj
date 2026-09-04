@@ -62,11 +62,8 @@ func OpenMemory(ctx context.Context, name string) (*Backend, error) {
 }
 
 func (b *Backend) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	if b == nil || b.database == nil || b.closed.Load() {
-		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend is nil or closed"}
-	}
-	if ctx == nil {
-		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	if err := b.validateBackendContext(ctx); err != nil {
+		return nil, err
 	}
 	statement, arguments, err := Compile(plan)
 	if err != nil {
@@ -112,11 +109,8 @@ func isMissingTableMessage(message, table string) bool {
 // ExecContext is intentionally a backend-level primitive. M1 uses it only in
 // the conformance schema provisioner; it is not a model write lifecycle API.
 func (b *Backend) ExecContext(ctx context.Context, statement string, arguments ...any) (sql.Result, error) {
-	if b == nil || b.database == nil || b.closed.Load() {
-		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend is nil or closed"}
-	}
-	if ctx == nil {
-		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	if err := b.validateBackendContext(ctx); err != nil {
+		return nil, err
 	}
 	return b.database.ExecContext(ctx, statement, arguments...)
 }
@@ -129,11 +123,8 @@ func (b *Backend) QueryCount() uint64 {
 }
 
 func (b *Backend) SQLiteVersion(ctx context.Context) (string, error) {
-	if b == nil || b.database == nil || b.closed.Load() {
-		return "", &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend is nil or closed"}
-	}
-	if ctx == nil {
-		return "", &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	if err := b.validateBackendContext(ctx); err != nil {
+		return "", err
 	}
 	var version string
 	if err := b.database.QueryRowContext(ctx, "SELECT sqlite_version()").Scan(&version); err != nil {
@@ -142,12 +133,34 @@ func (b *Backend) SQLiteVersion(ctx context.Context) (string, error) {
 	return version, nil
 }
 
+// validateBackendContext rejects new backend I/O after terminal quarantine.
+// A published lifecycle state wins over a concurrently canceled valid context;
+// nil receivers, closed backends, and nil contexts retain their prior errors.
+func (b *Backend) validateBackendContext(ctx context.Context) error {
+	if b == nil || b.database == nil || b.closed.Load() {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend is nil or closed"}
+	}
+	if ctx == nil {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	}
+	if err := b.relationRetention.availabilityError(); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *Backend) Close() error {
 	if b == nil {
 		return nil
 	}
 	if !b.closed.CompareAndSwap(false, true) {
 		return nil
+	}
+	if b.relationRetention != nil {
+		b.relationRetention.beginClose()
 	}
 	var databaseErr error
 	if b.database != nil {

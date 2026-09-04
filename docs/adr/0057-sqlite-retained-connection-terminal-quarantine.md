@@ -12,7 +12,7 @@ ADR-0030은 SQLite raw transaction의 rollback과 `driver.ErrBadConn` discard를
 borrower에게 돌려줄 수 있기 때문입니다. Explicit `Backend.Close`는 `sql.DB.Close`로 pool을 먼저 봉인하고 retained handles를
 drain하므로 no-reuse 자체는 안전합니다.
 
-현재 state의 `accepting()`은 lease가 아닌 snapshot이고 `retain()`은 Backend가 닫힐 때까지 계속 append합니다. Long-lived
+GDJ-0056 이전 activation baseline state의 `accepting()`은 lease가 아닌 snapshot이고 `retain()`은 Backend가 닫힐 때까지 계속 append합니다. Long-lived
 Backend에서 fault가 반복되면 physical connection, transaction lock과 driver resource가 무제한 누적될 수 있습니다. 첫 fault 뒤에도
 Query/CRUD/Atomic/migration entry는 이 상태를 모르며 caller의 “reconciliation 전 재호출 금지”를 runtime이 집행하지 않습니다.
 
@@ -65,14 +65,18 @@ Retention을 만들 수 있는 `AtomicRelation`과 `CoordinatedAtomic`이 physic
    `backend_error/backend_recovery_required`로 실패합니다.
 5. `invalid_plan`, `transaction_outcome_unknown`, `commit_outcome_unknown`은 각각 caller-plan, pre-COMMIT termination, literal
    COMMIT durability를 뜻하므로 quarantine rejection에 재사용하지 않습니다. Trigger operation의 기존 outer marker는 유지하고
-   recovery-required marker는 cause chain에서 도달 가능하게 합니다.
+   recovery-required marker는 non-panic 반환 경로의 cause chain에서 도달 가능하게 합니다. Panic cleanup은 state를 게시한 뒤
+   원래 panic value를 exact repanic하므로 해당 호출에 error marker를 덧붙이지 않고 다음 새 I/O에서 이를 관찰합니다.
 6. Availability check를 통과해 이미 시작된 operation과 open rows/transaction은 강제 취소하지 않습니다. 보장 경계는 quarantine
-   linearization 뒤의 새 admission입니다.
+   linearization 뒤의 새 admission입니다. 유효한 context의 cancellation과 lifecycle transition이 경합하면 closing/sealed,
+   quarantined, healthy-open context cancellation 순으로 판단합니다.
 7. Quarantine은 implicit `sql.DB.Close`, retry, reopen 또는 durable-state reconciliation을 수행하지 않습니다. Caller는 외부 확인 뒤
    `Backend.Close`하고 fresh Backend를 열어야 합니다.
-8. Explicit Close는 pool을 먼저 봉인하고 retained exact-one handle을 terminally Close합니다. Close와 retain race에서 pre-seal
-   retained handle은 drain되고 post-seal retain은 pool이 봉인된 뒤 Close됩니다. Sequential idempotence와 existing error joining을
-   보존합니다.
+8. Explicit Close는 `beginClose`에서 새 admission을 차단하고 waiter를 깨운 뒤 pool을 봉인하며, 그 다음 pre-seal retained
+   exact-one handle을 terminally Close합니다. 이미 admission된 operation이 Close 반환 뒤 post-seal retain에 도달하면 pool이
+   봉인됐음을 확인한 그 operation이 handle을 즉시 Close합니다. Close CAS winner 한 개만 pool-close/pre-seal drain을 소유하고
+   concurrent loser는 completion을 기다리지 않으며 double-close하지 않습니다. Sequential post-completion idempotence와 existing
+   error joining을 보존합니다.
 9. Quarantine은 Backend instance-local입니다. 같은 SQLite 파일을 사용하는 다른 Backend/process를 자동 중단하지 않습니다.
    Named in-memory database는 explicit Close 뒤 데이터가 소멸할 수 있으므로 durable reconciliation 가능성을 주장하지 않습니다.
 
@@ -93,6 +97,8 @@ Retention을 만들 수 있는 `AtomicRelation`과 `CoordinatedAtomic`이 physic
 - SQLite migration discard helper의 별도 physical-retention policy
 - 같은 file을 사용하는 다른 Backend/process의 health 전파
 - Named in-memory database의 Close 이후 durable reconciliation
+- Same-Backend raw callback의 nested transaction/savepoint 또는 reentrancy detection; 동기 재진입은 context cancellation으로만
+  bounded됩니다.
 
 ## 검증
 
@@ -101,5 +107,6 @@ Retention을 만들 수 있는 `AtomicRelation`과 `CoordinatedAtomic`이 physic
 - First fault와 waiter/Query/CRUD/Atomic/migration entry race에서 post-linearization new-I/O 0
 - Raw BEGIN, pre-mutation, mutation-possible, literal COMMIT와 panic cleanup의 quarantine trigger/outer marker matrix
 - Confirmed rollback/discard/success는 quarantine하지 않음
-- Explicit Close의 database-first drain, retain-vs-Close, exact-once handle close와 idempotent/concurrent race
+- Explicit Close의 database-first drain, retain-vs-Close, pre/post-seal exact-once handle close, concurrent no-double-close와
+  sequential post-completion idempotence
 - Existing REL-007/008와 cooperative system-state SQLite flows의 normal/race/CGO-disabled regression

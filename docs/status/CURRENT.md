@@ -10,7 +10,10 @@
   [ADR-0057](../adr/0057-sqlite-retained-connection-terminal-quarantine.md)은 retention-producing
   `AtomicRelation`/`CoordinatedAtomic`의 shared context-aware admission, already-admitted 경계와 explicit
   `Backend.Close`의 pool-first drain ownership을 선택합니다. Baseline은 clean `003afee4524a...`, tree
-  `77d19c56d3e...`이며 activation 단계에서 제품 구현·테스트·상태 승격은 아직 없습니다. 최근 completed
+  `77d19c56d3e...`입니다. Phase A~C implementation checkpoint는 exact-one retention, common pre-I/O recovery gate,
+  migration-session state preservation와 pool-first Close를 구현했고 affected normal/race/CGO-disabled/vet,
+  generated drift 및 SQLite relation/migration/system-state product gate를 통과했습니다. Source-bound A/B와 final frozen
+  matrix 전이므로 ADR은 Proposed, Q-019는 open/P1, work는 active를 유지합니다. 최근 completed
   [GDJ-0055](../../work/0055-project-linked-explicit-operator-provisioning.md)는 exact
   `godj createsuperuser`와 `godj createsuperuser --project PATH`로 migrated clean system state에 durable operator를
   exactly once 생성하고 raw-password-free `OpenExisting` authenticated restart를 구현했습니다. Accepted
@@ -2115,8 +2118,9 @@ general generated upgrade는 계속 open입니다.
 
 GDJ-0055 exact product source `0b5b6fc6...`, tree `dac6baa7...`는 independent source-bound A/B, Linux/386
 compile-only, `.git`-free external archive와 exact submitted-head Hosted run `33899930122`를 EVID-179에서 통과했습니다.
-ADR-0056/GDJ-0055는 Accepted/completed이고 current active/ready packet은 0/0입니다. 별도 next work는 아직 활성화하지
-않았습니다. Q-019 terminal quarantine, broader identity/credential lifecycle와 generalization은 현재 완료 주장에 포함되지 않습니다.
+ADR-0056/GDJ-0055는 Accepted/completed이고 그 terminal publication 당시 active/ready packet은 0/0이었습니다. 이후
+GDJ-0056이 활성화되어 current active/ready는 1/0입니다. Q-019 terminal quarantine은 현재 active 범위이며 broader
+identity/credential lifecycle와 generalization은 여전히 비범위입니다.
 
 GDJ-0041 local-final source `7f2bb2232afa7d71bea56d8910a52a045ec11faa`와 submitted documentation head
 `e97a4e319047bc156a78fac94e5c2d021e4dcdfe`는 EVID-116..118의 affected/full/386/repository-external archive,

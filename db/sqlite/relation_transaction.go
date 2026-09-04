@@ -28,69 +28,195 @@ type relationPinnedConnection interface {
 
 var _ relationPinnedConnection = (*sql.Conn)(nil)
 
-// relationRetentionState owns connections whose raw transaction could not be
-// proven terminated. It is intentionally held through a pointer on Backend so
-// Backend remains comparable and no process-global cleanup registry is needed.
+// relationRetentionState serializes retention-producing raw transactions and
+// owns the one connection whose transaction could not be proven terminated.
+// closing rejects and wakes admissions without making Conn.Close safe; sealed
+// means sql.DB.Close has completed and a late admitted owner may terminally
+// close its own unconfirmed connection. The pointer keeps Backend comparable
+// and avoids a process-global cleanup registry.
 type relationRetentionState struct {
-	mu       sync.Mutex
-	sealed   bool
-	retained []relationPinnedConnection
+	mu          sync.Mutex
+	closing     bool
+	sealed      bool
+	quarantined bool
+	active      *relationTransactionAdmission
+	changed     chan struct{}
+	retained    relationPinnedConnection
 }
 
 func newRelationRetentionState() *relationRetentionState {
-	return &relationRetentionState{}
+	return &relationRetentionState{changed: make(chan struct{})}
 }
 
-func (state *relationRetentionState) accepting() bool {
+type relationTransactionAdmission struct {
+	state    *relationRetentionState
+	released atomic.Bool
+}
+
+func sqliteBackendRecoveryRequiredError() error {
+	return &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeBackendRecoveryRequired,
+		Detail:   "SQLite backend retained an unconfirmed raw transaction; close, reconcile, and open a fresh backend",
+	}
+}
+
+func isSQLiteBackendRecoveryRequired(err error) bool {
+	return errors.Is(err, &query.Error{
+		Category: query.CategoryBackend,
+		Code:     query.CodeBackendRecoveryRequired,
+	})
+}
+
+func (state *relationRetentionState) availabilityError() error {
 	if state == nil {
-		return false
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend lifecycle state is nil"}
 	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
-	return !state.sealed
+	return state.availabilityErrorLocked()
 }
 
-func (state *relationRetentionState) retain(connection relationPinnedConnection) error {
-	if state == nil {
-		return errors.New("retain poisoned SQLite relation connection: retention state is nil")
+func (state *relationRetentionState) availabilityErrorLocked() error {
+	if state.closing || state.sealed {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend lifecycle state is closed"}
 	}
-	if connection == nil {
-		return errors.New("retain poisoned SQLite relation connection: connection is nil")
-	}
-	state.mu.Lock()
-	if !state.sealed {
-		state.retained = append(state.retained, connection)
-		state.mu.Unlock()
-		return nil
-	}
-	state.mu.Unlock()
-	if err := connection.Close(); err != nil {
-		return fmt.Errorf("terminally close poisoned SQLite relation connection after backend close: %w", err)
+	if state.quarantined {
+		return sqliteBackendRecoveryRequiredError()
 	}
 	return nil
 }
 
+func (state *relationRetentionState) acquire(ctx context.Context) (*relationTransactionAdmission, error) {
+	if state == nil {
+		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend lifecycle state is nil"}
+	}
+	if ctx == nil {
+		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
+	}
+	for {
+		state.mu.Lock()
+		if err := state.availabilityErrorLocked(); err != nil {
+			state.mu.Unlock()
+			return nil, err
+		}
+		if err := ctx.Err(); err != nil {
+			state.mu.Unlock()
+			return nil, err
+		}
+		if state.active == nil {
+			admission := &relationTransactionAdmission{state: state}
+			state.active = admission
+			state.mu.Unlock()
+			return admission, nil
+		}
+		changed := state.changed
+		if changed == nil {
+			changed = make(chan struct{})
+			state.changed = changed
+		}
+		state.mu.Unlock()
+
+		select {
+		case <-changed:
+			continue
+		case <-ctx.Done():
+			state.mu.Lock()
+			availabilityErr := state.availabilityErrorLocked()
+			state.mu.Unlock()
+			if availabilityErr != nil {
+				return nil, availabilityErr
+			}
+			return nil, ctx.Err()
+		}
+	}
+}
+
+func (admission *relationTransactionAdmission) release() {
+	if admission == nil || admission.state == nil || !admission.released.CompareAndSwap(false, true) {
+		return
+	}
+	state := admission.state
+	state.mu.Lock()
+	if state.active == admission {
+		state.active = nil
+		state.signalLocked()
+	}
+	state.mu.Unlock()
+}
+
+func (admission *relationTransactionAdmission) retain(connection relationPinnedConnection) error {
+	if admission == nil || admission.state == nil {
+		return errors.New("retain poisoned SQLite relation connection: transaction admission is nil")
+	}
+	if connection == nil {
+		return errors.New("retain poisoned SQLite relation connection: connection is nil")
+	}
+	state := admission.state
+	state.mu.Lock()
+	if admission.released.Load() || state.active != admission {
+		state.mu.Unlock()
+		return errors.New("retain poisoned SQLite relation connection: transaction admission is inactive")
+	}
+	if state.sealed {
+		state.mu.Unlock()
+		if err := connection.Close(); err != nil {
+			return fmt.Errorf("terminally close poisoned SQLite relation connection after backend close: %w", err)
+		}
+		return nil
+	}
+	if state.quarantined || state.retained != nil {
+		state.mu.Unlock()
+		return errors.New("retain poisoned SQLite relation connection: quarantine already owns a connection")
+	}
+	state.quarantined = true
+	state.retained = connection
+	state.signalLocked()
+	state.mu.Unlock()
+	return sqliteBackendRecoveryRequiredError()
+}
+
+func (state *relationRetentionState) signalLocked() {
+	if state.changed != nil {
+		close(state.changed)
+	}
+	state.changed = make(chan struct{})
+}
+
+func (state *relationRetentionState) beginClose() {
+	if state == nil {
+		return
+	}
+	state.mu.Lock()
+	if !state.closing {
+		state.closing = true
+		state.signalLocked()
+	}
+	state.mu.Unlock()
+}
+
+// sealAndDrain runs only after sql.DB.Close has sealed the pool. It drains the
+// pre-seal retained handle; an already-admitted operation that discovers an
+// unconfirmed handle later observes sealed in retain and closes it there.
 func (state *relationRetentionState) sealAndDrain() error {
 	if state == nil {
 		return nil
 	}
 	state.mu.Lock()
+	state.closing = true
 	state.sealed = true
 	retained := state.retained
 	state.retained = nil
+	state.signalLocked()
 	state.mu.Unlock()
 
-	var result error
-	for _, connection := range retained {
-		if connection == nil {
-			result = errors.Join(result, errors.New("drain poisoned SQLite relation connection: connection is nil"))
-			continue
-		}
-		if err := connection.Close(); err != nil {
-			result = errors.Join(result, fmt.Errorf("terminally close poisoned SQLite relation connection: %w", err))
-		}
+	if retained == nil {
+		return nil
 	}
-	return result
+	if err := retained.Close(); err != nil {
+		return fmt.Errorf("terminally close poisoned SQLite relation connection: %w", err)
+	}
+	return nil
 }
 
 // AtomicRelation uses one pinned connection for FK verification, raw BEGIN
@@ -103,8 +229,13 @@ func (b *Backend) AtomicRelation(ctx context.Context, callback func(db.RelationS
 	if callback == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "atomic relation callback is nil"}
 	}
-	if b.relationRetention == nil || !b.relationRetention.accepting() {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite relation retention state is nil or closed"}
+	admission, err := b.relationRetention.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer admission.release()
+	if err := b.validateBackendContext(ctx); err != nil {
+		return err
 	}
 
 	connection, err := b.database.Conn(ctx)
@@ -114,7 +245,7 @@ func (b *Backend) AtomicRelation(ctx context.Context, callback func(db.RelationS
 	if err := verifyRelationForeignKeys(ctx, connection); err != nil {
 		return errors.Join(err, closeUnusedRelationConnection(connection))
 	}
-	return executeAtomicRelation(ctx, callback, connection, b.relationRetention, &b.queryCount)
+	return executeAdmittedAtomicRelation(ctx, callback, connection, admission, &b.queryCount)
 }
 
 func verifyRelationForeignKeys(ctx context.Context, connection *sql.Conn) error {
@@ -142,6 +273,21 @@ func executeAtomicRelation(
 	retention *relationRetentionState,
 	queryCount *atomic.Uint64,
 ) (resultErr error) {
+	admission, err := retention.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer admission.release()
+	return executeAdmittedAtomicRelation(ctx, callback, connection, admission, queryCount)
+}
+
+func executeAdmittedAtomicRelation(
+	ctx context.Context,
+	callback func(db.RelationSession) error,
+	connection relationPinnedConnection,
+	admission *relationTransactionAdmission,
+	queryCount *atomic.Uint64,
+) (resultErr error) {
 	if connection == nil {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite relation connection is nil"}
 	}
@@ -149,7 +295,7 @@ func executeAtomicRelation(
 		primary := fmt.Errorf("begin immediate SQLite relation transaction: %w", err)
 		confirmed, discardErr := forceDiscardRelationConnection(connection)
 		if !confirmed {
-			discardErr = errors.Join(discardErr, retention.retain(connection))
+			discardErr = errors.Join(discardErr, admission.retain(connection))
 		}
 		return errors.Join(primary, discardErr)
 	}
@@ -167,7 +313,7 @@ func executeAtomicRelation(
 		}
 		if deferredCleanup {
 			session.deactivate()
-			_, _ = rollbackRelationConnection(ctx, connection, retention)
+			_, _ = rollbackRelationConnection(ctx, connection, admission)
 		}
 		panic(panicValue)
 	}()
@@ -176,15 +322,15 @@ func executeAtomicRelation(
 	mutationPossible := session.deactivate()
 	if callbackErr != nil {
 		deferredCleanup = false
-		return finishRelationPreCommitFailure(ctx, connection, retention, callbackErr, mutationPossible)
+		return finishRelationPreCommitFailure(ctx, connection, admission, callbackErr, mutationPossible)
 	}
 	if contextErr := ctx.Err(); contextErr != nil {
 		deferredCleanup = false
-		return finishRelationPreCommitFailure(ctx, connection, retention, contextErr, mutationPossible)
+		return finishRelationPreCommitFailure(ctx, connection, admission, contextErr, mutationPossible)
 	}
 	if _, err := connection.ExecContext(ctx, "COMMIT"); err != nil {
 		deferredCleanup = false
-		_, cleanupErr := rollbackRelationConnection(ctx, connection, retention)
+		_, cleanupErr := rollbackRelationConnection(ctx, connection, admission)
 		return &query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeCommitOutcomeUnknown,
@@ -206,11 +352,11 @@ func executeAtomicRelation(
 func finishRelationPreCommitFailure(
 	ctx context.Context,
 	connection relationPinnedConnection,
-	retention *relationRetentionState,
+	admission *relationTransactionAdmission,
 	primary error,
 	mutationPossible bool,
 ) error {
-	terminated, cleanupErr := rollbackRelationConnection(ctx, connection, retention)
+	terminated, cleanupErr := rollbackRelationConnection(ctx, connection, admission)
 	cause := errors.Join(primary, cleanupErr)
 	if mutationPossible && !terminated {
 		return &query.Error{
@@ -226,7 +372,7 @@ func finishRelationPreCommitFailure(
 func rollbackRelationConnection(
 	ctx context.Context,
 	connection relationPinnedConnection,
-	retention *relationRetentionState,
+	admission *relationTransactionAdmission,
 ) (bool, error) {
 	cleanupCtx, cancel := relationDetachedCleanupContext(ctx)
 	defer cancel()
@@ -242,7 +388,7 @@ func rollbackRelationConnection(
 	}
 	confirmed, discardErr := forceDiscardRelationConnection(connection)
 	if !confirmed {
-		discardErr = errors.Join(discardErr, retention.retain(connection))
+		discardErr = errors.Join(discardErr, admission.retain(connection))
 	}
 	return confirmed, errors.Join(
 		fmt.Errorf("rollback SQLite relation transaction: %w", rollbackErr),

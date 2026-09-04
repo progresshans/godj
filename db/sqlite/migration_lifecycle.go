@@ -97,6 +97,9 @@ func (b *Backend) OpenRevisionFencedSession(ctx context.Context) (migrationbacke
 	if ctx == nil {
 		return nil, errors.New("open SQLite revision-fenced migration session: context is nil")
 	}
+	if err := b.relationRetention.availabilityError(); err != nil {
+		return nil, fmt.Errorf("open SQLite revision-fenced migration session: %w", err)
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("open SQLite revision-fenced migration session: %w", err)
 	}
@@ -110,7 +113,14 @@ func (session *sqliteRevisionFencedSession) ReadAppliedMigrations(ctx context.Co
 	if ctx == nil {
 		return nil, errors.New("read SQLite revision-fenced history: context is nil")
 	}
-	if err := ctx.Err(); err != nil {
+	if err := session.backend.validateBackendContext(ctx); err != nil {
+		if shouldPoisonRevisionSessionForBackendEntryError(err) {
+			session.mu.Lock()
+			if session.state == revisionSessionOpen {
+				session.state = revisionSessionPoisoned
+			}
+			session.mu.Unlock()
+		}
 		return nil, fmt.Errorf("read SQLite revision-fenced history: %w", err)
 	}
 
@@ -118,6 +128,12 @@ func (session *sqliteRevisionFencedSession) ReadAppliedMigrations(ctx context.Co
 	defer session.mu.Unlock()
 	if session.state != revisionSessionOpen {
 		return nil, fmt.Errorf("read SQLite revision-fenced history: session state %d does not permit a snapshot", session.state)
+	}
+	if err := session.backend.validateBackendContext(ctx); err != nil {
+		if shouldPoisonRevisionSessionForBackendEntryError(err) {
+			session.state = revisionSessionPoisoned
+		}
+		return nil, fmt.Errorf("read SQLite revision-fenced history: %w", err)
 	}
 
 	snapshot, err := readAtomicMigrationRevisionSnapshot(ctx, session.backend)
@@ -136,6 +152,13 @@ func (session *sqliteRevisionFencedSession) ReadAppliedMigrations(ctx context.Co
 	session.token = snapshot.token
 	session.state = revisionSessionReady
 	return cloneAppliedMigrations(snapshot.records), nil
+}
+
+func shouldPoisonRevisionSessionForBackendEntryError(err error) bool {
+	return err != nil &&
+		!isSQLiteBackendRecoveryRequired(err) &&
+		!errors.Is(err, context.Canceled) &&
+		!errors.Is(err, context.DeadlineExceeded)
 }
 
 func (session *sqliteRevisionFencedSession) Close(ctx context.Context) error {

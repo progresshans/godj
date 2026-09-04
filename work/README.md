@@ -266,7 +266,8 @@ Corrected submitted head `5f97fa8...`, tree `2b53c031...`의
 [EVID-138](../docs/status/TEST_EVIDENCE.md#evid-20260827-138--gdj-0047-corrected-exact-head-hosted-completion) / CI #155 run
 `33049861740`은 exact 27/27 jobs·360/360 steps success, failure/cancel/skip/annotation 0으로 통과했습니다.
 GDJ-0053 terminal completion 뒤 GDJ-0054가 활성화됐고, GDJ-0054 terminal 시점의 active/ready는 0/0이었습니다. 이후
-GDJ-0055가 뒤이어 완료되어 current active/ready는 0/0입니다. Draft PR #1은
+GDJ-0055가 뒤이어 완료된 terminal 시점에는 active/ready가 0/0이었습니다. 이후 GDJ-0056이 활성화되어 current
+active/ready는 1/0입니다. Draft PR #1은
 OPEN/DRAFT/unmerged입니다. GDJ-0047 terminal docs descendant CI #156의 유일한 SQLite test-select flake는
 baseline `3882902...`에서 barrier handshake로 교정됐고 activation head `1070ec3...`의 CI #157/run `33063990270`이
 exact 27/27 jobs·360/360 steps로 corrected descendant를 확인했습니다.

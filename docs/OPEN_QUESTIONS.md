@@ -783,16 +783,16 @@ Active [GDJ-0056](../work/0056-sqlite-retained-connection-terminal-quarantine.md
 [ADR-0057](adr/0057-sqlite-retained-connection-terminal-quarantine.md)은 다음 bounded 선택을 검증합니다.
 
 - Retention-producing `AtomicRelation`과 `CoordinatedAtomic`을 context-aware single admission으로 제한
-- 첫 actual retain에서 Backend를 terminal recovery-required로 전환하고 새 I/O를 pre-I/O 거부
+- 첫 actual retain에서 Backend를 terminal `backend_error/backend_recovery_required`로 전환하고 새 I/O를 pre-I/O 거부
 - Retained connection hard maximum 1과 explicit `Backend.Close`의 pool-first drain ownership 유지
 - Already-admitted operation은 강제 취소하지 않고 새 admission만 차단
 
 다음 선택지는 검토 후 이번 bounded packet에서 채택하지 않았습니다.
 
-- Current unbounded retention을 명시적 operational contract로 유지할지
+- Current unbounded retention을 명시적 operational contract로 유지
 - Context 없는 implicit pool shutdown 또는 unsafe cap-overflow `Conn.Close`
 - External reconciliation token, public health/metric API 또는 automatic reopen
-- Retained resource/lock을 어떤 metric과 error surface로 노출할지
+- Retained count/lock의 public metric 노출; 이번 packet의 public operational surface는 stable recovery-required error만 사용
 
 GDJ-0033은 `db/**`를 수정하지 않고 이 질문에 답하지 않습니다. Behavior를 바꾸려면 ADR-0030을 조용히 다시 쓰지
 않고 새 ADR/work에서 명시적으로 amend 또는 supersede해야 합니다. 단순 문서/telemetry clarification이 아니라

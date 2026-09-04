@@ -67,15 +67,20 @@ func (b *Backend) CoordinatedAtomic(ctx context.Context, callback func(db.Sessio
 	if callback == nil {
 		return &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "coordinated atomic callback is nil"}
 	}
-	if b.relationRetention == nil || !b.relationRetention.accepting() {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite coordinated transaction retention state is nil or closed"}
+	admission, err := b.relationRetention.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer admission.release()
+	if err := b.validateBackendContext(ctx); err != nil {
+		return err
 	}
 
 	connection, err := b.database.Conn(ctx)
 	if err != nil {
 		return fmt.Errorf("acquire pinned SQLite coordinated connection: %w", err)
 	}
-	return executeCoordinatedAtomic(ctx, callback, connection, b.relationRetention, &b.queryCount)
+	return executeAdmittedCoordinatedAtomic(ctx, callback, connection, admission, &b.queryCount)
 }
 
 func executeCoordinatedAtomic(
@@ -83,6 +88,21 @@ func executeCoordinatedAtomic(
 	callback func(db.Session) error,
 	connection relationPinnedConnection,
 	retention *relationRetentionState,
+	queryCount *atomic.Uint64,
+) error {
+	admission, err := retention.acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer admission.release()
+	return executeAdmittedCoordinatedAtomic(ctx, callback, connection, admission, queryCount)
+}
+
+func executeAdmittedCoordinatedAtomic(
+	ctx context.Context,
+	callback func(db.Session) error,
+	connection relationPinnedConnection,
+	admission *relationTransactionAdmission,
 	queryCount *atomic.Uint64,
 ) error {
 	if connection == nil {
@@ -95,7 +115,7 @@ func executeCoordinatedAtomic(
 		primary := fmt.Errorf("acquire SQLite coordinated transaction fence: %w", err)
 		confirmed, discardErr := forceDiscardRelationConnection(connection)
 		if !confirmed {
-			discardErr = errors.Join(discardErr, retention.retain(connection))
+			discardErr = errors.Join(discardErr, admission.retain(connection))
 		}
 		return errors.Join(primary, discardErr)
 	}
@@ -114,7 +134,7 @@ func executeCoordinatedAtomic(
 		}
 		if deferredCleanup {
 			inner.deactivate()
-			_, _ = rollbackRelationConnection(ctx, connection, retention)
+			_, _ = rollbackRelationConnection(ctx, connection, admission)
 		}
 		panic(panicValue)
 	}()
@@ -123,15 +143,15 @@ func executeCoordinatedAtomic(
 	inner.deactivate()
 	if callbackErr != nil {
 		deferredCleanup = false
-		return finishCoordinatedPreCommitFailure(ctx, connection, retention, callbackErr)
+		return finishCoordinatedPreCommitFailure(ctx, connection, admission, callbackErr)
 	}
 	if contextErr := ctx.Err(); contextErr != nil {
 		deferredCleanup = false
-		return finishCoordinatedPreCommitFailure(ctx, connection, retention, contextErr)
+		return finishCoordinatedPreCommitFailure(ctx, connection, admission, contextErr)
 	}
 	if _, err := connection.ExecContext(ctx, "COMMIT"); err != nil {
 		deferredCleanup = false
-		_, cleanupErr := rollbackRelationConnection(ctx, connection, retention)
+		_, cleanupErr := rollbackRelationConnection(ctx, connection, admission)
 		return &query.Error{
 			Category: query.CategoryBackend,
 			Code:     query.CodeCommitOutcomeUnknown,
@@ -153,10 +173,10 @@ func executeCoordinatedAtomic(
 func finishCoordinatedPreCommitFailure(
 	ctx context.Context,
 	connection relationPinnedConnection,
-	retention *relationRetentionState,
+	admission *relationTransactionAdmission,
 	primary error,
 ) error {
-	terminated, cleanupErr := rollbackRelationConnection(ctx, connection, retention)
+	terminated, cleanupErr := rollbackRelationConnection(ctx, connection, admission)
 	cause := errors.Join(primary, cleanupErr)
 	if !terminated {
 		return &query.Error{

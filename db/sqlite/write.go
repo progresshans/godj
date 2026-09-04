@@ -251,14 +251,5 @@ func validateWriteValue(field query.FieldRef, value query.Value) error {
 }
 
 func (b *Backend) validateWriteContext(ctx context.Context) error {
-	if b == nil || b.database == nil || b.closed.Load() {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "SQLite backend is nil or closed"}
-	}
-	if ctx == nil {
-		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "context is nil"}
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	return nil
+	return b.validateBackendContext(ctx)
 }
