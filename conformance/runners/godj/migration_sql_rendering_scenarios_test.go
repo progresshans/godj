@@ -824,7 +824,10 @@ func migrationSQLRenderingProductState(t *testing.T) *migrationSQLRenderingProdu
 			state.err = fmt.Errorf("load migration SQL rendering oracle: %w", state.err)
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+		// One complete observation performs three intentionally cold external
+		// builds. The process-level bounds remain authoritative; this outer
+		// budget only prevents their sequential composition from expiring first.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		state.first, state.err = Generate(ctx, state.profile, state.manifest)
 		if state.err != nil {
@@ -832,8 +835,8 @@ func migrationSQLRenderingProductState(t *testing.T) *migrationSQLRenderingProdu
 			return
 		}
 		// The process evidence cache is intentionally retained here. The second
-		// complete run proves canonical determinism without rebuilding the two
-		// repository-external normal/cancellation process probes.
+		// complete run proves canonical determinism without rebuilding the three
+		// repository-external fresh/empty/cancellation process probes.
 		state.second, state.err = Generate(ctx, state.profile, state.manifest)
 		if state.err != nil {
 			state.err = fmt.Errorf("generate second migration SQL rendering suite: %w", state.err)

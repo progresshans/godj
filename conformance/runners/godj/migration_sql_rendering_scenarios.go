@@ -43,7 +43,11 @@ const (
 	migrationSQLRenderingProcessSourcePrefix = "GODJ_SQL_RENDERING_ACTUAL_SOURCE_"
 	migrationSQLRenderingProcessNormal       = "normal"
 	migrationSQLRenderingProcessCancellation = "cancellation"
-	migrationSQLRenderingPoisonBarrier       = "godj-migration-sql-poison-barrier-v1"
+	// Each actual invocation builds in a new private cache. Keep the phase
+	// bounded, but allow cold hosted macOS/amd64 compilers to complete before
+	// judging the process result or exercising the cancellation path.
+	migrationSQLRenderingActualProcessTimeout = 3 * time.Minute
+	migrationSQLRenderingPoisonBarrier        = "godj-migration-sql-poison-barrier-v1"
 )
 
 type migrationSQLRenderingRegistration struct {
@@ -1104,7 +1108,7 @@ func migrationSQLRenderingRunProcesses(
 		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("empty SQL migration process = report:%+v stdout:%q stderr:%q", empty.report, empty.stdout.String(), empty.stderr.String())
 	}
 
-	phaseContext, cancelPhase := context.WithTimeout(ctx, 90*time.Second)
+	phaseContext, cancelPhase := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
 	defer cancelPhase()
 	runnerContext, cancelRunner := context.WithCancel(phaseContext)
 	done := make(chan migrationSQLRenderingProcessRun, 1)
@@ -1209,7 +1213,7 @@ func migrationSQLRenderingRunProcess(
 	environment["GOCACHEPROG"] = ""
 	environment["GOPROXY"] = "off"
 	entries := migrationCommandSortedEnvironment(environment)
-	phaseContext, cancel := context.WithTimeout(ctx, 90*time.Second)
+	phaseContext, cancel := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
 	report := productcheck.RunSQLMigrate(productcheck.SQLMigrateInvocation{
