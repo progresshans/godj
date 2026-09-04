@@ -179,12 +179,16 @@ func (verifier *goCandidateVerifier) validateStage(ctx context.Context, stageRoo
 	return nil
 }
 
-func (verifier *goCandidateVerifier) compileOverlay(ctx context.Context, replacements map[string]string) error {
+func (verifier *goCandidateVerifier) compileOverlay(ctx context.Context, replacements map[string]string) (resultErr error) {
 	workspace, err := createCandidateWorkspace(verifier.projectRoot)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrCandidateVerification, err)
 	}
-	defer os.RemoveAll(workspace.root)
+	defer func() {
+		if err := os.RemoveAll(workspace.root); err != nil {
+			resultErr = errors.Join(resultErr, fmt.Errorf("%w: remove candidate workspace: %v", ErrCandidateVerification, err))
+		}
+	}()
 
 	overlayData, err := json.Marshal(struct {
 		Replace map[string]string `json:"Replace"`
@@ -310,7 +314,7 @@ func candidateCommandEnvironment(projectRoot, workspace string, ambient []string
 	} {
 		delete(values, key)
 	}
-	values["GOFLAGS"] = ""
+	values["GOFLAGS"] = "-modcacherw"
 	values["GOWORK"] = "off"
 	values["GOTOOLCHAIN"] = "local"
 	values["GOENV"] = "off"

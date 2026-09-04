@@ -195,7 +195,7 @@ func TestCandidateCommandEnvironmentSanitizesGoControlsAndUsesExternalPaths(t *t
 		key, value, _ := strings.Cut(entry, "=")
 		values[key] = value
 	}
-	for key, want := range map[string]string{"GOFLAGS": "", "GOWORK": "off", "GOTOOLCHAIN": "local", "GOENV": "off"} {
+	for key, want := range map[string]string{"GOFLAGS": "-modcacherw", "GOWORK": "off", "GOTOOLCHAIN": "local", "GOENV": "off"} {
 		if values[key] != want {
 			t.Fatalf("%s = %q, want %q", key, values[key], want)
 		}
@@ -325,6 +325,8 @@ var _ = offline.Value
 var _ = project.GoDjProjectRelationFacadeGeneratorVersion
 `, modulePath)), 0o644)
 	writeProjectGenerateTestBundle(t, stage, bundle)
+	candidateBase := t.TempDir()
+	t.Setenv("TMPDIR", candidateBase)
 	t.Setenv("GOMODCACHE", ambientCache)
 	t.Setenv("GOPROXY", "off")
 	t.Setenv("GOSUMDB", "off")
@@ -336,6 +338,9 @@ var _ = project.GoDjProjectRelationFacadeGeneratorVersion
 	beforeAmbient := snapshotProjectGenerateTestTree(t, ambientCache)
 	if err := verifier.Verify(context.Background(), stage); err != nil {
 		t.Fatalf("Verify(offline ambient file proxy) error = %v", err)
+	}
+	if entries, err := os.ReadDir(candidateBase); err != nil || len(entries) != 0 {
+		t.Fatalf("candidate workspace cleanup: entries=%v error=%v", entries, err)
 	}
 	if after := snapshotProjectGenerateTestTree(t, root); strings.Join(beforeRoot, "\n") != strings.Join(after, "\n") {
 		t.Fatalf("offline candidate mutated project\nbefore=%v\nafter=%v", beforeRoot, after)
